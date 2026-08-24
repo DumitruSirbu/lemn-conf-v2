@@ -37,8 +37,18 @@ Out: width editing (M5), the panel itself (M4), price (M6).
 5. Implement `describe(placement)` and the `meta` projection of §8 — everything the panel will
    later consume, including `sizes`, `minMm`, `growMm`, `donorSide`, `donorMm` and the capability
    flags. Nothing is added to `meta` that the panel could not derive from the selection.
-6. Every command returns `{ok: true, …}` or `{ok: false, reason}` where `reason` is a
-   human-readable Romanian sentence, not a code the UI must translate into one.
+6. Every command returns `{ok: true, …}` or `{ok: false, reason}`. **`reason` carries both a stable
+   code and a rendered Romanian sentence** — not one or the other. The code is the public contract
+   that tests and logic assert against, per `CONFIGURATION_MODEL.md`'s retained command contract
+   ("codes and fields — not English messages — are the public contract"); the sentence is what the
+   panel's rejection banner renders verbatim, per `DEVELOPMENT-SPEC.md` §8's `rejected` message and
+   §9's requirement that the banner explain itself in ordinary language. A code with no sentence
+   forces the UI to author product copy; a sentence with no code forces tests to match on prose.
+   Neither is acceptable, and the tension between the two source documents resolves to "both", not to
+   a choice.
+7. Route successful commands through the persistence write path M2 established — coalesced, off the
+   edit path, failure surfaced without reverting the edit. M3 adds mutations, so this is the phase
+   where that path first carries real traffic.
 
 ## Acceptance criteria
 
@@ -81,9 +91,12 @@ Insert — band and fit guards, all enforced in the engine:
   than rendered.
 - Placement snaps to the lowest module line, column region start or span floor that fits. A wall
   unit dropped into a cleared column lands at 1500 mm, not flush on the worktop.
-- **Row 19.** After insertion on wall A or wall B, the body's back face lies exactly on the wall
-  plane (0.000). The plane is read from the room's wall meshes and the bounding box is measured
-  after adding the group to the room — never derived from the previous occupant.
+- **Row 19, for inserted bodies.** After insertion on wall A or wall B, the body's back face lies
+  exactly on the wall plane (0.000). The plane is read from the room's wall meshes and the bounding
+  box is measured after adding the group to the room — never derived from the previous occupant. (M2
+  proves the same row for bodies loaded from a design; this phase proves it for bodies the customer
+  inserts, which is the harder case because the opening's previous occupant is right there to be
+  wrongly measured against.)
 - **Row 14.** The dishwasher niche accepts only 450 and 600, and both build a real carcass.
 
 Swap in place:

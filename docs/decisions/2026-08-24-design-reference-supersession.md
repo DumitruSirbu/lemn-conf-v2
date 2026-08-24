@@ -222,12 +222,13 @@ actual side-by-side comparison against the reference renders in
 
 This is the highest-risk item in the whole plan and is sequenced first for that reason.
 
-### 6. Persistence is a server-side local database with shareable design links
+### 6. Persistence is a server-side database with shareable design links
 
-Recorded separately in `docs/decisions/2026-08-24-db-backed-shareable-persistence.md`. In short: the
-`localStorage` plan in `ARCHITECTURE_PROPOSAL.md` §7 is replaced by the POC's own local database,
-addressed by an opaque design identifier in the URL, so a link reopens the exact configuration. The
-`ConfigurationRepository` abstraction survives; only the adapter changes.
+Recorded separately in `docs/decisions/2026-08-24-db-backed-shareable-persistence.md`, whose engine
+choice was amended on 2026-08-25. In short: the `localStorage` plan in `ARCHITECTURE_PROPOSAL.md` §7
+is replaced by a managed Postgres database on Neon's free tier, holding one self-contained JSON
+document per design and addressed by an opaque design identifier in the URL, so a link reopens the
+exact configuration. The `ConfigurationRepository` abstraction survives; only the adapter changes.
 
 ### 7. The near-term target is a working POC that matches the design reference
 

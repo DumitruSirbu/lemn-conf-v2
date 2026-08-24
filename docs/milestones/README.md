@@ -20,10 +20,10 @@ The owner's stated priority. It calibrates every phase below:
   polish on it. Neither may be reduced to make a phase close:
   1. **Visual fidelity of the 3D port** (M1). The previous attempt failed here. It has its own
      named gate with two independent kinds of evidence.
-  2. **Database-backed shareable persistence** (M2). A design lives in a managed Postgres database
-     (Neon, free tier) as a self-contained JSON/JSONB document, reachable by an opaque link that
-     restores it exactly, behind a stated security baseline and Neon's managed point-in-time restore
-     — see `docs/decisions/2026-08-24-db-backed-shareable-persistence.md`.
+  2. **Database-backed shareable persistence** (M2, wave 2B). A design lives in a managed Postgres
+     database (Neon, free tier) as a self-contained `jsonb` document, reachable by an opaque link
+     that restores it exactly, behind a stated security baseline, a specified write path, and a
+     two-tier backup story — see `docs/decisions/2026-08-24-db-backed-shareable-persistence.md`.
 - **CRM integration stays out of scope** and is not planned further. Eventually it will consume the
   contact form's submission; the submission boundary is already shaped to allow that.
 
@@ -46,7 +46,7 @@ Step 3 Verificare  →  Step 4 Contact  →  Step 5 Succes
 | --- | --- | --- |
 | [M0](M0-foundations.md) | Foundations — closed, partially superseded | domain package |
 | [M1](M1-scene-port.md) | Geometry port, R3F canvas, camera presets, no editing — **fidelity gate** | shared + mobile |
-| [M2](M2-void-engine.md) | Placement/column/void engine, picking, **DB persistence and shareable links** | domain + scene |
+| [M2](M2-void-engine.md) | Placement/column/void engine, picking (wave 2A), **DB persistence and shareable links** (wave 2B) | domain + scene |
 | [M3](M3-mutations.md) | Insert, remove, swap, with every guard | domain |
 | [M4](M4-editor-surface.md) | Editor panel and shell — screens 2A, 2B, 2C, 2F | **mobile-gated** |
 | [M5](M5-width.md) | Width editing as a neighbour boundary move | domain + panel |
@@ -127,10 +127,13 @@ None of these may be closed by inventing a value. Each is listed again in the ph
 
 | Open question | Blocks |
 | --- | --- |
-| ~~The concrete database and its deployment story beyond local development~~ — resolved and provisioned 2026-08-25: Postgres on Neon's free tier, JSON/JSONB document per design, linked to Vercel project `lemnaria-configurator-gbt` | closed |
+| ~~The concrete database and its deployment story beyond local development~~ — resolved and provisioned 2026-08-25: Postgres on Neon's free tier, one `jsonb` document per design, linked to Vercel project `lemnaria-configurator-gbt` | closed |
 | ~~Backup mechanism~~ — resolved 2026-08-25: Neon's free-tier PITR is only 6 hours, so a daily scheduled export to Vercel Blob (private, 14-day rotation) supplements it; both free at POC scale | closed |
 | Design retention, deletion, and the privacy copy for a link-reachable design — decided as a placeholder (keep indefinitely, slot copy) 2026-08-25, real policy still open | M2, M8 |
 | Whether a shared link is read-only for a second viewer, and concurrent-edit behaviour | M2, carried |
+| How a failed background write is communicated to the customer — no mockup frame shows a persistence-failure state | M4 |
+| Whether the nightly export excludes the contact table, or Blob gains its own PII retention story | M8, settle before |
+| The Hobby-plan cron frequency limit, and how the export runs where `pg_dump` is unavailable | M2 wave 2B |
 | Exact wall-length and room-height bounds | M7 |
 | The real "≤ 30 cm adjustment" preset-fit threshold | M7 |
 | Bespoke-generation priority thresholds | M7 |

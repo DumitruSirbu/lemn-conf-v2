@@ -176,10 +176,11 @@ Out of scope for the first release:
    prototype uses 400/600/800, dishwasher 450/600, hood 600/900 and dropped 1000; those are
    prototype values, not approved catalog data.
 3. Sample price amounts and whether delivery, worktop, and appliances appear in the estimate.
-4. Retention period, deletion policy, and privacy copy. The storage question is settled — a
-   server-side local database with shareable design links, per
-   `docs/decisions/2026-08-24-db-backed-shareable-persistence.md` — but how long a design is kept,
-   and what the customer is told about it, is not.
+4. Retention period, deletion policy, and privacy copy. The storage question is settled — a managed
+   Postgres database on Neon's free tier holding one self-contained JSON document per design, with
+   shareable links, per `docs/decisions/2026-08-24-db-backed-shareable-persistence.md` — but how long
+   a design is kept, and what the customer is told about it, is not. Designs are currently kept
+   indefinitely as a deliberate POC placeholder, which is a decision to revisit, not a policy.
 5. The real threshold behind the "fits after a ≤ 30 cm adjustment" preset rule shown in the mockups.
 6. Bespoke-generation priority thresholds beyond "sink and cooking first, then storage".
 7. Whether any response timeframe may be promised on the success screen, and the consent/legal copy

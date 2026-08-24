@@ -32,6 +32,22 @@ URL and load-by-link.
 
 Out: every mutation (M3), the panel (M4), width (M5).
 
+## Two dispatch waves
+
+This phase carries nine work items across two unrelated subject areas, which exceeds the
+five-item/five-file dispatch guidance in `AGENTS.md`. Deliver it as two sequential waves, each with
+its own `docs/WORKFLOW.md` cycle (plan → implement → QA → review → verify → docs → commit):
+
+- **Wave 2A — engine and picking:** work items 1–6. Depends on M1. Gated by the free-space, picking
+  and surfaces criteria below.
+- **Wave 2B — persistence:** work items 7–9. Depends on 2A only for the `Design` schema from item 1,
+  so it can begin as soon as that schema is settled. Gated by the persistence, security and backup
+  criteria below.
+
+They are one milestone because M3 needs both, and because splitting persistence into its own
+numbered milestone would renumber M3–M8 for no benefit. They are two dispatches because a reviewer
+looking at raycaster thresholds and a reviewer looking at connection roles are not doing the same job.
+
 ## Work items
 
 1. Define and validate the persisted `Design`: room + `presetId` + `placements[]`, each placement
@@ -41,7 +57,11 @@ Out: every mutation (M3), the panel (M4), width (M5).
 2. Derive the runtime placement record: the `frame` (the *opening*, width from the carcass, height
    and depth from the full extent), `col`, `band`, `rotated`, the capability flags
    (`canFinish / canHandle / canReplace / canDelete / fixedWidth / accessory`), and the remembered
-   `finishKey` / `handleMode`.
+   `finishKey` / `handleMode`. Then **decompose the M1 scene into placements and prove the
+   recomposition matches**: M1 renders `builders['kitchen-l']()` whole, and from here bodies are
+   mounted individually with a derived wall transform, per `ARCHITECTURE_PROPOSAL.md` §6.1 step 3.
+   That switch is the first opportunity to silently lose M1's verified fidelity, so it is proven, not
+   assumed — see the acceptance criteria.
 3. Derive columns once at load, keyed `(rotated ? 'B|' : 'A|') + position.toFixed(2)`, taking x/z
    from the deepest member, width from the narrowest, depth from the deepest, `top` from the highest
    reach at load, and `regions` from every original member's vertical extent. Accessories contribute
@@ -50,10 +70,12 @@ Out: every mutation (M3), the panel (M4), width (M5).
 5. Render void meshes: translucent box plus dashed edges, inset 14 mm.
 6. Implement picking per §6.1 and wire selection into the store.
 7. Implement persistence: the `ConfigurationRepository` interface, a **Postgres-on-Neon**-backed
-   adapter, a table storing one row per design with the canonical `Design` serialised as a
-   **JSON/JSONB document** (not normalized/referenced rows — see
-   `docs/decisions/2026-08-24-db-backed-shareable-persistence.md` decisions 2–4), and the route
-   wiring that resolves a design by its identifier.
+   adapter, a table storing one row per design with the canonical `Design` in a **`jsonb` column**
+   (not normalized/referenced rows — see
+   `docs/decisions/2026-08-24-db-backed-shareable-persistence.md` decisions 2–4 and 18–21), the
+   deterministic canonical serialiser the round-trip invariant compares against, the write path of
+   decisions 13–17 (coalesced, off the edit path, failure surfaced and retried), and the route wiring
+   that resolves a design by its identifier.
 8. Implement the database security baseline in the persistence decision record's "Security and
    backups" section: environment-variable credentials, TLS, parameterised queries only, a
    least-privilege connection role.
@@ -62,8 +84,25 @@ Out: every mutation (M3), the panel (M4), width (M5).
    failure (logged, never blocking the request path), and a documented restore procedure covering
    both Neon's 6-hour point-in-time restore and loading a dated export back from Blob beyond that
    window. Provision the Blob store through the Marketplace the same way Neon was provisioned.
+   Two things to settle before writing it, both named in the persistence record's open questions:
+   confirm the Hobby-plan cron frequency limit against Vercel's pricing documentation, and choose how
+   the export is produced — a Vercel cron invokes an HTTP endpoint, so the job runs in a function
+   runtime where the `pg_dump` binary is not available and the "or equivalent" path has to be picked
+   deliberately.
 
 ## Acceptance criteria
+
+Fidelity carried forward from M1 — the first thing this phase can break:
+
+- The scene composed from individual placements is geometrically identical to M1's whole-scene
+  render. Every body's world position and rotation, and the mesh set under it, match what
+  `builders['kitchen-l']()` produced, at the same 1e-6 m float epsilon M1's parity assertions use.
+- **Row 19 applies from this phase on:** every mounted body's back face lies exactly on its wall
+  plane (0.000) on both wall A and wall B, with the plane read from the room's wall meshes and the
+  bounding box measured *after* the group is added to the room.
+- No gaps appear between adjacent units, at the corner, above the fridge, or between the upper rows,
+  where M1's scene had none. Losing face-sharing during decomposition is the specific regression this
+  criterion exists to catch.
 
 Free-space derivation — these are `DEVELOPMENT-SPEC.md` §11 rows, testable with no UI:
 
@@ -119,30 +158,52 @@ Surfaces:
 
 Persistence — a first-class gate of this phase:
 
-- A design is stored as a JSON/JSONB document in a Postgres database hosted on Neon's free tier and
-  addressed by an **opaque, unguessable** identifier. Sequential or otherwise predictable identifiers
-  fail this criterion.
+- A design is stored as a single `jsonb` document in a Postgres database hosted on Neon's free tier
+  and addressed by an **opaque, unguessable** identifier. Sequential or otherwise predictable
+  identifiers fail this criterion.
 - The stored document is self-contained: every placement's wall, position, width, finish and handle,
   plus global material/hardware settings and any per-cabinet custom settings, sufficient to render
   the exact scene without a live catalog lookup. This is what makes the same shape reusable for a
   future CRM lead view even after catalog data has changed — not built in this phase, but the
   document shape must not foreclose it.
 - Opening a URL carrying that identifier restores **exactly** that configuration — same placements,
-  same widths, same finishes, same handles — and resumes at the step the design belongs to.
+  same widths, same finishes, same handles. In this phase that means restoring into the editor;
+  resuming at the *step* a design belongs to needs Step 1 to exist and is M7's criterion, not this
+  phase's.
+- **Something has to create the first design.** Step 1 does not exist yet, so in M2 a design row is
+  minted from the seeded L fixture on first write, and the identifier it returns is what the URL
+  carries. M7 later replaces that trigger with preset application and bespoke generation; the
+  repository contract must not assume either one.
 - The identifier is the only thing in the URL. The configuration itself never travels in query
   parameters.
 - Loading is fail-whole: parse, validate, migrate a known schema version as one transaction, then
   replace the store. An unknown or invalid payload produces a recoverable error and never partially
   hydrates.
-- A round trip is exact: storing a design and reloading it by link yields a byte-identical canonical
-  serialisation.
+- **A round trip is exact at the domain boundary, not the byte level.** Load the stored document,
+  validate it, canonically serialise it, and require equality with the canonical serialisation of the
+  design that was stored. Do **not** assert byte-identity of the stored column: `jsonb` normalises key
+  order and whitespace, so that assertion fails even when nothing is wrong. Canonical serialisation is
+  produced by a deterministic serialiser in the domain package, not inherited from the driver or the
+  database.
 - Voids and columns are **not** stored. They are derived on load, which is the round-trip test's
   sharpest case: a reloaded design must produce the identical void set without ever having persisted
   one.
 - Contact data is absent from the stored design. Nothing personal is reachable through a shared
   link.
-- Persistence is only written after a successful command; a failed command persists nothing.
 - The domain package performs no I/O. Only the repository adapter touches the database.
+
+Write path — the semantics a network store needs and a browser store did not:
+
+- **No user interaction blocks on a write.** Tapping a chip applies to the model and the scene
+  immediately; persistence happens off that path. A slow or cold database makes writes late, never
+  makes the editor feel slow.
+- Writes are coalesced rather than one-per-command, and the **final** state always lands. Dropping
+  intermediate states is expected; dropping or reordering the last one is a defect.
+- A failed write **never reverts the edit** and is **never silent**. The command already succeeded and
+  the customer already saw the result; the failure surfaces and the write retries. Which surface
+  communicates it is an open question owned by M4 — the mockups have no persistence-failure frame.
+- A design that has never been written successfully must not present a shareable link.
+- A failed command persists nothing.
 
 Security and backups (see the persistence decision record for the full rationale):
 
@@ -157,6 +218,18 @@ Security and backups (see the persistence decision record for the full rationale
   14-day rotation) covers recovery beyond that window. Both restore paths — Neon PITR and loading a
   dated Blob export — are written down as a documented procedure. A failed backup run is logged, not
   silent, and never blocks the request path.
+- **A restored export is untrusted input.** A design loaded from a restore runs the same parse →
+  validate → migrate-as-one-transaction sequence as any other load and fails whole if it does not
+  pass. Restore is not a privileged path, and a dump may carry older schema versions or the very
+  corruption that prompted the restore.
+- **The restore procedure is executed once and verified**, against a throwaway target, before this
+  phase closes. A procedure that has only been written down is an assumption, not a backup.
+- Accepted worst-case data loss is up to roughly a day: beyond Neon's 6-hour window, the most recent
+  recovery point is the last nightly export. Recorded as a known consequence of the chosen mechanism.
+- M2 has no contact table, so the export carries no personal data yet. **M8 changes that** — a
+  database-wide dump would sweep contact submissions into Blob under the 14-day rotation, which
+  contradicts the stricter handling contact data is promised. Settle it before M8 adds the table, not
+  during.
 
 Boundaries:
 
@@ -164,6 +237,15 @@ Boundaries:
   exposed as derived state, never as stored or authored data.
 - The void/column module imports no React and no Three.js. Void *meshes* are built in the adapter
   from the derived void records.
+- **The superseded M0 domain modules are removed in this phase, not left beside the new ones.**
+  `packages/configurator-domain/src` currently holds `placement-layout.ts`,
+  `configuration-commands.ts` and the run-anchor/junction/wall-C parts of `schemas.ts` and
+  `room-transforms.ts`, all built against the retired model (see M0's status revision). Two working
+  placement theories in one package is how a later contributor picks the wrong one. Delete the
+  retired paths and their tests as part of wave 2A rather than accumulating a second model alongside
+  the first; the pricing engine, the versioning/persistence schema conventions and the wall A/B
+  transforms are retained and must not be caught in that deletion. If any retired module turns out to
+  have a live consumer, that is a finding for planning, not a reason to keep both.
 
 ## Risks
 
@@ -179,7 +261,7 @@ Boundaries:
 ## Open questions gating this phase
 
 - ~~The concrete database and its deployment story beyond local development.~~ Resolved 2026-08-25:
-  Postgres on Neon's free tier, storing each design as a JSON/JSONB document. Provisioned and linked
+  Postgres on Neon's free tier, storing each design as a `jsonb` document. Provisioned and linked
   to the Vercel project the same day. See the persistence decision record §"Security and backups" for
   the credential/role requirements this adds to work item 8.
 - ~~The exact point-in-time-restore retention window on Neon's free tier.~~ Resolved 2026-08-25:

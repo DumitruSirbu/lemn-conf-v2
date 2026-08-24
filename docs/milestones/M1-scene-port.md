@@ -20,26 +20,58 @@ attributable to a mutation rather than to the port.
 §12's build order puts the parts library and camera presets before anything else. Every subsequent
 phase asserts against geometry, so an unproven port would make every later failure ambiguous.
 
+## Starting state
+
+Verified 2026-08-25 against the working tree, because the work items below assume more scaffolding
+than exists:
+
+- `packages/configurator-domain` is the **only** package. There is no `apps/web` and no
+  `packages/three-adapter`; `pnpm-workspace.yaml` globs `apps/*` and `packages/*`, so both are
+  additions this phase makes, not places it fills in.
+- Root scripts (`build`, `check`, `format:check`, `lint`, `test`, `typecheck`) run recursively over
+  workspace packages, so a new package must supply its own matching scripts to be covered by
+  `pnpm check`.
+- The Vercel project is linked and Neon is provisioned with credentials in `.env.local`, but M1 needs
+  neither — persistence is M2. Do not wire a database in this phase.
+
 ## Scope
 
-In: porting `kitchen-parts.js` into `packages/three-adapter`; the R3F canvas host; the three camera
-presets; the fixed seeded L room as a development fixture; the WebGL-unavailable state.
+In: creating the `apps/web` Next.js application and the `packages/three-adapter` package; porting
+`kitchen-parts.js` and the `three-d-stage.js` renderer setup into the adapter; the R3F canvas host;
+the three camera presets; rendering the reference L scene; the WebGL-unavailable state.
 
-Out: selection, voids, any mutation, the panel, price, and every other screen.
+Out: selection, voids, any mutation, per-placement decomposition, persistence, the panel, price, and
+every other screen.
 
 ## Work items
 
+0. Scaffold `apps/web` (Next.js App Router, strict TypeScript) and `packages/three-adapter`, each
+   with the lint/typecheck/test/build scripts the root recursive commands expect, and the
+   restricted-import boundary from `ARCHITECTURE_PROPOSAL.md` §3 so the domain cannot import React or
+   Three.js.
 1. Port `kitchen-parts.js` into `packages/three-adapter` with builder math, mesh hierarchy, mesh
    names, materials, the chamfer cache and every structural dependency intact. Expose typed builders
-   keyed by catalogue id. Do not rewrite geometry as JSX meshes.
+   keyed by catalogue id. Do not rewrite geometry as JSX meshes. The catalogue *entries* — bands,
+   width flex, which builder each id calls — are M3's work item 1; M1 only needs the keys the
+   reference's own builder map already uses, so the registry exists and is typed before M3 fills in
+   the product metadata around it.
 2. Port the renderer setup from `three-d-stage.js` — procedural PMREM environment, ACES tone mapping
    at exposure 0.98, hemisphere 0.45 + key 1.9 + fill 0.35, the canvas-generated oak/granite/tile/
    brushed-steel maps, and the soft radial contact blob — into the R3F canvas. Directional cast
    shadows stay off.
-3. Mount built groups with R3F's `primitive` bridge, one group per placement, from a fixed seeded L
-   room fixture. Apply the derived wall transform; seat each body against the wall by measuring its
-   bounding box **after** adding it to the room and reading the plane from the room's own wall
-   meshes.
+3. Mount the reference scene with R3F's `primitive` bridge by calling the ported
+   `builders['kitchen-l']()` and mounting the group it returns. **Render the reference scene as the
+   reference builds it** — this phase has no placement model to decompose it into, and the fidelity
+   gate's comparison is only valid against the same scene the reference renders.
+
+   This is deliberately narrower than `ARCHITECTURE_PROPOSAL.md` §6.1's migration path, whose step 3
+   says not to reintroduce `buildKitchen()` world placement. That instruction stands **for M2
+   onward**, where placements exist and each body is mounted individually with a derived wall
+   transform and seated by measuring its bounding box after adding it to the room. M1 uses the whole
+   scene builder because `DEVELOPMENT-SPEC.md` §12 step 1 asks for exactly that — "`kitchen-parts.js`
+   in, rendered via `<primitive>`, camera presets ported, no editing" — and because a fidelity
+   comparison against a per-placement re-composition would be measuring the decomposition, not the
+   port. M2's first act is to reproduce this same scene from placements and show it matches.
 4. Implement the three camera presets (`overview`, `wallA`, `wallB`) with the exact positions and
    targets in §6.4, and the camera-preset control shown in frames 2A and D2A.
 5. Implement the WebGL-unavailable state (2F mobile, D2F desktop): an explanation that configuration
@@ -67,9 +99,17 @@ following makes the port non-compliant regardless of how the result looks:
 
 **Evidence 1 — structural parity, automated.** For every builder in the catalogue, assert against
 the reference implementation: the set of mesh names produced, the hierarchy those meshes sit in, and
-each mesh's dimensions and position within a tight tolerance. A builder that produces a different
-mesh set for the same arguments fails, even if the render looks similar. These assertions are the
-regression net that keeps a later refactor from quietly degrading the port.
+each mesh's dimensions and position. A builder that produces a different mesh set for the same
+arguments fails, even if the render looks similar. These assertions are the regression net that keeps
+a later refactor from quietly degrading the port.
+
+Comparison strictness, so this is not left to judgement: the mesh-name set and the parent/child
+hierarchy must match **exactly** — no missing name, no extra name, no reparenting. Dimensions and
+positions are computed from the same constants by the same arithmetic, so they should be exact too;
+compare them at a float epsilon of 1e-6 m, which allows for accumulation order and nothing else. A
+difference larger than that is a port defect, not a tolerance question. This epsilon is a
+floating-point artefact allowance and has no relationship to the domain tolerances in
+`DEVELOPMENT-SPEC.md` §2, which are product rules and must not be borrowed here.
 
 **Evidence 2 — side-by-side visual comparison, human-checked.** The reference ships real renders of
 its own scene in `design-source/Modern Kitchen Cabinets 3D (3)/shots/`, and the rig that produced
@@ -163,11 +203,12 @@ Boundaries:
 - **Porting the geometry but not the renderer.** The builders alone do not produce the reference's
   look. The environment map, ACES tone mapping at 0.98, the three-light rig, the procedural
   material maps and the contact blob are all part of the port.
-- **Seating bodies by inference.** Two recorded failed attempts: centring a body in an opening left
-  it floating 135 mm off the wall, and deriving the plane from the previous occupant's bbox buried
-  inserts 10–31 mm *inside* the wall, because bounding boxes are asymmetric about the group origin
-  and one body's chamfer overshoot poisoned a whole column. Read the wall meshes; measure after
-  placing.
+- **Seating bodies by inference.** Binds M2 and M3, where bodies are mounted individually, but the
+  helper is ported here so the warning belongs with the port. Two recorded failed attempts: centring
+  a body in an opening left it floating 135 mm off the wall, and deriving the plane from the previous
+  occupant's bbox buried inserts 10–31 mm *inside* the wall, because bounding boxes are asymmetric
+  about the group origin and one body's chamfer overshoot poisoned a whole column. Read the wall
+  meshes; measure after placing.
 - Performance budgets cannot be set until this phase produces a full scene. Do not state a frame
   rate, load time or mesh count before measuring one on an agreed device.
 

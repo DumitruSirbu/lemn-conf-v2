@@ -48,7 +48,7 @@ a failed submission.
 3. **A stored design is one self-contained JSON document, not a set of normalized references.**
    The row for a design holds the complete canonical `Design` — every placement's wall, position,
    width, finish, handle, plus global material/hardware settings and any per-cabinet custom settings —
-   stored as a JSON/JSONB value, sufficient on its own to reconstruct the exact 3D scene without a
+   stored as a JSON value (typed `jsonb` — see decision 18), sufficient on its own to reconstruct the exact 3D scene without a
    live catalog lookup. This was already implied by `DEVELOPMENT-SPEC.md` §12's `Design` shape and by
    decision 10 below (voids and columns are derived, never stored); it is unaffected by the engine
    change — Postgres's `jsonb` column type holds the same document a SQLite `TEXT`/`JSON` column
@@ -142,6 +142,90 @@ reversible defaults, not commitments that need a security review to change.
     export from Vercel Blob back into Neon — as part of M2's documentation, not left to be
     reconstructed under pressure the first time it's needed.
 
+## Write path
+
+Added 2026-08-25 during architectural review of the engine change. The move from a local store to a
+network database introduced consequences that decisions 8 and 10 were written before and do not
+cover. `localStorage` writes are synchronous and effectively infallible, so "persist after every
+successful command" cost nothing and could not fail. A Neon write is a network round trip that can be
+slow (the free tier autosuspends; a cold start costs about a second), can fail, and on a phone on
+mobile data can do both. Left unspecified, an implementer would reasonably write it the obvious way
+and produce either a visibly laggy editor or silent data loss.
+
+13. **The edit path never waits on the database.** A command applies to the store and the scene
+    immediately; persistence happens outside that path. No user-visible interaction — tapping a
+    finish chip, a width chip, a swap row — blocks on a write completing. This follows from the
+    reference's own "applied live" requirement (`DEVELOPMENT-SPEC.md` §5.5) and from the mobile
+    interaction model, and it is not negotiable against write durability.
+14. **Writes are coalesced, not one-per-command.** A burst of edits produces the latest state, not a
+    queue of intermediate states. Only the current design matters; there is no history to preserve,
+    because undo is retired (supersession record §2). The exact debounce interval is an
+    implementation choice, not a product decision, provided the two invariants below hold.
+15. **The last successful command's state is what eventually lands.** Coalescing may drop
+    intermediate states; it may never drop the final one, reorder writes so an older state overwrites
+    a newer one, or leave the database holding a state the customer did not end at.
+16. **A failed write is surfaced, never silent, and never reverts the edit.** This is the failure
+    mode that did not exist before: the command already succeeded and the customer already saw the
+    result, so rolling back the model to match a failed write would be worse than the divergence. The
+    design keeps working locally, the failure is visible rather than swallowed, and the write is
+    retried. What the customer is told, and how insistently, is a UX decision for M4's surface — the
+    requirement here is that the state cannot silently diverge from what is stored.
+17. **A design that has never been written successfully must not present a shareable link.** A link
+    that resolves to nothing is worse than no link. This binds M8's success screen, which tells the
+    customer their design is saved.
+
+## Storage format and the round-trip invariant
+
+Added 2026-08-25 during the same review, because "JSON/JSONB" was recorded ambiguously and the two
+behave differently in a way an acceptance criterion depended on.
+
+18. **The column type is `jsonb`.** It is the type Postgres is good at — indexable, queryable, and
+    the right substrate for the future CRM lead view in decision 4, which will want to filter designs
+    without parsing every row in the application.
+19. **`jsonb` normalises what it stores**, and this must be designed for rather than discovered. It
+    does not preserve key order, does not preserve insignificant whitespace, and collapses duplicate
+    keys. A byte-for-byte comparison of what went in against what comes out will therefore fail even
+    when nothing is wrong. The M2 acceptance criterion that originally required a "byte-identical
+    canonical serialisation" from the database round trip was wrong as written and has been corrected.
+20. **The round-trip invariant belongs at the domain boundary, not the storage boundary.** The
+    correct assertion is: parse the loaded document, validate it, canonically serialise it, and
+    require that to equal the canonical serialisation of the design that was stored. That is the
+    property anyone actually cares about — the design came back unchanged — and it holds regardless
+    of how the database chose to lay out its bytes. It is also the same canonical-serialisation
+    concept `CONFIGURATION_MODEL.md` already uses for command results, so this aligns the two rather
+    than inventing a second notion of equality.
+21. **The domain owns canonical serialisation.** Key order and formatting are decided by a
+    deterministic serialiser in the domain package, not inherited from whatever the database or the
+    JSON encoder happens to produce. Without that, the invariant in 20 has nothing stable to compare
+    against.
+
+## Backups: two gaps found on review
+
+Added 2026-08-25. The two-tier backup design is sound; these are consequences of it that the section
+above does not yet state.
+
+22. **A restored export is untrusted input and gets the same fail-whole validation as any other
+    load.** Restore is not a privileged path. A dump may carry designs written under an older schema
+    version, or rows corrupted by whatever prompted the restore. Loading a restored design runs the
+    same parse → validate → migrate-as-one-transaction sequence from decision 10, and a design that
+    fails it fails visibly rather than half-loading. This is the criterion an implementer would
+    otherwise have to guess at, and guessing "restores are trusted" is the dangerous guess.
+23. **A backup that has never been restored is not yet a backup.** M2's documented restore procedure
+    must be *executed once* against a throwaway target and the result verified, not merely written
+    down. An export whose restore path has never been exercised is an assumption.
+24. **From M8 onward the nightly export contains personal data.** A database-wide dump includes the
+    contact-submission table, so contact details will sit in Vercel Blob under the 14-day rotation, in
+    addition to living in Neon. Decision 6 gives contact data stricter handling than design data;
+    that promise does not survive a dump that silently sweeps it into object storage. Before M8 adds
+    contact submissions, either the export scope excludes the contact table, or the Blob retention and
+    access story for personal data is decided explicitly. Naming it now so it is a decision rather
+    than a discovery. **This binds M8, not M2** — M2 has no contact table to leak.
+25. **The accepted worst-case data loss is up to roughly a day**, derived from the mechanism already
+    chosen rather than proposed as a target: beyond Neon's confirmed 6-hour point-in-time window, the
+    most recent recovery point is the last nightly export. For a POC holding configurations a customer
+    can recreate, that is acceptable; it is written down so it is a known number rather than a
+    surprise discovered during an incident.
+
 ## Alternatives considered
 
 1. **Keep `localStorage` and add an export/import file.** Rejected: it does not produce a link, and
@@ -173,6 +257,20 @@ reversible defaults, not commitments that need a security review to change.
 8. **A new object-storage account (S3 or similar) for the supplementary export.** Rejected: it adds a
    credential set and an account this project would not otherwise need, for no benefit over Vercel
    Blob, which is already being provisioned through the same Marketplace flow as Neon.
+9. **Writing to the database synchronously on every command, as the `localStorage` plan did.**
+   Rejected 2026-08-25 (see "Write path"): it puts a network round trip, and a free-tier cold start of
+   about a second, inside the tap-to-see-the-cabinet-change path that the whole product is built
+   around. The reference requires edits to apply live; a synchronous network write cannot honour that
+   on a phone.
+10. **Reverting the model when a write fails, to keep local and stored state identical.** Rejected:
+    the command has already succeeded and the customer has already seen the result. Undoing their edit
+    because a background write failed is a worse outcome than a temporary divergence, and undo is
+    retired anyway, so there is no coherent state to revert to.
+11. **Storing the design as `json` (or `text`) to preserve exact bytes and keep the original
+    byte-identity acceptance criterion.** Rejected 2026-08-25: it optimises for the wrong invariant.
+    Byte preservation is not what anyone needs — an unchanged *design* is — and `json` gives up the
+    indexing and querying that the future CRM lead view will want. Fixing the criterion is better than
+    choosing a weaker column type to satisfy a criterion that was written imprecisely.
 
 ## Consequences
 
@@ -211,8 +309,26 @@ reversible defaults, not commitments that need a security review to change.
    persists in a hosted database rather than on the device.
 3. Whether a shared link is read-only for a second viewer or editable, and what happens when two
    viewers edit the same design. Not needed for the POC; needed before sharing is promoted as a
-   feature.
+   feature. Note that decisions 14–15 (coalesced writes, last-state-wins) are single-editor rules;
+   they are not a concurrency model and must not be mistaken for one.
 4. Whether an identifier ever expires.
 5. ~~The exact point-in-time-restore retention window on Neon's free tier.~~ **Resolved 2026-08-25:
    6 hours, capped at 1 GB-month of changes** — see the backups section. This is why a supplementary
    export was added rather than relying on Neon's PITR alone.
+6. **How a failed background write is communicated to the customer.** Decision 16 requires it be
+   visible and never silent; which surface says so, and how insistently, is an M4 UX question that
+   the mockups do not cover — no frame shows a persistence-failure state.
+7. **Whether the nightly export excludes the contact table or Blob gains its own PII retention
+   story** (decision 24). Must be settled before M8, not during it.
+8. **The Hobby-plan cron frequency limit.** Vercel cron jobs are declared in `vercel.json` as a path
+   plus a schedule and are invoked by hitting that endpoint; sub-minute schedules are rejected
+   (confirmed against Vercel's own configuration schema and CLI tests, 2026-08-25). The plan's limit
+   on how often a Hobby cron may run was **not** confirmed during this review and must be checked at
+   implementation time, the same way Neon's PITR window and Blob's limits were. A daily schedule is
+   expected to be within it, but "expected" is not "confirmed", and the daily cadence in the backups
+   section depends on it.
+9. **How the export is produced inside a serverless invocation.** The backups section says `pg_dump`
+   "or equivalent", and a Vercel cron invokes an HTTP endpoint, so the job runs in a function runtime
+   where the `pg_dump` binary is not available. The equivalent — for a schema this small, a driver-level
+   read of the designs table serialised to a file — is almost certainly the right answer, but the
+   choice is unmade and an implementer following the wording literally will hit the missing binary.
