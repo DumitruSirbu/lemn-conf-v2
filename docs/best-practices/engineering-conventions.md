@@ -3,6 +3,36 @@
 Apply these according to the stack selected for the new project. They are conventions, not a reason
 to force a framework or abstraction before the architecture exists.
 
+## Named principles behind these conventions
+
+The rules below are this project's concrete expression of DRY, KISS, and the applicable parts of
+SOLID. Naming them explicitly here so the connection survives even for a reader who only has this
+file, not a Claude session's global conventions.
+
+- **DRY** — "Give domain constants a name, unit, and reason" and the general boundary rules below
+  exist so geometry, pricing, and validation logic live in one testable place, never copied across
+  the UI and the domain.
+- **KISS** — do not add an abstraction, layer, or configurability the current milestone's acceptance
+  criteria do not require. A narrow, explicit function beats a generic one built for a future case
+  that is not yet specified. This is also why implementation dispatches stay small (see
+  `docs/agents/developer.md`): a five-item, five-file dispatch is easier to keep simple than an
+  open-ended one.
+- **SOLID, the parts that apply to this stack:**
+  - *Single Responsibility* — "Keep UI rendering thin" and "Separate mutation from derived queries"
+    are this project's SRP: a component renders, a domain command decides, a query derives, and none
+    of the three does another's job.
+  - *Open/Closed* — the catalog/layout-policy/pricing versioning strategy (`CONFIGURATION_MODEL.md`,
+    `ARCHITECTURE_PROPOSAL.md` §5.1) is the concrete OCP mechanism: new catalog data or a new
+    layout policy is added as a new version, not by editing an old one's accepted behaviour in place.
+  - *Dependency Inversion* — `configurator-domain` accepts plain data and returns plain data or an
+    explicit failure; it depends on no concrete UI, renderer, or storage implementation, which is
+    what makes the three.js adapter and the persistence adapter swappable behind it.
+  - *Liskov Substitution and Interface Segregation* are largely **not applicable** here on purpose:
+    the domain is function/data-oriented (Zod schemas, plain commands returning `{ok}` /
+    `{ok:false, reason}`), not a class hierarchy, so there is no inheritance substitutability or
+    fat-interface problem to guard against. Do not introduce a class hierarchy in order to have
+    something to apply these to.
+
 ## Code and domain boundaries
 
 - Name values clearly: verbs for functions, nouns for types, and `is`/`has`/`can` for booleans.

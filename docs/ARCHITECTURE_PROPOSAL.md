@@ -559,16 +559,23 @@ explain that configuration requires 3D; it must not silently present a non-edita
 
 ## 7. Application state and persistence
 
-> **Superseded in part (2026-08-24).** See
+> **Superseded in part (2026-08-24, engine amended 2026-08-25).** See
 > `docs/decisions/2026-08-24-db-backed-shareable-persistence.md`. The three-way split of durable /
 > workflow / ephemeral state below is unchanged, and so is every validation rule: parse, validate,
 > migrate known schema versions as one transaction, and refuse to partially hydrate. What changes is
-> where the durable tier lives. It is no longer `localStorage`; it is the application's own
-> server-side local database, and a design is addressed by an opaque identifier that appears in the
+> where the durable tier lives. It is no longer `localStorage`; it is a **managed Postgres database
+> hosted on Neon** (free tier, provisioned through the Vercel Marketplace), holding one self-contained
+> JSON document per design, and a design is addressed by an opaque identifier that appears in the
 > URL, so opening that link restores exactly that configuration. `ConfigurationRepository` stays —
 > only the concrete adapter changes. The rule that the full configuration never travels in query
 > parameters also stays, and is now load-bearing rather than incidental. Contact data remains absent
 > from the stored configuration, which matters more now that a design is reachable by link.
+>
+> One consequence this section did not have to consider: the durable tier is now across a network.
+> `localStorage` writes were synchronous and effectively infallible, so "persist after every
+> successful command" was free. A network write is neither. The write path's timing and failure
+> semantics are specified in the persistence record's "Write path" section and gated in M2; they are
+> not an implementation detail to be settled at the keyboard.
 
 Separate three kinds of state:
 
