@@ -56,8 +56,12 @@ Out: every mutation (M3), the panel (M4), width (M5).
    wiring that resolves a design by its identifier.
 8. Implement the database security baseline in the persistence decision record's "Security and
    backups" section: environment-variable credentials, TLS, parameterised queries only, a
-   least-privilege connection role, plus recording Neon's confirmed point-in-time-restore retention
-   window and a documented restore procedure using Neon's console/CLI.
+   least-privilege connection role.
+9. Implement the scheduled backup job: a daily export of the Neon database uploaded to Vercel Blob
+   (private access) under a timestamped key, a 14-day rotation that deletes older blobs, observable
+   failure (logged, never blocking the request path), and a documented restore procedure covering
+   both Neon's 6-hour point-in-time restore and loading a dated export back from Blob beyond that
+   window. Provision the Blob store through the Marketplace the same way Neon was provisioned.
 
 ## Acceptance criteria
 
@@ -148,10 +152,11 @@ Security and backups (see the persistence decision record for the full rationale
   — no string-built SQL anywhere, including in migrations and scripts.
 - The application connects with a least-privilege role scoped to its own schema, not the Neon
   project's admin role.
-- The confirmed point-in-time-restore retention window on Neon's free tier is recorded in this
-  phase's documentation (read from Neon's current docs/dashboard, not assumed), and a restore
-  procedure using Neon's console/CLI is written down. No hand-rolled backup job is required unless
-  that confirmed window proves insufficient.
+- Neon's free-tier point-in-time restore (confirmed 6 hours, capped at 1 GB-month of changes) covers
+  same-session recovery. A daily scheduled export to Vercel Blob (private access, timestamped key,
+  14-day rotation) covers recovery beyond that window. Both restore paths — Neon PITR and loading a
+  dated Blob export — are written down as a documented procedure. A failed backup run is logged, not
+  silent, and never blocks the request path.
 
 Boundaries:
 
@@ -174,11 +179,12 @@ Boundaries:
 ## Open questions gating this phase
 
 - ~~The concrete database and its deployment story beyond local development.~~ Resolved 2026-08-25:
-  Postgres on Neon's free tier, storing each design as a JSON/JSONB document. See the persistence
-  decision record §"Security and backups" for the credential/role requirements this adds to work
-  item 7, and the still-open item below about confirming Neon's retention window.
-- The exact point-in-time-restore retention window on Neon's free tier — to confirm and record during
-  this phase, not assume.
+  Postgres on Neon's free tier, storing each design as a JSON/JSONB document. Provisioned and linked
+  to the Vercel project the same day. See the persistence decision record §"Security and backups" for
+  the credential/role requirements this adds to work item 8.
+- ~~The exact point-in-time-restore retention window on Neon's free tier.~~ Resolved 2026-08-25:
+  6 hours, capped at 1 GB-month of changes — short enough that work item 9 (daily Vercel Blob export)
+  is mandatory, not optional.
 - Retention, deletion, and the privacy copy shown to the customer. Decided as a deliberate placeholder
   (keep indefinitely, slot copy) — see the persistence decision record's open questions.
 - Whether a shared link is read-only for a second viewer, and what happens when two viewers edit the

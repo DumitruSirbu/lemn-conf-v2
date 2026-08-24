@@ -114,20 +114,33 @@ reversible defaults, not commitments that need a security review to change.
 
 **Backups (M2, mandatory):**
 
-7. **Neon's built-in point-in-time restore is the backup mechanism.** Neon retains a continuous
-   history of changes (window length depends on the plan; the free tier's retention is what M2 must
-   confirm and record, not assume) and can restore to any point within it without a hand-rolled backup
-   job, cron entry, or backup file to secure. This replaces the SQLite-era plan of a scheduled
-   `VACUUM INTO` job with a rotation the team would otherwise have to build and maintain themselves.
-8. **M2 must record the actual retention window the free tier provides** (read from Neon's current
-   documentation/dashboard at implementation time, not assumed from this document) and treat anything
-   shorter than the still-open design-retention policy as a gap to name, not silently accept.
-9. **A restore procedure is written down**: how to restore a branch/point-in-time in the Neon console
-   or CLI, and what state to leave the application in while doing it — as part of M2's documentation,
-   not left to be reconstructed under pressure the first time it's needed.
-10. **If the confirmed retention window is judged insufficient once known**, an additional periodic
-    export (e.g. a scheduled `pg_dump` to object storage) is a fallback to evaluate then — not built
-    speculatively now, since Neon's native retention may already cover the POC's needs.
+7. **Confirmed 2026-08-25: Neon's free-tier point-in-time restore window is 6 hours**, capped at
+   1 GB-month of changes (source: Neon's plan documentation, read at implementation time rather than
+   assumed). This covers an immediate mistake — a bad migration, a bug that corrupts recent rows — but
+   not discovering a problem a day or more later, which is a real gap against "good backups" as the
+   owner asked for it. Neon's PITR remains the first line of defence for same-session recovery; it is
+   not the whole backup story.
+8. **A supplementary daily export closes that gap.** A scheduled job runs a Postgres export (`pg_dump`
+   or equivalent) against the Neon database and uploads the result to **Vercel Blob, private access**,
+   under a timestamped key (e.g. `backups/design-db/<ISO timestamp>.sql`). Vercel Blob was chosen over
+   a new storage account (S3 or similar) for the same reason SQLite lost to Neon and Docker Postgres
+   lost earlier: it needs no separate account or credential set, since it is provisioned the same way
+   as Neon, through the Marketplace, against the same Vercel project.
+9. **Confirmed 2026-08-25: this costs nothing at POC scale.** Vercel Blob's Hobby plan is free within
+   included limits (5 GB storage, 10K advanced operations/month, 100 GB transfer/month at time of
+   writing); a daily upload of a database dump bounded by Neon's own 0.5 GB free-tier storage cap uses
+   a small fraction of one percent of that allowance. On Hobby, exceeding a limit blocks further Blob
+   usage for 30 days rather than billing automatically — there is no surprise-charge path.
+10. **A rotation retains the last 14 daily backups** and deletes older blobs (`del()` on Vercel Blob is
+    free of charge). Fourteen days is a starting default sized for a POC, not a researched retention
+    policy — revisit it alongside the still-open design-retention question if this moves past POC use.
+11. **The backup job's failure is observable, not silent**, the same requirement carried from the
+    original SQLite-era plan: a failed run is logged/surfaced where a developer will see it, and it
+    must never fail the request path or block the application.
+12. **A restore procedure is written down** covering both paths: restoring within 6 hours via Neon's
+    console/CLI point-in-time restore, and restoring beyond that window by loading the relevant dated
+    export from Vercel Blob back into Neon — as part of M2's documentation, not left to be
+    reconstructed under pressure the first time it's needed.
 
 ## Alternatives considered
 
@@ -154,6 +167,12 @@ reversible defaults, not commitments that need a security review to change.
    catalog rows have since changed. A normalized schema re-resolves against current catalog data on
    every read, which is exactly the failure mode a self-contained snapshot avoids. Unaffected by the
    engine change.
+7. **Rely on Neon's 6-hour PITR alone, with no supplementary export.** Rejected 2026-08-25 once the
+   actual window was confirmed: 6 hours does not match "good backups" as the owner asked for it, since
+   it covers only same-session mistakes, not a problem noticed the next day.
+8. **A new object-storage account (S3 or similar) for the supplementary export.** Rejected: it adds a
+   credential set and an account this project would not otherwise need, for no benefit over Vercel
+   Blob, which is already being provisioned through the same Marketplace flow as Neon.
 
 ## Consequences
 
@@ -170,13 +189,20 @@ reversible defaults, not commitments that need a security review to change.
 - Local development and any deployment now require a Neon project and a connection string supplied
   through environment configuration; this is a new dependency the earlier SQLite plan did not have,
   accepted in exchange for the security/backup and hosting-fit benefits above.
+- The project is now linked to Vercel (`dumitrusirbus-projects/lemnaria-configurator-gbt`), with Neon
+  (`neon-gray-elephant`) provisioned and connected, and its environment variables pulled into
+  `.env.local` (already covered by `.gitignore`'s `.env*.local` rule). Vercel Blob needs the same
+  provisioning treatment when M2 implements the backup job.
+- A second free-tier dependency (Vercel Blob) is now part of the persistence story, alongside Neon.
+  Both are provisioned through the same Marketplace flow and billed the same way (free within Hobby
+  limits, no auto-billing on overage), so this does not introduce a second billing relationship.
 
 ## Open questions carried forward
 
 1. ~~The concrete database and its deployment story beyond local development.~~ **Resolved
-   2026-08-25: Postgres on Neon's free tier**, addressed by decision 2. Its deployment story is
-   Neon's own hosted service, which removes the local-development-only caveat the SQLite decision
-   carried.
+   2026-08-25: Postgres on Neon's free tier**, addressed by decision 2, and provisioned the same day.
+   Its deployment story is Neon's own hosted service, which removes the local-development-only caveat
+   the SQLite decision carried.
 2. **Retention period, deletion, and the privacy copy shown to the customer — decided 2026-08-25 as a
    deliberate placeholder, not resolved.** No real retention policy yet: designs are kept
    indefinitely for the POC, and the customer-facing copy (consent text, what happens to a saved
@@ -187,5 +213,6 @@ reversible defaults, not commitments that need a security review to change.
    viewers edit the same design. Not needed for the POC; needed before sharing is promoted as a
    feature.
 4. Whether an identifier ever expires.
-5. The exact point-in-time-restore retention window on Neon's free tier, to be confirmed and recorded
-   during M2 rather than assumed.
+5. ~~The exact point-in-time-restore retention window on Neon's free tier.~~ **Resolved 2026-08-25:
+   6 hours, capped at 1 GB-month of changes** — see the backups section. This is why a supplementary
+   export was added rather than relying on Neon's PITR alone.

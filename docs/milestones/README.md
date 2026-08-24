@@ -127,7 +127,8 @@ None of these may be closed by inventing a value. Each is listed again in the ph
 
 | Open question | Blocks |
 | --- | --- |
-| ~~The concrete database and its deployment story beyond local development~~ — resolved 2026-08-25: Postgres on Neon's free tier, JSON/JSONB document per design; security baseline specified, managed point-in-time restore replaces a hand-rolled backup job | M2 (confirm Neon's actual retention window) |
+| ~~The concrete database and its deployment story beyond local development~~ — resolved and provisioned 2026-08-25: Postgres on Neon's free tier, JSON/JSONB document per design, linked to Vercel project `lemnaria-configurator-gbt` | closed |
+| ~~Backup mechanism~~ — resolved 2026-08-25: Neon's free-tier PITR is only 6 hours, so a daily scheduled export to Vercel Blob (private, 14-day rotation) supplements it; both free at POC scale | closed |
 | Design retention, deletion, and the privacy copy for a link-reachable design — decided as a placeholder (keep indefinitely, slot copy) 2026-08-25, real policy still open | M2, M8 |
 | Whether a shared link is read-only for a second viewer, and concurrent-edit behaviour | M2, carried |
 | Exact wall-length and room-height bounds | M7 |
