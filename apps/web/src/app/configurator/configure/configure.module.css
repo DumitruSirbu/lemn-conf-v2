@@ -1,0 +1,142 @@
+.screen {
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+  background: var(--paper);
+}
+
+.header {
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  padding: 16px 18px 12px;
+  background: var(--paper);
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.headerRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.back {
+  font: 700 14px/1 var(--font-ui);
+  color: var(--ink-muted);
+}
+
+.step {
+  font: 400 11.5px/1 var(--font-ui);
+  letter-spacing: 0.06em;
+  color: var(--ink-faint);
+}
+
+.progress {
+  display: flex;
+  gap: 5px;
+}
+
+.progress span {
+  flex: 1;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--line);
+}
+
+.progress span:nth-child(1) {
+  background: var(--accent-pale);
+}
+
+.progress span:nth-child(2) {
+  background: var(--accent);
+}
+
+.stage {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  background: var(--stage);
+}
+
+.stage canvas {
+  display: block;
+  touch-action: none;
+}
+
+.presets {
+  position: absolute;
+  top: 14px;
+  left: 14px;
+  display: flex;
+  gap: 7px;
+}
+
+.preset {
+  min-height: var(--touch-target);
+  padding: 8px 12px;
+  font: 400 11px/1 var(--font-ui);
+  color: var(--ink-muted);
+  background: rgb(250 248 244 / 72%);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-chip);
+  cursor: pointer;
+}
+
+.preset[aria-pressed="true"] {
+  font-weight: 700;
+  color: var(--accent-strong);
+  background: rgb(250 248 244 / 92%);
+}
+
+.hint {
+  position: absolute;
+  right: 0;
+  bottom: 16px;
+  left: 0;
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.hint span {
+  padding: 10px 13px;
+  font: 400 12px/1 var(--font-ui);
+  color: var(--accent-strong);
+  text-align: center;
+  background: rgb(250 248 244 / 92%);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-chip);
+}
+
+.loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  font: 400 12.5px/1 var(--font-ui);
+  color: var(--ink-faint);
+}
+
+@media (min-width: 900px) {
+  .presets {
+    top: 24px;
+    left: 28px;
+    gap: 10px;
+  }
+
+  .preset {
+    padding: 12px 16px;
+    font-size: 13px;
+  }
+
+  .hint {
+    bottom: 30px;
+  }
+
+  .hint span {
+    padding: 13px 18px;
+    font-size: 13.5px;
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "name": "@lemnaria/three-adapter",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "files": [
+    "dist"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc --project tsconfig.build.json",
+    "lint": "eslint . --max-warnings 0",
+    "test": "vitest run --config vitest.config.ts",
+    "typecheck": "tsc --project tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "three": "0.184.0"
+  },
+  "devDependencies": {
+    "@types/three": "0.184.0"
+  }
+}

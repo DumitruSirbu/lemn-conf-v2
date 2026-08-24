@@ -7,3 +7,6 @@ playwright-report/
 test-results/
 .env*.local
 .vercel
+**/.next/
+*.tsbuildinfo
+**/.tmp/

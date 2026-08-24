@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "jsx": "preserve",
+    // Next declares `*.module.css` as an untyped index signature, so every `styles.foo` would have
+    // to be written `styles["foo"]`. Relaxed here only; `strict` and every other gate still apply,
+    // and the domain packages keep the flag where index signatures model real dynamic data.
+    "noPropertyAccessFromIndexSignature": false,
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "types": ["node"],
+    "plugins": [{ "name": "next" }],
+    "paths": {
+      "@/*": ["./src/*"]
+    },
+    "incremental": true
+  },
+  "include": [
+    "next-env.d.ts",
+    "next.config.ts",
+    "src/**/*.ts",
+    "src/**/*.tsx",
+    "vitest.config.ts",
+    ".next/types/**/*.ts"
+  ],
+  "exclude": ["node_modules", ".next"]
+}

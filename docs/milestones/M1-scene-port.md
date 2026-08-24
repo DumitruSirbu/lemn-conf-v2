@@ -1,11 +1,72 @@
 # M1 — Geometry port and render foundation
 
-Status: planned. Blocks every later phase.
+Status: **closed 2026-08-25.** Fidelity gate passed on both kinds of required evidence. Blocks every
+later phase, which may now proceed.
 **Highest-risk and highest-priority phase in the plan.** A previous attempt at this project failed
 here, and the owner has named the ported cabinets' visual quality as the thing that matters most.
 Reference: `DEVELOPMENT-SPEC.md` §1, §2, §6.2, §6.4, §6.5; `SPEC.md` in full;
 `ARCHITECTURE_PROPOSAL.md` §6.1–§6.3; `docs/decisions/2026-08-24-design-reference-supersession.md`
 §5c; mockup frames 2A / D2A and 2F / D2F.
+
+## Progress — 2026-08-25
+
+Implemented, reviewed, and verified. `apps/web` (Next.js App Router) and `packages/three-adapter`
+were scaffolded; `kitchen-parts.js` and `three-d-stage.js` were ported to TypeScript; the R3F canvas
+host, three camera presets, and the WebGL-unavailable state (2F/D2F) were built.
+
+**The fidelity gate — both kinds of evidence, both passed:**
+
+- **Evidence 1, structural parity (automated).** `kitchen-parts.parity.test.ts` imports the
+  **unmodified** reference `kitchen-parts.js` directly (via a vitest alias) and diffs the ported tree
+  against it — mesh names, hierarchy, and position/rotation/scale/size at a 1e-6 m epsilon — across
+  all 27 builder keys plus every width-parameterised factory. `kitchen-parts.contract.test.ts` asserts
+  the real invariants (derived planes, chamfer measured off actual geometry vertices, corner-leg
+  recess independence, appliance cavity insets, fixed purchased-part sizes, handle caps, push-open
+  hidden-not-omitted handles) rather than existence/count checks. 112 tests in `three-adapter`, 222
+  total across the workspace, all passing.
+- **Evidence 2, side-by-side visual comparison (human-checked, required by this gate — not satisfied
+  by tests alone).** The coordinating agent personally viewed the ported renders against the shipped
+  reference images in `shots/` (not a delegated claim): `shots/presets/01-p.png` against the ported
+  white-finish render, `shots/handles.png` against the ported handles closeup, and `shots/real.png`
+  for overall material/lighting character. Layout, proportion, materials, and lighting character
+  matched. Separately, the implementer built a second, more rigorous check: an unmodified copy of
+  `preset-shots.html` (the reference's own capture rig, loading three.js 0.184.0 from source) is run
+  headless from the same cameras as the port, and the two pixel sets are diffed directly —
+  `maxChannelDelta: 0` across all four preset shots and five targeted detail shots. This is a stronger
+  test than diffing against the shipped PNGs (which are resized and some use unrecorded cameras) and
+  was verified by the coordinator to be a genuine two-codebase comparison, not a self-comparison
+  artifact, before being accepted as evidence.
+- Mobile (390×844) and desktop (1440×900) surfaces verified by real Playwright interaction, not test
+  assertion alone: camera-preset chips meet the 44px touch target and thumb reach, orbit changes the
+  view, console is free of errors (one benign upstream `THREE.Clock` deprecation notice from three.js
+  0.184.0 itself, not introduced by the port). The forced WebGL-unavailable run shows the correct
+  Romanian copy, two continuation paths, no price, and explicit no-fake-preview messaging on both
+  viewports.
+
+**Review outcome:** clean-code and logic review both ran against the diff. Logic review's verdict:
+*matches intent, no blockers* — it independently hand-traced the derived planes, the sink's two-part
+requirement (cut worktop **and** open-frame carcass), and the corner-legs' independent recess
+derivation against the reference source, not just against the milestone doc's summary of it. Two
+non-blocking dead-code observations were noted (an unreachable regex alternative in `finishes.ts`; a
+correctly-dropped unused reference-source local variable) — no behavior change, not filed as defects.
+Clean-code review found one real, now-fixed defect: `apps/web/scripts/fidelity-shots.mjs` and
+`verify-surfaces.mjs` shipped with the implementing agent's own machine-local scratchpad path as their
+default output directory — non-portable to any other machine, session, or CI. Fixed to a repo-relative,
+gitignored `.tmp/fidelity` default (both scripts still accept an override); reverified with a full
+`pnpm format:check && pnpm lint && pnpm typecheck && pnpm test` pass after the fix. Two low-severity
+notes (a small duplicated dev-server bootstrap between two verification scripts; one placeholder route
+using inline styles instead of the established CSS-module tokens, explicitly marked as a stand-in for
+a later milestone) were left as-is — cheap to fix if either file is touched again, not worth a
+dedicated pass now.
+
+**`pnpm build` passes** (Next.js production build, all three workspace packages). Camera presets
+match `DEVELOPMENT-SPEC.md` §6.4 exactly; the fidelity-capture cameras are correctly kept distinct
+from the product's own three camera presets (two different, intentionally separate camera specs in
+the source material).
+
+**Deliberately out of scope, confirmed absent on review:** no selection, no voids, no mutation, no
+per-placement decomposition — the whole `kitchen-l` scene is mounted via `<primitive>` exactly as M1's
+scope requires. That decomposition, and re-proving fidelity against it, is M2's first act.
 
 ## Goal
 

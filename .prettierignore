@@ -3,3 +3,5 @@ design-source/
 docs/
 pnpm-lock.yaml
 **/dist/
+**/.next/
+next-env.d.ts

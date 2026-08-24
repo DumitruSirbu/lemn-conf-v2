@@ -1,0 +1,33 @@
+{
+  "name": "@lemnaria/web",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "pnpm run build:deps && next build",
+    "build:deps": "pnpm --filter @lemnaria/three-adapter run build",
+    "capture:fidelity": "node scripts/capture-fidelity.mjs",
+    "dev": "next dev",
+    "lint": "pnpm run build:deps && eslint . --max-warnings 0",
+    "start": "next start",
+    "test": "pnpm run build:deps && vitest run --config vitest.config.ts",
+    "typecheck": "pnpm run build:deps && tsc --project tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@lemnaria/three-adapter": "workspace:*",
+    "@react-three/drei": "10.7.8",
+    "@react-three/fiber": "9.7.0",
+    "next": "16.3.2",
+    "react": "19.2.0",
+    "react-dom": "19.2.0",
+    "three": "0.184.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.62.1",
+    "@types/node": "20.19.9",
+    "@types/react": "19.2.2",
+    "@types/react-dom": "19.2.2",
+    "@types/three": "0.184.0",
+    "playwright": "1.62.1"
+  }
+}

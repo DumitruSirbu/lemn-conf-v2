@@ -1,0 +1,41 @@
+:root {
+  --paper: #faf8f4;
+  --stage: #f2f0ea;
+  --surface: #f5f3f0;
+  --line: #dcd8ce;
+  --line-soft: #e4dfd5;
+  --ink: #1c1814;
+  --ink-muted: #6b5e52;
+  --ink-faint: #7d7a72;
+  --accent: #7c5c3d;
+  --accent-strong: #5a3e25;
+  --accent-pale: #a07850;
+
+  --touch-target: 44px;
+  --radius-chip: 22px;
+  --radius-card: 12px;
+
+  --font-ui: Helvetica, Arial, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+}
+
+body {
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-ui);
+  -webkit-font-smoothing: antialiased;
+}
+
+a {
+  color: inherit;
+}

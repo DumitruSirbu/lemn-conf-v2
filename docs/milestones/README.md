@@ -45,7 +45,7 @@ Step 3 Verificare  →  Step 4 Contact  →  Step 5 Succes
 | Phase | Goal | Primary surface |
 | --- | --- | --- |
 | [M0](M0-foundations.md) | Foundations — closed, partially superseded | domain package |
-| [M1](M1-scene-port.md) | Geometry port, R3F canvas, camera presets, no editing — **fidelity gate** | shared + mobile |
+| [M1](M1-scene-port.md) | Geometry port, R3F canvas, camera presets, no editing — **fidelity gate — closed 2026-08-25** | shared + mobile |
 | [M2](M2-void-engine.md) | Placement/column/void engine, picking (wave 2A), **DB persistence and shareable links** (wave 2B) | domain + scene |
 | [M3](M3-mutations.md) | Insert, remove, swap, with every guard | domain |
 | [M4](M4-editor-surface.md) | Editor panel and shell — screens 2A, 2B, 2C, 2F | **mobile-gated** |
