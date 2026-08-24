@@ -20,8 +20,10 @@ The owner's stated priority. It calibrates every phase below:
   polish on it. Neither may be reduced to make a phase close:
   1. **Visual fidelity of the 3D port** (M1). The previous attempt failed here. It has its own
      named gate with two independent kinds of evidence.
-  2. **Database-backed shareable persistence** (M2). A design lives in the application's own local
-     database and is reachable by an opaque link that restores it exactly.
+  2. **Database-backed shareable persistence** (M2). A design lives in a managed Postgres database
+     (Neon, free tier) as a self-contained JSON/JSONB document, reachable by an opaque link that
+     restores it exactly, behind a stated security baseline and Neon's managed point-in-time restore
+     — see `docs/decisions/2026-08-24-db-backed-shareable-persistence.md`.
 - **CRM integration stays out of scope** and is not planned further. Eventually it will consume the
   contact form's submission; the submission boundary is already shaped to allow that.
 
@@ -125,8 +127,8 @@ None of these may be closed by inventing a value. Each is listed again in the ph
 
 | Open question | Blocks |
 | --- | --- |
-| The concrete database and its deployment story beyond local development | M2 |
-| Design retention, deletion, and the privacy copy for a link-reachable design | M2, M8 |
+| ~~The concrete database and its deployment story beyond local development~~ — resolved 2026-08-25: Postgres on Neon's free tier, JSON/JSONB document per design; security baseline specified, managed point-in-time restore replaces a hand-rolled backup job | M2 (confirm Neon's actual retention window) |
+| Design retention, deletion, and the privacy copy for a link-reachable design — decided as a placeholder (keep indefinitely, slot copy) 2026-08-25, real policy still open | M2, M8 |
 | Whether a shared link is read-only for a second viewer, and concurrent-edit behaviour | M2, carried |
 | Exact wall-length and room-height bounds | M7 |
 | The real "≤ 30 cm adjustment" preset-fit threshold | M7 |

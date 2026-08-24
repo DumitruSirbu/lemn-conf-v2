@@ -49,8 +49,15 @@ Out: every mutation (M3), the panel (M4), width (M5).
 4. Implement `recomputeVoids()` exactly as §4 specifies, including all four earned rules.
 5. Render void meshes: translucent box plus dashed edges, inset 14 mm.
 6. Implement picking per §6.1 and wire selection into the store.
-7. Implement persistence: the `ConfigurationRepository` interface, a database-backed adapter, the
-   schema for stored designs, and the route wiring that resolves a design by its identifier.
+7. Implement persistence: the `ConfigurationRepository` interface, a **Postgres-on-Neon**-backed
+   adapter, a table storing one row per design with the canonical `Design` serialised as a
+   **JSON/JSONB document** (not normalized/referenced rows — see
+   `docs/decisions/2026-08-24-db-backed-shareable-persistence.md` decisions 2–4), and the route
+   wiring that resolves a design by its identifier.
+8. Implement the database security baseline in the persistence decision record's "Security and
+   backups" section: environment-variable credentials, TLS, parameterised queries only, a
+   least-privilege connection role, plus recording Neon's confirmed point-in-time-restore retention
+   window and a documented restore procedure using Neon's console/CLI.
 
 ## Acceptance criteria
 
@@ -108,8 +115,14 @@ Surfaces:
 
 Persistence — a first-class gate of this phase:
 
-- A design is stored in the application's own server-side database and addressed by an **opaque,
-  unguessable** identifier. Sequential or otherwise predictable identifiers fail this criterion.
+- A design is stored as a JSON/JSONB document in a Postgres database hosted on Neon's free tier and
+  addressed by an **opaque, unguessable** identifier. Sequential or otherwise predictable identifiers
+  fail this criterion.
+- The stored document is self-contained: every placement's wall, position, width, finish and handle,
+  plus global material/hardware settings and any per-cabinet custom settings, sufficient to render
+  the exact scene without a live catalog lookup. This is what makes the same shape reusable for a
+  future CRM lead view even after catalog data has changed — not built in this phase, but the
+  document shape must not foreclose it.
 - Opening a URL carrying that identifier restores **exactly** that configuration — same placements,
   same widths, same finishes, same handles — and resumes at the step the design belongs to.
 - The identifier is the only thing in the URL. The configuration itself never travels in query
@@ -126,6 +139,19 @@ Persistence — a first-class gate of this phase:
   link.
 - Persistence is only written after a successful command; a failed command persists nothing.
 - The domain package performs no I/O. Only the repository adapter touches the database.
+
+Security and backups (see the persistence decision record for the full rationale):
+
+- The Neon connection string is read from an environment variable, never committed, and connections
+  use TLS. There is no database file on the app server to place, permission, or serve.
+- Every query goes through parameterised statements (the driver/query builder's placeholder syntax)
+  — no string-built SQL anywhere, including in migrations and scripts.
+- The application connects with a least-privilege role scoped to its own schema, not the Neon
+  project's admin role.
+- The confirmed point-in-time-restore retention window on Neon's free tier is recorded in this
+  phase's documentation (read from Neon's current docs/dashboard, not assumed), and a restore
+  procedure using Neon's console/CLI is written down. No hand-rolled backup job is required unless
+  that confirmed window proves insufficient.
 
 Boundaries:
 
@@ -147,8 +173,14 @@ Boundaries:
 
 ## Open questions gating this phase
 
-- The concrete database and its deployment story beyond local development.
-- Retention, deletion, and the privacy copy shown to the customer.
+- ~~The concrete database and its deployment story beyond local development.~~ Resolved 2026-08-25:
+  Postgres on Neon's free tier, storing each design as a JSON/JSONB document. See the persistence
+  decision record §"Security and backups" for the credential/role requirements this adds to work
+  item 7, and the still-open item below about confirming Neon's retention window.
+- The exact point-in-time-restore retention window on Neon's free tier — to confirm and record during
+  this phase, not assume.
+- Retention, deletion, and the privacy copy shown to the customer. Decided as a deliberate placeholder
+  (keep indefinitely, slot copy) — see the persistence decision record's open questions.
 - Whether a shared link is read-only for a second viewer, and what happens when two viewers edit the
   same design. Not needed for the POC; needed before sharing is promoted as a feature.
 
