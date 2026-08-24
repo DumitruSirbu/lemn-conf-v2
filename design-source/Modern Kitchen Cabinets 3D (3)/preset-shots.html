@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+<meta charset="utf-8">
+<title>Preset render rig</title>
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.184.0/build/three.module.js",
+    "three/addons/controls/OrbitControls.js": "https://unpkg.com/three@0.184.0/examples/jsm/controls/OrbitControls.js",
+    "three/addons/exporters/OBJExporter.js": "https://unpkg.com/three@0.184.0/examples/jsm/exporters/OBJExporter.js",
+    "three/addons/exporters/GLTFExporter.js": "https://unpkg.com/three@0.184.0/examples/jsm/exporters/GLTFExporter.js"
+  },
+  "integrity": {
+    "https://unpkg.com/three@0.184.0/build/three.module.js": "sha384-8FCZ1eVO6it4+pbec2aDtnTrwjWXZLJRC+MAGCIPDgsYnUrl/E0A2YlF8ioMKI/J",
+    "https://unpkg.com/three@0.184.0/build/three.core.js": "sha384-dw2ooPewaEIrAgl6oFDBmmBWCE9oW9LxRGcfwZ0hLvEprzo202wXl7vCYHRlSnOT",
+    "https://unpkg.com/three@0.184.0/examples/jsm/controls/OrbitControls.js": "sha384-4rziNxOBZKQ69i+w+f89KJ55TCYquwchVbByQwmaOeIOXdOU2PLDn3kOfXHwIJC9",
+    "https://unpkg.com/three@0.184.0/examples/jsm/exporters/OBJExporter.js": "sha384-nbwtoZENJD3Vq+ACK0CuGQdPMuDWHkamC2KJD70EV5nfg6jQjfppKOea07YJN+N3",
+    "https://unpkg.com/three@0.184.0/examples/jsm/exporters/GLTFExporter.js": "sha384-VofkvpG6HERhFCYbsUOHeNXBCqID2nfqkQqnVzE1jc/oPcz+qJ13ADdXH08hE+cQ"
+  }
+}
+</script>
+<style>
+  html,body { margin:0; height:100%; background:#f2f0ea; overflow:hidden; }
+  #box { width:960px; height:640px; }
+  three-d-stage { display:block; width:100%; height:100%; }
+</style>
+</head>
+<body>
+<div id="box"><three-d-stage name="preset" background="#f2f0ea"></three-d-stage></div>
+<script src="./three-d-stage.js"></script>
+<script type="module">
+import { makeKit } from './kitchen-parts.js';
+const stage = document.querySelector('three-d-stage');
+const { THREE } = await stage.ready;
+const { builders, M } = makeKit(THREE);
+const room = builders['kitchen-l']();
+stage.setObject(room);
+const sr = stage.shadowRoot;
+if (sr) sr.querySelectorAll('.toolbar, .note').forEach(n => n.remove());
+const camera = stage._camera, controls = stage._controls;
+
+const doors = [], shelvesHost = [];
+room.traverse(o => { if (o.isMesh && /door_front|drawer_front/.test(o.name)) doors.push(o); });
+
+const FIN = {
+  white:    { color: '#eceeeb', oak: false },
+  clay:     { color: '#cbc3b8', oak: false },
+  sage:     { color: '#8d9a84', oak: false },
+  graphite: { color: '#2b2d30', oak: false },
+  oak:      { color: null,      oak: true  },
+};
+function finish(key) {
+  const f = FIN[key];
+  doors.forEach(o => {
+    const m = (f.oak ? M.oak : M.door).clone();
+    if (f.color) m.color = new THREE.Color(f.color);
+    o.material = m;
+  });
+}
+const PRESETS = [
+  { finish: 'white',    cam: [4.3, 2.9, 5.3], target: [1.5, 1.15, 0.9] },
+  { finish: 'clay',     cam: [2.9, 2.5, 5.9], target: [1.4, 1.10, 0.8] },
+  { finish: 'sage',     cam: [5.5, 3.2, 4.4], target: [1.6, 1.15, 0.9] },
+  { finish: 'oak',      cam: [3.9, 2.7, 5.6], target: [1.5, 1.10, 0.9] },
+];
+window.setPreset = i => {
+  const p = PRESETS[i];
+  finish(p.finish);
+  camera.position.set(...p.cam);
+  controls.target.set(...p.target);
+  controls.update();
+};
+window.setPreset(0);
+window.__rigReady = true;
+</script>
+</body>
+</html>

@@ -1,0 +1,1267 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<style>
+  body { margin:0; background:#e7e3da; -webkit-font-smoothing:antialiased; }
+  a { color:#7c5c3d; }
+  a:hover { color:#5a3e25; }
+  .num { font-variant-numeric:tabular-nums; }
+  @keyframes shimmer { 0% { opacity:.45 } 50% { opacity:.9 } 100% { opacity:.45 } }
+</style>
+</helmet>
+
+<div style="padding:64px 64px 120px;font-family:Helvetica,'Helvetica Neue',Arial,sans-serif;color:#1c1d1f;display:flex;flex-direction:column;gap:72px">
+
+  <header style="max-width:900px;display:flex;flex-direction:column;gap:18px">
+    <div style="display:flex;align-items:center;gap:14px">
+      <span style="font:700 15px/1 Helvetica,Arial,sans-serif;letter-spacing:.22em;text-transform:uppercase">Lemnaria</span>
+      <span style="width:1px;height:16px;background:#dcd8ce"></span>
+      <span style="font:400 12px/1 Helvetica,Arial,sans-serif;letter-spacing:.1em;text-transform:uppercase;color:#7d7a72">Configurator bucătării · desktop 1920</span>
+    </div>
+    <h1 style="margin:0;font:700 38px/1.12 Helvetica,Arial,sans-serif;letter-spacing:-.02em;max-width:20ch">Desktop: cameră, preset și editarea în 3D</h1>
+    <p style="margin:0;font:400 15px/1.6 Helvetica,Arial,sans-serif;color:#6b5e52;max-width:70ch;text-wrap:pretty">Cadre 1920 × 1080, unul pe rând. Editorul apare în dreapta doar când un corp este selectat — restul timpului scena e pe toată lățimea. Setările globale stau în bara de sus. Selecția se face exclusiv în scenă, ajutată de butoanele de cameră. Varianta mobilă: <a href="./Lemnaria Configurator Mobil.dc.html">Lemnaria Configurator Mobil</a>.</p>
+    <div style="display:flex;flex-wrap:wrap;gap:10px">
+      <span style="font:700 11px/1 Helvetica,Arial,sans-serif;letter-spacing:.06em;color:#b45309;background:#f7ecdc;border:1px solid #e6cfa8;padding:9px 11px;border-radius:5px">Paletă provizorie — nu este brandul final</span>
+      <span style="font:700 11px/1 Helvetica,Arial,sans-serif;letter-spacing:.06em;color:#6b5e52;background:#f2f0ea;border:1px solid #dcd8ce;padding:9px 11px;border-radius:5px">Prețuri de pornire, rotunjite în sus la mia de lei</span>
+    </div>
+  </header>
+
+  <!-- ===================== ECRAN 1 ===================== -->
+  <section style="display:flex;flex-direction:column;gap:28px">
+    <div style="display:flex;align-items:baseline;gap:14px;border-bottom:1px solid #d5d0c5;padding-bottom:12px">
+      <span style="font:700 12px/1 Helvetica,Arial,sans-serif;letter-spacing:.16em;text-transform:uppercase;color:#7c5c3d">Ecran 1</span>
+      <span style="font:700 22px/1 Helvetica,Arial,sans-serif;letter-spacing:-.01em">Cameră și preset</span>
+      <span style="font:400 13px/1 Helvetica,Arial,sans-serif;color:#7d7a72">/configurator/room</span>
+    </div>
+
+    <!-- D1A -->
+    <div id="d1a" style="display:flex;flex-direction:column;gap:12px">
+      <div style="display:flex;align-items:baseline;gap:8px">
+        <span style="font:700 10px/1 Helvetica,Arial,sans-serif;letter-spacing:.14em;color:#fff;background:#7c5c3d;padding:5px 7px;border-radius:4px">D1A</span>
+        <span style="font:700 13px/1.3 Helvetica,Arial,sans-serif">Formă cameră · nimic selectat</span>
+      </div>
+      <div style="width:1920px;height:1080px;display:flex;flex-direction:column;background:#faf8f4;border:1px solid #dcd8ce;border-radius:14px;overflow:hidden;box-shadow:0 18px 44px rgba(28,24,20,.10)">
+        <div style="height:76px;flex:0 0 76px;padding:0 40px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #e4dfd5">
+          <span style="font:700 15px/1 Helvetica,Arial,sans-serif;letter-spacing:.22em;text-transform:uppercase">Lemnaria</span>
+          <div style="display:flex;align-items:center;gap:26px">
+            <span style="font:700 13px/1 Helvetica,Arial,sans-serif;color:#1c1814">1 · Cameră</span>
+            <span style="font:400 13px/1 Helvetica,Arial,sans-serif;color:#a89c8e">2 · Configurare</span>
+            <span style="font:400 13px/1 Helvetica,Arial,sans-serif;color:#a89c8e">3 · Verificare</span>
+            <span style="font:400 13px/1 Helvetica,Arial,sans-serif;color:#a89c8e">4 · Contact</span>
+          </div>
+          <span style="font:700 12px/1 Helvetica,Arial,sans-serif;letter-spacing:.08em;color:#6b5e52;background:#ece7dd;padding:9px 12px;border-radius:5px">RO</span>
+        </div>
+        <div style="flex:1;display:flex;align-items:center;justify-content:center;padding:0 40px">
+          <div style="width:1120px;display:flex;flex-direction:column;gap:34px">
+            <div style="display:flex;flex-direction:column;gap:10px;align-items:center;text-align:center">
+              <h2 style="margin:0;font:700 38px/1.15 Helvetica,Arial,sans-serif;letter-spacing:-.02em">Ce formă are camera?</h2>
+              <p style="margin:0;font:400 16px/1.6 Helvetica,Arial,sans-serif;color:#6b5e52;max-width:52ch">Alege conturul pereților pe care va sta bucătăria. Dimensiunile se cer la pasul următor.</p>
+            </div>
+            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:22px">
+              <div style="display:flex;flex-direction:column;align-items:center;gap:18px;padding:38px 26px;background:#f5f3f0;border:1px solid #dcd8ce;border-radius:16px">
+                <svg width="176" height="128" viewBox="0 0 88 64" fill="none" aria-hidden="true"><rect x="1" y="1" width="86" height="62" rx="3" stroke="#dcd8ce"></rect><rect x="12" y="13" width="64" height="9" fill="#7c5c3d"></rect></svg>
+                <div style="display:flex;flex-direction:column;gap:6px;align-items:center">
+                  <span style="font:700 20px/1.2 Helvetica,Arial,sans-serif">Liniară</span>
+                  <span style="font:400 14px/1.4 Helvetica,Arial,sans-serif;color:#6b5e52">Un singur perete</span>
+                </div>
+              </div>
+              <div style="display:flex;flex-direction:column;align-items:center;gap:18px;padding:38px 26px;background:#f5f3f0;border:1px solid #dcd8ce;border-radius:16px">
+                <svg width="176" height="128" viewBox="0 0 88 64" fill="none" aria-hidden="true"><rect x="1" y="1" width="86" height="62" rx="3" stroke="#dcd8ce"></rect><rect x="12" y="13" width="64" height="9" fill="#7c5c3d"></rect><rect x="12" y="22" width="9" height="30" fill="#7c5c3d"></rect></svg>
+                <div style="display:flex;flex-direction:column;gap:6px;align-items:center">
+                  <span style="font:700 20px/1.2 Helvetica,Arial,sans-serif">În formă de L</span>
+                  <span style="font:400 14px/1.4 Helvetica,Arial,sans-serif;color:#6b5e52">Doi pereți, un colț</span>
+                </div>
+              </div>
+              <div style="display:flex;flex-direction:column;align-items:center;gap:18px;padding:38px 26px;background:#f5f3f0;border:1px solid #dcd8ce;border-radius:16px">
+                <svg width="176" height="128" viewBox="0 0 88 64" fill="none" aria-hidden="true"><rect x="1" y="1" width="86" height="62" rx="3" stroke="#dcd8ce"></rect><rect x="12" y="13" width="64" height="9" fill="#7c5c3d"></rect><rect x="12" y="22" width="9" height="30" fill="#7c5c3d"></rect><rect x="67" y="22" width="9" height="30" fill="#7c5c3d"></rect></svg>
+                <div style="display:flex;flex-direction:column;gap:6px;align-items:center">
+                  <span style="font:700 20px/1.2 Helvetica,Arial,sans-serif">În formă de U</span>
+                  <span style="font:400 14px/1.4 Helvetica,Arial,sans-serif;color:#6b5e52">Trei pereți</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div style="height:88px;flex:0 0 88px;padding:0 40px;display:flex;align-items:center;justify-content:flex-end;border-top:1px solid #e4dfd5;background:#faf8f4">
+          <div style="height:52px;padding:0 30px;border-radius:12px;background:#ece7dd;border:1px solid #dcd8ce;display:flex;align-items:center;font:700 15px/1 Helvetica,Arial,sans-serif;color:#a89c8e">Continuă</div>
+        </div>
+      </div>
+      <span style="font:400 12px/1.5 Helvetica,Arial,sans-serif;color:#6b5e52;max-width:900px">Aceleași trei carduri ca pe mobil, dar pe un rând, centrate într-o coloană de 1120 px — lățimea plină ar rupe relația dintre glife. Pașii sunt etichetați în bara de sus, nu ca bare de progres.</span>
+    </div>
+
+    <!-- D1B -->
+    <div id="d1b" style="display:flex;flex-direction:column;gap:12px">
+      <div style="display:flex;align-items:baseline;gap:8px">
+        <span style="font:700 10px/1 Helvetica,Arial,sans-serif;letter-spacing:.14em;color:#fff;background:#7c5c3d;padding:5px 7px;border-radius:4px">D1B</span>
+        <span style="font:700 13px/1.3 Helvetica,Arial,sans-serif">Dimensiuni · L selectat, valid</span>
+      </div>
+      <div style="width:1920px;height:1080px;display:flex;flex-direction:column;background:#faf8f4;border:1px solid #dcd8ce;border-radius:14px;overflow:hidden;box-shadow:0 18px 44px rgba(28,24,20,.10)">
+        <div style="height:76px;flex:0 0 76px;padding:0 40px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #e4dfd5">
+          <span style="font:700 15px/1 Helvetica,Arial,sans-serif;letter-spacing:.22em;text-transform:uppercase">Lemnaria</span>
+          <div style="display:flex;align-items:center;gap:26px">
+            <span style="font:700 13px/1 Helvetica,Arial,sans-serif;color:#1c1814">1 · Cameră</span>
+            <span style="font:400 13px/1 Helvetica,Arial,sans-serif;color:#a89c8e">2 · Configurare</span>
+            <span style="font:400 13px/1 Helvetica,Arial,sans-serif;color:#a89c8e">3 · Verificare</span>
+            <span style="font:400 13px/1 Helvetica,Arial,sans-serif;color:#a89c8e">4 · Contact</span>
+          </div>
+          <span style="font:700 12px/1 Helvetica,Arial,sans-serif;letter-spacing:.08em;color:#6b5e52;background:#ece7dd;padding:9px 12px;border-radius:5px">RO</span>
+        </div>
+        <div style="flex:1;display:flex;gap:56px;padding:52px 40px;align-items:stretch;justify-content:center">
+          <div style="width:520px;display:flex;flex-direction:column;gap:26px">
+            <div style="display:flex;flex-direction:column;gap:8px">
+              <h2 style="margin:0;font:700 30px/1.2 Helvetica,Arial,sans-serif;letter-spacing:-.02em">Dimensiunile camerei</h2>
+              <span style="font:400 14.5px/1.5 Helvetica,Arial,sans-serif;color:#6b5e52">Măsoară de la perete la perete, pe podea.</span>
+            </div>
+            <div style="display:flex;gap:12px">
+              <div style="flex:1;padding:13px 10px;border-radius:12px;background:#faf8f4;border:1px solid #dcd8ce;display:flex;flex-direction:column;align-items:center;gap:9px">
+                <svg width="66" height="42" viewBox="0 0 72 46" fill="none" aria-hidden="true"><rect x="10" y="8" width="52" height="7" fill="#c9c2b6"></rect></svg>
+                <span style="font:400 13px/1 Helvetica,Arial,sans-serif;color:#6b5e52">Liniară</span>
+              </div>
+              <div style="flex:1;padding:13px 10px;border-radius:12px;background:#ece7dd;border:2px solid #7c5c3d;display:flex;flex-direction:column;align-items:center;gap:9px">
+                <svg width="66" height="42" viewBox="0 0 72 46" fill="none" aria-hidden="true"><rect x="10" y="8" width="52" height="7" fill="#7c5c3d"></rect><rect x="10" y="15" width="7" height="23" fill="#7c5c3d"></rect></svg>
+                <span style="font:700 13px/1 Helvetica,Arial,sans-serif;color:#5a3e25">În L</span>
+              </div>
+              <div style="flex:1;padding:13px 10px;border-radius:12px;background:#faf8f4;border:1px solid #dcd8ce;display:flex;flex-direction:column;align-items:center;gap:9px">
+                <svg width="66" height="42" viewBox="0 0 72 46" fill="none" aria-hidden="true"><rect x="10" y="8" width="52" height="7" fill="#c9c2b6"></rect><rect x="10" y="15" width="7" height="23" fill="#c9c2b6"></rect><rect x="55" y="15" width="7" height="23" fill="#c9c2b6"></rect></svg>
+                <span style="font:400 13px/1 Helvetica,Arial,sans-serif;color:#6b5e52">În U</span>
+              </div>
+            </div>
+            <div style="display:flex;gap:16px">
+              <div style="flex:1;display:flex;flex-direction:column;gap:7px">
+                <label style="font:700 13px/1 Helvetica,Arial,sans-serif">Perete A</label>
+                <div style="display:flex;align-items:center;gap:10px;height:58px;padding:0 16px;background:#faf8f4;border:1px solid #dcd8ce;border-radius:12px">
+                  <span class="num" style="flex:1;font:700 22px/1 Helvetica,Arial,sans-serif">3,60</span>
+                  <span style="font:400 14px/1 Helvetica,Arial,sans-serif;color:#7d7a72">m</span>
+                </div>
+              </div>
+              <div style="flex:1;display:flex;flex-direction:column;gap:7px">
+                <label style="font:700 13px/1 Helvetica,Arial,sans-serif">Perete B</label>
+                <div style="display:flex;align-items:center;gap:10px;height:58px;padding:0 16px;background:#faf8f4;border:1px solid #dcd8ce;border-radius:12px">
+                  <span class="num" style="flex:1;font:700 22px/1 Helvetica,Arial,sans-serif">2,40</span>
+                  <span style="font:400 14px/1 Helvetica,Arial,sans-serif;color:#7d7a72">m</span>
+                </div>
+              </div>
+              <div style="flex:1;display:flex;flex-direction:column;gap:7px">
+                <label style="font:700 13px/1 Helvetica,Arial,sans-serif">Înălțime</label>
+                <div style="display:flex;align-items:center;gap:10px;height:58px;padding:0 16px;background:#faf8f4;border:1px solid #dcd8ce;border-radius:12px">
+                  <span class="num" style="flex:1;font:700 22px/1 Helvetica,Arial,sans-serif">2,60</span>
+                  <span style="font:400 14px/1 Helvetica,Arial,sans-serif;color:#7d7a72">m</span>
+                </div>
+              </div>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:10px">
+              <div style="display:flex;align-items:baseline;gap:10px">
+                <span style="font:700 13px/1 Helvetica,Arial,sans-serif">Încotro merge cotul?</span>
+                <span style="font:400 12.5px/1 Helvetica,Arial,sans-serif;color:#7d7a72">nu se deduce din lățimi</span>
+              </div>
+              <div style="display:flex;gap:12px">
+                <div style="flex:1;display:flex;align-items:center;gap:12px;padding:13px 15px;background:#ece7dd;border:2px solid #7c5c3d;border-radius:12px">
+                  <svg width="48" height="34" viewBox="0 0 60 44" fill="none" aria-hidden="true"><rect x="6" y="7" width="48" height="7" fill="#7c5c3d"></rect><rect x="6" y="14" width="7" height="22" fill="#7c5c3d"></rect></svg>
+                  <span style="font:700 14px/1.2 Helvetica,Arial,sans-serif;color:#5a3e25">La stânga</span>
+                </div>
+                <div style="flex:1;display:flex;align-items:center;gap:12px;padding:13px 15px;background:#faf8f4;border:1px solid #dcd8ce;border-radius:12px">
+                  <svg width="48" height="34" viewBox="0 0 60 44" fill="none" aria-hidden="true"><rect x="6" y="7" width="48" height="7" fill="#c9c2b6"></rect><rect x="47" y="14" width="7" height="22" fill="#c9c2b6"></rect></svg>
+                  <span style="font:700 14px/1.2 Helvetica,Arial,sans-serif">La dreapta</span>
+                </div>
+              </div>
+            </div>
+            <div style="margin-top:auto;display:flex;gap:9px;align-items:flex-start;padding:14px 15px;background:#f5f3f0;border:1px solid #dcd8ce;border-radius:11px">
+              <span style="width:17px;height:17px;flex:0 0 17px;border-radius:50%;background:#1d4ed8;color:#fff;font:700 11px/17px Helvetica,Arial,sans-serif;text-align:center">i</span>
+              <span style="font:400 13px/1.5 Helvetica,Arial,sans-serif;color:#6b5e52">Măsurile aproximative sunt în regulă acum — înainte de producție facem oricum o măsurare la fața locului.</span>
+            </div>
+          </div>
+          <div style="flex:1;max-width:900px;padding:26px;background:#f5f3f0;border:1px solid #dcd8ce;border-radius:16px;display:flex;flex-direction:column;gap:16px">
+            <span style="font:700 11px/1 Helvetica,Arial,sans-serif;letter-spacing:.14em;text-transform:uppercase;color:#7d7a72">Plan de sus · previzualizare</span>
+            <div style="flex:1;position:relative;background:#faf8f4;border:1px solid #e4dfd5;border-radius:11px;overflow:hidden">
+              <div style="position:absolute;left:120px;top:150px;width:600px;height:26px;background:#7c5c3d;border-radius:3px"></div>
+              <div style="position:absolute;left:120px;top:176px;width:26px;height:400px;background:#a07850;border-radius:3px"></div>
+              <span style="position:absolute;left:360px;top:112px;font:700 14px/1 Helvetica,Arial,sans-serif;color:#6b5e52">A · 3,60 m</span>
+              <span style="position:absolute;left:166px;top:360px;font:700 14px/1 Helvetica,Arial,sans-serif;color:#6b5e52">B · 2,40 m</span>
+              <span style="position:absolute;left:120px;bottom:26px;font:400 12.5px/1 Helvetica,Arial,sans-serif;color:#8d8377">Planul se actualizează la tastare și se oglindește odată cu cotul.</span>
+            </div>
+          </div>
+        </div>
+        <div style="height:88px;flex:0 0 88px;padding:0 40px;display:flex;align-items:center;justify-content:space-between;border-top:1px solid #e4dfd5">
+          <span style="font:700 14px/1 Helvetica,Arial,sans-serif;color:#6b5e52">‹ Înapoi</span>
+          <div style="height:52px;padding:0 30px;border-radius:12px;background:#7c5c3d;display:flex;align-items:center;font:700 15px/1 Helvetica,Arial,sans-serif;color:#faf8f4">Continuă</div>
+        </div>
+      </div>
+      <span style="font:400 12px/1.5 Helvetica,Arial,sans-serif;color:#6b5e52;max-width:900px">Desktopul câștigă un plan mare, viu, lângă câmpuri — pe mobil era o bandă de 104 px. Cele trei dimensiuni intră pe un rând; toggle-ul de oglindire rămâne sub ele.</span>
+    </div>
+
+    <!-- D1C -->
+    <div id="d1c" style="display:flex;flex-direction:column;gap:12px">
+      <div style="display:flex;align-items:baseline;gap:8px">
+        <span style="font:700 10px/1 Helvetica,Arial,sans-serif;letter-spacing:.14em;color:#fff;background:#7c5c3d;padding:5px 7px;border-radius:4px">D1C</span>
+        <span style="font:700 13px/1.3 Helvetica,Arial,sans-serif">Dimensiuni · eroare de validare</span>
+      </div>
+      <div style="width:1920px;height:1080px;display:flex;flex-direction:column;background:#faf8f4;border:1px solid #dcd8ce;border-radius:14px;overflow:hidden;box-shadow:0 18px 44px rgba(28,24,20,.10)">
+        <div style="height:76px;flex:0 0 76px;padding:0 40px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #e4dfd5">
+          <span style="font:700 15px/1 Helvetica,Arial,sans-serif;letter-spacing:.22em;text-transform:uppercase">Lemnaria</span>
+          <div style="display:flex;align-items:center;gap:26px">
+            <span style="font:700 13px/1 Helvetica,Arial,sans-serif;color:#1c1814">1 · Cameră</span>
+            <span style="font:400 13px/1 Helvetica,Arial,sans-serif;color:#a89c8e">2 · Configurare</span>
+            <span style="font:400 13px/1 Helvetica,Arial,sans-serif;color:#a89c8e">3 · Verificare</span>
+            <span style="font:400 13px/1 Helvetica,Arial,sans-serif;color:#a89c8e">4 · Contact</span>
+          </div>
+          <span style="font:700 12px/1 Helvetica,Arial,sans-serif;letter-spacing:.08em;color:#6b5e52;background:#ece7dd;padding:9px 12px;border-radius:5px">RO</span>
+        </div>
+        <div style="flex:1;display:flex;gap:56px;padding:52px 40px;align-items:stretch;justify-content:center">
+          <div style="width:520px;display:flex;flex-direction:column;gap:26px">
+            <div style="display:flex;flex-direction:column;gap:8px">
+              <h2 style="margin:0;font:700 30px/1.2 Helvetica,Arial,sans-serif;letter-spacing:-.02em">Dimensiunile camerei</h2>
+              <span style="font:400 14.5px/1.5 Helvetica,Arial,sans-serif;color:#6b5e52">Măsoară de la perete la perete, pe podea.</span>
+            </div>
+            <div style="display:flex;gap:16px;align-items:flex-start">
+              <div style="flex:1;display:flex;flex-direction:column;gap:7px">
+                <label style="font:700 13px/1 Helvetica,Arial,sans-serif">Perete A</label>
+                <div style="display:flex;align-items:center;gap:10px;height:58px;padding:0 16px;background:#faf8f4;border:1px solid #dcd8ce;border-radius:12px">
+                  <span class="num" style="flex:1;font:700 22px/1 Helvetica,Arial,sans-serif">3,60</span>
+                  <span style="font:400 14px/1 Helvetica,Arial,sans-serif;color:#7d7a72">m</span>
+                </div>
+              </div>
+              <div style="flex:1;display:flex;flex-direction:column;gap:7px">
+                <label style="font:700 13px/1 Helvetica,Arial,sans-serif;color:#dc2626">Perete B</label>
+                <div style="display:flex;align-items:center;gap:10px;height:58px;padding:0 16px;background:#fdf3f3;border:2px solid #dc2626;border-radius:12px">
+                  <span class="num" style="flex:1;font:700 22px/1 Helvetica,Arial,sans-serif">0,45</span>
+                  <span style="font:400 14px/1 Helvetica,Arial,sans-serif;color:#7d7a72">m</span>
+                </div>
+              </div>
+              <div style="flex:1;display:flex;flex-direction:column;gap:7px">
+                <label style="font:700 13px/1 Helvetica,Arial,sans-serif">Înălțime</label>
+                <div style="display:flex;align-items:center;gap:10px;height:58px;padding:0 16px;background:#faf8f4;border:1px solid #dcd8ce;border-radius:12px">
+                  <span class="num" style="flex:1;font:700 22px/1 Helvetica,Arial,sans-serif">2,60</span>
+                  <span style="font:400 14px/1 Helvetica,Arial,sans-serif;color:#7d7a72">m</span>
+                </div>
+              </div>
+            </div>
+            <div style="display:flex;gap:10px;align-items:flex-start;padding:14px 15px;background:#fdf3f3;border-radius:11px">
+              <span style="width:18px;height:18px;flex:0 0 18px;border-radius:50%;background:#dc2626;color:#fff;font:700 12px/18px Helvetica,Arial,sans-serif;text-align:center">!</span>
+              <span style="font:400 13.5px/1.5 Helvetica,Arial,sans-serif;color:#8f2020">Peretele B este mai scurt decât putem susține. Mărește valoarea sau alege o formă liniară.</span>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:10px">
+              <span style="font:700 13px/1 Helvetica,Arial,sans-serif">Sugestii</span>
+              <div style="display:flex;align-items:center;justify-content:space-between;padding:15px 16px;background:#f5f3f0;border:1px solid #dcd8ce;border-radius:12px">
+                <span style="font:400 14px/1 Helvetica,Arial,sans-serif">Treci la formă liniară pe peretele A</span>
+                <span style="font:400 18px/1 Helvetica,Arial,sans-serif;color:#7c5c3d">→</span>
+              </div>
+            </div>
+            <p style="margin:0;font:400 13px/1.5 Helvetica,Arial,sans-serif;color:#7d7a72">Presetele apar după ce toate valorile sunt valide.</p>
+          </div>
+          <div style="flex:1;max-width:900px;padding:26px;background:#f5f3f0;border:1px solid #dcd8ce;border-radius:16px;display:flex;flex-direction:column;gap:16px">
+            <span style="font:700 11px/1 Helvetica,Arial,sans-serif;letter-spacing:.14em;text-transform:uppercase;color:#7d7a72">Plan de sus · previzualizare</span>
+            <div style="flex:1;position:relative;background:#faf8f4;border:1px solid #e4dfd5;border-radius:11px;overflow:hidden">
+              <div style="position:absolute;left:120px;top:150px;width:600px;height:26px;background:#7c5c3d;border-radius:3px"></div>
+              <div style="position:absolute;left:120px;top:176px;width:26px;height:76px;background:#dc2626;border-radius:3px"></div>
+              <span style="position:absolute;left:166px;top:206px;font:700 14px/1 Helvetica,Arial,sans-serif;color:#dc2626">B prea scurt</span>
+              <span style="position:absolute;left:360px;top:112px;font:700 14px/1 Helvetica,Arial,sans-serif;color:#6b5e52">A · 3,60 m</span>
+            </div>
+          </div>
+        </div>
+        <div style="height:88px;flex:0 0 88px;padding:0 40px;display:flex;align-items:center;justify-content:space-between;border-top:1px solid #e4dfd5">
+          <span style="font:700 14px/1 Helvetica,Arial,sans-serif;color:#6b5e52">‹ Înapoi</span>
+          <div style="height:52px;padding:0 30px;border-radius:12px;background:#ece7dd;border:1px solid #dcd8ce;display:flex;align-items:center;font:700 15px/1 Helvetica,Arial,sans-serif;color:#a89c8e">Continuă</div>
+        </div>
+      </div>
+      <span style="font:400 12px/1.5 Helvetica,Arial,sans-serif;color:#6b5e52;max-width:900px">Eroarea stă sub rândul de câmpuri, iar planul marchează peretele vinovat cu roșu. Spațiul liber de pe desktop e folosit pentru o sugestie acționabilă, nu pentru text în plus.</span>
+    </div>
+
+    <!-- D1D -->
+    <div id="d1d" style="display:flex;flex-direction:column;gap:12px">
+      <div style="display:flex;align-items:baseline;gap:8px">
+        <span style="font:700 10px/1 Helvetica,Arial,sans-serif;letter-spacing:.14em;color:#fff;background:#7c5c3d;padding:5px 7px;border-radius:4px">D1D</span>
+        <span style="font:700 13px/1.3 Helvetica,Arial,sans-serif">Presete · se caută</span>
+      </div>
+      <div style="width:1920px;height:1080px;display:flex;flex-direction:column;background:#faf8f4;border:1px solid #dcd8ce;border-radius:14px;overflow:hidden;box-shadow:0 18px 44px rgba(28,24,20,.10)">
+        <div style="height:76px;flex:0 0 76px;padding:0 40px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #e4dfd5">
+          <span style="font:700 15px/1 Helvetica,Arial,sans-serif;letter-spacing:.22em;text-transform:uppercase">Lemnaria</span>
+          <div style="display:flex;align-items:center;gap:26px">
+            <span style="font:700 13px/1 Helvetica,Arial,sans-serif;color:#1c1814">1 · Cameră</span>
+            <span style="font:400 13px/1 Helvetica,Arial,sans-serif;color:#a89c8e">2 · Configurare</span>
+            <span style="font:400 13px/1 Helvetica,Arial,sans-serif;color:#a89c8e">3 · Verificare</span>
+            <span style="font:400 13px/1 Helvetica,Arial,sans-serif;color:#a89c8e">4 · Contact</span>
+          </div>
+          <span style="font:700 12px/1 Helvetica,Arial,sans-serif;letter-spacing:.08em;color:#6b5e52;background:#ece7dd;padding:9px 12px;border-radius:5px">RO</span>
+        </div>
+        <div style="flex:1;padding:44px 64px;display:flex;flex-direction:column;gap:26px">
+          <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:30px">
+            <div style="display:flex;flex-direction:column;gap:8px">
+              <h2 style="margin:0;font:700 30px/1.2 Helvetica,Arial,sans-serif;letter-spacing:-.02em">Bucătării care încap</h2>
+              <span style="font:400 14.5px/1.5 Helvetica,Arial,sans-serif;color:#6b5e52">În L · 3,60 × 2,40 m · h 2,60 m · cot la stânga</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:11px;padding:13px 16px;background:#f5f3f0;border:1px solid #dcd8ce;border-radius:11px">
+              <span style="width:15px;height:15px;border:2px solid #dcd8ce;border-top-color:#7c5c3d;border-radius:50%;animation:shimmer 1s linear infinite"></span>
+              <span style="font:400 13.5px/1 Helvetica,Arial,sans-serif;color:#6b5e52">Verificăm ce presete încap în camera ta…</span>
+            </div>
+          </div>
+          <div style="flex:1;display:grid;grid-template-columns:repeat(4,1fr);gap:24px">
+            <div style="border:1px solid #e4dfd5;border-radius:16px;overflow:hidden;background:#f5f3f0;animation:shimmer 1.6s ease-in-out infinite;display:flex;flex-direction:column">
+              <div style="flex:1;background:#e8e3da"></div>
+              <div style="padding:20px;display:flex;flex-direction:column;gap:11px">
+                <span style="width:58%;height:17px;border-radius:5px;background:#e2ddd3"></span>
+                <span style="width:86%;height:12px;border-radius:5px;background:#e8e3da"></span>
+                <span style="width:42%;height:12px;border-radius:5px;background:#e8e3da"></span>
+              </div>
+            </div>
+            <div style="border:1px solid #e4dfd5;border-radius:16px;overflow:hidden;background:#f5f3f0;animation:shimmer 1.6s ease-in-out .2s infinite;display:flex;flex-direction:column">
+              <div style="flex:1;background:#e8e3da"></div>
+              <div style="padding:20px;display:flex;flex-direction:column;gap:11px">
+                <span style="width:50%;height:17px;border-radius:5px;background:#e2ddd3"></span>
+                <span style="width:78%;height:12px;border-radius:5px;background:#e8e3da"></span>
+              </div>
+            </div>
+            <div style="border:1px solid #e4dfd5;border-radius:16px;overflow:hidden;background:#f5f3f0;animation:shimmer 1.6s ease-in-out .4s infinite;display:flex;flex-direction:column">
+              <div style="flex:1;background:#e8e3da"></div>
+              <div style="padding:20px;display:flex;flex-direction:column;gap:11px">
+                <span style="width:64%;height:17px;border-radius:5px;background:#e2ddd3"></span>
+                <span style="width:70%;height:12px;border-radius:5px;background:#e8e3da"></span>
+              </div>
+            </div>
+            <div style="border:1px solid #e4dfd5;border-radius:16px;overflow:hidden;background:#f5f3f0;animation:shimmer 1.6s ease-in-out .6s infinite;display:flex;flex-direction:column">
+              <div style="flex:1;background:#e8e3da"></div>
+              <div style="padding:20px;display:flex;flex-direction:column;gap:11px">
+                <span style="width:54%;height:17px;border-radius:5px;background:#e2ddd3"></span>
+                <span style="width:82%;height:12px;border-radius:5px;background:#e8e3da"></span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div style="height:88px;flex:0 0 88px;padding:0 40px;display:flex;align-items:center;justify-content:space-between;border-top:1px solid #e4dfd5">
+          <span style="font:700 14px/1 Helvetica,Arial,sans-serif;color:#6b5e52">‹ Înapoi</span>
+          <div style="height:52px;padding:0 30px;border-radius:12px;background:#ece7dd;border:1px solid #dcd8ce;display:flex;align-items:center;font:700 15px/1 Helvetica,Arial,sans-serif;color:#a89c8e">Alege un preset</div>
+        </div>
+      </div>
+      <span style="font:400 12px/1.5 Helvetica,Arial,sans-serif;color:#6b5e52;max-width:900px">Patru schelete pe un rând — numărul lor nu promite numărul de rezultate, doar ocupă grila. Miniaturile se randează separat, deci rămân goale cel mai mult timp.</span>
+    </div>
+
+    <!-- D1E -->
+    <div id="d1e" style="display:flex;flex-direction:column;gap:12px">
+      <div style="display:flex;align-items:baseline;gap:8px">
+        <span style="font:700 10px/1 Helvetica,Arial,sans-serif;letter-spacing:.14em;color:#fff;background:#7c5c3d;padding:5px 7px;border-radius:4px">D1E</span>
+        <span style="font:700 13px/1.3 Helvetica,Arial,sans-serif">Presete · rezultate, una ajustată</span>
+      </div>
+      <div style="width:1920px;height:1080px;display:flex;flex-direction:column;background:#faf8f4;border:1px solid #dcd8ce;border-radius:14px;overflow:hidden;box-shadow:0 18px 44px rgba(28,24,20,.10)">
+        <div style="height:76px;flex:0 0 76px;padding:0 40px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #e4dfd5">
+          <span style="font:700 15px/1 Helvetica,Arial,sans-serif;letter-spacing:.22em;text-transform:uppercase">Lemnaria</span>
+          <div style="display:flex;align-items:center;gap:26px">
+            <span style="font:700 13px/1 Helvetica,Arial,sans-serif;color:#1c1814">1 · Cameră</span>
+            <span style="font:400 13px/1 Helvetica,Arial,sans-serif;color:#a89c8e">2 · Configurare</span>
+            <span style="font:400 13px/1 Helvetica,Arial,sans-serif;color:#a89c8e">3 · Verificare</span>
+            <span style="font:400 13px/1 Helvetica,Arial,sans-serif;color:#a89c8e">4 · Contact</span>
+          </div>
+          <span style="font:700 12px/1 Helvetica,Arial,sans-serif;letter-spacing:.08em;color:#6b5e52;background:#ece7dd;padding:9px 12px;border-radius:5px">RO</span>
+        </div>
+        <div style="flex:1;padding:44px 64px;display:flex;flex-direction:column;gap:26px">
+          <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:30px">
+            <div style="display:flex;flex-direction:column;gap:8px">
+              <h2 style="margin:0;font:700 30px/1.2 Helvetica,Arial,sans-serif;letter-spacing:-.02em">Bucătării care încap</h2>
+              <span style="font:400 14.5px/1.5 Helvetica,Arial,sans-serif;color:#6b5e52">4 potrivite · 1 adaptată la camera ta · În L · 3,60 × 2,40 m</span>
+            </div>
+            <span style="font:400 13px/1.5 Helvetica,Arial,sans-serif;color:#7d7a72;max-width:44ch;text-align:right">Presetele care nu intră nici cu o ajustare de 30 cm nu sunt afișate.</span>
+          </div>
+          <div style="flex:1;display:grid;grid-template-columns:repeat(4,1fr);gap:24px">
+            <div style="display:flex;flex-direction:column;border:2px solid #7c5c3d;border-radius:16px;overflow:hidden;background:#faf8f4">
+              <div style="flex:1;min-height:186px;background:#efece5;overflow:hidden">
+                <img src="shots/presets/01-p.png" alt="" style="width:100%;height:100%;object-fit:cover;display:block;">
+              </div>
+              <div style="padding:20px;display:flex;flex-direction:column;gap:13px">
+                <div style="display:flex;flex-direction:column;gap:5px">
+                  <span style="font:700 19px/1.2 Helvetica,Arial,sans-serif">Ozun clasic</span>
+                  <span class="num" style="font:400 13px/1.4 Helvetica,Arial,sans-serif;color:#6b5e52">14 corpuri · bază 6 · suspendate 7 · coloană 1</span>
+                </div>
+                <div style="display:flex;flex-wrap:wrap;gap:6px">
+                  <span style="font:400 11.5px/1 Helvetica,Arial,sans-serif;color:#5a3e25;background:#ece7dd;padding:7px 9px;border-radius:20px">alb mat</span>
+                  <span style="font:400 11.5px/1 Helvetica,Arial,sans-serif;color:#5a3e25;background:#ece7dd;padding:7px 9px;border-radius:20px">stejar</span>
+                </div>
+                <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:12px">
+                  <div style="display:flex;flex-direction:column;gap:3px">
+                    <span style="font:400 10.5px/1 Helvetica,Arial,sans-serif;letter-spacing:.09em;text-transform:uppercase;color:#7d7a72">De la</span>
+                    <span class="num" style="font:700 18px/1 Helvetica,Arial,sans-serif">43 000 MDL</span>
+                  </div>
+                  <span style="height:44px;padding:0 20px;border-radius:11px;background:#7c5c3d;display:flex;align-items:center;font:700 14px/1 Helvetica,Arial,sans-serif;color:#faf8f4">Folosește</span>
+                </div>
+              </div>
+            </div>
+            <div style="display:flex;flex-direction:column;border:1px solid #dcd8ce;border-radius:16px;overflow:hidden;background:#faf8f4">
+              <div style="flex:1;min-height:186px;background:#efece5;overflow:hidden">
+                <img src="shots/presets/02-p.png" alt="" style="width:100%;height:100%;object-fit:cover;display:block;">
+              </div>
+              <div style="padding:20px;display:flex;flex-direction:column;gap:13px">
+                <div style="display:flex;flex-direction:column;gap:5px">
+                  <span style="font:700 19px/1.2 Helvetica,Arial,sans-serif">Nistru compact</span>
+                  <span class="num" style="font:400 13px/1.4 Helvetica,Arial,sans-serif;color:#6b5e52">11 corpuri · bază 5 · suspendate 6</span>
+                </div>
+                <div style="display:flex;flex-wrap:wrap;gap:6px">
+                  <span style="font:400 11.5px/1 Helvetica,Arial,sans-serif;color:#5a3e25;background:#ece7dd;padding:7px 9px;border-radius:20px">lut</span>
+                  <span style="font:400 11.5px/1 Helvetica,Arial,sans-serif;color:#5a3e25;background:#ece7dd;padding:7px 9px;border-radius:20px">mâner bară</span>
+                </div>
+                <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:12px">
+                  <div style="display:flex;flex-direction:column;gap:3px">
+                    <span style="font:400 10.5px/1 Helvetica,Arial,sans-serif;letter-spacing:.09em;text-transform:uppercase;color:#7d7a72">De la</span>
+                    <span class="num" style="font:700 18px/1 Helvetica,Arial,sans-serif">37 000 MDL</span>
+                  </div>
+                  <span style="height:44px;padding:0 20px;border-radius:11px;border:1px solid #dcd8ce;display:flex;align-items:center;font:700 14px/1 Helvetica,Arial,sans-serif;color:#5a3e25">Folosește</span>
+                </div>
+              </div>
+            </div>
+            <div style="display:flex;flex-direction:column;border:1px solid #dcd8ce;border-radius:16px;overflow:hidden;background:#faf8f4">
+              <div style="flex:1;min-height:186px;background:#efece5;overflow:hidden">
+                <img src="shots/presets/03-p.png" alt="" style="width:100%;height:100%;object-fit:cover;display:block;">
+              </div>
+              <div style="padding:20px;display:flex;flex-direction:column;gap:13px">
+                <div style="display:flex;flex-direction:column;gap:5px">
+                  <span style="font:700 19px/1.2 Helvetica,Arial,sans-serif">Codru insulă</span>
+                  <span class="num" style="font:400 13px/1.4 Helvetica,Arial,sans-serif;color:#6b5e52">18 corpuri · bază 8 · suspendate 8 · coloană 2</span>
+                </div>
+                <div style="display:flex;gap:8px;align-items:center;padding:9px 11px;background:#eef1ea;border-radius:9px">
+                  <span style="width:15px;height:15px;flex:0 0 15px;border-radius:50%;background:#2d5016;color:#fff;font:700 10px/15px Helvetica,Arial,sans-serif;text-align:center">✓</span>
+                  <span class="num" style="font:400 12px/1.35 Helvetica,Arial,sans-serif;color:#2d5016">Ajustată −20 cm pe peretele B</span>
+                </div>
+                <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:12px">
+                  <div style="display:flex;flex-direction:column;gap:3px">
+                    <span style="font:400 10.5px/1 Helvetica,Arial,sans-serif;letter-spacing:.09em;text-transform:uppercase;color:#7d7a72">De la</span>
+                    <span class="num" style="font:700 18px/1 Helvetica,Arial,sans-serif">52 000 MDL</span>
+                  </div>
+                  <span style="height:44px;padding:0 20px;border-radius:11px;border:1px solid #dcd8ce;display:flex;align-items:center;font:700 14px/1 Helvetica,Arial,sans-serif;color:#5a3e25">Folosește</span>
+                </div>
+              </div>
+            </div>
+            <div style="display:flex;flex-direction:column;border:1px solid #dcd8ce;border-radius:16px;overflow:hidden;background:#faf8f4">
+              <div style="flex:1;min-height:186px;background:#efece5;overflow:hidden">
+                <img src="shots/presets/04-p.png" alt="" style="width:100%;height:100%;object-fit:cover;display:block;">
+              </div>
+              <div style="padding:20px;display:flex;flex-direction:column;gap:13px">
+                <div style="display:flex;flex-direction:column;gap:5px">
+                  <span style="font:700 19px/1.2 Helvetica,Arial,sans-serif">Buștean deschis</span>
+                  <span class="num" style="font:400 13px/1.4 Helvetica,Arial,sans-serif;color:#6b5e52">12 corpuri · bază 6 · etajere 4</span>
+                </div>
+                <div style="display:flex;flex-wrap:wrap;gap:6px">
+                  <span style="font:400 11.5px/1 Helvetica,Arial,sans-serif;color:#5a3e25;background:#ece7dd;padding:7px 9px;border-radius:20px">stejar</span>
+                  <span style="font:400 11.5px/1 Helvetica,Arial,sans-serif;color:#5a3e25;background:#ece7dd;padding:7px 9px;border-radius:20px">push-to-open</span>
+                </div>
+                <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:12px">
+                  <div style="display:flex;flex-direction:column;gap:3px">
+                    <span style="font:400 10.5px/1 Helvetica,Arial,sans-serif;letter-spacing:.09em;text-transform:uppercase;color:#7d7a72">De la</span>
+                    <span class="num" style="font:700 18px/1 Helvetica,Arial,sans-serif">41 000 MDL</span>
+                  </div>
+                  <span style="height:44px;padding:0 20px;border-radius:11px;border:1px solid #dcd8ce;display:flex;align-items:center;font:700 14px/1 Helvetica,Arial,sans-serif;color:#5a3e25">Folosește</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div style="height:88px;flex:0 0 88px;padding:0 40px;display:flex;align-items:center;justify-content:space-between;border-top:1px solid #e4dfd5">
+          <span style="font:700 14px/1 Helvetica,Arial,sans-serif;color:#6b5e52">‹ Înapoi</span>
+          <span style="font:400 13px/1 Helvetica,Arial,sans-serif;color:#7d7a72">Alege un preset ca să continui</span>
+        </div>
+      </div>
+      <span style="font:400 12px/1.5 Helvetica,Arial,sans-serif;color:#6b5e52;max-width:900px">Grilă de patru, nu carusel: toate rezultatele se văd deodată — singurul avantaj real al desktopului aici. Fiecare card are propriul „Folosește”, deci nu există ecran de confirmare.</span>
+    </div>
+
+    <!-- D1F -->
+    <div id="d1f" style="display:flex;flex-direction:column;gap:12px">
+      <div style="display:flex;align-items:baseline;gap:8px">
+        <span style="font:700 10px/1 Helvetica,Arial,sans-serif;letter-spacing:.14em;color:#fff;background:#7c5c3d;padding:5px 7px;border-radius:4px">D1F</span>
+        <span style="font:700 13px/1.3 Helvetica,Arial,sans-serif">Niciun preset potrivit → generare pe măsură</span>
+      </div>
+      <div style="width:1920px;height:1080px;display:flex;flex-direction:column;background:#faf8f4;border:1px solid #dcd8ce;border-radius:14px;overflow:hidden;box-shadow:0 18px 44px rgba(28,24,20,.10)">
+        <div style="height:76px;flex:0 0 76px;padding:0 40px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #e4dfd5">
+          <span style="font:700 15px/1 Helvetica,Arial,sans-serif;letter-spacing:.22em;text-transform:uppercase">Lemnaria</span>
+          <div style="display:flex;align-items:center;gap:26px">
+            <span style="font:700 13px/1 Helvetica,Arial,sans-serif;color:#1c1814">1 · Cameră</span>
+            <span style="font:400 13px/1 Helvetica,Arial,sans-serif;color:#a89c8e">2 · Configurare</span>
+            <span style="font:400 13px/1 Helvetica,Arial,sans-serif;color:#a89c8e">3 · Verificare</span>
+            <span style="font:400 13px/1 Helvetica,Arial,sans-serif;color:#a89c8e">4 · Contact</span>
+          </div>
+          <span style="font:700 12px/1 Helvetica,Arial,sans-serif;letter-spacing:.08em;color:#6b5e52;background:#ece7dd;padding:9px 12px;border-radius:5px">RO</span>
+        </div>
+        <div style="flex:1;display:flex;gap:56px;padding:56px 64px;justify-content:center">
+          <div style="width:620px;display:flex;flex-direction:column;gap:26px">
+            <div style="display:flex;flex-direction:column;gap:10px">
+              <h2 style="margin:0;font:700 32px/1.2 Helvetica,Arial,sans-serif;letter-spacing:-.02em">Ți-o construim pe a ta</h2>
+              <span style="font:400 14.5px/1.5 Helvetica,Arial,sans-serif;color:#6b5e52">Liniar · 2,00 m · h 2,60 m</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:12px;padding:16px;background:#f7ecdc;border:1px solid #e6cfa8;border-radius:12px">
+              <span style="width:17px;height:17px;flex:0 0 17px;border:2px solid #e6cfa8;border-top-color:#b45309;border-radius:50%;animation:shimmer 1s linear infinite"></span>
+              <span style="font:400 13.5px/1.5 Helvetica,Arial,sans-serif;color:#7c4a0c">Niciun preset gata făcut nu încape aici. Compunem una pe măsura camerei tale — durează puțin mai mult.</span>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:12px">
+              <span style="font:700 11px/1 Helvetica,Arial,sans-serif;letter-spacing:.14em;text-transform:uppercase;color:#7d7a72">Ce așezăm, în ordinea priorității</span>
+              <div style="display:flex;align-items:center;gap:13px;padding:15px 16px;background:#f5f3f0;border:1px solid #dcd8ce;border-radius:12px">
+                <span style="width:24px;height:24px;flex:0 0 24px;border-radius:50%;background:#2d5016;color:#fff;font:700 13px/24px Helvetica,Arial,sans-serif;text-align:center">✓</span>
+                <span style="flex:1;font:400 14.5px/1.35 Helvetica,Arial,sans-serif">Spălător · 600</span>
+                <span class="num" style="font:400 13px/1 Helvetica,Arial,sans-serif;color:#6b5e52">așezat</span>
+              </div>
+              <div style="display:flex;align-items:center;gap:13px;padding:15px 16px;background:#f5f3f0;border:1px solid #dcd8ce;border-radius:12px">
+                <span style="width:24px;height:24px;flex:0 0 24px;border-radius:50%;background:#2d5016;color:#fff;font:700 13px/24px Helvetica,Arial,sans-serif;text-align:center">✓</span>
+                <span style="flex:1;font:400 14.5px/1.35 Helvetica,Arial,sans-serif">Plită și cuptor · 600</span>
+                <span class="num" style="font:400 13px/1 Helvetica,Arial,sans-serif;color:#6b5e52">așezat</span>
+              </div>
+              <div style="display:flex;align-items:center;gap:13px;padding:15px 16px;background:#f5f3f0;border:1px solid #dcd8ce;border-radius:12px">
+                <span style="width:24px;height:24px;flex:0 0 24px;border-radius:50%;border:2px solid #dcd8ce;border-top-color:#7c5c3d;animation:shimmer 1s linear infinite"></span>
+                <span style="flex:1;font:400 14.5px/1.35 Helvetica,Arial,sans-serif">Depozitare · restul peretelui</span>
+                <span class="num" style="font:400 13px/1 Helvetica,Arial,sans-serif;color:#6b5e52">se calculează</span>
+              </div>
+              <div style="display:flex;align-items:center;gap:13px;padding:15px 16px;background:#faf8f4;border:1px dashed #dcd8ce;border-radius:12px">
+                <span style="width:24px;height:24px;flex:0 0 24px;border-radius:50%;background:#ece7dd;color:#8d8377;font:700 15px/24px Helvetica,Arial,sans-serif;text-align:center">−</span>
+                <span style="flex:1;font:400 14.5px/1.35 Helvetica,Arial,sans-serif;color:#7d7a72">Frigider</span>
+                <span style="font:400 13px/1 Helvetica,Arial,sans-serif;color:#7d7a72">nu încape</span>
+              </div>
+            </div>
+            <p style="margin:0;font:400 13px/1.55 Helvetica,Arial,sans-serif;color:#7d7a72;text-wrap:pretty">Regula: pe pereți scurți păstrăm întâi spălătorul și gătitul, apoi depozitarea; ce nu încape este scos și marcat, nu înghesuit. Pragurile exacte sunt decizie de produs nefinalizată.</p>
+          </div>
+          <div style="flex:1;max-width:840px;border-radius:16px;background:repeating-linear-gradient(135deg,#e9e4da 0 10px,#f1ede5 10px 20px);display:flex;align-items:center;justify-content:center">
+            <span style="font:400 12px/1 ui-monospace,Menlo,Consolas,monospace;color:#8d8377">[ previzualizare live a compunerii ]</span>
+          </div>
+        </div>
+        <div style="height:88px;flex:0 0 88px;padding:0 40px;display:flex;align-items:center;justify-content:space-between;border-top:1px solid #e4dfd5">
+          <span style="font:700 14px/1 Helvetica,Arial,sans-serif;color:#6b5e52">‹ Înapoi</span>
+          <div style="height:52px;padding:0 30px;border-radius:12px;background:#ece7dd;border:1px solid #dcd8ce;display:flex;align-items:center;gap:11px;font:700 15px/1 Helvetica,Arial,sans-serif;color:#a89c8e">
+            <span style="width:15px;height:15px;border:2px solid #dcd8ce;border-top-color:#a89c8e;border-radius:50%;animation:shimmer 1s linear infinite"></span>Se compune…</div>
+        </div>
+      </div>
+      <span style="font:400 12px/1.5 Helvetica,Arial,sans-serif;color:#6b5e52;max-width:900px">Nu există fundătură „niciun rezultat”. Pe desktop, pașii de compunere stau lângă o previzualizare care se umple pe măsură ce corpurile sunt așezate.</span>
+    </div>
+  </section>
+
+  <!-- ===================== ECRAN 2 ===================== -->
+  <section style="display:flex;flex-direction:column;gap:28px">
+    <div style="display:flex;align-items:baseline;gap:14px;border-bottom:1px solid #d5d0c5;padding-bottom:12px">
+      <span style="font:700 12px/1 Helvetica,Arial,sans-serif;letter-spacing:.16em;text-transform:uppercase;color:#7c5c3d">Ecran 2</span>
+      <span style="font:700 22px/1 Helvetica,Arial,sans-serif;letter-spacing:-.01em">Configurare în 3D</span>
+      <span style="font:400 13px/1 Helvetica,Arial,sans-serif;color:#7d7a72">/configurator/configure · scenă live în D2A și D2B</span>
+    </div>
+
+    <!-- D2A -->
+    <div id="d2a" style="display:flex;flex-direction:column;gap:12px">
+      <div style="display:flex;align-items:baseline;gap:8px">
+        <span style="font:700 10px/1 Helvetica,Arial,sans-serif;letter-spacing:.14em;color:#fff;background:#2d5016;padding:5px 7px;border-radius:4px">D2A</span>
+        <span style="font:700 13px/1.3 Helvetica,Arial,sans-serif">Nimic selectat · scenă pe toată lățimea</span>
+      </div>
+      <div style="width:1920px;height:1080px;display:flex;flex-direction:column;background:#faf8f4;border:1px solid #dcd8ce;border-radius:14px;overflow:hidden;box-shadow:0 18px 44px rgba(28,24,20,.10)">
+        <div style="height:76px;flex:0 0 76px;padding:0 28px 0 40px;display:flex;align-items:center;gap:28px;border-bottom:1px solid #e4dfd5;background:#faf8f4;z-index:2">
+          <span style="font:700 15px/1 Helvetica,Arial,sans-serif;letter-spacing:.22em;text-transform:uppercase">Lemnaria</span>
+          <div style="display:flex;align-items:center;gap:22px">
+            <span style="font:400 13px/1 Helvetica,Arial,sans-serif;color:#a89c8e">1 · Cameră</span>
+            <span style="font:700 13px/1 Helvetica,Arial,sans-serif;color:#1c1814">2 · Configurare</span>
+            <span style="font:400 13px/1 Helvetica,Arial,sans-serif;color:#a89c8e">3 · Verificare</span>
+            <span style="font:400 13px/1 Helvetica,Arial,sans-serif;color:#a89c8e">4 · Contact</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px;margin-left:14px">
+            <span style="font:400 12.5px/1 Helvetica,Arial,sans-serif;color:#5a3e25;background:#f5f3f0;border:1px solid #dcd8ce;padding:10px 13px;border-radius:20px">PAL melaminat</span>
+            <span style="font:400 12.5px/1 Helvetica,Arial,sans-serif;color:#5a3e25;background:#f5f3f0;border:1px solid #dcd8ce;padding:10px 13px;border-radius:20px">Feronerie Hettich</span>
+            <span style="font:700 12.5px/1 Helvetica,Arial,sans-serif;color:#7c5c3d">Setări globale</span>
+          </div>
+          <div style="margin-left:auto;display:flex;align-items:center;gap:22px">
+            <div style="display:flex;flex-direction:column;gap:3px;text-align:right">
+              <span style="font:400 10.5px/1 Helvetica,Arial,sans-serif;letter-spacing:.09em;text-transform:uppercase;color:#7d7a72">De la</span>
+              <span class="num" style="font:700 21px/1 Helvetica,Arial,sans-serif">{{ priceTotal }} MDL</span>
+            </div>
+            <span style="font:700 12.5px/1 Helvetica,Arial,sans-serif;color:#7c5c3d">De ce acest preț</span>
+            <div style="height:52px;padding:0 26px;border-radius:12px;background:#7c5c3d;display:flex;align-items:center;font:700 15px/1 Helvetica,Arial,sans-serif;color:#faf8f4">Verifică designul</div>
+          </div>
+        </div>
+        <div style="flex:1;position:relative;background:#f2f0ea">
+          <iframe src="./kitchen-3d.html" title="Scenă 3D bucătărie" style="width:100%;height:100%;border:0;display:block"></iframe>
+          <div style="position:absolute;left:28px;top:24px;display:flex;gap:10px">
+            <span style="font:700 13px/1 Helvetica,Arial,sans-serif;color:#5a3e25;background:rgba(250,248,244,.94);border:1px solid #dcd8ce;padding:12px 16px;border-radius:22px">Vedere generală</span>
+            <span style="font:400 13px/1 Helvetica,Arial,sans-serif;color:#6b5e52;background:rgba(250,248,244,.78);border:1px solid #dcd8ce;padding:12px 16px;border-radius:22px">Perete A</span>
+            <span style="font:400 13px/1 Helvetica,Arial,sans-serif;color:#6b5e52;background:rgba(250,248,244,.78);border:1px solid #dcd8ce;padding:12px 16px;border-radius:22px">Perete B</span>
+          </div>
+          <div style="position:absolute;left:0;right:0;bottom:30px;display:flex;justify-content:center;pointer-events:none">
+            <span style="font:400 13.5px/1 Helvetica,Arial,sans-serif;color:#5a3e25;background:rgba(250,248,244,.94);border:1px solid #dcd8ce;padding:13px 18px;border-radius:24px">Clic pe un corp pentru a-l edita · trage pentru a roti</span>
+          </div>
+        </div>
+      </div>
+      <span style="font:400 12px/1.5 Helvetica,Arial,sans-serif;color:#6b5e52;max-width:900px">Fără selecție, scena ocupă toată lățimea — 1920 × 1004. Butoanele de cameră înlocuiesc lista laterală: ele sunt singurul mod de a ajunge la corpurile de pe peretele B fără să orbitezi.</span>
+    </div>
+
+    <!-- D2B -->
+    <div id="d2b" style="display:flex;flex-direction:column;gap:12px">
+      <div style="display:flex;align-items:baseline;gap:8px">
+        <span style="font:700 10px/1 Helvetica,Arial,sans-serif;letter-spacing:.14em;color:#fff;background:#2d5016;padding:5px 7px;border-radius:4px">D2B</span>
+        <span style="font:700 13px/1.3 Helvetica,Arial,sans-serif">Corp selectat · panou funcțional</span>
+      </div>
+      <div style="width:1920px;height:1080px;display:flex;flex-direction:column;background:#faf8f4;border:1px solid #dcd8ce;border-radius:14px;overflow:hidden;box-shadow:0 18px 44px rgba(28,24,20,.10)">
+        <div style="height:76px;flex:0 0 76px;padding:0 28px 0 40px;display:flex;align-items:center;gap:28px;border-bottom:1px solid #e4dfd5;background:#faf8f4;z-index:2">
+          <span style="font:700 15px/1 Helvetica,Arial,sans-serif;letter-spacing:.22em;text-transform:uppercase">Lemnaria</span>
+          <div style="display:flex;align-items:center;gap:22px">
+            <span style="font:400 13px/1 Helvetica,Arial,sans-serif;color:#a89c8e">1 · Cameră</span>
+            <span style="font:700 13px/1 Helvetica,Arial,sans-serif;color:#1c1814">2 · Configurare</span>
+            <span style="font:400 13px/1 Helvetica,Arial,sans-serif;color:#a89c8e">3 · Verificare</span>
+            <span style="font:400 13px/1 Helvetica,Arial,sans-serif;color:#a89c8e">4 · Contact</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px;margin-left:14px">
+            <span style="font:400 12.5px/1 Helvetica,Arial,sans-serif;color:#5a3e25;background:#f5f3f0;border:1px solid #dcd8ce;padding:10px 13px;border-radius:20px">PAL melaminat</span>
+            <span style="font:400 12.5px/1 Helvetica,Arial,sans-serif;color:#5a3e25;background:#f5f3f0;border:1px solid #dcd8ce;padding:10px 13px;border-radius:20px">Feronerie Hettich</span>
+            <span style="font:700 12.5px/1 Helvetica,Arial,sans-serif;color:#7c5c3d">Setări globale</span>
+          </div>
+          <div style="margin-left:auto;display:flex;align-items:center;gap:22px">
+            <div style="display:flex;flex-direction:column;gap:3px;text-align:right">
+              <span style="font:400 10.5px/1 Helvetica,Arial,sans-serif;letter-spacing:.09em;text-transform:uppercase;color:#7d7a72">De la</span>
+              <span class="num" style="font:700 21px/1 Helvetica,Arial,sans-serif">{{ priceTotal }} MDL</span>
+            </div>
+            <span style="font:700 12.5px/1 Helvetica,Arial,sans-serif;color:#7c5c3d">De ce acest preț</span>
+            <div style="height:52px;padding:0 26px;border-radius:12px;background:#7c5c3d;display:flex;align-items:center;font:700 15px/1 Helvetica,Arial,sans-serif;color:#faf8f4">Verifică designul</div>
+          </div>
+        </div>
+        <div style="flex:1;display:flex;min-height:0">
+          <div style="flex:1;position:relative;background:#f2f0ea">
+            <iframe id="scene-live-d" src="./kitchen-3d.html" title="Scenă 3D editabilă" style="width:100%;height:100%;border:0;display:block"></iframe>
+            <div style="position:absolute;left:28px;top:24px;display:flex;gap:10px">
+              <span style="font:700 13px/1 Helvetica,Arial,sans-serif;color:#5a3e25;background:rgba(250,248,244,.94);border:1px solid #dcd8ce;padding:12px 16px;border-radius:22px">Vedere generală</span>
+              <span style="font:400 13px/1 Helvetica,Arial,sans-serif;color:#6b5e52;background:rgba(250,248,244,.78);border:1px solid #dcd8ce;padding:12px 16px;border-radius:22px">Perete A</span>
+              <span style="font:400 13px/1 Helvetica,Arial,sans-serif;color:#6b5e52;background:rgba(250,248,244,.78);border:1px solid #dcd8ce;padding:12px 16px;border-radius:22px">Perete B</span>
+            </div>
+          </div>
+          <div style="width:420px;flex:0 0 420px;border-left:1px solid #dcd8ce;background:#faf8f4;display:flex;flex-direction:column;min-height:0">
+            <div style="padding:22px 24px 18px;border-bottom:1px solid #e4dfd5;display:flex;align-items:flex-start;justify-content:space-between;gap:14px">
+              <div style="display:flex;flex-direction:column;gap:6px">
+                <span style="font:700 20px/1.2 Helvetica,Arial,sans-serif;letter-spacing:-.01em">{{ selLabel }}</span>
+                <span class="num" style="font:400 13px/1.35 Helvetica,Arial,sans-serif;color:#6b5e52">{{ selMeta }}</span>
+              </div>
+              <span style="width:34px;height:34px;flex:0 0 34px;border-radius:50%;border:1px solid #dcd8ce;font:400 16px/32px Helvetica,Arial,sans-serif;text-align:center;color:#6b5e52">×</span>
+            </div>
+            <div style="flex:1;overflow:auto;padding:20px 24px;display:flex;flex-direction:column;gap:22px;min-height:0">
+              <sc-if value="{{ rejected }}" hint-placeholder-val="{{ false }}">
+                    <div style="display:flex;gap:10px;align-items:flex-start;padding:13px 14px;background:#fdf3f3;border-radius:11px">
+                      <span style="width:17px;height:17px;flex:0 0 17px;border-radius:50%;background:#dc2626;color:#fff;font:700 11px/17px Helvetica,Arial,sans-serif;text-align:center">!</span>
+                      <span style="font:400 13px/1.45 Helvetica,Arial,sans-serif;color:#8f2020">{{ rejectedMsg }}</span>
+                    </div>
+                  </sc-if>
+              <sc-if value="{{ noSel }}" hint-placeholder-val="{{ false }}">
+                <div style="padding:18px;border:1px dashed #dcd8ce;border-radius:12px;background:#f5f3f0;display:flex;flex-direction:column;gap:7px">
+                  <span style="font:700 14px/1.2 Helvetica,Arial,sans-serif">Niciun corp selectat</span>
+                  <span style="font:400 13px/1.45 Helvetica,Arial,sans-serif;color:#6b5e52">Clic pe un corp în scenă. Panoul arată doar opțiunile pe care acel corp le suportă.</span>
+                </div>
+              </sc-if>
+              <sc-if value="{{ canReplace }}" hint-placeholder-val="{{ true }}">
+                <div style="display:flex;flex-direction:column;gap:11px">
+                  <div style="display:flex;align-items:baseline;justify-content:space-between;gap:10px">
+                    <span style="font:700 11px/1 Helvetica,Arial,sans-serif;letter-spacing:.14em;text-transform:uppercase;color:#7d7a72">{{ replaceTitle }}</span>
+                    <span class="num" style="font:400 12.5px/1 Helvetica,Arial,sans-serif;color:#2d5016">{{ altCount }}</span>
+                  </div>
+                  <div style="display:flex;flex-wrap:wrap;gap:6px">
+                    <sc-for list="{{ altChips }}" as="c" hint-placeholder-count="3">
+                      <sc-if value="{{ c.on }}" hint-placeholder-val="{{ false }}">
+                        <span style="font:700 12px/1 Helvetica,Arial,sans-serif;color:#faf8f4;background:#7c5c3d;padding:9px 11px;border-radius:20px">{{ c.label }}</span>
+                      </sc-if>
+                      <sc-if value="{{ c.off }}" hint-placeholder-val="{{ true }}">
+                        <span style="font:400 12px/1 Helvetica,Arial,sans-serif;color:#5a3e25;background:#ece7dd;padding:9px 11px;border-radius:20px">{{ c.label }}</span>
+                      </sc-if>
+                    </sc-for>
+                  </div>
+                  <div style="display:flex;flex-direction:column;gap:8px">
+                    <sc-for list="{{ altList }}" as="it" hint-placeholder-count="4">
+                      <div style="display:flex;gap:12px;align-items:center;padding:8px;border:1px solid #dcd8ce;border-radius:12px;background:#fff;cursor:pointer" onClick="{{ it.pick }}">
+                        <span style="flex:0 0 52px;width:52px;height:52px;border-radius:9px;border:1px solid #e4dfd5;background-color:#f5f3f0;background-image:url({{ it.icon }});background-size:auto 76%;background-position:center;background-repeat:no-repeat"></span>
+                        <span style="flex:1;display:flex;flex-direction:column;gap:4px;min-width:0">
+                          <span style="font:700 13px/1.25 Helvetica,Arial,sans-serif">{{ it.name }}</span>
+                          <span class="num" style="font:400 12px/1 Helvetica,Arial,sans-serif;color:#6b5e52">{{ it.delta }}</span>
+                        </span>
+                        <sc-if value="{{ it.current }}" hint-placeholder-val="{{ false }}">
+                          <span style="font:700 10.5px/1 Helvetica,Arial,sans-serif;letter-spacing:.06em;text-transform:uppercase;color:#7d7a72;border:1px solid #dcd8ce;padding:7px 8px;border-radius:6px">Actual</span>
+                        </sc-if>
+                      </div>
+                    </sc-for>
+                  </div>
+                  <span style="font:400 12.5px/1.45 Helvetica,Arial,sans-serif;color:#7d7a72">{{ altNote }}</span>
+                </div>
+              </sc-if>
+              <sc-if value="{{ canFinish }}" hint-placeholder-val="{{ true }}">
+                <div style="display:flex;flex-direction:column;gap:11px">
+                  <span style="font:700 11px/1 Helvetica,Arial,sans-serif;letter-spacing:.14em;text-transform:uppercase;color:#7d7a72">Finisaj</span>
+                  <div style="display:flex;gap:10px">
+                    <button type="button" onClick="{{ pickWhite }}" style="flex:1;display:flex;flex-direction:column;align-items:center;gap:8px;padding:10px 5px;background:none;border:1px solid #dcd8ce;border-radius:12px;cursor:pointer;font:inherit">
+                      <span style="width:100%;height:46px;border-radius:8px;background:#eceeeb;border:1px solid #dcd8ce"></span>
+                      <span style="font:700 12px/1.2 Helvetica,Arial,sans-serif;color:#1c1814">Alb mat</span>
+                    </button>
+                    <button type="button" onClick="{{ pickOak }}" style="flex:1;display:flex;flex-direction:column;align-items:center;gap:8px;padding:10px 5px;background:none;border:1px solid #dcd8ce;border-radius:12px;cursor:pointer;font:inherit">
+                      <span style="width:100%;height:46px;border-radius:8px;background:repeating-linear-gradient(90deg,#d8b483 0 3px,#cfa876 3px 6px);border:1px solid #c9a56f"></span>
+                      <span style="font:700 12px/1.2 Helvetica,Arial,sans-serif;color:#1c1814">Stejar</span>
+                    </button>
+                    <button type="button" onClick="{{ pickClay }}" style="flex:1;display:flex;flex-direction:column;align-items:center;gap:8px;padding:10px 5px;background:none;border:1px solid #dcd8ce;border-radius:12px;cursor:pointer;font:inherit">
+                      <span style="width:100%;height:46px;border-radius:8px;background:#cbc3b8;border:1px solid #bdb4a7"></span>
+                      <span style="font:700 12px/1.2 Helvetica,Arial,sans-serif;color:#1c1814">Lut</span>
+                    </button>
+                    <button type="button" onClick="{{ pickSage }}" style="flex:1;display:flex;flex-direction:column;align-items:center;gap:8px;padding:10px 5px;background:none;border:1px solid #dcd8ce;border-radius:12px;cursor:pointer;font:inherit">
+                      <span style="width:100%;height:46px;border-radius:8px;background:#8d9a84;border:1px solid #7c8974"></span>
+                      <span style="font:700 12px/1.2 Helvetica,Arial,sans-serif;color:#1c1814">Salvie</span>
+                    </button>
+                    <button type="button" onClick="{{ pickGraphite }}" style="flex:1;display:flex;flex-direction:column;align-items:center;gap:8px;padding:10px 5px;background:none;border:1px solid #dcd8ce;border-radius:12px;cursor:pointer;font:inherit">
+                      <span style="width:100%;height:46px;border-radius:8px;background:#2b2d30;border:1px solid #1f2124"></span>
+                      <span style="font:700 12px/1.2 Helvetica,Arial,sans-serif;color:#1c1814">Grafit</span>
+                    </button>
+                  </div>
+                  <span style="font:400 12.5px/1.45 Helvetica,Arial,sans-serif;color:#7d7a72">Doar combinațiile material + culoare validate apar aici.</span>
+                </div>
+              </sc-if>
+              <sc-if value="{{ canHandle }}" hint-placeholder-val="{{ true }}">
+                <div style="display:flex;flex-direction:column;gap:11px">
+                  <span style="font:700 11px/1 Helvetica,Arial,sans-serif;letter-spacing:.14em;text-transform:uppercase;color:#7d7a72">Mâner</span>
+                  <div style="display:flex;gap:10px">
+                    <button type="button" onClick="{{ pickHandleSteel }}" style="flex:1;height:54px;background:#ece7dd;border:2px solid #7c5c3d;border-radius:12px;cursor:pointer;font:700 13px/1 Helvetica,Arial,sans-serif;color:#5a3e25">Bară inox</button>
+                    <button type="button" onClick="{{ pickHandleBlack }}" style="flex:1;height:54px;background:none;border:1px solid #dcd8ce;border-radius:12px;cursor:pointer;font:700 13px/1 Helvetica,Arial,sans-serif;color:#1c1814">Bară neagră</button>
+                    <button type="button" onClick="{{ pickHandlePush }}" style="flex:1;height:54px;background:none;border:1px solid #dcd8ce;border-radius:12px;cursor:pointer;font:700 13px/1 Helvetica,Arial,sans-serif;color:#1c1814">Push-to-open</button>
+                  </div>
+                </div>
+              </sc-if>
+              <sc-if value="{{ canWidth }}" hint-placeholder-val="{{ true }}">
+                <div style="display:flex;flex-direction:column;gap:11px">
+                  <div style="display:flex;align-items:baseline;justify-content:space-between">
+                    <span style="font:700 11px/1 Helvetica,Arial,sans-serif;letter-spacing:.14em;text-transform:uppercase;color:#7d7a72">Lățime</span>
+                    <span class="num" style="font:700 15px/1 Helvetica,Arial,sans-serif">{{ widthLabel }}</span>
+                  </div>
+                  <div style="display:flex;gap:10px">
+                    <sc-for list="{{ widths }}" as="wv" hint-placeholder-count="4">
+                      <sc-if value="{{ wv.on }}" hint-placeholder-val="{{ false }}">
+                        <div style="flex:1;height:52px;background:#ece7dd;border:2px solid #7c5c3d;border-radius:12px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;font:700 14px/1 Helvetica,Arial,sans-serif;color:#5a3e25">{{ wv.label }}<span style="width:22px;height:3px;border-radius:2px;background:#7c5c3d"></span></div>
+                      </sc-if>
+                      <sc-if value="{{ wv.free }}" hint-placeholder-val="{{ true }}">
+                        <div onClick="{{ wv.pick }}" style="flex:1;height:52px;background:none;border:1px solid #dcd8ce;border-radius:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;font:700 14px/1 Helvetica,Arial,sans-serif;color:#1c1814">{{ wv.label }}</div>
+                      </sc-if>
+                      <sc-if value="{{ wv.blocked }}" hint-placeholder-val="{{ false }}">
+                        <div style="flex:1;height:52px;background:#f5f3f0;border:1px dashed #dcd8ce;border-radius:12px;display:flex;align-items:center;justify-content:center;font:700 14px/1 Helvetica,Arial,sans-serif;color:#bdb3a4">{{ wv.label }}</div>
+                      </sc-if>
+                    </sc-for>
+                  </div>
+                  <span style="font:400 12.5px/1.45 Helvetica,Arial,sans-serif;color:#7d7a72">{{ widthNote }}</span>
+                </div>
+              </sc-if>
+
+            </div>
+            <div style="border-top:1px solid #dcd8ce;padding:16px 24px 20px;display:flex;align-items:center;justify-content:space-between;gap:14px">
+              <span style="font:400 12.5px/1.4 Helvetica,Arial,sans-serif;color:#7d7a72">Modificările se aplică imediat</span>
+              <div style="display:flex;align-items:center;gap:10px">
+                <sc-if value="{{ canDelete }}" hint-placeholder-val="{{ true }}">
+                  <div onClick="{{ doRemove }}" style="height:50px;padding:0 20px;border-radius:12px;border:1px solid #e0b4b4;background:#fdf6f6;display:flex;align-items:center;font:700 13.5px/1 Helvetica,Arial,sans-serif;color:#9b2c2c;cursor:pointer">Șterge corpul</div>
+                </sc-if>
+                <div style="height:50px;padding:0 26px;border-radius:12px;background:#7c5c3d;display:flex;align-items:center;font:700 14px/1 Helvetica,Arial,sans-serif;color:#faf8f4">Gata</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <span style="font:400 12px/1.5 Helvetica,Arial,sans-serif;color:#6b5e52;max-width:900px">Funcțional: clic pe un corp în scenă, apoi înlocuiește-l, șterge-l sau alege finisajul și mânerul — modelul se schimbă live. Un loc gol e selectabil pe fiecare nivel (bază, mijloc, sus) și primește doar corpuri care intră în el; când toată verticala e liberă, încape și o coloană. Panoul de 420 px apare doar acum; scena se reașază, camera nu sare. Secțiunile apar doar dacă definiția corpului le suportă.</span>
+    </div>
+
+    <!-- D2C -->
+    <div id="d2c" style="display:flex;flex-direction:column;gap:12px">
+      <div style="display:flex;align-items:baseline;gap:8px">
+        <span style="font:700 10px/1 Helvetica,Arial,sans-serif;letter-spacing:.14em;color:#fff;background:#7c5c3d;padding:5px 7px;border-radius:4px">D2C</span>
+        <span style="font:700 13px/1.3 Helvetica,Arial,sans-serif">Editare respinsă · revenire la ultima valoare validă</span>
+      </div>
+      <div style="width:1920px;height:1080px;display:flex;flex-direction:column;background:#faf8f4;border:1px solid #dcd8ce;border-radius:14px;overflow:hidden;box-shadow:0 18px 44px rgba(28,24,20,.10)">
+        <div style="height:76px;flex:0 0 76px;padding:0 28px 0 40px;display:flex;align-items:center;gap:28px;border-bottom:1px solid #e4dfd5">
+          <span style="font:700 15px/1 Helvetica,Arial,sans-serif;letter-spacing:.22em;text-transform:uppercase">Lemnaria</span>
+          <div style="display:flex;align-items:center;gap:22px">
+            <span style="font:400 13px/1 Helvetica,Arial,sans-serif;color:#a89c8e">1 · Cameră</span>
+            <span style="font:700 13px/1 Helvetica,Arial,sans-serif;color:#1c1814">2 · Configurare</span>
+            <span style="font:400 13px/1 Helvetica,Arial,sans-serif;color:#a89c8e">3 · Verificare</span>
+            <span style="font:400 13px/1 Helvetica,Arial,sans-serif;color:#a89c8e">4 · Contact</span>
+          </div>
+          <div style="margin-left:auto;display:flex;align-items:center;gap:22px">
+            <div style="display:flex;flex-direction:column;gap:3px;text-align:right">
+              <span style="font:400 10.5px/1 Helvetica,Arial,sans-serif;letter-spacing:.09em;text-transform:uppercase;color:#7d7a72">De la · neschimbat</span>
+              <span class="num" style="font:700 21px/1 Helvetica,Arial,sans-serif">{{ priceTotal }} MDL</span>
+            </div>
+            <div style="height:52px;padding:0 26px;border-radius:12px;background:#7c5c3d;display:flex;align-items:center;font:700 15px/1 Helvetica,Arial,sans-serif;color:#faf8f4">Verifică designul</div>
+          </div>
+        </div>
+        <div style="flex:1;display:flex;min-height:0">
+          <div style="flex:1;position:relative;background:repeating-linear-gradient(135deg,#e9e4da 0 10px,#f1ede5 10px 20px);display:flex;align-items:center;justify-content:center">
+            <span style="font:400 12px/1 ui-monospace,Menlo,Consolas,monospace;color:#8d8377">[ scena 3D · corp selectat, evidențiat ]</span>
+          </div>
+          <div style="width:420px;flex:0 0 420px;border-left:1px solid #dcd8ce;background:#faf8f4;display:flex;flex-direction:column">
+            <div style="padding:22px 24px 18px;border-bottom:1px solid #e4dfd5;display:flex;flex-direction:column;gap:6px">
+              <span style="font:700 20px/1.2 Helvetica,Arial,sans-serif;letter-spacing:-.01em">Corp bază · spălător</span>
+              <span class="num" style="font:400 13px/1.35 Helvetica,Arial,sans-serif;color:#6b5e52">Perete A · bază · 800 × 860 mm</span>
+            </div>
+            <div style="flex:1;padding:20px 24px;display:flex;flex-direction:column;gap:13px">
+              <div style="display:flex;align-items:baseline;justify-content:space-between">
+                <span style="font:700 11px/1 Helvetica,Arial,sans-serif;letter-spacing:.14em;text-transform:uppercase;color:#7d7a72">Lățime</span>
+                <span class="num" style="font:700 15px/1 Helvetica,Arial,sans-serif">800 mm</span>
+              </div>
+              <div style="display:flex;gap:10px">
+                <div style="flex:1;height:52px;border:1px solid #dcd8ce;border-radius:12px;display:flex;align-items:center;justify-content:center;font:700 14px/1 Helvetica,Arial,sans-serif">400</div>
+                <div style="flex:1;height:52px;border:1px solid #dcd8ce;border-radius:12px;display:flex;align-items:center;justify-content:center;font:700 14px/1 Helvetica,Arial,sans-serif">600</div>
+                <div style="flex:1;height:52px;background:#ece7dd;border:2px solid #7c5c3d;border-radius:12px;display:flex;align-items:center;justify-content:center;font:700 14px/1 Helvetica,Arial,sans-serif;color:#5a3e25">800</div>
+                <div style="flex:1;height:52px;border:2px solid #dc2626;border-radius:12px;display:flex;align-items:center;justify-content:center;font:700 14px/1 Helvetica,Arial,sans-serif;color:#dc2626">1000</div>
+              </div>
+              <div style="display:flex;gap:10px;align-items:flex-start;padding:13px 14px;background:#fdf3f3;border-radius:11px">
+                <span style="width:17px;height:17px;flex:0 0 17px;border-radius:50%;background:#dc2626;color:#fff;font:700 11px/17px Helvetica,Arial,sans-serif;text-align:center">!</span>
+                <span style="font:400 13px/1.45 Helvetica,Arial,sans-serif;color:#8f2020">1000 mm nu încape — ar suprapune nișa mașinii de spălat vase. Am păstrat 800 mm.</span>
+              </div>
+              <div style="display:flex;align-items:center;gap:10px;padding:13px 14px;background:#f5f3f0;border:1px solid #dcd8ce;border-radius:11px">
+                <span style="font:400 13px/1.4 Helvetica,Arial,sans-serif;color:#6b5e52;flex:1">Prețul și modelul au revenit la ultima stare validă.</span>
+                <span style="font:700 12.5px/1 Helvetica,Arial,sans-serif;color:#7c5c3d">Anulează</span>
+              </div>
+
+            </div>
+            <div style="border-top:1px solid #dcd8ce;padding:16px 24px 20px;display:flex;align-items:center;justify-content:flex-end">
+              <div style="height:50px;padding:0 26px;border-radius:12px;background:#7c5c3d;display:flex;align-items:center;font:700 14px/1 Helvetica,Arial,sans-serif;color:#faf8f4">Gata</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <span style="font:400 12px/1.5 Helvetica,Arial,sans-serif;color:#6b5e52;max-width:900px">Mesajul stă lângă control, nu ca notificare globală. Chipul respins rămâne marcat, valoarea validă rămâne selectată, iar prețul din bara de sus este etichetat explicit „neschimbat”.</span>
+    </div>
+
+    <!-- D2D -->
+    <div id="d2d" style="display:flex;flex-direction:column;gap:12px">
+      <div style="display:flex;align-items:baseline;gap:8px">
+        <span style="font:700 10px/1 Helvetica,Arial,sans-serif;letter-spacing:.14em;color:#fff;background:#7c5c3d;padding:5px 7px;border-radius:4px">D2D</span>
+        <span style="font:700 13px/1.3 Helvetica,Arial,sans-serif">Defalcarea prețului · popover din bara de sus</span>
+      </div>
+      <div style="width:1920px;height:1080px;position:relative;display:flex;flex-direction:column;background:#faf8f4;border:1px solid #dcd8ce;border-radius:14px;overflow:hidden;box-shadow:0 18px 44px rgba(28,24,20,.10)">
+        <div style="height:76px;flex:0 0 76px;padding:0 28px 0 40px;display:flex;align-items:center;gap:28px;border-bottom:1px solid #e4dfd5;z-index:3;background:#faf8f4">
+          <span style="font:700 15px/1 Helvetica,Arial,sans-serif;letter-spacing:.22em;text-transform:uppercase">Lemnaria</span>
+          <div style="display:flex;align-items:center;gap:22px">
+            <span style="font:400 13px/1 Helvetica,Arial,sans-serif;color:#a89c8e">1 · Cameră</span>
+            <span style="font:700 13px/1 Helvetica,Arial,sans-serif;color:#1c1814">2 · Configurare</span>
+            <span style="font:400 13px/1 Helvetica,Arial,sans-serif;color:#a89c8e">3 · Verificare</span>
+            <span style="font:400 13px/1 Helvetica,Arial,sans-serif;color:#a89c8e">4 · Contact</span>
+          </div>
+          <div style="margin-left:auto;display:flex;align-items:center;gap:22px">
+            <div style="display:flex;flex-direction:column;gap:3px;text-align:right">
+              <span style="font:400 10.5px/1 Helvetica,Arial,sans-serif;letter-spacing:.09em;text-transform:uppercase;color:#7d7a72">De la</span>
+              <span class="num" style="font:700 21px/1 Helvetica,Arial,sans-serif">{{ priceTotal }} MDL</span>
+            </div>
+            <span style="font:700 12.5px/1 Helvetica,Arial,sans-serif;color:#7c5c3d">De ce acest preț ⌃</span>
+            <div style="height:52px;padding:0 26px;border-radius:12px;background:#7c5c3d;display:flex;align-items:center;font:700 15px/1 Helvetica,Arial,sans-serif;color:#faf8f4">Verifică designul</div>
+          </div>
+        </div>
+        <div style="flex:1;background:repeating-linear-gradient(135deg,#e9e4da 0 10px,#f1ede5 10px 20px)"></div>
+        <div style="position:absolute;inset:76px 0 0 0;background:rgba(28,24,20,.22);z-index:4"></div>
+        <div style="position:absolute;right:28px;top:92px;width:520px;background:#faf8f4;border:1px solid #dcd8ce;border-radius:16px;box-shadow:0 22px 48px rgba(28,24,20,.22);z-index:5;display:flex;flex-direction:column;overflow:hidden">
+          <div style="padding:22px 24px 16px;border-bottom:1px solid #e4dfd5;display:flex;flex-direction:column;gap:7px">
+            <span style="font:700 19px/1.2 Helvetica,Arial,sans-serif">De ce acest preț</span>
+            <span style="font:400 12.5px/1.5 Helvetica,Arial,sans-serif;color:#6b5e52">Preț de pornire, rotunjit în sus la mia de lei. Nu include transport, blat sau electrocasnice.</span>
+          </div>
+          <div style="padding:18px 24px;display:flex;flex-direction:column;gap:18px;max-height:640px;overflow:auto">
+            <div style="display:flex;flex-direction:column;gap:10px">
+              <span style="font:700 11px/1 Helvetica,Arial,sans-serif;letter-spacing:.14em;text-transform:uppercase;color:#7d7a72">Perete A · bază</span>
+              <div style="display:flex;justify-content:space-between;gap:14px"><span style="font:400 13.5px/1.4 Helvetica,Arial,sans-serif">Corp de colț cu carusel 900</span><span class="num" style="font:700 13.5px/1.4 Helvetica,Arial,sans-serif">7 000</span></div>
+              <div style="display:flex;justify-content:space-between;gap:14px"><span style="font:400 13.5px/1.4 Helvetica,Arial,sans-serif">Corp bază spălător 800</span><span class="num" style="font:700 13.5px/1.4 Helvetica,Arial,sans-serif">5 000</span></div>
+              <div style="display:flex;justify-content:space-between;gap:14px"><span style="font:400 13.5px/1.4 Helvetica,Arial,sans-serif">Nișă mașină de spălat vase 600</span><span class="num" style="font:700 13.5px/1.4 Helvetica,Arial,sans-serif">4 000</span></div>
+              <div style="display:flex;justify-content:space-between;gap:14px"><span style="font:400 13.5px/1.4 Helvetica,Arial,sans-serif">Corp sertare 600</span><span class="num" style="font:700 13.5px/1.4 Helvetica,Arial,sans-serif">6 000</span></div>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:10px">
+              <span style="font:700 11px/1 Helvetica,Arial,sans-serif;letter-spacing:.14em;text-transform:uppercase;color:#7d7a72">Perete A · suspendate</span>
+              <div style="display:flex;justify-content:space-between;gap:14px"><span style="font:400 13.5px/1.4 Helvetica,Arial,sans-serif">Corp suspendat 800</span><span class="num" style="font:700 13.5px/1.4 Helvetica,Arial,sans-serif">4 000</span></div>
+              <div style="display:flex;justify-content:space-between;gap:14px"><span style="font:400 13.5px/1.4 Helvetica,Arial,sans-serif">Etajeră deschisă 600 · stejar</span><span class="num" style="font:700 13.5px/1.4 Helvetica,Arial,sans-serif">3 000</span></div>
+              <div style="display:flex;justify-content:space-between;gap:14px"><span style="font:400 13.5px/1.4 Helvetica,Arial,sans-serif">Rând superior · push-to-open</span><span class="num" style="font:700 13.5px/1.4 Helvetica,Arial,sans-serif">8 000</span></div>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:10px">
+              <span style="font:700 11px/1 Helvetica,Arial,sans-serif;letter-spacing:.14em;text-transform:uppercase;color:#7d7a72">Perete B · coloane</span>
+              <div style="display:flex;justify-content:space-between;gap:14px"><span style="font:400 13.5px/1.4 Helvetica,Arial,sans-serif">Coloană cuptor 600</span><span class="num" style="font:700 13.5px/1.4 Helvetica,Arial,sans-serif">9 000</span></div>
+              <div style="display:flex;justify-content:space-between;gap:14px"><span style="font:400 13.5px/1.4 Helvetica,Arial,sans-serif">Coloană cămară 600</span><span class="num" style="font:700 13.5px/1.4 Helvetica,Arial,sans-serif">7 000</span></div>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:10px;padding-top:6px;border-top:1px solid #e4dfd5">
+              <div style="display:flex;justify-content:space-between;gap:14px"><span style="font:400 13.5px/1.4 Helvetica,Arial,sans-serif;color:#6b5e52">Feronerie · Hettich</span><span class="num" style="font:700 13.5px/1.4 Helvetica,Arial,sans-serif">5 000</span></div>
+              <div style="display:flex;justify-content:space-between;gap:14px"><span style="font:400 13.5px/1.4 Helvetica,Arial,sans-serif;color:#6b5e52">Material · PAL melaminat</span><span class="num" style="font:700 13.5px/1.4 Helvetica,Arial,sans-serif">inclus</span></div>
+            </div>
+          </div>
+          <div style="border-top:1px solid #dcd8ce;padding:16px 24px 20px;display:flex;align-items:center;justify-content:space-between">
+            <div style="display:flex;flex-direction:column;gap:3px">
+              <span style="font:400 10.5px/1 Helvetica,Arial,sans-serif;letter-spacing:.09em;text-transform:uppercase;color:#7d7a72">De la</span>
+              <span class="num" style="font:700 20px/1 Helvetica,Arial,sans-serif">{{ priceTotal }} MDL</span>
+            </div>
+            <div style="height:48px;padding:0 22px;border-radius:12px;border:1px solid #dcd8ce;display:flex;align-items:center;font:700 14px/1 Helvetica,Arial,sans-serif;color:#6b5e52">Închide</div>
+          </div>
+        </div>
+      </div>
+      <span style="font:400 12px/1.5 Helvetica,Arial,sans-serif;color:#6b5e52;max-width:900px">Pe desktop defalcarea este un popover ancorat la preț, nu un ecran — rămâi în context. Structura este identică cu rezumatul de la pasul 3: perete → bandă → ordine.</span>
+    </div>
+
+    <!-- D2E -->
+    <div id="d2e" style="display:flex;flex-direction:column;gap:12px">
+      <div style="display:flex;align-items:baseline;gap:8px">
+        <span style="font:700 10px/1 Helvetica,Arial,sans-serif;letter-spacing:.14em;color:#fff;background:#7c5c3d;padding:5px 7px;border-radius:4px">D2E</span>
+        <span style="font:700 13px/1.3 Helvetica,Arial,sans-serif">Setări globale · material și feronerie</span>
+      </div>
+      <div style="width:1920px;height:1080px;position:relative;display:flex;flex-direction:column;background:#faf8f4;border:1px solid #dcd8ce;border-radius:14px;overflow:hidden;box-shadow:0 18px 44px rgba(28,24,20,.10)">
+        <div style="height:76px;flex:0 0 76px;padding:0 28px 0 40px;display:flex;align-items:center;gap:28px;border-bottom:1px solid #e4dfd5;z-index:3;background:#faf8f4">
+          <span style="font:700 15px/1 Helvetica,Arial,sans-serif;letter-spacing:.22em;text-transform:uppercase">Lemnaria</span>
+          <div style="display:flex;align-items:center;gap:22px">
+            <span style="font:400 13px/1 Helvetica,Arial,sans-serif;color:#a89c8e">1 · Cameră</span>
+            <span style="font:700 13px/1 Helvetica,Arial,sans-serif;color:#1c1814">2 · Configurare</span>
+            <span style="font:400 13px/1 Helvetica,Arial,sans-serif;color:#a89c8e">3 · Verificare</span>
+            <span style="font:400 13px/1 Helvetica,Arial,sans-serif;color:#a89c8e">4 · Contact</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px;margin-left:14px">
+            <span style="font:400 12.5px/1 Helvetica,Arial,sans-serif;color:#5a3e25;background:#ece7dd;border:2px solid #7c5c3d;padding:9px 12px;border-radius:20px">PAL melaminat</span>
+            <span style="font:400 12.5px/1 Helvetica,Arial,sans-serif;color:#5a3e25;background:#ece7dd;border:2px solid #7c5c3d;padding:9px 12px;border-radius:20px">Feronerie Hettich</span>
+            <span style="font:700 12.5px/1 Helvetica,Arial,sans-serif;color:#7c5c3d">Setări globale ⌃</span>
+          </div>
+          <div style="margin-left:auto;display:flex;align-items:center;gap:22px">
+            <div style="display:flex;flex-direction:column;gap:3px;text-align:right">
+              <span style="font:400 10.5px/1 Helvetica,Arial,sans-serif;letter-spacing:.09em;text-transform:uppercase;color:#7d7a72">De la</span>
+              <span class="num" style="font:700 21px/1 Helvetica,Arial,sans-serif">{{ priceTotal }} MDL</span>
+            </div>
+            <div style="height:52px;padding:0 26px;border-radius:12px;background:#7c5c3d;display:flex;align-items:center;font:700 15px/1 Helvetica,Arial,sans-serif;color:#faf8f4">Verifică designul</div>
+          </div>
+        </div>
+        <div style="flex:1;background:repeating-linear-gradient(135deg,#e9e4da 0 10px,#f1ede5 10px 20px)"></div>
+        <div style="position:absolute;inset:76px 0 0 0;background:rgba(28,24,20,.22);z-index:4"></div>
+        <div style="position:absolute;left:388px;top:92px;width:900px;background:#faf8f4;border:1px solid #dcd8ce;border-radius:16px;box-shadow:0 22px 48px rgba(28,24,20,.22);z-index:5;display:flex;flex-direction:column;overflow:hidden">
+          <div style="padding:22px 26px 16px;border-bottom:1px solid #e4dfd5;display:flex;flex-direction:column;gap:6px">
+            <span style="font:700 20px/1.2 Helvetica,Arial,sans-serif">Setări pentru toată bucătăria</span>
+            <span style="font:400 13px/1.5 Helvetica,Arial,sans-serif;color:#6b5e52">Se aplică tuturor celor 14 corpuri. Nu se setează pe fiecare corp în parte.</span>
+          </div>
+          <div style="padding:22px 26px;display:flex;gap:34px">
+            <div style="flex:1;display:flex;flex-direction:column;gap:12px">
+              <span style="font:700 11px/1 Helvetica,Arial,sans-serif;letter-spacing:.14em;text-transform:uppercase;color:#7d7a72">Material corp și fronturi</span>
+              <div style="display:flex;align-items:center;gap:14px;padding:15px;border:2px solid #7c5c3d;border-radius:12px">
+                <span style="width:44px;height:44px;flex:0 0 44px;border-radius:9px;background:repeating-linear-gradient(0deg,#d9d2c6 0 5px,#cfc7b9 5px 10px);border:1px solid #c4bcae"></span>
+                <div style="flex:1;display:flex;flex-direction:column;gap:4px">
+                  <span style="font:700 15px/1.2 Helvetica,Arial,sans-serif">PAL melaminat</span>
+                  <span style="font:400 12.5px/1.35 Helvetica,Arial,sans-serif;color:#6b5e52">Standard. Rezistent la zgârieturi, cel mai bun raport preț‑durată.</span>
+                </div>
+                <span class="num" style="font:700 13px/1 Helvetica,Arial,sans-serif;color:#6b5e52">inclus</span>
+              </div>
+              <div style="display:flex;align-items:center;gap:14px;padding:15px;border:1px solid #dcd8ce;border-radius:12px">
+                <span style="width:44px;height:44px;flex:0 0 44px;border-radius:9px;background:#e4ded2;border:1px solid #d3cbbd"></span>
+                <div style="flex:1;display:flex;flex-direction:column;gap:4px">
+                  <span style="font:700 15px/1.2 Helvetica,Arial,sans-serif">MDF vopsit</span>
+                  <span style="font:400 12.5px/1.35 Helvetica,Arial,sans-serif;color:#6b5e52">Fronturi netede, orice culoare, muchii frezate.</span>
+                </div>
+                <span class="num" style="font:700 13px/1 Helvetica,Arial,sans-serif;color:#2d5016">de la +9 000</span>
+              </div>
+              <div style="display:flex;align-items:center;gap:14px;padding:15px;border:1px solid #dcd8ce;border-radius:12px">
+                <span style="width:44px;height:44px;flex:0 0 44px;border-radius:9px;background:repeating-linear-gradient(90deg,#d8b483 0 4px,#cfa876 4px 8px);border:1px solid #c9a56f"></span>
+                <div style="flex:1;display:flex;flex-direction:column;gap:4px">
+                  <span style="font:700 15px/1.2 Helvetica,Arial,sans-serif">Lemn masiv</span>
+                  <span style="font:400 12.5px/1.35 Helvetica,Arial,sans-serif;color:#6b5e52">Stejar sau frasin. Termen de execuție mai lung.</span>
+                </div>
+                <span class="num" style="font:700 13px/1 Helvetica,Arial,sans-serif;color:#2d5016">de la +26 000</span>
+              </div>
+            </div>
+            <div style="flex:1;display:flex;flex-direction:column;gap:12px">
+              <span style="font:700 11px/1 Helvetica,Arial,sans-serif;letter-spacing:.14em;text-transform:uppercase;color:#7d7a72">Feronerie</span>
+              <div style="display:flex;align-items:center;gap:14px;padding:15px;border:1px solid #dcd8ce;border-radius:12px">
+                <div style="flex:1;display:flex;flex-direction:column;gap:4px">
+                  <span style="font:700 15px/1.2 Helvetica,Arial,sans-serif">Standard</span>
+                  <span style="font:400 12.5px/1.35 Helvetica,Arial,sans-serif;color:#6b5e52">Balamale și glisiere cu amortizare, garanție 2 ani.</span>
+                </div>
+                <span class="num" style="font:700 13px/1 Helvetica,Arial,sans-serif;color:#6b5e52">inclus</span>
+              </div>
+              <div style="display:flex;align-items:center;gap:14px;padding:15px;border:2px solid #7c5c3d;border-radius:12px">
+                <div style="flex:1;display:flex;flex-direction:column;gap:4px">
+                  <span style="font:700 15px/1.2 Helvetica,Arial,sans-serif">Hettich</span>
+                  <span style="font:400 12.5px/1.35 Helvetica,Arial,sans-serif;color:#6b5e52">Glisiere cu extragere totală, garanție extinsă.</span>
+                </div>
+                <span class="num" style="font:700 13px/1 Helvetica,Arial,sans-serif;color:#2d5016">de la +5 000</span>
+              </div>
+              <div style="display:flex;align-items:center;gap:14px;padding:15px;border:1px solid #dcd8ce;border-radius:12px">
+                <div style="flex:1;display:flex;flex-direction:column;gap:4px">
+                  <span style="font:700 15px/1.2 Helvetica,Arial,sans-serif">Blum</span>
+                  <span style="font:400 12.5px/1.35 Helvetica,Arial,sans-serif;color:#6b5e52">Cea mai lină închidere, sisteme de ridicare pentru rândul superior.</span>
+                </div>
+                <span class="num" style="font:700 13px/1 Helvetica,Arial,sans-serif;color:#2d5016">de la +11 000</span>
+              </div>
+              <div style="margin-top:auto;display:flex;gap:10px;align-items:flex-start;padding:13px 14px;background:#f5f3f0;border:1px solid #dcd8ce;border-radius:11px">
+                <span style="width:17px;height:17px;flex:0 0 17px;border-radius:50%;background:#1d4ed8;color:#fff;font:700 11px/17px Helvetica,Arial,sans-serif;text-align:center">i</span>
+                <span style="font:400 12.5px/1.45 Helvetica,Arial,sans-serif;color:#6b5e52">Schimbarea materialului recalculează întreaga estimare și poate limita unele finisaje per corp.</span>
+              </div>
+            </div>
+          </div>
+          <div style="border-top:1px solid #dcd8ce;padding:16px 26px 20px;display:flex;align-items:center;justify-content:space-between">
+            <div style="display:flex;flex-direction:column;gap:3px">
+              <span style="font:400 10.5px/1 Helvetica,Arial,sans-serif;letter-spacing:.09em;text-transform:uppercase;color:#7d7a72">De la</span>
+              <span class="num" style="font:700 20px/1 Helvetica,Arial,sans-serif">{{ priceTotal }} MDL</span>
+            </div>
+            <div style="display:flex;gap:12px">
+              <div style="height:50px;padding:0 22px;border-radius:12px;border:1px solid #dcd8ce;display:flex;align-items:center;font:700 14px/1 Helvetica,Arial,sans-serif;color:#6b5e52">Renunță</div>
+              <div style="height:50px;padding:0 26px;border-radius:12px;background:#7c5c3d;display:flex;align-items:center;font:700 14px/1 Helvetica,Arial,sans-serif;color:#faf8f4">Aplică</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <span style="font:400 12px/1.5 Helvetica,Arial,sans-serif;color:#6b5e52;max-width:900px">Deschis din bara de sus, ancorat sub chipurile pe care le controlează. Cele două decizii globale stau una lângă alta — pe mobil erau una sub alta, într-un sheet.</span>
+    </div>
+
+    <!-- D2F -->
+    <div id="d2f" style="display:flex;flex-direction:column;gap:12px">
+      <div style="display:flex;align-items:baseline;gap:8px">
+        <span style="font:700 10px/1 Helvetica,Arial,sans-serif;letter-spacing:.14em;color:#fff;background:#7c5c3d;padding:5px 7px;border-radius:4px">D2F</span>
+        <span style="font:700 13px/1.3 Helvetica,Arial,sans-serif">WebGL indisponibil</span>
+      </div>
+      <div style="width:1920px;height:1080px;display:flex;flex-direction:column;background:#faf8f4;border:1px solid #dcd8ce;border-radius:14px;overflow:hidden;box-shadow:0 18px 44px rgba(28,24,20,.10)">
+        <div style="height:76px;flex:0 0 76px;padding:0 40px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #e4dfd5">
+          <span style="font:700 15px/1 Helvetica,Arial,sans-serif;letter-spacing:.22em;text-transform:uppercase">Lemnaria</span>
+          <span style="font:700 12px/1 Helvetica,Arial,sans-serif;letter-spacing:.08em;color:#6b5e52;background:#ece7dd;padding:9px 12px;border-radius:5px">RO</span>
+        </div>
+        <div style="flex:1;display:flex;align-items:center;justify-content:center;padding:0 40px">
+          <div style="width:760px;display:flex;flex-direction:column;gap:26px">
+            <div style="height:220px;border-radius:16px;border:1px dashed #dcd8ce;background:#f5f3f0;display:flex;align-items:center;justify-content:center">
+              <span style="font:400 12px/1 ui-monospace,Menlo,Consolas,monospace;color:#8d8377">[ ilustrație „3D necesar” ]</span>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:11px">
+              <h2 style="margin:0;font:700 32px/1.2 Helvetica,Arial,sans-serif;letter-spacing:-.02em">Browserul acesta nu poate afișa 3D</h2>
+              <p style="margin:0;font:400 15px/1.6 Helvetica,Arial,sans-serif;color:#6b5e52;text-wrap:pretty">Configurarea se face direct în model, așa că nu putem continua fără 3D. Încearcă alt browser sau activează accelerarea grafică — ori lasă-ne datele și îl configurăm împreună.</p>
+            </div>
+            <div style="display:flex;gap:14px">
+              <div style="flex:1;display:flex;align-items:center;justify-content:space-between;padding:18px;background:#f5f3f0;border:1px solid #dcd8ce;border-radius:12px">
+                <span style="font:700 15px/1 Helvetica,Arial,sans-serif">Trimite-mi linkul pe e-mail</span>
+                <span style="font:400 19px/1 Helvetica,Arial,sans-serif;color:#7c5c3d">→</span>
+              </div>
+              <div style="flex:1;display:flex;align-items:center;justify-content:space-between;padding:18px;background:#f5f3f0;border:1px solid #dcd8ce;border-radius:12px">
+                <span style="font:700 15px/1 Helvetica,Arial,sans-serif">Vreau să mă contactați</span>
+                <span style="font:400 19px/1 Helvetica,Arial,sans-serif;color:#7c5c3d">→</span>
+              </div>
+            </div>
+            <p style="margin:0;font:400 12.5px/1.5 Helvetica,Arial,sans-serif;color:#7d7a72">Nu afișăm o previzualizare statică falsă: fără 3D nu există configurare reală, deci nici preț.</p>
+          </div>
+        </div>
+      </div>
+      <span style="font:400 12px/1.5 Helvetica,Arial,sans-serif;color:#6b5e52;max-width:900px">Aceeași regulă ca pe mobil: ieșire explicită, două căi de continuare, fără preț. Pe desktop cauza probabilă e alta — accelerare grafică dezactivată — deci și textul e altul.</span>
+    </div>
+  </section>
+
+  <footer style="display:flex;flex-wrap:wrap;gap:12px;padding-top:8px;border-top:1px solid #d5d0c5">
+    <span style="font:400 12px/1.6 Helvetica,Arial,sans-serif;color:#6b5e52;max-width:78ch">Acoperă ecranele 1 și 2 pe desktop, cu toate stările. Verificarea, contactul și succesul există deocamdată doar pe mobil. Regulile de generare, pragurile pe pereți scurți și prețurile reale rămân decizii de produs nefinalizate.</span>
+  </footer>
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;priceTotal&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;60 000&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Conținut&quot;}}">
+class Component extends DCLogic {
+  state = { sel: null, width: 800, rejected: false };
+
+  componentDidMount() {
+    this._onMsg = e => {
+      const d = e.data;
+      if (!d || d.src !== 'lemnaria-scene') return;
+      if (d.t === 'sel') this.setState({ sel: d.item, width: d.item.widthMm, rejected: false });
+      if (d.t === 'desel') this.setState({ sel: null });
+      if (d.t === 'rejected') this.setState({ rejected: d.msg });
+    };
+    addEventListener('message', this._onMsg);
+  }
+  componentWillUnmount() { removeEventListener('message', this._onMsg); }
+
+  send(msg) {
+    const f = document.getElementById('scene-live-d');
+    if (f && f.contentWindow) f.contentWindow.postMessage(msg, '*');
+  }
+
+  // Swap groups: a cabinet can only be exchanged for another body that fits
+  // the same opening and service (plumbing, ducting, appliance niche).
+  // Swap sets: same opening, same band, same service. A cabinet is never
+  // offered a body from another band — that is what delete + insert is for.
+  alts(s) {
+    const empty = !!(s && s.empty);
+    const it = (name, icon, delta, build, current, group, w, h, hFlex) => ({
+      name, icon: 'cabinets/' + icon + '.svg', delta,
+      current: !empty && !!current,
+      group, w, h, hFlex: !!hFlex,
+      pick: () => this.send({ t: 'insert', value: build }),
+    });
+    const chips = arr => arr.map((label, i) => ({ label, on: i === 0, off: i !== 0 }));
+    const G = {
+      open_shelf_unit: {
+        noun: 'corpuri suspendate',
+        chips: chips(['Toate 6', 'Cu uși 3', 'Deschise 2', 'Sticlă 1']),
+        note: 'Același gabarit suspendat, aceeași poziție pe perete.',
+        items: [
+          it('Etajeră deschisă', 'wall-open-shelf', 'inclus', 'open-shelf', true),
+          it('Corp suspendat 2 uși', 'wall-2-door', '+2 000 MDL', 'wall-2door'),
+          it('Două corpuri de 400, o ușă', 'wall-1-door', '+2 400 MDL', 'wall-1door'),
+          it('Corp suspendat de colț', 'wall-corner', '+2 900 MDL', 'wall-1door'),
+          it('Corp suspendat cu sticlă', 'wall-glass', '+3 100 MDL', 'wall-2door'),
+          it('Etajeră cu spate placat', 'wall-open-shelf', '+900 MDL', 'open-shelf'),
+        ],
+      },
+      wall_cabinet: {
+        noun: 'corpuri suspendate',
+        chips: chips(['Toate 5', 'Cu uși 3', 'Deschise 1', 'Electro 1']),
+        note: 'Același gabarit suspendat, aceeași poziție pe perete.',
+        items: [
+          it('Corp suspendat 2 uși', 'wall-2-door', 'inclus', 'wall-2door', true),
+          it('Corp suspendat 1 ușă', 'wall-1-door', '−600 MDL', 'wall-1door'),
+          it('Corp suspendat cu sticlă', 'wall-glass', '+1 100 MDL', 'wall-2door'),
+          it('Etajeră deschisă', 'wall-open-shelf', '−900 MDL', 'open-shelf'),
+          it('Nișă microunde', 'wall-microwave', '+2 200 MDL', 'wall-lift'),
+        ],
+      },
+      extractor_hood: {
+        noun: 'hote',
+        chips: chips(['Toate 3', 'Vizibile 2', 'Încorporate 1']),
+        note: 'Aceeași lățime și racord de evacuare. Puterea se alege la verificare.',
+        items: [
+          it('Hotă vizibilă', 'wall-hood', 'inclus', 'hood', true),
+          it('Hotă telescopică', 'wall-hood', '+1 400 MDL', 'hood'),
+          it('Hotă încorporată în corp', 'wall-microwave', '+2 600 MDL', 'wall-lift'),
+        ],
+      },
+      dishwasher_housing: {
+        noun: 'corpuri bază',
+        chips: chips(['Toate 3', 'Cu instalații 1', 'Depozitare 2']),
+        note: 'Renunțarea la nișă elimină racordul pregătit pentru mașina de spălat vase.',
+        items: [
+          it('Nișă mașină de spălat vase', 'base-dishwasher', 'inclus', 'base-dishwasher', true),
+          it('Corp bază 3 sertare', 'base-3-drawer', '+1 800 MDL', 'base-3drawer'),
+          it('Corp bază 2 uși', 'base-2-door', '+900 MDL', 'base-2door'),
+        ],
+      },
+      tall_unit: {
+        noun: 'coloane',
+        chips: chips(['Toate 3', 'Depozitare 1', 'Electro 2']),
+        note: 'Coloanele se schimbă doar între ele — aceeași înălțime și adâncime.',
+        items: [
+          it('Coloană cămară', 'tall-pantry', 'inclus', 'tall-pantry', true),
+          it('Coloană cuptor + microunde', 'tall-oven-tower', '+3 400 MDL', 'tall-oven-tower'),
+          it('Nișă frigider integrat', 'tall-fridge', '−1 800 MDL', 'tall-fridge-housing'),
+        ],
+      },
+      base_cabinet: {
+        noun: 'corpuri bază',
+        chips: chips(['Toate 5', 'Cu uși 3', 'Sertare 1', 'Cu instalații 1']),
+        note: 'Doar corpuri din același grup de înlocuire. Poziția și peretele rămân neschimbate.',
+        items: [
+          it('Corp bază 2 uși', 'base-2-door', 'inclus', 'base-2door', true),
+          it('Corp bază 3 sertare', 'base-3-drawer', '+1 800 MDL', 'base-3drawer'),
+          it('Corp bază 1 ușă', 'base-1-door', '−700 MDL', 'base-1door'),
+          it('Corp spălător', 'base-sink', '+2 300 MDL', 'base-sink'),
+          it('Corp plită și cuptor', 'base-oven', '+4 100 MDL', 'base-panbank'),
+        ],
+      },
+    };
+    // An empty opening is offered everything that physically fits it — its own
+    // width and its own height. That is what lets a cleared full-height column
+    // take a column OR a base cabinet, and a leftover space above a base take a
+    // wall unit and then a top unit.
+    const CAT = [
+      it('Corp bază 2 uși', 'base-2-door', '+900 MDL', 'base-2door', false, 'base', 'fit', 860),
+      it('Corp bază 1 ușă', 'base-1-door', '+600 MDL', 'base-1door', false, 'base', 'fit', 860),
+      it('Corp bază 3 sertare', 'base-3-drawer', '+1 800 MDL', 'base-3drawer', false, 'base', 'fit', 860),
+      it('Sertare pentru oale', 'base-oven', '+2 100 MDL', 'base-panbank', false, 'base', 'fit', 860),
+      it('Corp spălător', 'base-sink', '+2 300 MDL', 'base-sink', false, 'base', 'fit', 860),
+      it('Nișă mașină de spălat vase', 'base-dishwasher', '+1 500 MDL', 'base-dishwasher', false, 'base', 600, 860),
+      it('Corp suspendat 2 uși', 'wall-2-door', '+2 000 MDL', 'wall-2door', false, 'wall', 'fit', 700, true),
+      it('Corp suspendat 1 ușă', 'wall-1-door', '+1 400 MDL', 'wall-1door', false, 'wall', 'fit', 700, true),
+      it('Corp suspendat rabatabil', 'wall-glass', '+2 600 MDL', 'wall-lift', false, 'wall', 'fit', 700, true),
+      it('Etajeră deschisă', 'wall-open-shelf', '+1 100 MDL', 'open-shelf', false, 'wall', 'fit', 700, true),
+      it('Hotă', 'wall-hood', '+3 900 MDL', 'hood', false, 'wall', 'fit', 710),
+      it('Coloană cămară', 'tall-pantry', '+9 400 MDL', 'tall-pantry', false, 'column', 600, 2200),
+      it('Coloană cuptor + microunde', 'tall-oven-tower', '+12 800 MDL', 'tall-oven-tower', false, 'column', 600, 2200),
+      it('Nișă frigider integrat', 'tall-fridge', '+7 600 MDL', 'tall-fridge-housing', false, 'column', 600, 2200),
+      it('Frigider, liber', 'tall-fridge', '+6 200 MDL', 'fridge-free', false, 'column', 700, 1800),
+    ];
+    const openW = (s && s.openWmm) || 800;
+    const openH = (s && s.openHmm) || 720;
+    // The level is the target, but a body taller than the level may still fit
+    // the free span it belongs to — that is how a column goes into a cleared
+    // vertical no matter which of its levels you picked.
+    const spanH = (s && s.spanHmm) || openH;
+    // A slot takes bodies of its own band — plus full-height bodies whenever the
+    // whole vertical is free. Dimensions alone are not enough: a wall carcass
+    // fits an 860 mm base opening and would stand on the floor without a plinth.
+    const slotBand = (s && s.band) === 'base' ? 'base'
+      : (s && s.band) === 'column' ? 'column' : 'wall';
+    const fits = CAT.filter(c => {
+      if (c.w !== 'fit' && c.w > openW + 12) return false;
+      if (c.group === 'column') return c.h <= Math.max(openH, spanH) + 12;
+      if (slotBand === 'column') return c.h <= spanH + 12;
+      if (c.group !== slotBand) return false;
+      return c.hFlex ? openH >= 400 : c.h <= openH + 12;
+    });
+    const groupOf = key => fits.filter(c => c.group === key).length;
+    const emptySet = {
+      noun: 'corpuri care intră aici',
+      chips: [
+        { label: 'Toate ' + fits.length, on: true, off: false },
+        { label: 'Bază ' + groupOf('base'), on: false, off: true },
+        { label: 'Suspendate ' + groupOf('wall'), on: false, off: true },
+        { label: 'Înălțime întreagă ' + groupOf('column'), on: false, off: true },
+      ].filter(c => !/ 0$/.test(c.label)),
+      items: fits,
+      note: fits.length === 0
+        ? 'Nimic din catalog nu intră în ' + openW + ' × ' + openH + ' mm. Golește un corp vecin de pe verticală ca să se mărească locul.'
+        : spanH > openH + 12
+        ? 'Nivelul e gol (' + openW + ' × ' + openH + ' mm), iar verticala e liberă pe ' + spanH + ' mm. Poți umple doar acest nivel sau lua toată înălțimea cu o coloană.'
+        : 'Locul e gol. Ți se arată tot ce încape în ' + openW + ' × ' + openH + ' mm. Golește și vecinii de pe verticală ca să încapă o coloană.',
+    };
+    const known = !!(s && G[s.kind]);
+    const g = empty ? emptySet : (known ? G[s.kind] : { noun: '', items: [], chips: [], note: '' });
+    return {
+      altKnown: empty || known,
+      altList: g.items, altChips: g.chips,
+      altCount: empty
+        ? `${g.items.length} corpuri intră în ${(s && s.openWmm) || 800} × ${(s && s.openHmm) || 720} mm`
+        : `${g.items.length} ${g.noun} de ${s ? s.widthMm : 800}`,
+      altNote: g.note || 'Doar corpuri care intră în acest gabarit. Poziția și peretele rămân neschimbate.',
+      replaceTitle: empty ? 'Pune un corp aici' : 'Înlocuiește',
+    };
+  }
+
+  // Width is a boundary between neighbours, not a property of one cabinet: a
+  // size is offered only when the neighbour beside it can actually give up the
+  // millimetres, so overlapping carcasses cannot be requested.
+  widthChips(s, w) {
+    const grow = (s && s.growMm) || 0;
+    const min = (s && s.minMm) || 300;
+    const donor = s && s.donorSide;
+    const sizes = (s && s.sizes) || [400, 600, 800];
+    const widths = sizes.map(v => {
+      const on = v === w;
+      const ok = !on && v >= min && (v <= w + grow) && !!donor;
+      return {
+        label: String(v), on, free: ok, blocked: !on && !ok,
+        pick: () => this.send({ t: 'width', value: v }),
+      };
+    });
+    const note = !donor
+      ? 'Nu există un vecin care să dea sau să preia lățime — lățimea rămâne fixă.'
+      : 'Lățimea se ia de la vecinul din ' + donor + ' (' + (s.donorMm || 0) + ' mm). Maxim ' + (w + grow) + ' mm; sub ' + min + ' mm nu se coboară.';
+    return { widths, widthNote: note };
+  }
+
+  renderVals() {
+    const s = this.state.sel;
+    const A = this.alts(s);
+    const w = this.state.width;
+    return {
+      priceTotal: this.props.priceTotal ?? '60 000',
+      noSel: !s,
+      canReplace: !!(s && s.canReplace) && !!A.altKnown,
+      isEmpty: !!(s && s.empty),
+      notEmpty: !!(s && !s.empty),
+      canDelete: !!(s && s.canDelete),
+      doRemove: () => this.send({ t: 'remove' }),
+      canFinish: !!(s && s.canFinish),
+      canHandle: !!(s && s.canHandle),
+      canWidth: !!(s && !s.empty && !s.fixedWidth),
+      ...A,
+      rejected: !!this.state.rejected,
+      rejectedMsg: this.state.rejected || '',
+      selLabel: s ? s.label : 'Clic pe un corp în scenă',
+      selMeta: s
+        ? `Perete ${s.wall} · ${s.bandLabel.toLowerCase()} · ${s.widthMm} × ${s.heightMm} mm`
+        : 'Selecția din 3D populează acest panou',
+      widthLabel: w + ' mm',
+      ...this.widthChips(s, w),
+      pickWhite: () => this.send({ t: 'finish', value: 'white' }),
+      pickOak: () => this.send({ t: 'finish', value: 'oak' }),
+      pickClay: () => this.send({ t: 'finish', value: 'clay' }),
+      pickSage: () => this.send({ t: 'finish', value: 'sage' }),
+      pickGraphite: () => this.send({ t: 'finish', value: 'graphite' }),
+      pickHandleSteel: () => this.send({ t: 'handle', value: 'steel' }),
+      pickHandleBlack: () => this.send({ t: 'handle', value: 'black' }),
+      pickHandlePush: () => this.send({ t: 'handle', value: 'push' }),
+    };
+  }
+}
+
+</script>
+</body>
+</html>

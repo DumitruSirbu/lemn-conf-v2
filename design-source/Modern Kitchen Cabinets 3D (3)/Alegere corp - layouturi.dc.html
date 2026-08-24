@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<style>
+  html,body { margin:0; background:#f2f0ea; }
+  a { color:#7c5c3d; }
+  a:hover { color:#5a3e25; }
+  .num { font-variant-numeric: tabular-nums; }
+</style>
+</helmet>
+
+<div style="padding:56px 64px 90px;display:flex;flex-direction:column;gap:16px;font-family:Helvetica,Arial,sans-serif;color:#1c1814">
+  <div style="display:flex;align-items:center;gap:12px">
+    <span style="width:9px;height:9px;border-radius:50%;background:#7c5c3d"></span>
+    <span style="font:400 12px/1 Helvetica,Arial,sans-serif;letter-spacing:.1em;text-transform:uppercase;color:#7d7a72">Configurator · panoul „Înlocuiește”</span>
+  </div>
+  <h1 style="margin:0;font:700 34px/1.15 Helvetica,Arial,sans-serif;letter-spacing:-.02em;max-width:22ch">Cum alegi rapid dintre 20 de corpuri</h1>
+  <p style="margin:0;font:400 14.5px/1.6 Helvetica,Arial,sans-serif;color:#6b5e52;max-width:68ch;text-wrap:pretty">Două layouturi pentru același panou, desktop și mobil. Recomandarea e <a href="#1b">1b</a>: locul din bucătărie are deja lățime și bandă, deci lista pornește filtrată la corpurile care încap — paginarea dispare de la sine.</p>
+</div>
+
+<section style="padding:0 64px 90px;display:flex;flex-direction:column;gap:26px">
+  <div style="display:flex;align-items:baseline;gap:14px;border-bottom:1px solid #d5d0c5;padding-bottom:12px">
+    <span style="font:700 12px/1 Helvetica,Arial,sans-serif;letter-spacing:.16em;text-transform:uppercase;color:#7c5c3d">Runda 2</span>
+    <span style="font:700 22px/1 Helvetica,Arial,sans-serif;letter-spacing:-.01em">Trei verbe în loc de un catalog</span>
+  </div>
+
+  <p style="margin:0;font:400 14px/1.6 Helvetica,Arial,sans-serif;color:#6b5e52;max-width:78ch;text-wrap:pretty;font-family:Helvetica,Arial,sans-serif">Ai dreptate de două ori: catalogul pe benzi din <a href="#1c">1c</a> arată corpuri care nu pot ajunge niciodată în locul ales, iar înlocuirea între benzi cere un calcul care nu merită scris. Deci: <strong>Înlocuiește</strong> rămâne strict în bandă, apare <strong>Șterge</strong>, iar coloana nu înlocuiește nimic — se așază într-un loc gol pe toată înălțimea, făcut de client, pas cu pas.</p>
+
+  <div style="display:flex;flex-wrap:wrap;gap:44px;align-items:flex-start;font-family:Helvetica,Arial,sans-serif;color:#1c1814">
+
+    <!-- 2a -->
+    <div id="2a" style="display:flex;flex-direction:column;gap:16px;width:430px">
+      <div style="display:flex;align-items:baseline;gap:9px">
+        <span style="font:700 10px/1 Helvetica,Arial,sans-serif;letter-spacing:.14em;color:#fff;background:#2d5016;padding:5px 7px;border-radius:4px">2a</span>
+        <span style="font:700 15px/1.3 Helvetica,Arial,sans-serif">Corp selectat · doar banda lui</span>
+      </div>
+      <p style="margin:0;font:400 12.5px/1.55 Helvetica,Arial,sans-serif;color:#6b5e52">Fără tab-uri de bandă. Ai atins un corp suspendat, deci vezi corpuri suspendate — plus verbul care lipsea.</p>
+
+      <div style="width:420px;height:620px;display:flex;flex-direction:column;background:#faf8f4;border:1px solid #dcd8ce;border-radius:14px;overflow:hidden;box-shadow:0 14px 34px rgba(28,24,20,.09)">
+        <div style="padding:16px 18px;border-bottom:1px solid #e4dfd5;display:flex;align-items:flex-start;justify-content:space-between;gap:12px">
+          <span style="display:flex;flex-direction:column;gap:5px">
+            <span style="font:700 14px/1.2 Helvetica,Arial,sans-serif">Etajeră deschisă</span>
+            <span class="num" style="font:400 12px/1 Helvetica,Arial,sans-serif;color:#7d7a72">Suspendat · 800 × 720 mm · perete A</span>
+          </span>
+          <span style="font:700 15px/1 Helvetica,Arial,sans-serif;color:#a89c8e">✕</span>
+        </div>
+        <div style="flex:1;padding:14px 18px;display:flex;flex-direction:column;gap:14px;overflow:hidden">
+          <div style="display:flex;flex-direction:column;gap:9px">
+            <div style="display:flex;align-items:baseline;justify-content:space-between">
+              <span style="font:700 11px/1 Helvetica,Arial,sans-serif;letter-spacing:.14em;text-transform:uppercase;color:#7d7a72">Înlocuiește</span>
+              <span class="num" style="font:400 11.5px/1 Helvetica,Arial,sans-serif;color:#2d5016">6 corpuri suspendate de 800</span>
+            </div>
+            <sc-for list="{{ wallOnly }}" as="it" hint-placeholder-count="6">
+              <div style="display:flex;gap:11px;align-items:center;padding:6px;border:1px solid #dcd8ce;border-radius:12px;background:#fff">
+                <span style="flex:0 0 44px;width:44px;height:44px;border-radius:9px;background:#f5f3f0;border:1px solid #e4dfd5;display:flex;align-items:center;justify-content:center;background-image:url({{ it.icon }});background-size:auto 76%;background-position:center;background-repeat:no-repeat"></span>
+                <span style="flex:1;display:flex;flex-direction:column;gap:3px;min-width:0">
+                  <span style="font:700 12.5px/1.25 Helvetica,Arial,sans-serif">{{ it.name }}</span>
+                  <span class="num" style="font:400 11.5px/1 Helvetica,Arial,sans-serif;color:#6b5e52">{{ it.delta }}</span>
+                </span>
+                <sc-if value="{{ it.current }}" hint-placeholder-val="{{ false }}">
+                  <span style="font:700 10.5px/1 Helvetica,Arial,sans-serif;letter-spacing:.06em;text-transform:uppercase;color:#7d7a72;border:1px solid #dcd8ce;padding:6px 8px;border-radius:6px">Actual</span>
+                </sc-if>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+        <div style="padding:13px 18px 16px;border-top:1px solid #e4dfd5;display:flex;gap:10px;align-items:center">
+          <span style="flex:1;height:46px;border-radius:11px;border:1px solid #e0b4b4;background:#fdf6f6;display:flex;align-items:center;justify-content:center;gap:8px;font:700 13px/1 Helvetica,Arial,sans-serif;color:#9b2c2c">Șterge corpul</span>
+          <span style="flex:1;height:46px;border-radius:11px;background:#7c5c3d;display:flex;align-items:center;justify-content:center;font:700 13px/1 Helvetica,Arial,sans-serif;color:#faf8f4">Gata</span>
+        </div>
+      </div>
+      <p style="margin:0;font:400 12px/1.55 Helvetica,Arial,sans-serif;color:#6b5e52;max-width:420px;text-wrap:pretty">„Șterge” stă lângă „Gata”, nu în lista de corpuri: e o acțiune pe locul selectat, nu o opțiune de cumpărat. Roșu stins, nu roșu de alarmă — se poate anula.</p>
+    </div>
+
+    <!-- 2b -->
+    <div id="2b" style="display:flex;flex-direction:column;gap:16px;width:430px">
+      <div style="display:flex;align-items:baseline;gap:9px">
+        <span style="font:700 10px/1 Helvetica,Arial,sans-serif;letter-spacing:.14em;color:#fff;background:#7c5c3d;padding:5px 7px;border-radius:4px">2b</span>
+        <span style="font:700 15px/1.3 Helvetica,Arial,sans-serif">Loc gol · progres spre coloană</span>
+      </div>
+      <p style="margin:0;font:400 12.5px/1.55 Helvetica,Arial,sans-serif;color:#6b5e52">Golul e o stare cu drepturi, nu o eroare. Aici apare singurul indiciu despre coloană — și numărătoarea.</p>
+
+      <div style="width:420px;height:620px;display:flex;flex-direction:column;background:#faf8f4;border:1px solid #dcd8ce;border-radius:14px;overflow:hidden;box-shadow:0 14px 34px rgba(28,24,20,.09)">
+        <div style="padding:16px 18px;border-bottom:1px solid #e4dfd5;display:flex;flex-direction:column;gap:5px">
+          <span style="font:700 14px/1.2 Helvetica,Arial,sans-serif">Loc gol</span>
+          <span class="num" style="font:400 12px/1 Helvetica,Arial,sans-serif;color:#7d7a72">Suspendat · 800 mm · perete A</span>
+        </div>
+        <div style="flex:1;padding:14px 18px;display:flex;flex-direction:column;gap:13px;overflow:hidden">
+          <div style="display:flex;flex-direction:column;gap:10px;padding:13px;background:#f7ecdc;border:1px solid #e6cfa8;border-radius:12px">
+            <span style="font:700 12.5px/1.35 Helvetica,Arial,sans-serif;color:#7c4a0c">Vrei o coloană pe toată înălțimea?</span>
+            <span style="font:400 12px/1.5 Helvetica,Arial,sans-serif;color:#7c4a0c">Are nevoie de 800 mm liberi de la podea la plafon. Golește și restul locurilor de pe această verticală.</span>
+            <sc-for list="{{ clearSteps }}" as="st" hint-placeholder-count="3">
+              <div style="display:flex;align-items:center;gap:10px">
+                <span style="width:20px;height:20px;flex:0 0 20px;border-radius:50%;border:1px solid #e6cfa8;background:{{ st.dotBg }};color:{{ st.dotFg }};font:700 11px/19px Helvetica,Arial,sans-serif;text-align:center">{{ st.mark }}</span>
+                <span style="flex:1;font:400 12px/1.3 Helvetica,Arial,sans-serif;color:#7c4a0c">{{ st.label }}</span>
+                <span class="num" style="font:400 11.5px/1 Helvetica,Arial,sans-serif;color:#a1743a">{{ st.state }}</span>
+              </div>
+            </sc-for>
+            <span style="height:40px;border-radius:10px;background:#b45309;display:flex;align-items:center;justify-content:center;font:700 12.5px/1 Helvetica,Arial,sans-serif;color:#fff">Golește toată verticala (2 corpuri)</span>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:9px">
+            <span style="font:700 11px/1 Helvetica,Arial,sans-serif;letter-spacing:.14em;text-transform:uppercase;color:#7d7a72">Sau pune ceva suspendat aici</span>
+            <sc-for list="{{ gapOptions }}" as="it" hint-placeholder-count="3">
+              <div style="display:flex;gap:11px;align-items:center;padding:6px;border:1px solid #dcd8ce;border-radius:12px;background:#fff">
+                <span style="flex:0 0 44px;width:44px;height:44px;border-radius:9px;background:#f5f3f0;border:1px solid #e4dfd5;display:flex;align-items:center;justify-content:center;background-image:url({{ it.icon }});background-size:auto 76%;background-position:center;background-repeat:no-repeat"></span>
+                <span style="flex:1;display:flex;flex-direction:column;gap:3px;min-width:0">
+                  <span style="font:700 12.5px/1.25 Helvetica,Arial,sans-serif">{{ it.name }}</span>
+                  <span class="num" style="font:400 11.5px/1 Helvetica,Arial,sans-serif;color:#6b5e52">{{ it.delta }}</span>
+                </span>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+        <div style="padding:12px 18px 16px;border-top:1px solid #e4dfd5;display:flex;align-items:center;justify-content:space-between;gap:12px">
+          <span style="font:400 11.5px/1.4 Helvetica,Arial,sans-serif;color:#7d7a72">Etajeră deschisă ștearsă</span>
+          <span style="font:700 12px/1 Helvetica,Arial,sans-serif;color:#5a3e25;border-bottom:1px solid #c9bda9;padding-bottom:2px">Anulează</span>
+        </div>
+      </div>
+
+      <div style="width:390px;height:700px;display:flex;flex-direction:column;background:#faf8f4;border:1px solid #dcd8ce;border-radius:26px 26px 0 0;overflow:hidden;box-shadow:0 -8px 34px rgba(28,24,20,.10)">
+        <div style="padding:12px 0 0;display:flex;justify-content:center"><span style="width:40px;height:4px;border-radius:2px;background:#dcd8ce"></span></div>
+        <div style="padding:12px 18px;display:flex;flex-direction:column;gap:5px">
+          <span style="font:700 15px/1.2 Helvetica,Arial,sans-serif">Loc gol · 800 mm suspendat</span>
+          <span class="num" style="font:400 12px/1.4 Helvetica,Arial,sans-serif;color:#7d7a72">Perete A · între spălător și hotă</span>
+        </div>
+        <div style="flex:1;padding:0 18px;display:flex;flex-direction:column;gap:12px;overflow:hidden">
+          <div style="display:flex;flex-direction:column;gap:10px;padding:14px;background:#f7ecdc;border:1px solid #e6cfa8;border-radius:13px">
+            <span style="font:700 13.5px/1.35 Helvetica,Arial,sans-serif;color:#7c4a0c">Coloană pe toată înălțimea</span>
+            <span style="font:400 12.5px/1.5 Helvetica,Arial,sans-serif;color:#7c4a0c">Mai sunt 2 corpuri pe verticala asta. Le golim și coloana devine disponibilă.</span>
+            <sc-for list="{{ clearSteps }}" as="st" hint-placeholder-count="3">
+              <div style="display:flex;align-items:center;gap:11px">
+                <span style="width:22px;height:22px;flex:0 0 22px;border-radius:50%;border:1px solid #e6cfa8;background:{{ st.dotBg }};color:{{ st.dotFg }};font:700 12px/21px Helvetica,Arial,sans-serif;text-align:center">{{ st.mark }}</span>
+                <span style="flex:1;font:400 13px/1.3 Helvetica,Arial,sans-serif;color:#7c4a0c">{{ st.label }}</span>
+              </div>
+            </sc-for>
+            <span style="height:50px;border-radius:12px;background:#b45309;display:flex;align-items:center;justify-content:center;font:700 14px/1 Helvetica,Arial,sans-serif;color:#fff">Golește verticala (2)</span>
+          </div>
+          <span style="font:700 11px/1 Helvetica,Arial,sans-serif;letter-spacing:.14em;text-transform:uppercase;color:#7d7a72">Sau pune ceva suspendat</span>
+          <sc-for list="{{ gapOptions }}" as="it" hint-placeholder-count="3">
+            <div style="display:flex;gap:13px;align-items:center;padding:10px;border:1px solid #dcd8ce;border-radius:13px;background:#fff">
+              <span style="flex:0 0 56px;width:56px;height:56px;border-radius:10px;background:#f5f3f0;border:1px solid #e4dfd5;display:flex;align-items:center;justify-content:center;background-image:url({{ it.icon }});background-size:auto 76%;background-position:center;background-repeat:no-repeat"></span>
+              <span style="flex:1;display:flex;flex-direction:column;gap:4px;min-width:0">
+                <span style="font:700 13.5px/1.25 Helvetica,Arial,sans-serif">{{ it.name }}</span>
+                <span class="num" style="font:400 12px/1 Helvetica,Arial,sans-serif;color:#6b5e52">{{ it.delta }}</span>
+              </span>
+            </div>
+          </sc-for>
+        </div>
+        <div style="padding:12px 18px 22px;border-top:1px solid #e4dfd5;display:flex;align-items:center;justify-content:space-between;gap:12px">
+          <span style="font:400 12px/1.4 Helvetica,Arial,sans-serif;color:#7d7a72">Etajeră ștearsă</span>
+          <span style="font:700 13px/1 Helvetica,Arial,sans-serif;color:#5a3e25">Anulează</span>
+        </div>
+      </div>
+      <p style="margin:0;font:400 12px/1.55 Helvetica,Arial,sans-serif;color:#6b5e52;max-width:420px;text-wrap:pretty">Nimic nu se șterge singur. Butonul portocaliu spune exact câte corpuri dispar și rămâne un singur „Anulează” care le readuce pe toate — deci golirea în lanț nu e o capcană.</p>
+    </div>
+
+    <!-- 2c -->
+    <div id="2c" style="display:flex;flex-direction:column;gap:16px;width:430px">
+      <div style="display:flex;align-items:baseline;gap:9px">
+        <span style="font:700 10px/1 Helvetica,Arial,sans-serif;letter-spacing:.14em;color:#fff;background:#7c5c3d;padding:5px 7px;border-radius:4px">2c</span>
+        <span style="font:700 15px/1.3 Helvetica,Arial,sans-serif">Verticala liberă · intră coloana</span>
+      </div>
+      <p style="margin:0;font:400 12.5px/1.55 Helvetica,Arial,sans-serif;color:#6b5e52">Abia acum apar coloanele — pentru că abia acum încap. Dar verticala goală nu e obligată să devină coloană: cele trei niveluri rămân locuri de umplut separat.</p>
+
+      <div style="width:420px;height:758px;display:flex;flex-direction:column;background:#faf8f4;border:1px solid #dcd8ce;border-radius:14px;overflow:hidden;box-shadow:0 14px 34px rgba(28,24,20,.09)">
+        <div style="padding:16px 18px;border-bottom:1px solid #e4dfd5;display:flex;flex-direction:column;gap:5px">
+          <span style="font:700 14px/1.2 Helvetica,Arial,sans-serif">Verticală liberă</span>
+          <span class="num" style="font:400 12px/1 Helvetica,Arial,sans-serif;color:#2d5016">800 × 2200 mm · de la podea la plafon</span>
+        </div>
+        <div style="flex:1;padding:14px 18px;display:flex;flex-direction:column;gap:13px;overflow:hidden">
+          <div style="display:flex;align-items:center;gap:11px;padding:12px 13px;background:#eef3e9;border:1px solid #cbdcc0;border-radius:12px">
+            <span style="width:22px;height:22px;flex:0 0 22px;border-radius:50%;background:#2d5016;color:#fff;font:700 12px/22px Helvetica,Arial,sans-serif;text-align:center">✓</span>
+            <span style="flex:1;font:400 12.5px/1.4 Helvetica,Arial,sans-serif;color:#2d5016">3 corpuri scoase · locul e liber pe toată înălțimea</span>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:9px">
+            <span style="font:700 11px/1 Helvetica,Arial,sans-serif;letter-spacing:.14em;text-transform:uppercase;color:#7d7a72">Coloane de 800</span>
+            <sc-for list="{{ columnOptions }}" as="it" hint-placeholder-count="3">
+              <div style="display:flex;gap:12px;align-items:center;padding:8px;border:1px solid #dcd8ce;border-radius:12px;background:#fff">
+                <span style="flex:0 0 46px;width:46px;height:70px;border-radius:9px;background:#f5f3f0;border:1px solid #e4dfd5;display:flex;align-items:center;justify-content:center;background-image:url({{ it.icon }});background-size:auto 84%;background-position:center;background-repeat:no-repeat"></span>
+                <span style="flex:1;display:flex;flex-direction:column;gap:4px;min-width:0">
+                  <span style="font:700 12.5px/1.25 Helvetica,Arial,sans-serif">{{ it.name }}</span>
+                  <span style="font:400 11.5px/1.4 Helvetica,Arial,sans-serif;color:#6b5e52">{{ it.note }}</span>
+                  <span class="num" style="font:700 12px/1 Helvetica,Arial,sans-serif;color:#5a3e25">{{ it.delta }}</span>
+                </span>
+              </div>
+            </sc-for>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:8px;padding-top:3px;border-top:1px solid #e4dfd5">
+            <span style="font:700 11px/1 Helvetica,Arial,sans-serif;letter-spacing:.14em;text-transform:uppercase;color:#7d7a72;padding-top:10px">Sau umple pe niveluri</span>
+            <sc-for list="{{ levelSlots }}" as="lv" hint-placeholder-count="3">
+              <div style="display:flex;gap:11px;align-items:center;padding:9px 11px;border:1px dashed #c9bda9;border-radius:11px;background:#f5f3f0">
+                <span style="flex:1;display:flex;flex-direction:column;gap:3px;min-width:0">
+                  <span style="font:700 12.5px/1.25 Helvetica,Arial,sans-serif">{{ lv.band }}</span>
+                  <span class="num" style="font:400 11.5px/1 Helvetica,Arial,sans-serif;color:#7d7a72">{{ lv.size }} · gol</span>
+                </span>
+                <span style="font:700 11.5px/1 Helvetica,Arial,sans-serif;color:#5a3e25;background:#ece7dd;padding:9px 11px;border-radius:8px">{{ lv.count }} ›</span>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+        <div style="padding:13px 18px 16px;border-top:1px solid #e4dfd5;display:flex;gap:10px;align-items:center">
+          <span style="flex:1;height:46px;border-radius:11px;border:1px solid #dcd8ce;display:flex;align-items:center;justify-content:center;font:700 12.5px/1 Helvetica,Arial,sans-serif;color:#5a3e25">Readu cele 3 corpuri</span>
+          <span style="flex:1;height:46px;border-radius:11px;background:#7c5c3d;display:flex;align-items:center;justify-content:center;font:700 13px/1 Helvetica,Arial,sans-serif;color:#faf8f4">Lasă gol</span>
+        </div>
+      </div>
+      <p style="margin:0;font:400 12px/1.55 Helvetica,Arial,sans-serif;color:#6b5e52;max-width:420px;text-wrap:pretty">Două ieșiri, nu una: „Readu cele 3 corpuri” pune totul exact cum era, iar rândurile punctate lasă clientul să umple nivelurile pe rând, cu alte corpuri decât cele scoase. Verticala goală e o resursă, nu un angajament.</p>
+    </div>
+
+  </div>
+</section>
+
+<section style="padding:0 64px 90px;display:flex;flex-direction:column;gap:26px">
+  <div style="display:flex;align-items:baseline;gap:14px;border-bottom:1px solid #d5d0c5;padding-bottom:12px">
+    <span style="font:700 12px/1 Helvetica,Arial,sans-serif;letter-spacing:.16em;text-transform:uppercase;color:#7c5c3d">Runda 1</span>
+    <span style="font:700 22px/1 Helvetica,Arial,sans-serif;letter-spacing:-.01em">Layout pentru catalogul de corpuri</span>
+  </div>
+
+  <div style="display:flex;flex-wrap:wrap;gap:44px;align-items:flex-start">
+
+    <!-- 1b -->
+    <div id="1b" style="display:flex;flex-direction:column;gap:16px;width:430px">
+      <div style="display:flex;align-items:baseline;gap:9px">
+        <span style="font:700 10px/1 Helvetica,Arial,sans-serif;letter-spacing:.14em;color:#fff;background:#2d5016;padding:5px 7px;border-radius:4px">1b</span>
+        <span style="font:700 15px/1.3 Helvetica,Arial,sans-serif">Listă filtrată după loc · recomandat</span>
+      </div>
+      <p style="margin:0;font:400 12.5px/1.55 Helvetica,Arial,sans-serif;color:#6b5e52">Locul știe deja lățimea și banda. Din 20 rămân 6 care încap — o singură listă, fără pagini.</p>
+
+      <div style="width:420px;height:620px;display:flex;flex-direction:column;background:#faf8f4;border:1px solid #dcd8ce;border-radius:14px;overflow:hidden;box-shadow:0 14px 34px rgba(28,24,20,.09)">
+        <div style="padding:16px 18px;border-bottom:1px solid #e4dfd5;display:flex;flex-direction:column;gap:7px">
+          <span style="font:700 14px/1.2 Helvetica,Arial,sans-serif">Înlocuiește corpul</span>
+          <span class="num" style="font:400 12px/1.4 Helvetica,Arial,sans-serif;color:#2d5016">6 din 20 încap în locul de 800 mm · suspendat</span>
+        </div>
+        <div style="padding:12px 18px;display:flex;gap:6px;flex-wrap:wrap;border-bottom:1px solid #e4dfd5">
+          <span style="font:700 11.5px/1 Helvetica,Arial,sans-serif;color:#faf8f4;background:#7c5c3d;padding:9px 11px;border-radius:20px">Toate 6</span>
+          <span style="font:400 11.5px/1 Helvetica,Arial,sans-serif;color:#5a3e25;background:#ece7dd;padding:9px 11px;border-radius:20px">Cu uși 3</span>
+          <span style="font:400 11.5px/1 Helvetica,Arial,sans-serif;color:#5a3e25;background:#ece7dd;padding:9px 11px;border-radius:20px">Deschis 2</span>
+          <span style="font:400 11.5px/1 Helvetica,Arial,sans-serif;color:#5a3e25;background:#ece7dd;padding:9px 11px;border-radius:20px">Sticlă 1</span>
+        </div>
+        <div style="flex:1;padding:12px 18px;display:flex;flex-direction:column;gap:6px;overflow:hidden">
+          <sc-for list="{{ fits }}" as="it" hint-placeholder-count="6">
+            <div style="display:flex;gap:12px;align-items:center;padding:6px;border:1px solid #dcd8ce;border-radius:12px;background:#fff">
+              <span style="flex:0 0 48px;width:48px;height:48px;border-radius:9px;background:#f5f3f0;border:1px solid #e4dfd5;display:flex;align-items:center;justify-content:center;background-image:url({{ it.icon }});background-size:auto 76%;background-position:center;background-repeat:no-repeat"></span>
+              <span style="flex:1;display:flex;flex-direction:column;gap:4px;min-width:0">
+                <span style="font:700 12.5px/1.25 Helvetica,Arial,sans-serif">{{ it.name }}</span>
+                <span class="num" style="font:400 11.5px/1 Helvetica,Arial,sans-serif;color:#6b5e52">{{ it.w }} · {{ it.delta }}</span>
+              </span>
+              <sc-if value="{{ it.current }}" hint-placeholder-val="{{ false }}">
+                <span style="font:700 10.5px/1 Helvetica,Arial,sans-serif;letter-spacing:.06em;text-transform:uppercase;color:#7d7a72;border:1px solid #dcd8ce;padding:7px 8px;border-radius:6px">Actual</span>
+              </sc-if>
+            </div>
+          </sc-for>
+        </div>
+        <div style="padding:12px 18px 16px;border-top:1px solid #e4dfd5;display:flex;align-items:center;justify-content:space-between;gap:12px">
+          <span style="font:400 11.5px/1.4 Helvetica,Arial,sans-serif;color:#7d7a72">14 corpuri nu încap aici</span>
+          <span style="font:700 12px/1 Helvetica,Arial,sans-serif;color:#5a3e25;border-bottom:1px solid #c9bda9;padding-bottom:2px">Vezi tot catalogul</span>
+        </div>
+      </div>
+
+      <div style="width:390px;height:700px;display:flex;flex-direction:column;background:#faf8f4;border:1px solid #dcd8ce;border-radius:26px 26px 0 0;overflow:hidden;box-shadow:0 -8px 34px rgba(28,24,20,.10)">
+        <div style="padding:12px 0 0;display:flex;justify-content:center"><span style="width:40px;height:4px;border-radius:2px;background:#dcd8ce"></span></div>
+        <div style="padding:12px 18px 12px;display:flex;flex-direction:column;gap:5px">
+          <span style="font:700 15px/1.2 Helvetica,Arial,sans-serif">Înlocuiește corpul</span>
+          <span class="num" style="font:400 12px/1.4 Helvetica,Arial,sans-serif;color:#2d5016">6 din 20 încap · 800 mm suspendat</span>
+        </div>
+        <div style="padding:0 18px 12px;display:flex;gap:6px;overflow:hidden">
+          <span style="font:700 11.5px/1 Helvetica,Arial,sans-serif;color:#faf8f4;background:#7c5c3d;padding:11px 13px;border-radius:20px;white-space:nowrap">Toate 6</span>
+          <span style="font:400 11.5px/1 Helvetica,Arial,sans-serif;color:#5a3e25;background:#ece7dd;padding:11px 13px;border-radius:20px;white-space:nowrap">Cu uși 3</span>
+          <span style="font:400 11.5px/1 Helvetica,Arial,sans-serif;color:#5a3e25;background:#ece7dd;padding:11px 13px;border-radius:20px;white-space:nowrap">Deschis 2</span>
+        </div>
+        <div style="flex:1;padding:0 18px;display:flex;flex-direction:column;gap:9px;overflow:hidden">
+          <sc-for list="{{ fits }}" as="it" hint-placeholder-count="6">
+            <div style="display:flex;gap:13px;align-items:center;padding:10px;border:1px solid #dcd8ce;border-radius:13px;background:#fff">
+              <span style="flex:0 0 56px;width:56px;height:56px;border-radius:10px;background:#f5f3f0;border:1px solid #e4dfd5;display:flex;align-items:center;justify-content:center;background-image:url({{ it.icon }});background-size:auto 76%;background-position:center;background-repeat:no-repeat"></span>
+              <span style="flex:1;display:flex;flex-direction:column;gap:4px;min-width:0">
+                <span style="font:700 13.5px/1.25 Helvetica,Arial,sans-serif">{{ it.name }}</span>
+                <span class="num" style="font:400 12px/1 Helvetica,Arial,sans-serif;color:#6b5e52">{{ it.w }} · {{ it.delta }}</span>
+              </span>
+            </div>
+          </sc-for>
+        </div>
+        <div style="padding:12px 18px 22px;border-top:1px solid #e4dfd5;display:flex;align-items:center;justify-content:center">
+          <span style="font:700 13px/1 Helvetica,Arial,sans-serif;color:#5a3e25">Vezi tot catalogul (20)</span>
+        </div>
+      </div>
+      <p style="margin:0;font:400 12px/1.55 Helvetica,Arial,sans-serif;color:#6b5e52;max-width:420px;text-wrap:pretty">Rândul de 76 px e ținta de atins — de peste 1,7× minimul, imposibil de ratat. Toate șase intră în foaie fără nicio derulare, deci alegerea se face din prima privire. Numele au lățime întreagă, deci nu se rup.</p>
+    </div>
+
+    <!-- 1c -->
+    <div id="1c" style="display:flex;flex-direction:column;gap:16px;width:430px">
+      <div style="display:flex;align-items:baseline;gap:9px">
+        <span style="font:700 10px/1 Helvetica,Arial,sans-serif;letter-spacing:.14em;color:#fff;background:#7c5c3d;padding:5px 7px;border-radius:4px">1c</span>
+        <span style="font:700 15px/1.3 Helvetica,Arial,sans-serif">Catalog întreg · secțiuni lipite</span>
+      </div>
+      <p style="margin:0;font:400 12.5px/1.55 Helvetica,Arial,sans-serif;color:#6b5e52">Pentru „vezi tot”: toate 20 într-o derulare, grupate pe bandă, cu tab-uri care sar la grup. Ce nu încape rămâne vizibil, dar stins și cu motiv.</p>
+
+      <div style="width:420px;height:620px;display:flex;flex-direction:column;background:#faf8f4;border:1px solid #dcd8ce;border-radius:14px;overflow:hidden;box-shadow:0 14px 34px rgba(28,24,20,.09)">
+        <div style="padding:16px 18px 12px;display:flex;flex-direction:column;gap:10px;border-bottom:1px solid #e4dfd5">
+          <span style="font:700 14px/1.2 Helvetica,Arial,sans-serif">Tot catalogul · 20</span>
+          <div style="display:flex;gap:4px;padding:3px;background:#ece7dd;border-radius:10px">
+            <span style="flex:1;text-align:center;font:700 11.5px/1 Helvetica,Arial,sans-serif;color:#1c1814;background:#faf8f4;padding:9px 4px;border-radius:8px">Bază 8</span>
+            <span style="flex:1;text-align:center;font:400 11.5px/1 Helvetica,Arial,sans-serif;color:#5a3e25;padding:9px 4px">Susp. 6</span>
+            <span style="flex:1;text-align:center;font:400 11.5px/1 Helvetica,Arial,sans-serif;color:#5a3e25;padding:9px 4px">Coloană 3</span>
+            <span style="flex:1;text-align:center;font:400 11.5px/1 Helvetica,Arial,sans-serif;color:#5a3e25;padding:9px 4px">Alte 3</span>
+          </div>
+        </div>
+        <div style="flex:1;overflow:hidden;display:flex;flex-direction:column">
+          <sc-for list="{{ groups }}" as="g" hint-placeholder-count="2">
+            <div style="display:flex;flex-direction:column">
+              <div style="padding:9px 18px;background:#f2f0ea;border-bottom:1px solid #e4dfd5;display:flex;align-items:baseline;justify-content:space-between">
+                <span style="font:700 10.5px/1 Helvetica,Arial,sans-serif;letter-spacing:.13em;text-transform:uppercase;color:#7d7a72">{{ g.title }}</span>
+                <span class="num" style="font:400 10.5px/1 Helvetica,Arial,sans-serif;color:#a89c8e">{{ g.count }}</span>
+              </div>
+              <sc-for list="{{ g.items }}" as="it" hint-placeholder-count="4">
+                <div style="display:flex;gap:11px;align-items:center;padding:10px 18px;border-bottom:1px solid #efeae0">
+                  <span style="flex:0 0 44px;width:44px;height:44px;border-radius:8px;background:#f5f3f0;border:1px solid #e4dfd5;display:flex;align-items:center;justify-content:center;opacity:{{ it.iconOpacity }};background-image:url({{ it.icon }});background-size:auto 76%;background-position:center;background-repeat:no-repeat"></span>
+                  <span style="flex:1;display:flex;flex-direction:column;gap:3px;min-width:0">
+                    <span style="font:700 12.5px/1.25 Helvetica,Arial,sans-serif;color:{{ it.nameColor }}">{{ it.name }}</span>
+                    <span class="num" style="font:400 11.5px/1.3 Helvetica,Arial,sans-serif;color:{{ it.noteColor }}">{{ it.note }}</span>
+                  </span>
+                </div>
+              </sc-for>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+      <p style="margin:0;font:400 12px/1.55 Helvetica,Arial,sans-serif;color:#6b5e52;max-width:420px;text-wrap:pretty">Bun ca al doilea nivel, slab ca prim ecran: pui în fața clientului 14 corpuri pe care nu le poate alege. Pe mobil devine aceeași foaie ca <a href="#1b">1b</a>, doar cu tab-urile lipite sus — de asta nu am desenat-o de două ori.</p>
+    </div>
+
+  </div>
+</section>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{}">
+const dim = { nameColor: '#a89c8e', noteColor: '#bdb3a4', iconOpacity: '.35' };
+const ok = { nameColor: '#1c1814', noteColor: '#6b5e52', iconOpacity: '1' };
+
+class Component extends DCLogic {
+  renderVals() {
+    const fits = [
+      { name: 'Etajeră deschisă', w: '800 mm', delta: 'inclus', icon: 'cabinets/wall-open-shelf.svg', current: true },
+      { name: 'Corp suspendat 2 uși', w: '800 mm', delta: '+2 000 MDL', icon: 'cabinets/wall-2-door.svg' },
+      { name: 'Două corpuri de 400, o ușă', w: '2 × 400 mm', delta: '+2 400 MDL', icon: 'cabinets/wall-1-door.svg' },
+      { name: 'Corp suspendat de colț', w: '800 mm', delta: '+2 900 MDL', icon: 'cabinets/wall-corner.svg' },
+      { name: 'Corp suspendat cu sticlă', w: '800 mm', delta: '+3 100 MDL', icon: 'cabinets/wall-glass.svg' },
+      { name: 'Etajeră cu spate placat', w: '800 mm', delta: '+900 MDL', icon: 'cabinets/wall-open-shelf.svg' },
+    ];
+    const groups = [
+      { title: 'Bază', count: '8 corpuri', items: [
+        { name: 'Corp bază 2 uși', note: '800 mm · nu încape în locul suspendat', icon: 'cabinets/base-2-door.svg', ...dim },
+        { name: 'Corp spălător', note: '800 mm · nu încape în locul suspendat', icon: 'cabinets/base-sink.svg', ...dim },
+        { name: 'Corp de colț, 2 piese', note: '900 + 320 mm · nu încape în locul suspendat', icon: 'cabinets/base-corner.svg', ...dim },
+        { name: 'Corp plită și cuptor', note: '600 mm · nu încape în locul suspendat', icon: 'cabinets/base-oven.svg', ...dim },
+      ]},
+      { title: 'Suspendate', count: '6 corpuri', items: [
+        { name: 'Etajeră deschisă', note: '800 mm · actual', icon: 'cabinets/wall-open-shelf.svg', ...ok },
+        { name: 'Corp suspendat 2 uși', note: '800 mm · +2 000 MDL', icon: 'cabinets/wall-2-door.svg', ...ok },
+        { name: 'Corp suspendat de colț', note: '800 mm · +2 900 MDL', icon: 'cabinets/wall-corner.svg', ...ok },
+      ]},
+    ];
+    const wallOnly = [
+      { name: 'Etajeră deschisă', delta: 'inclus', icon: 'cabinets/wall-open-shelf.svg', current: true },
+      { name: 'Corp suspendat 2 uși', delta: '+2 000 MDL', icon: 'cabinets/wall-2-door.svg' },
+      { name: 'Două corpuri de 400, o ușă', delta: '+2 400 MDL', icon: 'cabinets/wall-1-door.svg' },
+      { name: 'Corp suspendat de colț', delta: '+2 900 MDL', icon: 'cabinets/wall-corner.svg' },
+      { name: 'Corp suspendat cu sticlă', delta: '+3 100 MDL', icon: 'cabinets/wall-glass.svg' },
+      { name: 'Etajeră cu spate placat', delta: '+900 MDL', icon: 'cabinets/wall-open-shelf.svg' },
+    ];
+    const clearSteps = [
+      { label: 'Suspendat 800 · etajeră', state: 'gol', mark: '✓', dotBg: '#b45309', dotFg: '#fff' },
+      { label: 'Bază 800 · corp 2 uși', state: 'de scos', mark: '2', dotBg: 'transparent', dotFg: '#b45309' },
+      { label: 'Superior 800 · corp 1 ușă', state: 'de scos', mark: '3', dotBg: 'transparent', dotFg: '#b45309' },
+    ];
+    const gapOptions = [
+      { name: 'Corp suspendat 2 uși', delta: '+2 000 MDL', icon: 'cabinets/wall-2-door.svg' },
+      { name: 'Etajeră deschisă', delta: '+1 100 MDL', icon: 'cabinets/wall-open-shelf.svg' },
+      { name: 'Corp suspendat cu sticlă', delta: '+3 100 MDL', icon: 'cabinets/wall-glass.svg' },
+    ];
+    const levelSlots = [
+      { band: 'Bază', size: '800 × 860 mm', count: '8 corpuri' },
+      { band: 'Suspendat', size: '800 × 720 mm', count: '6 corpuri' },
+      { band: 'Superior', size: '800 × 400 mm', count: '3 corpuri' },
+    ];
+    const columnOptions = [
+      { name: 'Coloană cămară', note: 'Rafturi reglabile · 5 niveluri', delta: '+9 400 MDL', icon: 'cabinets/tall-pantry.svg' },
+      { name: 'Coloană cuptor + microunde', note: 'Două nișe · priză inclusă', delta: '+12 800 MDL', icon: 'cabinets/tall-oven-tower.svg' },
+      { name: 'Nișă frigider integrat', note: 'Pentru frigider de 700 mm', delta: '+7 600 MDL', icon: 'cabinets/tall-fridge.svg' },
+    ];
+    return { fits, groups, wallOnly, clearSteps, gapOptions, columnOptions, levelSlots };
+  }
+}
+
+</script>
+</body>
+</html>
