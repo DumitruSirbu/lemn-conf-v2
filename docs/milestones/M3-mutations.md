@@ -1,10 +1,16 @@
 # M3 — Insert, remove and swap
 
-> **STATUS: PLANNED — next up, dispatchable.** 12 work items across three waves. Five contract
-> gaps against the shipped M2 code are recorded in `docs/decisions/`. Summary: `docs/STATUS.md`.
+> **STATUS: IN PROGRESS — Wave 3A is done; 3B is next and dispatchable.** 12 work items across
+> three waves. Wave 3A (domain commands) completed the full `docs/WORKFLOW.md` cycle and shipped in
+> commit `69402d8`; it produced `docs/decisions/0015-min-span-is-exclusive.md`. Five contract gaps
+> against the shipped M2 code are recorded in `docs/decisions/`. Summary: `docs/STATUS.md`.
+>
+> **Wave 3B is Full review tier** — §11 row 19 (wall seating) is in scope, and it is where M1's
+> fidelity can silently degrade.
 
-Status: planned. Depends on M2 (both waves). Rewritten 2026-08-25 against the code M2 actually
-landed, replacing the earlier sketch — see "What changed from the sketch" at the end.
+Status: in progress (Wave 3A done 2026-08-25). Depends on M2 (both waves). Rewritten 2026-08-25
+against the code M2 actually landed, replacing the earlier sketch — see "What changed from the
+sketch" at the end.
 Reference: `DEVELOPMENT-SPEC.md` §5.1, §5.2, §5.3, §5.5, §6.2, §6.3, §6.5, §7, §8, §9, §10, §12;
 §11 rows 3–8, 14, 15, 16, 19, 20, 23, 24 (engine half);
 `docs/decisions/0011-m3-insert-contract-gaps.md`;

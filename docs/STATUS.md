@@ -3,7 +3,7 @@
 **Read this second, right after `AGENTS.md`, before opening any milestone document.** It exists so a
 session can learn where the project stands without reading eight phase plans.
 
-Last updated: 2026-08-25.
+Last updated: 2026-08-25 (M3 Wave 3A committed; toolchain enforcement added).
 
 ## How to use this file
 
@@ -25,7 +25,7 @@ moment it ships; a decision record does not. When the two disagree, the dated de
 | M0 — Foundations | **Done** (closed 2026-08-24, partially superseded) | No — `milestones/done/` |
 | M1 — Scene port and fidelity gate | **Done** (closed 2026-08-25) | No — `milestones/done/` |
 | M2 — Void engine, picking, persistence | **In progress** — implemented, 1 gate open (the unwired client write path, owned by M3) | Yes — `milestones/M2-void-engine.md` |
-| M3 — Insert, remove, swap, client write path | **Planned** — next up | Yes, when starting |
+| M3 — Insert, remove, swap, client write path | **In progress** — Wave 3A done; **3B next** | Yes — `milestones/M3-mutations.md` |
 | M4 — Editor panel and shell | Planned | Yes, when starting |
 | M5 — Width editing | Planned | Yes, when starting |
 | M6 — Price bar and global settings | Planned | Yes, when starting |
@@ -35,10 +35,17 @@ moment it ships; a decision record does not. When the two disagree, the dated de
 ## What is actually built
 
 A pnpm monorepo on Node 24: an I/O-free domain package, a Three.js adapter, a persistence package
-that is the only place a Postgres driver appears, and a Next.js App Router app. 302 unit tests plus
-4 Playwright e2e tests (and one named `test.skip`), all green. Each package owns its tests in its own
-`tests/` directory and must stay liftable into its own repository — see
-`docs/best-practices/engineering-conventions.md`.
+that is the only place a Postgres driver appears, and a Next.js App Router app. **578 unit tests**
+(domain 335, three-adapter 30, persistence 163, web 50) plus 4 Playwright e2e tests and one
+`test.skip`, all green — counted from a full `pnpm ci:local` run on 2026-08-25, not carried forward.
+Each package owns its tests in its own `tests/` directory and must stay liftable into its own
+repository — see `docs/best-practices/engineering-conventions.md`.
+
+**The toolchain is enforced, not merely documented.** `.npmrc` sets `engine-strict=true`, so every
+pnpm command in this repository hard-fails on any Node outside `>=24 <25`; `scripts/local-ci.sh`
+additionally pins pnpm to the exact `packageManager` version CI installs. This exists because a full
+local gate run passed on Node 20 while CI runs 24 — pnpm reported the mismatch as one WARN in a long
+log. Details: `docs/best-practices/ci-and-local-gates.md`.
 
 Decisions and findings live in `docs/decisions/` as numbered ADRs with an index at
 `docs/decisions/README.md`. The product's behavioural rules are **not** duplicated there: they stay
@@ -52,6 +59,19 @@ in M2 and its retired modules were deleted rather than left beside the new ones.
 through an R3F canvas with camera presets. Closed on a fidelity gate requiring two independent kinds
 of evidence. A structural parity suite diffs the port against vendored reference geometry at 1e-6 m,
 and is the guarantee that later phases have not silently degraded the model.
+
+**M3 — Insert, remove, swap (Wave 3A done).** The domain command layer: `insertBody`, `insertFit`,
+`removePlacement`, the `{ok}`/`{ok:false, reason}` result contract, the §7 insertable catalogue,
+band and accessory rules, and a `BodyProbe` port. Wave 3A is the first wave to run the complete
+`docs/WORKFLOW.md` cycle — plan → implement → adversarial QA → review → verify → commit — and the
+cycle earned its cost twice. QA found 15 failures against 135 green tests, including an
+`insertBody` that would build a **288 mm carcass** where §2's narrowest cabinet is 300, because
+`FIT_TOLERANCE_M` (manufacturing slack on a *fit*) was lowering the body's own minimum. Clean-code
+review then found that fixing it had made that fix's own test vacuous — the early return now fires
+before the assertion. Both survived all eight gates. See
+`docs/decisions/0015-min-span-is-exclusive.md`, which also records that the independent logic
+reviewer was dispatched and never reported, so the coordinator verified instead — weaker, and worth
+re-running.
 
 **M2 — Void engine, picking, persistence.** Both waves are implemented. The `Design` schema, the
 placement/column/void derivation with all four earned rules of `DEVELOPMENT-SPEC.md` §4, void mesh
@@ -88,11 +108,29 @@ automatically; Root Directory `apps/web`, Next.js preset, Node 24. The backup cr
 Verified live: `/configurator/configure` serves 200, and the cron endpoint returns 401 to an
 unauthenticated caller and to a wrong bearer token — it fails closed.
 
+## A decision only you can make
+
+**ADR 0014 (S1) is Proposed, not Accepted, and needs a human answer before M7.** The deployed
+`PUT`/`PATCH /api/designs/[id]` has no authentication or ownership check — confirmed live. The
+opaque nanoid is the only access control and it confers *write*, so anyone holding a shared link can
+silently overwrite that design, unrecoverably. Three coherent options are laid out in the record
+(accept the capability URL as a stated POC limit, split read from write, or add ownership). Impact is
+low today — zero designs, no users — and stops being low at M7. Do not let a later phase default
+into one of these silently.
+
 ## What to do next
 
-1. **M3** — 12 work items across three waves: 3A domain, 3B adapter, 3C web. Wave 3A needs nothing
-   deployed. Five contract gaps against the shipped M2 code are already recorded in
-   `docs/decisions/0011-m3-insert-contract-gaps.md`; treat them as decided, not open.
+1. **M3 Wave 3B (adapter)** — parameterised builders, the `measureBuiltBody` probe implementation,
+   and a rebuildable scene. **Full review tier**: §11 row 19 (wall seating) is in scope, and it is
+   where M1's fidelity can silently degrade. Follow `docs/WORKFLOW.md`; it is mandatory, not
+   advisory.
+2. **Then Wave 3C (web)** — store commands and the client write path, which closes M2's last gate.
+
+Wave 3A is done. Five contract gaps against the shipped M2 code are recorded in
+`docs/decisions/0011-m3-insert-contract-gaps.md`; treat them as decided, not open.
+
+Worth folding into 3B's review: an independent logic pass over Wave 3A's void-derivation boundary,
+which ADR 0015 flags as verified by the coordinator rather than by a neutral reviewer.
 
 M3 closes M2's last gate as a first-class work item — the client write path, wave 3C item 10 — and
 un-skips the one named `test.skip` in the e2e suite, which had no void to tap against while the

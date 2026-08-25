@@ -29,6 +29,7 @@ overturned.
 | [0011](0011-m3-insert-contract-gaps.md) | Five contract gaps between M3's insert/remove sketch and the shipped M2 code | Accepted | Finding + Decision | M3 — Insert, remove, swap, client write path | Two catalogue shapes reconciled via an `insertable` flag; a `BodyProbe` port for wall-seat offsets on inserted bodies; `top` treated as a row, not a catalogue band; columns frozen at load time; delete cascades to hosted accessories. |
 | [0012](0012-scheduled-export-is-a-scoped-sql-select.md) | The scheduled export is a scoped SQL select to ndjson, not `pg_dump` | Accepted (closes ADR 0002 open questions 8 and 9) | Decision + Finding | M2 Wave 2B | How the backup is produced without a `pg_dump` binary, why it stays scoped to `designs`, the daily cron schedule, and the empty-table export defect found on the first production run. |
 | [0013](0013-restore-drill-executed-and-what-it-broke.md) | The restore drill was executed, and found five defects the runbook hid | Accepted | Finding + Decision | M2 Wave 2B | Path 2 drilled end to end with a real design (identical canonical serialisation); five defects fixed, including a `migrate` CLI that exited 0 without migrating anything on any path containing a space. |
+| [0014](0014-unauthenticated-write-surface.md) | The deployed write surface is unauthenticated; the capability-URL model needs a decision | **Proposed — needs a human decision on S1 before M7** | Finding | M2 Wave 2B (found during a catch-up security review) | Four findings on the live server surface: `PUT`/`PATCH` has no auth or ownership check (S1, confirmed against production), validation failures returned the full Zod error tree (S2, fixed), `POST` is unauthenticated and unthrottled (S3), and no rate limiting exists (S4). |
 | [0015](0015-min-span-is-exclusive.md) | `MIN_SPAN_M` is exclusive: a free span of exactly 300 mm produces no void | Accepted | Finding + Decision | M3 Wave 3A | Resolves a spec ambiguity where §4's pseudocode says strictly-greater three times while the constants table and M2's criterion read as inclusive; the pseudocode governs. |
 
 ## Supersessions
@@ -52,7 +53,7 @@ replaced it — nothing is deleted or rewritten silently.
 
 ## Adding the next one
 
-1. Take the next free number (`0012`, …).
+1. Take the next free number (`0016`, …).
 2. Name the file `NNNN-kebab-case-title.md` in this directory.
 3. Give it the same header block every record here uses, directly under the `# ADR NNNN — Title`
    line:
