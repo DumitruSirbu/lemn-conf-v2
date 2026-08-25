@@ -7,6 +7,7 @@
 import { normaliseBand } from "../bands.js";
 import { isKnownKind, listInsertableBodies } from "../catalog.js";
 import type { CommandTarget } from "../commands/command-result.js";
+import { toMillimetres } from "../millimetres.js";
 import {
   evaluateInsertFit,
   resolveInsertOpening,
@@ -64,8 +65,8 @@ export function offersFor(input: OffersInput): CatalogOffer[] {
           kind: body.kind,
           band: body.band,
           sizesMm: body.sizesMm,
-          widthMm: Math.round(fit.plan.widthM * 1000),
-          heightMm: Math.round(fit.plan.heightM * 1000),
+          widthMm: toMillimetres(fit.plan.widthM),
+          heightMm: toMillimetres(fit.plan.heightM),
           isCurrent: resolved.value.replaced?.buildId === body.buildId,
         },
       ];

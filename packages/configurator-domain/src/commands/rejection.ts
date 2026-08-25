@@ -48,6 +48,12 @@ interface MillimetreParams {
   readonly valueMm: number;
 }
 
+/** Which number of a `BodyMeasurement` was not a number. The value itself is deliberately absent:
+ *  it is `NaN` or `±Infinity`, and neither belongs in a sentence shown to a customer. */
+interface MeasurementParams extends LabelParams {
+  readonly field: string;
+}
+
 /** The refusal, before its sentence is rendered. Every command builds one of these and hands it to
  *  `refuse`, so no command can invent a code the message table does not cover. */
 export type RejectionDetail =
@@ -70,6 +76,10 @@ export type RejectionDetail =
   | { readonly code: "HEIGHT_TOO_LARGE"; readonly params: FitParams }
   | { readonly code: "NO_SNAP_POSITION"; readonly params: LabelParams }
   | { readonly code: "BUILT_SIZE_MISMATCH"; readonly params: BuiltSizeParams }
+  | {
+      readonly code: "MEASUREMENT_UNUSABLE";
+      readonly params: MeasurementParams;
+    }
   | { readonly code: "COLUMN_MISMATCH"; readonly params: LabelParams }
   | {
       readonly code: "NON_INTEGER_MILLIMETRES";
@@ -130,6 +140,8 @@ export function renderRejection(detail: RejectionDetail): string {
       return `„${detail.params.label}” nu poate fi așezat pe niciuna dintre liniile de modul ale acestei coloane.`;
     case "BUILT_SIZE_MISMATCH":
       return `„${detail.params.label}” s-a construit la ${String(detail.params.builtMm)} mm în loc de ${String(detail.params.requiredMm)} mm, așa că nu l-am așezat.`;
+    case "MEASUREMENT_UNUSABLE":
+      return `Nu am putut măsura corpul „${detail.params.label}” după ce a fost construit, așa că nu l-am așezat.`;
     case "COLUMN_MISMATCH":
       return `„${detail.params.label}” ar ieși din coloana în care a fost adăugat.`;
     case "NON_INTEGER_MILLIMETRES":

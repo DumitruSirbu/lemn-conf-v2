@@ -5,6 +5,7 @@ import type {
   Finish,
   Handle,
 } from "./design.js";
+import { toMetres } from "./millimetres.js";
 import { deriveCabinetWorldTransform } from "./room-transforms.js";
 
 /** `DEVELOPMENT-SPEC.md` §2 module lines: base | wall | top. The 0.86–1.50 gap is backsplash and
@@ -162,11 +163,13 @@ function deriveFrame(
 ): Frame {
   // ADR 0011 Gap B: an inserted body carries its own measured seat, because `frameDepthMm` is a
   // measurement of one specific seeded body and cannot seat a parameterised one.
-  const depthM = (placement.body.seatDepthMm ?? definition.frameDepthMm) / 1000;
+  const depthM = toMetres(
+    placement.body.seatDepthMm ?? definition.frameDepthMm,
+  );
   const transform = deriveCabinetWorldTransform({
     wall: placement.wall,
-    alongM: placement.alongMm / 1000,
-    y0M: placement.y0Mm / 1000,
+    alongM: toMetres(placement.alongMm),
+    y0M: toMetres(placement.y0Mm),
     depthM,
   });
   const heightMm = definition.frameHeightMm ?? placement.body.heightMm;
@@ -175,8 +178,8 @@ function deriveFrame(
     z: transform.position.z,
     ry: transform.yawRadians,
     y0: transform.position.y,
-    w: placement.body.widthMm / 1000,
-    h: heightMm / 1000,
+    w: toMetres(placement.body.widthMm),
+    h: toMetres(heightMm),
     d: depthM,
   };
 }
@@ -273,6 +276,24 @@ interface FreeSpan {
   readonly hi: number;
 }
 
+/** Float noise from the millimetre↔metre round trip. A nanometre is four orders of magnitude below
+ *  the micron the boundary tests probe with, and eight above the ~1e-16 error a subtraction of two
+ *  module coordinates carries. */
+const SPAN_EPSILON_M = 1e-9;
+
+/** §4: a free interval becomes an opening only when it **exceeds** `MIN_SPAN_M` — that is §4's own
+ *  pseudocode (`> MIN_SPAN`), and §2's "smallest span that becomes a void" names the threshold
+ *  rather than claiming a span of exactly that size qualifies. Exactly 300 mm is therefore **not**
+ *  an opening.
+ *
+ *  The epsilon is what makes that decision the same wherever the interval came from. The identical
+ *  300 mm gap reaches this function as `0.86 - 0.56` (0.29999999999999993) below the base line and
+ *  as `2.2 - 1.9` (0.30000000000000027) below the wall line, and a bare `>` answers those two
+ *  differently. Every caller must ask through here for that reason. */
+function isOpeningSpan(heightM: number): boolean {
+  return heightM > MIN_SPAN_M + SPAN_EPSILON_M;
+}
+
 function deriveFreeSpans(
   column: Column,
   taken: readonly [number, number][],
@@ -281,10 +302,10 @@ function deriveFreeSpans(
   const free: FreeSpan[] = [];
   let y = floor;
   for (const [lo, hi] of [...taken].sort((a, b) => a[0] - b[0])) {
-    if (lo - y > MIN_SPAN_M) free.push({ lo: y, hi: lo });
+    if (isOpeningSpan(lo - y)) free.push({ lo: y, hi: lo });
     y = Math.max(y, hi);
   }
-  if (column.top - y > MIN_SPAN_M) free.push({ lo: y, hi: column.top });
+  if (isOpeningSpan(column.top - y)) free.push({ lo: y, hi: column.top });
   return free;
 }
 
@@ -299,7 +320,7 @@ function sliceLevels(span: FreeSpan): LevelSlice[] {
     start: Math.max(span.lo, levelStart),
     end: Math.min(span.hi, levelEnd),
     levelStart,
-  })).filter((slice) => slice.end - slice.start > MIN_SPAN_M);
+  })).filter((slice) => isOpeningSpan(slice.end - slice.start));
 }
 
 /** §4 rule 4: a free span that starts mid-level (not at that level's own boundary) stays one

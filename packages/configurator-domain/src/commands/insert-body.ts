@@ -128,6 +128,9 @@ function place(
   const mismatch = refuseBuiltSize(body, plan, measurement);
   if (mismatch) return refuse(input.design, mismatch);
 
+  const unusable = refuseUnusableMeasurement(body, measurement);
+  if (unusable) return refuse(input.design, unusable);
+
   const millimetres = resolvePlacementMillimetres(plan, target, measurement);
   if (!millimetres.ok) return refuse(input.design, millimetres.detail);
 
@@ -147,8 +150,12 @@ function refuseBuiltSize(
     { requiredM: plan.widthM, builtM: measurement.carcassWidthM },
     { requiredM: plan.heightM, builtM: measurement.carcassHeightM },
   ];
+  // `Math.abs(NaN - required) > TOL` is **false**, so a builder that produced nothing sails
+  // through the very gate that exists to catch it. The finiteness test has to come first.
   const wrong = checks.find(
-    (check) => Math.abs(check.builtM - check.requiredM) > FIT_TOLERANCE_M,
+    (check) =>
+      !Number.isFinite(check.builtM) ||
+      Math.abs(check.builtM - check.requiredM) > FIT_TOLERANCE_M,
   );
   if (!wrong) return undefined;
   return {
@@ -158,6 +165,26 @@ function refuseBuiltSize(
       requiredMm: toMillimetres(wrong.requiredM),
       builtMm: toMillimetres(wrong.builtM),
     },
+  };
+}
+
+/** The rest of the measurement, which no size gate covers: the seat offset `insertBody` persists
+ *  and the full extent it reports. A probe is an injected port, so a measurement that is not a
+ *  number is a data condition and belongs in the `CommandResult`, never in a thrown exception —
+ *  the store calling this has no catch (ADR 0011 Gap E's reasoning, applied to Gap B's port). */
+function refuseUnusableMeasurement(
+  body: InsertableBody,
+  measurement: BodyMeasurement,
+): RejectionDetail | undefined {
+  const measured = [
+    { field: "seatOffsetM", valueM: measurement.seatOffsetM },
+    { field: "fullHeightM", valueM: measurement.fullHeightM },
+  ];
+  const unusable = measured.find((entry) => !Number.isFinite(entry.valueM));
+  if (!unusable) return undefined;
+  return {
+    code: "MEASUREMENT_UNUSABLE",
+    params: { label: body.label, field: unusable.field },
   };
 }
 
@@ -194,6 +221,9 @@ function resolvePlacementMillimetres(
       heightMm,
       y0Mm,
       alongMm,
+      // The only persisted number that comes from a measurement, so it is the only one that could
+      // carry `toMillimetres`'s `UNMEASURABLE_MM` fallback into a document. It cannot, because
+      // `refuseUnusableMeasurement` has already proved `seatOffsetM` finite — the two are a pair.
       seatDepthMm: toMillimetres(2 * measurement.seatOffsetM),
     },
   };

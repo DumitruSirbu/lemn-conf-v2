@@ -17,7 +17,7 @@ import {
   type InsertableBody,
 } from "../catalog.js";
 import type { DesignWall } from "../design.js";
-import { toMillimetres } from "../millimetres.js";
+import { toMetres, toMillimetres } from "../millimetres.js";
 import {
   recomputeVoids,
   FIT_TOLERANCE_M,
@@ -233,7 +233,10 @@ function resolveWidth(
 ): WidthResolution {
   const availableMm = toMillimetres(opening.w);
   if (body.widthFlex === "fit") {
-    if (opening.w + FIT_TOLERANCE_M < MIN_WIDTH_M) {
+    // `FIT_TOLERANCE_M` is slack on the *fit* — it lets a body slightly wider than its opening
+    // still go in. It must not lower `MIN_WIDTH_M`, which is a property of the body: a 288 mm
+    // carcass is narrower than the narrowest cabinet §2 permits, so it is not buildable at all.
+    if (opening.w < MIN_WIDTH_M - COORDINATE_EPSILON_M) {
       return {
         ok: false,
         detail: {
@@ -246,12 +249,12 @@ function resolveWidth(
   }
 
   const fitting = body.widthFlex.filter(
-    (size) => size / 1000 <= opening.w + FIT_TOLERANCE_M,
+    (size) => toMetres(size) <= opening.w + FIT_TOLERANCE_M,
   );
   if (fitting.length === 0) {
     return { ok: false, detail: refuseFixedWidth(body, availableMm) };
   }
-  return { ok: true, widthM: Math.max(...fitting) / 1000 };
+  return { ok: true, widthM: toMetres(Math.max(...fitting)) };
 }
 
 /** A body offered in one width only states that width; a body with a set states the set. Both
@@ -276,7 +279,7 @@ function refuseFixedWidth(
 
 /** §5.2: `h = b.hFlex ? (void.h <= 0.9 ? void.h : b.h) : b.h`. */
 function resolveHeightM(body: InsertableBody, opening: InsertOpening): number {
-  const nominalM = body.nominalHeightMm / 1000;
+  const nominalM = toMetres(body.nominalHeightMm);
   if (!body.heightFlex) return nominalM;
   return opening.h <= CABINET_SIZED_OPENING_MAX_M ? opening.h : nominalM;
 }
@@ -388,14 +391,18 @@ function refuseBand(
 }
 
 /** §9: `hFlex` needs `openH ≥ 400`. Enforced in the engine as well as in the offer list, because
- *  a guard the UI owns alone is a guard a second caller forgets. */
+ *  a guard the UI owns alone is a guard a second caller forgets.
+ *
+ *  A height-flexible body builds to its opening, so an opening under the minimum builds a body
+ *  under the minimum — the floor is on the *body*, and `FIT_TOLERANCE_M` does not move it. Only
+ *  float noise is forgiven, which `2.6 - 2.2` needs: it is 0.3999999999999999. */
 function refuseShortOpening(
   body: InsertableBody,
   opening: InsertOpening,
 ): RejectionDetail | undefined {
   if (!body.heightFlex) return undefined;
-  const minimumM = HEIGHT_FLEX_MIN_OPENING_MM / 1000;
-  if (opening.h + FIT_TOLERANCE_M >= minimumM) return undefined;
+  const minimumM = toMetres(HEIGHT_FLEX_MIN_OPENING_MM);
+  if (opening.h + COORDINATE_EPSILON_M >= minimumM) return undefined;
   return {
     code: "OPENING_TOO_SHORT",
     params: {

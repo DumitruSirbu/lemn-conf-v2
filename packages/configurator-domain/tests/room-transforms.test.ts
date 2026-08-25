@@ -73,7 +73,7 @@ describe("deriveCabinetWorldTransform", () => {
     [1, 0, 0],
     [1, 0, -0.6],
   ])(
-    "rejects non-finite or non-positive geometry (alongM=%p, y0M=%p, depthM=%p)",
+    "rejects non-finite or non-positive geometry (alongM=%s, y0M=%s, depthM=%s)",
     (alongM, y0M, depthM) => {
       expect(() =>
         deriveCabinetWorldTransform({ wall: "A", alongM, y0M, depthM }),
