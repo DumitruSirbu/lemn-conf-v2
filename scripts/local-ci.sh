@@ -23,12 +23,18 @@ cd "$(git rev-parse --show-toplevel)"
 failed=""
 
 # This script's only claim is that a green run here predicts a green run on
-# GitHub. That claim holds only if both run the same Node major. pnpm reports an
+# GitHub. That claim holds only if both run the same toolchain. pnpm reports an
 # `engines` mismatch as a WARN and carries on, which is one line among hundreds
 # in a full gate log and trivially read past — a shell left on an older nvm
 # default will run all eight gates to green against a runtime CI never uses.
-# So this refuses to run at all rather than warning.
+# So these refuse to run at all rather than warning.
 #
+# Node and pnpm are checked against different sources on purpose, because CI
+# resolves them from different places: setup-node reads ci.yml's NODE_VERSION
+# (a major), while pnpm/action-setup reads package.json "packageManager" (an
+# exact version). The pnpm check is therefore the stricter of the two — it has
+# to be, to mean anything.
+
 # The required major is read from package.json rather than repeated here;
 # .nvmrc and ci.yml's NODE_VERSION already state it twice more.
 require_supported_node() {
@@ -58,6 +64,36 @@ require_supported_node() {
     fi
 }
 
+# Checked against "packageManager", not engines.pnpm. engines.pnpm (">=9.15 <10")
+# is the range the repo tolerates; "packageManager" is the one version CI
+# actually installs, and only an exact match predicts CI. A pnpm inside the
+# engines range but outside the pin resolves peers and prunes the store its own
+# way, which is precisely the class of difference this gate is meant to catch.
+require_pinned_pnpm() {
+    required_version=$(sed -n 's/.*"packageManager"[[:space:]]*:[[:space:]]*"pnpm@\([^"]*\)".*/\1/p' \
+        package.json | head -1)
+
+    if [ -z "$required_version" ]; then
+        printf 'Cannot read packageManager from package.json; refusing to guess a version.\n' >&2
+        exit 1
+    fi
+
+    if ! command -v pnpm >/dev/null 2>&1; then
+        printf 'pnpm is not on PATH, and pnpm %s is required.\n' "$required_version" >&2
+        exit 1
+    fi
+
+    running_version=$(pnpm --version)
+
+    if [ "$running_version" != "$required_version" ]; then
+        printf 'pnpm %s is required (package.json packageManager, which is what CI installs);\n' \
+            "$required_version" >&2
+        printf 'found %s. Run `corepack use pnpm@%s`, or install that version directly.\n' \
+            "$running_version" "$required_version" >&2
+        exit 1
+    fi
+}
+
 run_gate() {
     name="$1"
     shift
@@ -73,6 +109,7 @@ run_gate() {
 }
 
 require_supported_node
+require_pinned_pnpm
 
 run_gate format pnpm format:check
 run_gate lint pnpm lint

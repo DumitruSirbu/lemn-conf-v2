@@ -5,10 +5,19 @@ adding or editing a CI gate, or diagnosing a hook that blocked a commit or a pus
 
 ## Root development commands
 
-Use Node 24 and pnpm 9.15 (`.nvmrc` pins it; `nvm use` picks it up). `pnpm ci:local` **refuses to
-run** on any other Node major, because a gate run against a different runtime than CI cannot predict
-CI — pnpm reports the `engines` mismatch as a single WARN and continues, which is easy to read past
-in a long log. If it stops you, run `nvm use`. From the repository root:
+Use Node 24 and pnpm 9.15.9 (`.nvmrc` pins Node; `nvm use` picks it up). `pnpm ci:local` **refuses
+to run** on any other Node major or any other pnpm version, because a gate run against a different
+toolchain than CI cannot predict CI — pnpm reports an `engines` mismatch as a single WARN and
+continues, which is easy to read past in a long log. If it stops you, run `nvm use` or
+`corepack use pnpm@9.15.9`.
+
+The two checks read different sources, matching how CI resolves each: Node comes from
+`engines.node` (a major, also in `.nvmrc` and `ci.yml`'s `NODE_VERSION`), pnpm from
+`packageManager`, which `pnpm/action-setup` installs **exactly**. So the pnpm check is an exact
+match while the Node check is a major match. Bumping `packageManager` therefore tightens the local
+gate automatically; `engines.pnpm` stays the looser range the repo publishes for consumers.
+
+From the repository root:
 
 ```bash
 pnpm install
