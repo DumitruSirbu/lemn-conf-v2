@@ -14,6 +14,29 @@ export {
 
 export { applyFinish, collectFronts, type FinishKey } from "./finishes.js";
 
+export { buildDecomposedBody } from "./decomposed-bodies.js";
+
+export {
+  buildVoidMesh,
+  NOOP_RAYCAST,
+  VOID_INSET_M,
+  type VoidMesh,
+} from "./void-mesh.js";
+
+export {
+  climbToSelectable,
+  createPickingRaycaster,
+  DRAG_THRESHOLD_PX,
+  isDragGesture,
+  LINE_RAYCAST_THRESHOLD_M,
+  pick,
+  resolveHostPlacementId,
+  resolveSelection,
+  type PointerPixel,
+  type Selection,
+  type SelectionKind,
+} from "./picking.js";
+
 export {
   CAMERA_FIELD_OF_VIEW_DEGREES,
   CAMERA_PRESETS,

@@ -2,13 +2,18 @@
 
 import {
   applyFinish,
+  buildDecomposedBody,
+  buildVoidMesh,
   collectFronts,
   configureRenderer,
   createContactBlob,
   createLightRig,
+  createPickingRaycaster,
   createShadowGround,
   createStudioEnvironment,
+  isDragGesture,
   makeKit,
+  pick,
   seatObjectOnStage,
   type FinishKey,
 } from "@lemnaria/three-adapter";
@@ -16,12 +21,18 @@ import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 
+import { useConfiguratorStore } from "../store/configurator-store";
 import { resolveSceneView, sceneViewKey, type SceneView } from "./scene-view";
 
 /** Seconds for a preset switch to settle. Long enough to read as a move, short enough that the
  *  customer is not waiting on the camera. */
 const CAMERA_EASE_SECONDS = 0.7;
 const SETTLED_METRES = 1e-4;
+const HIGHLIGHT_COLOR = 0xffce45;
+/** `Box3.setFromObject` on a body already placed at (0, 0, 0) local origin has no meaningful
+ *  "same position" collision with an individually-mounted placement — the epsilon below matches
+ *  M1's own parity float tolerance, not an arbitrary guess. */
+const SAME_POSITION_EPSILON_M = 1e-6;
 
 interface OrbitTarget {
   target: THREE.Vector3;
@@ -43,9 +54,12 @@ export interface KitchenStageProps {
 /**
  * The ported stage, mounted imperatively.
  *
- * The whole reference scene is built once by `builders['kitchen-l']()` and mounted through R3F's
- * `primitive` bridge — the geometry is never re-authored as JSX, which is the failure mode
- * `ARCHITECTURE_PROPOSAL.md` §6.1 exists to prevent.
+ * Placements are mounted individually (`docs/milestones/M2-void-engine.md` work item 2) rather
+ * than as one whole-scene `builders['kitchen-l']()` call: the shell (floor, walls, backsplash,
+ * end panel) and the two corner legs still come from that call — decomposing them is out of this
+ * milestone's scope, per the decomposition-parity test in `@lemnaria/three-adapter` — but every
+ * other body is removed from it and remounted via `buildDecomposedBody` at its derived
+ * `PlacementRecord` transform, tagged with `userData.placementId` for picking to climb to.
  */
 export function KitchenStage({ view, finish, onSettled }: KitchenStageProps) {
   const gl = useThree((state) => state.gl);
@@ -56,17 +70,65 @@ export function KitchenStage({ view, finish, onSettled }: KitchenStageProps) {
   ) as unknown as OrbitTarget | null;
   const invalidate = useThree((state) => state.invalidate);
 
+  const records = useConfiguratorStore((state) => state.records);
+  const voids = useConfiguratorStore((state) => state.voids);
+  const placements = useConfiguratorStore((state) => state.design.placements);
+  const selection = useConfiguratorStore((state) => state.selection);
+  const select = useConfiguratorStore((state) => state.select);
+  const deselect = useConfiguratorStore((state) => state.deselect);
+
   const stage = useMemo(() => {
     const kit = makeKit();
-    const room = kit.builders["kitchen-l"]();
+    const referenceRoom = kit.builders["kitchen-l"]();
+
+    const recordsById = new Map(records.map((record) => [record.id, record]));
+    const placementPositions = records.map(
+      (record) =>
+        new THREE.Vector3(record.frame.x, record.frame.y0, record.frame.z),
+    );
+    const decomposedBodies = referenceRoom.children.filter((child) =>
+      placementPositions.some(
+        (position) =>
+          position.distanceTo(child.position) <= SAME_POSITION_EPSILON_M,
+      ),
+    );
+    for (const body of decomposedBodies) referenceRoom.remove(body);
+
+    const solidsRoot = new THREE.Group();
+    solidsRoot.name = "solids";
+    solidsRoot.add(referenceRoom);
+    for (const placement of placements) {
+      const record = recordsById.get(placement.id);
+      if (!record) continue;
+      const body = buildDecomposedBody(kit, placement.body.buildId);
+      body.position.set(record.frame.x, record.frame.y0, record.frame.z);
+      body.rotation.y = record.frame.ry;
+      body.userData.placementId = record.id;
+      solidsRoot.add(body);
+    }
+
+    const voidsRoot = new THREE.Group();
+    voidsRoot.name = "voids";
+    for (const voidRecord of voids)
+      voidsRoot.add(buildVoidMesh(voidRecord).group);
+
+    const room = new THREE.Group();
+    room.name = "kitchen_l_shape";
+    room.add(solidsRoot, voidsRoot);
+
     return {
       kit,
       room,
+      solidsRoot,
+      voidsRoot,
       fronts: collectFronts(room),
       lights: createLightRig(),
       ground: createShadowGround(),
       blob: createContactBlob(),
     };
+    // Built once per mount: `records`/`voids`/`placements` are derived once at store creation and
+    // never reassigned in this phase (M2 has no mutation), so there is nothing for a dependency
+    // array to react to.
   }, []);
 
   useEffect(() => {
@@ -96,6 +158,84 @@ export function KitchenStage({ view, finish, onSettled }: KitchenStageProps) {
     applyFinish(stage.fronts, stage.kit.M, finish);
     invalidate();
   }, [finish, stage, invalidate]);
+
+  // Row 2 / row 22 / accessory / drag-threshold picking (`DEVELOPMENT-SPEC.md` §6.1). Native DOM
+  // listeners, not R3F's declarative pointer props: the drag-vs-click distinction needs the raw
+  // pixel delta between down and up, which R3F's synthetic events do not expose as a pair.
+  useEffect(() => {
+    const canvasElement = gl.domElement;
+    const raycaster = createPickingRaycaster();
+    const pointerNdc = new THREE.Vector2();
+    let pointerDownPx = { x: 0, y: 0 };
+
+    const toNdc = (event: PointerEvent) => {
+      const rect = canvasElement.getBoundingClientRect();
+      pointerNdc.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+      pointerNdc.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+    };
+
+    const handlePointerDown = (event: PointerEvent) => {
+      pointerDownPx = { x: event.clientX, y: event.clientY };
+    };
+
+    const handlePointerUp = (event: PointerEvent) => {
+      const movedLikeAnOrbit = isDragGesture(pointerDownPx, {
+        x: event.clientX,
+        y: event.clientY,
+      });
+      if (movedLikeAnOrbit) return;
+
+      toNdc(event);
+      raycaster.setFromCamera(pointerNdc, camera);
+      const target = pick(
+        raycaster,
+        stage.solidsRoot,
+        stage.voidsRoot,
+        records,
+      );
+      if (target) select(target);
+      else deselect();
+      invalidate();
+    };
+
+    canvasElement.addEventListener("pointerdown", handlePointerDown);
+    canvasElement.addEventListener("pointerup", handlePointerUp);
+    return () => {
+      canvasElement.removeEventListener("pointerdown", handlePointerDown);
+      canvasElement.removeEventListener("pointerup", handlePointerUp);
+    };
+  }, [gl, camera, stage, records, select, deselect, invalidate]);
+
+  // Mobile gate: "a selected body and a selected slot are visually distinguishable without
+  // opening any panel." A `Box3Helper`-style outline, not a shared-material mutation — cabinets
+  // in this kit share `KitMaterials` instances, so recoloring a selected body's material would
+  // recolor every body using that material.
+  const highlightRef = useRef<THREE.BoxHelper | null>(null);
+  useEffect(() => {
+    if (highlightRef.current) {
+      scene.remove(highlightRef.current);
+      highlightRef.current.dispose();
+      highlightRef.current = null;
+    }
+    if (!selection) {
+      invalidate();
+      return;
+    }
+    const root =
+      selection.kind === "placement" ? stage.solidsRoot : stage.voidsRoot;
+    const key = selection.kind === "placement" ? "placementId" : "voidId";
+    const target = root.children.find(
+      (child) => child.userData[key] === selection.id,
+    );
+    if (!target) {
+      invalidate();
+      return;
+    }
+    const helper = new THREE.BoxHelper(target, HIGHLIGHT_COLOR);
+    scene.add(helper);
+    highlightRef.current = helper;
+    invalidate();
+  }, [selection, scene, stage, invalidate]);
 
   const goal = useRef<CameraGoal | null>(null);
   const viewKey = sceneViewKey(view);
