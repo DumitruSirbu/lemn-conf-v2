@@ -5,7 +5,11 @@
 // *same* pre-probe evaluation `insertBody` runs — the hood is neither offered for nor accepted into
 // a 400 mm top slot (§11 row 6), and both halves come from one function rather than two agreements.
 import { normaliseBand } from "../bands.js";
-import { isKnownKind, listInsertableBodies } from "../catalog.js";
+import {
+  buildableSizes,
+  isKnownKind,
+  listInsertableBodies,
+} from "../catalog.js";
 import type { CommandTarget } from "../commands/command-result.js";
 import { toMillimetres } from "../millimetres.js";
 import {
@@ -64,7 +68,10 @@ export function offersFor(input: OffersInput): CatalogOffer[] {
           label: body.label,
           kind: body.kind,
           band: body.band,
-          sizesMm: body.sizesMm,
+          // ADR 0017: the chips are the widths this body can be *built* at, not the widths its
+          // catalogue row lists. Rendering a chip the guard would refuse is the same
+          // "offered then refused" failure ADR 0017 closes, arriving one layer up.
+          sizesMm: buildableSizes(body.minWidthMm, body.sizesMm),
           widthMm: toMillimetres(fit.plan.widthM),
           heightMm: toMillimetres(fit.plan.heightM),
           isCurrent: resolved.value.replaced?.buildId === body.buildId,

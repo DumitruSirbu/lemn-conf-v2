@@ -221,6 +221,17 @@ function buildCases(): SweepCase[] {
         ),
     },
     {
+      // ADR 0017: the sink base's worktop splits around a fixed 560 mm aperture.
+      code: "WIDTH_TOO_SMALL",
+      design: narrowBase.design,
+      run: () =>
+        insertInto(
+          narrowBase,
+          voidTarget(narrowBase, "A|1.00", 0),
+          "base-sink",
+        ),
+    },
+    {
       code: "WIDTH_NOT_SUPPORTED",
       design: narrowBase.design,
       run: () =>
@@ -354,6 +365,7 @@ const ALL_REJECTION_CODES: Readonly<Record<RejectionCode, true>> = {
   TARGET_NOT_REPLACEABLE: true,
   BAND_MISMATCH: true,
   WIDTH_TOO_LARGE: true,
+  WIDTH_TOO_SMALL: true,
   WIDTH_NOT_SUPPORTED: true,
   OPENING_TOO_SHORT: true,
   HEIGHT_EXCEEDS_LEVEL: true,

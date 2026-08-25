@@ -34,6 +34,10 @@ const SAMPLES: readonly RejectionDetail[] = [
     params: { label: "Coloană cămară", requiredMm: 600, availableMm: 300 },
   },
   {
+    code: "WIDTH_TOO_SMALL",
+    params: { label: "Corp spălător", requiredMm: 560, availableMm: 400 },
+  },
+  {
     code: "WIDTH_NOT_SUPPORTED",
     params: {
       label: "Nișă mașină de spălat vase",
@@ -75,6 +79,7 @@ const ALL_CODES: readonly RejectionCode[] = [
   "TARGET_NOT_REPLACEABLE",
   "BAND_MISMATCH",
   "WIDTH_TOO_LARGE",
+  "WIDTH_TOO_SMALL",
   "WIDTH_NOT_SUPPORTED",
   "OPENING_TOO_SHORT",
   "HEIGHT_EXCEEDS_LEVEL",

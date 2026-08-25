@@ -31,6 +31,9 @@ overturned.
 | [0013](0013-restore-drill-executed-and-what-it-broke.md) | The restore drill was executed, and found five defects the runbook hid | Accepted | Finding + Decision | M2 Wave 2B | Path 2 drilled end to end with a real design (identical canonical serialisation); five defects fixed, including a `migrate` CLI that exited 0 without migrating anything on any path containing a space. |
 | [0014](0014-unauthenticated-write-surface.md) | The deployed write surface is unauthenticated; the capability-URL model needs a decision | **Proposed — needs a human decision on S1 before M7** | Finding | M2 Wave 2B (found during a catch-up security review) | Four findings on the live server surface: `PUT`/`PATCH` has no auth or ownership check (S1, confirmed against production), validation failures returned the full Zod error tree (S2, fixed), `POST` is unauthenticated and unthrottled (S3), and no rate limiting exists (S4). |
 | [0015](0015-min-span-is-exclusive.md) | `MIN_SPAN_M` is exclusive: a free span of exactly 300 mm produces no void | Accepted | Finding + Decision | M3 Wave 3A | Resolves a spec ambiguity where §4's pseudocode says strictly-greater three times while the constants table and M2's criterion read as inclusive; the pseudocode governs. |
+| [0016](0016-hood-chimney-is-carcass.md) | The hood's carcass is its canopy **and** its chimney | Accepted | Finding + Decision | M3 Wave 3B | The milestone's carcass mesh pattern matched only `hood_canopy` (130 mm) while §7 fixes the hood at 710 mm, which would have made every hood insert fail `BUILT_SIZE_MISMATCH` while the offer list still offered it. |
+| [0017](0017-sink-base-minimum-width.md) | A catalogue entry may declare a minimum width; `base-sink`'s is 560 mm | Accepted | Finding + Decision | M3 Wave 3B (fixed in the domain) | `base-sink` was offered into any base opening from 300 mm while its builder's fixed 560 mm aperture makes it unbuildable below that; adds an optional `minWidthMm` read by both the insert guard and §9's offer filter. |
+| [0018](0018-frame-depth-is-rear-overhang.md) | `frame.d` is twice a body's rear overhang, not its depth | Accepted | Finding | M3 Wave 3B (structural fix scheduled) | The persisted seat encoding is exact for placement but is not a depth; rebuilding from it will compound once any builder gains a depth parameter, which ADR 0017 names as the next step. |
 
 ## Supersessions
 
@@ -53,7 +56,7 @@ replaced it — nothing is deleted or rewritten silently.
 
 ## Adding the next one
 
-1. Take the next free number (`0016`, …).
+1. Take the next free number (`0019`, …).
 2. Name the file `NNNN-kebab-case-title.md` in this directory.
 3. Give it the same header block every record here uses, directly under the `# ADR NNNN — Title`
    line:

@@ -84,6 +84,12 @@ export interface BodyDefinition {
   /** §9's width chips — the legal widths for this body. Delivered as a per-entry constant here;
    *  M5 wires them to the resize command. */
   readonly sizesMm?: readonly number[];
+  /** ADR 0017: the narrowest width (millimetres) this body's builder can actually produce, for an
+   *  entry whose builder has a floor of its own. Absent means `MIN_WIDTH_M` governs, which is every
+   *  other entry. `base-sink` declares one because its worktop splits around a fixed 560 mm sink
+   *  aperture and inverts below that — an entry that declares one is admitting its builder is not
+   *  parameterised, and parameterising it stays the real fix. */
+  readonly minWidthMm?: number;
 }
 
 export type BodyCatalog = ReadonlyMap<string, BodyDefinition>;

@@ -14,7 +14,40 @@ export {
 
 export { applyFinish, collectFronts, type FinishKey } from "./finishes.js";
 
-export { buildDecomposedBody } from "./decomposed-bodies.js";
+export {
+  buildDecomposedBody,
+  hidePushOpenHandles,
+  setHandlesVisible,
+} from "./decomposed-bodies.js";
+
+export {
+  buildCatalogBody,
+  CATALOG_BUILD_IDS,
+  HOOD_CANOPY_HEIGHT_M,
+  isCatalogBuildId,
+  type CatalogBodySize,
+} from "./catalog-bodies.js";
+
+export {
+  CARCASS_MESH_NAME_PATTERN,
+  createBodyProbe,
+  measureBuiltBody,
+  readWallPlaneM,
+  WALL_A_MESH_NAME,
+  WALL_B_MESH_NAME,
+  type MeasureBuiltBodyInput,
+} from "./measure-built-body.js";
+
+export { disposeUnsharedGeometries, isLine, isMesh } from "./three-guards.js";
+
+export {
+  disposeSolidBody,
+  disposeVoidMesh,
+  syncSolidBodies,
+  syncVoidMeshes,
+  type SolidSyncInput,
+  type VoidSyncInput,
+} from "./scene-sync.js";
 
 export {
   buildVoidMesh,

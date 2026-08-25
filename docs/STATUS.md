@@ -3,7 +3,7 @@
 **Read this second, right after `AGENTS.md`, before opening any milestone document.** It exists so a
 session can learn where the project stands without reading eight phase plans.
 
-Last updated: 2026-08-25 (M3 Wave 3A committed; toolchain enforcement added).
+Last updated: 2026-08-25 (M3 Wave 3B complete through review; 3C next).
 
 ## How to use this file
 
@@ -25,7 +25,7 @@ moment it ships; a decision record does not. When the two disagree, the dated de
 | M0 — Foundations | **Done** (closed 2026-08-24, partially superseded) | No — `milestones/done/` |
 | M1 — Scene port and fidelity gate | **Done** (closed 2026-08-25) | No — `milestones/done/` |
 | M2 — Void engine, picking, persistence | **In progress** — implemented, 1 gate open (the unwired client write path, owned by M3) | Yes — `milestones/M2-void-engine.md` |
-| M3 — Insert, remove, swap, client write path | **In progress** — Wave 3A done; **3B next** | Yes — `milestones/M3-mutations.md` |
+| M3 — Insert, remove, swap, client write path | **In progress** — Waves 3A and 3B done; **3C next** | Yes — `milestones/M3-mutations.md` |
 | M4 — Editor panel and shell | Planned | Yes, when starting |
 | M5 — Width editing | Planned | Yes, when starting |
 | M6 — Price bar and global settings | Planned | Yes, when starting |
@@ -35,9 +35,16 @@ moment it ships; a decision record does not. When the two disagree, the dated de
 ## What is actually built
 
 A pnpm monorepo on Node 24: an I/O-free domain package, a Three.js adapter, a persistence package
-that is the only place a Postgres driver appears, and a Next.js App Router app. **578 unit tests**
-(domain 335, three-adapter 30, persistence 163, web 50) plus 4 Playwright e2e tests and one
-`test.skip`, all green — counted from a full `pnpm ci:local` run on 2026-08-25, not carried forward.
+that is the only place a Postgres driver appears, and a Next.js App Router app. **874 unit tests**
+(domain 380, three-adapter 414, persistence 30, web 50) plus 4 Playwright e2e tests and one
+`test.skip` — the unit counts copied from a `pnpm check` run that exited 0 on 2026-08-25 after Wave
+3B's review round, not carried forward. The e2e figures are carried from M2 and were **not** re-run
+this wave.
+
+An earlier revision of this line reported "three-adapter 30, persistence 163". Those two numbers
+were transposed: persistence runs 30 and the adapter ran 163 before Wave 3B. Recorded rather than
+quietly corrected, because this file's own closing rule is that quantitative claims come from a
+command someone ran.
 Each package owns its tests in its own `tests/` directory and must stay liftable into its own
 repository — see `docs/best-practices/engineering-conventions.md`.
 
@@ -60,7 +67,7 @@ through an R3F canvas with camera presets. Closed on a fidelity gate requiring t
 of evidence. A structural parity suite diffs the port against vendored reference geometry at 1e-6 m,
 and is the guarantee that later phases have not silently degraded the model.
 
-**M3 — Insert, remove, swap (Wave 3A done).** The domain command layer: `insertBody`, `insertFit`,
+**M3 — Insert, remove, swap (Waves 3A and 3B done).** The domain command layer: `insertBody`, `insertFit`,
 `removePlacement`, the `{ok}`/`{ok:false, reason}` result contract, the §7 insertable catalogue,
 band and accessory rules, and a `BodyProbe` port. Wave 3A is the first wave to run the complete
 `docs/WORKFLOW.md` cycle — plan → implement → adversarial QA → review → verify → commit — and the
@@ -71,7 +78,36 @@ review then found that fixing it had made that fix's own test vacuous — the ea
 before the assertion. Both survived all eight gates. See
 `docs/decisions/0015-min-span-is-exclusive.md`, which also records that the independent logic
 reviewer was dispatched and never reported, so the coordinator verified instead — weaker, and worth
-re-running.
+re-running. **That gap did not repeat: Wave 3B's logic reviewer delivered**, and its findings are
+below.
+
+**M3 Wave 3B — the adapter.** `buildCatalogBody` for §7's fifteen parameterised entries,
+`measureBuiltBody` implementing the `BodyProbe` port, and `scene-sync.ts` — a keyed, disposing
+mount/unmount that replaced `kitchen-stage.tsx`'s build-once `useMemo`. Two rounds of adversarial QA
+and a full review tier produced four ADRs, and three of the findings are worth knowing:
+
+- **The hood could never have been inserted** (ADR 0016). The milestone's carcass mesh pattern
+  matched only `hood_canopy`, 130 mm, while §7 fixes the hood at 710 — so every hood insert would
+  have failed `BUILT_SIZE_MISMATCH` while §9 kept offering it.
+- **`base-sink` was offered into openings it cannot build** (ADR 0017). Its worktop splits around a
+  fixed 560 mm aperture and inverts below that; at 400 mm the carcass measures 523 × 913. The
+  engine refused correctly, but the offer list still offered it down to 300 mm. Catalogue entries
+  may now declare a `minWidthMm`, read by the guard and the offer list from one evaluation. Note the
+  550 mm case: the built carcass is inside `FIT_TOLERANCE_M` on both axes, so the built-size
+  re-check would have **accepted an inverted worktop** — which is why the floor is declared rather
+  than measured.
+- **`wall-lift` shipped as a hinged single door**, byte-identical to `wall-1door` — two catalogue
+  rows, one body, with §6.5's bottom-edge handle on neither. Caused by the coordinator's own
+  dispatch wording, missed by the coordinator's diff review and by two adversarial QA rounds,
+  because every test asserted the entry passes the *size* gate and a lift flap is not a carcass
+  mesh. Found by logic review. There is now a general property test — no two catalogue ids may build
+  the same body, compared by structural signature rather than measurement.
+
+**§11 row 19 is proven for inserted bodies, and it generalises by construction**: `seatOffsetM` is
+the origin-to-back-face distance, so placing at that offset cancels the same bounding box that
+produced it, whatever its asymmetry. §6.2's two recorded failures came from deriving the plane from
+the *previous occupant*, which let one body's asymmetry reach another's placement; nothing here has
+a cross-body path. Measured within 3.6e-9 m on both walls for seven bodies.
 
 **M2 — Void engine, picking, persistence.** Both waves are implemented. The `Design` schema, the
 placement/column/void derivation with all four earned rules of `DEVELOPMENT-SPEC.md` §4, void mesh
@@ -120,24 +156,53 @@ into one of these silently.
 
 ## What to do next
 
-1. **M3 Wave 3B (adapter)** — parameterised builders, the `measureBuiltBody` probe implementation,
-   and a rebuildable scene. **Full review tier**: §11 row 19 (wall seating) is in scope, and it is
-   where M1's fidelity can silently degrade. Follow `docs/WORKFLOW.md`; it is mandatory, not
-   advisory.
-2. **Then Wave 3C (web)** — store commands and the client write path, which closes M2's last gate.
+1. **M3 Wave 3C (web)** — items 9–12: store commands, the client write path (which closes M2's last
+   gate), a temporary developer affordance, and the mobile gate. Follow `docs/WORKFLOW.md`; it is
+   mandatory, not advisory. Wave 3C is where the persistence criteria live, so it is a **Full**
+   review tier with security review triggered (write path, share links, customer data).
 
-Wave 3A is done. Five contract gaps against the shipped M2 code are recorded in
-`docs/decisions/0011-m3-insert-contract-gaps.md`; treat them as decided, not open.
+Waves 3A and 3B are done. Contract gaps and findings against them are recorded in ADRs 0011, 0015,
+0016, 0017 and 0018; treat them as decided, not open.
 
-Worth folding into 3B's review: an independent logic pass over Wave 3A's void-derivation boundary,
-which ADR 0015 flags as verified by the coordinator rather than by a neutral reviewer.
+**Carried into 3C, honestly unverified rather than assumed met.** Wave 3B's scene sync is proven
+headlessly — the keyed diff, disposal by object identity, push-open by slot — but **the sync effect
+has never re-run with changed data**, because no store mutation exists until 3C. Specifically not
+yet exercised: that a mutation preserves an unchanged body's applied finish end to end; that
+selection never dangles after a mutation; and that the reference-room decomposition, still computed
+once in `useMemo` against the *initial* records, is correct if 3C ever hydrates a different design
+into a mounted component. 3C should exercise all three rather than inherit them as passed.
 
-M3 closes M2's last gate as a first-class work item — the client write path, wave 3C item 10 — and
-un-skips the one named `test.skip` in the e2e suite, which had no void to tap against while the
+**Also carried:** `createBodyProbe` has no caller in `apps/web` yet, so §11 row 19's seat is proven
+in tests and has never run in the app. Wiring it is 3C item 9's job.
+
+**Known and recorded, not defects:**
+
+- ADR 0018 — `frame.d` is twice a body's rear overhang, not its depth. Inert today; it starts
+  compounding the moment any builder gains a depth parameter, which ADR 0017 names as the intended
+  fix for the sink aperture. Owned by whichever phase does that.
+- The hood is `widthFlex: 'fit'` with a `[600, 900]` chip set, so a 450 mm void builds a 450 mm hood
+  while the panel would render chips of 600 and 900. Same shape ADR 0017 fixed for `base-sink`,
+  arriving from the other side; §7's `w` cell literally reads `fit`. **M4 owns the decision**, since
+  M4 renders the chips.
+- `insertBody` is more permissive than `offersFor` on a swap: §9 scopes a swap list to the outgoing
+  body's band while §5.2 lets a `column` body into any slot. Not a rule violation — "never offer
+  what cannot be satisfied" is one-directional — but the two are **not** interchangeable, and M4
+  owns §13.3's question about unifying swap sets with the fit-filtered catalogue.
+- `min(d, 0.4)` shallows a seeded 600 mm-deep wall body to 400 mm on swap. A documented consequence
+  of §7's clamp, reviewed and labelled a disagreement rather than a bug.
+
+M3 still closes M2's last gate as a first-class work item — the client write path, wave 3C item 10 —
+and un-skips the one named `test.skip` in the e2e suite, which had no void to tap against while the
 seeded design was fully occupied.
 
 Worth re-running once M3 lands: Path 2 of the restore drill, this time from an export downloaded
 from Blob and containing a design a customer actually made.
+
+**A trap worth knowing before you run the gates.** Both packages' `test` scripts compile the domain
+into the same `dist/`, so two concurrent runs collide at the *build* step while vitest itself
+passes — the command exits non-zero with a fully green suite. That is why the root scripts run
+`--workspace-concurrency=1`. Do not re-run until it passes and call that evidence; run on a quiet
+tree.
 
 ## Keeping this file honest
 

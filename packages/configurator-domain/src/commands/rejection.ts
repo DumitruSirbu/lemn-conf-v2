@@ -67,6 +67,7 @@ export type RejectionDetail =
   | { readonly code: "TARGET_NOT_REPLACEABLE"; readonly params: LabelParams }
   | { readonly code: "BAND_MISMATCH"; readonly params: BandParams }
   | { readonly code: "WIDTH_TOO_LARGE"; readonly params: FitParams }
+  | { readonly code: "WIDTH_TOO_SMALL"; readonly params: FitParams }
   | { readonly code: "WIDTH_NOT_SUPPORTED"; readonly params: SizesParams }
   | {
       readonly code: "OPENING_TOO_SHORT";
@@ -128,6 +129,8 @@ export function renderRejection(detail: RejectionDetail): string {
       return renderBandMismatch(detail.params);
     case "WIDTH_TOO_LARGE":
       return `„${detail.params.label}” are ${String(detail.params.requiredMm)} mm lățime, iar deschiderea are doar ${String(detail.params.availableMm)} mm.`;
+    case "WIDTH_TOO_SMALL":
+      return `„${detail.params.label}” are nevoie de cel puțin ${String(detail.params.requiredMm)} mm lățime, iar deschiderea are doar ${String(detail.params.availableMm)} mm.`;
     case "WIDTH_NOT_SUPPORTED":
       return `„${detail.params.label}” se face doar în ${renderMillimetreList(detail.params.sizesMm)} mm, iar deschiderea are ${String(detail.params.availableMm)} mm.`;
     case "OPENING_TOO_SHORT":

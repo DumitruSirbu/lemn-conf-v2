@@ -8,6 +8,12 @@ import type { Band, BodyDefinition, WidthFlex } from "./void-engine.js";
 
 /** §7: "everything else" — 1000 mm was dropped, because two doors top out at 800. */
 const STANDARD_WIDTHS_MM: readonly number[] = [400, 600, 800];
+/** ADR 0017: the sink base has no 400 — its worktop splits around a fixed 560 mm aperture and does
+ *  not build below that, so 400 is not a width this body has. */
+const SINK_WIDTHS_MM: readonly number[] = [600, 800];
+/** ADR 0017: the sink aperture's own width, which is the width at which the geometry is correct
+ *  rather than merely inside `FIT_TOLERANCE_M`. */
+const SINK_MIN_WIDTH_MM = 560;
 const DISHWASHER_WIDTHS_MM: readonly number[] = [450, 600];
 const HOOD_WIDTHS_MM: readonly number[] = [600, 900];
 const COLUMN_WIDTHS_MM: readonly number[] = [600];
@@ -110,7 +116,14 @@ export const INSERTABLE_BODY_DEFINITIONS: readonly (readonly [
   ["base-1door", baseCabinet("Corp bază 1 ușă")],
   ["base-3drawer", baseCabinet("Corp bază 3 sertare")],
   ["base-panbank", baseCabinet("Sertare pentru oale")],
-  ["base-sink", baseCabinet("Corp spălător")],
+  [
+    "base-sink",
+    {
+      ...baseCabinet("Corp spălător"),
+      sizesMm: SINK_WIDTHS_MM,
+      minWidthMm: SINK_MIN_WIDTH_MM,
+    },
+  ],
   [
     "base-dishwasher",
     {
@@ -205,6 +218,9 @@ export interface InsertableBody {
   readonly heightFlex: boolean;
   readonly nominalHeightMm: number;
   readonly sizesMm: readonly number[];
+  /** ADR 0017: this body's own width floor, when its builder has one. Absent means `MIN_WIDTH_M`
+   *  governs — the two are different facts, so this is carried absent rather than defaulted. */
+  readonly minWidthMm?: number;
   readonly definition: BodyDefinition;
 }
 
@@ -234,8 +250,28 @@ export function toInsertableBody(
     heightFlex: definition.heightFlex ?? false,
     nominalHeightMm,
     sizesMm,
+    ...(definition.minWidthMm === undefined
+      ? {}
+      : { minWidthMm: definition.minWidthMm }),
     definition,
   };
+}
+
+/** ADR 0017: the widths an entry can actually be built at — the given set, less anything under the
+ *  floor its own builder declares. An entry with no floor keeps its set untouched, which is every
+ *  shipped entry, `base-sink` included: it is the only one declaring a floor and its chips are
+ *  already above it.
+ *
+ *  Catalogue data rather than command logic, because two callers apply it to two different sets and
+ *  neither owns the rule: §5.2's guard narrows `widthFlex` to decide what to build, and §9's offer
+ *  narrows `sizesMm` to decide which chips to render. One function, so a width the panel offers is
+ *  a width the engine will accept. */
+export function buildableSizes(
+  minWidthMm: number | undefined,
+  sizesMm: readonly number[],
+): readonly number[] {
+  if (minWidthMm === undefined) return sizesMm;
+  return sizesMm.filter((size) => size >= minWidthMm);
 }
 
 /** Every insertable entry of a catalogue, in catalogue order — the raw list §9's offer filter
