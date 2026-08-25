@@ -45,15 +45,16 @@ milestone prose.
 
 **While working**
 
-| Read                                                | When                                                                                                               |
-| --------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
-| `docs/WORKFLOW.md`                                  | Starting a phase, dispatching agents, or closing one out. Includes the working conventions and evidence standards. |
-| `docs/best-practices/ci-and-local-gates.md`         | Running build/test commands, changing lint or format config, adding a CI gate, or a hook blocked you.              |
-| `docs/best-practices/environments-and-resources.md` | Touching any env var, secret, database, or provisioned resource.                                                   |
-| `docs/best-practices/engineering-conventions.md`    | Writing code — naming, structure, DRY/KISS/SOLID.                                                                  |
-| `docs/best-practices/browser-and-visual-qa.md`      | Verifying a visible or interactive surface.                                                                        |
-| `docs/best-practices/documentation.md`              | Writing a decision record or milestone update.                                                                     |
-| `docs/AGENT_ROLES.md` and `docs/agents/`            | Dispatching a sub-agent; role cards and hand-off formats.                                                          |
+| Read                                                | When                                                                                                                                                                                      |
+| --------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `docs/best-practices/dev-qa-cycle.md`               | **The authoritative delivery process.** Read before dispatching any implementer, QA or reviewer: scope limits, QA-gates-review, finding numbering, review continuity, definition of done. |
+| `docs/WORKFLOW.md`                                  | The phase cycle end to end, the working conventions, and evidence standards. Defers to dev-qa-cycle.md on dispatch and review rules.                                                      |
+| `docs/best-practices/ci-and-local-gates.md`         | Running build/test commands, changing lint or format config, adding a CI gate, or a hook blocked you.                                                                                     |
+| `docs/best-practices/environments-and-resources.md` | Touching any env var, secret, database, or provisioned resource.                                                                                                                          |
+| `docs/best-practices/engineering-conventions.md`    | Writing code — naming, structure, DRY/KISS/SOLID.                                                                                                                                         |
+| `docs/best-practices/browser-and-visual-qa.md`      | Verifying a visible or interactive surface.                                                                                                                                               |
+| `docs/best-practices/documentation.md`              | Writing a decision record or milestone update.                                                                                                                                            |
+| `docs/AGENT_ROLES.md` and `docs/agents/`            | Dispatching a sub-agent; role cards and hand-off formats.                                                                                                                                 |
 
 **Current state and history**
 

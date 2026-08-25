@@ -14,9 +14,13 @@ to be useful before the new app's stack, test commands, and browser setup are kn
 3. **QA.** Add or improve tests for the stated contract. Cover the normal route and the boundary,
    invalid, empty, and repeatability cases that apply. Numeric or generative logic should be swept
    over a meaningful range rather than demonstrated by a few hand-picked examples.
-4. **Review.** Run clean-code and product-logic review in parallel when there is a real diff. Add
-   visual review for visible or interactive work, and security review for public endpoints, auth,
-   persistence/share links, customer data, generated documents/email, or dependency changes.
+
+   **QA gates review — see `docs/best-practices/dev-qa-cycle.md`, which is authoritative on the
+   dispatch, QA, review and close-out rules.** Read it before dispatching any of them.
+4. **Review.** Only once step 3 is green. Run clean-code and product-logic review in parallel when
+   there is a real diff. Add visual review for visible or interactive work, and security review for
+   public endpoints, auth, persistence/share links, customer data, generated documents/email, or
+   dependency changes.
 5. **Verify and close.** The coordinating agent checks every material finding against the diff and
    runs the relevant commands itself. Only then update the phase outcome and documents that the
    change invalidated.

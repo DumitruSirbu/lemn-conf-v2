@@ -21,6 +21,21 @@ this document decides *how* work is dispatched, verified, reviewed, and closed.
 - Sweep a meaningful input range when arithmetic or generation is involved; a few examples are not
   evidence that the transitions work.
 - QA runs before reviewers. A reviewer is not a substitute for tests.
+- **QA gates review, and the gate is green tests — not merely "QA has run".** If QA finds failures,
+  the work returns to the implementer, who fixes the source; QA then re-runs. Reviewers are
+  dispatched only once the suite is green. Reviewing code that is about to change produces findings
+  against a state that will not exist, and running reviewers while QA is still editing yields two
+  reports describing two different trees.
+- **QA is adversarial**: the implementer tests what they built, QA tests what they assumed. A test
+  QA writes that fails is a *finding*. Leave it failing and report it. QA never weakens an assertion
+  to make it pass and never edits production code to make its own test green — that is how a suite
+  ends up asserting a defect as correct.
+- **A clean report from an adversarial pass is a weak result, not a strong one.** This project has
+  shipped a test that asserted a defect as correct, two boundary greps that matched nothing while
+  reporting green, and two commands that reported success while doing nothing. "No findings" must be
+  earned and evidenced, not assumed.
+- Send fixes back to the **original implementer** where it is still available, for the same reason
+  review continuity matters below: it holds the context that produced the code.
 
 ## Review continuity
 
