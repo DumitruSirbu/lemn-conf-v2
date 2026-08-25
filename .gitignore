@@ -10,3 +10,6 @@ test-results/
 **/.next/
 *.tsbuildinfo
 **/.tmp/
+
+# Claude Code session-local runtime state
+.claude/

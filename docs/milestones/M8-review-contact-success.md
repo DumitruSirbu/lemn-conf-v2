@@ -14,7 +14,12 @@ including when the submission fails.
 ## Scope
 
 In: `/configurator/review`, `/configurator/contact`, and the success route; the submission boundary;
-the failure safety net.
+the failure safety net. **Note (2026-08-25):** `ContactSubmissionSchema` /
+`createContactSubmissionSchema` were deleted in M2 Wave 2A — they were typed against the retired
+`KitchenConfigurationSchema`/`PricingResultSchema` and had no live consumer (see
+`docs/decisions/2026-08-25-m2-pricing-engine-deletion.md` addendum). Work item 7 here must define a
+new contact-submission schema whose configuration snapshot is shaped against the `Design`
+model M2 introduced, not adapt the deleted one.
 
 Out: CRM integration.
 

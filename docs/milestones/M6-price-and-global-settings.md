@@ -18,7 +18,12 @@ so on the sheet itself.
 ## Scope
 
 In: the price bar; the breakdown (2D sheet / D2D popover); the global material and hardware settings
-(2E sheet / D2E popover); wiring the existing pricing engine to the new placement shape.
+(2E sheet / D2E popover); wiring the existing pricing engine to the new placement shape. **Note
+(2026-08-25):** `pricing-engine.ts` was deleted in M2 Wave 2A — it was inseparable from the retired
+M0 placement model (see
+`docs/decisions/2026-08-25-m2-pricing-engine-deletion.md`). Work item 1 here is a rebuild against
+`DEVELOPMENT-SPEC.md` §5.5/§9's pricing rules and the `Design`/frame model, not an adaptation of
+existing code.
 
 Out: the review screen's own summary (M8, though it reuses this grouping); commercial amounts.
 
