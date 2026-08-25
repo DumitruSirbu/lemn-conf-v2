@@ -8,6 +8,7 @@ import { WebGLUnavailable } from "@/components/webgl-unavailable";
 import { ro } from "@/content/ro";
 import type { SceneView } from "@/scene/scene-view";
 import { detectWebGLSupport } from "@/scene/webgl-support";
+import { useConfiguratorStore } from "@/store/configurator-store";
 
 import styles from "./configure.module.css";
 
@@ -22,6 +23,7 @@ type SupportState = "probing" | "supported" | "unsupported";
 export function ConfigureScreen() {
   const [support, setSupport] = useState<SupportState>("probing");
   const [presetId, setPresetId] = useState<CameraPresetId>("overview");
+  const selection = useConfiguratorStore((state) => state.selection);
 
   useEffect(() => {
     setSupport(detectWebGLSupport() ? "supported" : "unsupported");
@@ -76,6 +78,14 @@ export function ConfigureScreen() {
         <p className={styles.hint}>
           <span>{ro.configure.orbitHint}</span>
         </p>
+        {/* Test-only observability hook for the mobile picking gate (M2 §Surfaces): selection
+         *  state is otherwise only visible inside the WebGL canvas, which Playwright cannot query. */}
+        <span
+          data-testid="selection-debug"
+          data-selection-kind={selection?.kind ?? ""}
+          data-selection-id={selection?.id ?? ""}
+          hidden
+        />
       </div>
     </main>
   );

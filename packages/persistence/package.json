@@ -1,0 +1,32 @@
+{
+  "name": "@lemnaria/persistence",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "files": [
+    "dist"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc --project tsconfig.build.json",
+    "lint": "eslint . --max-warnings 0",
+    "migrate": "tsx src/migrate.ts",
+    "test": "pnpm run build:deps && vitest run --config vitest.config.ts",
+    "build:deps": "pnpm --filter @lemnaria/configurator-domain run build",
+    "typecheck": "pnpm run build:deps && tsc --project tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@lemnaria/configurator-domain": "workspace:*",
+    "@neondatabase/serverless": "1.1.0",
+    "nanoid": "6.0.1"
+  },
+  "devDependencies": {
+    "@types/node": "20.19.9",
+    "tsx": "4.23.12"
+  }
+}

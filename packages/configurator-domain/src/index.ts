@@ -4,6 +4,9 @@ export const CONFIGURATOR_DOMAIN_PACKAGE =
 
 export * from "./schemas.js";
 export * from "./room-transforms.js";
-export * from "./placement-layout.js";
-export * from "./configuration-commands.js";
-export * from "./pricing-engine.js";
+export * from "./design.js";
+export * from "./void-engine.js";
+export * from "./fixtures/kitchen-l-design.js";
+export * from "./serialize-design.js";
+export * from "./repository.js";
+export * from "./migrate-design.js";

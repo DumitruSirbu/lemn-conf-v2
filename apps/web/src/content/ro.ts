@@ -27,6 +27,14 @@ export const ro = {
     noFakePreview:
       "Nu afișăm o previzualizare statică falsă: fără 3D nu există configurare reală, deci nici preț.",
   },
+  designLoadError: {
+    title: "Nu am putut deschide acest link",
+    bodyNotFound:
+      "Linkul acesta nu mai corespunde niciunei configurații salvate. Poate a fost șters sau adresa este greșită.",
+    bodyInvalid:
+      "Configurația salvată la acest link nu poate fi citită. Ne pare rău pentru inconvenient.",
+    startOver: "Pornește o configurare nouă",
+  },
   contactPlaceholder: {
     title: "Formularul de contact urmează",
     body: "Pasul de contact nu este încă disponibil în această versiune a configuratorului.",

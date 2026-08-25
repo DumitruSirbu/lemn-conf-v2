@@ -1,6 +1,17 @@
 # M2 — Placement, column and void engine, picking, and persistence
 
-Status: planned. Depends on M1.
+Status: Wave 2A (work items 1–6) implemented and verified 2026-08-25 — domain schema, void engine,
+decomposition-parity proof, void mesh rendering, picking (including a real solids/voids picking
+defect found in review and fixed — see `packages/three-adapter/src/picking.ts`), store, and mobile
+touch verification via Playwright (`apps/web/playwright.config.ts`,
+`apps/web/src/scene/kitchen-stage.e2e.spec.ts`). 236 unit/component tests + 4 e2e tests passing,
+typecheck/lint/format clean. The one item that was open before Wave 2A could fully close — a
+pre-existing M1 wall-seating gap on 6 bodies colliding with the Row 19 acceptance criterion — is now
+fixed; see `docs/decisions/2026-08-25-m2-row19-m1-wall-gap-finding.md`'s "Resolved" section: both
+`buildKitchen()` and its reference were corrected to seat those bodies flush, and Row 19 now holds
+with no tracked exception. One acceptance case is honestly unverifiable until M3: "tap an empty slot" has no void to tap against
+in the fully-occupied seeded fixture — recorded as a named `test.skip` with justification, not
+faked. Wave 2B (persistence, work items 7–9) not yet started. Depends on M1.
 Reference: `DEVELOPMENT-SPEC.md` §2 (tolerances), §3, §4, §6.1, §6.4, §12 (persisted `Design`);
 §11 rows 1, 2, 17, 18, 21, 22; `docs/decisions/2026-08-24-db-backed-shareable-persistence.md`.
 
