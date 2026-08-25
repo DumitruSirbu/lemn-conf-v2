@@ -119,10 +119,16 @@ pnpm typecheck
 pnpm test
 pnpm build
 pnpm check
+pnpm ci:local       # every CI gate, run before each push
 ```
 
-`pnpm check` runs formatting, linting, type checking, and unit tests in that order; `pnpm ci:local` additionally runs build, boundary, lockfile and audit — the full CI set. Run commands
-through the `rtk` proxy as described in `RTK.md` when supported.
+`pnpm check` runs formatting, linting, type checking, and unit tests in that order. `pnpm ci:local`
+additionally runs build, boundary, lockfile and audit — the full CI set, and what `.githooks/pre-push`
+enforces. Run commands through the `rtk` proxy as described in `RTK.md` when supported, but treat its
+output with suspicion for tools it does not model: on 2026-08-25 it reported "All files formatted
+correctly" for `npx prettier --version` and zero matches for a `find` that had matches. When a result
+decides something, re-run the binary directly (`./node_modules/.bin/…`) or capture output to a file
+and read that.
 
 Formatting is pinned by `.prettierrc.json` — an explicit statement of Prettier's own defaults
 (80 columns, double quotes, semicolons, trailing commas). It exists so a future Prettier release
