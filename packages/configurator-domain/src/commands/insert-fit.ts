@@ -1,0 +1,406 @@
+// `DEVELOPMENT-SPEC.md` §5.2's guards, in the order the spec states them, with everything that can
+// be decided **before** a body is built.
+//
+// Split out because §9's offer list and `insertBody` must agree exactly: "never offer what cannot
+// be satisfied" and "the hood is neither offered for nor accepted into the 400 mm top slot" are the
+// same rule read from two ends (§11 row 6). One evaluation, two callers.
+import {
+  deriveSlotBand,
+  isBandAccepted,
+  normaliseBand,
+  type NormalisedBand,
+  type SlotExtent,
+} from "../bands.js";
+import {
+  describeKindLabel,
+  UNKNOWN_KIND_LABEL_RO,
+  type InsertableBody,
+} from "../catalog.js";
+import type { DesignWall } from "../design.js";
+import { toMillimetres } from "../millimetres.js";
+import {
+  recomputeVoids,
+  FIT_TOLERANCE_M,
+  LEVELS,
+  MIN_WIDTH_M,
+  type Column,
+  type PlacementRecord,
+  type VoidRecord,
+} from "../void-engine.js";
+import type { CommandTarget } from "./command-result.js";
+import type { RejectionDetail } from "./rejection.js";
+
+/** §9: a height-flexible body needs this much opening before it is worth building — below it the
+ *  carcass is a strip, not a cabinet. */
+export const HEIGHT_FLEX_MIN_OPENING_MM = 400;
+
+/** §5.2: a height-flexible body fills an opening this tall or shorter, and otherwise builds its
+ *  nominal height. A 750 mm over-fridge slot gets a 750 mm unit; a cleared 2600 mm column does not
+ *  get a 2600 mm wall cabinet. */
+export const CABINET_SIZED_OPENING_MAX_M = 0.9;
+
+/** Float noise from the millimetre↔metre round trip. Not a fit tolerance — `FIT_TOLERANCE_M` is
+ *  the slack two independently derived measurements get; this is the slack `2.2 * 1000` gets. */
+const COORDINATE_EPSILON_M = 1e-6;
+
+/** The opening a body is being inserted into, whether it is a derived void or — on a swap in
+ *  place (§5.3) — the level slot an occupied body stands in. One shape, so the guards cannot
+ *  fork. */
+export interface InsertOpening {
+  readonly col: string;
+  readonly wall: DesignWall;
+  /** The along-wall coordinate: `x` on wall A, `z` on wall B. ADR 0011 Gap D — the wall-normal
+   *  coordinate is *not* taken from here; it comes from the body's own measured seat. */
+  readonly alongM: number;
+  readonly w: number;
+  readonly y0: number;
+  readonly h: number;
+  readonly spanY0: number;
+  readonly spanH: number;
+}
+
+export function openingFromVoid(record: VoidRecord): InsertOpening {
+  return {
+    col: record.col,
+    wall: record.wall,
+    alongM: record.wall === "A" ? record.x : record.z,
+    w: record.w,
+    y0: record.y0,
+    h: record.h,
+    spanY0: record.spanY0,
+    spanH: record.spanH,
+  };
+}
+
+/** §5.3: an opening's size does not change because its contents did. The opening a swap targets is
+ *  therefore the one the *level* provides — literally the void this body's removal would create —
+ *  and not the outgoing body's own frame.
+ *
+ *  Reading "the frame IS the opening" as the frame's own numbers does not survive the shipped
+ *  data: M2's seeded base cabinets record 820 mm (carcass without the counter) while §7's base
+ *  bodies build to the 860 mm worktop line, so every seeded base cabinet would refuse every base
+ *  row in its own swap list. The level slot is 860 mm either way, which is the sense in which it is
+ *  unchanged. See the report for M3 Wave 3A.
+ *
+ *  Only the width comes from the body itself: §5.3 swaps in place, and horizontal subdivision of an
+ *  opening is not in the model. */
+export function openingFromPlacement(
+  record: PlacementRecord,
+  records: readonly PlacementRecord[],
+  columns: ReadonlyMap<string, Column>,
+): InsertOpening {
+  const slot = findVacatedSlot(record, records, columns);
+  const y0 = slot?.y0 ?? record.frame.y0;
+  return {
+    col: record.col,
+    wall: record.wall,
+    alongM: record.wall === "A" ? record.frame.x : record.frame.z,
+    w: record.frame.w,
+    y0,
+    h: slot?.h ?? record.frame.h,
+    spanY0: slot?.spanY0 ?? record.frame.y0,
+    spanH: slot?.spanH ?? record.frame.h,
+  };
+}
+
+/** The void that would cover this body if it were removed — §4's own derivation, run once with the
+ *  target taken out, so a swap and a delete-then-insert see the identical opening. */
+function findVacatedSlot(
+  record: PlacementRecord,
+  records: readonly PlacementRecord[],
+  columns: ReadonlyMap<string, Column>,
+): VoidRecord | undefined {
+  const remaining = records.filter((other) => other.id !== record.id);
+  return recomputeVoids(remaining, columns).find(
+    (slot) =>
+      slot.col === record.col &&
+      slot.y0 <= record.frame.y0 + FIT_TOLERANCE_M &&
+      record.frame.y0 < slot.y0 + slot.h + FIT_TOLERANCE_M,
+  );
+}
+
+/** The opening a command or an offer list was pointed at, resolved. */
+export interface ResolvedOpening {
+  readonly opening: InsertOpening;
+  readonly column: Column;
+  /** Present on a swap in place: the body currently standing in the opening. */
+  readonly replaced?: PlacementRecord;
+}
+
+export interface OpeningLookup {
+  readonly records: readonly PlacementRecord[];
+  readonly voids: readonly VoidRecord[];
+  readonly columns: ReadonlyMap<string, Column>;
+  readonly target: CommandTarget;
+}
+
+export type OpeningResolution =
+  | { readonly ok: true; readonly value: ResolvedOpening }
+  | { readonly ok: false; readonly detail: RejectionDetail };
+
+/** §5.2 fills a void; §5.3 hands the same path the current body's own frame. `insertBody` and
+ *  §9's offer list resolve their target through this one function, so a body the list offers and a
+ *  body the command accepts are measured against the identical opening. */
+export function resolveInsertOpening(lookup: OpeningLookup): OpeningResolution {
+  const found = findOpening(lookup);
+  if (!found.ok) return found;
+  const column = lookup.columns.get(found.value.opening.col);
+  if (!column) {
+    return {
+      ok: false,
+      detail: {
+        code: "COLUMN_MISMATCH",
+        params: { label: openingLabel(found.value) },
+      },
+    };
+  }
+  return { ok: true, value: { ...found.value, column } };
+}
+
+function openingLabel(value: Omit<ResolvedOpening, "column">): string {
+  return value.replaced
+    ? describeKindLabel(value.replaced.kind)
+    : UNKNOWN_KIND_LABEL_RO;
+}
+
+type PartialResolution =
+  | { readonly ok: true; readonly value: Omit<ResolvedOpening, "column"> }
+  | { readonly ok: false; readonly detail: RejectionDetail };
+
+function findOpening(lookup: OpeningLookup): PartialResolution {
+  const notFound: RejectionDetail = { code: "TARGET_NOT_FOUND", params: {} };
+  if (lookup.target.kind === "void") {
+    const record = lookup.voids.find(
+      (candidate) => candidate.id === lookup.target.id,
+    );
+    if (!record) return { ok: false, detail: notFound };
+    return { ok: true, value: { opening: openingFromVoid(record) } };
+  }
+
+  const record = lookup.records.find(
+    (candidate) => candidate.id === lookup.target.id,
+  );
+  if (!record) return { ok: false, detail: notFound };
+  if (record.accessory || !record.canReplace) {
+    return {
+      ok: false,
+      detail: {
+        code: "TARGET_NOT_REPLACEABLE",
+        params: { label: describeKindLabel(record.kind) },
+      },
+    };
+  }
+  return {
+    ok: true,
+    value: {
+      opening: openingFromPlacement(record, lookup.records, lookup.columns),
+      replaced: record,
+    },
+  };
+}
+
+/** What §5.2 decided before anything was built: how wide, how tall, and on which module line. */
+export interface InsertPlan {
+  readonly widthM: number;
+  readonly heightM: number;
+  readonly y0M: number;
+  readonly slotBand: NormalisedBand;
+}
+
+export type InsertFit =
+  | { readonly ok: true; readonly plan: InsertPlan }
+  | { readonly ok: false; readonly detail: RejectionDetail };
+
+export interface InsertFitInput {
+  readonly body: InsertableBody;
+  readonly opening: InsertOpening;
+  readonly column: Column;
+}
+
+function rejectFit(detail: RejectionDetail): InsertFit {
+  return { ok: false, detail };
+}
+
+type WidthResolution =
+  | { readonly ok: true; readonly widthM: number }
+  | { readonly ok: false; readonly detail: RejectionDetail };
+
+/** §5.2: `w = b.w === 'fit' ? void.w : b.w`, plus the millimetre-set case §7 gives the dishwasher
+ *  niche, the hood and the columns. A fixed-set body takes the widest size that still fits. */
+function resolveWidth(
+  body: InsertableBody,
+  opening: InsertOpening,
+): WidthResolution {
+  const availableMm = toMillimetres(opening.w);
+  if (body.widthFlex === "fit") {
+    if (opening.w + FIT_TOLERANCE_M < MIN_WIDTH_M) {
+      return {
+        ok: false,
+        detail: {
+          code: "WIDTH_NOT_SUPPORTED",
+          params: { label: body.label, sizesMm: body.sizesMm, availableMm },
+        },
+      };
+    }
+    return { ok: true, widthM: opening.w };
+  }
+
+  const fitting = body.widthFlex.filter(
+    (size) => size / 1000 <= opening.w + FIT_TOLERANCE_M,
+  );
+  if (fitting.length === 0) {
+    return { ok: false, detail: refuseFixedWidth(body, availableMm) };
+  }
+  return { ok: true, widthM: Math.max(...fitting) / 1000 };
+}
+
+/** A body offered in one width only states that width; a body with a set states the set. Both
+ *  carry the millimetres as `params` and name them in the sentence (§11 row 5). */
+function refuseFixedWidth(
+  body: InsertableBody,
+  availableMm: number,
+): RejectionDetail {
+  const sizesMm = body.widthFlex === "fit" ? body.sizesMm : body.widthFlex;
+  const [onlySize] = sizesMm;
+  if (sizesMm.length === 1 && onlySize !== undefined) {
+    return {
+      code: "WIDTH_TOO_LARGE",
+      params: { label: body.label, requiredMm: onlySize, availableMm },
+    };
+  }
+  return {
+    code: "WIDTH_NOT_SUPPORTED",
+    params: { label: body.label, sizesMm, availableMm },
+  };
+}
+
+/** §5.2: `h = b.hFlex ? (void.h <= 0.9 ? void.h : b.h) : b.h`. */
+function resolveHeightM(body: InsertableBody, opening: InsertOpening): number {
+  const nominalM = body.nominalHeightMm / 1000;
+  if (!body.heightFlex) return nominalM;
+  return opening.h <= CABINET_SIZED_OPENING_MAX_M ? opening.h : nominalM;
+}
+
+function refuseHeight(
+  body: InsertableBody,
+  opening: InsertOpening,
+  heightM: number,
+): RejectionDetail | undefined {
+  const takesSpan = heightM > opening.h + FIT_TOLERANCE_M;
+  const requiredMm = toMillimetres(heightM);
+  if (takesSpan && normaliseBand(body.band) !== "column") {
+    return {
+      code: "HEIGHT_EXCEEDS_LEVEL",
+      params: {
+        label: body.label,
+        requiredMm,
+        availableMm: toMillimetres(opening.h),
+      },
+    };
+  }
+  const roomM = roomAboveM(opening, takesSpan);
+  if (heightM > roomM + FIT_TOLERANCE_M) {
+    return {
+      code: "HEIGHT_TOO_LARGE",
+      params: {
+        label: body.label,
+        requiredMm,
+        availableMm: toMillimetres(roomM),
+      },
+    };
+  }
+  return undefined;
+}
+
+/** §5.2's `room4`: from the level's own start, or from the span's floor for a body allowed to
+ *  exceed its level. */
+function roomAboveM(opening: InsertOpening, takesSpan: boolean): number {
+  return opening.spanY0 + opening.spanH - lowestSeatM(opening, takesSpan);
+}
+
+function lowestSeatM(opening: InsertOpening, takesSpan: boolean): number {
+  return takesSpan ? opening.spanY0 : opening.y0;
+}
+
+/** §5.2: "the lowest of (LEVELS starts ∪ column region starts ∪ minY) that fits". A wall unit
+ *  dropped into a cleared column lands at 1500 mm, not flush on the worktop. */
+function resolveSnapY0M(
+  opening: InsertOpening,
+  column: Column,
+  heightM: number,
+  takesSpan: boolean,
+): number | undefined {
+  const minY = lowestSeatM(opening, takesSpan);
+  const spanTop = opening.spanY0 + opening.spanH;
+  const candidates = [
+    ...LEVELS.map(([levelStart]) => levelStart),
+    ...column.regions.map(([regionStart]) => regionStart),
+    minY,
+  ]
+    .filter((candidate) => candidate >= minY - COORDINATE_EPSILON_M)
+    .filter((candidate) => candidate + heightM <= spanTop + FIT_TOLERANCE_M)
+    .sort((left, right) => left - right);
+  return candidates[0];
+}
+
+/** Every §5.2 guard that does not need the body built, in the spec's own order. */
+export function evaluateInsertFit(input: InsertFitInput): InsertFit {
+  const { body, opening, column } = input;
+  const slot: SlotExtent = { y0: opening.y0, h: opening.h };
+  const slotBand = deriveSlotBand(slot);
+  const bandRefusal = refuseBand(body, slotBand);
+  if (bandRefusal) return rejectFit(bandRefusal);
+
+  const openingRefusal = refuseShortOpening(body, opening);
+  if (openingRefusal) return rejectFit(openingRefusal);
+
+  const width = resolveWidth(body, opening);
+  if (!width.ok) return rejectFit(width.detail);
+
+  const heightM = resolveHeightM(body, opening);
+  const heightRefusal = refuseHeight(body, opening, heightM);
+  if (heightRefusal) return rejectFit(heightRefusal);
+
+  const takesSpan = heightM > opening.h + FIT_TOLERANCE_M;
+  const y0M = resolveSnapY0M(opening, column, heightM, takesSpan);
+  if (y0M === undefined) {
+    return rejectFit({
+      code: "NO_SNAP_POSITION",
+      params: { label: body.label },
+    });
+  }
+  return {
+    ok: true,
+    plan: { widthM: width.widthM, heightM, y0M, slotBand },
+  };
+}
+
+function refuseBand(
+  body: InsertableBody,
+  slotBand: NormalisedBand,
+): RejectionDetail | undefined {
+  const bodyBand = normaliseBand(body.band);
+  if (isBandAccepted(bodyBand, slotBand)) return undefined;
+  return {
+    code: "BAND_MISMATCH",
+    params: { label: body.label, bodyBand, slotBand },
+  };
+}
+
+/** §9: `hFlex` needs `openH ≥ 400`. Enforced in the engine as well as in the offer list, because
+ *  a guard the UI owns alone is a guard a second caller forgets. */
+function refuseShortOpening(
+  body: InsertableBody,
+  opening: InsertOpening,
+): RejectionDetail | undefined {
+  if (!body.heightFlex) return undefined;
+  const minimumM = HEIGHT_FLEX_MIN_OPENING_MM / 1000;
+  if (opening.h + FIT_TOLERANCE_M >= minimumM) return undefined;
+  return {
+    code: "OPENING_TOO_SHORT",
+    params: {
+      availableMm: toMillimetres(opening.h),
+      minimumMm: HEIGHT_FLEX_MIN_OPENING_MM,
+    },
+  };
+}

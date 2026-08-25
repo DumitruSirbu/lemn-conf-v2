@@ -91,18 +91,50 @@ neon branches create --name restore-drill-2026-08-25 --project-id <neon-project-
 neon connection-string restore-drill-2026-08-25 --project-id <neon-project-id>
 ```
 
-Run the migrations against it so the target has the `designs` table:
+If the `neon` CLI is not installed, create a throwaway **database** instead of a branch, using the
+owner connection — additive, and isolated from production:
 
 ```bash
-DATABASE_URL="<restore-drill connection string>" pnpm --filter @lemnaria/persistence run migrate
+# psql, or any client; the owner role has CREATEDB.
+create database restore_drill_2026_08_25;
+```
+
+Run the migrations against the target so it has the `designs` table:
+
+```bash
+MIGRATION_DATABASE_URL="<restore-drill connection string>" \
+  pnpm --filter @lemnaria/persistence run migrate
+```
+
+**It is `MIGRATION_DATABASE_URL`, not `DATABASE_URL`.** The migration runner reads only that
+variable, deliberately and with no fallback — the application role cannot run DDL. Setting
+`DATABASE_URL` here does nothing: the runner would fall through to whatever
+`.env.migration.local` holds, which is **production**, and you would believe the drill target had
+been migrated when it had not. This runbook said `DATABASE_URL` until 2026-08-25; see ADR 0013.
+
+Confirm the table exists before continuing — do not assume the command worked:
+
+```bash
+select to_regclass('public.designs') is not null;
 ```
 
 ### 4. Run the restore script
 
 This script is the load-bearing part of this runbook: it is what makes a restore go through the
-same parse → validate → migrate sequence as any other load, instead of trusting the dump. Save it
-locally (it isn't part of the deployed app — it's an operator tool, run with `tsx` from the repo
-root so the workspace packages resolve) and run it against the ndjson file from step 2:
+same parse → validate → migrate sequence as any other load, instead of trusting the dump.
+
+It is an operator tool, not part of the deployed app. Two things about running it, both learned by
+running it for real on 2026-08-25 (ADR 0013) — the instructions here were wrong on both counts:
+
+- **Save it as `.mts`, not `.ts`.** It uses top-level `await`, and the repository root has no
+  `"type": "module"`, so `tsx` transforms a `.ts` file as CJS and fails immediately with
+  `Top-level await is currently not supported with the "cjs" output format`.
+- **Run it from `packages/persistence/`, not the repository root.** pnpm links workspace packages
+  into the packages that depend on them, not into the root — there is no `node_modules/@lemnaria`
+  at the root, so `@lemnaria/configurator-domain` does not resolve there. `packages/persistence`
+  has both it and `@neondatabase/serverless` linked, and its own `node_modules/.bin/tsx`.
+
+Save it, then run it against the ndjson file from step 2:
 
 ```ts
 // restore-designs-from-backup.ts
@@ -174,9 +206,13 @@ await main();
 ```
 
 ```bash
+cd packages/persistence
 RESTORE_DATABASE_URL="<restore-drill connection string>" \
-  npx tsx restore-designs-from-backup.ts ./restore-2026-08-24.ndjson
+  ./node_modules/.bin/tsx ./restore-designs-from-backup.mts ../../restore-2026-08-24.ndjson
 ```
+
+Use the workspace's own `tsx` rather than `npx tsx`: `npx` may resolve a globally installed copy
+running under a different Node version than the one `.nvmrc` pins.
 
 ### 5. Verify the restored target
 
@@ -184,8 +220,19 @@ RESTORE_DATABASE_URL="<restore-drill connection string>" \
 psql "<restore-drill connection string>" -c "select count(*) from designs;"
 ```
 
-Spot-check a few restored designs load correctly through the normal application path, not just
-that the row exists:
+A row count proves a row exists, not that the design survived. The real bar is M2's round-trip
+invariant: load the restored design through the repository, canonically serialise it, and require
+equality with the canonical serialisation of what was backed up. Compare **canonical
+serialisations**, never the raw `jsonb` — Postgres normalises key order and whitespace, so a
+byte-comparison of the column fails even when nothing is wrong.
+
+Then re-derive the geometry, because voids and columns are never stored. A restored design must
+produce the identical void set having never persisted one; that is the sharpest case in the
+round-trip criterion. In the 2026-08-25 drill this was 25 placements, 10 columns, identical
+canonical serialisation.
+
+Spot-check that a restored design loads through the normal application path, not just that the row
+exists:
 
 ```bash
 DATABASE_URL="<restore-drill connection string>" node -e '
@@ -205,13 +252,30 @@ procedure to promote the restored branch. Prefer the narrower, row-level repair;
 whole-branch promotion only when the corruption is broad enough that "designs the export didn't
 cover" is not a meaningful distinction anymore.
 
-## Operator step required before this phase closes
+## Drill record — Path 2 executed 2026-08-25
 
 The milestone requires this procedure to be **executed once and verified against a throwaway
 target** before M2 Wave 2B closes (`docs/milestones/M2-void-engine.md`, "Security and backups"). A
-procedure that has only been written down is an assumption, not a backup. This is a manual step —
-it needs a real Neon branch and a real Blob export to restore from — and was **not** performed as
-part of this implementation task, which was scoped to code and documentation only and explicitly
-prohibited from touching real infrastructure. Whoever closes this phase must run Path 2 end-to-end
-against a scratch branch (Path 1 can be drilled the same way, restoring `^self` on a disposable
-branch rather than `main`) and record the outcome here or in the milestone doc.
+procedure that has only been written down is an assumption, not a backup.
+
+**Executed 2026-08-25. Result: the restore works; the runbook did not.** Full account in ADR 0013.
+
+What was done: two throwaway databases (`lemn_conf_drill_src`, `lemn_conf_drill_tgt`) on the
+standalone Neon project; a real 25-placement design written into the source through
+`NeonConfigurationRepository`; exported through `createNeonDesignRowSource` — the same read the cron
+uses — to a 3,263-byte ndjson; restored into the target with the script above; verified by loading
+through the repository and comparing canonical serialisations.
+
+Outcome: **`Restored 1 rows, skipped 0`**, 25 placements, canonical serialisation **identical**,
+10 columns re-derived from the restored document alone.
+
+Five defects were found, four of which would have stopped an operator following these instructions
+during a real incident. All are fixed; each is described at the step it affected. The one that
+matters most: `pnpm run migrate` exited 0 without migrating anything, because its CLI guard compared
+a percent-encoded `import.meta.url` against a plain `process.argv[1]` — so it silently did nothing
+for anyone whose checkout path contains a space.
+
+**Still to drill:** Path 1 (Neon PITR) has not been exercised, and Path 2 has not been run against
+an export downloaded from Blob — the drill built its export locally from the same code the cron
+runs, because the Blob token is Production-scoped. Re-run Path 2 from a real downloaded export once
+M3 wires the write path and production holds a design worth losing.

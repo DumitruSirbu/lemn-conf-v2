@@ -13,7 +13,7 @@
     }
   },
   "scripts": {
-    "build": "tsc --project tsconfig.build.json",
+    "build": "tsc --project tsconfig.build.json && cp -R src/migrations dist/migrations && test -f dist/migrations/0001_create_designs.sql",
     "build:deps": "pnpm --filter @lemnaria/configurator-domain run build",
     "lint": "pnpm run build:deps && eslint . --max-warnings 0",
     "lint:fix": "pnpm run build:deps && eslint . --fix --max-warnings 0",

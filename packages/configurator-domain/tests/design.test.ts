@@ -119,4 +119,27 @@ describe("DesignSchema", () => {
     const result = DesignSchema.safeParse({ ...design, extra: "nope" });
     expect(result.success).toBe(false);
   });
+
+  // ADR 0011 Gap B: `seatDepthMm` is optional precisely so every design stored before M3 still
+  // validates — no schema version bump, and no new `migrateDesign` arm.
+  it("accepts a body with a measured seat depth and one without", () => {
+    const seated = {
+      ...design,
+      placements: [
+        { ...placement, body: { ...placement.body, seatDepthMm: 580 } },
+      ],
+    };
+    expect(DesignSchema.safeParse(seated).success).toBe(true);
+    expect(DesignSchema.safeParse(design).success).toBe(true);
+  });
+
+  it("rejects a fractional seat depth", () => {
+    const result = DesignSchema.safeParse({
+      ...design,
+      placements: [
+        { ...placement, body: { ...placement.body, seatDepthMm: 580.5 } },
+      ],
+    });
+    expect(result.success).toBe(false);
+  });
 });

@@ -320,12 +320,19 @@ phase; see the Status header above.
   validate → migrate-as-one-transaction sequence as any other load and fails whole if it does not
   pass. Restore is not a privileged path, and a dump may carry older schema versions or the very
   corruption that prompted the restore.
-- **NOT MET, 2026-08-25 — the open gate on this phase.** The restore procedure is executed once and
-  verified, against a throwaway target, before this phase closes. A procedure that has only been
-  written down is an assumption, not a backup. The procedure is written
-  (`docs/runbooks/design-db-restore.md`) but has never been run: the project has never been
-  deployed, so the daily cron has never fired and no Blob export exists to restore from. See the
-  Status header above for the prerequisite chain.
+- **MET, 2026-08-25.** The restore procedure is executed once and verified, against a throwaway
+  target, before this phase closes. A procedure that has only been written down is an assumption,
+  not a backup.
+
+  Drilled end to end against two throwaway databases: a real 25-placement design written through
+  `NeonConfigurationRepository`, exported through the same read the cron performs, restored with the
+  runbook's own script, and verified by canonical serialisation — `Restored 1 rows, skipped 0`,
+  identical serialisation, 10 columns re-derived from the restored document alone.
+
+  The drill found **five defects**, four of them in the runbook itself, all now fixed. The worst:
+  `pnpm run migrate` exited 0 without migrating anything, on any checkout path containing a space.
+  See `docs/decisions/0013-restore-drill-executed-and-what-it-broke.md`. Steps 1–2 (downloading the
+  export from Blob) and Path 1 (Neon PITR) remain undrilled and are named there.
 - Accepted worst-case data loss is up to roughly a day: beyond Neon's 6-hour window, the most recent
   recovery point is the last nightly export. Recorded as a known consequence of the chosen mechanism.
 - M2 has no contact table, so the export carries no personal data yet. **M8 changes that** — a

@@ -1,0 +1,206 @@
+// `DEVELOPMENT-SPEC.md` §10's signature flow, driven through real mutations rather than fixtures,
+// plus §11 rows 1, 17 and 18 re-proven along the way.
+//
+// The flow is the phase's own gate: delete the fridge, delete the unit above it, watch the two
+// openings merge into one 700 × 2600 opening with three level slots, fill base then middle then
+// top, clear all three, insert the freestanding fridge, and get exactly one 750 mm slot above it.
+import { describe, expect, it } from "vitest";
+
+import { removePlacement } from "../../src/commands/remove-placement.js";
+import {
+  KITCHEN_L_BODY_CATALOG,
+  KITCHEN_L_DESIGN,
+} from "../../src/fixtures/kitchen-l-design.js";
+import { clearBodies, insertInto, OCCURRED_AT } from "../support/commands.js";
+import {
+  advance,
+  createWorld,
+  voidAt,
+  type KitchenWorld,
+} from "../support/kitchen-world.js";
+
+const FRIDGE_COLUMN = "B|2.45";
+
+const seeded = () => createWorld(KITCHEN_L_DESIGN, KITCHEN_L_BODY_CATALOG);
+
+function slotsOf(world: KitchenWorld, col: string) {
+  return world.voids
+    .filter((record) => record.col === col)
+    .map((record) => ({
+      y0: Number(record.y0.toFixed(3)),
+      h: Number(record.h.toFixed(3)),
+    }));
+}
+
+function fill(world: KitchenWorld, y0: number, buildId: string): KitchenWorld {
+  const target = {
+    kind: "void",
+    id: voidAt(world, FRIDGE_COLUMN, y0).id,
+  } as const;
+  const result = insertInto(world, target, buildId);
+  if (!result.ok) {
+    throw new Error(
+      `insert ${buildId} at ${String(y0)}: ${result.reason.code}`,
+    );
+  }
+  return advance(world, result.design);
+}
+
+describe("the signature flow (§10)", () => {
+  it("runs end to end and ends with exactly one 750 mm slot above the fridge", () => {
+    // 1–2. Delete the fridge, then the unit above it: the two openings merge.
+    const cleared = clearBodies(seeded(), ["p7", "p24"]);
+    expect(slotsOf(cleared, FRIDGE_COLUMN)).toEqual([
+      { y0: 0, h: 0.86 },
+      { y0: 1.5, h: 0.7 },
+      { y0: 2.2, h: 0.4 },
+    ]);
+    expect(voidAt(cleared, FRIDGE_COLUMN, 0).spanH).toBeCloseTo(2.6, 6);
+    expect(voidAt(cleared, FRIDGE_COLUMN, 0).w).toBeCloseTo(0.7, 6);
+
+    // 3–5. Fill base, then middle, then top.
+    let world = fill(cleared, 0, "base-2door");
+    world = fill(world, 1.5, "wall-2door");
+    world = fill(world, 2.2, "wall-2door");
+    expect(slotsOf(world, FRIDGE_COLUMN)).toEqual([]);
+    const filled = world.records.filter(
+      (record) => record.col === FRIDGE_COLUMN,
+    );
+    expect(filled.map((record) => record.frame.y0).sort()).toEqual([
+      0, 1.5, 2.2,
+    ]);
+
+    // 6. Clear all three, then insert the freestanding fridge.
+    world = clearBodies(
+      world,
+      filled.map((record) => record.id),
+    );
+    expect(slotsOf(world, FRIDGE_COLUMN)).toEqual([
+      { y0: 0, h: 0.86 },
+      { y0: 1.5, h: 0.7 },
+      { y0: 2.2, h: 0.4 },
+    ]);
+    world = fill(world, 0, "fridge-free");
+
+    // §11 row 1: one 750 mm slot, never two stubs.
+    expect(slotsOf(world, FRIDGE_COLUMN)).toEqual([{ y0: 1.85, h: 0.75 }]);
+  });
+
+  // §11 row 17: the 860–1500 backsplash zone is never an opening, however the column is edited.
+  it("never offers the backsplash zone as an opening", () => {
+    const world = clearBodies(seeded(), ["p1", "p12", "p18"]);
+    expect(world.voids.length).toBeGreaterThan(0);
+    for (const slot of world.voids) {
+      const overlapsBacksplash =
+        slot.y0 < 1.5 - 1e-9 && slot.y0 + slot.h > 0.86 + 1e-9;
+      expect(overlapsBacksplash, slot.id).toBe(false);
+    }
+  });
+
+  // §11 row 18: a wall-only column invents no floor space under itself.
+  it("invents no floor space under a wall-only column", () => {
+    const world = clearBodies(seeded(), ["p10"]);
+    for (const slot of world.voids.filter(
+      (record) => record.col === "A|0.75",
+    )) {
+      expect(slot.y0).toBeGreaterThanOrEqual(1.5);
+    }
+  });
+});
+
+describe("column stability (§3.2, ADR 0011 Gap D)", () => {
+  it("leaves a column's top where it was when its top unit is deleted", () => {
+    const world = seeded();
+    const before = world.columns.get("A|2.00");
+    const after = clearBodies(world, ["p18"]);
+    expect(after.columns.get("A|2.00")).toBe(before);
+    expect(
+      after.voids.some((slot) => slot.col === "A|2.00" && slot.y0 === 2.2),
+    ).toBe(true);
+  });
+
+  it("keeps a column in the map after its last member is deleted, so the run stays selectable", () => {
+    const world = seeded();
+    const cleared = clearBodies(world, ["p10"]);
+    expect(cleared.columns.has("A|0.75")).toBe(true);
+    expect(cleared.voids.filter((slot) => slot.col === "A|0.75")).toHaveLength(
+      1,
+    );
+  });
+
+  it("keeps every placement's derived column a key in the frozen map after any command", () => {
+    const cleared = clearBodies(seeded(), ["p7", "p24"]);
+    const inserted = insertInto(
+      cleared,
+      { kind: "void", id: voidAt(cleared, FRIDGE_COLUMN, 0).id },
+      "base-2door",
+    );
+    expect(inserted.ok).toBe(true);
+    if (!inserted.ok) return;
+    const after = advance(cleared, inserted.design);
+    for (const record of after.records) {
+      expect(after.columns.has(record.col), record.id).toBe(true);
+    }
+    const placed = after.records.find(
+      (record) => record.id === inserted.effect.placementId,
+    );
+    expect(placed?.col).toBe(FRIDGE_COLUMN);
+  });
+});
+
+describe("the rejection sweep", () => {
+  const originals = seeded();
+
+  it.each([
+    [
+      "remove a void",
+      () =>
+        removePlacement({
+          design: originals.design,
+          catalog: originals.catalog,
+          target: { kind: "void", id: "nope" },
+          occurredAt: OCCURRED_AT,
+        }),
+    ],
+    [
+      "remove the hob",
+      () =>
+        removePlacement({
+          design: originals.design,
+          catalog: originals.catalog,
+          target: { kind: "placement", id: "p3" },
+          occurredAt: OCCURRED_AT,
+        }),
+    ],
+    [
+      "insert a seeded id",
+      () =>
+        insertInto(originals, { kind: "placement", id: "p0" }, "base-sink-800"),
+    ],
+    [
+      "insert an unknown id",
+      () =>
+        insertInto(originals, { kind: "placement", id: "p0" }, "teleporter"),
+    ],
+    [
+      "insert into an accessory",
+      () =>
+        insertInto(originals, { kind: "placement", id: "p3" }, "base-2door"),
+    ],
+    [
+      "insert into a stale void",
+      () => insertInto(originals, { kind: "void", id: "nope" }, "base-2door"),
+    ],
+  ])("%s returns the identical design and no effect", (_case, run) => {
+    const snapshot = JSON.stringify(originals.design);
+    const result = run();
+    expect(result.ok).toBe(false);
+    expect(result.design).toBe(originals.design);
+    expect(result.design.updatedAt).toBe(KITCHEN_L_DESIGN.updatedAt);
+    expect(JSON.stringify(originals.design)).toBe(snapshot);
+    expect(result).not.toHaveProperty("effect");
+    if (result.ok) return;
+    expect(result.reason.code.length).toBeGreaterThan(0);
+    expect(result.reason.message.length).toBeGreaterThan(0);
+  });
+});

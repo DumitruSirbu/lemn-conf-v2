@@ -1,3 +1,4 @@
+import { INSERTABLE_BODY_DEFINITIONS } from "../catalog.js";
 import type { Design, DesignPlacement } from "../design.js";
 import type { BodyCatalog, BodyDefinition } from "../void-engine.js";
 
@@ -17,7 +18,13 @@ import type { BodyCatalog, BodyDefinition } from "../void-engine.js";
 
 const baseCarcass: Pick<
   BodyDefinition,
-  "band" | "canFinish" | "canHandle" | "canReplace" | "canDelete" | "fixedWidth"
+  | "band"
+  | "canFinish"
+  | "canHandle"
+  | "canReplace"
+  | "canDelete"
+  | "fixedWidth"
+  | "insertable"
 > = {
   band: "base",
   canFinish: true,
@@ -25,161 +32,171 @@ const baseCarcass: Pick<
   canReplace: true,
   canDelete: true,
   fixedWidth: false,
+  // ADR 0011 Gap A: every seeded entry reproduces one already-built body at one measured depth,
+  // so it can be loaded but never offered from the catalogue or accepted by `insertBody`.
+  insertable: false,
 };
 
 const wallCarcass = { ...baseCarcass, band: "wall" as const };
 const topCarcass = { ...baseCarcass, band: "top" as const };
 const columnCarcass = { ...baseCarcass, band: "column" as const };
 
+const SEEDED_BODY_DEFINITIONS: readonly (readonly [string, BodyDefinition])[] =
+  [
+    [
+      "base-sink-800",
+      { ...baseCarcass, kind: "base_cabinet", frameDepthMm: 580 },
+    ],
+    [
+      "base-dishwasher-600",
+      { ...baseCarcass, kind: "dishwasher_housing", frameDepthMm: 580 },
+    ],
+    [
+      "base-drawer2-600",
+      { ...baseCarcass, kind: "base_cabinet", frameDepthMm: 580 },
+    ],
+    [
+      "base-drawer3-600",
+      { ...baseCarcass, kind: "base_cabinet", frameDepthMm: 580 },
+    ],
+    [
+      "cooktop-600",
+      {
+        ...baseCarcass,
+        kind: "induction_cooktop",
+        frameDepthMm: 700,
+        frameHeightMm: 40,
+        canReplace: false,
+        canDelete: false,
+      },
+    ],
+    [
+      "tall-oven-tower-600",
+      {
+        ...columnCarcass,
+        kind: "tall_unit",
+        frameDepthMm: 560,
+        frameHeightMm: 2200,
+      },
+    ],
+    [
+      "tall-pantry-600",
+      {
+        ...columnCarcass,
+        kind: "tall_unit",
+        frameDepthMm: 560,
+        frameHeightMm: 2200,
+      },
+    ],
+    [
+      "fridge-free-700",
+      {
+        ...columnCarcass,
+        kind: "fridge_freestanding",
+        frameDepthMm: 680,
+        frameHeightMm: 1850,
+        fixedWidth: true,
+      },
+    ],
+    [
+      "wall-2door-600",
+      { ...wallCarcass, kind: "wall_cabinet", frameDepthMm: 330 },
+    ],
+    [
+      "wall-corner-return-570",
+      { ...wallCarcass, kind: "wall_cabinet", frameDepthMm: 330 },
+    ],
+    [
+      "wall-1door-300",
+      { ...wallCarcass, kind: "wall_cabinet", frameDepthMm: 330 },
+    ],
+    [
+      "wall-2door-800",
+      { ...wallCarcass, kind: "wall_cabinet", frameDepthMm: 330 },
+    ],
+    [
+      "open-shelf-600",
+      {
+        ...wallCarcass,
+        kind: "open_shelf_unit",
+        canHandle: false,
+        frameDepthMm: 330,
+      },
+    ],
+    [
+      "hood-600",
+      {
+        ...wallCarcass,
+        kind: "extractor_hood",
+        canHandle: false,
+        fixedWidth: true,
+        frameDepthMm: 500,
+      },
+    ],
+    [
+      "wall-2door-600-top",
+      {
+        ...topCarcass,
+        kind: "wall_cabinet",
+        frameDepthMm: 330,
+        frameHeightMm: 400,
+      },
+    ],
+    [
+      "wall-1door-300-top",
+      {
+        ...topCarcass,
+        kind: "wall_cabinet",
+        frameDepthMm: 330,
+        frameHeightMm: 400,
+      },
+    ],
+    [
+      "wall-2door-800-top",
+      {
+        ...topCarcass,
+        kind: "wall_cabinet",
+        frameDepthMm: 330,
+        frameHeightMm: 400,
+      },
+    ],
+    [
+      "wall-corner-return-570-top",
+      {
+        ...topCarcass,
+        kind: "wall_cabinet",
+        frameDepthMm: 330,
+        frameHeightMm: 400,
+      },
+    ],
+    [
+      "wall-2door-600-deep-top",
+      {
+        ...topCarcass,
+        kind: "wall_cabinet",
+        frameDepthMm: 600,
+        frameHeightMm: 400,
+      },
+    ],
+    [
+      "wall-2door-700-over-fridge",
+      {
+        ...topCarcass,
+        kind: "wall_cabinet",
+        frameDepthMm: 600,
+        frameHeightMm: 750,
+      },
+    ],
+  ];
+
+/** One map, two populations (ADR 0011 Gap A): M2's seeded instances, which reproduce M1's scene
+ *  and are never offered, and §7's parameterised entries, which are the only ones a customer can
+ *  insert. Both resolve through the same lookup, so a placement created by `insertBody` loads the
+ *  same way a seeded one does. */
 export const KITCHEN_L_BODY_CATALOG: BodyCatalog = new Map<
   string,
   BodyDefinition
->([
-  [
-    "base-sink-800",
-    { ...baseCarcass, kind: "base_cabinet", frameDepthMm: 580 },
-  ],
-  [
-    "base-dishwasher-600",
-    { ...baseCarcass, kind: "dishwasher_housing", frameDepthMm: 580 },
-  ],
-  [
-    "base-drawer2-600",
-    { ...baseCarcass, kind: "base_cabinet", frameDepthMm: 580 },
-  ],
-  [
-    "base-drawer3-600",
-    { ...baseCarcass, kind: "base_cabinet", frameDepthMm: 580 },
-  ],
-  [
-    "cooktop-600",
-    {
-      ...baseCarcass,
-      kind: "induction_cooktop",
-      frameDepthMm: 700,
-      frameHeightMm: 40,
-      canReplace: false,
-      canDelete: false,
-    },
-  ],
-  [
-    "tall-oven-tower-600",
-    {
-      ...columnCarcass,
-      kind: "tall_unit",
-      frameDepthMm: 560,
-      frameHeightMm: 2200,
-    },
-  ],
-  [
-    "tall-pantry-600",
-    {
-      ...columnCarcass,
-      kind: "tall_unit",
-      frameDepthMm: 560,
-      frameHeightMm: 2200,
-    },
-  ],
-  [
-    "fridge-free-700",
-    {
-      ...columnCarcass,
-      kind: "fridge_freestanding",
-      frameDepthMm: 680,
-      frameHeightMm: 1850,
-      fixedWidth: true,
-    },
-  ],
-  [
-    "wall-2door-600",
-    { ...wallCarcass, kind: "wall_cabinet", frameDepthMm: 330 },
-  ],
-  [
-    "wall-corner-return-570",
-    { ...wallCarcass, kind: "wall_cabinet", frameDepthMm: 330 },
-  ],
-  [
-    "wall-1door-300",
-    { ...wallCarcass, kind: "wall_cabinet", frameDepthMm: 330 },
-  ],
-  [
-    "wall-2door-800",
-    { ...wallCarcass, kind: "wall_cabinet", frameDepthMm: 330 },
-  ],
-  [
-    "open-shelf-600",
-    {
-      ...wallCarcass,
-      kind: "open_shelf_unit",
-      canHandle: false,
-      frameDepthMm: 330,
-    },
-  ],
-  [
-    "hood-600",
-    {
-      ...wallCarcass,
-      kind: "extractor_hood",
-      canHandle: false,
-      fixedWidth: true,
-      frameDepthMm: 500,
-    },
-  ],
-  [
-    "wall-2door-600-top",
-    {
-      ...topCarcass,
-      kind: "wall_cabinet",
-      frameDepthMm: 330,
-      frameHeightMm: 400,
-    },
-  ],
-  [
-    "wall-1door-300-top",
-    {
-      ...topCarcass,
-      kind: "wall_cabinet",
-      frameDepthMm: 330,
-      frameHeightMm: 400,
-    },
-  ],
-  [
-    "wall-2door-800-top",
-    {
-      ...topCarcass,
-      kind: "wall_cabinet",
-      frameDepthMm: 330,
-      frameHeightMm: 400,
-    },
-  ],
-  [
-    "wall-corner-return-570-top",
-    {
-      ...topCarcass,
-      kind: "wall_cabinet",
-      frameDepthMm: 330,
-      frameHeightMm: 400,
-    },
-  ],
-  [
-    "wall-2door-600-deep-top",
-    {
-      ...topCarcass,
-      kind: "wall_cabinet",
-      frameDepthMm: 600,
-      frameHeightMm: 400,
-    },
-  ],
-  [
-    "wall-2door-700-over-fridge",
-    {
-      ...topCarcass,
-      kind: "wall_cabinet",
-      frameDepthMm: 600,
-      frameHeightMm: 750,
-    },
-  ],
-]);
+>([...SEEDED_BODY_DEFINITIONS, ...INSERTABLE_BODY_DEFINITIONS]);
 
 function placement(
   id: string,

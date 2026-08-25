@@ -29,8 +29,17 @@ export async function runMigrations(connectionUrl?: string): Promise<void> {
   }
 }
 
+// Compared as filesystem paths, not by string-splicing a `file://` prefix onto `argv[1]`.
+// `import.meta.url` percent-encodes characters that are illegal in a URL — a space becomes `%20` —
+// while `process.argv[1]` is a plain path. The two therefore never matched for anyone whose
+// checkout sits under a directory containing a space, so `pnpm run migrate` exited 0 having done
+// nothing at all: no migration, no output, no error. Found by the 2026-08-25 restore drill on a
+// checkout under "Personal Projects"; see ADR 0013.
+const invokedPath = process.argv[1];
 const isDirectCliInvocation =
-  import.meta.url === `file://${process.argv[1] ?? ""}`;
+  invokedPath !== undefined &&
+  resolve(fileURLToPath(import.meta.url)) === resolve(invokedPath);
+
 if (isDirectCliInvocation) {
   loadEnvLocal();
   await runMigrations();

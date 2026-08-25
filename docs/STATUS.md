@@ -24,7 +24,7 @@ moment it ships; a decision record does not. When the two disagree, the dated de
 | --- | --- | --- |
 | M0 — Foundations | **Done** (closed 2026-08-24, partially superseded) | No — `milestones/done/` |
 | M1 — Scene port and fidelity gate | **Done** (closed 2026-08-25) | No — `milestones/done/` |
-| M2 — Void engine, picking, persistence | **In progress** — implemented, 2 gates open | Yes — `milestones/M2-void-engine.md` |
+| M2 — Void engine, picking, persistence | **In progress** — implemented, 1 gate open (the unwired client write path, owned by M3) | Yes — `milestones/M2-void-engine.md` |
 | M3 — Insert, remove, swap, client write path | **Planned** — next up | Yes, when starting |
 | M4 — Editor panel and shell | Planned | Yes, when starting |
 | M5 — Width editing | Planned | Yes, when starting |
@@ -61,18 +61,18 @@ least-privilege database role verified by live assertions, and a daily backup cr
 
 ## What is open right now
 
-**M2 cannot close on two gates:**
+**M2 cannot close on one remaining gate** (the restore drill, gate 1 below, was met 2026-08-25):
 
-1. **The restore drill has never been executed** — but it is now unblocked. `docs/runbooks/design-db-restore.md`
-   Path 2 must be run once against a throwaway target. As of 2026-08-25 the prerequisite chain is
-   complete: the project is deployed, the cron is registered and has run, and one export exists in
-   the `lemnaria-designs-backups` Blob store. A procedure that has only been written down is an
-   assumption, not a backup.
+1. ~~**The restore drill has never been executed.**~~ **Done 2026-08-25 — this gate is met.** Path 2
+   was drilled end to end with a real 25-placement design: exported through the same read the cron
+   performs, restored into a throwaway database, and verified by identical canonical serialisation.
+   It found **five defects**, four in the runbook itself, all fixed — including a `pnpm run migrate`
+   that exited 0 without migrating anything on any path containing a space. See
+   `docs/decisions/0013-restore-drill-executed-and-what-it-broke.md`.
 
-   Note what that first export proves and does not. `designs` is at 0 rows, so the export is a
-   one-byte zero-record file. Restoring it exercises the plumbing — download, parse, migrate, load —
-   but not that real data survives a round trip. Run the drill now to close the gate honestly, and
-   **re-run it after M3 wires the write path** and there is an actual design to lose.
+   Not yet drilled, and named there: downloading the export from Blob (the token is
+   Production-scoped), and Path 1 (Neon PITR). Re-run Path 2 from a real downloaded export once M3
+   wires the write path and production holds a design worth losing.
 2. **The persistence write path has no browser caller.** `POST /api/designs` exists and works, but
    nothing in `apps/web` client code calls it — no `fetch(`, and `createSaveCoalescer` is constructed
    only in its own test. The read half (`/d/[id]`) is complete. Classified as a contract gap, not a
@@ -90,14 +90,16 @@ unauthenticated caller and to a wrong bearer token — it fails closed.
 
 ## What to do next
 
-1. **Run the restore drill.** `docs/runbooks/design-db-restore.md` Path 2, against a throwaway Neon
-   branch. This is the last thing standing between M2 and closed. Requires Neon and Blob access.
-2. **M3 Wave 3A** — the domain wave: pure functions over `Design`, needs nothing deployed. The plan
-   is dispatchable: 12 work items across three waves, with five contract gaps already recorded in
-   `docs/decisions/0011-m3-insert-contract-gaps.md`.
+1. **M3** — 12 work items across three waves: 3A domain, 3B adapter, 3C web. Wave 3A needs nothing
+   deployed. Five contract gaps against the shipped M2 code are already recorded in
+   `docs/decisions/0011-m3-insert-contract-gaps.md`; treat them as decided, not open.
 
-M3 also closes M2 gate 2 as a first-class work item, and un-skips the one named `test.skip` in the
-e2e suite, which had no void to tap against while the seeded design was fully occupied.
+M3 closes M2's last gate as a first-class work item — the client write path, wave 3C item 10 — and
+un-skips the one named `test.skip` in the e2e suite, which had no void to tap against while the
+seeded design was fully occupied.
+
+Worth re-running once M3 lands: Path 2 of the restore drill, this time from an export downloaded
+from Blob and containing a design a customer actually made.
 
 ## Keeping this file honest
 

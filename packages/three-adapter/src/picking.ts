@@ -8,7 +8,10 @@
 // `Line.threshold` to one metre), which made every dashed void outline steal its neighbours'
 // clicks. `createPickingRaycaster` pins that override in one place so it cannot silently regress.
 import * as THREE from "three";
-import type { PlacementRecord } from "@lemnaria/configurator-domain";
+import {
+  resolveHostPlacement,
+  type PlacementRecord,
+} from "@lemnaria/configurator-domain";
 
 /** `DEVELOPMENT-SPEC.md` §6.1: three.js's own default (1 m) swallowed clicks aimed at a
  *  neighbouring void or cabinet. Never construct a `Raycaster` for picking without this. */
@@ -17,12 +20,6 @@ export const LINE_RAYCAST_THRESHOLD_M = 0.008;
 /** `DEVELOPMENT-SPEC.md` §6.1: a pointer that moved more than this many pixels between down and
  *  up was an orbit, not a click. */
 export const DRAG_THRESHOLD_PX = 7;
-
-/** `DEVELOPMENT-SPEC.md`'s `TOL` (0.012 m, "fit comparisons"): two independently derived frame
- *  values that should coincide (e.g. a host's top meeting an accessory's bottom) are compared with
- *  this slack, not `Number.EPSILON` — frame numbers pass through unit conversions and are not
- *  guaranteed bit-identical even when geometrically equal. */
-const FRAME_FIT_TOLERANCE_M = 0.012;
 
 export type SelectionKind = "placement" | "void";
 
@@ -73,26 +70,17 @@ export function climbToSelectable(object: THREE.Object3D): Selection | null {
 
 /** §6.1's "resolve accessories -> host cabinet": a worktop accessory (`frame.h < 0.3`, e.g. the
  *  hob) has no swap set of its own and cannot be deleted, so a click on it must resolve to the
- *  cabinet it sits on, never to its own placement id. The host is the tallest non-accessory member
- *  of the same column whose top sits at or below the accessory's own bottom. */
+ *  cabinet it sits on, never to its own placement id.
+ *
+ *  ADR 0011 Gap E: the rule itself is placement logic and lives in the domain now; this is the
+ *  adapter's `PlacementRecord`-shaped call into it. An orphaned accessory returns its own id
+ *  instead of throwing — `remove` cascades so the state should not arise, and a thrown exception
+ *  out of a pointer handler is not an acceptable outcome for one that can. */
 export function resolveHostPlacementId(
   accessory: PlacementRecord,
   records: readonly PlacementRecord[],
 ): string {
-  let host: PlacementRecord | null = null;
-  for (const candidate of records) {
-    if (candidate.accessory) continue;
-    if (candidate.col !== accessory.col) continue;
-    const candidateTop = candidate.frame.y0 + candidate.frame.h;
-    if (candidateTop > accessory.frame.y0 + FRAME_FIT_TOLERANCE_M) continue;
-    if (!host || candidate.frame.y0 > host.frame.y0) host = candidate;
-  }
-  if (!host) {
-    throw new Error(
-      `No host cabinet found for accessory placement "${accessory.id}"`,
-    );
-  }
-  return host.id;
+  return resolveHostPlacement(accessory, records)?.id ?? accessory.id;
 }
 
 /** Resolves a raw `climbToSelectable` result against the placement catalog, applying the

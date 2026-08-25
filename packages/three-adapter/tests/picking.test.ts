@@ -134,10 +134,10 @@ describe("resolveHostPlacementId / resolveSelection", () => {
     expect(resolveHostPlacementId(accessory, records)).toBe("base-1");
   });
 
-  it("throws when a column has no host cabinet under the accessory", () => {
-    expect(() => resolveHostPlacementId(accessory, [accessory])).toThrow(
-      /No host cabinet found/,
-    );
+  // ADR 0011 Gap E: this used to throw. `remove` cascades to hosted accessories so the orphan
+  // should not arise, but a tap on one must not throw out of the pointer handler if it does.
+  it("resolves an orphaned accessory to itself instead of throwing", () => {
+    expect(resolveHostPlacementId(accessory, [accessory])).toBe("cooktop-1");
   });
 
   it("resolveSelection rewrites an accessory placement id to its host, never itself", () => {

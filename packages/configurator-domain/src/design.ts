@@ -27,6 +27,11 @@ export const CabinetBodySchema = z.strictObject({
   buildId: z.string().min(1),
   widthMm: millimetreSchema,
   heightMm: millimetreSchema,
+  /** `2 ×` the wall-normal offset measured on this body after it was built (`BodyProbe`), which
+   *  is what seats its back face on the wall plane — never a claim about the body's physical
+   *  depth. Absent on every design written before M3, which is why it is optional and needs no
+   *  schema version bump: `deriveFrame` then falls back to the catalogue's `frameDepthMm`. */
+  seatDepthMm: millimetreSchema.optional(),
   finish: FinishSchema.optional(),
   handle: HandleSchema.optional(),
 });

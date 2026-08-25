@@ -15,8 +15,16 @@ export const LEVELS: readonly (readonly [number, number])[] = [
   [2.2, 2.6],
 ];
 
-/** Smallest span (metres) that becomes a void, and the narrowest cabinet width. */
+/** Smallest span (metres) that becomes a void. */
 export const MIN_SPAN_M = 0.3;
+
+/** `DEVELOPMENT-SPEC.md` §2's `MIN_W`: the narrowest cabinet, and M5's resize floor. */
+export const MIN_WIDTH_M = 0.3;
+
+/** `DEVELOPMENT-SPEC.md` §2's `TOL`: the slack every width and height comparison uses. Frame
+ *  numbers pass through unit conversions and are not bit-identical even when geometrically equal,
+ *  so two values that should coincide are compared with this, never with `Number.EPSILON`. */
+export const FIT_TOLERANCE_M = 0.012;
 
 /** How close a free span's start must be to its level's own start to still count as "at" that
  *  level, per §4 rule 4 (a span starting mid-level stays one opening). */
@@ -26,6 +34,10 @@ export const LEVEL_SNAP_M = 0.02;
 export const ACCESSORY_MAX_HEIGHT_M = 0.3;
 
 export type Band = "base" | "wall" | "top" | "column";
+
+/** §7's width column: `'fit'` builds to the opening; a millimetre set builds only at those
+ *  widths (the dishwasher niche's 450/600, the hood's 600/900, a column's fixed 600). */
+export type WidthFlex = "fit" | readonly number[];
 
 export interface Frame {
   readonly x: number;
@@ -50,6 +62,27 @@ export interface BodyDefinition {
   readonly canReplace: boolean;
   readonly canDelete: boolean;
   readonly fixedWidth: boolean;
+  /** ADR 0011 Gap A: `true` marks one of §7's parameterised catalogue entries, the only ones
+   *  `insertBody` offers or accepts. Absent means `false` — M2's seeded entries each describe one
+   *  specific already-built body and reproduce M1's scene, so offering one would build a fixed
+   *  instance into an opening it was never measured for. */
+  readonly insertable?: boolean;
+  /** §7's Romanian catalogue name, on insertable entries. A seeded entry has none: nothing in the
+   *  product ever offers it in a list, so `describeKindLabel` names it by kind instead. */
+  readonly label?: string;
+  readonly widthFlex?: WidthFlex;
+  /** §7's `hFlex` column: the body builds to a cabinet-sized opening instead of its nominal
+   *  height. */
+  readonly heightFlex?: boolean;
+  readonly nominalHeightMm?: number;
+  /** The depth this body's builder clamps itself to (§7's `min(d, 0.4)` for wall carcasses).
+   *  §5.2 hands the *opening's* depth to the probe, so this does not decide what gets built; it is
+   *  catalogue data for the adapter's builders, and it is the entry's `frameDepthMm` fallback for a
+   *  placement with no measured `seatDepthMm` of its own. */
+  readonly nominalDepthMm?: number;
+  /** §9's width chips — the legal widths for this body. Delivered as a per-entry constant here;
+   *  M5 wires them to the resize command. */
+  readonly sizesMm?: readonly number[];
 }
 
 export type BodyCatalog = ReadonlyMap<string, BodyDefinition>;
@@ -127,7 +160,9 @@ function deriveFrame(
   placement: DesignPlacement,
   definition: BodyDefinition,
 ): Frame {
-  const depthM = definition.frameDepthMm / 1000;
+  // ADR 0011 Gap B: an inserted body carries its own measured seat, because `frameDepthMm` is a
+  // measurement of one specific seeded body and cannot seat a parameterised one.
+  const depthM = (placement.body.seatDepthMm ?? definition.frameDepthMm) / 1000;
   const transform = deriveCabinetWorldTransform({
     wall: placement.wall,
     alongM: placement.alongMm / 1000,
