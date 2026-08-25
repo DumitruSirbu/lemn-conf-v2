@@ -1,7 +1,12 @@
-# Initial product and stack decisions
+# ADR 0001 — Initial product and stack decisions
 
-Date: 2026-08-20  
-Status: accepted by product owner
+Status: Accepted (decision 3 superseded by ADR 0003; the "temporary persistence adapter" half of
+decision 7 superseded by ADR 0002)
+Date: 2026-08-20
+Type: Decision
+Milestone: M0 — Foundations
+
+Original status line: accepted by product owner
 
 ## Decisions
 
@@ -10,14 +15,18 @@ Status: accepted by product owner
 2. Presets use controlled module-pack adaptation with discrete supported cabinet widths. Purchased
    components and other source-fixed geometry never stretch. Exact manufacturing width sets remain
    catalog data and must not be invented when absent.
-3. Model windows and doors in the first room-planning release; defer sockets and utilities.
+3. ~~Model windows and doors in the first room-planning release; defer sockets and utilities.~~
+   **Superseded by ADR 0003**: wall-attached door/window obstacles are not present in the
+   design-reference model and are retired from near-term scope.
 4. Until commercial data arrives, use versioned sample prices in MDL and label every displayed
    total as an estimate. Sample data must not be represented as a quote or production price list.
 5. Launch with Romanian as the default locale and Russian as a supported locale.
 6. Contact submission requires name and phone; email is optional.
 7. Use a provider-neutral server API and a temporary persistence adapter before CRM integration.
    CRM integration remains out of scope. The adapter must not claim production delivery unless a
-   real sink and its privacy/retention policy are configured.
+   real sink and its privacy/retention policy are configured. ~~Temporary persistence adapter~~
+   **Superseded by ADR 0002**: the POC gets its own server-side Postgres database instead of a
+   temporary adapter; the provider-neutral API and out-of-scope CRM integration stand unchanged.
 
 ## Consequences
 

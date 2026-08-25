@@ -58,6 +58,14 @@ class StubBlobClient implements BackupBlobClient {
 
   upload(pathname: string, body: string): Promise<void> {
     if (this.uploadFailure) return Promise.reject(this.uploadFailure);
+    // Mirrors a real constraint of `@vercel/blob`'s `put`: an empty body is
+    // rejected with "Vercel Blob: body is required". Without this the stub is
+    // more permissive than the thing it stands in for, and a zero-row export
+    // passes here while failing in production — which is exactly what happened
+    // on 2026-08-25, caught only by running the job against the live store.
+    if (body === "") {
+      return Promise.reject(new Error("Vercel Blob: body is required"));
+    }
     this.uploads.push({ pathname, body });
     this.blobs.set(pathname, { pathname, uploadedAt: NOW });
     return Promise.resolve();
@@ -78,9 +86,14 @@ class StubBlobClient implements BackupBlobClient {
   }
 }
 
+/** Mirrors how a restore reads the export: split on newlines and skip blank lines. Every record is
+ *  newline-terminated, so the final split always yields a trailing empty string, and a zero-row
+ *  export is a single blank line. */
 function parseNdjson(body: string): unknown[] {
-  if (body === "") return [];
-  return body.split("\n").map((line) => JSON.parse(line) as unknown);
+  return body
+    .split("\n")
+    .filter((line) => line !== "")
+    .map((line) => JSON.parse(line) as unknown);
 }
 
 describe("backupDesigns", () => {
@@ -124,7 +137,7 @@ describe("backupDesigns", () => {
     );
   });
 
-  it("succeeds and uploads a valid, empty file when the designs table has no rows", async () => {
+  it("uploads a non-empty zero-record file when the designs table has no rows", async () => {
     const rowSource = new StubRowSource([]);
     const blobClient = new StubBlobClient();
 
@@ -132,7 +145,14 @@ describe("backupDesigns", () => {
 
     expect(result.ok).toBe(true);
     expect(result.rowCount).toBe(0);
-    expect(blobClient.uploads[0]?.body).toBe("");
+
+    // The body must not be empty: `@vercel/blob`'s `put` rejects an empty string outright, which
+    // took the first production run down. It must still parse to zero records, so a restore reads
+    // it as "there were no designs" rather than as a corrupt file.
+    const uploaded = blobClient.uploads[0];
+    if (!uploaded) throw new Error("expected an upload to have been recorded");
+    expect(uploaded.body).not.toBe("");
+    expect(parseNdjson(uploaded.body)).toEqual([]);
   });
 
   it("reports failure and logs it, rather than throwing, when the export fails", async () => {

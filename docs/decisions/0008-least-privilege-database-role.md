@@ -1,13 +1,19 @@
-# 2026-08-25 — The application connects as a least-privilege role, not the database owner
+# ADR 0008 — The application connects as a least-privilege role, not the database owner
+
+Status: Accepted (the "Still open" Preview item is superseded by ADR 0009)
+Date: 2026-08-25
+Type: Decision
+Milestone: M2 Wave 2B
 
 Satisfies M2 work item 8's "least-privilege connection role" requirement
-(`docs/milestones/M2-void-engine.md`, "Security and backups").
+(`docs/milestones/M2-void-engine.md`, "Security and backups"), and resolves the "Still open" item
+left in ADR 0006 and the "work item 8 remains open" consequence left in ADR 0007.
 
 ## Context
 
 Until now the application connected as the Neon project's owner role — first `neondb_owner` on the
 Vercel-managed project, then `lemn-conf-v2-boss` after the move to a standalone project
-(`docs/decisions/2026-08-25-standalone-neon-instead-of-vercel-managed.md`). Both are effectively
+(`docs/decisions/0007-standalone-neon-instead-of-vercel-managed.md`). Both are effectively
 administrative: they can drop tables, truncate data, create roles, and reach every table in the
 database, including the contact table M8 will add.
 
@@ -86,7 +92,7 @@ command output *before* running the command, not after a failure has already pri
   database (`lemn-conf-v2-preview`) and its own least-privilege `app_designs` role, verified to
   enforce the same restrictions as production. The requirement recorded here — a *separate* database,
   not production and not the test database — was met as stated. See
-  `docs/decisions/2026-08-25-deployment-configuration-gaps.md` § "Status", which is authoritative on
+  `docs/decisions/0009-deployment-configuration-gaps.md` § "Status", which is authoritative on
   the current environment layout.
 - **M8's contact table** will need its own grant decision. It holds personal data, and
   `app_designs` should receive only the privileges the contact flow genuinely needs — very likely

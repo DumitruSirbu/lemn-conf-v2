@@ -1,8 +1,14 @@
-# 2026-08-25 — Deployment configuration is not yet set up; the backup cron will not fire as-is
+# ADR 0009 — Deployment configuration is not yet set up; the backup cron will not fire as-is
+
+Status: Accepted
+Date: 2026-08-25
+Type: Finding + Decision
+Milestone: M2 Wave 2B
 
 Recorded during M2 Wave 2B. Nothing here is broken today — the project has **never been deployed**
 (`vercel ls` reports no deployments) — but each item below silently prevents something from working
-the first time it is.
+the first time it is. Resolves the "Preview environment has no `DATABASE_URL`" item left
+"Still open" in ADR 0008.
 
 ## Status — all four items resolved 2026-08-25
 
@@ -75,7 +81,7 @@ piecemeal.
 ## 3. Preview environment has no `DATABASE_URL`
 
 Production and Development are set (to the least-privilege `app_designs` role — see
-`docs/decisions/2026-08-25-least-privilege-database-role.md`). Preview is unset: the Vercel CLI on
+`docs/decisions/0008-least-privilege-database-role.md`). Preview is unset: the Vercel CLI on
 this machine (54.2.0; 59.5.0 is current) rejects `vercel env add DATABASE_URL preview` with a
 `git_branch_required` prompt that `--yes` does not satisfy.
 

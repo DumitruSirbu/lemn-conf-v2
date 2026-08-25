@@ -1,4 +1,9 @@
-# 2026-08-25 — M1's `buildKitchen()` seats 6 bodies 10–20mm proud of the wall plane
+# ADR 0005 — M1's `buildKitchen()` seats 6 bodies 10–20mm proud of the wall plane
+
+Status: Accepted
+Date: 2026-08-25
+Type: Finding + Decision
+Milestone: M2 Wave 2A
 
 ## Finding
 

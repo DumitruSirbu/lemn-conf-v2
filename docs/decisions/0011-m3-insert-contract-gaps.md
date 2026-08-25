@@ -1,4 +1,9 @@
-# 2026-08-25 — Five contract gaps between M3's insert/remove sketch and the shipped M2 code
+# ADR 0011 — Five contract gaps between M3's insert/remove sketch and the shipped M2 code
+
+Status: Accepted
+Date: 2026-08-25
+Type: Finding + Decision
+Milestone: M3 — Insert, remove, swap, client write path
 
 Found while turning `docs/milestones/M3-mutations.md` from a phase sketch into a dispatchable plan,
 by reading the M2 code that actually landed rather than the model the sketch was written against.
@@ -65,7 +70,7 @@ lookup.
 catalogue's `frameDepthMm`, and the transform places the body's centre at `depthM / 2` from the
 wall plane. The fixture's own doc comment states what that number really is: "`2 ×` the wall-normal
 offset that its §6.2 wall-seating helper derives — the body's own **measured** half-depth, not a
-claim about a body's physical depth". `docs/decisions/2026-08-25-m2-row19-m1-wall-gap-finding.md`
+claim about a body's physical depth". `docs/decisions/0005-m2-row19-m1-wall-gap-finding.md`
 confirms it: the six corrected values were recomputed from measured bounding boxes.
 
 **The gap.** `frameDepthMm` is a **measurement of one specific built body**. An inserted body is

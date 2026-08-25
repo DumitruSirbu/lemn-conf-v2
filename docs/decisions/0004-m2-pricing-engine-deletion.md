@@ -1,4 +1,9 @@
-# 2026-08-25 — Delete `pricing-engine.ts` in M2 Wave 2A instead of retaining it
+# ADR 0004 — Delete `pricing-engine.ts` in M2 Wave 2A instead of retaining it
+
+Status: Accepted
+Date: 2026-08-25
+Type: Decision
+Milestone: M2 Wave 2A
 
 ## Context
 

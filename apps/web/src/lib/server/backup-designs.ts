@@ -7,7 +7,7 @@ import { del, list, put } from "@vercel/blob";
 /** Scoped to the `designs` table only — deliberately not a whole-database dump. M8 adds a contact
  *  table holding personal data; a database-wide export would sweep contact submissions into Blob
  *  under this same 14-day rotation, which contradicts the stricter handling contact data is
- *  promised (`docs/decisions/2026-08-24-db-backed-shareable-persistence.md`, "Security and
+ *  promised (`docs/decisions/0002-db-backed-shareable-persistence.md`, "Security and
  *  backups"). Do not broaden this to `select * from` every table — add a second, separately-scoped
  *  export instead. */
 const BACKUP_BLOB_PREFIX = "backups/designs/";
@@ -111,10 +111,21 @@ async function tryRotateOldBackups(
   }
 }
 
-/** One JSON object per line; an empty table produces an empty (but still valid, zero-line) file
- *  rather than failing. */
+/**
+ * One JSON object per line, every line newline-terminated.
+ *
+ * The trailing newline is the ndjson convention, but here it also carries weight: it guarantees a
+ * non-empty body even for a zero-row export. `@vercel/blob`'s `put` rejects an empty string with
+ * "Vercel Blob: body is required", so the previous `join("\n")` — which returned `""` for an empty
+ * table — failed in production on the very first run (2026-08-25). The unit tests missed it because
+ * the injected stub accepted an empty body; the stub now refuses one, as the real client does.
+ *
+ * A zero-row export is uploaded rather than skipped because it is a meaningful snapshot — "there
+ * were no designs at this timestamp". Skipping it would leave the most recent backup an older,
+ * non-empty one, so a restore after a deliberate purge would silently resurrect deleted designs.
+ */
 function toNdjson(rows: readonly DesignBackupRow[]): string {
-  return rows.map((row) => JSON.stringify(row)).join("\n");
+  return rows.map((row) => `${JSON.stringify(row)}\n`).join("") || "\n";
 }
 
 function buildBackupPathname(now: Date): string {

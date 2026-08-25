@@ -1,4 +1,9 @@
-# 2026-08-25 — Live database tests run against a separate database, never the application's
+# ADR 0006 — Live database tests run against a separate database, never the application's
+
+Status: Accepted (the "Still open" least-privilege-role item is superseded by ADR 0008)
+Date: 2026-08-25
+Type: Decision
+Milestone: M2 Wave 2B
 
 ## Context
 
@@ -60,6 +65,7 @@ that one variable — the guard still applies. Put it in `.env.test.local`, **no
 
 ## Still open
 
-The application connects as `neondb_owner`, the Neon project's admin role — M2 work item 8's
-least-privilege-role requirement is **not** yet met. Tracked separately; unrelated to test isolation
-but surfaced while verifying this.
+~~The application connects as `neondb_owner`, the Neon project's admin role — M2 work item 8's
+least-privilege-role requirement is **not** yet met.~~ **Superseded by ADR 0008**: the application now
+connects as `app_designs`, a least-privilege role holding only `SELECT, INSERT, UPDATE` on `designs`.
+Tracked separately; unrelated to test isolation but surfaced while verifying this.

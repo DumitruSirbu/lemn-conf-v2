@@ -1,12 +1,18 @@
-# Persistence: a managed Postgres database with shareable design links
+# ADR 0002 — Persistence: a managed Postgres database with shareable design links
 
-Date: 2026-08-24; engine, storage format, and security/backup approach amended 2026-08-25
-Status: accepted by product owner (stated directly during the 2026-08-24 planning round; the storage
-format confirmed 2026-08-25; the engine changed from SQLite to Postgres on Neon later the same day)
+Status: Accepted (the Vercel-managed Neon provisioning recorded in Consequences is superseded by
+ADR 0007, which moves the database to a standalone Neon project)
+Date: 2026-08-24
+Type: Decision
+Milestone: M2 — Void engine, picking, persistence
+
+Original status line: accepted by product owner (stated directly during the 2026-08-24 planning
+round; the storage format confirmed 2026-08-25; the engine changed from SQLite to Postgres on Neon
+later the same day; engine, storage format, and security/backup approach amended 2026-08-25)
 
 Supersedes: `docs/ARCHITECTURE_PROPOSAL.md` §7's browser-local persistence plan, and the
 "temporary persistence adapter" half of decision 7 in
-`docs/decisions/2026-08-20-initial-product-and-stack.md`. It also resolves the storage half of the
+`docs/decisions/0001-initial-product-and-stack.md`. It also resolves the storage half of the
 open product question about the concrete temporary persistence provider (`PRODUCT_REQUIREMENTS.md`,
 "Remaining product data decisions" item 4); retention period and privacy copy stay open.
 
@@ -287,10 +293,13 @@ above does not yet state.
 - Local development and any deployment now require a Neon project and a connection string supplied
   through environment configuration; this is a new dependency the earlier SQLite plan did not have,
   accepted in exchange for the security/backup and hosting-fit benefits above.
-- The project is now linked to Vercel (`dumitrusirbus-projects/lemnaria-configurator-gbt`), with Neon
-  (`neon-gray-elephant`) provisioned and connected, and its environment variables pulled into
+- ~~The project is now linked to Vercel (`dumitrusirbus-projects/lemnaria-configurator-gbt`), with
+  Neon (`neon-gray-elephant`) provisioned and connected~~ **Superseded by ADR 0007**: the database
+  moved to a standalone Neon project (`lemn-conf-v2`), created directly on Neon rather than through
+  the Vercel Marketplace, once Wave 2B needed console access the Marketplace integration did not
+  give. `neon-gray-elephant` was disconnected and removed. Its environment variables were pulled into
   `.env.local` (already covered by `.gitignore`'s `.env*.local` rule). Vercel Blob needs the same
-  provisioning treatment when M2 implements the backup job.
+  provisioning treatment when M2 implements the backup job — this part is unaffected by the move.
 - A second free-tier dependency (Vercel Blob) is now part of the persistence story, alongside Neon.
   Both are provisioned through the same Marketplace flow and billed the same way (free within Hobby
   limits, no auto-billing on overage), so this does not introduce a second billing relationship.

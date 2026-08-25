@@ -1,4 +1,9 @@
-# 2026-08-25 — M2's write path exists but has no production caller; M3 owns the wiring
+# ADR 0010 — M2's write path exists but has no production caller; M3 owns the wiring
+
+Status: Accepted
+Date: 2026-08-25
+Type: Finding + Decision
+Milestone: M3 — Insert, remove, swap, client write path
 
 ## Finding
 

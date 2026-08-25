@@ -1,8 +1,12 @@
-# Design-reference supersession: void/column domain model replaces the run-anchor model
+# ADR 0003 — Design-reference supersession: void/column domain model replaces the run-anchor model
 
+Status: Accepted
 Date: 2026-08-24
-Status: accepted by product owner (the owner chose the new reference explicitly and confirmed it
-supersedes the earlier accepted domain documents where they conflict)
+Type: Decision
+Milestone: Cross-cutting — established the M1–M8 roadmap and superseded parts of M0's scope
+
+Original status line: accepted by product owner (the owner chose the new reference explicitly and
+confirmed it supersedes the earlier accepted domain documents where they conflict)
 
 Supersedes, in part: `docs/CONFIGURATION_MODEL.md`, `docs/ARCHITECTURE_PROPOSAL.md` §3–§4,
 `docs/PRODUCT_REQUIREMENTS.md` (step wording), `docs/MAIN_REQUIREMENTS.md` (whole document),
@@ -26,7 +30,7 @@ priority**, and with the immediate goal being **a working POC that matches the d
 see §7 below.
 
 Persistence is decided separately in
-`docs/decisions/2026-08-24-db-backed-shareable-persistence.md`.
+`docs/decisions/0002-db-backed-shareable-persistence.md`.
 
 The earlier documents were written against the previous reference and describe a materially
 different domain model. Where the two disagree, the new reference wins, because it describes
@@ -110,7 +114,7 @@ These stay in force and are **not** superseded:
   persistence decision — except that the mockup uses
   `/configurator/done` for screen 5 where the proposal says `/configurator/success`; see the open
   questions.
-- Decisions 1, 4, 5, 6 and 7 of `docs/decisions/2026-08-20-initial-product-and-stack.md` (stack,
+- Decisions 1, 4, 5, 6 and 7 of `docs/decisions/0001-initial-product-and-stack.md` (stack,
   provisional MDL sample prices labelled as estimates, RO default with RU supported, name + phone
   required with email optional, provider-neutral submission API). Decision 3 (model windows and
   doors in the first room-planning release) is superseded per the table above. Decision 2 (preset
@@ -224,7 +228,7 @@ This is the highest-risk item in the whole plan and is sequenced first for that 
 
 ### 6. Persistence is a server-side database with shareable design links
 
-Recorded separately in `docs/decisions/2026-08-24-db-backed-shareable-persistence.md`, whose engine
+Recorded separately in `docs/decisions/0002-db-backed-shareable-persistence.md`, whose engine
 choice was amended on 2026-08-25. In short: the `localStorage` plan in `ARCHITECTURE_PROPOSAL.md` §7
 is replaced by a managed Postgres database on Neon's free tier, holding one self-contained JSON
 document per design and addressed by an opaque design identifier in the URL, so a link reopens the

@@ -1,8 +1,13 @@
-# 2026-08-25 — Postgres moves from Vercel-managed Neon to a standalone Neon project
+# ADR 0007 — Postgres moves from Vercel-managed Neon to a standalone Neon project
+
+Status: Accepted (the "work item 8 remains open" consequence is superseded by ADR 0008)
+Date: 2026-08-25
+Type: Decision
+Milestone: M2 Wave 2B
 
 ## Context
 
-`docs/decisions/2026-08-24-db-backed-shareable-persistence.md` chose Postgres on Neon, provisioned
+`docs/decisions/0002-db-backed-shareable-persistence.md` chose Postgres on Neon, provisioned
 through the Vercel Marketplace (`neon-gray-elephant`). That integration injects ~19 environment
 variables into the Vercel project (`DATABASE_URL`, `DATABASE_URL_UNPOOLED`, `PG*`, `POSTGRES_*`) and
 owns them, and it bills through Vercel.
@@ -13,7 +18,7 @@ Two things pushed against keeping it while implementing M2 Wave 2B:
    access — the Neon CLI needs an API key that the Marketplace flow does not surface. Work item 8
    requires a least-privilege connection role rather than the project's admin role, and creating a
    role needs console/SQL access to the project. That item was blocked as a direct result.
-2. **Test isolation.** `docs/decisions/2026-08-25-tests-never-touch-the-application-database.md`
+2. **Test isolation.** `docs/decisions/0006-tests-never-touch-the-application-database.md`
    established that live tests must target a separate database. Doing that cleanly is easier with
    ordinary Neon projects the maintainer controls directly.
 
@@ -46,9 +51,10 @@ storage for the backup job, not a database, and has no equivalent lock-in concer
 ## Consequences
 
 - **Work item 8 is now unblocked.** With full Neon console access, an `app_designs` role holding only
-  `SELECT, INSERT, UPDATE` on `designs` can be created and `DATABASE_URL` repointed at it. The
-  application currently still connects as the project owner role (`lemn-conf-v2-boss`), so **work
-  item 8 remains open** — the blocker is removed, the work is not done.
+  `SELECT, INSERT, UPDATE` on `designs` can be created and `DATABASE_URL` repointed at it. ~~The
+  application currently still connects as the project owner role (`lemn-conf-v2-boss`), so work
+  item 8 remains open — the blocker is removed, the work is not done.~~ **Superseded by
+  ADR 0008**: the `app_designs` role was created and the application now connects through it.
 - **Billing and lifecycle move to Neon directly**, out of Vercel's unified billing.
 - **Nothing auto-provisions env vars any more.** A future environment (a new Vercel project, CI) has
   to be given `DATABASE_URL` explicitly. `.env.example` should document this.
