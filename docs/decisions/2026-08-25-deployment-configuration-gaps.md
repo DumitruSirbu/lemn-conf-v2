@@ -4,7 +4,24 @@ Recorded during M2 Wave 2B. Nothing here is broken today — the project has **n
 (`vercel ls` reports no deployments) — but each item below silently prevents something from working
 the first time it is.
 
-## Status — items 1 and 2 resolved 2026-08-25
+## Status — all four items resolved 2026-08-25
+
+Items 3 and 4 closed alongside 1 and 2. `CRON_SECRET` is set for Production, so the backup endpoint
+can authenticate Vercel's cron calls; it is deliberately **not** set for Preview, which means the
+endpoint fails closed there — a preview deploy cannot run a backup even if someone found the route.
+
+Preview has its own `DATABASE_URL`, pointing at a dedicated Neon branch (`preview`) with its own
+database (`lemn-conf-v2-preview`) and a least-privilege `app_designs` role. Verified to enforce the
+same restrictions as production: no inherited roles, no `super`/`createdb`/`createrole`, exactly
+`INSERT, SELECT, UPDATE` on `designs`, and `DELETE`/`DROP`/`CREATE`/`TRUNCATE` all refused. That
+parity is the point — a preview environment more permissive than production hides exactly the
+privilege bugs it exists to catch.
+
+Production and Preview variables are marked sensitive by Vercel's default, so their values cannot be
+read back (`vercel env pull` returns them empty); only Development is readable. Their correctness is
+therefore confirmed by the first deploy, not by inspection.
+
+## Original status — items 1 and 2 resolved 2026-08-25
 
 `vercel project inspect` now reports Root Directory `apps/web` and Framework Preset `Next.js`, with
 "include files outside the root directory in the Build Step" enabled — required here, because
