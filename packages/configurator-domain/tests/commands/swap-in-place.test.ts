@@ -51,6 +51,41 @@ describe("swap in place", () => {
     );
   });
 
+  // R2.1 / F1, the swap half. `findVacatedSlot` shared the vacated-void lookup's widened top bound,
+  // so once the wall unit below it was gone, the top-row unit's own opening resolved to the *wall*
+  // slot: a swap would have rebuilt it 700 mm lower and 300 mm taller.
+  it("resolves a top-row body's own opening even when the slot below it is empty", () => {
+    const cleared = clearBodies(seeded(), ["p8"]);
+    const record = cleared.records.find((candidate) => candidate.id === "p15");
+    if (!record) throw new Error("No record p15");
+
+    const opening = openingFromPlacement(
+      record,
+      cleared.records,
+      cleared.columns,
+    );
+
+    expect(opening.y0).toBeCloseTo(2.2, 6);
+    expect(opening.h).toBeCloseTo(0.4, 6);
+  });
+
+  it("swaps a top-row body in place with an empty slot below it, without moving it", () => {
+    const cleared = clearBodies(seeded(), ["p8"]);
+    const result = insertInto(
+      cleared,
+      { kind: "placement", id: "p15" },
+      "wall-2door",
+    );
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    const placed = result.design.placements.find(
+      (placement) => placement.id === result.effect.placementId,
+    );
+    expect(placed?.y0Mm).toBe(2200);
+    expect(placed?.body.heightMm).toBe(400);
+  });
+
   // §5.3: an opening's size does not change because its contents did.
   it("leaves the opening's height exactly unchanged", () => {
     const world = seeded();

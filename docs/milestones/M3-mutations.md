@@ -141,6 +141,50 @@ persistence record are not doing the same job. This is the same reasoning M2 use
 
 ### Wave 3C — web
 
+**3C is delivered as four sub-waves.** Items 9–12 plus ADR 0019's write-token split and coalescer
+interval come to six work items across roughly a dozen production files, well past `WORKFLOW.md`'s
+five-item / five-file dispatch guidance. The split is by reviewer, as always: a reviewer checking
+store reducer semantics, one checking a SQL authorisation predicate, and one checking retry
+semantics are not doing the same job.
+
+| Sub-wave | Contents | Tier |
+| --- | --- | --- |
+| **3C-1** | Item 9 — store commands | Full |
+| **3C-2a** | ADR 0019 decision 1, server side — write-token column, conditional update, cookie, route guards | Full **+ security review** |
+| **3C-2b** | Item 10 — client write path; ADR 0019 decision 6 — coalescer minimum interval | Full |
+| **3C-3** | Items 11, 12 — developer affordance, mobile gate, the un-skipped e2e case | Light **+ visual** |
+
+3C-1 and 3C-2a touch disjoint packages and run in parallel. 3C-2b depends on both. 3C-3 depends on
+3C-2b.
+
+#### 3C-2a — the write-token invariant that must not be softened
+
+**Authorisation is enforced in the same SQL statement as the update**, never as a read-then-write:
+
+```sql
+update designs set document = $1, updated_at = now()
+where id = $2 and write_token_hash = $3
+returning id
+```
+
+Zero rows returned means unauthorised *or* unknown, and both are refused. A separate
+`verify()` followed by `save()` opens a time-of-check/time-of-use window and is rejected.
+
+- The token is **hashed at rest** (SHA-256; it is a high-entropy random value, not a password, so a
+  slow KDF buys nothing). A database leak must not confer write access. Compared with a
+  timing-safe comparison, or — better — never compared in application code at all, since the
+  predicate above does it in the database.
+- Existing rows carry `NULL`, which **fails closed**: a design minted before this change is
+  readable and no longer writable. Acceptable — production holds no design anyone owns.
+- The cookie is `HttpOnly`, `Secure`, `SameSite=Lax`, scoped per design id, with a `Max-Age`
+  matching ADR 0019's 30-day retention window.
+- `GET` is untouched and stays open to anyone holding the link. That is the whole point: sharing
+  keeps costing nothing.
+- The table-level grants ADR 0008 gave the app role already cover a new column. **No new grant, and
+  no widening of that role.**
+
+
+
 9. **Store commands.** `remove`, `insert`, `setFinish`, `setHandle` as thin store actions: call the
    domain command, and on success apply design + re-derived records + re-derived voids + the new
    selection in **one** `set()`. Columns move to frozen load-time state, derived at store creation

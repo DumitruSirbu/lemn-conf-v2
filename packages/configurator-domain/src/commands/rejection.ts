@@ -60,6 +60,11 @@ export type RejectionDetail =
   | { readonly code: "VOID_SELECTED"; readonly params: NoParams }
   | { readonly code: "TARGET_NOT_FOUND"; readonly params: NoParams }
   | { readonly code: "INVALID_OCCURRED_AT"; readonly params: NoParams }
+  /** The one code no command produces. `insertBody` requires a `BodyProbe`, and in the browser
+   *  that probe cannot exist until the scene has mounted — so the caller refuses on its behalf.
+   *  Declared here because every refusal in this product carries a stable code *and* a rendered
+   *  sentence; a caller-local shape would give the panel a second thing to switch on. */
+  | { readonly code: "BODY_PROBE_UNAVAILABLE"; readonly params: NoParams }
   | { readonly code: "ACCESSORY_NOT_DELETABLE"; readonly params: LabelParams }
   | { readonly code: "NOT_DELETABLE"; readonly params: LabelParams }
   | { readonly code: "NOT_IN_LIBRARY"; readonly params: BuildIdParams }
@@ -115,6 +120,8 @@ export function renderRejection(detail: RejectionDetail): string {
       return "Selecția nu mai există. Alege din nou un corp sau un spațiu liber.";
     case "INVALID_OCCURRED_AT":
       return "Momentul modificării nu este valid, așa că nu am salvat nimic.";
+    case "BODY_PROBE_UNAVAILABLE":
+      return "Modelul 3D nu este încă pregătit, așa că nu pot adăuga un corp. Încearcă din nou într-o clipă.";
     case "ACCESSORY_NOT_DELETABLE":
       return `„${detail.params.label}” face parte din corpul de sub ea și nu poate fi ștearsă separat.`;
     case "NOT_DELETABLE":

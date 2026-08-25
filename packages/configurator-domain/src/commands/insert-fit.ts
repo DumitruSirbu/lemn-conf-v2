@@ -19,6 +19,7 @@ import {
 } from "../catalog.js";
 import type { DesignWall } from "../design.js";
 import { toMetres, toMillimetres } from "../millimetres.js";
+import { findVacatedVoid } from "../queries/vacated-void.js";
 import {
   recomputeVoids,
   FIT_TOLERANCE_M,
@@ -105,19 +106,21 @@ export function openingFromPlacement(
 }
 
 /** The void that would cover this body if it were removed — §4's own derivation, run once with the
- *  target taken out, so a swap and a delete-then-insert see the identical opening. */
+ *  target taken out, so a swap and a delete-then-insert see the identical opening.
+ *
+ *  The lookup itself is `findVacatedVoid`'s, not a second copy of it: a swap resolving its opening
+ *  one level away from where a delete would have selected is the same defect twice, and the two
+ *  predicates had already drifted into being one bug in two files. */
 function findVacatedSlot(
   record: PlacementRecord,
   records: readonly PlacementRecord[],
   columns: ReadonlyMap<string, Column>,
 ): VoidRecord | undefined {
   const remaining = records.filter((other) => other.id !== record.id);
-  return recomputeVoids(remaining, columns).find(
-    (slot) =>
-      slot.col === record.col &&
-      slot.y0 <= record.frame.y0 + FIT_TOLERANCE_M &&
-      record.frame.y0 < slot.y0 + slot.h + FIT_TOLERANCE_M,
-  );
+  return findVacatedVoid(recomputeVoids(remaining, columns), {
+    col: record.col,
+    y0: record.frame.y0,
+  });
 }
 
 /** The opening a command or an offer list was pointed at, resolved. */

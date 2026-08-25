@@ -35,6 +35,7 @@ overturned.
 | [0017](0017-sink-base-minimum-width.md) | A catalogue entry may declare a minimum width; `base-sink`'s is 560 mm | Accepted | Finding + Decision | M3 Wave 3B (fixed in the domain) | `base-sink` was offered into any base opening from 300 mm while its builder's fixed 560 mm aperture makes it unbuildable below that; adds an optional `minWidthMm` read by both the insert guard and §9's offer filter. |
 | [0018](0018-frame-depth-is-rear-overhang.md) | `frame.d` is twice a body's rear overhang, not its depth | Accepted | Finding | M3 Wave 3B (structural fix scheduled) | The persisted seat encoding is exact for placement but is not a depth; rebuilding from it will compound once any builder gains a depth parameter, which ADR 0017 names as the next step. |
 | [0019](0019-security-baseline-writes-throttling-retention.md) | Security baseline: write authorisation, layered throttling, and retention | Accepted (supersedes ADR 0014) | Decision | M3 Wave 3C and M8 | Splits read from write via a per-design write-token cookie; layers Vercel WAF edge limits over exact Postgres counters; rate-limit identity as independent buckets (IP /24 and /64, session, email, global) with the most restrictive winning; geo as a first-class signal since traffic is essentially Moldova-only; 30-day retention for abandoned designs; an emailed edit link instead of a password; no external proxy. |
+| [0020](0020-a-migration-file-is-not-an-applied-migration.md) | A migration that exists is not a migration that ran | Accepted | Finding + Decision | M3 Wave 3C-2a | The application database was never migrated while every gate stayed green, because ADR 0006 correctly points every migration test at the test database; applying a migration to a deployed environment is a first-class release step, verified by reading the schema rather than a zero exit status. |
 
 ## Supersessions
 
@@ -59,7 +60,7 @@ replaced it — nothing is deleted or rewritten silently.
 
 ## Adding the next one
 
-1. Take the next free number (`0020`, …).
+1. Take the next free number (`0021`, …).
 2. Name the file `NNNN-kebab-case-title.md` in this directory.
 3. Give it the same header block every record here uses, directly under the `# ADR NNNN — Title`
    line:

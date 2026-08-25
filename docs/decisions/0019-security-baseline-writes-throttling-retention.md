@@ -240,6 +240,43 @@ The project has zero custom rules today. `docs/runbooks/firewall-setup.md` holds
 commands so re-creating them is a copy-paste rather than a re-derivation — the expensive part was
 establishing the plan constraints above, and those are now written down.
 
+### 11. Residual risks accepted, after the 3C-2a security review
+
+The write path was reviewed against a threat model of an attacker holding a share link and one
+valid cookie of their own. **No exploitable path was found; ADR 0014 S1 is closed.** These are the
+things deliberately not fixed, recorded so they are decisions rather than oversights.
+
+- **`app_designs` holds table-level `UPDATE`, which includes `write_token_hash`.** No code path
+  writes that column, so column-scoping it would shrink the blast radius of a leaked
+  `DATABASE_URL` — an attacker could otherwise rewrite every design's credential and keep control
+  after the leak is rotated. **Owner's decision, 2026-08-25: not worth it** — once someone holds the
+  database the situation is already critical, and the marginal gain is escalation-and-persistence
+  only. Revisit if the database is ever shared with another service.
+- **Cookie tossing from a same-site subdomain.** The per-design `Path` makes a `__Host-` prefix
+  impossible (that prefix mandates `Path=/`, which would send every design's credential on every
+  request — the per-design path is the better trade). A compromised sibling on a custom apex could
+  therefore set a competing cookie. It cannot forge a valid token, so this denies the owner their
+  own writes rather than granting anyone else's. Not reachable on `*.vercel.app`, which is on the
+  Public Suffix List. Accepted; if it ever matters, iterate the parsed cookie list rather than
+  taking the first match.
+- **No lost-update detection.** Two tabs sharing one cookie are both authorised and the last write
+  wins. A consistency property, not a security one — an attacker gains nothing without the token —
+  but combined with "deletion is final, no undo" it is the residue of ADR 0014's unrecoverability
+  concern, now scoped down to the owner's own devices.
+- **No request body size limit.** ADR 0019 decision 2 assigns volume to the firewall, which is
+  deferred to pre-launch. The amplification that *was* a property of this code — an unbounded Zod
+  error tree reaching the log — was fixed in this wave rather than deferred with it.
+- **`Secure` cookies and LAN-hosted mobile testing.** Driving the 3C-3 mobile gate from a real
+  handset against `http://<LAN-IP>:3000` will have the `Set-Cookie` silently dropped, and every save
+  will 403 with nothing explaining why, since the refusal is deliberately reasonless. Run that gate
+  on localhost, through Playwright emulation, or against an HTTPS Preview — and note Preview needs
+  ADR 0020's migration first.
+- **Selection inside the tolerance band depends on emission order.** `findVacatedVoid` keeps
+  `FIT_TOLERANCE_M` at its lower bound, so a frame within 12 mm below a boundary satisfies two
+  slots; the correct one wins because `recomputeVoids` emits a column's slices in ascending order
+  and `.find` reaches it first. That is a property of the engine, not of the predicate, and it is
+  asserted only indirectly. If slice emission ever stops being ordered, this resolves the wrong way.
+
 ## Alternatives considered
 
 1. **A password for updates**, set at the contact step, enabling cross-device editing (the owner's

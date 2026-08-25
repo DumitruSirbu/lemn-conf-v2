@@ -9,6 +9,13 @@ import { readDatabaseUrl } from "./read-database-url.js";
  * A backup deliberately carries the raw `schema_version` each row was written with: a restore has
  * to migrate every row from the version it was stored at, and a `Design` that has already been
  * through `migrateDesign` has lost that information.
+ *
+ * It carries `write_token_hash` for a sharper reason: that column *is* edit access (ADR 0019
+ * decision 1). Restore a design without it and the row comes back readable and permanently
+ * unwritable, so every customer silently loses the ability to edit their own kitchen — and nothing
+ * looks broken until one of them tries to save. Exporting it is safe by the same argument that
+ * justifies hashing at rest: the column holds a SHA-256 digest, never a token, so a leaked backup
+ * yields values that cannot be presented as credentials.
  */
 export interface DesignBackupRow {
   readonly id: string;
@@ -16,6 +23,7 @@ export interface DesignBackupRow {
   readonly document: unknown;
   readonly created_at: string;
   readonly updated_at: string;
+  readonly write_token_hash: string | null;
 }
 
 /** Bulk read of every design row. An interface so callers can substitute a fake in tests without a
@@ -27,7 +35,9 @@ export interface DesignRowSource {
 /**
  * Reads every `designs` row for the scheduled backup.
  *
- * Scoped to `designs` alone, deliberately — never widen it to every table. M8 adds a contact table
+ * Scoped to `designs` alone, deliberately — never widen it to another **table**. The column list
+ * grows with the table's columns (a restore must reproduce the row, not a subset of it); what must
+ * never grow is the set of tables this reads. M8 adds a contact table
  * holding personal data, and a database-wide export would sweep contact submissions into Blob under
  * the backup's 14-day rotation, contradicting the stricter handling contact data is promised
  * (`docs/decisions/0002-db-backed-shareable-persistence.md`, "Security and backups"). A
@@ -46,7 +56,7 @@ export function createNeonDesignRowSource(
       // caller can catch, log and report it, not throw while wiring dependencies.
       const sql = neon(connectionUrl ?? readDatabaseUrl());
       return (await sql`
-        select id, schema_version, document, created_at, updated_at
+        select id, schema_version, document, created_at, updated_at, write_token_hash
         from designs
         order by id
       `) as DesignBackupRow[];

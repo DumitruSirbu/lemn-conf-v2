@@ -4,6 +4,7 @@ import {
   applyFinish,
   collectFronts,
   configureRenderer,
+  createBodyProbe,
   createContactBlob,
   createLightRig,
   createPickingRaycaster,
@@ -78,6 +79,12 @@ export function KitchenStage({ view, finish, onSettled }: KitchenStageProps) {
   const selection = useConfiguratorStore((state) => state.selection);
   const select = useConfiguratorStore((state) => state.select);
   const deselect = useConfiguratorStore((state) => state.deselect);
+  const attachBodyProbe = useConfiguratorStore(
+    (state) => state.attachBodyProbe,
+  );
+  const detachBodyProbe = useConfiguratorStore(
+    (state) => state.detachBodyProbe,
+  );
 
   const stage = useMemo(() => {
     const kit = makeKit();
@@ -131,6 +138,16 @@ export function KitchenStage({ view, finish, onSettled }: KitchenStageProps) {
     if (finish) applyFinish(collectFronts(stage.room), stage.kit.M, finish);
     invalidate();
   }, [stage, records, voids, finish, invalidate]);
+
+  // ADR 0011 Gap B: `insert` measures the body it is about to place, and the probe needs a `Kit`
+  // and the mounted room — neither of which exists until this component runs. The store therefore
+  // holds the port and this is the only place the Three.js implementation is handed to it.
+  useEffect(() => {
+    attachBodyProbe(createBodyProbe(stage.kit, stage.room));
+    // The probe measures inside *this* room. When the stage goes, so must it — the store is
+    // module-scoped and would otherwise keep offering a probe over an unmounted scene.
+    return detachBodyProbe;
+  }, [stage, attachBodyProbe, detachBodyProbe]);
 
   useEffect(() => {
     configureRenderer(gl);

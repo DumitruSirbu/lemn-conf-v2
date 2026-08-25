@@ -156,6 +156,11 @@ interface BackupRow {
   document: unknown;
   created_at: string;
   updated_at: string;
+  // Edit access itself (ADR 0019 decision 1). A restore that drops this column brings every design
+  // back readable and permanently unwritable — the row loads by link, nothing looks broken, and the
+  // customer discovers it only when a save is refused. Older dumps predate the column and carry
+  // `undefined`, which lands as NULL and fails closed, exactly as an unminted row does.
+  write_token_hash?: string | null;
 }
 
 async function main(): Promise<void> {
@@ -179,12 +184,14 @@ async function main(): Promise<void> {
       DesignSchema.parse(design); // belt-and-braces: migrateDesign already validates internally.
 
       await sql`
-        insert into designs (id, schema_version, document, created_at, updated_at)
-        values (${row.id}, ${CURRENT_SCHEMA_VERSION}, ${design}, ${row.created_at}, ${row.updated_at})
+        insert into designs (id, schema_version, document, created_at, updated_at, write_token_hash)
+        values (${row.id}, ${CURRENT_SCHEMA_VERSION}, ${design}, ${row.created_at}, ${row.updated_at},
+                ${row.write_token_hash ?? null})
         on conflict (id) do update
           set schema_version = excluded.schema_version,
               document = excluded.document,
-              updated_at = excluded.updated_at
+              updated_at = excluded.updated_at,
+              write_token_hash = excluded.write_token_hash
       `;
       restored += 1;
     } catch (error) {

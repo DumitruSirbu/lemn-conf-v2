@@ -3,7 +3,7 @@
 **Read this second, right after `AGENTS.md`, before opening any milestone document.** It exists so a
 session can learn where the project stands without reading eight phase plans.
 
-Last updated: 2026-08-25 (M3 Wave 3B complete through review; 3C next).
+Last updated: 2026-08-25 (M3 Waves 3C-1 and 3C-2a complete through review; 3C-2b next).
 
 ## How to use this file
 
@@ -25,7 +25,7 @@ moment it ships; a decision record does not. When the two disagree, the dated de
 | M0 — Foundations | **Done** (closed 2026-08-24, partially superseded) | No — `milestones/done/` |
 | M1 — Scene port and fidelity gate | **Done** (closed 2026-08-25) | No — `milestones/done/` |
 | M2 — Void engine, picking, persistence | **In progress** — implemented, 1 gate open (the unwired client write path, owned by M3) | Yes — `milestones/M2-void-engine.md` |
-| M3 — Insert, remove, swap, client write path | **In progress** — Waves 3A and 3B done; **3C next** | Yes — `milestones/M3-mutations.md` |
+| M3 — Insert, remove, swap, client write path | **In progress** — 3A, 3B, 3C-1 and 3C-2a done; **3C-2b next** | Yes — `milestones/M3-mutations.md` |
 | M4 — Editor panel and shell | Planned | Yes, when starting |
 | M5 — Width editing | Planned | Yes, when starting |
 | M6 — Price bar and global settings | Planned | Yes, when starting |
