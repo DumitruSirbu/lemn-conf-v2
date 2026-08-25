@@ -53,7 +53,9 @@ describe("ConfigurationRepository", () => {
   it("rejects load with DesignNotFoundError for an unknown id", async () => {
     const repository = new InMemoryConfigurationRepository();
 
-    await expect(repository.load("missing")).rejects.toThrow(DesignNotFoundError);
+    await expect(repository.load("missing")).rejects.toThrow(
+      DesignNotFoundError,
+    );
   });
 });
 

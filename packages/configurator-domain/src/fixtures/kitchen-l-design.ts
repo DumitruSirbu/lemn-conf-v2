@@ -31,11 +31,26 @@ const wallCarcass = { ...baseCarcass, band: "wall" as const };
 const topCarcass = { ...baseCarcass, band: "top" as const };
 const columnCarcass = { ...baseCarcass, band: "column" as const };
 
-export const KITCHEN_L_BODY_CATALOG: BodyCatalog = new Map<string, BodyDefinition>([
-  ["base-sink-800", { ...baseCarcass, kind: "base_cabinet", frameDepthMm: 580 }],
-  ["base-dishwasher-600", { ...baseCarcass, kind: "dishwasher_housing", frameDepthMm: 580 }],
-  ["base-drawer2-600", { ...baseCarcass, kind: "base_cabinet", frameDepthMm: 580 }],
-  ["base-drawer3-600", { ...baseCarcass, kind: "base_cabinet", frameDepthMm: 580 }],
+export const KITCHEN_L_BODY_CATALOG: BodyCatalog = new Map<
+  string,
+  BodyDefinition
+>([
+  [
+    "base-sink-800",
+    { ...baseCarcass, kind: "base_cabinet", frameDepthMm: 580 },
+  ],
+  [
+    "base-dishwasher-600",
+    { ...baseCarcass, kind: "dishwasher_housing", frameDepthMm: 580 },
+  ],
+  [
+    "base-drawer2-600",
+    { ...baseCarcass, kind: "base_cabinet", frameDepthMm: 580 },
+  ],
+  [
+    "base-drawer3-600",
+    { ...baseCarcass, kind: "base_cabinet", frameDepthMm: 580 },
+  ],
   [
     "cooktop-600",
     {
@@ -47,24 +62,123 @@ export const KITCHEN_L_BODY_CATALOG: BodyCatalog = new Map<string, BodyDefinitio
       canDelete: false,
     },
   ],
-  ["tall-oven-tower-600", { ...columnCarcass, kind: "tall_unit", frameDepthMm: 560, frameHeightMm: 2200 }],
-  ["tall-pantry-600", { ...columnCarcass, kind: "tall_unit", frameDepthMm: 560, frameHeightMm: 2200 }],
+  [
+    "tall-oven-tower-600",
+    {
+      ...columnCarcass,
+      kind: "tall_unit",
+      frameDepthMm: 560,
+      frameHeightMm: 2200,
+    },
+  ],
+  [
+    "tall-pantry-600",
+    {
+      ...columnCarcass,
+      kind: "tall_unit",
+      frameDepthMm: 560,
+      frameHeightMm: 2200,
+    },
+  ],
   [
     "fridge-free-700",
-    { ...columnCarcass, kind: "fridge_freestanding", frameDepthMm: 680, frameHeightMm: 1850, fixedWidth: true },
+    {
+      ...columnCarcass,
+      kind: "fridge_freestanding",
+      frameDepthMm: 680,
+      frameHeightMm: 1850,
+      fixedWidth: true,
+    },
   ],
-  ["wall-2door-600", { ...wallCarcass, kind: "wall_cabinet", frameDepthMm: 330 }],
-  ["wall-corner-return-570", { ...wallCarcass, kind: "wall_cabinet", frameDepthMm: 330 }],
-  ["wall-1door-300", { ...wallCarcass, kind: "wall_cabinet", frameDepthMm: 330 }],
-  ["wall-2door-800", { ...wallCarcass, kind: "wall_cabinet", frameDepthMm: 330 }],
-  ["open-shelf-600", { ...wallCarcass, kind: "open_shelf_unit", canHandle: false, frameDepthMm: 330 }],
-  ["hood-600", { ...wallCarcass, kind: "extractor_hood", canHandle: false, fixedWidth: true, frameDepthMm: 500 }],
-  ["wall-2door-600-top", { ...topCarcass, kind: "wall_cabinet", frameDepthMm: 330, frameHeightMm: 400 }],
-  ["wall-1door-300-top", { ...topCarcass, kind: "wall_cabinet", frameDepthMm: 330, frameHeightMm: 400 }],
-  ["wall-2door-800-top", { ...topCarcass, kind: "wall_cabinet", frameDepthMm: 330, frameHeightMm: 400 }],
-  ["wall-corner-return-570-top", { ...topCarcass, kind: "wall_cabinet", frameDepthMm: 330, frameHeightMm: 400 }],
-  ["wall-2door-600-deep-top", { ...topCarcass, kind: "wall_cabinet", frameDepthMm: 600, frameHeightMm: 400 }],
-  ["wall-2door-700-over-fridge", { ...topCarcass, kind: "wall_cabinet", frameDepthMm: 600, frameHeightMm: 750 }],
+  [
+    "wall-2door-600",
+    { ...wallCarcass, kind: "wall_cabinet", frameDepthMm: 330 },
+  ],
+  [
+    "wall-corner-return-570",
+    { ...wallCarcass, kind: "wall_cabinet", frameDepthMm: 330 },
+  ],
+  [
+    "wall-1door-300",
+    { ...wallCarcass, kind: "wall_cabinet", frameDepthMm: 330 },
+  ],
+  [
+    "wall-2door-800",
+    { ...wallCarcass, kind: "wall_cabinet", frameDepthMm: 330 },
+  ],
+  [
+    "open-shelf-600",
+    {
+      ...wallCarcass,
+      kind: "open_shelf_unit",
+      canHandle: false,
+      frameDepthMm: 330,
+    },
+  ],
+  [
+    "hood-600",
+    {
+      ...wallCarcass,
+      kind: "extractor_hood",
+      canHandle: false,
+      fixedWidth: true,
+      frameDepthMm: 500,
+    },
+  ],
+  [
+    "wall-2door-600-top",
+    {
+      ...topCarcass,
+      kind: "wall_cabinet",
+      frameDepthMm: 330,
+      frameHeightMm: 400,
+    },
+  ],
+  [
+    "wall-1door-300-top",
+    {
+      ...topCarcass,
+      kind: "wall_cabinet",
+      frameDepthMm: 330,
+      frameHeightMm: 400,
+    },
+  ],
+  [
+    "wall-2door-800-top",
+    {
+      ...topCarcass,
+      kind: "wall_cabinet",
+      frameDepthMm: 330,
+      frameHeightMm: 400,
+    },
+  ],
+  [
+    "wall-corner-return-570-top",
+    {
+      ...topCarcass,
+      kind: "wall_cabinet",
+      frameDepthMm: 330,
+      frameHeightMm: 400,
+    },
+  ],
+  [
+    "wall-2door-600-deep-top",
+    {
+      ...topCarcass,
+      kind: "wall_cabinet",
+      frameDepthMm: 600,
+      frameHeightMm: 400,
+    },
+  ],
+  [
+    "wall-2door-700-over-fridge",
+    {
+      ...topCarcass,
+      kind: "wall_cabinet",
+      frameDepthMm: 600,
+      frameHeightMm: 750,
+    },
+  ],
 ]);
 
 function placement(

@@ -33,7 +33,10 @@ describe("generateDesignId", () => {
     const sharesLongPrefix = ids.some((id, index) => {
       const previous = ids[index - 1];
       if (previous === undefined) return false;
-      return id.slice(0, SHARED_PREFIX_LENGTH) === previous.slice(0, SHARED_PREFIX_LENGTH);
+      return (
+        id.slice(0, SHARED_PREFIX_LENGTH) ===
+        previous.slice(0, SHARED_PREFIX_LENGTH)
+      );
     });
     expect(sharesLongPrefix).toBe(false);
 

@@ -13,6 +13,8 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "lint": "pnpm --recursive run lint",
+    "lint:fix": "pnpm --recursive run lint:fix",
+    "prepare": "git config core.hooksPath .githooks || true",
     "test": "pnpm --recursive run test",
     "typecheck": "pnpm --recursive run typecheck"
   },

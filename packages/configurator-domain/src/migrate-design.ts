@@ -18,7 +18,9 @@ const MIGRATIONS: ReadonlyMap<number, (raw: unknown) => Design> = new Map([
 export function migrateDesign(schemaVersion: number, raw: unknown): Design {
   const migrate = MIGRATIONS.get(schemaVersion);
   if (!migrate) {
-    throw new InvalidDesignError(`unsupported schema version ${String(schemaVersion)}`);
+    throw new InvalidDesignError(
+      `unsupported schema version ${String(schemaVersion)}`,
+    );
   }
   return migrate(raw);
 }

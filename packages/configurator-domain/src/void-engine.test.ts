@@ -27,7 +27,9 @@ function makeDesign(placements: DesignPlacement[]): Design {
   };
 }
 
-function makePlacement(overrides: Partial<DesignPlacement> = {}): DesignPlacement {
+function makePlacement(
+  overrides: Partial<DesignPlacement> = {},
+): DesignPlacement {
   return {
     id: "p0",
     wall: "A",
@@ -122,7 +124,9 @@ function makeRecord(overrides: Partial<PlacementRecord> = {}): PlacementRecord {
 describe("derivePlacementRecords", () => {
   it("derives frame width from the carcass, not a mesh bound", () => {
     const design = makeDesign([
-      makePlacement({ body: { buildId: "base-600", widthMm: 600, heightMm: 720 } }),
+      makePlacement({
+        body: { buildId: "base-600", widthMm: 600, heightMm: 720 },
+      }),
     ]);
     const [record] = derivePlacementRecords(design, catalog);
     expect(record?.frame.w).toBe(0.6);
@@ -130,7 +134,9 @@ describe("derivePlacementRecords", () => {
 
   it("derives frame height/depth from the catalog's full extent, not the nominal carcass height", () => {
     const design = makeDesign([
-      makePlacement({ body: { buildId: "fridge-700", widthMm: 700, heightMm: 1850 } }),
+      makePlacement({
+        body: { buildId: "fridge-700", widthMm: 700, heightMm: 1850 },
+      }),
     ]);
     const [record] = derivePlacementRecords(design, catalog);
     expect(record?.frame.h).toBeCloseTo(1.85, 6);
@@ -150,7 +156,9 @@ describe("derivePlacementRecords", () => {
 
   it("flags a worktop accessory by frame height and marks it non-replaceable/non-deletable", () => {
     const design = makeDesign([
-      makePlacement({ body: { buildId: "cooktop", widthMm: 600, heightMm: 40 } }),
+      makePlacement({
+        body: { buildId: "cooktop", widthMm: 600, heightMm: 40 },
+      }),
     ]);
     const [record] = derivePlacementRecords(design, catalog);
     expect(record?.accessory).toBe(true);
@@ -162,7 +170,13 @@ describe("derivePlacementRecords", () => {
   it("remembers finishKey/handleMode from the body", () => {
     const design = makeDesign([
       makePlacement({
-        body: { buildId: "base-600", widthMm: 600, heightMm: 720, finish: "oak", handle: "black" },
+        body: {
+          buildId: "base-600",
+          widthMm: 600,
+          heightMm: 720,
+          finish: "oak",
+          handle: "black",
+        },
       }),
     ]);
     const [record] = derivePlacementRecords(design, catalog);
@@ -171,8 +185,14 @@ describe("derivePlacementRecords", () => {
   });
 
   it("throws a domain error for an unknown buildId rather than returning null", () => {
-    const design = makeDesign([makePlacement({ body: { buildId: "missing", widthMm: 600, heightMm: 720 } })]);
-    expect(() => derivePlacementRecords(design, catalog)).toThrow(UnknownBodyError);
+    const design = makeDesign([
+      makePlacement({
+        body: { buildId: "missing", widthMm: 600, heightMm: 720 },
+      }),
+    ]);
+    expect(() => derivePlacementRecords(design, catalog)).toThrow(
+      UnknownBodyError,
+    );
   });
 });
 
@@ -261,12 +281,26 @@ describe("recomputeVoids", () => {
   });
 
   it("row 1: clearing a fridge column and re-inserting the fridge leaves one 750 mm slot, not two stubs", () => {
-    const column = makeColumn({ regions: [[0, 1.85], [1.85, 2.6]], top: 2.6 });
+    const column = makeColumn({
+      regions: [
+        [0, 1.85],
+        [1.85, 2.6],
+      ],
+      top: 2.6,
+    });
     const columns = new Map([[column.key, column]]);
     const fridge = makeRecord({
       id: "fridge",
       col: column.key,
-      frame: { x: column.x, z: column.z, ry: 0, y0: 0, w: 0.7, h: 1.85, d: 0.56 },
+      frame: {
+        x: column.x,
+        z: column.z,
+        ry: 0,
+        y0: 0,
+        w: 0.7,
+        h: 1.85,
+        d: 0.56,
+      },
     });
     const voids = recomputeVoids([fridge], columns);
     expect(voids).toHaveLength(1);
@@ -287,7 +321,13 @@ describe("recomputeVoids", () => {
   });
 
   it("merges two vertically adjacent freed openings before subdividing: fridge + unit above both cleared", () => {
-    const column = makeColumn({ regions: [[0, 1.85], [1.85, 2.6]], top: 2.6 });
+    const column = makeColumn({
+      regions: [
+        [0, 1.85],
+        [1.85, 2.6],
+      ],
+      top: 2.6,
+    });
     const columns = new Map([[column.key, column]]);
     const voids = recomputeVoids([], columns);
     expect(voids.map((v) => [v.y0, v.y0 + v.h])).toEqual([
@@ -299,7 +339,13 @@ describe("recomputeVoids", () => {
   });
 
   it("subdivides by module lines, not the column's original member history", () => {
-    const column = makeColumn({ regions: [[0, 1.85], [1.85, 2.6]], top: 2.6 });
+    const column = makeColumn({
+      regions: [
+        [0, 1.85],
+        [1.85, 2.6],
+      ],
+      top: 2.6,
+    });
     const columns = new Map([[column.key, column]]);
     const voids = recomputeVoids([], columns);
     // Base/middle/top per LEVELS, never the fridge's own 0–1.85 / 1.85–2.6 split.
@@ -310,12 +356,23 @@ describe("recomputeVoids", () => {
   });
 
   it(`a free interval shorter than MIN_SPAN (${String(MIN_SPAN_M)}) produces no void`, () => {
-    const column = makeColumn({ regions: [[0, 2.5]], top: 2.5 + MIN_SPAN_M / 2 });
+    const column = makeColumn({
+      regions: [[0, 2.5]],
+      top: 2.5 + MIN_SPAN_M / 2,
+    });
     const columns = new Map([[column.key, column]]);
     const occupant = makeRecord({
       id: "filler",
       col: column.key,
-      frame: { x: column.x, z: column.z, ry: 0, y0: 0, w: 0.6, h: 2.5, d: 0.56 },
+      frame: {
+        x: column.x,
+        z: column.z,
+        ry: 0,
+        y0: 0,
+        w: 0.6,
+        h: 2.5,
+        d: 0.56,
+      },
     });
     expect(recomputeVoids([occupant], columns)).toEqual([]);
   });
@@ -323,8 +380,16 @@ describe("recomputeVoids", () => {
   it("is deterministic and order-independent: same design produces the same void set", () => {
     const column = makeColumn();
     const columns = new Map([[column.key, column]]);
-    const a = makeRecord({ id: "a", col: column.key, frame: { x: 1.3, z: 0.3, ry: 0, y0: 0, w: 0.6, h: 0.86, d: 0.56 } });
-    const b = makeRecord({ id: "b", col: column.key, frame: { x: 1.3, z: 0.3, ry: 0, y0: 1.5, w: 0.6, h: 0.7, d: 0.56 } });
+    const a = makeRecord({
+      id: "a",
+      col: column.key,
+      frame: { x: 1.3, z: 0.3, ry: 0, y0: 0, w: 0.6, h: 0.86, d: 0.56 },
+    });
+    const b = makeRecord({
+      id: "b",
+      col: column.key,
+      frame: { x: 1.3, z: 0.3, ry: 0, y0: 1.5, w: 0.6, h: 0.7, d: 0.56 },
+    });
     const forward = recomputeVoids([a, b], columns);
     const reversed = recomputeVoids([b, a], columns);
     expect(reversed).toEqual(forward);

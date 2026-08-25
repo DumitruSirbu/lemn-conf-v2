@@ -1,5 +1,12 @@
-import type { ConfigurationRepository, Design, DesignId } from "@lemnaria/configurator-domain";
-import { DesignNotFoundError, migrateDesign } from "@lemnaria/configurator-domain";
+import type {
+  ConfigurationRepository,
+  Design,
+  DesignId,
+} from "@lemnaria/configurator-domain";
+import {
+  DesignNotFoundError,
+  migrateDesign,
+} from "@lemnaria/configurator-domain";
 import { neon } from "@neondatabase/serverless";
 
 import { generateDesignId } from "./generate-design-id.js";

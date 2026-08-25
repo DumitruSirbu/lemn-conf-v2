@@ -52,9 +52,9 @@ describe("DesignSchema", () => {
   });
 
   it("accepts an empty placements list", () => {
-    expect(
-      DesignSchema.safeParse({ ...design, placements: [] }).success,
-    ).toBe(true);
+    expect(DesignSchema.safeParse({ ...design, placements: [] }).success).toBe(
+      true,
+    );
   });
 
   it("accepts a null presetId", () => {

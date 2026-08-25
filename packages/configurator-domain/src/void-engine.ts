@@ -1,4 +1,10 @@
-import type { Design, DesignPlacement, DesignWall, Finish, Handle } from "./design.js";
+import type {
+  Design,
+  DesignPlacement,
+  DesignWall,
+  Finish,
+  Handle,
+} from "./design.js";
 import { deriveCabinetWorldTransform } from "./room-transforms.js";
 
 /** `DEVELOPMENT-SPEC.md` §2 module lines: base | wall | top. The 0.86–1.50 gap is backsplash and
@@ -108,7 +114,10 @@ function deriveColumnKey(rotated: boolean, frame: Frame): string {
   return `${rotated ? "B|" : "A|"}${position.toFixed(2)}`;
 }
 
-function lookupDefinition(catalog: BodyCatalog, buildId: string): BodyDefinition {
+function lookupDefinition(
+  catalog: BodyCatalog,
+  buildId: string,
+): BodyDefinition {
   const definition = catalog.get(buildId);
   if (!definition) throw new UnknownBodyError(buildId);
   return definition;
@@ -164,8 +173,12 @@ export function derivePlacementRecords(
       canDelete: definition.canDelete,
       fixedWidth: definition.fixedWidth,
       accessory: frame.h < ACCESSORY_MAX_HEIGHT_M,
-      ...(placement.body.finish !== undefined ? { finishKey: placement.body.finish } : {}),
-      ...(placement.body.handle !== undefined ? { handleMode: placement.body.handle } : {}),
+      ...(placement.body.finish !== undefined
+        ? { finishKey: placement.body.finish }
+        : {}),
+      ...(placement.body.handle !== undefined
+        ? { handleMode: placement.body.handle }
+        : {}),
     };
   });
 }
@@ -225,7 +238,10 @@ interface FreeSpan {
   readonly hi: number;
 }
 
-function deriveFreeSpans(column: Column, taken: readonly [number, number][]): FreeSpan[] {
+function deriveFreeSpans(
+  column: Column,
+  taken: readonly [number, number][],
+): FreeSpan[] {
   const floor = Math.min(...column.regions.map(([start]) => start));
   const free: FreeSpan[] = [];
   let y = floor;
@@ -260,7 +276,9 @@ function collapseMidLevelStart(slices: readonly LevelSlice[]): LevelSlice[] {
   if (slices.length > 1 && startsMidLevel) {
     const last = slices[slices.length - 1];
     if (!last) return [];
-    return [{ start: first.start, end: last.end, levelStart: first.levelStart }];
+    return [
+      { start: first.start, end: last.end, levelStart: first.levelStart },
+    ];
   }
   return [...slices];
 }

@@ -14,10 +14,11 @@
   },
   "scripts": {
     "build": "tsc --project tsconfig.build.json",
+    "build:deps": "pnpm --filter @lemnaria/configurator-domain run build",
     "lint": "eslint . --max-warnings 0",
+    "lint:fix": "eslint . --fix --max-warnings 0",
     "migrate": "tsx src/migrate.ts",
     "test": "pnpm run build:deps && vitest run --config vitest.config.ts",
-    "build:deps": "pnpm --filter @lemnaria/configurator-domain run build",
     "typecheck": "pnpm run build:deps && tsc --project tsconfig.json --noEmit"
   },
   "dependencies": {

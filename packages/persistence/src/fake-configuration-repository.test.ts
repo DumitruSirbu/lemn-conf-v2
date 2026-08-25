@@ -1,4 +1,7 @@
-import { DesignNotFoundError, KITCHEN_L_DESIGN } from "@lemnaria/configurator-domain";
+import {
+  DesignNotFoundError,
+  KITCHEN_L_DESIGN,
+} from "@lemnaria/configurator-domain";
 import { describe, expect, it } from "vitest";
 
 import { FakeConfigurationRepository } from "./fake-configuration-repository.js";
@@ -38,19 +41,27 @@ describe("FakeConfigurationRepository", () => {
   it("throws DesignNotFoundError when loading a missing id", async () => {
     const repository = new FakeConfigurationRepository();
 
-    await expect(repository.load("missing-id")).rejects.toThrow(DesignNotFoundError);
+    await expect(repository.load("missing-id")).rejects.toThrow(
+      DesignNotFoundError,
+    );
   });
 
   it("throws DesignNotFoundError when saving to an id that was never minted", async () => {
     const repository = new FakeConfigurationRepository();
 
-    await expect(repository.save("never-minted", KITCHEN_L_DESIGN)).rejects.toThrow(DesignNotFoundError);
+    await expect(
+      repository.save("never-minted", KITCHEN_L_DESIGN),
+    ).rejects.toThrow(DesignNotFoundError);
   });
 
   it("persists nothing when a save to an unknown id is rejected", async () => {
     const repository = new FakeConfigurationRepository();
 
-    await expect(repository.save("never-minted", KITCHEN_L_DESIGN)).rejects.toThrow(DesignNotFoundError);
-    await expect(repository.load("never-minted")).rejects.toThrow(DesignNotFoundError);
+    await expect(
+      repository.save("never-minted", KITCHEN_L_DESIGN),
+    ).rejects.toThrow(DesignNotFoundError);
+    await expect(repository.load("never-minted")).rejects.toThrow(
+      DesignNotFoundError,
+    );
   });
 });

@@ -14,7 +14,10 @@ export default defineConfig({
       // which vitest doesn't set — modules that import it (e.g. `lib/server/*.ts`) are exercised
       // here as plain Node modules, so the guard itself is a no-op in tests, not the behaviour
       // under test.
-      "server-only": resolve(import.meta.dirname, "./src/test-support/server-only-stub.ts"),
+      "server-only": resolve(
+        import.meta.dirname,
+        "./src/test-support/server-only-stub.ts",
+      ),
     },
   },
 });

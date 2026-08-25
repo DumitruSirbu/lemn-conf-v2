@@ -1,4 +1,8 @@
-import type { ConfigurationRepository, Design, DesignId } from "@lemnaria/configurator-domain";
+import type {
+  ConfigurationRepository,
+  Design,
+  DesignId,
+} from "@lemnaria/configurator-domain";
 import { DesignNotFoundError } from "@lemnaria/configurator-domain";
 
 import { generateDesignId } from "./generate-design-id.js";

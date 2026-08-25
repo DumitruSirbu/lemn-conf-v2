@@ -110,7 +110,9 @@ export function resolveSelection(
 /** The nearest hit (three.js sorts `intersectObject` results by distance) that actually climbs to
  *  a selectable — a non-selectable mesh in the same group (the room shell sharing `solids` with the
  *  cabinet bodies) must not shadow a real hit or a fallback to `voids` behind it. */
-function firstSelectableHit(hits: readonly THREE.Intersection[]): Selection | null {
+function firstSelectableHit(
+  hits: readonly THREE.Intersection[],
+): Selection | null {
   for (const hit of hits) {
     const target = climbToSelectable(hit.object);
     if (target) return target;
@@ -127,7 +129,9 @@ export function pick(
   voids: THREE.Object3D,
   records: readonly PlacementRecord[],
 ): Selection | null {
-  const solidTarget = firstSelectableHit(raycaster.intersectObject(solids, true));
+  const solidTarget = firstSelectableHit(
+    raycaster.intersectObject(solids, true),
+  );
   if (solidTarget) return resolveSelection(solidTarget, records);
 
   const voidTarget = firstSelectableHit(raycaster.intersectObject(voids, true));

@@ -24,7 +24,9 @@ export function resolveTestDatabaseUrl(): string {
 
   const override = process.env["TEST_DATABASE_URL"]?.trim();
   const hasOverride = override !== undefined && override !== "";
-  const testUrl = hasOverride ? override : withDatabaseName(applicationUrl, TEST_DATABASE_NAME);
+  const testUrl = hasOverride
+    ? override
+    : withDatabaseName(applicationUrl, TEST_DATABASE_NAME);
   const testDatabase = databaseNameOf(testUrl);
 
   if (testDatabase === applicationDatabase) {

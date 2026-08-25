@@ -1,4 +1,8 @@
-import { DesignSchema, KITCHEN_L_DESIGN, migrateDesign } from "@lemnaria/configurator-domain";
+import {
+  DesignSchema,
+  KITCHEN_L_DESIGN,
+  migrateDesign,
+} from "@lemnaria/configurator-domain";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
@@ -12,7 +16,10 @@ import {
 const A_DAY_MS = 24 * 60 * 60 * 1000;
 const NOW = new Date("2026-08-25T03:00:00.000Z");
 
-function buildRow(id: string, overrides: Partial<DesignBackupRow> = {}): DesignBackupRow {
+function buildRow(
+  id: string,
+  overrides: Partial<DesignBackupRow> = {},
+): DesignBackupRow {
   return {
     id,
     schema_version: 1,
@@ -58,7 +65,9 @@ class StubBlobClient implements BackupBlobClient {
 
   list(prefix: string): Promise<BackupBlobInfo[]> {
     return Promise.resolve(
-      [...this.blobs.values()].filter((blob) => blob.pathname.startsWith(prefix)),
+      [...this.blobs.values()].filter((blob) =>
+        blob.pathname.startsWith(prefix),
+      ),
     );
   }
 
@@ -78,7 +87,9 @@ describe("backupDesigns", () => {
   let consoleErrorSpy: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {
-    consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    consoleErrorSpy = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
   });
 
   it("uploads one parseable ndjson line per row, each round-tripping to a valid Design", async () => {
@@ -108,7 +119,9 @@ describe("backupDesigns", () => {
 
     const result = await backupDesigns({ rowSource, blobClient, now: NOW });
 
-    expect(result.backupPathname).toBe(`backups/designs/${NOW.toISOString()}.ndjson`);
+    expect(result.backupPathname).toBe(
+      `backups/designs/${NOW.toISOString()}.ndjson`,
+    );
   });
 
   it("succeeds and uploads a valid, empty file when the designs table has no rows", async () => {
@@ -136,7 +149,12 @@ describe("backupDesigns", () => {
   it("does not run rotation when the upload fails", async () => {
     const rowSource = new StubRowSource([buildRow("a")]);
     const blobClient = new StubBlobClient(
-      [{ pathname: "backups/designs/old.ndjson", uploadedAt: new Date(NOW.getTime() - 30 * A_DAY_MS) }],
+      [
+        {
+          pathname: "backups/designs/old.ndjson",
+          uploadedAt: new Date(NOW.getTime() - 30 * A_DAY_MS),
+        },
+      ],
       new Error("blob store unavailable"),
     );
 
@@ -149,9 +167,18 @@ describe("backupDesigns", () => {
   it("deletes only backups older than the 14-day retention window", async () => {
     const rowSource = new StubRowSource([buildRow("a")]);
     const blobClient = new StubBlobClient([
-      { pathname: "backups/designs/too-old.ndjson", uploadedAt: new Date(NOW.getTime() - 15 * A_DAY_MS) },
-      { pathname: "backups/designs/boundary.ndjson", uploadedAt: new Date(NOW.getTime() - 14 * A_DAY_MS) },
-      { pathname: "backups/designs/recent.ndjson", uploadedAt: new Date(NOW.getTime() - 1 * A_DAY_MS) },
+      {
+        pathname: "backups/designs/too-old.ndjson",
+        uploadedAt: new Date(NOW.getTime() - 15 * A_DAY_MS),
+      },
+      {
+        pathname: "backups/designs/boundary.ndjson",
+        uploadedAt: new Date(NOW.getTime() - 14 * A_DAY_MS),
+      },
+      {
+        pathname: "backups/designs/recent.ndjson",
+        uploadedAt: new Date(NOW.getTime() - 1 * A_DAY_MS),
+      },
     ]);
 
     const result = await backupDesigns({ rowSource, blobClient, now: NOW });
@@ -162,7 +189,9 @@ describe("backupDesigns", () => {
   it("reports rotation failure without failing the overall backup, since the export already succeeded", async () => {
     const rowSource = new StubRowSource([buildRow("a")]);
     const blobClient = new StubBlobClient();
-    vi.spyOn(blobClient, "list").mockRejectedValueOnce(new Error("list failed"));
+    vi.spyOn(blobClient, "list").mockRejectedValueOnce(
+      new Error("list failed"),
+    );
 
     const result = await backupDesigns({ rowSource, blobClient, now: NOW });
 

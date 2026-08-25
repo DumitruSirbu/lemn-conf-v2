@@ -1,8 +1,15 @@
 import { describe, expect, it } from "vitest";
 
 import { DesignSchema } from "../design.js";
-import { deriveColumns, derivePlacementRecords, recomputeVoids } from "../void-engine.js";
-import { KITCHEN_L_BODY_CATALOG, KITCHEN_L_DESIGN } from "./kitchen-l-design.js";
+import {
+  deriveColumns,
+  derivePlacementRecords,
+  recomputeVoids,
+} from "../void-engine.js";
+import {
+  KITCHEN_L_BODY_CATALOG,
+  KITCHEN_L_DESIGN,
+} from "./kitchen-l-design.js";
 
 describe("KITCHEN_L_DESIGN", () => {
   it("is a valid Design", () => {
@@ -16,7 +23,10 @@ describe("KITCHEN_L_DESIGN", () => {
   });
 
   it("derives placement records and columns without throwing", () => {
-    const records = derivePlacementRecords(KITCHEN_L_DESIGN, KITCHEN_L_BODY_CATALOG);
+    const records = derivePlacementRecords(
+      KITCHEN_L_DESIGN,
+      KITCHEN_L_BODY_CATALOG,
+    );
     expect(records).toHaveLength(KITCHEN_L_DESIGN.placements.length);
     const columns = deriveColumns(records);
     expect(columns.size).toBeGreaterThan(0);

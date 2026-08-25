@@ -9,6 +9,7 @@
     "capture:fidelity": "node scripts/capture-fidelity.mjs",
     "dev": "next dev",
     "lint": "pnpm run build:deps && eslint . --max-warnings 0",
+    "lint:fix": "pnpm run build:deps && eslint . --fix --max-warnings 0",
     "start": "next start",
     "test": "pnpm run build:deps && vitest run --config vitest.config.ts",
     "test:e2e": "pnpm run build:deps && playwright test",

@@ -19,8 +19,7 @@ describe("ConfigurationTimestampSchema", () => {
 
   it("rejects a timestamp with no offset", () => {
     expect(
-      ConfigurationTimestampSchema.safeParse("2026-08-20T12:00:00.000")
-        .success,
+      ConfigurationTimestampSchema.safeParse("2026-08-20T12:00:00.000").success,
     ).toBe(false);
   });
 });

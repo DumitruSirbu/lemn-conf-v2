@@ -1,0 +1,32 @@
+#!/bin/sh
+#
+# Formats staged files in place, re-stages them, then lints the workspace.
+#
+# Enabled per clone by `pnpm install` (the root `prepare` script points
+# core.hooksPath here). To enable by hand:
+#
+#     git config core.hooksPath .githooks
+#
+# Deliberately excludes tests and typecheck: the persistence suite talks to a
+# live Neon database, so a commit would fail for anyone offline or without
+# credentials. `pnpm check` is the full gate and runs before a push or PR.
+
+set -eu
+
+cd "$(git rev-parse --show-toplevel)"
+
+staged_list=$(mktemp)
+trap 'rm -f "$staged_list"' EXIT
+
+# -z keeps NUL separators so paths containing spaces survive; ACMR skips
+# deletions, which must not be handed to prettier or re-staged.
+git diff --cached --name-only --diff-filter=ACMR -z >"$staged_list"
+
+if [ ! -s "$staged_list" ]; then
+  exit 0
+fi
+
+xargs -0 ./node_modules/.bin/prettier --ignore-unknown --write <"$staged_list"
+xargs -0 git add <"$staged_list"
+
+pnpm lint

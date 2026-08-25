@@ -20,6 +20,11 @@ to be useful before the new app's stack, test commands, and browser setup are kn
 5. **Verify and close.** The coordinating agent checks every material finding against the diff and
    runs the relevant commands itself. Only then update the phase outcome and documents that the
    change invalidated.
+6. **Commit.** Formatting and linting are a precondition, not a courtesy. `.githooks/pre-commit`
+   formats the staged files, re-stages them, and runs `pnpm lint`; a lint error aborts the commit.
+   Run `pnpm check` yourself before the commit that closes a phase — the hook skips typecheck and
+   tests on purpose (the persistence suite needs a live database). Never use `--no-verify`. See
+   `AGENTS.md` § "Rule — format and lint before every commit".
 
 Repeat implementation through review until blockers are gone and any intentionally deferred issue
 is named with an owner or future phase.

@@ -4,7 +4,13 @@ import { ConfigurationTimestampSchema } from "./schemas.js";
 
 const millimetreSchema = z.number().int();
 
-export const FinishSchema = z.enum(["white", "clay", "sage", "graphite", "oak"]);
+export const FinishSchema = z.enum([
+  "white",
+  "clay",
+  "sage",
+  "graphite",
+  "oak",
+]);
 export type Finish = z.infer<typeof FinishSchema>;
 
 export const HandleSchema = z.enum(["steel", "black", "push"]);

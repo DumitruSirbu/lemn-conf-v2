@@ -8,10 +8,21 @@ const placement = {
   wall: "A" as const,
   alongMm: 1300,
   y0Mm: 0,
-  body: { buildId: "base-600", widthMm: 600, heightMm: 720, finish: "oak" as const, handle: "black" as const },
+  body: {
+    buildId: "base-600",
+    widthMm: 600,
+    heightMm: 720,
+    finish: "oak" as const,
+    handle: "black" as const,
+  },
 };
 
-const room = { shape: "L" as const, widthMm: 3600, depthMm: 2400, heightMm: 2600 };
+const room = {
+  shape: "L" as const,
+  widthMm: 3600,
+  depthMm: 2400,
+  heightMm: 2600,
+};
 
 const design: Design = {
   room,
@@ -50,7 +61,9 @@ describe("canonicalSerializeDesign", () => {
       },
     };
 
-    expect(canonicalSerializeDesign(reordered)).toBe(canonicalSerializeDesign(design));
+    expect(canonicalSerializeDesign(reordered)).toBe(
+      canonicalSerializeDesign(design),
+    );
   });
 
   it("produces different output for a structurally different design", () => {
@@ -59,7 +72,9 @@ describe("canonicalSerializeDesign", () => {
       placements: [{ ...placement, alongMm: 1400 }],
     };
 
-    expect(canonicalSerializeDesign(changed)).not.toBe(canonicalSerializeDesign(design));
+    expect(canonicalSerializeDesign(changed)).not.toBe(
+      canonicalSerializeDesign(design),
+    );
   });
 
   it("is idempotent through a parse/re-serialise round trip", () => {

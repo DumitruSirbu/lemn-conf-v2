@@ -72,8 +72,8 @@ unused — **report it and let the human decide**. Do not fix it by removing.
 Why this is absolute rather than a preference:
 
 - **The values cannot be read back.** Vercel marks Production and Preview variables sensitive by
-  default, so `vercel env pull` returns them empty. A deletion is therefore *irreversible by the
-  agent*: there is no way to restore what was there.
+  default, so `vercel env pull` returns them empty. A deletion is therefore _irreversible by the
+  agent_: there is no way to restore what was there.
 - **The commands are not symmetric.** `vercel env add NAME <env>` scopes the addition to that
   environment, but `vercel env rm NAME <env>` **deletes the variable across every environment** and
   ignores the argument. A removal intended to narrow a scope destroys the whole variable. This
@@ -111,8 +111,10 @@ Use Node 20 and pnpm 9.15. From the repository root, run:
 
 ```bash
 pnpm install
-pnpm format:check
-pnpm lint
+pnpm format         # prettier --write .
+pnpm format:check   # prettier --check .
+pnpm lint           # eslint, --max-warnings 0, every package
+pnpm lint:fix       # eslint --fix, every package
 pnpm typecheck
 pnpm test
 pnpm build
@@ -121,6 +123,38 @@ pnpm check
 
 `pnpm check` runs formatting, linting, type checking, and unit tests in that order. Run commands
 through the `rtk` proxy as described in `RTK.md` when supported.
+
+Formatting is pinned by `.prettierrc.json` — an explicit statement of Prettier's own defaults
+(80 columns, double quotes, semicolons, trailing commas). It exists so a future Prettier release
+cannot silently reformat the tree. Do not change a setting in it to accommodate one file.
+
+ESLint's configuration lives in `eslint.config.mjs` (flat config): `strictTypeChecked` plus
+`stylisticTypeChecked`, and the architectural boundaries — the domain package may not import React,
+Next.js, Three.js, the adapter or catalog data; the adapter may not import React, Next.js or the app
+shell; `apps/web` must import workspace packages through their public entry points. Those
+`no-restricted-imports` rules are the enforcement behind `ARCHITECTURE_PROPOSAL.md` §3 and are not
+advisory. No `eslint-config-prettier` is needed: typescript-eslint v8 ships no formatting rules, so
+there is nothing for Prettier to conflict with.
+
+## Rule — format and lint before every commit
+
+**Every commit must be formatted and lint-clean.** This is enforced by a repository-managed Git
+hook, not left to memory.
+
+`.githooks/pre-commit` formats the staged files in place, re-stages them, then runs `pnpm lint`
+across the workspace. A lint error aborts the commit. `pnpm install` enables it by pointing
+`core.hooksPath` at `.githooks` via the root `prepare` script; to enable it by hand in a fresh clone:
+
+```bash
+git config core.hooksPath .githooks
+```
+
+The hook deliberately does **not** run `pnpm typecheck` or `pnpm test`. The persistence suite talks
+to a live Neon database, so including it would fail commits for anyone offline or without
+credentials. `pnpm check` is the full gate and belongs before a push, a PR, or a milestone close-out
+— never skipped on the assumption the hook already covered it.
+
+Do not bypass the hook with `git commit --no-verify`. If the hook is wrong, fix the hook.
 
 ## Skills
 

@@ -69,9 +69,15 @@ export function deriveCabinetWorldTransform(
   const halfDepthM = input.depthM / 2;
   return {
     position: {
-      x: wall.origin.x + wall.tangent.x * input.alongM + wall.frontNormal.x * halfDepthM,
+      x:
+        wall.origin.x +
+        wall.tangent.x * input.alongM +
+        wall.frontNormal.x * halfDepthM,
       y: input.y0M,
-      z: wall.origin.z + wall.tangent.z * input.alongM + wall.frontNormal.z * halfDepthM,
+      z:
+        wall.origin.z +
+        wall.tangent.z * input.alongM +
+        wall.frontNormal.z * halfDepthM,
     },
     yawRadians: wall.yawRadians,
   };

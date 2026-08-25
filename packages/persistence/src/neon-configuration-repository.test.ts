@@ -2,7 +2,11 @@ import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { canonicalSerializeDesign, DesignNotFoundError, KITCHEN_L_DESIGN } from "@lemnaria/configurator-domain";
+import {
+  canonicalSerializeDesign,
+  DesignNotFoundError,
+  KITCHEN_L_DESIGN,
+} from "@lemnaria/configurator-domain";
 import type { DesignId } from "@lemnaria/configurator-domain";
 import { neon } from "@neondatabase/serverless";
 import { afterEach, beforeAll, describe, expect, it } from "vitest";
@@ -56,58 +60,85 @@ describe("NeonConfigurationRepository (live test database)", () => {
       const id = await saveTrackingId(repository, null, KITCHEN_L_DESIGN);
       const loaded = await repository.load(id);
 
-      expect(canonicalSerializeDesign(loaded)).toBe(canonicalSerializeDesign(KITCHEN_L_DESIGN));
+      expect(canonicalSerializeDesign(loaded)).toBe(
+        canonicalSerializeDesign(KITCHEN_L_DESIGN),
+      );
     },
   );
 
-  it.skipIf(!hasLiveDatabase)("overwrites the row when save is called with an existing id", async () => {
-    const repository = testRepository();
-    const id = await saveTrackingId(repository, null, KITCHEN_L_DESIGN);
-    const updated = { ...KITCHEN_L_DESIGN, presetId: "updated-preset" };
+  it.skipIf(!hasLiveDatabase)(
+    "overwrites the row when save is called with an existing id",
+    async () => {
+      const repository = testRepository();
+      const id = await saveTrackingId(repository, null, KITCHEN_L_DESIGN);
+      const updated = { ...KITCHEN_L_DESIGN, presetId: "updated-preset" };
 
-    const returnedId = await repository.save(id, updated);
-    const loaded = await repository.load(id);
+      const returnedId = await repository.save(id, updated);
+      const loaded = await repository.load(id);
 
-    expect(returnedId).toBe(id);
-    expect(canonicalSerializeDesign(loaded)).toBe(canonicalSerializeDesign(updated));
-  });
+      expect(returnedId).toBe(id);
+      expect(canonicalSerializeDesign(loaded)).toBe(
+        canonicalSerializeDesign(updated),
+      );
+    },
+  );
 
-  it.skipIf(!hasLiveDatabase)("throws DesignNotFoundError for a random nonexistent id", async () => {
-    const repository = testRepository();
+  it.skipIf(!hasLiveDatabase)(
+    "throws DesignNotFoundError for a random nonexistent id",
+    async () => {
+      const repository = testRepository();
 
-    await expect(repository.load("does-not-exist-00000000")).rejects.toThrow(DesignNotFoundError);
-  });
+      await expect(repository.load("does-not-exist-00000000")).rejects.toThrow(
+        DesignNotFoundError,
+      );
+    },
+  );
 
-  it.skipIf(!hasLiveDatabase)("throws DesignNotFoundError when saving to an id no row carries", async () => {
-    const repository = testRepository();
+  it.skipIf(!hasLiveDatabase)(
+    "throws DesignNotFoundError when saving to an id no row carries",
+    async () => {
+      const repository = testRepository();
 
-    // A bare `update` matching no row reports success, so without an explicit check this silently
-    // persists nothing while reporting the design as saved.
-    await expect(repository.save("does-not-exist-00000000", KITCHEN_L_DESIGN)).rejects.toThrow(
-      DesignNotFoundError,
-    );
-    await expect(repository.load("does-not-exist-00000000")).rejects.toThrow(DesignNotFoundError);
-  });
+      // A bare `update` matching no row reports success, so without an explicit check this silently
+      // persists nothing while reporting the design as saved.
+      await expect(
+        repository.save("does-not-exist-00000000", KITCHEN_L_DESIGN),
+      ).rejects.toThrow(DesignNotFoundError);
+      await expect(repository.load("does-not-exist-00000000")).rejects.toThrow(
+        DesignNotFoundError,
+      );
+    },
+  );
 
-  it.skipIf(!hasLiveDatabase)("leaves no row behind once its own cleanup has run", async () => {
-    const repository = testRepository();
-    const id = await repository.save(null, KITCHEN_L_DESIGN);
+  it.skipIf(!hasLiveDatabase)(
+    "leaves no row behind once its own cleanup has run",
+    async () => {
+      const repository = testRepository();
+      const id = await repository.save(null, KITCHEN_L_DESIGN);
 
-    const sql = neon(testDatabaseUrl);
-    await sql`delete from designs where id = ${id}`;
+      const sql = neon(testDatabaseUrl);
+      await sql`delete from designs where id = ${id}`;
 
-    await expect(repository.load(id)).rejects.toThrow(DesignNotFoundError);
-  });
+      await expect(repository.load(id)).rejects.toThrow(DesignNotFoundError);
+    },
+  );
 
-  it.skipIf(!hasLiveDatabase)("targets a database that is not the application's own", () => {
-    const applicationDatabase = new URL(process.env["DATABASE_URL"] ?? "").pathname;
-    expect(new URL(testDatabaseUrl).pathname).not.toBe(applicationDatabase);
-  });
+  it.skipIf(!hasLiveDatabase)(
+    "targets a database that is not the application's own",
+    () => {
+      const applicationDatabase = new URL(process.env["DATABASE_URL"] ?? "")
+        .pathname;
+      expect(new URL(testDatabaseUrl).pathname).not.toBe(applicationDatabase);
+    },
+  );
 });
 
 describe("NeonConfigurationRepository connection setup", () => {
   it("never disables TLS in its own connection-string handling", () => {
-    const sourceFiles = ["read-database-url.ts", "neon-configuration-repository.ts"].map((fileName) =>
+    const sourceFiles = [
+      "read-database-url.ts",
+      "neon-configuration-repository.ts",
+    ].map((fileName) =>
       readFileSync(resolve(CURRENT_FILE_DIR, fileName), "utf8"),
     );
 

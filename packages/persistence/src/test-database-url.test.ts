@@ -2,7 +2,8 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { resolveTestDatabaseUrl } from "./test-database-url.js";
 
-const APPLICATION_URL = "postgresql://user:secret@host.neon.tech/neondb?sslmode=require";
+const APPLICATION_URL =
+  "postgresql://user:secret@host.neon.tech/neondb?sslmode=require";
 
 describe("resolveTestDatabaseUrl", () => {
   const originalDatabaseUrl = process.env["DATABASE_URL"];
@@ -29,7 +30,8 @@ describe("resolveTestDatabaseUrl", () => {
   });
 
   it("prefers TEST_DATABASE_URL when one is set, so a wholly separate instance can be used", () => {
-    process.env["TEST_DATABASE_URL"] = "postgresql://u:p@other.neon.tech/isolated_tests";
+    process.env["TEST_DATABASE_URL"] =
+      "postgresql://u:p@other.neon.tech/isolated_tests";
 
     expect(new URL(resolveTestDatabaseUrl()).host).toBe("other.neon.tech");
   });
@@ -37,12 +39,17 @@ describe("resolveTestDatabaseUrl", () => {
   it("refuses a TEST_DATABASE_URL pointing at the application's own database", () => {
     process.env["TEST_DATABASE_URL"] = APPLICATION_URL;
 
-    expect(() => resolveTestDatabaseUrl()).toThrow(/Refusing to run live database tests/);
+    expect(() => resolveTestDatabaseUrl()).toThrow(
+      /Refusing to run live database tests/,
+    );
   });
 
   it("refuses when the application database is itself already named lemnaria_test", () => {
-    process.env["DATABASE_URL"] = "postgresql://user:secret@host.neon.tech/lemnaria_test";
+    process.env["DATABASE_URL"] =
+      "postgresql://user:secret@host.neon.tech/lemnaria_test";
 
-    expect(() => resolveTestDatabaseUrl()).toThrow(/Refusing to run live database tests/);
+    expect(() => resolveTestDatabaseUrl()).toThrow(
+      /Refusing to run live database tests/,
+    );
   });
 });

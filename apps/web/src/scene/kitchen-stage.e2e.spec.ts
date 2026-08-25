@@ -91,14 +91,11 @@ test("a selected body renders a visible highlight distinct from no selection", a
   expect(Buffer.compare(before, after)).not.toBe(0);
 });
 
-test.skip(
-  "tapping an empty void slot selects it — UNVERIFIABLE with the current seeded design",
-  () => {
-    // `KITCHEN_L_DESIGN` is fully occupied by construction: `recomputeVoids()` returns `[]` for it
-    // (asserted in `apps/web/src/store/configurator-store.test.ts`), so there is no void anywhere
-    // in the running app for a real tap to land on. Verifying "tap an empty slot selects it" and
-    // "a selected void is visually distinguishable from a selected body" needs either a design
-    // fixture with an intentional gap or waiting for M3, which is the first milestone that removes
-    // or clears a placement. Left as a skipped, named gap rather than faked.
-  },
-);
+test.skip("tapping an empty void slot selects it — UNVERIFIABLE with the current seeded design", () => {
+  // `KITCHEN_L_DESIGN` is fully occupied by construction: `recomputeVoids()` returns `[]` for it
+  // (asserted in `apps/web/src/store/configurator-store.test.ts`), so there is no void anywhere
+  // in the running app for a real tap to land on. Verifying "tap an empty slot selects it" and
+  // "a selected void is visually distinguishable from a selected body" needs either a design
+  // fixture with an intentional gap or waiting for M3, which is the first milestone that removes
+  // or clears a placement. Left as a skipped, named gap rather than faked.
+});
