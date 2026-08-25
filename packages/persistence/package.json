@@ -27,7 +27,7 @@
     "nanoid": "6.0.1"
   },
   "devDependencies": {
-    "@types/node": "20.19.9",
+    "@types/node": "24.13.3",
     "tsx": "4.23.12"
   }
 }

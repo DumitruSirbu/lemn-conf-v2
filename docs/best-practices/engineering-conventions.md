@@ -73,6 +73,22 @@ file, not a Claude session's global conventions.
   a test file by accident, and "what is in this package?" is answerable by listing one directory.
   Helpers that exist only for tests (headless canvases, stubs, structural assertions) are test
   infrastructure and belong under `tests/support/`, not in `src/`.
+- **Every package owns its tests completely, and must stay liftable.** A package plus its `tests/`
+  directory is a self-contained unit: it can be moved into its own repository or extracted as a
+  separate service without hunting for its tests, its fixtures, or its helpers. That is a deliberate
+  option being kept open, not an accident of layout.
+
+  Two things follow, and they are the ones easy to break without noticing:
+
+  - No shared test infrastructure at the repository root, and no test importing across a package
+    boundary except through the target package's public entry point — the same rule production code
+    follows. A helper needed by two packages either belongs to one of them and is imported publicly,
+    or is duplicated. A root `test-utils/` directory would silently re-couple every package to the
+    monorepo.
+  - Each package's suite must pass when run from inside that package
+    (`pnpm --filter <pkg> test`), not only from the root. If a suite depends on the root runner's
+    ordering or on another package's build having happened first, the package is not liftable —
+    that is what each package's own `build:deps` step exists to guarantee.
 - Playwright end-to-end specs live in `apps/web/tests/e2e/` and keep the `*.e2e.spec.ts` suffix, so
   the vitest `tests/**/*.test.ts` glob and the Playwright `testDir` never collect each other's files.
 - Avoid vacuous assertions: ensure a filtered collection or loop actually exercised the case it

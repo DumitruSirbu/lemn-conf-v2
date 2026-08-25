@@ -5,7 +5,7 @@ adding or editing a CI gate, or diagnosing a hook that blocked a commit or a pus
 
 ## Root development commands
 
-Use Node 20 and pnpm 9.15. From the repository root:
+Use Node 24 and pnpm 9.15 (`.nvmrc` pins it; `nvm use` picks it up). From the repository root:
 
 ```bash
 pnpm install

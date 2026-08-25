@@ -4,7 +4,7 @@
   "private": true,
   "packageManager": "pnpm@9.15.9",
   "engines": {
-    "node": ">=20 <21",
+    "node": ">=24 <25",
     "pnpm": ">=9.15 <10"
   },
   "//scripts": "Recursive scripts run with --workspace-concurrency=1 on purpose. Several packages depend on @lemnaria/configurator-domain and each builds it via its own build:deps, so running them concurrently puts multiple tsc processes on the same dist/ and produces spurious 'error type' lint failures on a cold tree.",
