@@ -35,6 +35,26 @@ State observable invariants, including what must not happen. Name input boundari
 modes. For 3D work, include the coordinate/anchor rule, scaling rule, structural dependencies, and
 the visual evidence needed to verify the result.
 
+## Working conventions
+
+- For meaningful product phases, use the agent team as the default workflow: architect → scoped
+  developer wave → adversarial QA → parallel logic/quality/visual review (plus security when
+  triggered) → orchestrator verification → scribe close-out. Reuse the same reviewer agents on
+  follow-up rounds where possible.
+- Plan before implementation when a change has multiple components, changes a product invariant,
+  or affects a public configuration/pricing contract.
+- Keep implementation dispatches narrow: at most five concrete items and, where practical, five
+  files. Each behaviour change needs a paired regression test or an explicit reason it cannot.
+- Run the relevant checks yourself. Do not report a test, build, screenshot, or observation that
+  you did not personally obtain.
+- Review the actual diff before accepting an agent's summary. Agent reports are evidence leads,
+  not proof.
+- For visual or interactive work, verify the real surface at the agreed mobile viewport once the
+  application exists. Keep temporary screenshots out of the committed project unless the user
+  explicitly asks to retain them.
+- Do not add tool-specific hooks, credentials, timers, or machine-local settings from the previous
+  Claude project. They are not portable project configuration.
+
 ## Team coordination
 
 The main Codex agent owns the working tree and final outcome. It may delegate bounded work to the

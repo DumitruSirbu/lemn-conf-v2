@@ -1,208 +1,75 @@
-# Lemnaria Configurator — Codex Project Guide
+# Lemnaria Configurator — project guide
 
-This repository will build the next Lemnaria furniture configurator.
+This repository builds the next Lemnaria kitchen configurator: a pnpm monorepo with an I/O-free
+domain package, a Three.js adapter, a persistence package that is the only place a Postgres driver
+appears, and a Next.js App Router app.
 
-`design-source/` is the supplier's original deliverable. It is **not tracked in git** and will be
-deleted from the working tree once the port is finished, so nothing in the repository may depend on
-it. Everything still needed from it has been copied into the project's own source and is what you
-should read and cite:
+This file is loaded every session, so it stays short. It routes; the linked documents carry the
+detail. **Read the linked document before acting in its area** — do not work from this summary.
 
-- `docs/design/DEVELOPMENT-SPEC.md` — the authoritative behavioural spec (sections, `§11` row
-  numbers, tolerances).
-- `docs/design/SPEC.md` — the original supplier spec it superseded.
-- `docs/design/mockups/*.dc.html` — the screen mockups the milestones cite by frame name.
-- `packages/three-adapter/reference/kitchen-parts.js` — the reference geometry M1's structural
-  parity suite diffs the port against.
+## Three rules that apply before you read anything else
 
-Older documents still mention `design-source/` paths when describing where something originally came
-from. That is historical provenance; read it as such, and do not add new dependencies on the folder.
+1. **Environment variables and provisioned resources are add-only.** Never remove or overwrite a
+   variable, never delete a resource. Report the problem and let the human decide. Never print a
+   secret's value. → `docs/best-practices/environments-and-resources.md`
+2. **Report only what you ran.** A green command is evidence only when you executed it and can quote
+   the result. Never present a plan as shipped, or an agent's summary as proof.
+3. **`design-source/` is untracked and will be deleted.** Nothing may import from it. Everything the
+   project needs was copied into its own source; older documents mention the folder only as
+   historical provenance. → `docs/design/README.md`
 
-## Start here
+## Where to look, and when
 
-Before planning or changing product behaviour, read the relevant source material:
+**Before planning or changing product behaviour**
 
-- `docs/PRODUCT_REQUIREMENTS.md` — the authoritative product goal, initial scope, and open product
-  decisions for the new configurator.
-- `docs/ARCHITECTURE_PROPOSAL.md` — the accepted technical architecture and delivery roadmap;
-  dated decision records and its explicitly unresolved inputs govern implementation.
-- `docs/design/DEVELOPMENT-SPEC.md` — the current domain and
-  editor contract: placements, derived voids, columns, bands, insert/remove/swap/resize, picking,
-  panel behaviour, and a 24-row regression table. Every rule marked **WHY:** is a shipped defect's
-  fix and must not be simplified away.
-- `docs/design/SPEC.md` — the current 3D kitchen contract. It
-  defines coordinate conventions, dimensions, non-negotiable structural dependencies, and visual
-  rules.
-- `docs/design/mockups/Lemnaria Configurator Mobil.dc.html` and
-  `…Desktop.dc.html` — the screen flow, states, and Romanian copy. Mobile is the priority surface
-  and the only file covering all five screens.
-- `docs/decisions/2026-08-24-design-reference-supersession.md` — what the new reference superseded
-  in the earlier domain documents, and what survives.
-- `docs/WORKFLOW.md` — the planning, implementation, QA, review, and close-out cycle.
-- `docs/best-practices/` — detailed reusable engineering, browser/visual QA, and documentation
-  conventions adapted from the reference project.
-- `docs/AGENT_ROLES.md` — role cards and hand-off formats for a Codex agent team.
-- `docs/agents/` — individual Codex dispatch profiles adapted from the reference project's
-  `.claude/agents/` definitions.
+| Read                                        | When                                                                                                                                                                                                                        |
+| ------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `docs/PRODUCT_REQUIREMENTS.md`              | You need the product goal, scope, or an open product decision.                                                                                                                                                              |
+| `docs/ARCHITECTURE_PROPOSAL.md`             | You need module boundaries, the delivery roadmap, or a recorded technical decision.                                                                                                                                         |
+| `docs/design/DEVELOPMENT-SPEC.md`           | **The authoritative behavioural contract.** Placements, derived voids, columns, bands, insert/remove/swap/resize, picking, panels, and the §11 regression table. Cite it by section and row.                                |
+| `docs/design/SPEC.md`                       | You need the original 3D contract: coordinates, dimensions, structural dependencies. Superseded by DEVELOPMENT-SPEC where they disagree.                                                                                    |
+| `docs/design/mockups/`                      | You are building or reviewing a screen. `Lemnaria Configurator Mobil.dc.html` is the priority surface and the only file covering all five screens; `…Desktop.dc.html` and `Alegere corp - layouturi.dc.html` sit beside it. |
+| `docs/best-practices/product-invariants.md` | You are touching geometry, dimensions, or visual behaviour.                                                                                                                                                                 |
 
-Later decisions belong in `docs/decisions/`; acceptance criteria and phase plans belong in
-`docs/milestones/`. A dated decision or correction in those directories supersedes earlier prose.
+**While working**
 
-## Product invariants already known
+| Read                                                | When                                                                                                               |
+| --------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| `docs/WORKFLOW.md`                                  | Starting a phase, dispatching agents, or closing one out. Includes the working conventions and evidence standards. |
+| `docs/best-practices/ci-and-local-gates.md`         | Running build/test commands, changing lint or format config, adding a CI gate, or a hook blocked you.              |
+| `docs/best-practices/environments-and-resources.md` | Touching any env var, secret, database, or provisioned resource.                                                   |
+| `docs/best-practices/engineering-conventions.md`    | Writing code — naming, structure, DRY/KISS/SOLID.                                                                  |
+| `docs/best-practices/browser-and-visual-qa.md`      | Verifying a visible or interactive surface.                                                                        |
+| `docs/best-practices/documentation.md`              | Writing a decision record or milestone update.                                                                     |
+| `docs/AGENT_ROLES.md` and `docs/agents/`            | Dispatching a sub-agent; role cards and hand-off formats.                                                          |
 
-- Work in metres in the 3D model. Do not silently mix metres, millimetres, and centimetres.
-- Preserve the reference coordinate system: origin at the floor and centre of a unit; +Y up; +Z
-  faces the customer; +X is right when facing the unit.
-- A bought appliance, sink, or handle has fixed real-world dimensions unless a requirement says
-  otherwise. Cabinet bodies may scale only along the dimensions the spec permits.
-- A visual change must keep its stated structural dependencies. For example, a sink requires a
-  cut worktop and an open cabinet frame; it cannot be fixed in isolation.
-- Prefer the existing 3D reference as evidence over a visual guess. Record intentional departures
-  with their reason and acceptance criteria before implementing them.
+**Current state and history**
 
-## Hard rule — environment variables and provisioned resources are add-only
+| Read                        | When                                                                                                |
+| --------------------------- | --------------------------------------------------------------------------------------------------- |
+| `docs/milestones/README.md` | You need the phase map and what is in flight.                                                       |
+| `docs/milestones/M<n>-*.md` | Working on a phase — goal, scope, falsifiable acceptance criteria.                                  |
+| `docs/decisions/`           | Before re-deciding anything. A dated record supersedes earlier prose; do not silently overturn one. |
+| `docs/runbooks/`            | Operating something live, e.g. restoring the database.                                              |
 
-**Never remove or overwrite an environment variable, and never delete a provisioned resource.
-Adding is the only permitted operation.** This applies to `vercel env rm`, `vercel env add` over an
-existing name, `vercel blob delete-store`, `vercel integration-resource remove`, and any equivalent
-dashboard action or API call.
-
-If something appears wrong — a variable is scoped too broadly, holds a stale value, or a resource is
-unused — **report it and let the human decide**. Do not fix it by removing.
-
-Why this is absolute rather than a preference:
-
-- **The values cannot be read back.** Vercel marks Production and Preview variables sensitive by
-  default, so `vercel env pull` returns them empty. A deletion is therefore _irreversible by the
-  agent_: there is no way to restore what was there.
-- **The commands are not symmetric.** `vercel env add NAME <env>` scopes the addition to that
-  environment, but `vercel env rm NAME <env>` **deletes the variable across every environment** and
-  ignores the argument. A removal intended to narrow a scope destroys the whole variable. This
-  actually happened on 2026-08-25: an attempt to unscope `CRON_SECRET` from Preview removed it from
-  Production too, and the value could not be recovered.
-- **Failures are silent and delayed.** A missing variable usually does not break a build; it breaks
-  a scheduled job or a request path later, in an environment nobody is watching.
-
-Narrowing a scope, rotating a secret, or retiring a resource are all human decisions. Prepare the
-exact commands or dashboard steps and hand them over.
-
-## Working conventions
-
-- For meaningful product phases, use the agent team as the default workflow: architect → scoped
-  developer wave → adversarial QA → parallel logic/quality/visual review (plus security when
-  triggered) → orchestrator verification → scribe close-out. Follow `docs/WORKFLOW.md` and reuse
-  the same reviewer agents on follow-up rounds where possible.
-- Plan before implementation when a change has multiple components, changes a product invariant,
-  or affects a public configuration/pricing contract.
-- Keep implementation dispatches narrow: at most five concrete items and, where practical, five
-  files. Each behaviour change needs a paired regression test or an explicit reason it cannot.
-- Run the relevant checks yourself. Do not report a test, build, screenshot, or observation that
-  you did not personally obtain.
-- Review the actual diff before accepting an agent's summary. Agent reports are evidence leads,
-  not proof.
-- For visual or interactive work, verify the real surface at the agreed mobile viewport once the
-  application exists. Keep temporary screenshots out of the committed project unless the user
-  explicitly asks to retain them.
-- Do not add tool-specific hooks, credentials, timers, or machine-local settings from the previous
-  Claude project. They are not portable project configuration.
-
-## Root development commands
-
-Use Node 20 and pnpm 9.15. From the repository root, run:
-
-```bash
-pnpm install
-pnpm format         # prettier --write .
-pnpm format:check   # prettier --check .
-pnpm lint           # eslint, --max-warnings 0, every package
-pnpm lint:fix       # eslint --fix, every package
-pnpm typecheck
-pnpm test
-pnpm build
-pnpm check
-pnpm ci:local       # every CI gate, run before each push
-```
-
-`pnpm check` runs formatting, linting, type checking, and unit tests in that order. `pnpm ci:local`
-additionally runs build, boundary, lockfile and audit — the full CI set, and what `.githooks/pre-push`
-enforces. Run commands through the `rtk` proxy as described in `RTK.md` when supported, but treat its
-output with suspicion for tools it does not model: on 2026-08-25 it reported "All files formatted
-correctly" for `npx prettier --version` and zero matches for a `find` that had matches. When a result
-decides something, re-run the binary directly (`./node_modules/.bin/…`) or capture output to a file
-and read that.
-
-Formatting is pinned by `.prettierrc.json` — an explicit statement of Prettier's own defaults
-(80 columns, double quotes, semicolons, trailing commas). It exists so a future Prettier release
-cannot silently reformat the tree. Do not change a setting in it to accommodate one file.
-
-ESLint's configuration lives in `eslint.config.mjs` (flat config): `strictTypeChecked` plus
-`stylisticTypeChecked`, and the architectural boundaries — the domain package may not import React,
-Next.js, Three.js, the adapter or catalog data; the adapter may not import React, Next.js or the app
-shell; `apps/web` must import workspace packages through their public entry points. Those
-`no-restricted-imports` rules are the enforcement behind `ARCHITECTURE_PROPOSAL.md` §3 and are not
-advisory. No `eslint-config-prettier` is needed: typescript-eslint v8 ships no formatting rules, so
-there is nothing for Prettier to conflict with.
-
-## Rule — format and lint before every commit
-
-**Every commit must be formatted and lint-clean.** This is enforced by a repository-managed Git
-hook, not left to memory.
-
-`.githooks/pre-commit` formats the staged files in place, re-stages them, then runs `pnpm lint`
-across the workspace. A lint error aborts the commit. `pnpm install` enables it by pointing
-`core.hooksPath` at `.githooks` via the root `prepare` script; to enable it by hand in a fresh clone:
-
-```bash
-git config core.hooksPath .githooks
-```
-
-The hook deliberately does **not** run `pnpm typecheck` or `pnpm test`. The persistence suite talks
-to a live Neon database, so including it would fail commits for anyone offline or without
-credentials. The full gate runs before the push instead — see below.
-
-Do not bypass the hook with `git commit --no-verify`. If the hook is wrong, fix the hook.
-
-## Rule — the whole CI gate set runs locally before every push
-
-**Nothing is pushed to GitHub until every CI gate passes locally.** GitHub Actions minutes on a
-private repository are a limited monthly allowance (2,000 on Free, 3,000 on Pro); local minutes are
-free. A push that would fail CI must fail on this machine instead.
-
-`.githooks/pre-push` runs `pnpm ci:local`, which mirrors `.github/workflows/ci.yml` gate for gate:
-
-```bash
-pnpm ci:local        # format, lint, typecheck, test, build, boundary, lockfile, sca
-```
-
-It runs **every** gate rather than stopping at the first failure, because CI reports all nine jobs
-independently — a local gate that hides the second failure until the first is fixed wastes the round
-trip it exists to save. It takes well under a minute on this repository.
-
-The `boundary` and `lockfile:single-source` gates are the **same shell scripts** the workflow
-invokes (`scripts/gates/`), not reimplementations. That is deliberate: a local gate that has drifted
-from the remote one is worse than no local gate, because it reports a pass that means nothing.
-
-One gate cannot be reproduced locally: `install`, which resolves the lockfile from scratch on a clean
-runner. Run `pnpm install` after changing any dependency, or the remote build will still fail.
-
-Do not bypass with `git push --no-verify`. If a gate is wrong, fix the gate.
-
-**When adding a gate, prove it fails.** Both boundary greps originally used `\b`, which
-`git grep -E`'s POSIX ERE does not support — so they matched nothing and reported green while
-checking nothing, in CI included. A gate is only real once you have watched it reject the thing it
-exists to reject.
+Later decisions belong in `docs/decisions/`; acceptance criteria and phase plans in
+`docs/milestones/`.
 
 ## Skills
 
 Use the repository-local skill guides when their trigger matches:
 
-- `docs/skills/lemnaria-3d-reference/SKILL.md` for planning, implementing, or reviewing the
-  kitchen 3D model.
-- `docs/skills/lemnaria-delivery-workflow/SKILL.md` for phase planning, QA, review, or
-  documentation close-out.
+- `docs/skills/lemnaria-3d-reference/SKILL.md` — planning, implementing, or reviewing the kitchen 3D
+  model.
+- `docs/skills/lemnaria-delivery-workflow/SKILL.md` — phase planning, QA, review, or documentation
+  close-out.
 
-The prior project also used large, general third-party guidance for Next.js, Playwright, Tailwind,
-and UI/UX. This Codex workspace already supplies focused React/Next.js, browser, image, and
-document skills. Add a project-local replacement only after the new stack makes it useful; avoid
-vendoring several megabytes of generic material before it has a concrete role.
+Avoid vendoring large generic third-party guidance; this workspace already supplies focused
+React/Next.js, browser, image, and document skills.
+
+## Commands
+
+`pnpm check` before a commit that closes a phase, `pnpm ci:local` before every push. Full command
+list and the hook rules: `docs/best-practices/ci-and-local-gates.md`.
 
 @RTK.md
