@@ -4,6 +4,20 @@ Recorded during M2 Wave 2B. Nothing here is broken today — the project has **n
 (`vercel ls` reports no deployments) — but each item below silently prevents something from working
 the first time it is.
 
+## Status — items 1 and 2 resolved 2026-08-25
+
+`vercel project inspect` now reports Root Directory `apps/web` and Framework Preset `Next.js`, with
+"include files outside the root directory in the Build Step" enabled — required here, because
+`apps/web` depends on three workspace packages that live outside its root. `apps/web/vercel.json` is
+therefore in a location Vercel reads, so the cron declaration will register.
+
+`apps/web`'s `build` script is `pnpm run build:deps && next build`, and Vercel's Next.js preset runs
+the package.json `build` script when one exists. That matters: `dist/` is gitignored, so the
+workspace packages must be compiled during the deploy, and `build:deps` is what does it. No Build
+Command override is needed.
+
+**Items 3 and 4 below remain open.**
+
 ## 1. `vercel.json` is not where Vercel will look for it
 
 Vercel reads `vercel.json` from the project's configured **Root Directory**. That setting is
