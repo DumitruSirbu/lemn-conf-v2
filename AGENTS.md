@@ -19,7 +19,7 @@ a design the project abandoned. Business logic lives in `docs/decisions/`: those
 repository's knowledge base and the durable "why" behind the code. A dated decision beats any
 milestone prose.
 
-## Three rules that apply before you read anything else
+## Four rules that apply before you read anything else
 
 1. **Environment variables and provisioned resources are add-only.** Never remove or overwrite a
    variable, never delete a resource. Report the problem and let the human decide. Never print a
@@ -29,6 +29,12 @@ milestone prose.
 3. **`design-source/` is untracked and will be deleted.** Nothing may import from it. Everything the
    project needs was copied into its own source; older documents mention the folder only as
    historical provenance. → `docs/design/README.md`
+4. **Milestone work follows `docs/WORKFLOW.md`, without exception.** Every wave runs plan →
+   implement → **adversarial QA** → **review** → verify → commit → archive. QA gates review: a wave
+   whose tests are red does not go to reviewers, it goes back to its implementer. A wave that has
+   not been reviewed is not finished, however green its gates are — gates catch regressions against
+   what is already asserted; review catches a rule implemented plausibly and wrongly. Skipping a
+   step is a decision to record, not a default to drift into. → `docs/WORKFLOW.md`
 
 ## Where to look, and when
 
@@ -45,16 +51,15 @@ milestone prose.
 
 **While working**
 
-| Read                                                | When                                                                                                                                                                                      |
-| --------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `docs/best-practices/dev-qa-cycle.md`               | **The authoritative delivery process.** Read before dispatching any implementer, QA or reviewer: scope limits, QA-gates-review, finding numbering, review continuity, definition of done. |
-| `docs/WORKFLOW.md`                                  | The phase cycle end to end, the working conventions, and evidence standards. Defers to dev-qa-cycle.md on dispatch and review rules.                                                      |
-| `docs/best-practices/ci-and-local-gates.md`         | Running build/test commands, changing lint or format config, adding a CI gate, or a hook blocked you.                                                                                     |
-| `docs/best-practices/environments-and-resources.md` | Touching any env var, secret, database, or provisioned resource.                                                                                                                          |
-| `docs/best-practices/engineering-conventions.md`    | Writing code — naming, structure, DRY/KISS/SOLID.                                                                                                                                         |
-| `docs/best-practices/browser-and-visual-qa.md`      | Verifying a visible or interactive surface.                                                                                                                                               |
-| `docs/best-practices/documentation.md`              | Writing a decision record or milestone update.                                                                                                                                            |
-| `docs/AGENT_ROLES.md` and `docs/agents/`            | Dispatching a sub-agent; role cards and hand-off formats.                                                                                                                                 |
+| Read                                                | When                                                                                                                                                                                                                                                 |
+| --------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `docs/WORKFLOW.md`                                  | **The authoritative delivery process — mandatory for every milestone wave.** Read before dispatching any implementer, QA or reviewer: the seven-step cycle, scope limits, QA-gates-review, finding numbering, review continuity, evidence standards. |
+| `docs/best-practices/ci-and-local-gates.md`         | Running build/test commands, changing lint or format config, adding a CI gate, or a hook blocked you.                                                                                                                                                |
+| `docs/best-practices/environments-and-resources.md` | Touching any env var, secret, database, or provisioned resource.                                                                                                                                                                                     |
+| `docs/best-practices/engineering-conventions.md`    | Writing code — naming, structure, DRY/KISS/SOLID.                                                                                                                                                                                                    |
+| `docs/best-practices/browser-and-visual-qa.md`      | Verifying a visible or interactive surface.                                                                                                                                                                                                          |
+| `docs/best-practices/documentation.md`              | Writing a decision record or milestone update.                                                                                                                                                                                                       |
+| `docs/AGENT_ROLES.md` and `docs/agents/`            | Dispatching a sub-agent; role cards and hand-off formats.                                                                                                                                                                                            |
 
 **Current state and history**
 

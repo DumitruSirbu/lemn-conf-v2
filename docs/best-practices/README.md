@@ -1,9 +1,12 @@
 # Engineering best practices
 
+The delivery process itself — dispatch, QA, review, close-out — is **not** here. It lives in
+`docs/WORKFLOW.md`, which is the single authoritative source. `dev-qa-cycle.md` was merged into it
+on 2026-08-25 because two process documents meant a session could read one and miss the other.
+
 These guides were adapted from the previous Lemnaria configurator. They preserve reusable working
 standards without importing its Next.js, Turborepo, Zustand, port, locale, or test-path decisions.
 
-- `dev-qa-cycle.md` — authoritative phase-delivery and review rules.
 - `engineering-conventions.md` — stack-independent code, state, validation, and test conventions.
 - `browser-and-visual-qa.md` — browser, mobile, and visual verification rules.
 - `documentation.md` — decisions, corrections, and close-out records.

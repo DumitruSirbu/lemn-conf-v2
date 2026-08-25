@@ -1,5 +1,10 @@
 # Milestone plan — revised 2026-08-24
 
+> **Every wave in every milestone below follows `docs/WORKFLOW.md`** — plan → implement →
+> adversarial QA → review → verify → commit → archive. QA gates review. A wave is not done when
+> its gates are green; it is done when it has been reviewed and its acceptance criteria are met.
+> Deviating is a decision to record in `docs/decisions/`, not a shortcut to take quietly.
+>
 > **Read `docs/STATUS.md` first.** It says where the project stands and which of the plans below
 > are worth opening. Completed phases are archived in `done/` and should not be read — see
 > `done/README.md`. This file is the *plan and its reasoning*, not the current state.
