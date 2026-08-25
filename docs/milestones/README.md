@@ -47,7 +47,7 @@ Step 3 Verificare  →  Step 4 Contact  →  Step 5 Succes
 | [M0](M0-foundations.md) | Foundations — closed, partially superseded | domain package |
 | [M1](M1-scene-port.md) | Geometry port, R3F canvas, camera presets, no editing — **fidelity gate — closed 2026-08-25** | shared + mobile |
 | [M2](M2-void-engine.md) | Placement/column/void engine, picking (wave 2A), **DB persistence and shareable links** (wave 2B) | domain + scene |
-| [M3](M3-mutations.md) | Insert, remove, swap, with every guard | domain |
+| [M3](M3-mutations.md) | Insert, remove, swap, with every guard; the client write path | domain + adapter + scene |
 | [M4](M4-editor-surface.md) | Editor panel and shell — screens 2A, 2B, 2C, 2F | **mobile-gated** |
 | [M5](M5-width.md) | Width editing as a neighbour boundary move | domain + panel |
 | [M6](M6-price-and-global-settings.md) | Price bar, breakdown, whole-kitchen settings — 2D, 2E | **mobile-gated** |

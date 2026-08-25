@@ -1,7 +1,11 @@
 # M2 — Placement, column and void engine, picking, and persistence
 
-Status: Both waves implemented; **the phase cannot close yet — one acceptance gate is unmet (see
-below).**
+Status: Both waves implemented; **the phase cannot close yet — two acceptance gates are unmet (see
+below).** They are (1) the restore drill, which has never been executed, and (2) the mint trigger:
+the persistence write path has no browser caller, so no design is ever created from the editor. The
+second was found on 2026-08-25 while planning M3, *after* this header first recorded the persistence
+criteria as met; that overstatement is corrected in place at the criteria themselves rather than
+left standing.
 
 **Wave 2A (work items 1–6)** implemented and verified 2026-08-25 — domain schema, void engine,
 decomposition-parity proof, void mesh rendering, picking (including a real solids/voids picking
@@ -227,8 +231,10 @@ Surfaces:
   embedded scenes appear dead; production has one canvas, so the rule reduces to: the selection owns
   the target.)
 
-Persistence — a first-class gate of this phase (all criteria below met, verified 2026-08-25 unless
-noted):
+Persistence — a first-class gate of this phase. All criteria below are met as verified 2026-08-25
+**except the mint trigger**, annotated NOT MET at its own bullet: the write half of the round trip
+has no browser caller. Storage shape, opaque identifier, fail-whole loading, canonical round-trip
+equality and derived-not-stored voids are all met and exercised by tests.
 
 - A design is stored as a single `jsonb` document in a Postgres database hosted on Neon's free tier
   and addressed by an **opaque, unguessable** identifier. Sequential or otherwise predictable
@@ -242,10 +248,19 @@ noted):
   same widths, same finishes, same handles. In this phase that means restoring into the editor;
   resuming at the *step* a design belongs to needs Step 1 to exist and is M7's criterion, not this
   phase's.
-- **Something has to create the first design.** Step 1 does not exist yet, so in M2 a design row is
-  minted from the seeded L fixture on first write, and the identifier it returns is what the URL
-  carries. M7 later replaces that trigger with preset application and bespoke generation; the
-  repository contract must not assume either one.
+- **NOT MET, 2026-08-25 — the second open gate on this phase. Something has to create the first
+  design.** Step 1 does not exist yet, so in M2 a design row is minted from the seeded L fixture on
+  first write, and the identifier it returns is what the URL carries. M7 later replaces that trigger
+  with preset application and bespoke generation; the repository contract must not assume either one.
+
+  The server route exists (`POST /api/designs`) but **nothing in the browser ever calls it**: there
+  is no `fetch(` anywhere in `apps/web/src` client code, `createSaveCoalescer` has no production
+  caller, and `setSaveStatus` / `applySavedId` are unused outside tests. The read half
+  (`/d/[id]` → `GET /api/designs/[id]` → `hydrate`) is complete and does work; the write half has no
+  client. Found while planning M3 — see
+  `docs/decisions/2026-08-25-m3-client-write-path-unwired.md`, which classifies it as a contract gap
+  (M2 stated the coalescer's properties, all of which hold, but never stated that something must call
+  it) and assigns the wiring to M3 as a first-class work item.
 - The identifier is the only thing in the URL. The configuration itself never travels in query
   parameters.
 - Loading is fail-whole: parse, validate, migrate a known schema version as one transaction, then
@@ -264,8 +279,12 @@ noted):
   link.
 - The domain package performs no I/O. Only the repository adapter touches the database.
 
-Write path — the semantics a network store needs and a browser store did not (all criteria below
-met, verified 2026-08-25):
+Write path — the semantics a network store needs and a browser store did not. Every criterion below
+is met **as a property of the coalescer**, proven by `apps/web/src/persistence/save-coalescer.test.ts`
+(9 tests). None is yet met *in the running product*, because the coalescer has no production caller —
+see the mint-trigger bullet above and
+`docs/decisions/2026-08-25-m3-client-write-path-unwired.md`. M3 wires it and is the phase that makes
+these observable end to end.
 
 - **No user interaction blocks on a write.** Tapping a chip applies to the model and the scene
   immediately; persistence happens off that path. A slow or cold database makes writes late, never
@@ -354,7 +373,11 @@ Boundaries:
 ## Verification
 
 - A persistence round trip driven end to end: build a design, open its link in a fresh session,
-  assert identical placements and an identical derived void set.
+  assert identical placements and an identical derived void set. **Not performed as stated** — the
+  "build a design" half has no browser caller in M2 (see the mint-trigger criterion). What is proven
+  is the round trip at the domain and repository boundary: store → canonical serialise → `jsonb` →
+  load → validate → migrate → derive, with canonical-serialisation equality and an identical derived
+  void set. The browser-driven half moves to M3 with the write-path wiring.
 - Unit tests over `recomputeVoids()` with fixtures for each row above, run with no UI present.
 - Property-style sweeps: random valid placement sets in a column never produce overlapping voids, a
   void inside the backsplash zone, or a void narrower than `MIN_SPAN`.
