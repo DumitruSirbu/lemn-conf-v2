@@ -187,29 +187,10 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-      # The Postgres driver lives in exactly one package so all SQL stays
-      # auditable in one place (ARCHITECTURE_PROPOSAL.md §3; M2 work item 8).
-      # eslint's no-restricted-imports covers the domain/adapter/app edges but
-      # not this one, so it is asserted here.
-      - name: Grep — only packages/persistence may import a Postgres driver
-        run: |
-          if git grep -nE "^[[:space:]]*(import|export)\b.*from[[:space:]]+['\"](@neondatabase/serverless|pg)['\"]" -- '*.ts' '*.tsx' ':!packages/persistence/**'; then
-              echo "BOUNDARY VIOLATION: a Postgres driver is imported outside packages/persistence."
-              exit 1
-          fi
-          echo "Driver boundary OK."
-      # `design-source/` is the supplier deliverable, is untracked, and will be
-      # deleted from the working tree. Nothing may depend on it at runtime.
-      # Scoped to real import/export edges: the folder is named in provenance
-      # comments throughout the port, which AGENTS.md explicitly allows, so a
-      # bare string grep would false-positive on every one of them.
-      - name: Grep — nothing may import from design-source
-        run: |
-          if git grep -nE "^[[:space:]]*(import|export)\b.*from[[:space:]]+['\"][^'\"]*design-source" -- '*.ts' '*.tsx'; then
-              echo "BOUNDARY VIOLATION: source imports from design-source/, which is untracked and will be deleted."
-              exit 1
-          fi
-          echo "design-source boundary OK."
+      # Same script .githooks/pre-push runs, so the local gate and this one
+      # cannot drift apart. Rationale for each check lives in the script.
+      - name: Architectural boundaries
+        run: sh scripts/gates/boundary.sh
 
   lockfile:
     name: lockfile:single-source
@@ -217,22 +198,9 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-      # A second lockfile is a supply-chain ambiguity: it lets a resolver pick
-      # dependencies nobody reviewed.
-      - name: Assert no foreign lockfiles (package-lock.json / yarn.lock)
-        run: |
-          foreign="$(git ls-files -- ':!.claude/**' | grep -E '(package-lock\.json|yarn\.lock)$' || true)"
-          if [ -n "$foreign" ]; then
-              echo "FOREIGN LOCKFILE(S) present in project tree:"; echo "$foreign"; exit 1
-          fi
-          echo "No foreign lockfiles."
-      - name: Assert exactly one pnpm-lock.yaml at the repo root
-        run: |
-          count="$(git ls-files -- ':!.claude/**' | grep -E '(^|/)pnpm-lock\.yaml$' | wc -l | tr -d ' ')"
-          if [ "$count" != "1" ] || [ ! -f pnpm-lock.yaml ]; then
-              echo "Expected exactly one root pnpm-lock.yaml, found $count:"; git ls-files | grep -E 'pnpm-lock\.yaml$'; exit 1
-          fi
-          echo "Exactly one root lockfile."
+      # Same script .githooks/pre-push runs.
+      - name: Lockfile is single-source
+        run: sh scripts/gates/lockfile.sh
 
   sca:
     name: sca

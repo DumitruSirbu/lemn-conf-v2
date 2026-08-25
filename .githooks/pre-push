@@ -1,0 +1,38 @@
+#!/bin/sh
+#
+# Runs the full local CI gate set before anything reaches GitHub, so a push that
+# would fail CI fails here instead. Private-repo Actions minutes are a limited
+# monthly allowance; local minutes are free.
+#
+# Enabled per clone by `pnpm install` (the root `prepare` script points
+# core.hooksPath at .githooks). To enable by hand:
+#
+#     git config core.hooksPath .githooks
+#
+# Skipped automatically when the push deletes a ref — there is nothing to test.
+#
+# This takes a few minutes. That is the trade: it costs local time to avoid
+# burning the monthly Actions allowance on a red build. If you genuinely must
+# push past it, `git push --no-verify` works, but AGENTS.md asks you not to: if
+# the gate is wrong, fix the gate.
+
+set -eu
+
+cd "$(git rev-parse --show-toplevel)"
+
+# stdin gives "<local ref> <local oid> <remote ref> <remote oid>" per ref.
+# An all-zero local oid means the ref is being deleted.
+deleting_only=1
+while read -r _local_ref local_oid _remote_ref _remote_oid; do
+    case "$local_oid" in
+        *[!0]*) deleting_only=0 ;;
+    esac
+done
+
+if [ "$deleting_only" -eq 1 ]; then
+    echo "pre-push: ref deletion only, skipping local CI."
+    exit 0
+fi
+
+echo "pre-push: running the full local CI gate set (mirrors .github/workflows/ci.yml)."
+sh scripts/local-ci.sh

@@ -121,7 +121,7 @@ pnpm build
 pnpm check
 ```
 
-`pnpm check` runs formatting, linting, type checking, and unit tests in that order. Run commands
+`pnpm check` runs formatting, linting, type checking, and unit tests in that order; `pnpm ci:local` additionally runs build, boundary, lockfile and audit — the full CI set. Run commands
 through the `rtk` proxy as described in `RTK.md` when supported.
 
 Formatting is pinned by `.prettierrc.json` — an explicit statement of Prettier's own defaults
@@ -151,10 +151,39 @@ git config core.hooksPath .githooks
 
 The hook deliberately does **not** run `pnpm typecheck` or `pnpm test`. The persistence suite talks
 to a live Neon database, so including it would fail commits for anyone offline or without
-credentials. `pnpm check` is the full gate and belongs before a push, a PR, or a milestone close-out
-— never skipped on the assumption the hook already covered it.
+credentials. The full gate runs before the push instead — see below.
 
 Do not bypass the hook with `git commit --no-verify`. If the hook is wrong, fix the hook.
+
+## Rule — the whole CI gate set runs locally before every push
+
+**Nothing is pushed to GitHub until every CI gate passes locally.** GitHub Actions minutes on a
+private repository are a limited monthly allowance (2,000 on Free, 3,000 on Pro); local minutes are
+free. A push that would fail CI must fail on this machine instead.
+
+`.githooks/pre-push` runs `pnpm ci:local`, which mirrors `.github/workflows/ci.yml` gate for gate:
+
+```bash
+pnpm ci:local        # format, lint, typecheck, test, build, boundary, lockfile, sca
+```
+
+It runs **every** gate rather than stopping at the first failure, because CI reports all nine jobs
+independently — a local gate that hides the second failure until the first is fixed wastes the round
+trip it exists to save. It takes well under a minute on this repository.
+
+The `boundary` and `lockfile:single-source` gates are the **same shell scripts** the workflow
+invokes (`scripts/gates/`), not reimplementations. That is deliberate: a local gate that has drifted
+from the remote one is worse than no local gate, because it reports a pass that means nothing.
+
+One gate cannot be reproduced locally: `install`, which resolves the lockfile from scratch on a clean
+runner. Run `pnpm install` after changing any dependency, or the remote build will still fail.
+
+Do not bypass with `git push --no-verify`. If a gate is wrong, fix the gate.
+
+**When adding a gate, prove it fails.** Both boundary greps originally used `\b`, which
+`git grep -E`'s POSIX ERE does not support — so they matched nothing and reported green while
+checking nothing, in CI included. A gate is only real once you have watched it reject the thing it
+exists to reject.
 
 ## Skills
 
