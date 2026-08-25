@@ -81,10 +81,13 @@ command output *before* running the command, not after a failure has already pri
 
 ## Still open
 
-- **Preview environment has no `DATABASE_URL`.** Production and Development are set to
-  `app_designs`. If Preview is later given a database it should be a *separate* one, not production
-  and not the test database — preview deploys run unreviewed branch code, which is the code most
-  likely to write something wrong.
+- ~~**Preview environment has no `DATABASE_URL`.**~~ Resolved later the same day, 2026-08-25.
+  Preview now has its own `DATABASE_URL` pointing at a dedicated Neon branch (`preview`) with its own
+  database (`lemn-conf-v2-preview`) and its own least-privilege `app_designs` role, verified to
+  enforce the same restrictions as production. The requirement recorded here — a *separate* database,
+  not production and not the test database — was met as stated. See
+  `docs/decisions/2026-08-25-deployment-configuration-gaps.md` § "Status", which is authoritative on
+  the current environment layout.
 - **M8's contact table** will need its own grant decision. It holds personal data, and
   `app_designs` should receive only the privileges the contact flow genuinely needs — very likely
   `INSERT` alone.

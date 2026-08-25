@@ -1,6 +1,9 @@
 # M2 — Placement, column and void engine, picking, and persistence
 
-Status: Wave 2A (work items 1–6) implemented and verified 2026-08-25 — domain schema, void engine,
+Status: Both waves implemented; **the phase cannot close yet — one acceptance gate is unmet (see
+below).**
+
+**Wave 2A (work items 1–6)** implemented and verified 2026-08-25 — domain schema, void engine,
 decomposition-parity proof, void mesh rendering, picking (including a real solids/voids picking
 defect found in review and fixed — see `packages/three-adapter/src/picking.ts`), store, and mobile
 touch verification via Playwright (`apps/web/playwright.config.ts`,
@@ -11,7 +14,64 @@ fixed; see `docs/decisions/2026-08-25-m2-row19-m1-wall-gap-finding.md`'s "Resolv
 `buildKitchen()` and its reference were corrected to seat those bodies flush, and Row 19 now holds
 with no tracked exception. One acceptance case is honestly unverifiable until M3: "tap an empty slot" has no void to tap against
 in the fully-occupied seeded fixture — recorded as a named `test.skip` with justification, not
-faked. Wave 2B (persistence, work items 7–9) not yet started. Depends on M1.
+faked.
+
+**Wave 2B (work items 7–9)** implemented and verified 2026-08-25 — commits `31bae83`, `0c06cd6`,
+`16e8a49`, `9280a0c`, `be4c0f0` (persistence), `c080edd`, `7a03894` (deployment config),
+`bc79b6c`, `ae95dc1` (format/lint enforcement). `ConfigurationRepository` and a Neon Postgres
+adapter storing one `jsonb` row per design (`packages/persistence/src/neon-configuration-repository.ts`),
+an opaque `nanoid` identifier (`packages/persistence/src/generate-design-id.ts`), a deterministic
+canonical serialiser and `migrateDesign` in the domain package, and the write path
+(`apps/web/src/persistence/save-coalescer.ts`) that coalesces writes off the edit path and retries
+on failure without reverting the edit. Two defects were found and fixed in review before shipping: a
+save to an unknown id silently succeeded (now raises `DesignNotFoundError` in both the Neon adapter
+and the in-memory fake), and a retry timer could race a second save against one still in flight
+(now guarded, with a regression test). The security baseline (work item 8) is implemented and
+verified live: the application connects as `app_designs`, a SQL-created role holding exactly
+`SELECT, INSERT, UPDATE` on `designs` with no inherited roles and no
+`super`/`createdb`/`createrole` — asserted by 8 passing live-database checks in
+`packages/persistence/src/application-role-privileges.test.ts` (see
+`docs/decisions/2026-08-25-least-privilege-database-role.md`). Credentials are environment
+variables, never committed, and connections use TLS; queries are parameterised throughout, and
+`packages/persistence` is the only place in the codebase that imports a Postgres driver. Live
+integration tests require and self-guard against pointing at the application database
+(`packages/persistence/src/test-database-url.ts`). The backup job (work item 9) is implemented —
+a daily Vercel cron (`apps/web/vercel.json`, `0 3 * * *`) exports `designs` to a private Blob under
+a timestamped key with 14-day rotation (`apps/web/src/lib/server/backup-designs.ts`), scoped to
+`designs` alone so M8's future contact table isn't swept in — and the restore procedure is
+documented for both Neon PITR and a dated Blob export (`docs/runbooks/design-db-restore.md`).
+Deployment configuration gaps found during Wave 2B (wrong Vercel Root Directory/Framework Preset,
+missing `CRON_SECRET`, no Preview `DATABASE_URL`) are all resolved — see
+`docs/decisions/2026-08-25-deployment-configuration-gaps.md`. **Directly verified today**: `pnpm
+check` (format:check, lint, typecheck, test) passes clean, exit 0, with 300 unit tests across 4
+packages (62 `configurator-domain` + 163 `three-adapter` + 28 `persistence` + 47 `apps/web`),
+matching commit `be4c0f0`'s claim.
+
+**The one M2 acceptance criterion that is NOT met, and blocks closing this phase:** "the restore
+procedure is executed once and verified, against a throwaway target, before this phase closes" is
+still open. The runbook (`docs/runbooks/design-db-restore.md`, "Operator step required before this
+phase closes") states plainly that the drill was *not* performed — it was out of scope for the
+implementation task, which was prohibited from touching real infrastructure. The prerequisite chain
+is: the project has never been deployed (`vercel ls` reports no deployments, per
+`docs/decisions/2026-08-25-deployment-configuration-gaps.md`) → so the daily cron has never fired →
+so no Vercel Blob export exists yet → so Path 2 of the runbook cannot be executed against a
+throwaway target. Deploying, letting the cron produce at least one backup, and then running Path 2
+end-to-end against a scratch Neon branch is the remaining work before M2 can be marked closed. A
+written-but-unexecuted procedure is an assumption, not a backup, per the milestone's own wording
+below.
+
+**Correction to the historical record, 2026-08-25:** commit `ae95dc1` found that `pnpm format:check`
+had never actually passed on this repository — no Prettier config had ever been committed, so it
+ran at Prettier's implicit default of 80 columns while 24 files had drifted from that default.
+Earlier milestone status text (this document included, before this revision) claiming
+"typecheck/lint/format clean" was **wrong as-committed** for the format part; typecheck and lint
+were unaffected. This is now fixed and pinned: `.prettierrc.json` states the formatting rules
+explicitly, and a `.githooks/pre-commit` hook (installed via `pnpm install`'s `prepare` script)
+formats and lints staged files before every commit. Verified above: `pnpm format:check` now passes
+as part of a clean `pnpm check` run. This correction is appended rather than silently editing the
+earlier claim away.
+
+Depends on M1.
 Reference: `DEVELOPMENT-SPEC.md` §2 (tolerances), §3, §4, §6.1, §6.4, §12 (persisted `Design`);
 §11 rows 1, 2, 17, 18, 21, 22; `docs/decisions/2026-08-24-db-backed-shareable-persistence.md`.
 
@@ -167,7 +227,8 @@ Surfaces:
   embedded scenes appear dead; production has one canvas, so the rule reduces to: the selection owns
   the target.)
 
-Persistence — a first-class gate of this phase:
+Persistence — a first-class gate of this phase (all criteria below met, verified 2026-08-25 unless
+noted):
 
 - A design is stored as a single `jsonb` document in a Postgres database hosted on Neon's free tier
   and addressed by an **opaque, unguessable** identifier. Sequential or otherwise predictable
@@ -203,7 +264,8 @@ Persistence — a first-class gate of this phase:
   link.
 - The domain package performs no I/O. Only the repository adapter touches the database.
 
-Write path — the semantics a network store needs and a browser store did not:
+Write path — the semantics a network store needs and a browser store did not (all criteria below
+met, verified 2026-08-25):
 
 - **No user interaction blocks on a write.** Tapping a chip applies to the model and the scene
   immediately; persistence happens off that path. A slow or cold database makes writes late, never
@@ -216,7 +278,9 @@ Write path — the semantics a network store needs and a browser store did not:
 - A design that has never been written successfully must not present a shareable link.
 - A failed command persists nothing.
 
-Security and backups (see the persistence decision record for the full rationale):
+Security and backups (see the persistence decision record for the full rationale). All criteria
+below are met **except the last one** — the restore drill — which is the single open gate on this
+phase; see the Status header above.
 
 - The Neon connection string is read from an environment variable, never committed, and connections
   use TLS. There is no database file on the app server to place, permission, or serve.
@@ -233,8 +297,12 @@ Security and backups (see the persistence decision record for the full rationale
   validate → migrate-as-one-transaction sequence as any other load and fails whole if it does not
   pass. Restore is not a privileged path, and a dump may carry older schema versions or the very
   corruption that prompted the restore.
-- **The restore procedure is executed once and verified**, against a throwaway target, before this
-  phase closes. A procedure that has only been written down is an assumption, not a backup.
+- **NOT MET, 2026-08-25 — the open gate on this phase.** The restore procedure is executed once and
+  verified, against a throwaway target, before this phase closes. A procedure that has only been
+  written down is an assumption, not a backup. The procedure is written
+  (`docs/runbooks/design-db-restore.md`) but has never been run: the project has never been
+  deployed, so the daily cron has never fired and no Blob export exists to restore from. See the
+  Status header above for the prerequisite chain.
 - Accepted worst-case data loss is up to roughly a day: beyond Neon's 6-hour window, the most recent
   recovery point is the last nightly export. Recorded as a known consequence of the chosen mechanism.
 - M2 has no contact table, so the export carries no personal data yet. **M8 changes that** — a
