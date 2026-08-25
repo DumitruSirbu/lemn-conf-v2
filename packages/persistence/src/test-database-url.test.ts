@@ -44,6 +44,24 @@ describe("resolveTestDatabaseUrl", () => {
     );
   });
 
+  it("accepts a TEST_DATABASE_URL with no DATABASE_URL set, as CI runs it", () => {
+    delete process.env["DATABASE_URL"];
+    process.env["TEST_DATABASE_URL"] =
+      "postgresql://u:p@ci.neon.tech/lemnaria_test";
+
+    expect(resolveTestDatabaseUrl()).toBe(
+      "postgresql://u:p@ci.neon.tech/lemnaria_test",
+    );
+  });
+
+  it("still requires DATABASE_URL when there is no TEST_DATABASE_URL to derive from", () => {
+    delete process.env["DATABASE_URL"];
+
+    expect(() => resolveTestDatabaseUrl()).toThrow(
+      /DATABASE_URL environment variable is not set/,
+    );
+  });
+
   it("refuses when the application database is itself already named lemnaria_test", () => {
     process.env["DATABASE_URL"] =
       "postgresql://user:secret@host.neon.tech/lemnaria_test";

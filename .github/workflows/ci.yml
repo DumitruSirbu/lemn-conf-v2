@@ -1,0 +1,261 @@
+# Deterministic CI gates.
+# Each job below is intended to be wired as a separate required status check on
+# `main`. Job names are a contract: renaming one breaks its branch-protection
+# binding, so do not rename without updating the protection rule.
+#
+# Third-party actions are pinned by full commit SHA (supply-chain hygiene). The
+# trailing `# vX.Y.Z` comment records the tag the SHA maps to.
+name: ci
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+# Supersede an in-flight run when the same PR ref is pushed again. Only PR runs
+# are cancelled; post-merge `main` runs always complete so the branch's gate
+# history is never left half-finished by a fast follow-up push.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+# Least privilege: these gates never write to the repo.
+permissions:
+  contents: read
+
+env:
+  # Pinned to 20 by the root package.json `engines` field (>=20 <21).
+  NODE_VERSION: 20
+  # No PNPM_VERSION here on purpose: the root package.json carries
+  # "packageManager": "pnpm@9.15.9", and pnpm/action-setup fails with
+  # "Multiple versions of pnpm specified" if a `version:` input is given as
+  # well. The packageManager field stays the single source of truth.
+
+jobs:
+  install:
+    name: install
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Setup pnpm
+        uses: pnpm/action-setup@0e279bb959325dab635dd2c09392533439d90093 # v6.0.8
+      - name: Setup Node
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+      - name: Install (frozen lockfile)
+        run: pnpm install --frozen-lockfile
+
+  format:
+    name: format
+    runs-on: ubuntu-latest
+    needs: install
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Setup pnpm
+        uses: pnpm/action-setup@0e279bb959325dab635dd2c09392533439d90093 # v6.0.8
+      - name: Setup Node
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+      - name: Install (frozen lockfile)
+        run: pnpm install --frozen-lockfile
+      # `format:check`, never `format` — the latter rewrites files and would
+      # pass unconditionally, reporting a green gate that checked nothing.
+      - name: Format check
+        run: pnpm format:check
+
+  lint:
+    name: lint
+    runs-on: ubuntu-latest
+    needs: install
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Setup pnpm
+        uses: pnpm/action-setup@0e279bb959325dab635dd2c09392533439d90093 # v6.0.8
+      - name: Setup Node
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+      - name: Install (frozen lockfile)
+        run: pnpm install --frozen-lockfile
+      # This gate carries the architectural boundaries, not just style: the
+      # `no-restricted-imports` blocks in eslint.config.mjs are what stop the
+      # domain package importing React/Three.js and the adapter importing the
+      # app shell (ARCHITECTURE_PROPOSAL.md §3).
+      - name: Lint
+        run: pnpm lint
+
+  typecheck:
+    name: typecheck
+    runs-on: ubuntu-latest
+    needs: install
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Setup pnpm
+        uses: pnpm/action-setup@0e279bb959325dab635dd2c09392533439d90093 # v6.0.8
+      - name: Setup Node
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+      - name: Install (frozen lockfile)
+        run: pnpm install --frozen-lockfile
+      # Each package's own `typecheck` script builds the workspace deps it
+      # consumes first, so no separate build step is needed here.
+      - name: Typecheck
+        run: pnpm typecheck
+
+  test:
+    name: test
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: install
+    env:
+      # Points at the dedicated Neon test database and nothing else. The
+      # in-repo guard (`resolveTestDatabaseUrl`) refuses to run if the
+      # resolved database name matches the one DATABASE_URL names, so a
+      # mis-set secret fails loudly instead of writing to real data.
+      #
+      # DATABASE_URL is deliberately NOT set: no application runs in CI, so
+      # there is no application database for the guard to compare against,
+      # and inventing a value would only satisfy a vacuous comparison.
+      #
+      # A Postgres service container is not usable here — the driver is
+      # @neondatabase/serverless, which speaks to Neon over HTTP/WebSocket
+      # and does not connect to a stock postgres image without a proxy.
+      TEST_DATABASE_URL: ${{ secrets.TEST_DATABASE_URL }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Setup pnpm
+        uses: pnpm/action-setup@0e279bb959325dab635dd2c09392533439d90093 # v6.0.8
+      - name: Setup Node
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+      - name: Install (frozen lockfile)
+        run: pnpm install --frozen-lockfile
+      # Fail before vitest with a clear message if the secret is missing,
+      # rather than surfacing it as a driver error mid-suite.
+      - name: Assert the test database secret is present
+        run: |
+          if [ -z "$TEST_DATABASE_URL" ]; then
+              echo "TEST_DATABASE_URL is not set. The live persistence suite needs the"
+              echo "dedicated Neon test database. Add it under Settings > Secrets and"
+              echo "variables > Actions as a repository secret named TEST_DATABASE_URL."
+              exit 1
+          fi
+          echo "TEST_DATABASE_URL present; database name: $(node -e "console.log(new URL(process.env.TEST_DATABASE_URL).pathname.slice(1))")"
+      - name: Test
+        run: pnpm test
+
+  build:
+    name: build
+    runs-on: ubuntu-latest
+    needs: install
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Setup pnpm
+        uses: pnpm/action-setup@0e279bb959325dab635dd2c09392533439d90093 # v6.0.8
+      - name: Setup Node
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+      - name: Install (frozen lockfile)
+        run: pnpm install --frozen-lockfile
+      # Mirrors what Vercel runs on deploy. Runs with no DATABASE_URL on
+      # purpose: `next build` must not require a live database, and this gate
+      # is what catches a top-level `neon()` call reintroducing that coupling.
+      - name: Build
+        run: pnpm build
+
+  boundary:
+    name: boundary
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      # The Postgres driver lives in exactly one package so all SQL stays
+      # auditable in one place (ARCHITECTURE_PROPOSAL.md §3; M2 work item 8).
+      # eslint's no-restricted-imports covers the domain/adapter/app edges but
+      # not this one, so it is asserted here.
+      - name: Grep — only packages/persistence may import a Postgres driver
+        run: |
+          if git grep -nE "^[[:space:]]*(import|export)\b.*from[[:space:]]+['\"](@neondatabase/serverless|pg)['\"]" -- '*.ts' '*.tsx' ':!packages/persistence/**'; then
+              echo "BOUNDARY VIOLATION: a Postgres driver is imported outside packages/persistence."
+              exit 1
+          fi
+          echo "Driver boundary OK."
+      # `design-source/` is the supplier deliverable, is untracked, and will be
+      # deleted from the working tree. Nothing may depend on it at runtime.
+      # Scoped to real import/export edges: the folder is named in provenance
+      # comments throughout the port, which AGENTS.md explicitly allows, so a
+      # bare string grep would false-positive on every one of them.
+      - name: Grep — nothing may import from design-source
+        run: |
+          if git grep -nE "^[[:space:]]*(import|export)\b.*from[[:space:]]+['\"][^'\"]*design-source" -- '*.ts' '*.tsx'; then
+              echo "BOUNDARY VIOLATION: source imports from design-source/, which is untracked and will be deleted."
+              exit 1
+          fi
+          echo "design-source boundary OK."
+
+  lockfile:
+    name: lockfile:single-source
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      # A second lockfile is a supply-chain ambiguity: it lets a resolver pick
+      # dependencies nobody reviewed.
+      - name: Assert no foreign lockfiles (package-lock.json / yarn.lock)
+        run: |
+          foreign="$(git ls-files -- ':!.claude/**' | grep -E '(package-lock\.json|yarn\.lock)$' || true)"
+          if [ -n "$foreign" ]; then
+              echo "FOREIGN LOCKFILE(S) present in project tree:"; echo "$foreign"; exit 1
+          fi
+          echo "No foreign lockfiles."
+      - name: Assert exactly one pnpm-lock.yaml at the repo root
+        run: |
+          count="$(git ls-files -- ':!.claude/**' | grep -E '(^|/)pnpm-lock\.yaml$' | wc -l | tr -d ' ')"
+          if [ "$count" != "1" ] || [ ! -f pnpm-lock.yaml ]; then
+              echo "Expected exactly one root pnpm-lock.yaml, found $count:"; git ls-files | grep -E 'pnpm-lock\.yaml$'; exit 1
+          fi
+          echo "Exactly one root lockfile."
+
+  sca:
+    name: sca
+    runs-on: ubuntu-latest
+    needs: install
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Setup pnpm
+        uses: pnpm/action-setup@0e279bb959325dab635dd2c09392533439d90093 # v6.0.8
+      - name: Setup Node
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+      - name: Install (frozen lockfile)
+        run: pnpm install --frozen-lockfile
+      # Blocking: a HIGH/CRITICAL advisory in a dependency that ships to
+      # production is a real runtime exposure.
+      - name: SCA gate — prod HIGH/CRITICAL blocks
+        run: pnpm audit --audit-level=high --prod
+      # Advisory only: a vulnerability in a test-only or build-only tool is not
+      # a runtime exposure, so it is logged for visibility and never blocks.
+      - name: SCA advisory — dev-scope audit (non-blocking)
+        continue-on-error: true
+        run: pnpm audit --audit-level=high --dev || true
