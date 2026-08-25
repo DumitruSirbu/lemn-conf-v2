@@ -9,7 +9,7 @@ const BASE_URL = `http://localhost:${String(PORT)}`;
  *  exactly 390 x 844 with real touch, so the project pins that viewport rather than reusing a
  *  Playwright device preset tuned for a different phone. */
 export default defineConfig({
-  testDir: "./src",
+  testDir: "./tests/e2e",
   testMatch: "**/*.e2e.spec.ts",
   fullyParallel: false,
   retries: 0,

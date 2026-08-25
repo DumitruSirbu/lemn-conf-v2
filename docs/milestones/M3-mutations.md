@@ -134,7 +134,7 @@ persistence record are not doing the same job. This is the same reasoning M2 use
 11. **A temporary developer affordance** for driving remove/insert/finish/handle from the selection
     before M4's panel exists. Explicitly temporary, behind a name that says so, removed by M4.
 12. **The mobile gate and M2's leftover.** Un-skip
-    `apps/web/src/scene/kitchen-stage.e2e.spec.ts`'s named `test.skip` ("tapping an empty void slot
+    `apps/web/tests/e2e/kitchen-stage.e2e.spec.ts`'s named `test.skip` ("tapping an empty void slot
     selects it — UNVERIFIABLE with the current seeded design") — M3 creates voids, so it becomes
     verifiable — and drive the §10 signature flow end to end by touch at 390 × 844.
 

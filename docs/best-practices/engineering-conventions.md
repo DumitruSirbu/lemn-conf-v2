@@ -67,6 +67,13 @@ file, not a Claude session's global conventions.
 
 - One logical behaviour per test, named after the failure it detects.
 - Use Build → Operate → Check, with independent fixtures/builders and no ordering dependency.
-- Place tests near the modules they protect unless the selected framework has a stronger standard.
+- Tests live in a per-package `tests/` directory, never beside the module they cover. Mirror the
+  `src/` layout inside it, so `src/scene/scene-view.ts` is protected by `tests/scene/scene-view.test.ts`.
+  Keeping the two trees apart means `src/` is exactly what ships: the build's `rootDir` cannot reach
+  a test file by accident, and "what is in this package?" is answerable by listing one directory.
+  Helpers that exist only for tests (headless canvases, stubs, structural assertions) are test
+  infrastructure and belong under `tests/support/`, not in `src/`.
+- Playwright end-to-end specs live in `apps/web/tests/e2e/` and keep the `*.e2e.spec.ts` suffix, so
+  the vitest `tests/**/*.test.ts` glob and the Playwright `testDir` never collect each other's files.
 - Avoid vacuous assertions: ensure a filtered collection or loop actually exercised the case it
   claims to test.

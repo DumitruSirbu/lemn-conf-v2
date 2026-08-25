@@ -5,7 +5,7 @@ import { defineConfig } from "vitest/config";
 export default defineConfig({
   test: {
     environment: "node",
-    include: ["src/**/*.test.ts"],
+    include: ["tests/**/*.test.ts"],
     passWithNoTests: false,
   },
   resolve: {
@@ -16,7 +16,7 @@ export default defineConfig({
       // under test.
       "server-only": resolve(
         import.meta.dirname,
-        "./src/test-support/server-only-stub.ts",
+        "./tests/support/server-only-stub.ts",
       ),
     },
   },
