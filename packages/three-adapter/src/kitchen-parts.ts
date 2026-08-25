@@ -1418,15 +1418,42 @@ export function makeKit(options: KitOptions = {}): Kit {
       room.add(obj);
       return obj;
     };
-    // Wall A parts face +z (default orientation), centered on z = 0.3 (0.6 deep)
-    const zA = 0.3;
+    // Seat a body flush on the wall plane (§6.2): measure the bounding box after adding it to the
+    // room, never derive the plane from a round number or from the previous occupant.
+    const seatOnWallA = (
+      obj: THREE.Object3D,
+      x: number,
+      y = 0,
+    ): THREE.Object3D => {
+      obj.position.set(x, y, 0);
+      room.add(obj);
+      room.updateWorldMatrix(true, true);
+      const bb = new THREE.Box3().setFromObject(obj);
+      obj.position.z += -bb.min.z;
+      return obj;
+    };
+    const seatOnWallB = (
+      obj: THREE.Object3D,
+      z: number,
+      y = 0,
+    ): THREE.Object3D => {
+      obj.position.set(0, y, z);
+      obj.rotation.y = Math.PI / 2;
+      room.add(obj);
+      room.updateWorldMatrix(true, true);
+      const bb = new THREE.Box3().setFromObject(obj);
+      obj.position.x += -bb.min.x;
+      return obj;
+    };
+    // Wall A parts face +z (default orientation), seated flush against the wall plane
     place(cornerBaseX(), 0.45, 0.28);
     place(cornerBaseReturn(0.58), 0.29, 0.74, Math.PI / 2);
-    place(baseCabinet(0.8, { doors: 2, sink: true }), 1.3, zA);
-    place(builders["base-dishwasher"](), 2.0, zA);
-    place(baseCabinet(0.6, { drawers: 2 }), 2.6, zA);
+    seatOnWallA(baseCabinet(0.8, { doors: 2, sink: true }), 1.3);
+    seatOnWallA(builders["base-dishwasher"](), 2.0);
+    const cookBase = seatOnWallA(baseCabinet(0.6, { drawers: 2 }), 2.6);
+    const zA = cookBase.position.z;
     place(builders.cooktop(), 2.6, zA + 0.06, 0, PLINTH + CARC_H + CTOP);
-    place(baseCabinet(0.6, { drawers: 3 }), 3.2, zA);
+    seatOnWallA(baseCabinet(0.6, { drawers: 3 }), 3.2);
     place(
       box(TH, 0.82, 0.6, M.oak, "end_panel_right", 0, 0, 0),
       3.51,
@@ -1435,11 +1462,10 @@ export function makeKit(options: KitOptions = {}): Kit {
       0.41,
     );
 
-    // Wall B tall run: rotated 90° so fronts face +x
-    const xB = 0.3;
-    place(builders["tall-oven-tower"](), xB, 1.2, Math.PI / 2);
-    place(builders["tall-pantry"](), xB, 1.8, Math.PI / 2);
-    place(builders["fridge-free"](), xB + 0.04, 2.45, Math.PI / 2);
+    // Wall B tall run: rotated 90° so fronts face +x, seated flush against the wall plane
+    seatOnWallB(builders["tall-oven-tower"](), 1.2);
+    seatOnWallB(builders["tall-pantry"](), 1.8);
+    place(builders["fridge-free"](), 0.34, 2.45, Math.PI / 2); // already flush; not derived from a shared offset
 
     // upper run — continuous from the corner to the end, all on one line (1.50 → 2.20)
     const yW = 1.5;

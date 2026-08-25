@@ -64,6 +64,23 @@ match `DEVELOPMENT-SPEC.md` §6.4 exactly; the fidelity-capture cameras are corr
 from the product's own three camera presets (two different, intentionally separate camera specs in
 the source material).
 
+## Correction — 2026-08-25
+
+M2's Wave 2A work surfaced a real M1 defect (`docs/decisions/2026-08-25-m2-row19-m1-wall-gap-finding.md`):
+`buildKitchen()` seated six bodies (the base row and the two tall units on wall B) at hardcoded
+round offsets (`zA`/`xB = 0.3`) instead of deriving the seat from each body's own measured
+half-depth per §6.2, leaving them 10–20 mm proud of the wall plane. Fixed by seating those six
+bodies with a §6.2-style helper (position at the wall plane, add to the room, measure the actual
+bounding box, shift by its back-face offset) in **both** `buildKitchen()` implementations —
+`packages/three-adapter/src/kitchen-parts.ts` and the reference
+`design-source/Modern Kitchen Cabinets 3D (3)/kitchen-parts.js` — so Evidence 1's fidelity diff
+keeps comparing against a reference that is itself correct, rather than reproducing the reference's
+defect. This means the "Boundaries" acceptance criterion above ("the reference files under
+`design-source/` are not modified") no longer holds absolutely: the reference was corrected once,
+deliberately, as a single change applied to both sides of the fidelity gate together, not treated as
+a routine dependency. `kitchen-parts.parity.test.ts` (Evidence 1) was re-verified passing after the
+change with no other assertions affected.
+
 **Deliberately out of scope, confirmed absent on review:** no selection, no voids, no mutation, no
 per-placement decomposition — the whole `kitchen-l` scene is mounted via `<primitive>` exactly as M1's
 scope requires. That decomposition, and re-proving fidelity against it, is M2's first act.
