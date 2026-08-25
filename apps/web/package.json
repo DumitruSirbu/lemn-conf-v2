@@ -30,6 +30,7 @@
     "zustand": "5.0.15"
   },
   "devDependencies": {
+    "@neondatabase/serverless": "1.1.0",
     "@playwright/test": "1.62.1",
     "@types/node": "24.13.3",
     "@types/react": "19.2.2",

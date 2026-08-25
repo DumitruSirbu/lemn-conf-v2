@@ -1,4 +1,10 @@
 # M2 — Placement, column and void engine, picking, and persistence
+>
+> **STOP — DO NOT READ THIS PLAN.** M2 is closed (2026-08-25). This file describes intentions, some
+> of which shipped differently or were superseded. Acting on one reintroduces a design the project
+> abandoned. The live knowledge is in `docs/decisions/` (ADRs 0002, 0006–0013, 0019, 0020) and in
+> the code. See `docs/STATUS.md` for where the project stands.
+
 
 > **STATUS: IN PROGRESS — both waves implemented, two acceptance gates unmet.** The restore drill
 > has never been executed, and the persistence write path has no browser caller (M3 owns the

@@ -3,7 +3,7 @@
 **Read this second, right after `AGENTS.md`, before opening any milestone document.** It exists so a
 session can learn where the project stands without reading eight phase plans.
 
-Last updated: 2026-08-25 (M3 Waves 3C-1 and 3C-2a complete through review; 3C-2b next).
+Last updated: 2026-08-25 (M3 Wave 3C-2b complete; M2's last gate closed; 3C-3 next).
 
 ## How to use this file
 
@@ -24,8 +24,8 @@ moment it ships; a decision record does not. When the two disagree, the dated de
 | --- | --- | --- |
 | M0 — Foundations | **Done** (closed 2026-08-24, partially superseded) | No — `milestones/done/` |
 | M1 — Scene port and fidelity gate | **Done** (closed 2026-08-25) | No — `milestones/done/` |
-| M2 — Void engine, picking, persistence | **In progress** — implemented, 1 gate open (the unwired client write path, owned by M3) | Yes — `milestones/M2-void-engine.md` |
-| M3 — Insert, remove, swap, client write path | **In progress** — 3A, 3B, 3C-1 and 3C-2a done; **3C-2b next** | Yes — `milestones/M3-mutations.md` |
+| M2 — Void engine, picking, persistence | **Done** (closed 2026-08-25 — its last gate, the unwired client write path, was closed by M3 Wave 3C-2b) | No — `milestones/done/` |
+| M3 — Insert, remove, swap, client write path | **In progress** — 3A, 3B, 3C-1, 3C-2a and 3C-2b done; **3C-3 next** | Yes — `milestones/M3-mutations.md` |
 | M4 — Editor panel and shell | Planned | Yes, when starting |
 | M5 — Width editing | Planned | Yes, when starting |
 | M6 — Price bar and global settings | Planned | Yes, when starting |
@@ -117,23 +117,17 @@ least-privilege database role verified by live assertions, and a daily backup cr
 
 ## What is open right now
 
-**M2 cannot close on one remaining gate** (the restore drill, gate 1 below, was met 2026-08-25):
+**M2 is closed.** Its last gate — the persistence write path having no browser caller
+(`docs/decisions/0010-m3-client-write-path-unwired.md`) — was closed by M3 Wave 3C-2b on
+2026-08-25: a `fetch`-backed `ConfigurationRepository`, the save coalescer wired to the store's
+`onDesignChanged` seam, and mint-on-first-mutation. The cookie round trip is verified **in a real
+browser** (`design-write-path.e2e.spec.ts`), which is the evidence security review asked for and
+could not produce itself.
 
-1. ~~**The restore drill has never been executed.**~~ **Done 2026-08-25 — this gate is met.** Path 2
-   was drilled end to end with a real 25-placement design: exported through the same read the cron
-   performs, restored into a throwaway database, and verified by identical canonical serialisation.
-   It found **five defects**, four in the runbook itself, all fixed — including a `pnpm run migrate`
-   that exited 0 without migrating anything on any path containing a space. See
-   `docs/decisions/0013-restore-drill-executed-and-what-it-broke.md`.
-
-   Not yet drilled, and named there: downloading the export from Blob (the token is
-   Production-scoped), and Path 1 (Neon PITR). Re-run Path 2 from a real downloaded export once M3
-   wires the write path and production holds a design worth losing.
-2. **The persistence write path has no browser caller.** `POST /api/designs` exists and works, but
-   nothing in `apps/web` client code calls it — no `fetch(`, and `createSaveCoalescer` is constructed
-   only in its own test. The read half (`/d/[id]`) is complete. Classified as a contract gap, not a
-   defect, and assigned to M3: see
-   `docs/decisions/0010-m3-client-write-path-unwired.md`.
+Still open from M2, unchanged: Path 2 of the restore drill has not been re-run from an export
+actually downloaded from Blob, and Path 1 (Neon PITR) has never been drilled. Note the restore path
+changed this wave — `write_token_hash` is now exported and restored, without which every restored
+design would have been permanently unwritable.
 
 **Infrastructure state — live as of 2026-08-25.** Repository `DumitruSirbu/lemn-conf-v2` (private),
 CI green on nine gates, and `.githooks/pre-push` runs the same gate set locally so a red build never

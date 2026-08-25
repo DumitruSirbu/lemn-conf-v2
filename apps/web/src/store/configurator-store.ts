@@ -34,14 +34,22 @@ import {
 } from "@lemnaria/configurator-domain";
 import { create, type StoreApi, type UseBoundStore } from "zustand";
 
+import { FetchConfigurationRepository } from "@/persistence/fetch-configuration-repository";
+import {
+  createSaveCoalescer,
+  type SaveCoalescer,
+  type SaveStatus,
+} from "@/persistence/save-coalescer";
+
 import { applyCommandResult, type Selection } from "./apply-command-result";
 
 export type { Selection };
 
-/** Mirrors the save-coalescer's status (`src/persistence/save-coalescer.ts`): `idle` covers both
- *  "never saved" and "last save succeeded" — `hasPersistedSuccessfully` is the field that
- *  distinguishes those two, per the milestone's "never write, never shareable" rule. */
-export type SaveStatus = "idle" | "saving" | "error";
+/** The save-coalescer's own status, re-exported rather than restated: the store is where the UI
+ *  reads it from, and two copies of the union would be free to drift. `idle` covers both "never
+ *  saved" and "last save succeeded" — `hasPersistedSuccessfully` is the field that distinguishes
+ *  those two, per the milestone's "never write, never shareable" rule. */
+export type { SaveStatus };
 
 export interface ConfiguratorState {
   readonly design: Design;
@@ -253,4 +261,28 @@ export function createConfiguratorStore(
 export const useConfiguratorStore = createConfiguratorStore({
   design: KITCHEN_L_DESIGN,
   catalog: KITCHEN_L_BODY_CATALOG,
+  onDesignChanged: persistDesignChange,
 });
+
+/** The session's one coalescer, and the whole of the client write path's wiring (ADR 0010
+ *  decision 2). Built on first use rather than at module load for two reasons: this module is
+ *  imported by server components too, and `useConfiguratorStore` is not yet initialised while its
+ *  own options object is being evaluated. */
+let saveCoalescer: SaveCoalescer | null = null;
+
+/** Hands a just-applied design to the coalescer and returns. Never awaited by the store, so no
+ *  interaction ever blocks on a write (persistence decision 13); the store calls it only after a
+ *  successful command, so a refusal persists nothing. */
+function persistDesignChange(design: Design): void {
+  saveCoalescer ??= createSaveCoalescer({
+    repository: new FetchConfigurationRepository(),
+    getDesignId: () => useConfiguratorStore.getState().designId,
+    onSaved: (id) => {
+      useConfiguratorStore.getState().applySavedId(id);
+    },
+    onSaveStatusChange: (status) => {
+      useConfiguratorStore.getState().setSaveStatus(status);
+    },
+  });
+  saveCoalescer.scheduleSave(design);
+}

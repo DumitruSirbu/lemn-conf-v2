@@ -1,6 +1,6 @@
 # ADR 0010 — M2's write path exists but has no production caller; M3 owns the wiring
 
-Status: Accepted
+Status: **Resolved 2026-08-25 by M3 Wave 3C-2b.** The `fetch`-backed repository, the wired coalescer and mint-on-first-mutation shipped; the cookie round trip is verified in a real browser. Retained as the record of the gap and why it was assigned to M3.
 Date: 2026-08-25
 Type: Finding + Decision
 Milestone: M3 — Insert, remove, swap, client write path
