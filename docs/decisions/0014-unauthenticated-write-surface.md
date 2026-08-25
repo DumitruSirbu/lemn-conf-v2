@@ -1,6 +1,6 @@
 # ADR 0014 — The deployed write surface is unauthenticated; the capability-URL model needs a decision
 
-Status: Proposed — needs a human decision on S1 before M7
+Status: **Superseded by ADR 0019** (2026-08-25) — S1, S3 and S4 are decided there; S2 was fixed in place. Retained as the record of what was found and confirmed against production.
 Date: 2026-08-25
 Type: Finding
 Milestone: M2 Wave 2B (found during a catch-up security review)

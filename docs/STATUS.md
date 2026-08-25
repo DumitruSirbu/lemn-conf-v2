@@ -144,15 +144,40 @@ automatically; Root Directory `apps/web`, Next.js preset, Node 24. The backup cr
 Verified live: `/configurator/configure` serves 200, and the cron endpoint returns 401 to an
 unauthenticated caller and to a wrong bearer token — it fails closed.
 
-## A decision only you can make
+## The security decision is made — ADR 0019
 
-**ADR 0014 (S1) is Proposed, not Accepted, and needs a human answer before M7.** The deployed
-`PUT`/`PATCH /api/designs/[id]` has no authentication or ownership check — confirmed live. The
-opaque nanoid is the only access control and it confers *write*, so anyone holding a shared link can
-silently overwrite that design, unrecoverably. Three coherent options are laid out in the record
-(accept the capability URL as a stated POC limit, split read from write, or add ownership). Impact is
-low today — zero designs, no users — and stops being low at M7. Do not let a later phase default
-into one of these silently.
+**ADR 0014 is superseded.** The unauthenticated write surface (S1), the unauthenticated mint (S3)
+and the absence of rate limiting (S4) are all decided in
+`docs/decisions/0019-security-baseline-writes-throttling-retention.md`, on the owner's direction of
+2026-08-25 that security is the priority. Nothing here is implemented yet — the record is the
+decision, and **Wave 3C builds the write path with authorisation from the start rather than
+retrofitting it.**
+
+What was decided, in brief:
+
+- **Read is split from write.** Minting sets an `HttpOnly` cookie holding a per-design write token;
+  `PUT`/`PATCH` require it. A shared link stays readable by anyone and can no longer destroy the
+  design it points at.
+- **Throttling is layered**: Vercel WAF custom rules at the edge (verified available on this plan;
+  currently **zero** rules configured) over exact counters in the existing Postgres. No Redis, on
+  the owner's direction not to add maintenance surface.
+- **Identity is several independent buckets**, most restrictive winning — IP aggregated to /24 and
+  /64, session cookie, email address, and a global cap. Never IP+session fused into one key, which
+  is weaker than either alone.
+- **Geography is a first-class signal**, because the tool is expected to be used rarely and
+  essentially only from Moldova. Non-MD traffic is challenged and tightly limited, never denied —
+  the diaspora, roaming and VPNs all geolocate unpredictably, and a country deny fails silently.
+- **Abandoned designs are deleted after 30 days**, which also closes the retention question this
+  file has carried as open since 2026-08-25.
+- **Cross-device editing uses an emailed link, not a password.** Storing credentials for people who
+  never made an account was considered and rejected.
+- **No external proxy in front of Vercel** (Cloudflare orange-cloud specifically). DNS-only is fine.
+
+**A defect found while sizing the limits, not yet fixed:** the save coalescer has no minimum
+interval — `scheduleSave` runs immediately unless a save is in flight, so its sustained output is
+bounded by network round-trip time rather than by a timer. During active editing that is roughly
+one write per RTT, and M5's width dragging makes it continuous. ADR 0019 decision 6 adds a 1 000 ms
+floor; until it lands, no update rate limit can be sized honestly.
 
 ## What to do next
 
