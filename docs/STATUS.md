@@ -34,10 +34,15 @@ moment it ships; a decision record does not. When the two disagree, the dated de
 
 ## What is actually built
 
-A pnpm monorepo: an I/O-free domain package, a Three.js adapter, a persistence package that is the
-only place a Postgres driver appears, and a Next.js App Router app. 302 unit tests plus 4 Playwright
-e2e tests, all green; CI enforces nine gates on every push and `.githooks/pre-push` runs them locally
-first.
+A pnpm monorepo on Node 24: an I/O-free domain package, a Three.js adapter, a persistence package
+that is the only place a Postgres driver appears, and a Next.js App Router app. 302 unit tests plus
+4 Playwright e2e tests (and one named `test.skip`), all green. Each package owns its tests in its own
+`tests/` directory and must stay liftable into its own repository — see
+`docs/best-practices/engineering-conventions.md`.
+
+Decisions and findings live in `docs/decisions/` as numbered ADRs with an index at
+`docs/decisions/README.md`. The product's behavioural rules are **not** duplicated there: they stay
+in `docs/design/DEVELOPMENT-SPEC.md`, cited by section and row.
 
 **M0 — Foundations.** The workspace, the domain package, validation, and the persistence/versioning
 conventions. A substantial part still stands; the placement model it originally shipped was replaced
@@ -58,27 +63,38 @@ least-privilege database role verified by live assertions, and a daily backup cr
 
 **M2 cannot close on two gates:**
 
-1. **The restore drill has never been executed.** `docs/runbooks/design-db-restore.md` Path 2 must be
-   run once against a throwaway target. The chain is: the project has never been deployed → the cron
-   has never fired → no Blob export exists → the drill cannot run. A procedure that has only been
-   written down is an assumption, not a backup.
+1. **The restore drill has never been executed** — but it is now unblocked. `docs/runbooks/design-db-restore.md`
+   Path 2 must be run once against a throwaway target. As of 2026-08-25 the prerequisite chain is
+   complete: the project is deployed, the cron is registered and has run, and one export exists in
+   the `lemnaria-designs-backups` Blob store. A procedure that has only been written down is an
+   assumption, not a backup.
+
+   Note what that first export proves and does not. `designs` is at 0 rows, so the export is a
+   one-byte zero-record file. Restoring it exercises the plumbing — download, parse, migrate, load —
+   but not that real data survives a round trip. Run the drill now to close the gate honestly, and
+   **re-run it after M3 wires the write path** and there is an actual design to lose.
 2. **The persistence write path has no browser caller.** `POST /api/designs` exists and works, but
    nothing in `apps/web` client code calls it — no `fetch(`, and `createSaveCoalescer` is constructed
    only in its own test. The read half (`/d/[id]`) is complete. Classified as a contract gap, not a
    defect, and assigned to M3: see
    `docs/decisions/0010-m3-client-write-path-unwired.md`.
 
-**Infrastructure state.** Repository `DumitruSirbu/lemn-conf-v2` (private), CI green. The Vercel
-project exists with Root Directory `apps/web` and the Next.js preset, but **is not connected to the
-GitHub repository and has never deployed**. Connecting it, deploying, and letting the cron produce
-one backup is the prerequisite chain for gate 1.
+**Infrastructure state — live as of 2026-08-25.** Repository `DumitruSirbu/lemn-conf-v2` (private),
+CI green on nine gates, and `.githooks/pre-push` runs the same gate set locally so a red build never
+reaches GitHub. Vercel is connected to the repository and deploys `main` to production
+automatically; Root Directory `apps/web`, Next.js preset, Node 24. The backup cron
+`/api/cron/backup-designs` is registered on `0 3 * * *` and has produced its first export.
+
+Verified live: `/configurator/configure` serves 200, and the cron endpoint returns 401 to an
+unauthenticated caller and to a wrong bearer token — it fails closed.
 
 ## What to do next
 
-1. **Connect Vercel to the repo and deploy.** Unblocks M2 gate 1. Requires the dashboard.
+1. **Run the restore drill.** `docs/runbooks/design-db-restore.md` Path 2, against a throwaway Neon
+   branch. This is the last thing standing between M2 and closed. Requires Neon and Blob access.
 2. **M3 Wave 3A** — the domain wave: pure functions over `Design`, needs nothing deployed. The plan
-   is written and dispatchable: 12 work items across three waves, with five contract gaps already
-   recorded in `docs/decisions/0011-m3-insert-contract-gaps.md`.
+   is dispatchable: 12 work items across three waves, with five contract gaps already recorded in
+   `docs/decisions/0011-m3-insert-contract-gaps.md`.
 
 M3 also closes M2 gate 2 as a first-class work item, and un-skips the one named `test.skip` in the
 e2e suite, which had no void to tap against while the seeded design was fully occupied.
