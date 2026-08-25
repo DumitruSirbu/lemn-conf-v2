@@ -1,0 +1,30 @@
+# Completed milestones — archive
+
+**Do not read the plans in this directory.** They are closed. Everything a session needs about these
+phases is summarised in `docs/STATUS.md`, and everything durable about *why* the code is shaped the
+way it is lives in `docs/decisions/`.
+
+A milestone plan is an intention recorded at a point in time. Once the phase ships, the code is the
+truth and the decision records are the reasoning; the plan becomes history. Reading it costs tokens
+and risks acting on a superseded intention — M0's placement model, for instance, was replaced during
+M2, and its plan still describes the retired design.
+
+Open one of these only to answer a **historical** question: what a phase originally committed to,
+what evidence closed it, or what it deliberately deferred.
+
+| Phase | Closed | What it delivered | Live knowledge now in |
+| --- | --- | --- | --- |
+| [M0 — Foundations](M0-foundations.md) | 2026-08-24, partially superseded | Workspace, domain package, validation, persistence/versioning conventions. Its placement model was replaced in M2 and the retired modules deleted. | `docs/decisions/2026-08-24-design-reference-supersession.md` |
+| [M1 — Scene port](M1-scene-port.md) | 2026-08-25 | Supplier geometry ported into `packages/three-adapter`, R3F canvas, camera presets. Closed on a fidelity gate requiring two independent kinds of evidence. | `packages/three-adapter/reference/`, `docs/best-practices/product-invariants.md`, `docs/decisions/2026-08-25-m2-row19-m1-wall-gap-finding.md` |
+
+## What still binds from these phases
+
+Closed does not mean inert. Two guarantees established here constrain every later phase:
+
+- **The structural parity suite.** M1's port is diffed against vendored reference geometry at a
+  1e-6 m epsilon. It is the only thing standing between the project and silent visual regression, and
+  it must keep running. It was nearly lost once, when the untracked `design-source/` folder it
+  originally read from was scheduled for deletion.
+- **Row 19 — wall seating.** Every mounted body's back face lies exactly on its wall plane. This
+  applies from M2 onward, not just to M1's scene, and it was corrected once in step across both the
+  port and its reference.

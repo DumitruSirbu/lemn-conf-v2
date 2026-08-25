@@ -1,5 +1,7 @@
 # M8 — Screens 3, 4 and 5: review, contact, success and failure
 
+> **STATUS: PLANNED.** Depends on M7. Summary: `docs/STATUS.md`.
+
 Status: planned. Depends on M7.
 Reference: mockup frames 3A, 3B, 4A, 4B, 4C, 5A, 5B; `ARCHITECTURE_PROPOSAL.md` §8, §9;
 `CONFIGURATION_MODEL.md` "Pricing model boundary", "Persistence and migrations";

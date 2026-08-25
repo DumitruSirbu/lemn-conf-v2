@@ -1,5 +1,9 @@
 # M2 — Placement, column and void engine, picking, and persistence
 
+> **STATUS: IN PROGRESS — both waves implemented, two acceptance gates unmet.** The restore drill
+> has never been executed, and the persistence write path has no browser caller (M3 owns the
+> wiring). Both are marked NOT MET at their own criteria below. Summary: `docs/STATUS.md`.
+
 Status: Both waves implemented; **the phase cannot close yet — two acceptance gates are unmet (see
 below).** They are (1) the restore drill, which has never been executed, and (2) the mint trigger:
 the persistence write path has no browser caller, so no design is ever created from the editor. The

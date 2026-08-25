@@ -26,6 +26,17 @@ to be useful before the new app's stack, test commands, and browser setup are kn
    tests on purpose (the persistence suite needs a live database). Never use `--no-verify`. See
    `AGENTS.md` § "Rule — format and lint before every commit".
 
+7. **Archive.** A phase closes only when every acceptance criterion is met — an unmet gate keeps it
+   open, however much code has landed. On close:
+   - Update `docs/STATUS.md`: move the phase to **Done**, summarise what shipped in a short
+     paragraph, and rewrite "What is open right now" and "What to do next".
+   - Move the plan to `docs/milestones/done/` and add the stop-reading banner under its title, so no
+     future session spends tokens on a spent plan.
+   - Add its row to `docs/milestones/done/README.md`, naming where the *live* knowledge now lives.
+   - Make sure the durable reasoning is in `docs/decisions/`, not only in the archived plan.
+     Decision records are this repository's knowledge base; a milestone plan is an intention with a
+     shelf life.
+
 Repeat implementation through review until blockers are gone and any intentionally deferred issue
 is named with an owner or future phase.
 

@@ -1,5 +1,8 @@
 # M3 — Insert, remove and swap
 
+> **STATUS: PLANNED — next up, dispatchable.** 12 work items across three waves. Five contract
+> gaps against the shipped M2 code are recorded in `docs/decisions/`. Summary: `docs/STATUS.md`.
+
 Status: planned. Depends on M2 (both waves). Rewritten 2026-08-25 against the code M2 actually
 landed, replacing the earlier sketch — see "What changed from the sketch" at the end.
 Reference: `DEVELOPMENT-SPEC.md` §5.1, §5.2, §5.3, §5.5, §6.2, §6.3, §6.5, §7, §8, §9, §10, §12;

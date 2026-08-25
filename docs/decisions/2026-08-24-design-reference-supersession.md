@@ -6,7 +6,7 @@ supersedes the earlier accepted domain documents where they conflict)
 
 Supersedes, in part: `docs/CONFIGURATION_MODEL.md`, `docs/ARCHITECTURE_PROPOSAL.md` §3–§4,
 `docs/PRODUCT_REQUIREMENTS.md` (step wording), `docs/MAIN_REQUIREMENTS.md` (whole document),
-`docs/milestones/M0-foundations.md` (parts of its accepted scope).
+`docs/milestones/done/M0-foundations.md` (parts of its accepted scope).
 
 ## Context
 
@@ -218,7 +218,7 @@ Because "it doesn't look right" is not falsifiable, M1 carries a named fidelity 
 independent kinds of evidence — structural parity assertions over named meshes and bounds, and an
 actual side-by-side comparison against the reference renders in
 `design-source/Modern Kitchen Cabinets 3D (3)/shots/`, reproduced at the exact camera positions the
-`preset-shots.html` rig uses. See `docs/milestones/M1-scene-port.md`.
+`preset-shots.html` rig uses. See `docs/milestones/done/M1-scene-port.md`.
 
 This is the highest-risk item in the whole plan and is sequenced first for that reason.
 
@@ -279,7 +279,7 @@ after desktop. See `docs/milestones/README.md`.
 - `docs/CONFIGURATION_MODEL.md`, `docs/ARCHITECTURE_PROPOSAL.md`, `docs/PRODUCT_REQUIREMENTS.md`
   carry supersession notes on their affected sections and point here.
   `docs/MAIN_REQUIREMENTS.md` carries a whole-document supersession note.
-- `docs/milestones/M0-foundations.md` is closed as partially superseded. Its progress log stays
+- `docs/milestones/done/M0-foundations.md` is closed as partially superseded. Its progress log stays
   intact; a dated status section names which landed work is retired. In particular the run-anchor
   packing, reorder and margin-move commands, junction-group validation, wall-C transforms, and
   cross-wall occupancy scanning described in its 2026-08-20 progress log are superseded code paths.

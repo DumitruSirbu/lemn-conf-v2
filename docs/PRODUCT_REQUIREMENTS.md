@@ -11,7 +11,7 @@ contact-data separation; its placement, run-anchor, reorder, junction-group, and
 are superseded. The technical design in `docs/ARCHITECTURE_PROPOSAL.md` was approved on 2026-08-20
 and remains in force for the stack, package boundaries, render contract, persistence, and submission
 boundary, subject to the same supersession. The revised phase plan is `docs/milestones/README.md`;
-`docs/milestones/M0-foundations.md` is closed as partially superseded.
+`docs/milestones/done/M0-foundations.md` is closed as partially superseded.
 
 ## Product goal
 

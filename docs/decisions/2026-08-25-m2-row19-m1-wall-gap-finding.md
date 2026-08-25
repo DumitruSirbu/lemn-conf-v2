@@ -49,5 +49,5 @@ reproduces the corrected positions exactly.
 `kitchen-parts.decomposition.parity.test.ts`'s `KNOWN_WALL_GAP_M` exception map is now empty — the
 decomposed and whole-scene paths agree exactly, with no gap. `kitchen-parts.parity.test.ts`
 (M1's Evidence 1 fidelity gate) needed no assertion changes: both sides of the diff moved together.
-`docs/milestones/M1-scene-port.md` records this correction to the "reference files are not
+`docs/milestones/done/M1-scene-port.md` records this correction to the "reference files are not
 modified" boundary it had stated as closed.

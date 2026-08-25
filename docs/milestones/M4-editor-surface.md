@@ -1,5 +1,7 @@
 # M4 — Editor panel and layout shell (screens 2A, 2B, 2C)
 
+> **STATUS: PLANNED.** Depends on M3. Summary: `docs/STATUS.md`.
+
 Status: planned. Depends on M3.
 Reference: `DEVELOPMENT-SPEC.md` §9, §10, §10.1, §13.1; mockup frames 2A, 2B, 2C and D2A, D2B, D2C.
 

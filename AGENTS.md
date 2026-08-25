@@ -7,6 +7,18 @@ appears, and a Next.js App Router app.
 This file is loaded every session, so it stays short. It routes; the linked documents carry the
 detail. **Read the linked document before acting in its area** — do not work from this summary.
 
+## Read `docs/STATUS.md` second — before anything else
+
+It is the single source of truth for **where the project stands**: what is built, what is open right
+now, and what to do next. It exists so you never have to read eight milestone plans to orient
+yourself, and it tells you which of them are worth opening at all.
+
+Milestones marked **Done** are archived in `docs/milestones/done/` and must **not** be read — their
+plans describe intentions that have since shipped or been superseded, and acting on one reintroduces
+a design the project abandoned. Business logic lives in `docs/decisions/`: those records are this
+repository's knowledge base and the durable "why" behind the code. A dated decision beats any
+milestone prose.
+
 ## Three rules that apply before you read anything else
 
 1. **Environment variables and provisioned resources are add-only.** Never remove or overwrite a
@@ -45,12 +57,14 @@ detail. **Read the linked document before acting in its area** — do not work f
 
 **Current state and history**
 
-| Read                        | When                                                                                                |
-| --------------------------- | --------------------------------------------------------------------------------------------------- |
-| `docs/milestones/README.md` | You need the phase map and what is in flight.                                                       |
-| `docs/milestones/M<n>-*.md` | Working on a phase — goal, scope, falsifiable acceptance criteria.                                  |
-| `docs/decisions/`           | Before re-deciding anything. A dated record supersedes earlier prose; do not silently overturn one. |
-| `docs/runbooks/`            | Operating something live, e.g. restoring the database.                                              |
+| Read                        | When                                                                                                                                               |
+| --------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `docs/STATUS.md`            | **First, every session.** Where the project stands, what is open, what to do next.                                                                 |
+| `docs/decisions/`           | The knowledge base for business logic. Before re-deciding anything — a dated record supersedes earlier prose, and must not be silently overturned. |
+| `docs/milestones/M<n>-*.md` | Working on a phase STATUS lists as In progress or Planned. **Never one marked Done.**                                                              |
+| `docs/milestones/README.md` | You need the phase sequence and why it is ordered that way — the plan, not the current state.                                                      |
+| `docs/milestones/done/`     | Archived, do not read. Historical questions only; see its README first.                                                                            |
+| `docs/runbooks/`            | Operating something live, e.g. restoring the database.                                                                                             |
 
 Later decisions belong in `docs/decisions/`; acceptance criteria and phase plans in
 `docs/milestones/`.

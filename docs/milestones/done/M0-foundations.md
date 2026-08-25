@@ -1,5 +1,13 @@
 # M0 — Configurator foundations
 
+> **STATUS: DONE — closed 2026-08-24, partially superseded. Stop reading here.**
+>
+> Do not read the rest of this document. Its placement model was replaced during M2 and the
+> retired modules deleted; acting on the plan below would reintroduce a model the project has
+> abandoned. Current state: `docs/STATUS.md`. Durable reasoning: `docs/decisions/`.
+>
+> Read on only to answer a historical question about what this phase committed to.
+
 Status: **closed 2026-08-24, partially superseded.** Not abandoned and not failed — a substantial
 part of it landed and still stands. The rest was built against a placement model the project has
 since replaced. The revised plan is `docs/milestones/README.md` and `M1`–`M8`.

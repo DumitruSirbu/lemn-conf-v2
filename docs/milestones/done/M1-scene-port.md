@@ -1,5 +1,14 @@
 # M1 — Geometry port and render foundation
 
+> **STATUS: DONE — closed 2026-08-25. Stop reading here.**
+>
+> Do not read the rest of this document. Current state: `docs/STATUS.md`. Durable reasoning:
+> `docs/decisions/`. Two guarantees from this phase still bind every later one — the structural
+> parity suite and Row 19 wall seating — and both are summarised in
+> `docs/milestones/done/README.md`.
+>
+> Read on only to answer a historical question about what this phase committed to.
+
 Status: **closed 2026-08-25.** Fidelity gate passed on both kinds of required evidence. Blocks every
 later phase, which may now proceed.
 **Highest-risk and highest-priority phase in the plan.** A previous attempt at this project failed

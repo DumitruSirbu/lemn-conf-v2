@@ -476,7 +476,7 @@ acceptance requires a separately recorded source correction.
 > hierarchy, same mesh names, same materials, same chamfer cache, same structural dependencies — and
 > **not** a reimplementation, an approximation, or a JSX rewrite. Its fidelity gate, with both
 > structural parity assertions and side-by-side comparison against the reference renders in
-> `design-source/Modern Kitchen Cabinets 3D (3)/shots/`, is in `docs/milestones/M1-scene-port.md`.
+> `design-source/Modern Kitchen Cabinets 3D (3)/shots/`, is in `docs/milestones/done/M1-scene-port.md`.
 > The renderer setup in `three-d-stage.js` is part of the same gate: the environment, tone mapping,
 > exposure and light rig are what make the geometry read as product photography, and porting the
 > builders without them does not satisfy this section.
@@ -734,7 +734,7 @@ changes, then coordinator verification of the actual diff and commands.
 Approve the stack; scaffold the workspace and gates; implement schemas, pure commands, deterministic
 layout, versioned sample catalog/pricing, persistence contract, and one fixed L-preset from the
 reference. Port the minimum reference builders needed to render that proof after their domain
-instances are correct. This refines, rather than narrows, `docs/milestones/M0-foundations.md`.
+instances are correct. This refines, rather than narrows, `docs/milestones/done/M0-foundations.md`.
 
 Exit evidence: M0 acceptance criteria pass, including numeric sweeps and a visually inspected
 reference render on agreed desktop/mobile viewports.

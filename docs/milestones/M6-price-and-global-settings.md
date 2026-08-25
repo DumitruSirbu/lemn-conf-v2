@@ -1,5 +1,7 @@
 # M6 — Live price, breakdown, and whole-kitchen settings (2D, 2E)
 
+> **STATUS: PLANNED.** Depends on M5. Summary: `docs/STATUS.md`.
+
 Status: planned. Depends on M5.
 Reference: mockup frames 2A, 2D, 2E and D2A, D2D, D2E; `DEVELOPMENT-SPEC.md` §5.5, §9 item 7, §12;
 `CONFIGURATION_MODEL.md` "Pricing model boundary"; `ARCHITECTURE_PROPOSAL.md` §5.3.

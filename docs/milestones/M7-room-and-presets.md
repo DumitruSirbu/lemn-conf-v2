@@ -1,5 +1,7 @@
 # M7 — Screen 1: room shape, dimensions, presets, bespoke fallback
 
+> **STATUS: PLANNED.** Depends on M6. Summary: `docs/STATUS.md`.
+
 Status: planned. Depends on M6.
 Reference: mockup frames 1A, 1B, 1C, 1D, 1E, 1F and D1A–D1F; `DEVELOPMENT-SPEC.md` §10, §13.3 q4/q5;
 `ARCHITECTURE_PROPOSAL.md` §5.2, §8.

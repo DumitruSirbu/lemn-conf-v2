@@ -1,5 +1,7 @@
 # M5 — Width editing as a neighbour boundary move
 
+> **STATUS: PLANNED.** Depends on M4. Summary: `docs/STATUS.md`.
+
 Status: planned. Depends on M4.
 Reference: `DEVELOPMENT-SPEC.md` §5.4, §7 (width chip sets), §9 item 6, §13.1, §13.2;
 §11 rows 9–14.

@@ -1,5 +1,9 @@
 # Milestone plan — revised 2026-08-24
 
+> **Read `docs/STATUS.md` first.** It says where the project stands and which of the plans below
+> are worth opening. Completed phases are archived in `done/` and should not be read — see
+> `done/README.md`. This file is the *plan and its reasoning*, not the current state.
+
 Anchored on `docs/decisions/2026-08-24-design-reference-supersession.md` and
 `docs/decisions/2026-08-24-db-backed-shareable-persistence.md`. The domain and editor contract is
 `docs/design/DEVELOPMENT-SPEC.md`; the geometry contract is its
@@ -44,9 +48,9 @@ Step 3 Verificare  →  Step 4 Contact  →  Step 5 Succes
 
 | Phase | Goal | Primary surface |
 | --- | --- | --- |
-| [M0](M0-foundations.md) | Foundations — closed, partially superseded | domain package |
-| [M1](M1-scene-port.md) | Geometry port, R3F canvas, camera presets, no editing — **fidelity gate — closed 2026-08-25** | shared + mobile |
-| [M2](M2-void-engine.md) | Placement/column/void engine, picking (wave 2A), **DB persistence and shareable links** (wave 2B) | domain + scene |
+| [M0](done/M0-foundations.md) | Foundations — **DONE**, partially superseded (archived) | domain package |
+| [M1](done/M1-scene-port.md) | Geometry port, R3F canvas, camera presets — fidelity gate — **DONE** (archived) | shared + mobile |
+| [M2](M2-void-engine.md) | Placement/column/void engine, picking (2A), DB persistence and shareable links (2B) — **IN PROGRESS, 2 gates open** | domain + scene |
 | [M3](M3-mutations.md) | Insert, remove, swap, with every guard; the client write path | domain + adapter + scene |
 | [M4](M4-editor-surface.md) | Editor panel and shell — screens 2A, 2B, 2C, 2F | **mobile-gated** |
 | [M5](M5-width.md) | Width editing as a neighbour boundary move | domain + panel |
