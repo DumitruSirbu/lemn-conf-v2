@@ -173,6 +173,24 @@ What was decided, in brief:
   never made an account was considered and rejected.
 - **No external proxy in front of Vercel** (Cloudflare orange-cloud specifically). DNS-only is fine.
 
+**Implementation is deferred; the decisions are not.** On the owner's direction of 2026-08-25 —
+the project is nowhere near done — the firewall is **not** being set up now. The rules were staged
+once to prove they stage cleanly, then discarded; the project has **zero** custom rules today, and
+`docs/runbooks/firewall-setup.md` holds the exact commands and the plan constraints so re-creating
+them later is a copy-paste. ADR 0019 decision 10 assigns every part to a phase:
+
+| Part | Phase |
+| --- | --- |
+| Write-token cookie / read–write split | **M3 Wave 3C** — the one part that gets *more* expensive by waiting |
+| Save-coalescer minimum interval | **M3 Wave 3C** — a write-path defect, not a security control |
+| Application rate limiting, retention cron, emailed edit link, BotID/honeypot | **M8**, with the contact form |
+| WAF rules | **Pre-launch, after M7** — no value against zero traffic |
+
+One plan constraint worth knowing before that work starts: **this plan permits exactly one WAF
+`rate_limit` rule.** A second returns "Rate limiting is not available for this plan (401)", which is
+misleading — the first stages fine. So the edge cannot express per-endpoint policy, and every
+per-endpoint limit is enforced in the application layer.
+
 **A defect found while sizing the limits, not yet fixed:** the save coalescer has no minimum
 interval — `scheduleSave` runs immediately unless a save is in flight, so its sustained output is
 bounded by network round-trip time rather than by a timer. During active editing that is roughly

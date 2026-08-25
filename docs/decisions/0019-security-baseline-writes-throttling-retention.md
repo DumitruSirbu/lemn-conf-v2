@@ -183,6 +183,28 @@ No password is stored. This was considered and rejected: see Alternatives.
 Specifically, **Cloudflare's proxy ("orange cloud") mode is rejected.** Using Cloudflare for DNS
 only ("grey cloud") is unaffected and is fine.
 
+### 10. When each part is implemented — the decisions stand, the rollout is staged
+
+Owner's direction, 2026-08-25, after the decisions above were made: the project is nowhere near
+done, so the firewall is not set up now and is deferred to the end phases. **This defers
+implementation, not the decisions.** Everything above is settled and must not be re-litigated by
+the phase that picks it up; what follows is only *when*.
+
+| Part | Phase | Why there |
+| --- | --- | --- |
+| **Write-token cookie / read–write split** (decision 1) | **M3 Wave 3C** | 3C is the wave that builds the client write path. Building it with authorisation costs almost nothing; retrofitting it later means touching the repository, the coalescer, both routes and every caller a second time. This is the one part that gets *more* expensive by waiting. |
+| **Save-coalescer minimum interval** (decision 6) | **M3 Wave 3C** | Not a security control at all — it is a write-path defect that also happens to make the limits sizeable. It belongs with the code it fixes. |
+| **Application rate limiting** (decisions 2, 3, 5) | **M8**, with the contact form | The counters protect endpoints that mostly do not exist yet. The contact form is the endpoint the owner named as most needing throttling, and it arrives in M8. |
+| **WAF rules** (decisions 2, 4, 5) | **Pre-launch**, after M7 | Production infrastructure with no value against zero traffic, and rules left staged for months go stale against an app that changed underneath them. Exact commands and the staged rollout: `docs/runbooks/firewall-setup.md`. |
+| **Retention cron** (decision 7) | **M8** | Nothing to retain until designs are real and the contact step distinguishes abandoned from converted. |
+| **Emailed edit link** (decision 8) | **M8** | Requires the email address the contact form captures. |
+| **BotID, honeypot, time-to-submit** (decision 5) | **M8** | Contact-form controls; the form does not exist yet. |
+
+The firewall rules were staged once to prove they stage cleanly on this plan, then **discarded**.
+The project has zero custom rules today. `docs/runbooks/firewall-setup.md` holds the exact
+commands so re-creating them is a copy-paste rather than a re-derivation — the expensive part was
+establishing the plan constraints above, and those are now written down.
+
 ## Alternatives considered
 
 1. **A password for updates**, set at the contact step, enabling cross-device editing (the owner's

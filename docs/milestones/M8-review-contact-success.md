@@ -25,6 +25,29 @@ model M2 introduced, not adapt the deleted one.
 
 Out: CRM integration.
 
+## Security this phase owns — decided, not open
+
+**`docs/decisions/0019-security-baseline-writes-throttling-retention.md` is Accepted. Implement it;
+do not re-decide it.** M8 is where most of it lands, because it owns the contact form — the
+endpoint the owner named as most needing throttling.
+
+- **Application rate limiting**, in the existing Postgres (no Redis — decided). Identity is
+  *independent buckets*, most restrictive wins: IP aggregated to **/24** and **/64**, session
+  cookie, normalised email, and a global cap. Never IP+session fused into one key — a composite is
+  weaker than either component, since rotating either resets the counter. IPv6 /64 aggregation is
+  not optional.
+- **Contact form limits**: 3/hour and 10/day per IP block, 2/hour per session, 3/day per email;
+  non-MD traffic tighter and challenged. **Fails closed** — if the counter store is unavailable the
+  submission is refused. A lost lead beats an open relay.
+- **Honeypot field, minimum time-to-submit, and Vercel BotID.** Rate limiting is not the only
+  control on this form.
+- **Retention cron**: designs that never reached the contact step and have not been modified for 30
+  days are deleted by the existing nightly cron, which also prunes expired counters. This is the
+  answer to the retention question this plan lists as open — it is now closed by ADR 0019.
+- **Emailed edit link**, not a password: the design link is emailed with its write token so the
+  customer can edit from another device. Storing passwords for people who never made an account was
+  considered and rejected — see ADR 0019 Alternatives.
+
 ## Work items
 
 1. **3A** — the review summary: final render, room summary line, whole-kitchen settings with a
