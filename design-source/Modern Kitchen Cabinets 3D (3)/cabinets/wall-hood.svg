@@ -1,7 +1,0 @@
-<svg viewBox="0 0 220 160" xmlns="http://www.w3.org/2000/svg" role="img">
-  <title>Wall-mounted range hood</title>
-<path d="M 61.60000000000001 0 H 158.4 L 132 88 H 88 Z" fill="#dcdcdc" stroke="#1c1814" stroke-width="5.2"></path>
-  <rect x="88" y="88" width="44" height="72" fill="#dcdcdc" stroke="#1c1814" stroke-width="5.2"></rect>
-  <line x1="74.80000000000001" y1="28.799999999999997" x2="145.20000000000002" y2="28.799999999999997" stroke="#1c1814" stroke-width="1.6"></line>
-  <circle cx="110" cy="48" r="4" fill="none" stroke="#1c1814" stroke-width="2.9"></circle>
-</svg>

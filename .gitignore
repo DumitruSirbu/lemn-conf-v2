@@ -13,3 +13,7 @@ test-results/
 
 # Claude Code session-local runtime state
 .claude/
+
+# Supplier deliverable — copied into docs/design/ and packages/three-adapter/reference/,
+# deleted from the working tree once the port is finished. Nothing may depend on it.
+design-source/

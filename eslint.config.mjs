@@ -10,6 +10,10 @@ export default tseslint.config(
       "**/next-env.d.ts",
       "design-source/**",
       "catalog-seed/**",
+      // Supplier reference geometry, vendored verbatim for the structural-parity suite to diff
+      // against. Not our source, not in any tsconfig, and deliberately not reformatted — linting it
+      // would only pressure someone into "fixing" the very thing the port is compared to.
+      "packages/three-adapter/reference/**",
     ],
   },
   eslint.configs.recommended,

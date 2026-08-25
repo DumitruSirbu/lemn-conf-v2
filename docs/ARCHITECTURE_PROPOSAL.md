@@ -8,7 +8,7 @@ Scope: the complete mobile-first kitchen configurator described in
 
 > **Supersession notice.** `docs/decisions/2026-08-24-design-reference-supersession.md` replaces the
 > placement model in this document with the placement/derived-void model in
-> `design-source/Modern Kitchen Cabinets 3D (3)/DEVELOPMENT-SPEC.md` §3–§5. Sections 4.1, 4.3, 4.4
+> `docs/design/DEVELOPMENT-SPEC.md` §3–§5. Sections 4.1, 4.3, 4.4
 > and 5.2 carry inline notes marking what no longer applies. Sections 1, 2, 3, 4.2, 5.1, 5.3, 5.4,
 > 6, 7, 8, 9 and 10 remain in force. Nothing here about the stack, package boundaries, render
 > contract, persistence, pricing boundary, or submission boundary is affected.
@@ -482,7 +482,7 @@ acceptance requires a separately recorded source correction.
 > builders without them does not satisfy this section.
 
 Do not rewrite the reference geometry as hundreds of JSX meshes. Port
-`design-source/Modern Kitchen Cabinets 3D (3)/kitchen-parts.js` into `packages/three-adapter` with the builder
+`packages/three-adapter/reference/kitchen-parts.js` into `packages/three-adapter` with the builder
 math, mesh hierarchy, names, materials, chamfer cache, and structural dependencies intact. The
 port should expose typed production builders keyed by `CabinetDefinition.rendererKey` and accept
 only the supported width/options parameters.

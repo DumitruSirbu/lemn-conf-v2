@@ -1,7 +1,21 @@
 # Lemnaria Configurator — Codex Project Guide
 
-This repository will build the next Lemnaria furniture configurator. Treat the files in
-`design-source/` as product reference material, not as production code to be casually rewritten.
+This repository will build the next Lemnaria furniture configurator.
+
+`design-source/` is the supplier's original deliverable. It is **not tracked in git** and will be
+deleted from the working tree once the port is finished, so nothing in the repository may depend on
+it. Everything still needed from it has been copied into the project's own source and is what you
+should read and cite:
+
+- `docs/design/DEVELOPMENT-SPEC.md` — the authoritative behavioural spec (sections, `§11` row
+  numbers, tolerances).
+- `docs/design/SPEC.md` — the original supplier spec it superseded.
+- `docs/design/mockups/*.dc.html` — the screen mockups the milestones cite by frame name.
+- `packages/three-adapter/reference/kitchen-parts.js` — the reference geometry M1's structural
+  parity suite diffs the port against.
+
+Older documents still mention `design-source/` paths when describing where something originally came
+from. That is historical provenance; read it as such, and do not add new dependencies on the folder.
 
 ## Start here
 
@@ -11,14 +25,14 @@ Before planning or changing product behaviour, read the relevant source material
   decisions for the new configurator.
 - `docs/ARCHITECTURE_PROPOSAL.md` — the accepted technical architecture and delivery roadmap;
   dated decision records and its explicitly unresolved inputs govern implementation.
-- `design-source/Modern Kitchen Cabinets 3D (3)/DEVELOPMENT-SPEC.md` — the current domain and
+- `docs/design/DEVELOPMENT-SPEC.md` — the current domain and
   editor contract: placements, derived voids, columns, bands, insert/remove/swap/resize, picking,
   panel behaviour, and a 24-row regression table. Every rule marked **WHY:** is a shipped defect's
   fix and must not be simplified away.
-- `design-source/Modern Kitchen Cabinets 3D (3)/SPEC.md` — the current 3D kitchen contract. It
+- `docs/design/SPEC.md` — the current 3D kitchen contract. It
   defines coordinate conventions, dimensions, non-negotiable structural dependencies, and visual
   rules.
-- `design-source/Modern Kitchen Cabinets 3D (3)/Lemnaria Configurator Mobil.dc.html` and
+- `docs/design/mockups/Lemnaria Configurator Mobil.dc.html` and
   `…Desktop.dc.html` — the screen flow, states, and Romanian copy. Mobile is the priority surface
   and the only file covering all five screens.
 - `docs/decisions/2026-08-24-design-reference-supersession.md` — what the new reference superseded

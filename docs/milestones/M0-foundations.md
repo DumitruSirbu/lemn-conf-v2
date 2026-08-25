@@ -7,7 +7,7 @@ since replaced. The revised plan is `docs/milestones/README.md` and `M1`–`M8`.
 ## Status revision — 2026-08-24
 
 `docs/decisions/2026-08-24-design-reference-supersession.md` adopts the placement/derived-void model
-from `design-source/Modern Kitchen Cabinets 3D (3)/DEVELOPMENT-SPEC.md`. The 2026-08-20 progress log
+from `docs/design/DEVELOPMENT-SPEC.md`. The 2026-08-20 progress log
 below is preserved exactly as recorded; this section names what that log describes and where it now
 stands. Nothing in the log was wrong when written.
 

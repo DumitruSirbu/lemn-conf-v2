@@ -5,3 +5,6 @@ pnpm-lock.yaml
 **/dist/
 **/.next/
 next-env.d.ts
+
+# Supplier reference geometry, kept verbatim for the parity suite to diff against.
+packages/three-adapter/reference/

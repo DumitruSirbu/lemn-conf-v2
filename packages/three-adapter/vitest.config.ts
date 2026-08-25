@@ -5,12 +5,12 @@ import { defineConfig } from "vitest/config";
 export default defineConfig({
   resolve: {
     alias: {
-      // Read-only reference geometry, imported by the structural-parity suite only.
+      // Reference geometry, imported by the structural-parity suite only. Vendored into this
+      // package rather than read out of `design-source/`: that folder is a supplier deliverable
+      // that leaves the repository once the port is finished, and the fidelity gate must not stop
+      // working when it does.
       "@reference/kitchen-parts": fileURLToPath(
-        new URL(
-          "../../design-source/Modern Kitchen Cabinets 3D (3)/kitchen-parts.js",
-          import.meta.url,
-        ),
+        new URL("./reference/kitchen-parts.js", import.meta.url),
       ),
     },
   },

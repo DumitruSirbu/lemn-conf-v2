@@ -5,7 +5,7 @@ data, not hard-coded behaviour.
 
 > **Supersession notice.** `docs/decisions/2026-08-24-design-reference-supersession.md` replaces this
 > document's *placement* model with the placement/derived-void model in
-> `design-source/Modern Kitchen Cabinets 3D (3)/DEVELOPMENT-SPEC.md` §3–§5, and adopts its §12
+> `docs/design/DEVELOPMENT-SPEC.md` §3–§5, and adopts its §12
 > persisted `Design` shape (room + `presetId` + `placements[]`, each `wall / alongMm / y0Mm / body`).
 >
 > **Superseded sections:** "Placement" (`runAnchor`, order partitions), "Junction group", "Derived

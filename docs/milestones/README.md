@@ -2,7 +2,7 @@
 
 Anchored on `docs/decisions/2026-08-24-design-reference-supersession.md` and
 `docs/decisions/2026-08-24-db-backed-shareable-persistence.md`. The domain and editor contract is
-`design-source/Modern Kitchen Cabinets 3D (3)/DEVELOPMENT-SPEC.md`; the geometry contract is its
+`docs/design/DEVELOPMENT-SPEC.md`; the geometry contract is its
 `SPEC.md`; the screens, states and copy are its two `.dc.html` mockup files.
 
 ## The target: a working POC that matches the design reference

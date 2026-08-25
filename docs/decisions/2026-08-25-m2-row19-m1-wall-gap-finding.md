@@ -30,7 +30,7 @@ unbounded margin.
 ## Resolved — 2026-08-25
 
 Decision: option 1 (fix the geometry now, not carry it as an accepted exception). The reference
-`design-source/Modern Kitchen Cabinets 3D (3)/kitchen-parts.js` is a fidelity anchor, not a sacred
+`packages/three-adapter/reference/kitchen-parts.js` is a fidelity anchor, not a sacred
 artifact — since it carried the same hardcoded-offset defect, it was corrected too, in the same
 change, rather than fixing only the port and letting it drift from the reference.
 

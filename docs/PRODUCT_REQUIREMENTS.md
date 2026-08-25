@@ -5,7 +5,7 @@ Status: active product goal. Initial decisions are recorded in
 2026-08-24 by `docs/decisions/2026-08-24-design-reference-supersession.md`.
 
 The canonical state and placement rules are
-`design-source/Modern Kitchen Cabinets 3D (3)/DEVELOPMENT-SPEC.md` §3–§5 and §11.
+`docs/design/DEVELOPMENT-SPEC.md` §3–§5 and §11.
 `docs/CONFIGURATION_MODEL.md` remains in force only for pricing, versioning, persistence, and the
 contact-data separation; its placement, run-anchor, reorder, junction-group, and cross-wall sections
 are superseded. The technical design in `docs/ARCHITECTURE_PROPOSAL.md` was approved on 2026-08-20

@@ -73,7 +73,7 @@ half-depth per §6.2, leaving them 10–20 mm proud of the wall plane. Fixed by 
 bodies with a §6.2-style helper (position at the wall plane, add to the room, measure the actual
 bounding box, shift by its back-face offset) in **both** `buildKitchen()` implementations —
 `packages/three-adapter/src/kitchen-parts.ts` and the reference
-`design-source/Modern Kitchen Cabinets 3D (3)/kitchen-parts.js` — so Evidence 1's fidelity diff
+`packages/three-adapter/reference/kitchen-parts.js` — so Evidence 1's fidelity diff
 keeps comparing against a reference that is itself correct, rather than reproducing the reference's
 defect. This means the "Boundaries" acceptance criterion above ("the reference files under
 `design-source/` are not modified") no longer holds absolutely: the reference was corrected once,
