@@ -31,10 +31,11 @@ milestone prose.
    historical provenance. → `docs/design/README.md`
 4. **Milestone work follows `docs/WORKFLOW.md`, without exception.** Every wave runs plan →
    implement → **adversarial QA** → **review** → verify → commit → archive. QA gates review: a wave
-   whose tests are red does not go to reviewers, it goes back to its implementer. A wave that has
-   not been reviewed is not finished, however green its gates are — gates catch regressions against
-   what is already asserted; review catches a rule implemented plausibly and wrongly. Skipping a
-   step is a decision to record, not a default to drift into. → `docs/WORKFLOW.md`
+   whose tests are red goes back to its implementer, not to reviewers. Gates catch regressions
+   against what is already asserted; review catches a rule implemented plausibly and wrongly, which
+   is why green gates are not a substitute. How much review a wave gets is **tiered by risk** —
+   domain rules get the full round, mechanical changes get none — and the tier is named in the
+   dispatch, so it is a recorded choice rather than a drift. → `docs/WORKFLOW.md`
 
 ## Where to look, and when
 

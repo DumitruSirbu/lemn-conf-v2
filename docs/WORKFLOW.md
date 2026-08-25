@@ -43,8 +43,21 @@ named with an owner or future phase.
 
 ## Scope discipline
 
-- At most **five must-fix items** per implementation dispatch and, where practical, **five files**.
-  Split larger work into sequential waves with a mini-review between them.
+- At most **five must-fix items** per implementation dispatch, and about **five production files** —
+  their paired tests do not count toward the limit. Split larger work into sequential waves with a
+  mini-review between them.
+
+  The file number counts production files rather than everything changed because this repository
+  requires a paired test per behaviour change and keeps tests in a parallel `tests/` tree, so every
+  module is two files by construction. Counting both made the limit permit roughly two modules,
+  which no domain wave can fit; Wave 3A had exactly five work items and produced about twenty files
+  almost entirely through that pairing.
+
+  The number is a proxy, not the point. What it protects is a reviewer's ability to hold the change
+  in working memory and actually check it — a reviewer reads a module and its test together, as one
+  unit. Five modules with their tests is reviewable; ten unrelated production files is not. If a
+  wave has to exceed this, say so in the dispatch and add a mini-review, rather than quietly
+  stretching the number.
 - Touch the minimum surface the dispatch requires. Do not fold opportunistic refactors into a
   behavioural fix.
 - Do not reinterpret a locked decision while implementing. Surface the conflict and revise the
@@ -73,6 +86,36 @@ named with an owner or future phase.
   shipped a test that asserted a defect as correct, two boundary greps that matched nothing while
   reporting green, and two commands that reported success while doing nothing. "No findings" must be
   earned and evidenced.
+
+## How much review a wave gets
+
+Review agents are expensive — most of the cost is a cold start re-reading the spec, the ADRs and the
+codebase before it reads a single line of the diff. Spending that on a mechanical rename is waste;
+skipping it on domain algebra is how a wrong rule ships. Tier it deliberately, and **name the tier in
+the dispatch** so the choice is recorded rather than drifted into.
+
+| Tier | When | Who |
+| --- | --- | --- |
+| **Full** | Domain rules and algebra, anything anchored to a `§11` row, persistence, auth, public endpoints, customer data, dependency changes | Adversarial QA, then logic **and** clean-code review in parallel |
+| **Light** | Straightforward implementation against a settled contract: adapter wiring, UI assembly, plumbing | Adversarial QA, then **one** combined reviewer |
+| **Coordinator-only** | No behaviour change: renames, file moves, doc restructures, config, formatting | No agents. The coordinator verifies against the gates and states what it checked |
+
+Coordinator-only is a real tier, not an excuse. It requires the change to be provably behaviour-free
+— a green suite plus a specific check that the semantics are unchanged, such as comparing a
+restructured fixture's values against `HEAD` rather than eyeballing its diff.
+
+### Keeping review cheap without making it weaker
+
+- **Scope the reading, not the rigour.** The largest cost is context loading. Give the reviewer the
+  exact files and the two or three spec sections that govern them; do not tell it to read the whole
+  specification and work out what is relevant. A reviewer that reads less but is pointed precisely
+  finds more.
+- **Match the model to the job.** Logic review of domain rules earns a strong model. Clean-code
+  review against a written convention list does not.
+- **Reuse agents across rounds** (see below). A second round with the same reviewer costs a fraction
+  of a fresh one, because the context is already loaded.
+- **Never economise by having the implementer review itself.** That saves the entire cost and
+  provides none of the value.
 
 ## Review continuity
 
