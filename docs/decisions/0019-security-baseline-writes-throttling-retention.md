@@ -25,8 +25,15 @@ is required — "especially on sending the contact form" — at very low rates.
 
 - **The platform.** Vercel's automatic L3/L4/L7 DDoS mitigation is on for every project on every
   plan, unbilled. WAF custom rules including the `rate_limit` action **are available on this
-  project's plan** — verified by staging a probe rule and discarding it; only IP Bypass returned
-  "unavailable for this plan". There are currently **zero** custom rules configured.
+  project's plan**, with one hard constraint established by experiment rather than by reading:
+
+  **This plan permits exactly ONE `rate_limit` rule.** Staging a second returns
+  `Rate limiting is not available for this plan (401)` — a misleading message, since the first rule
+  stages fine. Confirmed by removing the first rule, after which the second staged immediately.
+  Non-`rate_limit` rules (`log`, `deny`, `challenge`) are not subject to that limit; three rules
+  were staged together. `IP Bypass` is separately unavailable on this plan.
+
+  There were **zero** custom rules configured before this work.
 - **The write path's real output rate.** `apps/web/src/persistence/save-coalescer.ts` has **no
   minimum interval**: `scheduleSave` calls `runSave` immediately unless a save is already in
   flight, so coalescing happens only *during* a request. Its sustained output is therefore bounded
@@ -53,6 +60,13 @@ actually closes S1, and it does not require an authentication system that M7 and
 - **Edge (Vercel WAF custom rules)** — coarse limits keyed on IP, evaluated before any function
   runs. Blocked traffic is not billed. This is the volume shield: it absorbs floods so they never
   reach the database.
+
+  Because the plan allows only **one** `rate_limit` rule, the edge cannot hold a per-endpoint table
+  of limits. That single rule is therefore spent on the broadest useful target — all of `/api/` —
+  sized as a flood shield rather than as a per-endpoint policy. **Every per-endpoint number in
+  decision 5 is enforced in the application layer.** This is not a compromise forced on the
+  design; it is the layering the design already called for, with the plan constraint deciding
+  exactly where the boundary falls.
 - **Application (Postgres)** — exact counters keyed on more than IP. This is the semantic layer,
   and the only one that can key on a session or an email address.
 
@@ -108,8 +122,10 @@ Per-bucket application limits:
 | `POST /api/designs` (mint) | 10 / hour, 30 / day | 3 / hour + challenge | 5 / hour | — |
 | `PUT`/`PATCH /api/designs/{id}` | 600 / hour | 120 / hour + challenge | 300 / hour | — |
 
-Edge rules are set to roughly 3–5× the application limit, because of the per-region multiplier in
-decision 2, and every rule ships in `log` action first (see Consequences).
+The single edge rate-limit rule sits across all of `/api/` at **120 requests / 60 s per IP**, which
+is far above any legitimate use and exists only to stop a flood before it reaches a function. Every
+per-endpoint and per-identity number above is enforced in the application layer, because the plan
+allows no second edge rule. Every rule ships in `log` action first (see Consequences).
 
 **The contact form fails closed**: if the counter store is unavailable the submission is refused.
 At POC volume a lost lead is a better outcome than an open relay. Reads fail open; writes fail
