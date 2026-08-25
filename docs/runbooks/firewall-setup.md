@@ -11,6 +11,18 @@ re-derivation — the expensive part was establishing the plan constraints, not 
 Run this when the project is close to carrying real traffic: after M7 (real customers can reach
 Step 1) and alongside M8 (the contact form exists and is the endpoint most worth protecting).
 
+## What this firewall is for
+
+**Vercel is the firewall; the application is the rate limiter** (ADR 0019 decision 2). Nothing
+here expresses a product rule or a per-endpoint policy — those live in application code, because
+they need to know about sessions, design ownership and email addresses, which the edge cannot see.
+
+The firewall does three blunt things the application cannot do cheaply: drop traffic that is never
+legitimate, challenge traffic that is unlikely to be legitimate, and absorb volume **for free**.
+That last one is the whole reason it exists — an application limiter must run a function and touch
+the database in order to say no, so under a flood it becomes the denial of service it was meant to
+prevent.
+
 ## Plan constraints — established by experiment, not by reading
 
 - **Exactly ONE `rate_limit` rule is permitted on this plan.** Staging a second returns

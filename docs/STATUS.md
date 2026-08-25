@@ -158,9 +158,13 @@ What was decided, in brief:
 - **Read is split from write.** Minting sets an `HttpOnly` cookie holding a per-design write token;
   `PUT`/`PATCH` require it. A shared link stays readable by anyone and can no longer destroy the
   design it points at.
-- **Throttling is layered**: Vercel WAF custom rules at the edge (verified available on this plan;
-  currently **zero** rules configured) over exact counters in the existing Postgres. No Redis, on
-  the owner's direction not to add maintenance surface.
+- **Vercel is the firewall; the application does the rate limiting.** The edge drops what is never
+  legitimate, challenges what is unlikely to be, and absorbs volume for free; it holds no
+  per-endpoint policy. Every recognisable limit is application code over the existing Postgres. No
+  Redis, on the owner's direction not to add maintenance surface. The reason to keep an edge layer
+  at all is narrow and worth remembering: **an application limiter has to run a function and touch
+  the database in order to say no**, so under a flood on free tiers it becomes the denial of
+  service it exists to prevent.
 - **Identity is several independent buckets**, most restrictive winning — IP aggregated to /24 and
   /64, session cookie, email address, and a global cap. Never IP+session fused into one key, which
   is weaker than either alone.

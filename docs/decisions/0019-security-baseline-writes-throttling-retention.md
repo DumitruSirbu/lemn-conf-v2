@@ -55,24 +55,56 @@ is required — "especially on sending the contact form" — at very low rates.
 A shared link can no longer destroy the design it points at. This is the smallest change that
 actually closes S1, and it does not require an authentication system that M7 and M8 do not assume.
 
-### 2. Throttling is layered, because neither layer alone is sufficient
+### 2. Vercel is the firewall; the application does the rate limiting
 
-- **Edge (Vercel WAF custom rules)** — coarse limits keyed on IP, evaluated before any function
-  runs. Blocked traffic is not billed. This is the volume shield: it absorbs floods so they never
-  reach the database.
+The division is by **job**, not by redundancy, and it is the governing principle for everything
+below. Refined on the owner's direction, 2026-08-25: *use Vercel more like a firewall*.
 
-  Because the plan allows only **one** `rate_limit` rule, the edge cannot hold a per-endpoint table
-  of limits. That single rule is therefore spent on the broadest useful target — all of `/api/` —
-  sized as a flood shield rather than as a per-endpoint policy. **Every per-endpoint number in
-  decision 5 is enforced in the application layer.** This is not a compromise forced on the
-  design; it is the layering the design already called for, with the plan constraint deciding
-  exactly where the boundary falls.
-- **Application (Postgres)** — exact counters keyed on more than IP. This is the semantic layer,
-  and the only one that can key on a session or an email address.
+| | Vercel WAF — **the firewall** | The application — **the rate limiter** |
+| --- | --- | --- |
+| Job | drop traffic that is never legitimate; absorb volume | decide whether *this* caller may do *this* action *now* |
+| Knows about | IP, geography, path, method, user agent | session, design ownership, email address, what the request means |
+| Granularity | blunt and coarse, by design | exact, per identity, per endpoint |
+| Actions | `deny`, `challenge`, one coarse `rate_limit` | 429 with a reason the UI can render |
+| Cost of a rejection | **zero** — never billed, never runs a function | a function invocation and a database round trip |
 
-**WAF counters are per region.** A configured limit of N is enforced at roughly N × (number of
-regions serving the traffic). The edge layer therefore may never be quoted as a hard cap; it is a
-flood shield in front of the layer that counts precisely.
+**Every number a human would recognise as a policy lives in the application.** The firewall holds
+no per-endpoint table and expresses no product rule.
+
+#### Why keep the edge layer at all, when the application layer is easy to write
+
+It is easy to write, and it is the real control. The edge is not there for redundancy — it is
+there for one failure mode the application layer cannot cover **by construction**:
+
+**An application limiter has to run in order to say no.** Every rejected request costs a function
+invocation, Active CPU, and — with counters in Postgres — a database write, *for traffic it is
+about to refuse*. A flood of a million requests against an application-only design buys a million
+invocations and a million writes to decide not to serve them.
+
+That is not primarily a billing concern here. It is an availability one:
+
+1. **This project runs on free tiers with hard caps.** The failure mode is not a large invoice; it
+   is the project hitting its usage limit and going down — which is what the attacker wanted.
+2. **The database is what is being protected, and the limiter writes to it.** Neon's free tier has
+   connection and compute limits. Under a flood, an application-only limiter *is* the denial of
+   service: the scarcest resource in the system gets spent deciding not to spend it.
+
+So the firewall absorbs volume for free, and Postgres only ever counts traffic that already
+survived a coarse filter. Dropping the edge layer entirely is defensible at this project's
+expected volume; the honest cost is that a flood then lands on the function and the database
+instead of being discarded at no charge.
+
+#### The constraint that shapes it
+
+**This plan permits exactly one `rate_limit` rule** (see "What was measured"), so the edge could
+not express per-endpoint policy even if the design wanted it to. That single rule is spent as a
+volume valve across all of `/api/`. The firewall's other work — blocking scanner paths, challenging
+traffic from outside Moldova — uses `deny` and `challenge`, which are **not** subject to that
+limit.
+
+**WAF counters are per region.** A configured limit of N is enforced at roughly N × the number of
+regions serving traffic. The firewall is therefore never quoted as a hard cap; the application
+layer is the only place an exact limit exists.
 
 ### 3. Rate-limit identity: independent buckets, most restrictive wins
 
@@ -108,7 +140,10 @@ happens to be. A challenge lets every one of those through while stopping an aut
 country `deny` would eventually lock out a real customer, and the failure would be invisible —
 they simply never arrive.
 
-### 5. Rates
+### 5. Rates — all enforced in the application layer
+
+Per decision 2, every number in this section is an **application** limit. The firewall's single
+coarse rule is stated at the end and is not one of them.
 
 "Very low" applies where a human action is genuinely rare. It cannot apply to design updates
 without breaking editing, so those are bounded rather than low, and decision 6 is what makes the
@@ -122,10 +157,10 @@ Per-bucket application limits:
 | `POST /api/designs` (mint) | 10 / hour, 30 / day | 3 / hour + challenge | 5 / hour | — |
 | `PUT`/`PATCH /api/designs/{id}` | 600 / hour | 120 / hour + challenge | 300 / hour | — |
 
-The single edge rate-limit rule sits across all of `/api/` at **120 requests / 60 s per IP**, which
-is far above any legitimate use and exists only to stop a flood before it reaches a function. Every
-per-endpoint and per-identity number above is enforced in the application layer, because the plan
-allows no second edge rule. Every rule ships in `log` action first (see Consequences).
+**The firewall's whole contribution to rate limiting** is one rule across all of `/api/` at
+**120 requests / 60 s per IP** — far above any legitimate use, and there to stop a flood before it
+reaches a function, not to express any of the policy above. Every firewall rule ships in `log`
+action first (see Consequences).
 
 **The contact form fails closed**: if the counter store is unavailable the submission is refused.
 At POC volume a lost lead is a better outcome than an open relay. Reads fail open; writes fail
@@ -143,10 +178,10 @@ deliberately and nobody else gets in.
 
 So the global layer is deliberately loose and its action is `challenge`, never `deny`:
 
-| Scope | Threshold | Action |
-| --- | --- | --- |
-| all `/api/*` | 1 000 / hour | challenge |
-| `POST /api/contact` | 60 / hour | challenge |
+| Scope | Threshold | Action | Layer |
+| --- | --- | --- | --- |
+| all `/api/*` | 1 000 / hour | challenge | application |
+| `POST /api/contact` | 60 / hour | challenge | application |
 
 A human hitting a challenge still gets through. An automated flood does not. The precise
 per-identity buckets in the table above are what actually protect an individual endpoint; the
