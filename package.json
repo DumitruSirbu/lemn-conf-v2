@@ -7,16 +7,17 @@
     "node": ">=20 <21",
     "pnpm": ">=9.15 <10"
   },
+  "//scripts": "Recursive scripts run with --workspace-concurrency=1 on purpose. Several packages depend on @lemnaria/configurator-domain and each builds it via its own build:deps, so running them concurrently puts multiple tsc processes on the same dist/ and produces spurious 'error type' lint failures on a cold tree.",
   "scripts": {
-    "build": "pnpm --recursive run build",
+    "build": "pnpm --workspace-concurrency=1 --recursive run build",
     "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "lint": "pnpm --recursive run lint",
-    "lint:fix": "pnpm --recursive run lint:fix",
+    "lint": "pnpm --workspace-concurrency=1 --recursive run lint",
+    "lint:fix": "pnpm --workspace-concurrency=1 --recursive run lint:fix",
     "prepare": "git config core.hooksPath .githooks || true",
-    "test": "pnpm --recursive run test",
-    "typecheck": "pnpm --recursive run typecheck"
+    "test": "pnpm --workspace-concurrency=1 --recursive run test",
+    "typecheck": "pnpm --workspace-concurrency=1 --recursive run typecheck"
   },
   "devDependencies": {
     "@eslint/js": "9.34.0",
