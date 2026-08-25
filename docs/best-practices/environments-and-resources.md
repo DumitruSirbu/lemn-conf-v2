@@ -64,5 +64,5 @@ misconfiguration run.
 no application database exists to collide with. Whenever `DATABASE_URL` is set, the comparison is
 enforced.
 
-See `docs/decisions/2026-08-25-tests-never-touch-the-application-database.md` and
-`docs/decisions/2026-08-25-least-privilege-database-role.md`.
+See `docs/decisions/0006-tests-never-touch-the-application-database.md` and
+`docs/decisions/0008-least-privilege-database-role.md`.

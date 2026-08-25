@@ -14,7 +14,7 @@ later phase, which may now proceed.
 **Highest-risk and highest-priority phase in the plan.** A previous attempt at this project failed
 here, and the owner has named the ported cabinets' visual quality as the thing that matters most.
 Reference: `DEVELOPMENT-SPEC.md` §1, §2, §6.2, §6.4, §6.5; `SPEC.md` in full;
-`ARCHITECTURE_PROPOSAL.md` §6.1–§6.3; `docs/decisions/2026-08-24-design-reference-supersession.md`
+`ARCHITECTURE_PROPOSAL.md` §6.1–§6.3; `docs/decisions/0003-design-reference-supersession.md`
 §5c; mockup frames 2A / D2A and 2F / D2F.
 
 ## Progress — 2026-08-25
@@ -75,7 +75,7 @@ the source material).
 
 ## Correction — 2026-08-25
 
-M2's Wave 2A work surfaced a real M1 defect (`docs/decisions/2026-08-25-m2-row19-m1-wall-gap-finding.md`):
+M2's Wave 2A work surfaced a real M1 defect (`docs/decisions/0005-m2-row19-m1-wall-gap-finding.md`):
 `buildKitchen()` seated six bodies (the base row and the two tall units on wall B) at hardcoded
 round offsets (`zA`/`xB = 0.3`) instead of deriving the seat from each body's own measured
 half-depth per §6.2, leaving them 10–20 mm proud of the wall plane. Fixed by seating those six

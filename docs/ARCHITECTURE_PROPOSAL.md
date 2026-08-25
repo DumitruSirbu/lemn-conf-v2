@@ -6,7 +6,7 @@ Date: 2026-08-20, revised 2026-08-24
 Scope: the complete mobile-first kitchen configurator described in
 `docs/PRODUCT_REQUIREMENTS.md`; CRM integration remains out of scope.
 
-> **Supersession notice.** `docs/decisions/2026-08-24-design-reference-supersession.md` replaces the
+> **Supersession notice.** `docs/decisions/0003-design-reference-supersession.md` replaces the
 > placement model in this document with the placement/derived-void model in
 > `docs/design/DEVELOPMENT-SPEC.md` §3–§5. Sections 4.1, 4.3, 4.4
 > and 5.2 carry inline notes marking what no longer applies. Sections 1, 2, 3, 4.2, 5.1, 5.3, 5.4,
@@ -560,7 +560,7 @@ explain that configuration requires 3D; it must not silently present a non-edita
 ## 7. Application state and persistence
 
 > **Superseded in part (2026-08-24, engine amended 2026-08-25).** See
-> `docs/decisions/2026-08-24-db-backed-shareable-persistence.md`. The three-way split of durable /
+> `docs/decisions/0002-db-backed-shareable-persistence.md`. The three-way split of durable /
 > workflow / ephemeral state below is unchanged, and so is every validation rule: parse, validate,
 > migrate known schema versions as one transaction, and refuse to partially hydrate. What changes is
 > where the durable tier lives. It is no longer `localStorage`; it is a **managed Postgres database
@@ -610,7 +610,7 @@ Recommended App Router structure:
 ```
 
 The mobile mockup labels step 5 `/configurator/done`. The final path is an open question in
-`docs/decisions/2026-08-24-design-reference-supersession.md`; pick one and use it in both places.
+`docs/decisions/0003-design-reference-supersession.md`; pick one and use it in both places.
 
 The wizard shell supplies progress, back/continue behavior, localized content hooks, and route
 guards. Direct navigation to a later step restores a valid local configuration or redirects to
@@ -832,7 +832,7 @@ closed from build/test status alone.
 ## 14. Accepted architecture decisions
 
 The product owner accepted these decisions on 2026-08-20; the dated record is
-`docs/decisions/2026-08-20-initial-product-and-stack.md`:
+`docs/decisions/0001-initial-product-and-stack.md`:
 
 1. Next.js App Router, strict TypeScript, pnpm workspace, R3F/Three.js, Zod, Zustand, Vitest,
    `fast-check`, and Playwright as the initial stack.

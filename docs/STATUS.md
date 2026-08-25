@@ -66,7 +66,7 @@ least-privilege database role verified by live assertions, and a daily backup cr
    nothing in `apps/web` client code calls it — no `fetch(`, and `createSaveCoalescer` is constructed
    only in its own test. The read half (`/d/[id]`) is complete. Classified as a contract gap, not a
    defect, and assigned to M3: see
-   `docs/decisions/2026-08-25-m3-client-write-path-unwired.md`.
+   `docs/decisions/0010-m3-client-write-path-unwired.md`.
 
 **Infrastructure state.** Repository `DumitruSirbu/lemn-conf-v2` (private), CI green. The Vercel
 project exists with Root Directory `apps/web` and the Next.js preset, but **is not connected to the
@@ -78,7 +78,7 @@ one backup is the prerequisite chain for gate 1.
 1. **Connect Vercel to the repo and deploy.** Unblocks M2 gate 1. Requires the dashboard.
 2. **M3 Wave 3A** — the domain wave: pure functions over `Design`, needs nothing deployed. The plan
    is written and dispatchable: 12 work items across three waves, with five contract gaps already
-   recorded in `docs/decisions/2026-08-25-m3-insert-contract-gaps.md`.
+   recorded in `docs/decisions/0011-m3-insert-contract-gaps.md`.
 
 M3 also closes M2 gate 2 as a first-class work item, and un-skips the one named `test.skip` in the
 e2e suite, which had no void to tap against while the seeded design was fully occupied.

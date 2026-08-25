@@ -14,7 +14,7 @@ since replaced. The revised plan is `docs/milestones/README.md` and `M1`–`M8`.
 
 ## Status revision — 2026-08-24
 
-`docs/decisions/2026-08-24-design-reference-supersession.md` adopts the placement/derived-void model
+`docs/decisions/0003-design-reference-supersession.md` adopts the placement/derived-void model
 from `docs/design/DEVELOPMENT-SPEC.md`. The 2026-08-20 progress log
 below is preserved exactly as recorded; this section names what that log describes and where it now
 stands. Nothing in the log was wrong when written.
@@ -76,7 +76,7 @@ price/visual drift inevitable.
 Verified work landed so far:
 
 - The initial product and stack decision is accepted and recorded in
-  `docs/decisions/2026-08-20-initial-product-and-stack.md`.
+  `docs/decisions/0001-initial-product-and-stack.md`.
 - The pnpm workspace scaffold and buildable framework-free domain package are in place.
 - `catalog-seed/` contains the traceable source catalog extraction and reference L-preset seed;
   neither is presented as approved commercial data.

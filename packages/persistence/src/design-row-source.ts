@@ -30,7 +30,7 @@ export interface DesignRowSource {
  * Scoped to `designs` alone, deliberately — never widen it to every table. M8 adds a contact table
  * holding personal data, and a database-wide export would sweep contact submissions into Blob under
  * the backup's 14-day rotation, contradicting the stricter handling contact data is promised
- * (`docs/decisions/2026-08-24-db-backed-shareable-persistence.md`, "Security and backups"). A
+ * (`docs/decisions/0002-db-backed-shareable-persistence.md`, "Security and backups"). A
  * second, separately-scoped export is the right way to back up another table.
  *
  * Lives here rather than in the web app because this package is the only place allowed to import a

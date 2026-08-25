@@ -82,7 +82,7 @@ The bottom sheet covers most of a 390 × 844 viewport, so on mobile the customer
 in the sheet and then dismisses it to see the result full-screen. Desktop sees the scene and the
 panel at once and needs no such step. This is a **visibility affordance**, not a rule difference —
 recorded as the single deliberate viewport divergence in the plan
-(`docs/decisions/2026-08-24-design-reference-supersession.md` §5b).
+(`docs/decisions/0003-design-reference-supersession.md` §5b).
 
 - Every edit applies to the model **immediately**, on both viewports, exactly as
   `DEVELOPMENT-SPEC.md` §5 requires. Nothing is batched, queued, staged, or applied on dismissal.

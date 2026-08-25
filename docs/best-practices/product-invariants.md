@@ -24,7 +24,7 @@ looks in a screenshot.
 `packages/three-adapter/reference/kitchen-parts.js` is the supplier's original, vendored so M1's
 structural parity suite can diff the port against it at a 1e-6 m epsilon. It is a fidelity anchor,
 not scripture: it moves only alongside a matching, documented change to the port. It has been
-corrected once — see `docs/decisions/2026-08-25-m2-row19-m1-wall-gap-finding.md`.
+corrected once — see `docs/decisions/0005-m2-row19-m1-wall-gap-finding.md`.
 
 It is excluded from ESLint and Prettier on purpose. Linting it would only pressure someone into
 "fixing" the very thing the port is compared against.

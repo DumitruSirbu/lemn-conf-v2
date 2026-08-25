@@ -26,7 +26,7 @@ export function readDatabaseUrl(): string {
  * Deliberately a different variable from `DATABASE_URL`: the application connects with a
  * least-privilege role that holds `SELECT, INSERT, UPDATE` on `designs` and nothing else, so it
  * *cannot* run DDL — that is the security property, not an oversight (M2 work item 8, and
- * `docs/decisions/2026-08-25-least-privilege-database-role.md`). Applying schema changes therefore
+ * `docs/decisions/0008-least-privilege-database-role.md`). Applying schema changes therefore
  * needs a separate, more privileged connection, and keeping it in its own variable means the
  * running application never holds credentials that can drop a table.
  *

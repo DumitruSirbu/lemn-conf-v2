@@ -1,8 +1,8 @@
 # Lemnaria 3D kitchen configurator — product brief
 
 Status: active product goal. Initial decisions are recorded in
-`docs/decisions/2026-08-20-initial-product-and-stack.md`; the placement model was superseded on
-2026-08-24 by `docs/decisions/2026-08-24-design-reference-supersession.md`.
+`docs/decisions/0001-initial-product-and-stack.md`; the placement model was superseded on
+2026-08-24 by `docs/decisions/0003-design-reference-supersession.md`.
 
 The canonical state and placement rules are
 `docs/design/DEVELOPMENT-SPEC.md` §3–§5 and §11.
@@ -178,7 +178,7 @@ Out of scope for the first release:
 3. Sample price amounts and whether delivery, worktop, and appliances appear in the estimate.
 4. Retention period, deletion policy, and privacy copy. The storage question is settled — a managed
    Postgres database on Neon's free tier holding one self-contained JSON document per design, with
-   shareable links, per `docs/decisions/2026-08-24-db-backed-shareable-persistence.md` — but how long
+   shareable links, per `docs/decisions/0002-db-backed-shareable-persistence.md` — but how long
    a design is kept, and what the customer is told about it, is not. Designs are currently kept
    indefinitely as a deliberate POC placeholder, which is a decision to revisit, not a policy.
 5. The real threshold behind the "fits after a ≤ 30 cm adjustment" preset rule shown in the mockups.

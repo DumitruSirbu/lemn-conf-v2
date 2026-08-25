@@ -10,7 +10,7 @@ suite imports — in `packages/three-adapter/reference/`. Nothing in the codebas
 
 | File | What it is |
 | --- | --- |
-| `DEVELOPMENT-SPEC.md` | The authoritative behavioural spec. Milestones cite it by section (`§4`, `§6.1`) and by `§11` row number. Supersedes `SPEC.md` — see `docs/decisions/2026-08-24-design-reference-supersession.md`. |
+| `DEVELOPMENT-SPEC.md` | The authoritative behavioural spec. Milestones cite it by section (`§4`, `§6.1`) and by `§11` row number. Supersedes `SPEC.md` — see `docs/decisions/0003-design-reference-supersession.md`. |
 | `SPEC.md` | The original supplier spec, kept for provenance. Where the two disagree, `DEVELOPMENT-SPEC.md` wins. |
 | `mockups/Lemnaria Configurator Desktop.dc.html` | Desktop screen mockups. Milestones cite frames as `D2A`, `D2D`, `D2E`. |
 | `mockups/Lemnaria Configurator Mobil.dc.html` | Mobile screen mockups. Frames cited as `2A`, `2D`, `2E`, `3A`, `4A`, `5A`. |
@@ -31,5 +31,5 @@ parity suite diffs the ported builders against it at a 1e-6 m epsilon, so it has
 
 It is not verbatim: `buildKitchen()`'s wall seating was corrected in step with the port when six
 bodies were found sitting 10–20 mm proud of the wall plane. See
-`docs/decisions/2026-08-25-m2-row19-m1-wall-gap-finding.md`. Treat it as a fidelity anchor that moves
+`docs/decisions/0005-m2-row19-m1-wall-gap-finding.md`. Treat it as a fidelity anchor that moves
 only alongside a matching, documented change to the port.

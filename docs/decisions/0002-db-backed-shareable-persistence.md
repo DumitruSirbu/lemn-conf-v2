@@ -329,14 +329,25 @@ above does not yet state.
    the mockups do not cover — no frame shows a persistence-failure state.
 7. **Whether the nightly export excludes the contact table or Blob gains its own PII retention
    story** (decision 24). Must be settled before M8, not during it.
-8. **The Hobby-plan cron frequency limit.** Vercel cron jobs are declared in `vercel.json` as a path
+8. ~~**The Hobby-plan cron frequency limit.**~~ **Resolved 2026-08-25 — see ADR 0012.** The schedule
+   is daily (`0 3 * * *`), which is within the limit on every plan, and the cron was confirmed
+   registered on the first production deployment. The constraint never became binding. Original text
+   below, kept for context.
+
+   Vercel cron jobs are declared in `vercel.json` as a path
    plus a schedule and are invoked by hitting that endpoint; sub-minute schedules are rejected
    (confirmed against Vercel's own configuration schema and CLI tests, 2026-08-25). The plan's limit
    on how often a Hobby cron may run was **not** confirmed during this review and must be checked at
    implementation time, the same way Neon's PITR window and Blob's limits were. A daily schedule is
    expected to be within it, but "expected" is not "confirmed", and the daily cadence in the backups
    section depends on it.
-9. **How the export is produced inside a serverless invocation.** The backups section says `pg_dump`
+9. ~~**How the export is produced inside a serverless invocation.**~~ **Resolved 2026-08-25 — see
+   ADR 0012.** A parameterised `select` over `designs` alone, serialised to newline-terminated
+   ndjson; the read lives in `packages/persistence`, the only package permitted a Postgres driver.
+   ADR 0012 also records the consequence — the export carries rows, not schema — and the empty-table
+   defect this shape caused on the first production run. Original text below, kept for context.
+
+   The backups section says `pg_dump`
    "or equivalent", and a Vercel cron invokes an HTTP endpoint, so the job runs in a function runtime
    where the `pg_dump` binary is not available. The equivalent — for a schema this small, a driver-level
    read of the designs table serialised to a file — is almost certainly the right answer, but the

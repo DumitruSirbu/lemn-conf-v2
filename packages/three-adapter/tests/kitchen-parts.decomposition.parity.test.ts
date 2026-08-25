@@ -186,7 +186,7 @@ describe("decomposed kitchen-l placements reproduce the whole-scene render", () 
   // The base row and the two tall units used to sit 10-20 mm proud of the wall plane in the
   // ported M1 scene, because `buildKitchen()` placed them at round-number offsets (`zA = 0.3`,
   // `xB = 0.3`) instead of deriving them from the §6.2 seating algorithm — fixed in both the
-  // reference and the port (see `docs/decisions/2026-08-25-m2-row19-m1-wall-gap-finding.md`).
+  // reference and the port (see `docs/decisions/0005-m2-row19-m1-wall-gap-finding.md`).
   // Every row, decomposed or whole-scene, now agrees exactly with no gap.
   const KNOWN_WALL_GAP_M: ReadonlyMap<string, number> = new Map();
 

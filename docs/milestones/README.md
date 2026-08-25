@@ -4,8 +4,8 @@
 > are worth opening. Completed phases are archived in `done/` and should not be read — see
 > `done/README.md`. This file is the *plan and its reasoning*, not the current state.
 
-Anchored on `docs/decisions/2026-08-24-design-reference-supersession.md` and
-`docs/decisions/2026-08-24-db-backed-shareable-persistence.md`. The domain and editor contract is
+Anchored on `docs/decisions/0003-design-reference-supersession.md` and
+`docs/decisions/0002-db-backed-shareable-persistence.md`. The domain and editor contract is
 `docs/design/DEVELOPMENT-SPEC.md`; the geometry contract is its
 `SPEC.md`; the screens, states and copy are its two `.dc.html` mockup files.
 
@@ -27,7 +27,7 @@ The owner's stated priority. It calibrates every phase below:
   2. **Database-backed shareable persistence** (M2, wave 2B). A design lives in a managed Postgres
      database (Neon, free tier) as a self-contained `jsonb` document, reachable by an opaque link
      that restores it exactly, behind a stated security baseline, a specified write path, and a
-     two-tier backup story — see `docs/decisions/2026-08-24-db-backed-shareable-persistence.md`.
+     two-tier backup story — see `docs/decisions/0002-db-backed-shareable-persistence.md`.
 - **CRM integration stays out of scope** and is not planned further. Eventually it will consume the
   contact form's submission; the submission boundary is already shaped to allow that.
 

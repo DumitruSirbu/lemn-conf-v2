@@ -13,7 +13,7 @@
 > then removed. §"Project stack" also points at the removed path `design-source/3D design
 > reference/`; the current path is `design-source/Modern Kitchen Cabinets 3D (3)/`.
 >
-> See `docs/decisions/2026-08-24-design-reference-supersession.md`. It is kept as a paper trail.
+> See `docs/decisions/0003-design-reference-supersession.md`. It is kept as a paper trail.
 
 Status: design brief derived from `docs/PRODUCT_REQUIREMENTS.md`, `docs/ARCHITECTURE_PROPOSAL.md`,
 `docs/CONFIGURATION_MODEL.md`, and `docs/brand.md`. Use this document as the prompt/brief handed to
@@ -26,7 +26,7 @@ rather than inventing an answer.
 
 ## Project stack
 
-Accepted 2026-08-20 (`docs/decisions/2026-08-20-initial-product-and-stack.md`,
+Accepted 2026-08-20 (`docs/decisions/0001-initial-product-and-stack.md`,
 `docs/ARCHITECTURE_PROPOSAL.md` §2/§14). Included so visual designs stay implementable within the real
 constraints (e.g. CSS Modules/tokens rather than a heavier design-system runtime, R3F-driven 3D rather
 than baked video/renders).

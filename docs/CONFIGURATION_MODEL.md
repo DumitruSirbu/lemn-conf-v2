@@ -3,7 +3,7 @@
 Status: **partially superseded 2026-08-24.** Commercial values and exact catalog contents remain
 data, not hard-coded behaviour.
 
-> **Supersession notice.** `docs/decisions/2026-08-24-design-reference-supersession.md` replaces this
+> **Supersession notice.** `docs/decisions/0003-design-reference-supersession.md` replaces this
 > document's *placement* model with the placement/derived-void model in
 > `docs/design/DEVELOPMENT-SPEC.md` §3–§5, and adopts its §12
 > persisted `Design` shape (room + `presetId` + `placements[]`, each `wall / alongMm / y0Mm / body`).

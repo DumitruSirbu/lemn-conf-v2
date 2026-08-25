@@ -18,7 +18,7 @@ touch verification via Playwright (`apps/web/playwright.config.ts`,
 `apps/web/src/scene/kitchen-stage.e2e.spec.ts`). 236 unit/component tests + 4 e2e tests passing,
 typecheck/lint/format clean. The one item that was open before Wave 2A could fully close — a
 pre-existing M1 wall-seating gap on 6 bodies colliding with the Row 19 acceptance criterion — is now
-fixed; see `docs/decisions/2026-08-25-m2-row19-m1-wall-gap-finding.md`'s "Resolved" section: both
+fixed; see `docs/decisions/0005-m2-row19-m1-wall-gap-finding.md`'s "Resolved" section: both
 `buildKitchen()` and its reference were corrected to seat those bodies flush, and Row 19 now holds
 with no tracked exception. One acceptance case is honestly unverifiable until M3: "tap an empty slot" has no void to tap against
 in the fully-occupied seeded fixture — recorded as a named `test.skip` with justification, not
@@ -39,7 +39,7 @@ verified live: the application connects as `app_designs`, a SQL-created role hol
 `SELECT, INSERT, UPDATE` on `designs` with no inherited roles and no
 `super`/`createdb`/`createrole` — asserted by 8 passing live-database checks in
 `packages/persistence/src/application-role-privileges.test.ts` (see
-`docs/decisions/2026-08-25-least-privilege-database-role.md`). Credentials are environment
+`docs/decisions/0008-least-privilege-database-role.md`). Credentials are environment
 variables, never committed, and connections use TLS; queries are parameterised throughout, and
 `packages/persistence` is the only place in the codebase that imports a Postgres driver. Live
 integration tests require and self-guard against pointing at the application database
@@ -50,7 +50,7 @@ a timestamped key with 14-day rotation (`apps/web/src/lib/server/backup-designs.
 documented for both Neon PITR and a dated Blob export (`docs/runbooks/design-db-restore.md`).
 Deployment configuration gaps found during Wave 2B (wrong Vercel Root Directory/Framework Preset,
 missing `CRON_SECRET`, no Preview `DATABASE_URL`) are all resolved — see
-`docs/decisions/2026-08-25-deployment-configuration-gaps.md`. **Directly verified today**: `pnpm
+`docs/decisions/0009-deployment-configuration-gaps.md`. **Directly verified today**: `pnpm
 check` (format:check, lint, typecheck, test) passes clean, exit 0, with 300 unit tests across 4
 packages (62 `configurator-domain` + 163 `three-adapter` + 28 `persistence` + 47 `apps/web`),
 matching commit `be4c0f0`'s claim.
@@ -61,7 +61,7 @@ still open. The runbook (`docs/runbooks/design-db-restore.md`, "Operator step re
 phase closes") states plainly that the drill was *not* performed — it was out of scope for the
 implementation task, which was prohibited from touching real infrastructure. The prerequisite chain
 is: the project has never been deployed (`vercel ls` reports no deployments, per
-`docs/decisions/2026-08-25-deployment-configuration-gaps.md`) → so the daily cron has never fired →
+`docs/decisions/0009-deployment-configuration-gaps.md`) → so the daily cron has never fired →
 so no Vercel Blob export exists yet → so Path 2 of the runbook cannot be executed against a
 throwaway target. Deploying, letting the cron produce at least one backup, and then running Path 2
 end-to-end against a scratch Neon branch is the remaining work before M2 can be marked closed. A
@@ -81,7 +81,7 @@ earlier claim away.
 
 Depends on M1.
 Reference: `DEVELOPMENT-SPEC.md` §2 (tolerances), §3, §4, §6.1, §6.4, §12 (persisted `Design`);
-§11 rows 1, 2, 17, 18, 21, 22; `docs/decisions/2026-08-24-db-backed-shareable-persistence.md`.
+§11 rows 1, 2, 17, 18, 21, 22; `docs/decisions/0002-db-backed-shareable-persistence.md`.
 
 ## Goal
 
@@ -151,7 +151,7 @@ looking at raycaster thresholds and a reviewer looking at connection roles are n
 7. Implement persistence: the `ConfigurationRepository` interface, a **Postgres-on-Neon**-backed
    adapter, a table storing one row per design with the canonical `Design` in a **`jsonb` column**
    (not normalized/referenced rows — see
-   `docs/decisions/2026-08-24-db-backed-shareable-persistence.md` decisions 2–4 and 18–21), the
+   `docs/decisions/0002-db-backed-shareable-persistence.md` decisions 2–4 and 18–21), the
    deterministic canonical serialiser the round-trip invariant compares against, the write path of
    decisions 13–17 (coalesced, off the edit path, failure surfaced and retried), and the route wiring
    that resolves a design by its identifier.
@@ -262,7 +262,7 @@ equality and derived-not-stored voids are all met and exercised by tests.
   caller, and `setSaveStatus` / `applySavedId` are unused outside tests. The read half
   (`/d/[id]` → `GET /api/designs/[id]` → `hydrate`) is complete and does work; the write half has no
   client. Found while planning M3 — see
-  `docs/decisions/2026-08-25-m3-client-write-path-unwired.md`, which classifies it as a contract gap
+  `docs/decisions/0010-m3-client-write-path-unwired.md`, which classifies it as a contract gap
   (M2 stated the coalescer's properties, all of which hold, but never stated that something must call
   it) and assigns the wiring to M3 as a first-class work item.
 - The identifier is the only thing in the URL. The configuration itself never travels in query
@@ -287,7 +287,7 @@ Write path — the semantics a network store needs and a browser store did not. 
 is met **as a property of the coalescer**, proven by `apps/web/src/persistence/save-coalescer.test.ts`
 (9 tests). None is yet met *in the running product*, because the coalescer has no production caller —
 see the mint-trigger bullet above and
-`docs/decisions/2026-08-25-m3-client-write-path-unwired.md`. M3 wires it and is the phase that makes
+`docs/decisions/0010-m3-client-write-path-unwired.md`. M3 wires it and is the phase that makes
 these observable end to end.
 
 - **No user interaction blocks on a write.** Tapping a chip applies to the model and the scene

@@ -5,7 +5,7 @@
 Status: planned. Depends on M7.
 Reference: mockup frames 3A, 3B, 4A, 4B, 4C, 5A, 5B; `ARCHITECTURE_PROPOSAL.md` §8, §9;
 `CONFIGURATION_MODEL.md` "Pricing model boundary", "Persistence and migrations";
-`docs/decisions/2026-08-20-initial-product-and-stack.md` decisions 4, 6 and 7.
+`docs/decisions/0001-initial-product-and-stack.md` decisions 4, 6 and 7.
 
 ## Goal
 
@@ -19,7 +19,7 @@ In: `/configurator/review`, `/configurator/contact`, and the success route; the 
 the failure safety net. **Note (2026-08-25):** `ContactSubmissionSchema` /
 `createContactSubmissionSchema` were deleted in M2 Wave 2A — they were typed against the retired
 `KitchenConfigurationSchema`/`PricingResultSchema` and had no live consumer (see
-`docs/decisions/2026-08-25-m2-pricing-engine-deletion.md` addendum). Work item 7 here must define a
+`docs/decisions/0004-m2-pricing-engine-deletion.md` addendum). Work item 7 here must define a
 new contact-submission schema whose configuration snapshot is shaped against the `Design`
 model M2 introduced, not adapt the deleted one.
 

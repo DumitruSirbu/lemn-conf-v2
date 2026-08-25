@@ -1,5 +1,5 @@
 // The write path of decisions 13-17
-// (`docs/decisions/2026-08-24-db-backed-shareable-persistence.md`): the edit path never blocks on
+// (`docs/decisions/0002-db-backed-shareable-persistence.md`): the edit path never blocks on
 // a write, writes are coalesced so a burst of commands produces one save of the final state (not a
 // queue of intermediate ones), and a failed write is surfaced and retried without ever reverting
 // the already-applied edit. M2 has exactly one caller of `scheduleSave` (mint-on-first-write); M3's

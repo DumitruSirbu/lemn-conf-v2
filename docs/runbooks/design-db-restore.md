@@ -8,7 +8,7 @@ Two independent recovery paths, chosen by how far back the needed state is:
 
 Accepted worst-case data loss: up to roughly a day. Beyond the PITR window, the most recent
 recovery point is the last nightly export, not the moment of failure — a known consequence of this
-mechanism (`docs/decisions/2026-08-24-db-backed-shareable-persistence.md`, "Security and backups").
+mechanism (`docs/decisions/0002-db-backed-shareable-persistence.md`, "Security and backups").
 
 **A restored export is untrusted input**, exactly like any other load path. Every row goes back
 through parse → validate → migrate (`migrateDesign` from `@lemnaria/configurator-domain`) and fails

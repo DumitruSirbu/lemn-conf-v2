@@ -7,10 +7,10 @@ Status: planned. Depends on M2 (both waves). Rewritten 2026-08-25 against the co
 landed, replacing the earlier sketch — see "What changed from the sketch" at the end.
 Reference: `DEVELOPMENT-SPEC.md` §5.1, §5.2, §5.3, §5.5, §6.2, §6.3, §6.5, §7, §8, §9, §10, §12;
 §11 rows 3–8, 14, 15, 16, 19, 20, 23, 24 (engine half);
-`docs/decisions/2026-08-25-m3-insert-contract-gaps.md`;
-`docs/decisions/2026-08-25-m3-client-write-path-unwired.md`;
-`docs/decisions/2026-08-24-db-backed-shareable-persistence.md` (write path, decisions 13–17);
-`docs/decisions/2026-08-24-design-reference-supersession.md` §1, §2, §3.
+`docs/decisions/0011-m3-insert-contract-gaps.md`;
+`docs/decisions/0010-m3-client-write-path-unwired.md`;
+`docs/decisions/0002-db-backed-shareable-persistence.md` (write path, decisions 13–17);
+`docs/decisions/0003-design-reference-supersession.md` §1, §2, §3.
 
 ## Goal
 
@@ -403,12 +403,12 @@ silently corrected:
 Separately, the sketch's work item 7 assumed the persistence write path was already carrying traffic
 and M3 would add to it. It has no production caller at all: `createSaveCoalescer` is constructed
 only in its own test, and no client mints a design. M3 stands the path up — see
-`docs/decisions/2026-08-25-m3-client-write-path-unwired.md`.
+`docs/decisions/0010-m3-client-write-path-unwired.md`.
 
 ## Undo
 
 Not deferred — **retired**, by two recorded decisions
-(`docs/decisions/2026-08-24-design-reference-supersession.md` §2, and `DEVELOPMENT-SPEC.md` §5.1 and
+(`docs/decisions/0003-design-reference-supersession.md` §2, and `DEVELOPMENT-SPEC.md` §5.1 and
 §13.1), because a void may have merged with its neighbours since an operation, so there is no single
 prior state to restore. The span model was judged worth more than undo.
 
