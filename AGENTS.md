@@ -59,6 +59,32 @@ Later decisions belong in `docs/decisions/`; acceptance criteria and phase plans
 - Prefer the existing 3D reference as evidence over a visual guess. Record intentional departures
   with their reason and acceptance criteria before implementing them.
 
+## Hard rule — environment variables and provisioned resources are add-only
+
+**Never remove or overwrite an environment variable, and never delete a provisioned resource.
+Adding is the only permitted operation.** This applies to `vercel env rm`, `vercel env add` over an
+existing name, `vercel blob delete-store`, `vercel integration-resource remove`, and any equivalent
+dashboard action or API call.
+
+If something appears wrong — a variable is scoped too broadly, holds a stale value, or a resource is
+unused — **report it and let the human decide**. Do not fix it by removing.
+
+Why this is absolute rather than a preference:
+
+- **The values cannot be read back.** Vercel marks Production and Preview variables sensitive by
+  default, so `vercel env pull` returns them empty. A deletion is therefore *irreversible by the
+  agent*: there is no way to restore what was there.
+- **The commands are not symmetric.** `vercel env add NAME <env>` scopes the addition to that
+  environment, but `vercel env rm NAME <env>` **deletes the variable across every environment** and
+  ignores the argument. A removal intended to narrow a scope destroys the whole variable. This
+  actually happened on 2026-08-25: an attempt to unscope `CRON_SECRET` from Preview removed it from
+  Production too, and the value could not be recovered.
+- **Failures are silent and delayed.** A missing variable usually does not break a build; it breaks
+  a scheduled job or a request path later, in an environment nobody is watching.
+
+Narrowing a scope, rotating a secret, or retiring a resource are all human decisions. Prepare the
+exact commands or dashboard steps and hand them over.
+
 ## Working conventions
 
 - For meaningful product phases, use the agent team as the default workflow: architect → scoped

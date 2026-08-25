@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "permissions": {
+    "deny": [
+      "Bash(vercel env rm:*)",
+      "Bash(vercel blob delete-store:*)",
+      "Bash(vercel blob del:*)",
+      "Bash(vercel blob empty-store:*)",
+      "Bash(vercel integration-resource remove:*)",
+      "Bash(vercel integration-resource disconnect:*)",
+      "Bash(vercel integration remove:*)",
+      "Bash(vercel project rm:*)",
+      "Bash(vercel domains rm:*)",
+      "Bash(vercel alias rm:*)",
+      "Bash(vercel remove:*)",
+      "Bash(vercel rm:*)"
+    ]
+  }
+}

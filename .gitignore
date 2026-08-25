@@ -11,8 +11,10 @@ test-results/
 *.tsbuildinfo
 **/.tmp/
 
-# Claude Code session-local runtime state
-.claude/
+# Claude Code: session-local runtime state is ignored, but the project's permission
+# rules (settings.json) are committed so they bind every agent working in this repo.
+.claude/*
+!.claude/settings.json
 
 # Supplier deliverable — copied into docs/design/ and packages/three-adapter/reference/,
 # deleted from the working tree once the port is finished. Nothing may depend on it.
