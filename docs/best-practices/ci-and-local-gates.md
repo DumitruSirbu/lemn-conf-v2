@@ -5,7 +5,10 @@ adding or editing a CI gate, or diagnosing a hook that blocked a commit or a pus
 
 ## Root development commands
 
-Use Node 24 and pnpm 9.15 (`.nvmrc` pins it; `nvm use` picks it up). From the repository root:
+Use Node 24 and pnpm 9.15 (`.nvmrc` pins it; `nvm use` picks it up). `pnpm ci:local` **refuses to
+run** on any other Node major, because a gate run against a different runtime than CI cannot predict
+CI — pnpm reports the `engines` mismatch as a single WARN and continues, which is easy to read past
+in a long log. If it stops you, run `nvm use`. From the repository root:
 
 ```bash
 pnpm install

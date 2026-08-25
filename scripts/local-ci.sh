@@ -22,6 +22,42 @@ cd "$(git rev-parse --show-toplevel)"
 
 failed=""
 
+# This script's only claim is that a green run here predicts a green run on
+# GitHub. That claim holds only if both run the same Node major. pnpm reports an
+# `engines` mismatch as a WARN and carries on, which is one line among hundreds
+# in a full gate log and trivially read past — a shell left on an older nvm
+# default will run all eight gates to green against a runtime CI never uses.
+# So this refuses to run at all rather than warning.
+#
+# The required major is read from package.json rather than repeated here;
+# .nvmrc and ci.yml's NODE_VERSION already state it twice more.
+require_supported_node() {
+    required_major=$(awk '/"engines"/,/}/' package.json |
+        sed -n 's/.*"node"[^"]*">=\([0-9][0-9]*\).*/\1/p' | head -1)
+
+    if [ -z "$required_major" ]; then
+        printf 'Cannot read engines.node from package.json; refusing to guess a version.\n' >&2
+        exit 1
+    fi
+
+    if ! command -v node >/dev/null 2>&1; then
+        printf 'node is not on PATH, and Node %s is required.\n' "$required_major" >&2
+        exit 1
+    fi
+
+    running_version=$(node --version)
+    running_major=${running_version#v}
+    running_major=${running_major%%.*}
+
+    if [ "$running_major" != "$required_major" ]; then
+        printf 'Node %s is required (package.json engines, .nvmrc, ci.yml); found %s.\n' \
+            "$required_major" "$running_version" >&2
+        printf 'Gates would run against a different runtime than CI, so passing here would\n' >&2
+        printf 'not predict passing on GitHub. Run `nvm use` in this shell and try again.\n' >&2
+        exit 1
+    fi
+}
+
 run_gate() {
     name="$1"
     shift
@@ -35,6 +71,8 @@ run_gate() {
         failed="$failed $name"
     fi
 }
+
+require_supported_node
 
 run_gate format pnpm format:check
 run_gate lint pnpm lint
