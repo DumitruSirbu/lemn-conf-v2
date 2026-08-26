@@ -1,24 +1,23 @@
 import { expect, test } from "@playwright/test";
 
 import {
-  closeDevControls,
   describeOpenings,
-  openDevControls,
+  dismissPanel,
   openFridgeColumnView,
-  pressDevControl,
-  readDevReadout,
+  pressPanelControl,
+  readSelection,
   requireInFridgeColumn,
   waitForMintedDesignId,
   scanFridgeColumn,
-  type DevReadout,
-} from "./support/dev-controls";
+  type SelectionReadout,
+} from "./support/panel";
 import { deleteMintedDesigns } from "./support/minted-designs";
 
 /**
  * M3's own gate (`docs/milestones/M3-mutations.md`, "Surfaces"): `DEVELOPMENT-SPEC.md` §10's
- * signature flow, end to end **by real touch at 390 × 844**, through the temporary dev controls
- * because §9's panel is M4's work. §11 row 1 is the last step, now proven through real mutations
- * rather than through a fixture.
+ * signature flow, end to end **by real touch at 390 × 844** — now through §9's real panel, which
+ * is what M4 built and what replaced the temporary dev controls this file used to drive. §11 row 1
+ * is the last step, proven through real mutations rather than through a fixture.
  *
  * On §10's wording and what the engine does. §10 says the two deleted openings "merge into one
  * 700 × 2600 opening, subdivided into three level slots". The engine returns **three void
@@ -27,13 +26,16 @@ import { deleteMintedDesigns } from "./support/minted-designs";
  * 860 / 700 / 400 rather than a third of 2600 each because §11 row 17's backsplash zone
  * (860–1500) is never an opening. The prose is loose, not wrong; nothing here bends to it.
  *
- * Every assertion below reads `describeSelection`'s own `meta`, published by the dev readout, so
- * the numbers asserted are the numbers the panel will be given in M4.
+ * Every assertion below reads `describeSelection`'s own `meta`, published by `SelectionDebug`, so
+ * the numbers asserted are the numbers §9's panel is given. They are deliberately **not** read off
+ * the panel's own copy: §9's header line carries the body's carcass width × height, not the
+ * opening and not the span, so re-pointing these at visible text would quietly turn each of them
+ * into a different and weaker claim.
  */
 
 /** The flow is ~200 real taps against a live WebGL scene; the default per-test timeout is not in
  *  the right order of magnitude for it. */
-const FLOW_TIMEOUT_MS = 600_000;
+const FLOW_TIMEOUT_MS = 900_000;
 
 /** The first successful command mints a design row (the store's write path). Deleted afterwards —
  *  the suite writes to the test database and must leave it as it found it (ADR 0006). */
@@ -43,7 +45,7 @@ test.afterAll(async () => {
   await deleteMintedDesigns(mintedDesignIds);
 });
 
-function isVoid(readout: DevReadout): boolean {
+function isVoid(readout: SelectionReadout): boolean {
   return readout.metaKind === "void";
 }
 
@@ -53,8 +55,7 @@ test("§10's signature flow runs end to end by touch at 390 x 844", async ({
   test.setTimeout(FLOW_TIMEOUT_MS);
 
   await openFridgeColumnView(page);
-  await openDevControls(page);
-  expect((await readDevReadout(page)).probe).toBe("on");
+  expect((await readSelection(page)).probe).toBe("on");
 
   // 1. Select the fridge, delete it. The vacated opening becomes the selection (§5.1).
   const fridge = await requireInFridgeColumn(page, {
@@ -63,8 +64,8 @@ test("§10's signature flow runs end to end by touch at 390 x 844", async ({
   });
   expect(fridge.metaKind).toBe("fridge_freestanding");
   expect(fridge.openHMm).toBe("1850");
-  await pressDevControl(page, "dev-remove");
-  const afterFridge = await readDevReadout(page);
+  await pressPanelControl(page, "panel-remove");
+  const afterFridge = await readSelection(page);
   expect(isVoid(afterFridge)).toBe(true);
   expect(afterFridge.spanHMm).toBe("1850");
 
@@ -81,7 +82,7 @@ test("§10's signature flow runs end to end by touch at 390 x 844", async ({
     description: "the unit above the fridge, p24",
   });
   expect(above.openHMm).toBe("750");
-  await pressDevControl(page, "dev-remove");
+  await pressPanelControl(page, "panel-remove");
 
   // One 700 x 2600 opening, subdivided into three level slots — see the note at the top of the
   // file for why that is three records with one span rather than one record.
@@ -93,14 +94,15 @@ test("§10's signature flow runs end to end by touch at 390 x 844", async ({
   ]);
 
   // 3. Base slot: full-height bodies are offered beside the base ones, and the hood is not.
+  //    §9's own list, in the real panel — `offersFor` reaches the customer through these rows.
   await requireInFridgeColumn(page, {
     matches: (readout) => readout.openHMm === "860",
     description: "the 860 mm base slot",
   });
-  await expect(page.getByTestId("dev-insert-base-2door")).toHaveCount(1);
-  await expect(page.getByTestId("dev-insert-fridge-free")).toHaveCount(1);
-  await pressDevControl(page, "dev-insert-base-2door");
-  const base = await readDevReadout(page);
+  await expect(page.getByTestId("offer-base-2door")).toHaveCount(1);
+  await expect(page.getByTestId("offer-fridge-free")).toHaveCount(1);
+  await pressPanelControl(page, "offer-base-2door");
+  const base = await readSelection(page);
   expect(base.metaKind).toBe("base_cabinet");
   expect(base.openHMm).toBe("860");
 
@@ -111,8 +113,8 @@ test("§10's signature flow runs end to end by touch at 390 x 844", async ({
     description: "the 700 mm middle slot",
   });
   expect(middle.selectionId).toContain(":1.50");
-  await pressDevControl(page, "dev-insert-wall-2door");
-  expect((await readDevReadout(page)).metaKind).toBe("wall_cabinet");
+  await pressPanelControl(page, "offer-wall-2door");
+  expect((await readSelection(page)).metaKind).toBe("wall_cabinet");
 
   // 5. Top slot: 400 mm bodies only. §11 row 6's offer half — the hood is fixed at 710 mm and is
   //    never offered here, while it *is* offered for the 700 mm slot filled in step 4.
@@ -121,8 +123,8 @@ test("§10's signature flow runs end to end by touch at 390 x 844", async ({
     description: "the 400 mm top slot",
   });
   expect(top.selectionId).toContain(":2.20");
-  await expect(page.getByTestId("dev-insert-hood")).toHaveCount(0);
-  await pressDevControl(page, "dev-insert-wall-2door");
+  await expect(page.getByTestId("offer-hood")).toHaveCount(0);
+  await pressPanelControl(page, "offer-wall-2door");
 
   const filled = await scanFridgeColumn(page);
   expect(filled.filter(isVoid)).toEqual([]);
@@ -138,7 +140,7 @@ test("§10's signature flow runs end to end by touch at 390 x 844", async ({
       matches: (readout) => readout.selectionId === body.selectionId,
       description: `the inserted body ${body.selectionId}`,
     });
-    await pressDevControl(page, "dev-remove");
+    await pressPanelControl(page, "panel-remove");
   }
   const recleared = await scanFridgeColumn(page);
   expect(describeOpenings(recleared)).toEqual([
@@ -151,8 +153,14 @@ test("§10's signature flow runs end to end by touch at 390 x 844", async ({
     matches: (readout) => isVoid(readout) && readout.openHMm === "860",
     description: "the cleared 860 mm base slot",
   });
-  await pressDevControl(page, "dev-insert-fridge-free");
-  expect((await readDevReadout(page)).openHMm).toBe("1850");
+  await pressPanelControl(page, "offer-fridge-free");
+  const inserted = await readSelection(page);
+  expect(inserted.openHMm).toBe("1850");
+
+  // M4's "never offer the impossible": a refusal reaching the customer is a defect in a list, not
+  // expected behaviour. Nothing in this whole flow was tapped in §9's panel and then refused.
+  expect(inserted.rejection).toBe("");
+  await expect(page.getByTestId("panel-rejection")).toHaveCount(0);
 
   // §11 row 1: exactly one 750 mm slot above the fridge, never two stubs. The scan crosses the
   // column every 20 px, so a pair of ~375 mm stubs would show up as two distinct ids.
@@ -162,8 +170,9 @@ test("§10's signature flow runs end to end by touch at 390 x 844", async ({
   ]);
   expect(final.filter((readout) => !isVoid(readout))).toHaveLength(1);
 
-  // The whole flow was driven with the panel open over the right of the stage; the scene stayed
-  // reachable throughout, and the last state is still on screen with it closed.
-  await closeDevControls(page);
-  await expect(page.getByTestId("dev-controls")).toHaveCount(0);
+  // §10's viewing model closes the flow: the sheet is dismissed and the scene is on its own again,
+  // showing the state every step above put into it.
+  await dismissPanel(page);
+  await expect(page.getByTestId("editor-panel")).toHaveCount(0);
+  await expect(page.getByTestId("scene-hint")).toHaveCount(1);
 });

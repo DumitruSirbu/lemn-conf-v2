@@ -10,9 +10,9 @@ import { WebGLUnavailable } from "@/components/webgl-unavailable";
 import { ro } from "@/content/ro";
 import type { SceneView } from "@/scene/scene-view";
 import { detectWebGLSupport } from "@/scene/webgl-support";
-import { useConfiguratorStore } from "@/store/configurator-store";
 
 import styles from "./configure.module.css";
+import { SelectionDebug } from "./selection-debug";
 
 // The canvas never renders on the server, and its bundle is only fetched on the step that needs 3D.
 const KitchenCanvas = dynamic(() => import("@/scene/kitchen-canvas"), {
@@ -25,7 +25,6 @@ type SupportState = "probing" | "supported" | "unsupported";
 export function ConfigureScreen() {
   const [support, setSupport] = useState<SupportState>("probing");
   const [presetId, setPresetId] = useState<CameraPresetId>("overview");
-  const selection = useConfiguratorStore((state) => state.selection);
   const panel = usePanelView();
 
   useEffect(() => {
@@ -93,14 +92,7 @@ export function ConfigureScreen() {
           )}
         </div>
         <EditorPanel view={panel} />
-        {/* Test-only observability hook for the mobile picking gate (M2 §Surfaces): selection
-         *  state is otherwise only visible inside the WebGL canvas, which Playwright cannot query. */}
-        <span
-          data-testid="selection-debug"
-          data-selection-kind={selection?.kind ?? ""}
-          data-selection-id={selection?.id ?? ""}
-          hidden
-        />
+        <SelectionDebug />
       </div>
     </main>
   );

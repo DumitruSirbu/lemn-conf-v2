@@ -44,8 +44,11 @@ export function usePanelView(): PanelView {
 }
 
 /** §8's `meta` — the panel's entire input. `undefined` when nothing is selected, and also when a
- *  recompute left the selection pointing at a void id that no longer exists. */
-function useSelectionMeta(): SelectionMeta | undefined {
+ *  recompute left the selection pointing at a void id that no longer exists.
+ *
+ *  Exported for `SelectionDebug`, the e2e suite's one observability hook, so the numbers a browser
+ *  test reads are the very ones the panel was given rather than a second projection beside it. */
+export function useSelectionMeta(): SelectionMeta | undefined {
   const records = useConfiguratorStore((state) => state.records);
   const voids = useConfiguratorStore((state) => state.voids);
   const catalog = useConfiguratorStore((state) => state.catalog);

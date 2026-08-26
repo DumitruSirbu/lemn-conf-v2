@@ -32,6 +32,9 @@ export default function KitchenCanvas({
 }: KitchenCanvasProps) {
   return (
     <Canvas
+      onCreated={({ gl }) => {
+        stopTouchFromAlsoClicking(gl.domElement);
+      }}
       frameloop={frameloop}
       dpr={[1, MAX_DEVICE_PIXEL_RATIO]}
       performance={{ min: 0.5 }}
@@ -50,5 +53,36 @@ export default function KitchenCanvas({
       />
       <OrbitControls makeDefault enableDamping dampingFactor={0.08} />
     </Canvas>
+  );
+}
+
+/**
+ * Stops a touch on the scene from *also* arriving as a mouse click on whatever the DOM has put
+ * under the finger by the time the browser dispatches it.
+ *
+ * A touch produces `pointerdown`/`pointerup` — which is what react-three-fiber picks with — and
+ * then, for the benefit of listeners that only understand a mouse, the browser synthesises
+ * `mousedown`/`mouseup`/`click` at the same point. Those are hit-tested when they are dispatched,
+ * not when the finger landed, and by then picking has already opened §9's sheet over the bottom
+ * ~78 dvh of a 390 x 844 viewport. Measured, not theorised: one tap that selected the fridge
+ * arrived as `touchend` on the canvas and then as `click` on `finish-white`, and applied a finish
+ * nobody chose. The milestone's "the sheet never steals or leaks pointer events into the canvas"
+ * is exactly this, in the direction nobody expected it from.
+ *
+ * Cancelling `touchend` is the fix at the source: the specification says a cancelled touch produces
+ * no compatibility mouse events, and this canvas has no use for them — it is driven by pointer
+ * events and already declares `touch-action: none`. Nothing a mouse does is affected, because a
+ * real mouse never produces a `touchend`.
+ *
+ * The listener must be non-passive, or `preventDefault` is ignored, so it is attached to the
+ * element rather than through React's delegated (and passive-by-default) touch handlers.
+ */
+function stopTouchFromAlsoClicking(canvas: HTMLCanvasElement): void {
+  canvas.addEventListener(
+    "touchend",
+    (event) => {
+      event.preventDefault();
+    },
+    { passive: false },
   );
 }
