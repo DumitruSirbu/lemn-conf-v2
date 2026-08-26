@@ -3,7 +3,7 @@
 **Read this second, right after `AGENTS.md`, before opening any milestone document.** It exists so a
 session can learn where the project stands without reading eight phase plans.
 
-Last updated: 2026-08-26 (M3 closed — all three waves and four sub-waves shipped; M4 next).
+Last updated: 2026-08-26 (M4 closed — all four waves shipped, with one acceptance criterion recorded unmet; M5 next).
 
 ## How to use this file
 
@@ -26,8 +26,8 @@ moment it ships; a decision record does not. When the two disagree, the dated de
 | M1 — Scene port and fidelity gate | **Done** (closed 2026-08-25) | No — `milestones/done/` |
 | M2 — Void engine, picking, persistence | **Done** (closed 2026-08-25 — its last gate, the unwired client write path, was closed by M3 Wave 3C-2b) | No — `milestones/done/` |
 | M3 — Insert, remove, swap, client write path | **Done** (closed 2026-08-26) | No — `milestones/done/` |
-| M4 — Editor panel and shell | **Next** | Yes — `milestones/M4-editor-surface.md` |
-| M5 — Width editing | Planned | Yes, when starting |
+| M4 — Editor panel and shell | **Done** (closed 2026-08-26 — one criterion unmet by design, ADR 0024) | No — `milestones/done/` |
+| M5 — Width editing | **Next** | Yes — `milestones/M5-*.md` |
 | M6 — Price bar and global settings | Planned | Yes, when starting |
 | M7 — Step 1, room and presets | Planned | Yes, when starting |
 | M8 — Review, contact, success | Planned | Yes, when starting |
@@ -35,16 +35,20 @@ moment it ships; a decision record does not. When the two disagree, the dated de
 ## What is actually built
 
 A pnpm monorepo on Node 24: an I/O-free domain package, a Three.js adapter, a persistence package
-that is the only place a Postgres driver appears, and a Next.js App Router app. **874 unit tests**
-(domain 380, three-adapter 414, persistence 30, web 50) plus 4 Playwright e2e tests and one
-`test.skip` — the unit counts copied from a `pnpm check` run that exited 0 on 2026-08-25 after Wave
-3B's review round, not carried forward. The e2e figures are carried from M2 and were **not** re-run
-this wave.
+that is the only place a Postgres driver appears, and a Next.js App Router app. **1 395 unit tests**
+(domain 433, three-adapter 440, web 439, persistence 83) plus **20 Playwright e2e tests** and one
+`test.skip`. Every number copied from a run executed on 2026-08-26 after M4 Wave 4D, not carried
+forward.
 
-An earlier revision of this line reported "three-adapter 30, persistence 163". Those two numbers
-were transposed: persistence runs 30 and the adapter ran 163 before Wave 3B. Recorded rather than
-quietly corrected, because this file's own closing rule is that quantitative claims come from a
-command someone ran.
+Persistence jumped from 30 to 83 without a line of test code being written: **45 of its tests had
+been silently skipping** on every previous run because the `qa_owner` credential in
+`.env.test.local` was invalid. Those are the live-database assertions — the ADR 0008 least-privilege
+role checks, the backup/restore round trip, the Neon repository suite. They were reporting green by
+sitting out. A working `TEST_DATABASE_URL` (now `lemn-conf-v2-staging`, distinct from the
+application database, so ADR 0006 holds) was supplied on 2026-08-26 and all 83 pass.
+
+That is worth remembering as a pattern, not just an incident: a skipped test and a passing test look
+identical in a summary line.
 Each package owns its tests in its own `tests/` directory and must stay liftable into its own
 repository — see `docs/best-practices/engineering-conventions.md`.
 
@@ -115,16 +119,81 @@ rendering, picking, and the store. Then `ConfigurationRepository` over Neon Post
 `jsonb` document per design, opaque identifiers, a canonical serialiser, a coalesced write path, a
 least-privilege database role verified by live assertions, and a daily backup cron to Vercel Blob.
 
+**M4 — Editor panel and shell (closed 2026-08-26).** §9's customer-facing editor, in four waves.
+The panel's rules live as a **pure projection** — `describePanel` in `apps/web/src/panel/panel-model.ts`
+turns `meta` plus the offer list plus the last refusal into §9's ordered sections, already resolved —
+so §12's "no product logic in components" is enforced by a value rather than by review. Both
+reviewers confirmed nothing leaked either way.
+
+**Desktop and mobile are one implementation and the branch is CSS only.** A single
+`min-width: 900px` block in `editor-panel.module.css` swaps four spacing tokens (rows 82/66 px,
+chips 44/52 px) and nothing else. `matchMedia`, `innerWidth`, `userAgent` and `ontouchstart` appear
+nowhere in `apps/web/src`, so §10.1 holds by construction. No rule differs between the shells.
+
+Four findings from this phase are worth knowing, because each was a rule stated in prose that the
+data or the wiring did not implement — the same shape as ADRs 0016 and 0017:
+
+- **The Finisaj section was decoration.** `finishKey` was read nowhere in the adapter and `signBody`
+  omitted it, so a finish change did not even re-sign the body. Tapping a swatch marked the chip,
+  wrote the design and scheduled a save while the scene stayed pixel-identical. `finishes.ts` had
+  said in writing "do not build the editor's finish section on top of this module without revisiting
+  it"; it was built by copy, without revisiting.
+- **§9's ACTUAL badge was unreachable.** Measured: 22 bodies offer a swap list, 0 badges, because
+  ADR 0011 Gap A gives every seeded placement a non-insertable `buildId`. Now declared, never
+  inferred (ADR 0022).
+- **§13.1's "corners are structural" was prose only**, so the panel offered a swap list and a delete
+  on a structural corner. Fixing it made §11 row 20 unreachable in production, which ADR 0021
+  records rather than lets slide.
+- **A tap on the scene was also pressing the sheet** (ADR 0023). Synthesised compatibility mouse
+  events are hit-tested when dispatched, by which time the sheet covers the bottom ~78 dvh — so one
+  tap selected a body *and* inserted a cabinet or applied a finish nobody chose, minting and writing
+  a design each time. §10's "the sheet never steals or leaks pointer events into the canvas" runs in
+  both directions. Found only by writing the touch test.
+
+**Read is split from write in the UI too.** `GET /api/designs/{id}` returns a `canWrite` boolean
+beside the design, so the panel never discovers it may not edit by attempting an edit. Security
+review traced every consumer and confirmed it terminates in `isDisabled` flags — it is advisory and
+never the authorisation decision, so ADR 0019's check-then-write prohibition holds. The `/d/{id}`
+page cannot answer it (the cookie is `Path=/api/designs/{id}`), so it hydrates `"unknown"` and a
+client probe asks the one route the cookie reaches, at the cost of a second GET per shared-link open.
+
 ## What is open right now
 
-**M2 is closed.** Its last gate — the persistence write path having no browser caller
-(`docs/decisions/0010-m3-client-write-path-unwired.md`) — was closed by M3 Wave 3C-2b on
-2026-08-25: a `fetch`-backed `ConfigurationRepository`, the save coalescer wired to the store's
-`onDesignChanged` seam, and mint-on-first-mutation. The cookie round trip is verified **in a real
-browser** (`design-write-path.e2e.spec.ts`), which is the evidence security review asked for and
-could not produce itself.
+**M4 closed with one acceptance criterion unmet, on purpose (ADR 0024).** Its Verification section
+asks for browser tests of the rejection state's three simultaneous requirements. There is no
+reachable path to a refusal through §9's panel: the replace list is fit-filtered through the same
+evaluation `insertBody` runs, the probe case is pre-empted on the row, finish/handle/remove are
+gated on the flags the commands check, and read-only disables everything. Writing that test would
+mean first building a list that offers what the engine refuses — manufacturing the defect the rule
+exists to prevent. The banner stays covered by model tests, the suite asserts the *absence* of
+refusals across the whole signature flow, and the third requirement ("the total does not move")
+is **carried to M6**, which is where a total first exists.
 
-Still open from M2, unchanged: Path 2 of the restore drill has not been re-run from an export
+**The panel's render half is thinly covered, and it is worth knowing where.** `apps/web/tests/panel/`
+is model-only. The browser proves the §10 loop, the sheet geometry, the read-only path and the
+desktop rail — but the §9 sections for a corner return, an unknown kind (§11 row 24) and a
+zero-result list are reached by no seeded selection, so they remain model-tested only. The width
+section has **never rendered in any browser run**, because no seeded entry has `sizesMm` (below).
+
+**M5 inherits a gap M4 found and could not close: seeded catalogue entries carry no `sizesMm`.**
+`canWidth` is §9's literal rule again — selected, not empty, not `fixedWidth` — and
+`describeWidthSection` declines to emit a section with no chips. So the width section is hidden for
+every seeded body today. An earlier M4 fix folded "has widths to offer" into `canWidth` itself;
+logic review overturned it, because that would have made M5's missing data fail *silently* instead
+of loudly. Give the seeded entries real width sets and the section appears — and a seeded test
+asserting it renders nothing starts failing, which is the tripwire.
+
+**Deferred review findings, named so they are not lost.** From M4's clean-code round: the four-way
+panel test-file split has become redundant coverage with duplicated helpers; `advancePast` lets three
+domain tests open a span no command path can produce; several small items (named-object parameters,
+a `must<T>` helper, `.grabber` on a sheet that cannot be dragged). From the 4C logic round: the
+save-failed notice unmounts and remounts on every retry, jumping ~50 px of offer list under the
+customer's finger; two hard-coded hex values duplicate the rejection tone. From 4C security: the
+write-access probe fetches and parses the whole design for one boolean, so **M8 must size its rate
+limits against a doubled read rate**; `GET`'s 404 reflects the caller-supplied id and its 500 returns
+a Zod tree over the stored document, where the write path deliberately returns neither.
+
+**M2's restore drill, unchanged:** Path 2 of the restore drill has not been re-run from an export
 actually downloaded from Blob, and Path 1 (Neon PITR) has never been drilled. Note the restore path
 changed this wave — `write_token_hash` is now exported and restored, without which every restored
 design would have been permanently unwritable.
@@ -197,40 +266,49 @@ floor; until it lands, no update rate limit can be sized honestly.
 
 ## What to do next
 
-**M4 — the editor panel and shell.** Every verb it needs exists and is guarded in the engine; M4
-renders them. Read `docs/milestones/M4-editor-surface.md` when you start it.
+**M5 — width editing (§5.4's resize as a boundary move, §11 rows 9–14).** M4 built the width section
+and every chip in it is `blocked`, because no resize command exists. Read `docs/milestones/` for M5's
+plan when you start it.
 
-Four things M3 hands M4 directly:
+Four things M4 hands M5 directly:
 
-1. **Remove the temporary developer affordance.** `apps/web/src/components/temporary-dev-controls.tsx`
-   is scaffolding, named so, and M4 owns its deletion. Its one non-obvious property is worth
-   keeping: it shows a refusal's stable **code**, never its rendered Romanian sentence, so §9's copy
-   was never pre-empted.
-2. **Decide how a failed write is communicated.** M3 exposes `saveStatus` and nothing renders it.
-   The union now includes a distinct `unauthorized`, which is *not* an error — it means read-only in
-   this browser, and it is reachable in normal operation (a 30-day cookie expiry, a cleared jar, a
-   shared link opened by someone who never held one).
-3. **A read-only UI needs to know it is read-only.** The write credential is an `HttpOnly` cookie
-   the client cannot inspect, so the panel cannot tell whether it may edit without attempting a
-   write — and discovering it by attempting one is the "warn-after-click" pattern this project
-   rules out. Cheapest fix, from the security review: `GET /api/designs/{id}` already receives the
-   cookie, so it can return a `canWrite` boolean beside the design at no extra round trip and with
-   no token exposure.
-4. **§13.3 question 1 is now visible.** `insertBody` is deliberately more permissive than
-   `offersFor` on a swap — §9 scopes a swap list to the outgoing body's band while §5.2 lets a
-   `column` body into any slot. Not a rule violation ("never offer what cannot be satisfied" is
-   one-directional), but the two are **not** interchangeable, and M4 is where unifying them becomes
-   a real question.
+1. **Seeded catalogue entries have no `sizesMm`, so no seeded body can be resized.** This is the
+   load-bearing one. `canWidth` is §9's rule and `describeWidthSection` declines a chipless section,
+   so today the width section is hidden across the whole shipped kitchen and has never rendered in a
+   browser. A seeded test asserts that absence deliberately and will fail the day you give the
+   entries widths — that failure is the signal, not a regression.
+2. **The rejection banner becomes reachable, and M4's unmet criterion becomes writable.** §5.4 has
+   real failure modes (§11 row 10: a resize that would push a neighbour under 300 mm). M5 is the
+   first phase where a §9 control can legitimately refuse, so ADR 0024 says to revisit it here. Two
+   of 2C's three requirements can then be proven in a browser; the third still waits for M6's total.
+3. **Width chips must stay honest about `free` versus `blocked`.** The tri-state survives in the
+   model with `isDisabled` resolved beside it, and `isWidthChipDisabled` takes the full union so the
+   `free` branch is typechecked while unreachable. Several tests assert "no chip is ever free" — they
+   are pinning M4's truth, and M5 must change them deliberately rather than delete them.
+4. **§13.3 question 1 is still open and still visible.** `insertBody` is deliberately more permissive
+   than `offersFor` on a swap — §9 scopes a swap list to the outgoing body's band while §5.2 lets a
+   `column` body into any slot. Not a rule violation, but the two are not interchangeable.
 
-**Open, and not closed by M3:**
+**Open, and not closed by M4:**
 
-- **The mobile gate is verified under emulation, not on a handset.** The e2e suite drives §10's flow
-  by *synthesised* touch at 390 × 844 with `hasTouch`/`isMobile`, in real Chromium against a real
-  WebGL canvas and a real database. It does not exercise a touch digitiser (finger-sized contact
-  areas, real drag-vs-tap slop), a mobile GPU, device pixel ratio, or iOS Safari. Per
-  `docs/best-practices/browser-and-visual-qa.md`, tests alone do not prove a mobile claim. **A
-  handset pass needs HTTPS or a tunnel** — over `http://<LAN-IP>` the `Secure` write-token cookie is
-  silently dropped and every save 403s with nothing explaining why.
+- **The mobile gate is verified under emulation, not on a handset.** M4 Wave 4D drives §10's full
+  loop and the signature flow through §9's real panel by *synthesised* touch at 390 × 844, in real
+  Chromium against a real WebGL canvas and the test database — 20 e2e tests. It does not exercise a
+  touch digitiser (finger-sized contact areas, real drag-vs-tap slop), a mobile GPU, device pixel
+  ratio, or iOS Safari. Per `docs/best-practices/browser-and-visual-qa.md`, tests alone do not prove
+  a mobile claim. **A handset pass needs HTTPS or a tunnel** — over `http://<LAN-IP>` the `Secure`
+  write-token cookie is silently dropped, and since M4 that now also renders the panel read-only via
+  `canWrite`, which will look like a bug on a handset and is not one.
+- **ADR 0023 gives the handset pass something specific to check.** Compatibility mouse events after a
+  touch are exactly the kind of behaviour that differs between synthesised touch and a real
+  digitiser, iOS Safari especially. The fix (cancelling `touchend` on the canvas) is verified under
+  emulation only.
+- **The mobile selection-highlight visual assertion no longer exists at 390 × 844.** M2 compared a
+  patch of scene unselected versus selected; that patch is now behind the sheet, so the two captures
+  would differ *because a sheet appeared* — an assertion that would pass with selection rendering
+  entirely broken. It is the suite's one `test.skip`, carrying that reasoning, and the claim moved to
+  desktop where both captures are taken with the panel open. Mobile keeps M2's gate proper: a real
+  touch selects the intended body and the intended empty slot.
 - **Preview's database has not been confirmed to carry migrations 0002 and 0003.** Until it does,
   minting on a Preview deployment 500s exactly as production would have. It cannot be checked
   locally — Preview's `DATABASE_URL` is a sensitive Vercel variable. Check the Neon console, or

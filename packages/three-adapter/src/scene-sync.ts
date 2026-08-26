@@ -15,7 +15,12 @@ import {
 import * as THREE from "three";
 
 import { buildCatalogBody, isCatalogBuildId } from "./catalog-bodies.js";
-import { buildDecomposedBody, setHandlesVisible } from "./decomposed-bodies.js";
+import {
+  applyBlackHandleMaterial,
+  buildDecomposedBody,
+  setHandlesVisible,
+} from "./decomposed-bodies.js";
+import { applyBodyFinish } from "./finishes.js";
 import type { Kit } from "./kitchen-parts.js";
 import { disposeUnsharedGeometries, isLine, isMesh } from "./three-guards.js";
 import { buildVoidMesh } from "./void-mesh.js";
@@ -144,7 +149,33 @@ function mountBody(kit: Kit, record: PlacementRecord): THREE.Group {
   // room's own hide — so a recorded non-push mode has to *un*-hide them or a choice the domain
   // accepted would never reach the screen, which is the failure §6.5 exists to prevent.
   setHandlesVisible(body, !hidesHandles(record));
+  applyRecordedAppearance(kit, body, record);
   return body;
+}
+
+/** §5.5: finish and handle are recorded **per placement**, so they are applied to this body alone
+ *  and to no other. Both are read at mount because `signBody` includes them: a chip tap re-signs
+ *  the record, the sync tears the old instance down, and this rebuilds it wearing the choice —
+ *  which is also how §11 row 12 (resize preserves finish + handle) holds, since a resize re-signs
+ *  through the same path.
+ *
+ *  A record with no choice is left exactly as its builder made it: an unfinished kitchen renders
+ *  today's scene, byte for byte, and the M1 fidelity parity suite still sees its own materials.
+ *
+ *  The `canFinish` / `canHandle` guards are `hidesHandles`'s own WHY arriving from the data side —
+ *  `insertBody`'s `carriedAppearance` refuses to carry a choice onto a body that cannot take it,
+ *  but a hand-edited or migrated design can still carry one. */
+function applyRecordedAppearance(
+  kit: Kit,
+  body: THREE.Group,
+  record: PlacementRecord,
+): void {
+  if (record.finishKey && record.canFinish) {
+    applyBodyFinish(body, kit.M, record.finishKey);
+  }
+  if (record.handleMode === "black" && record.canHandle) {
+    applyBlackHandleMaterial(body, kit.M);
+  }
 }
 
 /** An inserted placement is built from §7's parameterised catalogue; a seeded one keeps M2's
@@ -199,5 +230,6 @@ function signBody(record: PlacementRecord): string {
     record.frame.ry,
     record.frame.d,
     record.handleMode ?? "",
+    record.finishKey ?? "",
   ].join("|");
 }

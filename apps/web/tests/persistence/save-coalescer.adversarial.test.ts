@@ -340,6 +340,10 @@ describe("a credential refusal is terminal, and nothing else is", () => {
     expect(subject.attempts()).toBeGreaterThan(5);
     expect(subject.statuses.at(-1)).toBe("error");
     expect(subject.statuses).not.toContain("unauthorized");
+    // `stopped` is the terminal status, and the surface tells the customer nothing more will be
+    // written. Emitting it while retries are still running would say the edit is lost when it is
+    // about to be saved.
+    expect(subject.statuses).not.toContain("stopped");
   });
 
   it("recovers normally when a retryable failure is followed by success", async () => {

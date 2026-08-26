@@ -12,7 +12,13 @@ export {
   type PartItem,
 } from "./kitchen-parts.js";
 
-export { applyFinish, collectFronts, type FinishKey } from "./finishes.js";
+export {
+  applyFinish,
+  collectFronts,
+  FINISH_COLORS,
+  type FinishKey,
+  type SolidFinishKey,
+} from "./finishes.js";
 
 export {
   buildDecomposedBody,

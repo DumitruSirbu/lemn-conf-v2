@@ -200,11 +200,14 @@ const KIND_LABELS_RO: Readonly<Record<string, string>> = {
 export const UNKNOWN_KIND_LABEL_RO = "Corp";
 
 export function isKnownKind(kind: string): boolean {
-  return kind in KIND_LABELS_RO;
+  // Own properties only: `kind in KIND_LABELS_RO` walks `Object.prototype`, so "toString" and its
+  // fellow inherited members would answer "known" and §11 row 24 would fail open on them.
+  return Object.hasOwn(KIND_LABELS_RO, kind);
 }
 
 export function describeKindLabel(kind: string): string {
-  return KIND_LABELS_RO[kind] ?? UNKNOWN_KIND_LABEL_RO;
+  const label = isKnownKind(kind) ? KIND_LABELS_RO[kind] : undefined;
+  return label ?? UNKNOWN_KIND_LABEL_RO;
 }
 
 /** Everything §5.2 needs about a catalogue entry, with the optional fields resolved. A seeded

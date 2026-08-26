@@ -16,12 +16,26 @@ import {
 } from "./design-request-errors";
 
 /**
- * `error` is a failure worth retrying; `unauthorized` is one that is not, and the two are separate
- * values because the customer's situation is different (ADR 0019 decision 1: the write credential
- * is a cookie this browser simply does not hold — the design is read-only here, not failing to
- * save). M3 exposes both and no more; which surface communicates them is M4's open question.
+ * The three failures are separate values because the customer's situation — and therefore what a
+ * surface may honestly tell them — is different in each:
+ *
+ * - `error` is a failure worth retrying: a retry is already armed, and the unwritten state is still
+ *   queued behind it. Writing continues.
+ * - `stopped` is a terminal failure that is not about the credential (`WriteNotRetryableError`:
+ *   a 400 from a stale bundle, a 413). Writing is over for this design and no retry will happen, so
+ *   the state on screen is the only copy of it. A surface must not fold this into `error` — the
+ *   advice that is true while a retry is pending ("wait, do not redo it") is false here, and the
+ *   advice for a stuck banner ("reload") destroys the unwritten edit.
+ * - `unauthorized` is terminal too, but the one terminal case a surface can say something useful
+ *   about (ADR 0019 decision 1: the write credential is a cookie this browser simply does not hold —
+ *   the design is read-only here, not failing to save).
  */
-export type SaveStatus = "idle" | "saving" | "error" | "unauthorized";
+export type SaveStatus =
+  | "idle"
+  | "saving"
+  | "error"
+  | "stopped"
+  | "unauthorized";
 
 const RETRY_BASE_DELAY_MS = 500;
 const RETRY_MAX_DELAY_MS = 8000;
@@ -190,8 +204,11 @@ export function createSaveCoalescer(
    * the client where no firewall rule can see it as abuse.
    *
    * `unauthorized` is reserved for the credential case, which is the one M4 can say something
-   * useful about ("read-only in this browser"). Any other terminal failure keeps the plain `error`
-   * status: it is still surfaced and still never silent, it simply is not retried.
+   * useful about ("read-only in this browser"). Any other terminal failure reports `stopped` — not
+   * `error`, which this coalescer only ever emits while a retry is armed. The two must stay apart
+   * because the surface's honest sentence differs: with a retry pending the unwritten state is
+   * about to be written and the customer should wait, while here nothing will ever write it and
+   * whatever is on screen is the only copy.
    *
    * The edit itself is untouched, here as everywhere: the store keeps the applied change, `pending`
    * keeps the state that was never written, and the status says nothing is being written.
@@ -204,7 +221,7 @@ export function createSaveCoalescer(
     refusedDesignId = deps.getDesignId();
     if (getPending() === null) setPending(unwrittenDesign);
     deps.onSaveStatusChange(
-      failure instanceof WriteNotAuthorizedError ? "unauthorized" : "error",
+      failure instanceof WriteNotAuthorizedError ? "unauthorized" : "stopped",
     );
   }
 

@@ -1,12 +1,13 @@
 import type { Page } from "@playwright/test";
 
 /**
- * Navigation and selector helpers for the two specs that drive M3's verbs by touch. No assertion
- * lives here (`docs/best-practices/browser-and-visual-qa.md`): these only move the app and read
- * what it says.
+ * Navigation and selector helpers for the specs that drive §9's panel by touch. No assertion lives
+ * here (`docs/best-practices/browser-and-visual-qa.md`): these only move the app and read what it
+ * says.
  *
- * The verbs are driven through `TemporaryDevControls` — M3 ships no panel, and M4 deletes both the
- * component and these helpers with it.
+ * The verbs are driven through the real panel — `panel-remove` and the `offer-{buildId}` rows —
+ * which is what M4 replaced `TemporaryDevControls` with. The numbers the specs assert on come from
+ * `[data-testid="selection-debug"]`, the one hook `ConfigureScreen` renders for the purpose.
  *
  * The column under test is the fridge column of `KITCHEN_L_DESIGN` (`B|2.45`), which stands on
  * **wall B**. The overview preset frames it behind the near cabinets, so every helper here assumes
@@ -15,8 +16,7 @@ import type { Page } from "@playwright/test";
  * they are sensitive to `CAMERA_PRESETS.wallB` and to the seeded design, and to nothing else.
  */
 
-/** A vertical line down the middle of the fridge column, clear of the dev panel (which sits at the
- *  right of the stage, no further left than x = 116) and of the camera preset buttons. */
+/** A vertical line down the middle of the fridge column, clear of the camera preset buttons. */
 export const FRIDGE_COLUMN_TAP_X = 65;
 
 /** Top of the column (the 2.6 m ceiling line) down to the floor, at 20 px. The column is ~490 px
@@ -43,11 +43,15 @@ const COMMAND_SETTLE_MS = 300;
 const MINT_TIMEOUT_MS = 5000;
 const MINT_POLL_MS = 100;
 
-/** `describeSelection`'s `meta`, as the temporary dev readout publishes it. Every field is a
- *  string because it arrives through `dataset`; empty means "nothing selected". */
-export interface DevReadout {
-  readonly metaKind: string;
+/** What `SelectionDebug` publishes: the selection, `describeSelection`'s `meta` numbers, and the
+ *  write-path state. Every field is a string because it arrives through `dataset`; empty means
+ *  "nothing selected". */
+export interface SelectionReadout {
+  /** The command target's own kind — `placement` or `void`. */
+  readonly selectionKind: string;
   readonly selectionId: string;
+  /** `meta.kind`: the body's catalogue kind, or `void` for an empty slot. */
+  readonly metaKind: string;
   readonly openWMm: string;
   readonly openHMm: string;
   readonly spanHMm: string;
@@ -65,16 +69,8 @@ export async function openFridgeColumnView(page: Page): Promise<void> {
   await page.waitForTimeout(CAMERA_SETTLE_MS);
 }
 
-export async function openDevControls(page: Page): Promise<void> {
-  await page.getByTestId("dev-controls-toggle").tap();
-}
-
-export async function closeDevControls(page: Page): Promise<void> {
-  await page.getByTestId("dev-controls-toggle").tap();
-}
-
-/** Presses one control in the dev panel, which must already be open. */
-export async function pressDevControl(
+/** Presses one control in the open panel — an `offer-{buildId}` row, `panel-remove`, a chip. */
+export async function pressPanelControl(
   page: Page,
   testId: string,
 ): Promise<void> {
@@ -82,12 +78,13 @@ export async function pressDevControl(
   await page.waitForTimeout(COMMAND_SETTLE_MS);
 }
 
-export async function readDevReadout(page: Page): Promise<DevReadout> {
-  return page.getByTestId("dev-readout").evaluate((element) => {
+export async function readSelection(page: Page): Promise<SelectionReadout> {
+  return page.getByTestId("selection-debug").evaluate((element) => {
     const { dataset } = element as HTMLElement;
     return {
-      metaKind: dataset.metaKind ?? "",
+      selectionKind: dataset.selectionKind ?? "",
       selectionId: dataset.selectionId ?? "",
+      metaKind: dataset.metaKind ?? "",
       openWMm: dataset.openWMm ?? "",
       openHMm: dataset.openHMm ?? "",
       spanHMm: dataset.spanHMm ?? "",
@@ -99,23 +96,40 @@ export async function readDevReadout(page: Page): Promise<DevReadout> {
   });
 }
 
+/**
+ * Clears the selection so the canvas is reachable again.
+ *
+ * This is the one thing M3's dev panel did not need. That panel was collapsed by default and sat
+ * at the right of the stage; §9's sheet covers ~78 dvh of a 390 × 844 viewport whenever anything is
+ * selected, so every canvas tap below its top edge would be intercepted by it. Dismissing between
+ * taps is therefore part of scanning a column, not a tidiness step — and it is exactly §10's own
+ * viewing model, which is what a customer does to look at the scene.
+ */
+export async function dismissPanel(page: Page): Promise<void> {
+  if ((await page.getByTestId("editor-panel").count()) === 0) return;
+  await page.getByTestId("panel-close").tap();
+  await page.waitForTimeout(PICK_SETTLE_MS);
+}
+
 /** A real touch on the canvas, at a point in the fridge column. */
 export async function tapFridgeColumn(
   page: Page,
   y: number,
-): Promise<DevReadout> {
+): Promise<SelectionReadout> {
+  await dismissPanel(page);
   await page.tap("canvas", { position: { x: FRIDGE_COLUMN_TAP_X, y } });
   await page.waitForTimeout(PICK_SETTLE_MS);
-  return readDevReadout(page);
+  return readSelection(page);
 }
 
 export interface ColumnTarget {
-  readonly matches: (readout: DevReadout) => boolean;
+  readonly matches: (readout: SelectionReadout) => boolean;
   /** Named in the failure below, so a spec that stops says *what* it could not find. */
   readonly description: string;
 }
 
-/** Taps down the column until the wanted thing is selected, and leaves it selected.
+/** Taps down the column until the wanted thing is selected, and leaves it selected — so the panel
+ *  is open on it when this returns, which is what the caller then presses controls in.
  *
  *  Throws by name when the whole column goes by without a match, rather than returning
  *  `undefined` and letting the caller run on. The pixel constants at the top of this file are
@@ -125,7 +139,7 @@ export interface ColumnTarget {
 export async function requireInFridgeColumn(
   page: Page,
   target: ColumnTarget,
-): Promise<DevReadout> {
+): Promise<SelectionReadout> {
   const seen: string[] = [];
   for (const y of FRIDGE_COLUMN_TAP_YS) {
     const readout = await tapFridgeColumn(page, y);
@@ -136,15 +150,17 @@ export async function requireInFridgeColumn(
   throw new Error(
     `Nothing in the fridge column matched ${target.description}. ` +
       `${String(FRIDGE_COLUMN_TAP_YS.length)} taps down x=${String(FRIDGE_COLUMN_TAP_X)} selected: ` +
-      `${seen.join(", ") || "nothing at all"}. The tap constants in tests/e2e/support/dev-controls.ts ` +
+      `${seen.join(", ") || "nothing at all"}. The tap constants in tests/e2e/support/panel.ts ` +
       `are pinned to CAMERA_PRESETS.wallB and to the seeded design — if either moved, re-find them.`,
   );
 }
 
 /** Everything the column currently contains, in top-to-bottom order, one entry per distinct
  *  selection the scan landed on. Empty taps (the background above the column) are dropped. */
-export async function scanFridgeColumn(page: Page): Promise<DevReadout[]> {
-  const found: DevReadout[] = [];
+export async function scanFridgeColumn(
+  page: Page,
+): Promise<SelectionReadout[]> {
+  const found: SelectionReadout[] = [];
   for (const y of FRIDGE_COLUMN_TAP_YS) {
     const readout = await tapFridgeColumn(page, y);
     if (!readout.selectionId) continue;
@@ -158,7 +174,7 @@ export async function scanFridgeColumn(page: Page): Promise<DevReadout[]> {
 /** What the scan found, reduced to the numbers the milestone's acceptance criteria are written
  *  in: an opening's width, its height, and the free span it belongs to. */
 export function describeOpenings(
-  readouts: readonly DevReadout[],
+  readouts: readonly SelectionReadout[],
 ): { id: string; w: string; h: string; span: string }[] {
   return readouts.map((readout) => ({
     id: readout.selectionId,
@@ -180,9 +196,9 @@ export function describeOpenings(
 export async function waitForMintedDesignId(page: Page): Promise<string> {
   const deadline = Date.now() + MINT_TIMEOUT_MS;
   while (Date.now() < deadline) {
-    const { designId } = await readDevReadout(page);
+    const { designId } = await readSelection(page);
     if (designId) return designId;
     await page.waitForTimeout(MINT_POLL_MS);
   }
-  return (await readDevReadout(page)).designId;
+  return (await readSelection(page)).designId;
 }

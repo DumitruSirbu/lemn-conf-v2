@@ -375,16 +375,102 @@ describe("PATCH /api/designs/[id]", () => {
   });
 });
 
+/** The read that carries no credential, so a shared link keeps working. */
+function readRequest(id: string, cookie?: string): NextRequest {
+  const url = `https://example.test/api/designs/${id}`;
+  return cookie === undefined
+    ? new NextRequest(url)
+    : new NextRequest(url, { headers: { cookie } });
+}
+
+async function readBodyOf(
+  id: string,
+  cookie?: string,
+): Promise<{ status: number; body: unknown }> {
+  const response = await GET(readRequest(id, cookie), routeParams(id));
+  return { status: response.status, body: await response.json() };
+}
+
 describe("GET /api/designs/[id]", () => {
   it("needs no write token — a shared link still reads", async () => {
     const { id } = await mintDesign();
 
-    const response = await GET(
-      new NextRequest(`https://example.test/api/designs/${id}`),
-      routeParams(id),
-    );
+    const { status, body } = await readBodyOf(id);
 
-    expect(response.status).toBe(200);
-    expect(await response.json()).toEqual({ id, design: KITCHEN_L_DESIGN });
+    expect(status).toBe(200);
+    expect(body).toEqual({
+      id,
+      design: KITCHEN_L_DESIGN,
+      canWrite: false,
+    });
+  });
+
+  it("reports canWrite: false to a caller holding no cookie — a 200, never a 401 or 403", async () => {
+    const { id } = await mintDesign();
+
+    const { status, body } = await readBodyOf(id);
+
+    expect(status).toBe(200);
+    expect((body as { canWrite: boolean }).canWrite).toBe(false);
+    expect((body as { design: Design }).design).toEqual(KITCHEN_L_DESIGN);
+  });
+
+  it("marks the response uncacheable and cookie-varying — canWrite is per-credential", async () => {
+    // The design half is public, but `canWrite` is read off this request's own cookie. A shared
+    // cached copy would hand one visitor another browser's `canWrite: true`, and a panel offering
+    // edits every save is then refused for. Nothing caches this today; these headers are what
+    // keeps that true if `s-maxage` is ever added to a payload that looks public.
+    const { id, cookie } = await mintDesign();
+
+    const response = await GET(readRequest(id, cookie), routeParams(id));
+
+    expect(response.headers.get("cache-control")).toBe("private, no-store");
+    expect(response.headers.get("vary")).toBe("Cookie");
+  });
+
+  it("reports canWrite: true to the browser that minted the design", async () => {
+    const { id, cookie } = await mintDesign();
+
+    const { status, body } = await readBodyOf(id, cookie);
+
+    expect(status).toBe(200);
+    expect((body as { canWrite: boolean }).canWrite).toBe(true);
+  });
+
+  it("reports canWrite: false when the cookie belongs to a different design", async () => {
+    const mine = await mintDesign();
+    const theirs = await mintDesign();
+
+    const { status, body } = await readBodyOf(theirs.id, mine.cookie);
+
+    expect(status).toBe(200);
+    // The cookie is real, but it is named and pathed for `mine.id`. Reading `theirs.id` with it
+    // must not report edit access this browser does not have on that design.
+    expect((body as { canWrite: boolean }).canWrite).toBe(false);
+    // And the corresponding write is refused, which is the guarantee `canWrite` merely describes.
+    const write = await PUT(
+      saveRequest(theirs.id, {
+        design: ATTACKER_DESIGN,
+        cookie: mine.cookie,
+      }),
+      routeParams(theirs.id),
+    );
+    expect(write.status).toBe(403);
+  });
+
+  it("reports canWrite as a boolean and never any part of the credential", async () => {
+    const { id, cookie } = await mintDesign();
+
+    const response = await GET(readRequest(id, cookie), routeParams(id));
+    const raw = await response.text();
+    const token = cookie.split("=")[1] ?? "";
+
+    expect(token.length).toBeGreaterThan(20);
+    expect(raw).not.toContain(token);
+    expect([...Object.keys(JSON.parse(raw) as object)].sort()).toEqual([
+      "canWrite",
+      "design",
+      "id",
+    ]);
   });
 });

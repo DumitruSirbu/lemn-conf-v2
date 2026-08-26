@@ -25,11 +25,27 @@ export default defineConfig({
   projects: [
     {
       name: "mobile",
+      // Desktop specs are named apart rather than filtered by a tag, so a file's viewport is
+      // readable from its name and a spec cannot silently run at the wrong one.
+      testIgnore: "**/*.desktop.e2e.spec.ts",
       use: {
         ...devices["Desktop Chrome"],
         viewport: { width: 390, height: 844 },
         hasTouch: true,
         isMobile: true,
+        defaultBrowserType: "chromium",
+      },
+    },
+    /** M4's desktop line (`docs/milestones/M4-editor-surface.md`, "Surfaces"): frames D2A and D2B,
+     *  where the panel is a 420 px right rail the scene re-lays out beside. Above
+     *  `editor-panel.module.css`'s 900 px branch by a wide margin, and with no touch — the rail is
+     *  a pointer surface and asserting it under synthesised touch would prove the wrong thing. */
+    {
+      name: "desktop",
+      testMatch: "**/*.desktop.e2e.spec.ts",
+      use: {
+        ...devices["Desktop Chrome"],
+        viewport: { width: 1440, height: 900 },
         defaultBrowserType: "chromium",
       },
     },

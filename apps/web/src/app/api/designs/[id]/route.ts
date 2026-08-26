@@ -10,6 +10,7 @@ import {
 } from "@/lib/server/design-errors";
 import { getRepository } from "@/lib/server/repository";
 import {
+  hasWriteCredentialFor,
   readWriteTokenHash,
   refreshWriteTokenCookie,
 } from "@/lib/server/write-token";
@@ -24,16 +25,50 @@ type ReadDesignOutcome =
   | { readonly ok: true; readonly design: Design }
   | { readonly ok: false; readonly response: NextResponse };
 
-/** Open to anyone holding the link, and deliberately so: ADR 0019 decision 1 splits read from write
- *  precisely so that sharing keeps costing nothing. No credential is read here. */
+/**
+ * This response is **per-credential and must never be shared between visitors.** The design half is
+ * public, but `canWrite` is computed from the request's own write-token cookie, so one cached copy
+ * served to a second visitor would hand them another browser's `canWrite: true` and a panel
+ * offering edits their saves will be refused for. Reading `request.cookies` already opts this route
+ * out of static rendering and no CDN caches it without an explicit public directive — these headers
+ * are what keeps that true the day someone adds `s-maxage` to a route whose payload looks public.
+ */
+const PER_CREDENTIAL_HEADERS = {
+  "Cache-Control": "private, no-store",
+  Vary: "Cookie",
+} as const;
+
+/**
+ * Open to anyone holding the link, and deliberately so: ADR 0019 decision 1 splits read from write
+ * precisely so that sharing keeps costing nothing. A caller presenting no credential still gets the
+ * design and a 200 — never a 401, never a 403.
+ *
+ * `canWrite` rides along because the request already carried the cookie: the credential is
+ * `HttpOnly`, so the browser cannot inspect it, and without this answer a panel could only discover
+ * whether it may edit by attempting an edit — the warn-after-click pattern §9 rules out. It is a
+ * boolean and nothing else; no token, no hash, and no fragment of either leaves this handler.
+ *
+ * **It is advisory, for the UI, and it is not the authorisation decision.** `PUT`/`PATCH` hand the
+ * hash to `saveAuthorized`, which makes it part of the row's own `update` predicate. Nothing may
+ * ever be written on the strength of a `canWrite` this route returned: that would be a
+ * check-then-write window, which is the thing ADR 0019 was written to close. The next reader will be
+ * tempted; this paragraph is why they should not be.
+ */
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: RouteParams,
 ): Promise<NextResponse> {
   const { id } = await params;
   try {
     const design = await getRepository().load(id);
-    return NextResponse.json({ id, design });
+    return NextResponse.json(
+      {
+        id,
+        design,
+        canWrite: hasWriteCredentialFor(request.cookies, id),
+      },
+      { headers: PER_CREDENTIAL_HEADERS },
+    );
   } catch (error) {
     return designErrorResponse(error);
   }

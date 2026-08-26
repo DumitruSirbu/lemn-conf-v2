@@ -339,9 +339,11 @@ describe("createSaveCoalescer", () => {
   });
 
   describe("a terminal failure that is not about the credential", () => {
-    it("stops retrying a 400 but keeps calling it an error", async () => {
+    it("reports a 400 as 'stopped' — neither a credential problem nor a pending retry", async () => {
       // A tab running a bundle from before a deploy 400s on every save, permanently. Retrying it
       // is the same wasted cost that made a 403 terminal; `unauthorized` would be a lie about it.
+      // And so would `error`, which this coalescer emits only while a retry is armed: the surface
+      // reads that as "wait, it is coming", and nothing is coming.
       const coalescer = buildCoalescer();
       repository.refuseNextCallsAsNotRetryable(1);
 
@@ -349,7 +351,7 @@ describe("createSaveCoalescer", () => {
       await vi.advanceTimersByTimeAsync(60_000);
 
       expect(repository.calls).toHaveLength(1);
-      expect(statuses.at(-1)).toBe("error");
+      expect(statuses.at(-1)).toBe("stopped");
       expect(statuses).not.toContain("unauthorized");
     });
   });

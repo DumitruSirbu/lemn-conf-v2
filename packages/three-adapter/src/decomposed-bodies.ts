@@ -5,23 +5,69 @@
 // parity test and the scene mount so the two never drift apart.
 import * as THREE from "three";
 
-import type { Kit } from "./kitchen-parts.js";
+import type { Kit, KitMaterials } from "./kitchen-parts.js";
 import { isMesh } from "./three-guards.js";
 
-/** The one place that knows which meshes are handles. `scene-sync.ts` calls it at mount to apply
- *  the slot default and any recorded handle mode, in both directions; the seeded `*-top` arms below
- *  call it through `hidePushOpenHandles` because the decomposition-parity gate holds them to the
- *  reference room's own build-time hide. */
+/** `scene-sync.ts` calls it at mount to apply the slot default and any recorded handle mode, in
+ *  both directions; the seeded `*-top` arms below call it through `hidePushOpenHandles` because the
+ *  decomposition-parity gate holds them to the reference room's own build-time hide.
+ *
+ *  This file is the one place that knows which meshes are handles — hence
+ *  `applyBlackHandleMaterial` beside it rather than in a module that would have to re-derive the
+ *  same mesh names. */
 export function setHandlesVisible(
   group: THREE.Group,
   areHandlesVisible: boolean,
 ): THREE.Group {
-  group.traverse((node) => {
-    if (isMesh(node) && node.name.includes("handle")) {
-      node.visible = areHandlesVisible;
-    }
+  forEachHandleMesh(group, (handle) => {
+    handle.visible = areHandlesVisible;
   });
   return group;
+}
+
+/** §5.5's `handle: 'black'`. Every handle mesh is built with `M.steel` (`kitchen-parts.ts`), so
+ *  without this the black chip moved and the scene did not: `steel` and `black` rendered
+ *  identically. The dark material is derived from the steel one — same brushed roughness map, same
+ *  bar geometry — so the only difference on screen is the one the customer asked for.
+ *
+ *  Cached per kit and shared by every black handle, for the reason `finishes.ts` states: a body
+ *  re-signs and re-mounts on every appearance change, and a body's materials belong to its kit. */
+export function applyBlackHandleMaterial(
+  group: THREE.Group,
+  M: KitMaterials,
+): THREE.Group {
+  const material = blackHandleMaterial(M);
+  forEachHandleMesh(group, (handle) => {
+    handle.material = material;
+  });
+  return group;
+}
+
+const BLACK_HANDLE_COLOR = "#1c1e20";
+const BLACK_HANDLE_ROUGHNESS = 0.42;
+const BLACK_HANDLE_METALNESS = 0.65;
+
+const blackHandleMaterialByKit = new WeakMap<KitMaterials, THREE.Material>();
+
+function blackHandleMaterial(M: KitMaterials): THREE.Material {
+  const cached = blackHandleMaterialByKit.get(M);
+  if (cached) return cached;
+
+  const material = M.steel.clone();
+  material.color = new THREE.Color(BLACK_HANDLE_COLOR);
+  material.roughness = BLACK_HANDLE_ROUGHNESS;
+  material.metalness = BLACK_HANDLE_METALNESS;
+  blackHandleMaterialByKit.set(M, material);
+  return material;
+}
+
+function forEachHandleMesh(
+  group: THREE.Group,
+  visit: (handle: THREE.Mesh) => void,
+): void {
+  group.traverse((node) => {
+    if (isMesh(node) && node.name.includes("handle")) visit(node);
+  });
 }
 
 /** `DEVELOPMENT-SPEC.md` §6.5: a push-to-open body keeps its handles **built and hidden**, never

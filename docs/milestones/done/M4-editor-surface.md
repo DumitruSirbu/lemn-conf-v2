@@ -1,8 +1,17 @@
 # M4 — Editor panel and layout shell (screens 2A, 2B, 2C)
+>
+> **STOP — DO NOT READ THIS PLAN.** M4 closed 2026-08-26. This file describes intentions; several
+> shipped differently and are superseded by dated records. Acting on one reintroduces a design the
+> project abandoned — the `canWidth` clause recorded in the Waves section below, for one, was
+> overturned by logic review the same day. The live knowledge is in `docs/decisions/` (ADRs
+> 0021–0024) and in the code. See `docs/STATUS.md` for where the project stands.
 
-> **STATUS: PLANNED.** Depends on M3. Summary: `docs/STATUS.md`.
 
-Status: planned. Depends on M3.
+> **STATUS: CLOSED 2026-08-26.** All four waves shipped. One acceptance criterion is recorded
+> **unmet** — 2C's rejection-state browser test, which cannot be written because no panel control can
+> produce a refusal (ADR 0024). Summary: `docs/STATUS.md`.
+
+Status: closed 2026-08-26. Depended on M3.
 Reference: `DEVELOPMENT-SPEC.md` §9, §10, §10.1, §13.1; mockup frames 2A, 2B, 2C and D2A, D2B, D2C.
 
 ## Goal
@@ -131,3 +140,92 @@ Surfaces:
   inspect loop, and a desktop pass for the appear-on-selection rail.
 - A test asserting that the model reflects an edit before the sheet is dismissed, so that the
   viewing affordance can never quietly become a deferred-commit model.
+
+---
+
+## Waves (added 2026-08-26, at the start of implementation)
+
+Six work items and four M3 hand-offs do not fit one dispatch under `docs/WORKFLOW.md`'s scope
+limit, so M4 runs as four waves with a gate between each.
+
+| Wave | What it builds | Review tier |
+| --- | --- | --- |
+| **4A** | The panel *model*: a pure projection of `meta` + offers + the last refusal into §9's ordered sections, plus the copy it renders. No React. | Full — it is §9's rules |
+| **4B** | The section components and the two shells (mobile sheet, desktop rail), and the deletion of `temporary-dev-controls`. | Light — UI assembly against 4A's settled contract |
+| **4C** | `canWrite` on the design read, and how a failed or unauthorised write is communicated. | Full — it is an auth-adjacent contract |
+| **4D** | The e2e suite re-pointed at the real panel, and the 390 × 844 gate. | Light |
+
+### Carried into M5: seeded entries have no `sizesMm`
+
+All 20 seeded entries in `KITCHEN_L_BODY_CATALOG` omit `sizesMm`, so `describeSelection` publishes
+an empty width set for every one of the 21 seeded placements that are not fixed-width. The width
+section therefore does not render on a seeded body — but the flag is **not** what withholds it.
+`canWidth` is §9's own rule and nothing more (`selected · not empty · not fixedWidth`), and it is
+`describeWidthSection` that declines when there are no chips to show. Folding "has widths to offer"
+into the flag, as an earlier round did, made `canWidth: true, sizesMm: []` a representable
+contradiction and hid this gap behind a silently-false capability; keeping them apart means every
+flexible seeded body publishes `canWidth: true` today with nothing to show for it, which is exactly
+the loud state M5 needs. That is correct for M4, which ships no width editing — but it is not a
+resolution. **M5 has to resize seeded bodies too**, so M5 must give the seeded entries real width
+sets (or derive them), otherwise the width section stays permanently hidden on exactly the
+population the shipped design is made of. Carried into M5 as a required work item, not closed here.
+
+### 4A's two recorded decisions
+
+1. **The panel's rules live in a pure module, not in components.** §12 already forbids product
+   logic in components; this makes the ban testable. `describePanel` takes `meta`, the offer list
+   and the last refusal and returns §9's sections in §9's order, each with its content already
+   resolved. Every acceptance criterion in this document that is about *what renders* becomes an
+   assertion against a value.
+
+2. **Therefore no jsdom/RTL dependency is added.** The plan's Verification section asks for
+   "component tests driving each section purely from `meta` fixtures". That is what a
+   `describePanel` fixture test is, minus a renderer — and a dependency change would pull the whole
+   security-review tier onto a wave that ships no behaviour of its own. The rendered DOM is covered
+   where it is real, in the Playwright pass of 4D. If a later wave needs to assert on rendered
+   markup rather than on the model, that is the moment to reconsider, and it is a decision to
+   record rather than to make in passing.
+
+### What 4A adds to `meta`, and why
+
+§8's `meta` list omits the body's *current* finish and handle, because the prototype's panel read
+them off the mesh. §9's chips have to mark the active one, so `describeSelection` publishes
+`finishKey` and `handleMode` — already on `PlacementRecord` — and `canWidth`, which §9 defines as
+`selected · not empty · not fixedWidth` and which was previously left for each caller to re-derive.
+`structuralReason` joins them for the same reason: §11 row 16 wants the refusal to explain why, and
+a body that offers nothing never produces a refusal to carry the explanation, so the reason is a
+declared catalogue fact rather than something read back out of four false flags. Nothing else is
+added: the rule that the panel disables from these numbers alone is what makes the
+addition necessary rather than convenient.
+
+### 4C's two recorded-not-changed security findings (2026-08-26)
+
+Security review of Wave 4C returned no exploitable defect. Two of its findings were deliberately
+recorded rather than fixed, because each is a sizing input or a decision the code makes correctly but
+in no single stated place.
+
+**S3 — the write-access probe doubles the read cost of every `/d/{id}` open.** `/d/{id}` renders from
+a server-side `load`, then `useWriteAccessProbe` issues `GET /api/designs/{id}` purely to read the
+`canWrite` boolean — and that route answers with the whole design, which the client then fully
+parses through `DesignSchema`. So every shared-link open costs two database reads and egresses the
+document twice, for one bit of information. That halves the headroom of ADR 0019's planned global
+`all /api/*` bucket and its single per-IP firewall rule: the same customer behaviour now produces
+twice the request and byte volume those limits will be sized against, so **M8 must size its limits
+against the doubled rate rather than against one read per open.** Two cheaper shapes exist when M8 or
+a later wave wants the cost back: a `HEAD /api/designs/{id}` answering the credential question in
+headers with no body, or a fields parameter (`?fields=canWrite`) that omits `design` from the
+payload. Neither is worth a wave on its own today; both are worth naming before the limits are set.
+
+**S5 — `canWrite` fails open on a missing probe and closed on a malformed one, decided in two
+files.** The store's `hydrate` defaults `canWrite` to `true` when the field is omitted, and
+`/d/{id}` always omits it, so **every shared-link visitor sees a writable panel until the probe
+lands — and indefinitely if it never does.** A failed probe therefore fails *open* (the store keeps
+the optimistic default; guessing read-only from a dropped packet would tell an author they may not
+edit their own kitchen), while a probe that succeeds with a malformed payload fails *closed*
+(`readCanWrite` reads anything that is not `true` as `false`). Both directions are individually
+correct and both are deliberate, but the pairing is decided in `configurator-store.ts` and
+`fetch-configuration-repository.ts` with no single place stating it. The cost of the open default is
+bounded and understood: `canWrite` is advisory only, the row itself authorises every write
+(`saveAuthorized`), and a visitor who edits optimistically gets a 403 that surfaces as
+`unauthorized`, which the panel reads as read-only. No change; recorded here so the pair is a
+decision on the record rather than an emergent property of two files.

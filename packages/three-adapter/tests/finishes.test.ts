@@ -1,0 +1,91 @@
+// `FINISH_COLORS` exists so the panel's swatch chips can paint the colour a front will actually
+// wear. That promise is only worth anything while the published table and the material builder
+// agree, and the two are separated by a package boundary the compiler cannot see across.
+//
+// So this file diffs them: for every published colour, dress a front in that finish and read the
+// colour off the material. If `FINISHES` is edited and the export is not (or the other way round),
+// these fail — which is what turns "must track finishes.ts" from a comment into a gate.
+import * as THREE from "three";
+import { beforeAll, describe, expect, it } from "vitest";
+
+import {
+  applyBodyFinish,
+  applyFinish,
+  FINISH_COLORS,
+  type FinishKey,
+  type SolidFinishKey,
+} from "../src/finishes.js";
+import { makeKit, type Kit } from "../src/kitchen-parts.js";
+import {
+  createHeadlessCanvas,
+  installHeadlessDocument,
+} from "./support/headless-canvas.js";
+
+let kit: Kit;
+
+beforeAll(() => {
+  installHeadlessDocument();
+  kit = makeKit({ createCanvas: createHeadlessCanvas });
+});
+
+const SOLID_FINISH_KEYS = Object.keys(FINISH_COLORS) as SolidFinishKey[];
+
+function makeFront(): THREE.Mesh {
+  const front = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), kit.M.door);
+  front.name = "door_front";
+  return front;
+}
+
+function colourOf(mesh: THREE.Mesh): string {
+  const material = mesh.material;
+  if (Array.isArray(material) || !("color" in material)) {
+    throw new Error(`Mesh "${mesh.name}" has no single coloured material`);
+  }
+  return `#${(material.color as THREE.Color).getHexString()}`;
+}
+
+function dressedFront(key: FinishKey): THREE.Mesh {
+  const front = makeFront();
+  applyFinish([front], kit.M, key);
+  return front;
+}
+
+describe("FINISH_COLORS publishes what applyFinish actually paints", () => {
+  it("covers every solid finish and no more", () => {
+    expect([...SOLID_FINISH_KEYS].sort()).toEqual([
+      "clay",
+      "graphite",
+      "sage",
+      "white",
+    ]);
+  });
+
+  it.each(SOLID_FINISH_KEYS)("matches the front's material for %s", (key) => {
+    expect(colourOf(dressedFront(key))).toBe(FINISH_COLORS[key]);
+  });
+
+  it.each(SOLID_FINISH_KEYS)(
+    "matches the front's material for %s through applyBodyFinish too",
+    (key) => {
+      const body = new THREE.Group();
+      body.add(makeFront());
+      applyBodyFinish(body, kit.M, key);
+
+      expect(colourOf(body.children[0] as THREE.Mesh)).toBe(FINISH_COLORS[key]);
+    },
+  );
+});
+
+describe("oak is a material, so it is published as no colour at all", () => {
+  it("has no entry in the exported table", () => {
+    expect(SOLID_FINISH_KEYS).not.toContain("oak");
+  });
+
+  it("dresses the front in the kit's oak map rather than a colour", () => {
+    const front = dressedFront("oak");
+
+    expect((front.material as THREE.MeshStandardMaterial).map).toBe(
+      kit.M.oak.map,
+    );
+  });
+});
