@@ -56,6 +56,17 @@ export {
 } from "./scene-sync.js";
 
 export {
+  buildSelectionOutline,
+  disposeSelectionOutline,
+  OCCLUDED_OUTLINE_OPACITY,
+  OCCLUDED_OUTLINE_WIDTH_PX,
+  SELECTION_HIGHLIGHT_COLOR,
+  SELECTION_OUTLINE_WIDTH_PX,
+  type SelectionOutline,
+  type SelectionOutlineInput,
+} from "./selection-outline.js";
+
+export {
   buildVoidMesh,
   NOOP_RAYCAST,
   VOID_INSET_M,
