@@ -41,6 +41,8 @@ function openPanel(
     offers: [],
     rejection: null,
     isBodyProbeAttached: true,
+    canWrite: true,
+    saveStatus: "idle",
     ...overrides,
   });
   if (panel.kind !== "open") throw new Error("expected an open panel");
@@ -488,6 +490,8 @@ describe("the closed panel", () => {
             offers: list,
             rejection,
             isBodyProbeAttached: false,
+            canWrite: true,
+            saveStatus: "idle",
           }),
         ).toEqual({ kind: "closed" });
       }

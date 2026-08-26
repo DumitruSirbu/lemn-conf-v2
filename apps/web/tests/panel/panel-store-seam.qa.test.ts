@@ -37,6 +37,8 @@ function panelFromStore(state: ConfiguratorState): PanelView {
       : [],
     rejection: state.lastRejection,
     isBodyProbeAttached: state.isBodyProbeAttached,
+    canWrite: state.canWrite,
+    saveStatus: state.saveStatus,
   });
 }
 

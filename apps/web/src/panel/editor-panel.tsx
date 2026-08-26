@@ -22,6 +22,7 @@ import type {
   OfferRow,
   PanelFooter,
   PanelHeader,
+  PanelNotice,
   PanelSection,
   PanelView,
   ReplaceSection,
@@ -56,6 +57,7 @@ export function EditorPanel({ view }: { readonly view: PanelView }) {
     >
       <span className={styles.grabber} aria-hidden="true" />
       <PanelHeaderRow header={view.header} onClose={deselect} />
+      <PanelNoticeRow notice={view.notice} />
       <div className={styles.body}>
         {view.sections.map((section) => (
           <PanelSectionView key={section.kind} section={section} />
@@ -63,6 +65,36 @@ export function EditorPanel({ view }: { readonly view: PanelView }) {
       </div>
       <PanelFooterRow footer={view.footer} onDone={deselect} />
     </aside>
+  );
+}
+
+/** §9 puts a message beside the control that produced it, and this one was produced by the panel
+ *  as a whole — so it sits directly under the header, above the scrolling body, where it cannot be
+ *  scrolled past. `role="status"` rather than `alert` even for the failure: the edit is already
+ *  applied and nothing is waiting on the customer.
+ *
+ *  Rendered **always**, empty when there is nothing to say. Many screen readers announce only
+ *  *changes* to a live region that was already in the accessibility tree, so a region mounted at
+ *  the same moment its first message appears can be announced late or not at all — and for a
+ *  read-only customer this notice is the only thing explaining why nothing responds. Empty it
+ *  collapses to nothing visible (`[data-empty="true"]`); it is not hidden, because `display: none`
+ *  would take it back out of the tree and undo the whole point. */
+function PanelNoticeRow({
+  notice,
+}: {
+  readonly notice: PanelNotice | undefined;
+}) {
+  return (
+    <p
+      className={styles.notice}
+      data-empty={notice ? "false" : "true"}
+      data-tone={notice?.tone}
+      data-notice={notice?.kind}
+      role="status"
+      data-testid="panel-notice"
+    >
+      {notice?.message ?? ""}
+    </p>
   );
 }
 
@@ -218,12 +250,14 @@ function SwatchButton({
       className={styles.swatch}
       data-testid={`finish-${chip.value}`}
       aria-pressed={chip.isActive}
+      disabled={chip.isDisabled}
       onClick={() => {
         onPick(chip.value);
       }}
     >
       <span className={styles.swatchColor} data-finish={chip.value} />
       <span className={styles.swatchLabel}>{chip.label}</span>
+      <ChipReason reason={chip.reason} />
     </button>
   );
 }
@@ -241,17 +275,28 @@ function HandleSectionView({ section }: { readonly section: HandleSection }) {
             className={styles.chip}
             data-testid={`handle-${chip.value}`}
             aria-pressed={chip.isActive}
+            disabled={chip.isDisabled}
             onClick={() => {
               setHandle(chip.value);
             }}
           >
             {chip.label}
+            <ChipReason reason={chip.reason} />
           </button>
         ))}
       </div>
       {section.note ? <p className={styles.note}>{section.note}</p> : null}
     </section>
   );
+}
+
+/** §13.1's "greyed and unclickable, WITH the reason", for the two chip families that have no
+ *  secondary line of their own to displace. The model decides whether there is a reason; this
+ *  renders it. A disabled button is not focusable, so the reason has to be readable without
+ *  reaching the control. */
+function ChipReason({ reason }: { readonly reason: string | undefined }) {
+  if (reason === undefined) return null;
+  return <span className={styles.chipReason}>{reason}</span>;
 }
 
 /** §9's three chip states drive styling only — §13.1's "disable, don't warn" dashes a `blocked`
@@ -296,11 +341,17 @@ function PanelFooterRow({
   const remove = useConfiguratorStore((state) => state.remove);
   return (
     <footer className={styles.footer}>
+      {footer.canDelete && footer.removeDisabledReason !== undefined ? (
+        <span className={styles.footerReason} data-testid="panel-remove-reason">
+          {footer.removeDisabledReason}
+        </span>
+      ) : null}
       {footer.canDelete ? (
         <button
           type="button"
           className={styles.remove}
           data-testid="panel-remove"
+          disabled={footer.isRemoveDisabled}
           onClick={remove}
         >
           {footer.removeLabel}

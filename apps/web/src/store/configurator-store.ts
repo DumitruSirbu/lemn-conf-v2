@@ -34,7 +34,7 @@ import {
 } from "@lemnaria/configurator-domain";
 import { create, type StoreApi, type UseBoundStore } from "zustand";
 
-import { FetchConfigurationRepository } from "@/persistence/fetch-configuration-repository";
+import { sessionConfigurationRepository } from "@/persistence/fetch-configuration-repository";
 import {
   createSaveCoalescer,
   type SaveCoalescer,
@@ -50,6 +50,24 @@ export type { Selection };
  *  saved" and "last save succeeded" — `hasPersistedSuccessfully` is the field that distinguishes
  *  those two, per the milestone's "never write, never shareable" rule. */
 export type { SaveStatus };
+
+/**
+ * Whether this browser may edit a design, as **three** states rather than two.
+ *
+ * `"unknown"` is the `/d/{id}` load's honest answer: the write-token cookie is scoped
+ * `Path=/api/designs/{id}` (ADR 0019 decision 1), so the request that rendered the page never
+ * carried it and the server could not have answered. It is spelled out rather than encoded as an
+ * absent field, because absence already means the opposite thing one module away —
+ * `fetch-configuration-repository.ts` reads an absent `canWrite` as **false**, the safe reading of
+ * a load answer that did not arrive, while here the deliberate guess is **writable**. Two opposite
+ * defaults for the same missing value is how a genuinely read-only design gets marked writable with
+ * no type error; a third named state removes the default from both.
+ *
+ * The panel treats `"unknown"` as writable — see `isReadOnly`. That optimism is the point: a panel
+ * that starts read-only tells the design's own author they may not edit their own kitchen, while one
+ * that briefly offers an edit it turns out not to have is recoverable.
+ */
+export type WriteAccess = boolean | "unknown";
 
 export interface ConfiguratorState {
   readonly design: Design;
@@ -85,13 +103,49 @@ export interface ConfiguratorState {
   /** A future share-link UI gates on this, not on `designId !== null` alone: a design that has
    *  never been written successfully must not present a shareable link (write-path decision 17). */
   readonly hasPersistedSuccessfully: boolean;
+  /**
+   * Whether this browser holds the design's write credential (ADR 0019 decision 1), as the server
+   * reported it on the load that produced this state — or `"unknown"` where no load could have
+   * answered. Published so §9's panel can disable what it cannot perform; it is a **fact carried
+   * in**, never a decision made here — what the panel does with it is `describePanel`'s rule, and
+   * what a write is allowed to do is the row's.
+   */
+  readonly canWrite: WriteAccess;
+  /** Records the server's answer about write access, which for the load-by-link path arrives after
+   *  the design does — see `LoadedDesignState.canWrite`. Ignored when the store has since moved to
+   *  a different design, because the answer is per-design and would otherwise be applied to one it
+   *  was never about. */
+  readonly applyWriteAccess: (access: {
+    designId: DesignId;
+    canWrite: boolean;
+  }) => void;
   /** Replaces the store's design wholesale — the load-by-link path (`/d/[id]`). The loaded design
    *  already round-tripped through the database, so it counts as persisted; clears the selection,
    *  since an id selected in the previous design has no guaranteed meaning in the new one. */
-  readonly hydrate: (design: Design, designId: DesignId) => void;
+  readonly hydrate: (loaded: LoadedDesignState) => void;
   readonly setSaveStatus: (status: SaveStatus) => void;
   /** Records a successful save's id — the save-coalescer's `onSaved` hook. */
   readonly applySavedId: (id: DesignId) => void;
+}
+
+/** One load's worth of state: the document, the id it lives under, and this browser's access to
+ *  it. Passed as one object because they are three halves of a single event and always move
+ *  together — a `hydrate` that took them positionally would let two of them be swapped silently. */
+export interface LoadedDesignState {
+  readonly design: Design;
+  readonly designId: DesignId;
+  /**
+   * **Required**, so that a loader which does not know has to say so. `/d/{id}` passes
+   * `"unknown"` — its own request could not carry the `Path=/api/designs/{id}` cookie — and
+   * `applyWriteAccess` corrects it from the one route the cookie does reach. A loader that knows
+   * passes the boolean.
+   *
+   * It is required rather than optional-defaulting-to-writable because the obvious call,
+   * `hydrate({ design: await repository.load(id), designId })`, drops `canWrite` (the
+   * `ConfigurationRepository` contract has no such field) and would have marked a genuinely
+   * read-only design writable with no type error and no lint warning. Now it does not compile.
+   */
+  readonly canWrite: WriteAccess;
 }
 
 export interface ConfiguratorStoreOptions {
@@ -107,6 +161,14 @@ export interface ConfiguratorStoreOptions {
   /** The domain reads no clock, so the caller supplies `occurredAt`. Injected so a test can pin
    *  it and so nothing in the domain has to be mocked to make a timestamp predictable. */
   readonly now?: () => string;
+  /**
+   * Defaults to `true`, and the default is the whole point: a design that has never been minted has
+   * no credential to hold *yet*, because the customer is about to mint it on their first mutation.
+   * Only a **loaded** design can be read-only, and that case arrives through `hydrate` carrying the
+   * server's answer. A fresh configurator that believed itself read-only would refuse every edit it
+   * is about to be granted — a worse failure than the one `canWrite` exists to fix.
+   */
+  readonly canWrite?: boolean;
   /** Tests inject a fake probe here. The app cannot: the real probe needs a `Kit` and the mounted
    *  room, which do not exist until the scene mounts, so it arrives later via `attachBodyProbe`. */
   readonly bodyProbe?: BodyProbe;
@@ -240,16 +302,30 @@ export function createConfiguratorStore(
       },
       designId,
       saveStatus: "idle",
+      canWrite: options.canWrite ?? true,
       hasPersistedSuccessfully: designId !== null,
-      hydrate: (nextDesign, nextDesignId) => {
+      hydrate: (loaded) => {
         set({
-          design: nextDesign,
-          ...deriveGeometry(nextDesign, catalog),
+          design: loaded.design,
+          ...deriveGeometry(loaded.design, catalog),
           selection: null,
           lastRejection: null,
-          designId: nextDesignId,
+          designId: loaded.designId,
+          canWrite: loaded.canWrite,
           hasPersistedSuccessfully: true,
+          // A save status is evidence about the design that produced it and about no other, which
+          // is the same reason `save-coalescer.ts` keys `refusedDesignId` by design id. Carried
+          // across, `unauthorized` would render a freshly loaded design this browser *does* own as
+          // read-only (`isReadOnly` reads it), and the only thing that clears `unauthorized` is a
+          // successful write — whose every control the read-only panel has just disabled. That is a
+          // deadlock no interaction can leave, only a full page reload. `error` and `stopped` leak
+          // the previous design's failure notice onto a design that never failed.
+          saveStatus: "idle",
         });
+      },
+      applyWriteAccess: ({ designId: answeredFor, canWrite }) => {
+        if (get().designId !== answeredFor) return;
+        set({ canWrite });
       },
       setSaveStatus: (status) => {
         set({ saveStatus: status });
@@ -280,7 +356,7 @@ let saveCoalescer: SaveCoalescer | null = null;
  *  successful command, so a refusal persists nothing. */
 function persistDesignChange(design: Design): void {
   saveCoalescer ??= createSaveCoalescer({
-    repository: new FetchConfigurationRepository(),
+    repository: sessionConfigurationRepository,
     getDesignId: () => useConfiguratorStore.getState().designId,
     onSaved: (id) => {
       useConfiguratorStore.getState().applySavedId(id);

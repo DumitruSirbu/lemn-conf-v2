@@ -49,6 +49,8 @@ function panelAt(world: World, target: CommandTarget) {
     offers: offersFor({ ...world, target }),
     rejection: null,
     isBodyProbeAttached: true,
+    canWrite: true,
+    saveStatus: "idle",
   });
 }
 

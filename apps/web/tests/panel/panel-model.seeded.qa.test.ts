@@ -73,6 +73,8 @@ function panelAt(
     offers: offersFor({ ...world, target }),
     rejection,
     isBodyProbeAttached: true,
+    canWrite: true,
+    saveStatus: "idle",
   });
 }
 

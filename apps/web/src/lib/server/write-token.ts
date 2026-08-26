@@ -54,6 +54,46 @@ export function setWriteTokenCookie(
   });
 }
 
+/**
+ * Anything that can be asked for a cookie by name. Declared structurally so a caller need not build
+ * a `NextRequest` it does not have.
+ *
+ * **The only reader that ever holds the credential is `NextRequest.cookies` inside
+ * `/api/designs/{id}`.** `setWriteTokenCookie` scopes the cookie `Path=/api/designs/{id}`, so the
+ * browser attaches it to that one route and to nothing else: a request for `/d/{id}`, for any other
+ * page, or for any other API route carries no write-token cookie at all. A `cookies()` store from a
+ * server component satisfies this interface structurally and will therefore compile, but it can only
+ * ever answer "no credential" — for every visitor, the design's own author included. That is why
+ * `app/d/[id]/page.tsx` refuses to answer write access and defers to a client probe against the API
+ * route. Do not read this from outside `/api/designs/{id}`; the answer is not a lookup that missed,
+ * it is a question that route cannot be asked.
+ */
+export interface WriteCookieReader {
+  get(name: string): { readonly value: string } | undefined;
+}
+
+/**
+ * Whether this browser presents a write credential for `designId`.
+ *
+ * **Presence, not validity — and this is deliberately not the authorisation decision.** It answers
+ * only "does a cookie for this design exist here", which is what a UI needs in order to stop
+ * offering edits it cannot perform (`docs/STATUS.md`, M4 hand-off 3). Whether the token is the
+ * *right* one is settled where it must be: `saveAuthorized` makes the hash part of the `update`
+ * predicate, so the row itself decides. Verifying here and writing there would be exactly the
+ * time-of-check/time-of-use window ADR 0019 rejects — so do not "improve" this into a check that a
+ * later write then trusts.
+ *
+ * A browser holding a stale or forged cookie therefore reads as writable and discovers otherwise on
+ * its first save, which the client surfaces as `unauthorized`. That is the honest bound of a
+ * check that costs no round trip, and it never widens what a write is allowed to do.
+ */
+export function hasWriteCredentialFor(
+  cookies: WriteCookieReader,
+  designId: string,
+): boolean {
+  return readWriteToken(cookies, designId) !== undefined;
+}
+
 /** The hash of the write token this request carries for `designId`, or `undefined` when it carries
  *  none. Returning the hash rather than the token keeps the raw credential inside this module — a
  *  route handler has no reason to hold it, and what it never holds it cannot log. */
@@ -61,7 +101,7 @@ export function readWriteTokenHash(
   request: NextRequest,
   designId: string,
 ): string | undefined {
-  const token = readWriteToken(request, designId);
+  const token = readWriteToken(request.cookies, designId);
   return token === undefined ? undefined : hashWriteToken(token);
 }
 
@@ -77,16 +117,16 @@ export function refreshWriteTokenCookie(
   { request, response }: { request: NextRequest; response: NextResponse },
   designId: string,
 ): void {
-  const token = readWriteToken(request, designId);
+  const token = readWriteToken(request.cookies, designId);
   if (token === undefined) return;
   setWriteTokenCookie(response, { designId, token });
 }
 
 function readWriteToken(
-  request: NextRequest,
+  cookies: WriteCookieReader,
   designId: string,
 ): string | undefined {
-  const token = request.cookies.get(cookieNameFor(designId))?.value;
+  const token = cookies.get(cookieNameFor(designId))?.value;
   return token === undefined || token === "" ? undefined : token;
 }
 

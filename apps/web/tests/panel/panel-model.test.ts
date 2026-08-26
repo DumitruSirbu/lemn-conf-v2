@@ -25,6 +25,8 @@ function panelFor(
     offers: [],
     rejection: null,
     isBodyProbeAttached: true,
+    canWrite: true,
+    saveStatus: "idle",
     ...overrides,
   });
 }

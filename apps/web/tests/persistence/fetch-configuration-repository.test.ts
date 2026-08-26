@@ -14,6 +14,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   DesignRequestFailedError,
   FetchConfigurationRepository,
+  sessionConfigurationRepository,
   WriteNotAuthorizedError,
 } from "../../src/persistence/fetch-configuration-repository";
 
@@ -120,6 +121,27 @@ describe("FetchConfigurationRepository", () => {
     );
   });
 
+  it("holds the session's mint guarantee on the one instance the app actually uses", async () => {
+    // The guarantee is per-instance: a second `new FetchConfigurationRepository()` is a second
+    // `mintedId` and therefore a second row for the same session. `sessionConfigurationRepository`
+    // is what both app callers hold — the store's save coalescer and `/d/{id}`'s write-access
+    // probe — so the guarantee is a property of the app, not only of a locally built object.
+    scriptSuccessfulMint("design-shared");
+    responses.push(() => jsonResponse({ id: "design-shared" }));
+
+    await Promise.all([
+      sessionConfigurationRepository.save(null, KITCHEN_L_DESIGN),
+      sessionConfigurationRepository.save(null, KITCHEN_L_DESIGN),
+    ]);
+
+    expect(sessionConfigurationRepository).toBeInstanceOf(
+      FetchConfigurationRepository,
+    );
+    expect(
+      requests.filter((request) => request.method === "POST"),
+    ).toHaveLength(1);
+  });
+
   it("mints again after a mint that failed, rather than caching the rejection forever", async () => {
     // A cached rejected promise would make every later save in the session fail, which is worse
     // than the fork it was guarding against.
@@ -215,6 +237,56 @@ describe("FetchConfigurationRepository", () => {
     expect(loaded).toEqual(KITCHEN_L_DESIGN);
     expect(requests[0]?.url).toBe("/api/designs/design-1");
   });
+
+  it("carries canWrite back beside the design, from the one GET", async () => {
+    const repository = new FetchConfigurationRepository();
+    responses.push(() =>
+      jsonResponse({
+        id: "design-1",
+        design: KITCHEN_L_DESIGN,
+        canWrite: true,
+      }),
+    );
+
+    const loaded = await repository.loadWithAccess("design-1");
+
+    expect(loaded).toEqual({ design: KITCHEN_L_DESIGN, canWrite: true });
+    // One request, not two: the credential answer rides the read it was already going to make.
+    expect(requests).toHaveLength(1);
+    expect(requests[0]?.method).toBe("GET");
+  });
+
+  it("reports canWrite: false when the route says so", async () => {
+    const repository = new FetchConfigurationRepository();
+    responses.push(() =>
+      jsonResponse({
+        id: "design-1",
+        design: KITCHEN_L_DESIGN,
+        canWrite: false,
+      }),
+    );
+
+    expect((await repository.loadWithAccess("design-1")).canWrite).toBe(false);
+  });
+
+  it.each([
+    { name: "absent", payload: {} },
+    { name: "a string", payload: { canWrite: "true" } },
+    { name: "a number", payload: { canWrite: 1 } },
+    { name: "null", payload: { canWrite: null } },
+  ])(
+    "falls back to read-only when canWrite is $name — never offers an edit on a guess",
+    async ({ payload }) => {
+      const repository = new FetchConfigurationRepository();
+      responses.push(() =>
+        jsonResponse({ id: "design-1", design: KITCHEN_L_DESIGN, ...payload }),
+      );
+
+      expect((await repository.loadWithAccess("design-1")).canWrite).toBe(
+        false,
+      );
+    },
+  );
 
   it("rejects a loaded payload that is not a valid design rather than handing it to the store", async () => {
     const repository = new FetchConfigurationRepository();

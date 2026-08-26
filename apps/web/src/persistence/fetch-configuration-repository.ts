@@ -29,6 +29,13 @@ export {
 
 const DESIGNS_ENDPOINT = "/api/designs";
 
+/** What a load answers: the document, and whether the browser that asked for it holds the write
+ *  credential for it. The two travel together because they come from the same response. */
+export interface LoadedDesign {
+  readonly design: Design;
+  readonly canWrite: boolean;
+}
+
 /** The write routes answer 403 for a missing or wrong credential (ADR 0019 decision 1); 401 is
  *  included because a future gateway may answer with it and it means the same thing here. */
 const NOT_AUTHORIZED_STATUSES: readonly number[] = [401, 403];
@@ -67,8 +74,11 @@ function saveFailureFor(
  * coalescer's existing retry/backoff drives it; nothing here swallows a failure into a resolved
  * promise, which would let the store believe a design is stored when it is not.
  *
- * One instance per session. Minting exactly once is this class's own guarantee and does not lean on
- * the coalescer serialising its callers: see `resolveTargetId`.
+ * One instance per session — `sessionConfigurationRepository` below is that instance, and every
+ * caller in the app uses it. Minting exactly once is this class's own guarantee and does not lean on
+ * the coalescer serialising its callers: see `resolveTargetId`. The guarantee is per-instance, so a
+ * second instance is a second `mintedId` and therefore a second row for the same session — which is
+ * the forked design `resolveTargetId` exists to prevent.
  */
 export class FetchConfigurationRepository implements ConfigurationRepository {
   /** The session's one mint, held as the **promise** rather than its awaited value — see
@@ -79,12 +89,27 @@ export class FetchConfigurationRepository implements ConfigurationRepository {
     return this.update(await this.resolveTargetId(id), design);
   }
 
+  /** The `ConfigurationRepository` contract, which knows nothing about write access. Kept as the
+   *  narrow view over `loadWithAccess` so there is one request and one parse, never two. */
   async load(id: DesignId): Promise<Design> {
+    return (await this.loadWithAccess(id)).design;
+  }
+
+  /**
+   * The design **and** whether this browser may edit it — one `GET`, no extra round trip.
+   *
+   * `canWrite` is the server's report of the `HttpOnly` cookie this request carried (ADR 0019
+   * decision 1). It exists so the panel can disable what it cannot perform instead of discovering
+   * the refusal by attempting a save. It is advisory: a write is still authorised by the row, and a
+   * `true` here is never permission to skip handling a refusal.
+   */
+  async loadWithAccess(id: DesignId): Promise<LoadedDesign> {
     const response = await this.request(designEndpointFor(id), {
       method: "GET",
     });
     if (!response.ok) throw failureFor("Loading a design", response.status);
-    return readDesign(await readJsonBody(response, "Loading a design"));
+    const payload = await readJsonBody(response, "Loading a design");
+    return { design: readDesign(payload), canWrite: readCanWrite(payload) };
   }
 
   /**
@@ -152,6 +177,18 @@ export class FetchConfigurationRepository implements ConfigurationRepository {
   }
 }
 
+/**
+ * The session's one repository, which is what makes "one instance per session" true rather than
+ * merely documented. Every caller in the app — the store's save coalescer and `/d/{id}`'s write
+ * access probe — goes through this, so there is exactly one `mintedId` per tab and no way for a
+ * locally constructed instance to mint a second row for the same session.
+ *
+ * Constructed at module load rather than lazily: the constructor only initialises a field, issues no
+ * request and touches no browser API, so it is inert on the server too.
+ */
+export const sessionConfigurationRepository =
+  new FetchConfigurationRepository();
+
 function designEndpointFor(id: DesignId): string {
   return `${DESIGNS_ENDPOINT}/${encodeURIComponent(id)}`;
 }
@@ -181,7 +218,15 @@ function readDesignId(payload: unknown, operation: string): DesignId {
   return id;
 }
 
-/** The load route answers `{ id, design }`. The payload is validated rather than trusted: this is
+/** Absent or non-boolean reads as **false**: a design that came back over the wire is one the
+ *  browser may or may not hold a credential for, and §9's "never offer what cannot be satisfied"
+ *  makes read-only the safe reading of an answer we did not get. A design that was never loaded is
+ *  the opposite case and is not decided here — see the store's own default. */
+function readCanWrite(payload: unknown): boolean {
+  return (payload as { canWrite?: unknown } | null)?.canWrite === true;
+}
+
+/** The load route answers `{ id, design, canWrite }`. The payload is validated rather than trusted: this is
  *  the same parse-then-validate the server load path performs, and a design that fails it rejects
  *  with the interface's own `InvalidDesignError` rather than reaching the store. */
 function readDesign(payload: unknown): Design {

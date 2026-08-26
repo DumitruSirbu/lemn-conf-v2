@@ -189,3 +189,35 @@ a body that offers nothing never produces a refusal to carry the explanation, so
 declared catalogue fact rather than something read back out of four false flags. Nothing else is
 added: the rule that the panel disables from these numbers alone is what makes the
 addition necessary rather than convenient.
+
+### 4C's two recorded-not-changed security findings (2026-08-26)
+
+Security review of Wave 4C returned no exploitable defect. Two of its findings were deliberately
+recorded rather than fixed, because each is a sizing input or a decision the code makes correctly but
+in no single stated place.
+
+**S3 — the write-access probe doubles the read cost of every `/d/{id}` open.** `/d/{id}` renders from
+a server-side `load`, then `useWriteAccessProbe` issues `GET /api/designs/{id}` purely to read the
+`canWrite` boolean — and that route answers with the whole design, which the client then fully
+parses through `DesignSchema`. So every shared-link open costs two database reads and egresses the
+document twice, for one bit of information. That halves the headroom of ADR 0019's planned global
+`all /api/*` bucket and its single per-IP firewall rule: the same customer behaviour now produces
+twice the request and byte volume those limits will be sized against, so **M8 must size its limits
+against the doubled rate rather than against one read per open.** Two cheaper shapes exist when M8 or
+a later wave wants the cost back: a `HEAD /api/designs/{id}` answering the credential question in
+headers with no body, or a fields parameter (`?fields=canWrite`) that omits `design` from the
+payload. Neither is worth a wave on its own today; both are worth naming before the limits are set.
+
+**S5 — `canWrite` fails open on a missing probe and closed on a malformed one, decided in two
+files.** The store's `hydrate` defaults `canWrite` to `true` when the field is omitted, and
+`/d/{id}` always omits it, so **every shared-link visitor sees a writable panel until the probe
+lands — and indefinitely if it never does.** A failed probe therefore fails *open* (the store keeps
+the optimistic default; guessing read-only from a dropped packet would tell an author they may not
+edit their own kitchen), while a probe that succeeds with a malformed payload fails *closed*
+(`readCanWrite` reads anything that is not `true` as `false`). Both directions are individually
+correct and both are deliberate, but the pairing is decided in `configurator-store.ts` and
+`fetch-configuration-repository.ts` with no single place stating it. The cost of the open default is
+bounded and understood: `canWrite` is advisory only, the row itself authorises every write
+(`saveAuthorized`), and a visitor who edits optimistically gets a 403 that surfaces as
+`unauthorized`, which the panel reads as read-only. No change; recorded here so the pair is a
+decision on the record rather than an emergent property of two files.

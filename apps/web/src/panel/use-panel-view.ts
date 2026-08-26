@@ -24,10 +24,22 @@ export function usePanelView(): PanelView {
   const isBodyProbeAttached = useConfiguratorStore(
     (state) => state.isBodyProbeAttached,
   );
+  // Both halves of "may this browser edit, and did the last write land" — read as facts and handed
+  // straight to `describePanel`, which owns what they mean. Nothing is combined here.
+  const canWrite = useConfiguratorStore((state) => state.canWrite);
+  const saveStatus = useConfiguratorStore((state) => state.saveStatus);
 
   return useMemo(
-    () => describePanel({ meta, offers, rejection, isBodyProbeAttached }),
-    [meta, offers, rejection, isBodyProbeAttached],
+    () =>
+      describePanel({
+        meta,
+        offers,
+        rejection,
+        isBodyProbeAttached,
+        canWrite,
+        saveStatus,
+      }),
+    [meta, offers, rejection, isBodyProbeAttached, canWrite, saveStatus],
   );
 }
 

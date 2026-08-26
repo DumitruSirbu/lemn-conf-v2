@@ -107,6 +107,36 @@
   color: var(--ink-muted);
 }
 
+/* The panel-wide notice (M4 hand-off 2 and 3). Two tones, because the two states are different
+ * things: read-only is a statement of fact reachable in ordinary operation — a 30-day cookie
+ * expiry, a cleared jar, a shared link — so it must not be painted as a failure, which is what the
+ * red rejection banner below would do. A save that failed is a failure and reads as one. */
+.notice {
+  margin: 0;
+  padding: 11px var(--panel-pad);
+  font: 400 12.5px/1.45 var(--font-ui);
+  border-bottom: 1px solid var(--line-soft);
+}
+
+/* Empty, the live region still exists — it is announced by CHANGE, so it has to be in the
+ * accessibility tree before there is anything to announce (`editor-panel.tsx`). It must therefore
+ * take no space and paint nothing rather than be hidden: `display: none` and `visibility: hidden`
+ * both remove it from that tree, which is the one thing this cannot do. */
+.notice[data-empty="true"] {
+  padding: 0;
+  border-bottom: 0;
+}
+
+.notice[data-tone="info"] {
+  color: var(--ink-muted);
+  background: var(--surface);
+}
+
+.notice[data-tone="error"] {
+  color: #8f2020;
+  background: #fdf3f3;
+}
+
 /* §9: the banner sits at the top of the panel body, above every section. Authored inside the width
  * section it was invisible on exactly the fixed-width bodies that refuse most. */
 .rejection {
@@ -208,9 +238,16 @@
   padding-bottom: 2px;
 }
 
+/* Column layout so a disabled chip can carry §13.1's reason under its label without the label
+ * moving; with no reason the single child centres exactly as before. */
 .chip,
 .widthChip {
+  display: flex;
   flex: 1 0 auto;
+  flex-direction: column;
+  gap: 3px;
+  align-items: center;
+  justify-content: center;
   min-width: 84px;
   min-height: var(--chip-height);
   padding: 0 14px;
@@ -220,6 +257,18 @@
   border: 1px solid var(--line);
   border-radius: 11px;
   cursor: pointer;
+}
+
+/* §13.1's "disable, don't warn" for the two chip families: a control this browser cannot apply is
+ * shown, dimmed and unclickable, rather than hidden — hiding it would say the body has no finish or
+ * no handle, which is a different and false statement. `.widthChip` is deliberately absent: every
+ * width chip is already disabled in M4, and dimming them all would grey out the ACTIVE one too —
+ * its three states carry their own styling. */
+.chip:disabled,
+.swatch:disabled,
+.remove:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
 }
 
 .chip[aria-pressed="true"],
@@ -307,6 +356,16 @@
   color: var(--ink);
 }
 
+/* §13.1: the reason travels with the greyed control. Small and faint — it repeats across a chip
+ * row, and the panel-wide notice above has already said it once in full. */
+.chipReason {
+  font: 400 9.5px/1.2 var(--font-ui);
+  color: var(--ink-faint);
+  text-align: center;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
 .footer {
   display: flex;
   align-items: center;
@@ -314,6 +373,14 @@
   gap: 10px;
   padding: 11px var(--panel-pad) 18px;
   border-top: 1px solid var(--line);
+}
+
+/* Pushed to the left of the footer's right-aligned buttons, so the reason reads before the dimmed
+ * control it explains rather than after it. */
+.footerReason {
+  margin-right: auto;
+  font: 400 11.5px/1.35 var(--font-ui);
+  color: var(--ink-faint);
 }
 
 .remove {

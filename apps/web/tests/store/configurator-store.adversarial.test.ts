@@ -346,7 +346,11 @@ describe("hydrate is the only thing that may move the frozen columns", () => {
       ),
     };
 
-    store.getState().hydrate(loaded, "loaded-id");
+    store.getState().hydrate({
+      design: loaded,
+      designId: "loaded-id",
+      canWrite: true,
+    });
 
     expect(store.getState().columns).not.toBe(beforeColumns);
     expect([...store.getState().columns.keys()]).not.toContain(FRIDGE_COLUMN);

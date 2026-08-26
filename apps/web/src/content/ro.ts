@@ -73,6 +73,64 @@ export const ro = {
      *  nothing can be measured yet. Shown on the row rather than after a tap, per §9. */
     probeUnavailable:
       "Modelul 3D se pregătește — poți alege în câteva momente.",
+    /**
+     * The read-only statement, said **once** and at the top of the panel (M4 hand-off 3). It is not
+     * an error and must not read like one: a cookie expires after 30 days (`WRITE_TOKEN_MAX_AGE_SECONDS`),
+     * a cookie jar gets cleared, and a shared link is opened by someone who never held one — all
+     * ordinary. So it states a fact rather than apologising for a failure.
+     *
+     * **One sentence, and no way back.** It used to add "modificările se pot face doar din browserul
+     * în care a fost creată", which is true of the shared-link case and false of the other two: an
+     * expired or cleared cookie leaves the creating browser read-only too, so that sentence sent the
+     * customer to a machine that would refuse them identically. Confidently actionable and wrong is
+     * worse than silent. ADR 0019 decision 8 plans an emailed edit link — that is M8, and until it
+     * exists there is no route back to name.
+     */
+    readOnlyNotice:
+      "Poți vedea această configurație, dar nu o poți modifica din acest browser.",
+    /** The same fact on the control that carries it, so §13.1's "greyed and unclickable, with the
+     *  reason" holds control by control: offer rows, finish swatches, handle chips and **Șterge
+     *  corpul** all take this. Two words rather than the whole sentence: it repeats down a ten-row
+     *  list, and the explanation is already stated once above it. */
+    readOnlyReason: "Doar vizualizare",
+    /**
+     * Read-only reached the **other** way: the load believed this browser could write, the panel
+     * rendered fully interactive, the customer edited — and the save came back 403.
+     *
+     * That window is real and is not closed on purpose. `/d/{id}` cannot know about the write cookie
+     * from its own request, so it hydrates `"unknown"` and the panel stays interactive until the
+     * probe answers; disabling everything meanwhile would tell a design's own author they may not
+     * edit their own kitchen. The cost is that an edit made inside the window is applied on screen
+     * and will never be stored, and `readOnlyNotice` — written for a browser that was never offered
+     * an edit at all — says nothing about it.
+     *
+     * So this one says it, in the same spirit as `saveStoppedNotice`: the loss is permanent, no
+     * retry is coming, and the one action that helps is starting again where saving works.
+     */
+    readOnlyRefusedNotice:
+      "Modificarea nu a fost salvată: acest browser nu poate modifica această configurație. Ce vezi pe ecran nu este salvat și se pierde dacă închizi sau reîncarci pagina. Deschide configuratorul într-o filă nouă dacă vrei să faci modificări pe care le poți salva.",
+    /**
+     * The **retryable** write failure (`saveStatus: "error"`), and only that one: the coalescer has
+     * a retry armed and the unwritten state is queued behind it. So the sentence promises exactly
+     * what that branch delivers — the edit is on screen, another attempt is coming, do not redo the
+     * work.
+     *
+     * It must not offer a reload. A reload during a pending retry throws away the very state that
+     * was about to be written, which is the opposite of what this branch needs. The terminal branch
+     * has its own copy below; the two were one sentence and it was false on both.
+     */
+    saveFailedNotice:
+      "Modificarea este aplicată pe ecran și încercăm în continuare să o salvăm. Nu o reface și nu reîncărca pagina: o reîncărcare acum ar șterge versiunea care așteaptă să fie salvată.",
+    /**
+     * The **terminal** non-credential failure (`saveStatus: "stopped"`): writing is over for this
+     * design and nothing will resume it, so the state on screen is the only copy that exists.
+     *
+     * It says so plainly rather than offering a reload, because here a reload really would discard
+     * the unsaved edit permanently and no retry would ever have written it. The one action that
+     * helps is starting again in a fresh tab, where a new design is minted and saving works.
+     */
+    saveStoppedNotice:
+      "Salvarea s-a oprit pentru această configurație și nu va reporni singură. Ce vezi pe ecran nu este salvat și se pierde dacă închizi sau reîncarci pagina. Deschide configuratorul într-o filă nouă și reia modificările acolo.",
     finishTitle: "Finisaj",
     finishLabels: {
       white: "Alb mat",

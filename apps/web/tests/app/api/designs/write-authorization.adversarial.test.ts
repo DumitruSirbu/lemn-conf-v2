@@ -51,6 +51,11 @@ class FakeAuthorizedRepository implements AuthorizedConfigurationRepository {
       : Promise.reject(new DesignNotFoundError(id));
   }
 
+  /** A design minted before ADR 0019: readable, and carrying no credential anyone can present. */
+  seedTokenlessRow(id: DesignId, design: Design): void {
+    this.rows.set(id, { design, writeTokenHash: null });
+  }
+
   storedDesign(id: DesignId): Design | undefined {
     return this.rows.get(id)?.design;
   }
@@ -269,6 +274,100 @@ describe("the raw token never leaves the Set-Cookie header", () => {
     expect(mintedBody).not.toContain(token);
     expect(readBody).not.toContain(token);
     expect(read.headers.get("set-cookie")).toBeNull();
+  });
+});
+
+/**
+ * `canWrite` is presence of a cookie, not proof of the right one, and the whole safety of that
+ * shortcut rests on it never being the authorisation decision. These cases pin the boundary from
+ * both sides: an advisory `true` that a write still refuses, and a write that is refused for
+ * reasons `canWrite` never consulted.
+ */
+describe("canWrite is advisory and never the authorisation decision", () => {
+  function readRequest(id: string, cookie: string): NextRequest {
+    return new NextRequest(`https://example.test/api/designs/${id}`, {
+      headers: { cookie },
+    });
+  }
+
+  async function canWriteFor(id: string, cookie: string): Promise<unknown> {
+    const response = await GET(readRequest(id, cookie), routeParams(id));
+    return ((await response.json()) as { canWrite: unknown }).canWrite;
+  }
+
+  it("reports true for a forged cookie, and the write is still refused", async () => {
+    const { id } = await mintDesign();
+    const forged = `lemnaria_write_token_${id}=not-the-real-token`;
+
+    const advisory = await canWriteFor(id, forged);
+    const write = await PUT(
+      requestWith(id, {
+        body: JSON.stringify(KITCHEN_L_DESIGN),
+        cookie: forged,
+      }),
+      routeParams(id),
+    );
+
+    // The honest bound of a check that costs no round trip: the route reports what the browser
+    // presents, and `saveAuthorized` decides what it may do with it. If this ever flips to `false`
+    // because someone taught GET to verify the token, the write above must STILL be the only thing
+    // that authorises — a verified read followed by a trusting write is the TOCTOU window ADR 0019
+    // exists to close.
+    expect(advisory).toBe(true);
+    expect(write.status).toBe(403);
+  });
+
+  it("reports false for a cookie whose token is empty — the name alone is not a credential", async () => {
+    const { id } = await mintDesign();
+
+    expect(await canWriteFor(id, `lemnaria_write_token_${id}=`)).toBe(false);
+  });
+
+  it("reports true on a pre-ADR-0019 row that no credential can ever write", async () => {
+    const legacyId = "legacy-design";
+    fakeRepository.seedTokenlessRow(legacyId, KITCHEN_L_DESIGN);
+    const anyCookie = `lemnaria_write_token_${legacyId}=anything-at-all`;
+
+    const advisory = await canWriteFor(legacyId, anyCookie);
+    const write = await PUT(
+      requestWith(legacyId, {
+        body: JSON.stringify(KITCHEN_L_DESIGN),
+        cookie: anyCookie,
+      }),
+      routeParams(legacyId),
+    );
+
+    expect(advisory).toBe(true);
+    expect(write.status).toBe(403);
+  });
+
+  it("does not turn a cookie-less read into a refusal", async () => {
+    const { id } = await mintDesign();
+
+    const response = await GET(
+      new NextRequest(`https://example.test/api/designs/${id}`),
+      routeParams(id),
+    );
+
+    // ADR 0019 decision 1: reading stays open to anyone holding the link. `canWrite` must never
+    // become a reason to answer 401 or 403 here.
+    expect(response.status).toBe(200);
+    expect(((await response.json()) as { canWrite: unknown }).canWrite).toBe(
+      false,
+    );
+  });
+
+  it("sets no cookie on a read, whatever the answer", async () => {
+    const { id, cookie } = await mintDesign();
+
+    const withCredential = await GET(readRequest(id, cookie), routeParams(id));
+    const without = await GET(
+      new NextRequest(`https://example.test/api/designs/${id}`),
+      routeParams(id),
+    );
+
+    expect(withCredential.headers.get("set-cookie")).toBeNull();
+    expect(without.headers.get("set-cookie")).toBeNull();
   });
 });
 

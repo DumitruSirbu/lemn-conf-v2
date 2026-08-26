@@ -4,7 +4,13 @@ import {
 } from "@lemnaria/configurator-domain";
 import { describe, expect, it } from "vitest";
 
-import { createConfiguratorStore } from "../../src/store/configurator-store";
+import { describePanel, type OpenPanel } from "../../src/panel/panel-model";
+import {
+  createConfiguratorStore,
+  type ConfiguratorState,
+} from "../../src/store/configurator-store";
+
+import { occupiedMeta, offers } from "../support/selection-meta";
 
 function createSeededStore() {
   return createConfiguratorStore({
@@ -12,6 +18,167 @@ function createSeededStore() {
     catalog: KITCHEN_L_BODY_CATALOG,
   });
 }
+
+/** §9's panel built from exactly the two facts this store publishes about writing, so a test can
+ *  ask what the customer would actually see rather than only what the store field says. The `meta`
+ *  is a fixture: which body is selected has nothing to do with who may write. */
+function panelFrom(state: ConfiguratorState): OpenPanel {
+  const panel = describePanel({
+    meta: occupiedMeta(),
+    offers: offers(3),
+    rejection: null,
+    isBodyProbeAttached: true,
+    canWrite: state.canWrite,
+    saveStatus: state.saveStatus,
+  });
+  if (panel.kind !== "open") throw new Error("expected an open panel");
+  return panel;
+}
+
+describe("canWrite — who may edit this design", () => {
+  it("defaults to true for a design that has never been minted", () => {
+    // The customer is about to mint it on their first mutation, so there is no credential to hold
+    // *yet*. A fresh configurator that believed itself read-only would refuse every edit it is
+    // about to be granted — worse than the bug canWrite exists to fix.
+    expect(createSeededStore().getState().canWrite).toBe(true);
+  });
+
+  it("takes the server's answer when a design is loaded by link", () => {
+    const store = createSeededStore();
+
+    store.getState().hydrate({
+      design: KITCHEN_L_DESIGN,
+      designId: "shared-design",
+      canWrite: false,
+    });
+
+    expect(store.getState().canWrite).toBe(false);
+    expect(store.getState().designId).toBe("shared-design");
+  });
+
+  it("comes back true when the loaded design is one this browser may edit", () => {
+    const store = createSeededStore();
+
+    store.getState().hydrate({
+      design: KITCHEN_L_DESIGN,
+      designId: "my-design",
+      canWrite: true,
+    });
+
+    expect(store.getState().canWrite).toBe(true);
+  });
+
+  it("carries 'unknown' through when the loader could not know, rather than guessing for it", () => {
+    const store = createSeededStore();
+
+    // `/d/{id}` has to say `"unknown"`: the write-token cookie is `Path=/api/designs/{id}`, so the
+    // request that rendered the page never carried it and no answer was possible. The state is
+    // named rather than left to a default, because absence means the opposite thing in
+    // `fetch-configuration-repository.ts` — see `WriteAccess`.
+    store.getState().hydrate({
+      design: KITCHEN_L_DESIGN,
+      designId: "link-opened",
+      canWrite: "unknown",
+    });
+
+    // Not collapsed to `true` on the way in: the panel is where the optimism is spent (see
+    // `isReadOnly`), and the store's job is to carry the fact it was handed.
+    expect(store.getState().canWrite).toBe("unknown");
+  });
+
+  it("takes the probe's answer once it arrives", () => {
+    const store = createSeededStore();
+    store.getState().hydrate({
+      design: KITCHEN_L_DESIGN,
+      designId: "link-opened",
+      canWrite: "unknown",
+    });
+
+    store
+      .getState()
+      .applyWriteAccess({ designId: "link-opened", canWrite: false });
+
+    expect(store.getState().canWrite).toBe(false);
+  });
+
+  it("ignores a probe answer about a design the store has since left", () => {
+    const store = createSeededStore();
+    store.getState().hydrate({
+      design: KITCHEN_L_DESIGN,
+      designId: "second-design",
+      canWrite: true,
+    });
+
+    // The answer is per-design; applying a stale one would make one design's access decide
+    // another's.
+    store
+      .getState()
+      .applyWriteAccess({ designId: "first-design", canWrite: false });
+
+    expect(store.getState().canWrite).toBe(true);
+  });
+
+  it("does not carry a refusal about one design onto the next — the panel would deadlock", () => {
+    const store = createSeededStore();
+    // Design X: no credential for it, so the save came back 403 and the panel went read-only.
+    store.getState().setSaveStatus("unauthorized");
+
+    // Design Y, which this browser *does* own.
+    store.getState().hydrate({
+      design: KITCHEN_L_DESIGN,
+      designId: "owned-design",
+      canWrite: true,
+    });
+
+    expect(store.getState().canWrite).toBe(true);
+    expect(store.getState().saveStatus).toBe("idle");
+    // The deadlock this closes: `isReadOnly` reads `unauthorized`, and the only thing that clears
+    // `unauthorized` is a successful write — whose every control a read-only panel has disabled.
+    const panel = panelFrom(store.getState());
+    expect(panel.notice).toBeUndefined();
+    expect(panel.footer.isRemoveDisabled).toBe(false);
+    for (const section of panel.sections) {
+      if (section.kind === "finish" || section.kind === "handle")
+        expect(section.chips.every((chip) => chip.isDisabled)).toBe(false);
+      if (section.kind === "replace")
+        expect(section.rows.every((row) => row.isDisabled)).toBe(false);
+    }
+  });
+
+  it("does not show the previous design's failure notice on a freshly loaded one", () => {
+    const store = createSeededStore();
+    store.getState().setSaveStatus("stopped");
+
+    store.getState().hydrate({
+      design: KITCHEN_L_DESIGN,
+      designId: "another-design",
+      canWrite: true,
+    });
+
+    expect(store.getState().saveStatus).toBe("idle");
+    expect(panelFrom(store.getState()).notice).toBeUndefined();
+  });
+
+  it("is not moved by a save status — the store holds facts, the panel holds the rule", () => {
+    const store = createSeededStore();
+
+    store.getState().setSaveStatus("unauthorized");
+
+    expect(store.getState().canWrite).toBe(true);
+    expect(store.getState().saveStatus).toBe("unauthorized");
+  });
+
+  it("honours an explicit read-only option at creation", () => {
+    const store = createConfiguratorStore({
+      design: KITCHEN_L_DESIGN,
+      catalog: KITCHEN_L_BODY_CATALOG,
+      designId: "loaded-elsewhere",
+      canWrite: false,
+    });
+
+    expect(store.getState().canWrite).toBe(false);
+  });
+});
 
 describe("createConfiguratorStore", () => {
   it("derives records and columns from the design at creation, never as authored fields", () => {
@@ -98,7 +265,11 @@ describe("createConfiguratorStore", () => {
     store.getState().select({ kind: "placement", id: "p0" });
 
     const nextDesign = { ...KITCHEN_L_DESIGN, presetId: "hydrated" };
-    store.getState().hydrate(nextDesign, "design-2");
+    store.getState().hydrate({
+      design: nextDesign,
+      designId: "design-2",
+      canWrite: true,
+    });
 
     const state = store.getState();
     expect(state.design).toBe(nextDesign);
