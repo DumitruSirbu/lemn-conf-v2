@@ -4,6 +4,7 @@ import { CAMERA_PRESETS, type CameraPresetId } from "@lemnaria/three-adapter";
 import dynamic from "next/dynamic";
 import { useEffect, useMemo, useState } from "react";
 
+import { TemporaryDevControls } from "@/components/temporary-dev-controls";
 import { WebGLUnavailable } from "@/components/webgl-unavailable";
 import { ro } from "@/content/ro";
 import type { SceneView } from "@/scene/scene-view";
@@ -78,6 +79,9 @@ export function ConfigureScreen() {
         <p className={styles.hint}>
           <span>{ro.configure.orbitHint}</span>
         </p>
+        {/* TEMPORARY — removed by M4 along with the component itself. M3's four verbs have no
+         *  surface until §9's panel exists; this drives them from the current selection. */}
+        <TemporaryDevControls />
         {/* Test-only observability hook for the mobile picking gate (M2 §Surfaces): selection
          *  state is otherwise only visible inside the WebGL canvas, which Playwright cannot query. */}
         <span

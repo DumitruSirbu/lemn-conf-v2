@@ -54,6 +54,10 @@ export type { SaveStatus };
 export interface ConfiguratorState {
   readonly design: Design;
   readonly records: readonly PlacementRecord[];
+  /** The catalogue this store was built against, published so a caller of `describeSelection` or
+   *  `offersFor` reads the same map the commands do. A component importing a catalogue by name
+   *  would be free to pick a different one from the store's. */
+  readonly catalog: BodyCatalog;
   /** Frozen at load time — see the file header and ADR 0011 Gap D. */
   readonly columns: ReadonlyMap<string, Column>;
   readonly voids: readonly VoidRecord[];
@@ -164,6 +168,7 @@ export function createConfiguratorStore(
 
     return {
       design,
+      catalog,
       ...deriveGeometry(design, catalog),
       selection: null,
       lastRejection: null,

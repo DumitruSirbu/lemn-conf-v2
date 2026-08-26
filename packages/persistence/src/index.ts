@@ -11,3 +11,4 @@ export type {
   AuthorizedSave,
 } from "./neon-configuration-repository.js";
 export { runMigrations } from "./migrate.js";
+export { deleteDesignsForTests } from "./delete-designs-for-tests.js";

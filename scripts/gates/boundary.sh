@@ -12,7 +12,11 @@ status=0
 
 # The Postgres driver lives in exactly one package so all SQL stays auditable in
 # one place (ARCHITECTURE_PROPOSAL.md §3; M2 work item 8).
-if git grep -nE "^[[:space:]]*(import|export)[[:space:]].*from[[:space:]]+['\"](@neondatabase/serverless|pg)['\"]" \
+# `--untracked` matters: without it `git grep` searches tracked files only, so a violation in a
+# NEW file is invisible until after it is committed — which is exactly how a driver import reached
+# `apps/web/tests/e2e` past a green local gate. A gate that cannot see the file you just wrote is a
+# gate that reports on the previous commit.
+if git grep --untracked -nE "^[[:space:]]*(import|export)[[:space:]].*from[[:space:]]+['\"](@neondatabase/serverless|pg)['\"]" \
     -- '*.ts' '*.tsx' ':!packages/persistence/**'; then
     echo "BOUNDARY VIOLATION: a Postgres driver is imported outside packages/persistence."
     status=1
@@ -26,7 +30,7 @@ fi
 # Scoped to real import/export edges on purpose: the folder is named in
 # provenance comments throughout the port, which AGENTS.md explicitly allows, so
 # a bare string grep would false-positive on every one of them.
-if git grep -nE "^[[:space:]]*(import|export)[[:space:]].*from[[:space:]]+['\"][^'\"]*design-source" \
+if git grep --untracked -nE "^[[:space:]]*(import|export)[[:space:]].*from[[:space:]]+['\"][^'\"]*design-source" \
     -- '*.ts' '*.tsx'; then
     echo "BOUNDARY VIOLATION: source imports from design-source/, which is untracked and will be deleted."
     status=1

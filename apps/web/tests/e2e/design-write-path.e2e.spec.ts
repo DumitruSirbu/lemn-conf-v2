@@ -1,4 +1,4 @@
-import { neon } from "@neondatabase/serverless";
+import { deleteDesignsForTests } from "@lemnaria/persistence";
 import { expect, test } from "@playwright/test";
 
 /**
@@ -34,11 +34,9 @@ test.afterAll(async () => {
     );
   }
 
-  const sql = neon(connectionUrl);
-  // One statement per id rather than one `= any(...)`: the id list is short, and a per-row delete
-  // needs no array binding to be correct.
-  for (const id of mintedDesignIds)
-    await sql`delete from designs where id = ${id}`;
+  // The SQL lives in `packages/persistence`, which is the only package allowed to import a
+  // Postgres driver (`scripts/gates/boundary.sh`).
+  await deleteDesignsForTests(connectionUrl, mintedDesignIds);
 });
 
 interface MintOutcome {

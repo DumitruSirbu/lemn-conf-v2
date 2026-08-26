@@ -1,4 +1,10 @@
 # M3 — Insert, remove and swap
+>
+> **STOP — DO NOT READ THIS PLAN.** M3 closed 2026-08-26. This file describes intentions; several
+> shipped differently and are superseded by dated records. Acting on one reintroduces a design the
+> project abandoned. The live knowledge is in `docs/decisions/` (ADRs 0010, 0011, 0015–0020) and in
+> the code. See `docs/STATUS.md` for where the project stands.
+
 
 > **STATUS: IN PROGRESS — Waves 3A and 3B are done; 3C is next and dispatchable.** 12 work items
 > across three waves. Wave 3A (domain commands) shipped in commit `69402d8` and produced

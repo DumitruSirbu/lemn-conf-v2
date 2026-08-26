@@ -3,7 +3,7 @@
 **Read this second, right after `AGENTS.md`, before opening any milestone document.** It exists so a
 session can learn where the project stands without reading eight phase plans.
 
-Last updated: 2026-08-25 (M3 Wave 3C-2b complete; M2's last gate closed; 3C-3 next).
+Last updated: 2026-08-26 (M3 closed — all three waves and four sub-waves shipped; M4 next).
 
 ## How to use this file
 
@@ -25,8 +25,8 @@ moment it ships; a decision record does not. When the two disagree, the dated de
 | M0 — Foundations | **Done** (closed 2026-08-24, partially superseded) | No — `milestones/done/` |
 | M1 — Scene port and fidelity gate | **Done** (closed 2026-08-25) | No — `milestones/done/` |
 | M2 — Void engine, picking, persistence | **Done** (closed 2026-08-25 — its last gate, the unwired client write path, was closed by M3 Wave 3C-2b) | No — `milestones/done/` |
-| M3 — Insert, remove, swap, client write path | **In progress** — 3A, 3B, 3C-1, 3C-2a and 3C-2b done; **3C-3 next** | Yes — `milestones/M3-mutations.md` |
-| M4 — Editor panel and shell | Planned | Yes, when starting |
+| M3 — Insert, remove, swap, client write path | **Done** (closed 2026-08-26) | No — `milestones/done/` |
+| M4 — Editor panel and shell | **Next** | Yes — `milestones/M4-editor-surface.md` |
 | M5 — Width editing | Planned | Yes, when starting |
 | M6 — Price bar and global settings | Planned | Yes, when starting |
 | M7 — Step 1, room and presets | Planned | Yes, when starting |
@@ -67,7 +67,7 @@ through an R3F canvas with camera presets. Closed on a fidelity gate requiring t
 of evidence. A structural parity suite diffs the port against vendored reference geometry at 1e-6 m,
 and is the guarantee that later phases have not silently degraded the model.
 
-**M3 — Insert, remove, swap (Waves 3A and 3B done).** The domain command layer: `insertBody`, `insertFit`,
+**M3 — Insert, remove, swap (closed 2026-08-26).** The domain command layer: `insertBody`, `insertFit`,
 `removePlacement`, the `{ok}`/`{ok:false, reason}` result contract, the §7 insertable catalogue,
 band and accessory rules, and a `BodyProbe` port. Wave 3A is the first wave to run the complete
 `docs/WORKFLOW.md` cycle — plan → implement → adversarial QA → review → verify → commit — and the
@@ -197,53 +197,52 @@ floor; until it lands, no update rate limit can be sized honestly.
 
 ## What to do next
 
-1. **M3 Wave 3C (web)** — items 9–12: store commands, the client write path (which closes M2's last
-   gate), a temporary developer affordance, and the mobile gate. Follow `docs/WORKFLOW.md`; it is
-   mandatory, not advisory. Wave 3C is where the persistence criteria live, so it is a **Full**
-   review tier with security review triggered (write path, share links, customer data).
+**M4 — the editor panel and shell.** Every verb it needs exists and is guarded in the engine; M4
+renders them. Read `docs/milestones/M4-editor-surface.md` when you start it.
 
-Waves 3A and 3B are done. Contract gaps and findings against them are recorded in ADRs 0011, 0015,
-0016, 0017 and 0018; treat them as decided, not open.
+Four things M3 hands M4 directly:
 
-**Carried into 3C, honestly unverified rather than assumed met.** Wave 3B's scene sync is proven
-headlessly — the keyed diff, disposal by object identity, push-open by slot — but **the sync effect
-has never re-run with changed data**, because no store mutation exists until 3C. Specifically not
-yet exercised: that a mutation preserves an unchanged body's applied finish end to end; that
-selection never dangles after a mutation; and that the reference-room decomposition, still computed
-once in `useMemo` against the *initial* records, is correct if 3C ever hydrates a different design
-into a mounted component. 3C should exercise all three rather than inherit them as passed.
+1. **Remove the temporary developer affordance.** `apps/web/src/components/temporary-dev-controls.tsx`
+   is scaffolding, named so, and M4 owns its deletion. Its one non-obvious property is worth
+   keeping: it shows a refusal's stable **code**, never its rendered Romanian sentence, so §9's copy
+   was never pre-empted.
+2. **Decide how a failed write is communicated.** M3 exposes `saveStatus` and nothing renders it.
+   The union now includes a distinct `unauthorized`, which is *not* an error — it means read-only in
+   this browser, and it is reachable in normal operation (a 30-day cookie expiry, a cleared jar, a
+   shared link opened by someone who never held one).
+3. **A read-only UI needs to know it is read-only.** The write credential is an `HttpOnly` cookie
+   the client cannot inspect, so the panel cannot tell whether it may edit without attempting a
+   write — and discovering it by attempting one is the "warn-after-click" pattern this project
+   rules out. Cheapest fix, from the security review: `GET /api/designs/{id}` already receives the
+   cookie, so it can return a `canWrite` boolean beside the design at no extra round trip and with
+   no token exposure.
+4. **§13.3 question 1 is now visible.** `insertBody` is deliberately more permissive than
+   `offersFor` on a swap — §9 scopes a swap list to the outgoing body's band while §5.2 lets a
+   `column` body into any slot. Not a rule violation ("never offer what cannot be satisfied" is
+   one-directional), but the two are **not** interchangeable, and M4 is where unifying them becomes
+   a real question.
 
-**Also carried:** `createBodyProbe` has no caller in `apps/web` yet, so §11 row 19's seat is proven
-in tests and has never run in the app. Wiring it is 3C item 9's job.
+**Open, and not closed by M3:**
 
-**Known and recorded, not defects:**
-
-- ADR 0018 — `frame.d` is twice a body's rear overhang, not its depth. Inert today; it starts
-  compounding the moment any builder gains a depth parameter, which ADR 0017 names as the intended
-  fix for the sink aperture. Owned by whichever phase does that.
-- The hood is `widthFlex: 'fit'` with a `[600, 900]` chip set, so a 450 mm void builds a 450 mm hood
-  while the panel would render chips of 600 and 900. Same shape ADR 0017 fixed for `base-sink`,
-  arriving from the other side; §7's `w` cell literally reads `fit`. **M4 owns the decision**, since
-  M4 renders the chips.
-- `insertBody` is more permissive than `offersFor` on a swap: §9 scopes a swap list to the outgoing
-  body's band while §5.2 lets a `column` body into any slot. Not a rule violation — "never offer
-  what cannot be satisfied" is one-directional — but the two are **not** interchangeable, and M4
-  owns §13.3's question about unifying swap sets with the fit-filtered catalogue.
-- `min(d, 0.4)` shallows a seeded 600 mm-deep wall body to 400 mm on swap. A documented consequence
-  of §7's clamp, reviewed and labelled a disagreement rather than a bug.
-
-M3 still closes M2's last gate as a first-class work item — the client write path, wave 3C item 10 —
-and un-skips the one named `test.skip` in the e2e suite, which had no void to tap against while the
-seeded design was fully occupied.
-
-Worth re-running once M3 lands: Path 2 of the restore drill, this time from an export downloaded
-from Blob and containing a design a customer actually made.
-
-**A trap worth knowing before you run the gates.** Both packages' `test` scripts compile the domain
-into the same `dist/`, so two concurrent runs collide at the *build* step while vitest itself
-passes — the command exits non-zero with a fully green suite. That is why the root scripts run
-`--workspace-concurrency=1`. Do not re-run until it passes and call that evidence; run on a quiet
-tree.
+- **The mobile gate is verified under emulation, not on a handset.** The e2e suite drives §10's flow
+  by *synthesised* touch at 390 × 844 with `hasTouch`/`isMobile`, in real Chromium against a real
+  WebGL canvas and a real database. It does not exercise a touch digitiser (finger-sized contact
+  areas, real drag-vs-tap slop), a mobile GPU, device pixel ratio, or iOS Safari. Per
+  `docs/best-practices/browser-and-visual-qa.md`, tests alone do not prove a mobile claim. **A
+  handset pass needs HTTPS or a tunnel** — over `http://<LAN-IP>` the `Secure` write-token cookie is
+  silently dropped and every save 403s with nothing explaining why.
+- **Preview's database has not been confirmed to carry migrations 0002 and 0003.** Until it does,
+  minting on a Preview deployment 500s exactly as production would have. It cannot be checked
+  locally — Preview's `DATABASE_URL` is a sensitive Vercel variable. Check the Neon console, or
+  `POST /api/designs` against a Preview URL and look for 201 versus 500.
+- **Path 2 of the restore drill has not been re-run** from an export actually downloaded from Blob,
+  and **Path 1 (Neon PITR) has never been drilled**. The restore path changed in Wave 3C-2a:
+  `write_token_hash` is now exported and restored, without which every restored design would have
+  come back permanently unwritable.
+- **The firewall is deferred to pre-launch** by ADR 0019 decision 10, with the exact commands in
+  `docs/runbooks/firewall-setup.md`. Vercel currently has **zero** custom rules.
+- **Application rate limiting, retention, BotID and the emailed edit link are M8**, with the contact
+  form.
 
 ## Keeping this file honest
 
