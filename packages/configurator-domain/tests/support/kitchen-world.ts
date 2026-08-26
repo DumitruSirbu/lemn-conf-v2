@@ -38,6 +38,23 @@ export function createWorld(
   };
 }
 
+/** A world whose columns are frozen from the whole design, then advanced to a design missing some
+ *  placements — the only way to open the span a structural corner return occupies, since §13.1
+ *  makes it non-deletable and `clearBodies` therefore refuses it. That refusal is the product rule,
+ *  not a fixture problem; dropping the placement before `createWorld` instead would shrink the
+ *  column to what is left and yield no void at all (ADR 0011 Gap D). */
+export function advancePast(
+  world: KitchenWorld,
+  placementIds: readonly string[],
+): KitchenWorld {
+  return advance(world, {
+    ...world.design,
+    placements: world.design.placements.filter(
+      (placement) => !placementIds.includes(placement.id),
+    ),
+  });
+}
+
 /** Applies a command's design to the world exactly as the store must: records and voids are
  *  re-derived, the column map is not. */
 export function advance(world: KitchenWorld, design: Design): KitchenWorld {

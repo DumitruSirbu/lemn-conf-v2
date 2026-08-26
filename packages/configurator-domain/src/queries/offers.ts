@@ -53,6 +53,7 @@ export function offersFor(input: OffersInput): CatalogOffer[] {
   if (!resolved.ok) return [];
   if (!isOfferable(resolved.value)) return [];
 
+  const currentBuildId = resolveCurrentCatalogId(input.catalog, resolved.value);
   return listInsertableBodies(input.catalog)
     .filter((body) => isInOfferedBand(body.band, resolved.value))
     .flatMap((body) => {
@@ -74,10 +75,34 @@ export function offersFor(input: OffersInput): CatalogOffer[] {
           sizesMm: buildableSizes(body.minWidthMm, body.sizesMm),
           widthMm: toMillimetres(fit.plan.widthM),
           heightMm: toMillimetres(fit.plan.heightM),
-          isCurrent: resolved.value.replaced?.buildId === body.buildId,
+          isCurrent: currentBuildId === body.buildId,
         },
       ];
     });
+}
+
+/** Which insertable entry the opening's current occupant *is*, so §9 can badge that row **ACTUAL**.
+ *
+ *  ADR 0011 Gap A gives every seeded placement a non-insertable `buildId`, and the offer list is
+ *  built from insertable entries only, so comparing the two ids directly never matched on the
+ *  shipped kitchen — the badge appeared only on a body that had already been swapped once. The
+ *  relationship is therefore **declared** on the seeded entry (`catalogEquivalentId`) rather than
+ *  inferred from kind, band and width: §6.3 records what inferring a body's identity cost.
+ *
+ *  `undefined` — an entry with no declared equivalent, or a void — means no row is badged, which is
+ *  the correct answer for the hob and the corner returns rather than a missing one. */
+function resolveCurrentCatalogId(
+  catalog: BodyCatalog,
+  resolved: ResolvedOpening,
+): string | undefined {
+  const replaced = resolved.replaced;
+  if (!replaced) return undefined;
+  const definition = catalog.get(replaced.buildId);
+  if (!definition) return undefined;
+  // An inserted placement already carries an insertable id; only a seeded one needs the pointer.
+  return definition.insertable === true
+    ? replaced.buildId
+    : definition.catalogEquivalentId;
 }
 
 /** §11 row 24: a kind the catalogue does not know renders no replace section at all. A fallback

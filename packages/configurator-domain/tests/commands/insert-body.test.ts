@@ -9,7 +9,12 @@ import {
 import { offersFor } from "../../src/queries/offers.js";
 import { createFakeProbe } from "../support/fake-probe.js";
 import { clearBodies, insertInto, OCCURRED_AT } from "../support/commands.js";
-import { advance, createWorld, voidAt } from "../support/kitchen-world.js";
+import {
+  advance,
+  advancePast,
+  createWorld,
+  voidAt,
+} from "../support/kitchen-world.js";
 import {
   collapsedSpanWorld,
   narrowColumnWorld,
@@ -164,7 +169,8 @@ describe("insert — fit (§11 rows 5, 6, 7, 14, 20)", () => {
   });
 
   it("row 20: builds to exactly 570 in a 570 mm opening", () => {
-    const world = clearBodies(seeded(), ["p9"]);
+    // §13.1 makes the corner return at B|0.61 non-deletable, so its span is opened at load.
+    const world = advancePast(seeded(), ["p9"]);
     const result = insertInto(
       world,
       voidTarget(world, "B|0.61", 1.5),
@@ -275,7 +281,8 @@ describe("insert — the document it writes", () => {
   // ADR 0011 Gap B: the seat comes from the body's own measurement, never from the void's `x`/`z`
   // pair — on wall B those two are different numbers.
   it("seats a wall-B body from its own measurement, not from the opening's coordinates", () => {
-    const world = clearBodies(seeded(), ["p9"]);
+    // §13.1 makes the corner return at B|0.61 non-deletable, so its span is opened at load.
+    const world = advancePast(seeded(), ["p9"]);
     const probe = createFakeProbe({ seatOffsetM: 0.2 });
     const result = insertInto(
       world,

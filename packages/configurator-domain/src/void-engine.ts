@@ -40,6 +40,12 @@ export type Band = "base" | "wall" | "top" | "column";
  *  widths (the dishwasher niche's 450/600, the hood's 600/900, a column's fixed 600). */
 export type WidthFlex = "fit" | readonly number[];
 
+/** Why a body offers nothing structural — no swap list, no delete, no finish, no handle, no width.
+ *  §11 row 16 requires the refusal to *explain why*, and a panel that offers nothing never produces
+ *  a refusal to carry that explanation, so the reason is declared on the catalogue entry instead of
+ *  being read back out of four false capability flags. */
+export type StructuralReason = "corner";
+
 export interface Frame {
   readonly x: number;
   readonly z: number;
@@ -90,6 +96,18 @@ export interface BodyDefinition {
    *  aperture and inverts below that — an entry that declares one is admitting its builder is not
    *  parameterised, and parameterising it stays the real fix. */
   readonly minWidthMm?: number;
+  /** The insertable §7 entry this seeded entry is an instance of, so §9 can badge the swap row the
+   *  customer is already standing on **ACTUAL**. ADR 0011 Gap A gives every seeded placement a
+   *  non-insertable `buildId`, so the badge cannot come from comparing ids.
+   *
+   *  Declared per entry rather than inferred from kind + band + width, following ADR 0017's
+   *  precedent: §6.3 records that inferring a body's identity produced a fridge housing labelled and
+   *  priced as a pantry, and an inferred swap-row match is the same mistake one layer up. Absent
+   *  means this body has no catalogue equivalent — the hob, the corner returns — and no row is
+   *  badged, which is the correct answer for them rather than a missing one. */
+  readonly catalogEquivalentId?: string;
+  /** Present only on an entry that offers nothing structural, saying why (§11 row 16, §13.1). */
+  readonly structuralReason?: StructuralReason;
 }
 
 export type BodyCatalog = ReadonlyMap<string, BodyDefinition>;

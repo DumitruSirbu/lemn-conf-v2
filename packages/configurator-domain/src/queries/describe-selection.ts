@@ -4,15 +4,20 @@
 // §8's rule is the point of this projection: "everything the panel disables, it disables from these
 // numbers — never by trying and catching a refusal". Nothing enters `meta` that the panel could not
 // derive from the selection itself.
-import { describeBandLabel, deriveSlotBand } from "../bands.js";
-import { describeKindLabel } from "../catalog.js";
+import {
+  describeBandLabel,
+  deriveSlotBand,
+  isPushOpenByDefault,
+} from "../bands.js";
+import { buildableSizes, describeKindLabel } from "../catalog.js";
 import type { CommandTarget } from "../commands/command-result.js";
-import type { DesignWall } from "../design.js";
+import type { DesignWall, Finish, Handle } from "../design.js";
 import { toMillimetres } from "../millimetres.js";
 import type {
   Band,
   BodyCatalog,
   PlacementRecord,
+  StructuralReason,
   VoidRecord,
 } from "../void-engine.js";
 
@@ -37,10 +42,49 @@ export interface SelectionMeta {
   readonly fixedWidth: boolean;
   readonly canFinish: boolean;
   readonly canHandle: boolean;
+  /** §9 section 6, exactly as §9 states it: `canWidth` = selected · not empty · not `fixedWidth`.
+   *  Derived here rather than by each caller, because a second derivation is a second chance to
+   *  render a width section on a corner return.
+   *
+   *  Whether there is anything to *render* is a separate question, answered by the panel: a body
+   *  whose `sizesMm` is empty gets no width section. Folding that into this flag made
+   *  `canWidth: true, sizesMm: []` unrepresentable-by-accident rather than by contract, and it would
+   *  have hidden M5's missing seeded width sets behind a silently-false capability. */
+  readonly canWidth: boolean;
   readonly canReplace: boolean;
   readonly canDelete: boolean;
   readonly accessory: boolean;
+  /** The finish currently applied, so §9's Finisaj chips can mark the active one. Absent means the
+   *  body ships in its default finish — a real state, distinct from any of the five choices, and
+   *  carried absent rather than defaulted to one of them.
+   *
+   *  §8's `meta` list omits both this and `handle` because the prototype's panel read them off the
+   *  mesh. Reading a rendered material to decide which chip is active is exactly the "derive
+   *  identity from the mesh tree" mistake §6.3 records, so they are published here instead. */
+  readonly finish?: Finish;
+  /** The handle mode currently applied. Absent means none was chosen: §6.5 then decides by module
+   *  line — a top-row body ships push-to-open with its handles built and hidden — which is why the
+   *  absent case cannot be collapsed into `"push"` here. */
+  readonly handle?: Handle;
+  /** What §6.5 gives this body when `handle` is absent, decided by the module line it stands on
+   *  rather than by its catalogue band: a top-row body ships push-to-open with its handles built
+   *  and hidden (§11 row 13). Published so §9's Mâner section can mark the chip the customer is
+   *  actually looking at; without it the panel would have to re-derive the rule from a `y0` `meta`
+   *  does not carry, or mark nothing and disagree with the scene. */
+  readonly defaultHandle: Handle;
+  /** Present only when this body offers nothing structural — no swap list, no delete, no finish, no
+   *  handle, no width — and says why (§11 row 16, §13.1). Read from the catalogue entry's own
+   *  declaration rather than inferred from the four capability flags being false: a panel that
+   *  offers nothing never produces the refusal §11 row 16 requires to carry the explanation, so the
+   *  explanation has to be a published fact instead of a by-product of one. */
+  readonly structuralReason?: StructuralReason;
 }
+
+/** §6.5's fallback for a body below the top row: a bar handle, which is what every non-top-row
+ *  seeded body renders with. */
+const DEFAULT_HANDLE: Handle = "steel";
+/** §6.5: at or above the top module line, handles are built and hidden. */
+const TOP_ROW_HANDLE: Handle = "push";
 
 const EMPTY_SLOT_LABEL_RO = "Spațiu liber";
 const VOID_KIND = "void";
@@ -90,6 +134,11 @@ function describeVoid(record: VoidRecord): SelectionMeta {
     fixedWidth: false,
     canFinish: false,
     canHandle: false,
+    // §9: an empty slot hides Finisaj, Mâner and Lățime — there is nothing to finish.
+    canWidth: false,
+    // A void has no handles, and `canHandle` is false, so this is never read. It is still the
+    // honest value rather than a placeholder: an empty slot is not a push-to-open body.
+    defaultHandle: DEFAULT_HANDLE,
     // §9: a void's whole purpose is the "Pune un corp aici" list.
     canReplace: true,
     canDelete: false,
@@ -102,6 +151,14 @@ function describeBody(
   catalog: BodyCatalog,
 ): SelectionMeta {
   const definition = catalog.get(record.buildId);
+  // ADR 0017, and R2.9: the chips are the widths this body can be *built* at, never its raw
+  // catalogue row. `offersFor` publishes its own `sizesMm` through this same function, so one
+  // function decides and the width chips cannot drift from the offer rows the day a second entry
+  // declares a `minWidthMm` without pre-filtering its set.
+  const sizesMm = buildableSizes(
+    definition?.minWidthMm,
+    definition?.sizesMm ?? [],
+  );
   return {
     id: record.id,
     // §6.3: identity comes from the chosen catalogue id, never re-inferred from the mesh tree.
@@ -116,12 +173,21 @@ function describeBody(
     openWmm: toMillimetres(record.frame.w),
     openHmm: toMillimetres(record.frame.h),
     spanHmm: toMillimetres(record.frame.h),
-    sizesMm: definition?.sizesMm ?? [],
+    sizesMm,
     fixedWidth: record.fixedWidth,
     canFinish: record.canFinish,
     canHandle: record.canHandle,
+    canWidth: !record.fixedWidth,
     canReplace: record.canReplace,
     canDelete: record.canDelete,
     accessory: record.accessory,
+    ...(record.finishKey === undefined ? {} : { finish: record.finishKey }),
+    ...(record.handleMode === undefined ? {} : { handle: record.handleMode }),
+    defaultHandle: isPushOpenByDefault(record.frame.y0)
+      ? TOP_ROW_HANDLE
+      : DEFAULT_HANDLE,
+    ...(definition?.structuralReason === undefined
+      ? {}
+      : { structuralReason: definition.structuralReason }),
   };
 }

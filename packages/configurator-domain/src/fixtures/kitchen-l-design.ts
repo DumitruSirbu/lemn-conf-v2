@@ -41,23 +41,73 @@ const wallCarcass = { ...baseCarcass, band: "wall" as const };
 const topCarcass = { ...baseCarcass, band: "top" as const };
 const columnCarcass = { ...baseCarcass, band: "column" as const };
 
+/** §13.1: "Corners are structural. No replace, no delete, never a width donor", repeated by §11
+ *  row 16 — so a corner return also has no finish and no handle to offer, and the panel renders
+ *  none of those sections for it. */
+const STRUCTURAL_CORNER: Pick<
+  BodyDefinition,
+  | "kind"
+  | "canReplace"
+  | "canDelete"
+  | "canFinish"
+  | "canHandle"
+  | "fixedWidth"
+  | "structuralReason"
+> = {
+  kind: "wall_cabinet",
+  canReplace: false,
+  canDelete: false,
+  canFinish: false,
+  canHandle: false,
+  fixedWidth: true,
+  // With all four capability flags false the panel offers nothing, so it never produces the refusal
+  // §11 row 16 requires to explain why. The reason is declared here and rendered as its own section.
+  structuralReason: "corner",
+};
+
+/** Each `catalogEquivalentId` below was read off the two builder tables in `@lemnaria/three-adapter`
+ *  — `decomposed-bodies.ts` for the seeded instance, `catalog-bodies.ts` for the §7 entry — and
+ *  points at the entry that builds the *same* body: `base-drawer2-600` is
+ *  `baseCabinet(0.6, { drawers: 2 })`, which is exactly what `base-panbank` builds, so the two-drawer
+ *  base is the pan bank at 600. Three entries carry no pointer because nothing in §7 builds them:
+ *  the hob, and the two corner returns. */
 const SEEDED_BODY_DEFINITIONS: readonly (readonly [string, BodyDefinition])[] =
   [
     [
       "base-sink-800",
-      { ...baseCarcass, kind: "base_cabinet", frameDepthMm: 580 },
+      {
+        ...baseCarcass,
+        kind: "base_cabinet",
+        frameDepthMm: 580,
+        catalogEquivalentId: "base-sink",
+      },
     ],
     [
       "base-dishwasher-600",
-      { ...baseCarcass, kind: "dishwasher_housing", frameDepthMm: 580 },
+      {
+        ...baseCarcass,
+        kind: "dishwasher_housing",
+        frameDepthMm: 580,
+        catalogEquivalentId: "base-dishwasher",
+      },
     ],
     [
       "base-drawer2-600",
-      { ...baseCarcass, kind: "base_cabinet", frameDepthMm: 580 },
+      {
+        ...baseCarcass,
+        kind: "base_cabinet",
+        frameDepthMm: 580,
+        catalogEquivalentId: "base-panbank",
+      },
     ],
     [
       "base-drawer3-600",
-      { ...baseCarcass, kind: "base_cabinet", frameDepthMm: 580 },
+      {
+        ...baseCarcass,
+        kind: "base_cabinet",
+        frameDepthMm: 580,
+        catalogEquivalentId: "base-3drawer",
+      },
     ],
     [
       "cooktop-600",
@@ -77,6 +127,7 @@ const SEEDED_BODY_DEFINITIONS: readonly (readonly [string, BodyDefinition])[] =
         kind: "tall_unit",
         frameDepthMm: 560,
         frameHeightMm: 2200,
+        catalogEquivalentId: "tall-oven-tower",
       },
     ],
     [
@@ -86,6 +137,7 @@ const SEEDED_BODY_DEFINITIONS: readonly (readonly [string, BodyDefinition])[] =
         kind: "tall_unit",
         frameDepthMm: 560,
         frameHeightMm: 2200,
+        catalogEquivalentId: "tall-pantry",
       },
     ],
     [
@@ -96,23 +148,39 @@ const SEEDED_BODY_DEFINITIONS: readonly (readonly [string, BodyDefinition])[] =
         frameDepthMm: 680,
         frameHeightMm: 1850,
         fixedWidth: true,
+        catalogEquivalentId: "fridge-free",
       },
     ],
     [
       "wall-2door-600",
-      { ...wallCarcass, kind: "wall_cabinet", frameDepthMm: 330 },
+      {
+        ...wallCarcass,
+        kind: "wall_cabinet",
+        frameDepthMm: 330,
+        catalogEquivalentId: "wall-2door",
+      },
     ],
     [
       "wall-corner-return-570",
-      { ...wallCarcass, kind: "wall_cabinet", frameDepthMm: 330 },
+      { ...wallCarcass, ...STRUCTURAL_CORNER, frameDepthMm: 330 },
     ],
     [
       "wall-1door-300",
-      { ...wallCarcass, kind: "wall_cabinet", frameDepthMm: 330 },
+      {
+        ...wallCarcass,
+        kind: "wall_cabinet",
+        frameDepthMm: 330,
+        catalogEquivalentId: "wall-1door",
+      },
     ],
     [
       "wall-2door-800",
-      { ...wallCarcass, kind: "wall_cabinet", frameDepthMm: 330 },
+      {
+        ...wallCarcass,
+        kind: "wall_cabinet",
+        frameDepthMm: 330,
+        catalogEquivalentId: "wall-2door",
+      },
     ],
     [
       "open-shelf-600",
@@ -121,6 +189,7 @@ const SEEDED_BODY_DEFINITIONS: readonly (readonly [string, BodyDefinition])[] =
         kind: "open_shelf_unit",
         canHandle: false,
         frameDepthMm: 330,
+        catalogEquivalentId: "open-shelf",
       },
     ],
     [
@@ -131,6 +200,7 @@ const SEEDED_BODY_DEFINITIONS: readonly (readonly [string, BodyDefinition])[] =
         canHandle: false,
         fixedWidth: true,
         frameDepthMm: 500,
+        catalogEquivalentId: "hood",
       },
     ],
     [
@@ -140,6 +210,7 @@ const SEEDED_BODY_DEFINITIONS: readonly (readonly [string, BodyDefinition])[] =
         kind: "wall_cabinet",
         frameDepthMm: 330,
         frameHeightMm: 400,
+        catalogEquivalentId: "wall-2door",
       },
     ],
     [
@@ -149,6 +220,7 @@ const SEEDED_BODY_DEFINITIONS: readonly (readonly [string, BodyDefinition])[] =
         kind: "wall_cabinet",
         frameDepthMm: 330,
         frameHeightMm: 400,
+        catalogEquivalentId: "wall-1door",
       },
     ],
     [
@@ -158,13 +230,14 @@ const SEEDED_BODY_DEFINITIONS: readonly (readonly [string, BodyDefinition])[] =
         kind: "wall_cabinet",
         frameDepthMm: 330,
         frameHeightMm: 400,
+        catalogEquivalentId: "wall-2door",
       },
     ],
     [
       "wall-corner-return-570-top",
       {
         ...topCarcass,
-        kind: "wall_cabinet",
+        ...STRUCTURAL_CORNER,
         frameDepthMm: 330,
         frameHeightMm: 400,
       },
@@ -176,6 +249,7 @@ const SEEDED_BODY_DEFINITIONS: readonly (readonly [string, BodyDefinition])[] =
         kind: "wall_cabinet",
         frameDepthMm: 600,
         frameHeightMm: 400,
+        catalogEquivalentId: "wall-2door",
       },
     ],
     [
@@ -185,6 +259,7 @@ const SEEDED_BODY_DEFINITIONS: readonly (readonly [string, BodyDefinition])[] =
         kind: "wall_cabinet",
         frameDepthMm: 600,
         frameHeightMm: 750,
+        catalogEquivalentId: "wall-2door",
       },
     ],
   ];
