@@ -79,7 +79,42 @@ from the real room. So the tool needs to express **intent** ("three cabinets alo
 two"), not **precision** ("617 mm") — precision the measurement visit supersedes anyway. B is not
 the IKEA option; A is. B is "you choose the rhythm of your kitchen, we build it to your room".
 
-### The narrow bottle cabinet, and `MIN_W` drops to 200
+### The narrow bottle cabinet — an exception, not a new general floor
+
+**AMENDED 2026-08-26, after the M5 architect flagged two conflicts.** The original wording here said
+`MIN_WIDTH_M` moves from 300 to 200. **It does not. It stays at 300.**
+
+The architect's finding: `MIN_WIDTH_M` is the floor `resolveWidth` applies to **every**
+`widthFlex: 'fit'` body, so dropping it to 200 would make a 220 mm two-door base cabinet buildable
+and offerable — not a product. Its proposed remedy was to drop the constant and give all eleven other
+entries a `minWidthMm: 300` to raise them back.
+
+**The owner chose the narrower change:** keep the general floor at 300 and make the bottle cargo a
+single declared exception. One entry carries the exception instead of eleven carrying a correction,
+and the exception is visible on the row that needs it.
+
+**This also resolves the second conflict at no cost.** §5.4's donor rule is "the neighbour must remain
+at or above `MIN_W`". Had the constant dropped to 200, resizing a 600 to 800 could have shrunk a
+400 mm neighbour to 200 — producing a 200 mm cabinet as the **residue of somebody else's resize**
+rather than as a deliberate choice. The owner's rule: *"the 200 cabinet will not be automatically
+inserted, it should be deliberately selected."* With the constant unchanged, the donor rule is
+already correct and needs no second constant.
+
+**What implementation must do.** The two floors already exist and are deliberately distinct
+(`insert-fit.ts`): §2's `MIN_WIDTH_M`, "no cabinet may go under", and ADR 0017's per-entry
+`minWidthMm`, "this entry's builder cannot go under" — carrying different rejection codes so the
+customer reads the right sentence. Today the per-entry floor can only **raise** the general one. The
+cargo needs to **lower** it, so that mechanism gains a downward direction, for one entry, recorded in
+its own ADR. §2's `MIN_W` then means "the default floor", not "an absolute floor", and that wording
+change must be recorded rather than assumed.
+
+**Not changed, and deliberately:** raising the general floor to 400. The owner raised it as a
+possibility ("one door cabinet minimum should also be 400"). Standard chips are already 400/600/800,
+so nothing is *chosen* below 400; the 300 floor only governs `'fit'` bodies filling an odd opening.
+Raising it would begin refusing openings that work today — a separate decision with its own
+consequences, not bundled here.
+
+
 
 The owner has one in their own kitchen: a ~200 mm pull-out for oil and vinegar bottles, "in the
 majority of cases placed near the hob". It is a common cabinet and the catalogue has nothing like it.
@@ -97,9 +132,13 @@ representable: 1400 = `600+600+200`.
 
 **Knock-on effects to handle at implementation:**
 
-- §9's width consequence line says "sub 300 mm nu se coboară" — becomes 200.
-- ADR 0015's boundary tests are pinned at 299/300 and move to 199/200. That ADR's *rule* (min span
-  is exclusive) is unchanged; only the value moves.
+- §9's width consequence line keeps saying "sub 300 mm nu se coboară" — the general floor is unchanged.
+- The **width-floor** boundary tests stay pinned at 299/300 for the general floor; the cargo's own exception needs its own boundary case at 199/200.
+  **Corrected 2026-08-26 (found by the M5 architect):** an earlier revision of this line said
+  "ADR 0015's boundary tests". ADR 0015 is the **`MIN_SPAN_M`** record, and neither its rule nor
+  its value moves — `MIN_SPAN_M` stays at 300, as the paragraph above says. Citing it here was
+  precisely the wrong-constant edit this entry exists to prevent, made while writing the warning
+  against it. Recorded rather than silently fixed, because the near-miss is the point.
 - The bottle cabinet needs a **new builder** — nothing in `kitchen-parts.ts` builds a narrow
   pull-out cargo. Its size set is its own (200-300), not a new general module width: the standard
   set stays {400, 600, 800}.
