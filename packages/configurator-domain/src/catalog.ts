@@ -194,6 +194,12 @@ const KIND_LABELS_RO: Readonly<Record<string, string>> = {
   wall_cabinet: "Corp suspendat",
   open_shelf_unit: "Etajeră deschisă",
   extractor_hood: "Hotă",
+  // ADR 0025: §3.1 lists both as kinds, but until the base legs became placements no selection
+  // could carry one, so neither was ever named. Without a name here the base corner's header reads
+  // the generic "Corp" — and §11 row 16 asks the panel to *explain* a corner, which starts with
+  // calling it one.
+  corner_base_x: "Corp bază de colț",
+  corner_base_return: "Racord bază de colț",
 };
 
 /** What a body is called when the catalogue does not know its kind. */

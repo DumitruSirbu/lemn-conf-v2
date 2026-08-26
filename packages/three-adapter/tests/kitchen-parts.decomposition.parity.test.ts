@@ -3,10 +3,11 @@
 // `deriveCabinetWorldTransform`, and this is the first place that switch could silently lose M1's
 // verified fidelity — so it is proven, not assumed.
 //
-// Scope: every placement in `KITCHEN_L_DESIGN` except the two corner legs (`corner_base_x`,
-// `corner_base_return`). Their geometry is not centred on the wall-normal axis the way every other
-// body is, so mounting them needs a transform this milestone does not define; the "two accounted
-// for, unmatched" assertion below documents that gap instead of silently dropping it.
+// Scope: **every** body `buildKitchen()` places, with nothing deferred. The two corner legs were
+// carried as an unmatched gap from M2 until ADR 0025 derived their seat; the assertion below is
+// now a **bijection** — every non-shell child of the reference room is claimed by exactly one
+// placement — which is also what proves `kitchen-stage.tsx` draws each body once rather than
+// twice, since it composes the scene by removing exactly the children a record's position claims.
 import * as THREE from "three";
 import {
   deriveCabinetWorldTransform,
@@ -41,8 +42,6 @@ const SHELL_MESH_NAMES = new Set([
   "end_panel_right",
   "backsplash_wall_a",
 ]);
-const DEFERRED_BODY_NAMES = new Set(["corner_base_pair"]);
-const DEFERRED_GROUP_NAMES = new Set(["corner_base_x", "corner_base_return"]);
 
 let kit: Kit;
 
@@ -155,7 +154,21 @@ describe("decomposed kitchen-l placements reproduce the whole-scene render", () 
     },
   );
 
-  it("accounts for every buildKitchen() body: 25 decomposed, 2 corner legs deferred, 5 shell items excluded", () => {
+  // The suite's strongest assertion, and the one that has to be read as a bijection rather than as
+  // a count. Each half fails for a different defect:
+  //
+  //   - a placement with no reference child at its derived transform means the seat drifted (the
+  //     ADR 0005 failure, where six bodies sat 10-20 mm off their wall);
+  //   - `matched.size !== placements.length` means two placements claimed the same reference
+  //     child, so one body would mount without its whole-scene twin being removed — a double draw;
+  //   - a non-shell child left unmatched means `buildKitchen()` still draws a body no placement
+  //     owns, which is exactly the state the corner legs were in before ADR 0025.
+  //
+  // `kitchen-stage.tsx` composes the live scene by removing every reference-room child whose
+  // position a record claims (within the same 1e-6 m), then mounting the records. The bijection is
+  // therefore the double-render proof: onto, so nothing is left behind to be drawn twice; one-to-
+  // one, so nothing is removed on behalf of two bodies.
+  it("matches every buildKitchen() body one-to-one: 27 decomposed, 5 shell items excluded, none deferred", () => {
     const room = referenceRoom();
     const matched = new Set<THREE.Object3D>();
     for (const placement of KITCHEN_L_DESIGN.placements) {
@@ -174,13 +187,12 @@ describe("decomposed kitchen-l placements reproduce the whole-scene render", () 
       matched.add(required(findChildAtPosition(room, position), placement.id));
     }
 
+    expect(matched.size).toBe(KITCHEN_L_DESIGN.placements.length);
     const unmatched = room.children.filter(
       (child) => !matched.has(child) && !SHELL_MESH_NAMES.has(child.name),
     );
-    expect(unmatched.map((child) => child.name).sort()).toEqual(
-      [...DEFERRED_GROUP_NAMES].sort(),
-    );
-    expect(DEFERRED_BODY_NAMES.size).toBe(1); // guards the constant against silent drift
+    expect(unmatched.map((child) => child.name)).toEqual([]);
+    expect(matched.size + SHELL_MESH_NAMES.size).toBe(room.children.length);
   });
 
   // The base row and the two tall units used to sit 10-20 mm proud of the wall plane in the
@@ -188,7 +200,16 @@ describe("decomposed kitchen-l placements reproduce the whole-scene render", () 
   // `xB = 0.3`) instead of deriving them from the §6.2 seating algorithm — fixed in both the
   // reference and the port (see `docs/decisions/0005-m2-row19-m1-wall-gap-finding.md`).
   // Every row, decomposed or whole-scene, now agrees exactly with no gap.
-  const KNOWN_WALL_GAP_M: ReadonlyMap<string, number> = new Map();
+  //
+  // ADR 0025 adds the one standing exception, and it is a *negative* gap: `p25`, the corner X-leg,
+  // sits 20 mm **behind** the wall plane. Its 900 x 600 carcass has to meet the 580 mm-deep return
+  // leg on a shared face at z = 0.58, so its origin is fixed at 0.58 - 0.30 = 0.28 by the L-joint,
+  // not by the wall. Seating it flush would drive it 20 mm *into* the return leg — a visible solid
+  // intersection — while the 20 mm it loses at the back is buried inside the wall and invisible.
+  // Pinned by value so the leg cannot drift, and so "it fixed itself" fails loudly.
+  const KNOWN_WALL_GAP_M: ReadonlyMap<string, number> = new Map([
+    ["p25", -0.02],
+  ]);
 
   it("row 19: every mounted body's back face lies on its wall plane", () => {
     const reference = referenceRoom();
@@ -246,14 +267,10 @@ describe("decomposed kitchen-l placements reproduce the whole-scene render", () 
     }
   });
 
-  it("decomposed placements produce the same mesh-name set the whole-scene render produced for those bodies", () => {
+  it("decomposed placements produce the same mesh-name set the whole-scene render produced", () => {
     const reference = referenceRoom();
     const expectedNames = reference.children
-      .filter(
-        (child) =>
-          !SHELL_MESH_NAMES.has(child.name) &&
-          !DEFERRED_GROUP_NAMES.has(child.name),
-      )
+      .filter((child) => !SHELL_MESH_NAMES.has(child.name))
       .flatMap((child) => meshNames(child));
 
     const room = new THREE.Group();

@@ -58,11 +58,12 @@ export interface KitchenStageProps {
  * The ported stage, mounted imperatively.
  *
  * Placements are mounted individually (`docs/milestones/M2-void-engine.md` work item 2) rather
- * than as one whole-scene `builders['kitchen-l']()` call: the shell (floor, walls, backsplash,
- * end panel) and the two corner legs still come from that call — decomposing them is out of this
- * milestone's scope, per the decomposition-parity test in `@lemnaria/three-adapter` — but every
- * other body is removed from it and remounted by `syncSolidBodies` at its derived
- * `PlacementRecord` transform, tagged with `userData.placementId` for picking to climb to.
+ * than as one whole-scene `builders['kitchen-l']()` call: only the shell (floor, walls,
+ * backsplash, end panel) still comes from that call. Every body is removed from it and remounted
+ * by `syncSolidBodies` at its derived `PlacementRecord` transform, tagged with
+ * `userData.placementId` for picking to climb to. Since ADR 0025 that includes the two corner
+ * legs, which M2 left in the reference room because their seat was undefined — and which were
+ * therefore unpickable, the defect ADR 0025 fixes.
  *
  * M3 work item 8 made that mount a *sync*: the engine lives in `@lemnaria/three-adapter`
  * (`scene-sync.ts`), headless and React-free, and this component only calls it from an effect.
@@ -124,10 +125,15 @@ export function KitchenStage({ view, finish, onSettled }: KitchenStageProps) {
       ground: createShadowGround(),
       blob: createContactBlob(),
     };
-    // The shell only — floor, walls, backsplash, end panel and the two corner legs, with the
-    // bodies `buildKitchen()` placed removed so the sync below owns every placement. Built once
-    // per mount: which bodies the reference room contributes is a property of the *port*, not of
-    // the current design, and the initial records are what identify them.
+    // The shell only — floor, walls, backsplash, end panel — with every body `buildKitchen()`
+    // placed removed so the sync below owns all of them. Built once per mount: which bodies the
+    // reference room contributes is a property of the *port*, not of the current design, and the
+    // initial records are what identify them.
+    //
+    // The removal above is what keeps a body from being drawn twice, and it is positional, so a
+    // placement whose derived transform missed its reference twin would leave that twin behind and
+    // mount a second copy over it. The decomposition-parity suite pins exactly that as a bijection
+    // — every non-shell child claimed by exactly one placement, none left over.
   }, []);
 
   // Work item 8: the scene follows store state. Bodies that appeared are mounted, bodies and void
