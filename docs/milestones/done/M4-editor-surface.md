@@ -1,9 +1,17 @@
 # M4 — Editor panel and layout shell (screens 2A, 2B, 2C)
+>
+> **STOP — DO NOT READ THIS PLAN.** M4 closed 2026-08-26. This file describes intentions; several
+> shipped differently and are superseded by dated records. Acting on one reintroduces a design the
+> project abandoned — the `canWidth` clause recorded in the Waves section below, for one, was
+> overturned by logic review the same day. The live knowledge is in `docs/decisions/` (ADRs
+> 0021–0024) and in the code. See `docs/STATUS.md` for where the project stands.
 
-> **STATUS: IN PROGRESS.** Summary: `docs/STATUS.md`. The wave table below names exactly what is
-> open; everything above it is the plan as written on 2026-08-26 and is unchanged.
 
-Status: in progress (started 2026-08-26). Depends on M3, which is closed.
+> **STATUS: CLOSED 2026-08-26.** All four waves shipped. One acceptance criterion is recorded
+> **unmet** — 2C's rejection-state browser test, which cannot be written because no panel control can
+> produce a refusal (ADR 0024). Summary: `docs/STATUS.md`.
+
+Status: closed 2026-08-26. Depended on M3.
 Reference: `DEVELOPMENT-SPEC.md` §9, §10, §10.1, §13.1; mockup frames 2A, 2B, 2C and D2A, D2B, D2C.
 
 ## Goal
