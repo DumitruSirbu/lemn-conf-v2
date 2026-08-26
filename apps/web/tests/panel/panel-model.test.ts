@@ -300,6 +300,46 @@ describe("describePanel — the replace list", () => {
       ]);
   });
 
+  // Frame 2B: the drawing is what tells a full-height column apart from a base cabinet at a glance,
+  // so the model resolves it and the component paints it. `editor-panel.tsx` decides nothing.
+  it("gives each row the URL of its own body's drawing", () => {
+    const panel = openPanelFor(slotMeta(), {
+      offers: [
+        offer({ buildId: "base-2door" }),
+        offer({ buildId: "tall-pantry", band: "column" }),
+      ],
+    });
+    const rows = findSection(panel.sections, "replace")?.rows ?? [];
+    expect(rows.map((row) => row.thumbnailUrl)).toEqual([
+      "/cabinets/base-2-door.svg",
+      "/cabinets/tall-pantry.svg",
+    ]);
+  });
+
+  // §13.4's background-image paints nothing here, which is why the catalogue-wide existence check
+  // in `cabinet-thumbnails.test.ts` is the gate rather than this.
+  it("leaves the thumbnail absent for a body no drawing was vendored for", () => {
+    const panel = openPanelFor(slotMeta(), {
+      offers: [offer({ buildId: "not-a-vendored-body" })],
+    });
+    expect(
+      findSection(panel.sections, "replace")?.rows[0]?.thumbnailUrl,
+    ).toBeUndefined();
+  });
+
+  // A disabled row keeps its drawing: it is still telling the customer which cabinet the row is
+  // about, and removing it would make an unavailable list unreadable rather than merely dimmed.
+  it("keeps the drawing on a row the browser cannot click", () => {
+    const panel = openPanelFor(slotMeta(), {
+      offers: [offer({ buildId: "base-sink" })],
+      isBodyProbeAttached: false,
+    });
+    expect(findSection(panel.sections, "replace")?.rows[0]).toMatchObject({
+      isDisabled: true,
+      thumbnailUrl: "/cabinets/base-sink.svg",
+    });
+  });
+
   it("leaves every row clickable once the probe is attached", () => {
     const rows =
       findSection(

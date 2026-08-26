@@ -16,65 +16,99 @@ cost — so the next person can act without re-deriving the investigation.
 
 ---
 
-## 1. The hob cannot be put back once it is removed
+## 1. The hob cannot be put back once it is removed — DECIDED 2026-08-26
 
-**Reported:** 2026-08-26, owner, on a handset against production.
-"From the base cabinets, the cabinet with the hob is missing. If I remove it I am not able to add it
-back."
+**Decision (owner, 2026-08-26): the hob becomes part of the cabinet body. Two catalogue entries,
+both fixed at 600 mm.**
 
-**Confirmed.** Measured, not inferred:
+- **hob + 2 drawers** — the majority case. When the oven lives in a column, the cabinet under the
+  hob is drawers, because that is where the pots go. The seeded kitchen already renders exactly this
+  composite (`base-drawer2-600` + `cooktop-600`), so the geometry exists.
+- **hob + oven** — common in Moldova, where kitchens are smaller and there is no room for an oven
+  column. The `oven()` builder is 596 x 595 x 560 and a base carcass is 820 mm tall, so it fits.
 
-- Removing `p2` (the hob's host cabinet) succeeds and correctly **cascades** — the hob `p3` is
-  removed with it rather than left floating. The accessory rule works.
-- The resulting 600 × 860 opening then offers exactly six bodies: `base-2door`, `base-1door`,
-  `base-3drawer`, `base-panbank`, `base-sink`, `base-dishwasher`. **None carries a hob.**
-- `cooktop-600` exists only as a *seeded* catalogue entry. Seeded entries are `insertable: false` by
-  construction (ADR 0011 Gap A) because each describes one already-built body, so it can never be
-  offered.
-- §7's catalogue has no hob-bearing base cabinet at all. `induction_cooktop` appears only as a kind
-  label.
+Rejected: a 3-drawer and a doors variant. Each is another builder, entry and test, and both are
+guesses where the two above are known. Adding a third later is cheap once the pattern exists.
 
-So the induction hob is **permanently unrecoverable** once its host is deleted, and a customer who
-deletes it has silently lost a fixture they cannot restore without starting over.
+Rejected: making the hob insertable as a standalone accessory. The void model has no accessory slot
+— there is no opening at worktop height to offer one from — so it would mean adding a new kind of
+slot to the engine for one fixture.
 
-**What deciding it costs.** A parameterised hob-bearing base cabinet is not free: §11 row 15 makes
-the hob an accessory of its host, §6.1 resolves a click on it to that host, and §13.4 notes hob and
-corner widths are still fixed in geometry ("parameterising them is the remaining builder work",
-§13.3 q6). So this is builder work in `packages/three-adapter`, plus a §7 entry, plus the accessory
-seating — not a one-line catalogue addition.
+**The seeded design migrates.** `p2` + `p3` become one hob-bearing body. That leaves the accessory
+machinery — §6.1's host resolution, the delete cascade, `ACCESSORY_MAX_HEIGHT_M`, the `accessory`
+flag — **with no remaining user**, because the hob is the only accessory in the design. The owner's
+direction is to remove what is then unused rather than keep dead machinery.
 
-**Cheaper interim option worth considering:** refuse to delete the hob's host while the hob is on it,
-the way a corner refuses (§13.1), so the unrecoverable state cannot be reached. That trades a lost
-fixture for a refusal the customer can understand, and it is a rule change rather than builder work.
+Verify that at implementation rather than assuming it: confirm nothing else reads `accessory` before
+deleting anything, and note that §11 row 15 ("click the hob selects its host") becomes trivially
+true once the hob *is* the host.
+
+**Multiple ovens are allowed.** A hob+oven base alongside an oven column gives two ovens, and that
+is permitted deliberately — the owner's reasoning: someone who cooks a lot may want two, the kitchen
+has the space, and there is no reason to refuse something buildable. Revisit only if feedback says
+otherwise.
+
+**Still to do at implementation:** Romanian labels for both entries, and an ADR recording this.
 
 ---
 
-## 2. Clearing two adjacent cabinets does not give one wide opening
+## 2. Rearranging a run: re-split, and the narrow bottle cabinet — DECIDED 2026-08-26
 
-**Reported:** 2026-08-26, owner.
-"If I remove two near base cabinets I should be able to benefit from the combined space — choose a
-different split, or make one wider."
+**What was wrong:** clearing two adjacent cabinets gives two separate openings (800 and 600), never
+one 1400. §4 merges openings vertically within a column; columns are frozen at load and never merge
+horizontally. The consequence is that **the number and position of columns is permanent** — a
+customer can never turn two cabinets into three.
 
-**Confirmed, and it is structural rather than a bug.** Deleting the 800 mm sink and the 600 mm
-dishwasher yields **two separate voids, 800 and 600 — not one 1400**.
+**Decision (owner, 2026-08-26): module re-split is in scope. Free-form width stays rejected.**
 
-§4 merges openings **vertically within a column**. Columns are frozen at load (ADR 0011 Gap D) and
-never merge horizontally. §13.1 made that explicit when reordering was removed: *"nothing can move
-horizontally any more, so column identity is permanently stable — which is what keeps the void model
-honest."*
+Three levels were considered:
 
-What the owner is describing is the **run re-split**, which §12 lists as *"Not built, designed"* and
-§13.3 carries as open question 2: a run's total offered as valid module combinations
-(800+600, 600+400+400), never as free-form arithmetic.
+- **A — module widths, boundary move only.** §5.4's resize alone: 600 → 800 takes 200 from a
+  neighbour, and the *count* never changes. Rejected as too limiting — "otherwise we stick to not a
+  custom furniture but to like IKEA".
+- **B — module re-split.** §12's design: a run's total offered as valid module combinations
+  (`800+600`, `600+400+400`, `600+600+200`), never free-form arithmetic. **Chosen.**
+- **C — free-form width.** A numeric field, any millimetre value. **Rejected**, confirming §13.2:
+  "a numeric field invites invalid states and arithmetic the user shouldn't do". The owner's added
+  reasoning: fixed sizes make the price far easier to pre-calculate, and "too much flexibility gave
+  us a lot of issues and calculations".
 
-**Note this is NOT fixed by M5.** M5 implements §5.4's resize as a boundary move — growing a 600 to
-800 by taking 200 mm from its neighbour, outer edges holding (§11 row 9). That covers "make one
-wider at the neighbour's expense". It does **not** cover re-dividing a cleared run into a different
-number of cabinets.
+**Why B is the right level, and it is worth keeping this argument.** The real workflow is: the
+customer conveys a vision with this tool, then someone visits to measure, and the real price comes
+from the real room. So the tool needs to express **intent** ("three cabinets along this wall, not
+two"), not **precision** ("617 mm") — precision the measurement visit supersedes anyway. B is not
+the IKEA option; A is. B is "you choose the rhythm of your kitchen, we build it to your room".
 
-**Decision needed** before it can be scheduled: is run re-split in scope for this product, and if so,
-does it land in M5 beside resize or as its own phase? It touches the frozen-column invariant that
-the whole void model rests on, so it is not a small addition.
+### The narrow bottle cabinet, and `MIN_W` drops to 200
+
+The owner has one in their own kitchen: a ~200 mm pull-out for oil and vinegar bottles, "in the
+majority of cases placed near the hob". It is a common cabinet and the catalogue has nothing like it.
+
+**`MIN_WIDTH_M` moves from 300 mm to 200 mm.** That also makes the owner's own example
+representable: 1400 = `600+600+200`.
+
+**Do not lower the wrong constant.** Two constants sit at 0.3 today and they are different concerns:
+
+- `MIN_WIDTH_M` (§2's `MIN_W`) — the narrowest **cabinet**, and M5's resize floor. **This becomes
+  0.2.**
+- `MIN_SPAN_M` — the shortest **vertical** free interval that becomes an opening
+  (`subdivideFreeSpan` tests `heightM > MIN_SPAN_M + SPAN_EPSILON_M`). A 200 mm-tall sliver must
+  still not become a slot. **This stays 0.3.**
+
+**Knock-on effects to handle at implementation:**
+
+- §9's width consequence line says "sub 300 mm nu se coboară" — becomes 200.
+- ADR 0015's boundary tests are pinned at 299/300 and move to 199/200. That ADR's *rule* (min span
+  is exclusive) is unchanged; only the value moves.
+- The bottle cabinet needs a **new builder** — nothing in `kitchen-parts.ts` builds a narrow
+  pull-out cargo. Its size set is its own (200-300), not a new general module width: the standard
+  set stays {400, 600, 800}.
+- Every re-split combination must respect the new floor, so `600+600+200` becomes valid where
+  `600+600+200` was previously unrepresentable.
+
+**Sequencing:** M5 must design the column-identity change knowing re-split is coming, so the model is
+redesigned once rather than twice. Building re-split itself is not required in M5 — M5's own plan
+already lists it as out of scope, and that stands.
 
 ---
 

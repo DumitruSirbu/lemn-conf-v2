@@ -263,6 +263,34 @@ test("rows and chips meet the touch scale, and chip rows scroll rather than wrap
   expect(new Set(chipTops).size).toBe(1);
 });
 
+/**
+ * Frame 2B's thumbnail, in the browser: every row paints a drawing, and every drawing is actually
+ * served.
+ *
+ * `tests/panel/cabinet-thumbnails.test.ts` proves the file is on disk and the model resolves a URL.
+ * Neither of those is the thing that fails silently — §13.4's `background-image` paints nothing
+ * whether the URL is absent, wrong, or right but not served, and all three look identical to a
+ * customer. So this asserts the rendered value is non-empty and then asks the server for it.
+ */
+test("every offer row paints a drawing, and every drawing is served", async ({
+  page,
+}) => {
+  await selectSinkCabinet(page);
+
+  const thumbnailUrls = await page
+    .locator('[data-testid^="offer-"] [data-testid="row-thumb"]')
+    .evaluateAll((elements) =>
+      elements.map((element) => getComputedStyle(element).backgroundImage),
+    );
+  expect(thumbnailUrls.length).toBeGreaterThan(0);
+
+  for (const backgroundImage of thumbnailUrls) {
+    expect(backgroundImage).toMatch(/^url\(".*\/cabinets\/[\w-]+\.svg"\)$/);
+    const url = backgroundImage.slice('url("'.length, -'")'.length);
+    expect((await page.request.get(url)).status()).toBe(200);
+  }
+});
+
 /** The other half of "never steals or leaks": what the sheet does not cover stays live, and a
  *  gesture inside the sheet does not reach the camera. If the swipe had orbited the scene, the
  *  same canvas pixel would no longer pick the same body. */

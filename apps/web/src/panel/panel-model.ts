@@ -25,6 +25,8 @@ import type { WriteAccess } from "@/store/configurator-store";
 
 import { ro } from "@/content/ro";
 
+import { findCabinetThumbnailUrl } from "./cabinet-thumbnails";
+
 export interface PanelHeader {
   readonly label: string;
   /** `Perete X · band · W × H mm`. */
@@ -43,6 +45,10 @@ export interface OfferRow {
   readonly isCurrent: boolean;
   /** Whether §9's row is clickable, resolved here rather than inferred from the copy downstream. */
   readonly isDisabled: boolean;
+  /** Mockup frame 2B's thumbnail: the URL of this body's front-elevation drawing, resolved here so
+   *  the component paints a value rather than looking one up. Absent when the catalogue offers a
+   *  body no drawing has been vendored for — see `findCabinetThumbnailUrl`. */
+  readonly thumbnailUrl?: string;
 }
 
 export interface ChoiceChip<TValue> {
@@ -407,12 +413,14 @@ function describeOfferRow(
   offer: CatalogOffer,
   availability: OfferRowAvailability,
 ): OfferRow {
+  const thumbnailUrl = findCabinetThumbnailUrl(offer.buildId);
   return {
     buildId: offer.buildId,
     label: offer.label,
     secondaryLine: describeOfferSecondaryLine(offer, availability),
     isCurrent: offer.isCurrent,
     isDisabled: availability.readOnly || !availability.isBodyProbeAttached,
+    ...(thumbnailUrl === undefined ? {} : { thumbnailUrl }),
   };
 }
 
