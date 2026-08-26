@@ -1,8 +1,9 @@
 # M4 — Editor panel and layout shell (screens 2A, 2B, 2C)
 
-> **STATUS: PLANNED.** Depends on M3. Summary: `docs/STATUS.md`.
+> **STATUS: IN PROGRESS.** Summary: `docs/STATUS.md`. The wave table below names exactly what is
+> open; everything above it is the plan as written on 2026-08-26 and is unchanged.
 
-Status: planned. Depends on M3.
+Status: in progress (started 2026-08-26). Depends on M3, which is closed.
 Reference: `DEVELOPMENT-SPEC.md` §9, §10, §10.1, §13.1; mockup frames 2A, 2B, 2C and D2A, D2B, D2C.
 
 ## Goal
@@ -131,3 +132,60 @@ Surfaces:
   inspect loop, and a desktop pass for the appear-on-selection rail.
 - A test asserting that the model reflects an edit before the sheet is dismissed, so that the
   viewing affordance can never quietly become a deferred-commit model.
+
+---
+
+## Waves (added 2026-08-26, at the start of implementation)
+
+Six work items and four M3 hand-offs do not fit one dispatch under `docs/WORKFLOW.md`'s scope
+limit, so M4 runs as four waves with a gate between each.
+
+| Wave | What it builds | Review tier |
+| --- | --- | --- |
+| **4A** | The panel *model*: a pure projection of `meta` + offers + the last refusal into §9's ordered sections, plus the copy it renders. No React. | Full — it is §9's rules |
+| **4B** | The section components and the two shells (mobile sheet, desktop rail), and the deletion of `temporary-dev-controls`. | Light — UI assembly against 4A's settled contract |
+| **4C** | `canWrite` on the design read, and how a failed or unauthorised write is communicated. | Full — it is an auth-adjacent contract |
+| **4D** | The e2e suite re-pointed at the real panel, and the 390 × 844 gate. | Light |
+
+### Carried into M5: seeded entries have no `sizesMm`
+
+All 20 seeded entries in `KITCHEN_L_BODY_CATALOG` omit `sizesMm`, so `describeSelection` publishes
+an empty width set for every one of the 21 seeded placements that are not fixed-width. The width
+section therefore does not render on a seeded body — but the flag is **not** what withholds it.
+`canWidth` is §9's own rule and nothing more (`selected · not empty · not fixedWidth`), and it is
+`describeWidthSection` that declines when there are no chips to show. Folding "has widths to offer"
+into the flag, as an earlier round did, made `canWidth: true, sizesMm: []` a representable
+contradiction and hid this gap behind a silently-false capability; keeping them apart means every
+flexible seeded body publishes `canWidth: true` today with nothing to show for it, which is exactly
+the loud state M5 needs. That is correct for M4, which ships no width editing — but it is not a
+resolution. **M5 has to resize seeded bodies too**, so M5 must give the seeded entries real width
+sets (or derive them), otherwise the width section stays permanently hidden on exactly the
+population the shipped design is made of. Carried into M5 as a required work item, not closed here.
+
+### 4A's two recorded decisions
+
+1. **The panel's rules live in a pure module, not in components.** §12 already forbids product
+   logic in components; this makes the ban testable. `describePanel` takes `meta`, the offer list
+   and the last refusal and returns §9's sections in §9's order, each with its content already
+   resolved. Every acceptance criterion in this document that is about *what renders* becomes an
+   assertion against a value.
+
+2. **Therefore no jsdom/RTL dependency is added.** The plan's Verification section asks for
+   "component tests driving each section purely from `meta` fixtures". That is what a
+   `describePanel` fixture test is, minus a renderer — and a dependency change would pull the whole
+   security-review tier onto a wave that ships no behaviour of its own. The rendered DOM is covered
+   where it is real, in the Playwright pass of 4D. If a later wave needs to assert on rendered
+   markup rather than on the model, that is the moment to reconsider, and it is a decision to
+   record rather than to make in passing.
+
+### What 4A adds to `meta`, and why
+
+§8's `meta` list omits the body's *current* finish and handle, because the prototype's panel read
+them off the mesh. §9's chips have to mark the active one, so `describeSelection` publishes
+`finishKey` and `handleMode` — already on `PlacementRecord` — and `canWidth`, which §9 defines as
+`selected · not empty · not fixedWidth` and which was previously left for each caller to re-derive.
+`structuralReason` joins them for the same reason: §11 row 16 wants the refusal to explain why, and
+a body that offers nothing never produces a refusal to carry the explanation, so the reason is a
+declared catalogue fact rather than something read back out of four false flags. Nothing else is
+added: the rule that the panel disables from these numbers alone is what makes the
+addition necessary rather than convenient.
