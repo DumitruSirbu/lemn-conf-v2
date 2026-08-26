@@ -220,3 +220,26 @@ Two supporting changes:
    "clear all three".
 2. *Leave the accessory and let it float.* Rejected: it is the phantom-geometry class of defect §3.1
    and §4 exist to prevent, and it makes a thrown exception reachable from a tap.
+
+---
+
+## Correction, 2026-08-25 (M3 Wave 3B)
+
+**Gap A's count is wrong: §7's catalogue has 15 parameterised entries, not 14.** Everywhere this
+record says "the 14 §7 entries", read fifteen. The decision itself is unaffected — one
+`BodyDefinition` type, one map, two populations split by `insertable` — and nothing was missing from
+the implementation: Wave 3A shipped all fifteen, and
+`INSERTABLE_BODY_DEFINITIONS.length === 15` was verified directly.
+
+Counted from §7's own table: six base (`base-2door`, `base-1door`, `base-3drawer`, `base-panbank`,
+`base-sink`, `base-dishwasher`), five wall (`wall-2door`, `wall-1door`, `wall-lift`, `open-shelf`,
+`hood`), four column (`tall-pantry`, `tall-oven-tower`, `tall-fridge-housing`, `fridge-free`).
+
+The slip propagated into `docs/milestones/M3-mutations.md` (four places, now corrected) and into
+Wave 3B's dispatch. It surfaced when a Wave 3B test asserting `toHaveLength(14)` failed; the shipped
+test asserts set equality between the adapter's builder table and this catalogue in both directions
+instead, which is the stronger assertion and would have caught a genuinely missing entry that a
+count never could.
+
+Left in place above rather than rewritten, per `docs/decisions/README.md`: a later correction is
+appended, never edited away.

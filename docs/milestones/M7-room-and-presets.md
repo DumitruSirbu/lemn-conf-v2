@@ -30,6 +30,21 @@ and application; bespoke generation.
 Out: the editor (M1–M6); linear and U-shape **layout** logic, which stays out of scope until product
 supplies a recipe and per-wall band data.
 
+## Security note — the firewall goes up after this phase
+
+M7 is the phase that first puts real customers in front of the app, which is the point at which
+`docs/decisions/0019-security-baseline-writes-throttling-retention.md`'s edge layer stops being
+premature. It was deliberately deferred until now: a firewall protecting zero users is waste, and
+rules staged for months go stale against an app that changed underneath them.
+
+Nothing in M7 implements it. The exact commands, the plan constraints (**this plan permits exactly
+one `rate_limit` rule**), and the mandatory log → preview → production rollout are in
+`docs/runbooks/firewall-setup.md`. The owner publishes firewall changes; an agent never does.
+
+Note also that ADR 0019 decision 1 — the read/write split — is expected to have shipped in M3 Wave
+3C. If it has not, it blocks this phase rather than M8: M7 is where a shared link first reaches
+someone who is not its creator.
+
 ## Work items
 
 1. **1A / D1A** — the shape picker: three cards with 2D plan glyphs, not renders. The continue

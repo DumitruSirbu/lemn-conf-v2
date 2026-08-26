@@ -12,12 +12,14 @@ import {
   type SlotExtent,
 } from "../bands.js";
 import {
+  buildableSizes,
   describeKindLabel,
   UNKNOWN_KIND_LABEL_RO,
   type InsertableBody,
 } from "../catalog.js";
 import type { DesignWall } from "../design.js";
 import { toMetres, toMillimetres } from "../millimetres.js";
+import { findVacatedVoid } from "../queries/vacated-void.js";
 import {
   recomputeVoids,
   FIT_TOLERANCE_M,
@@ -104,19 +106,21 @@ export function openingFromPlacement(
 }
 
 /** The void that would cover this body if it were removed — §4's own derivation, run once with the
- *  target taken out, so a swap and a delete-then-insert see the identical opening. */
+ *  target taken out, so a swap and a delete-then-insert see the identical opening.
+ *
+ *  The lookup itself is `findVacatedVoid`'s, not a second copy of it: a swap resolving its opening
+ *  one level away from where a delete would have selected is the same defect twice, and the two
+ *  predicates had already drifted into being one bug in two files. */
 function findVacatedSlot(
   record: PlacementRecord,
   records: readonly PlacementRecord[],
   columns: ReadonlyMap<string, Column>,
 ): VoidRecord | undefined {
   const remaining = records.filter((other) => other.id !== record.id);
-  return recomputeVoids(remaining, columns).find(
-    (slot) =>
-      slot.col === record.col &&
-      slot.y0 <= record.frame.y0 + FIT_TOLERANCE_M &&
-      record.frame.y0 < slot.y0 + slot.h + FIT_TOLERANCE_M,
-  );
+  return findVacatedVoid(recomputeVoids(remaining, columns), {
+    col: record.col,
+    y0: record.frame.y0,
+  });
 }
 
 /** The opening a command or an offer list was pointed at, resolved. */
@@ -233,37 +237,102 @@ function resolveWidth(
 ): WidthResolution {
   const availableMm = toMillimetres(opening.w);
   if (body.widthFlex === "fit") {
-    // `FIT_TOLERANCE_M` is slack on the *fit* — it lets a body slightly wider than its opening
-    // still go in. It must not lower `MIN_WIDTH_M`, which is a property of the body: a 288 mm
-    // carcass is narrower than the narrowest cabinet §2 permits, so it is not buildable at all.
-    if (opening.w < MIN_WIDTH_M - COORDINATE_EPSILON_M) {
-      return {
-        ok: false,
-        detail: {
-          code: "WIDTH_NOT_SUPPORTED",
-          params: { label: body.label, sizesMm: body.sizesMm, availableMm },
-        },
-      };
-    }
+    const narrowRefusal = refuseNarrowOpening(body, opening, availableMm);
+    if (narrowRefusal) return { ok: false, detail: narrowRefusal };
     return { ok: true, widthM: opening.w };
   }
 
-  const fitting = body.widthFlex.filter(
+  // ADR 0017's floor is a property of the *builder*, so it governs a millimetre set exactly as it
+  // governs the fit path: a listed size below it is a width this body cannot be made at, and
+  // taking it would hand the probe a width the builder inverts.
+  //
+  // **The floor is applied before `FIT_TOLERANCE_M`, and the order must stay that way.** Filtering
+  // first means the tolerance can only ever forgive a body being slightly too *wide* for its
+  // opening; it can never reach back and admit a size below the floor. Comparing first and
+  // filtering after would reintroduce ADR 0015's sibling finding R1.1 — manufacturing slack
+  // lowering a body's own minimum — one branch further along. Filtering first also means the
+  // refusal that follows names only the widths this body actually has.
+  const minimumMm = body.minWidthMm;
+  const buildableSizesMm = buildableSizes(minimumMm, body.widthFlex);
+  const fitting = buildableSizesMm.filter(
     (size) => toMetres(size) <= opening.w + FIT_TOLERANCE_M,
   );
-  if (fitting.length === 0) {
-    return { ok: false, detail: refuseFixedWidth(body, availableMm) };
+  if (fitting.length > 0) {
+    return { ok: true, widthM: toMetres(Math.max(...fitting)) };
   }
-  return { ok: true, widthM: toMetres(Math.max(...fitting)) };
+  // Contradictory catalogue data: every width the entry lists is under the floor its own builder
+  // declares, so there is no width at which this body can be made. Unreachable from the shipped
+  // catalogue, and a refusal rather than a throw for the reason `NON_INTEGER_MILLIMETRES` is — the
+  // command's contract is a value, not an exception.
+  //
+  // `WIDTH_TOO_SMALL` even though `availableMm` is the opening rather than the widest listed size:
+  // the fact that code states — the body has a floor and cannot go under it — is true whatever the
+  // opening measures, which is not so for either other width code. `WIDTH_NOT_SUPPORTED` would
+  // render an empty size list, and `WIDTH_TOO_LARGE` states the opposite fact.
+  if (minimumMm !== undefined && buildableSizesMm.length === 0) {
+    return {
+      ok: false,
+      detail: refuseBodyMinimum(body, minimumMm, availableMm),
+    };
+  }
+  return {
+    ok: false,
+    detail: refuseFixedWidth(body, buildableSizesMm, availableMm),
+  };
+}
+
+/** ADR 0017's refusal, from both places that reach it — an opening under the floor, and a size set
+ *  entirely under it. The two reasons differ and are documented at their own call sites; only the
+ *  detail's construction is shared, so the code, its params and its sentence cannot drift apart. */
+function refuseBodyMinimum(
+  body: InsertableBody,
+  minimumMm: number,
+  availableMm: number,
+): RejectionDetail {
+  return {
+    code: "WIDTH_TOO_SMALL",
+    params: { label: body.label, requiredMm: minimumMm, availableMm },
+  };
+}
+
+/** The two floors a `'fit'` body has, narrowest-general first: §2's `MIN_WIDTH_M`, which no
+ *  cabinet may go under, and — ADR 0017 — this entry's own `minWidthMm`, which its builder cannot
+ *  go under. They are different facts and carry different codes: below 300 mm no cabinet exists at
+ *  all, while below 560 mm it is *this product* that cannot be made, and the sentence the customer
+ *  reads should say which.
+ *
+ *  `FIT_TOLERANCE_M` is slack on the *fit* — it lets a body slightly wider than its opening still
+ *  go in. It must not lower either floor, which are properties of the body: a 288 mm carcass is
+ *  narrower than the narrowest cabinet §2 permits, and a 550 mm sink base has an inverted worktop.
+ *  ADR 0015's sibling finding R1.1 is exactly the defect of conflating the two. Only float noise
+ *  from the millimetre↔metre round trip is forgiven. */
+function refuseNarrowOpening(
+  body: InsertableBody,
+  opening: InsertOpening,
+  availableMm: number,
+): RejectionDetail | undefined {
+  if (opening.w < MIN_WIDTH_M - COORDINATE_EPSILON_M) {
+    return {
+      code: "WIDTH_NOT_SUPPORTED",
+      params: { label: body.label, sizesMm: body.sizesMm, availableMm },
+    };
+  }
+  const minimumMm = body.minWidthMm;
+  if (minimumMm === undefined) return undefined;
+  if (opening.w >= toMetres(minimumMm) - COORDINATE_EPSILON_M) return undefined;
+  return refuseBodyMinimum(body, minimumMm, availableMm);
 }
 
 /** A body offered in one width only states that width; a body with a set states the set. Both
- *  carry the millimetres as `params` and name them in the sentence (§11 row 5). */
+ *  carry the millimetres as `params` and name them in the sentence (§11 row 5).
+ *
+ *  The sizes are passed in rather than read back off the body, so the sentence names the widths
+ *  this body can be *built* at (ADR 0017) rather than the ones its catalogue row lists. */
 function refuseFixedWidth(
   body: InsertableBody,
+  sizesMm: readonly number[],
   availableMm: number,
 ): RejectionDetail {
-  const sizesMm = body.widthFlex === "fit" ? body.sizesMm : body.widthFlex;
   const [onlySize] = sizesMm;
   if (sizesMm.length === 1 && onlySize !== undefined) {
     return {

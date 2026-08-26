@@ -1,14 +1,22 @@
 # M3 — Insert, remove and swap
-
-> **STATUS: IN PROGRESS — Wave 3A is done; 3B is next and dispatchable.** 12 work items across
-> three waves. Wave 3A (domain commands) completed the full `docs/WORKFLOW.md` cycle and shipped in
-> commit `69402d8`; it produced `docs/decisions/0015-min-span-is-exclusive.md`. Five contract gaps
-> against the shipped M2 code are recorded in `docs/decisions/`. Summary: `docs/STATUS.md`.
 >
-> **Wave 3B is Full review tier** — §11 row 19 (wall seating) is in scope, and it is where M1's
-> fidelity can silently degrade.
+> **STOP — DO NOT READ THIS PLAN.** M3 closed 2026-08-26. This file describes intentions; several
+> shipped differently and are superseded by dated records. Acting on one reintroduces a design the
+> project abandoned. The live knowledge is in `docs/decisions/` (ADRs 0010, 0011, 0015–0020) and in
+> the code. See `docs/STATUS.md` for where the project stands.
 
-Status: in progress (Wave 3A done 2026-08-25). Depends on M2 (both waves). Rewritten 2026-08-25
+
+> **STATUS: IN PROGRESS — Waves 3A and 3B are done; 3C is next and dispatchable.** 12 work items
+> across three waves. Wave 3A (domain commands) shipped in commit `69402d8` and produced
+> `docs/decisions/0015-min-span-is-exclusive.md`. Wave 3B (adapter) completed the full
+> `docs/WORKFLOW.md` cycle including the independent logic review ADR 0015 records as missing from
+> 3A, and produced ADRs `0016` (the hood's carcass), `0017` (a catalogue minimum width) and `0018`
+> (`frame.d` is a rear overhang, not a depth). Summary: `docs/STATUS.md`.
+>
+> **Wave 3C is Full review tier, with security review triggered** — it stands up the client write
+> path, which touches persistence, share links and customer data.
+
+Status: in progress (Waves 3A and 3B done 2026-08-25). Depends on M2 (both waves). Rewritten 2026-08-25
 against the code M2 actually landed, replacing the earlier sketch — see "What changed from the
 sketch" at the end.
 Reference: `DEVELOPMENT-SPEC.md` §5.1, §5.2, §5.3, §5.5, §6.2, §6.3, §6.5, §7, §8, §9, §10, §12;
@@ -39,14 +47,14 @@ not deferred (see the write-path decision record).
 
 **In:**
 
-- The insertable catalogue of §7 — fourteen entries with band, width flex, height flex, nominal
+- The insertable catalogue of §7 — fifteen entries with band, width flex, height flex, nominal
   height, width chip set and label — added beside M2's seeded decomposition entries.
 - `removePlacement()`, `insertBody(buildId)` (one path serving both the empty-slot and the
   occupied-selection cases), `setFinish(key)`, `setHandle(mode)`.
 - The command result contract: `{ok: true, …}` / `{ok: false, reason: {code, params, message}}`.
 - The `BodyProbe` port and its Three.js implementation: build a body at `(w, h, d)`, measure its
   carcass, its full extent, and its wall-seat offset.
-- A parameterised builder registry in the adapter for the fourteen catalogue entries.
+- A parameterised builder registry in the adapter for the fifteen catalogue entries.
 - A scene that rebuilds from store state, with disposal.
 - The `meta` projection and the fit-filtered offer list that M4's panel will consume — everything
   except the resize slack fields.
@@ -87,7 +95,7 @@ persistence record are not doing the same job. This is the same reasoning M2 use
 
 ### Wave 3A — domain
 
-1. **Extend the catalogue.** Add the fourteen §7 entries to `BodyDefinition`/`BodyCatalog` with
+1. **Extend the catalogue.** Add the fifteen §7 entries to `BodyDefinition`/`BodyCatalog` with
    `insertable: true`, `label`, `widthFlex` (`'fit'` or a fixed millimetre set), `heightFlex`,
    `nominalHeightMm`, `nominalDepthMm`, `sizesMm`. Mark M2's twenty seeded entries
    `insertable: false`; change nothing else about them. Add the named constants §5.2 and §2 rely on
@@ -116,14 +124,21 @@ persistence record are not doing the same job. This is the same reasoning M2 use
 ### Wave 3B — adapter
 
 6. **Parameterised builders.** `buildCatalogBody(kit, buildId, {widthM, heightM, depthM})` covering
-   the fourteen insertable entries, mapping onto `kit.make.*` exactly as §7's builder column
+   the fifteen insertable entries, mapping onto `kit.make.*` exactly as §7's builder column
    specifies (including `wallCabinet`'s `w > 0.45 ? 2 : 1` door count and its `min(d, 0.4)` depth
    clamp). `buildDecomposedBody` is untouched and still serves the seeded ids.
 7. **`measureBuiltBody`** — the `BodyProbe` implementation. Carcass extent from meshes matching
-   `/carcass_shell|side_left|side_right|panel_bottom|plinth|counter|fridge_body|hood_canopy|dw_body/`;
-   full extent from the whole group; seat offset measured from the bounding box **after** the group
-   is added to the room, with the wall plane read from the room's `wall_left` / `wall_back` meshes.
-   Never derived from the previous occupant (§6.2, §13.2).
+   `/carcass_shell|side_left|side_right|panel_bottom|plinth|counter|fridge_body|hood_canopy|dw_body/`
+   — **as shipped this pattern also matches `hood_chimney`, per ADR 0016**, without which §7's
+   710 mm hood could never be inserted; full extent from the whole group; seat offset measured from
+   the bounding box **after** the group is added to the room, with the wall plane read from a wall
+   mesh of the room. Never derived from the previous occupant (§6.2, §13.2).
+
+   **As shipped, the measuring path reads `wall_back` only.** A body is measured unrotated, and a
+   wall-B body is the same body yawed by π/2, so its offset is unchanged; the two planes coincide at
+   the room's corner, and `room-transforms.ts` hardcodes that same coupling. This is documented, not
+   endorsed — an adversarial test asserts the two planes are equal, so the day wall B moves the
+   suite says so before §11 row 19 does.
 8. **A rebuildable scene.** `kitchen-stage.tsx`'s `useMemo(…, [])` becomes a keyed
    mount/unmount driven by store state: add bodies that appeared, remove and **dispose** bodies and
    void meshes that vanished, leave untouched bodies untouched. Apply the top-row push-open default
@@ -131,6 +146,50 @@ persistence record are not doing the same job. This is the same reasoning M2 use
    contract-gaps record.
 
 ### Wave 3C — web
+
+**3C is delivered as four sub-waves.** Items 9–12 plus ADR 0019's write-token split and coalescer
+interval come to six work items across roughly a dozen production files, well past `WORKFLOW.md`'s
+five-item / five-file dispatch guidance. The split is by reviewer, as always: a reviewer checking
+store reducer semantics, one checking a SQL authorisation predicate, and one checking retry
+semantics are not doing the same job.
+
+| Sub-wave | Contents | Tier |
+| --- | --- | --- |
+| **3C-1** | Item 9 — store commands | Full |
+| **3C-2a** | ADR 0019 decision 1, server side — write-token column, conditional update, cookie, route guards | Full **+ security review** |
+| **3C-2b** | Item 10 — client write path; ADR 0019 decision 6 — coalescer minimum interval | Full |
+| **3C-3** | Items 11, 12 — developer affordance, mobile gate, the un-skipped e2e case | Light **+ visual** |
+
+3C-1 and 3C-2a touch disjoint packages and run in parallel. 3C-2b depends on both. 3C-3 depends on
+3C-2b.
+
+#### 3C-2a — the write-token invariant that must not be softened
+
+**Authorisation is enforced in the same SQL statement as the update**, never as a read-then-write:
+
+```sql
+update designs set document = $1, updated_at = now()
+where id = $2 and write_token_hash = $3
+returning id
+```
+
+Zero rows returned means unauthorised *or* unknown, and both are refused. A separate
+`verify()` followed by `save()` opens a time-of-check/time-of-use window and is rejected.
+
+- The token is **hashed at rest** (SHA-256; it is a high-entropy random value, not a password, so a
+  slow KDF buys nothing). A database leak must not confer write access. Compared with a
+  timing-safe comparison, or — better — never compared in application code at all, since the
+  predicate above does it in the database.
+- Existing rows carry `NULL`, which **fails closed**: a design minted before this change is
+  readable and no longer writable. Acceptable — production holds no design anyone owns.
+- The cookie is `HttpOnly`, `Secure`, `SameSite=Lax`, scoped per design id, with a `Max-Age`
+  matching ADR 0019's 30-day retention window.
+- `GET` is untouched and stays open to anyone holding the link. That is the whole point: sharing
+  keeps costing nothing.
+- The table-level grants ADR 0008 gave the app role already cover a new column. **No new grant, and
+  no widening of that role.**
+
+
 
 9. **Store commands.** `remove`, `insert`, `setFinish`, `setHandle` as thin store actions: call the
    domain command, and on success apply design + re-derived records + re-derived voids + the new
@@ -394,7 +453,7 @@ The previous version of this document was written before M2's code existed. Five
 did not survive contact with what landed, and each is recorded as a dated decision rather than
 silently corrected:
 
-1. The catalogue it describes (§7's fourteen parameterised entries) is not the catalogue M2 shipped
+1. The catalogue it describes (§7's fifteen parameterised entries) is not the catalogue M2 shipped
    (twenty concrete decomposition instances). Both now exist in one map, split by `insertable` —
    contract-gaps record, Gap A.
 2. An inserted body's wall-seat offset cannot be looked up from a per-`buildId` constant; it must be

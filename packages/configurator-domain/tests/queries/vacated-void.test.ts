@@ -41,6 +41,40 @@ describe("findVacatedVoid", () => {
     );
   });
 
+  // R2.1 / F1. Two level-adjacent slots share the 2.20 module line. Widening the search at the top
+  // made them overlap by `FIT_TOLERANCE_M`, and `find` returned the lower one — so deleting a
+  // top-row unit selected the wall slot beneath it (§11 row 2's failure shape, one level up).
+  it("gives the boundary to the slot above it, not to the one that ends there", () => {
+    const voids = [
+      slot({ id: "wall", y0: 1.5, h: 0.7 }),
+      slot({ id: "top", y0: 2.2, h: 0.4 }),
+    ];
+    expect(findVacatedVoid(voids, { col: "A|1.30", y0: 2.2 })?.id).toBe("top");
+  });
+
+  // The same boundary from below: a body standing just under the line belongs to the lower slot.
+  it("keeps a frame just below the boundary in the slot that ends there", () => {
+    const voids = [
+      slot({ id: "wall", y0: 1.5, h: 0.7 }),
+      slot({ id: "top", y0: 2.2, h: 0.4 }),
+    ];
+    expect(findVacatedVoid(voids, { col: "A|1.30", y0: 2.19 })?.id).toBe(
+      "wall",
+    );
+  });
+
+  // The float slack the fix needs and the reason it cannot be `FIT_TOLERANCE_M` (ADR 0015): a
+  // slot's height is a difference of module lines, so 2.20 − 1.50 is 0.7000000000000002 and the
+  // computed top lands *above* the line the body stood on.
+  it("survives a slot height that accumulated float error above its module line", () => {
+    const voids = [
+      slot({ id: "wall", y0: 1.5, h: 2.2 - 1.5 }),
+      slot({ id: "top", y0: 2.2, h: 0.4 }),
+    ];
+    expect(2.2 - 1.5).toBeGreaterThan(0.7);
+    expect(findVacatedVoid(voids, { col: "A|1.30", y0: 2.2 })?.id).toBe("top");
+  });
+
   it("ignores a slot in another column", () => {
     const voids = [slot({ id: "elsewhere", col: "A|2.00", y0: 0 })];
     expect(findVacatedVoid(voids, { col: "A|1.30", y0: 0 })).toBeUndefined();

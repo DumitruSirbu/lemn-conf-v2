@@ -8,11 +8,27 @@ import * as THREE from "three";
 import type { Kit } from "./kitchen-parts.js";
 import { isMesh } from "./three-guards.js";
 
-function pushOpen(group: THREE.Group): THREE.Group {
+/** The one place that knows which meshes are handles. `scene-sync.ts` calls it at mount to apply
+ *  the slot default and any recorded handle mode, in both directions; the seeded `*-top` arms below
+ *  call it through `hidePushOpenHandles` because the decomposition-parity gate holds them to the
+ *  reference room's own build-time hide. */
+export function setHandlesVisible(
+  group: THREE.Group,
+  areHandlesVisible: boolean,
+): THREE.Group {
   group.traverse((node) => {
-    if (isMesh(node) && node.name.includes("handle")) node.visible = false;
+    if (isMesh(node) && node.name.includes("handle")) {
+      node.visible = areHandlesVisible;
+    }
   });
   return group;
+}
+
+/** `DEVELOPMENT-SPEC.md` §6.5: a push-to-open body keeps its handles **built and hidden**, never
+ *  omitted — built without them `canHandle` was false and the panel hid the whole *Mâner* section,
+ *  so the customer could never turn them back on. */
+export function hidePushOpenHandles(group: THREE.Group): THREE.Group {
+  return setHandlesVisible(group, false);
 }
 
 export function buildDecomposedBody(kit: Kit, buildId: string): THREE.Group {
@@ -46,15 +62,15 @@ export function buildDecomposedBody(kit: Kit, buildId: string): THREE.Group {
     case "hood-600":
       return kit.make.hood(0.6);
     case "wall-2door-600-top":
-      return pushOpen(kit.make.wallCabinet(0.6, 2, 0.4, 0.33));
+      return hidePushOpenHandles(kit.make.wallCabinet(0.6, 2, 0.4, 0.33));
     case "wall-1door-300-top":
-      return pushOpen(kit.make.wallCabinet(0.3, 1, 0.4, 0.33));
+      return hidePushOpenHandles(kit.make.wallCabinet(0.3, 1, 0.4, 0.33));
     case "wall-2door-800-top":
-      return pushOpen(kit.make.wallCabinet(0.8, 2, 0.4, 0.33));
+      return hidePushOpenHandles(kit.make.wallCabinet(0.8, 2, 0.4, 0.33));
     case "wall-corner-return-570-top":
-      return pushOpen(kit.make.wallCabinet(0.57, 1, 0.4, 0.33));
+      return hidePushOpenHandles(kit.make.wallCabinet(0.57, 1, 0.4, 0.33));
     case "wall-2door-600-deep-top":
-      return pushOpen(kit.make.wallCabinet(0.6, 2, 0.4, 0.6));
+      return hidePushOpenHandles(kit.make.wallCabinet(0.6, 2, 0.4, 0.6));
     case "wall-2door-700-over-fridge":
       return kit.make.wallCabinet(0.7, 2, 0.75, 0.6);
     default:

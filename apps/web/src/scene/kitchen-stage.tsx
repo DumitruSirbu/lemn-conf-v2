@@ -2,10 +2,9 @@
 
 import {
   applyFinish,
-  buildDecomposedBody,
-  buildVoidMesh,
   collectFronts,
   configureRenderer,
+  createBodyProbe,
   createContactBlob,
   createLightRig,
   createPickingRaycaster,
@@ -15,6 +14,8 @@ import {
   makeKit,
   pick,
   seatObjectOnStage,
+  syncSolidBodies,
+  syncVoidMeshes,
   type FinishKey,
 } from "@lemnaria/three-adapter";
 import { useFrame, useThree } from "@react-three/fiber";
@@ -58,8 +59,11 @@ export interface KitchenStageProps {
  * than as one whole-scene `builders['kitchen-l']()` call: the shell (floor, walls, backsplash,
  * end panel) and the two corner legs still come from that call — decomposing them is out of this
  * milestone's scope, per the decomposition-parity test in `@lemnaria/three-adapter` — but every
- * other body is removed from it and remounted via `buildDecomposedBody` at its derived
+ * other body is removed from it and remounted by `syncSolidBodies` at its derived
  * `PlacementRecord` transform, tagged with `userData.placementId` for picking to climb to.
+ *
+ * M3 work item 8 made that mount a *sync*: the engine lives in `@lemnaria/three-adapter`
+ * (`scene-sync.ts`), headless and React-free, and this component only calls it from an effect.
  */
 export function KitchenStage({ view, finish, onSettled }: KitchenStageProps) {
   const gl = useThree((state) => state.gl);
@@ -72,16 +76,20 @@ export function KitchenStage({ view, finish, onSettled }: KitchenStageProps) {
 
   const records = useConfiguratorStore((state) => state.records);
   const voids = useConfiguratorStore((state) => state.voids);
-  const placements = useConfiguratorStore((state) => state.design.placements);
   const selection = useConfiguratorStore((state) => state.selection);
   const select = useConfiguratorStore((state) => state.select);
   const deselect = useConfiguratorStore((state) => state.deselect);
+  const attachBodyProbe = useConfiguratorStore(
+    (state) => state.attachBodyProbe,
+  );
+  const detachBodyProbe = useConfiguratorStore(
+    (state) => state.detachBodyProbe,
+  );
 
   const stage = useMemo(() => {
     const kit = makeKit();
     const referenceRoom = kit.builders["kitchen-l"]();
 
-    const recordsById = new Map(records.map((record) => [record.id, record]));
     const placementPositions = records.map(
       (record) =>
         new THREE.Vector3(record.frame.x, record.frame.y0, record.frame.z),
@@ -97,20 +105,9 @@ export function KitchenStage({ view, finish, onSettled }: KitchenStageProps) {
     const solidsRoot = new THREE.Group();
     solidsRoot.name = "solids";
     solidsRoot.add(referenceRoom);
-    for (const placement of placements) {
-      const record = recordsById.get(placement.id);
-      if (!record) continue;
-      const body = buildDecomposedBody(kit, placement.body.buildId);
-      body.position.set(record.frame.x, record.frame.y0, record.frame.z);
-      body.rotation.y = record.frame.ry;
-      body.userData.placementId = record.id;
-      solidsRoot.add(body);
-    }
 
     const voidsRoot = new THREE.Group();
     voidsRoot.name = "voids";
-    for (const voidRecord of voids)
-      voidsRoot.add(buildVoidMesh(voidRecord).group);
 
     const room = new THREE.Group();
     room.name = "kitchen_l_shape";
@@ -121,15 +118,36 @@ export function KitchenStage({ view, finish, onSettled }: KitchenStageProps) {
       room,
       solidsRoot,
       voidsRoot,
-      fronts: collectFronts(room),
       lights: createLightRig(),
       ground: createShadowGround(),
       blob: createContactBlob(),
     };
-    // Built once per mount: `records`/`voids`/`placements` are derived once at store creation and
-    // never reassigned in this phase (M2 has no mutation), so there is nothing for a dependency
-    // array to react to.
+    // The shell only — floor, walls, backsplash, end panel and the two corner legs, with the
+    // bodies `buildKitchen()` placed removed so the sync below owns every placement. Built once
+    // per mount: which bodies the reference room contributes is a property of the *port*, not of
+    // the current design, and the initial records are what identify them.
   }, []);
+
+  // Work item 8: the scene follows store state. Bodies that appeared are mounted, bodies and void
+  // meshes that vanished are removed and disposed, and an unchanged body keeps its exact instance
+  // — rebuilding it would discard its applied finish and re-run its wall seating. The finish is
+  // re-applied over the fronts *after* the sync, since a body mounted this pass has none yet.
+  useEffect(() => {
+    syncSolidBodies({ kit: stage.kit, solidsRoot: stage.solidsRoot, records });
+    syncVoidMeshes({ voidsRoot: stage.voidsRoot, voids });
+    if (finish) applyFinish(collectFronts(stage.room), stage.kit.M, finish);
+    invalidate();
+  }, [stage, records, voids, finish, invalidate]);
+
+  // ADR 0011 Gap B: `insert` measures the body it is about to place, and the probe needs a `Kit`
+  // and the mounted room — neither of which exists until this component runs. The store therefore
+  // holds the port and this is the only place the Three.js implementation is handed to it.
+  useEffect(() => {
+    attachBodyProbe(createBodyProbe(stage.kit, stage.room));
+    // The probe measures inside *this* room. When the stage goes, so must it — the store is
+    // module-scoped and would otherwise keep offering a probe over an unmounted scene.
+    return detachBodyProbe;
+  }, [stage, attachBodyProbe, detachBodyProbe]);
 
   useEffect(() => {
     configureRenderer(gl);
@@ -152,12 +170,6 @@ export function KitchenStage({ view, finish, onSettled }: KitchenStageProps) {
     });
     invalidate();
   }, [stage, camera, invalidate]);
-
-  useEffect(() => {
-    if (!finish) return;
-    applyFinish(stage.fronts, stage.kit.M, finish);
-    invalidate();
-  }, [finish, stage, invalidate]);
 
   // Row 2 / row 22 / accessory / drag-threshold picking (`DEVELOPMENT-SPEC.md` §6.1). Native DOM
   // listeners, not R3F's declarative pointer props: the drag-vs-click distinction needs the raw

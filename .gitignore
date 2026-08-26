@@ -19,3 +19,11 @@ test-results/
 # Supplier deliverable — copied into docs/design/ and packages/three-adapter/reference/,
 # deleted from the working tree once the port is finished. Nothing may depend on it.
 design-source/
+
+# `next dev` regenerates apps/web/AGENTS.md and apps/web/CLAUDE.md whenever it detects an AI
+# coding agent (next/dist/server/lib/generate-agent-files.js, gated on getAgentName()). It keys
+# on the Next project directory, so a root-level AGENTS.md cannot satisfy it and there is no
+# config opt-out. This repository keeps exactly ONE tracked pair, at the root: agent guidance is
+# routed from there, and a second file under apps/web would silently split it.
+apps/web/AGENTS.md
+apps/web/CLAUDE.md

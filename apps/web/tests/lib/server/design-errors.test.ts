@@ -1,10 +1,12 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { invalidBodyResponse } from "../../../src/lib/server/design-errors";
+import {
+  describeSchemaFailure,
+  invalidBodyResponse,
+} from "../../../src/lib/server/design-errors";
 
-/** The write routes have no authentication (ADR 0014, S1), so the schema is effectively the only
- *  thing an unauthenticated caller does not already have. These tests pin that a rejection says it
- *  rejected and nothing more. */
+/** A rejection must say it rejected and nothing more (ADR 0014, S2), and must cost the same
+ *  whatever body provoked it. */
 describe("invalidBodyResponse", () => {
   const ZOD_REASON =
     '[{"expected":"object","code":"invalid_type","path":["room"],"message":"Invalid input"}]';
@@ -33,11 +35,63 @@ describe("invalidBodyResponse", () => {
   it("logs the reason so a genuine client bug is still diagnosable", () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
 
-    invalidBodyResponse(ZOD_REASON);
+    invalidBodyResponse("3 issue(s): room:invalid_type");
 
     expect(warn).toHaveBeenCalledWith(
       "[designs] rejected an invalid payload:",
-      ZOD_REASON,
+      "3 issue(s): room:invalid_type",
     );
+  });
+
+  it("caps what one rejection can write to the log", () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+
+    invalidBodyResponse("x".repeat(500_000));
+
+    // One cheap request must not buy a large log write on a free tier with hard caps.
+    const logged = String(warn.mock.calls[0]?.[1]);
+    expect(logged.length).toBeLessThan(400);
+  });
+
+  it("strips control characters, so a caller cannot forge a log line", () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+
+    invalidBodyResponse("key_\n[migrate] executed 0001 against prod\r\ndone");
+
+    const logged = String(warn.mock.calls[0]?.[1]);
+    expect(logged).not.toContain("\n");
+    expect(logged).not.toContain("\r");
+  });
+});
+
+describe("describeSchemaFailure", () => {
+  it("reports where the failures are and what kind they are, never the values", () => {
+    const summary = describeSchemaFailure([
+      { path: ["room", "widthMm"], code: "invalid_type" },
+    ]);
+
+    expect(summary).toContain("room.widthMm");
+    expect(summary).toContain("invalid_type");
+  });
+
+  it("names the root when an issue has no path", () => {
+    expect(
+      describeSchemaFailure([{ path: [], code: "invalid_type" }]),
+    ).toContain("(root)");
+  });
+
+  it("stays a constant size however many issues a caller provokes", () => {
+    // Measured on the shipped route: 300 malformed placements rendered a ~297,000-character Zod
+    // message. The summary's length must be a function of the cap, not of the request body.
+    const issues = Array.from({ length: 5_000 }, (_unused, index) => ({
+      path: ["placements", index, "buildId"],
+      code: "invalid_type",
+    }));
+
+    const summary = describeSchemaFailure(issues);
+
+    expect(summary.length).toBeLessThan(400);
+    expect(summary).toContain("5000 issue(s)");
+    expect(summary).toContain("more");
   });
 });

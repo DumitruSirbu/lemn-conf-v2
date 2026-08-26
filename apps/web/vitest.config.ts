@@ -10,6 +10,9 @@ export default defineConfig({
   },
   resolve: {
     alias: {
+      // Route handlers import through Next's `@/*` path alias, which vitest does not read from
+      // `tsconfig.json`. Mirrored here so a route can be exercised as a module under test.
+      "@": resolve(import.meta.dirname, "./src"),
       // `server-only` throws unless it detects Next's React Server Components bundler condition,
       // which vitest doesn't set — modules that import it (e.g. `lib/server/*.ts`) are exercised
       // here as plain Node modules, so the guard itself is a no-op in tests, not the behaviour

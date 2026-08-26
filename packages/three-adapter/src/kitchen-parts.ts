@@ -143,6 +143,7 @@ export interface Factories {
     inner?: number,
     H?: number,
   ) => THREE.Group;
+  wallLift: (W?: number, H?: number, D?: number) => THREE.Group;
   hood: (w?: number, chimneyH?: number) => THREE.Group;
   cornerBaseX: () => THREE.Group;
   cornerBaseReturn: (LD?: number) => THREE.Group;
@@ -177,6 +178,10 @@ export interface Kit {
   builders: Builders;
   M: KitMaterials;
   make: Factories;
+  /** Whether this kit's shared geometry cache owns `geometry`, i.e. whether other bodies built
+   *  from this kit may be rendering from the same buffers. A kit-owned geometry must never be
+   *  disposed by a caller tearing one body down — see the cache's own comment in `makeKit`. */
+  ownsGeometry: (geometry: THREE.BufferGeometry) => boolean;
 }
 
 /** The reference reaches straight for `document.createElement('canvas')` when it bakes its
@@ -385,6 +390,13 @@ export function makeKit(options: KitOptions = {}): Kit {
   // Sharp 90° edges are the single biggest "low-poly" tell; a 1.6 mm chamfer
   // catches a highlight on every edge and reads as real cabinetry.
   const geoCache = new Map<string, THREE.ExtrudeGeometry>();
+  // Every geometry `chamferBox` hands out is memoised by size and therefore **shared** by every
+  // mesh of that size in every body this kit builds — exactly the way `M`'s materials are shared.
+  // `ownsGeometry` below is how a caller tearing a body down tells a buffer it may dispose from
+  // one the rest of the scene is still rendering. The cache never evicts, but it is bounded by the
+  // number of distinct box sizes the builders ask for, so retaining a cached geometry is a fixed
+  // cost rather than an unbounded leak.
+  const cachedGeometries = new Set<THREE.BufferGeometry>();
   function chamferBox(w: number, h: number, d: number): THREE.ExtrudeGeometry {
     const k = w.toFixed(4) + "," + h.toFixed(4) + "," + d.toFixed(4);
     const cached = geoCache.get(k);
@@ -418,6 +430,7 @@ export function makeKit(options: KitOptions = {}): Kit {
     g.translate(0, 0, -D / 2);
     g.computeVertexNormals();
     geoCache.set(k, g);
+    cachedGeometries.add(g);
     return g;
   }
 
@@ -685,11 +698,7 @@ export function makeKit(options: KitOptions = {}): Kit {
 
     "wall-1door": () => wallCabinet(0.4, 1),
     "wall-2door": () => wallCabinet(0.8, 2),
-    "wall-lift": () => {
-      const g = wallCabinet(0.6, 0);
-      g.add(doorSlab(0.594, 0.694, 0, 0.7, 0.33 / 2 + TH / 2, "bottom"));
-      return g;
-    },
+    "wall-lift": () => wallLift(),
     "open-shelf": () => openShelf(0.8, 0.3, 2),
 
     "tall-pantry": () => {
@@ -1160,6 +1169,17 @@ export function makeKit(options: KitOptions = {}): Kit {
     return g;
   }
 
+  // A lift-up: no hinged doors at all, one full-face flap. `DEVELOPMENT-SPEC.md` §6.5 puts its
+  // handle on the **bottom** edge — the edge a hand can reach on an overhead flap — which
+  // `wallCabinet` cannot produce for it, because that builder only chooses a bottom bar for a door
+  // shorter than 500 mm and a lift-up's nominal height is 700. The defaults are the reference
+  // builder's own literals, so `builders['wall-lift']()` is this call and the geometry is unchanged.
+  function wallLift(W = 0.6, H = 0.7, D = 0.33): THREE.Group {
+    const g = wallCabinet(W, 0, H, D);
+    g.add(doorSlab(W - 0.006, H - 0.006, 0, H, D / 2 + TH / 2, "bottom"));
+    return g;
+  }
+
   // 600 standard, 450 slimline — the niche follows the appliance.
   function dishwasherHousing(W = 0.6): THREE.Group {
     const g = G("dishwasher_housing");
@@ -1535,12 +1555,18 @@ export function makeKit(options: KitOptions = {}): Kit {
     baseCabinet,
     wallCabinet,
     openShelf,
+    wallLift,
     hood,
     cornerBaseX,
     cornerBaseReturn,
     dishwasherHousing,
   };
-  return { builders, M, make };
+  return {
+    builders,
+    M,
+    make,
+    ownsGeometry: (geometry) => cachedGeometries.has(geometry),
+  };
 }
 
 type HandleEdge = "none" | "top" | "bottom" | "left" | "right";

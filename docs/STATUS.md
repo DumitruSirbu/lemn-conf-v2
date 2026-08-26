@@ -3,7 +3,7 @@
 **Read this second, right after `AGENTS.md`, before opening any milestone document.** It exists so a
 session can learn where the project stands without reading eight phase plans.
 
-Last updated: 2026-08-25 (M3 Wave 3A committed; toolchain enforcement added).
+Last updated: 2026-08-26 (M3 closed — all three waves and four sub-waves shipped; M4 next).
 
 ## How to use this file
 
@@ -24,9 +24,9 @@ moment it ships; a decision record does not. When the two disagree, the dated de
 | --- | --- | --- |
 | M0 — Foundations | **Done** (closed 2026-08-24, partially superseded) | No — `milestones/done/` |
 | M1 — Scene port and fidelity gate | **Done** (closed 2026-08-25) | No — `milestones/done/` |
-| M2 — Void engine, picking, persistence | **In progress** — implemented, 1 gate open (the unwired client write path, owned by M3) | Yes — `milestones/M2-void-engine.md` |
-| M3 — Insert, remove, swap, client write path | **In progress** — Wave 3A done; **3B next** | Yes — `milestones/M3-mutations.md` |
-| M4 — Editor panel and shell | Planned | Yes, when starting |
+| M2 — Void engine, picking, persistence | **Done** (closed 2026-08-25 — its last gate, the unwired client write path, was closed by M3 Wave 3C-2b) | No — `milestones/done/` |
+| M3 — Insert, remove, swap, client write path | **Done** (closed 2026-08-26) | No — `milestones/done/` |
+| M4 — Editor panel and shell | **Next** | Yes — `milestones/M4-editor-surface.md` |
 | M5 — Width editing | Planned | Yes, when starting |
 | M6 — Price bar and global settings | Planned | Yes, when starting |
 | M7 — Step 1, room and presets | Planned | Yes, when starting |
@@ -35,9 +35,16 @@ moment it ships; a decision record does not. When the two disagree, the dated de
 ## What is actually built
 
 A pnpm monorepo on Node 24: an I/O-free domain package, a Three.js adapter, a persistence package
-that is the only place a Postgres driver appears, and a Next.js App Router app. **578 unit tests**
-(domain 335, three-adapter 30, persistence 163, web 50) plus 4 Playwright e2e tests and one
-`test.skip`, all green — counted from a full `pnpm ci:local` run on 2026-08-25, not carried forward.
+that is the only place a Postgres driver appears, and a Next.js App Router app. **874 unit tests**
+(domain 380, three-adapter 414, persistence 30, web 50) plus 4 Playwright e2e tests and one
+`test.skip` — the unit counts copied from a `pnpm check` run that exited 0 on 2026-08-25 after Wave
+3B's review round, not carried forward. The e2e figures are carried from M2 and were **not** re-run
+this wave.
+
+An earlier revision of this line reported "three-adapter 30, persistence 163". Those two numbers
+were transposed: persistence runs 30 and the adapter ran 163 before Wave 3B. Recorded rather than
+quietly corrected, because this file's own closing rule is that quantitative claims come from a
+command someone ran.
 Each package owns its tests in its own `tests/` directory and must stay liftable into its own
 repository — see `docs/best-practices/engineering-conventions.md`.
 
@@ -60,7 +67,7 @@ through an R3F canvas with camera presets. Closed on a fidelity gate requiring t
 of evidence. A structural parity suite diffs the port against vendored reference geometry at 1e-6 m,
 and is the guarantee that later phases have not silently degraded the model.
 
-**M3 — Insert, remove, swap (Wave 3A done).** The domain command layer: `insertBody`, `insertFit`,
+**M3 — Insert, remove, swap (closed 2026-08-26).** The domain command layer: `insertBody`, `insertFit`,
 `removePlacement`, the `{ok}`/`{ok:false, reason}` result contract, the §7 insertable catalogue,
 band and accessory rules, and a `BodyProbe` port. Wave 3A is the first wave to run the complete
 `docs/WORKFLOW.md` cycle — plan → implement → adversarial QA → review → verify → commit — and the
@@ -71,7 +78,36 @@ review then found that fixing it had made that fix's own test vacuous — the ea
 before the assertion. Both survived all eight gates. See
 `docs/decisions/0015-min-span-is-exclusive.md`, which also records that the independent logic
 reviewer was dispatched and never reported, so the coordinator verified instead — weaker, and worth
-re-running.
+re-running. **That gap did not repeat: Wave 3B's logic reviewer delivered**, and its findings are
+below.
+
+**M3 Wave 3B — the adapter.** `buildCatalogBody` for §7's fifteen parameterised entries,
+`measureBuiltBody` implementing the `BodyProbe` port, and `scene-sync.ts` — a keyed, disposing
+mount/unmount that replaced `kitchen-stage.tsx`'s build-once `useMemo`. Two rounds of adversarial QA
+and a full review tier produced four ADRs, and three of the findings are worth knowing:
+
+- **The hood could never have been inserted** (ADR 0016). The milestone's carcass mesh pattern
+  matched only `hood_canopy`, 130 mm, while §7 fixes the hood at 710 — so every hood insert would
+  have failed `BUILT_SIZE_MISMATCH` while §9 kept offering it.
+- **`base-sink` was offered into openings it cannot build** (ADR 0017). Its worktop splits around a
+  fixed 560 mm aperture and inverts below that; at 400 mm the carcass measures 523 × 913. The
+  engine refused correctly, but the offer list still offered it down to 300 mm. Catalogue entries
+  may now declare a `minWidthMm`, read by the guard and the offer list from one evaluation. Note the
+  550 mm case: the built carcass is inside `FIT_TOLERANCE_M` on both axes, so the built-size
+  re-check would have **accepted an inverted worktop** — which is why the floor is declared rather
+  than measured.
+- **`wall-lift` shipped as a hinged single door**, byte-identical to `wall-1door` — two catalogue
+  rows, one body, with §6.5's bottom-edge handle on neither. Caused by the coordinator's own
+  dispatch wording, missed by the coordinator's diff review and by two adversarial QA rounds,
+  because every test asserted the entry passes the *size* gate and a lift flap is not a carcass
+  mesh. Found by logic review. There is now a general property test — no two catalogue ids may build
+  the same body, compared by structural signature rather than measurement.
+
+**§11 row 19 is proven for inserted bodies, and it generalises by construction**: `seatOffsetM` is
+the origin-to-back-face distance, so placing at that offset cancels the same bounding box that
+produced it, whatever its asymmetry. §6.2's two recorded failures came from deriving the plane from
+the *previous occupant*, which let one body's asymmetry reach another's placement; nothing here has
+a cross-body path. Measured within 3.6e-9 m on both walls for seven bodies.
 
 **M2 — Void engine, picking, persistence.** Both waves are implemented. The `Design` schema, the
 placement/column/void derivation with all four earned rules of `DEVELOPMENT-SPEC.md` §4, void mesh
@@ -81,23 +117,17 @@ least-privilege database role verified by live assertions, and a daily backup cr
 
 ## What is open right now
 
-**M2 cannot close on one remaining gate** (the restore drill, gate 1 below, was met 2026-08-25):
+**M2 is closed.** Its last gate — the persistence write path having no browser caller
+(`docs/decisions/0010-m3-client-write-path-unwired.md`) — was closed by M3 Wave 3C-2b on
+2026-08-25: a `fetch`-backed `ConfigurationRepository`, the save coalescer wired to the store's
+`onDesignChanged` seam, and mint-on-first-mutation. The cookie round trip is verified **in a real
+browser** (`design-write-path.e2e.spec.ts`), which is the evidence security review asked for and
+could not produce itself.
 
-1. ~~**The restore drill has never been executed.**~~ **Done 2026-08-25 — this gate is met.** Path 2
-   was drilled end to end with a real 25-placement design: exported through the same read the cron
-   performs, restored into a throwaway database, and verified by identical canonical serialisation.
-   It found **five defects**, four in the runbook itself, all fixed — including a `pnpm run migrate`
-   that exited 0 without migrating anything on any path containing a space. See
-   `docs/decisions/0013-restore-drill-executed-and-what-it-broke.md`.
-
-   Not yet drilled, and named there: downloading the export from Blob (the token is
-   Production-scoped), and Path 1 (Neon PITR). Re-run Path 2 from a real downloaded export once M3
-   wires the write path and production holds a design worth losing.
-2. **The persistence write path has no browser caller.** `POST /api/designs` exists and works, but
-   nothing in `apps/web` client code calls it — no `fetch(`, and `createSaveCoalescer` is constructed
-   only in its own test. The read half (`/d/[id]`) is complete. Classified as a contract gap, not a
-   defect, and assigned to M3: see
-   `docs/decisions/0010-m3-client-write-path-unwired.md`.
+Still open from M2, unchanged: Path 2 of the restore drill has not been re-run from an export
+actually downloaded from Blob, and Path 1 (Neon PITR) has never been drilled. Note the restore path
+changed this wave — `write_token_hash` is now exported and restored, without which every restored
+design would have been permanently unwritable.
 
 **Infrastructure state — live as of 2026-08-25.** Repository `DumitruSirbu/lemn-conf-v2` (private),
 CI green on nine gates, and `.githooks/pre-push` runs the same gate set locally so a red build never
@@ -108,36 +138,111 @@ automatically; Root Directory `apps/web`, Next.js preset, Node 24. The backup cr
 Verified live: `/configurator/configure` serves 200, and the cron endpoint returns 401 to an
 unauthenticated caller and to a wrong bearer token — it fails closed.
 
-## A decision only you can make
+## The security decision is made — ADR 0019
 
-**ADR 0014 (S1) is Proposed, not Accepted, and needs a human answer before M7.** The deployed
-`PUT`/`PATCH /api/designs/[id]` has no authentication or ownership check — confirmed live. The
-opaque nanoid is the only access control and it confers *write*, so anyone holding a shared link can
-silently overwrite that design, unrecoverably. Three coherent options are laid out in the record
-(accept the capability URL as a stated POC limit, split read from write, or add ownership). Impact is
-low today — zero designs, no users — and stops being low at M7. Do not let a later phase default
-into one of these silently.
+**ADR 0014 is superseded.** The unauthenticated write surface (S1), the unauthenticated mint (S3)
+and the absence of rate limiting (S4) are all decided in
+`docs/decisions/0019-security-baseline-writes-throttling-retention.md`, on the owner's direction of
+2026-08-25 that security is the priority. Nothing here is implemented yet — the record is the
+decision, and **Wave 3C builds the write path with authorisation from the start rather than
+retrofitting it.**
+
+What was decided, in brief:
+
+- **Read is split from write.** Minting sets an `HttpOnly` cookie holding a per-design write token;
+  `PUT`/`PATCH` require it. A shared link stays readable by anyone and can no longer destroy the
+  design it points at.
+- **Vercel is the firewall; the application does the rate limiting.** The edge drops what is never
+  legitimate, challenges what is unlikely to be, and absorbs volume for free; it holds no
+  per-endpoint policy. Every recognisable limit is application code over the existing Postgres. No
+  Redis, on the owner's direction not to add maintenance surface. The reason to keep an edge layer
+  at all is narrow and worth remembering: **an application limiter has to run a function and touch
+  the database in order to say no**, so under a flood on free tiers it becomes the denial of
+  service it exists to prevent.
+- **Identity is several independent buckets**, most restrictive winning — IP aggregated to /24 and
+  /64, session cookie, email address, and a global cap. Never IP+session fused into one key, which
+  is weaker than either alone.
+- **Geography is a first-class signal**, because the tool is expected to be used rarely and
+  essentially only from Moldova. Non-MD traffic is challenged and tightly limited, never denied —
+  the diaspora, roaming and VPNs all geolocate unpredictably, and a country deny fails silently.
+- **Abandoned designs are deleted after 30 days**, which also closes the retention question this
+  file has carried as open since 2026-08-25.
+- **Cross-device editing uses an emailed link, not a password.** Storing credentials for people who
+  never made an account was considered and rejected.
+- **No external proxy in front of Vercel** (Cloudflare orange-cloud specifically). DNS-only is fine.
+
+**Implementation is deferred; the decisions are not.** On the owner's direction of 2026-08-25 —
+the project is nowhere near done — the firewall is **not** being set up now. The rules were staged
+once to prove they stage cleanly, then discarded; the project has **zero** custom rules today, and
+`docs/runbooks/firewall-setup.md` holds the exact commands and the plan constraints so re-creating
+them later is a copy-paste. ADR 0019 decision 10 assigns every part to a phase:
+
+| Part | Phase |
+| --- | --- |
+| Write-token cookie / read–write split | **M3 Wave 3C** — the one part that gets *more* expensive by waiting |
+| Save-coalescer minimum interval | **M3 Wave 3C** — a write-path defect, not a security control |
+| Application rate limiting, retention cron, emailed edit link, BotID/honeypot | **M8**, with the contact form |
+| WAF rules | **Pre-launch, after M7** — no value against zero traffic |
+
+One plan constraint worth knowing before that work starts: **this plan permits exactly one WAF
+`rate_limit` rule.** A second returns "Rate limiting is not available for this plan (401)", which is
+misleading — the first stages fine. So the edge cannot express per-endpoint policy, and every
+per-endpoint limit is enforced in the application layer.
+
+**A defect found while sizing the limits, not yet fixed:** the save coalescer has no minimum
+interval — `scheduleSave` runs immediately unless a save is in flight, so its sustained output is
+bounded by network round-trip time rather than by a timer. During active editing that is roughly
+one write per RTT, and M5's width dragging makes it continuous. ADR 0019 decision 6 adds a 1 000 ms
+floor; until it lands, no update rate limit can be sized honestly.
 
 ## What to do next
 
-1. **M3 Wave 3B (adapter)** — parameterised builders, the `measureBuiltBody` probe implementation,
-   and a rebuildable scene. **Full review tier**: §11 row 19 (wall seating) is in scope, and it is
-   where M1's fidelity can silently degrade. Follow `docs/WORKFLOW.md`; it is mandatory, not
-   advisory.
-2. **Then Wave 3C (web)** — store commands and the client write path, which closes M2's last gate.
+**M4 — the editor panel and shell.** Every verb it needs exists and is guarded in the engine; M4
+renders them. Read `docs/milestones/M4-editor-surface.md` when you start it.
 
-Wave 3A is done. Five contract gaps against the shipped M2 code are recorded in
-`docs/decisions/0011-m3-insert-contract-gaps.md`; treat them as decided, not open.
+Four things M3 hands M4 directly:
 
-Worth folding into 3B's review: an independent logic pass over Wave 3A's void-derivation boundary,
-which ADR 0015 flags as verified by the coordinator rather than by a neutral reviewer.
+1. **Remove the temporary developer affordance.** `apps/web/src/components/temporary-dev-controls.tsx`
+   is scaffolding, named so, and M4 owns its deletion. Its one non-obvious property is worth
+   keeping: it shows a refusal's stable **code**, never its rendered Romanian sentence, so §9's copy
+   was never pre-empted.
+2. **Decide how a failed write is communicated.** M3 exposes `saveStatus` and nothing renders it.
+   The union now includes a distinct `unauthorized`, which is *not* an error — it means read-only in
+   this browser, and it is reachable in normal operation (a 30-day cookie expiry, a cleared jar, a
+   shared link opened by someone who never held one).
+3. **A read-only UI needs to know it is read-only.** The write credential is an `HttpOnly` cookie
+   the client cannot inspect, so the panel cannot tell whether it may edit without attempting a
+   write — and discovering it by attempting one is the "warn-after-click" pattern this project
+   rules out. Cheapest fix, from the security review: `GET /api/designs/{id}` already receives the
+   cookie, so it can return a `canWrite` boolean beside the design at no extra round trip and with
+   no token exposure.
+4. **§13.3 question 1 is now visible.** `insertBody` is deliberately more permissive than
+   `offersFor` on a swap — §9 scopes a swap list to the outgoing body's band while §5.2 lets a
+   `column` body into any slot. Not a rule violation ("never offer what cannot be satisfied" is
+   one-directional), but the two are **not** interchangeable, and M4 is where unifying them becomes
+   a real question.
 
-M3 closes M2's last gate as a first-class work item — the client write path, wave 3C item 10 — and
-un-skips the one named `test.skip` in the e2e suite, which had no void to tap against while the
-seeded design was fully occupied.
+**Open, and not closed by M3:**
 
-Worth re-running once M3 lands: Path 2 of the restore drill, this time from an export downloaded
-from Blob and containing a design a customer actually made.
+- **The mobile gate is verified under emulation, not on a handset.** The e2e suite drives §10's flow
+  by *synthesised* touch at 390 × 844 with `hasTouch`/`isMobile`, in real Chromium against a real
+  WebGL canvas and a real database. It does not exercise a touch digitiser (finger-sized contact
+  areas, real drag-vs-tap slop), a mobile GPU, device pixel ratio, or iOS Safari. Per
+  `docs/best-practices/browser-and-visual-qa.md`, tests alone do not prove a mobile claim. **A
+  handset pass needs HTTPS or a tunnel** — over `http://<LAN-IP>` the `Secure` write-token cookie is
+  silently dropped and every save 403s with nothing explaining why.
+- **Preview's database has not been confirmed to carry migrations 0002 and 0003.** Until it does,
+  minting on a Preview deployment 500s exactly as production would have. It cannot be checked
+  locally — Preview's `DATABASE_URL` is a sensitive Vercel variable. Check the Neon console, or
+  `POST /api/designs` against a Preview URL and look for 201 versus 500.
+- **Path 2 of the restore drill has not been re-run** from an export actually downloaded from Blob,
+  and **Path 1 (Neon PITR) has never been drilled**. The restore path changed in Wave 3C-2a:
+  `write_token_hash` is now exported and restored, without which every restored design would have
+  come back permanently unwritable.
+- **The firewall is deferred to pre-launch** by ADR 0019 decision 10, with the exact commands in
+  `docs/runbooks/firewall-setup.md`. Vercel currently has **zero** custom rules.
+- **Application rate limiting, retention, BotID and the emailed edit link are M8**, with the contact
+  form.
 
 ## Keeping this file honest
 

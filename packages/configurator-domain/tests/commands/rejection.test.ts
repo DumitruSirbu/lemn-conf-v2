@@ -12,6 +12,7 @@ const SAMPLES: readonly RejectionDetail[] = [
   { code: "VOID_SELECTED", params: {} },
   { code: "TARGET_NOT_FOUND", params: {} },
   { code: "INVALID_OCCURRED_AT", params: {} },
+  { code: "BODY_PROBE_UNAVAILABLE", params: {} },
   { code: "ACCESSORY_NOT_DELETABLE", params: { label: "Plită cu inducție" } },
   { code: "NOT_DELETABLE", params: { label: "Corp bază" } },
   { code: "NOT_IN_LIBRARY", params: { buildId: "no-such-body" } },
@@ -32,6 +33,10 @@ const SAMPLES: readonly RejectionDetail[] = [
   {
     code: "WIDTH_TOO_LARGE",
     params: { label: "Coloană cămară", requiredMm: 600, availableMm: 300 },
+  },
+  {
+    code: "WIDTH_TOO_SMALL",
+    params: { label: "Corp spălător", requiredMm: 560, availableMm: 400 },
   },
   {
     code: "WIDTH_NOT_SUPPORTED",
@@ -68,6 +73,7 @@ const ALL_CODES: readonly RejectionCode[] = [
   "VOID_SELECTED",
   "TARGET_NOT_FOUND",
   "INVALID_OCCURRED_AT",
+  "BODY_PROBE_UNAVAILABLE",
   "ACCESSORY_NOT_DELETABLE",
   "NOT_DELETABLE",
   "NOT_IN_LIBRARY",
@@ -75,6 +81,7 @@ const ALL_CODES: readonly RejectionCode[] = [
   "TARGET_NOT_REPLACEABLE",
   "BAND_MISMATCH",
   "WIDTH_TOO_LARGE",
+  "WIDTH_TOO_SMALL",
   "WIDTH_NOT_SUPPORTED",
   "OPENING_TOO_SHORT",
   "HEIGHT_EXCEEDS_LEVEL",

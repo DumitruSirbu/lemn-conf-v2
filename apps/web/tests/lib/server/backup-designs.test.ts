@@ -26,6 +26,7 @@ function buildRow(
     document: { ...KITCHEN_L_DESIGN, presetId: id },
     created_at: "2026-08-01T00:00:00.000Z",
     updated_at: "2026-08-01T00:00:00.000Z",
+    write_token_hash: "a".repeat(64),
     ...overrides,
   };
 }
@@ -124,6 +125,34 @@ describe("backupDesigns", () => {
       const design = migrateDesign(row.schema_version, row.document);
       expect(DesignSchema.safeParse(design).success).toBe(true);
     }
+  });
+
+  it("carries each row's write-token hash, without which a restore revokes edit access", async () => {
+    const rowSource = new StubRowSource([buildRow("a")]);
+    const blobClient = new StubBlobClient();
+
+    await backupDesigns({ rowSource, blobClient, now: NOW });
+
+    const uploaded = blobClient.uploads[0];
+    if (!uploaded) throw new Error("expected an upload to have been recorded");
+    // The column *is* edit access (ADR 0019 decision 1). A backup missing it restores every design
+    // readable and permanently unwritable, and nothing looks broken until a customer tries to save.
+    const [row] = parseNdjson(uploaded.body) as DesignBackupRow[];
+    expect(row?.write_token_hash).toBe("a".repeat(64));
+  });
+
+  it("carries a null hash through unchanged, rather than dropping the field", async () => {
+    const rowSource = new StubRowSource([
+      buildRow("a", { write_token_hash: null }),
+    ]);
+    const blobClient = new StubBlobClient();
+
+    await backupDesigns({ rowSource, blobClient, now: NOW });
+
+    const uploaded = blobClient.uploads[0];
+    if (!uploaded) throw new Error("expected an upload to have been recorded");
+    const [row] = parseNdjson(uploaded.body) as DesignBackupRow[];
+    expect(row).toHaveProperty("write_token_hash", null);
   });
 
   it("names the uploaded blob under the designs backup prefix with an ISO timestamp", async () => {

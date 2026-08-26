@@ -221,6 +221,17 @@ function buildCases(): SweepCase[] {
         ),
     },
     {
+      // ADR 0017: the sink base's worktop splits around a fixed 560 mm aperture.
+      code: "WIDTH_TOO_SMALL",
+      design: narrowBase.design,
+      run: () =>
+        insertInto(
+          narrowBase,
+          voidTarget(narrowBase, "A|1.00", 0),
+          "base-sink",
+        ),
+    },
+    {
       code: "WIDTH_NOT_SUPPORTED",
       design: narrowBase.design,
       run: () =>
@@ -338,7 +349,14 @@ function buildCases(): SweepCase[] {
  *  the snap candidates, and `refuseHeight` has already proved that `minY + h` fits inside the span
  *  by the time the candidate list is built. It is an assertion, not a refusal a customer can see.
  *  Recorded here rather than silently omitted. */
-const ENGINE_UNREACHABLE: readonly RejectionCode[] = ["NO_SNAP_POSITION"];
+/** `BODY_PROBE_UNAVAILABLE` joins it for a different reason: no *command* can produce it, because
+ *  `insertBody` takes a `BodyProbe` as a required argument. It is the refusal the caller returns on
+ *  the command's behalf when the scene has not attached one yet, and `apps/web`'s store tests are
+ *  what sweep it. */
+const ENGINE_UNREACHABLE: readonly RejectionCode[] = [
+  "NO_SNAP_POSITION",
+  "BODY_PROBE_UNAVAILABLE",
+];
 
 /** Every code in the union, as a `Record` keyed by it rather than as a hand-counted list: adding a
  *  code to `RejectionDetail` without adding it here is a **compile error**, so the sweep below
@@ -347,6 +365,7 @@ const ALL_REJECTION_CODES: Readonly<Record<RejectionCode, true>> = {
   VOID_SELECTED: true,
   TARGET_NOT_FOUND: true,
   INVALID_OCCURRED_AT: true,
+  BODY_PROBE_UNAVAILABLE: true,
   ACCESSORY_NOT_DELETABLE: true,
   NOT_DELETABLE: true,
   NOT_IN_LIBRARY: true,
@@ -354,6 +373,7 @@ const ALL_REJECTION_CODES: Readonly<Record<RejectionCode, true>> = {
   TARGET_NOT_REPLACEABLE: true,
   BAND_MISMATCH: true,
   WIDTH_TOO_LARGE: true,
+  WIDTH_TOO_SMALL: true,
   WIDTH_NOT_SUPPORTED: true,
   OPENING_TOO_SHORT: true,
   HEIGHT_EXCEEDS_LEVEL: true,

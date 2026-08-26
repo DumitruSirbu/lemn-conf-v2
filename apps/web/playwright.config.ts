@@ -1,3 +1,6 @@
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+
 import { defineConfig, devices } from "@playwright/test";
 
 const PORT = Number(process.env.E2E_PORT ?? 4320);
@@ -34,7 +37,47 @@ export default defineConfig({
   webServer: {
     command: `pnpm exec next dev --port ${String(PORT)}`,
     url: BASE_URL,
-    reuseExistingServer: !process.env.CI,
+    // Never reused, even locally. The suite now *writes* — `design-write-path.e2e.spec.ts` mints a
+    // design — and a server already listening on this port would be one started against
+    // `.env.local`, i.e. the application's own database. ADR 0006 exists because a suite pointed
+    // at real customer data needs only one careless statement to destroy it.
+    reuseExistingServer: false,
+    env: { DATABASE_URL: exportTestDatabaseUrl() },
     timeout: 60_000,
   },
 });
+
+/**
+ * The database the e2e dev server is allowed to write to (ADR 0006): `TEST_DATABASE_URL`, read from
+ * the environment or from `.env.test.local`, which is where that record says to keep it.
+ *
+ * Passed to the dev server as `DATABASE_URL` because that is the only variable the application
+ * reads — the application must not learn about a test variable. Throws rather than falling back to
+ * `.env.local`: a silent fallback is exactly the misconfiguration ADR 0006 requires to fail loudly.
+ */
+function exportTestDatabaseUrl(): string {
+  const url = readTestDatabaseUrl();
+  // Also placed on this process's environment so the test workers — separate processes, spawned
+  // from here — inherit it. A spec that mints a design deletes it again afterwards (ADR 0006's
+  // third mechanism), and that is the only way it can reach the database it wrote to.
+  process.env.TEST_DATABASE_URL = url;
+  return url;
+}
+
+function readTestDatabaseUrl(): string {
+  const fromEnvironment = process.env.TEST_DATABASE_URL?.trim();
+  if (fromEnvironment) return fromEnvironment;
+
+  const envFile = resolve(import.meta.dirname, "../../.env.test.local");
+  const match = /^TEST_DATABASE_URL\s*=\s*(.+)$/m.exec(
+    readFileSync(envFile, "utf8"),
+  );
+  const url = match?.[1]?.trim().replace(/^["']|["']$/g, "");
+  if (!url) {
+    throw new Error(
+      `TEST_DATABASE_URL is not set and was not found in ${envFile}. The e2e suite writes ` +
+        `designs, so it must target the test database and never the application's own.`,
+    );
+  }
+  return url;
+}

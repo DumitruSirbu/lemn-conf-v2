@@ -6,12 +6,16 @@ import { describe, expect, it } from "vitest";
 
 import { createConfiguratorStore } from "../../src/store/configurator-store";
 
+function createSeededStore() {
+  return createConfiguratorStore({
+    design: KITCHEN_L_DESIGN,
+    catalog: KITCHEN_L_BODY_CATALOG,
+  });
+}
+
 describe("createConfiguratorStore", () => {
   it("derives records and columns from the design at creation, never as authored fields", () => {
-    const store = createConfiguratorStore(
-      KITCHEN_L_DESIGN,
-      KITCHEN_L_BODY_CATALOG,
-    );
+    const store = createSeededStore();
     const state = store.getState();
 
     expect(state.records).toHaveLength(KITCHEN_L_DESIGN.placements.length);
@@ -23,10 +27,7 @@ describe("createConfiguratorStore", () => {
   });
 
   it("exposes no setter for placements, records, columns or voids", () => {
-    const store = createConfiguratorStore(
-      KITCHEN_L_DESIGN,
-      KITCHEN_L_BODY_CATALOG,
-    );
+    const store = createSeededStore();
     const state = store.getState() as unknown as Record<string, unknown>;
 
     expect(state.setPlacements).toBeUndefined();
@@ -36,27 +37,18 @@ describe("createConfiguratorStore", () => {
   });
 
   it("starts with no selection", () => {
-    const store = createConfiguratorStore(
-      KITCHEN_L_DESIGN,
-      KITCHEN_L_BODY_CATALOG,
-    );
+    const store = createSeededStore();
     expect(store.getState().selection).toBeNull();
   });
 
   it("select() sets the selection by kind and id", () => {
-    const store = createConfiguratorStore(
-      KITCHEN_L_DESIGN,
-      KITCHEN_L_BODY_CATALOG,
-    );
+    const store = createSeededStore();
     store.getState().select({ kind: "placement", id: "p0" });
     expect(store.getState().selection).toEqual({ kind: "placement", id: "p0" });
   });
 
   it("select() replaces a prior selection rather than merging it", () => {
-    const store = createConfiguratorStore(
-      KITCHEN_L_DESIGN,
-      KITCHEN_L_BODY_CATALOG,
-    );
+    const store = createSeededStore();
     store.getState().select({ kind: "placement", id: "p0" });
     store.getState().select({ kind: "void", id: "A|2.60:v0:0.00" });
     expect(store.getState().selection).toEqual({
@@ -66,20 +58,14 @@ describe("createConfiguratorStore", () => {
   });
 
   it("deselect() clears the selection", () => {
-    const store = createConfiguratorStore(
-      KITCHEN_L_DESIGN,
-      KITCHEN_L_BODY_CATALOG,
-    );
+    const store = createSeededStore();
     store.getState().select({ kind: "placement", id: "p0" });
     store.getState().deselect();
     expect(store.getState().selection).toBeNull();
   });
 
   it("starts unminted: no designId, idle status, not persisted", () => {
-    const store = createConfiguratorStore(
-      KITCHEN_L_DESIGN,
-      KITCHEN_L_BODY_CATALOG,
-    );
+    const store = createSeededStore();
     const state = store.getState();
 
     expect(state.designId).toBeNull();
@@ -88,10 +74,7 @@ describe("createConfiguratorStore", () => {
   });
 
   it("applySavedId records the id and flips hasPersistedSuccessfully to true", () => {
-    const store = createConfiguratorStore(
-      KITCHEN_L_DESIGN,
-      KITCHEN_L_BODY_CATALOG,
-    );
+    const store = createSeededStore();
 
     store.getState().applySavedId("design-1");
 
@@ -100,10 +83,7 @@ describe("createConfiguratorStore", () => {
   });
 
   it("setSaveStatus updates saveStatus without touching hasPersistedSuccessfully", () => {
-    const store = createConfiguratorStore(
-      KITCHEN_L_DESIGN,
-      KITCHEN_L_BODY_CATALOG,
-    );
+    const store = createSeededStore();
 
     store.getState().setSaveStatus("saving");
     expect(store.getState().saveStatus).toBe("saving");
@@ -114,10 +94,7 @@ describe("createConfiguratorStore", () => {
   });
 
   it("hydrate replaces the design, re-derives geometry, clears selection, and marks it persisted", () => {
-    const store = createConfiguratorStore(
-      KITCHEN_L_DESIGN,
-      KITCHEN_L_BODY_CATALOG,
-    );
+    const store = createSeededStore();
     store.getState().select({ kind: "placement", id: "p0" });
 
     const nextDesign = { ...KITCHEN_L_DESIGN, presetId: "hydrated" };
@@ -132,14 +109,8 @@ describe("createConfiguratorStore", () => {
   });
 
   it("two store instances do not share selection state", () => {
-    const storeA = createConfiguratorStore(
-      KITCHEN_L_DESIGN,
-      KITCHEN_L_BODY_CATALOG,
-    );
-    const storeB = createConfiguratorStore(
-      KITCHEN_L_DESIGN,
-      KITCHEN_L_BODY_CATALOG,
-    );
+    const storeA = createSeededStore();
+    const storeB = createSeededStore();
     storeA.getState().select({ kind: "placement", id: "p0" });
     expect(storeB.getState().selection).toBeNull();
   });

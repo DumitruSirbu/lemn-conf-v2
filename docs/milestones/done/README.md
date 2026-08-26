@@ -16,6 +16,8 @@ what evidence closed it, or what it deliberately deferred.
 | --- | --- | --- | --- |
 | [M0 — Foundations](M0-foundations.md) | 2026-08-24, partially superseded | Workspace, domain package, validation, persistence/versioning conventions. Its placement model was replaced in M2 and the retired modules deleted. | `docs/decisions/0003-design-reference-supersession.md` |
 | [M1 — Scene port](M1-scene-port.md) | 2026-08-25 | Supplier geometry ported into `packages/three-adapter`, R3F canvas, camera presets. Closed on a fidelity gate requiring two independent kinds of evidence. | `packages/three-adapter/reference/`, `docs/best-practices/product-invariants.md`, `docs/decisions/0005-m2-row19-m1-wall-gap-finding.md` |
+| [M2](M2-void-engine.md) | Placement/column/void engine, picking, DB persistence and shareable links | Closed 2026-08-25 | Void derivation lives in `packages/configurator-domain/src/void-engine.ts` and `DEVELOPMENT-SPEC.md` §3–§4; persistence in ADRs 0002, 0006–0013; the write path's authorisation in ADR 0019 and its client half in M3 Wave 3C-2b. |
+| [M3](M3-mutations.md) | Insert, remove, swap, and the client write path | Closed 2026-08-26 | Commands live in `packages/configurator-domain/src/commands/`; the §7 builders and the `BodyProbe` in `packages/three-adapter`; write authorisation in ADR 0019 and `apps/web/src/lib/server/write-token.ts`. Findings: ADRs 0015–0020. |
 
 ## What still binds from these phases
 
