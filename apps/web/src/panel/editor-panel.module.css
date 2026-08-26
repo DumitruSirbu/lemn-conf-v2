@@ -1,0 +1,392 @@
+/* The one layout branch §10.1 permits: bottom sheet below 900 px, 420 px right rail above it.
+ *
+ * Both shells render the same section components. What differs is this file, and the two spacing
+ * tokens below — §10.1's "touch sizing is a token, not a fork": rows 76–86 px and chips ≥ 44 px on
+ * mobile, 52–70 px on desktop, same markup either way. */
+.shell {
+  --row-height: 82px;
+  --chip-height: 44px;
+  --panel-gap: 18px;
+  --panel-pad: 18px;
+
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 4;
+  display: flex;
+  flex-direction: column;
+  /* §10: roughly 70–83 vh of a 390 × 844 viewport, so the scene stays visible above it. */
+  height: 78dvh;
+  background: var(--paper);
+  border-top: 1px solid var(--line);
+  border-radius: 22px 22px 0 0;
+  box-shadow: 0 -16px 36px rgb(28 24 20 / 18%);
+}
+
+.grabber {
+  align-self: center;
+  width: 40px;
+  height: 4px;
+  margin-top: 11px;
+  background: var(--line);
+  border-radius: 2px;
+}
+
+.header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 11px var(--panel-pad) 12px;
+}
+
+.headerText {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.headerLabel {
+  font: 700 18px/1.2 var(--font-ui);
+  letter-spacing: -0.01em;
+}
+
+.headerDetail {
+  font: 400 12px/1.35 var(--font-ui);
+  color: var(--ink-muted);
+}
+
+.close {
+  flex: 0 0 var(--chip-height);
+  width: var(--chip-height);
+  height: var(--chip-height);
+  font: 400 17px/1 var(--font-ui);
+  color: var(--ink-muted);
+  background: none;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+/* Scrolls internally, so the footer below it stays pinned however long the offer list runs. */
+.body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--panel-gap);
+  min-height: 0;
+  padding: 2px var(--panel-pad) var(--panel-gap);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+
+.sectionHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.sectionTitle {
+  font: 700 10.5px/1 var(--font-ui);
+  letter-spacing: 0.14em;
+  color: var(--ink-faint);
+  text-transform: uppercase;
+}
+
+.count {
+  font: 400 11.5px/1 var(--font-ui);
+  color: var(--ink-muted);
+}
+
+/* §9: the banner sits at the top of the panel body, above every section. Authored inside the width
+ * section it was invisible on exactly the fixed-width bodies that refuse most. */
+.rejection {
+  display: flex;
+  gap: 9px;
+  align-items: flex-start;
+  margin: 0;
+  padding: 12px 13px;
+  font: 400 12.5px/1.45 var(--font-ui);
+  color: #8f2020;
+  background: #fdf3f3;
+  border-radius: 10px;
+}
+
+.rejectionMark {
+  flex: 0 0 16px;
+  width: 16px;
+  height: 16px;
+  font: 700 11px/16px var(--font-ui);
+  color: #fff;
+  text-align: center;
+  background: #dc2626;
+  border-radius: 50%;
+}
+
+.rows {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* §13.1: a row, not a grid — the whole strip is the tap target and the name gets full width. */
+.row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: var(--row-height);
+  padding: 9px 12px;
+  font: inherit;
+  text-align: left;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  cursor: pointer;
+}
+
+.row:disabled {
+  background: var(--surface);
+  border-style: dashed;
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
+.rowText {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.rowName {
+  font: 700 13px/1.25 var(--font-ui);
+}
+
+.rowMeta {
+  font: 400 12px/1.3 var(--font-ui);
+  color: var(--ink-muted);
+}
+
+.badge {
+  font: 700 10px/1 var(--font-ui);
+  letter-spacing: 0.06em;
+  color: var(--ink-faint);
+  text-transform: uppercase;
+  padding: 6px 7px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+
+/* §9: a zero-result list says what to clear, never a bare "0". */
+.emptyLine,
+.note {
+  margin: 0;
+  font: 400 11.5px/1.45 var(--font-ui);
+  color: var(--ink-faint);
+}
+
+/* §10: chip rows scroll horizontally rather than wrapping or shrinking below the touch target. */
+.chipRow {
+  display: flex;
+  gap: 9px;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  padding-bottom: 2px;
+}
+
+.chip,
+.widthChip {
+  flex: 1 0 auto;
+  min-width: 84px;
+  min-height: var(--chip-height);
+  padding: 0 14px;
+  font: 700 12.5px/1 var(--font-ui);
+  color: var(--ink);
+  background: none;
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  cursor: pointer;
+}
+
+.chip[aria-pressed="true"],
+.widthChip[data-state="active"] {
+  color: var(--accent-strong);
+  background: #ece7dd;
+  border: 2px solid var(--accent);
+}
+
+/* §9's blocked state: dashed and unclickable, never a chip that warns after the tap. */
+.widthChip[data-state="blocked"] {
+  color: #bdb3a4;
+  background: var(--surface);
+  border: 1px dashed var(--line);
+  cursor: not-allowed;
+}
+
+.widthValue {
+  font: 700 14px/1 var(--font-ui);
+}
+
+.swatch {
+  display: flex;
+  flex: 1 0 auto;
+  flex-direction: column;
+  align-items: center;
+  gap: 7px;
+  min-width: 64px;
+  min-height: var(--chip-height);
+  padding: 9px 4px;
+  font: inherit;
+  background: none;
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  cursor: pointer;
+}
+
+.swatch[aria-pressed="true"] {
+  border: 2px solid var(--accent);
+}
+
+.swatchColor {
+  width: 100%;
+  height: 34px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+}
+
+/* The four solid finishes read the adapter's own `FINISH_COLORS`, which `editor-panel.tsx` sets on
+   the panel shell as custom properties. */
+.swatchColor[data-finish="white"] {
+  background: var(--finish-white);
+}
+
+.swatchColor[data-finish="clay"] {
+  background: var(--finish-clay);
+}
+
+.swatchColor[data-finish="sage"] {
+  background: var(--finish-sage);
+}
+
+.swatchColor[data-finish="graphite"] {
+  background: var(--finish-graphite);
+}
+
+/* Oak is the one swatch that cannot be derived: the adapter models it as a wood MATERIAL, not a
+   colour, so there is no exported hex for it to track. These values APPROXIMATE that material for a
+   34px chip and answer to nothing but the eye. */
+.swatchColor[data-finish="oak"] {
+  --oak-material-approximation: #d8b483;
+  --oak-material-approximation-grain: #cfa876;
+  --oak-material-approximation-edge: #c9a56f;
+
+  background: repeating-linear-gradient(
+    90deg,
+    var(--oak-material-approximation) 0 3px,
+    var(--oak-material-approximation-grain) 3px 6px
+  );
+  border-color: var(--oak-material-approximation-edge);
+}
+
+.swatchLabel {
+  font: 700 11px/1.2 var(--font-ui);
+  color: var(--ink);
+}
+
+.footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 11px var(--panel-pad) 18px;
+  border-top: 1px solid var(--line);
+}
+
+.remove {
+  min-height: 48px;
+  padding: 0 15px;
+  font: 700 13px/1 var(--font-ui);
+  color: #9b2c2c;
+  background: #fdf6f6;
+  border: 1px solid #e0b4b4;
+  border-radius: 12px;
+  cursor: pointer;
+}
+
+.done {
+  min-height: 48px;
+  padding: 0 20px;
+  font: 700 14px/1 var(--font-ui);
+  color: var(--paper);
+  background: var(--accent);
+  border: 0;
+  border-radius: 12px;
+  cursor: pointer;
+}
+
+/* Frames D2B / D2C: a 420 px right rail that takes its own space, so the scene re-lays out beside
+ * it instead of being covered. The section components above are untouched. */
+@media (min-width: 900px) {
+  .shell {
+    --row-height: 66px;
+    --chip-height: 52px;
+    --panel-gap: 20px;
+    --panel-pad: 24px;
+
+    position: static;
+    flex: 0 0 420px;
+    width: 420px;
+    height: auto;
+    border-top: 0;
+    border-left: 1px solid var(--line);
+    border-radius: 0;
+    box-shadow: none;
+  }
+
+  .grabber {
+    display: none;
+  }
+
+  .header {
+    padding: 22px var(--panel-pad) 18px;
+    border-bottom: 1px solid var(--line-soft);
+  }
+
+  .headerLabel {
+    font-size: 20px;
+  }
+
+  .headerDetail {
+    font-size: 13px;
+  }
+
+  .body {
+    padding: 20px var(--panel-pad);
+  }
+
+  .sectionTitle {
+    font-size: 11px;
+  }
+
+  .rowName {
+    font-size: 14px;
+  }
+
+  .footer {
+    padding: 16px var(--panel-pad) 20px;
+  }
+}

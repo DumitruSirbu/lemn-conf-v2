@@ -55,9 +55,19 @@
 
 .stage {
   position: relative;
+  display: flex;
   flex: 1;
   min-height: 0;
   background: var(--stage);
+}
+
+/* The scene's own box. On desktop it is the flex child the 420 px rail leaves room for, which is
+ * how "the scene re-lays out" happens without any component knowing a rail exists. */
+.viewport {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
 }
 
 .stage canvas {
