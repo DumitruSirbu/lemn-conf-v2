@@ -64,14 +64,15 @@ milestone prose.
 
 **Current state and history**
 
-| Read                        | When                                                                                                                                               |
-| --------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `docs/STATUS.md`            | **First, every session.** Where the project stands, what is open, what to do next.                                                                 |
-| `docs/decisions/`           | The knowledge base for business logic. Before re-deciding anything — a dated record supersedes earlier prose, and must not be silently overturned. |
-| `docs/milestones/M<n>-*.md` | Working on a phase STATUS lists as In progress or Planned. **Never one marked Done.**                                                              |
-| `docs/milestones/README.md` | You need the phase sequence and why it is ordered that way — the plan, not the current state.                                                      |
-| `docs/milestones/done/`     | Archived, do not read. Historical questions only; see its README first.                                                                            |
-| `docs/runbooks/`            | Operating something live, e.g. restoring the database.                                                                                             |
+| Read                        | When                                                                                                                                                                 |
+| --------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `docs/STATUS.md`            | **First, every session.** Where the project stands, what is open, what to do next.                                                                                   |
+| `docs/BACKLOG.md`           | Reported issues with no owner and no phase yet. Read before proposing a fix for something a user reported — it may already be recorded, with the investigation done. |
+| `docs/decisions/`           | The knowledge base for business logic. Before re-deciding anything — a dated record supersedes earlier prose, and must not be silently overturned.                   |
+| `docs/milestones/M<n>-*.md` | Working on a phase STATUS lists as In progress or Planned. **Never one marked Done.**                                                                                |
+| `docs/milestones/README.md` | You need the phase sequence and why it is ordered that way — the plan, not the current state.                                                                        |
+| `docs/milestones/done/`     | Archived, do not read. Historical questions only; see its README first.                                                                                              |
+| `docs/runbooks/`            | Operating something live, e.g. restoring the database.                                                                                                               |
 
 Later decisions belong in `docs/decisions/`; acceptance criteria and phase plans in
 `docs/milestones/`.

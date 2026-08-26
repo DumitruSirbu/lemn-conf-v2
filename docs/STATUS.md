@@ -159,6 +159,13 @@ client probe asks the one route the cookie reaches, at the cost of a second GET 
 
 ## What is open right now
 
+**Reported issues that are not scheduled live in `docs/BACKLOG.md`.** Two are open there as of
+2026-08-26, both confirmed by measurement during the first handset pass: the induction hob cannot be
+restored once its host cabinet is deleted (§7 has no hob-bearing entry, and seeded entries are never
+offerable), and clearing two adjacent cabinets yields two openings rather than one — the run
+re-split §12 lists as "Not built, designed". Neither is fixed by M5.
+
+
 **M4 closed with one acceptance criterion unmet, on purpose (ADR 0024).** Its Verification section
 asks for browser tests of the rejection state's three simultaneous requirements. There is no
 reachable path to a refusal through §9's panel: the replace list is fit-filtered through the same
