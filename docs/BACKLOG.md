@@ -112,7 +112,38 @@ already lists it as out of scope, and that stands.
 
 ---
 
-## 3. The replace list has no sub-type filter chips, and the mockup has them
+## 3. Telling cabinets apart in the replace list — DECIDED 2026-08-26, SHIPPED
+
+**Decision (owner, 2026-08-26): no filter chips. Cabinet thumbnails instead — and they shipped.**
+
+The owner's own framing: filters are not needed at 3-6 rows, but "especially the base" list mixes
+base cabinets with full-height columns, and an icon would let you tell them apart fast.
+
+The design already answered that better than a glyph would: mockup frame 2B gives every row a
+54 x 54 front-elevation drawing. Those 18 drawings existed only in `design-source/`, which is
+untracked and marked for deletion; five more were commissioned (`base-panbank`, `wall-lift`,
+`tall-fridge-housing`, `base-hob-2drawer`, `base-bottle-cargo`), and all 23 are now vendored into
+`apps/web/public/cabinets/` under version control.
+
+Three of the five replaced drawings the prototype had **reused from a different cabinet**, which was
+wrong on screen — `wall-lift` looked like a glass door, `tall-fridge-housing` like a freestanding
+appliance. That last pair took two passes: the first revision was right at full size and unreadable
+at the real 54 px tile, where both were tall boxes with a horizontal split. They appear in the *same*
+list meaning opposite things, so confusing them means ordering the wrong product.
+
+The distinction the owner asked for works: because the tile scales by height, a 700-tall column
+drawing renders tall and narrow against a 310-tall base drawing. Verified at both viewports.
+
+**§13.3 q1 is still open and was NOT decided here.** The original concern stands — the prototype's
+chips were hand-authored per kind, and unifying swap sets with the fit-filtered catalogue would have
+required deriving them from traits the domain does not record. Thumbnails sidestep that entirely:
+they key off `buildId`, which exists either way. So q1 can be decided on its own merits later.
+
+---
+
+### Original finding, kept for context
+
+
 
 **Reported:** 2026-08-26, owner.
 "In the reference, when you click a cabinet and it shows the alternatives, there were filters at the
@@ -163,65 +194,127 @@ them to be derived rather than authored.
 
 ---
 
-## 4. There is no way to move a cabinet, and §5.4 as written cannot provide one
+## 4. Moving and resizing a cabinet — DECIDED 2026-08-26
 
-**Reported:** 2026-08-26, owner, on a handset against production.
-"I want to move the sink cabinet from left to right. Reorder buttons were explicitly decided against,
-so widening one and narrowing the other looks like the only workaround — but the middle and top
-should follow, and the neighbour should become 600."
+**Decision (owner, 2026-08-26): each level's width is set independently. Resizing a base cabinet does
+NOT drag the cabinets above it.**
 
-**This is a planning input for M5, not a defect report.** Width editing is M5's scope and every chip
-is correctly `blocked` today. But M5 cannot implement §5.4 as written, and that is worth knowing
-before someone starts it.
+The owner's reasoning, and it is the flexibility argument: an 800 mm base should be able to carry a
+600 above it, or two 400s. Forcing the column to move as one would remove that. Instead the customer
+resizes the base, then separately resizes the level above if they want it to match — "important that
+I need to have the ability to choose the same width. Otherwise it will be a limitation."
 
-**§5.4 does only half of what is being asked.** Its neighbour rule is _"same wall, **same row**
-(|Δy0| < 0.06), edge-adjacent (< 0.03)"_. Growing a base cabinet takes width from its **base**
-neighbour and never touches the rows above. Vertical alignment breaks by construction, and no
-section addresses it. §13.1's _"work column by column … preserves vertical alignment by
-construction"_ is about insertion order, not resize.
+That is §5.4 as written: neighbours are "same wall, **same row**".
 
-**Worse: §5.4 breaks column identity, which the void model rests on.** Simulated the exact §5.4
-arithmetic on the shipped design — grow `p2` 600 → 800, its left edge holds, new centre 2700, donor
-`p4` shrinks to 400:
+### Independent widths per level already work — no change needed
+
+Measured on the shipped design. An 800 mm base with two 400 mm cabinets above it:
 
 ```
-p2 before: col=A|2.60 w=600   uppers in that column: cooktop-600, hood-600, wall-2door-600-top
-p2 after : col=A|2.70 w=800
-p4 after : col=A|3.30 w=400
-frozen column map has "A|2.70"? false
-frozen column map has "A|3.30"? false
+A|1.30: w=800  members p0@800          (the base)
+A|1.10: w=400  A|1.50: w=400           (the two above)
 ```
 
-A column's key is derived from the body's centre (`deriveColumnKey`), resize moves the centre, and
-columns are **frozen at load** (ADR 0011 Gap D). So both resized bodies land in columns that do not
-exist in the frozen map, while the hob, hood and top cabinet stay behind in `A|2.60`. The hob is the
-sharpest case: §11 row 15 makes it an accessory of its host, and the host would move out from under
-it.
+A column groups bodies at the same position; it never required them to line up. Three columns, right
+widths, no errors. **This half of the decision costs nothing to implement.**
 
-**Three things M5 must decide before writing any code:**
+### The real problem, and the rule that solves it
 
-1. Does a resize move the whole column (base + middle + top together), or only its row? The owner
-   expects the column. §5.4 specifies the row.
-2. What happens to column identity when a centre moves? Either columns stop being frozen — which
-   ADR 0011 Gap D warns produces "delete does nothing" — or column keys stop being positional, or
-   resize is expressed as something other than a centre move.
-3. What happens to an accessory whose host resizes or moves?
+A column's key is derived from a body's **centre**, and §5.4's resize moves that centre. Columns are
+frozen at load (ADR 0011 Gap D). Measured, growing `p2` 600 -> 800 (centre 2600 -> 2700) with the
+donor `p4` shrinking:
 
-**The owner's alternative, and why it is not simply a re-litigation.** They proposed restoring
-Mută la stânga/dreapta, but moving the **entire column** rather than one body. §13.2 rejected
-reordering because it _"breaks vertical alignment or drags in the whole neighbour-slack
-calculation"_ — and moving a whole column is a direct answer to that specific objection, which the
-original decision did not consider. It also keeps a column intact, which is what the void model
-wants.
+```
+A) delete p2, frozen columns (baseline)      -> A|2.60 w=600          correct
+B) after resize, FROZEN columns kept         -> A|2.60 w=600 | A|3.20 w=600   TWO PHANTOM SLOTS
+C) after resize, columns RECOMPUTED          -> (no voids)             correct
+D) resize then delete p2, RECOMPUTED         -> A|2.70 w=800           correct
+E) resize then delete p2, FROZEN             -> two 600 voids at the old positions   wrong
+```
 
-It is not free: two columns of different widths still cannot simply swap, and §13.2's closing
-argument — _"nothing can move horizontally any more, so column identity is permanently stable, which
-is what keeps the void model honest"_ — is exactly the property that this finding shows resize
-already destroys. So the choice is not "stable model versus reordering"; it is which of two ways of
-moving things the model is taught to survive.
+Row **B** is the one to understand: with frozen columns a resize makes **two empty slots appear out
+of nowhere**, because the resized bodies moved out of columns that still expect them. Nothing was
+deleted. The model hallucinates space.
 
-**Decision needed** before M5 is planned: resize-with-column-follow, column reordering, or both. All
-three interact with backlog item 2 (run re-split), which is the third way to rearrange a run.
+But recomputing columns is not a blanket fix. Clearing the fridge column (`p7` + `p24`), which is
+§10's signature flow:
+
+```
+FROZEN columns    -> y0=0 w=700 h=860 | y0=1500 w=700 h=700 | y0=2200 w=700 h=400   correct
+RECOMPUTED columns-> (NO VOIDS - delete did nothing)                                 ADR 0011 Gap D
+```
+
+**So the rule is per operation, and it is a principle rather than a special case. A column records
+the space a *run* occupies:**
+
+- **Delete keeps columns frozen.** Emptying space does not give the space up.
+- **Resize updates them.** Resizing moves the boundary of the space itself, so the record must follow.
+
+### What M5 has to do
+
+1. Implement `setWidth` per §5.4 (row-level donor boundary move).
+2. Update the column entries for the two bodies the resize moved — part of `setWidth`, not a redesign.
+3. Two regression tests pinning the failure modes measured above: a resize must produce **no** new
+   openings, and a delete after a resize must produce **one** opening at the **resized** width.
+
+**Q3 is already answered by decision 1.** "What happens to an accessory whose host moves" disappears
+once the hob is part of the cabinet body rather than a separate placement sitting on it.
+
+**Column reordering (Mută la stânga/dreapta) is not needed for this.** It was raised as an
+alternative route to moving a sink; with independent per-level widths the customer resizes each
+level instead. §13.2's rejection stands unless a new reason appears.
+
+---
+
+## 5. Wall cabinets over a column build too shallow — DECIDED 2026-08-26
+
+**Found while fixing the swap-depth defect** (commit "Swap no longer changes a body's depth"). That
+fix stopped a swap changing a body's depth for 12 of 16 replaceable wall bodies. Four still change,
+for a different reason, and in the opposite direction — they **recede 200 mm**.
+
+**Cause.** §7 clamps every wall carcass to `min(d, 0.4)`
+(`packages/three-adapter/src/catalog-bodies.ts`, `WALL_CARCASS_MAX_DEPTH_M`), so no catalogue entry
+can build a wall carcass deeper than 400 mm however deep the opening is. Three cabinets in the
+shipped kitchen are genuinely 600 mm deep, so replacing one shrinks it.
+
+This is a **product rule, not a geometry limit** — `wallCabinet(W, doors, H, D)` takes depth as a
+parameter and will build any depth. Nothing breaks above 400; the clamp is policy.
+
+**Why the rule exists, which is the whole decision.** Look at which cabinets are deep:
+
+| Wall cabinet          | Depth  | What is underneath           |
+| --------------------- | ------ | ---------------------------- |
+| p11 p12 p14 p17-p20   | 330 mm | a base cabinet with a worktop |
+| p22 p23               | 600 mm | a tall column (oven tower, pantry) |
+| p24                   | 600 mm | the fridge                   |
+
+That is not arbitrary. A wall cabinet above a **worktop** is shallow so you do not hit your head
+leaning over it. Above a **full-height column** there is nothing to lean over, so it can be as deep
+as the column. The 400 mm cap is a head-clearance rule that only applies over a worktop.
+
+**Decision (owner, 2026-08-26): the depth cap follows what is below the opening, not the catalogue
+entry.** One `wall-2door` entry that builds 400 mm over a worktop and 600 mm over a column.
+
+Two alternatives were considered and rejected:
+
+- **Add a deep entry** (`wall-2door-deep`, `nominalDepthMm: 600`). Rejected: the picker would show
+  two entries with the same name differing only in a depth the customer cannot see, and choosing
+  wrongly is invisible until it is built.
+- **Clamp to the entry's own `nominalDepthMm`** instead of the constant. Rejected **as a complete
+  fix** — it only *enables* a deep entry to exist; `wall-2door` would still declare 400 and still
+  build 400, so it needs the rejected entry above to do anything. (These two were first put to the
+  owner as alternatives, which was wrong: they are complementary. Recorded so the reasoning is not
+  repeated.) Keep it in mind as the fallback mechanism if the decision below proves too costly.
+
+**What implementing it needs.** A query the model does not have today: *does this opening sit above a
+worktop?* The information is present — the column's members are known, and a base body's frame top is
+the worktop line (§2: `PLINTH + CARC_H + CTOP` = 860 mm) — so this is a derivation over existing
+data, not new persisted state. Do NOT infer it from the opening's depth: `column.d` is 580 over a
+base run and 600 over a tall column, which is too close to separate reliably and would be inference
+of exactly the kind §6.3 warns against.
+
+Pair it with a regression test over all sixteen replaceable wall bodies asserting each keeps its own
+depth through a swap — the four that currently recede are the cases that must change.
 
 ## Also open, recorded elsewhere — do not duplicate here
 
