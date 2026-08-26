@@ -189,9 +189,12 @@ function applyRecordedAppearance(
  *
  *  It is nevertheless the right number to rebuild at, for the only two builders that *consume* a
  *  depth: `wallCabinet` and `openShelf` centre their carcass on z = 0, so for `wall-*` and
- *  `open-shelf` the overhang is exactly half the (already clamped) depth they were given, and
- *  re-clamping it is idempotent. For every other entry the value is passed through and ignored.
- *  The probe suite asserts both halves of that, entry by entry. */
+ *  `open-shelf` the overhang is exactly half the depth they were given. That depth arrives already
+ *  capped where §7's head-clearance cap applies — the domain decides that, in `insert-fit.ts`, from
+ *  what stands under the opening; the adapter caps nothing and must not, or it would re-impose the
+ *  cap over a full-height column where backlog entry 5 says it does not apply. For every other
+ *  entry the value is passed through and ignored. The probe suite asserts both halves of that,
+ *  entry by entry. */
 function buildBody(kit: Kit, record: PlacementRecord): THREE.Group {
   if (!isCatalogBuildId(record.buildId)) {
     return buildDecomposedBody(kit, record.buildId);

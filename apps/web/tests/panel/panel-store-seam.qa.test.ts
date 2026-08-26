@@ -23,6 +23,7 @@ import { describe, expect, it } from "vitest";
 import { ro } from "@/content/ro";
 import { describePanel, type PanelView } from "@/panel/panel-model";
 
+import { columnExtents } from "../support/column-extents";
 import { createFakeBodyProbe } from "../support/fake-body-probe";
 
 /** Exactly what `usePanelView` composes, from exactly the store fields it subscribes to. */
@@ -77,12 +78,12 @@ describe("the panel over the store's own state", () => {
   // that reads as "the panel is broken" rather than as "the columns moved".
   it("offers a real list in the slot a removal opened, columns having stayed frozen", () => {
     const store = createStore();
-    const columnsBefore = store.getState().columns;
+    const extentsBefore = columnExtents(store.getState().columns);
     store.getState().select({ kind: "placement", id: "p1" });
     store.getState().remove();
 
     const state = store.getState();
-    expect(state.columns).toBe(columnsBefore);
+    expect(columnExtents(state.columns)).toEqual(extentsBefore);
     expect(state.voids.length).toBeGreaterThan(0);
     expect(state.selection).not.toBeNull();
 

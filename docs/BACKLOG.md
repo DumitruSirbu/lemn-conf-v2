@@ -108,6 +108,13 @@ cargo needs to **lower** it, so that mechanism gains a downward direction, for o
 its own ADR. §2's `MIN_W` then means "the default floor", not "an absolute floor", and that wording
 change must be recorded rather than assumed.
 
+**SHIPPED 2026-08-26 — `docs/decisions/0026-the-width-floor-has-a-direction.md`.** The cargo half of
+this entry is built: `base-bottle-cargo`, `minWidthMm: 200`, widths `[200, 300]`, its own builder and
+the vendored `base-bottle-cargo.svg` thumbnail. `MIN_WIDTH_M` is unchanged at 300 and `MIN_SPAN_M`
+was not touched. **The size set's two members are not confirmed** — this entry fixes the range at
+200–300 and leaves the members open, so `[200, 300]` awaits the owner. The re-split half (level B)
+is still unbuilt and stays here.
+
 **Not changed, and deliberately:** raising the general floor to 400. The owner raised it as a
 possibility ("one door cabinet minimum should also be 400"). Standard chips are already 400/600/800,
 so nothing is *chosen* below 400; the 300 floor only governs `'fit'` bodies filling an odd opening.
@@ -115,6 +122,12 @@ Raising it would begin refusing openings that work today — a separate decision
 consequences, not bundled here.
 
 
+
+### Original wording, superseded by the amendment above
+
+Kept because the near-miss is the point. **The two paragraphs below are wrong as written**: they say
+`MIN_WIDTH_M` moves to 200, and it does not — see the amendment above and ADR 0026. Everything else
+in them still holds.
 
 The owner has one in their own kitchen: a ~200 mm pull-out for oil and vinegar bottles, "in the
 majority of cases placed near the hob". It is a common cabinet and the catalogue has nothing like it.
@@ -354,6 +367,180 @@ of exactly the kind §6.3 warns against.
 
 Pair it with a regression test over all sixteen replaceable wall bodies asserting each keeps its own
 depth through a swap — the four that currently recede are the cases that must change.
+
+### SHIPPED 2026-08-26, and corrected the same day
+
+Built in wave A: `Column.hasFullHeightUnder`, re-answered from the current records on every
+derivation, with §7's cap moved out of `catalog-bodies.ts` into the domain as
+`WALL_CARCASS_MAX_DEPTH_OVER_WORKTOP_M`.
+
+**The rule is read positively, and that is the whole of it.** Wave A first implemented the
+contrapositive — cap wherever a worktop is present — and logic review found that the two are not the
+same, because a column can be **empty**. The absence of a worktop is not the presence of a column,
+and empty is what a delete produces: deleting the base cabinets under a wall run lifted the cap over
+nothing at all and built a 580 mm carcass, the frozen `Column.d` of the cabinet just deleted, beside
+330 mm neighbours. The predicate now asks for a `band: "column"` member by name and the cap applies
+unless one is found. ADR 0011's third correction is the record, with the three-click reproduction.
+
+**The consequence, decided deliberately: deleting a tall column makes the wall cabinet above it
+recede to 400 mm on its next swap or re-insert.** Under the old predicate it kept the column's
+depth. This is the right answer — the thing that held it out is gone, and the customer is now free
+to put a base run there, which is precisely the shape the 400 mm rule exists for — but it is
+visible, it is not what the sentence above literally promised, and it is a decision rather than a
+detail, so it is stated here. It costs the owner nothing today: no shipped design reaches it without
+a delete first, and the depth returns as soon as a full-height unit is put back and the wall body is
+swapped. The two openings above a cleared `fridge-free` are the case pinned in
+`insert-depth.test.ts`.
+
+Not fixed, and still true of a *placed* body: nothing re-derives a placed body's depth. Inserting or
+deleting a full-height unit under an existing wall cabinet does not change that cabinet — only its
+next swap or re-insert reads the rule again. That is ADR 0018's contract (`seatDepthMm` is the body's
+own measured seat) and was not revisited here.
+
+## 6. The 200 mm cargo is unreachable by any insert — INPUT FOR M5
+
+**Found by logic review of waves A and C, 2026-08-26.** ADR 0026 added `base-bottle-cargo` with
+`minWidthMm: 200` and the size set `[200, 300]`. The 200 mm member cannot be reached.
+
+**Why.** §3.2 derives `Column.w` as the **MIN** of its members' widths, and every opening in a column
+takes that width. The narrowest seeded placement in the shipped kitchen is 300 mm (`p10`, `p16`), so
+no column is under 300 mm wide, so **no opening under 300 mm exists**. There is no bootstrap either:
+the only way to make a narrower opening is to put a narrower body in the column first, and inserting
+one needs the opening.
+
+So `600 + 600 + 200` — the owner's own example, and the sentence that opens ADR 0026 — is still not
+expressible. The only command that could reach it is §5.4's resize, which does not exist yet.
+
+**The trap this sets for M5, which is why it is written down before M5 starts.** ADR 0026 kept
+`MIN_WIDTH_M` at 300 *precisely because §5.4 reads it* — the donor rule is "the neighbour must remain
+at or above `MIN_W`", and dropping the constant to 200 would let a resize leave a 200 mm cabinet as
+the residue of somebody else's edit. That reasoning is about the **donor**. If M5 applies
+`MIN_WIDTH_M` to the resize **target** as well, the 200 mm chip is refused there too and the
+capability never lands anywhere. The target's floor is the entry's own; the donor's is §2's.
+
+Meanwhile `describe-selection.ts` already publishes the cargo's chips through `buildableSizes`, which
+returns `[200, 300]` — so §9 shows a 200 mm chip that nothing in the product can honour. Every chip
+is `blocked` until M5 ships, so nothing is broken on screen today; it becomes wrong the moment the
+resize command starts accepting chips.
+
+## 7. A narrow body poisons the openings above it after a reload
+
+**Found in the same review.** `Column.w` is the MIN of its members' widths, and it is frozen at load
+(ADR 0011 Gap D). Replace a 600 mm base cabinet with a 300 mm cargo, save, reload: the column derives
+at 300 mm, and **every void in that column is now 300 mm wide** — including the wall-level ones.
+
+What that costs, swept against the catalogue at a 300 mm opening: the `'fit'` bodies still go in, at
+300 mm, so the 600 mm hood the customer deletes above the cargo comes back 300 mm wide — narrower
+than the hob it vents. Everything with a millimetre set is refused outright and can never be put
+back in that column: `base-dishwasher` (450), `base-sink` (560, its own floor), and all four
+full-height units (600, and 700 for `fridge-free`).
+
+It only bites across a reload, because in-session the extent stays frozen at what it was.
+
+**Pre-existing, newly amplified.** The 450 mm dishwasher already had this shape at lower amplitude.
+What changed is that a shipped entry can now drive a column to exactly `MIN_WIDTH_M`, and to 200 mm
+once M5 makes the cargo reachable — at which point the column is narrower than any other body in the
+catalogue.
+
+The fix is a decision, not a repair: `w` as the MIN over a whole vertical run is the thing to
+question, since the widths in a run are independent per level (backlog entry 4 records that they
+already are). Related: [entry 6](#6-the-200-mm-cargo-is-unreachable-by-any-insert--input-for-m5).
+
+## 8. A fixed-set body in a much wider opening leaves an unbuilt gap — NEEDS THE OWNER
+
+**Raised by logic review as a disagreement, 2026-08-26.** §5.2 has a millimetre-set body take the
+widest size in its set that fits. Choose the bottle cargo in an 800 mm opening and it builds 300 mm
+and leaves **500 mm of nothing**: §4 splits voids vertically only, so no void appears beside it,
+no cabinet stands there, and the worktop line is broken.
+
+§5.2 sanctions this and the dishwasher has always behaved this way — a 450 mm niche in a 600 mm
+opening leaves 150 mm. The cargo changes the amplitude, and it changes who hits it: 500 mm rather
+than 150 mm, in a body a customer reaches for **because** it is narrow.
+
+Three shapes of answer, none of them chosen here:
+
+- Leave it. It is what §5.2 says, and the customer can see the gap.
+- Refuse a fixed-set body whose widest fitting size leaves more than some margin, with a sentence
+  saying so.
+- Split the opening horizontally so the remainder becomes a void the customer can fill — which is
+  backlog entry 2's level-B re-split, and would answer this as a side effect.
+
+The owner should decide before the cargo reaches a customer, since ADR 0026's size set is
+unconfirmed anyway.
+
+## 9. A hood round trip costs a wall opening 100 mm of depth, permanently
+
+**Found by logic review, 2026-08-26; new with wave A.** Over a full-height column, where §7's cap is
+lifted, a hood round trip costs the opening 100 mm for good. Measured on `p24` — the 700 mm cabinet
+over the freestanding fridge, the one wall opening in the shipped kitchen tall enough to take a
+710 mm hood — with the real builders and the real probe:
+
+```
+p24 -> wall-2door  600 mm
+    -> hood        500 mm
+    -> wall-2door  500 mm      <-- 600 never comes back
+    -> hood        500 mm
+    -> wall-2door  500 mm
+```
+
+The domain's own tests cannot see it: a fake probe reports back the depth it was handed, so the same
+sequence reads 600 throughout. Only the real probe measures what `make.hood` actually built.
+
+**Why.** `openingFromPlacement` takes the opening's depth from the outgoing body's own
+`record.frame.d` (ADR 0018, and the swap-depth fix that put it there). `make.hood(w, chimneyH)` in
+`kitchen-parts.ts` takes **no depth parameter at all** — its canopy is a hardcoded 0.5 m box — so the
+hood ignores the depth it is handed, the probe measures 500, and 500 is what gets recorded as its
+`seatDepthMm`. Swap the hood back out and the opening now measures 500, so the replacement builds
+500.
+
+It **converges** rather than oscillating — a second round trip changes nothing — so it is one 100 mm
+loss and not a runaway. Arguably it is correct: the opening genuinely is 500 mm deep once a hood is
+standing in it. But it is a permanent, invisible 100 mm the customer did not ask for, and the swap
+that produced it was supposed to be the operation that stopped changing depths.
+
+Related: the same mechanism is why a placed body's depth never re-derives — see entry 5's closing
+paragraph.
+
+---
+
+## 10. Swap and delete-then-insert give a wall cabinet different depths
+
+**Found by the coordinator while verifying the R3.1 fix, 2026-08-26.** Measured on the shipped
+kitchen, over the fridge column `B|2.45`:
+
+```
+p24 as shipped                      600 mm
+SWAP p24 -> wall-2door              600 mm   (preserves the outgoing body's frame)
+DELETE p24, then insert wall-2door  680 mm   (takes the void's own depth)
+```
+
+Both follow rules that are individually correct. A swap in place reads the outgoing body's `frame.d`
+— that is the fix for the original protruding-cabinet defect. An insert into an empty void reads
+`void.d`, which is `Column.d`, §3.2's MAX over the run — here the freestanding fridge's 680 mm.
+
+So two routes to the same end state — "a `wall-2door` in this slot" — produce cabinets 80 mm apart,
+and which one the customer gets depends on whether they replaced the cabinet or deleted it first.
+
+This is the concrete form of what logic review raised as R3.2: the cap is evadable by ordering,
+because `hasFullHeightUnder` is re-answered for future inserts while a placed body's depth is a
+persisted fact. Fixing R3.1 removed the *harmful* instance (a 580 mm carcass over a worktop). This
+one is not harmful — 680 mm is genuinely the column's depth and there is no worktop to lean over, so
+it violates no rule in backlog entry 5 — but it is an inconsistency a customer can reach.
+
+**Not fixed, because the right answer is not obvious.** Three readings, all defensible:
+
+- **680 is correct.** The opening really is that deep; a cabinet flush with the fridge front is a
+  normal thing to build. The rule says "as deep as the column" and the column is 680.
+- **600 is correct.** The seeded design chose 600 over this fridge deliberately, and an insert should
+  not silently exceed what the kitchen was designed with.
+- **They should simply agree**, whichever value wins, because "delete then re-add" and "replace" are
+  the same intent expressed two ways, and §5.3 exists precisely so a swap is not a delete plus an
+  insert.
+
+The third is the one worth deciding first: the divergence matters more than the number.
+
+Related: entry 9 (a hood round trip costing 100 mm) is the same mechanism — a placed body's depth is
+a persisted fact and nothing re-derives it.
 
 ## Also open, recorded elsewhere — do not duplicate here
 

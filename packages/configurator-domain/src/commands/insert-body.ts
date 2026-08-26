@@ -127,7 +127,11 @@ function place(
     // the outgoing body's. Never `target.column.d` — that is §3.2's MAX over the whole vertical
     // run, so a wall cabinet was built to the depth of the base cabinet below it and a swap
     // changed the body's depth. See `InsertOpening.d`.
-    depthM: target.opening.d,
+    //
+    // Read off the plan rather than off the opening, because §7's head-clearance cap
+    // (`WALL_CARCASS_MAX_DEPTH_OVER_WORKTOP_M`) sits between the two and the offer list has to see
+    // the same number this does.
+    depthM: plan.depthM,
   });
   const mismatch = refuseBuiltSize(body, plan, measurement);
   if (mismatch) return refuse(input.design, mismatch);

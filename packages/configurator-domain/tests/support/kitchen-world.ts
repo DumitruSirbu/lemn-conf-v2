@@ -9,6 +9,7 @@ import {
   deriveColumns,
   derivePlacementRecords,
   recomputeVoids,
+  withCurrentFullHeightMembers,
   type BodyCatalog,
   type Column,
   type PlacementRecord,
@@ -56,13 +57,16 @@ export function advancePast(
 }
 
 /** Applies a command's design to the world exactly as the store must: records and voids are
- *  re-derived, the column map is not. */
+ *  re-derived, the columns' **extent** is not, and their `hasFullHeightUnder` is re-answered from
+ *  the new records — the one column field that describes what stands there now rather than how far
+ *  the run reaches. */
 export function advance(world: KitchenWorld, design: Design): KitchenWorld {
   const records = derivePlacementRecords(design, world.catalog);
   return {
     ...world,
     design,
     records,
+    columns: withCurrentFullHeightMembers(world.columns, records),
     voids: recomputeVoids(records, world.columns),
   };
 }

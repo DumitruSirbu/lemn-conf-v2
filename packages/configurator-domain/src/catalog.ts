@@ -4,7 +4,17 @@
 // split only by `insertable`. One map, because a placement created by `insertBody` must resolve
 // through the same lookup as a seeded one or `UnknownBodyError` becomes reachable at load; two
 // populations, because a seeded entry describes one already-built body and must never be offered.
-import type { Band, BodyDefinition, WidthFlex } from "./void-engine.js";
+import { toMillimetres } from "./millimetres.js";
+import {
+  MIN_WIDTH_M,
+  type Band,
+  type BodyDefinition,
+  type WidthFlex,
+} from "./void-engine.js";
+
+/** ADR 0026: §2's `MIN_W` in millimetres, as what it now is — the **default** width floor, which
+ *  governs every entry that does not declare one of its own. */
+const DEFAULT_MIN_WIDTH_MM = toMillimetres(MIN_WIDTH_M);
 
 /** §7: "everything else" — 1000 mm was dropped, because two doors top out at 800. */
 const STANDARD_WIDTHS_MM: readonly number[] = [400, 600, 800];
@@ -14,6 +24,18 @@ const SINK_WIDTHS_MM: readonly number[] = [600, 800];
 /** ADR 0017: the sink aperture's own width, which is the width at which the geometry is correct
  *  rather than merely inside `FIT_TOLERANCE_M`. */
 const SINK_MIN_WIDTH_MM = 560;
+/** ADR 0026: the bottle cargo's own set, and not a new general module width — the standard set
+ *  stays {400, 600, 800}. A millimetre set rather than `'fit'`, because the **proportion is the
+ *  product**: a `'fit'` body built into an 800 mm opening would be an 800 mm cabinet with one
+ *  front, which is not a bottle cargo. Backlog entry 2 fixes the range at 200–300; the two members
+ *  inside it are the widths a narrow pull-out is actually made at, and they await the owner's
+ *  confirmation. */
+const BOTTLE_CARGO_WIDTHS_MM: readonly number[] = [200, 300];
+
+/** ADR 0026: below §2's default floor, deliberately, and the only entry in the catalogue that
+ *  declares a floor *under* it rather than over it. */
+const BOTTLE_CARGO_MIN_WIDTH_MM = 200;
+
 const DISHWASHER_WIDTHS_MM: readonly number[] = [450, 600];
 const HOOD_WIDTHS_MM: readonly number[] = [600, 900];
 const COLUMN_WIDTHS_MM: readonly number[] = [600];
@@ -31,7 +53,10 @@ const COLUMN_HEIGHT_MM = 2200;
 const FREESTANDING_FRIDGE_HEIGHT_MM = 1850;
 
 const BASE_DEPTH_MM = 580;
-/** §7's `min(d, 0.4)` clamp for wall carcasses, as catalogue data rather than builder trivia. */
+/** A wall entry's nominal depth: §7's head-clearance cap, which is what a wall carcass is built to
+ *  over a worktop. It is the `frameDepthMm` fallback for a placement with no measured seat of its
+ *  own, **not** the depth anything gets built to — that is decided per opening by
+ *  `WALL_CARCASS_MAX_DEPTH_OVER_WORKTOP_M`, and over a full-height column it is deeper than this. */
 const WALL_DEPTH_MM = 400;
 const HOOD_DEPTH_MM = 500;
 const COLUMN_DEPTH_MM = 560;
@@ -116,6 +141,15 @@ export const INSERTABLE_BODY_DEFINITIONS: readonly (readonly [
   ["base-1door", baseCabinet("Corp bază 1 ușă")],
   ["base-3drawer", baseCabinet("Corp bază 3 sertare")],
   ["base-panbank", baseCabinet("Sertare pentru oale")],
+  [
+    "base-bottle-cargo",
+    {
+      ...baseCabinet("Cargo îngust pentru sticle"),
+      widthFlex: BOTTLE_CARGO_WIDTHS_MM,
+      sizesMm: BOTTLE_CARGO_WIDTHS_MM,
+      minWidthMm: BOTTLE_CARGO_MIN_WIDTH_MM,
+    },
+  ],
   [
     "base-sink",
     {
@@ -227,8 +261,10 @@ export interface InsertableBody {
   readonly heightFlex: boolean;
   readonly nominalHeightMm: number;
   readonly sizesMm: readonly number[];
-  /** ADR 0017: this body's own width floor, when its builder has one. Absent means `MIN_WIDTH_M`
-   *  governs — the two are different facts, so this is carried absent rather than defaulted. */
+  /** ADR 0017: this body's own width floor, when its row declares one. Absent means `MIN_WIDTH_M`
+   *  governs — the two are different facts and carry different rejection codes, so this is carried
+   *  absent rather than defaulted. ADR 0026: a floor below `MIN_WIDTH_M` replaces it for this
+   *  entry; a floor above it is checked after it. */
   readonly minWidthMm?: number;
   readonly definition: BodyDefinition;
 }
@@ -267,9 +303,15 @@ export function toInsertableBody(
 }
 
 /** ADR 0017: the widths an entry can actually be built at — the given set, less anything under the
- *  floor its own builder declares. An entry with no floor keeps its set untouched, which is every
- *  shipped entry, `base-sink` included: it is the only one declaring a floor and its chips are
- *  already above it.
+ *  floor that governs it. ADR 0026: that is the entry's own `minWidthMm` where it declares one, in
+ *  either direction, and §2's default floor where it does not. Reading the default here rather
+ *  than treating an absent declaration as "no floor" is what keeps a chip under 300 mm off a row
+ *  that never asked to be an exception.
+ *
+ *  It is a no-op for every shipped entry: `base-sink`'s chips start at 600, above its own 560 mm
+ *  floor; `base-bottle-cargo`'s are its own 200 and 300 and it declares that floor; and every other
+ *  row's narrowest chip is at or above the 300 mm default — 400 for the standard set, 450 for the
+ *  dishwasher, 600 for the hood and the columns, 700 for `fridge-free`. Nothing is filtered out.
  *
  *  Catalogue data rather than command logic, because two callers apply it to two different sets and
  *  neither owns the rule: §5.2's guard narrows `widthFlex` to decide what to build, and §9's offer
@@ -279,8 +321,8 @@ export function buildableSizes(
   minWidthMm: number | undefined,
   sizesMm: readonly number[],
 ): readonly number[] {
-  if (minWidthMm === undefined) return sizesMm;
-  return sizesMm.filter((size) => size >= minWidthMm);
+  const floorMm = minWidthMm ?? DEFAULT_MIN_WIDTH_MM;
+  return sizesMm.filter((size) => size >= floorMm);
 }
 
 /** Every insertable entry of a catalogue, in catalogue order — the raw list §9's offer filter

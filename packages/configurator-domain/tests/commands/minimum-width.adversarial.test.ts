@@ -7,6 +7,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  buildableSizes,
   INSERTABLE_BODY_DEFINITIONS,
   toInsertableBody,
 } from "../../src/catalog.js";
@@ -238,6 +239,7 @@ describe("a millimetre-set entry honours its own minimum width too", () => {
       d: 0.58,
       top: 0.86,
       regions: [[0, 0.86]],
+      hasFullHeightUnder: true,
     };
     return evaluateInsertFit({ body, opening, column });
   }
@@ -324,7 +326,14 @@ describe("the shipped fixed-set entries resolve exactly as they did before the f
       }
       const body = toInsertableBody(buildId, definition);
       if (!body) throw new Error(`${buildId} is not insertable`);
-      expect(definition.minWidthMm).toBeUndefined();
+      // Not "this entry declares no floor" any more — ADR 0026's `base-bottle-cargo` declares 200
+      // and lists 200/300. The precondition this sweep actually needs is that the floor removes
+      // nothing from the set, which is what makes the pre-fix formula still the right reference.
+      // A floor that *would* drop a listed width still fails here, which is the case this line was
+      // written to catch.
+      expect(buildableSizes(definition.minWidthMm, sizesMm), buildId).toEqual(
+        sizesMm,
+      );
 
       for (
         let openingWidthMm = 300;
@@ -358,6 +367,7 @@ describe("the shipped fixed-set entries resolve exactly as they did before the f
             d: 0.58,
             top: 2.6,
             regions: [[0, 2.6]],
+            hasFullHeightUnder: true,
           },
         });
         const label = `${buildId} @ ${String(openingWidthMm)} mm`;

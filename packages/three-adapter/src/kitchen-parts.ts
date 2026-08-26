@@ -148,6 +148,7 @@ export interface Factories {
   cornerBaseX: () => THREE.Group;
   cornerBaseReturn: (LD?: number) => THREE.Group;
   dishwasherHousing: (W?: number) => THREE.Group;
+  bottleCargo: (w: number) => THREE.Group;
 }
 
 export interface BaseCabinetOptions {
@@ -668,6 +669,30 @@ export function makeKit(options: KitOptions = {}): Kit {
       sk.position.y = y + CTOP;
       g.add(sk);
     }
+    return g;
+  }
+
+  /** ADR 0026: the narrow pull-out for oil and vinegar bottles, ~200 mm wide.
+   *
+   *  A base carcass under the same worktop as every other base body, carrying **one** front over
+   *  its whole height. The front is a pull-out's, not a door's, and the difference is where the
+   *  handle goes: `"top"` puts a horizontal bar across the top edge, the way a drawer front carries
+   *  one, while a hinged single door (`baseCabinet(w, { doors: 1 })`) carries a vertical bar down
+   *  its opening side. At 200 mm those two read as different cabinets at a glance, which is the
+   *  point — the thumbnail draws the same horizontal bar.
+   *
+   *  Not an option on `baseCabinet`: another flag on a builder that already branches four ways on
+   *  `doors`/`drawers`/`sink` would make a fifth path through it, and this body shares only its
+   *  plinth, carcass and counter with that one. */
+  function bottleCargo(w: number): THREE.Group {
+    const g = G("bottle_cargo");
+    g.add(plinth(w, CARC_D));
+    g.add(carcass(w, CARC_H, CARC_D, PLINTH));
+    const fz = CARC_D / 2 + TH / 2;
+    g.add(
+      doorSlab(w - 0.006, CARC_H - 0.01, 0, PLINTH + CARC_H - 0.004, fz, "top"),
+    );
+    g.add(counter(w));
     return g;
   }
 
@@ -1560,6 +1585,7 @@ export function makeKit(options: KitOptions = {}): Kit {
     cornerBaseX,
     cornerBaseReturn,
     dishwasherHousing,
+    bottleCargo,
   };
   return {
     builders,

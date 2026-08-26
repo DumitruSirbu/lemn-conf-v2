@@ -1,4 +1,4 @@
-// `DEVELOPMENT-SPEC.md` §7's builder column, as code: the fifteen **insertable** catalogue
+// `DEVELOPMENT-SPEC.md` §7's builder column, as code: the sixteen **insertable** catalogue
 // entries built at a width, height and depth chosen at insert time.
 //
 // This is the parameterised half of ADR 0011 Gap A. `buildDecomposedBody` still serves M2's twenty
@@ -11,10 +11,6 @@ import type { Kit } from "./kitchen-parts.js";
  *  above it, so `canopy + chimney` is the height §7 fixes at 0.71 m (ADR 0016). Change this only
  *  when that builder's canopy changes; the built-size re-check in `insertBody` catches the drift. */
 export const HOOD_CANOPY_HEIGHT_M = 0.13;
-
-/** §7's `min(d, 0.4)` clamp: a wall carcass never gets deeper than 400 mm however deep the column
- *  it hangs in is. */
-const WALL_CARCASS_MAX_DEPTH_M = 0.4;
 
 /** §7's wall-cabinet door rule, `w > 0.45 ? 2 : 1`. §11 row 20 is the 570 mm case: two doors. */
 const TWO_DOOR_MIN_WIDTH_M = 0.45;
@@ -32,17 +28,18 @@ export interface CatalogBodySize {
 
 type CatalogBodyBuilder = (kit: Kit, size: CatalogBodySize) => THREE.Group;
 
-function wallCarcassDepthM(size: CatalogBodySize): number {
-  return Math.min(size.depthM, WALL_CARCASS_MAX_DEPTH_M);
-}
-
+/** §7's `min(d, 0.4)` clamp used to live here. It is a **head-clearance product rule** — shallow
+ *  by default so nobody hits their head leaning over the counter, and lifted only where a
+ *  full-height member stands under the opening and there is nothing to lean over — so it depends
+ *  on what stands under the opening, which is a fact about the *design*. The adapter has no
+ *  design. It now arrives already applied, in the
+ *  depth the domain hands the probe (`insert-fit.ts`, `WALL_CARCASS_MAX_DEPTH_OVER_WORKTOP_M`), and
+ *  the builders build what they are given. §12: product rules in the domain, builders here.
+ *
+ *  Re-clamping here would make the rule unreachable rather than redundant: the domain's 600 mm over
+ *  a tall column would be cut back to 400 and the decision would do nothing. */
 function wallCabinet(kit: Kit, size: CatalogBodySize, doors: number) {
-  return kit.make.wallCabinet(
-    size.widthM,
-    doors,
-    size.heightM,
-    wallCarcassDepthM(size),
-  );
+  return kit.make.wallCabinet(size.widthM, doors, size.heightM, size.depthM);
 }
 
 /** §7's builder column, one arm per insertable id. The four fixed-size entries ignore the
@@ -61,6 +58,9 @@ const CATALOG_BODY_BUILDERS: Readonly<Record<string, CatalogBodyBuilder>> = {
     kit.make.baseCabinet(size.widthM, { drawers: 2 }),
   "base-sink": (kit, size) =>
     kit.make.baseCabinet(size.widthM, { doors: 2, sink: true }),
+  // ADR 0026: its own builder, not a `baseCabinet` option — one full-height pull-out front, and at
+  // 200 mm the proportion is the product.
+  "base-bottle-cargo": (kit, size) => kit.make.bottleCargo(size.widthM),
   "base-dishwasher": (kit, size) => kit.make.dishwasherHousing(size.widthM),
   "wall-2door": (kit, size) =>
     wallCabinet(kit, size, size.widthM > TWO_DOOR_MIN_WIDTH_M ? 2 : 1),
@@ -70,11 +70,11 @@ const CATALOG_BODY_BUILDERS: Readonly<Record<string, CatalogBodyBuilder>> = {
   // — that omits the handle meshes, which turns `canHandle` false and takes the choice away for
   // good. The scene hides them by slot instead (`scene-sync.ts`, `isPushOpenByDefault`).
   "wall-lift": (kit, size) =>
-    kit.make.wallLift(size.widthM, size.heightM, wallCarcassDepthM(size)),
+    kit.make.wallLift(size.widthM, size.heightM, size.depthM),
   "open-shelf": (kit, size) =>
     kit.make.openShelf(
       size.widthM,
-      wallCarcassDepthM(size),
+      size.depthM,
       OPEN_SHELF_INNER_SHELVES,
       size.heightM,
     ),
@@ -91,8 +91,9 @@ const CATALOG_BODY_BUILDERS: Readonly<Record<string, CatalogBodyBuilder>> = {
 /** Every id `buildCatalogBody` covers, in §7's own order. Exported so a test can assert the
  *  builder table and the domain's insertable catalogue are the *same* set in both directions —
  *  a builder with no catalogue entry is dead code, and a catalogue entry with no builder is a body
- *  that is offered and then throws. There are fifteen, not fourteen: §7's table has six base rows,
- *  five wall rows and four full-height rows, and `INSERTABLE_BODY_DEFINITIONS` matches it. */
+ *  that is offered and then throws. There are sixteen: §7's table has six base rows, five wall
+ *  rows and four full-height rows, plus ADR 0026's `base-bottle-cargo`, and
+ *  `INSERTABLE_BODY_DEFINITIONS` matches it. */
 export const CATALOG_BUILD_IDS: readonly string[] = Object.keys(
   CATALOG_BODY_BUILDERS,
 );

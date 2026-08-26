@@ -32,6 +32,7 @@ const CABINET_DRAWING_FILENAMES: Readonly<Record<string, string>> = {
   "base-1door": "base-1-door.svg",
   "base-3drawer": "base-3-drawer.svg",
   "base-panbank": "base-panbank.svg",
+  "base-bottle-cargo": "base-bottle-cargo.svg",
   "base-sink": "base-sink.svg",
   "base-dishwasher": "base-dishwasher.svg",
   "wall-2door": "wall-2-door.svg",

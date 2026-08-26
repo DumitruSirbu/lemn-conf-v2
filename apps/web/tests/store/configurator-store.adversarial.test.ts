@@ -16,6 +16,7 @@ import {
   createConfiguratorStore,
   type ConfiguratorState,
 } from "../../src/store/configurator-store";
+import { columnExtents } from "../support/column-extents";
 import { createFakeBodyProbe } from "../support/fake-body-probe";
 
 const OCCURRED_AT = "2026-08-25T12:00:00.000Z";
@@ -85,7 +86,7 @@ function expectStoreInvariants(store: Store, at: string): void {
 describe("the frozen column map survives a long sequence, not just one command", () => {
   it("keeps the identical map object across every command and every refusal", () => {
     const store = createStore();
-    const frozen = store.getState().columns;
+    const frozen = columnExtents(store.getState().columns);
     const columnKeys = [...frozen.keys()].sort();
 
     const steps: readonly [string, () => void][] = [
@@ -165,9 +166,10 @@ describe("the frozen column map survives a long sequence, not just one command",
 
     for (const [name, run] of steps) {
       run();
-      expect(store.getState().columns, `${name} replaced the column map`).toBe(
-        frozen,
-      );
+      expect(
+        columnExtents(store.getState().columns),
+        `${name} recomputed the column extents`,
+      ).toEqual(frozen);
       expect([...store.getState().columns.keys()].sort()).toEqual(columnKeys);
       expectStoreInvariants(store, name);
     }

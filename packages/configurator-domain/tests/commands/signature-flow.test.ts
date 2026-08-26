@@ -11,6 +11,8 @@ import {
   KITCHEN_L_BODY_CATALOG,
   KITCHEN_L_DESIGN,
 } from "../../src/fixtures/kitchen-l-design.js";
+import type { ColumnExtent } from "../../src/void-engine.js";
+import { extentOf } from "../support/column-extents.js";
 import { clearBodies, insertInto, OCCURRED_AT } from "../support/commands.js";
 import {
   advance,
@@ -108,12 +110,24 @@ describe("the signature flow (§10)", () => {
   });
 });
 
+/** The half of a column ADR 0011 Gap D freezes, or a failure naming the column that went missing. */
+function frozenExtentAt(world: KitchenWorld, key: string): ColumnExtent {
+  const column = world.columns.get(key);
+  if (!column) throw new Error(`No column ${key}`);
+  return extentOf(column);
+}
+
 describe("column stability (§3.2, ADR 0011 Gap D)", () => {
   it("leaves a column's top where it was when its top unit is deleted", () => {
     const world = seeded();
-    const before = world.columns.get("A|2.00");
+    const before = frozenExtentAt(world, "A|2.00");
     const after = clearBodies(world, ["p18"]);
-    expect(after.columns.get("A|2.00")).toBe(before);
+    // By value and no longer by identity: every derivation now rebuilds the map to re-answer
+    // `hasFullHeightUnder`. That field is not part of the frozen extent, so it is projected out rather than
+    // compared — deleting a base cabinet is *supposed* to flip it, and a flow that did would
+    // otherwise fail under this heading. The defect this row exists to catch is still caught: a
+    // recomputed column would drop `top` from 2.6 to 2.2, which the extent carries.
+    expect(frozenExtentAt(after, "A|2.00")).toEqual(before);
     expect(
       after.voids.some((slot) => slot.col === "A|2.00" && slot.y0 === 2.2),
     ).toBe(true);

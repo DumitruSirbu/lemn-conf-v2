@@ -19,7 +19,13 @@ export const LEVELS: readonly (readonly [number, number])[] = [
 /** Smallest span (metres) that becomes a void. */
 export const MIN_SPAN_M = 0.3;
 
-/** `DEVELOPMENT-SPEC.md` §2's `MIN_W`: the narrowest cabinet, and M5's resize floor. */
+/** `DEVELOPMENT-SPEC.md` §2's `MIN_W`: the **default** narrowest cabinet, and M5's resize floor.
+ *
+ *  ADR 0026 reads this as a default rather than an absolute: an entry may declare a `minWidthMm`
+ *  of its own in either direction, and one declaring a floor *below* this replaces it for that
+ *  entry alone. `base-bottle-cargo` is the only such row, and it is reachable only by being chosen
+ *  deliberately — §5.4's donor rule reads this constant, so no resize can leave a neighbour under
+ *  300 mm as the residue of somebody else's edit. */
 export const MIN_WIDTH_M = 0.3;
 
 /** `DEVELOPMENT-SPEC.md` §2's `TOL`: the slack every width and height comparison uses. Frame
@@ -82,19 +88,25 @@ export interface BodyDefinition {
    *  height. */
   readonly heightFlex?: boolean;
   readonly nominalHeightMm?: number;
-  /** The depth this body's builder clamps itself to (§7's `min(d, 0.4)` for wall carcasses).
-   *  §5.2 hands the *opening's* depth to the probe, so this does not decide what gets built; it is
-   *  catalogue data for the adapter's builders, and it is the entry's `frameDepthMm` fallback for a
-   *  placement with no measured `seatDepthMm` of its own. */
+  /** This entry's nominal depth. §5.2 hands the *opening's* depth to the probe — capped for a wall
+   *  carcass unless a full-height member stands under the opening — so this does not decide what
+   *  gets built; it is catalogue data, and it is the entry's `frameDepthMm` fallback for a
+   *  placement with no measured `seatDepthMm` of its own. A wall entry over a full-height column
+   *  builds deeper than this. */
   readonly nominalDepthMm?: number;
   /** §9's width chips — the legal widths for this body. Delivered as a per-entry constant here;
    *  M5 wires them to the resize command. */
   readonly sizesMm?: readonly number[];
-  /** ADR 0017: the narrowest width (millimetres) this body's builder can actually produce, for an
-   *  entry whose builder has a floor of its own. Absent means `MIN_WIDTH_M` governs, which is every
-   *  other entry. `base-sink` declares one because its worktop splits around a fixed 560 mm sink
-   *  aperture and inverts below that — an entry that declares one is admitting its builder is not
-   *  parameterised, and parameterising it stays the real fix. */
+  /** ADR 0017: the narrowest width (millimetres) this body's own row permits. Absent means
+   *  `MIN_WIDTH_M` governs, which is every entry but two.
+   *
+   *  It has a **direction** (ADR 0026). Declared *above* `MIN_WIDTH_M` it is a builder limitation:
+   *  `base-sink` declares 560 because its worktop splits around a fixed sink aperture and inverts
+   *  below that, and an entry that declares one this way is admitting its builder is not
+   *  parameterised — parameterising it stays the real fix. Declared *below* `MIN_WIDTH_M` it is a
+   *  product decision instead: `base-bottle-cargo` declares 200 because a 200 mm pull-out for
+   *  bottles is a real cabinet, and it replaces the default floor for that one entry rather than
+   *  lowering it for every `widthFlex: 'fit'` body in the catalogue. */
   readonly minWidthMm?: number;
   /** The insertable §7 entry this seeded entry is an instance of, so §9 can badge the swap row the
    *  customer is already standing on **ACTUAL**. ADR 0011 Gap A gives every seeded placement a
@@ -143,7 +155,47 @@ export interface Column {
   readonly d: number;
   readonly top: number;
   readonly regions: readonly (readonly [number, number])[];
+  /** Whether a full-height member stands under this column — §7's head-clearance cap on a wall
+   *  carcass is lifted over one, and applies everywhere else (`insert-fit.ts`,
+   *  `WALL_CARCASS_MAX_DEPTH_OVER_WORKTOP_M`).
+   *
+   *  **Stated positively on purpose.** It used to ask the opposite question — "is there a worktop
+   *  under this opening" — and cap wherever the answer was no. The absence of a worktop is not the
+   *  presence of a column: empty space is neither, and empty space is what a delete produces, so
+   *  deleting the base cabinets under a wall run lifted the cap over nothing at all and built a
+   *  580 mm carcass beside 330 mm neighbours. Backlog entry 5's rule is "over a full-height column
+   *  there is nothing to lean over", and only the positive reading of it is safe when the column is
+   *  empty. ADR 0011's third correction is the record.
+   *
+   *  **The one field on this record that is not frozen at load.** ADR 0011 Gap D freezes a
+   *  column's *extent* — `x`, `z`, `w`, `d`, `top`, `regions` — because a cleared run must keep the
+   *  opening it just freed. What stands under an opening is not part of that extent: it is a fact
+   *  about **now**, so freezing it made one design answer two ways, depending on whether the member
+   *  below was deleted in this session or in a previous one. Every derivation therefore re-answers
+   *  it over the frozen extent — see `withCurrentFullHeightMembers`.
+   *
+   *  Declared, never inferred from a depth: `Column.d` is 580 over a base run and 600 over a tall
+   *  column, and §6.3 records what inferring a body's identity from its measurements cost. `d` is
+   *  also frozen while this is live, which is precisely how the two halves came to disagree.
+   *
+   *  Required rather than optional on purpose. An absent answer defaults to `false`, which is now
+   *  the *conservative* direction — the cap applies — so a column that forgets to say builds a
+   *  shallow cabinet rather than a deep one over a counter. */
+  readonly hasFullHeightUnder: boolean;
 }
+
+/** A column's frozen half: everything ADR 0011 Gap D fixes at load. Naming the frozen half is what
+ *  the type is for — a field added to `Column` has to be classified as frozen or live before this
+ *  compiles, and the projections built on it (`apps/web/tests/support/column-extents.ts`) then
+ *  follow.
+ *
+ *  It enforces nothing about `hasFullHeightUnder`: any `Column` literal sets that field directly, and
+ *  several tests do. That `hasFullHeightUnder` is always current is held **by construction through a single
+ *  funnel**, not by the type. In `src/` there is exactly one consumer that reads it
+ *  (`commands/insert-fit.ts`), and every `Column` reaching it has passed through
+ *  `withCurrentFullHeightMembers` — from `deriveColumns` at load, or from the store's `applyCommandResult`
+ *  after each command. Adding a second route to that consumer breaks the invariant silently. */
+export type ColumnExtent = Omit<Column, "hasFullHeightUnder">;
 
 export interface VoidRecord {
   readonly id: string;
@@ -260,11 +312,15 @@ function groupByColumn(
 
 /** §3.2: derived once at load from the seeded placement set, and never recomputed afterwards —
  *  `top` and `regions` are load-time facts, not a function of the design's current state.
- *  Accessories contribute nothing. */
+ *  Accessories contribute nothing.
+ *
+ *  `hasFullHeightUnder` is the exception and is answered here only because a load is also a
+ *  derivation; every derivation after this one re-answers it through
+ *  `withCurrentFullHeightMembers`. */
 export function deriveColumns(
   records: readonly PlacementRecord[],
 ): ReadonlyMap<string, Column> {
-  const columns = new Map<string, Column>();
+  const columns = new Map<string, ColumnExtent>();
   for (const [key, members] of groupByColumn(records)) {
     const deepest = members.reduce((deepestSoFar, member) =>
       member.frame.d > deepestSoFar.frame.d ? member : deepestSoFar,
@@ -292,7 +348,86 @@ export function deriveColumns(
       regions,
     });
   }
-  return columns;
+  return withCurrentFullHeightMembers(columns, records);
+}
+
+/** Re-answers "does a full-height member stand under this column" over frozen extents, and
+ *  changes nothing else. The result is a new map; the extent fields are carried across untouched,
+ *  so ADR 0011 Gap D still holds — a cleared run keeps the opening it freed.
+ *
+ *  It exists because the answer is **not** a load-time fact. Frozen, a column that had the member
+ *  below it deleted in this session still reported the old answer, while the identical design
+ *  reloaded reported the new one: one document, two depths, decided by the route the customer
+ *  took. Every caller that re-derives records after a mutation must call this with them. */
+export function withCurrentFullHeightMembers(
+  columns: ReadonlyMap<string, ColumnExtent>,
+  records: readonly PlacementRecord[],
+): ReadonlyMap<string, Column> {
+  const answered = new Map<string, Column>();
+  for (const [key, column] of columns) {
+    answered.set(key, {
+      ...column,
+      hasFullHeightUnder: records.some((record) =>
+        isFullHeightUnder(record, column),
+      ),
+    });
+  }
+  return answered;
+}
+
+/** §7's cap is lifted only by a full-height member, so this asks for one by name. `column` is the
+ *  `Band` §7 gives every full-height unit — the tall pantry, the oven tower, the integrated fridge
+ *  niche and the freestanding fridge — and it is the only band that reaches a person's head height,
+ *  which is what "there is nothing to lean over" means.
+ *
+ *  **Asked of every full-height member on the wall, not of the column's own membership.** §7's cap
+ *  is a head-clearance rule about what a person leans over, which is a question about geometry. A
+ *  column key is one along-wall coordinate, so a wall cabinet hanging over the right-hand half of a
+ *  wider unit has no member of its own; overlap is what decides.
+ *
+ *  Accessories are excluded for the reason `groupByColumn` drops them, and because no accessory is
+ *  full-height.
+ *
+ *  **Same-wall only, deliberately.** Both walls originate at (0, 0, 0), so a wall-B cabinet in the
+ *  inside corner is never lifted by a wall-A run standing physically beneath it. That is
+ *  unreachable today — every wall-B corner column is 330 mm deep, so the cap it keeps is a no-op —
+ *  and it becomes reachable only once a wall-B column exceeds 400 mm with no full-height wall-B
+ *  member of its own. A corner special case was considered and rejected as not worth its cost;
+ *  revisit it if that shape ever ships. */
+function isFullHeightUnder(
+  record: PlacementRecord,
+  column: ColumnExtent,
+): boolean {
+  return (
+    !record.accessory &&
+    record.band === "column" &&
+    record.wall === column.wall &&
+    overlapsAlongWall(record, column)
+  );
+}
+
+/** Overhanging, not merely adjoining. Two runs that meet on a module line share a boundary and
+ *  nothing else, so the overlap has to be positive before the member counts as being *under* the
+ *  opening — otherwise every cabinet beside a column would be uncapped. */
+function overlapsAlongWall(
+  record: PlacementRecord,
+  column: ColumnExtent,
+): boolean {
+  const recordStart = alongWall(record.wall, record.frame);
+  const columnStart = alongWall(column.wall, column);
+  const overlap =
+    Math.min(recordStart + record.frame.w, columnStart + column.w) -
+    Math.max(recordStart, columnStart);
+  return overlap > SPAN_EPSILON_M;
+}
+
+/** The along-wall coordinate: `x` on wall A, `z` on wall B — the same axis `deriveColumnKey`
+ *  buckets on. */
+function alongWall(
+  wall: DesignWall,
+  position: { readonly x: number; readonly z: number },
+): number {
+  return wall === "A" ? position.x : position.z;
 }
 
 interface FreeSpan {

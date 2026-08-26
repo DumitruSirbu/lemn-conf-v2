@@ -18,6 +18,8 @@ import {
   deriveColumns,
   derivePlacementRecords,
   recomputeVoids,
+  type Column,
+  type ColumnExtent,
 } from "../../src/void-engine.js";
 import { OCCURRED_AT } from "../support/commands.js";
 import { createWorld } from "../support/kitchen-world.js";
@@ -120,6 +122,16 @@ describe("the base corner is a selectable placement (§11 row 16)", () => {
   );
 });
 
+/** A column without the one field that is not frozen (`hasFullHeightUnder`), so "unchanged" means
+ *  what ADR 0011 Gap D actually freezes: the run's extent. Named field by field rather than dropped
+ *  with a rest spread, so a field added to `Column` is a type error here and has to be
+ *  classified. */
+function extentOf(column: Column | undefined): ColumnExtent | undefined {
+  if (!column) return undefined;
+  const { key, wall, ry, x, z, w, d, top, regions } = column;
+  return { key, wall, ry, x, z, w, d, top, regions };
+}
+
 describe("adding the base corner changed no other derived state", () => {
   // The "before" state, reproduced exactly: the same fixture with the two new placements dropped
   // is the design this file's subject was added to. Comparing against it beats a hardcoded
@@ -134,14 +146,32 @@ describe("adding the base corner changed no other derived state", () => {
     KITCHEN_L_BODY_CATALOG,
   );
 
-  it("adds exactly two columns and leaves every pre-existing one identical", () => {
+  it("adds exactly two columns and leaves every pre-existing extent identical", () => {
     const after = seeded();
     const added = [...after.columns.keys()].filter(
       (key) => !before.columns.has(key),
     );
     expect(added.sort()).toEqual(["A|0.45", "B|0.74"]);
     for (const [key, column] of before.columns) {
-      expect([key, after.columns.get(key)]).toEqual([key, column]);
+      expect([key, extentOf(after.columns.get(key))]).toEqual([
+        key,
+        extentOf(column),
+      ]);
+    }
+  });
+
+  // §7's cap is lifted only by a **full-height** member standing under the opening. `p25` is a base
+  // corner, so adding it lifts nothing: the two wall-only columns that overhang it stay capped,
+  // before and after. Pinned because the predicate is geometric — it asks about overlap, not column
+  // membership — and a version that lifted on "any member underneath" would answer differently here
+  // and build a 580 mm carcass over a counter.
+  it("leaves the two wall columns that overhang it capped, a base corner lifting nothing", () => {
+    const after = seeded();
+    for (const key of ["A|0.30", "A|0.75"]) {
+      expect([key, before.columns.get(key)?.hasFullHeightUnder]) //
+        .toEqual([key, false]);
+      expect([key, after.columns.get(key)?.hasFullHeightUnder]) //
+        .toEqual([key, false]);
     }
   });
 

@@ -105,6 +105,16 @@ const SIZE_CASES: readonly SizeCase[] = [
   ...[0.57, 0.6, 0.8].map((widthM) =>
     parameterised("base-sink", widthM, WORKTOP_HEIGHT_M, BASE_COLUMN_DEPTH_M),
   ),
+  // ADR 0026: the bottle cargo's own set. Narrower than §2's default floor at 200 mm, and a base
+  // body like any other above it — same worktop line, same depth.
+  ...[0.2, 0.3].map((widthM) =>
+    parameterised(
+      "base-bottle-cargo",
+      widthM,
+      WORKTOP_HEIGHT_M,
+      BASE_COLUMN_DEPTH_M,
+    ),
+  ),
   // §11 row 14: the niche accepts only 450 and 600, and both must build a real carcass.
   parameterised("base-dishwasher", 0.45, WORKTOP_HEIGHT_M, BASE_COLUMN_DEPTH_M),
   parameterised("base-dishwasher", 0.6, WORKTOP_HEIGHT_M, BASE_COLUMN_DEPTH_M),
@@ -247,6 +257,53 @@ describe("buildCatalogBody", () => {
     },
   );
 
+  // ADR 0026. The cargo is a pull-out, so what makes it one on screen is a **single** front over
+  // the carcass's whole height with **one** handle — not two doors, not a stack of drawer fronts.
+  // The thumbnail draws exactly that, and a body that disagreed with its own row drawing would be
+  // the "you ordered the wrong product" failure `public/cabinets/README.md` names.
+  it.each([0.2, 0.3])(
+    "builds one full-height pull-out front at %s m",
+    (widthM) => {
+      const group = buildCatalogBody(kit, "base-bottle-cargo", {
+        widthM,
+        heightM: WORKTOP_HEIGHT_M,
+        depthM: BASE_COLUMN_DEPTH_M,
+      });
+
+      expect(countMeshes(group, "door_front")).toBe(1);
+      expect(countMeshes(group, "handle_bar")).toBe(1);
+
+      const names: string[] = [];
+      group.traverse((node) => names.push(node.name));
+      expect(names).toContain("plinth");
+      expect(names).toContain("countertop");
+    },
+  );
+
+  // A narrow *hinged* door and a narrow pull-out are different cabinets, and at 200 mm the handle
+  // is the only thing that says which — across the top edge for a pull-out, down the opening side
+  // for a door. `base-1door` is the body it would otherwise be mistaken for.
+  it("hangs its handle across the front, not down the hinge side", () => {
+    const size = {
+      widthM: 0.2,
+      heightM: WORKTOP_HEIGHT_M,
+      depthM: BASE_COLUMN_DEPTH_M,
+    };
+    const cargoBar = findMesh(
+      buildCatalogBody(kit, "base-bottle-cargo", size),
+      "handle_bar",
+    );
+    const doorBar = findMesh(
+      buildCatalogBody(kit, "base-1door", size),
+      "handle_bar",
+    );
+
+    expect(cargoBar).toBeDefined();
+    expect(doorBar).toBeDefined();
+    expect(cargoBar?.rotation.z).toBeCloseTo(Math.PI / 2, 6);
+    expect(doorBar?.rotation.z).toBeCloseTo(0, 6);
+  });
+
   // §11 row 6 with ADR 0016: canopy + chimney is the requested height, exactly.
   it("builds the hood to its requested height, chimney included", () => {
     const measurement = measure("hood", {
@@ -321,22 +378,24 @@ describe("buildCatalogBody", () => {
     expect(box.max.y - box.min.y).toBeCloseTo(0.494, 3);
   });
 
-  // §7's `min(d, 0.4)` clamp, asserted on geometry rather than on the argument passed.
-  it("clamps a wall carcass to 400 mm however deep its column is", () => {
-    const shallow = buildCatalogBody(kit, "wall-1door", {
-      widthM: 0.6,
-      heightM: 0.7,
-      depthM: 0.33,
-    });
-    const deep = buildCatalogBody(kit, "wall-1door", {
-      widthM: 0.6,
-      heightM: 0.7,
-      depthM: 0.6,
-    });
+  // §7's `min(d, 0.4)` used to be applied here, which made a 600 mm wall carcass unbuildable and
+  // shrank the three cabinets the shipped kitchen hangs over its tall columns by 200 mm on every
+  // swap. It is a head-clearance **product rule** that depends on what stands under the opening,
+  // so it now lives in the domain (`WALL_CARCASS_MAX_DEPTH_OVER_WORKTOP_M`) and arrives already
+  // applied. Asserted on geometry rather than on the argument passed: the builder must build the
+  // depth it is handed, at both ends of the range, or the rule above it can decide nothing.
+  it.each([0.33, 0.4, 0.6])(
+    "builds a wall carcass to the %s m it is handed, and does not clamp it",
+    (depthM) => {
+      const group = buildCatalogBody(kit, "wall-1door", {
+        widthM: 0.6,
+        heightM: 0.7,
+        depthM,
+      });
 
-    expect(depthOf(shallow)).toBeCloseTo(0.33, 6);
-    expect(depthOf(deep)).toBeCloseTo(0.4, 6);
-  });
+      expect(depthOf(group)).toBeCloseTo(depthM, 6);
+    },
+  );
 });
 
 /** The bar's own extent, which is what tells a bottom-edge flap handle from a right-edge door
@@ -359,6 +418,15 @@ function handleBarExtent(group: THREE.Group): {
     centreX: (box.max.x + box.min.x) / 2,
     centreY: (box.max.y + box.min.y) / 2,
   };
+}
+
+/** The first mesh with this name, for a test that reads how a part is oriented rather than
+ *  whether it is there. */
+function findMesh(
+  group: THREE.Group,
+  meshName: string,
+): THREE.Object3D | undefined {
+  return group.getObjectByName(meshName);
 }
 
 function countMeshes(group: THREE.Group, meshName: string): number {

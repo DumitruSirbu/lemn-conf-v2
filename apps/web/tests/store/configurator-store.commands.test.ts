@@ -15,6 +15,7 @@ import {
   createConfiguratorStore,
   type ConfiguratorState,
 } from "../../src/store/configurator-store";
+import { columnExtents } from "../support/column-extents";
 import { createFakeBodyProbe } from "../support/fake-body-probe";
 
 /** The fridge column of the §10 signature flow: `p7` (0 – 1.85) with `p24` (1.85 – 2.60) above it,
@@ -386,12 +387,12 @@ describe("column stability (ADR 0011 Gap D)", () => {
 
   it("deleting a column's last member leaves the column in the map and the run selectable", () => {
     const store = createStore();
-    const columnsBefore = store.getState().columns;
+    const extentsBefore = columnExtents(store.getState().columns);
 
     removeById(store, "p7");
     removeById(store, "p24");
 
-    expect(store.getState().columns).toBe(columnsBefore);
+    expect(columnExtents(store.getState().columns)).toEqual(extentsBefore);
     expect(store.getState().columns.has(FRIDGE_COLUMN)).toBe(true);
     expect(
       store.getState().records.some((record) => record.col === FRIDGE_COLUMN),
@@ -403,16 +404,35 @@ describe("column stability (ADR 0011 Gap D)", () => {
     ]);
   });
 
-  it("keeps the column map identical across every kind of command", () => {
+  it("keeps every column's extent identical across every kind of command", () => {
     const store = createStore();
-    const columnsBefore = store.getState().columns;
+    const extentsBefore = columnExtents(store.getState().columns);
 
     removeById(store, "p7");
     store.getState().insert("base-2door");
     store.getState().setFinish("oak");
     store.getState().setHandle("push");
 
-    expect(store.getState().columns).toBe(columnsBefore);
+    expect(columnExtents(store.getState().columns)).toEqual(extentsBefore);
+  });
+
+  // The one column field a command *is* allowed to change, and must: §7's head-clearance cap asks
+  // what stands under an opening now. Frozen, this answered "a column still stands here" for a run
+  // whose full-height unit had just been deleted, while the same design reloaded answered "none".
+  it("re-answers `hasFullHeightUnder` when the full-height unit under a run is deleted", () => {
+    const store = createStore();
+    expect(store.getState().columns.get("B|2.45")?.hasFullHeightUnder).toBe(
+      true,
+    );
+
+    // `p7` is the run's only full-height member and the neighbouring tall unit ends 50 mm to its
+    // left, so nothing is left under the opening. The column keeps its frozen `top` regardless.
+    removeById(store, "p7");
+
+    expect(store.getState().columns.get("B|2.45")?.hasFullHeightUnder).toBe(
+      false,
+    );
+    expect(store.getState().columns.get("B|2.45")?.top).toBeCloseTo(2.6, 6);
   });
 });
 
