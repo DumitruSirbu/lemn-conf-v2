@@ -117,12 +117,18 @@ describe("insertBody — a probe that measured nothing", () => {
 });
 
 describe("insertBody — what it asks the probe for", () => {
-  it("measures at the plan's own numbers and the frozen column's depth", () => {
+  // Named for the column's depth until the swap defect was found: `column.d` is §3.2's MAX over
+  // the whole vertical run, and reading the build depth from there is what made a replacement wall
+  // cabinet as deep as the base cabinet under it. The number is the same on this void — a void
+  // carries its own column's depth (§3.3) — but the *rule* is the opening's, so it is read from
+  // the opening here. `insert-depth.test.ts` holds the case where the two differ.
+  it("measures at the plan's own numbers and the opening's own depth", () => {
     const world = clearedFridgeColumn();
     const probe = createFakeProbe();
+    const opening = voidAt(world, FRIDGE_COLUMN, 0);
     const result = insertInto(
       world,
-      { kind: "void", id: voidAt(world, FRIDGE_COLUMN, 0).id },
+      { kind: "void", id: opening.id },
       "base-2door",
       probe,
     );
@@ -132,7 +138,7 @@ describe("insertBody — what it asks the probe for", () => {
         buildId: "base-2door",
         widthM: 0.7,
         heightM: 0.86,
-        depthM: world.columns.get(FRIDGE_COLUMN)?.d,
+        depthM: opening.d,
       },
     ]);
   });

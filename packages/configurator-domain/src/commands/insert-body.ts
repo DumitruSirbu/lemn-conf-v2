@@ -123,7 +123,11 @@ function place(
     buildId: body.buildId,
     widthM: plan.widthM,
     heightM: plan.heightM,
-    depthM: target.column.d,
+    // §5.2's `b.mk(w, h, void.d)`: the **opening's** own depth, which on a §5.3 swap in place is
+    // the outgoing body's. Never `target.column.d` — that is §3.2's MAX over the whole vertical
+    // run, so a wall cabinet was built to the depth of the base cabinet below it and a swap
+    // changed the body's depth. See `InsertOpening.d`.
+    depthM: target.opening.d,
   });
   const mismatch = refuseBuiltSize(body, plan, measurement);
   if (mismatch) return refuse(input.design, mismatch);

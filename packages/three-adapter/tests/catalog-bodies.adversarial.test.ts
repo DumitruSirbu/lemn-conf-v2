@@ -104,6 +104,7 @@ function refusesFitWidth(
     wall: "A",
     alongM: 1,
     w: toMetres(openingWidthMm),
+    d: 0.58,
     y0: 0,
     h: 0.86,
     spanY0: 0,

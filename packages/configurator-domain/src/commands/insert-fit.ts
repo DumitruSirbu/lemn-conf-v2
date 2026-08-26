@@ -55,6 +55,16 @@ export interface InsertOpening {
    *  coordinate is *not* taken from here; it comes from the body's own measured seat. */
   readonly alongM: number;
   readonly w: number;
+  /** The depth the body is built to — §5.2's `void.d`, handed to the probe as `depthM`.
+   *
+   *  It belongs to the **opening**, never to the column. `Column.d` is §3.2's MAX over the whole
+   *  vertical run, so reading the depth from there builds a wall cabinet to the depth of the base
+   *  cabinet standing under it: on the shipped kitchen that changed the depth of 7 of 10 columns'
+   *  wall bodies on a swap, in both directions, and the replacement no longer lined up with its
+   *  neighbours. ADR 0018 is why that reads as a depth at all — `frame.d` is twice a body's rear
+   *  overhang, which for the two builders that consume a depth (`wallCabinet`, `openShelf`, whose
+   *  carcass is centred on z = 0) is exactly the depth they were given. */
+  readonly d: number;
   readonly y0: number;
   readonly h: number;
   readonly spanY0: number;
@@ -67,6 +77,7 @@ export function openingFromVoid(record: VoidRecord): InsertOpening {
     wall: record.wall,
     alongM: record.wall === "A" ? record.x : record.z,
     w: record.w,
+    d: record.d,
     y0: record.y0,
     h: record.h,
     spanY0: record.spanY0,
@@ -84,8 +95,15 @@ export function openingFromVoid(record: VoidRecord): InsertOpening {
  *  row in its own swap list. The level slot is 860 mm either way, which is the sense in which it is
  *  unchanged. See the report for M3 Wave 3A.
  *
- *  Only the width comes from the body itself: §5.3 swaps in place, and horizontal subdivision of an
- *  opening is not in the model. */
+ *  Only the width and the **depth** come from the body itself. The width because §5.3 swaps in
+ *  place and horizontal subdivision of an opening is not in the model. The depth because the model
+ *  has no per-level depth at all: `recomputeVoids` stamps every void with its column's MAX depth
+ *  (§3.2), so taking it from the vacated slot would hand a wall cabinet the depth of the base
+ *  cabinet under it — the defect this reading exists to close. The outgoing body's own `frame.d`
+ *  is the only recorded fact about how deep the thing standing in this opening was, and §5.3's
+ *  "the current body's frame IS the target opening" applies to it literally. The `h` and `w`
+ *  carve-outs above are documented exceptions with their own recorded reasons; neither reason
+ *  touches depth. */
 export function openingFromPlacement(
   record: PlacementRecord,
   records: readonly PlacementRecord[],
@@ -98,6 +116,7 @@ export function openingFromPlacement(
     wall: record.wall,
     alongM: record.wall === "A" ? record.frame.x : record.frame.z,
     w: record.frame.w,
+    d: record.frame.d,
     y0,
     h: slot?.h ?? record.frame.h,
     spanY0: slot?.spanY0 ?? record.frame.y0,
