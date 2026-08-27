@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { removePlacement } from "../../src/commands/remove-placement.js";
+import type { Design } from "../../src/design.js";
 import {
   KITCHEN_L_BODY_CATALOG,
   KITCHEN_L_DESIGN,
@@ -8,16 +9,31 @@ import {
 import { findVacatedVoid } from "../../src/queries/vacated-void.js";
 import type { BodyDefinition } from "../../src/void-engine.js";
 import { advance, createWorld } from "../support/kitchen-world.js";
+import { preMigrationHobDesign } from "../support/pre-migration-hob.js";
 
 const OCCURRED_AT = "2026-08-25T12:00:00.000Z";
 
-function remove(id: string, kind: "placement" | "void" = "placement") {
+/** ADR 0027: the shipped design has no accessory in it any more — the hob is part of `p2`'s body.
+ *  Every case below that is *about* an accessory runs on the design saved before that migration,
+ *  which is a shape a stored document can still have, with the same ids and the same expectations
+ *  it had when the seeded design carried them. */
+const PRE_MIGRATION_DESIGN = preMigrationHobDesign();
+
+function removeFrom(
+  design: Design,
+  id: string,
+  kind: "placement" | "void" = "placement",
+) {
   return removePlacement({
-    design: KITCHEN_L_DESIGN,
+    design,
     catalog: KITCHEN_L_BODY_CATALOG,
     target: { kind, id },
     occurredAt: OCCURRED_AT,
   });
+}
+
+function remove(id: string, kind: "placement" | "void" = "placement") {
+  return removeFrom(KITCHEN_L_DESIGN, id, kind);
 }
 
 describe("removePlacement — §5.1's closed refusal list", () => {
@@ -38,7 +54,7 @@ describe("removePlacement — §5.1's closed refusal list", () => {
   // §11 row 15: the hob was once a module, offered six rows it could never satisfy, and deleting
   // it destroyed it permanently.
   it("refuses the hob, and not with the same code as a structural body", () => {
-    const result = remove("p3");
+    const result = removeFrom(PRE_MIGRATION_DESIGN, "p3");
     expect(result.ok).toBe(false);
     if (result.ok) return;
     expect(result.reason.code).toBe("ACCESSORY_NOT_DELETABLE");
@@ -100,7 +116,7 @@ describe("removePlacement — success", () => {
   // ADR 0011 Gap E: deleting `p2` must take `p3` (the hob) with it, in the same command and the
   // same result. What must not happen: a hob left hanging over the void where its cabinet was.
   it("cascades to the accessory its target carried", () => {
-    const result = remove("p2");
+    const result = removeFrom(PRE_MIGRATION_DESIGN, "p2");
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.effect.cascadedAccessoryIds).toEqual(["p3"]);
@@ -110,11 +126,11 @@ describe("removePlacement — success", () => {
   });
 
   it("leaves no placement whose host cannot be resolved", () => {
-    const result = remove("p2");
+    const result = removeFrom(PRE_MIGRATION_DESIGN, "p2");
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     const after = advance(
-      createWorld(KITCHEN_L_DESIGN, KITCHEN_L_BODY_CATALOG),
+      createWorld(PRE_MIGRATION_DESIGN, KITCHEN_L_BODY_CATALOG),
       result.design,
     );
     expect(after.records.filter((record) => record.accessory)).toEqual([]);
@@ -160,18 +176,19 @@ describe("removePlacement — success", () => {
 
 describe("removePlacement — rejection sweep", () => {
   it.each([
-    ["void selected", "A|1.30:v0:0.00", "void"],
-    ["missing target", "p999", "placement"],
-    ["accessory", "p3", "placement"],
+    ["void selected", KITCHEN_L_DESIGN, "A|1.30:v0:0.00", "void"],
+    ["missing target", KITCHEN_L_DESIGN, "p999", "placement"],
+    // ADR 0027: the accessory case is the pre-migration design's, for the reason above.
+    ["accessory", PRE_MIGRATION_DESIGN, "p3", "placement"],
   ] as const)(
     "returns the exact original design and changes nothing (%s)",
-    (_case, id, kind) => {
-      const before = JSON.stringify(KITCHEN_L_DESIGN);
-      const result = remove(id, kind);
+    (_case, design, id, kind) => {
+      const before = JSON.stringify(design);
+      const result = removeFrom(design, id, kind);
       expect(result.ok).toBe(false);
-      expect(result.design).toBe(KITCHEN_L_DESIGN);
-      expect(result.design.updatedAt).toBe(KITCHEN_L_DESIGN.updatedAt);
-      expect(JSON.stringify(KITCHEN_L_DESIGN)).toBe(before);
+      expect(result.design).toBe(design);
+      expect(result.design.updatedAt).toBe(design.updatedAt);
+      expect(JSON.stringify(design)).toBe(before);
       expect(result).not.toHaveProperty("effect");
     },
   );

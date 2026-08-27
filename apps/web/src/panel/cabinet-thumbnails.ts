@@ -32,6 +32,10 @@ const CABINET_DRAWING_FILENAMES: Readonly<Record<string, string>> = {
   "base-1door": "base-1-door.svg",
   "base-3drawer": "base-3-drawer.svg",
   "base-panbank": "base-panbank.svg",
+  "base-hob-2drawer": "base-hob-2drawer.svg",
+  // ADR 0027. `base-oven.svg` is titled "Base range cabinet with cooktop and oven" and draws both,
+  // so it is this row's drawing under a shorter name — the spelling gap this table exists for.
+  "base-hob-oven": "base-oven.svg",
   "base-bottle-cargo": "base-bottle-cargo.svg",
   "base-sink": "base-sink.svg",
   "base-dishwasher": "base-dishwasher.svg",

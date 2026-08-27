@@ -17,6 +17,7 @@ import {
   KITCHEN_L_BODY_CATALOG,
   KITCHEN_L_DESIGN,
   offersFor,
+  type Design,
 } from "@lemnaria/configurator-domain";
 import { describe, expect, it } from "vitest";
 
@@ -25,6 +26,7 @@ import { describePanel, type PanelView } from "@/panel/panel-model";
 
 import { columnExtents } from "../support/column-extents";
 import { createFakeBodyProbe } from "../support/fake-body-probe";
+import { preMigrationHobDesign } from "../support/pre-migration-hob";
 
 /** Exactly what `usePanelView` composes, from exactly the store fields it subscribes to. */
 function panelFromStore(state: ConfiguratorState): PanelView {
@@ -43,9 +45,15 @@ function panelFromStore(state: ConfiguratorState): PanelView {
   });
 }
 
-function createStore(withProbe = true) {
+interface StoreOverrides {
+  readonly withProbe?: boolean;
+  readonly design?: Design;
+}
+
+function createStore(overrides: StoreOverrides = {}) {
+  const { withProbe = true, design = KITCHEN_L_DESIGN } = overrides;
   return createConfiguratorStore({
-    design: KITCHEN_L_DESIGN,
+    design,
     catalog: KITCHEN_L_BODY_CATALOG,
     ...(withProbe ? { bodyProbe: createFakeBodyProbe() } : {}),
     now: () => "2026-08-26T12:00:00.000Z",
@@ -96,8 +104,11 @@ describe("the panel over the store's own state", () => {
     expect(section.countLine).toContain(String(section.rows.length));
   });
 
+  // ADR 0024: deleting an accessory is the one refusal a customer can actually reach through §9's
+  // panel, and ADR 0027 took the accessory out of the shipped design — so the store under test here
+  // is loaded from a document saved before that migration, which is where one still exists.
   it("shows the refusal the store recorded, first, and drops it on the next selection", () => {
-    const store = createStore();
+    const store = createStore({ design: preMigrationHobDesign() });
     store.getState().select({ kind: "placement", id: "p3" });
     store.getState().remove();
 
@@ -116,7 +127,7 @@ describe("the panel over the store's own state", () => {
   });
 
   it("disables every offered row until the scene attaches its probe", () => {
-    const store = createStore(false);
+    const store = createStore({ withProbe: false });
     store.getState().select({ kind: "placement", id: "p0" });
     const before = openPanel(store.getState()).sections.find(
       (candidate) => candidate.kind === "replace",

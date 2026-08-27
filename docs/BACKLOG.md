@@ -16,7 +16,7 @@ cost — so the next person can act without re-deriving the investigation.
 
 ---
 
-## 1. The hob cannot be put back once it is removed — DECIDED 2026-08-26
+## 1. The hob cannot be put back once it is removed — DECIDED 2026-08-26, SHIPPED 2026-08-27
 
 **Decision (owner, 2026-08-26): the hob becomes part of the cabinet body. Two catalogue entries,
 both fixed at 600 mm.**
@@ -48,7 +48,25 @@ is permitted deliberately — the owner's reasoning: someone who cooks a lot may
 has the space, and there is no reason to refuse something buildable. Revisit only if feedback says
 otherwise.
 
-**Still to do at implementation:** Romanian labels for both entries, and an ADR recording this.
+**SHIPPED 2026-08-27 — `docs/decisions/0027-the-hob-is-part-of-the-cabinet.md`.** Both entries are
+built and offered: `base-hob-2drawer` ("Corp plită și 2 sertare") and `base-hob-oven` ("Corp plită și
+cuptor"), fixed at 600 mm, composed from `baseCabinet`, `builders.cooktop()` and `builders.oven()`
+with no new geometry. The seeded `p2` + `p3` are one placement (`base-hob-2drawer-600`); `p3`'s id is
+retired rather than reused. The kitchen is unchanged, proven three ways: identical derived state,
+330 identical rendered meshes against the M1 reference, and byte-identical 1440 x 900 screenshots.
+
+**The accessory machinery was deliberately NOT removed**, which amends the paragraph above. The
+direction to "remove what is then unused" holds, but it is its own wave: a stored design saved before
+the migration still carries a `cooktop-600` placement and still reaches §6.1's host resolution,
+§5.1's cascade, `ACCESSORY_MAX_HEIGHT_M`, the `accessory` flag and `cascadedAccessoryIds`. Nothing in
+the *shipped* design reaches any of them. What the deletion wave must decide first is whether stored
+pre-migration documents are migrated or supported — see ADR 0027's closing paragraph.
+
+Confirmed at implementation, as the entry asked: **the hob was the only accessory** (`p3` at 40 mm;
+the next shortest body is 400 mm, so `ACCESSORY_MAX_HEIGHT_M` has no near-miss), and **§11 row 15 is
+now trivially true** — the hob is a child mesh of its cabinet's group, so a click resolves to the
+cabinet through `climbToSelectable` without §6.1's accessory rule being consulted, and there is no
+hob placement to offer a delete on.
 
 ---
 
@@ -541,6 +559,39 @@ The third is the one worth deciding first: the divergence matters more than the 
 
 Related: entry 9 (a hood round trip costing 100 mm) is the same mechanism — a placed body's depth is
 a persisted fact and nothing re-derives it.
+
+## 11. `base-dishwasher` offers a finish and a handle it has neither of — NEEDS A DECISION
+
+Found 2026-08-27 by the catalogue-wide capability gate added with ADR 0027's amendment
+(`packages/three-adapter/tests/catalog-capability-parity.test.ts`), which asserts that a row
+declaring `canFinish` has a front to recolour and a row declaring `canHandle` has a **cabinet**
+handle — one whose group also holds the front it opens, as against an appliance's own.
+
+`base-dishwasher` builds an open niche: plinth, two sides, a back panel, a worktop, and
+`builders.dishwasher` inside it. It has no `door_front` and no handle of its own, yet inherits
+`canFinish: true, canHandle: true` from `INSERTABLE_DEFAULTS`. Measured consequences are the ones
+`base-hob-oven` had before it was fixed in the same pass: the five finish chips recolour nothing,
+and `handle: "push"` hides the **dishwasher's** own bar.
+
+It is the identical defect to `base-hob-oven`'s and the identical one-line fix — `canFinish: false,
+canHandle: false`, the way `open-shelf` and `hood` already declare. It is here rather than fixed
+because the owner scoped that wave to the new entry. Until it is decided the id is pinned in the
+gate's `RECORDED_CAPABILITY_GAPS`, and that pin asserts the defect is **still present**, so the day
+someone repairs the row the gate goes red and the pin comes out with it.
+
+**Two ids, one defect.** Since 2026-08-27 the gate covers the seeded population as well, and
+`base-dishwasher-600` — the seeded instance, whose builder arm is `kit.builders["base-dishwasher"]()`
+verbatim — is on the list beside it for the same reason. Whichever way this is decided, both move
+together. The four other violations the extended gate found (`fridge-free-700`, `open-shelf-600`,
+`hood-600`, `cooktop-600`) were fixed in that pass; see ADR 0027's amendment.
+
+**The product question worth asking first**, since it is the reason someone might not want the
+one-line fix: an integrated dishwasher in a real kitchen usually wears a decor door matching the
+cabinets. If that is wanted, the answer is not to turn the flags off but to give the builder a
+front — in which case the flags were right all along and the *geometry* is what is missing.
+`tall-oven-tower` has related appliance-handle exposure (`push` hides its oven's and microwave's
+bars alongside its two real door handles) and was scoped out of the same wave; it belongs to
+whoever owns §6.5.
 
 ## Also open, recorded elsewhere — do not duplicate here
 

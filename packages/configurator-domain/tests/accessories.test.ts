@@ -4,17 +4,18 @@ import {
   findHostedAccessories,
   resolveHostPlacement,
 } from "../src/accessories.js";
-import {
-  KITCHEN_L_BODY_CATALOG,
-  KITCHEN_L_DESIGN,
-} from "../src/fixtures/kitchen-l-design.js";
+import { KITCHEN_L_BODY_CATALOG } from "../src/fixtures/kitchen-l-design.js";
 import {
   derivePlacementRecords,
   type PlacementRecord,
 } from "../src/void-engine.js";
+import { preMigrationHobDesign } from "./support/pre-migration-hob.js";
 
+// ADR 0027 took the hob out of the shipped design, so the design under test here is the one saved
+// before that migration — the only shape that still has an accessory in it. Every assertion below
+// is the one it made before, on the same ids.
 const records = derivePlacementRecords(
-  KITCHEN_L_DESIGN,
+  preMigrationHobDesign(),
   KITCHEN_L_BODY_CATALOG,
 );
 

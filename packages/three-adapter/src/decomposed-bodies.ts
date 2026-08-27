@@ -95,6 +95,13 @@ export function buildDecomposedBody(kit: Kit, buildId: string): THREE.Group {
       return kit.builders["base-dishwasher"]();
     case "base-drawer2-600":
       return kit.make.baseCabinet(0.6, { drawers: 2 });
+    // ADR 0027: one seeded body where `buildKitchen()` still places two children — the drawer base
+    // and the cooktop on top of it. `hobBaseWithDrawers` composes the same two calls, so the
+    // decomposition-parity gate compares this against both of them.
+    case "base-hob-2drawer-600":
+      return kit.make.hobBaseWithDrawers(0.6);
+    // Kept for the designs saved before that migration, which still carry a `cooktop-600`
+    // placement. No seeded placement references it any more.
     case "cooktop-600":
       return kit.builders.cooktop();
     case "base-drawer3-600":

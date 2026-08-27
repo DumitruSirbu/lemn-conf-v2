@@ -3,7 +3,7 @@
 **Read this second, right after `AGENTS.md`, before opening any milestone document.** It exists so a
 session can learn where the project stands without reading eight phase plans.
 
-Last updated: 2026-08-26 (M4 closed — all four waves shipped, with one acceptance criterion recorded unmet; M5 next).
+Last updated: 2026-08-27 (M4 closed — all four waves shipped, with one acceptance criterion recorded unmet; M5 next).
 
 ## How to use this file
 
@@ -159,11 +159,18 @@ client probe asks the one route the cookie reaches, at the cost of a second GET 
 
 ## What is open right now
 
-**Reported issues that are not scheduled live in `docs/BACKLOG.md`.** Two are open there as of
-2026-08-26, both confirmed by measurement during the first handset pass: the induction hob cannot be
-restored once its host cabinet is deleted (§7 has no hob-bearing entry, and seeded entries are never
-offerable), and clearing two adjacent cabinets yields two openings rather than one — the run
-re-split §12 lists as "Not built, designed". Neither is fixed by M5.
+**Reported issues that are not scheduled live in `docs/BACKLOG.md`.** The first of the two found in
+the first handset pass is now closed: the induction hob **can** be restored, because ADR 0027 made it
+part of the cabinet body and added two hob-bearing catalogue entries. The second is still open —
+clearing two adjacent cabinets yields two openings rather than one, the run re-split §12 lists as
+"Not built, designed". It is not fixed by M5.
+
+**One deletion is deliberately still owed, and is recorded so it is not lost.** ADR 0027 left the
+whole accessory machinery in place — §6.1's host resolution, §5.1's cascade,
+`ACCESSORY_MAX_HEIGHT_M`, `PlacementRecord.accessory` and `cascadedAccessoryIds`. Nothing in the
+*shipped* design reaches any of it, but a design saved before that migration still carries a
+`cooktop-600` placement and reaches all of it. Whether those documents are migrated or supported is
+the decision that wave has to take first.
 
 
 **M4 closed with one acceptance criterion unmet, on purpose (ADR 0024).** Its Verification section

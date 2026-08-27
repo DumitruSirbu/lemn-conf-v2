@@ -5,9 +5,10 @@
 //
 // Scope: **every** body `buildKitchen()` places, with nothing deferred. The two corner legs were
 // carried as an unmatched gap from M2 until ADR 0025 derived their seat; the assertion below is
-// now a **bijection** — every non-shell child of the reference room is claimed by exactly one
-// placement — which is also what proves `kitchen-stage.tsx` draws each body once rather than
-// twice, since it composes the scene by removing exactly the children a record's position claims.
+// now a **partition** — every non-shell child of the reference room is claimed exactly once, by a
+// placement that may claim more than one — which is also what proves `kitchen-stage.tsx` draws each
+// body once rather than twice, since it composes the scene by removing exactly the children a
+// record's position claims.
 import * as THREE from "three";
 import {
   deriveCabinetWorldTransform,
@@ -42,6 +43,25 @@ const SHELL_MESH_NAMES = new Set([
   "end_panel_right",
   "backsplash_wall_a",
 ]);
+
+/** ADR 0027: the hob is a child of the cabinet it stands on rather than a placement beside it, so
+ *  one placement now claims **two** of `buildKitchen()`'s children. `buildKitchen()` itself is
+ *  unchanged — it is diffed against the vendored reference geometry and must stay that way — which
+ *  is exactly why the comparison below had to become a partition rather than a pairing: every
+ *  reference child is still claimed exactly once and none is claimed twice, but a composite claims
+ *  more than one.
+ *
+ *  The two halves are still compared **structurally**, each against its own reference child: the
+ *  cabinet minus its hob in the per-placement test below, and the hob itself against the standalone
+ *  cooktop in the test that follows it. Nothing is compared more loosely than it was. */
+const SEATED_HOB_GROUP_NAME = "induction_cooktop";
+
+/** How many bodies `buildKitchen()` draws, written out. ADR 0027 moved a placement, not a body:
+ *  the design went from 27 placements to 26 and the reference room still draws all 27, one of them
+ *  claimed as a child of the composite. Stated as a number rather than derived from
+ *  `KITCHEN_L_DESIGN.placements.length`, so the assertion below says what it is checking instead of
+ *  restating the arithmetic of the thing it checks. */
+const REFERENCE_BODY_COUNT = 27;
 
 let kit: Kit;
 
@@ -86,6 +106,21 @@ function expectNumbersClose(
       `${path}[${String(index)}]: ${String(value)} vs ${String(expected[index])}`,
     ).toBeLessThanOrEqual(FLOAT_EPSILON_METRES);
   });
+}
+
+function hasSeatedHob(body: THREE.Object3D): boolean {
+  return body.getObjectByName(SEATED_HOB_GROUP_NAME) !== undefined;
+}
+
+/** The composite's structure with its hob set aside — the half that must still match the reference
+ *  base cabinet exactly. The hob is asserted on its own, never skipped. */
+function withoutSeatedHob(node: StructureNode): StructureNode {
+  return {
+    ...node,
+    children: node.children.filter(
+      (child) => child.name !== SEATED_HOB_GROUP_NAME,
+    ),
+  };
 }
 
 function expectStructureMatches(
@@ -147,30 +182,81 @@ describe("decomposed kitchen-l placements reproduce the whole-scene render", () 
       );
 
       expectStructureMatches(
-        describeStructure(body),
+        withoutSeatedHob(describeStructure(body)),
         describeStructure(reference),
         placement.id,
       );
     },
   );
 
-  // The suite's strongest assertion, and the one that has to be read as a bijection rather than as
-  // a count. Each half fails for a different defect:
+  // The half the line above sets aside, asserted in full rather than dropped: the seated hob is the
+  // same body, in the same world place, as the cooktop `buildKitchen()` still draws on its own.
+  it("a seated hob reproduces buildKitchen()'s standalone cooktop, structure and world place", () => {
+    const reference = referenceRoom();
+    const referenceHob = required(
+      reference.children.find((child) => child.name === SEATED_HOB_GROUP_NAME),
+      "reference cooktop",
+    );
+
+    const hosts = KITCHEN_L_DESIGN.placements.filter((placement) =>
+      hasSeatedHob(
+        mountPlacement(
+          new THREE.Group(),
+          placement,
+          required(recordsById.get(placement.id), placement.id),
+        ),
+      ),
+    );
+    expect(hosts.map((placement) => placement.id)).toEqual(["p2"]);
+
+    const room = new THREE.Group();
+    const host = required(hosts[0], "hob-bearing placement");
+    const body = mountPlacement(
+      room,
+      host,
+      required(recordsById.get(host.id), host.id),
+    );
+    room.updateWorldMatrix(true, true);
+    const seatedHob = required(
+      body.getObjectByName(SEATED_HOB_GROUP_NAME),
+      "seated hob",
+    );
+
+    reference.updateWorldMatrix(true, true);
+    expectNumbersClose(
+      seatedHob.getWorldPosition(new THREE.Vector3()).toArray(),
+      referenceHob.getWorldPosition(new THREE.Vector3()).toArray(),
+      `${host.id}: seated hob world position`,
+    );
+    expectStructureMatches(
+      { ...describeStructure(seatedHob), position: [0, 0, 0] },
+      { ...describeStructure(referenceHob), position: [0, 0, 0] },
+      `${host.id}: seated hob`,
+    );
+  });
+
+  // The suite's strongest assertion, and the one that has to be read as a partition rather than as
+  // a count: the placements' claims must cover every non-shell reference child, and cover each of
+  // them once. Since ADR 0027 one composite legitimately claims *two* children, so the claim total
+  // exceeds the placement count — which is why the count alone proves nothing and each of the
+  // three assertions below has to carry its own defect:
   //
-  //   - a placement with no reference child at its derived transform means the seat drifted (the
-  //     ADR 0005 failure, where six bodies sat 10-20 mm off their wall);
-  //   - `matched.size !== placements.length` means two placements claimed the same reference
-  //     child, so one body would mount without its whole-scene twin being removed — a double draw;
+  //   - `required(findChildAtPosition(...))` throwing means a placement has no reference child at
+  //     its derived transform, so the seat drifted (the ADR 0005 failure, where six bodies sat
+  //     10-20 mm off their wall);
+  //   - `matched.size !== claims` means two placements landed on the same reference child, so one
+  //     body would mount without its whole-scene twin being removed — a double draw;
   //   - a non-shell child left unmatched means `buildKitchen()` still draws a body no placement
   //     owns, which is exactly the state the corner legs were in before ADR 0025.
   //
   // `kitchen-stage.tsx` composes the live scene by removing every reference-room child whose
-  // position a record claims (within the same 1e-6 m), then mounting the records. The bijection is
-  // therefore the double-render proof: onto, so nothing is left behind to be drawn twice; one-to-
-  // one, so nothing is removed on behalf of two bodies.
-  it("matches every buildKitchen() body one-to-one: 27 decomposed, 5 shell items excluded, none deferred", () => {
+  // position a record claims (within the same 1e-6 m), then mounting the records. The partition is
+  // therefore the double-render proof: onto, so nothing is left behind to be drawn twice; disjoint,
+  // so nothing is removed on behalf of two bodies.
+  it("partitions every buildKitchen() body: 27 reference bodies over 26 placements, 5 shell items excluded, none deferred", () => {
     const room = referenceRoom();
     const matched = new Set<THREE.Object3D>();
+    let claims = 0;
     for (const placement of KITCHEN_L_DESIGN.placements) {
       const record = required(recordsById.get(placement.id), placement.id);
       const transform = deriveCabinetWorldTransform({
@@ -184,16 +270,57 @@ describe("decomposed kitchen-l placements reproduce the whole-scene render", () 
         transform.position.y,
         transform.position.z,
       );
-      matched.add(required(findChildAtPosition(room, position), placement.id));
+      for (const claimed of claimedReferenceChildren(
+        room,
+        placement,
+        record,
+        position,
+      )) {
+        matched.add(claimed);
+        claims += 1;
+      }
     }
 
-    expect(matched.size).toBe(KITCHEN_L_DESIGN.placements.length);
+    // Disjoint: `claims` counts every claim made, `matched` counts the distinct children they
+    // landed on, so two placements claiming the same child still reads as a double draw.
+    expect(matched.size).toBe(claims);
+    expect(matched.size).toBe(REFERENCE_BODY_COUNT);
     const unmatched = room.children.filter(
       (child) => !matched.has(child) && !SHELL_MESH_NAMES.has(child.name),
     );
     expect(unmatched.map((child) => child.name)).toEqual([]);
     expect(matched.size + SHELL_MESH_NAMES.size).toBe(room.children.length);
   });
+
+  /** Every reference child this placement's body stands in for: the one at its own transform, plus
+   *  the standalone cooktop that a hob-bearing body now carries as a child of its own. */
+  function claimedReferenceChildren(
+    room: THREE.Group,
+    placement: DesignPlacement,
+    record: PlacementRecord,
+    position: THREE.Vector3,
+  ): THREE.Object3D[] {
+    const claimed = [
+      required(findChildAtPosition(room, position), placement.id),
+    ];
+    const body = mountPlacement(new THREE.Group(), placement, record);
+    if (!hasSeatedHob(body)) return claimed;
+    const seatedHob = required(
+      body.getObjectByName(SEATED_HOB_GROUP_NAME),
+      "seated hob",
+    );
+    body.parent?.updateWorldMatrix(true, true);
+    claimed.push(
+      required(
+        findChildAtPosition(
+          room,
+          seatedHob.getWorldPosition(new THREE.Vector3()),
+        ),
+        `${placement.id}: reference cooktop under its seated hob`,
+      ),
+    );
+    return claimed;
+  }
 
   // The base row and the two tall units used to sit 10-20 mm proud of the wall plane in the
   // ported M1 scene, because `buildKitchen()` placed them at round-number offsets (`zA = 0.3`,

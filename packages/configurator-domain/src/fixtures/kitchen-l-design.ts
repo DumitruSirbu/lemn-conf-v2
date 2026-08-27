@@ -130,6 +130,36 @@ const SEEDED_BODY_DEFINITIONS: readonly (readonly [string, BodyDefinition])[] =
         catalogEquivalentId: "base-3drawer",
       },
     ],
+    // ADR 0027. The hob-bearing body the seeded kitchen now uses: one placement where `p2` + `p3`
+    // used to be two. Same carcass, same 580 mm seat, same 820 mm frame as `base-drawer2-600` —
+    // the hob rides on the worktop above all of that and adds nothing to the opening, exactly as
+    // `base-sink-800`'s faucet does not (§5.2 judges fit on the carcass, §11 row 7).
+    [
+      "base-hob-2drawer-600",
+      {
+        ...baseCarcass,
+        kind: "base_cabinet",
+        frameDepthMm: 580,
+        // ADR 0027: 600 mm in both directions, matching the catalogue entry. `baseCarcass` defaults
+        // to `fixedWidth: false` and this row must not inherit it: the hob is a 600 mm appliance and
+        // there is no 400 mm one, so §5.4's `canGive` ("not `fixedWidth`") would otherwise let the
+        // one cabinet carrying a hob donate width to a neighbour. No symptom before M5 wires §5.4 —
+        // a seeded entry has no `sizesMm`, so §9 renders no width chips — which is exactly why it
+        // has to be right now rather than when the symptom appears.
+        fixedWidth: true,
+        // ADR 0027: the hob is built into this body. §5.3's cascade reads this off the **incoming**
+        // entry, and ADR 0011 Gap A never lets a seeded id be the incoming one, so nothing consumes
+        // it here today. It is declared because it is true of the body: the field says what a body
+        // carries, and a body that carries a hob and does not say so is the defect waiting to
+        // happen the next time something asks.
+        carriesAccessoryKind: "induction_cooktop",
+        catalogEquivalentId: "base-hob-2drawer",
+      },
+    ],
+    // ADR 0027 left this entry in place deliberately. Nothing in the seeded design references it
+    // any more, but designs saved before the migration still carry a `cooktop-600` placement, and
+    // a `buildId` the catalogue cannot resolve is `UnknownBodyError` at load — so removing the row
+    // would break exactly the documents the migration was meant to leave alone.
     [
       "cooktop-600",
       {
@@ -139,12 +169,29 @@ const SEEDED_BODY_DEFINITIONS: readonly (readonly [string, BodyDefinition])[] =
         frameHeightMm: 40,
         canReplace: false,
         canDelete: false,
+        // Corrected rather than recorded as a known gap. A hob has no front and no handle, so
+        // `baseCarcass`'s `true`/`true` was false of the body either way; today the panel happens
+        // to suppress both sections on an accessory, which makes the mismatch cosmetic but does not
+        // make it true. These two flags are data, not geometry — the row, its builder arm and the
+        // meshes it draws are untouched, so a document persisted before the ADR 0027 migration
+        // still loads and renders exactly as it did.
+        canFinish: false,
+        canHandle: false,
       },
     ],
     [
       "tall-oven-tower-600",
       {
         ...columnCarcass,
+        // The rule: **a body that can only be built at one width must never be a §5.4 donor**,
+        // whose `canGive` reads "not `fixedWidth`". A column is 600 and nothing else, so this is
+        // `true`; `columnCarcass` defaults to `false`. Latent until M5 wires resize, found in the
+        // same pass as the hob's identical gap (ADR 0027).
+        //
+        // The rule is *not* "match the catalogue row". `hood-600` below is `fixedWidth: true` while
+        // its catalogue row (`hood`) never sets the flag and is therefore `false` — and `hood-600`
+        // is right: the `hood` entry builds at 600 or 900, but this seeded instance is a 600.
+        fixedWidth: true,
         kind: "tall_unit",
         frameDepthMm: 560,
         frameHeightMm: 2200,
@@ -155,6 +202,9 @@ const SEEDED_BODY_DEFINITIONS: readonly (readonly [string, BodyDefinition])[] =
       "tall-pantry-600",
       {
         ...columnCarcass,
+        // Fixed for `tall-oven-tower-600`'s reason above: one buildable width, so never a §5.4
+        // donor. `columnCarcass` defaults to `false` (ADR 0027).
+        fixedWidth: true,
         kind: "tall_unit",
         frameDepthMm: 560,
         frameHeightMm: 2200,
@@ -166,6 +216,14 @@ const SEEDED_BODY_DEFINITIONS: readonly (readonly [string, BodyDefinition])[] =
       {
         ...columnCarcass,
         kind: "fridge_freestanding",
+        // A freestanding appliance, not a carcass: it builds no `door_front`, and its two handle
+        // bars hang off the appliance's own group. `columnCarcass`'s `true`/`true` therefore
+        // offered two sections that could only misfire — and `canHandle` was the live one, because
+        // `handle: "push"` reaches `setHandlesVisible(body, false)`, which hides *every* handle mesh
+        // in the group and so erased the fridge's own bars. The `fridge-free` catalogue row
+        // declares both `false`; this instance is the same builder call and now agrees.
+        canFinish: false,
+        canHandle: false,
         frameDepthMm: 680,
         frameHeightMm: 1850,
         fixedWidth: true,
@@ -213,6 +271,11 @@ const SEEDED_BODY_DEFINITIONS: readonly (readonly [string, BodyDefinition])[] =
       {
         ...wallCarcass,
         kind: "open_shelf_unit",
+        // An open shelf has no door and no drawer: `collectFronts` finds nothing to recolour, so
+        // `canFinish: true` from `wallCarcass` made §9 render a *Finisaj* section whose every chip
+        // was a no-op. The `open-shelf` catalogue row has declared both `false` all along; this
+        // instance is the same body and now says the same thing (capability-parity gate).
+        canFinish: false,
         canHandle: false,
         frameDepthMm: 330,
         catalogEquivalentId: "open-shelf",
@@ -223,6 +286,9 @@ const SEEDED_BODY_DEFINITIONS: readonly (readonly [string, BodyDefinition])[] =
       {
         ...wallCarcass,
         kind: "extractor_hood",
+        // A hood is a canopy and a chimney: no front, so nothing for a finish chip to recolour.
+        // Same correction as `open-shelf-600` above, matching the `hood` catalogue row.
+        canFinish: false,
         canHandle: false,
         fixedWidth: true,
         frameDepthMm: 500,
@@ -315,8 +381,10 @@ function placement(
 export const KITCHEN_L_PLACEMENTS: readonly DesignPlacement[] = [
   placement("p0", "A", 1300, 0, "base-sink-800", 800, 820),
   placement("p1", "A", 2000, 0, "base-dishwasher-600", 600, 820),
-  placement("p2", "A", 2600, 0, "base-drawer2-600", 600, 820),
-  placement("p3", "A", 2600, 860, "cooktop-600", 600, 40),
+  // ADR 0027: one body, not a cabinet plus an accessory standing on it. `p3` is gone and its id is
+  // not reused — ids are persisted, and a freed id that reappears meaning something else is worse
+  // than a gap in the sequence.
+  placement("p2", "A", 2600, 0, "base-hob-2drawer-600", 600, 820),
   placement("p4", "A", 3200, 0, "base-drawer3-600", 600, 820),
   // ADR 0025. Appended ids, out of positional order on purpose: `p0`…`p24` are persisted in real
   // designs, so renumbering the base row to seat the corner at its head would rewrite saved data.

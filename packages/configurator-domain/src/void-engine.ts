@@ -118,6 +118,17 @@ export interface BodyDefinition {
    *  means this body has no catalogue equivalent — the hob, the corner returns — and no row is
    *  badged, which is the correct answer for them rather than a missing one. */
   readonly catalogEquivalentId?: string;
+  /** ADR 0027: the accessory `kind` this body has **built into it** — `induction_cooktop` on both
+   *  hob-bearing bases and on the seeded cabinet they replaced.
+   *
+   *  Declared rather than inspected, for the reason `catalogEquivalentId` above is: the domain has
+   *  no meshes to look at, so "this body already carries a hob" is a fact only the catalogue can
+   *  state. §5.3 reads it to cascade a *duplicate* — a pre-migration document's separate
+   *  `cooktop-600` placement standing on the body being swapped out — away in the same command, so
+   *  a swap cannot leave two hobs in the same cubic centimetre with the spare undeletable
+   *  (`ACCESSORY_NOT_DELETABLE`). Absent means the body carries nothing of its own, which is every
+   *  entry but three. */
+  readonly carriesAccessoryKind?: string;
   /** Present only on an entry that offers nothing structural, saying why (§11 row 16, §13.1). */
   readonly structuralReason?: StructuralReason;
 }

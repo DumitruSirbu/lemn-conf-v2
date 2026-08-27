@@ -22,6 +22,8 @@ import { describe, expect, it } from "vitest";
 
 import { describePanel, type PanelSection } from "@/panel/panel-model";
 
+import { preMigrationHobDesign } from "../support/pre-migration-hob";
+
 const OCCURRED_AT = "2026-08-26T12:00:00.000Z";
 
 /** ADR 0011 Gap D: columns are frozen at load time. Re-deriving them from the mutated records
@@ -104,8 +106,10 @@ describe("the panel over the seeded kitchen", () => {
   });
 
   // §11 row 24 against the real hob, which is the body the fallback set was written for.
+  // ADR 0027: the shipped design's hob is a mesh inside `p2`'s body, so the accessory this rule is
+  // about now only reaches the panel from a document saved before that migration.
   it("renders no replace section for the hob", () => {
-    const world = worldFrom(KITCHEN_L_DESIGN);
+    const world = worldFrom(preMigrationHobDesign());
     const hob = world.records.find(
       (record) => record.kind === "induction_cooktop",
     );

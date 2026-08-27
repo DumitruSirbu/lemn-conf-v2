@@ -63,6 +63,59 @@ describe("KITCHEN_L_DESIGN", () => {
     ]);
   });
 
+  // A seeded entry that points at a §7 twin is the *same body*, built by the same call — so the two
+  // capability flags §9 reads before it renders a section have to agree across the pointer. They
+  // did not: `open-shelf-600`, `hood-600` and `fridge-free-700` inherited their carcass shape's
+  // `canFinish: true` (the fridge, `canHandle: true` too) over twins that declare `false`, which is
+  // how the shipped kitchen offered a *Finisaj* section with no front to recolour and — on the
+  // fridge — a *Mâner* section whose `push` chip hid the appliance's own two bars. The geometry side
+  // of the same rule is `catalog-capability-parity.test.ts` in `@lemnaria/three-adapter`; this is
+  // the cheap data-side half, and it is the one that runs without a renderer.
+  it("declares the same finish and handle capabilities as the twin it points at", () => {
+    for (const [buildId, definition] of KITCHEN_L_BODY_CATALOG) {
+      const equivalent = definition.catalogEquivalentId;
+      if (equivalent === undefined) continue;
+      const twin = KITCHEN_L_BODY_CATALOG.get(equivalent);
+      expect([buildId, definition.canFinish, definition.canHandle]).toEqual([
+        buildId,
+        twin?.canFinish,
+        twin?.canHandle,
+      ]);
+    }
+  });
+
+  // The three bodies above, named at the placement the customer actually taps, through the query
+  // every reader goes via — so the fix is pinned to the shipped design and not only to the table.
+  it("offers neither finish nor handle on the shelf, the hood or the fridge", () => {
+    const records = derivePlacementRecords(
+      KITCHEN_L_DESIGN,
+      KITCHEN_L_BODY_CATALOG,
+    );
+    const capabilitiesOf = (placementId: string) => {
+      const record = records.find((one) => one.id === placementId);
+      return [
+        placementId,
+        record?.buildId,
+        record?.canFinish,
+        record?.canHandle,
+      ];
+    };
+
+    expect(capabilitiesOf("p12")).toEqual([
+      "p12",
+      "open-shelf-600",
+      false,
+      false,
+    ]);
+    expect(capabilitiesOf("p13")).toEqual(["p13", "hood-600", false, false]);
+    expect(capabilitiesOf("p7")).toEqual([
+      "p7",
+      "fridge-free-700",
+      false,
+      false,
+    ]);
+  });
+
   it("derives placement records and columns without throwing", () => {
     const records = derivePlacementRecords(
       KITCHEN_L_DESIGN,

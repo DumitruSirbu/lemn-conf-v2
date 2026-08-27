@@ -56,6 +56,10 @@ const CATALOG_BODY_BUILDERS: Readonly<Record<string, CatalogBodyBuilder>> = {
     kit.make.baseCabinet(size.widthM, { drawers: 3 }),
   "base-panbank": (kit, size) =>
     kit.make.baseCabinet(size.widthM, { drawers: 2 }),
+  // ADR 0027: composed from builders that already existed — `base-hob-2drawer` is the pan bank
+  // carrying `builders.cooktop()`, which is the pair the seeded kitchen has always rendered.
+  "base-hob-2drawer": (kit, size) => kit.make.hobBaseWithDrawers(size.widthM),
+  "base-hob-oven": (kit, size) => kit.make.hobBaseWithOven(size.widthM),
   "base-sink": (kit, size) =>
     kit.make.baseCabinet(size.widthM, { doors: 2, sink: true }),
   // ADR 0026: its own builder, not a `baseCabinet` option — one full-height pull-out front, and at
@@ -91,9 +95,9 @@ const CATALOG_BODY_BUILDERS: Readonly<Record<string, CatalogBodyBuilder>> = {
 /** Every id `buildCatalogBody` covers, in §7's own order. Exported so a test can assert the
  *  builder table and the domain's insertable catalogue are the *same* set in both directions —
  *  a builder with no catalogue entry is dead code, and a catalogue entry with no builder is a body
- *  that is offered and then throws. There are sixteen: §7's table has six base rows, five wall
- *  rows and four full-height rows, plus ADR 0026's `base-bottle-cargo`, and
- *  `INSERTABLE_BODY_DEFINITIONS` matches it. */
+ *  that is offered and then throws. There are eighteen: §7's table has six base rows, five wall
+ *  rows and four full-height rows, plus ADR 0026's `base-bottle-cargo` and ADR 0027's two
+ *  hob-bearing bases, and `INSERTABLE_BODY_DEFINITIONS` matches it. */
 export const CATALOG_BUILD_IDS: readonly string[] = Object.keys(
   CATALOG_BODY_BUILDERS,
 );

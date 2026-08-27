@@ -8,6 +8,7 @@ import {
   KITCHEN_L_BODY_CATALOG,
   KITCHEN_L_DESIGN,
   type BodyProbe,
+  type Design,
 } from "@lemnaria/configurator-domain";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -17,12 +18,16 @@ import {
 } from "../../src/store/configurator-store";
 import { columnExtents } from "../support/column-extents";
 import { createFakeBodyProbe } from "../support/fake-body-probe";
+import { preMigrationHobDesign } from "../support/pre-migration-hob";
 
 /** The fridge column of the §10 signature flow: `p7` (0 – 1.85) with `p24` (1.85 – 2.60) above it,
  *  and a frozen `top` of 2.60. Every column-stability case below is expressed against it. */
 const FRIDGE_COLUMN = "B|2.45";
 const FRIDGE_COLUMN_TOP_M = 2.6;
-/** `p2` carries the hob `p3` — ADR 0011 Gap E's cascade. */
+/** ADR 0011 Gap E's cascade, on the design saved **before** ADR 0027: there, `p2` is a plain
+ *  drawer base and `p3` is the hob standing on it. The shipped design has no accessory in it at all
+ *  any more — the hob is a mesh inside `p2`'s own body — so the two cases about one below load a
+ *  pre-migration document, which is a shape a stored design can still have. */
 const HOB_HOST_ID = "p2";
 const HOB_ID = "p3";
 const OCCURRED_AT = "2026-08-25T12:00:00.000Z";
@@ -30,11 +35,12 @@ const OCCURRED_AT = "2026-08-25T12:00:00.000Z";
 interface StoreOverrides {
   readonly onDesignChanged?: (design: unknown) => void;
   readonly bodyProbe?: BodyProbe;
+  readonly design?: Design;
 }
 
 function createStore(overrides: StoreOverrides = {}) {
   return createConfiguratorStore({
-    design: KITCHEN_L_DESIGN,
+    design: overrides.design ?? KITCHEN_L_DESIGN,
     catalog: KITCHEN_L_BODY_CATALOG,
     now: () => OCCURRED_AT,
     bodyProbe: overrides.bodyProbe ?? createFakeBodyProbe(),
@@ -160,7 +166,11 @@ describe("remove", () => {
   });
 
   it("cascades to the accessory the removed body carried", () => {
-    const store = createStore();
+    const store = createStore({ design: preMigrationHobDesign() });
+    // Without this the case would pass by the accessory never having existed.
+    expect(store.getState().records.map((record) => record.id)).toContain(
+      HOB_ID,
+    );
 
     removeById(store, HOB_HOST_ID);
 
@@ -171,6 +181,31 @@ describe("remove", () => {
 });
 
 describe("insert", () => {
+  // ADR 0027's amendment, at the layer that has to survive it. §5.3 now deletes a duplicate hob in
+  // the same command as the swap, and the store needed **no** wiring for that: `applyCommandResult`
+  // re-derives `records` and `voids` from the result's whole `Design`, so a placement the command
+  // dropped is simply not in the design it applies. `cascadedAccessoryIds` is reporting, not
+  // instruction — the delete cascade above has always worked the same way. This case is here so
+  // that stays true: a store that started reading the effect's ids to prune state by hand would
+  // pass every existing delete case and drop this one.
+  it("loses the pre-migration hob when the swap cascades it away", () => {
+    const store = createStore({ design: preMigrationHobDesign() });
+    // Without this the case would pass by the accessory never having existed.
+    expect(store.getState().records.map((record) => record.id)).toContain(
+      HOB_ID,
+    );
+
+    store.getState().select({ kind: "placement", id: HOB_HOST_ID });
+    store.getState().insert("base-hob-2drawer");
+
+    const state = store.getState();
+    expect(state.lastRejection).toBeNull();
+    expect(state.records.map((record) => record.id)).not.toContain(HOB_ID);
+    expect(
+      state.design.placements.map((placement) => placement.id),
+    ).not.toContain(HOB_ID);
+  });
+
   it("applies the new placement and selects it, in a single update", () => {
     const store = createStore();
     removeById(store, "p7");
@@ -438,7 +473,8 @@ describe("column stability (ADR 0011 Gap D)", () => {
 
 describe("the selection after a command", () => {
   it("never dangles: it names an existing placement, an existing void, or nothing", () => {
-    const store = createStore();
+    // Pre-migration, because two of the steps below are about an accessory (see `HOB_HOST_ID`).
+    const store = createStore({ design: preMigrationHobDesign() });
     const commands: readonly ((state: ConfiguratorState) => void)[] = [
       (state) => {
         state.select({ kind: "placement", id: "p7" });

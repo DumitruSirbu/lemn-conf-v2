@@ -10,6 +10,7 @@ import {
   offersFor,
   type Design,
 } from "@lemnaria/configurator-domain";
+
 import { describe, expect, it, vi } from "vitest";
 
 import {
@@ -18,6 +19,7 @@ import {
 } from "../../src/store/configurator-store";
 import { columnExtents } from "../support/column-extents";
 import { createFakeBodyProbe } from "../support/fake-body-probe";
+import { preMigrationHobDesign } from "../support/pre-migration-hob";
 
 const OCCURRED_AT = "2026-08-25T12:00:00.000Z";
 /** The §10 signature flow's column: the freestanding fridge `p7` (0–1.85) with `p24` above it. */
@@ -28,11 +30,12 @@ const HOB_ID = "p3";
 interface StoreOverrides {
   readonly onDesignChanged?: (design: Design) => void;
   readonly withProbe?: boolean;
+  readonly design?: Design;
 }
 
 function createStore(overrides: StoreOverrides = {}) {
   return createConfiguratorStore({
-    design: KITCHEN_L_DESIGN,
+    design: overrides.design ?? KITCHEN_L_DESIGN,
     catalog: KITCHEN_L_BODY_CATALOG,
     now: () => OCCURRED_AT,
     ...(overrides.withProbe === false
@@ -398,8 +401,14 @@ describe("lastRejection is transient and never leaks into the design", () => {
 // because the store is what a pointer handler calls, and `resolveHostPlacementId`'s throwing branch
 // is what an orphaned accessory reaches.
 describe("the accessory cascade leaves nothing orphaned", () => {
+  // ADR 0027 made the hob part of `p2`'s body, so the shipped design has no accessory to cascade
+  // from. This runs on a document saved before that migration, and checks the hob is there first —
+  // otherwise it would go on passing by there being nothing to remove.
   it("removes the hob with its host and leaves every remaining record hostable", () => {
-    const store = createStore();
+    const store = createStore({ design: preMigrationHobDesign() });
+    expect(store.getState().records.map((record) => record.id)).toContain(
+      HOB_ID,
+    );
 
     store.getState().select({ kind: "placement", id: HOB_HOST_ID });
     store.getState().remove();

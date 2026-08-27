@@ -36,6 +36,18 @@ const BOTTLE_CARGO_WIDTHS_MM: readonly number[] = [200, 300];
  *  declares a floor *under* it rather than over it. */
 const BOTTLE_CARGO_MIN_WIDTH_MM = 200;
 
+/** ADR 0027: a hob-bearing base is 600 mm and nothing else. The hob itself is a 600 mm appliance
+ *  — `builders.cooktop()` is a fixed 590 x 520 glass plate — so the cabinet under it is the one
+ *  width that appliance is made for. A single-member set rather than `'fit'`, for the reason the
+ *  bottle cargo has one: a `'fit'` body would build an 800 mm cabinet with a 600 mm hob adrift on
+ *  it. */
+const HOB_BASE_WIDTHS_MM: readonly number[] = [600];
+
+/** ADR 0027: the `kind` a hob placement had before the migration, and the kind both hob-bearing
+ *  bases now declare they carry themselves. The string is the seeded `cooktop-600` entry's own
+ *  `kind`, which is what makes the two comparable at all — see `carriesAccessoryKind`. */
+const HOB_ACCESSORY_KIND = "induction_cooktop";
+
 const DISHWASHER_WIDTHS_MM: readonly number[] = [450, 600];
 const HOOD_WIDTHS_MM: readonly number[] = [600, 900];
 const COLUMN_WIDTHS_MM: readonly number[] = [600];
@@ -104,6 +116,19 @@ function baseCabinet(label: string): BodyDefinition {
   });
 }
 
+/** ADR 0027: a base cabinet that carries the hob. Every other property is a base cabinet's — same
+ *  band, same 860 mm worktop line, same 580 mm depth — so it is a `baseCabinet` with its width
+ *  fixed, and the width is fixed because the appliance is. */
+function hobBase(label: string): BodyDefinition {
+  return {
+    ...baseCabinet(label),
+    widthFlex: HOB_BASE_WIDTHS_MM,
+    sizesMm: HOB_BASE_WIDTHS_MM,
+    fixedWidth: true,
+    carriesAccessoryKind: HOB_ACCESSORY_KIND,
+  };
+}
+
 function wallCabinet(label: string): BodyDefinition {
   return {
     ...insertableBody("wall", {
@@ -141,6 +166,27 @@ export const INSERTABLE_BODY_DEFINITIONS: readonly (readonly [
   ["base-1door", baseCabinet("Corp bază 1 ușă")],
   ["base-3drawer", baseCabinet("Corp bază 3 sertare")],
   ["base-panbank", baseCabinet("Sertare pentru oale")],
+  // ADR 0027: the two hob-bearing bodies. The hob is part of the cabinet, not a separate placement
+  // sitting on it, which is what makes it restorable at all — a seeded entry is never offerable
+  // (ADR 0011 Gap A), so before these two rows existed a deleted hob could never come back.
+  //
+  // Both are `fixedWidth` at 600. They differ only in what fills the carcass, which is the choice
+  // the customer is actually making: drawers when the oven lives in a column, an oven when there is
+  // no room for one.
+  ["base-hob-2drawer", hobBase("Corp plită și 2 sertare")],
+  [
+    "base-hob-oven",
+    {
+      ...hobBase("Corp plită și cuptor"),
+      // §9's "never offer what cannot be satisfied", and §13.1's "disable, don't warn". This body
+      // is deliberately open-front — the oven *is* the front — so it owns no `door_front` and no
+      // cabinet handle. Measured before this line existed: a recorded finish recoloured nothing,
+      // and `handle: "push"` hid the **oven's** own bar, a cabinet-hardware chip mutating an
+      // appliance. `open-shelf` and `hood` below declare the same two `false` for the same reason.
+      canFinish: false,
+      canHandle: false,
+    },
+  ],
   [
     "base-bottle-cargo",
     {

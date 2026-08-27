@@ -9,6 +9,7 @@ import { offersFor } from "../../src/queries/offers.js";
 import type { BodyDefinition } from "../../src/void-engine.js";
 import { clearBodies, insertInto } from "../support/commands.js";
 import { advancePast, createWorld, voidAt } from "../support/kitchen-world.js";
+import { preMigrationHobDesign } from "../support/pre-migration-hob.js";
 
 const seeded = () => createWorld(KITCHEN_L_DESIGN, KITCHEN_L_BODY_CATALOG);
 
@@ -199,8 +200,11 @@ describe("offersFor — an occupied body", () => {
     ).toEqual([]);
   });
 
+  // ADR 0027: the shipped design has no accessory left in it, and this case would pass on an id
+  // that resolves to nothing — so it runs on a document saved before that migration.
   it("gives an accessory no list, since it has no swap set of its own", () => {
-    const world = seeded();
+    const world = createWorld(preMigrationHobDesign(), KITCHEN_L_BODY_CATALOG);
+    expect(world.records.map((record) => record.id)).toContain("p3");
     expect(
       offersFor({ ...world, target: { kind: "placement", id: "p3" } }),
     ).toEqual([]);

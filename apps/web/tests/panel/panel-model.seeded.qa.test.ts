@@ -29,6 +29,8 @@ import { ro } from "@/content/ro";
 
 import { REFUSAL } from "../support/selection-meta";
 
+import { preMigrationHobDesign } from "../support/pre-migration-hob";
+
 const OCCURRED_AT = "2026-08-26T12:00:00.000Z";
 
 /** Frozen exactly as the store freezes it — see the file header. */
@@ -117,7 +119,9 @@ describe("§6.5's default handle, against every seeded placement's own y0", () =
       ]);
       swept += 1;
     }
-    expect(swept).toBe(27); // 25 seeded bodies + ADR 0025's two base corner legs
+    // ADR 0025 added the two base corner legs; ADR 0027 merged the hob into its host and took one
+    // placement back out again.
+    expect(swept).toBe(26);
     // The sweep must contain both answers, or it proves nothing about the boundary.
     expect(
       KITCHEN_L_PLACEMENTS.filter((placement) => placement.y0Mm >= 2200).length,
@@ -421,8 +425,10 @@ describe("the panel is exactly the offer list, everywhere in the kitchen", () =>
 
   // §11 row 24 against the body the fallback set was written for. The hob also refuses one guard
   // earlier (`canReplace: false`), so this asserts the outcome, not the mechanism.
+  // ADR 0027: the shipped design's hob is a mesh inside `p2`'s body, so the accessory this rule is
+  // about now only reaches the panel from a document saved before that migration.
   it("renders no replace section for the hob", () => {
-    const world = worldFrom(KITCHEN_L_DESIGN);
+    const world = worldFrom(preMigrationHobDesign());
     const hob = world.records.find(
       (record) => record.kind === "induction_cooktop",
     );

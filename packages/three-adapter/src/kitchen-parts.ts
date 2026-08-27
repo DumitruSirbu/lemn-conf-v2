@@ -149,6 +149,8 @@ export interface Factories {
   cornerBaseReturn: (LD?: number) => THREE.Group;
   dishwasherHousing: (W?: number) => THREE.Group;
   bottleCargo: (w: number) => THREE.Group;
+  hobBaseWithDrawers: (w: number) => THREE.Group;
+  hobBaseWithOven: (w: number) => THREE.Group;
 }
 
 export interface BaseCabinetOptions {
@@ -696,6 +698,58 @@ export function makeKit(options: KitOptions = {}): Kit {
     return g;
   }
 
+  /** ADR 0027: where the hob sits on its own cabinet's worktop, as a **local** offset.
+   *
+   *  Not a new number — it is the seat `buildKitchen()` already gives the standalone cooktop,
+   *  relative to the drawer base it stands on, and both sites read it from here so the composite
+   *  cannot drift from the reference geometry the decomposition-parity gate diffs it against. */
+  const HOB_FORWARD_OFFSET_M = 0.06;
+
+  /** The oven's forward offset inside a 560 mm-deep carcass, shared with `tall-oven-tower` so the
+   *  two appliances line up with each other rather than each with its own carcass.
+   *
+   *  It does **not** bring the oven flush, and is not meant to: measured, the oven front reaches
+   *  z 358 — 28 mm proud of the worktop front at 330, and 78 mm proud of the carcass front at 280
+   *  — which is what an oven door and handle do. `tall-oven-tower` reaches the same 358, so do not
+   *  "correct" this to sit flush without changing the tower too. */
+  const OVEN_FORWARD_OFFSET_M = 0.018;
+
+  function seatHobOnWorktop(cabinet: THREE.Group): THREE.Group {
+    const hob = builders.cooktop();
+    hob.position.set(0, PLINTH + CARC_H + CTOP, HOB_FORWARD_OFFSET_M);
+    cabinet.add(hob);
+    return cabinet;
+  }
+
+  /** ADR 0027: the majority hob-bearing base — a hob over two pan drawers. Composed rather than
+   *  drawn: it is exactly `baseCabinet(w, { drawers: 2 })` carrying `builders.cooktop()`, which is
+   *  the pair `buildKitchen()` already renders in the seeded kitchen. */
+  function hobBaseWithDrawers(w: number): THREE.Group {
+    return seatHobOnWorktop(baseCabinet(w, { drawers: 2 }));
+  }
+
+  /** ADR 0027: a hob over a built-in oven — one cabinet, common where there is no room for an oven
+   *  column.
+   *
+   *  An open-front carcass rather than `baseCabinet`'s closed one, for the reason
+   *  `tall-oven-tower` uses the same: the appliance *is* the front, so a solid `carcass_shell`
+   *  behind it would be a box inside a box. Nothing else here differs from a base cabinet — same
+   *  plinth, same carcass extent, same worktop.
+   *
+   *  The oven is seated on the carcass floor, not hung under the worktop. The 125 mm that leaves
+   *  between its top and the worktop line is where the hob's own box and its connections go; an
+   *  oven pushed up against the worktop would be occupying that space. */
+  function hobBaseWithOven(w: number): THREE.Group {
+    const g = G("base_cabinet");
+    g.add(plinth(w, CARC_D));
+    g.add(carcassFrame(w, CARC_H, CARC_D, PLINTH));
+    const oven = builders.oven();
+    oven.position.set(0, PLINTH, OVEN_FORWARD_OFFSET_M);
+    g.add(oven);
+    g.add(counter(w));
+    return seatHobOnWorktop(g);
+  }
+
   const builders: Builders = {
     "base-1door": () => baseCabinet(0.4, { doors: 1 }),
     "base-2door": () => baseCabinet(0.8, { doors: 2 }),
@@ -765,7 +819,7 @@ export function makeKit(options: KitOptions = {}): Kit {
       );
       g.add(doorSlab(0.594, 0.5, 0, 0.6, fz, "top"));
       const ov = builders.oven();
-      ov.position.set(0, 0.63, 0.018);
+      ov.position.set(0, 0.63, OVEN_FORWARD_OFFSET_M);
       g.add(ov);
       const mw = builders.microwave();
       mw.position.set(0, 1.25, 0.089);
@@ -1497,7 +1551,13 @@ export function makeKit(options: KitOptions = {}): Kit {
     seatOnWallA(builders["base-dishwasher"](), 2.0);
     const cookBase = seatOnWallA(baseCabinet(0.6, { drawers: 2 }), 2.6);
     const zA = cookBase.position.z;
-    place(builders.cooktop(), 2.6, zA + 0.06, 0, PLINTH + CARC_H + CTOP);
+    place(
+      builders.cooktop(),
+      2.6,
+      zA + HOB_FORWARD_OFFSET_M,
+      0,
+      PLINTH + CARC_H + CTOP,
+    );
     seatOnWallA(baseCabinet(0.6, { drawers: 3 }), 3.2);
     place(
       box(TH, 0.82, 0.6, M.oak, "end_panel_right", 0, 0, 0),
@@ -1586,6 +1646,8 @@ export function makeKit(options: KitOptions = {}): Kit {
     cornerBaseReturn,
     dishwasherHousing,
     bottleCargo,
+    hobBaseWithDrawers,
+    hobBaseWithOven,
   };
   return {
     builders,
