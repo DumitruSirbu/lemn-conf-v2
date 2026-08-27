@@ -29,6 +29,8 @@ import { ro } from "@/content/ro";
 
 import { REFUSAL } from "../support/selection-meta";
 
+import { preMigrationHobDesign } from "../support/pre-migration-hob";
+
 const OCCURRED_AT = "2026-08-26T12:00:00.000Z";
 
 /** Frozen exactly as the store freezes it — see the file header. */
@@ -117,7 +119,9 @@ describe("§6.5's default handle, against every seeded placement's own y0", () =
       ]);
       swept += 1;
     }
-    expect(swept).toBe(25);
+    // ADR 0025 added the two base corner legs; ADR 0027 merged the hob into its host and took one
+    // placement back out again.
+    expect(swept).toBe(26);
     // The sweep must contain both answers, or it proves nothing about the boundary.
     expect(
       KITCHEN_L_PLACEMENTS.filter((placement) => placement.y0Mm >= 2200).length,
@@ -216,17 +220,21 @@ describe("the width section over the real kitchen", () => {
   });
 });
 
+/** Every seeded body §13.1 calls a corner: the two wall returns and, since ADR 0025, the two base
+ *  legs of the L. Read off the `buildId` rather than a hardcoded id list so a corner added to the
+ *  fixture is swept by these tests instead of quietly escaping them. */
+const isCorner = (record: { readonly buildId: string }) =>
+  record.buildId.includes("corner");
+
 describe("§13.1's structural corners, as the seeded design ships them", () => {
   // §13.1: "Corners are structural. No replace, no delete, never a width donor", and §11 row 16
   // repeats it. Asserted over the SHIPPED design, because `cornerReturnMeta()` in
   // `tests/support/selection-meta.ts` hand-builds a corner that already obeys the rule: only the
   // seeded entries can show whether the real catalogue data earns the corner its structural
   // treatment.
-  it("offers neither a swap list, nor delete, nor width on a corner return", () => {
+  it("offers neither a swap list, nor delete, nor width on any corner", () => {
     const world = worldFrom(KITCHEN_L_DESIGN);
-    const corners = world.records.filter((record) =>
-      record.buildId.includes("corner-return"),
-    );
+    const corners = world.records.filter(isCorner);
     expect(corners.length).toBeGreaterThan(0);
     for (const corner of corners) {
       const panel = panelAt(world, { kind: "placement", id: corner.id });
@@ -248,12 +256,13 @@ describe("§13.1's structural corners, as the seeded design ships them", () => {
   // capability flag false there is nothing to tap and therefore nothing to refuse, so the
   // explanation has to be a section of its own. The reason is declared on the catalogue entry, which
   // is what makes it survive to the panel.
-  it("explains why, on both seeded corner returns", () => {
+  it("explains why, on all four seeded corners", () => {
     const world = worldFrom(KITCHEN_L_DESIGN);
-    const corners = world.records.filter((record) =>
-      record.buildId.includes("corner-return"),
-    );
-    expect(corners.length).toBe(2);
+    const corners = world.records.filter(isCorner);
+    // ADR 0025: two wall returns and, since the base legs became placements, the two base legs.
+    // §11 row 16 names the *base* corner specifically, so this count dropping back to 2 means the
+    // reported defect — tapping the base corner does nothing — has returned.
+    expect(corners.length).toBe(4);
     for (const corner of corners) {
       const section = sectionsAt(world, {
         kind: "placement",
@@ -279,9 +288,7 @@ describe("§13.1's structural corners, as the seeded design ships them", () => {
       );
       if (hasStructural) explained.push(target.id);
     }
-    const corners = world.records
-      .filter((record) => record.buildId.includes("corner-return"))
-      .map((record) => record.id);
+    const corners = world.records.filter(isCorner).map((record) => record.id);
     expect(explained.sort()).toEqual([...corners].sort());
   });
 });
@@ -418,8 +425,10 @@ describe("the panel is exactly the offer list, everywhere in the kitchen", () =>
 
   // §11 row 24 against the body the fallback set was written for. The hob also refuses one guard
   // earlier (`canReplace: false`), so this asserts the outcome, not the mechanism.
+  // ADR 0027: the shipped design's hob is a mesh inside `p2`'s body, so the accessory this rule is
+  // about now only reaches the panel from a document saved before that migration.
   it("renders no replace section for the hob", () => {
-    const world = worldFrom(KITCHEN_L_DESIGN);
+    const world = worldFrom(preMigrationHobDesign());
     const hob = world.records.find(
       (record) => record.kind === "induction_cooktop",
     );

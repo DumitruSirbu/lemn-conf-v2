@@ -23,6 +23,14 @@ interface FitParams extends LabelParams {
   readonly availableMm: number;
 }
 
+/** ADR 0017's per-entry floor, read against an opening. `requiredMm` is **absent** when the row's
+ *  declared floor is not a width at all — the same position `MeasurementParams` takes below: the
+ *  value is `NaN` or `±Infinity`, and neither belongs in a sentence shown to a customer. */
+interface BodyFloorParams extends LabelParams {
+  readonly requiredMm?: number;
+  readonly availableMm: number;
+}
+
 interface SizesParams extends LabelParams {
   readonly sizesMm: readonly number[];
   readonly availableMm: number;
@@ -72,7 +80,7 @@ export type RejectionDetail =
   | { readonly code: "TARGET_NOT_REPLACEABLE"; readonly params: LabelParams }
   | { readonly code: "BAND_MISMATCH"; readonly params: BandParams }
   | { readonly code: "WIDTH_TOO_LARGE"; readonly params: FitParams }
-  | { readonly code: "WIDTH_TOO_SMALL"; readonly params: FitParams }
+  | { readonly code: "WIDTH_TOO_SMALL"; readonly params: BodyFloorParams }
   | { readonly code: "WIDTH_NOT_SUPPORTED"; readonly params: SizesParams }
   | {
       readonly code: "OPENING_TOO_SHORT";
@@ -108,6 +116,17 @@ function renderBandMismatch(params: BandParams): string {
   return `„${params.label}” este un corp de bază și nu poate fi montat pe perete. Doar coloanele pot depăși un nivel.`;
 }
 
+/** An entry whose declared floor is not a width cannot name millimetres, so the sentence states
+ *  the thing that is actually true — this body cannot be added — rather than rendering `NaN` at the
+ *  customer. The row is a catalogue defect; the refusal is what keeps it from being insertable at
+ *  any width while it is fixed. */
+function renderWidthTooSmall(params: BodyFloorParams): string {
+  if (params.requiredMm === undefined) {
+    return `„${params.label}” nu poate fi adăugat: lățimea minimă din catalog nu este o valoare validă.`;
+  }
+  return `„${params.label}” are nevoie de cel puțin ${String(params.requiredMm)} mm lățime, iar deschiderea are doar ${String(params.availableMm)} mm.`;
+}
+
 function renderMillimetreList(sizesMm: readonly number[]): string {
   return sizesMm.map((size) => String(size)).join(" sau ");
 }
@@ -137,7 +156,7 @@ export function renderRejection(detail: RejectionDetail): string {
     case "WIDTH_TOO_LARGE":
       return `„${detail.params.label}” are ${String(detail.params.requiredMm)} mm lățime, iar deschiderea are doar ${String(detail.params.availableMm)} mm.`;
     case "WIDTH_TOO_SMALL":
-      return `„${detail.params.label}” are nevoie de cel puțin ${String(detail.params.requiredMm)} mm lățime, iar deschiderea are doar ${String(detail.params.availableMm)} mm.`;
+      return renderWidthTooSmall(detail.params);
     case "WIDTH_NOT_SUPPORTED":
       return `„${detail.params.label}” se face doar în ${renderMillimetreList(detail.params.sizesMm)} mm, iar deschiderea are ${String(detail.params.availableMm)} mm.`;
     case "OPENING_TOO_SHORT":

@@ -8,6 +8,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  buildableSizes,
   INSERTABLE_BODY_DEFINITIONS,
   toInsertableBody,
 } from "../../src/catalog.js";
@@ -27,6 +28,10 @@ import { createWorld, voidAt } from "../support/kitchen-world.js";
 import { columnWorld } from "../support/synthetic-world.js";
 
 const SINK_MIN_WIDTH_MM = 560;
+/** §2's `MIN_W`, in millimetres — the default floor both declared floors are read against. */
+const GENERAL_MIN_WIDTH_MM = 300;
+/** ADR 0026: the bottle cargo's floor, the one entry that declares below the default. */
+const BOTTLE_CARGO_MIN_WIDTH_MM = 200;
 const OPENING_ALONG_MM = 1000;
 const OPENING_COLUMN = "A|1.00";
 
@@ -173,11 +178,26 @@ describe("the sink base's catalogue widths", () => {
     expect(sink?.sizesMm).toEqual([600, 800]);
   });
 
+  // This asserted "`base-sink` is the only entry that declares a floor" until ADR 0026, and it was
+  // right until then. There are now two, and they declare in opposite directions — so the fact
+  // worth pinning is no longer "one exception" but "these two, each the way its ADR says", with
+  // every other row still on §2's default.
   it("leaves every other entry's chip set on §2's general floor", () => {
-    for (const [buildId, definition] of INSERTABLE_BODY_DEFINITIONS) {
-      if (buildId === "base-sink") continue;
-      expect(definition.minWidthMm, buildId).toBeUndefined();
-    }
+    const declaredFloorsMm = new Map(
+      INSERTABLE_BODY_DEFINITIONS.filter(
+        ([, definition]) => definition.minWidthMm !== undefined,
+      ).map(([buildId, definition]) => [buildId, definition.minWidthMm]),
+    );
+
+    // Catalogue order, which is the order §9 lists the rows in.
+    expect([...declaredFloorsMm]).toEqual([
+      ["base-bottle-cargo", BOTTLE_CARGO_MIN_WIDTH_MM],
+      ["base-sink", SINK_MIN_WIDTH_MM],
+    ]);
+    // ADR 0017 raises, ADR 0026 lowers. A floor on the wrong side of §2's default would change
+    // which rejection code the customer reads, so the direction is asserted, not just the value.
+    expect(SINK_MIN_WIDTH_MM).toBeGreaterThan(GENERAL_MIN_WIDTH_MM);
+    expect(BOTTLE_CARGO_MIN_WIDTH_MM).toBeLessThan(GENERAL_MIN_WIDTH_MM);
   });
 });
 
@@ -297,10 +317,17 @@ describe("R2.1: a millimetre-set body honours its own minimum width", () => {
 describe("R2.1: no shipped entry's width resolution changes", () => {
   // The structural reason the filter is a no-op for every shipped row. If a future entry breaks
   // this, the behavioural sweep below stops being evidence and this test says why.
-  it("ships no entry combining a millimetre set with a floor", () => {
+  //
+  // Until ADR 0026 the reason was "no fixed-set entry declares a floor at all". `base-bottle-cargo`
+  // is one that does, so the reason is now the narrower true one: no fixed-set entry has a floor
+  // that removes any width from its own set. The sweep needs exactly that and nothing more.
+  it("ships no millimetre set a floor of its own would narrow", () => {
     for (const [buildId, definition] of INSERTABLE_BODY_DEFINITIONS) {
-      if (definition.widthFlex === "fit") continue;
-      expect(definition.minWidthMm, buildId).toBeUndefined();
+      const sizesMm = definition.widthFlex;
+      if (sizesMm === undefined || sizesMm === "fit") continue;
+      expect(buildableSizes(definition.minWidthMm, sizesMm), buildId).toEqual(
+        sizesMm,
+      );
     }
   });
 

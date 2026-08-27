@@ -6,6 +6,11 @@
 .shell {
   --row-height: 82px;
   --chip-height: 44px;
+  /* Frame 2B's thumbnail tile. A token for the same reason `--row-height` is one: it has to shrink
+   * with the row on desktop, and the two numbers must move together — 82px of row leaves 64px
+   * inside its padding and 66px leaves 48px, so a single hard-coded 54px would grow the desktop row
+   * past the 52–70px band §10.1's touch sizing sets for it. */
+  --thumb-size: 54px;
   --panel-gap: 18px;
   --panel-pad: 18px;
 
@@ -192,6 +197,26 @@
   border-style: dashed;
   cursor: not-allowed;
   opacity: 0.65;
+}
+
+/* Frame 2B: the front-elevation drawing, which is what distinguishes a full-height column from a
+ * base cabinet before the name is read.
+ *
+ * §13.4: `background-image`, never an `<img>` — an unresolved value paints this tile empty instead
+ * of firing a failed request. `editor-panel.tsx` supplies the URL; everything else is here.
+ *
+ * `auto 76%` scales by HEIGHT, so a 700-unit-tall column drawing and a 260-unit-tall wall drawing
+ * both fill the same share of the tile and read at the same weight in one list. */
+.rowThumb {
+  flex: 0 0 var(--thumb-size);
+  width: var(--thumb-size);
+  height: var(--thumb-size);
+  background-color: var(--surface);
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: auto 76%;
+  border: 1px solid var(--line-soft);
+  border-radius: 9px;
 }
 
 .rowText {
@@ -411,6 +436,7 @@
   .shell {
     --row-height: 66px;
     --chip-height: 52px;
+    --thumb-size: 48px;
     --panel-gap: 20px;
     --panel-pad: 24px;
 

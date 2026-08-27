@@ -85,3 +85,38 @@ describe("kind labels", () => {
     expect(describeKindLabel("teleporter").length).toBeGreaterThan(0);
   });
 });
+
+// Backlog entry 1's rule half. The defect was that §7 had **no** hob-bearing entry at all, so a
+// deleted hob could never be offered back; the outcome half — that one actually goes into the
+// vacated opening and is built with a hob on it — is `hob-base.test.ts` in `@lemnaria/three-adapter`,
+// where the real builders and the real probe are.
+describe("ADR 0027's hob-bearing bases", () => {
+  const HOB_ENTRIES = [
+    ["base-hob-2drawer", "Corp plită și 2 sertare"],
+    ["base-hob-oven", "Corp plită și cuptor"],
+  ] as const;
+
+  it.each(HOB_ENTRIES)(
+    "%s is an insertable 600 mm base carrying its Romanian label",
+    (buildId, label) => {
+      const definition = KITCHEN_L_BODY_CATALOG.get(buildId);
+      expect(definition, buildId).toBeDefined();
+      if (!definition) return;
+      const body = toInsertableBody(buildId, definition);
+      expect(body, buildId).toBeDefined();
+      expect(body?.label).toBe(label);
+      expect(body?.band).toBe("base");
+      expect(body?.kind).toBe("base_cabinet");
+      expect(body?.nominalHeightMm).toBe(860);
+      // Fixed at 600 in both directions: the chips §9 offers and the widths §5.2 will build.
+      expect(body?.sizesMm).toEqual([600]);
+      expect(body?.widthFlex).toEqual([600]);
+      expect(definition.fixedWidth).toBe(true);
+    },
+  );
+
+  it("gives the two entries different labels, so the picker can tell them apart", () => {
+    const [twoDrawer, oven] = HOB_ENTRIES;
+    expect(twoDrawer[1]).not.toBe(oven[1]);
+  });
+});

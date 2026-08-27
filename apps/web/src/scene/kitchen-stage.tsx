@@ -2,6 +2,7 @@
 
 import {
   applyFinish,
+  buildSelectionOutline,
   collectFronts,
   configureRenderer,
   createBodyProbe,
@@ -10,6 +11,7 @@ import {
   createPickingRaycaster,
   createShadowGround,
   createStudioEnvironment,
+  disposeSelectionOutline,
   isDragGesture,
   makeKit,
   pick,
@@ -22,6 +24,7 @@ import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 
+import type { Selection } from "../store/apply-command-result";
 import { useConfiguratorStore } from "../store/configurator-store";
 import { resolveSceneView, sceneViewKey, type SceneView } from "./scene-view";
 
@@ -29,7 +32,6 @@ import { resolveSceneView, sceneViewKey, type SceneView } from "./scene-view";
  *  customer is not waiting on the camera. */
 const CAMERA_EASE_SECONDS = 0.7;
 const SETTLED_METRES = 1e-4;
-const HIGHLIGHT_COLOR = 0xffce45;
 /** `Box3.setFromObject` on a body already placed at (0, 0, 0) local origin has no meaningful
  *  "same position" collision with an individually-mounted placement — the epsilon below matches
  *  M1's own parity float tolerance, not an arbitrary guess. */
@@ -56,11 +58,12 @@ export interface KitchenStageProps {
  * The ported stage, mounted imperatively.
  *
  * Placements are mounted individually (`docs/milestones/M2-void-engine.md` work item 2) rather
- * than as one whole-scene `builders['kitchen-l']()` call: the shell (floor, walls, backsplash,
- * end panel) and the two corner legs still come from that call — decomposing them is out of this
- * milestone's scope, per the decomposition-parity test in `@lemnaria/three-adapter` — but every
- * other body is removed from it and remounted by `syncSolidBodies` at its derived
- * `PlacementRecord` transform, tagged with `userData.placementId` for picking to climb to.
+ * than as one whole-scene `builders['kitchen-l']()` call: only the shell (floor, walls,
+ * backsplash, end panel) still comes from that call. Every body is removed from it and remounted
+ * by `syncSolidBodies` at its derived `PlacementRecord` transform, tagged with
+ * `userData.placementId` for picking to climb to. Since ADR 0025 that includes the two corner
+ * legs, which M2 left in the reference room because their seat was undefined — and which were
+ * therefore unpickable, the defect ADR 0025 fixes.
  *
  * M3 work item 8 made that mount a *sync*: the engine lives in `@lemnaria/three-adapter`
  * (`scene-sync.ts`), headless and React-free, and this component only calls it from an effect.
@@ -122,10 +125,15 @@ export function KitchenStage({ view, finish, onSettled }: KitchenStageProps) {
       ground: createShadowGround(),
       blob: createContactBlob(),
     };
-    // The shell only — floor, walls, backsplash, end panel and the two corner legs, with the
-    // bodies `buildKitchen()` placed removed so the sync below owns every placement. Built once
-    // per mount: which bodies the reference room contributes is a property of the *port*, not of
-    // the current design, and the initial records are what identify them.
+    // The shell only — floor, walls, backsplash, end panel — with every body `buildKitchen()`
+    // placed removed so the sync below owns all of them. Built once per mount: which bodies the
+    // reference room contributes is a property of the *port*, not of the current design, and the
+    // initial records are what identify them.
+    //
+    // The removal above is what keeps a body from being drawn twice, and it is positional, so a
+    // placement whose derived transform missed its reference twin would leave that twin behind and
+    // mount a second copy over it. The decomposition-parity suite pins exactly that as a bijection
+    // — every non-shell child claimed by exactly one placement, none left over.
   }, []);
 
   // Work item 8: the scene follows store state. Bodies that appeared are mounted, bodies and void
@@ -219,35 +227,37 @@ export function KitchenStage({ view, finish, onSettled }: KitchenStageProps) {
   }, [gl, camera, stage, records, select, deselect, invalidate]);
 
   // Mobile gate: "a selected body and a selected slot are visually distinguishable without
-  // opening any panel." A `Box3Helper`-style outline, not a shared-material mutation — cabinets
-  // in this kit share `KitMaterials` instances, so recoloring a selected body's material would
-  // recolor every body using that material.
-  const highlightRef = useRef<THREE.BoxHelper | null>(null);
+  // opening any panel." An outline object, not a shared-material mutation — cabinets in this kit
+  // share `KitMaterials` instances, so recolouring a selected body's material would recolour every
+  // body using that material.
+  //
+  // It is mounted on `stage.room` rather than on the body it traces: as a sibling of `solids` and
+  // `voids` it inherits the room's seating transform, while staying outside both subtrees that
+  // §6.1's picking raycasts — so the highlight can never become a target for the click that
+  // produced it. (`buildSelectionOutline` also installs `NOOP_RAYCAST`, belt and braces.)
+  //
+  // `records` and `voids` are dependencies because the target itself is not stable: a swap, a
+  // resize or a finish change re-signs the record and `syncSolidBodies` replaces the mounted
+  // instance. The sync effect above is declared first, so it has already run when this rebuilds.
+  const highlightRef = useRef<THREE.Object3D | null>(null);
   useEffect(() => {
     if (highlightRef.current) {
-      scene.remove(highlightRef.current);
-      highlightRef.current.dispose();
+      highlightRef.current.removeFromParent();
+      disposeSelectionOutline(highlightRef.current);
       highlightRef.current = null;
     }
-    if (!selection) {
-      invalidate();
-      return;
+    const target = selection ? findSelectedObject(stage, selection) : null;
+    if (selection && target) {
+      const { group } = buildSelectionOutline({
+        target,
+        parent: stage.room,
+        kind: selection.kind,
+      });
+      stage.room.add(group);
+      highlightRef.current = group;
     }
-    const root =
-      selection.kind === "placement" ? stage.solidsRoot : stage.voidsRoot;
-    const key = selection.kind === "placement" ? "placementId" : "voidId";
-    const target = root.children.find(
-      (child) => child.userData[key] === selection.id,
-    );
-    if (!target) {
-      invalidate();
-      return;
-    }
-    const helper = new THREE.BoxHelper(target, HIGHLIGHT_COLOR);
-    scene.add(helper);
-    highlightRef.current = helper;
     invalidate();
-  }, [selection, scene, stage, invalidate]);
+  }, [selection, stage, records, voids, invalidate]);
 
   const goal = useRef<CameraGoal | null>(null);
   const viewKey = sceneViewKey(view);
@@ -297,5 +307,27 @@ export function KitchenStage({ view, finish, onSettled }: KitchenStageProps) {
       <primitive object={stage.blob} />
       <primitive object={stage.room} />
     </>
+  );
+}
+
+interface SelectableRoots {
+  readonly solidsRoot: THREE.Object3D;
+  readonly voidsRoot: THREE.Object3D;
+}
+
+/**
+ * The mounted object a selection names, or `null` while the scene has not caught up with it —
+ * `syncSolidBodies` tags each body with `userData.placementId`, `buildVoidMesh` tags each void
+ * group with `userData.voidId`, and picking climbs to exactly those two keys (§6.1).
+ */
+function findSelectedObject(
+  roots: SelectableRoots,
+  selection: NonNullable<Selection>,
+): THREE.Object3D | null {
+  const isPlacement = selection.kind === "placement";
+  const root = isPlacement ? roots.solidsRoot : roots.voidsRoot;
+  const key = isPlacement ? "placementId" : "voidId";
+  return (
+    root.children.find((child) => child.userData[key] === selection.id) ?? null
   );
 }

@@ -11,6 +11,8 @@ import {
   KITCHEN_L_BODY_CATALOG,
   KITCHEN_L_DESIGN,
 } from "../../src/fixtures/kitchen-l-design.js";
+import type { ColumnExtent } from "../../src/void-engine.js";
+import { extentOf } from "../support/column-extents.js";
 import { clearBodies, insertInto, OCCURRED_AT } from "../support/commands.js";
 import {
   advance,
@@ -18,6 +20,7 @@ import {
   voidAt,
   type KitchenWorld,
 } from "../support/kitchen-world.js";
+import { preMigrationHobDesign } from "../support/pre-migration-hob.js";
 
 const FRIDGE_COLUMN = "B|2.45";
 
@@ -108,12 +111,24 @@ describe("the signature flow (§10)", () => {
   });
 });
 
+/** The half of a column ADR 0011 Gap D freezes, or a failure naming the column that went missing. */
+function frozenExtentAt(world: KitchenWorld, key: string): ColumnExtent {
+  const column = world.columns.get(key);
+  if (!column) throw new Error(`No column ${key}`);
+  return extentOf(column);
+}
+
 describe("column stability (§3.2, ADR 0011 Gap D)", () => {
   it("leaves a column's top where it was when its top unit is deleted", () => {
     const world = seeded();
-    const before = world.columns.get("A|2.00");
+    const before = frozenExtentAt(world, "A|2.00");
     const after = clearBodies(world, ["p18"]);
-    expect(after.columns.get("A|2.00")).toBe(before);
+    // By value and no longer by identity: every derivation now rebuilds the map to re-answer
+    // `hasFullHeightUnder`. That field is not part of the frozen extent, so it is projected out rather than
+    // compared — deleting a base cabinet is *supposed* to flip it, and a flow that did would
+    // otherwise fail under this heading. The defect this row exists to catch is still caught: a
+    // recomputed column would drop `top` from 2.6 to 2.2, which the extent carries.
+    expect(frozenExtentAt(after, "A|2.00")).toEqual(before);
     expect(
       after.voids.some((slot) => slot.col === "A|2.00" && slot.y0 === 2.2),
     ).toBe(true);
@@ -150,10 +165,20 @@ describe("column stability (§3.2, ADR 0011 Gap D)", () => {
 
 describe("the rejection sweep", () => {
   const originals = seeded();
+  // ADR 0027 took the hob placement out of the shipped design, and the two cases here that are
+  // about one would otherwise refuse with `TARGET_NOT_FOUND` and still pass — the sweep asserts the
+  // no-op contract, not the code, so it would go on being green while covering nothing. They run
+  // on a document saved before the migration, where the accessory still exists. Each case carries
+  // the world it runs in for that reason.
+  const preMigration = createWorld(
+    preMigrationHobDesign(),
+    KITCHEN_L_BODY_CATALOG,
+  );
 
   it.each([
     [
       "remove a void",
+      originals,
       () =>
         removePlacement({
           design: originals.design,
@@ -164,40 +189,45 @@ describe("the rejection sweep", () => {
     ],
     [
       "remove the hob",
+      preMigration,
       () =>
         removePlacement({
-          design: originals.design,
-          catalog: originals.catalog,
+          design: preMigration.design,
+          catalog: preMigration.catalog,
           target: { kind: "placement", id: "p3" },
           occurredAt: OCCURRED_AT,
         }),
     ],
     [
       "insert a seeded id",
+      originals,
       () =>
         insertInto(originals, { kind: "placement", id: "p0" }, "base-sink-800"),
     ],
     [
       "insert an unknown id",
+      originals,
       () =>
         insertInto(originals, { kind: "placement", id: "p0" }, "teleporter"),
     ],
     [
       "insert into an accessory",
+      preMigration,
       () =>
-        insertInto(originals, { kind: "placement", id: "p3" }, "base-2door"),
+        insertInto(preMigration, { kind: "placement", id: "p3" }, "base-2door"),
     ],
     [
       "insert into a stale void",
+      originals,
       () => insertInto(originals, { kind: "void", id: "nope" }, "base-2door"),
     ],
-  ])("%s returns the identical design and no effect", (_case, run) => {
-    const snapshot = JSON.stringify(originals.design);
+  ])("%s returns the identical design and no effect", (_case, world, run) => {
+    const snapshot = JSON.stringify(world.design);
     const result = run();
     expect(result.ok).toBe(false);
-    expect(result.design).toBe(originals.design);
-    expect(result.design.updatedAt).toBe(KITCHEN_L_DESIGN.updatedAt);
-    expect(JSON.stringify(originals.design)).toBe(snapshot);
+    expect(result.design).toBe(world.design);
+    expect(result.design.updatedAt).toBe(world.design.updatedAt);
+    expect(JSON.stringify(world.design)).toBe(snapshot);
     expect(result).not.toHaveProperty("effect");
     if (result.ok) return;
     expect(result.reason.code.length).toBeGreaterThan(0);

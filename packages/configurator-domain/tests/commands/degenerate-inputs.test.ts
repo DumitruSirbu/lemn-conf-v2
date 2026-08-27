@@ -18,6 +18,7 @@ import { findVacatedVoid } from "../../src/queries/vacated-void.js";
 import { clearBodies, insertInto, OCCURRED_AT } from "../support/commands.js";
 import { createFakeProbe } from "../support/fake-probe.js";
 import { advance, createWorld, voidAt } from "../support/kitchen-world.js";
+import { preMigrationHobDesign } from "../support/pre-migration-hob.js";
 import { syntheticWorld } from "../support/synthetic-world.js";
 
 const seeded = () => createWorld(KITCHEN_L_DESIGN, KITCHEN_L_BODY_CATALOG);
@@ -161,8 +162,12 @@ describe("a void id that no longer names anything", () => {
   });
 });
 
+// ADR 0027 removed the hob placement from the shipped design, so the cascade is exercised on the
+// design saved *before* that migration — the shape a stored document can still have, and the reason
+// `cooktop-600` is still in the catalogue. §11 row 15 itself is now trivially satisfied by the
+// shipped design, where the hob is a mesh inside its host rather than a placement beside it.
 describe("the accessory cascade (ADR 0011 Gap E, §11 row 15)", () => {
-  const world = seeded();
+  const world = createWorld(preMigrationHobDesign(), KITCHEN_L_BODY_CATALOG);
   const result = removePlacement({
     design: world.design,
     catalog: world.catalog,

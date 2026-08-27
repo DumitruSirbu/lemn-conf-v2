@@ -6,8 +6,10 @@
 // rule lives in `@lemnaria/configurator-domain`; a guard re-implemented here would be a second
 // place for the rules to drift apart.
 //
-// Columns are **frozen load-time state** (ADR 0011 Gap D): derived at store creation and in
-// `hydrate`, and never by a command. `deriveGeometry` is therefore the load path only.
+// A column's **extent** is frozen load-time state (ADR 0011 Gap D): derived at store creation and
+// in `hydrate`, and never by a command. `deriveGeometry` is therefore the load path only. Its one
+// live field, `hasFullHeightUnder` — whether a full-height member still stands under the opening —
+// is re-answered from the new records after every command; see `applyCommandResult`.
 import {
   deriveColumns,
   derivePlacementRecords,
@@ -76,7 +78,8 @@ export interface ConfiguratorState {
    *  `offersFor` reads the same map the commands do. A component importing a catalogue by name
    *  would be free to pick a different one from the store's. */
   readonly catalog: BodyCatalog;
-  /** Frozen at load time — see the file header and ADR 0011 Gap D. */
+  /** Extent frozen at load time, `hasFullHeightUnder` live — see the file header and ADR 0011
+   *  Gap D. */
   readonly columns: ReadonlyMap<string, Column>;
   readonly voids: readonly VoidRecord[];
   readonly selection: Selection;
@@ -174,8 +177,9 @@ export interface ConfiguratorStoreOptions {
   readonly bodyProbe?: BodyProbe;
 }
 
-/** What every command needs from the store: the current design, the **frozen** column map, and
- *  what is selected. Passed as one object so each action stays the call/apply/schedule adapter. */
+/** What every command needs from the store: the current design, the column map — extents frozen,
+ *  `hasFullHeightUnder` current — and what is selected. Passed as one object so each action stays
+ *  the call/apply/schedule adapter. */
 interface CommandContext {
   readonly design: Design;
   readonly columns: ReadonlyMap<string, Column>;

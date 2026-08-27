@@ -243,3 +243,98 @@ count never could.
 
 Left in place above rather than rewritten, per `docs/decisions/README.md`: a later correction is
 appended, never edited away.
+
+---
+
+## Correction, 2026-08-26 — Gap D freezes a column's **extent**, and `hasWorktop` is not part of it
+
+Gap D above says "columns become frozen load-time state", written when a column was nothing but its
+extent. Backlog entry 5 later added `Column.hasWorktop` — "does a worktop stand under this
+opening?", which decides §7's `min(d, 0.4)` head-clearance cap — and it was frozen with everything
+else, its field comment calling it "a load-time fact like `top` and `regions`".
+
+**It is not one, and freezing it gave a single design two answers.** Delete the base cabinet under a
+wall run in this session and the frozen column still reported a worktop, so a later swap built a
+400 mm carcass; reload the identical document and the column reported none, so the same swap built
+600 mm. Which depth the customer got was decided by the route they took to the design, not by the
+design. Adversarial QA on waves A and C found it.
+
+**Decision: the freeze covers a column's extent — `x`, `z`, `w`, `d`, `top`, `regions` — and
+nothing else.** That is what Gap D's reasoning actually protects: a cleared run must keep the
+opening it just freed, and a recomputed `top` is what makes "delete does nothing". "Is there a
+worktop under this opening" is a question about what stands there **now**, so every derivation
+re-answers it over the frozen extent, through `withCurrentWorktops` in `void-engine.ts`. The store
+calls it in `applyCommandResult` after each command; `deriveColumns` answers it at load.
+
+The delete-produces-an-opening behaviour Gap D exists to protect is untouched: `recomputeVoids`
+reads `top`, `regions`, `w` and `d`, none of which this re-answers. Its existing tests pass
+unchanged.
+
+**Consequence for tests.** Four tests proved "the columns were not recomputed" by asserting the map
+was the *identical object*. The map is now rebuilt on every derivation, so they compare column
+extents instead (`apps/web/tests/support/column-extents.ts`). That is the weaker relation but the
+one that matches the rule, and it still fails on the defect they were written to catch — a
+recomputed column shrinks its `top` and loses its freed region, and both are compared.
+
+## Correction, 2026-08-26 — `hasWorktop` is a geometric question, not a column-membership one
+
+Found in the same QA round. `hasWorktop` was `members.some(band === "base")` — asked of the column's
+own membership. A column key is one along-wall coordinate to two decimals, so a wall cabinet hanging
+over the right-hand half of a wider base cabinet forms a column with no base member in it and was
+told there was nothing to lean over.
+
+§7's cap is a head-clearance rule about what a person leans across, which is geometry. The predicate
+now asks whether any non-accessory base member **on the same wall** overlaps the column's along-wall
+footprint, with the overlap required to be positive so that a cabinet merely adjoining a base run is
+still uncapped.
+
+It changes one thing in the shipped kitchen and nothing visible: the two wall-only columns `A|0.30`
+and `A|0.75` overhang `p25`'s 900 mm corner base and now report a worktop. Both are 330 mm deep, so
+`min(d, 0.4)` leaves them where they were. Backlog entry 2's re-split and §5.4's resize are what make
+the case reachable, which is why it is fixed before M5 rather than after.
+
+## Correction, 2026-08-26 — the predicate is read positively: `hasFullHeightUnder`, not `hasWorktop`
+
+The correction above fixed *how* the predicate was asked and left *what* it asked alone. Logic
+review found that the question itself was the wrong way round.
+
+`Column.hasWorktop` answered "does a worktop stand under this opening", and §7's cap was applied
+where the answer was yes. **The absence of a worktop is not the presence of a column.** Empty space
+is neither — and empty space is exactly what a delete produces. Three clicks on the shipped kitchen
+reached it: delete `p0` (the 800 mm sink, which overhangs column `A|2.00`), `p1` (that column's own
+base cabinet) and `p12` (the wall body above them), then insert a wall cabinet into the opening. The
+column now holds nothing, so `hasWorktop` was `false`, so the cap was lifted, so the carcass was
+built to `Column.d` — **580 mm, beside neighbours at 330**.
+
+Note what the 580 is. `Column.d` is §3.2's MAX over the run and is frozen by Gap D, so it is the
+depth of the base cabinet the customer had just deleted. The two halves of a column had come to
+disagree: the live half said the base was gone, the frozen half still measured it.
+
+It was also reachable from the other direction. Build the 580 mm carcass over the emptied column,
+then insert a base cabinet back underneath: the column flips to "has a worktop", but nothing
+re-derives a placed body's depth (`deriveFrame` prefers the recorded `seatDepthMm`), so a 580 mm
+carcass simply stays there over a counter — precisely the defect backlog entry 5 exists to prevent.
+
+**Decision: state the rule the way backlog entry 5 states it — "over a full-height column there is
+nothing to lean over" — and read it positively.** The field is `Column.hasFullHeightUnder`; the
+predicate is `isFullHeightUnder`, the same geometry as before with `band === "column"` in place of
+`band === "base"`; and `resolveDepthM` caps **unless** a full-height member currently stands under
+the opening. The cap is the rule and the column is the exception, so an unknown, empty or
+newly-cleared opening is capped, which is the conservative direction: 400 mm never hits anybody's
+head.
+
+This is a wave-A regression, not a pre-existing one. Before wave A, `catalog-bodies.ts`'s
+`wallCarcassDepthM` clamped unconditionally, so the same three clicks produced 400.
+
+**What it changes.** Nothing in the shipped kitchen as loaded: `p22`, `p23` and `p24` hang over
+`p5`, `p6` and `p7` — all `band: "column"` — and keep 600/600/750; `p13` hangs over `p2`, a base
+cabinet, and is still capped to 400. The four cases backlog entry 5 was written about are exactly
+the four the positive reading keeps.
+
+**One consequence, and it is deliberate — see backlog entry 5.** Deleting a tall column now makes a
+wall cabinet above it recede to 400 on its next swap or re-insert, where under the old predicate it
+kept the column's depth. There is no longer anything holding it out, so the shallow answer is the
+right one; recorded rather than treated as a detail because it is visible and it is a decision.
+
+`Column.hasWorktop` is gone; the two corrections above are kept for the history and describe a field
+that no longer exists.

@@ -8,6 +8,7 @@ import { setFinish, setHandle } from "../../src/commands/set-appearance.js";
 import { describeSelection } from "../../src/queries/describe-selection.js";
 import { clearBodies, OCCURRED_AT } from "../support/commands.js";
 import { advance, createWorld, voidAt } from "../support/kitchen-world.js";
+import { preMigrationHobDesign } from "../support/pre-migration-hob.js";
 import type { BodyCatalog } from "../../src/void-engine.js";
 
 const seeded = () => createWorld(KITCHEN_L_DESIGN, KITCHEN_L_BODY_CATALOG);
@@ -44,8 +45,10 @@ describe("describeSelection — an occupied body", () => {
     expect(meta?.bandLabel.length).toBeGreaterThan(0);
   });
 
+  // ADR 0027: the shipped design's hob is a mesh inside `p2`'s body, so the accessory §9 has to
+  // describe now only reaches the panel from a document saved before that migration.
   it("reports the hob as an accessory that cannot be replaced or deleted", () => {
-    const world = seeded();
+    const world = createWorld(preMigrationHobDesign(), KITCHEN_L_BODY_CATALOG);
     const meta = describeSelection({
       ...world,
       target: { kind: "placement", id: "p3" },

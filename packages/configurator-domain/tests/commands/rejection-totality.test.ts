@@ -31,6 +31,7 @@ import {
   voidAt,
   type KitchenWorld,
 } from "../support/kitchen-world.js";
+import { preMigrationHobDesign } from "../support/pre-migration-hob.js";
 import {
   columnWorld,
   syntheticDesign,
@@ -116,6 +117,14 @@ function voidTarget(world: KitchenWorld, col: string, y0: number) {
 
 function buildCases(): SweepCase[] {
   const world = seeded();
+  // ADR 0027: the shipped design has no accessory left in it, so the two codes that need one — a
+  // delete refused because the target is an accessory, and a swap refused for the same reason —
+  // are driven out of the design saved before that migration. Both codes stay reachable from a
+  // real command on a real document, which is what this sweep exists to prove.
+  const preMigration = createWorld(
+    preMigrationHobDesign(),
+    KITCHEN_L_BODY_CATALOG,
+  );
   const clearedFridge = clearBodies(world, ["p7", "p24"]);
   const clearedDishwasher = clearBodies(world, ["p1"]);
   // A 400 mm base opening: the dishwasher niche is made in 450 and 600 only.
@@ -168,8 +177,8 @@ function buildCases(): SweepCase[] {
     },
     {
       code: "ACCESSORY_NOT_DELETABLE",
-      design: world.design,
-      run: () => removeFrom(world.design, "p3", "placement"),
+      design: preMigration.design,
+      run: () => removeFrom(preMigration.design, "p3", "placement"),
     },
     {
       code: "NOT_DELETABLE",
@@ -196,9 +205,9 @@ function buildCases(): SweepCase[] {
     },
     {
       code: "TARGET_NOT_REPLACEABLE",
-      design: world.design,
+      design: preMigration.design,
       run: () =>
-        insertInto(world, { kind: "placement", id: "p3" }, "base-2door"),
+        insertInto(preMigration, { kind: "placement", id: "p3" }, "base-2door"),
     },
     {
       code: "BAND_MISMATCH",

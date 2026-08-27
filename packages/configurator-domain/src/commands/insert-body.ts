@@ -4,6 +4,7 @@
 // Forking them is on record as the cause of a silent, total failure of the replace feature: a void
 // rewrite dropped the swap branch and every "Înlocuiește" row did nothing at all. One path also
 // keeps the fit guards from drifting apart.
+import { findHostedAccessories } from "../accessories.js";
 import type { BodyProbe, BodyMeasurement } from "../body-probe.js";
 import {
   describeKindLabel,
@@ -123,7 +124,15 @@ function place(
     buildId: body.buildId,
     widthM: plan.widthM,
     heightM: plan.heightM,
-    depthM: target.column.d,
+    // §5.2's `b.mk(w, h, void.d)`: the **opening's** own depth, which on a §5.3 swap in place is
+    // the outgoing body's. Never `target.column.d` — that is §3.2's MAX over the whole vertical
+    // run, so a wall cabinet was built to the depth of the base cabinet below it and a swap
+    // changed the body's depth. See `InsertOpening.d`.
+    //
+    // Read off the plan rather than off the opening, because §7's head-clearance cap
+    // (`WALL_CARCASS_MAX_DEPTH_OVER_WORKTOP_M`) sits between the two and the offer list has to see
+    // the same number this does.
+    depthM: plan.depthM,
   });
   const mismatch = refuseBuiltSize(body, plan, measurement);
   if (mismatch) return refuse(input.design, mismatch);
@@ -289,12 +298,19 @@ function applyPlacement(
   placement: DesignPlacement,
 ): InsertResult {
   const replacedId = target.replaced?.id;
-  const placements =
+  const cascadedAccessoryIds = cascadeDuplicatedAccessories(
+    input,
+    body,
+    target,
+  );
+  const swapped =
     replacedId === undefined
       ? [...input.design.placements, placement]
       : input.design.placements.map((existing) =>
           existing.id === replacedId ? placement : existing,
         );
+  const cascaded = new Set(cascadedAccessoryIds);
+  const placements = swapped.filter((existing) => !cascaded.has(existing.id));
   const design = withPlacements(input.design, placements, input.occurredAt);
 
   const drift = refuseColumnDrift(design, input, target, body, placement.id);
@@ -305,7 +321,36 @@ function applyPlacement(
     placementId: placement.id,
     buildId: placement.body.buildId,
     ...(replacedId === undefined ? {} : { replacedPlacementId: replacedId }),
+    cascadedAccessoryIds,
   });
+}
+
+/** ADR 0027: §5.3 swaps a body **in place**, so unlike §5.1's delete it never cascaded anything —
+ *  and a pre-migration document reaches a state where it must. Its hob is a separate `cooktop-600`
+ *  placement hosted on the base cabinet below (§6.1); swap that cabinet for a body that has a hob
+ *  built into it and §6.1 simply re-hosts the old one onto the new body, leaving two hobs at the
+ *  same worktop line. The spare refuses deletion (`ACCESSORY_NOT_DELETABLE`), so the customer
+ *  cannot clear it — the only escape is deleting the whole cabinet.
+ *
+ *  Narrow on purpose: only an accessory of the exact kind the incoming body declares it carries is
+ *  removed. Swapping the same cabinet for a plain `base-2door` still leaves the hob hosted on it,
+ *  which is the behaviour that pre-dates this record and is not a duplicate of anything. */
+function cascadeDuplicatedAccessories(
+  input: InsertBodyInput,
+  body: InsertableBody,
+  target: ResolvedOpening,
+): readonly string[] {
+  const carriedKind = body.definition.carriesAccessoryKind;
+  const replaced = target.replaced;
+  if (carriedKind === undefined || !replaced) return [];
+
+  // Re-derived from the pre-command design rather than threaded down from `insertBody`, so an
+  // insert that cannot duplicate anything — every entry but the two hob bases — pays nothing for
+  // this. `refuseColumnDrift` below re-derives the same way, from the design after the write.
+  const records = derivePlacementRecords(input.design, input.catalog);
+  return findHostedAccessories(replaced, records)
+    .filter((accessory) => accessory.kind === carriedKind)
+    .map((accessory) => accessory.id);
 }
 
 /** ADR 0011 Gap D: an inserted placement's derived column must be the target's own. Insert takes

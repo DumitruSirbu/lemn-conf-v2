@@ -24,10 +24,21 @@ round. There is now one.
    changes. See *Review continuity* for how rounds after the first are run.
 5. **Verify and close.** The coordinating agent checks every material finding against the diff and
    runs the relevant commands itself. See *Trust but verify*.
-6. **Commit.** Formatting and linting are a precondition, not a courtesy. `.githooks/pre-commit`
-   formats the staged files, re-stages them, and runs `pnpm lint`; a lint error aborts the commit.
-   Run `pnpm ci:local` before pushing — `.githooks/pre-push` enforces it. Never use `--no-verify`.
+6. **Commit.** `.githooks/pre-commit` formats the staged files, re-stages them, and runs
+   `pnpm lint`; a lint error aborts the commit. **The gate that matters is `pnpm ci:local` before
+   pushing** — `.githooks/pre-push` enforces it, and nothing reaches GitHub without it.
    See `docs/best-practices/ci-and-local-gates.md`.
+
+   **`--no-verify` is permitted on intermediate commits** (owner's direction, 2026-08-26), and this
+   supersedes the earlier "never use `--no-verify`". The reason it was relaxed: with several agents
+   working in one tree, a docs-only or partial commit can be blocked by another agent's
+   half-finished code, and waiting on that buys nothing. What must never be skipped is the
+   pre-push run — a red build still must not reach GitHub.
+
+   Two things this does **not** license. It is not permission to skip the gate on the commit that
+   closes a wave, and it is not a reason to stop reporting: a commit made with `--no-verify` is a
+   commit whose lint and format state you have **not** observed, so it may not be described as
+   verified. Say which commits were made that way.
 7. **Archive.** A phase closes only when every acceptance criterion is met — an unmet gate keeps it
    open, however much code has landed. On close:
    - Update `docs/STATUS.md`: move the phase to **Done**, summarise what shipped, and rewrite "What
@@ -86,6 +97,19 @@ named with an owner or future phase.
   shipped a test that asserted a defect as correct, two boundary greps that matched nothing while
   reporting green, and two commands that reported success while doing nothing. "No findings" must be
   earned and evidenced.
+
+## Batching fixes before review
+
+Reviewers are the most expensive step, so **small fixes are batched and reviewed together** (owner's
+direction, 2026-08-26). Several one-file corrections do not each earn their own round.
+
+The counter-pressure is real and is why this is a judgement rather than a rule: a reviewer given a
+smaller diff gives a better result. So batch while the fixes stay small and related; split as soon
+as the diff grows or the fixes stop sharing a subject. The coordinator decides, and says in the
+dispatch what it batched and why — the same way the review tier is a recorded choice.
+
+The goal being optimised is **fewest iterations**, not fewest agents. A batch so large that review
+misses something costs a second round and is the more expensive mistake.
 
 ## How much review a wave gets
 

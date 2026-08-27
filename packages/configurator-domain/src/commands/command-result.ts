@@ -40,6 +40,10 @@ export interface BodyInsertedEffect {
   readonly buildId: string;
   /** Present when this insert was a swap in place (§5.3) — one code path, two entry points. */
   readonly replacedPlacementId?: string;
+  /** ADR 0027: accessories deleted in the same command because the incoming body has one of that
+   *  kind built in (`carriesAccessoryKind`). Always present and empty on every other insert, which
+   *  is `PlacementRemovedEffect`'s convention above rather than a second one. */
+  readonly cascadedAccessoryIds: readonly string[];
 }
 
 export interface FinishSetEffect {

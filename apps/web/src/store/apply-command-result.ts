@@ -12,6 +12,7 @@ import {
   derivePlacementRecords,
   findVacatedVoid,
   recomputeVoids,
+  withCurrentFullHeightMembers,
   type BodyCatalog,
   type Column,
   type CommandEffect,
@@ -32,6 +33,10 @@ export type Selection = {
 export interface AppliedCommandState {
   readonly design: Design;
   readonly records: readonly PlacementRecord[];
+  /** The frozen extents, with `hasFullHeightUnder` re-answered from the new records — the one
+   *  column field that describes what stands under an opening now rather than how far the run
+   *  reaches. */
+  readonly columns: ReadonlyMap<string, Column>;
   readonly voids: readonly VoidRecord[];
   readonly selection: Selection;
   readonly lastRejection: null;
@@ -49,9 +54,13 @@ export type CommandApplication =
 export interface ApplyCommandResultInput {
   readonly result: CommandResult;
   readonly catalog: BodyCatalog;
-  /** ADR 0011 Gap D: columns are frozen at load time. They are an *input* to the recompute here,
-   *  never an output — recomputing them from the mutated records would shrink a column to fit what
-   *  is left, so a delete would free space that produces no void at all. */
+  /** ADR 0011 Gap D: a column's **extent** is frozen at load time. It is an *input* to the
+   *  recompute here, never an output — recomputing it from the mutated records would shrink a
+   *  column to fit what is left, so a delete would free space that produces no void at all.
+   *
+   *  `hasFullHeightUnder` is the one field that is not part of that extent and *is* re-answered:
+   *  frozen, a column whose full-height unit was deleted in this session went on reporting one
+   *  standing there while the same design reloaded reported none. */
   readonly columns: ReadonlyMap<string, Column>;
 }
 
@@ -70,6 +79,7 @@ export function applyCommandResult(
     state: {
       design: result.design,
       records,
+      columns: withCurrentFullHeightMembers(input.columns, records),
       voids,
       selection: resolveSelection(result.effect, records, voids),
       lastRejection: null,

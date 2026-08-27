@@ -210,6 +210,7 @@ function OfferRowView({
           onPick(row.buildId);
         }}
       >
+        <OfferThumbnail url={row.thumbnailUrl} />
         <span className={styles.rowText}>
           <span className={styles.rowName}>{row.label}</span>
           <span className={styles.rowMeta}>{row.secondaryLine}</span>
@@ -219,6 +220,28 @@ function OfferRowView({
         ) : null}
       </button>
     </li>
+  );
+}
+
+/** Frame 2B's 54 x 54 tile, which is what tells a full-height column apart from a base cabinet
+ *  before the label is read.
+ *
+ *  §13.4 requires a CSS `background-image` and **not** an `<img>`, and the reason is specific: an
+ *  unresolved value paints an empty tile, where an `<img>` with no source fires a failed request and
+ *  shows a broken-image glyph in the middle of the offer list. Do not "improve" this into an `<img>`.
+ *
+ *  Decorative, so `aria-hidden`: the row already names the cabinet in text one element away, and a
+ *  label here would have a screen reader announce every row twice. */
+function OfferThumbnail({ url }: { readonly url: string | undefined }) {
+  return (
+    <span
+      className={styles.rowThumb}
+      style={
+        url === undefined ? undefined : { backgroundImage: `url("${url}")` }
+      }
+      data-testid="row-thumb"
+      aria-hidden="true"
+    />
   );
 }
 

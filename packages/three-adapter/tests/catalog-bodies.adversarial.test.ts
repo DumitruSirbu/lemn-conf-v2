@@ -104,6 +104,7 @@ function refusesFitWidth(
     wall: "A",
     alongM: 1,
     w: toMetres(openingWidthMm),
+    d: 0.58,
     y0: 0,
     h: 0.86,
     spanY0: 0,
@@ -119,6 +120,7 @@ function refusesFitWidth(
     d: 0.58,
     top: 0.86,
     regions: [[0, 0.86]],
+    hasFullHeightUnder: true,
   };
   const fit = evaluateInsertFit({ body, opening, column });
   return fit.ok ? undefined : fit.detail.code;
@@ -228,7 +230,7 @@ describe("a width-flexible body builds at every width the engine will hand it", 
     ([, definition]) => definition.widthFlex === "fit",
   );
 
-  /** `resolveWidth` + `refuseNarrowOpening` (`insert-fit.ts`), as a number: the narrowest opening
+  /** `resolveWidth` + `refuseWidthFloor` (`insert-fit.ts`), as a number: the narrowest opening
    *  this entry can be inserted into. */
   function narrowestOpeningMm(definition: BodyDefinition): number {
     return Math.max(definition.minWidthMm ?? 0, 1000 * MIN_WIDTH_M);

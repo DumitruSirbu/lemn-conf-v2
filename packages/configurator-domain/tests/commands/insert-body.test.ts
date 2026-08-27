@@ -19,6 +19,7 @@ import {
   collapsedSpanWorld,
   narrowColumnWorld,
 } from "../support/narrow-column.js";
+import { preMigrationHobDesign } from "../support/pre-migration-hob.js";
 
 const seeded = () => createWorld(KITCHEN_L_DESIGN, KITCHEN_L_BODY_CATALOG);
 
@@ -323,8 +324,10 @@ describe("insert — refusals that guard the engine", () => {
     expect(result.reason.code).toBe("NOT_IN_LIBRARY");
   });
 
+  // ADR 0027: the hob is part of its cabinet's body in the shipped design, so the accessory this
+  // guard refuses now only exists in a document saved before that migration.
   it("refuses an accessory as a swap target", () => {
-    const world = seeded();
+    const world = createWorld(preMigrationHobDesign(), KITCHEN_L_BODY_CATALOG);
     const result = insertInto(
       world,
       { kind: "placement", id: "p3" },

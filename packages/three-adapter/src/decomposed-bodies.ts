@@ -77,14 +77,31 @@ export function hidePushOpenHandles(group: THREE.Group): THREE.Group {
   return setHandlesVisible(group, false);
 }
 
+/** The return leg's depth is a **placement variable**, not a property of the body
+ *  (`kitchen-parts.ts`): it has to equal the front plane of whatever the leg butts into. In the
+ *  seeded L that neighbour is the 580 mm-deep tall run, so `buildKitchen()` builds it at exactly
+ *  this value and the decomposition-parity gate holds the two together. */
+const SEEDED_CORNER_RETURN_DEPTH_M = 0.58;
+
 export function buildDecomposedBody(kit: Kit, buildId: string): THREE.Group {
   switch (buildId) {
+    case "base-corner-x-900":
+      return kit.make.cornerBaseX();
+    case "base-corner-return-320":
+      return kit.make.cornerBaseReturn(SEEDED_CORNER_RETURN_DEPTH_M);
     case "base-sink-800":
       return kit.make.baseCabinet(0.8, { doors: 2, sink: true });
     case "base-dishwasher-600":
       return kit.builders["base-dishwasher"]();
     case "base-drawer2-600":
       return kit.make.baseCabinet(0.6, { drawers: 2 });
+    // ADR 0027: one seeded body where `buildKitchen()` still places two children — the drawer base
+    // and the cooktop on top of it. `hobBaseWithDrawers` composes the same two calls, so the
+    // decomposition-parity gate compares this against both of them.
+    case "base-hob-2drawer-600":
+      return kit.make.hobBaseWithDrawers(0.6);
+    // Kept for the designs saved before that migration, which still carry a `cooktop-600`
+    // placement. No seeded placement references it any more.
     case "cooktop-600":
       return kit.builders.cooktop();
     case "base-drawer3-600":
