@@ -401,6 +401,71 @@ describe("no two catalogue ids build the same body", () => {
   });
 });
 
+/** §7's labels count doors in Romanian: "2 uși", "1 ușă". `undefined` for a label that claims no
+ *  count — `Corp spălător`, `Etajeră deschisă`, `Hotă` — which is not the same as claiming zero. */
+function declaredDoorCount(label: string): number | undefined {
+  const claim = /(\d+)\s+(?:uși|ușă)/u.exec(label);
+  return claim?.[1] === undefined ? undefined : Number(claim[1]);
+}
+
+describe("a label that counts doors, against the doors the builder actually makes", () => {
+  // ADR 0029 (owner, 2026-08-27), closing finding R1.2 — and this is the test that makes it a rule
+  // rather than a number. §7's wall builder is `w > 0.45 ? 2 : 1`, so `wall-2door` at 400 mm built
+  // **one** door under a two-door label, priced as two and badged ACTUAL as two. §6.3's
+  // fridge-housing-priced-as-a-pantry, one layer along. The entry now declares [600, 800].
+  //
+  // **The relationship is asserted, not the number.** Nothing here mentions 400, 600 or the 0.45
+  // threshold: it builds every width the domain declares and counts the `door_front` meshes that
+  // come back. A future entry whose set crosses a builder threshold fails here without anyone
+  // having to remember this decision — which is the whole point, since the threshold lives in this
+  // package and the set lives in the domain.
+  //
+  // **This test belongs in the adapter, and only here.** `@lemnaria/configurator-domain` is
+  // I/O-free and sits below this package, so it cannot see a builder; the adapter already imports
+  // `INSERTABLE_BODY_DEFINITIONS` and is the one place both halves are visible at once. Putting it
+  // in the domain would have meant copying the threshold across the boundary — a second literal
+  // agreeing with the first by luck, which is exactly the shape ADR 0028 was written about.
+  it("builds the door count its label claims, at every width it declares", () => {
+    const claiming = INSERTABLE_ENTRIES.filter(
+      ([, definition]) =>
+        definition.label !== undefined &&
+        declaredDoorCount(definition.label) !== undefined,
+    );
+    expect(claiming.map(([buildId]) => buildId)).toContain("wall-2door");
+
+    let swept = 0;
+    for (const [buildId, definition] of claiming) {
+      const claimed = declaredDoorCount(definition.label ?? "");
+      const heightMm = definition.nominalHeightMm ?? 700;
+      const depthMm = definition.nominalDepthMm ?? 400;
+      for (const widthMm of definition.sizesMm ?? []) {
+        expect([
+          buildId,
+          widthMm,
+          countDoors(buildId, widthMm, heightMm, depthMm),
+        ]).toEqual([buildId, widthMm, claimed]);
+        swept += 1;
+      }
+    }
+    expect(swept).toBeGreaterThan(0);
+  });
+
+  // The other half, and the reason the assertion above is not vacuous: the builder threshold is
+  // real and still bites just below the set. A width the entry no longer declares builds the wrong
+  // number of doors — which is the defect, sitting exactly where the decision put it, outside what
+  // the customer is offered.
+  it("still builds one door below the set, which is why the set stops there", () => {
+    const entry = INSERTABLE_ENTRIES.find(([id]) => id === "wall-2door");
+    if (!entry) throw new Error("no wall-2door entry");
+    const [, definition] = entry;
+    const narrowest = Math.min(...(definition.sizesMm ?? []));
+
+    expect(countDoors("wall-2door", narrowest, 700, 400)).toBe(2);
+    expect(countDoors("wall-2door", 400, 700, 400)).toBe(1);
+    expect(definition.sizesMm).not.toContain(400);
+  });
+});
+
 describe("the §11 rows that name a body and a number", () => {
   // Row 20: a 570 mm opening builds a 570 mm body, and the door count follows the built width.
   it("row 20 — 570 mm of wall cabinet is 570 mm wide with two doors", () => {

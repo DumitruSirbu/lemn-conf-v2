@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { resolveBuildableSizes } from "../../src/catalog.js";
 import { DesignSchema } from "../../src/design.js";
 import {
   deriveColumns,
@@ -82,6 +83,48 @@ describe("KITCHEN_L_DESIGN", () => {
         twin?.canHandle,
       ]);
     }
+  });
+
+  // FINDING R1.4. A seeded row's own `minWidthMm` is read by nothing: the width set and the floor
+  // under it are one catalogue fact and both come off the entry the pointer names, because that is
+  // the entry a §5.4 resize rebuilds through and whose floor `insertBody` actually applies. No
+  // seeded row declares one today, so the rule is invisible in the data — which is exactly why it
+  // is asserted. A row that acquires one would otherwise look like it narrowed its own chips and
+  // would not.
+  it("declares no width floor on any non-insertable row", () => {
+    let checked = 0;
+    const declaring: string[] = [];
+    for (const [buildId, definition] of KITCHEN_L_BODY_CATALOG) {
+      if (definition.insertable === true) continue;
+      checked += 1;
+      if (definition.minWidthMm !== undefined) declaring.push(buildId);
+    }
+    expect(checked).toBeGreaterThan(0);
+    expect(declaring).toEqual([]);
+  });
+
+  // FINDING R1.7. "A body that can only be built at one width must never be a §5.4 donor" is
+  // written in three fixture comments — `base-hob-2drawer-600`, `tall-oven-tower-600`,
+  // `tall-pantry-600` — and was enforced nowhere across the pointer. A single-member set on a
+  // `fixedWidth: false` body renders a width section holding exactly one chip, `active` and
+  // unclickable: a section that offers nothing, which `describeWidthSection` cannot decline because
+  // it declines at *zero* chips and §9's emptiness rule stays literal.
+  //
+  // Latent today — every single-member row is `fixedWidth` on both sides of its pointer — and the
+  // guard is what keeps it that way. Both populations are swept, because either side acquiring the
+  // shape is the same defect.
+  it("marks every row with one buildable width as fixed-width", () => {
+    let checked = 0;
+    const movable: string[] = [];
+    for (const [buildId, definition] of KITCHEN_L_BODY_CATALOG) {
+      if (resolveBuildableSizes(KITCHEN_L_BODY_CATALOG, buildId).length !== 1) {
+        continue;
+      }
+      checked += 1;
+      if (!definition.fixedWidth) movable.push(buildId);
+    }
+    expect(checked).toBeGreaterThan(0);
+    expect(movable).toEqual([]);
   });
 
   // The three bodies above, named at the placement the customer actually taps, through the query

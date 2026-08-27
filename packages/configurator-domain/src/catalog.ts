@@ -8,6 +8,7 @@ import { toMillimetres } from "./millimetres.js";
 import {
   MIN_WIDTH_M,
   type Band,
+  type BodyCatalog,
   type BodyDefinition,
   type WidthFlex,
 } from "./void-engine.js";
@@ -19,6 +20,15 @@ const DEFAULT_MIN_WIDTH_MM = toMillimetres(MIN_WIDTH_M);
 
 /** §7: "everything else" — 1000 mm was dropped, because two doors top out at 800. */
 const STANDARD_WIDTHS_MM: readonly number[] = [400, 600, 800];
+/** ADR 0029 (owner, 2026-08-27; closing finding R1.2): a two-door wall cabinet has no 400 mm width.
+ *  §7's wall builder is `w > 0.45 ? 2 : 1`, so a `wall-2door` built at 400 mm carries **one** door
+ *  while still being labelled *Corp suspendat 2 uși*, priced as one, and badged ACTUAL as one in
+ *  its own swap list — §6.3's fridge-housing-priced-as-a-pantry in a different disguise. Letting a
+ *  resize migrate the placement to `wall-1door` instead was rejected; this fails at the **offer**
+ *  rather than after the tap. `wall-1door`, `wall-lift` and `open-shelf` keep the standard set: a
+ *  one-door cabinet at 400 mm is honest, and a shelf has no doors to count. */
+const TWO_DOOR_WALL_WIDTHS_MM: readonly number[] = [600, 800];
+
 /** ADR 0017: the sink base has no 400 — its worktop splits around a fixed 560 mm aperture and does
  *  not build below that, so 400 is not a width this body has. */
 const SINK_WIDTHS_MM: readonly number[] = [600, 800];
@@ -217,7 +227,19 @@ export const INSERTABLE_BODY_DEFINITIONS: readonly (readonly [
       sizesMm: DISHWASHER_WIDTHS_MM,
     },
   ],
-  ["wall-2door", wallCabinet("Corp suspendat 2 uși")],
+  [
+    "wall-2door",
+    {
+      ...wallCabinet("Corp suspendat 2 uși"),
+      // ADR 0029. Declared on the row in `base-sink`'s form (ADR 0017) rather
+      // than by narrowing `STANDARD_WIDTHS_MM`, which the three other standard-width entries share.
+      //
+      // This governs the **chips and the offer rows**, not what the body builds into: `widthFlex`
+      // stays `'fit'`, so §5.2 still builds this entry to its opening at any width. See the note at
+      // `TWO_DOOR_WALL_WIDTHS_MM`.
+      sizesMm: TWO_DOOR_WALL_WIDTHS_MM,
+    },
+  ],
   ["wall-1door", wallCabinet("Corp suspendat 1 ușă")],
   ["wall-lift", wallCabinet("Corp suspendat rabatabil")],
   [
@@ -386,6 +408,76 @@ export function buildableSizes(
 ): readonly number[] {
   const floorMm = minWidthMm ?? DEFAULT_MIN_WIDTH_MM;
   return sizesMm.filter((size) => size >= floorMm);
+}
+
+/** The resolved entry with the id it is filed under, because a `BodyDefinition` does not carry its
+ *  own — §9's badge needs the id and §9's chips need the definition, and both must come from the
+ *  same answer rather than from two lookups that could disagree. */
+export interface CatalogEquivalent {
+  readonly buildId: string;
+  readonly definition: BodyDefinition;
+}
+
+/** The §7 entry a body **is**, as one resolution with two readers.
+ *
+ *  An insertable row is its own equivalent; a seeded one is the row its `catalogEquivalentId`
+ *  declares (ADR 0022), because ADR 0011 Gap A gives every seeded entry a non-insertable `buildId`
+ *  and one already-built geometry. Two facts hang off that same pointer and must not drift apart:
+ *  §9 badges the swap row a body already stands on ACTUAL, and §9's width chips are the widths that
+ *  entry can be built at — the widths a §5.4 resize would rebuild the body through. This is one
+ *  function with a thin adapter per reader (FINDING R1.5/R2.2: it was two implementations of one
+ *  rule, differing only in what they returned, and the whole argument for declaring the pointer is
+ *  that it states **one** fact).
+ *
+ *  **The resolved entry is verified `insertable`, not merely present** (FINDING R1.1). A pointer at
+ *  another seeded row would otherwise resolve to a body with no `sizesMm` — an empty set, so the
+ *  width section silently disappears — and would answer §5.4's `canGive` ("resolves to an
+ *  insertable catalogue entry") with a body `insertBody` cannot rebuild, turning a refusal that
+ *  belongs before the offer into one that arrives after the tap. No shipped pointer does this; the
+ *  invariant now holds for **every** catalogue rather than for the one map the fixture guard test
+ *  iterates, and that guard test still earns its place by catching the typo case this cannot.
+ *
+ *  **Declared, never inferred.** ADR 0011 Gap A closes §5.4's `buildIdOf` mesh-tree inspection by
+ *  name, §6.3 records that inferring a body's identity produced a fridge housing labelled and priced
+ *  as a pantry, and ADR 0022 rejected the same shortcut for the badge. Matching a seeded body to a
+ *  catalogue row by kind + band + width would be that mistake once more, and would be wrong
+ *  silently: `base-drawer2-600` is a 600 mm two-drawer base and so is `base-3drawer`'s sibling row.
+ *
+ *  `undefined` for a body with no declared equivalent — the hob and the four corner bodies — which
+ *  is the correct answer for them rather than a missing one. */
+export function resolveCatalogEquivalent(
+  catalog: BodyCatalog,
+  buildId: string,
+): CatalogEquivalent | undefined {
+  const definition = catalog.get(buildId);
+  if (!definition) return undefined;
+  const equivalentId =
+    definition.insertable === true ? buildId : definition.catalogEquivalentId;
+  if (equivalentId === undefined) return undefined;
+  const equivalent = catalog.get(equivalentId);
+  if (equivalent?.insertable !== true) return undefined;
+  return { buildId: equivalentId, definition: equivalent };
+}
+
+/** The widths a body can actually be built at: its catalogue equivalent's set, narrowed by the
+ *  floor that governs **that** entry (ADR 0017, ADR 0026).
+ *
+ *  Both halves come from the same resolved row on purpose — a set and the floor under it are one
+ *  catalogue fact, and reading `sizesMm` from the equivalent while reading `minWidthMm` off the
+ *  seeded row would let a body offer a chip its own builder refuses.
+ *
+ *  An empty set is a real answer, not a defect to paper over: it is what a body with no catalogue
+ *  equivalent has, and §9's width section declines to render on it. */
+export function resolveBuildableSizes(
+  catalog: BodyCatalog,
+  buildId: string,
+): readonly number[] {
+  const equivalent = resolveCatalogEquivalent(catalog, buildId);
+  if (!equivalent) return [];
+  return buildableSizes(
+    equivalent.definition.minWidthMm,
+    equivalent.definition.sizesMm ?? [],
+  );
 }
 
 /** Every insertable entry of a catalogue, in catalogue order — the raw list §9's offer filter

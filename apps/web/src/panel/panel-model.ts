@@ -511,8 +511,12 @@ function describeHandleSection(
  *  `undefined` when there is nothing to choose from. §9 defines `canWidth` as "selected · not empty ·
  *  not `fixedWidth`" and nothing more, so the "has widths to show" half of the question is answered
  *  here: a chipless width section offers nothing, and folding the check back into `canWidth` made
- *  `canWidth: true, sizesMm: []` a representable contradiction. Every seeded entry lands here today
- *  (M4's "Carried into M5" note), and the day M5 gives them width sets the section appears. */
+ *  `canWidth: true, sizesMm: []` a representable contradiction. M5 wave 5B gave the seeded entries
+ *  their sets — resolved through each row's declared `catalogEquivalentId` (ADR 0022) — so the
+ *  section renders across the shipped kitchen. What still lands here is a body that publishes
+ *  `canWidth` and resolves **no** set: a pre-migration document's `cooktop-600` placement declares
+ *  no catalogue equivalent and is not `fixedWidth`, so the flag stays §9's and the emptiness is
+ *  answered here — which is the arrangement that made M5's missing data fail loudly. */
 function describeWidthSection(
   meta: SelectionMeta,
   readOnly: boolean,

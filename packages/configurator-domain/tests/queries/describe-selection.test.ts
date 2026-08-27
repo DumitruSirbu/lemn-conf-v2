@@ -9,16 +9,28 @@ import { describeSelection } from "../../src/queries/describe-selection.js";
 import { clearBodies, OCCURRED_AT } from "../support/commands.js";
 import { advance, createWorld, voidAt } from "../support/kitchen-world.js";
 import { preMigrationHobDesign } from "../support/pre-migration-hob.js";
-import type { BodyCatalog } from "../../src/void-engine.js";
+import type { BodyCatalog, BodyDefinition } from "../../src/void-engine.js";
 
 const seeded = () => createWorld(KITCHEN_L_DESIGN, KITCHEN_L_BODY_CATALOG);
 
-/** The seeded catalogue with one entry given a width set, for the `canWidth` true case: no seeded
- *  entry ships `sizesMm`, and M4's plan carries that gap into M5. */
-function withSizes(buildId: string, sizesMm: readonly number[]): BodyCatalog {
+function metaFor(world: ReturnType<typeof seeded>, id: string) {
+  return describeSelection({ ...world, target: { kind: "placement", id } });
+}
+
+/** The seeded catalogue with one **insertable** entry rewritten. Rewriting the §7 row rather than
+ *  the seeded one is the point: a seeded entry declares no widths of its own and resolves its set
+ *  through the `catalogEquivalentId` it declares (ADR 0022), so an override on the seeded row would
+ *  be read by nothing and the test would pass while asserting the opposite of what it says. */
+function withCatalogEntry(
+  buildId: string,
+  overrides: Partial<BodyDefinition>,
+): BodyCatalog {
   const entry = KITCHEN_L_BODY_CATALOG.get(buildId);
-  if (!entry) throw new Error(`no seeded entry ${buildId}`);
-  return new Map(KITCHEN_L_BODY_CATALOG).set(buildId, { ...entry, sizesMm });
+  if (!entry) throw new Error(`no catalogue entry ${buildId}`);
+  return new Map(KITCHEN_L_BODY_CATALOG).set(buildId, {
+    ...entry,
+    ...overrides,
+  });
 }
 
 describe("describeSelection — an occupied body", () => {
@@ -124,12 +136,143 @@ describe("describeSelection — width chips", () => {
   });
 });
 
+/** M5 wave 5B, work item 1. Every seeded placement's expected set, written out per placement rather
+ *  than computed, so the table is a statement of the acceptance criteria and not a second copy of
+ *  the implementation. An empty set is the expected answer for the five bodies §7 does not build.
+ *
+ *  The `wall-2door` placements lost their 400 mm chip to ADR 0029 (owner, 2026-08-27):
+ *  §7's wall builder gives a 400 mm carcass one door, so a two-door entry has no 400 mm width. */
+const EXPECTED_SEEDED_SIZES_MM: Readonly<Record<string, readonly number[]>> = {
+  p0: [600, 800], // base-sink-800 → base-sink (ADR 0017: no 400)
+  p1: [450, 600], // base-dishwasher-600 → base-dishwasher
+  p2: [600], // base-hob-2drawer-600 → base-hob-2drawer (ADR 0027)
+  p4: [400, 600, 800], // base-drawer3-600 → base-3drawer
+  p25: [], // base-corner-x-900 — structural, no equivalent (§13.1)
+  p26: [], // base-corner-return-320 — structural, no equivalent
+  p5: [600], // tall-oven-tower-600 → tall-oven-tower
+  p6: [600], // tall-pantry-600 → tall-pantry
+  p7: [700], // fridge-free-700 → fridge-free
+  p8: [600, 800], // wall-2door-600 → wall-2door: no 400 (ADR 0029)
+  p9: [], // wall-corner-return-570 — structural, no equivalent
+  p10: [400, 600, 800], // wall-1door-300 → wall-1door: KEEPS 400
+  p11: [600, 800],
+  p12: [400, 600, 800], // open-shelf-600 → open-shelf
+  p13: [600, 900], // hood-600 → hood
+  p14: [600, 800],
+  p15: [600, 800],
+  p16: [400, 600, 800], // wall-1door-300-top → wall-1door: keeps 400
+  p17: [600, 800],
+  p18: [600, 800],
+  p19: [600, 800],
+  p20: [600, 800],
+  p21: [], // wall-corner-return-570-top — structural, no equivalent
+  p22: [600, 800],
+  p23: [600, 800],
+  p24: [600, 800], // wall-2door-700-over-fridge: 700 is its width, not its set
+};
+
+describe("the width set a seeded body resolves through its declared equivalent", () => {
+  it("gives every seeded placement the set its catalogue equivalent declares", () => {
+    const world = seeded();
+    expect(world.records.length).toBe(
+      Object.keys(EXPECTED_SEEDED_SIZES_MM).length,
+    );
+    for (const record of world.records) {
+      const expected = EXPECTED_SEEDED_SIZES_MM[record.id];
+      if (!expected) throw new Error(`no expectation for ${record.id}`);
+      expect([record.id, metaFor(world, record.id)?.sizesMm]).toEqual([
+        record.id,
+        expected,
+      ]);
+    }
+    // ADR 0029 is a rule about two-door entries, not about wall cabinets, so
+    // the table has to keep both answers present or it stops testing the distinction: `wall-1door`
+    // still offers 400 and `wall-2door` no longer does. Asserted over the table itself, because a
+    // sweep that quietly loses one side is exactly where this guard would stop guarding.
+    const sets = Object.values(EXPECTED_SEEDED_SIZES_MM);
+    expect(sets.filter((set) => set.includes(400)).length).toBeGreaterThan(0);
+    expect(sets.filter((set) => !set.includes(400)).length).toBeGreaterThan(0);
+  });
+
+  // §7 dropped 1000 when two doors were capped at 800, and the milestone repeats it as an
+  // acceptance criterion. Asserted as an anti-invariant over the whole population, because a chip
+  // nobody can build is exactly the "offered then refused" failure §9 forbids.
+  it("never offers 1000 mm anywhere in the kitchen", () => {
+    const world = seeded();
+    const offered = new Set(
+      world.records.flatMap((record) => [
+        ...(metaFor(world, record.id)?.sizesMm ?? []),
+      ]),
+    );
+    expect(offered.size).toBeGreaterThan(0);
+    expect(offered.has(1000)).toBe(false);
+  });
+
+  // ADR 0022, and ADR 0011 Gap A: the set follows the **declared** pointer. Repointing one row
+  // moves its set while the body's kind, band and width are untouched — which is what a match
+  // inferred from those three would have keyed on. The assertion is that the inference is NOT what
+  // is happening.
+  it("follows the declared pointer rather than the body's kind, band and width", () => {
+    const seededEntry = KITCHEN_L_BODY_CATALOG.get("base-drawer3-600");
+    if (!seededEntry) throw new Error("no seeded entry base-drawer3-600");
+    const repointed: BodyCatalog = new Map(KITCHEN_L_BODY_CATALOG).set(
+      "base-drawer3-600",
+      { ...seededEntry, catalogEquivalentId: "base-dishwasher" },
+    );
+    const world = createWorld(KITCHEN_L_DESIGN, repointed);
+    expect(metaFor(world, "p4")?.sizesMm).toEqual([450, 600]);
+    expect(metaFor(world, "p4")?.kind).toBe("base_cabinet");
+    expect(metaFor(world, "p4")?.widthMm).toBe(600);
+  });
+
+  // A pointer that resolves to nothing is an empty set, not a throw and not a fallback set: §9's
+  // width section then declines, which is the loud-at-the-section failure R2.7 preserved. The
+  // pointer guard in `tests/fixtures/kitchen-l-design.test.ts` is what makes a broken pointer fail
+  // on its own (FINDING R2.1: this cited `catalog.qa.test.ts`, which only covers `isKnownKind` and
+  // `describeKindLabel`).
+  it("gives an empty set when the declared equivalent is not in the catalogue", () => {
+    const seededEntry = KITCHEN_L_BODY_CATALOG.get("wall-2door-600");
+    if (!seededEntry) throw new Error("no seeded entry wall-2door-600");
+    const dangling: BodyCatalog = new Map(KITCHEN_L_BODY_CATALOG).set(
+      "wall-2door-600",
+      { ...seededEntry, catalogEquivalentId: "no-such-entry" },
+    );
+    const world = createWorld(KITCHEN_L_DESIGN, dangling);
+    expect(metaFor(world, "p8")?.sizesMm).toEqual([]);
+    expect(metaFor(world, "p8")?.canWidth).toBe(true);
+  });
+
+  // FINDING R1.1. The resolved entry must be `insertable`, not merely present. A pointer at another
+  // seeded row resolves nothing, so the set is empty and §9's width section declines — rather than
+  // handing back a body `insertBody` cannot rebuild, which §5.4's `canGive` ("resolves to an
+  // insertable catalogue entry") reads through this same resolution in wave 5C. No shipped pointer
+  // is shaped like this; the fixture guard forbids it in the shipped map and this pins the rule for
+  // every other catalogue.
+  it("resolves nothing through a pointer at another non-insertable row", () => {
+    const seededEntry = KITCHEN_L_BODY_CATALOG.get("wall-2door-600");
+    if (!seededEntry) throw new Error("no seeded entry wall-2door-600");
+    const target = KITCHEN_L_BODY_CATALOG.get("wall-2door-800");
+    expect(target?.insertable).not.toBe(true);
+    const catalog: BodyCatalog = new Map(KITCHEN_L_BODY_CATALOG).set(
+      "wall-2door-600",
+      { ...seededEntry, catalogEquivalentId: "wall-2door-800" },
+    );
+    const world = createWorld(KITCHEN_L_DESIGN, catalog);
+    expect(metaFor(world, "p8")?.sizesMm).toEqual([]);
+  });
+
+  // The floor governing the set is the one on the entry the set came from, not the seeded row's.
+  // Reading the two off different rows would let a body offer a chip its own builder refuses.
+  it("applies the equivalent's own width floor to the equivalent's own set", () => {
+    const catalog = withCatalogEntry("wall-2door", { minWidthMm: 700 });
+    const world = createWorld(KITCHEN_L_DESIGN, catalog);
+    expect(metaFor(world, "p8")?.sizesMm).toEqual([800]);
+  });
+});
+
 describe("describeSelection — §9's canWidth flag", () => {
   it("is true for a body whose width the catalogue lets move", () => {
-    const world = createWorld(
-      KITCHEN_L_DESIGN,
-      withSizes("base-sink-800", [600, 800]),
-    );
+    const world = seeded();
     const meta = describeSelection({
       ...world,
       target: { kind: "placement", id: "p0" },
@@ -137,18 +280,23 @@ describe("describeSelection — §9's canWidth flag", () => {
     expect(meta).toMatchObject({ fixedWidth: false, canWidth: true });
   });
 
-  // FINDING R2.7. This asserted `canWidth: false` for a movable-width body with no widths — the
-  // R1.3 rule, which folded "has widths to offer" into the flag and made `canWidth: true,
-  // sizesMm: []` a representable contradiction. §9 states the rule as "selected · not empty · not
-  // `fixedWidth`" and nothing more, so the flag is that again and the panel's width *section*
-  // declines when there are no chips (asserted in `apps/web/tests/panel/panel-model.test.ts`). The
-  // consequence that matters: M5's missing seeded width sets now fail loudly instead of hiding
-  // behind a silently-false capability.
+  // FINDING R2.7, and M5 wave 5B turned it over rather than deleting it. It asserted `canWidth:
+  // false` for a movable-width body with no widths — the R1.3 rule, which folded "has widths to
+  // offer" into the flag and made `canWidth: true, sizesMm: []` a representable contradiction. §9
+  // states the rule as "selected · not empty · not `fixedWidth`" and nothing more, so the flag is
+  // that again and the panel's width *section* declines when there are no chips.
+  //
+  // It used to make its point on `p0`, which now resolves [600, 800] through `base-sink`. The
+  // invariant is unchanged and still reachable on a real body: a pre-migration document's
+  // `cooktop-600` placement declares no `catalogEquivalentId` (nothing in §7 builds it), so its set
+  // is empty — and `baseCarcass` leaves it `fixedWidth: false`, so `canWidth` is true beside it.
+  // That is the contradiction being kept representable on purpose: missing catalogue data must fail
+  // loudly at the section, not silently at the flag.
   it("is true for a movable-width body even when the catalogue gives it no widths", () => {
-    const world = seeded();
+    const world = createWorld(preMigrationHobDesign(), KITCHEN_L_BODY_CATALOG);
     const meta = describeSelection({
       ...world,
-      target: { kind: "placement", id: "p0" },
+      target: { kind: "placement", id: "p3" },
     });
     expect(meta).toMatchObject({
       fixedWidth: false,
@@ -162,13 +310,13 @@ describe("describeSelection — §9's canWidth flag", () => {
   // [600, 800] by hand; the next entry to declare a `minWidthMm` without pre-filtering would break
   // the width chips and not the offer rows. One function now decides both.
   it("drops a width below the entry's own builder floor from the chips", () => {
-    const entry = KITCHEN_L_BODY_CATALOG.get("base-sink-800");
-    if (!entry) throw new Error("no seeded entry base-sink-800");
-    // Deliberately NOT pre-filtered: 400 and 500 are under the floor and still in the row.
-    const catalog: BodyCatalog = new Map(KITCHEN_L_BODY_CATALOG).set(
-      "base-sink-800",
-      { ...entry, sizesMm: [400, 500, 600, 800], minWidthMm: 560 },
-    );
+    // Deliberately NOT pre-filtered: 400 and 500 are under the floor and still in the row. The
+    // override lands on `base-sink`, the §7 entry `base-sink-800` declares itself an instance of —
+    // overriding the seeded row instead would be read by nobody (see `withCatalogEntry`).
+    const catalog = withCatalogEntry("base-sink", {
+      sizesMm: [400, 500, 600, 800],
+      minWidthMm: 560,
+    });
     const world = createWorld(KITCHEN_L_DESIGN, catalog);
     const meta = describeSelection({
       ...world,

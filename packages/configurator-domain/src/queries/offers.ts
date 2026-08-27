@@ -9,6 +9,7 @@ import {
   buildableSizes,
   isKnownKind,
   listInsertableBodies,
+  resolveCatalogEquivalent,
 } from "../catalog.js";
 import type { CommandTarget } from "../commands/command-result.js";
 import { toMillimetres } from "../millimetres.js";
@@ -89,6 +90,12 @@ export function offersFor(input: OffersInput): CatalogOffer[] {
  *  relationship is therefore **declared** on the seeded entry (`catalogEquivalentId`) rather than
  *  inferred from kind, band and width: §6.3 records what inferring a body's identity cost.
  *
+ *  FINDING R1.5/R2.2: the resolution itself lives in `catalog.ts` and is shared with §9's width
+ *  chips, which read the same pointer for the widths that entry can be built at. This function is
+ *  the adapter — it answers the void case and hands back an id — and nothing about the rule is
+ *  restated here, so the day the badge and the width set are meant to disagree, someone has to
+ *  write the divergence down.
+ *
  *  `undefined` — an entry with no declared equivalent, or a void — means no row is badged, which is
  *  the correct answer for the hob and the corner returns rather than a missing one. */
 function resolveCurrentCatalogId(
@@ -97,12 +104,7 @@ function resolveCurrentCatalogId(
 ): string | undefined {
   const replaced = resolved.replaced;
   if (!replaced) return undefined;
-  const definition = catalog.get(replaced.buildId);
-  if (!definition) return undefined;
-  // An inserted placement already carries an insertable id; only a seeded one needs the pointer.
-  return definition.insertable === true
-    ? replaced.buildId
-    : definition.catalogEquivalentId;
+  return resolveCatalogEquivalent(catalog, replaced.buildId)?.buildId;
 }
 
 /** §11 row 24: a kind the catalogue does not know renders no replace section at all. A fallback

@@ -70,7 +70,14 @@ const STRUCTURAL_CORNER: Pick<
  *  `baseCabinet(0.6, { drawers: 2 })`, which is exactly what `base-panbank` builds, so the two-drawer
  *  base is the pan bank at 600. Five entries carry no pointer because nothing in §7 builds them:
  *  the hob, and the four corner bodies — §13.1 is explicit that a corner is not a body a customer
- *  chooses, so having no catalogue equivalent is the correct answer for them, not a missing one. */
+ *  chooses, so having no catalogue equivalent is the correct answer for them, not a missing one.
+ *
+ *  **The pointer now carries a second fact, and it is the one M5 needs.** A seeded entry declares no
+ *  `sizesMm`: ADR 0011 Gap A gives it one already-built geometry, so the widths it *could* be
+ *  rebuilt at belong to the §7 entry a §5.4 resize would rebuild it through — the one named here.
+ *  `resolveBuildableSizes` (`catalog.ts`) reads the set and its floor off that entry, which is why
+ *  a stale pointer is now a wrong width set as well as a wrong badge. Both fail loudly against the
+ *  guard test rather than quietly, which is the whole reason the relationship is declared. */
 const SEEDED_BODY_DEFINITIONS: readonly (readonly [string, BodyDefinition])[] =
   [
     // ADR 0025. The two base legs of the L. `frameDepthMm` is the seat, not the depth: the X-leg's
@@ -143,9 +150,10 @@ const SEEDED_BODY_DEFINITIONS: readonly (readonly [string, BodyDefinition])[] =
         // ADR 0027: 600 mm in both directions, matching the catalogue entry. `baseCarcass` defaults
         // to `fixedWidth: false` and this row must not inherit it: the hob is a 600 mm appliance and
         // there is no 400 mm one, so §5.4's `canGive` ("not `fixedWidth`") would otherwise let the
-        // one cabinet carrying a hob donate width to a neighbour. No symptom before M5 wires §5.4 —
-        // a seeded entry has no `sizesMm`, so §9 renders no width chips — which is exactly why it
-        // has to be right now rather than when the symptom appears.
+        // one cabinet carrying a hob donate width to a neighbour. It had no symptom when it was
+        // written, because no seeded entry resolved a width set; it does now — the pointer below
+        // resolves `base-hob-2drawer`'s single-member {600}, and this flag is what keeps §9 from
+        // rendering a width section over it.
         fixedWidth: true,
         // ADR 0027: the hob is built into this body. §5.3's cascade reads this off the **incoming**
         // entry, and ADR 0011 Gap A never lets a seeded id be the incoming one, so nothing consumes

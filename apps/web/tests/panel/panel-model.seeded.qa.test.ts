@@ -176,11 +176,38 @@ describe("§6.5's default handle, against every seeded placement's own y0", () =
   });
 });
 
+/** M5 wave 5B. The seeded bodies that render a width section: §9's `canWidth` (not empty, not
+ *  `fixedWidth`) narrowed by "resolves a non-empty width set through its declared
+ *  `catalogEquivalentId`". Written out rather than computed, so the list is a statement of the
+ *  acceptance criteria and not a second copy of the implementation.
+ *
+ *  The eight that are absent are absent for a stated reason: the four corners and the hob-bearing
+ *  base are `fixedWidth`, and so are the two columns and the freestanding fridge. */
+const SEEDED_IDS_WITH_A_WIDTH_SECTION: readonly string[] = [
+  "p0",
+  "p1",
+  "p4",
+  "p8",
+  "p10",
+  "p11",
+  "p12",
+  "p14",
+  "p15",
+  "p16",
+  "p17",
+  "p18",
+  "p19",
+  "p20",
+  "p22",
+  "p23",
+  "p24",
+];
+
 describe("the width section over the real kitchen", () => {
   // §9's section 6 is "chips from `sizes`": a rendered width section with no chips offers nothing
   // to choose. This runs over the SHIPPED design rather than a fixture, because the fixtures give a
-  // body [400, 600, 800] and no seeded body has any `sizesMm` at all — the gap only shows against
-  // real data.
+  // body [400, 600, 800] by hand, and whether the real kitchen's rows resolve one is the whole
+  // question.
   it("gives every rendered width section at least one chip", () => {
     const world = worldFrom(KITCHEN_L_DESIGN);
     const rendered: string[] = [];
@@ -195,28 +222,97 @@ describe("the width section over the real kitchen", () => {
       if (section.chips.length === 0) chipless.push(record.id);
     }
     expect(chipless).toEqual([]);
-    // The sweep is empty today and that is stated, not assumed: no seeded entry has `sizesMm`
-    // (M4 carries that gap into M5), so `describeWidthSection` declines on every one of them and
-    // nothing reaches the chipless check above. The day M5 gives the seeded entries their widths,
-    // this line fails and the check starts doing real work — which is the point of asserting the
-    // emptiness rather than letting a silent zero-iteration sweep report green forever.
-    expect(rendered).toEqual([]);
+    // The tripwire, turned over by M5 wave 5B rather than removed. It asserted `[]` — the sweep was
+    // empty because no seeded entry had `sizesMm`, so nothing reached the chipless check above and
+    // a zero-iteration sweep would have reported green forever. The widths have arrived, so the
+    // same line now names exactly which bodies render the section: the check does real work, and a
+    // row that silently stops resolving a set is a failure here rather than a section that quietly
+    // disappears from the panel.
+    expect(rendered).toEqual(SEEDED_IDS_WITH_A_WIDTH_SECTION);
   });
 
-  // The "never free" property itself is exercised non-vacuously in `panel-model.qa.test.ts` and
-  // `panel-model.test.ts`, whose `meta` fixtures do carry a size set. Here it can only restate the
-  // gap above, so that is what it asserts.
-  it("renders no width section anywhere in the kitchen, seeded entries having no widths", () => {
+  // The "never free" property, which until M5 wave 5B could only restate the gap: the seeded
+  // fixtures carried no size set, so this sweep ran over nothing and its per-chip assertion was
+  // never evaluated. It now runs over the real kitchen's real chips.
+  //
+  // **It is still M4's truth being pinned, deliberately.** `setWidth` does not exist until wave 5C,
+  // so no width is reachable and every non-current chip is `blocked`. Wave 5D changes that on
+  // purpose; this line is where that change has to be made deliberately rather than drifted into.
+  it("marks no width chip free anywhere in the kitchen, no resize command existing", () => {
     const world = openedKitchen();
     const rendered: string[] = [];
     for (const target of everySelectableTarget(world)) {
       for (const section of sectionsAt(world, target)) {
         if (section.kind !== "width") continue;
         rendered.push(target.id);
+        expect(section.chips.length).toBeGreaterThan(0);
         expect(section.chips.some((chip) => chip.state === "free")).toBe(false);
       }
     }
-    expect(rendered).toEqual([]);
+    // The second tripwire, turned over the same way. `openedKitchen` clears p1, p7, p12 and p24, so
+    // the four of them are gone from the sweep and the derived voids that replaced them render no
+    // width section at all — §9 hides Lățime on an empty slot, and that is asserted here by their
+    // absence rather than assumed.
+    expect(rendered).toEqual(
+      SEEDED_IDS_WITH_A_WIDTH_SECTION.filter(
+        (id) => !["p1", "p7", "p12", "p24"].includes(id),
+      ),
+    );
+  });
+});
+
+describe("the chips a seeded width section actually renders", () => {
+  /** The rendered chip row per body, as the acceptance criteria state it. `p10` and `p24` are the
+   *  `widthFlex: 'fit'` case §9 has to survive: both were built to their opening rather than to a
+   *  member of their set, so their own width joins the row, sorted. */
+  const EXPECTED_CHIPS_MM: Readonly<Record<string, readonly number[]>> = {
+    p0: [600, 800], // base-sink-800 → base-sink (ADR 0017: no 400)
+    p1: [450, 600], // base-dishwasher-600 → base-dishwasher
+    p4: [400, 600, 800], // base-drawer3-600 → base-3drawer
+    // `wall-1door` KEEPS its 400 — ADR 0029 is about two-door entries, and
+    // a one-door cabinet at 400 mm is honest. Kept beside `p24` below, which lost its 400, so this
+    // table tests the distinction rather than one side of it.
+    p10: [300, 400, 600, 800], // wall-1door-300: 300 is its width, not its set
+    p24: [600, 700, 800], // wall-2door-700-over-fridge, likewise at 700
+  };
+
+  it("renders each body's own set, with a fit body's own width folded in", () => {
+    const world = worldFrom(KITCHEN_L_DESIGN);
+    for (const [id, expected] of Object.entries(EXPECTED_CHIPS_MM)) {
+      const section = sectionsAt(world, { kind: "placement", id }).find(
+        (candidate) => candidate.kind === "width",
+      );
+      if (section?.kind !== "width")
+        throw new Error(`no width section on ${id}`);
+      expect([id, section.chips.map((chip) => chip.widthMm)]).toEqual([
+        id,
+        expected,
+      ]);
+      // Exactly one chip is the body's current width, and it is the `active` one.
+      expect(
+        section.chips.filter((chip) => chip.state === "active").length,
+      ).toBe(1);
+    }
+  });
+
+  // §13.1, and the five entries that deliberately declare no `catalogEquivalentId`: a body with no
+  // catalogue equivalent resolves no set, and `describeWidthSection` declines rather than rendering
+  // an empty row. Asserted over the shipped design, because that is the population that has them.
+  it("renders no width section for a body with no catalogue equivalent", () => {
+    const world = worldFrom(KITCHEN_L_DESIGN);
+    const withoutEquivalent = world.records.filter(
+      (record) =>
+        KITCHEN_L_BODY_CATALOG.get(record.buildId)?.catalogEquivalentId ===
+        undefined,
+    );
+    expect(withoutEquivalent.length).toBeGreaterThan(0);
+    for (const record of withoutEquivalent) {
+      const section = sectionsAt(world, {
+        kind: "placement",
+        id: record.id,
+      }).find((candidate) => candidate.kind === "width");
+      expect([record.id, section]).toEqual([record.id, undefined]);
+    }
   });
 });
 

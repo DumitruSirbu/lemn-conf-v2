@@ -46,15 +46,22 @@ describe("§9's canWidth, over the whole seeded population", () => {
     }
     expect(fixed).toBeGreaterThan(0);
     expect(flexible).toBeGreaterThan(0);
-    // Stated rather than assumed: every flexible seeded body publishes `canWidth`, while none of
-    // them has a single width to offer. That tension is deliberately VISIBLE here — it is M5's
-    // carried work item, and the panel renders no width section for any of them today.
+    // M5 wave 5B turned this over. It used to state the tension rather than assume it — every
+    // flexible seeded body published `canWidth` while none of them had a single width to offer —
+    // and it now states the resolved fact: the sets arrived, through each row's declared
+    // `catalogEquivalentId` (ADR 0022), so **no** willing body is left chipless.
+    //
+    // What the pair of assertions guards is unchanged, and it is why neither was replaced by the
+    // other. `willing.length === flexible` pins §9's rule itself: `canWidth` is `!fixedWidth` and
+    // has not quietly acquired a "has widths to offer" clause. The list below pins the data: a
+    // seeded row that loses its pointer stops resolving a set, and this fails instead of the width
+    // section silently disappearing from the panel.
     const willing = world.records
       .filter((record) => metaFor(world, record.id)?.canWidth)
       .map((record) => record.id);
     expect(willing.length).toBe(flexible);
     expect(
-      willing.filter((id) => (metaFor(world, id)?.sizesMm ?? []).length > 0),
+      willing.filter((id) => (metaFor(world, id)?.sizesMm ?? []).length === 0),
     ).toEqual([]);
   });
 
