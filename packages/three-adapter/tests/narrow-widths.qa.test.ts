@@ -65,8 +65,8 @@ function buildAt(buildId: string, widthMm: number) {
 /** ADR 0026 clause 3 as ADR 0030's amendment left it: three rows, all at 200. */
 const DECLARED_BELOW_DEFAULT = [
   "base-bottle-cargo",
-  "base-1door",
-  "wall-1door",
+  "base-cabinet",
+  "wall-cabinet",
 ];
 
 describe("the rows that declare a floor below §2's default", () => {

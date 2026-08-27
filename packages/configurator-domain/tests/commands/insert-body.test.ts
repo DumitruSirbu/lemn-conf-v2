@@ -7,6 +7,7 @@ import {
   KITCHEN_L_DESIGN,
 } from "../../src/fixtures/kitchen-l-design.js";
 import { offersFor } from "../../src/queries/offers.js";
+import { offered as offeredRows } from "../support/offers.js";
 import { createFakeProbe } from "../support/fake-probe.js";
 import { clearBodies, insertInto, OCCURRED_AT } from "../support/commands.js";
 import {
@@ -33,7 +34,7 @@ describe("insert — the band gate (§11 rows 3, 4)", () => {
     const result = insertInto(
       world,
       voidTarget(world, "A|2.00", 0),
-      "wall-2door",
+      "wall-cabinet",
     );
     expect(result.ok).toBe(false);
     if (result.ok) return;
@@ -46,7 +47,7 @@ describe("insert — the band gate (§11 rows 3, 4)", () => {
     const result = insertInto(
       world,
       voidTarget(world, "A|2.00", 2.2),
-      "base-2door",
+      "base-cabinet",
     );
     expect(result.ok).toBe(false);
     if (result.ok) return;
@@ -94,7 +95,7 @@ describe("insert — fit (§11 rows 5, 6, 7, 14, 20)", () => {
   it("row 6: never offers the hood for a 400 mm top slot", () => {
     const world = clearBodies(seeded(), ["p18"]);
     const target = voidTarget(world, "A|2.00", 2.2);
-    const offered = offersFor({ ...world, target }).map(
+    const offered = offeredRows(offersFor({ ...world, target })).map(
       (offer) => offer.buildId,
     );
     expect(offered).not.toContain("hood");
@@ -169,13 +170,33 @@ describe("insert — fit (§11 rows 5, 6, 7, 14, 20)", () => {
     expect(result.reason.params).toMatchObject({ sizesMm: [450, 600] });
   });
 
+  // A **ladder** entry, since ADR 0032 gave a bounded set its bite on this path: `wall-2door`, which
+  // this case used to name, is refused at 570 now and `offers.test.ts` asserts that refusal. §5.2's
+  // "a `'fit'` body fills its void" is unchanged for every entry whose set is the standard modules,
+  // and that is what row 20 is about.
+  //
+  // **This covers half of §11 row 20, and the other half is no longer reachable** (QA finding Q1.2).
+  // Row 20 reads "insert into a 570 mm opening → the body builds to 570, and the door count follows
+  // the width". What is asserted here is the first clause, honestly and end to end — but through
+  // `open-shelf`, which has no doors at all, so it says nothing about the second.
+  //
+  // The second clause has no end-to-end path left. ADR 0033's merged hinged cabinet declares
+  // `[200, 300, 400, 600, 800]` and ADR 0032 made that set bind the `'fit'` path, so no command in
+  // the product hands the wall builder a 570 mm width. `catalog-bodies.adversarial.test.ts` still
+  // asserts 570 → two doors, but by calling `buildCatalogBody` directly — a builder-fidelity claim
+  // rather than a demonstration of the row, and it says so on the case.
+  //
+  // **Do not "fix" this by widening a set or reaching past the engine.** The gap is a question about
+  // the *spec*: row 20 was written when a `'fit'` wall cabinet filled any opening, and whether it
+  // should be amended alongside ADR 0032 and ADR 0033 is the M5 architect's call, not this file's.
+  // Recorded here so the next reader does not mistake a half-covered row for a covered one.
   it("row 20: builds to exactly 570 in a 570 mm opening", () => {
     // §13.1 makes the corner return at B|0.61 non-deletable, so its span is opened at load.
     const world = advancePast(seeded(), ["p9"]);
     const result = insertInto(
       world,
       voidTarget(world, "B|0.61", 1.5),
-      "wall-2door",
+      "open-shelf",
     );
     expect(result.ok).toBe(true);
     if (!result.ok) return;
@@ -197,10 +218,14 @@ describe("insert — height flex and snapping", () => {
     const above = voidAt(world, "B|2.45", 1.85);
     expect(above.h).toBeCloseTo(0.75, 6);
 
+    // `open-shelf` because the subject here is the **height** a `heightFlex` body fills, and a shelf
+    // is the plainest body that has one. The over-fridge slot's 700 mm is an ordinary hinged width
+    // since ADR 0033's amendment, so a hinged cabinet would work too — this is a choice of the
+    // simplest body, not a width the engine refuses.
     const result = insertInto(
       world,
       { kind: "void", id: above.id },
-      "wall-2door",
+      "open-shelf",
     );
     expect(result.ok).toBe(true);
     if (!result.ok) return;
@@ -214,7 +239,7 @@ describe("insert — height flex and snapping", () => {
     const result = insertInto(
       world,
       { kind: "void", id: opening.id },
-      "wall-2door",
+      "wall-cabinet",
     );
     expect(result.ok).toBe(true);
     if (!result.ok) return;
@@ -223,10 +248,14 @@ describe("insert — height flex and snapping", () => {
 
   it("lands a wall unit on the 1500 mm module line in a cleared column", () => {
     const world = clearBodies(seeded(), ["p7", "p24"]);
+    // Snapping is the subject here, so the body is the plainest one that fills its opening. The
+    // column's 700 mm is inside the hinged cabinet's 600–800 two-door range (ADR 0033's amendment),
+    // so this is not a width the engine refuses either — `swap-depth.test.ts` builds a hinged
+    // cabinet at exactly this opening.
     const result = insertInto(
       world,
       voidTarget(world, "B|2.45", 1.5),
-      "wall-2door",
+      "open-shelf",
     );
     expect(result.ok).toBe(true);
     if (!result.ok) return;
@@ -238,8 +267,8 @@ describe("insert — the document it writes", () => {
   it("derives the id from the design, so the same command twice yields the same document", () => {
     const world = clearBodies(seeded(), ["p1"]);
     const target = voidTarget(world, "A|2.00", 0);
-    const first = insertInto(world, target, "base-2door");
-    const second = insertInto(world, target, "base-2door");
+    const first = insertInto(world, target, "base-cabinet");
+    const second = insertInto(world, target, "base-cabinet");
     expect(first.ok && second.ok).toBe(true);
     if (!first.ok || !second.ok) return;
     expect(first.effect.placementId).toBe("n0");
@@ -251,7 +280,7 @@ describe("insert — the document it writes", () => {
     const result = insertInto(
       world,
       voidTarget(world, "A|2.00", 0),
-      "base-2door",
+      "base-cabinet",
     );
     expect(result.ok).toBe(true);
     if (!result.ok) return;
@@ -261,7 +290,7 @@ describe("insert — the document it writes", () => {
       alongMm: 2000,
       y0Mm: 0,
       body: {
-        buildId: "base-2door",
+        buildId: "base-cabinet",
         widthMm: 600,
         heightMm: 860,
         seatDepthMm: 580,
@@ -288,7 +317,7 @@ describe("insert — the document it writes", () => {
     const result = insertInto(
       world,
       voidTarget(world, "B|0.61", 1.5),
-      "wall-2door",
+      "open-shelf",
       probe,
     );
     expect(result.ok).toBe(true);
@@ -331,7 +360,7 @@ describe("insert — refusals that guard the engine", () => {
     const result = insertInto(
       world,
       { kind: "placement", id: "p3" },
-      "base-2door",
+      "base-cabinet",
     );
     expect(result.ok).toBe(false);
     if (result.ok) return;
@@ -343,7 +372,7 @@ describe("insert — refusals that guard the engine", () => {
     const result = insertInto(
       world,
       voidTarget(world, "A|2.00", 0),
-      "base-2door",
+      "base-cabinet",
       createFakeProbe({ carcassWidthM: 0.8 }),
     );
     expect(result.ok).toBe(false);
@@ -363,7 +392,7 @@ describe("insert — refusals that guard the engine", () => {
     const result = insertInto(
       { ...world, columns: new Map() },
       target,
-      "base-2door",
+      "base-cabinet",
     );
     expect(result.ok).toBe(false);
     if (result.ok) return;
@@ -375,7 +404,7 @@ describe("insert — refusals that guard the engine", () => {
     const result = insertInto(
       world,
       { kind: "void", id: "A|9.99:v0:0.00" },
-      "base-2door",
+      "base-cabinet",
     );
     expect(result.ok).toBe(false);
     if (result.ok) return;
@@ -387,7 +416,7 @@ describe("insert — every refusal leaves the design untouched", () => {
   const cases = [
     ["seeded id", "base-sink-800"],
     ["unknown id", "teleporter"],
-    ["wrong band", "wall-2door"],
+    ["wrong band", "wall-cabinet"],
   ] as const;
 
   it.each(cases)("returns the exact original design (%s)", (_case, buildId) => {

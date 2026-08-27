@@ -59,7 +59,7 @@ function request(
 }
 
 const SINK_REQUEST = request("base-sink", 0.8, WORKTOP_HEIGHT_M, 0.58);
-const WALL_REQUEST = request("wall-2door", 0.6, 0.7, 0.33);
+const WALL_REQUEST = request("wall-cabinet", 0.6, 0.7, 0.33);
 const COLUMN_REQUEST = request("tall-pantry", 0.6, 2.2, 0.56);
 
 describe("measureBuiltBody", () => {
@@ -208,8 +208,8 @@ describe("rebuilding at the persisted seat depth", () => {
   // Only `wallCabinet` and `openShelf` consume a depth at all, and only they centre their carcass
   // on z = 0. If a builder is ever parameterised over depth (M5), this is the test that will say so.
   it.each([
-    { buildId: "wall-2door", heightM: 0.7 },
-    { buildId: "wall-1door", heightM: 0.7 },
+    { buildId: "wall-cabinet", heightM: 0.7 },
+    { buildId: "wall-cabinet", heightM: 0.7 },
     { buildId: "wall-lift", heightM: 0.7 },
     { buildId: "open-shelf", heightM: 0.7 },
   ])("$buildId seats at exactly half the depth it was given", (testCase) => {
@@ -228,7 +228,7 @@ describe("rebuilding at the persisted seat depth", () => {
 
   it.each([
     {
-      buildId: "base-2door",
+      buildId: "base-cabinet",
       widthM: 0.6,
       heightM: WORKTOP_HEIGHT_M,
       seatDepthM: 0.58,
@@ -273,13 +273,13 @@ describe("rebuilding at the persisted seat depth", () => {
     const deep = measureBuiltBody({
       kit,
       room,
-      request: request("wall-2door", 0.6, 0.7, 0.6),
+      request: request("wall-cabinet", 0.6, 0.7, 0.6),
     });
 
     const rebuilt = measureBuiltBody({
       kit,
       room,
-      request: request("wall-2door", 0.6, 0.7, 2 * deep.seatOffsetM),
+      request: request("wall-cabinet", 0.6, 0.7, 2 * deep.seatOffsetM),
     });
 
     expect(rebuilt).toEqual(deep);

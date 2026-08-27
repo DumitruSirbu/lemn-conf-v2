@@ -282,6 +282,8 @@ describe("the §10 signature flow, driven through the store", () => {
     return store;
   }
 
+  /** ADR 0032: the list carries refused rows too, and the panel does not let a customer tap one.
+   *  The claim here is about the rows they *can* tap. */
   function offersForMergedOpening(): string[] {
     const store = clearedFridgeColumn();
     const state = store.getState();
@@ -293,7 +295,9 @@ describe("the §10 signature flow, driven through the store", () => {
       columns: state.columns,
       catalog: KITCHEN_L_BODY_CATALOG,
       target: selection,
-    }).map((offer) => offer.buildId);
+    })
+      .filter((offer) => offer.verdict.status === "offered")
+      .map((offer) => offer.buildId);
   }
 });
 
@@ -431,7 +435,7 @@ describe("insert without a probe", () => {
     store.getState().select({ kind: "placement", id: "p8" });
 
     expect(() => {
-      store.getState().insert("base-2door");
+      store.getState().insert("base-cabinet");
     }).not.toThrow();
     expect(store.getState().lastRejection?.code).toBe("BODY_PROBE_UNAVAILABLE");
   });
@@ -454,7 +458,7 @@ describe("insert without a probe", () => {
     const store = createStore({ withProbe: false });
     store.getState().select({ kind: "placement", id: "p8" });
 
-    store.getState().insert("base-2door");
+    store.getState().insert("base-cabinet");
 
     const message = store.getState().lastRejection?.message ?? "";
     expect(message.trim().length).toBeGreaterThan(0);
@@ -467,7 +471,7 @@ describe("insert without a probe", () => {
     const store = createStore({ withProbe: false });
     store.getState().deselect();
 
-    store.getState().insert("base-2door");
+    store.getState().insert("base-cabinet");
 
     // The old throw pre-empted this refusal; the guard now sits after the selection check.
     expect(store.getState().lastRejection?.code).toBe("TARGET_NOT_FOUND");
@@ -478,7 +482,7 @@ describe("insert without a probe", () => {
     store.getState().select({ kind: "placement", id: "p8" });
     const before: ConfiguratorState = store.getState();
 
-    store.getState().insert("base-2door");
+    store.getState().insert("base-cabinet");
 
     expect(store.getState().design).toBe(before.design);
     expect(store.getState().records).toBe(before.records);
@@ -487,15 +491,18 @@ describe("insert without a probe", () => {
     expect(store.getState().selection).toBe(before.selection);
   });
 
+  // `wall-lift` rather than `wall-1door`: `p8` is 600 mm and ADR 0032 made the one-door's
+  // `[200, 300, 400]` set (ADR 0030) a bound on the insert path, so it would now refuse on width
+  // before the probe question was ever reached. The probe is the subject of these three cases.
   it("stops refusing once the scene attaches its probe", () => {
     const store = createStore({ withProbe: false });
     store.getState().select({ kind: "placement", id: "p8" });
-    store.getState().insert("wall-1door");
+    store.getState().insert("wall-lift");
     expect(store.getState().lastRejection?.code).toBe("BODY_PROBE_UNAVAILABLE");
 
     store.getState().attachBodyProbe(createFakeBodyProbe());
     store.getState().select({ kind: "placement", id: "p8" });
-    store.getState().insert("wall-1door");
+    store.getState().insert("wall-lift");
 
     expect(store.getState().lastRejection).toBeNull();
     expectStoreInvariants(store, "after attaching the probe");
@@ -516,7 +523,7 @@ describe("insert without a probe", () => {
     expect(store.getState().isBodyProbeAttached).toBe(true);
 
     store.getState().select({ kind: "placement", id: "p8" });
-    store.getState().insert("wall-1door");
+    store.getState().insert("wall-lift");
 
     expect(first).not.toHaveBeenCalled();
     expect(second).toHaveBeenCalled();

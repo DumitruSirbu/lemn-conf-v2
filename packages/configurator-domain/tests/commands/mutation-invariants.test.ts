@@ -140,7 +140,7 @@ describe("repeatability", () => {
         catalog: world.catalog,
         columns: world.columns,
         target: { kind: "void", id: slot.id },
-        buildId: "wall-2door",
+        buildId: "wall-cabinet",
         probe: createFakeProbe(),
         occurredAt: OCCURRED_AT,
       });

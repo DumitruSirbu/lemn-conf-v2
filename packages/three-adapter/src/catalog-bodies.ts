@@ -5,15 +5,14 @@
 // seeded ids and is untouched — those describe one already-built body each and are never offered.
 import * as THREE from "three";
 
+import { deriveDoorCount, toMillimetres } from "@lemnaria/configurator-domain";
+
 import type { Kit } from "./kitchen-parts.js";
 
 /** Metres. `make.hood()`'s own canopy box height — the hood's chimney parameter is everything
  *  above it, so `canopy + chimney` is the height §7 fixes at 0.71 m (ADR 0016). Change this only
  *  when that builder's canopy changes; the built-size re-check in `insertBody` catches the drift. */
 export const HOOD_CANOPY_HEIGHT_M = 0.13;
-
-/** §7's wall-cabinet door rule, `w > 0.45 ? 2 : 1`. §11 row 20 is the 570 mm case: two doors. */
-const TWO_DOOR_MIN_WIDTH_M = 0.45;
 
 /** §7: an open shelf carries two inner shelves whatever its height. */
 const OPEN_SHELF_INNER_SHELVES = 2;
@@ -42,6 +41,20 @@ function wallCabinet(kit: Kit, size: CatalogBodySize, doors: number) {
   return kit.make.wallCabinet(size.widthM, doors, size.heightM, size.depthM);
 }
 
+/** ADR 0033: how many hinged doors this carcass gets, from the **domain's** own threshold.
+ *
+ *  `TWO_DOOR_MIN_WIDTH_M` used to be a literal in this file, and the label that named the door count
+ *  was a literal in the catalogue — two constants agreeing at 0.45 by luck, which is the exact shape
+ *  ADR 0028 and §7's depth cap were both written about. "How many doors is this cabinet called" is a
+ *  product rule, so §12 puts it in the domain and this package reads it. No geometry moved: the
+ *  comparison is the same one, against the same number.
+ *
+ *  The round trip through millimetres is the domain's own unit for a catalogue width, and
+ *  `toMillimetres` rounds, so a float that is 0.45 by a nanometre lands where it should. */
+function doorsFor(size: CatalogBodySize): number {
+  return deriveDoorCount(toMillimetres(size.widthM));
+}
+
 /** §7's builder column, one arm per insertable id. The four fixed-size entries ignore the
  *  requested size **by design** — "columns are fixed 600 and refuse other openings with a reason".
  *  The refusal comes from the *domain*, before any of this runs: `resolveWidth` sees a fixed
@@ -50,8 +63,11 @@ function wallCabinet(kit: Kit, size: CatalogBodySize, doors: number) {
  *  gate these entries hit. Scaling a finished group to fake a fit is named in M3's Risks section as
  *  the thing not to do. */
 const CATALOG_BODY_BUILDERS: Readonly<Record<string, CatalogBodyBuilder>> = {
-  "base-2door": (kit, size) => kit.make.baseCabinet(size.widthM, { doors: 2 }),
-  "base-1door": (kit, size) => kit.make.baseCabinet(size.widthM, { doors: 1 }),
+  // ADR 0033: one arm, and the door count is **derived** rather than declared by which arm the
+  // customer landed on. `deriveDoorCount` is the domain's, and it is the same function the label
+  // reads — see the note above `CATALOG_BODY_BUILDERS`.
+  "base-cabinet": (kit, size) =>
+    kit.make.baseCabinet(size.widthM, { doors: doorsFor(size) }),
   "base-3drawer": (kit, size) =>
     kit.make.baseCabinet(size.widthM, { drawers: 3 }),
   "base-panbank": (kit, size) =>
@@ -66,9 +82,7 @@ const CATALOG_BODY_BUILDERS: Readonly<Record<string, CatalogBodyBuilder>> = {
   // 200 mm the proportion is the product.
   "base-bottle-cargo": (kit, size) => kit.make.bottleCargo(size.widthM),
   "base-dishwasher": (kit, size) => kit.make.dishwasherHousing(size.widthM),
-  "wall-2door": (kit, size) =>
-    wallCabinet(kit, size, size.widthM > TWO_DOOR_MIN_WIDTH_M ? 2 : 1),
-  "wall-1door": (kit, size) => wallCabinet(kit, size, 1),
+  "wall-cabinet": (kit, size) => wallCabinet(kit, size, doorsFor(size)),
   // A lift-up is a flap, not a hinged door: `make.wallLift` builds zero doors plus one full-face
   // slab with its bar on the bottom edge (§6.5). Deliberately **not** §7's literal `pushOpen=true`
   // — that omits the handle meshes, which turns `canHandle` false and takes the choice away for

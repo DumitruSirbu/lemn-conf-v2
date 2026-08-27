@@ -345,9 +345,9 @@ describe("read-only withholds nothing from the customer's eyes", () => {
   it("keeps the derived count line and the ACTUAL badge", () => {
     const panel = readOnlyPanel(occupiedMeta(), {
       offers: [
-        offer({ buildId: "base-1door" }),
+        offer({ buildId: "base-cabinet" }),
         offer({ buildId: "base-drawers" }),
-        offer({ buildId: "base-2door", isCurrent: true }),
+        offer({ buildId: "base-cabinet", isCurrent: true }),
       ],
     });
     const replace = findSection(panel, "replace");

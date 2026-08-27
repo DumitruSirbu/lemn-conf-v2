@@ -286,7 +286,7 @@ describe("swapping a pre-migration cabinet for one that carries its own hob", ()
   // pre-migration accessory stays exactly where it was and still renders. This is the behaviour
   // that pre-dates ADR 0027 and the amendment does not touch it.
   it("keeps the loose hob when the incoming body has none of its own", () => {
-    const result = swapHobBaseInto(preMigrationHobDesign(), "base-2door");
+    const result = swapHobBaseInto(preMigrationHobDesign(), "base-cabinet");
     const solidsRoot = new THREE.Group();
     syncSolidBodies({
       kit,

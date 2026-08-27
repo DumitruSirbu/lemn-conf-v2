@@ -12,6 +12,7 @@ import {
   type SlotExtent,
 } from "../bands.js";
 import {
+  acceptsWidthMm,
   buildableSizes,
   describeKindLabel,
   UNKNOWN_KIND_LABEL_RO,
@@ -298,19 +299,63 @@ function resolveWidth(
   const floorRefusal = refuseWidthFloor(body, opening, availableMm);
   if (floorRefusal) return { ok: false, detail: floorRefusal };
 
-  if (body.widthFlex === "fit") return { ok: true, widthM: opening.w };
+  if (body.widthFlex === "fit")
+    return resolveFitWidth(body, opening, availableMm);
 
   return resolveFixedSetWidth(body, body.widthFlex, opening);
+}
+
+/** §5.2's `w = void.w` for a `'fit'` body — **bounded by the entry's own set where that set is a
+ *  bound** (ADR 0032 rule 4, closing `docs/BACKLOG.md` entry 13).
+ *
+ *  This function used to be the single line `return { ok: true, widthM: opening.w }`, and that line
+ *  is why a 300 mm opening offered `wall-2door` and built one door under a two-door label — ADR 0029
+ *  verbatim, through the path that ADR could not reach. `sizesMm` was consulted by `setWidth` alone,
+ *  so the two halves of one engine answered the same question differently.
+ *
+ *  `acceptsWidthMm` is that one answer, and the gate is `sizesAreStandardLadder` rather than the
+ *  presence of a set: a ladder member accepts any width above its floor, so `base-panbank` still
+ *  fills a 570 mm opening and nothing about §5.2's "fill the void" changes for it. Only an entry
+ *  whose set states a bound of its own — a door count, a swing arc, a fixed aperture — now refuses
+ *  an opening it cannot honestly be built into.
+ *
+ *  The floors have already run above and are deliberately **first**: `base-sink` in a 400 mm opening
+ *  reads ADR 0017's own sentence, naming the 560 mm its worktop needs, rather than the set sentence
+ *  naming widths that are no longer the point. Two facts, two codes, and the nearer one wins.
+ *
+ *  No tolerance, and no widest-that-fits fallback: the width **is** the opening, so there is nothing
+ *  to choose between and nothing for `FIT_TOLERANCE_M` to forgive. A body that would rather be built
+ *  narrower than its opening declares a millimetre set instead (`resolveFixedSetWidth`). */
+function resolveFitWidth(
+  body: InsertableBody,
+  opening: InsertOpening,
+  availableMm: number,
+): WidthResolution {
+  if (acceptsWidthMm(body, availableMm)) return { ok: true, widthM: opening.w };
+  return {
+    ok: false,
+    detail: refuseFixedWidth(
+      body,
+      buildableSizes(body.minWidthMm, body.sizesMm),
+      availableMm,
+    ),
+  };
 }
 
 /** §7's millimetre-set case — the dishwasher niche, the four full-height units and the bottle
  *  cargo: the widest size this builder can be made at that still fits, or the refusal that says why
  *  none can.
  *
- *  **The hood is not one of them, despite its own `sizesMm`.** `catalog.ts` spreads
- *  `wallCabinet("Hotă")` and overrides `sizesMm` but not `widthFlex`, so the hood inherits `'fit'`
- *  and resolves on the branch above: it builds to its opening at any width, and {600, 900} is only
- *  the chip set §9 offers.
+ *  **The hood is one of them now, and was not until ADR 0033's amendment.** `catalog.ts` used to
+ *  spread `wallCabinet("Hotă")` and override `sizesMm` but not `widthFlex`, so the hood inherited
+ *  `'fit'` and resolved on `resolveFitWidth` — the only row in the catalogue that was both `'fit'`
+ *  and discretely bounded. The consequence was that it *refused* a 700 or 800 mm opening where every
+ *  other discrete row narrows into one, which was a spread rather than a decision (logic review
+ *  R1.2). It declares `widthFlex` now and takes this branch, so a 700 mm slot gets a 600 mm hood,
+ *  centred, exactly as `base-dishwasher` has always put a 600 in a 700.
+ *
+ *  "A 700 mm hood is not a product" is unchanged and still enforced by this branch: the widest size
+ *  that *fits* is chosen from the entry's own set, so the hood is never built at 700.
  *
  *  `sizesMm` is passed in rather than read back off the body so the caller's narrowing carries: by
  *  the time this runs, `widthFlex` is known not to be `'fit'`. */

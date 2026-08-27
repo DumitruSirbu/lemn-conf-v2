@@ -6,6 +6,11 @@ import {
   KITCHEN_L_DESIGN,
 } from "../../src/fixtures/kitchen-l-design.js";
 import { offersFor } from "../../src/queries/offers.js";
+import {
+  offered as offeredRows,
+  refused as refusedRows,
+  verdictOf,
+} from "../support/offers.js";
 import type { BodyDefinition } from "../../src/void-engine.js";
 import { clearBodies, insertInto } from "../support/commands.js";
 import { advancePast, createWorld, voidAt } from "../support/kitchen-world.js";
@@ -21,9 +26,32 @@ describe("offersFor — a void", () => {
       ...world,
       target: { kind: "void", id: slot.id },
     });
-    const bands = new Set(offered.map((offer) => offer.band));
+    const bands = new Set(offeredRows(offered).map((offer) => offer.band));
     expect(bands).toEqual(new Set(["base", "column"]));
     expect(offered.some((offer) => offer.isCurrent)).toBe(false);
+  });
+
+  // A discrete row publishes one degenerate range per size, and a ladder row one open-ended range —
+  // so a renderer reads the same field for every row and never has to know which shape it has.
+  it("publishes a range per size for an appliance, and an open one for a ladder row", () => {
+    const world = clearBodies(seeded(), ["p1"]);
+    const slot = voidAt(world, "A|2.00", 0);
+    const offered = offersFor({
+      ...world,
+      target: { kind: "void", id: slot.id },
+    });
+
+    expect(verdictOf(offered, "base-dishwasher")).toBeDefined();
+    expect(
+      offered.find((offer) => offer.buildId === "base-dishwasher")
+        ?.widthRangesMm,
+    ).toEqual([
+      { minMm: 450, maxMm: 450 },
+      { minMm: 600, maxMm: 600 },
+    ]);
+    expect(
+      offered.find((offer) => offer.buildId === "base-panbank")?.widthRangesMm,
+    ).toEqual([{ minMm: 300, maxMm: Number.POSITIVE_INFINITY }]);
   });
 
   it("reports the width and height each offer would actually build to", () => {
@@ -34,8 +62,51 @@ describe("offersFor — a void", () => {
       ...world,
       target: { kind: "void", id: slot.id },
     });
-    const wall2door = offered.find((offer) => offer.buildId === "wall-2door");
-    expect(wall2door).toMatchObject({ widthMm: 570, heightMm: 700 });
+    // A ladder entry (`STANDARD_LADDER`), so 570 is a width it accepts: ADR 0031 rule 5's bound is
+    // the entry's own set, and `open-shelf`'s set is the standard modules rather than a claim about
+    // what a shelf can be made at. This assertion used to name `wall-2door`, whose `[600, 800]` *is*
+    // a bound (ADR 0029) — it is now refused here, one row down.
+    expect(verdictOf(offered, "open-shelf")).toEqual({
+      status: "offered",
+      widthMm: 570,
+      heightMm: 700,
+    });
+  });
+
+  // ADR 0032, and `docs/BACKLOG.md` entry 13 with it. A 570 mm opening is not a width a two-door
+  // wall cabinet has, and the old list simply dropped the row: the customer saw a shorter list and
+  // was never told that 600 would work.
+  it("keeps a bounded entry in the list, refused, with the reason and the widths it does have", () => {
+    const world = advancePast(seeded(), ["p9"]);
+    const slot = voidAt(world, "B|0.61", 1.5);
+    const offered = offersFor({
+      ...world,
+      target: { kind: "void", id: slot.id },
+    });
+
+    const row = offered.find((offer) => offer.buildId === "wall-cabinet");
+    // ADR 0033's merged set. The two gaps in it are ADR 0030's swing-arc cap and ADR 0029's
+    // two-door floor, still enforced and now visible as the shape of one entry's widths.
+    expect(row?.sizesMm).toEqual([200, 300, 400, 600, 800]);
+    // **And what the row publishes as "requires more space"** (logic review R1.6): the ranges, not
+    // the chips. 570 is refused here, and the answer a customer can act on is "make it 600" — which
+    // 200–400 / 600–800 says and a list stopping at 800 does not. The chips understate it: 700 is
+    // equally buildable and is not a chip.
+    expect(row?.widthRangesMm).toEqual([
+      { minMm: 200, maxMm: 400 },
+      { minMm: 600, maxMm: 800 },
+    ]);
+    expect(row?.verdict).toEqual({
+      status: "refused",
+      reason: {
+        code: "WIDTH_NOT_SUPPORTED",
+        params: {
+          label: "Corp suspendat",
+          sizesMm: [200, 300, 400, 600, 800],
+          availableMm: 570,
+        },
+      },
+    });
   });
 
   // §9: never offer what cannot be satisfied — every remaining refusal is a bug in a list.
@@ -44,13 +115,34 @@ describe("offersFor — a void", () => {
     for (const y0 of [0, 1.5, 2.2]) {
       const slot = voidAt(world, "B|2.45", y0);
       const target = { kind: "void", id: slot.id } as const;
-      const offered = offersFor({ ...world, target });
+      const offered = offeredRows(offersFor({ ...world, target }));
       expect(offered.length, `slot ${String(y0)}`).toBeGreaterThan(0);
       for (const offer of offered) {
         const result = insertInto(world, target, offer.buildId);
         expect(result.ok, `${String(y0)} -> ${offer.buildId}`).toBe(true);
       }
     }
+  });
+
+  // The converse, which ADR 0032 makes assertable for the first time: the list now carries the
+  // refusals too, and each one has to be the refusal the command actually gives.
+  it("refuses everything it marks refused, with the same code", () => {
+    const world = clearBodies(seeded(), ["p7", "p24"]);
+    let seen = 0;
+    for (const y0 of [0, 1.5, 2.2]) {
+      const slot = voidAt(world, "B|2.45", y0);
+      const target = { kind: "void", id: slot.id } as const;
+      for (const offer of refusedRows(offersFor({ ...world, target }))) {
+        seen += 1;
+        const result = insertInto(world, target, offer.buildId);
+        expect(result.ok, `${String(y0)} -> ${offer.buildId}`).toBe(false);
+        if (result.ok) continue;
+        expect(result.reason.code, `${String(y0)} -> ${offer.buildId}`).toBe(
+          offer.verdict.reason.code,
+        );
+      }
+    }
+    expect(seen).toBeGreaterThan(0);
   });
 
   it("returns nothing for a stale void id", () => {
@@ -89,7 +181,7 @@ describe("offersFor — an occupied body", () => {
     const inserted = insertInto(
       world,
       { kind: "void", id: slot.id },
-      "base-2door",
+      "base-cabinet",
     );
     expect(inserted.ok).toBe(true);
     if (!inserted.ok) return;
@@ -101,7 +193,7 @@ describe("offersFor — an occupied body", () => {
     });
     expect(
       offered.filter((offer) => offer.isCurrent).map((o) => o.buildId),
-    ).toEqual(["base-2door"]);
+    ).toEqual(["base-cabinet"]);
   });
 
   // FINDING R2.2. `isCurrent` compared the placement's own `buildId` against the offer's, and ADR
@@ -143,18 +235,18 @@ describe("offersFor — an occupied body", () => {
   // The pointer is a seeded-entry affordance only. An insertable entry is already its own id, and
   // must never be redirected by a stray pointer on it.
   it("badges an insertable placement by its own id, not by any pointer", () => {
-    const entry = KITCHEN_L_BODY_CATALOG.get("base-2door");
-    if (!entry) throw new Error("no catalogue entry base-2door");
+    const entry = KITCHEN_L_BODY_CATALOG.get("base-cabinet");
+    if (!entry) throw new Error("no catalogue entry base-cabinet");
     const catalog = new Map<string, BodyDefinition>(KITCHEN_L_BODY_CATALOG).set(
-      "base-2door",
-      { ...entry, catalogEquivalentId: "base-1door" },
+      "base-cabinet",
+      { ...entry, catalogEquivalentId: "base-cabinet" },
     );
     const world = clearBodies(createWorld(KITCHEN_L_DESIGN, catalog), ["p1"]);
     const slot = voidAt(world, "A|2.00", 0);
     const inserted = insertInto(
       world,
       { kind: "void", id: slot.id },
-      "base-2door",
+      "base-cabinet",
     );
     expect(inserted.ok).toBe(true);
     if (!inserted.ok) return;
@@ -166,7 +258,7 @@ describe("offersFor — an occupied body", () => {
     });
     expect(
       offered.filter((offer) => offer.isCurrent).map((offer) => offer.buildId),
-    ).toEqual(["base-2door"]);
+    ).toEqual(["base-cabinet"]);
   });
 
   // §11 row 24: a fallback set once produced six guaranteed-refused rows for the hob.

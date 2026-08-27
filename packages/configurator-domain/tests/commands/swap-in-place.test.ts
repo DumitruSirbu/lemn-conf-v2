@@ -13,6 +13,7 @@ import {
 } from "../../src/fixtures/kitchen-l-design.js";
 import { describeSelection } from "../../src/queries/describe-selection.js";
 import { offersFor } from "../../src/queries/offers.js";
+import { offered as offeredRows } from "../support/offers.js";
 import { clearBodies, insertInto, OCCURRED_AT } from "../support/commands.js";
 import {
   advance,
@@ -74,7 +75,7 @@ describe("swap in place", () => {
     const result = insertInto(
       cleared,
       { kind: "placement", id: "p15" },
-      "wall-2door",
+      "wall-cabinet",
     );
     expect(result.ok).toBe(true);
     if (!result.ok) return;
@@ -123,10 +124,12 @@ describe("swap in place", () => {
   it("performs a real swap for every row its own offer list contains", () => {
     const world = seeded();
     for (const placementId of ["p0", "p8", "p15"]) {
-      const offers = offersFor({
-        ...world,
-        target: { kind: "placement", id: placementId },
-      });
+      const offers = offeredRows(
+        offersFor({
+          ...world,
+          target: { kind: "placement", id: placementId },
+        }),
+      );
       expect(offers.length, placementId).toBeGreaterThan(0);
       for (const offer of offers) {
         const result = insertInto(
@@ -187,10 +190,12 @@ describe("swap in place", () => {
     if (!handled.ok) return;
 
     const chosen = advance(world, handled.design);
+    // A ladder entry that supports both appearance controls. `wall-1door` stood here until ADR 0032
+    // made its `[200, 300, 400]` set a bound on the insert path: `p8` is 600 mm wide.
     const kept = insertInto(
       chosen,
       { kind: "placement", id: "p8" },
-      "wall-1door",
+      "wall-lift",
     );
     expect(kept.ok).toBe(true);
     if (kept.ok) {

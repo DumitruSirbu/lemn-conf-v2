@@ -158,23 +158,36 @@ const EXPECTED_SEEDED_SIZES_MM: Readonly<Record<string, readonly number[]>> = {
   p5: [600], // tall-oven-tower-600 → tall-oven-tower
   p6: [600], // tall-pantry-600 → tall-pantry
   p7: [700], // fridge-free-700 → fridge-free
-  p8: [600, 800], // wall-2door-600 → wall-2door: no 400 (ADR 0029)
+  // ADR 0033: every seeded wall and top body resolves to the **one** merged `wall-cabinet` entry, so
+  // they all carry the same set — where `wall-2door` rows read [600, 800] and `wall-1door` rows read
+  // [200, 300, 400]. The two gaps are the two rules that survived the merge: nothing in (400, 600),
+  // because (400, 450] would build a one-door wider than ADR 0030 allows and (450, 600) is a
+  // two-door width ADR 0029 does not offer.
+  //
+  // The eleven identical rows are the point rather than a repetition to collapse: which door count a
+  // seeded body happens to have stopped deciding what it may be resized to, which is the whole of
+  // this decision read through §9's chips.
+  p8: [200, 300, 400, 600, 800], // wall-2door-600 → wall-cabinet
   p9: [], // wall-corner-return-570 — structural, no equivalent
-  p10: [200, 300, 400], // wall-1door-300 → wall-1door (ADR 0030 as amended)
-  p11: [600, 800],
-  p12: [400, 600, 800], // open-shelf-600 → open-shelf
+  p10: [200, 300, 400, 600, 800], // wall-1door-300 → wall-cabinet
+  p11: [200, 300, 400, 600, 800],
+  p12: [400, 600, 800], // open-shelf-600 → open-shelf: a shelf has no door to count
   p13: [600, 900], // hood-600 → hood
-  p14: [600, 800],
-  p15: [600, 800],
-  p16: [200, 300, 400], // wall-1door-300-top → wall-1door (ADR 0030 as amended)
-  p17: [600, 800],
-  p18: [600, 800],
-  p19: [600, 800],
-  p20: [600, 800],
+  p14: [200, 300, 400, 600, 800],
+  p15: [200, 300, 400, 600, 800],
+  p16: [200, 300, 400, 600, 800], // wall-1door-300-top → wall-cabinet
+  p17: [200, 300, 400, 600, 800],
+  p18: [200, 300, 400, 600, 800],
+  p19: [200, 300, 400, 600, 800],
+  p20: [200, 300, 400, 600, 800],
   p21: [], // wall-corner-return-570-top — structural, no equivalent
-  p22: [600, 800],
-  p23: [600, 800],
-  p24: [600, 800], // wall-2door-700-over-fridge: 700 is its width, not its set
+  p22: [200, 300, 400, 600, 800],
+  p23: [200, 300, 400, 600, 800],
+  // 700 is this body's width and not one of its chips, which is still true — but it **is** inside the
+  // entry's 600–800 two-door range since ADR 0033's amendment, so `p24` is no longer the one shipped
+  // body its own entry cannot rebuild. `swap-depth.test.ts` asserts the rebuild on real geometry.
+  // Chips and buildable widths are different facts, and this row is where the difference shows.
+  p24: [200, 300, 400, 600, 800],
 };
 
 describe("the width set a seeded body resolves through its declared equivalent", () => {
@@ -191,10 +204,11 @@ describe("the width set a seeded body resolves through its declared equivalent",
         expected,
       ]);
     }
-    // ADR 0029 is a rule about two-door entries and ADR 0030 one about one-door entries, and
-    // neither is a rule about wall cabinets — so the table has to keep every answer present or it
-    // stops testing the distinctions. `wall-1door` still offers 400 and `wall-2door` does not;
-    // `open-shelf` still offers 800 and `wall-1door` does not, and only `wall-1door` reaches 200. Asserted over the table itself,
+    // The table has to keep every answer present or it stops testing the distinctions. ADR 0033
+    // merged the door-count pairs, so "a one-door entry offers 400 and a two-door entry does not" is
+    // no longer a distinction that exists — one entry offers both, and which doors you get follows
+    // the width. What still differs is entry against entry: `open-shelf` reaches 800 and stops at
+    // 400, the hinged cabinet reaches 200, the hood starts at 600. Asserted over the table itself,
     // because a sweep that quietly loses one side is exactly where this guard would stop guarding.
     const sets = Object.values(EXPECTED_SEEDED_SIZES_MM);
     const withMember = (widthMm: number) =>
@@ -277,7 +291,7 @@ describe("the width set a seeded body resolves through its declared equivalent",
   // The floor governing the set is the one on the entry the set came from, not the seeded row's.
   // Reading the two off different rows would let a body offer a chip its own builder refuses.
   it("applies the equivalent's own width floor to the equivalent's own set", () => {
-    const catalog = withCatalogEntry("wall-2door", { minWidthMm: 700 });
+    const catalog = withCatalogEntry("wall-cabinet", { minWidthMm: 700 });
     const world = createWorld(KITCHEN_L_DESIGN, catalog);
     expect(metaFor(world, "p8")?.sizesMm).toEqual([800]);
   });

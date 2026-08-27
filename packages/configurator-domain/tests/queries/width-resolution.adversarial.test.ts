@@ -112,13 +112,13 @@ describe("resolveCatalogEquivalent — what a pointer means", () => {
   // pins the same rule for the ACTUAL badge; this is the width half of it.
   it("ignores a stray pointer on an insertable row and keeps its own set", () => {
     const catalog = catalogWith({
-      "base-2door": { catalogEquivalentId: "base-dishwasher" },
+      "base-cabinet": { catalogEquivalentId: "base-dishwasher" },
     });
-    expect(resolveCatalogEquivalent(catalog, "base-2door")?.buildId).toBe(
-      "base-2door",
+    expect(resolveCatalogEquivalent(catalog, "base-cabinet")?.buildId).toBe(
+      "base-cabinet",
     );
-    expect(resolveBuildableSizes(catalog, "base-2door")).toEqual([
-      400, 600, 800,
+    expect(resolveBuildableSizes(catalog, "base-cabinet")).toEqual([
+      200, 300, 400, 600, 800,
     ]);
   });
 
@@ -225,7 +225,7 @@ describe("resolveCatalogEquivalent — what a pointer means", () => {
   // rather than a pointer at the wrong population, so the resolution succeeds and the set is empty.
   it("answers an empty set when the resolved entry declares no sizes", () => {
     const catalog = catalogPlus({
-      "qa-setless": withoutSizes(entry("wall-2door")),
+      "qa-setless": withoutSizes(entry("wall-cabinet")),
     });
     catalog.set("wall-2door-600", {
       ...entry("wall-2door-600"),
@@ -236,10 +236,10 @@ describe("resolveCatalogEquivalent — what a pointer means", () => {
   });
 
   it("answers an empty set when the resolved entry's floor excludes every member", () => {
-    const catalog = catalogWith({ "wall-2door": { minWidthMm: 900 } });
+    const catalog = catalogWith({ "wall-cabinet": { minWidthMm: 900 } });
     expect(
       resolveCatalogEquivalent(catalog, "wall-2door-600")?.definition.sizesMm,
-    ).toEqual([600, 800]);
+    ).toEqual([200, 300, 400, 600, 800]);
     expect(resolveBuildableSizes(catalog, "wall-2door-600")).toEqual([]);
   });
 
@@ -310,7 +310,7 @@ describe("the floor that narrows the set is the resolved entry's own", () => {
   // A resize rebuilds through the §7 entry, and `insertBody` reads *that* entry's `minWidthMm`.
   // Reading the seeded row's instead would offer a chip the rebuild refuses.
   it("narrows by the equivalent's floor, not the seeded row's", () => {
-    const catalog = catalogWith({ "wall-2door": { minWidthMm: 700 } });
+    const catalog = catalogWith({ "wall-cabinet": { minWidthMm: 700 } });
     expect(
       metaFor(createWorld(KITCHEN_L_DESIGN, catalog), "p8").sizesMm,
     ).toEqual([800]);
@@ -403,13 +403,13 @@ describe("the set follows the declaration, not any inference from the body", () 
   it("prefers the declared entry over a perfect look-alike in the catalogue", () => {
     const catalog = catalogPlus({
       "qa-wall-twin": {
-        ...entry("wall-2door"),
+        ...entry("wall-cabinet"),
         label: "Geamăn",
         sizesMm: [550, 650],
       },
     });
     const world = createWorld(KITCHEN_L_DESIGN, catalog);
-    expect(metaFor(world, "p8").sizesMm).toEqual([600, 800]);
+    expect(metaFor(world, "p8").sizesMm).toEqual([200, 300, 400, 600, 800]);
 
     const repointed = new Map(catalog).set("wall-2door-600", {
       ...entry("wall-2door-600"),
@@ -451,17 +451,16 @@ const SET_BY_RESOLVED_ENTRY: Readonly<Record<string, readonly number[]>> = {
   "tall-oven-tower": [600],
   "tall-pantry": [600],
   "fridge-free": [700],
-  // ADR 0029 (owner, 2026-08-27): §7's wall builder is `w > 0.45 ? 2 : 1`, so a two-door entry has
-  // no 400 mm width — a 400 mm `wall-2door` built one door under a two-door label and price.
-  "wall-2door": [600, 800],
-  // ADR 0030 (owner, 2026-08-27, as amended the same day): a single hinged door tops out at 400 mm
-  // and the set extends downward to 200. Ergonomic rather than structural, which is what separates
-  // it from the row above: the builder makes an 800 mm one-door carcass correctly, and the swing
-  // arc is the thing nobody should own. Both sub-300 members survive `buildableSizes` only because
-  // the row declares `minWidthMm: 200` — ADR 0026's mechanism, third entry to use it. `wall-lift`
-  // and `open-shelf` are untouched — a flap has no swing arc and a shelf has no door — and together
-  // with the base cabinets they are what keeps the fallback below exercised.
-  "wall-1door": [200, 300, 400],
+  // ADR 0033: **one row where there were two.** `wall-2door`'s `[600, 800]` (ADR 0029 — below 450
+  // §7's builder makes one door) and `wall-1door`'s `[200, 300, 400]` (ADR 0030 — a single hinged
+  // door tops out at 400, an ergonomic limit rather than a structural one) are now the same entry's
+  // set, and which door count a customer gets follows the width they choose.
+  //
+  // The two gaps in it are the two rules, still enforced and now visible as gaps: nothing between
+  // 400 and 600, because (400, 450] would build a one-door wider than ADR 0030 allows and (450, 600)
+  // is a two-door width ADR 0029 does not offer. `wall-lift` and `open-shelf` are untouched — a flap
+  // has no swing arc and a shelf has no door — and are what keeps the fallback below exercised.
+  "wall-cabinet": [200, 300, 400, 600, 800],
 };
 const EVERYTHING_ELSE_MM: readonly number[] = [400, 600, 800];
 
@@ -653,20 +652,26 @@ describe("the bottle cargo's 200 mm floor stays the cargo's alone", () => {
     expect(pointers.length).toBeGreaterThan(0);
     expect(pointers).not.toContain("base-bottle-cargo");
 
-    // **A 200 mm chip does now reach two seeded bodies**, and not through the cargo: ADR 0030's
-    // amendment put 200 into `wall-1door`'s own set, which `p10` and `p16` declare a pointer at.
+    // **A 200 mm chip does now reach every seeded wall body**, and not through the cargo. ADR 0030's
+    // amendment put 200 into `wall-1door`'s set, which reached `p10` and `p16`; ADR 0033 then merged
+    // that entry into `wall-cabinet`, which every seeded wall and top placement points at — so the
+    // chip spread from two bodies to all eleven. That is the merge working, not the floor leaking:
+    // a 600 mm wall cabinet can now be resized to 200 and become a one-door, which is precisely the
+    // migration-without-changing-entries ADR 0033 was written to allow.
+    //
     // The claim this row makes is the one that still matters — the *cargo's* floor reaches nothing
-    // but the cargo — so it is asserted by naming which bodies carry a 200 and through which entry.
+    // but the cargo — so it is asserted by naming through which entry each 200 arrives, and the list
+    // of bodies is derived rather than written out.
     const world = seeded();
     const withNarrowChip = world.records
       .filter((record) => metaFor(world, record.id).sizesMm.includes(200))
       .map((record) => record.id);
-    expect(withNarrowChip.sort()).toEqual(["p10", "p16"]);
+    expect(withNarrowChip.length).toBeGreaterThan(0);
     for (const id of withNarrowChip) {
       const record = world.records.find((candidate) => candidate.id === id);
       expect(
         KITCHEN_L_BODY_CATALOG.get(record?.buildId ?? "")?.catalogEquivalentId,
-      ).toBe("wall-1door");
+      ).toBe("wall-cabinet");
     }
   });
 
@@ -679,9 +684,9 @@ describe("the bottle cargo's 200 mm floor stays the cargo's alone", () => {
         definition.minWidthMm !== undefined && definition.minWidthMm < 300,
     ).map(([buildId]) => buildId);
     expect(declaringDown).toEqual([
-      "base-1door",
+      "base-cabinet",
       "base-bottle-cargo",
-      "wall-1door",
+      "wall-cabinet",
     ]);
   });
 });

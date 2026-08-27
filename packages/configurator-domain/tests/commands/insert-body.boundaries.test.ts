@@ -121,15 +121,19 @@ describe("MIN_WIDTH_M is a property of the body, not a fit tolerance (§2)", () 
   // `resolveWidth` refuses below `MIN_WIDTH_M - COORDINATE_EPSILON_M`. `FIT_TOLERANCE_M` is slack
   // on the *fit* — it lets a body slightly wider than its opening still go in — and deliberately
   // does not lower this floor, because a 288 mm carcass is narrower than any cabinet §2 permits.
+  // **A ladder entry, so §2's default floor is the only thing that can refuse it.** These three cases
+  // are about `MIN_WIDTH_M` and nothing else; the hinged cabinet declares its own 200 mm floor
+  // (ADR 0026's mechanism) and, since ADR 0033's amendment, a 200–400 range, so it is legitimately
+  // built at 288 and would make this block assert the opposite of what it is named for.
   it("builds at exactly MIN_WIDTH_M, and at exactly that width", () => {
-    const result = insertIntoBaseSlot(clearedBaseColumn(300), "base-2door");
+    const result = insertIntoBaseSlot(clearedBaseColumn(300), "base-3drawer");
     expect(result.ok).toBe(true);
     expect(widthOf(result)).toBe(MIN_WIDTH_M * 1000);
   });
 
   it("refuses one millimetre under the floor, and adds nothing", () => {
     const world = clearedBaseColumn(299);
-    const result = insertIntoBaseSlot(world, "base-2door");
+    const result = insertIntoBaseSlot(world, "base-3drawer");
     expect(result.ok).toBe(false);
     if (result.ok) return;
     expect(result.reason.code).toBe("WIDTH_NOT_SUPPORTED");
@@ -139,7 +143,7 @@ describe("MIN_WIDTH_M is a property of the body, not a fit tolerance (§2)", () 
   });
 
   it("refuses a 288 mm opening — FIT_TOLERANCE_M does not buy 12 mm of floor", () => {
-    const result = insertIntoBaseSlot(clearedBaseColumn(288), "base-2door");
+    const result = insertIntoBaseSlot(clearedBaseColumn(288), "base-3drawer");
     expect(result.ok).toBe(false);
     if (result.ok) return;
     expect(result.reason.code).toBe("WIDTH_NOT_SUPPORTED");
@@ -153,7 +157,7 @@ describe("§9's minimum opening for a height-flexible body", () => {
     return insertInto(
       world,
       { kind: "void", id: voidAt(world, COLUMN_KEY, y0).id },
-      "wall-2door",
+      "wall-cabinet",
     );
   }
 

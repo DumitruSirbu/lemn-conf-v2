@@ -23,6 +23,8 @@ import {
 } from "@lemnaria/configurator-domain";
 import { describe, expect, it } from "vitest";
 
+import { offeredBuildIds } from "../support/offers";
+
 import { describePanel, type PanelSection } from "@/panel/panel-model";
 
 import { ro } from "@/content/ro";
@@ -274,8 +276,10 @@ describe("the chips a seeded width section actually renders", () => {
     // table tests the distinction rather than one side of it. ADR 0030's amendment then extended
     // the set *downward*, so `p10`'s own 300 is a member of it and nothing is folded in here any
     // more — `p24` is the last fold in the shipped kitchen.
-    p10: [200, 300, 400], // wall-1door-300 → wall-1door, whole set (ADR 0030 as amended)
-    p24: [600, 700, 800], // wall-2door-700-over-fridge, likewise at 700
+    // ADR 0033: both resolve to the one merged `wall-cabinet` entry now. `p24` keeps its fold —
+    // 700 is a width no wall entry declares, before the merge or after it.
+    p10: [200, 300, 400, 600, 800],
+    p24: [200, 300, 400, 600, 700, 800],
   };
 
   it("renders each body's own set, with a fit body's own width folded in", () => {
@@ -455,7 +459,7 @@ describe("§9's ACTUAL badge over the real kitchen", () => {
     if (section?.kind !== "replace") throw new Error("no replace section");
     expect(
       section.rows.filter((row) => row.isCurrent).map((row) => row.buildId),
-    ).toEqual(["wall-2door"]);
+    ).toEqual(["wall-cabinet"]);
   });
 });
 
@@ -472,7 +476,7 @@ describe("the panel is exactly the offer list, everywhere in the kitchen", () =>
       if (target.kind === "void") sweptSlots += 1;
       else sweptBodies += 1;
       expect(section.rows.map((row) => row.buildId)).toEqual(
-        offersFor({ ...world, target }).map((candidate) => candidate.buildId),
+        offeredBuildIds(offersFor({ ...world, target })),
       );
     }
     expect(sweptBodies).toBeGreaterThan(0);

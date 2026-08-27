@@ -14,6 +14,7 @@
 // and the empty one's. See `rederiveTouchedColumns` in `void-engine.ts` for that half.
 import type { BodyProbe } from "../body-probe.js";
 import {
+  acceptsWidthMm,
   resolveBuildableSizes,
   resolveCatalogEquivalent,
   toInsertableBody,
@@ -433,25 +434,9 @@ function intersectColumnWidths(
   );
   return [...offered]
     .filter((widthMm) =>
-      members.every((member) => acceptsWidth(catalog, member, widthMm)),
+      members.every((member) => acceptsWidthMm(member.body, widthMm)),
     )
     .sort((left, right) => left - right);
-}
-
-/** Whether one member can take a width. A member whose set is the standard ladder is bounded only by
- *  the floor that governs it (ADR 0017, ADR 0026); every other member is bounded by its own set,
- *  which `resolveBuildableSizes` has already narrowed by that same floor. */
-function acceptsWidth(
-  catalog: BodyCatalog,
-  member: ColumnMember,
-  widthMm: number,
-): boolean {
-  if (member.body.definition.sizesAreStandardLadder === true) {
-    return widthMm >= (member.body.minWidthMm ?? MIN_WIDTH_MM);
-  }
-  return resolveBuildableSizes(catalog, member.record.buildId).includes(
-    widthMm,
-  );
 }
 
 type EmptySpaceEvaluation =

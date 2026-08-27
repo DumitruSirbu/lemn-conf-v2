@@ -82,14 +82,14 @@ function parameterised(
 }
 
 const BASE_BUILD_IDS = [
-  "base-2door",
-  "base-1door",
+  "base-cabinet",
+  "base-cabinet",
   "base-3drawer",
   "base-panbank",
 ] as const;
 const WALL_BUILD_IDS = [
-  "wall-2door",
-  "wall-1door",
+  "wall-cabinet",
+  "wall-cabinet",
   "wall-lift",
   "open-shelf",
 ] as const;
@@ -222,14 +222,14 @@ describe("buildCatalogBody", () => {
   // §11 row 20.
   it("builds a 570 mm wall cabinet to 570 mm with two doors", () => {
     const size = { widthM: 0.57, heightM: 0.7, depthM: 0.33 };
-    const group = buildCatalogBody(kit, "wall-2door", size);
+    const group = buildCatalogBody(kit, "wall-cabinet", size);
 
     expect(countMeshes(group, "door_front")).toBe(2);
-    expect(measure("wall-2door", size).carcassWidthM).toBeCloseTo(0.57, 6);
+    expect(measure("wall-cabinet", size).carcassWidthM).toBeCloseTo(0.57, 6);
   });
 
   it("builds a single door below §7's 450 mm door-count threshold", () => {
-    const group = buildCatalogBody(kit, "wall-2door", {
+    const group = buildCatalogBody(kit, "wall-cabinet", {
       widthM: 0.45,
       heightM: 0.7,
       depthM: 0.33,
@@ -294,7 +294,7 @@ describe("buildCatalogBody", () => {
       "handle_bar",
     );
     const doorBar = findMesh(
-      buildCatalogBody(kit, "base-1door", size),
+      buildCatalogBody(kit, "base-cabinet", size),
       "handle_bar",
     );
 
@@ -354,7 +354,7 @@ describe("buildCatalogBody", () => {
     const size = { widthM: 0.6, heightM: 0.7, depthM: 0.33 };
 
     const lift = handleBarExtent(buildCatalogBody(kit, "wall-lift", size));
-    const hinged = handleBarExtent(buildCatalogBody(kit, "wall-1door", size));
+    const hinged = handleBarExtent(buildCatalogBody(kit, "wall-cabinet", size));
 
     expect(lift.widthM).toBeGreaterThan(lift.heightM);
     expect(hinged.heightM).toBeGreaterThan(hinged.widthM);
@@ -387,7 +387,7 @@ describe("buildCatalogBody", () => {
   it.each([0.33, 0.4, 0.6])(
     "builds a wall carcass to the %s m it is handed, and does not clamp it",
     (depthM) => {
-      const group = buildCatalogBody(kit, "wall-1door", {
+      const group = buildCatalogBody(kit, "wall-cabinet", {
         widthM: 0.6,
         heightM: 0.7,
         depthM,

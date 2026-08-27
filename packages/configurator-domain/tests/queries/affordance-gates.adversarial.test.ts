@@ -13,6 +13,7 @@ import { removePlacement } from "../../src/commands/remove-placement.js";
 import { insertBody } from "../../src/commands/insert-body.js";
 import { describeSelection } from "../../src/queries/describe-selection.js";
 import { offersFor } from "../../src/queries/offers.js";
+import { offered, refused } from "../support/offers.js";
 import { createFakeProbe } from "../support/fake-probe.js";
 import { OCCURRED_AT } from "../support/commands.js";
 import {
@@ -135,7 +136,7 @@ describe("a control the affordance enables is a command the engine accepts", () 
     let offeredRows = 0;
 
     for (const target of everySelection(world)) {
-      for (const offer of offersFor({ ...world, target })) {
+      for (const offer of offered(offersFor({ ...world, target }))) {
         offeredRows += 1;
         const result = insertBody({
           design: world.design,
@@ -155,6 +156,43 @@ describe("a control the affordance enables is a command the engine accepts", () 
 
     expect(offeredRows).toBeGreaterThan(0);
   });
+
+  // ADR 0032's other half, and the half that makes the first one honest. A verdict that says
+  // "refused" is a promise about what the command would do, so the command has to do it — and with
+  // **the same code**, since that code is the sentence the disabled row shows. Published from the
+  // list and re-derived from the command, the two must never be two answers.
+  it.each(WORLDS)(
+    "refuses every refused row in $name, by the same code",
+    (testCase) => {
+      const world = testCase.build();
+      let refusedRows = 0;
+
+      for (const target of everySelection(world)) {
+        for (const offer of refused(offersFor({ ...world, target }))) {
+          refusedRows += 1;
+          const result = insertBody({
+            design: world.design,
+            catalog: world.catalog,
+            columns: world.columns,
+            target,
+            buildId: offer.buildId,
+            probe: createFakeProbe(),
+            occurredAt: OCCURRED_AT,
+          });
+          expect(
+            result.ok,
+            `${offer.buildId} was refused for ${target.id} and then accepted`,
+          ).toBe(false);
+          if (result.ok) continue;
+          expect(result.reason.code, `${offer.buildId} for ${target.id}`).toBe(
+            offer.verdict.reason.code,
+          );
+        }
+      }
+
+      expect(refusedRows).toBeGreaterThan(0);
+    },
+  );
 
   // A void offers no appearance controls and no delete — the three refusals §5.1 lists, read from
   // the other end. This is the case the affordance would most easily get wrong, since a void is

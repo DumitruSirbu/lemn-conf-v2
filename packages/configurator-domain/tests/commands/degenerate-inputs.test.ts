@@ -52,7 +52,7 @@ describe("a design with no placements at all", () => {
       catalog: world.catalog,
       columns: world.columns,
       target: { kind: "void", id: "anything" },
-      buildId: "base-2door",
+      buildId: "base-3drawer",
       probe: createFakeProbe(),
       occurredAt: OCCURRED_AT,
     });
@@ -100,7 +100,7 @@ describe("a column cleared to its last member (ADR 0011 Gap D)", () => {
     const result = insertInto(
       cleared,
       { kind: "void", id: voidAt(cleared, "A|0.30", 1.5).id },
-      "wall-2door",
+      "open-shelf",
     );
     expect(result.ok).toBe(true);
     if (!result.ok) return;
@@ -124,12 +124,12 @@ describe("a void id that no longer names anything", () => {
       id: voidAt(cleared, "B|2.45", 0).id,
     } as const;
 
-    const first = insertInto(cleared, staleTarget, "base-2door");
+    const first = insertInto(cleared, staleTarget, "base-3drawer");
     expect(first.ok).toBe(true);
     if (!first.ok) return;
     const after = advance(cleared, first.design);
 
-    const second = insertInto(after, staleTarget, "base-2door");
+    const second = insertInto(after, staleTarget, "base-3drawer");
     expect(second.ok).toBe(false);
     if (second.ok) return;
     expect(second.reason.code).toBe("TARGET_NOT_FOUND");

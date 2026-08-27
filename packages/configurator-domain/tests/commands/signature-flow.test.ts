@@ -62,9 +62,15 @@ describe("the signature flow (§10)", () => {
     expect(voidAt(cleared, FRIDGE_COLUMN, 0).w).toBeCloseTo(0.7, 6);
 
     // 3–5. Fill base, then middle, then top.
-    let world = fill(cleared, 0, "base-2door");
-    world = fill(world, 1.5, "wall-2door");
-    world = fill(world, 2.2, "wall-2door");
+    // The fridge column is 700 mm wide, which `wall-2door`'s bounded set does not have (ADR 0032);
+    // `open-shelf` carries the standard ladder and fills its opening. §10's flow is about the slots
+    // merging and re-splitting, not about which wall body goes in them.
+    // `base-3drawer` and not the hinged cabinet: the fridge column is 700 mm, and ADR 0033's merged
+    // `base-cabinet` carries `[200, 300, 400, 600, 800]` as a bound. §10's flow is about the slots
+    // merging and re-splitting, so the body that fills them must not refuse on width.
+    let world = fill(cleared, 0, "base-3drawer");
+    world = fill(world, 1.5, "open-shelf");
+    world = fill(world, 2.2, "open-shelf");
     expect(slotsOf(world, FRIDGE_COLUMN)).toEqual([]);
     const filled = world.records.filter(
       (record) => record.col === FRIDGE_COLUMN,
@@ -148,7 +154,7 @@ describe("column stability (§3.2, ADR 0011 Gap D)", () => {
     const inserted = insertInto(
       cleared,
       { kind: "void", id: voidAt(cleared, FRIDGE_COLUMN, 0).id },
-      "base-2door",
+      "base-3drawer",
     );
     expect(inserted.ok).toBe(true);
     if (!inserted.ok) return;
@@ -214,12 +220,16 @@ describe("the rejection sweep", () => {
       "insert into an accessory",
       preMigration,
       () =>
-        insertInto(preMigration, { kind: "placement", id: "p3" }, "base-2door"),
+        insertInto(
+          preMigration,
+          { kind: "placement", id: "p3" },
+          "base-3drawer",
+        ),
     ],
     [
       "insert into a stale void",
       originals,
-      () => insertInto(originals, { kind: "void", id: "nope" }, "base-2door"),
+      () => insertInto(originals, { kind: "void", id: "nope" }, "base-3drawer"),
     ],
   ])("%s returns the identical design and no effect", (_case, world, run) => {
     const snapshot = JSON.stringify(world.design);

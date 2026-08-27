@@ -95,3 +95,18 @@ lives in the domain, which is exactly why they drifted; the test is what compare
 - Wave 5C's `setWidth` cannot produce this state, because the width is no longer in the chip set the
   resize reads — the refusal lives at the offer, where §9 wants it, rather than in the command. This
   is true of the resize path only; see the insert-path consequence above.
+
+---
+
+## Mechanism superseded 2026-08-27 by [ADR 0033](0033-door-count-is-derived-from-width-not-declared.md)
+
+**The rule in this record survives exactly. The way it is enforced does not.**
+
+ADR 0033 merges the door-count pairs into one catalogue entry each and derives the door count — and
+the label naming it — from the width, at the same constant the builder branches on. So this record's
+limit stops being one entry's declared `sizesMm` and becomes half of the single point where the door
+count flips: below the threshold one door, above it two.
+
+Nothing here is relaxed, and the reasoning above is why the threshold sits where it does. What is
+retired is the split into two entries, which is what let a column hold a base that can be 400 under a
+wall cabinet that cannot — the collision ADR 0031 surfaced and ADR 0033 exists to end.

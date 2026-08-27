@@ -101,9 +101,9 @@ interface CapabilityCensus {
  *  front at all. So a handle is a **cabinet's** handle exactly when the group it hangs from also
  *  holds a front — the front it opens. That is the same pairing `canHandle` promises the customer:
  *  a door they can put a handle on. */
-function censusOf(buildId: string): CapabilityCensus {
+function censusOf(buildId: string, widthMm?: number): CapabilityCensus {
   const definition = definitionOf(buildId);
-  const built = buildBodyOf(buildId, definition);
+  const built = buildBodyOf(buildId, definition, widthMm);
 
   let fronts = 0;
   let cabinetHandles = 0;
@@ -131,10 +131,18 @@ function definitionOf(buildId: string): BodyDefinition {
 /** The two populations differ only here: an insertable entry is parameterised and has to be given a
  *  size, a seeded one is one hardcoded call at the one size it has. Everything above and below this
  *  function is shared. */
-function buildBodyOf(buildId: string, definition: BodyDefinition): THREE.Group {
+/** ADR 0033 gave the width a say in what gets drawn — a merged cabinet's door count follows it — so
+ *  a caller that cares which form it measures passes one. The default is still the entry's narrowest
+ *  declared width, which is what every flag-implication sweep below wants: the *least* a builder
+ *  ever draws is the hardest case for "declares a front and draws one". */
+function buildBodyOf(
+  buildId: string,
+  definition: BodyDefinition,
+  widthMm?: number,
+): THREE.Group {
   if (!isCatalogBuildId(buildId)) return buildDecomposedBody(kit, buildId);
   return buildCatalogBody(kit, buildId, {
-    widthM: (definition.sizesMm?.[0] ?? 0) / 1000,
+    widthM: (widthMm ?? definition.sizesMm?.[0] ?? 0) / 1000,
     heightM: (definition.nominalHeightMm ?? 0) / 1000,
     depthM: (definition.nominalDepthMm ?? 0) / 1000,
   });
@@ -167,8 +175,10 @@ describe("every catalogue entry's capability flags match what its builder draws"
   });
 
   // The two population sizes ADR 0027's amendment states, so the prose cannot drift from the map.
+  // **Sixteen since ADR 0033**, where there were eighteen: `base-2door` + `base-1door` and
+  // `wall-2door` + `wall-1door` are one entry each, and the door count moved out of the id.
   it("gates both populations of the one map, not just the insertable half", () => {
-    expect(CATALOG_BUILD_IDS.length).toBe(18);
+    expect(CATALOG_BUILD_IDS.length).toBe(16);
     expect(SEEDED_BUILD_IDS.length).toBe(23);
     expect(ALL_BUILD_IDS.length).toBe(
       CATALOG_BUILD_IDS.length + SEEDED_BUILD_IDS.length,
@@ -213,7 +223,9 @@ describe("every catalogue entry's capability flags match what its builder draws"
   // two that matter would be the only failures — which reads as a catalogue defect rather than as a
   // broken gate. These two entries are the control.
   it("recognises a real front and a real cabinet handle when it sees one", () => {
-    expect(censusOf("base-2door")).toMatchObject({
+    // At 800 mm, so the merged entry builds its **two-door** form — the control needs a body with
+    // real fronts and real handles on it, and after ADR 0033 which one that is depends on the width.
+    expect(censusOf("base-cabinet", 800)).toMatchObject({
       fronts: 2,
       cabinetHandles: 2,
     });

@@ -212,7 +212,9 @@ describe("insert", () => {
     const updates = vi.fn();
     const unsubscribe = store.subscribe(updates);
 
-    store.getState().insert("base-2door");
+    // A ladder body: the fridge column is 700 mm, and ADR 0033's merged `base-cabinet` carries
+    // `[200, 300, 400, 600, 800]` as a bound. What is under test is the store's single update.
+    store.getState().insert("base-3drawer");
     unsubscribe();
 
     const state = store.getState();
@@ -236,7 +238,7 @@ describe("insert", () => {
     const before = snapshotOf(store.getState());
     expect(store.getState().isBodyProbeAttached).toBe(false);
 
-    store.getState().insert("base-2door");
+    store.getState().insert("base-3drawer");
 
     expectUnchanged(before, snapshotOf(store.getState()));
     expect(store.getState().lastRejection?.code).toBe("BODY_PROBE_UNAVAILABLE");
@@ -248,7 +250,7 @@ describe("insert", () => {
     removeById(store, "p7");
 
     store.getState().detachBodyProbe();
-    store.getState().insert("base-2door");
+    store.getState().insert("base-3drawer");
 
     expect(store.getState().isBodyProbeAttached).toBe(false);
     expect(store.getState().lastRejection?.code).toBe("BODY_PROBE_UNAVAILABLE");
@@ -265,8 +267,8 @@ describe("insert", () => {
     const withProbe = createStore();
     withProbe.getState().deselect();
 
-    withoutProbe.getState().insert("base-2door");
-    withProbe.getState().insert("base-2door");
+    withoutProbe.getState().insert("base-cabinet");
+    withProbe.getState().insert("base-cabinet");
 
     // The probe check sits behind the selection check, so a caller doing the same wrong thing gets
     // the same refusal whether or not the scene has mounted yet.
@@ -285,7 +287,7 @@ describe("insert", () => {
     store.getState().attachBodyProbe(createFakeBodyProbe());
     removeById(store, "p7");
 
-    store.getState().insert("base-2door");
+    store.getState().insert("base-3drawer");
 
     expect(store.getState().isBodyProbeAttached).toBe(true);
     expect(store.getState().selection).toEqual({ kind: "placement", id: "n0" });
@@ -444,7 +446,7 @@ describe("column stability (ADR 0011 Gap D)", () => {
     const extentsBefore = columnExtents(store.getState().columns);
 
     removeById(store, "p7");
-    store.getState().insert("base-2door");
+    store.getState().insert("base-3drawer");
     store.getState().setFinish("oak");
     store.getState().setHandle("push");
 
@@ -481,7 +483,7 @@ describe("the selection after a command", () => {
         state.remove();
       },
       (state) => {
-        state.insert("base-2door");
+        state.insert("base-cabinet");
       },
       (state) => {
         state.setFinish("oak");

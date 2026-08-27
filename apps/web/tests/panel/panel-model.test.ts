@@ -264,20 +264,22 @@ describe("describePanel — the replace list", () => {
   it("badges the current row and no other", () => {
     const panel = openPanelFor(occupiedMeta(), {
       offers: [
-        offer({ buildId: "base-1door" }),
-        offer({ buildId: "base-2door", isCurrent: true }),
+        offer({ buildId: "base-cabinet" }),
+        offer({ buildId: "base-cabinet", isCurrent: true }),
         offer({ buildId: "base-3drawer" }),
       ],
     });
     const rows = findSection(panel.sections, "replace")?.rows ?? [];
     expect(
       rows.filter((row) => row.isCurrent).map((row) => row.buildId),
-    ).toEqual(["base-2door"]);
+    ).toEqual(["base-cabinet"]);
   });
 
   it("shows each row the size it would build to in this opening", () => {
     const panel = openPanelFor(slotMeta(), {
-      offers: [offer({ widthMm: 700, heightMm: 1850 })],
+      offers: [
+        offer({ verdict: { status: "offered", widthMm: 700, heightMm: 1850 } }),
+      ],
     });
     expect(findSection(panel.sections, "replace")?.rows[0]?.secondaryLine).toBe(
       "700 × 1850 mm",
@@ -305,7 +307,7 @@ describe("describePanel — the replace list", () => {
   it("gives each row the URL of its own body's drawing", () => {
     const panel = openPanelFor(slotMeta(), {
       offers: [
-        offer({ buildId: "base-2door" }),
+        offer({ buildId: "base-cabinet" }),
         offer({ buildId: "tall-pantry", band: "column" }),
       ],
     });

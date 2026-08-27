@@ -11,6 +11,7 @@ import {
   type BodyCatalog,
   type BodyDefinition,
   type WidthFlex,
+  type WidthRangeMm,
 } from "./void-engine.js";
 import { wallDepthMmForWorktop, WORKTOP_DEPTH_MM } from "./worktop-depth.js";
 
@@ -41,40 +42,112 @@ const STANDARD_LADDER = {
 function boundedWidths(sizesMm: readonly number[]) {
   return { sizesMm, sizesAreStandardLadder: false } as const;
 }
-/** ADR 0029 (owner, 2026-08-27; closing finding R1.2): a two-door wall cabinet has no 400 mm width.
- *  §7's wall builder is `w > 0.45 ? 2 : 1`, so a `wall-2door` built at 400 mm carries **one** door
- *  while still being labelled *Corp suspendat 2 uși*, priced as one, and badged ACTUAL as one in
- *  its own swap list — §6.3's fridge-housing-priced-as-a-pantry in a different disguise. Letting a
- *  resize migrate the placement to `wall-1door` instead was rejected; this fails at the **offer**
- *  rather than after the tap. `wall-1door`, `wall-lift` and `open-shelf` keep the standard set: a
- *  one-door cabinet at 400 mm is honest, and a shelf has no doors to count. */
-const TWO_DOOR_WALL_WIDTHS_MM: readonly number[] = [600, 800];
+/** ADR 0033: **the width at which a hinged cabinet stops being a one-door and becomes a two-door**,
+ *  and the single point where that flips.
+ *
+ *  §7's **wall** builder has always branched here — `w > 0.45 ? 2 : 1` — and has always been *right*:
+ *  a 400 mm carcass with one door is a correct cabinet. What was wrong was the **name** on it, because
+ *  the door count was declared by which of two catalogue rows the customer picked. `wall-2door` at
+ *  400 mm was not a broken cabinet, it was a correct one-door cabinet wearing a two-door name.
+ *
+ *  So the constant moves **here**, into the domain, and `catalog-bodies.ts` imports it for the door
+ *  count it hands the builder. §12 puts product rules in the domain and builders in the adapter, and
+ *  "how many doors is this cabinet called" is a product rule. One constant, two readers — ADR 0028's
+ *  discipline, applied to the second pair this project has found. Two literals agreeing by luck is
+ *  the shape both ADR 0028 and §7's depth cap were written about.
+ *
+ *  **The value does not move, and for the wall pair nothing else does either.** But the door count a
+ *  *base* cabinet is built with **did** change, and saying otherwise was wrong (logic review R1.3).
+ *  `base-2door` called `baseCabinet(w, { doors: 2 })` **unconditionally** and carried the standard
+ *  ladder, so a 300 or 400 mm base opening produced a genuine two-door — 400 is a chip, so an
+ *  ordinary insert reached it. `base-cabinet` derives the count instead, and below 450 a base cabinet
+ *  now builds *one* door.
+ *
+ *  **That is a fix, not a regression**: a 400 mm two-door base was ADR 0029's rule violated on the
+ *  pair ADR 0029 never looked at, and the base builder's own geometry at one door is as correct as
+ *  the wall builder's. What the merge replaced on the base row is its **declared** count. No builder
+ *  was edited in either package, so the M1 fidelity gate is still unreachable from this decision —
+ *  that claim is about the reference library, and it holds. */
+export const TWO_DOOR_MIN_WIDTH_MM = 450;
 
-/** ADR 0030 (owner, 2026-08-27): a single hinged door is not made above 400 mm. The reason is
- *  ergonomic rather than structural — §7's builder makes an 800 mm one-door carcass perfectly
- *  well, and nobody should own the swing arc it comes with — which is what separates this from
- *  ADR 0029, where the builder and the label disagreed. `base-1door` and `wall-1door` are the two
- *  hinged singles and both declare it.
+/** ADR 0033: the merged hinged-cabinet ladder — `wall-2door`'s `[600, 800]` and `wall-1door`'s
+ *  `[200, 300, 400]`, as one entry's set.
  *
- *  **`wall-lift` and `open-shelf` keep the standard set.** A lift-up is a flap on the top edge and
- *  has no swing arc, and a shelf has no door at all, so neither is reached by the reasoning.
+ *  **It is still a bound, not a ladder**, and the reason is worth stating because it is not the
+ *  reason it used to be. ADR 0029's half of the bound is gone: below 450 the builder makes one door,
+ *  and the label now says so, which is exactly what ADR 0033 fixes. **ADR 0030's half is not.** A
+ *  single hinged door tops out at 400 mm for an ergonomic reason — nobody should own the swing arc
+ *  above it — and §7's builder still makes *one* door anywhere in (400, 450]. That 50 mm band is a
+ *  width at which this cabinet cannot honestly be made at all, and no floor can express it. So the
+ *  set stays a bound and ADR 0033's rule 3 holds literally: 450 and 500 are simply not offered
+ *  widths, which is what keeps the flip clean.
  *
- *  **Amended the same day**: the cap is 400 itself rather than "below 600", and the set extends
- *  *downward* — a 200 mm wall cabinet can then match a 200 mm bottle cargo standing under it, which
- *  is the run ADR 0026 was written for read one level up. */
-const ONE_DOOR_WIDTHS_MM: readonly number[] = [200, 300, 400];
+ *  Every member sits unambiguously on one side of `TWO_DOOR_MIN_WIDTH_MM`: 200, 300 and 400 are
+ *  one-door widths, 600 and 800 are two-door widths. The derived label is therefore total over this
+ *  set, and `catalog.test.ts` proves the set never grows a member inside the dead band. */
+const HINGED_CABINET_WIDTHS_MM: readonly number[] = [200, 300, 400, 600, 800];
 
-/** ADR 0030's amendment, in the ADR 0026 mechanism: 200 and 300 sit **below** §2's default floor, so
- *  the two hinged singles must each declare their own or `buildableSizes` would filter both widths
- *  straight back out of the set the ADR just gave them.
+/** ADR 0030's amendment, carried through ADR 0033's merge in the ADR 0026 mechanism: 200 and 300 sit
+ *  **below** §2's default floor, so the merged rows must each declare their own or `buildableSizes`
+ *  would filter both widths straight back out of the set they were just given.
  *
- *  This makes three entries declaring downward where ADR 0026 said one. What that record protects is
- *  untouched: `MIN_WIDTH_M` does not move, so no row inherits the exception, and each of the three
- *  states it on its own line where a reader of that row can see it. What it retires is one of the
- *  three arguments ADR 0026 gave for keeping the constant at 300 — §5.4's donor rule, which ADR 0031
- *  deleted. Nothing is left narrow as the residue of somebody else's edit because nothing is
- *  resized as the residue of somebody else's edit. */
-const ONE_DOOR_MIN_WIDTH_MM = 200;
+ *  Three entries declared downward before this merge and three still do — the count is unchanged, but
+ *  the rows are not: `base-1door` and `wall-1door` are gone and the two merged cabinets carry it
+ *  instead, alongside `base-bottle-cargo`. What ADR 0026 protects is untouched: `MIN_WIDTH_M` does
+ *  not move, so no row inherits the exception, and each row states it on its own line. */
+const HINGED_CABINET_MIN_WIDTH_MM = 200;
+
+/** ADR 0030's product cap: a single hinged door is not made above this. Ergonomic — §7's builder
+ *  makes an 800 mm one-door carcass perfectly well, and nobody should own the swing arc. */
+const ONE_DOOR_MAX_WIDTH_MM = 400;
+
+/** ADR 0029's product floor: two doors are not offered below this. */
+const TWO_DOOR_FLOOR_WIDTH_MM = 600;
+
+/** §7: two doors top out here — 1000 was dropped from the standard set for the same reason. */
+const TWO_DOOR_MAX_WIDTH_MM = 800;
+
+/** ADR 0033's amendment: **the rules were never a list of five widths; they are two ranges.**
+ *
+ *  Worked width by width, which is how the owner and the M5 architect arrived at it:
+ *
+ *  | width    | builder makes | rule                            | verdict |
+ *  | -------- | ------------- | ------------------------------- | ------- |
+ *  | 200–400  | 1 door        | one door caps at 400 (ADR 0030) | allowed |
+ *  | 401–450  | 1 door        | above the one-door cap          | refused |
+ *  | 451–599  | 2 doors       | below the two-door floor        | refused |
+ *  | 600–800  | 2 doors       | in range                        | allowed |
+ *  | 900+     | 2 doors       | above the 800 maximum           | refused |
+ *
+ *  The refused band spans `TWO_DOOR_MIN_WIDTH_MM` — the flip itself sits at 450, inside 401–599 — so
+ *  it reads as one gap rather than two rules meeting. That is *why* it is a gap: on one side of the
+ *  flip the cabinet is a one-door too wide to use, on the other a two-door too narrow to offer.
+ *
+ *  **570 and 900 are correctly refused and must stay so.** An earlier reading of QA's finding treated
+ *  them as casualties of the merge; they are not. **700 was the only genuine loss** — the shipped
+ *  opening under the freestanding fridge, where §7's builder makes an entirely honest two-door of two
+ *  350 mm leaves — and restoring it is the whole of this amendment.
+ *
+ *  This is the third correction to ADR 0033's numbers in a day, and the pattern is worth carrying in
+ *  the code as well as the record: each time, a **discrete list was standing in for a rule about a
+ *  range**, and the list was narrower than the rule. */
+const HINGED_CABINET_WIDTH_RANGES_MM: readonly WidthRangeMm[] = [
+  { minMm: HINGED_CABINET_MIN_WIDTH_MM, maxMm: ONE_DOOR_MAX_WIDTH_MM },
+  { minMm: TWO_DOOR_FLOOR_WIDTH_MM, maxMm: TWO_DOOR_MAX_WIDTH_MM },
+];
+
+/** ADR 0033: the merged rows' **generic** names — no door count in them, so they are true at every
+ *  width and at no width at all.
+ *
+ *  They are the same two strings §9's header already falls back to for a body whose kind the
+ *  catalogue knows, and `KIND_LABELS_RO` below is defined from these rather than repeating them: the
+ *  entry's name and its kind's name are now literally the same fact, which is what "the kind is the
+ *  real identity" means once the door count stops being part of the identity.
+ *
+ *  The door count is added by `describeBodyLabelAt`, and **only where a width is actually known**. A
+ *  refusal that is still deciding a width has no honest count to state, so it names the cabinet. */
+const BASE_CABINET_LABEL_RO = "Corp bază";
+const WALL_CABINET_LABEL_RO = "Corp suspendat";
 
 /** ADR 0017: the sink base has no 400 — its worktop splits around a fixed 560 mm aperture and does
  *  not build below that, so 400 is not a width this body has. */
@@ -230,13 +303,18 @@ export const INSERTABLE_BODY_DEFINITIONS: readonly (readonly [
   string,
   BodyDefinition,
 ])[] = [
-  ["base-2door", baseCabinet("Corp bază 2 uși")],
+  // ADR 0033: `base-2door` + `base-1door`, merged. The door count is a **consequence of the width**,
+  // never a separate product to pick, so there is one row and the customer chooses a cabinet and a
+  // width. `kind` was always the real identity — both halves have carried `base_cabinet` since M3 —
+  // and the id now says so.
   [
-    "base-1door",
+    "base-cabinet",
     {
-      ...baseCabinet("Corp bază 1 ușă"),
-      ...boundedWidths(ONE_DOOR_WIDTHS_MM),
-      minWidthMm: ONE_DOOR_MIN_WIDTH_MM,
+      ...baseCabinet(BASE_CABINET_LABEL_RO),
+      ...boundedWidths(HINGED_CABINET_WIDTHS_MM),
+      widthRangesMm: HINGED_CABINET_WIDTH_RANGES_MM,
+      minWidthMm: HINGED_CABINET_MIN_WIDTH_MM,
+      doorCountFollowsWidth: true,
     },
   ],
   ["base-3drawer", baseCabinet("Corp bază 3 sertare")],
@@ -276,6 +354,19 @@ export const INSERTABLE_BODY_DEFINITIONS: readonly (readonly [
     {
       ...baseCabinet("Corp spălător"),
       ...boundedWidths(SINK_WIDTHS_MM),
+      // ADR 0033's amendment (owner, 2026-08-27; logic review R1.1): **a sink base is cabinetry with
+      // a fixed aperture, not an appliance that comes in sizes.** What is fixed is the bowl — 560 mm,
+      // which `minWidthMm` below already states — and not the carcass around it. The owner's own
+      // case: "there are a lot of cases when the sink is 800 — in my kitchen it's an 800 cabinet."
+      // An 800 sink base is ordinary, and so is a 700.
+      //
+      // `{600, 800}` was the chip ladder ADR 0017 left behind when it removed 400, and 5C2 turned it
+      // into a bound without an argument — the same move the merge made on `base-2door`, and the
+      // third time in this milestone that a discrete list stood in for a rule about a range. The
+      // range says the rule: anything from the aperture up to the two-door maximum.
+      widthRangesMm: [
+        { minMm: SINK_MIN_WIDTH_MM, maxMm: TWO_DOOR_MAX_WIDTH_MM },
+      ],
       minWidthMm: SINK_MIN_WIDTH_MM,
     },
   ],
@@ -288,25 +379,23 @@ export const INSERTABLE_BODY_DEFINITIONS: readonly (readonly [
       ...boundedWidths(DISHWASHER_WIDTHS_MM),
     },
   ],
+  // ADR 0033: `wall-2door` + `wall-1door`, merged, for the reason the base pair is. This is the pair
+  // the whole decision was written about — `wall-2door` at 400 mm was ADR 0029's finding, and
+  // `wall-1door` at 800 mm was ADR 0030's, and both are now the same fact stated once: below
+  // `TWO_DOOR_MIN_WIDTH_MM` one door, above it two.
+  //
+  // A resize that takes a column to 400 turns this cabinet into a one-door **without changing which
+  // entry the customer owns**, because there is no other entry to migrate to. That is why the
+  // alternative both earlier records rejected — migrating the placement between two rows — is not
+  // merely still rejected but no longer expressible.
   [
-    "wall-2door",
+    "wall-cabinet",
     {
-      ...wallCabinet("Corp suspendat 2 uși"),
-      // ADR 0029. Declared on the row in `base-sink`'s form (ADR 0017) rather
-      // than by narrowing `STANDARD_WIDTHS_MM`, which the three other standard-width entries share.
-      //
-      // This governs the **chips and the offer rows**, not what the body builds into: `widthFlex`
-      // stays `'fit'`, so §5.2 still builds this entry to its opening at any width. See the note at
-      // `TWO_DOOR_WALL_WIDTHS_MM`.
-      ...boundedWidths(TWO_DOOR_WALL_WIDTHS_MM),
-    },
-  ],
-  [
-    "wall-1door",
-    {
-      ...wallCabinet("Corp suspendat 1 ușă"),
-      ...boundedWidths(ONE_DOOR_WIDTHS_MM),
-      minWidthMm: ONE_DOOR_MIN_WIDTH_MM,
+      ...wallCabinet(WALL_CABINET_LABEL_RO),
+      ...boundedWidths(HINGED_CABINET_WIDTHS_MM),
+      widthRangesMm: HINGED_CABINET_WIDTH_RANGES_MM,
+      minWidthMm: HINGED_CABINET_MIN_WIDTH_MM,
+      doorCountFollowsWidth: true,
     },
   ],
   ["wall-lift", wallCabinet("Corp suspendat rabatabil")],
@@ -336,6 +425,17 @@ export const INSERTABLE_BODY_DEFINITIONS: readonly (readonly [
       // measured `seatDepthMm`, so leaving it inherited put a map-derived number behind an
       // undecided rule (QA finding Q1.1).
       frameDepthMm: HOOD_DEPTH_MM,
+      // ADR 0033's amendment (owner, 2026-08-27; logic review R1.2): **declared, so the hood narrows
+      // instead of refusing.** `wallCabinet` spreads `widthFlex: 'fit'`, which left the hood the only
+      // row in the catalogue that was both `'fit'` and discretely bounded — so where every other
+      // discrete row installs its widest fitting size in a larger opening, the hood alone refused.
+      // `base-dishwasher` has always put a 600 in a 700 mm slot; the hood now does the same.
+      //
+      // **"A 700 mm hood is not a product" is unchanged and still enforced.** The hood is never
+      // *built* at 700: `resolveFixedSetWidth` picks 600, and the 600 lands centred in the wider
+      // opening because §5.2 seats every body on `opening.alongM`. What changes is that the customer
+      // gets a hood there at all, which was never a decision anyone took — it was a spread.
+      widthFlex: HOOD_WIDTHS_MM,
       ...boundedWidths(HOOD_WIDTHS_MM),
     },
   ],
@@ -372,13 +472,13 @@ export const INSERTABLE_BODY_DEFINITIONS: readonly (readonly [
  *  none of which the customer ever picks from a list. §11 row 24: a kind that is not in this table
  *  is unknown, and an unknown kind renders no replace section at all. */
 const KIND_LABELS_RO: Readonly<Record<string, string>> = {
-  base_cabinet: "Corp bază",
+  base_cabinet: BASE_CABINET_LABEL_RO,
   dishwasher_housing: "Nișă mașină de spălat vase",
   induction_cooktop: "Plită cu inducție",
   tall_unit: "Coloană",
   fridge_housing: "Nișă frigider integrat",
   fridge_freestanding: "Frigider",
-  wall_cabinet: "Corp suspendat",
+  wall_cabinet: WALL_CABINET_LABEL_RO,
   open_shelf_unit: "Etajeră deschisă",
   extractor_hood: "Hotă",
   // ADR 0025: §3.1 lists both as kinds, but until the base legs became placements no selection
@@ -388,6 +488,46 @@ const KIND_LABELS_RO: Readonly<Record<string, string>> = {
   corner_base_x: "Corp bază de colț",
   corner_base_return: "Racord bază de colț",
 };
+
+/** ADR 0033: **how many hinged doors a cabinet of this width is made with.** The one place the
+ *  question is answered, in either package.
+ *
+ *  `catalog-bodies.ts` calls it for the count it hands `kit.make.wallCabinet(w, doors, …)` and
+ *  `kit.make.baseCabinet(w, { doors })`, and `describeBodyLabelAt` calls it for the name the customer
+ *  reads. That is the whole mechanism of this decision: the builder and the label cannot disagree
+ *  about a door count because there is nothing for them to disagree with — they ask the same
+ *  function. The comparison is `>` and not `>=` deliberately; it is the builder's own, unchanged, so
+ *  450 mm is a one-door width and no geometry moves. */
+export function deriveDoorCount(widthMm: number): number {
+  return widthMm > TWO_DOOR_MIN_WIDTH_MM ? 2 : 1;
+}
+
+/** ADR 0033: the name the customer reads for this entry **at this width**.
+ *
+ *  For every row but the two merged cabinets this is just `label` — a hood is a hood at any width.
+ *  For a row that declares `doorCountFollowsWidth` the count is appended from `deriveDoorCount`, so
+ *  *Corp suspendat* becomes *Corp suspendat 1 ușă* at 400 and *Corp suspendat 2 uși* at 600. The two
+ *  strings are byte-identical to the labels the two former entries carried, which is what makes this
+ *  a merge rather than a rename.
+ *
+ *  **Call it wherever a label reaches a customer and a width is known** — the offer row, the ACTUAL
+ *  badge, the panel header, and M6's price line. A caller that reads `definition.label` directly
+ *  gets the generic name, which is correct rather than merely safe: it is what a body with no
+ *  settled width *is*. That is why the width is a required argument and not an optional one — a
+ *  caller without a width has to say so by not calling this.
+ *
+ *  Romanian counts its nouns: *1 ușă*, *2 uși*. The two forms are written here rather than in the
+ *  panel because §12 keeps product copy out of components, and because the count that selects
+ *  between them is decided here. */
+export function describeBodyLabelAt(
+  definition: BodyDefinition,
+  widthMm: number,
+): string {
+  const name = definition.label ?? describeKindLabel(definition.kind);
+  if (definition.doorCountFollowsWidth !== true) return name;
+  const doors = deriveDoorCount(widthMm);
+  return `${name} ${String(doors)} ${doors === 1 ? "ușă" : "uși"}`;
+}
 
 /** What a body is called when the catalogue does not know its kind. */
 export const UNKNOWN_KIND_LABEL_RO = "Corp";
@@ -476,6 +616,86 @@ export function buildableSizes(
 ): readonly number[] {
   const floorMm = minWidthMm ?? DEFAULT_MIN_WIDTH_MM;
   return sizesMm.filter((size) => size >= floorMm);
+}
+
+/** ADR 0033's amendment: **the widths this entry may actually be built to**, as ranges.
+ *
+ *  Three cases, and only the first is declared:
+ *
+ *  1. **A row with real ranges** — the two hinged cabinets — declares them. Cabinetry is continuous
+ *     within its door-count range, so a 700 mm opening takes a two-door even though 700 is not a chip.
+ *  2. **A standard-ladder row** (ADR 0031 rule 5) is one range from the floor that governs it upward,
+ *     with no maximum: 400 is the narrowest standard module, not the narrowest honest pan bank.
+ *  3. **Everything else is discrete** — one degenerate range per size. Appliances really do come in
+ *     the sizes they come in, and `base-bottle-cargo` is a proportion (ADR 0026).
+ *
+ *  **Cases 2 and 3 are derived rather than declared, on purpose.** Writing them into the catalogue
+ *  would restate `sizesMm` on twelve rows and put the floor in two places, which is the drift ADR 0028
+ *  and ADR 0033 exist to close — a second source that agrees with the first by luck until it does not.
+ *  So `sizesAreStandardLadder` survives *beside* ranges rather than being subsumed by them: it is the
+ *  fact about `sizesMm` that this derivation consumes, and deleting it would mean declaring `[floor,
+ *  ∞)` on four rows whose floor already lives in `minWidthMm`. Ranges express the hole the boolean
+ *  could not; the boolean still says which of the other two shapes a row has.
+ *
+ *  **A declared range is raised to the floor that governs the entry, never trusted past it** (logic
+ *  review R1.4). `refuseWidthFloor`'s doc calls itself "the one place a width floor is applied", and
+ *  a declaration that could reach under it would make that sentence false — the same shape as
+ *  `FIT_TOLERANCE_M` being kept from lowering a floor, and the same shape as backlog entry 13, where
+ *  a rule stated in prose was not implemented by a second code path. The insert path happens to be
+ *  covered anyway, because `refuseWidthFloor` runs before `resolveFitWidth`; **the resize path has
+ *  `acceptsWidthMm` as its only predicate**, so without this the two would disagree again.
+ *
+ *  It is a no-op for both shipped rows — each hinged cabinet's lower range opens at exactly its
+ *  declared 200 mm floor — and that is the point: the guard is here so the invariant holds for a
+ *  catalogue this function has never seen, not to repair the one it has. The *shape* of a declared
+ *  range (non-empty, `minMm <= maxMm`) is a catalogue defect rather than a rule, and
+ *  `catalog.test.ts` fails on it loudly instead of this function quietly papering over it. */
+export function resolveWidthRangesMm(
+  body: InsertableBody,
+): readonly WidthRangeMm[] {
+  const floorMm = body.minWidthMm ?? DEFAULT_MIN_WIDTH_MM;
+  const declared = body.definition.widthRangesMm;
+  if (declared !== undefined) {
+    return declared.map((range) => ({
+      minMm: Math.max(range.minMm, floorMm),
+      maxMm: range.maxMm,
+    }));
+  }
+  if (body.definition.sizesAreStandardLadder === true) {
+    return [{ minMm: floorMm, maxMm: Number.POSITIVE_INFINITY }];
+  }
+  return buildableSizes(body.minWidthMm, body.sizesMm).map((size) => ({
+    minMm: size,
+    maxMm: size,
+  }));
+}
+
+/** ADR 0031 rule 5, read as the one question both width paths ask: **may this entry be built at
+ *  this width?**
+ *
+ *  **One function, both callers** (ADR 0032 rule 4). §5.4's resize asks it of every column member;
+ *  §5.2's `resolveWidth` asks it of the opening a `widthFlex: 'fit'` body would fill. Until this was
+ *  shared the ladder flag was read by `setWidth` alone, so the insert path offered `wall-2door` into a
+ *  300 mm opening and built exactly the mislabelled cabinet ADR 0029 forbids — `docs/BACKLOG.md`
+ *  entry 13. ADR 0033's amendment did not add a second predicate beside this one either: it changed
+ *  what this one reads.
+ *
+ *  **One predicate; two candidate sets, which differ on purpose** (logic review R1.5). It is the
+ *  *question* that is shared, not the population it is asked about. §5.2 asks it of the opening's own
+ *  width, so an insert reaches any width in a range. §5.4 asks it only of widths in
+ *  `intersectColumnWidths`' candidate union — the **chips** somebody in the column offers — so a
+ *  resize can only ever land on a modular width. That is why a 700 mm opening takes a hinged cabinet
+ *  while no column can be resized *to* 700: `p24` can be rebuilt at the width it stands at and cannot
+ *  be resized back to it. Deliberate, and the chip union is what keeps a resize modular; if that ever
+ *  changes, §12's re-split (`docs/BACKLOG.md` entry 2) is the decision that would change it, not this
+ *  function.
+ *
+ *  The width is in millimetres because that is the side the sets and ranges are stated on; a caller
+ *  holding metres rounds through `toMillimetres` first. */
+export function acceptsWidthMm(body: InsertableBody, widthMm: number): boolean {
+  return resolveWidthRangesMm(body).some(
+    (range) => widthMm >= range.minMm && widthMm <= range.maxMm,
+  );
 }
 
 /** The resolved entry with the id it is filed under, because a `BodyDefinition` does not carry its

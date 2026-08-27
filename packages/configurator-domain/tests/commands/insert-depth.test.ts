@@ -21,6 +21,7 @@ import {
 } from "../../src/fixtures/kitchen-l-design.js";
 import { toMillimetres } from "../../src/millimetres.js";
 import { offersFor } from "../../src/queries/offers.js";
+import { offered as offeredRows } from "../support/offers.js";
 import type { PlacementRecord, VoidRecord } from "../../src/void-engine.js";
 import { clearBodies, insertInto } from "../support/commands.js";
 import { createFakeProbe } from "../support/fake-probe.js";
@@ -45,7 +46,12 @@ function replaceableWallBodies(world: KitchenWorld): PlacementRecord[] {
   );
 }
 
-const SWAP_BUILD_ID = "wall-2door";
+/** A wall entry carrying the **standard ladder**, so it fills whatever opening it is swapped into.
+ *  It was `wall-2door` until ADR 0032 made a bounded set a bound on the `'fit'` path too: the sweep
+ *  below runs over every seeded wall and top body, and three of them stand at 300 or 700 mm — widths
+ *  a two-door does not have. Depth is this file's subject, so the body it swaps in must not be the
+ *  one entry that refuses on width halfway through.  */
+const SWAP_BUILD_ID = "open-shelf";
 
 /** §7's head-clearance cap on a wall carcass over a worktop, in metres, at the shipped 600 mm
  *  worktop. Restated here rather than imported from `insert-fit.ts`: a test that reads the number
@@ -133,7 +139,7 @@ describe("insertBody — the depth a swap in place builds against (§5.3)", () =
     const second = insertInto(
       { ...after, columns: world.columns },
       { kind: "placement", id: first.effect.placementId },
-      "wall-1door",
+      "wall-lift",
       probe,
     );
 
@@ -158,13 +164,15 @@ describe("insertBody — the depth an insert into an empty void builds against (
     world: KitchenWorld,
     record: VoidRecord,
   ): string | undefined {
-    return offersFor({
-      records: world.records,
-      voids: world.voids,
-      columns: world.columns,
-      catalog: world.catalog,
-      target: { kind: "void", id: record.id },
-    })[0]?.buildId;
+    return offeredRows(
+      offersFor({
+        records: world.records,
+        voids: world.voids,
+        columns: world.columns,
+        catalog: world.catalog,
+        target: { kind: "void", id: record.id },
+      }),
+    )[0]?.buildId;
   }
 
   /** The four voids in this opened kitchen where §7's head-clearance cap bites: every wall-level
@@ -252,7 +260,7 @@ describe("insertBody — a wall carcass over an emptied column (backlog entry 5)
     const result = insertInto(
       world,
       { kind: "void", id: target.id },
-      "wall-2door",
+      "wall-cabinet",
     );
     if (!result.ok) throw new Error(`refused: ${result.reason.code}`);
     return result;
@@ -310,7 +318,7 @@ describe("insertBody — a wall carcass over an emptied column (backlog entry 5)
     const withBase = insertInto(
       beforeBase,
       { kind: "void", id: baseVoid.id },
-      "base-2door",
+      "base-cabinet",
     );
     expect(withBase.ok).toBe(true);
     if (!withBase.ok) return;

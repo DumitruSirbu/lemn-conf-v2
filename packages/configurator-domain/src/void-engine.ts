@@ -69,6 +69,13 @@ export interface Frame {
 /** Everything about a `buildId` that the `Design` wire schema does not carry: what the body is,
  *  where it sits in the module grid, and what a person is allowed to do to it. `frameHeightMm`
  *  defaults to the carcass `heightMm` when the full extent (accessories, proud fronts) matches it. */
+/** An inclusive width range in millimetres, as `resolveWidthRangesMm` reads it. `maxMm` may be
+ *  `Number.POSITIVE_INFINITY` for a range with no upper bound — a standard-ladder row's. */
+export interface WidthRangeMm {
+  readonly minMm: number;
+  readonly maxMm: number;
+}
+
 export interface BodyDefinition {
   readonly kind: string;
   readonly band: Band;
@@ -155,6 +162,43 @@ export interface BodyDefinition {
    *  (`ACCESSORY_NOT_DELETABLE`). Absent means the body carries nothing of its own, which is every
    *  entry but three. */
   readonly carriesAccessoryKind?: string;
+  /** ADR 0033: `true` marks an entry whose **door count the builder derives from the width**, so the
+   *  displayed label counts doors that are decided at build time rather than declared here.
+   *
+   *  It exists because merging `wall-2door` + `wall-1door` (and the base pair) into one entry each
+   *  removed the only thing that had ever said how many doors a row has: its name. §7's builder has
+   *  always branched on `TWO_DOOR_MIN_WIDTH_MM` and has always been right at every width; what lied
+   *  was the label, which is why ADR 0033 calls every defect in this class "a naming defect wearing
+   *  geometry's clothes". `label` is now the entry's **generic** name — *Corp suspendat* — true at
+   *  every width, and `describeBodyLabelAt` adds the count where a width is actually known.
+   *
+   *  **Declared, never inferred.** `kind` is not enough: `base-3drawer`, `base-panbank` and
+   *  `base-sink` all carry `base_cabinet` and none of them has a hinged door to count. Absent means
+   *  `false` — the label is whatever the row says — which is the conservative direction, since a row
+   *  that forgets to declare shows its own name rather than a door count nothing verified. */
+  readonly doorCountFollowsWidth?: boolean;
+
+  /** ADR 0033's amendment: the width **ranges** this body may actually be built to, when its row has
+   *  ranges rather than a list.
+   *
+   *  `sizesMm` and this are different facts and both are true. `sizesMm` is the **modular widths a
+   *  customer picks from**, which §9 renders as chips; this is **what a `widthFlex: 'fit'` body may be
+   *  built to when it fills an existing opening**, which is a continuum for cabinetry. A hinged
+   *  cabinet's five chips sit inside two ranges — 200–400 for one door, 600–800 for two — and a
+   *  700 mm opening takes an honest two-door of two 350 mm leaves even though 700 is not a chip.
+   *
+   *  **Declared only where a row genuinely has ranges**, which is the two hinged cabinets and nothing
+   *  else. Every other row's ranges are *derived* rather than restated: a standard-ladder row is one
+   *  range from its floor upward, and a discrete row is one degenerate range per size. Declaring
+   *  those would put `sizesMm` in the catalogue twice and re-open the drift ADR 0028 and ADR 0033
+   *  exist to close.
+   *
+   *  **Cabinetry is continuous within its door-count range; appliances are discrete.** A hood is 600
+   *  or 900 because those are the sizes hoods come in — refusing a 700 mm hood is the defect being
+   *  fixed, not a loss — and `base-bottle-cargo` stays discrete for ADR 0026's own reason, that the
+   *  proportion is the product. */
+  readonly widthRangesMm?: readonly WidthRangeMm[];
+
   /** Present only on an entry that offers nothing structural, saying why (§11 row 16, §13.1). */
   readonly structuralReason?: StructuralReason;
 }

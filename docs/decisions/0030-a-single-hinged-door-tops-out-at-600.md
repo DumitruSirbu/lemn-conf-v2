@@ -116,3 +116,18 @@ sure about this hundred" and is spent.
 **The title is left as written.** It names a number the record no longer holds, and renaming a
 published ADR breaks every citation to it; the amendment is the correction. Read the title as "a
 single hinged door does not reach the top of the standard set".
+
+---
+
+## Mechanism superseded 2026-08-27 by [ADR 0033](0033-door-count-is-derived-from-width-not-declared.md)
+
+**The rule in this record survives exactly. The way it is enforced does not.**
+
+ADR 0033 merges the door-count pairs into one catalogue entry each and derives the door count — and
+the label naming it — from the width, at the same constant the builder branches on. So this record's
+limit stops being one entry's declared `sizesMm` and becomes half of the single point where the door
+count flips: below the threshold one door, above it two.
+
+Nothing here is relaxed, and the reasoning above is why the threshold sits where it does. What is
+retired is the split into two entries, which is what let a column hold a base that can be 400 under a
+wall cabinet that cannot — the collision ADR 0031 surfaced and ADR 0033 exists to end.

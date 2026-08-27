@@ -21,6 +21,7 @@ import {
 } from "../../src/fixtures/kitchen-l-design.js";
 import { toMillimetres } from "../../src/millimetres.js";
 import { offersFor } from "../../src/queries/offers.js";
+import { offered as offeredRows } from "../support/offers.js";
 import {
   derivePlacementRecords,
   MIN_WIDTH_M,
@@ -121,7 +122,7 @@ function codeAt(
  *  rule that collapsed to one code everywhere would still satisfy itself. */
 const WIDTH_SWEEP_CASES = [
   {
-    buildId: "base-2door",
+    buildId: "base-3drawer",
     note: "'fit', declares no floor — §2's default governs",
     expected: (widthMm: number) =>
       widthMm < GENERAL_MIN_WIDTH_MM ? "WIDTH_NOT_SUPPORTED" : undefined,
@@ -186,8 +187,8 @@ describe("the width floors, swept 195–305 mm, by rejection code", () => {
   );
 
   it("crosses a real transition for both entries that have one", () => {
-    expect(codeAt(299, "base-2door")).toBe("WIDTH_NOT_SUPPORTED");
-    expect(codeAt(300, "base-2door")).toBeUndefined();
+    expect(codeAt(299, "base-3drawer")).toBe("WIDTH_NOT_SUPPORTED");
+    expect(codeAt(300, "base-3drawer")).toBeUndefined();
     expect(codeAt(199, CARGO_BUILD_ID)).toBe("WIDTH_TOO_SMALL");
     expect(codeAt(200, CARGO_BUILD_ID)).toBeUndefined();
   });
@@ -198,8 +199,8 @@ describe("the width floors, swept 195–305 mm, by rejection code", () => {
 // ---------------------------------------------------------------------------------------------
 
 function baseEntry(minWidthMm: number | undefined): BodyDefinition {
-  const template = KITCHEN_L_BODY_CATALOG.get("base-2door");
-  if (!template) throw new Error("no base-2door");
+  const template = KITCHEN_L_BODY_CATALOG.get("base-3drawer");
+  if (!template) throw new Error("no base-3drawer");
   return {
     ...template,
     label: "Probă",
@@ -311,10 +312,14 @@ describe("a sub-300 mm width is reached only by naming a row that declares one",
     // **This asserted "the cargo, and only the cargo" until 2026-08-27.** It was right until ADR
     // 0030's amendment; the rule it was protecting — nobody gets a narrow cabinet they did not ask
     // for — is unchanged and is what the two sweeps below still assert.
+    //
+    // Still three after ADR 0033, and deliberately re-checked rather than assumed: the merge retired
+    // `base-1door` and `wall-1door`, which were two of the three, and their 200 mm floor moved onto
+    // the merged cabinets that replaced them. Same count, different rows.
     expect(entriesDeclaringDown()).toEqual([
-      "base-1door",
+      "base-cabinet",
       CARGO_BUILD_ID,
-      "wall-1door",
+      "wall-cabinet",
     ]);
   });
 
@@ -364,12 +369,12 @@ describe("a sub-300 mm width is reached only by naming a row that declares one",
 
     for (const target of targets) {
       const declaringDown = new Set(entriesDeclaringDown());
-      for (const offer of offersFor({ ...world, target })) {
+      for (const offer of offeredRows(offersFor({ ...world, target }))) {
         offersSeen += 1;
         if (declaringDown.has(offer.buildId)) continue;
-        if (offer.widthMm < GENERAL_MIN_WIDTH_MM) {
+        if (offer.verdict.widthMm < GENERAL_MIN_WIDTH_MM) {
           offending.push(
-            `${target.id} → ${offer.buildId} @ ${String(offer.widthMm)}`,
+            `${target.id} → ${offer.buildId} @ ${String(offer.verdict.widthMm)}`,
           );
         }
         if (offer.sizesMm.some((size) => size < GENERAL_MIN_WIDTH_MM)) {
@@ -519,7 +524,7 @@ function swapDepthMm(world: KitchenWorld): number {
   const result = insertInto(
     world,
     { kind: "placement", id: "w0" },
-    "wall-2door",
+    "wall-cabinet",
   );
   if (!result.ok) throw new Error(`refused: ${result.reason.code}`);
   const placed = result.design.placements.find(

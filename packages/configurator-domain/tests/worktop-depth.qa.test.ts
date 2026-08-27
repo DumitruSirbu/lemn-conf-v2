@@ -38,12 +38,16 @@ const DEPTH_DECIDED_INDEPENDENTLY_MM: Readonly<Record<string, number>> = {
   "wall-2door-700-over-fridge": 600,
 };
 
-/** The nine seeded wall/top rows `M5-width.md` measured as already correct at 330, plus the four
- *  §7 wall entries. Counted rather than trusted, so the sweep cannot go vacuous if the fixture is
- *  renamed out from under it. */
-const MAP_GOVERNED_ENTRY_COUNT = 13;
+/** The nine seeded wall/top rows `M5-width.md` measured as already correct at 330, plus §7's wall
+ *  entries. Counted rather than trusted, so the sweep cannot go vacuous if the fixture is renamed
+ *  out from under it.
+ *
+ *  **Three catalogue entries since ADR 0033, where there were four**: `wall-2door` and `wall-1door`
+ *  are one `wall-cabinet` row now. The seeded rows are untouched — the merge repointed their
+ *  `catalogEquivalentId` and changed none of their geometry. */
+const MAP_GOVERNED_ENTRY_COUNT = 12;
 const SEEDED_ROW_COUNT = 9;
-const CATALOGUE_ENTRY_COUNT = 4;
+const CATALOGUE_ENTRY_COUNT = 3;
 
 /** What `buildKitchen()` actually builds a wall carcass to, and therefore what the seeded fixture's
  *  wall and top rows must reproduce. **Not the map's output**: the reference room is fixed geometry
@@ -87,7 +91,7 @@ describe("the seeded fixture's depths are checked against the map, not merely eq
     }
   });
 
-  it("sweeps at least the nine seeded rows plus §7's four wall entries", () => {
+  it("sweeps at least the nine seeded rows plus §7's wall entries", () => {
     // Counted per population as well as in total: the two sweeps below take one each, and a split
     // that put all thirteen on one side would leave the other asserting nothing.
     expect(mapGovernedEntries().length).toBeGreaterThanOrEqual(

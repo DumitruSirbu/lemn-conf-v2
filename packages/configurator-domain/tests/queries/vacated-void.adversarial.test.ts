@@ -12,6 +12,7 @@ import { insertBody } from "../../src/commands/insert-body.js";
 import { openingFromPlacement } from "../../src/commands/insert-fit.js";
 import { findVacatedVoid } from "../../src/queries/vacated-void.js";
 import { offersFor } from "../../src/queries/offers.js";
+import { offered } from "../support/offers.js";
 import { LEVELS, type VoidRecord } from "../../src/void-engine.js";
 import { createFakeProbe } from "../support/fake-probe.js";
 import { OCCURRED_AT } from "../support/commands.js";
@@ -231,10 +232,10 @@ describe("the swap path resolves the same opening a delete would select", () => 
 
   it("swaps a top-row body in place rather than one level down", () => {
     const target = { kind: "placement", id: "top" } as const;
-    const offered = offersFor({ ...TOP_ROW, target });
-    expect(offered.length).toBeGreaterThan(0);
+    const offerable = offered(offersFor({ ...TOP_ROW, target }));
+    expect(offerable.length).toBeGreaterThan(0);
 
-    for (const offer of offered) {
+    for (const offer of offerable) {
       const result = insertBody({
         design: TOP_ROW.design,
         catalog: TOP_ROW.catalog,

@@ -9,7 +9,11 @@ import {
   deriveSlotBand,
   isPushOpenByDefault,
 } from "../bands.js";
-import { describeKindLabel, resolveBuildableSizes } from "../catalog.js";
+import {
+  describeBodyLabelAt,
+  describeKindLabel,
+  resolveBuildableSizes,
+} from "../catalog.js";
 import type { CommandTarget } from "../commands/command-result.js";
 import type { DesignWall, Finish, Handle } from "../design.js";
 import { toMillimetres } from "../millimetres.js";
@@ -163,7 +167,16 @@ function describeBody(
   return {
     id: record.id,
     // §6.3: identity comes from the chosen catalogue id, never re-inferred from the mesh tree.
-    label: definition?.label ?? describeKindLabel(record.kind),
+    //
+    // ADR 0033: and the **door count** comes from the width the body actually has, at the one
+    // threshold the builder branches on. A `wall-cabinet` placement resized from 600 to 400 is a
+    // one-door cabinet and the header says so, without the customer ever having owned a different
+    // entry. A row that does not declare `doorCountFollowsWidth` is unaffected, and a seeded row —
+    // which carries no `label` of its own — still falls back to its kind, as it always has.
+    label:
+      definition === undefined
+        ? describeKindLabel(record.kind)
+        : describeBodyLabelAt(definition, record.widthMm),
     empty: false,
     kind: record.kind,
     band: record.band,

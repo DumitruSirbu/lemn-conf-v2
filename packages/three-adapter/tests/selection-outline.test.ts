@@ -41,7 +41,7 @@ beforeAll(() => {
 });
 
 function makeBody(): THREE.Group {
-  return buildCatalogBody(kit, "base-2door", {
+  return buildCatalogBody(kit, "base-cabinet", {
     widthM: 0.6,
     heightM: 0.86,
     depthM: 0.58,

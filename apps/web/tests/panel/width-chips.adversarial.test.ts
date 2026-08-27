@@ -114,7 +114,11 @@ const seededWorld = () => worldFrom(KITCHEN_L_DESIGN);
  *  39 = seventeen rendering bodies: two chips each for the ten `wall-2door` rows and for the sink
  *  and the dishwasher; three for `base-3drawer`, `open-shelf` and `p24` (its own 700 joins); three
  *  for the two `wall-1door` rows, whose whole set is 200/300/400. */
-const SEEDED_WIDTH_CHIP_COUNT = 39;
+/** ADR 0033: 39 until the merge, 76 after it. Every seeded wall and top body resolves to one
+ *  `wall-cabinet` entry with five widths, where it used to resolve to a two- or three-width row. The
+ *  chips a body renders are its entry's, so more entries collapsing into one wider row means more
+ *  chips — see `qa-w5c.enumeration.test.ts`, which measures what the column behind them accepts. */
+const SEEDED_WIDTH_CHIP_COUNT = 76;
 
 describe("a body built to its opening rather than to a member of its set", () => {
   // `wall-1door-300` sits at exactly `MIN_W`, which is the boundary of the whole width rule: the
@@ -125,28 +129,35 @@ describe("a body built to its opening rather than to a member of its set", () =>
     // own set, so `p10`'s width is a member rather than an addition — the body standing *on* §2's
     // floor still gets a chip for it, and it is still the active one, but the mechanism that
     // produces it changed. `p24` below is now the only fold left in the shipped kitchen.
+    //
+    // ADR 0033 widened the set again, to the merged cabinet's five: this body can now be resized up
+    // to a two-door without changing which entry it is, which is the decision's whole point read
+    // through §9's chips. The claim here is unchanged — 300 is a member, not a fold.
     const world = seededWorld();
     const meta = describeSelection({
       ...world,
       target: { kind: "placement", id: "p10" },
     });
     expect(meta?.widthMm).toBe(toMillimetres(MIN_WIDTH_M));
-    expect(meta?.sizesMm).toEqual([200, 300, 400]);
-    expect(widthsAt(world, "p10")).toEqual([200, 300, 400]);
+    expect(meta?.sizesMm).toEqual([200, 300, 400, 600, 800]);
+    expect(widthsAt(world, "p10")).toEqual([200, 300, 400, 600, 800]);
   });
 
-  // ADR 0029: `wall-2door` declares [600, 800], so the row is three chips rather
-  // than four — and 700 still lands in the *middle* of it, which is what this test is about.
+  // `p24` is still the only fold in the shipped kitchen: 700 is a width no wall entry declares,
+  // before ADR 0033 or after it, so the body's own width is added to the row it renders. The merged
+  // set puts four chips in front of it now instead of one, and 700 still lands in the middle.
   it("folds wall-2door-700-over-fridge's own 700 into the middle of the row", () => {
-    expect(widthsAt(seededWorld(), "p24")).toEqual([600, 700, 800]);
+    expect(widthsAt(seededWorld(), "p24")).toEqual([
+      200, 300, 400, 600, 700, 800,
+    ]);
   });
 
   // The duplicate case, which the `Set` in `describeWidthChips` is there to prevent: a body already
   // standing at a member of its set gets one chip for that width, not two.
   it("gives a body already at a set width exactly one chip for it", () => {
     const world = seededWorld();
-    expect(widthsAt(world, "p11")).toEqual([600, 800]);
-    expect(widthsAt(world, "p8")).toEqual([600, 800]);
+    expect(widthsAt(world, "p11")).toEqual([200, 300, 400, 600, 800]);
+    expect(widthsAt(world, "p8")).toEqual([200, 300, 400, 600, 800]);
     expect(
       widthsAt(world, "p11").filter((width) => width === 800),
     ).toHaveLength(1);
@@ -280,7 +291,7 @@ describe("a willing body with no widths gets no section, not an empty one", () =
   it("drops the section when the resolved entry's floor empties its set", () => {
     const world = worldFrom(
       KITCHEN_L_DESIGN,
-      catalogWith("wall-2door", { minWidthMm: 900 }),
+      catalogWith("wall-cabinet", { minWidthMm: 900 }),
     );
     expect(widthSectionAt(world, "p8")).toBeUndefined();
     expect(widthSectionAt(world, "p14")).toBeUndefined();

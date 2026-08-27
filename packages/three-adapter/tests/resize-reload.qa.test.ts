@@ -143,7 +143,8 @@ describe("every resize the shipped kitchen accepts survives a save and a reload"
       }
     }
 
-    // The sweep cannot pass by accepting nothing.
-    expect(swept).toHaveLength(15);
+    // The sweep cannot pass by accepting nothing. Fifteen until ADR 0033 merged the door-count
+    // entries and a wall column stopped being bounded by which of the two its members happened to be.
+    expect(swept).toHaveLength(33);
   });
 });

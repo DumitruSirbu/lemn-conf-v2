@@ -240,24 +240,48 @@ describe("a resize does not change any member's recorded depth", () => {
         }
       }
     }
-    // Named rather than counted, so the sweep cannot pass by accepting nothing. Fifteen accepted
-    // taps, which is **six distinct column moves** offered from each of their members — against
+    // Named rather than counted, so the sweep cannot pass by accepting nothing. Thirty-three accepted
+    // taps, which is **fourteen distinct column moves** offered from each of their members — against
     // the two the superseded donor rule left reachable, both sides of one boundary.
+    //
+    // Fifteen taps until ADR 0033 merged the door-count entries: a wall column bounded by a
+    // `wall-2door` at [600, 800] could not move to 400 however much space stood beside it, and one
+    // entry carrying [200, 300, 400, 600, 800] lets it, with the door count following the width.
+    // What this file asserts is unchanged and now holds over twice the population: a resize never
+    // changes any member's recorded depth.
     expect(accepted.sort()).toEqual([
       "A|0.30:p10@200",
       "A|0.30:p10@400",
+      "A|0.30:p10@600",
       "A|0.30:p16@200",
       "A|0.30:p16@400",
+      "A|0.30:p16@600",
       "A|0.75:p0@600",
       "A|0.75:p11@600",
+      "A|0.75:p15@200",
+      "A|0.75:p15@300",
+      "A|0.75:p15@400",
       "A|0.75:p17@600",
+      "A|0.75:p8@200",
+      "A|0.75:p8@300",
+      "A|0.75:p8@400",
       "A|1.30:p10@400",
+      "A|1.30:p10@600",
+      "A|1.30:p10@800",
       "A|1.30:p16@400",
+      "A|1.30:p16@600",
+      "A|1.30:p16@800",
       "A|2.00:p0@600",
       "A|2.00:p11@600",
       "A|2.00:p17@600",
+      "A|2.60:p14@300",
+      "A|2.60:p14@400",
       "A|2.60:p14@800",
+      "A|2.60:p20@300",
+      "A|2.60:p20@400",
       "A|2.60:p20@800",
+      "A|2.60:p4@300",
+      "A|2.60:p4@400",
       "A|2.60:p4@800",
     ]);
   });
@@ -312,8 +336,8 @@ describe("a persisted design never holds a seeded buildId at a width that id can
 
     for (const [id, seededId, equivalentId] of [
       ["p0", "base-sink-800", "base-sink"],
-      ["p11", "wall-2door-800", "wall-2door"],
-      ["p17", "wall-2door-800-top", "wall-2door"],
+      ["p11", "wall-2door-800", "wall-cabinet"],
+      ["p17", "wall-2door-800-top", "wall-cabinet"],
     ] as const) {
       const placement = result.design.placements.find(
         (entry) => entry.id === id,

@@ -16,6 +16,7 @@ import { FIT_TOLERANCE_M } from "../../src/void-engine.js";
 import { toMetres } from "../../src/millimetres.js";
 import { renderRejection } from "../../src/commands/rejection.js";
 import { offersFor } from "../../src/queries/offers.js";
+import { offered as offeredRows } from "../support/offers.js";
 import type { Column, InsertOpening } from "../../src/index.js";
 import { clearBodies, insertInto } from "../support/commands.js";
 import { voidAt, type KitchenWorld } from "../support/kitchen-world.js";
@@ -64,7 +65,7 @@ describe("§5.3's swap in place hits the same floor", () => {
   it("does not offer the sink base as a swap for a 500 mm body", () => {
     const world = occupiedBaseWorld(500);
 
-    const offered = offersFor({ ...world, target: SWAP_TARGET });
+    const offered = offeredRows(offersFor({ ...world, target: SWAP_TARGET }));
 
     expect(offered.length).toBeGreaterThan(0);
     expect(offered.map((offer) => offer.buildId)).not.toContain("base-sink");
@@ -72,7 +73,7 @@ describe("§5.3's swap in place hits the same floor", () => {
 
   it("offers and performs the swap at 600 mm", () => {
     const world = occupiedBaseWorld(600);
-    const offered = offersFor({ ...world, target: SWAP_TARGET });
+    const offered = offeredRows(offersFor({ ...world, target: SWAP_TARGET }));
 
     expect(offered.map((offer) => offer.buildId)).toContain("base-sink");
     const result = insertInto(world, SWAP_TARGET, "base-sink");
@@ -84,7 +85,9 @@ describe("§5.3's swap in place hits the same floor", () => {
   it("performs every offered swap across 300–800 mm", () => {
     for (let widthMm = 300; widthMm <= 800; widthMm += 20) {
       const world = occupiedBaseWorld(widthMm);
-      for (const offer of offersFor({ ...world, target: SWAP_TARGET })) {
+      for (const offer of offeredRows(
+        offersFor({ ...world, target: SWAP_TARGET }),
+      )) {
         const result = insertInto(world, SWAP_TARGET, offer.buildId);
         expect(result.ok, `${String(widthMm)} mm -> ${offer.buildId}`).toBe(
           true,
@@ -111,7 +114,7 @@ describe("the offer list and the guard agree on every band", () => {
         kind: "void",
         id: voidAt(world, OPENING_COLUMN, level.y0).id,
       } as const;
-      for (const offer of offersFor({ ...world, target })) {
+      for (const offer of offeredRows(offersFor({ ...world, target }))) {
         const result = insertInto(world, target, offer.buildId);
         expect(result.ok, `${String(widthMm)} mm -> ${offer.buildId}`).toBe(
           true,
@@ -151,7 +154,7 @@ describe("insertBody accepts a swap the offer list does not show", () => {
   it("swaps a base cabinet for a full-height unit that was never in its list", () => {
     const world = tallColumnWithOnlyABase();
 
-    const offered = offersFor({ ...world, target: SWAP_TARGET });
+    const offered = offeredRows(offersFor({ ...world, target: SWAP_TARGET }));
     const result = insertInto(world, SWAP_TARGET, "tall-pantry");
 
     expect(offered.map((offer) => offer.buildId)).not.toContain("tall-pantry");
@@ -170,15 +173,32 @@ describe("the boundary the epsilon sits on", () => {
     return result.ok ? undefined : result.reason.code;
   }
 
-  it("refuses every millimetre below the aperture and accepts every one above", () => {
+  it("refuses every millimetre below the aperture, by ADR 0017's own code", () => {
     for (const widthMm of [300, 400, 550, 558, 559]) {
       expect(refusalAt(widthMm), `${String(widthMm)} mm`).toBe(
         "WIDTH_TOO_SMALL",
       );
     }
-    for (const widthMm of [560, 561, 600, 800]) {
+  });
+
+  // **The two guards must not double up**, which is why this is a separate case from the one above,
+  // and the reason survives all three revisions of it.
+  //
+  // 5C2 made `base-sink`'s `[600, 800]` a bound on the `'fit'` path, so 560 and 561 — widths whose
+  // *geometry* ADR 0017 measured as correct — were refused for the different reason that they were
+  // not widths the entry had. ADR 0033's amendment reads the sink as **cabinetry with a fixed
+  // aperture**: the bowl is 560, the carcass around it is not, so the range runs 560–800 and the
+  // aperture is buildable again, which is where ADR 0017 started.
+  //
+  // What has never moved is the **ordering**. The floor is checked first and stays the nearer fact:
+  // at 400 the customer reads "this product needs 560 mm", not a list of widths that is not the
+  // point. Above the floor the range speaks, and it stops at 800.
+  it("then accepts every width from its aperture to its maximum", () => {
+    for (const widthMm of [560, 561, 600, 700, 800]) {
       expect(refusalAt(widthMm), `${String(widthMm)} mm`).toBeUndefined();
     }
+    // Above the maximum the range refuses, and by the code that names widths rather than the floor's.
+    expect(refusalAt(801)).toBe("WIDTH_NOT_SUPPORTED");
   });
 
   it("still reports the general floor below 300 mm rather than the entry's own", () => {

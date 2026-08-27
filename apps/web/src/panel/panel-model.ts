@@ -16,6 +16,7 @@ import {
   type CatalogOffer,
   type Finish,
   type Handle,
+  type OfferVerdict,
   type RejectionReason,
   type SelectionMeta,
 } from "@lemnaria/configurator-domain";
@@ -379,7 +380,12 @@ function describeReplaceSection(
   if (!meta.canReplace) return undefined;
   if (!meta.empty && !isKnownKind(meta.kind)) return undefined;
 
-  const rows = input.offers.map((offer) =>
+  // ADR 0032 published the refused entries into this list with the engine's own reason on each.
+  // Rendering them — the disabled row, its sentence, and what it does to the count line — is the
+  // panel's own wave, so until then the projection is unchanged: it takes the offered verdicts and
+  // nothing else, which is exactly the list `offersFor` used to return. The filter is the seam that
+  // wave replaces; it is deliberately the only thing here that knows a refused verdict exists.
+  const rows = input.offers.filter(isOffered).map((offer) =>
     describeOfferRow(offer, {
       isBodyProbeAttached: input.isBodyProbeAttached,
       readOnly,
@@ -399,6 +405,16 @@ function describeReplaceSection(
   };
 }
 
+/** An offer whose verdict is `offered`, so its built width and height are present. Narrowed once at
+ *  the filter above rather than re-checked in every function below it. */
+type OfferedCatalogOffer = CatalogOffer & {
+  readonly verdict: Extract<OfferVerdict, { status: "offered" }>;
+};
+
+function isOffered(offer: CatalogOffer): offer is OfferedCatalogOffer {
+  return offer.verdict.status === "offered";
+}
+
 /** The two independent reasons a row can be offered and still be unclickable, in the order that
  *  matters: a browser that cannot write is not waiting for anything, so "the model is preparing"
  *  would be a promise nothing here can keep. */
@@ -410,10 +426,16 @@ interface OfferRowAvailability {
 /** §9's secondary line: the reason displaces the size on a disabled row, because at 390 px the row
  *  has one line under the name and the reason is the half the customer cannot guess. */
 function describeOfferRow(
-  offer: CatalogOffer,
+  offer: OfferedCatalogOffer,
   availability: OfferRowAvailability,
 ): OfferRow {
-  const thumbnailUrl = findCabinetThumbnailUrl(offer.buildId);
+  // ADR 0033: the width picks the drawing for a merged cabinet, exactly as it picks the label. Only
+  // an offered row reaches here, so the width is always present — see the filter in
+  // `describeReplaceSection`.
+  const thumbnailUrl = findCabinetThumbnailUrl(
+    offer.buildId,
+    offer.verdict.widthMm,
+  );
   return {
     buildId: offer.buildId,
     label: offer.label,
@@ -425,12 +447,12 @@ function describeOfferRow(
 }
 
 function describeOfferSecondaryLine(
-  offer: CatalogOffer,
+  offer: OfferedCatalogOffer,
   { isBodyProbeAttached, readOnly }: OfferRowAvailability,
 ): string {
   if (readOnly) return ro.panel.readOnlyReason;
   if (!isBodyProbeAttached) return ro.panel.probeUnavailable;
-  return ro.panel.offerSize(offer.widthMm, offer.heightMm);
+  return ro.panel.offerSize(offer.verdict.widthMm, offer.verdict.heightMm);
 }
 
 function describeCountLine(meta: SelectionMeta, count: number): string {

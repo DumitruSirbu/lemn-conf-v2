@@ -149,6 +149,11 @@ function buildCases(): SweepCase[] {
   );
   const clearedFridge = clearBodies(world, ["p7", "p24"]);
   const clearedDishwasher = clearBodies(world, ["p1"]);
+  /** A **600 mm** column with its top slot open. The hood's route to `HEIGHT_EXCEEDS_LEVEL` used to
+   *  run through the fridge column, which is 700 mm wide — a width the hood's `[600, 900]` set does not
+   *  have, so ADR 0032 now refuses it on width before the height guard is ever reached. The code needs
+   *  an opening where only the height is wrong. */
+  const clearedTopSlot = clearBodies(world, ["p18"]);
   // ADR 0031's two column refusals need a shape the seeded kitchen does not have. `gapWorld` is the
   // shipped kitchen with `A|1.30` emptied, which is what lets `A|0.75` reach 200 and widen the empty
   // column across the corner leg. `unalignedColumn` holds a 600 mm base under a 450 mm shelf — the
@@ -247,7 +252,11 @@ function buildCases(): SweepCase[] {
       code: "TARGET_NOT_REPLACEABLE",
       design: preMigration.design,
       run: () =>
-        insertInto(preMigration, { kind: "placement", id: "p3" }, "base-2door"),
+        insertInto(
+          preMigration,
+          { kind: "placement", id: "p3" },
+          "base-3drawer",
+        ),
     },
     {
       code: "BAND_MISMATCH",
@@ -256,7 +265,7 @@ function buildCases(): SweepCase[] {
         insertInto(
           clearedDishwasher,
           voidTarget(clearedDishwasher, "A|2.00", 0),
-          "wall-2door",
+          "wall-cabinet",
         ),
     },
     {
@@ -297,7 +306,7 @@ function buildCases(): SweepCase[] {
         insertInto(
           shortOpening,
           voidTarget(shortOpening, "A|1.00", 1.814),
-          "wall-2door",
+          "wall-cabinet",
         ),
     },
     {
@@ -305,11 +314,11 @@ function buildCases(): SweepCase[] {
       // is the only route to this code — a base body is refused by the band gate first, and every
       // wall body except the hood is height-flexible.
       code: "HEIGHT_EXCEEDS_LEVEL",
-      design: clearedFridge.design,
+      design: clearedTopSlot.design,
       run: () =>
         insertInto(
-          clearedFridge,
-          voidTarget(clearedFridge, FRIDGE_COLUMN, 2.2),
+          clearedTopSlot,
+          voidTarget(clearedTopSlot, "A|2.00", 2.2),
           "hood",
         ),
     },
@@ -330,7 +339,7 @@ function buildCases(): SweepCase[] {
         insertInto(
           clearedFridge,
           voidTarget(clearedFridge, "B|2.45", 0),
-          "base-2door",
+          "base-3drawer",
           createFakeProbe({ carcassWidthM: 0.9 }),
         ),
     },
@@ -343,7 +352,7 @@ function buildCases(): SweepCase[] {
         insertInto(
           clearedFridge,
           voidTarget(clearedFridge, FRIDGE_COLUMN, 0),
-          "base-2door",
+          "base-3drawer",
           createFakeProbe({ seatOffsetM: Number.POSITIVE_INFINITY }),
         ),
     },
@@ -356,7 +365,7 @@ function buildCases(): SweepCase[] {
           catalog: world.catalog,
           columns: new Map(),
           target: { kind: "placement", id: "p0" },
-          buildId: "base-2door",
+          buildId: "base-3drawer",
           probe: createFakeProbe(),
           occurredAt: OCCURRED_AT,
         }),
@@ -365,7 +374,7 @@ function buildCases(): SweepCase[] {
       code: "NON_INTEGER_MILLIMETRES",
       design: offGrid.design,
       run: () =>
-        insertInto(offGrid, voidTarget(offGrid, "A|1.00", 0), "base-2door"),
+        insertInto(offGrid, voidTarget(offGrid, "A|1.00", 0), "base-3drawer"),
     },
     {
       code: "FINISH_NOT_SUPPORTED",

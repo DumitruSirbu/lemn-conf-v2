@@ -77,12 +77,18 @@ function depthOfMm(design: Design, placementId: string): number {
  *  after every command, so its `hasFullHeightUnder` tracks the mutated design. Fixing the map here
  *  is deliberate: these tests repeat a swap to check the geometry round-trips, and swapping a wall
  *  body never changes what stands under it, so a constant map keeps the depth input constant and
- *  any drift in the measured result attributable to the builders. */
-function swap(
+ *  any drift in the measured result attributable to the builders.
+ *
+ *  ADR 0032: a wall entry whose `sizesMm` is a bound of its own (`wall-2door`, `wall-1door`) is
+ *  refused at an opening whose width its set does not list, so a rotation across the four
+ *  depth-consuming wall builders cannot assume every one of them fits every placement. `undefined`
+ *  means "not a width this entry has, try the next builder"; **every other refusal still throws**,
+ *  so a rotation cannot go quietly vacuous. */
+function swapIfWidthAllows(
   design: Design,
   placementId: string,
   buildId: string,
-): { readonly design: Design; readonly placementId: string } {
+): { readonly design: Design; readonly placementId: string } | undefined {
   const result = insertBody({
     design,
     catalog: KITCHEN_L_BODY_CATALOG,
@@ -94,12 +100,11 @@ function swap(
     probe: probe(),
     occurredAt: OCCURRED_AT,
   });
-  if (!result.ok) {
-    throw new Error(
-      `Swap of ${placementId} → ${buildId}: ${result.reason.code}`,
-    );
+  if (result.ok) {
+    return { design: result.design, placementId: result.effect.placementId };
   }
-  return { design: result.design, placementId: result.effect.placementId };
+  if (result.reason.code === "WIDTH_NOT_SUPPORTED") return undefined;
+  throw new Error(`Swap of ${placementId} → ${buildId}: ${result.reason.code}`);
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -111,9 +116,9 @@ function swap(
  *  `open-shelf` are in here precisely because the shipped repeat test used only the two door
  *  cabinets. */
 const DEPTH_CONSUMING_WALL_IDS = [
-  "wall-2door",
+  "wall-cabinet",
   "open-shelf",
-  "wall-1door",
+  "wall-cabinet",
   "wall-lift",
 ] as const;
 
@@ -133,11 +138,19 @@ describe("a deep wall carcass survives repeated swaps (ADR 0018 round trip)", ()
       let target = id;
       const observed: number[] = [];
 
-      for (let round = 0; round < 10; round += 1) {
+      // The rotation skips a builder whose own set has no width for this opening — `p24` is 700 mm
+      // and the two door cabinets are bounded — and keeps turning until ten swaps have actually
+      // happened. It is the rounds that matter, not the attempts.
+      for (
+        let attempt = 0;
+        attempt < 4 * 10 && observed.length < 10;
+        attempt += 1
+      ) {
         const buildId =
-          DEPTH_CONSUMING_WALL_IDS[round % DEPTH_CONSUMING_WALL_IDS.length];
+          DEPTH_CONSUMING_WALL_IDS[attempt % DEPTH_CONSUMING_WALL_IDS.length];
         if (buildId === undefined) throw new Error("empty rotation");
-        const next = swap(design, target, buildId);
+        const next = swapIfWidthAllows(design, target, buildId);
+        if (!next) continue;
         design = next.design;
         target = next.placementId;
         observed.push(depthOfMm(design, target));

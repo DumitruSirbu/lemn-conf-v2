@@ -84,7 +84,7 @@ const SEATED_CASES: readonly {
 }[] = [
   {
     name: "a base cabinet",
-    request: request("base-2door", 600, 860, 0.58),
+    request: request("base-cabinet", 600, 860, 0.58),
     y0M: 0,
   },
   {
@@ -94,7 +94,7 @@ const SEATED_CASES: readonly {
   },
   {
     name: "a wall cabinet",
-    request: request("wall-2door", 600, 700, 0.56),
+    request: request("wall-cabinet", 600, 700, 0.56),
     y0M: 1.5,
   },
   {
@@ -209,10 +209,10 @@ describe("one seat offset serves both walls only because the planes coincide", (
     const measured = measureBuiltBody({
       kit,
       room,
-      request: request("wall-2door", 600, 700, 0.4),
+      request: request("wall-cabinet", 600, 700, 0.4),
     });
     const seated = seatThroughTheDocument(
-      request("wall-2door", 600, 700, 0.4),
+      request("wall-cabinet", 600, 700, 0.4),
       "B",
       1.5,
     );
@@ -265,8 +265,8 @@ describe("the probe leaves the room exactly as it found it", () => {
   });
 
   it("measures the same body the same way after a different-sized one of the same buildId", () => {
-    const narrow = request("wall-2door", 400, 700, 0.4);
-    const wide = request("wall-2door", 800, 700, 0.4);
+    const narrow = request("wall-cabinet", 400, 700, 0.4);
+    const wide = request("wall-cabinet", 800, 700, 0.4);
     const first = measureBuiltBody({ kit, room, request: narrow });
 
     measureBuiltBody({ kit, room, request: wide });
@@ -285,7 +285,7 @@ describe("the probe disposes nothing the live scene is still using", () => {
   it("leaves a mounted body's geometries undisposed after measuring its twin", () => {
     const solids = new THREE.Group();
     room.add(solids);
-    const mounted = buildCatalogBody(kit, "base-2door", {
+    const mounted = buildCatalogBody(kit, "base-cabinet", {
       widthM: 0.6,
       heightM: 0.86,
       depthM: 0.58,
@@ -302,7 +302,7 @@ describe("the probe disposes nothing the live scene is still using", () => {
     measureBuiltBody({
       kit,
       room,
-      request: request("base-2door", 600, 860, 0.58),
+      request: request("base-cabinet", 600, 860, 0.58),
     });
 
     const stolen = stillMountedGeometries(mounted).filter((geometry) =>

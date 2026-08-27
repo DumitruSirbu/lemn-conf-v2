@@ -141,23 +141,45 @@ describe("no opening ever appears where a body physically stands", () => {
     // Named rather than counted, so the sweep cannot pass by accepting nothing — and so that what
     // the shipped kitchen can actually reach after one delete is visible in the source. Each line
     // is one *column* move, offered from every member of that column.
+    //
+    // Fifteen lines became thirty-two at ADR 0033. Every new one is a wall column reaching a width
+    // its old two-door entry did not list; the invariant this test actually guards — no opening ever
+    // appears where a body stands — is unchanged, and now holds over twice the population.
     expect(accepted.sort()).toEqual(
       [
         "A|0.30:p10@200",
         "A|0.30:p10@400",
+        "A|0.30:p10@600",
         "A|0.30:p16@200",
         "A|0.30:p16@400",
+        "A|0.30:p16@600",
+        "A|0.75:p0@600",
+        "A|0.75:p11@600",
+        "A|0.75:p15@200",
+        "A|0.75:p15@300",
+        "A|0.75:p15@400",
+        "A|0.75:p17@600",
+        "A|0.75:p8@200",
+        "A|0.75:p8@300",
+        "A|0.75:p8@400",
         "A|1.30:p10@400",
+        "A|1.30:p10@600",
+        "A|1.30:p10@800",
         "A|1.30:p16@400",
+        "A|1.30:p16@600",
+        "A|1.30:p16@800",
         "A|2.00:p0@600",
         "A|2.00:p11@600",
         "A|2.00:p17@600",
+        "A|2.60:p14@300",
+        "A|2.60:p14@400",
         "A|2.60:p14@800",
+        "A|2.60:p20@300",
+        "A|2.60:p20@400",
         "A|2.60:p20@800",
+        "A|2.60:p4@300",
+        "A|2.60:p4@400",
         "A|2.60:p4@800",
-        "A|0.75:p0@600",
-        "A|0.75:p11@600",
-        "A|0.75:p17@600",
       ].sort(),
     );
   });

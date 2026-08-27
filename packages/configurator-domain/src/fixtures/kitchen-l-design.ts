@@ -244,7 +244,7 @@ const SEEDED_BODY_DEFINITIONS: readonly (readonly [string, BodyDefinition])[] =
         ...wallCarcass,
         kind: "wall_cabinet",
         frameDepthMm: 330,
-        catalogEquivalentId: "wall-2door",
+        catalogEquivalentId: "wall-cabinet",
       },
     ],
     [
@@ -262,7 +262,7 @@ const SEEDED_BODY_DEFINITIONS: readonly (readonly [string, BodyDefinition])[] =
         ...wallCarcass,
         kind: "wall_cabinet",
         frameDepthMm: 330,
-        catalogEquivalentId: "wall-1door",
+        catalogEquivalentId: "wall-cabinet",
       },
     ],
     [
@@ -271,7 +271,7 @@ const SEEDED_BODY_DEFINITIONS: readonly (readonly [string, BodyDefinition])[] =
         ...wallCarcass,
         kind: "wall_cabinet",
         frameDepthMm: 330,
-        catalogEquivalentId: "wall-2door",
+        catalogEquivalentId: "wall-cabinet",
       },
     ],
     [
@@ -310,7 +310,7 @@ const SEEDED_BODY_DEFINITIONS: readonly (readonly [string, BodyDefinition])[] =
         kind: "wall_cabinet",
         frameDepthMm: 330,
         frameHeightMm: 400,
-        catalogEquivalentId: "wall-2door",
+        catalogEquivalentId: "wall-cabinet",
       },
     ],
     [
@@ -320,7 +320,7 @@ const SEEDED_BODY_DEFINITIONS: readonly (readonly [string, BodyDefinition])[] =
         kind: "wall_cabinet",
         frameDepthMm: 330,
         frameHeightMm: 400,
-        catalogEquivalentId: "wall-1door",
+        catalogEquivalentId: "wall-cabinet",
       },
     ],
     [
@@ -330,7 +330,7 @@ const SEEDED_BODY_DEFINITIONS: readonly (readonly [string, BodyDefinition])[] =
         kind: "wall_cabinet",
         frameDepthMm: 330,
         frameHeightMm: 400,
-        catalogEquivalentId: "wall-2door",
+        catalogEquivalentId: "wall-cabinet",
       },
     ],
     [
@@ -350,7 +350,7 @@ const SEEDED_BODY_DEFINITIONS: readonly (readonly [string, BodyDefinition])[] =
         kind: "wall_cabinet",
         frameDepthMm: 600,
         frameHeightMm: 400,
-        catalogEquivalentId: "wall-2door",
+        catalogEquivalentId: "wall-cabinet",
       },
     ],
     [
@@ -360,7 +360,7 @@ const SEEDED_BODY_DEFINITIONS: readonly (readonly [string, BodyDefinition])[] =
         kind: "wall_cabinet",
         frameDepthMm: 600,
         frameHeightMm: 750,
-        catalogEquivalentId: "wall-2door",
+        catalogEquivalentId: "wall-cabinet",
       },
     ],
   ];

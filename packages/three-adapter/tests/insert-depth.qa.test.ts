@@ -50,7 +50,9 @@ const CAP_OVER_WORKTOP_MM = 330;
 /** What the reported defect built. Named so every anti-invariant below is explicit. */
 const DEFECTIVE_DEPTH_MM = 400;
 
-const WALL_CABINET = "wall-2door";
+/** A wall entry carrying the **standard ladder**, for the reason `insert-depth.test.ts` states: the
+ *  fridge column is 700 mm and a bounded set now binds the `'fit'` path (ADR 0032). */
+const WALL_CABINET = "open-shelf";
 const OCCURRED_AT = "2026-08-27T12:00:00.000Z";
 
 /** The emptied top-row slot from the handset report: `p19` at A 2600, over the hob base `p2`. */
@@ -172,7 +174,7 @@ describe("ADR 0018: the derived cap does not compound across save, reload and re
     const depthsMm = [depthOfMm(world.design, placementId)];
 
     for (let pass = 0; pass < 10; pass += 1) {
-      const buildId = pass % 2 === 0 ? "wall-1door" : WALL_CABINET;
+      const buildId = pass % 2 === 0 ? "wall-lift" : WALL_CABINET;
       const swapped = insert(
         world,
         { kind: "placement", id: placementId },

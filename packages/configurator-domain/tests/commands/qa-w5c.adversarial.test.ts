@@ -164,7 +164,12 @@ describe("Q1 — the legal-resize population, enumerated independently", () => {
     }
   });
 
-  it("yields six distinct column moves and fifteen accepted taps after one clear", () => {
+  // **Six moves and fifteen taps before ADR 0033; fourteen and thirty-three after.** The merge is
+  // the whole of the difference: a wall column used to be bounded by whichever door entry its
+  // members happened to be, so a run of `wall-2door` rows could reach 600 and 800 and nothing else
+  // however much empty space stood beside it. One entry carrying `[200, 300, 400, 600, 800]` lets
+  // the column move and the door count follow it.
+  it("yields fourteen distinct column moves and thirty-three accepted taps after one clear", () => {
     const taps = CLEARABLE.flatMap((cleared) =>
       acceptedTaps(clearBodies(kitchen(), cleared.ids)).map(
         (tap) => `${cleared.key}:${tap}`,
@@ -174,22 +179,41 @@ describe("Q1 — the legal-resize population, enumerated independently", () => {
     expect(taps).toEqual([
       "A|0.30:p10@200",
       "A|0.30:p10@400",
+      "A|0.30:p10@600",
       "A|0.30:p16@200",
       "A|0.30:p16@400",
+      "A|0.30:p16@600",
       "A|0.75:p0@600",
       "A|0.75:p11@600",
+      "A|0.75:p15@200",
+      "A|0.75:p15@300",
+      "A|0.75:p15@400",
       "A|0.75:p17@600",
+      "A|0.75:p8@200",
+      "A|0.75:p8@300",
+      "A|0.75:p8@400",
       "A|1.30:p10@400",
+      "A|1.30:p10@600",
+      "A|1.30:p10@800",
       "A|1.30:p16@400",
+      "A|1.30:p16@600",
+      "A|1.30:p16@800",
       "A|2.00:p0@600",
       "A|2.00:p11@600",
       "A|2.00:p17@600",
+      "A|2.60:p14@300",
+      "A|2.60:p14@400",
       "A|2.60:p14@800",
+      "A|2.60:p20@300",
+      "A|2.60:p20@400",
       "A|2.60:p20@800",
+      "A|2.60:p4@300",
+      "A|2.60:p4@400",
       "A|2.60:p4@800",
     ]);
 
-    // Six moves: one column at one new width, however many members offer it.
+    // Fourteen moves: one column at one new width, however many members offer it. Six before the
+    // merge — see the note on this test.
     const moves = new Set(
       taps.map((tap) => {
         const [cleared, rest] = tap.split(":");
@@ -203,16 +227,27 @@ describe("Q1 — the legal-resize population, enumerated independently", () => {
     expect([...moves].sort()).toEqual([
       "A|0.30/A|0.75@200",
       "A|0.30/A|0.75@400",
+      "A|0.30/A|0.75@600",
+      "A|0.75/A|0.30@200",
+      "A|0.75/A|0.30@300",
+      "A|0.75/A|0.30@400",
       "A|0.75/A|1.30@600",
       "A|1.30/A|0.75@400",
+      "A|1.30/A|0.75@600",
+      "A|1.30/A|0.75@800",
       "A|2.00/A|1.30@600",
+      "A|2.60/A|3.20@300",
+      "A|2.60/A|3.20@400",
       "A|2.60/A|3.20@800",
     ]);
   });
 
   it("opens no new column move when a second column is cleared", () => {
-    // Untested territory: 36 pairs. Every accepted tap is one of the six single-clear moves, so
+    // Untested territory: 36 pairs. Every accepted tap is still one of the single-clear moves, so
     // clearing more space widens the population of *situations* and never the population of moves.
+    // That claim is what this row protects and ADR 0033 did not touch it — the list below grew from
+    // four to eleven because the moves themselves grew, not because a pair unlocked anything a
+    // single clear could not.
     const pairs: string[] = [];
     for (let left = 0; left < CLEARABLE.length; left += 1) {
       for (let right = left + 1; right < CLEARABLE.length; right += 1) {
@@ -230,9 +265,16 @@ describe("Q1 — the legal-resize population, enumerated independently", () => {
       }
     }
     expect([...new Set(pairs)].sort()).toEqual([
+      "A|0.30@200",
+      "A|0.30@300",
+      "A|0.30@400",
       "A|0.75@200",
       "A|0.75@400",
+      "A|0.75@600",
+      "A|0.75@800",
       "A|1.30@600",
+      "A|3.20@300",
+      "A|3.20@400",
       "A|3.20@800",
     ]);
   });
@@ -497,10 +539,14 @@ describe("Q5 — a column's legal widths are the intersection of its members' se
   });
 
   it("refuses every width when the intersection is empty, rather than throwing", () => {
+    // Two entries with **disjoint** sets, which after ADR 0033 takes a little more finding: the
+    // merged `wall-cabinet` carries five widths and overlaps almost everything. The bottle cargo's
+    // 200/300 (ADR 0026 — the proportion is the product) and the hood's 600/900 share nothing, and
+    // both are appliance- or proportion-driven bounds, which is the only kind of bound left.
     const world = clearBodies(
       syntheticWorld([
-        placementAt("a-base", 700, 0, "base-sink", 600, 860),
-        placementAt("a-wall", 700, 1500, "wall-1door", 600, 700),
+        placementAt("a-base", 700, 0, "base-bottle-cargo", 300, 860),
+        placementAt("a-wall", 700, 1500, "hood", 300, 710),
         placementAt("b-base", 1600, 0, "base-panbank", 600, 860),
         placementAt("b-wall", 1600, 1500, "open-shelf", 600, 700),
       ]),
@@ -526,7 +572,7 @@ describe("Q5 — a column's legal widths are the intersection of its members' se
     const world = clearBodies(
       syntheticWorld([
         placementAt("a-base", 600, 0, "base-panbank", 400, 860),
-        placementAt("a-wall", 600, 1500, "wall-1door", 400, 700),
+        placementAt("a-wall", 600, 1500, "wall-cabinet", 400, 700),
         placementAt("b-base", 1100, 0, "base-panbank", 600, 860),
         placementAt("b-wall", 1100, 1500, "base-panbank", 600, 700),
       ]),
@@ -550,9 +596,9 @@ describe("Q6 — COLUMN_MEMBERS_UNALIGNED", () => {
     let world = clearBodies(
       syntheticWorld([
         placementAt("a-base", 1000, 0, "base-panbank", 600, 860),
-        placementAt("a-wall", 1000, 1500, "wall-2door", 600, 700),
+        placementAt("a-wall", 1000, 1500, "wall-cabinet", 600, 700),
         placementAt("b-base", 1600, 0, "base-panbank", 600, 860),
-        placementAt("b-wall", 1600, 1500, "wall-2door", 600, 700),
+        placementAt("b-wall", 1600, 1500, "wall-cabinet", 600, 700),
       ]),
       ["a-base"],
     );
@@ -581,11 +627,36 @@ describe("Q6 — COLUMN_MEMBERS_UNALIGNED", () => {
     }
   });
 
-  it("locks out 13 of the 154 single-body inserts the shipped kitchen accepts", () => {
+  it("locks out 15 of the 129 single-body inserts the shipped kitchen accepts", () => {
     // The breadth question, measured. For each clearable column, each member deleted on its own,
     // each opening that frees, and each §7 entry the engine accepts into it: does the column stay
     // flush? The eight rows for `base-bottle-cargo` are every column it fits — ADR 0026's whole
     // 600+600+200 run is a run that can never be resized again.
+    //
+    // **154 → 125 (ADR 0032) → 124 (ADR 0033) → 126 (its amendment) → 129 (the sink and hood
+    // decisions).** The merge removed one entry from each band, so the population lost the inserts
+    // naming the retired ids and gained the ones the merged rows accept; ranges then restored the
+    // fridge column's 700 mm openings; and the last three are `base-sink` reaching 700 as cabinetry
+    // with a fixed aperture, plus the hood narrowing into openings it used to refuse.
+    //
+    // **The numerator moved for the first time here: thirteen → fifteen, and both new rows are the
+    // hood.** Making the hood narrow like every other discrete row gives it the same consequence
+    // `base-dishwasher` has always had — install a 600 in a wider opening and the column holds two
+    // widths, which `COLUMN_MEMBERS_UNALIGNED` then refuses to resize. `A|1.30<-hood` and
+    // `B|2.45<-hood` sit directly beside `A|1.30<-base-dishwasher` and `B|2.45<-base-dishwasher`
+    // below, which is the point: it is the existing mixed-width question reaching one more row, not
+    // a new defect. That question is still the owner's, and ADR 0032 says so by name.
+    //
+    // `base-sink` adds none — its range means it *fills* the opening rather than narrowing into it,
+    // so the column stays flush.
+    //
+    // **What stopped being accepted, stated as it now stands.** ADR 0032 gave a bounded set its bite
+    // on the `'fit'` path, and the denominator's fall to 125 was that: entries refused at openings
+    // whose width their own set did not list. Three of the four rows that named have since changed
+    // shape — `base-1door` and `wall-1door` were merged away by ADR 0033, `wall-2door` with them, and
+    // the hood no longer refuses a wider opening at all but narrows into it. What is left of the
+    // original effect is a hinged cabinet refusing the band between its two door counts, and the
+    // discrete appliance rows refusing what they are not made at.
     const locked: string[] = [];
     let accepted = 0;
     for (const cleared of CLEARABLE) {
@@ -624,22 +695,26 @@ describe("Q6 — COLUMN_MEMBERS_UNALIGNED", () => {
       }
     }
 
-    expect(accepted).toBe(154);
-    expect(locked.sort()).toEqual([
-      "A|1.30<-base-bottle-cargo",
-      "A|1.30<-base-dishwasher",
-      "A|1.30<-base-hob-2drawer",
-      "A|1.30<-base-hob-oven",
-      "A|2.00<-base-bottle-cargo",
-      "A|2.60<-base-bottle-cargo",
-      "A|3.20<-base-bottle-cargo",
-      "B|1.20<-base-bottle-cargo",
-      "B|1.80<-base-bottle-cargo",
-      "B|2.45<-base-bottle-cargo",
-      "B|2.45<-base-dishwasher",
-      "B|2.45<-base-hob-2drawer",
-      "B|2.45<-base-hob-oven",
-    ]);
+    expect(accepted).toBe(129);
+    expect(locked.sort()).toEqual(
+      [
+        "A|1.30<-base-bottle-cargo",
+        "A|1.30<-base-dishwasher",
+        "A|1.30<-base-hob-2drawer",
+        "A|1.30<-base-hob-oven",
+        "A|2.00<-base-bottle-cargo",
+        "A|2.60<-base-bottle-cargo",
+        "A|3.20<-base-bottle-cargo",
+        "B|1.20<-base-bottle-cargo",
+        "B|1.80<-base-bottle-cargo",
+        "B|2.45<-base-bottle-cargo",
+        "B|2.45<-base-dishwasher",
+        "B|2.45<-base-hob-2drawer",
+        "B|2.45<-base-hob-oven",
+        "A|1.30<-hood",
+        "B|2.45<-hood",
+      ].sort(),
+    );
   });
 });
 
@@ -840,10 +915,13 @@ describe("Q8 — the empty column's frozen extent, and §10", () => {
     ]);
 
     for (const opening of after.voids) {
+      // The moved empty column is 500 mm, which falls in the gap a hinged cabinet skips — above
+      // ADR 0030's one-door cap and below ADR 0029's two-door floor (ADR 0033's amendment). Column
+      // identity is the subject here, so the body must be one that fits.
       const inserted = insertInto(
         after,
         { kind: "void", id: opening.id },
-        "wall-1door",
+        "open-shelf",
       );
       expect(inserted.ok).toBe(true);
       if (!inserted.ok) continue;
@@ -866,7 +944,7 @@ describe("Q9 — atomicity", () => {
     const probe: BodyProbe = {
       measure(request: BodyProbeRequest): BodyMeasurement {
         asked.push(request.buildId);
-        const broken = request.buildId === "wall-2door";
+        const broken = request.buildId === "wall-cabinet";
         return {
           carcassWidthM: broken ? 0.123 : request.widthM,
           carcassHeightM: request.heightM,
@@ -890,7 +968,7 @@ describe("Q9 — atomicity", () => {
     if (result.ok) return;
     expect(result.reason.code).toBe("BUILT_SIZE_MISMATCH");
     // The sink was built first and passed; the wall cabinet failed. Nothing was written.
-    expect(asked).toEqual(["base-sink", "wall-2door"]);
+    expect(asked).toEqual(["base-sink", "wall-cabinet"]);
     expect(result.design).toEqual(world.design);
   });
 });
@@ -920,7 +998,7 @@ describe("Q10 — §11 rows 12 and 13, for every member", () => {
           alongMm: 400,
           y0Mm: 1500,
           body: {
-            buildId: "wall-2door",
+            buildId: "wall-cabinet",
             widthMm: 600,
             heightMm: 700,
             finish: "sage",
@@ -929,7 +1007,7 @@ describe("Q10 — §11 rows 12 and 13, for every member", () => {
         },
         placementAt("a-top", 400, 2200, "open-shelf", 600, 400),
         placementAt("b-base", 1000, 0, "base-panbank", 600, 860),
-        placementAt("b-wall", 1000, 1500, "wall-2door", 600, 700),
+        placementAt("b-wall", 1000, 1500, "wall-cabinet", 600, 700),
         placementAt("b-top", 1000, 2200, "open-shelf", 600, 400),
       ],
       createdAt: "2026-08-25T00:00:00.000Z",

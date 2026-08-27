@@ -22,6 +22,7 @@ import { describe, expect, it } from "vitest";
 
 import { describePanel, type PanelSection } from "@/panel/panel-model";
 
+import { offeredBuildIds } from "../support/offers";
 import { preMigrationHobDesign } from "../support/pre-migration-hob";
 
 const OCCURRED_AT = "2026-08-26T12:00:00.000Z";
@@ -171,7 +172,7 @@ describe("the panel over the seeded kitchen", () => {
       if (!section) continue;
       swept += 1;
       expect(section.rows.map((row) => row.buildId)).toEqual(
-        offersFor({ ...world, target }).map((candidate) => candidate.buildId),
+        offeredBuildIds(offersFor({ ...world, target })),
       );
     }
     expect(swept).toBeGreaterThan(0);

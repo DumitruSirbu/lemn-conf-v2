@@ -62,7 +62,7 @@ type RecordOverrides = Partial<Omit<PlacementRecord, "frame">> & {
 
 function makeRecord(overrides: RecordOverrides): PlacementRecord {
   return {
-    buildId: "wall-2door",
+    buildId: "wall-cabinet",
     kind: "wall_cabinet",
     col: "A|2.00",
     wall: "A",
@@ -272,7 +272,7 @@ describe("syncSolidBodies is stable under repetition and reordering", () => {
     const records = [
       makeRecord({ id: "p1" }),
       makeRecord({ id: "p2", frame: { x: 3 } }),
-      makeRecord({ id: "p3", buildId: "base-2door", frame: { x: 1, y0: 0 } }),
+      makeRecord({ id: "p3", buildId: "base-cabinet", frame: { x: 1, y0: 0 } }),
     ];
     sync(records);
     const before = [...solidsRoot.children];
@@ -310,7 +310,7 @@ describe("syncSolidBodies is stable under repetition and reordering", () => {
   it("returns to its exact baseline over ten signature-flow cycles", () => {
     const records = [
       makeRecord({ id: "p1" }),
-      makeRecord({ id: "p2", buildId: "base-2door", frame: { x: 3, y0: 0 } }),
+      makeRecord({ id: "p2", buildId: "base-cabinet", frame: { x: 3, y0: 0 } }),
     ];
     sync(records);
     const baseline = solidsRoot.children.length;

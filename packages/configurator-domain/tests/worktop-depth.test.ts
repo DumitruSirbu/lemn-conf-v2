@@ -30,7 +30,7 @@ const DECLARED_ROWS: readonly (readonly [number, number])[] = [
  *  500 and whether a hood follows the worktop is an open question (`M5-width.md`, *Not
  *  established*). Listed by id rather than filtered by depth, so an entry that silently stopped
  *  reading the map cannot drop out of the sweep. */
-const WALL_ENTRY_IDS = ["wall-2door", "wall-1door", "wall-lift", "open-shelf"];
+const WALL_ENTRY_IDS = ["wall-cabinet", "wall-lift", "open-shelf"];
 
 const HOOD_DEPTH_MM = 500;
 
@@ -73,7 +73,8 @@ describe("an undeclared worktop depth fails loudly", () => {
 describe("the map is the single source for both of §7's and §5.2's numbers", () => {
   const expectedWallDepthMm = wallDepthMmForWorktop(WORKTOP_DEPTH_MM);
 
-  it("is reached at all — the sweep names four wall entries and finds them", () => {
+  // Three since ADR 0033 merged the door-count pair; it was four.
+  it("is reached at all — the sweep names every wall entry and finds them", () => {
     // Guards the sweep against going vacuous: a renamed id would otherwise assert nothing.
     const found = INSERTABLE_BODY_DEFINITIONS.filter(([buildId]) =>
       WALL_ENTRY_IDS.includes(buildId),
@@ -105,7 +106,7 @@ describe("the map is the single source for both of §7's and §5.2's numbers", (
       INSERTABLE_BODY_DEFINITIONS.filter(([buildId]) =>
         WALL_ENTRY_IDS.includes(buildId),
       ).map(([, definition]) => definition.nominalDepthMm),
-    ).toEqual([330, 330, 330, 330]);
+    ).toEqual([330, 330, 330]);
     expect(toMillimetres(WALL_CARCASS_MAX_DEPTH_OVER_WORKTOP_M)).not.toBe(400);
   });
 

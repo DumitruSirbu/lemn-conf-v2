@@ -126,20 +126,35 @@ describe("a swap never changes a wall body's depth", () => {
     ).toHaveLength(4);
   });
 
+  // **The sweep is whole again**, and `p24` coming back into it is the point of ADR 0033's amendment.
+  // For one wave it was excluded: the merged entry carried a discrete `[200, 300, 400, 600, 800]`, so
+  // the shipped 700 mm over-fridge cabinet was the one seeded body its own §7 entry could not rebuild
+  // at the width it stands at. Ranges make 700 an ordinary two-door width — two honest 350 mm leaves
+  // — so every replaceable wall body is rebuildable as itself again, with no exclusion to remember.
   it.each(replaceableWallBodies())(
     "$id ($buildId) is rebuilt as $equivalentId at its own $depthMm mm",
     ({ id, equivalentId, depthMm }) => {
       expect(swapDepthMm(id, equivalentId)).toBe(depthMm);
     },
   );
+
+  // Named separately as well, because it is the case the amendment was written for and a sweep that
+  // silently stopped covering it would read green. 600 is the depth, not the width: `p24` stands over
+  // the fridge, where §7's head-clearance cap is lifted.
+  it("rebuilds the 700 mm over-fridge cabinet as its own catalogue entry", () => {
+    expect(swapDepthMm("p24", "wall-cabinet")).toBe(600);
+  });
 });
 
 describe("§7's head-clearance cap follows what is under the opening", () => {
-  const CATALOGUE_WALL_CABINET = "wall-2door";
+  // A wall entry carrying the **standard ladder**, so it builds into every one of these openings
+  // including the 700 mm one over the fridge. It was `wall-2door` until ADR 0032 made a bounded set
+  // bind the `'fit'` path; depth is this block's subject and the body must not refuse on width.
+  const CATALOGUE_WALL_CABINET = "open-shelf";
 
-  // The rule, at the four openings deeper than the cap. One `wall-2door` entry, four openings over
-  // the cap, two answers — and the only thing that differs is what stands below, which is the whole
-  // decision. p13 is the case that proves the cap is still live rather than merely removed.
+  // The rule, at the four openings deeper than the cap. One entry, four openings over the cap, two
+  // answers — and the only thing that differs is what stands below, which is the whole decision.
+  // p13 is the case that proves the cap is still live rather than merely removed.
   it.each([
     { id: "p13", underneath: "the hob's worktop", depthMm: 330 },
     { id: "p22", underneath: "a tall oven tower", depthMm: 600 },
@@ -181,7 +196,7 @@ describe("§7's head-clearance cap follows what is under the opening", () => {
       catalog: KITCHEN_L_BODY_CATALOG,
       columns: deriveColumns(seededRecords()),
       target: { kind: "placement", id: first.effect.placementId },
-      buildId: "wall-1door",
+      buildId: "wall-lift",
       probe: createBodyProbe(kit, room),
       occurredAt: OCCURRED_AT,
     });

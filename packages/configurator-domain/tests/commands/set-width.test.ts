@@ -26,7 +26,12 @@ import {
 } from "../../src/void-engine.js";
 import { clearBodies, OCCURRED_AT, resizeTo } from "../support/commands.js";
 import { createFakeProbe } from "../support/fake-probe.js";
-import { createWorld, type KitchenWorld } from "../support/kitchen-world.js";
+import { describeSelection } from "../../src/queries/describe-selection.js";
+import {
+  advanceWithColumns,
+  createWorld,
+  type KitchenWorld,
+} from "../support/kitchen-world.js";
 import { syntheticWorld } from "../support/synthetic-world.js";
 
 function kitchen(): KitchenWorld {
@@ -291,9 +296,9 @@ describe("ADR 0031 rules 2–4 — the empty column funds it and resizes with it
 });
 
 describe("ADR 0031 rule 5 — a column's widths are the intersection of its members' sets", () => {
-  it("cannot go below 600 while the column holds a two-door (ADR 0029)", () => {
-    // `open-shelf` offers 400; `wall-2door` does not. The column offers what both can be built at.
-    const world = runWithEmptyColumn(
+  /** A 600 mm wall cabinet with an empty column beside it — the state a narrowing resize needs. */
+  const wallColumnWithEmptyRight = () =>
+    runWithEmptyColumn(
       [
         {
           id: "L",
@@ -306,13 +311,54 @@ describe("ADR 0031 rule 5 — a column's widths are the intersection of its memb
       "R",
     );
 
+  // **This asserted the opposite until ADR 0033**, and the reversal is the decision. The column held
+  // a `wall-2door` bounded at `[600, 800]`, so it could never reach 400 however much empty space
+  // stood beside it — a column constrained by *cabinetry*, which is what the merge set out to end.
+  // The seeded body now resolves to one `wall-cabinet` entry carrying `[200, 300, 400, 600, 800]`,
+  // so the move is legal and the cabinet becomes a one-door on the way down.
+  //
+  // Neither earlier rule is relaxed by that. ADR 0029 said a two-door has no 400 mm width and it
+  // still has none: at 400 this is not a two-door any more, and the label says so without the
+  // customer ever having owned a different entry — which is precisely the migration ADR 0029 and
+  // ADR 0030 both rejected doing by swapping the placement between two rows.
+  it("takes a wall column to 400, where its cabinet becomes a one-door (ADR 0033)", () => {
+    const world = wallColumnWithEmptyRight();
+
     const result = resizeTo(world, "L-wall", 400);
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const after = advanceWithColumns(
+      world,
+      result.design,
+      result.effect.columns,
+    );
+    const resized = after.records.find(
+      (record) => record.id === result.effect.placementId,
+    );
+    expect(resized?.widthMm).toBe(400);
+    expect(
+      describeSelection({
+        ...after,
+        target: { kind: "placement", id: resized?.id ?? "" },
+      })?.label,
+    ).toBe("Corp suspendat 1 ușă");
+  });
+
+  // The half of the old bound that survives, and the reason the merged set is still a bound: §7's
+  // builder makes a **single** door anywhere in (400, 450], and ADR 0030 caps a single hinged door
+  // at 400 for the swing arc. 500 is refused because the set has no member between 400 and 600 —
+  // a hole no floor can express, which is why `sizesAreStandardLadder` stays false on this row.
+  it("still refuses a width between the two door counts", () => {
+    const result = resizeTo(wallColumnWithEmptyRight(), "L-wall", 500);
 
     expect(result.ok).toBe(false);
     if (result.ok || result.reason.code !== "WIDTH_NOT_SUPPORTED") {
       expect.unreachable("expected WIDTH_NOT_SUPPORTED");
     }
-    expect(result.reason.params.sizesMm).toEqual([600, 800]);
+    // The column's intersection, not the entry's raw set: the base member below carries §2's default
+    // floor, so 200 is out and the four widths both members accept remain.
+    expect(result.reason.params.sizesMm).toEqual([300, 400, 600, 800]);
   });
 
   it("is not narrowed by a `widthFlex: 'fit'` member above its floor", () => {
@@ -449,7 +495,11 @@ describe("a member that cannot change width stops the whole column", () => {
     if (result.ok || result.reason.code !== "COLUMN_MEMBER_NOT_RESIZABLE") {
       expect.unreachable("expected COLUMN_MEMBER_NOT_RESIZABLE");
     }
-    expect(result.reason.params.label).toBe("Corp suspendat 2 uși");
+    // ADR 0033: a refusal names the **cabinet**, not a door count. A resize is the one command whose
+    // whole subject is changing the width, so there is no settled width to derive a count from — and
+    // naming the count the body happens to have right now would be stating, in a sentence about why
+    // it cannot change, a fact that the change would have altered.
+    expect(result.reason.params.label).toBe("Corp suspendat");
     expect(result.reason.params.memberLabel).toBe("Corp plită și 2 sertare");
     expect(result.reason.message).toContain("Corp plită și 2 sertare");
   });
@@ -546,7 +596,7 @@ describe("a resize rebuilds through the declared catalogue equivalent", () => {
     expect(
       result.design.placements.find((placement) => placement.id === "p11")?.body
         .buildId,
-    ).toBe("wall-2door");
+    ).toBe("wall-cabinet");
     expect(result.effect.buildId).toBe("base-sink");
   });
 
