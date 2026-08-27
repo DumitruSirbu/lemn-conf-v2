@@ -3,7 +3,7 @@
 **Read this second, right after `AGENTS.md`, before opening any milestone document.** It exists so a
 session can learn where the project stands without reading eight phase plans.
 
-Last updated: 2026-08-27 (M4 closed — all four waves shipped, with one acceptance criterion recorded unmet. M5 next, and **rescoped the same day**: depth joined it, and it is now six waves rather than four).
+Last updated: 2026-08-27 (**M5 in progress — five waves shipped today: 5A, 5B, 5C, 5C2, 5C3.** §5.4's donor rule was implemented, measured as unusable, and **replaced** by ADR 0031; the door-count catalogue entries were merged by ADR 0033. Remaining: 5D panel, 5E browser gate, 5F base carcass depth.)
 
 ## How to use this file
 
@@ -27,7 +27,7 @@ moment it ships; a decision record does not. When the two disagree, the dated de
 | M2 — Void engine, picking, persistence | **Done** (closed 2026-08-25 — its last gate, the unwired client write path, was closed by M3 Wave 3C-2b) | No — `milestones/done/` |
 | M3 — Insert, remove, swap, client write path | **Done** (closed 2026-08-26) | No — `milestones/done/` |
 | M4 — Editor panel and shell | **Done** (closed 2026-08-26 — one criterion unmet by design, ADR 0024) | No — `milestones/done/` |
-| M5 — Width editing, and depth as a derived quantity | **Next** | Yes — `milestones/M5-*.md` |
+| M5 — Width editing, and depth as a derived quantity | **In progress** — 5A, 5B, 5C, 5C2, 5C3 shipped; 5D, 5E, 5F open | Yes — `milestones/M5-*.md`, **and ADRs 0028–0033**, which supersede parts of it |
 | M6 — Price bar and global settings (**incl. the worktop depth control**, 2026-08-27) | Planned | Yes, when starting |
 | M7 — Step 1, room and presets | Planned | Yes, when starting |
 | M8 — Review, contact, success | Planned | Yes, when starting |
@@ -35,7 +35,7 @@ moment it ships; a decision record does not. When the two disagree, the dated de
 ## What is actually built
 
 A pnpm monorepo on Node 24: an I/O-free domain package, a Three.js adapter, a persistence package
-that is the only place a Postgres driver appears, and a Next.js App Router app. **1 395 unit tests**
+that is the only place a Postgres driver appears, and a Next.js App Router app. **1 607 unit tests** (domain 838, three-adapter 609, web 477, persistence 83 — counted from a run on 2026-08-27 after wave 5C3; was 1 395 that morning)
 (domain 433, three-adapter 440, web 439, persistence 83) plus **20 Playwright e2e tests** and one
 `test.skip`. Every number copied from a run executed on 2026-08-26 after M4 Wave 4D, not carried
 forward.
@@ -292,6 +292,43 @@ one write per RTT, and M5's width dragging makes it continuous. ADR 0019 decisio
 floor; until it lands, no update rate limit can be sized honestly.
 
 ## What to do next
+
+**M5 wave 5D — the panel.** The engine half is done and the panel is the only thing between the
+customer and it. 5D renders what ADR 0032 publishes: an entry the engine refuses appears **disabled
+with its reason** rather than vanishing, and a width chip is `free` only if the command would
+succeed. Read `docs/milestones/M5-width.md` work item 3, then ADRs **0031**, **0032** and **0033 with
+both its amendments** — the milestone's own work item 2 and *boundary move* criteria carry
+supersession banners and must not be implemented as written.
+
+**What 5D inherits, each recorded rather than discovered:**
+
+- **`catalog.ts` wants splitting, and the seam is located.** Everything from `deriveDoorCount` to
+  `resolveBuildableSizes` is pure derivation with no dependency on the entry table above it. Clean-code
+  review named it; the split was deferred out of 5C3 because `docs/WORKFLOW.md` forbids folding a
+  refactor into a behavioural change. ADR 0033's own consequence — a derived label must be derived
+  everywhere it appears — means 5D adds to exactly that half.
+- **The ACTUAL-badged row drops its door count** where the width *is* known, and **a seeded body's
+  panel header** reads the generic kind (*Corp suspendat*) above a replace row reading *Corp suspendat
+  2 uși*. `resolveCatalogEquivalent` already resolves the chips two lines away.
+- **§9 over- and under-offers**, both itemised rather than counted: `describeSelection` answers per
+  body while ADR 0031 decides per column, and `intersectColumnWidths` is a union-then-filter, so a
+  column can have a legal width no chip renders.
+- **A refused row publishes chips *and* ranges.** Three fields, three jobs — chips are what may be
+  picked, ranges what may be built, `verdict.reason` why *this* opening refused. 5D must not render
+  two of them as the same thing.
+- **§11 row 20 needs amending**, not strengthening: no path hands the wall builder a 570, and the row
+  is now demonstrable end to end at **700**, where a hinged cabinet builds two doors.
+
+**Then 5E** (browser and mobile gate — and it needs a delete in front of it, because the shipped
+kitchen has no empty column at load) **and 5F** (base carcass depth as a formula, the only wave that
+touches a builder and the only one that can reach M1's 1e-6 m parity gate).
+
+**Two product questions are with the owner and neither blocks 5D:** whether a column holding mixed
+widths should be squared up rather than refused (`COLUMN_MEMBERS_UNALIGNED`, 15 lockouts), and whether
+*shrinking* a column should create empty space — which would make the kitchen resizable without a
+delete first. ADR 0031 records that the "not representable" argument against it was **wrong**; the
+machinery exists.
+
 
 **M5 — editing a cabinet's size (§5.4's resize as a boundary move, §11 rows 9–14; plus depth, §5.2
 and §7).** M4 built the width section and every chip in it is `blocked`, because no resize command
