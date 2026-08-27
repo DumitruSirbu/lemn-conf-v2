@@ -3,7 +3,7 @@
 **Read this second, right after `AGENTS.md`, before opening any milestone document.** It exists so a
 session can learn where the project stands without reading eight phase plans.
 
-Last updated: 2026-08-27 (M4 closed — all four waves shipped, with one acceptance criterion recorded unmet; M5 next).
+Last updated: 2026-08-27 (M4 closed — all four waves shipped, with one acceptance criterion recorded unmet. M5 next, and **rescoped the same day**: depth joined it, and it is now six waves rather than four).
 
 ## How to use this file
 
@@ -27,8 +27,8 @@ moment it ships; a decision record does not. When the two disagree, the dated de
 | M2 — Void engine, picking, persistence | **Done** (closed 2026-08-25 — its last gate, the unwired client write path, was closed by M3 Wave 3C-2b) | No — `milestones/done/` |
 | M3 — Insert, remove, swap, client write path | **Done** (closed 2026-08-26) | No — `milestones/done/` |
 | M4 — Editor panel and shell | **Done** (closed 2026-08-26 — one criterion unmet by design, ADR 0024) | No — `milestones/done/` |
-| M5 — Width editing | **Next** | Yes — `milestones/M5-*.md` |
-| M6 — Price bar and global settings | Planned | Yes, when starting |
+| M5 — Width editing, and depth as a derived quantity | **Next** | Yes — `milestones/M5-*.md` |
+| M6 — Price bar and global settings (**incl. the worktop depth control**, 2026-08-27) | Planned | Yes, when starting |
 | M7 — Step 1, room and presets | Planned | Yes, when starting |
 | M8 — Review, contact, success | Planned | Yes, when starting |
 
@@ -165,6 +165,19 @@ part of the cabinet body and added two hob-bearing catalogue entries. The second
 clearing two adjacent cabinets yields two openings rather than one, the run re-split §12 lists as
 "Not built, designed". It is not fixed by M5.
 
+**A third handset report, 2026-08-27, is now scheduled rather than backlog.** Re-inserting a deleted
+top-row cabinet builds it 400 mm deep beside 330 mm neighbours. Diagnosed as backlog 5's unfinished
+half — the depth cap and the catalogue nominal are unlinked constants — and folded into M5 as wave
+5A. **Eight depth questions are recorded and undecided**, in `docs/milestones/M5-width.md` under
+*Not established — Depth*, each tagged with the milestone that needs it: the hood, whether an 800
+worktop is real, whether a 700 worktop moves wall cabinet height as well as depth, what happens to a
+design saved at 600 when the setting changes, the two deliberately-deep top cabinets, whether the
+map's value is the carcass or the carcass plus its door, whether the shipped worktop is 600 or 620,
+and backlog 10's surviving divergence. **Only two gate an M5 wave** — the carcass-versus-door
+question (5A) and the 600-versus-620 question (5F). **Four travel to M6 with the control** and are
+repeated in that plan's open questions so they are not lost at the seam; the design-saved-at-600
+question blocks M6's control.
+
 **One deletion is deliberately still owed, and is recorded so it is not lost.** ADR 0027 left the
 whole accessory machinery in place — §6.1's host resolution, §5.1's cascade,
 `ACCESSORY_MAX_HEIGHT_M`, `PlacementRecord.accessory` and `cascadedAccessoryIds`. Nothing in the
@@ -280,9 +293,35 @@ floor; until it lands, no update rate limit can be sized honestly.
 
 ## What to do next
 
-**M5 — width editing (§5.4's resize as a boundary move, §11 rows 9–14).** M4 built the width section
-and every chip in it is `blocked`, because no resize command exists. Read `docs/milestones/` for M5's
-plan when you start it.
+**M5 — editing a cabinet's size (§5.4's resize as a boundary move, §11 rows 9–14; plus depth, §5.2
+and §7).** M4 built the width section and every chip in it is `blocked`, because no resize command
+exists. Read `docs/milestones/M5-width.md` when you start it.
+
+**M5 gained depth on 2026-08-27 and is now six waves, and the first one is a defect fix.** A handset
+report — delete a top-row cabinet, insert one back, it returns 400 mm deep against 330 mm neighbours
+— turned out to be the unfinished half of backlog 5. The cap
+(`WALL_CARCASS_MAX_DEPTH_OVER_WORKTOP_M`, `insert-fit.ts:56`) and the catalogue nominal
+(`WALL_DEPTH_MM`, `catalog.ts:72`) are **independent constants that happen to agree at 400**, and
+`resolveDepthM` caps against `Column.d` (580 over a base run) without ever reading the nominal. The
+owner decided on 2026-08-27 that wall depth follows worktop depth through an extensible map, that the
+map is the single source for both numbers, that base carcass depth is a formula, and that worktop
+depth becomes a whole-kitchen setting.
+
+**Wave 5A ships the map alone** — it is the customer-visible fix, it is live on the owner's device,
+and it must land before `setWidth`, because a resize rebuilds through the catalogue equivalent and
+would otherwise be written against 400. **Wave 5F** carries the base carcass formula. The wave
+letters were reassigned when depth joined; the plan carries the old→new mapping.
+
+**M5 owns the geometry; M6 owns the control (owner, 2026-08-27).** Worktop depth is a **single
+declared constant at 600 mm** in M5 — no user-facing control, no schema field, no settings UI, no
+version bump. `docs/milestones/M6-price-and-global-settings.md` **work item 4** adds worktop depth as
+a fourth control in *Setări globale* beside the material and hardware tiers it already builds;
+because M5 did the mechanics, that is one more control in a panel M6 is building anyway. Both plans
+name each other so neither can assume the other built it. Every question about a worktop depth that
+*changes* travels with the control to M6 — M5 never holds two.
+
+If the milestone needs to be smaller, 5F is the clean cut, but note it moves rather than disappears:
+M6's control needs the formula underneath it.
 
 Four things M4 hands M5 directly:
 

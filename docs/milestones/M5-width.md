@@ -1,13 +1,15 @@
-# M5 — Width editing as a neighbour boundary move
+# M5 — Editing a cabinet's size: width as a boundary move, depth as a derived quantity
 
 > **STATUS: PLANNED.** Depends on M4 (shipped 2026-08-26). Summary: `docs/STATUS.md`.
 
 Status: planned. Depends on M4.
-Reference: `DEVELOPMENT-SPEC.md` §5.4, §3.2, §3.3, §4, §7, §9 item 6, §12, §13.1, §13.2, §13.3;
-§11 rows 9–14 and 20.
-Decisions: ADR 0011 (Gap A, **Gap D**), 0015, 0016, 0017, 0018, 0021, 0022, 0024, 0025.
+Reference: `DEVELOPMENT-SPEC.md` §5.4, §5.2, §2, §3.2, §3.3, §4, §7, §9 item 6, §12, §13.1, §13.2,
+§13.3; §11 rows 9–14, **19** and 20.
+Decisions: ADR 0011 (Gap A, **Gap D**, and its two 2026-08-26 corrections), 0015, 0016, 0017,
+**0018**, 0021, 0022, 0024, 0025, **0026**.
 Backlog entries this plan consumes: `docs/BACKLOG.md` **4** in full, **2**'s design obligation only,
-and the edges of **1** and **5**.
+**5**'s unfinished half, **6** as stated input, and the edges of **1**. It touches but does not close
+**9** and **10**.
 
 **This plan was rewritten on 2026-08-26**, after M4 shipped and after five product decisions were
 taken the same day, then amended later that day when the owner resolved the conflicts it raised. The
@@ -16,11 +18,24 @@ thing §5.4 breaks and the reason this phase is not just an arithmetic exercise.
 it: §5.4's mechanics, the donor rule, the chip states, rows 9–14, and the rejected directions. What
 is new is marked as such.
 
+**Amended 2026-08-27**, when a defect reported from a real handset turned out to be the unfinished
+half of backlog 5, and the owner's design for it landed on the same machinery this phase already
+rewrites. Depth is now in scope; see *Depth joins this phase* below, which also records what that
+amendment found to be **stale in the text above it** — two Scope-Out bullets and two Risks bullets
+described mechanisms that shipped on 2026-08-26 and have been rewritten in place.
+
 ## Goal
 
-Changing a cabinet's width moves the boundary it shares with one neighbour **in the same row**. The
-run total is conserved, so overlap is unrepresentable and shrinking cannot leave a gap. **The
+Changing a cabinet's **width** moves the boundary it shares with one neighbour **in the same row**.
+The run total is conserved, so overlap is unrepresentable and shrinking cannot leave a gap. **The
 columns the resize moved are updated; every other column stays frozen.**
+
+A body's **depth** stops being a number somebody typed and becomes a quantity the model derives from
+one declared worktop depth — wall and top depth through an extensible map, base carcass depth through
+a formula. **M5 owns that geometry and nothing else about it.** The worktop depth is a single
+declared constant at 600 mm in this phase: no user-facing control, no schema field, no settings UI.
+Making it a control is **M6's** work — see *The M5 / M6 seam* below and
+`docs/milestones/M6-price-and-global-settings.md` work item 4.
 
 ## Why last among the editor verbs
 
@@ -51,6 +66,145 @@ column records **the space a run occupies**. Deleting changes what is *in* the s
 the *boundary of the space itself*, so the record must follow. Both halves are measured, and both
 failure modes are silent today — see the acceptance criteria, where each is named.
 
+## Depth joins this phase (2026-08-27)
+
+### The defect, as reported and as diagnosed
+
+Delete a top-row cabinet in the shipped kitchen and insert one back: it returns **400 mm** deep
+against neighbours that are **330 mm**, and the protrusion is visible on a handset. Reported by the
+owner from a real device.
+
+The measurements below were taken against the source and are the premise of everything in this
+section. Read them before proposing any other fix.
+
+- The seeded kitchen is **correct**. Nine wall/top rows in
+  `packages/configurator-domain/src/fixtures/kitchen-l-design.ts` record `frameDepthMm: 330`
+  (`wall-2door-600`, `wall-corner-return-570`, `wall-1door-300`, `wall-2door-800`, `open-shelf-600`,
+  and the four `-top` rows). Three more are deliberately not 330 and must stay that way:
+  `hood-600` at 500, and `wall-2door-600-deep-top` and `wall-2door-700-over-fridge` at **600** —
+  those two are the deep cabinets over the columns, and the `700` in the second id is its *width*.
+- `catalog.ts:72` — `WALL_DEPTH_MM = 400`, the `nominalDepthMm` of every §7 wall entry.
+- `commands/insert-fit.ts:56` — `WALL_CARCASS_MAX_DEPTH_OVER_WORKTOP_M = 0.4`.
+- **The built depth comes from the cap, not from the catalogue nominal.** `resolveDepthM`
+  (`insert-fit.ts:610`) returns `min(opening.d, WALL_CARCASS_MAX_DEPTH_OVER_WORKTOP_M)` and never
+  reads `nominalDepthMm` at all. `opening.d` is `Column.d`, §3.2's **MAX** over the run — 580 here,
+  the base cabinet's. So `min(0.58, 0.4) = 0.4`, and 400 mm is what gets built.
+- The cap applies because a column holding a wall member over a base run answers
+  `hasFullHeightUnder: false` (ADR 0011's 2026-08-26 corrections: the extent is frozen, this
+  predicate is re-answered on every derivation).
+- Per ADR 0018, `wallCabinet` and `openShelf` are the only builders that consume the depth argument,
+  so this number really does change the carcass that gets built.
+
+**The two 400s are independent constants that happen to agree, and that unlinked pair is the root
+cause.** It is why the seeded design could be authored at 330 with nothing failing: no gate compares
+the nominal, the cap and the fixture.
+
+Two precisions the fix must not blur, because a wave that over-claims here will write the wrong
+tests:
+
+- **Changing `WALL_DEPTH_MM` alone fixes nothing** — `resolveDepthM` does not read it.
+- **Changing the cap alone does fix the reported symptom** — `min(0.58, 0.33) = 0.33`. The nominal
+  matters for the `frameDepthMm` fallback a placement with no measured `seatDepthMm` reads
+  (`void-engine.ts:254`), not for the built depth. So the single-source map is justified by *drift
+  prevention*, which is the actual defect, and not by the symptom needing both numbers moved.
+
+This is the unfinished half of **backlog 5**. Its wave shipped the design-dependent half of the rule
+(the cap is lifted over a full-height column) on 2026-08-26; it did not link the cap to anything, and
+that is what is being finished here.
+
+### The owner's decisions — decided, not offered
+
+Taken 2026-08-27. Recorded here so they are not re-derived; the ADR for the rule belongs to the wave
+that implements it, not to this plan.
+
+1. **Wall/top depth follows worktop depth**, expressed as an extensible **map** so a third size is
+   one row: `600 -> 330`, `700 -> 400`. `800 -> 500` is named as a plausible future row and is **not**
+   a commitment.
+2. **The map is the single source** for both the catalogue nominal and the cap, so the two cannot
+   drift apart again.
+3. **Base carcass depth is a formula** — worktop depth minus a fixed overhang — because it scales
+   continuously.
+4. **Wall/top depth is a map and not a formula.** Wall cabinets come in manufactured sizes
+   (300 / 330 / 350 / 400) and the owner's own numbers are non-linear: 100 mm of worktop buys 70 mm
+   of wall. A formula would invent a 372 mm cabinet nobody makes.
+5. **Worktop depth is a whole-kitchen setting** (600 / 700), belonging in the *Setări globale* top
+   bar beside material and hardware — never a per-body control. §5.5 already draws that line:
+   finish and handle are per placement, "material and hardware *brand* are global settings elsewhere
+   in the flow". The mockups carry the surface: `docs/design/mockups/Lemnaria Configurator
+   Desktop.dc.html` and `…Mobil.dc.html` both contain *Setări globale* and "Se aplică tuturor celor
+   14 corpuri".
+6. **The setting is built in M6, not here** (owner, 2026-08-27). See the seam below.
+
+### The M5 / M6 seam — decided by the owner, 2026-08-27
+
+**M5 owns the geometry. M6 owns the control.** Neither milestone may assume the other is building the
+other half, so both plans name each other.
+
+**What M5 builds.** The map (`600 -> 330`, `700 -> 400`, with `800 -> 500` as a plausible future
+row), the map as the single source for **both** `WALL_DEPTH_MM` and
+`WALL_CARCASS_MAX_DEPTH_OVER_WORKTOP_M` so the unlinked pair cannot drift again, and base carcass
+depth as a formula. Worktop depth is a **single declared constant at 600 mm**.
+
+**What M5 explicitly does not build**, so no wave discovers it as a gap and quietly adds it:
+
+- No user-facing control, in either shell.
+- No schema field. `DesignSchema` is untouched, no version bump, nothing new persisted.
+- No settings UI, no store action, no command taking a worktop depth.
+
+**What M6 builds**, in `docs/milestones/M6-price-and-global-settings.md` **work item 4**: worktop
+depth as a **fourth control** in *Setări globale*, beside the three material tiers and three hardware
+tiers that item already covers. Because M5 did the mechanics, M6's addition is one more control in a
+panel it is already building — the map and the formula are already there to drive. M6's item 4 has
+been amended to say so and to cite this wave by name.
+
+**What this seam defers with it.** Every question about a worktop depth that *changes* — what happens
+to a design saved at 600 when the setting moves to 700, and whether the value needs persisting at all
+— travels with the control to M6. M5 never has two worktop depths in play, so M5 never has to answer
+them. They are recorded under *Not established* and flagged as M6's.
+
+### How this splits inside M5, and why
+
+**It is not one piece of work. It is two, separated by four waves, and the seam is `baseCabinet`'s
+geometry.** The reasoning matters more than the verdict, because the tempting reading — "it is all
+one depth rule, build it once" — costs a cycle.
+
+**Wave 5A ships the defect fix alone: the map becomes the single source, with the worktop constant at
+600.** Four reasons, in the order they bind:
+
+1. **It is a shipped defect on a real device; the rest of M5 is a feature.** It is live on the
+   owner's handset today. Putting a visible protrusion behind four waves of resize algebra is the
+   wrong sequencing regardless of how the code factors.
+2. **It is small and closed.** Two constants collapse into one map plus a lookup, `catalog.ts` and
+   `insert-fit.ts` read from it, and §7's table row and §2's worked example are amended. That fits
+   one dispatch under `docs/WORKFLOW.md`'s scope limit. Nothing else in the depth story does.
+3. **It changes the numbers the rest of M5 is written against, so it must land first.** `setWidth`
+   rebuilds a body through its catalogue equivalent and re-measures its seat, so every wall body a
+   resize touches acquires the built depth this map decides. Land the map after 5C and every depth
+   assertion 5C wrote gets rewritten; land it before and 5C is written once, against 330.
+4. **It needs nothing the owner has not decided**, and no answer to any open question below. It
+   touches the domain only: no builder changes, so it cannot reach the M1 fidelity gate that
+   constrains 5F.
+
+**The base carcass formula is a separate wave, late in the phase.** Three reasons it cannot be folded
+into 5A:
+
+1. **It is the only part of M5 that changes a builder, and the M1 fidelity gate is watching.**
+   `packages/three-adapter/tests/kitchen-parts.parity.test.ts` builds every part twice — once by the
+   unmodified vendored reference library, once by the port — and diffs them at **1e-6 m** on
+   dimensions, `countertop` and all six base builders included. It is evidence 1 of M1's fidelity
+   gate. **A formula that changes any shipped dimension at worktop 600 turns that suite red**, and
+   the epsilon is a float allowance with no product slack in it. So the formula must be exactly
+   value-preserving at the default, or re-vendoring the reference is a decision someone has to take
+   deliberately. Nothing in 5A can reach this; everything in 5F can.
+2. **It moves `Column.d` for a reason unrelated to resize, and 5C is already moving column
+   identity.** If the formula changes the base carcass at all, every base body's `frame.d` moves, and
+   `Column.d` is §3.2's MAX over the run — so every wall opening in that column gets a new depth. Run
+   that in the same wave as 5C's column update and a failing extent assertion has two candidate
+   causes with no way to separate them. Sequenced, 5F inherits a settled column-update mechanism.
+3. **It sits next to ADR 0018 clause 4's trap, and whether it trips it is a design choice the wave
+   has to make deliberately.** See work item 7 — this is the correction to an earlier draft of this
+   plan, which asserted the trap fires unconditionally. It does not.
+
 ## Scope
 
 **In.**
@@ -60,6 +214,10 @@ failure modes are silent today — see the acceptance criteria, where each is na
 - Width sets on the seeded catalogue entries, so the width section renders on a real body at all.
 - The width chip section's three states, its consequence line, and the resize refusal path.
 - §9's rejection banner becoming **reachable** for the first time (ADR 0024).
+- **The worktop → wall/top depth map, as the single source for both §7's nominal and §5.2's cap.**
+  Backlog 5's unfinished half, and the fix for the defect live on the owner's handset.
+- **Base carcass depth as a formula** — worktop depth minus a fixed overhang — driven by the same
+  declared worktop constant.
 
 **Out, and named rather than assumed.**
 
@@ -70,6 +228,11 @@ failure modes are silent today — see the acceptance criteria, where each is na
   version of this plan said re-split "is designed but not built and is explicitly out of scope
   (§12, §13.3 q2)"; that sentence is now wrong as a statement of intent and right only as a statement
   of sequencing.
+- **Any user-facing worktop depth control, and any persistence of it** (owner, 2026-08-27). The
+  worktop is a single declared constant at 600 mm in M5. No control, no schema field, no version
+  bump, no store action, no settings sheet. **M6 work item 4 owns the control**, and adds it beside
+  the material and hardware tiers it is already building. Named here rather than assumed so no wave
+  discovers it as a gap and fills it: a setting M5 half-builds is worse than one it does not build.
 - **The two hob-bearing entries and the narrow bottle cargo** (backlog 1 and 2). New builders,
   entries, labels and an ADR each; not M5's job.
 - **`MIN_WIDTH_M` stays at 300 mm.** An earlier draft of this plan moved it to 200 for the narrow
@@ -79,15 +242,24 @@ failure modes are silent today — see the acceptance criteria, where each is na
   row 10 states it, and the consequence line keeps "sub 300 mm nu se coboară". `MIN_SPAN_M` was never
   in question and stays at 300 for its own, different reason (ADR 0015).
 
-  **The mechanism the cargo needs does not exist yet, and M5 does not build it.** ADR 0017's
-  per-entry `minWidthMm` can only *raise* the general floor (`insert-fit.ts:333` applies
-  `MIN_WIDTH_M` first, and the entry's own value above it); the cargo needs to *lower* it for one
-  entry. Gaining that downward direction changes what §2's `MIN_W` means — "the default floor"
-  rather than "an absolute floor" — and that wording change must be recorded in the cargo's own ADR
-  rather than assumed. Whoever builds the cargo does that first; M5 must not pre-empt it.
-- **The wall depth rule** (backlog 5: the depth cap follows what is below the opening). Not M5's
-  work — but it **does** touch resize, and the plan says how in the Risks section rather than
-  assuming either way.
+  **Corrected 2026-08-27: the mechanism the cargo needs now exists, and M5 must read it.** This
+  bullet previously said the downward direction "does not exist yet, and M5 does not build it".
+  **ADR 0026 shipped it on 2026-08-26**: §2's `MIN_W` is now the *default* floor rather than an
+  absolute one, a `minWidthMm` below it **replaces** it for that entry alone, and
+  `base-bottle-cargo` declares `minWidthMm: 200` — the only downward declaration in the catalogue.
+  What M5 inherits is not a prohibition but a trap, and **backlog 6 is stated input to this phase**:
+  ADR 0026 kept `MIN_WIDTH_M` at 300 *precisely because §5.4 reads it*, and that reasoning is about
+  the **donor**. **The target's floor is the entry's own; the donor's is §2's.** A resize path that
+  applies `MIN_WIDTH_M` to the target refuses the 200 mm chip too, and the capability lands nowhere.
+  Backlog 6 also records that `describe-selection.ts` already publishes the cargo's `[200, 300]`
+  chips through `buildableSizes` — harmless while every chip is `blocked`, wrong the moment 5D makes
+  one clickable.
+- **The wall depth rule's design-dependent half** (backlog 5: the cap is lifted over a full-height
+  column). **Corrected 2026-08-27: this shipped on 2026-08-26** and is no longer M5's to build. The
+  cap moved out of the adapter into the domain as `WALL_CARCASS_MAX_DEPTH_OVER_WORKTOP_M`
+  (`insert-fit.ts:56`), and `Column.hasFullHeightUnder` is re-answered on every derivation. What
+  backlog 5 left unfinished — the cap and the nominal being unlinked constants — **is now in scope**;
+  see *Depth joins this phase*.
 - **The save coalescer's 1 000 ms floor** (ADR 0019 decision 6, still unimplemented per
   `docs/STATUS.md`). Every chip tap writes; M5 makes taps repeatable. Named as a dependency, not
   silently adopted — if the owner wants it in M5 it is a fifth work item, not a free rider.
@@ -98,8 +270,12 @@ failure modes are silent today — see the acceptance criteria, where each is na
 
 ## Work items
 
-Four items, in dependency order. They do not fit one dispatch under `docs/WORKFLOW.md`'s scope
-limit, so they are dispatched as four waves — see *Waves* below.
+Seven items since 2026-08-27, when items 5–7 were added with depth. They do not fit one dispatch
+under `docs/WORKFLOW.md`'s scope limit, so they are dispatched as six waves — see *Waves* below.
+
+**They are listed in the order they were written, which is not the order they are built.** Item 5
+(the depth map) is wave **5A** and lands first; items 6 and 7 are wave **5F** and land last. The
+*Waves* table is authoritative for sequencing.
 
 ### 1. Give the seeded catalogue entries their width sets
 
@@ -218,6 +394,121 @@ worth stating so they are not discovered at implementation:
   the delta, so a moved body always lands on a different key, but it may land on a key that
   **already exists**. That is a boundary case with its own criterion below.
 
+### 5. Make the worktop → wall depth map the single source
+
+**New 2026-08-27, and it is M5's first wave in practice** — see *How this splits inside M5*. One
+declared map, `600 -> 330` and `700 -> 400`, extensible by adding a row. Both of today's independent
+400s read from it:
+
+- §7's `WALL_DEPTH_MM` (`catalog.ts:72`), the `nominalDepthMm` of `wall-2door`, `wall-1door`,
+  `wall-lift` and `open-shelf`, and therefore the `frameDepthMm` fallback a placement with no
+  measured `seatDepthMm` reads (`void-engine.ts:254`).
+- §5.2's `WALL_CARCASS_MAX_DEPTH_OVER_WORKTOP_M` (`insert-fit.ts:56`), which is what `resolveDepthM`
+  actually caps against and therefore what decides the built carcass.
+
+The worktop stays pinned at 600 in this wave, so the map's only reachable row is `600 -> 330` and
+every number in the shipped kitchen moves 400 → 330. **The map is a declaration, not a
+computation** (decision 4): no interpolation, no rounding, no nearest-row fallback. A worktop depth
+with no row is a programming error, not a number to guess at — it fails loudly.
+
+Three things this wave must **not** do, each of which would look like an improvement:
+
+- **It must not touch the uncapped path.** `hasFullHeightUnder: true` lifts the cap, and that is
+  what keeps `wall-2door-600-deep-top` and `wall-2door-700-over-fridge` at 600 mm over their
+  columns. The map governs the head-clearance rule and nothing else. A map applied to every wall
+  body flattens those two and reintroduces the defect backlog 5 fixed, in the opposite direction.
+- **It must not touch the hood.** `HOOD_DEPTH_MM = 500` (`catalog.ts:73`) and the seeded `hood-600`
+  already agree at 500. Whether a hood follows the worktop is **not decided** — see *Not
+  established*. Leave the constant where it is and leave the question open.
+- **It must not change the worktop or touch a builder.** The worktop is a declared constant at 600
+  (work item 6) and stays one for the whole of M5. 5A is a domain-only wave: no `counter()` change,
+  no `CARC_D` change, nothing that could reach the M1 parity suite. Base carcass geometry is work
+  item 7, four waves later.
+
+§7's table and §2's constants both carry the old number and are amended by this wave: §7's four wall
+rows state the builder call as `min(d,0.4)`, and §2's tolerance and module-constant lists are the
+other place a reader looks for it. §2's own worked example already uses the right number —
+"a unit at `position.x = 0.165` with `D = 0.33`" — which is worth citing in the amendment as evidence
+the 330 was the intent all along.
+
+### 6. Worktop depth stays a declared constant — and the control is M6's
+
+**New 2026-08-27, and it is a work item because *not* building something needs to be as explicit as
+building it.** Worktop depth is one declared constant, `600`, in the domain. It is the map's key and
+the formula's input, and nothing reads it from a design, a store or a control.
+
+- **Nothing is persisted.** `DesignSchema` (`packages/configurator-domain/src/design.ts`) is
+  untouched: no field, no version bump, no migration. A design saved before M5 and one saved after
+  are byte-identical in shape.
+- **Nothing is settable.** No control in either shell, no store action, no command signature gains a
+  worktop depth. M5 never holds two worktop depths at once, which is exactly why it never has to
+  answer what happens when one changes.
+- **The constant is declared at the top level, not buried.** It is configurable data in the sense
+  `docs/best-practices/engineering-conventions.md` means, and M6 replaces the constant with a value
+  read from the setting. **Write it so that swap is a one-line change**: one exported constant that
+  the map lookup and the formula both read, never two copies — the same discipline work item 5
+  applies to the map itself, and for the same reason.
+- **The seam is named in both plans.** `docs/milestones/M6-price-and-global-settings.md` work item 4
+  builds the control and cites this wave; this bullet cites that item. Neither milestone may assume
+  the other did it.
+
+### 7. Base carcass depth as a formula
+
+**New 2026-08-27, and the most constrained item in the phase.** Base carcass depth = worktop depth
+minus a fixed overhang (decision 3), replacing the literal `CARC_D = 0.56`.
+
+- **`CARC_D` is a `const` inside `makeKit`'s closure** (`kitchen-parts.ts:552`), read at 24 sites in
+  that file. `counter(w, d = 0.62, ...)` (`:588`) is a **default parameter**, not a literal, and none
+  of its four call sites (`:624`, `:697`, `:749`, `:1284`) overrides it. So the mechanical change is
+  to derive both from the declared worktop constant and thread them through `KitOptions` — which
+  already exists (`:193`) and already carries one field — rather than to hunt literals.
+- **The M1 fidelity gate is the binding constraint, and it is not negotiable by editing the test.**
+  `packages/three-adapter/tests/kitchen-parts.parity.test.ts` builds every part twice — once by the
+  unmodified vendored reference library, once by the port — and diffs mesh names, hierarchy, and
+  transforms and dimensions at a **1e-6 m** float epsilon. Its own header states the epsilon is a
+  floating-point-artefact allowance with nothing to do with §2's product tolerances. `countertop`
+  and all six base builders are in its key list.
+  **So at worktop 600 the formula must reproduce today's numbers exactly** — `CARC_D` 0.560 and the
+  counter 0.620 — to the last micrometre. A formula that "tidies" a dimension by even a millimetre
+  turns evidence 1 of M1's fidelity gate red, and the only honest ways out are to keep the values or
+  to re-vendor the reference, which is a decision, not a wave's discretion.
+  `kitchen-parts.decomposition.parity.test.ts` sits beside it and must be checked the same way.
+- **Which makes the 600-versus-620 question load-bearing, not cosmetic.** `CARC_D` 0.56 and
+  `counter`'s 0.62 sit 60 mm apart, and the counter is offset z +0.02, so it overhangs 10 mm behind
+  the carcass and 50 mm in front (ADR 0018 measured the same numbers from the other side: the
+  counter's back face at −0.290 against the carcass back at −0.280). The owner's map is keyed on a
+  **600** worktop while the modelled counter is 620. The parity gate settles what the answer must
+  *achieve* — today's geometry at 600 — but not which quantity the map's key names. Recorded under
+  *Not established* as question 7, and the wave answers it before it picks the overhang constant.
+- **ADR 0018 clause 4 does not necessarily fire, and the wave decides that deliberately.**
+  **This corrects an earlier draft of this plan, which asserted the trap fires unconditionally.** It
+  does not. Clause 4's trigger is a builder that **consumes the depth argument it is handed**, which
+  is what makes the rebuild round trip feed back on itself and grow one step per save/reload
+  (`0.58 → 0.62 → 0.66 → ...`) with `refuseBuiltSize` checking width and height only, so no gate sees
+  it. Deriving `CARC_D` from a kit-level constant does **not** do that: the value is the same on
+  every call, the round trip is exactly as convergent as it is today, and the trap stays inert.
+
+  So the wave has a choice, and it must make it on purpose rather than discover it:
+
+  - **Read the kit-level constant** (`baseCabinet` keeps ignoring its `depthM` argument). The trap
+    stays inert, no ADR is needed, and the wave is small. **This is the shape M5 needs**, since the
+    worktop cannot vary within M5.
+  - **Consume the per-call depth argument.** Clause 4 fires, one of clause 3's two undecided
+    directions must be chosen and recorded in an ADR **before** the change lands, and the wave grows
+    a persistence decision.
+
+  **Recommended: the first.** M5 has one worktop depth by construction, so the second buys nothing
+  and costs an ADR plus a persistence change. If a wave finds a reason to take the second, that is a
+  scope change to raise, not to absorb. **Either way, say in the dispatch which one was taken** —
+  ADR 0018 exists precisely so this is not discovered by the phase that trips it.
+- **The pin exists already and must be extended, not replaced.** ADR 0018 clause 2 pinned the actual
+  invariant with a test: `2 × seatOffsetM` equals the requested depth for `wall-*` and `open-shelf`,
+  and is explicitly *not* claimed for the rest. Under the recommended shape that pin holds unchanged
+  and is the evidence the trap stayed inert; under the alternative its "not claimed" half changes
+  deliberately for `baseCabinet`.
+- **§11 row 19 is the invariant that must survive either way.** A back face lands on the wall plane
+  at 0.000 for any body, whatever its bounding-box asymmetry, because the seat cancels it.
+
 ## Acceptance criteria
 
 State invariants and what must not happen. Rows are `DEVELOPMENT-SPEC.md` §11.
@@ -294,6 +585,73 @@ Each of these is silent today and none is currently tested.
   feeds it a record set where one body has become two, at the same total width, gets a coherent column
   map out — without touching the function.
 
+### Depth (new 2026-08-27)
+
+**The map is the single source — wave 5A.** Each of these is silent today.
+
+- **The reported defect, as the customer reproduces it.** Delete a top-row cabinet in the shipped
+  kitchen and insert a `wall-2door` back into the void it leaves: the built body is **330 mm** deep,
+  matching its neighbours. Measured through the **real** builders and the real `BodyProbe`, not a
+  fake — backlog 9 records that a fake probe reports back the depth it was handed and cannot see a
+  depth defect at all. **Anti-invariant: it must not be 400.**
+- **Delete-then-insert and swap agree over a base run.** Both routes to "a `wall-2door` in this
+  top-row slot" build 330 mm. (This does *not* close backlog 10, which is the same divergence over
+  a **column**, where the cap is lifted and the two routes give 600 and 680. That stays open and is
+  named in *Not established*.)
+- **A single declared map governs both numbers.** Falsifiable, and the criterion the whole wave
+  exists for: **there is exactly one 330 in the source.** A test reads the map and asserts that §7's
+  `nominalDepthMm` for every wall entry and §5.2's cap both equal `map[worktopDepthMm]` — so
+  changing the map's row moves both, and no future edit can move one alone. That gate is what makes
+  the fixture's 330 checkable rather than a number somebody typed.
+- **A worktop depth with no row fails loudly.** No interpolation, no nearest row, no silent default.
+  The refusal names the value it was given.
+- **The uncapped path is untouched.** `wall-2door-600-deep-top` and `wall-2door-700-over-fridge`
+  still build 600 mm over their columns, and the two openings above a cleared `fridge-free` still
+  behave as `insert-depth.test.ts` pins them. **Anti-invariant: the map must not flatten a deep
+  cabinet to 330.**
+- **The hood is unchanged.** `hood-600` builds 500 mm before and after, and `HOOD_DEPTH_MM` still
+  reads 500. Pinned as a regression precisely because the question is open: the day the hood is
+  decided, this assertion changes deliberately.
+- **A resize does not change a depth** — the existing criterion under *The boundary move*, now
+  measured against 330 rather than 400. This is why 5A lands before 5C.
+
+**The worktop stays a constant, and that is falsifiable — wave 5F.**
+
+- **`DesignSchema` is byte-identical before and after M5.** A design saved on `main` today and one
+  saved after 5F have the same shape and the same fields. Anti-invariant: no new key, no version
+  bump, no migration entry in `MIGRATIONS`.
+- **No control can reach it.** Grep-level and real: no store action, no command signature and no
+  panel section takes a worktop depth. The value is reachable only as a declared constant.
+- **One constant, two consumers.** The map lookup and the base formula read the *same* exported
+  constant. Falsifiable: changing it in one place moves both the wall depth and the base carcass, and
+  there is no second copy to forget. This is what makes M6's swap a one-line change.
+
+**The base carcass formula — wave 5F.**
+
+- **The M1 fidelity gate stays green, and it is the gate that matters here.**
+  `kitchen-parts.parity.test.ts` and `kitchen-parts.decomposition.parity.test.ts` pass **unchanged**,
+  diffing the port against the vendored reference at 1e-6 m. At worktop 600 the formula reproduces
+  `CARC_D` 0.560 and the counter 0.620 exactly. **Anti-invariant: not one shipped dimension moves.**
+  If a wave finds it cannot satisfy this, it stops and raises it — editing the parity suite to match
+  new geometry destroys the only evidence that the port is faithful, and that is a milestone
+  decision, not a wave's.
+- **The formula is exercised beyond its one reachable input.** Worktop 600 is the only value M5 can
+  produce, so the formula is otherwise untested arithmetic. Unit-test the function directly across
+  600 and 700 (and a value with no map row) so M6's control does not become the first thing to
+  discover it. Per `docs/WORKFLOW.md`: a few hand-picked examples are not evidence that the
+  transitions work.
+- **§11 row 19 survives.** An inserted body's back face lands on the wall plane within the tolerance
+  M3 measured (3.6e-9 m on both walls), re-measured after the builder change.
+- **The rebuild round trip still converges.** Build → measure → persist → reload → rebuild → measure,
+  three cycles, every measurement identical. ADR 0018's compounding growth is the anti-invariant, and
+  `refuseBuiltSize` checks width and height only, so **this needs its own assertion or nothing sees
+  it**. Under the recommended shape (work item 7) it converges because nothing changed about how the
+  depth reaches the builder — and that is the point of asserting it rather than assuming it.
+- **ADR 0018 clause 2's pin is not weakened.** `2 × seatOffsetM` equals the requested depth for
+  `wall-*` and `open-shelf`, and the "explicitly not claimed for the rest" half stays as it is unless
+  the wave deliberately took the alternative shape, in which case the new claim is stated.
+- **The worktop overhangs the carcass by one constant.** It does not scale with depth.
+
 ### The chip section
 
 - Chip sets come from the body's own legal sizes, resolved through the declared catalogue equivalent
@@ -351,43 +709,98 @@ ADR 0024 says to revisit it here, and §5.4 is where a §9 control can legitimat
 
 ## Waves
 
-Four, because the work does not fit one dispatch under `docs/WORKFLOW.md`'s limit (about five
-must-fix items and five production files). Each names its review tier, so the choice is recorded
-rather than drifted into.
+**Six since 2026-08-27**, because the work does not fit one dispatch under `docs/WORKFLOW.md`'s limit
+(about five must-fix items and five production files). Each names its review tier, so the choice is
+recorded rather than drifted into.
+
+**The letters were reassigned when depth joined**, because the depth defect fix must land first and
+inserting it as "5A0" would have made the ordering unreadable. The mapping, so a session holding the
+old plan is not confused:
+
+| Old | New | Work |
+| --- | --- | --- |
+| — | **5A** | The depth map (new) |
+| 5A | **5B** | Seeded width sets |
+| 5B | **5C** | `setWidth` and the column update |
+| 5C | **5D** | Chip freedom and the panel |
+| 5D | **5E** | Browser and mobile gate |
+| — | **5F** | The base carcass formula (new) |
 
 | Wave | Work | Production surface | Tier |
 | --- | --- | --- | --- |
-| **5A** | Work item 1: seeded width sets resolved through `catalogEquivalentId`, and the two tripwire assertions turned over | `fixtures/kitchen-l-design.ts`, `queries/describe-selection.ts`, `catalog.ts` if the resolution lands there | **Full** — catalogue data of exactly the shape ADRs 0016, 0017 and 0021 each caught: a rule stated in prose and absent from the row. Small, and the tier is cheap at this size |
-| **5B** | Work items 2 and 4: `setWidth`, donor selection, the rebuild through the catalogue equivalent, and the column update | a new `commands/set-width.ts`, `void-engine.ts`, the command exports, shared insert-fit helpers | **Full** — domain algebra anchored to §11 rows 9–14 and to ADR 0011 Gap D |
-| **5C** | Work item 3: the domain query behind chip freedom, the store action, the panel projection, the refusal wiring | `configurator-store.ts`, `apply-command-result.ts`, `panel-model.ts`, the panel component | **Light** — assembly against a contract 5B settled, *provided* the freedom answer comes from the domain. If any of it lands in `panel-model.ts`, the wave is Full |
-| **5D** | The browser and mobile gate, and ADR 0024's reachable banner | e2e only | Adversarial QA plus **visual review**; no logic tier |
+| **5A** | Work item 5: the worktop → wall depth map as the single source, worktop pinned at 600; §7 and §2 amended | `catalog.ts`, `commands/insert-fit.ts`, and the new map's own module | **Full** — a §11-anchored product rule, and the class of defect ADRs 0016, 0017 and 0021 each caught: a rule stated in prose that the data did not implement. Small, and the tier is cheap at this size |
+| **5B** | Work item 1: seeded width sets resolved through `catalogEquivalentId`, and the two tripwire assertions turned over | `fixtures/kitchen-l-design.ts`, `queries/describe-selection.ts`, `catalog.ts` if the resolution lands there | **Full** — catalogue data of the same shape as 5A's |
+| **5C** | Work items 2 and 4: `setWidth`, donor selection, the rebuild through the catalogue equivalent, and the column update | a new `commands/set-width.ts`, `void-engine.ts`, the command exports, shared insert-fit helpers | **Full** — domain algebra anchored to §11 rows 9–14 and to ADR 0011 Gap D |
+| **5D** | Work item 3: the domain query behind chip freedom, the store action, the panel projection, the refusal wiring | `configurator-store.ts`, `apply-command-result.ts`, `panel-model.ts`, the panel component | **Light** — assembly against a contract 5C settled, *provided* the freedom answer comes from the domain. If any of it lands in `panel-model.ts`, the wave is Full |
+| **5E** | The browser and mobile gate, and ADR 0024's reachable banner | e2e only | Adversarial QA plus **visual review**; no logic tier |
+| **5F** | Work items 6 and 7: base carcass depth derived from the declared worktop constant, with the worktop staying a constant | `kitchen-parts.ts` (`CARC_D` and `counter`, threaded through `KitOptions`), and the shared constant 5A already declared | **Full** — the only wave in M5 that changes a builder, and the only one that can turn M1's fidelity gate red. It carries **an ADR only if it takes the alternative shape** in work item 7 (consuming the per-call depth argument, which trips ADR 0018 clause 4). Under the recommended shape it needs none, and the dispatch says which was taken |
 
-**Re-checked after the floor change left M5** (2026-08-26): the wave count does not change. 5A lost
-the constant, the copy change and the boundary-test moves, and is now a single work item over two or
-three files. It stays its own wave rather than folding into 5B for two reasons — 5B is already at
-four production files of domain algebra, and 5A must land first: until a seeded body has a width set,
-`setWidth` has nothing to be exercised against on the real kitchen and every test of it is synthetic.
-5A being small is not a reason to merge it into the largest wave in the phase.
+**Why 5A is first and not folded into 5B.** Both are small catalogue-data waves and merging them is
+tempting. They stay separate because they fail differently: 5A is a **shipped defect on a real
+device** and 5B is missing feature data, and batching a live fix behind a feature's data delays the
+fix for no gain. `docs/WORKFLOW.md`'s batching rule applies to fixes that "share a subject"; a depth
+constant and a width set do not.
+
+**Why 5F is last and not beside 5A.** Recorded in full under *How this splits inside M5*. In short:
+it is the only wave that touches a builder and so the only one that can reach M1's 1e-6 m fidelity
+gate; if its formula moves any base dimension it moves `Column.d` for a reason unrelated to resize,
+while 5C is already moving column identity; and it sits next to ADR 0018 clause 4's trap, which it
+must decide about deliberately rather than trip.
+
+**Re-checked after the floor change left M5** (2026-08-26, still true): 5B lost the constant, the
+copy change and the boundary-test moves, and is a single work item over two or three files. It stays
+its own wave rather than folding into 5C for two reasons — 5C is already at four production files of
+domain algebra, and 5B must land first: until a seeded body has a width set, `setWidth` has nothing
+to be exercised against on the real kitchen and every test of it is synthetic. 5B being small is not
+a reason to merge it into the largest wave in the phase.
+
+**M5 is now six waves and that is worth saying out loud.** If the owner wants the milestone smaller,
+the clean cut is **5F**: waves 5A–5E deliver the whole width story plus the reported depth defect,
+and 5F is a self-contained follow-on. Cutting anything else breaks a dependency. Note what deferring
+5F would cost, so the choice is informed: M6's worktop control needs the base formula underneath it,
+so 5F would have to land somewhere before M6 ships its control — cutting it from M5 moves it, it does
+not remove it.
 
 ## Risks
 
-- **The wall depth clamp, and it does touch resize.** Checked rather than assumed. On a swap, the
-  depth comes from the outgoing body's own `frame.d` (`insert-fit.ts`, `openingFromPlacement`), and
-  the adapter then clamps every wall carcass to `min(d, 0.4)`
-  (`packages/three-adapter/src/catalog-bodies.ts:36`, `WALL_CARCASS_MAX_DEPTH_M`). Three seeded
-  bodies record `frameDepthMm: 600` and declare `catalogEquivalentId: "wall-2door"` — `p22`, `p23`
-  (`wall-2door-600-deep-top`) and `p24` (`wall-2door-700-over-fridge`). A resize rebuilds through
-  that equivalent, so **resizing any of the three recedes it 200 mm**, by the same mechanism as the
-  swap-depth defect and in the same direction. Backlog 5 owns the rule (the cap is head clearance
-  over a worktop, and there is nothing to lean over above a column); M5 owns not making it worse.
-  Pair the resize with a regression test over these three bodies asserting each keeps its depth.
+- **The wall depth cap, and it does touch resize. Rewritten 2026-08-27 — the previous version of
+  this bullet was stale.** It cited `packages/three-adapter/src/catalog-bodies.ts:36` and
+  `WALL_CARCASS_MAX_DEPTH_M`, and **neither exists in `src` any more**: backlog 5's wave moved the
+  cap into the domain on 2026-08-26 as `WALL_CARCASS_MAX_DEPTH_OVER_WORKTOP_M`
+  (`commands/insert-fit.ts:56`), because the cap became a function of the *design* and the adapter
+  cannot see a design. The name survives only in that file's own historical comment (`:51`).
+
+  What the bullet got right, and what still binds: on a swap the depth comes from the outgoing
+  body's own `frame.d` (`openingFromPlacement`), and three seeded bodies record `frameDepthMm: 600`
+  while declaring `catalogEquivalentId: "wall-2door"` — `p22`, `p23` (`wall-2door-600-deep-top`) and
+  `p24` (`wall-2door-700-over-fridge`). A resize rebuilds through that equivalent. **But the cap no
+  longer fires on any of the three**, because all three stand over a full-height column and
+  `hasFullHeightUnder` lifts it. The 200 mm recession the old bullet warned of is fixed. The
+  regression test it asked for is still worth having, now for the opposite reason — to prove the
+  lift survives the resize path — and 5A's map must not reintroduce the problem by capping
+  unconditionally.
 - **`frame.d` is not a depth** (ADR 0018, narrowed further by ADR 0025): it is `2 ×` the body's
   wall-normal **seat offset**. A resize re-measures and re-persists it. Today the round trip
   converges for every builder — the base builders ignore the depth argument, and `wallCabinet` /
   `openShelf` consume it and are centred on z = 0 — so the resize is safe. **It stops being safe the
-  day a builder's depth is parameterised**, which is exactly what backlog 5 and ADR 0017's real fix
-  both point at. ADR 0018 clause 4 assigns that trap to whichever phase parameterises a depth; if
-  M5's rebuild path makes that phase's job harder, say so rather than absorbing it.
+  day a builder's depth is parameterised**, and ADR 0018 clause 4 assigns that trap to whichever
+  phase does it. **Amended 2026-08-27: that phase is this one, and the wave is 5F.** The trap is no
+  longer a risk to hand onward; it is a work item with an ADR of its own (work item 7). What stays a
+  risk for 5C is narrower — the resize path must not bake in an assumption that the base builders
+  ignore their depth argument, because 5F makes that false two waves later.
+- **The map could be made to look like a formula, and it is not one.** 600 → 330 and 700 → 400 sits
+  almost on a line, and the next reader will be tempted to write `worktop × 0.55` or to interpolate a
+  missing row. Decision 4 forbids it: wall cabinets come in manufactured sizes and the owner's own
+  numbers are non-linear, so a formula invents a 372 mm cabinet nobody makes. The gate is that an
+  unknown worktop depth **fails** rather than computing something.
+- **The seeded fixture is currently the only thing asserting 330, and it asserts it by being typed.**
+  Nine rows carry the number and no gate compares them to the catalogue or the cap — which is
+  exactly how the drift happened. 5A's single-source test is what turns that from a coincidence into
+  a checked relationship, and it is the criterion the wave stands or falls on.
+- **Backlog 9 records that the domain's own tests cannot see a depth defect.** A fake `BodyProbe`
+  reports back the depth it was handed, so a wrong depth reads correct throughout. Every depth
+  assertion in 5A and 5F must run against the real builders and the real probe, or it proves
+  nothing. This is the single most likely way this phase ships a green suite over a live defect.
 - **Auto-shifting the whole run to make room.** Rejected on record (§13.2): positions carry meaning —
   sink under the window, hob under the hood, dishwasher beside the sink — and silently sliding a run
   breaks those relationships invisibly. If ever wanted it must be an explicit named action.
@@ -402,14 +815,36 @@ four production files of domain algebra, and 5A must land first: until a seeded 
 - **The column merge case.** A resize can move a body onto a key that already exists. The criterion
   above chooses merge; that choice is not derived from a spec section and should be reviewed as a
   decision.
-- **The width floor is about to gain a direction it does not have, and M5 must not pre-empt it.**
-  `MIN_WIDTH_M` stays at 300 (decision below), and ADR 0017's per-entry `minWidthMm` can only raise
-  it — `resolveWidth` applies the general floor first and the entry's own value above it
-  (`insert-fit.ts:333`). The narrow bottle cargo needs the opposite: one entry declaring a floor
-  *below* the general one. That change belongs to the cargo's phase and its ADR, and it re-reads §2's
-  `MIN_W` as "the default floor" rather than "an absolute floor". The risk for M5 is a resize path
-  that hard-codes 300 anywhere instead of reading `MIN_WIDTH_M` and the entry's declared floor
-  together; the day the direction is added, such a path refuses a cabinet the catalogue permits.
+- **The width floor already has a direction, and M5 must read it. Rewritten 2026-08-27 — the
+  previous version of this bullet was stale.** It said the direction "is about to" be gained and
+  that M5 must not pre-empt it. **ADR 0026 shipped it on 2026-08-26**: §2's `MIN_W` is the *default*
+  floor, a `minWidthMm` below it replaces it for that entry alone, and `base-bottle-cargo` declares
+  200.
+
+  The risk is now sharper, and backlog 6 states it. **`MIN_WIDTH_M` is the donor's floor, not the
+  target's.** ADR 0026 kept the constant at 300 *because §5.4 reads it* — a resize must not leave a
+  200 mm cabinet as the residue of somebody else's edit — and that reasoning is entirely about the
+  neighbour that gives width away. A resize path that applies the same constant to the **target**
+  refuses the cargo's 200 mm chip, and a capability the catalogue already declares lands nowhere.
+  The target reads the entry's own declared floor; the donor reads §2's. Two floors, one constant
+  each, and a path that hard-codes 300 gets both wrong.
+- **A wave building the control anyway.** The owner scoped the control to M6 on 2026-08-27, and 5F
+  will feel one small step from a settings chip. It is not: a control needs a persisted value, and a
+  persisted value needs the migration question below answered. **Scope-Out names this explicitly and
+  a dispatch that widens it is a scope change to raise, not to absorb** — `docs/WORKFLOW.md`, scope
+  discipline.
+- **The reverse risk, and it is the more likely one: both milestones assuming the other built it.**
+  *Setări globale* is M6's surface (2E / D2E) and the geometry is M5's. M6 work item 4 now names this
+  wave and this plan names that item. Keep the two in step; if 5F's shape changes, M6's item 4 is
+  edited in the same pass.
+- **The migration question travels with the control to M6, and M6 must not discover it at
+  implementation.** Switching 600 → 700 changes every base body's depth in a document the customer
+  already saved. Migration, re-derivation on load, or refusal — recorded under *Not established* and
+  flagged as M6's to answer. M5 never has two worktop depths in play, so it never meets the question;
+  M6 meets it on its first tap.
+- **M6's control has a prerequisite most of M6 does not.** Material and hardware are presentation and
+  pricing; worktop depth is geometry. If 5F is cut from M5, M6 item 4 cannot ship its fourth control
+  until the formula lands somewhere.
 - The approved discrete width set remains an open product question (`docs/milestones/README.md`).
   400/600/800 and the appliance sets are catalogue data and must never become constants in the resize
   logic.
@@ -440,6 +875,13 @@ change with the smaller blast radius, and it needs no new data on any existing r
 the cargo's own ADR. §2's `MIN_W` then means "the default floor" rather than "an absolute floor", and
 that re-reading is recorded there, not assumed here. It is named in Scope-Out and in Risks so the
 phase that builds the cargo meets it before it writes the entry, rather than after.
+
+*What happened next (2026-08-27).* It stopped being deferred. **ADR 0026 was written and the cargo
+shipped on 2026-08-26**, the same day this section was written — the plan's text above was accurate
+for a few hours and then was not. The three paragraphs are kept because the reasoning and the
+rejected alternative are the valuable part and re-proposing them costs a cycle; the *sequencing*
+claim in them is spent. What M5 inherits is backlog 6's trap, not a prohibition: the target's floor
+is the entry's own and the donor's is §2's. Scope-Out and Risks have both been corrected in place.
 
 *Also rejected, recorded so it is not re-proposed.* **Raising the general floor to 400 mm.** The
 standard chips are already 400/600/800, so nothing a customer chooses sits below 400; the 300 floor
@@ -473,7 +915,65 @@ now that the floor is not moving at all.
 - **Whether a resized body should keep the resized width when its opening later changes.** Nothing in
   §5.4 says, and no measurement exists.
 - **The chip row's horizontal scroll behaviour at a set of two versus a set of five.** The mockups
-  show three; 5D's browser pass is the first place this can be observed rather than assumed.
+  show three; 5E's browser pass is the first place this can be observed rather than assumed.
+
+### Depth — recorded 2026-08-27, and none of these is decided
+
+The owner has ruled on the six decisions above and on nothing here. **Each of these is a question,
+not a gap to fill at implementation.** Each is tagged with who needs the answer: **M5** questions
+gate a wave in this phase, **M6** questions travel with the control and are noted in
+`docs/milestones/M6-price-and-global-settings.md` so they are not lost at the seam.
+
+1. **Does the hood follow the rule?** — **M5 asks, nobody is blocked.** `HOOD_DEPTH_MM = 500` (`catalog.ts:73`) and the seeded
+   `hood-600` already agree at 500, so nothing is broken today and 5A can proceed by leaving it
+   alone. But a hood is a wall body over a worktop, and if the map governs wall depth it is not
+   obvious why 500 is exempt. Related, and worth putting to the owner together: **backlog 9** — a
+   hood round trip costs a wall opening 100 mm permanently, because `make.hood` takes no depth
+   parameter at all and its canopy is a hardcoded 0.5 m box. Deciding the hood into the map means
+   deciding whether `make.hood` gains a depth parameter, which is ADR 0018 clause 4 territory again.
+2. **Is 800 real?** — **M6.** `800 -> 500` was named as a plausible future row and explicitly not
+   committed. It reaches M5 only as a requirement that the map be extensible by one row, which 5A
+   satisfies either way. It reaches M6 as the difference between a two-way toggle and a list of
+   three.
+3. **Does a 700 worktop change wall cabinet HEIGHT, or only depth?** — **M6, but M5 should ask.**
+   Nothing in the owner's decisions says. §7 fixes wall entries at `nominalHeightMm` 700 and the
+   seeded `-top` rows at 400, and `heightFlex` fills the opening. M5 never reaches it, because 600 is
+   the only worktop it has. But if height moves too, §2's `LEVELS` move with it — and `LEVELS` is the
+   spine of the void engine, so that is a far larger change than a second map row, and M6 should not
+   be the first to find out. Worth putting to the owner during M5 even though no M5 wave is blocked.
+4. **What happens to a design saved at 600 when the setting moves to 700?** — **M6, and it blocks
+   M6's control.** Every base body's depth changes, and every capped wall body with it. Three shapes
+   of answer, none chosen: **migrate** (rewrite the stored placements once, which needs a schema
+   version and makes the change irreversible), **re-derive on load** (the stored document keeps only
+   the setting and depths are computed, which is the cleanest but makes `seatDepthMm` a cache rather
+   than a fact and contradicts ADR 0018's "the body's own measured seat"), or **refuse** (the setting
+   is fixed once placements exist, which is defensible for a tool where the customer picks the
+   worktop before laying out the kitchen). **M5 never meets this question** — one worktop depth, by
+   construction — which is exactly why the owner's split works. M6 meets it on its first tap.
+5. **The two deliberately-deep top bodies — do they track anything?** — **M6.**
+   `wall-2door-600-deep-top` and `wall-2door-700-over-fridge` are 600 mm because the columns beneath
+   them are, and the cap is lifted rather than mapped. If the worktop goes to 700 the base run
+   deepens and `Column.d` over it rises, while these two stay at whatever their column is. Nothing
+   says whether a deep top cabinet should follow the worktop, follow its column, or stay put. No M5
+   wave reaches it, because the worktop does not move in M5.
+6. **What number is the map's value — the carcass, or the carcass plus its door?** — **M5, and it
+   gates wave 5A.** §2's own worked
+   example has "a unit at `position.x = 0.165` with `D = 0.33`" spanning world x `0 → 0.369`: the
+   door adds 39 mm in front. The owner's manufactured sizes (300 / 330 / 350 / 400) are presumably
+   carcass depths, and the code treats the map's value as the depth argument handed to
+   `wallCabinet`, which is the carcass. Worth confirming once rather than assuming, because a map
+   read as the finished depth is 39 mm wrong on every row.
+7. **Is the shipped worktop 600 or 620?** — **M5, and it gates wave 5F.** Work item 7's third
+   bullet. `counter`'s 0.62 against `CARC_D` 0.56 is 60 mm of overhang, 50 of it in front, while the
+   owner's map is keyed on 600. The M1 parity gate already fixes what the formula must *produce* at
+   the default — today's geometry, to 1e-6 m — so this is not a licence to change a dimension. What
+   it decides is which quantity the constant names and therefore what the overhang constant is, and
+   5F cannot pick that number without it.
+8. **Backlog 10 is untouched by any of this.** Delete-then-insert gives 680 mm over the fridge
+   column where a swap gives 600, because the cap is lifted there and both numbers are legitimately
+   the column's. The map governs the *capped* path only, so this divergence survives 5A intact. It
+   is recorded as needing the owner, and the third of its three readings — "they should simply
+   agree, whichever value wins" — is still the one worth deciding first.
 
 ## Verification
 
@@ -496,3 +996,33 @@ now that the floor is not moving at all.
 - The two seeded width-section tests flipped from "renders nowhere" to their real content, and the
   chipless check doing work for the first time.
 - Real touch interaction at 390 × 844, and a browser observation of the rejection banner.
+
+Depth (added 2026-08-27). **Every item here runs against the real builders and the real `BodyProbe`
+— backlog 9 records that a fake probe returns the depth it was handed and cannot see a depth defect
+at all.**
+
+- **The single-source gate**, which is 5A's reason to exist: a test that reads the map and asserts
+  §7's `nominalDepthMm` for every wall entry and §5.2's cap both equal `map[worktopDepthMm]`. It
+  must fail if either is edited alone.
+- **The reported reproduction, end to end**: delete a top-row cabinet from the shipped design,
+  insert a `wall-2door` into the void, assert 330 mm. Anti-invariant: not 400.
+- **A sweep over every wall/top body in the fixture**, each keeping its own depth through a
+  delete-then-insert and through a swap — the nine at 330, `hood-600` at 500, and the two deep top
+  bodies at 600. One table, so a rule that moves the wrong subset is visible in one failure.
+- **An unknown worktop depth is refused**, with the value named.
+- **`DesignSchema` unchanged across the whole phase**: a design saved before M5 and one saved after
+  5F have the same shape, and `MIGRATIONS` gains no entry. The worktop is a constant, not a field.
+- **The M1 parity suites pass unchanged after 5F** — `kitchen-parts.parity.test.ts` and
+  `kitchen-parts.decomposition.parity.test.ts`, diffing the port against the vendored reference at
+  1e-6 m. Run them and quote the result: they are the evidence that the formula is value-preserving
+  at worktop 600, and they are the gate 5F is most likely to break.
+- **The formula unit-tested across 600, 700 and an unmapped value**, directly rather than through the
+  single input M5 can reach — so M6's control is not the first thing to exercise it.
+- **The rebuild round trip, three cycles**: build → measure → persist → reload → rebuild → measure,
+  with every measurement identical. ADR 0018's compounding growth is the anti-invariant, and no
+  existing gate catches it.
+- **§11 row 19 re-measured after 5F**, on both walls, for the same seven bodies M3 measured at
+  3.6e-9 m.
+- **A browser observation at 390 × 844** that the re-inserted top-row cabinet is flush with its
+  neighbours. This defect was reported from a handset by eye; per
+  `docs/best-practices/browser-and-visual-qa.md` a passing test is not what closes it.

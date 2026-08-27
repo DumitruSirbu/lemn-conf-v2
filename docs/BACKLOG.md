@@ -415,6 +415,43 @@ deleting a full-height unit under an existing wall cabinet does not change that 
 next swap or re-insert reads the rule again. That is ADR 0018's contract (`seatDepthMm` is the body's
 own measured seat) and was not revisited here.
 
+### The other half was never linked, and it shipped a defect — SUPERSEDED 2026-08-27 by M5 wave 5A
+
+**Reported by the owner from a real handset, 2026-08-27.** Delete a top-row cabinet in the shipped
+kitchen, insert one back: it returns **400 mm** deep against neighbours that are **330 mm**, visibly
+protruding.
+
+The wave above made the cap *design-dependent*. It did not make it *derived*, and that is the half
+that was missing. Measured:
+
+- `catalog.ts:72` — `WALL_DEPTH_MM = 400`, every wall entry's `nominalDepthMm`.
+- `commands/insert-fit.ts:56` — `WALL_CARCASS_MAX_DEPTH_OVER_WORKTOP_M = 0.4`.
+- `resolveDepthM` (`insert-fit.ts:610`) returns `min(opening.d, cap)` and **never reads
+  `nominalDepthMm`**. `opening.d` is `Column.d`, §3.2's MAX over the run — 580 here, the base
+  cabinet's. `min(0.58, 0.4) = 0.4`.
+- The nine seeded wall/top rows at `frameDepthMm: 330` are correct and always were.
+
+**The two 400s are independent constants that happen to agree, and that unlinked pair is the cause.**
+No gate compares the nominal, the cap and the fixture, which is exactly how the seeded design could
+be authored at 330 with nothing failing. Note the precision: changing `WALL_DEPTH_MM` alone fixes
+nothing, because `resolveDepthM` does not read it; changing the cap alone fixes the *symptom*. The
+single-source map is justified by drift prevention, not by the symptom needing both.
+
+**Decided by the owner, 2026-08-27, and scheduled — not backlog.** Wall/top depth follows worktop
+depth through an extensible map (`600 -> 330`, `700 -> 400`; `800 -> 500` named, not committed),
+and that map is the single source for both the nominal and the cap. Worktop depth becomes a
+whole-kitchen setting and base carcass depth becomes a formula. **This entry's remaining half is now
+M5 waves 5A and 5F** — see `docs/milestones/M5-width.md`, *Depth joins this phase*. The entry stays
+here rather than being deleted because its measurements and its head-clearance reasoning are what
+the waves are built on.
+
+**The split, decided the same day: M5 owns the geometry, M6 owns the control.** Worktop depth is a
+**single declared constant at 600 mm** in M5 — no user-facing control, no schema field, no settings
+UI, no version bump. Making it settable is
+`docs/milestones/M6-price-and-global-settings.md` **work item 4**, as a fourth control in *Setări
+globale* beside the material and hardware tiers. So the fix for the defect reported here needs
+neither of those things and is not waiting on them.
+
 ## 6. The 200 mm cargo is unreachable by any insert — INPUT FOR M5
 
 **Found by logic review of waves A and C, 2026-08-26.** ADR 0026 added `base-bottle-cargo` with
@@ -519,6 +556,13 @@ that produced it was supposed to be the operation that stopped changing depths.
 Related: the same mechanism is why a placed body's depth never re-derives — see entry 5's closing
 paragraph.
 
+**Still open, and now a named question inside M5 (2026-08-27).** The owner's worktop-depth rule
+(entry 5's second half) governs wall depth through a map, and whether the hood follows it is
+**question 1** in `docs/milestones/M5-width.md`'s *Not established — Depth*. The two are one
+decision: putting the hood in the map means giving `make.hood` a depth parameter, which is what this
+entry says it lacks. M5 wave 5A pins `hood-600` at 500 as a regression **precisely because the
+question is open** — the day it is decided, that assertion changes deliberately.
+
 ---
 
 ## 10. Swap and delete-then-insert give a wall cabinet different depths
@@ -560,6 +604,14 @@ The third is the one worth deciding first: the divergence matters more than the 
 Related: entry 9 (a hood round trip costing 100 mm) is the same mechanism — a placed body's depth is
 a persisted fact and nothing re-derives it.
 
+**Not superseded by M5, and the reason is worth stating (2026-08-27).** M5 wave 5A makes the worktop
+→ wall depth map the single source for §7's nominal and §5.2's cap. That governs the **capped** path
+only. This entry lives on the **uncapped** path — over a full-height column, where
+`hasFullHeightUnder` lifts the cap and both 600 and 680 are legitimately the column's depth. So 5A
+fixes the sibling defect over a base run and leaves this divergence exactly as measured. It is
+recorded as **question 8** in `docs/milestones/M5-width.md`'s *Not established — Depth* so M5 does
+not mistake it for something already handled.
+
 ## 11. `base-dishwasher` offers a finish and a handle it has neither of — NEEDS A DECISION
 
 Found 2026-08-27 by the catalogue-wide capability gate added with ADR 0027's amendment
@@ -596,7 +648,14 @@ whoever owns §6.5.
 ## Also open, recorded elsewhere — do not duplicate here
 
 - **Width editing does nothing yet.** Every width chip is `blocked` because §5.4's resize command
-  does not exist. This is M5's entire scope and is scheduled, not backlog.
+  does not exist. Scheduled, not backlog.
+- **Depth joined M5 on 2026-08-27** and is no longer "M5's entire scope" being width alone. Entry 5's
+  unfinished half (the unlinked cap and nominal) is M5 wave **5A**, and base carcass depth as a
+  formula is wave **5F**. The wave letters were reassigned when that landed —
+  `docs/milestones/M5-width.md` carries the old→new mapping.
+- **The worktop depth control is M6's, not M5's** (owner, 2026-08-27). M5 owns the geometry with the
+  worktop as a declared constant at 600; `docs/milestones/M6-price-and-global-settings.md` work item
+  4 adds the control. Scheduled in both, so it is not backlog in either.
 - **M4's deferred review findings** (the redundant panel test-file split, `advancePast` opening a
   span no command can produce, the notice remounting on every retry, the write-access probe's
   doubled read rate that M8's rate limits must be sized against) are recorded in `docs/STATUS.md`
