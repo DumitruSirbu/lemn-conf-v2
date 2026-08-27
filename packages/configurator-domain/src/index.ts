@@ -21,6 +21,7 @@ export * from "./commands/insert-fit.js";
 export * from "./commands/remove-placement.js";
 export * from "./commands/insert-body.js";
 export * from "./commands/set-appearance.js";
+export * from "./commands/set-width.js";
 export * from "./queries/describe-selection.js";
 export * from "./queries/offers.js";
 export * from "./queries/vacated-void.js";

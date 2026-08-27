@@ -231,9 +231,18 @@ describe("a width-flexible body builds at every width the engine will hand it", 
   );
 
   /** `resolveWidth` + `refuseWidthFloor` (`insert-fit.ts`), as a number: the narrowest opening
-   *  this entry can be inserted into. */
+   *  this entry can be inserted into.
+   *
+   *  **It has a direction** (ADR 0026, and this read `Math.max` until 2026-08-27). A declaration
+   *  *below* §2's default **replaces** it for that entry alone, so the sweep below has to start at
+   *  the declaration and not at 300 — otherwise the two widths ADR 0030's amendment made reachable
+   *  on a one-door cabinet would never be built here at all. A declaration at or above the default
+   *  is checked after it, so `Math.max` is still right in that direction. */
   function narrowestOpeningMm(definition: BodyDefinition): number {
-    return Math.max(definition.minWidthMm ?? 0, 1000 * MIN_WIDTH_M);
+    const declaredMm = definition.minWidthMm;
+    if (declaredMm === undefined) return 1000 * MIN_WIDTH_M;
+    if (declaredMm < 1000 * MIN_WIDTH_M) return declaredMm;
+    return Math.max(declaredMm, 1000 * MIN_WIDTH_M);
   }
 
   it.each(FLEXIBLE)(
@@ -254,19 +263,32 @@ describe("a width-flexible body builds at every width the engine will hand it", 
       }
 
       expect(refused).toEqual([]);
-      expect(floorMm).toBeGreaterThanOrEqual(1000 * MIN_WIDTH_M);
+      // The floor is §2's default unless the row declares one of its own, in either direction
+      // (ADR 0026). Asserted as that rather than as ">= 300", which was true only while every
+      // declaration pointed upward.
+      expect(floorMm).toBe(definition.minWidthMm ?? 1000 * MIN_WIDTH_M);
     },
   );
 
-  // A declared floor has to be earned. Below it the builder must actually be wrong — and wrong in
-  // the direction ADR 0017 describes, a carcass that grows *wider and taller* as it is asked to
-  // grow narrower. Stated generally so a future entry cannot declare a floor it does not need: an
-  // entry that builds correctly one millimetre below its own floor fails here.
-  const WITH_DECLARED_FLOOR = FLEXIBLE.filter(
-    ([, definition]) => definition.minWidthMm !== undefined,
+  // A floor declared **upward** has to be earned. ADR 0017 and ADR 0026 clause 2 read that
+  // direction as a *builder limitation* — an entry admitting its builder is not parameterised — so
+  // below it the builder must actually be wrong, and wrong in the direction ADR 0017 describes: a
+  // carcass that grows *wider and taller* as it is asked to grow narrower. Stated generally so a
+  // future entry cannot declare an upward floor it does not need.
+  //
+  // **A floor declared downward is a different claim and is swept differently** (ADR 0026 clause
+  // 3, and this filter took every declaration until 2026-08-27). It is a *product decision* — the
+  // owner asserting that a cabinet that narrow is a thing they sell — and says nothing about the
+  // builder, which is why demanding the builder break below it is the wrong question. What those
+  // rows owe is that the builder is correct at and above their own floor, which is exactly the
+  // sweep above, now that it starts where they declare rather than at 300.
+  const WITH_UPWARD_FLOOR = FLEXIBLE.filter(
+    ([, definition]) =>
+      definition.minWidthMm !== undefined &&
+      definition.minWidthMm >= 1000 * MIN_WIDTH_M,
   );
 
-  it.each(WITH_DECLARED_FLOOR)(
+  it.each(WITH_UPWARD_FLOOR)(
     "%s is genuinely broken below its floor",
     (buildId, definition) => {
       const floorMm = definition.minWidthMm ?? 0;

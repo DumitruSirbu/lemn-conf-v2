@@ -452,11 +452,16 @@ const SET_BY_RESOLVED_ENTRY: Readonly<Record<string, readonly number[]>> = {
   "tall-pantry": [600],
   "fridge-free": [700],
   // ADR 0029 (owner, 2026-08-27): §7's wall builder is `w > 0.45 ? 2 : 1`, so a two-door entry has
-  // no 400 mm width — a 400 mm `wall-2door` built one door under a two-door label and price. It
-  // moved out of "everything else" rather than the standard set changing: `wall-1door`,
-  // `wall-lift` and `open-shelf` still resolve 400/600/800, which is what keeps the fallback below
-  // exercised and the distinction under test.
+  // no 400 mm width — a 400 mm `wall-2door` built one door under a two-door label and price.
   "wall-2door": [600, 800],
+  // ADR 0030 (owner, 2026-08-27, as amended the same day): a single hinged door tops out at 400 mm
+  // and the set extends downward to 200. Ergonomic rather than structural, which is what separates
+  // it from the row above: the builder makes an 800 mm one-door carcass correctly, and the swing
+  // arc is the thing nobody should own. Both sub-300 members survive `buildableSizes` only because
+  // the row declares `minWidthMm: 200` — ADR 0026's mechanism, third entry to use it. `wall-lift`
+  // and `open-shelf` are untouched — a flap has no swing arc and a shelf has no door — and together
+  // with the base cabinets they are what keeps the fallback below exercised.
+  "wall-1door": [200, 300, 400],
 };
 const EVERYTHING_ELSE_MM: readonly number[] = [400, 600, 800];
 
@@ -494,11 +499,13 @@ describe("every seeded placement's set, over the whole shipped kitchen", () => {
     expect(empty).toBe(4);
     expect(resolved).toBe(22);
     // Both branches of the table above still fire. `viaFallback` counts the placements that took
-    // `EVERYTHING_ELSE_MM` — `wall-1door` and the base cabinets — and it went from thirteen to two
-    // wall rows plus the bases when `wall-2door` gained its own row, so it is asserted rather than
-    // assumed: a table where every entry is named would leave the fallback untested.
-    expect(viaFallback).toBeGreaterThan(0);
-    expect(viaNamedEntry).toBeGreaterThan(0);
+    // `EVERYTHING_ELSE_MM`, and it has now shrunk twice — thirteen, then two wall rows plus the
+    // bases when `wall-2door` gained its own row (ADR 0029), then just `p4` (`base-3drawer`) and
+    // `p12` (`open-shelf`) when `wall-1door` gained one (ADR 0030). Asserted exactly rather than as
+    // "more than none", because a fallback down to its last two members is one catalogue edit away
+    // from being untested while this still read green.
+    expect(viaFallback).toBe(2);
+    expect(viaNamedEntry).toBe(20);
   });
 
   // Named individually as well, because "the five with no pointer" is the claim and a sixth
@@ -646,18 +653,35 @@ describe("the bottle cargo's 200 mm floor stays the cargo's alone", () => {
     expect(pointers.length).toBeGreaterThan(0);
     expect(pointers).not.toContain("base-bottle-cargo");
 
+    // **A 200 mm chip does now reach two seeded bodies**, and not through the cargo: ADR 0030's
+    // amendment put 200 into `wall-1door`'s own set, which `p10` and `p16` declare a pointer at.
+    // The claim this row makes is the one that still matters — the *cargo's* floor reaches nothing
+    // but the cargo — so it is asserted by naming which bodies carry a 200 and through which entry.
     const world = seeded();
-    for (const record of world.records) {
-      const sizes = metaFor(world, record.id).sizesMm;
-      expect([record.id, sizes.includes(200)]).toEqual([record.id, false]);
+    const withNarrowChip = world.records
+      .filter((record) => metaFor(world, record.id).sizesMm.includes(200))
+      .map((record) => record.id);
+    expect(withNarrowChip.sort()).toEqual(["p10", "p16"]);
+    for (const id of withNarrowChip) {
+      const record = world.records.find((candidate) => candidate.id === id);
+      expect(
+        KITCHEN_L_BODY_CATALOG.get(record?.buildId ?? "")?.catalogEquivalentId,
+      ).toBe("wall-1door");
     }
   });
 
-  it("is the only entry in the catalogue declaring a floor under the default", () => {
+  it("names every entry in the catalogue declaring a floor under the default", () => {
+    // **This asserted "the cargo alone" until 2026-08-27.** ADR 0026 is explicit that any second
+    // such row needs its own record; ADR 0030's amendment is that record for these two, and this
+    // list is what makes a fourth declaration fail loudly instead of shipping quietly.
     const declaringDown = INSERTABLE_BODY_DEFINITIONS.filter(
       ([, definition]) =>
         definition.minWidthMm !== undefined && definition.minWidthMm < 300,
     ).map(([buildId]) => buildId);
-    expect(declaringDown).toEqual(["base-bottle-cargo"]);
+    expect(declaringDown).toEqual([
+      "base-1door",
+      "base-bottle-cargo",
+      "wall-1door",
+    ]);
   });
 });

@@ -90,3 +90,23 @@ export function voidAt(
   }
   return found;
 }
+
+/** Applies an ADR 0031 resize exactly as the store must: the design **and** the column map the
+ *  command published, because the resize is the one operation that legitimately moves bodies between
+ *  columns (ADR 0011 Gap D) — and the only one that moves an **empty** column, which has no member
+ *  for a re-derivation to find. Every other command goes through `advance`, which keeps the extents.
+ */
+export function advanceWithColumns(
+  world: KitchenWorld,
+  design: Design,
+  columns: ReadonlyMap<string, Column>,
+): KitchenWorld {
+  const records = derivePlacementRecords(design, world.catalog);
+  return {
+    ...world,
+    design,
+    records,
+    columns,
+    voids: recomputeVoids(records, columns),
+  };
+}

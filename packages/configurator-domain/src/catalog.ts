@@ -18,8 +18,29 @@ import { wallDepthMmForWorktop, WORKTOP_DEPTH_MM } from "./worktop-depth.js";
  *  governs every entry that does not declare one of its own. */
 const DEFAULT_MIN_WIDTH_MM = toMillimetres(MIN_WIDTH_M);
 
-/** §7: "everything else" — 1000 mm was dropped, because two doors top out at 800. */
+/** §7: "everything else" — 1000 mm was dropped, because two doors top out at 800.
+ *
+ *  It is the **ladder**, not a bound: these are the standard module widths a body is offered at, and
+ *  an entry carrying it is not asserting that it cannot be built outside them. Every entry using it
+ *  therefore declares `sizesAreStandardLadder` (ADR 0031 rule 5), which is what lets such a body sit
+ *  in a column that a narrower member takes below 400 without contradicting anything about itself. */
 const STANDARD_WIDTHS_MM: readonly number[] = [400, 600, 800];
+
+/** The shape shared by every entry whose `sizesMm` is the ladder above. Spread rather than repeated,
+ *  so a row cannot take the standard set and forget to say what it is. */
+const STANDARD_LADDER = {
+  sizesMm: STANDARD_WIDTHS_MM,
+  sizesAreStandardLadder: true,
+} as const;
+
+/** The counterpart, for every entry whose set is a **bound of its own** — a manufactured size list, a
+ *  door-count threshold, a swing arc, an appliance's fixed width. Written as a helper rather than a
+ *  bare `sizesMm:` so that overriding the set on a row built from `baseCabinet` or `wallCabinet`
+ *  cannot leave `sizesAreStandardLadder: true` behind from the spread it started with. The guard test
+ *  in `catalog.test.ts` is what proves no row got it wrong. */
+function boundedWidths(sizesMm: readonly number[]) {
+  return { sizesMm, sizesAreStandardLadder: false } as const;
+}
 /** ADR 0029 (owner, 2026-08-27; closing finding R1.2): a two-door wall cabinet has no 400 mm width.
  *  §7's wall builder is `w > 0.45 ? 2 : 1`, so a `wall-2door` built at 400 mm carries **one** door
  *  while still being labelled *Corp suspendat 2 uși*, priced as one, and badged ACTUAL as one in
@@ -28,6 +49,32 @@ const STANDARD_WIDTHS_MM: readonly number[] = [400, 600, 800];
  *  rather than after the tap. `wall-1door`, `wall-lift` and `open-shelf` keep the standard set: a
  *  one-door cabinet at 400 mm is honest, and a shelf has no doors to count. */
 const TWO_DOOR_WALL_WIDTHS_MM: readonly number[] = [600, 800];
+
+/** ADR 0030 (owner, 2026-08-27): a single hinged door is not made above 400 mm. The reason is
+ *  ergonomic rather than structural — §7's builder makes an 800 mm one-door carcass perfectly
+ *  well, and nobody should own the swing arc it comes with — which is what separates this from
+ *  ADR 0029, where the builder and the label disagreed. `base-1door` and `wall-1door` are the two
+ *  hinged singles and both declare it.
+ *
+ *  **`wall-lift` and `open-shelf` keep the standard set.** A lift-up is a flap on the top edge and
+ *  has no swing arc, and a shelf has no door at all, so neither is reached by the reasoning.
+ *
+ *  **Amended the same day**: the cap is 400 itself rather than "below 600", and the set extends
+ *  *downward* — a 200 mm wall cabinet can then match a 200 mm bottle cargo standing under it, which
+ *  is the run ADR 0026 was written for read one level up. */
+const ONE_DOOR_WIDTHS_MM: readonly number[] = [200, 300, 400];
+
+/** ADR 0030's amendment, in the ADR 0026 mechanism: 200 and 300 sit **below** §2's default floor, so
+ *  the two hinged singles must each declare their own or `buildableSizes` would filter both widths
+ *  straight back out of the set the ADR just gave them.
+ *
+ *  This makes three entries declaring downward where ADR 0026 said one. What that record protects is
+ *  untouched: `MIN_WIDTH_M` does not move, so no row inherits the exception, and each of the three
+ *  states it on its own line where a reader of that row can see it. What it retires is one of the
+ *  three arguments ADR 0026 gave for keeping the constant at 300 — §5.4's donor rule, which ADR 0031
+ *  deleted. Nothing is left narrow as the residue of somebody else's edit because nothing is
+ *  resized as the residue of somebody else's edit. */
+const ONE_DOOR_MIN_WIDTH_MM = 200;
 
 /** ADR 0017: the sink base has no 400 — its worktop splits around a fixed 560 mm aperture and does
  *  not build below that, so 400 is not a width this body has. */
@@ -43,8 +90,8 @@ const SINK_MIN_WIDTH_MM = 560;
  *  confirmation. */
 const BOTTLE_CARGO_WIDTHS_MM: readonly number[] = [200, 300];
 
-/** ADR 0026: below §2's default floor, deliberately, and the only entry in the catalogue that
- *  declares a floor *under* it rather than over it. */
+/** ADR 0026: below §2's default floor, deliberately. It was the only entry declaring *under* the
+ *  default until ADR 0030's amendment; `base-1door` and `wall-1door` now do too, at the same 200. */
 const BOTTLE_CARGO_MIN_WIDTH_MM = 200;
 
 /** ADR 0027: a hob-bearing base is 600 mm and nothing else. The hob itself is a 600 mm appliance
@@ -105,6 +152,13 @@ interface BodyShape {
   readonly nominalHeightMm: number;
   readonly nominalDepthMm: number;
   readonly sizesMm: readonly number[];
+  /** **Required, not optional** (logic review R1.10). `BodyDefinition` reads an absent flag as
+   *  `false` — the set is a bound — which is the conservative direction there. It is *not* the
+   *  conservative direction here: `baseCabinet` and `wallCabinet` spread `STANDARD_LADDER`, which
+   *  sets it `true`, so a shape that simply said nothing would inherit the **permissive** answer
+   *  from the helper it was built with. Required, so every shape has to state which it has and the
+   *  guard test in `catalog.test.ts` is a second line rather than the only one. */
+  readonly sizesAreStandardLadder: boolean;
 }
 
 function insertableBody(band: Band, shape: BodyShape): BodyDefinition {
@@ -126,7 +180,7 @@ function baseCabinet(label: string): BodyDefinition {
     widthFlex: "fit",
     nominalHeightMm: WORKTOP_HEIGHT_MM,
     nominalDepthMm: BASE_DEPTH_MM,
-    sizesMm: STANDARD_WIDTHS_MM,
+    ...STANDARD_LADDER,
   });
 }
 
@@ -137,7 +191,7 @@ function hobBase(label: string): BodyDefinition {
   return {
     ...baseCabinet(label),
     widthFlex: HOB_BASE_WIDTHS_MM,
-    sizesMm: HOB_BASE_WIDTHS_MM,
+    ...boundedWidths(HOB_BASE_WIDTHS_MM),
     fixedWidth: true,
     carriesAccessoryKind: HOB_ACCESSORY_KIND,
   };
@@ -151,7 +205,7 @@ function wallCabinet(label: string): BodyDefinition {
       widthFlex: "fit",
       nominalHeightMm: WALL_CABINET_HEIGHT_MM,
       nominalDepthMm: WALL_DEPTH_MM,
-      sizesMm: STANDARD_WIDTHS_MM,
+      ...STANDARD_LADDER,
     }),
     heightFlex: true,
   };
@@ -165,7 +219,7 @@ function fullHeightUnit(label: string, kind: string): BodyDefinition {
       widthFlex: COLUMN_WIDTHS_MM,
       nominalHeightMm: COLUMN_HEIGHT_MM,
       nominalDepthMm: COLUMN_DEPTH_MM,
-      sizesMm: COLUMN_WIDTHS_MM,
+      ...boundedWidths(COLUMN_WIDTHS_MM),
     }),
     fixedWidth: true,
   };
@@ -177,7 +231,14 @@ export const INSERTABLE_BODY_DEFINITIONS: readonly (readonly [
   BodyDefinition,
 ])[] = [
   ["base-2door", baseCabinet("Corp bază 2 uși")],
-  ["base-1door", baseCabinet("Corp bază 1 ușă")],
+  [
+    "base-1door",
+    {
+      ...baseCabinet("Corp bază 1 ușă"),
+      ...boundedWidths(ONE_DOOR_WIDTHS_MM),
+      minWidthMm: ONE_DOOR_MIN_WIDTH_MM,
+    },
+  ],
   ["base-3drawer", baseCabinet("Corp bază 3 sertare")],
   ["base-panbank", baseCabinet("Sertare pentru oale")],
   // ADR 0027: the two hob-bearing bodies. The hob is part of the cabinet, not a separate placement
@@ -206,7 +267,7 @@ export const INSERTABLE_BODY_DEFINITIONS: readonly (readonly [
     {
       ...baseCabinet("Cargo îngust pentru sticle"),
       widthFlex: BOTTLE_CARGO_WIDTHS_MM,
-      sizesMm: BOTTLE_CARGO_WIDTHS_MM,
+      ...boundedWidths(BOTTLE_CARGO_WIDTHS_MM),
       minWidthMm: BOTTLE_CARGO_MIN_WIDTH_MM,
     },
   ],
@@ -214,7 +275,7 @@ export const INSERTABLE_BODY_DEFINITIONS: readonly (readonly [
     "base-sink",
     {
       ...baseCabinet("Corp spălător"),
-      sizesMm: SINK_WIDTHS_MM,
+      ...boundedWidths(SINK_WIDTHS_MM),
       minWidthMm: SINK_MIN_WIDTH_MM,
     },
   ],
@@ -224,7 +285,7 @@ export const INSERTABLE_BODY_DEFINITIONS: readonly (readonly [
       ...baseCabinet("Nișă mașină de spălat vase"),
       kind: "dishwasher_housing",
       widthFlex: DISHWASHER_WIDTHS_MM,
-      sizesMm: DISHWASHER_WIDTHS_MM,
+      ...boundedWidths(DISHWASHER_WIDTHS_MM),
     },
   ],
   [
@@ -237,10 +298,17 @@ export const INSERTABLE_BODY_DEFINITIONS: readonly (readonly [
       // This governs the **chips and the offer rows**, not what the body builds into: `widthFlex`
       // stays `'fit'`, so §5.2 still builds this entry to its opening at any width. See the note at
       // `TWO_DOOR_WALL_WIDTHS_MM`.
-      sizesMm: TWO_DOOR_WALL_WIDTHS_MM,
+      ...boundedWidths(TWO_DOOR_WALL_WIDTHS_MM),
     },
   ],
-  ["wall-1door", wallCabinet("Corp suspendat 1 ușă")],
+  [
+    "wall-1door",
+    {
+      ...wallCabinet("Corp suspendat 1 ușă"),
+      ...boundedWidths(ONE_DOOR_WIDTHS_MM),
+      minWidthMm: ONE_DOOR_MIN_WIDTH_MM,
+    },
+  ],
   ["wall-lift", wallCabinet("Corp suspendat rabatabil")],
   [
     "open-shelf",
@@ -268,7 +336,7 @@ export const INSERTABLE_BODY_DEFINITIONS: readonly (readonly [
       // measured `seatDepthMm`, so leaving it inherited put a map-derived number behind an
       // undecided rule (QA finding Q1.1).
       frameDepthMm: HOOD_DEPTH_MM,
-      sizesMm: HOOD_WIDTHS_MM,
+      ...boundedWidths(HOOD_WIDTHS_MM),
     },
   ],
   ["tall-pantry", fullHeightUnit("Coloană cămară", "tall_unit")],
@@ -285,7 +353,7 @@ export const INSERTABLE_BODY_DEFINITIONS: readonly (readonly [
     {
       ...fullHeightUnit("Frigider, liber", "fridge_freestanding"),
       widthFlex: FREESTANDING_FRIDGE_WIDTHS_MM,
-      sizesMm: FREESTANDING_FRIDGE_WIDTHS_MM,
+      ...boundedWidths(FREESTANDING_FRIDGE_WIDTHS_MM),
       nominalHeightMm: FREESTANDING_FRIDGE_HEIGHT_MM,
       nominalDepthMm: FREESTANDING_FRIDGE_DEPTH_MM,
       // Declared, not inherited, for the reason the hood declares its own: the spread above has

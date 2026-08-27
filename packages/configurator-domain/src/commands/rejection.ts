@@ -5,6 +5,8 @@
 // forces the panel to author product copy, and a sentence with no code forces tests to match on
 // prose — which is how a copy edit becomes a failing engine test.
 import type { NormalisedBand } from "../bands.js";
+import { toMillimetres } from "../millimetres.js";
+import { MIN_WIDTH_M } from "../void-engine.js";
 
 /** A refusal that needs nothing spelled out: the code and its sentence say everything. */
 type NoParams = Readonly<Record<string, never>>;
@@ -56,6 +58,54 @@ interface MillimetreParams {
   readonly valueMm: number;
 }
 
+/** The width a body already has, so §5.4's refusal can say so rather than rebuilding it into the
+ *  same geometry. §9 renders this width's chip `active`, never `free`, so the customer cannot reach
+ *  it — but "a chip is free iff the command succeeds" only holds if the command refuses here. */
+interface CurrentWidthParams extends LabelParams {
+  readonly widthMm: number;
+}
+
+/** Why one side of ADR 0031's scan could not fund the resize. Each value is a distinct fact about
+ *  the space next door, because a refusal that says only "no room" leaves the customer with nothing
+ *  to act on: they need to know whether to delete something, and on which side. */
+export type EmptySpaceRefusal =
+  /** No **empty** column is edge-adjacent on that side — either a body stands there or the wall
+   *  ends. ADR 0031 rule 2: width comes from empty space and from nowhere else. */
+  | "absent"
+  /** There is an empty column, and it is narrower than the growth being asked for. */
+  | "too_narrow"
+  /** ADR 0031's coordinator detail: growing would leave the empty column between 0 and `MIN_W`.
+   *  Consuming it *exactly* to zero is allowed; leaving a sliver nothing can be inserted into is
+   *  not a state to create. */
+  | "remainder_below_floor"
+  /** The space is there and the arithmetic works, but the move would leave an opening standing over
+   *  a body — see `RESIZE_OPENS_GAP`. It is a per-side answer rather than a verdict (FINDING Q1.2):
+   *  the scan carries on to the other side, and only refuses when no side can fund the move without
+   *  one. */
+  | "opens_a_gap";
+
+export interface EmptySpaceSide {
+  readonly side: "right" | "left";
+  readonly reason: EmptySpaceRefusal;
+}
+
+/** ADR 0031's refusal, with the whole scan in it: the width that was asked for, how much empty
+ *  space it needed, and what each side answered — in the order right-then-left it tries them. */
+interface EmptySpaceParams extends LabelParams {
+  readonly requestedMm: number;
+  /** Signed: positive grows the column, so the empty column must give that much away. */
+  readonly deltaMm: number;
+  readonly sides: readonly EmptySpaceSide[];
+}
+
+/** ADR 0031 rule 1: a resize moves the whole column, so one member that cannot be rebuilt at a new
+ *  width stops all of them. `memberLabel` is that member — the customer selected something else
+ *  entirely, and naming what is actually in the way is the difference between a refusal they can
+ *  act on and one they cannot. */
+interface ColumnMemberParams extends LabelParams {
+  readonly memberLabel: string;
+}
+
 /** Which number of a `BodyMeasurement` was not a number. The value itself is deliberately absent:
  *  it is `NaN` or `±Infinity`, and neither belongs in a sentence shown to a customer. */
 interface MeasurementParams extends LabelParams {
@@ -95,6 +145,42 @@ export type RejectionDetail =
       readonly params: MeasurementParams;
     }
   | { readonly code: "COLUMN_MISMATCH"; readonly params: LabelParams }
+  /** §5.4 on a body that has no width to change: an accessory, a `fixedWidth` entry, or one with
+   *  no §7 equivalent to rebuild through. §9's `canWidth` hides the section for all three, so this
+   *  is the engine's own half of the same rule rather than a second one. */
+  | { readonly code: "NOT_RESIZABLE"; readonly params: LabelParams }
+  | { readonly code: "WIDTH_UNCHANGED"; readonly params: CurrentWidthParams }
+  | { readonly code: "NO_EMPTY_SPACE"; readonly params: EmptySpaceParams }
+  /** ADR 0031 rule 1 read from the engine's end: the column holds a body that cannot change width
+   *  — a corner, an appliance, a `fixedWidth` entry, or one with no §7 equivalent — so the column
+   *  cannot move as one. */
+  | {
+      readonly code: "COLUMN_MEMBER_NOT_RESIZABLE";
+      readonly params: ColumnMemberParams;
+    }
+  /** ADR 0031's arithmetic has a precondition its prose leaves implicit: every member of the column
+   *  moves by the **same** amount, which is only meaningful if they start flush. A column whose
+   *  members sit at different widths or different centres — reachable by inserting a 450 mm
+   *  dishwasher into a 600 mm column's void — has no single boundary to move, so it is refused
+   *  rather than silently squared up. */
+  | { readonly code: "COLUMN_MEMBERS_UNALIGNED"; readonly params: LabelParams }
+  /** **Re-stated by ADR 0031, not deleted.** It used to refuse whenever the derived opening set
+   *  changed at all; under ADR 0031 that happens on *every* legal resize, because the empty column
+   *  funding it shrinks. The defect it guards is unchanged and still live, so it is now that
+   *  defect stated directly: **no opening may appear where a body physically stands.**
+   *
+   *  It stays reachable because the empty column's extent is frozen (ADR 0011 Gap D) while its
+   *  width moves. Widen it past what its own members used to cover and its load-time regions can
+   *  come to lie over a body in a neighbouring column — measured on the shipped kitchen, where
+   *  narrowing `A|0.75` to 200 mm into a cleared `A|1.30` offers a 900 mm base opening across the
+   *  corner leg `p25` is standing in.
+   *
+   *  It fires only when **no** side can fund the move without one (FINDING Q1.2): a phantom on the
+   *  right sends the scan to the left, and the same clear that makes the right side available must
+   *  not take away a move the left side was funding. It carries the same per-side record
+   *  `NO_EMPTY_SPACE` does, so the sentence still says which side was tried and what each answered —
+   *  the two codes are the same scan reaching two different verdicts. */
+  | { readonly code: "RESIZE_OPENS_GAP"; readonly params: EmptySpaceParams }
   | {
       readonly code: "NON_INTEGER_MILLIMETRES";
       readonly params: MillimetreParams;
@@ -129,6 +215,47 @@ function renderWidthTooSmall(params: BodyFloorParams): string {
 
 function renderMillimetreList(sizesMm: readonly number[]): string {
   return sizesMm.map((size) => String(size)).join(" sau ");
+}
+
+/** §2's `MIN_W` in millimetres, for the one refusal that names it. Read from the constant rather
+ *  than written down, so §9's consequence line ("sub 300 mm nu se coboară") and this sentence
+ *  cannot come to disagree — that is exactly how the two 400s of ADR 0028 drifted. */
+const MIN_WIDTH_MM = toMillimetres(MIN_WIDTH_M);
+
+const EMPTY_SPACE_REFUSAL_RO: Readonly<Record<EmptySpaceRefusal, string>> = {
+  absent: "nu este spațiu liber",
+  too_narrow: "spațiul liber este prea îngust",
+  remainder_below_floor: `ar rămâne un spațiu sub ${String(MIN_WIDTH_MM)} mm`,
+  opens_a_gap: "s-ar deschide un spațiu liber peste alte corpuri",
+};
+
+const EMPTY_SPACE_SIDE_RO: Readonly<Record<EmptySpaceSide["side"], string>> = {
+  right: "în dreapta",
+  left: "în stânga",
+};
+
+function renderEmptySpaceSide(side: EmptySpaceSide): string {
+  return `${EMPTY_SPACE_SIDE_RO[side.side]} ${EMPTY_SPACE_REFUSAL_RO[side.reason]}`;
+}
+
+/** ADR 0031's sentence: which side was tried, and why the space there could not fund the move.
+ *  Growing and shrinking read opposite ways round — one consumes empty space, the other returns
+ *  width to it — so the verb follows the sign of the delta rather than being softened into one
+ *  phrase that is half wrong in both directions. */
+function renderNoEmptySpace(params: EmptySpaceParams): string {
+  const verb = params.deltaMm > 0 ? "ocupe" : "elibereze";
+  const neededMm = Math.abs(params.deltaMm);
+  const sides = params.sides.map(renderEmptySpaceSide).join(", iar ");
+  return `„${params.label}” nu poate ajunge la ${String(params.requestedMm)} mm: coloana ar trebui să ${verb} ${String(neededMm)} mm, dar ${sides}.`;
+}
+
+/** The same scan as `renderNoEmptySpace`, reaching the other verdict: at least one side could have
+ *  funded the move and the opening it would have derived stands over a body. Naming the sides is
+ *  what turns "not here" into something the customer can act on — the other side is usually one
+ *  delete away from working. */
+function renderResizeOpensGap(params: EmptySpaceParams): string {
+  const sides = params.sides.map(renderEmptySpaceSide).join(", iar ");
+  return `„${params.label}” nu poate fi redimensionat aici: ${sides}.`;
 }
 
 export function renderRejection(detail: RejectionDetail): string {
@@ -173,6 +300,18 @@ export function renderRejection(detail: RejectionDetail): string {
       return `Nu am putut măsura corpul „${detail.params.label}” după ce a fost construit, așa că nu l-am așezat.`;
     case "COLUMN_MISMATCH":
       return `„${detail.params.label}” ar ieși din coloana în care a fost adăugat.`;
+    case "NOT_RESIZABLE":
+      return `„${detail.params.label}” nu își poate schimba lățimea.`;
+    case "WIDTH_UNCHANGED":
+      return `„${detail.params.label}” are deja ${String(detail.params.widthMm)} mm lățime.`;
+    case "NO_EMPTY_SPACE":
+      return renderNoEmptySpace(detail.params);
+    case "COLUMN_MEMBER_NOT_RESIZABLE":
+      return `„${detail.params.label}” nu poate fi redimensionat: în aceeași coloană stă „${detail.params.memberLabel}”, care nu își poate schimba lățimea.`;
+    case "COLUMN_MEMBERS_UNALIGNED":
+      return `„${detail.params.label}” nu poate fi redimensionat: corpurile din această coloană nu sunt aliniate.`;
+    case "RESIZE_OPENS_GAP":
+      return renderResizeOpensGap(detail.params);
     case "NON_INTEGER_MILLIMETRES":
       return `Dimensiunea calculată (${detail.params.field}: ${String(detail.params.valueMm)} mm) nu este un număr întreg de milimetri.`;
     case "FINISH_NOT_SUPPORTED":

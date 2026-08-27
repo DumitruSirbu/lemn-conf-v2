@@ -105,24 +105,34 @@ const seededWorld = () => worldFrom(KITCHEN_L_DESIGN);
  *  here and say what it did — the sweeps below are the only thing standing between a resolution
  *  that quietly returns fewer chips and a green suite.
  *
- *  41 = seventeen rendering bodies: two chips each for the ten `wall-2door` rows and the sink, the
- *  dishwasher, `p1`; three for `base-3drawer`, `open-shelf` and `p24` (its own 700 joins); four for
- *  the two `wall-1door` rows, whose own 300 joins a set that still holds 400. */
-const SEEDED_WIDTH_CHIP_COUNT = 41;
+ *  It moved again on the same day: ADR 0030, as amended, made `wall-1door` `[200, 300, 400]`. The
+ *  two rows that resolve it still render three chips each, but for a different reason — their own
+ *  300 is now a **member** of the set rather than a width folded in beside it — so the count holds
+ *  at 39 while its composition changed. That is exactly why it is pinned as a number *and*
+ *  itemised below: a count alone would have read green through the change.
+ *
+ *  39 = seventeen rendering bodies: two chips each for the ten `wall-2door` rows and for the sink
+ *  and the dishwasher; three for `base-3drawer`, `open-shelf` and `p24` (its own 700 joins); three
+ *  for the two `wall-1door` rows, whose whole set is 200/300/400. */
+const SEEDED_WIDTH_CHIP_COUNT = 39;
 
 describe("a body built to its opening rather than to a member of its set", () => {
   // `wall-1door-300` sits at exactly `MIN_W`, which is the boundary of the whole width rule: the
   // consequence line says "sub 300 mm nu se coboară", so a body standing *on* the floor must still
   // get its own chip and it must be the active one.
-  it("folds wall-1door-300's own 300 in, at exactly MIN_W", () => {
+  it("gives wall-1door-300 its own set, which now contains its width", () => {
+    // **This used to be the fold case.** ADR 0030's amendment put 200 and 300 into `wall-1door`'s
+    // own set, so `p10`'s width is a member rather than an addition — the body standing *on* §2's
+    // floor still gets a chip for it, and it is still the active one, but the mechanism that
+    // produces it changed. `p24` below is now the only fold left in the shipped kitchen.
     const world = seededWorld();
     const meta = describeSelection({
       ...world,
       target: { kind: "placement", id: "p10" },
     });
     expect(meta?.widthMm).toBe(toMillimetres(MIN_WIDTH_M));
-    expect(meta?.sizesMm).toEqual([400, 600, 800]);
-    expect(widthsAt(world, "p10")).toEqual([300, 400, 600, 800]);
+    expect(meta?.sizesMm).toEqual([200, 300, 400]);
+    expect(widthsAt(world, "p10")).toEqual([200, 300, 400]);
   });
 
   // ADR 0029: `wall-2door` declares [600, 800], so the row is three chips rather

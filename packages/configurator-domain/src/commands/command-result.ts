@@ -6,6 +6,7 @@
 // but different object, and a rejection sweep can assert `toBe`.
 import type { Design, DesignPlacement, Finish, Handle } from "../design.js";
 import { ConfigurationTimestampSchema } from "../schemas.js";
+import type { Column } from "../void-engine.js";
 import {
   renderRejection,
   type RejectionDetail,
@@ -46,6 +47,36 @@ export interface BodyInsertedEffect {
   readonly cascadedAccessoryIds: readonly string[];
 }
 
+/** ADR 0031's resize: the one operation that changes bodies the customer did not select, and the
+ *  one that moves a body horizontally.
+ *
+ *  It is therefore the only effect carrying `columns`. A column's key is derived from a body's
+ *  centre (§3.2), so a resize moves every member of a column out of the key that held them; every
+ *  other command leaves the frozen extents alone and the store passes its own map through (ADR 0011
+ *  Gap D). The updated map is published here rather than recomputed by the store because the rule
+ *  for *which* keys may change belongs to the command that moved them — a store that recomputed
+ *  globally would make §10's delete produce no openings at all, which is Gap D verbatim. */
+export interface BodyResizedEffect {
+  readonly type: "body_resized";
+  /** The body the customer selected. Its whole column moved with it (ADR 0031 rule 1). */
+  readonly placementId: string;
+  readonly buildId: string;
+  readonly widthMm: number;
+  /** Every placement in the resized column, `placementId` included — what the scene has to rebuild
+   *  and what §11 row 12's appearance guarantee now covers. */
+  readonly columnPlacementIds: readonly string[];
+  /** The empty column that funded the move (ADR 0031 rule 2), as **the key it had before the move**.
+   *  `columns` no longer holds it: the column moved, so its key moved with it. */
+  readonly emptyColumnKey: string;
+  /** **The key that same column holds afterwards**, which is the one to look up in `columns`.
+   *  Absent when `emptyColumnWidthMm` is `0` — the resize consumed the space exactly and the column
+   *  ceased to exist (rule 6). */
+  readonly emptyColumnNewKey?: string;
+  /** The width the empty column was left at. `0` means it was consumed exactly. */
+  readonly emptyColumnWidthMm: number;
+  readonly columns: ReadonlyMap<string, Column>;
+}
+
 export interface FinishSetEffect {
   readonly type: "finish_set";
   readonly placementId: string;
@@ -61,6 +92,7 @@ export interface HandleSetEffect {
 export type CommandEffect =
   | PlacementRemovedEffect
   | BodyInsertedEffect
+  | BodyResizedEffect
   | FinishSetEffect
   | HandleSetEffect;
 

@@ -292,15 +292,30 @@ describe("declared floors that are not widths at all", () => {
 // Wave C — the cargo's floor must not leak into any other entry.
 // ---------------------------------------------------------------------------------------------
 
-describe("the cargo's 200 mm floor reaches nothing but the cargo", () => {
-  it("is the only insertable entry declaring below §2's default", () => {
-    const declaringDown = INSERTABLE_BODY_DEFINITIONS.filter(
-      ([, definition]) =>
-        definition.minWidthMm !== undefined &&
-        definition.minWidthMm < toMillimetres(MIN_WIDTH_M),
-    ).map(([buildId]) => buildId);
+/** Every insertable entry whose row declares a floor **below** §2's default. ADR 0026 shipped with
+ *  one; ADR 0030's amendment made it three, because a `[200, 300, 400]` one-door set is filtered
+ *  straight back out again unless the row declares the floor to keep it.
+ *
+ *  Derived rather than written down, so a fourth declaration fails these sweeps loudly. ADR 0026 is
+ *  explicit that any such row "needs its own record" — this is the assertion that enforces it. */
+function entriesDeclaringDown(): string[] {
+  return INSERTABLE_BODY_DEFINITIONS.filter(
+    ([, definition]) =>
+      definition.minWidthMm !== undefined &&
+      definition.minWidthMm < toMillimetres(MIN_WIDTH_M),
+  ).map(([buildId]) => buildId);
+}
 
-    expect(declaringDown).toEqual([CARGO_BUILD_ID]);
+describe("a sub-300 mm width is reached only by naming a row that declares one", () => {
+  it("names the three insertable entries declaring below §2's default", () => {
+    // **This asserted "the cargo, and only the cargo" until 2026-08-27.** It was right until ADR
+    // 0030's amendment; the rule it was protecting — nobody gets a narrow cabinet they did not ask
+    // for — is unchanged and is what the two sweeps below still assert.
+    expect(entriesDeclaringDown()).toEqual([
+      "base-1door",
+      CARGO_BUILD_ID,
+      "wall-1door",
+    ]);
   });
 
   // §9's two narrowing paths. `buildableSizes` now defaults its floor to 300 instead of "no
@@ -334,7 +349,7 @@ describe("the cargo's 200 mm floor reaches nothing but the cargo", () => {
 
   // Every offer in the shipped kitchen, at every void and at every replaceable body. No row but
   // the cargo may resolve to a width under §2's floor.
-  it("offers no sub-300 mm width anywhere in the shipped kitchen but the cargo's", () => {
+  it("offers no sub-300 mm width anywhere in the shipped kitchen but theirs", () => {
     const world = createWorld(KITCHEN_L_DESIGN, KITCHEN_L_BODY_CATALOG);
     const targets = [
       ...world.voids.map(
@@ -348,9 +363,10 @@ describe("the cargo's 200 mm floor reaches nothing but the cargo", () => {
     let offersSeen = 0;
 
     for (const target of targets) {
+      const declaringDown = new Set(entriesDeclaringDown());
       for (const offer of offersFor({ ...world, target })) {
         offersSeen += 1;
-        if (offer.buildId === CARGO_BUILD_ID) continue;
+        if (declaringDown.has(offer.buildId)) continue;
         if (offer.widthMm < GENERAL_MIN_WIDTH_MM) {
           offending.push(
             `${target.id} → ${offer.buildId} @ ${String(offer.widthMm)}`,
@@ -369,10 +385,12 @@ describe("the cargo's 200 mm floor reaches nothing but the cargo", () => {
     expect(offending).toEqual([]);
   });
 
-  // §5.4's donor rule is M5's, but the owner's rule is that a 200 mm cabinet is only ever reached
-  // by being chosen. Nothing in M3 may produce one as the residue of another edit.
-  it("never produces a sub-300 mm placement except by naming the cargo", () => {
+  // The owner's rule is that a narrow cabinet is only ever reached by being chosen. Nothing may
+  // produce one as the residue of another edit — which ADR 0031 strengthened rather than weakened,
+  // by deleting the donor that was the one way it could have happened.
+  it("never produces a sub-300 mm placement except by naming a row that declares one", () => {
     const narrow: string[] = [];
+    const declaringDown = new Set(entriesDeclaringDown());
     let inserts = 0;
 
     for (let widthMm = 190; widthMm <= 900; widthMm += 10) {
@@ -386,7 +404,7 @@ describe("the cargo's 200 mm floor reaches nothing but the cargo", () => {
         if (
           placed !== undefined &&
           placed.body.widthMm < GENERAL_MIN_WIDTH_MM &&
-          placed.body.buildId !== CARGO_BUILD_ID
+          !declaringDown.has(placed.body.buildId)
         ) {
           narrow.push(
             `${String(widthMm)} mm opening → ${offer.buildId} @ ${String(placed.body.widthMm)}`,

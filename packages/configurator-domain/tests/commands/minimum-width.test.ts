@@ -32,6 +32,9 @@ const SINK_MIN_WIDTH_MM = 560;
 const GENERAL_MIN_WIDTH_MM = 300;
 /** ADR 0026: the bottle cargo's floor, the one entry that declares below the default. */
 const BOTTLE_CARGO_MIN_WIDTH_MM = 200;
+/** ADR 0030's amendment: the two hinged singles declare the same floor, for the same reason —
+ *  a set reaching under §2's default needs a declaration to keep it. */
+const ONE_DOOR_MIN_WIDTH_MM = 200;
 const OPENING_ALONG_MM = 1000;
 const OPENING_COLUMN = "A|1.00";
 
@@ -189,15 +192,20 @@ describe("the sink base's catalogue widths", () => {
       ).map(([buildId, definition]) => [buildId, definition.minWidthMm]),
     );
 
-    // Catalogue order, which is the order §9 lists the rows in.
+    // Catalogue order, which is the order §9 lists the rows in. **Two entries until 2026-08-27**:
+    // ADR 0030's amendment added `base-1door` and `wall-1door` at the same 200 mm the cargo
+    // declares, because a set reaching below §2's default is filtered back out again without one.
     expect([...declaredFloorsMm]).toEqual([
+      ["base-1door", ONE_DOOR_MIN_WIDTH_MM],
       ["base-bottle-cargo", BOTTLE_CARGO_MIN_WIDTH_MM],
       ["base-sink", SINK_MIN_WIDTH_MM],
+      ["wall-1door", ONE_DOOR_MIN_WIDTH_MM],
     ]);
     // ADR 0017 raises, ADR 0026 lowers. A floor on the wrong side of §2's default would change
     // which rejection code the customer reads, so the direction is asserted, not just the value.
     expect(SINK_MIN_WIDTH_MM).toBeGreaterThan(GENERAL_MIN_WIDTH_MM);
     expect(BOTTLE_CARGO_MIN_WIDTH_MM).toBeLessThan(GENERAL_MIN_WIDTH_MM);
+    expect(ONE_DOOR_MIN_WIDTH_MM).toBeLessThan(GENERAL_MIN_WIDTH_MM);
   });
 });
 

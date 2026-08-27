@@ -645,6 +645,92 @@ front — in which case the flags were right all along and the *geometry* is wha
 bars alongside its two real door handles) and was scoped out of the same wave; it belongs to
 whoever owns §6.5.
 
+## 12. §3.2's column cannot express a middle level at its own width — RAISED BY M5 WAVE 5C
+
+Found while implementing §5.4's resize (M5 wave 5C, 2026-08-27), and **rewritten later the same day**
+when ADR 0031 replaced the rule it was raised under. §5.4's per-level resize is what hit this limit;
+ADR 0031's column-scoped resize does not, and the entry survives as the record of what a *per-level*
+width would cost — the owner's first instinct, deferred on cost rather than on merit.
+
+**The mechanism.** §3.2's column is a vertical run at one along-wall coordinate, and `deriveColumnKey`
+keys it on a body's **centre**. A resize moves that centre. Move a *middle-level* body sideways while
+the levels above and below stay where they are, and the level it left reads as free space.
+
+Measured on the shipped kitchen: resizing `p11` yields `A|1.30@1.50 h0.70 w0.80` — an **800 mm empty
+slot offered on the stretch of wall where `p10` and `p11` are physically standing**. A body inserted
+into it would overlap them both. **A full recompute of the column map produces the same opening**, so
+this is the model's limit, not the touched-key update rule's.
+
+**What shipped instead — rewritten 2026-08-27, after the rule this entry was raised under was
+replaced.** The first implementation refused with `RESIZE_OPENS_GAP` whenever the derived opening set
+changed at all. **ADR 0031 superseded §5.4's donor rule the same day**, and under it a legal resize
+moves a whole column and shrinks the empty column funding it — so the opening set changes on *every*
+success and that comparison had to go. The refusal was **re-stated, not deleted**: it is now the
+assertion it always stood for, that **no opening may appear where a body physically stands**, and it
+is still reachable — narrowing `A|0.75` into a cleared `A|1.30` widens the empty column to 900 mm and
+offers a base opening across the corner leg `p25` occupies.
+
+**What it costs under ADR 0031.** The old figure — "no middle-row wall cabinet can be resized:
+exactly `p10`, `p11`, `p12`" — is obsolete, because per-level resize no longer exists. Column scope
+sidesteps this entry's mechanism entirely: every member of a column moves by the same amount, so no
+body leaves the column its neighbours above are in and no vacated key reads as free. Measured after
+the pivot: **six distinct column moves are reachable once one column is deleted**, against the donor
+rule's two chips.
+
+**This entry is now the record for the deferred product, not for a defect.** ADR 0031 cites it by
+name: per-level independence was the owner's first instinct and is deferred **on cost, not on
+merit** — it needs §3.2 inverted from columns to rows, and the ADR carries the measured blast radius.
+
+**Do not attempt 3 inside a wave.** It changes the derivation every other rule reads, and ADR 0011
+Gap D records what a blanket recompute costs: clearing the fridge column then yields **no voids at
+all**, and the delete does nothing.
+
+**The owner decided on 2026-08-27, before it reached the app**: ship the column-scoped rule and let
+real use decide. If testers find mismatched level widths necessary, direction 3 becomes its own
+milestone, chosen on evidence. Until then this entry is the record, not a scheduled item.
+
+## 13. The insert path ignores a width bound, and M5 wave 5C makes it reachable — RAISED BY LOGIC REVIEW
+
+Found reviewing M5 wave 5C, 2026-08-27. **Pre-existing defect, newly reachable**, which is why it is
+an entry rather than a wave fix.
+
+**The mechanism.** `resolveWidth` (`commands/insert-fit.ts`) returns the opening's own width for a
+`widthFlex: 'fit'` body after the §2 floor checks, and **never consults `sizesMm`**:
+
+```ts
+if (body.widthFlex === "fit") return { ok: true, widthM: opening.w };
+```
+
+`offersFor` gates purely on `evaluateInsertFit`, so it offers `wall-2door` into any wall opening at or
+above 300 mm, building at the opening's width. The chips it renders are `[600, 800]`; the width it
+builds at is whatever the opening is.
+
+**Why it is newly reachable.** ADR 0031 is the first mechanism in the product that can produce a
+**sub-600 mm column**. Take a column whose only wall member is a `wall-1door` (own set
+`[200, 300, 400]`, so 300 is legal for that column), clear an adjacent column, resize to 300 — all
+accepted. Now delete the `wall-1door`. The 300 mm void offers *Corp suspendat 2 uși*, and inserting it
+builds **one door under a two-door label**. That is [ADR 0029](../decisions/0029-a-two-door-cabinet-may-not-be-offered-at-one-door-widths.md)
+verbatim, arriving through the path that ADR could not reach.
+
+**This is the same shape ADR 0029 already recorded as unfinished.** Its Consequences say the decision
+"closes the resize path only" because `wall-2door` is `widthFlex: 'fit'` and the insert path never
+reads `sizesMm`. That was true when written and is now demonstrable on a state the customer can
+create.
+
+**It also qualifies ADR 0031 rule 5's framing.** The rule's correction says `sizesMm`-as-a-bound is
+what protects ADR 0029 — but `sizesAreStandardLadder` is read by `setWidth` alone, so the bound has
+**no effect at all** on the path that was already violating it. Two halves of one engine still answer
+the question differently; the flag records the distinction on one of them.
+
+**Direction.** The bound belongs in `resolveWidth`, gated on `sizesAreStandardLadder` — that is the
+one function §5.2 and §9 already share, which is the argument `buildableSizes`' own doc comment
+makes. Doing it there closes the resize path and the insert path with one rule, and makes the flag's
+scope a decision rather than an oversight.
+
+**Sequencing.** Worth settling **before 5D**, because 5D builds the chip-freedom query over exactly
+this seam. Not a 5C fix: it changes what `offersFor` offers, which is M3's machinery and its own
+acceptance criteria.
+
 ## Also open, recorded elsewhere — do not duplicate here
 
 - **Width editing does nothing yet.** Every width chip is `blocked` because §5.4's resize command

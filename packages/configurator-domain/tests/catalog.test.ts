@@ -147,3 +147,49 @@ describe("every insertable entry's two depth fields agree", () => {
     expect(INSERTABLE_BODY_DEFINITIONS.length).toBeGreaterThanOrEqual(15);
   });
 });
+
+describe("every insertable entry says whether its widths are a bound or the ladder", () => {
+  // ADR 0031 rule 5 needs the distinction, and `sizesAreStandardLadder` is declared per row rather
+  // than inferred — §6.3's rule. Declaring it is exactly the kind of thing a new row forgets, and a
+  // forgotten one is silent: the row keeps every width in its set, so nothing is built wrong and a
+  // resize is merely refused where it should have been allowed.
+  //
+  // So the two facts are cross-checked here. They are not the same fact — a future entry could
+  // legitimately declare `[400, 600, 800]` as a bound of its own — but the day one does, this gate
+  // is where that has to be said out loud instead of arriving as a diff nobody read.
+  const STANDARD_WIDTHS_MM = [400, 600, 800];
+
+  it.each(INSERTABLE_BODY_DEFINITIONS)(
+    "%s declares the ladder if and only if it carries the standard set",
+    (_buildId, definition) => {
+      const carriesStandardSet =
+        JSON.stringify(definition.sizesMm) ===
+        JSON.stringify(STANDARD_WIDTHS_MM);
+      expect(definition.sizesAreStandardLadder === true).toBe(
+        carriesStandardSet,
+      );
+    },
+  );
+
+  it("has entries on both sides, so neither branch is untested", () => {
+    const ladder = INSERTABLE_BODY_DEFINITIONS.filter(
+      ([, definition]) => definition.sizesAreStandardLadder === true,
+    ).map(([buildId]) => buildId);
+    const bounded = INSERTABLE_BODY_DEFINITIONS.filter(
+      ([, definition]) => definition.sizesAreStandardLadder !== true,
+    ).map(([buildId]) => buildId);
+
+    // The five rows whose widths are the standard modules and nothing more. Named rather than
+    // counted: `wall-2door` moving into this list would silently undo ADR 0029 on a resize.
+    expect(ladder).toEqual([
+      "base-2door",
+      "base-3drawer",
+      "base-panbank",
+      "wall-lift",
+      "open-shelf",
+    ]);
+    expect(bounded).toContain("wall-2door");
+    expect(bounded).toContain("wall-1door");
+    expect(bounded).toContain("base-sink");
+  });
+});

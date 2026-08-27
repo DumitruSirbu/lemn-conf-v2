@@ -271,8 +271,10 @@ describe("the chips a seeded width section actually renders", () => {
     p4: [400, 600, 800], // base-drawer3-600 → base-3drawer
     // `wall-1door` KEEPS its 400 — ADR 0029 is about two-door entries, and
     // a one-door cabinet at 400 mm is honest. Kept beside `p24` below, which lost its 400, so this
-    // table tests the distinction rather than one side of it.
-    p10: [300, 400, 600, 800], // wall-1door-300: 300 is its width, not its set
+    // table tests the distinction rather than one side of it. ADR 0030's amendment then extended
+    // the set *downward*, so `p10`'s own 300 is a member of it and nothing is folded in here any
+    // more — `p24` is the last fold in the shipped kitchen.
+    p10: [200, 300, 400], // wall-1door-300 → wall-1door, whole set (ADR 0030 as amended)
     p24: [600, 700, 800], // wall-2door-700-over-fridge, likewise at 700
   };
 

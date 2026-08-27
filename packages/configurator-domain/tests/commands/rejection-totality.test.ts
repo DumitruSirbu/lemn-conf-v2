@@ -23,7 +23,12 @@ import {
   KITCHEN_L_DESIGN,
 } from "../../src/fixtures/kitchen-l-design.js";
 import type { BodyCatalog, BodyDefinition } from "../../src/void-engine.js";
-import { clearBodies, insertInto, OCCURRED_AT } from "../support/commands.js";
+import {
+  clearBodies,
+  insertInto,
+  resizeTo,
+  OCCURRED_AT,
+} from "../support/commands.js";
 import { createFakeProbe } from "../support/fake-probe.js";
 import {
   advance,
@@ -115,6 +120,23 @@ function voidTarget(world: KitchenWorld, col: string, y0: number) {
   return { kind: "void", id: voidAt(world, col, y0).id } as const;
 }
 
+function unalignedMember(
+  id: string,
+  alongMm: number,
+  widthMm: number,
+  y0Mm: number,
+  heightMm: number,
+  buildId: string,
+) {
+  return {
+    id,
+    wall: "A" as const,
+    alongMm,
+    y0Mm,
+    body: { buildId, widthMm, heightMm },
+  };
+}
+
 function buildCases(): SweepCase[] {
   const world = seeded();
   // ADR 0027: the shipped design has no accessory left in it, so the two codes that need one — a
@@ -127,6 +149,24 @@ function buildCases(): SweepCase[] {
   );
   const clearedFridge = clearBodies(world, ["p7", "p24"]);
   const clearedDishwasher = clearBodies(world, ["p1"]);
+  // ADR 0031's two column refusals need a shape the seeded kitchen does not have. `gapWorld` is the
+  // shipped kitchen with `A|1.30` emptied, which is what lets `A|0.75` reach 200 and widen the empty
+  // column across the corner leg. `unalignedColumn` holds a 600 mm base under a 450 mm shelf — the
+  // state an inserted dishwasher leaves behind — beside an empty column that could otherwise fund
+  // the move.
+  const gapWorld = clearBodies(world, ["p0", "p11", "p17"]);
+  const unalignedColumn = clearBodies(
+    createWorld(
+      syntheticDesign([
+        unalignedMember("u-base", 1300, 600, 0, 820, "base-drawer2-600"),
+        unalignedMember("u-wall", 1300, 450, 1500, 700, "open-shelf-600"),
+        unalignedMember("r-base", 1900, 600, 0, 820, "base-drawer2-600"),
+        unalignedMember("r-wall", 1900, 600, 1500, 700, "open-shelf-600"),
+      ]),
+      KITCHEN_L_BODY_CATALOG,
+    ),
+    ["r-base", "r-wall"],
+  );
   // A 400 mm base opening: the dishwasher niche is made in 450 and 600 only.
   const narrowBase = clearBodies(columnWorld(1000, stackOf(400)), ["s0"]);
   // No top row, so the freed base span stops at 1.50 and a 2200 mm column cannot fit above it.
@@ -340,6 +380,43 @@ function buildCases(): SweepCase[] {
         }),
     },
     {
+      code: "NOT_RESIZABLE",
+      design: world.design,
+      // ADR 0027: the hob-bearing base is 600 mm and nothing else, so it has no width to change.
+      run: () => resizeTo(world, "p2", 600),
+    },
+    {
+      code: "COLUMN_MEMBER_NOT_RESIZABLE",
+      design: world.design,
+      // ADR 0031 rule 1: `p19` can change width, but the hob base three levels below it in the
+      // same column cannot, and the whole column moves or none of it does.
+      run: () => resizeTo(world, "p19", 800),
+    },
+    {
+      code: "WIDTH_UNCHANGED",
+      design: world.design,
+      run: () => resizeTo(world, "p18", 600),
+    },
+    {
+      code: "NO_EMPTY_SPACE",
+      design: world.design,
+      // ADR 0031's headline consequence: the shipped kitchen has no empty column at load, so
+      // there is nothing on either side of `A|1.30` to fund a move.
+      run: () => resizeTo(world, "p0", 600),
+    },
+    {
+      code: "COLUMN_MEMBERS_UNALIGNED",
+      design: unalignedColumn.design,
+      run: () => resizeTo(unalignedColumn, "u-base", 800),
+    },
+    {
+      code: "RESIZE_OPENS_GAP",
+      design: gapWorld.design,
+      // Clear `A|1.30`, narrow `A|0.75` to 200, and the empty column reaches 900 mm — offering a
+      // base opening across the floor the corner leg `p25` stands on.
+      run: () => resizeTo(gapWorld, "p10", 200),
+    },
+    {
       code: "HANDLE_NOT_SUPPORTED",
       design: world.design,
       run: () =>
@@ -394,6 +471,12 @@ const ALL_REJECTION_CODES: Readonly<Record<RejectionCode, true>> = {
   NON_INTEGER_MILLIMETRES: true,
   FINISH_NOT_SUPPORTED: true,
   HANDLE_NOT_SUPPORTED: true,
+  NOT_RESIZABLE: true,
+  WIDTH_UNCHANGED: true,
+  NO_EMPTY_SPACE: true,
+  COLUMN_MEMBER_NOT_RESIZABLE: true,
+  COLUMN_MEMBERS_UNALIGNED: true,
+  RESIZE_OPENS_GAP: true,
 };
 
 describe("every refusal a command can produce", () => {
@@ -436,5 +519,53 @@ describe("every refusal a command can produce", () => {
       (code) => !reached.has(code as RejectionCode),
     );
     expect(unswept).toEqual([]);
+  });
+});
+
+describe("the two refusals ADR 0031's side scan can produce", () => {
+  // `NO_EMPTY_SPACE` and `RESIZE_OPENS_GAP` carry the same per-side record and are chosen from it:
+  // the phantom verdict wins whenever any side answered `opens_a_gap`. Two representations of one
+  // fact, so the invariant binding them is asserted rather than left to `refuseNoSideFunds` being
+  // read correctly by the next person (logic review R1.11).
+  //
+  // Keeping both codes is deliberate — they are different sentences about different situations, and
+  // a customer told "there is no room on either side" when the room exists but is unusable would go
+  // looking for the wrong fix.
+  const SCAN_CODES: readonly RejectionCode[] = [
+    "NO_EMPTY_SPACE",
+    "RESIZE_OPENS_GAP",
+  ];
+
+  it.each(buildCases().filter((sweep) => SCAN_CODES.includes(sweep.code)))(
+    "$code is exactly what its own sides record implies",
+    (sweep) => {
+      const result = sweep.run();
+      expect(result.ok).toBe(false);
+      if (
+        result.ok ||
+        (result.reason.code !== "NO_EMPTY_SPACE" &&
+          result.reason.code !== "RESIZE_OPENS_GAP")
+      ) {
+        expect.unreachable("expected one of the two side-scan refusals");
+      }
+      const opensAGap = result.reason.params.sides.some(
+        (side) => side.reason === "opens_a_gap",
+      );
+      expect(result.reason.code).toBe(
+        opensAGap ? "RESIZE_OPENS_GAP" : "NO_EMPTY_SPACE",
+      );
+      // And the scan really did try both sides, so the invariant is not holding vacuously.
+      expect(result.reason.params.sides.map((side) => side.side)).toEqual([
+        "right",
+        "left",
+      ]);
+    },
+  );
+
+  it("covers both verdicts, so neither branch of the invariant is untested", () => {
+    const reached = buildCases()
+      .filter((sweep) => SCAN_CODES.includes(sweep.code))
+      .map((sweep) => sweep.code);
+    expect(reached.sort()).toEqual(["NO_EMPTY_SPACE", "RESIZE_OPENS_GAP"]);
   });
 });

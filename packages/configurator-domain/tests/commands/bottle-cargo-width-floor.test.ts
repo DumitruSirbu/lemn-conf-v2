@@ -51,6 +51,17 @@ function baseOpeningWorld(widthMm: number): KitchenWorld {
   );
 }
 
+/** Every base entry whose row declares a floor **below** §2's default — the only entries that can
+ *  be offered into an opening narrower than 300 mm (ADR 0026 clause 3). */
+function subDefaultBaseBuildIds(): string[] {
+  return INSERTABLE_BODY_DEFINITIONS.filter(
+    ([, definition]) =>
+      definition.band === "base" &&
+      definition.minWidthMm !== undefined &&
+      definition.minWidthMm < GENERAL_MIN_WIDTH_MM,
+  ).map(([buildId]) => buildId);
+}
+
 function baseVoidTarget(world: KitchenWorld) {
   return { kind: "void", id: voidAt(world, OPENING_COLUMN, 0).id } as const;
 }
@@ -187,7 +198,11 @@ describe("the bottle cargo builds at its own widths, never to the opening", () =
 });
 
 describe("§9's offer list reads the substituted floor too", () => {
-  it("offers the cargo, and only the cargo, in a sub-300 base opening", () => {
+  it("offers only the entries that declare a floor below the default", () => {
+    // **This asserted "the cargo, and only the cargo" until 2026-08-27.** ADR 0030's amendment gave
+    // `base-1door` a `[200, 300, 400]` set and the 200 mm floor it needs to keep it, so the base
+    // band now has two such rows. What the rule always said is what is asserted now, and it is
+    // derived from the catalogue rather than written down — a fourth declaration fails here loudly.
     for (const widthMm of [200, 250, 299]) {
       const world = baseOpeningWorld(widthMm);
       const offered = offersFor({ ...world, target: baseVoidTarget(world) });
@@ -195,8 +210,13 @@ describe("§9's offer list reads the substituted floor too", () => {
       expect(
         offered.map((offer) => offer.buildId),
         `${String(widthMm)} mm`,
-      ).toEqual([CARGO_BUILD_ID]);
+      ).toEqual(subDefaultBaseBuildIds());
     }
+  });
+
+  it("is the whole of what declares downward in the base band", () => {
+    // The premise the row above rests on, stated separately so a change to either is visible.
+    expect(subDefaultBaseBuildIds()).toEqual(["base-1door", CARGO_BUILD_ID]);
   });
 
   it("offers nothing at all below the cargo's floor", () => {

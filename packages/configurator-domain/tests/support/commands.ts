@@ -4,6 +4,7 @@ import type { BodyProbe } from "../../src/body-probe.js";
 import type { CommandTarget } from "../../src/commands/command-result.js";
 import { insertBody } from "../../src/commands/insert-body.js";
 import { removePlacement } from "../../src/commands/remove-placement.js";
+import { setWidth } from "../../src/commands/set-width.js";
 import { createFakeProbe } from "./fake-probe.js";
 import { advance, type KitchenWorld } from "./kitchen-world.js";
 
@@ -40,6 +41,26 @@ export function insertInto(
     columns: world.columns,
     target,
     buildId,
+    probe,
+    occurredAt: OCCURRED_AT,
+  });
+}
+
+/** ADR 0031's resize, pointed at a placement — which resizes the whole **column** that placement
+ *  stands in. Returns the raw `CommandResult` so a test can assert a refusal's code as readily as a
+ *  success. */
+export function resizeTo(
+  world: KitchenWorld,
+  placementId: string,
+  widthMm: number,
+  probe: BodyProbe = createFakeProbe(),
+) {
+  return setWidth({
+    design: world.design,
+    catalog: world.catalog,
+    columns: world.columns,
+    target: { kind: "placement", id: placementId },
+    widthMm,
     probe,
     occurredAt: OCCURRED_AT,
   });

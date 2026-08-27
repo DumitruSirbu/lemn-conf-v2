@@ -23,9 +23,13 @@ export const MIN_SPAN_M = 0.3;
  *
  *  ADR 0026 reads this as a default rather than an absolute: an entry may declare a `minWidthMm`
  *  of its own in either direction, and one declaring a floor *below* this replaces it for that
- *  entry alone. `base-bottle-cargo` is the only such row, and it is reachable only by being chosen
- *  deliberately — §5.4's donor rule reads this constant, so no resize can leave a neighbour under
- *  300 mm as the residue of somebody else's edit. */
+ *  entry alone. Three rows declare downward since ADR 0030's amendment — `base-bottle-cargo`,
+ *  `base-1door` and `wall-1door` — and each is reachable only by being chosen deliberately.
+ *
+ *  ADR 0031 reads this constant for a different subject than §5.4 did. There is no donor any more,
+ *  so nothing is left narrow as the residue of somebody else's edit; what this floors now is the
+ *  **empty column** a resize eats into, which may be consumed exactly to zero but must never be
+ *  left as a sliver under 300 mm that nothing can be inserted into. */
 export const MIN_WIDTH_M = 0.3;
 
 /** `DEVELOPMENT-SPEC.md` §2's `TOL`: the slack every width and height comparison uses. Frame
@@ -97,6 +101,28 @@ export interface BodyDefinition {
   /** §9's width chips — the legal widths for this body. Delivered as a per-entry constant here;
    *  M5 wires them to the resize command. */
   readonly sizesMm?: readonly number[];
+  /** ADR 0031 rule 5: `true` marks a `sizesMm` that is §7's **standard module ladder** rather than a
+   *  bound of this entry's own, so it constrains a column only by the entry's floor.
+   *
+   *  The rule says a `widthFlex: 'fit'` member "accepts any width above its floor and so does not
+   *  narrow the intersection" — and read against `sizesMm` alone that is false of half the
+   *  catalogue, because a `'fit'` entry's set carries two different kinds of fact. `wall-2door`'s
+   *  `[600, 800]` is a **bound**: below 600 §7's builder makes one door under a two-door label
+   *  (ADR 0029), and nothing may resize a column past it. `base-panbank`'s `[400, 600, 800]` is the
+   *  **ladder**: 400 is the narrowest standard module, not the narrowest honest pan bank, and a
+   *  400 mm pan bank under a 400 mm one-door wall cabinet must not stop the pair going to 300.
+   *  Measured: without this distinction one of those two facts is always lost — enforce every set as
+   *  a bound and rule 5's second sentence is false; enforce none and a resize reaches a 400 mm
+   *  `wall-2door` and an 800 mm `wall-1door`, which are ADR 0029 and ADR 0030 by name.
+   *
+   *  **Declared, never inferred**, for the reason `catalogEquivalentId` is: "this row's set happens
+   *  to equal `STANDARD_WIDTHS_MM`" is a coincidence a future row could reproduce for an unrelated
+   *  reason, and §6.3 records what inferring a fact about a body from its measurements cost.
+   *
+   *  Absent means `false` — the set is a bound — which is the **conservative** direction: a row that
+   *  forgets to say keeps every width in its set, and the failure is a resize refused rather than a
+   *  cabinet built at a width its own record forbids. */
+  readonly sizesAreStandardLadder?: boolean;
   /** ADR 0017: the narrowest width (millimetres) this body's own row permits. Absent means
    *  `MIN_WIDTH_M` governs, which is every entry but two.
    *
@@ -230,9 +256,18 @@ export class UnknownBodyError extends Error {
   }
 }
 
+/** §3.2's column key from a wall and an along-wall coordinate, at 10 mm granularity.
+ *
+ *  Exported because ADR 0031's resize moves an **empty** column, which by definition has no member
+ *  to derive a key from — its extent is frozen (ADR 0011 Gap D) and its width is what moves. Its new
+ *  key has to be derived the same way every occupied column's is, or a body later inserted into it
+ *  lands under a key the map does not hold and `insertBody` refuses `COLUMN_MISMATCH`. */
+export function deriveColumnKeyAt(wall: DesignWall, alongM: number): string {
+  return `${wall === "B" ? "B|" : "A|"}${alongM.toFixed(2)}`;
+}
+
 function deriveColumnKey(rotated: boolean, frame: Frame): string {
-  const position = rotated ? frame.z : frame.x;
-  return `${rotated ? "B|" : "A|"}${position.toFixed(2)}`;
+  return deriveColumnKeyAt(rotated ? "B" : "A", rotated ? frame.z : frame.x);
 }
 
 function lookupDefinition(
@@ -360,6 +395,82 @@ export function deriveColumns(
     });
   }
   return withCurrentFullHeightMembers(columns, records);
+}
+
+/** The keys whose membership an operation changed, comparing the placement records before and
+ *  after it. A key is touched when the set of ids filed under it differs — which covers a body
+ *  leaving a key, a body arriving at one, and a key that gained a member it did not have.
+ *
+ *  Membership rather than geometry, so that one body becoming two (backlog 2's re-split) is the
+ *  same question as one body moving: the ids under the old key change and two new keys appear. */
+function findTouchedColumnKeys(
+  recordsBefore: readonly PlacementRecord[],
+  recordsAfter: readonly PlacementRecord[],
+): Set<string> {
+  const before = groupByColumn(recordsBefore);
+  const after = groupByColumn(recordsAfter);
+  const touched = new Set<string>();
+  for (const key of new Set([...before.keys(), ...after.keys()])) {
+    if (!haveSameMembers(before.get(key) ?? [], after.get(key) ?? [])) {
+      touched.add(key);
+    }
+  }
+  return touched;
+}
+
+function haveSameMembers(
+  left: readonly PlacementRecord[],
+  right: readonly PlacementRecord[],
+): boolean {
+  if (left.length !== right.length) return false;
+  const ids = new Set(left.map((record) => record.id));
+  return right.every((record) => ids.has(record.id));
+}
+
+/** §5.4's half of ADR 0011 Gap D: **re-derive the columns for the keys this operation touched,
+ *  from the resulting records, and leave every other key exactly as it was.**
+ *
+ *  A column's key comes from a body's centre (§3.2), so a resize — the only operation that moves a
+ *  body horizontally — moves bodies out of the columns that hold them. Keeping the whole map frozen
+ *  through one then makes **two empty slots appear out of nowhere**: the resized bodies leave
+ *  columns that still carry their regions, and the space they no longer occupy is derived as free.
+ *  Nothing was deleted, and the model hallucinates openings.
+ *
+ *  Recomputing the whole map is not the fix and must never be the fix. Gap D exists because a
+ *  cleared run has to keep the opening it just freed: recompute after a delete and `top` shrinks to
+ *  what is left, so §10's signature flow — clear the fridge column, get three openings — yields
+ *  none at all and the delete button reads as broken. So the update is per operation, and only a
+ *  command that moved a body may ask for it.
+ *
+ *  **Stated for the record set, never for the roles.** It takes the records before and after and
+ *  knows nothing about a "target" or a "donor", because backlog 2's re-split turns one body into
+ *  two at the same total width and must be the same call with a different record set rather than a
+ *  second mechanism.
+ *
+ *  A touched key with no members left is **dropped**. Keeping it would carry the departed body's
+ *  own region forward as free space, which is the phantom-opening failure above.
+ *
+ *  Two consequences worth knowing, both bounded to the touched keys:
+ *  - `w` is the MIN over members and `d` the MAX, so a key a body *left* can change its `w` for the
+ *    bodies that stayed. That is the arithmetic §3.2 already specifies, applied to the new
+ *    membership.
+ *  - a re-derived key loses the load-time regions of members deleted earlier in the session. Only a
+ *    key the operation actually moved a body through can be affected; every other key, and every
+ *    delete, is untouched. */
+export function rederiveTouchedColumns(
+  columns: ReadonlyMap<string, Column>,
+  recordsBefore: readonly PlacementRecord[],
+  recordsAfter: readonly PlacementRecord[],
+): ReadonlyMap<string, Column> {
+  const touched = findTouchedColumnKeys(recordsBefore, recordsAfter);
+  const rederived = deriveColumns(recordsAfter);
+  const updated = new Map<string, ColumnExtent>(columns);
+  for (const key of touched) {
+    const column = rederived.get(key);
+    if (column) updated.set(key, column);
+    else updated.delete(key);
+  }
+  return withCurrentFullHeightMembers(updated, recordsAfter);
 }
 
 /** Re-answers "does a full-height member stand under this column" over frozen extents, and

@@ -141,7 +141,13 @@ describe("describeSelection — width chips", () => {
  *  the implementation. An empty set is the expected answer for the five bodies §7 does not build.
  *
  *  The `wall-2door` placements lost their 400 mm chip to ADR 0029 (owner, 2026-08-27):
- *  §7's wall builder gives a 400 mm carcass one door, so a two-door entry has no 400 mm width. */
+ *  §7's wall builder gives a 400 mm carcass one door, so a two-door entry has no 400 mm width.
+ *
+ *  The `wall-1door` placements lost their 800 to ADR 0030 (owner, 2026-08-27), for the opposite
+ *  kind of reason: the builder makes an 800 mm one-door carcass correctly and nobody should own
+ *  its swing arc. The same day's amendment extended that set *downward* to 200, so a one-door wall
+ *  cabinet can match a bottle cargo below it. The two rules trim opposite ends of the standard set,
+ *  which is why both are written out per placement here rather than derived. */
 const EXPECTED_SEEDED_SIZES_MM: Readonly<Record<string, readonly number[]>> = {
   p0: [600, 800], // base-sink-800 → base-sink (ADR 0017: no 400)
   p1: [450, 600], // base-dishwasher-600 → base-dishwasher
@@ -154,13 +160,13 @@ const EXPECTED_SEEDED_SIZES_MM: Readonly<Record<string, readonly number[]>> = {
   p7: [700], // fridge-free-700 → fridge-free
   p8: [600, 800], // wall-2door-600 → wall-2door: no 400 (ADR 0029)
   p9: [], // wall-corner-return-570 — structural, no equivalent
-  p10: [400, 600, 800], // wall-1door-300 → wall-1door: KEEPS 400
+  p10: [200, 300, 400], // wall-1door-300 → wall-1door (ADR 0030 as amended)
   p11: [600, 800],
   p12: [400, 600, 800], // open-shelf-600 → open-shelf
   p13: [600, 900], // hood-600 → hood
   p14: [600, 800],
   p15: [600, 800],
-  p16: [400, 600, 800], // wall-1door-300-top → wall-1door: keeps 400
+  p16: [200, 300, 400], // wall-1door-300-top → wall-1door (ADR 0030 as amended)
   p17: [600, 800],
   p18: [600, 800],
   p19: [600, 800],
@@ -185,13 +191,20 @@ describe("the width set a seeded body resolves through its declared equivalent",
         expected,
       ]);
     }
-    // ADR 0029 is a rule about two-door entries, not about wall cabinets, so
-    // the table has to keep both answers present or it stops testing the distinction: `wall-1door`
-    // still offers 400 and `wall-2door` no longer does. Asserted over the table itself, because a
-    // sweep that quietly loses one side is exactly where this guard would stop guarding.
+    // ADR 0029 is a rule about two-door entries and ADR 0030 one about one-door entries, and
+    // neither is a rule about wall cabinets — so the table has to keep every answer present or it
+    // stops testing the distinctions. `wall-1door` still offers 400 and `wall-2door` does not;
+    // `open-shelf` still offers 800 and `wall-1door` does not, and only `wall-1door` reaches 200. Asserted over the table itself,
+    // because a sweep that quietly loses one side is exactly where this guard would stop guarding.
     const sets = Object.values(EXPECTED_SEEDED_SIZES_MM);
-    expect(sets.filter((set) => set.includes(400)).length).toBeGreaterThan(0);
-    expect(sets.filter((set) => !set.includes(400)).length).toBeGreaterThan(0);
+    const withMember = (widthMm: number) =>
+      sets.filter((set) => set.includes(widthMm)).length;
+    const withoutMember = (widthMm: number) =>
+      sets.filter((set) => set.length > 0 && !set.includes(widthMm)).length;
+    expect(withMember(400)).toBeGreaterThan(0);
+    expect(withoutMember(400)).toBeGreaterThan(0);
+    expect(withMember(800)).toBeGreaterThan(0);
+    expect(withoutMember(800)).toBeGreaterThan(0);
   });
 
   // §7 dropped 1000 when two doors were capped at 800, and the milestone repeats it as an

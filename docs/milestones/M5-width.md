@@ -1,6 +1,20 @@
 # M5 — Editing a cabinet's size: width as a boundary move, depth as a derived quantity
 
-> **STATUS: PLANNED.** Depends on M4 (shipped 2026-08-26). Summary: `docs/STATUS.md`.
+> **STATUS: IN PROGRESS.** Waves 5A and 5B are shipped; 5C is rebuilt and in QA. Summary:
+> `docs/STATUS.md`.
+>
+> **Rewritten in part on 2026-08-27 by [ADR 0031](../decisions/0031-a-resize-moves-a-whole-column-into-adjacent-empty-space.md),
+> which supersedes §5.4's donor rule.** A resize moves a **whole column** at every level, funded by an
+> **adjacent empty column**; there is no donor and nothing is resized as a side effect of editing
+> another column. Work item 2 and the *boundary move* acceptance criteria carry supersession banners
+> and must not be implemented as written. Work item 4 (column identity), the *Column identity*
+> criteria, and everything about depth are unaffected.
+>
+> Also decided the same day and binding on the rest of this plan: **ADR 0029** (`wall-2door` is
+> `[600, 800]`), **ADR 0030 and its amendment** (`base-1door` / `wall-1door` are `[200, 300, 400]`,
+> so three entries now declare a floor below §2's default, where ADR 0026 had the bottle cargo alone),
+> and **`docs/BACKLOG.md` entry 12** (§3.2 cannot express a middle level at its own width; per-level
+> resize is deferred to a possible future milestone, on cost rather than merit).
 
 Status: planned. Depends on M4.
 Reference: `DEVELOPMENT-SPEC.md` §5.4, §5.2, §2, §3.2, §3.3, §4, §7, §9 item 6, §12, §13.1, §13.2,
@@ -301,7 +315,24 @@ is the signal, not a regression.** Change those assertions deliberately; do not 
 
 ### 2. Implement `setWidth(target)` — the boundary move
 
-§5.4's mechanics, unchanged from the previous plan:
+> **SUPERSEDED 2026-08-27 by [ADR 0031](../decisions/0031-a-resize-moves-a-whole-column-into-adjacent-empty-space.md).
+> Do not implement what follows.** §5.4's donor rule was implemented as written, and the result was
+> unusable: **two accepted resizes in the entire shipped kitchen**, both sides of one boundary,
+> because a donor's residue must be a legal width and ADRs 0029/0030's 200 mm-granular sets almost
+> never allow it. A resize now moves a **whole column** at every level, funded by an **adjacent empty
+> column** — there is no donor, and no cabinet is resized as a side effect of editing another column.
+>
+> **What survives from this item and is still built:** the rebuild through the insertable catalogue
+> entry (so a resized seeded body migrates its `buildId`), the `BodyProbe` re-check, and the refusal
+> path — `insertBody`'s guards apply to the rebuild, and a resize that would build a body the engine
+> refuses is refused *before* it is offered. Those are the two bullets under *"Two things the original
+> plan did not say"* below, and they are unchanged.
+>
+> **What is dead:** donor selection, `canGive`, the same-row neighbour search, and the two floor traps
+> that existed only to protect a donor's residue. The text below is kept because the reasoning that
+> led here is the valuable part and re-proposing a donor rule costs a cycle.
+
+§5.4's mechanics, as they stood before ADR 0031:
 
 Validate the target against the body's own legal sizes; find the neighbours (same wall, same row,
 edge-adjacent); choose a donor; move the shared boundary; rebuild both bodies; recompute voids;
@@ -514,6 +545,20 @@ minus a fixed overhang (decision 3), replacing the literal `CARC_D = 0.56`.
 State invariants and what must not happen. Rows are `DEVELOPMENT-SPEC.md` §11.
 
 ### The boundary move
+
+> **SUPERSEDED 2026-08-27 by [ADR 0031](../decisions/0031-a-resize-moves-a-whole-column-into-adjacent-empty-space.md).**
+> These criteria describe §5.4's donor rule, which is replaced. Read ADR 0031's *Consequences* for how
+> §11 rows 9–11 are re-read against the new rule: **row 9**'s boundary arithmetic still holds with the
+> empty column in the neighbour's place; **row 10**'s floor still binds, as the empty column may not
+> be left under `MIN_W`; **row 11 becomes vacuous rather than false**, because nothing donates any
+> more. Rows 12, 13 and 14 are unchanged in intent, and row 12 now covers **every member of the
+> resized column**.
+>
+> Four criteria below are **not** superseded and still bind, because they are about what a resize does
+> to the model rather than where the width comes from: *a resize does not change either body's
+> recorded depth*; *identity is declared, never inferred*; *a persisted design never holds a seeded
+> `buildId` at a width that id cannot build*; and the whole of **Column identity** in the next
+> section.
 
 - Neighbours are found on the same wall, in the same row (vertical starts within 0.06 m), and
   edge-adjacent (within 0.03 m). Never in the row above or below — decision 1.

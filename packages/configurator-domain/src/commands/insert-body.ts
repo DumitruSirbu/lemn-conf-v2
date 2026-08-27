@@ -23,6 +23,7 @@ import {
   FIT_TOLERANCE_M,
   type BodyCatalog,
   type Column,
+  type PlacementRecord,
 } from "../void-engine.js";
 import {
   isValidOccurredAt,
@@ -149,8 +150,10 @@ function place(
 
 /** §5.2: "gs = CARCASS box of g → re-check width & height, reject on mismatch". Fit is judged on
  *  the carcass, so the sink's faucet and the hood's chimney — which rise into free air — cannot
- *  refuse a body from an opening it fits perfectly (§11 row 7). */
-function refuseBuiltSize(
+ *  refuse a body from an opening it fits perfectly (§11 row 7).
+ *
+ *  Exported for ADR 0031's rebuild — see `refuseUnusableMeasurement` below. */
+export function refuseBuiltSize(
   body: InsertableBody,
   plan: InsertPlan,
   measurement: BodyMeasurement,
@@ -180,8 +183,12 @@ function refuseBuiltSize(
 /** The rest of the measurement, which no size gate covers: the seat offset `insertBody` persists
  *  and the full extent it reports. A probe is an injected port, so a measurement that is not a
  *  number is a data condition and belongs in the `CommandResult`, never in a thrown exception —
- *  the store calling this has no catch (ADR 0011 Gap E's reasoning, applied to Gap B's port). */
-function refuseUnusableMeasurement(
+ *  the store calling this has no catch (ADR 0011 Gap E's reasoning, applied to Gap B's port).
+ *
+ *  Exported for ADR 0031's rebuild, which builds every member of a column through the same probe
+ *  and owes each of them the same two checks. One implementation, so an insert and a resize cannot
+ *  come to disagree about what a usable measurement is. */
+export function refuseUnusableMeasurement(
   body: InsertableBody,
   measurement: BodyMeasurement,
 ): RejectionDetail | undefined {
@@ -264,7 +271,7 @@ function buildPlacement(
       widthMm: millimetres.widthMm,
       heightMm: millimetres.heightMm,
       seatDepthMm: millimetres.seatDepthMm,
-      ...carriedAppearance(body, target),
+      ...carriedAppearance(body, target.replaced),
     },
   };
 }
@@ -272,12 +279,16 @@ function buildPlacement(
 /** "Choice beats default" (§5.4): a swap keeps the recorded finish and handle where the incoming
  *  body supports them, and drops them where it does not — an open shelf has no doors. The top
  *  row's push-open default is deliberately *not* recorded here; it is decided by the slot at
- *  render time (`isPushOpenByDefault`), so `canHandle` stays true and the choice stays available. */
-function carriedAppearance(
+ *  render time (`isPushOpenByDefault`), so `canHandle` stays true and the choice stays available.
+ *
+ *  §11 rows 12 and 13 are the same requirement read from ADR 0031's end, so the resize rebuild
+ *  calls this rather than repeating it — for **every member of the column it moves**, not only the
+ *  body the customer selected. The recorded defect is a sage door with black bars silently reset to
+ *  white with steel. */
+export function carriedAppearance(
   body: InsertableBody,
-  target: ResolvedOpening,
+  replaced: PlacementRecord | undefined,
 ): Pick<CabinetBody, "finish" | "handle"> {
-  const replaced = target.replaced;
   if (!replaced) return {};
   return {
     ...(body.definition.canFinish && replaced.finishKey !== undefined
