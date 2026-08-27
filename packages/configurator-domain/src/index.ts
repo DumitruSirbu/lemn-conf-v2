@@ -9,6 +9,10 @@ export * from "./void-engine.js";
 export * from "./millimetres.js";
 export * from "./bands.js";
 export * from "./catalog.js";
+// Deliberately not `export *`: the lookup and `declaredWorktopDepthsMm` stay module-internal, so no
+// second caller can derive a wall depth from a worktop that is not `WORKTOP_DEPTH_MM` — which is a
+// fresh way for two numbers to disagree, the defect this module closes.
+export { UnknownWorktopDepthError, WORKTOP_DEPTH_MM } from "./worktop-depth.js";
 export * from "./accessories.js";
 export * from "./body-probe.js";
 export * from "./commands/rejection.js";

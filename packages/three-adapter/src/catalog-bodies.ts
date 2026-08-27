@@ -28,7 +28,7 @@ export interface CatalogBodySize {
 
 type CatalogBodyBuilder = (kit: Kit, size: CatalogBodySize) => THREE.Group;
 
-/** §7's `min(d, 0.4)` clamp used to live here. It is a **head-clearance product rule** — shallow
+/** §7's `min(d, cap)` clamp used to live here. It is a **head-clearance product rule** — shallow
  *  by default so nobody hits their head leaning over the counter, and lifted only where a
  *  full-height member stands under the opening and there is nothing to lean over — so it depends
  *  on what stands under the opening, which is a fact about the *design*. The adapter has no
@@ -37,7 +37,7 @@ type CatalogBodyBuilder = (kit: Kit, size: CatalogBodySize) => THREE.Group;
  *  the builders build what they are given. §12: product rules in the domain, builders here.
  *
  *  Re-clamping here would make the rule unreachable rather than redundant: the domain's 600 mm over
- *  a tall column would be cut back to 400 and the decision would do nothing. */
+ *  a tall column would be cut back to the cap and the decision would do nothing. */
 function wallCabinet(kit: Kit, size: CatalogBodySize, doors: number) {
   return kit.make.wallCabinet(size.widthM, doors, size.heightM, size.depthM);
 }

@@ -29,6 +29,7 @@ import {
   type PlacementRecord,
   type VoidRecord,
 } from "../void-engine.js";
+import { wallDepthMmForWorktop, WORKTOP_DEPTH_MM } from "../worktop-depth.js";
 import type { CommandTarget } from "./command-result.js";
 import type { RejectionDetail } from "./rejection.js";
 
@@ -36,8 +37,9 @@ import type { RejectionDetail } from "./rejection.js";
  *  carcass is a strip, not a cabinet. */
 export const HEIGHT_FLEX_MIN_OPENING_MM = 400;
 
-/** §7's `min(d, 0.4)` on a wall carcass, as what it actually is: a **head-clearance rule**, not a
- *  geometry limit. `wallCabinet(W, doors, H, D)` builds any depth it is handed.
+/** §7's `min(d, cap)` on a wall carcass, as what it actually is: a **head-clearance rule**, not a
+ *  geometry limit. The cap is the worktop → wall depth map's row for the shipped worktop, never a
+ *  value written down here. `wallCabinet(W, doors, H, D)` builds any depth it is handed.
  *
  *  A wall cabinet above a worktop is shallow so you do not hit your head leaning over the counter.
  *  Above a full-height column there is nothing to lean over, so it may be as deep as the column —
@@ -52,8 +54,15 @@ export const HEIGHT_FLEX_MIN_OPENING_MM = 400;
  *  under the opening — and the adapter cannot see a design. §12: the domain owns product rules, the
  *  adapter owns builders. The builders now build the depth they are given.
  *
- *  Backlog entry 5, decided by the owner on 2026-08-26. */
-export const WALL_CARCASS_MAX_DEPTH_OVER_WORKTOP_M = 0.4;
+ *  Backlog entry 5, decided by the owner on 2026-08-26.
+ *
+ *  **The number itself is the worktop's, not this rule's** (owner, 2026-08-27): it reads the same
+ *  map row as §7's `nominalDepthMm`, so the cap and the catalogue nominal cannot drift apart. They
+ *  were independent literals agreeing at 400 until then, which is why a re-inserted top-row cabinet
+ *  built 400 mm beside 330 mm neighbours. */
+export const WALL_CARCASS_MAX_DEPTH_OVER_WORKTOP_M = toMetres(
+  wallDepthMmForWorktop(WORKTOP_DEPTH_MM),
+);
 
 /** §5.2: a height-flexible body fills an opening this tall or shorter, and otherwise builds its
  *  nominal height. A 750 mm over-fridge slot gets a 750 mm unit; a cleared 2600 mm column does not
@@ -599,7 +608,7 @@ export function evaluateInsertFit(input: InsertFitInput): InsertFit {
  *  delete produces: clearing the base cabinets under a wall run then built a 580 mm carcass, the
  *  frozen `Column.d` of the base cabinet the customer had just deleted, beside 330 mm neighbours.
  *
- *  The cap is a maximum and never a target: an opening shallower than 400 mm keeps its own depth,
+ *  The cap is a maximum and never a target: an opening shallower than the cap keeps its own depth,
  *  and a column that answers `hasFullHeightUnder` wrongly can only ever make a body *shallower*
  *  than the opening it stands in. It can never push a body past its opening, which is what keeps
  *  §11 row 19 (the back face lands on the wall plane) out of reach of this rule.

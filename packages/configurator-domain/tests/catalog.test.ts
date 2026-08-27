@@ -120,3 +120,30 @@ describe("ADR 0027's hob-bearing bases", () => {
     expect(twoDrawer[1]).not.toBe(oven[1]);
   });
 });
+
+describe("every insertable entry's two depth fields agree", () => {
+  // The defect class M5 wave 5A met twice. `insertableBody` stamps `frameDepthMm` from the shape's
+  // `nominalDepthMm`, and an entry built by spreading a helper and then overriding only the nominal
+  // leaves `frameDepthMm` behind at the helper's number. It happened to `hood` (QA finding Q1.1,
+  // inherited from the map-governed `WALL_DEPTH_MM`) and to `fridge-free` (560 from
+  // `fullHeightUnit` against a 680 nominal).
+  //
+  // It matters because `void-engine.ts` takes `frameDepthMm` as the fallback for a placement with
+  // no measured `seatDepthMm` — optional in `DesignSchema`, so such a design validates — and a
+  // frame depth that is not the body's own depth seats its back face off the wall plane (§11
+  // row 19). Inert through the UI, since `insertBody` always records a seat, which is exactly what
+  // let both instances survive.
+  //
+  // Swept across the whole catalogue rather than asserted per entry, so a third instance cannot be
+  // introduced by the same spread-and-override shape.
+  it.each(INSERTABLE_BODY_DEFINITIONS)(
+    "%s seats on its own nominal depth",
+    (_buildId, definition) => {
+      expect(definition.frameDepthMm).toBe(definition.nominalDepthMm);
+    },
+  );
+
+  it("sweeps the whole catalogue, so the gate cannot go vacuous", () => {
+    expect(INSERTABLE_BODY_DEFINITIONS.length).toBeGreaterThanOrEqual(15);
+  });
+});

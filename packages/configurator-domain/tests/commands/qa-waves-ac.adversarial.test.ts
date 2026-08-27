@@ -1,6 +1,6 @@
 // Adversarial QA for the two batched waves.
 //
-//   Wave A — `Column.hasFullHeightUnder` decides whether §7's `min(d, 0.4)` head-clearance cap is
+//   Wave A — `Column.hasFullHeightUnder` decides whether §7's `min(d, 0.33)` head-clearance cap is
 //            lifted. It is applied by default and lifted only over a full-height member.
 //   Wave C — a per-entry `minWidthMm` below §2's `MIN_WIDTH_M` replaces it for that entry alone.
 //
@@ -405,11 +405,14 @@ describe("the cargo's 200 mm floor reaches nothing but the cargo", () => {
 // Wave A — the `hasFullHeightUnder` predicate.
 // ---------------------------------------------------------------------------------------------
 
-/** §7's head-clearance cap on a wall carcass over a worktop. Restated here rather than imported
- *  from `insert-fit.ts`: a test that reads the number it is checking out of the code under test
- *  proves nothing. `insert-depth.test.ts` and the three-adapter's `swap-depth.test.ts` restate the
- *  same rule for the same reason. */
-const CAP_OVER_WORKTOP_MM = 400;
+/** §7's head-clearance cap on a wall carcass over a worktop, at the shipped 600 mm worktop. Restated
+ *  here rather than imported from `insert-fit.ts`: a test that reads the number it is checking out
+ *  of the code under test proves nothing. `insert-depth.test.ts` and the three-adapter's
+ *  `swap-depth.test.ts` restate the same rule for the same reason.
+ *
+ *  M5 wave 5A moved it from 400 to 330: the cap is now the worktop → wall depth map's row rather
+ *  than a literal of its own, and `worktop-depth.test.ts` is the gate that keeps the two linked. */
+const CAP_OVER_WORKTOP_MM = 330;
 
 describe("the claim the band predicate rests on", () => {
   // `isFullHeightUnder` reads the band rather than any measurement, and the band it reads has to

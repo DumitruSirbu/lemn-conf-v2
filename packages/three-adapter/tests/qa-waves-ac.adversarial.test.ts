@@ -122,7 +122,9 @@ describe("a deep wall carcass survives repeated swaps (ADR 0018 round trip)", ()
     { id: "p22", underneath: "a tall oven tower", depthMm: 600 },
     { id: "p23", underneath: "a tall pantry", depthMm: 600 },
     { id: "p24", underneath: "the fridge", depthMm: 600 },
-    { id: "p13", underneath: "the hob's worktop", depthMm: 400 },
+    // M5 wave 5A: the cap over a worktop is the worktop → wall depth map's row, 330 at the shipped
+    // 600 mm worktop, where it was an independent 400.
+    { id: "p13", underneath: "the hob's worktop", depthMm: 330 },
     { id: "p11", underneath: "a sink base", depthMm: 330 },
   ])(
     "$id over $underneath stays at $depthMm mm through ten swaps",

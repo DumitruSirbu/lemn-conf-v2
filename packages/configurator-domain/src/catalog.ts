@@ -11,6 +11,7 @@ import {
   type BodyDefinition,
   type WidthFlex,
 } from "./void-engine.js";
+import { wallDepthMmForWorktop, WORKTOP_DEPTH_MM } from "./worktop-depth.js";
 
 /** ADR 0026: §2's `MIN_W` in millimetres, as what it now is — the **default** width floor, which
  *  governs every entry that does not declare one of its own. */
@@ -68,8 +69,11 @@ const BASE_DEPTH_MM = 580;
 /** A wall entry's nominal depth: §7's head-clearance cap, which is what a wall carcass is built to
  *  over a worktop. It is the `frameDepthMm` fallback for a placement with no measured seat of its
  *  own, **not** the depth anything gets built to — that is decided per opening by
- *  `WALL_CARCASS_MAX_DEPTH_OVER_WORKTOP_M`, and over a full-height column it is deeper than this. */
-const WALL_DEPTH_MM = 400;
+ *  `WALL_CARCASS_MAX_DEPTH_OVER_WORKTOP_M`, and over a full-height column it is deeper than this.
+ *
+ *  Read from the worktop → wall depth map rather than written down, so it and that cap are the same
+ *  number by construction. Two independent literals agreeing at 400 is the defect this replaces. */
+const WALL_DEPTH_MM = wallDepthMmForWorktop(WORKTOP_DEPTH_MM);
 const HOOD_DEPTH_MM = 500;
 const COLUMN_DEPTH_MM = 560;
 const FREESTANDING_FRIDGE_DEPTH_MM = 680;
@@ -235,6 +239,13 @@ export const INSERTABLE_BODY_DEFINITIONS: readonly (readonly [
       heightFlex: false,
       nominalHeightMm: HOOD_HEIGHT_MM,
       nominalDepthMm: HOOD_DEPTH_MM,
+      // Declared, not inherited: the spread above has already stamped `frameDepthMm` from
+      // `WALL_DEPTH_MM`, which the worktop → wall depth map governs. Whether a hood follows the
+      // worktop is an open question, so both of the hood's depth fields say 500 and neither reads
+      // the map. `void-engine.ts` takes `frameDepthMm` as the fallback for a placement with no
+      // measured `seatDepthMm`, so leaving it inherited put a map-derived number behind an
+      // undecided rule (QA finding Q1.1).
+      frameDepthMm: HOOD_DEPTH_MM,
       sizesMm: HOOD_WIDTHS_MM,
     },
   ],
@@ -255,6 +266,12 @@ export const INSERTABLE_BODY_DEFINITIONS: readonly (readonly [
       sizesMm: FREESTANDING_FRIDGE_WIDTHS_MM,
       nominalHeightMm: FREESTANDING_FRIDGE_HEIGHT_MM,
       nominalDepthMm: FREESTANDING_FRIDGE_DEPTH_MM,
+      // Declared, not inherited, for the reason the hood declares its own: the spread above has
+      // already stamped `frameDepthMm` from `COLUMN_DEPTH_MM` (560), and overriding only the
+      // nominal left the two 120 mm apart. A `fridge-free` placement with no measured
+      // `seatDepthMm` then seats 60 mm off the wall plane (§11 row 19), because `void-engine.ts`
+      // falls back to `frameDepthMm`.
+      frameDepthMm: FREESTANDING_FRIDGE_DEPTH_MM,
       canFinish: false,
       canHandle: false,
     },

@@ -47,24 +47,29 @@ function replaceableWallBodies(world: KitchenWorld): PlacementRecord[] {
 
 const SWAP_BUILD_ID = "wall-2door";
 
-/** §7's head-clearance cap on a wall carcass over a worktop, in metres. Restated here rather than
- *  imported from `insert-fit.ts`: a test that reads the number it is checking out of the code under
- *  test proves nothing — move the constant and both sides move together. The three-adapter's
- *  `swap-depth.test.ts` restates the same rule in millimetres for the same reason. */
-const CAP_OVER_WORKTOP_M = 0.4;
+/** §7's head-clearance cap on a wall carcass over a worktop, in metres, at the shipped 600 mm
+ *  worktop. Restated here rather than imported from `insert-fit.ts`: a test that reads the number
+ *  it is checking out of the code under test proves nothing — move the constant and both sides move
+ *  together. The three-adapter's `swap-depth.test.ts` restates the same rule in millimetres for the
+ *  same reason.
+ *
+ *  M5 wave 5A moved it from 0.4 to 0.33. The cap is no longer a literal of its own: it and §7's
+ *  `nominalDepthMm` both read the worktop → wall depth map, which is what
+ *  `worktop-depth.test.ts` gates. */
+const CAP_OVER_WORKTOP_M = 0.33;
 
 /** The same rule in millimetres, for the assertions that read a recorded `seatDepthMm`. */
-const CAP_OVER_WORKTOP_MM = 400;
+const CAP_OVER_WORKTOP_MM = 330;
 
 /** §7's head-clearance cap on a wall carcass, in the one shipped case where it bites on a swap.
  *  Stated as data rather than imported from the code under test, and as a single named exception
- *  rather than a re-run of the rule: of the seeded wall bodies deeper than 400 mm, only the hood
+ *  rather than a re-run of the rule: of the seeded wall bodies deeper than 330 mm, only the hood
  *  stands over something that is not a full-height unit — `p2`, a base cabinet — so only its
  *  replacement is built shallower than the body it replaces. The three deep cabinets on wall B hang
  *  over `p5`, `p6` and `p7`, all full-height, where the cap is lifted, and they keep their own
  *  depth — which is backlog entry 5's whole decision. */
 const CAPPED_BY_HEAD_CLEARANCE_MM: Readonly<Record<string, number>> = {
-  p13: 400,
+  p13: 330,
 };
 
 describe("insertBody — the depth a swap in place builds against (§5.3)", () => {
@@ -169,11 +174,11 @@ describe("insertBody — the depth an insert into an empty void builds against (
    *
    *  The fridge column's two openings are here, and they are the wave-A regression this file now
    *  pins: `p7` — a full-height `fridge-free` — was cleared away with `p24`, so nothing holds a
-   *  wall carcass out any more and it recedes to 400 rather than building to the column's frozen
+   *  wall carcass out any more and it recedes to 330 rather than building to the column's frozen
    *  680 mm. Backlog entry 5 records that consequence as deliberate.
    *
    *  `B|0.61`'s two openings are not here even though nothing full-height stands under them
-   *  either: they are 330 mm deep, so `min(d, 0.4)` is a no-op and the void's own depth is the
+   *  either: they are 330 mm deep, so `min(d, 0.33)` is a no-op and the void's own depth is the
    *  answer either way. `B|2.45:v0` is a floor-level opening that offers a base body, and §7's cap
    *  is a rule about wall carcasses only. */
   const CAPPED_BY_HEAD_CLEARANCE = new Set([
@@ -278,7 +283,7 @@ describe("insertBody — a wall carcass over an emptied column (backlog entry 5)
 
   it("lands the new carcass level with the wall cabinets either side of it", () => {
     // The defect as the customer saw it: p11 and p14 flank the emptied column at 330 mm, so a
-    // 580 mm neighbour between them is the visible harm and 400 is what the cap is worth.
+    // 580 mm neighbour between them is the visible harm and 330 is what the cap is worth.
     const result = insertWallCabinet(emptiedWorld());
     const after = createWorld(result.design, KITCHEN_L_BODY_CATALOG);
     const depthsMm = ["p11", result.effect.placementId, "p14"].map((id) =>

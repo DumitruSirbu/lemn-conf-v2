@@ -49,6 +49,8 @@ Metres, Y-up. From `SPEC.md` and `kitchen-parts.js`:
 Module constants (`kitchen-parts.js`): `PLINTH 0.10`, `CARC_H 0.72`, `CARC_D 0.56`, `CTOP 0.04`, `TH 0.018` (door), `GAP 0.004`.
 Worktop top = `PLINTH + CARC_H + CTOP` = **0.86**.
 
+**Worktop depth is `WORKTOP_DEPTH_MM` = 600, and a wall carcass's depth is derived from it, not written down** (owner, 2026-08-27; M5 wave 5A). One declared map — `600 → 330`, `700 → 400` — is the single source for both §7's `nominalDepthMm` on the wall entries and the head-clearance cap §7's builder column applies (`insert-fit.ts`, `WALL_CARCASS_MAX_DEPTH_OVER_WORKTOP_M`; the cap arrived with backlog entry 5 on 2026-08-26 and §5.2's pseudocode has not been amended to show it). The two were independent literals agreeing at **400 mm / 0.4 m** until then. A worktop depth the map does not declare is a programming error and fails loudly: wall cabinets are manufactured sizes, so there is no interpolation, no rounding and no nearest-row fallback. The worked example above — *"a unit at `position.x = 0.165` with `D = 0.33`"* — is this number, and is evidence 330 was the intent all along.
+
 ### Module lines (`LEVELS`)
 
 ```js
@@ -343,10 +345,10 @@ Top row ships **push-to-open**: handles are **built and hidden**, not omitted.
 | `base-panbank` | Sertare pentru oale | base | fit | 0.86 | — | `{drawers:2}` |
 | `base-sink` | Corp spălător | base | fit | 0.86 | — | `{doors:2,sink:true}` |
 | `base-dishwasher` | Nișă mașină de spălat vase | base | 0.45 / 0.60 | 0.86 | — | `make.dishwasherHousing(w)` |
-| `wall-2door` | Corp suspendat 2 uși | wall | fit | 0.70 | ✓ | `make.wallCabinet(w, w>0.45?2:1, h, min(d,0.4))` |
+| `wall-2door` | Corp suspendat 2 uși | wall | fit | 0.70 | ✓ | `make.wallCabinet(w, w>0.45?2:1, h, min(d,0.33))` |
 | `wall-1door` | Corp suspendat 1 ușă | wall | fit | 0.70 | ✓ | `make.wallCabinet(w,1,h,…)` |
 | `wall-lift` | Corp suspendat rabatabil | wall | fit | 0.70 | ✓ | `…(…, pushOpen=true)` |
-| `open-shelf` | Etajeră deschisă | wall | fit | 0.70 | ✓ | `make.openShelf(w, min(d,0.4), 2, h)` |
+| `open-shelf` | Etajeră deschisă | wall | fit | 0.70 | ✓ | `make.openShelf(w, min(d,0.33), 2, h)` |
 | `hood` | Hotă | wall | fit | 0.71 | — | `make.hood(w)` — sizes 600/900 |
 | `tall-pantry` | Coloană cămară | column | 0.60 | 2.20 | — | `builders['tall-pantry']()` |
 | `tall-oven-tower` | Coloană cuptor + microunde | column | 0.60 | 2.20 | — | fixed |
@@ -355,6 +357,8 @@ Top row ships **push-to-open**: handles are **built and hidden**, not omitted.
 
 Width chip sets per body: dishwasher `[450,600]` · hood `[600,900]` · everything else `[400,600,800]`.
 **1000 mm was removed** — two doors top out at 800.
+
+**The `0.33` in the four wall rows is derived, not a literal** (M5 wave 5A): it is the worktop → wall depth map's row for the shipped 600 mm worktop (§2), and the same row supplies these entries' `nominalDepthMm`. It read `0.4` until 2026-08-27, against a kitchen authored at 330. The cap is a *head-clearance* rule and applies only where something is leaned over: over a full-height column it is lifted and the carcass is as deep as the column, which is why `hood` (a canopy, 500) and the two deliberately deep top cabinets are untouched by it.
 
 **Not yet parameterised** (production work): the hob (`induction_cooktop`) is fixed 590; corner units are fixed by design; columns are fixed 600 and refuse other openings with a reason.
 

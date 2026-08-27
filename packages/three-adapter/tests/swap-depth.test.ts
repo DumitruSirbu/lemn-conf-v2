@@ -8,7 +8,7 @@
 // 600 mm cabinets this kitchen hangs over its tall columns **receded 200 mm** on every swap.
 //
 // Backlog entry 5 (owner, 2026-08-26) is the decision that closes it: the cap follows what is below
-// the opening, not the catalogue entry. Over a worktop a wall carcass is capped at 400 mm so nobody
+// the opening, not the catalogue entry. Over a worktop a wall carcass is capped so nobody
 // hits their head leaning over the counter; over a full-height column there is nothing to lean over
 // and it is as deep as the column.
 //
@@ -37,8 +37,12 @@ import {
 
 /** §7's head-clearance cap on a wall carcass over a worktop, restated here as the *expectation*
  *  rather than imported from the code under test — a test that reads the number it is checking out
- *  of the code proves nothing. */
-const WALL_CARCASS_MAX_DEPTH_OVER_WORKTOP_MM = 400;
+ *  of the code proves nothing.
+ *
+ *  M5 wave 5A moved it from 400 to 330 at the shipped 600 mm worktop: the cap and §7's
+ *  `nominalDepthMm` now read one worktop → wall depth map row instead of being two independent
+ *  literals that happened to agree. */
+const WALL_CARCASS_MAX_DEPTH_OVER_WORKTOP_MM = 330;
 
 const OCCURRED_AT = "2026-08-26T12:00:00.000Z";
 
@@ -134,10 +138,10 @@ describe("§7's head-clearance cap follows what is under the opening", () => {
   const CATALOGUE_WALL_CABINET = "wall-2door";
 
   // The rule, at the four openings deeper than the cap. One `wall-2door` entry, four openings over
-  // 400 mm, two answers — and the only thing that differs is what stands below, which is the whole
+  // the cap, two answers — and the only thing that differs is what stands below, which is the whole
   // decision. p13 is the case that proves the cap is still live rather than merely removed.
   it.each([
-    { id: "p13", underneath: "the hob's worktop", depthMm: 400 },
+    { id: "p13", underneath: "the hob's worktop", depthMm: 330 },
     { id: "p22", underneath: "a tall oven tower", depthMm: 600 },
     { id: "p23", underneath: "a tall pantry", depthMm: 600 },
     { id: "p24", underneath: "the fridge", depthMm: 600 },
@@ -151,7 +155,7 @@ describe("§7's head-clearance cap follows what is under the opening", () => {
   it("leaves the hood's own 500 mm alone, because the hood ignores the depth it is handed", () => {
     // The hood's 500 mm is a seat rather than a physical depth (see `KITCHEN_L_BODY_CATALOG`), and
     // `make.hood` builds its own. So the hood swapped for itself keeps 500 even though it stands
-    // over the same worktop that caps a wall cabinet in its place at 400, one case up.
+    // over the same worktop that caps a wall cabinet in its place at 330, one case up.
     expect(swapDepthMm("p13", "hood")).toBe(500);
   });
 
