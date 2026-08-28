@@ -18,6 +18,7 @@ import {
   offersFor,
   recomputeVoids,
   removePlacement,
+  widthOptionsFor,
   type CommandTarget,
   type Design,
 } from "@lemnaria/configurator-domain";
@@ -33,6 +34,12 @@ import { REFUSAL } from "../support/selection-meta";
 
 import { preMigrationHobDesign } from "../support/pre-migration-hob";
 
+import { createFakeBodyProbe } from "../support/fake-body-probe";
+
+/** Measures exactly what it was asked to build, so a resize the domain's guards accept is not then
+ *  failed by the built-size re-check. */
+const PROBE = createFakeBodyProbe();
+
 const OCCURRED_AT = "2026-08-26T12:00:00.000Z";
 
 /** Frozen exactly as the store freezes it — see the file header. */
@@ -43,6 +50,7 @@ const SEEDED_COLUMNS = deriveColumns(
 function worldFrom(design: Design) {
   const records = derivePlacementRecords(design, KITCHEN_L_BODY_CATALOG);
   return {
+    design,
     records,
     columns: SEEDED_COLUMNS,
     voids: recomputeVoids(records, SEEDED_COLUMNS),
@@ -72,10 +80,21 @@ function panelAt(
   target: CommandTarget,
   rejection = null as Parameters<typeof describePanel>[0]["rejection"],
 ) {
+  const meta = describeSelection({ ...world, target });
   return describePanel({
-    meta: describeSelection({ ...world, target }),
+    meta,
     offers: offersFor({ ...world, target }),
     rejection,
+    // The engine's own verdicts, not a stand-in: `widthOptionsFor` runs `setWidth` once per
+    // candidate width against this design and these frozen columns. A sweep over the *shipped*
+    // kitchen is only worth running if the chips in it are the ones a customer would tap.
+    widthOptions: widthOptionsFor({
+      design: world.design,
+      catalog: world.catalog,
+      columns: world.columns,
+      target,
+      probe: PROBE,
+    }),
     isBodyProbeAttached: true,
     canWrite: true,
     saveStatus: "idle",
@@ -233,14 +252,16 @@ describe("the width section over the real kitchen", () => {
     expect(rendered).toEqual(SEEDED_IDS_WITH_A_WIDTH_SECTION);
   });
 
-  // The "never free" property, which until M5 wave 5B could only restate the gap: the seeded
-  // fixtures carried no size set, so this sweep ran over nothing and its per-chip assertion was
-  // never evaluated. It now runs over the real kitchen's real chips.
+  // **Turned over in wave 5D, and the reason it turned over changed rather than the number.** M4
+  // pinned "never free" because no resize command existed. `setWidth` exists now and these chips
+  // carry its real verdicts — yet still none is free, because ADR 0031 funds a resize from an
+  // adjacent column that is empty **at every level**, and clearing p1, p7, p12 and p24 empties no
+  // column: p12 and p18 still stand in `A|2.00`, p23 in `B|1.80`, and so on.
   //
-  // **It is still M4's truth being pinned, deliberately.** `setWidth` does not exist until wave 5C,
-  // so no width is reachable and every non-current chip is `blocked`. Wave 5D changes that on
-  // purpose; this line is where that change has to be made deliberately rather than drifted into.
-  it("marks no width chip free anywhere in the kitchen, no resize command existing", () => {
+  // That is worth pinning rather than deleting. It is the measurement behind wave 5E's note that a
+  // browser gate needs a delete in front of it, and the day a fixture ships with a genuinely empty
+  // column this line fails and says so.
+  it("marks no width chip free while no column is empty at every level", () => {
     const world = openedKitchen();
     const rendered: string[] = [];
     for (const target of everySelectableTarget(world)) {
@@ -269,8 +290,17 @@ describe("the chips a seeded width section actually renders", () => {
    *  member of their set, so their own width joins the row, sorted. */
   const EXPECTED_CHIPS_MM: Readonly<Record<string, readonly number[]>> = {
     p0: [600, 800], // base-sink-800 → base-sink (ADR 0017: no 400)
-    p1: [450, 600], // base-dishwasher-600 → base-dishwasher
-    p4: [400, 600, 800], // base-drawer3-600 → base-3drawer
+    // **p1 lost its 450 in wave 5D, and the loss is correct.** The dishwasher is made in 450 and
+    // 600, but ADR 0031 resizes the whole of `A|2.00`, and `p18` — a `wall-cabinet`, ranges 200–400
+    // and 600–800 — does not accept 450: it falls in ADR 0033's deliberate gap between a one-door
+    // and a two-door. (The open shelf between them is a standard ladder and accepts 450 quite
+    // happily; an earlier version of this comment blamed it, wrongly.) Offering 450 was the per-body
+    // row over-offering; the intersection is what the command actually narrows against.
+    p1: [600],
+    // p4 gained a 300 for the mirror-image reason: `base-panbank` declares a standard ladder
+    // (ADR 0031 rule 5), so it constrains the column by its floor alone, and the wall members above
+    // it carry 300 in their own set. A per-body row could express neither half.
+    p4: [300, 400, 600, 800],
     // `wall-1door` KEEPS its 400 — ADR 0029 is about two-door entries, and
     // a one-door cabinet at 400 mm is honest. Kept beside `p24` below, which lost its 400, so this
     // table tests the distinction rather than one side of it. ADR 0030's amendment then extended
@@ -282,7 +312,7 @@ describe("the chips a seeded width section actually renders", () => {
     p24: [200, 300, 400, 600, 700, 800],
   };
 
-  it("renders each body's own set, with a fit body's own width folded in", () => {
+  it("renders the column's widths, with a fit body's own width folded in", () => {
     const world = worldFrom(KITCHEN_L_DESIGN);
     for (const [id, expected] of Object.entries(EXPECTED_CHIPS_MM)) {
       const section = sectionsAt(world, { kind: "placement", id }).find(

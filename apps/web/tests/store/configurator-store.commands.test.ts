@@ -7,6 +7,7 @@
 import {
   KITCHEN_L_BODY_CATALOG,
   KITCHEN_L_DESIGN,
+  widthOptionsFor,
   type BodyProbe,
   type Design,
 } from "@lemnaria/configurator-domain";
@@ -31,6 +32,9 @@ const FRIDGE_COLUMN_TOP_M = 2.6;
 const HOB_HOST_ID = "p2";
 const HOB_ID = "p3";
 const OCCURRED_AT = "2026-08-25T12:00:00.000Z";
+
+/** The store's own probe, reused where a test has to ask §9's width query what it would offer. */
+const PROBE = createFakeBodyProbe();
 
 interface StoreOverrides {
   readonly onDesignChanged?: (design: unknown) => void;
@@ -291,6 +295,142 @@ describe("insert", () => {
 
     expect(store.getState().isBodyProbeAttached).toBe(true);
     expect(store.getState().selection).toEqual({ kind: "placement", id: "n0" });
+  });
+});
+
+describe("setWidth", () => {
+  /** ADR 0031 funds a resize from an adjacent column that is empty at **every** level, and the
+   *  shipped kitchen has none at load — so every case here deletes first, through the store's own
+   *  `remove`. That is the customer's real sequence, not a fixture shortcut. */
+  function storeWithEmptyColumn() {
+    const store = createStore();
+    for (const id of ["p1", "p12", "p18"]) removeById(store, id);
+    return store;
+  }
+
+  /** A width the engine will accept on `p11`, asked of the same query §9's chips come from, so this
+   *  test cannot drift from what the panel would have offered. */
+  function firstFreeWidthMm(store: Store, placementId: string): number {
+    const state = store.getState();
+    const free = widthOptionsFor({
+      design: state.design,
+      catalog: state.catalog,
+      columns: state.columns,
+      target: { kind: "placement", id: placementId },
+      probe: PROBE,
+    }).find((option) => option.verdict.status === "available");
+    if (!free) throw new Error(`no free width on ${placementId}`);
+    return free.widthMm;
+  }
+
+  it("applies the design, records, voids and columns in a single update", () => {
+    const store = storeWithEmptyColumn();
+    store.getState().select({ kind: "placement", id: "p11" });
+    const widthMm = firstFreeWidthMm(store, "p11");
+    const before = store.getState().design;
+    const updates = vi.fn();
+    const unsubscribe = store.subscribe(updates);
+
+    store.getState().setWidth(widthMm);
+    unsubscribe();
+
+    const state = store.getState();
+    expect(updates).toHaveBeenCalledTimes(1);
+    expect(state.design).not.toBe(before);
+    expect(state.lastRejection).toBeNull();
+    expect(state.records.find((record) => record.id === "p11")?.widthMm).toBe(
+      widthMm,
+    );
+  });
+
+  // ADR 0031 rule 1: the whole column moves, not the body that was tapped. `p11` shares `A|1.30`
+  // with the sink `p0` and the top cabinet `p17`, and all three must come out at the new width —
+  // a resize that moved one of them would leave the column with two boundaries.
+  it("resizes every member of the selected body's column", () => {
+    const store = storeWithEmptyColumn();
+    store.getState().select({ kind: "placement", id: "p11" });
+    const widthMm = firstFreeWidthMm(store, "p11");
+
+    store.getState().setWidth(widthMm);
+
+    for (const id of ["p0", "p11", "p17"]) {
+      expect([
+        id,
+        store.getState().records.find((record) => record.id === id)?.widthMm,
+      ]).toEqual([id, widthMm]);
+    }
+  });
+
+  // **The one command whose own column map replaces the store's** (`BodyResizedEffect.columns`).
+  // A column's key comes from a body's centre, so a resize moves every member off the key that held
+  // them; the store must take the command's answer rather than re-deriving one, because *which*
+  // keys may change is a rule about the move (ADR 0011 Gap D). Re-deriving globally is what makes a
+  // delete stop producing openings.
+  it("takes the command's column map, so no member is left under a key that moved", () => {
+    const store = storeWithEmptyColumn();
+    const before = store.getState().columns;
+    store.getState().select({ kind: "placement", id: "p11" });
+
+    store.getState().setWidth(firstFreeWidthMm(store, "p11"));
+
+    const state = store.getState();
+    expect(state.columns).not.toBe(before);
+    for (const record of state.records) {
+      expect([record.id, state.columns.has(record.col)]).toEqual([
+        record.id,
+        true,
+      ]);
+    }
+  });
+
+  // The voids have to be recomputed against the map the resize produced, not the one that went in:
+  // the move changes the boundary between two columns, and an opening derived from the pre-move
+  // extents would be drawn where nothing is free any more.
+  it("derives its openings from the moved columns", () => {
+    const store = storeWithEmptyColumn();
+    store.getState().select({ kind: "placement", id: "p11" });
+
+    store.getState().setWidth(firstFreeWidthMm(store, "p11"));
+
+    const state = store.getState();
+    for (const opening of state.voids) {
+      expect([opening.id, state.columns.has(opening.col)]).toEqual([
+        opening.id,
+        true,
+      ]);
+    }
+  });
+
+  // §9 disables a chip it cannot satisfy, so this is the safety net beneath that rather than the
+  // gate — the same arrangement `insert` has.
+  it("refuses without a probe, and changes nothing", () => {
+    const store = createStore();
+    store.getState().detachBodyProbe();
+    store.getState().select({ kind: "placement", id: "p11" });
+    const before = snapshotOf(store.getState());
+
+    store.getState().setWidth(600);
+
+    expect(store.getState().lastRejection?.code).toBe("BODY_PROBE_UNAVAILABLE");
+    expectUnchanged(before, snapshotOf(store.getState()));
+  });
+
+  it("refuses with nothing selected, the way every other command does", () => {
+    const store = createStore();
+    store.getState().setWidth(600);
+    expect(store.getState().lastRejection?.code).toBe("TARGET_NOT_FOUND");
+  });
+
+  // A refusal persists nothing: the save seam runs only after a command the store applied.
+  it("schedules no save when the engine refuses the width", () => {
+    const onDesignChanged = vi.fn();
+    const store = createStore({ onDesignChanged });
+    store.getState().select({ kind: "placement", id: "p11" });
+
+    store.getState().setWidth(400);
+
+    expect(store.getState().lastRejection).not.toBeNull();
+    expect(onDesignChanged).not.toHaveBeenCalled();
   });
 });
 

@@ -1,9 +1,14 @@
-// Adversarial pass over the width chips M5 wave 5B made reachable for the first time.
+// Adversarial pass over the width chips M5 wave 5B made reachable for the first time, and wave 5D
+// wired to the engine.
 //
 // The wave's own suite names five placements and their expected chip rows. This file sweeps **every**
 // width section the shipped kitchen renders and asserts the properties a per-placement table cannot:
 // the row is strictly ascending with no duplicate, exactly one chip is `active` and it is the body's
-// own width, and no chip is `free` — there is no resize command yet.
+// own width, and each chip's state is the verdict `setWidth` actually gave for that width.
+//
+// The chips are the real ones: `widthOptionsFor` runs the command once per candidate against this
+// design and these frozen columns. Before 5D this file swept a projection over `meta.sizesMm`; it
+// now sweeps what a customer would tap, which is why three of its pinned numbers moved.
 //
 // It also pins the two arrangements §9 and FINDING R2.7 depend on, at the panel rather than in the
 // domain: `canWidth: true, sizesMm: []` renders **no** section (the decision lives in
@@ -18,14 +23,17 @@ import {
   offersFor,
   recomputeVoids,
   toMillimetres,
+  widthOptionsFor,
   type BodyCatalog,
   type CommandTarget,
   type Design,
+  type WidthOption,
 } from "@lemnaria/configurator-domain";
 import { describe, expect, it } from "vitest";
 
 import { describePanel, type WidthSection } from "@/panel/panel-model";
 
+import { createFakeBodyProbe } from "../support/fake-body-probe";
 import { preMigrationHobDesign } from "../support/pre-migration-hob";
 
 /** ADR 0011 Gap D: columns are load-time state, frozen from the whole design. */
@@ -33,12 +41,19 @@ const SEEDED_COLUMNS = deriveColumns(
   derivePlacementRecords(KITCHEN_L_DESIGN, KITCHEN_L_BODY_CATALOG),
 );
 
+/** The store's own fake: it measures exactly what it was asked to build, so a resize the domain's
+ *  guards accept is not then failed by the built-size re-check. Backlog 9's warning applies and does
+ *  not bite here — a fake probe cannot see a *depth* defect, and nothing in this file is about
+ *  depth. */
+const PROBE = createFakeBodyProbe();
+
 function worldFrom(
   design: Design,
   catalog: BodyCatalog = KITCHEN_L_BODY_CATALOG,
 ) {
   const records = derivePlacementRecords(design, catalog);
   return {
+    design,
     records,
     columns: SEEDED_COLUMNS,
     voids: recomputeVoids(records, SEEDED_COLUMNS),
@@ -48,11 +63,21 @@ function worldFrom(
 
 type World = ReturnType<typeof worldFrom>;
 
+/** The whole path, not a stand-in: `widthOptionsFor` runs `setWidth` once per candidate width
+ *  against this design, these frozen columns and a probe, and the panel renders what it answered.
+ *  That is what makes this file a sweep over the *engine's* chips rather than over a projection's. */
 function panelAt(world: World, target: CommandTarget, canWrite = true) {
   return describePanel({
     meta: describeSelection({ ...world, target }),
     offers: offersFor({ ...world, target }),
     rejection: null,
+    widthOptions: widthOptionsFor({
+      design: world.design,
+      catalog: world.catalog,
+      columns: world.columns,
+      target,
+      probe: PROBE,
+    }),
     isBodyProbeAttached: true,
     canWrite,
     saveStatus: "idle",
@@ -114,11 +139,39 @@ const seededWorld = () => worldFrom(KITCHEN_L_DESIGN);
  *  39 = seventeen rendering bodies: two chips each for the ten `wall-2door` rows and for the sink
  *  and the dishwasher; three for `base-3drawer`, `open-shelf` and `p24` (its own 700 joins); three
  *  for the two `wall-1door` rows, whose whole set is 200/300/400. */
-/** ADR 0033: 39 until the merge, 76 after it. Every seeded wall and top body resolves to one
- *  `wall-cabinet` entry with five widths, where it used to resolve to a two- or three-width row. The
- *  chips a body renders are its entry's, so more entries collapsing into one wider row means more
- *  chips — see `qa-w5c.enumeration.test.ts`, which measures what the column behind them accepts. */
-const SEEDED_WIDTH_CHIP_COUNT = 76;
+/** ADR 0033: 39 until the merge, 76 after it. **62 since wave 5D**, and the drop is the point of the
+ *  wave rather than a regression.
+ *
+ *  Until 5D the row came from `meta.sizesMm` — the selected **body's** entry. ADR 0031 resizes a
+ *  **column**, so the row now comes from the intersection of its members' sets
+ *  (`columnWidthChoices`), and fourteen chips across three columns were advertising widths
+ *  `setWidth` refuses:
+ *
+ *  - `A|1.30` (p0 sink · p11 · p17) → 600/800. The sink's fixed 560 mm aperture bounds the whole
+ *    column (ADR 0017), taking three chips off each of the two wall bodies.
+ *  - `A|2.00` (p1 dishwasher · p12 shelf · p18) → 600 alone. The dishwasher is made in 450 and 600
+ *    and the shelf in 400/600/800; 600 is all three.
+ *  - `A|3.20` (p4 pan bank · p14 · p20) → 300/400/600/800. 200 falls to the base body's floor, while
+ *    300 survives from the wall members' set because a standard-ladder entry constrains only by its
+ *    floor (ADR 0031 rule 5) — which is the half of that rule a per-body row could not express
+ *    either.
+ *
+ *  The seventeen sections themselves are unchanged, and so is every column with one binding member.
+ *  See `qa-w5c.enumeration.test.ts`, which measures the same columns from the command's end. */
+const SEEDED_WIDTH_CHIP_COUNT = 62;
+
+/** §9's vocabulary against the engine's, written down once here so the sweep below compares two
+ *  independent things rather than restating the panel's own mapping. */
+const WIDTH_STATE_BY_STATUS: Readonly<
+  Record<
+    WidthOption["verdict"]["status"],
+    WidthSection["chips"][number]["state"]
+  >
+> = {
+  current: "active",
+  available: "free",
+  refused: "blocked",
+};
 
 describe("a body built to its opening rather than to a member of its set", () => {
   // `wall-1door-300` sits at exactly `MIN_W`, which is the boundary of the whole width rule: the
@@ -152,11 +205,19 @@ describe("a body built to its opening rather than to a member of its set", () =>
     ]);
   });
 
-  // The duplicate case, which the `Set` in `describeWidthChips` is there to prevent: a body already
+  // The duplicate case, which the `Set` in `columnWidthChoices` is there to prevent: a body already
   // standing at a member of its set gets one chip for that width, not two.
+  //
+  // **p11's row narrowed in wave 5D, and it is the change the wave is for.** It used to render its
+  // own entry's five widths; it now renders `[600, 800]`, because ADR 0031 resizes a **column** and
+  // p11 shares `A|1.30` with the 800 mm sink, whose 560 mm aperture bounds it to 600/800 (ADR 0017).
+  // The three widths that disappeared were never reachable — `setWidth` refuses every one of them —
+  // so the panel was advertising moves the engine would not make. p8 stands alone in its column at
+  // every level that binds, so its row is unchanged: the narrowing is the intersection doing its
+  // job, not a blanket shrink.
   it("gives a body already at a set width exactly one chip for it", () => {
     const world = seededWorld();
-    expect(widthsAt(world, "p11")).toEqual([200, 300, 400, 600, 800]);
+    expect(widthsAt(world, "p11")).toEqual([600, 800]);
     expect(widthsAt(world, "p8")).toEqual([200, 300, 400, 600, 800]);
     expect(
       widthsAt(world, "p11").filter((width) => width === 800),
@@ -204,26 +265,62 @@ describe("every width section the shipped kitchen renders", () => {
     expect(rendered.length).toBe(17);
   });
 
-  // Wave 5C has not shipped `setWidth`, so no width is reachable and `blocked` is the truthful
-  // state for every non-current chip. Wave 5D changes this on purpose — this line is where that
-  // change has to be made deliberately rather than drifted into.
-  it("marks no chip free, and blocks every chip that is not the current width", () => {
+  // **The turned-over assertion.** M4 pinned "no chip is ever free" because no resize command
+  // existed, and the milestone said M5 must replace it with the property rather than delete it. The
+  // property is: a chip is `free` **iff** `setWidth` at that width would succeed, and only a `free`
+  // chip is clickable.
+  //
+  // Over the shipped kitchen *as loaded* that still yields zero free chips, and the reason is worth
+  // stating because it is not the old one: ADR 0031 funds a resize from an adjacent **empty** column
+  // and the shipped kitchen has none, so every candidate is refused for want of space rather than
+  // for want of a command. Clear a column first and chips go free — which is why wave 5E's browser
+  // gate needs a delete in front of it. The assertion below reads the verdicts rather than assuming
+  // the outcome, so the day a fixture ships with a gap it reports the truth instead of failing.
+  it("marks a chip free exactly where the engine would accept the resize", () => {
     const world = seededWorld();
     let chips = 0;
+    let free = 0;
     for (const record of world.records) {
       const section = widthSectionAt(world, record.id);
       if (!section) continue;
+      const options = new Map(
+        widthOptionsFor({
+          design: world.design,
+          catalog: world.catalog,
+          columns: world.columns,
+          target: { kind: "placement", id: record.id },
+          probe: PROBE,
+        }).map((option) => [option.widthMm, option.verdict.status]),
+      );
       for (const chip of section.chips) {
+        const status = options.get(chip.widthMm);
+        // **No `?? "refused"` default here** (QA finding, wave 5D). It read as harmless and was not:
+        // a chip whose width is absent from the options map — the panel inventing one — would have
+        // been compared against "refused" and passed silently, which is the one thing this sweep
+        // exists to catch. A missing status is a failure, stated as one.
+        expect(
+          status,
+          `no option published for ${record.id}@${String(chip.widthMm)}`,
+        ).toBeDefined();
+        if (status === undefined) continue;
         expect([record.id, chip.widthMm, chip.state]).toEqual([
           record.id,
           chip.widthMm,
-          chip.widthMm === record.widthMm ? "active" : "blocked",
+          WIDTH_STATE_BY_STATUS[status],
         ]);
-        expect(chip.isDisabled).toBe(true);
+        expect([record.id, chip.widthMm, chip.isDisabled]).toEqual([
+          record.id,
+          chip.widthMm,
+          chip.state !== "free",
+        ]);
+        if (chip.state === "free") free += 1;
         chips += 1;
       }
     }
     expect(chips).toBe(SEEDED_WIDTH_CHIP_COUNT);
+    // The measurement, recorded rather than assumed: no column in the shipped kitchen abuts empty
+    // space at load, so nothing is reachable until something is deleted.
+    expect(free).toBe(0);
   });
 
   // Read-only disables every chip, `free` included — asserted over the real kitchen rather than a

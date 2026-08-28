@@ -13,12 +13,14 @@ import {
   HandleSchema,
   isKnownKind,
   normaliseBand,
+  renderRejection,
   type CatalogOffer,
   type Finish,
   type Handle,
   type OfferVerdict,
   type RejectionReason,
   type SelectionMeta,
+  type WidthOption,
 } from "@lemnaria/configurator-domain";
 
 import type { SaveStatus } from "@/persistence/save-coalescer";
@@ -77,6 +79,20 @@ export interface WidthChip {
   /** Which states are clickable is §9's rule, not the component's: published resolved so the
    *  component cannot answer it differently, and so M5's arrival of `free` changes one place. */
   readonly isDisabled: boolean;
+  /** §13.1's "greyed and unclickable **with the reason**", for the section that finally has real
+   *  reasons to give. It is the engine's own sentence — `setWidth` refused this width and said why —
+   *  rendered through `renderRejection` exactly as a disabled offer row's is, so the width section
+   *  invents no vocabulary of its own (ADR 0032 rule 2).
+   *
+   *  Absent on `active` and on `free` in a writable panel: a width the body already has needs no
+   *  explanation, and a reason beside a control that works is noise.
+   *
+   *  **Read-only replaces it rather than clearing it**, on every chip including `active`, with
+   *  `ro.panel.readOnlyReason` — the panel's own sentence, not the engine's. A browser that cannot
+   *  write is not being told which widths its cabinet could reach; it is being told it cannot edit,
+   *  and two sentences under one chip would be the panel arguing with itself. This matches what
+   *  `describeChipAvailability` already does for the finish and handle swatches. */
+  readonly reason?: string;
 }
 
 export interface RejectionSection {
@@ -202,6 +218,13 @@ export interface DescribePanelInput {
   /** `undefined` when nothing is selected, or when the selection no longer resolves. */
   readonly meta: SelectionMeta | undefined;
   readonly offers: readonly CatalogOffer[];
+  /** §9's width chips, already judged by the engine — `widthOptionsFor` ran `setWidth` once per
+   *  candidate. This module renders that answer and does not second-guess it: "a chip is free iff
+   *  the command succeeds" is only true if one side of it is not reimplemented here.
+   *
+   *  Empty is a real answer and means no width section, the same way an empty `meta.sizesMm` did:
+   *  see `describeWidthSection`. */
+  readonly widthOptions: readonly WidthOption[];
   readonly rejection: RejectionReason | null;
   /** §5.2 cannot run without the scene's `BodyProbe`, so until it attaches every offer row is
    *  disabled with that reason rather than tapped and then refused. */
@@ -348,7 +371,7 @@ function collectOfferedSections(
   if (meta.canFinish) sections.push(describeFinishSection(meta, readOnly));
   if (meta.canHandle) sections.push(describeHandleSection(meta, readOnly));
   if (meta.canWidth) {
-    const width = describeWidthSection(meta, readOnly);
+    const width = describeWidthSection(meta, input.widthOptions, readOnly);
     if (width) sections.push(width);
   }
   return sections;
@@ -526,9 +549,8 @@ function describeHandleSection(
   };
 }
 
-/** The section renders in M4 and its chips are wired in M5 (§5.4). Until then no other width can
- *  be satisfied — there is no resize command — so every other chip is `blocked`, which is the
- *  truthful state rather than a placeholder for one.
+/** §9's width section, and as of M5 wave 5D a live one: every chip carries the engine's verdict on
+ *  the resize it would perform.
  *
  *  `undefined` when there is nothing to choose from. §9 defines `canWidth` as "selected · not empty ·
  *  not `fixedWidth`" and nothing more, so the "has widths to show" half of the question is answered
@@ -538,62 +560,73 @@ function describeHandleSection(
  *  section renders across the shipped kitchen. What still lands here is a body that publishes
  *  `canWidth` and resolves **no** set: a pre-migration document's `cooktop-600` placement declares
  *  no catalogue equivalent and is not `fixedWidth`, so the flag stays §9's and the emptiness is
- *  answered here — which is the arrangement that made M5's missing data fail loudly. */
+ *  answered here — which is the arrangement that made M5's missing data fail loudly.
+ *
+ *  The chip list is the domain's, not `meta.sizesMm`. ADR 0031 resizes a **column** and `meta`
+ *  describes one **body**, so the two disagree wherever a column's members declare different sets —
+ *  the panel offered widths the column refuses and hid widths it accepts. `widthOptionsFor` answers
+ *  per column, which is the scope the command actually works at. */
 function describeWidthSection(
   meta: SelectionMeta,
+  options: readonly WidthOption[],
   readOnly: boolean,
 ): WidthSection | undefined {
-  const chips = describeWidthChips(meta, readOnly);
-  if (chips.length === 0) return undefined;
+  if (options.length === 0) return undefined;
   return {
     kind: "width",
     title: ro.panel.widthTitle,
     valueLabel: ro.panel.widthValue(meta.widthMm),
-    chips,
+    chips: options.map((option) => describeWidthChip(option, readOnly)),
     note: ro.panel.widthNote,
   };
 }
 
-/** §9 gives a chip three states and assumes the current width is one of them. A `widthFlex: "fit"`
- *  body builds to its **opening**, which need not be a member of `sizesMm` — a `wall-2door` in a
- *  700 mm opening is 700 wide against chips of 400/600/800 — so the body's own width joins the set
- *  rather than the section rendering three blocked chips and no active one. Sorted, so the chip row
- *  reads left to right whatever the current width turns out to be. */
-function describeWidthChips(
-  meta: SelectionMeta,
-  readOnly: boolean,
-): WidthChip[] {
-  if (meta.sizesMm.length === 0) return [];
-  const widths = [...new Set([...meta.sizesMm, meta.widthMm])].sort(
-    (left, right) => left - right,
-  );
-  return widths.map((widthMm) =>
-    describeWidthChip(widthMm, { currentWidthMm: meta.widthMm, readOnly }),
-  );
-}
-
-/** Only a `free` chip is a move: `active` is the width the body already has, and `blocked` is one
- *  no command can reach. Both are unclickable for different reasons, which is why the state stays
- *  three-valued while clickability is published as its own resolved answer. */
-function describeWidthChip(
-  widthMm: number,
-  { currentWidthMm, readOnly }: { currentWidthMm: number; readOnly: boolean },
-): WidthChip {
-  const state: WidthChipState =
-    widthMm === currentWidthMm ? "active" : "blocked";
+/** One candidate width, in §9's vocabulary. Only a `free` chip is a move: `active` is the width the
+ *  column already sits at, and `blocked` is one the command refused. Both are unclickable for
+ *  different reasons, which is why the state stays three-valued while clickability is published as
+ *  its own resolved answer.
+ *
+ *  Read-only takes the reason line as well as the click, and takes it first: a browser that cannot
+ *  write is not being told which widths its cabinet could reach, it is being told it cannot edit.
+ *  Two sentences under one chip would be the panel arguing with itself. */
+function describeWidthChip(option: WidthOption, readOnly: boolean): WidthChip {
+  const state = describeWidthChipState(option.verdict);
   return {
-    widthMm,
-    label: String(widthMm),
+    widthMm: option.widthMm,
+    label: String(option.widthMm),
     state,
     isDisabled: isWidthChipDisabled(state, readOnly),
+    ...describeWidthChipReason(option.verdict, readOnly),
   };
 }
 
-/** Takes the whole three-state union rather than what this milestone happens to produce, so the
- *  rule stays written down while M5's `free` is still unreachable — and read-only is applied here
- *  for the same reason. Every chip is already unclickable in M4, so this changes nothing today; it
- *  exists so that the day M5 makes `free` reachable, it does not become reachable in a browser that
- *  cannot write, which would be the one section left offering what cannot be satisfied. */
+function describeWidthChipState(
+  verdict: WidthOption["verdict"],
+): WidthChipState {
+  switch (verdict.status) {
+    case "current":
+      return "active";
+    case "available":
+      return "free";
+    case "refused":
+      return "blocked";
+  }
+}
+
+/** Spread into the chip, so a clickable one carries no `reason` field at all — the same shape
+ *  `describeChipAvailability` uses for the finish and handle swatches. */
+function describeWidthChipReason(
+  verdict: WidthOption["verdict"],
+  readOnly: boolean,
+): { readonly reason?: string } {
+  if (readOnly) return { reason: ro.panel.readOnlyReason };
+  if (verdict.status !== "refused") return {};
+  return { reason: renderRejection(verdict.reason) };
+}
+
+/** Takes the whole three-state union rather than what any one milestone happens to produce, and
+ *  applies read-only first: M5 made `free` reachable, and it must not become reachable in a browser
+ *  that cannot write — which would leave this the one section offering what cannot be satisfied. */
 function isWidthChipDisabled(
   state: WidthChipState,
   readOnly: boolean,

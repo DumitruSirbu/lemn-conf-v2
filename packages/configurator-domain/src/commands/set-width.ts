@@ -107,6 +107,23 @@ export interface SetWidthInput {
 
 type SetWidthResult = CommandResult<BodyResizedEffect>;
 
+/** What `columnWidthCandidatesMm` needs, and deliberately less than `setWidth`: no width, no probe
+ *  and no timestamp. Asking which widths exist builds nothing, so it cannot fail on a measurement
+ *  and has nothing to stamp — and it never reads the frozen column map either, because a column's
+ *  legal widths come from its members' catalogue rows rather than from its extent. */
+export interface ColumnWidthChoicesInput {
+  readonly design: Design;
+  readonly catalog: BodyCatalog;
+  readonly target: CommandTarget;
+}
+
+export interface ColumnWidthChoices {
+  /** The width §9's `active` chip sits on, and the number its value label reads. */
+  readonly currentWidthMm: number;
+  /** Ascending, duplicate-free, and never empty — see `columnWidthChoices`. */
+  readonly sizesMm: readonly number[];
+}
+
 type Resolved<T> =
   | { readonly ok: true; readonly value: T }
   | { readonly ok: false; readonly detail: RejectionDetail };
@@ -210,6 +227,96 @@ export function setWidth(input: SetWidthInput): SetWidthResult {
   const plan = planColumnResize(input, records, record);
   if (!plan.ok) return refuse(design, plan.detail);
   return fundColumnResize(input, records, record, plan.value);
+}
+
+/** What §9's width section may render for this selection: the widths to offer a chip for, and the
+ *  one the `active` chip sits on.
+ *
+ *  **The column's widths, not the selected body's** (ADR 0031 rule 1, and the over/under-offer this
+ *  closes). `describeSelection` answers per body, because `meta` is a projection of one placement and
+ *  knows nothing about what stands above or below it. ADR 0031 decides per column, so a panel that
+ *  rendered `meta.sizesMm` offered widths the column refuses and hid widths it accepts — the same
+ *  "two code paths answer one question" shape ADRs 0016, 0017 and 0029 each caught. The list comes
+ *  from `intersectColumnWidths`, the very function `setWidth` narrows against.
+ *
+ *  This publishes **candidates only**. Whether any one of them is a legal move is `setWidth`'s
+ *  answer and nobody else's — see `queries/width-options.ts`, which asks it by running the command.
+ *  So a column that cannot be resized at all still produces chips: they are rendered disabled with
+ *  the engine's own reason, which is ADR 0032's rule applied to the width section.
+ *
+ *  **A column that cannot agree on a width still renders chips**, whichever way it fails to agree:
+ *  a member that cannot be rebuilt at all, or members whose sets do not intersect. Both fall back to
+ *  the selected body's own set, and every chip carries the command's own reason — the customer sees
+ *  the widths their cabinet is made in and what is standing in the way of each. The **selected**
+ *  body resolving no set is the one different answer — `undefined`, no section — because that is
+ *  missing catalogue data rather than a fact about the column, and §9 does not offer a width control
+ *  on a body with no width to change.
+ *
+ *  `undefined` where there is **nothing to choose from**, and that answer is load-bearing (FINDING
+ *  R2.7): a body that resolves no set at all — a pre-migration `cooktop-600`, a row whose
+ *  `catalogEquivalentId` points nowhere, an entry whose declared floor excludes every member — gets
+ *  no width section rather than a chipless one, so missing catalogue data fails loudly. The current
+ *  width is folded into a set that exists; it never conjures one.
+ *
+ *  `currentWidthMm` is the **selected body's** width, and it is read here rather than inferred from
+ *  a refusal code. §9 assumes exactly one `active` chip and puts the same number in the section's
+ *  value label, so the `active` chip cannot be contingent on how far `setWidth` gets before it
+ *  refuses — a column with an immovable member refuses every width, including the one it is
+ *  standing at, and the section would then have no active chip at all.
+ *
+ *  A `widthFlex: 'fit'` body built to its opening can sit at a width no set contains — a
+ *  `wall-2door` in a 700 mm opening — which is why it joins the list rather than being assumed to
+ *  be in it. */
+export function columnWidthChoices(
+  input: ColumnWidthChoicesInput,
+): ColumnWidthChoices | undefined {
+  if (input.target.kind === "void") return undefined;
+  const records = derivePlacementRecords(input.design, input.catalog);
+  const record = records.find((candidate) => candidate.id === input.target.id);
+  if (!record) return undefined;
+
+  // §9's `canWidth` read from the engine's end, and the same call `setWidth` opens with: an
+  // accessory owns no width, a `fixedWidth` entry is made at one size, and a body with no §7
+  // equivalent has nothing to be rebuilt through. Asked here so the answer has one author — a
+  // `fixedWidth` body still resolves a perfectly good set, and publishing chips for it would leave
+  // §9's flag as the only thing standing between the customer and a section of dead controls.
+  if (!resolveResizableBody(input.catalog, record).ok) return undefined;
+
+  // The selected body's own set is the floor of what may be rendered, and the **only** thing whose
+  // absence suppresses the section (FINDING R2.7). Resolved before the column, because everything
+  // below is a narrowing of it.
+  const declared = resolveBuildableSizes(input.catalog, record.buildId);
+  if (declared.length === 0) return undefined;
+
+  const members = resolveColumnMembers(
+    input.catalog,
+    records,
+    record,
+    describeRecordLabel(input.catalog, record),
+  );
+  const intersected = members.ok
+    ? intersectColumnWidths(input.catalog, members.value)
+    : [];
+  // **An empty intersection is not "no set" — it is a fact about the column, and ADR 0032 says a
+  // fact about why this opening refuses gets rendered rather than dropped** (logic review L2).
+  //
+  // Two ways a column can fail to agree on a width, and they used to answer differently. A column
+  // holding an *unresizable* member fell back here and rendered the body's own widths, each blocked
+  // with `COLUMN_MEMBER_NOT_RESIZABLE` — which is right. A column whose members are all resizable
+  // but whose sets are **disjoint** returned `undefined`: no section, no sentence, and a
+  // `WIDTH_NOT_SUPPORTED` the engine had already computed thrown away. Reachable in two inserts —
+  // a `base-bottle-cargo` (200/300) under a `hood` (600/900) — with nothing wrong with either body.
+  //
+  // So both fall back to the same place. What suppresses a section is missing catalogue data about
+  // the body itself, never a disagreement between bodies.
+  const candidates = intersected.length > 0 ? intersected : declared;
+
+  return {
+    currentWidthMm: record.widthMm,
+    sizesMm: [...new Set([...candidates, record.widthMm])].sort(
+      (left, right) => left - right,
+    ),
+  };
 }
 
 /** Everything ADR 0031 decides about the **column**, before anything is built and before a side is

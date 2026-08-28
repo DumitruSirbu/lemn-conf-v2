@@ -39,6 +39,7 @@ function panelFromStore(state: ConfiguratorState): PanelView {
       ? offersFor({ records, voids, columns, catalog, target: selection })
       : [],
     rejection: state.lastRejection,
+    widthOptions: [],
     isBodyProbeAttached: state.isBodyProbeAttached,
     canWrite: state.canWrite,
     saveStatus: state.saveStatus,

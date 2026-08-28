@@ -21,6 +21,7 @@ import {
   removePlacement,
   setFinish as setFinishOnDesign,
   setHandle as setHandleOnDesign,
+  setWidth as setWidthOnDesign,
   type BodyCatalog,
   type BodyProbe,
   type Column,
@@ -93,9 +94,22 @@ export interface ConfiguratorState {
   readonly insert: (buildId: string) => void;
   readonly setFinish: (finish: Finish) => void;
   readonly setHandle: (handle: Handle) => void;
+  /** §5.4's resize, and the last of §9's five verbs to be wired. It takes a width and nothing else:
+   *  which bodies move, which column funds it and whether it is legal at all are ADR 0031's rules,
+   *  and they live in the command. */
+  readonly setWidth: (widthMm: number) => void;
+  /** The scene's measuring instrument, published rather than closed over because §9's width chips
+   *  need it too: `widthOptionsFor` answers "would this resize succeed" by running the command,
+   *  which rebuilds through the real builders. A query cannot reach a closure variable.
+   *
+   *  `undefined` until the scene mounts and after it unmounts — the store is module-scoped and
+   *  outlives any one canvas. */
+  readonly bodyProbe: BodyProbe | undefined;
   /** Whether `insert` can do anything. False until the scene calls `attachBodyProbe`, and
    *  published so a control is disabled rather than offered and then refused ("never offer what
-   *  cannot be satisfied", §9). `insert` refuses `BODY_PROBE_UNAVAILABLE` if one is called anyway. */
+   *  cannot be satisfied", §9). `insert` refuses `BODY_PROBE_UNAVAILABLE` if one is called anyway.
+   *
+   *  Written only alongside `bodyProbe`, from the same value, so the two cannot come to disagree. */
   readonly isBodyProbeAttached: boolean;
   readonly attachBodyProbe: (probe: BodyProbe) => void;
   /** The scene's unmount half. The store is module-scoped and outlives any one mounted scene, so
@@ -206,7 +220,6 @@ export function createConfiguratorStore(
   const designId = options.designId ?? null;
   const onDesignChanged = options.onDesignChanged ?? (() => undefined);
   const now = options.now ?? nowInIsoMilliseconds;
-  let bodyProbe = options.bodyProbe;
 
   return create<ConfiguratorState>((set, get) => {
     /** Call, apply, schedule — in that order, and in one `set()`. A command with no selected
@@ -255,15 +268,16 @@ export function createConfiguratorStore(
         );
       },
       insert: (buildId) => {
+        const probe = get().bodyProbe;
         runCommand(({ design: current, columns, target }) =>
-          bodyProbe
+          probe
             ? insertBody({
                 design: current,
                 columns,
                 target,
                 catalog,
                 buildId,
-                probe: bodyProbe,
+                probe,
                 occurredAt: now(),
               })
             : // A missing probe is a refusal, not a throw: `isBodyProbeAttached` exists so a
@@ -295,14 +309,31 @@ export function createConfiguratorStore(
           }),
         );
       },
-      isBodyProbeAttached: bodyProbe !== undefined,
+      setWidth: (widthMm) => {
+        const probe = get().bodyProbe;
+        runCommand(({ design: current, columns, target }) =>
+          probe
+            ? setWidthOnDesign({
+                design: current,
+                columns,
+                target,
+                catalog,
+                widthMm,
+                probe,
+                occurredAt: now(),
+              })
+            : // The same safety net `insert` carries, for the same reason: §9 disables a chip it
+              // cannot satisfy, and this is what happens if one is tapped anyway.
+              refuse(current, { code: "BODY_PROBE_UNAVAILABLE", params: {} }),
+        );
+      },
+      bodyProbe: options.bodyProbe,
+      isBodyProbeAttached: options.bodyProbe !== undefined,
       attachBodyProbe: (probe) => {
-        bodyProbe = probe;
-        set({ isBodyProbeAttached: true });
+        set({ bodyProbe: probe, isBodyProbeAttached: true });
       },
       detachBodyProbe: () => {
-        bodyProbe = undefined;
-        set({ isBodyProbeAttached: false });
+        set({ bodyProbe: undefined, isBodyProbeAttached: false });
       },
       designId,
       saveStatus: "idle",

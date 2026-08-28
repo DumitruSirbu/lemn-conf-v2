@@ -25,6 +25,8 @@ import { describePanel, type PanelSection } from "@/panel/panel-model";
 import { offeredBuildIds } from "../support/offers";
 import { preMigrationHobDesign } from "../support/pre-migration-hob";
 
+import { noWidthIsFree } from "../support/width-options";
+
 const OCCURRED_AT = "2026-08-26T12:00:00.000Z";
 
 /** ADR 0011 Gap D: columns are frozen at load time. Re-deriving them from the mutated records
@@ -47,10 +49,12 @@ function worldFrom(design: Design) {
 type World = ReturnType<typeof worldFrom>;
 
 function panelAt(world: World, target: CommandTarget) {
+  const meta = describeSelection({ ...world, target });
   return describePanel({
-    meta: describeSelection({ ...world, target }),
+    meta,
     offers: offersFor({ ...world, target }),
     rejection: null,
+    widthOptions: meta ? noWidthIsFree(meta.widthMm, meta.sizesMm) : [],
     isBodyProbeAttached: true,
     canWrite: true,
     saveStatus: "idle",

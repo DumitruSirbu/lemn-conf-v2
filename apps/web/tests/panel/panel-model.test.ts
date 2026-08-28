@@ -14,6 +14,8 @@ import {
 
 import type { SelectionMeta } from "@lemnaria/configurator-domain";
 
+import { noWidthIsFree, widthOptionRow } from "../support/width-options";
+
 /** The panel as the app builds it: probe attached, nothing refused. Each test turns off only what
  *  it is about. */
 function panelFor(
@@ -24,6 +26,7 @@ function panelFor(
     meta,
     offers: [],
     rejection: null,
+    widthOptions: meta ? noWidthIsFree(meta.widthMm, meta.sizesMm) : [],
     isBodyProbeAttached: true,
     canWrite: true,
     saveStatus: "idle",
@@ -396,63 +399,85 @@ describe("describePanel — finish and handle chips", () => {
   });
 });
 
-describe("describePanel — the width section M5 wires", () => {
-  it("renders a chip per catalogue size, with the current width active", () => {
-    const section = findSection(openPanelFor(occupiedMeta()).sections, "width");
+describe("describePanel — the width section, judged by the engine (M5 wave 5D)", () => {
+  // The chip set is no longer this module's to derive. `widthOptionsFor` answers per **column** —
+  // ADR 0031's scope — while `meta` describes one body, so the panel renders the judged list it is
+  // handed and nothing else. What is asserted here is the mapping: verdict to §9's vocabulary.
+  it("renders one chip per option, in the engine's own order and states", () => {
+    const section = findSection(
+      openPanelFor(occupiedMeta(), {
+        widthOptions: widthOptionRow({
+          currentMm: 600,
+          freeMm: [800],
+          blockedMm: [400],
+        }),
+      }).sections,
+      "width",
+    );
     expect(section?.valueLabel).toBe("600 mm");
     expect(section?.chips.map((chip) => [chip.label, chip.state])).toEqual([
       ["400", "blocked"],
       ["600", "active"],
-      ["800", "blocked"],
+      ["800", "free"],
     ]);
   });
 
-  // Until §5.4's resize command exists no other width can be satisfied, so no chip may render
-  // `free` — a free chip is a clickable promise of a move nothing implements.
-  it("offers no free chip while there is no resize command", () => {
+  // M4 shipped every non-current chip blocked and three tests pinned that, because no resize
+  // command existed and a free chip was a clickable promise of a move nothing implements. 5C built
+  // the command; the promise is now keepable, and the rule that replaces the old one is the one the
+  // milestone stated: a chip is free **iff** `setWidth` at that width would succeed. Only `free` is
+  // clickable, which is the half that makes it a promise rather than a colour.
+  it("makes a chip clickable exactly when the engine said the resize would succeed", () => {
     const section = findSection(
-      openPanelFor(occupiedMeta({ sizesMm: [400, 600, 800, 900] })).sections,
+      openPanelFor(occupiedMeta(), {
+        widthOptions: widthOptionRow({
+          currentMm: 600,
+          freeMm: [800],
+          blockedMm: [400],
+        }),
+      }).sections,
       "width",
     );
-    expect(section?.chips.some((chip) => chip.state === "free")).toBe(false);
+    expect(
+      section?.chips.map((chip) => [chip.widthMm, chip.isDisabled]),
+    ).toEqual([
+      [400, true],
+      [600, true],
+      [800, false],
+    ]);
+  });
+
+  // §13.1: greyed and unclickable **with the reason**. The sentence is the engine's own — the
+  // refusal `setWidth` produced — so the section invents no vocabulary of its own, and a chip that
+  // works carries no sentence at all.
+  it("puts the engine's refusal under a blocked chip, and nothing under the others", () => {
+    const section = findSection(
+      openPanelFor(occupiedMeta(), {
+        widthOptions: widthOptionRow({
+          currentMm: 600,
+          freeMm: [800],
+          blockedMm: [400],
+          label: "Corp suspendat",
+        }),
+      }).sections,
+      "width",
+    );
+    const reasons = new Map(
+      section?.chips.map((chip) => [chip.widthMm, chip.reason]),
+    );
+    expect(reasons.get(400)).toContain("Corp suspendat");
+    expect(reasons.get(600)).toBeUndefined();
+    expect(reasons.get(800)).toBeUndefined();
   });
 
   // §9 defines `canWidth` as "selected · not empty · not `fixedWidth`" and says nothing about the
-  // size set, so an empty size set has to be declined by the SECTION rather than by the flag. The
+  // size set, so an empty option list has to be declined by the SECTION rather than by the flag. The
   // hazard is treating a section that offers nothing to choose as a correct render: a width
   // heading over no chips is a dead control, so the section must be absent entirely.
-  it("renders no width section at all for a body with no sizes", () => {
-    const panel = openPanelFor(occupiedMeta({ sizesMm: [] }));
+  it("renders no width section at all when the engine offers no options", () => {
+    const panel = openPanelFor(occupiedMeta(), { widthOptions: [] });
     expect(findSection(panel.sections, "width")).toBeUndefined();
     expect(sectionKinds(panel.sections)).not.toContain("width");
-  });
-
-  // A `widthFlex: "fit"` body builds to its OPENING, which need not be a member of `sizesMm` — a
-  // `wall-2door` inserted into a 700 mm opening is 700 wide against catalogue chips of 400/600/800.
-  // §9 gives a chip three states and assumes the body's current width is one of them, so a chip set
-  // drawn from the catalogue alone leaves every chip blocked and none active: the panel would show
-  // no current width at all.
-  it("carries the body's own width into the chip set when the catalogue set omits it", () => {
-    const section = findSection(
-      openPanelFor(occupiedMeta({ widthMm: 700, sizesMm: [400, 600, 800] }))
-        .sections,
-      "width",
-    );
-    expect(section?.chips.map((chip) => [chip.widthMm, chip.state])).toEqual([
-      [400, "blocked"],
-      [600, "blocked"],
-      [700, "active"],
-      [800, "blocked"],
-    ]);
-  });
-
-  it("adds no duplicate chip when the body's width is already in the set", () => {
-    const section = findSection(
-      openPanelFor(occupiedMeta({ widthMm: 600, sizesMm: [400, 600, 800] }))
-        .sections,
-      "width",
-    );
-    expect(section?.chips.map((chip) => chip.widthMm)).toEqual([400, 600, 800]);
   });
 });
 

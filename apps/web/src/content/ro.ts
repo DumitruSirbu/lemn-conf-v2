@@ -152,11 +152,19 @@ export const ro = {
       `Implicit pentru acest corp: ${label}.`,
     widthTitle: "Lățime",
     widthValue: (widthMm: number) => `${String(widthMm)} mm`,
-    /** M5 owns §5.4's boundary move. Until it lands the other chips are genuinely unsatisfiable,
-     *  so they render blocked — and this note says so rather than describing a donor rule that no
-     *  code implements yet. */
+    /** ADR 0031's rule, in the customer's words — **rewritten in wave 5D** (logic review L1).
+     *
+     *  It used to end "nu este încă disponibilă în această versiune", which was true while no resize
+     *  command existed and became a lie the moment 5D wired the chips: a clickable chip that
+     *  performs the resize, directly above a sentence saying the feature is not available. No test
+     *  pinned the string, so a green suite said nothing about it.
+     *
+     *  It states ADR 0031 rather than §5.4's superseded donor rule: the width comes from **empty
+     *  space beside the column**, not from a neighbouring cabinet, and §2's `MIN_W` floor is the one
+     *  number §9's own wording carries. Deliberately not per-selection — which side actually funds a
+     *  given move is on the chip that could not be funded, as the engine's own refusal. */
     widthNote:
-      "Lățimea se schimbă mutând granița cu vecinul. Nu este încă disponibilă în această versiune.",
+      "Lățimea se schimbă mutând granița coloanei în spațiul liber alăturat, întâi în dreapta, apoi în stânga. Sub 300 mm nu se coboară.",
     /** §11 row 16 and §13.1: a corner return offers nothing at all, so no refusal is ever produced
      *  to carry the explanation. Without this the panel is a header, an empty body and "Gata", and
      *  the rule is satisfied by having deleted the question. Keyed by the reason the catalogue

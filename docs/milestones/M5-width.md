@@ -1,7 +1,14 @@
 # M5 — Editing a cabinet's size: width as a boundary move, depth as a derived quantity
 
-> **STATUS: IN PROGRESS.** Waves 5A and 5B are shipped; 5C is rebuilt and in QA. Summary:
-> `docs/STATUS.md`.
+> **STATUS: IN PROGRESS.** Waves 5A, 5B, 5C, 5C2, 5C3 and 5D are shipped. **5E** (browser and mobile
+> gate) and **5F** (base carcass depth) remain. Summary: `docs/STATUS.md`.
+>
+> **Work item 3 is superseded in part by [ADR 0034](../decisions/0034-width-chips-are-column-scoped-and-judged-by-the-command.md).**
+> It asked for a domain query behind chip freedom and got one; what it did not anticipate is that the
+> *chip row itself* had to move to the column too, because `describeSelection` answers per body while
+> ADR 0031 resizes per column. The chip-section acceptance criteria below still say "chip sets come
+> from the body's own legal sizes" — read ADR 0034 instead: they come from the intersection over the
+> column's members, and the shipped kitchen's chip count is 62 rather than 76 as a result.
 >
 > **Rewritten in part on 2026-08-27 by [ADR 0031](../decisions/0031-a-resize-moves-a-whole-column-into-adjacent-empty-space.md),
 > which supersedes §5.4's donor rule.** A resize moves a **whole column** at every level, funded by an
@@ -356,6 +363,12 @@ Two things the original plan did not say, both consequences of what M3 and M4 sh
 
 ### 3. Implement the chip states and the consequence line
 
+> **Shipped in wave 5D, and amended by [ADR 0034](../decisions/0034-width-chips-are-column-scoped-and-judged-by-the-command.md).**
+> The item below is right about where the freedom answer comes from and wrong about where the chip
+> *row* comes from: it says "the body's own legal sizes", and ADR 0031 resizes a column, so the row
+> is the intersection over the column's members (`columnWidthChoices`). Read the ADR before the
+> bullets under *The chip section* in Acceptance criteria, which carry the same assumption.
+
 Three states, already modelled: `WidthChipState = "active" | "free" | "blocked"` with a resolved
 `isDisabled` beside it (`apps/web/src/panel/panel-model.ts:69`). M4 shipped the section with every
 non-current chip `blocked`, which was the truthful state while no resize command existed.
@@ -699,9 +712,14 @@ Each of these is silent today and none is currently tested.
 
 ### The chip section
 
-- Chip sets come from the body's own legal sizes, resolved through the declared catalogue equivalent
+- ~~Chip sets come from the body's own legal sizes, resolved through the declared catalogue equivalent
   for a seeded body: 450/600 for the dishwasher, 600/900 for the hood, 600/800 for the sink (ADR
-  0017), 400/600/800 for everything else. **1000 mm does not exist.**
+  0017), 400/600/800 for everything else.~~ **Superseded by ADR 0034**: the set is the intersection
+  over the **column's** members, because that is what `setWidth` narrows against. The dishwasher's
+  450 is gone (the `wall-cabinet` above `A|2.00` is not made at 450 — ADR 0033's gap between a
+  one-door and a two-door; **not** the open shelf, which is a ladder and accepts it) and `p4`'s
+  column gained a 300
+  (a standard-ladder entry constrains by its floor alone). **1000 mm still does not exist.**
 - **A chip is `free` if and only if `setWidth` at that width would succeed.** Not "it is in the set
   and is not the current width" — that is the promise M4 deliberately refused to make.
 - `active` is the body's current width; `blocked` is a width no command can reach; both are
@@ -778,7 +796,7 @@ old plan is not confused:
 | **5C** | Work items 2 and 4: `setWidth`, donor selection, the rebuild through the catalogue equivalent, and the column update | a new `commands/set-width.ts`, `void-engine.ts`, the command exports, shared insert-fit helpers | **Full** — domain algebra anchored to §11 rows 9–14 and to ADR 0011 Gap D |
 | **5C2** | ADR 0032's engine half: `offersFor` publishes a verdict with the reason it already computes instead of filtering on fit, and backlog 13's width bound moves into `resolveWidth` gated on `sizesAreStandardLadder`, so insert and resize answer the width question the same way | `queries/offers.ts`, `commands/insert-fit.ts` | **Full** — it changes what §9 offers, which is the class ADRs 0016/0017/0021 each caught |
 | **5C3** | ADR 0033: the door-count pairs merge into one entry each, and the door count **and its label** are derived at the builder's own threshold. Eight seeded `catalogEquivalentId` pointers repoint; ADR 0029's gate becomes "the label's threshold and the builder's threshold are one constant"; `sizesAreStandardLadder`'s population is re-examined | `catalog.ts`, `fixtures/kitchen-l-design.ts`, the label derivation, ADR 0029's gate test | **Full** — catalogue shape and a customer-facing label, superseding two same-day ADRs' mechanism |
-| **5D** | Work item 3: the domain query behind chip freedom, the store action, the panel projection, the refusal wiring | `configurator-store.ts`, `apply-command-result.ts`, `panel-model.ts`, the panel component | **Light** — assembly against a contract 5C settled, *provided* the freedom answer comes from the domain. If any of it lands in `panel-model.ts`, the wave is Full |
+| **5D** | Work item 3: the domain query behind chip freedom, the store action, the panel projection, the refusal wiring | `queries/width-options.ts` (new), `commands/set-width.ts` (the candidate helper), `configurator-store.ts`, `apply-command-result.ts`, `panel-model.ts`, `use-panel-view.ts`, `editor-panel.tsx` | **Shipped 2026-08-27, ADR 0034.** Planned Light; it ran **Full**, and the plan's own condition is why — the freedom answer does come from the domain, but the wave also had to move the chip *row* there, which is a change to what §9 offers. Seven production files against the ~five limit, declared rather than stretched quietly (`docs/WORKFLOW.md`, scope discipline): four of them are one-function seams |
 | **5E** | The browser and mobile gate, and ADR 0024's reachable banner | e2e only | Adversarial QA plus **visual review**; no logic tier |
 | **5F** | Work items 6 and 7: base carcass depth derived from the declared worktop constant, with the worktop staying a constant | `kitchen-parts.ts` (`CARC_D` and `counter`, threaded through `KitOptions`), and the shared constant 5A already declared | **Full** — the only wave in M5 that changes a builder, and the only one that can turn M1's fidelity gate red. It carries **an ADR only if it takes the alternative shape** in work item 7 (consuming the per-call depth argument, which trips ADR 0018 clause 4). Under the recommended shape it needs none, and the dispatch says which was taken |
 

@@ -3,7 +3,7 @@
 **Read this second, right after `AGENTS.md`, before opening any milestone document.** It exists so a
 session can learn where the project stands without reading eight phase plans.
 
-Last updated: 2026-08-27 (**M5 in progress — five waves shipped today: 5A, 5B, 5C, 5C2, 5C3.** §5.4's donor rule was implemented, measured as unusable, and **replaced** by ADR 0031; the door-count catalogue entries were merged by ADR 0033. Remaining: 5D panel, 5E browser gate, 5F base carcass depth.)
+Last updated: 2026-08-27 (**M5 in progress — six waves shipped today: 5A, 5B, 5C, 5C2, 5C3, 5D.** §5.4's donor rule was implemented, measured as unusable, and **replaced** by ADR 0031; the door-count catalogue entries were merged by ADR 0033; §9's width chips are now column-scoped and judged by running the command, ADR 0034. Remaining: 5E browser gate, 5F base carcass depth.)
 
 ## How to use this file
 
@@ -27,7 +27,7 @@ moment it ships; a decision record does not. When the two disagree, the dated de
 | M2 — Void engine, picking, persistence | **Done** (closed 2026-08-25 — its last gate, the unwired client write path, was closed by M3 Wave 3C-2b) | No — `milestones/done/` |
 | M3 — Insert, remove, swap, client write path | **Done** (closed 2026-08-26) | No — `milestones/done/` |
 | M4 — Editor panel and shell | **Done** (closed 2026-08-26 — one criterion unmet by design, ADR 0024) | No — `milestones/done/` |
-| M5 — Width editing, and depth as a derived quantity | **In progress** — 5A, 5B, 5C, 5C2, 5C3 shipped; 5D, 5E, 5F open | Yes — `milestones/M5-*.md`, **and ADRs 0028–0033**, which supersede parts of it |
+| M5 — Width editing, and depth as a derived quantity | **In progress** — 5A, 5B, 5C, 5C2, 5C3, 5D shipped; 5E, 5F open | Yes — `milestones/M5-*.md`, **and ADRs 0028–0034**, which supersede parts of it |
 | M6 — Price bar and global settings (**incl. the worktop depth control**, 2026-08-27) | Planned | Yes, when starting |
 | M7 — Step 1, room and presets | Planned | Yes, when starting |
 | M8 — Review, contact, success | Planned | Yes, when starting |
@@ -35,7 +35,7 @@ moment it ships; a decision record does not. When the two disagree, the dated de
 ## What is actually built
 
 A pnpm monorepo on Node 24: an I/O-free domain package, a Three.js adapter, a persistence package
-that is the only place a Postgres driver appears, and a Next.js App Router app. **1 607 unit tests** (domain 838, three-adapter 609, web 477, persistence 83 — counted from a run on 2026-08-27 after wave 5C3; was 1 395 that morning)
+that is the only place a Postgres driver appears, and a Next.js App Router app. **2 028 unit tests** (domain 852, three-adapter 609, web 484, persistence 83 — counted from a run on 2026-08-27 after wave 5D; was 1 607 after 5C3 and 1 395 that morning)
 (domain 433, three-adapter 440, web 439, persistence 83) plus **20 Playwright e2e tests** and one
 `test.skip`. Every number copied from a run executed on 2026-08-26 after M4 Wave 4D, not carried
 forward.
@@ -202,13 +202,14 @@ desktop rail — but the §9 sections for a corner return, an unknown kind (§11
 zero-result list are reached by no seeded selection, so they remain model-tested only. The width
 section has **never rendered in any browser run**, because no seeded entry has `sizesMm` (below).
 
-**M5 inherits a gap M4 found and could not close: seeded catalogue entries carry no `sizesMm`.**
-`canWidth` is §9's literal rule again — selected, not empty, not `fixedWidth` — and
-`describeWidthSection` declines to emit a section with no chips. So the width section is hidden for
-every seeded body today. An earlier M4 fix folded "has widths to offer" into `canWidth` itself;
-logic review overturned it, because that would have made M5's missing data fail *silently* instead
-of loudly. Give the seeded entries real width sets and the section appears — and a seeded test
-asserting it renders nothing starts failing, which is the tripwire.
+**M4's `sizesMm` gap is closed, and the arrangement behind it survived two waves.** Wave 5B gave the
+seeded entries their sets and wave 5D moved the chip row to the column (ADR 0034), so the width
+section renders across the shipped kitchen. What did **not** change is the reason it can still be
+absent: `canWidth` stays §9's literal rule — selected, not empty, not `fixedWidth` — and a body that
+resolves no set gets no section rather than a one-chip one. An earlier M4 fix folded "has widths to
+offer" into `canWidth` itself; logic review overturned it, because that would have made missing data
+fail *silently* instead of loudly. It is still the arrangement, now enforced in the domain as well:
+`columnWidthChoices` returns nothing rather than conjuring a set out of the current width.
 
 **Deferred review findings, named so they are not lost.** From M4's clean-code round: the four-way
 panel test-file split has become redundant coverage with duplicated helpers; `advancePast` lets three
@@ -293,41 +294,97 @@ floor; until it lands, no update rate limit can be sized honestly.
 
 ## What to do next
 
-**M5 wave 5D — the panel.** The engine half is done and the panel is the only thing between the
-customer and it. 5D renders what ADR 0032 publishes: an entry the engine refuses appears **disabled
-with its reason** rather than vanishing, and a width chip is `free` only if the command would
-succeed. Read `docs/milestones/M5-width.md` work item 3, then ADRs **0031**, **0032** and **0033 with
-both its amendments** — the milestone's own work item 2 and *boundary move* criteria carry
-supersession banners and must not be implemented as written.
+**M5 wave 5E — the browser and mobile gate.** The engine and the panel are both done; 5E is the
+only thing between them and evidence on a real device. Read `docs/milestones/M5-width.md`'s
+*Surfaces* and *The rejection banner becomes reachable* sections, then ADRs **0031**, **0032**,
+**0034** and **0024**.
 
-**What 5D inherits, each recorded rather than discovered:**
+**5E needs a delete in front of every width case, and that is a product fact rather than a fixture
+inconvenience.** ADR 0031 funds a resize from an adjacent column that is empty at **every** level,
+and the shipped kitchen has none at load — so every width chip in it is `blocked`, and the domain
+suite proves chips go free the moment `A|2.00` is cleared (`p1`, `p12`, `p18`). Width editing is in
+practice a second step of deleting. Per `docs/best-practices/browser-and-visual-qa.md` the mobile
+claim needs a handset, not emulation, and a handset pass needs HTTPS or a tunnel (below).
 
-- **`catalog.ts` wants splitting, and the seam is located.** Everything from `deriveDoorCount` to
-  `resolveBuildableSizes` is pure derivation with no dependency on the entry table above it. Clean-code
-  review named it; the split was deferred out of 5C3 because `docs/WORKFLOW.md` forbids folding a
-  refactor into a behavioural change. ADR 0033's own consequence — a derived label must be derived
-  everywhere it appears — means 5D adds to exactly that half.
-- **The ACTUAL-badged row drops its door count** where the width *is* known, and **a seeded body's
-  panel header** reads the generic kind (*Corp suspendat*) above a replace row reading *Corp suspendat
-  2 uși*. `resolveCatalogEquivalent` already resolves the chips two lines away.
-- **§9 over- and under-offers**, both itemised rather than counted: `describeSelection` answers per
-  body while ADR 0031 decides per column, and `intersectColumnWidths` is a union-then-filter, so a
-  column can have a legal width no chip renders.
-- **A refused row publishes chips *and* ranges.** Three fields, three jobs — chips are what may be
-  picked, ranges what may be built, `verdict.reason` why *this* opening refused. 5D must not render
-  two of them as the same thing.
-- **§11 row 20 needs amending**, not strengthening: no path hands the wall builder a 570, and the row
-  is now demonstrable end to end at **700**, where a hinged cabinet builds two doors.
+**What 5D shipped, so 5E knows what it is photographing:**
 
-**Then 5E** (browser and mobile gate — and it needs a delete in front of it, because the shipped
-kitchen has no empty column at load) **and 5F** (base carcass depth as a formula, the only wave that
-touches a builder and the only one that can reach M1's 1e-6 m parity gate).
+- **§9's width chips are column-scoped and judged by running the command** (ADR 0034). Every chip is
+  `free` if and only if `setWidth` at that width would succeed, `blocked` chips carry the engine's
+  own sentence, and the row comes from the intersection of the column's members' sets rather than
+  from the selected body's. The shipped kitchen's chip count moved from 76 to 62 and three pinned
+  rows moved with it, each re-pinned with its derivation.
+- **`setWidth` is wired to the store and to the chip**, and `applyCommandResult` now takes
+  `BodyResizedEffect.columns` — a resize is the one command whose own column map replaces the
+  store's, and the voids are recomputed against the moved one.
+- **The store publishes its `BodyProbe`** rather than closing over it, because the width query needs
+  the real builders to answer honestly. With none attached the width section is absent.
 
-**Two product questions are with the owner and neither blocks 5D:** whether a column holding mixed
+**Wave 5D ran the full `docs/WORKFLOW.md` cycle — adversarial QA, then clean-code and product-logic
+review in parallel — and it earned its cost three times over.** The engine seam came through clean:
+no production defect in the domain, and the logic reviewer verified the freedom property holds *by
+construction* rather than by luck (the candidate set and the command's accepted set are the same
+`intersectColumnWidths` call). What the round found was everything around it.
+
+- **A blocker, and a customer-facing one.** §9's width note still ended *"nu este încă disponibilă în
+  această versiune"* — written when no resize existed, and a lie the moment 5D made the chips
+  clickable. It would have gone into 5E's screenshots. **No test pinned the string**, which is
+  precisely why 2 116 green tests said nothing about it. It now states ADR 0031's rule, and three
+  tests pin the claim.
+- **The width section had a silent branch, and it was ADR 0032's own defect reappearing.** A column
+  whose members are all resizable but whose sets are **disjoint** — a `base-bottle-cargo` under a
+  `hood` — rendered *no section at all* and discarded a `WIDTH_NOT_SUPPORTED` the engine had already
+  computed, while a column with an immovable member rendered chips-with-reasons. Two answers to one
+  question, the quieter one wrong. Now one rule: **only the selected body resolving no set suppresses
+  the section**; a column that cannot agree explains itself on the chips.
+- **ADR 0034 stated two facts that were wrong**, one of them inverting the very rule its example
+  illustrates (it blamed the open shelf for refusing 450 — the shelf is a ladder and accepts it; the
+  refuser is the `wall-cabinet`, where 450 falls in ADR 0033's one-door/two-door gap). Corrected in
+  the ADR, the index, the plan and the test comments, with the correction recorded rather than
+  quietly swapped.
+- **Smaller, and mine:** a `?? "refused"` default that would have let an invented chip pass silently;
+  a `WidthChip.reason` doc that said the opposite of the code; a read-only width test still carrying
+  M4's "weak by construction" note, which its own comment had predicted would need strengthening the
+  day `free` became reachable.
+
+**Deferred from 5D's review, named so they are not lost.** `isBodyProbeAttached` is derivable from
+`bodyProbe` and could be a selector rather than stored state (they cannot drift as shipped — all
+three write sites set both from one value — so this is opportunistic, not a fix). `columnWidthChoices`
+is the only new export not following the surrounding `...For`/verb-led naming idiom. And **the §11
+table needs supersession markers**: row 9 still states §5.4's donor rule that ADR 0031 replaced, and
+row 14's *"only 450 / 600"* now reads as 600 alone for `p1` — both are acceptance rows, and
+`AGENTS.md` treats that table as acceptance tests, so they should point at the ADRs the way the
+milestone bullets now do. **That is an edit to the product spec and is the owner's call, not mine.**
+
+**What 5D did *not* do, and 5E or a later wave inherits:**
+
+- **ADR 0032's panel half is still unbuilt.** The engine publishes a verdict per offer row
+  (wave 5C2) and `describeReplaceSection` still filters the refused ones out — the seam is one
+  `.filter(isOffered)` in `panel-model.ts`, deliberately the only thing there that knows a refused
+  verdict exists. Rendering the disabled row, its sentence and what it does to the count line is a
+  wave of its own; the width section's chips are the pattern to follow, and the reason renderer
+  (`renderRejection`) is already shared.
+- **`catalog.ts` still wants splitting**, and the seam is unchanged: everything from `deriveDoorCount`
+  to `resolveBuildableSizes` is pure derivation with no dependency on the entry table above it.
+  Deferred again out of 5D because `docs/WORKFLOW.md` forbids folding a refactor into a behavioural
+  change.
+- **The ACTUAL-badged row still drops its door count** where the width is known, and a seeded body's
+  panel header still reads the generic kind (*Corp suspendat*) above a replace row reading
+  *Corp suspendat 2 uși*. ADR 0033's consequence — a derived label must be derived everywhere it
+  appears — is unfinished.
+- **§11 row 20 still needs amending**, not strengthening: no path hands the wall builder a 570, and
+  the row is demonstrable end to end at **700**, where a hinged cabinet builds two doors.
+- **The save coalescer still has no minimum interval.** Chip taps are writes, and 5D made them
+  repeatable. ADR 0019 decision 6's 1 000 ms floor is unimplemented and no update rate limit can be
+  sized honestly until it lands.
+
+**Then 5F** (base carcass depth as a formula, the only wave that touches a builder and the only one
+that can reach M1's 1e-6 m parity gate).
+
+**Two product questions are with the owner and neither blocks 5E:** whether a column holding mixed
 widths should be squared up rather than refused (`COLUMN_MEMBERS_UNALIGNED`, 15 lockouts), and whether
 *shrinking* a column should create empty space — which would make the kitchen resizable without a
-delete first. ADR 0031 records that the "not representable" argument against it was **wrong**; the
-machinery exists.
+delete first, and which 5D's measurement makes the more pressing of the two. ADR 0031 records that
+the "not representable" argument against it was **wrong**; the machinery exists.
 
 
 **M5 — editing a cabinet's size (§5.4's resize as a boundary move, §11 rows 9–14; plus depth, §5.2
@@ -360,21 +417,24 @@ name each other so neither can assume the other built it. Every question about a
 If the milestone needs to be smaller, 5F is the clean cut, but note it moves rather than disappears:
 M6's control needs the formula underneath it.
 
-Four things M4 hands M5 directly:
+Four things M4 handed M5 directly. **The first and third are closed; the second and fourth are
+open.**
 
-1. **Seeded catalogue entries have no `sizesMm`, so no seeded body can be resized.** This is the
-   load-bearing one. `canWidth` is §9's rule and `describeWidthSection` declines a chipless section,
-   so today the width section is hidden across the whole shipped kitchen and has never rendered in a
-   browser. A seeded test asserts that absence deliberately and will fail the day you give the
-   entries widths — that failure is the signal, not a regression.
+1. ~~**Seeded catalogue entries have no `sizesMm`, so no seeded body can be resized.**~~ Closed by
+   wave 5B, and the tripwire fired as designed: the seeded test asserting the section renders nothing
+   failed the day the widths arrived.
 2. **The rejection banner becomes reachable, and M4's unmet criterion becomes writable.** §5.4 has
    real failure modes (§11 row 10: a resize that would push a neighbour under 300 mm). M5 is the
    first phase where a §9 control can legitimately refuse, so ADR 0024 says to revisit it here. Two
    of 2C's three requirements can then be proven in a browser; the third still waits for M6's total.
-3. **Width chips must stay honest about `free` versus `blocked`.** The tri-state survives in the
-   model with `isDisabled` resolved beside it, and `isWidthChipDisabled` takes the full union so the
-   `free` branch is typechecked while unreachable. Several tests assert "no chip is ever free" — they
-   are pinning M4's truth, and M5 must change them deliberately rather than delete them.
+   **Still open — it is wave 5E's**, and note that 5D put the reason at the point of *choosing*
+   (a blocked chip carries the engine's sentence), which is the better place for it than a banner
+   after the tap.
+3. ~~**Width chips must stay honest about `free` versus `blocked`.**~~ Closed by wave 5D and
+   ADR 0034: a chip is `free` if and only if `setWidth` at that width would succeed, answered by
+   running the command. The three tests pinning "no chip is ever free" were turned over rather than
+   deleted, and the shipped kitchen's own answer is still zero free chips — for a reason about empty
+   space, not about a missing command.
 4. **§13.3 question 1 is still open and still visible.** `insertBody` is deliberately more permissive
    than `offersFor` on a swap — §9 scopes a swap list to the outgoing body's band while §5.2 lets a
    `column` body into any slot. Not a rule violation, but the two are not interchangeable.

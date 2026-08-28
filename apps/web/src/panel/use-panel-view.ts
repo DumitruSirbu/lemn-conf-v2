@@ -8,8 +8,10 @@
 import {
   describeSelection,
   offersFor,
+  widthOptionsFor,
   type CatalogOffer,
   type SelectionMeta,
+  type WidthOption,
 } from "@lemnaria/configurator-domain";
 import { useMemo } from "react";
 
@@ -20,6 +22,7 @@ import { describePanel, type PanelView } from "./panel-model";
 export function usePanelView(): PanelView {
   const meta = useSelectionMeta();
   const offers = useSelectionOffers();
+  const widthOptions = useSelectionWidthOptions();
   const rejection = useConfiguratorStore((state) => state.lastRejection);
   const isBodyProbeAttached = useConfiguratorStore(
     (state) => state.isBodyProbeAttached,
@@ -34,12 +37,21 @@ export function usePanelView(): PanelView {
       describePanel({
         meta,
         offers,
+        widthOptions,
         rejection,
         isBodyProbeAttached,
         canWrite,
         saveStatus,
       }),
-    [meta, offers, rejection, isBodyProbeAttached, canWrite, saveStatus],
+    [
+      meta,
+      offers,
+      widthOptions,
+      rejection,
+      isBodyProbeAttached,
+      canWrite,
+      saveStatus,
+    ],
   );
 }
 
@@ -76,5 +88,40 @@ function useSelectionOffers(): CatalogOffer[] {
         ? offersFor({ records, voids, columns, catalog, target: selection })
         : [],
     [records, voids, columns, catalog, selection],
+  );
+}
+
+/** §9's width chips, judged by the engine rather than by the panel: `widthOptionsFor` runs
+ *  `setWidth` once per candidate width and reports what it answered.
+ *
+ *  **Empty without a probe**, and that is the honest answer rather than a degraded one. A resize
+ *  rebuilds through the real builders and re-checks the measurement, so with no probe attached
+ *  every width would refuse `BODY_PROBE_UNAVAILABLE` — a section of chips greyed with a sentence
+ *  about the 3D model, where §9 asks for no section at all until there is something to say. The
+ *  scene attaches one on mount and this recomputes; the replace list carries the "model is
+ *  preparing" message in the meantime, and one such message per panel is enough.
+ *
+ *  Memoised on the store slices it reads, which is what keeps a query that runs the command once
+ *  per chip off the render path. It re-runs when the design changes, when the selection moves, or
+ *  when the probe attaches — the three things that can change an answer. */
+function useSelectionWidthOptions(): WidthOption[] {
+  const design = useConfiguratorStore((state) => state.design);
+  const columns = useConfiguratorStore((state) => state.columns);
+  const catalog = useConfiguratorStore((state) => state.catalog);
+  const selection = useConfiguratorStore((state) => state.selection);
+  const probe = useConfiguratorStore((state) => state.bodyProbe);
+
+  return useMemo(
+    () =>
+      selection && probe
+        ? widthOptionsFor({
+            design,
+            columns,
+            catalog,
+            target: selection,
+            probe,
+          })
+        : [],
+    [design, columns, catalog, selection, probe],
   );
 }

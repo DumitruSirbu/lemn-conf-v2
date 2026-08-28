@@ -323,8 +323,10 @@ function ChipReason({ reason }: { readonly reason: string | undefined }) {
 }
 
 /** §9's three chip states drive styling only — §13.1's "disable, don't warn" dashes a `blocked`
- *  chip. Which states are clickable is the model's answer (`isDisabled`), not this file's. */
+ *  chip. Which states are clickable is the model's answer (`isDisabled`), not this file's, and so is
+ *  whether a chip carries a reason. */
 function WidthSectionView({ section }: { readonly section: WidthSection }) {
+  const setWidth = useConfiguratorStore((state) => state.setWidth);
   return (
     <section className={styles.section} data-testid="section-width">
       <div className={styles.sectionHead}>
@@ -341,8 +343,12 @@ function WidthSectionView({ section }: { readonly section: WidthSection }) {
             data-state={chip.state}
             aria-pressed={chip.state === "active"}
             disabled={chip.isDisabled}
+            onClick={() => {
+              setWidth(chip.widthMm);
+            }}
           >
             {chip.label}
+            <ChipReason reason={chip.reason} />
           </button>
         ))}
       </div>
