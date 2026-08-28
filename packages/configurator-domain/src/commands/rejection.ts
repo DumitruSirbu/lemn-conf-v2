@@ -89,7 +89,12 @@ export type EmptySpaceRefusal =
    *  a body — see `RESIZE_OPENS_GAP`. It is a per-side answer rather than a verdict (FINDING Q1.2):
    *  the scan carries on to the other side, and only refuses when no side can fund the move without
    *  one. */
-  | "opens_a_gap";
+  | "opens_a_gap"
+  /** The space is there and the arithmetic works, but the resized column's new centre lands on a
+   *  key another column already holds — see `COLUMN_KEY_COLLISION`. Per-side for the same reason
+   *  `opens_a_gap` is: which edge is held decides the new centre, so a key taken funding from the
+   *  right may be free funding from the left. */
+  | "key_taken";
 
 export interface EmptySpaceSide {
   readonly side: "right" | "left";
@@ -195,6 +200,15 @@ export type RejectionDetail =
    *  `NO_EMPTY_SPACE` does, so the sentence still says which side was tried and what each answered —
    *  the two codes are the same scan reaching two different verdicts. */
   | { readonly code: "RESIZE_OPENS_GAP"; readonly params: EmptySpaceParams }
+  /** §3.2's keys are positions, so a move that lands a column on a position another column already
+   *  occupies would **overwrite** that column's frozen extent — deleting a run with no command and
+   *  no effect naming it. `refuseColumnDrift` cannot see it: the clobbered column's members still
+   *  derive the same key, so nothing has drifted.
+   *
+   *  Reachable only where columns overlap, which §3.2 permits and the shipped kitchen has (`A|0.45`
+   *  spans 0–900 across `A|0.30` and `A|0.75`). Found by wave 5D2b's QA on both the created strip
+   *  and the resized column itself — the first was guarded, the second was not. */
+  | { readonly code: "COLUMN_KEY_COLLISION"; readonly params: LabelParams }
   | {
       readonly code: "NON_INTEGER_MILLIMETRES";
       readonly params: MillimetreParams;
@@ -270,6 +284,7 @@ const EMPTY_SPACE_REFUSAL_RO: Readonly<Record<EmptySpaceRefusal, string>> = {
   too_narrow: "spațiul liber este prea îngust",
   remainder_below_floor: `ar rămâne un spațiu sub ${String(MIN_WIDTH_MM)} mm`,
   opens_a_gap: "s-ar deschide un spațiu liber peste alte corpuri",
+  key_taken: "corpul ar ajunge peste altă coloană",
 };
 
 const EMPTY_SPACE_SIDE_RO: Readonly<Record<EmptySpaceSide["side"], string>> = {
@@ -353,6 +368,8 @@ export function renderRejection(detail: RejectionDetail): string {
       return `„${detail.params.label}” nu poate fi redimensionat: în aceeași coloană stă „${detail.params.memberLabel}”, care nu își poate schimba lățimea.`;
     case "RESIZE_OPENS_GAP":
       return renderResizeOpensGap(detail.params);
+    case "COLUMN_KEY_COLLISION":
+      return `„${detail.params.label}” nu poate fi mutat aici: ar ajunge peste altă coloană.`;
     case "NON_INTEGER_MILLIMETRES":
       return `Dimensiunea calculată (${detail.params.field}: ${String(detail.params.valueMm)} mm) nu este un număr întreg de milimetri.`;
     case "FINISH_NOT_SUPPORTED":

@@ -1060,6 +1060,22 @@ Two behavioural rules from ADR 0035, both in `setWidth`.
 These are measured together on the shipped kitchen, not separately, because every path through them
 starts from a delete today and stops needing to after this sub-wave.
 
+### Open, and blocking nothing — the hood's overhang onto a neighbour
+
+Wave 5D2b's QA found it and it has no answer in any record. ADR 0035 decision 6 keeps a hood's width
+and re-centres it, so a shrinking run leaves the hood overhanging **both** edges — the vacated strip
+on one side, and whatever stands on the other. Measured: a 600 mm hood over a run narrowing to 300
+ends 150 mm inside the neighbouring wall cabinet, both solid, both at wall level.
+
+ADR 0039 sanctions the overhang; it does not say what happens when it lands on a cabinet.
+`findInvariantViolations` is silent because §3.1's overlap test is within a column, and nothing asks
+the cross-column question. **Before this wave the shape was not representable** — the hood took its
+column's width — so it is new.
+
+Three answers, none chosen: refuse the shrink, allow the overlap (real kitchens do mount a hood
+proud of adjacent units), or clamp the hood to the space available. The measurement is preserved as
+a skipped test in `tests/commands/qa-5d2b.adversarial.test.ts`, FINDING C.
+
 ### 5D2c — the panel renders a stepper
 
 - `widthOptionsFor` becomes a step query: the current width, and a verdict for each of the two

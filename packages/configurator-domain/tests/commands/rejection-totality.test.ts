@@ -39,6 +39,7 @@ import {
 import {
   columnWorld,
   syntheticDesign,
+  syntheticWorld,
   type SyntheticMember,
 } from "../support/synthetic-world.js";
 
@@ -137,6 +138,27 @@ function buildCases(): SweepCase[] {
   // `ALL_REJECTION_CODES` rather than moved to `ENGINE_UNREACHABLE`: the code itself is deleted from
   // `RejectionDetail`, so this sweep would not compile if it were still named here.
   const gapWorld = clearBodies(world, ["p0", "p11", "p17"]);
+  // §3.2 permits columns to overlap along the wall, and the shipped kitchen has them (`A|0.45`
+  // spans 0–900 across `A|0.30` and `A|0.75`). Here a 600 mm base run at 1000 (`A|1.00`) overlaps a
+  // 300 mm wall unit at 950 (`A|0.95`); shrinking the run to 500 holds its left edge and puts its
+  // new centre on 950 — the wall unit's own key. Wave 5D2b's QA found that the map was written
+  // blind and the wall unit's frozen column was overwritten with no command naming it.
+  const overlappingWorld = syntheticWorld([
+    {
+      id: "base-run",
+      wall: "A",
+      alongMm: 1000,
+      y0Mm: 0,
+      body: { buildId: "base-panbank", widthMm: 600, heightMm: 860 },
+    },
+    {
+      id: "wall-unit",
+      wall: "A",
+      alongMm: 950,
+      y0Mm: 1500,
+      body: { buildId: "wall-cabinet", widthMm: 300, heightMm: 700 },
+    },
+  ]);
   // A 400 mm base opening: the dishwasher niche is made in 450 and 600 only.
   const narrowBase = clearBodies(columnWorld(1000, stackOf(400)), ["s0"]);
   // No top row, so the freed base span stops at 1.50 and a 2200 mm column cannot fit above it.
@@ -376,6 +398,11 @@ function buildCases(): SweepCase[] {
       run: () => resizeTo(world, "p10", 350),
     },
     {
+      code: "COLUMN_KEY_COLLISION",
+      design: overlappingWorld.design,
+      run: () => resizeTo(overlappingWorld, "base-run", 500),
+    },
+    {
       code: "RESIZE_OPENS_GAP",
       design: gapWorld.design,
       // Clear `A|1.30`, narrow `A|0.75` to 200, and the empty column reaches 900 mm — offering a
@@ -450,6 +477,7 @@ const ALL_REJECTION_CODES: Readonly<Record<RejectionCode, true>> = {
   NO_EMPTY_SPACE: true,
   COLUMN_MEMBER_NOT_RESIZABLE: true,
   RESIZE_OPENS_GAP: true,
+  COLUMN_KEY_COLLISION: true,
 };
 
 describe("every refusal a command can produce", () => {

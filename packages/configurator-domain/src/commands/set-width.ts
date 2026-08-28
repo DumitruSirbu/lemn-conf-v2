@@ -239,6 +239,11 @@ interface AttemptContext {
   readonly records: readonly PlacementRecord[];
   readonly record: PlacementRecord;
   readonly covered: OverlapSet;
+  /** This column's own hoods, exempt from the phantom-opening comparison because they overhang by
+   *  design (ADR 0035 decision 6). Carried rather than re-derived so the *before* and *after* sets
+   *  exempt the same bodies — QA Q2 is what happens when the exemption is a rule about the world
+   *  instead of about this move. */
+  readonly exemptHoodIds: ReadonlySet<string>;
 }
 
 /** One side's move, carried all the way through the rebuild. `opens_a_gap` is not a refusal yet —
@@ -768,7 +773,10 @@ function fundColumnResize(
 ): SetWidthResult {
   // Measured once, before anything moves: the bodies §4 already derives an opening on top of. A
   // resize is answerable for the overlaps it creates and for no others (logic review R1.7).
-  const covered = bodiesUnderOpenings(records, input.columns);
+  // ADR 0035 decision 6: this column's own hoods overhang by design, so they are exempt from the
+  // phantom-opening comparison — and only they are (QA Q2).
+  const exemptHoodIds = new Set(plan.hoods.map((hood) => hood.record.id));
+  const covered = bodiesUnderOpenings(records, input.columns, exemptHoodIds);
   const refusedSides: EmptySpaceSide[] = [];
   for (const { side, space } of fundingScan(input, records, plan)) {
     if (!space.ok) {
@@ -776,10 +784,22 @@ function fundColumnResize(
       continue;
     }
     const move = planMoves(input, plan, space.value);
-    if (!move.ok) return refuse(input.design, move.detail);
+    if (!move.ok) {
+      // **A key collision is a fact about this side, not about the move** — the resized column's new
+      // centre depends on which edge is held, so a key taken when the right side funds it may be
+      // free when the left does. It therefore falls through to the other side exactly as
+      // `opens_a_gap` does (FINDING Q1.2's argument, and 5D2b's implementer caught that the first
+      // version of this guard ended the scan instead). Every other planning failure is a fact about
+      // the arithmetic and ends it.
+      if (move.detail.code !== "COLUMN_KEY_COLLISION") {
+        return refuse(input.design, move.detail);
+      }
+      refusedSides.push({ side, reason: "key_taken" });
+      continue;
+    }
 
     const attempt = applyColumnResize(
-      { input, records, record, covered },
+      { input, records, record, covered, exemptHoodIds },
       move.value,
     );
     if (attempt.outcome === "ok") return attempt.result;
@@ -919,6 +939,13 @@ function refuseNoSideFunds(
     deltaMm: input.widthMm - plan.extent.widthMm,
     sides,
   };
+  // Ordered by how specific the answer is. A key collision is the sharpest thing the scan can say —
+  // the space was there and the arithmetic worked, and the move was refused for where it would
+  // *land* — so it outranks the gap, which in turn outranks "no space at all". Each is per-side and
+  // the terminal code names whichever the scan actually met.
+  if (sides.some((side) => side.reason === "key_taken")) {
+    return { code: "COLUMN_KEY_COLLISION", params: { label: plan.label } };
+  }
   const opensAGap = sides.some((side) => side.reason === "opens_a_gap");
   return opensAGap
     ? { code: "RESIZE_OPENS_GAP", params }
@@ -1040,36 +1067,42 @@ function planMoves(
     empty.extent.centreMm + (outward * empty.extent.widthMm) / 2;
   const emptyCentreMm = emptyFarMm - (outward * empty.remainderMm) / 2;
 
-  return refuseFractionalCentres({
-    label: plan.label,
-    widthMm: input.widthMm,
-    side: empty.side,
-    members: [
-      // The column's own members are **squared up** to the requested width, whatever they were
-      // standing at (ADR 0035 decision 6).
-      ...plan.members.map((member) => ({
-        ...member,
-        widthMm: input.widthMm,
-        alongMm,
-      })),
-      // A hood keeps its own width and **re-centres over the run beneath it** (ADR 0035 decision 6
-      // as amended, ADR 0039 decision 4). One rule covers both directions of that: a hood's centre
-      // is the run's centre and its width is its own, so resizing the run moves it without
-      // stretching it, and resizing the hood changes its width without moving anything under it.
-      ...plan.hoods.map((hood) => ({ ...hood, alongMm })),
-    ],
-    // Both columns move as frozen extents, and for the same reason — see `FrozenColumnMove`.
-    resized: {
-      column: plan.column,
+  return chainMoveGuards(
+    {
+      label: plan.label,
       widthMm: input.widthMm,
-      centreMm: alongMm,
+      side: empty.side,
+      members: [
+        // The column's own members are **squared up** to the requested width, whatever they were
+        // standing at (ADR 0035 decision 6).
+        ...plan.members.map((member) => ({
+          ...member,
+          widthMm: input.widthMm,
+          alongMm,
+        })),
+        // A hood keeps its own width and **re-centres over the run beneath it** (ADR 0035 decision 6
+        // as amended, ADR 0039 decision 4): its centre is the run's centre, and its width is its
+        // own, so a resize moves it without stretching it.
+        //
+        // That is the rule for a hood the customer did **not** select. Selecting the hood itself is
+        // undecided and unchanged by this wave — it is a full member of its column there, and the
+        // column moves with it. `splitColumnMembers` has the reasoning.
+        ...plan.hoods.map((hood) => ({ ...hood, alongMm })),
+      ],
+      // Both columns move as frozen extents, and for the same reason — see `FrozenColumnMove`.
+      resized: {
+        column: plan.column,
+        widthMm: input.widthMm,
+        centreMm: alongMm,
+      },
+      empty: {
+        column: empty.column,
+        widthMm: empty.remainderMm,
+        centreMm: emptyCentreMm,
+      },
     },
-    empty: {
-      column: empty.column,
-      widthMm: empty.remainderMm,
-      centreMm: emptyCentreMm,
-    },
-  });
+    input.columns,
+  );
 }
 
 /** Every **persisted** coordinate must land on a whole millimetre (§2). Half of an odd width would
@@ -1091,6 +1124,52 @@ function planMoves(
  *  (The empty column's centre could never have fired alone either, as it happens: it is
  *  `farEdge − remainder / 2`, and both terms move onto half-millimetres together with the delta's
  *  parity. The check was redundant as well as wrong about which rule it was enforcing.) */
+/** Both guards a planned move must pass before anything is written.
+ *
+ *  Ordered so the arithmetic failure is reported before the geometric one: a fractional centre means
+ *  the move was never well formed, while a key collision means it was, and lands somewhere it may
+ *  not. */
+function chainMoveGuards(
+  move: ColumnResize,
+  columns: ReadonlyMap<string, Column>,
+): Resolved<ColumnResize> {
+  const centred = refuseFractionalCentres(move);
+  if (!centred.ok) return centred;
+  return refuseKeyCollision(centred.value, columns);
+}
+
+/** §3.2's key is a **position**, so two columns cannot share one — and a move writes new keys for
+ *  both the resized column and the empty one it spends.
+ *
+ *  Wave 5D2b's QA found this as two instances of one hole: `vacatedEmptySpace` asked whether the
+ *  *created strip's* key was taken, and nothing asked it of the *resized column's* — which moves on
+ *  every accepted resize, growth included, so the hole predates decision 7 and this wave is merely
+ *  the first that could reach it. Writing over an occupied key deletes that column's frozen extent
+ *  outright, and `refuseColumnDrift` is blind to it because the clobbered column's members still
+ *  derive the key they always did.
+ *
+ *  The pair is checked against each other as well as against the map: a shrink that put both new
+ *  keys on one position would otherwise write one and lose the other. */
+function refuseKeyCollision(
+  move: ColumnResize,
+  columns: ReadonlyMap<string, Column>,
+): Resolved<ColumnResize> {
+  const moved = frozenMoves(move).filter((frozen) => frozen.widthMm > 0);
+  const vacatedKeys = new Set(
+    frozenMoves(move).map((frozen) => frozen.column.key),
+  );
+  const newKeys = moved.map((frozen) => frozenColumnKey(frozen));
+
+  const collides =
+    new Set(newKeys).size !== newKeys.length ||
+    newKeys.some((key) => columns.has(key) && !vacatedKeys.has(key));
+  if (!collides) return { ok: true, value: move };
+  return {
+    ok: false,
+    detail: { code: "COLUMN_KEY_COLLISION", params: { label: move.label } },
+  };
+}
+
 function refuseFractionalCentres(move: ColumnResize): Resolved<ColumnResize> {
   const fractionalMm = move.members
     .map((member) => member.alongMm)
@@ -1144,7 +1223,14 @@ function applyColumnResize(
   );
   const drift = refuseColumnDrift(columns, moved, rebuilt, move.label);
   if (drift) return { outcome: "refused", detail: drift };
-  if (opensAnOpeningOverABody(attempt.covered, moved, columns)) {
+  if (
+    opensAnOpeningOverABody(
+      attempt.covered,
+      moved,
+      columns,
+      attempt.exemptHoodIds,
+    )
+  ) {
     return { outcome: "opens_a_gap" };
   }
 
@@ -1338,8 +1424,9 @@ function opensAnOpeningOverABody(
   before: OverlapSet,
   records: readonly PlacementRecord[],
   columns: ReadonlyMap<string, Column>,
+  exemptIds: ReadonlySet<string>,
 ): boolean {
-  const after = bodiesUnderOpenings(records, columns);
+  const after = bodiesUnderOpenings(records, columns, exemptIds);
   return [...after].some((placementId) => !before.has(placementId));
 }
 
@@ -1351,20 +1438,27 @@ type OverlapSet = ReadonlySet<string>;
 function bodiesUnderOpenings(
   records: readonly PlacementRecord[],
   columns: ReadonlyMap<string, Column>,
+  exemptIds: ReadonlySet<string>,
 ): OverlapSet {
   const covered = new Set<string>();
   for (const opening of recomputeVoids(records, columns)) {
     for (const record of records) {
-      // **A hood is not a body an opening "appears where".** It hangs *over* the run rather than
-      // sitting in it (ADR 0039), and ADR 0035 decision 6 makes that structural: it keeps its own
-      // width while the cabinets beneath it change, so a hood wider than its run overhangs whatever
-      // is beside it by construction. Every shrink of a column holding one would otherwise refuse —
-      // measured: a 600 mm hood over a run narrowing 600 → 550 overhangs the 50 mm strip the shrink
-      // just vacated, and the phantom test would read that as an opening arriving over a body.
+      // **The hoods of the column being resized are not bodies an opening "appears where".** One
+      // hangs *over* its run rather than sitting in it (ADR 0039), and ADR 0035 decision 6 makes
+      // that structural: it keeps its own width while the cabinets beneath it change, so it
+      // overhangs the strip its own shrink just vacated by construction. Every shrink of a column
+      // holding one would otherwise refuse — measured at a 600 mm hood over a run narrowing
+      // 600 → 550.
+      //
+      // **Scoped to this column's hoods, not to every hood in the design** (5D2b QA finding Q2).
+      // The global skip let a real phantom opening through: a hood in a *different*, overlapping
+      // column had an opening grow across 250 mm of it and the resize was accepted, where before
+      // the wave it was correctly refused — and §9 would then offer inserts into a slot the hood
+      // physically occupies.
       //
       // Excluded from the *before* set as well as the *after* one, so the comparison stays a
       // difference (logic review R1.7) rather than becoming a rule about the world.
-      if (isHood(record)) continue;
+      if (exemptIds.has(record.id)) continue;
       if (standsInOpening(record, opening)) covered.add(record.id);
     }
   }
