@@ -1089,7 +1089,12 @@ not a gap to fill at implementation.** Each is tagged with who needs the answer:
 gate a wave in this phase, **M6** questions travel with the control and are noted in
 `docs/milestones/M6-price-and-global-settings.md` so they are not lost at the seam.
 
-1. **Does the hood follow the rule?** — **M5 asks, nobody is blocked.** `HOOD_DEPTH_MM = 500` (`catalog.ts:73`) and the seeded
+1. ~~**Does the hood follow the rule?**~~ — **ANSWERED 2026-08-28 by
+   [ADR 0039](../decisions/0039-the-hood-is-a-standard-depth-hung-at-the-front.md).** No: the hood is
+   a standard 500 mm at every cabinet depth, and it is hung from its **front** with the empty space
+   behind it. Backlog 9 closes with it, in the opposite direction from what that entry assumed — the
+   hardcoded canopy is right and the **seat** is what changes. Original question follows.
+   **M5 asks, nobody is blocked.** `HOOD_DEPTH_MM = 500` (`catalog.ts:73`) and the seeded
    `hood-600` already agree at 500, so nothing is broken today and 5A can proceed by leaving it
    alone. But a hood is a wall body over a worktop, and if the map governs wall depth it is not
    obvious why 500 is exempt. Related, and worth putting to the owner together: **backlog 9** — a
