@@ -106,6 +106,14 @@ session, to unblock a 450 dishwasher under a wall cabinet that could not match i
 here. It fixes one width and leaves the model that produced six ADRs intact. Under decision 1 the
 450 arrives for free, and so does every other width.
 
+**Free-form width — a numeric field, any millimetre value.** Still rejected, and this record does not
+reopen it. Backlog 2 rejected it as option C on 2026-08-26, confirming §13.2's *"a numeric field
+invites invalid states and arithmetic the user shouldn't do"*, with the owner's added reasoning that
+fixed sizes make the price far easier to pre-calculate. A 50 mm stepper against a fixed 200–800 bound
+is **option B at a finer module** — discrete steps, a hard ceiling, and no arithmetic asked of the
+customer. The tool still expresses *intent* ("three cabinets along this wall, not two") rather than
+*precision* ("617 mm"), which the measurement visit supersedes anyway.
+
 **Keep the threshold at 450 and forbid 500/550.** Rejected: it reintroduces a curated list of
 excluded widths, which is the thing being removed.
 

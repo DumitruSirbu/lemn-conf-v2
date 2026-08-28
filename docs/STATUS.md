@@ -163,7 +163,11 @@ client probe asks the one route the cookie reaches, at the cost of a second GET 
 the first handset pass is now closed: the induction hob **can** be restored, because ADR 0027 made it
 part of the cabinet body and added two hob-bearing catalogue entries. The second is still open —
 clearing two adjacent cabinets yields two openings rather than one, the run re-split §12 lists as
-"Not built, designed". It is not fixed by M5.
+"Not built, designed". **Decided on 2026-08-28 by [ADR 0037](decisions/0037-adjacent-empty-columns-merge-into-one-space.md)** —
+adjacent columns empty at every level merge into one space, and 800 mm still caps every cabinet, so
+what a merge buys is freedom over the *number and position* of cabinets in a span rather than a
+bigger one. Wave assignment is open; ADR 0035's shrink-creates-space makes it reachable without a
+delete, which is what moved it from backlog to decided.
 
 **A third handset report, 2026-08-27, is now scheduled rather than backlog.** Re-inserting a deleted
 top-row cabinet builds it 400 mm deep beside 330 mm neighbours. Diagnosed as backlog 5's unfinished
@@ -178,12 +182,13 @@ question (5A) and the 600-versus-620 question (5F). **Four travel to M6 with the
 repeated in that plan's open questions so they are not lost at the seam; the design-saved-at-600
 question blocks M6's control.
 
-**One deletion is deliberately still owed, and is recorded so it is not lost.** ADR 0027 left the
-whole accessory machinery in place — §6.1's host resolution, §5.1's cascade,
-`ACCESSORY_MAX_HEIGHT_M`, `PlacementRecord.accessory` and `cascadedAccessoryIds`. Nothing in the
-*shipped* design reaches any of it, but a design saved before that migration still carries a
-`cooktop-600` placement and reaches all of it. Whether those documents are migrated or supported is
-the decision that wave has to take first.
+**The deletion ADR 0027 owed is now authorised — see [ADR 0038](decisions/0038-pre-release-no-stored-designs-no-migrations.md).**
+ADR 0027 left the whole accessory machinery in place — §6.1's host resolution, §5.1's cascade,
+`ACCESSORY_MAX_HEIGHT_M`, `PlacementRecord.accessory` and `cascadedAccessoryIds` — because a design
+saved before that migration still carries a `cooktop-600` placement and reaches all of it. The owner
+confirmed on 2026-08-28 that **nothing has ever been stored**: no release, no records, no migration
+owed. So there are no such documents, the machinery is dead code, and it is deleted rather than
+supported. **ADR 0038 expires at first release** and M7/M8 must re-read it before launch.
 
 
 **M4 closed with one acceptance criterion unmet, on purpose (ADR 0024).** Its Verification section
