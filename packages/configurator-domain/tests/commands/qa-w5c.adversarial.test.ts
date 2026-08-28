@@ -601,8 +601,9 @@ describe("Q5 — a column's legal widths are the intersection of its members' se
   it("refuses every width when the intersection is empty, rather than throwing", () => {
     // Two entries with **disjoint** sets, which after ADR 0033 takes a little more finding: the
     // merged `wall-cabinet` carries five widths and overlaps almost everything. The bottle cargo's
-    // 200/300 (ADR 0026 — the proportion is the product) and the hood's 600/900 share nothing, and
-    // both are appliance- or proportion-driven bounds, which is the only kind of bound left.
+    // 200/300 (ADR 0026 — the proportion is the product) and the hood's 600-800 share nothing. The cargo's set is
+    // proportion-driven (ADR 0026) and the hood's floor is a product decision; a disjoint pair now
+    // takes finding, because most rows are cabinetry bounds that overlap.
     const world = clearBodies(
       syntheticWorld([
         placementAt("a-base", 700, 0, "base-bottle-cargo", 300, 860),

@@ -31,7 +31,7 @@ describe("offersFor — a void", () => {
     expect(offered.some((offer) => offer.isCurrent)).toBe(false);
   });
 
-  // A discrete row publishes one degenerate range per size, and a ladder row one open-ended range —
+  // A discrete row publishes one degenerate range per size, and a cabinetry row one bounded range —
   // so a renderer reads the same field for every row and never has to know which shape it has.
   it("publishes a range per size for an appliance, and one bound for a cabinetry row", () => {
     const world = clearBodies(seeded(), ["p1"]);

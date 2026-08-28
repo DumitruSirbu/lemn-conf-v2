@@ -9,7 +9,11 @@
 // stepping reaches it — so a sentence listing thirteen chips both lied and was unreadable.
 import { describe, expect, it } from "vitest";
 
+import { offersFor } from "../../src/queries/offers.js";
 import { renderRejection } from "../../src/commands/rejection.js";
+import { clearBodies } from "../support/commands.js";
+import { voidAt } from "../support/kitchen-world.js";
+import { columnWorld } from "../support/synthetic-world.js";
 
 describe("what a refused width tells the customer", () => {
   // BUILD/OPERATE/CHECK per case: the params a command would produce, rendered, and read.
@@ -83,5 +87,42 @@ describe("what a refused width tells the customer", () => {
 
     expect(sentence).not.toContain("doar");
     expect(sentence).toContain("între 200 și 800 mm");
+  });
+
+  // **The case that actually protects the customer**, and the one the hand-built cases above cannot.
+  // Every other test here constructs a `RejectionDetail` itself, so deleting `widthRangesMm` from the
+  // command that produces it would leave this whole file green while the false list sentence came
+  // back — which is precisely the failure class the file exists to close (clean-code review R3, the
+  // gap it named in this file). This one drives a real refusal through `offersFor` and reads what a
+  // customer would read.
+  it("states the bound on a refusal the engine actually produced", () => {
+    const world = clearBodies(
+      columnWorld(1000, [
+        { id: "s0", y0Mm: 0, heightMm: 820, widthMm: 950 },
+        {
+          id: "s1",
+          y0Mm: 1500,
+          heightMm: 700,
+          buildId: "wall-2door-600",
+          widthMm: 950,
+        },
+      ]),
+      ["s0"],
+    );
+    const opening = voidAt(world, "A|1.00", 0);
+
+    const offered = offersFor({
+      ...world,
+      target: { kind: "void", id: opening.id },
+    });
+    const row = offered.find((offer) => offer.buildId === "base-cabinet");
+    if (row?.verdict.status !== "refused") {
+      throw new Error("expected base-cabinet refused at a 950 mm opening");
+    }
+
+    const sentence = renderRejection(row.verdict.reason);
+    expect(sentence).toContain("între 200 și 800 mm");
+    // The old wording listed thirteen chips and thereby denied 570, a width this cabinet is built at.
+    expect(sentence).not.toContain("doar");
   });
 });

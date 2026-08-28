@@ -305,7 +305,7 @@ export function columnWidthChoices(
   // with `COLUMN_MEMBER_NOT_RESIZABLE` — which is right. A column whose members are all resizable
   // but whose sets are **disjoint** returned `undefined`: no section, no sentence, and a
   // `WIDTH_NOT_SUPPORTED` the engine had already computed thrown away. Reachable in two inserts —
-  // a `base-bottle-cargo` (200/300) under a `hood` (600/900) — with nothing wrong with either body.
+  // a `base-bottle-cargo` (200/300) under a `hood` (600–800) — with nothing wrong with either body.
   //
   // So both fall back to the same place. What suppresses a section is missing catalogue data about
   // the body itself, never a disagreement between bodies.
@@ -519,8 +519,8 @@ function intersectColumnWidths(
   members: readonly ColumnMember[],
 ): readonly number[] {
   // A width has to be one **somebody** in the column offers, or the column would be resizable to a
-  // width no chip in it renders. The ladder members widen this candidate list; the bounded ones
-  // narrow what survives it.
+  // width no chip in it renders. Every member bounds this list now — the ladder members that only
+  // widened it retired with the ladder itself (ADR 0035 decision 2).
   const offered = new Set(
     members.flatMap((member) =>
       resolveBuildableSizes(catalog, member.record.buildId),

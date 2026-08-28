@@ -57,7 +57,9 @@ function cabinetryWidths(...ranges: readonly WidthRangeMm[]) {
   return { widthRangesMm: ranges, sizesMm: steppedWidths(ranges) } as const;
 }
 
-/** An **appliance** row's width model (ADR 0035 decision 3): the sizes the appliance genuinely comes
+/** A **discrete** row's width model (ADR 0035 decision 3) — widths that are genuinely a set rather
+ *  than a bound. Appliances are the main case, not the only one: `base-bottle-cargo` is cabinetry and
+ *  stays discrete for ADR 0026's reason, that the proportion is the product: the sizes the appliance genuinely comes
  *  in, as one degenerate range each. A dishwasher is 450 or 600 because dishwashers are, and the
  *  cabinet is built around the appliance.
  *
@@ -104,7 +106,7 @@ export const TWO_DOOR_MIN_WIDTH_MM = 500;
  *  would filter both widths straight back out of the set they were just given.
  *
  *  Three entries declared downward before this merge and three still do — the count is unchanged, but
- *  the rows are not: `base-1door` and `wall-1door` are gone and the two merged cabinets carry it
+ *  the rows are not: the two hinged rows (`base-cabinet` and `wall-cabinet`, which ADR 0033 merged the former `base-1door`/`wall-1door` into) are gone and the two merged cabinets carry it
  *  instead, alongside `base-bottle-cargo`. What ADR 0026 protects is untouched: `MIN_WIDTH_M` does
  *  not move, so no row inherits the exception, and each row states it on its own line. */
 const HINGED_CABINET_MIN_WIDTH_MM = 200;
@@ -182,7 +184,7 @@ const SINK_MIN_WIDTH_MM = 560;
 const BOTTLE_CARGO_WIDTHS_MM: readonly number[] = [200, 300];
 
 /** ADR 0026: below §2's default floor, deliberately. It was the only entry declaring *under* the
- *  default until ADR 0030's amendment; `base-1door` and `wall-1door` now do too, at the same 200. */
+ *  default until ADR 0030's amendment; the two hinged rows (`base-cabinet` and `wall-cabinet`, which ADR 0033 merged the former `base-1door`/`wall-1door` into) now do too, at the same 200. */
 const BOTTLE_CARGO_MIN_WIDTH_MM = 200;
 
 /** ADR 0027: a hob-bearing base is 600 mm and nothing else. The hob itself is a 600 mm appliance

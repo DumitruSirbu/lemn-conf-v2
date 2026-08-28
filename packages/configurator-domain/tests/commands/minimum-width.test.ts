@@ -7,6 +7,8 @@
 // floor is declared rather than inferred from the measurement.
 import { describe, expect, it } from "vitest";
 
+import { SINK_CHIPS_MM } from "../support/width-model.js";
+
 import {
   buildableSizes,
   INSERTABLE_BODY_DEFINITIONS,
@@ -38,7 +40,6 @@ const BOTTLE_CARGO_MIN_WIDTH_MM = 200;
 const ONE_DOOR_MIN_WIDTH_MM = 200;
 /** ADR 0035: the sink base's chips, stepped from its aperture to §7's ceiling rather than the
  *  `[600, 800]` list ADR 0017 left behind when it removed 400. */
-const SINK_CHIPS_MM = [600, 650, 700, 750, 800];
 const OPENING_ALONG_MM = 1000;
 const OPENING_COLUMN = "A|1.00";
 

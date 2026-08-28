@@ -15,6 +15,7 @@ import {
   acceptsWidthMm,
   buildableSizes,
   describeKindLabel,
+  resolveWidthRangesMm,
   UNKNOWN_KIND_LABEL_RO,
   type InsertableBody,
 } from "../catalog.js";
@@ -542,19 +543,22 @@ function refuseFixedWidth(
 
 /** The parameters `WIDTH_NOT_SUPPORTED` needs to state what an entry is actually made at.
  *
- *  `widthRangesMm` is spread rather than assigned because `exactOptionalPropertyTypes` is on: a row
- *  that declares no ranges must leave the field absent, not present-and-undefined, so the sentence
- *  falls back to listing `sizesMm`. */
+ *  The ranges come from `resolveWidthRangesMm`, never from `definition.widthRangesMm` directly:
+ *  that accessor raises a declared range to the floor governing the entry, and reading the raw field
+ *  would be the second code path its doc block warns about — a rule stated in prose and implemented
+ *  once. It also always returns an array, so there is nothing optional to spread.
+ *
+ *  `sizesMm` arrives already filtered by the caller (ADR 0017), and both halves matter: the ranges
+ *  say what the body may be built at, the sizes say which of those §9 offers as chips. */
 function widthsMadeParams(
   body: InsertableBody,
   sizesMm: readonly number[],
   availableMm: number,
 ) {
-  const ranges = body.definition.widthRangesMm;
   return {
     label: body.label,
     sizesMm,
-    ...(ranges === undefined ? {} : { widthRangesMm: ranges }),
+    widthRangesMm: resolveWidthRangesMm(body),
     availableMm,
   };
 }

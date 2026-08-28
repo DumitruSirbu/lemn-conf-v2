@@ -24,7 +24,7 @@ export const MIN_SPAN_M = 0.3;
  *  ADR 0026 reads this as a default rather than an absolute: an entry may declare a `minWidthMm`
  *  of its own in either direction, and one declaring a floor *below* this replaces it for that
  *  entry alone. Three rows declare downward since ADR 0030's amendment — `base-bottle-cargo`,
- *  `base-1door` and `wall-1door` — and each is reachable only by being chosen deliberately.
+ *  the two hinged rows (`base-cabinet` and `wall-cabinet`, which ADR 0033 merged the former `base-1door`/`wall-1door` into) — and each is reachable only by being chosen deliberately.
  *
  *  ADR 0031 reads this constant for a different subject than §5.4 did. There is no donor any more,
  *  so nothing is left narrow as the residue of somebody else's edit; what this floors now is the

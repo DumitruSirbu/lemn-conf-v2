@@ -174,7 +174,7 @@ const SEEDED_BODY_DEFINITIONS: readonly (readonly [string, BodyDefinition])[] =
         //
         // The rule is *not* "match the catalogue row". `hood-600` below is `fixedWidth: true` while
         // its catalogue row (`hood`) never sets the flag and is therefore `false` — and `hood-600`
-        // is right: the `hood` entry builds at 600 or 900, but this seeded instance is a 600.
+        // is right: the `hood` entry builds anywhere in 600–800, but this seeded instance is a 600.
         fixedWidth: true,
         kind: "tall_unit",
         frameDepthMm: 560,

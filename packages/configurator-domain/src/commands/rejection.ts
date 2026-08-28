@@ -230,31 +230,33 @@ function renderMillimetreList(sizesMm: readonly number[]): string {
   return sizesMm.map((size) => String(size)).join(" sau ");
 }
 
-/** The widths an entry is made at, as a customer would say them.
+/** The widths an entry is made at, as a **clause** spliced into `„{label}” se face …`.
  *
- *  A **bound** is spoken as a bound — *"se face între 200 și 800 mm"* — because since ADR 0035 that
- *  is what a cabinetry row is. Listing its thirteen chips instead would be both unreadable and
- *  false: the chips are the modular widths §9 offers, while the entry is genuinely built anywhere
- *  inside the range, which is exactly what relative stepping reaches (a 570 mm cabinet is real).
+ *  A **bound** is spoken as a bound — *"între 200 și 800 mm"* — because since ADR 0035 that is what a
+ *  cabinetry row is. Listing its thirteen chips instead would be both unreadable and false: the chips
+ *  are the modular widths §9 offers, while the entry is genuinely built anywhere inside the range,
+ *  which is what relative stepping reaches (a 570 mm cabinet is real).
  *
- *  A **discrete** row — every range a single width — is still spoken as a list, because a dishwasher
- *  niche really is made at 450 or 600 and nothing between. That is the shape, not the flag:
- *  `fixedWidth` is `false` on both discrete rows, so it cannot be asked. */
-function renderWidthsMade(params: SizesParams): string {
+ *  Everything else is spoken as a list, which covers two cases with one arm: a discrete row, whose
+ *  every range is a single width, and a **column's** refusal, which carries no ranges because it
+ *  names the intersection of its members' chips rather than any one entry's bound. Both are
+ *  genuinely sets, so both read *"doar în 450 sau 600 mm"*.
+ *
+ *  The shape is asked, never a flag: `fixedWidth` is `false` on both discrete rows, so it cannot
+ *  answer this (ADR 0035 decision 3, corrected). A mixed shape — one fixed width beside a range —
+ *  has no row today and renders correctly anyway. */
+function renderWidthsMadeClause(params: SizesParams): string {
   const ranges = params.widthRangesMm;
-  if (ranges === undefined || ranges.length === 0) {
-    return `doar în ${renderMillimetreList(params.sizesMm)} mm`;
+  if (ranges?.some((range) => range.minMm < range.maxMm) === true) {
+    return ranges
+      .map((range) =>
+        range.minMm === range.maxMm
+          ? `la ${String(range.minMm)} mm`
+          : `între ${String(range.minMm)} și ${String(range.maxMm)} mm`,
+      )
+      .join(" sau ");
   }
-  if (ranges.every((range) => range.minMm === range.maxMm)) {
-    return `doar în ${renderMillimetreList(ranges.map((range) => range.minMm))} mm`;
-  }
-  return ranges
-    .map((range) =>
-      range.minMm === range.maxMm
-        ? `la ${String(range.minMm)} mm`
-        : `între ${String(range.minMm)} și ${String(range.maxMm)} mm`,
-    )
-    .join(" sau ");
+  return `doar în ${renderMillimetreList(params.sizesMm)} mm`;
 }
 
 /** §2's `MIN_W` in millimetres, for the one refusal that names it. Read from the constant rather
@@ -325,7 +327,7 @@ export function renderRejection(detail: RejectionDetail): string {
     case "WIDTH_TOO_SMALL":
       return renderWidthTooSmall(detail.params);
     case "WIDTH_NOT_SUPPORTED":
-      return `„${detail.params.label}” se face ${renderWidthsMade(detail.params)}, iar deschiderea are ${String(detail.params.availableMm)} mm.`;
+      return `„${detail.params.label}” se face ${renderWidthsMadeClause(detail.params)}, iar deschiderea are ${String(detail.params.availableMm)} mm.`;
     case "OPENING_TOO_SHORT":
       return `Deschiderea are doar ${String(detail.params.availableMm)} mm înălțime; sub ${String(detail.params.minimumMm)} mm nu se poate construi un corp.`;
     case "HEIGHT_EXCEEDS_LEVEL":

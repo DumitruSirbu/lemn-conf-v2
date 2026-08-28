@@ -39,7 +39,7 @@ function kitchenWithEmptyColumn(): KitchenWorld {
 const DISJOINT_CARGO_ID = "cargo-under-hood";
 
 /** A column whose members are **all resizable**, **flush**, and whose declared sets do not
- *  intersect: a `base-bottle-cargo` (200/300, ADR 0026's declared floor) under a `hood` (600/900).
+ *  intersect: a `base-bottle-cargo` (200/300, ADR 0026's declared floor) under a `hood` (600–800).
  *  Nothing is wrong with either body; the column simply agrees on no width.
  *
  *  Both stand at 300 on purpose. Left at their natural widths the column is *also* unaligned, and
