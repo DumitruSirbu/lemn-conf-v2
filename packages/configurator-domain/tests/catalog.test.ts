@@ -153,60 +153,87 @@ describe("every insertable entry's two depth fields agree", () => {
   });
 });
 
-describe("every insertable entry says whether its widths are a bound or the ladder", () => {
-  // ADR 0031 rule 5 needs the distinction, and `sizesAreStandardLadder` is declared per row rather
-  // than inferred — §6.3's rule. Declaring it is exactly the kind of thing a new row forgets, and a
-  // forgotten one is silent: the row keeps every width in its set, so nothing is built wrong and a
-  // resize is merely refused where it should have been allowed.
-  //
-  // So the two facts are cross-checked here. They are not the same fact — a future entry could
-  // legitimately declare `[400, 600, 800]` as a bound of its own — but the day one does, this gate
-  // is where that has to be said out loud instead of arriving as a diff nobody read.
-  const STANDARD_WIDTHS_MM = [400, 600, 800];
-
+describe("every insertable entry declares the bound its widths come from", () => {
+  // ADR 0035 decision 2 replaced `sizesAreStandardLadder` with a bound, and this is the guard that
+  // boolean's guard became. The failure it catches has not changed shape: a row built by spreading
+  // `baseCabinet` or `wallCabinet` and then overriding only `sizesMm` keeps the **cabinetry** bound
+  // it inherited from the spread, so a dishwasher niche would accept every width from 300 to 800.
+  // `cabinetryWidths` and `discreteWidths` each write both fields, which is why that cannot happen
+  // by accident — this is the second line, not the only one.
   it.each(INSERTABLE_BODY_DEFINITIONS)(
-    "%s declares the ladder if and only if it carries the standard set",
-    (_buildId, definition) => {
-      const carriesStandardSet =
-        JSON.stringify(definition.sizesMm) ===
-        JSON.stringify(STANDARD_WIDTHS_MM);
-      expect(definition.sizesAreStandardLadder === true).toBe(
-        carriesStandardSet,
-      );
+    "%s declares ranges its own chips sit inside",
+    (buildId, definition) => {
+      const ranges = definition.widthRangesMm;
+      expect(ranges, `${buildId} declares no width ranges`).toBeDefined();
+      for (const widthMm of definition.sizesMm ?? []) {
+        expect(
+          ranges?.some(
+            (range) => widthMm >= range.minMm && widthMm <= range.maxMm,
+          ),
+          `${buildId} offers ${String(widthMm)} outside every range it declares`,
+        ).toBe(true);
+      }
     },
   );
 
-  it("has entries on both sides, so neither branch is untested", () => {
-    const ladder = INSERTABLE_BODY_DEFINITIONS.filter(
-      ([, definition]) => definition.sizesAreStandardLadder === true,
-    ).map(([buildId]) => buildId);
-    const bounded = INSERTABLE_BODY_DEFINITIONS.filter(
-      ([, definition]) => definition.sizesAreStandardLadder !== true,
+  // Both shapes ADR 0035 recognises, named rather than counted. A cabinetry row moving into the
+  // discrete list would lose its stepper; an appliance row moving into the cabinetry list would let
+  // a customer step a dishwasher niche to 550, which is decision 3 by name.
+  it("has entries of both shapes, so neither is untested", () => {
+    const stepped = INSERTABLE_BODY_DEFINITIONS.filter(([, definition]) =>
+      (definition.widthRangesMm ?? []).some(
+        (range) => range.minMm < range.maxMm,
+      ),
     ).map(([buildId]) => buildId);
 
-    // The four rows whose widths are the standard modules and nothing more. Named rather than
-    // counted: a hinged cabinet moving into this list would silently undo ADR 0030 on a resize, by
-    // making every width above 200 legal — including the (400, 450] band where §7's builder still
-    // makes a single door and the swing arc is the thing nobody should own.
-    expect(ladder).toEqual([
+    expect(stepped).toEqual([
+      "base-cabinet",
       "base-3drawer",
       "base-panbank",
+      "base-sink",
+      "wall-cabinet",
       "wall-lift",
       "open-shelf",
+      "hood",
     ]);
 
-    // ADR 0033 shrank this list by merging the door-count pairs, and the merged rows stay **bounded**
-    // — see the note on `HINGED_CABINET_WIDTHS_MM`. ADR 0029's half of that bound is gone, since the
-    // label now follows the width; ADR 0030's half is not, and no floor can express a hole in the
-    // middle of a range.
-    expect(bounded).toContain("base-cabinet");
-    expect(bounded).toContain("wall-cabinet");
-    expect(bounded).toContain("base-sink");
+    const discrete = INSERTABLE_BODY_DEFINITIONS.filter(([, definition]) =>
+      (definition.widthRangesMm ?? []).every(
+        (range) => range.minMm === range.maxMm,
+      ),
+    ).map(([buildId]) => buildId);
+
+    // ADR 0035 decision 3's exclusion: the appliance is the fixed thing and the cabinet is built
+    // around it. `base-bottle-cargo` is on this list for ADR 0026's reason instead — its members are
+    // not established (backlog entry 2), and stepping it would invent 250 as a manufactured width.
+    expect(discrete).toEqual([
+      "base-hob-2drawer",
+      "base-hob-oven",
+      "base-bottle-cargo",
+      "base-dishwasher",
+      "tall-pantry",
+      "tall-oven-tower",
+      "tall-fridge-housing",
+      "fridge-free",
+    ]);
+  });
+
+  // ADR 0035 decision 1: 200–800, at 50 mm, **unbroken**. Pinned on the two hinged rows because they
+  // are the ones whose chips were a curated list of five in ADR 0033 — the list six ADRs kept
+  // correcting — and because 450 is the width the owner named on 2026-08-28 when they retired
+  // ADR 0030's 400 mm one-door cap. A hole reappearing between 400 and 500 fails here first.
+  it("steps a hinged cabinet's chips from 200 to 800 with no hole", () => {
+    for (const buildId of ["base-cabinet", "wall-cabinet"]) {
+      const definition = KITCHEN_L_BODY_CATALOG.get(buildId);
+      expect(definition?.sizesMm, buildId).toEqual([
+        200, 250, 300, 350, 400, 450, 500, 550, 600, 650, 700, 750, 800,
+      ]);
+    }
   });
 });
 
 // ---------------------------------------------------------------------------------------------
-// ADR 0033's amendment: a hinged cabinet's widths are two ranges, not five values.
+// ADR 0033's amendment, as ADR 0035 leaves it: a hinged cabinet's widths are one continuous bound.
 // ---------------------------------------------------------------------------------------------
 
 describe("the widths a body may actually be built to", () => {
@@ -218,39 +245,50 @@ describe("the widths a body may actually be built to", () => {
     return found;
   };
 
-  // The amendment's own table, transcribed. Each row is a width and the rule that decides it, so a
-  // failure names the rule rather than an arithmetic slip. 401–599 is one band and not two, because
-  // the flip at 450 sits inside it: below it a one-door too wide to use, above it a two-door too
-  // narrow to offer.
+  // The amendment's own table, transcribed and then flattened by the owner's 2026-08-28 ruling. Each
+  // row is a width and the rule that decides it, so a failure names the rule rather than an
+  // arithmetic slip.
+  //
+  // **There is no refused band in the middle any more.** The table carried one at 401–599 under
+  // ADR 0033, and at 401–499 under a first pass at this wave; both were ADR 0030's 400 mm one-door
+  // cap. The owner retired that cap in the same breath as moving the threshold — "let's add this 450
+  // for one door… two doors start from 500" — so the width now decides the door **count** and never
+  // whether the cabinet exists at all. Only the two ends refuse.
   it.each([
-    [200, true, "the one-door range opens at 200 (ADR 0026's floor)"],
-    [250, true, "continuous inside the one-door range"],
-    [400, true, "the one-door cap (ADR 0030)"],
-    [401, false, "above the one-door cap"],
-    [450, false, "the flip itself is still above the cap"],
-    [451, false, "two doors, but below the offered floor"],
-    [570, false, "below the two-door floor of 600 (ADR 0029)"],
-    [599, false, "the last width below the floor"],
-    [600, true, "the two-door floor"],
-    [700, true, "two honest 350 mm leaves — the width the amendment restores"],
-    [800, true, "the two-door maximum"],
-    [801, false, "above the maximum"],
-    [900, false, "above the maximum, and correctly refused"],
+    [199, false, "under ADR 0026's declared floor"],
+    [200, true, "the bound opens at 200 (ADR 0026's floor)"],
+    [250, true, "continuous, and a one-door"],
+    [400, true, "ADR 0030's retired cap — an ordinary width now"],
+    [401, true, "one millimetre past the retired cap"],
+    [
+      450,
+      true,
+      "the width the owner named: a one-door, and §11 row 14's dishwasher match",
+    ],
+    [470, true, "reachable by relative stepping (570 → 520 → 470), a one-door"],
+    [499, true, "the last one-door width"],
+    [500, true, "the flip (ADR 0035 decision 4): two doors from here up"],
+    [550, true, "reached by the stepper, and no longer a curated exclusion"],
+    [570, true, "the shipped corner return's width, buildable as a two-door"],
+    [600, true, "ADR 0029's old floor, now an ordinary width inside the bound"],
+    [700, true, "two honest 350 mm leaves"],
+    [800, true, "§7's ceiling"],
+    [801, false, "above the ceiling"],
+    [900, false, "above the ceiling, and correctly refused"],
   ])("builds a hinged cabinet at %i: %s — %s", (widthMm, expected) => {
     expect(acceptsWidthMm(bodyOf("wall-cabinet"), widthMm)).toBe(expected);
     expect(acceptsWidthMm(bodyOf("base-cabinet"), widthMm)).toBe(expected);
   });
 
-  // **Cabinetry is continuous within its door-count range; appliances are discrete.** The rule the
-  // amendment settles, asserted on the row it is about: a hood is 600 or 900 because those are the
-  // sizes hoods come in, so 700 is refused and that refusal is the defect being fixed.
+  // **Cabinetry is continuous between its bounds; appliances are discrete** (ADR 0035 decision 3).
+  // Asserted on the rows it is about: a dishwasher niche is 450 or 600 because dishwashers are, and
+  // one millimetre off either is not a size it comes in.
   it("keeps every appliance row discrete", () => {
-    // **`base-sink` is not on this list, and its absence is the decision.** ADR 0033's amendment
-    // reads it as *cabinetry with a fixed aperture* rather than an appliance that comes in sizes:
-    // the 560 mm bowl is fixed, the carcass around it is not, and an 800 mm sink base is ordinary.
-    // Its own case is below.
+    // **Neither `base-sink` nor `hood` is on this list, and both absences are decisions.** ADR 0033's
+    // amendment reads the sink base as *cabinetry with a fixed aperture* — the 560 mm bowl is fixed,
+    // the carcass around it is not — and ADR 0035 decision 5 gives the hood the same 600–800 bounds
+    // every other cabinetry entry carries. Their own cases are below.
     for (const [buildId, sizesMm] of [
-      ["hood", [600, 900]],
       ["base-dishwasher", [450, 600]],
       ["base-bottle-cargo", [200, 300]],
       ["fridge-free", [700]],
@@ -272,9 +310,9 @@ describe("the widths a body may actually be built to", () => {
     }
   });
 
-  // ADR 0033's amendment: the sink base is continuous from its aperture to the two-door maximum.
-  // 559 is refused by ADR 0017's floor and not by this range — the two guards stay ordered rather
-  // than stacked, which `minimum-width.adversarial.test.ts` asserts by code.
+  // ADR 0033's amendment: the sink base is continuous from its aperture to §7's ceiling. 559 is
+  // refused by ADR 0017's floor and not by this range — the two guards stay ordered rather than
+  // stacked, which `minimum-width.adversarial.test.ts` asserts by code.
   it("makes the sink base continuous from its aperture upward", () => {
     const sink = bodyOf("base-sink");
     expect(acceptsWidthMm(sink, 559)).toBe(false);
@@ -284,14 +322,28 @@ describe("the widths a body may actually be built to", () => {
     expect(acceptsWidthMm(sink, 801)).toBe(false);
   });
 
-  // A standard-ladder row is one range from its floor upward, derived rather than declared — which
-  // is what keeps `sizesAreStandardLadder` meaningful beside ranges instead of duplicated by them.
-  it("leaves a standard-ladder row bounded only by its floor", () => {
+  // ADR 0035 decision 5, on the row the owner ruled on by name: the hood starts at 600 — its `−50`
+  // is greyed out there — and stops at §7's ceiling like every other cabinetry entry. 700 is now a
+  // hood, and 900 is not: the discrete `{600, 900}` set went with the ladder.
+  it("bounds the hood at 600–800", () => {
+    const hood = bodyOf("hood");
+    expect(acceptsWidthMm(hood, 599)).toBe(false);
+    expect(acceptsWidthMm(hood, 600)).toBe(true);
+    expect(acceptsWidthMm(hood, 700)).toBe(true);
+    expect(acceptsWidthMm(hood, 800)).toBe(true);
+    expect(acceptsWidthMm(hood, 900)).toBe(false);
+  });
+
+  // ADR 0035 decision 2: a plain cabinetry row is one range, floor to ceiling. It replaces the
+  // standard ladder's `[floor, ∞)`, and the ceiling is the visible difference — a ladder was silent
+  // about everything above 800 rather than permitting it, which is the fact ADR 0035 settles.
+  it("bounds a plain cabinetry row from §2's floor to §7's ceiling", () => {
     const panbank = bodyOf("base-panbank");
     expect(acceptsWidthMm(panbank, 299)).toBe(false);
     expect(acceptsWidthMm(panbank, 300)).toBe(true);
     expect(acceptsWidthMm(panbank, 570)).toBe(true);
-    expect(acceptsWidthMm(panbank, 5000)).toBe(true);
+    expect(acceptsWidthMm(panbank, 800)).toBe(true);
+    expect(acceptsWidthMm(panbank, 801)).toBe(false);
   });
 
   // **The invariant that keeps §9 honest**, and the reason chips and ranges may differ without

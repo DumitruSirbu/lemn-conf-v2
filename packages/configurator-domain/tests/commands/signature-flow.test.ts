@@ -61,12 +61,11 @@ describe("the signature flow (§10)", () => {
     expect(voidAt(cleared, FRIDGE_COLUMN, 0).w).toBeCloseTo(0.7, 6);
 
     // 3–5. Fill base, then middle, then top.
-    // The fridge column is 700 mm wide, which `wall-2door`'s bounded set does not have (ADR 0032);
-    // `open-shelf` carries the standard ladder and fills its opening. §10's flow is about the slots
-    // merging and re-splitting, not about which wall body goes in them.
-    // `base-3drawer` and not the hinged cabinet: the fridge column is 700 mm, and ADR 0033's merged
-    // `base-cabinet` carries `[200, 300, 400, 600, 800]` as a bound. §10's flow is about the slots
-    // merging and re-splitting, so the body that fills them must not refuse on width.
+    // `open-shelf` and `base-3drawer` rather than the hinged cabinets: §10's flow is about the slots
+    // merging and re-splitting, so the body that fills them must not refuse on width. Both are
+    // cabinetry bounded 300–800 with no hole in the middle (ADR 0035), where a hinged cabinet has
+    // ADR 0026's declared 200 rather than §2's default. The fridge column's 700 mm is inside all of
+    // them, and since the owner retired ADR 0030's one-door cap no cabinetry bound has a hole in it.
     let world = fill(cleared, 0, "base-3drawer");
     world = fill(world, 1.5, "open-shelf");
     world = fill(world, 2.2, "open-shelf");

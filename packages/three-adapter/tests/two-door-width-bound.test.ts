@@ -55,12 +55,18 @@ const TWO_DOOR_WIDTH_MM = 600;
  *  refusing it for a rule that only ever covered 450 and 500. */
 const OVER_FRIDGE_WIDTH_MM = 700;
 
-/** Inside the band the merged set skips: §7's builder makes one door here, and ADR 0030 caps a
- *  single hinged door at 400. Written out rather than derived from the threshold, so this fails if
- *  the threshold moves in either package. */
-const IN_THE_SKIPPED_BAND_MM = 430;
+/** Inside the band ADR 0030's retired cap used to skip: §7's builder makes one door here. Written
+ *  out rather than derived from the threshold, so this fails if the threshold moves in either
+ *  package. */
+const IN_THE_ONE_DOOR_BAND_MM = 430;
 /** ADR 0033's set, written out rather than imported from the entry under test. */
-const HINGED_CABINET_WIDTHS_MM = [200, 300, 400, 600, 800];
+/** ADR 0035 decision 1: the hinged cabinet's chips, 200–800 at 50 mm, continuous — the owner retired
+ *  ADR 0030's (400, 500) gap on 2026-08-28. Written out here, in this package, rather than imported —
+ *  the point of this file is that the two packages agree by measurement and not by sharing a
+ *  constant. */
+const HINGED_CABINET_WIDTHS_MM = [
+  200, 250, 300, 350, 400, 450, 500, 550, 600, 650, 700, 750, 800,
+];
 
 const WALL_CABINET_HEIGHT_MM = 700;
 const WALL_DEPTH_MM = 330;
@@ -208,12 +214,15 @@ describe("a hood in an opening wider than any hood", () => {
     return { design: result.design, columns, opening };
   }
 
-  // **The centring is the load-bearing half, and nothing asserted it until now.** §5.2 seats every
-  // body on the opening's own centre (`resolvePlacementMillimetres` reads `target.opening.alongM`),
-  // so a 600 mm hood in an 800 mm opening lands with 100 mm either side rather than flush to one
-  // edge. That was already true; making the hood narrow is what turned it into a property a customer
-  // can see, so it is measured here against the real builders and the real probe.
-  it("installs a 600 at the opening's own centre, not at its edge", () => {
+  // **ADR 0035 decision 5: the hood is cabinetry bounded 600–800, so an 800 mm opening gets an
+  // 800 mm hood.** ADR 0033's amendment had made it *narrow* into a wider opening — a 600 centred
+  // with 100 mm either side — because it was the one row that was both `'fit'` and discretely
+  // bounded. The owner has since ruled that a hood is made anywhere between 600 and 800, and
+  // "a 700 mm hood is not a product" went with the discrete set.
+  //
+  // Measured against the real builders and the real probe, because a fake probe returns the width
+  // it was handed and could not see this at all.
+  it("fills an 800 mm opening rather than narrowing into it", () => {
     const { design, columns, opening } = clearedWideWall();
     expect(Math.round(opening.w * 1000)).toBe(800);
     const openingCentreMm = Math.round(opening.x * 1000);
@@ -231,14 +240,18 @@ describe("a hood in an opening wider than any hood", () => {
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     const placed = result.design.placements.at(-1);
-    // Built at 600 — the hood is never *made* at 800, which is the rule that did not change.
-    expect(placed?.body.widthMm).toBe(600);
-    // And centred: the same along-coordinate the opening has, so 100 mm of gap either side.
+    expect(placed?.body.widthMm).toBe(800);
+    // Seated on the opening's own centre, which §5.2 does for every body
+    // (`resolvePlacementMillimetres` reads `target.opening.alongM`). A body that fills its opening
+    // lands there trivially; the assertion earns its place because the *seating rule* is what put
+    // the narrowed hood 100 mm off each edge, and it has not moved.
     expect(placed?.alongMm).toBe(openingCentreMm);
   });
 
-  // A 300 mm opening still refuses, and that is not a casualty of the amendment: no hood is made
-  // that narrow, so there is no size to narrow *to*. The hood's set is what says so.
+  // A 300 mm opening still refuses, and that is not a casualty of either decision: no hood is made
+  // that narrow. It is the hood's **bound** that says so now rather than its set — ADR 0035
+  // decision 5 puts the 600 in `widthRangesMm`, so the code is still `WIDTH_NOT_SUPPORTED` and not
+  // `WIDTH_TOO_SMALL`, which would be claiming §7's builder inverts down there (ADR 0026 clause 2).
   it("still refuses an opening narrower than the narrowest hood", () => {
     const design = clearedNarrowWall();
     const { columns, opening } = narrowOpening(design);
@@ -314,15 +327,14 @@ describe("so the 300 mm opening gets a one-door, correctly named — backlog 13"
     expect(doorFrontsAt(TWO_DOOR_WIDTH_MM)).toBe(2);
   });
 
-  // ADR 0030's half of the old bound, which the merge kept — and which is the reason the merged set
-  // is still a bound rather than a ladder. §7's builder makes a **single** door anywhere in
-  // (400, 450], and a single hinged door tops out at 400 for the swing arc, so that band is a width
-  // this cabinet cannot honestly be made at and no floor can express a hole in the middle of a
-  // range. The refusal itself is asserted in the domain (`set-width.test.ts`); what is asserted here
-  // is the geometry that makes the refusal necessary.
-  it("still skips the band where the builder makes a one-door too wide to use", () => {
-    expect(doorFrontsAt(IN_THE_SKIPPED_BAND_MM)).toBe(1);
-    expect(wallCabinetSizesMm()).not.toContain(IN_THE_SKIPPED_BAND_MM);
+  // The band ADR 0030's cap used to exclude, now ordinary. §7's builder makes a **single** door
+  // anywhere below the flip, which is what made the old cap a product choice rather than a builder
+  // limitation — and what makes retiring it safe. The chips are continuous across it, and 450 in
+  // particular is why: column `A|2.00` can only match the dishwasher there.
+  it("makes one door across the band, and offers every width in it", () => {
+    expect(doorFrontsAt(IN_THE_ONE_DOOR_BAND_MM)).toBe(1);
+    expect(doorFrontsAt(450)).toBe(1);
+    expect(wallCabinetSizesMm()).toContain(450);
     expect(wallCabinetSizesMm()).toEqual(HINGED_CABINET_WIDTHS_MM);
   });
 });

@@ -240,48 +240,77 @@ describe("a resize does not change any member's recorded depth", () => {
         }
       }
     }
-    // Named rather than counted, so the sweep cannot pass by accepting nothing. Thirty-three accepted
-    // taps, which is **fourteen distinct column moves** offered from each of their members — against
-    // the two the superseded donor rule left reachable, both sides of one boundary.
+    // Named rather than counted, so the sweep cannot pass by accepting nothing. Fifty-nine accepted
+    // taps, which is **twenty-four distinct column moves** offered from each of their members —
+    // against the two the superseded donor rule left reachable, both sides of one boundary.
     //
-    // Fifteen taps until ADR 0033 merged the door-count entries: a wall column bounded by a
-    // `wall-2door` at [600, 800] could not move to 400 however much space stood beside it, and one
-    // entry carrying [200, 300, 400, 600, 800] lets it, with the door count following the width.
-    // What this file asserts is unchanged and now holds over twice the population: a resize never
-    // changes any member's recorded depth.
+    // Fifteen until ADR 0033 merged the door-count entries — a wall column bounded by a `wall-2door`
+    // at [600, 800] could not move to 400 however much space stood beside it — thirty-three after
+    // it, fifty-nine once ADR 0035 replaced each entry's list with a bound stepped at 50 mm (every
+    // one of those eleven at 700, the only width this sweep asks about that the step made modular),
+    // and fifty-nine once the owner retired ADR 0030's one-door cap on 2026-08-28 (every one of
+    // those fifteen at 450, including the four that make column `A|2.00` resizable at all — §11
+    // row 14). What this file asserts is unchanged and now holds over four times the population it
+    // started with: a resize never changes any member's recorded depth.
     expect(accepted.sort()).toEqual([
       "A|0.30:p10@200",
       "A|0.30:p10@400",
+      "A|0.30:p10@450",
       "A|0.30:p10@600",
       "A|0.30:p16@200",
       "A|0.30:p16@400",
+      "A|0.30:p16@450",
       "A|0.30:p16@600",
       "A|0.75:p0@600",
+      "A|0.75:p0@700",
       "A|0.75:p11@600",
+      "A|0.75:p11@700",
       "A|0.75:p15@200",
       "A|0.75:p15@300",
       "A|0.75:p15@400",
+      "A|0.75:p15@450",
       "A|0.75:p17@600",
+      "A|0.75:p17@700",
       "A|0.75:p8@200",
       "A|0.75:p8@300",
       "A|0.75:p8@400",
+      "A|0.75:p8@450",
       "A|1.30:p10@400",
+      "A|1.30:p10@450",
       "A|1.30:p10@600",
+      "A|1.30:p10@700",
       "A|1.30:p10@800",
+      "A|1.30:p12@450",
       "A|1.30:p16@400",
+      "A|1.30:p16@450",
       "A|1.30:p16@600",
+      "A|1.30:p16@700",
       "A|1.30:p16@800",
+      "A|1.30:p18@450",
+      "A|1.30:p1@450",
       "A|2.00:p0@600",
+      "A|2.00:p0@700",
       "A|2.00:p11@600",
+      "A|2.00:p11@700",
       "A|2.00:p17@600",
+      "A|2.00:p17@700",
+      "A|2.60:p12@450",
       "A|2.60:p14@300",
       "A|2.60:p14@400",
+      "A|2.60:p14@450",
+      "A|2.60:p14@700",
       "A|2.60:p14@800",
+      "A|2.60:p18@450",
+      "A|2.60:p1@450",
       "A|2.60:p20@300",
       "A|2.60:p20@400",
+      "A|2.60:p20@450",
+      "A|2.60:p20@700",
       "A|2.60:p20@800",
       "A|2.60:p4@300",
       "A|2.60:p4@400",
+      "A|2.60:p4@450",
+      "A|2.60:p4@700",
       "A|2.60:p4@800",
     ]);
   });

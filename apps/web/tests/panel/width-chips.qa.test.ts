@@ -112,8 +112,25 @@ describe("the free state exists, and the rules about it are the ones §9 wrote d
     const free = allChips(openKitchen()).filter(
       ({ chip }) => chip.state === "free",
     );
+    // Three chips until ADR 0035 decision 2, and twelve after: the emptied column funds the same
+    // one move on `A|1.30`, and the sink base's bound now offers 650, 700 and 750 inside it where a
+    // hand-maintained `[600, 800]` offered nothing between. Itemised rather than counted so a
+    // different twelve fails here.
     expect(free.map(({ id, chip }) => `${id}@${String(chip.widthMm)}`)).toEqual(
-      ["p0@600", "p11@600", "p17@600"],
+      [
+        "p0@600",
+        "p0@650",
+        "p0@700",
+        "p0@750",
+        "p11@600",
+        "p11@650",
+        "p11@700",
+        "p11@750",
+        "p17@600",
+        "p17@650",
+        "p17@700",
+        "p17@750",
+      ],
     );
   });
 
@@ -193,7 +210,7 @@ describe("read-only wins over free, which is the case the shipped-kitchen sweep 
       expect([key, chip.reason === undefined]).toEqual([key, false]);
       if (chip.state === "free") freeChips += 1;
     }
-    expect(freeChips).toBe(3);
+    expect(freeChips).toBe(12);
   });
 
   it("never leaks a refusal sentence under read-only", () => {
@@ -229,17 +246,27 @@ describe("no probe means no section, not a section full of probe complaints", ()
   });
 });
 
-describe("the one-chip section the intersection produces", () => {
-  // Recorded rather than judged. ADR 0034 decision 5 removes the one-chip section that came from an
-  // *empty* set, but the column intersection produces one of its own: `A|2.00`'s three members
-  // agree on 600 and nothing else, so each of them renders a section whose only chip is the width
-  // they already have — a control with nothing to choose. It is what the decision as written says
-  // should happen, and it is pinned here so the number is visible to review rather than inferred.
+describe("the dishwasher column's section, which is no longer one chip", () => {
+  // **Recorded rather than judged, and the record has changed.** `A|2.00` used to render a section
+  // whose only chip was the width the column already had — a control with nothing to choose — because
+  // its three members agreed on 600 and nothing else. That was ADR 0030's 400 mm one-door cap: the
+  // `wall-cabinet` at `p18` could not be built at 450, so the dishwasher niche's own 450 fell out of
+  // the intersection.
+  //
+  // The owner retired the cap on 2026-08-28, so the column agrees on both of the niche's widths and
+  // the section has something to offer. **This is §11 row 14 arriving in the panel** — "dishwasher
+  // niche: only 450 / 600" is now true of the column and not only of the entry.
+  //
+  // 450 is `blocked` rather than `free` in the shipped kitchen for a reason that has nothing to do
+  // with door counts: nothing is empty at load, so ADR 0031 has no space to fund the move. The
+  // command's own acceptance is asserted in the domain
+  // (`packages/configurator-domain/tests/commands/insert-resize-width-agreement.test.ts`).
   it.each(["p1", "p12", "p18"])(
-    "renders %s a section holding only its own width",
+    "renders %s the niche's two widths, with its own the active one",
     (id) => {
       const section = widthSectionAt(worldFrom(KITCHEN_L_DESIGN), id);
       expect(section?.chips.map((chip) => [chip.widthMm, chip.state])).toEqual([
+        [450, "blocked"],
         [600, "active"],
       ]);
     },

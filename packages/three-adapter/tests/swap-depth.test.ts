@@ -147,9 +147,10 @@ describe("a swap never changes a wall body's depth", () => {
 });
 
 describe("§7's head-clearance cap follows what is under the opening", () => {
-  // A wall entry carrying the **standard ladder**, so it builds into every one of these openings
-  // including the 700 mm one over the fridge. It was `wall-2door` until ADR 0032 made a bounded set
-  // bind the `'fit'` path; depth is this block's subject and the body must not refuse on width.
+  // A wall entry bounded 300–800 with no hole in the middle, so it builds into every one of these
+  // openings including the 700 mm one over the fridge. It was `wall-2door` until ADR 0032 made a
+  // bounded set bind the `'fit'` path; depth is this block's subject and the body must not refuse
+  // on width.
   const CATALOGUE_WALL_CABINET = "open-shelf";
 
   // The rule, at the four openings deeper than the cap. One entry, four openings over the cap, two

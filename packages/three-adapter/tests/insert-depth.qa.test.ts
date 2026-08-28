@@ -50,8 +50,8 @@ const CAP_OVER_WORKTOP_MM = 330;
 /** What the reported defect built. Named so every anti-invariant below is explicit. */
 const DEFECTIVE_DEPTH_MM = 400;
 
-/** A wall entry carrying the **standard ladder**, for the reason `insert-depth.test.ts` states: the
- *  fridge column is 700 mm and a bounded set now binds the `'fit'` path (ADR 0032). */
+/** A wall entry with no hole in its bound, for the reason `insert-depth.test.ts` states: the fridge
+ *  column is 700 mm and a bounded set binds the `'fit'` path (ADR 0032). */
 const WALL_CABINET = "open-shelf";
 const OCCURRED_AT = "2026-08-27T12:00:00.000Z";
 

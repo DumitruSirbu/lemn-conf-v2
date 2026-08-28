@@ -30,6 +30,7 @@ import {
   type KitchenWorld,
 } from "../support/kitchen-world.js";
 import { syntheticWorld } from "../support/synthetic-world.js";
+import { HINGED_CHIPS_MM } from "../support/width-model.js";
 
 function kitchen(): KitchenWorld {
   return createWorld(KITCHEN_L_DESIGN, KITCHEN_L_BODY_CATALOG);
@@ -111,7 +112,7 @@ describe("the iff, in the direction iterating the row cannot see", () => {
   // published row would have read green through exactly the bug the wave exists to fix.
   it.each([
     ["the shipped kitchen", kitchen, 0],
-    ["a kitchen with an emptied column", kitchenWithEmptyColumn, 3],
+    ["a kitchen with an emptied column", kitchenWithEmptyColumn, 12],
   ])(
     "publishes an available chip for every width the command accepts, in %s",
     (_name, build: () => KitchenWorld, expectedAccepted: number) => {
@@ -137,8 +138,10 @@ describe("the iff, in the direction iterating the row cannot see", () => {
       }
       expect(missing).toEqual([]);
       // The acceptance count, pinned per world rather than floored: the shipped kitchen abuts no
-      // empty column and accepts nothing, and the emptied one accepts the three taps ADR 0034
-      // names. A floor of zero here would have let the sweep pass while finding nothing to compare.
+      // empty column and accepts nothing, and the emptied one accepts twelve taps. It was three
+      // until ADR 0035 decision 2 stepped every cabinetry row's chips at 50 mm — the geometry that
+      // funds these moves has not changed, only how many modular widths land inside it. A floor of
+      // zero here would have let the sweep pass while finding nothing to compare.
       expect(accepted).toBe(expectedAccepted);
     },
   );
@@ -258,7 +261,12 @@ describe("an odd-parity width is refused, never offered", () => {
   function oddWidthWorld(): KitchenWorld {
     const catalog = catalogWith("base-panbank", {
       sizesMm: [400, 555, 600, 800],
-      sizesAreStandardLadder: false,
+      widthRangesMm: [
+        { minMm: 400, maxMm: 400 },
+        { minMm: 555, maxMm: 555 },
+        { minMm: 600, maxMm: 600 },
+        { minMm: 800, maxMm: 800 },
+      ],
     });
     const design: Design = {
       room: { shape: "L", widthMm: 3600, depthMm: 2400, heightMm: 2600 },
@@ -383,7 +391,7 @@ describe("a refused chip carries the engine's refusal unchanged", () => {
         refusals += 1;
       }
     }
-    expect(refusals).toBe(45);
+    expect(refusals).toBe(141);
   });
 });
 
@@ -414,6 +422,6 @@ describe("the column that refuses before it looks at the width", () => {
   it("falls back to the selected body's own set rather than to no section", () => {
     expect(
       optionsFor(kitchen(), "p19").map((option) => option.widthMm),
-    ).toEqual([200, 300, 400, 600, 800]);
+    ).toEqual(HINGED_CHIPS_MM);
   });
 });

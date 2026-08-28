@@ -40,7 +40,7 @@ import {
  *  domain so the builder and the label read one number; a test that read that same number back could
  *  only ever agree with it. This is the independent copy the gate compares against, and the day the
  *  product decision moves, this line has to move with it — on purpose. */
-const TWO_DOOR_MIN_WIDTH_MM = 450;
+const TWO_DOOR_MIN_WIDTH_MM = 500;
 
 /** ADR 0017: the sink aperture's own width. Read from the catalogue below as well, so this constant
  *  is only the number the *reasoning* turns on. */
@@ -502,9 +502,10 @@ describe("a derived label that counts doors, against the doors the builder actua
         swept += 1;
       }
     }
-    // Two entries times five declared widths. A sweep that silently stopped naming widths would
-    // otherwise pass by asserting nothing.
-    expect(swept).toBe(10);
+    // Two entries times thirteen chips — five apiece until ADR 0035 decision 1 stepped the bound at
+    // 50 mm, and twelve until the owner retired ADR 0030's cap on 2026-08-28 and 450 joined the row.
+    // A sweep that silently stopped naming widths would otherwise pass by asserting nothing.
+    expect(swept).toBe(26);
   });
 
   // **The anchor, and the reason the sweep above is not circular.** Both numbers are written out and
@@ -518,37 +519,46 @@ describe("a derived label that counts doors, against the doors the builder actua
     expect(countDoors("base-cabinet", 600, 860, 580)).toBe(2);
   });
 
-  // ADR 0030's half of the bound, which the merge kept: §7's builder makes a **single** door
-  // anywhere in (400, 450], and a single hinged door tops out at 400 for the swing arc. That band is
-  // why the merged set jumps 400 → 600 with nothing between, and why the set is still a bound rather
-  // than a ladder — no floor can express a hole in the middle of a range.
-  it("still makes one door in the band the merged set skips", () => {
+  // The band that used to be skipped, and is not any more. ADR 0030 capped a single hinged door at
+  // 400 for the swing arc, which put (400, 500) outside the entry's chips; the owner retired that cap
+  // on 2026-08-28 — "make it still 500, so it'll cover this gap between 450 and 500" — so the band is
+  // ordinary one-door territory and the entry's widths are one continuous bound.
+  //
+  // What this file asserts is the **geometry**: the builder makes one door across the whole band and
+  // two from 500 up, which is what makes the retired cap a product choice rather than a builder limitation.
+  it("makes one door across the band ADR 0030's retired cap used to skip", () => {
     expect(countDoors("wall-cabinet", 430, 700, 400)).toBe(1);
+    expect(countDoors("wall-cabinet", 450, 700, 400)).toBe(1);
+    expect(countDoors("wall-cabinet", 499, 700, 400)).toBe(1);
     const entry = INSERTABLE_ENTRIES.find(([id]) => id === "wall-cabinet");
-    expect(entry?.[1].sizesMm).not.toContain(450);
-    expect(entry?.[1].sizesMm).not.toContain(500);
+    expect(entry?.[1].sizesMm).toContain(450);
+    expect(entry?.[1].sizesMm).toContain(500);
   });
 
   // **The threshold itself, pinned to the millimetre** (QA finding Q1.3).
   //
   // The anchors above bracket it at 400 and 600, and the band case at 430; measured, that left the
-  // whole repository green for any threshold in **[450, 460)** — 451 through 459 passed. The pin has
-  // to be the width *at* the flip and its immediate successor, because a one-door at 450 and a
-  // two-door at 451 is the only pair no other value satisfies.
+  // whole repository green for a wide window of thresholds. The pin has to be the width *at* the
+  // flip and its immediate predecessor, because a two-door at 500 and a one-door at 499 is the only
+  // pair no other value satisfies.
+  //
+  // **The comparison is `>=` (ADR 0035 decision 4)**, which is why the pin is `- 1` and not `+ 1`.
+  // It was `>` against 450, so 450 got one door and 451 got two; at 500 with `>=` the constant
+  // finally describes the value it names.
   //
   // `TWO_DOOR_MIN_WIDTH_MM` is **this file's own literal**, never imported from the domain — that is
-  // the whole point of it, and it is why `+ 1` is a pin where the `+ 10` this replaces was a 10 mm
-  // window. Both numbers still come back from `door_front` meshes counted off bodies the real
-  // builders made, so the product decision moving requires this line to move with it, on purpose.
-  it("pins the flip to 450 exactly, and to no other width", () => {
-    expect(countDoors("wall-cabinet", TWO_DOOR_MIN_WIDTH_MM, 700, 400)).toBe(1);
+  // the whole point of it. Both numbers still come back from `door_front` meshes counted off bodies
+  // the real builders made, so the product decision moving requires this line to move with it, on
+  // purpose.
+  it("pins the flip to 500 exactly, and to no other width", () => {
+    expect(countDoors("wall-cabinet", TWO_DOOR_MIN_WIDTH_MM, 700, 400)).toBe(2);
     expect(
-      countDoors("wall-cabinet", TWO_DOOR_MIN_WIDTH_MM + 1, 700, 400),
-    ).toBe(2);
-    expect(countDoors("base-cabinet", TWO_DOOR_MIN_WIDTH_MM, 860, 580)).toBe(1);
+      countDoors("wall-cabinet", TWO_DOOR_MIN_WIDTH_MM - 1, 700, 400),
+    ).toBe(1);
+    expect(countDoors("base-cabinet", TWO_DOOR_MIN_WIDTH_MM, 860, 580)).toBe(2);
     expect(
-      countDoors("base-cabinet", TWO_DOOR_MIN_WIDTH_MM + 1, 860, 580),
-    ).toBe(2);
+      countDoors("base-cabinet", TWO_DOOR_MIN_WIDTH_MM - 1, 860, 580),
+    ).toBe(1);
   });
 
   // The label the customer reads, spelled out once. Romanian counts its nouns, and the two forms are

@@ -144,7 +144,10 @@ describe("every resize the shipped kitchen accepts survives a save and a reload"
     }
 
     // The sweep cannot pass by accepting nothing. Fifteen until ADR 0033 merged the door-count
-    // entries and a wall column stopped being bounded by which of the two its members happened to be.
-    expect(swept).toHaveLength(33);
+    // entries and a wall column stopped being bounded by which of the two its members happened to
+    // be; forty-four once ADR 0035 replaced each entry's width list with a bound stepped at 50 mm,
+    // which made 700 modular for cabinetry; fifty-nine once the owner retired ADR 0030's one-door
+    // cap and 450 joined every hinged row. The itemised list is in `resize-depth.test.ts`.
+    expect(swept).toHaveLength(59);
   });
 });

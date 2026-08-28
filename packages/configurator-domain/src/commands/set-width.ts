@@ -475,24 +475,14 @@ function describeRecordLabel(
   return catalog.get(record.buildId)?.label ?? record.kind;
 }
 
-/** ADR 0031 rule 5: **a column's legal widths are the intersection of its members' declared sets** —
- *  and a `widthFlex: 'fit'` member "accepts any width above its floor and so does not narrow the
- *  intersection".
+/** ADR 0031 rule 5: **a column's legal widths are the intersection of its members' declared sets.**
  *
- *  Those two sentences are both true, and reading the second one against `sizesMm` alone makes them
- *  contradict (FINDING Q1.3). A `'fit'` entry's set carries two different kinds of fact:
- *  `wall-2door`'s `[600, 800]` is a **bound**, because below 600 §7's builder makes one door under a
- *  two-door label (ADR 0029); `base-panbank`'s `[400, 600, 800]` is the **standard ladder**, and 400
- *  is the narrowest standard module rather than the narrowest honest pan bank. The catalogue now says
- *  which it has — `sizesAreStandardLadder`, declared per row — so a ladder member constrains a column
- *  only by its floor while a bounded one still binds.
- *
- *  Measured, on the shipped kitchen, with the distinction collapsed either way: treat every set as a
- *  bound and a 400 mm pan bank under a 400 mm one-door cabinet cannot reach 300, which rule 5 says it
- *  must; treat none as a bound and a resize reaches `wall-2door` at 400 and `wall-1door` at 800,
- *  which are ADR 0029 and ADR 0030 by name. Neither ADR moves, and the shipped kitchen's accepted
- *  population is unchanged at fifteen taps: every column there is bounded by a member that declares
- *  its own set.
+ *  Rule 5's second sentence — a `widthFlex: 'fit'` member "accepts any width above its floor and so
+ *  does not narrow the intersection" — was the ladder's, and ADR 0035 decision 2 retired it with the
+ *  ladder. Every §7 row now carries a bound, so **every** member narrows the intersection, and a
+ *  `'fit'` member narrows it to its own floor and ceiling rather than to nothing. The two facts the
+ *  boolean used to hold apart are one fact again: `acceptsWidthMm` reads the entry's ranges, and a
+ *  pan bank's are 300–800 because that is what a pan bank is made at.
  *
  *  Each member's set is resolved through `resolveBuildableSizes`, the same function §9 renders chips
  *  from, so a width the panel offers is a width this command will accept — for the member's own row

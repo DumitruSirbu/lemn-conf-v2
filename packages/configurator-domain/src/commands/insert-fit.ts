@@ -313,11 +313,13 @@ function resolveWidth(
  *  verbatim, through the path that ADR could not reach. `sizesMm` was consulted by `setWidth` alone,
  *  so the two halves of one engine answered the same question differently.
  *
- *  `acceptsWidthMm` is that one answer, and the gate is `sizesAreStandardLadder` rather than the
- *  presence of a set: a ladder member accepts any width above its floor, so `base-panbank` still
- *  fills a 570 mm opening and nothing about §5.2's "fill the void" changes for it. Only an entry
- *  whose set states a bound of its own — a door count, a swing arc, a fixed aperture — now refuses
- *  an opening it cannot honestly be built into.
+ *  `acceptsWidthMm` is that one answer, and after ADR 0035 decision 2 it reads the entry's declared
+ *  **ranges** rather than a boolean about its set. A cabinetry row is continuous between its floor
+ *  and its ceiling, so `base-panbank` still fills a 570 mm opening and nothing about §5.2's "fill the
+ *  void" changes for it inside 300–800; what refuses is an opening outside the entry's own bound — a
+ *  fixed appliance size, a fixed aperture, §2's floor, §7's 800 mm ceiling. (A swing arc was on this
+ *  list until the owner retired ADR 0030's 400 mm one-door cap on 2026-08-28; a hinged cabinet's
+ *  bound has no hole in it now, and the width decides the door count rather than the cabinet.)
  *
  *  The floors have already run above and are deliberately **first**: `base-sink` in a 400 mm opening
  *  reads ADR 0017's own sentence, naming the 560 mm its worktop needs, rather than the set sentence

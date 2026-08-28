@@ -36,6 +36,9 @@ const BOTTLE_CARGO_MIN_WIDTH_MM = 200;
 /** ADR 0030's amendment: the two hinged singles declare the same floor, for the same reason —
  *  a set reaching under §2's default needs a declaration to keep it. */
 const ONE_DOOR_MIN_WIDTH_MM = 200;
+/** ADR 0035: the sink base's chips, stepped from its aperture to §7's ceiling rather than the
+ *  `[600, 800]` list ADR 0017 left behind when it removed 400. */
+const SINK_CHIPS_MM = [600, 650, 700, 750, 800];
 const OPENING_ALONG_MM = 1000;
 const OPENING_COLUMN = "A|1.00";
 
@@ -99,13 +102,13 @@ describe("§5.2's fit path honours a body's own minimum width", () => {
     );
   });
 
-  // The other end of the range, which is new: a sink base stops at the two-door maximum.
-  it("refuses the sink base above the two-door maximum, naming its widths", () => {
+  // The other end of the range: a sink base stops at §7's 800 mm ceiling.
+  it("refuses the sink base above §7's ceiling, naming its widths", () => {
     const result = insertIntoBaseOpening(801, "base-sink");
     expect(result.ok).toBe(false);
     if (result.ok) return;
     expect(result.reason.code).toBe("WIDTH_NOT_SUPPORTED");
-    expect(result.reason.params).toMatchObject({ sizesMm: [600, 800] });
+    expect(result.reason.params).toMatchObject({ sizesMm: SINK_CHIPS_MM });
   });
 
   // §11 row 5: the millimetres are in the params *and* in the sentence the panel renders verbatim.
@@ -201,9 +204,11 @@ describe("the sink base's catalogue widths", () => {
     expect(sink?.minWidthMm).toBe(SINK_MIN_WIDTH_MM);
   });
 
-  // 400 is not a width this body has, so it must not reach M4 as a width chip.
-  it("no longer lists 400 as a width chip", () => {
-    expect(sink?.sizesMm).toEqual([600, 800]);
+  // 400 is not a width this body has, so it must not reach M4 as a width chip. ADR 0035 steps the
+  // rest of the row's chips from the aperture up, and 600 is still where they start: `steppedWidths`
+  // rounds the 560 mm floor **up** to the first multiple of the step.
+  it("starts its chips above the aperture, never at 400", () => {
+    expect(sink?.sizesMm).toEqual(SINK_CHIPS_MM);
   });
 
   // This asserted "`base-sink` is the only entry that declares a floor" until ADR 0026, and it was
@@ -220,6 +225,10 @@ describe("the sink base's catalogue widths", () => {
     // Catalogue order, which is the order §9 lists the rows in. **Two entries until 2026-08-27**:
     // ADR 0030's amendment added `base-1door` and `wall-1door` at the same 200 mm the cargo
     // declares, because a set reaching below §2's default is filtered back out again without one.
+    // Still four after ADR 0035, and the hood's absence is the decision: decision 5 floors it at
+    // 600, but through the **bound** rather than through `minWidthMm`. An upward `minWidthMm` claims
+    // the builder is broken below it (ADR 0026 clause 2), and §7's hood builder is correct at 599 —
+    // the owner simply does not sell one.
     expect([...declaredFloorsMm]).toEqual([
       ["base-cabinet", ONE_DOOR_MIN_WIDTH_MM],
       ["base-bottle-cargo", BOTTLE_CARGO_MIN_WIDTH_MM],
@@ -475,11 +484,11 @@ describe("§9's width chips are narrowed by the same floor", () => {
 
   // Named explicitly because it is the one shipped entry with a floor, and the one whose chips a
   // careless filter would eat.
-  it("leaves base-sink's chips at [600, 800]", () => {
+  it("leaves base-sink's chips stepped from its aperture", () => {
     const world = baseOpeningWorld(800);
     const offered = offersFor({ ...world, target: baseVoidTarget(world) });
     const sink = offered.find((offer) => offer.buildId === "base-sink");
-    expect(sink?.sizesMm).toEqual([600, 800]);
+    expect(sink?.sizesMm).toEqual(SINK_CHIPS_MM);
   });
 
   // ADR 0032 decides what a **refused** row's chips mean, and the answer is "the same thing": the
@@ -492,6 +501,6 @@ describe("§9's width chips are narrowed by the same floor", () => {
     const offered = offersFor({ ...world, target: baseVoidTarget(world) });
     const sink = offered.find((offer) => offer.buildId === "base-sink");
     expect(sink?.verdict.status).toBe("refused");
-    expect(sink?.sizesMm).toEqual([600, 800]);
+    expect(sink?.sizesMm).toEqual(SINK_CHIPS_MM);
   });
 });

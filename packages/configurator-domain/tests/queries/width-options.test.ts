@@ -21,6 +21,8 @@ import { resolveBuildableSizes } from "../../src/catalog.js";
 import { clearBodies, OCCURRED_AT } from "../support/commands.js";
 import { createFakeProbe } from "../support/fake-probe.js";
 import { createWorld, type KitchenWorld } from "../support/kitchen-world.js";
+import { columnWorld } from "../support/synthetic-world.js";
+import { CABINETRY_CHIPS_MM } from "../support/width-model.js";
 
 function kitchen(): KitchenWorld {
   return createWorld(KITCHEN_L_DESIGN, KITCHEN_L_BODY_CATALOG);
@@ -202,36 +204,72 @@ describe("the current width is a fact about the body, not a refusal code", () =>
 
 describe("the candidate widths are the column's, not the selected body's", () => {
   // ADR 0031 resizes a column, so the row is the intersection of its members' sets. `A|2.00` holds
-  // the 450/600 dishwasher under a 400/600/800 open shelf: 600 is the only width all of them can be
-  // built at, and offering the dishwasher its own 450 would be advertising a move the command
-  // refuses.
+  // the 450/600 dishwasher under an open shelf and a wall cabinet, both cabinetry: the dishwasher's
+  // discrete bound is what narrows eleven and thirteen chips down to two.
+  //
+  // **§11 row 14 restored, and the row that used to read `[600]`.** "Dishwasher niche: only 450 /
+  // 600" was true of the entry and false of the column, because ADR 0030's 400 mm one-door cap put
+  // 450 in a hole the `wall-cabinet` above could not be built in. The owner retired that cap on
+  // 2026-08-28 — "let's add this 450 for one door" — and the intersection now carries both of the
+  // niche's widths, which is the case ADR 0034 was written around.
   it("narrows to what every member of the column accepts", () => {
     const world = kitchen();
     expect(resolveBuildableSizes(world.catalog, "base-dishwasher-600")).toEqual(
       [450, 600],
     );
-    expect(widthsOf(optionsFor(world, "p1"))).toEqual([600]);
-    expect(commandAccepts(world, "p1", 450)).toBe(false);
+    expect(widthsOf(optionsFor(world, "p1"))).toEqual([450, 600]);
+    // 800 is the anti-invariant: the shelf and the cabinet above reach it and the niche does not,
+    // so the intersection is doing work rather than passing everything through.
+    expect(commandAccepts(world, "p1", 800)).toBe(false);
   });
 
-  // The other half of ADR 0031 rule 5, which a per-body row could not express either: a
-  // standard-ladder entry constrains the column by its **floor** alone, so `A|3.20`'s pan bank does
-  // not veto the 300 its wall neighbours declare.
-  it("lets a standard-ladder member widen the row rather than bound it", () => {
+  // ADR 0031 rule 5's second sentence — a `'fit'` member "does not narrow the intersection" — was
+  // the ladder's, and ADR 0035 decision 2 retired it with the ladder. **Every member bounds now**,
+  // and `A|3.20` is where that is visible: the three-drawer base's own 300 mm floor keeps 200 and
+  // 250 off a row whose hinged wall members reach down to 200 on their own.
+  //
+  // Nothing in the middle is missing any more. This row read `[…400, 500…]` while ADR 0030's cap
+  // stood; closing that hole is what puts 450 back, here and in the dishwasher column above.
+  it("narrows the row by every member's bound, not only the declared sets", () => {
     const world = kitchen();
-    expect(resolveBuildableSizes(world.catalog, "base-drawer3-600")).toEqual([
-      400, 600, 800,
-    ]);
-    expect(widthsOf(optionsFor(world, "p4"))).toEqual([300, 400, 600, 800]);
+    expect(resolveBuildableSizes(world.catalog, "base-drawer3-600")).toEqual(
+      CABINETRY_CHIPS_MM,
+    );
+    expect(widthsOf(optionsFor(world, "p4"))).toEqual(CABINETRY_CHIPS_MM);
+    // The bound that is doing the narrowing, named: the wall members offer 200 and 250 and the base
+    // does not, so the row starts at §2's default rather than at the hinged rows' declared 200.
+    expect(resolveBuildableSizes(world.catalog, "wall-2door-600")).toContain(
+      200,
+    );
   });
 
   // A `widthFlex: 'fit'` body built to its opening can sit at a width no set contains. §9 gives a
   // chip three states and assumes the current width is one of them, so its own width joins the row —
   // sorted into it, not appended.
+  //
+  // **Off the shipped fixture on purpose, and that is ADR 0035's doing.** `p24` demonstrated this
+  // at 700 while the chips were `[200, 300, 400, 600, 800]`; the 50 mm step makes 700 a chip, and
+  // every non-structural body the fixture ships now stands on the grid. 570 is the width ADR 0035
+  // decision 1 names as the reason stepping is **relative** rather than snapped — the corner return
+  // — so it is the width this case is built at.
   it("folds a fit body's own width into the row, in order", () => {
-    expect(widthsOf(optionsFor(kitchen(), "p24"))).toEqual([
-      200, 300, 400, 600, 700, 800,
+    const world = columnWorld(1000, [
+      {
+        id: "off-grid",
+        y0Mm: 1500,
+        heightMm: 700,
+        buildId: "wall-2door-600",
+        widthMm: 570,
+      },
     ]);
+    const widths = widthsOf(optionsFor(world, "off-grid"));
+    expect(widths).toContain(570);
+    expect(widths).toEqual([...widths].sort((left, right) => left - right));
+    expect(
+      optionsFor(world, "off-grid").find(
+        (option) => option.verdict.status === "current",
+      )?.widthMm,
+    ).toBe(570);
   });
 
   it("is ascending and duplicate-free everywhere in the kitchen", () => {

@@ -20,11 +20,11 @@ import { columnWorld } from "../support/synthetic-world.js";
 const CARGO_BUILD_ID = "base-bottle-cargo";
 const CARGO_MIN_WIDTH_MM = 200;
 const CARGO_WIDTHS_MM = [200, 300];
-/** An entry that declares no floor of its own, so §2's default governs it — **and whose set is the
- *  standard ladder**, so the default floor is the only thing that can refuse it.
+/** An entry that declares no floor of its own, so §2's default governs it — and whose bound has no
+ *  hole in the middle, so at these widths the default floor is the only thing that can refuse it.
  *
  *  It was `base-2door` until ADR 0033 merged the hinged pair into `base-cabinet`, which declares both
- *  a floor of 200 and a bounded set. Neither of those is what this file is testing: it is testing
+ *  a floor of 200 of its own. That is not what this file is testing: it is testing
  *  §2's default against ADR 0026's substitution, and it needs a body that carries the default and
  *  nothing else. `base-3drawer` is that body, and drawers have no door count to complicate it. */
 const PLAIN_BASE_BUILD_ID = "base-3drawer";

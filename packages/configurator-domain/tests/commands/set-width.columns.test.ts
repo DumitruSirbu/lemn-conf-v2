@@ -142,43 +142,73 @@ describe("no opening ever appears where a body physically stands", () => {
     // the shipped kitchen can actually reach after one delete is visible in the source. Each line
     // is one *column* move, offered from every member of that column.
     //
-    // Fifteen lines became thirty-two at ADR 0033. Every new one is a wall column reaching a width
-    // its old two-door entry did not list; the invariant this test actually guards — no opening ever
-    // appears where a body stands — is unchanged, and now holds over twice the population.
+    // Fifteen lines became thirty-three at ADR 0033 and forty-four at ADR 0035. Every new line is a
+    // column reaching a width its entry's old list did not carry — the eleven this wave adds are all
+    // at 700, which is the only width in this sweep that ADR 0035's step made modular. (The sweep's
+    // width list is fixed and predates the 50 mm grid; 500 and 550 are exercised where the pivot is,
+    // in `catalog.test.ts` and `set-width.test.ts`.) The invariant this test actually guards — no
+    // opening ever appears where a body stands — is unchanged, and now holds over three times the
+    // population it started with.
     expect(accepted.sort()).toEqual(
       [
         "A|0.30:p10@200",
         "A|0.30:p10@400",
+        "A|0.30:p10@450",
         "A|0.30:p10@600",
         "A|0.30:p16@200",
         "A|0.30:p16@400",
+        "A|0.30:p16@450",
         "A|0.30:p16@600",
         "A|0.75:p0@600",
+        "A|0.75:p0@700",
         "A|0.75:p11@600",
+        "A|0.75:p11@700",
         "A|0.75:p15@200",
         "A|0.75:p15@300",
         "A|0.75:p15@400",
+        "A|0.75:p15@450",
         "A|0.75:p17@600",
+        "A|0.75:p17@700",
         "A|0.75:p8@200",
         "A|0.75:p8@300",
         "A|0.75:p8@400",
+        "A|0.75:p8@450",
         "A|1.30:p10@400",
+        "A|1.30:p10@450",
         "A|1.30:p10@600",
+        "A|1.30:p10@700",
         "A|1.30:p10@800",
+        "A|1.30:p12@450",
         "A|1.30:p16@400",
+        "A|1.30:p16@450",
         "A|1.30:p16@600",
+        "A|1.30:p16@700",
         "A|1.30:p16@800",
+        "A|1.30:p18@450",
+        "A|1.30:p1@450",
         "A|2.00:p0@600",
+        "A|2.00:p0@700",
         "A|2.00:p11@600",
+        "A|2.00:p11@700",
         "A|2.00:p17@600",
+        "A|2.00:p17@700",
+        "A|2.60:p12@450",
         "A|2.60:p14@300",
         "A|2.60:p14@400",
+        "A|2.60:p14@450",
+        "A|2.60:p14@700",
         "A|2.60:p14@800",
+        "A|2.60:p18@450",
+        "A|2.60:p1@450",
         "A|2.60:p20@300",
         "A|2.60:p20@400",
+        "A|2.60:p20@450",
+        "A|2.60:p20@700",
         "A|2.60:p20@800",
         "A|2.60:p4@300",
         "A|2.60:p4@400",
+        "A|2.60:p4@450",
+        "A|2.60:p4@700",
         "A|2.60:p4@800",
       ].sort(),
     );
@@ -515,7 +545,17 @@ function oddWidthCatalog(): BodyCatalog {
     ...KITCHEN_L_BODY_CATALOG,
     [
       ODD_BUILD_ID,
-      { ...panbank, sizesMm: ODD_WIDTHS_MM, sizesAreStandardLadder: false },
+      {
+        ...panbank,
+        sizesMm: ODD_WIDTHS_MM,
+        // Both fields, never one. Overriding `sizesMm` alone would leave the pan bank's own
+        // 300–800 cabinetry bound behind from the spread, and 801 would be refused by a rule this
+        // fixture is not about — the footgun ADR 0035's `discreteWidths` helper exists to close.
+        widthRangesMm: ODD_WIDTHS_MM.map((size) => ({
+          minMm: size,
+          maxMm: size,
+        })),
+      },
     ],
   ]);
 }

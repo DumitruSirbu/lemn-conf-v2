@@ -33,6 +33,11 @@ import { ro } from "@/content/ro";
 import { REFUSAL } from "../support/selection-meta";
 
 import { createFakeBodyProbe } from "../support/fake-body-probe";
+import {
+  CABINETRY_CHIPS_MM,
+  HINGED_CHIPS_MM,
+  SINK_CHIPS_MM,
+} from "../support/width-options";
 
 /** Measures exactly what it was asked to build, so a resize the domain's guards accept is not then
  *  failed by the built-size re-check. */
@@ -283,31 +288,37 @@ describe("the width section over the real kitchen", () => {
 });
 
 describe("the chips a seeded width section actually renders", () => {
-  /** The rendered chip row per body, as the acceptance criteria state it. `p10` and `p24` are the
-   *  `widthFlex: 'fit'` case §9 has to survive: both were built to their opening rather than to a
-   *  member of their set, so their own width joins the row, sorted. */
+  /** The rendered chip row per body, as the acceptance criteria state it. Each row is a **column**
+   *  intersection (ADR 0031 rule 5), and two things widened them: ADR 0035 decision 2 turned each
+   *  entry's hand-maintained width list into a bound stepped at 50 mm, and the owner's 2026-08-28
+   *  retirement of ADR 0030's 400 mm one-door cap closed the last hole in a cabinetry bound. */
   const EXPECTED_CHIPS_MM: Readonly<Record<string, readonly number[]>> = {
-    p0: [600, 800], // base-sink-800 → base-sink (ADR 0017: no 400)
-    // **p1 lost its 450 in wave 5D, and the loss is correct.** The dishwasher is made in 450 and
-    // 600, but ADR 0031 resizes the whole of `A|2.00`, and `p18` — a `wall-cabinet`, ranges 200–400
-    // and 600–800 — does not accept 450: it falls in ADR 0033's deliberate gap between a one-door
-    // and a two-door. (The open shelf between them is a standard ladder and accepts 450 quite
-    // happily; an earlier version of this comment blamed it, wrongly.) Offering 450 was the per-body
-    // row over-offering; the intersection is what the command actually narrows against.
-    p1: [600],
-    // p4 gained a 300 for the mirror-image reason: `base-panbank` declares a standard ladder
-    // (ADR 0031 rule 5), so it constrains the column by its floor alone, and the wall members above
-    // it carry 300 in their own set. A per-body row could express neither half.
-    p4: [300, 400, 600, 800],
+    p0: SINK_CHIPS_MM, // base-sink-800 → base-sink, bounded by its 560 mm aperture (ADR 0017)
+    // **p1 lost its 450 in wave 5D and has it back, which is §11 row 14.** The dishwasher is made in
+    // 450 and 600; ADR 0031 resizes the whole of `A|2.00`, and `p18` — a `wall-cabinet` — could not
+    // be built at 450 while ADR 0030 capped a single hinged door at 400. (The open shelf between them
+    // is cabinetry bounded 300–800 and accepted 450 throughout; an earlier version of this comment
+    // blamed it, wrongly.) The owner retired that cap on 2026-08-28, so the intersection carries both
+    // of the niche's widths and the entry and the column finally agree.
+    p1: [450, 600],
+    // p4 shows a member bounding the column, which is what ADR 0035 decision 2 changed about
+    // ADR 0031 rule 5: the three-drawer base's own 300 mm floor keeps 200 and 250 out of a row whose
+    // hinged wall members reach down to 200 on their own. Rule 5's "a `'fit'` member does not narrow
+    // the intersection" was the ladder's, and it retired with the ladder. Nothing is missing in the
+    // middle — 450 was, until the owner retired ADR 0030's one-door cap.
+    p4: CABINETRY_CHIPS_MM,
     // `wall-1door` KEEPS its 400 — ADR 0029 is about two-door entries, and
     // a one-door cabinet at 400 mm is honest. Kept beside `p24` below, which lost its 400, so this
     // table tests the distinction rather than one side of it. ADR 0030's amendment then extended
     // the set *downward*, so `p10`'s own 300 is a member of it and nothing is folded in here any
     // more — `p24` is the last fold in the shipped kitchen.
-    // ADR 0033: both resolve to the one merged `wall-cabinet` entry now. `p24` keeps its fold —
-    // 700 is a width no wall entry declares, before the merge or after it.
-    p10: [200, 300, 400, 600, 800],
-    p24: [200, 300, 400, 600, 700, 800],
+    // ADR 0033: both resolve to the one merged `wall-cabinet` entry. `p24` kept a **fold** — 700 was
+    // a width no wall entry declared — until ADR 0035's 50 mm step made 700 an ordinary chip, so
+    // both rows are now the same hinged set and the shipped kitchen holds no fold at all. The fold
+    // mechanism survives for the off-grid widths relative stepping produces (decision 1); its case
+    // is `packages/configurator-domain/tests/queries/width-options.test.ts`.
+    p10: HINGED_CHIPS_MM,
+    p24: HINGED_CHIPS_MM,
   };
 
   it("renders the column's widths, with a fit body's own width folded in", () => {

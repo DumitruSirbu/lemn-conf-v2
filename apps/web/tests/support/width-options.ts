@@ -73,3 +73,21 @@ export function noWidthIsFree(
     blockedMm: widthsMm.filter((widthMm) => widthMm !== currentMm),
   });
 }
+
+/** ADR 0035's width model as the chips the engine publishes, for the panel tests that pin a real
+ *  row rather than a fabricated one. The catalogue derives these from each entry's bound at a 50 mm
+ *  step (`packages/configurator-domain/src/catalog.ts`); they are written out here because a panel
+ *  test asserting the row it renders has to state the row, and because the step is a presentation
+ *  constant the owner has already named 25 mm as a successor to. */
+export const HINGED_CHIPS_MM = [
+  200, 250, 300, 350, 400, 450, 500, 550, 600, 650, 700, 750, 800,
+];
+
+/** A cabinetry row with no floor of its own: §2's default up to §7's ceiling. */
+export const CABINETRY_CHIPS_MM = [
+  300, 350, 400, 450, 500, 550, 600, 650, 700, 750, 800,
+];
+
+/** ADR 0017's 560 mm sink aperture stepped up to the first multiple, then §7's ceiling. The hood
+ *  produces the same five widths from ADR 0035 decision 5's 600 mm floor. */
+export const SINK_CHIPS_MM = [600, 650, 700, 750, 800];

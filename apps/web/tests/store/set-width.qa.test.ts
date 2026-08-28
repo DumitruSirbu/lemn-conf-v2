@@ -105,8 +105,10 @@ describe("tapping a chip does what the chip said it would", () => {
     }
     expect(disagreements).toEqual([]);
     // Non-vacuity in both directions: the sweep has to have tapped something that worked and
-    // something that did not, or it proves nothing about either.
-    expect(applied).toBe(3);
+    // something that did not, or it proves nothing about either. Three until ADR 0035 decision 2
+    // stepped each entry's bound at 50 mm; the emptied column funds the same one move and now offers
+    // twelve widths inside it.
+    expect(applied).toBe(12);
     expect(taps).toBeGreaterThan(40);
   });
 
@@ -240,12 +242,14 @@ describe("the state a resize leaves behind", () => {
     expect(
       afterFirst.find((option) => option.verdict.status === "current")?.widthMm,
     ).toBe(600);
-    const free = afterFirst.find(
-      (option) => option.verdict.status === "available",
-    );
-    expect(free?.widthMm).toBe(800);
+    // 800 by name rather than "whichever chip is free first": ADR 0035 put 650, 700 and 750 in
+    // front of it, and what this case is about is the *second* tap landing, not which width it is.
+    const free = afterFirst
+      .filter((option) => option.verdict.status === "available")
+      .map((option) => option.widthMm);
+    expect(free).toContain(800);
 
-    store.getState().setWidth(free?.widthMm ?? 0);
+    store.getState().setWidth(800);
 
     const state = store.getState();
     expect(state.lastRejection).toBeNull();

@@ -31,6 +31,12 @@ import {
 import { describeSelection } from "../../src/queries/describe-selection.js";
 import { clearBodies, insertInto } from "../support/commands.js";
 import { advance, createWorld, voidAt } from "../support/kitchen-world.js";
+import {
+  CABINETRY_CHIPS_MM,
+  HINGED_CHIPS_MM,
+  HOOD_CHIPS_MM,
+  SINK_CHIPS_MM,
+} from "../support/width-model.js";
 import type { BodyCatalog, BodyDefinition } from "../../src/void-engine.js";
 
 const seeded = () => createWorld(KITCHEN_L_DESIGN, KITCHEN_L_BODY_CATALOG);
@@ -117,7 +123,7 @@ describe("resolveCatalogEquivalent — what a pointer means", () => {
       "base-cabinet",
     );
     expect(resolveBuildableSizes(catalog, "base-cabinet")).toEqual([
-      200, 300, 400, 600, 800,
+      ...HINGED_CHIPS_MM,
     ]);
   });
 
@@ -238,7 +244,7 @@ describe("resolveCatalogEquivalent — what a pointer means", () => {
     const catalog = catalogWith({ "wall-cabinet": { minWidthMm: 900 } });
     expect(
       resolveCatalogEquivalent(catalog, "wall-2door-600")?.definition.sizesMm,
-    ).toEqual([200, 300, 400, 600, 800]);
+    ).toEqual(HINGED_CHIPS_MM);
     expect(resolveBuildableSizes(catalog, "wall-2door-600")).toEqual([]);
   });
 
@@ -254,7 +260,7 @@ describe("resolveCatalogEquivalent — what a pointer means", () => {
       "base-sink-800",
     );
     expect(first).toEqual(second);
-    expect(first).toEqual([600, 800]);
+    expect(first).toEqual(SINK_CHIPS_MM);
     expect(entry("base-sink-800").sizesMm).toBeUndefined();
     expect(JSON.stringify([...KITCHEN_L_BODY_CATALOG])).toBe(before);
   });
@@ -312,20 +318,23 @@ describe("the floor that narrows the set is the resolved entry's own", () => {
     const catalog = catalogWith({ "wall-cabinet": { minWidthMm: 700 } });
     expect(
       metaFor(createWorld(KITCHEN_L_DESIGN, catalog), "p8").sizesMm,
-    ).toEqual([800]);
+    ).toEqual([700, 750, 800]);
   });
 
   it("ignores a floor declared on the seeded row, in either direction", () => {
     const raised = catalogWith({ "base-sink-800": { minWidthMm: 900 } });
     expect(
       metaFor(createWorld(KITCHEN_L_DESIGN, raised), "p0").sizesMm,
-    ).toEqual([600, 800]);
+    ).toEqual(SINK_CHIPS_MM);
 
     // And downward: a seeded row cannot lower the floor its builder actually applies either.
     const lowered = catalogWith({
       "base-sink-800": { minWidthMm: 100 },
       "base-sink": { sizesMm: [400, 600, 800] },
     });
+    // The overridden set is read literally — this case replaces `base-sink`'s bound-derived chips
+    // with a list — and 400 is still filtered out by the entry's own 560 mm floor, never by the 100
+    // the seeded row declares.
     expect(
       metaFor(createWorld(KITCHEN_L_DESIGN, lowered), "p0").sizesMm,
     ).toEqual([600, 800]);
@@ -376,7 +385,7 @@ describe("the set follows the declaration, not any inference from the body", () 
       hob.band,
       hob.widthMm,
     ]);
-    expect(drawer.sizesMm).toEqual([400, 600, 800]);
+    expect(drawer.sizesMm).toEqual(CABINETRY_CHIPS_MM);
     expect(hob.sizesMm).toEqual([600]);
   });
 
@@ -408,7 +417,7 @@ describe("the set follows the declaration, not any inference from the body", () 
       },
     });
     const world = createWorld(KITCHEN_L_DESIGN, catalog);
-    expect(metaFor(world, "p8").sizesMm).toEqual([200, 300, 400, 600, 800]);
+    expect(metaFor(world, "p8").sizesMm).toEqual(HINGED_CHIPS_MM);
 
     const repointed = new Map(catalog).set("wall-2door-600", {
       ...entry("wall-2door-600"),
@@ -437,31 +446,30 @@ describe("the set follows the declaration, not any inference from the body", () 
 // The population, swept rather than sampled.
 // -------------------------------------------------------------------------------------------
 
-/** The milestone's own words for the sets, keyed by the label of the §7 entry each body resolves —
- *  "450/600 for the dishwasher, 600/900 for the hood, 600/800 for the sink (ADR 0017), 400/600/800
- *  for everything else", plus the single-width rows the catalogue adds. Keyed on the *resolved*
- *  entry rather than on placement ids, so it states the criterion instead of copying the wave's
- *  per-placement table. */
+/** The milestone's criterion for the sets, keyed by the §7 entry each body resolves. It was a list
+ *  of manufactured widths per row until ADR 0035 decision 2 made every row a bound; what each entry
+ *  publishes now is that bound stepped at 50 mm, so the table names the rows whose bound is **not**
+ *  a plain cabinetry one. Keyed on the *resolved* entry rather than on placement ids, so it states
+ *  the criterion instead of copying the wave's per-placement table. */
 const SET_BY_RESOLVED_ENTRY: Readonly<Record<string, readonly number[]>> = {
-  "base-sink": [600, 800],
-  "base-dishwasher": [450, 600],
-  hood: [600, 900],
+  "base-sink": SINK_CHIPS_MM, // ADR 0017's 560 mm aperture, stepped up
+  "base-dishwasher": [450, 600], // discrete: dishwashers come in two sizes
+  hood: HOOD_CHIPS_MM, // ADR 0035 decision 5: floored at 600
   "base-hob-2drawer": [600],
   "tall-oven-tower": [600],
   "tall-pantry": [600],
   "fridge-free": [700],
-  // ADR 0033: **one row where there were two.** `wall-2door`'s `[600, 800]` (ADR 0029 — below 450
-  // §7's builder makes one door) and `wall-1door`'s `[200, 300, 400]` (ADR 0030 — a single hinged
-  // door tops out at 400, an ergonomic limit rather than a structural one) are now the same entry's
-  // set, and which door count a customer gets follows the width they choose.
+  // ADR 0033: **one row where there were two**, and which door count a customer gets follows the
+  // width they choose. Its chips have no gap left: ADR 0029's two-door floor went with the ladder
+  // (ADR 0035 rejects "forbid 500 and 550" by name) and ADR 0030's 400 mm one-door cap went with the
+  // owner's 2026-08-28 ruling. What survives from both is the floor, and the two hinged rows declare
+  // it at 200 (ADR 0026's mechanism) where every plain cabinetry row opens at §2's default.
   //
-  // The two gaps in it are the two rules, still enforced and now visible as gaps: nothing between
-  // 400 and 600, because (400, 450] would build a one-door wider than ADR 0030 allows and (450, 600)
-  // is a two-door width ADR 0029 does not offer. `wall-lift` and `open-shelf` are untouched — a flap
-  // has no swing arc and a shelf has no door — and are what keeps the fallback below exercised.
-  "wall-cabinet": [200, 300, 400, 600, 800],
+  // `wall-lift` and `open-shelf` never had a door count to follow, and are what keeps the fallback
+  // below exercised.
+  "wall-cabinet": HINGED_CHIPS_MM,
 };
-const EVERYTHING_ELSE_MM: readonly number[] = [400, 600, 800];
+const EVERYTHING_ELSE_MM: readonly number[] = CABINETRY_CHIPS_MM;
 
 describe("every seeded placement's set, over the whole shipped kitchen", () => {
   it("matches the milestone's criterion for the entry it resolves", () => {
@@ -534,8 +542,11 @@ describe("every seeded placement's set, over the whole shipped kitchen", () => {
       for (const size of definition.sizesMm ?? []) offered.add(size);
     }
     expect(offered.size).toBeGreaterThan(0);
+    // Every width the product publishes anywhere: the 50 mm grid from 200 to 800, plus the 450 the
+    // dishwasher niche declares as an appliance size. 900 left with the hood's discrete set
+    // (ADR 0035 decision 5) and 1000 has been gone since §7 capped two doors at 800.
     expect([...offered].sort((left, right) => left - right)).toEqual([
-      200, 300, 400, 450, 600, 700, 800, 900,
+      200, 250, 300, 350, 400, 450, 500, 550, 600, 650, 700, 750, 800,
     ]);
     expect(offered.has(1000)).toBe(false);
   });
@@ -571,7 +582,7 @@ describe("canWidth stays §9's literal rule, whatever the set says", () => {
     const world = seeded();
     const hood = metaFor(world, "p13");
     expect(hood.canWidth).toBe(false);
-    expect(hood.sizesMm).toEqual([600, 900]);
+    expect(hood.sizesMm).toEqual(HOOD_CHIPS_MM);
   });
 
   // The flag must not consult the resolution at all: break the pointer and only the set moves.

@@ -79,24 +79,28 @@ describe("the shipped kitchen at load", () => {
     // No `RESIZE_OPENS_GAP` and no `COLUMN_MEMBERS_UNALIGNED` here: nothing gets far enough to
     // reach either, because there is no empty space to spend.
     //
-    // No `RESIZE_OPENS_GAP` and no `COLUMN_MEMBERS_UNALIGNED` here: nothing gets far enough to
-    // reach either, because there is no empty space to spend.
-    // **Every count but `NOT_RESIZABLE` and `WIDTH_UNCHANGED` rose at ADR 0033**, and none of it is
-    // a new refusal: §9 renders a chip per width the *selected* body's entry declares, and a seeded
-    // wall body now resolves to one merged entry with five widths where it resolved to a two- or
-    // three-width one. More chips are rendered, so more chips are tried, so more are refused — by
-    // the same rules, in the same places. The two counts that did not move are the two that do not
-    // depend on how many chips exist.
+    // **Every count but `WIDTH_UNCHANGED` rose at ADR 0033 and again at ADR 0035**, and none of it
+    // is a new refusal: §9 renders a chip per width the *selected* body's entry declares, and
+    // ADR 0035 decision 2 replaced each entry's hand-maintained list with a bound stepped at 50 mm.
+    // More chips are rendered, so more chips are tried, so more are refused — by the same rules, in
+    // the same places. `WIDTH_UNCHANGED` is the one count that does not depend on how many chips
+    // exist: it fires once per body, at the width the body already stands on.
+    //
+    // Retiring ADR 0030's 400 mm one-door cap (owner, 2026-08-28) then gave every hinged row a 450
+    // chip and moved these once more — 48 → 52, 83 → 93 — while **`WIDTH_NOT_SUPPORTED` went the
+    // other way**, 41 → 40. That direction is the evidence, not an oddity: the new 450s land in
+    // columns whose members can now all be built there, so they are refused for a reason about the
+    // *design* (no empty space to fund the move) rather than about the width.
     expect(census(kitchen()).refusals).toEqual({
-      NOT_RESIZABLE: 6,
-      COLUMN_MEMBER_NOT_RESIZABLE: 20,
-      WIDTH_NOT_SUPPORTED: 15,
+      NOT_RESIZABLE: 9,
+      COLUMN_MEMBER_NOT_RESIZABLE: 52,
+      WIDTH_NOT_SUPPORTED: 40,
       WIDTH_UNCHANGED: 13,
-      NO_EMPTY_SPACE: 27,
+      NO_EMPTY_SPACE: 93,
     });
   });
 
-  it("names the fifteen chips §9 renders that the column cannot take", () => {
+  it("names the forty chips §9 renders that the column cannot take", () => {
     // **`WIDTH_NOT_SUPPORTED` is the interesting count**, and it is 5D's to close: ADR 0031 rule 5
     // intersects a column's members' sets, while `describeSelection` still answers for one body, so
     // the panel offers widths the engine refuses.
@@ -105,32 +109,61 @@ describe("the shipped kitchen at load", () => {
     // says a count alone would have read green through the change that halved it (logic review
     // R1.13). A bare `5` goes green whether 5D fixes this or makes it worse by a different five.
     //
-    // **Five before ADR 0033 and fifteen after, and the widening is the merge**: a seeded wall body
-    // now renders five chips instead of two, while the column intersection behind it is unchanged —
-    // an 800 mm wall run still sits over a 600/800 sink base, so 200, 300 and 400 are rendered and
-    // refused. This is 5D's gap getting wider, not a new defect, and it is itemised for the reason
-    // the count alone was never trusted (logic review R1.13): a bare number goes green whether 5D
-    // closes it or replaces it with a different fifteen.
+    // **Five before ADR 0033, fifteen after it, forty after ADR 0035**, and the widening is the same
+    // each time: the *selected* body renders more chips while the column intersection behind it is
+    // unchanged. An 800 mm wall run still sits over a sink base bounded at its aperture, so every
+    // chip under 600 is rendered and refused — there are simply more of them once the chips step at
+    // 50 mm instead of listing five widths. This is 5D's gap getting wider, not a new defect, and it
+    // is itemised for the reason the count alone was never trusted (logic review R1.13): a bare
+    // number goes green whether 5D closes it or replaces it with a different forty.
     //
-    // `p1@450` is the one refusal here that is **not** cabinetry: the dishwasher niche is 450/600
-    // and the column around it is not. That is the residue ADR 0033 says is legitimate and permanent
-    // — a fact about appliances, explainable in one sentence.
+    // **`p1@450` is not on this list, and its absence is §11 row 14.** "Dishwasher niche: only
+    // 450 / 600" was true of the entry and false of the column while ADR 0030's 400 mm one-door cap
+    // put 450 in a hole the `wall-cabinet` above `p1` could not be built in; the owner retired that
+    // cap on 2026-08-28, so `A|2.00` genuinely accepts 450 once something funds the move. The two
+    // 450s that remain — `p11@450` and `p17@450` — are `A|1.30`, where the sink base's 560 mm
+    // aperture bounds the column and no door rule is involved at all.
     expect(census(kitchen()).refusedBy.WIDTH_NOT_SUPPORTED).toEqual([
       "p11@200",
+      "p11@250",
       "p11@300",
+      "p11@350",
       "p11@400",
+      "p11@450",
+      "p11@500",
+      "p11@550",
+      "p12@300",
+      "p12@350",
       "p12@400",
+      "p12@500",
+      "p12@550",
+      "p12@650",
+      "p12@700",
+      "p12@750",
       "p12@800",
       "p14@200",
+      "p14@250",
       "p17@200",
+      "p17@250",
       "p17@300",
+      "p17@350",
       "p17@400",
+      "p17@450",
+      "p17@500",
+      "p17@550",
       "p18@200",
+      "p18@250",
       "p18@300",
+      "p18@350",
       "p18@400",
+      "p18@500",
+      "p18@550",
+      "p18@650",
+      "p18@700",
+      "p18@750",
       "p18@800",
-      "p1@450",
       "p20@200",
+      "p20@250",
     ]);
   });
 });
@@ -149,16 +182,24 @@ describe("after one column is cleared", () => {
       ids: ["p10", "p16"],
       accepted: ["p0", "p8", "p11", "p15", "p17"],
     },
-    { key: "A|1.30", ids: ["p0", "p11", "p17"], accepted: ["p10", "p16"] },
+    // `p1`, `p12` and `p18` joined on 2026-08-28, when the owner retired ADR 0030's one-door cap:
+    // column `A|2.00` holds the 450/600 dishwasher under a `wall-cabinet` that could not be built at
+    // 450, so the column could match at no width at all. It can now, which is §11 row 14 restored.
+    {
+      key: "A|1.30",
+      ids: ["p0", "p11", "p17"],
+      accepted: ["p1", "p10", "p12", "p16", "p18"],
+    },
     {
       key: "A|2.00",
       ids: ["p1", "p12", "p18"],
       accepted: ["p0", "p11", "p17"],
     },
+    // Same cause as `A|1.30`: the dishwasher column is adjacent on this side too.
     {
       key: "A|2.60",
       ids: ["p2", "p13", "p19"],
-      accepted: ["p4", "p14", "p20"],
+      accepted: ["p1", "p4", "p12", "p14", "p18", "p20"],
     },
     { key: "A|3.20", ids: ["p4", "p14", "p20"], accepted: [] },
     { key: "B|1.20", ids: ["p5", "p22"], accepted: [] },
@@ -179,17 +220,18 @@ describe("after one column is cleared", () => {
   );
 
   it("names every accepted chip in the whole kitchen", () => {
-    // Thirty-two accepted taps across the nine deletable columns, from fifteen before ADR 0033 —
-    // and the jump is the merge, measured. A wall column used to be bounded by whichever of the two
-    // door entries its members happened to be: `wall-2door` allowed 600 and 800 and nothing else, so
-    // a run of two-door cabinets could never reach 400 however much space stood beside it. One
-    // entry with `[200, 300, 400, 600, 800]` means the column moves and the door count follows,
-    // which is precisely the migration-without-changing-entries the record was written for.
+    // 112 accepted taps across the nine deletable columns: fifteen before ADR 0033, thirty-two after
+    // it, ninety-seven after ADR 0035's bounds, and this once the owner retired ADR 0030's one-door
+    // cap and column `A|2.00` could match the dishwasher's 450. Each jump has the same cause
+    // measured a different way. ADR 0033 removed the *entry* boundary — a wall column used to be
+    // bounded by whichever door entry its members happened to be, so a run of two-door cabinets
+    // could never reach 400 however much space stood beside it. ADR 0035 removed the *list*: the
+    // same columns move to the same places, and now to every 50 mm width in between.
     //
     // The gain was never the count so much as its shape: the moves are whole columns, and each one
-    // is next to the space that funds it. What ADR 0033 adds is that **cabinetry has almost stopped
-    // constraining them** — every refusal left in the census below is an appliance, a floor, or the
-    // absence of empty space.
+    // is next to the space that funds it. **Cabinetry has stopped constraining them** — every
+    // refusal left in the census is an appliance, a floor, or the absence of empty space — ADR 0030's
+    // swing-arc gap is gone, and with it the last cabinetry-shaped refusal.
     const all = CLEARABLE.flatMap(({ key, ids }) =>
       census(clearBodies(kitchen(), [...ids])).accepted.map(
         (entry) => `${key}:${entry}`,
@@ -197,36 +239,116 @@ describe("after one column is cleared", () => {
     );
     expect(all.sort()).toEqual([
       "A|0.30:p10@200",
+      "A|0.30:p10@250",
+      "A|0.30:p10@350",
       "A|0.30:p10@400",
+      "A|0.30:p10@450",
+      "A|0.30:p10@500",
+      "A|0.30:p10@550",
       "A|0.30:p10@600",
       "A|0.30:p16@200",
+      "A|0.30:p16@250",
+      "A|0.30:p16@350",
       "A|0.30:p16@400",
+      "A|0.30:p16@450",
+      "A|0.30:p16@500",
+      "A|0.30:p16@550",
       "A|0.30:p16@600",
       "A|0.75:p0@600",
+      "A|0.75:p0@650",
+      "A|0.75:p0@700",
+      "A|0.75:p0@750",
       "A|0.75:p11@600",
+      "A|0.75:p11@650",
+      "A|0.75:p11@700",
+      "A|0.75:p11@750",
       "A|0.75:p15@200",
+      "A|0.75:p15@250",
       "A|0.75:p15@300",
+      "A|0.75:p15@350",
       "A|0.75:p15@400",
+      "A|0.75:p15@450",
+      "A|0.75:p15@500",
+      "A|0.75:p15@550",
       "A|0.75:p17@600",
+      "A|0.75:p17@650",
+      "A|0.75:p17@700",
+      "A|0.75:p17@750",
       "A|0.75:p8@200",
+      "A|0.75:p8@250",
       "A|0.75:p8@300",
+      "A|0.75:p8@350",
       "A|0.75:p8@400",
+      "A|0.75:p8@450",
+      "A|0.75:p8@500",
+      "A|0.75:p8@550",
+      "A|1.30:p10@350",
       "A|1.30:p10@400",
+      "A|1.30:p10@450",
+      "A|1.30:p10@500",
+      "A|1.30:p10@550",
       "A|1.30:p10@600",
+      "A|1.30:p10@650",
+      "A|1.30:p10@700",
+      "A|1.30:p10@750",
       "A|1.30:p10@800",
+      "A|1.30:p12@450",
+      "A|1.30:p16@350",
       "A|1.30:p16@400",
+      "A|1.30:p16@450",
+      "A|1.30:p16@500",
+      "A|1.30:p16@550",
       "A|1.30:p16@600",
+      "A|1.30:p16@650",
+      "A|1.30:p16@700",
+      "A|1.30:p16@750",
       "A|1.30:p16@800",
+      "A|1.30:p18@450",
+      "A|1.30:p1@450",
       "A|2.00:p0@600",
+      "A|2.00:p0@650",
+      "A|2.00:p0@700",
+      "A|2.00:p0@750",
       "A|2.00:p11@600",
+      "A|2.00:p11@650",
+      "A|2.00:p11@700",
+      "A|2.00:p11@750",
       "A|2.00:p17@600",
+      "A|2.00:p17@650",
+      "A|2.00:p17@700",
+      "A|2.00:p17@750",
+      "A|2.60:p12@450",
       "A|2.60:p14@300",
+      "A|2.60:p14@350",
       "A|2.60:p14@400",
+      "A|2.60:p14@450",
+      "A|2.60:p14@500",
+      "A|2.60:p14@550",
+      "A|2.60:p14@650",
+      "A|2.60:p14@700",
+      "A|2.60:p14@750",
       "A|2.60:p14@800",
+      "A|2.60:p18@450",
+      "A|2.60:p1@450",
       "A|2.60:p20@300",
+      "A|2.60:p20@350",
       "A|2.60:p20@400",
+      "A|2.60:p20@450",
+      "A|2.60:p20@500",
+      "A|2.60:p20@550",
+      "A|2.60:p20@650",
+      "A|2.60:p20@700",
+      "A|2.60:p20@750",
       "A|2.60:p20@800",
+      "A|2.60:p4@300",
+      "A|2.60:p4@350",
       "A|2.60:p4@400",
+      "A|2.60:p4@450",
+      "A|2.60:p4@500",
+      "A|2.60:p4@550",
+      "A|2.60:p4@650",
+      "A|2.60:p4@700",
+      "A|2.60:p4@750",
       "A|2.60:p4@800",
     ]);
   });

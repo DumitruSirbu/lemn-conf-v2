@@ -34,6 +34,7 @@ import { describe, expect, it } from "vitest";
 import { describePanel, type WidthSection } from "@/panel/panel-model";
 
 import { createFakeBodyProbe } from "../support/fake-body-probe";
+import { HINGED_CHIPS_MM, SINK_CHIPS_MM } from "../support/width-options";
 
 /** ADR 0011 Gap D: columns are load-time state, frozen from the whole design. */
 const SEEDED_COLUMNS = deriveColumns(
@@ -148,16 +149,21 @@ const seededWorld = () => worldFrom(KITCHEN_L_DESIGN);
  *
  *  - `A|1.30` (p0 sink · p11 · p17) → 600/800. The sink's fixed 560 mm aperture bounds the whole
  *    column (ADR 0017), taking three chips off each of the two wall bodies.
- *  - `A|2.00` (p1 dishwasher · p12 shelf · p18) → 600 alone. The dishwasher is made in 450 and 600
- *    and the shelf in 400/600/800; 600 is all three.
- *  - `A|3.20` (p4 pan bank · p14 · p20) → 300/400/600/800. 200 falls to the base body's floor, while
- *    300 survives from the wall members' set because a standard-ladder entry constrains only by its
- *    floor (ADR 0031 rule 5) — which is the half of that rule a per-body row could not express
- *    either.
+ *  - `A|2.00` (p1 dishwasher · p12 shelf · p18) → 450 and 600, the dishwasher's own two widths. It
+ *    was 600 alone until the owner retired ADR 0030's one-door cap and the `wall-cabinet` at `p18`
+ *    could be built at 450 (§11 row 14).
+ *  - `A|3.20` (p4 pan bank · p14 · p20) → 200 and 250 fall to the base body's own 300 mm floor,
+ *    which under ADR 0035 it no longer declines to apply — every member bounds the column now.
  *
  *  The seventeen sections themselves are unchanged, and so is every column with one binding member.
+ *
+ *  **62 → 144 at ADR 0035 decision 2, then → 158 when the owner retired ADR 0030's one-door cap.**
+ *  The first step turned each entry's hand-maintained width list into a bound stepped at 50 mm; the
+ *  second closed the (400, 500) hole that bound still carried, adding a 450 chip to every hinged row
+ *  and putting 450 back into `A|2.00`'s intersection (§11 row 14). The seventeen sections are the
+ *  same seventeen throughout — what changed is how many widths each of them can offer.
  *  See `qa-w5c.enumeration.test.ts`, which measures the same columns from the command's end. */
-const SEEDED_WIDTH_CHIP_COUNT = 62;
+const SEEDED_WIDTH_CHIP_COUNT = 158;
 
 /** §9's vocabulary against the engine's, written down once here so the sweep below compares two
  *  independent things rather than restating the panel's own mapping. */
@@ -182,42 +188,49 @@ describe("a body built to its opening rather than to a member of its set", () =>
     // floor still gets a chip for it, and it is still the active one, but the mechanism that
     // produces it changed. `p24` below is now the only fold left in the shipped kitchen.
     //
-    // ADR 0033 widened the set again, to the merged cabinet's five: this body can now be resized up
-    // to a two-door without changing which entry it is, which is the decision's whole point read
-    // through §9's chips. The claim here is unchanged — 300 is a member, not a fold.
+    // ADR 0033 widened the set to the merged cabinet's five, and ADR 0035 replaced that list with a
+    // bound stepped at 50 mm. The claim here is unchanged through both — 300 is a member, not a
+    // fold — which is exactly why it survives them: it is a fact about §2's floor, not about how
+    // many widths sit around it.
     const world = seededWorld();
     const meta = describeSelection({
       ...world,
       target: { kind: "placement", id: "p10" },
     });
     expect(meta?.widthMm).toBe(toMillimetres(MIN_WIDTH_M));
-    expect(meta?.sizesMm).toEqual([200, 300, 400, 600, 800]);
-    expect(widthsAt(world, "p10")).toEqual([200, 300, 400, 600, 800]);
+    expect(meta?.sizesMm).toEqual(HINGED_CHIPS_MM);
+    expect(widthsAt(world, "p10")).toEqual(HINGED_CHIPS_MM);
   });
 
-  // `p24` is still the only fold in the shipped kitchen: 700 is a width no wall entry declares,
-  // before ADR 0033 or after it, so the body's own width is added to the row it renders. The merged
-  // set puts four chips in front of it now instead of one, and 700 still lands in the middle.
-  it("folds wall-2door-700-over-fridge's own 700 into the middle of the row", () => {
-    expect(widthsAt(seededWorld(), "p24")).toEqual([
-      200, 300, 400, 600, 700, 800,
-    ]);
+  // **The shipped kitchen has no fold left, and that is ADR 0035 decision 1.** `p24` was the last
+  // one: 700 was a width no wall entry declared, so the body's own width was added to the row it
+  // renders. The 50 mm step makes 700 a chip like any other, and every non-structural body the
+  // fixture ships now stands on the grid.
+  //
+  // The fold mechanism has not gone anywhere and must not — decision 1 keeps stepping **relative**
+  // to the current width rather than snapping to the grid, precisely so a 570 mm corner return or a
+  // 750 mm fridge column is not rewritten. Its own case lives where a body can be put off-grid:
+  // `packages/configurator-domain/tests/queries/width-options.test.ts`.
+  it("renders p24's own 700 as one chip in the middle of the row, not as a fold", () => {
+    const widths = widthsAt(seededWorld(), "p24");
+    expect(widths).toEqual(HINGED_CHIPS_MM);
+    expect(widths.filter((width) => width === 700)).toHaveLength(1);
   });
 
   // The duplicate case, which the `Set` in `columnWidthChoices` is there to prevent: a body already
   // standing at a member of its set gets one chip for that width, not two.
   //
-  // **p11's row narrowed in wave 5D, and it is the change the wave is for.** It used to render its
-  // own entry's five widths; it now renders `[600, 800]`, because ADR 0031 resizes a **column** and
-  // p11 shares `A|1.30` with the 800 mm sink, whose 560 mm aperture bounds it to 600/800 (ADR 0017).
-  // The three widths that disappeared were never reachable — `setWidth` refuses every one of them —
-  // so the panel was advertising moves the engine would not make. p8 stands alone in its column at
-  // every level that binds, so its row is unchanged: the narrowing is the intersection doing its
-  // job, not a blanket shrink.
+  // **p11's row narrowed in wave 5D, and it is the change that wave was for.** It used to render its
+  // own entry's widths; it renders the sink's, because ADR 0031 resizes a **column** and p11 shares
+  // `A|1.30` with the 800 mm sink, whose 560 mm aperture bounds the column (ADR 0017). The widths
+  // that disappeared were never reachable — `setWidth` refuses every one of them — so the panel was
+  // advertising moves the engine would not make. p8 stands alone in its column at every level that
+  // binds, so its row is the full hinged set: the narrowing is the intersection doing its job, not a
+  // blanket shrink.
   it("gives a body already at a set width exactly one chip for it", () => {
     const world = seededWorld();
-    expect(widthsAt(world, "p11")).toEqual([600, 800]);
-    expect(widthsAt(world, "p8")).toEqual([200, 300, 400, 600, 800]);
+    expect(widthsAt(world, "p11")).toEqual(SINK_CHIPS_MM);
+    expect(widthsAt(world, "p8")).toEqual(HINGED_CHIPS_MM);
     expect(
       widthsAt(world, "p11").filter((width) => width === 800),
     ).toHaveLength(1);

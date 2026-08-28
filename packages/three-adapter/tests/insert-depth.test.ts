@@ -50,9 +50,10 @@ const TOP_ROW_PLACEMENT_ID = "p19";
 const TOP_ROW_COLUMN = "A|2.60";
 const TOP_ROW_VOID_Y0_M = 2.2;
 
-/** A wall entry carrying the **standard ladder**, so it builds into every opening these cases
- *  reach — the fridge column is 700 mm, and ADR 0032 made `wall-2door`'s `[600, 800]` a bound on the
- *  `'fit'` path. Depth is this file's subject. */
+/** A wall entry bounded 300–800 with no hole in the middle, so it builds into every opening these
+ *  cases reach — the fridge column is 700 mm, and ADR 0032 made a bounded set bind the `'fit'` path.
+ *  A shelf declares no floor of its own, so it opens at §2's default rather than at the hinged rows'
+ *  200. Depth is this file's subject. */
 const CATALOGUE_WALL_CABINET = "open-shelf";
 const OCCURRED_AT = "2026-08-27T12:00:00.000Z";
 

@@ -345,20 +345,27 @@ describe("ADR 0031 rule 5 — a column's widths are the intersection of its memb
     ).toBe("Corp suspendat 1 ușă");
   });
 
-  // The half of the old bound that survives, and the reason the merged set is still a bound: §7's
-  // builder makes a **single** door anywhere in (400, 450], and ADR 0030 caps a single hinged door
-  // at 400 for the swing arc. 500 is refused because the set has no member between 400 and 600 —
-  // a hole no floor can express, which is why `sizesAreStandardLadder` stays false on this row.
-  it("still refuses a width between the two door counts", () => {
-    const result = resizeTo(wallColumnWithEmptyRight(), "L-wall", 500);
+  // The width the whole 450 argument was about, and it is now an ordinary resize. ADR 0030 capped a
+  // single hinged door at 400 for the swing arc, which put 450 in a hole no floor or ceiling could
+  // express; the owner retired that cap on 2026-08-28 — "make it still 500, so it'll cover this gap
+  // between 450 and 500" — and one door simply runs to 499.
+  //
+  // This is the test that would fail if the hole came back, and §11 row 14 depends on it: a column
+  // holding the 450/600 dishwasher can only match at 450 if the `wall-cabinet` above it can be built
+  // there.
+  it("accepts 450, the width ADR 0030's retired cap used to forbid", () => {
+    const result = resizeTo(wallColumnWithEmptyRight(), "L-wall", 450);
 
-    expect(result.ok).toBe(false);
-    if (result.ok || result.reason.code !== "WIDTH_NOT_SUPPORTED") {
-      expect.unreachable("expected WIDTH_NOT_SUPPORTED");
-    }
-    // The column's intersection, not the entry's raw set: the base member below carries §2's default
-    // floor, so 200 is out and the four widths both members accept remain.
-    expect(result.reason.params.sizesMm).toEqual([300, 400, 600, 800]);
+    expect(result.ok).toBe(true);
+  });
+
+  // The other side of the same pivot, and the width ADR 0035 decision 4 exists to reach. 500 was
+  // refused until this wave — "the set has no member between 400 and 600" — and ADR 0035 rejected
+  // "keep the threshold at 450 and forbid 500/550" by name: excluding a width is reintroducing the
+  // curated list the decision removes.
+  it("accepts 500, where two doors now start", () => {
+    const result = resizeTo(wallColumnWithEmptyRight(), "L-wall", 500);
+    expect(result.ok).toBe(true);
   });
 
   it("is not narrowed by a `widthFlex: 'fit'` member above its floor", () => {
@@ -387,10 +394,10 @@ describe("ADR 0031 rule 5 — a column's widths are the intersection of its memb
     if (result.ok || result.reason.code !== "WIDTH_NOT_SUPPORTED") {
       expect.unreachable("expected WIDTH_NOT_SUPPORTED");
     }
-    // §11 row 14 read through ADR 0031 rule 5: the dishwasher's `[450, 600]` is a **bound** — a
-    // niche is made in exactly two sizes — so 800 is out of the column however wide the shelves
-    // above it could go. 450 is in, and the shelves follow it there: their `[400, 600, 800]` is the
-    // standard ladder, not a claim that a shelf cannot be 450 (FINDING Q1.3).
+    // §11 row 14 read through ADR 0031 rule 5: the dishwasher's `[450, 600]` is a **discrete** bound
+    // — a niche is made in exactly two sizes (ADR 0035 decision 3) — so 800 is out of the column
+    // however wide the shelves above it could go. 450 is in, and the shelves follow it there: a shelf
+    // is cabinetry bounded 300–800 and 450 is an ordinary width inside it (FINDING Q1.3).
     expect(result.reason.params.sizesMm).toEqual([450, 600]);
     expect(resizeTo(world, "L-base", 450).ok).toBe(true);
   });

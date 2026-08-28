@@ -46,11 +46,12 @@ function replaceableWallBodies(world: KitchenWorld): PlacementRecord[] {
   );
 }
 
-/** A wall entry carrying the **standard ladder**, so it fills whatever opening it is swapped into.
- *  It was `wall-2door` until ADR 0032 made a bounded set a bound on the `'fit'` path too: the sweep
- *  below runs over every seeded wall and top body, and three of them stand at 300 or 700 mm — widths
- *  a two-door does not have. Depth is this file's subject, so the body it swaps in must not be the
- *  one entry that refuses on width halfway through.  */
+/** A wall entry bounded 300–800 with no hole in the middle, so it fills whatever opening it is
+ *  swapped into. It was `wall-2door` until ADR 0032 made a bounded set a bound on the `'fit'` path
+ *  too: the sweep below runs over every seeded wall and top body, and three of them stand at 300 or
+ *  700 mm. ADR 0035 makes every cabinetry row a bound, and a shelf has no door count — so this is
+ *  the entry with no ADR 0030 gap in its range. Depth is this file's subject, so the body it swaps
+ *  in must not refuse on width halfway through.  */
 const SWAP_BUILD_ID = "open-shelf";
 
 /** §7's head-clearance cap on a wall carcass over a worktop, in metres, at the shipped 600 mm

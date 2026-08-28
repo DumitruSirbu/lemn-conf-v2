@@ -44,7 +44,7 @@ export const LEVEL_SNAP_M = 0.02;
 export type Band = "base" | "wall" | "top" | "column";
 
 /** §7's width column: `'fit'` builds to the opening; a millimetre set builds only at those
- *  widths (the dishwasher niche's 450/600, the hood's 600/900, a column's fixed 600). */
+ *  widths (the dishwasher niche's 450/600, a column's fixed 600, the bottle cargo's 200/300). */
 export type WidthFlex = "fit" | readonly number[];
 
 /** Why a body offers nothing structural — no swap list, no delete, no finish, no handle, no width.
@@ -66,8 +66,8 @@ export interface Frame {
 /** Everything about a `buildId` that the `Design` wire schema does not carry: what the body is,
  *  where it sits in the module grid, and what a person is allowed to do to it. `frameHeightMm`
  *  defaults to the carcass `heightMm` when the full extent (accessories, proud fronts) matches it. */
-/** An inclusive width range in millimetres, as `resolveWidthRangesMm` reads it. `maxMm` may be
- *  `Number.POSITIVE_INFINITY` for a range with no upper bound — a standard-ladder row's. */
+/** An inclusive width range in millimetres, as `resolveWidthRangesMm` reads it. Both ends are real
+ *  numbers: ADR 0035 decision 1 gives every cabinetry row a ceiling, so no range is open above. */
 export interface WidthRangeMm {
   readonly minMm: number;
   readonly maxMm: number;
@@ -102,31 +102,10 @@ export interface BodyDefinition {
    *  placement with no measured `seatDepthMm` of its own. A wall entry over a full-height column
    *  builds deeper than this. */
   readonly nominalDepthMm?: number;
-  /** §9's width chips — the legal widths for this body. Delivered as a per-entry constant here;
-   *  M5 wires them to the resize command. */
+  /** §9's **modular** widths for this body — what a customer picks from. ADR 0035 derives them from
+   *  `widthRangesMm` at a 50 mm step for a cabinetry row and states them literally for an appliance
+   *  row; either way it is the bound, not this, that decides whether a width may be built. */
   readonly sizesMm?: readonly number[];
-  /** ADR 0031 rule 5: `true` marks a `sizesMm` that is §7's **standard module ladder** rather than a
-   *  bound of this entry's own, so it constrains a column only by the entry's floor.
-   *
-   *  The rule says a `widthFlex: 'fit'` member "accepts any width above its floor and so does not
-   *  narrow the intersection" — and read against `sizesMm` alone that is false of half the
-   *  catalogue, because a `'fit'` entry's set carries two different kinds of fact. `wall-2door`'s
-   *  `[600, 800]` is a **bound**: below 600 §7's builder makes one door under a two-door label
-   *  (ADR 0029), and nothing may resize a column past it. `base-panbank`'s `[400, 600, 800]` is the
-   *  **ladder**: 400 is the narrowest standard module, not the narrowest honest pan bank, and a
-   *  400 mm pan bank under a 400 mm one-door wall cabinet must not stop the pair going to 300.
-   *  Measured: without this distinction one of those two facts is always lost — enforce every set as
-   *  a bound and rule 5's second sentence is false; enforce none and a resize reaches a 400 mm
-   *  `wall-2door` and an 800 mm `wall-1door`, which are ADR 0029 and ADR 0030 by name.
-   *
-   *  **Declared, never inferred**, for the reason `catalogEquivalentId` is: "this row's set happens
-   *  to equal `STANDARD_WIDTHS_MM`" is a coincidence a future row could reproduce for an unrelated
-   *  reason, and §6.3 records what inferring a fact about a body from its measurements cost.
-   *
-   *  Absent means `false` — the set is a bound — which is the **conservative** direction: a row that
-   *  forgets to say keeps every width in its set, and the failure is a resize refused rather than a
-   *  cabinet built at a width its own record forbids. */
-  readonly sizesAreStandardLadder?: boolean;
   /** ADR 0017: the narrowest width (millimetres) this body's own row permits. Absent means
    *  `MIN_WIDTH_M` governs, which is every entry but two.
    *
@@ -176,25 +155,22 @@ export interface BodyDefinition {
    *  that forgets to declare shows its own name rather than a door count nothing verified. */
   readonly doorCountFollowsWidth?: boolean;
 
-  /** ADR 0033's amendment: the width **ranges** this body may actually be built to, when its row has
-   *  ranges rather than a list.
+  /** ADR 0033's amendment, and after ADR 0035 decision 2 **the entry's width model**: the widths this
+   *  body may actually be built to.
    *
    *  `sizesMm` and this are different facts and both are true. `sizesMm` is the **modular widths a
-   *  customer picks from**, which §9 renders as chips; this is **what a `widthFlex: 'fit'` body may be
-   *  built to when it fills an existing opening**, which is a continuum for cabinetry. A hinged
-   *  cabinet's five chips sit inside two ranges — 200–400 for one door, 600–800 for two — and a
-   *  700 mm opening takes an honest two-door of two 350 mm leaves even though 700 is not a chip.
+   *  customer picks from**; this is **what the body may be built to**, which is a continuum for
+   *  cabinetry. A hinged cabinet's chips sit inside two ranges — 200–400 for one door, 500–800 for
+   *  two — and a 570 mm opening takes an honest two-door even though 570 is not a chip.
    *
-   *  **Declared only where a row genuinely has ranges**, which is the two hinged cabinets and nothing
-   *  else. Every other row's ranges are *derived* rather than restated: a standard-ladder row is one
-   *  range from its floor upward, and a discrete row is one degenerate range per size. Declaring
-   *  those would put `sizesMm` in the catalogue twice and re-open the drift ADR 0028 and ADR 0033
-   *  exist to close.
+   *  **Declared by every §7 row**, through `cabinetryWidths` or `discreteWidths` in `catalog.ts`,
+   *  each of which produces this and `sizesMm` from one argument so the two cannot drift. Absent
+   *  means the ranges are derived from `sizesMm` as one degenerate range per size — the conservative
+   *  reading of a bare list, and no shipped row relies on it.
    *
-   *  **Cabinetry is continuous within its door-count range; appliances are discrete.** A hood is 600
-   *  or 900 because those are the sizes hoods come in — refusing a 700 mm hood is the defect being
-   *  fixed, not a loss — and `base-bottle-cargo` stays discrete for ADR 0026's own reason, that the
-   *  proportion is the product. */
+   *  **Cabinetry is continuous between its bounds; appliances are discrete** (ADR 0035 decision 3). A
+   *  dishwasher niche is 450 or 600 because dishwashers are, and `base-bottle-cargo` stays discrete
+   *  for ADR 0026's own reason, that the proportion is the product. */
   readonly widthRangesMm?: readonly WidthRangeMm[];
 
   /** Present only on an entry that offers nothing structural, saying why (§11 row 16, §13.1). */

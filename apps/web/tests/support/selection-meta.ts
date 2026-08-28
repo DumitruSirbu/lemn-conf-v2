@@ -93,9 +93,11 @@ export function offer(overrides: Partial<CatalogOffer> = {}): CatalogOffer {
     band: "base",
     sizesMm: [400, 600, 800],
     // ADR 0033's amendment: the chips above are what a customer picks; this is what the body may be
-    // built to. A standard-ladder row's is one range from its floor upward, which is what this
-    // fixture stands in for.
-    widthRangesMm: [{ minMm: 300, maxMm: Number.POSITIVE_INFINITY }],
+    // built to. A plain cabinetry row's is one range, §2's floor to §7's ceiling (ADR 0035
+    // decision 2), which is what this fixture stands in for. The chips are deliberately *not* the
+    // twelve the catalogue derives: nothing in `describePanel` reads the catalogue, and a fixture
+    // that copied it would be asserting the derivation rather than the rendering.
+    widthRangesMm: [{ minMm: 300, maxMm: 800 }],
     isCurrent: false,
     verdict: { status: "offered", widthMm: 600, heightMm: 860 },
     ...overrides,

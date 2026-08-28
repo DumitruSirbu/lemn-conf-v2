@@ -198,15 +198,31 @@ describe("the width floors, swept 195–305 mm, by rejection code", () => {
 // Wave C — declared floors the shipped catalogue does not contain.
 // ---------------------------------------------------------------------------------------------
 
+/** A `'fit'` cabinetry row that declares the given floor, **and opens its bound there**.
+ *
+ *  The second half is ADR 0035's doing and is the whole reason this probe is built rather than
+ *  cloned outright. Before it, `base-3drawer` was a standard-ladder row whose ranges were derived as
+ *  `[floor, ∞)`, so moving `minWidthMm` alone moved the bound with it. Every §7 row now declares its
+ *  own bound, and `resolveWidthRangesMm` raises a declared range to the entry's floor but never
+ *  lowers it — deliberately, per logic review R1.4, since a bound the floor could widen would not be
+ *  a bound. A row that declares 250 mm and a range opening at 300 is therefore a contradictory
+ *  catalogue row rather than a rule, and the floor is what these cases are about. */
 function baseEntry(minWidthMm: number | undefined): BodyDefinition {
   const template = KITCHEN_L_BODY_CATALOG.get("base-3drawer");
   if (!template) throw new Error("no base-3drawer");
+  const floorMm = minWidthMm ?? PROBE_DEFAULT_FLOOR_MM;
   return {
     ...template,
     label: "Probă",
+    widthRangesMm: [{ minMm: floorMm, maxMm: PROBE_CEILING_MM }],
     ...(minWidthMm === undefined ? {} : { minWidthMm }),
   };
 }
+
+/** §2's default, which is where `base-3drawer`'s own bound opens. */
+const PROBE_DEFAULT_FLOOR_MM = 300;
+/** §7's ceiling, unchanged by anything these cases declare. */
+const PROBE_CEILING_MM = 800;
 
 function catalogDeclaring(minWidthMm: number | undefined): BodyCatalog {
   return new Map([
