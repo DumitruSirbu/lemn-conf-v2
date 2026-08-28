@@ -240,79 +240,20 @@ describe("a resize does not change any member's recorded depth", () => {
         }
       }
     }
-    // Named rather than counted, so the sweep cannot pass by accepting nothing. Fifty-nine accepted
-    // taps, which is **twenty-four distinct column moves** offered from each of their members —
-    // against the two the superseded donor rule left reachable, both sides of one boundary.
+    // **Counted here, and named in `qa-w5c.adversarial.test.ts`.** The list was spelled out in this
+    // file so the sweep could not pass by accepting nothing: fifteen taps until ADR 0033 merged the
+    // door-count entries, thirty-three after it, forty-four once ADR 0035 replaced each entry's list
+    // with a bound stepped at 50 mm, fifty-nine once the owner retired ADR 0030's one-door cap.
     //
-    // Fifteen until ADR 0033 merged the door-count entries — a wall column bounded by a `wall-2door`
-    // at [600, 800] could not move to 400 however much space stood beside it — thirty-three after
-    // it, forty-four once ADR 0035 replaced each entry's list with a bound stepped at 50 mm (every
-    // one of those eleven at 700, the only width this sweep asks about that the step made modular),
-    // and fifty-nine once the owner retired ADR 0030's one-door cap on 2026-08-28 (every one of
-    // those fifteen at 450, including the four that make column `A|2.00` resizable at all — §11
-    // row 14). What this file asserts is unchanged and now holds over four times the population it
-    // started with: a resize never changes any member's recorded depth.
-    expect(accepted.sort()).toEqual([
-      "A|0.30:p10@200",
-      "A|0.30:p10@400",
-      "A|0.30:p10@450",
-      "A|0.30:p10@600",
-      "A|0.30:p16@200",
-      "A|0.30:p16@400",
-      "A|0.30:p16@450",
-      "A|0.30:p16@600",
-      "A|0.75:p0@600",
-      "A|0.75:p0@700",
-      "A|0.75:p11@600",
-      "A|0.75:p11@700",
-      "A|0.75:p15@200",
-      "A|0.75:p15@300",
-      "A|0.75:p15@400",
-      "A|0.75:p15@450",
-      "A|0.75:p17@600",
-      "A|0.75:p17@700",
-      "A|0.75:p8@200",
-      "A|0.75:p8@300",
-      "A|0.75:p8@400",
-      "A|0.75:p8@450",
-      "A|1.30:p10@400",
-      "A|1.30:p10@450",
-      "A|1.30:p10@600",
-      "A|1.30:p10@700",
-      "A|1.30:p10@800",
-      "A|1.30:p12@450",
-      "A|1.30:p16@400",
-      "A|1.30:p16@450",
-      "A|1.30:p16@600",
-      "A|1.30:p16@700",
-      "A|1.30:p16@800",
-      "A|1.30:p18@450",
-      "A|1.30:p1@450",
-      "A|2.00:p0@600",
-      "A|2.00:p0@700",
-      "A|2.00:p11@600",
-      "A|2.00:p11@700",
-      "A|2.00:p17@600",
-      "A|2.00:p17@700",
-      "A|2.60:p12@450",
-      "A|2.60:p14@300",
-      "A|2.60:p14@400",
-      "A|2.60:p14@450",
-      "A|2.60:p14@700",
-      "A|2.60:p14@800",
-      "A|2.60:p18@450",
-      "A|2.60:p1@450",
-      "A|2.60:p20@300",
-      "A|2.60:p20@400",
-      "A|2.60:p20@450",
-      "A|2.60:p20@700",
-      "A|2.60:p20@800",
-      "A|2.60:p4@300",
-      "A|2.60:p4@400",
-      "A|2.60:p4@450",
-      "A|2.60:p4@700",
-      "A|2.60:p4@800",
-    ]);
+    // ADR 0035 decision 7 takes it to 230 by making every shrink fund itself out of the space it
+    // vacates, so the population stops being "what a delete unlocks" and becomes "every legal move,
+    // plus what a delete unlocks". 230 lines of fixture would bury the one assertion this file
+    // exists for. The itemisation lives in the domain's adversarial census — 26 taps at load, 24
+    // gained per clear, 2 lost to `RESIZE_OPENS_GAP` — over this exact width list.
+    //
+    // What this file asserts is unchanged and now holds over fifteen times the population it started
+    // with: a resize never changes any member's recorded depth.
+    expect(accepted).toHaveLength(230);
   });
 });
 

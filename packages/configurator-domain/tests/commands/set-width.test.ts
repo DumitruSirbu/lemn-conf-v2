@@ -1,8 +1,10 @@
 // ADR 0031 — a resize moves a whole column, and adjacent empty space funds it.
 //
-// **Every test of a successful resize needs a delete in front of it.** The shipped kitchen derives
-// zero voids at load, so nothing is resizable until something is cleared; that is a consequence the
-// ADR accepts deliberately, and it is why these fixtures all start by emptying a column.
+// **Every test of a successful *growth* needs a delete in front of it.** The shipped kitchen derives
+// zero voids at load and a growth has to consume space that already exists, which is why these
+// fixtures start by emptying a column. It used to be true of every resize; ADR 0035 decision 7 makes
+// a shrink fund itself out of the extent it vacates, and `set-width.creates-space.test.ts` is where
+// that half lives.
 //
 // Each row asserts the widths and the two edges that must not move on **every** member of the
 // column plus the empty one, because "the column grew" and "the run total is conserved" are
@@ -410,10 +412,17 @@ describe("ADR 0031 rule 5 — a column's widths are the intersection of its memb
 });
 
 describe("ADR 0031 — when there is no empty space to spend", () => {
-  it("refuses every chip on the shipped kitchen at load, naming both sides", () => {
-    // The consequence the ADR accepts: `recomputeVoids` returns nothing at load, so nothing is
-    // resizable until the customer deletes something first.
-    const result = resizeTo(kitchen(), "p0", 600);
+  it("refuses growth on the shipped kitchen at load, naming both sides", () => {
+    // **Half of ADR 0031's consequence survives, and it is the growth half.** The rule was that
+    // `recomputeVoids` returns nothing at load, so nothing at all was resizable until the customer
+    // deleted something first. ADR 0035 decision 7 removed that for shrinking — a shrink now makes
+    // its own space — and left it exactly as it was for growing: there is still nothing to consume.
+    //
+    // The tap moved with it. It used to be `p0` 800 → 600, which is now accepted (see the
+    // square-up/creation suites below); `p10` 300 → 350 is the same question asked in the direction
+    // that still has no answer. `A|0.75` holds `p10` and `p16`, both 300 mm cabinetry, with an
+    // occupied column hard against each side.
+    const result = resizeTo(kitchen(), "p10", 350);
 
     expect(result.ok).toBe(false);
     if (result.ok || result.reason.code !== "NO_EMPTY_SPACE") {
@@ -423,7 +432,7 @@ describe("ADR 0031 — when there is no empty space to spend", () => {
       { side: "right", reason: "absent" },
       { side: "left", reason: "absent" },
     ]);
-    expect(result.reason.params.deltaMm).toBe(-200);
+    expect(result.reason.params.deltaMm).toBe(50);
   });
 
   it("refuses growth that would leave the empty column under MIN_W", () => {
@@ -482,9 +491,16 @@ describe("ADR 0031 — when there is no empty space to spend", () => {
   it("does not spend an empty column on the other wall", () => {
     // Both walls originate at the same corner, so a wall-B column can sit at the same along-wall
     // coordinate as a wall-A one without being anywhere near it.
+    //
+    // The tap moved to a **growth** under ADR 0035 decision 7, because a shrink no longer needs a
+    // neighbour at all and would pass this test without exercising the wall guard. It is a sharper
+    // case than the one it replaces: emptying `B|1.20` frees 0.90–1.50 **along wall B**, and
+    // `A|0.75` — `p10` and `p16` — presents its right edge at exactly 0.90 along wall A. Drop the
+    // `candidate.wall === plan.column.wall` test in `findAdjacentEmptyColumn` and the two edges
+    // meet to the micron, so this move would be funded from a column around the corner.
     const world = clearBodies(kitchen(), ["p5", "p22"]);
 
-    const result = resizeTo(world, "p0", 600);
+    const result = resizeTo(world, "p10", 350);
 
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.reason.code).toBe("NO_EMPTY_SPACE");
@@ -657,34 +673,84 @@ describe("RESIZE_OPENS_GAP, re-stated: no opening where a body stands", () => {
   });
 });
 
-describe("a column whose members are not flush", () => {
-  it("refuses rather than silently squaring it up", () => {
-    // Reachable: a 450 mm dishwasher inserted into a 600 mm column's opening leaves one key
-    // holding two widths. There is no single boundary to move, and moving both would resize a body
-    // nobody selected — which is the one thing ADR 0031 exists to prevent.
-    const run = runWorld([
-      { id: "L", alongMm: 1300, widthMm: 600 },
-      { id: "R", alongMm: 1900, widthMm: 600 },
-    ]);
-    const mixed = clearBodies(
-      createWorld(
-        {
-          ...run.design,
-          placements: run.design.placements.map((placement) =>
-            placement.id === "L-wall"
-              ? { ...placement, body: { ...placement.body, widthMm: 450 } }
-              : placement,
-          ),
-        },
-        KITCHEN_L_BODY_CATALOG,
-      ),
-      ["R-base", "R-wall", "R-top"],
-    );
+/** A run of two 600 mm columns with one member of the left one narrowed to `oddWidthMm`, and the
+ *  right one emptied through the real delete. This is the shape `COLUMN_MEMBERS_UNALIGNED` used to
+ *  refuse: one column key holding two widths, reachable by inserting a 450 mm dishwasher into a
+ *  600 mm column's opening. */
+function mixedWidthColumn(oddWidthMm: number): KitchenWorld {
+  const run = runWorld([
+    { id: "L", alongMm: 1300, widthMm: 600 },
+    { id: "R", alongMm: 1900, widthMm: 600 },
+  ]);
+  return clearBodies(
+    createWorld(
+      {
+        ...run.design,
+        placements: run.design.placements.map((placement) =>
+          placement.id === "L-wall"
+            ? { ...placement, body: { ...placement.body, widthMm: oddWidthMm } }
+            : placement,
+        ),
+      },
+      KITCHEN_L_BODY_CATALOG,
+    ),
+    ["R-base", "R-wall", "R-top"],
+  );
+}
 
-    const result = resizeTo(mixed, "L-base", 800);
+describe("ADR 0035 decision 6 — a column whose members are not flush is squared up", () => {
+  it("brings every member to the requested width, the odd one included", () => {
+    // This used to be `COLUMN_MEMBERS_UNALIGNED`, on the argument that moving two boundaries would
+    // resize a body nobody selected. The owner overruled it on 2026-08-28: *"let's make them
+    // editable, I didn't get why we need to refuse."* A column is one width at every level, so the
+    // resize is what makes that true rather than what the mixed state forbids.
+    const result = resizeTo(mixedWidthColumn(450), "L-base", 800);
 
-    expect(result.ok).toBe(false);
-    if (!result.ok) expect(result.reason.code).toBe("COLUMN_MEMBERS_UNALIGNED");
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    for (const id of ["L-base", "L-wall", "L-top"]) {
+      expect(widthOf(result.design, id)).toBe(800);
+      // The **union** of the members' extents is what moves, so the held edge is the run's outer
+      // one at 1000 and not the narrow member's at 1075. Measuring from anything narrower would
+      // spend 150 mm the 600 mm members are standing in.
+      expect(spanMm(result.design, id)).toEqual([1000, 1800]);
+    }
+  });
+
+  it("squares up on a shrink too, and the odd member grows to meet it", () => {
+    // The direction that reads oddly and is the point: 450 → 500 is a **growth** for the member the
+    // customer can see, inside a **shrink** of the column that holds it.
+    const result = resizeTo(mixedWidthColumn(450), "L-base", 500);
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(widthOf(result.design, "L-wall")).toBe(500);
+    expect(widthOf(result.design, "L-base")).toBe(500);
+  });
+
+  it("never produces an off-grid width, whatever the column is standing at", () => {
+    // The one thing 5D2b must not do (M5 plan, wave 5D2b). Every resizable body in the shipped
+    // kitchen is already on the 50 mm grid — only the corners are off it and they are not resizable
+    // — so an off-grid width could only be *produced*, by taking the new width from the column's
+    // current extent rather than from its catalogue. It is not: `refuseIllegalWidth` gates on
+    // `intersectColumnWidths`, which is built from `resolveBuildableSizes`, which is the 50 mm
+    // ladder. A 570 mm member is the sharpest case, being what the corner returns are made at.
+    const world = mixedWidthColumn(570);
+
+    for (const widthMm of [500, 550, 570, 600, 620, 650, 800]) {
+      const result = resizeTo(world, "L-base", widthMm);
+      if (!result.ok) continue;
+      for (const id of ["L-base", "L-wall", "L-top"]) {
+        expect(widthOf(result.design, id) % 50).toBe(0);
+      }
+    }
+
+    // And the two off-grid taps are refused outright rather than rounded into something legal.
+    for (const offGridMm of [570, 620]) {
+      const result = resizeTo(world, "L-base", offGridMm);
+      expect(result.ok).toBe(false);
+      if (!result.ok) expect(result.reason.code).toBe("WIDTH_NOT_SUPPORTED");
+    }
   });
 });
 
@@ -768,7 +834,10 @@ describe("refusals", () => {
     const world = kitchen();
     for (const [placementId, widthMm] of [
       ["p8", 800],
-      ["p0", 600],
+      // `p10` 300 → 350 replaces `p0` 800 → 600 here: under ADR 0035 decision 7 that shrink now
+      // succeeds, and a sweep of refusals needs a tap that still refuses. Growth has no space to
+      // consume in a kitchen at load, which is the surviving half of ADR 0031's consequence.
+      ["p10", 350],
       ["p2", 600],
       ["p1", 500],
     ] as const) {

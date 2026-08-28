@@ -138,80 +138,16 @@ describe("no opening ever appears where a body physically stands", () => {
         }
       }
     }
-    // Named rather than counted, so the sweep cannot pass by accepting nothing — and so that what
-    // the shipped kitchen can actually reach after one delete is visible in the source. Each line
-    // is one *column* move, offered from every member of that column.
+    // **Counted here, and named in `qa-w5c.adversarial.test.ts`.** The list used to be spelled out
+    // in this file so the sweep could not pass by accepting nothing, and so that what the shipped
+    // kitchen reaches after one delete was visible in the source. ADR 0035 decision 7 took that
+    // population from 44 to 230 by making every shrink self-funding, and 230 lines of fixture in a
+    // test whose subject is a *phantom opening* buries the assertion above them.
     //
-    // Fifteen lines became thirty-three at ADR 0033 and forty-four at ADR 0035. Every new line is a
-    // column reaching a width its entry's old list did not carry — the eleven this wave adds are all
-    // at 700, which is the only width in this sweep that ADR 0035's step made modular. (The sweep's
-    // width list is fixed and predates the 50 mm grid; 500 and 550 are exercised where the pivot is,
-    // in `catalog.test.ts` and `set-width.test.ts`.) The invariant this test actually guards — no
-    // opening ever appears where a body stands — is unchanged, and now holds over three times the
-    // population it started with.
-    expect(accepted.sort()).toEqual(
-      [
-        "A|0.30:p10@200",
-        "A|0.30:p10@400",
-        "A|0.30:p10@450",
-        "A|0.30:p10@600",
-        "A|0.30:p16@200",
-        "A|0.30:p16@400",
-        "A|0.30:p16@450",
-        "A|0.30:p16@600",
-        "A|0.75:p0@600",
-        "A|0.75:p0@700",
-        "A|0.75:p11@600",
-        "A|0.75:p11@700",
-        "A|0.75:p15@200",
-        "A|0.75:p15@300",
-        "A|0.75:p15@400",
-        "A|0.75:p15@450",
-        "A|0.75:p17@600",
-        "A|0.75:p17@700",
-        "A|0.75:p8@200",
-        "A|0.75:p8@300",
-        "A|0.75:p8@400",
-        "A|0.75:p8@450",
-        "A|1.30:p10@400",
-        "A|1.30:p10@450",
-        "A|1.30:p10@600",
-        "A|1.30:p10@700",
-        "A|1.30:p10@800",
-        "A|1.30:p12@450",
-        "A|1.30:p16@400",
-        "A|1.30:p16@450",
-        "A|1.30:p16@600",
-        "A|1.30:p16@700",
-        "A|1.30:p16@800",
-        "A|1.30:p18@450",
-        "A|1.30:p1@450",
-        "A|2.00:p0@600",
-        "A|2.00:p0@700",
-        "A|2.00:p11@600",
-        "A|2.00:p11@700",
-        "A|2.00:p17@600",
-        "A|2.00:p17@700",
-        "A|2.60:p12@450",
-        "A|2.60:p14@300",
-        "A|2.60:p14@400",
-        "A|2.60:p14@450",
-        "A|2.60:p14@700",
-        "A|2.60:p14@800",
-        "A|2.60:p18@450",
-        "A|2.60:p1@450",
-        "A|2.60:p20@300",
-        "A|2.60:p20@400",
-        "A|2.60:p20@450",
-        "A|2.60:p20@700",
-        "A|2.60:p20@800",
-        "A|2.60:p4@300",
-        "A|2.60:p4@400",
-        "A|2.60:p4@450",
-        "A|2.60:p4@700",
-        "A|2.60:p4@800",
-      ].sort(),
-    );
+    // The itemisation did not go away: the adversarial file pins the 26 taps accepted at load, the
+    // 24 each clear gains, and the 2 lost to this very refusal, from the same width list. What is
+    // left here is the guard against a vacuous sweep, which is what the number was always for.
+    expect(accepted.length).toBe(230);
   });
 });
 

@@ -11,6 +11,7 @@ import {
   deriveColumns,
   derivePlacementRecords,
   DesignSchema,
+  EXTRACTOR_HOOD_KIND,
   KITCHEN_L_BODY_CATALOG,
   KITCHEN_L_DESIGN,
   removePlacement,
@@ -134,9 +135,14 @@ describe("every resize the shipped kitchen accepts survives a save and a reload"
             const body = reloaded.placements.find(
               (entry) => entry.id === id,
             )?.body;
-            expect(
-              KITCHEN_L_BODY_CATALOG.get(body?.buildId ?? "")?.insertable,
-            ).toBe(true);
+            const definition = KITCHEN_L_BODY_CATALOG.get(body?.buildId ?? "");
+            expect(definition?.insertable).toBe(true);
+            // **Except a hood**, which is a member of the column and exempt from its width (ADR
+            // 0035 decision 6): it re-centres on the resized run and keeps the width it had. Not
+            // reachable in the shipped kitchen — `A|2.60`'s hob base freezes the only hood there —
+            // but written as the rule rather than as an assumption about this fixture, because the
+            // sweep would otherwise assert the opposite of the decision the moment one is.
+            if (definition?.kind === EXTRACTOR_HOOD_KIND) continue;
             expect(body?.widthMm).toBe(widthMm);
           }
         }
@@ -147,7 +153,9 @@ describe("every resize the shipped kitchen accepts survives a save and a reload"
     // entries and a wall column stopped being bounded by which of the two its members happened to
     // be; forty-four once ADR 0035 replaced each entry's width list with a bound stepped at 50 mm,
     // which made 700 modular for cabinetry; fifty-nine once the owner retired ADR 0030's one-door
-    // cap and 450 joined every hinged row. The itemised list is in `resize-depth.test.ts`.
-    expect(swept).toHaveLength(59);
+    // cap and 450 joined every hinged row; **230 once ADR 0035 decision 7 made every shrink fund
+    // itself**, so the population stopped being "what a delete unlocks" and became "every legal
+    // move, plus what a delete unlocks". The itemised list is in `resize-depth.test.ts`.
+    expect(swept).toHaveLength(230);
   });
 });

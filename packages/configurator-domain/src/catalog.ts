@@ -239,6 +239,21 @@ const BASE_DEPTH_MM = 580;
  *  number by construction. Two independent literals agreeing at 400 is the defect this replaces. */
 const WALL_DEPTH_MM = wallDepthMmForWorktop(WORKTOP_DEPTH_MM);
 const HOOD_DEPTH_MM = 500;
+
+/** The `kind` a hood declares, and the **only** thing that identifies one to the resize path
+ *  (ADR 0035 decision 6 as amended 2026-08-28, ADR 0039 decision 4).
+ *
+ *  A hood is sized to the cooktop it extracts over, not to the run it hangs on, so it is exempt from
+ *  its column's width while staying an ordinary placement in that column — owner: *"without
+ *  separating it again from cabinets."* The exemption therefore has to be keyed off the hood's own
+ *  catalogue identity, which `kind` already is (ADR 0022: an entry declares what it is, nothing
+ *  infers it), and **not** off a new body kind or a per-placement flag: ADR 0038 deleted the
+ *  standalone-accessory machinery and this is not a reason to rebuild it.
+ *
+ *  Exported because three declarations have to agree on the string — the `hood` catalogue row, the
+ *  seeded `hood-600` instance, and `setWidth`'s exemption — and a literal repeated in three files is
+ *  how the fourth one gets it wrong. */
+export const EXTRACTOR_HOOD_KIND = "extractor_hood";
 const COLUMN_DEPTH_MM = 560;
 const FREESTANDING_FRIDGE_DEPTH_MM = 680;
 
@@ -445,7 +460,7 @@ export const INSERTABLE_BODY_DEFINITIONS: readonly (readonly [
     "hood",
     {
       ...wallCabinet("Hotă"),
-      kind: "extractor_hood",
+      kind: EXTRACTOR_HOOD_KIND,
       canFinish: false,
       canHandle: false,
       heightFlex: false,

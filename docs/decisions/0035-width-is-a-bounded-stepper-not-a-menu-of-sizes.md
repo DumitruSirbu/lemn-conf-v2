@@ -121,7 +121,8 @@ who answered: *"for hood there should not be any >800 mm width cabinet."* The 80
 universal, the hood included. N4 closes.
 
 **6. A column is one width at every level, except the hood.** Mixed widths do not exist. Where the
-shipped design holds them (`COLUMN_MEMBERS_UNALIGNED`, 15 lockouts), the resize **squares the column
+shipped design holds them (`COLUMN_MEMBERS_UNALIGNED`, **13** lockouts — this record said 15; the
+measurement at implementation was 13), the resize **squares the column
 up** rather than refusing it — owner: *"let's make them editable, I didn't get why we need to
 refuse."*
 
@@ -152,7 +153,15 @@ A consequence to state rather than discover: a column containing an appliance ca
 appliance's widths, and the whole column follows. Those columns show the discrete control of
 decision 3, not a stepper, and the reason is a fact about dishwashers rather than a refusal.
 
-**7. Shrinking a column creates empty space.** ADR 0031 funds a resize from an adjacent empty
+**7. Shrinking a column creates empty space.**
+
+**Shipped in wave 5D2b, 2026-08-28, and the measurement is the point of the decision.** The shipped
+kitchen went from **0 accepted resizes at load to 51**, every one of them a shrink — a customer can
+now change a width without deleting anything first, where ADR 0031's recorded consequence was that
+nothing was resizable until a whole column was cleared. §11 row 14 comes with it: the dishwasher
+column takes 450 from all three of its members at load, which until this wave needed three deletions
+first.
+ ADR 0031 funds a resize from an adjacent empty
 column and records that the "not representable" argument against generating one was wrong. The
 owner has now decided it: shrinking produces adjacent empty space. This is what makes the stepper
 usable at all — ADR 0031's consequence was that **nothing in the shipped kitchen is resizable until

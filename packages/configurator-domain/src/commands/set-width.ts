@@ -12,9 +12,26 @@
 // Every member's centre moves by the same amount, which is exactly why the rule fits §3.2's model —
 // no body leaves the column it is in, so the only column identity that moves is the whole column's
 // and the empty one's. See `rederiveTouchedColumns` in `void-engine.ts` for that half.
+//
+// ADR 0035 amends that rule in two places, both of them here.
+//
+// **Decision 6 — a column is one width at every level, except the hood.** A column whose members
+// stand at different widths used to refuse; it is now *squared up*, every member brought to the
+// requested width. The hood is exempt in both directions: it is sized to the cooktop it extracts
+// over rather than to the run it hangs on, so it neither narrows the column's widths nor takes
+// the new one — it keeps its own and re-centres over the run beneath it (ADR 0039 decision 4). It
+// stays an ordinary placement in its column while doing so; the exemption is from the width rule,
+// not from the model, and it is keyed off `EXTRACTOR_HOOD_KIND` rather than off any of the
+// standalone-accessory machinery ADR 0038 deleted.
+//
+// **Decision 7 — shrinking creates the empty space it needs.** ADR 0031 required an empty column to
+// already be there in both directions, whose recorded consequence was that nothing in the shipped
+// kitchen is resizable until something is deleted. A shrink now enters a new empty column at the
+// extent it vacates, so a customer can narrow one column and widen its neighbour afterwards.
 import type { BodyProbe } from "../body-probe.js";
 import {
   acceptsWidthMm,
+  EXTRACTOR_HOOD_KIND,
   resolveBuildableSizes,
   resolveCatalogEquivalent,
   resolveWidthRangesMm,
@@ -130,18 +147,45 @@ type Resolved<T> =
   | { readonly ok: true; readonly value: T }
   | { readonly ok: false; readonly detail: RejectionDetail };
 
-/** One member of the column, resolved to the §7 entry it will be rebuilt through. */
+/** One member of the column, resolved to the §7 entry it will be rebuilt through and to the two
+ *  integers its extent is read from.
+ *
+ *  `alongMm` and `widthMm` come from the **stored placement** rather than from the derived frame or
+ *  from `Column.w`: those are the integers the document holds, `Column.w` is the MIN over members
+ *  and can be stale after a delete, and a metre round trip would put a half-nanometre into a
+ *  coordinate that must stay exact. */
 interface ColumnMember {
   readonly record: PlacementRecord;
   readonly body: InsertableBody;
+  readonly alongMm: number;
+  readonly widthMm: number;
 }
 
-/** One body about to be rebuilt at a new width and a new centre. Under ADR 0031 every member of the
- *  column gets one of these and they all carry the **same** `widthMm` and the **same** `alongMm`. */
-interface Rebuild extends ColumnMember {
-  readonly widthMm: number;
-  readonly alongMm: number;
+/** A column split by ADR 0035 decision 6: the bodies the column's width governs, and the hoods it
+ *  does not. `members` is non-empty by construction — the selected body is always one of them. */
+interface ColumnUnit {
+  readonly members: readonly [ColumnMember, ...ColumnMember[]];
+  readonly hoods: readonly ColumnMember[];
 }
+
+/** What resolving a column's membership needs, and all it needs: the design the integers are read
+ *  from, the catalogue the entries resolve through, the records the column is filtered out of, and
+ *  the selected body's label, which every refusal is phrased in terms of. */
+interface ColumnContext {
+  readonly design: Design;
+  readonly catalog: BodyCatalog;
+  readonly records: readonly PlacementRecord[];
+  readonly label: string;
+}
+
+/** One body about to be rebuilt: the same `ColumnMember`, with `alongMm` and `widthMm` moved from
+ *  the values it is standing at to the ones it is going to.
+ *
+ *  Under ADR 0031 every member of the column carries the **same** `alongMm`, and under ADR 0035
+ *  decision 6 every member the column's width governs carries the **same** `widthMm` — that is what
+ *  squaring up is. A hood is the exception on the second half only: it takes the new centre and
+ *  keeps the width it had. */
+type Rebuild = ColumnMember;
 
 /** A run's extent along its wall, in the integer millimetres the document holds. */
 interface ExtentMm {
@@ -179,6 +223,9 @@ interface FrozenColumnMove {
 
 interface ColumnResize {
   readonly label: string;
+  /** The width the column was squared up to. Read from here rather than off the first `Rebuild`,
+   *  because that list also carries the hoods, which keep widths of their own. */
+  readonly widthMm: number;
   readonly members: readonly Rebuild[];
   readonly resized: FrozenColumnMove;
   readonly empty: FrozenColumnMove;
@@ -203,11 +250,16 @@ type ColumnResizeAttempt =
   | { readonly outcome: "refused"; readonly detail: RejectionDetail };
 
 /** Everything ADR 0031 decides **before** it knows which side will fund the move: the column, its
- *  members, its extent, and that the requested width is legal for all of them. */
+ *  members, its extent, and that the requested width is legal for all of them.
+ *
+ *  `members` are the bodies the column's width governs; `hoods` are the ones it does not (ADR 0035
+ *  decision 6 as amended). Only `members` narrow the width, only `members` set the extent, and both
+ *  lists are rebuilt — a hood at its own width and the run's new centre. */
 interface ColumnPlan {
   readonly label: string;
   readonly column: Column;
   readonly members: readonly ColumnMember[];
+  readonly hoods: readonly ColumnMember[];
   readonly extent: ExtentMm;
 }
 
@@ -282,7 +334,10 @@ export function columnWidthChoices(
   // rebuilt through. Asked here so the answer has one author — a
   // `fixedWidth` body still resolves a perfectly good set, and publishing chips for it would leave
   // §9's flag as the only thing standing between the customer and a section of dead controls.
-  if (!resolveResizableBody(input.catalog, record).ok) return undefined;
+  const selectedBody = resolveResizableBody(input.catalog, record);
+  if (!selectedBody.ok) return undefined;
+  const selected = toColumnMember(input.design, record, selectedBody.value);
+  if (!selected) return undefined;
 
   // The selected body's own set is the floor of what may be rendered, and the **only** thing whose
   // absence suppresses the section (FINDING R2.7). Resolved before the column, because everything
@@ -290,14 +345,20 @@ export function columnWidthChoices(
   const declared = resolveBuildableSizes(input.catalog, record.buildId);
   if (declared.length === 0) return undefined;
 
-  const members = resolveColumnMembers(
-    input.catalog,
-    records,
-    record,
-    describeRecordLabel(input.catalog, record),
+  // The **hood-exempt** membership, exactly as `setWidth` computes it (ADR 0035 decision 6): a hood
+  // standing in this column narrows nothing, and a column that holds one is no longer a column that
+  // cannot agree on a width.
+  const split = splitColumnMembers(
+    {
+      design: input.design,
+      catalog: input.catalog,
+      records,
+      label: describeRecordLabel(input.catalog, record),
+    },
+    selected,
   );
-  const intersected = members.ok
-    ? intersectColumnWidths(input.catalog, members.value)
+  const intersected = split.ok
+    ? intersectColumnWidths(input.catalog, split.value.members)
     : [];
   // **An empty intersection is not "no set" — it is a fact about the column, and ADR 0032 says a
   // fact about why this opening refuses gets rendered rather than dropped** (logic review L2).
@@ -306,8 +367,9 @@ export function columnWidthChoices(
   // holding an *unresizable* member fell back here and rendered the body's own widths, each blocked
   // with `COLUMN_MEMBER_NOT_RESIZABLE` — which is right. A column whose members are all resizable
   // but whose sets are **disjoint** returned `undefined`: no section, no sentence, and a
-  // `WIDTH_NOT_SUPPORTED` the engine had already computed thrown away. Reachable in two inserts —
-  // a `base-bottle-cargo` (200/300) under a `hood` (600–800) — with nothing wrong with either body.
+  // `WIDTH_NOT_SUPPORTED` the engine had already computed thrown away. It used to be reachable in
+  // two inserts — a `base-bottle-cargo` (200/300) under a `hood` (600–800) — and ADR 0035 decision 6
+  // has since taken the hood out of the membership, so that pair no longer disagrees about anything.
   //
   // So both fall back to the same place. What suppresses a section is missing catalogue data about
   // the body itself, never a disagreement between bodies.
@@ -342,21 +404,26 @@ function planColumnResize(
     };
   }
 
-  const members = resolveColumnMembers(input.catalog, records, record, label);
-  if (!members.ok) return members;
-
-  const extent = resolveColumnExtent(input.design, members.value);
-  if (!extent) {
+  const member = toColumnMember(input.design, record, selected.value);
+  if (!member) {
     return {
       ok: false,
-      detail: { code: "COLUMN_MEMBERS_UNALIGNED", params: { label } },
+      detail: { code: "COLUMN_MISMATCH", params: { label } },
     };
   }
 
-  const illegal = refuseIllegalWidth(input, label, members.value, extent);
+  const split = splitColumnMembers(
+    { design: input.design, catalog: input.catalog, records, label },
+    member,
+  );
+  if (!split.ok) return split;
+  const { members, hoods } = split.value;
+
+  const extent = resolveColumnExtent(members);
+  const illegal = refuseIllegalWidth(input, label, members, extent);
   if (illegal) return { ok: false, detail: illegal };
 
-  return { ok: true, value: { label, column, members: members.value, extent } };
+  return { ok: true, value: { label, column, members, hoods, extent } };
 }
 
 /** §9's `canWidth` read from the engine's end, for the body the customer actually selected: a
@@ -383,31 +450,119 @@ function resolveResizableBody(
   };
 }
 
-/** ADR 0031 rule 1: the scope is the column, so **every** member has to be rebuildable, not just
- *  the one that was tapped. A corner, an appliance or a hob standing at any level of the column
- *  stops the whole move — and the refusal names that body rather than the selected one, because the
- *  customer is looking at something else entirely and needs to be told what is in the way. */
-function resolveColumnMembers(
-  catalog: BodyCatalog,
-  records: readonly PlacementRecord[],
-  record: PlacementRecord,
-  label: string,
-): Resolved<readonly ColumnMember[]> {
-  const members: ColumnMember[] = [];
-  for (const member of columnMembers(records, record.col)) {
-    const body = resolveResizableBody(catalog, member);
-    if (!body.ok) {
-      return {
-        ok: false,
-        detail: {
-          code: "COLUMN_MEMBER_NOT_RESIZABLE",
-          params: { label, memberLabel: memberLabelOf(body.detail, label) },
-        },
-      };
-    }
-    members.push({ record: member, body: body.value });
+/** ADR 0031 rule 1 as ADR 0035 decision 6 amends it: the scope is the column, so **every** member
+ *  has to be rebuildable — **except the hood, which the column's width does not govern at all**.
+ *
+ *  A corner, an appliance or a hob standing at any level stops the whole move, and the refusal names
+ *  that body rather than the selected one, because the customer is looking at something else
+ *  entirely and needs to be told what is in the way.
+ *
+ *  **The hood is the one member that is neither.** It is sized to the cooktop it extracts over, not
+ *  to the run it hangs on (owner, 2026-08-28: *"the cabinets is resizable but the hood over it
+ *  should remain same size"*), so it does not narrow the column's widths, it does not stop the move,
+ *  and it does not take the new width. It still **moves**: it re-centres over the run beneath it
+ *  (ADR 0039 decision 4), which is why it comes back in a list of its own rather than being dropped.
+ *  A hood that cannot be rebuilt at all still refuses the move, because re-centring it is not
+ *  optional.
+ *
+ *  It stays an ordinary placement in its column throughout — the exemption is from the width rule,
+ *  not from the model. See `EXTRACTOR_HOOD_KIND` for why the test is a `kind` and not a new flag.
+ *
+ *  **The exemption is about the hood's siblings, not about the hood itself.** It answers what
+ *  happens to a hood when *something else* is resized, which is the whole of what ADR 0035 decision
+ *  6 and ADR 0039 decision 4 decide. A customer selecting the hood and choosing its own width is
+ *  decision 5's control, and what should happen to the run underneath then — nothing, most likely —
+ *  is **not decided by any record**. So the selected body is always a full member of its column,
+ *  hood or not, and that path behaves exactly as it did before this wave. Flagged for the owner
+ *  rather than answered here; the shipped `hood-600` is `fixedWidth`, so nothing reachable today
+ *  depends on the answer. */
+function splitColumnMembers(
+  context: ColumnContext,
+  selected: ColumnMember,
+): Resolved<ColumnUnit> {
+  const members: [ColumnMember, ...ColumnMember[]] = [selected];
+  const hoods: ColumnMember[] = [];
+  for (const sibling of columnMembers(context.records, selected.record.col)) {
+    if (sibling.id === selected.record.id) continue;
+    const member = resolveMember(context, sibling);
+    if (!member.ok) return member;
+    (isHood(sibling) ? hoods : members).push(member.value);
   }
-  return { ok: true, value: members };
+  return { ok: true, value: { members, hoods } };
+}
+
+/** A record and its resolved entry, joined to the two integers the extent is read from. `undefined`
+ *  only where a derived record has no placement behind it, which the derivation makes impossible —
+ *  every caller turns it into `COLUMN_MISMATCH` rather than assuming it away. */
+function toColumnMember(
+  design: Design,
+  record: PlacementRecord,
+  body: InsertableBody,
+): ColumnMember | undefined {
+  const placement = findPlacement(design, record.id);
+  if (!placement) return undefined;
+  return {
+    record,
+    body,
+    alongMm: placement.alongMm,
+    widthMm: placement.body.widthMm,
+  };
+}
+
+/** One **sibling** of the selected body, resolved the same way — the selected body itself comes in
+ *  already resolved, because §9's `canWidth` is answered on it by the caller.
+ *
+ *  A hood is asked only whether it can be **rebuilt**, never whether it can be **resized**: it keeps
+ *  the width it has, so `fixedWidth` is not a fact about it that this move can violate. That is what
+ *  lets the seeded `hood-600` — `fixedWidth: true` — re-centre over a run that resized under it. */
+function resolveMember(
+  context: ColumnContext,
+  record: PlacementRecord,
+): Resolved<ColumnMember> {
+  const { catalog, label } = context;
+  const body = isHood(record)
+    ? resolveRebuildableHood(catalog, record)
+    : resolveResizableBody(catalog, record);
+  if (!body.ok) {
+    return {
+      ok: false,
+      detail: {
+        code: "COLUMN_MEMBER_NOT_RESIZABLE",
+        params: { label, memberLabel: memberLabelOf(body.detail, label) },
+      },
+    };
+  }
+  const member = toColumnMember(context.design, record, body.value);
+  if (!member) {
+    return {
+      ok: false,
+      detail: { code: "COLUMN_MISMATCH", params: { label } },
+    };
+  }
+  return { ok: true, value: member };
+}
+
+function resolveRebuildableHood(
+  catalog: BodyCatalog,
+  record: PlacementRecord,
+): Resolved<InsertableBody> {
+  const body = resolveRebuildBody(catalog, record);
+  if (body) return { ok: true, value: body };
+  return {
+    ok: false,
+    detail: {
+      code: "NOT_RESIZABLE",
+      params: { label: describeRecordLabel(catalog, record) },
+    },
+  };
+}
+
+/** ADR 0035 decision 6 as amended, and ADR 0039 decision 4: the exemption is keyed off the hood's
+ *  declared catalogue identity and nothing else. Deliberately **not** a `PlacementRecord` flag —
+ *  ADR 0038 deleted the standalone-accessory machinery and the owner asked for this "without
+ *  separating it again from cabinets". */
+function isHood(record: PlacementRecord): boolean {
+  return record.kind === EXTRACTOR_HOOD_KIND;
 }
 
 /** `resolveResizableBody`'s refusal already carries the member's own name; this reads it back out
@@ -424,35 +579,36 @@ function columnMembers(
   return records.filter((record) => record.col === col);
 }
 
-/** The column's own extent, and the precondition ADR 0031's arithmetic leaves implicit: its members
- *  must start **flush**. "All members' centres move by the same amount" is only a boundary move if
- *  they share a boundary to begin with, and a column whose members sit at different widths has two.
+/** The span the column's members occupy along their wall: **the union of their extents**, from the
+ *  leftmost left edge to the rightmost right edge.
  *
- *  Reachable rather than theoretical — insert a 450 mm dishwasher into a 600 mm column's opening and
- *  the column holds a 450 and a 600 under one key. `undefined` refuses; squaring the column up
- *  silently would resize a body the customer did not select, which is the one thing ADR 0031 exists
- *  to prevent.
+ *  This used to require them to be **flush** and refuse `COLUMN_MEMBERS_UNALIGNED` otherwise — 13
+ *  lockouts in the shipped design, reachable by inserting a 450 mm dishwasher into a 600 mm column's
+ *  opening. **ADR 0035 decision 6 retires that refusal**: a resize now *squares the column up*,
+ *  bringing every member to the target width. Owner, 2026-08-28: *"let's make them editable, I
+ *  didn't get why we need to refuse."*
  *
- *  Read from the stored placements rather than from the derived frames or from `Column.w`: those are
- *  the integers the document holds, `Column.w` is the MIN over members and can be stale after a
- *  delete, and a metre round trip would put a half-nanometre into a coordinate that must stay exact. */
+ *  The union rather than the widest member or the selected one, and the difference is space
+ *  accounting rather than taste. The delta this move takes from the adjacent empty column is
+ *  `target − extent.widthMm`, and the empty column abuts the run at the union's edge — so measuring
+ *  the extent from anything narrower would spend space a member of this very column is standing in,
+ *  and the two runs would overlap by exactly the amount the narrowest member was out by.
+ *
+ *  Hoods are not in `members` and so are not in the union: a hood may overhang the run it hangs on
+ *  and it neither funds nor consumes the run's space (ADR 0035 decision 6 as amended).
+ *
+ *  Total by construction, where the old one had a refusal branch: `members` is non-empty because the
+ *  selected body is always one of them. */
 function resolveColumnExtent(
-  design: Design,
-  members: readonly ColumnMember[],
-): ExtentMm | undefined {
-  const placements = members.map((member) =>
-    findPlacement(design, member.record.id),
+  members: readonly [ColumnMember, ...ColumnMember[]],
+): ExtentMm {
+  const leftMm = Math.min(
+    ...members.map((member) => member.alongMm - member.widthMm / 2),
   );
-  const first = placements[0];
-  if (!first) return undefined;
-  const flush = placements.every(
-    (placement) =>
-      placement !== undefined &&
-      placement.alongMm === first.alongMm &&
-      placement.body.widthMm === first.body.widthMm,
+  const rightMm = Math.max(
+    ...members.map((member) => member.alongMm + member.widthMm / 2),
   );
-  if (!flush) return undefined;
-  return { centreMm: first.alongMm, widthMm: first.body.widthMm };
+  return { centreMm: (leftMm + rightMm) / 2, widthMm: rightMm - leftMm };
 }
 
 /** The §7 entry a body would be rebuilt through, in its insertable shape. A resize rebuilds through
@@ -493,7 +649,15 @@ function describeRecordLabel(
  *
  *  Refusing the width the column already sits at is what keeps §9's tri-state honest: `active` and
  *  `free` are different states, and "a chip is free iff the command succeeds" is only true if the
- *  command refuses at the current width. */
+ *  command refuses at the current width.
+ *
+ *  **"The width it sits at" is the extent's, not the selected body's**, and under ADR 0035 decision
+ *  6's square-up those can differ: a column holding a 450 under a 600 has an extent of 600, so 600
+ *  is `WIDTH_UNCHANGED` even though squaring up at it would move the 450. Right on both counts — the
+ *  extent is the space the run occupies, and a move that changes it by nothing has no boundary to
+ *  push and no empty column to push it into. The stepper never asks for it either: it offers ±50
+ *  from the **selected** body's width, so from the 450 it asks 400 or 500 and from the 600 it asks
+ *  550 or 650, and each of those does move the extent. */
 function refuseIllegalWidth(
   input: SetWidthInput,
   label: string,
@@ -530,9 +694,12 @@ function refuseIllegalWidth(
  *  widths the column really does accept (5D2a QA finding B1, on the insert path; product-logic
  *  review R1.1, which found the resize path still doing it).
  *
- *  Empty when the members share no overlap at all, which is the disjoint case
- *  `COLUMN_MEMBERS_UNALIGNED` and the chip list already describe; the sentence then falls back to
- *  the chips, which is the truthful thing to say when there is no common bound. */
+ *  Empty when the members share no overlap at all. The one worked example this comment used to give
+ *  — a `base-bottle-cargo` (200–300) under a `hood` (600–800) — stopped being one under ADR 0035
+ *  decision 6: a hood is not a member for width purposes, so it can no longer be half of a disjoint
+ *  pair. The branch stays because the intersection of declared ranges is not the engine's to assume
+ *  non-empty; the sentence then falls back to the chips, which is the truthful thing to say when
+ *  there is no common bound. */
 function intersectColumnRanges(
   members: readonly ColumnMember[],
 ): readonly WidthRangeMm[] {
@@ -603,8 +770,7 @@ function fundColumnResize(
   // resize is answerable for the overlaps it creates and for no others (logic review R1.7).
   const covered = bodiesUnderOpenings(records, input.columns);
   const refusedSides: EmptySpaceSide[] = [];
-  for (const side of EMPTY_SPACE_ORDER) {
-    const space = evaluateEmptySpace(input, records, plan, side);
+  for (const { side, space } of fundingScan(input, records, plan)) {
     if (!space.ok) {
       refusedSides.push({ side, reason: space.reason });
       continue;
@@ -624,6 +790,116 @@ function fundColumnResize(
   }
   return refuse(input.design, refuseNoSideFunds(input, plan, refusedSides));
 }
+
+/** One entry in the scan `fundColumnResize` walks: a side, and what it offers to fund the move. */
+interface FundingAttempt {
+  readonly side: Side;
+  readonly space: EmptySpaceEvaluation;
+}
+
+/** Where the width comes from, in the order it is looked for.
+ *
+ *  **ADR 0031 rule 3 first**: an empty column that is already there is narrowed by a growth and
+ *  widened by a shrink. **ADR 0035 decision 7 second**: a shrink that finds no empty column at all
+ *  *creates* one out of the space it vacates.
+ *
+ *  Decision 7 is what makes the stepper usable. ADR 0031's recorded consequence was that **nothing
+ *  in the shipped kitchen is resizable until something is deleted** — it loads with no empty column
+ *  — so every `−50` would have been disabled on a design nobody had edited yet, and width editing
+ *  stayed a second step of deleting. ADR 0031's own correction had already conceded the ground: it
+ *  called creating a column "not representable", then noted that `moveFrozenColumns` synthesises one
+ *  at a derived key on every legal resize. This spends exactly that machinery.
+ *
+ *  Ordered rather than chosen, and returning space to an existing opening wins: stepping a column
+ *  down and back up puts the width back where it came from instead of leaving a sliver beside a
+ *  widened opening.
+ *
+ *  **Creation is a last resort, not a fallback.** It is offered only when neither side has an empty
+ *  column at all — not when one has one that then refuses. A shrink stopped by `RESIZE_OPENS_GAP`
+ *  could technically be rescued by splitting a fresh strip off beside the opening that caused it,
+ *  and that is a wider change than decision 7 makes: the decision is about a kitchen with no empty
+ *  column anywhere, which is the state the shipped design loads in. */
+function fundingScan(
+  input: SetWidthInput,
+  records: readonly PlacementRecord[],
+  plan: ColumnPlan,
+): readonly FundingAttempt[] {
+  const existing = EMPTY_SPACE_ORDER.map((side) => ({
+    side,
+    space: evaluateEmptySpace(input, records, plan, side),
+  }));
+  if (existing.some((attempt) => attempt.space.ok)) return existing;
+
+  const created = vacatedEmptySpace(input, plan);
+  if (!created) return existing;
+  return [
+    ...existing,
+    { side: created.side, space: { ok: true, value: created } },
+  ];
+}
+
+/** ADR 0035 decision 7: the empty column a **shrink** brings into existence, expressed as the same
+ *  `EmptySpace` an existing one produces so that `planMoves` needs no second arithmetic.
+ *
+ *  It starts as a zero-width column sitting exactly on the run's `VACATED_SPACE_SIDE` edge, and the
+ *  remainder it is left at is the whole of what the shrink gives back. `planMoves` then holds that
+ *  edge as the empty column's *far* edge and holds the run's opposite edge, so the new opening is
+ *  precisely the strip the members withdrew from and the run total is conserved exactly as it is
+ *  for an existing column.
+ *
+ *  **`MIN_W` deliberately does not apply here.** ADR 0031 refuses to *leave* an empty column between
+ *  0 and 300 mm on the way through, on the grounds that an unusable sliver is not a state to create.
+ *  A 50 mm step creates one every single time, so applying that floor here would disable the whole
+ *  stepper — and the owner has since decided the other way round: an opening no cabinet fits "is ok
+ *  to have empty space left" (ADR 0037). The floor stays where it was, on a growth consuming space
+ *  that was already there.
+ *
+ *  `undefined` on a growth, which has nothing to vacate, and on a delta of zero.
+ *
+ *  **And `undefined` when the strip's key is one the frozen map already holds**, which is the one
+ *  way this can go wrong and is not theoretical: measured on the shipped kitchen, narrowing `A|0.30`
+ *  to 300 vacates 0.30–0.60, whose centre keys as `A|0.45` — the corner leg `p25`'s column, 900 mm
+ *  wide and spanning the whole of it. §3.2's columns may overlap along the wall, so a strip inside
+ *  another column's extent is a legal piece of geometry; what is not legal is *writing* it into the
+ *  map, because `moveFrozenColumns` would replace the corner's frozen extent with a 300 mm one and
+ *  ADR 0011 Gap D's regions would go with it.
+ *
+ *  Refused rather than merged, and rather than nudged to a free key. Merging is the open question
+ *  M5 records under *Not established* — "whether a resize should merge into an existing column key
+ *  or refuse" — and this is not the wave to answer it; nudging would put the empty column somewhere
+ *  the customer's cabinets did not vacate. The shrink simply does not happen, under `NO_EMPTY_SPACE`
+ *  with both sides recorded absent, which is the truth: there is nowhere to put the space. */
+function vacatedEmptySpace(
+  input: SetWidthInput,
+  plan: ColumnPlan,
+): EmptySpace | undefined {
+  const vacatedMm = plan.extent.widthMm - input.widthMm;
+  if (vacatedMm <= 0) return undefined;
+
+  const farEdgeMm = plan.extent.centreMm + plan.extent.widthMm / 2;
+  const centreM = toMetres(farEdgeMm - vacatedMm / 2);
+  if (input.columns.has(deriveColumnKeyAt(plan.column.wall, centreM))) {
+    return undefined;
+  }
+
+  return {
+    // The strip was this column's, so it inherits this column's frozen facts — `regions`, `top`,
+    // `d` and `ry` — which is what ADR 0011 Gap D requires of any column entered into the map.
+    column: plan.column,
+    side: VACATED_SPACE_SIDE,
+    extent: {
+      centreMm: plan.extent.centreMm + plan.extent.widthMm / 2,
+      widthMm: 0,
+    },
+    remainderMm: vacatedMm,
+  };
+}
+
+/** Which end of the run a shrink vacates when nothing else decides it. Arbitrary in the way
+ *  `EMPTY_SPACE_ORDER` is arbitrary, and fixed for the same reason: the same design must always
+ *  resize the same way. It matches that order's first side, so a column stepped down and back up
+ *  returns to where it started. */
+const VACATED_SPACE_SIDE: Side = "right";
 
 /** Which of the two codes the customer reads, once both sides have answered.
  *
@@ -766,12 +1042,22 @@ function planMoves(
 
   return refuseFractionalCentres({
     label: plan.label,
+    widthMm: input.widthMm,
     side: empty.side,
-    members: plan.members.map((member) => ({
-      ...member,
-      widthMm: input.widthMm,
-      alongMm,
-    })),
+    members: [
+      // The column's own members are **squared up** to the requested width, whatever they were
+      // standing at (ADR 0035 decision 6).
+      ...plan.members.map((member) => ({
+        ...member,
+        widthMm: input.widthMm,
+        alongMm,
+      })),
+      // A hood keeps its own width and **re-centres over the run beneath it** (ADR 0035 decision 6
+      // as amended, ADR 0039 decision 4). One rule covers both directions of that: a hood's centre
+      // is the run's centre and its width is its own, so resizing the run moves it without
+      // stretching it, and resizing the hood changes its width without moving anything under it.
+      ...plan.hoods.map((hood) => ({ ...hood, alongMm })),
+    ],
     // Both columns move as frozen extents, and for the same reason — see `FrozenColumnMove`.
     resized: {
       column: plan.column,
@@ -879,7 +1165,7 @@ function resizedEffect(
     type: "body_resized",
     placementId: record.id,
     buildId: selected?.body.buildId ?? record.buildId,
-    widthMm: move.members[0]?.widthMm ?? record.widthMm,
+    widthMm: move.widthMm,
     columnPlacementIds: move.members.map((member) => member.record.id),
     emptyColumnKey: move.empty.column.key,
     ...(move.empty.widthMm > 0
@@ -1069,6 +1355,16 @@ function bodiesUnderOpenings(
   const covered = new Set<string>();
   for (const opening of recomputeVoids(records, columns)) {
     for (const record of records) {
+      // **A hood is not a body an opening "appears where".** It hangs *over* the run rather than
+      // sitting in it (ADR 0039), and ADR 0035 decision 6 makes that structural: it keeps its own
+      // width while the cabinets beneath it change, so a hood wider than its run overhangs whatever
+      // is beside it by construction. Every shrink of a column holding one would otherwise refuse —
+      // measured: a 600 mm hood over a run narrowing 600 → 550 overhangs the 50 mm strip the shrink
+      // just vacated, and the phantom test would read that as an opening arriving over a body.
+      //
+      // Excluded from the *before* set as well as the *after* one, so the comparison stays a
+      // difference (logic review R1.7) rather than becoming a rule about the world.
+      if (isHood(record)) continue;
       if (standsInOpening(record, opening)) covered.add(record.id);
     }
   }

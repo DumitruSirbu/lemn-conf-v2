@@ -1,10 +1,10 @@
 // Adversarial QA on wave 5D's width chips, in the one state the implementer's sweeps never enter:
 // a kitchen where a chip is actually **free**.
 //
-// `width-chips.adversarial.test.ts` sweeps the shipped kitchen, which has no empty column at load,
-// so its `free` count is zero — and its read-only sweep therefore proves only that already-disabled
-// chips stay disabled. Everything below deletes a column first, so the `free` state exists and the
-// rules about it are tested rather than skipped.
+// `width-chips.adversarial.test.ts` sweeps the shipped kitchen, which has no empty column at load.
+// Its `free` count was zero until ADR 0035 decision 7 made a shrink fund itself, and is 51 now — so
+// the two files no longer differ in *whether* a chip can be free, but in what a delete buys on top:
+// everything below clears a column first, so the growths exist as well as the shrinks.
 import {
   deriveColumns,
   derivePlacementRecords,
@@ -112,24 +112,64 @@ describe("the free state exists, and the rules about it are the ones §9 wrote d
     const free = allChips(openKitchen()).filter(
       ({ chip }) => chip.state === "free",
     );
-    // Three chips until ADR 0035 decision 2, and twelve after: the emptied column funds the same
-    // one move on `A|1.30`, and the sink base's bound now offers 650, 700 and 750 inside it where a
-    // hand-maintained `[600, 800]` offered nothing between. Itemised rather than counted so a
-    // different twelve fails here.
+    // **Three chips until ADR 0035 decision 2, twelve after it, and forty-eight after decision 7.**
+    // Decision 2 was a finer grid over the same one move — the sink base's bound offers 650, 700 and
+    // 750 where a hand-maintained `[600, 800]` offered nothing between. Decision 7 is a different
+    // kind of change: a shrink funds itself out of the space it vacates, so every column offers its
+    // own narrowings and not only the one the clear funds. The twelve that were here are all still
+    // here; the thirty-six that joined them are shrinks in columns the clear does not touch.
+    //
+    // Itemised rather than counted, so a different forty-eight fails.
     expect(free.map(({ id, chip }) => `${id}@${String(chip.widthMm)}`)).toEqual(
       [
         "p0@600",
         "p0@650",
         "p0@700",
         "p0@750",
+        "p4@300",
+        "p4@350",
+        "p4@400",
+        "p4@450",
+        "p4@500",
+        "p4@550",
+        "p8@200",
+        "p8@250",
+        "p8@350",
+        "p8@400",
+        "p8@450",
+        "p8@500",
+        "p8@550",
+        "p10@200",
+        "p10@250",
         "p11@600",
         "p11@650",
         "p11@700",
         "p11@750",
+        "p14@300",
+        "p14@350",
+        "p14@400",
+        "p14@450",
+        "p14@500",
+        "p14@550",
+        "p15@200",
+        "p15@250",
+        "p15@350",
+        "p15@400",
+        "p15@450",
+        "p15@500",
+        "p15@550",
+        "p16@200",
+        "p16@250",
         "p17@600",
         "p17@650",
         "p17@700",
         "p17@750",
+        "p20@300",
+        "p20@350",
+        "p20@400",
+        "p20@450",
+        "p20@500",
+        "p20@550",
       ],
     );
   });
@@ -210,7 +250,7 @@ describe("read-only wins over free, which is the case the shipped-kitchen sweep 
       expect([key, chip.reason === undefined]).toEqual([key, false]);
       if (chip.state === "free") freeChips += 1;
     }
-    expect(freeChips).toBe(12);
+    expect(freeChips).toBe(48);
   });
 
   it("never leaks a refusal sentence under read-only", () => {
@@ -257,16 +297,17 @@ describe("the dishwasher column's section, which is no longer one chip", () => {
   // the section has something to offer. **This is §11 row 14 arriving in the panel** — "dishwasher
   // niche: only 450 / 600" is now true of the column and not only of the entry.
   //
-  // 450 is `blocked` rather than `free` in the shipped kitchen for a reason that has nothing to do
-  // with door counts: nothing is empty at load, so ADR 0031 has no space to fund the move. The
-  // command's own acceptance is asserted in the domain
-  // (`packages/configurator-domain/tests/commands/insert-resize-width-agreement.test.ts`).
+  // **450 is `free` rather than `blocked` since ADR 0035 decision 7**, and that completes the row.
+  // It was blocked for a reason with nothing to do with door counts — nothing is empty at load, so
+  // ADR 0031 had no space to fund the move — and 450 is a *narrowing* of 600, which now funds itself
+  // out of the 150 mm the column gives back. So the shipped kitchen offers the niche's second width
+  // on a design nobody has edited, which is as close to §11 row 14 as the panel can get.
   it.each(["p1", "p12", "p18"])(
     "renders %s the niche's two widths, with its own the active one",
     (id) => {
       const section = widthSectionAt(worldFrom(KITCHEN_L_DESIGN), id);
       expect(section?.chips.map((chip) => [chip.widthMm, chip.state])).toEqual([
-        [450, "blocked"],
+        [450, "free"],
         [600, "active"],
       ]);
     },

@@ -1,4 +1,7 @@
-import { INSERTABLE_BODY_DEFINITIONS } from "../catalog.js";
+import {
+  EXTRACTOR_HOOD_KIND,
+  INSERTABLE_BODY_DEFINITIONS,
+} from "../catalog.js";
 import type { Design, DesignPlacement } from "../design.js";
 import type { BodyCatalog, BodyDefinition } from "../void-engine.js";
 
@@ -269,7 +272,7 @@ const SEEDED_BODY_DEFINITIONS: readonly (readonly [string, BodyDefinition])[] =
       "hood-600",
       {
         ...wallCarcass,
-        kind: "extractor_hood",
+        kind: EXTRACTOR_HOOD_KIND,
         // A hood is a canopy and a chimney: no front, so nothing for a finish chip to recolour.
         // Same correction as `open-shelf-600` above, matching the `hood` catalogue row.
         canFinish: false,

@@ -106,9 +106,12 @@ describe("tapping a chip does what the chip said it would", () => {
     expect(disagreements).toEqual([]);
     // Non-vacuity in both directions: the sweep has to have tapped something that worked and
     // something that did not, or it proves nothing about either. Three until ADR 0035 decision 2
-    // stepped each entry's bound at 50 mm; the emptied column funds the same one move and now offers
-    // twelve widths inside it.
-    expect(applied).toBe(12);
+    // stepped each entry's bound at 50 mm and the emptied column's one move offered twelve widths
+    // inside it; **48 since decision 7**, which funds a shrink out of the space it vacates, so every
+    // column in the kitchen contributes its own narrowings rather than only the one beside the
+    // clear. The same 48 the panel renders free (`width-chips.qa.test.ts`), reached here through the
+    // store's action instead of through the section.
+    expect(applied).toBe(48);
     expect(taps).toBeGreaterThan(40);
   });
 

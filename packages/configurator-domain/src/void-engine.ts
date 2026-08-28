@@ -28,8 +28,13 @@ export const MIN_SPAN_M = 0.3;
  *
  *  ADR 0031 reads this constant for a different subject than §5.4 did. There is no donor any more,
  *  so nothing is left narrow as the residue of somebody else's edit; what this floors now is the
- *  **empty column** a resize eats into, which may be consumed exactly to zero but must never be
- *  left as a sliver under 300 mm that nothing can be inserted into. */
+ *  **empty column a resize eats into**, which may be consumed exactly to zero but must never be
+ *  left as a sliver under 300 mm that nothing can be inserted into.
+ *
+ *  **It floors consuming, never creating** (ADR 0035 decision 7). A shrink that makes its own empty
+ *  column makes one 50 mm wide on the first step, and applying this floor there would disable the
+ *  stepper outright; the owner has ruled that an opening no cabinet fits may simply be left
+ *  (ADR 0037). `set-width.ts` says which side of that line each check is on. */
 export const MIN_WIDTH_M = 0.3;
 
 /** `DEVELOPMENT-SPEC.md` §2's `TOL`: the slack every width and height comparison uses. Frame
@@ -279,7 +284,11 @@ export class UnknownBodyError extends Error {
  *  Exported because ADR 0031's resize moves an **empty** column, which by definition has no member
  *  to derive a key from — its extent is frozen (ADR 0011 Gap D) and its width is what moves. Its new
  *  key has to be derived the same way every occupied column's is, or a body later inserted into it
- *  lands under a key the map does not hold and `insertBody` refuses `COLUMN_MISMATCH`. */
+ *  lands under a key the map does not hold and `insertBody` refuses `COLUMN_MISMATCH`.
+ *
+ *  ADR 0035 decision 7 gives it a second caller for the same reason: a shrink *creates* an empty
+ *  column at the extent it vacates, and that column has no member either. `set-width.ts` also uses
+ *  it to ask whether the key it is about to create is one the map already holds. */
 export function deriveColumnKeyAt(wall: DesignWall, alongM: number): string {
   return `${wall === "B" ? "B|" : "A|"}${alongM.toFixed(2)}`;
 }

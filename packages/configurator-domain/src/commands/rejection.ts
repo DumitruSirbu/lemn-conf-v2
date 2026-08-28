@@ -163,6 +163,13 @@ export type RejectionDetail =
    *  engine's own half of the same rule rather than a second one. */
   | { readonly code: "NOT_RESIZABLE"; readonly params: LabelParams }
   | { readonly code: "WIDTH_UNCHANGED"; readonly params: CurrentWidthParams }
+  /** ADR 0031 rule 2: the move needs an adjacent empty column and there is not one.
+   *
+   *  **ADR 0035 decision 7 narrowed what reaches this to growth, near enough.** A shrink now creates
+   *  the empty column it needs out of the extent it vacates, so "nowhere to take the width from" is
+   *  a fact about growing into a full run. The one shrink that still lands here is the one whose
+   *  vacated strip would key onto a column the frozen map already holds — the corner leg's, measured
+   *  — and the sentence is honest for it too: there is nowhere to put the space. */
   | { readonly code: "NO_EMPTY_SPACE"; readonly params: EmptySpaceParams }
   /** ADR 0031 rule 1 read from the engine's end: the column holds a body that cannot change width
    *  — a corner, an appliance, a `fixedWidth` entry, or one with no §7 equivalent — so the column
@@ -171,12 +178,6 @@ export type RejectionDetail =
       readonly code: "COLUMN_MEMBER_NOT_RESIZABLE";
       readonly params: ColumnMemberParams;
     }
-  /** ADR 0031's arithmetic has a precondition its prose leaves implicit: every member of the column
-   *  moves by the **same** amount, which is only meaningful if they start flush. A column whose
-   *  members sit at different widths or different centres — reachable by inserting a 450 mm
-   *  dishwasher into a 600 mm column's void — has no single boundary to move, so it is refused
-   *  rather than silently squared up. */
-  | { readonly code: "COLUMN_MEMBERS_UNALIGNED"; readonly params: LabelParams }
   /** **Re-stated by ADR 0031, not deleted.** It used to refuse whenever the derived opening set
    *  changed at all; under ADR 0031 that happens on *every* legal resize, because the empty column
    *  funding it shrinks. The defect it guards is unchanged and still live, so it is now that
@@ -350,8 +351,6 @@ export function renderRejection(detail: RejectionDetail): string {
       return renderNoEmptySpace(detail.params);
     case "COLUMN_MEMBER_NOT_RESIZABLE":
       return `„${detail.params.label}” nu poate fi redimensionat: în aceeași coloană stă „${detail.params.memberLabel}”, care nu își poate schimba lățimea.`;
-    case "COLUMN_MEMBERS_UNALIGNED":
-      return `„${detail.params.label}” nu poate fi redimensionat: corpurile din această coloană nu sunt aliniate.`;
     case "RESIZE_OPENS_GAP":
       return renderResizeOpensGap(detail.params);
     case "NON_INTEGER_MILLIMETRES":

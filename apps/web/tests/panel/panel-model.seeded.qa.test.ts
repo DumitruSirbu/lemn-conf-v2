@@ -255,26 +255,40 @@ describe("the width section over the real kitchen", () => {
     expect(rendered).toEqual(SEEDED_IDS_WITH_A_WIDTH_SECTION);
   });
 
-  // **Turned over in wave 5D, and the reason it turned over changed rather than the number.** M4
-  // pinned "never free" because no resize command existed. `setWidth` exists now and these chips
-  // carry its real verdicts — yet still none is free, because ADR 0031 funds a resize from an
-  // adjacent column that is empty **at every level**, and clearing p1, p7, p12 and p24 empties no
-  // column: p12 and p18 still stand in `A|2.00`, p23 in `B|1.80`, and so on.
+  // **Turned over twice, and the second time it turned the other way.** M4 pinned "never free"
+  // because no resize command existed. Wave 5D gave these chips `setWidth`'s real verdicts and the
+  // number held, because ADR 0031 funded a resize from an adjacent column empty **at every level**
+  // and clearing p1, p7, p12 and p24 empties none: p12 and p18 still stand in `A|2.00`, p23 in
+  // `B|1.80`, and so on.
   //
-  // That is worth pinning rather than deleting. It is the measurement behind wave 5E's note that a
-  // browser gate needs a delete in front of it, and the day a fixture ships with a genuinely empty
-  // column this line fails and says so.
-  it("marks no width chip free while no column is empty at every level", () => {
+  // **ADR 0035 decision 7 ends it.** A shrink funds itself out of the space it vacates, so a chip
+  // below the body's own width is free with no empty column anywhere. What survives is the half the
+  // decision left alone, and it is still the measurement behind wave 5E's note that a browser gate
+  // needs a delete in front of it: **no chip above a body's own width is free**, because growth
+  // still has to consume space that already exists.
+  it("marks no width chip above a body's own free while no column is empty", () => {
     const world = openedKitchen();
     const rendered: string[] = [];
+    let free = 0;
     for (const target of everySelectableTarget(world)) {
       for (const section of sectionsAt(world, target)) {
         if (section.kind !== "width") continue;
         rendered.push(target.id);
         expect(section.chips.length).toBeGreaterThan(0);
-        expect(section.chips.some((chip) => chip.state === "free")).toBe(false);
+        const active = section.chips.find((chip) => chip.state === "active");
+        for (const chip of section.chips) {
+          if (chip.state !== "free") continue;
+          free += 1;
+          expect([target.id, chip.widthMm < (active?.widthMm ?? 0)]).toEqual([
+            target.id,
+            true,
+          ]);
+        }
       }
     }
+    // And the sweep is not vacuous the other way either: shrinking is reachable from a standing
+    // start, which is the whole of what decision 7 buys.
+    expect(free).toBeGreaterThan(0);
     // The second tripwire, turned over the same way. `openedKitchen` clears p1, p7, p12 and p24, so
     // the four of them are gone from the sweep and the derived voids that replaced them render no
     // width section at all — §9 hides Lățime on an empty slot, and that is asserted here by their

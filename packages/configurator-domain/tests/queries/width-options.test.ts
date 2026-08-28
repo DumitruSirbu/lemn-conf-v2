@@ -38,16 +38,18 @@ function kitchenWithEmptyColumn(): KitchenWorld {
 /** The placement id the disjoint-column fixture gives its bottle cargo. */
 const DISJOINT_CARGO_ID = "cargo-under-hood";
 
-/** A column whose members are **all resizable**, **flush**, and whose declared sets do not
- *  intersect: a `base-bottle-cargo` (200/300, ADR 0026's declared floor) under a `hood` (600–800).
- *  Nothing is wrong with either body; the column simply agrees on no width.
+/** A `base-bottle-cargo` (200/300, ADR 0026's declared floor) under a `hood` (600–800), both at 300.
  *
- *  Both stand at 300 on purpose. Left at their natural widths the column is *also* unaligned, and
- *  the refusal that comes back is `COLUMN_MEMBERS_UNALIGNED` — true, but it conflates two reasons
- *  and would let this test pass without the disjoint case working. Flush, the engine answers
- *  `WIDTH_NOT_SUPPORTED`, which is the reason this fixture exists to see rendered rather than
- *  discarded. Built by hand rather than through inserts, because what is under test is the
- *  resolution and not the insert path. */
+ *  **This was the disjoint-intersection fixture, and ADR 0035 decision 6 retired the case.** A hood
+ *  is no longer a member for width purposes, so the column is the cargo's {200, 300} and the two
+ *  bodies agree about everything. What it still exercises is the shape it always did — a column
+ *  holding two entries with very different width models — reaching the query rather than the
+ *  command. The domain's adversarial pass sweeps every base row under every wall row and finds no
+ *  disjoint pair left at all (`qa-w5c.adversarial.test.ts`).
+ *
+ *  Both stand at 300 on purpose: at their natural widths the column would also be mixed-width, and
+ *  the square-up would be doing the work instead of the resolution. Built by hand rather than
+ *  through inserts, because what is under test is the resolution and not the insert path. */
 function disjointColumnWorld(): KitchenWorld {
   const design = {
     ...KITCHEN_L_DESIGN,
@@ -139,22 +141,28 @@ describe("a chip is free if and only if the command would succeed", () => {
     expect(reachable.length).toBeGreaterThan(0);
   });
 
-  // The mirror image, and the measurement wave 5E depends on: with no column empty at every level,
-  // nothing is reachable. That is a fact about ADR 0031's funding rule, not about the command being
-  // missing — which is what it was in M4.
-  it("offers nothing free in the shipped kitchen, which has no empty column", () => {
+  // The mirror image, and the measurement wave 5E depends on. It used to read *nothing* is reachable
+  // in the shipped kitchen, because ADR 0031 funded every resize from an existing empty column and
+  // the kitchen loads without one. **ADR 0035 decision 7 halved that**: a shrink funds itself, so
+  // what is unreachable at load is exactly the growths.
+  //
+  // Asserted as the sign rather than as a list, because the sign is the rule — a growth has space to
+  // consume or it does not, and at load it does not.
+  it("offers no width above a body's own in the shipped kitchen, which has no empty column", () => {
     const world = kitchen();
+    let available = 0;
     for (const record of world.records) {
-      expect([
-        record.id,
-        optionsFor(world, record.id).map((option) => option.verdict.status),
-      ]).toEqual([
-        record.id,
-        optionsFor(world, record.id).map((option) =>
-          option.verdict.status === "current" ? "current" : "refused",
-        ),
-      ]);
+      for (const option of optionsFor(world, record.id)) {
+        if (option.verdict.status !== "available") continue;
+        available += 1;
+        expect([record.id, option.widthMm < record.widthMm]).toEqual([
+          record.id,
+          true,
+        ]);
+      }
     }
+    // And the sweep is not vacuous: shrinking really is reachable from a standing start now.
+    expect(available).toBeGreaterThan(0);
   });
 });
 

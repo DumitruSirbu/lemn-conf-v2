@@ -1043,7 +1043,9 @@ answer the width question the same way, and that must still hold at the end.
 Two behavioural rules from ADR 0035, both in `setWidth`.
 
 - **A column is one width at every level, except the hood**, and a resize squares a mixed column up
-  rather than refusing it. `COLUMN_MEMBERS_UNALIGNED` has 15 lockouts in the shipped design; they
+  rather than refusing it. `COLUMN_MEMBERS_UNALIGNED` had 13 lockouts in the shipped design (the plan
+  said 15; 13 is the measured figure) and **the refusal code is now deleted** — squaring up made it
+  unreachable, so it is gone rather than left as dead machinery; they
   become editable. **The hood is excluded from column width membership** (ADR 0035 decision 6, as
   amended 2026-08-28): it neither narrows the intersection nor moves when the column resizes, and a
   column holding one is not unaligned for holding it. Unreachable in the shipped kitchen — `p2` is

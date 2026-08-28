@@ -14,7 +14,11 @@ import type {
   BodyProbe,
   BodyProbeRequest,
 } from "../../src/body-probe.js";
-import { INSERTABLE_BODY_DEFINITIONS } from "../../src/catalog.js";
+import {
+  EXTRACTOR_HOOD_KIND,
+  INSERTABLE_BODY_DEFINITIONS,
+  resolveBuildableSizes,
+} from "../../src/catalog.js";
 import { setWidth } from "../../src/commands/set-width.js";
 import type { Design, DesignPlacement } from "../../src/design.js";
 import {
@@ -112,15 +116,73 @@ function placementAt(
   };
 }
 
+/** Every tap this sweep's coarse width set accepts on the shipped kitchen **at load**, measured
+ *  after ADR 0035 decision 7 made a shrink fund itself. Zero before that decision.
+ *
+ *  Named once and subtracted below, because after decision 7 a clear no longer *creates* the
+ *  resizable population — it adds the growths to it. What a clear buys is the delta, and pinning the
+ *  absolute list nine times over would bury eleven interesting rows under 233 uninteresting ones. */
+const LOAD_ACCEPTED_TAPS: readonly string[] = [
+  // `A|1.30`, the 800 mm sink run, down to the sink aperture's floor.
+  "p0@600",
+  "p0@700",
+  "p10@200",
+  "p11@600",
+  "p11@700",
+  // `A|2.00`, whose 450/600 dishwasher makes the whole column discrete (§11 row 14).
+  "p12@450",
+  "p14@300",
+  "p14@400",
+  "p14@450",
+  "p15@200",
+  // No `p15@300` or `p8@300`: narrowing `A|0.30` from 600 to 300 vacates 0.30–0.60, whose centre
+  // keys as `A|0.45` — the corner leg `p25`'s own column. The strip cannot be written there without
+  // replacing that column's frozen 900 mm extent, so the shrink refuses. Both come back the moment
+  // `A|0.75` is cleared and there is a real empty column to give the width back to.
+  "p15@400",
+  "p15@450",
+  "p16@200",
+  "p17@600",
+  "p17@700",
+  "p18@450",
+  "p1@450",
+  "p20@300",
+  "p20@400",
+  "p20@450",
+  "p4@300",
+  "p4@400",
+  "p4@450",
+  "p8@200",
+  "p8@400",
+  "p8@450",
+];
+
 // ---------------------------------------------------------------------------
 // The population, derived independently.
 // ---------------------------------------------------------------------------
 
 describe("Q1 — the legal-resize population, enumerated independently", () => {
-  it("has no empty column at load, so nothing at all is resizable", () => {
+  it("has no empty column at load, and every tap it accepts there is a shrink", () => {
+    // **ADR 0035 decision 7 rewrote this row's headline.** ADR 0031 required an adjacent empty
+    // column in both directions, and the shipped kitchen has none at load, so nothing at all was
+    // resizable until the customer deleted something. A shrink now creates the column it needs, so
+    // the first assertion holds unchanged — there really is no void — while the second becomes 26
+    // accepted taps, every one of them narrowing a column.
+    //
+    // The sign is asserted rather than the list's shape, because it is the rule: growth still has to
+    // consume space that exists, and there is none.
     const world = kitchen();
     expect(world.voids).toEqual([]);
-    expect(acceptedTaps(world)).toEqual([]);
+
+    const accepted = acceptedTaps(world);
+    for (const tap of accepted) {
+      const [placementId, widthMm] = tap.split("@");
+      const placement = world.design.placements.find(
+        (candidate) => candidate.id === placementId,
+      );
+      expect(Number(widthMm)).toBeLessThan(placement?.body.widthMm ?? 0);
+    }
+    expect(accepted).toEqual(LOAD_ACCEPTED_TAPS);
   });
 
   it("is dead on wall B: every wall-B column holds a corner or a fixedWidth full-height unit", () => {
@@ -166,127 +228,119 @@ describe("Q1 — the legal-resize population, enumerated independently", () => {
 
   // **Six moves and fifteen taps before ADR 0033; fourteen and thirty-three after it; eighteen and
   // forty-four after ADR 0035's bounds; twenty-four and fifty-nine once the owner retired ADR 0030's
-  // one-door cap on 2026-08-28.** The merge was the first difference: a wall column used to be
-  // bounded by whichever door entry its members happened to be, so a run of `wall-2door` rows could
-  // reach 600 and 800 and nothing else however much empty space stood beside it, and one entry
-  // spanning both door counts lets the column move with the count following it.
+  // one-door cap on 2026-08-28.** Each of those steps widened what a *clear* unlocked, and the
+  // history is kept because the shape of the reasoning is still what this row checks.
   //
-  // ADR 0035's bounds were the second, and a finer grid rather than new geometry: every new move was
-  // at 700, a width this sweep already asked about and that no cabinetry entry could be built at
-  // until the step replaced the list.
+  // **ADR 0035 decision 7 changes the question rather than the number.** With shrinking self-funded,
+  // 26 taps are accepted before anything is cleared and a clear can only add growths on top of them.
+  // "Taps accepted after one clear" is therefore no longer a measure of what the clear does — it is
+  // 230, of which 206 are the load census repeated. So this row now pins the **delta**, which is
+  // what ADR 0031 rule 2 still governs: a growth consumes an adjacent empty column, and clearing one
+  // is the only way to make one.
   //
-  // Retiring the one-door cap is the third, and it is the only one of the three that opens a
-  // *situation* rather than a width. Column `A|2.00` holds the 450/600 dishwasher under a
-  // `wall-cabinet` that could not be built at 450, so the column matched at no width at all and
-  // never appeared here however much space stood beside it. Every new tap is at 450, and §11 row 14
-  // is what they add up to.
-  it("yields twenty-four distinct column moves and fifty-nine accepted taps after one clear", () => {
-    const taps = CLEARABLE.flatMap((cleared) =>
-      acceptedTaps(clearBodies(kitchen(), cleared.ids)).map(
-        (tap) => `${cleared.key}:${tap}`,
-      ),
-    ).sort();
+  // Every gained tap below is in a column immediately left or right of the cleared key, and all but
+  // two are growths. Five of the nine clears gain nothing, and each has a reason on its row.
+  it("gains only moves in the columns adjacent to the clear", () => {
+    const gains = CLEARABLE.map((cleared) => ({
+      key: cleared.key,
+      gained: acceptedTaps(clearBodies(kitchen(), cleared.ids))
+        .filter((tap) => !LOAD_ACCEPTED_TAPS.includes(tap))
+        .sort(),
+    }));
 
-    expect(taps).toEqual([
-      "A|0.30:p10@200",
-      "A|0.30:p10@400",
-      "A|0.30:p10@450",
-      "A|0.30:p10@600",
-      "A|0.30:p16@200",
-      "A|0.30:p16@400",
-      "A|0.30:p16@450",
-      "A|0.30:p16@600",
-      "A|0.75:p0@600",
-      "A|0.75:p0@700",
-      "A|0.75:p11@600",
-      "A|0.75:p11@700",
-      "A|0.75:p15@200",
-      "A|0.75:p15@300",
-      "A|0.75:p15@400",
-      "A|0.75:p15@450",
-      "A|0.75:p17@600",
-      "A|0.75:p17@700",
-      "A|0.75:p8@200",
-      "A|0.75:p8@300",
-      "A|0.75:p8@400",
-      "A|0.75:p8@450",
-      "A|1.30:p10@400",
-      "A|1.30:p10@450",
-      "A|1.30:p10@600",
-      "A|1.30:p10@700",
-      "A|1.30:p10@800",
-      "A|1.30:p12@450",
-      "A|1.30:p16@400",
-      "A|1.30:p16@450",
-      "A|1.30:p16@600",
-      "A|1.30:p16@700",
-      "A|1.30:p16@800",
-      "A|1.30:p18@450",
-      "A|1.30:p1@450",
-      "A|2.00:p0@600",
-      "A|2.00:p0@700",
-      "A|2.00:p11@600",
-      "A|2.00:p11@700",
-      "A|2.00:p17@600",
-      "A|2.00:p17@700",
-      "A|2.60:p12@450",
-      "A|2.60:p14@300",
-      "A|2.60:p14@400",
-      "A|2.60:p14@450",
-      "A|2.60:p14@700",
-      "A|2.60:p14@800",
-      "A|2.60:p18@450",
-      "A|2.60:p1@450",
-      "A|2.60:p20@300",
-      "A|2.60:p20@400",
-      "A|2.60:p20@450",
-      "A|2.60:p20@700",
-      "A|2.60:p20@800",
-      "A|2.60:p4@300",
-      "A|2.60:p4@400",
-      "A|2.60:p4@450",
-      "A|2.60:p4@700",
-      "A|2.60:p4@800",
+    expect(gains).toEqual([
+      // `A|0.75` grows into the 600 mm `A|0.30` frees, up to the 600 its own column can take.
+      {
+        key: "A|0.30",
+        gained: [
+          "p10@400",
+          "p10@450",
+          "p10@600",
+          "p16@400",
+          "p16@450",
+          "p16@600",
+        ],
+      },
+      // **Two, and neither is a growth.** `p8@300` and `p15@300` narrow `A|0.30` from 600, and at
+      // load the strip they vacate collides with the corner leg's `A|0.45` key; with `A|0.75`
+      // cleared there is a real empty column to return the width to and no strip is created at all.
+      // No growth is gained here: `A|0.30` can only grow on its other side, and `A|1.30`'s members
+      // are already at the 800 mm ceiling.
+      { key: "A|0.75", gained: ["p15@300", "p8@300"] },
+      // The 800 mm clear is the largest, so `A|0.75` reaches the ceiling from 300.
+      {
+        key: "A|1.30",
+        gained: [
+          "p10@400",
+          "p10@450",
+          "p10@600",
+          "p10@700",
+          "p10@800",
+          "p16@400",
+          "p16@450",
+          "p16@600",
+          "p16@700",
+          "p16@800",
+        ],
+      },
+      // Its neighbours are `A|1.30` at the ceiling and `A|2.60`, frozen by the hob base.
+      { key: "A|2.00", gained: [] },
+      // `A|3.20` grows into the hob column's 600 mm. The **hood** `p13` is deleted along with it and
+      // gains nothing on its own account: the seeded `hood-600` is `fixedWidth`, so decision 6's
+      // exemption from the column's width never makes it resizable in its own right.
+      {
+        key: "A|2.60",
+        gained: [
+          "p14@700",
+          "p14@800",
+          "p20@700",
+          "p20@800",
+          "p4@700",
+          "p4@800",
+        ],
+      },
+      // The end of the run: one occupied neighbour, and it is the frozen hob column.
+      { key: "A|3.20", gained: [] },
+      // Wall B is corners, appliances and full-height units; nothing on it can change width, and
+      // nothing on wall A abuts a wall-B column.
+      { key: "B|1.20", gained: [] },
+      { key: "B|1.80", gained: [] },
+      { key: "B|2.45", gained: [] },
     ]);
+  });
 
-    // Fourteen moves: one column at one new width, however many members offer it. Six before the
-    // merge — see the note on this test.
-    const moves = new Set(
-      taps.map((tap) => {
-        const [cleared, rest] = tap.split(":");
-        const [id, widthMm] = (rest ?? "").split("@");
-        const column = kitchen().records.find(
-          (record) => record.id === id,
-        )?.col;
-        return `${cleared ?? ""}/${column ?? ""}@${widthMm ?? ""}`;
-      }),
-    );
-    expect([...moves].sort()).toEqual([
-      "A|0.30/A|0.75@200",
-      "A|0.30/A|0.75@400",
-      "A|0.30/A|0.75@450",
-      "A|0.30/A|0.75@600",
-      "A|0.75/A|0.30@200",
-      "A|0.75/A|0.30@300",
-      "A|0.75/A|0.30@400",
-      "A|0.75/A|0.30@450",
-      "A|0.75/A|1.30@600",
-      "A|0.75/A|1.30@700",
-      "A|1.30/A|0.75@400",
-      "A|1.30/A|0.75@450",
-      "A|1.30/A|0.75@600",
-      "A|1.30/A|0.75@700",
-      "A|1.30/A|0.75@800",
-      "A|1.30/A|2.00@450",
-      "A|2.00/A|1.30@600",
-      "A|2.00/A|1.30@700",
-      "A|2.60/A|2.00@450",
-      "A|2.60/A|3.20@300",
-      "A|2.60/A|3.20@400",
-      "A|2.60/A|3.20@450",
-      "A|2.60/A|3.20@700",
-      "A|2.60/A|3.20@800",
+  it("loses two load taps to RESIZE_OPENS_GAP, and none to anything else", () => {
+    // The anti-invariant beside the gains: a clear must not take away a tap on a body that is still
+    // standing, **except** where widening the freed column would put an opening over one. Exactly
+    // one clear does that, and it is the corner leg — clearing `A|1.30` lets `A|0.75` widen the
+    // empty column to 900 mm across the floor `p25` occupies, so `p10@200` and `p16@200` stop being
+    // accepted while `p10` and `p16` are still there.
+    const survivors = CLEARABLE.map((cleared) => {
+      const accepted = new Set(
+        acceptedTaps(clearBodies(kitchen(), cleared.ids)),
+      );
+      const deleted = new Set<string>(cleared.ids);
+      return {
+        key: cleared.key,
+        lost: LOAD_ACCEPTED_TAPS.filter(
+          (tap) => !accepted.has(tap) && !deleted.has(tap.split("@")[0] ?? ""),
+        ),
+      };
+    });
+
+    expect(survivors.filter((row) => row.lost.length > 0)).toEqual([
+      { key: "A|1.30", lost: ["p10@200", "p16@200"] },
     ]);
+  });
+
+  it("accepts 230 taps across the nine clears", () => {
+    // The total, so that a tenth source of acceptance cannot appear unnamed: `9 × 26 − 26 − 2 + 24`
+    // — nine copies of the load census, less the 26 taps whose body each clear deletes, less the two
+    // lost to the corner leg, plus the 24 taps gained.
+    const total = CLEARABLE.flatMap((cleared) =>
+      acceptedTaps(clearBodies(kitchen(), cleared.ids)),
+    ).length;
+    expect(total).toBe(230);
   });
 
   it("opens no new column move when a second column is cleared", () => {
@@ -385,8 +439,16 @@ describe("Q2 — conservation and the inverse", () => {
   );
 
   it("conserves the run total on every accepted tap, to the millimetre", () => {
-    for (const cleared of CLEARABLE) {
-      const base = clearBodies(kitchen(), cleared.ids);
+    // **The un-cleared kitchen joins the sweep with ADR 0035 decision 7**, and it is not a formality:
+    // a shrink now writes a column into the frozen map that was not there before, and the first
+    // version of that code silently *replaced* the corner leg's `A|0.45` column when narrowing
+    // `A|0.30` — 900 mm of frozen extent traded for 300. This sum is what caught it, and it caught it
+    // only because the sweep reaches the shrink. Left as a sweep over both worlds for that reason.
+    const worlds = [
+      kitchen(),
+      ...CLEARABLE.map((cleared) => clearBodies(kitchen(), cleared.ids)),
+    ];
+    for (const base of worlds) {
       for (const placement of base.design.placements) {
         for (const widthMm of ALL_WIDTHS_MM) {
           const result = resizeTo(base, placement.id, widthMm);
@@ -598,26 +660,64 @@ describe("Q5 — a column's legal widths are the intersection of its members' se
     if (!unchanged.ok) expect(unchanged.reason.code).toBe("WIDTH_UNCHANGED");
   });
 
-  it("refuses every width when the intersection is empty, rather than throwing", () => {
-    // Two entries with **disjoint** sets, which after ADR 0033 takes a little more finding: the
-    // merged `wall-cabinet` carries five widths and overlaps almost everything. The bottle cargo's
-    // 200/300 (ADR 0026 — the proportion is the product) and the hood's 600-800 share nothing. The cargo's set is
-    // proportion-driven (ADR 0026) and the hood's floor is a product decision; a disjoint pair now
-    // takes finding, because most rows are cabinetry bounds that overlap.
+  it("has no empty intersection left to refuse: the hood was its only half", () => {
+    // **This row used to reach `WIDTH_NOT_SUPPORTED` on every width, and it cannot any more.** The
+    // pair it was built on was `base-bottle-cargo` {200, 300} under a `hood` 600–800 — the only
+    // disjoint pair the catalogue still had after ADR 0033 merged the door-count rows into one
+    // 200–800 bound. ADR 0035 decision 6 takes the hood out of the column's width membership, so
+    // that pair no longer disagrees about anything: the column is the cargo's {200, 300}, and the
+    // hood keeps its own width above it.
+    //
+    // Asserted by sweep rather than by re-stating the rule, because "the branch is unreachable" is
+    // the kind of claim that quietly stops being true. Every base row under every wall row, which is
+    // every column a design can physically hold at two levels: none of them intersects to nothing.
+    const bands = [...INSERTABLE_BODY_DEFINITIONS];
+    const baseRows = bands.filter(([, entry]) => entry.band === "base");
+    const wallRows = bands.filter(([, entry]) => entry.band === "wall");
+    const disjoint: string[] = [];
+    for (const [baseId, baseEntry] of baseRows) {
+      for (const [wallId, wallEntry] of wallRows) {
+        if (wallEntry.kind === EXTRACTOR_HOOD_KIND) continue;
+        const shared = resolveBuildableSizes(
+          KITCHEN_L_BODY_CATALOG,
+          baseId,
+        ).filter((widthMm) =>
+          resolveBuildableSizes(KITCHEN_L_BODY_CATALOG, wallId).includes(
+            widthMm,
+          ),
+        );
+        if (shared.length === 0) disjoint.push(`${baseId}+${wallId}`);
+        expect(baseEntry.band).toBe("base");
+      }
+    }
+    expect(disjoint).toEqual([]);
+  });
+
+  it("lets the column the hood used to freeze resize, and leaves the hood alone", () => {
+    // The same fixture the row above retired, built honestly — a 600 mm hood rather than the 300 mm
+    // one the old disjoint case needed, because a hood is not made at 300. `a-base` is the
+    // 300 mm bottle cargo ADR 0026 exists for, and the hood hangs over it.
     const world = clearBodies(
       syntheticWorld([
         placementAt("a-base", 700, 0, "base-bottle-cargo", 300, 860),
-        placementAt("a-wall", 700, 1500, "hood", 300, 710),
+        placementAt("a-wall", 700, 1500, "hood", 600, 710),
         placementAt("b-base", 1600, 0, "base-panbank", 600, 860),
         placementAt("b-wall", 1600, 1500, "open-shelf", 600, 700),
       ]),
       ["b-base", "b-wall"],
     );
-    for (const widthMm of ALL_WIDTHS_MM) {
-      const result = resizeTo(world, "a-base", widthMm);
-      expect(result.ok).toBe(false);
-      if (!result.ok) expect(result.reason.code).toBe("WIDTH_NOT_SUPPORTED");
-    }
+
+    const result = resizeTo(world, "a-base", 200);
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const after = result.design.placements;
+    expect(after.find((p) => p.id === "a-base")?.body.widthMm).toBe(200);
+    // The hood keeps its 600 and re-centres on the run beneath it, which has moved to 600 mm.
+    const hood = after.find((placement) => placement.id === "a-wall");
+    const base = after.find((placement) => placement.id === "a-base");
+    expect(hood?.body.widthMm).toBe(600);
+    expect(hood?.alongMm).toBe(base?.alongMm);
   });
 
   it("FINDING Q1.3: does not let a 'fit' member narrow the intersection", () => {
@@ -647,13 +747,21 @@ describe("Q5 — a column's legal widths are the intersection of its members' se
 });
 
 // ---------------------------------------------------------------------------
-// COLUMN_MEMBERS_UNALIGNED: reachability and breadth.
+// Mixed-width columns: reachability, breadth, and what a resize now does with one.
 // ---------------------------------------------------------------------------
 
-describe("Q6 — COLUMN_MEMBERS_UNALIGNED", () => {
-  it("is reachable with one ordinary insert, and locks the column out for good", () => {
+describe("Q6 — a mixed-width column", () => {
+  it("is reachable with one ordinary insert, and is squared up rather than locked out", () => {
     // ADR 0026's own motivating body. Clear a 600 mm column's base slot, put the bottle cargo the
     // catalogue was extended for into it, and the column holds a 300 mm body under a 600 mm one.
+    //
+    // **This row asserted the opposite until ADR 0035 decision 6.** Every width refused with
+    // `COLUMN_MEMBERS_UNALIGNED`, and the ADR that introduced the refusal called the state a
+    // permanent lockout — "ADR 0026's whole 600+600+200 run is a run that can never be resized
+    // again", in the row below. The owner overruled it on 2026-08-28: *"let's make them editable,
+    // I didn't get why we need to refuse."* So the sweep now asserts the square-up, and that the
+    // widths it accepts are the ones the **column** agrees on rather than the ones either member
+    // offers alone.
     let world = clearBodies(
       syntheticWorld([
         placementAt("a-base", 1000, 0, "base-panbank", 600, 860),
@@ -679,20 +787,55 @@ describe("Q6 — COLUMN_MEMBERS_UNALIGNED", () => {
     world = advance(world, inserted.design);
 
     const withSpace = clearBodies(world, ["b-base", "b-wall"]);
+    const columnKey = withSpace.records.find(
+      (record) => record.id === "a-wall",
+    )?.col;
+    const memberIds = withSpace.records
+      .filter((record) => record.col === columnKey)
+      .map((record) => record.id);
+    const widthsOf = (design: Design): readonly number[] =>
+      design.placements
+        .filter((placement) => memberIds.includes(placement.id))
+        .map((placement) => placement.body.widthMm);
+    expect(new Set(widthsOf(withSpace.design)).size).toBeGreaterThan(1);
+
+    let squaredUp = 0;
     for (const widthMm of ALL_WIDTHS_MM) {
       const result = resizeTo(withSpace, "a-wall", widthMm);
-      expect(result.ok).toBe(false);
       if (!result.ok) {
-        expect(result.reason.code).toBe("COLUMN_MEMBERS_UNALIGNED");
+        // Whatever still refuses does so for a reason about the widths or the space, never about
+        // alignment — the code that used to answer here no longer exists.
+        expect([
+          "WIDTH_NOT_SUPPORTED",
+          "WIDTH_UNCHANGED",
+          "NO_EMPTY_SPACE",
+          "RESIZE_OPENS_GAP",
+        ]).toContain(result.reason.code);
+        continue;
+      }
+      squaredUp += 1;
+      const after = result.design.placements.filter((placement) =>
+        memberIds.includes(placement.id),
+      );
+      // The whole point of the decision: one width and one centre at every level.
+      for (const placement of after) {
+        expect(placement.body.widthMm).toBe(widthMm);
+        expect(placement.alongMm).toBe(after[0]?.alongMm);
       }
     }
+    expect(squaredUp).toBeGreaterThan(0);
   });
 
-  it("locks out 13 of the 129 single-body inserts the shipped kitchen accepts", () => {
+  it("is produced by 13 of the 129 single-body inserts the shipped kitchen accepts", () => {
     // The breadth question, measured. For each clearable column, each member deleted on its own,
     // each opening that frees, and each §7 entry the engine accepts into it: does the column stay
-    // flush? The eight rows for `base-bottle-cargo` are every column it fits — ADR 0026's whole
-    // 600+600+200 run is a run that can never be resized again.
+    // flush? The eight rows for `base-bottle-cargo` are every column it fits.
+    //
+    // **The measurement is unchanged; what it means is not.** These thirteen were lockouts — ADR
+    // 0026's whole 600+600+200 run was a run that could never be resized again — and under ADR 0035
+    // decision 6 they are thirteen columns that a resize squares up. The count is kept because it is
+    // still the population the square-up has to be right for, and because a catalogue edit that
+    // changed it would be worth noticing either way.
     //
     // **154 → 125 (ADR 0032) → 124 (ADR 0033) → 126 (its amendment) → 129 (the sink and hood
     // decisions).** The merge removed one entry from each band, so the population lost the inserts

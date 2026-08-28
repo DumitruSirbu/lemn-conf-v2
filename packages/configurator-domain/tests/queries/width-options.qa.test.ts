@@ -111,8 +111,8 @@ describe("the iff, in the direction iterating the row cannot see", () => {
   // closes — `A|3.20` accepted 300 and the panel did not offer it — so a test that only walks the
   // published row would have read green through exactly the bug the wave exists to fix.
   it.each([
-    ["the shipped kitchen", kitchen, 0],
-    ["a kitchen with an emptied column", kitchenWithEmptyColumn, 12],
+    ["the shipped kitchen", kitchen, 51],
+    ["a kitchen with an emptied column", kitchenWithEmptyColumn, 48],
   ])(
     "publishes an available chip for every width the command accepts, in %s",
     (_name, build: () => KitchenWorld, expectedAccepted: number) => {
@@ -137,11 +137,18 @@ describe("the iff, in the direction iterating the row cannot see", () => {
         }
       }
       expect(missing).toEqual([]);
-      // The acceptance count, pinned per world rather than floored: the shipped kitchen abuts no
-      // empty column and accepts nothing, and the emptied one accepts twelve taps. It was three
-      // until ADR 0035 decision 2 stepped every cabinetry row's chips at 50 mm — the geometry that
-      // funds these moves has not changed, only how many modular widths land inside it. A floor of
-      // zero here would have let the sweep pass while finding nothing to compare.
+      // The acceptance count, pinned per world rather than floored. **0 and 12 became 51 and 48
+      // under ADR 0035 decision 7**, which is the whole of that decision seen from the panel's side:
+      // the shipped kitchen abuts no empty column and used to accept nothing at all, and now accepts
+      // every shrink its columns agree on. It was 0 and 3 until decision 2 stepped the chips at
+      // 50 mm, and 0 and 12 after it.
+      //
+      // The emptied world accepts **fewer** than the shipped one, which reads backwards and is
+      // right: clearing `A|2.00` deletes `p1`, `p12` and `p18`, and those three bodies carried more
+      // load-census shrinks between them than the growths the freed 600 mm buys back. A clear
+      // subtracts bodies as well as adding space, and only the second half was visible before
+      // decision 7. A floor of zero here would have let the sweep pass while finding nothing to
+      // compare.
       expect(accepted).toBe(expectedAccepted);
     },
   );
@@ -212,8 +219,9 @@ describe("exactly one active chip, on every body that renders a section", () => 
 });
 
 /** A column holding a 400 mm body under a 600 mm one — reachable with one ordinary insert, and the
- *  shape `resolveColumnExtent` refuses. Every width is refused before the requested one is even
- *  looked at, which is precisely where reading `active` out of a refusal code would lose it. */
+ *  shape `resolveColumnExtent` used to refuse and now squares up (ADR 0035 decision 6). Each member
+ *  still reads its **own** active chip, which is where reading `active` out of a refusal code would
+ *  lose it. */
 function unalignedColumnWorld(): KitchenWorld {
   return syntheticWorld([
     placementAt("wide", 1000, 600),
@@ -226,16 +234,31 @@ function unalignedColumnWorld(): KitchenWorld {
 }
 
 describe("a column whose members are not flush", () => {
-  it("still renders a row, every chip refused with the engine's own reason", () => {
+  it("offers its shrinks and refuses its growths for want of space, not for want of alignment", () => {
+    // **This row asserted `COLUMN_MEMBERS_UNALIGNED` on every chip until ADR 0035 decision 6.** The
+    // column is now squared up rather than locked out, so the row it publishes is an ordinary one:
+    // every width below the column's extent is `available` — decision 7 funds it out of the space
+    // the shrink vacates — and every width above it is `NO_EMPTY_SPACE`, because this synthetic
+    // world has no empty column to grow into.
+    //
+    // Both halves are asserted, because "no chip says UNALIGNED any more" would also be true of a
+    // row that had stopped rendering.
     const world = unalignedColumnWorld();
     const options = optionsFor(world, "wide");
     expect(options.length).toBeGreaterThan(1);
+
     const refusals = options
       .filter((option) => option.verdict.status === "refused")
       .map((option) =>
         option.verdict.status === "refused" ? option.verdict.reason.code : "",
       );
-    expect(new Set(refusals)).toEqual(new Set(["COLUMN_MEMBERS_UNALIGNED"]));
+    expect(new Set(refusals)).toEqual(new Set(["NO_EMPTY_SPACE"]));
+
+    const available = options.filter(
+      (option) => option.verdict.status === "available",
+    );
+    expect(available.length).toBeGreaterThan(0);
+    for (const option of available) expect(option.widthMm).toBeLessThan(600);
   });
 
   // The two members stand at different widths, so each reads its **own** active chip — the fact is
@@ -362,6 +385,10 @@ describe("a refused chip carries the engine's refusal unchanged", () => {
   // The implementer's suite checks one body. This checks every refused chip in the kitchen, code and
   // params alike — a query that re-derived a reason would agree on the common codes and diverge on
   // the ones that carry a member's label or a size list.
+  //
+  // **141 → 90 under ADR 0035 decision 7**, and the arithmetic is the same subtraction the census
+  // makes: 141 − 51 = 90. Every chip that stopped being refused is one of the 51 shrinks the shipped
+  // kitchen now accepts; no chip changed the *reason* it is refused.
   it("matches the command's code and params on every refused chip in the kitchen", () => {
     const world = kitchen();
     let refusals = 0;
@@ -391,7 +418,7 @@ describe("a refused chip carries the engine's refusal unchanged", () => {
         refusals += 1;
       }
     }
-    expect(refusals).toBe(141);
+    expect(refusals).toBe(90);
   });
 });
 

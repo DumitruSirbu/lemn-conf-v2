@@ -282,12 +282,14 @@ describe("every width section the shipped kitchen renders", () => {
   // property is: a chip is `free` **iff** `setWidth` at that width would succeed, and only a `free`
   // chip is clickable.
   //
-  // Over the shipped kitchen *as loaded* that still yields zero free chips, and the reason is worth
-  // stating because it is not the old one: ADR 0031 funds a resize from an adjacent **empty** column
-  // and the shipped kitchen has none, so every candidate is refused for want of space rather than
-  // for want of a command. Clear a column first and chips go free — which is why wave 5E's browser
-  // gate needs a delete in front of it. The assertion below reads the verdicts rather than assuming
-  // the outcome, so the day a fixture ships with a gap it reports the truth instead of failing.
+  // Over the shipped kitchen *as loaded* this yielded zero free chips through wave 5D, because ADR
+  // 0031 funded a resize from an adjacent **empty** column and the shipped kitchen has none. **ADR
+  // 0035 decision 7 ends that**: a shrink funds itself out of the space it vacates, so 51 chips are
+  // free on a kitchen nobody has edited yet, and wave 5E's browser gate no longer needs a delete in
+  // front of it to show anything.
+  //
+  // The `iff` this row exists for is unchanged and is what actually carries the weight — the count
+  // beside it is the guard against the sweep going quiet.
   it("marks a chip free exactly where the engine would accept the resize", () => {
     const world = seededWorld();
     let chips = 0;
@@ -330,9 +332,10 @@ describe("every width section the shipped kitchen renders", () => {
       }
     }
     expect(chips).toBe(SEEDED_WIDTH_CHIP_COUNT);
-    // The measurement, recorded rather than assumed: no column in the shipped kitchen abuts empty
-    // space at load, so nothing is reachable until something is deleted.
-    expect(free).toBe(0);
+    // The measurement, recorded rather than assumed: 0 → 51 at ADR 0035 decision 7. It is the same
+    // 51 the domain's own load census names one tap at a time
+    // (`qa-w5c.enumeration.test.ts`), reached here through the panel instead of through the command.
+    expect(free).toBe(51);
   });
 
   // Read-only disables every chip, `free` included — asserted over the real kitchen rather than a

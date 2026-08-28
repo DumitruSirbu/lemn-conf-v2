@@ -118,23 +118,6 @@ function voidTarget(world: KitchenWorld, col: string, y0: number) {
   return { kind: "void", id: voidAt(world, col, y0).id } as const;
 }
 
-function unalignedMember(
-  id: string,
-  alongMm: number,
-  widthMm: number,
-  y0Mm: number,
-  heightMm: number,
-  buildId: string,
-) {
-  return {
-    id,
-    wall: "A" as const,
-    alongMm,
-    y0Mm,
-    body: { buildId, widthMm, heightMm },
-  };
-}
-
 function buildCases(): SweepCase[] {
   const world = seeded();
   const clearedFridge = clearBodies(world, ["p7", "p24"]);
@@ -144,24 +127,16 @@ function buildCases(): SweepCase[] {
    *  have, so ADR 0032 now refuses it on width before the height guard is ever reached. The code needs
    *  an opening where only the height is wrong. */
   const clearedTopSlot = clearBodies(world, ["p18"]);
-  // ADR 0031's two column refusals need a shape the seeded kitchen does not have. `gapWorld` is the
-  // shipped kitchen with `A|1.30` emptied, which is what lets `A|0.75` reach 200 and widen the empty
-  // column across the corner leg. `unalignedColumn` holds a 600 mm base under a 450 mm shelf — the
-  // state an inserted dishwasher leaves behind — beside an empty column that could otherwise fund
-  // the move.
+  // `RESIZE_OPENS_GAP` needs a shape the seeded kitchen does not have. `gapWorld` is the shipped
+  // kitchen with `A|1.30` emptied, which is what lets `A|0.75` reach 200 and widen the empty column
+  // across the corner leg.
+  //
+  // Its sibling `COLUMN_MEMBERS_UNALIGNED` is **gone**, and so is the fixture that reached it. ADR
+  // 0035 decision 6 squares a mixed-width column up instead of refusing it, so a 600 mm base under a
+  // 450 mm shelf is no longer a refusal anyone can produce — it is an ordinary resize. Removed from
+  // `ALL_REJECTION_CODES` rather than moved to `ENGINE_UNREACHABLE`: the code itself is deleted from
+  // `RejectionDetail`, so this sweep would not compile if it were still named here.
   const gapWorld = clearBodies(world, ["p0", "p11", "p17"]);
-  const unalignedColumn = clearBodies(
-    createWorld(
-      syntheticDesign([
-        unalignedMember("u-base", 1300, 600, 0, 820, "base-drawer2-600"),
-        unalignedMember("u-wall", 1300, 450, 1500, 700, "open-shelf-600"),
-        unalignedMember("r-base", 1900, 600, 0, 820, "base-drawer2-600"),
-        unalignedMember("r-wall", 1900, 600, 1500, 700, "open-shelf-600"),
-      ]),
-      KITCHEN_L_BODY_CATALOG,
-    ),
-    ["r-base", "r-wall"],
-  );
   // A 400 mm base opening: the dishwasher niche is made in 450 and 600 only.
   const narrowBase = clearBodies(columnWorld(1000, stackOf(400)), ["s0"]);
   // No top row, so the freed base span stops at 1.50 and a 2200 mm column cannot fit above it.
@@ -394,14 +369,11 @@ function buildCases(): SweepCase[] {
     {
       code: "NO_EMPTY_SPACE",
       design: world.design,
-      // ADR 0031's headline consequence: the shipped kitchen has no empty column at load, so
-      // there is nothing on either side of `A|1.30` to fund a move.
-      run: () => resizeTo(world, "p0", 600),
-    },
-    {
-      code: "COLUMN_MEMBERS_UNALIGNED",
-      design: unalignedColumn.design,
-      run: () => resizeTo(unalignedColumn, "u-base", 800),
+      // ADR 0031's headline consequence, in the half of it ADR 0035 decision 7 left standing: a
+      // **growth** still has to consume space that is already there, and the shipped kitchen has
+      // none on either side of `A|0.75`. The tap used to be `p0` 800 → 600, which decision 7 now
+      // accepts — a shrink makes its own space.
+      run: () => resizeTo(world, "p10", 350),
     },
     {
       code: "RESIZE_OPENS_GAP",
@@ -477,7 +449,6 @@ const ALL_REJECTION_CODES: Readonly<Record<RejectionCode, true>> = {
   WIDTH_UNCHANGED: true,
   NO_EMPTY_SPACE: true,
   COLUMN_MEMBER_NOT_RESIZABLE: true,
-  COLUMN_MEMBERS_UNALIGNED: true,
   RESIZE_OPENS_GAP: true,
 };
 

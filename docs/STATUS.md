@@ -416,7 +416,8 @@ milestone bullets now do. **That is an edit to the product spec and is the owner
 that can reach M1's 1e-6 m parity gate).
 
 **Both of these were answered on 2026-08-28 and are recorded in ADR 0035 — a column is one width at every level and a mixed column is squared up rather than refused, and shrinking does create empty space.** The original framing, kept because it records what was uncertain and why: whether a column holding mixed
-widths should be squared up rather than refused (`COLUMN_MEMBERS_UNALIGNED`, 15 lockouts), and whether
+widths should be squared up rather than refused (`COLUMN_MEMBERS_UNALIGNED`, 13 lockouts — **both
+answered on 2026-08-28 and shipped in wave 5D2b; the refusal code is deleted**), and whether
 *shrinking* a column should create empty space — which would make the kitchen resizable without a
 delete first, and which 5D's measurement makes the more pressing of the two. ADR 0031 records that
 the "not representable" argument against it was **wrong**; the machinery exists.
