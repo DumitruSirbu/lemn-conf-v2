@@ -177,9 +177,12 @@ describe("every catalogue entry's capability flags match what its builder draws"
   // The two population sizes ADR 0027's amendment states, so the prose cannot drift from the map.
   // **Sixteen since ADR 0033**, where there were eighteen: `base-2door` + `base-1door` and
   // `wall-2door` + `wall-1door` are one entry each, and the door count moved out of the id.
+  // **Twenty-two seeded since ADR 0038**, where there were twenty-three: `cooktop-600` was kept
+  // only so a document saved before ADR 0027 could still resolve its `buildId`, and no such
+  // document was ever stored.
   it("gates both populations of the one map, not just the insertable half", () => {
     expect(CATALOG_BUILD_IDS.length).toBe(16);
-    expect(SEEDED_BUILD_IDS.length).toBe(23);
+    expect(SEEDED_BUILD_IDS.length).toBe(22);
     expect(ALL_BUILD_IDS.length).toBe(
       CATALOG_BUILD_IDS.length + SEEDED_BUILD_IDS.length,
     );

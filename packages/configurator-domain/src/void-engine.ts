@@ -41,9 +41,6 @@ export const FIT_TOLERANCE_M = 0.012;
  *  level, per §4 rule 4 (a span starting mid-level stays one opening). */
 export const LEVEL_SNAP_M = 0.02;
 
-/** `frame.h` below this marks a worktop accessory (§2, §6.1) rather than a body. */
-export const ACCESSORY_MAX_HEIGHT_M = 0.3;
-
 export type Band = "base" | "wall" | "top" | "column";
 
 /** §7's width column: `'fit'` builds to the opening; a millimetre set builds only at those
@@ -148,19 +145,20 @@ export interface BodyDefinition {
    *  Declared per entry rather than inferred from kind + band + width, following ADR 0017's
    *  precedent: §6.3 records that inferring a body's identity produced a fridge housing labelled and
    *  priced as a pantry, and an inferred swap-row match is the same mistake one layer up. Absent
-   *  means this body has no catalogue equivalent — the hob, the corner returns — and no row is
-   *  badged, which is the correct answer for them rather than a missing one. */
+   *  means this body has no catalogue equivalent — the corner returns — and no row is badged,
+   *  which is the correct answer for them rather than a missing one. The hob was the other example
+   *  until ADR 0027 folded it into its cabinet: the surviving hob-bearing base declares
+   *  `base-hob-2drawer`, so it is now a body that has one. */
   readonly catalogEquivalentId?: string;
   /** ADR 0027: the accessory `kind` this body has **built into it** — `induction_cooktop` on both
    *  hob-bearing bases and on the seeded cabinet they replaced.
    *
    *  Declared rather than inspected, for the reason `catalogEquivalentId` above is: the domain has
    *  no meshes to look at, so "this body already carries a hob" is a fact only the catalogue can
-   *  state. §5.3 reads it to cascade a *duplicate* — a pre-migration document's separate
-   *  `cooktop-600` placement standing on the body being swapped out — away in the same command, so
-   *  a swap cannot leave two hobs in the same cubic centimetre with the spare undeletable
-   *  (`ACCESSORY_NOT_DELETABLE`). Absent means the body carries nothing of its own, which is every
-   *  entry but three. */
+   *  state. It said what a body is made of before anything read it (ADR 0027 records that), and
+   *  ADR 0038 put it back in that position: the §5.3 cascade that consumed it existed only to
+   *  de-duplicate a hob on a document saved before ADR 0027, and no such document was ever stored.
+   *  Absent means the body carries nothing of its own, which is every entry but three. */
   readonly carriesAccessoryKind?: string;
   /** ADR 0033: `true` marks an entry whose **door count the builder derives from the width**, so the
    *  displayed label counts doors that are decided at build time rather than declared here.
@@ -221,7 +219,6 @@ export interface PlacementRecord {
   readonly canReplace: boolean;
   readonly canDelete: boolean;
   readonly fixedWidth: boolean;
-  readonly accessory: boolean;
   readonly finishKey?: Finish;
   readonly handleMode?: Handle;
 }
@@ -376,7 +373,6 @@ export function derivePlacementRecords(
       canReplace: definition.canReplace,
       canDelete: definition.canDelete,
       fixedWidth: definition.fixedWidth,
-      accessory: frame.h < ACCESSORY_MAX_HEIGHT_M,
       ...(placement.body.finish !== undefined
         ? { finishKey: placement.body.finish }
         : {}),
@@ -392,7 +388,6 @@ function groupByColumn(
 ): Map<string, PlacementRecord[]> {
   const grouped = new Map<string, PlacementRecord[]>();
   for (const record of records) {
-    if (record.accessory) continue;
     const bucket = grouped.get(record.col);
     if (bucket) bucket.push(record);
     else grouped.set(record.col, [record]);
@@ -402,7 +397,6 @@ function groupByColumn(
 
 /** §3.2: derived once at load from the seeded placement set, and never recomputed afterwards —
  *  `top` and `regions` are load-time facts, not a function of the design's current state.
- *  Accessories contribute nothing.
  *
  *  `hasFullHeightUnder` is the exception and is answered here only because a load is also a
  *  derivation; every derivation after this one re-answers it through
@@ -551,9 +545,6 @@ export function withCurrentFullHeightMembers(
  *  column key is one along-wall coordinate, so a wall cabinet hanging over the right-hand half of a
  *  wider unit has no member of its own; overlap is what decides.
  *
- *  Accessories are excluded for the reason `groupByColumn` drops them, and because no accessory is
- *  full-height.
- *
  *  **Same-wall only, deliberately.** Both walls originate at (0, 0, 0), so a wall-B cabinet in the
  *  inside corner is never lifted by a wall-A run standing physically beneath it. That is
  *  unreachable today — every wall-B corner column is 330 mm deep, so the cap it keeps is a no-op —
@@ -565,7 +556,6 @@ function isFullHeightUnder(
   column: ColumnExtent,
 ): boolean {
   return (
-    !record.accessory &&
     record.band === "column" &&
     record.wall === column.wall &&
     overlapsAlongWall(record, column)

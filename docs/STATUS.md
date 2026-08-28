@@ -182,13 +182,22 @@ question (5A) and the 600-versus-620 question (5F). **Four travel to M6 with the
 repeated in that plan's open questions so they are not lost at the seam; the design-saved-at-600
 question blocks M6's control.
 
-**The deletion ADR 0027 owed is now authorised — see [ADR 0038](decisions/0038-pre-release-no-stored-designs-no-migrations.md).**
-ADR 0027 left the whole accessory machinery in place — §6.1's host resolution, §5.1's cascade,
-`ACCESSORY_MAX_HEIGHT_M`, `PlacementRecord.accessory` and `cascadedAccessoryIds` — because a design
-saved before that migration still carries a `cooktop-600` placement and reaches all of it. The owner
-confirmed on 2026-08-28 that **nothing has ever been stored**: no release, no records, no migration
-owed. So there are no such documents, the machinery is dead code, and it is deleted rather than
-supported. **ADR 0038 expires at first release** and M7/M8 must re-read it before launch.
+**The deletion ADR 0027 owed is done.** The standalone accessory machinery is gone — §6.1's host
+resolution, §5.1's cascade, `ACCESSORY_MAX_HEIGHT_M`, `PlacementRecord.accessory`,
+`cascadedAccessoryIds` and the `cooktop-600` entry — authorised by
+[ADR 0038](decisions/0038-pre-release-no-stored-designs-no-migrations.md) on the owner's confirmation
+that nothing has ever been stored. Product-logic review established the deletion is behaviour-free
+with more margin than expected: the reachable frame-height floor is **400 mm**, enforced by
+`refuseShortOpening`'s `HEIGHT_FLEX_MIN_OPENING_MM`, not 300 by a coincidence of constants. §11
+row 15 survives, restated — the hob is a child mesh of its cabinet's group, so a click climbs to the
+cabinet with no resolution pass.
+
+**[ADR 0038](decisions/0038-pre-release-no-stored-designs-no-migrations.md) expires at first release,
+and this is the line that must survive until then.** M7 or M8 must re-read it before launch and
+decide the first stored schema. One concrete obligation is already named: `DesignPlacementSchema`
+accepts `heightMm` with **no lower bound**, so once documents are stored a 40 mm placement becomes
+constructible — and it would now silently join its column and count toward its extent, where before
+this wave it would have been classified an accessory and skipped.
 
 
 **M4 closed with one acceptance criterion unmet, on purpose (ADR 0024).** Its Verification section

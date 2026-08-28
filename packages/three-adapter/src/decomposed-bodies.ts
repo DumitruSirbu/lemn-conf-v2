@@ -100,10 +100,6 @@ export function buildDecomposedBody(kit: Kit, buildId: string): THREE.Group {
     // decomposition-parity gate compares this against both of them.
     case "base-hob-2drawer-600":
       return kit.make.hobBaseWithDrawers(0.6);
-    // Kept for the designs saved before that migration, which still carry a `cooktop-600`
-    // placement. No seeded placement references it any more.
-    case "cooktop-600":
-      return kit.builders.cooktop();
     case "base-drawer3-600":
       return kit.make.baseCabinet(0.6, { drawers: 3 });
     case "tall-oven-tower-600":

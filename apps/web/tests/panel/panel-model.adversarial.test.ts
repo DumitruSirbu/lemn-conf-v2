@@ -23,7 +23,6 @@ import { describe, expect, it } from "vitest";
 import { describePanel, type PanelSection } from "@/panel/panel-model";
 
 import { offeredBuildIds } from "../support/offers";
-import { preMigrationHobDesign } from "../support/pre-migration-hob";
 
 import { noWidthIsFree } from "../support/width-options";
 
@@ -110,17 +109,14 @@ describe("the panel over the seeded kitchen", () => {
     expect(checked).toBeGreaterThan(0);
   });
 
-  // §11 row 24 against the real hob, which is the body the fallback set was written for.
-  // ADR 0027: the shipped design's hob is a mesh inside `p2`'s body, so the accessory this rule is
-  // about now only reaches the panel from a document saved before that migration.
-  it("renders no replace section for the hob", () => {
-    const world = worldFrom(preMigrationHobDesign());
-    const hob = world.records.find(
-      (record) => record.kind === "induction_cooktop",
-    );
-    expect(hob).toBeDefined();
+  // §11 row 24 / §11 row 16 against the corner leg. ADR 0027 folded the hob into `p2`'s body and
+  // ADR 0038 retired the document that carried it separately, so what publishes no replace list at
+  // all is now exactly the four corner bodies — `p25`, `p26`, `p9` and `p21`: the two base corner pieces and the two
+  // wall corner returns. `p25` stands for all four here; they share one `canReplace: false`.
+  it("renders no replace section for the corner leg", () => {
+    const world = worldFrom(KITCHEN_L_DESIGN);
     expect(
-      replaceSectionAt(world, { kind: "placement", id: hob?.id ?? "" }),
+      replaceSectionAt(world, { kind: "placement", id: "p25" }),
     ).toBeUndefined();
   });
 

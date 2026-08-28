@@ -30,8 +30,6 @@ export interface VacatedOpening {
 export interface PlacementRemovedEffect {
   readonly type: "placement_removed";
   readonly placementId: string;
-  /** §3.1 / ADR 0011 Gap E: accessories the removed body carried, deleted in the same command. */
-  readonly cascadedAccessoryIds: readonly string[];
   readonly vacated: VacatedOpening;
 }
 
@@ -41,10 +39,6 @@ export interface BodyInsertedEffect {
   readonly buildId: string;
   /** Present when this insert was a swap in place (§5.3) — one code path, two entry points. */
   readonly replacedPlacementId?: string;
-  /** ADR 0027: accessories deleted in the same command because the incoming body has one of that
-   *  kind built in (`carriesAccessoryKind`). Always present and empty on every other insert, which
-   *  is `PlacementRemovedEffect`'s convention above rather than a second one. */
-  readonly cascadedAccessoryIds: readonly string[];
 }
 
 /** ADR 0031's resize: the one operation that changes bodies the customer did not select, and the

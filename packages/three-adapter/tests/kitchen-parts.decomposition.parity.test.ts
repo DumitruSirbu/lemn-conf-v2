@@ -353,7 +353,6 @@ describe("decomposed kitchen-l placements reproduce the whole-scene render", () 
 
     for (const placement of KITCHEN_L_DESIGN.placements) {
       const record = required(recordsById.get(placement.id), placement.id);
-      if (record.accessory) continue; // an appliance on a countertop, not seated against a wall
       const body = mountPlacement(room, placement, record);
       room.updateWorldMatrix(true, true);
       const box = new THREE.Box3().setFromObject(body);
@@ -370,7 +369,6 @@ describe("decomposed kitchen-l placements reproduce the whole-scene render", () 
   it("leaves no gaps between adjacent decomposed bodies in the same row", () => {
     const rows = new Map<string, PlacementRecord[]>();
     for (const record of records) {
-      if (record.accessory) continue;
       const rowKey = `${record.wall}|${record.frame.y0.toFixed(2)}`;
       const bucket = rows.get(rowKey);
       if (bucket) bucket.push(record);

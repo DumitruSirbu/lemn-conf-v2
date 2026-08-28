@@ -84,7 +84,7 @@ function overlapsBody(
   records: readonly PlacementRecord[],
 ): boolean {
   return records.some((record) => {
-    if (record.accessory || record.wall !== opening.wall) return false;
+    if (record.wall !== opening.wall) return false;
     const bodyAlong = record.wall === "A" ? record.frame.x : record.frame.z;
     const openAlong = opening.wall === "A" ? opening.x : opening.z;
     const along =

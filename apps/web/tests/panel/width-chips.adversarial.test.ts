@@ -34,7 +34,6 @@ import { describe, expect, it } from "vitest";
 import { describePanel, type WidthSection } from "@/panel/panel-model";
 
 import { createFakeBodyProbe } from "../support/fake-body-probe";
-import { preMigrationHobDesign } from "../support/pre-migration-hob";
 
 /** ADR 0011 Gap D: columns are load-time state, frozen from the whole design. */
 const SEEDED_COLUMNS = deriveColumns(
@@ -349,24 +348,13 @@ describe("every width section the shipped kitchen renders", () => {
 // -------------------------------------------------------------------------------------------
 
 describe("a willing body with no widths gets no section, not an empty one", () => {
-  // The reachable case: a document saved before ADR 0027 carries a `cooktop-600` placement, which
-  // declares no catalogue equivalent and is not `fixedWidth`. `canWidth` stays §9's literal rule
-  // and the emptiness is answered in `describeWidthSection` — which is what makes missing
-  // catalogue data fail loudly at the section rather than silently at the flag.
-  it("keeps canWidth true on a pre-migration cooktop while rendering nothing", () => {
-    const world = worldFrom(preMigrationHobDesign());
-    const meta = describeSelection({
-      ...world,
-      target: { kind: "placement", id: "p3" },
-    });
-    expect(meta?.canWidth).toBe(true);
-    expect(meta?.sizesMm).toEqual([]);
-    expect(widthSectionAt(world, "p3")).toBeUndefined();
-  });
-
-  // The same arrangement reached by breaking data instead of by loading an old document: a seeded
-  // row whose pointer resolves to nothing. The panel must lose the section, not render a chipless
-  // one and not throw.
+  // `canWidth` stays §9's literal rule and the emptiness is answered in `describeWidthSection` —
+  // which is what makes missing catalogue data fail loudly at the section rather than silently at
+  // the flag. Reached by breaking data: a seeded row whose pointer resolves to nothing. The panel
+  // must lose the section, not render a chipless one and not throw.
+  //
+  // ADR 0038 retired the other route in, a document saved before ADR 0027 carrying a `cooktop-600`
+  // placement. No such document was ever stored, and the row is gone with the machinery.
   it("drops the section when a seeded row's pointer resolves to nothing", () => {
     const world = worldFrom(
       KITCHEN_L_DESIGN,

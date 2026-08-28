@@ -361,7 +361,7 @@ describe("a sub-300 mm width is reached only by naming a row that declares one",
         (record) => ({ kind: "void", id: record.id }) as const,
       ),
       ...world.records
-        .filter((record) => record.canReplace && !record.accessory)
+        .filter((record) => record.canReplace)
         .map((record) => ({ kind: "placement", id: record.id }) as const),
     ];
     const offending: string[] = [];
@@ -447,9 +447,7 @@ describe("the claim the band predicate rests on", () => {
       KITCHEN_L_DESIGN,
       KITCHEN_L_BODY_CATALOG,
     );
-    const bases = records.filter(
-      (record) => record.band === "base" && !record.accessory,
-    );
+    const bases = records.filter((record) => record.band === "base");
     const nearWorktop = records.filter(
       (record) =>
         record.band !== "base" &&
@@ -494,14 +492,6 @@ const BASE_CABINET: DesignPlacement = {
   alongMm: 1000,
   y0Mm: 0,
   body: { buildId: "base-drawer2-600", widthMm: 900, heightMm: 820 },
-};
-
-const HOB: DesignPlacement = {
-  id: "h0",
-  wall: "A",
-  alongMm: 1000,
-  y0Mm: 820,
-  body: { buildId: "cooktop-600", widthMm: 600, heightMm: 40 },
 };
 
 const TALL_COLUMN: DesignPlacement = {
@@ -554,15 +544,6 @@ describe("hasFullHeightUnder — what the predicate answers, member by member", 
   // is the test that would have caught it at the predicate.
   it("caps a wall carcass with nothing at all below it", () => {
     const world = stackedWorld(undefined, 1000);
-
-    expect(world.columns.get("A|1.00")?.hasFullHeightUnder).toBe(false);
-    expect(swapDepthMm(world)).toBe(CAP_OVER_WORKTOP_MM);
-  });
-
-  // `groupByColumn` drops accessories, and no accessory is full-height. Pinned so the predicate
-  // cannot regress into "any member counts".
-  it("does not count a hob — a base-band accessory — as full-height", () => {
-    const world = stackedWorld(HOB, 1000);
 
     expect(world.columns.get("A|1.00")?.hasFullHeightUnder).toBe(false);
     expect(swapDepthMm(world)).toBe(CAP_OVER_WORKTOP_MM);

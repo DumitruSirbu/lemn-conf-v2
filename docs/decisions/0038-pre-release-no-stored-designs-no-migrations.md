@@ -44,6 +44,26 @@ before the wave.
 whichever makes the setting honest — rather than trading it against a conversion cost. It should
 still be chosen deliberately, because the choice outlives this ADR.
 
+## What the deletion kept, deliberately
+
+Two things survive that nothing now reads. Both are judgement calls made during the wave and
+reviewed; recorded here so they are not "cleaned up" later by someone who only sees that they are
+unused.
+
+**`ACCESSORY_NOT_DELETABLE`** stays declared, in `rejection-totality.test.ts`'s `ENGINE_UNREACHABLE`
+list beside `BODY_PROBE_UNAVAILABLE`, which is the same shape. ADR 0024 established that a refusal
+with no reachable path can be the rule working rather than dead weight. Noted against it, because it
+is a real argument the other way: ADR 0027's *Alternatives considered* records that the void model
+has **no accessory slot** — §4 subdivides free vertical space and there is none at worktop height —
+so nothing in the engine can produce a body standing on another one either. If a later wave deletes
+it, that is defensible and this paragraph is the record of why it was kept, not an objection.
+
+**`carriesAccessoryKind`** stays declared on the three hob-bearing entries. Its only consumer was
+`cascadeDuplicatedAccessories`, deleted here. It is kept because it is the only machine-readable
+record that a body has a hob built into it, and the product rule that would want it — *do not offer
+two hobs in one kitchen* — is foreseeable rather than hypothetical. ADR 0027 named the field for the
+fact rather than for the rule, which is what makes keeping it consistent rather than sentimental.
+
 ## Consequences
 
 - **This ADR expires at first release**, and that is the whole risk in it. The moment a real
@@ -53,6 +73,12 @@ still be chosen deliberately, because the choice outlives this ADR.
   than the migration debt.
 - **`docs/STATUS.md`'s "one deletion is deliberately still owed" is retired**, and the accessory
   machinery becomes an ordinary cleanup rather than a decision waiting on the owner.
+- **One obligation is already named for the M7/M8 re-read.** `DesignPlacementSchema` accepts
+  `heightMm` with no lower bound, so the moment documents are stored a 40 mm placement becomes
+  constructible by hand or by a future writer. Before this wave it would have been classified an
+  accessory and skipped by five consumers; now it joins its column, counts toward that column's
+  extent, and is deletable. Unreachable today — there is no deserialisation surface — which is
+  exactly the shape of obligation that returns silently rather than as a load error.
 - **It does not license carelessness about the schema itself.** ADR 0002's canonical-serialisation
   round-trip invariant and the persistence suite are unaffected — they prove the store works, which
   is a different claim from what is in it.

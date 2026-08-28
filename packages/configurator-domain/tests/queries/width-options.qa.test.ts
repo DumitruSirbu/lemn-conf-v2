@@ -29,7 +29,6 @@ import {
   createWorld,
   type KitchenWorld,
 } from "../support/kitchen-world.js";
-import { preMigrationHobDesign } from "../support/pre-migration-hob.js";
 import { syntheticWorld } from "../support/synthetic-world.js";
 
 function kitchen(): KitchenWorld {
@@ -296,7 +295,7 @@ describe("an odd-parity width is refused, never offered", () => {
   });
 });
 
-describe("no section at all, and the three ways to get there", () => {
+describe("no section at all, and the ways to get there", () => {
   it.each(["p2", "p5", "p6", "p7", "p13"])(
     "publishes nothing for the fixedWidth body %s, which resolves a perfectly good set",
     (id) => {
@@ -304,13 +303,6 @@ describe("no section at all, and the three ways to get there", () => {
       expect(optionsFor(world, id)).toEqual([]);
     },
   );
-
-  it("publishes nothing for an accessory", () => {
-    const world = createWorld(preMigrationHobDesign(), KITCHEN_L_BODY_CATALOG);
-    const accessory = world.records.find((record) => record.accessory);
-    expect(accessory).toBeDefined();
-    expect(optionsFor(world, accessory?.id ?? "")).toEqual([]);
-  });
 
   it("publishes nothing when the resolved entry's floor empties its set", () => {
     const world = createWorld(

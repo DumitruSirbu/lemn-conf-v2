@@ -30,7 +30,6 @@ const BASE_CABINET_META: SelectionMeta = {
   canWidth: true,
   canReplace: true,
   canDelete: true,
-  accessory: false,
   defaultHandle: "steel",
 };
 

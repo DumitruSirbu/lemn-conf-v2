@@ -2,16 +2,16 @@
 //   hits = raycast(bodies)                  // solids FIRST
 //   if none: hits = raycast(void meshes)    // voids only where nothing solid is behind
 //   climb parents to the owning placement/void
-//   resolve accessories -> host cabinet
+//
+// §6.1's fourth line, "resolve accessories -> host cabinet", has no work left to do: ADR 0027 made
+// the hob a child mesh of its cabinet's own group, so `climbToSelectable` already resolves a click
+// on it to the cabinet, and ADR 0038 confirmed no stored document carries a standalone accessory
+// for the rule to run on. The rule is satisfied by the mesh tree rather than by a second pass.
 //
 // The recorded worst bug of the session was the raycast-threshold default (three.js defaults
 // `Line.threshold` to one metre), which made every dashed void outline steal its neighbours'
 // clicks. `createPickingRaycaster` pins that override in one place so it cannot silently regress.
 import * as THREE from "three";
-import {
-  resolveHostPlacement,
-  type PlacementRecord,
-} from "@lemnaria/configurator-domain";
 
 /** `DEVELOPMENT-SPEC.md` §6.1: three.js's own default (1 m) swallowed clicks aimed at a
  *  neighbouring void or cabinet. Never construct a `Raycaster` for picking without this. */
@@ -68,33 +68,6 @@ export function climbToSelectable(object: THREE.Object3D): Selection | null {
   return null;
 }
 
-/** §6.1's "resolve accessories -> host cabinet": a worktop accessory (`frame.h < 0.3`, e.g. the
- *  hob) has no swap set of its own and cannot be deleted, so a click on it must resolve to the
- *  cabinet it sits on, never to its own placement id.
- *
- *  ADR 0011 Gap E: the rule itself is placement logic and lives in the domain now; this is the
- *  adapter's `PlacementRecord`-shaped call into it. An orphaned accessory returns its own id
- *  instead of throwing — `remove` cascades so the state should not arise, and a thrown exception
- *  out of a pointer handler is not an acceptable outcome for one that can. */
-export function resolveHostPlacementId(
-  accessory: PlacementRecord,
-  records: readonly PlacementRecord[],
-): string {
-  return resolveHostPlacement(accessory, records)?.id ?? accessory.id;
-}
-
-/** Resolves a raw `climbToSelectable` result against the placement catalog, applying the
- *  accessory -> host rule. Void selections pass through unchanged. */
-export function resolveSelection(
-  selection: Selection,
-  records: readonly PlacementRecord[],
-): Selection {
-  if (selection.kind === "void") return selection;
-  const record = records.find((candidate) => candidate.id === selection.id);
-  if (!record?.accessory) return selection;
-  return { kind: "placement", id: resolveHostPlacementId(record, records) };
-}
-
 /** The nearest hit (three.js sorts `intersectObject` results by distance) that actually climbs to
  *  a selectable — a non-selectable mesh in the same group (the room shell sharing `solids` with the
  *  cabinet bodies) must not shadow a real hit or a fallback to `voids` behind it. */
@@ -115,14 +88,11 @@ export function pick(
   raycaster: THREE.Raycaster,
   solids: THREE.Object3D,
   voids: THREE.Object3D,
-  records: readonly PlacementRecord[],
 ): Selection | null {
   const solidTarget = firstSelectableHit(
     raycaster.intersectObject(solids, true),
   );
-  if (solidTarget) return resolveSelection(solidTarget, records);
+  if (solidTarget) return solidTarget;
 
-  const voidTarget = firstSelectableHit(raycaster.intersectObject(voids, true));
-  if (!voidTarget) return null;
-  return resolveSelection(voidTarget, records);
+  return firstSelectableHit(raycaster.intersectObject(voids, true));
 }

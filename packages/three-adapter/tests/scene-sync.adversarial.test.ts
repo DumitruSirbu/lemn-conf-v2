@@ -75,7 +75,6 @@ function makeRecord(overrides: RecordOverrides): PlacementRecord {
     canReplace: true,
     canDelete: true,
     fixedWidth: false,
-    accessory: false,
     ...overrides,
     frame: {
       x: 2,

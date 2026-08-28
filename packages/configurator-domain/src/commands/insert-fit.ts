@@ -233,7 +233,7 @@ function findOpening(lookup: OpeningLookup): PartialResolution {
     (candidate) => candidate.id === lookup.target.id,
   );
   if (!record) return { ok: false, detail: notFound };
-  if (record.accessory || !record.canReplace) {
+  if (!record.canReplace) {
     return {
       ok: false,
       detail: {

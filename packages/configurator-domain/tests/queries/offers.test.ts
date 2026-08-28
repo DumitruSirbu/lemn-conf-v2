@@ -14,7 +14,6 @@ import {
 import type { BodyDefinition } from "../../src/void-engine.js";
 import { clearBodies, insertInto } from "../support/commands.js";
 import { advancePast, createWorld, voidAt } from "../support/kitchen-world.js";
-import { preMigrationHobDesign } from "../support/pre-migration-hob.js";
 
 const seeded = () => createWorld(KITCHEN_L_DESIGN, KITCHEN_L_BODY_CATALOG);
 
@@ -292,13 +291,14 @@ describe("offersFor — an occupied body", () => {
     ).toEqual([]);
   });
 
-  // ADR 0027: the shipped design has no accessory left in it, and this case would pass on an id
-  // that resolves to nothing — so it runs on a document saved before that migration.
-  it("gives an accessory no list, since it has no swap set of its own", () => {
-    const world = createWorld(preMigrationHobDesign(), KITCHEN_L_BODY_CATALOG);
-    expect(world.records.map((record) => record.id)).toContain("p3");
+  // §13.1: a corner is not a body the customer chooses, so it publishes no swap list of its own.
+  // Run on a real seeded placement rather than a synthetic one, so an id that stops resolving
+  // cannot make this pass by describing nothing.
+  it("gives a non-replaceable body no list, since it has no swap set of its own", () => {
+    const world = seeded();
+    expect(world.records.map((record) => record.id)).toContain("p25");
     expect(
-      offersFor({ ...world, target: { kind: "placement", id: "p3" } }),
+      offersFor({ ...world, target: { kind: "placement", id: "p25" } }),
     ).toEqual([]);
   });
 });

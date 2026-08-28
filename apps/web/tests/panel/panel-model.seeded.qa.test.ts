@@ -32,8 +32,6 @@ import { ro } from "@/content/ro";
 
 import { REFUSAL } from "../support/selection-meta";
 
-import { preMigrationHobDesign } from "../support/pre-migration-hob";
-
 import { createFakeBodyProbe } from "../support/fake-body-probe";
 
 /** Measures exactly what it was asked to build, so a resize the domain's guards accept is not then
@@ -555,18 +553,14 @@ describe("the panel is exactly the offer list, everywhere in the kitchen", () =>
     expect(swept).toBeGreaterThan(0);
   });
 
-  // §11 row 24 against the body the fallback set was written for. The hob also refuses one guard
-  // earlier (`canReplace: false`), so this asserts the outcome, not the mechanism.
-  // ADR 0027: the shipped design's hob is a mesh inside `p2`'s body, so the accessory this rule is
-  // about now only reaches the panel from a document saved before that migration.
-  it("renders no replace section for the hob", () => {
-    const world = worldFrom(preMigrationHobDesign());
-    const hob = world.records.find(
-      (record) => record.kind === "induction_cooktop",
-    );
-    expect(hob).toBeDefined();
+  // §11 row 24 / §11 row 16 against the corner leg, which declares `canReplace: false`. This
+  // asserts the outcome, not the mechanism. ADR 0027 folded the hob into `p2`'s body and ADR 0038
+  // retired the document that carried it separately, so the bodies in this position are now exactly
+  // the four corner bodies — `p25`, `p26`, `p9` and `p21`. `p25` stands for all four.
+  it("renders no replace section for the corner leg", () => {
+    const world = worldFrom(KITCHEN_L_DESIGN);
     expect(
-      sectionsAt(world, { kind: "placement", id: hob?.id ?? "" }).map(
+      sectionsAt(world, { kind: "placement", id: "p25" }).map(
         (section) => section.kind,
       ),
     ).not.toContain("replace");

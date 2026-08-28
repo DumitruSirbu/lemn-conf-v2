@@ -174,9 +174,10 @@ const BOTTLE_CARGO_MIN_WIDTH_MM = 200;
  *  it. */
 const HOB_BASE_WIDTHS_MM: readonly number[] = [600];
 
-/** ADR 0027: the `kind` a hob placement had before the migration, and the kind both hob-bearing
- *  bases now declare they carry themselves. The string is the seeded `cooktop-600` entry's own
- *  `kind`, which is what makes the two comparable at all — see `carriesAccessoryKind`. */
+/** ADR 0027: the kind of appliance both hob-bearing bases declare they carry built into them.
+ *  It was the `kind` of the standalone `cooktop-600` placement before the migration; ADR 0038
+ *  deleted that entry along with the rest of the accessory machinery, so the string now names the
+ *  appliance and nothing else — see `carriesAccessoryKind`. */
 const HOB_ACCESSORY_KIND = "induction_cooktop";
 
 const DISHWASHER_WIDTHS_MM: readonly number[] = [450, 600];

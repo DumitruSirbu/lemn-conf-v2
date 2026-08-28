@@ -20,7 +20,6 @@ import {
 import { resolveBuildableSizes } from "../../src/catalog.js";
 import { clearBodies, OCCURRED_AT } from "../support/commands.js";
 import { createFakeProbe } from "../support/fake-probe.js";
-import { preMigrationHobDesign } from "../support/pre-migration-hob.js";
 import { createWorld, type KitchenWorld } from "../support/kitchen-world.js";
 
 function kitchen(): KitchenWorld {
@@ -331,9 +330,8 @@ describe("no options at all is a real answer, and it has to stay one", () => {
   // FINDING R2.7: a body that resolves no set gets no width section rather than a chipless one, so
   // missing catalogue data fails loudly. The current width is folded into a set that exists; it
   // never conjures one, which is what would have turned this into a one-chip section nobody can use.
-  it("returns nothing for a pre-migration cooktop, which declares no equivalent", () => {
-    const world = createWorld(preMigrationHobDesign(), KITCHEN_L_BODY_CATALOG);
-    expect(optionsFor(world, "p3")).toEqual([]);
+  it("returns nothing for a corner leg, which declares no equivalent", () => {
+    expect(optionsFor(kitchen(), "p25")).toEqual([]);
   });
 
   it("returns nothing for a void, which owns no width", () => {

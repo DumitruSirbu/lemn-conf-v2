@@ -36,7 +36,6 @@ import {
   voidAt,
   type KitchenWorld,
 } from "../support/kitchen-world.js";
-import { preMigrationHobDesign } from "../support/pre-migration-hob.js";
 import {
   columnWorld,
   syntheticDesign,
@@ -47,10 +46,9 @@ const ROMANIAN_LETTERS = /[ăâîșțĂÂÎȘȚ]/;
 const PLACEHOLDER_LEAKS = ["undefined", "null", "NaN", "Infinity", "[object"];
 const FRIDGE_COLUMN = "B|2.45";
 
-/** §5.1's third refusal is `!canDelete (corners)`, and the seeded population's only non-deletable
- *  entry is the hob — which is an accessory, so it refuses one guard earlier. The corner bases M1
- *  draws are not placements at all. A structural entry therefore has to be introduced to reach the
- *  code, which is itself worth recording. */
+/** §5.1's second refusal is `!canDelete (corners)`. ADR 0025 made the corner legs real placements
+ *  and the shipped design reaches the code through `p25`; this synthetic entry keeps the sweep's
+ *  own reading of the guard independent of that fixture, and is the shape §5.1 describes. */
 const CORNER_BASE: BodyDefinition = {
   kind: "base_cabinet",
   band: "base",
@@ -139,14 +137,6 @@ function unalignedMember(
 
 function buildCases(): SweepCase[] {
   const world = seeded();
-  // ADR 0027: the shipped design has no accessory left in it, so the two codes that need one — a
-  // delete refused because the target is an accessory, and a swap refused for the same reason —
-  // are driven out of the design saved before that migration. Both codes stay reachable from a
-  // real command on a real document, which is what this sweep exists to prove.
-  const preMigration = createWorld(
-    preMigrationHobDesign(),
-    KITCHEN_L_BODY_CATALOG,
-  );
   const clearedFridge = clearBodies(world, ["p7", "p24"]);
   const clearedDishwasher = clearBodies(world, ["p1"]);
   /** A **600 mm** column with its top slot open. The hood's route to `HEIGHT_EXCEEDS_LEVEL` used to
@@ -221,11 +211,6 @@ function buildCases(): SweepCase[] {
         }),
     },
     {
-      code: "ACCESSORY_NOT_DELETABLE",
-      design: preMigration.design,
-      run: () => removeFrom(preMigration.design, "p3", "placement"),
-    },
-    {
       code: "NOT_DELETABLE",
       design: CORNER_DESIGN,
       run: () =>
@@ -249,14 +234,14 @@ function buildCases(): SweepCase[] {
         insertInto(world, { kind: "placement", id: "p0" }, "base-sink-800"),
     },
     {
+      // ADR 0025 / §13.1: a corner is not a body the customer chooses, so it declares
+      // `canReplace: false`. Since ADR 0027 folded the hob into its cabinet, the non-replaceable
+      // placements are exactly the four corner bodies — the base corner leg `p25` and return `p26`,
+      // and the wall corner returns `p9` and `p21`.
       code: "TARGET_NOT_REPLACEABLE",
-      design: preMigration.design,
+      design: world.design,
       run: () =>
-        insertInto(
-          preMigration,
-          { kind: "placement", id: "p3" },
-          "base-3drawer",
-        ),
+        insertInto(world, { kind: "placement", id: "p25" }, "base-3drawer"),
     },
     {
       code: "BAND_MISMATCH",
@@ -448,9 +433,17 @@ function buildCases(): SweepCase[] {
  *  `insertBody` takes a `BodyProbe` as a required argument. It is the refusal the caller returns on
  *  the command's behalf when the scene has not attached one yet, and `apps/web`'s store tests are
  *  what sweep it. */
+/** `ACCESSORY_NOT_DELETABLE` joins them for a third reason, and it is a deliberate change rather
+ *  than a code slipping out of the sweep: ADR 0027 made the hob part of its cabinet's body and
+ *  ADR 0038 confirmed no document was ever stored carrying the old pair, so no placement is a
+ *  standalone accessory and `removePlacement` no longer has a guard to reach. §11 row 15 is
+ *  satisfied by construction — a click on the hob selects `p2`, and there is no hob placement to
+ *  offer a delete on. The code stays declared because it is still the sentence §11 row 15 would
+ *  need the day a body stands on another one. */
 const ENGINE_UNREACHABLE: readonly RejectionCode[] = [
   "NO_SNAP_POSITION",
   "BODY_PROBE_UNAVAILABLE",
+  "ACCESSORY_NOT_DELETABLE",
 ];
 
 /** Every code in the union, as a `Record` keyed by it rather than as a hand-counted list: adding a

@@ -55,12 +55,13 @@ with no new geometry. The seeded `p2` + `p3` are one placement (`base-hob-2drawe
 retired rather than reused. The kitchen is unchanged, proven three ways: identical derived state,
 330 identical rendered meshes against the M1 reference, and byte-identical 1440 x 900 screenshots.
 
-**The accessory machinery was deliberately NOT removed**, which amends the paragraph above. The
-direction to "remove what is then unused" holds, but it is its own wave: a stored design saved before
-the migration still carries a `cooktop-600` placement and still reaches §6.1's host resolution,
-§5.1's cascade, `ACCESSORY_MAX_HEIGHT_M`, the `accessory` flag and `cascadedAccessoryIds`. Nothing in
-the *shipped* design reaches any of them. What the deletion wave must decide first is whether stored
-pre-migration documents are migrated or supported — see ADR 0027's closing paragraph.
+~~**The accessory machinery was deliberately NOT removed**, which amends the paragraph above.~~
+**Removed on 2026-08-28** — the question this paragraph said the deletion wave must decide first is
+answered by [ADR 0038](decisions/0038-pre-release-no-stored-designs-no-migrations.md): nothing has
+ever been stored, so there are no pre-migration documents to migrate or support. §6.1's host
+resolution, §5.1's cascade, `ACCESSORY_MAX_HEIGHT_M`, the `accessory` flag and `cascadedAccessoryIds`
+are all deleted, along with the `cooktop-600` entry itself. Do not re-decide this from ADR 0027's
+closing paragraph; ADR 0038 supersedes it.
 
 Confirmed at implementation, as the entry asked: **the hob was the only accessory** (`p3` at 40 mm;
 the next shortest body is 400 mm, so `ACCESSORY_MAX_HEIGHT_M` has no near-miss), and **§11 row 15 is

@@ -8,7 +8,6 @@ import { setFinish, setHandle } from "../../src/commands/set-appearance.js";
 import { describeSelection } from "../../src/queries/describe-selection.js";
 import { clearBodies, OCCURRED_AT } from "../support/commands.js";
 import { advance, createWorld, voidAt } from "../support/kitchen-world.js";
-import { preMigrationHobDesign } from "../support/pre-migration-hob.js";
 import type { BodyCatalog, BodyDefinition } from "../../src/void-engine.js";
 
 const seeded = () => createWorld(KITCHEN_L_DESIGN, KITCHEN_L_BODY_CATALOG);
@@ -52,21 +51,21 @@ describe("describeSelection — an occupied body", () => {
       openHmm: 820,
       canFinish: true,
       canDelete: true,
-      accessory: false,
     });
     expect(meta?.bandLabel.length).toBeGreaterThan(0);
   });
 
-  // ADR 0027: the shipped design's hob is a mesh inside `p2`'s body, so the accessory §9 has to
-  // describe now only reaches the panel from a document saved before that migration.
-  it("reports the hob as an accessory that cannot be replaced or deleted", () => {
-    const world = createWorld(preMigrationHobDesign(), KITCHEN_L_BODY_CATALOG);
+  // §13.1 / §11 row 16: a corner is not a body the customer chooses, so §9 must publish it as one
+  // that can be selected and neither swapped nor deleted. ADR 0027 folded the hob into its cabinet,
+  // which leaves the four corner bodies — `p25`, `p26`, `p9` and `p21` in that position — two base corner
+  // pieces and two wall corner returns, all four sharing this outcome.
+  it("reports the corner leg as a body that cannot be replaced or deleted", () => {
+    const world = seeded();
     const meta = describeSelection({
       ...world,
-      target: { kind: "placement", id: "p3" },
+      target: { kind: "placement", id: "p25" },
     });
     expect(meta).toMatchObject({
-      accessory: true,
       canReplace: false,
       canDelete: false,
     });
@@ -314,16 +313,20 @@ describe("describeSelection — §9's canWidth flag", () => {
   // that again and the panel's width *section* declines when there are no chips.
   //
   // It used to make its point on `p0`, which now resolves [600, 800] through `base-sink`. The
-  // invariant is unchanged and still reachable on a real body: a pre-migration document's
-  // `cooktop-600` placement declares no `catalogEquivalentId` (nothing in §7 builds it), so its set
-  // is empty — and `baseCarcass` leaves it `fixedWidth: false`, so `canWidth` is true beside it.
-  // That is the contradiction being kept representable on purpose: missing catalogue data must fail
-  // loudly at the section, not silently at the flag.
+  // invariant is unchanged and reached here by breaking one row's `catalogEquivalentId`: the set
+  // empties and `fixedWidth` does not move, so `canWidth` stays true beside it. That is the
+  // contradiction being kept representable on purpose — missing catalogue data must fail loudly at
+  // the section, not silently at the flag.
   it("is true for a movable-width body even when the catalogue gives it no widths", () => {
-    const world = createWorld(preMigrationHobDesign(), KITCHEN_L_BODY_CATALOG);
+    const world = createWorld(
+      KITCHEN_L_DESIGN,
+      withCatalogEntry("wall-2door-600", {
+        catalogEquivalentId: "no-such-entry",
+      }),
+    );
     const meta = describeSelection({
       ...world,
-      target: { kind: "placement", id: "p3" },
+      target: { kind: "placement", id: "p8" },
     });
     expect(meta).toMatchObject({
       fixedWidth: false,

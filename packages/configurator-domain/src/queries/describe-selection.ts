@@ -57,7 +57,6 @@ export interface SelectionMeta {
   readonly canWidth: boolean;
   readonly canReplace: boolean;
   readonly canDelete: boolean;
-  readonly accessory: boolean;
   /** The finish currently applied, so §9's Finisaj chips can mark the active one. Absent means the
    *  body ships in its default finish — a real state, distinct from any of the five choices, and
    *  carried absent rather than defaulted to one of them.
@@ -146,7 +145,6 @@ function describeVoid(record: VoidRecord): SelectionMeta {
     // §9: a void's whole purpose is the "Pune un corp aici" list.
     canReplace: true,
     canDelete: false,
-    accessory: false,
   };
 }
 
@@ -194,7 +192,6 @@ function describeBody(
     canWidth: !record.fixedWidth,
     canReplace: record.canReplace,
     canDelete: record.canDelete,
-    accessory: record.accessory,
     ...(record.finishKey === undefined ? {} : { finish: record.finishKey }),
     ...(record.handleMode === undefined ? {} : { handle: record.handleMode }),
     defaultHandle: isPushOpenByDefault(record.frame.y0)

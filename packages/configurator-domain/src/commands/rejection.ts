@@ -123,6 +123,12 @@ export type RejectionDetail =
    *  Declared here because every refusal in this product carries a stable code *and* a rendered
    *  sentence; a caller-local shape would give the panel a second thing to switch on. */
   | { readonly code: "BODY_PROBE_UNAVAILABLE"; readonly params: NoParams }
+  /** ADR 0027 removed this refusal's subject and ADR 0038 confirmed no stored document carries
+   *  one: the hob is part of its cabinet body, so no placement is a standalone accessory and no
+   *  command produces this code. Kept because §11 row 15 is still the rule it words — a customer
+   *  must never be able to delete the hob out from under its cabinet — and because a body that
+   *  stands on another is a shape §3.1 still allows. `BODY_PROBE_UNAVAILABLE` above is the
+   *  precedent for a declared-but-uncommanded code. */
   | { readonly code: "ACCESSORY_NOT_DELETABLE"; readonly params: LabelParams }
   | { readonly code: "NOT_DELETABLE"; readonly params: LabelParams }
   | { readonly code: "NOT_IN_LIBRARY"; readonly params: BuildIdParams }
@@ -145,9 +151,9 @@ export type RejectionDetail =
       readonly params: MeasurementParams;
     }
   | { readonly code: "COLUMN_MISMATCH"; readonly params: LabelParams }
-  /** §5.4 on a body that has no width to change: an accessory, a `fixedWidth` entry, or one with
-   *  no §7 equivalent to rebuild through. §9's `canWidth` hides the section for all three, so this
-   *  is the engine's own half of the same rule rather than a second one. */
+  /** §5.4 on a body that has no width to change: a `fixedWidth` entry, or one with no §7
+   *  equivalent to rebuild through. §9's `canWidth` hides the section for both, so this is the
+   *  engine's own half of the same rule rather than a second one. */
   | { readonly code: "NOT_RESIZABLE"; readonly params: LabelParams }
   | { readonly code: "WIDTH_UNCHANGED"; readonly params: CurrentWidthParams }
   | { readonly code: "NO_EMPTY_SPACE"; readonly params: EmptySpaceParams }

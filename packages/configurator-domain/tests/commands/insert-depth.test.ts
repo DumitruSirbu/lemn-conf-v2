@@ -327,10 +327,7 @@ describe("insertBody — a wall carcass over an emptied column (backlog entry 5)
     // A base cabinet — a worktop — now stands under the opening.
     expect(
       afterBase.records.some(
-        (record) =>
-          record.col === EMPTIED_COLUMN &&
-          record.band === "base" &&
-          !record.accessory,
+        (record) => record.col === EMPTIED_COLUMN && record.band === "base",
       ),
     ).toBe(true);
     // And the carcass above it is the capped one, both as recorded and as re-derived.

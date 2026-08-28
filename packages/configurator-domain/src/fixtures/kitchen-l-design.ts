@@ -155,36 +155,12 @@ const SEEDED_BODY_DEFINITIONS: readonly (readonly [string, BodyDefinition])[] =
         // resolves `base-hob-2drawer`'s single-member {600}, and this flag is what keeps §9 from
         // rendering a width section over it.
         fixedWidth: true,
-        // ADR 0027: the hob is built into this body. §5.3's cascade reads this off the **incoming**
-        // entry, and ADR 0011 Gap A never lets a seeded id be the incoming one, so nothing consumes
-        // it here today. It is declared because it is true of the body: the field says what a body
-        // carries, and a body that carries a hob and does not say so is the defect waiting to
-        // happen the next time something asks.
+        // ADR 0027: the hob is built into this body. Nothing reads the field since ADR 0038
+        // deleted the cascade that used to. It is declared because it is true of the body: the
+        // field says what a body carries, and a body that carries a hob and does not say so is the
+        // defect waiting to happen the next time something asks.
         carriesAccessoryKind: "induction_cooktop",
         catalogEquivalentId: "base-hob-2drawer",
-      },
-    ],
-    // ADR 0027 left this entry in place deliberately. Nothing in the seeded design references it
-    // any more, but designs saved before the migration still carry a `cooktop-600` placement, and
-    // a `buildId` the catalogue cannot resolve is `UnknownBodyError` at load — so removing the row
-    // would break exactly the documents the migration was meant to leave alone.
-    [
-      "cooktop-600",
-      {
-        ...baseCarcass,
-        kind: "induction_cooktop",
-        frameDepthMm: 700,
-        frameHeightMm: 40,
-        canReplace: false,
-        canDelete: false,
-        // Corrected rather than recorded as a known gap. A hob has no front and no handle, so
-        // `baseCarcass`'s `true`/`true` was false of the body either way; today the panel happens
-        // to suppress both sections on an accessory, which makes the mismatch cosmetic but does not
-        // make it true. These two flags are data, not geometry — the row, its builder arm and the
-        // meshes it draws are untouched, so a document persisted before the ADR 0027 migration
-        // still loads and renders exactly as it did.
-        canFinish: false,
-        canHandle: false,
       },
     ],
     [

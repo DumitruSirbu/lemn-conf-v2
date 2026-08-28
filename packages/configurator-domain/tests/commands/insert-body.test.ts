@@ -20,7 +20,6 @@ import {
   collapsedSpanWorld,
   narrowColumnWorld,
 } from "../support/narrow-column.js";
-import { preMigrationHobDesign } from "../support/pre-migration-hob.js";
 
 const seeded = () => createWorld(KITCHEN_L_DESIGN, KITCHEN_L_BODY_CATALOG);
 
@@ -353,13 +352,15 @@ describe("insert — refusals that guard the engine", () => {
     expect(result.reason.code).toBe("NOT_IN_LIBRARY");
   });
 
-  // ADR 0027: the hob is part of its cabinet's body in the shipped design, so the accessory this
-  // guard refuses now only exists in a document saved before that migration.
-  it("refuses an accessory as a swap target", () => {
-    const world = createWorld(preMigrationHobDesign(), KITCHEN_L_BODY_CATALOG);
+  // ADR 0025's corner leg is one of the seeded population's non-replaceable bodies, and since
+  // ADR 0027 folded the hob into its cabinet they are exactly the four corner bodies — `p25`, `p26`, `p9` and `p21`:
+  // §13.1 says a corner is not a body the customer chooses, so each declares `canReplace: false`
+  // and the swap is refused by name.
+  it("refuses a non-replaceable body as a swap target", () => {
+    const world = seeded();
     const result = insertInto(
       world,
-      { kind: "placement", id: "p3" },
+      { kind: "placement", id: "p25" },
       "base-cabinet",
     );
     expect(result.ok).toBe(false);

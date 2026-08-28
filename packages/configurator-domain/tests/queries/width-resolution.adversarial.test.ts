@@ -31,7 +31,6 @@ import {
 import { describeSelection } from "../../src/queries/describe-selection.js";
 import { clearBodies, insertInto } from "../support/commands.js";
 import { advance, createWorld, voidAt } from "../support/kitchen-world.js";
-import { preMigrationHobDesign } from "../support/pre-migration-hob.js";
 import type { BodyCatalog, BodyDefinition } from "../../src/void-engine.js";
 
 const seeded = () => createWorld(KITCHEN_L_DESIGN, KITCHEN_L_BODY_CATALOG);
@@ -491,9 +490,9 @@ describe("every seeded placement's set, over the whole shipped kitchen", () => {
       else resolved += 1;
     }
     // The guard: the sweep cannot shrink to nothing, and both answers stay present. ADR 0025 and
-    // ADR 0027 put the population at 26 placements. Five catalogue rows declare no equivalent, but
-    // only four of them are *placed* — ADR 0027 took `cooktop-600` out of the shipped design and
-    // left the row behind for pre-migration documents, so the shipped sweep sees four empties.
+    // ADR 0027 put the population at 26 placements, and the four catalogue rows that declare no
+    // equivalent — the corner bodies, which §7 does not build — are all placed, so the sweep sees
+    // four empties.
     expect(world.records.length).toBe(26);
     expect(empty).toBe(4);
     expect(resolved).toBe(22);
@@ -507,7 +506,7 @@ describe("every seeded placement's set, over the whole shipped kitchen", () => {
     expect(viaNamedEntry).toBe(20);
   });
 
-  // Named individually as well, because "the five with no pointer" is the claim and a sixth
+  // Named individually as well, because "the four with no pointer" is the claim and a fifth
   // silently joining them would still satisfy the count above if the count moved with it.
   it("is empty for exactly the four placed rows §7 does not build", () => {
     const world = seeded();
@@ -561,13 +560,13 @@ describe("canWidth stays §9's literal rule, whatever the set says", () => {
   // no set, and an unwilling body with one. Either direction collapsing would mean the flag had
   // quietly acquired a "has widths to offer" clause again (FINDING R2.7).
   it("is true beside an empty set, and false beside a full one", () => {
-    const preMigration = createWorld(
-      preMigrationHobDesign(),
-      KITCHEN_L_BODY_CATALOG,
+    const unpointed = createWorld(
+      KITCHEN_L_DESIGN,
+      catalogWith({ "wall-2door-600": { catalogEquivalentId: "nowhere" } }),
     );
-    const cooktop = metaFor(preMigration, "p3");
-    expect(cooktop.canWidth).toBe(true);
-    expect(cooktop.sizesMm).toEqual([]);
+    const willing = metaFor(unpointed, "p8");
+    expect(willing.canWidth).toBe(true);
+    expect(willing.sizesMm).toEqual([]);
 
     const world = seeded();
     const hood = metaFor(world, "p13");

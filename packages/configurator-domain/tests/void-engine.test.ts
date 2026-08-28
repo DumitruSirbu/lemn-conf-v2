@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 
 import type { Design, DesignPlacement } from "../src/design.js";
 import {
-  ACCESSORY_MAX_HEIGHT_M,
   deriveColumns,
   derivePlacementRecords,
   LEVELS,
@@ -65,21 +64,10 @@ const wallDefinition: BodyDefinition = {
   frameDepthMm: 330,
 };
 
-const accessoryDefinition: BodyDefinition = {
-  ...baseDefinition,
-  kind: "induction_cooktop",
-  band: "base",
-  frameDepthMm: 560,
-  frameHeightMm: 40,
-  canReplace: false,
-  canDelete: false,
-};
-
 const catalog: BodyCatalog = new Map([
   ["base-600", baseDefinition],
   ["fridge-700", { ...tallDefinition, kind: "fridge_freestanding" }],
   ["wall-only-330", wallDefinition],
-  ["cooktop", accessoryDefinition],
 ]);
 
 /** A column occupying the full 0–2.6 height in a single member, matching `recomputeVoids`'
@@ -117,7 +105,6 @@ function makeRecord(overrides: Partial<PlacementRecord> = {}): PlacementRecord {
     canReplace: true,
     canDelete: true,
     fixedWidth: false,
-    accessory: false,
     ...overrides,
   };
 }
@@ -153,19 +140,6 @@ describe("derivePlacementRecords", () => {
     expect(wallA?.col).toBe("A|1.30");
     expect(wallB?.col).toBe("B|1.20");
     expect(wallB?.rotated).toBe(true);
-  });
-
-  it("flags a worktop accessory by frame height and marks it non-replaceable/non-deletable", () => {
-    const design = makeDesign([
-      makePlacement({
-        body: { buildId: "cooktop", widthMm: 600, heightMm: 40 },
-      }),
-    ]);
-    const [record] = derivePlacementRecords(design, catalog);
-    expect(record?.accessory).toBe(true);
-    expect(record?.frame.h).toBeLessThan(ACCESSORY_MAX_HEIGHT_M);
-    expect(record?.canReplace).toBe(false);
-    expect(record?.canDelete).toBe(false);
   });
 
   it("remembers finishKey/handleMode from the body", () => {
@@ -248,20 +222,6 @@ describe("deriveColumns", () => {
     });
     const columns = deriveColumns([wallOnly]);
     expect(columns.get("A|0.30")?.regions[0]?.[0]).toBe(1.5);
-  });
-
-  it("contributes nothing from accessories", () => {
-    const host = makeRecord({ id: "host", col: "A|1.30" });
-    const accessory = makeRecord({
-      id: "accessory",
-      col: "A|1.30",
-      accessory: true,
-      frame: { x: 1.3, z: 0.36, ry: 0, y0: 0.86, w: 0.6, h: 0.04, d: 0.56 },
-    });
-    const columns = deriveColumns([host, accessory]);
-    // Only the host's own 0.6 m width should count; an accessory would have narrowed nothing here,
-    // but its region must not appear either.
-    expect(columns.get("A|1.30")?.regions).toEqual([[0, 2.6]]);
   });
 });
 
@@ -394,25 +354,6 @@ describe("recomputeVoids", () => {
     const forward = recomputeVoids([a, b], columns);
     const reversed = recomputeVoids([b, a], columns);
     expect(reversed).toEqual(forward);
-  });
-
-  it("judges occupancy by the frame, not mesh bounds: an accessory's extent never inflates the module pitch", () => {
-    const column = makeColumn();
-    const columns = new Map([[column.key, column]]);
-    const host = makeRecord({
-      id: "host",
-      col: column.key,
-      frame: { x: 1.3, z: 0.3, ry: 0, y0: 0, w: 0.6, h: 0.86, d: 0.56 },
-    });
-    const accessory = makeRecord({
-      id: "cooktop",
-      col: column.key,
-      accessory: true,
-      frame: { x: 1.3, z: 0.36, ry: 0, y0: 0.86, w: 0.6, h: 0.04, d: 0.56 },
-    });
-    const withoutAccessory = recomputeVoids([host], columns);
-    const withAccessory = recomputeVoids([host, accessory], columns);
-    expect(withAccessory).toEqual(withoutAccessory);
   });
 
   it("pins the LEVELS boundaries as named constants", () => {

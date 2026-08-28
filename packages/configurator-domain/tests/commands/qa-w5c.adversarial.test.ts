@@ -677,9 +677,7 @@ describe("Q6 — COLUMN_MEMBERS_UNALIGNED", () => {
             const members = after.design.placements.filter((placement) =>
               after.records.some(
                 (record) =>
-                  record.id === placement.id &&
-                  record.col === cleared.key &&
-                  !record.accessory,
+                  record.id === placement.id && record.col === cleared.key,
               ),
             );
             const first = members[0];
@@ -737,8 +735,7 @@ describe("Q7 — no opening may appear where a body physically stands", () => {
           );
           const phantom = after.voids.filter((opening) =>
             after.records.some((record) => {
-              if (record.accessory || record.wall !== opening.wall)
-                return false;
+              if (record.wall !== opening.wall) return false;
               const bodyAlong =
                 record.wall === "A" ? record.frame.x : record.frame.z;
               const openingAlong = opening.wall === "A" ? opening.x : opening.z;
@@ -787,36 +784,6 @@ describe("Q7 — no opening may appear where a body physically stands", () => {
       empty.x - empty.w / 2,
       9,
     );
-  });
-
-  it("excludes accessories, consistently with the rest of §4", () => {
-    // Deliberate rather than an oversight: `groupByColumn` drops accessories, so no accessory is a
-    // member of any column and *every* opening lies over one that stands there. Counting them
-    // would refuse every resize on a design carrying a pre-ADR-0027 `cooktop-600`.
-    const world = createWorld(
-      {
-        room: { shape: "L", widthMm: 3600, depthMm: 2400, heightMm: 2600 },
-        presetId: null,
-        placements: [
-          placementAt("a-base", 700, 0, "base-panbank", 600, 860),
-          placementAt("a-wall", 700, 1500, "open-shelf", 600, 700),
-          placementAt("hob", 700, 820, "cooktop-600", 600, 40),
-          placementAt("b-base", 1300, 0, "base-panbank", 600, 860),
-          placementAt("b-wall", 1300, 1500, "open-shelf", 600, 700),
-        ],
-        createdAt: "2026-08-25T00:00:00.000Z",
-        updatedAt: "2026-08-25T00:00:00.000Z",
-      },
-      KITCHEN_L_BODY_CATALOG,
-    );
-    expect(world.records.find((record) => record.id === "hob")?.accessory).toBe(
-      true,
-    );
-    expect(world.columns.has("A|0.70")).toBe(true);
-
-    const cleared = clearBodies(world, ["b-base", "b-wall"]);
-    const result = resizeTo(cleared, "a-base", 800);
-    expect(result.ok).toBe(true);
   });
 });
 

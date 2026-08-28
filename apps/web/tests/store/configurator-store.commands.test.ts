@@ -19,18 +19,14 @@ import {
 } from "../../src/store/configurator-store";
 import { columnExtents } from "../support/column-extents";
 import { createFakeBodyProbe } from "../support/fake-body-probe";
-import { preMigrationHobDesign } from "../support/pre-migration-hob";
 
 /** The fridge column of the §10 signature flow: `p7` (0 – 1.85) with `p24` (1.85 – 2.60) above it,
  *  and a frozen `top` of 2.60. Every column-stability case below is expressed against it. */
 const FRIDGE_COLUMN = "B|2.45";
 const FRIDGE_COLUMN_TOP_M = 2.6;
-/** ADR 0011 Gap E's cascade, on the design saved **before** ADR 0027: there, `p2` is a plain
- *  drawer base and `p3` is the hob standing on it. The shipped design has no accessory in it at all
- *  any more — the hob is a mesh inside `p2`'s own body — so the two cases about one below load a
- *  pre-migration document, which is a shape a stored design can still have. */
+/** The hob-bearing base. ADR 0027 made the hob part of its body, so deleting it takes the hob with
+ *  it and there is no separate placement to cascade. */
 const HOB_HOST_ID = "p2";
-const HOB_ID = "p3";
 const OCCURRED_AT = "2026-08-25T12:00:00.000Z";
 
 /** The store's own probe, reused where a test has to ask §9's width query what it would offer. */
@@ -169,45 +165,40 @@ describe("remove", () => {
     expect(selected?.y0).toBeCloseTo(2.2, 6);
   });
 
-  it("cascades to the accessory the removed body carried", () => {
-    const store = createStore({ design: preMigrationHobDesign() });
-    // Without this the case would pass by the accessory never having existed.
+  it("takes the hob away with the cabinet it is built into", () => {
+    const store = createStore();
     expect(store.getState().records.map((record) => record.id)).toContain(
-      HOB_ID,
+      HOB_HOST_ID,
     );
 
     removeById(store, HOB_HOST_ID);
 
-    const ids = store.getState().records.map((record) => record.id);
-    expect(ids).not.toContain(HOB_HOST_ID);
-    expect(ids).not.toContain(HOB_ID);
+    expect(store.getState().records.map((record) => record.id)).not.toContain(
+      HOB_HOST_ID,
+    );
   });
 });
 
 describe("insert", () => {
-  // ADR 0027's amendment, at the layer that has to survive it. §5.3 now deletes a duplicate hob in
-  // the same command as the swap, and the store needed **no** wiring for that: `applyCommandResult`
-  // re-derives `records` and `voids` from the result's whole `Design`, so a placement the command
-  // dropped is simply not in the design it applies. `cascadedAccessoryIds` is reporting, not
-  // instruction — the delete cascade above has always worked the same way. This case is here so
-  // that stays true: a store that started reading the effect's ids to prune state by hand would
-  // pass every existing delete case and drop this one.
-  it("loses the pre-migration hob when the swap cascades it away", () => {
-    const store = createStore({ design: preMigrationHobDesign() });
-    // Without this the case would pass by the accessory never having existed.
-    expect(store.getState().records.map((record) => record.id)).toContain(
-      HOB_ID,
-    );
+  // The store needs **no** wiring for what a command drops: `applyCommandResult` re-derives
+  // `records` and `voids` from the result's whole `Design`, so a placement the command removed is
+  // simply not in the design it applies. Kept as a swap case because the hob base is the one body
+  // whose swap replaces a placement that carries something (ADR 0027's `carriesAccessoryKind`), so
+  // it is where a store that started tracking placement contents by hand would diverge first.
+  it("swaps the hob base for the oven variant without leaving the old id behind", () => {
+    const store = createStore();
 
     store.getState().select({ kind: "placement", id: HOB_HOST_ID });
-    store.getState().insert("base-hob-2drawer");
+    store.getState().insert("base-hob-oven");
 
     const state = store.getState();
     expect(state.lastRejection).toBeNull();
-    expect(state.records.map((record) => record.id)).not.toContain(HOB_ID);
+    expect(state.records.map((record) => record.id)).not.toContain(HOB_HOST_ID);
     expect(
-      state.design.placements.map((placement) => placement.id),
-    ).not.toContain(HOB_ID);
+      state.design.placements.some(
+        (placement) => placement.body.buildId === "base-hob-oven",
+      ),
+    ).toBe(true);
   });
 
   it("applies the new placement and selects it, in a single update", () => {
@@ -615,8 +606,7 @@ describe("column stability (ADR 0011 Gap D)", () => {
 
 describe("the selection after a command", () => {
   it("never dangles: it names an existing placement, an existing void, or nothing", () => {
-    // Pre-migration, because two of the steps below are about an accessory (see `HOB_HOST_ID`).
-    const store = createStore({ design: preMigrationHobDesign() });
+    const store = createStore();
     const commands: readonly ((state: ConfiguratorState) => void)[] = [
       (state) => {
         state.select({ kind: "placement", id: "p7" });
@@ -632,12 +622,12 @@ describe("the selection after a command", () => {
         state.setHandle("push");
       },
       (state) => {
-        // A refused command: the accessory stays selected, and it still exists.
-        state.select({ kind: "placement", id: HOB_ID });
+        // A refused command: the corner leg stays selected, and it still exists.
+        state.select({ kind: "placement", id: "p25" });
         state.remove();
       },
       (state) => {
-        // The cascade removes the accessory that was selected a step ago.
+        // A successful delete of a body that was not the one selected a step ago.
         state.select({ kind: "placement", id: HOB_HOST_ID });
         state.remove();
       },

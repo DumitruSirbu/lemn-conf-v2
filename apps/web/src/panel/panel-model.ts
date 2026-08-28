@@ -558,9 +558,9 @@ function describeHandleSection(
  *  `canWidth: true, sizesMm: []` a representable contradiction. M5 wave 5B gave the seeded entries
  *  their sets — resolved through each row's declared `catalogEquivalentId` (ADR 0022) — so the
  *  section renders across the shipped kitchen. What still lands here is a body that publishes
- *  `canWidth` and resolves **no** set: a pre-migration document's `cooktop-600` placement declares
- *  no catalogue equivalent and is not `fixedWidth`, so the flag stays §9's and the emptiness is
- *  answered here — which is the arrangement that made M5's missing data fail loudly.
+ *  `canWidth` and resolves **no** set — a row that declares no catalogue equivalent and is not
+ *  `fixedWidth` — so the flag stays §9's and the emptiness is answered here, which is the
+ *  arrangement that made M5's missing data fail loudly.
  *
  *  The chip list is the domain's, not `meta.sizesMm`. ADR 0031 resizes a **column** and `meta`
  *  describes one **body**, so the two disagree wherever a column's members declare different sets —

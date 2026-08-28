@@ -253,8 +253,8 @@ export function setWidth(input: SetWidthInput): SetWidthResult {
  *  on a body with no width to change.
  *
  *  `undefined` where there is **nothing to choose from**, and that answer is load-bearing (FINDING
- *  R2.7): a body that resolves no set at all — a pre-migration `cooktop-600`, a row whose
- *  `catalogEquivalentId` points nowhere, an entry whose declared floor excludes every member — gets
+ *  R2.7): a body that resolves no set at all — a row whose `catalogEquivalentId` points nowhere,
+ *  an entry whose declared floor excludes every member — gets
  *  no width section rather than a chipless one, so missing catalogue data fails loudly. The current
  *  width is folded into a set that exists; it never conjures one.
  *
@@ -275,9 +275,9 @@ export function columnWidthChoices(
   const record = records.find((candidate) => candidate.id === input.target.id);
   if (!record) return undefined;
 
-  // §9's `canWidth` read from the engine's end, and the same call `setWidth` opens with: an
-  // accessory owns no width, a `fixedWidth` entry is made at one size, and a body with no §7
-  // equivalent has nothing to be rebuilt through. Asked here so the answer has one author — a
+  // §9's `canWidth` read from the engine's end, and the same call `setWidth` opens with: a
+  // `fixedWidth` entry is made at one size, and a body with no §7 equivalent has nothing to be
+  // rebuilt through. Asked here so the answer has one author — a
   // `fixedWidth` body still resolves a perfectly good set, and publishing chips for it would leave
   // §9's flag as the only thing standing between the customer and a section of dead controls.
   if (!resolveResizableBody(input.catalog, record).ok) return undefined;
@@ -357,9 +357,9 @@ function planColumnResize(
   return { ok: true, value: { label, column, members: members.value, extent } };
 }
 
-/** §9's `canWidth` read from the engine's end, for the body the customer actually selected: an
- *  accessory owns no width, a `fixedWidth` entry is made at one size, and a body with no §7
- *  equivalent (the corners, ADR 0011 Gap A) has nothing to be rebuilt through.
+/** §9's `canWidth` read from the engine's end, for the body the customer actually selected: a
+ *  `fixedWidth` entry is made at one size, and a body with no §7 equivalent (the corners, ADR 0011
+ *  Gap A) has nothing to be rebuilt through.
  *
  *  **Identity is declared, never inferred.** The equivalent comes from `resolveCatalogEquivalent`,
  *  which reads the pointer the row declares (ADR 0022) and verifies it is `insertable`. §5.4's
@@ -369,7 +369,7 @@ function resolveResizableBody(
   record: PlacementRecord,
 ): Resolved<InsertableBody> {
   const body = resolveRebuildBody(catalog, record);
-  if (body && !record.accessory && !record.fixedWidth) {
+  if (body && !record.fixedWidth) {
     return { ok: true, value: body };
   }
   return {
@@ -384,10 +384,7 @@ function resolveResizableBody(
 /** ADR 0031 rule 1: the scope is the column, so **every** member has to be rebuildable, not just
  *  the one that was tapped. A corner, an appliance or a hob standing at any level of the column
  *  stops the whole move — and the refusal names that body rather than the selected one, because the
- *  customer is looking at something else entirely and needs to be told what is in the way.
- *
- *  Accessories never appear here: §3.2 leaves them out of a column, so they neither block a resize
- *  nor move with one. */
+ *  customer is looking at something else entirely and needs to be told what is in the way. */
 function resolveColumnMembers(
   catalog: BodyCatalog,
   records: readonly PlacementRecord[],
@@ -422,7 +419,7 @@ function columnMembers(
   records: readonly PlacementRecord[],
   col: string,
 ): readonly PlacementRecord[] {
-  return records.filter((record) => record.col === col && !record.accessory);
+  return records.filter((record) => record.col === col);
 }
 
 /** The column's own extent, and the precondition ADR 0031's arithmetic leaves implicit: its members
@@ -654,8 +651,8 @@ function evaluateEmptySpace(
 /** ADR 0031's "empty" is **empty at every level**, matching the scope of the move: a column that is
  *  free only at the level being edited does not qualify, because the resize moves all levels.
  *
- *  That is exactly "no non-accessory record is filed under this key", which is what §3.2's own
- *  membership says. The resized column's edges come from its members' stored millimetres rather than
+ *  That is exactly "no record is filed under this key", which is what §3.2's own membership says.
+ *  The resized column's edges come from its members' stored millimetres rather than
  *  from `Column.w`, which is the MIN over members and goes stale when the narrowest one is deleted. */
 function findAdjacentEmptyColumn(
   columns: ReadonlyMap<string, Column>,
@@ -663,9 +660,7 @@ function findAdjacentEmptyColumn(
   plan: ColumnPlan,
   side: Side,
 ): Column | undefined {
-  const occupied = new Set(
-    records.filter((record) => !record.accessory).map((record) => record.col),
-  );
+  const occupied = new Set(records.map((record) => record.col));
   const sharedEdgeM = toMetres(
     side === "right"
       ? plan.extent.centreMm + plan.extent.widthMm / 2
@@ -1058,7 +1053,7 @@ function standsInOpening(
   record: PlacementRecord,
   opening: VoidRecord,
 ): boolean {
-  if (record.accessory || record.wall !== opening.wall) return false;
+  if (record.wall !== opening.wall) return false;
   const recordAlongM = alongWallM(record.wall, record.frame);
   const openingAlongM = alongWallM(opening.wall, opening);
   return (

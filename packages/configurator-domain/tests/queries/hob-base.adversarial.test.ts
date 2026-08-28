@@ -1,9 +1,9 @@
 // Adversarial QA over ADR 0027 — the hob became part of the cabinet body.
 //
 // The wave's own tests prove the two entries exist and that one goes back into the opening a delete
-// left. This file attacks the three things that change *around* that: the width set's boundary, the
-// accessory concept now that nothing shipped carries one, and whether the migrated design is
-// bit-for-bit the same shape to the void engine as the design it replaced.
+// left. This file attacks what changes *around* that: the width set's boundary, the composite's own
+// extent as the void engine reads it, and whether the two entries are told apart only where the
+// customer makes the choice.
 //
 // `hob-base.test.ts` in `@lemnaria/three-adapter` owns everything that needs the real builders.
 import {
@@ -16,18 +16,13 @@ import {
   KITCHEN_L_BODY_CATALOG,
   KITCHEN_L_DESIGN,
 } from "../../src/fixtures/kitchen-l-design.js";
-import { toMillimetres } from "../../src/millimetres.js";
 import { describeSelection } from "../../src/queries/describe-selection.js";
 import { offersFor } from "../../src/queries/offers.js";
 import { offered as offeredRows } from "../support/offers.js";
-import {
-  ACCESSORY_MAX_HEIGHT_M,
-  type BodyDefinition,
-  type Column,
-} from "../../src/void-engine.js";
+import type { BodyDefinition } from "../../src/void-engine.js";
 import { describe, expect, it } from "vitest";
 
-import { clearBodies, insertInto } from "../support/commands.js";
+import { insertInto } from "../support/commands.js";
 import {
   advance,
   createWorld,
@@ -35,10 +30,6 @@ import {
   type KitchenWorld,
 } from "../support/kitchen-world.js";
 import { narrowColumnWorld } from "../support/narrow-column.js";
-import {
-  preMigrationHobDesign,
-  PRE_MIGRATION_HOB_ID,
-} from "../support/pre-migration-hob.js";
 
 const HOB_BUILD_IDS = ["base-hob-2drawer", "base-hob-oven"] as const;
 
@@ -200,69 +191,14 @@ function insertHob(world: KitchenWorld, placementId: string, buildId: string) {
 }
 
 // ---------------------------------------------------------------------------------------------
-// The accessory concept, now that nothing shipped is one.
+// The hob body's own extent, judged by the void engine rather than by the diff.
 // ---------------------------------------------------------------------------------------------
-describe("the accessory concept after ADR 0027", () => {
-  it("leaves the shipped design with no accessory at all", () => {
-    expect(seeded().records.filter((record) => record.accessory)).toEqual([]);
-  });
-
-  // The point of the sweep: `accessory` is derived from geometry (`frame.h < 0.3`), not stored, so
-  // "no accessory in the shipped design" is not the same fact as "no accessory can be created".
-  // Every insertable entry is checked against every opening the shipped kitchen can produce; none
-  // of them can build a body short enough to become one. That is what makes §6.1's host rule and
-  // §5.1's cascade reachable **only** from a stored document, which is ADR 0027 point 6's whole
-  // premise for keeping `cooktop-600` in the catalogue.
-  it("cannot be reached by inserting anything the catalogue offers, anywhere", () => {
-    const worlds = [seeded(), clearedHobColumn(), clearedFridgeColumn()];
-    const bodies = listInsertableBodies(KITCHEN_L_BODY_CATALOG);
-    let fitsSeen = 0;
-    const tooShort: string[] = [];
-
-    for (const world of worlds) {
-      for (const record of world.voids) {
-        const resolved = resolveInsertOpening({
-          ...world,
-          target: { kind: "void", id: record.id },
-        });
-        if (!resolved.ok) continue;
-        for (const body of bodies) {
-          const fit = evaluateInsertFit({
-            body,
-            opening: resolved.value.opening,
-            column: resolved.value.column,
-          });
-          if (!fit.ok) continue;
-          fitsSeen += 1;
-          if (fit.plan.heightM < ACCESSORY_MAX_HEIGHT_M) {
-            tooShort.push(
-              `${body.buildId} → ${String(toMillimetres(fit.plan.heightM))} mm at ${record.id}`,
-            );
-          }
-        }
-      }
-    }
-
-    // The sweep must have found openings, or it proves nothing.
-    expect(fitsSeen).toBeGreaterThan(0);
-    expect(tooShort).toEqual([]);
-  });
-});
-
-// ---------------------------------------------------------------------------------------------
-// The migration, judged by the void engine rather than by the diff.
-// ---------------------------------------------------------------------------------------------
-describe("the migrated design is the same shape as the one it replaced", () => {
-  const before = createWorld(preMigrationHobDesign(), KITCHEN_L_BODY_CATALOG);
+describe("the hob rides above the column and contributes nothing to it", () => {
   const after = seeded();
 
-  it("derives an identical column map, field for field", () => {
-    expect(sortedColumns(after.columns)).toEqual(sortedColumns(before.columns));
-  });
-
-  // 820 mm of body where there used to be 820 mm of body plus a 40 mm accessory above it: the
-  // accessory never contributed to the column, so the run's `top` and its `regions` must not have
-  // moved. This is the assertion that fails if the hob is ever given a `frameHeightMm` of its own.
+  // 820 mm of body, and the 40 mm hob above the worktop line contributes none of it. This is the
+  // assertion that fails if the hob is ever given a `frameHeightMm` of its own (ADR 0027's third
+  // rejected alternative).
   it("keeps the hob column's extent at the worktop line, hob included", () => {
     const column = after.columns.get(HOB_COLUMN);
 
@@ -275,88 +211,46 @@ describe("the migrated design is the same shape as the one it replaced", () => {
     expect(column?.hasFullHeightUnder).toBe(false);
   });
 
-  it("produces the same void set — which is none, in both", () => {
-    expect(after.voids).toEqual(before.voids);
+  it("leaves the shipped kitchen with no opening at all", () => {
     expect(after.voids).toEqual([]);
   });
 
-  // `isFullHeightUnder` excludes accessories with `!record.accessory`. Now that a hob is a body,
-  // that exclusion has to be doing nothing here — the hob's band is `base`, so the band test would
-  // refuse it anyway, and the exclusion cannot start counting the merged body.
-  it("does not let the merged hob body lift §7's head-clearance cap", () => {
-    const column = before.columns.get(HOB_COLUMN);
-
-    expect(column?.hasFullHeightUnder).toBe(false);
+  // The hob body's band is `base`, so §7's head-clearance cap stays on over it. Pinned because a
+  // body that carries an appliance is the obvious candidate for being mistaken for a full-height
+  // one.
+  it("does not let the hob body lift §7's head-clearance cap", () => {
     expect(after.columns.get(HOB_COLUMN)?.hasFullHeightUnder).toBe(false);
   });
 });
 
-function sortedColumns(columns: ReadonlyMap<string, Column>) {
-  return [...columns.entries()].sort(([left], [right]) =>
-    left.localeCompare(right),
-  );
-}
-
 // ---------------------------------------------------------------------------------------------
-// A document saved before the migration, all the way through.
+// Losing the hob cabinet, and getting it back.
 // ---------------------------------------------------------------------------------------------
-describe("a design saved before ADR 0027 still works, and can be upgraded", () => {
-  const legacy = () =>
-    createWorld(preMigrationHobDesign(), KITCHEN_L_BODY_CATALOG);
-
-  it("loads its `cooktop-600` placement as an accessory of the cabinet below it", () => {
-    const world = legacy();
-    const hob = world.records.find((record) => record.id === "p3");
-
-    expect(hob?.buildId).toBe("cooktop-600");
-    expect(hob?.accessory).toBe(true);
-    expect(hob?.col).toBe(HOB_COLUMN);
-  });
-
-  it("describes the hob as unreplaceable and undeletable (§11 row 15)", () => {
-    const world = legacy();
-    const meta = describeSelection({
-      ...world,
-      target: { kind: "placement", id: "p3" },
-    });
-
-    expect(meta).toMatchObject({
-      accessory: true,
-      canReplace: false,
-      canDelete: false,
-    });
-  });
-
-  it("carries the hob away when its host is deleted, and leaves nothing orphaned", () => {
-    const world = legacy();
+//
+// The defect ADR 0027 was written for: a delete took the hob away permanently, because no catalogue
+// entry carried one. ADR 0038 retired the pre-migration document this section used to also cover —
+// nothing was ever stored, so there is no design that carries the hob as a placement of its own.
+describe("the opening a deleted hob cabinet leaves", () => {
+  const removeHobCabinet = (world: KitchenWorld) => {
     const result = removePlacement({
       design: world.design,
       catalog: world.catalog,
       target: { kind: "placement", id: HOB_PLACEMENT_ID },
       occurredAt: OCCURRED_AT,
     });
-    expect(result.ok).toBe(true);
-    if (!result.ok) return;
+    if (!result.ok) throw new Error(`refused: ${result.reason.code}`);
+    return advance(world, result.design);
+  };
 
-    expect(result.effect.cascadedAccessoryIds).toEqual(["p3"]);
-    const after = advance(world, result.design);
-    expect(after.records.filter((record) => record.accessory)).toEqual([]);
+  it("takes the hob with it, because they are one body", () => {
+    const after = removeHobCabinet(seeded());
+    expect(after.records.map((record) => record.id)).not.toContain(
+      HOB_PLACEMENT_ID,
+    );
   });
 
-  // The upgrade path the ADR promises but nothing asserted: the customer on a legacy document is
-  // one delete and one insert away from the migrated shape, without a data migration ever running.
-  it("offers both hob bases into the opening that delete leaves", () => {
-    const world = legacy();
-    const result = removePlacement({
-      design: world.design,
-      catalog: world.catalog,
-      target: { kind: "placement", id: HOB_PLACEMENT_ID },
-      occurredAt: OCCURRED_AT,
-    });
-    expect(result.ok).toBe(true);
-    if (!result.ok) return;
-
-    const after = advance(world, result.design);
+  it("offers both hob bases back into the opening the delete leaves", () => {
+    const after = removeHobCabinet(seeded());
     const opening = voidAt(after, HOB_COLUMN, 0);
     const offered = offersFor({
       ...after,
@@ -370,81 +264,18 @@ describe("a design saved before ADR 0027 still works, and can be upgraded", () =
       ).toContain(buildId);
     }
   });
-});
 
-// ---------------------------------------------------------------------------------------------
-// The swap path on that same document — ADR 0027's amendment, and the defect it closes.
-// ---------------------------------------------------------------------------------------------
-//
-// §5.3 swaps a body **in place**: it writes a new placement over the old one and, before this
-// record, cascaded nothing — only §5.1's delete did. On a pre-migration document that is one tap
-// away from two hobs. `p3` is a separate `cooktop-600` placement hosted on `p2` (§6.1); swap `p2`
-// for a body with a hob built into it and §6.1 simply re-hosts `p3` onto the new body, which puts
-// two hobs at the same worktop line. `p3` refuses deletion (`ACCESSORY_NOT_DELETABLE`), so the
-// customer cannot clear the spare — the only escape is deleting the whole cabinet.
-describe("swapping a pre-migration cabinet for one that carries its own hob", () => {
-  const legacy = () =>
-    createWorld(preMigrationHobDesign(), KITCHEN_L_BODY_CATALOG);
-
-  it.each(HOB_BUILD_IDS)(
-    "%s takes the hosted hob placement away in the same command",
-    (buildId) => {
-      const world = legacy();
-      const result = insertInto(
-        world,
-        { kind: "placement", id: HOB_PLACEMENT_ID },
-        buildId,
-      );
-      expect(result.ok).toBe(true);
-      if (!result.ok) return;
-
-      expect(result.effect.cascadedAccessoryIds).toEqual([
-        PRE_MIGRATION_HOB_ID,
-      ]);
-      expect(
-        result.design.placements.map((placement) => placement.id),
-      ).not.toContain(PRE_MIGRATION_HOB_ID);
-      const after = advance(world, result.design);
-      expect(after.records.filter((record) => record.accessory)).toEqual([]);
-    },
-  );
-
-  // The narrowness of the rule, stated as its own case. Only an accessory of the kind the incoming
-  // body declares it carries is a duplicate. A plain door base carries nothing, so the hob stays
-  // hosted on it — which is what this document did before ADR 0027 and is unchanged by it.
-  it("leaves the hob alone when the incoming body carries no hob of its own", () => {
-    const world = legacy();
+  it("accepts the hob base back into it, restoring the fixture the delete removed", () => {
+    const after = removeHobCabinet(seeded());
+    const opening = voidAt(after, HOB_COLUMN, 0);
     const result = insertInto(
-      world,
-      { kind: "placement", id: HOB_PLACEMENT_ID },
-      "base-cabinet",
-    );
-    expect(result.ok).toBe(true);
-    if (!result.ok) return;
-
-    expect(result.effect.cascadedAccessoryIds).toEqual([]);
-    const after = advance(world, result.design);
-    const hob = after.records.find(
-      (record) => record.id === PRE_MIGRATION_HOB_ID,
-    );
-    expect(hob?.accessory).toBe(true);
-  });
-
-  // Filling an empty opening replaces nothing, so there is no host whose accessories could be
-  // duplicated — the field is present and empty, the way §5.1's is on a body that carried nothing.
-  it("reports an empty cascade when the hob base fills a void instead", () => {
-    const world = seeded();
-    const cleared = clearBodies(world, [HOB_PLACEMENT_ID]);
-    const opening = voidAt(cleared, HOB_COLUMN, 0);
-    const result = insertInto(
-      cleared,
+      after,
       { kind: "void", id: opening.id },
       "base-hob-2drawer",
     );
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-
-    expect(result.effect.cascadedAccessoryIds).toEqual([]);
+    expect(result.effect.buildId).toBe("base-hob-2drawer");
   });
 });
 
@@ -525,8 +356,8 @@ describe("§9's description of the shipped hob cabinet", () => {
   //
   // The gap had no visible symptom: a seeded entry has no `sizesMm`, so `describe-selection`
   // publishes an empty chip set and §9's width section does not render (`panel-model.ts` says so in
-  // as many words). It becomes reachable the moment M5 wires §5.4, whose `canGive` is "exists · not
-  // accessory · **not `fixedWidth`** · not a corner · has a resolvable catalogue id" — the hob
+  // as many words). It becomes reachable the moment M5 wires §5.4, whose `canGive` is "exists ·
+  // **not `fixedWidth`** · not a corner · has a resolvable catalogue id" — the hob
   // cabinet would then both accept a resize and donate width to a neighbour, and there is no 400 mm
   // hob.
   //
@@ -546,29 +377,3 @@ describe("§9's description of the shipped hob cabinet", () => {
     expect(meta?.canWidth).toBe(false);
   });
 });
-
-function clearedHobColumn() {
-  const world = seeded();
-  const result = removePlacement({
-    design: world.design,
-    catalog: world.catalog,
-    target: { kind: "placement", id: HOB_PLACEMENT_ID },
-    occurredAt: OCCURRED_AT,
-  });
-  if (!result.ok) throw new Error(`delete refused: ${result.reason.code}`);
-  return advance(world, result.design);
-}
-
-function clearedFridgeColumn() {
-  const world = seeded();
-  return ["p24", "p7"].reduce((current, id) => {
-    const result = removePlacement({
-      design: current.design,
-      catalog: current.catalog,
-      target: { kind: "placement", id },
-      occurredAt: OCCURRED_AT,
-    });
-    if (!result.ok) throw new Error(`delete refused: ${result.reason.code}`);
-    return advance(current, result.design);
-  }, world);
-}

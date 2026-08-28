@@ -20,7 +20,6 @@ import {
   voidAt,
   type KitchenWorld,
 } from "../support/kitchen-world.js";
-import { preMigrationHobDesign } from "../support/pre-migration-hob.js";
 
 const FRIDGE_COLUMN = "B|2.45";
 
@@ -171,15 +170,12 @@ describe("column stability (§3.2, ADR 0011 Gap D)", () => {
 
 describe("the rejection sweep", () => {
   const originals = seeded();
-  // ADR 0027 took the hob placement out of the shipped design, and the two cases here that are
-  // about one would otherwise refuse with `TARGET_NOT_FOUND` and still pass — the sweep asserts the
-  // no-op contract, not the code, so it would go on being green while covering nothing. They run
-  // on a document saved before the migration, where the accessory still exists. Each case carries
-  // the world it runs in for that reason.
-  const preMigration = createWorld(
-    preMigrationHobDesign(),
-    KITCHEN_L_BODY_CATALOG,
-  );
+  // ADR 0027 folded the hob into `p2`'s body and ADR 0038 retired the pre-migration document these
+  // two cases used to run on, so both now refuse on the seeded corner leg `p25` instead: §13.1
+  // makes it non-deletable and non-replaceable, and it is a real placement in the shipped design.
+  // A case pointed at an id that resolves to nothing would refuse with `TARGET_NOT_FOUND` and still
+  // pass, because the sweep asserts the no-op contract rather than the code — which is why each
+  // case carries the world it runs in and why the target has to exist.
 
   it.each([
     [
@@ -194,13 +190,13 @@ describe("the rejection sweep", () => {
         }),
     ],
     [
-      "remove the hob",
-      preMigration,
+      "remove the corner leg",
+      originals,
       () =>
         removePlacement({
-          design: preMigration.design,
-          catalog: preMigration.catalog,
-          target: { kind: "placement", id: "p3" },
+          design: originals.design,
+          catalog: originals.catalog,
+          target: { kind: "placement", id: "p25" },
           occurredAt: OCCURRED_AT,
         }),
     ],
@@ -217,14 +213,10 @@ describe("the rejection sweep", () => {
         insertInto(originals, { kind: "placement", id: "p0" }, "teleporter"),
     ],
     [
-      "insert into an accessory",
-      preMigration,
+      "insert into the corner leg",
+      originals,
       () =>
-        insertInto(
-          preMigration,
-          { kind: "placement", id: "p3" },
-          "base-3drawer",
-        ),
+        insertInto(originals, { kind: "placement", id: "p25" }, "base-3drawer"),
     ],
     [
       "insert into a stale void",
