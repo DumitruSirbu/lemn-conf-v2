@@ -1070,6 +1070,11 @@ starts from a delete today and stops needing to after this sub-wave.
   reachable width, each button is enabled if and only if the step it offers succeeds.
 - §9's width note is rewritten again. It was a customer-facing blocker in 5D for describing a
   surface that had changed; the same trap is open here.
+- **The too-wide opening gets its own sentence.** An opening over 800 mm fits no cabinet, and §9's
+  "say what to clear" rule inverts there — clearing makes it wider. The owner decided on 2026-08-28
+  that such a space may simply be left empty
+  ([ADR 0037](../decisions/0037-adjacent-empty-columns-merge-into-one-space.md)), so the copy says
+  that rather than asking for an action that would make it worse.
 
 ### Not in 5D2
 

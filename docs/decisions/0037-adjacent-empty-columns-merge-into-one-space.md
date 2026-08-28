@@ -44,6 +44,24 @@ like it should produce a bigger cabinet. It does not. What it produces is **free
 and position of cabinets in that span** — which is exactly what backlog 2 said was permanently
 impossible, and exactly the intent option B was chosen to express.
 
+## A span wider than 800 mm may simply stay empty (owner, 2026-08-28)
+
+ADR 0035's 800 mm ceiling makes an opening wider than 800 unfillable by any single cabinet, and
+5D2a's QA measured a reachable 950 mm one. Put to the owner as a product question — fill it with a
+combination, leave it, or refuse the move that made it — the answer was: **"ok to have empty space
+left."**
+
+So an opening no cabinet fits is **not a defect and not a dead end**. It is a legitimate state of a
+design, and nothing is obliged to close it. What this decision's merge buys stands unchanged —
+freedom over the *number and position* of cabinets in a span — but filling a span completely was
+never the obligation it might have looked like.
+
+**This corrects §9's zero-results rule where it meets a too-wide opening.** §9 says *"zero results →
+a sentence saying what to clear, never a bare 0."* That advice inverts here: clearing more makes the
+opening **wider**, not more fillable. The sentence for this case should say the space is wider than
+any cabinet and may be left as it is — copy that belongs to wave 5D2c, recorded here because this is
+where the reason for it lives.
+
 ## Consequences
 
 - **Backlog 2's re-split half closes.** The narrow-bottle-cabinet half already shipped; this is the

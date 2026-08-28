@@ -110,9 +110,15 @@ Noted because it will look like an off-by-one to the next reader: the constant n
 `TWO_DOOR_MIN_WIDTH_MM` has been holding a value that gets **one** door. At 500 with `>=` the name
 finally describes the value.
 
-**5. The hood's range is 600–800.** Owner, on the hood specifically: it starts at 600 and the `−50`
+**5. The hood's range is 600–800, and the 900 is gone deliberately.** Owner, on the hood specifically: it starts at 600 and the `−50`
 is greyed out there. This replaces the hood's discrete narrowing from ADR 0033's second amendment
 with the same bounds every other cabinetry entry now carries.
+
+**Confirmed 2026-08-28.** Product-logic review N4 flagged that the ceiling was never quoted — the
+owner's words covered only the floor ("starts at 600, the −50 is greyed out there") — and that a
+900 mm hood over a wide cooktop run is a real product which left as a side effect. Put to the owner,
+who answered: *"for hood there should not be any >800 mm width cabinet."* The 800 mm ceiling is
+universal, the hood included. N4 closes.
 
 **6. A column is one width at every level, except the hood.** Mixed widths do not exist. Where the
 shipped design holds them (`COLUMN_MEMBERS_UNALIGNED`, 15 lockouts), the resize **squares the column
