@@ -41,6 +41,17 @@ deliberately off the wall by `cabinetDepth − 500`. ADR 0025 established the pr
 base leg takes a named `-0.02` exception for the L-joint — and the rule is the same: the exception is
 declared and measured, never a tolerance that drifted.
 
+**4. The hood keeps its width when the cabinets under it are resized.** Owner, the same day: *"the
+cabinets is resizable but the hood over it should remain same size."* Recorded as an amendment to
+[ADR 0035](0035-width-is-a-bounded-stepper-not-a-menu-of-sizes.md) decision 6, which is where column
+membership is decided; noted here because it is the same fact as decisions 1 and 2 seen on the third
+axis. **A hood is sized to the cooktop, not to the run** — that is one rule, and it fixes the depth,
+sets the front alignment, and exempts the width from the column all at once.
+
+The owner's own reading of why: *"I think this was the reason why hood was separate from cabinets and
+somehow was positioned over worktop."* That is very likely right — a hood hangs over the run rather
+than sitting in it, and every one of these three decisions is the model catching up with that.
+
 ## Alternatives considered
 
 **Let the hood follow ADR 0036's depth map like every other wall body.** Rejected by decision 1. It

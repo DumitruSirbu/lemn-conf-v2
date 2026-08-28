@@ -114,9 +114,27 @@ finally describes the value.
 is greyed out there. This replaces the hood's discrete narrowing from ADR 0033's second amendment
 with the same bounds every other cabinetry entry now carries.
 
-**6. A column is one width at every level.** Mixed widths do not exist. Where the shipped design
-holds them (`COLUMN_MEMBERS_UNALIGNED`, 15 lockouts), the resize **squares the column up** rather
-than refusing it — owner: *"let's make them editable, I didn't get why we need to refuse."*
+**6. A column is one width at every level, except the hood.** Mixed widths do not exist. Where the
+shipped design holds them (`COLUMN_MEMBERS_UNALIGNED`, 15 lockouts), the resize **squares the column
+up** rather than refusing it — owner: *"let's make them editable, I didn't get why we need to
+refuse."*
+
+**Amended 2026-08-28: the hood does not follow its column.** Owner: *"the cabinets is resizable but
+the hood over it should remain same size, and I think this was the reason why hood was separate from
+cabinets and somehow was positioned over worktop."* A hood is sized to the cooktop it extracts over,
+not to the run it hangs on — so resizing the cabinets under it must leave it alone.
+
+Measured: the shipped hood `p13` **is** a member of column `A|2.60`, beside the hob base `p2` and a
+top cabinet `p19`, so without this amendment a resize of that column would drag the hood with it.
+The hood is therefore excluded from a column's width membership: it neither constrains the
+intersection nor moves when the column does, and a column that holds one is not *unaligned* for
+holding it. It keeps its own width — chosen directly, within its 600–800 bound per decision 5 — and
+a wider run leaves it centred, which is what [ADR 0033](0033-door-count-is-derived-from-width-not-declared.md)'s
+second amendment had it doing before this wave gave it a cabinetry bound.
+
+Not reachable in the shipped kitchen today, because `p2` is `fixedWidth` and freezes `A|2.60`
+outright — which is exactly why it has to be decided rather than discovered: the first resizable
+column with a hood in it would have silently stretched the hood.
 
 A consequence to state rather than discover: a column containing an appliance can only take that
 appliance's widths, and the whole column follows. Those columns show the discrete control of

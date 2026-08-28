@@ -1042,9 +1042,13 @@ answer the width question the same way, and that must still hold at the end.
 
 Two behavioural rules from ADR 0035, both in `setWidth`.
 
-- **A column is one width at every level**, and a resize squares a mixed column up rather than
-  refusing it. `COLUMN_MEMBERS_UNALIGNED` has 15 lockouts in the shipped design; they become
-  editable.
+- **A column is one width at every level, except the hood**, and a resize squares a mixed column up
+  rather than refusing it. `COLUMN_MEMBERS_UNALIGNED` has 15 lockouts in the shipped design; they
+  become editable. **The hood is excluded from column width membership** (ADR 0035 decision 6, as
+  amended 2026-08-28): it neither narrows the intersection nor moves when the column resizes, and a
+  column holding one is not unaligned for holding it. Unreachable in the shipped kitchen — `p2` is
+  `fixedWidth` and freezes `A|2.60` — so it needs a synthetic case, and it is precisely the kind of
+  rule that would otherwise be discovered by a stretched hood.
 - **Shrinking creates adjacent empty space.** Without this, ADR 0031's consequence stands — the
   shipped kitchen has no empty column at load, so nothing is resizable until something is deleted,
   and a stepper whose buttons are always disabled is not worth rendering.
