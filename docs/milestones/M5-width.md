@@ -986,6 +986,66 @@ near-miss recorded rather than silently fixed, which matters because "lower the 
 precisely the wrong-constant edit that entry exists to prevent. Nothing in M5 depends on it any more,
 now that the floor is not moving at all.
 
+## Wave 5D2 — the width stepper (ADR 0035)
+
+Decided by [ADR 0035](../decisions/0035-width-is-a-bounded-stepper-not-a-menu-of-sizes.md). This
+section is *how*, in three sub-waves. They are sequential and each one compiles, lints and leaves the
+suite green on its own — `docs/WORKFLOW.md`'s five-production-file guidance is what splits them, and
+the order is data model, then behaviour, then presentation, so that no sub-wave renders a control
+over an engine that cannot yet answer it.
+
+### 5D2a — the catalogue's width model becomes a bound
+
+`sizesMm` stops being a hand-maintained menu for cabinetry rows and becomes a floor, a ceiling and a
+step. Appliance rows — anything `fixedWidth: true` — keep a discrete set, which is the shape they
+genuinely have.
+
+- Replace `STANDARD_WIDTHS_MM` / `STANDARD_LADDER` / `sizesAreStandardLadder` with a bounded range.
+  ADR 0033's second amendment already publishes ranges, floors and chips as three separate facts on
+  `CatalogOffer`; this is that model reaching the entry table it was inferred from.
+- **Move `TWO_DOOR_MIN_WIDTH_MM` from 450 to 500 and the comparison from `>` to `>=`.** Forced, not
+  incidental: `w > 450` makes 500 and 550 two doors of 250 mm each, and relative stepping reaches
+  470. The constant's name has described a one-door value since it was written.
+- ADRs 0026, 0029, 0030 and the door-count halves of 0033 survive as bounds. Their *rules* are
+  acceptance criteria for this sub-wave; their *lists* are what is deleted.
+
+Risk, and it is the whole reason this is its own sub-wave: `resolveWidth`, `resolveBuildableSizes`
+and the insert path all read `sizesMm`. A range that silently widens what `insertBody` offers is
+backlog 13 reappearing — ADR 0032 moved that bound into `resolveWidth` precisely so insert and resize
+answer the width question the same way, and that must still hold at the end.
+
+### 5D2b — square-up, and shrinking that creates space
+
+Two behavioural rules from ADR 0035, both in `setWidth`.
+
+- **A column is one width at every level**, and a resize squares a mixed column up rather than
+  refusing it. `COLUMN_MEMBERS_UNALIGNED` has 15 lockouts in the shipped design; they become
+  editable.
+- **Shrinking creates adjacent empty space.** Without this, ADR 0031's consequence stands — the
+  shipped kitchen has no empty column at load, so nothing is resizable until something is deleted,
+  and a stepper whose buttons are always disabled is not worth rendering.
+
+These are measured together on the shipped kitchen, not separately, because every path through them
+starts from a delete today and stops needing to after this sub-wave.
+
+### 5D2c — the panel renders a stepper
+
+- `widthOptionsFor` becomes a step query: the current width, and a verdict for each of the two
+  candidates. It keeps 5D's mechanism exactly — **judge by running `setWidth` and discarding the
+  design** — so "offered" and "accepted" still cannot drift apart.
+- Two controls, per ADR 0035 decision 3: `+50` / `−50` where width is free, a discrete choice where
+  an appliance fixes it. A button at a bound is **disabled carrying its reason** (ADR 0032), never
+  absent.
+- 5D's pinned chip counts retire with the chips. The property test is rewritten stronger: at every
+  reachable width, each button is enabled if and only if the step it offers succeeds.
+- §9's width note is rewritten again. It was a customer-facing blocker in 5D for describing a
+  surface that had changed; the same trap is open here.
+
+### Not in 5D2
+
+ADR 0037's column merge. It is decided but unassigned, it is not required by the stepper, and
+`deriveColumns`' horizontal freeze gaining its first exception deserves its own measurement.
+
 ## Not established, and left flagged
 
 - **Whether a resize should merge into an existing column key or refuse.** No spec section covers a
