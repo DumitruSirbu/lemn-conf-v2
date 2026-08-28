@@ -484,7 +484,9 @@ describe("the strip a shrink creates", () => {
 
     expect(result.ok).toBe(false);
     if (result.ok) return;
-    expect(result.reason.code).toBe("NO_EMPTY_SPACE");
+    // One guard answers this since clean-code review R3.5, and it answers with *where* the strip
+    // would land rather than with "there is no space" — the space is exactly what there is.
+    expect(result.reason.code).toBe("COLUMN_KEY_COLLISION");
   });
 });
 
@@ -519,7 +521,7 @@ describe("the load census, re-derived from the rules rather than from the code",
         if (result.reason.code === "WIDTH_UNCHANGED") unchanged += 1;
       }
     }
-    expect([accepted, noEmptySpace, unchanged]).toEqual([51, 42, 13]);
+    expect([accepted, noEmptySpace, unchanged]).toEqual([51, 40, 13]);
   });
 
   it("refuses exactly the two taps whose vacated strip keys onto the corner leg's column", () => {
@@ -537,8 +539,8 @@ describe("the load census, re-derived from the rules rather than from the code",
       }
     }
     expect(refused).toEqual([
-      "p8@300:NO_EMPTY_SPACE",
-      "p15@300:NO_EMPTY_SPACE",
+      "p8@300:COLUMN_KEY_COLLISION",
+      "p15@300:COLUMN_KEY_COLLISION",
     ]);
   });
 });

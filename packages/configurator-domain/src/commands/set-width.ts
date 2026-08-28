@@ -389,8 +389,9 @@ export function columnWidthChoices(
 }
 
 /** Everything ADR 0031 decides about the **column**, before anything is built and before a side is
- *  chosen: the selected body has a width to change, its column is flush, every member of it can be
- *  rebuilt, and the requested width is in the intersection of their sets. Which side funds the move
+ *  chosen: the selected body has a width to change, every member of its column can be rebuilt, and
+ *  the requested width is in the intersection of their sets. **Flushness is not among them** — it
+ *  was, and ADR 0035 decision 6 retired it: a mixed column is squared up rather than refused. Which side funds the move
  *  is `fundColumnResize`'s question, and it is a separate one (FINDING Q1.2). */
 function planColumnResize(
   input: SetWidthInput,
@@ -896,12 +897,6 @@ function vacatedEmptySpace(
   const vacatedMm = plan.extent.widthMm - input.widthMm;
   if (vacatedMm <= 0) return undefined;
 
-  const farEdgeMm = plan.extent.centreMm + plan.extent.widthMm / 2;
-  const centreM = toMetres(farEdgeMm - vacatedMm / 2);
-  if (input.columns.has(deriveColumnKeyAt(plan.column.wall, centreM))) {
-    return undefined;
-  }
-
   return {
     // The strip was this column's, so it inherits this column's frozen facts — `regions`, `top`,
     // `d` and `ry` — which is what ADR 0011 Gap D requires of any column entered into the map.
@@ -921,13 +916,17 @@ function vacatedEmptySpace(
  *  returns to where it started. */
 const VACATED_SPACE_SIDE: Side = "right";
 
-/** Which of the two codes the customer reads, once both sides have answered.
+/** Which of the three codes the customer reads, once both sides have answered.
  *
- *  `RESIZE_OPENS_GAP` wins whenever **any** side could have funded the move and was stopped by an
- *  opening landing on a body, because that is the specific thing that went wrong and the thing the
- *  refusal exists to name. `NO_EMPTY_SPACE` is the answer when no side got that far. Both carry the
- *  whole scan, so either way the sentence says which side was tried and why — "no room" on its own
- *  leaves the customer with nothing to act on, and they need to know which side to clear. */
+ *  **Ordered by how specific the answer is**, and each rank means the scan got further than the one
+ *  below it. `COLUMN_KEY_COLLISION` wins whenever any side found the space and made the arithmetic
+ *  work and was refused for **where the column would land**. `RESIZE_OPENS_GAP` is next: a side
+ *  could have funded the move and an opening would have landed on a body. `NO_EMPTY_SPACE` is what
+ *  is left when no side got that far.
+ *
+ *  **All three carry the whole scan**, so whichever is read the sentence says which side was tried
+ *  and what each answered — "no room" on its own leaves the customer with nothing to act on, and
+ *  they need to know which side to clear. */
 function refuseNoSideFunds(
   input: SetWidthInput,
   plan: ColumnPlan,
@@ -944,7 +943,7 @@ function refuseNoSideFunds(
   // *land* — so it outranks the gap, which in turn outranks "no space at all". Each is per-side and
   // the terminal code names whichever the scan actually met.
   if (sides.some((side) => side.reason === "key_taken")) {
-    return { code: "COLUMN_KEY_COLLISION", params: { label: plan.label } };
+    return { code: "COLUMN_KEY_COLLISION", params };
   }
   const opensAGap = sides.some((side) => side.reason === "opens_a_gap");
   return opensAGap
@@ -1052,8 +1051,9 @@ function alongWallM(
  *  between them absorbs the whole delta. The two runs therefore still meet exactly where they met,
  *  so the run total is conserved and neither an overlap nor a gap is representable.
  *
- *  Every member takes the same new centre, which is rule 1 in one line: no body leaves the column,
- *  because they were flush and they stay flush. */
+ *  Every member takes the same new centre, which is rule 1 in one line: no body leaves the column.
+ *  They need not have been flush going in — squaring up is what makes them flush coming out
+ *  (ADR 0035 decision 6). */
 function planMoves(
   input: SetWidthInput,
   plan: ColumnPlan,
@@ -1105,25 +1105,6 @@ function planMoves(
   );
 }
 
-/** Every **persisted** coordinate must land on a whole millimetre (§2). Half of an odd width would
- *  not, and the schema stores `alongMm` as an integer — so a catalogue set that ever lists a width
- *  of the opposite parity to the column's current one is refused here rather than rounded into a
- *  body that no longer meets its neighbour.
- *
- *  **The members only** (logic review R1.5). It used to check the empty column's new centre too, and
- *  that value is never persisted: it is consumed by `toMetres` and by `deriveColumnKeyAt`, which
- *  rounds to two decimals. §2's rule binds what the document stores, and the frozen map is derived
- *  state — a resize the model represents perfectly was being refused, under a code naming
- *  `alongMm`, a placement field that value is not.
- *
- *  Dropping it also settles R1.4, which asked whether an unfundable side should end the scan here.
- *  It cannot: a member's centre is `columnCentre ± (newWidth − oldWidth) / 2`, so it is fractional
- *  exactly when the delta is odd — a fact about the two widths and not about which side pays, and
- *  one the other side would answer identically. Returning immediately is therefore right.
- *
- *  (The empty column's centre could never have fired alone either, as it happens: it is
- *  `farEdge − remainder / 2`, and both terms move onto half-millimetres together with the delta's
- *  parity. The check was redundant as well as wrong about which rule it was enforcing.) */
 /** Both guards a planned move must pass before anything is written.
  *
  *  Ordered so the arithmetic failure is reported before the geometric one: a fractional centre means
@@ -1164,12 +1145,43 @@ function refuseKeyCollision(
     new Set(newKeys).size !== newKeys.length ||
     newKeys.some((key) => columns.has(key) && !vacatedKeys.has(key));
   if (!collides) return { ok: true, value: move };
+  // **A marker, not the sentence.** The scan reads only the code here — it records `key_taken` for
+  // this side and tries the other edge — and `refuseNoSideFunds` builds the customer-facing detail
+  // with the whole scan in it once no side is left. Filling `sides` here would name one side while
+  // the other was still untried.
   return {
     ok: false,
-    detail: { code: "COLUMN_KEY_COLLISION", params: { label: move.label } },
+    detail: {
+      code: "COLUMN_KEY_COLLISION",
+      params: {
+        label: move.label,
+        requestedMm: move.widthMm,
+        deltaMm: 0,
+        sides: [],
+      },
+    },
   };
 }
 
+/** Every **persisted** coordinate must land on a whole millimetre (§2). Half of an odd width would
+ *  not, and the schema stores `alongMm` as an integer — so a catalogue set that ever lists a width
+ *  of the opposite parity to the column's current one is refused here rather than rounded into a
+ *  body that no longer meets its neighbour.
+ *
+ *  **The members only** (logic review R1.5). It used to check the empty column's new centre too, and
+ *  that value is never persisted: it is consumed by `toMetres` and by `deriveColumnKeyAt`, which
+ *  rounds to two decimals. §2's rule binds what the document stores, and the frozen map is derived
+ *  state — a resize the model represents perfectly was being refused, under a code naming
+ *  `alongMm`, a placement field that value is not.
+ *
+ *  Dropping it also settles R1.4, which asked whether an unfundable side should end the scan here.
+ *  It cannot: a member's centre is `columnCentre ± (newWidth − oldWidth) / 2`, so it is fractional
+ *  exactly when the delta is odd — a fact about the two widths and not about which side pays, and
+ *  one the other side would answer identically. Returning immediately is therefore right.
+ *
+ *  (The empty column's centre could never have fired alone either, as it happens: it is
+ *  `farEdge − remainder / 2`, and both terms move onto half-millimetres together with the delta's
+ *  parity. The check was redundant as well as wrong about which rule it was enforcing.) */
 function refuseFractionalCentres(move: ColumnResize): Resolved<ColumnResize> {
   const fractionalMm = move.members
     .map((member) => member.alongMm)

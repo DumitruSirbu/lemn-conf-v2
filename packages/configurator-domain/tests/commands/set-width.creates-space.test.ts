@@ -166,7 +166,9 @@ describe("a shrink that has nowhere to put the space is refused", () => {
     const result = resizeTo(kitchen(), "p8", 300);
 
     expect(result.ok).toBe(false);
-    if (!result.ok) expect(result.reason.code).toBe("NO_EMPTY_SPACE");
+    // `COLUMN_KEY_COLLISION`, not `NO_EMPTY_SPACE`: the space *is* there. One guard answers this
+    // now, and it answers with where the strip would land (clean-code review R3.5).
+    if (!result.ok) expect(result.reason.code).toBe("COLUMN_KEY_COLLISION");
   });
 
   it("accepts the same shrink once a real empty column is beside it", () => {

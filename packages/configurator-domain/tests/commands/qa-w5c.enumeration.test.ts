@@ -179,7 +179,7 @@ describe("the shipped kitchen at load", () => {
     }
   });
 
-  it("refuses every chip for one of exactly five reasons", () => {
+  it("refuses every chip for one of exactly six reasons", () => {
     // No `RESIZE_OPENS_GAP` here: nothing gets far enough to reach it, because a shrink that makes
     // its own space cannot widen a *frozen* extent over a neighbour's body — the strip it enters is
     // one its own members just withdrew from. `COLUMN_MEMBERS_UNALIGNED` is not here either, and
@@ -207,7 +207,12 @@ describe("the shipped kitchen at load", () => {
       COLUMN_MEMBER_NOT_RESIZABLE: 52,
       WIDTH_NOT_SUPPORTED: 40,
       WIDTH_UNCHANGED: 13,
-      NO_EMPTY_SPACE: 42,
+      NO_EMPTY_SPACE: 40,
+      // The two taps whose vacated strip would key onto the corner leg's own column (`p8@300` and
+      // `p15@300`). They were counted as "no free space" until clean-code review R3.5 collapsed the
+      // two collision guards into one: the space was there, and the refusal is about where it would
+      // land, which is the sharper answer.
+      COLUMN_KEY_COLLISION: 2,
     });
   });
 

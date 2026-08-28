@@ -198,17 +198,22 @@ export type RejectionDetail =
    *  right sends the scan to the left, and the same clear that makes the right side available must
    *  not take away a move the left side was funding. It carries the same per-side record
    *  `NO_EMPTY_SPACE` does, so the sentence still says which side was tried and what each answered —
-   *  the two codes are the same scan reaching two different verdicts. */
+   *  the three width-scan codes are one scan reaching three verdicts, ordered by how far it got
+   *  (`COLUMN_KEY_COLLISION` > this > `NO_EMPTY_SPACE`). */
   | { readonly code: "RESIZE_OPENS_GAP"; readonly params: EmptySpaceParams }
   /** §3.2's keys are positions, so a move that lands a column on a position another column already
    *  occupies would **overwrite** that column's frozen extent — deleting a run with no command and
    *  no effect naming it. `refuseColumnDrift` cannot see it: the clobbered column's members still
    *  derive the same key, so nothing has drifted.
    *
-   *  Reachable only where columns overlap, which §3.2 permits and the shipped kitchen has (`A|0.45`
-   *  spans 0–900 across `A|0.30` and `A|0.75`). Found by wave 5D2b's QA on both the created strip
-   *  and the resized column itself — the first was guarded, the second was not. */
-  | { readonly code: "COLUMN_KEY_COLLISION"; readonly params: LabelParams }
+   *  Reachable where columns overlap, which §3.2 permits and the shipped kitchen has (`A|0.45` spans
+   *  0–900 across `A|0.30` and `A|0.75`), **and** where a shrink's vacated strip would key onto an
+   *  existing column — the `p8`/`p15` → 300 case in the shipped kitchen. Found by wave 5D2b's QA on
+   *  both, and answered by one guard rather than two (clean-code review R3.5).
+   *
+   *  Carries `EmptySpaceParams` like `NO_EMPTY_SPACE` and `RESIZE_OPENS_GAP`: all three are the same
+   *  scan reaching different verdicts, and each names the sides it tried. */
+  | { readonly code: "COLUMN_KEY_COLLISION"; readonly params: EmptySpaceParams }
   | {
       readonly code: "NON_INTEGER_MILLIMETRES";
       readonly params: MillimetreParams;
@@ -307,6 +312,15 @@ function renderNoEmptySpace(params: EmptySpaceParams): string {
   return `„${params.label}” nu poate ajunge la ${String(params.requestedMm)} mm: coloana ar trebui să ${verb} ${String(neededMm)} mm, dar ${sides}.`;
 }
 
+/** The same scan again, reaching the sharpest of its three verdicts: the space was there and the
+ *  arithmetic worked, and the move was refused for **where it would land**. It carries the sides for
+ *  the same reason the other two do — "it would end up over another column" with no side named
+ *  leaves the customer nothing to act on, and the other edge is often one delete away from working. */
+function renderColumnKeyCollision(params: EmptySpaceParams): string {
+  const sides = params.sides.map(renderEmptySpaceSide).join(", iar ");
+  return `„${params.label}” nu poate ajunge la ${String(params.requestedMm)} mm: ${sides}.`;
+}
+
 /** The same scan as `renderNoEmptySpace`, reaching the other verdict: at least one side could have
  *  funded the move and the opening it would have derived stands over a body. Naming the sides is
  *  what turns "not here" into something the customer can act on — the other side is usually one
@@ -369,7 +383,7 @@ export function renderRejection(detail: RejectionDetail): string {
     case "RESIZE_OPENS_GAP":
       return renderResizeOpensGap(detail.params);
     case "COLUMN_KEY_COLLISION":
-      return `„${detail.params.label}” nu poate fi mutat aici: ar ajunge peste altă coloană.`;
+      return renderColumnKeyCollision(detail.params);
     case "NON_INTEGER_MILLIMETRES":
       return `Dimensiunea calculată (${detail.params.field}: ${String(detail.params.valueMm)} mm) nu este un număr întreg de milimetri.`;
     case "FINISH_NOT_SUPPORTED":
