@@ -68,6 +68,25 @@ function baseOpeningWorld(widthMm: number): KitchenWorld {
   return clearBodies(world, ["s0"]);
 }
 
+/** A **full-height** opening, which is the only kind a `band: 'column'` body fits in. Clearing only
+ *  the base slot leaves 820 mm and every tall unit answers `HEIGHT_TOO_LARGE` at every width — which
+ *  is how the discrete case below came to assert nothing at all for four of its eight entries
+ *  (5D2a QA, finding S4). */
+function columnOpeningWorld(widthMm: number): KitchenWorld {
+  const world = columnWorld(OPENING_ALONG_MM, [
+    { id: "s0", y0Mm: 0, heightMm: 820, widthMm },
+    { id: "s1", y0Mm: 1500, heightMm: 700, buildId: "wall-2door-600", widthMm },
+    {
+      id: "s2",
+      y0Mm: 2200,
+      heightMm: 400,
+      buildId: "wall-2door-600-top",
+      widthMm,
+    },
+  ]);
+  return clearBodies(world, ["s0", "s1", "s2"]);
+}
+
 function wallOpeningWorld(widthMm: number): KitchenWorld {
   const world = columnWorld(OPENING_ALONG_MM, [
     { id: "s0", y0Mm: 0, heightMm: 820, widthMm },
@@ -84,7 +103,8 @@ function wallOpeningWorld(widthMm: number): KitchenWorld {
 }
 
 function openingWorldFor(band: string, widthMm: number): KitchenWorld {
-  return band === "base" || band === "column"
+  if (band === "column") return columnOpeningWorld(widthMm);
+  return band === "base"
     ? baseOpeningWorld(widthMm)
     : wallOpeningWorld(widthMm);
 }
@@ -148,12 +168,16 @@ describe("the insert path and the width predicate agree, width by width", () => 
   // the predicate accepts, or a resize could never reproduce what an insert just built.
   it("builds every discrete entry at a width the predicate accepts", () => {
     const offenders: string[] = [];
+    // Per entry, not overall: an overall floor goes green while half the catalogue is skipped, which
+    // is exactly what a full-height opening for the `column` band was hiding (5D2a QA, finding S4).
+    const judged = new Map<string, number>();
     for (const [buildId, definition] of INSERTABLE_BODY_DEFINITIONS) {
       if (definition.widthFlex === "fit") continue;
       const body = listInsertableBodies(KITCHEN_L_BODY_CATALOG).find(
         (candidate) => candidate.buildId === buildId,
       );
       if (!body) throw new Error(`no insertable entry ${buildId}`);
+      judged.set(buildId, 0);
       for (const widthMm of SWEPT_WIDTHS_MM) {
         const world = openingWorldFor(body.band, widthMm);
         const opening = voidAt(world, OPENING_COLUMN, openingY0For(body.band));
@@ -163,6 +187,7 @@ describe("the insert path and the width predicate agree, width by width", () => 
           buildId,
         );
         if (!result.ok) continue;
+        judged.set(buildId, (judged.get(buildId) ?? 0) + 1);
         const builtMm = result.design.placements.at(-1)?.body.widthMm ?? 0;
         if (!acceptsWidthMm(body, builtMm)) {
           offenders.push(
@@ -172,6 +197,11 @@ describe("the insert path and the width predicate agree, width by width", () => 
       }
     }
     expect(offenders).toEqual([]);
+    // Every discrete entry was actually built at least once. Without this the `continue` above turns
+    // "never fits anywhere" into a pass.
+    expect(
+      [...judged].filter(([, count]) => count === 0).map(([id]) => id),
+    ).toEqual([]);
   });
 });
 

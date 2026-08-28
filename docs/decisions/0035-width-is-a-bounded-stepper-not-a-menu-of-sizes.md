@@ -52,9 +52,27 @@ exist. Their *rules* survive as bounds.
 The owner: *"cabinets that have only two fixed widths, we will not have these plus fifty minus fifty
 buttons — otherwise we'll just have a lot of conflicts."* A dishwasher is 450 or 600 because
 dishwashers are; a fridge column is 750; an oven housing is what the oven is. The appliance is the
-fixed thing and the cabinet is built around it. The catalogue already distinguishes these with
-`fixedWidth: true`, so this is an exclusion, not new machinery. §9 therefore has **two width
-controls**: a stepper where width is free, a discrete choice where it is not.
+fixed thing and the cabinet is built around it. §9 therefore has **two width controls**: a stepper
+where width is free, a discrete choice where it is not.
+
+**Corrected 2026-08-28, after wave 5D2a's QA.** This decision first said the catalogue "already
+distinguishes these with `fixedWidth: true`, so this is an exclusion, not new machinery." **That is
+false**, and it would have been built on. `fixedWidth` is `false` on `base-dishwasher` and
+`base-bottle-cargo` — both inherit it from `INSERTABLE_DEFAULTS` — so the flag does not separate the
+two shapes, and the dishwasher is this decision's own headline example. The flag also **cannot** be
+corrected to `true` on the dishwasher: that would make `p1` unresizable and destroy §11 row 14, which
+the same wave restored.
+
+The discriminator is the **shape of the bound**, which 5D2a wrote and `catalog.test.ts` already
+guards: a row whose `widthRangesMm` holds any range with `minMm < maxMm` gets the stepper, and a row
+whose every range is a single width (`minMm === maxMm`) gets the discrete choice. **Wave 5D2c must
+ask that question and not `fixedWidth`.**
+
+A consequence worth stating with it: `base-bottle-cargo` is discrete while being **cabinetry, not an
+appliance**. It stays discrete for ADR 0026's own reason — the proportion is the product, and
+backlog 2 records its members as not established, so stepping it would invent 250 mm as a
+manufactured width. The rule is therefore "discrete where the widths are genuinely a set", of which
+appliances are the main case rather than the only one.
 
 **4. Two doors start at 500 mm; 499 and below is one door.** `TWO_DOOR_MIN_WIDTH_MM` moves from 450
 to **500**, and the comparison becomes `>=` rather than `>`.

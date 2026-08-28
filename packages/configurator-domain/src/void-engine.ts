@@ -160,8 +160,9 @@ export interface BodyDefinition {
    *
    *  `sizesMm` and this are different facts and both are true. `sizesMm` is the **modular widths a
    *  customer picks from**; this is **what the body may be built to**, which is a continuum for
-   *  cabinetry. A hinged cabinet's chips sit inside two ranges — 200–400 for one door, 500–800 for
-   *  two — and a 570 mm opening takes an honest two-door even though 570 is not a chip.
+   *  cabinetry. A hinged cabinet's chips sit inside one unbroken range, 200–800 — the (400, 500) hole
+   *  went with ADR 0030's retired cap — and a 570 mm opening takes an honest two-door even though
+   *  570 is not a chip.
    *
    *  **Declared by every §7 row**, through `cabinetryWidths` or `discreteWidths` in `catalog.ts`,
    *  each of which produces this and `sizesMm` from one argument so the two cannot drift. Absent

@@ -281,9 +281,12 @@ type WidthResolution =
   | { readonly ok: true; readonly widthM: number }
   | { readonly ok: false; readonly detail: RejectionDetail };
 
-/** §5.2: `w = b.w === 'fit' ? void.w : b.w`, plus the millimetre-set case §7 gives the dishwasher
- *  niche, the four full-height units and the bottle cargo. A fixed-set body takes the widest size
- *  that still fits. */
+/** A discrete row's width: an entry whose every range is a single value, so there is nothing to
+ *  narrow into an opening — it is built at one of its sizes or it is refused.
+ *
+ *  **The hood is not one of them.** It was, while ADR 0033's amendment installed a 600 centred in a
+ *  wider slot; ADR 0035 decision 5 gave it the 600–800 bound every other cabinetry row carries, so
+ *  it resolves on `resolveFitWidth` and fills its opening. It is built at 700 and at 800. */
 function resolveWidth(
   body: InsertableBody,
   opening: InsertOpening,
@@ -485,7 +488,7 @@ function refuseWidthFloor(
   if (opening.w < MIN_WIDTH_M - COORDINATE_EPSILON_M) {
     return {
       code: "WIDTH_NOT_SUPPORTED",
-      params: { label: body.label, sizesMm: body.sizesMm, availableMm },
+      params: widthsMadeParams(body, body.sizesMm, availableMm),
     };
   }
   if (body.widthFlex !== "fit") return undefined;
@@ -533,7 +536,26 @@ function refuseFixedWidth(
   }
   return {
     code: "WIDTH_NOT_SUPPORTED",
-    params: { label: body.label, sizesMm, availableMm },
+    params: widthsMadeParams(body, sizesMm, availableMm),
+  };
+}
+
+/** The parameters `WIDTH_NOT_SUPPORTED` needs to state what an entry is actually made at.
+ *
+ *  `widthRangesMm` is spread rather than assigned because `exactOptionalPropertyTypes` is on: a row
+ *  that declares no ranges must leave the field absent, not present-and-undefined, so the sentence
+ *  falls back to listing `sizesMm`. */
+function widthsMadeParams(
+  body: InsertableBody,
+  sizesMm: readonly number[],
+  availableMm: number,
+) {
+  const ranges = body.definition.widthRangesMm;
+  return {
+    label: body.label,
+    sizesMm,
+    ...(ranges === undefined ? {} : { widthRangesMm: ranges }),
+    availableMm,
   };
 }
 

@@ -246,7 +246,7 @@ describe("a resize does not change any member's recorded depth", () => {
     //
     // Fifteen until ADR 0033 merged the door-count entries — a wall column bounded by a `wall-2door`
     // at [600, 800] could not move to 400 however much space stood beside it — thirty-three after
-    // it, fifty-nine once ADR 0035 replaced each entry's list with a bound stepped at 50 mm (every
+    // it, forty-four once ADR 0035 replaced each entry's list with a bound stepped at 50 mm (every
     // one of those eleven at 700, the only width this sweep asks about that the step made modular),
     // and fifty-nine once the owner retired ADR 0030's one-door cap on 2026-08-28 (every one of
     // those fifteen at 450, including the four that make column `A|2.00` resizable at all — §11

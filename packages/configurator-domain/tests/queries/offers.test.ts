@@ -125,6 +125,9 @@ describe("offersFor — a void", () => {
         params: {
           label: "Hotă",
           sizesMm: HOOD_CHIPS_MM,
+          // The bound travels with the refusal so the sentence can say "between 600 and 800 mm"
+          // rather than listing five chips and implying the hood is not made at 670. It is.
+          widthRangesMm: [{ minMm: 600, maxMm: 800 }],
           availableMm: 570,
         },
       },

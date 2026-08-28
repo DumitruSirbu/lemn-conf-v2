@@ -6,7 +6,7 @@
 // prose — which is how a copy edit becomes a failing engine test.
 import type { NormalisedBand } from "../bands.js";
 import { toMillimetres } from "../millimetres.js";
-import { MIN_WIDTH_M } from "../void-engine.js";
+import { MIN_WIDTH_M, type WidthRangeMm } from "../void-engine.js";
 
 /** A refusal that needs nothing spelled out: the code and its sentence say everything. */
 type NoParams = Readonly<Record<string, never>>;
@@ -35,6 +35,13 @@ interface BodyFloorParams extends LabelParams {
 
 interface SizesParams extends LabelParams {
   readonly sizesMm: readonly number[];
+  /** ADR 0035 decision 2: what the entry can be **built** at, which after this wave is a bound and
+   *  not the chip list beside it. Carried so the sentence can say "between 200 and 800" where that
+   *  is the truth; `sizesMm` alone would make it claim a cabinet made at 570 is not made at 570.
+   *
+   *  Optional because a **column's** refusal has no single entry's bound behind it — it names the
+   *  intersection of its members' chips, which genuinely is a discrete set. */
+  readonly widthRangesMm?: readonly WidthRangeMm[];
   readonly availableMm: number;
 }
 
@@ -223,6 +230,33 @@ function renderMillimetreList(sizesMm: readonly number[]): string {
   return sizesMm.map((size) => String(size)).join(" sau ");
 }
 
+/** The widths an entry is made at, as a customer would say them.
+ *
+ *  A **bound** is spoken as a bound — *"se face între 200 și 800 mm"* — because since ADR 0035 that
+ *  is what a cabinetry row is. Listing its thirteen chips instead would be both unreadable and
+ *  false: the chips are the modular widths §9 offers, while the entry is genuinely built anywhere
+ *  inside the range, which is exactly what relative stepping reaches (a 570 mm cabinet is real).
+ *
+ *  A **discrete** row — every range a single width — is still spoken as a list, because a dishwasher
+ *  niche really is made at 450 or 600 and nothing between. That is the shape, not the flag:
+ *  `fixedWidth` is `false` on both discrete rows, so it cannot be asked. */
+function renderWidthsMade(params: SizesParams): string {
+  const ranges = params.widthRangesMm;
+  if (ranges === undefined || ranges.length === 0) {
+    return `doar în ${renderMillimetreList(params.sizesMm)} mm`;
+  }
+  if (ranges.every((range) => range.minMm === range.maxMm)) {
+    return `doar în ${renderMillimetreList(ranges.map((range) => range.minMm))} mm`;
+  }
+  return ranges
+    .map((range) =>
+      range.minMm === range.maxMm
+        ? `la ${String(range.minMm)} mm`
+        : `între ${String(range.minMm)} și ${String(range.maxMm)} mm`,
+    )
+    .join(" sau ");
+}
+
 /** §2's `MIN_W` in millimetres, for the one refusal that names it. Read from the constant rather
  *  than written down, so §9's consequence line ("sub 300 mm nu se coboară") and this sentence
  *  cannot come to disagree — that is exactly how the two 400s of ADR 0028 drifted. */
@@ -291,7 +325,7 @@ export function renderRejection(detail: RejectionDetail): string {
     case "WIDTH_TOO_SMALL":
       return renderWidthTooSmall(detail.params);
     case "WIDTH_NOT_SUPPORTED":
-      return `„${detail.params.label}” se face doar în ${renderMillimetreList(detail.params.sizesMm)} mm, iar deschiderea are ${String(detail.params.availableMm)} mm.`;
+      return `„${detail.params.label}” se face ${renderWidthsMade(detail.params)}, iar deschiderea are ${String(detail.params.availableMm)} mm.`;
     case "OPENING_TOO_SHORT":
       return `Deschiderea are doar ${String(detail.params.availableMm)} mm înălțime; sub ${String(detail.params.minimumMm)} mm nu se poate construi un corp.`;
     case "HEIGHT_EXCEEDS_LEVEL":
