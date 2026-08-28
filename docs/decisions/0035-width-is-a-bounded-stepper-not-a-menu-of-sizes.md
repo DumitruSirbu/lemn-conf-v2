@@ -37,11 +37,26 @@ The owner proposed the resolution on 2026-08-28: drop the fixed sizes and give e
 `−` button is disabled at the floor and the `+` button at the ceiling, which is how the bounds are
 communicated — a disabled control carrying its reason, per ADR 0032, rather than an absent one.
 
-Stepping is **relative, not snapped to a global grid**. The shipped kitchen holds widths off any
-50 mm grid — the 570 mm corner return, the 750 mm fridge column — and grid snapping would rewrite
-cabinets the customer never touched. Relative stepping takes 570 to 520 or 620 and leaves every
-other body alone. The cost is that two cabinets' widths need not be congruent mod 50, which was
-never true anyway: runs add up to wall lengths, not to multiples of the step.
+Stepping is **relative, not snapped to a global grid** — meaning the step is taken from the
+cabinet's current width rather than from a fixed lattice, so nothing is rewritten to reach the
+nearest multiple of 50.
+
+**Corrected 2026-08-28.** This decision first justified that with the shipped kitchen's off-grid
+bodies: *"the 570 mm corner return, the 750 mm fridge column… relative stepping takes 570 to 520 or
+620."* **The example is wrong and the owner caught it.** Every off-grid body in the shipped kitchen
+is a corner — `p26` at 320, `p9` and `p21` at 570 — and corners are structural: `canDelete: false`,
+`canReplace: false`, not resizable at all (ADR 0021, ADR 0025). A corner return is never stepped to
+520, because it is never stepped. The fridge column is 750 and on the grid besides.
+
+Measured after the correction: **every resizable body in the shipped kitchen already sits on the
+50 mm grid**, so relative and snapped stepping are indistinguishable today. The decision stands on
+its own merit rather than on that example — it is the simpler rule, it cannot rewrite a width the
+customer did not touch, and it stays correct if an off-grid resizable body ever exists. But nothing
+currently depends on the difference, and `setWidth` may keep gating on the chip list without
+contradicting this decision.
+
+The consequence recorded here still holds: two cabinets' widths need not be congruent mod 50, which
+was never true anyway — runs add up to wall lengths, not to multiples of the step.
 
 **2. The catalogue's width model becomes a floor, a ceiling and a step.** `sizesMm` stops being a
 hand-maintained list for every cabinetry entry. This is the point of the change rather than a side

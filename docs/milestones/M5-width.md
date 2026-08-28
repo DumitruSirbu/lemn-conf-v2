@@ -1026,13 +1026,17 @@ answer the width question the same way, and that must still hold at the end.
   insert path, because a base cabinet **is** made at 570. Under 5D2c this becomes the text on the
   disabled `+50` button at the ceiling: the most-read refusal in the whole stepper. The fix is to
   intersect the column members' *ranges* rather than only their chips.
-- **`setWidth` gates on the chip list, which contradicts ADR 0035 decision 1.** The gate is
-  `sizesMm.includes(widthMm)`, so an off-grid width every member's bound accepts is refused —
-  yet decision 1 says stepping is relative and names the case (*"relative stepping takes 570 to 520
-  or 620"*), and 620 is not a chip. Nothing in the shipped kitchen reaches it today, because every
-  off-grid body is structural. **5D2b is what makes it reachable**, since a squared-up column can
-  land off-grid, and 5D2c drives `setWidth(current ± 50)` by definition. **This needs the owner's
-  answer before it is implemented** — see the plan's open questions.
+- **`setWidth` gating on the chip list is NOT a contradiction, and needs no owner decision.**
+  Product-logic review R1.3 raised it against ADR 0035 decision 1's relative stepping, citing the
+  570 mm corner return stepping to 520. **The owner corrected that on 2026-08-28: corner cabinets are
+  not resizable.** Measured — every off-grid body in the shipped kitchen is a corner (`p26` at 320,
+  `p9`/`p21` at 570), all `canDelete: false` and `canReplace: false`, and every *resizable* body is
+  already on the 50 mm grid. So the chip gate and a bound gate accept exactly the same widths, and
+  the gate stays as it is. ADR 0035 decision 1 has been corrected to drop the faulty example.
+
+  What 5D2b must still not do is **produce** an off-grid width where none existed: a squared-up
+  column takes a width from the column's own chips, which keeps that true by construction. Pin it
+  with a test rather than leaving it to hold by accident.
 
 
 
