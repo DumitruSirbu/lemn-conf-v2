@@ -17,6 +17,7 @@ import {
   acceptsWidthMm,
   resolveBuildableSizes,
   resolveCatalogEquivalent,
+  resolveWidthRangesMm,
   toInsertableBody,
   type InsertableBody,
 } from "../catalog.js";
@@ -38,6 +39,7 @@ import {
   type Column,
   type PlacementRecord,
   type VoidRecord,
+  type WidthRangeMm,
 } from "../void-engine.js";
 import {
   isValidOccurredAt,
@@ -502,7 +504,12 @@ function refuseIllegalWidth(
   if (!sizesMm.includes(input.widthMm)) {
     return {
       code: "WIDTH_NOT_SUPPORTED",
-      params: { label, sizesMm, availableMm: extent.widthMm },
+      params: {
+        label,
+        sizesMm,
+        widthRangesMm: intersectColumnRanges(members),
+        availableMm: extent.widthMm,
+      },
     };
   }
   if (input.widthMm === extent.widthMm) {
@@ -512,6 +519,38 @@ function refuseIllegalWidth(
     };
   }
   return undefined;
+}
+
+/** The **bound** a column can be built within: every member's ranges, intersected.
+ *
+ *  `intersectColumnWidths` beside this answers which *chips* the column offers, and that is what the
+ *  command gates on. This answers what the column can be **built** at, which is what the customer is
+ *  told — and the two are different facts: a column of cabinetry offers thirteen chips while being
+ *  buildable anywhere across 200-800, so listing the chips in a refusal both reads badly and denies
+ *  widths the column really does accept (5D2a QA finding B1, on the insert path; product-logic
+ *  review R1.1, which found the resize path still doing it).
+ *
+ *  Empty when the members share no overlap at all, which is the disjoint case
+ *  `COLUMN_MEMBERS_UNALIGNED` and the chip list already describe; the sentence then falls back to
+ *  the chips, which is the truthful thing to say when there is no common bound. */
+function intersectColumnRanges(
+  members: readonly ColumnMember[],
+): readonly WidthRangeMm[] {
+  const perMember = members.map((member) => resolveWidthRangesMm(member.body));
+  const first = perMember[0];
+  if (first === undefined) return [];
+  return perMember.reduce<readonly WidthRangeMm[]>(
+    (accumulated, ranges) =>
+      accumulated.flatMap((left) =>
+        ranges
+          .map((right) => ({
+            minMm: Math.max(left.minMm, right.minMm),
+            maxMm: Math.min(left.maxMm, right.maxMm),
+          }))
+          .filter((range) => range.minMm <= range.maxMm),
+      ),
+    first,
+  );
 }
 
 function intersectColumnWidths(
