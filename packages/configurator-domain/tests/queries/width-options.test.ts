@@ -18,6 +18,7 @@ import {
   type WidthOption,
 } from "../../src/queries/width-options.js";
 import { resolveBuildableSizes } from "../../src/catalog.js";
+import type { BodyCatalog } from "../../src/void-engine.js";
 import { clearBodies, OCCURRED_AT } from "../support/commands.js";
 import { createFakeProbe } from "../support/fake-probe.js";
 import { createWorld, type KitchenWorld } from "../support/kitchen-world.js";
@@ -38,18 +39,35 @@ function kitchenWithEmptyColumn(): KitchenWorld {
 /** The placement id the disjoint-column fixture gives its bottle cargo. */
 const DISJOINT_CARGO_ID = "cargo-under-hood";
 
-/** A `base-bottle-cargo` (200/300, ADR 0026's declared floor) under a `hood` (600–800), both at 300.
+/** A `base-bottle-cargo` (200/300, ADR 0026's declared floor) under a wall body bounded 500–800.
  *
- *  **This was the disjoint-intersection fixture, and ADR 0035 decision 6 retired the case.** A hood
- *  is no longer a member for width purposes, so the column is the cargo's {200, 300} and the two
- *  bodies agree about everything. What it still exercises is the shape it always did — a column
- *  holding two entries with very different width models — reaching the query rather than the
- *  command. The domain's adversarial pass sweeps every base row under every wall row and finds no
- *  disjoint pair left at all (`qa-w5c.adversarial.test.ts`).
+ *  **The hood used to be the other half of this pair, and it cannot be any more.** ADR 0035 decision
+ *  6 as amended took the hood out of a column's width membership, so a hood constrains nothing and a
+ *  cargo-under-hood column agrees about everything. The domain's adversarial pass sweeps every base
+ *  row under every wall row and finds **no disjoint pair left in the shipped catalogue at all**
+ *  (`qa-w5c.adversarial.test.ts`).
+ *
+ *  ADR 0032's branch is still real code and still has to be exercised, so the second member is a
+ *  **synthetic** catalogue entry rather than a shipped one: a wall cabinet whose bound opens at 500,
+ *  which shares nothing with the cargo's {200, 300}. Synthetic on purpose — pinning this branch to
+ *  a shipped row is what let it quietly stop being tested when the hood changed. It failed loudly
+ *  here instead, which is the arrangement working.
  *
  *  Both stand at 300 on purpose: at their natural widths the column would also be mixed-width, and
  *  the square-up would be doing the work instead of the resolution. Built by hand rather than
  *  through inserts, because what is under test is the resolution and not the insert path. */
+const DISJOINT_WALL_BUILD_ID = "test-wall-500-800";
+
+function disjointCatalog(): BodyCatalog {
+  const wall = KITCHEN_L_BODY_CATALOG.get("wall-cabinet");
+  if (!wall) throw new Error("no wall-cabinet entry");
+  return new Map(KITCHEN_L_BODY_CATALOG).set(DISJOINT_WALL_BUILD_ID, {
+    ...wall,
+    widthRangesMm: [{ minMm: 500, maxMm: 800 }],
+    sizesMm: [500, 550, 600, 650, 700, 750, 800],
+  });
+}
+
 function disjointColumnWorld(): KitchenWorld {
   const design = {
     ...KITCHEN_L_DESIGN,
@@ -62,15 +80,15 @@ function disjointColumnWorld(): KitchenWorld {
         body: { buildId: "base-bottle-cargo", widthMm: 300, heightMm: 850 },
       },
       {
-        id: "hood-over-cargo",
+        id: "wall-over-cargo",
         wall: "A" as const,
         alongMm: 5000,
         y0Mm: 1500,
-        body: { buildId: "hood", widthMm: 300, heightMm: 710 },
+        body: { buildId: DISJOINT_WALL_BUILD_ID, widthMm: 300, heightMm: 700 },
       },
     ],
   };
-  return createWorld(design, KITCHEN_L_BODY_CATALOG);
+  return createWorld(design, disjointCatalog());
 }
 
 function optionsFor(world: KitchenWorld, placementId: string): WidthOption[] {

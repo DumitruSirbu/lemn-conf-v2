@@ -1214,7 +1214,13 @@ function applyColumnResize(
   const { input, records, record } = attempt;
   const rebuilt = new Map<string, DesignPlacement>();
   for (const plan of move.members) {
-    const built = rebuild(input, records, plan);
+    // The **selected** hood is not exempt from anything: selecting it is a full column resize, the
+    // path this wave deliberately left as it was. Only a hood carried along by its neighbours' move
+    // is moved rather than rebuilt.
+    const built =
+      isHood(plan.record) && plan.record.id !== record.id
+        ? moveHood(input, plan)
+        : rebuild(input, records, plan);
     if (!built.ok) return { outcome: "refused", detail: built.detail };
     rebuilt.set(built.value.id, built.value);
   }
@@ -1337,6 +1343,37 @@ function frozenColumnKey(frozen: FrozenColumnMove): string {
  *  the engine refuses — `BUILT_SIZE_MISMATCH`, the sink's `minWidthMm` (ADR 0017), the hood's fixed
  *  710 (ADR 0016) — is refused here, and §9 wants that refusal to be unreachable in the first
  *  place: this is the backstop, not the gate. */
+/** A hood is **moved**, never rebuilt.
+ *
+ *  ADR 0035 decision 6 as amended says a hood keeps its own width and re-centres over the run; ADR
+ *  0039 says its depth is standard and its front alignment fixed. Nothing about a hood is a function
+ *  of the run beneath it except *where its centre is* — so a resize writes one field.
+ *
+ *  Rebuilding it through `evaluateInsertFit` was wrong in three visible ways (product-logic review
+ *  R3.2), all of them from resolving the seeded instance to its catalogue equivalent: `hood-600`
+ *  became `hood`, the height went 700 → 710 because the catalogue declares `HOOD_HEIGHT_MM`, and
+ *  `fixedWidth` flipped true → false, handing the hood a width control the fixture deliberately
+ *  withholds. A customer who resized the **cabinet underneath** got a taller hood and a new control.
+ *  The extra 10 mm then ate into the level above and the next step refused with a sentence about
+ *  height.
+ *
+ *  The 700/710 disagreement between the fixture and the catalogue is real and still open — §11 row 6
+ *  says 710, so the fixture is likely the wrong datum — but it is not this command's to resolve, and
+ *  a resize must not resolve it by accident. */
+function moveHood(
+  input: SetWidthInput,
+  plan: Rebuild,
+): Resolved<DesignPlacement> {
+  const placement = findPlacement(input.design, plan.record.id);
+  if (!placement) {
+    return {
+      ok: false,
+      detail: { code: "COLUMN_MISMATCH", params: { label: plan.body.label } },
+    };
+  }
+  return { ok: true, value: { ...placement, alongMm: plan.alongMm } };
+}
+
 function rebuild(
   input: SetWidthInput,
   records: readonly PlacementRecord[],
