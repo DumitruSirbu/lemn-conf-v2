@@ -129,8 +129,14 @@ top cabinet `p19`, so without this amendment a resize of that column would drag 
 The hood is therefore excluded from a column's width membership: it neither constrains the
 intersection nor moves when the column does, and a column that holds one is not *unaligned* for
 holding it. It keeps its own width — chosen directly, within its 600–800 bound per decision 5 — and
-a wider run leaves it centred, which is what [ADR 0033](0033-door-count-is-derived-from-width-not-declared.md)'s
-second amendment had it doing before this wave gave it a cabinetry bound.
+**re-centres over the run beneath it**, which the owner confirmed the same day: *"on resizing the
+cabinet is centered looking from front (centered by width)."* That is what
+[ADR 0033](0033-door-count-is-derived-from-width-not-declared.md)'s second amendment had it doing
+before this wave gave it a cabinetry bound.
+
+**It stays a member of its column** — owner: *"without separating it again from cabinets."* The
+exemption is from the width rule alone, not from the model. ADR 0038 deleted the machinery that
+would have made the hood a separate kind of thing, and it is not coming back for this.
 
 Not reachable in the shipped kitchen today, because `p2` is `fixedWidth` and freezes `A|2.60`
 outright — which is exactly why it has to be decided rather than discovered: the first resizable

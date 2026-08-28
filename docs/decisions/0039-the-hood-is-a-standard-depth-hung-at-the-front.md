@@ -32,6 +32,11 @@ start from the front and leave empty space between it and the wall."* Its front 
 cabinet-depth line — 600 mm today — so a 500 mm hood leaves a **100 mm gap between its back and the
 wall**, which the chimney hides. At a 700 mm kitchen the hood is still 500 and the gap becomes 200.
 
+**Confirmed 2026-08-28, and it was the one thing this record inferred**: *"yes not from 620 but from
+600 that corresponds to cabinets margin fronts."* The alignment is to the **cabinet** front, never
+the worktop's 620, which is consistent with ADR 0036 decision 3 making the worktop external to
+geometry.
+
 This is the physical arrangement: a hood is sized to the cooktop it covers, not to the wall it hangs
 on, and it is set forward so it actually sits over the pan rather than behind it.
 
@@ -41,7 +46,17 @@ deliberately off the wall by `cabinetDepth − 500`. ADR 0025 established the pr
 base leg takes a named `-0.02` exception for the L-joint — and the rule is the same: the exception is
 declared and measured, never a tolerance that drifted.
 
-**4. The hood keeps its width when the cabinets under it are resized.** Owner, the same day: *"the
+**4. The hood keeps its width when the cabinets under it are resized, and is centred over them.**
+Owner: *"on resizing the cabinet is centered looking from front (centered by width)."* So the hood
+holds its own width and re-centres on the run beneath it — it does not stay put at one edge, and it
+does not stretch.
+
+**And it stays part of the cabinet model.** Owner, explicitly: *"if possible (without separating it
+again from cabinets)."* This is a constraint on the implementation, not an aside: the hood remains an
+ordinary placement in its column, exempt from the column's *width*, rather than being lifted back out
+into a separate kind of thing. ADR 0027 folded the hob into its cabinet and ADR 0038 deleted the
+standalone-accessory machinery that made such an exemption possible before; neither is to be undone
+for this. Owner, the same day: *"the
 cabinets is resizable but the hood over it should remain same size."* Recorded as an amendment to
 [ADR 0035](0035-width-is-a-bounded-stepper-not-a-menu-of-sizes.md) decision 6, which is where column
 membership is decided; noted here because it is the same fact as decisions 1 and 2 seen on the third

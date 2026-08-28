@@ -1048,7 +1048,9 @@ Two behavioural rules from ADR 0035, both in `setWidth`.
   amended 2026-08-28): it neither narrows the intersection nor moves when the column resizes, and a
   column holding one is not unaligned for holding it. Unreachable in the shipped kitchen — `p2` is
   `fixedWidth` and freezes `A|2.60` — so it needs a synthetic case, and it is precisely the kind of
-  rule that would otherwise be discovered by a stretched hood.
+  rule that would otherwise be discovered by a stretched hood. The hood **re-centres** on the resized
+  run rather than holding one edge, and it stays an ordinary placement in its column: the exemption
+  is from the width rule, not from the model (owner: *"without separating it again from cabinets"*).
 - **Shrinking creates adjacent empty space.** Without this, ADR 0031's consequence stands — the
   shipped kitchen has no empty column at load, so nothing is resizable until something is deleted,
   and a stepper whose buttons are always disabled is not worth rendering.
