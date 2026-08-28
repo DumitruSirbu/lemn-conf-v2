@@ -74,8 +74,15 @@ backlog 2 records its members as not established, so stepping it would invent 25
 manufactured width. The rule is therefore "discrete where the widths are genuinely a set", of which
 appliances are the main case rather than the only one.
 
-**4. Two doors start at 500 mm; 499 and below is one door.** `TWO_DOOR_MIN_WIDTH_MM` moves from 450
-to **500**, and the comparison becomes `>=` rather than `>`.
+**4. Two doors start at 500 mm; 499 and below is one door, and ADR 0030's cap is retired.**
+`TWO_DOOR_MIN_WIDTH_MM` moves from 450 to **500**, and the comparison becomes `>=` rather than `>`.
+
+**[ADR 0030](0030-a-single-hinged-door-tops-out-at-600.md)'s one-door cap goes with it.** The owner
+retired it in the same breath: *"let's add this 450 for one door… make it still 500, so it'll cover
+this gap between 450 and 500."* Stated here because the first implementation of this wave kept the
+cap, and so kept a (400, 500) hole — which was the reason column `A|2.00` could not match the 450 mm
+dishwasher and §11 row 14 was failing. One door runs to 499, and 499 is now the widest single hinged
+leaf: below ADR 0030's original 600 cap, above its amended 400.
 
 This is forced by decision 1 rather than chosen alongside it. Under a `[400, 600, 800]` ladder
 nothing ever lands between 400 and 600, so the threshold's exact value was unobservable. A stepper

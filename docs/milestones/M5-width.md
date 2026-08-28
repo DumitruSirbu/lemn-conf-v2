@@ -997,8 +997,10 @@ over an engine that cannot yet answer it.
 ### 5D2a — the catalogue's width model becomes a bound
 
 `sizesMm` stops being a hand-maintained menu for cabinetry rows and becomes a floor, a ceiling and a
-step. Appliance rows — anything `fixedWidth: true` — keep a discrete set, which is the shape they
-genuinely have.
+step. Rows whose widths are genuinely a set keep a discrete one. **Not `fixedWidth`** — that flag is
+`false` on both discrete rows, the dishwasher included, and cannot be corrected there without making
+`p1` unresizable; the discriminator is the shape of `widthRangesMm`. See ADR 0035 decision 3's
+2026-08-28 correction, which 5D2c must read before choosing a control.
 
 - Replace `STANDARD_WIDTHS_MM` / `STANDARD_LADDER` / `sizesAreStandardLadder` with a bounded range.
   ADR 0033's second amendment already publishes ranges, floors and chips as three separate facts on
@@ -1015,6 +1017,24 @@ backlog 13 reappearing — ADR 0032 moved that bound into `resolveWidth` precise
 answer the width question the same way, and that must still hold at the end.
 
 ### 5D2b — square-up, and shrinking that creates space
+
+**Two obligations inherited from 5D2a's reviews, to be settled here rather than carried further.**
+
+- **The resize path still lists chips where the insert path now states a bound.** `setWidth`'s
+  `WIDTH_NOT_SUPPORTED` carries `sizesMm` alone, so the sentence reads *"se face doar în 300 sau 350
+  sau … sau 800 mm"* — eleven items, and materially false in the same way QA called a blocker on the
+  insert path, because a base cabinet **is** made at 570. Under 5D2c this becomes the text on the
+  disabled `+50` button at the ceiling: the most-read refusal in the whole stepper. The fix is to
+  intersect the column members' *ranges* rather than only their chips.
+- **`setWidth` gates on the chip list, which contradicts ADR 0035 decision 1.** The gate is
+  `sizesMm.includes(widthMm)`, so an off-grid width every member's bound accepts is refused —
+  yet decision 1 says stepping is relative and names the case (*"relative stepping takes 570 to 520
+  or 620"*), and 620 is not a chip. Nothing in the shipped kitchen reaches it today, because every
+  off-grid body is structural. **5D2b is what makes it reachable**, since a squared-up column can
+  land off-grid, and 5D2c drives `setWidth(current ± 50)` by definition. **This needs the owner's
+  answer before it is implemented** — see the plan's open questions.
+
+
 
 Two behavioural rules from ADR 0035, both in `setWidth`.
 

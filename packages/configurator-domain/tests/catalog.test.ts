@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   acceptsWidthMm,
   buildableSizes,
+  describeBodyLabelAt,
   describeKindLabel,
   INSERTABLE_BODY_DEFINITIONS,
   isKnownKind,
@@ -235,6 +236,29 @@ describe("every insertable entry declares the bound its widths come from", () =>
 // ---------------------------------------------------------------------------------------------
 // ADR 0033's amendment, as ADR 0035 leaves it: a hinged cabinet's widths are one continuous bound.
 // ---------------------------------------------------------------------------------------------
+
+// ADR 0029's defect class was "the label and the builder disagreed about the door count". They now
+// read one function, so they agree by construction — but the flip is the one width where an edit
+// could reintroduce it, and the geometry is pinned there while the *label* was not (logic review N7).
+describe("the name a customer reads flips with the door count", () => {
+  const hingedRow = (buildId: string) => {
+    const definition = KITCHEN_L_BODY_CATALOG.get(buildId);
+    if (!definition) throw new Error(`no entry ${buildId}`);
+    return definition;
+  };
+
+  it.each([
+    [499, "1 ușă", "the last one-door width"],
+    [500, "2 uși", "the flip (ADR 0035 decision 4)"],
+  ])("names a wall cabinet at %i as %s — %s", (widthMm, expected) => {
+    expect(describeBodyLabelAt(hingedRow("wall-cabinet"), widthMm)).toBe(
+      `Corp suspendat ${expected}`,
+    );
+    expect(describeBodyLabelAt(hingedRow("base-cabinet"), widthMm)).toBe(
+      `Corp bază ${expected}`,
+    );
+  });
+});
 
 describe("the widths a body may actually be built to", () => {
   const bodyOf = (buildId: string) => {

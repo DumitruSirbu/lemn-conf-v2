@@ -1,9 +1,25 @@
 # ADR 0030 — A single hinged door tops out at 600 mm
 
-Status: Accepted
+Status: **Retired 2026-08-28 by owner decision — see [ADR 0035](0035-width-is-a-bounded-stepper-not-a-menu-of-sizes.md).** Its mechanism was already superseded by ADR 0033.
 Date: 2026-08-27
 Type: Decision
 Milestone: M5 wave 5C — `setWidth` and the column update
+
+
+> **RETIRED 2026-08-28.** The cap this record exists for — a single hinged door tops out at 400 after
+> the amendment below — is gone. The owner retired it while setting the two-door threshold: *"let's
+> add this 450 for one door… make it still 500, so it'll cover this gap between 450 and 500, and two
+> doors start from 500."* One door now runs to **499**.
+>
+> **Why it was retired, and it was not for ergonomics.** The cap put 450 in a hole no floor or ceiling
+> could express, and that hole was the reason column `A|2.00` could not match the 450 mm dishwasher —
+> the `wall-cabinet` above it could not be built there. §11 row 14 was failing because of this record.
+>
+> **The ergonomic objection is not reopened, and this is worth stating so nobody re-derives it.**
+> Retiring the cap makes 499 the widest single hinged leaf: *below* this ADR's original 600 mm cap,
+> above its amended 400. The swing arc is now bounded by the two-door threshold rather than by a
+> decision about swing arcs — an accident that happens to land inside what this record was defending.
+> A future change to that threshold reopens the question this ADR was written about.
 
 ## Context
 
