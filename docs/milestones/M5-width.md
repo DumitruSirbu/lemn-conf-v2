@@ -1,7 +1,23 @@
 # M5 — Editing a cabinet's size: width as a boundary move, depth as a derived quantity
 
-> **STATUS: IN PROGRESS.** Waves 5A, 5B, 5C, 5C2, 5C3 and 5D are shipped. **5E** (browser and mobile
-> gate) and **5F** (base carcass depth) remain. Summary: `docs/STATUS.md`.
+> **STATUS: IN PROGRESS.** Waves 5A, 5B, 5C, 5C2, 5C3 and 5D are shipped. **5D2** (the width
+> stepper), **5E** (browser and mobile gate) and **5F** (base carcass depth) remain. Summary:
+> `docs/STATUS.md`.
+>
+> **Rewritten again on 2026-08-28 by [ADR 0035](../decisions/0035-width-is-a-bounded-stepper-not-a-menu-of-sizes.md)
+> and [ADR 0036](../decisions/0036-a-declared-dimension-is-the-finished-cabinet.md).** Width stops
+> being a menu of sizes and becomes a **bounded ±50 mm stepper**, relative to the cabinet's current
+> width, 200–800, with appliance-fixed entries keeping a discrete choice instead. **Two doors now
+> start at 500 mm.** A **column is one width at every level** and a resize squares a mixed column up
+> rather than refusing it; **shrinking creates adjacent empty space**, which is what makes the
+> stepper usable at all. Every **declared dimension is the finished cabinet, doors included**, and
+> the general setting is **cabinet depth (600/700), not worktop depth** — the worktop is external and
+> touches neither geometry nor price.
+>
+> **New wave 5D2 lands in front of 5E**, because 5E photographs the width surface and the surface
+> changed. ADR 0034's engine seam survives; its chip row does not. Anything below that reads as a
+> list of legal widths per entry — including the *Not established* depth questions 3, 4, 6 and 7,
+> now closed by ADR 0036 — must be read against those two records first.
 >
 > **Work item 3 is superseded in part by [ADR 0034](../decisions/0034-width-chips-are-column-scoped-and-judged-by-the-command.md).**
 > It asked for a domain query behind chip freedom and got one; what it did not anticipate is that the

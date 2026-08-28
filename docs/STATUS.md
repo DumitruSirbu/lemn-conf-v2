@@ -3,7 +3,7 @@
 **Read this second, right after `AGENTS.md`, before opening any milestone document.** It exists so a
 session can learn where the project stands without reading eight phase plans.
 
-Last updated: 2026-08-27 (**M5 in progress — six waves shipped today: 5A, 5B, 5C, 5C2, 5C3, 5D.** §5.4's donor rule was implemented, measured as unusable, and **replaced** by ADR 0031; the door-count catalogue entries were merged by ADR 0033; §9's width chips are now column-scoped and judged by running the command, ADR 0034. Remaining: 5E browser gate, 5F base carcass depth.)
+Last updated: 2026-08-28 (**M5 in progress.** 5A, 5B, 5C, 5C2, 5C3 and 5D are shipped and committed. A design session on 2026-08-28 produced **ADR 0035** — width becomes a bounded ±50 mm stepper rather than a menu of sizes, two doors start at 500 mm, a column is one width at every level, and shrinking creates empty space — and **ADR 0036** — a declared dimension is the finished cabinet including doors, and the general setting is cabinet depth, not worktop depth. **New wave 5D2** carries the stepper. Remaining: 5D2, 5E browser gate, 5F base carcass depth.)
 
 ## How to use this file
 
@@ -294,7 +294,28 @@ floor; until it lands, no update rate limit can be sized honestly.
 
 ## What to do next
 
-**M5 wave 5E — the browser and mobile gate.** The engine and the panel are both done; 5E is the
+**M5 wave 5D2 — the width stepper (ADR 0035).** This is now the next wave, in front of 5E, because
+5E photographs the width surface and the surface changed. Read ADRs **0035** and **0036** first, then
+**0034** for the engine seam that survives.
+
+What 5D2 does, in the order the risk falls:
+
+- **Move the catalogue's width model from sets to bounds.** A floor, a ceiling and a step for
+  cabinetry rows; `fixedWidth: true` appliance rows keep their discrete sets. `STANDARD_WIDTHS_MM`
+  and `sizesAreStandardLadder` lose their reason to exist for cabinetry. ADRs 0026, 0029, 0030 and
+  0033's door-count halves survive as bounds, not lists.
+- **Move `TWO_DOOR_MIN_WIDTH_MM` from 450 to 500 and the comparison from `>` to `>=`.** Forced by
+  the stepper: `w > 450` makes 500 and 550 into two 250 mm doors, and relative stepping reaches 470
+  as well. The constant's name has been describing a one-door value this whole time.
+- **Square a mixed-width column up rather than refusing it** (15 lockouts today), and **make
+  shrinking produce adjacent empty space** — without the second, ADR 0031's consequence stands and
+  nothing in the shipped kitchen is resizable until something is deleted.
+- **Replace the chip row with two buttons and the current width**, disabled at the bounds and
+  carrying the reason there, per ADR 0032. Appliance columns show the discrete control instead.
+- **Retire 5D's pinned chip counts and rewrite its property test** in the stronger form: at every
+  reachable width, each button is enabled if and only if the step it offers succeeds.
+
+**Then 5E — the browser and mobile gate.** The engine and the panel are both done; 5E is the
 only thing between them and evidence on a real device. Read `docs/milestones/M5-width.md`'s
 *Surfaces* and *The rejection banner becomes reachable* sections, then ADRs **0031**, **0032**,
 **0034** and **0024**.
@@ -380,7 +401,7 @@ milestone bullets now do. **That is an edit to the product spec and is the owner
 **Then 5F** (base carcass depth as a formula, the only wave that touches a builder and the only one
 that can reach M1's 1e-6 m parity gate).
 
-**Two product questions are with the owner and neither blocks 5E:** whether a column holding mixed
+**Both of these were answered on 2026-08-28 and are recorded in ADR 0035 — a column is one width at every level and a mixed column is squared up rather than refused, and shrinking does create empty space.** The original framing, kept because it records what was uncertain and why: whether a column holding mixed
 widths should be squared up rather than refused (`COLUMN_MEMBERS_UNALIGNED`, 15 lockouts), and whether
 *shrinking* a column should create empty space — which would make the kitchen resizable without a
 delete first, and which 5D's measurement makes the more pressing of the two. ADR 0031 records that
