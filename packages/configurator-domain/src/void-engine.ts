@@ -58,6 +58,8 @@ export type WidthFlex = "fit" | readonly number[];
  *  being read back out of four false capability flags. */
 export type StructuralReason = "corner";
 
+import { occupiedDepthM } from "./occupied-depth.js";
+
 export interface Frame {
   readonly x: number;
   readonly z: number;
@@ -392,11 +394,18 @@ export function deriveColumns(
 ): ReadonlyMap<string, Column> {
   const columns = new Map<string, ColumnExtent>();
   for (const [key, members] of groupByColumn(records)) {
+    // §3.2's MAX is over the **space each member fills**, not over its recorded `frame.d`. The two
+    // parted company in wave 5F: a fronted wall carcass records 39 mm less than it occupies
+    // (ADR 0036) and a front-hung hood records 200 mm more (ADR 0039). Reading `frame.d` raw made
+    // the hood the deepest member of its column, which would have taken the column's own `x`/`z`
+    // from a body that is deliberately not on the wall plane.
     const deepest = members.reduce((deepestSoFar, member) =>
-      member.frame.d > deepestSoFar.frame.d ? member : deepestSoFar,
+      occupiedDepthM(member) > occupiedDepthM(deepestSoFar)
+        ? member
+        : deepestSoFar,
     );
     const width = Math.min(...members.map((member) => member.frame.w));
-    const depth = Math.max(...members.map((member) => member.frame.d));
+    const depth = Math.max(...members.map(occupiedDepthM));
     const top = Math.max(
       ...members.map((member) => member.frame.y0 + member.frame.h),
     );

@@ -57,3 +57,19 @@ export function wallDepthMmForWorktop(worktopDepthMm: number): number {
 export function declaredWorktopDepthsMm(): readonly number[] {
   return [...WALL_DEPTH_MM_BY_WORKTOP_DEPTH_MM.keys()];
 }
+
+/** **ADR 0036 decision 1, as one declared number**: a declared dimension is the *finished* cabinet,
+ *  doors included, so a fronted carcass is built at its declared depth less what stands in front of
+ *  it — an 18 mm door slab and a bar handle reaching 21 mm past that.
+ *
+ *  Measured with the real `BodyProbe` in wave 5F, not estimated: ADR 0036 put it at "the door is
+ *  18 mm and the gap 4, which is 22, so something else contributes the rest", and the rest is the
+ *  **handle**. The 4 mm it counted is `kitchen-parts.ts`'s `GAP`, the *lateral* shadow gap between
+ *  two door leaves, which never reaches the depth axis at all.
+ *
+ *  It is a **product rule and not a builder detail** — §12 — which is why it lives beside the depth
+ *  map rather than in the adapter: it is what makes "330" mean the same thing to the catalogue, to
+ *  a swap's opening and to the geometry. The adapter derives its own value from the door and handle
+ *  it actually builds, and a three-adapter gate asserts the two are the same number, which is
+ *  ADR 0028's own remedy for two constants agreeing by luck. */
+export const WALL_FRONT_ASSEMBLY_MM = 39;

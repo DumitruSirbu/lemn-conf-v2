@@ -8,13 +8,14 @@
 // the body after it is mounted, never from a constant and never from a neighbour.
 import {
   deriveCabinetWorldTransform,
+  type BodyMeasurement,
   type BodyProbeRequest,
   type DesignWall,
 } from "@lemnaria/configurator-domain";
 import * as THREE from "three";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
-import { buildCatalogBody } from "../src/catalog-bodies.js";
+import { buildCatalogBody, rebuildDepthM } from "../src/catalog-bodies.js";
 import { makeKit, type Kit } from "../src/kitchen-parts.js";
 import {
   createBodyProbe,
@@ -35,6 +36,9 @@ const WORKTOP_HEIGHT_M = 0.86;
 /** The full extent of a sink base: 860 mm of carcass plus the faucet. It measured exactly this
  *  and was refused from an opening it fits perfectly — §11 row 7. */
 const SINK_FULL_HEIGHT_M = 1.224;
+
+/** ADR 0036 decision 1: an 18 mm door slab and the 21 mm its bar handle stands proud of it. */
+const WALL_FRONT_ASSEMBLY_M = 0.039;
 
 let kit: Kit;
 let room: THREE.Object3D;
@@ -187,44 +191,109 @@ describe("row 19 — an inserted body's back face lies on the wall plane", () =>
 // depth the builder was given. Rebuilding at `2 × seatOffsetM` has to reproduce the same body, or
 // a reloaded design renders something the probe never measured.
 describe("rebuilding at the persisted seat depth", () => {
+  /** What `scene-sync.ts` does when it rebuilds a persisted placement: the recorded `frame.d` is a
+   *  rear overhang, and `rebuildDepthM` turns it back into the depth the builder wants. Routed
+   *  through the production helper rather than restated, because the whole point of the helper is
+   *  that there is one conversion and not two. */
+  function rebuiltAtSeat(
+    original: BodyProbeRequest,
+    measured: BodyMeasurement,
+  ): BodyMeasurement {
+    return measureBuiltBody({
+      kit,
+      room,
+      request: {
+        ...original,
+        depthM: rebuildDepthM(kit, original.buildId, 2 * measured.seatOffsetM),
+      },
+    });
+  }
+
   it.each([SINK_REQUEST, WALL_REQUEST, COLUMN_REQUEST])(
     "reproduces $buildId exactly",
     (original) => {
       const measured = measureBuiltBody({ kit, room, request: original });
 
-      const rebuilt = measureBuiltBody({
-        kit,
-        room,
-        request: { ...original, depthM: 2 * measured.seatOffsetM },
-      });
-
-      expect(rebuilt).toEqual(measured);
+      expect(rebuiltAtSeat(original, measured)).toEqual(measured);
     },
   );
+
+  // **ADR 0018 clause 4, arriving.** Since ADR 0036 decision 1 a fronted wall shell is the declared
+  // depth *less* the 39 mm door-and-handle assembly, so `frame.d` is no longer the depth the builder
+  // was handed and rebuilding from it raw shrinks the cabinet by 39 mm on every cycle — compounding,
+  // and invisible to `refuseBuiltSize`, which checks width and height only. This is the assertion
+  // that the raw read really is wrong, so `rebuildDepthM` above cannot be quietly deleted as a
+  // no-op.
+  it("shrinks a wall cabinet if the raw seat is rebuilt from, which is why the helper exists", () => {
+    const measured = measureBuiltBody({ kit, room, request: WALL_REQUEST });
+    const naive = measureBuiltBody({
+      kit,
+      room,
+      request: { ...WALL_REQUEST, depthM: 2 * measured.seatOffsetM },
+    });
+
+    // 1e-6 m, the same float epsilon every other assertion in this file uses: the geometry is
+    // stored as Float32, so a 0.291 shell reads back as 0.29100000858.
+    expect(
+      Math.abs(
+        2 * naive.seatOffsetM -
+          (2 * measured.seatOffsetM - WALL_FRONT_ASSEMBLY_M),
+      ),
+    ).toBeLessThanOrEqual(FLOAT_EPSILON_METRES);
+  });
 
   // F2, pinned as two explicit halves. `seatDepthMm` is `2 ×` a rear overhang, **not** the depth
   // the builder was handed, and `buildBody` rebuilds from it — so exactly which entries make those
   // two numbers coincide is load-bearing, and it is a property of the builders, not a contract.
   // Only `wallCabinet` and `openShelf` consume a depth at all, and only they centre their carcass
-  // on z = 0. If a builder is ever parameterised over depth (M5), this is the test that will say so.
+  // on z = 0.
+  //
+  // **ADR 0018 clause 3 said "if a builder is ever parameterised over depth (M5), this is the test
+  // that will say so". It is saying so.** ADR 0036 decision 1 makes a declared dimension the
+  // finished cabinet, so `wallCabinet` now builds its shell at `D − 39` and seats at half of *that*.
+  // `openShelf` is unchanged, because it has neither door nor handle to stand in front of anything.
+  // The pin is not weakened — the expected value is stated per builder instead of assumed common.
   it.each([
-    { buildId: "wall-cabinet", heightM: 0.7 },
-    { buildId: "wall-cabinet", heightM: 0.7 },
-    { buildId: "wall-lift", heightM: 0.7 },
-    { buildId: "open-shelf", heightM: 0.7 },
-  ])("$buildId seats at exactly half the depth it was given", (testCase) => {
-    const depthM = 0.33;
+    { buildId: "wall-cabinet", heightM: 0.7, frontAssemblyM: 0.039 },
+    { buildId: "wall-lift", heightM: 0.7, frontAssemblyM: 0.039 },
+    { buildId: "open-shelf", heightM: 0.7, frontAssemblyM: 0 },
+  ])(
+    "$buildId seats at half the depth it was given, less its own front assembly",
+    (testCase) => {
+      const depthM = 0.33;
 
-    const measured = measureBuiltBody({
-      kit,
-      room,
-      request: request(testCase.buildId, 0.6, testCase.heightM, depthM),
-    });
+      const measured = measureBuiltBody({
+        kit,
+        room,
+        request: request(testCase.buildId, 0.6, testCase.heightM, depthM),
+      });
 
-    expect(Math.abs(2 * measured.seatOffsetM - depthM)).toBeLessThanOrEqual(
-      FLOAT_EPSILON_METRES,
-    );
-  });
+      expect(
+        Math.abs(2 * measured.seatOffsetM - (depthM - testCase.frontAssemblyM)),
+      ).toBeLessThanOrEqual(FLOAT_EPSILON_METRES);
+    },
+  );
+
+  // The other half of the same fact, and the one a customer sees: whatever the shell is, the body's
+  // **front face lands on the number that was declared**. That is the whole of ADR 0036 decision 1,
+  // and before wave 5F a 330 mm wall cabinet finished at 369.
+  it.each(["wall-cabinet", "wall-lift", "open-shelf"])(
+    "%s finishes at exactly its declared depth",
+    (buildId) => {
+      const depthM = 0.33;
+      const body = buildCatalogBody(kit, buildId, {
+        widthM: 0.6,
+        heightM: 0.7,
+        depthM,
+      });
+      body.updateWorldMatrix(true, true);
+      const box = new THREE.Box3().setFromObject(body);
+
+      expect(Math.abs(box.max.z - box.min.z - depthM)).toBeLessThanOrEqual(
+        FLOAT_EPSILON_METRES,
+      );
+    },
+  );
 
   it.each([
     {
@@ -245,7 +314,12 @@ describe("rebuilding at the persisted seat depth", () => {
       heightM: WORKTOP_HEIGHT_M,
       seatDepthM: 0.58,
     },
-    { buildId: "hood", widthM: 0.6, heightM: 0.71, seatDepthM: 0.5 },
+    // ADR 0039 decision 2 — §11 row 19's **second named exception**. The hood is hung from the
+    // front, so its seat is measured to the cabinet-depth line rather than to its own back face:
+    // `2 × (0.6 − 0.25) = 0.7` for a body that is still 500 mm deep. It ignores the depth it is
+    // handed exactly as it always did (decision 1: *"hood is always standard"*); what changed is
+    // where the 500 hangs.
+    { buildId: "hood", widthM: 0.6, heightM: 0.7, seatDepthM: 0.7 },
     { buildId: "tall-pantry", widthM: 0.6, heightM: 2.2, seatDepthM: 0.56 },
     { buildId: "fridge-free", widthM: 0.7, heightM: 1.85, seatDepthM: 0.68 },
   ])(
@@ -279,7 +353,12 @@ describe("rebuilding at the persisted seat depth", () => {
     const rebuilt = measureBuiltBody({
       kit,
       room,
-      request: request("wall-cabinet", 0.6, 0.7, 2 * deep.seatOffsetM),
+      request: request(
+        "wall-cabinet",
+        0.6,
+        0.7,
+        rebuildDepthM(kit, "wall-cabinet", 2 * deep.seatOffsetM),
+      ),
     });
 
     expect(rebuilt).toEqual(deep);

@@ -24,18 +24,56 @@ import {
   WORKTOP_DEPTH_MM,
 } from "../src/worktop-depth.js";
 
-/** Every catalogue id whose depth is deliberately **not** the map's row, with the number it is
- *  instead. Stated as data so a body that quietly stopped following the map cannot hide by being
- *  filtered out: anything in the wall or top band and absent from this record must equal the map.
+/** What `buildKitchen()` actually builds a wall carcass to, and therefore what the seeded fixture's
+ *  wall and top rows must reproduce. **Not the map's output**: the reference room is fixed geometry
+ *  vendored from the supplier, and `kitchen-parts.decomposition.parity.test.ts` gates every seeded
+ *  `frame.d` against it at 1e-6 m. It coincides with the map's `600 -> 330` row, which is a fact to
+ *  assert once (below) rather than a reason to bind the fixture to whatever worktop is current. */
+const REFERENCE_ROOM_WALL_DEPTH_MM = 330;
+
+/** What `wallCabinet` stands in front of the shell it is given: an 18 mm door slab and a bar handle
+ *  reaching 21 mm past it (`kitchen-parts.ts`, `FRONT_ASSEMBLY_D`, measured with the real probe in
+ *  wave 5F — **not** the "18 + the 4 mm gap" ADR 0036 estimated; that 4 mm is the lateral shadow gap
+ *  between two leaves and never reaches the depth axis).
  *
- *  `hood`/`hood-600` — a canopy, 500, and whether a hood follows the worktop is undecided
- *  (`M5-width.md`, *Not established*). The two deep top cabinets stand over full-height columns
- *  where §7's head-clearance cap is lifted, which is backlog entry 5's whole decision. */
+ *  A literal here rather than an import: this package must not depend on the Three.js adapter
+ *  (`eslint.config.mjs`'s boundary rule). What keeps the two honest is not this file but
+ *  `kitchen-parts.decomposition.parity.test.ts`, which derives every seeded placement's world
+ *  transform from its `frame.d` and needs a reference child within 1e-6 m — so a wrong number here
+ *  turns that red rather than passing quietly. */
+const WALL_FRONT_ASSEMBLY_MM = 39;
+
+/** ADR 0036 decision 1: a declared dimension is the finished cabinet, so the **seat** a seeded wall
+ *  row records is the declared depth less the front assembly. Before wave 5F the shell *was* the
+ *  declared depth and the built front sat 39 mm proud of it. */
+function referenceRoomWallSeatMm(definition: BodyDefinition): number {
+  // An open shelf is four boards and a back panel: no door, no handle, nothing in front of the
+  // shell, so its seat and its declared depth are the same number and always were.
+  const frontMm =
+    definition.kind === "open_shelf_unit" ? 0 : WALL_FRONT_ASSEMBLY_MM;
+  return REFERENCE_ROOM_WALL_DEPTH_MM - frontMm;
+}
+
+/** Every catalogue id whose `frameDepthMm` is deliberately **not** the map's row, with the number
+ *  it is instead. Stated as data so a body that quietly stopped following the map cannot hide by
+ *  being filtered out: anything in the wall or top band and absent from this record must equal the
+ *  map.
+ *
+ *  `hood`/`hood-600` — **700 since wave 5F**, and it is a seat rather than a depth. ADR 0039
+ *  decision 1 keeps the hood exempt from the map at a standard 500 mm; decision 2 then hangs it at
+ *  the front, so its group origin sits `600 − 250` off the wall and `frameDepthMm`, being twice the
+ *  rear overhang (ADR 0018), is `2 × 600 − 500`. The 500 survives as its `nominalDepthMm`, asserted
+ *  separately below.
+ *
+ *  The two deep top cabinets stand over full-height columns where §7's head-clearance cap is
+ *  lifted, which is backlog entry 5's whole decision. **561 since 5F**, for the same reason the
+ *  330 rows became 291: ADR 0036 decision 1 makes the declared 600 the finished cabinet, so the
+ *  shell — and therefore the seat — is that less the 39 mm front assembly. */
 const DEPTH_DECIDED_INDEPENDENTLY_MM: Readonly<Record<string, number>> = {
-  hood: 500,
-  "hood-600": 500,
-  "wall-2door-600-deep-top": 600,
-  "wall-2door-700-over-fridge": 600,
+  hood: 2 * 600 - 500,
+  "hood-600": 2 * 600 - 500,
+  "wall-2door-600-deep-top": 600 - WALL_FRONT_ASSEMBLY_MM,
+  "wall-2door-700-over-fridge": 600 - WALL_FRONT_ASSEMBLY_MM,
 };
 
 /** The nine seeded wall/top rows `M5-width.md` measured as already correct at 330, plus §7's wall
@@ -48,13 +86,6 @@ const DEPTH_DECIDED_INDEPENDENTLY_MM: Readonly<Record<string, number>> = {
 const MAP_GOVERNED_ENTRY_COUNT = 12;
 const SEEDED_ROW_COUNT = 9;
 const CATALOGUE_ENTRY_COUNT = 3;
-
-/** What `buildKitchen()` actually builds a wall carcass to, and therefore what the seeded fixture's
- *  wall and top rows must reproduce. **Not the map's output**: the reference room is fixed geometry
- *  vendored from the supplier, and `kitchen-parts.decomposition.parity.test.ts` gates every seeded
- *  `frame.d` against it at 1e-6 m. It coincides with the map's `600 -> 330` row, which is a fact to
- *  assert once (below) rather than a reason to bind the fixture to whatever worktop is current. */
-const REFERENCE_ROOM_WALL_DEPTH_MM = 330;
 
 function wallAndTopEntries(): (readonly [string, BodyDefinition])[] {
   return [...KITCHEN_L_BODY_CATALOG.entries()].filter(
@@ -112,7 +143,7 @@ describe("the seeded fixture's depths are checked against the map, not merely eq
     const offenders = seededEntries()
       .filter(
         ([, definition]) =>
-          definition.frameDepthMm !== REFERENCE_ROOM_WALL_DEPTH_MM,
+          definition.frameDepthMm !== referenceRoomWallSeatMm(definition),
       )
       .map(
         ([buildId, definition]) =>
@@ -155,13 +186,18 @@ describe("the seeded fixture's depths are checked against the map, not merely eq
   // Both fields, because only one of them decides anything: `void-engine.ts` reads `frameDepthMm`,
   // not `nominalDepthMm`, for a placement with no measured `seatDepthMm`. The `hood` entry is
   // spread from `wallCabinet(...)`, which stamps `frameDepthMm` from the map-governed
-  // `WALL_DEPTH_MM`, so the field has to be declared on the entry to stay out of the map's reach —
-  // and whether a hood follows the worktop is undecided.
-  it("gives the §7 hood entry the 500 mm its nominal declares, on both depth fields", () => {
+  // `WALL_DEPTH_MM`, so both fields have to be declared on the entry to stay out of the map's
+  // reach — ADR 0039 decision 1 exempts the hood from it.
+  //
+  // **This is the one entry in the catalogue where the two fields deliberately disagree**, and it
+  // is the whole content of §11 row 19's second named exception: 500 is what a hood *is*, 700 is
+  // where it *hangs*. `catalog.test.ts`'s catalogue-wide "the two depth fields agree" sweep names
+  // the same exception from the other side, so neither can be relaxed without the other noticing.
+  it("gives the §7 hood entry a standard 500 mm nominal and a front-hung 700 mm seat", () => {
     const hood = KITCHEN_L_BODY_CATALOG.get("hood");
 
     expect(hood?.nominalDepthMm).toBe(500);
-    expect(hood?.frameDepthMm).toBe(500);
+    expect(hood?.frameDepthMm).toBe(2 * 600 - 500);
   });
 });
 

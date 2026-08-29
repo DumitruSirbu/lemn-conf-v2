@@ -20,6 +20,7 @@
 // does. It is a **caller** of `setWidth`, not a second opinion about it: the intended home is the
 // domain query, and moving it there is a one-file follow-up that changes no behaviour.
 import {
+  WIDTH_STEP_MM,
   columnWidthChoices,
   setWidth,
   type BodyCatalog,
@@ -33,7 +34,12 @@ import {
 /** ADR 0035 decision 8: the step is a **presentation constant**. The owner has already named 25 mm
  *  as a plausible successor, and nothing downstream of this panel may depend on the value — which is
  *  why the price is a formula over width in M6 rather than a table keyed on the widths it produces. */
-export const WIDTH_STEP_MM = 50;
+/** Re-exported from the catalogue, never re-declared. It was `= 50` in both places, and the drift
+ *  would have been **silent**: ADR 0035 decision 8 names 25 mm as the successor, and at 25 the
+ *  catalogue would generate 25 mm chips while the panel kept stepping 50 — every other legal width
+ *  unreachable, and no test failing, because 50 is a multiple of 25 so every step still lands on a
+ *  chip (5D2c QA S2). */
+export { WIDTH_STEP_MM };
 
 export interface WidthStepsInput {
   readonly design: Design;

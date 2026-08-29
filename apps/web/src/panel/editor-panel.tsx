@@ -381,7 +381,11 @@ function WidthStepView({
       type="button"
       className={styles.widthStep}
       data-testid={`width-step-${step.direction}`}
-      aria-label={step.ariaLabel}
+      // **The label goes only on an enabled button.** `aria-label` *replaces* an element's contents
+      // in the accessible name computation, so a labelled disabled button announced "Micșorează
+      // lățimea cu 50 mm" and never the bound underneath it — §13.1's "greyed and unclickable **with
+      // the reason**" became sighted-only, which the chip row it replaced never was (5D2c QA S1).
+      {...(step.reason === undefined ? { "aria-label": step.ariaLabel } : {})}
       disabled={step.isDisabled}
       onClick={() => {
         onStep(step.widthMm);

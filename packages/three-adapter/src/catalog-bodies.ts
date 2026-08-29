@@ -106,6 +106,41 @@ const CATALOG_BODY_BUILDERS: Readonly<Record<string, CatalogBodyBuilder>> = {
   "fridge-free": (kit) => kit.builders["fridge-free"](),
 };
 
+/** The insertable ids whose builder stands a **fronted** assembly in front of the shell it is
+ *  given: `wallCabinet` and the lift-up it wraps. `open-shelf` has neither door nor handle, so its
+ *  declared depth and its shell are the same number, and every other builder ignores the depth it
+ *  is handed altogether (ADR 0018). */
+const FRONTED_WALL_BUILD_IDS: ReadonlySet<string> = new Set([
+  "wall-cabinet",
+  "wall-lift",
+]);
+
+/** The depth to rebuild a persisted placement at — **ADR 0018 clause 4, which 5F is the phase that
+ *  trips.**
+ *
+ *  `frame.d` is twice a body's rear overhang, not its depth. That coincided with the depth for
+ *  `wallCabinet` and `openShelf` only because their shell was centred on z = 0 *and* was the whole
+ *  of what the builder was given. ADR 0036 decision 1 ends the second half of that: a wall shell is
+ *  now the declared depth less the front assembly, so rebuilding straight from `frame.d` would
+ *  shrink a 330 mm cabinet by 39 mm on every save-and-reload, compounding, with `refuseBuiltSize`
+ *  checking width and height only so no gate would see it. That is exactly the growth ADR 0018
+ *  wrote down before it could be hit, arriving in the shrinking direction.
+ *
+ *  Of ADR 0018 clause 3's two candidate directions this is the second — the caller reconstructs the
+ *  declared depth rather than a new measurement being persisted beside the seat. It is chosen
+ *  because it needs no schema field, no version bump and no migration (`DesignSchema` is untouched,
+ *  and ADR 0038 says nothing has ever been stored), and because it converges exactly rather than
+ *  approximately: declared 0.330 builds a 0.291 shell, records `frame.d` 0.291, and rebuilds at
+ *  0.291 + 0.039 = 0.330 for as many cycles as you care to run. */
+export function rebuildDepthM(
+  kit: Kit,
+  buildId: string,
+  frameDepthM: number,
+): number {
+  if (!FRONTED_WALL_BUILD_IDS.has(buildId)) return frameDepthM;
+  return frameDepthM + kit.depths.frontAssemblyDepthM;
+}
+
 /** Every id `buildCatalogBody` covers, in §7's own order. Exported so a test can assert the
  *  builder table and the domain's insertable catalogue are the *same* set in both directions —
  *  a builder with no catalogue entry is dead code, and a catalogue entry with no builder is a body

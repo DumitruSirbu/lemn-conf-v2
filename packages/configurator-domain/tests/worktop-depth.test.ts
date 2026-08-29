@@ -110,16 +110,28 @@ describe("the map is the single source for both of §7's and §5.2's numbers", (
     expect(toMillimetres(WALL_CARCASS_MAX_DEPTH_OVER_WORKTOP_M)).not.toBe(400);
   });
 
-  it("leaves the hood's 500 mm alone on both depth fields, because that question is not decided", () => {
-    // `nominalDepthMm` alone is not enough, and this assertion checked only that until QA finding
-    // Q1.1: the entry is spread from `wallCabinet(...)`, so `frameDepthMm` was inherited from the
-    // map-governed `WALL_DEPTH_MM` while the nominal said 500. `void-engine.ts` reads
-    // `frameDepthMm` as the fallback for a placement with no measured `seatDepthMm`, so the field
-    // this test skipped is the one that decided the depth.
+  // **Changed deliberately in wave 5F**, which is the wave that answered the question this test
+  // was written while it was open. ADR 0039 decision 1 keeps the hood out of the map — *"hood is
+  // always standard"*, 500 at a 600 mm kitchen and 500 at a 700 mm one — so the *nominal* assertion
+  // is unchanged and is still the one that says the map does not reach here.
+  //
+  // What moved is `frameDepthMm`, and it moved because it was never a depth: ADR 0018 makes it
+  // twice the body's rear overhang, and ADR 0039 decision 2 hangs the hood at the front, so its
+  // origin sits `cabinetDepth − 250` off the wall. Asserting the two fields are equal would now be
+  // asserting the hood is wall-seated, which is exactly what decision 2 replaced.
+  //
+  // `nominalDepthMm` alone is not enough, and this assertion checked only that until QA finding
+  // Q1.1: the entry is spread from `wallCabinet(...)`, so `frameDepthMm` was inherited from the
+  // map-governed `WALL_DEPTH_MM` while the nominal said 500. `void-engine.ts` reads
+  // `frameDepthMm` as the fallback for a placement with no measured `seatDepthMm`, so the field
+  // this test skipped is the one that decided the depth — which is why it is still asserted here,
+  // against the front-hung number rather than dropped.
+  it("keeps the hood's 500 mm out of the map, and seats it at the front", () => {
     const hood = INSERTABLE_BODY_DEFINITIONS.find(
       ([buildId]) => buildId === "hood",
     );
     expect(hood?.[1].nominalDepthMm).toBe(HOOD_DEPTH_MM);
-    expect(hood?.[1].frameDepthMm).toBe(HOOD_DEPTH_MM);
+    expect(hood?.[1].frameDepthMm).toBe(2 * WORKTOP_DEPTH_MM - HOOD_DEPTH_MM);
+    expect(hood?.[1].frameDepthMm).not.toBe(HOOD_DEPTH_MM);
   });
 });

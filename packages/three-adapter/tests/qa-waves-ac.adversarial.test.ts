@@ -14,6 +14,7 @@ import {
   deriveCabinetWorldTransform,
   deriveColumns,
   derivePlacementRecords,
+  occupiedDepthM,
   insertBody,
   KITCHEN_L_BODY_CATALOG,
   KITCHEN_L_DESIGN,
@@ -62,12 +63,18 @@ function probe() {
   };
 }
 
+/** **The depth of the space the body fills, not its recorded seat.** The round trip below asks
+ *  whether a body's depth survives ten swaps, and since wave 5F `frame.d` is no longer that number:
+ *  a fronted wall carcass records 39 mm less than it occupies (ADR 0036 decision 1) while an open
+ *  shelf, having no door and no handle, still records exactly what it occupies. Reading the seat
+ *  raw would make the rotation below alternate between two correct numbers and read as drift.
+ *  `occupiedDepthM` is the production conversion, read here rather than restated. */
 function depthOfMm(design: Design, placementId: string): number {
   const record = derivePlacementRecords(design, KITCHEN_L_BODY_CATALOG).find(
     (candidate) => candidate.id === placementId,
   );
   if (!record) throw new Error(`No record ${placementId}`);
-  return toMillimetres(record.frame.d);
+  return toMillimetres(occupiedDepthM(record));
 }
 
 /** One swap against a **fresh load-time column map**, re-derived from the seeded design on every
@@ -241,10 +248,28 @@ describe("§11 row 19 across the depths a wall carcass can now be built at", () 
   );
 });
 
-describe("the persisted seat equals the depth the builder was handed, at every depth", () => {
+/** What each builder stands in front of the shell it is handed (ADR 0036 decision 1): an 18 mm door
+ *  slab plus the 21 mm its bar handle reaches past that. An open shelf has neither. */
+const FRONT_ASSEMBLY_MM: Readonly<Record<string, number>> = {
+  "wall-cabinet": 39,
+  "wall-lift": 39,
+  "open-shelf": 0,
+};
+
+describe("the persisted seat is the depth the builder was handed, less its own front", () => {
   // The shipped assertion pins this at 0.33 m only. If a carcass were ever off-centre in z the
   // error would be proportional to the depth, so 0.33 is the one depth least likely to show it.
+  //
+  // **The relation the sweep checks changed in wave 5F, and the sweep is what proves it is a
+  // constant offset rather than a proportion.** ADR 0036 decision 1 makes the depth handed in the
+  // *finished* cabinet, so the seat is that less the front assembly — 39 mm at 200 and 39 mm at 700,
+  // never 39 mm at one depth and 60 at another. A proportional error is exactly what an off-centre
+  // carcass would produce, which is why the offset is subtracted per depth rather than the sweep
+  // being pinned at one.
   it.each(DEPTH_CONSUMING_WALL_IDS)("%s, 200–700 mm", (buildId) => {
+    const frontMm = FRONT_ASSEMBLY_MM[buildId] ?? -1;
+    expect(frontMm).toBeGreaterThanOrEqual(0);
+
     const drifted: string[] = [];
     let checked = 0;
     for (let depthMm = 200; depthMm <= 700; depthMm += 5) {
@@ -253,7 +278,7 @@ describe("the persisted seat equals the depth the builder was handed, at every d
         room,
         request: { buildId, widthM: 0.6, heightM: 0.7, depthM: depthMm / 1000 },
       });
-      if (toMillimetres(2 * measured.seatOffsetM) !== depthMm) {
+      if (toMillimetres(2 * measured.seatOffsetM) !== depthMm - frontMm) {
         drifted.push(
           `${String(depthMm)} → ${String(toMillimetres(2 * measured.seatOffsetM))}`,
         );

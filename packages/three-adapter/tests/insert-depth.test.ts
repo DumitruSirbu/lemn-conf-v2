@@ -15,6 +15,7 @@
 import {
   deriveColumns,
   derivePlacementRecords,
+  occupiedDepthM,
   insertBody,
   KITCHEN_L_BODY_CATALOG,
   KITCHEN_L_DESIGN,
@@ -127,12 +128,25 @@ function insertInto(world: World, voidId: string, buildId: string) {
   return result;
 }
 
-function depthOfMm(design: Design, placementId: string): number {
+function recordOf(design: Design, placementId: string) {
   const record = derivePlacementRecords(design, KITCHEN_L_BODY_CATALOG).find(
     (candidate) => candidate.id === placementId,
   );
   if (!record) throw new Error(`No record ${placementId}`);
-  return toMillimetres(record.frame.d);
+  return record;
+}
+
+/** The **seat** — twice the body's rear overhang, which is what `seatDepthMm` persists. */
+function depthOfMm(design: Design, placementId: string): number {
+  return toMillimetres(recordOf(design, placementId).frame.d);
+}
+
+/** How deep the space the body fills is — the number a customer sees and the one two bodies have to
+ *  agree on to be flush. Since ADR 0036 decision 1 it is not the seat: a fronted wall carcass
+ *  records 39 mm less than it occupies, and an open shelf, having no door and no handle, records
+ *  exactly what it occupies. Two different seats, one flush front. */
+function occupiedDepthOfMm(design: Design, placementId: string): number {
+  return toMillimetres(occupiedDepthM(recordOf(design, placementId)));
 }
 
 describe("re-inserting a deleted top-row cabinet (the handset report)", () => {
@@ -144,8 +158,13 @@ describe("re-inserting a deleted top-row cabinet (the handset report)", () => {
 
     // The trap, stated: the opening still carries the base run's 580 mm, so an uncapped build is a
     // 580 mm carcass and this assertion is not vacuous.
+    //
+    // **600 and not 580 since wave 5F.** §3.2's MAX is now over the space each member fills rather
+    // than over its recorded `frame.d`, and this column holds `p13`, the hood, which ADR 0039
+    // decision 2 hangs forward to the 600 mm cabinet-depth line. The trap is unchanged and slightly
+    // sharper: an uncapped build here is a 600 mm carcass beside 330 mm neighbours.
     const opening = voidAt(emptied, TOP_ROW_COLUMN, TOP_ROW_VOID_Y0_M);
-    expect(toMillimetres(opening.d)).toBe(580);
+    expect(toMillimetres(opening.d)).toBe(600);
     expect(emptied.columns.get(TOP_ROW_COLUMN)?.hasFullHeightUnder).toBe(false);
 
     const result = insertInto(emptied, opening.id, CATALOGUE_WALL_CABINET);
@@ -165,10 +184,19 @@ describe("re-inserting a deleted top-row cabinet (the handset report)", () => {
     const result = insertInto(emptied, opening.id, CATALOGUE_WALL_CABINET);
 
     const depthsMm = ["p18", result.effect.placementId, "p20"].map((id) =>
-      depthOfMm(result.design, id),
+      occupiedDepthOfMm(result.design, id),
     );
 
-    expect(depthsMm).toEqual([330, 330, 330]);
+    // Asserted on the **occupied** depth since wave 5F, not on the recorded seat: the inserted body
+    // is an open shelf and its neighbours are fronted wall cabinets, so the three record 330, 291
+    // and 291 while all three fronts land on the same 330 mm line. Flush is a fact about the front,
+    // and asserting it on the seat would now read three bodies that *are* level as three that are
+    // not.
+    expect(depthsMm).toEqual([
+      WALL_DEPTH_OVER_WORKTOP_MM,
+      WALL_DEPTH_OVER_WORKTOP_MM,
+      WALL_DEPTH_OVER_WORKTOP_MM,
+    ]);
   });
 
   it("agrees with the swap route into the same slot", () => {
@@ -225,8 +253,16 @@ describe("the map governs the head-clearance rule and nothing else", () => {
     },
   );
 
-  it("leaves the hood at 500 mm, because whether a hood follows the worktop is undecided", () => {
+  // **The question this test was written while it was open is answered.** ADR 0039 decision 1 keeps
+  // the hood out of the map at a standard 500 mm; decision 2 then hangs it at the front, so what it
+  // *records* is a seat of 700 — twice the distance from the wall to the centre of a 500 mm body
+  // whose front lands on the 600 mm cabinet-depth line. The map still does not reach it, which is
+  // what this assertion is for; the number it does not reach is now stated as the seat it is.
+  it("keeps the hood out of the map, and hangs it at the front instead", () => {
     const seeded = loadWorld(KITCHEN_L_DESIGN);
-    expect(depthOfMm(seeded.design, "p13")).toBe(500);
+    expect(depthOfMm(seeded.design, "p13")).toBe(2 * 600 - 500);
+    expect(depthOfMm(seeded.design, "p13")).not.toBe(
+      WALL_DEPTH_OVER_WORKTOP_MM,
+    );
   });
 });

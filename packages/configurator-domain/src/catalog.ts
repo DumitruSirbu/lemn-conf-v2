@@ -4,6 +4,7 @@
 // split only by `insertable`. One map, because a placement created by `insertBody` must resolve
 // through the same lookup as a seeded one or `UnknownBodyError` becomes reachable at load; two
 // populations, because a seeded entry describes one already-built body and must never be offered.
+import { EXTRACTOR_HOOD_KIND } from "./body-kinds.js";
 import { toMillimetres } from "./millimetres.js";
 import {
   MIN_WIDTH_M,
@@ -27,7 +28,7 @@ const DEFAULT_MIN_WIDTH_MM = toMillimetres(MIN_WIDTH_M);
  *  moving this to 25 mm costs no rework. The stepper itself is **relative** to a body's current
  *  width, not snapped to this grid — the shipped kitchen holds a 570 mm corner return and a 750 mm
  *  fridge column, and snapping would rewrite cabinets nobody touched. */
-const WIDTH_STEP_MM = 50;
+export const WIDTH_STEP_MM = 50;
 
 /** §7: "everything else" — 1000 mm was dropped, because two doors top out at 800.
  *
@@ -221,7 +222,18 @@ const FREESTANDING_FRIDGE_WIDTHS_MM: readonly number[] = [700];
 /** §2: worktop top = `PLINTH + CARC_H + CTOP`. Every base carcass builds to it. */
 const WORKTOP_HEIGHT_MM = 860;
 const WALL_CABINET_HEIGHT_MM = 700;
-const HOOD_HEIGHT_MM = 710;
+/** ADR 0039 decision 5. It was **710**, and §11 row 6's prose still says "fixed 710 mm", against a
+ *  seeded `hood-600` storing 700 — two records against one, which is how the wrong datum survived.
+ *  The geometry settles it: wave 5F measured a built hood with the real `BodyProbe` and its carcass
+ *  — canopy plus chimney, ADR 0016 — is **700.000 mm**, confirming the fixture rather than the
+ *  catalogue. (Its *full* extent is 706: `hood_filter` hangs 6 mm below the canopy, which is why
+ *  the ADR's "130 + 570" arithmetic and a measurement are not the same number. `fullHeightM` is
+ *  deliberately not a fit gate, §5.2.)
+ *
+ *  Not tidiness: the declared nominal is what `evaluateInsertFit` reserves and what
+ *  `BUILT_SIZE_MISMATCH` compares against, so over-declaring by 10 mm made a hood refuse openings
+ *  it fits, and (until 5D2b) grew a resized seeded hood into the level above. */
+const HOOD_HEIGHT_MM = 700;
 const COLUMN_HEIGHT_MM = 2200;
 
 /** §10's signature flow depends on this exact number: a 2600 mm cleared column minus a
@@ -238,22 +250,26 @@ const BASE_DEPTH_MM = 580;
  *  Read from the worktop → wall depth map rather than written down, so it and that cap are the same
  *  number by construction. Two independent literals agreeing at 400 is the defect this replaces. */
 const WALL_DEPTH_MM = wallDepthMmForWorktop(WORKTOP_DEPTH_MM);
+/** ADR 0039 decision 1: **the hood's depth is standard and does not follow the depth map.** A hood
+ *  is a manufactured appliance sized to the cooktop it covers, not cabinetry sized to the run it
+ *  hangs on — which is the opposite direction from ADR 0035 decision 5, where its *width* is
+ *  cabinetry bounded 600–800. */
 const HOOD_DEPTH_MM = 500;
 
-/** The `kind` a hood declares, and the **only** thing that identifies one to the resize path
- *  (ADR 0035 decision 6 as amended 2026-08-28, ADR 0039 decision 4).
+/** §11 row 19's second named exception, as the number `void-engine.ts` falls back to when a
+ *  placement carries no measured `seatDepthMm`.
  *
- *  A hood is sized to the cooktop it extracts over, not to the run it hangs on, so it is exempt from
- *  its column's width while staying an ordinary placement in that column — owner: *"without
- *  separating it again from cabinets."* The exemption therefore has to be keyed off the hood's own
- *  catalogue identity, which `kind` already is (ADR 0022: an entry declares what it is, nothing
- *  infers it), and **not** off a new body kind or a per-placement flag: ADR 0038 deleted the
- *  standalone-accessory machinery and this is not a reason to rebuild it.
- *
- *  Exported because three declarations have to agree on the string — the `hood` catalogue row, the
- *  seeded `hood-600` instance, and `setWidth`'s exemption — and a literal repeated in three files is
- *  how the fourth one gets it wrong. */
-export const EXTRACTOR_HOOD_KIND = "extractor_hood";
+ *  A front-hung hood's group origin sits `cabinetDepth − 500/2` off the wall, and `frameDepthMm` is
+ *  twice that offset (ADR 0018), so at a 600 mm kitchen it is 700 for a body that is 500 deep. The
+ *  gap behind it is real and declared; the number is derived from the same constant the rest of the
+ *  depth story reads, never typed. */
+function hoodFrameDepthMm(): number {
+  return 2 * WORKTOP_DEPTH_MM - HOOD_DEPTH_MM;
+}
+
+// `EXTRACTOR_HOOD_KIND` and `WALL_CABINET_KIND` moved to `body-kinds.ts` so `void-engine.ts` can
+// read them without a cycle; re-exported here, where every existing caller already looks for them.
+export { EXTRACTOR_HOOD_KIND } from "./body-kinds.js";
 const COLUMN_DEPTH_MM = 560;
 const FREESTANDING_FRIDGE_DEPTH_MM = 680;
 
@@ -466,13 +482,18 @@ export const INSERTABLE_BODY_DEFINITIONS: readonly (readonly [
       heightFlex: false,
       nominalHeightMm: HOOD_HEIGHT_MM,
       nominalDepthMm: HOOD_DEPTH_MM,
-      // Declared, not inherited: the spread above has already stamped `frameDepthMm` from
-      // `WALL_DEPTH_MM`, which the worktop → wall depth map governs. Whether a hood follows the
-      // worktop is an open question, so both of the hood's depth fields say 500 and neither reads
-      // the map. `void-engine.ts` takes `frameDepthMm` as the fallback for a placement with no
-      // measured `seatDepthMm`, so leaving it inherited put a map-derived number behind an
-      // undecided rule (QA finding Q1.1).
-      frameDepthMm: HOOD_DEPTH_MM,
+      // Declared, not inherited: the spread above stamps `frameDepthMm` from `WALL_DEPTH_MM`, which
+      // ADR 0036's depth map governs, and ADR 0039 decision 1 exempts the hood from that map —
+      // *"hood is always standard"*, 500 at a 600 mm kitchen and 500 at a 700 mm one. Leaving it
+      // inherited put a map-derived number behind a rule the map does not reach (QA finding Q1.1).
+      //
+      // **The one entry where the two depth fields deliberately disagree** (`catalog.test.ts` names
+      // it as the exception rather than dropping the sweep). `frameDepthMm` is not a depth — ADR
+      // 0018 — it is twice the body's rear overhang, and ADR 0039 decision 2 hangs the hood at the
+      // front, so its back face is `cabinetDepth − 500` off the wall plane and its seat is measured
+      // from the cabinet-depth line instead. That is §11 row 19's second named exception, after
+      // ADR 0025's corner leg, and this is the fallback that has to agree with the probe.
+      frameDepthMm: hoodFrameDepthMm(),
       // ADR 0035 decision 5: **the hood is cabinetry, bounded 600–800.** It keeps `wallCabinet`'s
       // `widthFlex: 'fit'` — so a 700 mm opening gets a 700 mm hood rather than a 600 adrift in it —
       // and declares the floor its `−50` is greyed out at.

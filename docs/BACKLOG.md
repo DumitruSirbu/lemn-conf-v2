@@ -534,7 +534,7 @@ Three shapes of answer, none of them chosen here:
 The owner should decide before the cargo reaches a customer, since ADR 0026's size set is
 unconfirmed anyway.
 
-## 9. A hood round trip costs a wall opening 100 mm of depth, permanently
+## 9. A hood round trip costs a wall opening 100 mm of depth, permanently — CLOSED 2026-08-30
 
 **Found by logic review, 2026-08-26; new with wave A.** Over a full-height column, where §7's cap is
 lifted, a hood round trip costs the opening 100 mm for good. Measured on `p24` — the 700 mm cabinet
@@ -567,7 +567,22 @@ that produced it was supposed to be the operation that stopped changing depths.
 Related: the same mechanism is why a placed body's depth never re-derives — see entry 5's closing
 paragraph.
 
-**Still open, and now a named question inside M5 (2026-08-27).** The owner's worktop-depth rule
+**CLOSED 2026-08-30, in the opposite direction from what this entry assumed.**
+[ADR 0039](decisions/0039-the-hood-is-a-standard-depth-hung-at-the-front.md) decision 1 makes the
+hood's depth **standard** — *"hood is always standard"*, 500 at a 600 mm kitchen and 500 at a 700 mm
+one — so `make.hood` is *right* to ignore the depth it is handed and giving it a depth parameter is
+explicitly rejected. What had to move is the **seat**: decision 2 hangs the hood at the front, its
+face on the 600 mm cabinet-depth line, with the 100 mm gap behind it.
+
+The leak this entry measured is closed by
+[ADR 0040](decisions/0040-a-recorded-seat-is-converted-back-not-read-as-a-depth.md): the opening a
+body vacates is read through `occupiedDepthM`, which answers the cabinet-depth line for a hood
+instead of the hood's own `frame.d`. Shipped in M5 wave 5F. `p24`'s round trip now returns the 600
+this entry says "never comes back", and the domain's own tests can see it because the fake probe was
+taught the two seats the real one measures — which is the half of this entry's diagnosis that was
+right and still is.
+
+~~**Still open, and now a named question inside M5 (2026-08-27).**~~ The owner's worktop-depth rule
 (entry 5's second half) governs wall depth through a map, and whether the hood follows it is
 **question 1** in `docs/milestones/M5-width.md`'s *Not established — Depth*. The two are one
 decision: putting the hood in the map means giving `make.hood` a depth parameter, which is what this

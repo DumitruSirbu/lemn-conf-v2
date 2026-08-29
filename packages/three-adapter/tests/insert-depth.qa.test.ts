@@ -50,6 +50,12 @@ const CAP_OVER_WORKTOP_MM = 330;
 /** What the reported defect built. Named so every anti-invariant below is explicit. */
 const DEFECTIVE_DEPTH_MM = 400;
 
+/** The same cap as a fronted wall body **records**. ADR 0036 decision 1 builds a wall shell at its
+ *  declared depth less the 39 mm door-and-handle assembly, and `seatDepthMm` stores the shell (ADR
+ *  0018: it is twice the rear overhang, not a depth). An open shelf has no front, so it still
+ *  records the cap itself — which is why the sweep below alternates. */
+const WALL_LIFT_SEAT_MM = CAP_OVER_WORKTOP_MM - 39;
+
 /** A wall entry with no hole in its bound, for the reason `insert-depth.test.ts` states: the fridge
  *  column is 700 mm and a bounded set binds the `'fit'` path (ADR 0032). */
 const WALL_CABINET = "open-shelf";
@@ -186,7 +192,19 @@ describe("ADR 0018: the derived cap does not compound across save, reload and re
     }
 
     expect(depthsMm).toHaveLength(11);
-    expect(new Set(depthsMm)).toEqual(new Set([CAP_OVER_WORKTOP_MM]));
+    // **Two values, and which one you get depends only on which body is standing there** — never
+    // on how many round trips preceded it, which is the whole of what ADR 0018 warns about. Since
+    // wave 5F an open shelf and a fronted wall body no longer record the same seat: ADR 0036
+    // decision 1 makes 330 the *finished* depth, and a lift-up carries a flap and a bar handle
+    // while an open shelf carries nothing, so the shelf seats on 330 and the lift-up on 291.
+    //
+    // Asserted as a per-pass expectation rather than a set, because a set of two would also be
+    // satisfied by a depth that drifted between the same two numbers.
+    expect(depthsMm).toEqual(
+      Array.from({ length: 11 }, (_, pass) =>
+        pass % 2 === 0 ? CAP_OVER_WORKTOP_MM : WALL_LIFT_SEAT_MM,
+      ),
+    );
     expect(depthsMm).not.toContain(DEFECTIVE_DEPTH_MM);
   });
 

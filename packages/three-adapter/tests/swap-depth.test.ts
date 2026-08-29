@@ -18,6 +18,7 @@
 import {
   deriveColumns,
   derivePlacementRecords,
+  occupiedDepthM,
   insertBody,
   KITCHEN_L_BODY_CATALOG,
   KITCHEN_L_DESIGN,
@@ -59,7 +60,10 @@ function seededRecords(): PlacementRecord[] {
   return derivePlacementRecords(KITCHEN_L_DESIGN, KITCHEN_L_BODY_CATALOG);
 }
 
-function swapDepthMm(placementId: string, buildId: string): number {
+function swap(
+  placementId: string,
+  buildId: string,
+): { readonly design: Design; readonly placementId: string } {
   const records = seededRecords();
   const result = insertBody({
     design: KITCHEN_L_DESIGN,
@@ -73,15 +77,35 @@ function swapDepthMm(placementId: string, buildId: string): number {
   if (!result.ok) {
     throw new Error(`Swap of ${placementId} refused: ${result.reason.code}`);
   }
-  return depthOfMm(result.design, result.effect.placementId);
+  return { design: result.design, placementId: result.effect.placementId };
 }
 
-function depthOfMm(design: Design, placementId: string): number {
+function swapDepthMm(placementId: string, buildId: string): number {
+  const swapped = swap(placementId, buildId);
+  return depthOfMm(swapped.design, swapped.placementId);
+}
+
+function recordOf(design: Design, placementId: string) {
   const record = derivePlacementRecords(design, KITCHEN_L_BODY_CATALOG).find(
     (candidate) => candidate.id === placementId,
   );
   if (!record) throw new Error(`No record ${placementId}`);
-  return toMillimetres(record.frame.d);
+  return record;
+}
+
+/** **The depth of the space the body fills, not its recorded seat.** This file's whole subject is
+ *  "a swap does not change how deep this thing is", and since wave 5F `frame.d` is no longer that
+ *  number for two populations: a fronted wall carcass records 39 mm less than it occupies (ADR 0036
+ *  decision 1 — the declared dimension is the finished cabinet) and a front-hung hood records
+ *  200 mm more (ADR 0039 decision 2). `occupiedDepthM` is the production conversion, used here
+ *  rather than restated, because a test that restated it would be asserting a second copy of the
+ *  rule instead of the rule. Where the *seat* is the subject, `seatDepthMm` is read explicitly. */
+function depthOfMm(design: Design, placementId: string): number {
+  return toMillimetres(occupiedDepthM(recordOf(design, placementId)));
+}
+
+function seatDepthMmOf(design: Design, placementId: string): number {
+  return toMillimetres(recordOf(design, placementId).frame.d);
 }
 
 interface SwapCase {
@@ -106,7 +130,7 @@ function replaceableWallBodies(): SwapCase[] {
       buildId: record.buildId,
       equivalentId:
         KITCHEN_L_BODY_CATALOG.get(record.buildId)?.catalogEquivalentId ?? "",
-      depthMm: toMillimetres(record.frame.d),
+      depthMm: toMillimetres(occupiedDepthM(record)),
     }));
 }
 
@@ -168,11 +192,20 @@ describe("§7's head-clearance cap follows what is under the opening", () => {
     },
   );
 
-  it("leaves the hood's own 500 mm alone, because the hood ignores the depth it is handed", () => {
-    // The hood's 500 mm is a seat rather than a physical depth (see `KITCHEN_L_BODY_CATALOG`), and
-    // `make.hood` builds its own. So the hood swapped for itself keeps 500 even though it stands
-    // over the same worktop that caps a wall cabinet in its place at 330, one case up.
-    expect(swapDepthMm("p13", "hood")).toBe(500);
+  it("leaves the hood's standard 500 mm alone, and hangs it at the front", () => {
+    // ADR 0039 decision 1: *"hood is always standard"* — `make.hood` builds 500 whatever depth it is
+    // handed, so the cap that puts a wall cabinet at 330 in this same opening one case up does not
+    // reach it. Decision 2 then says where the 500 goes: front face on the 600 mm cabinet-depth
+    // line, gap behind. So the space it fills is 600 and the seat it records is `2 × 600 − 500`.
+    //
+    // Both are asserted. The seat alone would not say the hood is still 500 deep, and the occupied
+    // depth alone would not say it is hung forward.
+    const swapped = swap("p13", "hood");
+
+    expect(depthOfMm(swapped.design, swapped.placementId)).toBe(600);
+    expect(seatDepthMmOf(swapped.design, swapped.placementId)).toBe(
+      2 * 600 - 500,
+    );
   });
 
   it("keeps a deep replacement stable when it is swapped a second time", () => {

@@ -384,6 +384,12 @@ describe("buildCatalogBody", () => {
   // so it now lives in the domain (`WALL_CARCASS_MAX_DEPTH_OVER_WORKTOP_M`) and arrives already
   // applied. Asserted on geometry rather than on the argument passed: the builder must build the
   // depth it is handed, at both ends of the range, or the rule above it can decide nothing.
+  //
+  // **Since ADR 0036 decision 1 the depth it is handed is the *finished* cabinet**, so the shell is
+  // that less the 39 mm door-and-handle front assembly and the whole body — shell, door and handle
+  // — measures exactly what was asked for. Both halves are asserted: the shell, because it is what
+  // the head-clearance rule above is really sizing, and the finished extent, because that is what
+  // the customer measures and what "330" now means. Before 5F the shell was 330 and the body 369.
   it.each([0.33, 0.4, 0.6])(
     "builds a wall carcass to the %s m it is handed, and does not clamp it",
     (depthM) => {
@@ -393,7 +399,8 @@ describe("buildCatalogBody", () => {
         depthM,
       });
 
-      expect(depthOf(group)).toBeCloseTo(depthM, 6);
+      expect(depthOf(group)).toBeCloseTo(depthM - WALL_FRONT_ASSEMBLY_M, 6);
+      expect(finishedDepthOf(group)).toBeCloseTo(depthM, 6);
     },
   );
 });
@@ -435,6 +442,16 @@ function countMeshes(group: THREE.Group, meshName: string): number {
     if (node.name === meshName) found += 1;
   });
   return found;
+}
+
+/** ADR 0036 decision 1: an 18 mm door slab and the 21 mm its bar handle stands proud of it. */
+const WALL_FRONT_ASSEMBLY_M = 0.039;
+
+/** The whole body front to back — what a customer measures, and what a declared depth now means. */
+function finishedDepthOf(group: THREE.Group): number {
+  group.updateWorldMatrix(true, true);
+  const box = new THREE.Box3().setFromObject(group);
+  return box.max.z - box.min.z;
 }
 
 function depthOf(group: THREE.Group): number {

@@ -177,10 +177,28 @@ export interface KitMaterials {
   steelDeep: THREE.MeshStandardMaterial;
 }
 
+/** The depths this kit derived from its declared cabinet depth (M5 work item 7, ADR 0036). Exposed
+ *  because the seat, the rebuild and their tests all have to read the *same* numbers the builders
+ *  used — two constants agreeing by luck is the defect ADR 0028 was written about. */
+export interface KitDepths {
+  /** ADR 0036 decision 3's setting: the finished depth of a base cabinet, doors included. */
+  readonly cabinetDepthM: number;
+  /** The base carcass shell, `cabinetDepth − BASE_FRONT_OVERHANG_MM`. */
+  readonly baseCarcassDepthM: number;
+  /** What a fronted carcass stands in front of its own shell: the door slab and its bar handle. */
+  readonly frontAssemblyDepthM: number;
+  /** ADR 0039 decision 1: standard, and exempt from the depth map. */
+  readonly hoodDepthM: number;
+  /** ADR 0039 decision 2 and §11 row 19's second named exception: a front-hung hood's group origin
+   *  sits this far off the wall plane, leaving `cabinetDepth − hoodDepth` of gap behind it. */
+  readonly hoodSeatOffsetM: number;
+}
+
 export interface Kit {
   builders: Builders;
   M: KitMaterials;
   make: Factories;
+  depths: KitDepths;
   /** Whether this kit's shared geometry cache owns `geometry`, i.e. whether other bodies built
    *  from this kit may be rendering from the same buffers. A kit-owned geometry must never be
    *  disposed by a caller tearing one body down — see the cache's own comment in `makeKit`. */
@@ -192,11 +210,50 @@ export interface Kit {
  *  is a canvas factory; it defaults to the reference's own call and changes no geometry. */
 export interface KitOptions {
   createCanvas?: () => HTMLCanvasElement;
+  /** The kitchen's **cabinet** depth in millimetres — ADR 0036 decision 3: the setting is the
+   *  depth of the cabinets, never the worktop's, and the worktop influences neither geometry nor
+   *  price. Every base carcass in this kit derives from it (M5 work item 7), so a 700 mm kitchen
+   *  is one argument rather than a hunt through 24 literals.
+   *
+   *  **Kit-level and not per-call**, deliberately: ADR 0018 clause 4's compounding round trip fires
+   *  only for a builder that consumes the depth *argument* it is handed, and the value here is the
+   *  same on every call, so that trap stays inert. M5 has exactly one cabinet depth by
+   *  construction; M6's *Setări globale* control is what makes this vary. */
+  cabinetDepthMm?: number;
 }
+
+/** The cabinet depth a kit built with no options uses — the one M5 declares. It is deliberately a
+ *  literal here rather than an import of the domain's `WORKTOP_DEPTH_MM`: §12 keeps product rules
+ *  in the domain and builders here, and this package is a port of a standalone reference library.
+ *  The two cannot drift apart regardless — `cabinet-depth-source.test.ts` asserts they are the same
+ *  number, which is ADR 0028's own remedy for two constants agreeing by luck. */
+export const DEFAULT_CABINET_DEPTH_MM = 600;
+
+/** ADR 0036 decision 1: a declared dimension is the **finished** cabinet, so a base carcass is the
+ *  declared depth less what the builder stands in front of it. Measured on the shipped reference,
+ *  600 declared against `CARC_D` 0.56.
+ *
+ *  It is 40 and not the 39 mm the fronts actually measure (see `FRONT_ASSEMBLY_D`): the reference
+ *  rounds, and M5's own acceptance criterion is that **not one shipped dimension moves** — a base
+ *  cabinet therefore finishes at 599, one millimetre inside its declared 600, exactly as it always
+ *  has. Correcting that millimetre is a re-vendoring decision, not this wave's. */
+const BASE_FRONT_OVERHANG_MM = 40;
+
+/** The worktop overhangs its carcass by one constant and does **not** scale with depth (M5 work
+ *  item 7): `counter` is 60 mm deeper than `CARC_D`, offset 20 mm forward, so it stands 50 mm proud
+ *  at the front and 10 mm behind at the back. ADR 0018 measured the same numbers from the other
+ *  side — the counter's back face is what a base body's seat is taken from. */
+const COUNTER_OVERHANG_MM = 60;
 
 export function makeKit(options: KitOptions = {}): Kit {
   const createCanvas =
     options.createCanvas ?? (() => document.createElement("canvas"));
+  // Millimetres divided once, never metres subtracted: `0.6 - 0.04` is 0.5599999999999999 in
+  // IEEE-754 and M1's parity gate diffs at 1e-6 m, so the arithmetic is done where it is exact.
+  const cabinetDepthMm = options.cabinetDepthMm ?? DEFAULT_CABINET_DEPTH_MM;
+  const carcassDepthM = (cabinetDepthMm - BASE_FRONT_OVERHANG_MM) / 1000;
+  const counterDepthM =
+    (cabinetDepthMm - BASE_FRONT_OVERHANG_MM + COUNTER_OVERHANG_MM) / 1000;
 
   const mat = (
     name: string,
@@ -547,9 +604,27 @@ export function makeKit(options: KitOptions = {}): Kit {
   }
 
   const GAP = 0.004;
+
+  /** What a fronted carcass stands **in front of** its own shell, measured rather than estimated:
+   *  a `doorSlab` is `TH` thick with its inner face on the carcass front, and `barHandle` puts a
+   *  6 mm-radius bar 24 mm forward of the slab's mid-plane. `TH/2 + 0.024 + 0.006` = **39 mm**.
+   *
+   *  ADR 0036's Consequences estimated this at "the door is 18 mm and the gap 4, which is 22, so
+   *  something else contributes the remainder". The remainder is the **handle**, and the 4 mm it
+   *  counted is `GAP`, the *lateral* shadow gap between two leaves — it never reaches the depth
+   *  axis at all.
+   *
+   *  One constant and not two, although `pushOpen` omits the bar: §6.5 builds handles and hides
+   *  them so the customer can switch them back on, so the declared envelope has to hold one
+   *  whether or not it is currently visible. A carcass built with `pushOpen` therefore finishes
+   *  21 mm inside its declared depth, which is the honest reading of a cabinet with no handle. */
+  const FRONT_ASSEMBLY_D = TH / 2 + 0.024 + 0.006;
+
   const PLINTH = 0.1,
     CARC_H = 0.72,
-    CARC_D = 0.56,
+    // M5 work item 7: derived from the declared cabinet depth, not typed. At 600 it is 0.56 to the
+    // last micrometre, which is what keeps M1's parity gate green for every base builder.
+    CARC_D = carcassDepthM,
     CTOP = 0.04;
 
   function plinth(w: number, d: number, name = "plinth"): THREE.Mesh {
@@ -587,7 +662,7 @@ export function makeKit(options: KitOptions = {}): Kit {
   }
   function counter(
     w: number,
-    d = 0.62,
+    d = counterDepthM,
     y = PLINTH + CARC_H,
     name = "countertop",
   ): THREE.Mesh {
@@ -625,7 +700,7 @@ export function makeKit(options: KitOptions = {}): Kit {
     if (sink) {
       // countertop split around the sink aperture (0.70 × 0.36, centred)
       const y = PLINTH + CARC_H,
-        cd = 0.62,
+        cd = counterDepthM,
         cz = 0.02,
         ax = 0.28,
         az = 0.2;
@@ -1191,7 +1266,7 @@ export function makeKit(options: KitOptions = {}): Kit {
 
     countertop: () => {
       const g = G("countertop_backsplash");
-      g.add(box(2.0, CTOP, 0.62, M.stone, "countertop_slab", 0, 0, 0));
+      g.add(box(2.0, CTOP, counterDepthM, M.stone, "countertop_slab", 0, 0, 0));
       g.add(
         plainBox(
           2.0,
@@ -1201,7 +1276,7 @@ export function makeKit(options: KitOptions = {}): Kit {
           "backsplash",
           0,
           CTOP,
-          -0.31 + 0.007,
+          -counterDepthM / 2 + 0.007,
         ),
       );
       return g;
@@ -1225,6 +1300,38 @@ export function makeKit(options: KitOptions = {}): Kit {
     "kitchen-l": buildKitchen,
   };
 
+  /** ADR 0036 decision 1: `D` is the **finished** depth — wall to the front of the door and its
+   *  handle — so the shell is that less `FRONT_ASSEMBLY_D`. Before 5F the shell *was* `D` and the
+   *  built front sat 39 mm proud of the declared number, which is the defect ADR 0036 records.
+   *
+   *  ADR 0036 decision 2 asked whether to merge the door into the shell instead, "only if we will
+   *  simplify the code". It does not: the door is its own named mesh with its own material, its own
+   *  handle children, `canHandle`/`canFinish` addressing and `scene-sync`'s handle hiding all
+   *  keyed off it. Merging deletes all of that to save one subtraction, so the door stays separate
+   *  geometry and only the arithmetic moves. */
+  function wallCarcassDepth(D: number): number {
+    return D - FRONT_ASSEMBLY_D;
+  }
+
+  /** Where a wall body's group origin sits off the wall plane so its back face lands on it
+   *  (§11 row 19). Half the **shell**, not half the declared depth, since 5F. */
+  function wallSeatOffset(D = 0.33): number {
+    return wallCarcassDepth(D) / 2;
+  }
+
+  /** ADR 0039 decision 2: **the hood is hung at the front.** Its front face aligns with the
+   *  cabinet-depth line — the owner confirmed it is that and not the worktop's 620, which ADR 0036
+   *  decision 3 puts outside geometry altogether — so a standard 500 mm hood leaves
+   *  `cabinetDepth − 500` of empty space behind it, which the chimney hides.
+   *
+   *  That makes this §11 row 19's **second named exception** (ADR 0025's corner leg is the first):
+   *  the hood's back face is deliberately off the wall plane, declared and measured here rather
+   *  than a tolerance that drifted. `HOOD_DEPTH_M` does **not** follow ADR 0036's depth map —
+   *  decision 1, *"hood is always standard"* — so at a 700 mm kitchen the hood is still 500 and the
+   *  gap becomes 200. */
+  const HOOD_DEPTH_M = 0.5;
+  const HOOD_SEAT_OFFSET_M = cabinetDepthMm / 1000 - HOOD_DEPTH_M / 2;
+
   function wallCabinet(
     W: number,
     doors: number,
@@ -1233,8 +1340,9 @@ export function makeKit(options: KitOptions = {}): Kit {
     pushOpen = false,
   ): THREE.Group {
     const g = G("wall_cabinet");
-    g.add(carcass(W, H, D, 0));
-    const fz = D / 2 + TH / 2,
+    const shellD = wallCarcassDepth(D);
+    g.add(carcass(W, H, shellD, 0));
+    const fz = shellD / 2 + TH / 2,
       short = H <= 0.5;
     const hL: HandleEdge = pushOpen ? "none" : short ? "bottom" : "right";
     const hR: HandleEdge = pushOpen ? "none" : short ? "bottom" : "left";
@@ -1255,7 +1363,16 @@ export function makeKit(options: KitOptions = {}): Kit {
   // builder's own literals, so `builders['wall-lift']()` is this call and the geometry is unchanged.
   function wallLift(W = 0.6, H = 0.7, D = 0.33): THREE.Group {
     const g = wallCabinet(W, 0, H, D);
-    g.add(doorSlab(W - 0.006, H - 0.006, 0, H, D / 2 + TH / 2, "bottom"));
+    g.add(
+      doorSlab(
+        W - 0.006,
+        H - 0.006,
+        0,
+        H,
+        wallCarcassDepth(D) / 2 + TH / 2,
+        "bottom",
+      ),
+    );
     return g;
   }
 
@@ -1319,9 +1436,13 @@ export function makeKit(options: KitOptions = {}): Kit {
     return g;
   }
 
+  // Backlog entry 9 closes here, in the opposite direction from what that entry assumed. Its
+  // hardcoded canopy depth is not a defect to parameterise away: ADR 0039 decision 1 makes the
+  // hood's depth **standard**, so the builder is right to ignore the depth it is handed. What had to
+  // move is the *seat* — see `HOOD_SEAT_OFFSET_M`.
   function hood(w = 0.9, chimneyH = 0.57): THREE.Group {
     const g = G("extractor_hood");
-    g.add(box(w, 0.13, 0.5, M.steel, "hood_canopy", 0, 0, 0));
+    g.add(box(w, 0.13, HOOD_DEPTH_M, M.steel, "hood_canopy", 0, 0, 0));
     g.add(box(w - 0.04, 0.012, 0.46, M.dark, "hood_filter", 0, -0.006, 0));
     g.add(box(0.3, chimneyH, 0.28, M.steel, "hood_chimney", 0, 0.13, -0.09));
     g.add(box(0.28, 0.03, 0.02, M.dark, "hood_controls", 0, 0.06, 0.24));
@@ -1573,14 +1694,18 @@ export function makeKit(options: KitOptions = {}): Kit {
     place(builders["fridge-free"](), 0.34, 2.45, Math.PI / 2); // already flush; not derived from a shared offset
 
     // upper run — continuous from the corner to the end, all on one line (1.50 → 2.20)
+    //
+    // The seats are derived, never typed: a wall body's shell is its declared depth less the front
+    // assembly (ADR 0036), so half of *that* is what puts its back face on the wall plane
+    // (§11 row 19). `openShelf` has no front assembly, so its own half-depth is unchanged.
     const yW = 1.5;
-    place(wallCabinet(0.6, 2), 0.3, 0.165, 0, yW);
-    place(wallCabinet(0.57, 1), 0.165, 0.615, Math.PI / 2, yW); // corner return, closes the upper L
-    place(wallCabinet(0.3, 1), 0.75, 0.165, 0, yW);
-    place(wallCabinet(0.8, 2), 1.3, 0.165, 0, yW);
+    place(wallCabinet(0.6, 2), 0.3, wallSeatOffset(), 0, yW);
+    place(wallCabinet(0.57, 1), wallSeatOffset(), 0.615, Math.PI / 2, yW); // corner return, closes the upper L
+    place(wallCabinet(0.3, 1), 0.75, wallSeatOffset(), 0, yW);
+    place(wallCabinet(0.8, 2), 1.3, wallSeatOffset(), 0, yW);
     place(openShelf(0.6, 0.33, 2), 2.0, 0.165, 0, yW);
-    place(hood(0.6), 2.6, 0.25, 0, yW);
-    place(wallCabinet(0.6, 2), 3.2, 0.165, 0, yW);
+    place(hood(0.6), 2.6, HOOD_SEAT_OFFSET_M, 0, yW);
+    place(wallCabinet(0.6, 2), 3.2, wallSeatOffset(), 0, yW);
 
     // top row — up to the ceiling (2.20 → 2.60), widths matching the middle row.
     // Overhead doors ship push-to-open: the handles are built and hidden, so the
@@ -1605,20 +1730,38 @@ export function makeKit(options: KitOptions = {}): Kit {
       place(
         pushOpen(wallCabinet(w, w > 0.4 ? 2 : 1, hT, 0.33)),
         x,
-        0.165,
+        wallSeatOffset(),
         0,
         yT,
       );
     place(
       pushOpen(wallCabinet(0.57, 1, hT, 0.33)),
-      0.165,
+      wallSeatOffset(),
       0.615,
       Math.PI / 2,
       yT,
     );
-    place(pushOpen(wallCabinet(0.6, 2, hT, 0.6)), 0.3, 1.2, Math.PI / 2, yT);
-    place(pushOpen(wallCabinet(0.6, 2, hT, 0.6)), 0.3, 1.8, Math.PI / 2, yT);
-    place(wallCabinet(0.7, 2, 0.75, 0.6), 0.3, 2.45, Math.PI / 2, 1.85); // over the fridge
+    place(
+      pushOpen(wallCabinet(0.6, 2, hT, 0.6)),
+      wallSeatOffset(0.6),
+      1.2,
+      Math.PI / 2,
+      yT,
+    );
+    place(
+      pushOpen(wallCabinet(0.6, 2, hT, 0.6)),
+      wallSeatOffset(0.6),
+      1.8,
+      Math.PI / 2,
+      yT,
+    );
+    place(
+      wallCabinet(0.7, 2, 0.75, 0.6),
+      wallSeatOffset(0.6),
+      2.45,
+      Math.PI / 2,
+      1.85,
+    ); // over the fridge
 
     // splashback on wall A
     room.add(
@@ -1653,6 +1796,13 @@ export function makeKit(options: KitOptions = {}): Kit {
     builders,
     M,
     make,
+    depths: {
+      cabinetDepthM: cabinetDepthMm / 1000,
+      baseCarcassDepthM: carcassDepthM,
+      frontAssemblyDepthM: FRONT_ASSEMBLY_D,
+      hoodDepthM: HOOD_DEPTH_M,
+      hoodSeatOffsetM: HOOD_SEAT_OFFSET_M,
+    },
     ownsGeometry: (geometry) => cachedGeometries.has(geometry),
   };
 }

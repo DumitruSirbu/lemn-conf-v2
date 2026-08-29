@@ -453,6 +453,18 @@ describe("a sub-300 mm width is reached only by naming a row that declares one",
  *  than a literal of its own, and `worktop-depth.test.ts` is the gate that keeps the two linked. */
 const CAP_OVER_WORKTOP_MM = 330;
 
+/** ADR 0036 decision 1: a declared dimension is the finished cabinet, so a wall shell is the
+ *  declared depth less the 39 mm door-and-handle front assembly. `seatDepthMm` records the shell. */
+const WALL_FRONT_ASSEMBLY_MM = 39;
+
+/** The same cap as **recorded**, which since wave 5F is a different number from the cap itself.
+ *  ADR 0036 decision 1 makes 330 the *finished* depth of a wall cabinet, so its shell — and
+ *  therefore its seat, which is what `seatDepthMm` stores — is that less the 39 mm door-and-handle
+ *  front assembly. Keeping the two constants apart is the point: the rule the cap states is about
+ *  the cabinet a person leans under, and the number the design stores is about where its back face
+ *  lands (ADR 0018). */
+const CAP_OVER_WORKTOP_SEAT_MM = CAP_OVER_WORKTOP_MM - WALL_FRONT_ASSEMBLY_MM;
+
 describe("the claim the band predicate rests on", () => {
   // `isFullHeightUnder` reads the band rather than any measurement, and the band it reads has to
   // separate the two populations cleanly. Kept from the wave's first round, where the predicate
@@ -544,7 +556,7 @@ describe("hasFullHeightUnder — what the predicate answers, member by member", 
     const world = stackedWorld(BASE_CABINET, 1000);
 
     expect(world.columns.get("A|1.00")?.hasFullHeightUnder).toBe(false);
-    expect(swapDepthMm(world)).toBe(CAP_OVER_WORKTOP_MM);
+    expect(swapDepthMm(world)).toBe(CAP_OVER_WORKTOP_SEAT_MM);
   });
 
   it("does not cap a wall carcass over a full-height column", () => {
@@ -562,7 +574,7 @@ describe("hasFullHeightUnder — what the predicate answers, member by member", 
     const world = stackedWorld(undefined, 1000);
 
     expect(world.columns.get("A|1.00")?.hasFullHeightUnder).toBe(false);
-    expect(swapDepthMm(world)).toBe(CAP_OVER_WORKTOP_MM);
+    expect(swapDepthMm(world)).toBe(CAP_OVER_WORKTOP_SEAT_MM);
   });
 
   // §7's cap is a head-clearance rule about what a person leans over, so `isFullHeightUnder` asks

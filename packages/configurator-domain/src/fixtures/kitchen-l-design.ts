@@ -15,6 +15,15 @@ import type { BodyCatalog, BodyDefinition } from "../void-engine.js";
  * origin to the wall plane — not a claim about the body's physical depth: several bodies (the hob,
  * the hood) are visually shallower than their `frameDepthMm`, and `base-corner-x-900` is deeper
  * than its own (see `ADR 0025`).
+ *
+ * **Wave 5F moved three sets of these, and every one of them is a seat and not a depth.**
+ * ADR 0036 decision 1 makes a declared dimension the finished cabinet, so a wall shell is now its
+ * declared depth less the 39 mm front assembly: the 330 mm wall bodies seat on **291** and the two
+ * deliberately deep top bodies on **561**, while `open-shelf-600` keeps 330 because it has no
+ * front. ADR 0039 decision 2 hangs the hood at the front, so `hood-600` seats on **700** — twice
+ * the distance from the wall to the centre of a 500 mm body whose front face lands on the 600 mm
+ * cabinet-depth line. That last one is §11 row 19's second named exception and the one row here
+ * where the seat is deliberately larger than the space the body fills.
  */
 
 const baseCarcass: Pick<
@@ -222,7 +231,7 @@ const SEEDED_BODY_DEFINITIONS: readonly (readonly [string, BodyDefinition])[] =
       {
         ...wallCarcass,
         kind: "wall_cabinet",
-        frameDepthMm: 330,
+        frameDepthMm: 291,
         catalogEquivalentId: "wall-cabinet",
       },
     ],
@@ -232,7 +241,7 @@ const SEEDED_BODY_DEFINITIONS: readonly (readonly [string, BodyDefinition])[] =
         ...wallCarcass,
         ...STRUCTURAL_CORNER,
         kind: "wall_cabinet",
-        frameDepthMm: 330,
+        frameDepthMm: 291,
       },
     ],
     [
@@ -240,7 +249,7 @@ const SEEDED_BODY_DEFINITIONS: readonly (readonly [string, BodyDefinition])[] =
       {
         ...wallCarcass,
         kind: "wall_cabinet",
-        frameDepthMm: 330,
+        frameDepthMm: 291,
         catalogEquivalentId: "wall-cabinet",
       },
     ],
@@ -249,7 +258,7 @@ const SEEDED_BODY_DEFINITIONS: readonly (readonly [string, BodyDefinition])[] =
       {
         ...wallCarcass,
         kind: "wall_cabinet",
-        frameDepthMm: 330,
+        frameDepthMm: 291,
         catalogEquivalentId: "wall-cabinet",
       },
     ],
@@ -278,7 +287,7 @@ const SEEDED_BODY_DEFINITIONS: readonly (readonly [string, BodyDefinition])[] =
         canFinish: false,
         canHandle: false,
         fixedWidth: true,
-        frameDepthMm: 500,
+        frameDepthMm: 700,
         catalogEquivalentId: "hood",
       },
     ],
@@ -287,7 +296,7 @@ const SEEDED_BODY_DEFINITIONS: readonly (readonly [string, BodyDefinition])[] =
       {
         ...topCarcass,
         kind: "wall_cabinet",
-        frameDepthMm: 330,
+        frameDepthMm: 291,
         frameHeightMm: 400,
         catalogEquivalentId: "wall-cabinet",
       },
@@ -297,7 +306,7 @@ const SEEDED_BODY_DEFINITIONS: readonly (readonly [string, BodyDefinition])[] =
       {
         ...topCarcass,
         kind: "wall_cabinet",
-        frameDepthMm: 330,
+        frameDepthMm: 291,
         frameHeightMm: 400,
         catalogEquivalentId: "wall-cabinet",
       },
@@ -307,7 +316,7 @@ const SEEDED_BODY_DEFINITIONS: readonly (readonly [string, BodyDefinition])[] =
       {
         ...topCarcass,
         kind: "wall_cabinet",
-        frameDepthMm: 330,
+        frameDepthMm: 291,
         frameHeightMm: 400,
         catalogEquivalentId: "wall-cabinet",
       },
@@ -318,7 +327,7 @@ const SEEDED_BODY_DEFINITIONS: readonly (readonly [string, BodyDefinition])[] =
         ...topCarcass,
         ...STRUCTURAL_CORNER,
         kind: "wall_cabinet",
-        frameDepthMm: 330,
+        frameDepthMm: 291,
         frameHeightMm: 400,
       },
     ],
@@ -327,7 +336,7 @@ const SEEDED_BODY_DEFINITIONS: readonly (readonly [string, BodyDefinition])[] =
       {
         ...topCarcass,
         kind: "wall_cabinet",
-        frameDepthMm: 600,
+        frameDepthMm: 561,
         frameHeightMm: 400,
         catalogEquivalentId: "wall-cabinet",
       },
@@ -337,7 +346,7 @@ const SEEDED_BODY_DEFINITIONS: readonly (readonly [string, BodyDefinition])[] =
       {
         ...topCarcass,
         kind: "wall_cabinet",
-        frameDepthMm: 600,
+        frameDepthMm: 561,
         frameHeightMm: 750,
         catalogEquivalentId: "wall-cabinet",
       },

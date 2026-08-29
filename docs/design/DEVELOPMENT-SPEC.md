@@ -507,7 +507,7 @@ Every row is a bug that shipped and was fixed. Treat as acceptance tests.
 | 3 | Wall body into a floor slot | refused: no plinth/worktop |
 | 4 | Base cabinet into the top slot | refused (only `band:'column'` may exceed a level) |
 | 5 | Column into a 300 mm opening | refused with mm in the message |
-| 6 | Hood into the 400 mm top slot | never offered *and* refused (fixed 710 mm) |
+| 6 | Hood into the 400 mm top slot | never offered *and* refused (fixed **700** mm — [ADR 0039](../decisions/0039-the-hood-is-a-standard-depth-hung-at-the-front.md) decision 5; this row said 710, and wave 5F measured a built hood's carcass at 700.000 mm with the real probe) |
 | 7 | Sink base into an 860 mm opening | **allowed** — faucet excluded from fit |
 | 8 | Swap sink → drawers | no phantom void from the freed faucet height |
 | 9 | Resize 600 → 800 with a 600 neighbour | neighbour becomes 400, outer edges hold |
@@ -520,7 +520,7 @@ Every row is a bug that shipped and was fixed. Treat as acceptance tests.
 | 16 | Corner base | no swap list, no delete, refusal explains why |
 | 17 | Backsplash zone (860–1500) | never an opening |
 | 18 | Wall-only column | no floor space invented under it |
-| 19 | Insert on wall A and wall B | back face exactly on the wall plane (0.000) |
+| 19 | Insert on wall A and wall B | back face exactly on the wall plane (0.000), with **two named exceptions**: the corner base X-leg at −0.020 ([ADR 0025](../decisions/0025-the-corner-base-legs-seat-on-the-l-joint.md)) and the front-hung hood at +0.100 ([ADR 0039](../decisions/0039-the-hood-is-a-standard-depth-hung-at-the-front.md) decision 3). Both are declared and measured, never a tolerance |
 | 20 | Insert into a 570 mm opening | body builds to 570, door count follows width |
 | 21 | Top row reachable from all 3 camera presets | projects well inside the viewport |
 | 22 | Delete, then click another cabinet | selects it (voids never swallow clicks) |

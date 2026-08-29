@@ -15,6 +15,7 @@ import {
   deriveColumns,
   derivePlacementRecords,
   DesignSchema,
+  occupiedDepthM,
   removePlacement,
   setWidth,
   KITCHEN_L_BODY_CATALOG,
@@ -26,6 +27,7 @@ import {
 import * as THREE from "three";
 import { beforeAll, describe, expect, it } from "vitest";
 
+import { rebuildDepthM } from "../src/catalog-bodies.js";
 import { makeKit, type Kit } from "../src/kitchen-parts.js";
 import { createBodyProbe } from "../src/measure-built-body.js";
 import {
@@ -104,8 +106,14 @@ function recordFor(design: Design, placementId: string): PlacementRecord {
   return record;
 }
 
+/** **The depth of the space the body fills, not its recorded seat.** This file's subject is "a
+ *  resize does not change how deep a body is", and since wave 5F `frame.d` is no longer that number
+ *  for a fronted wall carcass: ADR 0036 decision 1 makes the declared depth the finished cabinet, so
+ *  the shell it records is 39 mm shallower. `occupiedDepthM` is the production conversion, read here
+ *  rather than restated. The invariant itself is untouched — before and after a resize, same
+ *  number — and this is which number. */
 function depthMm(design: Design, placementId: string): number {
-  return toMillimetres(recordFor(design, placementId).frame.d);
+  return toMillimetres(occupiedDepthM(recordFor(design, placementId)));
 }
 
 /** The shipped kitchen with `A|2.00` emptied — `p1`, `p12`, `p18` — which is what lets the column
@@ -284,11 +292,15 @@ describe("the rebuilt carcass really is the width that was asked for", () => {
     const probe = createBodyProbe(kit, room);
     for (const id of ["p0", "p11", "p17"]) {
       const record = recordFor(result.design, id);
+      // Rebuilt the way `scene-sync` rebuilds a persisted placement — through `rebuildDepthM`, which
+      // turns the recorded rear overhang back into the depth the builder wants. Handing `frame.d`
+      // straight to the probe is ADR 0018 clause 4's compounding read: a 291 mm shell would rebuild
+      // at 291 and measure back 252, and `refuseBuiltSize` checks width and height only.
       const measurement = probe.measure({
         buildId: record.buildId,
         widthM: 0.6,
         heightM: record.frame.h,
-        depthM: record.frame.d,
+        depthM: rebuildDepthM(kit, record.buildId, record.frame.d),
       });
       expect(toMillimetres(measurement.carcassWidthM)).toBe(600);
       expect(toMillimetres(2 * measurement.seatOffsetM)).toBe(

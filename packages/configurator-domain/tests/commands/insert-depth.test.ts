@@ -79,6 +79,35 @@ const CAPPED_BY_HEAD_CLEARANCE_MM: Readonly<Record<string, number>> = {
   p13: 330,
 };
 
+/** ADR 0036 decision 1: a declared dimension is the **finished** cabinet, so `wallCabinet` builds
+ *  its shell at the declared depth less an 18 mm door and the 21 mm its bar handle stands proud of
+ *  that. A seeded wall row's `frame.d` is therefore the *shell* — 291 where the cabinet is 330 —
+ *  and the depth a replacement is built against is the declared number, not the recorded one.
+ *
+ *  Restated here rather than imported, like `CAP_OVER_WORKTOP_M` above and for the same reason.
+ *
+ *  Reading `frame.d` as the depth is what would compound: 330 → 291 → 252 on successive swaps, with
+ *  `refuseBuiltSize` checking width and height only so nothing would see it (ADR 0018 clause 4).
+ *  The two-swap round trip below is the assertion that it does not. */
+const WALL_FRONT_ASSEMBLY_MM = 39;
+
+/** The same cap as **recorded**, which since wave 5F is a different number from the cap itself.
+ *  ADR 0036 decision 1 makes 330 the *finished* depth of a wall cabinet, so its shell — and
+ *  therefore its seat, which is what `seatDepthMm` stores — is that less the 39 mm door-and-handle
+ *  front assembly. Keeping the two constants apart is the point: the rule the cap states is about
+ *  the cabinet a person leans under, and the number the design stores is about where its back face
+ *  lands (ADR 0018). */
+const CAP_OVER_WORKTOP_SEAT_MM = CAP_OVER_WORKTOP_MM - WALL_FRONT_ASSEMBLY_MM;
+
+/** An open shelf and a hood carry no front assembly, so only a fronted wall carcass needs the
+ *  correction. Keyed on the seeded row's `kind`, which is what the production rule reads. */
+function declaredDepthMm(record: PlacementRecord): number {
+  const seatMm = toMillimetres(record.frame.d);
+  return record.kind === "wall_cabinet"
+    ? seatMm + WALL_FRONT_ASSEMBLY_MM
+    : seatMm;
+}
+
 describe("insertBody — the depth a swap in place builds against (§5.3)", () => {
   const world = seeded();
   const targets = replaceableWallBodies(world);
@@ -95,14 +124,12 @@ describe("insertBody — the depth a swap in place builds against (§5.3)", () =
   });
 
   it.each(
-    replaceableWallBodies(seeded()).map((record) => {
-      const depthMm = toMillimetres(record.frame.d);
-      return {
-        id: record.id,
-        buildId: record.buildId,
-        depthMm: CAPPED_BY_HEAD_CLEARANCE_MM[record.id] ?? depthMm,
-      };
-    }),
+    replaceableWallBodies(seeded()).map((record) => ({
+      id: record.id,
+      buildId: record.buildId,
+      depthMm:
+        CAPPED_BY_HEAD_CLEARANCE_MM[record.id] ?? declaredDepthMm(record),
+    })),
   )(
     "builds a replacement for $id ($buildId) against its own $depthMm mm, not its column's",
     ({ id, depthMm }) => {
@@ -287,7 +314,7 @@ describe("insertBody — a wall carcass over an emptied column (backlog entry 5)
     const result = insertWallCabinet(world);
 
     expect(seatDepthMmOf(result.design, result.effect.placementId)) //
-      .toBe(CAP_OVER_WORKTOP_MM);
+      .toBe(CAP_OVER_WORKTOP_SEAT_MM);
   });
 
   it("lands the new carcass level with the wall cabinets either side of it", () => {
@@ -301,7 +328,14 @@ describe("insertBody — a wall carcass over an emptied column (backlog entry 5)
       ),
     );
 
-    expect(depthsMm).toEqual([330, CAP_OVER_WORKTOP_MM, 330]);
+    // All three are seats now, and all three are the same seat: that they *match* is the whole
+    // point of the assertion, and 291 beside 291 is level in exactly the way 580 beside 330 was
+    // not.
+    expect(depthsMm).toEqual([
+      CAP_OVER_WORKTOP_SEAT_MM,
+      CAP_OVER_WORKTOP_SEAT_MM,
+      CAP_OVER_WORKTOP_SEAT_MM,
+    ]);
     expect(Math.max(...depthsMm)).toBeLessThan(580);
   });
 
@@ -333,13 +367,13 @@ describe("insertBody — a wall carcass over an emptied column (backlog entry 5)
     ).toBe(true);
     // And the carcass above it is the capped one, both as recorded and as re-derived.
     expect(seatDepthMmOf(afterBase.design, wallPlacementId)) //
-      .toBe(CAP_OVER_WORKTOP_MM);
+      .toBe(CAP_OVER_WORKTOP_SEAT_MM);
     expect(
       toMillimetres(
         afterBase.records.find((record) => record.id === wallPlacementId)?.frame
           .d ?? -1,
       ),
-    ).toBe(CAP_OVER_WORKTOP_MM);
+    ).toBe(CAP_OVER_WORKTOP_SEAT_MM);
   });
 });
 

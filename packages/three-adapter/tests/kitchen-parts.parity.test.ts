@@ -22,6 +22,170 @@ import {
 
 const FLOAT_EPSILON_METRES = 1e-6;
 
+// ---------------------------------------------------------------------------------------------
+// The wave 5F re-baseline.
+// ---------------------------------------------------------------------------------------------
+//
+// M1's gate diffs the port against the **unmodified vendored reference library**, so a deliberate
+// product change to a builder cannot be absorbed by editing a number: the reference is not ours to
+// edit, and deleting a builder from the sweep would destroy the evidence that the port is faithful
+// for everything else it draws. ADR 0036's Consequences say this gate "must be deliberately
+// re-baselined with the change recorded, not relaxed".
+//
+// So it is re-baselined as a **declared divergence**: every number the port is allowed to differ on
+// is named here with its exact delta and how many nodes carry it. The diff still runs at 1e-6 m over
+// every other number, every mesh name, the hierarchy, materials, visibility and child order — and a
+// declared delta that stops occurring, occurs the wrong number of times, or occurs anywhere else
+// turns this red. It records the change rather than tolerating one.
+//
+// Two decisions produced it, both measured in wave 5F:
+//
+//   **ADR 0036 decision 1 — a declared dimension is the finished cabinet, doors included.** A wall
+//   cabinet declared 330 was built with a 330 mm shell and finished at 369, because a door slab is
+//   18 mm and its bar handle stands 21 mm proud of that. The shell is now `D − 39` and the front
+//   lands on 330. Inside the builder that is one shrink and three shifts of half of it: the shell
+//   loses 39 mm of depth, its back panel moves 19.5 mm forward, and the front liner and every door
+//   move 19.5 mm back.
+//
+//   **ADR 0039 decision 2 — the hood is hung at the front.** Its front face aligns with the 600 mm
+//   cabinet-depth line rather than sitting on the wall, so the seeded hood moves 100 mm forward and
+//   leaves the gap behind it. §11 row 19's second named exception.
+//
+// The seat shifts in `kitchen-l` are the same 19.5 mm read from outside: a wall body is seated at
+// half its shell so its back face still lands on the wall plane, on wall A in `z` and on wall B
+// in `x`.
+interface DeclaredDivergence {
+  readonly node: string;
+  readonly field: string;
+  readonly index: number;
+  readonly deltaM: number;
+  readonly nodes: number;
+  readonly why: string;
+}
+
+const FRONT_ASSEMBLY_M = 0.039;
+const SEAT_SHIFT_M = FRONT_ASSEMBLY_M / 2;
+
+/** ADR 0036 inside one `wallCabinet` call, whatever its width or door count. `nodes` is per door for
+ *  the door row, so a caller states how many doors it expects. */
+function wallCabinetDivergences(
+  prefix: string,
+  doors: number,
+): DeclaredDivergence[] {
+  return [
+    {
+      node: `${prefix}carcass > carcass_shell`,
+      field: "size",
+      index: 2,
+      deltaM: -FRONT_ASSEMBLY_M,
+      nodes: 1,
+      why: "the shell is the declared depth less the door and its handle",
+    },
+    {
+      node: `${prefix}carcass > carcass_back`,
+      field: "position",
+      index: 2,
+      deltaM: SEAT_SHIFT_M,
+      nodes: 1,
+      why: "the back panel follows the shell's rear face forward",
+    },
+    {
+      node: `${prefix}carcass > front_liner`,
+      field: "position",
+      index: 2,
+      deltaM: -SEAT_SHIFT_M,
+      nodes: 1,
+      why: "the shadow-gap liner follows the shell's front face back",
+    },
+    {
+      node: `${prefix}door`,
+      field: "position",
+      index: 2,
+      deltaM: -SEAT_SHIFT_M,
+      nodes: doors,
+      why: "the door hangs on the shell's front face, which moved back",
+    },
+  ];
+}
+
+/** The seeded scene: fifteen wall bodies carrying 26 doors between them, ten seated on wall A and
+ *  five on wall B, plus the one hood. Counted rather than derived, so a body that stopped being
+ *  drawn cannot pass by making its divergence disappear. */
+const KITCHEN_L_DIVERGENCES: readonly DeclaredDivergence[] = [
+  ...wallCabinetDivergences("kitchen_l_shape > wall_cabinet > ", 26).map(
+    (declared) =>
+      declared.field === "position" && declared.node.endsWith("door")
+        ? declared
+        : { ...declared, nodes: 15 },
+  ),
+  {
+    node: "kitchen_l_shape > wall_cabinet",
+    field: "position",
+    index: 2,
+    deltaM: -SEAT_SHIFT_M,
+    nodes: 10,
+    why: "wall A: the body is seated at half its shell so its back stays on the plane",
+  },
+  {
+    node: "kitchen_l_shape > wall_cabinet",
+    field: "position",
+    index: 0,
+    deltaM: -SEAT_SHIFT_M,
+    nodes: 5,
+    why: "wall B: the same seat, read along the other wall's normal",
+  },
+  {
+    node: "kitchen_l_shape > extractor_hood",
+    field: "position",
+    index: 2,
+    deltaM: 0.1,
+    nodes: 1,
+    why: "ADR 0039 decision 2: hung at the 600 mm cabinet line, 100 mm clear of the wall",
+  },
+];
+
+const DECLARED_DIVERGENCES: ReadonlyMap<string, readonly DeclaredDivergence[]> =
+  new Map([
+    ["wall-1door", wallCabinetDivergences("wall_cabinet > ", 1)],
+    ["wall-2door", wallCabinetDivergences("wall_cabinet > ", 2)],
+    // A lift-up is `wallCabinet(W, 0, …)` plus one full-face flap, and the flap is a `door` too.
+    ["wall-lift", wallCabinetDivergences("wall_cabinet > ", 1)],
+    ["kitchen-l", KITCHEN_L_DIVERGENCES],
+  ]);
+
+/** A divergence ledger for one comparison: it answers "is this exact difference declared?" and
+ *  records that the declaration was used, so an unused declaration fails as loudly as an
+ *  undeclared difference. */
+function openLedger(declared: readonly DeclaredDivergence[], root: string) {
+  const seen = new Map<DeclaredDivergence, number>(
+    declared.map((entry) => [entry, 0]),
+  );
+  return {
+    accepts(node: string, field: string, index: number, deltaM: number) {
+      const entry = declared.find(
+        (candidate) =>
+          `${root} > ${candidate.node}` === node &&
+          candidate.field === field &&
+          candidate.index === index &&
+          Math.abs(candidate.deltaM - deltaM) <= FLOAT_EPSILON_METRES,
+      );
+      if (!entry) return false;
+      seen.set(entry, (seen.get(entry) ?? 0) + 1);
+      return true;
+    },
+    expectFullyUsed() {
+      for (const [entry, count] of seen) {
+        expect(
+          count,
+          `${entry.node}: ${entry.field}[${String(entry.index)}] — ${entry.why}`,
+        ).toBe(entry.nodes);
+      }
+    },
+  };
+}
+
+type Ledger = ReturnType<typeof openLedger>;
+
 const ALL_BUILDER_KEYS: readonly BuilderKey[] = [
   "base-1door",
   "base-2door",
@@ -65,11 +229,16 @@ function expectNumbersClose(
   actual: readonly number[],
   expected: readonly number[],
   path: string,
+  field: string,
+  node: string,
+  ledger?: Ledger,
 ) {
   expect(actual.length, `${path}: length`).toBe(expected.length);
   actual.forEach((value, index) => {
+    const deltaM = value - (expected[index] ?? Number.NaN);
+    if (ledger?.accepts(node, field, index, deltaM)) return;
     expect(
-      Math.abs(value - (expected[index] ?? Number.NaN)),
+      Math.abs(deltaM),
       `${path}[${String(index)}]: ${String(value)} vs ${String(expected[index])}`,
     ).toBeLessThanOrEqual(FLOAT_EPSILON_METRES);
   });
@@ -79,6 +248,7 @@ function expectStructureMatches(
   actual: StructureNode,
   expected: StructureNode,
   path = "",
+  ledger?: Ledger,
 ) {
   const here = path
     ? `${path} > ${actual.name || actual.kind}`
@@ -88,14 +258,42 @@ function expectStructureMatches(
   expect(actual.geometry, `${here}: geometry type`).toBe(expected.geometry);
   expect(actual.material, `${here}: material name`).toBe(expected.material);
   expect(actual.visible, `${here}: visibility`).toBe(expected.visible);
-  expectNumbersClose(actual.position, expected.position, `${here}: position`);
-  expectNumbersClose(actual.rotation, expected.rotation, `${here}: rotation`);
-  expectNumbersClose(actual.scale, expected.scale, `${here}: scale`);
+  expectNumbersClose(
+    actual.position,
+    expected.position,
+    `${here}: position`,
+    "position",
+    here,
+    ledger,
+  );
+  expectNumbersClose(
+    actual.rotation,
+    expected.rotation,
+    `${here}: rotation`,
+    "rotation",
+    here,
+    ledger,
+  );
+  expectNumbersClose(
+    actual.scale,
+    expected.scale,
+    `${here}: scale`,
+    "scale",
+    here,
+    ledger,
+  );
   if (expected.size === null) {
     expect(actual.size, `${here}: size`).toBeNull();
   } else {
     expect(actual.size, `${here}: size`).not.toBeNull();
-    expectNumbersClose(actual.size ?? [], expected.size, `${here}: size`);
+    expectNumbersClose(
+      actual.size ?? [],
+      expected.size,
+      `${here}: size`,
+      "size",
+      here,
+      ledger,
+    );
   }
   expect(
     actual.children.map((child) => child.name),
@@ -106,8 +304,27 @@ function expectStructureMatches(
       child,
       required(expected.children[index], `child ${String(index)}`),
       here,
+      ledger,
     );
   });
+}
+
+/** The whole structural diff, with the wave 5F divergences declared for this key. A key with no
+ *  declaration is compared exactly as before. */
+function expectStructureMatchesReference(
+  actual: StructureNode,
+  expected: StructureNode,
+  path: string,
+  declarationKey = path,
+) {
+  const declared = DECLARED_DIVERGENCES.get(declarationKey);
+  if (!declared) {
+    expectStructureMatches(actual, expected, path);
+    return;
+  }
+  const ledger = openLedger(declared, path);
+  expectStructureMatches(actual, expected, path, ledger);
+  ledger.expectFullyUsed();
 }
 
 describe("ported builders reproduce the reference tree", () => {
@@ -134,7 +351,7 @@ describe("ported builders reproduce the reference tree", () => {
         required(referenceKit.builders[key], key)(),
       );
       const ported = describeStructure(portedKit.builders[key]());
-      expectStructureMatches(ported, reference, key);
+      expectStructureMatchesReference(ported, reference, key);
     },
   );
 });
@@ -157,10 +374,11 @@ describe("width-parameterised factories reproduce the reference tree", () => {
     const reference = describeStructure(
       referenceKit.make.wallCabinet(w, 2, 0.4, 0.33, true),
     );
-    expectStructureMatches(
+    expectStructureMatchesReference(
       describeStructure(portedKit.make.wallCabinet(w, 2, 0.4, 0.33, true)),
       reference,
       `wallCabinet(${String(w)})`,
+      "wall-2door",
     );
   });
 

@@ -142,12 +142,34 @@ describe("every insertable entry's two depth fields agree", () => {
   //
   // Swept across the whole catalogue rather than asserted per entry, so a third instance cannot be
   // introduced by the same spread-and-override shape.
+  // The one named exception, and it is a decision rather than a leak. ADR 0039 decision 2 hangs the
+  // hood at the **front** — its front face on the 600 mm cabinet-depth line, so a standard 500 mm
+  // hood leaves 100 mm of gap behind it — and `frameDepthMm` is twice the *rear overhang* (ADR
+  // 0018), not a depth. Seating the hood on its own nominal is precisely what decision 2 replaced,
+  // so this entry seats on `2 × cabinetDepth − 500` instead. §11 row 19's second named exception,
+  // after ADR 0025's corner leg: declared and measured, never a tolerance that drifted.
+  //
+  // Named here rather than filtered out, so the sweep still covers it and a *second* entry cannot
+  // acquire the disagreement by accident.
+  const FRONT_HUNG_SEAT_MM: Readonly<Record<string, number>> = {
+    hood: 2 * 600 - 500,
+  };
+
   it.each(INSERTABLE_BODY_DEFINITIONS)(
     "%s seats on its own nominal depth",
-    (_buildId, definition) => {
-      expect(definition.frameDepthMm).toBe(definition.nominalDepthMm);
+    (buildId, definition) => {
+      expect(definition.frameDepthMm).toBe(
+        FRONT_HUNG_SEAT_MM[buildId] ?? definition.nominalDepthMm,
+      );
     },
   );
+
+  it("keeps the hood's exception real, and its nominal out of it", () => {
+    const hood = INSERTABLE_BODY_DEFINITIONS.find(([id]) => id === "hood")?.[1];
+
+    expect(hood?.nominalDepthMm).toBe(500);
+    expect(hood?.frameDepthMm).toBe(FRONT_HUNG_SEAT_MM["hood"]);
+  });
 
   it("sweeps the whole catalogue, so the gate cannot go vacuous", () => {
     expect(INSERTABLE_BODY_DEFINITIONS.length).toBeGreaterThanOrEqual(15);

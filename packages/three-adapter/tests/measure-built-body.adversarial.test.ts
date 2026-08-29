@@ -102,7 +102,8 @@ const SEATED_CASES: readonly {
     request: request("open-shelf", 600, 700, 0.56),
     y0M: 1.5,
   },
-  { name: "the hood", request: request("hood", 600, 710, 0.5), y0M: 1.5 },
+  // ADR 0039 decision 5 measured the hood at 700, not the 710 the catalogue used to declare.
+  { name: "the hood", request: request("hood", 600, 700, 0.5), y0M: 1.5 },
   {
     name: "a column",
     request: request("tall-pantry", 600, 2200, 0.56),
@@ -153,12 +154,32 @@ function seatThroughTheDocument(
   }
 }
 
+/** §11 row 19's named exceptions — the gap between a body's back face and the wall plane that is
+ *  **decided** rather than drifted. ADR 0025's corner leg is the first; ADR 0039 decision 2's
+ *  front-hung hood is the second and the only one the probe produces.
+ *
+ *  A hood's front face lands on the 600 mm cabinet-depth line and a hood is a standard 500 mm, so
+ *  100 mm of the space behind it is empty and the chimney hides it. Written as data so the row-19
+ *  sweep still covers the hood at a stated number instead of skipping it — a skipped body is how a
+ *  seating defect hides, which is what §6.2's two failed attempts were. */
+const ROW_19_DECLARED_WALL_GAP_M: Readonly<Record<string, number>> = {
+  hood: 0.1,
+};
+
+function declaredWallGapM(request: BodyProbeRequest): number {
+  return ROW_19_DECLARED_WALL_GAP_M[request.buildId] ?? 0;
+}
+
 describe("row 19 survives the integer-millimetre round trip", () => {
   it.each(SEATED_CASES)("seats $name on wall A", (testCase) => {
     const seated = seatThroughTheDocument(testCase.request, "A", testCase.y0M);
 
     expect(
-      Math.abs(seated.min.z - readWallPlaneM(room, WALL_A_MESH_NAME)),
+      Math.abs(
+        seated.min.z -
+          readWallPlaneM(room, WALL_A_MESH_NAME) -
+          declaredWallGapM(testCase.request),
+      ),
     ).toBeLessThanOrEqual(FLOAT_EPSILON_METRES);
   });
 
@@ -166,8 +187,19 @@ describe("row 19 survives the integer-millimetre round trip", () => {
     const seated = seatThroughTheDocument(testCase.request, "B", testCase.y0M);
 
     expect(
-      Math.abs(seated.min.x - readWallPlaneM(room, WALL_B_MESH_NAME)),
+      Math.abs(
+        seated.min.x -
+          readWallPlaneM(room, WALL_B_MESH_NAME) -
+          declaredWallGapM(testCase.request),
+      ),
     ).toBeLessThanOrEqual(FLOAT_EPSILON_METRES);
+  });
+
+  // The exception must stay an exception: every other body still lands flat on the plane, and the
+  // hood's gap is exactly the 100 mm ADR 0039 declares — not merely "nonzero".
+  it("gives the hood the declared 100 mm and every other body none", () => {
+    expect(Object.keys(ROW_19_DECLARED_WALL_GAP_M)).toEqual(["hood"]);
+    expect(ROW_19_DECLARED_WALL_GAP_M["hood"]).toBeCloseTo(0.6 - 0.5, 9);
   });
 
   it.each(SEATED_CASES)(
@@ -219,7 +251,11 @@ describe("one seat offset serves both walls only because the planes coincide", (
 
     // The measurement did not change, so the body seats against wall A's plane (x = 0) and is
     // left 500 mm clear of the wall it is actually hung on. Documented, not endorsed.
-    expect(2000 * measured.seatOffsetM).toBeCloseTo(400, 3);
+    //
+    // 361 and not 400 since wave 5F: ADR 0036 decision 1 makes the 400 a *declared* depth, so the
+    // shell is 361 and the seat is half of that. The point of the assertion is unchanged — it is
+    // the *wall* that is ignored, not the depth.
+    expect(2000 * measured.seatOffsetM).toBeCloseTo(400 - 39, 3);
     expect(seated.min.x).toBeCloseTo(0, 6);
     expect(readWallPlaneM(room, WALL_B_MESH_NAME)).toBeCloseTo(0.5, 6);
   });
