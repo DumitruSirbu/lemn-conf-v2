@@ -162,9 +162,15 @@ describe("the hood floor", () => {
     for (const option of refused) {
       if (option.verdict.status !== "refused") continue;
       const sentence = renderRejection(option.verdict.reason);
+      // Never the hole this finding was about.
       expect(sentence).not.toContain("doar în  mm");
+      // **And better than the no-width sentence, since 2026-08-30.** The hood is what refuses this
+      // width and the cargo is built at it, so the refusal names the hood and its width rather than
+      // the column's inability — the hood is the one thing the customer could delete to unlock it
+      // (5D2b product-logic review). The no-width sentence remains for a column that agrees on
+      // nothing for reasons other than a hood.
       expect(sentence).toBe(
-        "„Cargo îngust pentru sticle” nu poate fi construit la nicio lățime pe care o acceptă și corpurile de deasupra.",
+        "„Cargo îngust pentru sticle” nu poate coborî la 200 mm: hota de deasupra are 600 mm.",
       );
     }
   });

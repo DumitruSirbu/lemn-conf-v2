@@ -73,7 +73,11 @@ hob placement to offer a delete on.
 
 ## 2. Rearranging a run: re-split, and the narrow bottle cabinet — DECIDED 2026-08-26; RE-SPLIT MECHANISM DECIDED 2026-08-28
 
-> **The re-split half now has its mechanism: [ADR 0037](decisions/0037-adjacent-empty-columns-merge-into-one-space.md).**
+> **STILL OPEN.** ~~The re-split half now has its mechanism: [ADR 0037](decisions/0037-adjacent-empty-columns-merge-into-one-space.md).~~
+> ADR 0037 was built in wave 5D2b on 2026-08-29 and **withdrawn on 2026-08-30**: merging the columns
+> without the re-split makes it worse, because §4 subtracts height and never width, so the first
+> cabinet inserted into a merged span closes the level and strands the rest. **Clearing two adjacent
+> cabinets still gives two openings.** The mechanism below is right and waits on the re-split.
 > Adjacent columns that are empty at **every** level merge into one space — the same predicate ADR 0031
 > funds a resize from. **800 mm still caps every cabinet**, so a merged 1400 mm space is filled with
 > cabinets up to 800, never with one 1400. Option C (free-form width) stays rejected: ADR 0035's 50 mm

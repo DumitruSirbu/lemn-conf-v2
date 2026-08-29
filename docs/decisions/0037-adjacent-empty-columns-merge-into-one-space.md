@@ -3,7 +3,7 @@
 Status: Accepted
 Date: 2026-08-28
 Type: Decision
-Milestone: M5 — completes backlog 2's re-split half
+Milestone: M5 — built in wave 5D2b and **withdrawn**; backlog 2 stays open
 
 ## Context
 
@@ -69,7 +69,8 @@ columns collapsed to one 3000 mm space, order-independently; a union whose key w
 occupied column left the pair alone; a sweep of every delete on the shipped kitchen found no drift.
 The machinery was correct.
 
-**It was withdrawn because §4 has no horizontal half.** `recomputeVoids` derives a column's free
+**It was withdrawn because §4 has no horizontal half — a gap it did not create, but made
+unbounded.** `recomputeVoids` derives a column's free
 spans from its members' `y0`/`h` and the column's `top`; nothing subtracts the **width** a member
 occupies from the width the column has. That was harmless while a column was never wider than its
 members — and a merged column always is.
@@ -92,8 +93,8 @@ merge disabled — measured.
 
 ## Consequences
 
-- **Backlog 2's re-split half closes.** The narrow-bottle-cabinet half already shipped; this is the
-  remainder. §12's "designed, not built" line can be retired with it.
+- ~~**Backlog 2's re-split half closes.**~~ **It does not — the merge was withdrawn.** The narrow-bottle-cabinet half already shipped; this is the
+  remainder. §13.3 item 2's "designed, not built" line stands.
 - **`deriveColumns`' horizontal freeze gains an exception, and it is the first one.** ADR 0011's
   correction established that a column's *extent* is frozen while its live predicates are re-answered
   on every derivation. A merge changes an extent, so it is a genuinely new kind of write and needs

@@ -664,12 +664,26 @@ function subdivideFreeSpan(
 
 /** §4: free vertical space per column, subdivided by `LEVELS`. Pure function of `records` and
  *  `columns` — no dependence on call order, no mutation, no mesh disposal (the adapter's job). */
-/** **§4 has no horizontal half, and that is why ADR 0037's merge could not ship.** A column's free
- *  spans come from its members' `y0`/`h` and the column's `top`; nothing subtracts the **width** a
- *  member occupies from the width the column has. Harmless while a column is never wider than its
- *  members — and a merged column always is, which is how a 600 mm cabinet in a merged 1400 mm span
- *  closed the level and stranded 800 mm of wall. Backlog 2's re-split is the missing piece; ADR 0037
- *  carries the measurement. */
+/** **§4 has no horizontal half.** A column's free spans come from its members' `y0`/`h` and the
+ *  column's `top`; nothing subtracts the **width** a member occupies from the width the column has.
+ *  So a body narrower than its column closes the level, and the remainder is stranded — no void, no
+ *  column, no second insert. Backlog 2's re-split is the missing piece (§13.3 item 2).
+ *
+ *  **This is not the merge's doing, and an earlier version of this note said it was.** Corrected
+ *  2026-08-30 after product-logic review: the gap predates M5 and is reachable in four taps with no
+ *  resize at all — clear `A|2.60`, insert a 300 mm bottle cargo into the 600 mm opening, and 300 mm
+ *  of wall is gone. What ADR 0037's merge did was make it **unbounded and ordinary**, on the delete
+ *  path backlog 2 was reported from, which is why it was withdrawn.
+ *
+ *  **And ADR 0035 decision 7 widened the same door.** A shrink hands width back to the empty column
+ *  beside it, and nothing caps how wide that column may get: measured, clearing `A|2.60` and then
+ *  pressing `−50` six times on `A|3.20` grows the empty column to **900 mm**, where every
+ *  `widthFlex: 'fit'` cabinet is refused for trying to fill 900 against §7's 800 ceiling. Before
+ *  decision 7 the only >800 column in the shipped kitchen was the corner's, and corners cannot be
+ *  deleted — so a >800 *empty* column was unreachable and now takes nine taps.
+ *
+ *  Whether a shrink may widen an empty column past 800 is an open product question, recorded in
+ *  `docs/milestones/M5-width.md`. */
 export function recomputeVoids(
   records: readonly PlacementRecord[],
   columns: ReadonlyMap<string, Column>,

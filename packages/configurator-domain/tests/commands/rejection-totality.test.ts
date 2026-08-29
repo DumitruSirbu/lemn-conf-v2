@@ -143,6 +143,25 @@ function buildCases(): SweepCase[] {
   // 300 mm wall unit at 950 (`A|0.95`); shrinking the run to 500 holds its left edge and puts its
   // new centre on 950 — the wall unit's own key. Wave 5D2b's QA found that the map was written
   // blind and the wall unit's frozen column was overwritten with no command naming it.
+  // ADR 0035 decision 6 as amended: the hood floors its column, so a width every cabinet under it
+  // accepts is still refused when the hood is wider.
+  const hoodFlooredWorld = syntheticWorld([
+    {
+      id: "run",
+      wall: "A",
+      alongMm: 1000,
+      y0Mm: 0,
+      body: { buildId: "base-cabinet", widthMm: 300, heightMm: 860 },
+    },
+    {
+      id: "hd",
+      wall: "A",
+      alongMm: 1000,
+      y0Mm: 1500,
+      body: { buildId: "hood", widthMm: 600, heightMm: 700 },
+    },
+  ]);
+
   const overlappingWorld = syntheticWorld([
     {
       id: "base-run",
@@ -398,6 +417,13 @@ function buildCases(): SweepCase[] {
       run: () => resizeTo(world, "p10", 350),
     },
     {
+      code: "COLUMN_HOOD_FLOOR",
+      design: hoodFlooredWorld.design,
+      // A 600 mm hood over a 300 mm hinged base, which **is** built at 200 (ADR 0026's floor):
+      // the members accept the width and the hood is what refuses it.
+      run: () => resizeTo(hoodFlooredWorld, "run", 200),
+    },
+    {
       code: "COLUMN_KEY_COLLISION",
       design: overlappingWorld.design,
       run: () => resizeTo(overlappingWorld, "base-run", 500),
@@ -478,6 +504,7 @@ const ALL_REJECTION_CODES: Readonly<Record<RejectionCode, true>> = {
   COLUMN_MEMBER_NOT_RESIZABLE: true,
   RESIZE_OPENS_GAP: true,
   COLUMN_KEY_COLLISION: true,
+  COLUMN_HOOD_FLOOR: true,
 };
 
 describe("every refusal a command can produce", () => {

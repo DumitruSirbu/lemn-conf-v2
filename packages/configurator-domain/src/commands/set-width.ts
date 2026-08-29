@@ -672,6 +672,23 @@ function refuseIllegalWidth(
 ): RejectionDetail | undefined {
   const sizesMm = intersectColumnWidths(input.catalog, column);
   if (!sizesMm.includes(input.widthMm)) {
+    // **The hood first, when the hood is the reason.** The floor is folded into the column's bound,
+    // so without this the sentence names the *selected body's* widths and never the hood — and the
+    // hood is the one thing the customer could delete to unlock the column.
+    const hoodFloorMm = hoodWidthFloorMm(column.hoods);
+    const membersAccept = column.members.every((member) =>
+      acceptsWidthMm(member.body, input.widthMm),
+    );
+    if (input.widthMm < hoodFloorMm && membersAccept) {
+      return {
+        code: "COLUMN_HOOD_FLOOR",
+        params: {
+          label,
+          hoodWidthMm: hoodFloorMm,
+          requestedMm: input.widthMm,
+        },
+      };
+    }
     return {
       code: "WIDTH_NOT_SUPPORTED",
       params: {

@@ -718,7 +718,7 @@ describe("Q5 — a column's legal widths are the intersection of its members' se
 
     expect(refused.ok).toBe(false);
     if (refused.ok) return;
-    expect(refused.reason.code).toBe("WIDTH_NOT_SUPPORTED");
+    expect(refused.reason.code).toBe("COLUMN_HOOD_FLOOR");
   });
 
   it("FINDING Q1.3: does not let a 'fit' member narrow the intersection", () => {

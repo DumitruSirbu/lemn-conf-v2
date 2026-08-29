@@ -57,9 +57,8 @@ export function advancePast(
 }
 
 /** Applies a command's design to the world exactly as the store must: records and voids are
- *  re-derived, the columns' **extent** is not, and `columnsAfterMutation` does the two things the
- *  store's `resolveColumns` does — ADR 0037's merge of adjacent empty columns, then
- *  `hasFullHeightUnder` re-answered from the new records.
+ *  re-derived, the columns' **extent** is not, and `withCurrentFullHeightMembers` does the one thing
+ *  the store's `resolveColumns` does — `hasFullHeightUnder` re-answered from the new records.
  *
  *  `voids` are recomputed against the map this returns rather than `world.columns`, so the fixture
  *  derives openings from the same map the store does. With ADR 0037's merge withdrawn the two differ

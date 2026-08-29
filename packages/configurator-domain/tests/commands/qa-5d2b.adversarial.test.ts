@@ -335,7 +335,7 @@ describe("FINDING C — a re-centring hood may not be pushed through the cabinet
 
     expect(result.ok).toBe(false);
     if (result.ok) return;
-    expect(result.reason.code).toBe("WIDTH_NOT_SUPPORTED");
+    expect(result.reason.code).toBe("COLUMN_HOOD_FLOOR");
   });
 
   it("still refuses at the first step past the hood's width, not only at the extreme", () => {
@@ -348,7 +348,7 @@ describe("FINDING C — a re-centring hood may not be pushed through the cabinet
 
     expect(result.ok).toBe(false);
     if (result.ok) return;
-    expect(result.reason.code).toBe("WIDTH_NOT_SUPPORTED");
+    expect(result.reason.code).toBe("COLUMN_HOOD_FLOOR");
   });
 
   it("leaves nothing interpenetrating at any width the column still accepts", () => {

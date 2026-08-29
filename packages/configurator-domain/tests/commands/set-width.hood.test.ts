@@ -152,7 +152,7 @@ describe("a hood floors the widths its column may take, and nothing else", () =>
 
     expect(result.ok).toBe(false);
     if (result.ok) return;
-    expect(result.reason.code).toBe("WIDTH_NOT_SUPPORTED");
+    expect(result.reason.code).toBe("COLUMN_HOOD_FLOOR");
   });
 
   it("floors the column at the hood's standing width, not at the hood's catalogue floor", () => {

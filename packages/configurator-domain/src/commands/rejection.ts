@@ -214,6 +214,21 @@ export type RejectionDetail =
    *  Carries `EmptySpaceParams` like `NO_EMPTY_SPACE` and `RESIZE_OPENS_GAP`: all three are the same
    *  scan reaching different verdicts, and each names the sides it tried. */
   | { readonly code: "COLUMN_KEY_COLLISION"; readonly params: EmptySpaceParams }
+  /** The width is one every cabinet in the column is built at, and the **hood above them** is wider
+   *  than it. ADR 0035 decision 6 as amended: a hood keeps its own width and floors its column, so
+   *  the run can never be narrower than the hood hanging over it.
+   *
+   *  Its own code because `WIDTH_NOT_SUPPORTED` was blaming the wrong body — the floor is folded
+   *  into the column's bound, so an 800 mm hood over a sink column produced *"«Corp spălător» se
+   *  face doar în 800 mm"* when the sink is built 560–800, and never mentioned the hood, which is
+   *  the one thing the customer could delete to unlock the column (5D2b product-logic review). */
+  | {
+      readonly code: "COLUMN_HOOD_FLOOR";
+      readonly params: LabelParams & {
+        readonly hoodWidthMm: number;
+        readonly requestedMm: number;
+      };
+    }
   | {
       readonly code: "NON_INTEGER_MILLIMETRES";
       readonly params: MillimetreParams;
@@ -404,6 +419,8 @@ export function renderRejection(detail: RejectionDetail): string {
       return renderResizeOpensGap(detail.params);
     case "COLUMN_KEY_COLLISION":
       return renderColumnKeyCollision(detail.params);
+    case "COLUMN_HOOD_FLOOR":
+      return `„${detail.params.label}” nu poate coborî la ${String(detail.params.requestedMm)} mm: hota de deasupra are ${String(detail.params.hoodWidthMm)} mm.`;
     case "NON_INTEGER_MILLIMETRES":
       return `Dimensiunea calculată (${detail.params.field}: ${String(detail.params.valueMm)} mm) nu este un număr întreg de milimetri.`;
     case "FINISH_NOT_SUPPORTED":
