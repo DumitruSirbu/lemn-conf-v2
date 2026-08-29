@@ -250,6 +250,26 @@ function renderMillimetreList(sizesMm: readonly number[]): string {
   return sizesMm.map((size) => String(size)).join(" sau ");
 }
 
+/** **No width at all is a different sentence, not an empty list.** A column whose members share no
+ *  width — since 2026-08-29 a hood can floor one above everything standing under it — reaches here
+ *  with both lists empty, and the clause below rendered `se face doar în  mm`: a hole where the
+ *  numbers should be, on a chip §9 had offered (5D2b QA finding B). There is nothing to name, so
+ *  this says what is true rather than naming nothing, and it names the cause the customer can act
+ *  on — the bodies sharing the column.
+ *
+ *  It says "de deasupra" because in every reachable case the offending member *is* above the
+ *  selected body: a hood floors its column from the wall level, and the disjoint-ranges branch is
+ *  reached from the base body of a column whose wall member disagrees. A column whose topmost member
+ *  is the selected one would point the customer at nothing, and no fixture produces one. */
+function renderWidthNotSupported(params: SizesParams): string {
+  const hasNoWidth =
+    params.sizesMm.length === 0 && (params.widthRangesMm?.length ?? 0) === 0;
+  if (hasNoWidth) {
+    return `„${params.label}” nu poate fi construit la nicio lățime pe care o acceptă și corpurile de deasupra.`;
+  }
+  return `„${params.label}” se face ${renderWidthsMadeClause(params)}, iar deschiderea are ${String(params.availableMm)} mm.`;
+}
+
 /** The widths an entry is made at, as a **clause** spliced into `„{label}” se face …`.
  *
  *  A **bound** is spoken as a bound — *"între 200 și 800 mm"* — because since ADR 0035 that is what a
@@ -265,22 +285,6 @@ function renderMillimetreList(sizesMm: readonly number[]): string {
  *  The shape is asked, never a flag: `fixedWidth` is `false` on both discrete rows, so it cannot
  *  answer this (ADR 0035 decision 3, corrected). A mixed shape — one fixed width beside a range —
  *  has no row today and renders correctly anyway. */
-/** **No width at all is a different sentence, not an empty list.** A column whose members share no
- *  width — since 2026-08-29 a hood can floor one above everything standing under it — reaches here
- *  with both lists empty, and the clause below rendered `se face doar în  mm`: a hole where the
- *  numbers should be, on a chip §9 had offered (5D2b QA finding B). There is nothing to name, so
- *  this says what is true rather than naming nothing, and it names the cause the customer can act
- *  on — the bodies above, which is the only way a column reaches this state. */
-function renderWidthNotSupported(params: SizesParams): string {
-  const hasWidths =
-    params.sizesMm.length > 0 ||
-    (params.widthRangesMm !== undefined && params.widthRangesMm.length > 0);
-  if (!hasWidths) {
-    return `„${params.label}” nu poate fi construit la nicio lățime pe care o acceptă și corpurile de deasupra.`;
-  }
-  return `„${params.label}” se face ${renderWidthsMadeClause(params)}, iar deschiderea are ${String(params.availableMm)} mm.`;
-}
-
 function renderWidthsMadeClause(params: SizesParams): string {
   const ranges = params.widthRangesMm;
   if (ranges?.some((range) => range.minMm < range.maxMm) === true) {

@@ -112,15 +112,16 @@ merge disabled — measured.
   because each shrink created a new strip rather than widening the one before it. "Shrinking creates
   space" is only true with this decision, so the two shipped together.
 
-  Two things landed. `evaluateEmptySpace` stopped applying `MIN_W` to a **shrink** — the floor guards
+  **Two things were built and only one survived; see the withdrawal section above.**
+
+  `evaluateEmptySpace` stopped applying `MIN_W` to a **shrink**, and that stands. The floor guards
   *making* a sliver, and returning space to a strip can only unmake one, so enforcing it there was
   what sent every press to `vacatedEmptySpace` for a fresh strip (product-logic review R3.10 had
-  called that pair incoherent: the floor enforced where it did harm and waived where it made the
-  sliver). And `mergeAdjacentEmptyColumns` in `void-engine.ts` unites two abutting columns that are
-  empty at every level, applied through `columnsAfterMutation` wherever a command settles the map —
-  so the delete path this decision was reported from merges too.
+  called the pair incoherent: the floor enforced where it did harm and waived where it made the
+  sliver). This is what delivers the stepper half of this decision — six presses free one 300 mm
+  space — and it does so **without any merge**, which is how the withdrawal was shown to be safe.
 
-  Measured on the shipped kitchen: clearing `A|1.30` and `A|2.00` now gives **one 1400 mm space**
-  where it gave an 800 beside a 600, and the pairs census in `qa-w5c.adversarial.test.ts` gained two
-  accepted taps (`A|0.30@700`, `A|0.30@800`) — the first time in this milestone that clearing a
-  *pair* unlocked a move a single clear could not.
+  `mergeAdjacentEmptyColumns` was the other, and it is **gone**. It united abutting empty columns
+  correctly and still cost the customer an opening, because §4 subtracts height and never width.
+  The delete path this decision was reported from therefore still gives two openings, not one:
+  **backlog 2 remains open**, and closes with the re-split rather than with this half alone.

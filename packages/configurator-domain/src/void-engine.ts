@@ -497,38 +497,6 @@ export function rederiveTouchedColumns(
   return withCurrentFullHeightMembers(updated, recordsAfter);
 }
 
-/** The frozen map a command leaves behind, with the one live field re-answered.
- *
- *  **ADR 0037's merge was here and has been withdrawn** (2026-08-29, QA finding A). It united
- *  adjacent empty columns correctly — a chain of five collapsed to one space, order-independently,
- *  never clobbering an occupied key — and it still made the customer worse off, because §4 has no
- *  horizontal half: `recomputeVoids` derives a column's free spans from its members' `y0`/`h` and
- *  the column's `top`, and nothing subtracts the **width** a member occupies from the width the
- *  column has.
- *
- *  That was harmless while a column was never wider than its members. A merged column is, and the
- *  consequence is measured: clearing `A|1.30` and `A|2.00` gives one 1400 mm space, and then a
- *  600 mm cabinet inserted into it **closes the whole level**, stranding 800 mm of wall with no
- *  void, no column and no second insert. A `widthFlex: 'fit'` cabinet is refused outright, because
- *  it tries to fill 1400 against an 800 mm ceiling. Before the merge those two clears left an 800
- *  and a 600 and both took a cabinet.
- *
- *  So the merge needs backlog 2's **re-split** — one span yielding several openings — which §12
- *  lists as designed and not built, and which `findTouchedColumnKeys` already names. ADR 0037 is
- *  right and is not retracted; it is unbuildable until the re-split exists, and shipping half of it
- *  costs the customer the opening it was meant to give them.
- *
- *  **The sliver fix this wave was asked for does not depend on it.** Six presses of `−50` leave one
- *  300 mm space with the merge disabled, because what fragmented them was
- *  `remainder_below_floor` firing on shrinks — fixed separately in this wave.
- */
-export function columnsAfterMutation(
-  columns: ReadonlyMap<string, ColumnExtent>,
-  records: readonly PlacementRecord[],
-): ReadonlyMap<string, Column> {
-  return withCurrentFullHeightMembers(columns, records);
-}
-
 /** Re-answers "does a full-height member stand under this column" over frozen extents, and
  *  changes nothing else. The result is a new map; the extent fields are carried across untouched,
  *  so ADR 0011 Gap D still holds — a cleared run keeps the opening it freed.
@@ -696,6 +664,12 @@ function subdivideFreeSpan(
 
 /** §4: free vertical space per column, subdivided by `LEVELS`. Pure function of `records` and
  *  `columns` — no dependence on call order, no mutation, no mesh disposal (the adapter's job). */
+/** **§4 has no horizontal half, and that is why ADR 0037's merge could not ship.** A column's free
+ *  spans come from its members' `y0`/`h` and the column's `top`; nothing subtracts the **width** a
+ *  member occupies from the width the column has. Harmless while a column is never wider than its
+ *  members — and a merged column always is, which is how a 600 mm cabinet in a merged 1400 mm span
+ *  closed the level and stranded 800 mm of wall. Backlog 2's re-split is the missing piece; ADR 0037
+ *  carries the measurement. */
 export function recomputeVoids(
   records: readonly PlacementRecord[],
   columns: ReadonlyMap<string, Column>,

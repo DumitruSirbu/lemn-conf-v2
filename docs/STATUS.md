@@ -3,7 +3,7 @@
 **Read this second, right after `AGENTS.md`, before opening any milestone document.** It exists so a
 session can learn where the project stands without reading eight phase plans.
 
-Last updated: 2026-08-29 (**M5 in progress on branch `m5-width`.** Shipped: 5A, 5B, 5C, 5C2, 5C3, 5D, **5D2a** (a cabinet's width is a bound, not a menu of sizes) and **5D2b** (shrinking creates space, a resize squares a column up, a hood floors its column, and adjacent empty columns merge). The headline measurement: the shipped kitchen went from **0 accepted resizes at load to 51**, so width editing no longer requires deleting a column first, and §11 row 14's 450 mm dishwasher column is reachable. Remaining: **5D2c** the panel stepper, **5E** the browser and mobile gate, **5F** depth geometry. Nine ADRs were written or amended across 2026-08-28/29 — **0035** through **0039** — and they supersede large parts of the M5 plan; read them before the plan.)
+Last updated: 2026-08-29 (**M5 in progress on branch `m5-width`.** Shipped: 5A, 5B, 5C, 5C2, 5C3, 5D, **5D2a** (a cabinet's width is a bound, not a menu of sizes) and **5D2b** (shrinking creates space, a resize squares a column up, and a hood floors its column — ADR 0037's merge was built in this wave and **withdrawn**, because §4 subtracts height and never width, so a cabinet in a merged span closed the level). The headline measurement: the shipped kitchen went from **0 accepted resizes at load to 51**, so width editing no longer requires deleting a column first, and §11 row 14's 450 mm dishwasher column is reachable. Remaining: **5D2c** the panel stepper, **5E** the browser and mobile gate, **5F** depth geometry. Nine ADRs were written or amended across 2026-08-28/29 — **0035** through **0039** — and they supersede large parts of the M5 plan; read them before the plan.)
 
 ## How to use this file
 
@@ -166,7 +166,9 @@ clearing two adjacent cabinets yields two openings rather than one, the run re-s
 "Not built, designed". **Decided on 2026-08-28 by [ADR 0037](decisions/0037-adjacent-empty-columns-merge-into-one-space.md)** —
 adjacent columns empty at every level merge into one space, and 800 mm still caps every cabinet, so
 what a merge buys is freedom over the *number and position* of cabinets in a span rather than a
-bigger one. Wave assignment is open; ADR 0035's shrink-creates-space makes it reachable without a
+bigger one. **Built in 5D2b on 2026-08-29 and withdrawn on 2026-08-30** — it needs backlog 2's
+re-split, which §12 lists as designed and not built, and without that it costs the customer the
+opening it was meant to give. **This defect is therefore still open.** ADR 0035's shrink-creates-space makes it reachable without a
 delete, which is what moved it from backlog to decided.
 
 **A third handset report, 2026-08-27, is now scheduled rather than backlog.** Re-inserting a deleted

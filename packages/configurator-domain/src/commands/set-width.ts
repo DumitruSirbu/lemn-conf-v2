@@ -47,7 +47,7 @@ import {
 } from "../millimetres.js";
 import {
   deriveColumnKeyAt,
-  columnsAfterMutation,
+  withCurrentFullHeightMembers,
   derivePlacementRecords,
   recomputeVoids,
   rederiveTouchedColumns,
@@ -691,7 +691,8 @@ function refuseIllegalWidth(
   return undefined;
 }
 
-/** The **bound** a column can be built within: every member's ranges, intersected.
+/** The **bound** a column can be built within: every member's ranges, intersected, then raised to
+ *  the floor any hood in the column sets (ADR 0035 decision 6, amended 2026-08-29).
  *
  *  `intersectColumnWidths` beside this answers which *chips* the column offers, and that is what the
  *  command gates on. This answers what the column can be **built** at, which is what the customer is
@@ -875,7 +876,7 @@ interface FundingAttempt {
  *
  *  Ordered rather than chosen, and returning space to an existing opening wins: stepping a column
  *  down and back up puts the width back where it came from instead of leaving a sliver beside a
- *  widened opening. That ordering is also what makes ADR 0037's merge fall out of the stepper —
+ *  widened opening. That ordering is also what delivers ADR 0037's outcome for the stepper without its merge —
  *  the second `−50` widens the strip the first one made instead of parking a second beside it — and
  *  it only started working when `evaluateEmptySpace` stopped applying `MIN_W` to a shrink.
  *
@@ -926,7 +927,7 @@ function fundingScan(
  *  whose centre keys as `A|0.45`, the corner leg `p25`'s column — and it is refused there rather than
  *  nudged to a free key, which would put the empty column somewhere the cabinets did not vacate.
  *
- *  **ADR 0037's merge does not reach that case and is not meant to.** It unites two *empty* columns;
+ *  **ADR 0037's merge would not have reached that case, and was not meant to** — it united two *empty* columns;
  *  a strip landing inside an *occupied* column's extent is the different question M5 still records
  *  under *Not established* — "whether a resize should merge into an existing column key or refuse". */
 function vacatedEmptySpace(
@@ -1374,10 +1375,11 @@ function moveFrozenColumns(
       ...(frozen.column.wall === "A" ? { x: centreM } : { z: centreM }),
     });
   }
-  // ADR 0037: the strip a shrink leaves behind is merged into an empty column already beside it,
-  // rather than parked next to it as a second opening. This is the last thing the command does to
-  // the map for that reason — the merge has to see both frozen moves already written.
-  return columnsAfterMutation(updated, records);
+  // Last, because `hasFullHeightUnder` is a fact about a column's **extent** and both frozen moves
+  // have to be written before it can be re-answered.
+  //
+  // ADR 0037's merge was here until 2026-08-30 and is withdrawn; `void-engine.ts` carries why.
+  return withCurrentFullHeightMembers(updated, records);
 }
 
 function frozenMoves(move: ColumnResize): readonly FrozenColumnMove[] {

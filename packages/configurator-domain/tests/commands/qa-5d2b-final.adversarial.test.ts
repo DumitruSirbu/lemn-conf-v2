@@ -1,13 +1,15 @@
-// Adversarial QA for the closing part of wave 5D2b — the hood floor (ADR 0035 decision 6 as amended
-// 2026-08-29) and the merge of adjacent empty columns (ADR 0037).
+// Adversarial QA for wave 5D2b's final part — the hood floor (ADR 0035 decision 6, amended
+// 2026-08-29) and the shrink strip that ADR 0035 decision 7 creates.
 //
-// The rows that pass are the attacks the change survives: the merge terminates on a chain, it does
-// not depend on iteration order, its key-collision guard refuses rather than clobbers, and clearing
-// whole columns anywhere in the shipped kitchen conserves the wall exactly while leaving every
-// column outside the merge byte-identical (ADR 0011 Gap D).
+// **This file was half about ADR 0037's merge, and that half is gone with it.** Five blocks proved
+// the merge terminated on a chain, did not depend on iteration order, refused to clobber an occupied
+// key, conserved the wall across every delete on the shipped kitchen, and united across levels. All
+// five passed — and none of it mattered, because a cabinet inserted into a merged span closed the
+// level. The foot-note at the end of this file records what left and why.
 //
-// Three rows fail on purpose and each names a finding. They are written as the behaviour the rules
-// promise, not as the behaviour the code has.
+// **Every row here passes.** Two were findings and are answered: the no-width sentence, and the
+// strip that publishes an opening nothing fits. Both keep their measurement rather than their
+// failure, so the shape stays visible instead of becoming folklore.
 import { describe, expect, it } from "vitest";
 
 import type { DesignPlacement } from "../../src/design.js";
@@ -49,10 +51,6 @@ function placement(
 function shippedKitchen(): KitchenWorld {
   return createWorld(KITCHEN_L_DESIGN, KITCHEN_L_BODY_CATALOG);
 }
-
-// ---------------------------------------------------------------------------------------------
-// The merge: termination, ordering, and the collision guard.
-// ---------------------------------------------------------------------------------------------
 
 /** Every column with no record filed under it, as `key:widthMm`, sorted — the shape a shrink's
  *  vacated strip takes. */
@@ -99,7 +97,7 @@ describe("the hood floor", () => {
     ).toEqual([650, 700, 750, 800]);
   });
 
-  it("FINDING B: explains itself when the column can agree on no width at all", () => {
+  it("explains itself when the column can agree on no width at all", () => {
     // **The frozen column is reachable in two ordinary taps, not only by seeding.** The commit
     // records the 600 mm hood over a 200/300 bottle cargo as *"only reachable by seeding it — the
     // floor is what stops a resize producing it"*. The floor lives in `setWidth` alone: `offersFor`
@@ -238,10 +236,6 @@ describe("a shrink's strip widens on the next press", () => {
   });
 });
 
-// ---------------------------------------------------------------------------------------------
-// Notes: decisions the merge makes that no record makes for it.
-// ---------------------------------------------------------------------------------------------
-
 describe("an inserted hood is fitted to its opening, so the floor is never breached by an insert", () => {
   it("places the resizable hood row at 600 in a 600 mm opening, not at its 800 maximum", () => {
     // The attack the floor invites: `hood` (600–800, not `fixedWidth`) is offered into the opening
@@ -279,5 +273,5 @@ describe("an inserted hood is fitted to its opening, so the floor is never breac
 // zero drift, the cross-level union, and FINDING A. The first four passed — the machinery was
 // correct. FINDING A is why none of that mattered: a 600 mm cabinet inserted into a merged 1400 mm
 // span closes the level and strands 800 mm of wall, because §4 has no horizontal half. The merge is
-// unbuildable until backlog 2's re-split exists; `void-engine.ts`'s `columnsAfterMutation` carries
+// unbuildable until backlog 2's re-split exists; `void-engine.ts`'s `recomputeVoids` carries
 // the reasoning, and the blocks belong with the wave that builds it.

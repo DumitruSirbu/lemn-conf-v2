@@ -6,7 +6,7 @@
 // cannot be passing because the columns quietly moved.
 import type { Design } from "../../src/design.js";
 import {
-  columnsAfterMutation,
+  withCurrentFullHeightMembers,
   deriveColumns,
   derivePlacementRecords,
   recomputeVoids,
@@ -61,11 +61,13 @@ export function advancePast(
  *  store's `resolveColumns` does — ADR 0037's merge of adjacent empty columns, then
  *  `hasFullHeightUnder` re-answered from the new records.
  *
- *  `voids` are recomputed against the merged map, not the frozen one, or a delete that merged two
- *  columns would still derive the two openings it had before. */
+ *  `voids` are recomputed against the map this returns rather than `world.columns`, so the fixture
+ *  derives openings from the same map the store does. With ADR 0037's merge withdrawn the two differ
+ *  only in `hasFullHeightUnder`, so this is about ordering being honest rather than about a
+ *  behaviour difference. */
 export function advance(world: KitchenWorld, design: Design): KitchenWorld {
   const records = derivePlacementRecords(design, world.catalog);
-  const columns = columnsAfterMutation(world.columns, records);
+  const columns = withCurrentFullHeightMembers(world.columns, records);
   return {
     ...world,
     design,

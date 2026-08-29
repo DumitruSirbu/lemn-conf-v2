@@ -10,7 +10,7 @@
 //
 // **This file was `set-width.merges-empty-columns.test.ts`.** ADR 0037's merge shipped beside the
 // fix and was withdrawn the same day (QA finding A) — see the note at the foot of this file and
-// `void-engine.ts`'s `columnsAfterMutation`. What is asserted here never depended on it: these
+// `void-engine.ts`'s `recomputeVoids`. What is asserted here never depended on it: these
 // numbers are unchanged with the merge disabled, which is how it was established that the merge was
 // not what fixed them.
 import { describe, expect, it } from "vitest";
@@ -34,8 +34,8 @@ function placement(
   return { id, wall: "A", alongMm, y0Mm, body: { buildId, widthMm, heightMm } };
 }
 
-/** The empty spaces on wall A, as `[width, count]` per column — the only shape these tests care
- *  about, since ADR 0037 is a rule about how many spaces there are and how wide each one is. */
+/** The empty spaces on wall A, as `[key, widthMm]` per column — the only shape these tests care
+ *  about, because ADR 0035 decision 7 is a rule about how many spaces a shrink leaves and how wide each one is. */
 function emptySpans(world: KitchenWorld): [string, number][] {
   const occupied = new Set(world.records.map((record) => record.col));
   return [...world.columns.values()]
@@ -99,7 +99,7 @@ describe("six presses of −50 free one space, not six slivers", () => {
 // 800 for any single cabinet, nothing merging across a part-emptied column or a non-neighbour — and
 // every one of them passed. The merge was correct and still made the customer worse off, because §4
 // has no horizontal half: a 600 mm cabinet inserted into that 1400 mm space closes the level and
-// strands 800 mm of wall. `void-engine.ts`'s `columnsAfterMutation` carries the full reasoning.
+// strands 800 mm of wall. `void-engine.ts`'s `recomputeVoids` carries the full reasoning.
 //
 // They belong with backlog 2's re-split, in the wave that builds it. What survives above is the
 // half this wave was actually asked for, and it never needed the merge: the slivers were

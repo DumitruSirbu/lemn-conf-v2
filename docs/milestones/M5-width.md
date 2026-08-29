@@ -1114,11 +1114,12 @@ a skipped test in `tests/commands/qa-5d2b.adversarial.test.ts`, FINDING C.
 
 ### Not in 5D2
 
-~~ADR 0037's column merge.~~ **Reassigned into 5D2b on 2026-08-29 and shipped there** (owner:
+~~ADR 0037's column merge.~~ **Reassigned into 5D2b on 2026-08-29, built, and withdrawn on 2026-08-30** (owner:
 *"merge the gaps"*). The reasoning that put it outside the sub-wave — "not required by the stepper" —
 was falsified by measuring the stepper: six presses of `−50` freed 300 mm of wall as six unusable
-50 mm slivers. `deriveColumns`' horizontal freeze did get its own measurement, in
-`set-width.merges-empty-columns.test.ts` and in the two censuses that moved for it.
+50 mm slivers. `deriveColumns`' horizontal freeze is unbroken after all: the merge was measured, found to strand
+  800 mm of wall behind the first cabinet inserted into a merged span, and removed. What survives is
+  the stepper half — six presses free one space — which never needed it.
 
 ## Not established, and left flagged
 
