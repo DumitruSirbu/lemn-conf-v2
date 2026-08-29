@@ -1089,6 +1089,18 @@ Three answers, none chosen: refuse the shrink, allow the overlap (real kitchens 
 proud of adjacent units), or clamp the hood to the space available. The measurement is preserved as
 a skipped test in `tests/commands/qa-5d2b.adversarial.test.ts`, FINDING C.
 
+### Carried out of M5 — the base family does not follow the depth formula
+
+Wave 5F made base carcass depth a formula over the declared cabinet depth, and **not one shipped
+dimension moved** at 600. But 5F's QA measured the rest of the family at 700 and 800:
+`base-corner-x`, `base-corner-return`, `base-dishwasher` and the oven inside `tall-oven-tower` are
+byte-identical at every depth. At a 700 mm kitchen the corner leg would stay 600 deep beside 700 mm
+neighbours and ADR 0025's L-joint would stop meeting the return.
+
+Nothing ships at 700, so this is a gap in **reach** rather than a defect — and it is **M6's**, which
+is the wave that gives the customer the control that reaches it. M6 must not ship the depth setting
+without closing it.
+
 ### 5D2c — the panel renders a stepper
 
 - `widthOptionsFor` becomes a step query: the current width, and a verdict for each of the two

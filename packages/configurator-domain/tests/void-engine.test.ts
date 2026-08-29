@@ -172,7 +172,12 @@ describe("derivePlacementRecords", () => {
 });
 
 describe("deriveColumns", () => {
-  it("takes x/z from the deepest member, width from the narrowest, depth from the deepest", () => {
+  // **The off-wall coordinate is derived, not borrowed** (5F QA finding B1). It used to come from
+  // the deepest member's seat, which was the same number while every body was seated back-to-the-
+  // plane. Wave 5F broke that: a fronted wall carcass records 39 mm less than it occupies and a
+  // front-hung hood 200 mm more, so a borrowed seat put six of eleven columns off the plane — and a
+  // column is *the space a run occupies*, which starts at the wall.
+  it("puts the column's back face on the wall plane, and takes width from the narrowest", () => {
     const shallow = makeRecord({
       id: "shallow",
       frame: { x: 1.3, z: 0.3, ry: 0, y0: 0, w: 0.6, h: 0.86, d: 0.4 },
@@ -185,10 +190,14 @@ describe("deriveColumns", () => {
     });
     const columns = deriveColumns([shallow, deep]);
     const column = columns.get("A|1.30");
-    expect(column?.x).toBe(1.35);
-    expect(column?.z).toBe(0.32);
+    // Wall A: the normal axis is z, so the coordinate is half the depth and the along-wall x still
+    // comes from a member.
+    expect(column?.z).toBe(0.28);
+    expect(column?.x).toBe(1.3);
     expect(column?.w).toBe(0.5);
     expect(column?.d).toBe(0.56);
+    // The property the number exists for, stated directly.
+    expect((column?.z ?? 0) - (column?.d ?? 0) / 2).toBeCloseTo(0, 9);
   });
 
   it("derives top from the highest reach and regions from every member's vertical extent", () => {

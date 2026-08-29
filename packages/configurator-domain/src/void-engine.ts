@@ -396,14 +396,22 @@ export function deriveColumns(
   for (const [key, members] of groupByColumn(records)) {
     // §3.2's MAX is over the **space each member fills**, not over its recorded `frame.d`. The two
     // parted company in wave 5F: a fronted wall carcass records 39 mm less than it occupies
-    // (ADR 0036) and a front-hung hood records 200 mm more (ADR 0039). Reading `frame.d` raw made
-    // the hood the deepest member of its column, which would have taken the column's own `x`/`z`
-    // from a body that is deliberately not on the wall plane.
-    const deepest = members.reduce((deepestSoFar, member) =>
-      occupiedDepthM(member) > occupiedDepthM(deepestSoFar)
-        ? member
-        : deepestSoFar,
-    );
+    // (ADR 0036) and a front-hung hood records 200 mm more (ADR 0039).
+    //
+    // **The column's own off-wall coordinate is derived from that depth, not borrowed from a
+    // member's seat** (5F QA finding B1). Those were the same fact until this wave: every body was
+    // seated so its back face met the plane, so the deepest member's seat *was* half the column's
+    // depth. 5F broke the identity in both directions and a first pass corrected only the depth —
+    // leaving six of eleven columns starting off the plane, the hood's by +50 mm and five fronted
+    // ones by −19.5, which `recomputeVoids` stamps onto every void and `buildVoidMesh` draws.
+    //
+    // A column is **the space a run occupies** (ADR 0031), and that space starts at the wall. So the
+    // coordinate is `depth / 2` on the wall's normal axis, and no member's own deliberate offset —
+    // ADR 0025's corner leg 20 mm inside the wall, ADR 0039's hood 100 mm off it — travels into the
+    // column that holds it. `ry` and the wall still come from a member, because those are facts
+    // about orientation rather than about the space.
+    const first = members[0];
+    if (!first) continue;
     const width = Math.min(...members.map((member) => member.frame.w));
     const depth = Math.max(...members.map(occupiedDepthM));
     const top = Math.max(
@@ -415,12 +423,13 @@ export function deriveColumns(
         member.frame.y0 + member.frame.h,
       ])
       .sort((a, b) => a[0] - b[0]);
+    const centre = depth / 2;
     columns.set(key, {
       key,
-      wall: deepest.wall,
-      ry: deepest.frame.ry,
-      x: deepest.frame.x,
-      z: deepest.frame.z,
+      wall: first.wall,
+      ry: first.frame.ry,
+      x: first.wall === "A" ? first.frame.x : centre,
+      z: first.wall === "A" ? centre : first.frame.z,
       w: width,
       d: depth,
       top,
