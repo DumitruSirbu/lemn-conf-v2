@@ -15,6 +15,7 @@ import {
   KITCHEN_L_BODY_CATALOG,
   KITCHEN_L_DESIGN,
   KITCHEN_L_PLACEMENTS,
+  columnWidthChoices,
   offersFor,
   recomputeVoids,
   removePlacement,
@@ -27,17 +28,13 @@ import { describe, expect, it } from "vitest";
 import { offeredBuildIds } from "../support/offers";
 
 import { describePanel, type PanelSection } from "@/panel/panel-model";
+import { widthStepsFor } from "@/panel/width-steps";
 
 import { ro } from "@/content/ro";
 
 import { REFUSAL } from "../support/selection-meta";
 
 import { createFakeBodyProbe } from "../support/fake-body-probe";
-import {
-  CABINETRY_CHIPS_MM,
-  HINGED_CHIPS_MM,
-  SINK_CHIPS_MM,
-} from "../support/width-options";
 
 /** Measures exactly what it was asked to build, so a resize the domain's guards accept is not then
  *  failed by the built-size re-check. */
@@ -92,6 +89,24 @@ function panelAt(
     // candidate width against this design and these frozen columns. A sweep over the *shipped*
     // kitchen is only worth running if the chips in it are the ones a customer would tap.
     widthOptions: widthOptionsFor({
+      design: world.design,
+      catalog: world.catalog,
+      columns: world.columns,
+      target,
+      probe: PROBE,
+    }),
+    // **Both of ADR 0035 decision 3's inputs, from the engine.** They are threaded here rather than
+    // left off because this file's subject is the SHIPPED kitchen: with `widthRanges` absent every
+    // section falls back to the discrete choice, and the sweeps below would then describe a control
+    // no customer ever sees while reporting green — the exact failure this milestone has shipped
+    // twice in copy.
+    widthRanges:
+      columnWidthChoices({
+        design: world.design,
+        catalog: world.catalog,
+        target,
+      })?.widthRangesMm ?? [],
+    widthSteps: widthStepsFor({
       design: world.design,
       catalog: world.catalog,
       columns: world.columns,
@@ -228,57 +243,70 @@ const SEEDED_IDS_WITH_A_WIDTH_SECTION: readonly string[] = [
 ];
 
 describe("the width section over the real kitchen", () => {
-  // §9's section 6 is "chips from `sizes`": a rendered width section with no chips offers nothing
-  // to choose. This runs over the SHIPPED design rather than a fixture, because the fixtures give a
-  // body [400, 600, 800] by hand, and whether the real kitchen's rows resolve one is the whole
-  // question.
-  it("gives every rendered width section at least one chip", () => {
+  // §9's section 6 is "a control with something in it": a rendered width section that offers nothing
+  // to choose is worse than no section. **Wave 5D2c makes that two questions rather than one**
+  // (ADR 0035 decision 3) — a stepper is complete when it has both its buttons, a discrete choice
+  // when it has at least one chip — so it is asked of whichever control the selection got.
+  //
+  // This runs over the SHIPPED design rather than a fixture, because the fixtures give a body its
+  // widths by hand and whether the real kitchen's rows resolve any is the whole question.
+  it("gives every rendered width section a control with something in it", () => {
     const world = worldFrom(KITCHEN_L_DESIGN);
     const rendered: string[] = [];
-    const chipless: string[] = [];
+    const empty: string[] = [];
     for (const record of world.records) {
       const section = sectionsAt(world, {
         kind: "placement",
         id: record.id,
       }).find((candidate) => candidate.kind === "width");
-      if (!section) continue;
+      if (section?.kind !== "width") continue;
       rendered.push(record.id);
-      if (section.chips.length === 0) chipless.push(record.id);
+      const controlSize =
+        section.control === "stepper"
+          ? section.steps.length
+          : section.chips.length;
+      if (controlSize === 0) empty.push(record.id);
     }
-    expect(chipless).toEqual([]);
+    expect(empty).toEqual([]);
     // The tripwire, turned over by M5 wave 5B rather than removed. It asserted `[]` — the sweep was
-    // empty because no seeded entry had `sizesMm`, so nothing reached the chipless check above and
-    // a zero-iteration sweep would have reported green forever. The widths have arrived, so the
-    // same line now names exactly which bodies render the section: the check does real work, and a
-    // row that silently stops resolving a set is a failure here rather than a section that quietly
-    // disappears from the panel.
+    // empty because no seeded entry had `sizesMm`, so nothing reached the check above and a
+    // zero-iteration sweep would have reported green forever. The widths have arrived, so the same
+    // line now names exactly which bodies render the section: a row that silently stops resolving a
+    // set is a failure here rather than a section that quietly disappears from the panel.
     expect(rendered).toEqual(SEEDED_IDS_WITH_A_WIDTH_SECTION);
   });
 
-  // **Turned over twice, and the second time it turned the other way.** M4 pinned "never free"
-  // because no resize command existed. Wave 5D gave these chips `setWidth`'s real verdicts and the
-  // number held, because ADR 0031 funded a resize from an adjacent column empty **at every level**
-  // and clearing p1, p7, p12 and p24 empties none: p12 and p18 still stand in `A|2.00`, p23 in
-  // `B|1.80`, and so on.
+  // **Turned over three times, and each turn is a decision arriving.** M4 pinned "never free"
+  // because no resize command existed. Wave 5D gave the control `setWidth`'s real verdicts and the
+  // number held, because ADR 0031 funded a resize from an adjacent column empty at **every** level
+  // and clearing p1, p7, p12 and p24 empties none. **ADR 0035 decision 7** then made a shrink fund
+  // itself out of the space it vacates, so narrowing became reachable with no empty column anywhere.
   //
-  // **ADR 0035 decision 7 ends it.** A shrink funds itself out of the space it vacates, so a chip
-  // below the body's own width is free with no empty column anywhere. What survives is the half the
-  // decision left alone, and it is still the measurement behind wave 5E's note that a browser gate
-  // needs a delete in front of it: **no chip above a body's own width is free**, because growth
-  // still has to consume space that already exists.
-  it("marks no width chip above a body's own free while no column is empty", () => {
+  // What survives all three, and is still the measurement behind wave 5E's note that a browser gate
+  // needs a delete in front of it: **nothing above a body's own width is ever reachable** while no
+  // column is empty, because growth still has to consume space that already exists. Wave 5D2c makes
+  // that one sentence about both controls — the `+50` is disabled, and no chip above the active one
+  // is free.
+  it("offers no widening anywhere, on either control, while no column is empty", () => {
     const world = openedKitchen();
     const rendered: string[] = [];
-    let free = 0;
+    let narrowings = 0;
     for (const target of everySelectableTarget(world)) {
       for (const section of sectionsAt(world, target)) {
         if (section.kind !== "width") continue;
         rendered.push(target.id);
-        expect(section.chips.length).toBeGreaterThan(0);
+        if (section.control === "stepper") {
+          expect([target.id, section.steps[1].isDisabled]).toEqual([
+            target.id,
+            true,
+          ]);
+          if (!section.steps[0].isDisabled) narrowings += 1;
+          continue;
+        }
         const active = section.chips.find((chip) => chip.state === "active");
         for (const chip of section.chips) {
           if (chip.state !== "free") continue;
-          free += 1;
+          narrowings += 1;
           expect([target.id, chip.widthMm < (active?.widthMm ?? 0)]).toEqual([
             target.id,
             true,
@@ -288,7 +316,7 @@ describe("the width section over the real kitchen", () => {
     }
     // And the sweep is not vacuous the other way either: shrinking is reachable from a standing
     // start, which is the whole of what decision 7 buys.
-    expect(free).toBeGreaterThan(0);
+    expect(narrowings).toBeGreaterThan(0);
     // The second tripwire, turned over the same way. `openedKitchen` clears p1, p7, p12 and p24, so
     // the four of them are gone from the sweep and the derived voids that replaced them render no
     // width section at all — §9 hides Lățime on an empty slot, and that is asserted here by their
@@ -301,57 +329,47 @@ describe("the width section over the real kitchen", () => {
   });
 });
 
-describe("the chips a seeded width section actually renders", () => {
-  /** The rendered chip row per body, as the acceptance criteria state it. Each row is a **column**
-   *  intersection (ADR 0031 rule 5), and two things widened them: ADR 0035 decision 2 turned each
-   *  entry's hand-maintained width list into a bound stepped at 50 mm, and the owner's 2026-08-28
-   *  retirement of ADR 0030's 400 mm one-door cap closed the last hole in a cabinetry bound. */
-  const EXPECTED_CHIPS_MM: Readonly<Record<string, readonly number[]>> = {
-    p0: SINK_CHIPS_MM, // base-sink-800 → base-sink, bounded by its 560 mm aperture (ADR 0017)
-    // **p1 lost its 450 in wave 5D and has it back, which is §11 row 14.** The dishwasher is made in
-    // 450 and 600; ADR 0031 resizes the whole of `A|2.00`, and `p18` — a `wall-cabinet` — could not
-    // be built at 450 while ADR 0030 capped a single hinged door at 400. (The open shelf between them
-    // is cabinetry bounded 300–800 and accepted 450 throughout; an earlier version of this comment
-    // blamed it, wrongly.) The owner retired that cap on 2026-08-28, so the intersection carries both
-    // of the niche's widths and the entry and the column finally agree.
-    p1: [450, 600],
-    // p4 shows a member bounding the column, which is what ADR 0035 decision 2 changed about
-    // ADR 0031 rule 5: the three-drawer base's own 300 mm floor keeps 200 and 250 out of a row whose
-    // hinged wall members reach down to 200 on their own. Rule 5's "a `'fit'` member does not narrow
-    // the intersection" was the ladder's, and it retired with the ladder. Nothing is missing in the
-    // middle — 450 was, until the owner retired ADR 0030's one-door cap.
-    p4: CABINETRY_CHIPS_MM,
-    // `wall-1door` KEEPS its 400 — ADR 0029 is about two-door entries, and
-    // a one-door cabinet at 400 mm is honest. Kept beside `p24` below, which lost its 400, so this
-    // table tests the distinction rather than one side of it. ADR 0030's amendment then extended
-    // the set *downward*, so `p10`'s own 300 is a member of it and nothing is folded in here any
-    // more — `p24` is the last fold in the shipped kitchen.
-    // ADR 0033: both resolve to the one merged `wall-cabinet` entry. `p24` kept a **fold** — 700 was
-    // a width no wall entry declared — until ADR 0035's 50 mm step made 700 an ordinary chip, so
-    // both rows are now the same hinged set and the shipped kitchen holds no fold at all. The fold
-    // mechanism survives for the off-grid widths relative stepping produces (decision 1); its case
-    // is `packages/configurator-domain/tests/queries/width-options.test.ts`.
-    p10: HINGED_CHIPS_MM,
-    p24: HINGED_CHIPS_MM,
-  };
-
-  it("renders the column's widths, with a fit body's own width folded in", () => {
+describe("what a seeded width control actually offers", () => {
+  // **5D's `EXPECTED_CHIPS_MM` table is retired here, with the chips it described** (ADR 0035's
+  // consequences: "the pinned chip counts and the three pinned rows in 5D's tests go with the
+  // chips"). It named the whole intersection per body — `p0`'s 600–800, `p4`'s 300–800, `p10`'s
+  // 200–800 — which a two-button control no longer renders and therefore no longer proves. Those
+  // intersections are still pinned where they are computed, in the domain's own
+  // `set-width.columns.test.ts`; which *control* each column gets, and against the catalogue's own
+  // declared ranges, is pinned in `width-stepper.test.ts`.
+  //
+  // What is left for this file is the half neither of those covers: on the shipped design, the value
+  // the customer reads is the body's own width, and it is the width the buttons step from.
+  it("shows each body its own width, and steps from it", () => {
     const world = worldFrom(KITCHEN_L_DESIGN);
-    for (const [id, expected] of Object.entries(EXPECTED_CHIPS_MM)) {
-      const section = sectionsAt(world, { kind: "placement", id }).find(
-        (candidate) => candidate.kind === "width",
-      );
-      if (section?.kind !== "width")
-        throw new Error(`no width section on ${id}`);
-      expect([id, section.chips.map((chip) => chip.widthMm)]).toEqual([
-        id,
-        expected,
+    let checked = 0;
+    for (const record of world.records) {
+      const section = sectionsAt(world, {
+        kind: "placement",
+        id: record.id,
+      }).find((candidate) => candidate.kind === "width");
+      if (section?.kind !== "width") continue;
+      checked += 1;
+      expect([record.id, section.valueLabel]).toEqual([
+        record.id,
+        `${String(record.widthMm)} mm`,
       ]);
-      // Exactly one chip is the body's current width, and it is the `active` one.
-      expect(
-        section.chips.filter((chip) => chip.state === "active").length,
-      ).toBe(1);
+      if (section.control === "stepper") {
+        expect([record.id, section.steps.map((step) => step.widthMm)]).toEqual([
+          record.id,
+          [record.widthMm - 50, record.widthMm + 50],
+        ]);
+        continue;
+      }
+      // A discrete column marks the width the body stands at, and marks exactly one.
+      expect([
+        record.id,
+        section.chips
+          .filter((chip) => chip.state === "active")
+          .map((chip) => chip.widthMm),
+      ]).toEqual([record.id, [record.widthMm]]);
     }
+    expect(checked).toBe(SEEDED_IDS_WITH_A_WIDTH_SECTION.length);
   });
 
   // §13.1, and the five entries that deliberately declare no `catalogEquivalentId`: a body with no

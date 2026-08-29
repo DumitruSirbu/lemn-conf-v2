@@ -14,7 +14,11 @@ import {
 
 import type { SelectionMeta } from "@lemnaria/configurator-domain";
 
-import { noWidthIsFree, widthOptionRow } from "../support/width-options";
+import {
+  asWidthChoice,
+  noWidthIsFree,
+  widthOptionRow,
+} from "../support/width-options";
 
 /** The panel as the app builds it: probe attached, nothing refused. Each test turns off only what
  *  it is about. */
@@ -415,7 +419,9 @@ describe("describePanel — the width section, judged by the engine (M5 wave 5D)
       "width",
     );
     expect(section?.valueLabel).toBe("600 mm");
-    expect(section?.chips.map((chip) => [chip.label, chip.state])).toEqual([
+    expect(
+      asWidthChoice(section).chips.map((chip) => [chip.label, chip.state]),
+    ).toEqual([
       ["400", "blocked"],
       ["600", "active"],
       ["800", "free"],
@@ -439,7 +445,10 @@ describe("describePanel — the width section, judged by the engine (M5 wave 5D)
       "width",
     );
     expect(
-      section?.chips.map((chip) => [chip.widthMm, chip.isDisabled]),
+      asWidthChoice(section).chips.map((chip) => [
+        chip.widthMm,
+        chip.isDisabled,
+      ]),
     ).toEqual([
       [400, true],
       [600, true],
@@ -463,7 +472,7 @@ describe("describePanel — the width section, judged by the engine (M5 wave 5D)
       "width",
     );
     const reasons = new Map(
-      section?.chips.map((chip) => [chip.widthMm, chip.reason]),
+      asWidthChoice(section).chips.map((chip) => [chip.widthMm, chip.reason]),
     );
     expect(reasons.get(400)).toContain("Corp suspendat");
     expect(reasons.get(600)).toBeUndefined();

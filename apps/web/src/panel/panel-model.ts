@@ -21,6 +21,7 @@ import {
   type RejectionReason,
   type SelectionMeta,
   type WidthOption,
+  type WidthRangeMm,
 } from "@lemnaria/configurator-domain";
 
 import type { SaveStatus } from "@/persistence/save-coalescer";
@@ -29,6 +30,7 @@ import type { WriteAccess } from "@/store/configurator-store";
 import { ro } from "@/content/ro";
 
 import { findCabinetThumbnailUrl } from "./cabinet-thumbnails";
+import type { WidthSteps } from "./width-steps";
 
 export interface PanelHeader {
   readonly label: string;
@@ -68,7 +70,9 @@ export interface ChoiceChip<TValue> {
   readonly reason?: string;
 }
 
-/** §9's three width states. `blocked` is dashed and unclickable; `free` is a legal move. */
+/** §9's three width states, on ADR 0035 decision 3's **discrete** control. `blocked` is dashed and
+ *  unclickable; `free` is a legal move. A stepper button has no third state — it is never standing
+ *  on the width it offers — so it carries `isDisabled` alone. */
 export type WidthChipState = "active" | "free" | "blocked";
 
 export interface WidthChip {
@@ -135,13 +139,51 @@ export interface HandleSection {
   readonly note?: string;
 }
 
-export interface WidthSection {
+/** ADR 0035 decision 1: `+50` / `−50` from where the body stands, each button disabled at its
+ *  bound **carrying the engine's reason** rather than absent (ADR 0032). */
+export interface WidthStepButton {
+  /** Which way the step goes, published rather than inferred from the arithmetic: the component
+   *  orders the pair and labels it from this, and nothing downstream re-derives the sign. */
+  readonly direction: WidthStepDirection;
+  /** The width this button would resize to. Outside the column's candidate set at a bound — that
+   *  is what makes the button disabled, and what produces the sentence beside it. */
+  readonly widthMm: number;
+  readonly label: string;
+  readonly ariaLabel: string;
+  readonly isDisabled: boolean;
+  /** §13.1's "greyed and unclickable **with the reason**", and the most-read sentence in the whole
+   *  stepper: at a bound this is where §7's 800 ceiling, §2's 300 floor, the entry's own floor and
+   *  ADR 0035 decision 6's hood floor are told to the customer. Always the engine's own words
+   *  through `renderRejection`, never copy authored here. Absent on a button that works. */
+  readonly reason?: string;
+}
+
+export type WidthStepDirection = "narrower" | "wider";
+
+/** §9's width control where the width is free (ADR 0035 decision 1). */
+export interface WidthStepperSection {
   readonly kind: "width";
+  readonly control: "stepper";
+  readonly title: string;
+  readonly valueLabel: string;
+  /** Narrower first, so the pair reads left-to-right the way the numbers run. */
+  readonly steps: readonly [WidthStepButton, WidthStepButton];
+  readonly note: string;
+}
+
+/** §9's width control where the widths are genuinely a set (ADR 0035 decision 3) — wave 5D's chip
+ *  row, kept for exactly the columns a stepper would be wrong for. A dishwasher is 450 or 600
+ *  because dishwashers are, and `+50` there would offer eleven widths nobody manufactures. */
+export interface WidthChoiceSection {
+  readonly kind: "width";
+  readonly control: "choice";
   readonly title: string;
   readonly valueLabel: string;
   readonly chips: readonly WidthChip[];
   readonly note: string;
 }
+
+export type WidthSection = WidthStepperSection | WidthChoiceSection;
 
 export type PanelSection =
   | RejectionSection
@@ -218,13 +260,35 @@ export interface DescribePanelInput {
   /** `undefined` when nothing is selected, or when the selection no longer resolves. */
   readonly meta: SelectionMeta | undefined;
   readonly offers: readonly CatalogOffer[];
-  /** §9's width chips, already judged by the engine — `widthOptionsFor` ran `setWidth` once per
-   *  candidate. This module renders that answer and does not second-guess it: "a chip is free iff
-   *  the command succeeds" is only true if one side of it is not reimplemented here.
+  /** The **column's** candidate widths, already judged by the engine — `widthOptionsFor` ran
+   *  `setWidth` once per candidate. This module renders that answer and does not second-guess it:
+   *  "a chip is free iff the command succeeds" is only true if one side of it is not reimplemented
+   *  here.
+   *
+   *  One reader since wave 5D2c: ADR 0035 decision 3's **discrete** control renders these as chips.
+   *  The stepper does not render them at all — which control a selection gets is `widthRanges`'
+   *  question, and it is read from the engine rather than inferred from the shape of this list.
    *
    *  Empty is a real answer and means no width section, the same way an empty `meta.sizesMm` did:
    *  see `describeWidthSection`. */
   readonly widthOptions: readonly WidthOption[];
+  /** ADR 0035 decision 1's two candidates, each judged by running `setWidth` — see `width-steps.ts`
+   *  for why the step question is asked separately from the set question rather than folded into it.
+   *
+   *  `undefined` on exactly the selections `widthOptions` is empty for, and on those the section is
+   *  absent anyway. Where it is present and the column's widths are a **set** rather than a bound,
+   *  it is deliberately ignored: decision 3's discrete rows get a choice, not a stepper. */
+  readonly widthSteps?: WidthSteps | undefined;
+  /** ADR 0035 decision 3's discriminator, from `ColumnWidthChoices.widthRangesMm`: a range with
+   *  `minMm < maxMm` means the column is a bound and gets the stepper; every range a single width
+   *  means it is a set and gets the discrete choice. Read rather than inferred — see
+   *  `isSteppedColumn`.
+   *
+   *  **Optional, and absent means the discrete choice**, which is the safe answer rather than the
+   *  convenient one: a caller that has not resolved the column's shape has not earned a stepper, and
+   *  a chip row with the right widths is never wrong — only more clicks. `use-panel-view.ts` always
+   *  supplies it; fixtures that are not about the width control leave it out. */
+  readonly widthRanges?: readonly WidthRangeMm[];
   readonly rejection: RejectionReason | null;
   /** §5.2 cannot run without the scene's `BodyProbe`, so until it attaches every offer row is
    *  disabled with that reason rather than tapped and then refused. */
@@ -371,7 +435,7 @@ function collectOfferedSections(
   if (meta.canFinish) sections.push(describeFinishSection(meta, readOnly));
   if (meta.canHandle) sections.push(describeHandleSection(meta, readOnly));
   if (meta.canWidth) {
-    const width = describeWidthSection(meta, input.widthOptions, readOnly);
+    const width = describeWidthSection(input, meta, readOnly);
     if (width) sections.push(width);
   }
   return sections;
@@ -418,7 +482,12 @@ function describeReplaceSection(
     ? ro.panel.replaceTitleEmpty
     : ro.panel.replaceTitleOccupied;
   if (rows.length === 0) {
-    return { kind: "replace", title, rows, emptyLine: describeEmptyLine(meta) };
+    return {
+      kind: "replace",
+      title,
+      rows,
+      emptyLine: describeEmptyLine(meta, input.offers),
+    };
   }
   return {
     kind: "replace",
@@ -489,12 +558,53 @@ function describeCountLine(meta: SelectionMeta, count: number): string {
   );
 }
 
-function describeEmptyLine(meta: SelectionMeta): string {
-  return meta.empty
-    ? ro.panel.noOffersForSlot(meta.openWmm, meta.openHmm)
-    : ro.panel.noOffersForBody(
-        ro.panel.bandWords[normaliseBand(meta.band)].one,
-      );
+/** §9's zero-result sentence, and **two of its three arms are new in wave 5D2c**.
+ *
+ *  §9's rule is "say what to clear, never a bare 0", and ADR 0037 records where it inverts: an
+ *  opening wider than any cabinet is not closed by clearing a neighbour — clearing makes it
+ *  **wider**. The owner decided on 2026-08-28 that such a space *"ok to have empty space left"*, so
+ *  the sentence says it may be left rather than asking for an action that would make it worse.
+ *
+ *  A **too-narrow** strip is the same trap arriving from the other side, and ADR 0035 decision 7
+ *  created it: a shrink vacates a strip, and until the next press absorbs it that strip is a
+ *  selectable opening no cabinet fits. Advising a delete there is advice about a space nobody made
+ *  on purpose and nobody has to fill.
+ *
+ *  **The two bounds are read from the offers, never written down here.** Every row — refused as well
+ *  as offered, which is the whole of ADR 0032 — publishes `widthRangesMm`, "the widths this body may
+ *  actually be built to". The narrowest floor and the widest ceiling across the rows the band
+ *  admits are therefore facts the catalogue authored, and a panel constant beside them would be the
+ *  two-numbers-agreeing-by-luck defect ADR 0028 is about. */
+function describeEmptyLine(
+  meta: SelectionMeta,
+  offers: readonly CatalogOffer[],
+): string {
+  if (!meta.empty)
+    return ro.panel.noOffersForBody(
+      ro.panel.bandWords[normaliseBand(meta.band)].one,
+    );
+  const span = describeBuildableSpanMm(offers);
+  if (span === undefined)
+    return ro.panel.noOffersForSlot(meta.openWmm, meta.openHmm);
+  if (meta.openWmm > span.maxMm)
+    return ro.panel.noOffersTooWide(meta.openWmm, span.maxMm);
+  if (meta.openWmm < span.minMm)
+    return ro.panel.noOffersTooNarrow(meta.openWmm, span.minMm);
+  return ro.panel.noOffersForSlot(meta.openWmm, meta.openHmm);
+}
+
+/** The narrowest and widest width **any** row in this band can be built at. `undefined` when no row
+ *  declares a range at all, which leaves §9's original sentence in place rather than inventing a
+ *  bound from nothing. */
+function describeBuildableSpanMm(
+  offers: readonly CatalogOffer[],
+): { readonly minMm: number; readonly maxMm: number } | undefined {
+  const ranges = offers.flatMap((offer) => offer.widthRangesMm);
+  if (ranges.length === 0) return undefined;
+  return {
+    minMm: Math.min(...ranges.map((range) => range.minMm)),
+    maxMm: Math.max(...ranges.map((range) => range.maxMm)),
+  };
 }
 
 /** The disabled half of every `ChoiceChip`, in one place: §13.1 asks for the reason beside the
@@ -549,8 +659,9 @@ function describeHandleSection(
   };
 }
 
-/** §9's width section, and as of M5 wave 5D a live one: every chip carries the engine's verdict on
- *  the resize it would perform.
+/** §9's width section, and as of M5 wave 5D2c **two controls rather than one** (ADR 0035
+ *  decision 3): a `+50` / `−50` stepper where the width is free, and wave 5D's discrete choice where
+ *  it is genuinely a set.
  *
  *  `undefined` when there is nothing to choose from. §9 defines `canWidth` as "selected · not empty ·
  *  not `fixedWidth`" and nothing more, so the "has widths to show" half of the question is answered
@@ -562,23 +673,92 @@ function describeHandleSection(
  *  `fixedWidth` — so the flag stays §9's and the emptiness is answered here, which is the
  *  arrangement that made M5's missing data fail loudly.
  *
- *  The chip list is the domain's, not `meta.sizesMm`. ADR 0031 resizes a **column** and `meta`
+ *  The candidate list is the domain's, not `meta.sizesMm`. ADR 0031 resizes a **column** and `meta`
  *  describes one **body**, so the two disagree wherever a column's members declare different sets —
  *  the panel offered widths the column refuses and hid widths it accepts. `widthOptionsFor` answers
  *  per column, which is the scope the command actually works at. */
 function describeWidthSection(
+  input: DescribePanelInput,
   meta: SelectionMeta,
-  options: readonly WidthOption[],
   readOnly: boolean,
 ): WidthSection | undefined {
+  const options = input.widthOptions;
   if (options.length === 0) return undefined;
-  return {
+  const head = {
     kind: "width",
     title: ro.panel.widthTitle,
     valueLabel: ro.panel.widthValue(meta.widthMm),
+  } as const;
+  const steps = input.widthSteps;
+  if (steps && isSteppedColumn(input.widthRanges ?? []))
+    return {
+      ...head,
+      control: "stepper",
+      steps: [
+        describeWidthStep("narrower", steps.narrower, readOnly),
+        describeWidthStep("wider", steps.wider, readOnly),
+      ],
+      note: ro.panel.widthStepNote,
+    };
+  return {
+    ...head,
+    control: "choice",
     chips: options.map((option) => describeWidthChip(option, readOnly)),
-    note: ro.panel.widthNote,
+    note: ro.panel.widthChoiceNote,
   };
+}
+
+/** **ADR 0035 decision 3's discriminator, and the correction is the point of it.** The decision's
+ *  first version said `fixedWidth` separates the two shapes; it does not — the flag is `false` on
+ *  both discrete rows, `base-dishwasher` included, and cannot be corrected there without making `p1`
+ *  unresizable and undoing §11 row 14. The real discriminator is the **shape of the bound**: a row
+ *  with any range where `minMm < maxMm` is free, a row whose every range is a single width is a set.
+ *
+ *  This asks that of the **column**, not of the selected body, and the difference is a real defect
+ *  rather than a nicety. `p1`'s dishwasher fixes column `A|2.00` to 450 and 600, so the wall cabinet
+ *  standing above it — cabinetry, bound 200–800, a stepper by its own row's shape — has a column
+ *  that accepts neither 400 nor 500. A stepper there is two dead buttons with 600 unreachable
+ *  between them.
+ *
+ *  **The column's ranges are published, and this reads them** (`ColumnWidthChoices.widthRangesMm`).
+ *  It used to infer the shape from two candidates 50 apart in the set — which worked, and which is
+ *  the inference ADR 0022 records as how this codebase gets identity wrong, and the one decision 3
+ *  itself had to be corrected for. A range with `minMm < maxMm` is a bound; every range a single
+ *  width is a set. */
+function isSteppedColumn(ranges: readonly WidthRangeMm[]): boolean {
+  return ranges.some((range) => range.minMm < range.maxMm);
+}
+
+/** One step button, in §9's vocabulary. A step candidate is never the current width, so unlike a
+ *  chip it has only two states — the move is available, or the engine refused it and said why.
+ *
+ *  Read-only takes the click and replaces the reason, first and on both buttons, for the reason it
+ *  does on every other control: a browser that cannot write is not being told where its cabinet's
+ *  bounds are, it is being told it cannot edit. */
+function describeWidthStep(
+  direction: WidthStepDirection,
+  option: WidthOption,
+  readOnly: boolean,
+): WidthStepButton {
+  return {
+    direction,
+    widthMm: option.widthMm,
+    label: ro.panel.widthStepLabels[direction],
+    ariaLabel: ro.panel.widthStepAriaLabels[direction],
+    isDisabled: readOnly || option.verdict.status !== "available",
+    ...describeWidthStepReason(option.verdict, readOnly),
+  };
+}
+
+/** Spread into the button, so a working one carries no `reason` field at all — the same shape
+ *  `describeWidthChipReason` and `describeChipAvailability` use. */
+function describeWidthStepReason(
+  verdict: WidthOption["verdict"],
+  readOnly: boolean,
+): { readonly reason?: string } {
+  if (readOnly) return { reason: ro.panel.readOnlyReason };
+  if (verdict.status !== "refused") return {};
+  return { reason: renderRejection(verdict.reason) };
 }
 
 /** One candidate width, in §9's vocabulary. Only a `free` chip is a move: `active` is the width the

@@ -141,6 +141,15 @@ export interface ColumnWidthChoices {
   readonly currentWidthMm: number;
   /** Ascending, duplicate-free, and never empty — see `columnWidthChoices`. */
   readonly sizesMm: readonly number[];
+  /** What the column may be **built** within, as ADR 0035 decision 3's discriminator: a range with
+   *  `minMm < maxMm` means a stepper, every range a single width means a discrete choice.
+   *
+   *  Published because §9 was otherwise **inferring** it — reading two widths 50 apart out of
+   *  `sizesMm` and concluding the column was stepped. That is the shape of defect ADR 0022 records
+   *  (inferring identity priced a fridge housing as a pantry) and the one ADR 0035 decision 3 had to
+   *  be corrected for (`fixedWidth` is `false` on both discrete rows). The panel now reads the fact
+   *  the engine already computed. */
+  readonly widthRangesMm: readonly WidthRangeMm[];
 }
 
 type Resolved<T> =
@@ -365,6 +374,7 @@ export function columnWidthChoices(
   const intersected = split.ok
     ? intersectColumnWidths(input.catalog, split.value)
     : [];
+  const intersectedRanges = split.ok ? intersectColumnRanges(split.value) : [];
   // **An empty intersection is not "no set" — it is a fact about the column, and ADR 0032 says a
   // fact about why this opening refuses gets rendered rather than dropped** (logic review L2).
   //
@@ -373,8 +383,9 @@ export function columnWidthChoices(
   // with `COLUMN_MEMBER_NOT_RESIZABLE` — which is right. A column whose members are all resizable
   // but whose sets are **disjoint** returned `undefined`: no section, no sentence, and a
   // `WIDTH_NOT_SUPPORTED` the engine had already computed thrown away. It used to be reachable in
-  // two inserts — a `base-bottle-cargo` (200/300) under a `hood` (600–800) — and ADR 0035 decision 6
-  // has since taken the hood out of the membership, so that pair no longer disagrees about anything.
+  // two inserts — a `base-bottle-cargo` (200/300) under a `hood` (600–800) — and it is reachable
+  // again: decision 6 took the hood out of the membership, and its 2026-08-29 amendment put it back
+  // as a **floor**, so a 600 mm hood over a 200/300 cargo agrees on nothing.
   //
   // So both fall back to the same place. What suppresses a section is missing catalogue data about
   // the body itself, never a disagreement between bodies.
@@ -385,6 +396,17 @@ export function columnWidthChoices(
     sizesMm: [...new Set([...candidates, record.widthMm])].sort(
       (left, right) => left - right,
     ),
+    // **The same fallback the widths take, on the same condition.** They were conditioned
+    // differently for one commit — the widths fell back on an empty intersection, the ranges on
+    // `!split.ok` — and a column can satisfy the second without the first. Measured on three taps
+    // from the shipped kitchen (delete `p2`, insert a bottle cargo under the hood, select `p19`):
+    // thirteen widths and no ranges, so §9 read "this column is a set", rendered a chip row, and put
+    // **twelve identical dashed chips** on screen carrying one sentence — the exact shape ADR 0032's
+    // arrangement and this wave's stepper exist to remove.
+    widthRangesMm:
+      intersectedRanges.length > 0
+        ? intersectedRanges
+        : resolveWidthRangesMm(selectedBody.value),
   };
 }
 

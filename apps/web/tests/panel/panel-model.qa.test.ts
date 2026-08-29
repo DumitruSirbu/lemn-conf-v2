@@ -22,7 +22,11 @@ import {
   REFUSAL,
   slotMeta,
 } from "../support/selection-meta";
-import { noWidthIsFree, widthOptionRow } from "../support/width-options";
+import {
+  asWidthChoice,
+  noWidthIsFree,
+  widthOptionRow,
+} from "../support/width-options";
 
 /** §9's order, as a list, so a test can assert "a subsequence of this" rather than restate it. */
 const SECTION_ORDER: readonly PanelSection["kind"][] = [
@@ -391,7 +395,9 @@ describe("the width section renders the engine's verdicts and adds nothing", () 
         }),
       }).sections,
     );
-    expect(section?.chips.map((chip) => [chip.widthMm, chip.state])).toEqual([
+    expect(
+      asWidthChoice(section).chips.map((chip) => [chip.widthMm, chip.state]),
+    ).toEqual([
       [300, "blocked"],
       [400, "free"],
       [600, "active"],
@@ -412,8 +418,8 @@ describe("the width section renders the engine's verdicts and adds nothing", () 
       }).sections,
     );
     expect(
-      section?.chips
-        .filter((chip) => !chip.isDisabled)
+      asWidthChoice(section)
+        .chips.filter((chip) => !chip.isDisabled)
         .map((chip) => chip.widthMm),
     ).toEqual([800]);
   });
@@ -441,11 +447,12 @@ describe("the width section renders the engine's verdicts and adds nothing", () 
           }),
         }).sections,
       );
-      const active = section?.chips.filter((chip) => chip.state === "active");
-      expect([widthMm, active?.length]).toEqual([widthMm, 1]);
-      expect(active?.[0]?.widthMm).toBe(widthMm);
+      const { chips } = asWidthChoice(section);
+      const active = chips.filter((chip) => chip.state === "active");
+      expect([widthMm, active.length]).toEqual([widthMm, 1]);
+      expect(active[0]?.widthMm).toBe(widthMm);
       expect(section?.valueLabel).toBe(`${String(widthMm)} mm`);
-      const widths = section?.chips.map((chip) => chip.widthMm) ?? [];
+      const widths = chips.map((chip) => chip.widthMm);
       expect(widths).toEqual([...widths].sort((left, right) => left - right));
     }
   });

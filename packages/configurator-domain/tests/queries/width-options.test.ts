@@ -8,7 +8,7 @@
 // 0032 each record.
 import { describe, expect, it } from "vitest";
 
-import { setWidth } from "../../src/commands/set-width.js";
+import { columnWidthChoices, setWidth } from "../../src/commands/set-width.js";
 import {
   KITCHEN_L_BODY_CATALOG,
   KITCHEN_L_DESIGN,
@@ -451,5 +451,31 @@ describe("asking is not editing", () => {
     if (command.ok) throw new Error("expected the command to refuse too");
     expect(refused.verdict.reason.code).toBe(command.reason.code);
     expect(refused.verdict.reason.params).toEqual(command.reason.params);
+  });
+});
+
+describe("the widths and the ranges fall back together", () => {
+  // **They did not, for one commit, and it reached the screen.** `sizesMm` fell back to the selected
+  // body's own set when the column's intersection was empty; `widthRangesMm` fell back only when the
+  // membership failed to resolve at all. A column can satisfy the second condition without the
+  // first — every member resolves, and they simply agree on nothing.
+  //
+  // Measured then: `p19` published thirteen widths and zero ranges, so §9 read "this column is a
+  // set", rendered a chip row instead of the stepper, and put **twelve identical dashed chips** on
+  // screen carrying one sentence. That is the shape ADR 0032's disabled-with-a-reason arrangement
+  // and ADR 0035's stepper both exist to remove, so the two fallbacks must agree.
+  it("publishes a bound whenever it publishes more than one width", () => {
+    const world = disjointColumnWorld();
+    const choices = columnWidthChoices({
+      design: world.design,
+      catalog: world.catalog,
+      target: { kind: "placement", id: DISJOINT_CARGO_ID },
+    });
+    if (!choices) throw new Error("expected the cargo to publish choices");
+
+    // The cargo's own bound is genuinely a set, so a choice is right here — what must not happen is
+    // widths without ranges, which is a bound described as a set.
+    expect(choices.sizesMm.length).toBeGreaterThan(0);
+    expect(choices.widthRangesMm.length).toBeGreaterThan(0);
   });
 });

@@ -315,6 +315,52 @@
   font: 700 14px/1 var(--font-ui);
 }
 
+/* ADR 0035 decision 1's stepper: the two buttons flank the value they change, so the pair reads as
+ * one control rather than as two chips that happen to sit near a number. The value takes the free
+ * space between them, which keeps both buttons the same size whatever the width reads. */
+.stepper {
+  display: flex;
+  gap: 9px;
+  align-items: stretch;
+}
+
+.stepperValue {
+  display: flex;
+  flex: 1 1 auto;
+  align-items: center;
+  justify-content: center;
+  font: 700 16px/1 var(--font-ui);
+  color: var(--ink);
+}
+
+/* Wider than a width chip and with the same column layout, so a bound's reason (ADR 0032) sits
+ * under the label without moving it — at a bound that sentence is the whole content of the control,
+ * and it is the most-read text in the section. */
+.widthStep {
+  display: flex;
+  flex: 0 1 132px;
+  flex-direction: column;
+  gap: 3px;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--chip-height);
+  padding: 6px 12px;
+  font: 700 13.5px/1 var(--font-ui);
+  color: var(--ink);
+  background: none;
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  cursor: pointer;
+}
+
+/* §13.1's "disable, don't warn", and unlike `.widthChip` this one dims: a stepper has no ACTIVE
+ * button to grey out by accident, so the plain disabled treatment the other controls use applies. */
+.widthStep:disabled {
+  color: #bdb3a4;
+  border: 1px dashed var(--line);
+  cursor: not-allowed;
+}
+
 .swatch {
   display: flex;
   flex: 1 0 auto;

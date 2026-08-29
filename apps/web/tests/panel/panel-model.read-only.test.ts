@@ -30,7 +30,11 @@ import {
 
 import type { SelectionMeta } from "@lemnaria/configurator-domain";
 
-import { noWidthIsFree, widthOptionRow } from "../support/width-options";
+import {
+  asWidthChoice,
+  noWidthIsFree,
+  widthOptionRow,
+} from "../support/width-options";
 
 /** The writable, healthy panel every case here varies from exactly one axis at a time. */
 function openPanel(
@@ -325,8 +329,10 @@ describe("a read-only panel offers nothing it cannot perform", () => {
       "width",
     );
 
-    expect(width.chips.filter((chip) => chip.state === "free")).toHaveLength(2);
-    for (const chip of width.chips) {
+    expect(
+      asWidthChoice(width).chips.filter((chip) => chip.state === "free"),
+    ).toHaveLength(2);
+    for (const chip of asWidthChoice(width).chips) {
       expect([chip.widthMm, chip.isDisabled]).toEqual([chip.widthMm, true]);
       expect([chip.widthMm, chip.reason]).toEqual([
         chip.widthMm,

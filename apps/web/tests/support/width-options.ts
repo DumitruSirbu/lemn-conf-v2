@@ -12,6 +12,8 @@
 // for the domain half, and the browser suite for the whole path.
 import type { WidthOption } from "@lemnaria/configurator-domain";
 
+import type { WidthChoiceSection, WidthSection } from "@/panel/panel-model";
+
 /** The refusal a blocked chip carries in these fixtures. A real code with a real sentence, chosen
  *  because it takes one parameter: the panel renders whatever `renderRejection` returns and no test
  *  here should depend on which refusal it was. */
@@ -91,3 +93,22 @@ export const CABINETRY_CHIPS_MM = [
 /** ADR 0017's 560 mm sink aperture stepped up to the first multiple, then §7's ceiling. The hood
  *  produces the same five widths from ADR 0035 decision 5's 600 mm floor. */
 export const SINK_CHIPS_MM = [600, 650, 700, 750, 800];
+
+/** §9's width section narrowed to ADR 0035 decision 3's **discrete** control, for the fixture tests
+ *  that assert a chip row.
+ *
+ *  It **throws** on the stepper rather than returning `undefined`, and that is the point. Since
+ *  `DescribePanelInput.widthRanges` became optional, an absent one renders the choice — so a fixture
+ *  is free to describe a chip row for a column the customer sees two buttons on, and every assertion
+ *  under a lenient narrowing would quietly go missing instead of failing. A throw makes that a
+ *  failure with a message naming the control it actually got. */
+export function asWidthChoice(
+  section: WidthSection | undefined,
+): WidthChoiceSection {
+  if (section?.control !== "choice") {
+    throw new Error(
+      `expected a discrete width choice, got ${section?.control ?? "no width section"}`,
+    );
+  }
+  return section;
+}
