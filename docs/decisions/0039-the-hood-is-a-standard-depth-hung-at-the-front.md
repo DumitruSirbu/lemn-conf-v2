@@ -67,6 +67,28 @@ The owner's own reading of why: *"I think this was the reason why hood was separ
 somehow was positioned over worktop."* That is very likely right — a hood hangs over the run rather
 than sitting in it, and every one of these three decisions is the model catching up with that.
 
+**5. The hood is 700 mm tall, and `HOOD_HEIGHT_MM = 710` is the wrong datum.** Left to the
+coordinator on 2026-08-29 (*"decide how is most suitable to current implementation"*), and the
+builder decides it rather than the records.
+
+Three sources disagreed: the seeded `hood-600` stores **700**, `catalog.ts` declares **710**, and
+§11 row 6 says *"fixed 710 mm"*. Two records against one made 700 look like the outlier, and wave
+5D2b's product-logic review read it that way. **The geometry says otherwise.** `make.hood`
+(`kitchen-parts.ts`) is a 130 mm canopy from y = 0 and a 570 mm chimney from y = 0.13 — total
+**700 mm**, and §2 fixes `box(w,h,d,…)`'s `y` as the bottom, so those stack rather than overlap.
+
+So the fixture agrees with what is actually built, and the catalogue claims 10 mm the builder does
+not make. `HOOD_HEIGHT_MM` becomes 700 and §11 row 6 takes a marker. Wave 5F owns the change,
+because it is the wave that re-baselines M1's parity gate and it is already carrying two other
+deliberate geometry corrections; **5F confirms the 700 by measuring a built hood with the real probe
+before changing the constant**, rather than trusting this arithmetic.
+
+Why it matters beyond tidiness: the declared nominal is what `evaluateInsertFit` reserves and what
+`BUILT_SIZE_MISMATCH` compares against, so a catalogue that over-declares by 10 mm makes a hood
+refuse openings it would fit. It also caused a real defect — until 5D2b, a resize resolved the
+seeded hood to its catalogue row and grew it 10 mm, which then ate into the level above and dead-
+ended the stepper.
+
 ## Alternatives considered
 
 **Let the hood follow ADR 0036's depth map like every other wall body.** Rejected by decision 1. It

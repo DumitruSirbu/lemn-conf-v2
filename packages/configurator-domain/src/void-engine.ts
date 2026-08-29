@@ -497,6 +497,141 @@ export function rederiveTouchedColumns(
   return withCurrentFullHeightMembers(updated, recordsAfter);
 }
 
+/** ADR 0037: **adjacent empty columns merge into one space**, and this is the whole of that rule.
+ *
+ *  Backlog 2 recorded the defect from a handset: clearing two neighbouring cabinets gives *two*
+ *  openings, 800 and 600, never one 1400 — because §4 merges openings vertically within a column and
+ *  columns are frozen horizontally at load. The number and position of the columns was therefore
+ *  permanent, and a customer could never turn two cabinets into three.
+ *
+ *  **Empty means empty at every level**, which is the same predicate ADR 0031 already funds a resize
+ *  from and is exactly "no record is filed under this key". Deleting one cabinet at one level merges
+ *  nothing: the levels above and below are still occupied, so its space stays inside its own column.
+ *
+ *  **Merging does not lift the ceiling.** 800 mm still caps every cabinet (owner, 2026-08-28), so a
+ *  merged 1400 mm space is filled with cabinets up to 800 rather than becoming one — and a span no
+ *  cabinet fits may simply stay empty. What the merge buys is freedom over the *number and position*
+ *  of cabinets in a span, which is what backlog 2 said was impossible.
+ *
+ *  The union is what §4 needs and nothing more: `regions` concatenated (only their minimum reaches
+ *  `deriveFreeSpans`), `top` and `d` at the maximum, the extent from the outer edges, and the key
+ *  derived at the new centre exactly as an occupied column's is. `hasFullHeightUnder` is not set
+ *  here — it is not part of the frozen extent, and `withCurrentFullHeightMembers` re-answers it.
+ *
+ *  **The first exception to `deriveColumns`' horizontal freeze**, so it is bounded deliberately: a
+ *  pair whose union would key onto a column the map already holds is left unmerged rather than
+ *  written over. §3.2's columns may overlap along the wall, so that key can belong to an occupied
+ *  run, and clobbering it would take ADR 0011 Gap D's frozen regions with it — the same hazard
+ *  `set-width.ts`'s `refuseKeyCollision` guards. Two openings is a worse answer than one; a lost
+ *  column is a broken design.
+ *
+ *  Repeated to a fixed point, so a chain of three empty columns becomes one space rather than two.
+ *  It terminates because every pass removes one key. */
+export function mergeAdjacentEmptyColumns(
+  columns: ReadonlyMap<string, ColumnExtent>,
+  records: readonly PlacementRecord[],
+): ReadonlyMap<string, ColumnExtent> {
+  const occupied = new Set(records.map((record) => record.col));
+  const merged = new Map<string, ColumnExtent>(columns);
+  for (
+    let pair = findMergeablePair(merged, occupied);
+    pair;
+    pair = findMergeablePair(merged, occupied)
+  ) {
+    const union = uniteColumns(pair[0], pair[1]);
+    merged.delete(pair[0].key);
+    merged.delete(pair[1].key);
+    merged.set(union.key, union);
+  }
+  return merged;
+}
+
+/** The leftmost mergeable pair, in key order so the same map always merges the same way — the
+ *  reason `set-width.ts` orders its funding scan rather than taking whichever side a `Set` yields. */
+function findMergeablePair(
+  columns: ReadonlyMap<string, ColumnExtent>,
+  occupied: ReadonlySet<string>,
+): readonly [ColumnExtent, ColumnExtent] | undefined {
+  const empty = [...columns.values()]
+    .filter((column) => !occupied.has(column.key))
+    .sort((left, right) => left.key.localeCompare(right.key));
+  for (const left of empty) {
+    for (const right of empty) {
+      if (left.key === right.key || left.wall !== right.wall) continue;
+      if (!abutsOnTheRight(left, right)) continue;
+      const key = uniteColumns(left, right).key;
+      if (columns.has(key) && key !== left.key && key !== right.key) continue;
+      return [left, right];
+    }
+  }
+  return undefined;
+}
+
+/** Adjacency is `left`'s right edge meeting `right`'s left edge, and nothing else — the same
+ *  question `set-width.ts` asks of a funding column, answered with the same micron.
+ *
+ *  A micron rather than `===` because the two edges are reached through different arithmetic (a
+ *  frozen load-time extent on one side, a resized one on the other), and a micron is four orders of
+ *  magnitude below any gap a design can hold. Columns that *overlap* along the wall are not adjacent
+ *  and are left alone: §3.2 permits the overlap, and uniting two of them would claim space a third
+ *  column is keyed on. */
+function abutsOnTheRight(left: ColumnExtent, right: ColumnExtent): boolean {
+  return (
+    Math.abs(columnEndM(left) - columnStartM(right)) <
+    COLUMN_ABUTMENT_TOLERANCE_M
+  );
+}
+
+const COLUMN_ABUTMENT_TOLERANCE_M = 1e-6;
+
+function columnStartM(column: ColumnExtent): number {
+  return alongWall(column.wall, column) - column.w / 2;
+}
+
+function columnEndM(column: ColumnExtent): number {
+  return alongWall(column.wall, column) + column.w / 2;
+}
+
+/** Two abutting empty columns as one. The off-wall coordinate and `ry` come from the deeper of the
+ *  two, matching `deriveColumns`' own choice of the deepest member — the merged opening has to seat
+ *  a body at the depth the space actually offers. */
+function uniteColumns(left: ColumnExtent, right: ColumnExtent): ColumnExtent {
+  const startM = Math.min(columnStartM(left), columnStartM(right));
+  const endM = Math.max(columnEndM(left), columnEndM(right));
+  const centreM = (startM + endM) / 2;
+  const deepest = left.d >= right.d ? left : right;
+  return {
+    key: deriveColumnKeyAt(left.wall, centreM),
+    wall: left.wall,
+    ry: deepest.ry,
+    x: left.wall === "A" ? centreM : deepest.x,
+    z: left.wall === "A" ? deepest.z : centreM,
+    w: endM - startM,
+    d: Math.max(left.d, right.d),
+    top: Math.max(left.top, right.top),
+    regions: [...left.regions, ...right.regions].sort(
+      (first, second) => first[0] - second[0],
+    ),
+  };
+}
+
+/** The frozen map a command leaves behind: ADR 0037's merge, then the one live field re-answered.
+ *
+ *  One function rather than two calls at each site, because the two must happen together and in this
+ *  order — `hasFullHeightUnder` is a fact about a column's extent, and the merge is what decides the
+ *  extent. Every caller that re-derives records after a mutation asks through here; `deriveColumns`
+ *  does not, because a load has no empty column to merge.
+ */
+export function columnsAfterMutation(
+  columns: ReadonlyMap<string, ColumnExtent>,
+  records: readonly PlacementRecord[],
+): ReadonlyMap<string, Column> {
+  return withCurrentFullHeightMembers(
+    mergeAdjacentEmptyColumns(columns, records),
+    records,
+  );
+}
+
 /** Re-answers "does a full-height member stand under this column" over frozen extents, and
  *  changes nothing else. The result is a new map; the extent fields are carried across untouched,
  *  so ADR 0011 Gap D still holds — a cleared run keeps the opening it freed.

@@ -47,10 +47,10 @@ import {
 } from "../millimetres.js";
 import {
   deriveColumnKeyAt,
+  columnsAfterMutation,
   derivePlacementRecords,
   recomputeVoids,
   rederiveTouchedColumns,
-  withCurrentFullHeightMembers,
   MIN_WIDTH_M,
   type BodyCatalog,
   type Column,
@@ -263,7 +263,7 @@ type ColumnResizeAttempt =
 interface ColumnPlan {
   readonly label: string;
   readonly column: Column;
-  readonly members: readonly ColumnMember[];
+  readonly members: readonly [ColumnMember, ...ColumnMember[]];
   readonly hoods: readonly ColumnMember[];
   readonly extent: ExtentMm;
 }
@@ -363,7 +363,7 @@ export function columnWidthChoices(
     selected,
   );
   const intersected = split.ok
-    ? intersectColumnWidths(input.catalog, split.value.members)
+    ? intersectColumnWidths(input.catalog, split.value)
     : [];
   // **An empty intersection is not "no set" — it is a fact about the column, and ADR 0032 says a
   // fact about why this opening refuses gets rendered rather than dropped** (logic review L2).
@@ -426,7 +426,7 @@ function planColumnResize(
   const { members, hoods } = split.value;
 
   const extent = resolveColumnExtent(members);
-  const illegal = refuseIllegalWidth(input, label, members, extent);
+  const illegal = refuseIllegalWidth(input, label, split.value, extent);
   if (illegal) return { ok: false, detail: illegal };
 
   return { ok: true, value: { label, column, members, hoods, extent } };
@@ -667,17 +667,17 @@ function describeRecordLabel(
 function refuseIllegalWidth(
   input: SetWidthInput,
   label: string,
-  members: readonly ColumnMember[],
+  column: ColumnUnit,
   extent: ExtentMm,
 ): RejectionDetail | undefined {
-  const sizesMm = intersectColumnWidths(input.catalog, members);
+  const sizesMm = intersectColumnWidths(input.catalog, column);
   if (!sizesMm.includes(input.widthMm)) {
     return {
       code: "WIDTH_NOT_SUPPORTED",
       params: {
         label,
         sizesMm,
-        widthRangesMm: intersectColumnRanges(members),
+        widthRangesMm: intersectColumnRanges(column),
         availableMm: extent.widthMm,
       },
     };
@@ -707,12 +707,14 @@ function refuseIllegalWidth(
  *  non-empty; the sentence then falls back to the chips, which is the truthful thing to say when
  *  there is no common bound. */
 function intersectColumnRanges(
-  members: readonly ColumnMember[],
+  column: ColumnUnit,
 ): readonly WidthRangeMm[] {
-  const perMember = members.map((member) => resolveWidthRangesMm(member.body));
+  const perMember = column.members.map((member) =>
+    resolveWidthRangesMm(member.body),
+  );
   const first = perMember[0];
   if (first === undefined) return [];
-  return perMember.reduce<readonly WidthRangeMm[]>(
+  const intersected = perMember.reduce<readonly WidthRangeMm[]>(
     (accumulated, ranges) =>
       accumulated.flatMap((left) =>
         ranges
@@ -724,23 +726,65 @@ function intersectColumnRanges(
       ),
     first,
   );
+  // The bound the customer is *told* has to carry the hood's floor too, or the sentence on the
+  // disabled `−50` would name a minimum the command refuses.
+  const floorMm = hoodWidthFloorMm(column.hoods);
+  return intersected
+    .map((range) => ({
+      minMm: Math.max(range.minMm, floorMm),
+      maxMm: range.maxMm,
+    }))
+    .filter((range) => range.minMm <= range.maxMm);
+}
+
+/** ADR 0035 decision 6 as amended 2026-08-29: **a hood floors its column's width.**
+ *
+ *  The exemption decision 6 grants is from *following* the column's width, never from *constraining*
+ *  it — two different memberships, and only the first was retired. Wave 5D2b shipped the first
+ *  without the second and product-logic review measured what that costs: a 600 mm hood over a run
+ *  shrunk to 550 re-centres 25 mm left and lands **inside** the cabinet beside it, 200 mm buried by
+ *  the eighth step, two solid bodies occupying one space. §5.4's "overlap is unrepresentable" was
+ *  simply false, because nothing bounded the run from below.
+ *
+ *  Owner, 2026-08-29: *"if 600 is minimum for the hood, then is logic to set the minimum 600 mm, and
+ *  grey out the −50mm button."* So the overlap stops being a state the model can reach rather than
+ *  one a check has to catch — the run is never narrower than the hood, and the hood therefore never
+ *  overhangs onto a neighbour.
+ *
+ *  **The hood's own width, not its catalogue floor.** A hood is sized to the cooktop it extracts
+ *  over, so the number that matters is the one it is standing at; an 800 mm hood floors its column at
+ *  800 even though the catalogue would build a hood at 600.
+ *
+ *  The widest hood wins where a column somehow holds two, and `0` — a column with none — floors
+ *  nothing. `Math.max` of an empty list is `-Infinity`, which is why the seed is there. */
+function hoodWidthFloorMm(hoods: readonly ColumnMember[]): number {
+  return Math.max(0, ...hoods.map((hood) => hood.widthMm));
 }
 
 function intersectColumnWidths(
   catalog: BodyCatalog,
-  members: readonly ColumnMember[],
+  column: ColumnUnit,
 ): readonly number[] {
   // A width has to be one **somebody** in the column offers, or the column would be resizable to a
   // width no chip in it renders. Every member bounds this list now — the ladder members that only
   // widened it retired with the ladder itself (ADR 0035 decision 2).
+  const { members } = column;
   const offered = new Set(
     members.flatMap((member) =>
       resolveBuildableSizes(catalog, member.record.buildId),
     ),
   );
+  // A hood is not a member and offers nothing, but it **floors** what the members may agree on
+  // (`hoodWidthFloorMm`). Applied here rather than at the command's edge so the one function that
+  // decides a column's legal widths decides this too: `columnWidthChoices` renders from it and
+  // `refuseIllegalWidth` gates on it, so the `−50` at the hood's width is disabled carrying its
+  // reason instead of failing on the tap.
+  const floorMm = hoodWidthFloorMm(column.hoods);
   return [...offered]
-    .filter((widthMm) =>
-      members.every((member) => acceptsWidthMm(member.body, widthMm)),
+    .filter(
+      (widthMm) =>
+        widthMm >= floorMm &&
+        members.every((member) => acceptsWidthMm(member.body, widthMm)),
     )
     .sort((left, right) => left - right);
 }
@@ -952,8 +996,8 @@ function refuseNoSideFunds(
 }
 
 /** ADR 0031 rules 3 and 6: growing consumes the empty column and shrinking returns width to it,
- *  and the remainder is either zero or at least `MIN_W`. Shrinking can never fail this test — the
- *  empty column only widens — so the two floor reasons below are reachable on growth alone.
+ *  and a **growth** must leave the remainder either zero or at least `MIN_W`. Both floor reasons are
+ *  reachable on growth alone, and deliberately so — see the note on the floor below.
  *
  *  It answers only what can be decided from geometry. `opens_a_gap`, the fourth reason a side can
  *  refuse, needs the rebuilt records and belongs to `fundColumnResize`. */
@@ -971,9 +1015,20 @@ function evaluateEmptySpace(
   // is not empty space this command can spend. Unreachable from any shipped design.
   if (!extent) return { ok: false, reason: "absent" };
 
-  const remainderMm = extent.widthMm - (input.widthMm - plan.extent.widthMm);
+  const deltaMm = input.widthMm - plan.extent.widthMm;
+  const remainderMm = extent.widthMm - deltaMm;
   if (remainderMm < 0) return { ok: false, reason: "too_narrow" };
-  if (remainderMm > 0 && remainderMm < MIN_WIDTH_MM) {
+  // **The floor guards *making* a sliver, so only a growth can fail it** (product-logic review
+  // R3.10, ADR 0037). A shrink only ever widens the column it returns space to, so a remainder under
+  // `MIN_W` there means the column was *already* under it — and refusing on that turned the one
+  // thing ADR 0037 asks for into its opposite: the second `−50` could not widen the 50 mm strip the
+  // first had just made, fell through to `vacatedEmptySpace`, and created a second strip beside it.
+  // Six presses freed 300 mm of wall as six unusable 50 mm slivers instead of one 300 mm space.
+  //
+  // It also makes the pair coherent. `vacatedEmptySpace` waives this floor when it *creates* a
+  // strip; enforcing it here on the shrink that would have merged that strip away was the floor
+  // applied exactly where it did harm and waived exactly where it made the sliver.
+  if (deltaMm > 0 && remainderMm > 0 && remainderMm < MIN_WIDTH_MM) {
     return { ok: false, reason: "remainder_below_floor" };
   }
   return { ok: true, value: { column: neighbour, side, extent, remainderMm } };
@@ -1324,7 +1379,10 @@ function moveFrozenColumns(
       ...(frozen.column.wall === "A" ? { x: centreM } : { z: centreM }),
     });
   }
-  return withCurrentFullHeightMembers(updated, records);
+  // ADR 0037: the strip a shrink leaves behind is merged into an empty column already beside it,
+  // rather than parked next to it as a second opening. This is the last thing the command does to
+  // the map for that reason — the merge has to see both frozen moves already written.
+  return columnsAfterMutation(updated, records);
 }
 
 function frozenMoves(move: ColumnResize): readonly FrozenColumnMove[] {
