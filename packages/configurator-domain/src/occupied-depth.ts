@@ -21,8 +21,22 @@ import { WALL_FRONT_ASSEMBLY_MM, WORKTOP_DEPTH_MM } from "./worktop-depth.js";
  *    larger than its 500 mm body: it runs from the wall plane to the cabinet-depth line, and that
  *    line is the depth of the space. Reading the seat raw would claim 700 mm at a 600 mm kitchen;
  *    reading the body raw claimed 500 and cost the opening 100 mm permanently (backlog entry 9).
- *  - **Everything else** builds its own depth and ignores what it is handed, so its rear overhang
- *    already is the space it fills. */
+ *  - **Everything else** is returned unchanged, and that is an inherited approximation rather than
+ *    an identity. Measured: a base cabinet's seat is 290, its `frame.d` 580, and the space it fills
+ *    620 — the counter is 620 deep and offset 20 mm forward, so the body is not symmetric about its
+ *    origin. `tall-pantry` records 560 and occupies 599; `fridge-free` records 680 and occupies 742.
+ *    ADR 0018's own finding says so ("the centring invariant … is already violated inside
+ *    `baseCabinet`") and this function does not close it.
+ *
+ *    What it closes is the two divergences **wave 5F introduced**, which are the ones that compound
+ *    on a reload. The pre-existing ones under-report `column.d` for those columns — a base column
+ *    publishes 580 against ADR 0036's declared 600 — and are a recorded gap, not a fixed one.
+ *
+ *    §11 row 19's **first** named exception is in this set too: `base-corner-x-900` records 560 for
+ *    a 600-deep carcass seated 20 mm inside the wall (ADR 0025), so it occupies 580 and this answers
+ *    560. Unchanged by wave 5F — the old `Math.max(frame.d)` gave the same number — and its column
+ *    is structural, so it can be neither resized nor deleted. Named here because this function bills
+ *    itself as the single answer and silently gets that case wrong. */
 export function occupiedDepthM(record: PlacementRecord): number {
   if (record.kind === EXTRACTOR_HOOD_KIND) return toMetres(WORKTOP_DEPTH_MM);
   if (record.kind === WALL_CABINET_KIND) {

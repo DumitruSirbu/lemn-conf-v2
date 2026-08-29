@@ -31,6 +31,11 @@ export interface FakeProbeOptions {
 
 /** The ids whose real builder stands a door and a bar handle in front of the shell it is given.
  *  `open-shelf` has neither, and every other builder ignores its depth argument (ADR 0018). */
+// **Re-typed here, and it should not be.** `catalog-bodies.ts` declares the identical set, and a
+// third encoding is `WALL_CABINET_KIND`. Nothing compares them — the ADR 0028 shape this milestone
+// keeps citing. Left as a named follow-up rather than fixed here: the adapter cannot be imported
+// from a domain test without inverting §12's dependency direction, so closing it means publishing
+// the set from the domain, which is a change to the catalogue's surface (5F clean-code review S4).
 const FRONTED_WALL_BUILD_IDS: ReadonlySet<string> = new Set([
   "wall-cabinet",
   "wall-lift",
@@ -52,8 +57,18 @@ const HOOD_DEPTH_M = 0.5;
  *    cabinet-depth line and the gap goes behind it, so its origin sits `cabinetDepth − 250` off the
  *    wall whatever depth it was handed. §11 row 19's second named exception.
  *
- *  `packages/three-adapter/tests/measure-built-body.test.ts` is the authority; this only has to
- *  agree with it, which `insert-depth.qa.test.ts` in that package checks against the real probe. */
+`packages/three-adapter/tests/measure-built-body.test.ts` is the authority and this has to agree
+ *  with it — **and nothing checks that it does.** An earlier version of this comment claimed
+ *  `insert-depth.qa.test.ts` made the comparison; it does not construct a fake probe at all, and no
+ *  test anywhere compares the two. Both sides are pinned to independent literals that happen to
+ *  agree.
+ *
+ *  That is the seam that matters most after wave 5F, because every domain-side depth assertion —
+ *  swap, resize, round-trip, column extent — is now validated against a *model* of the geometry.
+ *  Backlog 9's own diagnosis was that a fake probe echoing its input cannot see a depth defect; 5F
+ *  fixed the model and left the verification of the model unbuilt. The gate wanted is a
+ *  three-adapter test asserting the real probe's seats equal the same declared constants this
+ *  reads. */
 function seatOffsetFor(request: BodyProbeRequest): number {
   if (request.buildId === "hood") {
     return CABINET_DEPTH_M - HOOD_DEPTH_M / 2;

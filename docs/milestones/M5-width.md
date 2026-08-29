@@ -373,7 +373,7 @@ Two things the original plan did not say, both consequences of what M3 and M4 sh
   (the hob and the four corners) can neither be resized nor donate, which is the same set §5.4's
   `canGive` already excludes and the same set §13.1 calls structural.
 - **The refusal path is real.** `insertBody`'s guards apply to the rebuild — `BUILT_SIZE_MISMATCH`,
-  the sink's `minWidthMm` (ADR 0017), the hood's fixed 710 (ADR 0016). A resize that would build a
+  the sink's `minWidthMm` (ADR 0017), the hood's fixed ~~710~~ **700** (ADR 0016 for the definition; ADR 0039 decision 5 corrected the datum — the catalogue declared 10 mm the builder never made). A resize that would build a
   body the engine refuses must be refused *before* it is offered, not after it is tapped: §9's
   "never offer what cannot be satisfied".
 
@@ -1097,6 +1097,11 @@ dimension moved** at 600. But 5F's QA measured the rest of the family at 700 and
 byte-identical at every depth. At a 700 mm kitchen the corner leg would stay 600 deep beside 700 mm
 neighbours and ADR 0025's L-joint would stop meeting the return.
 
+The list is **not exhaustive**: `buildKitchen`'s own reference room still hardcodes `wallSeatOffset()`'s
+0.33 default, `openShelf(0.6, 0.33, 2)` and the deep-top 0.6 literals while its base row derives from
+the setting. That room is the parity reference rather than the shipped scene, which renders from
+`KITCHEN_L_DESIGN`, so it is lowest priority — but M6 will read this note as the list of what is left.
+
 Nothing ships at 700, so this is a gap in **reach** rather than a defect — and it is **M6's**, which
 is the wave that gives the customer the control that reaches it. M6 must not ship the depth setting
 without closing it.
@@ -1147,7 +1152,8 @@ was falsified by measuring the stepper: six presses of `−50` freed 300 mm of w
 
 ### Depth — recorded 2026-08-27, and none of these is decided
 
-The owner has ruled on the six decisions above and on nothing here. **Each of these is a question,
+The owner has ruled on the six decisions above and on nothing here. **Three are now closed — 1, 6
+and 7 — each struck through in place with what answered it.** **Each of these is a question,
 not a gap to fill at implementation.** Each is tagged with who needs the answer: **M5** questions
 gate a wave in this phase, **M6** questions travel with the control and are noted in
 `docs/milestones/M6-price-and-global-settings.md` so they are not lost at the seam.
@@ -1189,14 +1195,23 @@ gate a wave in this phase, **M6** questions travel with the control and are note
    deepens and `Column.d` over it rises, while these two stay at whatever their column is. Nothing
    says whether a deep top cabinet should follow the worktop, follow its column, or stay put. No M5
    wave reaches it, because the worktop does not move in M5.
-6. **What number is the map's value — the carcass, or the carcass plus its door?** — **M5, and it
+6. ~~**What number is the map's value — the carcass, or the carcass plus its door?**~~ **ANSWERED**
+   **by [ADR 0036](../decisions/0036-a-declared-dimension-is-the-finished-cabinet.md) decision 1 and
+   shipped in 5F: the finished cabinet, doors included.** The body below still says the code treats
+   the map's value as the carcass — true until 5F, false now. And the 39 mm turned out to be door 18
+   + air 9 + **handle 12**, not the "door + gap" the question assumed. Original text follows.
+   **What number is the map's value — the carcass, or the carcass plus its door?** — **M5, and it
    gates wave 5A.** §2's own worked
    example has "a unit at `position.x = 0.165` with `D = 0.33`" spanning world x `0 → 0.369`: the
    door adds 39 mm in front. The owner's manufactured sizes (300 / 330 / 350 / 400) are presumably
    carcass depths, and the code treats the map's value as the depth argument handed to
    `wallCabinet`, which is the carcass. Worth confirming once rather than assuming, because a map
    read as the finished depth is 39 mm wrong on every row.
-7. **Is the shipped worktop 600 or 620?** — **M5, and it gates wave 5F.** Work item 7's third
+7. ~~**Is the shipped worktop 600 or 620?**~~ **DISSOLVED by [ADR 0036](../decisions/0036-a-declared-dimension-is-the-finished-cabinet.md)
+   decision 3 and shipped in 5F.** The worktop was never the key: the setting is **cabinet** depth,
+   600, and the worktop is an external part that may be 620 and influences neither geometry nor
+   price. 5F did pick the number, and this question is why it could. Original text follows.
+   **Is the shipped worktop 600 or 620?** — **M5, and it gates wave 5F.** Work item 7's third
    bullet. `counter`'s 0.62 against `CARC_D` 0.56 is 60 mm of overhang, 50 of it in front, while the
    owner's map is keyed on 600. The M1 parity gate already fixes what the formula must *produce* at
    the default — today's geometry, to 1e-6 m — so this is not a licence to change a dimension. What

@@ -371,6 +371,20 @@ export function derivePlacementRecords(
   });
 }
 
+/** A column's origin: along its wall from any member, across it from the column's own depth.
+ *
+ *  One function rather than two mirrored ternaries, because the mirrored pair — the same predicate
+ *  negated on adjacent lines with the operands swapped — is the shape that gets transposed on the
+ *  next edit (5F clean-code review S5). */
+function originOnWall(
+  member: PlacementRecord,
+  centreM: number,
+): { readonly x: number; readonly z: number } {
+  return member.wall === "A"
+    ? { x: member.frame.x, z: centreM }
+    : { x: centreM, z: member.frame.z };
+}
+
 function groupByColumn(
   records: readonly PlacementRecord[],
 ): Map<string, PlacementRecord[]> {
@@ -399,19 +413,20 @@ export function deriveColumns(
     // (ADR 0036) and a front-hung hood records 200 mm more (ADR 0039).
     //
     // **The column's own off-wall coordinate is derived from that depth, not borrowed from a
-    // member's seat** (5F QA finding B1). Those were the same fact until this wave: every body was
-    // seated so its back face met the plane, so the deepest member's seat *was* half the column's
-    // depth. 5F broke the identity in both directions and a first pass corrected only the depth —
-    // leaving six of eleven columns starting off the plane, the hood's by +50 mm and five fronted
-    // ones by −19.5, which `recomputeVoids` stamps onto every void and `buildVoidMesh` draws.
+    // member's seat.** Those were the same fact until wave 5F, because every body was seated so its
+    // back face met the plane — so nothing said they were two, and borrowing quietly stopped working
+    // the moment a body was deliberately off the plane.
     //
     // A column is **the space a run occupies** (ADR 0031), and that space starts at the wall. So the
     // coordinate is `depth / 2` on the wall's normal axis, and no member's own deliberate offset —
     // ADR 0025's corner leg 20 mm inside the wall, ADR 0039's hood 100 mm off it — travels into the
     // column that holds it. `ry` and the wall still come from a member, because those are facts
     // about orientation rather than about the space.
-    const first = members[0];
-    if (!first) continue;
+    // Any member will do for the two facts that are about orientation rather than about space.
+    const orientation = members[0];
+    if (!orientation) {
+      throw new Error(`deriveColumns: column ${key} has no members`);
+    }
     const width = Math.min(...members.map((member) => member.frame.w));
     const depth = Math.max(...members.map(occupiedDepthM));
     const top = Math.max(
@@ -426,10 +441,9 @@ export function deriveColumns(
     const centre = depth / 2;
     columns.set(key, {
       key,
-      wall: first.wall,
-      ry: first.frame.ry,
-      x: first.wall === "A" ? first.frame.x : centre,
-      z: first.wall === "A" ? centre : first.frame.z,
+      wall: orientation.wall,
+      ry: orientation.frame.ry,
+      ...originOnWall(orientation, centre),
       w: width,
       d: depth,
       top,

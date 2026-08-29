@@ -155,34 +155,9 @@ export function openingFromPlacement(
   };
 }
 
-/** How deep the space is that this body vacates.
- *
- *  Normally the outgoing body's own `frame.d`, which is where the swap-depth fix put it: a swap and
- *  a delete-then-insert must see the identical opening, and the body standing there is the only
- *  recorded fact about how deep its space was.
- *
- *  **A hood is the exception, and closing it closes backlog entry 9.** ADR 0039 decision 2 hangs a
- *  hood at the front with the gap behind it, so its `frame.d` is a front-hung *seat* — twice the
- *  distance from the wall to the hood's own centre — and reading that as a depth would hand the
- *  replacement 700 mm of space at a 600 mm kitchen. Before that decision the same line cost the
- *  opening 100 mm in the other direction, permanently: `make.hood` built 500 whatever it was handed,
- *  the probe measured 500, and the wall cabinet swapped back in built 500 instead of the 600 it
- *  came from.
- *
- *  Both readings are the same mistake, and ADR 0039 settles what the right number is: the hood runs
- *  from the wall plane to the **cabinet-depth line**, so that line is the depth of the space it
- *  vacates. Backlog 9 assumed the fix was to give the builder a depth parameter; the decision goes
- *  the other way — the hood's depth is standard and it is the *seat* that moves — which is why the
- *  entry closes here rather than being carried.
- *
- *  **A fronted wall cabinet needs the opposite correction, and for the same underlying reason.**
- *  ADR 0036 decision 1 makes 330 the *finished* depth, so a wall shell is 291 and `frame.d` — twice
- *  the rear overhang — records 291. Handing that straight back as the opening's depth would build
- *  the replacement at a declared 291, then 252, then 213: ADR 0018 clause 4's compounding round trip
- *  arriving in the shrinking direction, invisible to `refuseBuiltSize`, which checks width and
- *  height only. So the front assembly is added back and the opening measures what the space
- *  actually is. `scene-sync.ts`'s `rebuildDepthM` makes the same correction on the other call path,
- *  where a *persisted* placement is rebuilt rather than a new one planned. */
+/** `occupiedDepthM` under the name this call site reads it by: the depth of the space a body
+ *  *vacates*, which is the space the next insert is planned into. The rule itself lives in
+ *  `occupied-depth.ts` and its reasoning in ADR 0040. */
 const vacatedOpeningDepthM = occupiedDepthM;
 
 /** The void that would cover this body if it were removed — §4's own derivation, run once with the

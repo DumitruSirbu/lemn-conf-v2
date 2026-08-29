@@ -8,7 +8,17 @@
 // apart again: there is exactly one 330 in the source. Owner's decisions of 2026-08-27, recorded in
 // `docs/milestones/M5-width.md`.
 
-/** The kitchen's worktop depth. **Configurable data, deliberately at the top level**: M5 declares
+/** **Misnamed, deliberately and temporarily.** ADR 0036 decision 3 makes the declared setting the
+ *  **cabinet** depth — the worktop is an external part the customer usually buys separately, may be
+ *  620, and influences neither geometry nor price. This constant holds the *cabinet* depth, and
+ *  every 5F caller reads it as one (`occupied-depth.ts` calls the value it returns "the cabinet-depth
+ *  line"; `cabinet-depth-source.test.ts` passes it as a cabinet depth).
+ *
+ *  The rename is ADR 0036's Consequences and is deferred: it is 8 files plus error-message text and
+ *  test names, and folding it into the wave that moved four geometry baselines would have made that
+ *  diff unreviewable. Until it lands, read "worktop" here as "cabinet".
+ *
+ *  The kitchen's cabinet depth. **Configurable data, deliberately at the top level**: M5 declares
  *  it, and M6's *Setări globale* control replaces this line with a read from that setting — one
  *  line, because the map lookup and (from M5 wave 5F) the base carcass formula both read this
  *  constant rather than copying its value.

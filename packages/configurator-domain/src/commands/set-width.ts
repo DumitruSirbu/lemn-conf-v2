@@ -1445,15 +1445,16 @@ function frozenColumnKey(frozen: FrozenColumnMove): string {
  *
  *  Rebuilding it through `evaluateInsertFit` was wrong in three visible ways (product-logic review
  *  R3.2), all of them from resolving the seeded instance to its catalogue equivalent: `hood-600`
- *  became `hood`, the height went 700 → 710 because the catalogue declares `HOOD_HEIGHT_MM`, and
+ *  became `hood`, the height went 700 → 710 because the catalogue then declared `HOOD_HEIGHT_MM` as 710, and
  *  `fixedWidth` flipped true → false, handing the hood a width control the fixture deliberately
  *  withholds. A customer who resized the **cabinet underneath** got a taller hood and a new control.
  *  The extra 10 mm then ate into the level above and the next step refused with a sentence about
  *  height.
  *
- *  The 700/710 disagreement between the fixture and the catalogue is real and still open — §11 row 6
- *  says 710, so the fixture is likely the wrong datum — but it is not this command's to resolve, and
- *  a resize must not resolve it by accident. */
+ *  The 700/710 disagreement between the fixture and the catalogue was real and is **resolved the other
+ *  way**: ADR 0039 decision 5 measured a built hood at 700, so the fixture was right and the
+ *  catalogue over-declared by 10 mm nobody makes. `HOOD_HEIGHT_MM` is 700 since wave 5F. A resize
+ *  must still not resolve such a thing by accident, which is why this function exists. */
 function moveHood(
   input: SetWidthInput,
   plan: Rebuild,

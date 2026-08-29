@@ -1,21 +1,15 @@
-// Adversarial QA for M5 wave 5F, on `deriveColumns`.
+// **A column's back face is on the wall plane** — the invariant, and the incident that established
+// it. Wave 5F moved `column.d` to the occupied depth (ADR 0036, ADR 0039) and left `column.x`/`z`
+// on the deepest member's raw seat. Those had been the same fact while every body was seated
+// back-to-the-plane, so nothing said they were two.
 //
-// Wave 5F moved `column.d` off `frame.d` and onto `occupiedDepthM`, so §3.2's MAX is now over the
-// space each member fills. It did **not** move the column's own wall-normal coordinate, which still
-// comes from `deepest.frame.x` / `deepest.frame.z` — the raw seat.
+// Measured then: six of eleven columns started off the plane — five fronted ones at −19.5 mm and
+// `A|2.60` at **+50**, because the hood was still its deepest member. `recomputeVoids` stamps both
+// numbers onto every void and `buildVoidMesh` draws them, so a single delete showed it.
 //
-// Those two numbers were the same fact before this wave: every body was seated so its back face lay
-// on the wall plane (§11 row 19), so the deepest member's seat was exactly half the column's depth.
-// 5F broke that identity in both directions at once — a fronted wall carcass now seats at half a
-// shell that is 39 mm shallower than the space it fills, and the hood seats at half a *front-hung*
-// span that is 100 mm deeper than its body — while the coordinate the column publishes stayed the
-// seat. `recomputeVoids` stamps both onto every void it derives, and `buildVoidMesh` centres the
-// rendered box on the coordinate and sizes it by the depth, so the two disagreeing is visible.
-//
-// The invariant asserted here is the one §11 row 19 states for a body, read off the column: **the
-// back face of a column's extent lies on its wall plane.** It is not a new rule; it is the rule
-// that made `frame.d` a usable coordinate source in the first place, and it is the reason
-// `deriveColumns` was allowed to take `x`/`z` from whichever member happened to be deepest.
+// **Fixed in `71661d6`**: the coordinate is derived as `depth / 2`, so no member's deliberate
+// offset — ADR 0025's corner leg 20 mm inside the wall, ADR 0039's hood 100 mm off it — travels
+// into the column that holds it. These tests are the invariant, not a bug report; they pass.
 import {
   deriveColumns,
   derivePlacementRecords,
