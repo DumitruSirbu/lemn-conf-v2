@@ -1101,6 +1101,11 @@ a skipped test in `tests/commands/qa-5d2b.adversarial.test.ts`, FINDING C.
   reachable width, each button is enabled if and only if the step it offers succeeds.
 - §9's width note is rewritten again. It was a customer-facing blocker in 5D for describing a
   surface that had changed; the same trap is open here.
+- **The too-narrow opening gets a sentence too.** A shrink creates a strip, and until the next press
+  widens it that strip is a selectable opening `offersFor` answers with nothing offered. Suppressing
+  it was tried and reverted — a horizontal floor on void emission also hides the 190-199 mm openings
+  the bottle-cargo tests observe a refusal in. The copy says the space is too narrow for anything and
+  may be left.
 - **The too-wide opening gets its own sentence.** An opening over 800 mm fits no cabinet, and §9's
   "say what to clear" rule inverts there — clearing makes it wider. The owner decided on 2026-08-28
   that such a space may simply be left empty

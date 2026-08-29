@@ -497,139 +497,36 @@ export function rederiveTouchedColumns(
   return withCurrentFullHeightMembers(updated, recordsAfter);
 }
 
-/** ADR 0037: **adjacent empty columns merge into one space**, and this is the whole of that rule.
+/** The frozen map a command leaves behind, with the one live field re-answered.
  *
- *  Backlog 2 recorded the defect from a handset: clearing two neighbouring cabinets gives *two*
- *  openings, 800 and 600, never one 1400 — because §4 merges openings vertically within a column and
- *  columns are frozen horizontally at load. The number and position of the columns was therefore
- *  permanent, and a customer could never turn two cabinets into three.
+ *  **ADR 0037's merge was here and has been withdrawn** (2026-08-29, QA finding A). It united
+ *  adjacent empty columns correctly — a chain of five collapsed to one space, order-independently,
+ *  never clobbering an occupied key — and it still made the customer worse off, because §4 has no
+ *  horizontal half: `recomputeVoids` derives a column's free spans from its members' `y0`/`h` and
+ *  the column's `top`, and nothing subtracts the **width** a member occupies from the width the
+ *  column has.
  *
- *  **Empty means empty at every level**, which is the same predicate ADR 0031 already funds a resize
- *  from and is exactly "no record is filed under this key". Deleting one cabinet at one level merges
- *  nothing: the levels above and below are still occupied, so its space stays inside its own column.
+ *  That was harmless while a column was never wider than its members. A merged column is, and the
+ *  consequence is measured: clearing `A|1.30` and `A|2.00` gives one 1400 mm space, and then a
+ *  600 mm cabinet inserted into it **closes the whole level**, stranding 800 mm of wall with no
+ *  void, no column and no second insert. A `widthFlex: 'fit'` cabinet is refused outright, because
+ *  it tries to fill 1400 against an 800 mm ceiling. Before the merge those two clears left an 800
+ *  and a 600 and both took a cabinet.
  *
- *  **Merging does not lift the ceiling.** 800 mm still caps every cabinet (owner, 2026-08-28), so a
- *  merged 1400 mm space is filled with cabinets up to 800 rather than becoming one — and a span no
- *  cabinet fits may simply stay empty. What the merge buys is freedom over the *number and position*
- *  of cabinets in a span, which is what backlog 2 said was impossible.
+ *  So the merge needs backlog 2's **re-split** — one span yielding several openings — which §12
+ *  lists as designed and not built, and which `findTouchedColumnKeys` already names. ADR 0037 is
+ *  right and is not retracted; it is unbuildable until the re-split exists, and shipping half of it
+ *  costs the customer the opening it was meant to give them.
  *
- *  The union is what §4 needs and nothing more: `regions` concatenated (only their minimum reaches
- *  `deriveFreeSpans`), `top` and `d` at the maximum, the extent from the outer edges, and the key
- *  derived at the new centre exactly as an occupied column's is. `hasFullHeightUnder` is not set
- *  here — it is not part of the frozen extent, and `withCurrentFullHeightMembers` re-answers it.
- *
- *  **The first exception to `deriveColumns`' horizontal freeze**, so it is bounded deliberately: a
- *  pair whose union would key onto a column the map already holds is left unmerged rather than
- *  written over. §3.2's columns may overlap along the wall, so that key can belong to an occupied
- *  run, and clobbering it would take ADR 0011 Gap D's frozen regions with it — the same hazard
- *  `set-width.ts`'s `refuseKeyCollision` guards. Two openings is a worse answer than one; a lost
- *  column is a broken design.
- *
- *  Repeated to a fixed point, so a chain of three empty columns becomes one space rather than two.
- *  It terminates because every pass removes one key. */
-export function mergeAdjacentEmptyColumns(
-  columns: ReadonlyMap<string, ColumnExtent>,
-  records: readonly PlacementRecord[],
-): ReadonlyMap<string, ColumnExtent> {
-  const occupied = new Set(records.map((record) => record.col));
-  const merged = new Map<string, ColumnExtent>(columns);
-  for (
-    let pair = findMergeablePair(merged, occupied);
-    pair;
-    pair = findMergeablePair(merged, occupied)
-  ) {
-    const union = uniteColumns(pair[0], pair[1]);
-    merged.delete(pair[0].key);
-    merged.delete(pair[1].key);
-    merged.set(union.key, union);
-  }
-  return merged;
-}
-
-/** The leftmost mergeable pair, in key order so the same map always merges the same way — the
- *  reason `set-width.ts` orders its funding scan rather than taking whichever side a `Set` yields. */
-function findMergeablePair(
-  columns: ReadonlyMap<string, ColumnExtent>,
-  occupied: ReadonlySet<string>,
-): readonly [ColumnExtent, ColumnExtent] | undefined {
-  const empty = [...columns.values()]
-    .filter((column) => !occupied.has(column.key))
-    .sort((left, right) => left.key.localeCompare(right.key));
-  for (const left of empty) {
-    for (const right of empty) {
-      if (left.key === right.key || left.wall !== right.wall) continue;
-      if (!abutsOnTheRight(left, right)) continue;
-      const key = uniteColumns(left, right).key;
-      if (columns.has(key) && key !== left.key && key !== right.key) continue;
-      return [left, right];
-    }
-  }
-  return undefined;
-}
-
-/** Adjacency is `left`'s right edge meeting `right`'s left edge, and nothing else — the same
- *  question `set-width.ts` asks of a funding column, answered with the same micron.
- *
- *  A micron rather than `===` because the two edges are reached through different arithmetic (a
- *  frozen load-time extent on one side, a resized one on the other), and a micron is four orders of
- *  magnitude below any gap a design can hold. Columns that *overlap* along the wall are not adjacent
- *  and are left alone: §3.2 permits the overlap, and uniting two of them would claim space a third
- *  column is keyed on. */
-function abutsOnTheRight(left: ColumnExtent, right: ColumnExtent): boolean {
-  return (
-    Math.abs(columnEndM(left) - columnStartM(right)) <
-    COLUMN_ABUTMENT_TOLERANCE_M
-  );
-}
-
-const COLUMN_ABUTMENT_TOLERANCE_M = 1e-6;
-
-function columnStartM(column: ColumnExtent): number {
-  return alongWall(column.wall, column) - column.w / 2;
-}
-
-function columnEndM(column: ColumnExtent): number {
-  return alongWall(column.wall, column) + column.w / 2;
-}
-
-/** Two abutting empty columns as one. The off-wall coordinate and `ry` come from the deeper of the
- *  two, matching `deriveColumns`' own choice of the deepest member — the merged opening has to seat
- *  a body at the depth the space actually offers. */
-function uniteColumns(left: ColumnExtent, right: ColumnExtent): ColumnExtent {
-  const startM = Math.min(columnStartM(left), columnStartM(right));
-  const endM = Math.max(columnEndM(left), columnEndM(right));
-  const centreM = (startM + endM) / 2;
-  const deepest = left.d >= right.d ? left : right;
-  return {
-    key: deriveColumnKeyAt(left.wall, centreM),
-    wall: left.wall,
-    ry: deepest.ry,
-    x: left.wall === "A" ? centreM : deepest.x,
-    z: left.wall === "A" ? deepest.z : centreM,
-    w: endM - startM,
-    d: Math.max(left.d, right.d),
-    top: Math.max(left.top, right.top),
-    regions: [...left.regions, ...right.regions].sort(
-      (first, second) => first[0] - second[0],
-    ),
-  };
-}
-
-/** The frozen map a command leaves behind: ADR 0037's merge, then the one live field re-answered.
- *
- *  One function rather than two calls at each site, because the two must happen together and in this
- *  order — `hasFullHeightUnder` is a fact about a column's extent, and the merge is what decides the
- *  extent. Every caller that re-derives records after a mutation asks through here; `deriveColumns`
- *  does not, because a load has no empty column to merge.
+ *  **The sliver fix this wave was asked for does not depend on it.** Six presses of `−50` leave one
+ *  300 mm space with the merge disabled, because what fragmented them was
+ *  `remainder_below_floor` firing on shrinks — fixed separately in this wave.
  */
 export function columnsAfterMutation(
   columns: ReadonlyMap<string, ColumnExtent>,
   records: readonly PlacementRecord[],
 ): ReadonlyMap<string, Column> {
-  return withCurrentFullHeightMembers(
-    mergeAdjacentEmptyColumns(columns, records),
-    records,
-  );
+  return withCurrentFullHeightMembers(columns, records);
 }
 
 /** Re-answers "does a full-height member stand under this column" over frozen extents, and
@@ -806,6 +703,12 @@ export function recomputeVoids(
   const membersByColumn = groupByColumn(records);
   const voids: VoidRecord[] = [];
   for (const column of columns.values()) {
+    // **A column narrower than any cabinet still publishes its opening.** 5D2b's QA found a 50 mm
+    // strip answering `offersFor` with sixteen rows and nothing offered, and asked whether it should
+    // be an opening at all. It should: suppressing it would also hide the 190-199 mm openings the
+    // bottle-cargo floor tests observe a refusal in, and ADR 0032's rule is *disabled with a reason*
+    // rather than removed. What is owed is the **sentence** — §9 telling the customer the space is
+    // too narrow for anything and may be left — and that is wave 5D2c's copy, recorded there.
     const taken = (membersByColumn.get(column.key) ?? []).map(
       (member): [number, number] => [
         member.frame.y0,

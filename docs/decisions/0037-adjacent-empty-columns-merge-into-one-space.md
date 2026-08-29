@@ -62,6 +62,34 @@ opening **wider**, not more fillable. The sentence for this case should say the 
 any cabinet and may be left as it is — copy that belongs to wave 5D2c, recorded here because this is
 where the reason for it lives.
 
+## Built in wave 5D2b and withdrawn the same day (2026-08-29/30)
+
+The merge was implemented, and every structural attack on it passed: a chain of five abutting empty
+columns collapsed to one 3000 mm space, order-independently; a union whose key would land on an
+occupied column left the pair alone; a sweep of every delete on the shipped kitchen found no drift.
+The machinery was correct.
+
+**It was withdrawn because §4 has no horizontal half.** `recomputeVoids` derives a column's free
+spans from its members' `y0`/`h` and the column's `top`; nothing subtracts the **width** a member
+occupies from the width the column has. That was harmless while a column was never wider than its
+members — and a merged column always is.
+
+Measured: clear `A|1.30` and `A|2.00`, get the promised 1400 mm space, then insert a 600 mm cabinet
+into it. **The whole level closes**, stranding 800 mm of wall with no void, no column and no second
+insert. A `widthFlex: 'fit'` cabinet is refused outright, because it tries to fill 1400 against this
+decision's own 800 mm ceiling. Before the merge, those two clears left an 800 and a 600 and both took
+a cabinet.
+
+So shipping this decision's first half **costs the customer the opening it was meant to give them**.
+It needs backlog 2's **re-split** — one span yielding several openings — which §12 lists as designed
+and not built, and which `findTouchedColumnKeys` already names. This record is not retracted: it is
+right, and it is unbuildable alone.
+
+**What the wave was actually asked for did not depend on it.** The owner's *"merge the gaps"* was
+about six presses of `−50` freeing six 50 mm slivers instead of one 300 mm space. That was
+`remainder_below_floor` firing on shrinks, fixed separately, and six presses free one space with the
+merge disabled — measured.
+
 ## Consequences
 
 - **Backlog 2's re-split half closes.** The narrow-bottle-cabinet half already shipped; this is the

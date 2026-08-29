@@ -161,7 +161,14 @@ two different memberships, and only the first was retired.
 exemption is from the width rule alone, not from the model. ADR 0038 deleted the machinery that
 would have made the hood a separate kind of thing, and it is not coming back for this.
 
-Not reachable in the shipped kitchen today, because `p2` is `fixedWidth` and freezes `A|2.60`
+**Correction, 2026-08-30:** an earlier version of this paragraph said the frozen-column case was
+"only reachable by seeding it". It is reachable in **two ordinary taps** — delete the hob base `p2`
+under the shipped hood, insert a `base-bottle-cargo` into the opening it leaves, and that column has
+no legal width at all. The floor lives in `setWidth`; `offersFor` and `insertBody` do not read it.
+The column then renders its chips with the engine's reason, per ADR 0032, and the sentence for
+"no width at all" is its own rather than a list with a hole in it.
+
+Not reachable by a *resize* in the shipped kitchen, because `p2` is `fixedWidth` and freezes `A|2.60`
 outright — which is exactly why it has to be decided rather than discovered: the first resizable
 column with a hood in it would have silently stretched the hood.
 

@@ -343,25 +343,12 @@ describe("Q1 — the legal-resize population, enumerated independently", () => {
     expect(total).toBe(230);
   });
 
-  it("opens two new column moves when a second column is cleared, and only through the merge", () => {
-    // Untested territory: 36 pairs.
-    //
-    // **Re-measured 2026-08-29, and the claim this row used to protect is now false by design.** It
-    // asserted that every accepted tap was still one of the single-clear moves — that clearing more
-    // space widens the population of *situations* and never the population of *moves*. ADR 0037
-    // retires that: two adjacent cleared columns **merge into one space**, and a run beside the
-    // merged span can now grow into width neither of them could fund alone.
-    //
-    // Exactly two taps are new, both on `A|0.30`: **@700 and @800**. `A|0.30` is 300 mm wide with
-    // `A|0.75` (600 mm) beside it and `A|1.30` (800 mm) beyond that, so clearing the pair puts a
-    // single 1400 mm space against its right edge — where clearing `A|0.75` alone caps the growth at
-    // 900. Nothing else in the kitchen gains anything: the other 35 pairs are non-adjacent, or their
-    // merged span abuts a column that cannot use it.
-    //
-    // Two, and both accounted for, is what makes this a measurement rather than a hole. The list
-    // below grew from four to eleven to fourteen because the *moves* grew; this is the first time it
-    // grew because a *pair* unlocked something a single clear could not, and ADR 0037 is the record
-    // that says it should.
+  it("opens no new column move when a second column is cleared", () => {
+    // Untested territory: 36 pairs. Every accepted tap is still one of the single-clear moves, so
+    // clearing more space widens the population of *situations* and never the population of moves.
+    // That claim is what this row protects, and neither ADR 0033 nor ADR 0035 touched it — the list
+    // below grew from four to eleven and then to fourteen because the moves themselves grew, not
+    // because a pair unlocked anything a single clear could not.
     const pairs: string[] = [];
     for (let left = 0; left < CLEARABLE.length; left += 1) {
       for (let right = left + 1; right < CLEARABLE.length; right += 1) {
@@ -383,9 +370,6 @@ describe("Q1 — the legal-resize population, enumerated independently", () => {
       "A|0.30@300",
       "A|0.30@400",
       "A|0.30@450",
-      // ADR 0037's merge, and the only two taps in the kitchen that need one.
-      "A|0.30@700",
-      "A|0.30@800",
       "A|0.75@200",
       "A|0.75@400",
       "A|0.75@450",

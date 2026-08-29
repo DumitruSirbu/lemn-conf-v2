@@ -173,15 +173,9 @@ describe("the anti-invariant: frozen columns through a resize", () => {
   it("would report the whole resized column as free space", () => {
     // Demonstrated rather than asserted in the abstract. Run the resize's design through the frozen
     // map the store holds for every *other* command and `A|1.30` still carries the regions of three
-    // bodies that have moved to `A|1.20` — openings on a stretch of wall where the sink and two
-    // cabinets are standing — while the space at `A|2.00` is counted a second time.
-    //
-    // **Re-measured 2026-08-29 for ADR 0037.** The six keyed openings are now three: with no record
-    // left under either key, `A|1.30` (0.90–1.70) and `A|2.00` (1.70–2.30) are two adjacent empty
-    // columns, so the merge unites them into one 1400 mm space at `A|1.60`. The defect this row
-    // exists to name is unchanged and is if anything starker — one wide opening drawn straight
-    // across three standing bodies — and the count below moved because the merge did it, not because
-    // the frozen map got any less wrong.
+    // bodies that have moved to `A|1.20` — three openings on a stretch of wall where the sink and
+    // two cabinets are standing — while the empty column at `A|2.00` is counted a second time at
+    // its old 600 mm.
     const world = kitchenWithEmptyColumn();
     const result = resizeTo(world, "p0", 600);
     expect(result.ok).toBe(true);
@@ -190,9 +184,12 @@ describe("the anti-invariant: frozen columns through a resize", () => {
     const frozen = advance(world, result.design);
 
     expect(openingKeys(frozen.voids)).toEqual([
-      "A|1.60@0.000+0.860",
-      "A|1.60@1.500+0.700",
-      "A|1.60@2.200+0.400",
+      "A|1.30@0.000+0.860",
+      "A|1.30@1.500+0.700",
+      "A|1.30@2.200+0.400",
+      "A|2.00@0.000+0.860",
+      "A|2.00@1.500+0.700",
+      "A|2.00@2.200+0.400",
     ]);
     expect(
       frozen.voids.filter((opening) => overlapsBody(opening, frozen.records)),
@@ -201,37 +198,23 @@ describe("the anti-invariant: frozen columns through a resize", () => {
 });
 
 describe("a delete after a resize produces openings at the resized width", () => {
-  it("merges the cleared column with the space that funded it, at the widths they now stand", () => {
-    // **Re-measured 2026-08-29 for ADR 0037, and this row is now the rule's headline case.** The
-    // resize left `A|1.20` at 600 mm (0.90–1.50) and the space that funded it at 800 mm (1.50–2.30).
-    // Clearing `A|1.20` empties both, they abut, and they merge: **one 1400 mm space at `A|1.60`**,
-    // not a 600 beside an 800.
-    //
-    // That is backlog 2 verbatim — *"clearing two adjacent cabinets gives two separate openings,
-    // never one"* — and what the merge buys is freedom over the **number and position** of the
-    // cabinets in that span. It does not buy a 1400 mm cabinet: 800 mm still caps every one of them
-    // (ADR 0037), so the span takes an 800 and a 600, or 600 + 400 + 400, or is simply left.
-    //
-    // The old assertion (three 600 mm openings under `A|1.20`, nothing under `A|1.30`) is kept in
-    // substance: the openings still stand where the column *now* is rather than at its old key, and
-    // the widths below say so.
+  it("gives 600 mm openings where the column now stands, not 800 at the old key", () => {
     const resized = applyResize(kitchenWithEmptyColumn(), "p0", 600);
 
     const cleared = clearBodies(resized, ["p0", "p11", "p17"]);
 
-    const opened = cleared.voids.filter((record) => record.col === "A|1.60");
+    const opened = cleared.voids.filter((record) => record.col === "A|1.20");
     expect(
       opened.map((record) => [
         Math.round(record.y0 * 1000),
         Math.round(record.w * 1000),
       ]),
     ).toEqual([
-      [0, 1400],
-      [1500, 1400],
-      [2200, 1400],
+      [0, 600],
+      [1500, 600],
+      [2200, 600],
     ]);
     expect(cleared.voids.some((record) => record.col === "A|1.30")).toBe(false);
-    expect(cleared.voids.some((record) => record.col === "A|1.20")).toBe(false);
   });
 });
 
