@@ -141,6 +141,22 @@ cabinet is centered looking from front (centered by width)."* That is what
 [ADR 0033](0033-door-count-is-derived-from-width-not-declared.md)'s second amendment had it doing
 before this wave gave it a cabinetry bound.
 
+**A hood sets its column's floor, and that is what keeps it from overhanging** (owner, 2026-08-29).
+Wave 5D2b shipped the exemption without one and product-logic review measured the consequence: a
+600 mm hood over a run shrinking to 550 re-centres 25 mm left and lands *inside* the cabinet beside
+it — 200 mm buried by the eighth step, two solid bodies intersecting, with nothing bounding it.
+§5.4's "overlap is unrepresentable" was simply false.
+
+The owner's answer is not a guard but a bound: *"if 600 is minimum for the hood, then it is logic to
+set the minimum 600 mm, and grey out the −50 button."* **A column holding a hood cannot be narrowed
+below that hood's own width.** The run is therefore never narrower than the hood, the hood never
+overhangs its own column, and the overlap stops being a state the model can reach rather than one a
+check has to catch. The `−50` disables at the hood's width, carrying that as its reason, exactly as
+it does at any other floor.
+
+So the hood is exempt from *following* the column's width and not from *constraining* it — those are
+two different memberships, and only the first was retired.
+
 **It stays a member of its column** — owner: *"without separating it again from cabinets."* The
 exemption is from the width rule alone, not from the model. ADR 0038 deleted the machinery that
 would have made the hood a separate kind of thing, and it is not coming back for this.

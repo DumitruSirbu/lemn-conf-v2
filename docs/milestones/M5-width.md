@@ -1060,7 +1060,20 @@ Two behavioural rules from ADR 0035, both in `setWidth`.
 These are measured together on the shipped kitchen, not separately, because every path through them
 starts from a delete today and stops needing to after this sub-wave.
 
-### Open, and blocking nothing — the hood's overhang onto a neighbour
+### ANSWERED 2026-08-29 — the hood's overhang onto a neighbour
+
+**A column holding a hood cannot be narrowed below that hood's width**, and the `−50` greys out
+there (owner: *"if 600 is minimum for the hood, then is logic to set the minimum 600 mm, and grey
+out the −50mm button"*). The overhang becomes unreachable rather than guarded: the run is never
+narrower than the hood. Recorded in ADR 0035 decision 6's amendment. QA's FINDING C un-skips as the
+assertion that the shrink is refused.
+
+**And ADR 0037's merge is assigned to this wave** (owner: *"merge the gaps"*), because six presses
+free 300 mm of wall as six unusable 50 mm slivers — "shrinking creates space" is only true with it.
+
+Original framing, kept because it records what was uncertain:
+
+### Superseded — the hood's overhang onto a neighbour
 
 Wave 5D2b's QA found it and it has no answer in any record. ADR 0035 decision 6 keeps a hood's width
 and re-centres it, so a shrinking run leaves the hood overhanging **both** edges — the vacated strip
