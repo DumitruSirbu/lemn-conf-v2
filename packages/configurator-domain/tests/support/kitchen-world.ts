@@ -6,10 +6,10 @@
 // cannot be passing because the columns quietly moved.
 import type { Design } from "../../src/design.js";
 import {
+  columnsAfterMutation,
   deriveColumns,
   derivePlacementRecords,
   recomputeVoids,
-  withCurrentFullHeightMembers,
   type BodyCatalog,
   type Column,
   type PlacementRecord,
@@ -57,17 +57,21 @@ export function advancePast(
 }
 
 /** Applies a command's design to the world exactly as the store must: records and voids are
- *  re-derived, the columns' **extent** is not, and their `hasFullHeightUnder` is re-answered from
- *  the new records — the one column field that describes what stands there now rather than how far
- *  the run reaches. */
+ *  re-derived, the columns' **extent** is not, and `columnsAfterMutation` does the two things the
+ *  store's `resolveColumns` does — ADR 0037's merge of adjacent empty columns, then
+ *  `hasFullHeightUnder` re-answered from the new records.
+ *
+ *  `voids` are recomputed against the merged map, not the frozen one, or a delete that merged two
+ *  columns would still derive the two openings it had before. */
 export function advance(world: KitchenWorld, design: Design): KitchenWorld {
   const records = derivePlacementRecords(design, world.catalog);
+  const columns = columnsAfterMutation(world.columns, records);
   return {
     ...world,
     design,
     records,
-    columns: withCurrentFullHeightMembers(world.columns, records),
-    voids: recomputeVoids(records, world.columns),
+    columns,
+    voids: recomputeVoids(records, columns),
   };
 }
 

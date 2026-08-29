@@ -343,12 +343,25 @@ describe("Q1 — the legal-resize population, enumerated independently", () => {
     expect(total).toBe(230);
   });
 
-  it("opens no new column move when a second column is cleared", () => {
-    // Untested territory: 36 pairs. Every accepted tap is still one of the single-clear moves, so
-    // clearing more space widens the population of *situations* and never the population of moves.
-    // That claim is what this row protects, and neither ADR 0033 nor ADR 0035 touched it — the list
-    // below grew from four to eleven and then to fourteen because the moves themselves grew, not
-    // because a pair unlocked anything a single clear could not.
+  it("opens two new column moves when a second column is cleared, and only through the merge", () => {
+    // Untested territory: 36 pairs.
+    //
+    // **Re-measured 2026-08-29, and the claim this row used to protect is now false by design.** It
+    // asserted that every accepted tap was still one of the single-clear moves — that clearing more
+    // space widens the population of *situations* and never the population of *moves*. ADR 0037
+    // retires that: two adjacent cleared columns **merge into one space**, and a run beside the
+    // merged span can now grow into width neither of them could fund alone.
+    //
+    // Exactly two taps are new, both on `A|0.30`: **@700 and @800**. `A|0.30` is 300 mm wide with
+    // `A|0.75` (600 mm) beside it and `A|1.30` (800 mm) beyond that, so clearing the pair puts a
+    // single 1400 mm space against its right edge — where clearing `A|0.75` alone caps the growth at
+    // 900. Nothing else in the kitchen gains anything: the other 35 pairs are non-adjacent, or their
+    // merged span abuts a column that cannot use it.
+    //
+    // Two, and both accounted for, is what makes this a measurement rather than a hole. The list
+    // below grew from four to eleven to fourteen because the *moves* grew; this is the first time it
+    // grew because a *pair* unlocked something a single clear could not, and ADR 0037 is the record
+    // that says it should.
     const pairs: string[] = [];
     for (let left = 0; left < CLEARABLE.length; left += 1) {
       for (let right = left + 1; right < CLEARABLE.length; right += 1) {
@@ -370,6 +383,9 @@ describe("Q1 — the legal-resize population, enumerated independently", () => {
       "A|0.30@300",
       "A|0.30@400",
       "A|0.30@450",
+      // ADR 0037's merge, and the only two taps in the kitchen that need one.
+      "A|0.30@700",
+      "A|0.30@800",
       "A|0.75@200",
       "A|0.75@400",
       "A|0.75@450",
@@ -693,10 +709,17 @@ describe("Q5 — a column's legal widths are the intersection of its members' se
     expect(disjoint).toEqual([]);
   });
 
-  it("lets the column the hood used to freeze resize, and leaves the hood alone", () => {
-    // The same fixture the row above retired, built honestly — a 600 mm hood rather than the 300 mm
-    // one the old disjoint case needed, because a hood is not made at 300. `a-base` is the
-    // 300 mm bottle cargo ADR 0026 exists for, and the hood hangs over it.
+  it("freezes a column whose hood is wider than anything its members are built at", () => {
+    // **Re-measured 2026-08-29.** This asserted the 300 mm bottle cargo under a 600 mm hood shrinking
+    // to 200, on the reading that a hood constrains nothing. ADR 0035 decision 6's amendment says a
+    // hood **floors** its column, and 200 is 400 mm under this hood — the extreme of the overhang the
+    // owner's floor exists to make unreachable.
+    //
+    // The consequence is worth stating rather than discovering: `base-bottle-cargo` is built at 200
+    // and 300 only (ADR 0026), both below the hood's 600, so the floor leaves this column **no legal
+    // width at all** and it is frozen in both directions. That is a coherent answer to an incoherent
+    // fixture — a 600 mm hood over a 300 mm bottle cargo is not a kitchen anyone builds — and it is
+    // reachable only by seeding it, never by resizing into it, precisely because of this floor.
     const world = clearBodies(
       syntheticWorld([
         placementAt("a-base", 700, 0, "base-bottle-cargo", 300, 860),
@@ -707,17 +730,11 @@ describe("Q5 — a column's legal widths are the intersection of its members' se
       ["b-base", "b-wall"],
     );
 
-    const result = resizeTo(world, "a-base", 200);
+    const refused = resizeTo(world, "a-base", 200);
 
-    expect(result.ok).toBe(true);
-    if (!result.ok) return;
-    const after = result.design.placements;
-    expect(after.find((p) => p.id === "a-base")?.body.widthMm).toBe(200);
-    // The hood keeps its 600 and re-centres on the run beneath it, which has moved to 600 mm.
-    const hood = after.find((placement) => placement.id === "a-wall");
-    const base = after.find((placement) => placement.id === "a-base");
-    expect(hood?.body.widthMm).toBe(600);
-    expect(hood?.alongMm).toBe(base?.alongMm);
+    expect(refused.ok).toBe(false);
+    if (refused.ok) return;
+    expect(refused.reason.code).toBe("WIDTH_NOT_SUPPORTED");
   });
 
   it("FINDING Q1.3: does not let a 'fit' member narrow the intersection", () => {

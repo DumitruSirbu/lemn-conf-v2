@@ -9,10 +9,10 @@
 // No product rule lives here. Every guard is in the domain command that produced the result; this
 // module only re-derives what the design implies and decides which existing thing is selected.
 import {
+  columnsAfterMutation,
   derivePlacementRecords,
   findVacatedVoid,
   recomputeVoids,
-  withCurrentFullHeightMembers,
   type BodyCatalog,
   type Column,
   type CommandEffect,
@@ -93,7 +93,7 @@ export function applyCommandResult(
  *  gets `hasFullHeightUnder` re-answered over them (ADR 0011 Gap D).
  *
  *  The resized map arrives already current — `moveFrozenColumns` ends in the same
- *  `withCurrentFullHeightMembers` — so re-applying it here would be a second author for one field.
+ *  `columnsAfterMutation` — so re-applying it here would be a second author for two fields.
  *  The reason the command owns this and the store does not is in `BodyResizedEffect`: *which* keys
  *  may change is a rule about the move, and a store that re-derived globally would make §10's delete
  *  produce no openings at all.
@@ -107,7 +107,9 @@ function resolveColumns(
   records: readonly PlacementRecord[],
 ): ReadonlyMap<string, Column> {
   if (effect.type === "body_resized") return effect.columns;
-  return withCurrentFullHeightMembers(frozen, records);
+  // ADR 0037's merge lands here as well as in the resize, because the delete is the path backlog 2
+  // reported it from: clearing two neighbouring columns gave two openings, never one.
+  return columnsAfterMutation(frozen, records);
 }
 
 /** §5.1's closing step and the milestone's "selection never dangles" criterion, as one function:

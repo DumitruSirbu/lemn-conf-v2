@@ -78,5 +78,21 @@ where the reason for it lives.
 - **It does not reopen free-form width.** Backlog 2 rejected option C, and ADR 0035's 50 mm stepper
   is option B at a finer module — discrete steps against a fixed ceiling, not a numeric field. A
   merged space is bounded by the same 800 as everything else.
-- **Wave assignment is open.** It is not required by 5D2, 5E or 5F, and it is large enough to be its
-  own wave. Whether it lands in M5 or after is the owner's call on scope.
+- ~~**Wave assignment is open.**~~ **Assigned to wave 5D2b and shipped there, 2026-08-29** (owner:
+  *"merge the gaps"*). It stopped being optional the moment ADR 0035 decision 7 landed: six presses
+  of `−50` on an ordinary 600 mm cabinet freed 300 mm of wall as **six separate 50 mm columns**,
+  because each shrink created a new strip rather than widening the one before it. "Shrinking creates
+  space" is only true with this decision, so the two shipped together.
+
+  Two things landed. `evaluateEmptySpace` stopped applying `MIN_W` to a **shrink** — the floor guards
+  *making* a sliver, and returning space to a strip can only unmake one, so enforcing it there was
+  what sent every press to `vacatedEmptySpace` for a fresh strip (product-logic review R3.10 had
+  called that pair incoherent: the floor enforced where it did harm and waived where it made the
+  sliver). And `mergeAdjacentEmptyColumns` in `void-engine.ts` unites two abutting columns that are
+  empty at every level, applied through `columnsAfterMutation` wherever a command settles the map —
+  so the delete path this decision was reported from merges too.
+
+  Measured on the shipped kitchen: clearing `A|1.30` and `A|2.00` now gives **one 1400 mm space**
+  where it gave an 800 beside a 600, and the pairs census in `qa-w5c.adversarial.test.ts` gained two
+  accepted taps (`A|0.30@700`, `A|0.30@800`) — the first time in this milestone that clearing a
+  *pair* unlocked a move a single clear could not.

@@ -706,9 +706,7 @@ function refuseIllegalWidth(
  *  pair. The branch stays because the intersection of declared ranges is not the engine's to assume
  *  non-empty; the sentence then falls back to the chips, which is the truthful thing to say when
  *  there is no common bound. */
-function intersectColumnRanges(
-  column: ColumnUnit,
-): readonly WidthRangeMm[] {
+function intersectColumnRanges(column: ColumnUnit): readonly WidthRangeMm[] {
   const perMember = column.members.map((member) =>
     resolveWidthRangesMm(member.body),
   );
@@ -877,7 +875,9 @@ interface FundingAttempt {
  *
  *  Ordered rather than chosen, and returning space to an existing opening wins: stepping a column
  *  down and back up puts the width back where it came from instead of leaving a sliver beside a
- *  widened opening.
+ *  widened opening. That ordering is also what makes ADR 0037's merge fall out of the stepper —
+ *  the second `−50` widens the strip the first one made instead of parking a second beside it — and
+ *  it only started working when `evaluateEmptySpace` stopped applying `MIN_W` to a shrink.
  *
  *  **Creation is a last resort, not a fallback.** It is offered only when neither side has an empty
  *  column at all — not when one has one that then refuses. A shrink stopped by `RESIZE_OPENS_GAP`
@@ -919,21 +919,16 @@ function fundingScan(
  *  to have empty space left" (ADR 0037). The floor stays where it was, on a growth consuming space
  *  that was already there.
  *
- *  `undefined` on a growth, which has nothing to vacate, and on a delta of zero.
+ *  `undefined` on a growth, which has nothing to vacate, and on a delta of zero. **Nothing else**:
+ *  the strip's key colliding with one the frozen map holds is `refuseKeyCollision`'s question and no
+ *  longer this function's, since clean-code review R3.5 gave the pair one guard. It is not
+ *  theoretical either — measured on the shipped kitchen, narrowing `A|0.30` to 300 vacates 0.30–0.60,
+ *  whose centre keys as `A|0.45`, the corner leg `p25`'s column — and it is refused there rather than
+ *  nudged to a free key, which would put the empty column somewhere the cabinets did not vacate.
  *
- *  **And `undefined` when the strip's key is one the frozen map already holds**, which is the one
- *  way this can go wrong and is not theoretical: measured on the shipped kitchen, narrowing `A|0.30`
- *  to 300 vacates 0.30–0.60, whose centre keys as `A|0.45` — the corner leg `p25`'s column, 900 mm
- *  wide and spanning the whole of it. §3.2's columns may overlap along the wall, so a strip inside
- *  another column's extent is a legal piece of geometry; what is not legal is *writing* it into the
- *  map, because `moveFrozenColumns` would replace the corner's frozen extent with a 300 mm one and
- *  ADR 0011 Gap D's regions would go with it.
- *
- *  Refused rather than merged, and rather than nudged to a free key. Merging is the open question
- *  M5 records under *Not established* — "whether a resize should merge into an existing column key
- *  or refuse" — and this is not the wave to answer it; nudging would put the empty column somewhere
- *  the customer's cabinets did not vacate. The shrink simply does not happen, under `NO_EMPTY_SPACE`
- *  with both sides recorded absent, which is the truth: there is nowhere to put the space. */
+ *  **ADR 0037's merge does not reach that case and is not meant to.** It unites two *empty* columns;
+ *  a strip landing inside an *occupied* column's extent is the different question M5 still records
+ *  under *Not established* — "whether a resize should merge into an existing column key or refuse". */
 function vacatedEmptySpace(
   input: SetWidthInput,
   plan: ColumnPlan,

@@ -5,8 +5,9 @@
 // stands where, so every test here is about the map and the geometry it names rather than about the
 // placement widths the implementer's own tests already pin.
 //
-// **Three of these fail, and they are findings, not fixtures to repair.** They are left failing
-// deliberately (`docs/WORKFLOW.md`, *QA is adversarial*).
+// **Three of these failed when QA wrote them; all three are closed.** FINDING C was the last, and it
+// was an open product decision rather than a defect — the owner answered it on 2026-08-29 and the row
+// below now asserts the answer.
 import { describe, expect, it } from "vitest";
 
 import type { DesignPlacement } from "../../src/design.js";
@@ -292,10 +293,10 @@ describe("FINDING B — the hood exemption must not let a real phantom opening t
   });
 });
 
-describe("FINDING C — a re-centring hood is pushed through the cabinet next door", () => {
+describe("FINDING C — a re-centring hood may not be pushed through the cabinet next door", () => {
   // ADR 0035 decision 6 as amended keeps the hood's width and re-centres it on the run. When the run
   // shrinks, the hood therefore overhangs **both** edges — the vacated strip on one side, and
-  // whatever is standing on the other. Nothing checks the far side.
+  // whatever is standing on the other. Nothing checked the far side.
   //
   // A wall cabinet at 400 (100–700) beside a 600 mm run at 1000 (700–1300) carrying a 600 mm hood.
   // Shrinking the run to 300 leaves the run at 700–1000 and the hood at 550–1150: 150 mm of hood
@@ -317,27 +318,60 @@ describe("FINDING C — a re-centring hood is pushed through the cabinet next do
     );
   });
 
-  // **SKIPPED, and it is an open product decision rather than a passing or failing test.** ADR 0039
-  // sanctions the hood overhanging; it says nothing about the overhang landing on a *cabinet*. The
-  // owner has the question: refuse a shrink that would push the hood into a neighbour, allow the
-  // overlap, or clamp the hood to the space actually available. Un-skip it the day that is decided —
-  // whichever way, this is the assertion that changes.
+  // **DECIDED 2026-08-29, and un-skipped as the assertion that the shrink is refused.** QA left this
+  // skipped because ADR 0039 sanctions the hood overhanging and says nothing about the overhang
+  // landing on a *cabinet*, so the three answers — refuse the shrink, allow the overlap, clamp the
+  // hood — were a product question rather than a defect.
   //
-  // Skipped rather than deleted or left red: the suite must be green to be trusted, and this is a
-  // measurement worth keeping exactly as QA wrote it.
-  it.skip("leaves nothing interpenetrating after the shrink", () => {
+  // The owner chose none of the three as a guard: *"if 600 is minimum for the hood, then is logic to
+  // set the minimum 600 mm, and grey out the −50mm button."* **The floor makes the state
+  // unreachable**, which is why the assertion below is a refusal and not a geometry check. A column
+  // holding a 600 mm hood cannot be narrowed to 300, so there is no "after the shrink" to inspect —
+  // and the `−50` carries that as its reason before the tap, per ADR 0032, rather than failing on it.
+  it("refuses the shrink that would push it there", () => {
     const world = hoodBesideACabinet();
 
     const result = resizeTo(world, "run-base", 300);
 
-    expect(result.ok).toBe(true);
-    if (!result.ok) return;
-    const after = advanceWithColumns(
-      world,
-      result.design,
-      result.effect.columns,
-    );
-    expect(findInterpenetratingBodies(after.records)).toEqual([]);
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.reason.code).toBe("WIDTH_NOT_SUPPORTED");
+  });
+
+  it("still refuses at the first step past the hood's width, not only at the extreme", () => {
+    // 550 is the tap a customer actually makes: one press of `−50` from 600. It re-centred the hood
+    // 25 mm into the neighbour, and eight presses buried 200 mm of it. One press is refused for the
+    // same reason the eighth is.
+    const world = hoodBesideACabinet();
+
+    const result = resizeTo(world, "run-base", 550);
+
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.reason.code).toBe("WIDTH_NOT_SUPPORTED");
+  });
+
+  it("leaves nothing interpenetrating at any width the column still accepts", () => {
+    // The invariant behind the refusal, swept rather than argued: every width the run can still
+    // reach leaves the hood inside it, so no accepted move produces the overlap.
+    const world = hoodBesideACabinet();
+    const violations: string[] = [];
+
+    for (const widthMm of STEPS) {
+      const result = resizeTo(world, "run-base", widthMm);
+      if (!result.ok) continue;
+      const after = advanceWithColumns(
+        world,
+        result.design,
+        result.effect.columns,
+      );
+      violations.push(
+        ...findInterpenetratingBodies(after.records).map(
+          (problem) => `@${String(widthMm)}: ${problem}`,
+        ),
+      );
+    }
+    expect(violations).toEqual([]);
   });
 });
 
