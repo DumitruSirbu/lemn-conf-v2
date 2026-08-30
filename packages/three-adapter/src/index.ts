@@ -26,6 +26,8 @@ export {
   setHandlesVisible,
 } from "./decomposed-bodies.js";
 
+export { buildKitchenShell } from "./kitchen-shell.js";
+
 export {
   buildCatalogBody,
   CATALOG_BUILD_IDS,
