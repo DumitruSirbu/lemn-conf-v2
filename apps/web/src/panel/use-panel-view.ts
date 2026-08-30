@@ -20,7 +20,7 @@ import { useMemo } from "react";
 import { useConfiguratorStore } from "@/store/configurator-store";
 
 import { describePanel, type PanelView } from "./panel-model";
-import { widthStepsFor, type WidthSteps } from "./width-steps";
+import { widthStepsFor, type WidthSteps } from "@lemnaria/configurator-domain";
 
 export function usePanelView(): PanelView {
   const meta = useSelectionMeta();

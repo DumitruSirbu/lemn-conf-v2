@@ -30,7 +30,7 @@ import type { WriteAccess } from "@/store/configurator-store";
 import { ro } from "@/content/ro";
 
 import { findCabinetThumbnailUrl } from "./cabinet-thumbnails";
-import type { WidthSteps } from "./width-steps";
+import type { WidthSteps } from "@lemnaria/configurator-domain";
 
 export interface PanelHeader {
   readonly label: string;

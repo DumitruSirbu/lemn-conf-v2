@@ -28,7 +28,7 @@ import { describe, expect, it } from "vitest";
 import { offeredBuildIds } from "../support/offers";
 
 import { describePanel, type PanelSection } from "@/panel/panel-model";
-import { widthStepsFor } from "@/panel/width-steps";
+import { widthStepsFor } from "@lemnaria/configurator-domain";
 
 import { ro } from "@/content/ro";
 

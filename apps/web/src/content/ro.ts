@@ -189,7 +189,7 @@ export const ro = {
      *  M4 shipped "nu este încă disponibilă în această versiune", which wave 5D made a lie the
      *  moment the chips became clickable. Wave 5D replaced it with ADR 0031's rule and the clause
      *  "Sub 300 mm nu se coboară" — true of most cabinetry and **false as a universal**: ADR 0026's
-     *  bottle cargo goes to 200, ADR 0017's sink column floors at 600, and since wave 5D2b a hood
+     *  bottle cargo goes to 200, ADR 0017's sink column floors at 560, and since wave 5D2b a hood
      *  floors its column at its own width. Three different floors, none of them 300 everywhere.
      *
      *  So this version states only what is true of every selection — the step, and where the space
@@ -198,12 +198,12 @@ export const ro = {
      *  arrangement: the reason belongs on the control that refuses, not in a note above it. */
     widthStepNote:
       "Lățimea se schimbă din 50 în 50 mm, mutând granița coloanei în spațiul liber alăturat — întâi în dreapta, apoi în stânga. Când un buton este gri, sub el scrie de ce.",
-    /** ADR 0035 decision 3's other control. It says "doar în lățimile de mai jos" without naming a
+    /** ADR 0035 decision 3's other control. It says "doar în lățimile afișate" without naming a
      *  cause, because the cause is not always an appliance: `base-bottle-cargo` is cabinetry and is
      *  discrete for ADR 0026's own reason, that the proportion is the product. A note claiming an
      *  electrocasnic would be false on it. */
     widthChoiceNote:
-      "Acest corp se face doar în lățimile de mai jos, așa că alegi una dintre ele în loc să reglezi din 50 în 50 mm.",
+      "Acest corp se face doar în lățimile afișate, așa că alegi una dintre ele în loc să reglezi din 50 în 50 mm.",
     /** §11 row 16 and §13.1: a corner return offers nothing at all, so no refusal is ever produced
      *  to carry the explanation. Without this the panel is a header, an empty body and "Gata", and
      *  the rule is satisfied by having deleted the question. Keyed by the reason the catalogue

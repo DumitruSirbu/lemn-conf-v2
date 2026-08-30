@@ -29,6 +29,7 @@ export * from "./commands/set-width.js";
 export * from "./queries/describe-selection.js";
 export * from "./queries/offers.js";
 export * from "./queries/width-options.js";
+export * from "./queries/width-steps.js";
 export * from "./queries/vacated-void.js";
 export * from "./fixtures/kitchen-l-design.js";
 export * from "./serialize-design.js";

@@ -50,7 +50,7 @@ import {
 import { describe, expect, it } from "vitest";
 
 import { describePanel, type WidthStepperSection } from "@/panel/panel-model";
-import { widthStepsFor } from "@/panel/width-steps";
+import { widthStepsFor } from "@lemnaria/configurator-domain";
 
 import { createFakeBodyProbe } from "../support/fake-body-probe";
 

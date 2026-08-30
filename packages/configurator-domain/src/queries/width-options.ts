@@ -65,7 +65,7 @@ export interface WidthOptionsInput extends ColumnWidthChoicesInput {
  *
  *  A constant rather than a clock, on purpose: a query that read the time would return a different
  *  value on every call, and the panel memoises on its inputs. */
-const DISCARDED_OCCURRED_AT = "1970-01-01T00:00:00.000Z";
+export const DISCARDED_OCCURRED_AT = "1970-01-01T00:00:00.000Z";
 
 /** Every width §9 may render a chip for on this selection, each carrying the engine's verdict.
  *

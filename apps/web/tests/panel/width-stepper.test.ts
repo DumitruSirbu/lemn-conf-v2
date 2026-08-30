@@ -36,7 +36,7 @@ import {
 import { describe, expect, it } from "vitest";
 
 import { describePanel, type WidthSection } from "@/panel/panel-model";
-import { widthStepsFor, WIDTH_STEP_MM } from "@/panel/width-steps";
+import { widthStepsFor, WIDTH_STEP_MM } from "@lemnaria/configurator-domain";
 
 import { createFakeBodyProbe } from "../support/fake-body-probe";
 
