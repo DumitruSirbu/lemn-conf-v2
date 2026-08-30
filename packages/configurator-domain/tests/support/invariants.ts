@@ -47,18 +47,13 @@ function describe(record: { readonly col: string; readonly y0: number }) {
   return `${record.col}@${record.y0.toFixed(3)}`;
 }
 
-function bodiesOf(records: readonly PlacementRecord[]): PlacementRecord[] {
-  return records.filter((record) => !record.accessory);
-}
-
 /** §3.1: two bodies cannot occupy the same vertical run of the same column. */
 function findOverlappingPlacements(
   records: readonly PlacementRecord[],
 ): string[] {
   const violations: string[] = [];
-  const bodies = bodiesOf(records);
-  for (const left of bodies) {
-    for (const right of bodies) {
+  for (const left of records) {
+    for (const right of records) {
       if (left.id >= right.id) continue;
       if (left.col !== right.col) continue;
       const leftTop = left.frame.y0 + left.frame.h;
@@ -102,7 +97,7 @@ function findBodiesAboveColumnTop(
   records: readonly PlacementRecord[],
   columns: ReadonlyMap<string, Column>,
 ): string[] {
-  return bodiesOf(records).flatMap((record) => {
+  return records.flatMap((record) => {
     const column = columns.get(record.col);
     if (!column) return [`${record.id} sits in unknown column ${record.col}`];
     const top = record.frame.y0 + record.frame.h;

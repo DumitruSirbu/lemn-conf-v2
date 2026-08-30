@@ -61,7 +61,7 @@ type RecordOverrides = Partial<Omit<PlacementRecord, "frame">> & {
 
 function makeRecord(overrides: RecordOverrides): PlacementRecord {
   return {
-    buildId: "wall-2door",
+    buildId: "wall-cabinet",
     kind: "wall_cabinet",
     col: "A|2.00",
     wall: "A",
@@ -74,7 +74,6 @@ function makeRecord(overrides: RecordOverrides): PlacementRecord {
     canReplace: true,
     canDelete: true,
     fixedWidth: false,
-    accessory: false,
     ...overrides,
     frame: {
       x: 2,
@@ -254,7 +253,7 @@ describe("syncSolidBodies", () => {
   it("returns to its baseline geometry count over ten add/remove cycles", () => {
     const records = [
       makeRecord({ id: "p1" }),
-      makeRecord({ id: "p2", buildId: "base-2door", frame: { x: 3, y0: 0 } }),
+      makeRecord({ id: "p2", buildId: "base-cabinet", frame: { x: 3, y0: 0 } }),
     ];
     sync(records);
     const perCycle = countDisposableGeometries(solidsRoot);

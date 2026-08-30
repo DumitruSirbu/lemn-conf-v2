@@ -61,7 +61,7 @@ describe("insertBody — a probe that measured nothing", () => {
         insertInto(
           world,
           baseSlot(),
-          "base-2door",
+          "base-3drawer",
           probeReturning({ ...HONEST_MEASUREMENT, seatOffsetM }),
         );
       expect(run).not.toThrow();
@@ -82,7 +82,7 @@ describe("insertBody — a probe that measured nothing", () => {
     const result = insertInto(
       world,
       baseSlot(),
-      "base-2door",
+      "base-3drawer",
       probeReturning(HONEST_MEASUREMENT),
     );
     expect(result.ok).toBe(true);
@@ -106,7 +106,7 @@ describe("insertBody — a probe that measured nothing", () => {
       const result = insertInto(
         world,
         baseSlot(),
-        "base-2door",
+        "base-3drawer",
         probeReturning({ ...HONEST_MEASUREMENT, carcassWidthM }),
       );
       expect(result.ok).toBe(false);
@@ -129,13 +129,13 @@ describe("insertBody — what it asks the probe for", () => {
     const result = insertInto(
       world,
       { kind: "void", id: opening.id },
-      "base-2door",
+      "base-3drawer",
       probe,
     );
     expect(result.ok).toBe(true);
     expect(probe.requests).toEqual([
       {
-        buildId: "base-2door",
+        buildId: "base-3drawer",
         widthM: 0.7,
         heightM: 0.86,
         depthM: opening.d,
@@ -148,7 +148,7 @@ describe("insertBody — what it asks the probe for", () => {
     const result = insertInto(
       world,
       { kind: "void", id: voidAt(world, FRIDGE_COLUMN, 0).id },
-      "base-2door",
+      "base-3drawer",
       createFakeProbe({ seatOffsetM: 0.2895 }),
     );
     expect(result.ok).toBe(true);
@@ -165,7 +165,7 @@ describe("insertBody — what it asks the probe for", () => {
     insertInto(
       world,
       { kind: "void", id: voidAt(world, FRIDGE_COLUMN, 0).id },
-      "base-2door",
+      "base-3drawer",
       probe,
     );
     expect(probe.requests).toHaveLength(1);
@@ -177,7 +177,7 @@ describe("insertBody — what it asks the probe for", () => {
     const result = insertInto(
       world,
       { kind: "void", id: voidAt(world, FRIDGE_COLUMN, 2.2).id },
-      "base-2door",
+      "base-3drawer",
       probe,
     );
     expect(result.ok).toBe(false);

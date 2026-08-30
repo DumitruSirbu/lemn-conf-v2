@@ -80,8 +80,6 @@ export {
   isDragGesture,
   LINE_RAYCAST_THRESHOLD_M,
   pick,
-  resolveHostPlacementId,
-  resolveSelection,
   type PointerPixel,
   type Selection,
   type SelectionKind,

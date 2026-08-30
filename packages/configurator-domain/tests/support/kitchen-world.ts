@@ -6,10 +6,10 @@
 // cannot be passing because the columns quietly moved.
 import type { Design } from "../../src/design.js";
 import {
+  withCurrentFullHeightMembers,
   deriveColumns,
   derivePlacementRecords,
   recomputeVoids,
-  withCurrentFullHeightMembers,
   type BodyCatalog,
   type Column,
   type PlacementRecord,
@@ -57,17 +57,22 @@ export function advancePast(
 }
 
 /** Applies a command's design to the world exactly as the store must: records and voids are
- *  re-derived, the columns' **extent** is not, and their `hasFullHeightUnder` is re-answered from
- *  the new records — the one column field that describes what stands there now rather than how far
- *  the run reaches. */
+ *  re-derived, the columns' **extent** is not, and `withCurrentFullHeightMembers` does the one thing
+ *  the store's `resolveColumns` does — `hasFullHeightUnder` re-answered from the new records.
+ *
+ *  `voids` are recomputed against the map this returns rather than `world.columns`, so the fixture
+ *  derives openings from the same map the store does. With ADR 0037's merge withdrawn the two differ
+ *  only in `hasFullHeightUnder`, so this is about ordering being honest rather than about a
+ *  behaviour difference. */
 export function advance(world: KitchenWorld, design: Design): KitchenWorld {
   const records = derivePlacementRecords(design, world.catalog);
+  const columns = withCurrentFullHeightMembers(world.columns, records);
   return {
     ...world,
     design,
     records,
-    columns: withCurrentFullHeightMembers(world.columns, records),
-    voids: recomputeVoids(records, world.columns),
+    columns,
+    voids: recomputeVoids(records, columns),
   };
 }
 
@@ -89,4 +94,24 @@ export function voidAt(
     );
   }
   return found;
+}
+
+/** Applies an ADR 0031 resize exactly as the store must: the design **and** the column map the
+ *  command published, because the resize is the one operation that legitimately moves bodies between
+ *  columns (ADR 0011 Gap D) — and the only one that moves an **empty** column, which has no member
+ *  for a re-derivation to find. Every other command goes through `advance`, which keeps the extents.
+ */
+export function advanceWithColumns(
+  world: KitchenWorld,
+  design: Design,
+  columns: ReadonlyMap<string, Column>,
+): KitchenWorld {
+  const records = derivePlacementRecords(design, world.catalog);
+  return {
+    ...world,
+    design,
+    records,
+    columns,
+    voids: recomputeVoids(records, columns),
+  };
 }

@@ -12,8 +12,10 @@ import {
   type SlotExtent,
 } from "../bands.js";
 import {
+  acceptsWidthMm,
   buildableSizes,
   describeKindLabel,
+  resolveWidthRangesMm,
   UNKNOWN_KIND_LABEL_RO,
   type InsertableBody,
 } from "../catalog.js";
@@ -29,6 +31,8 @@ import {
   type PlacementRecord,
   type VoidRecord,
 } from "../void-engine.js";
+import { occupiedDepthM } from "../occupied-depth.js";
+import { wallDepthMmForWorktop, WORKTOP_DEPTH_MM } from "../worktop-depth.js";
 import type { CommandTarget } from "./command-result.js";
 import type { RejectionDetail } from "./rejection.js";
 
@@ -36,8 +40,9 @@ import type { RejectionDetail } from "./rejection.js";
  *  carcass is a strip, not a cabinet. */
 export const HEIGHT_FLEX_MIN_OPENING_MM = 400;
 
-/** §7's `min(d, 0.4)` on a wall carcass, as what it actually is: a **head-clearance rule**, not a
- *  geometry limit. `wallCabinet(W, doors, H, D)` builds any depth it is handed.
+/** §7's `min(d, cap)` on a wall carcass, as what it actually is: a **head-clearance rule**, not a
+ *  geometry limit. The cap is the worktop → wall depth map's row for the shipped worktop, never a
+ *  value written down here. `wallCabinet(W, doors, H, D)` builds any depth it is handed.
  *
  *  A wall cabinet above a worktop is shallow so you do not hit your head leaning over the counter.
  *  Above a full-height column there is nothing to lean over, so it may be as deep as the column —
@@ -52,8 +57,15 @@ export const HEIGHT_FLEX_MIN_OPENING_MM = 400;
  *  under the opening — and the adapter cannot see a design. §12: the domain owns product rules, the
  *  adapter owns builders. The builders now build the depth they are given.
  *
- *  Backlog entry 5, decided by the owner on 2026-08-26. */
-export const WALL_CARCASS_MAX_DEPTH_OVER_WORKTOP_M = 0.4;
+ *  Backlog entry 5, decided by the owner on 2026-08-26.
+ *
+ *  **The number itself is the worktop's, not this rule's** (owner, 2026-08-27): it reads the same
+ *  map row as §7's `nominalDepthMm`, so the cap and the catalogue nominal cannot drift apart. They
+ *  were independent literals agreeing at 400 until then, which is why a re-inserted top-row cabinet
+ *  built 400 mm beside 330 mm neighbours. */
+export const WALL_CARCASS_MAX_DEPTH_OVER_WORKTOP_M = toMetres(
+  wallDepthMmForWorktop(WORKTOP_DEPTH_MM),
+);
 
 /** §5.2: a height-flexible body fills an opening this tall or shorter, and otherwise builds its
  *  nominal height. A 750 mm over-fridge slot gets a 750 mm unit; a cleared 2600 mm column does not
@@ -135,13 +147,18 @@ export function openingFromPlacement(
     wall: record.wall,
     alongM: record.wall === "A" ? record.frame.x : record.frame.z,
     w: record.frame.w,
-    d: record.frame.d,
+    d: vacatedOpeningDepthM(record),
     y0,
     h: slot?.h ?? record.frame.h,
     spanY0: slot?.spanY0 ?? record.frame.y0,
     spanH: slot?.spanH ?? record.frame.h,
   };
 }
+
+/** `occupiedDepthM` under the name this call site reads it by: the depth of the space a body
+ *  *vacates*, which is the space the next insert is planned into. The rule itself lives in
+ *  `occupied-depth.ts` and its reasoning in ADR 0040. */
+const vacatedOpeningDepthM = occupiedDepthM;
 
 /** The void that would cover this body if it were removed — §4's own derivation, run once with the
  *  target taken out, so a swap and a delete-then-insert see the identical opening.
@@ -223,7 +240,7 @@ function findOpening(lookup: OpeningLookup): PartialResolution {
     (candidate) => candidate.id === lookup.target.id,
   );
   if (!record) return { ok: false, detail: notFound };
-  if (record.accessory || !record.canReplace) {
+  if (!record.canReplace) {
     return {
       ok: false,
       detail: {
@@ -271,9 +288,12 @@ type WidthResolution =
   | { readonly ok: true; readonly widthM: number }
   | { readonly ok: false; readonly detail: RejectionDetail };
 
-/** §5.2: `w = b.w === 'fit' ? void.w : b.w`, plus the millimetre-set case §7 gives the dishwasher
- *  niche, the four full-height units and the bottle cargo. A fixed-set body takes the widest size
- *  that still fits. */
+/** A discrete row's width: an entry whose every range is a single value, so there is nothing to
+ *  narrow into an opening — it is built at one of its sizes or it is refused.
+ *
+ *  **The hood is not one of them.** It was, while ADR 0033's amendment installed a 600 centred in a
+ *  wider slot; ADR 0035 decision 5 gave it the 600–800 bound every other cabinetry row carries, so
+ *  it resolves on `resolveFitWidth` and fills its opening. It is built at 700 and at 800. */
 function resolveWidth(
   body: InsertableBody,
   opening: InsertOpening,
@@ -289,19 +309,65 @@ function resolveWidth(
   const floorRefusal = refuseWidthFloor(body, opening, availableMm);
   if (floorRefusal) return { ok: false, detail: floorRefusal };
 
-  if (body.widthFlex === "fit") return { ok: true, widthM: opening.w };
+  if (body.widthFlex === "fit")
+    return resolveFitWidth(body, opening, availableMm);
 
   return resolveFixedSetWidth(body, body.widthFlex, opening);
+}
+
+/** §5.2's `w = void.w` for a `'fit'` body — **bounded by the entry's own set where that set is a
+ *  bound** (ADR 0032 rule 4, closing `docs/BACKLOG.md` entry 13).
+ *
+ *  This function used to be the single line `return { ok: true, widthM: opening.w }`, and that line
+ *  is why a 300 mm opening offered `wall-2door` and built one door under a two-door label — ADR 0029
+ *  verbatim, through the path that ADR could not reach. `sizesMm` was consulted by `setWidth` alone,
+ *  so the two halves of one engine answered the same question differently.
+ *
+ *  `acceptsWidthMm` is that one answer, and after ADR 0035 decision 2 it reads the entry's declared
+ *  **ranges** rather than a boolean about its set. A cabinetry row is continuous between its floor
+ *  and its ceiling, so `base-panbank` still fills a 570 mm opening and nothing about §5.2's "fill the
+ *  void" changes for it inside 300–800; what refuses is an opening outside the entry's own bound — a
+ *  fixed appliance size, a fixed aperture, §2's floor, §7's 800 mm ceiling. (A swing arc was on this
+ *  list until the owner retired ADR 0030's 400 mm one-door cap on 2026-08-28; a hinged cabinet's
+ *  bound has no hole in it now, and the width decides the door count rather than the cabinet.)
+ *
+ *  The floors have already run above and are deliberately **first**: `base-sink` in a 400 mm opening
+ *  reads ADR 0017's own sentence, naming the 560 mm its worktop needs, rather than the set sentence
+ *  naming widths that are no longer the point. Two facts, two codes, and the nearer one wins.
+ *
+ *  No tolerance, and no widest-that-fits fallback: the width **is** the opening, so there is nothing
+ *  to choose between and nothing for `FIT_TOLERANCE_M` to forgive. A body that would rather be built
+ *  narrower than its opening declares a millimetre set instead (`resolveFixedSetWidth`). */
+function resolveFitWidth(
+  body: InsertableBody,
+  opening: InsertOpening,
+  availableMm: number,
+): WidthResolution {
+  if (acceptsWidthMm(body, availableMm)) return { ok: true, widthM: opening.w };
+  return {
+    ok: false,
+    detail: refuseFixedWidth(
+      body,
+      buildableSizes(body.minWidthMm, body.sizesMm),
+      availableMm,
+    ),
+  };
 }
 
 /** §7's millimetre-set case — the dishwasher niche, the four full-height units and the bottle
  *  cargo: the widest size this builder can be made at that still fits, or the refusal that says why
  *  none can.
  *
- *  **The hood is not one of them, despite its own `sizesMm`.** `catalog.ts` spreads
- *  `wallCabinet("Hotă")` and overrides `sizesMm` but not `widthFlex`, so the hood inherits `'fit'`
- *  and resolves on the branch above: it builds to its opening at any width, and {600, 900} is only
- *  the chip set §9 offers.
+ *  **The hood is one of them now, and was not until ADR 0033's amendment.** `catalog.ts` used to
+ *  spread `wallCabinet("Hotă")` and override `sizesMm` but not `widthFlex`, so the hood inherited
+ *  `'fit'` and resolved on `resolveFitWidth` — the only row in the catalogue that was both `'fit'`
+ *  and discretely bounded. The consequence was that it *refused* a 700 or 800 mm opening where every
+ *  other discrete row narrows into one, which was a spread rather than a decision (logic review
+ *  R1.2). It declares `widthFlex` now and takes this branch, so a 700 mm slot gets a 600 mm hood,
+ *  centred, exactly as `base-dishwasher` has always put a 600 in a 700.
+ *
+ *  "A 700 mm hood is not a product" is unchanged and still enforced by this branch: the widest size
+ *  that *fits* is chosen from the entry's own set, so the hood is never built at 700.
  *
  *  `sizesMm` is passed in rather than read back off the body so the caller's narrowing carries: by
  *  the time this runs, `widthFlex` is known not to be `'fit'`. */
@@ -429,7 +495,7 @@ function refuseWidthFloor(
   if (opening.w < MIN_WIDTH_M - COORDINATE_EPSILON_M) {
     return {
       code: "WIDTH_NOT_SUPPORTED",
-      params: { label: body.label, sizesMm: body.sizesMm, availableMm },
+      params: widthsMadeParams(body, body.sizesMm, availableMm),
     };
   }
   if (body.widthFlex !== "fit") return undefined;
@@ -477,7 +543,29 @@ function refuseFixedWidth(
   }
   return {
     code: "WIDTH_NOT_SUPPORTED",
-    params: { label: body.label, sizesMm, availableMm },
+    params: widthsMadeParams(body, sizesMm, availableMm),
+  };
+}
+
+/** The parameters `WIDTH_NOT_SUPPORTED` needs to state what an entry is actually made at.
+ *
+ *  The ranges come from `resolveWidthRangesMm`, never from `definition.widthRangesMm` directly:
+ *  that accessor raises a declared range to the floor governing the entry, and reading the raw field
+ *  would be the second code path its doc block warns about — a rule stated in prose and implemented
+ *  once. It also always returns an array, so there is nothing optional to spread.
+ *
+ *  `sizesMm` arrives already filtered by the caller (ADR 0017), and both halves matter: the ranges
+ *  say what the body may be built at, the sizes say which of those §9 offers as chips. */
+function widthsMadeParams(
+  body: InsertableBody,
+  sizesMm: readonly number[],
+  availableMm: number,
+) {
+  return {
+    label: body.label,
+    sizesMm,
+    widthRangesMm: resolveWidthRangesMm(body),
+    availableMm,
   };
 }
 
@@ -599,7 +687,7 @@ export function evaluateInsertFit(input: InsertFitInput): InsertFit {
  *  delete produces: clearing the base cabinets under a wall run then built a 580 mm carcass, the
  *  frozen `Column.d` of the base cabinet the customer had just deleted, beside 330 mm neighbours.
  *
- *  The cap is a maximum and never a target: an opening shallower than 400 mm keeps its own depth,
+ *  The cap is a maximum and never a target: an opening shallower than the cap keeps its own depth,
  *  and a column that answers `hasFullHeightUnder` wrongly can only ever make a body *shallower*
  *  than the opening it stands in. It can never push a body past its opening, which is what keeps
  *  §11 row 19 (the back face lands on the wall plane) out of reach of this rule.

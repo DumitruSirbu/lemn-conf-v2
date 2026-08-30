@@ -27,6 +27,7 @@ function panelFrom(state: ConfiguratorState): OpenPanel {
     meta: occupiedMeta(),
     offers: offers(3),
     rejection: null,
+    widthOptions: [],
     isBodyProbeAttached: true,
     canWrite: state.canWrite,
     saveStatus: state.saveStatus,

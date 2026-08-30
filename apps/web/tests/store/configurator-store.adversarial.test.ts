@@ -19,13 +19,16 @@ import {
 } from "../../src/store/configurator-store";
 import { columnExtents } from "../support/column-extents";
 import { createFakeBodyProbe } from "../support/fake-body-probe";
-import { preMigrationHobDesign } from "../support/pre-migration-hob";
 
 const OCCURRED_AT = "2026-08-25T12:00:00.000Z";
 /** The §10 signature flow's column: the freestanding fridge `p7` (0–1.85) with `p24` above it. */
 const FRIDGE_COLUMN = "B|2.45";
 const HOB_HOST_ID = "p2";
-const HOB_ID = "p3";
+/** An id no longer in any design — `p3` was the hob's own placement until ADR 0027 folded it into
+ *  `p2`'s body. ADR 0027 point 4 **retires the id and forbids its reuse**, which is what makes it
+ *  permanently safe to stand for "resolves to nothing" here: no future seeded body can claim it and
+ *  turn this into a live-target test without that ADR being reopened first. */
+const MISSING_ID = "p3";
 
 interface StoreOverrides {
   readonly onDesignChanged?: (design: Design) => void;
@@ -282,6 +285,8 @@ describe("the §10 signature flow, driven through the store", () => {
     return store;
   }
 
+  /** ADR 0032: the list carries refused rows too, and the panel does not let a customer tap one.
+   *  The claim here is about the rows they *can* tap. */
   function offersForMergedOpening(): string[] {
     const store = clearedFridgeColumn();
     const state = store.getState();
@@ -293,7 +298,9 @@ describe("the §10 signature flow, driven through the store", () => {
       columns: state.columns,
       catalog: KITCHEN_L_BODY_CATALOG,
       target: selection,
-    }).map((offer) => offer.buildId);
+    })
+      .filter((offer) => offer.verdict.status === "offered")
+      .map((offer) => offer.buildId);
   }
 });
 
@@ -370,7 +377,7 @@ describe("hydrate is the only thing that may move the frozen columns", () => {
 describe("lastRejection is transient and never leaks into the design", () => {
   it("is cleared by a success, by select and by deselect", () => {
     const store = createStore();
-    store.getState().select({ kind: "placement", id: HOB_ID });
+    store.getState().select({ kind: "placement", id: MISSING_ID });
 
     store.getState().remove();
     expect(store.getState().lastRejection).not.toBeNull();
@@ -389,7 +396,7 @@ describe("lastRejection is transient and never leaks into the design", () => {
 
   it("appears in no serialised design", () => {
     const store = createStore();
-    store.getState().select({ kind: "placement", id: HOB_ID });
+    store.getState().select({ kind: "placement", id: MISSING_ID });
     store.getState().remove();
 
     expect(JSON.stringify(store.getState().design)).not.toContain("rejection");
@@ -397,26 +404,24 @@ describe("lastRejection is transient and never leaks into the design", () => {
   });
 });
 
-// ADR 0011 Gap E: removing a host removes the accessory it carried. Asserted through the store
-// because the store is what a pointer handler calls, and `resolveHostPlacementId`'s throwing branch
-// is what an orphaned accessory reaches.
-describe("the accessory cascade leaves nothing orphaned", () => {
-  // ADR 0027 made the hob part of `p2`'s body, so the shipped design has no accessory to cascade
-  // from. This runs on a document saved before that migration, and checks the hob is there first —
-  // otherwise it would go on passing by there being nothing to remove.
-  it("removes the hob with its host and leaves every remaining record hostable", () => {
-    const store = createStore({ design: preMigrationHobDesign() });
+// ADR 0027 made the hob part of `p2`'s body and ADR 0038 confirmed no document was ever stored
+// carrying it as a placement of its own, so a delete removes exactly one placement and the hob goes
+// with the cabinet it is built into. Asserted through the store because the store is what a pointer
+// handler calls.
+describe("deleting the hob cabinet leaves the state whole", () => {
+  it("removes the one placement and leaves every remaining record consistent", () => {
+    const store = createStore();
     expect(store.getState().records.map((record) => record.id)).toContain(
-      HOB_ID,
+      HOB_HOST_ID,
     );
 
     store.getState().select({ kind: "placement", id: HOB_HOST_ID });
     store.getState().remove();
 
-    const ids = store.getState().records.map((record) => record.id);
-    expect(ids).not.toContain(HOB_HOST_ID);
-    expect(ids).not.toContain(HOB_ID);
-    expectStoreInvariants(store, "after the cascade");
+    expect(store.getState().records.map((record) => record.id)).not.toContain(
+      HOB_HOST_ID,
+    );
+    expectStoreInvariants(store, "after the delete");
   });
 });
 
@@ -431,7 +436,7 @@ describe("insert without a probe", () => {
     store.getState().select({ kind: "placement", id: "p8" });
 
     expect(() => {
-      store.getState().insert("base-2door");
+      store.getState().insert("base-cabinet");
     }).not.toThrow();
     expect(store.getState().lastRejection?.code).toBe("BODY_PROBE_UNAVAILABLE");
   });
@@ -454,7 +459,7 @@ describe("insert without a probe", () => {
     const store = createStore({ withProbe: false });
     store.getState().select({ kind: "placement", id: "p8" });
 
-    store.getState().insert("base-2door");
+    store.getState().insert("base-cabinet");
 
     const message = store.getState().lastRejection?.message ?? "";
     expect(message.trim().length).toBeGreaterThan(0);
@@ -467,7 +472,7 @@ describe("insert without a probe", () => {
     const store = createStore({ withProbe: false });
     store.getState().deselect();
 
-    store.getState().insert("base-2door");
+    store.getState().insert("base-cabinet");
 
     // The old throw pre-empted this refusal; the guard now sits after the selection check.
     expect(store.getState().lastRejection?.code).toBe("TARGET_NOT_FOUND");
@@ -478,7 +483,7 @@ describe("insert without a probe", () => {
     store.getState().select({ kind: "placement", id: "p8" });
     const before: ConfiguratorState = store.getState();
 
-    store.getState().insert("base-2door");
+    store.getState().insert("base-cabinet");
 
     expect(store.getState().design).toBe(before.design);
     expect(store.getState().records).toBe(before.records);
@@ -487,15 +492,18 @@ describe("insert without a probe", () => {
     expect(store.getState().selection).toBe(before.selection);
   });
 
+  // `wall-lift` rather than `wall-1door`: `p8` is 600 mm and ADR 0032 made the one-door's
+  // `[200, 300, 400]` set (ADR 0030) a bound on the insert path, so it would now refuse on width
+  // before the probe question was ever reached. The probe is the subject of these three cases.
   it("stops refusing once the scene attaches its probe", () => {
     const store = createStore({ withProbe: false });
     store.getState().select({ kind: "placement", id: "p8" });
-    store.getState().insert("wall-1door");
+    store.getState().insert("wall-lift");
     expect(store.getState().lastRejection?.code).toBe("BODY_PROBE_UNAVAILABLE");
 
     store.getState().attachBodyProbe(createFakeBodyProbe());
     store.getState().select({ kind: "placement", id: "p8" });
-    store.getState().insert("wall-1door");
+    store.getState().insert("wall-lift");
 
     expect(store.getState().lastRejection).toBeNull();
     expectStoreInvariants(store, "after attaching the probe");
@@ -516,7 +524,7 @@ describe("insert without a probe", () => {
     expect(store.getState().isBodyProbeAttached).toBe(true);
 
     store.getState().select({ kind: "placement", id: "p8" });
-    store.getState().insert("wall-1door");
+    store.getState().insert("wall-lift");
 
     expect(first).not.toHaveBeenCalled();
     expect(second).toHaveBeenCalled();

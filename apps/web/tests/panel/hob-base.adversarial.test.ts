@@ -22,8 +22,10 @@ import {
 } from "@lemnaria/configurator-domain";
 import { describe, expect, it } from "vitest";
 
-import { findCabinetDrawingFilename } from "@/panel/cabinet-thumbnails";
+import { listCabinetDrawingFilenames } from "@/panel/cabinet-thumbnails";
 import { describePanel, type ReplaceSection } from "@/panel/panel-model";
+
+import { noWidthIsFree } from "../support/width-options";
 
 const HOB_BUILD_IDS = ["base-hob-2drawer", "base-hob-oven"] as const;
 
@@ -52,10 +54,12 @@ function replaceSectionAt(
   world: ReturnType<typeof worldFrom>,
   target: CommandTarget,
 ): ReplaceSection {
+  const meta = describeSelection({ ...world, target });
   const panel = describePanel({
-    meta: describeSelection({ ...world, target }),
+    meta,
     offers: offersFor({ ...world, target }),
     rejection: null,
+    widthOptions: meta ? noWidthIsFree(meta.widthMm, meta.sizesMm) : [],
     isBodyProbeAttached: true,
     canWrite: true,
     saveStatus: "idle",
@@ -102,9 +106,15 @@ describe("the two hob rows are distinguishable in the picker", () => {
   it("gives every insertable body a drawing no other body uses", () => {
     const byFilename = new Map<string, string[]>();
     for (const [buildId] of INSERTABLE_BODY_DEFINITIONS) {
-      const filename = findCabinetDrawingFilename(buildId);
-      if (filename === undefined) continue;
-      byFilename.set(filename, [...(byFilename.get(filename) ?? []), buildId]);
+      // ADR 0033: a merged cabinet owns two drawings, one per door count, and each must still be
+      // unique to it — `wall-1-door.svg` belongs to `wall-cabinet` alone now that `wall-1door` is
+      // gone, and two entries sharing a drawing is still one product that does not exist.
+      for (const filename of listCabinetDrawingFilenames(buildId)) {
+        byFilename.set(filename, [
+          ...(byFilename.get(filename) ?? []),
+          buildId,
+        ]);
+      }
     }
     const shared = [...byFilename.entries()]
       .filter(([, buildIds]) => buildIds.length > 1)
@@ -190,6 +200,7 @@ describe("the panel over the shipped hob cabinet", () => {
         }),
         offers: [],
         rejection: null,
+        widthOptions: [],
         isBodyProbeAttached: true,
         canWrite: true,
         saveStatus: "idle",

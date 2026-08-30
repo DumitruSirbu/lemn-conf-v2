@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { resolveBuildableSizes } from "../../src/catalog.js";
 import { DesignSchema } from "../../src/design.js";
 import {
   deriveColumns,
@@ -41,12 +42,12 @@ describe("KITCHEN_L_DESIGN", () => {
     expect(declared).toBeGreaterThan(0);
   });
 
-  // Absent means "no catalogue equivalent", and exactly five seeded entries are in that position:
-  // nothing in §7 builds the hob or any of the four corner bodies. Named, so adding a pointer to
-  // one of them — or losing one from another entry — is a test failure rather than a quietly
-  // missing badge. The two `base-corner-*` entries joined the list with ADR 0025: §13.1 says a
-  // corner is not a body a customer chooses, so having no equivalent is their correct answer.
-  it("leaves only the hob and the four corner bodies without an equivalent", () => {
+  // Absent means "no catalogue equivalent", and exactly four seeded entries are in that position:
+  // nothing in §7 builds any of the corner bodies. Named, so adding a pointer to one of them — or
+  // losing one from another entry — is a test failure rather than a quietly missing badge. The two
+  // `base-corner-*` entries joined the list with ADR 0025: §13.1 says a corner is not a body a
+  // customer chooses, so having no equivalent is their correct answer.
+  it("leaves only the four corner bodies without an equivalent", () => {
     const unpointed = [...KITCHEN_L_BODY_CATALOG]
       .filter(
         ([, definition]) =>
@@ -57,7 +58,6 @@ describe("KITCHEN_L_DESIGN", () => {
     expect(unpointed.sort()).toEqual([
       "base-corner-return-320",
       "base-corner-x-900",
-      "cooktop-600",
       "wall-corner-return-570",
       "wall-corner-return-570-top",
     ]);
@@ -82,6 +82,48 @@ describe("KITCHEN_L_DESIGN", () => {
         twin?.canHandle,
       ]);
     }
+  });
+
+  // FINDING R1.4. A seeded row's own `minWidthMm` is read by nothing: the width set and the floor
+  // under it are one catalogue fact and both come off the entry the pointer names, because that is
+  // the entry a §5.4 resize rebuilds through and whose floor `insertBody` actually applies. No
+  // seeded row declares one today, so the rule is invisible in the data — which is exactly why it
+  // is asserted. A row that acquires one would otherwise look like it narrowed its own chips and
+  // would not.
+  it("declares no width floor on any non-insertable row", () => {
+    let checked = 0;
+    const declaring: string[] = [];
+    for (const [buildId, definition] of KITCHEN_L_BODY_CATALOG) {
+      if (definition.insertable === true) continue;
+      checked += 1;
+      if (definition.minWidthMm !== undefined) declaring.push(buildId);
+    }
+    expect(checked).toBeGreaterThan(0);
+    expect(declaring).toEqual([]);
+  });
+
+  // FINDING R1.7. "A body that can only be built at one width must never be a §5.4 donor" is
+  // written in three fixture comments — `base-hob-2drawer-600`, `tall-oven-tower-600`,
+  // `tall-pantry-600` — and was enforced nowhere across the pointer. A single-member set on a
+  // `fixedWidth: false` body renders a width section holding exactly one chip, `active` and
+  // unclickable: a section that offers nothing, which `describeWidthSection` cannot decline because
+  // it declines at *zero* chips and §9's emptiness rule stays literal.
+  //
+  // Latent today — every single-member row is `fixedWidth` on both sides of its pointer — and the
+  // guard is what keeps it that way. Both populations are swept, because either side acquiring the
+  // shape is the same defect.
+  it("marks every row with one buildable width as fixed-width", () => {
+    let checked = 0;
+    const movable: string[] = [];
+    for (const [buildId, definition] of KITCHEN_L_BODY_CATALOG) {
+      if (resolveBuildableSizes(KITCHEN_L_BODY_CATALOG, buildId).length !== 1) {
+        continue;
+      }
+      checked += 1;
+      if (!definition.fixedWidth) movable.push(buildId);
+    }
+    expect(checked).toBeGreaterThan(0);
+    expect(movable).toEqual([]);
   });
 
   // The three bodies above, named at the placement the customer actually taps, through the query

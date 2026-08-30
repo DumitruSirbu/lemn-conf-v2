@@ -26,7 +26,10 @@ import type {
   PanelSection,
   PanelView,
   ReplaceSection,
+  WidthChoiceSection,
   WidthSection,
+  WidthStepButton,
+  WidthStepperSection,
 } from "./panel-model";
 
 /** The swatch colours are the adapter's own, published onto the shell as custom properties so the
@@ -322,14 +325,95 @@ function ChipReason({ reason }: { readonly reason: string | undefined }) {
   return <span className={styles.chipReason}>{reason}</span>;
 }
 
-/** §9's three chip states drive styling only — §13.1's "disable, don't warn" dashes a `blocked`
- *  chip. Which states are clickable is the model's answer (`isDisabled`), not this file's. */
+/** §9's width control, and since wave 5D2c there are two of them (ADR 0035 decision 3). Which one
+ *  this selection gets is the model's answer, published as `control`; this file renders the shape it
+ *  is given and decides nothing. */
 function WidthSectionView({ section }: { readonly section: WidthSection }) {
+  return section.control === "stepper" ? (
+    <WidthStepperView section={section} />
+  ) : (
+    <WidthChoiceView section={section} />
+  );
+}
+
+/** ADR 0035 decision 1's `+50` / `−50`.
+ *
+ *  The current width sits **between** the two buttons rather than in the section head, because it is
+ *  the value the pair operates on and at 390 px the head is already carrying the title. It is a
+ *  `<output>`: the number changes as a result of the buttons beside it, which is exactly what that
+ *  element is for, and it gives a screen reader something to announce on a step without a live
+ *  region of the panel's own invention.
+ *
+ *  A button at a bound stays mounted and disabled with its reason under it (ADR 0032) — never
+ *  removed, which would silently turn the pair into a single control and say nothing about why. */
+function WidthStepperView({
+  section,
+}: {
+  readonly section: WidthStepperSection;
+}) {
+  const setWidth = useConfiguratorStore((state) => state.setWidth);
   return (
     <section className={styles.section} data-testid="section-width">
       <div className={styles.sectionHead}>
         <span className={styles.sectionTitle}>{section.title}</span>
-        <span className={styles.widthValue}>{section.valueLabel}</span>
+      </div>
+      <div className={styles.stepper}>
+        <WidthStepView step={section.steps[0]} onStep={setWidth} />
+        <output className={styles.stepperValue} data-testid="width-value">
+          {section.valueLabel}
+        </output>
+        <WidthStepView step={section.steps[1]} onStep={setWidth} />
+      </div>
+      <p className={styles.note}>{section.note}</p>
+    </section>
+  );
+}
+
+function WidthStepView({
+  step,
+  onStep,
+}: {
+  readonly step: WidthStepButton;
+  readonly onStep: (widthMm: number) => void;
+}) {
+  return (
+    <button
+      type="button"
+      className={styles.widthStep}
+      data-testid={`width-step-${step.direction}`}
+      // **The label goes only on an enabled button.** `aria-label` *replaces* an element's contents
+      // in the accessible name computation, so a labelled disabled button announced "Micșorează
+      // lățimea cu 50 mm" and never the bound underneath it — §13.1's "greyed and unclickable **with
+      // the reason**" became sighted-only, which the chip row it replaced never was (5D2c QA S1).
+      {...(step.reason === undefined ? { "aria-label": step.ariaLabel } : {})}
+      disabled={step.isDisabled}
+      onClick={() => {
+        onStep(step.widthMm);
+      }}
+    >
+      {step.label}
+      <ChipReason reason={step.reason} />
+    </button>
+  );
+}
+
+/** ADR 0035 decision 3's discrete choice — wave 5D's chip row, now rendered only where the widths
+ *  are genuinely a set. §9's three chip states drive styling only: §13.1's "disable, don't warn"
+ *  dashes a `blocked` chip. Which states are clickable is the model's answer (`isDisabled`), not
+ *  this file's, and so is whether a chip carries a reason. */
+function WidthChoiceView({
+  section,
+}: {
+  readonly section: WidthChoiceSection;
+}) {
+  const setWidth = useConfiguratorStore((state) => state.setWidth);
+  return (
+    <section className={styles.section} data-testid="section-width">
+      <div className={styles.sectionHead}>
+        <span className={styles.sectionTitle}>{section.title}</span>
+        <span className={styles.widthValue} data-testid="width-value">
+          {section.valueLabel}
+        </span>
       </div>
       <div className={styles.chipRow}>
         {section.chips.map((chip) => (
@@ -341,8 +425,12 @@ function WidthSectionView({ section }: { readonly section: WidthSection }) {
             data-state={chip.state}
             aria-pressed={chip.state === "active"}
             disabled={chip.isDisabled}
+            onClick={() => {
+              setWidth(chip.widthMm);
+            }}
           >
             {chip.label}
+            <ChipReason reason={chip.reason} />
           </button>
         ))}
       </div>

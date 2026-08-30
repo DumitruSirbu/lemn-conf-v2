@@ -70,3 +70,41 @@ them rather than a missing one.
 - The pointers are catalogue data and must move whenever a builder does. That coupling is the price
   of not inferring, and it is deliberate: a declared pointer that goes stale breaks a test, where an
   inferred match that goes stale mislabels a product.
+
+---
+
+## Amendment, 2026-08-27 — the pointer also carries the body's width set (M5 wave 5B)
+
+Nothing above is superseded. The pointer now answers a **second** question, and this record says so
+because its Consequences give advice that the second meaning makes more expensive.
+
+**M5 wave 5B resolves a seeded body's width set through the same `catalogEquivalentId`.** The reason
+is the reason the badge needed it: ADR 0011 Gap A gives every seeded entry one already-built
+geometry, so it declares no `sizesMm` of its own, and until this wave §9's width section rendered
+for **no body in the shipped kitchen** — `describeWidthSection` declines with no chips. The widths a
+seeded body *could* be rebuilt at are the widths of the §7 entry a §5.4 resize would rebuild it
+through, and that entry is the one named on the row. Inferring it from kind + band + width was
+rejected again, for the reason recorded in *Alternatives considered* rather than a new one: two
+seeded base cabinets ship at the same kind, band and width and resolve different sets.
+
+Three consequences of the second meaning:
+
+- **The resolution is one function, not two.** `resolveCatalogEquivalent` in `catalog.ts` answers
+  both readers — `offersFor`'s ACTUAL badge takes its `buildId`, §9's width chips take its
+  `definition` — because the whole argument for declaring the pointer is that it states **one**
+  fact, and two implementations of one rule can drift.
+- **The resolved entry is verified `insertable`, not merely present.** A pointer at another
+  *seeded* row resolves to nothing rather than to that row. This was harmless for the badge (the
+  offer list holds insertable entries only, so a stray id matched nothing anyway) and is not
+  harmless for the width set: §5.4's `canGive` is "resolves to an insertable catalogue entry", so a
+  pointer into the wrong population would answer it with a body `insertBody` cannot rebuild, and
+  the refusal would arrive after the customer's tap instead of before the offer.
+- **A repoint is now more expensive than this record's Consequences suggest.** That section says
+  that if `base-drawer2-600 → base-panbank` ever reads wrong to a customer, "the fix is a §7
+  catalogue name, not a different pointer". That advice is unchanged and is now *more* strongly
+  held: a different pointer would silently change which widths the body offers, and §7's entries do
+  not all carry the same set — `base-sink` has no 400 (ADR 0017) and `base-dishwasher` is 450/600.
+  Renaming a §7 row still moves no geometry and no width.
+
+**ADR 0028's wave is not involved.** Depth is derived from the worktop map and reaches the body
+through a different path entirely; the pointer carries width and identity, never depth.

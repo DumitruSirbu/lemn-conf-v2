@@ -179,7 +179,7 @@ export function KitchenStage({ view, finish, onSettled }: KitchenStageProps) {
     invalidate();
   }, [stage, camera, invalidate]);
 
-  // Row 2 / row 22 / accessory / drag-threshold picking (`DEVELOPMENT-SPEC.md` §6.1). Native DOM
+  // Row 2 / row 22 / drag-threshold picking (`DEVELOPMENT-SPEC.md` §6.1). Native DOM
   // listeners, not R3F's declarative pointer props: the drag-vs-click distinction needs the raw
   // pixel delta between down and up, which R3F's synthetic events do not expose as a pair.
   useEffect(() => {
@@ -207,12 +207,7 @@ export function KitchenStage({ view, finish, onSettled }: KitchenStageProps) {
 
       toNdc(event);
       raycaster.setFromCamera(pointerNdc, camera);
-      const target = pick(
-        raycaster,
-        stage.solidsRoot,
-        stage.voidsRoot,
-        records,
-      );
+      const target = pick(raycaster, stage.solidsRoot, stage.voidsRoot);
       if (target) select(target);
       else deselect();
       invalidate();
@@ -224,7 +219,7 @@ export function KitchenStage({ view, finish, onSettled }: KitchenStageProps) {
       canvasElement.removeEventListener("pointerdown", handlePointerDown);
       canvasElement.removeEventListener("pointerup", handlePointerUp);
     };
-  }, [gl, camera, stage, records, select, deselect, invalidate]);
+  }, [gl, camera, stage, select, deselect, invalidate]);
 
   // Mobile gate: "a selected body and a selected slot are visually distinguishable without
   // opening any panel." An outline object, not a shared-material mutation — cabinets in this kit

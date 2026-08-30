@@ -9,10 +9,10 @@
 // No product rule lives here. Every guard is in the domain command that produced the result; this
 // module only re-derives what the design implies and decides which existing thing is selected.
 import {
+  withCurrentFullHeightMembers,
   derivePlacementRecords,
   findVacatedVoid,
   recomputeVoids,
-  withCurrentFullHeightMembers,
   type BodyCatalog,
   type Column,
   type CommandEffect,
@@ -73,18 +73,44 @@ export function applyCommandResult(
   }
 
   const records = derivePlacementRecords(result.design, input.catalog);
-  const voids = recomputeVoids(records, input.columns);
+  const columns = resolveColumns(result.effect, input.columns, records);
+  const voids = recomputeVoids(records, columns);
   return {
     applied: true,
     state: {
       design: result.design,
       records,
-      columns: withCurrentFullHeightMembers(input.columns, records),
+      columns,
       voids,
       selection: resolveSelection(result.effect, records, voids),
       lastRejection: null,
     },
   };
+}
+
+/** ADR 0031: a resize is the **one** command that moves a frozen extent, so it is the one command
+ *  whose own answer replaces the map passed in. Every other command leaves the extents alone and
+ *  gets `hasFullHeightUnder` re-answered over them (ADR 0011 Gap D).
+ *
+ *  The resized map arrives already current — `moveFrozenColumns` ends in the same
+ *  `withCurrentFullHeightMembers` — so re-applying it here would be a second author for two fields.
+ *  The reason the command owns this and the store does not is in `BodyResizedEffect`: *which* keys
+ *  may change is a rule about the move, and a store that re-derived globally would make §10's delete
+ *  produce no openings at all.
+ *
+ *  `voids` are recomputed against **this** map, not the one passed in. A resize moves the boundary
+ *  between two columns, and an opening derived from the pre-move extents would be drawn where
+ *  nothing is free any more. */
+function resolveColumns(
+  effect: CommandEffect,
+  frozen: ReadonlyMap<string, Column>,
+  records: readonly PlacementRecord[],
+): ReadonlyMap<string, Column> {
+  if (effect.type === "body_resized") return effect.columns;
+  // Re-answers `hasFullHeightUnder` over the frozen extents, and nothing else. ADR 0037's merge ran
+  // here too until 2026-08-30, so the delete path backlog 2 was reported from still gives two
+  // openings rather than one — see `void-engine.ts` for why the merge was withdrawn.
+  return withCurrentFullHeightMembers(frozen, records);
 }
 
 /** §5.1's closing step and the milestone's "selection never dangles" criterion, as one function:

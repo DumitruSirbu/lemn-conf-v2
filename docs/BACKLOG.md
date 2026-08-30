@@ -55,12 +55,13 @@ with no new geometry. The seeded `p2` + `p3` are one placement (`base-hob-2drawe
 retired rather than reused. The kitchen is unchanged, proven three ways: identical derived state,
 330 identical rendered meshes against the M1 reference, and byte-identical 1440 x 900 screenshots.
 
-**The accessory machinery was deliberately NOT removed**, which amends the paragraph above. The
-direction to "remove what is then unused" holds, but it is its own wave: a stored design saved before
-the migration still carries a `cooktop-600` placement and still reaches §6.1's host resolution,
-§5.1's cascade, `ACCESSORY_MAX_HEIGHT_M`, the `accessory` flag and `cascadedAccessoryIds`. Nothing in
-the *shipped* design reaches any of them. What the deletion wave must decide first is whether stored
-pre-migration documents are migrated or supported — see ADR 0027's closing paragraph.
+~~**The accessory machinery was deliberately NOT removed**, which amends the paragraph above.~~
+**Removed on 2026-08-28** — the question this paragraph said the deletion wave must decide first is
+answered by [ADR 0038](decisions/0038-pre-release-no-stored-designs-no-migrations.md): nothing has
+ever been stored, so there are no pre-migration documents to migrate or support. §6.1's host
+resolution, §5.1's cascade, `ACCESSORY_MAX_HEIGHT_M`, the `accessory` flag and `cascadedAccessoryIds`
+are all deleted, along with the `cooktop-600` entry itself. Do not re-decide this from ADR 0027's
+closing paragraph; ADR 0038 supersedes it.
 
 Confirmed at implementation, as the entry asked: **the hob was the only accessory** (`p3` at 40 mm;
 the next shortest body is 400 mm, so `ACCESSORY_MAX_HEIGHT_M` has no near-miss), and **§11 row 15 is
@@ -70,7 +71,17 @@ hob placement to offer a delete on.
 
 ---
 
-## 2. Rearranging a run: re-split, and the narrow bottle cabinet — DECIDED 2026-08-26
+## 2. Rearranging a run: re-split, and the narrow bottle cabinet — DECIDED 2026-08-26; RE-SPLIT MECHANISM DECIDED 2026-08-28
+
+> **STILL OPEN.** ~~The re-split half now has its mechanism: [ADR 0037](decisions/0037-adjacent-empty-columns-merge-into-one-space.md).~~
+> ADR 0037 was built in wave 5D2b on 2026-08-29 and **withdrawn on 2026-08-30**: merging the columns
+> without the re-split makes it worse, because §4 subtracts height and never width, so the first
+> cabinet inserted into a merged span closes the level and strands the rest. **Clearing two adjacent
+> cabinets still gives two openings.** The mechanism below is right and waits on the re-split.
+> Adjacent columns that are empty at **every** level merge into one space — the same predicate ADR 0031
+> funds a resize from. **800 mm still caps every cabinet**, so a merged 1400 mm space is filled with
+> cabinets up to 800, never with one 1400. Option C (free-form width) stays rejected: ADR 0035's 50 mm
+> stepper is option B at a finer module, not a numeric field.
 
 **What was wrong:** clearing two adjacent cabinets gives two separate openings (800 and 600), never
 one 1400. §4 merges openings vertically within a column; columns are frozen at load and never merge
@@ -415,6 +426,43 @@ deleting a full-height unit under an existing wall cabinet does not change that 
 next swap or re-insert reads the rule again. That is ADR 0018's contract (`seatDepthMm` is the body's
 own measured seat) and was not revisited here.
 
+### The other half was never linked, and it shipped a defect — SUPERSEDED 2026-08-27 by M5 wave 5A
+
+**Reported by the owner from a real handset, 2026-08-27.** Delete a top-row cabinet in the shipped
+kitchen, insert one back: it returns **400 mm** deep against neighbours that are **330 mm**, visibly
+protruding.
+
+The wave above made the cap *design-dependent*. It did not make it *derived*, and that is the half
+that was missing. Measured:
+
+- `catalog.ts:72` — `WALL_DEPTH_MM = 400`, every wall entry's `nominalDepthMm`.
+- `commands/insert-fit.ts:56` — `WALL_CARCASS_MAX_DEPTH_OVER_WORKTOP_M = 0.4`.
+- `resolveDepthM` (`insert-fit.ts:610`) returns `min(opening.d, cap)` and **never reads
+  `nominalDepthMm`**. `opening.d` is `Column.d`, §3.2's MAX over the run — 580 here, the base
+  cabinet's. `min(0.58, 0.4) = 0.4`.
+- The nine seeded wall/top rows at `frameDepthMm: 330` are correct and always were.
+
+**The two 400s are independent constants that happen to agree, and that unlinked pair is the cause.**
+No gate compares the nominal, the cap and the fixture, which is exactly how the seeded design could
+be authored at 330 with nothing failing. Note the precision: changing `WALL_DEPTH_MM` alone fixes
+nothing, because `resolveDepthM` does not read it; changing the cap alone fixes the *symptom*. The
+single-source map is justified by drift prevention, not by the symptom needing both.
+
+**Decided by the owner, 2026-08-27, and scheduled — not backlog.** Wall/top depth follows worktop
+depth through an extensible map (`600 -> 330`, `700 -> 400`; `800 -> 500` named, not committed),
+and that map is the single source for both the nominal and the cap. Worktop depth becomes a
+whole-kitchen setting and base carcass depth becomes a formula. **This entry's remaining half is now
+M5 waves 5A and 5F** — see `docs/milestones/M5-width.md`, *Depth joins this phase*. The entry stays
+here rather than being deleted because its measurements and its head-clearance reasoning are what
+the waves are built on.
+
+**The split, decided the same day: M5 owns the geometry, M6 owns the control.** Worktop depth is a
+**single declared constant at 600 mm** in M5 — no user-facing control, no schema field, no settings
+UI, no version bump. Making it settable is
+`docs/milestones/M6-price-and-global-settings.md` **work item 4**, as a fourth control in *Setări
+globale* beside the material and hardware tiers. So the fix for the defect reported here needs
+neither of those things and is not waiting on them.
+
 ## 6. The 200 mm cargo is unreachable by any insert — INPUT FOR M5
 
 **Found by logic review of waves A and C, 2026-08-26.** ADR 0026 added `base-bottle-cargo` with
@@ -486,7 +534,7 @@ Three shapes of answer, none of them chosen here:
 The owner should decide before the cargo reaches a customer, since ADR 0026's size set is
 unconfirmed anyway.
 
-## 9. A hood round trip costs a wall opening 100 mm of depth, permanently
+## 9. A hood round trip costs a wall opening 100 mm of depth, permanently — CLOSED 2026-08-30
 
 **Found by logic review, 2026-08-26; new with wave A.** Over a full-height column, where §7's cap is
 lifted, a hood round trip costs the opening 100 mm for good. Measured on `p24` — the 700 mm cabinet
@@ -518,6 +566,28 @@ that produced it was supposed to be the operation that stopped changing depths.
 
 Related: the same mechanism is why a placed body's depth never re-derives — see entry 5's closing
 paragraph.
+
+**CLOSED 2026-08-30, in the opposite direction from what this entry assumed.**
+[ADR 0039](decisions/0039-the-hood-is-a-standard-depth-hung-at-the-front.md) decision 1 makes the
+hood's depth **standard** — *"hood is always standard"*, 500 at a 600 mm kitchen and 500 at a 700 mm
+one — so `make.hood` is *right* to ignore the depth it is handed and giving it a depth parameter is
+explicitly rejected. What had to move is the **seat**: decision 2 hangs the hood at the front, its
+face on the 600 mm cabinet-depth line, with the 100 mm gap behind it.
+
+The leak this entry measured is closed by
+[ADR 0040](decisions/0040-a-recorded-seat-is-converted-back-not-read-as-a-depth.md): the opening a
+body vacates is read through `occupiedDepthM`, which answers the cabinet-depth line for a hood
+instead of the hood's own `frame.d`. Shipped in M5 wave 5F. `p24`'s round trip now returns the 600
+this entry says "never comes back", and the domain's own tests can see it because the fake probe was
+taught the two seats the real one measures — which is the half of this entry's diagnosis that was
+right and still is.
+
+~~**Still open, and now a named question inside M5 (2026-08-27).**~~ The owner's worktop-depth rule
+(entry 5's second half) governs wall depth through a map, and whether the hood follows it is
+**question 1** in `docs/milestones/M5-width.md`'s *Not established — Depth*. The two are one
+decision: putting the hood in the map means giving `make.hood` a depth parameter, which is what this
+entry says it lacks. M5 wave 5A pins `hood-600` at 500 as a regression **precisely because the
+question is open** — the day it is decided, that assertion changes deliberately.
 
 ---
 
@@ -560,6 +630,14 @@ The third is the one worth deciding first: the divergence matters more than the 
 Related: entry 9 (a hood round trip costing 100 mm) is the same mechanism — a placed body's depth is
 a persisted fact and nothing re-derives it.
 
+**Not superseded by M5, and the reason is worth stating (2026-08-27).** M5 wave 5A makes the worktop
+→ wall depth map the single source for §7's nominal and §5.2's cap. That governs the **capped** path
+only. This entry lives on the **uncapped** path — over a full-height column, where
+`hasFullHeightUnder` lifts the cap and both 600 and 680 are legitimately the column's depth. So 5A
+fixes the sibling defect over a base run and leaves this divergence exactly as measured. It is
+recorded as **question 8** in `docs/milestones/M5-width.md`'s *Not established — Depth* so M5 does
+not mistake it for something already handled.
+
 ## 11. `base-dishwasher` offers a finish and a handle it has neither of — NEEDS A DECISION
 
 Found 2026-08-27 by the catalogue-wide capability gate added with ADR 0027's amendment
@@ -593,10 +671,103 @@ front — in which case the flags were right all along and the *geometry* is wha
 bars alongside its two real door handles) and was scoped out of the same wave; it belongs to
 whoever owns §6.5.
 
+## 12. §3.2's column cannot express a middle level at its own width — RAISED BY M5 WAVE 5C
+
+Found while implementing §5.4's resize (M5 wave 5C, 2026-08-27), and **rewritten later the same day**
+when ADR 0031 replaced the rule it was raised under. §5.4's per-level resize is what hit this limit;
+ADR 0031's column-scoped resize does not, and the entry survives as the record of what a *per-level*
+width would cost — the owner's first instinct, deferred on cost rather than on merit.
+
+**The mechanism.** §3.2's column is a vertical run at one along-wall coordinate, and `deriveColumnKey`
+keys it on a body's **centre**. A resize moves that centre. Move a *middle-level* body sideways while
+the levels above and below stay where they are, and the level it left reads as free space.
+
+Measured on the shipped kitchen: resizing `p11` yields `A|1.30@1.50 h0.70 w0.80` — an **800 mm empty
+slot offered on the stretch of wall where `p10` and `p11` are physically standing**. A body inserted
+into it would overlap them both. **A full recompute of the column map produces the same opening**, so
+this is the model's limit, not the touched-key update rule's.
+
+**What shipped instead — rewritten 2026-08-27, after the rule this entry was raised under was
+replaced.** The first implementation refused with `RESIZE_OPENS_GAP` whenever the derived opening set
+changed at all. **ADR 0031 superseded §5.4's donor rule the same day**, and under it a legal resize
+moves a whole column and shrinks the empty column funding it — so the opening set changes on *every*
+success and that comparison had to go. The refusal was **re-stated, not deleted**: it is now the
+assertion it always stood for, that **no opening may appear where a body physically stands**, and it
+is still reachable — narrowing `A|0.75` into a cleared `A|1.30` widens the empty column to 900 mm and
+offers a base opening across the corner leg `p25` occupies.
+
+**What it costs under ADR 0031.** The old figure — "no middle-row wall cabinet can be resized:
+exactly `p10`, `p11`, `p12`" — is obsolete, because per-level resize no longer exists. Column scope
+sidesteps this entry's mechanism entirely: every member of a column moves by the same amount, so no
+body leaves the column its neighbours above are in and no vacated key reads as free. Measured after
+the pivot: **six distinct column moves are reachable once one column is deleted**, against the donor
+rule's two chips.
+
+**This entry is now the record for the deferred product, not for a defect.** ADR 0031 cites it by
+name: per-level independence was the owner's first instinct and is deferred **on cost, not on
+merit** — it needs §3.2 inverted from columns to rows, and the ADR carries the measured blast radius.
+
+**Do not attempt 3 inside a wave.** It changes the derivation every other rule reads, and ADR 0011
+Gap D records what a blanket recompute costs: clearing the fridge column then yields **no voids at
+all**, and the delete does nothing.
+
+**The owner decided on 2026-08-27, before it reached the app**: ship the column-scoped rule and let
+real use decide. If testers find mismatched level widths necessary, direction 3 becomes its own
+milestone, chosen on evidence. Until then this entry is the record, not a scheduled item.
+
+## 13. The insert path ignores a width bound, and M5 wave 5C makes it reachable — RAISED BY LOGIC REVIEW
+
+Found reviewing M5 wave 5C, 2026-08-27. **Pre-existing defect, newly reachable**, which is why it is
+an entry rather than a wave fix.
+
+**The mechanism.** `resolveWidth` (`commands/insert-fit.ts`) returns the opening's own width for a
+`widthFlex: 'fit'` body after the §2 floor checks, and **never consults `sizesMm`**:
+
+```ts
+if (body.widthFlex === "fit") return { ok: true, widthM: opening.w };
+```
+
+`offersFor` gates purely on `evaluateInsertFit`, so it offers `wall-2door` into any wall opening at or
+above 300 mm, building at the opening's width. The chips it renders are `[600, 800]`; the width it
+builds at is whatever the opening is.
+
+**Why it is newly reachable.** ADR 0031 is the first mechanism in the product that can produce a
+**sub-600 mm column**. Take a column whose only wall member is a `wall-1door` (own set
+`[200, 300, 400]`, so 300 is legal for that column), clear an adjacent column, resize to 300 — all
+accepted. Now delete the `wall-1door`. The 300 mm void offers *Corp suspendat 2 uși*, and inserting it
+builds **one door under a two-door label**. That is [ADR 0029](../decisions/0029-a-two-door-cabinet-may-not-be-offered-at-one-door-widths.md)
+verbatim, arriving through the path that ADR could not reach.
+
+**This is the same shape ADR 0029 already recorded as unfinished.** Its Consequences say the decision
+"closes the resize path only" because `wall-2door` is `widthFlex: 'fit'` and the insert path never
+reads `sizesMm`. That was true when written and is now demonstrable on a state the customer can
+create.
+
+**It also qualifies ADR 0031 rule 5's framing.** The rule's correction says `sizesMm`-as-a-bound is
+what protects ADR 0029 — but `sizesAreStandardLadder` is read by `setWidth` alone, so the bound has
+**no effect at all** on the path that was already violating it. Two halves of one engine still answer
+the question differently; the flag records the distinction on one of them.
+
+**Direction.** The bound belongs in `resolveWidth`, gated on `sizesAreStandardLadder` — that is the
+one function §5.2 and §9 already share, which is the argument `buildableSizes`' own doc comment
+makes. Doing it there closes the resize path and the insert path with one rule, and makes the flag's
+scope a decision rather than an oversight.
+
+**Sequencing.** Worth settling **before 5D**, because 5D builds the chip-freedom query over exactly
+this seam. Not a 5C fix: it changes what `offersFor` offers, which is M3's machinery and its own
+acceptance criteria.
+
 ## Also open, recorded elsewhere — do not duplicate here
 
 - **Width editing does nothing yet.** Every width chip is `blocked` because §5.4's resize command
-  does not exist. This is M5's entire scope and is scheduled, not backlog.
+  does not exist. Scheduled, not backlog.
+- **Depth joined M5 on 2026-08-27** and is no longer "M5's entire scope" being width alone. Entry 5's
+  unfinished half (the unlinked cap and nominal) is M5 wave **5A**, and base carcass depth as a
+  formula is wave **5F**. The wave letters were reassigned when that landed —
+  `docs/milestones/M5-width.md` carries the old→new mapping.
+- **The worktop depth control is M6's, not M5's** (owner, 2026-08-27). M5 owns the geometry with the
+  worktop as a declared constant at 600; `docs/milestones/M6-price-and-global-settings.md` work item
+  4 adds the control. Scheduled in both, so it is not backlog in either.
 - **M4's deferred review findings** (the redundant panel test-file split, `advancePast` opening a
   span no command can produce, the notice remounting on every retry, the write-access probe's
   doubled read rate that M8's rate limits must be sized against) are recorded in `docs/STATUS.md`

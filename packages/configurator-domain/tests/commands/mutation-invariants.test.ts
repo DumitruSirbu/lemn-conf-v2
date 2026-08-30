@@ -44,9 +44,7 @@ interface Step {
 /** One random command. A refusal is a legal outcome and is checked for identity, then skipped —
  *  the sequence continues from the unchanged world. */
 function applyRandomCommand(world: KitchenWorld, random: () => number): Step {
-  const removable = world.records.filter(
-    (record) => !record.accessory && record.canDelete,
-  );
+  const removable = world.records.filter((record) => record.canDelete);
   const wantsInsert = world.voids.length > 0 && random() < 0.5;
 
   if (!wantsInsert && removable.length > 0) {
@@ -140,7 +138,7 @@ describe("repeatability", () => {
         catalog: world.catalog,
         columns: world.columns,
         target: { kind: "void", id: slot.id },
-        buildId: "wall-2door",
+        buildId: "wall-cabinet",
         probe: createFakeProbe(),
         occurredAt: OCCURRED_AT,
       });

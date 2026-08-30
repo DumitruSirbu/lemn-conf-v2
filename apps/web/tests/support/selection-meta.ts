@@ -30,7 +30,6 @@ const BASE_CABINET_META: SelectionMeta = {
   canWidth: true,
   canReplace: true,
   canDelete: true,
-  accessory: false,
   defaultHandle: "steel",
 };
 
@@ -84,16 +83,23 @@ export function cornerReturnMeta(): SelectionMeta {
   });
 }
 
+/** ADR 0032: an offer carries a verdict. The default is `offered`, since these fixtures stand in for
+ *  rows the panel renders as choosable; a refused one is built by passing a `verdict` override. */
 export function offer(overrides: Partial<CatalogOffer> = {}): CatalogOffer {
   return {
-    buildId: "base-2door",
+    buildId: "base-cabinet",
     label: "Corp bază 2 uși",
     kind: "base_cabinet",
     band: "base",
     sizesMm: [400, 600, 800],
-    widthMm: 600,
-    heightMm: 860,
+    // ADR 0033's amendment: the chips above are what a customer picks; this is what the body may be
+    // built to. A plain cabinetry row's is one range, §2's floor to §7's ceiling (ADR 0035
+    // decision 2), which is what this fixture stands in for. The chips are deliberately *not* the
+    // twelve the catalogue derives: nothing in `describePanel` reads the catalogue, and a fixture
+    // that copied it would be asserting the derivation rather than the rendering.
+    widthRangesMm: [{ minMm: 300, maxMm: 800 }],
     isCurrent: false,
+    verdict: { status: "offered", widthMm: 600, heightMm: 860 },
     ...overrides,
   };
 }

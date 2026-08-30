@@ -9,15 +9,8 @@ import {
 import { findVacatedVoid } from "../../src/queries/vacated-void.js";
 import type { BodyDefinition } from "../../src/void-engine.js";
 import { advance, createWorld } from "../support/kitchen-world.js";
-import { preMigrationHobDesign } from "../support/pre-migration-hob.js";
 
 const OCCURRED_AT = "2026-08-25T12:00:00.000Z";
-
-/** ADR 0027: the shipped design has no accessory in it any more — the hob is part of `p2`'s body.
- *  Every case below that is *about* an accessory runs on the design saved before that migration,
- *  which is a shape a stored document can still have, with the same ids and the same expectations
- *  it had when the seeded design carried them. */
-const PRE_MIGRATION_DESIGN = preMigrationHobDesign();
 
 function removeFrom(
   design: Design,
@@ -51,14 +44,19 @@ describe("removePlacement — §5.1's closed refusal list", () => {
     expect(result.reason.code).toBe("TARGET_NOT_FOUND");
   });
 
-  // §11 row 15: the hob was once a module, offered six rows it could never satisfy, and deleting
-  // it destroyed it permanently.
-  it("refuses the hob, and not with the same code as a structural body", () => {
-    const result = removeFrom(PRE_MIGRATION_DESIGN, "p3");
-    expect(result.ok).toBe(false);
-    if (result.ok) return;
-    expect(result.reason.code).toBe("ACCESSORY_NOT_DELETABLE");
-    expect(result.reason.message.length).toBeGreaterThan(0);
+  // §11 row 15: the hob was once a module of its own, offered six rows it could never satisfy, and
+  // deleting it destroyed it permanently. ADR 0027 made it part of `p2`'s body, so there is no hob
+  // placement left to refuse — a click on the hob selects `p2`, and deleting `p2` takes the hob
+  // with it because they are one body. Pinned so a hob can never become separately deletable again.
+  it("has no hob placement to point a delete at", () => {
+    const hobIds = KITCHEN_L_DESIGN.placements
+      .filter((placement) => placement.body.buildId.includes("hob"))
+      .map((placement) => placement.id);
+    expect(hobIds).toEqual(["p2"]);
+    const result = remove("p2");
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.design.placements.map((p) => p.id)).not.toContain("p2");
   });
 
   // §11 row 16: a structural body offers no delete, and the refusal explains why.
@@ -113,29 +111,6 @@ describe("removePlacement — success", () => {
     expect(result.effect.type).toBe("placement_removed");
   });
 
-  // ADR 0011 Gap E: deleting `p2` must take `p3` (the hob) with it, in the same command and the
-  // same result. What must not happen: a hob left hanging over the void where its cabinet was.
-  it("cascades to the accessory its target carried", () => {
-    const result = removeFrom(PRE_MIGRATION_DESIGN, "p2");
-    expect(result.ok).toBe(true);
-    if (!result.ok) return;
-    expect(result.effect.cascadedAccessoryIds).toEqual(["p3"]);
-    const ids = result.design.placements.map((p) => p.id);
-    expect(ids).not.toContain("p2");
-    expect(ids).not.toContain("p3");
-  });
-
-  it("leaves no placement whose host cannot be resolved", () => {
-    const result = removeFrom(PRE_MIGRATION_DESIGN, "p2");
-    expect(result.ok).toBe(true);
-    if (!result.ok) return;
-    const after = advance(
-      createWorld(PRE_MIGRATION_DESIGN, KITCHEN_L_BODY_CATALOG),
-      result.design,
-    );
-    expect(after.records.filter((record) => record.accessory)).toEqual([]);
-  });
-
   // ADR 0011 Gap D: the freed 400 mm must become a void. A delete that produces no void because
   // the column shrank to fit what is left reads as "delete does nothing".
   it("frees the top slot of a column without moving the column's top", () => {
@@ -178,8 +153,7 @@ describe("removePlacement — rejection sweep", () => {
   it.each([
     ["void selected", KITCHEN_L_DESIGN, "A|1.30:v0:0.00", "void"],
     ["missing target", KITCHEN_L_DESIGN, "p999", "placement"],
-    // ADR 0027: the accessory case is the pre-migration design's, for the reason above.
-    ["accessory", PRE_MIGRATION_DESIGN, "p3", "placement"],
+    ["structural body", KITCHEN_L_DESIGN, "p25", "placement"],
   ] as const)(
     "returns the exact original design and changes nothing (%s)",
     (_case, design, id, kind) => {

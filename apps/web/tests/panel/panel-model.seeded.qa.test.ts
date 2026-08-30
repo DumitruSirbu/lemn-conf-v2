@@ -15,21 +15,30 @@ import {
   KITCHEN_L_BODY_CATALOG,
   KITCHEN_L_DESIGN,
   KITCHEN_L_PLACEMENTS,
+  columnWidthChoices,
   offersFor,
   recomputeVoids,
   removePlacement,
+  widthOptionsFor,
   type CommandTarget,
   type Design,
 } from "@lemnaria/configurator-domain";
 import { describe, expect, it } from "vitest";
 
+import { offeredBuildIds } from "../support/offers";
+
 import { describePanel, type PanelSection } from "@/panel/panel-model";
+import { widthStepsFor } from "@lemnaria/configurator-domain";
 
 import { ro } from "@/content/ro";
 
 import { REFUSAL } from "../support/selection-meta";
 
-import { preMigrationHobDesign } from "../support/pre-migration-hob";
+import { createFakeBodyProbe } from "../support/fake-body-probe";
+
+/** Measures exactly what it was asked to build, so a resize the domain's guards accept is not then
+ *  failed by the built-size re-check. */
+const PROBE = createFakeBodyProbe();
 
 const OCCURRED_AT = "2026-08-26T12:00:00.000Z";
 
@@ -41,6 +50,7 @@ const SEEDED_COLUMNS = deriveColumns(
 function worldFrom(design: Design) {
   const records = derivePlacementRecords(design, KITCHEN_L_BODY_CATALOG);
   return {
+    design,
     records,
     columns: SEEDED_COLUMNS,
     voids: recomputeVoids(records, SEEDED_COLUMNS),
@@ -70,10 +80,39 @@ function panelAt(
   target: CommandTarget,
   rejection = null as Parameters<typeof describePanel>[0]["rejection"],
 ) {
+  const meta = describeSelection({ ...world, target });
   return describePanel({
-    meta: describeSelection({ ...world, target }),
+    meta,
     offers: offersFor({ ...world, target }),
     rejection,
+    // The engine's own verdicts, not a stand-in: `widthOptionsFor` runs `setWidth` once per
+    // candidate width against this design and these frozen columns. A sweep over the *shipped*
+    // kitchen is only worth running if the chips in it are the ones a customer would tap.
+    widthOptions: widthOptionsFor({
+      design: world.design,
+      catalog: world.catalog,
+      columns: world.columns,
+      target,
+      probe: PROBE,
+    }),
+    // **Both of ADR 0035 decision 3's inputs, from the engine.** They are threaded here rather than
+    // left off because this file's subject is the SHIPPED kitchen: with `widthRanges` absent every
+    // section falls back to the discrete choice, and the sweeps below would then describe a control
+    // no customer ever sees while reporting green — the exact failure this milestone has shipped
+    // twice in copy.
+    widthRanges:
+      columnWidthChoices({
+        design: world.design,
+        catalog: world.catalog,
+        target,
+      })?.widthRangesMm ?? [],
+    widthSteps: widthStepsFor({
+      design: world.design,
+      catalog: world.catalog,
+      columns: world.columns,
+      target,
+      probe: PROBE,
+    }),
     isBodyProbeAttached: true,
     canWrite: true,
     saveStatus: "idle",
@@ -176,47 +215,181 @@ describe("§6.5's default handle, against every seeded placement's own y0", () =
   });
 });
 
+/** M5 wave 5B. The seeded bodies that render a width section: §9's `canWidth` (not empty, not
+ *  `fixedWidth`) narrowed by "resolves a non-empty width set through its declared
+ *  `catalogEquivalentId`". Written out rather than computed, so the list is a statement of the
+ *  acceptance criteria and not a second copy of the implementation.
+ *
+ *  The eight that are absent are absent for a stated reason: the four corners and the hob-bearing
+ *  base are `fixedWidth`, and so are the two columns and the freestanding fridge. */
+const SEEDED_IDS_WITH_A_WIDTH_SECTION: readonly string[] = [
+  "p0",
+  "p1",
+  "p4",
+  "p8",
+  "p10",
+  "p11",
+  "p12",
+  "p14",
+  "p15",
+  "p16",
+  "p17",
+  "p18",
+  "p19",
+  "p20",
+  "p22",
+  "p23",
+  "p24",
+];
+
 describe("the width section over the real kitchen", () => {
-  // §9's section 6 is "chips from `sizes`": a rendered width section with no chips offers nothing
-  // to choose. This runs over the SHIPPED design rather than a fixture, because the fixtures give a
-  // body [400, 600, 800] and no seeded body has any `sizesMm` at all — the gap only shows against
-  // real data.
-  it("gives every rendered width section at least one chip", () => {
+  // §9's section 6 is "a control with something in it": a rendered width section that offers nothing
+  // to choose is worse than no section. **Wave 5D2c makes that two questions rather than one**
+  // (ADR 0035 decision 3) — a stepper is complete when it has both its buttons, a discrete choice
+  // when it has at least one chip — so it is asked of whichever control the selection got.
+  //
+  // This runs over the SHIPPED design rather than a fixture, because the fixtures give a body its
+  // widths by hand and whether the real kitchen's rows resolve any is the whole question.
+  it("gives every rendered width section a control with something in it", () => {
     const world = worldFrom(KITCHEN_L_DESIGN);
     const rendered: string[] = [];
-    const chipless: string[] = [];
+    const empty: string[] = [];
     for (const record of world.records) {
       const section = sectionsAt(world, {
         kind: "placement",
         id: record.id,
       }).find((candidate) => candidate.kind === "width");
-      if (!section) continue;
+      if (section?.kind !== "width") continue;
       rendered.push(record.id);
-      if (section.chips.length === 0) chipless.push(record.id);
+      const controlSize =
+        section.control === "stepper"
+          ? section.steps.length
+          : section.chips.length;
+      if (controlSize === 0) empty.push(record.id);
     }
-    expect(chipless).toEqual([]);
-    // The sweep is empty today and that is stated, not assumed: no seeded entry has `sizesMm`
-    // (M4 carries that gap into M5), so `describeWidthSection` declines on every one of them and
-    // nothing reaches the chipless check above. The day M5 gives the seeded entries their widths,
-    // this line fails and the check starts doing real work — which is the point of asserting the
-    // emptiness rather than letting a silent zero-iteration sweep report green forever.
-    expect(rendered).toEqual([]);
+    expect(empty).toEqual([]);
+    // The tripwire, turned over by M5 wave 5B rather than removed. It asserted `[]` — the sweep was
+    // empty because no seeded entry had `sizesMm`, so nothing reached the check above and a
+    // zero-iteration sweep would have reported green forever. The widths have arrived, so the same
+    // line now names exactly which bodies render the section: a row that silently stops resolving a
+    // set is a failure here rather than a section that quietly disappears from the panel.
+    expect(rendered).toEqual(SEEDED_IDS_WITH_A_WIDTH_SECTION);
   });
 
-  // The "never free" property itself is exercised non-vacuously in `panel-model.qa.test.ts` and
-  // `panel-model.test.ts`, whose `meta` fixtures do carry a size set. Here it can only restate the
-  // gap above, so that is what it asserts.
-  it("renders no width section anywhere in the kitchen, seeded entries having no widths", () => {
+  // **Turned over three times, and each turn is a decision arriving.** M4 pinned "never free"
+  // because no resize command existed. Wave 5D gave the control `setWidth`'s real verdicts and the
+  // number held, because ADR 0031 funded a resize from an adjacent column empty at **every** level
+  // and clearing p1, p7, p12 and p24 empties none. **ADR 0035 decision 7** then made a shrink fund
+  // itself out of the space it vacates, so narrowing became reachable with no empty column anywhere.
+  //
+  // What survives all three, and is still the measurement behind wave 5E's note that a browser gate
+  // needs a delete in front of it: **nothing above a body's own width is ever reachable** while no
+  // column is empty, because growth still has to consume space that already exists. Wave 5D2c makes
+  // that one sentence about both controls — the `+50` is disabled, and no chip above the active one
+  // is free.
+  it("offers no widening anywhere, on either control, while no column is empty", () => {
     const world = openedKitchen();
     const rendered: string[] = [];
+    let narrowings = 0;
     for (const target of everySelectableTarget(world)) {
       for (const section of sectionsAt(world, target)) {
         if (section.kind !== "width") continue;
         rendered.push(target.id);
-        expect(section.chips.some((chip) => chip.state === "free")).toBe(false);
+        if (section.control === "stepper") {
+          expect([target.id, section.steps[1].isDisabled]).toEqual([
+            target.id,
+            true,
+          ]);
+          if (!section.steps[0].isDisabled) narrowings += 1;
+          continue;
+        }
+        const active = section.chips.find((chip) => chip.state === "active");
+        for (const chip of section.chips) {
+          if (chip.state !== "free") continue;
+          narrowings += 1;
+          expect([target.id, chip.widthMm < (active?.widthMm ?? 0)]).toEqual([
+            target.id,
+            true,
+          ]);
+        }
       }
     }
-    expect(rendered).toEqual([]);
+    // And the sweep is not vacuous the other way either: shrinking is reachable from a standing
+    // start, which is the whole of what decision 7 buys.
+    expect(narrowings).toBeGreaterThan(0);
+    // The second tripwire, turned over the same way. `openedKitchen` clears p1, p7, p12 and p24, so
+    // the four of them are gone from the sweep and the derived voids that replaced them render no
+    // width section at all — §9 hides Lățime on an empty slot, and that is asserted here by their
+    // absence rather than assumed.
+    expect(rendered).toEqual(
+      SEEDED_IDS_WITH_A_WIDTH_SECTION.filter(
+        (id) => !["p1", "p7", "p12", "p24"].includes(id),
+      ),
+    );
+  });
+});
+
+describe("what a seeded width control actually offers", () => {
+  // **5D's `EXPECTED_CHIPS_MM` table is retired here, with the chips it described** (ADR 0035's
+  // consequences: "the pinned chip counts and the three pinned rows in 5D's tests go with the
+  // chips"). It named the whole intersection per body — `p0`'s 600–800, `p4`'s 300–800, `p10`'s
+  // 200–800 — which a two-button control no longer renders and therefore no longer proves. Those
+  // intersections are still pinned where they are computed, in the domain's own
+  // `set-width.columns.test.ts`; which *control* each column gets, and against the catalogue's own
+  // declared ranges, is pinned in `width-stepper.test.ts`.
+  //
+  // What is left for this file is the half neither of those covers: on the shipped design, the value
+  // the customer reads is the body's own width, and it is the width the buttons step from.
+  it("shows each body its own width, and steps from it", () => {
+    const world = worldFrom(KITCHEN_L_DESIGN);
+    let checked = 0;
+    for (const record of world.records) {
+      const section = sectionsAt(world, {
+        kind: "placement",
+        id: record.id,
+      }).find((candidate) => candidate.kind === "width");
+      if (section?.kind !== "width") continue;
+      checked += 1;
+      expect([record.id, section.valueLabel]).toEqual([
+        record.id,
+        `${String(record.widthMm)} mm`,
+      ]);
+      if (section.control === "stepper") {
+        expect([record.id, section.steps.map((step) => step.widthMm)]).toEqual([
+          record.id,
+          [record.widthMm - 50, record.widthMm + 50],
+        ]);
+        continue;
+      }
+      // A discrete column marks the width the body stands at, and marks exactly one.
+      expect([
+        record.id,
+        section.chips
+          .filter((chip) => chip.state === "active")
+          .map((chip) => chip.widthMm),
+      ]).toEqual([record.id, [record.widthMm]]);
+    }
+    expect(checked).toBe(SEEDED_IDS_WITH_A_WIDTH_SECTION.length);
+  });
+
+  // §13.1, and the five entries that deliberately declare no `catalogEquivalentId`: a body with no
+  // catalogue equivalent resolves no set, and `describeWidthSection` declines rather than rendering
+  // an empty row. Asserted over the shipped design, because that is the population that has them.
+  it("renders no width section for a body with no catalogue equivalent", () => {
+    const world = worldFrom(KITCHEN_L_DESIGN);
+    const withoutEquivalent = world.records.filter(
+      (record) =>
+        KITCHEN_L_BODY_CATALOG.get(record.buildId)?.catalogEquivalentId ===
+        undefined,
+    );
+    expect(withoutEquivalent.length).toBeGreaterThan(0);
+    for (const record of withoutEquivalent) {
+      const section = sectionsAt(world, {
+        kind: "placement",
+        id: record.id,
+      }).find((candidate) => candidate.kind === "width");
+      expect([record.id, section]).toEqual([record.id, undefined]);
+    }
   });
 });
 
@@ -357,7 +530,7 @@ describe("§9's ACTUAL badge over the real kitchen", () => {
     if (section?.kind !== "replace") throw new Error("no replace section");
     expect(
       section.rows.filter((row) => row.isCurrent).map((row) => row.buildId),
-    ).toEqual(["wall-2door"]);
+    ).toEqual(["wall-cabinet"]);
   });
 });
 
@@ -374,7 +547,7 @@ describe("the panel is exactly the offer list, everywhere in the kitchen", () =>
       if (target.kind === "void") sweptSlots += 1;
       else sweptBodies += 1;
       expect(section.rows.map((row) => row.buildId)).toEqual(
-        offersFor({ ...world, target }).map((candidate) => candidate.buildId),
+        offeredBuildIds(offersFor({ ...world, target })),
       );
     }
     expect(sweptBodies).toBeGreaterThan(0);
@@ -423,18 +596,14 @@ describe("the panel is exactly the offer list, everywhere in the kitchen", () =>
     expect(swept).toBeGreaterThan(0);
   });
 
-  // §11 row 24 against the body the fallback set was written for. The hob also refuses one guard
-  // earlier (`canReplace: false`), so this asserts the outcome, not the mechanism.
-  // ADR 0027: the shipped design's hob is a mesh inside `p2`'s body, so the accessory this rule is
-  // about now only reaches the panel from a document saved before that migration.
-  it("renders no replace section for the hob", () => {
-    const world = worldFrom(preMigrationHobDesign());
-    const hob = world.records.find(
-      (record) => record.kind === "induction_cooktop",
-    );
-    expect(hob).toBeDefined();
+  // §11 row 24 / §11 row 16 against the corner leg, which declares `canReplace: false`. This
+  // asserts the outcome, not the mechanism. ADR 0027 folded the hob into `p2`'s body and ADR 0038
+  // retired the document that carried it separately, so the bodies in this position are now exactly
+  // the four corner bodies — `p25`, `p26`, `p9` and `p21`. `p25` stands for all four.
+  it("renders no replace section for the corner leg", () => {
+    const world = worldFrom(KITCHEN_L_DESIGN);
     expect(
-      sectionsAt(world, { kind: "placement", id: hob?.id ?? "" }).map(
+      sectionsAt(world, { kind: "placement", id: "p25" }).map(
         (section) => section.kind,
       ),
     ).not.toContain("replace");

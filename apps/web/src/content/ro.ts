@@ -66,6 +66,27 @@ export const ro = {
       `Niciun alt corp ${bandWord} nu încape aici. Șterge corpul ca să eliberezi deschiderea și să vezi ce intră în ea.`,
     noOffersForSlot: (widthMm: number, heightMm: number) =>
       `Niciun corp din catalog nu intră în ${String(widthMm)} × ${String(heightMm)} mm. Șterge un corp vecin ca să lărgești deschiderea.`,
+    /** **ADR 0037, and §9's zero-result rule inverted.** §9 says a zero-result list names what to
+     *  clear; above §7's 800 mm ceiling that advice makes the problem worse, because clearing a
+     *  neighbour widens the opening it was meant to close. The owner decided on 2026-08-28 that such
+     *  a space may simply stay empty — *"ok to have empty space left"* — so the sentence says that
+     *  instead of asking for an action that cannot work.
+     *
+     *  It states the ceiling as a number because "no cabinet fits" is not actionable on its own: the
+     *  customer's one real move is to put a cabinet back and split the span, and knowing the widest
+     *  one is 800 is what makes that a plan rather than a guess. */
+    noOffersTooWide: (widthMm: number, maxWidthMm: number) =>
+      `Deschiderea are ${String(widthMm)} mm, mai mult decât cel mai lat corp din catalog (${String(maxWidthMm)} mm). Niciun corp nu o umple singur, iar ștergerea unui vecin ar lărgi-o și mai mult. Spațiul poate rămâne gol, sau îl poți împărți punând la loc un corp lângă el.`,
+    /** The same trap from the other side, and ADR 0035 decision 7 is what created it: a shrink
+     *  vacates a strip, and until the next press absorbs it that strip is a selectable opening
+     *  narrower than anything the catalogue is made at. Suppressing such openings was tried in this
+     *  milestone and reverted — a horizontal floor on void emission also hides the 190–199 mm
+     *  openings the bottle-cargo refusals are observed in — so the honest answer is a sentence
+     *  saying the space may be left. "Șterge un corp vecin" is wrong here too: the neighbours are
+     *  what the strip was taken from, and clearing one gives a *wider* opening rather than a usable
+     *  one at this width. */
+    noOffersTooNarrow: (widthMm: number, minWidthMm: number) =>
+      `Deschiderea are ${String(widthMm)} mm, mai puțin decât cel mai îngust corp din catalog (${String(minWidthMm)} mm). Spațiul poate rămâne gol; se închide când lărgești corpul de lângă el.`,
     offerSize: (widthMm: number, heightMm: number) =>
       `${String(widthMm)} × ${String(heightMm)} mm`,
     currentBadge: "Actual",
@@ -152,11 +173,47 @@ export const ro = {
       `Implicit pentru acest corp: ${label}.`,
     widthTitle: "Lățime",
     widthValue: (widthMm: number) => `${String(widthMm)} mm`,
-    /** M5 owns §5.4's boundary move. Until it lands the other chips are genuinely unsatisfiable,
-     *  so they render blocked — and this note says so rather than describing a donor rule that no
-     *  code implements yet. */
-    widthNote:
-      "Lățimea se schimbă mutând granița cu vecinul. Nu este încă disponibilă în această versiune.",
+    /** ADR 0035 decision 1's stepper labels. The `−` is U+2212 MINUS SIGN rather than a hyphen, so
+     *  the two buttons are the same optical width and a screen reader reads "minus" rather than
+     *  "hyphen". */
+    widthStepLabels: { narrower: "−50 mm", wider: "+50 mm" },
+    /** The buttons read `−50 mm` / `+50 mm`, which says the size of the step and not what it does to.
+     *  The accessible name says both. */
+    widthStepAriaLabels: {
+      narrower: "Micșorează lățimea cu 50 mm",
+      wider: "Mărește lățimea cu 50 mm",
+    },
+    /** §9's width note, **rewritten again in wave 5D2c** — it is the third version, and each
+     *  rewrite has been for the same reason: it described a surface that had changed.
+     *
+     *  M4 shipped "nu este încă disponibilă în această versiune", which wave 5D made a lie the
+     *  moment the chips became clickable. Wave 5D replaced it with ADR 0031's rule and the clause
+     *  "Sub 300 mm nu se coboară" — true of most cabinetry and **false as a universal**: ADR 0026's
+     *  bottle cargo goes to 200, ADR 0017's sink column floors at 560, and since wave 5D2b a hood
+     *  floors its column at its own width. Three different floors, none of them 300 everywhere.
+     *
+     *  So this version states only what is true of every selection — the step, and where the space
+     *  comes from — and leaves the floor to the disabled `−50`, which carries the engine's own
+     *  sentence for the floor that actually applies to *this* column. That is ADR 0032's
+     *  arrangement: the reason belongs on the control that refuses, not in a note above it. */
+    widthStepNote:
+      "Lățimea se schimbă din 50 în 50 mm, mutând granița coloanei în spațiul liber alăturat — întâi în dreapta, apoi în stânga. Când un buton este gri, sub el scrie de ce.",
+    /** ADR 0035 decision 3's other control. **It says "coloana", not "corpul", and that is the fix for a sentence that was false on two of
+     *  the three selections it renders on** (5D2c product-logic review B2). The three are `p1`,
+     *  `p12` and `p18`, and only `p1` is the dishwasher niche — `p12` is an open shelf built 300-800
+     *  and `p18` a wall cabinet built 200-800. Both were shown two chips under a sentence asserting
+     *  *this body* is made only in those. Neither is; the constraint is `p1`'s niche, one level down
+     *  the same column (ADR 0034: the chips are the column's).
+     *
+     *  The second sentence exists because ADR 0035 decision 6 squares the whole column up, so
+     *  picking 450 here resizes the dishwasher too — which nothing said.
+     *
+     *  It says "doar în lățimile afișate" without naming a
+     *  cause, because the cause is not always an appliance: `base-bottle-cargo` is cabinetry and is
+     *  discrete for ADR 0026's own reason, that the proportion is the product. A note claiming an
+     *  electrocasnic would be false on it. */
+    widthChoiceNote:
+      "Coloana asta se face doar în lățimile afișate, așa că alegi una dintre ele în loc să reglezi din 50 în 50 mm. Alegerea schimbă lățimea întregii coloane, nu doar a acestui corp.",
     /** §11 row 16 and §13.1: a corner return offers nothing at all, so no refusal is ever produced
      *  to carry the explanation. Without this the panel is a header, an empty body and "Gata", and
      *  the rule is satisfied by having deleted the question. Keyed by the reason the catalogue

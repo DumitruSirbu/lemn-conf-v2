@@ -82,14 +82,14 @@ function parameterised(
 }
 
 const BASE_BUILD_IDS = [
-  "base-2door",
-  "base-1door",
+  "base-cabinet",
+  "base-cabinet",
   "base-3drawer",
   "base-panbank",
 ] as const;
 const WALL_BUILD_IDS = [
-  "wall-2door",
-  "wall-1door",
+  "wall-cabinet",
+  "wall-cabinet",
   "wall-lift",
   "open-shelf",
 ] as const;
@@ -222,14 +222,14 @@ describe("buildCatalogBody", () => {
   // §11 row 20.
   it("builds a 570 mm wall cabinet to 570 mm with two doors", () => {
     const size = { widthM: 0.57, heightM: 0.7, depthM: 0.33 };
-    const group = buildCatalogBody(kit, "wall-2door", size);
+    const group = buildCatalogBody(kit, "wall-cabinet", size);
 
     expect(countMeshes(group, "door_front")).toBe(2);
-    expect(measure("wall-2door", size).carcassWidthM).toBeCloseTo(0.57, 6);
+    expect(measure("wall-cabinet", size).carcassWidthM).toBeCloseTo(0.57, 6);
   });
 
   it("builds a single door below §7's 450 mm door-count threshold", () => {
-    const group = buildCatalogBody(kit, "wall-2door", {
+    const group = buildCatalogBody(kit, "wall-cabinet", {
       widthM: 0.45,
       heightM: 0.7,
       depthM: 0.33,
@@ -294,7 +294,7 @@ describe("buildCatalogBody", () => {
       "handle_bar",
     );
     const doorBar = findMesh(
-      buildCatalogBody(kit, "base-1door", size),
+      buildCatalogBody(kit, "base-cabinet", size),
       "handle_bar",
     );
 
@@ -354,7 +354,7 @@ describe("buildCatalogBody", () => {
     const size = { widthM: 0.6, heightM: 0.7, depthM: 0.33 };
 
     const lift = handleBarExtent(buildCatalogBody(kit, "wall-lift", size));
-    const hinged = handleBarExtent(buildCatalogBody(kit, "wall-1door", size));
+    const hinged = handleBarExtent(buildCatalogBody(kit, "wall-cabinet", size));
 
     expect(lift.widthM).toBeGreaterThan(lift.heightM);
     expect(hinged.heightM).toBeGreaterThan(hinged.widthM);
@@ -384,16 +384,23 @@ describe("buildCatalogBody", () => {
   // so it now lives in the domain (`WALL_CARCASS_MAX_DEPTH_OVER_WORKTOP_M`) and arrives already
   // applied. Asserted on geometry rather than on the argument passed: the builder must build the
   // depth it is handed, at both ends of the range, or the rule above it can decide nothing.
+  //
+  // **Since ADR 0036 decision 1 the depth it is handed is the *finished* cabinet**, so the shell is
+  // that less the 39 mm door-and-handle front assembly and the whole body — shell, door and handle
+  // — measures exactly what was asked for. Both halves are asserted: the shell, because it is what
+  // the head-clearance rule above is really sizing, and the finished extent, because that is what
+  // the customer measures and what "330" now means. Before 5F the shell was 330 and the body 369.
   it.each([0.33, 0.4, 0.6])(
     "builds a wall carcass to the %s m it is handed, and does not clamp it",
     (depthM) => {
-      const group = buildCatalogBody(kit, "wall-1door", {
+      const group = buildCatalogBody(kit, "wall-cabinet", {
         widthM: 0.6,
         heightM: 0.7,
         depthM,
       });
 
-      expect(depthOf(group)).toBeCloseTo(depthM, 6);
+      expect(depthOf(group)).toBeCloseTo(depthM - WALL_FRONT_ASSEMBLY_M, 6);
+      expect(finishedDepthOf(group)).toBeCloseTo(depthM, 6);
     },
   );
 });
@@ -435,6 +442,16 @@ function countMeshes(group: THREE.Group, meshName: string): number {
     if (node.name === meshName) found += 1;
   });
   return found;
+}
+
+/** ADR 0036 decision 1: an 18 mm door slab and the 21 mm its bar handle stands proud of it. */
+const WALL_FRONT_ASSEMBLY_M = 0.039;
+
+/** The whole body front to back — what a customer measures, and what a declared depth now means. */
+function finishedDepthOf(group: THREE.Group): number {
+  group.updateWorldMatrix(true, true);
+  const box = new THREE.Box3().setFromObject(group);
+  return box.max.z - box.min.z;
 }
 
 function depthOf(group: THREE.Group): number {

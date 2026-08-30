@@ -1,9 +1,8 @@
-// `DEVELOPMENT-SPEC.md` §5.1: delete makes space. Refuse a void, an accessory, or a body the
-// catalogue marks structural; otherwise drop the body **and everything it carried**.
+// `DEVELOPMENT-SPEC.md` §5.1: delete makes space. Refuse a void or a body the catalogue marks
+// structural; otherwise drop the body.
 //
 // Deletion is final. No undo exists and nothing here retains a prior state "in case": a void may
 // have merged with its neighbours since, so there is no single state to restore (§5.1, §13.1).
-import { findHostedAccessories } from "../accessories.js";
 import { describeKindLabel } from "../catalog.js";
 import type { Design } from "../design.js";
 import {
@@ -30,21 +29,23 @@ export interface RemovePlacementInput {
 
 type RemoveResult = CommandResult<PlacementRemovedEffect>;
 
-/** §5.1's refusal list, closed: void selected · accessory · `!canDelete`. Each carries its own
- *  code, so the panel never has to guess which of the three happened (§11 rows 15, 16). */
+/** §5.1's one body-level refusal: `!canDelete`. A void selection is refused in `removePlacement`
+ *  itself, before a record exists to ask about. Kept as its own function so the guard and its code
+ *  stay one named step (§11 row 16).
+ *
+ *  ADR 0027 removed the third arm's subject: the hob is part of its cabinet body, so no placement
+ *  is a standalone accessory any more, and ADR 0038 confirmed no document exists that carries one.
+ *  §11 row 15 — "the hob cannot be deleted separately" — is satisfied by construction rather than
+ *  by a guard, because there is no hob placement to point a delete at. */
 function refuseRemoval(
   design: Design,
   record: PlacementRecord,
 ): RemoveResult | undefined {
-  const label = describeKindLabel(record.kind);
-  if (record.accessory) {
-    return refuse(design, {
-      code: "ACCESSORY_NOT_DELETABLE",
-      params: { label },
-    });
-  }
   if (!record.canDelete) {
-    return refuse(design, { code: "NOT_DELETABLE", params: { label } });
+    return refuse(design, {
+      code: "NOT_DELETABLE",
+      params: { label: describeKindLabel(record.kind) },
+    });
   }
   return undefined;
 }
@@ -66,27 +67,21 @@ export function removePlacement(input: RemovePlacementInput): RemoveResult {
   const refusal = refuseRemoval(design, record);
   if (refusal) return refusal;
 
-  return applyRemoval(input, record, records);
+  return applyRemoval(input, record);
 }
 
 function applyRemoval(
   input: RemovePlacementInput,
   record: PlacementRecord,
-  records: readonly PlacementRecord[],
 ): RemoveResult {
-  const cascadedAccessoryIds = findHostedAccessories(record, records).map(
-    (accessory) => accessory.id,
-  );
-  const removedIds = new Set([record.id, ...cascadedAccessoryIds]);
   const placements = input.design.placements.filter(
-    (placement) => !removedIds.has(placement.id),
+    (placement) => placement.id !== record.id,
   );
   return succeedWith(
     withPlacements(input.design, placements, input.occurredAt),
     {
       type: "placement_removed",
       placementId: record.id,
-      cascadedAccessoryIds,
       vacated: { col: record.col, y0: record.frame.y0 },
     },
   );

@@ -37,6 +37,29 @@ export const CARCASS_MESH_NAME_PATTERN =
 export const WALL_A_MESH_NAME = "wall_back";
 export const WALL_B_MESH_NAME = "wall_left";
 
+/** §11 row 19's **second named exception**, after ADR 0025's corner leg.
+ *
+ *  Row 19 seats every body by its back face: the seat is the distance from the group origin to that
+ *  face, so `deriveCabinetWorldTransform` lands it on the wall plane for any bounding box, and the
+ *  world span always starts at zero. A hood does not want that. ADR 0039 decision 2 hangs it from
+ *  the **front** — its front face on the cabinet-depth line, confirmed by the owner as that line and
+ *  not the worktop's 620 — so a standard 500 mm hood leaves `cabinetDepth − 500` of gap behind it,
+ *  which the chimney hides.
+ *
+ *  The seat is the only lever: it is what `insertBody` persists as `seatDepthMm` and what the
+ *  transform reads back. So a front-aligned body's seat is measured **forward from the cabinet-depth
+ *  line to its front face** instead of back from its own rear one. Everything else — the transform,
+ *  the persistence, the rebuild — is untouched, and the exception is one declared measurement rather
+ *  than a tolerance that drifted.
+ *
+ *  Keyed on the build id and not on a mesh name, because it is a product decision about hoods and
+ *  not a fact about canopies. */
+const FRONT_ALIGNED_BUILD_IDS: ReadonlySet<string> = new Set(["hood"]);
+
+function isFrontAligned(buildId: string): boolean {
+  return FRONT_ALIGNED_BUILD_IDS.has(buildId);
+}
+
 /** A `PlaneGeometry` faces its own local +Z before any rotation is applied. */
 const PLANE_LOCAL_NORMAL = new THREE.Vector3(0, 0, 1);
 
@@ -79,6 +102,9 @@ export function measureBuiltBody(
     return measureSeatedGroup(
       group,
       readWallPlaneM(input.room, WALL_A_MESH_NAME),
+      isFrontAligned(request.buildId)
+        ? input.kit.depths.cabinetDepthM
+        : undefined,
     );
   } finally {
     input.room.remove(group);
@@ -105,6 +131,7 @@ export function createBodyProbe(kit: Kit, room: THREE.Object3D): BodyProbe {
 function measureSeatedGroup(
   group: THREE.Group,
   wallPlaneM: number,
+  frontLineDepthM?: number,
 ): BodyMeasurement {
   const fullBox = new THREE.Box3().setFromObject(group);
   const carcassBox = measureCarcassBox(group);
@@ -112,7 +139,10 @@ function measureSeatedGroup(
     carcassWidthM: carcassBox.max.x - carcassBox.min.x,
     carcassHeightM: carcassBox.max.y - carcassBox.min.y,
     fullHeightM: fullBox.max.y - fullBox.min.y,
-    seatOffsetM: wallPlaneM - fullBox.min.z,
+    seatOffsetM:
+      frontLineDepthM === undefined
+        ? wallPlaneM - fullBox.min.z
+        : wallPlaneM + frontLineDepthM - fullBox.max.z,
   };
 }
 

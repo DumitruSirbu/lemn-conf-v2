@@ -20,7 +20,6 @@ import {
   voidAt,
   type KitchenWorld,
 } from "../support/kitchen-world.js";
-import { preMigrationHobDesign } from "../support/pre-migration-hob.js";
 
 const FRIDGE_COLUMN = "B|2.45";
 
@@ -62,9 +61,14 @@ describe("the signature flow (§10)", () => {
     expect(voidAt(cleared, FRIDGE_COLUMN, 0).w).toBeCloseTo(0.7, 6);
 
     // 3–5. Fill base, then middle, then top.
-    let world = fill(cleared, 0, "base-2door");
-    world = fill(world, 1.5, "wall-2door");
-    world = fill(world, 2.2, "wall-2door");
+    // `open-shelf` and `base-3drawer` rather than the hinged cabinets: §10's flow is about the slots
+    // merging and re-splitting, so the body that fills them must not refuse on width. Both are
+    // cabinetry bounded 300–800 with no hole in the middle (ADR 0035), where a hinged cabinet has
+    // ADR 0026's declared 200 rather than §2's default. The fridge column's 700 mm is inside all of
+    // them, and since the owner retired ADR 0030's one-door cap no cabinetry bound has a hole in it.
+    let world = fill(cleared, 0, "base-3drawer");
+    world = fill(world, 1.5, "open-shelf");
+    world = fill(world, 2.2, "open-shelf");
     expect(slotsOf(world, FRIDGE_COLUMN)).toEqual([]);
     const filled = world.records.filter(
       (record) => record.col === FRIDGE_COLUMN,
@@ -148,7 +152,7 @@ describe("column stability (§3.2, ADR 0011 Gap D)", () => {
     const inserted = insertInto(
       cleared,
       { kind: "void", id: voidAt(cleared, FRIDGE_COLUMN, 0).id },
-      "base-2door",
+      "base-3drawer",
     );
     expect(inserted.ok).toBe(true);
     if (!inserted.ok) return;
@@ -165,15 +169,12 @@ describe("column stability (§3.2, ADR 0011 Gap D)", () => {
 
 describe("the rejection sweep", () => {
   const originals = seeded();
-  // ADR 0027 took the hob placement out of the shipped design, and the two cases here that are
-  // about one would otherwise refuse with `TARGET_NOT_FOUND` and still pass — the sweep asserts the
-  // no-op contract, not the code, so it would go on being green while covering nothing. They run
-  // on a document saved before the migration, where the accessory still exists. Each case carries
-  // the world it runs in for that reason.
-  const preMigration = createWorld(
-    preMigrationHobDesign(),
-    KITCHEN_L_BODY_CATALOG,
-  );
+  // ADR 0027 folded the hob into `p2`'s body and ADR 0038 retired the pre-migration document these
+  // two cases used to run on, so both now refuse on the seeded corner leg `p25` instead: §13.1
+  // makes it non-deletable and non-replaceable, and it is a real placement in the shipped design.
+  // A case pointed at an id that resolves to nothing would refuse with `TARGET_NOT_FOUND` and still
+  // pass, because the sweep asserts the no-op contract rather than the code — which is why each
+  // case carries the world it runs in and why the target has to exist.
 
   it.each([
     [
@@ -188,13 +189,13 @@ describe("the rejection sweep", () => {
         }),
     ],
     [
-      "remove the hob",
-      preMigration,
+      "remove the corner leg",
+      originals,
       () =>
         removePlacement({
-          design: preMigration.design,
-          catalog: preMigration.catalog,
-          target: { kind: "placement", id: "p3" },
+          design: originals.design,
+          catalog: originals.catalog,
+          target: { kind: "placement", id: "p25" },
           occurredAt: OCCURRED_AT,
         }),
     ],
@@ -211,15 +212,15 @@ describe("the rejection sweep", () => {
         insertInto(originals, { kind: "placement", id: "p0" }, "teleporter"),
     ],
     [
-      "insert into an accessory",
-      preMigration,
+      "insert into the corner leg",
+      originals,
       () =>
-        insertInto(preMigration, { kind: "placement", id: "p3" }, "base-2door"),
+        insertInto(originals, { kind: "placement", id: "p25" }, "base-3drawer"),
     ],
     [
       "insert into a stale void",
       originals,
-      () => insertInto(originals, { kind: "void", id: "nope" }, "base-2door"),
+      () => insertInto(originals, { kind: "void", id: "nope" }, "base-3drawer"),
     ],
   ])("%s returns the identical design and no effect", (_case, world, run) => {
     const snapshot = JSON.stringify(world.design);

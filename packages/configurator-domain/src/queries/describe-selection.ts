@@ -9,7 +9,11 @@ import {
   deriveSlotBand,
   isPushOpenByDefault,
 } from "../bands.js";
-import { buildableSizes, describeKindLabel } from "../catalog.js";
+import {
+  describeBodyLabelAt,
+  describeKindLabel,
+  resolveBuildableSizes,
+} from "../catalog.js";
 import type { CommandTarget } from "../commands/command-result.js";
 import type { DesignWall, Finish, Handle } from "../design.js";
 import { toMillimetres } from "../millimetres.js";
@@ -53,7 +57,6 @@ export interface SelectionMeta {
   readonly canWidth: boolean;
   readonly canReplace: boolean;
   readonly canDelete: boolean;
-  readonly accessory: boolean;
   /** The finish currently applied, so §9's Finisaj chips can mark the active one. Absent means the
    *  body ships in its default finish — a real state, distinct from any of the five choices, and
    *  carried absent rather than defaulted to one of them.
@@ -142,7 +145,6 @@ function describeVoid(record: VoidRecord): SelectionMeta {
     // §9: a void's whole purpose is the "Pune un corp aici" list.
     canReplace: true,
     canDelete: false,
-    accessory: false,
   };
 }
 
@@ -152,17 +154,27 @@ function describeBody(
 ): SelectionMeta {
   const definition = catalog.get(record.buildId);
   // ADR 0017, and R2.9: the chips are the widths this body can be *built* at, never its raw
-  // catalogue row. `offersFor` publishes its own `sizesMm` through this same function, so one
-  // function decides and the width chips cannot drift from the offer rows the day a second entry
-  // declares a `minWidthMm` without pre-filtering its set.
-  const sizesMm = buildableSizes(
-    definition?.minWidthMm,
-    definition?.sizesMm ?? [],
-  );
+  // catalogue row. `offersFor` narrows by the same floor rule through the same `buildableSizes`, so
+  // the width chips cannot drift from the offer rows the day a second entry declares a `minWidthMm`
+  // without pre-filtering its set.
+  //
+  // ADR 0022: for a seeded body the set comes from the §7 entry the row **declares** it is an
+  // instance of, because that is the entry a §5.4 resize would rebuild it through. Never inferred
+  // from the mesh tree — ADR 0011 Gap A closes that door by name.
+  const sizesMm = resolveBuildableSizes(catalog, record.buildId);
   return {
     id: record.id,
     // §6.3: identity comes from the chosen catalogue id, never re-inferred from the mesh tree.
-    label: definition?.label ?? describeKindLabel(record.kind),
+    //
+    // ADR 0033: and the **door count** comes from the width the body actually has, at the one
+    // threshold the builder branches on. A `wall-cabinet` placement resized from 600 to 400 is a
+    // one-door cabinet and the header says so, without the customer ever having owned a different
+    // entry. A row that does not declare `doorCountFollowsWidth` is unaffected, and a seeded row —
+    // which carries no `label` of its own — still falls back to its kind, as it always has.
+    label:
+      definition === undefined
+        ? describeKindLabel(record.kind)
+        : describeBodyLabelAt(definition, record.widthMm),
     empty: false,
     kind: record.kind,
     band: record.band,
@@ -180,7 +192,6 @@ function describeBody(
     canWidth: !record.fixedWidth,
     canReplace: record.canReplace,
     canDelete: record.canDelete,
-    accessory: record.accessory,
     ...(record.finishKey === undefined ? {} : { finish: record.finishKey }),
     ...(record.handleMode === undefined ? {} : { handle: record.handleMode }),
     defaultHandle: isPushOpenByDefault(record.frame.y0)

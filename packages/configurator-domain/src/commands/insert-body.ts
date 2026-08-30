@@ -4,7 +4,6 @@
 // Forking them is on record as the cause of a silent, total failure of the replace feature: a void
 // rewrite dropped the swap branch and every "Înlocuiește" row did nothing at all. One path also
 // keeps the fit guards from drifting apart.
-import { findHostedAccessories } from "../accessories.js";
 import type { BodyProbe, BodyMeasurement } from "../body-probe.js";
 import {
   describeKindLabel,
@@ -23,6 +22,7 @@ import {
   FIT_TOLERANCE_M,
   type BodyCatalog,
   type Column,
+  type PlacementRecord,
 } from "../void-engine.js";
 import {
   isValidOccurredAt,
@@ -149,8 +149,10 @@ function place(
 
 /** §5.2: "gs = CARCASS box of g → re-check width & height, reject on mismatch". Fit is judged on
  *  the carcass, so the sink's faucet and the hood's chimney — which rise into free air — cannot
- *  refuse a body from an opening it fits perfectly (§11 row 7). */
-function refuseBuiltSize(
+ *  refuse a body from an opening it fits perfectly (§11 row 7).
+ *
+ *  Exported for ADR 0031's rebuild — see `refuseUnusableMeasurement` below. */
+export function refuseBuiltSize(
   body: InsertableBody,
   plan: InsertPlan,
   measurement: BodyMeasurement,
@@ -180,8 +182,12 @@ function refuseBuiltSize(
 /** The rest of the measurement, which no size gate covers: the seat offset `insertBody` persists
  *  and the full extent it reports. A probe is an injected port, so a measurement that is not a
  *  number is a data condition and belongs in the `CommandResult`, never in a thrown exception —
- *  the store calling this has no catch (ADR 0011 Gap E's reasoning, applied to Gap B's port). */
-function refuseUnusableMeasurement(
+ *  the store calling this has no catch (ADR 0011 Gap E's reasoning, applied to Gap B's port).
+ *
+ *  Exported for ADR 0031's rebuild, which builds every member of a column through the same probe
+ *  and owes each of them the same two checks. One implementation, so an insert and a resize cannot
+ *  come to disagree about what a usable measurement is. */
+export function refuseUnusableMeasurement(
   body: InsertableBody,
   measurement: BodyMeasurement,
 ): RejectionDetail | undefined {
@@ -264,7 +270,7 @@ function buildPlacement(
       widthMm: millimetres.widthMm,
       heightMm: millimetres.heightMm,
       seatDepthMm: millimetres.seatDepthMm,
-      ...carriedAppearance(body, target),
+      ...carriedAppearance(body, target.replaced),
     },
   };
 }
@@ -272,12 +278,16 @@ function buildPlacement(
 /** "Choice beats default" (§5.4): a swap keeps the recorded finish and handle where the incoming
  *  body supports them, and drops them where it does not — an open shelf has no doors. The top
  *  row's push-open default is deliberately *not* recorded here; it is decided by the slot at
- *  render time (`isPushOpenByDefault`), so `canHandle` stays true and the choice stays available. */
-function carriedAppearance(
+ *  render time (`isPushOpenByDefault`), so `canHandle` stays true and the choice stays available.
+ *
+ *  §11 rows 12 and 13 are the same requirement read from ADR 0031's end, so the resize rebuild
+ *  calls this rather than repeating it — for **every member of the column it moves**, not only the
+ *  body the customer selected. The recorded defect is a sage door with black bars silently reset to
+ *  white with steel. */
+export function carriedAppearance(
   body: InsertableBody,
-  target: ResolvedOpening,
+  replaced: PlacementRecord | undefined,
 ): Pick<CabinetBody, "finish" | "handle"> {
-  const replaced = target.replaced;
   if (!replaced) return {};
   return {
     ...(body.definition.canFinish && replaced.finishKey !== undefined
@@ -298,19 +308,12 @@ function applyPlacement(
   placement: DesignPlacement,
 ): InsertResult {
   const replacedId = target.replaced?.id;
-  const cascadedAccessoryIds = cascadeDuplicatedAccessories(
-    input,
-    body,
-    target,
-  );
-  const swapped =
+  const placements =
     replacedId === undefined
       ? [...input.design.placements, placement]
       : input.design.placements.map((existing) =>
           existing.id === replacedId ? placement : existing,
         );
-  const cascaded = new Set(cascadedAccessoryIds);
-  const placements = swapped.filter((existing) => !cascaded.has(existing.id));
   const design = withPlacements(input.design, placements, input.occurredAt);
 
   const drift = refuseColumnDrift(design, input, target, body, placement.id);
@@ -321,36 +324,7 @@ function applyPlacement(
     placementId: placement.id,
     buildId: placement.body.buildId,
     ...(replacedId === undefined ? {} : { replacedPlacementId: replacedId }),
-    cascadedAccessoryIds,
   });
-}
-
-/** ADR 0027: §5.3 swaps a body **in place**, so unlike §5.1's delete it never cascaded anything —
- *  and a pre-migration document reaches a state where it must. Its hob is a separate `cooktop-600`
- *  placement hosted on the base cabinet below (§6.1); swap that cabinet for a body that has a hob
- *  built into it and §6.1 simply re-hosts the old one onto the new body, leaving two hobs at the
- *  same worktop line. The spare refuses deletion (`ACCESSORY_NOT_DELETABLE`), so the customer
- *  cannot clear it — the only escape is deleting the whole cabinet.
- *
- *  Narrow on purpose: only an accessory of the exact kind the incoming body declares it carries is
- *  removed. Swapping the same cabinet for a plain `base-2door` still leaves the hob hosted on it,
- *  which is the behaviour that pre-dates this record and is not a duplicate of anything. */
-function cascadeDuplicatedAccessories(
-  input: InsertBodyInput,
-  body: InsertableBody,
-  target: ResolvedOpening,
-): readonly string[] {
-  const carriedKind = body.definition.carriesAccessoryKind;
-  const replaced = target.replaced;
-  if (carriedKind === undefined || !replaced) return [];
-
-  // Re-derived from the pre-command design rather than threaded down from `insertBody`, so an
-  // insert that cannot duplicate anything — every entry but the two hob bases — pays nothing for
-  // this. `refuseColumnDrift` below re-derives the same way, from the design after the write.
-  const records = derivePlacementRecords(input.design, input.catalog);
-  return findHostedAccessories(replaced, records)
-    .filter((accessory) => accessory.kind === carriedKind)
-    .map((accessory) => accessory.id);
 }
 
 /** ADR 0011 Gap D: an inserted placement's derived column must be the target's own. Insert takes

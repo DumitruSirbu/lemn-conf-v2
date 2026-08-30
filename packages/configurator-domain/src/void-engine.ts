@@ -23,9 +23,18 @@ export const MIN_SPAN_M = 0.3;
  *
  *  ADR 0026 reads this as a default rather than an absolute: an entry may declare a `minWidthMm`
  *  of its own in either direction, and one declaring a floor *below* this replaces it for that
- *  entry alone. `base-bottle-cargo` is the only such row, and it is reachable only by being chosen
- *  deliberately — §5.4's donor rule reads this constant, so no resize can leave a neighbour under
- *  300 mm as the residue of somebody else's edit. */
+ *  entry alone. Three rows declare downward since ADR 0030's amendment — `base-bottle-cargo`,
+ *  the two hinged rows (`base-cabinet` and `wall-cabinet`, which ADR 0033 merged the former `base-1door`/`wall-1door` into) — and each is reachable only by being chosen deliberately.
+ *
+ *  ADR 0031 reads this constant for a different subject than §5.4 did. There is no donor any more,
+ *  so nothing is left narrow as the residue of somebody else's edit; what this floors now is the
+ *  **empty column a resize eats into**, which may be consumed exactly to zero but must never be
+ *  left as a sliver under 300 mm that nothing can be inserted into.
+ *
+ *  **It floors consuming, never creating** (ADR 0035 decision 7). A shrink that makes its own empty
+ *  column makes one 50 mm wide on the first step, and applying this floor there would disable the
+ *  stepper outright; the owner has ruled that an opening no cabinet fits may simply be left
+ *  (ADR 0037). `set-width.ts` says which side of that line each check is on. */
 export const MIN_WIDTH_M = 0.3;
 
 /** `DEVELOPMENT-SPEC.md` §2's `TOL`: the slack every width and height comparison uses. Frame
@@ -37,13 +46,10 @@ export const FIT_TOLERANCE_M = 0.012;
  *  level, per §4 rule 4 (a span starting mid-level stays one opening). */
 export const LEVEL_SNAP_M = 0.02;
 
-/** `frame.h` below this marks a worktop accessory (§2, §6.1) rather than a body. */
-export const ACCESSORY_MAX_HEIGHT_M = 0.3;
-
 export type Band = "base" | "wall" | "top" | "column";
 
 /** §7's width column: `'fit'` builds to the opening; a millimetre set builds only at those
- *  widths (the dishwasher niche's 450/600, the hood's 600/900, a column's fixed 600). */
+ *  widths (the dishwasher niche's 450/600, a column's fixed 600, the bottle cargo's 200/300). */
 export type WidthFlex = "fit" | readonly number[];
 
 /** Why a body offers nothing structural — no swap list, no delete, no finish, no handle, no width.
@@ -51,6 +57,8 @@ export type WidthFlex = "fit" | readonly number[];
  *  a refusal to carry that explanation, so the reason is declared on the catalogue entry instead of
  *  being read back out of four false capability flags. */
 export type StructuralReason = "corner";
+
+import { occupiedDepthM } from "./occupied-depth.js";
 
 export interface Frame {
   readonly x: number;
@@ -65,6 +73,13 @@ export interface Frame {
 /** Everything about a `buildId` that the `Design` wire schema does not carry: what the body is,
  *  where it sits in the module grid, and what a person is allowed to do to it. `frameHeightMm`
  *  defaults to the carcass `heightMm` when the full extent (accessories, proud fronts) matches it. */
+/** An inclusive width range in millimetres, as `resolveWidthRangesMm` reads it. Both ends are real
+ *  numbers: ADR 0035 decision 1 gives every cabinetry row a ceiling, so no range is open above. */
+export interface WidthRangeMm {
+  readonly minMm: number;
+  readonly maxMm: number;
+}
+
 export interface BodyDefinition {
   readonly kind: string;
   readonly band: Band;
@@ -94,8 +109,9 @@ export interface BodyDefinition {
    *  placement with no measured `seatDepthMm` of its own. A wall entry over a full-height column
    *  builds deeper than this. */
   readonly nominalDepthMm?: number;
-  /** §9's width chips — the legal widths for this body. Delivered as a per-entry constant here;
-   *  M5 wires them to the resize command. */
+  /** §9's **modular** widths for this body — what a customer picks from. ADR 0035 derives them from
+   *  `widthRangesMm` at a 50 mm step for a cabinetry row and states them literally for an appliance
+   *  row; either way it is the bound, not this, that decides whether a width may be built. */
   readonly sizesMm?: readonly number[];
   /** ADR 0017: the narrowest width (millimetres) this body's own row permits. Absent means
    *  `MIN_WIDTH_M` governs, which is every entry but two.
@@ -115,20 +131,56 @@ export interface BodyDefinition {
    *  Declared per entry rather than inferred from kind + band + width, following ADR 0017's
    *  precedent: §6.3 records that inferring a body's identity produced a fridge housing labelled and
    *  priced as a pantry, and an inferred swap-row match is the same mistake one layer up. Absent
-   *  means this body has no catalogue equivalent — the hob, the corner returns — and no row is
-   *  badged, which is the correct answer for them rather than a missing one. */
+   *  means this body has no catalogue equivalent — the corner returns — and no row is badged,
+   *  which is the correct answer for them rather than a missing one. The hob was the other example
+   *  until ADR 0027 folded it into its cabinet: the surviving hob-bearing base declares
+   *  `base-hob-2drawer`, so it is now a body that has one. */
   readonly catalogEquivalentId?: string;
   /** ADR 0027: the accessory `kind` this body has **built into it** — `induction_cooktop` on both
    *  hob-bearing bases and on the seeded cabinet they replaced.
    *
    *  Declared rather than inspected, for the reason `catalogEquivalentId` above is: the domain has
    *  no meshes to look at, so "this body already carries a hob" is a fact only the catalogue can
-   *  state. §5.3 reads it to cascade a *duplicate* — a pre-migration document's separate
-   *  `cooktop-600` placement standing on the body being swapped out — away in the same command, so
-   *  a swap cannot leave two hobs in the same cubic centimetre with the spare undeletable
-   *  (`ACCESSORY_NOT_DELETABLE`). Absent means the body carries nothing of its own, which is every
-   *  entry but three. */
+   *  state. It said what a body is made of before anything read it (ADR 0027 records that), and
+   *  ADR 0038 put it back in that position: the §5.3 cascade that consumed it existed only to
+   *  de-duplicate a hob on a document saved before ADR 0027, and no such document was ever stored.
+   *  Absent means the body carries nothing of its own, which is every entry but three. */
   readonly carriesAccessoryKind?: string;
+  /** ADR 0033: `true` marks an entry whose **door count the builder derives from the width**, so the
+   *  displayed label counts doors that are decided at build time rather than declared here.
+   *
+   *  It exists because merging `wall-2door` + `wall-1door` (and the base pair) into one entry each
+   *  removed the only thing that had ever said how many doors a row has: its name. §7's builder has
+   *  always branched on `TWO_DOOR_MIN_WIDTH_MM` and has always been right at every width; what lied
+   *  was the label, which is why ADR 0033 calls every defect in this class "a naming defect wearing
+   *  geometry's clothes". `label` is now the entry's **generic** name — *Corp suspendat* — true at
+   *  every width, and `describeBodyLabelAt` adds the count where a width is actually known.
+   *
+   *  **Declared, never inferred.** `kind` is not enough: `base-3drawer`, `base-panbank` and
+   *  `base-sink` all carry `base_cabinet` and none of them has a hinged door to count. Absent means
+   *  `false` — the label is whatever the row says — which is the conservative direction, since a row
+   *  that forgets to declare shows its own name rather than a door count nothing verified. */
+  readonly doorCountFollowsWidth?: boolean;
+
+  /** ADR 0033's amendment, and after ADR 0035 decision 2 **the entry's width model**: the widths this
+   *  body may actually be built to.
+   *
+   *  `sizesMm` and this are different facts and both are true. `sizesMm` is the **modular widths a
+   *  customer picks from**; this is **what the body may be built to**, which is a continuum for
+   *  cabinetry. A hinged cabinet's chips sit inside one unbroken range, 200–800 — the (400, 500) hole
+   *  went with ADR 0030's retired cap — and a 570 mm opening takes an honest two-door even though
+   *  570 is not a chip.
+   *
+   *  **Declared by every §7 row**, through `cabinetryWidths` or `discreteWidths` in `catalog.ts`,
+   *  each of which produces this and `sizesMm` from one argument so the two cannot drift. Absent
+   *  means the ranges are derived from `sizesMm` as one degenerate range per size — the conservative
+   *  reading of a bare list, and no shipped row relies on it.
+   *
+   *  **Cabinetry is continuous between its bounds; appliances are discrete** (ADR 0035 decision 3). A
+   *  dishwasher niche is 450 or 600 because dishwashers are, and `base-bottle-cargo` stays discrete
+   *  for ADR 0026's own reason, that the proportion is the product. */
+  readonly widthRangesMm?: readonly WidthRangeMm[];
+
   /** Present only on an entry that offers nothing structural, saying why (§11 row 16, §13.1). */
   readonly structuralReason?: StructuralReason;
 }
@@ -151,7 +203,6 @@ export interface PlacementRecord {
   readonly canReplace: boolean;
   readonly canDelete: boolean;
   readonly fixedWidth: boolean;
-  readonly accessory: boolean;
   readonly finishKey?: Finish;
   readonly handleMode?: Handle;
 }
@@ -230,9 +281,22 @@ export class UnknownBodyError extends Error {
   }
 }
 
+/** §3.2's column key from a wall and an along-wall coordinate, at 10 mm granularity.
+ *
+ *  Exported because ADR 0031's resize moves an **empty** column, which by definition has no member
+ *  to derive a key from — its extent is frozen (ADR 0011 Gap D) and its width is what moves. Its new
+ *  key has to be derived the same way every occupied column's is, or a body later inserted into it
+ *  lands under a key the map does not hold and `insertBody` refuses `COLUMN_MISMATCH`.
+ *
+ *  ADR 0035 decision 7 gives it a second caller for the same reason: a shrink *creates* an empty
+ *  column at the extent it vacates, and that column has no member either. `set-width.ts` also uses
+ *  it to ask whether the key it is about to create is one the map already holds. */
+export function deriveColumnKeyAt(wall: DesignWall, alongM: number): string {
+  return `${wall === "B" ? "B|" : "A|"}${alongM.toFixed(2)}`;
+}
+
 function deriveColumnKey(rotated: boolean, frame: Frame): string {
-  const position = rotated ? frame.z : frame.x;
-  return `${rotated ? "B|" : "A|"}${position.toFixed(2)}`;
+  return deriveColumnKeyAt(rotated ? "B" : "A", rotated ? frame.z : frame.x);
 }
 
 function lookupDefinition(
@@ -297,7 +361,6 @@ export function derivePlacementRecords(
       canReplace: definition.canReplace,
       canDelete: definition.canDelete,
       fixedWidth: definition.fixedWidth,
-      accessory: frame.h < ACCESSORY_MAX_HEIGHT_M,
       ...(placement.body.finish !== undefined
         ? { finishKey: placement.body.finish }
         : {}),
@@ -308,12 +371,25 @@ export function derivePlacementRecords(
   });
 }
 
+/** A column's origin: along its wall from any member, across it from the column's own depth.
+ *
+ *  One function rather than two mirrored ternaries, because the mirrored pair — the same predicate
+ *  negated on adjacent lines with the operands swapped — is the shape that gets transposed on the
+ *  next edit (5F clean-code review S5). */
+function originOnWall(
+  member: PlacementRecord,
+  centreM: number,
+): { readonly x: number; readonly z: number } {
+  return member.wall === "A"
+    ? { x: member.frame.x, z: centreM }
+    : { x: centreM, z: member.frame.z };
+}
+
 function groupByColumn(
   records: readonly PlacementRecord[],
 ): Map<string, PlacementRecord[]> {
   const grouped = new Map<string, PlacementRecord[]>();
   for (const record of records) {
-    if (record.accessory) continue;
     const bucket = grouped.get(record.col);
     if (bucket) bucket.push(record);
     else grouped.set(record.col, [record]);
@@ -323,7 +399,6 @@ function groupByColumn(
 
 /** §3.2: derived once at load from the seeded placement set, and never recomputed afterwards —
  *  `top` and `regions` are load-time facts, not a function of the design's current state.
- *  Accessories contribute nothing.
  *
  *  `hasFullHeightUnder` is the exception and is answered here only because a load is also a
  *  derivation; every derivation after this one re-answers it through
@@ -333,11 +408,27 @@ export function deriveColumns(
 ): ReadonlyMap<string, Column> {
   const columns = new Map<string, ColumnExtent>();
   for (const [key, members] of groupByColumn(records)) {
-    const deepest = members.reduce((deepestSoFar, member) =>
-      member.frame.d > deepestSoFar.frame.d ? member : deepestSoFar,
-    );
+    // §3.2's MAX is over the **space each member fills**, not over its recorded `frame.d`. The two
+    // parted company in wave 5F: a fronted wall carcass records 39 mm less than it occupies
+    // (ADR 0036) and a front-hung hood records 200 mm more (ADR 0039).
+    //
+    // **The column's own off-wall coordinate is derived from that depth, not borrowed from a
+    // member's seat.** Those were the same fact until wave 5F, because every body was seated so its
+    // back face met the plane — so nothing said they were two, and borrowing quietly stopped working
+    // the moment a body was deliberately off the plane.
+    //
+    // A column is **the space a run occupies** (ADR 0031), and that space starts at the wall. So the
+    // coordinate is `depth / 2` on the wall's normal axis, and no member's own deliberate offset —
+    // ADR 0025's corner leg 20 mm inside the wall, ADR 0039's hood 100 mm off it — travels into the
+    // column that holds it. `ry` and the wall still come from a member, because those are facts
+    // about orientation rather than about the space.
+    // Any member will do for the two facts that are about orientation rather than about space.
+    const orientation = members[0];
+    if (!orientation) {
+      throw new Error(`deriveColumns: column ${key} has no members`);
+    }
     const width = Math.min(...members.map((member) => member.frame.w));
-    const depth = Math.max(...members.map((member) => member.frame.d));
+    const depth = Math.max(...members.map(occupiedDepthM));
     const top = Math.max(
       ...members.map((member) => member.frame.y0 + member.frame.h),
     );
@@ -347,12 +438,12 @@ export function deriveColumns(
         member.frame.y0 + member.frame.h,
       ])
       .sort((a, b) => a[0] - b[0]);
+    const centre = depth / 2;
     columns.set(key, {
       key,
-      wall: deepest.wall,
-      ry: deepest.frame.ry,
-      x: deepest.frame.x,
-      z: deepest.frame.z,
+      wall: orientation.wall,
+      ry: orientation.frame.ry,
+      ...originOnWall(orientation, centre),
       w: width,
       d: depth,
       top,
@@ -360,6 +451,82 @@ export function deriveColumns(
     });
   }
   return withCurrentFullHeightMembers(columns, records);
+}
+
+/** The keys whose membership an operation changed, comparing the placement records before and
+ *  after it. A key is touched when the set of ids filed under it differs — which covers a body
+ *  leaving a key, a body arriving at one, and a key that gained a member it did not have.
+ *
+ *  Membership rather than geometry, so that one body becoming two (backlog 2's re-split) is the
+ *  same question as one body moving: the ids under the old key change and two new keys appear. */
+function findTouchedColumnKeys(
+  recordsBefore: readonly PlacementRecord[],
+  recordsAfter: readonly PlacementRecord[],
+): Set<string> {
+  const before = groupByColumn(recordsBefore);
+  const after = groupByColumn(recordsAfter);
+  const touched = new Set<string>();
+  for (const key of new Set([...before.keys(), ...after.keys()])) {
+    if (!haveSameMembers(before.get(key) ?? [], after.get(key) ?? [])) {
+      touched.add(key);
+    }
+  }
+  return touched;
+}
+
+function haveSameMembers(
+  left: readonly PlacementRecord[],
+  right: readonly PlacementRecord[],
+): boolean {
+  if (left.length !== right.length) return false;
+  const ids = new Set(left.map((record) => record.id));
+  return right.every((record) => ids.has(record.id));
+}
+
+/** §5.4's half of ADR 0011 Gap D: **re-derive the columns for the keys this operation touched,
+ *  from the resulting records, and leave every other key exactly as it was.**
+ *
+ *  A column's key comes from a body's centre (§3.2), so a resize — the only operation that moves a
+ *  body horizontally — moves bodies out of the columns that hold them. Keeping the whole map frozen
+ *  through one then makes **two empty slots appear out of nowhere**: the resized bodies leave
+ *  columns that still carry their regions, and the space they no longer occupy is derived as free.
+ *  Nothing was deleted, and the model hallucinates openings.
+ *
+ *  Recomputing the whole map is not the fix and must never be the fix. Gap D exists because a
+ *  cleared run has to keep the opening it just freed: recompute after a delete and `top` shrinks to
+ *  what is left, so §10's signature flow — clear the fridge column, get three openings — yields
+ *  none at all and the delete button reads as broken. So the update is per operation, and only a
+ *  command that moved a body may ask for it.
+ *
+ *  **Stated for the record set, never for the roles.** It takes the records before and after and
+ *  knows nothing about a "target" or a "donor", because backlog 2's re-split turns one body into
+ *  two at the same total width and must be the same call with a different record set rather than a
+ *  second mechanism.
+ *
+ *  A touched key with no members left is **dropped**. Keeping it would carry the departed body's
+ *  own region forward as free space, which is the phantom-opening failure above.
+ *
+ *  Two consequences worth knowing, both bounded to the touched keys:
+ *  - `w` is the MIN over members and `d` the MAX, so a key a body *left* can change its `w` for the
+ *    bodies that stayed. That is the arithmetic §3.2 already specifies, applied to the new
+ *    membership.
+ *  - a re-derived key loses the load-time regions of members deleted earlier in the session. Only a
+ *    key the operation actually moved a body through can be affected; every other key, and every
+ *    delete, is untouched. */
+export function rederiveTouchedColumns(
+  columns: ReadonlyMap<string, Column>,
+  recordsBefore: readonly PlacementRecord[],
+  recordsAfter: readonly PlacementRecord[],
+): ReadonlyMap<string, Column> {
+  const touched = findTouchedColumnKeys(recordsBefore, recordsAfter);
+  const rederived = deriveColumns(recordsAfter);
+  const updated = new Map<string, ColumnExtent>(columns);
+  for (const key of touched) {
+    const column = rederived.get(key);
+    if (column) updated.set(key, column);
+    else updated.delete(key);
+  }
+  return withCurrentFullHeightMembers(updated, recordsAfter);
 }
 
 /** Re-answers "does a full-height member stand under this column" over frozen extents, and
@@ -396,9 +563,6 @@ export function withCurrentFullHeightMembers(
  *  column key is one along-wall coordinate, so a wall cabinet hanging over the right-hand half of a
  *  wider unit has no member of its own; overlap is what decides.
  *
- *  Accessories are excluded for the reason `groupByColumn` drops them, and because no accessory is
- *  full-height.
- *
  *  **Same-wall only, deliberately.** Both walls originate at (0, 0, 0), so a wall-B cabinet in the
  *  inside corner is never lifted by a wall-A run standing physically beneath it. That is
  *  unreachable today — every wall-B corner column is 330 mm deep, so the cap it keeps is a no-op —
@@ -410,7 +574,6 @@ function isFullHeightUnder(
   column: ColumnExtent,
 ): boolean {
   return (
-    !record.accessory &&
     record.band === "column" &&
     record.wall === column.wall &&
     overlapsAlongWall(record, column)
@@ -533,6 +696,26 @@ function subdivideFreeSpan(
 
 /** §4: free vertical space per column, subdivided by `LEVELS`. Pure function of `records` and
  *  `columns` — no dependence on call order, no mutation, no mesh disposal (the adapter's job). */
+/** **§4 has no horizontal half.** A column's free spans come from its members' `y0`/`h` and the
+ *  column's `top`; nothing subtracts the **width** a member occupies from the width the column has.
+ *  So a body narrower than its column closes the level, and the remainder is stranded — no void, no
+ *  column, no second insert. Backlog 2's re-split is the missing piece (§13.3 item 2).
+ *
+ *  **This is not the merge's doing, and an earlier version of this note said it was.** Corrected
+ *  2026-08-30 after product-logic review: the gap predates M5 and is reachable in four taps with no
+ *  resize at all — clear `A|2.60`, insert a 300 mm bottle cargo into the 600 mm opening, and 300 mm
+ *  of wall is gone. What ADR 0037's merge did was make it **unbounded and ordinary**, on the delete
+ *  path backlog 2 was reported from, which is why it was withdrawn.
+ *
+ *  **And ADR 0035 decision 7 widened the same door.** A shrink hands width back to the empty column
+ *  beside it, and nothing caps how wide that column may get: measured, clearing `A|2.60` and then
+ *  pressing `−50` six times on `A|3.20` grows the empty column to **900 mm**, where every
+ *  `widthFlex: 'fit'` cabinet is refused for trying to fill 900 against §7's 800 ceiling. Before
+ *  decision 7 the only >800 column in the shipped kitchen was the corner's, and corners cannot be
+ *  deleted — so a >800 *empty* column was unreachable and now takes nine taps.
+ *
+ *  Whether a shrink may widen an empty column past 800 is an open product question, recorded in
+ *  `docs/milestones/M5-width.md`. */
 export function recomputeVoids(
   records: readonly PlacementRecord[],
   columns: ReadonlyMap<string, Column>,
@@ -540,6 +723,12 @@ export function recomputeVoids(
   const membersByColumn = groupByColumn(records);
   const voids: VoidRecord[] = [];
   for (const column of columns.values()) {
+    // **A column narrower than any cabinet still publishes its opening.** 5D2b's QA found a 50 mm
+    // strip answering `offersFor` with sixteen rows and nothing offered, and asked whether it should
+    // be an opening at all. It should: suppressing it would also hide the 190-199 mm openings the
+    // bottle-cargo floor tests observe a refusal in, and ADR 0032's rule is *disabled with a reason*
+    // rather than removed. What is owed is the **sentence** — §9 telling the customer the space is
+    // too narrow for anything and may be left — and that is wave 5D2c's copy, recorded there.
     const taken = (membersByColumn.get(column.key) ?? []).map(
       (member): [number, number] => [
         member.frame.y0,

@@ -334,8 +334,17 @@ describe("decomposed kitchen-l placements reproduce the whole-scene render", () 
   // not by the wall. Seating it flush would drive it 20 mm *into* the return leg — a visible solid
   // intersection — while the 20 mm it loses at the back is buried inside the wall and invisible.
   // Pinned by value so the leg cannot drift, and so "it fixed itself" fails loudly.
+  //
+  // **ADR 0039 decision 3 adds the second and, as of wave 5F, the last: `p13`, the hood, at a
+  // positive 100 mm.** The hood is hung from the *front* — its front face on the 600 mm
+  // cabinet-depth line, confirmed by the owner as that line and not the worktop's 620 — and a hood
+  // is a standard 500 mm whatever the kitchen's depth, so 100 mm of the space behind it is empty
+  // and the chimney hides it. Like the corner leg it is declared and measured, never a tolerance
+  // that drifted, and it is pinned by value here for the same reason: `600 − 500`, and a hood that
+  // quietly went back to sitting on the wall fails this line.
   const KNOWN_WALL_GAP_M: ReadonlyMap<string, number> = new Map([
     ["p25", -0.02],
+    ["p13", 0.1],
   ]);
 
   it("row 19: every mounted body's back face lies on its wall plane", () => {
@@ -353,7 +362,6 @@ describe("decomposed kitchen-l placements reproduce the whole-scene render", () 
 
     for (const placement of KITCHEN_L_DESIGN.placements) {
       const record = required(recordsById.get(placement.id), placement.id);
-      if (record.accessory) continue; // an appliance on a countertop, not seated against a wall
       const body = mountPlacement(room, placement, record);
       room.updateWorldMatrix(true, true);
       const box = new THREE.Box3().setFromObject(body);
@@ -370,7 +378,6 @@ describe("decomposed kitchen-l placements reproduce the whole-scene render", () 
   it("leaves no gaps between adjacent decomposed bodies in the same row", () => {
     const rows = new Map<string, PlacementRecord[]>();
     for (const record of records) {
-      if (record.accessory) continue;
       const rowKey = `${record.wall}|${record.frame.y0.toFixed(2)}`;
       const bucket = rows.get(rowKey);
       if (bucket) bucket.push(record);

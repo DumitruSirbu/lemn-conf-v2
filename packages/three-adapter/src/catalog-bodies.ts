@@ -5,15 +5,14 @@
 // seeded ids and is untouched — those describe one already-built body each and are never offered.
 import * as THREE from "three";
 
+import { deriveDoorCount, toMillimetres } from "@lemnaria/configurator-domain";
+
 import type { Kit } from "./kitchen-parts.js";
 
 /** Metres. `make.hood()`'s own canopy box height — the hood's chimney parameter is everything
  *  above it, so `canopy + chimney` is the height §7 fixes at 0.71 m (ADR 0016). Change this only
  *  when that builder's canopy changes; the built-size re-check in `insertBody` catches the drift. */
 export const HOOD_CANOPY_HEIGHT_M = 0.13;
-
-/** §7's wall-cabinet door rule, `w > 0.45 ? 2 : 1`. §11 row 20 is the 570 mm case: two doors. */
-const TWO_DOOR_MIN_WIDTH_M = 0.45;
 
 /** §7: an open shelf carries two inner shelves whatever its height. */
 const OPEN_SHELF_INNER_SHELVES = 2;
@@ -28,7 +27,7 @@ export interface CatalogBodySize {
 
 type CatalogBodyBuilder = (kit: Kit, size: CatalogBodySize) => THREE.Group;
 
-/** §7's `min(d, 0.4)` clamp used to live here. It is a **head-clearance product rule** — shallow
+/** §7's `min(d, cap)` clamp used to live here. It is a **head-clearance product rule** — shallow
  *  by default so nobody hits their head leaning over the counter, and lifted only where a
  *  full-height member stands under the opening and there is nothing to lean over — so it depends
  *  on what stands under the opening, which is a fact about the *design*. The adapter has no
@@ -37,9 +36,23 @@ type CatalogBodyBuilder = (kit: Kit, size: CatalogBodySize) => THREE.Group;
  *  the builders build what they are given. §12: product rules in the domain, builders here.
  *
  *  Re-clamping here would make the rule unreachable rather than redundant: the domain's 600 mm over
- *  a tall column would be cut back to 400 and the decision would do nothing. */
+ *  a tall column would be cut back to the cap and the decision would do nothing. */
 function wallCabinet(kit: Kit, size: CatalogBodySize, doors: number) {
   return kit.make.wallCabinet(size.widthM, doors, size.heightM, size.depthM);
+}
+
+/** ADR 0033: how many hinged doors this carcass gets, from the **domain's** own threshold.
+ *
+ *  `TWO_DOOR_MIN_WIDTH_M` used to be a literal in this file, and the label that named the door count
+ *  was a literal in the catalogue — two constants agreeing at 0.45 by luck, which is the exact shape
+ *  ADR 0028 and §7's depth cap were both written about. "How many doors is this cabinet called" is a
+ *  product rule, so §12 puts it in the domain and this package reads it. No geometry moved: the
+ *  comparison is the same one, against the same number.
+ *
+ *  The round trip through millimetres is the domain's own unit for a catalogue width, and
+ *  `toMillimetres` rounds, so a float that is 0.45 by a nanometre lands where it should. */
+function doorsFor(size: CatalogBodySize): number {
+  return deriveDoorCount(toMillimetres(size.widthM));
 }
 
 /** §7's builder column, one arm per insertable id. The four fixed-size entries ignore the
@@ -50,8 +63,11 @@ function wallCabinet(kit: Kit, size: CatalogBodySize, doors: number) {
  *  gate these entries hit. Scaling a finished group to fake a fit is named in M3's Risks section as
  *  the thing not to do. */
 const CATALOG_BODY_BUILDERS: Readonly<Record<string, CatalogBodyBuilder>> = {
-  "base-2door": (kit, size) => kit.make.baseCabinet(size.widthM, { doors: 2 }),
-  "base-1door": (kit, size) => kit.make.baseCabinet(size.widthM, { doors: 1 }),
+  // ADR 0033: one arm, and the door count is **derived** rather than declared by which arm the
+  // customer landed on. `deriveDoorCount` is the domain's, and it is the same function the label
+  // reads — see the note above `CATALOG_BODY_BUILDERS`.
+  "base-cabinet": (kit, size) =>
+    kit.make.baseCabinet(size.widthM, { doors: doorsFor(size) }),
   "base-3drawer": (kit, size) =>
     kit.make.baseCabinet(size.widthM, { drawers: 3 }),
   "base-panbank": (kit, size) =>
@@ -66,9 +82,7 @@ const CATALOG_BODY_BUILDERS: Readonly<Record<string, CatalogBodyBuilder>> = {
   // 200 mm the proportion is the product.
   "base-bottle-cargo": (kit, size) => kit.make.bottleCargo(size.widthM),
   "base-dishwasher": (kit, size) => kit.make.dishwasherHousing(size.widthM),
-  "wall-2door": (kit, size) =>
-    wallCabinet(kit, size, size.widthM > TWO_DOOR_MIN_WIDTH_M ? 2 : 1),
-  "wall-1door": (kit, size) => wallCabinet(kit, size, 1),
+  "wall-cabinet": (kit, size) => wallCabinet(kit, size, doorsFor(size)),
   // A lift-up is a flap, not a hinged door: `make.wallLift` builds zero doors plus one full-face
   // slab with its bar on the bottom edge (§6.5). Deliberately **not** §7's literal `pushOpen=true`
   // — that omits the handle meshes, which turns `canHandle` false and takes the choice away for
@@ -91,6 +105,41 @@ const CATALOG_BODY_BUILDERS: Readonly<Record<string, CatalogBodyBuilder>> = {
   "tall-fridge-housing": (kit) => kit.builders["tall-fridge-housing"](),
   "fridge-free": (kit) => kit.builders["fridge-free"](),
 };
+
+/** The insertable ids whose builder stands a **fronted** assembly in front of the shell it is
+ *  given: `wallCabinet` and the lift-up it wraps. `open-shelf` has neither door nor handle, so its
+ *  declared depth and its shell are the same number, and every other builder ignores the depth it
+ *  is handed altogether (ADR 0018). */
+const FRONTED_WALL_BUILD_IDS: ReadonlySet<string> = new Set([
+  "wall-cabinet",
+  "wall-lift",
+]);
+
+/** The depth to rebuild a persisted placement at — **ADR 0018 clause 4, which 5F is the phase that
+ *  trips.**
+ *
+ *  `frame.d` is twice a body's rear overhang, not its depth. That coincided with the depth for
+ *  `wallCabinet` and `openShelf` only because their shell was centred on z = 0 *and* was the whole
+ *  of what the builder was given. ADR 0036 decision 1 ends the second half of that: a wall shell is
+ *  now the declared depth less the front assembly, so rebuilding straight from `frame.d` would
+ *  shrink a 330 mm cabinet by 39 mm on every save-and-reload, compounding, with `refuseBuiltSize`
+ *  checking width and height only so no gate would see it. That is exactly the growth ADR 0018
+ *  wrote down before it could be hit, arriving in the shrinking direction.
+ *
+ *  Of ADR 0018 clause 3's two candidate directions this is the second — the caller reconstructs the
+ *  declared depth rather than a new measurement being persisted beside the seat. It is chosen
+ *  because it needs no schema field, no version bump and no migration (`DesignSchema` is untouched,
+ *  and ADR 0038 says nothing has ever been stored), and because it converges exactly rather than
+ *  approximately: declared 0.330 builds a 0.291 shell, records `frame.d` 0.291, and rebuilds at
+ *  0.291 + 0.039 = 0.330 for as many cycles as you care to run. */
+export function rebuildDepthM(
+  kit: Kit,
+  buildId: string,
+  frameDepthM: number,
+): number {
+  if (!FRONTED_WALL_BUILD_IDS.has(buildId)) return frameDepthM;
+  return frameDepthM + kit.depths.frontAssemblyDepthM;
+}
 
 /** Every id `buildCatalogBody` covers, in §7's own order. Exported so a test can assert the
  *  builder table and the domain's insertable catalogue are the *same* set in both directions —

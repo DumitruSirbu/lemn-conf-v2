@@ -7,6 +7,7 @@
 import {
   KITCHEN_L_BODY_CATALOG,
   KITCHEN_L_DESIGN,
+  widthOptionsFor,
   type BodyProbe,
   type Design,
 } from "@lemnaria/configurator-domain";
@@ -18,19 +19,18 @@ import {
 } from "../../src/store/configurator-store";
 import { columnExtents } from "../support/column-extents";
 import { createFakeBodyProbe } from "../support/fake-body-probe";
-import { preMigrationHobDesign } from "../support/pre-migration-hob";
 
 /** The fridge column of the §10 signature flow: `p7` (0 – 1.85) with `p24` (1.85 – 2.60) above it,
  *  and a frozen `top` of 2.60. Every column-stability case below is expressed against it. */
 const FRIDGE_COLUMN = "B|2.45";
 const FRIDGE_COLUMN_TOP_M = 2.6;
-/** ADR 0011 Gap E's cascade, on the design saved **before** ADR 0027: there, `p2` is a plain
- *  drawer base and `p3` is the hob standing on it. The shipped design has no accessory in it at all
- *  any more — the hob is a mesh inside `p2`'s own body — so the two cases about one below load a
- *  pre-migration document, which is a shape a stored design can still have. */
+/** The hob-bearing base. ADR 0027 made the hob part of its body, so deleting it takes the hob with
+ *  it and there is no separate placement to cascade. */
 const HOB_HOST_ID = "p2";
-const HOB_ID = "p3";
 const OCCURRED_AT = "2026-08-25T12:00:00.000Z";
+
+/** The store's own probe, reused where a test has to ask §9's width query what it would offer. */
+const PROBE = createFakeBodyProbe();
 
 interface StoreOverrides {
   readonly onDesignChanged?: (design: unknown) => void;
@@ -165,45 +165,40 @@ describe("remove", () => {
     expect(selected?.y0).toBeCloseTo(2.2, 6);
   });
 
-  it("cascades to the accessory the removed body carried", () => {
-    const store = createStore({ design: preMigrationHobDesign() });
-    // Without this the case would pass by the accessory never having existed.
+  it("takes the hob away with the cabinet it is built into", () => {
+    const store = createStore();
     expect(store.getState().records.map((record) => record.id)).toContain(
-      HOB_ID,
+      HOB_HOST_ID,
     );
 
     removeById(store, HOB_HOST_ID);
 
-    const ids = store.getState().records.map((record) => record.id);
-    expect(ids).not.toContain(HOB_HOST_ID);
-    expect(ids).not.toContain(HOB_ID);
+    expect(store.getState().records.map((record) => record.id)).not.toContain(
+      HOB_HOST_ID,
+    );
   });
 });
 
 describe("insert", () => {
-  // ADR 0027's amendment, at the layer that has to survive it. §5.3 now deletes a duplicate hob in
-  // the same command as the swap, and the store needed **no** wiring for that: `applyCommandResult`
-  // re-derives `records` and `voids` from the result's whole `Design`, so a placement the command
-  // dropped is simply not in the design it applies. `cascadedAccessoryIds` is reporting, not
-  // instruction — the delete cascade above has always worked the same way. This case is here so
-  // that stays true: a store that started reading the effect's ids to prune state by hand would
-  // pass every existing delete case and drop this one.
-  it("loses the pre-migration hob when the swap cascades it away", () => {
-    const store = createStore({ design: preMigrationHobDesign() });
-    // Without this the case would pass by the accessory never having existed.
-    expect(store.getState().records.map((record) => record.id)).toContain(
-      HOB_ID,
-    );
+  // The store needs **no** wiring for what a command drops: `applyCommandResult` re-derives
+  // `records` and `voids` from the result's whole `Design`, so a placement the command removed is
+  // simply not in the design it applies. Kept as a swap case because the hob base is the one body
+  // whose swap replaces a placement that carries something (ADR 0027's `carriesAccessoryKind`), so
+  // it is where a store that started tracking placement contents by hand would diverge first.
+  it("swaps the hob base for the oven variant without leaving the old id behind", () => {
+    const store = createStore();
 
     store.getState().select({ kind: "placement", id: HOB_HOST_ID });
-    store.getState().insert("base-hob-2drawer");
+    store.getState().insert("base-hob-oven");
 
     const state = store.getState();
     expect(state.lastRejection).toBeNull();
-    expect(state.records.map((record) => record.id)).not.toContain(HOB_ID);
+    expect(state.records.map((record) => record.id)).not.toContain(HOB_HOST_ID);
     expect(
-      state.design.placements.map((placement) => placement.id),
-    ).not.toContain(HOB_ID);
+      state.design.placements.some(
+        (placement) => placement.body.buildId === "base-hob-oven",
+      ),
+    ).toBe(true);
   });
 
   it("applies the new placement and selects it, in a single update", () => {
@@ -212,7 +207,9 @@ describe("insert", () => {
     const updates = vi.fn();
     const unsubscribe = store.subscribe(updates);
 
-    store.getState().insert("base-2door");
+    // A ladder body: the fridge column is 700 mm, and ADR 0033's merged `base-cabinet` carries
+    // `[200, 300, 400, 600, 800]` as a bound. What is under test is the store's single update.
+    store.getState().insert("base-3drawer");
     unsubscribe();
 
     const state = store.getState();
@@ -236,7 +233,7 @@ describe("insert", () => {
     const before = snapshotOf(store.getState());
     expect(store.getState().isBodyProbeAttached).toBe(false);
 
-    store.getState().insert("base-2door");
+    store.getState().insert("base-3drawer");
 
     expectUnchanged(before, snapshotOf(store.getState()));
     expect(store.getState().lastRejection?.code).toBe("BODY_PROBE_UNAVAILABLE");
@@ -248,7 +245,7 @@ describe("insert", () => {
     removeById(store, "p7");
 
     store.getState().detachBodyProbe();
-    store.getState().insert("base-2door");
+    store.getState().insert("base-3drawer");
 
     expect(store.getState().isBodyProbeAttached).toBe(false);
     expect(store.getState().lastRejection?.code).toBe("BODY_PROBE_UNAVAILABLE");
@@ -265,8 +262,8 @@ describe("insert", () => {
     const withProbe = createStore();
     withProbe.getState().deselect();
 
-    withoutProbe.getState().insert("base-2door");
-    withProbe.getState().insert("base-2door");
+    withoutProbe.getState().insert("base-cabinet");
+    withProbe.getState().insert("base-cabinet");
 
     // The probe check sits behind the selection check, so a caller doing the same wrong thing gets
     // the same refusal whether or not the scene has mounted yet.
@@ -285,10 +282,146 @@ describe("insert", () => {
     store.getState().attachBodyProbe(createFakeBodyProbe());
     removeById(store, "p7");
 
-    store.getState().insert("base-2door");
+    store.getState().insert("base-3drawer");
 
     expect(store.getState().isBodyProbeAttached).toBe(true);
     expect(store.getState().selection).toEqual({ kind: "placement", id: "n0" });
+  });
+});
+
+describe("setWidth", () => {
+  /** ADR 0031 funds a resize from an adjacent column that is empty at **every** level, and the
+   *  shipped kitchen has none at load — so every case here deletes first, through the store's own
+   *  `remove`. That is the customer's real sequence, not a fixture shortcut. */
+  function storeWithEmptyColumn() {
+    const store = createStore();
+    for (const id of ["p1", "p12", "p18"]) removeById(store, id);
+    return store;
+  }
+
+  /** A width the engine will accept on `p11`, asked of the same query §9's chips come from, so this
+   *  test cannot drift from what the panel would have offered. */
+  function firstFreeWidthMm(store: Store, placementId: string): number {
+    const state = store.getState();
+    const free = widthOptionsFor({
+      design: state.design,
+      catalog: state.catalog,
+      columns: state.columns,
+      target: { kind: "placement", id: placementId },
+      probe: PROBE,
+    }).find((option) => option.verdict.status === "available");
+    if (!free) throw new Error(`no free width on ${placementId}`);
+    return free.widthMm;
+  }
+
+  it("applies the design, records, voids and columns in a single update", () => {
+    const store = storeWithEmptyColumn();
+    store.getState().select({ kind: "placement", id: "p11" });
+    const widthMm = firstFreeWidthMm(store, "p11");
+    const before = store.getState().design;
+    const updates = vi.fn();
+    const unsubscribe = store.subscribe(updates);
+
+    store.getState().setWidth(widthMm);
+    unsubscribe();
+
+    const state = store.getState();
+    expect(updates).toHaveBeenCalledTimes(1);
+    expect(state.design).not.toBe(before);
+    expect(state.lastRejection).toBeNull();
+    expect(state.records.find((record) => record.id === "p11")?.widthMm).toBe(
+      widthMm,
+    );
+  });
+
+  // ADR 0031 rule 1: the whole column moves, not the body that was tapped. `p11` shares `A|1.30`
+  // with the sink `p0` and the top cabinet `p17`, and all three must come out at the new width —
+  // a resize that moved one of them would leave the column with two boundaries.
+  it("resizes every member of the selected body's column", () => {
+    const store = storeWithEmptyColumn();
+    store.getState().select({ kind: "placement", id: "p11" });
+    const widthMm = firstFreeWidthMm(store, "p11");
+
+    store.getState().setWidth(widthMm);
+
+    for (const id of ["p0", "p11", "p17"]) {
+      expect([
+        id,
+        store.getState().records.find((record) => record.id === id)?.widthMm,
+      ]).toEqual([id, widthMm]);
+    }
+  });
+
+  // **The one command whose own column map replaces the store's** (`BodyResizedEffect.columns`).
+  // A column's key comes from a body's centre, so a resize moves every member off the key that held
+  // them; the store must take the command's answer rather than re-deriving one, because *which*
+  // keys may change is a rule about the move (ADR 0011 Gap D). Re-deriving globally is what makes a
+  // delete stop producing openings.
+  it("takes the command's column map, so no member is left under a key that moved", () => {
+    const store = storeWithEmptyColumn();
+    const before = store.getState().columns;
+    store.getState().select({ kind: "placement", id: "p11" });
+
+    store.getState().setWidth(firstFreeWidthMm(store, "p11"));
+
+    const state = store.getState();
+    expect(state.columns).not.toBe(before);
+    for (const record of state.records) {
+      expect([record.id, state.columns.has(record.col)]).toEqual([
+        record.id,
+        true,
+      ]);
+    }
+  });
+
+  // The voids have to be recomputed against the map the resize produced, not the one that went in:
+  // the move changes the boundary between two columns, and an opening derived from the pre-move
+  // extents would be drawn where nothing is free any more.
+  it("derives its openings from the moved columns", () => {
+    const store = storeWithEmptyColumn();
+    store.getState().select({ kind: "placement", id: "p11" });
+
+    store.getState().setWidth(firstFreeWidthMm(store, "p11"));
+
+    const state = store.getState();
+    for (const opening of state.voids) {
+      expect([opening.id, state.columns.has(opening.col)]).toEqual([
+        opening.id,
+        true,
+      ]);
+    }
+  });
+
+  // §9 disables a chip it cannot satisfy, so this is the safety net beneath that rather than the
+  // gate — the same arrangement `insert` has.
+  it("refuses without a probe, and changes nothing", () => {
+    const store = createStore();
+    store.getState().detachBodyProbe();
+    store.getState().select({ kind: "placement", id: "p11" });
+    const before = snapshotOf(store.getState());
+
+    store.getState().setWidth(600);
+
+    expect(store.getState().lastRejection?.code).toBe("BODY_PROBE_UNAVAILABLE");
+    expectUnchanged(before, snapshotOf(store.getState()));
+  });
+
+  it("refuses with nothing selected, the way every other command does", () => {
+    const store = createStore();
+    store.getState().setWidth(600);
+    expect(store.getState().lastRejection?.code).toBe("TARGET_NOT_FOUND");
+  });
+
+  // A refusal persists nothing: the save seam runs only after a command the store applied.
+  it("schedules no save when the engine refuses the width", () => {
+    const onDesignChanged = vi.fn();
+    const store = createStore({ onDesignChanged });
+    store.getState().select({ kind: "placement", id: "p11" });
+
+    store.getState().setWidth(400);
+
+    expect(store.getState().lastRejection).not.toBeNull();
+    expect(onDesignChanged).not.toHaveBeenCalled();
   });
 });
 
@@ -444,7 +577,7 @@ describe("column stability (ADR 0011 Gap D)", () => {
     const extentsBefore = columnExtents(store.getState().columns);
 
     removeById(store, "p7");
-    store.getState().insert("base-2door");
+    store.getState().insert("base-3drawer");
     store.getState().setFinish("oak");
     store.getState().setHandle("push");
 
@@ -473,15 +606,14 @@ describe("column stability (ADR 0011 Gap D)", () => {
 
 describe("the selection after a command", () => {
   it("never dangles: it names an existing placement, an existing void, or nothing", () => {
-    // Pre-migration, because two of the steps below are about an accessory (see `HOB_HOST_ID`).
-    const store = createStore({ design: preMigrationHobDesign() });
+    const store = createStore();
     const commands: readonly ((state: ConfiguratorState) => void)[] = [
       (state) => {
         state.select({ kind: "placement", id: "p7" });
         state.remove();
       },
       (state) => {
-        state.insert("base-2door");
+        state.insert("base-cabinet");
       },
       (state) => {
         state.setFinish("oak");
@@ -490,12 +622,12 @@ describe("the selection after a command", () => {
         state.setHandle("push");
       },
       (state) => {
-        // A refused command: the accessory stays selected, and it still exists.
-        state.select({ kind: "placement", id: HOB_ID });
+        // A refused command: the corner leg stays selected, and it still exists.
+        state.select({ kind: "placement", id: "p25" });
         state.remove();
       },
       (state) => {
-        // The cascade removes the accessory that was selected a step ago.
+        // A successful delete of a body that was not the one selected a step ago.
         state.select({ kind: "placement", id: HOB_HOST_ID });
         state.remove();
       },

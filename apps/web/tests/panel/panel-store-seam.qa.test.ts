@@ -26,7 +26,6 @@ import { describePanel, type PanelView } from "@/panel/panel-model";
 
 import { columnExtents } from "../support/column-extents";
 import { createFakeBodyProbe } from "../support/fake-body-probe";
-import { preMigrationHobDesign } from "../support/pre-migration-hob";
 
 /** Exactly what `usePanelView` composes, from exactly the store fields it subscribes to. */
 function panelFromStore(state: ConfiguratorState): PanelView {
@@ -39,6 +38,7 @@ function panelFromStore(state: ConfiguratorState): PanelView {
       ? offersFor({ records, voids, columns, catalog, target: selection })
       : [],
     rejection: state.lastRejection,
+    widthOptions: [],
     isBodyProbeAttached: state.isBodyProbeAttached,
     canWrite: state.canWrite,
     saveStatus: state.saveStatus,
@@ -104,12 +104,13 @@ describe("the panel over the store's own state", () => {
     expect(section.countLine).toContain(String(section.rows.length));
   });
 
-  // ADR 0024: deleting an accessory is the one refusal a customer can actually reach through §9's
-  // panel, and ADR 0027 took the accessory out of the shipped design — so the store under test here
-  // is loaded from a document saved before that migration, which is where one still exists.
+  // ADR 0024: §9's panel offers no control that can refuse, so the refusal has to be driven
+  // through the store directly. `p25` is the corner leg, which declares `canDelete: false` — one of
+  // the four corner bodies — `p25`, `p26`, `p9` and `p21`, which are all that carry the flag since ADR 0027
+  // folded the hob into its cabinet.
   it("shows the refusal the store recorded, first, and drops it on the next selection", () => {
-    const store = createStore({ design: preMigrationHobDesign() });
-    store.getState().select({ kind: "placement", id: "p3" });
+    const store = createStore();
+    store.getState().select({ kind: "placement", id: "p25" });
     store.getState().remove();
 
     const refused = store.getState();

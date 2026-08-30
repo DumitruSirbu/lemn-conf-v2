@@ -1,6 +1,6 @@
 // Adversarial QA for the two batched waves.
 //
-//   Wave A — `Column.hasFullHeightUnder` decides whether §7's `min(d, 0.4)` head-clearance cap is
+//   Wave A — `Column.hasFullHeightUnder` decides whether §7's `min(d, 0.33)` head-clearance cap is
 //            lifted. It is applied by default and lifted only over a full-height member.
 //   Wave C — a per-entry `minWidthMm` below §2's `MIN_WIDTH_M` replaces it for that entry alone.
 //
@@ -21,6 +21,7 @@ import {
 } from "../../src/fixtures/kitchen-l-design.js";
 import { toMillimetres } from "../../src/millimetres.js";
 import { offersFor } from "../../src/queries/offers.js";
+import { offered as offeredRows } from "../support/offers.js";
 import {
   derivePlacementRecords,
   MIN_WIDTH_M,
@@ -121,7 +122,7 @@ function codeAt(
  *  rule that collapsed to one code everywhere would still satisfy itself. */
 const WIDTH_SWEEP_CASES = [
   {
-    buildId: "base-2door",
+    buildId: "base-3drawer",
     note: "'fit', declares no floor — §2's default governs",
     expected: (widthMm: number) =>
       widthMm < GENERAL_MIN_WIDTH_MM ? "WIDTH_NOT_SUPPORTED" : undefined,
@@ -186,8 +187,8 @@ describe("the width floors, swept 195–305 mm, by rejection code", () => {
   );
 
   it("crosses a real transition for both entries that have one", () => {
-    expect(codeAt(299, "base-2door")).toBe("WIDTH_NOT_SUPPORTED");
-    expect(codeAt(300, "base-2door")).toBeUndefined();
+    expect(codeAt(299, "base-3drawer")).toBe("WIDTH_NOT_SUPPORTED");
+    expect(codeAt(300, "base-3drawer")).toBeUndefined();
     expect(codeAt(199, CARGO_BUILD_ID)).toBe("WIDTH_TOO_SMALL");
     expect(codeAt(200, CARGO_BUILD_ID)).toBeUndefined();
   });
@@ -197,15 +198,31 @@ describe("the width floors, swept 195–305 mm, by rejection code", () => {
 // Wave C — declared floors the shipped catalogue does not contain.
 // ---------------------------------------------------------------------------------------------
 
+/** A `'fit'` cabinetry row that declares the given floor, **and opens its bound there**.
+ *
+ *  The second half is ADR 0035's doing and is the whole reason this probe is built rather than
+ *  cloned outright. Before it, `base-3drawer` was a standard-ladder row whose ranges were derived as
+ *  `[floor, ∞)`, so moving `minWidthMm` alone moved the bound with it. Every §7 row now declares its
+ *  own bound, and `resolveWidthRangesMm` raises a declared range to the entry's floor but never
+ *  lowers it — deliberately, per logic review R1.4, since a bound the floor could widen would not be
+ *  a bound. A row that declares 250 mm and a range opening at 300 is therefore a contradictory
+ *  catalogue row rather than a rule, and the floor is what these cases are about. */
 function baseEntry(minWidthMm: number | undefined): BodyDefinition {
-  const template = KITCHEN_L_BODY_CATALOG.get("base-2door");
-  if (!template) throw new Error("no base-2door");
+  const template = KITCHEN_L_BODY_CATALOG.get("base-3drawer");
+  if (!template) throw new Error("no base-3drawer");
+  const floorMm = minWidthMm ?? PROBE_DEFAULT_FLOOR_MM;
   return {
     ...template,
     label: "Probă",
+    widthRangesMm: [{ minMm: floorMm, maxMm: PROBE_CEILING_MM }],
     ...(minWidthMm === undefined ? {} : { minWidthMm }),
   };
 }
+
+/** §2's default, which is where `base-3drawer`'s own bound opens. */
+const PROBE_DEFAULT_FLOOR_MM = 300;
+/** §7's ceiling, unchanged by anything these cases declare. */
+const PROBE_CEILING_MM = 800;
 
 function catalogDeclaring(minWidthMm: number | undefined): BodyCatalog {
   return new Map([
@@ -292,15 +309,34 @@ describe("declared floors that are not widths at all", () => {
 // Wave C — the cargo's floor must not leak into any other entry.
 // ---------------------------------------------------------------------------------------------
 
-describe("the cargo's 200 mm floor reaches nothing but the cargo", () => {
-  it("is the only insertable entry declaring below §2's default", () => {
-    const declaringDown = INSERTABLE_BODY_DEFINITIONS.filter(
-      ([, definition]) =>
-        definition.minWidthMm !== undefined &&
-        definition.minWidthMm < toMillimetres(MIN_WIDTH_M),
-    ).map(([buildId]) => buildId);
+/** Every insertable entry whose row declares a floor **below** §2's default. ADR 0026 shipped with
+ *  one; ADR 0030's amendment made it three, because a `[200, 300, 400]` one-door set is filtered
+ *  straight back out again unless the row declares the floor to keep it.
+ *
+ *  Derived rather than written down, so a fourth declaration fails these sweeps loudly. ADR 0026 is
+ *  explicit that any such row "needs its own record" — this is the assertion that enforces it. */
+function entriesDeclaringDown(): string[] {
+  return INSERTABLE_BODY_DEFINITIONS.filter(
+    ([, definition]) =>
+      definition.minWidthMm !== undefined &&
+      definition.minWidthMm < toMillimetres(MIN_WIDTH_M),
+  ).map(([buildId]) => buildId);
+}
 
-    expect(declaringDown).toEqual([CARGO_BUILD_ID]);
+describe("a sub-300 mm width is reached only by naming a row that declares one", () => {
+  it("names the three insertable entries declaring below §2's default", () => {
+    // **This asserted "the cargo, and only the cargo" until 2026-08-27.** It was right until ADR
+    // 0030's amendment; the rule it was protecting — nobody gets a narrow cabinet they did not ask
+    // for — is unchanged and is what the two sweeps below still assert.
+    //
+    // Still three after ADR 0033, and deliberately re-checked rather than assumed: the merge retired
+    // `base-1door` and `wall-1door`, which were two of the three, and their 200 mm floor moved onto
+    // the merged cabinets that replaced them. Same count, different rows.
+    expect(entriesDeclaringDown()).toEqual([
+      "base-cabinet",
+      CARGO_BUILD_ID,
+      "wall-cabinet",
+    ]);
   });
 
   // §9's two narrowing paths. `buildableSizes` now defaults its floor to 300 instead of "no
@@ -334,26 +370,27 @@ describe("the cargo's 200 mm floor reaches nothing but the cargo", () => {
 
   // Every offer in the shipped kitchen, at every void and at every replaceable body. No row but
   // the cargo may resolve to a width under §2's floor.
-  it("offers no sub-300 mm width anywhere in the shipped kitchen but the cargo's", () => {
+  it("offers no sub-300 mm width anywhere in the shipped kitchen but theirs", () => {
     const world = createWorld(KITCHEN_L_DESIGN, KITCHEN_L_BODY_CATALOG);
     const targets = [
       ...world.voids.map(
         (record) => ({ kind: "void", id: record.id }) as const,
       ),
       ...world.records
-        .filter((record) => record.canReplace && !record.accessory)
+        .filter((record) => record.canReplace)
         .map((record) => ({ kind: "placement", id: record.id }) as const),
     ];
     const offending: string[] = [];
     let offersSeen = 0;
 
     for (const target of targets) {
-      for (const offer of offersFor({ ...world, target })) {
+      const declaringDown = new Set(entriesDeclaringDown());
+      for (const offer of offeredRows(offersFor({ ...world, target }))) {
         offersSeen += 1;
-        if (offer.buildId === CARGO_BUILD_ID) continue;
-        if (offer.widthMm < GENERAL_MIN_WIDTH_MM) {
+        if (declaringDown.has(offer.buildId)) continue;
+        if (offer.verdict.widthMm < GENERAL_MIN_WIDTH_MM) {
           offending.push(
-            `${target.id} → ${offer.buildId} @ ${String(offer.widthMm)}`,
+            `${target.id} → ${offer.buildId} @ ${String(offer.verdict.widthMm)}`,
           );
         }
         if (offer.sizesMm.some((size) => size < GENERAL_MIN_WIDTH_MM)) {
@@ -369,10 +406,12 @@ describe("the cargo's 200 mm floor reaches nothing but the cargo", () => {
     expect(offending).toEqual([]);
   });
 
-  // §5.4's donor rule is M5's, but the owner's rule is that a 200 mm cabinet is only ever reached
-  // by being chosen. Nothing in M3 may produce one as the residue of another edit.
-  it("never produces a sub-300 mm placement except by naming the cargo", () => {
+  // The owner's rule is that a narrow cabinet is only ever reached by being chosen. Nothing may
+  // produce one as the residue of another edit — which ADR 0031 strengthened rather than weakened,
+  // by deleting the donor that was the one way it could have happened.
+  it("never produces a sub-300 mm placement except by naming a row that declares one", () => {
     const narrow: string[] = [];
+    const declaringDown = new Set(entriesDeclaringDown());
     let inserts = 0;
 
     for (let widthMm = 190; widthMm <= 900; widthMm += 10) {
@@ -386,7 +425,7 @@ describe("the cargo's 200 mm floor reaches nothing but the cargo", () => {
         if (
           placed !== undefined &&
           placed.body.widthMm < GENERAL_MIN_WIDTH_MM &&
-          placed.body.buildId !== CARGO_BUILD_ID
+          !declaringDown.has(placed.body.buildId)
         ) {
           narrow.push(
             `${String(widthMm)} mm opening → ${offer.buildId} @ ${String(placed.body.widthMm)}`,
@@ -405,11 +444,26 @@ describe("the cargo's 200 mm floor reaches nothing but the cargo", () => {
 // Wave A — the `hasFullHeightUnder` predicate.
 // ---------------------------------------------------------------------------------------------
 
-/** §7's head-clearance cap on a wall carcass over a worktop. Restated here rather than imported
- *  from `insert-fit.ts`: a test that reads the number it is checking out of the code under test
- *  proves nothing. `insert-depth.test.ts` and the three-adapter's `swap-depth.test.ts` restate the
- *  same rule for the same reason. */
-const CAP_OVER_WORKTOP_MM = 400;
+/** §7's head-clearance cap on a wall carcass over a worktop, at the shipped 600 mm worktop. Restated
+ *  here rather than imported from `insert-fit.ts`: a test that reads the number it is checking out
+ *  of the code under test proves nothing. `insert-depth.test.ts` and the three-adapter's
+ *  `swap-depth.test.ts` restate the same rule for the same reason.
+ *
+ *  M5 wave 5A moved it from 400 to 330: the cap is now the worktop → wall depth map's row rather
+ *  than a literal of its own, and `worktop-depth.test.ts` is the gate that keeps the two linked. */
+const CAP_OVER_WORKTOP_MM = 330;
+
+/** ADR 0036 decision 1: a declared dimension is the finished cabinet, so a wall shell is the
+ *  declared depth less the 39 mm door-and-handle front assembly. `seatDepthMm` records the shell. */
+const WALL_FRONT_ASSEMBLY_MM = 39;
+
+/** The same cap as **recorded**, which since wave 5F is a different number from the cap itself.
+ *  ADR 0036 decision 1 makes 330 the *finished* depth of a wall cabinet, so its shell — and
+ *  therefore its seat, which is what `seatDepthMm` stores — is that less the 39 mm door-and-handle
+ *  front assembly. Keeping the two constants apart is the point: the rule the cap states is about
+ *  the cabinet a person leans under, and the number the design stores is about where its back face
+ *  lands (ADR 0018). */
+const CAP_OVER_WORKTOP_SEAT_MM = CAP_OVER_WORKTOP_MM - WALL_FRONT_ASSEMBLY_MM;
 
 describe("the claim the band predicate rests on", () => {
   // `isFullHeightUnder` reads the band rather than any measurement, and the band it reads has to
@@ -421,9 +475,7 @@ describe("the claim the band predicate rests on", () => {
       KITCHEN_L_DESIGN,
       KITCHEN_L_BODY_CATALOG,
     );
-    const bases = records.filter(
-      (record) => record.band === "base" && !record.accessory,
-    );
+    const bases = records.filter((record) => record.band === "base");
     const nearWorktop = records.filter(
       (record) =>
         record.band !== "base" &&
@@ -470,14 +522,6 @@ const BASE_CABINET: DesignPlacement = {
   body: { buildId: "base-drawer2-600", widthMm: 900, heightMm: 820 },
 };
 
-const HOB: DesignPlacement = {
-  id: "h0",
-  wall: "A",
-  alongMm: 1000,
-  y0Mm: 820,
-  body: { buildId: "cooktop-600", widthMm: 600, heightMm: 40 },
-};
-
 const TALL_COLUMN: DesignPlacement = {
   id: "c0",
   wall: "A",
@@ -498,7 +542,7 @@ function swapDepthMm(world: KitchenWorld): number {
   const result = insertInto(
     world,
     { kind: "placement", id: "w0" },
-    "wall-2door",
+    "wall-cabinet",
   );
   if (!result.ok) throw new Error(`refused: ${result.reason.code}`);
   const placed = result.design.placements.find(
@@ -512,7 +556,7 @@ describe("hasFullHeightUnder — what the predicate answers, member by member", 
     const world = stackedWorld(BASE_CABINET, 1000);
 
     expect(world.columns.get("A|1.00")?.hasFullHeightUnder).toBe(false);
-    expect(swapDepthMm(world)).toBe(CAP_OVER_WORKTOP_MM);
+    expect(swapDepthMm(world)).toBe(CAP_OVER_WORKTOP_SEAT_MM);
   });
 
   it("does not cap a wall carcass over a full-height column", () => {
@@ -530,16 +574,7 @@ describe("hasFullHeightUnder — what the predicate answers, member by member", 
     const world = stackedWorld(undefined, 1000);
 
     expect(world.columns.get("A|1.00")?.hasFullHeightUnder).toBe(false);
-    expect(swapDepthMm(world)).toBe(CAP_OVER_WORKTOP_MM);
-  });
-
-  // `groupByColumn` drops accessories, and no accessory is full-height. Pinned so the predicate
-  // cannot regress into "any member counts".
-  it("does not count a hob — a base-band accessory — as full-height", () => {
-    const world = stackedWorld(HOB, 1000);
-
-    expect(world.columns.get("A|1.00")?.hasFullHeightUnder).toBe(false);
-    expect(swapDepthMm(world)).toBe(CAP_OVER_WORKTOP_MM);
+    expect(swapDepthMm(world)).toBe(CAP_OVER_WORKTOP_SEAT_MM);
   });
 
   // §7's cap is a head-clearance rule about what a person leans over, so `isFullHeightUnder` asks

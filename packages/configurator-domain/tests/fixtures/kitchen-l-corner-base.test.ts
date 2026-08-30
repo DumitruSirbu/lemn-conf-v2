@@ -38,10 +38,8 @@ describe("the base corner is a selectable placement (§11 row 16)", () => {
     "%s resolves to a record picking can select",
     (id) => {
       const record = seeded().records.find((candidate) => candidate.id === id);
+      expect(record).toBeDefined();
       expect(record?.band).toBe("base");
-      // An accessory resolves to its host instead of being selected itself (§6.1); a corner leg is
-      // a full-height base body and must resolve to itself.
-      expect(record?.accessory).toBe(false);
     },
   );
 

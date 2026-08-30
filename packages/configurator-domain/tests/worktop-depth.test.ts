@@ -1,0 +1,137 @@
+// The single-source gate: §7's `nominalDepthMm` for every wall entry and §5.2's head-clearance cap
+// are the *same* number, read from the worktop → wall depth map.
+//
+// This is the criterion M5 wave 5A exists for. The defect was not a wrong number — it was two
+// numbers: `catalog.ts`'s `WALL_DEPTH_MM` and `insert-fit.ts`'s
+// `WALL_CARCASS_MAX_DEPTH_OVER_WORKTOP_M` were independent literals that happened to agree at 400,
+// so the seeded kitchen could be authored at 330 with every gate green. The assertions below fail
+// if a future edit moves one without the other.
+import { describe, expect, it } from "vitest";
+
+import { INSERTABLE_BODY_DEFINITIONS } from "../src/catalog.js";
+import { toMillimetres } from "../src/millimetres.js";
+import { WALL_CARCASS_MAX_DEPTH_OVER_WORKTOP_M } from "../src/commands/insert-fit.js";
+import {
+  declaredWorktopDepthsMm,
+  UnknownWorktopDepthError,
+  wallDepthMmForWorktop,
+  WORKTOP_DEPTH_MM,
+} from "../src/worktop-depth.js";
+
+/** The map's shipped rows, restated as data rather than read out of the module under test — a test
+ *  that reads the number it is checking out of the code it checks proves nothing. `800 -> 500` is
+ *  deliberately absent: it is a plausible future row and not a commitment. */
+const DECLARED_ROWS: readonly (readonly [number, number])[] = [
+  [600, 330],
+  [700, 400],
+];
+
+/** §7's wall entries whose depth the map governs. The hood is not among them: `HOOD_DEPTH_MM` is
+ *  500 and whether a hood follows the worktop is an open question (`M5-width.md`, *Not
+ *  established*). Listed by id rather than filtered by depth, so an entry that silently stopped
+ *  reading the map cannot drop out of the sweep. */
+const WALL_ENTRY_IDS = ["wall-cabinet", "wall-lift", "open-shelf"];
+
+const HOOD_DEPTH_MM = 500;
+
+describe("the worktop → wall depth map", () => {
+  it("declares exactly the rows the owner decided, and no interpolated third", () => {
+    expect(declaredWorktopDepthsMm()).toEqual(
+      DECLARED_ROWS.map(([worktopDepthMm]) => worktopDepthMm),
+    );
+  });
+
+  it.each(DECLARED_ROWS)(
+    "maps a %i mm worktop to a %i mm wall",
+    (worktopDepthMm, wallDepthMm) => {
+      expect(wallDepthMmForWorktop(worktopDepthMm)).toBe(wallDepthMm);
+    },
+  );
+
+  it("ships the worktop at 600 mm, which is the only row M5 can reach", () => {
+    expect(WORKTOP_DEPTH_MM).toBe(600);
+  });
+});
+
+describe("an undeclared worktop depth fails loudly", () => {
+  // Decision 4: wall depths are manufactured sizes. A formula would invent a 372 mm cabinet nobody
+  // makes, so a missing row is a programming error and never a number to guess at.
+  it.each([650, 800, 0, -600, 599.9, Number.NaN])(
+    "refuses %p rather than interpolating, rounding or defaulting",
+    (worktopDepthMm) => {
+      expect(() => wallDepthMmForWorktop(worktopDepthMm)).toThrow(
+        UnknownWorktopDepthError,
+      );
+    },
+  );
+
+  it("names the value it was given, so the refusal is diagnosable", () => {
+    expect(() => wallDepthMmForWorktop(650)).toThrow(/650 mm/);
+  });
+});
+
+describe("the map is the single source for both of §7's and §5.2's numbers", () => {
+  const expectedWallDepthMm = wallDepthMmForWorktop(WORKTOP_DEPTH_MM);
+
+  // Three since ADR 0033 merged the door-count pair; it was four.
+  it("is reached at all — the sweep names every wall entry and finds them", () => {
+    // Guards the sweep against going vacuous: a renamed id would otherwise assert nothing.
+    const found = INSERTABLE_BODY_DEFINITIONS.filter(([buildId]) =>
+      WALL_ENTRY_IDS.includes(buildId),
+    );
+    expect(found).toHaveLength(WALL_ENTRY_IDS.length);
+  });
+
+  it.each(WALL_ENTRY_IDS)(
+    "%s takes its nominal depth from the map row, not from a literal",
+    (wallEntryId) => {
+      const entry = INSERTABLE_BODY_DEFINITIONS.find(
+        ([buildId]) => buildId === wallEntryId,
+      );
+      expect(entry?.[1].nominalDepthMm).toBe(expectedWallDepthMm);
+    },
+  );
+
+  it("caps a wall carcass over a worktop at the same map row", () => {
+    expect(toMillimetres(WALL_CARCASS_MAX_DEPTH_OVER_WORKTOP_M)).toBe(
+      expectedWallDepthMm,
+    );
+  });
+
+  it("moves both numbers to 330 at the shipped worktop, and neither to 400", () => {
+    // The defect as the customer sees it, stated as the two numbers rather than as a built body:
+    // 400 is what a re-inserted top-row cabinet was built to beside 330 mm neighbours.
+    expect(expectedWallDepthMm).toBe(330);
+    expect(
+      INSERTABLE_BODY_DEFINITIONS.filter(([buildId]) =>
+        WALL_ENTRY_IDS.includes(buildId),
+      ).map(([, definition]) => definition.nominalDepthMm),
+    ).toEqual([330, 330, 330]);
+    expect(toMillimetres(WALL_CARCASS_MAX_DEPTH_OVER_WORKTOP_M)).not.toBe(400);
+  });
+
+  // **Changed deliberately in wave 5F**, which is the wave that answered the question this test
+  // was written while it was open. ADR 0039 decision 1 keeps the hood out of the map — *"hood is
+  // always standard"*, 500 at a 600 mm kitchen and 500 at a 700 mm one — so the *nominal* assertion
+  // is unchanged and is still the one that says the map does not reach here.
+  //
+  // What moved is `frameDepthMm`, and it moved because it was never a depth: ADR 0018 makes it
+  // twice the body's rear overhang, and ADR 0039 decision 2 hangs the hood at the front, so its
+  // origin sits `cabinetDepth − 250` off the wall. Asserting the two fields are equal would now be
+  // asserting the hood is wall-seated, which is exactly what decision 2 replaced.
+  //
+  // `nominalDepthMm` alone is not enough, and this assertion checked only that until QA finding
+  // Q1.1: the entry is spread from `wallCabinet(...)`, so `frameDepthMm` was inherited from the
+  // map-governed `WALL_DEPTH_MM` while the nominal said 500. `void-engine.ts` reads
+  // `frameDepthMm` as the fallback for a placement with no measured `seatDepthMm`, so the field
+  // this test skipped is the one that decided the depth — which is why it is still asserted here,
+  // against the front-hung number rather than dropped.
+  it("keeps the hood's 500 mm out of the map, and seats it at the front", () => {
+    const hood = INSERTABLE_BODY_DEFINITIONS.find(
+      ([buildId]) => buildId === "hood",
+    );
+    expect(hood?.[1].nominalDepthMm).toBe(HOOD_DEPTH_MM);
+    expect(hood?.[1].frameDepthMm).toBe(2 * WORKTOP_DEPTH_MM - HOOD_DEPTH_MM);
+    expect(hood?.[1].frameDepthMm).not.toBe(HOOD_DEPTH_MM);
+  });
+});

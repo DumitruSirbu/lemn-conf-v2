@@ -38,7 +38,7 @@ type RecordOverrides = Partial<Omit<PlacementRecord, "frame">> & {
 
 function makeRecord(overrides: RecordOverrides): PlacementRecord {
   return {
-    buildId: "wall-2door",
+    buildId: "wall-cabinet",
     kind: "wall_cabinet",
     col: "A|2.00",
     wall: "A",
@@ -51,7 +51,6 @@ function makeRecord(overrides: RecordOverrides): PlacementRecord {
     canReplace: true,
     canDelete: true,
     fixedWidth: false,
-    accessory: false,
     ...overrides,
     frame: {
       x: 2,

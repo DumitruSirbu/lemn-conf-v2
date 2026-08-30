@@ -1,4 +1,7 @@
-import { INSERTABLE_BODY_DEFINITIONS } from "../catalog.js";
+import {
+  EXTRACTOR_HOOD_KIND,
+  INSERTABLE_BODY_DEFINITIONS,
+} from "../catalog.js";
 import type { Design, DesignPlacement } from "../design.js";
 import type { BodyCatalog, BodyDefinition } from "../void-engine.js";
 
@@ -12,6 +15,15 @@ import type { BodyCatalog, BodyDefinition } from "../void-engine.js";
  * origin to the wall plane — not a claim about the body's physical depth: several bodies (the hob,
  * the hood) are visually shallower than their `frameDepthMm`, and `base-corner-x-900` is deeper
  * than its own (see `ADR 0025`).
+ *
+ * **Wave 5F moved three sets of these, and every one of them is a seat and not a depth.**
+ * ADR 0036 decision 1 makes a declared dimension the finished cabinet, so a wall shell is now its
+ * declared depth less the 39 mm front assembly: the 330 mm wall bodies seat on **291** and the two
+ * deliberately deep top bodies on **561**, while `open-shelf-600` keeps 330 because it has no
+ * front. ADR 0039 decision 2 hangs the hood at the front, so `hood-600` seats on **700** — twice
+ * the distance from the wall to the centre of a 500 mm body whose front face lands on the 600 mm
+ * cabinet-depth line. That last one is §11 row 19's second named exception and the one row here
+ * where the seat is deliberately larger than the space the body fills.
  */
 
 const baseCarcass: Pick<
@@ -70,7 +82,14 @@ const STRUCTURAL_CORNER: Pick<
  *  `baseCabinet(0.6, { drawers: 2 })`, which is exactly what `base-panbank` builds, so the two-drawer
  *  base is the pan bank at 600. Five entries carry no pointer because nothing in §7 builds them:
  *  the hob, and the four corner bodies — §13.1 is explicit that a corner is not a body a customer
- *  chooses, so having no catalogue equivalent is the correct answer for them, not a missing one. */
+ *  chooses, so having no catalogue equivalent is the correct answer for them, not a missing one.
+ *
+ *  **The pointer now carries a second fact, and it is the one M5 needs.** A seeded entry declares no
+ *  `sizesMm`: ADR 0011 Gap A gives it one already-built geometry, so the widths it *could* be
+ *  rebuilt at belong to the §7 entry a §5.4 resize would rebuild it through — the one named here.
+ *  `resolveBuildableSizes` (`catalog.ts`) reads the set and its floor off that entry, which is why
+ *  a stale pointer is now a wrong width set as well as a wrong badge. Both fail loudly against the
+ *  guard test rather than quietly, which is the whole reason the relationship is declared. */
 const SEEDED_BODY_DEFINITIONS: readonly (readonly [string, BodyDefinition])[] =
   [
     // ADR 0025. The two base legs of the L. `frameDepthMm` is the seat, not the depth: the X-leg's
@@ -143,40 +162,17 @@ const SEEDED_BODY_DEFINITIONS: readonly (readonly [string, BodyDefinition])[] =
         // ADR 0027: 600 mm in both directions, matching the catalogue entry. `baseCarcass` defaults
         // to `fixedWidth: false` and this row must not inherit it: the hob is a 600 mm appliance and
         // there is no 400 mm one, so §5.4's `canGive` ("not `fixedWidth`") would otherwise let the
-        // one cabinet carrying a hob donate width to a neighbour. No symptom before M5 wires §5.4 —
-        // a seeded entry has no `sizesMm`, so §9 renders no width chips — which is exactly why it
-        // has to be right now rather than when the symptom appears.
+        // one cabinet carrying a hob donate width to a neighbour. It had no symptom when it was
+        // written, because no seeded entry resolved a width set; it does now — the pointer below
+        // resolves `base-hob-2drawer`'s single-member {600}, and this flag is what keeps §9 from
+        // rendering a width section over it.
         fixedWidth: true,
-        // ADR 0027: the hob is built into this body. §5.3's cascade reads this off the **incoming**
-        // entry, and ADR 0011 Gap A never lets a seeded id be the incoming one, so nothing consumes
-        // it here today. It is declared because it is true of the body: the field says what a body
-        // carries, and a body that carries a hob and does not say so is the defect waiting to
-        // happen the next time something asks.
+        // ADR 0027: the hob is built into this body. Nothing reads the field since ADR 0038
+        // deleted the cascade that used to. It is declared because it is true of the body: the
+        // field says what a body carries, and a body that carries a hob and does not say so is the
+        // defect waiting to happen the next time something asks.
         carriesAccessoryKind: "induction_cooktop",
         catalogEquivalentId: "base-hob-2drawer",
-      },
-    ],
-    // ADR 0027 left this entry in place deliberately. Nothing in the seeded design references it
-    // any more, but designs saved before the migration still carry a `cooktop-600` placement, and
-    // a `buildId` the catalogue cannot resolve is `UnknownBodyError` at load — so removing the row
-    // would break exactly the documents the migration was meant to leave alone.
-    [
-      "cooktop-600",
-      {
-        ...baseCarcass,
-        kind: "induction_cooktop",
-        frameDepthMm: 700,
-        frameHeightMm: 40,
-        canReplace: false,
-        canDelete: false,
-        // Corrected rather than recorded as a known gap. A hob has no front and no handle, so
-        // `baseCarcass`'s `true`/`true` was false of the body either way; today the panel happens
-        // to suppress both sections on an accessory, which makes the mismatch cosmetic but does not
-        // make it true. These two flags are data, not geometry — the row, its builder arm and the
-        // meshes it draws are untouched, so a document persisted before the ADR 0027 migration
-        // still loads and renders exactly as it did.
-        canFinish: false,
-        canHandle: false,
       },
     ],
     [
@@ -190,7 +186,7 @@ const SEEDED_BODY_DEFINITIONS: readonly (readonly [string, BodyDefinition])[] =
         //
         // The rule is *not* "match the catalogue row". `hood-600` below is `fixedWidth: true` while
         // its catalogue row (`hood`) never sets the flag and is therefore `false` — and `hood-600`
-        // is right: the `hood` entry builds at 600 or 900, but this seeded instance is a 600.
+        // is right: the `hood` entry builds anywhere in 600–800, but this seeded instance is a 600.
         fixedWidth: true,
         kind: "tall_unit",
         frameDepthMm: 560,
@@ -235,8 +231,8 @@ const SEEDED_BODY_DEFINITIONS: readonly (readonly [string, BodyDefinition])[] =
       {
         ...wallCarcass,
         kind: "wall_cabinet",
-        frameDepthMm: 330,
-        catalogEquivalentId: "wall-2door",
+        frameDepthMm: 291,
+        catalogEquivalentId: "wall-cabinet",
       },
     ],
     [
@@ -245,7 +241,7 @@ const SEEDED_BODY_DEFINITIONS: readonly (readonly [string, BodyDefinition])[] =
         ...wallCarcass,
         ...STRUCTURAL_CORNER,
         kind: "wall_cabinet",
-        frameDepthMm: 330,
+        frameDepthMm: 291,
       },
     ],
     [
@@ -253,8 +249,8 @@ const SEEDED_BODY_DEFINITIONS: readonly (readonly [string, BodyDefinition])[] =
       {
         ...wallCarcass,
         kind: "wall_cabinet",
-        frameDepthMm: 330,
-        catalogEquivalentId: "wall-1door",
+        frameDepthMm: 291,
+        catalogEquivalentId: "wall-cabinet",
       },
     ],
     [
@@ -262,8 +258,8 @@ const SEEDED_BODY_DEFINITIONS: readonly (readonly [string, BodyDefinition])[] =
       {
         ...wallCarcass,
         kind: "wall_cabinet",
-        frameDepthMm: 330,
-        catalogEquivalentId: "wall-2door",
+        frameDepthMm: 291,
+        catalogEquivalentId: "wall-cabinet",
       },
     ],
     [
@@ -285,13 +281,13 @@ const SEEDED_BODY_DEFINITIONS: readonly (readonly [string, BodyDefinition])[] =
       "hood-600",
       {
         ...wallCarcass,
-        kind: "extractor_hood",
+        kind: EXTRACTOR_HOOD_KIND,
         // A hood is a canopy and a chimney: no front, so nothing for a finish chip to recolour.
         // Same correction as `open-shelf-600` above, matching the `hood` catalogue row.
         canFinish: false,
         canHandle: false,
         fixedWidth: true,
-        frameDepthMm: 500,
+        frameDepthMm: 700,
         catalogEquivalentId: "hood",
       },
     ],
@@ -300,9 +296,9 @@ const SEEDED_BODY_DEFINITIONS: readonly (readonly [string, BodyDefinition])[] =
       {
         ...topCarcass,
         kind: "wall_cabinet",
-        frameDepthMm: 330,
+        frameDepthMm: 291,
         frameHeightMm: 400,
-        catalogEquivalentId: "wall-2door",
+        catalogEquivalentId: "wall-cabinet",
       },
     ],
     [
@@ -310,9 +306,9 @@ const SEEDED_BODY_DEFINITIONS: readonly (readonly [string, BodyDefinition])[] =
       {
         ...topCarcass,
         kind: "wall_cabinet",
-        frameDepthMm: 330,
+        frameDepthMm: 291,
         frameHeightMm: 400,
-        catalogEquivalentId: "wall-1door",
+        catalogEquivalentId: "wall-cabinet",
       },
     ],
     [
@@ -320,9 +316,9 @@ const SEEDED_BODY_DEFINITIONS: readonly (readonly [string, BodyDefinition])[] =
       {
         ...topCarcass,
         kind: "wall_cabinet",
-        frameDepthMm: 330,
+        frameDepthMm: 291,
         frameHeightMm: 400,
-        catalogEquivalentId: "wall-2door",
+        catalogEquivalentId: "wall-cabinet",
       },
     ],
     [
@@ -331,7 +327,7 @@ const SEEDED_BODY_DEFINITIONS: readonly (readonly [string, BodyDefinition])[] =
         ...topCarcass,
         ...STRUCTURAL_CORNER,
         kind: "wall_cabinet",
-        frameDepthMm: 330,
+        frameDepthMm: 291,
         frameHeightMm: 400,
       },
     ],
@@ -340,9 +336,9 @@ const SEEDED_BODY_DEFINITIONS: readonly (readonly [string, BodyDefinition])[] =
       {
         ...topCarcass,
         kind: "wall_cabinet",
-        frameDepthMm: 600,
+        frameDepthMm: 561,
         frameHeightMm: 400,
-        catalogEquivalentId: "wall-2door",
+        catalogEquivalentId: "wall-cabinet",
       },
     ],
     [
@@ -350,9 +346,9 @@ const SEEDED_BODY_DEFINITIONS: readonly (readonly [string, BodyDefinition])[] =
       {
         ...topCarcass,
         kind: "wall_cabinet",
-        frameDepthMm: 600,
+        frameDepthMm: 561,
         frameHeightMm: 750,
-        catalogEquivalentId: "wall-2door",
+        catalogEquivalentId: "wall-cabinet",
       },
     ],
   ];

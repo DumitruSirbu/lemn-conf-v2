@@ -7,6 +7,8 @@
 // floor is declared rather than inferred from the measurement.
 import { describe, expect, it } from "vitest";
 
+import { SINK_CHIPS_MM } from "../support/width-model.js";
+
 import {
   buildableSizes,
   INSERTABLE_BODY_DEFINITIONS,
@@ -21,6 +23,7 @@ import {
 import { renderRejection } from "../../src/commands/rejection.js";
 import { toMetres } from "../../src/millimetres.js";
 import { offersFor, type CatalogOffer } from "../../src/queries/offers.js";
+import { offered as offeredRows } from "../support/offers.js";
 import { FIT_TOLERANCE_M, type BodyDefinition } from "../../src/void-engine.js";
 import { clearBodies, insertInto } from "../support/commands.js";
 import type { KitchenWorld } from "../support/kitchen-world.js";
@@ -32,6 +35,11 @@ const SINK_MIN_WIDTH_MM = 560;
 const GENERAL_MIN_WIDTH_MM = 300;
 /** ADR 0026: the bottle cargo's floor, the one entry that declares below the default. */
 const BOTTLE_CARGO_MIN_WIDTH_MM = 200;
+/** ADR 0030's amendment: the two hinged singles declare the same floor, for the same reason —
+ *  a set reaching under §2's default needs a declaration to keep it. */
+const ONE_DOOR_MIN_WIDTH_MM = 200;
+/** ADR 0035: the sink base's chips, stepped from its aperture to §7's ceiling rather than the
+ *  `[600, 800]` list ADR 0017 left behind when it removed 400. */
 const OPENING_ALONG_MM = 1000;
 const OPENING_COLUMN = "A|1.00";
 
@@ -82,6 +90,10 @@ describe("§5.2's fit path honours a body's own minimum width", () => {
     expect(result.reason.code).toBe("WIDTH_TOO_SMALL");
   });
 
+  // **Back to what ADR 0017 measured, by way of two revisions.** 5C2 made `[600, 800]` a bound on the
+  // `'fit'` path and this case asserted a refusal at 560; ADR 0033's amendment reads the sink as
+  // cabinetry with a fixed aperture — the bowl is 560, the carcass is not — so the aperture builds
+  // again, which is the width ADR 0017 chose over 550 precisely because the geometry is correct there.
   it("accepts the sink base at exactly its aperture", () => {
     const result = insertIntoBaseOpening(SINK_MIN_WIDTH_MM, "base-sink");
     expect(result.ok).toBe(true);
@@ -89,6 +101,15 @@ describe("§5.2's fit path honours a body's own minimum width", () => {
     expect(result.design.placements.at(-1)?.body.widthMm).toBe(
       SINK_MIN_WIDTH_MM,
     );
+  });
+
+  // The other end of the range: a sink base stops at §7's 800 mm ceiling.
+  it("refuses the sink base above §7's ceiling, naming its widths", () => {
+    const result = insertIntoBaseOpening(801, "base-sink");
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.reason.code).toBe("WIDTH_NOT_SUPPORTED");
+    expect(result.reason.params).toMatchObject({ sizesMm: SINK_CHIPS_MM });
   });
 
   // §11 row 5: the millimetres are in the params *and* in the sentence the panel renders verbatim.
@@ -107,13 +128,16 @@ describe("§5.2's fit path honours a body's own minimum width", () => {
 
   // The general floor is untouched: an entry with no `minWidthMm` is still governed by §2's 300 mm,
   // and its refusal still carries the code and the size list it always did.
+  // `base-3drawer` and not the hinged cabinet: this case is about §2's **default** floor, and the
+  // hinged rows declare their own 200 mm one (ADR 0026's mechanism, carried through ADR 0033's
+  // merge). Drawers have no door count and no declared floor, which is exactly the control needed.
   it("leaves §2's MIN_WIDTH_M governing an entry that declares no minimum", () => {
-    const refused = insertIntoBaseOpening(299, "base-2door");
+    const refused = insertIntoBaseOpening(299, "base-3drawer");
     expect(refused.ok).toBe(false);
     if (refused.ok) return;
     expect(refused.reason.code).toBe("WIDTH_NOT_SUPPORTED");
 
-    expect(insertIntoBaseOpening(300, "base-2door").ok).toBe(true);
+    expect(insertIntoBaseOpening(300, "base-3drawer").ok).toBe(true);
   });
 });
 
@@ -121,7 +145,9 @@ describe("§9's offer list and §5.2's guard read the one fact", () => {
   it("does not offer the sink base for a 400 mm or a 500 mm opening", () => {
     for (const widthMm of [400, 500]) {
       const world = baseOpeningWorld(widthMm);
-      const offered = offersFor({ ...world, target: baseVoidTarget(world) });
+      const offered = offeredRows(
+        offersFor({ ...world, target: baseVoidTarget(world) }),
+      );
       expect(offered.length, `${String(widthMm)} mm`).toBeGreaterThan(0);
       expect(
         offered.map((offer) => offer.buildId),
@@ -132,7 +158,9 @@ describe("§9's offer list and §5.2's guard read the one fact", () => {
 
   it("offers the sink base for a 600 mm opening", () => {
     const world = baseOpeningWorld(600);
-    const offered = offersFor({ ...world, target: baseVoidTarget(world) });
+    const offered = offeredRows(
+      offersFor({ ...world, target: baseVoidTarget(world) }),
+    );
     expect(offered.map((offer) => offer.buildId)).toContain("base-sink");
   });
 
@@ -149,13 +177,17 @@ describe("§9's offer list and §5.2's guard read the one fact", () => {
     for (const widthMm of widthsMm) {
       const world = baseOpeningWorld(widthMm);
       const target = baseVoidTarget(world);
-      const offered = offersFor({ ...world, target });
+      const offered = offeredRows(offersFor({ ...world, target }));
       for (const offer of offered) {
         const result = insertInto(world, target, offer.buildId);
         expect(result.ok, `${String(widthMm)} mm -> ${offer.buildId}`).toBe(
           true,
         );
       }
+      // ADR 0033's amendment: the sink is continuous from its aperture up, so it reaches every
+      // opening at or above 560 — which is what this sweep asserted before 5C2 briefly made the chip
+      // list a bound. The sweep tops out at 800, so the range's upper end is exercised by its own
+      // case above rather than here.
       const offersSink = offered.some((offer) => offer.buildId === "base-sink");
       expect(offersSink, `${String(widthMm)} mm`).toBe(
         widthMm >= SINK_MIN_WIDTH_MM,
@@ -173,9 +205,11 @@ describe("the sink base's catalogue widths", () => {
     expect(sink?.minWidthMm).toBe(SINK_MIN_WIDTH_MM);
   });
 
-  // 400 is not a width this body has, so it must not reach M4 as a width chip.
-  it("no longer lists 400 as a width chip", () => {
-    expect(sink?.sizesMm).toEqual([600, 800]);
+  // 400 is not a width this body has, so it must not reach M4 as a width chip. ADR 0035 steps the
+  // rest of the row's chips from the aperture up, and 600 is still where they start: `steppedWidths`
+  // rounds the 560 mm floor **up** to the first multiple of the step.
+  it("starts its chips above the aperture, never at 400", () => {
+    expect(sink?.sizesMm).toEqual(SINK_CHIPS_MM);
   });
 
   // This asserted "`base-sink` is the only entry that declares a floor" until ADR 0026, and it was
@@ -189,15 +223,24 @@ describe("the sink base's catalogue widths", () => {
       ).map(([buildId, definition]) => [buildId, definition.minWidthMm]),
     );
 
-    // Catalogue order, which is the order §9 lists the rows in.
+    // Catalogue order, which is the order §9 lists the rows in. **Two entries until 2026-08-27**:
+    // ADR 0030's amendment added `base-1door` and `wall-1door` at the same 200 mm the cargo
+    // declares, because a set reaching below §2's default is filtered back out again without one.
+    // Still four after ADR 0035, and the hood's absence is the decision: decision 5 floors it at
+    // 600, but through the **bound** rather than through `minWidthMm`. An upward `minWidthMm` claims
+    // the builder is broken below it (ADR 0026 clause 2), and §7's hood builder is correct at 599 —
+    // the owner simply does not sell one.
     expect([...declaredFloorsMm]).toEqual([
+      ["base-cabinet", ONE_DOOR_MIN_WIDTH_MM],
       ["base-bottle-cargo", BOTTLE_CARGO_MIN_WIDTH_MM],
       ["base-sink", SINK_MIN_WIDTH_MM],
+      ["wall-cabinet", ONE_DOOR_MIN_WIDTH_MM],
     ]);
     // ADR 0017 raises, ADR 0026 lowers. A floor on the wrong side of §2's default would change
     // which rejection code the customer reads, so the direction is asserted, not just the value.
     expect(SINK_MIN_WIDTH_MM).toBeGreaterThan(GENERAL_MIN_WIDTH_MM);
     expect(BOTTLE_CARGO_MIN_WIDTH_MM).toBeLessThan(GENERAL_MIN_WIDTH_MM);
+    expect(ONE_DOOR_MIN_WIDTH_MM).toBeLessThan(GENERAL_MIN_WIDTH_MM);
   });
 });
 
@@ -355,12 +398,12 @@ describe("R2.1: no shipped entry's width resolution changes", () => {
           kind: "void",
           id: voidAt(world, OPENING_COLUMN, y0).id,
         } as const;
-        for (const offer of offersFor({ ...world, target })) {
+        for (const offer of offeredRows(offersFor({ ...world, target }))) {
           const definition = definitionsByBuildId.get(offer.buildId);
           expect(definition, offer.buildId).toBeDefined();
           if (!definition) continue;
           expect(
-            offer.widthMm,
+            offer.verdict.widthMm,
             `${String(openingMm)} mm @ ${String(y0)} -> ${offer.buildId}`,
           ).toBe(widthMmBeforeR2(definition, openingMm));
         }
@@ -442,10 +485,23 @@ describe("§9's width chips are narrowed by the same floor", () => {
 
   // Named explicitly because it is the one shipped entry with a floor, and the one whose chips a
   // careless filter would eat.
-  it("leaves base-sink's chips at [600, 800]", () => {
+  it("leaves base-sink's chips stepped from its aperture", () => {
     const world = baseOpeningWorld(800);
     const offered = offersFor({ ...world, target: baseVoidTarget(world) });
     const sink = offered.find((offer) => offer.buildId === "base-sink");
-    expect(sink?.sizesMm).toEqual([600, 800]);
+    expect(sink?.sizesMm).toEqual(SINK_CHIPS_MM);
+  });
+
+  // ADR 0032 decides what a **refused** row's chips mean, and the answer is "the same thing": the
+  // widths this body can be built at are a fact about the entry, not about the opening it was
+  // measured against. They are what "requires more space" means in millimetres, so they are the half
+  // of a disabled row a customer can act on — and narrowing them to what fits here would leave the
+  // row saying nothing at all.
+  it("leaves them there on a row it refuses, unnarrowed", () => {
+    const world = baseOpeningWorld(400);
+    const offered = offersFor({ ...world, target: baseVoidTarget(world) });
+    const sink = offered.find((offer) => offer.buildId === "base-sink");
+    expect(sink?.verdict.status).toBe("refused");
+    expect(sink?.sizesMm).toEqual(SINK_CHIPS_MM);
   });
 });

@@ -21,6 +21,7 @@ import {
 } from "../../src/fixtures/kitchen-l-design.js";
 import { toMillimetres } from "../../src/millimetres.js";
 import { offersFor } from "../../src/queries/offers.js";
+import { offered as offeredRows } from "../support/offers.js";
 import type { PlacementRecord, VoidRecord } from "../../src/void-engine.js";
 import { clearBodies, insertInto } from "../support/commands.js";
 import { createFakeProbe } from "../support/fake-probe.js";
@@ -45,27 +46,67 @@ function replaceableWallBodies(world: KitchenWorld): PlacementRecord[] {
   );
 }
 
-const SWAP_BUILD_ID = "wall-2door";
+/** A wall entry bounded 300–800 with no hole in the middle, so it fills whatever opening it is
+ *  swapped into. It was `wall-2door` until ADR 0032 made a bounded set a bound on the `'fit'` path
+ *  too: the sweep below runs over every seeded wall and top body, and three of them stand at 300 or
+ *  700 mm. ADR 0035 makes every cabinetry row a bound, and a shelf has no door count — so this is
+ *  the entry with no ADR 0030 gap in its range. Depth is this file's subject, so the body it swaps
+ *  in must not refuse on width halfway through.  */
+const SWAP_BUILD_ID = "open-shelf";
 
-/** §7's head-clearance cap on a wall carcass over a worktop, in metres. Restated here rather than
- *  imported from `insert-fit.ts`: a test that reads the number it is checking out of the code under
- *  test proves nothing — move the constant and both sides move together. The three-adapter's
- *  `swap-depth.test.ts` restates the same rule in millimetres for the same reason. */
-const CAP_OVER_WORKTOP_M = 0.4;
+/** §7's head-clearance cap on a wall carcass over a worktop, in metres, at the shipped 600 mm
+ *  worktop. Restated here rather than imported from `insert-fit.ts`: a test that reads the number
+ *  it is checking out of the code under test proves nothing — move the constant and both sides move
+ *  together. The three-adapter's `swap-depth.test.ts` restates the same rule in millimetres for the
+ *  same reason.
+ *
+ *  M5 wave 5A moved it from 0.4 to 0.33. The cap is no longer a literal of its own: it and §7's
+ *  `nominalDepthMm` both read the worktop → wall depth map, which is what
+ *  `worktop-depth.test.ts` gates. */
+const CAP_OVER_WORKTOP_M = 0.33;
 
 /** The same rule in millimetres, for the assertions that read a recorded `seatDepthMm`. */
-const CAP_OVER_WORKTOP_MM = 400;
+const CAP_OVER_WORKTOP_MM = 330;
 
 /** §7's head-clearance cap on a wall carcass, in the one shipped case where it bites on a swap.
  *  Stated as data rather than imported from the code under test, and as a single named exception
- *  rather than a re-run of the rule: of the seeded wall bodies deeper than 400 mm, only the hood
+ *  rather than a re-run of the rule: of the seeded wall bodies deeper than 330 mm, only the hood
  *  stands over something that is not a full-height unit — `p2`, a base cabinet — so only its
  *  replacement is built shallower than the body it replaces. The three deep cabinets on wall B hang
  *  over `p5`, `p6` and `p7`, all full-height, where the cap is lifted, and they keep their own
  *  depth — which is backlog entry 5's whole decision. */
 const CAPPED_BY_HEAD_CLEARANCE_MM: Readonly<Record<string, number>> = {
-  p13: 400,
+  p13: 330,
 };
+
+/** ADR 0036 decision 1: a declared dimension is the **finished** cabinet, so `wallCabinet` builds
+ *  its shell at the declared depth less an 18 mm door and the 21 mm its bar handle stands proud of
+ *  that. A seeded wall row's `frame.d` is therefore the *shell* — 291 where the cabinet is 330 —
+ *  and the depth a replacement is built against is the declared number, not the recorded one.
+ *
+ *  Restated here rather than imported, like `CAP_OVER_WORKTOP_M` above and for the same reason.
+ *
+ *  Reading `frame.d` as the depth is what would compound: 330 → 291 → 252 on successive swaps, with
+ *  `refuseBuiltSize` checking width and height only so nothing would see it (ADR 0018 clause 4).
+ *  The two-swap round trip below is the assertion that it does not. */
+const WALL_FRONT_ASSEMBLY_MM = 39;
+
+/** The same cap as **recorded**, which since wave 5F is a different number from the cap itself.
+ *  ADR 0036 decision 1 makes 330 the *finished* depth of a wall cabinet, so its shell — and
+ *  therefore its seat, which is what `seatDepthMm` stores — is that less the 39 mm door-and-handle
+ *  front assembly. Keeping the two constants apart is the point: the rule the cap states is about
+ *  the cabinet a person leans under, and the number the design stores is about where its back face
+ *  lands (ADR 0018). */
+const CAP_OVER_WORKTOP_SEAT_MM = CAP_OVER_WORKTOP_MM - WALL_FRONT_ASSEMBLY_MM;
+
+/** An open shelf and a hood carry no front assembly, so only a fronted wall carcass needs the
+ *  correction. Keyed on the seeded row's `kind`, which is what the production rule reads. */
+function declaredDepthMm(record: PlacementRecord): number {
+  const seatMm = toMillimetres(record.frame.d);
+  return record.kind === "wall_cabinet"
+    ? seatMm + WALL_FRONT_ASSEMBLY_MM
+    : seatMm;
+}
 
 describe("insertBody — the depth a swap in place builds against (§5.3)", () => {
   const world = seeded();
@@ -83,14 +124,12 @@ describe("insertBody — the depth a swap in place builds against (§5.3)", () =
   });
 
   it.each(
-    replaceableWallBodies(seeded()).map((record) => {
-      const depthMm = toMillimetres(record.frame.d);
-      return {
-        id: record.id,
-        buildId: record.buildId,
-        depthMm: CAPPED_BY_HEAD_CLEARANCE_MM[record.id] ?? depthMm,
-      };
-    }),
+    replaceableWallBodies(seeded()).map((record) => ({
+      id: record.id,
+      buildId: record.buildId,
+      depthMm:
+        CAPPED_BY_HEAD_CLEARANCE_MM[record.id] ?? declaredDepthMm(record),
+    })),
   )(
     "builds a replacement for $id ($buildId) against its own $depthMm mm, not its column's",
     ({ id, depthMm }) => {
@@ -128,7 +167,7 @@ describe("insertBody — the depth a swap in place builds against (§5.3)", () =
     const second = insertInto(
       { ...after, columns: world.columns },
       { kind: "placement", id: first.effect.placementId },
-      "wall-1door",
+      "wall-lift",
       probe,
     );
 
@@ -153,13 +192,15 @@ describe("insertBody — the depth an insert into an empty void builds against (
     world: KitchenWorld,
     record: VoidRecord,
   ): string | undefined {
-    return offersFor({
-      records: world.records,
-      voids: world.voids,
-      columns: world.columns,
-      catalog: world.catalog,
-      target: { kind: "void", id: record.id },
-    })[0]?.buildId;
+    return offeredRows(
+      offersFor({
+        records: world.records,
+        voids: world.voids,
+        columns: world.columns,
+        catalog: world.catalog,
+        target: { kind: "void", id: record.id },
+      }),
+    )[0]?.buildId;
   }
 
   /** The four voids in this opened kitchen where §7's head-clearance cap bites: every wall-level
@@ -169,11 +210,11 @@ describe("insertBody — the depth an insert into an empty void builds against (
    *
    *  The fridge column's two openings are here, and they are the wave-A regression this file now
    *  pins: `p7` — a full-height `fridge-free` — was cleared away with `p24`, so nothing holds a
-   *  wall carcass out any more and it recedes to 400 rather than building to the column's frozen
+   *  wall carcass out any more and it recedes to 330 rather than building to the column's frozen
    *  680 mm. Backlog entry 5 records that consequence as deliberate.
    *
    *  `B|0.61`'s two openings are not here even though nothing full-height stands under them
-   *  either: they are 330 mm deep, so `min(d, 0.4)` is a no-op and the void's own depth is the
+   *  either: they are 330 mm deep, so `min(d, 0.33)` is a no-op and the void's own depth is the
    *  answer either way. `B|2.45:v0` is a floor-level opening that offers a base body, and §7's cap
    *  is a rule about wall carcasses only. */
   const CAPPED_BY_HEAD_CLEARANCE = new Set([
@@ -247,7 +288,7 @@ describe("insertBody — a wall carcass over an emptied column (backlog entry 5)
     const result = insertInto(
       world,
       { kind: "void", id: target.id },
-      "wall-2door",
+      "wall-cabinet",
     );
     if (!result.ok) throw new Error(`refused: ${result.reason.code}`);
     return result;
@@ -273,12 +314,12 @@ describe("insertBody — a wall carcass over an emptied column (backlog entry 5)
     const result = insertWallCabinet(world);
 
     expect(seatDepthMmOf(result.design, result.effect.placementId)) //
-      .toBe(CAP_OVER_WORKTOP_MM);
+      .toBe(CAP_OVER_WORKTOP_SEAT_MM);
   });
 
   it("lands the new carcass level with the wall cabinets either side of it", () => {
     // The defect as the customer saw it: p11 and p14 flank the emptied column at 330 mm, so a
-    // 580 mm neighbour between them is the visible harm and 400 is what the cap is worth.
+    // 580 mm neighbour between them is the visible harm and 330 is what the cap is worth.
     const result = insertWallCabinet(emptiedWorld());
     const after = createWorld(result.design, KITCHEN_L_BODY_CATALOG);
     const depthsMm = ["p11", result.effect.placementId, "p14"].map((id) =>
@@ -287,7 +328,14 @@ describe("insertBody — a wall carcass over an emptied column (backlog entry 5)
       ),
     );
 
-    expect(depthsMm).toEqual([330, CAP_OVER_WORKTOP_MM, 330]);
+    // All three are seats now, and all three are the same seat: that they *match* is the whole
+    // point of the assertion, and 291 beside 291 is level in exactly the way 580 beside 330 was
+    // not.
+    expect(depthsMm).toEqual([
+      CAP_OVER_WORKTOP_SEAT_MM,
+      CAP_OVER_WORKTOP_SEAT_MM,
+      CAP_OVER_WORKTOP_SEAT_MM,
+    ]);
     expect(Math.max(...depthsMm)).toBeLessThan(580);
   });
 
@@ -305,7 +353,7 @@ describe("insertBody — a wall carcass over an emptied column (backlog entry 5)
     const withBase = insertInto(
       beforeBase,
       { kind: "void", id: baseVoid.id },
-      "base-2door",
+      "base-cabinet",
     );
     expect(withBase.ok).toBe(true);
     if (!withBase.ok) return;
@@ -314,21 +362,18 @@ describe("insertBody — a wall carcass over an emptied column (backlog entry 5)
     // A base cabinet — a worktop — now stands under the opening.
     expect(
       afterBase.records.some(
-        (record) =>
-          record.col === EMPTIED_COLUMN &&
-          record.band === "base" &&
-          !record.accessory,
+        (record) => record.col === EMPTIED_COLUMN && record.band === "base",
       ),
     ).toBe(true);
     // And the carcass above it is the capped one, both as recorded and as re-derived.
     expect(seatDepthMmOf(afterBase.design, wallPlacementId)) //
-      .toBe(CAP_OVER_WORKTOP_MM);
+      .toBe(CAP_OVER_WORKTOP_SEAT_MM);
     expect(
       toMillimetres(
         afterBase.records.find((record) => record.id === wallPlacementId)?.frame
           .d ?? -1,
       ),
-    ).toBe(CAP_OVER_WORKTOP_MM);
+    ).toBe(CAP_OVER_WORKTOP_SEAT_MM);
   });
 });
 

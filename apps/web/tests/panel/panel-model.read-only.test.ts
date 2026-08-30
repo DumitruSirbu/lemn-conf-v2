@@ -30,6 +30,12 @@ import {
 
 import type { SelectionMeta } from "@lemnaria/configurator-domain";
 
+import {
+  asWidthChoice,
+  noWidthIsFree,
+  widthOptionRow,
+} from "../support/width-options";
+
 /** The writable, healthy panel every case here varies from exactly one axis at a time. */
 function openPanel(
   meta: SelectionMeta,
@@ -39,6 +45,7 @@ function openPanel(
     meta,
     offers: offers(3),
     rejection: null,
+    widthOptions: noWidthIsFree(meta.widthMm, meta.sizesMm),
     isBodyProbeAttached: true,
     canWrite: true,
     saveStatus: "idle",
@@ -302,15 +309,36 @@ describe("a read-only panel offers nothing it cannot perform", () => {
     }
   });
 
-  // Weak by construction, and recorded as weak: M4 ships no resize, so every width chip is already
-  // unclickable and this would pass without the read-only rule existing. It is here so the day M5
-  // makes `free` reachable, the chip that becomes clickable does not become clickable in a browser
-  // that cannot write — at which point the assertion starts carrying its own weight.
-  it("leaves no width chip clickable (already true in M4 — see the note above)", () => {
-    const width = findSection(readOnlyPanel(), "width");
+  // **This is the day the note above predicted.** It read "weak by construction": M4 shipped no
+  // resize, so every width chip was already unclickable and the test would have passed with the
+  // read-only rule deleted. Wave 5D made `free` reachable, so the options handed in below contain
+  // two widths the engine would accept — and the claim is now that read-only beats them.
+  //
+  // Asserted with the engine's reason **replaced** by the panel's, which is the half the sibling
+  // finish and handle tests have always checked and this one did not: a customer who cannot write
+  // must not be told which widths their cabinet could reach instead of being told they cannot edit.
+  it("disables every width chip and gives each one its reason, free chips included", () => {
+    const width = findSection(
+      readOnlyPanel(occupiedMeta({ widthMm: 600 }), {
+        widthOptions: widthOptionRow({
+          currentMm: 600,
+          freeMm: [400, 800],
+          blockedMm: [300],
+        }),
+      }),
+      "width",
+    );
 
-    expect(width.chips).not.toHaveLength(0);
-    expect(width.chips.every((chip) => chip.isDisabled)).toBe(true);
+    expect(
+      asWidthChoice(width).chips.filter((chip) => chip.state === "free"),
+    ).toHaveLength(2);
+    for (const chip of asWidthChoice(width).chips) {
+      expect([chip.widthMm, chip.isDisabled]).toEqual([chip.widthMm, true]);
+      expect([chip.widthMm, chip.reason]).toEqual([
+        chip.widthMm,
+        ro.panel.readOnlyReason,
+      ]);
+    }
   });
 
   it("disables Șterge corpul without pretending the body cannot be deleted", () => {
@@ -345,9 +373,9 @@ describe("read-only withholds nothing from the customer's eyes", () => {
   it("keeps the derived count line and the ACTUAL badge", () => {
     const panel = readOnlyPanel(occupiedMeta(), {
       offers: [
-        offer({ buildId: "base-1door" }),
+        offer({ buildId: "base-cabinet" }),
         offer({ buildId: "base-drawers" }),
-        offer({ buildId: "base-2door", isCurrent: true }),
+        offer({ buildId: "base-cabinet", isCurrent: true }),
       ],
     });
     const replace = findSection(panel, "replace");
@@ -372,6 +400,7 @@ describe("read-only withholds nothing from the customer's eyes", () => {
         meta: undefined,
         offers: [],
         rejection: null,
+        widthOptions: [],
         isBodyProbeAttached: true,
         canWrite: false,
         saveStatus: "unauthorized",

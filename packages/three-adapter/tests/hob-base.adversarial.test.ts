@@ -8,16 +8,13 @@
 //
 // It also owns the assertion ADR 0027 makes in prose and nothing checked: **§11 row 15 is satisfied
 // by construction**. The claim is that the hob is a child mesh of its cabinet's group, so
-// `climbToSelectable` resolves a click on it to the cabinet without §6.1's accessory rule being
-// consulted. That is a fact about the scene graph, and it is only true if the composite really
-// parents the hob. Nothing before this file looked.
+// `climbToSelectable` resolves a click on it to the cabinet with no second pass over the records.
+// That is a fact about the scene graph, and it is only true if the composite really parents the
+// hob. Nothing before this file looked.
 import {
-  deriveColumns,
   derivePlacementRecords,
-  insertBody,
   KITCHEN_L_BODY_CATALOG,
   KITCHEN_L_DESIGN,
-  type Design,
   type PlacementRecord,
 } from "@lemnaria/configurator-domain";
 import * as THREE from "three";
@@ -26,18 +23,12 @@ import { beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { buildCatalogBody } from "../src/catalog-bodies.js";
 import { buildDecomposedBody } from "../src/decomposed-bodies.js";
 import { makeKit, type Kit } from "../src/kitchen-parts.js";
-import { createBodyProbe } from "../src/measure-built-body.js";
-import { climbToSelectable, resolveSelection } from "../src/picking.js";
+import { climbToSelectable } from "../src/picking.js";
 import { syncSolidBodies } from "../src/scene-sync.js";
 import {
   createHeadlessCanvas,
   installHeadlessDocument,
 } from "./support/headless-canvas.js";
-import {
-  preMigrationHobDesign,
-  PRE_MIGRATION_HOB_ID,
-  PRE_MIGRATION_HOST_ID,
-} from "./support/pre-migration-hob.js";
 import { findMeshes, meshNames } from "./support/structure.js";
 
 /** The seeded hob-bearing cabinet. */
@@ -50,15 +41,11 @@ const OVEN_MESH_NAME = "oven_cavity";
 
 const HOB_BASE_SIZE = { widthM: 0.6, heightM: 0.86, depthM: 0.58 } as const;
 
-const OCCURRED_AT = "2026-08-27T12:00:00.000Z";
-
 let kit: Kit;
-let room: THREE.Object3D;
 
 beforeAll(() => {
   installHeadlessDocument();
   kit = makeKit({ createCanvas: createHeadlessCanvas });
-  room = kit.builders["kitchen-l"]();
 });
 
 // ---------------------------------------------------------------------------------------------
@@ -75,9 +62,9 @@ describe("§11 row 15 on the shipped design: clicking the hob selects its cabine
   });
 
   // The load-bearing half. If the hob were mounted as a sibling of the cabinet — or not parented at
-  // all — this climb would answer `null` and the click would select nothing, while every existing
-  // row-15 test would go on passing because they all run on synthetic records or on the
-  // pre-migration document.
+  // all — this climb would answer `null` and the click would select nothing. `row15-pick.qa.test.ts`
+  // closes the remaining hop, asserting the same thing through `pick` itself so the rule is pinned
+  // at the entry point the pointer handler calls rather than at this function alone.
   it("climbs from the hob's own glass plate to the cabinet's placement id", () => {
     const hobMeshes = findMeshes(solidsRoot, HOB_MESH_NAME);
 
@@ -86,16 +73,6 @@ describe("§11 row 15 on the shipped design: clicking the hob selects its cabine
       kind: "placement",
       id: HOB_PLACEMENT_ID,
     });
-  });
-
-  // And it resolves there **without** §6.1's accessory rule being consulted: the record the climb
-  // lands on is a body, not an accessory, so `resolveSelection` passes it through untouched. That
-  // is the sense in which ADR 0027 says the rule "is not gone; it is satisfied by construction".
-  it("resolves that selection with no accessory record involved at all", () => {
-    const selection = { kind: "placement", id: HOB_PLACEMENT_ID } as const;
-
-    expect(records.some((record) => record.accessory)).toBe(false);
-    expect(resolveSelection(selection, records)).toEqual(selection);
   });
 
   // There is no hob placement any more, so there is nothing to offer a delete on — the other half
@@ -207,95 +184,26 @@ describe("the adapter is the only layer that tells the two hob bases apart", () 
 });
 
 // ---------------------------------------------------------------------------------------------
-// The document ADR 0027 point 6 kept `cooktop-600` in the catalogue for.
+// The composite really is the two bodies it replaced.
 // ---------------------------------------------------------------------------------------------
-describe("a design saved before the migration still renders", () => {
-  it("builds the retired `cooktop-600` body, hob and all", () => {
-    const built = buildDecomposedBody(kit, "cooktop-600");
-
-    expect(meshNames(built)).toContain(HOB_MESH_NAME);
-    expect(built.name).toBe("induction_cooktop");
-  });
-
-  it("builds the drawer base that used to stand under it, with no hob on it", () => {
+describe("the hob-bearing base is the drawer base and the cooktop, merged", () => {
+  it("builds the drawer base that used to stand under the hob, with no hob on it", () => {
     const built = buildDecomposedBody(kit, "base-drawer2-600");
 
     expect(meshNames(built)).not.toContain(HOB_MESH_NAME);
   });
 
-  // Together those two are the pre-migration pair, and the composite is the two of them merged:
-  // every mesh name the pair draws appears in the composite, the same number of times.
+  // Every mesh name the pair draws appears in the composite, the same number of times. The pair is
+  // built from the kit's own two calls rather than from a retired catalogue id: ADR 0038 deleted
+  // `cooktop-600`, and the claim was never about that row — it is about the two builders.
   it("draws the same mesh names as the pair it replaced", () => {
     const composite = tally(meshNames(buildDecomposedBody(kit, HOB_BUILD_ID)));
     const pair = tally([
       ...meshNames(buildDecomposedBody(kit, "base-drawer2-600")),
-      ...meshNames(buildDecomposedBody(kit, "cooktop-600")),
+      ...meshNames(kit.builders.cooktop()),
     ]);
 
     expect(composite).toEqual(pair);
-  });
-});
-
-// ---------------------------------------------------------------------------------------------
-// …and the one thing it could not do before ADR 0027's amendment: be swapped.
-// ---------------------------------------------------------------------------------------------
-//
-// §5.3 swaps in place, so before the amendment it cascaded nothing. On this document that put two
-// hobs in the same cubic centimetre: `p3` is a `cooktop-600` accessory hosted on `p2` (§6.1), and
-// swapping `p2` for a body with a hob built in left `p3` behind, re-hosted onto the new body. The
-// domain cannot see that — a hob contributes to no opening and both meshes are legal placements —
-// so only this package, with the real builders and the real probe, can state the symptom as what
-// the customer sees: two glass plates at one world position, and the spare undeletable.
-describe("swapping a pre-migration cabinet for one that carries its own hob", () => {
-  function swapHobBaseInto(design: Design, buildId: string) {
-    const records = derivePlacementRecords(design, KITCHEN_L_BODY_CATALOG);
-    const result = insertBody({
-      design,
-      catalog: KITCHEN_L_BODY_CATALOG,
-      columns: deriveColumns(records),
-      target: { kind: "placement", id: PRE_MIGRATION_HOST_ID },
-      buildId,
-      probe: createBodyProbe(kit, room),
-      occurredAt: OCCURRED_AT,
-    });
-    if (!result.ok) throw new Error(`swap refused: ${result.reason.code}`);
-    return result;
-  }
-
-  it.each(["base-hob-2drawer", "base-hob-oven"])(
-    "mounts exactly one hob after swapping to %s, not two at the same point",
-    (buildId) => {
-      const result = swapHobBaseInto(preMigrationHobDesign(), buildId);
-      const solidsRoot = new THREE.Group();
-      syncSolidBodies({
-        kit,
-        solidsRoot,
-        records: derivePlacementRecords(result.design, KITCHEN_L_BODY_CATALOG),
-      });
-
-      // The customer-visible symptom first: before the amendment this measured **2**, both at
-      // world (2600, 866, 350) — z-fighting glass and doubled burner rings.
-      expect(findMeshes(solidsRoot, HOB_MESH_NAME)).toHaveLength(1);
-      expect(result.effect.cascadedAccessoryIds).toEqual([
-        PRE_MIGRATION_HOB_ID,
-      ]);
-    },
-  );
-
-  // The narrowness of the rule, on real geometry: a plain door base carries no hob, so the
-  // pre-migration accessory stays exactly where it was and still renders. This is the behaviour
-  // that pre-dates ADR 0027 and the amendment does not touch it.
-  it("keeps the loose hob when the incoming body has none of its own", () => {
-    const result = swapHobBaseInto(preMigrationHobDesign(), "base-2door");
-    const solidsRoot = new THREE.Group();
-    syncSolidBodies({
-      kit,
-      solidsRoot,
-      records: derivePlacementRecords(result.design, KITCHEN_L_BODY_CATALOG),
-    });
-
-    expect(result.effect.cascadedAccessoryIds).toEqual([]);
-    expect(findMeshes(solidsRoot, HOB_MESH_NAME)).toHaveLength(1);
   });
 });
 
@@ -324,6 +232,5 @@ function hobRecord(buildId: string): PlacementRecord {
     canReplace: true,
     canDelete: true,
     fixedWidth: true,
-    accessory: false,
   };
 }

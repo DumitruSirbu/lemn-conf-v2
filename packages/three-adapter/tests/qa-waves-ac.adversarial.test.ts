@@ -14,6 +14,7 @@ import {
   deriveCabinetWorldTransform,
   deriveColumns,
   derivePlacementRecords,
+  occupiedDepthM,
   insertBody,
   KITCHEN_L_BODY_CATALOG,
   KITCHEN_L_DESIGN,
@@ -62,12 +63,18 @@ function probe() {
   };
 }
 
+/** **The depth of the space the body fills, not its recorded seat.** The round trip below asks
+ *  whether a body's depth survives ten swaps, and since wave 5F `frame.d` is no longer that number:
+ *  a fronted wall carcass records 39 mm less than it occupies (ADR 0036 decision 1) while an open
+ *  shelf, having no door and no handle, still records exactly what it occupies. Reading the seat
+ *  raw would make the rotation below alternate between two correct numbers and read as drift.
+ *  `occupiedDepthM` is the production conversion, read here rather than restated. */
 function depthOfMm(design: Design, placementId: string): number {
   const record = derivePlacementRecords(design, KITCHEN_L_BODY_CATALOG).find(
     (candidate) => candidate.id === placementId,
   );
   if (!record) throw new Error(`No record ${placementId}`);
-  return toMillimetres(record.frame.d);
+  return toMillimetres(occupiedDepthM(record));
 }
 
 /** One swap against a **fresh load-time column map**, re-derived from the seeded design on every
@@ -77,12 +84,18 @@ function depthOfMm(design: Design, placementId: string): number {
  *  after every command, so its `hasFullHeightUnder` tracks the mutated design. Fixing the map here
  *  is deliberate: these tests repeat a swap to check the geometry round-trips, and swapping a wall
  *  body never changes what stands under it, so a constant map keeps the depth input constant and
- *  any drift in the measured result attributable to the builders. */
-function swap(
+ *  any drift in the measured result attributable to the builders.
+ *
+ *  ADR 0032: a wall entry whose `sizesMm` is a bound of its own (`wall-2door`, `wall-1door`) is
+ *  refused at an opening whose width its set does not list, so a rotation across the four
+ *  depth-consuming wall builders cannot assume every one of them fits every placement. `undefined`
+ *  means "not a width this entry has, try the next builder"; **every other refusal still throws**,
+ *  so a rotation cannot go quietly vacuous. */
+function swapIfWidthAllows(
   design: Design,
   placementId: string,
   buildId: string,
-): { readonly design: Design; readonly placementId: string } {
+): { readonly design: Design; readonly placementId: string } | undefined {
   const result = insertBody({
     design,
     catalog: KITCHEN_L_BODY_CATALOG,
@@ -94,12 +107,11 @@ function swap(
     probe: probe(),
     occurredAt: OCCURRED_AT,
   });
-  if (!result.ok) {
-    throw new Error(
-      `Swap of ${placementId} → ${buildId}: ${result.reason.code}`,
-    );
+  if (result.ok) {
+    return { design: result.design, placementId: result.effect.placementId };
   }
-  return { design: result.design, placementId: result.effect.placementId };
+  if (result.reason.code === "WIDTH_NOT_SUPPORTED") return undefined;
+  throw new Error(`Swap of ${placementId} → ${buildId}: ${result.reason.code}`);
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -111,9 +123,9 @@ function swap(
  *  `open-shelf` are in here precisely because the shipped repeat test used only the two door
  *  cabinets. */
 const DEPTH_CONSUMING_WALL_IDS = [
-  "wall-2door",
+  "wall-cabinet",
   "open-shelf",
-  "wall-1door",
+  "wall-cabinet",
   "wall-lift",
 ] as const;
 
@@ -122,7 +134,9 @@ describe("a deep wall carcass survives repeated swaps (ADR 0018 round trip)", ()
     { id: "p22", underneath: "a tall oven tower", depthMm: 600 },
     { id: "p23", underneath: "a tall pantry", depthMm: 600 },
     { id: "p24", underneath: "the fridge", depthMm: 600 },
-    { id: "p13", underneath: "the hob's worktop", depthMm: 400 },
+    // M5 wave 5A: the cap over a worktop is the worktop → wall depth map's row, 330 at the shipped
+    // 600 mm worktop, where it was an independent 400.
+    { id: "p13", underneath: "the hob's worktop", depthMm: 330 },
     { id: "p11", underneath: "a sink base", depthMm: 330 },
   ])(
     "$id over $underneath stays at $depthMm mm through ten swaps",
@@ -131,11 +145,19 @@ describe("a deep wall carcass survives repeated swaps (ADR 0018 round trip)", ()
       let target = id;
       const observed: number[] = [];
 
-      for (let round = 0; round < 10; round += 1) {
+      // The rotation skips a builder whose own set has no width for this opening — `p24` is 700 mm
+      // and the two door cabinets are bounded — and keeps turning until ten swaps have actually
+      // happened. It is the rounds that matter, not the attempts.
+      for (
+        let attempt = 0;
+        attempt < 4 * 10 && observed.length < 10;
+        attempt += 1
+      ) {
         const buildId =
-          DEPTH_CONSUMING_WALL_IDS[round % DEPTH_CONSUMING_WALL_IDS.length];
+          DEPTH_CONSUMING_WALL_IDS[attempt % DEPTH_CONSUMING_WALL_IDS.length];
         if (buildId === undefined) throw new Error("empty rotation");
-        const next = swap(design, target, buildId);
+        const next = swapIfWidthAllows(design, target, buildId);
+        if (!next) continue;
         design = next.design;
         target = next.placementId;
         observed.push(depthOfMm(design, target));
@@ -226,10 +248,28 @@ describe("§11 row 19 across the depths a wall carcass can now be built at", () 
   );
 });
 
-describe("the persisted seat equals the depth the builder was handed, at every depth", () => {
+/** What each builder stands in front of the shell it is handed (ADR 0036 decision 1): an 18 mm door
+ *  slab plus the 21 mm its bar handle reaches past that. An open shelf has neither. */
+const FRONT_ASSEMBLY_MM: Readonly<Record<string, number>> = {
+  "wall-cabinet": 39,
+  "wall-lift": 39,
+  "open-shelf": 0,
+};
+
+describe("the persisted seat is the depth the builder was handed, less its own front", () => {
   // The shipped assertion pins this at 0.33 m only. If a carcass were ever off-centre in z the
   // error would be proportional to the depth, so 0.33 is the one depth least likely to show it.
+  //
+  // **The relation the sweep checks changed in wave 5F, and the sweep is what proves it is a
+  // constant offset rather than a proportion.** ADR 0036 decision 1 makes the depth handed in the
+  // *finished* cabinet, so the seat is that less the front assembly — 39 mm at 200 and 39 mm at 700,
+  // never 39 mm at one depth and 60 at another. A proportional error is exactly what an off-centre
+  // carcass would produce, which is why the offset is subtracted per depth rather than the sweep
+  // being pinned at one.
   it.each(DEPTH_CONSUMING_WALL_IDS)("%s, 200–700 mm", (buildId) => {
+    const frontMm = FRONT_ASSEMBLY_MM[buildId] ?? -1;
+    expect(frontMm).toBeGreaterThanOrEqual(0);
+
     const drifted: string[] = [];
     let checked = 0;
     for (let depthMm = 200; depthMm <= 700; depthMm += 5) {
@@ -238,7 +278,7 @@ describe("the persisted seat equals the depth the builder was handed, at every d
         room,
         request: { buildId, widthM: 0.6, heightM: 0.7, depthM: depthMm / 1000 },
       });
-      if (toMillimetres(2 * measured.seatOffsetM) !== depthMm) {
+      if (toMillimetres(2 * measured.seatOffsetM) !== depthMm - frontMm) {
         drifted.push(
           `${String(depthMm)} → ${String(toMillimetres(2 * measured.seatOffsetM))}`,
         );

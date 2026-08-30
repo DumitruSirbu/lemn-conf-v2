@@ -58,7 +58,7 @@ Step 3 Verificare  →  Step 4 Contact  →  Step 5 Succes
 | [M2](M2-void-engine.md) | Placement/column/void engine, picking (2A), DB persistence and shareable links (2B) — **IN PROGRESS, 2 gates open** | domain + scene |
 | [M3](M3-mutations.md) | Insert, remove, swap, with every guard; the client write path | domain + adapter + scene |
 | [M4](M4-editor-surface.md) | Editor panel and shell — screens 2A, 2B, 2C, 2F | **mobile-gated** |
-| [M5](M5-width.md) | Width editing as a neighbour boundary move | domain + panel |
+| [M5](M5-width.md) | Width as a neighbour boundary move, **and depth as a derived quantity** (rescoped 2026-08-27) | domain + adapter + panel |
 | [M6](M6-price-and-global-settings.md) | Price bar, breakdown, whole-kitchen settings — 2D, 2E | **mobile-gated** |
 | [M7](M7-room-and-presets.md) | Step 1 and its six sub-states, resolving straight into the editor | **mobile-gated** |
 | [M8](M8-review-contact-success.md) | Screens 3, 4, 5 — review, contact, success and failure | **mobile-gated** |

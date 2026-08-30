@@ -68,7 +68,7 @@ describe("the schema the millimetre guards protect", () => {
         wall: "A",
         alongMm: 600,
         y0Mm: 0,
-        body: { buildId: "base-2door", widthMm: 600, heightMm: NaN },
+        body: { buildId: "base-cabinet", widthMm: 600, heightMm: NaN },
       },
     ]);
     expect(DesignSchema.safeParse(design).success).toBe(false);

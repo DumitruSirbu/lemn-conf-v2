@@ -3,7 +3,7 @@
 **Read this second, right after `AGENTS.md`, before opening any milestone document.** It exists so a
 session can learn where the project stands without reading eight phase plans.
 
-Last updated: 2026-08-27 (M4 closed — all four waves shipped, with one acceptance criterion recorded unmet; M5 next).
+Last updated: 2026-08-29 (**M5 in progress on branch `m5-width`.** Shipped: 5A, 5B, 5C, 5C2, 5C3, 5D, **5D2a** (a cabinet's width is a bound, not a menu of sizes) and **5D2b** (shrinking creates space, a resize squares a column up, and a hood floors its column — ADR 0037's merge was built in this wave and **withdrawn**, because §4 subtracts height and never width, so a cabinet in a merged span closed the level). The headline measurement: the shipped kitchen went from **0 accepted resizes at load to 51**, so width editing no longer requires deleting a column first, and §11 row 14's 450 mm dishwasher column is reachable. Remaining: **5D2c** the panel stepper, **5E** the browser and mobile gate, **5F** depth geometry. Nine ADRs were written or amended across 2026-08-28/29 — **0035** through **0039** — and they supersede large parts of the M5 plan; read them before the plan.)
 
 ## How to use this file
 
@@ -27,15 +27,15 @@ moment it ships; a decision record does not. When the two disagree, the dated de
 | M2 — Void engine, picking, persistence | **Done** (closed 2026-08-25 — its last gate, the unwired client write path, was closed by M3 Wave 3C-2b) | No — `milestones/done/` |
 | M3 — Insert, remove, swap, client write path | **Done** (closed 2026-08-26) | No — `milestones/done/` |
 | M4 — Editor panel and shell | **Done** (closed 2026-08-26 — one criterion unmet by design, ADR 0024) | No — `milestones/done/` |
-| M5 — Width editing | **Next** | Yes — `milestones/M5-*.md` |
-| M6 — Price bar and global settings | Planned | Yes, when starting |
+| M5 — Width editing, and depth as a derived quantity | **In progress** on `m5-width` — 5A–5D, 5D2a, 5D2b shipped; **5D2c, 5E, 5F open** | Yes — `milestones/M5-*.md`, **and ADRs 0028–0039**, which supersede large parts of it |
+| M6 — Price bar and global settings (**incl. the worktop depth control**, 2026-08-27) | Planned | Yes, when starting |
 | M7 — Step 1, room and presets | Planned | Yes, when starting |
 | M8 — Review, contact, success | Planned | Yes, when starting |
 
 ## What is actually built
 
 A pnpm monorepo on Node 24: an I/O-free domain package, a Three.js adapter, a persistence package
-that is the only place a Postgres driver appears, and a Next.js App Router app. **1 395 unit tests**
+that is the only place a Postgres driver appears, and a Next.js App Router app. **2 028 unit tests** (domain 852, three-adapter 609, web 484, persistence 83 — counted from a run on 2026-08-27 after wave 5D; was 1 607 after 5C3 and 1 395 that morning)
 (domain 433, three-adapter 440, web 439, persistence 83) plus **20 Playwright e2e tests** and one
 `test.skip`. Every number copied from a run executed on 2026-08-26 after M4 Wave 4D, not carried
 forward.
@@ -163,14 +163,43 @@ client probe asks the one route the cookie reaches, at the cost of a second GET 
 the first handset pass is now closed: the induction hob **can** be restored, because ADR 0027 made it
 part of the cabinet body and added two hob-bearing catalogue entries. The second is still open —
 clearing two adjacent cabinets yields two openings rather than one, the run re-split §12 lists as
-"Not built, designed". It is not fixed by M5.
+"Not built, designed". **Decided on 2026-08-28 by [ADR 0037](decisions/0037-adjacent-empty-columns-merge-into-one-space.md)** —
+adjacent columns empty at every level merge into one space, and 800 mm still caps every cabinet, so
+what a merge buys is freedom over the *number and position* of cabinets in a span rather than a
+bigger one. **Built in 5D2b on 2026-08-29 and withdrawn on 2026-08-30** — it needs backlog 2's
+re-split, which §12 lists as designed and not built, and without that it costs the customer the
+opening it was meant to give. **This defect is therefore still open.** ADR 0035's shrink-creates-space makes it reachable without a
+delete, which is what moved it from backlog to decided.
 
-**One deletion is deliberately still owed, and is recorded so it is not lost.** ADR 0027 left the
-whole accessory machinery in place — §6.1's host resolution, §5.1's cascade,
-`ACCESSORY_MAX_HEIGHT_M`, `PlacementRecord.accessory` and `cascadedAccessoryIds`. Nothing in the
-*shipped* design reaches any of it, but a design saved before that migration still carries a
-`cooktop-600` placement and reaches all of it. Whether those documents are migrated or supported is
-the decision that wave has to take first.
+**A third handset report, 2026-08-27, is now scheduled rather than backlog.** Re-inserting a deleted
+top-row cabinet builds it 400 mm deep beside 330 mm neighbours. Diagnosed as backlog 5's unfinished
+half — the depth cap and the catalogue nominal are unlinked constants — and folded into M5 as wave
+5A. **Eight depth questions are recorded and undecided**, in `docs/milestones/M5-width.md` under
+*Not established — Depth*, each tagged with the milestone that needs it: the hood, whether an 800
+worktop is real, whether a 700 worktop moves wall cabinet height as well as depth, what happens to a
+design saved at 600 when the setting changes, the two deliberately-deep top cabinets, whether the
+map's value is the carcass or the carcass plus its door, whether the shipped worktop is 600 or 620,
+and backlog 10's surviving divergence. **Only two gate an M5 wave** — the carcass-versus-door
+question (5A) and the 600-versus-620 question (5F). **Four travel to M6 with the control** and are
+repeated in that plan's open questions so they are not lost at the seam; the design-saved-at-600
+question blocks M6's control.
+
+**The deletion ADR 0027 owed is done.** The standalone accessory machinery is gone — §6.1's host
+resolution, §5.1's cascade, `ACCESSORY_MAX_HEIGHT_M`, `PlacementRecord.accessory`,
+`cascadedAccessoryIds` and the `cooktop-600` entry — authorised by
+[ADR 0038](decisions/0038-pre-release-no-stored-designs-no-migrations.md) on the owner's confirmation
+that nothing has ever been stored. Product-logic review established the deletion is behaviour-free
+with more margin than expected: the reachable frame-height floor is **400 mm**, enforced by
+`refuseShortOpening`'s `HEIGHT_FLEX_MIN_OPENING_MM`, not 300 by a coincidence of constants. §11
+row 15 survives, restated — the hob is a child mesh of its cabinet's group, so a click climbs to the
+cabinet with no resolution pass.
+
+**[ADR 0038](decisions/0038-pre-release-no-stored-designs-no-migrations.md) expires at first release,
+and this is the line that must survive until then.** M7 or M8 must re-read it before launch and
+decide the first stored schema. One concrete obligation is already named: `DesignPlacementSchema`
+accepts `heightMm` with **no lower bound**, so once documents are stored a 40 mm placement becomes
+constructible — and it would now silently join its column and count toward its extent, where before
+this wave it would have been classified an accessory and skipped.
 
 
 **M4 closed with one acceptance criterion unmet, on purpose (ADR 0024).** Its Verification section
@@ -189,13 +218,14 @@ desktop rail — but the §9 sections for a corner return, an unknown kind (§11
 zero-result list are reached by no seeded selection, so they remain model-tested only. The width
 section has **never rendered in any browser run**, because no seeded entry has `sizesMm` (below).
 
-**M5 inherits a gap M4 found and could not close: seeded catalogue entries carry no `sizesMm`.**
-`canWidth` is §9's literal rule again — selected, not empty, not `fixedWidth` — and
-`describeWidthSection` declines to emit a section with no chips. So the width section is hidden for
-every seeded body today. An earlier M4 fix folded "has widths to offer" into `canWidth` itself;
-logic review overturned it, because that would have made M5's missing data fail *silently* instead
-of loudly. Give the seeded entries real width sets and the section appears — and a seeded test
-asserting it renders nothing starts failing, which is the tripwire.
+**M4's `sizesMm` gap is closed, and the arrangement behind it survived two waves.** Wave 5B gave the
+seeded entries their sets and wave 5D moved the chip row to the column (ADR 0034), so the width
+section renders across the shipped kitchen. What did **not** change is the reason it can still be
+absent: `canWidth` stays §9's literal rule — selected, not empty, not `fixedWidth` — and a body that
+resolves no set gets no section rather than a one-chip one. An earlier M4 fix folded "has widths to
+offer" into `canWidth` itself; logic review overturned it, because that would have made missing data
+fail *silently* instead of loudly. It is still the arrangement, now enforced in the domain as well:
+`columnWidthChoices` returns nothing rather than conjuring a set out of the current width.
 
 **Deferred review findings, named so they are not lost.** From M4's clean-code round: the four-way
 panel test-file split has become redundant coverage with duplicated helpers; `advancePast` lets three
@@ -280,25 +310,83 @@ floor; until it lands, no update rate limit can be sized honestly.
 
 ## What to do next
 
-**M5 — width editing (§5.4's resize as a boundary move, §11 rows 9–14).** M4 built the width section
-and every chip in it is `blocked`, because no resize command exists. Read `docs/milestones/` for M5's
-plan when you start it.
+**M5 wave 5D2c — the panel stepper (ADR 0035).** The engine is done; 5D2c is the first wave a
+customer could see. Read ADRs **0035** (all seven decisions and their amendments), **0032** for the
+disabled-with-reason rule, and **0034** for the seam 5D2a and 5D2b kept.
 
-Four things M4 hands M5 directly:
+- **Two controls, chosen by the shape of `widthRangesMm`, never by `fixedWidth`** — that flag is
+  `false` on both discrete rows, the dishwasher included, and ADR 0035 decision 3 carries the
+  correction. A range with `minMm < maxMm` gets the `+50` / `−50` stepper; every range a single
+  width gets a plain choice.
+- **A button at a bound is disabled carrying its reason**, never absent (ADR 0032). The floors that
+  now exist: the entry's own, §2's default, and — new in 5D2b — **the hood's width**, which is what
+  the `−50` greys out at on a column holding one.
+- **Two new sentences.** A span wider than 800 mm fits no cabinet and **may simply be left empty**
+  (ADR 0037, owner 2026-08-28) — §9's "say what to clear" advice inverts there, because clearing
+  makes it wider. And the hood floor needs its own reason on the greyed-out `−50`.
+- **Retire 5D's chip row** and its pinned counts; rewrite the property test in the stronger form:
+  at every reachable width, each button is enabled if and only if the step it offers succeeds.
 
-1. **Seeded catalogue entries have no `sizesMm`, so no seeded body can be resized.** This is the
-   load-bearing one. `canWidth` is §9's rule and `describeWidthSection` declines a chipless section,
-   so today the width section is hidden across the whole shipped kitchen and has never rendered in a
-   browser. A seeded test asserts that absence deliberately and will fail the day you give the
-   entries widths — that failure is the signal, not a regression.
+
+**Then 5F** (base carcass depth as a formula, the only wave that touches a builder and the only one
+that can reach M1's 1e-6 m parity gate).
+
+**Both of these were answered on 2026-08-28 and are recorded in ADR 0035 — a column is one width at every level and a mixed column is squared up rather than refused, and shrinking does create empty space.** The original framing, kept because it records what was uncertain and why: whether a column holding mixed
+widths should be squared up rather than refused (`COLUMN_MEMBERS_UNALIGNED`, 13 lockouts — **both
+answered on 2026-08-28 and shipped in wave 5D2b; the refusal code is deleted**), and whether
+*shrinking* a column should create empty space — which would make the kitchen resizable without a
+delete first, and which 5D's measurement makes the more pressing of the two. ADR 0031 records that
+the "not representable" argument against it was **wrong**; the machinery exists.
+
+
+**M5 — editing a cabinet's size (§5.4's resize as a boundary move, §11 rows 9–14; plus depth, §5.2
+and §7).** M4 built the width section and every chip in it is `blocked`, because no resize command
+exists. Read `docs/milestones/M5-width.md` when you start it.
+
+**M5 gained depth on 2026-08-27 and is now six waves, and the first one is a defect fix.** A handset
+report — delete a top-row cabinet, insert one back, it returns 400 mm deep against 330 mm neighbours
+— turned out to be the unfinished half of backlog 5. The cap
+(`WALL_CARCASS_MAX_DEPTH_OVER_WORKTOP_M`, `insert-fit.ts:56`) and the catalogue nominal
+(`WALL_DEPTH_MM`, `catalog.ts:72`) are **independent constants that happen to agree at 400**, and
+`resolveDepthM` caps against `Column.d` (580 over a base run) without ever reading the nominal. The
+owner decided on 2026-08-27 that wall depth follows worktop depth through an extensible map, that the
+map is the single source for both numbers, that base carcass depth is a formula, and that worktop
+depth becomes a whole-kitchen setting.
+
+**Wave 5A ships the map alone** — it is the customer-visible fix, it is live on the owner's device,
+and it must land before `setWidth`, because a resize rebuilds through the catalogue equivalent and
+would otherwise be written against 400. **Wave 5F** carries the base carcass formula. The wave
+letters were reassigned when depth joined; the plan carries the old→new mapping.
+
+**M5 owns the geometry; M6 owns the control (owner, 2026-08-27).** Worktop depth is a **single
+declared constant at 600 mm** in M5 — no user-facing control, no schema field, no settings UI, no
+version bump. `docs/milestones/M6-price-and-global-settings.md` **work item 4** adds worktop depth as
+a fourth control in *Setări globale* beside the material and hardware tiers it already builds;
+because M5 did the mechanics, that is one more control in a panel M6 is building anyway. Both plans
+name each other so neither can assume the other built it. Every question about a worktop depth that
+*changes* travels with the control to M6 — M5 never holds two.
+
+If the milestone needs to be smaller, 5F is the clean cut, but note it moves rather than disappears:
+M6's control needs the formula underneath it.
+
+Four things M4 handed M5 directly. **The first and third are closed; the second and fourth are
+open.**
+
+1. ~~**Seeded catalogue entries have no `sizesMm`, so no seeded body can be resized.**~~ Closed by
+   wave 5B, and the tripwire fired as designed: the seeded test asserting the section renders nothing
+   failed the day the widths arrived.
 2. **The rejection banner becomes reachable, and M4's unmet criterion becomes writable.** §5.4 has
    real failure modes (§11 row 10: a resize that would push a neighbour under 300 mm). M5 is the
    first phase where a §9 control can legitimately refuse, so ADR 0024 says to revisit it here. Two
    of 2C's three requirements can then be proven in a browser; the third still waits for M6's total.
-3. **Width chips must stay honest about `free` versus `blocked`.** The tri-state survives in the
-   model with `isDisabled` resolved beside it, and `isWidthChipDisabled` takes the full union so the
-   `free` branch is typechecked while unreachable. Several tests assert "no chip is ever free" — they
-   are pinning M4's truth, and M5 must change them deliberately rather than delete them.
+   **Still open — it is wave 5E's**, and note that 5D put the reason at the point of *choosing*
+   (a blocked chip carries the engine's sentence), which is the better place for it than a banner
+   after the tap.
+3. ~~**Width chips must stay honest about `free` versus `blocked`.**~~ Closed by wave 5D and
+   ADR 0034: a chip is `free` if and only if `setWidth` at that width would succeed, answered by
+   running the command. The three tests pinning "no chip is ever free" were turned over rather than
+   deleted, and the shipped kitchen's own answer is still zero free chips — for a reason about empty
+   space, not about a missing command.
 4. **§13.3 question 1 is still open and still visible.** `insertBody` is deliberately more permissive
    than `offersFor` on a swap — §9 scopes a swap list to the outgoing body's band while §5.2 lets a
    `column` body into any slot. Not a rule violation, but the two are not interchangeable.

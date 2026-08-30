@@ -11,6 +11,8 @@
 // string manipulation: a rename on either side must break the table's test, not silently produce a
 // path to nothing.
 
+import { deriveDoorCount } from "@lemnaria/configurator-domain";
+
 /** Where `apps/web/public/cabinets/` is served from. */
 const CABINET_DRAWING_DIRECTORY = "/cabinets";
 
@@ -28,8 +30,6 @@ const CABINET_DRAWING_DIRECTORY = "/cabinets";
  * offer rows at all, and `base-corner.svg` / `wall-corner.svg` stay unused beside the rest.
  */
 const CABINET_DRAWING_FILENAMES: Readonly<Record<string, string>> = {
-  "base-2door": "base-2-door.svg",
-  "base-1door": "base-1-door.svg",
   "base-3drawer": "base-3-drawer.svg",
   "base-panbank": "base-panbank.svg",
   "base-hob-2drawer": "base-hob-2drawer.svg",
@@ -39,8 +39,6 @@ const CABINET_DRAWING_FILENAMES: Readonly<Record<string, string>> = {
   "base-bottle-cargo": "base-bottle-cargo.svg",
   "base-sink": "base-sink.svg",
   "base-dishwasher": "base-dishwasher.svg",
-  "wall-2door": "wall-2-door.svg",
-  "wall-1door": "wall-1-door.svg",
   "wall-lift": "wall-lift.svg",
   "open-shelf": "wall-open-shelf.svg",
   hood: "wall-hood.svg",
@@ -50,15 +48,55 @@ const CABINET_DRAWING_FILENAMES: Readonly<Record<string, string>> = {
   "fridge-free": "tall-fridge.svg",
 };
 
-/** The file name this body's drawing is stored under, or `undefined` for an unmapped body. */
+/**
+ * ADR 0033: **two drawings for one entry**, because the drawing depicts a door count and the door
+ * count is now a consequence of the width.
+ *
+ * The merge left one `wall-cabinet` row where there were two, and frame 2B's tile is a front
+ * elevation — it shows the doors. Mapping the merged id to a single drawing would put a two-door
+ * elevation on a 300 mm one-door row, which is the naming defect ADR 0033 removes wearing a
+ * different coat: a picture that claims a door count nothing verified. Both vendored drawings are
+ * kept and the width chooses, through the domain's own `deriveDoorCount` — the same function the
+ * builder and the label read, so the picture, the name and the geometry cannot disagree.
+ */
+const DOOR_COUNT_DRAWING_FILENAMES: Readonly<
+  Record<string, Readonly<Record<number, string>>>
+> = {
+  "base-cabinet": { 1: "base-1-door.svg", 2: "base-2-door.svg" },
+  "wall-cabinet": { 1: "wall-1-door.svg", 2: "wall-2-door.svg" },
+};
+
+/** Every drawing this body could ever show — one for most entries, two for a merged cabinet whose
+ *  door count follows its width. The guard test sweeps this rather than a single answer, so a
+ *  merged entry has to have **both** its drawings vendored, not just whichever one a default picked.
+ */
+export function listCabinetDrawingFilenames(
+  buildId: string,
+): readonly string[] {
+  const doorCounts = ownProperty(DOOR_COUNT_DRAWING_FILENAMES, buildId);
+  if (doorCounts !== undefined) return Object.values(doorCounts);
+  const single = ownProperty(CABINET_DRAWING_FILENAMES, buildId);
+  return single === undefined ? [] : [single];
+}
+
+/** The file name this body's drawing is stored under at a given width, or `undefined` for an
+ *  unmapped body. The width is only consulted for an entry whose door count follows it. */
 export function findCabinetDrawingFilename(
   buildId: string,
+  widthMm: number,
 ): string | undefined {
-  // Own properties only, for the reason `isKnownKind` gives: `buildId in record` walks
-  // `Object.prototype`, so "constructor" would answer with a function rather than a file name.
-  return Object.hasOwn(CABINET_DRAWING_FILENAMES, buildId)
-    ? CABINET_DRAWING_FILENAMES[buildId]
-    : undefined;
+  const doorCounts = ownProperty(DOOR_COUNT_DRAWING_FILENAMES, buildId);
+  if (doorCounts !== undefined) return doorCounts[deriveDoorCount(widthMm)];
+  return ownProperty(CABINET_DRAWING_FILENAMES, buildId);
+}
+
+/** Own properties only, for the reason `isKnownKind` gives: `buildId in record` walks
+ *  `Object.prototype`, so "constructor" would answer with a function rather than a file name. */
+function ownProperty<T>(
+  table: Readonly<Record<string, T>>,
+  buildId: string,
+): T | undefined {
+  return Object.hasOwn(table, buildId) ? table[buildId] : undefined;
 }
 
 /**
@@ -68,8 +106,11 @@ export function findCabinetDrawingFilename(
  * unresolved value paints an empty tile instead of firing a request that 404s, and a stand-in
  * drawing would be a worse answer than an empty tile — it would name the wrong cabinet.
  */
-export function findCabinetThumbnailUrl(buildId: string): string | undefined {
-  const filename = findCabinetDrawingFilename(buildId);
+export function findCabinetThumbnailUrl(
+  buildId: string,
+  widthMm: number,
+): string | undefined {
+  const filename = findCabinetDrawingFilename(buildId, widthMm);
   if (filename === undefined) return undefined;
   return `${CABINET_DRAWING_DIRECTORY}/${filename}`;
 }

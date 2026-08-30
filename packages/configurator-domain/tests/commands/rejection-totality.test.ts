@@ -23,7 +23,12 @@ import {
   KITCHEN_L_DESIGN,
 } from "../../src/fixtures/kitchen-l-design.js";
 import type { BodyCatalog, BodyDefinition } from "../../src/void-engine.js";
-import { clearBodies, insertInto, OCCURRED_AT } from "../support/commands.js";
+import {
+  clearBodies,
+  insertInto,
+  resizeTo,
+  OCCURRED_AT,
+} from "../support/commands.js";
 import { createFakeProbe } from "../support/fake-probe.js";
 import {
   advance,
@@ -31,10 +36,10 @@ import {
   voidAt,
   type KitchenWorld,
 } from "../support/kitchen-world.js";
-import { preMigrationHobDesign } from "../support/pre-migration-hob.js";
 import {
   columnWorld,
   syntheticDesign,
+  syntheticWorld,
   type SyntheticMember,
 } from "../support/synthetic-world.js";
 
@@ -42,10 +47,9 @@ const ROMANIAN_LETTERS = /[ăâîșțĂÂÎȘȚ]/;
 const PLACEHOLDER_LEAKS = ["undefined", "null", "NaN", "Infinity", "[object"];
 const FRIDGE_COLUMN = "B|2.45";
 
-/** §5.1's third refusal is `!canDelete (corners)`, and the seeded population's only non-deletable
- *  entry is the hob — which is an accessory, so it refuses one guard earlier. The corner bases M1
- *  draws are not placements at all. A structural entry therefore has to be introduced to reach the
- *  code, which is itself worth recording. */
+/** §5.1's second refusal is `!canDelete (corners)`. ADR 0025 made the corner legs real placements
+ *  and the shipped design reaches the code through `p25`; this synthetic entry keeps the sweep's
+ *  own reading of the guard independent of that fixture, and is the shape §5.1 describes. */
 const CORNER_BASE: BodyDefinition = {
   kind: "base_cabinet",
   band: "base",
@@ -117,16 +121,63 @@ function voidTarget(world: KitchenWorld, col: string, y0: number) {
 
 function buildCases(): SweepCase[] {
   const world = seeded();
-  // ADR 0027: the shipped design has no accessory left in it, so the two codes that need one — a
-  // delete refused because the target is an accessory, and a swap refused for the same reason —
-  // are driven out of the design saved before that migration. Both codes stay reachable from a
-  // real command on a real document, which is what this sweep exists to prove.
-  const preMigration = createWorld(
-    preMigrationHobDesign(),
-    KITCHEN_L_BODY_CATALOG,
-  );
   const clearedFridge = clearBodies(world, ["p7", "p24"]);
   const clearedDishwasher = clearBodies(world, ["p1"]);
+  /** A **600 mm** column with its top slot open. The hood's route to `HEIGHT_EXCEEDS_LEVEL` used to
+   *  run through the fridge column, which is 700 mm wide — a width the hood's `[600, 900]` set does not
+   *  have, so ADR 0032 now refuses it on width before the height guard is ever reached. The code needs
+   *  an opening where only the height is wrong. */
+  const clearedTopSlot = clearBodies(world, ["p18"]);
+  // `RESIZE_OPENS_GAP` needs a shape the seeded kitchen does not have. `gapWorld` is the shipped
+  // kitchen with `A|1.30` emptied, which is what lets `A|0.75` reach 200 and widen the empty column
+  // across the corner leg.
+  //
+  // Its sibling `COLUMN_MEMBERS_UNALIGNED` is **gone**, and so is the fixture that reached it. ADR
+  // 0035 decision 6 squares a mixed-width column up instead of refusing it, so a 600 mm base under a
+  // 450 mm shelf is no longer a refusal anyone can produce — it is an ordinary resize. Removed from
+  // `ALL_REJECTION_CODES` rather than moved to `ENGINE_UNREACHABLE`: the code itself is deleted from
+  // `RejectionDetail`, so this sweep would not compile if it were still named here.
+  const gapWorld = clearBodies(world, ["p0", "p11", "p17"]);
+  // §3.2 permits columns to overlap along the wall, and the shipped kitchen has them (`A|0.45`
+  // spans 0–900 across `A|0.30` and `A|0.75`). Here a 600 mm base run at 1000 (`A|1.00`) overlaps a
+  // 300 mm wall unit at 950 (`A|0.95`); shrinking the run to 500 holds its left edge and puts its
+  // new centre on 950 — the wall unit's own key. Wave 5D2b's QA found that the map was written
+  // blind and the wall unit's frozen column was overwritten with no command naming it.
+  // ADR 0035 decision 6 as amended: the hood floors its column, so a width every cabinet under it
+  // accepts is still refused when the hood is wider.
+  const hoodFlooredWorld = syntheticWorld([
+    {
+      id: "run",
+      wall: "A",
+      alongMm: 1000,
+      y0Mm: 0,
+      body: { buildId: "base-cabinet", widthMm: 300, heightMm: 860 },
+    },
+    {
+      id: "hd",
+      wall: "A",
+      alongMm: 1000,
+      y0Mm: 1500,
+      body: { buildId: "hood", widthMm: 600, heightMm: 700 },
+    },
+  ]);
+
+  const overlappingWorld = syntheticWorld([
+    {
+      id: "base-run",
+      wall: "A",
+      alongMm: 1000,
+      y0Mm: 0,
+      body: { buildId: "base-panbank", widthMm: 600, heightMm: 860 },
+    },
+    {
+      id: "wall-unit",
+      wall: "A",
+      alongMm: 950,
+      y0Mm: 1500,
+      body: { buildId: "wall-cabinet", widthMm: 300, heightMm: 700 },
+    },
+  ]);
   // A 400 mm base opening: the dishwasher niche is made in 450 and 600 only.
   const narrowBase = clearBodies(columnWorld(1000, stackOf(400)), ["s0"]);
   // No top row, so the freed base span stops at 1.50 and a 2200 mm column cannot fit above it.
@@ -176,11 +227,6 @@ function buildCases(): SweepCase[] {
         }),
     },
     {
-      code: "ACCESSORY_NOT_DELETABLE",
-      design: preMigration.design,
-      run: () => removeFrom(preMigration.design, "p3", "placement"),
-    },
-    {
       code: "NOT_DELETABLE",
       design: CORNER_DESIGN,
       run: () =>
@@ -204,10 +250,14 @@ function buildCases(): SweepCase[] {
         insertInto(world, { kind: "placement", id: "p0" }, "base-sink-800"),
     },
     {
+      // ADR 0025 / §13.1: a corner is not a body the customer chooses, so it declares
+      // `canReplace: false`. Since ADR 0027 folded the hob into its cabinet, the non-replaceable
+      // placements are exactly the four corner bodies — the base corner leg `p25` and return `p26`,
+      // and the wall corner returns `p9` and `p21`.
       code: "TARGET_NOT_REPLACEABLE",
-      design: preMigration.design,
+      design: world.design,
       run: () =>
-        insertInto(preMigration, { kind: "placement", id: "p3" }, "base-2door"),
+        insertInto(world, { kind: "placement", id: "p25" }, "base-3drawer"),
     },
     {
       code: "BAND_MISMATCH",
@@ -216,7 +266,7 @@ function buildCases(): SweepCase[] {
         insertInto(
           clearedDishwasher,
           voidTarget(clearedDishwasher, "A|2.00", 0),
-          "wall-2door",
+          "wall-cabinet",
         ),
     },
     {
@@ -257,7 +307,7 @@ function buildCases(): SweepCase[] {
         insertInto(
           shortOpening,
           voidTarget(shortOpening, "A|1.00", 1.814),
-          "wall-2door",
+          "wall-cabinet",
         ),
     },
     {
@@ -265,11 +315,11 @@ function buildCases(): SweepCase[] {
       // is the only route to this code — a base body is refused by the band gate first, and every
       // wall body except the hood is height-flexible.
       code: "HEIGHT_EXCEEDS_LEVEL",
-      design: clearedFridge.design,
+      design: clearedTopSlot.design,
       run: () =>
         insertInto(
-          clearedFridge,
-          voidTarget(clearedFridge, FRIDGE_COLUMN, 2.2),
+          clearedTopSlot,
+          voidTarget(clearedTopSlot, "A|2.00", 2.2),
           "hood",
         ),
     },
@@ -290,7 +340,7 @@ function buildCases(): SweepCase[] {
         insertInto(
           clearedFridge,
           voidTarget(clearedFridge, "B|2.45", 0),
-          "base-2door",
+          "base-3drawer",
           createFakeProbe({ carcassWidthM: 0.9 }),
         ),
     },
@@ -303,7 +353,7 @@ function buildCases(): SweepCase[] {
         insertInto(
           clearedFridge,
           voidTarget(clearedFridge, FRIDGE_COLUMN, 0),
-          "base-2door",
+          "base-3drawer",
           createFakeProbe({ seatOffsetM: Number.POSITIVE_INFINITY }),
         ),
     },
@@ -316,7 +366,7 @@ function buildCases(): SweepCase[] {
           catalog: world.catalog,
           columns: new Map(),
           target: { kind: "placement", id: "p0" },
-          buildId: "base-2door",
+          buildId: "base-3drawer",
           probe: createFakeProbe(),
           occurredAt: OCCURRED_AT,
         }),
@@ -325,7 +375,7 @@ function buildCases(): SweepCase[] {
       code: "NON_INTEGER_MILLIMETRES",
       design: offGrid.design,
       run: () =>
-        insertInto(offGrid, voidTarget(offGrid, "A|1.00", 0), "base-2door"),
+        insertInto(offGrid, voidTarget(offGrid, "A|1.00", 0), "base-3drawer"),
     },
     {
       code: "FINISH_NOT_SUPPORTED",
@@ -338,6 +388,52 @@ function buildCases(): SweepCase[] {
           finish: "sage",
           occurredAt: OCCURRED_AT,
         }),
+    },
+    {
+      code: "NOT_RESIZABLE",
+      design: world.design,
+      // ADR 0027: the hob-bearing base is 600 mm and nothing else, so it has no width to change.
+      run: () => resizeTo(world, "p2", 600),
+    },
+    {
+      code: "COLUMN_MEMBER_NOT_RESIZABLE",
+      design: world.design,
+      // ADR 0031 rule 1: `p19` can change width, but the hob base three levels below it in the
+      // same column cannot, and the whole column moves or none of it does.
+      run: () => resizeTo(world, "p19", 800),
+    },
+    {
+      code: "WIDTH_UNCHANGED",
+      design: world.design,
+      run: () => resizeTo(world, "p18", 600),
+    },
+    {
+      code: "NO_EMPTY_SPACE",
+      design: world.design,
+      // ADR 0031's headline consequence, in the half of it ADR 0035 decision 7 left standing: a
+      // **growth** still has to consume space that is already there, and the shipped kitchen has
+      // none on either side of `A|0.75`. The tap used to be `p0` 800 → 600, which decision 7 now
+      // accepts — a shrink makes its own space.
+      run: () => resizeTo(world, "p10", 350),
+    },
+    {
+      code: "COLUMN_HOOD_FLOOR",
+      design: hoodFlooredWorld.design,
+      // A 600 mm hood over a 300 mm hinged base, which **is** built at 200 (ADR 0026's floor):
+      // the members accept the width and the hood is what refuses it.
+      run: () => resizeTo(hoodFlooredWorld, "run", 200),
+    },
+    {
+      code: "COLUMN_KEY_COLLISION",
+      design: overlappingWorld.design,
+      run: () => resizeTo(overlappingWorld, "base-run", 500),
+    },
+    {
+      code: "RESIZE_OPENS_GAP",
+      design: gapWorld.design,
+      // Clear `A|1.30`, narrow `A|0.75` to 200, and the empty column reaches 900 mm — offering a
+      // base opening across the floor the corner leg `p25` stands on.
+      run: () => resizeTo(gapWorld, "p10", 200),
     },
     {
       code: "HANDLE_NOT_SUPPORTED",
@@ -362,9 +458,17 @@ function buildCases(): SweepCase[] {
  *  `insertBody` takes a `BodyProbe` as a required argument. It is the refusal the caller returns on
  *  the command's behalf when the scene has not attached one yet, and `apps/web`'s store tests are
  *  what sweep it. */
+/** `ACCESSORY_NOT_DELETABLE` joins them for a third reason, and it is a deliberate change rather
+ *  than a code slipping out of the sweep: ADR 0027 made the hob part of its cabinet's body and
+ *  ADR 0038 confirmed no document was ever stored carrying the old pair, so no placement is a
+ *  standalone accessory and `removePlacement` no longer has a guard to reach. §11 row 15 is
+ *  satisfied by construction — a click on the hob selects `p2`, and there is no hob placement to
+ *  offer a delete on. The code stays declared because it is still the sentence §11 row 15 would
+ *  need the day a body stands on another one. */
 const ENGINE_UNREACHABLE: readonly RejectionCode[] = [
   "NO_SNAP_POSITION",
   "BODY_PROBE_UNAVAILABLE",
+  "ACCESSORY_NOT_DELETABLE",
 ];
 
 /** Every code in the union, as a `Record` keyed by it rather than as a hand-counted list: adding a
@@ -394,6 +498,13 @@ const ALL_REJECTION_CODES: Readonly<Record<RejectionCode, true>> = {
   NON_INTEGER_MILLIMETRES: true,
   FINISH_NOT_SUPPORTED: true,
   HANDLE_NOT_SUPPORTED: true,
+  NOT_RESIZABLE: true,
+  WIDTH_UNCHANGED: true,
+  NO_EMPTY_SPACE: true,
+  COLUMN_MEMBER_NOT_RESIZABLE: true,
+  RESIZE_OPENS_GAP: true,
+  COLUMN_KEY_COLLISION: true,
+  COLUMN_HOOD_FLOOR: true,
 };
 
 describe("every refusal a command can produce", () => {
@@ -436,5 +547,53 @@ describe("every refusal a command can produce", () => {
       (code) => !reached.has(code as RejectionCode),
     );
     expect(unswept).toEqual([]);
+  });
+});
+
+describe("the two refusals ADR 0031's side scan can produce", () => {
+  // `NO_EMPTY_SPACE` and `RESIZE_OPENS_GAP` carry the same per-side record and are chosen from it:
+  // the phantom verdict wins whenever any side answered `opens_a_gap`. Two representations of one
+  // fact, so the invariant binding them is asserted rather than left to `refuseNoSideFunds` being
+  // read correctly by the next person (logic review R1.11).
+  //
+  // Keeping both codes is deliberate — they are different sentences about different situations, and
+  // a customer told "there is no room on either side" when the room exists but is unusable would go
+  // looking for the wrong fix.
+  const SCAN_CODES: readonly RejectionCode[] = [
+    "NO_EMPTY_SPACE",
+    "RESIZE_OPENS_GAP",
+  ];
+
+  it.each(buildCases().filter((sweep) => SCAN_CODES.includes(sweep.code)))(
+    "$code is exactly what its own sides record implies",
+    (sweep) => {
+      const result = sweep.run();
+      expect(result.ok).toBe(false);
+      if (
+        result.ok ||
+        (result.reason.code !== "NO_EMPTY_SPACE" &&
+          result.reason.code !== "RESIZE_OPENS_GAP")
+      ) {
+        expect.unreachable("expected one of the two side-scan refusals");
+      }
+      const opensAGap = result.reason.params.sides.some(
+        (side) => side.reason === "opens_a_gap",
+      );
+      expect(result.reason.code).toBe(
+        opensAGap ? "RESIZE_OPENS_GAP" : "NO_EMPTY_SPACE",
+      );
+      // And the scan really did try both sides, so the invariant is not holding vacuously.
+      expect(result.reason.params.sides.map((side) => side.side)).toEqual([
+        "right",
+        "left",
+      ]);
+    },
+  );
+
+  it("covers both verdicts, so neither branch of the invariant is untested", () => {
+    const reached = buildCases()
+      .filter((sweep) => SCAN_CODES.includes(sweep.code))
+      .map((sweep) => sweep.code);
+    expect(reached.sort()).toEqual(["NO_EMPTY_SPACE", "RESIZE_OPENS_GAP"]);
   });
 });

@@ -213,7 +213,7 @@ describe("a refused command persists nothing", () => {
     store.getState().deselect();
 
     store.getState().remove();
-    store.getState().insert("base-2door");
+    store.getState().insert("base-cabinet");
     await vi.advanceTimersByTimeAsync(MIN_SAVE_INTERVAL_MS * 3);
 
     expect(requests).toEqual([]);

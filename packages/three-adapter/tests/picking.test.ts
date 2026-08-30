@@ -20,8 +20,6 @@ import {
   isDragGesture,
   LINE_RAYCAST_THRESHOLD_M,
   pick,
-  resolveHostPlacementId,
-  resolveSelection,
 } from "../src/picking.js";
 
 function makeRecord(overrides: Partial<PlacementRecord> = {}): PlacementRecord {
@@ -41,7 +39,6 @@ function makeRecord(overrides: Partial<PlacementRecord> = {}): PlacementRecord {
     canReplace: true,
     canDelete: true,
     fixedWidth: false,
-    accessory: false,
     ...overrides,
   };
 }
@@ -115,55 +112,6 @@ describe("climbToSelectable", () => {
   });
 });
 
-describe("resolveHostPlacementId / resolveSelection", () => {
-  const host = makeRecord({
-    id: "base-1",
-    col: "A|2.60",
-    accessory: false,
-    frame: { x: 2.6, z: 0.3, ry: 0, y0: 0, w: 0.6, h: 0.86, d: 0.56 },
-  });
-  const accessory = makeRecord({
-    id: "cooktop-1",
-    col: "A|2.60",
-    accessory: true,
-    frame: { x: 2.6, z: 0.36, ry: 0, y0: 0.86, w: 0.6, h: 0.04, d: 0.72 },
-  });
-  const records = [host, accessory];
-
-  it("resolves an accessory to the tallest non-accessory member of its column seated below it", () => {
-    expect(resolveHostPlacementId(accessory, records)).toBe("base-1");
-  });
-
-  // ADR 0011 Gap E: this used to throw. `remove` cascades to hosted accessories so the orphan
-  // should not arise, but a tap on one must not throw out of the pointer handler if it does.
-  it("resolves an orphaned accessory to itself instead of throwing", () => {
-    expect(resolveHostPlacementId(accessory, [accessory])).toBe("cooktop-1");
-  });
-
-  it("resolveSelection rewrites an accessory placement id to its host, never itself", () => {
-    expect(
-      resolveSelection({ kind: "placement", id: "cooktop-1" }, records),
-    ).toEqual({
-      kind: "placement",
-      id: "base-1",
-    });
-  });
-
-  it("resolveSelection leaves a non-accessory placement selection untouched", () => {
-    expect(
-      resolveSelection({ kind: "placement", id: "base-1" }, records),
-    ).toEqual({
-      kind: "placement",
-      id: "base-1",
-    });
-  });
-
-  it("resolveSelection leaves a void selection untouched", () => {
-    const voidSelection = { kind: "void" as const, id: "A|2.60:v0:0.00" };
-    expect(resolveSelection(voidSelection, records)).toEqual(voidSelection);
-  });
-});
-
 describe("pick", () => {
   it("row 22: a solid cabinet is selected even when a void lies along the same ray", () => {
     const solids = new THREE.Group();
@@ -194,11 +142,10 @@ describe("pick", () => {
     const raycaster = createPickingRaycaster();
     raycastDown(raycaster, 0, 1, 0);
 
-    expect(
-      pick(raycaster, solids, voids, [
-        makeRecord({ id: "base-1", accessory: false }),
-      ]),
-    ).toEqual({ kind: "placement", id: "base-1" });
+    expect(pick(raycaster, solids, voids)).toEqual({
+      kind: "placement",
+      id: "base-1",
+    });
   });
 
   it("a void never swallows a click aimed at a different cabinet standing elsewhere", () => {
@@ -216,11 +163,7 @@ describe("pick", () => {
     const raycaster = createPickingRaycaster();
     raycastDown(raycaster, 2, 1, 0);
 
-    const records = [
-      makeRecord({ id: "base-a", accessory: false }),
-      makeRecord({ id: "base-b", accessory: false }),
-    ];
-    expect(pick(raycaster, solids, voids, records)).toEqual({
+    expect(pick(raycaster, solids, voids)).toEqual({
       kind: "placement",
       id: "base-b",
     });
@@ -229,9 +172,7 @@ describe("pick", () => {
   it("returns null when nothing solid or void is under the pointer", () => {
     const raycaster = createPickingRaycaster();
     raycastDown(raycaster, 50, 1, 50);
-    expect(
-      pick(raycaster, new THREE.Group(), new THREE.Group(), []),
-    ).toBeNull();
+    expect(pick(raycaster, new THREE.Group(), new THREE.Group())).toBeNull();
   });
 
   it("row 2: clicking the base slot of a cleared column selects the base slot, not the middle one", () => {
@@ -243,13 +184,11 @@ describe("pick", () => {
       makeRecord({
         id: "sentinel-base",
         col: columnKey,
-        accessory: false,
         frame: { x: 1.3, z: 0.3, ry: 0, y0: 0, w: 0.6, h: 0.86, d: 0.56 },
       }),
       makeRecord({
         id: "sentinel-top",
         col: columnKey,
-        accessory: false,
         frame: { x: 1.3, z: 0.3, ry: 0, y0: 2.2, w: 0.6, h: 0.4, d: 0.56 },
       }),
     ];
@@ -279,7 +218,7 @@ describe("pick", () => {
       column.z,
     );
 
-    expect(pick(raycaster, new THREE.Group(), voids, [])).toEqual({
+    expect(pick(raycaster, new THREE.Group(), voids)).toEqual({
       kind: "void",
       id: baseSlot.id,
     });
@@ -316,7 +255,7 @@ describe("pick", () => {
     const raycaster = createPickingRaycaster();
     raycastDown(raycaster, 0, 1, 0);
 
-    expect(pick(raycaster, solids, voids, [])).toEqual({
+    expect(pick(raycaster, solids, voids)).toEqual({
       kind: "void",
       id: "A|0.00:v0:0.00",
     });

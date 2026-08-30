@@ -11,6 +11,7 @@ import { describe, expect, it } from "vitest";
 
 import { INSERTABLE_BODY_DEFINITIONS } from "../../src/catalog.js";
 import { offersFor } from "../../src/queries/offers.js";
+import { offered as offeredRows } from "../support/offers.js";
 import { MIN_WIDTH_M } from "../../src/void-engine.js";
 import { clearBodies, insertInto } from "../support/commands.js";
 import { voidAt, type KitchenWorld } from "../support/kitchen-world.js";
@@ -19,8 +20,14 @@ import { columnWorld } from "../support/synthetic-world.js";
 const CARGO_BUILD_ID = "base-bottle-cargo";
 const CARGO_MIN_WIDTH_MM = 200;
 const CARGO_WIDTHS_MM = [200, 300];
-/** An entry that declares no floor of its own, so §2's default governs it. */
-const PLAIN_BASE_BUILD_ID = "base-2door";
+/** An entry that declares no floor of its own, so §2's default governs it — and whose bound has no
+ *  hole in the middle, so at these widths the default floor is the only thing that can refuse it.
+ *
+ *  It was `base-2door` until ADR 0033 merged the hinged pair into `base-cabinet`, which declares both
+ *  a floor of 200 of its own. That is not what this file is testing: it is testing
+ *  §2's default against ADR 0026's substitution, and it needs a body that carries the default and
+ *  nothing else. `base-3drawer` is that body, and drawers have no door count to complicate it. */
+const PLAIN_BASE_BUILD_ID = "base-3drawer";
 const GENERAL_MIN_WIDTH_MM = 300;
 
 const OPENING_ALONG_MM = 1000;
@@ -49,6 +56,17 @@ function baseOpeningWorld(widthMm: number): KitchenWorld {
     ]),
     ["s0"],
   );
+}
+
+/** Every base entry whose row declares a floor **below** §2's default — the only entries that can
+ *  be offered into an opening narrower than 300 mm (ADR 0026 clause 3). */
+function subDefaultBaseBuildIds(): string[] {
+  return INSERTABLE_BODY_DEFINITIONS.filter(
+    ([, definition]) =>
+      definition.band === "base" &&
+      definition.minWidthMm !== undefined &&
+      definition.minWidthMm < GENERAL_MIN_WIDTH_MM,
+  ).map(([buildId]) => buildId);
 }
 
 function baseVoidTarget(world: KitchenWorld) {
@@ -187,27 +205,69 @@ describe("the bottle cargo builds at its own widths, never to the opening", () =
 });
 
 describe("§9's offer list reads the substituted floor too", () => {
-  it("offers the cargo, and only the cargo, in a sub-300 base opening", () => {
+  it("offers only the entries that declare a floor below the default", () => {
+    // **This asserted "the cargo, and only the cargo" until 2026-08-27.** ADR 0030's amendment gave
+    // `base-1door` a `[200, 300, 400]` set and the 200 mm floor it needs to keep it, so the base
+    // band now has two such rows. What the rule always said is what is asserted now, and it is
+    // derived from the catalogue rather than written down — a fourth declaration fails here loudly.
     for (const widthMm of [200, 250, 299]) {
       const world = baseOpeningWorld(widthMm);
-      const offered = offersFor({ ...world, target: baseVoidTarget(world) });
+      const offered = offeredRows(
+        offersFor({ ...world, target: baseVoidTarget(world) }),
+      ).map((offer) => offer.buildId);
 
-      expect(
-        offered.map((offer) => offer.buildId),
-        `${String(widthMm)} mm`,
-      ).toEqual([CARGO_BUILD_ID]);
+      expect(offered, `${String(widthMm)} mm`).not.toEqual([]);
+      for (const buildId of offered) {
+        expect(subDefaultBaseBuildIds(), `${String(widthMm)} mm`).toContain(
+          buildId,
+        );
+      }
     }
   });
 
+  // **Restored by ADR 0033's amendment, and the history is the point.** This asserted an exact list
+  // at all three widths; the merge briefly made `base-cabinet` a discrete five-value row, so it was
+  // refused at 250 and 299 and the case was weakened to say so. Ranges put it back: a hinged cabinet
+  // is continuous over 200–400, so 250 and 299 are honest one-door widths again — which is what the
+  // row asserted in the first place, for a rule that is now stated directly instead of approximated
+  // by a list.
+  //
+  // The two mechanisms still differ and are still stated per width: the cabinet fills the opening
+  // anywhere in its range, while the cargo is discrete and takes the widest of its own two sizes that
+  // fits. At 250 that is 200, not 250.
+  it("reaches each of those widths by the mechanism that row actually has", () => {
+    const offeredAt = (widthMm: number) => {
+      const world = baseOpeningWorld(widthMm);
+      return offeredRows(
+        offersFor({ ...world, target: baseVoidTarget(world) }),
+      ).map((offer) => offer.buildId);
+    };
+
+    expect(offeredAt(200)).toEqual(["base-cabinet", CARGO_BUILD_ID]);
+    expect(offeredAt(250)).toEqual(["base-cabinet", CARGO_BUILD_ID]);
+    expect(offeredAt(299)).toEqual(["base-cabinet", CARGO_BUILD_ID]);
+  });
+
+  it("is the whole of what declares downward in the base band", () => {
+    // The premise the row above rests on, stated separately so a change to either is visible.
+    expect(subDefaultBaseBuildIds()).toEqual(["base-cabinet", CARGO_BUILD_ID]);
+  });
+
+  // ADR 0032: the list is no longer empty down here — every base entry is present and refused, and
+  // that is the point of the record. What has to stay true is that **nothing is offered**.
   it("offers nothing at all below the cargo's floor", () => {
     const world = baseOpeningWorld(199);
+    const offers = offersFor({ ...world, target: baseVoidTarget(world) });
 
-    expect(offersFor({ ...world, target: baseVoidTarget(world) })).toEqual([]);
+    expect(offeredRows(offers)).toEqual([]);
+    expect(offers.length).toBeGreaterThan(0);
   });
 
   it("still offers the cargo alongside everything else in a wide opening", () => {
     const world = baseOpeningWorld(600);
-    const offered = offersFor({ ...world, target: baseVoidTarget(world) });
+    const offered = offeredRows(
+      offersFor({ ...world, target: baseVoidTarget(world) }),
+    );
 
     expect(offered.map((offer) => offer.buildId)).toContain(CARGO_BUILD_ID);
     expect(offered.map((offer) => offer.buildId)).toContain(
@@ -223,7 +283,7 @@ describe("§9's offer list reads the substituted floor too", () => {
     for (let widthMm = 190; widthMm <= 320; widthMm += 1) {
       const world = baseOpeningWorld(widthMm);
       const target = baseVoidTarget(world);
-      for (const offer of offersFor({ ...world, target })) {
+      for (const offer of offeredRows(offersFor({ ...world, target }))) {
         offersSeen += 1;
         const result = insertInto(world, target, offer.buildId);
         expect(result.ok, `${String(widthMm)} mm -> ${offer.buildId}`).toBe(

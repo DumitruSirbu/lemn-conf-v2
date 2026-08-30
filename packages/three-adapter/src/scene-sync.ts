@@ -14,7 +14,11 @@ import {
 } from "@lemnaria/configurator-domain";
 import * as THREE from "three";
 
-import { buildCatalogBody, isCatalogBuildId } from "./catalog-bodies.js";
+import {
+  buildCatalogBody,
+  isCatalogBuildId,
+  rebuildDepthM,
+} from "./catalog-bodies.js";
 import {
   applyBlackHandleMaterial,
   buildDecomposedBody,
@@ -187,9 +191,11 @@ function applyRecordedAppearance(
  *  580, a hood 500, a column 560, `fridge-free` 680 — because those builders ignore the depth they
  *  are handed and build their own.
  *
- *  It is nevertheless the right number to rebuild at, for the only two builders that *consume* a
- *  depth: `wallCabinet` and `openShelf` centre their carcass on z = 0, so for `wall-*` and
- *  `open-shelf` the overhang is exactly half the depth they were given. That depth arrives already
+ *  For the only two builders that *consume* a depth it is nevertheless what the rebuild depth is
+ *  derived from: `wallCabinet` and `openShelf` centre their shell on z = 0, so the overhang is
+ *  exactly half that shell. Since ADR 0036 a fronted wall shell is the declared depth *less* the
+ *  front assembly, so `rebuildDepthM` adds that back rather than the raw `frame.d` being handed
+ *  over — see its own comment for why reading it raw would shrink a wall cabinet on every reload. That depth arrives already
  *  capped where §7's head-clearance cap applies — the domain decides that, in `insert-fit.ts`, from
  *  what stands under the opening; the adapter caps nothing and must not, or it would re-impose the
  *  cap over a full-height column where backlog entry 5 says it does not apply. For every other
@@ -202,7 +208,7 @@ function buildBody(kit: Kit, record: PlacementRecord): THREE.Group {
   return buildCatalogBody(kit, record.buildId, {
     widthM: toMetres(record.widthMm),
     heightM: toMetres(record.heightMm),
-    depthM: record.frame.d,
+    depthM: rebuildDepthM(kit, record.buildId, record.frame.d),
   });
 }
 

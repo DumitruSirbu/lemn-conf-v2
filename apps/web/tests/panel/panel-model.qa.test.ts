@@ -22,6 +22,11 @@ import {
   REFUSAL,
   slotMeta,
 } from "../support/selection-meta";
+import {
+  asWidthChoice,
+  noWidthIsFree,
+  widthOptionRow,
+} from "../support/width-options";
 
 /** §9's order, as a list, so a test can assert "a subsequence of this" rather than restate it. */
 const SECTION_ORDER: readonly PanelSection["kind"][] = [
@@ -40,6 +45,7 @@ function openPanel(
     meta,
     offers: [],
     rejection: null,
+    widthOptions: noWidthIsFree(meta.widthMm, meta.sizesMm),
     isBodyProbeAttached: true,
     canWrite: true,
     saveStatus: "idle",
@@ -374,47 +380,79 @@ describe("the panel adds no row and drops none", () => {
   });
 });
 
-describe("the width section, while M5's resize command does not exist", () => {
-  it("never marks a chip free, for any size list", () => {
-    // The body's own 600 is in every set here on purpose: the chip merge has its own cases below,
-    // and this sweep is about the `free` state alone.
-    for (const sizes of [
-      [600],
-      [400, 600],
-      [300, 400, 600, 800],
-      [400, 600, 800, 900, 1000],
-    ]) {
-      const section = widthIn(
-        openPanel(occupiedMeta({ sizesMm: sizes })).sections,
-      );
-      expect(section?.chips.some((chip) => chip.state === "free")).toBe(false);
-      expect(section?.chips.map((chip) => chip.widthMm)).toEqual(sizes);
-    }
+describe("the width section renders the engine's verdicts and adds nothing", () => {
+  // M4's pin was "no chip is ever free", truthful while no resize command existed. Wave 5C built
+  // one, so the pin is replaced by the property the milestone named: the panel's three states are a
+  // relabelling of the engine's three verdicts and nothing else. Asserted over a list that contains
+  // an `available` entry — the old shape would pass this vacuously.
+  it("maps each verdict onto §9's state, and leaves the order alone", () => {
+    const section = widthIn(
+      openPanel(occupiedMeta({ widthMm: 600 }), {
+        widthOptions: widthOptionRow({
+          currentMm: 600,
+          freeMm: [400, 800],
+          blockedMm: [300],
+        }),
+      }).sections,
+    );
+    expect(
+      asWidthChoice(section).chips.map((chip) => [chip.widthMm, chip.state]),
+    ).toEqual([
+      [300, "blocked"],
+      [400, "free"],
+      [600, "active"],
+      [800, "free"],
+    ]);
   });
 
-  // §9's section 6 is "chips from `sizes`", so a section with no chips offers nothing to choose.
-  // An empty size set must therefore render no width section at all, not an empty one.
-  it("renders no section at all when the body has no sizes", () => {
-    expect(widthIn(openPanel(occupiedMeta({ sizesMm: [] })).sections)).toBe(
-      undefined,
+  // Only a `free` chip is a move. `active` and `blocked` are unclickable for different reasons,
+  // which is why the state stays three-valued while clickability is published resolved beside it.
+  it("leaves only the free chips clickable", () => {
+    const section = widthIn(
+      openPanel(occupiedMeta({ widthMm: 600 }), {
+        widthOptions: widthOptionRow({
+          currentMm: 600,
+          freeMm: [800],
+          blockedMm: [300],
+        }),
+      }).sections,
     );
+    expect(
+      asWidthChoice(section)
+        .chips.filter((chip) => !chip.isDisabled)
+        .map((chip) => chip.widthMm),
+    ).toEqual([800]);
+  });
+
+  // §9's section 6 is "chips from the widths on offer", so a section with no chips offers nothing to
+  // choose. An empty option list must therefore render no width section at all, not an empty one.
+  it("renders no section at all when there are no options", () => {
+    expect(
+      widthIn(openPanel(occupiedMeta(), { widthOptions: [] }).sections),
+    ).toBe(undefined);
   });
 
   // §9 gives a chip three states and assumes the current width is one of them, so EXACTLY one chip
-  // is active — never zero. A `widthFlex: "fit"` body builds to its OPENING, which need not be a
-  // member of `sizesMm` (300 and 570 below), which is why the body's own width joins the chip set.
-  // `<= 1` would pass vacuously at zero and miss precisely that case.
-  it("marks exactly one chip active, and only the body's own width", () => {
+  // is active — never zero. The domain guarantees a `current` verdict on every non-empty list
+  // (`columnWidthChoices` reads it off the body rather than out of a refusal code); what is asserted
+  // here is that the panel neither drops it nor mints a second one, and that the value label agrees
+  // with it.
+  it("marks exactly one chip active, and puts its width in the value label", () => {
     for (const widthMm of [300, 400, 570, 600, 800]) {
       const section = widthIn(
-        openPanel(occupiedMeta({ widthMm, sizesMm: [400, 600, 800] })).sections,
+        openPanel(occupiedMeta({ widthMm }), {
+          widthOptions: widthOptionRow({
+            currentMm: widthMm,
+            blockedMm: [400, 600, 800].filter((size) => size !== widthMm),
+          }),
+        }).sections,
       );
-      const active = section?.chips.filter((chip) => chip.state === "active");
-      expect([widthMm, active?.length]).toEqual([widthMm, 1]);
-      expect(active?.[0]?.widthMm).toBe(widthMm);
+      const { chips } = asWidthChoice(section);
+      const active = chips.filter((chip) => chip.state === "active");
+      expect([widthMm, active.length]).toEqual([widthMm, 1]);
+      expect(active[0]?.widthMm).toBe(widthMm);
       expect(section?.valueLabel).toBe(`${String(widthMm)} mm`);
-      // The merged chip keeps the row sorted rather than appended at the end.
-      const widths = section?.chips.map((chip) => chip.widthMm) ?? [];
+      const widths = chips.map((chip) => chip.widthMm);
       expect(widths).toEqual([...widths].sort((left, right) => left - right));
     }
   });
@@ -489,6 +527,7 @@ describe("the closed panel", () => {
             meta: undefined,
             offers: list,
             rejection,
+            widthOptions: [],
             isBodyProbeAttached: false,
             canWrite: true,
             saveStatus: "idle",
