@@ -180,11 +180,19 @@ describe("at every reachable width, a button is enabled iff its step succeeds", 
     let kitchen = SEEDED_KITCHEN;
     const visited: number[] = [];
 
-    for (let press_ = 0; press_ < 20; press_ += 1) {
-      const section = stepperAt(worldFrom(kitchen), id);
+    for (let pressCount = 0; pressCount < 20; pressCount += 1) {
+      const world = worldFrom(kitchen);
+      const section = stepperAt(world, id);
       if (!section)
-        throw new Error(`no stepper on ${id} after ${String(press_)} presses`);
-      visited.push(Number(section.valueLabel.replace(" mm", "")));
+        throw new Error(
+          `no stepper on ${id} after ${String(pressCount)} presses`,
+        );
+      // **The fact, not the copy.** This used to parse `valueLabel`, so a copy edit to
+      // `ro.panel.widthValue` would have broken the strongest test in the wave for a reason
+      // unrelated to the property it asserts (5D2c clean-code review N8).
+      const body = world.records.find((record) => record.id === id);
+      if (!body) throw new Error(`no record ${id}`);
+      visited.push(body.widthMm);
 
       for (const step of section.steps) {
         const attempt = press(kitchen, id, step.widthMm);
@@ -495,5 +503,47 @@ describe("§9's width copy describes the control that is actually there", () => 
       ["−50 mm", "Micșorează lățimea cu 50 mm"],
       ["+50 mm", "Mărește lățimea cu 50 mm"],
     ]);
+  });
+});
+
+describe("every discrete row is a well-formed set of chips", () => {
+  // **The one thing the retired chip tests genuinely lost** (5D2c clean-code review, item 6).
+  // `width-chips.adversarial.test.ts` swept every rendered section for *ascending, duplicate-free,
+  // exactly one active*. That invariant now survives only by enumeration: the shipped kitchen holds
+  // exactly three discrete rows and all three are pinned by value. Fine today, and it stops being
+  // fine the moment a fourth exists — with nothing failing when it does.
+  //
+  // A sweep rather than a fourth pinned row, because what is asserted is a property of the control
+  // and not of the kitchen.
+  it("renders them ascending, without duplicates, with exactly one active", () => {
+    const world = worldFrom(SEEDED_KITCHEN);
+    let sweptSections = 0;
+
+    for (const record of world.records) {
+      const panel = panelAt(world, { kind: "placement", id: record.id });
+      if (panel.kind !== "open") continue;
+      const section = panel.sections.find(
+        (candidate) => candidate.kind === "width",
+      );
+      if (section?.kind !== "width" || section.control !== "choice") continue;
+      sweptSections += 1;
+
+      const widths = section.chips.map((chip) => chip.widthMm);
+      expect([record.id, widths]).toEqual([
+        record.id,
+        [...widths].sort((a, b) => a - b),
+      ]);
+      expect([record.id, new Set(widths).size]).toEqual([
+        record.id,
+        widths.length,
+      ]);
+      expect([
+        record.id,
+        section.chips.filter((chip) => chip.state === "active").length,
+      ]).toEqual([record.id, 1]);
+    }
+
+    // Non-vacuity: a sweep that found no discrete row would pass silently.
+    expect(sweptSections).toBeGreaterThan(0);
   });
 });

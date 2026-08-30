@@ -44,7 +44,7 @@ Metres, Y-up. From `SPEC.md` and `kitchen-parts.js`:
 - Room `kitchen-l`: 3.6 × 2.4 m footprint, wall height **2.6 m**.
 - **Wall A** = back wall, plane **z = 0**, fronts face +Z, `rotation.y = 0`.
 - **Wall B** = left wall, plane **x = 0**, fronts face +X, `rotation.y = π/2`.
-- Rotated bodies: local +Z maps to world +X. Verified: a unit at `position.x = 0.165` with `D = 0.33` spans world x `0 → 0.369`.
+- Rotated bodies: local +Z maps to world +X. ~~Verified: a unit at `position.x = 0.165` with `D = 0.33` spans world x `0 → 0.369`.~~ **SUPERSEDED by ADR 0036** — the 39 mm in front of the declared 330 is the door (18), air (9) and the **bar handle** (12), measured in wave 5F. A declared dimension is now the **finished** cabinet, so that unit seats at 0.1455 and spans `0 → 0.330`. The example is kept because it is what established the 39 mm existed.
 
 Module constants (`kitchen-parts.js`): `PLINTH 0.10`, `CARC_H 0.72`, `CARC_D 0.56`, `CTOP 0.04`, `TH 0.018` (door), `GAP 0.004`.
 Worktop top = `PLINTH + CARC_H + CTOP` = **0.86**.
@@ -66,11 +66,11 @@ The gap **0.86 → 1.50** is backsplash. It is **never** an opening.
 | --- | --- | --- |
 | `TOL` | 0.012 | fit comparisons (width/height) |
 | `MIN_SPAN` | 0.30 | smallest span that becomes a void |
-| `MIN_W` | 0.30 | narrowest cabinet; resize floor |
+| `MIN_W` | 0.30 | narrowest cabinet; resize floor — **SUPERSEDED by ADR 0035**: it is the **default** floor (ADR 0026), and three rows declare 200 below it. There is no `MAX_W` here, but 800 mm is now a hard per-row ceiling: `CABINETRY_MAX_WIDTH_MM` in `catalog.ts`. |
 | level snap | 0.02 | matching a start to a module line |
 | neighbour adjacency | 0.03 | edge-to-edge along the wall |
 | same row | 0.06 | equal `frame.y0` |
-| accessory | `frame.h < 0.3` | worktop appliance detection |
+| accessory | `frame.h < 0.3` | worktop appliance detection — **SUPERSEDED by ADR 0038**: `ACCESSORY_MAX_HEIGHT_M` is deleted, no body is classified this way |
 | `Line.threshold` | 0.008 | raycaster (see §6.1) |
 
 ---
@@ -98,7 +98,7 @@ type Placement = {
   doors: Mesh[]; handles: Mesh[];
   canFinish: boolean; canHandle: boolean; canReplace: boolean; canDelete: boolean;
   fixedWidth: boolean;
-  accessory: boolean;         // worktop appliance, belongs to its host
+  // accessory: boolean;      // **SUPERSEDED by ADR 0038** — field removed from `PlacementRecord`
   finishKey?: string;         // remembered choice, survives rebuilds
   handleMode?: string;        // remembered choice, survives rebuilds
 };
@@ -129,7 +129,7 @@ type Column = {
 };
 ```
 
-Columns are computed **once at load** and never change. Accessories contribute nothing.
+Columns are computed **once at load** and never change. ~~Accessories contribute nothing.~~ **SUPERSEDED by ADR 0038** — `groupByColumn` is unconditional; every placement contributes.
 **WHY (stability):** every void, level and merge keys off the column. The reorder feature was removed precisely so nothing can move horizontally and invalidate it.
 
 ### 3.3 Void (derived, transient)
@@ -196,7 +196,7 @@ Result set for a cleared standard column: `0.00→0.86`, `1.50→2.20`, `2.20→
 
 ### 5.1 `remove()`
 
-Refuse if: void selected · `accessory` · `!canDelete` (corners).
+Refuse if: void selected · ~~`accessory`~~ · `!canDelete` (corners). The middle arm is **SUPERSEDED by ADR 0038**.
 Otherwise: remove `obj` from the scene, splice out of `items`, `recomputeVoids()`, then select the void that covers the vacated frame.
 
 **Deletion is final. There is no undo.**
@@ -245,7 +245,7 @@ Identical path; the current body's `frame` **is** the target opening. Then remov
 ### 5.4 `setWidth(target)` — resize as a boundary move
 
 ```
-own sizes? (dishwasher_housing [0.45,0.6] · extractor_hood [0.6,0.9]) → reject if not one of them
+own sizes? (dishwasher_housing [0.45,0.6] · ~~extractor_hood [0.6,0.9]~~ **SUPERSEDED by ADR 0035** — the hood is `fit`, bounded 600-800, and has no 900) → reject if not one of them
 d = target - frame.w
 nb = neighbours(it)                    # same wall, same row (|Δy0| < 0.06), edge-adjacent (< 0.03)
 donor = d > 0 ? first of [right,left] that canGive AND (w - d) >= MIN_W
@@ -258,7 +258,7 @@ rebuild(it, target, …); rebuild(donor, donorW, …)
 recomputeVoids(); reselect it
 ```
 
-`canGive(m)` = exists · not accessory · not `fixedWidth` · not a corner · has a resolvable catalogue id.
+`canGive(m)` = exists · ~~not accessory~~ · not `fixedWidth` · not a corner · has a resolvable catalogue id. The struck clause is **SUPERSEDED by ADR 0038**. (The whole donor rule is superseded by ADR 0031 — see §5.4's banner.)
 
 - **The run total is conserved**, so overlap is unrepresentable and shrinking cannot leave a gap. Only `remove` creates voids.
 - **`rebuild()` re-applies `finishKey` and `handleMode`.**
@@ -281,7 +281,7 @@ Both are per placement, never global. Material and hardware *brand* are global s
 hits = raycast(bodies)                  // solids FIRST
 if none: hits = raycast(void meshes)    // voids only where nothing solid is behind
 climb parents to the owning placement/void
-resolve accessories → host cabinet
+resolve accessories → host cabinet          // **SUPERSEDED by ADR 0038** — pass deleted
 ```
 
 - **Solids beat voids.** **WHY:** a deleted wall unit's void swallowed clicks aimed at the base cabinet below it.
@@ -289,7 +289,7 @@ resolve accessories → host cabinet
   **WHY (worst bug of the session):** three.js raycasts lines with a **1-metre** default threshold, so every dashed outline stole clicks from its neighbours — clicking the base slot selected the middle one. Symptom looked like "levels are wrong"; cause was picking.
 - Void meshes are **inset 14 mm** so they never overhang a neighbour's face.
 - Drag vs click: on `pointerup`, ignore if the pointer moved > 7 px (that was an orbit).
-- Accessories (`frame.h < 0.3`, e.g. the hob) resolve to the cabinet they sit in, get no swap set and cannot be deleted.
+- ~~Accessories (`frame.h < 0.3`, e.g. the hob) resolve to the cabinet they sit in, get no swap set and cannot be deleted.~~ **SUPERSEDED by ADR 0038**. ADR 0027 made the hob part of the cabinet body, so it is a mesh inside its cabinet's group rather than a placement: a click climbs to the cabinet with no resolution pass, and there is no hob placement to delete. **The WHY below still stands — it is why row 15 exists.**
   **WHY:** a 20 mm hob modelled as a module offered 6 rows it could never satisfy, and deleting it destroyed it permanently.
 
 ### 6.2 Seating a body against the wall
@@ -355,7 +355,7 @@ Top row ships **push-to-open**: handles are **built and hidden**, not omitted.
 | `tall-fridge-housing` | Nișă frigider integrat | column | 0.60 | 2.20 | — | fixed |
 | `fridge-free` | Frigider, liber | column | 0.70 | 1.80 | — | fixed |
 
-Width chip sets per body: dishwasher `[450,600]` · hood `[600,900]` · everything else `[400,600,800]`.
+Width chip sets per body: ~~dishwasher `[450,600]` · hood `[600,900]` · everything else `[400,600,800]`~~ **SUPERSEDED by ADR 0035** — cabinetry declares a floor/ceiling stepped at 50 mm; only genuinely-set rows (the dishwasher, the bottle cargo, the hob and column rows) stay discrete. The hood is 600-800..
 **1000 mm was removed** — two doors top out at 800.
 
 **The `0.33` in the four wall rows is derived, not a literal** (M5 wave 5A): it is the worktop → wall depth map's row for the shipped 600 mm worktop (§2), and the same row supplies these entries' `nominalDepthMm`. It read `0.4` until 2026-08-27, against a kitchen authored at 330. The cap is a *head-clearance* rule and applies only where something is leaned over: over a full-height column it is lifted and the carcass is as deep as the column, which is why `hood` (a canopy, 500) and the two deliberately deep top cabinets are untouched by it.
@@ -401,7 +401,7 @@ Keep the commands, drop the transport.
   minMm, growMm,           // resize slack
   donorSide: 'dreapta'|'stânga'|'', donorMm,
   sizes: number[],         // legal widths for THIS body
-  fixedWidth, canFinish, canHandle, canReplace, canDelete, accessory
+  fixedWidth, canFinish, canHandle, canReplace, canDelete, ~~accessory~~ (**SUPERSEDED by ADR 0038** — removed from `SelectionMeta`)
 }
 ```
 
@@ -423,7 +423,7 @@ Sections render only when their flag is true, in this order:
    - zero results → a sentence saying what to clear, never a bare "0"
 4. **Finisaj** — `canFinish` (body has doors).
 5. **Mâner** — `canHandle` (body has handle meshes, visible or hidden).
-6. **Lățime** — `canWidth` = selected · not empty · not `fixedWidth`. Chips from `sizes`, each **active / free / blocked(dashed, unclickable)**, plus the consequence line: *"Lățimea se ia de la vecinul din dreapta (600 mm). Maxim 800 mm; sub 300 mm nu se coboară."*
+6. **Lățime** — **SUPERSEDED by ADR 0035** **and by ADR 0034.** `fixedWidth` is NOT the discriminator — it is `false` on both discrete rows, the dishwasher included; ask the shape of `widthRangesMm` instead. Chips are the column's, not the body's, and each is judged by running `setWidth`. Original text follows. — `canWidth` = selected · not empty · not `fixedWidth`. Chips from `sizes`, each **active / free / blocked(dashed, unclickable)**, plus the consequence line: *"Lățimea se ia de la vecinul din dreapta (600 mm). Maxim 800 mm; sub 300 mm nu se coboară."*
 7. **Footer** — price · **Șterge corpul** (`canDelete`) · **Gata**.
 
 Rules that must survive the port:
@@ -500,6 +500,9 @@ Practical rules:
 
 Every row is a bug that shipped and was fixed. Treat as acceptance tests.
 
+Rows marked **SUPERSEDED** state behaviour a later product decision replaced. The original
+text is kept so the history reads, but the ADR named beside it is what the code must do.
+
 | # | Case | Required behaviour |
 | --- | --- | --- |
 | 1 | Delete fridge, refill 3 levels, clear, re-insert fridge | one 750 mm slot above, never two stubs |
@@ -508,15 +511,15 @@ Every row is a bug that shipped and was fixed. Treat as acceptance tests.
 | 4 | Base cabinet into the top slot | refused (only `band:'column'` may exceed a level) |
 | 5 | Column into a 300 mm opening | refused with mm in the message |
 | 6 | Hood into the 400 mm top slot | never offered *and* refused (fixed **700** mm — [ADR 0039](../decisions/0039-the-hood-is-a-standard-depth-hung-at-the-front.md) decision 5; this row said 710, and wave 5F measured a built hood's carcass at 700.000 mm with the real probe) |
-| 7 | Sink base into an 860 mm opening | **allowed** — faucet excluded from fit |
+| 7 | Sink base into an 860 mm opening | **SUPERSEDED by ADR 0035** — the sink base is bounded 560-800 (ADR 0033's amendment), so an 860 mm opening is refused on width before the carcass fit is judged. **The row's real subject — the faucet is excluded from fit — still holds** and is demonstrable at a width inside the bound. |
 | 8 | Swap sink → drawers | no phantom void from the freed faucet height |
-| 9 | Resize 600 → 800 with a 600 neighbour | neighbour becomes 400, outer edges hold |
+| 9 | Resize 600 → 800 with a 600 neighbour | **SUPERSEDED by ADR 0031** — stated: neighbour becomes 400, outer edges hold. A resize now moves a whole column, funded by an adjacent empty column; no neighbour is shrunk. |
 | 10 | Resize 600 → 1000 | not offered (would push neighbour under 300) |
 | 11 | Resize next to a corner / appliance | all chips blocked; corners and appliances never donate |
 | 12 | Resize after choosing finish + handle | both preserved |
 | 13 | Resize a top-row unit | stays push-to-open unless a handle was chosen |
 | 14 | Dishwasher niche | only 450 / 600; both build a real carcass |
-| 15 | Click the hob | selects its host cabinet; hob cannot be deleted |
+| 15 | Click the hob | selects its host cabinet; hob cannot be deleted. **Still required; mechanism restated by ADR 0027, confirmed by ADR 0038** — satisfied by mesh structure (the hob is a child of its cabinet's group) rather than by §6.1's host-resolution pass. |
 | 16 | Corner base | no swap list, no delete, refusal explains why |
 | 17 | Backsplash zone (860–1500) | never an opening |
 | 18 | Wall-only column | no floor space invented under it |

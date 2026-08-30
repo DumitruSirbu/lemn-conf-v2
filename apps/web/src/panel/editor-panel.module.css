@@ -427,14 +427,23 @@
   color: var(--ink);
 }
 
-/* §13.1: the reason travels with the greyed control. Small and faint — it repeats across a chip
- * row, and the panel-wide notice above has already said it once in full. */
+/* §13.1: the reason travels with the greyed control. Small and faint **on a chip row**, where it
+ * repeats across every chip and the note above has already said it once in full. */
 .chipReason {
   font: 400 9.5px/1.2 var(--font-ui);
   color: var(--ink-faint);
   text-align: center;
   text-transform: none;
   letter-spacing: 0;
+}
+
+.widthStep .chipReason {
+  /* **Not the chip-row case.** On a stepper the reason appears once, it is the whole content of a
+   * disabled button, and no note above states a width bound — so the two arguments for 9.5px both
+   * fail here. At ~108px of usable width a bound sentence wraps to four or five lines, which is the
+   * most-read text in the section (5D2c clean-code review S5). */
+  font-size: 11px;
+  line-height: 1.25;
 }
 
 .footer {

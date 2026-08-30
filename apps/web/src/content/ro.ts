@@ -198,12 +198,22 @@ export const ro = {
      *  arrangement: the reason belongs on the control that refuses, not in a note above it. */
     widthStepNote:
       "Lățimea se schimbă din 50 în 50 mm, mutând granița coloanei în spațiul liber alăturat — întâi în dreapta, apoi în stânga. Când un buton este gri, sub el scrie de ce.",
-    /** ADR 0035 decision 3's other control. It says "doar în lățimile afișate" without naming a
+    /** ADR 0035 decision 3's other control. **It says "coloana", not "corpul", and that is the fix for a sentence that was false on two of
+     *  the three selections it renders on** (5D2c product-logic review B2). The three are `p1`,
+     *  `p12` and `p18`, and only `p1` is the dishwasher niche — `p12` is an open shelf built 300-800
+     *  and `p18` a wall cabinet built 200-800. Both were shown two chips under a sentence asserting
+     *  *this body* is made only in those. Neither is; the constraint is `p1`'s niche, one level down
+     *  the same column (ADR 0034: the chips are the column's).
+     *
+     *  The second sentence exists because ADR 0035 decision 6 squares the whole column up, so
+     *  picking 450 here resizes the dishwasher too — which nothing said.
+     *
+     *  It says "doar în lățimile afișate" without naming a
      *  cause, because the cause is not always an appliance: `base-bottle-cargo` is cabinetry and is
      *  discrete for ADR 0026's own reason, that the proportion is the product. A note claiming an
      *  electrocasnic would be false on it. */
     widthChoiceNote:
-      "Acest corp se face doar în lățimile afișate, așa că alegi una dintre ele în loc să reglezi din 50 în 50 mm.",
+      "Coloana asta se face doar în lățimile afișate, așa că alegi una dintre ele în loc să reglezi din 50 în 50 mm. Alegerea schimbă lățimea întregii coloane, nu doar a acestui corp.",
     /** §11 row 16 and §13.1: a corner return offers nothing at all, so no refusal is ever produced
      *  to carry the explanation. Without this the panel is a header, an empty body and "Gata", and
      *  the rule is satisfied by having deleted the question. Keyed by the reason the catalogue
