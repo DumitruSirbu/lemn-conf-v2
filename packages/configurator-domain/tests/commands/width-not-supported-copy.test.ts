@@ -151,7 +151,10 @@ describe("what a refused width tells the customer", () => {
 
       if (result.ok) throw new Error("expected 250 to be refused");
       expect(renderRejection(result.reason)).toBe(
-        "„Corp suspendat” se face între 300 și 800 mm, iar deschiderea are 600 mm.",
+        // **"este într-o coloană care"**, since 2026-08-30. The bound is the column's intersection, and
+        // saying it under the body's name was false — this column reads 300 because of the
+        // three-drawer base below, while a wall cabinet is built 200-800 (5D2c product-logic B1).
+        "„Corp suspendat” este într-o coloană care se face între 300 și 800 mm, iar acum are 600 mm.",
       );
     });
 
@@ -160,7 +163,7 @@ describe("what a refused width tells the customer", () => {
 
       if (result.ok) throw new Error("expected 800 to be refused");
       expect(renderRejection(result.reason)).toBe(
-        "„Nișă mașină de spălat vase” se face doar în 450 sau 600 mm, iar deschiderea are 600 mm.",
+        "„Nișă mașină de spălat vase” este într-o coloană care se face doar în 450 sau 600 mm, iar acum are 600 mm.",
       );
     });
 

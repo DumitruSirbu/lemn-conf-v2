@@ -717,6 +717,8 @@ function refuseIllegalWidth(
         label,
         sizesMm,
         widthRangesMm: intersectColumnRanges(column),
+        // The bound is the **column's** intersection, not this body's own — see `boundScope`.
+        boundScope: "column",
         availableMm: extent.widthMm,
       },
     };

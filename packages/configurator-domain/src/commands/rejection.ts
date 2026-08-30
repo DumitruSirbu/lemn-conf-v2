@@ -39,9 +39,20 @@ interface SizesParams extends LabelParams {
    *  not the chip list beside it. Carried so the sentence can say "between 200 and 800" where that
    *  is the truth; `sizesMm` alone would make it claim a cabinet made at 570 is not made at 570.
    *
-   *  Optional because a **column's** refusal has no single entry's bound behind it — it names the
-   *  intersection of its members' chips, which genuinely is a discrete set. */
+   *  Optional because a **column's** refusal may have no bound behind it at all. */
   readonly widthRangesMm?: readonly WidthRangeMm[];
+  /** **Whose bound this is**, and the sentence changes accordingly.
+   *
+   *  A resize refuses on the **column's** intersected range, and rendering that under the selected
+   *  body's name is a lie: selecting a wall cabinet in the sink's column produced *„Corp suspendat”
+   *  se face între 560 și 800 mm* — 560 is `SINK_MIN_WIDTH_MM` from the body one level down, and a
+   *  wall cabinet is built 200–800. The sentence was false about the cabinet it named and never
+   *  named the sink, the one body the customer could act on (5D2c product-logic review B1).
+   *
+   *  Same defect class `COLUMN_HOOD_FLOOR` was created for — a column-scoped fact in body-scoped
+   *  words — on the range axis instead of the floor axis. The insert path's refusal really is about
+   *  the body's own bound, so it keeps the body wording; `"column"` is the resize path's. */
+  readonly boundScope?: "body" | "column";
   readonly availableMm: number;
 }
 
@@ -281,6 +292,9 @@ function renderWidthNotSupported(params: SizesParams): string {
     params.sizesMm.length === 0 && (params.widthRangesMm?.length ?? 0) === 0;
   if (hasNoWidth) {
     return `„${params.label}” nu poate fi construit la nicio lățime pe care o acceptă și corpurile de deasupra.`;
+  }
+  if (params.boundScope === "column") {
+    return `„${params.label}” este într-o coloană care se face ${renderWidthsMadeClause(params)}, iar acum are ${String(params.availableMm)} mm.`;
   }
   return `„${params.label}” se face ${renderWidthsMadeClause(params)}, iar deschiderea are ${String(params.availableMm)} mm.`;
 }
