@@ -757,7 +757,7 @@ scope a decision rather than an oversight.
 this seam. Not a 5C fix: it changes what `offersFor` offers, which is M3's machinery and its own
 acceptance criteria.
 
-## 14. Keep only the last few database dumps — RAISED 2026-08-31, NEEDS A DECISION
+## 14. Keep only the last few database dumps — DECIDED 2026-08-31, SHIPPED 2026-08-31
 
 Owner's request, 2026-08-31: the nightly export should keep only the **last 3 dumps** rather than
 letting them accumulate.
@@ -794,6 +794,30 @@ Storage is the argument for acting: each dump is a full copy of the table, so th
 
 **Not urgent at current size.** With no real customers the table is small and 14 nightly copies of it
 cost very little. This is a policy decision to take before launch, not a defect.
+
+**DECIDED 2026-08-31: age stays the rule, and a count ceiling was added beside it.**
+
+The owner asked for "keep the last 3" and, after the trade was laid out, chose to keep the 14-day
+window and add a ceiling instead. The reasoning that decided it: the two pressures move in opposite
+directions. Storage is cheap now — the table is nearly empty and a dump is a few kilobytes — and only
+becomes expensive once there are thousands of real designs, which is exactly when losing two weeks of
+recovery depth would hurt most. A window also has to outlast the time it takes somebody to *notice* a
+problem, and nobody watches this daily; three nightly dumps is a three-day window, inside which a
+Friday mistake found the following Wednesday is already unrecoverable, with deletion final and no
+undo.
+
+Shipped as `MAX_RETAINED_BACKUPS = 30` in `apps/web/src/lib/server/backup-designs.ts`, alongside the
+unchanged `BACKUP_RETENTION_DAYS = 14`. Age is authoritative; the ceiling never binds in normal
+nightly operation (steady state is ~14 files) and exists for the abnormal case — a redelivered cron,
+a manual `runDesignsBackup` loop, or any future schedule more frequent than daily — which would
+otherwise grow the folder without bound between one night's rotation and the next. A blob caught by
+both rules is deleted once.
+
+**What this does not bound**, and it is the larger number: the size of each dump. Every file is a
+full copy of `designs`, and the table itself is unbounded until ADR 0019 decision 7's retention cron
+ships at M8 — which is blocked on the credential question recorded in that gate, since no role in the
+system may currently delete.
+
 
 ## Also open, recorded elsewhere — do not duplicate here
 

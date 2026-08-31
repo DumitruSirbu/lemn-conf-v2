@@ -17,7 +17,33 @@ import { del, list, put } from "@vercel/blob";
  *  backups"). Do not broaden this to `select * from` every table — add a second, separately-scoped
  *  export instead. */
 const BACKUP_BLOB_PREFIX = "backups/designs/";
+
+/**
+ * Age is the governing rule, and it is what the recovery window is made of: a mistake can be undone
+ * for this long and no longer. `docs/runbooks/design-db-restore.md` tells the operator to pick the
+ * newest export at or before the point being recovered to, so shortening this shortens how far back
+ * that instruction can reach. Two weeks covers a problem introduced before a weekend and noticed
+ * the week after, which is the realistic detection latency while nobody is watching daily.
+ */
 const BACKUP_RETENTION_DAYS = 14;
+
+/**
+ * A ceiling on file count, not a second retention policy — the two rules answer different questions
+ * and age wins whenever they disagree. Nightly runs put steady state at roughly
+ * `BACKUP_RETENTION_DAYS` files, so this is slack of more than 2x and never binds in normal
+ * operation. It exists for the abnormal case: a cron delivered repeatedly, a manual
+ * `runDesignsBackup` loop, or any future schedule more frequent than daily, each of which would
+ * otherwise grow the folder without bound between one night's rotation and the next, since every
+ * file is a full copy of the table.
+ *
+ * Deliberately NOT a "keep only the last N" rule. That was considered on 2026-08-31 and rejected:
+ * a small N reads as tidiness but silently trades away recovery depth, and it does so precisely
+ * when the table is large enough for storage to look worth saving — which is the same moment a
+ * restore matters most. Bounding what each dump *contains* is the retention cron in ADR 0019
+ * decision 7, not this.
+ */
+const MAX_RETAINED_BACKUPS = 30;
+
 const MILLISECONDS_PER_DAY = 24 * 60 * 60 * 1000;
 
 /** Rows held in memory at once. The export streams, so this is the whole of its row budget however
@@ -347,20 +373,51 @@ function buildBackupPathname(now: Date): string {
   return `${BACKUP_BLOB_PREFIX}${now.toISOString()}-${invocationSuffix}.ndjson`;
 }
 
+/**
+ * Deletes every backup the two retention rules agree may go: anything past
+ * `BACKUP_RETENTION_DAYS`, plus anything beyond `MAX_RETAINED_BACKUPS` once the survivors are
+ * ordered newest first. A blob caught by both rules is deleted once — the pathnames are collected
+ * as a set, because `delete` receiving the same pathname twice is a wasted call at best and an
+ * error from the store at worst.
+ */
 async function rotateOldBackups(
   blobClient: BackupBlobClient,
   now: Date,
 ): Promise<string[]> {
+  const blobs = await blobClient.list(BACKUP_BLOB_PREFIX);
+  const expired = expiredBackups(blobs, now);
+  const surplus = surplusBackups(blobs.filter((blob) => !expired.has(blob)));
+
+  const removedPathnames = [...expired, ...surplus].map(
+    (blob) => blob.pathname,
+  );
+  await blobClient.delete(removedPathnames);
+  return removedPathnames;
+}
+
+function expiredBackups(
+  blobs: readonly BackupBlobInfo[],
+  now: Date,
+): ReadonlySet<BackupBlobInfo> {
   const cutoff = new Date(
     now.getTime() - BACKUP_RETENTION_DAYS * MILLISECONDS_PER_DAY,
   );
-  const blobs = await blobClient.list(BACKUP_BLOB_PREFIX);
-  const expiredPathnames = blobs
-    .filter((blob) => blob.uploadedAt < cutoff)
-    .map((blob) => blob.pathname);
+  return new Set(blobs.filter((blob) => blob.uploadedAt < cutoff));
+}
 
-  await blobClient.delete(expiredPathnames);
-  return expiredPathnames;
+/** Newest first, so the slice that survives is the most recent `MAX_RETAINED_BACKUPS`. Ordered by
+ *  `uploadedAt` rather than by pathname: the pathname's timestamp is the invocation's own `now`,
+ *  which a caller may supply, so only the store's own record of when a blob arrived is trustworthy
+ *  for deciding what to destroy. */
+function surplusBackups(
+  retained: readonly BackupBlobInfo[],
+): readonly BackupBlobInfo[] {
+  if (retained.length <= MAX_RETAINED_BACKUPS) return [];
+  return [...retained]
+    .sort(
+      (left, right) => right.uploadedAt.getTime() - left.uploadedAt.getTime(),
+    )
+    .slice(MAX_RETAINED_BACKUPS);
 }
 
 /** Generic in the stage so each call site gets that stage's literal code, which is what lets

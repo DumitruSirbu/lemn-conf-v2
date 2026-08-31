@@ -15,7 +15,8 @@ import {
   type DesignRowSource,
 } from "../../../src/lib/server/backup-designs";
 
-const A_DAY_MS = 24 * 60 * 60 * 1000;
+const AN_HOUR_MS = 60 * 60 * 1000;
+const A_DAY_MS = 24 * AN_HOUR_MS;
 const NOW = new Date("2026-08-25T03:00:00.000Z");
 
 function buildRow(
@@ -274,6 +275,62 @@ describe("backupDesigns", () => {
     const result = await backupDesigns({ rowSource, blobClient, now: NOW });
 
     expect(result.deletedPathnames).toEqual(["backups/designs/too-old.ndjson"]);
+  });
+
+  it("keeps at most MAX_RETAINED_BACKUPS even when every file is inside the window", async () => {
+    const rowSource = new StubRowSource([buildRow("a")]);
+    // All well inside 14 days, so age deletes nothing and only the ceiling can act. Two runs an
+    // hour apart is the abnormal case the ceiling exists for: a redelivered cron.
+    const withinWindow = Array.from({ length: 34 }, (_, index) => ({
+      pathname: `backups/designs/within-${String(index).padStart(2, "0")}.ndjson`,
+      uploadedAt: new Date(NOW.getTime() - index * AN_HOUR_MS),
+    }));
+    const blobClient = new StubBlobClient(withinWindow);
+
+    const result = await backupDesigns({ rowSource, blobClient, now: NOW });
+
+    // 34 existing + the one just written = 35, so the 5 oldest go. Compared as a sorted set rather
+    // than in emission order: `within-00` and the new upload share a timestamp, so their relative
+    // order is a detail of sort stability and not a property worth pinning.
+    expect([...result.deletedPathnames].sort()).toEqual([
+      "backups/designs/within-29.ndjson",
+      "backups/designs/within-30.ndjson",
+      "backups/designs/within-31.ndjson",
+      "backups/designs/within-32.ndjson",
+      "backups/designs/within-33.ndjson",
+    ]);
+  });
+
+  it("leaves the folder alone at exactly MAX_RETAINED_BACKUPS", async () => {
+    const rowSource = new StubRowSource([buildRow("a")]);
+    // 29 existing plus the one this run writes is exactly the ceiling, so nothing may be deleted.
+    const blobClient = new StubBlobClient(
+      Array.from({ length: 29 }, (_, index) => ({
+        pathname: `backups/designs/within-${String(index).padStart(2, "0")}.ndjson`,
+        uploadedAt: new Date(NOW.getTime() - index * AN_HOUR_MS),
+      })),
+    );
+
+    const result = await backupDesigns({ rowSource, blobClient, now: NOW });
+
+    expect(result.deletedPathnames).toEqual([]);
+  });
+
+  it("deletes a blob caught by both rules exactly once", async () => {
+    const rowSource = new StubRowSource([buildRow("a")]);
+    // 40 files, all expired: age selects every one, and the ceiling would select the oldest of
+    // them again. A pathname handed to `delete` twice is a wasted call at best.
+    const blobClient = new StubBlobClient(
+      Array.from({ length: 40 }, (_, index) => ({
+        pathname: `backups/designs/expired-${String(index).padStart(2, "0")}.ndjson`,
+        uploadedAt: new Date(NOW.getTime() - (15 + index) * A_DAY_MS),
+      })),
+    );
+
+    const result = await backupDesigns({ rowSource, blobClient, now: NOW });
+
+    expect(result.deletedPathnames).toHaveLength(40);
+    expect(new Set(result.deletedPathnames).size).toBe(40);
   });
 
   it("reports rotation failure as a warning distinct from a lost snapshot", async () => {
