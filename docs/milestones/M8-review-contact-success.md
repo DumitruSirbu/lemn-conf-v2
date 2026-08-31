@@ -48,6 +48,81 @@ endpoint the owner named as most needing throttling.
   customer can edit from another device. Storing passwords for people who never made an account was
   considered and rejected — see ADR 0019 Alternatives.
 
+## Launch gate — `POST /api/designs` must not meet real traffic until this is checked off
+
+Added 2026-08-31. This is a **hard pre-launch blocker**, not a work item that can be traded away
+inside a wave. An adversarial review on 2026-08-30 reproduced the unthrottled mint path as
+**SEC-001 (High)** (`testing-reports/01-security-and-api.md`) and chained it with SEC-002 and
+DB-002 into the resource-exhaustion sequence **AV-4**
+(`testing-reports/07-critical-attack-vectors.md`). The owner reaffirmed the deferral on 2026-08-31
+on the condition that it is gated here; the decisions themselves are settled in
+`docs/decisions/0019-security-baseline-writes-throttling-retention.md` (see its 2026-08-31
+correction) and must not be re-litigated.
+
+Today the endpoint has **no application limiter and no active retention**. Every item below must be
+live — not planned, not staged in a runbook — before the endpoint is exposed:
+
+- [ ] **Independent buckets, most restrictive wins** (ADR 0019 decision 3): IP aggregated to **/24**
+      (IPv4) and **/64** (IPv6), the signed session cookie, and **global per-endpoint counters**.
+      Never IP+session fused into one composite key. IPv6 /64 aggregation is not optional.
+- [ ] **The recorded mint limits** (ADR 0019 decision 5): **10 / hour and 30 / day** per IP block
+      for MD networks; **3 / hour plus challenge** for non-MD; **5 / hour** per session.
+- [ ] **`429` with `Retry-After`** on refusal, with a reason the UI can render.
+- [ ] **Fail closed when the counter store is unavailable.** Writes fail closed; reads fail open.
+- [ ] **The 30-day abandoned-design retention cron** (ADR 0019 decision 7): a design that never
+      reached the contact step and has not been modified for 30 days is deleted by the existing
+      nightly cron, which also prunes expired rate-limit counters.
+- [ ] **The staged WAF rule** (ADR 0019 decisions 2, 4, 5, and `docs/runbooks/firewall-setup.md`):
+      the single `rate_limit` rule across `/api/` at 120 requests / 60 s per IP. It ships in `log`
+      action first; publishing to production is the owner's action, not an agent's.
+
+All six ship **together**. Any one alone leaves AV-4 open, and the WAF rule is per-region and coarse
+by construction, so it is never quoted as the cap. Verify the fix using ADR 0019's intended low
+rates — **do not use a high-volume loop as the regression test**.
+
+One further item, added 2026-08-31, listed after the six because it is **not** part of that
+ship-together set — it has its own preconditions and blocks nothing the six block:
+
+- [ ] **Flip the CSP from report-only to enforcing** (wave S4,
+      `docs/milestones/adversarial-review-remediation.md`). `apps/web/src/lib/security-headers.ts`
+      ships a nonce-based policy as `Content-Security-Policy-Report-Only` with **no report sink** —
+      a collector would itself be the unauthenticated unthrottled POST endpoint this gate exists to
+      prevent, which is why it lands here rather than in S4. It belongs to this phase because the
+      rate limiter above is what finally makes such an endpoint safe to expose. Two preconditions,
+      both measured in S4: a method of collecting violations, and the prerendered pages
+      (`/`, `/configurator/configure`, `/configurator/contact`, `/_not-found`) carrying no nonce, so
+      enforcing today would blank them. Flipping the one constant
+      `CONTENT_SECURITY_POLICY_MODE` without clearing both would take the app down.
+
+### Unresolved prerequisite, 2026-08-31 — no credential in the system can perform the retention delete
+
+Found reviewing the API boundary. The retention cron above is not merely unbuilt; under the current
+role model it **cannot execute at all**, and that is an owner decision rather than an implementation
+detail.
+
+[ADR 0008](../decisions/0008-least-privilege-database-role.md) grants `app_designs` exactly
+`SELECT, INSERT, UPDATE` on `public.designs` and states that **`DELETE` is deliberately withheld** —
+so that a bug, or an attacker holding the application's credentials, "cannot destroy a customer's
+design at all". Its test asserts that `DELETE`, `TRUNCATE`, `DROP TABLE` and `CREATE TABLE` are each
+refused. `.env.example` repeats the same constraint against `DATABASE_URL`: the role "cannot drop,
+truncate or delete". ADR 0008 anticipated exactly this moment — "grant it when a feature actually
+needs it, not pre-emptively" — and ADR 0019 decision 7 is that feature.
+
+**Whoever deletes must be decided before retention can ship**, and the choice is the owner's:
+
+- a **separate privileged cron credential**, kept out of the running application the way
+  `MIGRATION_DATABASE_URL` already is (ADR 0008, "migrations need their own connection"), or
+- a **`DELETE` grant to `app_designs`**, which reverses ADR 0008's stated reason for withholding it
+  and widens the blast radius of a leaked `DATABASE_URL` to destruction, not just modification.
+
+Both options change a recorded security decision, so neither may be taken inside a wave. Note also
+that ADR 0008 already flags M8's contact table as needing **its own** grant decision; these are two
+separate questions and should not be settled as one.
+
+**Nothing was changed to record this** — no role, grant, environment variable or code. Until it is
+decided, the retention checkbox above cannot be truthfully ticked, and therefore neither can the
+gate.
+
 ## Work items
 
 1. **3A** — the review summary: final render, room summary line, whole-kitchen settings with a

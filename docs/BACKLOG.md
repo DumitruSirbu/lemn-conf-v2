@@ -774,3 +774,10 @@ acceptance criteria.
   under "What is open right now".
 - **The handset pass itself** was open in `docs/STATUS.md` and is now partly done: the scene renders
   correctly on iOS Safari against production. The items in this file were all found during it.
+- **The mint endpoint is unbounded at the application layer right now** (recorded 2026-08-31).
+  `POST /api/designs` has no application limiter and no active retention; an adversarial review on
+  2026-08-30 reproduced it as SEC-001 (High) and chained it into AV-4 with SEC-002 and DB-002. The
+  owner reaffirmed the M8 / pre-launch deferral on 2026-08-31 — so this is a scheduled, gated
+  decision, not a backlog item. The gate is `docs/milestones/M8-review-contact-success.md` under
+  "Launch gate"; the decisions are ADR 0019 and its 2026-08-31 correction. Until that gate is
+  checked off, do not expose the endpoint to real traffic.
