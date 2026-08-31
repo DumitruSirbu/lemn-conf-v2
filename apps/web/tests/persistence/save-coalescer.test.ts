@@ -124,6 +124,7 @@ describe("createSaveCoalescer", () => {
     return createSaveCoalescer({
       repository,
       getDesignId: () => designId,
+      getGeneration: () => 0,
       onSaved: (id) => {
         savedIds.push(id);
         designId = id;
@@ -442,5 +443,404 @@ describe("createSaveCoalescer", () => {
       expect(repository.calls).toHaveLength(2);
       expect(savedIds).toEqual(["minted-id"]);
     });
+  });
+});
+
+interface ControlledCall {
+  readonly id: DesignId | null;
+  readonly design: Design;
+  readonly resolve: (id: DesignId) => void;
+  readonly reject: (error: unknown) => void;
+}
+
+/** A repository whose calls settle only when a test says so. */
+class ControlledRepository implements Pick<ConfigurationRepository, "save"> {
+  readonly calls: ControlledCall[] = [];
+  maxConcurrentSaves = 0;
+  private inFlight = 0;
+
+  save(id: DesignId | null, design: Design): Promise<DesignId> {
+    this.inFlight += 1;
+    this.maxConcurrentSaves = Math.max(this.maxConcurrentSaves, this.inFlight);
+    return new Promise<DesignId>((resolve, reject) => {
+      const settle = <T>(answer: (value: T) => void, value: T): void => {
+        this.inFlight -= 1;
+        answer(value);
+      };
+      this.calls.push({
+        id,
+        design,
+        resolve: (savedId) => {
+          settle(resolve, savedId);
+        },
+        reject: (error) => {
+          settle(reject, error);
+        },
+      });
+    });
+  }
+}
+
+describe("save jobs remain bound to their scheduled generation", () => {
+  let repository: ControlledRepository;
+  let designId: DesignId | null;
+  let generation: number;
+  let coalescer: ReturnType<typeof createSaveCoalescer>;
+  let saved: { readonly id: DesignId; readonly generation: number }[];
+  let statuses: {
+    readonly status: SaveStatus;
+    readonly generation: number;
+  }[];
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    repository = new ControlledRepository();
+    designId = "design-a";
+    generation = 0;
+    saved = [];
+    statuses = [];
+    coalescer = createSaveCoalescer({
+      repository,
+      getDesignId: () => designId,
+      getGeneration: () => generation,
+      onSaved: (id, savedGeneration) => {
+        saved.push({ id, generation: savedGeneration });
+        if (savedGeneration === generation) designId = id;
+      },
+      onSaveStatusChange: (status, statusGeneration) => {
+        statuses.push({ status, generation: statusGeneration });
+      },
+    });
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("keeps interval-delayed A and B jobs distinct", async () => {
+    coalescer.scheduleSave(withPreset("a-first"));
+    repository.calls[0]?.resolve("design-a");
+    await vi.advanceTimersByTimeAsync(0);
+
+    coalescer.scheduleSave(withPreset("a-pending"));
+    designId = "design-b";
+    generation = 1;
+    coalescer.scheduleSave(withPreset("b-pending"));
+
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(repository.calls[1]).toMatchObject({
+      id: "design-a",
+      design: { presetId: "a-pending" },
+    });
+    repository.calls[1]?.resolve("design-a");
+    await vi.advanceTimersByTimeAsync(0);
+
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(repository.calls[2]).toMatchObject({
+      id: "design-b",
+      design: { presetId: "b-pending" },
+    });
+    expect(repository.maxConcurrentSaves).toBe(1);
+    repository.calls[2]?.resolve("design-b");
+    await vi.advanceTimersByTimeAsync(0);
+  });
+
+  it("lets B complete during A's retry delay, then retries A's newest state against A", async () => {
+    coalescer.scheduleSave(withPreset("a-failed"));
+    repository.calls[0]?.reject(new Error("offline"));
+    await vi.advanceTimersByTimeAsync(0);
+    coalescer.scheduleSave(withPreset("a-newest"));
+
+    designId = "design-b";
+    generation = 1;
+    coalescer.scheduleSave(withPreset("b-first"));
+    expect(repository.calls[1]).toMatchObject({
+      id: "design-b",
+      design: { presetId: "b-first" },
+    });
+    repository.calls[1]?.resolve("design-b");
+    await vi.advanceTimersByTimeAsync(0);
+
+    await vi.advanceTimersByTimeAsync(999);
+    expect(repository.calls).toHaveLength(2);
+    await vi.advanceTimersByTimeAsync(1);
+    expect(repository.calls[2]).toMatchObject({
+      id: "design-a",
+      design: { presetId: "a-newest" },
+    });
+    expect(repository.maxConcurrentSaves).toBe(1);
+    repository.calls[2]?.resolve("design-a");
+    await vi.advanceTimersByTimeAsync(0);
+  });
+
+  it("supersedes an old A retry when a newer A generation returns after B", async () => {
+    coalescer.scheduleSave(withPreset("a-generation-0"));
+    repository.calls[0]?.reject(new Error("offline"));
+    await vi.advanceTimersByTimeAsync(0);
+
+    designId = "design-b";
+    generation = 1;
+    coalescer.scheduleSave(withPreset("b-generation-1"));
+    designId = "design-a";
+    generation = 2;
+    coalescer.scheduleSave(withPreset("a-generation-2"));
+
+    expect(repository.calls[1]).toMatchObject({
+      id: "design-b",
+      design: { presetId: "b-generation-1" },
+    });
+    repository.calls[1]?.resolve("design-b");
+    await vi.advanceTimersByTimeAsync(1000);
+
+    expect(repository.calls[2]).toMatchObject({
+      id: "design-a",
+      design: { presetId: "a-generation-2" },
+    });
+    repository.calls[2]?.resolve("design-a");
+    await vi.advanceTimersByTimeAsync(10_000);
+
+    expect(
+      repository.calls
+        .filter((call) => call.id === "design-a")
+        .map((call) => call.design.presetId),
+    ).toEqual(["a-generation-0", "a-generation-2"]);
+  });
+
+  it("requeues a newer A generation after B when it supersedes interval-delayed A", async () => {
+    coalescer.scheduleSave(withPreset("a-saved"));
+    repository.calls[0]?.resolve("design-a");
+    await vi.advanceTimersByTimeAsync(0);
+
+    coalescer.scheduleSave(withPreset("a-generation-0-pending"));
+    designId = "design-b";
+    generation = 1;
+    coalescer.scheduleSave(withPreset("b-generation-1"));
+    designId = "design-a";
+    generation = 2;
+    coalescer.scheduleSave(withPreset("a-generation-2"));
+
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(repository.calls[1]).toMatchObject({
+      id: "design-b",
+      design: { presetId: "b-generation-1" },
+    });
+    repository.calls[1]?.resolve("design-b");
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(repository.calls[2]).toMatchObject({
+      id: "design-a",
+      design: { presetId: "a-generation-2" },
+    });
+    repository.calls[2]?.resolve("design-a");
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(repository.calls.map((call) => call.design.presetId)).not.toContain(
+      "a-generation-0-pending",
+    );
+  });
+
+  it("retains newer A behind an in-flight older A so the newer generation writes last", async () => {
+    coalescer.scheduleSave(withPreset("a-generation-0"));
+    designId = "design-b";
+    generation = 1;
+    coalescer.scheduleSave(withPreset("b-generation-1"));
+    designId = "design-a";
+    generation = 2;
+    coalescer.scheduleSave(withPreset("a-generation-2"));
+
+    repository.calls[0]?.resolve("design-a");
+    await vi.advanceTimersByTimeAsync(1000);
+    repository.calls[1]?.resolve("design-b");
+    await vi.advanceTimersByTimeAsync(1000);
+
+    expect(repository.calls[2]).toMatchObject({
+      id: "design-a",
+      design: { presetId: "a-generation-2" },
+    });
+    repository.calls[2]?.resolve("design-a");
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(saved).toEqual([
+      { id: "design-a", generation: 0 },
+      { id: "design-b", generation: 1 },
+      { id: "design-a", generation: 2 },
+    ]);
+  });
+
+  it("Q2.1 retries the newest same-generation edit queued before the in-flight failure", async () => {
+    coalescer.scheduleSave(withPreset("in-flight"));
+    coalescer.scheduleSave(withPreset("newest"));
+
+    repository.calls[0]?.reject(new Error("offline"));
+    await vi.advanceTimersByTimeAsync(499);
+    expect(repository.calls).toHaveLength(1);
+
+    await vi.advanceTimersByTimeAsync(1);
+    expect(repository.calls[1]).toMatchObject({
+      id: "design-a",
+      design: { presetId: "newest" },
+    });
+    repository.calls[1]?.resolve("design-a");
+    await vi.advanceTimersByTimeAsync(10_000);
+
+    expect(repository.calls).toHaveLength(2);
+    expect(repository.maxConcurrentSaves).toBe(1);
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it("finishes an in-flight A before B without retargeting either call", async () => {
+    coalescer.scheduleSave(withPreset("a-in-flight"));
+    designId = "design-b";
+    generation = 1;
+    coalescer.scheduleSave(withPreset("b-after-hydrate"));
+
+    repository.calls[0]?.resolve("design-a");
+    await vi.advanceTimersByTimeAsync(0);
+    expect(designId).toBe("design-b");
+    expect(saved[0]).toEqual({ id: "design-a", generation: 0 });
+
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(repository.calls[1]).toMatchObject({
+      id: "design-b",
+      design: { presetId: "b-after-hydrate" },
+    });
+    repository.calls[1]?.resolve("design-b");
+    await vi.advanceTimersByTimeAsync(0);
+  });
+
+  it("promotes only pending work from the generation whose null-id save minted", async () => {
+    designId = null;
+    coalescer.scheduleSave(withPreset("a-first"));
+    coalescer.scheduleSave(withPreset("a-newest"));
+
+    designId = "design-b";
+    generation = 1;
+    coalescer.scheduleSave(withPreset("b"));
+    repository.calls[0]?.resolve("minted-a");
+    await vi.advanceTimersByTimeAsync(1000);
+
+    expect(repository.calls[1]).toMatchObject({
+      id: "minted-a",
+      design: { presetId: "a-newest" },
+    });
+    repository.calls[1]?.resolve("minted-a");
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(repository.calls[2]).toMatchObject({
+      id: "design-b",
+      design: { presetId: "b" },
+    });
+    repository.calls[2]?.resolve("design-b");
+    await vi.advanceTimersByTimeAsync(0);
+  });
+
+  it("treats two null-id generations as two mint identities", async () => {
+    designId = null;
+    coalescer.scheduleSave(withPreset("null-a"));
+    generation = 1;
+    coalescer.scheduleSave(withPreset("null-b"));
+
+    repository.calls[0]?.resolve("minted-a");
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(repository.calls[1]).toMatchObject({
+      id: null,
+      design: { presetId: "null-b" },
+    });
+    repository.calls[1]?.resolve("minted-b");
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(repository.calls.map((call) => call.id)).toEqual([null, null]);
+    expect(saved).toEqual([
+      { id: "minted-a", generation: 0 },
+      { id: "minted-b", generation: 1 },
+    ]);
+    expect(designId).toBe("minted-b");
+  });
+
+  it("does not carry a null-id refusal into the next null-id generation", async () => {
+    designId = null;
+    coalescer.scheduleSave(withPreset("refused-a"));
+    repository.calls[0]?.reject(
+      new WriteNotAuthorizedError("Saving a design", 403),
+    );
+    await vi.advanceTimersByTimeAsync(0);
+
+    generation = 1;
+    coalescer.scheduleSave(withPreset("allowed-b"));
+    expect(repository.calls[1]).toMatchObject({
+      id: null,
+      design: { presetId: "allowed-b" },
+    });
+    expect(statuses).toContainEqual({
+      status: "unauthorized",
+      generation: 0,
+    });
+    repository.calls[1]?.resolve("minted-b");
+    await vi.advanceTimersByTimeAsync(0);
+  });
+
+  it.each([
+    {
+      name: "stopped",
+      failure: new WriteNotRetryableError("Saving a design", 400),
+    },
+    {
+      name: "unauthorized",
+      failure: new WriteNotAuthorizedError("Saving a design", 403),
+    },
+  ] as const)(
+    "surfaces a stale A $name refusal to the current A generation and every later attempt",
+    async ({ name, failure }) => {
+      coalescer.scheduleSave(withPreset("a-generation-0"));
+      designId = "design-b";
+      generation = 1;
+      coalescer.scheduleSave(withPreset("b-generation-1"));
+      designId = "design-a";
+      generation = 2;
+      coalescer.scheduleSave(withPreset("a-generation-2"));
+
+      repository.calls[0]?.reject(failure);
+      await vi.advanceTimersByTimeAsync(0);
+
+      expect(statuses).toContainEqual({ status: name, generation: 2 });
+      expect(repository.calls[1]).toMatchObject({
+        id: "design-b",
+        design: { presetId: "b-generation-1" },
+      });
+      repository.calls[1]?.resolve("design-b");
+      await vi.advanceTimersByTimeAsync(10_000);
+      expect(repository.calls).toHaveLength(2);
+
+      coalescer.scheduleSave(withPreset("a-after-refusal"));
+      expect(statuses.at(-1)).toEqual({ status: name, generation: 2 });
+      await vi.advanceTimersByTimeAsync(10_000);
+      expect(repository.calls).toHaveLength(2);
+    },
+  );
+
+  it("schedules recreated completed identities by new FIFO arrival, not historical Map order", async () => {
+    coalescer.scheduleSave(withPreset("historic-a"));
+    repository.calls[0]?.resolve("design-a");
+    await vi.advanceTimersByTimeAsync(0);
+
+    designId = "design-b";
+    generation = 1;
+    coalescer.scheduleSave(withPreset("historic-b"));
+    await vi.advanceTimersByTimeAsync(1000);
+    repository.calls[1]?.resolve("design-b");
+    await vi.advanceTimersByTimeAsync(0);
+
+    designId = "design-c";
+    generation = 2;
+    coalescer.scheduleSave(withPreset("new-c-first"));
+    designId = "design-a";
+    generation = 3;
+    coalescer.scheduleSave(withPreset("new-a-second"));
+
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(repository.calls[2]?.design.presetId).toBe("new-c-first");
+    repository.calls[2]?.resolve("design-c");
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(repository.calls[3]?.design.presetId).toBe("new-a-second");
+    repository.calls[3]?.resolve("design-a");
+    await vi.advanceTimersByTimeAsync(0);
   });
 });

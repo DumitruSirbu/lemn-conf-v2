@@ -1,7 +1,6 @@
 # Adversarial review remediation
 
-> **STATUS: IN PROGRESS.** SCENE-001 is complete. WEB-001 is the active wave; DOM-001 remains gated
-> behind its complete QA/review/verification cycle.
+> **STATUS: IN PROGRESS.** SCENE-001 and WEB-001 are complete. DOM-001 is the active wave.
 
 Date: 2026-08-30
 Branch: `adversarial-review-reports`
@@ -88,9 +87,53 @@ SCENE-002.
 
 ## Wave S2 — WEB-001
 
+Status: **Complete.** Adversarial QA found and verified Q2.1; Full review found and verified R1.1–
+R1.3. Both continuity reviews closed every finding with no new issues. Coordinator verification
+passed `pnpm check`, including 955 domain, 83 live persistence, 708 Three adapter, and 549 web tests
+(4 pre-existing skips).
+
 Review tier: **Full**. Snapshot design identity and content into one immutable save job; scope
 callbacks and timers to the originating design/generation. Test pending and in-flight A -> hydrate B,
 null-ID mint -> hydrate B, and both completion orders. Do not begin until S1 closes.
+
+### Scope
+
+- Treat `{ designId, design, generation }` as one immutable save job captured when the edit is
+  scheduled; a later hydrate must never retarget its repository call.
+- Advance the generation when the singleton store hydrates a different loaded design, and apply
+  save IDs/status callbacks only while their originating generation is still current.
+- Preserve coalescing, minimum-interval, retry/backoff, per-design refusal, mint-on-first-write, and
+  non-blocking command behavior. Do not broaden into WEB-002 authorization UX or WEB-003 revision
+  conflict handling.
+- Keep pending work from different generations distinguishable so an edit for A cannot be written
+  to B or silently replace B's work (or vice versa).
+
+### Acceptance criteria
+
+1. Pending A content that starts after hydrate B is still sent with A's captured ID, never B's.
+2. An in-flight A save resolving after hydrate B cannot change B's `designId`, persisted flag, save
+   status, or write-access state.
+3. A null-ID mint resolving after hydrate B cannot move the store back to its newly minted A ID;
+   the minted row still receives only A content.
+4. If A and B saves resolve in either order, each repository call keeps its own ID/content pair and
+   only callbacks for the current generation affect the store.
+5. Same-generation rapid edits still coalesce to the newest state, retry the newest unwritten
+   state, obey the one-second successful-save interval, and never run concurrent writes.
+6. Existing web, domain, adapter, and persistence tests remain green.
+
+### Adversarial QA
+
+- Use controlled promises and fake timers at both the coalescer and singleton-store wiring seams.
+- Exercise pending, interval-delayed, retry-delayed, and in-flight transitions from A to B.
+- Include two successive null-ID generations so `null` alone cannot be mistaken for identity.
+- Assert stale `onSaved`, `saving`, `idle`, `error`, `stopped`, and `unauthorized` callbacks cannot
+  overwrite the current design's state.
+
+### Verification
+
+- focused save-coalescer and configurator-store persistence tests
+- `pnpm --filter @lemnaria/web test`
+- `pnpm check` after QA and Full-tier review
 
 ## Wave S3 — DOM-001
 

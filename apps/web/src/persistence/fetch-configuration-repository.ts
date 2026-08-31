@@ -75,18 +75,26 @@ function saveFailureFor(
  * promise, which would let the store believe a design is stored when it is not.
  *
  * One instance per session — `sessionConfigurationRepository` below is that instance, and every
- * caller in the app uses it. Minting exactly once is this class's own guarantee and does not lean on
- * the coalescer serialising its callers: see `resolveTargetId`. The guarantee is per-instance, so a
- * second instance is a second `mintedId` and therefore a second row for the same session — which is
- * the forked design `resolveTargetId` exists to prevent.
+ * caller in the app uses it. Minting exactly once **per provisional design identity** is this
+ * class's own guarantee and does not lean on the coalescer serialising its callers: see
+ * `resolveTargetId`. Two fresh store generations deliberately carry two identities and mint two
+ * rows; retries and overlapping calls for either one reuse its single mint.
  */
 export class FetchConfigurationRepository implements ConfigurationRepository {
-  /** The session's one mint, held as the **promise** rather than its awaited value — see
-   *  `resolveTargetId` for why the difference is the whole guarantee. */
-  private mintedId: Promise<DesignId> | null = null;
+  /** A weak key lets a completed coalescer generation and its cached mint be collected together. */
+  private readonly mintedIds = new WeakMap<object, Promise<DesignId>>();
+  /** Direct two-argument callers retain the historical one-provisional-design behaviour. */
+  private readonly defaultProvisionalMintIdentity = {};
 
-  async save(id: DesignId | null, design: Design): Promise<DesignId> {
-    return this.update(await this.resolveTargetId(id), design);
+  async save(
+    id: DesignId | null,
+    design: Design,
+    provisionalMintIdentity = this.defaultProvisionalMintIdentity,
+  ): Promise<DesignId> {
+    return this.update(
+      await this.resolveTargetId(id, provisionalMintIdentity),
+      design,
+    );
   }
 
   /** The `ConfigurationRepository` contract, which knows nothing about write access. Kept as the
@@ -113,31 +121,37 @@ export class FetchConfigurationRepository implements ConfigurationRepository {
   }
 
   /**
-   * The id this save must write to, minting one only when no id exists anywhere. A second row
-   * would silently fork the design, so both ways of getting one are closed here.
+   * The id this save must write to, minting once for its provisional identity. A second row for
+   * that identity would silently fork one design, so both ways of getting one are closed here.
    *
    * *Sequentially*: the store's `designId` is only set once a save has **fully** succeeded, so a
-   * mint followed by a failing update leaves the caller still passing `null`; `mintedId` is what
-   * makes the retry an update rather than a second mint.
+   * mint followed by a failing update leaves the caller still passing `null`; the identity's
+   * cached promise makes the retry an update rather than a second mint.
    *
    * *Concurrently*: `await`ing the mint and then assigning is three steps, so two overlapping
    * `save(null, …)` calls would both read `null` and both mint. Remembering the in-flight
    * **promise** collapses them into one request. The coalescer does serialise its saves, but that
    * is another object's private flag; this class owns the id, so it owns the guarantee.
    *
-   * A **fulfilled** promise is kept for the rest of the session — it holds the one id this session
-   * ever minted, and awaiting it again is free. A **rejected** one is discarded, so a mint that
-   * failed on a transient error is retried by the next save; caching the rejection would make every
-   * later save fail for as long as the tab stayed open.
+   * A **fulfilled** promise is kept while its opaque identity remains reachable, and awaiting it
+   * again is free. A **rejected** one is discarded, so a transient mint failure is retried by the
+   * next save; caching the rejection would make every later attempt for that design fail.
    */
-  private resolveTargetId(id: DesignId | null): Promise<DesignId> {
+  private resolveTargetId(
+    id: DesignId | null,
+    provisionalMintIdentity: object,
+  ): Promise<DesignId> {
     if (id !== null) return Promise.resolve(id);
 
-    this.mintedId ??= this.mint().catch((error: unknown) => {
-      this.mintedId = null;
+    const existing = this.mintedIds.get(provisionalMintIdentity);
+    if (existing) return existing;
+
+    const mintedId = this.mint().catch((error: unknown) => {
+      this.mintedIds.delete(provisionalMintIdentity);
       throw error;
     });
-    return this.mintedId;
+    this.mintedIds.set(provisionalMintIdentity, mintedId);
+    return mintedId;
   }
 
   /** `POST /api/designs` takes no body: it creates the row from the seeded fixture and, in the
@@ -180,8 +194,9 @@ export class FetchConfigurationRepository implements ConfigurationRepository {
 /**
  * The session's one repository, which is what makes "one instance per session" true rather than
  * merely documented. Every caller in the app — the store's save coalescer and `/d/{id}`'s write
- * access probe — goes through this, so there is exactly one `mintedId` per tab and no way for a
- * locally constructed instance to mint a second row for the same session.
+ * access probe — goes through this. The coalescer supplies the provisional identity, so this
+ * singleton can distinguish a real second fresh design while deduplicating every retry of the
+ * first.
  *
  * Constructed at module load rather than lazily: the constructor only initialises a field, issues no
  * request and touches no browser API, so it is inert on the server too.

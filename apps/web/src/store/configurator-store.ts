@@ -175,6 +175,11 @@ export interface ConfiguratorStoreOptions {
    *  it and never on a refusal, and never awaited — no interaction blocks on a write. 3C-2b passes
    *  the save coalescer's `scheduleSave` here; until then it is a no-op. */
   readonly onDesignChanged?: (design: Design) => void;
+  /**
+   * The singleton persistence seam advances its generation when hydration switches design
+   * identity. Other store instances have no background writer and leave this unset.
+   */
+  readonly onDesignIdentityChanged?: () => void;
   /** The domain reads no clock, so the caller supplies `occurredAt`. Injected so a test can pin
    *  it and so nothing in the domain has to be mocked to make a timestamp predictable. */
   readonly now?: () => string;
@@ -340,17 +345,20 @@ export function createConfiguratorStore(
       canWrite: options.canWrite ?? true,
       hasPersistedSuccessfully: designId !== null,
       hydrate: (loaded) => {
+        const geometry = deriveGeometry(loaded.design, catalog);
+        if (get().designId !== loaded.designId)
+          options.onDesignIdentityChanged?.();
         set({
           design: loaded.design,
-          ...deriveGeometry(loaded.design, catalog),
+          ...geometry,
           selection: null,
           lastRejection: null,
           designId: loaded.designId,
           canWrite: loaded.canWrite,
           hasPersistedSuccessfully: true,
-          // A save status is evidence about the design that produced it and about no other, which
-          // is the same reason `save-coalescer.ts` keys `refusedDesignId` by design id. Carried
-          // across, `unauthorized` would render a freshly loaded design this browser *does* own as
+          // A save status is evidence about the generation that produced it and about no other,
+          // which is the same reason `save-coalescer.ts` binds jobs and refusals to identity.
+          // Carried across, `unauthorized` would render a freshly loaded design this browser owns as
           // read-only (`isReadOnly` reads it), and the only thing that clears `unauthorized` is a
           // successful write — whose every control the read-only panel has just disabled. That is a
           // deadlock no interaction can leave, only a full page reload. `error` and `stopped` leak
@@ -372,12 +380,23 @@ export function createConfiguratorStore(
   });
 }
 
+/**
+ * The app mounts one store and one coalescer for the tab. Identity is therefore a session concern,
+ * kept at their wiring seam rather than exposed as customer-facing Zustand state.
+ */
+let saveGeneration = 0;
+
+function advanceSaveGeneration(): void {
+  saveGeneration += 1;
+}
+
 /** The single store instance the app mounts against — no hard-coded canvas id anywhere, per the
  *  milestone's "Shared" acceptance bullet: the selection owns the target, not any one canvas. */
 export const useConfiguratorStore = createConfiguratorStore({
   design: KITCHEN_L_DESIGN,
   catalog: KITCHEN_L_BODY_CATALOG,
   onDesignChanged: persistDesignChange,
+  onDesignIdentityChanged: advanceSaveGeneration,
 });
 
 /** The session's one coalescer, and the whole of the client write path's wiring (ADR 0010
@@ -393,10 +412,13 @@ function persistDesignChange(design: Design): void {
   saveCoalescer ??= createSaveCoalescer({
     repository: sessionConfigurationRepository,
     getDesignId: () => useConfiguratorStore.getState().designId,
-    onSaved: (id) => {
+    getGeneration: () => saveGeneration,
+    onSaved: (id, generation) => {
+      if (generation !== saveGeneration) return;
       useConfiguratorStore.getState().applySavedId(id);
     },
-    onSaveStatusChange: (status) => {
+    onSaveStatusChange: (status, generation) => {
+      if (generation !== saveGeneration) return;
       useConfiguratorStore.getState().setSaveStatus(status);
     },
   });

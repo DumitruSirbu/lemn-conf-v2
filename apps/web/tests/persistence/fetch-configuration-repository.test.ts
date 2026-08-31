@@ -121,17 +121,53 @@ describe("FetchConfigurationRepository", () => {
     );
   });
 
-  it("holds the session's mint guarantee on the one instance the app actually uses", async () => {
-    // The guarantee is per-instance: a second `new FetchConfigurationRepository()` is a second
-    // `mintedId` and therefore a second row for the same session. `sessionConfigurationRepository`
-    // is what both app callers hold — the store's save coalescer and `/d/{id}`'s write-access
-    // probe — so the guarantee is a property of the app, not only of a locally built object.
+  it("deduplicates one opaque provisional identity but mints separately for another", async () => {
+    const repository = new FetchConfigurationRepository();
+    const provisionalA = {};
+    const provisionalB = {};
+    scriptSuccessfulMint("design-a");
+    responses.push(() => jsonResponse({ id: "design-a" }));
+    scriptSuccessfulMint("design-b");
+
+    await Promise.all([
+      repository.save(null, KITCHEN_L_DESIGN, provisionalA),
+      repository.save(null, KITCHEN_L_DESIGN, provisionalA),
+    ]);
+    await repository.save(null, KITCHEN_L_DESIGN, provisionalB);
+
+    expect(
+      requests.filter((request) => request.method === "POST"),
+    ).toHaveLength(2);
+    expect(
+      requests
+        .filter((request) => request.method === "PUT")
+        .map((request) => request.url),
+    ).toEqual([
+      "/api/designs/design-a",
+      "/api/designs/design-a",
+      "/api/designs/design-b",
+    ]);
+  });
+
+  it("holds one provisional identity's mint guarantee on the singleton the app uses", async () => {
+    // The store's coalescer and `/d/{id}`'s write-access probe share this repository. The
+    // coalescer supplies one opaque identity per fresh design; overlapping attempts carrying the
+    // same identity must still collapse on the real singleton, not only on a locally built object.
+    const provisionalIdentity = {};
     scriptSuccessfulMint("design-shared");
     responses.push(() => jsonResponse({ id: "design-shared" }));
 
     await Promise.all([
-      sessionConfigurationRepository.save(null, KITCHEN_L_DESIGN),
-      sessionConfigurationRepository.save(null, KITCHEN_L_DESIGN),
+      sessionConfigurationRepository.save(
+        null,
+        KITCHEN_L_DESIGN,
+        provisionalIdentity,
+      ),
+      sessionConfigurationRepository.save(
+        null,
+        KITCHEN_L_DESIGN,
+        provisionalIdentity,
+      ),
     ]);
 
     expect(sessionConfigurationRepository).toBeInstanceOf(

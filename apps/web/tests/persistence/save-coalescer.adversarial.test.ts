@@ -88,6 +88,7 @@ describe("the minimum interval never loses the last state", () => {
     return createSaveCoalescer({
       repository,
       getDesignId: () => designId,
+      getGeneration: () => 0,
       onSaved: (id) => {
         designId = id;
       },
@@ -181,6 +182,7 @@ describe("the interval and the retry backoff do not stall the path", () => {
     return createSaveCoalescer({
       repository,
       getDesignId: () => designId,
+      getGeneration: () => 0,
       onSaved: (id) => {
         designId = id;
       },
@@ -254,6 +256,7 @@ describe("a credential refusal is terminal, and nothing else is", () => {
         },
       },
       getDesignId: () => MINT_ID,
+      getGeneration: () => 0,
       onSaved: () => undefined,
       onSaveStatusChange: (status) => {
         statuses.push(status);
@@ -353,6 +356,7 @@ describe("a credential refusal is terminal, and nothing else is", () => {
     const coalescer = createSaveCoalescer({
       repository,
       getDesignId: () => MINT_ID,
+      getGeneration: () => 0,
       onSaved: () => undefined,
       onSaveStatusChange: (status) => {
         statuses.push(status);
@@ -387,6 +391,7 @@ describe("a credential refusal is terminal, and nothing else is", () => {
         },
       },
       getDesignId: () => MINT_ID,
+      getGeneration: () => 0,
       onSaved: () => undefined,
       onSaveStatusChange: (status) => {
         statuses.push(status);
@@ -425,6 +430,7 @@ describe("the documented retry/interval asymmetry is what the code does", () => 
     const coalescer = createSaveCoalescer({
       repository,
       getDesignId: () => "id",
+      getGeneration: () => 0,
       onSaved: () => undefined,
       onSaveStatusChange: () => undefined,
     });
@@ -474,6 +480,7 @@ describe("an outage from the very first save is bounded by the backoff, not by t
         },
       },
       getDesignId: () => null,
+      getGeneration: () => 0,
       onSaved: () => undefined,
       onSaveStatusChange: (status) => {
         statuses.push(status);
@@ -527,6 +534,7 @@ describe("an outage from the very first save is bounded by the backoff, not by t
     const coalescer = createSaveCoalescer({
       repository,
       getDesignId: () => null,
+      getGeneration: () => 0,
       onSaved: () => undefined,
       onSaveStatusChange: () => undefined,
     });
@@ -545,6 +553,7 @@ describe("an outage from the very first save is bounded by the backoff, not by t
     const coalescer = createSaveCoalescer({
       repository,
       getDesignId: () => null,
+      getGeneration: () => 0,
       onSaved: () => undefined,
       onSaveStatusChange: (status) => {
         statuses.push(status);
@@ -582,6 +591,7 @@ describe("the newest pending state survives the new early return", () => {
     const coalescer = createSaveCoalescer({
       repository,
       getDesignId: () => "id",
+      getGeneration: () => 0,
       onSaved: () => undefined,
       onSaveStatusChange: () => undefined,
     });
@@ -604,6 +614,7 @@ describe("the newest pending state survives the new early return", () => {
     const coalescer = createSaveCoalescer({
       repository,
       getDesignId: () => "id",
+      getGeneration: () => 0,
       onSaved: () => undefined,
       onSaveStatusChange: () => undefined,
     });
@@ -647,6 +658,7 @@ describe("the newest pending state survives the new early return", () => {
     const coalescer = createSaveCoalescer({
       repository,
       getDesignId: () => "id",
+      getGeneration: () => 0,
       onSaved: () => undefined,
       onSaveStatusChange: () => undefined,
     });
@@ -688,6 +700,7 @@ describe("only one retry is ever armed", () => {
         },
       },
       getDesignId: () => "id",
+      getGeneration: () => 0,
       onSaved: () => undefined,
       onSaveStatusChange: () => undefined,
     });
@@ -732,6 +745,7 @@ describe("a refusal on one design does not silence another", () => {
         },
       },
       getDesignId: () => currentId,
+      getGeneration: () => 0,
       onSaved: () => undefined,
       onSaveStatusChange: (status) => {
         statuses.push(status);
@@ -766,6 +780,7 @@ describe("a refusal on one design does not silence another", () => {
         },
       },
       getDesignId: () => currentId,
+      getGeneration: () => 0,
       onSaved: () => undefined,
       onSaveStatusChange: () => undefined,
     });
