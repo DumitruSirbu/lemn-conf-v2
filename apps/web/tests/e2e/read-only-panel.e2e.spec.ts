@@ -15,9 +15,11 @@ import { deleteMintedDesigns } from "./support/minted-designs";
  * 1. It issues a **second** `GET /api/designs/{id}` from the client. The page renders from a
  *    server-side `load`, and the write-token cookie is scoped `Path=/api/designs/{id}`, so that
  *    request could not have carried it — `useWriteAccessProbe` asks the one route it does reach.
- * 2. The page therefore hydrates `canWrite: "unknown"` and renders **writable** until the probe
- *    answers. So the read-only assertions below wait for the probe rather than racing it: the
- *    response is awaited explicitly, and every assertion is a retrying one on top of that.
+ * 2. The page therefore hydrates `canWrite: "checking"` and offers **no edit at all** until the
+ *    probe answers — wave S7, finding WEB-002, which inverted the earlier optimism. So every
+ *    assertion below, on the writable side as well as the read-only one, waits for the probe rather
+ *    than racing it: the response is awaited explicitly, and every assertion is a retrying one on
+ *    top of that.
  *
  * The design minted here is deleted afterwards — ADR 0006, the same obligation every writing spec
  * in this suite carries.

@@ -58,7 +58,7 @@ export type WidthFlex = "fit" | readonly number[];
  *  being read back out of four false capability flags. */
 export type StructuralReason = "corner";
 
-import { occupiedDepthM } from "./occupied-depth.js";
+import { occupiedDepthM, type OccupiedDepthRule } from "./occupied-depth.js";
 
 export interface Frame {
   readonly x: number;
@@ -84,6 +84,11 @@ export interface BodyDefinition {
   readonly kind: string;
   readonly band: Band;
   readonly frameDepthMm: number;
+  /** **How deep the space this body fills is** — §3.1's full extent on the depth axis, which
+   *  `frameDepthMm` is not (ADR 0018: it is twice the body's rear overhang). Required, so a new
+   *  entry cannot be added without answering the question: the catch-all it replaces answered it
+   *  wrongly for four body families and nothing failed (DOM-002). `occupied-depth.ts` applies it. */
+  readonly occupiedDepth: OccupiedDepthRule;
   readonly frameHeightMm?: number;
   readonly canFinish: boolean;
   readonly canHandle: boolean;
@@ -192,6 +197,10 @@ export interface PlacementRecord {
   readonly buildId: string;
   readonly kind: string;
   readonly frame: Frame;
+  /** Copied off the catalogue entry rather than resolved here, because the answer depends on
+   *  `frame.d` for a parameterised wall carcass and `frame.d` is what a resize rewrites. Read it
+   *  through `occupiedDepthM`, never directly: the rule is a declaration, not a depth. */
+  readonly occupiedDepth: OccupiedDepthRule;
   readonly col: string;
   readonly wall: DesignWall;
   readonly rotated: boolean;
@@ -350,6 +359,7 @@ export function derivePlacementRecords(
       buildId: placement.body.buildId,
       kind: definition.kind,
       frame,
+      occupiedDepth: definition.occupiedDepth,
       col: deriveColumnKey(rotated, frame),
       wall: placement.wall,
       rotated,

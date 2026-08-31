@@ -3,7 +3,17 @@
 **Read this second, right after `AGENTS.md`, before opening any milestone document.** It exists so a
 session can learn where the project stands without reading eight phase plans.
 
-Last updated: 2026-08-29 (**M5 in progress on branch `m5-width`.** Shipped: 5A, 5B, 5C, 5C2, 5C3, 5D, **5D2a** (a cabinet's width is a bound, not a menu of sizes) and **5D2b** (shrinking creates space, a resize squares a column up, and a hood floors its column — ADR 0037's merge was built in this wave and **withdrawn**, because §4 subtracts height and never width, so a cabinet in a merged span closed the level). The headline measurement: the shipped kitchen went from **0 accepted resizes at load to 51**, so width editing no longer requires deleting a column first, and §11 row 14's 450 mm dishwasher column is reachable. Remaining: **5D2c** the panel stepper, **5E** the browser and mobile gate, **5F** depth geometry. Nine ADRs were written or amended across 2026-08-28/29 — **0035** through **0039** — and they supersede large parts of the M5 plan; read them before the plan.)
+Last updated: 2026-08-31. **Adversarial review remediation is complete for the security scope** on
+branch `adversarial-review-reports`. SCENE-001 and WEB-001 were fixed by an earlier session and have
+now been independently verified; DOM-001, SEC-002, SEC-003, SEC-004, DB-001, DB-002 and DB-003 are
+closed on this branch. **SEC-001 — the one remaining High — is deferred to M8 by the
+owner's decision and gated**; see the launch gate below. So "complete for the security scope" means
+every High closed **except** that one deliberate, gated deferral. What remains besides SEC-001 is
+Medium and Low, and all of it is listed under *What is open right now*.
+
+**M5 waves 5D2c and 5F shipped on 2026-08-30**; 5E is the only M5 wave still open. That correction is
+this close-out's own subject: the earlier text said 5D2c and 5F remained while the branch already
+carried them, which is exactly the contradiction that can dispatch work against shipped behaviour.
 
 ## How to use this file
 
@@ -27,25 +37,73 @@ moment it ships; a decision record does not. When the two disagree, the dated de
 | M2 — Void engine, picking, persistence | **Done** (closed 2026-08-25 — its last gate, the unwired client write path, was closed by M3 Wave 3C-2b) | No — `milestones/done/` |
 | M3 — Insert, remove, swap, client write path | **Done** (closed 2026-08-26) | No — `milestones/done/` |
 | M4 — Editor panel and shell | **Done** (closed 2026-08-26 — one criterion unmet by design, ADR 0024) | No — `milestones/done/` |
-| M5 — Width editing, and depth as a derived quantity | **In progress** on `m5-width` — 5A–5D, 5D2a, 5D2b shipped; **5D2c, 5E, 5F open** | Yes — `milestones/M5-*.md`, **and ADRs 0028–0039**, which supersede large parts of it |
+| M5 — Width editing, and depth as a derived quantity | **In progress** — 5A–5D, 5D2a, 5D2b, **5D2c and 5F shipped 2026-08-30**; **5E open** | Yes — `milestones/M5-*.md`, **and ADRs 0028–0041**, which supersede large parts of it |
 | M6 — Price bar and global settings (**incl. the worktop depth control**, 2026-08-27) | Planned | Yes, when starting |
 | M7 — Step 1, room and presets | Planned | Yes, when starting |
 | M8 — Review, contact, success | Planned | Yes, when starting |
+| Adversarial review remediation | **Complete for the security scope** — SCENE-001, WEB-001, DOM-001, SEC-002, SEC-003, SEC-004, DB-001, DB-002, DB-003 closed; SEC-001 deferred to M8, gated; Medium/Low residuals open | Yes — `milestones/adversarial-review-remediation.md` and `testing-reports/` |
+
+## Adversarial review remediation — complete for the security scope, 2026-08-31
+
+The reports are in `testing-reports/` (untracked). The wave record is
+`milestones/adversarial-review-remediation.md`. What landed on `adversarial-review-reports`:
+
+- **SCENE-001** — commit `db9c402` (`fix(scene): make kitchen shell state independent`). The fixed
+  adapter-owned shell cannot reconstruct a deleted placement, and placement sync is the sole owner
+  of customer bodies. Adversarial QA and both Full-tier reviews reported no findings, and an
+  independent adversarial verification pass on 2026-08-31 reported none either.
+- **WEB-001** — commit `b0400ac` (`fix(web): bind save jobs to design identity`). Save work now
+  carries immutable design identity/content/generation; persisted identities share ordered save
+  lanes, stale callbacks cannot mutate another hydrated design, and separate provisional designs
+  receive separate mint identities. QA found and verified Q2.1; Full review found and verified
+  R1.1–R1.3, including the A → B → A retry/refusal cases and the production mint cache. The
+  2026-08-31 verification pass confirmed the fix and left **three Low residuals**, listed under
+  *What is open right now*.
+- **DOM-001 and SEC-002** — commit `47e2552` (`fix(domain): reject designs the domain cannot
+  execute, at both seams`). The placement schema is bounded and `validateDesignForCatalog` runs at
+  both the API write seam and the migration/load seam, so a document the executable domain cannot
+  handle is refused rather than stored or loaded. ADR 0038 carries the dated correction that made
+  this finding possible to see at all.
+- **SEC-003 and SEC-004** — commit `96293c5` (`fix(web): bound the capture route and version the
+  browser policy`), recorded in
+  [ADR 0041](decisions/0041-the-browser-security-policy-is-versioned-and-the-csp-only-reports.md).
+- **DB-001, DB-002 and DB-003** — commit `e666d96` (`fix(persistence): make the destructive guard
+  and the backup honest`).
+- **A continuity review round** over those fixes — commit `c5df227`.
+
+**SEC-001 is deferred to M8 by the owner's decision, and the deferral is gated** — commit `f342752`,
+[ADR 0019](decisions/0019-security-baseline-writes-throttling-retention.md)'s 2026-08-31 correction,
+and the *Launch gate* section of `milestones/M8-review-contact-success.md`. It is a scheduled
+decision, not an oversight; the consequence it leaves live is the first item under *What is open
+right now*.
+
+**Still open from the review, all Medium or Low:** WEB-002, WEB-003, WEB-004, SCENE-002, DOM-002,
+DOM-003, DB-004. None is a reproduced High, and each is described in its report under
+`testing-reports/`.
+
+The coordinator's `pnpm check` on 2026-08-31 at commit `c5df227` exited 0 over formatting, lint,
+typecheck and **2,415 package tests**: domain 995, persistence 98 (live Neon test database), Three
+adapter 708, and web 614 with 4 pre-existing skips. **The Playwright e2e suite was not run in this
+session** — the last counted figure is 20 e2e tests plus one `test.skip` on 2026-08-26, and it has
+not been rerun since. Nothing was pushed. The separate untracked runbook was not touched.
 
 ## What is actually built
 
 A pnpm monorepo on Node 24: an I/O-free domain package, a Three.js adapter, a persistence package
-that is the only place a Postgres driver appears, and a Next.js App Router app. **2 028 unit tests** (domain 852, three-adapter 609, web 484, persistence 83 — counted from a run on 2026-08-27 after wave 5D; was 1 607 after 5C3 and 1 395 that morning)
-(domain 433, three-adapter 440, web 439, persistence 83) plus **20 Playwright e2e tests** and one
-`test.skip`. Every number copied from a run executed on 2026-08-26 after M4 Wave 4D, not carried
-forward.
+that is the only place a Postgres driver appears, and a Next.js App Router app. The latest executed
+`pnpm check`, run by the coordinator on **2026-08-31 at commit `c5df227`**, exited 0 over **2,415
+package tests** (domain 995, Three adapter 708, web 614, persistence 98 against the live Neon test
+database) with 4 pre-existing web skips. The repository also carried **20 Playwright e2e tests** and
+one `test.skip` when that suite was last counted on 2026-08-26; **the e2e suite has not been rerun
+since**, so that figure is a 2026-08-26 count and not a current one.
 
 Persistence jumped from 30 to 83 without a line of test code being written: **45 of its tests had
 been silently skipping** on every previous run because the `qa_owner` credential in
 `.env.test.local` was invalid. Those are the live-database assertions — the ADR 0008 least-privilege
 role checks, the backup/restore round trip, the Neon repository suite. They were reporting green by
 sitting out. A working `TEST_DATABASE_URL` (now `lemn-conf-v2-staging`, distinct from the
-application database, so ADR 0006 holds) was supplied on 2026-08-26 and all 83 pass.
+application database, so ADR 0006 holds) was supplied on 2026-08-26 and all of them pass — 83 then,
+98 at the 2026-08-31 run after the DB-001/DB-002/DB-003 regressions landed.
 
 That is worth remembering as a pattern, not just an incident: a skipped test and a passing test look
 identical in a summary line.
@@ -159,6 +217,20 @@ client probe asks the one route the cookie reaches, at the cost of a second GET 
 
 ## What is open right now
 
+**The mint endpoint is unbounded at the application layer.** `POST /api/designs` has no application
+rate limiter and no active retention, which is SEC-001. The owner deferred it to **M8** on
+2026-08-31 and the deferral is gated: `milestones/M8-review-contact-success.md`'s *Launch gate* must
+be checked off before the endpoint sees real traffic, and ADR 0019's 2026-08-31 correction records
+the decision. Deferred and gated is not the same as closed — until that gate is met, this is the one
+security consequence the branch knowingly carries.
+
+**Seven adversarial-review findings are still open**, all Medium or Low: **WEB-002, WEB-003,
+WEB-004, SCENE-002, DOM-002, DOM-003, DB-004**. Their only descriptions are in `testing-reports/`,
+which is **untracked and not in the repository** — so for anyone without that folder these survive
+here as bare identifiers and nothing more. Whoever picks one up either needs the reports from the
+owner or has to reproduce the finding from scratch. That is a real cost of keeping the reports
+untracked, recorded rather than discovered later.
+
 **Reported issues that are not scheduled live in `docs/BACKLOG.md`.** The first of the two found in
 the first handset pass is now closed: the induction hob **can** be restored, because ADR 0027 made it
 part of the cabinet body and added two hob-bearing catalogue entries. The second is still open —
@@ -196,10 +268,17 @@ cabinet with no resolution pass.
 
 **[ADR 0038](decisions/0038-pre-release-no-stored-designs-no-migrations.md) expires at first release,
 and this is the line that must survive until then.** M7 or M8 must re-read it before launch and
-decide the first stored schema. One concrete obligation is already named: `DesignPlacementSchema`
-accepts `heightMm` with **no lower bound**, so once documents are stored a 40 mm placement becomes
-constructible — and it would now silently join its column and count toward its extent, where before
-this wave it would have been classified an accessory and skipped.
+decide the first stored schema.
+
+**Corrected 2026-08-31.** That record's named obligation — `DesignPlacementSchema` accepting
+`heightMm` with no lower bound — was filed as future work because the ADR believed the state was
+*"unreachable today — there is no deserialisation surface"*. **That premise was false when it was
+written.** The branch has a public `PUT`/`PATCH /api/designs/{id}` deserialisation surface and a
+Postgres load/migration surface, and the adversarial review proved both accepted the invalid
+document (DOM-001, AV-3). The schema is now bounded and `validateDesignForCatalog` runs at both
+seams (commit `47e2552`), so the 40 mm case is refused by `MIN_BODY_HEIGHT_MM`. ADR 0038 carries the
+dated correction. The durable lesson is the shape of the mistake, not the constant: a stale
+"unreachable" premise concealed an executable validation defect for as long as nobody re-checked it.
 
 
 **M4 closed with one acceptance criterion unmet, on purpose (ADR 0024).** Its Verification section
@@ -236,6 +315,18 @@ customer's finger; two hard-coded hex values duplicate the rejection tone. From 
 write-access probe fetches and parses the whole design for one boolean, so **M8 must size its rate
 limits against a doubled read rate**; `GET`'s 404 reflects the caller-supplied id and its 500 returns
 a Zod tree over the stored document, where the write path deliberately returns neither.
+
+**Three Low residuals on WEB-001's fix, found by the 2026-08-31 verification pass** and not present
+in the original reports. They are recorded here rather than in `docs/BACKLOG.md`, which is for
+product behaviour a user observed; these are engineering deferrals from a review round, which that
+file's own preamble sends here.
+
+- The store takes its design id from the **server response** rather than from the captured save job,
+  so a route answering with a different id would move the store to it.
+- **Generation churn resets an identity's outage backoff**, so repeated A → B → A navigation during a
+  total server outage issues requests with no backoff at all.
+- **The refusal maps are never pruned**, so a design refused once stays refused for the tab's
+  lifetime.
 
 **M2's restore drill, unchanged:** Path 2 of the restore drill has not been re-run from an export
 actually downloaded from Blob, and Path 1 (Neon PITR) has never been drilled. Note the restore path
@@ -310,9 +401,17 @@ floor; until it lands, no update rate limit can be sized honestly.
 
 ## What to do next
 
-**M5 wave 5D2c — the panel stepper (ADR 0035).** The engine is done; 5D2c is the first wave a
-customer could see. Read ADRs **0035** (all seven decisions and their amendments), **0032** for the
-disabled-with-reason rule, and **0034** for the seam 5D2a and 5D2b kept.
+**M5 wave 5E — the browser and mobile gate.** It is the only M5 wave still open. 5D2c (the panel
+stepper) and 5F (base carcass depth as a formula) **both shipped on 2026-08-30**; see the commit list
+below. 5E photographs the width surface, and the surface it photographs is now the stepper rather
+than the chip row, so read ADR **0035** before writing a single assertion. ADR 0024's reachable
+rejection banner is also 5E's.
+
+Shipped in 5D2c: `08a01c6`, `a157cc5`, `a2a4da7`, `c3ab574`, `77a90d2`. Shipped in 5F: `d7a1d94`,
+`71661d6`, `c1f3aa3`. All eight are ancestors of the current `HEAD`.
+
+**What 5D2c built, kept here because 5E has to verify it** (ADRs **0035**, **0032** for the
+disabled-with-reason rule, **0034** for the seam 5D2a and 5D2b kept):
 
 - **Two controls, chosen by the shape of `widthRangesMm`, never by `fixedWidth`** — that flag is
   `false` on both discrete rows, the dishwasher included, and ADR 0035 decision 3 carries the
@@ -328,8 +427,10 @@ disabled-with-reason rule, and **0034** for the seam 5D2a and 5D2b kept.
   at every reachable width, each button is enabled if and only if the step it offers succeeds.
 
 
-**Then 5F** (base carcass depth as a formula, the only wave that touches a builder and the only one
-that can reach M1's 1e-6 m parity gate).
+**5F is done, not next.** Base carcass depth is a formula the model derives — the only wave that
+touched a builder and the only one that could reach M1's 1e-6 m parity gate. Shipped 2026-08-30
+across `d7a1d94`, `71661d6` and `c1f3aa3`, with ADRs **0039** and **0040** recording the hood's depth
+and the recorded-seat conversion.
 
 **Both of these were answered on 2026-08-28 and are recorded in ADR 0035 — a column is one width at every level and a mixed column is squared up rather than refused, and shrinking does create empty space.** The original framing, kept because it records what was uncertain and why: whether a column holding mixed
 widths should be squared up rather than refused (`COLUMN_MEMBERS_UNALIGNED`, 13 lockouts — **both

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   acceptsWidthMm,
+  BASE_FINISHED_DEPTH_MM,
   buildableSizes,
   describeBodyLabelAt,
   describeKindLabel,
@@ -14,6 +15,7 @@ import {
   KITCHEN_L_BODY_CATALOG,
   KITCHEN_L_PLACEMENTS,
 } from "../src/fixtures/kitchen-l-design.js";
+import { finishesAtMm } from "../src/occupied-depth.js";
 import { MIN_WIDTH_M, type BodyDefinition } from "../src/void-engine.js";
 
 /** §2's default floor in millimetres, for the range guard below. */
@@ -67,6 +69,7 @@ describe("toInsertableBody", () => {
       kind: "base_cabinet",
       band: "base",
       frameDepthMm: 580,
+      occupiedDepth: finishesAtMm(BASE_FINISHED_DEPTH_MM),
       canFinish: true,
       canHandle: true,
       canReplace: true,

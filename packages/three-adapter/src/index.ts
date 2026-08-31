@@ -26,6 +26,15 @@ export {
   setHandlesVisible,
 } from "./decomposed-bodies.js";
 
+export { buildKitchenShell } from "./kitchen-shell.js";
+
+export {
+  disposeDiscardedBodies,
+  disposeKitAndStage,
+  type DiscardedBodyDisposal,
+  type KitStage,
+} from "./kit-disposal.js";
+
 export {
   buildCatalogBody,
   CATALOG_BUILD_IDS,
@@ -44,7 +53,13 @@ export {
   type MeasureBuiltBodyInput,
 } from "./measure-built-body.js";
 
-export { disposeUnsharedGeometries, isLine, isMesh } from "./three-guards.js";
+export {
+  disposeUnsharedGeometries,
+  isLine,
+  isMaterial,
+  isMesh,
+  isTexture,
+} from "./three-guards.js";
 
 export {
   disposeSolidBody,

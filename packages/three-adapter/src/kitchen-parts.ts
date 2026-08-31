@@ -6,7 +6,8 @@
 // each of those is load-bearing, and `docs/milestones/M1-scene-port.md` gates any drift.
 import * as THREE from "three";
 
-import { context2d, isMesh } from "./three-guards.js";
+import { kitOwnedResources } from "./kit-ownership.js";
+import { context2d, isMaterial, isMesh } from "./three-guards.js";
 
 export interface PartItem {
   readonly id: string;
@@ -180,6 +181,19 @@ export interface KitMaterials {
 /** The depths this kit derived from its declared cabinet depth (M5 work item 7, ADR 0036). Exposed
  *  because the seat, the rebuild and their tests all have to read the *same* numbers the builders
  *  used — two constants agreeing by luck is the defect ADR 0028 was written about. */
+/** `KitMaterials`'s values as a list — read by the ownership registry and by the suites that assert
+ *  what a teardown may touch.
+ *
+ *  Enumerated rather than written out by hand, so a material added to the interface is owned by its
+ *  kit without a second edit here. The values are **filtered**, not asserted to be materials: the
+ *  cast is only about the shape an interface cannot express (an index signature), and a non-material
+ *  field added to `KitMaterials` one day must not be carried into a list about to be disposed. */
+export function kitMaterialList(M: KitMaterials): readonly THREE.Material[] {
+  return Object.values(M as unknown as Record<string, unknown>).filter(
+    isMaterial,
+  );
+}
+
 export interface KitDepths {
   /** ADR 0036 decision 3's setting: the finished depth of a base cabinet, doors included. */
   readonly cabinetDepthM: number;
@@ -446,6 +460,14 @@ export function makeKit(options: KitOptions = {}): Kit {
   floorTex.repeat.set(4, 4);
   tileTex.repeat.set(6, 1);
 
+  // Recorded as this kit's own the moment they exist, so a teardown never has to guess which of
+  // the resources it finds in a room are shared with the rest of the scene (`kit-ownership.ts`).
+  const owned = kitOwnedResources(M);
+  for (const material of kitMaterialList(M)) owned.materials.add(material);
+  for (const texture of [oakTex, floorTex, stoneTex, tileTex, brushTex]) {
+    owned.textures.add(texture);
+  }
+
   // --- chamfered boxes ------------------------------------------------------
   // Sharp 90° edges are the single biggest "low-poly" tell; a 1.6 mm chamfer
   // catches a highlight on every edge and reads as real cabinetry.
@@ -455,8 +477,8 @@ export function makeKit(options: KitOptions = {}): Kit {
   // `ownsGeometry` below is how a caller tearing a body down tells a buffer it may dispose from
   // one the rest of the scene is still rendering. The cache never evicts, but it is bounded by the
   // number of distinct box sizes the builders ask for, so retaining a cached geometry is a fixed
-  // cost rather than an unbounded leak.
-  const cachedGeometries = new Set<THREE.BufferGeometry>();
+  // cost rather than an unbounded leak — until the whole stage goes, which is what `owned` is for:
+  // `disposeKitAndStage` is the only caller allowed to dispose from it.
   function chamferBox(w: number, h: number, d: number): THREE.ExtrudeGeometry {
     const k = w.toFixed(4) + "," + h.toFixed(4) + "," + d.toFixed(4);
     const cached = geoCache.get(k);
@@ -490,7 +512,7 @@ export function makeKit(options: KitOptions = {}): Kit {
     g.translate(0, 0, -D / 2);
     g.computeVertexNormals();
     geoCache.set(k, g);
-    cachedGeometries.add(g);
+    owned.geometries.add(g);
     return g;
   }
 
@@ -1803,7 +1825,7 @@ export function makeKit(options: KitOptions = {}): Kit {
       hoodDepthM: HOOD_DEPTH_M,
       hoodSeatOffsetM: HOOD_SEAT_OFFSET_M,
     },
-    ownsGeometry: (geometry) => cachedGeometries.has(geometry),
+    ownsGeometry: (geometry) => owned.geometries.has(geometry),
   };
 }
 

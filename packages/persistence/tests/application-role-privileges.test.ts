@@ -71,6 +71,24 @@ describe.skipIf(!hasLiveDatabase)("the application's database role", () => {
     ]);
   });
 
+  it("holds no privilege at all on the migration ledger", async () => {
+    // Wave S10 adds `schema_migrations` to every database this project owns. The application never
+    // reads or writes it — only the migration runner does, under the separate owner credential of
+    // ADR 0008 — so the correct grant set is the empty one, and a table nothing asserts about is a
+    // table whose privileges quietly decay. True whether or not the ledger exists yet in this
+    // database: a table with no grants and a table that is absent both produce no rows here, and
+    // the first production run is where ADR 0020's schema read-back confirms which it was.
+    const sql = neon(readDatabaseUrl());
+
+    const grants = (await sql`
+      select privilege_type
+      from information_schema.role_table_grants
+      where grantee = current_user and table_name = 'schema_migrations'
+    `) as { privilege_type: string }[];
+
+    expect(grants).toEqual([]);
+  });
+
   it("cannot delete a design", async () => {
     await expectRefused("delete from designs where id = 'no-such-design'");
   });

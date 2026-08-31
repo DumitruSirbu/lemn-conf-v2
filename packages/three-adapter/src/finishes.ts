@@ -13,6 +13,7 @@
 // geometries only — a body's materials belong to its kit, never to the body.
 import * as THREE from "three";
 
+import { deriveKitMaterial } from "./kit-ownership.js";
 import type { KitMaterials } from "./kitchen-parts.js";
 import { isMesh } from "./three-guards.js";
 
@@ -58,12 +59,9 @@ function solidColorOf(key: SolidFinishKey): string {
 const FRONT_MESH_NAME = /door_front|drawer_front/;
 
 /** One recoloured material per kit per finish, shared by every front wearing that finish exactly
- *  as `kit.M`'s own materials are shared. Keyed weakly on the kit's materials so the cache dies
- *  with the kit it was derived from. */
-const finishMaterialsByKit = new WeakMap<
-  KitMaterials,
-  Map<FinishKey, THREE.Material>
->();
+ *  as `kit.M`'s own materials are shared — and owned by the kit, so `disposeKitAndStage` frees it
+ *  with the materials it was cloned from. */
+const FINISH_MATERIAL_KEY_PREFIX = "finish:";
 
 export function collectFronts(root: THREE.Object3D): THREE.Mesh[] {
   const fronts: THREE.Mesh[] = [];
@@ -94,17 +92,9 @@ export function applyBodyFinish(
 }
 
 function finishMaterial(M: KitMaterials, key: FinishKey): THREE.Material {
-  let cache = finishMaterialsByKit.get(M);
-  if (!cache) {
-    cache = new Map<FinishKey, THREE.Material>();
-    finishMaterialsByKit.set(M, cache);
-  }
-  const cached = cache.get(key);
-  if (cached) return cached;
-
-  const material = buildFinishMaterial(M, key);
-  cache.set(key, material);
-  return material;
+  return deriveKitMaterial(M, FINISH_MATERIAL_KEY_PREFIX + key, () =>
+    buildFinishMaterial(M, key),
+  );
 }
 
 function buildFinishMaterial(M: KitMaterials, key: FinishKey): THREE.Material {

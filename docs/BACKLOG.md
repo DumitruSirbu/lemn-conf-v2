@@ -757,6 +757,132 @@ scope a decision rather than an oversight.
 this seam. Not a 5C fix: it changes what `offersFor` offers, which is M3's machinery and its own
 acceptance criteria.
 
+## 14. Keep only the last few database dumps — DECIDED 2026-08-31, SHIPPED 2026-08-31
+
+Owner's request, 2026-08-31: the nightly export should keep only the **last 3 dumps** rather than
+letting them accumulate.
+
+**What is actually true in the code.** Rotation already exists and already deletes — it is just
+keyed on age, not on count. `apps/web/src/lib/server/backup-designs.ts:20` sets
+`BACKUP_RETENTION_DAYS = 14`, and `rotateOldBackups` (`:350`) deletes every blob under
+`backups/designs/` whose timestamp is older than that cutoff. The cron runs nightly, so steady state
+is roughly **14 files**, one per night, each a full NDJSON copy of the `designs` table. Rotation runs
+only after a successful export and its failure is reported separately as `rotation-failed`, so a
+failed rotation never masks a missing backup.
+
+Since wave S5 each pathname is `backups/designs/<ISO timestamp>-<8 hex>.ndjson`. The timestamp still
+leads and is fixed width, so a listing remains in chronological order and "newest last" holds —
+count-based rotation can sort on the same listing rotation already fetches, and needs no new call.
+
+**What deciding it costs.** The change itself is small: replace the age cutoff with "sort the
+listing, keep the newest N, delete the rest", plus a test for the boundary (exactly N present, N+1
+present, and a run that produced no new export). Two things need deciding with it, and they are the
+real content of this entry:
+
+- **Recovery window.** 14 days of nightly dumps means a mistake can be undone up to two weeks later.
+  Three dumps means three days. `docs/runbooks/design-db-restore.md` tells the operator to "pick the
+  newest export at or before the point you're recovering to" — with three files, any corruption
+  noticed on a Thursday that began the previous week is unrecoverable. That is a deliberate trade of
+  recovery depth for storage, and it should be made knowingly rather than as a side effect of tidying.
+- **Which rule wins.** Keeping "the last 3" and "nothing older than 14 days" are different policies.
+  Pick one as authoritative, or state both (keep at least 3, and at most 14 days) so the code has a
+  single answer when they disagree — for example after a fortnight in which the cron did not run.
+
+Storage is the argument for acting: each dump is a full copy of the table, so the folder grows with
+`rows x nights`, and ADR 0019's deferred retention cron means the table itself is currently unbounded
+(SEC-001). Worth noting the two interact — bounding the dumps does not bound what each dump contains.
+
+**Not urgent at current size.** With no real customers the table is small and 14 nightly copies of it
+cost very little. This is a policy decision to take before launch, not a defect.
+
+**DECIDED 2026-08-31: age stays the rule, and a count ceiling was added beside it.**
+
+The owner asked for "keep the last 3" and, after the trade was laid out, chose to keep the 14-day
+window and add a ceiling instead. The reasoning that decided it: the two pressures move in opposite
+directions. Storage is cheap now — the table is nearly empty and a dump is a few kilobytes — and only
+becomes expensive once there are thousands of real designs, which is exactly when losing two weeks of
+recovery depth would hurt most. A window also has to outlast the time it takes somebody to *notice* a
+problem, and nobody watches this daily; three nightly dumps is a three-day window, inside which a
+Friday mistake found the following Wednesday is already unrecoverable, with deletion final and no
+undo.
+
+Shipped as `MAX_RETAINED_BACKUPS = 30` in `apps/web/src/lib/server/backup-designs.ts`, alongside the
+unchanged `BACKUP_RETENTION_DAYS = 14`. Age is authoritative; the ceiling never binds in normal
+nightly operation (steady state is ~14 files) and exists for the abnormal case — a redelivered cron,
+a manual `runDesignsBackup` loop, or any future schedule more frequent than daily — which would
+otherwise grow the folder without bound between one night's rotation and the next. A blob caught by
+both rules is deleted once.
+
+**What this does not bound**, and it is the larger number: the size of each dump. Every file is a
+full copy of `designs`, and the table itself is unbounded until ADR 0019 decision 7's retention cron
+ships at M8 — which is blocked on the credential question recorded in that gate, since no role in the
+system may currently delete.
+
+
+## 15. A wall cabinet over a full-height column is built to a depth no one manufactures — NEEDS A DECISION
+
+**Reproduced live in the running product at 390 x 844, 2026-08-31**, during wave S9 of the
+adversarial-review remediation. Delete `p24` — the cabinet over the fridge — and insert a
+`wall-cabinet` back into the void it vacates. The document written to the database carries
+**`seatDepthMm: 703`**: a 742 mm finished wall cabinet hanging over a 680 mm appliance. It was
+persisted with `probe=on`, an **empty `rejection`**, and zero console errors. **No gate on that path
+paused.**
+
+**It has no user-facing tell, which is the part that makes it urgent.**
+
+- **The panel surfaces no depth at all.** The offer sheet for that opening reads *"Spatiu liber ·
+  Perete B · suspendat · 700 x 750 mm"* — width and height only. The 703 appears on **no screen in
+  the product**.
+- **Neither the void nor the rebuilt body looks wrong.** The void is a clean box above the fridge and
+  the rebuilt cabinet renders as a plausible deep cabinet. A person would flag neither, and would
+  catch it only by comparing against the 330 mm run on the other wall.
+- **No camera preset shows wall B at a grazing angle** — *Perete B* is face on and *Perete A* frames
+  the other run — so that column's depth is not legible in any view the product offers.
+
+Silent in the copy, silent in the render, and it lands as a carcass nobody ordered. That is what
+should decide its priority: a spec-to-manufacture defect, not a cosmetic one.
+
+**What is actually true in the code.** `resolveDepthM`'s uncapped arm reads `opening.d` when
+`hasFullHeightUnder` is true, and `opening.d` comes from `occupiedDepthM`. Two different facts are
+being served by one number:
+
+- *"the full extent a body occupies, handles included"* — a **clearance** fact, which is what §3.1
+  asks for and what `occupiedDepthM` computes;
+- *"the depth to build the next body to"* — a **manufactured size**, which is what `resolveDepthM`
+  hands the probe.
+
+Only the first is the one it computes. `packages/configurator-domain/src/worktop-depth.ts` exists
+precisely so a formula cannot invent a cabinet nobody makes — its declared map is a declaration and
+never an interpolation, *because* a formula would produce a 372 mm cabinet no one manufactures — and
+the uncapped arm is a formula doing exactly that, one module over.
+
+**It pre-dates wave S9, and S9 worsened it.** The arm built a **680 mm** wall carcass before the
+wave, which is no more manufacturable than a 742 mm one, so the defect is not new and S9 did not
+introduce it. What changed is that the number the arm reads is now the full extent including
+appliance handles — further from any real cabinet than it was — and that it is reached on **two
+columns of the shipped kitchen rather than none**: `B|1.20` moved 600 → 638 (the oven tower's
+appliance bars) and `B|2.45` moved 680 → 742 (the fridge's door bars). Deleting the top cabinet is an
+ordinary action and leaves the full-height member standing, so `hasFullHeightUnder` stays true and
+the uncapped arm is what answers.
+
+**What deciding it would cost.** Separating clearance from build depth is the real fix, and it is a
+**product decision, not a bug fix** — nobody should pick this up expecting a one-line patch.
+Whether that arm should read `opening.d` at all is the question: a wall cabinet flush with a fridge
+front may be exactly what a customer wants, or the cap may belong there too, or the column may need
+to publish two numbers — the space a body occupies and the depth the next body is built to — which
+is a new fact in the model with `deriveColumns`, the swap opening and the void mesh all reading it
+today. Changing `resolveDepthM` inside a wave scoped to DOM-002 would have been the silent product
+change the remediation exists to stop, which is why it was recorded rather than fixed.
+
+**Evidence.** Commit `f9b92e1` (wave S9, closing DOM-002); the wave record's
+*Found and not fixed — S9-F1* section in `docs/milestones/adversarial-review-remediation.md`, which
+carries the live reproduction and the per-column table; and `testing-reports/03-domain-model.md`,
+whose DOM-002 finding is what the wave was scoped to.
+
+Related: entry 10 is the same seam from the other side — two routes to "a wall cabinet in this slot"
+producing different depths on the uncapped path — and entry 5 is the capped sibling.
+
+
 ## Also open, recorded elsewhere — do not duplicate here
 
 - **Width editing does nothing yet.** Every width chip is `blocked` because §5.4's resize command
@@ -774,3 +900,10 @@ acceptance criteria.
   under "What is open right now".
 - **The handset pass itself** was open in `docs/STATUS.md` and is now partly done: the scene renders
   correctly on iOS Safari against production. The items in this file were all found during it.
+- **The mint endpoint is unbounded at the application layer right now** (recorded 2026-08-31).
+  `POST /api/designs` has no application limiter and no active retention; an adversarial review on
+  2026-08-30 reproduced it as SEC-001 (High) and chained it into AV-4 with SEC-002 and DB-002. The
+  owner reaffirmed the M8 / pre-launch deferral on 2026-08-31 — so this is a scheduled, gated
+  decision, not a backlog item. The gate is `docs/milestones/M8-review-contact-success.md` under
+  "Launch gate"; the decisions are ADR 0019 and its 2026-08-31 correction. Until that gate is
+  checked off, do not expose the endpoint to real traffic.

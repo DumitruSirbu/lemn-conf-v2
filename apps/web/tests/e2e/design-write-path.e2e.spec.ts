@@ -1,5 +1,6 @@
-import { deleteDesignsForTests } from "@lemnaria/persistence";
 import { expect, test } from "@playwright/test";
+
+import { deleteMintedDesigns } from "./support/minted-designs";
 
 /**
  * The write-token cookie's round trip, in a real browser (ADR 0019 decision 1).
@@ -24,19 +25,7 @@ import { expect, test } from "@playwright/test";
 const mintedDesignIds: string[] = [];
 
 test.afterAll(async () => {
-  if (mintedDesignIds.length === 0) return;
-
-  const connectionUrl = process.env.TEST_DATABASE_URL;
-  if (!connectionUrl) {
-    throw new Error(
-      "TEST_DATABASE_URL is not set in the worker environment, so the designs this suite minted " +
-        "cannot be deleted. playwright.config.ts is what puts it there.",
-    );
-  }
-
-  // The SQL lives in `packages/persistence`, which is the only package allowed to import a
-  // Postgres driver (`scripts/gates/boundary.sh`).
-  await deleteDesignsForTests(connectionUrl, mintedDesignIds);
+  await deleteMintedDesigns(mintedDesignIds);
 });
 
 interface MintOutcome {
@@ -85,15 +74,20 @@ test("a design minted by POST is writable by PUT from the same browser, and only
   const saved = await page.evaluate(
     async (id: string): Promise<SaveOutcome> => {
       const loaded = await fetch(`/api/designs/${id}`);
-      const { design } = (await loaded.json()) as {
+      const { design, revision } = (await loaded.json()) as {
         design: { placements: unknown[] };
+        revision: string;
       };
       const edited = { ...design, placements: design.placements.slice(1) };
 
       const response = await fetch(`/api/designs/${id}`, {
         method: "PUT",
         credentials: "same-origin",
-        headers: { "content-type": "application/json" },
+        headers: {
+          "content-type": "application/json",
+          // WEB-003: a save states the revision it edits, and the route refuses one that does not.
+          "x-expected-revision": revision,
+        },
         body: JSON.stringify(edited),
       });
 
@@ -124,7 +118,10 @@ test("a design minted by POST is writable by PUT from the same browser, and only
       const response = await fetch(`/api/designs/${id}`, {
         method: "PUT",
         credentials: "same-origin",
-        headers: { "content-type": "application/json" },
+        headers: {
+          "content-type": "application/json",
+          "x-expected-revision": "1",
+        },
         body: JSON.stringify({ nothing: true }),
       });
       return response.status;

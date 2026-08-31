@@ -14,7 +14,17 @@ import {
   type WidthFlex,
   type WidthRangeMm,
 } from "./void-engine.js";
-import { wallDepthMmForWorktop, WORKTOP_DEPTH_MM } from "./worktop-depth.js";
+import {
+  finishesAtMm,
+  NO_FRONT_ASSEMBLY_MM,
+  shellPlusFrontMm,
+  type OccupiedDepthRule,
+} from "./occupied-depth.js";
+import {
+  WALL_FRONT_ASSEMBLY_MM,
+  wallDepthMmForWorktop,
+  WORKTOP_DEPTH_MM,
+} from "./worktop-depth.js";
 
 /** ADR 0026: §2's `MIN_W` in millimetres, as what it now is — the **default** width floor, which
  *  governs every entry that does not declare one of its own. */
@@ -273,6 +283,50 @@ export { EXTRACTOR_HOOD_KIND } from "./body-kinds.js";
 const COLUMN_DEPTH_MM = 560;
 const FREESTANDING_FRIDGE_DEPTH_MM = 680;
 
+// §3.1's depth, per body: **how far the finished body stands from the wall plane.** A separate
+// vocabulary from the nominal depths above, and it has to be one — a nominal depth is what §5.2
+// hands the probe, a finished depth is the space the built body fills, and every constant below is
+// a case where the two are different numbers. Wave 5F found two of them (ADR 0036, ADR 0039); DOM-002
+// found that the four families nobody had measured were wrong in the same direction.
+//
+// Every value here was **measured on the built geometry**, and `occupied-depth.parity.test.ts` in
+// `@lemnaria/three-adapter` holds each one to the meshes it was read off. That gate is what keeps a
+// declaration like this honest: ADR 0028's own remedy for two numbers agreeing by luck.
+
+/** How far a worktop stands proud of the cabinet front it sits on. The `countertop` mesh is 620 mm
+ *  deep against the 600 mm cabinet-depth line, seated 20 mm forward. */
+const WORKTOP_OVERHANG_MM = 20;
+
+/** A base run finishes at its **worktop's** front edge — not its carcass's (588 mm from the wall)
+ *  and not its bar handles' (609), both of which stand behind the counter that is already there. */
+export const BASE_FINISHED_DEPTH_MM = WORKTOP_DEPTH_MM + WORKTOP_OVERHANG_MM;
+
+/** The dishwasher niche is the one ordinary base body whose front passes its own worktop: the
+ *  appliance's door bar reaches 12 mm past it. */
+export const DISHWASHER_BASE_FINISHED_DEPTH_MM = 632;
+
+/** An oven fascia and its bar stand further proud than a dishwasher door, so the hob-and-oven base
+ *  passes its worktop by 28 mm. */
+export const HOB_OVEN_BASE_FINISHED_DEPTH_MM = 648;
+
+/** A full-height cabinet is its carcass plus the **same** door-and-handle assembly a fronted wall
+ *  carcass carries — ADR 0036 decision 1's 39 mm, on the same door and bar meshes. Derived from the
+ *  two constants rather than written as 599, so a change to either moves this with it. */
+export const TALL_UNIT_FINISHED_DEPTH_MM =
+  COLUMN_DEPTH_MM + WALL_FRONT_ASSEMBLY_MM;
+
+/** The oven tower is a full-height carcass carrying an oven and a microwave, whose handles reach
+ *  39 mm further than the cabinet doors beside them. */
+export const OVEN_TOWER_FINISHED_DEPTH_MM = 638;
+
+/** A freestanding fridge: a 680 mm appliance body and the two door bars hung on it. */
+export const FREESTANDING_FRIDGE_FINISHED_DEPTH_MM = 742;
+
+/** ADR 0039 decision 2: a hood is hung at the **front**, so its finished face is the cabinet-depth
+ *  line whatever seat it records, and the gap its chimney hides sits behind it. The one entry whose
+ *  finished depth is smaller than its `frameDepthMm`. */
+export const HOOD_FINISHED_DEPTH_MM = WORKTOP_DEPTH_MM;
+
 const INSERTABLE_DEFAULTS = {
   insertable: true,
   canFinish: true,
@@ -289,6 +343,11 @@ interface BodyShape {
   readonly widthFlex: WidthFlex;
   readonly nominalHeightMm: number;
   readonly nominalDepthMm: number;
+  /** **Required, like `widthRangesMm` below and for the same reason.** `baseCabinet`, `wallCabinet`
+   *  and `fullHeightUnit` each spread a shape, so a shape that stayed silent would inherit whatever
+   *  rule the helper it was built with happened to carry — and a depth rule inherited by accident is
+   *  precisely DOM-002. Every shape states its own. */
+  readonly occupiedDepth: OccupiedDepthRule;
   readonly sizesMm: readonly number[];
   /** **Required, not optional** (logic review R1.10, carried through ADR 0035). `BodyDefinition`
    *  reads an absent declaration as "derive the ranges", which is the conservative direction there.
@@ -321,6 +380,7 @@ function baseCabinet(label: string): BodyDefinition {
     widthFlex: "fit",
     nominalHeightMm: WORKTOP_HEIGHT_MM,
     nominalDepthMm: BASE_DEPTH_MM,
+    occupiedDepth: finishesAtMm(BASE_FINISHED_DEPTH_MM),
     ...CABINETRY_WIDTHS,
   });
 }
@@ -346,6 +406,9 @@ function wallCabinet(label: string): BodyDefinition {
       widthFlex: "fit",
       nominalHeightMm: WALL_CABINET_HEIGHT_MM,
       nominalDepthMm: WALL_DEPTH_MM,
+      // The one builder family whose depth is a placement variable: `wallCabinet` centres the shell
+      // it is given on z = 0, so `frame.d` is that shell and the finished cabinet is 39 mm deeper.
+      occupiedDepth: shellPlusFrontMm(WALL_FRONT_ASSEMBLY_MM),
       ...CABINETRY_WIDTHS,
     }),
     heightFlex: true,
@@ -360,6 +423,7 @@ function fullHeightUnit(label: string, kind: string): BodyDefinition {
       widthFlex: COLUMN_WIDTHS_MM,
       nominalHeightMm: COLUMN_HEIGHT_MM,
       nominalDepthMm: COLUMN_DEPTH_MM,
+      occupiedDepth: finishesAtMm(TALL_UNIT_FINISHED_DEPTH_MM),
       ...discreteWidths(COLUMN_WIDTHS_MM),
     }),
     fixedWidth: true,
@@ -405,6 +469,8 @@ export const INSERTABLE_BODY_DEFINITIONS: readonly (readonly [
       // appliance. `open-shelf` and `hood` below declare the same two `false` for the same reason.
       canFinish: false,
       canHandle: false,
+      // The oven's own fascia and bar, which reach past the worktop every other base body stops at.
+      occupiedDepth: finishesAtMm(HOB_OVEN_BASE_FINISHED_DEPTH_MM),
     },
   ],
   [
@@ -440,6 +506,7 @@ export const INSERTABLE_BODY_DEFINITIONS: readonly (readonly [
     {
       ...baseCabinet("Nișă mașină de spălat vase"),
       kind: "dishwasher_housing",
+      occupiedDepth: finishesAtMm(DISHWASHER_BASE_FINISHED_DEPTH_MM),
       widthFlex: DISHWASHER_WIDTHS_MM,
       ...discreteWidths(DISHWASHER_WIDTHS_MM),
     },
@@ -468,6 +535,8 @@ export const INSERTABLE_BODY_DEFINITIONS: readonly (readonly [
     {
       ...wallCabinet("Etajeră deschisă"),
       kind: "open_shelf_unit",
+      // No door and no handle, so its shell and its finished depth are the same number.
+      occupiedDepth: shellPlusFrontMm(NO_FRONT_ASSEMBLY_MM),
       canFinish: false,
       canHandle: false,
     },
@@ -482,6 +551,9 @@ export const INSERTABLE_BODY_DEFINITIONS: readonly (readonly [
       heightFlex: false,
       nominalHeightMm: HOOD_HEIGHT_MM,
       nominalDepthMm: HOOD_DEPTH_MM,
+      // Front-hung (ADR 0039 decision 2), so neither the wall rule above nor its own 500 mm body
+      // answers this: what it occupies is the wall plane to the cabinet-depth line.
+      occupiedDepth: finishesAtMm(HOOD_FINISHED_DEPTH_MM),
       // Declared, not inherited: the spread above stamps `frameDepthMm` from `WALL_DEPTH_MM`, which
       // ADR 0036's depth map governs, and ADR 0039 decision 1 exempts the hood from that map —
       // *"hood is always standard"*, 500 at a 600 mm kitchen and 500 at a 700 mm one. Leaving it
@@ -512,7 +584,11 @@ export const INSERTABLE_BODY_DEFINITIONS: readonly (readonly [
   ["tall-pantry", fullHeightUnit("Coloană cămară", "tall_unit")],
   [
     "tall-oven-tower",
-    fullHeightUnit("Coloană cuptor + microunde", "tall_unit"),
+    {
+      ...fullHeightUnit("Coloană cuptor + microunde", "tall_unit"),
+      // Two appliance fronts instead of two cabinet doors, and their bars reach further.
+      occupiedDepth: finishesAtMm(OVEN_TOWER_FINISHED_DEPTH_MM),
+    },
   ],
   [
     "tall-fridge-housing",
@@ -526,6 +602,7 @@ export const INSERTABLE_BODY_DEFINITIONS: readonly (readonly [
       ...discreteWidths(FREESTANDING_FRIDGE_WIDTHS_MM),
       nominalHeightMm: FREESTANDING_FRIDGE_HEIGHT_MM,
       nominalDepthMm: FREESTANDING_FRIDGE_DEPTH_MM,
+      occupiedDepth: finishesAtMm(FREESTANDING_FRIDGE_FINISHED_DEPTH_MM),
       // Declared, not inherited, for the reason the hood declares its own: the spread above has
       // already stamped `frameDepthMm` from `COLUMN_DEPTH_MM` (560), and overriding only the
       // nominal left the two 120 mm apart. A `fridge-free` placement with no measured

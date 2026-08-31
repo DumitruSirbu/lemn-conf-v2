@@ -5,6 +5,7 @@
 // parity test and the scene mount so the two never drift apart.
 import * as THREE from "three";
 
+import { deriveKitMaterial } from "./kit-ownership.js";
 import type { Kit, KitMaterials } from "./kitchen-parts.js";
 import { isMesh } from "./three-guards.js";
 
@@ -47,18 +48,17 @@ const BLACK_HANDLE_COLOR = "#1c1e20";
 const BLACK_HANDLE_ROUGHNESS = 0.42;
 const BLACK_HANDLE_METALNESS = 0.65;
 
-const blackHandleMaterialByKit = new WeakMap<KitMaterials, THREE.Material>();
+/** Owned by the kit, like every material derived from `kit.M` — see `kit-ownership.ts`. */
+const BLACK_HANDLE_MATERIAL_KEY = "handle:black";
 
 function blackHandleMaterial(M: KitMaterials): THREE.Material {
-  const cached = blackHandleMaterialByKit.get(M);
-  if (cached) return cached;
-
-  const material = M.steel.clone();
-  material.color = new THREE.Color(BLACK_HANDLE_COLOR);
-  material.roughness = BLACK_HANDLE_ROUGHNESS;
-  material.metalness = BLACK_HANDLE_METALNESS;
-  blackHandleMaterialByKit.set(M, material);
-  return material;
+  return deriveKitMaterial(M, BLACK_HANDLE_MATERIAL_KEY, () => {
+    const material = M.steel.clone();
+    material.color = new THREE.Color(BLACK_HANDLE_COLOR);
+    material.roughness = BLACK_HANDLE_ROUGHNESS;
+    material.metalness = BLACK_HANDLE_METALNESS;
+    return material;
+  });
 }
 
 function forEachHandleMesh(

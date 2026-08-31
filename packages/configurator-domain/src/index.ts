@@ -5,6 +5,9 @@ export const CONFIGURATOR_DOMAIN_PACKAGE =
 export * from "./schemas.js";
 export * from "./room-transforms.js";
 export * from "./design.js";
+export * from "./design-bounds.js";
+export * from "./validate-design.js";
+export * from "./failure-text.js";
 export * from "./void-engine.js";
 export * from "./millimetres.js";
 export * from "./bands.js";
@@ -12,7 +15,14 @@ export * from "./catalog.js";
 // Deliberately not `export *`: the lookup and `declaredWorktopDepthsMm` stay module-internal, so no
 // second caller can derive a wall depth from a worktop that is not `WORKTOP_DEPTH_MM` — which is a
 // fresh way for two numbers to disagree, the defect this module closes.
-export { occupiedDepthM } from "./occupied-depth.js";
+export {
+  finishesAtMm,
+  NO_FRONT_ASSEMBLY_MM,
+  occupiedDepthM,
+  shellPlusFrontMm,
+  UndeclaredOccupiedDepthError,
+  type OccupiedDepthRule,
+} from "./occupied-depth.js";
 export {
   UnknownWorktopDepthError,
   WALL_FRONT_ASSEMBLY_MM,

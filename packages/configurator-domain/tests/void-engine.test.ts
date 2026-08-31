@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { Design, DesignPlacement } from "../src/design.js";
+import { finishesAtMm, shellPlusFrontMm } from "../src/occupied-depth.js";
 import {
   deriveColumns,
   derivePlacementRecords,
@@ -39,10 +40,14 @@ function makePlacement(
   };
 }
 
+/** A synthetic base body whose finished depth is its own declared 560 — this file's worlds are
+ *  about column arithmetic, not about any shipped body's geometry, so the entry declares the
+ *  simplest rule that keeps the two numbers equal. */
 const baseDefinition: BodyDefinition = {
   kind: "base_cabinet",
   band: "base",
   frameDepthMm: 560,
+  occupiedDepth: finishesAtMm(560),
   canFinish: true,
   canHandle: true,
   canReplace: true,
@@ -62,6 +67,9 @@ const wallDefinition: BodyDefinition = {
   kind: "wall_cabinet",
   band: "wall",
   frameDepthMm: 330,
+  // A synthetic carcass with no front assembly, so its shell and its finished depth agree and the
+  // column arithmetic below stays about the arithmetic.
+  occupiedDepth: shellPlusFrontMm(0),
 };
 
 const catalog: BodyCatalog = new Map([
@@ -94,6 +102,7 @@ function makeRecord(overrides: Partial<PlacementRecord> = {}): PlacementRecord {
     buildId: "base-600",
     kind: "base_cabinet",
     frame: { x: 1.3, z: 0.3, ry: 0, y0: 0, w: 0.6, h: 2.6, d: 0.56 },
+    occupiedDepth: finishesAtMm(560),
     col: "A|1.30",
     wall: "A",
     rotated: false,

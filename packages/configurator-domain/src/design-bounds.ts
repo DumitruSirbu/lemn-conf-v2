@@ -1,0 +1,108 @@
+// The wire-shape bounds every `Design` number and identifier is parsed against. They are limits on
+// what a *document* may say, not product rules: what rejects a body that cannot be built is
+// `validateDesignForCatalog`. Each is derived from a catalogue or spec constant rather than chosen,
+// so a catalogue that gains a narrower row moves the bound with it.
+
+import { INSERTABLE_BODY_DEFINITIONS } from "./catalog.js";
+import { toMillimetres } from "./millimetres.js";
+import { LEVELS, MIN_SPAN_M } from "./void-engine.js";
+
+/**
+ * The room shell the scene actually builds, in millimetres.
+ *
+ * `packages/three-adapter/src/kitchen-parts.ts` declares `RW = 4.2`, `RD = 3.4`, `WH = 2.6` and
+ * builds the floor and both wall planes from them. Restated here rather than imported: the domain
+ * is I/O-free and `three-adapter` depends on **it**, never the reverse, so the adapter is cited as
+ * the source of the number instead of being made a dependency.
+ */
+const SCENE_SHELL_WIDTH_MM = 4200;
+const SCENE_SHELL_DEPTH_MM = 3400;
+const SCENE_SHELL_HEIGHT_MM = 2600;
+
+/** Half as much again as the shell. Deliberate slack, not a product rule — §13.3 question 4 records
+ *  that `LEVELS` and both wall planes are constants for this one room, so in practice every room
+ *  *is* the shipped one — sized so a room a little larger than it still loads. */
+const ROOM_HEADROOM_FACTOR = 1.5;
+
+/**
+ * The room a document may declare (review finding F2).
+ *
+ * Placement containment is checked against the room the document itself carries, so without these
+ * the room was the attacker's own choice and containment constrained nothing: a declared
+ * `10000 × 10000 × 10000` room accepted cabinets ten metres along either wall and eight metres in
+ * the air, because the only operative ceiling was `MAX_DESIGN_DIMENSION_MM`. Bounding the room is
+ * what turns containment back into a real limit.
+ */
+export const MAX_ROOM_WIDTH_MM = SCENE_SHELL_WIDTH_MM * ROOM_HEADROOM_FACTOR;
+export const MAX_ROOM_DEPTH_MM = SCENE_SHELL_DEPTH_MM * ROOM_HEADROOM_FACTOR;
+export const MAX_ROOM_HEIGHT_MM = SCENE_SHELL_HEIGHT_MM * ROOM_HEADROOM_FACTOR;
+
+/**
+ * The largest millimetre value a placement coordinate or a body dimension may carry.
+ *
+ * The outer wire bound, and no longer the operative one: a placement must also fit the room, which
+ * `MAX_ROOM_*` above now bounds. This stops a number so large that arithmetic on it is meaningless
+ * before the domain validator ever reads it.
+ */
+export const MAX_DESIGN_DIMENSION_MM = 10_000;
+
+/** Longest `buildId` or placement id a document may carry. The catalogue's longest key is
+ *  `wall-2door-700-over-fridge` at 26 characters and `insertBody` mints `n<index>`, so this is more
+ *  than twice the longest identifier anything in the product produces. It exists because an
+ *  unbounded string is a free multiplier on every accepted placement. */
+export const MAX_IDENTIFIER_LENGTH = 64;
+
+/** The longest run a wall can present, now that the room is bounded: wall A walks the room's width
+ *  and wall B its depth (§2). */
+const MAX_WALL_RUNS_MM: readonly number[] = [
+  MAX_ROOM_WIDTH_MM,
+  MAX_ROOM_DEPTH_MM,
+];
+
+/** The narrowest width any catalogue row may be built to, read off the rows themselves rather than
+ *  restated here: 200 mm today, from the two hinged cabinets and the bottle cargo (ADR 0026). */
+export const NARROWEST_CATALOG_WIDTH_MM = Math.min(
+  ...INSERTABLE_BODY_DEFINITIONS.flatMap(([, definition]) =>
+    (definition.widthRangesMm ?? []).map((range) => range.minMm),
+  ),
+);
+
+/** The shortest body a document may carry, as §4's smallest span that ever becomes a void: nothing
+ *  under it can be an opening, so nothing under it can be a body built into one. This is the bound
+ *  ADR 0038 named as unreachable — the 40 mm cabinet — and it is reachable through the API. */
+export const MIN_BODY_HEIGHT_MM = toMillimetres(MIN_SPAN_M);
+
+/** The most placements a supported room can physically contain.
+ *
+ *  Derived, not chosen: each wall run at its maximum length, packed end to end with the narrowest
+ *  body the catalogue offers, in each of §2's three module bands. Every factor is a constant
+ *  declared elsewhere, so no arithmetic here is a judgement call. Review finding F2 moved the wall
+ *  runs from `MAX_DESIGN_DIMENSION_MM` to the room bounds, which is what they always meant.
+ *
+ *  Today that is `(floor(6300/200) + floor(5100/200)) × 3 = 168`, against 26 in the shipped seeded
+ *  kitchen. */
+export const MAX_PLACEMENTS =
+  MAX_WALL_RUNS_MM.reduce(
+    (total, runMm) => total + Math.floor(runMm / NARROWEST_CATALOG_WIDTH_MM),
+    0,
+  ) * LEVELS.length;
+
+/** The longest a single placement can serialise to: two `MAX_IDENTIFIER_LENGTH` identifiers, five
+ *  five-digit millimetre values, the two optional enums, and JSON punctuation — roughly 280 bytes
+ *  — rounded up so indentation and key order cannot make an honest document fail. */
+const MAX_PLACEMENT_BYTES = 512;
+
+/** Room, `presetId`, and the two timestamps, with the same rounding-up allowance. */
+const DESIGN_ENVELOPE_BYTES = 1024;
+
+/** Bytes of request body a save may carry (SEC-002). Derived from the document that can legally be
+ *  built rather than picked, so raising `MAX_PLACEMENTS` cannot leave a limit behind that refuses a
+ *  design **this product produces**. It is counted off the request stream, never read from
+ *  `Content-Length`, which a chunked request need not send truthfully.
+ *
+ *  Not a guarantee for every schema-valid document (review note F4): `MAX_IDENTIFIER_LENGTH` counts
+ *  UTF-16 code units while this counts bytes, so identifiers of 64 non-ASCII characters would
+ *  serialise past this while remaining schema- and domain-valid. Nothing in the product mints a
+ *  non-ASCII identifier — `insertBody` mints `n<index>` and every catalogue key is ASCII. */
+export const MAX_DESIGN_BYTES =
+  MAX_PLACEMENTS * MAX_PLACEMENT_BYTES + DESIGN_ENVELOPE_BYTES;

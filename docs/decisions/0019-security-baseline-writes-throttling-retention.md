@@ -334,3 +334,41 @@ things deliberately not fixed, recorded so they are decisions rather than oversi
   (ADR 0008's least-privilege role is extended, not bypassed).
 - ADR 0014's S2 remains fixed; S1, S3 and S4 are addressed here. ADR 0014's status moves from
   Proposed to Superseded by this record.
+
+## Correction, 2026-08-31 — the mint deferral is reaffirmed, and gated
+
+This section is appended, not a rewrite. Nothing above is withdrawn: decisions 1–11 stand exactly
+as accepted on 2026-08-25, and decision 10's staging is unchanged. What is new is evidence and a
+gate.
+
+**An adversarial review on 2026-08-30 independently reproduced the unthrottled mint path.** It did
+not read this record and then agree with it; it went at the deployed surface and arrived at the
+same place from the other direction, which is the useful part. Recorded as **SEC-001 (High)** in
+`testing-reports/01-security-and-api.md`: `POST /api/designs` takes no request data, performs no
+authentication, throttling, challenge, or quota check, and always inserts a seeded design — so an
+attacker needs neither a design id nor a defeat of the write-token system, because **every request
+legitimately mints a new row and a new credential**.
+
+The review also chained it. `testing-reports/07-critical-attack-vectors.md` **AV-4** composes
+SEC-001 with **SEC-002** (no request-byte limit and an unbounded `placements` array — the residual
+risk decision 11 accepts above) and **DB-002** into a resource-exhaustion sequence: mint rows in a
+loop from cleared sessions, fill the ones whose cookies are retained with large but schema-valid
+placement arrays, and let the nightly backup — which holds every row as an object, stringifies
+each, and joins one NDJSON string — grow until the function fails, while the cron endpoint still
+returns HTTP 200 with `{ ok: false }` so status-only monitoring reads it as a success.
+
+**Owner's decision, 2026-08-31: SEC-001 stays deferred to M8 / pre-launch, exactly as decision 10
+staged it.** It is not being fixed now, and this deferral is not a re-opening of anything. The
+requirement attached to it is that the deferral be *tracked and gated* rather than forgotten: see
+the pre-launch blocker recorded in `docs/milestones/M8-review-contact-success.md` under "Launch
+gate", which names each control that must be live.
+
+**No code was changed by this correction.** The mint endpoint is unbounded at the application layer
+today. Stated plainly, and this is the operative sentence: **`POST /api/designs` must not be
+exposed to real traffic until the application limiter, the 30-day abandoned-design retention cron,
+and the staged WAF rule ship together.** Any one of them alone leaves the AV-4 chain open — the
+limiter without retention still accumulates whatever gets through, retention without the limiter
+prunes on a 30-day delay while the flood continues, and the WAF rule is per-region and coarse by
+construction (decision 2) and was never a hard cap.
+
+A plan or a runbook is not a runtime control. Neither is this record.

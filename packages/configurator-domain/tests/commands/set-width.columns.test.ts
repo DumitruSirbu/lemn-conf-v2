@@ -556,7 +556,7 @@ describe("the empty column's centre is derived state, not a persisted one (R1.5)
       columns: world.columns,
       target: { kind: "placement", id: "l" },
       widthMm: 800,
-      probe: createFakeProbe(),
+      probe: createFakeProbe({ catalog: world.catalog }),
       occurredAt: OCCURRED_AT,
     });
 
@@ -599,7 +599,7 @@ describe("the empty column's centre is derived state, not a persisted one (R1.5)
         columns: world.columns,
         target: { kind: "placement", id: "l" },
         widthMm: 800,
-        probe: createFakeProbe(),
+        probe: createFakeProbe({ catalog: world.catalog }),
         occurredAt: OCCURRED_AT,
       });
       expect(result.ok).toBe(false);

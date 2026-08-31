@@ -42,7 +42,12 @@ const WALL_DEPTH_OVER_WORKTOP_MM = 330;
 /** Where the cap is lifted, because a full-height member stands under the opening (backlog 5). */
 const DEEP_OVER_COLUMN_MM = 600;
 
-const BASE_DEPTH_MM = 580;
+/** A base run's occupied depth: its **worktop's** front edge, which is what the body fills.
+ *  **620 and not 580 since wave S9 (DOM-002).** 580 is the seat encoding a base carcass records
+ *  (ADR 0018), which this file's own `depthMm` deliberately does not read; the space the body fills
+ *  is 40 mm deeper, and the invariant under test — the number is the same before and after a resize
+ *  — is untouched by which number it is. Restated here rather than imported, like the cap above. */
+const BASE_OCCUPIED_DEPTH_MM = 620;
 
 const OCCURRED_AT = "2026-08-27T12:00:00.000Z";
 
@@ -192,7 +197,7 @@ function baseRunDesign(): Design {
 }
 
 describe("a resize does not change any member's recorded depth", () => {
-  it("keeps a base / wall / top column at 580, 330 and 330", () => {
+  it("keeps a base / wall / top column at 620, 330 and 330", () => {
     const world = kitchenWithEmptyColumn();
 
     const result = resize(world, "p0", 600);
@@ -200,7 +205,7 @@ describe("a resize does not change any member's recorded depth", () => {
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     for (const [id, expected] of [
-      ["p0", BASE_DEPTH_MM],
+      ["p0", BASE_OCCUPIED_DEPTH_MM],
       ["p11", WALL_DEPTH_OVER_WORKTOP_MM],
       ["p17", WALL_DEPTH_OVER_WORKTOP_MM],
     ] as const) {
@@ -222,14 +227,14 @@ describe("a resize does not change any member's recorded depth", () => {
     expect(depthMm(result.design, "deep900")).toBe(DEEP_OVER_COLUMN_MM);
   });
 
-  it("keeps a base run at 580 mm", () => {
+  it("keeps a base run at 620 mm", () => {
     const world = clear(load(baseRunDesign()), ["b1900", "w1900"]);
 
     const result = resize(world, "b1300", 800);
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(depthMm(result.design, "b1300")).toBe(BASE_DEPTH_MM);
+    expect(depthMm(result.design, "b1300")).toBe(BASE_OCCUPIED_DEPTH_MM);
     expect(depthMm(result.design, "w1300")).toBe(WALL_DEPTH_OVER_WORKTOP_MM);
   });
 

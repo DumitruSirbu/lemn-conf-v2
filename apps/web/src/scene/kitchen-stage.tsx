@@ -2,6 +2,7 @@
 
 import {
   applyFinish,
+  buildKitchenShell,
   buildSelectionOutline,
   collectFronts,
   configureRenderer,
@@ -11,6 +12,7 @@ import {
   createPickingRaycaster,
   createShadowGround,
   createStudioEnvironment,
+  disposeKitAndStage,
   disposeSelectionOutline,
   isDragGesture,
   makeKit,
@@ -32,10 +34,6 @@ import { resolveSceneView, sceneViewKey, type SceneView } from "./scene-view";
  *  customer is not waiting on the camera. */
 const CAMERA_EASE_SECONDS = 0.7;
 const SETTLED_METRES = 1e-4;
-/** `Box3.setFromObject` on a body already placed at (0, 0, 0) local origin has no meaningful
- *  "same position" collision with an individually-mounted placement — the epsilon below matches
- *  M1's own parity float tolerance, not an arbitrary guess. */
-const SAME_POSITION_EPSILON_M = 1e-6;
 
 interface OrbitTarget {
   target: THREE.Vector3;
@@ -91,23 +89,11 @@ export function KitchenStage({ view, finish, onSettled }: KitchenStageProps) {
 
   const stage = useMemo(() => {
     const kit = makeKit();
-    const referenceRoom = kit.builders["kitchen-l"]();
-
-    const placementPositions = records.map(
-      (record) =>
-        new THREE.Vector3(record.frame.x, record.frame.y0, record.frame.z),
-    );
-    const decomposedBodies = referenceRoom.children.filter((child) =>
-      placementPositions.some(
-        (position) =>
-          position.distanceTo(child.position) <= SAME_POSITION_EPSILON_M,
-      ),
-    );
-    for (const body of decomposedBodies) referenceRoom.remove(body);
+    const shell = buildKitchenShell(kit);
 
     const solidsRoot = new THREE.Group();
     solidsRoot.name = "solids";
-    solidsRoot.add(referenceRoom);
+    solidsRoot.add(shell);
 
     const voidsRoot = new THREE.Group();
     voidsRoot.name = "voids";
@@ -125,15 +111,10 @@ export function KitchenStage({ view, finish, onSettled }: KitchenStageProps) {
       ground: createShadowGround(),
       blob: createContactBlob(),
     };
-    // The shell only — floor, walls, backsplash, end panel — with every body `buildKitchen()`
-    // placed removed so the sync below owns all of them. Built once per mount: which bodies the
-    // reference room contributes is a property of the *port*, not of the current design, and the
-    // initial records are what identify them.
-    //
-    // The removal above is what keeps a body from being drawn twice, and it is positional, so a
-    // placement whose derived transform missed its reference twin would leave that twin behind and
-    // mount a second copy over it. The decomposition-parity suite pins exactly that as a bijection
-    // — every non-shell child claimed by exactly one placement, none left over.
+    // The shell only — floor, walls, backsplash, end panel — built once per mount. Its fixed
+    // decomposition manifest belongs to the adapter and never reads the initial records: a body
+    // deleted before this component mounts therefore cannot return as an untagged reference ghost.
+    // The sync below is the sole owner of every customer body.
   }, []);
 
   // Work item 8: the scene follows store state. Bodies that appeared are mounted, bodies and void
@@ -236,11 +217,6 @@ export function KitchenStage({ view, finish, onSettled }: KitchenStageProps) {
   // instance. The sync effect above is declared first, so it has already run when this rebuilds.
   const highlightRef = useRef<THREE.Object3D | null>(null);
   useEffect(() => {
-    if (highlightRef.current) {
-      highlightRef.current.removeFromParent();
-      disposeSelectionOutline(highlightRef.current);
-      highlightRef.current = null;
-    }
     const target = selection ? findSelectedObject(stage, selection) : null;
     if (selection && target) {
       const { group } = buildSelectionOutline({
@@ -252,7 +228,34 @@ export function KitchenStage({ view, finish, onSettled }: KitchenStageProps) {
       highlightRef.current = group;
     }
     invalidate();
+    // The teardown of the *previous* outline and of the last one at unmount, in one place: React
+    // runs this before every re-run as well as on unmount, so no outline can be left mounted. It
+    // detaches before it disposes, so the stage teardown below — a walk over `stage.room` — never
+    // meets an outline. An outline's geometry and material are its own, shared with nothing, so
+    // meeting one would cost a harmless double dispose rather than a survivor's buffers.
+    return () => {
+      const mounted = highlightRef.current;
+      if (!mounted) return;
+      mounted.removeFromParent();
+      disposeSelectionOutline(mounted);
+      highlightRef.current = null;
+    };
   }, [selection, stage, records, voids, invalidate]);
+
+  // R3F never disposes a `<primitive>`, by design: its reconciler skips disposal when
+  // `instance.type === 'primitive'` because a primitive's lifetime is owned outside React. Every
+  // object below is one, so without this a client-side remount strands a whole room's buffers,
+  // materials and canvas textures until the WebGL context goes.
+  //
+  // Declared **after** the outline effect on purpose: React runs cleanups in declaration order, so
+  // the outline has already left `stage.room` when this walks it. `kitchen-stage-disposal.test.ts`
+  // replays the cleanups in that same order and asserts the outline is gone by the time this runs,
+  // so swapping the two blocks fails there.
+  useEffect(() => {
+    return () => {
+      disposeKitAndStage(stage);
+    };
+  }, [stage]);
 
   const goal = useRef<CameraGoal | null>(null);
   const viewKey = sceneViewKey(view);

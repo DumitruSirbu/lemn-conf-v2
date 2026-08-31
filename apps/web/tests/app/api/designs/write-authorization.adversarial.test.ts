@@ -10,50 +10,70 @@ import {
   DesignNotFoundError,
   canonicalSerializeDesign,
 } from "@lemnaria/configurator-domain";
-import { DesignWriteForbiddenError } from "@lemnaria/persistence";
+import {
+  DesignWriteConflictError,
+  DesignWriteForbiddenError,
+} from "@lemnaria/persistence";
 import type {
   AuthorizedConfigurationRepository,
   AuthorizedSave,
+  DesignVersion,
+  StoredDesign,
 } from "@lemnaria/persistence";
 import { NextRequest } from "next/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+/** What `0004_add_design_revision.sql` gives every row. These tests mint and save once, so it is
+ *  also the revision every save in this file states. */
+const FIRST_REVISION = "1";
+
 class FakeAuthorizedRepository implements AuthorizedConfigurationRepository {
   private readonly rows = new Map<
     DesignId,
-    { design: Design; writeTokenHash: string | null }
+    { design: Design; writeTokenHash: string | null; revision: string }
   >();
   private nextId = 0;
 
-  mint(design: Design, writeTokenHash: string): Promise<DesignId> {
+  mint(design: Design, writeTokenHash: string): Promise<DesignVersion> {
     const id = `design-${String(this.nextId++)}`;
-    this.rows.set(id, { design, writeTokenHash });
-    return Promise.resolve(id);
+    this.rows.set(id, { design, writeTokenHash, revision: FIRST_REVISION });
+    return Promise.resolve({ id, revision: FIRST_REVISION });
   }
 
   saveAuthorized({
     id,
     design,
     writeTokenHash,
-  }: AuthorizedSave): Promise<DesignId> {
+    expectedRevision,
+  }: AuthorizedSave): Promise<DesignVersion> {
     const row = this.rows.get(id);
+    // The order the real repository uses: the credential decides between 403 and 409, so a caller
+    // without one can never see a conflict and never learn the design exists.
     if (!row || row.writeTokenHash !== writeTokenHash) {
       return Promise.reject(new DesignWriteForbiddenError(id));
     }
-    this.rows.set(id, { ...row, design });
-    return Promise.resolve(id);
+    if (row.revision !== expectedRevision) {
+      return Promise.reject(new DesignWriteConflictError(id));
+    }
+    const revision = String(Number(row.revision) + 1);
+    this.rows.set(id, { ...row, design, revision });
+    return Promise.resolve({ id, revision });
   }
 
-  load(id: DesignId): Promise<Design> {
+  load(id: DesignId): Promise<StoredDesign> {
     const row = this.rows.get(id);
     return row
-      ? Promise.resolve(row.design)
+      ? Promise.resolve({ design: row.design, revision: row.revision })
       : Promise.reject(new DesignNotFoundError(id));
   }
 
   /** A design minted before ADR 0019: readable, and carrying no credential anyone can present. */
   seedTokenlessRow(id: DesignId, design: Design): void {
-    this.rows.set(id, { design, writeTokenHash: null });
+    this.rows.set(id, {
+      design,
+      writeTokenHash: null,
+      revision: FIRST_REVISION,
+    });
   }
 
   storedDesign(id: DesignId): Design | undefined {
@@ -95,13 +115,25 @@ async function mintDesign(): Promise<Minted> {
   return { id, cookie: pair, setCookie, token: pair.split("=")[1] ?? "" };
 }
 
+/** Every save this file sends states a revision, because the route refuses one that does not
+ *  (WEB-003). It defaults to the revision a mint produces, which is what these tests hold. */
+const EXPECTED_REVISION_HEADER = "x-expected-revision";
+
 function requestWith(
   id: string,
-  { body, cookie }: { body: string; cookie: string },
+  {
+    body,
+    cookie,
+    revision = FIRST_REVISION,
+  }: { body: string; cookie: string; revision?: string },
 ): NextRequest {
   return new NextRequest(`https://example.test/api/designs/${id}`, {
     method: "PUT",
-    headers: { cookie, "content-type": "application/json" },
+    headers: {
+      cookie,
+      "content-type": "application/json",
+      [EXPECTED_REVISION_HEADER]: revision,
+    },
     body,
   });
 }

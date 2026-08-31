@@ -1,13 +1,26 @@
-import { DesignSchema } from "@lemnaria/configurator-domain";
+import {
+  describeDesignValidationIssues,
+  describeSchemaIssues,
+  DesignSchema,
+  KITCHEN_L_BODY_CATALOG,
+  MAX_DESIGN_BYTES,
+  validateDesignForCatalog,
+} from "@lemnaria/configurator-domain";
 import type { Design } from "@lemnaria/configurator-domain";
+import { isDesignRevision, type DesignRevision } from "@lemnaria/persistence";
 import { NextResponse, type NextRequest } from "next/server";
 
 import {
-  describeSchemaFailure,
   designErrorResponse,
   invalidBodyResponse,
+  payloadTooLargeResponse,
+  revisionRequiredResponse,
   writeForbiddenResponse,
 } from "@/lib/server/design-errors";
+import {
+  readUtf8BodyWithLimit,
+  type BoundedBodyFailure,
+} from "@/lib/server/read-body-with-limit";
 import { getRepository } from "@/lib/server/repository";
 import {
   hasWriteCredentialFor,
@@ -33,6 +46,21 @@ type ReadDesignOutcome =
  * out of static rendering and no CDN caches it without an explicit public directive — these headers
  * are what keeps that true the day someone adds `s-maxage` to a route whose payload looks public.
  */
+/**
+ * Where a save states the revision it edits (WEB-003).
+ *
+ * A header rather than a field in the body: the body of a save **is** the `Design` document and
+ * `DesignSchema` is a `strictObject`, so a revision smuggled into it would be rejected by the
+ * schema — and putting transport metadata inside the customer's document is how the two come to be
+ * confused later.
+ *
+ * Not `If-Match`, deliberately, even though the semantics are a conditional write. That header's
+ * failure is a `412`, and this route answers `409`, which is the status the client's two-way choice
+ * — reload, or overwrite — is written against; `If-Match` also invites a proxy or CDN to act on a
+ * precondition it does not understand here. A custom header is inert to every intermediary.
+ */
+const EXPECTED_REVISION_HEADER = "x-expected-revision";
+
 const PER_CREDENTIAL_HEADERS = {
   "Cache-Control": "private, no-store",
   Vary: "Cookie",
@@ -60,11 +88,12 @@ export async function GET(
 ): Promise<NextResponse> {
   const { id } = await params;
   try {
-    const design = await getRepository().load(id);
+    const { design, revision } = await getRepository().load(id);
     return NextResponse.json(
       {
         id,
         design,
+        revision,
         canWrite: hasWriteCredentialFor(request.cookies, id),
       },
       { headers: PER_CREDENTIAL_HEADERS },
@@ -106,18 +135,30 @@ async function saveDesign(
   const writeTokenHash = readWriteTokenHash(request, id);
   if (writeTokenHash === undefined) return writeForbiddenResponse();
 
-  const body = await readDesign(request);
-  if (!body.ok) return body.response;
+  // After the credential check and before the body is read: an unauthorised caller must not be able
+  // to tell this refusal from the 403, and a request that cannot be enforced is not worth parsing.
+  const expectedRevision = readExpectedRevision(request);
+  if (expectedRevision === undefined) return revisionRequiredResponse();
 
   try {
-    const savedId = await getRepository().saveAuthorized({
+    // Inside the try, not above it: `readDesign` is not expected to throw — the reader returns its
+    // transport failures — but nothing above a `try` has a handler, and this handler's whole reason
+    // for existing is that a body read once escaped it.
+    const body = await readDesign(request);
+    if (!body.ok) return body.response;
+
+    const saved = await getRepository().saveAuthorized({
       id,
       design: body.design,
       writeTokenHash,
+      expectedRevision,
     });
 
     // A save is the proof the design is still in use, so it is also what keeps edit access alive.
-    const response = NextResponse.json({ id: savedId });
+    const response = NextResponse.json({
+      id: saved.id,
+      revision: saved.revision,
+    });
     refreshWriteTokenCookie({ request, response }, id);
     return response;
   } catch (error) {
@@ -125,34 +166,88 @@ async function saveDesign(
   }
 }
 
+/** The revision the caller claims to be editing, or `undefined` when it did not send a usable one.
+ *  Absent and malformed are one case on purpose: neither can be enforced against the row, and
+ *  distinguishing them in the response would describe this route's parser to a caller. */
+function readExpectedRevision(
+  request: NextRequest,
+): DesignRevision | undefined {
+  const header = request.headers.get(EXPECTED_REVISION_HEADER);
+  if (header === null || !isDesignRevision(header)) return undefined;
+  return header;
+}
+
 /**
- * The `Design` the request body carries, or the 400 that refuses it.
+ * The `Design` the request body carries, or the response that refuses it.
  *
- * Parsing and validation are two distinct failures — a truncated or empty body throws where a
- * well-formed but wrong-shaped one merely fails the schema — and the parse is the one that used to
- * escape the handler entirely, turning a client's malformed payload into a 500 with a stack trace
- * in the log. Both are handled here, and both tell the client the same thing: the payload was
- * rejected, never why (ADR 0014 S2). The unparseable reason is a fixed string rather than the body,
- * which is attacker-supplied and unbounded.
+ * Three distinct failures, in the order their cost demands. The **size** gate runs first and reads
+ * the stream itself (SEC-002), so an oversized body is cut off rather than parsed. Then the parse —
+ * a truncated or empty body throws where a well-formed but wrong-shaped one merely fails the schema
+ * — which is the one that used to escape the handler entirely, turning a client's malformed payload
+ * into a 500 with a stack trace in the log. Then the **executable** contract (DOM-001): a document
+ * can pass `DesignSchema` and still name a body no catalogue entry covers, which the schema cannot
+ * see and every reader of the shared link then crashes on.
+ *
+ * All of them tell the client the same thing: the payload was rejected, and a stable code, never
+ * why (ADR 0014 S2). The reasons are logged as bounded shapes rather than as the body, which is
+ * attacker-supplied and unbounded.
  */
 async function readDesign(request: NextRequest): Promise<ReadDesignOutcome> {
-  let body: unknown;
-  try {
-    body = await request.json();
-  } catch {
+  const raw = await readUtf8BodyWithLimit(request.body, MAX_DESIGN_BYTES);
+  if (!raw.ok) return { ok: false, response: refuseUnreadBody(raw.failure) };
+
+  const parsed = parseJson(raw.value);
+  if (!parsed.ok) {
     return {
       ok: false,
       response: invalidBodyResponse("request body was not parseable JSON"),
     };
   }
 
-  const result = DesignSchema.safeParse(body);
-  return result.success
-    ? { ok: true, design: result.data }
-    : {
-        ok: false,
-        response: invalidBodyResponse(
-          describeSchemaFailure(result.error.issues),
-        ),
-      };
+  const result = DesignSchema.safeParse(parsed.value);
+  if (!result.success) {
+    return {
+      ok: false,
+      response: invalidBodyResponse(describeSchemaIssues(result.error.issues)),
+    };
+  }
+  return (
+    refuseUnexecutableDesign(result.data) ?? {
+      ok: true,
+      design: result.data,
+    }
+  );
+}
+
+/** A body that never arrived, as a handled response. An oversized payload is the caller's document
+ *  and answers 413; a stream that broke mid-flight produced no document at all and answers 400,
+ *  the same way a truncated JSON body does — which is what it is, one layer down. */
+function refuseUnreadBody(failure: BoundedBodyFailure): NextResponse {
+  return failure === "too-large"
+    ? payloadTooLargeResponse()
+    : invalidBodyResponse("request body stream failed before it completed");
+}
+
+/** The same validator the load path runs, at the write seam: a document is rejected here rather
+ *  than persisted and rejected on every later read. */
+function refuseUnexecutableDesign(
+  design: Design,
+): { readonly ok: false; readonly response: NextResponse } | undefined {
+  const issues = validateDesignForCatalog(design, KITCHEN_L_BODY_CATALOG);
+  if (issues.length === 0) return undefined;
+  return {
+    ok: false,
+    response: invalidBodyResponse(describeDesignValidationIssues(issues)),
+  };
+}
+
+/** `JSON.parse` as a value rather than a throw, so `readDesign` reads as three gates in a row. */
+function parseJson(
+  text: string,
+): { readonly ok: true; readonly value: unknown } | { readonly ok: false } {
+  try {
+    return { ok: true, value: JSON.parse(text) as unknown };
+  } catch {
+    return { ok: false };
+  }
 }

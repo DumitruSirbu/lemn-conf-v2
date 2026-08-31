@@ -70,13 +70,17 @@ BLOB_READ_WRITE_TOKEN="$BLOB_READ_WRITE_TOKEN" vercel blob list --prefix backups
 ```
 
 Pick the newest export at or before the point you're recovering to. Each pathname is the export's
-own upload timestamp: `backups/designs/2026-08-24T03:00:00.000Z.ndjson`.
+own upload timestamp followed by a short per-run suffix:
+`backups/designs/2026-08-24T03:00:00.000Z-9f3c1a07.ndjson`. The timestamp leads and is fixed width,
+so a plain listing is already in upload order and "newest" is still the last line — the suffix only
+guarantees two runs of the same millisecond are two different blobs, so that one cleaning up after
+itself can never delete the other's export.
 
 ### 2. Download it
 
 ```bash
 BLOB_READ_WRITE_TOKEN="$BLOB_READ_WRITE_TOKEN" vercel blob get \
-  "backups/designs/2026-08-24T03:00:00.000Z.ndjson" \
+  "backups/designs/2026-08-24T03:00:00.000Z-9f3c1a07.ndjson" \
   --access private \
   --output ./restore-2026-08-24.ndjson
 ```

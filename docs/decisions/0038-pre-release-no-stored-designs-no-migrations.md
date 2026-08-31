@@ -82,3 +82,42 @@ fact rather than for the rule, which is what makes keeping it consistent rather 
 - **It does not license carelessness about the schema itself.** ADR 0002's canonical-serialisation
   round-trip invariant and the persistence suite are unaffected — they prove the store works, which
   is a different claim from what is in it.
+
+## Correction — 2026-08-31: the "no deserialisation surface" premise was false when it was written
+
+**This section corrects the last consequence above. Nothing before it is edited**; the original
+wording stands so the mistake stays visible.
+
+The consequence *"One obligation is already named"* deferred the unbounded `heightMm` on
+`DesignPlacementSchema` on the grounds that the state was **"Unreachable today — there is no
+deserialisation surface"**. There were two, and both already existed on the branch when this record
+was accepted on 2026-08-28:
+
+1. **The public API write seam.** `PUT` / `PATCH /api/designs/{id}` deserialises a caller-supplied
+   design document.
+2. **The Postgres load / migration seam.** A stored document is read back and migrated on load.
+
+The adversarial review proved that both accepted the invalid state: `testing-reports/03-domain-model.md`
+records it as **DOM-001**, and `testing-reports/07-critical-attack-vectors.md` chains it as **AV-3**.
+So the defect was not waiting for first release. It was executable, and this record is the reason it
+stayed hidden — a reader who trusted the premise had no cause to look.
+
+**Fixed in commit `47e2552`** (`fix(domain): reject designs the domain cannot execute, at both
+seams`). The placement schema is bounded, and catalogue validation was **added to both seams at
+once** — before that commit neither seam had any, both running `DesignSchema.safeParse` alone, which
+is wire-shape parsing and not a product-meaning check. `validate-design.ts` is new in the commit. It
+is reached as `validateDesignForCatalog` in
+`apps/web/src/app/api/designs/[id]/route.ts`, and its throwing form
+`assertDesignValidForCatalog` in `packages/configurator-domain/src/migrate-design.ts`. The 40 mm case
+this ADR named is now refused by `MIN_BODY_HEIGHT_MM`.
+
+**What does not change.** Decisions 1–4 above stand: there are still no stored designs, no migration
+is owed, and this record still expires at first release. What is withdrawn is the *reachability*
+claim attached to the named obligation.
+
+**The durable lesson, which is why this correction is longer than the fix.** A stale "unreachable"
+premise concealed an executable validation defect. The premise was written once, was true of an
+earlier tree or of nothing at all, and was then carried forward as a reason not to look. A deferral
+justified by reachability is only as good as the last time somebody re-checked the surfaces — so a
+record that defers on those grounds must name the surfaces it checked, as this correction does, and
+must be re-checked whenever a new one is added.

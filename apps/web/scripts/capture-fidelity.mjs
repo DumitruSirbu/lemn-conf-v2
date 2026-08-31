@@ -29,6 +29,11 @@ const appRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const PORT = Number(process.env.FIDELITY_PORT ?? 4319);
 const BASE_URL = `http://127.0.0.1:${PORT}`;
 const READY_TIMEOUT_MS = 60_000;
+// Named by `src/app/internal/scene-shot/route-availability.ts`, which owns the flag. Repeated as a
+// literal rather than imported because this is a plain `.mjs` script that cannot load a `.ts`
+// module; `.env.example` documents the same pair.
+const SCENE_SHOT_ROUTE_FLAG = "LEMNARIA_ENABLE_SCENE_SHOT_ROUTE";
+const SCENE_SHOT_ROUTE_FLAG_ENABLED = "1";
 
 function shotUrl({ pos, target, finish }, width, height) {
   const params = new URLSearchParams({
@@ -48,6 +53,11 @@ async function startServer() {
     {
       cwd: appRoot,
       stdio: ["ignore", "pipe", "pipe"],
+      // `next start` runs in production mode, where `/internal/scene-shot` is 404 unless opted in.
+      env: {
+        ...process.env,
+        [SCENE_SHOT_ROUTE_FLAG]: SCENE_SHOT_ROUTE_FLAG_ENABLED,
+      },
     },
   );
   const deadline = Date.now() + READY_TIMEOUT_MS;

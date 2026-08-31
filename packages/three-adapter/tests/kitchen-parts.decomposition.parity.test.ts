@@ -6,9 +6,9 @@
 // Scope: **every** body `buildKitchen()` places, with nothing deferred. The two corner legs were
 // carried as an unmatched gap from M2 until ADR 0025 derived their seat; the assertion below is
 // now a **partition** — every non-shell child of the reference room is claimed exactly once, by a
-// placement that may claim more than one — which is also what proves `kitchen-stage.tsx` draws each
-// body once rather than twice, since it composes the scene by removing exactly the children a
-// record's position claims.
+// placement that may claim more than one. `kitchen-shell.test.ts` separately proves the live shell
+// contains none of those children; together the two gates show `kitchen-stage.tsx` draws the fixed
+// shell plus exactly the placement-owned decomposition.
 import * as THREE from "three";
 import {
   deriveCabinetWorldTransform,
@@ -249,10 +249,10 @@ describe("decomposed kitchen-l placements reproduce the whole-scene render", () 
   //   - a non-shell child left unmatched means `buildKitchen()` still draws a body no placement
   //     owns, which is exactly the state the corner legs were in before ADR 0025.
   //
-  // `kitchen-stage.tsx` composes the live scene by removing every reference-room child whose
-  // position a record claims (within the same 1e-6 m), then mounting the records. The partition is
-  // therefore the double-render proof: onto, so nothing is left behind to be drawn twice; disjoint,
-  // so nothing is removed on behalf of two bodies.
+  // `buildKitchenShell` removes every non-shell reference child from the live shell, independent of
+  // records; `syncSolidBodies` then mounts these decompositions. The partition is the fidelity half
+  // of that proof: onto, so every removed reference body has a placement-owned equivalent;
+  // disjoint, so no reference child is represented by two placements.
   it("partitions every buildKitchen() body: 27 reference bodies over 26 placements, 5 shell items excluded, none deferred", () => {
     const room = referenceRoom();
     const matched = new Set<THREE.Object3D>();

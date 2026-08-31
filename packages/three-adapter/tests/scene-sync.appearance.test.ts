@@ -4,7 +4,12 @@
 //
 // §11 row 12 (resize preserves finish + handle) rides on the same seam: a resize re-signs the
 // record, so the choice has to survive a rebuild rather than a mutation in place.
-import type { Frame, PlacementRecord } from "@lemnaria/configurator-domain";
+import {
+  NO_FRONT_ASSEMBLY_MM,
+  shellPlusFrontMm,
+  type Frame,
+  type PlacementRecord,
+} from "@lemnaria/configurator-domain";
 import * as THREE from "three";
 import { beforeAll, beforeEach, describe, expect, it } from "vitest";
 
@@ -51,6 +56,9 @@ function makeRecord(overrides: RecordOverrides): PlacementRecord {
     canReplace: true,
     canDelete: true,
     fixedWidth: false,
+    // `buildBody` rebuilds from `frame.d` through `rebuildDepthM`; nothing in a scene-sync fixture
+    // reads an occupied depth, so the record declares the frame it states.
+    occupiedDepth: shellPlusFrontMm(NO_FRONT_ASSEMBLY_MM),
     ...overrides,
     frame: {
       x: 2,

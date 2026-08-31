@@ -6,6 +6,10 @@
 // than within one tick.
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+/** Every scripted response reports this revision, and the store therefore states it on the next
+ *  save. These tests attack the write path's scheduling, not its concurrency rule. */
+const TEST_REVISION = "1";
+
 const MINTED_ID = "design-under-test";
 const MIN_SAVE_INTERVAL_MS = 1000;
 /** Removing the fridge succeeds and leaves a void selected, so the next command against that
@@ -51,10 +55,13 @@ function stubFetch(): void {
         failuresRemaining -= 1;
         return new Response("{}", { status: 500 });
       }
-      return new Response(JSON.stringify({ id: MINTED_ID }), {
-        status: method === "POST" ? 201 : 200,
-        headers: { "content-type": "application/json" },
-      });
+      return new Response(
+        JSON.stringify({ id: MINTED_ID, revision: TEST_REVISION }),
+        {
+          status: method === "POST" ? 201 : 200,
+          headers: { "content-type": "application/json" },
+        },
+      );
     };
 
     if (!holdRequests) return Promise.resolve(answer());

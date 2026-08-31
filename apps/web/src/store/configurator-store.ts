@@ -35,6 +35,7 @@ import {
   type RejectionReason,
   type VoidRecord,
 } from "@lemnaria/configurator-domain";
+import type { DesignRevision } from "@lemnaria/persistence";
 import { create, type StoreApi, type UseBoundStore } from "zustand";
 
 import { sessionConfigurationRepository } from "@/persistence/fetch-configuration-repository";
@@ -55,22 +56,31 @@ export type { Selection };
 export type { SaveStatus };
 
 /**
- * Whether this browser may edit a design, as **three** states rather than two.
+ * Whether this browser may edit a design, as **four** states rather than two.
  *
- * `"unknown"` is the `/d/{id}` load's honest answer: the write-token cookie is scoped
+ * The two non-boolean states are both "no answer yet", told apart by whether one is still coming.
+ * `"checking"` is the `/d/{id}` load's honest opening position: the write-token cookie is scoped
  * `Path=/api/designs/{id}` (ADR 0019 decision 1), so the request that rendered the page never
- * carried it and the server could not have answered. It is spelled out rather than encoded as an
- * absent field, because absence already means the opposite thing one module away —
- * `fetch-configuration-repository.ts` reads an absent `canWrite` as **false**, the safe reading of
- * a load answer that did not arrive, while here the deliberate guess is **writable**. Two opposite
- * defaults for the same missing value is how a genuinely read-only design gets marked writable with
- * no type error; a third named state removes the default from both.
+ * carried it and the server could not have answered — `useWriteAccessProbe` is asking the one route
+ * that can. `"check-failed"` is that probe having failed; nothing further is in flight, and only a
+ * retry changes it.
  *
- * The panel treats `"unknown"` as writable — see `isReadOnly`. That optimism is the point: a panel
- * that starts read-only tells the design's own author they may not edit their own kitchen, while one
- * that briefly offers an edit it turns out not to have is recoverable.
+ * They are spelled out rather than encoded as an absent field, because absence already means the
+ * opposite thing one module away — `fetch-configuration-repository.ts` reads an absent `canWrite`
+ * as **false**, the safe reading of a load answer that did not arrive. Two opposite defaults for
+ * the same missing value is how a genuinely read-only design gets marked writable with no type
+ * error; named states remove the default from both.
+ *
+ * **Neither non-boolean state is writable** (see `isReadOnly`). Until wave S7 `"unknown"` was
+ * deliberately read as writable, so `/d/{id}` rendered fully interactive before anything knew
+ * whether it could write — and a probe that failed left that optimism standing for good. A reader
+ * on a blocked API then edited, believed it saved, and watched the controls disable *after* the
+ * refusal, with the unsaved edit still on screen. `DEVELOPMENT-SPEC.md` §9 forbids exactly that:
+ * never offer what cannot be satisfied. The interface now waits for the answer, which is a change
+ * to what it *offers* only — `canWrite` stays advisory and authorises nothing (ADR 0019 decision 1;
+ * `hasWriteCredentialFor` is still the sole authorisation).
  */
-export type WriteAccess = boolean | "unknown";
+export type WriteAccess = boolean | "checking" | "check-failed";
 
 export interface ConfiguratorState {
   readonly design: Design;
@@ -116,16 +126,24 @@ export interface ConfiguratorState {
    *  without this the flag would keep claiming a probe that measures inside a room nobody renders. */
   readonly detachBodyProbe: () => void;
   readonly designId: DesignId | null;
+  /**
+   * The revision the stored design stood at when this browser last heard from the server — from the
+   * load that hydrated it, or from the last save that succeeded (WEB-003).
+   *
+   * `null` means no row exists yet: a fresh, never-minted design. It is opaque: nothing here parses
+   * it, compares it for order, or derives the next one. Only the server's own answer advances it.
+   */
+  readonly revision: DesignRevision | null;
   readonly saveStatus: SaveStatus;
   /** A future share-link UI gates on this, not on `designId !== null` alone: a design that has
    *  never been written successfully must not present a shareable link (write-path decision 17). */
   readonly hasPersistedSuccessfully: boolean;
   /**
    * Whether this browser holds the design's write credential (ADR 0019 decision 1), as the server
-   * reported it on the load that produced this state — or `"unknown"` where no load could have
-   * answered. Published so §9's panel can disable what it cannot perform; it is a **fact carried
-   * in**, never a decision made here — what the panel does with it is `describePanel`'s rule, and
-   * what a write is allowed to do is the row's.
+   * reported it on the load that produced this state — or `"checking"` / `"check-failed"` where no
+   * load has answered yet. Published so §9's panel can disable what it cannot perform; it is a
+   * **fact carried in**, never a decision made here — what the panel does with it is
+   * `describePanel`'s rule, and what a write is allowed to do is the row's.
    */
   readonly canWrite: WriteAccess;
   /** Records the server's answer about write access, which for the load-by-link path arrives after
@@ -136,13 +154,37 @@ export interface ConfiguratorState {
     designId: DesignId;
     canWrite: boolean;
   }) => void;
+  /** Records that the probe could not answer at all — a dropped request, a blocked API, an offline
+   *  browser. It moves `canWrite` to `"check-failed"`, which the panel renders as a retryable
+   *  notice rather than as either verdict: a network failure is not evidence about access in either
+   *  direction, and turning it into "writable" is what wave S7 removed. */
+  readonly failWriteAccessCheck: (attempt: { designId: DesignId }) => void;
+  /** The retry behind that notice. Puts `canWrite` back to `"checking"`, which is what the probe
+   *  effect watches — `"checking"` means "a check is wanted and none has answered", so restoring it
+   *  *is* asking again, and no separate attempt counter can drift away from it. A no-op unless the
+   *  last check actually failed, so a stray press cannot discard an answer the probe already gave. */
+  readonly retryWriteAccessCheck: () => void;
   /** Replaces the store's design wholesale — the load-by-link path (`/d/[id]`). The loaded design
    *  already round-tripped through the database, so it counts as persisted; clears the selection,
    *  since an id selected in the previous design has no guaranteed meaning in the new one. */
   readonly hydrate: (loaded: LoadedDesignState) => void;
   readonly setSaveStatus: (status: SaveStatus) => void;
-  /** Records a successful save's id — the save-coalescer's `onSaved` hook. */
-  readonly applySavedId: (id: DesignId) => void;
+  /** Records a successful save's id and the revision it produced — the save-coalescer's `onSaved`
+   *  hook. The two arrive together because a save answers both, and an id kept without its new
+   *  revision would leave the next write expecting one already consumed. */
+  readonly applySaved: (saved: {
+    id: DesignId;
+    revision: DesignRevision;
+  }) => void;
+  /**
+   * The customer's answer to `saveStatus: "conflict"` (WEB-003): write what is on screen over the
+   * stored design, having first re-read the revision it now stands at.
+   *
+   * The other answer — reload the stored design and lose the local edit — is not a store action.
+   * It is a page reload, which discards this whole state by definition; giving it a reducer here
+   * would imply the store survives it.
+   */
+  readonly overwriteConflict: () => void;
 }
 
 /** One load's worth of state: the document, the id it lives under, and this browser's access to
@@ -151,10 +193,14 @@ export interface ConfiguratorState {
 export interface LoadedDesignState {
   readonly design: Design;
   readonly designId: DesignId;
+  /** The revision this document was read at. **Required** for the reason `canWrite` is: a loader
+   *  that dropped it would leave the first save with no expectation to state, and the route refuses
+   *  a save that states none. */
+  readonly revision: DesignRevision;
   /**
    * **Required**, so that a loader which does not know has to say so. `/d/{id}` passes
-   * `"unknown"` — its own request could not carry the `Path=/api/designs/{id}` cookie — and
-   * `applyWriteAccess` corrects it from the one route the cookie does reach. A loader that knows
+   * `"checking"` — its own request could not carry the `Path=/api/designs/{id}` cookie — and
+   * `applyWriteAccess` settles it from the one route the cookie does reach. A loader that knows
    * passes the boolean.
    *
    * It is required rather than optional-defaulting-to-writable because the obvious call,
@@ -171,10 +217,21 @@ export interface ConfiguratorStoreOptions {
   /** Defaults to `null`: the seeded fixture starts out unminted, matching M2's "mint on first
    *  write" trigger. */
   readonly designId?: DesignId | null;
+  /** The revision `designId`'s row stands at. Meaningless without one, and `null` alongside one is
+   *  a store whose first save the route will refuse — nothing in the app constructs that. */
+  readonly revision?: DesignRevision | null;
   /** Wave 3C-2b's seam. Called **after** the store has applied a successful command, never before
    *  it and never on a refusal, and never awaited — no interaction blocks on a write. 3C-2b passes
    *  the save coalescer's `scheduleSave` here; until then it is a no-op. */
   readonly onDesignChanged?: (design: Design) => void;
+  /**
+   * The singleton persistence seam advances its generation when hydration switches design
+   * identity. Other store instances have no background writer and leave this unset.
+   */
+  readonly onDesignIdentityChanged?: () => void;
+  /** The overwrite half of WEB-003's conflict choice, wired to the coalescer at the singleton seam.
+   *  Other store instances have no background writer and leave this unset. */
+  readonly onOverwriteRequested?: (design: Design) => void;
   /** The domain reads no clock, so the caller supplies `occurredAt`. Injected so a test can pin
    *  it and so nothing in the domain has to be mocked to make a timestamp predictable. */
   readonly now?: () => string;
@@ -336,21 +393,26 @@ export function createConfiguratorStore(
         set({ bodyProbe: undefined, isBodyProbeAttached: false });
       },
       designId,
+      revision: options.revision ?? null,
       saveStatus: "idle",
       canWrite: options.canWrite ?? true,
       hasPersistedSuccessfully: designId !== null,
       hydrate: (loaded) => {
+        const geometry = deriveGeometry(loaded.design, catalog);
+        if (get().designId !== loaded.designId)
+          options.onDesignIdentityChanged?.();
         set({
           design: loaded.design,
-          ...deriveGeometry(loaded.design, catalog),
+          ...geometry,
           selection: null,
           lastRejection: null,
           designId: loaded.designId,
+          revision: loaded.revision,
           canWrite: loaded.canWrite,
           hasPersistedSuccessfully: true,
-          // A save status is evidence about the design that produced it and about no other, which
-          // is the same reason `save-coalescer.ts` keys `refusedDesignId` by design id. Carried
-          // across, `unauthorized` would render a freshly loaded design this browser *does* own as
+          // A save status is evidence about the generation that produced it and about no other,
+          // which is the same reason `save-coalescer.ts` binds jobs and refusals to identity.
+          // Carried across, `unauthorized` would render a freshly loaded design this browser owns as
           // read-only (`isReadOnly` reads it), and the only thing that clears `unauthorized` is a
           // successful write — whose every control the read-only panel has just disabled. That is a
           // deadlock no interaction can leave, only a full page reload. `error` and `stopped` leak
@@ -362,14 +424,40 @@ export function createConfiguratorStore(
         if (get().designId !== answeredFor) return;
         set({ canWrite });
       },
+      failWriteAccessCheck: ({ designId: attemptedFor }) => {
+        const state = get();
+        if (state.designId !== attemptedFor) return;
+        // A boolean is an answer the server actually gave. A later probe failing — a retry, or a
+        // second effect run — must not demote it back to "we do not know", which would take a
+        // writable panel away from its own author on the strength of a dropped packet.
+        if (typeof state.canWrite === "boolean") return;
+        set({ canWrite: "check-failed" });
+      },
+      retryWriteAccessCheck: () => {
+        if (get().canWrite !== "check-failed") return;
+        set({ canWrite: "checking" });
+      },
       setSaveStatus: (status) => {
         set({ saveStatus: status });
       },
-      applySavedId: (id) => {
-        set({ designId: id, hasPersistedSuccessfully: true });
+      applySaved: ({ id, revision }) => {
+        set({ designId: id, revision, hasPersistedSuccessfully: true });
+      },
+      overwriteConflict: () => {
+        options.onOverwriteRequested?.(get().design);
       },
     };
   });
+}
+
+/**
+ * The app mounts one store and one coalescer for the tab. Identity is therefore a session concern,
+ * kept at their wiring seam rather than exposed as customer-facing Zustand state.
+ */
+let saveGeneration = 0;
+
+function advanceSaveGeneration(): void {
+  saveGeneration += 1;
 }
 
 /** The single store instance the app mounts against — no hard-coded canvas id anywhere, per the
@@ -378,6 +466,8 @@ export const useConfiguratorStore = createConfiguratorStore({
   design: KITCHEN_L_DESIGN,
   catalog: KITCHEN_L_BODY_CATALOG,
   onDesignChanged: persistDesignChange,
+  onDesignIdentityChanged: advanceSaveGeneration,
+  onOverwriteRequested: overwriteConflictingDesign,
 });
 
 /** The session's one coalescer, and the whole of the client write path's wiring (ADR 0010
@@ -390,15 +480,32 @@ let saveCoalescer: SaveCoalescer | null = null;
  *  interaction ever blocks on a write (persistence decision 13); the store calls it only after a
  *  successful command, so a refusal persists nothing. */
 function persistDesignChange(design: Design): void {
+  sessionSaveCoalescer().scheduleSave(design);
+}
+
+/** The overwrite half of WEB-003's choice. It reaches the same coalescer as every ordinary save,
+ *  because the overwrite has to reconcile with whatever that coalescer already has queued, retrying
+ *  or refused for this design — a second writer beside it would be a second lost-update mechanism. */
+function overwriteConflictingDesign(design: Design): void {
+  sessionSaveCoalescer().overwriteConflict(design);
+}
+
+function sessionSaveCoalescer(): SaveCoalescer {
   saveCoalescer ??= createSaveCoalescer({
     repository: sessionConfigurationRepository,
     getDesignId: () => useConfiguratorStore.getState().designId,
-    onSaved: (id) => {
-      useConfiguratorStore.getState().applySavedId(id);
+    getGeneration: () => saveGeneration,
+    getRevision: () => useConfiguratorStore.getState().revision,
+    readCurrentRevision: async (id) =>
+      (await sessionConfigurationRepository.loadWithAccess(id)).revision,
+    onSaved: (saved, generation) => {
+      if (generation !== saveGeneration) return;
+      useConfiguratorStore.getState().applySaved(saved);
     },
-    onSaveStatusChange: (status) => {
+    onSaveStatusChange: (status, generation) => {
+      if (generation !== saveGeneration) return;
       useConfiguratorStore.getState().setSaveStatus(status);
     },
   });
-  saveCoalescer.scheduleSave(design);
+  return saveCoalescer;
 }
