@@ -26,14 +26,34 @@ export interface DesignBackupRow {
   readonly write_token_hash: string | null;
 }
 
-/** Bulk read of every design row. An interface so callers can substitute a fake in tests without a
- *  live database. */
-export interface DesignRowSource {
-  fetchAllDesigns(): Promise<DesignBackupRow[]>;
+/**
+ * One page of a keyset walk over `designs`, ordered by `id`.
+ *
+ * Keyset rather than `offset`: the walk is the backup's, so it must not re-read rows it has already
+ * exported when a concurrent insert shifts every later offset, and `where id > ?` costs the same on
+ * page one and page ten thousand.
+ */
+export interface DesignRowPageQuery {
+  /** Exclusive lower bound — the last `id` the previous page returned. Absent for the first page. */
+  readonly afterId?: string;
+  readonly pageSize: number;
 }
 
 /**
- * Reads every `designs` row for the scheduled backup.
+ * Paged read of `designs` rows in `id` order. An interface so callers can substitute a fake in
+ * tests without a live database.
+ *
+ * Paged rather than "fetch them all": the only caller is the nightly backup, and a whole-table read
+ * put the entire database in memory as driver row objects at once — growth was O(total stored data)
+ * with nothing bounding it, so the recovery mechanism was guaranteed to fail exactly when the
+ * database had grown large enough for recovery to matter (finding DB-002).
+ */
+export interface DesignRowSource {
+  fetchDesignPage(query: DesignRowPageQuery): Promise<DesignBackupRow[]>;
+}
+
+/**
+ * Reads `designs` rows for the scheduled backup, one bounded page at a time.
  *
  * Scoped to `designs` alone, deliberately — never widen it to another **table**. The column list
  * grows with the table's columns (a restore must reproduce the row, not a subset of it); what must
@@ -51,15 +71,26 @@ export function createNeonDesignRowSource(
   connectionUrl?: string,
 ): DesignRowSource {
   return {
-    async fetchAllDesigns() {
+    async fetchDesignPage({ afterId, pageSize }) {
       // Resolved per call, not at construction: a missing `DATABASE_URL` must surface where the
       // caller can catch, log and report it, not throw while wiring dependencies.
       const sql = neon(connectionUrl ?? readDatabaseUrl());
-      return (await sql`
-        select id, schema_version, document, created_at, updated_at, write_token_hash
-        from designs
-        order by id
-      `) as DesignBackupRow[];
+      const rows =
+        afterId === undefined
+          ? await sql`
+              select id, schema_version, document, created_at, updated_at, write_token_hash
+              from designs
+              order by id
+              limit ${pageSize}
+            `
+          : await sql`
+              select id, schema_version, document, created_at, updated_at, write_token_hash
+              from designs
+              where id > ${afterId}
+              order by id
+              limit ${pageSize}
+            `;
+      return rows as DesignBackupRow[];
     },
   };
 }

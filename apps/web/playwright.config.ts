@@ -1,7 +1,9 @@
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
-
+import { assertSafeTestDatabaseUrl, loadEnvLocal } from "@lemnaria/persistence";
 import { defineConfig, devices } from "@playwright/test";
+
+// The application's own `DATABASE_URL` has to be readable here for `assertSafeTestDatabaseUrl` to
+// have anything to compare against; without it the guard can only pass vacuously (finding DB-001).
+loadEnvLocal();
 
 const PORT = Number(process.env.E2E_PORT ?? 4320);
 // `localhost`, not `127.0.0.1`: Next's dev server (Turbopack) 403s static chunk requests whose
@@ -64,35 +66,32 @@ export default defineConfig({
 });
 
 /**
- * The database the e2e dev server is allowed to write to (ADR 0006): `TEST_DATABASE_URL`, read from
- * the environment or from `.env.test.local`, which is where that record says to keep it.
+ * The database the e2e dev server is allowed to write to (ADR 0006): `TEST_DATABASE_URL`, kept in
+ * `.env.test.local`, which is where that record says to keep it.
  *
  * Passed to the dev server as `DATABASE_URL` because that is the only variable the application
- * reads — the application must not learn about a test variable. Throws rather than falling back to
- * `.env.local`: a silent fallback is exactly the misconfiguration ADR 0006 requires to fail loudly.
+ * reads — the application must not learn about a test variable. `loadEnvLocal()` above puts it on
+ * this process's environment too, so the test workers — separate processes, spawned from here —
+ * inherit it and can delete the rows a spec minted (ADR 0006's third mechanism).
  */
 function exportTestDatabaseUrl(): string {
   const url = readTestDatabaseUrl();
-  // Also placed on this process's environment so the test workers — separate processes, spawned
-  // from here — inherit it. A spec that mints a design deletes it again afterwards (ADR 0006's
-  // third mechanism), and that is the only way it can reach the database it wrote to.
-  process.env.TEST_DATABASE_URL = url;
+  // Checking that the variable is *set* was the whole of the old check, and a value set to a
+  // privileged application connection passed it. The guard compares host, port and database name
+  // against `DATABASE_URL` and refuses a match, before any server is started (finding DB-001).
+  assertSafeTestDatabaseUrl(url);
   return url;
 }
 
+/** `loadEnvLocal()` above has already read `.env.test.local`, so the environment is the only place
+ *  this has to look. Throws rather than falling back to `.env.local`: a silent fallback is exactly
+ *  the misconfiguration ADR 0006 requires to fail loudly. */
 function readTestDatabaseUrl(): string {
-  const fromEnvironment = process.env.TEST_DATABASE_URL?.trim();
-  if (fromEnvironment) return fromEnvironment;
-
-  const envFile = resolve(import.meta.dirname, "../../.env.test.local");
-  const match = /^TEST_DATABASE_URL\s*=\s*(.+)$/m.exec(
-    readFileSync(envFile, "utf8"),
-  );
-  const url = match?.[1]?.trim().replace(/^["']|["']$/g, "");
+  const url = process.env.TEST_DATABASE_URL?.trim();
   if (!url) {
     throw new Error(
-      `TEST_DATABASE_URL is not set and was not found in ${envFile}. The e2e suite writes ` +
-        `designs, so it must target the test database and never the application's own.`,
+      "TEST_DATABASE_URL is not set and was not found in .env.test.local. The e2e suite writes " +
+        "designs, so it must target the test database and never the application's own.",
     );
   }
   return url;

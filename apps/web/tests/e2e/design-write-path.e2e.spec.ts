@@ -1,5 +1,6 @@
-import { deleteDesignsForTests } from "@lemnaria/persistence";
 import { expect, test } from "@playwright/test";
+
+import { deleteMintedDesigns } from "./support/minted-designs";
 
 /**
  * The write-token cookie's round trip, in a real browser (ADR 0019 decision 1).
@@ -24,19 +25,7 @@ import { expect, test } from "@playwright/test";
 const mintedDesignIds: string[] = [];
 
 test.afterAll(async () => {
-  if (mintedDesignIds.length === 0) return;
-
-  const connectionUrl = process.env.TEST_DATABASE_URL;
-  if (!connectionUrl) {
-    throw new Error(
-      "TEST_DATABASE_URL is not set in the worker environment, so the designs this suite minted " +
-        "cannot be deleted. playwright.config.ts is what puts it there.",
-    );
-  }
-
-  // The SQL lives in `packages/persistence`, which is the only package allowed to import a
-  // Postgres driver (`scripts/gates/boundary.sh`).
-  await deleteDesignsForTests(connectionUrl, mintedDesignIds);
+  await deleteMintedDesigns(mintedDesignIds);
 });
 
 interface MintOutcome {

@@ -7,6 +7,7 @@ import { createNeonDesignRowSource } from "../src/design-row-source.js";
 import { runMigrations } from "../src/migrate.js";
 import { NeonConfigurationRepository } from "../src/neon-configuration-repository.js";
 import { resolveTestDatabaseUrl } from "../src/test-database-url.js";
+import { readAllDesignRows } from "./support/read-all-design-rows.js";
 
 const hasLiveDatabase = Boolean(process.env["DATABASE_URL"]);
 const testDatabaseUrl = hasLiveDatabase ? resolveTestDatabaseUrl() : "";
@@ -32,8 +33,9 @@ describe("createNeonDesignRowSource (live test database)", () => {
   }
 
   async function exportedRowFor(id: DesignId) {
-    const rows =
-      await createNeonDesignRowSource(testDatabaseUrl).fetchAllDesigns();
+    const rows = await readAllDesignRows(
+      createNeonDesignRowSource(testDatabaseUrl),
+    );
     return rows.find((row) => row.id === id);
   }
 
@@ -67,6 +69,37 @@ describe("createNeonDesignRowSource (live test database)", () => {
       // holding the file confers no write access to anything.
       const exported = (await exportedRowFor(id))?.write_token_hash ?? "";
       expect(exported).toMatch(/^[0-9a-f]{64}$/);
+    },
+  );
+
+  it.skipIf(!hasLiveDatabase)(
+    "walks the table in id order, resuming from the last id without repeating or skipping a row",
+    async () => {
+      const ids = [
+        await mintTrackingId(),
+        await mintTrackingId(),
+        await mintTrackingId(),
+      ];
+      const source = createNeonDesignRowSource(testDatabaseUrl);
+
+      const firstPage = await source.fetchDesignPage({ pageSize: 1 });
+      const secondPage = await source.fetchDesignPage({
+        afterId: firstPage[0]?.id ?? "",
+        pageSize: 1,
+      });
+
+      // The bound is honoured, and the second page starts strictly after the first ends — the
+      // property a whole-table read never had to have (finding DB-002).
+      expect(firstPage).toHaveLength(1);
+      expect(secondPage).toHaveLength(1);
+      const firstId = firstPage[0]?.id ?? "";
+      const secondId = secondPage[0]?.id ?? "";
+      expect(secondId > firstId).toBe(true);
+
+      const walkedIds = (await readAllDesignRows(source)).map((row) => row.id);
+      for (const id of ids) {
+        expect(walkedIds.filter((walked) => walked === id)).toEqual([id]);
+      }
     },
   );
 

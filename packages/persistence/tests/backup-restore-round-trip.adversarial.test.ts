@@ -28,6 +28,7 @@ import {
   NeonConfigurationRepository,
 } from "../src/neon-configuration-repository.js";
 import { resolveTestDatabaseUrl } from "../src/test-database-url.js";
+import { readAllDesignRows } from "./support/read-all-design-rows.js";
 
 const hasLiveDatabase = Boolean(process.env["DATABASE_URL"]);
 const testDatabaseUrl = hasLiveDatabase ? resolveTestDatabaseUrl() : "";
@@ -75,8 +76,9 @@ describe("a backup round trip preserves edit access (live test database)", () =>
   }
 
   async function exportedLineFor(id: DesignId): Promise<string> {
-    const rows =
-      await createNeonDesignRowSource(testDatabaseUrl).fetchAllDesigns();
+    const rows = await readAllDesignRows(
+      createNeonDesignRowSource(testDatabaseUrl),
+    );
     const row = rows.find((candidate) => candidate.id === id);
     if (!row) throw new Error(`The export did not contain design "${id}"`);
     return toNdjsonLine(row);
