@@ -23,6 +23,7 @@ import {
   NeonConfigurationRepository,
 } from "../src/neon-configuration-repository.js";
 import { resolveTestDatabaseUrl } from "../src/test-database-url.js";
+import { forgetAppliedMigrations } from "./support/migration-ledger-probe.js";
 
 const hasLiveDatabase = Boolean(process.env["DATABASE_URL"]);
 const testDatabaseUrl = hasLiveDatabase ? resolveTestDatabaseUrl() : "";
@@ -495,6 +496,14 @@ describe("saveAuthorized is one statement, and the predicate is in it", () => {
 // records (`pnpm run migrate` exiting 0 having migrated nothing, on a checkout whose path contains
 // a space, as this one's does). So the column is **removed** and the migration is asked to put it
 // back. Only a migration that actually executes can pass this.
+//
+// Since Wave S10 the runner keeps a ledger and skips what it has already applied, so the ledger
+// rows for the write-token migrations are forgotten alongside the column. That is not a weakening:
+// the test now proves the stronger thing, that what the runner executes is decided by the ledger
+// and not by luck. Both files are forgotten, not just 0002, because 0003's check constraint went
+// with the dropped column and because leaving 0003 recorded while 0002 is not is exactly the gap
+// the runner refuses.
+const WRITE_TOKEN_MIGRATION_VERSIONS = [2, 3];
 describe("the write-token migration actually executes", () => {
   const sql = hasLiveDatabase ? neon(testDatabaseUrl) : undefined;
 
@@ -511,9 +520,17 @@ describe("the write-token migration actually executes", () => {
     async () => {
       if (!sql) return;
       await sql`alter table designs drop column if exists write_token_hash`;
+      await forgetAppliedMigrations(
+        testDatabaseUrl,
+        WRITE_TOKEN_MIGRATION_VERSIONS,
+      );
       expect(await writeTokenColumns()).toHaveLength(0);
 
-      await runMigrations(testDatabaseUrl);
+      const summary = await runMigrations(testDatabaseUrl);
+      expect(summary.applied).toEqual([
+        "0002_add_write_token_hash.sql",
+        "0003_check_write_token_hash_shape.sql",
+      ]);
 
       const columns = await writeTokenColumns();
       expect(columns).toHaveLength(1);
@@ -531,6 +548,14 @@ describe("the write-token migration actually executes", () => {
         CORRECT_TOKEN_HASH,
       );
       try {
+        // Forgotten first, so the migrations genuinely re-execute against a table that already
+        // holds rows. Without this the ledger would skip them and the assertion below would be
+        // true of a run that did nothing at all.
+        await forgetAppliedMigrations(
+          testDatabaseUrl,
+          WRITE_TOKEN_MIGRATION_VERSIONS,
+        );
+
         await runMigrations(testDatabaseUrl);
 
         const rows = (await neon(testDatabaseUrl)`

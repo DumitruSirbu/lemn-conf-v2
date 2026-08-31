@@ -346,9 +346,13 @@ describe("the write-token migration", () => {
   );
 
   it.skipIf(!hasLiveDatabase)(
-    "is idempotent, so re-running it neither fails nor duplicates the column",
+    "is skipped on a re-run, so a second migrate neither fails nor duplicates the column",
     async () => {
-      await runMigrations(testDatabaseUrl);
+      // Before Wave S10 this asserted idempotence, because every file re-executed on every run.
+      // The ledger now skips what is already applied, so the guarantee it pins is the stronger one:
+      // a second run reports having applied nothing and leaves the column exactly as it was.
+      const summary = await runMigrations(testDatabaseUrl);
+      expect(summary.applied).toEqual([]);
 
       const columns = (await neon(testDatabaseUrl)`
         select column_name from information_schema.columns

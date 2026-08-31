@@ -15,6 +15,13 @@ export type {
   AuthorizedSave,
 } from "./neon-configuration-repository.js";
 export { runMigrations } from "./migrate.js";
+export type { MigrationRunSummary } from "./migrate.js";
+export {
+  MigrationChecksumMismatchError,
+  MigrationError,
+  MigrationExecutionError,
+  MigrationSequenceError,
+} from "./migration-errors.js";
 export { deleteDesignsForTests } from "./delete-designs-for-tests.js";
 export { loadEnvLocal } from "./load-env.js";
 export {
