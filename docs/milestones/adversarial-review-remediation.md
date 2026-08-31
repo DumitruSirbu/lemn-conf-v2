@@ -945,3 +945,166 @@ empirical evidence for it.
 files); 634 passed, 4 skipped (638). `typecheck` and `lint` clean.
 `playwright test read-only-panel --project=mobile` → 1 passed, re-run because S7-F2 touches that
 surface.
+
+## Wave S8 — SCENE-002
+
+`testing-reports/04-three-scene.md`'s SCENE-002 (Medium): the stage allocates a kit, a full room,
+lights, ground, contact blob, materials, geometries and canvas textures in a mount-lifetime
+`useMemo` and supplies them through `<primitive>`. React Three Fiber 9.7's reconciler never disposes
+a primitive — verified in the installed source at
+`apps/web/node_modules/@react-three/fiber/dist/events-156d8d12.esm.js:15231-15237,15292`, where
+disposal is skipped for `child.type !== 'primitive'` and again in `swapReconstructedInstances` — so
+every client-side remount stranded the lot until the WebGL context went. A continuity reviewer's
+note on wave S1 belongs to the same finding: `buildKitchenShell` builds the whole 32-child reference
+room, keeps five children and dropped the other 27 without releasing what only they allocated.
+
+Nothing about what the scene renders changes. This wave only frees what a teardown leaves behind.
+
+### The ownership model, which is the whole difficulty
+
+A kit's resources are **shared**: `chamferBox` memoises every geometry by size, so two cabinets of
+the same size render from one buffer, and `kit.M`'s materials plus their five baked canvas textures
+are used by the shell, every mounted body and the reference room at once. Disposing one that a live
+object still references produces a black or invisible object rather than an error, and the parity
+suites — which compare CPU-side structure — cannot see it.
+
+Ownership is therefore now **recorded as the kit builds** rather than inferred at teardown, in
+`packages/three-adapter/src/kit-ownership.ts`: a `WeakMap` keyed on the kit's `KitMaterials`
+identity holds the geometry cache, the materials and the textures the kit created. `makeKit` fills
+it (`ownsGeometry` reads it, so there is one set, not two agreeing by luck), and the two materials
+derived from a kit — a recoloured finish and the black handle — are memoised through
+`deriveKitMaterial`, which registers them at the same moment. That replaced the two separate
+`WeakMap` caches in `finishes.ts` and `decomposed-bodies.ts`, whose materials no teardown could
+have found.
+
+Two disposal rules follow, both in `kit-disposal.ts`:
+
+- **Whole-stage teardown** (`disposeKitAndStage`) may dispose the shared kit resources, because the
+  kit is created per mount alongside the room it built and nothing survives the unmount. It walks
+  room, ground and blob into `GpuResources` **sets** — the reason "exactly once" holds by
+  construction rather than by care — adds the kit's own record, disposes each set member once,
+  releases the ownership record so a disposed finish material can never be handed out again, and
+  disposes the light rig, whose shadow map nothing else frees.
+- **Partial teardown** (`disposeDiscardedBodies`, called by `buildKitchenShell`) may dispose only
+  what no surviving object references: the dropped bodies' resources minus everything the five
+  retained children reach, minus everything the kit owns.
+
+### Acceptance criteria
+
+1. Every resource one mounted stage allocated is disposed exactly once on unmount, kit-owned shared
+   geometry and materials included.
+2. No resource a live object still references is ever disposed — specifically, `buildKitchenShell`
+   frees only what the 27 discarded bodies alone allocated.
+3. The stage teardown is called from a `useEffect(() => () => …, [stage])` cleanup, and the
+   selection outline is detached and disposed by its own effect's cleanup, on unmount as well as on
+   every dependency change.
+4. The scene renders identically: the reference and decomposition parity suites pass unchanged.
+
+### What shipped
+
+- New: `packages/three-adapter/src/kit-ownership.ts`, `src/gpu-resources.ts`, `src/kit-disposal.ts`.
+- Changed: `src/kitchen-parts.ts` (registers its materials, textures and geometry cache; new
+  `kitMaterialList`), `src/finishes.ts` and `src/decomposed-bodies.ts` (derived materials through
+  the registry), `src/kitchen-shell.ts` (releases the discarded bodies), `src/three-guards.ts`
+  (`isTexture`), `src/index.ts`.
+- Changed: `apps/web/src/scene/kitchen-stage.tsx` — an unmount cleanup calling
+  `disposeKitAndStage(stage)`, and the outline effect now returns its own cleanup instead of
+  clearing the previous outline at the top. The teardown effect is declared **after** the outline
+  effect on purpose: React runs cleanups in declaration order, so the outline has left `stage.room`
+  before the teardown walks it, and nothing is disposed twice.
+- New tests: `packages/three-adapter/tests/kit-disposal.test.ts` (12, three added by the review round),
+  `apps/web/tests/scene/kitchen-stage-disposal.test.ts` (5).
+
+### Falsifiability — every new test was watched to fail
+
+Each was run against a mutated implementation, not assumed to be strict:
+
+| Mutation                                                        | Failure observed                                                    |
+| --------------------------------------------------------------- | -------------------------------------------------------------------- |
+| `disposeKitAndStage` skips the kit-owned record                 | `MeshStandardMaterial "wall_paint": expected 1 times, got 0`         |
+| `disposeGpuResources` called twice (list, not set, semantics)   | `MeshPhysicalMaterial "door_matte_white": expected 1 times, got 2` (4 tests) |
+| Light rig disposal removed                                       | `HemisphereLight: expected 1 times, got 0`                           |
+| `buildKitchenShell` drops bodies without disposing              | `CylinderGeometry: expected 1 times, got 0`                          |
+| `disposeDiscardedBodies` disposes everything the dropped bodies referenced | `ExtrudeGeometry: expected not to be called, called 1 times`         |
+| `kitchen-stage.tsx` at HEAD (no cleanups)                       | all 5 web tests fail                                                 |
+| Outline disposed without `removeFromParent()`                   | the outline is still in `stage.room` when the teardown runs          |
+
+### Not done, and why
+
+**No `renderer.info.memory` gate.** It cannot be written honestly here: `renderer.info.memory` is
+populated by a real `WebGLRenderer`, and both vitest suites run in the `node` environment with no
+WebGL context, so a headless version would assert on counters that never move. The exactly-once
+disposal accounting above is what this wave can prove. A browser stress gate belongs in
+`apps/web/tests/e2e/` against a running app, and was not built or run in this wave.
+
+### Review round — S8-F1, F2, F3 (2026-08-31)
+
+**S8-F1 (High, latent) — the release split the ownership record in two.** `makeKit` captures the
+record in a closure and `ownsGeometry` answers from *that object*, while
+`releaseKitOwnedResources` deleted only the `WeakMap` entry. After a release the next reader built a
+second, empty record: the registry said the kit owned nothing while the kit's own cache still said
+"mine" about the same buffer — and "owns nothing" reads to `disposeDiscardedBodies` as "none of this
+is shared". The reviewer proved 106 shared `ExtrudeGeometry` buffers disposed while the memo would
+still hand those exact objects to every future body, with every test green. Not reachable today
+(`makeKit` and `buildKitchenShell` live in one `useMemo([])`), reachable the moment a kit is reused
+or the shell rebuilt.
+
+Fixed by emptying the sets **in place** and keeping the record, so closure and registry are
+permanently the same object and cannot answer differently, plus an `isReleased` flag. Building a new
+shell from a released kit now throws (`assertKitIsLive`) rather than freeing buffers its memo still
+hands out.
+
+**S8-F2 (Medium) — StrictMode falsified the doc comment's premise.** `reactStrictMode: true`
+(`apps/web/next.config.ts:8`) replays mount → unmount → mount in development **without** re-running
+`useMemo`, so the cleanup disposes a kit whose room is handed straight back to the re-run effects.
+The module header now says plainly that "nothing survives it" is a property of the memo and the
+mount sharing a lifetime, not of the kit, and `disposeKitAndStage` returns early for an already
+released kit so the replayed teardown is a no-op.
+
+**Deliberate deviation, and why.** The review offered a released kit that throws for *any* ownership
+question. That was not taken: under StrictMode the replayed effects run against the released kit on
+every development page load — `applyFinish` re-derives a material, an edit disposes a body through
+`ownsGeometry` — so a global tripwire would turn F2's own scenario into a dev-time crash. The throw
+is therefore placed only on `disposeDiscardedBodies`, the path where the proven damage happens and
+which a StrictMode replay cannot reach (`buildKitchenShell` runs only inside the memo). `ownsGeometry`
+stays answerable and now agrees with the registry, which is what F1 asked for.
+
+**S8-F3 (Low) — the cast's residual risk inverted.** `kitMaterialList` now filters with an
+`isMaterial` guard instead of asserting the values are materials, so a non-material field added to
+`KitMaterials` cannot be carried into a list about to be `.dispose()`d.
+
+Also done: the disposal test now states why replaying cleanups front to back reproduces React's
+unmount, and therefore why swapping the two effects fails it; the source comment no longer overstates
+a reorder (outline resources are unique, so meeting one would be a harmless double dispose, not a
+black object); and `collectObjectResources` records that Mesh/Line is an assumption about this
+adapter's builders — no `InstancedMesh`, `Points`, `Sprite`, `SkinnedMesh`, morph attributes or
+`userData`-held textures exist today.
+
+Three regression tests added, each watched to fail against the pre-fix code:
+
+| Mutation                                              | Failure observed                                              |
+| ----------------------------------------------------- | -------------------------------------------------------------- |
+| release deletes the registry entry (the pre-F1 code)  | `expected true to be false`; `expected [Function] to throw`; `BoxGeometry: expected 1 times, got 2` |
+| no replayed-teardown guard                            | `BoxGeometry: expected 1 times, got 2`                        |
+| partial teardown does not check the kit is live       | `expected [Function] to throw an error`                       |
+
+### Found and not fixed — S8-F4 (out of scope)
+
+`packages/three-adapter/src/stage.ts:73`: `PMREMGenerator.fromEquirectangular` returns a
+`WebGLRenderTarget` and only its `.texture` is kept and disposed, so the render target's framebuffer
+is never freed. Pre-existing, untouched by this wave's diff, and recorded here rather than lost
+because this wave is the leak audit.
+
+### Gates run
+
+| Command                                        | Result                                          |
+| ---------------------------------------------- | ----------------------------------------------- |
+| `pnpm --filter @lemnaria/three-adapter test`    | exit 0 — 32 files, 720 tests passed             |
+| `pnpm --filter @lemnaria/three-adapter lint`    | exit 0                                          |
+| `pnpm --filter @lemnaria/three-adapter typecheck` | exit 0                                        |
+| `pnpm --filter @lemnaria/web test`              | exit 0 — 40 passed, 1 skipped; 639 passed, 4 skipped |
+| `pnpm --filter @lemnaria/web lint`              | exit 0                                          |
+| `pnpm --filter @lemnaria/web typecheck`         | exit 0                                          |
+
+`pnpm check` was deliberately not run — the coordinator owns it. The Playwright e2e suite was not
+run.

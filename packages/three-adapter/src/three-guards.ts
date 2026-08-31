@@ -13,6 +13,18 @@ export function isLine(object: THREE.Object3D): object is THREE.Line {
   return object instanceof THREE.Line;
 }
 
+/** Narrowed rather than asserted, so a field that is not a material cannot be carried into a list
+ *  of things something is about to dispose. */
+export function isMaterial(value: unknown): value is THREE.Material {
+  return value instanceof THREE.Material;
+}
+
+/** Same reason again: three.js declares `Texture` with `any`-parameterised generics, so narrowing a
+ *  material's slot with a bare `instanceof` yields a type no other three.js signature accepts. */
+export function isTexture(value: unknown): value is THREE.Texture {
+  return value instanceof THREE.Texture;
+}
+
 /** Disposes every geometry in a tree **except** the ones a shared registry owns.
  *
  *  Tearing a three.js body down is not "dispose everything you find". Two kinds of thing in a

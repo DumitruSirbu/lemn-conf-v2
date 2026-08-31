@@ -12,6 +12,7 @@ import {
   createPickingRaycaster,
   createShadowGround,
   createStudioEnvironment,
+  disposeKitAndStage,
   disposeSelectionOutline,
   isDragGesture,
   makeKit,
@@ -216,11 +217,6 @@ export function KitchenStage({ view, finish, onSettled }: KitchenStageProps) {
   // instance. The sync effect above is declared first, so it has already run when this rebuilds.
   const highlightRef = useRef<THREE.Object3D | null>(null);
   useEffect(() => {
-    if (highlightRef.current) {
-      highlightRef.current.removeFromParent();
-      disposeSelectionOutline(highlightRef.current);
-      highlightRef.current = null;
-    }
     const target = selection ? findSelectedObject(stage, selection) : null;
     if (selection && target) {
       const { group } = buildSelectionOutline({
@@ -232,7 +228,34 @@ export function KitchenStage({ view, finish, onSettled }: KitchenStageProps) {
       highlightRef.current = group;
     }
     invalidate();
+    // The teardown of the *previous* outline and of the last one at unmount, in one place: React
+    // runs this before every re-run as well as on unmount, so no outline can be left mounted. It
+    // detaches before it disposes, so the stage teardown below — a walk over `stage.room` — never
+    // meets an outline. An outline's geometry and material are its own, shared with nothing, so
+    // meeting one would cost a harmless double dispose rather than a survivor's buffers.
+    return () => {
+      const mounted = highlightRef.current;
+      if (!mounted) return;
+      mounted.removeFromParent();
+      disposeSelectionOutline(mounted);
+      highlightRef.current = null;
+    };
   }, [selection, stage, records, voids, invalidate]);
+
+  // R3F never disposes a `<primitive>`, by design: its reconciler skips disposal when
+  // `instance.type === 'primitive'` because a primitive's lifetime is owned outside React. Every
+  // object below is one, so without this a client-side remount strands a whole room's buffers,
+  // materials and canvas textures until the WebGL context goes.
+  //
+  // Declared **after** the outline effect on purpose: React runs cleanups in declaration order, so
+  // the outline has already left `stage.room` when this walks it. `kitchen-stage-disposal.test.ts`
+  // replays the cleanups in that same order and asserts the outline is gone by the time this runs,
+  // so swapping the two blocks fails there.
+  useEffect(() => {
+    return () => {
+      disposeKitAndStage(stage);
+    };
+  }, [stage]);
 
   const goal = useRef<CameraGoal | null>(null);
   const viewKey = sceneViewKey(view);
