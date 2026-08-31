@@ -5,6 +5,9 @@ export const CONFIGURATOR_DOMAIN_PACKAGE =
 export * from "./schemas.js";
 export * from "./room-transforms.js";
 export * from "./design.js";
+export * from "./design-bounds.js";
+export * from "./validate-design.js";
+export * from "./failure-text.js";
 export * from "./void-engine.js";
 export * from "./millimetres.js";
 export * from "./bands.js";

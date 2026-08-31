@@ -1,9 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import {
-  describeSchemaFailure,
-  invalidBodyResponse,
-} from "../../../src/lib/server/design-errors";
+import { invalidBodyResponse } from "../../../src/lib/server/design-errors";
 
 /** A rejection must say it rejected and nothing more (ADR 0014, S2), and must cost the same
  *  whatever body provoked it. */
@@ -16,6 +13,7 @@ describe("invalidBodyResponse", () => {
 
     expect(response.status).toBe(400);
     expect(await response.json()).toEqual({
+      code: "DESIGN_INVALID",
       error: "Design payload failed validation.",
     });
   });
@@ -61,37 +59,5 @@ describe("invalidBodyResponse", () => {
     const logged = String(warn.mock.calls[0]?.[1]);
     expect(logged).not.toContain("\n");
     expect(logged).not.toContain("\r");
-  });
-});
-
-describe("describeSchemaFailure", () => {
-  it("reports where the failures are and what kind they are, never the values", () => {
-    const summary = describeSchemaFailure([
-      { path: ["room", "widthMm"], code: "invalid_type" },
-    ]);
-
-    expect(summary).toContain("room.widthMm");
-    expect(summary).toContain("invalid_type");
-  });
-
-  it("names the root when an issue has no path", () => {
-    expect(
-      describeSchemaFailure([{ path: [], code: "invalid_type" }]),
-    ).toContain("(root)");
-  });
-
-  it("stays a constant size however many issues a caller provokes", () => {
-    // Measured on the shipped route: 300 malformed placements rendered a ~297,000-character Zod
-    // message. The summary's length must be a function of the cap, not of the request body.
-    const issues = Array.from({ length: 5_000 }, (_unused, index) => ({
-      path: ["placements", index, "buildId"],
-      code: "invalid_type",
-    }));
-
-    const summary = describeSchemaFailure(issues);
-
-    expect(summary.length).toBeLessThan(400);
-    expect(summary).toContain("5000 issue(s)");
-    expect(summary).toContain("more");
   });
 });

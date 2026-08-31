@@ -1,4 +1,5 @@
 import type { Design } from "./design.js";
+import { boundedFailureReason } from "./failure-text.js";
 
 /** Opaque identifier for a stored `Design` row. Unguessable generation is an adapter concern. */
 export type DesignId = string;
@@ -12,7 +13,7 @@ export class DesignNotFoundError extends Error {
 
 export class InvalidDesignError extends Error {
   constructor(reason: string) {
-    super(`Design payload failed validation: ${reason}`);
+    super(`Design payload failed validation: ${boundedFailureReason(reason)}`);
     this.name = "InvalidDesignError";
   }
 }

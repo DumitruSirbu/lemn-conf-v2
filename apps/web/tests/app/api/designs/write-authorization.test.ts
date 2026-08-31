@@ -339,6 +339,7 @@ describe("PUT /api/designs/[id] — a body that will not parse", () => {
 
       expect(response.status).toBe(400);
       expect(await response.json()).toEqual({
+        code: "DESIGN_INVALID",
         error: "Design payload failed validation.",
       });
       expect(storedSerialization(id)).toBe(before);

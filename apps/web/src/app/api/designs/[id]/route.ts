@@ -1,13 +1,24 @@
-import { DesignSchema } from "@lemnaria/configurator-domain";
+import {
+  describeDesignValidationIssues,
+  describeSchemaIssues,
+  DesignSchema,
+  KITCHEN_L_BODY_CATALOG,
+  MAX_DESIGN_BYTES,
+  validateDesignForCatalog,
+} from "@lemnaria/configurator-domain";
 import type { Design } from "@lemnaria/configurator-domain";
 import { NextResponse, type NextRequest } from "next/server";
 
 import {
-  describeSchemaFailure,
   designErrorResponse,
   invalidBodyResponse,
+  payloadTooLargeResponse,
   writeForbiddenResponse,
 } from "@/lib/server/design-errors";
+import {
+  readUtf8BodyWithLimit,
+  type BoundedBodyFailure,
+} from "@/lib/server/read-body-with-limit";
 import { getRepository } from "@/lib/server/repository";
 import {
   hasWriteCredentialFor,
@@ -126,33 +137,76 @@ async function saveDesign(
 }
 
 /**
- * The `Design` the request body carries, or the 400 that refuses it.
+ * The `Design` the request body carries, or the response that refuses it.
  *
- * Parsing and validation are two distinct failures — a truncated or empty body throws where a
- * well-formed but wrong-shaped one merely fails the schema — and the parse is the one that used to
- * escape the handler entirely, turning a client's malformed payload into a 500 with a stack trace
- * in the log. Both are handled here, and both tell the client the same thing: the payload was
- * rejected, never why (ADR 0014 S2). The unparseable reason is a fixed string rather than the body,
- * which is attacker-supplied and unbounded.
+ * Three distinct failures, in the order their cost demands. The **size** gate runs first and reads
+ * the stream itself (SEC-002), so an oversized body is cut off rather than parsed. Then the parse —
+ * a truncated or empty body throws where a well-formed but wrong-shaped one merely fails the schema
+ * — which is the one that used to escape the handler entirely, turning a client's malformed payload
+ * into a 500 with a stack trace in the log. Then the **executable** contract (DOM-001): a document
+ * can pass `DesignSchema` and still name a body no catalogue entry covers, which the schema cannot
+ * see and every reader of the shared link then crashes on.
+ *
+ * All of them tell the client the same thing: the payload was rejected, and a stable code, never
+ * why (ADR 0014 S2). The reasons are logged as bounded shapes rather than as the body, which is
+ * attacker-supplied and unbounded.
  */
 async function readDesign(request: NextRequest): Promise<ReadDesignOutcome> {
-  let body: unknown;
-  try {
-    body = await request.json();
-  } catch {
+  const raw = await readUtf8BodyWithLimit(request.body, MAX_DESIGN_BYTES);
+  if (!raw.ok) return { ok: false, response: refuseUnreadBody(raw.failure) };
+
+  const parsed = parseJson(raw.value);
+  if (!parsed.ok) {
     return {
       ok: false,
       response: invalidBodyResponse("request body was not parseable JSON"),
     };
   }
 
-  const result = DesignSchema.safeParse(body);
-  return result.success
-    ? { ok: true, design: result.data }
-    : {
-        ok: false,
-        response: invalidBodyResponse(
-          describeSchemaFailure(result.error.issues),
-        ),
-      };
+  const result = DesignSchema.safeParse(parsed.value);
+  if (!result.success) {
+    return {
+      ok: false,
+      response: invalidBodyResponse(describeSchemaIssues(result.error.issues)),
+    };
+  }
+  return (
+    refuseUnexecutableDesign(result.data) ?? {
+      ok: true,
+      design: result.data,
+    }
+  );
+}
+
+/** A body that never arrived, as a handled response. An oversized payload is the caller's document
+ *  and answers 413; a stream that broke mid-flight produced no document at all and answers 400,
+ *  the same way a truncated JSON body does — which is what it is, one layer down. */
+function refuseUnreadBody(failure: BoundedBodyFailure): NextResponse {
+  return failure === "too-large"
+    ? payloadTooLargeResponse()
+    : invalidBodyResponse("request body stream failed before it completed");
+}
+
+/** The same validator the load path runs, at the write seam: a document is rejected here rather
+ *  than persisted and rejected on every later read. */
+function refuseUnexecutableDesign(
+  design: Design,
+): { readonly ok: false; readonly response: NextResponse } | undefined {
+  const issues = validateDesignForCatalog(design, KITCHEN_L_BODY_CATALOG);
+  if (issues.length === 0) return undefined;
+  return {
+    ok: false,
+    response: invalidBodyResponse(describeDesignValidationIssues(issues)),
+  };
+}
+
+/** `JSON.parse` as a value rather than a throw, so `readDesign` reads as three gates in a row. */
+function parseJson(
+  text: string,
+): { readonly ok: true; readonly value: unknown } | { readonly ok: false } {
+  try {
+    return { ok: true, value: JSON.parse(text) as unknown };
+  } catch {
+    return { ok: false };
+  }
 }
