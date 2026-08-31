@@ -5,7 +5,11 @@
 // seeded ids and is untouched — those describe one already-built body each and are never offered.
 import * as THREE from "three";
 
-import { deriveDoorCount, toMillimetres } from "@lemnaria/configurator-domain";
+import {
+  deriveDoorCount,
+  INSERTABLE_BODY_DEFINITIONS,
+  toMillimetres,
+} from "@lemnaria/configurator-domain";
 
 import type { Kit } from "./kitchen-parts.js";
 
@@ -109,11 +113,28 @@ const CATALOG_BODY_BUILDERS: Readonly<Record<string, CatalogBodyBuilder>> = {
 /** The insertable ids whose builder stands a **fronted** assembly in front of the shell it is
  *  given: `wallCabinet` and the lift-up it wraps. `open-shelf` has neither door nor handle, so its
  *  declared depth and its shell are the same number, and every other builder ignores the depth it
- *  is handed altogether (ADR 0018). */
-const FRONTED_WALL_BUILD_IDS: ReadonlySet<string> = new Set([
-  "wall-cabinet",
-  "wall-lift",
-]);
+ *  is handed altogether (ADR 0018).
+ *
+ *  **Derived from the catalogue's own `occupiedDepth`, never re-typed here** (wave S9 review, F5).
+ *  It was a literal set, and it was the *third* encoding of "a fronted wall carcass" — the domain's
+ *  declaration and a copy in the domain's fake probe being the other two — with nothing comparing
+ *  them. That is the ADR 0028 shape, and here it is the dangerous one: `scene-sync`'s reload path
+ *  reads `rebuildDepthM`, so a fronted row added to §7 and forgotten here shrinks that cabinet by
+ *  one front assembly on **every** save-and-reload, compounding, with `refuseBuiltSize` checking
+ *  width and height only. ADR 0018 clause 4, exactly.
+ *
+ *  `recorded-shell` with a front is the whole of the condition: an open shelf declares the same rule
+ *  with `frontAssemblyMm` zero and must stay out of the set, and every `wall-plane` entry ignores
+ *  its depth argument. Reading `INSERTABLE_BODY_DEFINITIONS` and not the seeded map is right because
+ *  `rebuildDepthM` is only ever reached for an id `isCatalogBuildId` accepts — `scene-sync` sends a
+ *  seeded placement to `buildDecomposedBody` instead. */
+const FRONTED_WALL_BUILD_IDS: ReadonlySet<string> = new Set(
+  INSERTABLE_BODY_DEFINITIONS.filter(
+    ([, definition]) =>
+      definition.occupiedDepth.measuredFrom === "recorded-shell" &&
+      definition.occupiedDepth.frontAssemblyMm > 0,
+  ).map(([buildId]) => buildId),
+);
 
 /** The depth to rebuild a persisted placement at — **ADR 0018 clause 4, which 5F is the phase that
  *  trips.**

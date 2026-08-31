@@ -4,7 +4,9 @@
 // look like a picking bug ("the levels are wrong").
 import {
   deriveColumns,
+  NO_FRONT_ASSEMBLY_MM,
   recomputeVoids,
+  shellPlusFrontMm,
   type PlacementRecord,
   type VoidRecord,
 } from "@lemnaria/configurator-domain";
@@ -28,6 +30,9 @@ function makeRecord(overrides: Partial<PlacementRecord> = {}): PlacementRecord {
     buildId: "base-drawer2-600",
     kind: "base_cabinet",
     frame: { x: 2.6, z: 0.3, ry: 0, y0: 0, w: 0.6, h: 0.86, d: 0.56 },
+    // A sentinel, not a body: this file is about which object a ray hits, so the record's occupied
+    // depth is declared equal to the frame it states rather than to the real cabinet's worktop.
+    occupiedDepth: shellPlusFrontMm(NO_FRONT_ASSEMBLY_MM),
     col: "A|2.60",
     wall: "A",
     rotated: false,

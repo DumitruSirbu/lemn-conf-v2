@@ -11,7 +11,12 @@ import {
   resolveInsertOpening,
 } from "../../src/commands/insert-fit.js";
 import { removePlacement } from "../../src/commands/remove-placement.js";
-import { listInsertableBodies } from "../../src/catalog.js";
+import {
+  BASE_FINISHED_DEPTH_MM,
+  HOB_OVEN_BASE_FINISHED_DEPTH_MM,
+  listInsertableBodies,
+} from "../../src/catalog.js";
+import { finishesAtMm } from "../../src/occupied-depth.js";
 import {
   KITCHEN_L_BODY_CATALOG,
   KITCHEN_L_DESIGN,
@@ -291,21 +296,34 @@ describe("the two hob bases are distinguished only where the choice is made", ()
     expect(oven).toBeDefined();
     if (!drawers || !oven) return;
 
-    // Everything §5.2 measures a fit with, and everything §9 offers on, is identical. The three
-    // fields that are not are the three the *customer* is choosing between: the Romanian label, and
-    // the two capability flags the oven variant declares `false` because it is open-front and owns
-    // no cabinet door to finish or put a handle on.
+    // Everything §5.2 measures a fit with, and everything §9 offers on, is identical. The fields
+    // that are not are the three the *customer* is choosing between — the Romanian label, and the
+    // two capability flags the oven variant declares `false` because it is open-front and owns no
+    // cabinet door to finish or put a handle on — plus, since wave S9, the depth the built body
+    // occupies, which is asserted on its own below.
     const withoutTheChoice = (definition: BodyDefinition) => ({
       ...definition,
       label: "",
       canFinish: true,
       canHandle: true,
+      occupiedDepth: finishesAtMm(0),
     });
 
     expect(withoutTheChoice(drawers)).toEqual(withoutTheChoice(oven));
     expect(drawers.label).not.toBe(oven.label);
     expect([drawers.canFinish, drawers.canHandle]).toEqual([true, true]);
     expect([oven.canFinish, oven.canHandle]).toEqual([false, false]);
+
+    // **The one measurement that does differ, and it is not one anything picks by** (DOM-002).
+    // Nominal width, height and depth are identical — those are what §5.2 fits and §9 offers on.
+    // What the built bodies occupy is not: the drawer variant finishes at its worktop, and the oven
+    // variant's fascia and bar reach 28 mm past it. It is measured on the geometry, so declaring
+    // them equal would be declaring a body 28 mm shallower than the one that gets built.
+    expect([drawers.occupiedDepth, oven.occupiedDepth]).toEqual([
+      finishesAtMm(BASE_FINISHED_DEPTH_MM),
+      finishesAtMm(HOB_OVEN_BASE_FINISHED_DEPTH_MM),
+    ]);
+    expect([drawers.nominalDepthMm, oven.nominalDepthMm]).toEqual([580, 580]);
   });
 
   // Which of the two the shipped cabinet *is* comes from `catalogEquivalentId`, declared on the

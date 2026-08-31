@@ -33,7 +33,7 @@ export function insertInto(
   world: KitchenWorld,
   target: CommandTarget,
   buildId: string,
-  probe: BodyProbe = createFakeProbe(),
+  probe: BodyProbe = createFakeProbe({ catalog: world.catalog }),
 ) {
   return insertBody({
     design: world.design,
@@ -53,7 +53,7 @@ export function resizeTo(
   world: KitchenWorld,
   placementId: string,
   widthMm: number,
-  probe: BodyProbe = createFakeProbe(),
+  probe: BodyProbe = createFakeProbe({ catalog: world.catalog }),
 ) {
   return setWidth({
     design: world.design,

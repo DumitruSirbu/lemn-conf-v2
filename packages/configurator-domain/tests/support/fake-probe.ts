@@ -9,14 +9,9 @@ import type {
   BodyProbe,
   BodyProbeRequest,
 } from "../../src/body-probe.js";
+import { KITCHEN_L_BODY_CATALOG } from "../../src/fixtures/kitchen-l-design.js";
 import { toMetres } from "../../src/millimetres.js";
-import {
-  WALL_FRONT_ASSEMBLY_MM,
-  WORKTOP_DEPTH_MM,
-} from "../../src/worktop-depth.js";
-
-const WALL_FRONT_ASSEMBLY_M = toMetres(WALL_FRONT_ASSEMBLY_MM);
-const CABINET_DEPTH_M = toMetres(WORKTOP_DEPTH_MM);
+import type { BodyCatalog, BodyDefinition } from "../../src/void-engine.js";
 
 /** How much of a built body rises above its carcass into free air — the sink's faucet, the hood's
  *  chimney. Enough to fail a naive full-extent fit check, which is the point (§11 row 7). */
@@ -27,56 +22,68 @@ export interface FakeProbeOptions {
   readonly carcassWidthM?: number;
   readonly carcassHeightM?: number;
   readonly seatOffsetM?: number;
+  /** The catalogue the probe reads a body's declared depth off. Defaults to the seeded one; a test
+   *  that inserts a synthetic entry passes the catalogue it added it to. */
+  readonly catalog?: BodyCatalog;
 }
 
-/** The ids whose real builder stands a door and a bar handle in front of the shell it is given.
- *  `open-shelf` has neither, and every other builder ignores its depth argument (ADR 0018). */
-// **Re-typed here, and it should not be.** `catalog-bodies.ts` declares the identical set, and a
-// third encoding is `WALL_CABINET_KIND`. Nothing compares them — the ADR 0028 shape this milestone
-// keeps citing. Left as a named follow-up rather than fixed here: the adapter cannot be imported
-// from a domain test without inverting §12's dependency direction, so closing it means publishing
-// the set from the domain, which is a change to the catalogue's surface (5F clean-code review S4).
-const FRONTED_WALL_BUILD_IDS: ReadonlySet<string> = new Set([
-  "wall-cabinet",
-  "wall-lift",
-]);
+/** A build id the seeded catalogue does not hold, which a fake probe cannot seat: the seat of a
+ *  body whose builder ignores its depth argument is a property of that body, and there is nothing
+ *  to read it off. A test with such an id passes `seatOffsetM` explicitly instead. */
+export class UnseatableFakeBodyError extends Error {
+  constructor(buildId: string) {
+    super(
+      `The fake probe cannot seat buildId "${buildId}": no catalogue entry declares its depth. ` +
+        `Pass \`seatOffsetM\` to state the seat this test needs.`,
+    );
+    this.name = "UnseatableFakeBodyError";
+  }
+}
 
-/** ADR 0039 decision 1: standard, and exempt from the depth map. */
-const HOOD_DEPTH_M = 0.5;
+function requireDefinition(
+  catalog: BodyCatalog,
+  buildId: string,
+): BodyDefinition {
+  const definition = catalog.get(buildId);
+  if (!definition) throw new UnseatableFakeBodyError(buildId);
+  return definition;
+}
 
 /** Where a body's group origin sits relative to its back face — the one number a fake probe cannot
  *  get from `request.depthM` alone, and the one backlog entry 9 is about: *"a fake probe reports
  *  back the depth it was handed, so a domain test with a fake probe cannot see a depth defect at
- *  all."* Since wave 5F two builders disagree with `depthM / 2`, and both disagreements are
- *  decisions rather than noise, so the fake models them or every domain depth assertion here is
- *  asserting a geometry that is not built.
+ *  all."*
  *
- *  - **A fronted wall carcass** (ADR 0036 decision 1) is built at its declared depth *less* the
- *    39 mm door-and-handle assembly, so its rear overhang is half of that shell.
- *  - **A hood** (ADR 0039 decision 2) is hung from the front: its front face lands on the
- *    cabinet-depth line and the gap goes behind it, so its origin sits `cabinetDepth − 250` off the
- *    wall whatever depth it was handed. §11 row 19's second named exception.
+ *  **Read off the catalogue's own `occupiedDepth` declaration, not re-typed here** (wave S9). The
+ *  two arms are exactly the two builder families that declaration names:
  *
-`packages/three-adapter/tests/measure-built-body.test.ts` is the authority and this has to agree
- *  with it — **and nothing checks that it does.** An earlier version of this comment claimed
- *  `insert-depth.qa.test.ts` made the comparison; it does not construct a fake probe at all, and no
- *  test anywhere compares the two. Both sides are pinned to independent literals that happen to
- *  agree.
+ *  - A **`recorded-shell`** entry is a carcass whose builder consumes the depth it is handed and
+ *    centres the shell on z = 0, so the shell is the requested finished depth less what stands in
+ *    front of it — 39 mm for a fronted wall carcass (ADR 0036 decision 1), nothing for an open
+ *    shelf — and the seat is half of that.
+ *  - A **`wall-plane`** entry's builder ignores the depth argument altogether (ADR 0018) and always
+ *    produces the same body, so its seat is the one its catalogue entry declares. `frameDepthMm` is
+ *    that number by construction: the fixture's own contract is that each value is `2 ×` the body's
+ *    measured seat offset. It covers the front-hung hood without a second rule — 700 for a body
+ *    that is 500 deep, §11 row 19's second named exception.
  *
- *  That is the seam that matters most after wave 5F, because every domain-side depth assertion —
- *  swap, resize, round-trip, column extent — is now validated against a *model* of the geometry.
- *  Backlog 9's own diagnosis was that a fake probe echoing its input cannot see a depth defect; 5F
- *  fixed the model and left the verification of the model unbuilt. The gate wanted is a
- *  three-adapter test asserting the real probe's seats equal the same declared constants this
- *  reads. */
-function seatOffsetFor(request: BodyProbeRequest): number {
-  if (request.buildId === "hood") {
-    return CABINET_DEPTH_M - HOOD_DEPTH_M / 2;
+ *  Before wave S9 the fallback was `request.depthM / 2`, which modelled **every** builder as
+ *  consuming its depth. It was DOM-002's defect wearing the other hat: a base body handed a 620 mm
+ *  opening reported a 620 mm seat, where the real builder reports 580 whatever it is handed. The
+ *  duplicated `FRONTED_WALL_BUILD_IDS` set this file used to carry — the ADR 0028 shape its own
+ *  comment complained about — is gone with it: there is one declaration and this reads it. */
+function seatOffsetFor(
+  catalog: BodyCatalog,
+  request: BodyProbeRequest,
+): number {
+  const { occupiedDepth, frameDepthMm } = requireDefinition(
+    catalog,
+    request.buildId,
+  );
+  if (occupiedDepth.measuredFrom === "recorded-shell") {
+    return (request.depthM - toMetres(occupiedDepth.frontAssemblyMm)) / 2;
   }
-  if (FRONTED_WALL_BUILD_IDS.has(request.buildId)) {
-    return (request.depthM - WALL_FRONT_ASSEMBLY_M) / 2;
-  }
-  return request.depthM / 2;
+  return toMetres(frameDepthMm) / 2;
 }
 
 /** Measures exactly what it was asked to build, so an insert that passed the pre-probe guards
@@ -94,7 +101,9 @@ export function createFakeProbe(options: FakeProbeOptions = {}): BodyProbe & {
         carcassWidthM: options.carcassWidthM ?? request.widthM,
         carcassHeightM,
         fullHeightM: carcassHeightM + FREE_AIR_EXTENT_M,
-        seatOffsetM: options.seatOffsetM ?? seatOffsetFor(request),
+        seatOffsetM:
+          options.seatOffsetM ??
+          seatOffsetFor(options.catalog ?? KITCHEN_L_BODY_CATALOG, request),
       };
     },
   };

@@ -1,7 +1,19 @@
 import {
+  BASE_FINISHED_DEPTH_MM,
+  DISHWASHER_BASE_FINISHED_DEPTH_MM,
   EXTRACTOR_HOOD_KIND,
+  FREESTANDING_FRIDGE_FINISHED_DEPTH_MM,
+  HOOD_FINISHED_DEPTH_MM,
   INSERTABLE_BODY_DEFINITIONS,
+  OVEN_TOWER_FINISHED_DEPTH_MM,
+  TALL_UNIT_FINISHED_DEPTH_MM,
 } from "../catalog.js";
+import {
+  finishesAtMm,
+  NO_FRONT_ASSEMBLY_MM,
+  shellPlusFrontMm,
+} from "../occupied-depth.js";
+import { WALL_FRONT_ASSEMBLY_MM } from "../worktop-depth.js";
 import type { Design, DesignPlacement } from "../design.js";
 import type { BodyCatalog, BodyDefinition } from "../void-engine.js";
 
@@ -35,8 +47,14 @@ const baseCarcass: Pick<
   | "canDelete"
   | "fixedWidth"
   | "insertable"
+  | "occupiedDepth"
 > = {
   band: "base",
+  // A seeded base body is a §7 base body that has already been built, so it fills the same space:
+  // its worktop's front edge (DOM-002). The four rows that are **not** an ordinary base — the two
+  // corner legs, the dishwasher niche and, in the column family, the oven tower — say so on their
+  // own line below.
+  occupiedDepth: finishesAtMm(BASE_FINISHED_DEPTH_MM),
   canFinish: true,
   canHandle: true,
   canReplace: true,
@@ -47,9 +65,31 @@ const baseCarcass: Pick<
   insertable: false,
 };
 
-const wallCarcass = { ...baseCarcass, band: "wall" as const };
-const topCarcass = { ...baseCarcass, band: "top" as const };
-const columnCarcass = { ...baseCarcass, band: "column" as const };
+/** A wall carcass's depth is the one depth in the model that is a placement variable, so its rule
+ *  is a formula over the seat it records rather than a declared distance: shell plus ADR 0036
+ *  decision 1's front assembly. `open-shelf-600` and `hood-600` are the two rows this is wrong for,
+ *  and both override it. */
+const wallCarcass = {
+  ...baseCarcass,
+  band: "wall" as const,
+  occupiedDepth: shellPlusFrontMm(WALL_FRONT_ASSEMBLY_MM),
+};
+const topCarcass = { ...wallCarcass, band: "top" as const };
+const columnCarcass = {
+  ...baseCarcass,
+  band: "column" as const,
+  occupiedDepth: finishesAtMm(TALL_UNIT_FINISHED_DEPTH_MM),
+};
+
+/** ADR 0025: the X-leg carries a **corner** worktop, which reaches 630 mm from the wall plane — 10
+ *  more than a straight run's, and 70 past the 560 mm seat this entry records. Measured on
+ *  `cornerBaseX`'s own `countertop`. */
+const CORNER_BASE_X_FINISHED_DEPTH_MM = 630;
+
+/** The return leg's worktop finishes on the front plane of the tall run it butts into, which is
+ *  what its 580 mm placement depth is chosen to make true (`decomposed-bodies.ts`,
+ *  `SEEDED_CORNER_RETURN_DEPTH_M`). */
+const CORNER_BASE_RETURN_FINISHED_DEPTH_MM = 600;
 
 /** §13.1: "Corners are structural. No replace, no delete, never a width donor", repeated by §11
  *  row 16 — so a corner body also has no finish and no handle to offer, and the panel renders
@@ -102,6 +142,7 @@ const SEEDED_BODY_DEFINITIONS: readonly (readonly [string, BodyDefinition])[] =
         ...STRUCTURAL_CORNER,
         kind: "corner_base_x",
         frameDepthMm: 560,
+        occupiedDepth: finishesAtMm(CORNER_BASE_X_FINISHED_DEPTH_MM),
       },
     ],
     [
@@ -111,6 +152,7 @@ const SEEDED_BODY_DEFINITIONS: readonly (readonly [string, BodyDefinition])[] =
         ...STRUCTURAL_CORNER,
         kind: "corner_base_return",
         frameDepthMm: 580,
+        occupiedDepth: finishesAtMm(CORNER_BASE_RETURN_FINISHED_DEPTH_MM),
       },
     ],
     [
@@ -128,6 +170,7 @@ const SEEDED_BODY_DEFINITIONS: readonly (readonly [string, BodyDefinition])[] =
         ...baseCarcass,
         kind: "dishwasher_housing",
         frameDepthMm: 580,
+        occupiedDepth: finishesAtMm(DISHWASHER_BASE_FINISHED_DEPTH_MM),
         catalogEquivalentId: "base-dishwasher",
       },
     ],
@@ -191,6 +234,7 @@ const SEEDED_BODY_DEFINITIONS: readonly (readonly [string, BodyDefinition])[] =
         kind: "tall_unit",
         frameDepthMm: 560,
         frameHeightMm: 2200,
+        occupiedDepth: finishesAtMm(OVEN_TOWER_FINISHED_DEPTH_MM),
         catalogEquivalentId: "tall-oven-tower",
       },
     ],
@@ -222,6 +266,7 @@ const SEEDED_BODY_DEFINITIONS: readonly (readonly [string, BodyDefinition])[] =
         canHandle: false,
         frameDepthMm: 680,
         frameHeightMm: 1850,
+        occupiedDepth: finishesAtMm(FREESTANDING_FRIDGE_FINISHED_DEPTH_MM),
         fixedWidth: true,
         catalogEquivalentId: "fridge-free",
       },
@@ -274,6 +319,7 @@ const SEEDED_BODY_DEFINITIONS: readonly (readonly [string, BodyDefinition])[] =
         canFinish: false,
         canHandle: false,
         frameDepthMm: 330,
+        occupiedDepth: shellPlusFrontMm(NO_FRONT_ASSEMBLY_MM),
         catalogEquivalentId: "open-shelf",
       },
     ],
@@ -288,6 +334,7 @@ const SEEDED_BODY_DEFINITIONS: readonly (readonly [string, BodyDefinition])[] =
         canHandle: false,
         fixedWidth: true,
         frameDepthMm: 700,
+        occupiedDepth: finishesAtMm(HOOD_FINISHED_DEPTH_MM),
         catalogEquivalentId: "hood",
       },
     ],

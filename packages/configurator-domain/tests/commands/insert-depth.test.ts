@@ -306,9 +306,15 @@ describe("insertBody — a wall carcass over an emptied column (backlog entry 5)
     const world = emptiedWorld();
     const opening = voidAt(world, EMPTIED_COLUMN, WALL_VOID_Y0_M);
 
-    // The trap, stated: the opening really does still carry 580 mm, so an uncapped build is a
-    // 580 mm carcass and this sweep is not vacuous.
-    expect(toMillimetres(opening.d)).toBe(580);
+    // The trap, stated: the opening really does still carry the deleted base run's own depth, so
+    // an uncapped build is a 632 mm carcass and this sweep is not vacuous.
+    //
+    // **632, not 580, since wave S9 (DOM-002).** The number is the *deepest member's* occupied
+    // depth, and this column's was a dishwasher niche, whose appliance door bar reaches 632 mm from
+    // the wall. 580 was the seat encoding that member records (ADR 0018), which is 52 mm short of
+    // the space it filled — the assertion pinned the defect, and what it is about, that the frozen
+    // depth survives the delete and the cap is what holds the build back, is unchanged.
+    expect(toMillimetres(opening.d)).toBe(632);
     expect(world.columns.get(EMPTIED_COLUMN)?.hasFullHeightUnder).toBe(false);
 
     const result = insertWallCabinet(world);
@@ -389,6 +395,9 @@ describe("openingFromPlacement — depth is the body's, not the vacated slot's",
     const opening = openingFromPlacement(record, world.records, world.columns);
 
     expect(toMillimetres(opening.d)).toBe(330);
-    expect(toMillimetres(world.columns.get("A|1.30")?.d ?? 0)).toBe(580);
+    // 620, not 580, since wave S9 (DOM-002): the column's depth is its base cabinet's **worktop**,
+    // and 580 was that cabinet's seat encoding. The assertion is that the column is deeper than the
+    // body standing in it, which is more true at 620 than it was at 580.
+    expect(toMillimetres(world.columns.get("A|1.30")?.d ?? 0)).toBe(620);
   });
 });

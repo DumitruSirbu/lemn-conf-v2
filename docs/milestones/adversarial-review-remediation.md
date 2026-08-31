@@ -1108,3 +1108,551 @@ because this wave is the leak audit.
 
 `pnpm check` was deliberately not run — the coordinator owns it. The Playwright e2e suite was not
 run.
+
+## Wave S9 — DOM-002
+
+**The finding.** `occupiedDepthM` is the single answer to "how deep is the space this body fills" —
+`Column.d` (§3.2's MAX) and the opening a swap vacates (§5.3) both read it — and its own contract
+documented that its fallback was wrong. Two `kind` arms handled the hood and the fronted wall
+carcass; everything else fell through to `return record.frame.d`, which is not a depth at all
+(ADR 0018: it is twice the body's rear overhang). An opening derived from it is **shallower than the
+body that just vacated it**, so a reload or a swap could offer a space the outgoing body no longer
+fits into.
+
+### The depth model
+
+`BodyDefinition.occupiedDepth` is now a **required** declaration on every catalogue entry, carried
+onto `PlacementRecord` and applied by `occupiedDepthFromSeat`. Two rules, because the shipped
+builders come in two kinds:
+
+| Rule                | Means                                                                     | Entries                                                                           |
+| ------------------- | ------------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
+| `recorded-shell`    | the builder consumes the depth it is handed and centres the shell on `z = 0`, so `frame.d` **is** that shell: finished depth = shell + front assembly | `wall-cabinet`, `wall-lift` and the seeded wall/top rows (+39 mm, ADR 0036 decision 1); `open-shelf`, `open-shelf-600` (+0) |
+| `wall-plane`        | the builder ignores the depth argument and always builds the same body, so the space it fills is one declared distance from the wall plane | every base, full-height, appliance and corner body, and the front-hung hood       |
+
+There is deliberately **no** `recorded-shell` arm for a base or a column: a base carcass records 580
+for a 560 mm shell, so "shell plus a front" there would be arithmetic on a number that is not a
+shell — a fiction that happens to land on the right answer, which is the shape ADR 0028 exists to
+stop.
+
+**Unknown fails closed.** `UndeclaredOccupiedDepthError` is thrown for a definition that declares no
+rule or an unrecognised one. TypeScript makes the field required, so a catalogue assembled in
+TypeScript cannot reach it; the throw is for a `BodyCatalog` assembled outside it, which is what the
+port allows.
+
+**One accepted decision is partly superseded, and the first version of this record wrongly claimed
+none was** (review F3). [ADR 0040](../decisions/0040-a-recorded-seat-is-converted-back-not-read-as-a-depth.md)
+decision 1 states the rule as *"the cabinet-depth line for a hood, `frame.d + 39` for a fronted wall
+carcass, **`frame.d` for everything else**"*. That last clause is now false, and `AGENTS.md` is
+explicit that a dated record must not be silently overturned. What the decision is *about* is
+untouched: a recorded seat is converted back rather than read as a depth, in exactly one place, and
+that place is still `occupiedDepthM`. Only the third arm changed, from a guess to a declaration.
+
+**ADR 0040 therefore needs a dated amendment, and it is not written here** — the coordinator is
+dispatching a scribe. `occupied-depth.ts`'s module header records the debt in the meantime.
+
+ADR 0018's seat encoding is untouched. ADR 0028's remedy — declare in the domain, derive in the
+adapter, gate the two — is the mechanism used.
+
+### The measured figures
+
+Every number was read off the built geometry with the real builders and the real `BodyProbe`, seated
+the way §11 row 19 seats a placement (`frame.d / 2 + box.max.z`, the full extent §3.1 asks for).
+**Three of the report's four figures are right and one is wrong:**
+
+| Body family                     | Report | Measured | Verdict                                          |
+| ------------------------------- | ------ | -------- | ------------------------------------------------ |
+| base (seat 580)                 | ~620   | **620**  | confirmed — the `countertop` mesh, 620 deep       |
+| tall (seat 560)                 | 599    | **599**  | confirmed — carcass 560 + the same 39 mm front    |
+| freestanding fridge (seat 680)  | 742    | **742**  | confirmed — appliance body + its two door bars    |
+| corner (seat 560)               | 580    | **630**  | **wrong** — see below                             |
+
+`base-corner-x-900`'s 580 came from the source comment's arithmetic (600 mm carcass, seated 20 mm
+inside the wall). The geometry says otherwise: its group runs `-300..350`, and the leg carries a
+**corner** worktop that reaches 350 mm from its origin, so seated at 280 it finishes 630 mm from the
+wall plane. 630 is what is declared.
+
+Four bodies the report's table does not name are also not their seat, and the sweep found them:
+
+| Body                                        | Seat | Occupied | What reaches furthest        |
+| ------------------------------------------- | ---- | -------- | ---------------------------- |
+| `base-dishwasher` / `base-dishwasher-600`   | 580  | 632      | the appliance's door bar     |
+| `base-hob-oven`                             | 580  | 648      | the oven fascia and its bar  |
+| `tall-oven-tower` / `tall-oven-tower-600`   | 560  | 638      | the oven and microwave bars  |
+| `base-corner-return-320`                    | 580  | 600      | its worktop                  |
+
+### Tests added
+
+- `packages/configurator-domain/tests/occupied-depth.test.ts` — every entry in both populations
+  declares a rule; the undeclared and the unrecognised case each throw; both rules applied; the
+  whole shipped kitchen's occupied depths as one table; and the guard that the table is not the seat
+  restated (only `open-shelf-600` agrees with its seat).
+- `packages/three-adapter/tests/occupied-depth.parity.test.ts` — **the gate that makes the
+  declaration a fact.** Every insertable body at every width its entry offers (and a wall carcass at
+  both depths it is ever built to), plus every seeded body, measured off the meshes and compared to
+  what the domain answers. Plus `remove → opening → rebuild`: every swappable seeded placement is
+  swapped through `insertBody` with the real probe, rebuilt the way `scene-sync` rebuilds it
+  (`rebuildDepthM`), measured, and required to fill **exactly** the opening it vacated. Since review
+  F4 the insertable sweep also pins each `wall-plane` entry's `frameDepthMm` to `2 ×` its measured
+  seat, which is the assumption the domain's fake probe rests on.
+
+**Watched to fail against the pre-fix behaviour.** `occupiedDepthM` was temporarily reverted to the
+two-arm `kind` switch with the `frame.d` fallback, with the declarations left in place so it still
+compiled:
+
+| Suite                                     | Failures against the old behaviour                                     |
+| ----------------------------------------- | ---------------------------------------------------------------------- |
+| `tests/occupied-depth.test.ts` (domain)   | 6 failed / 40 passed — both fail-closed cases, both rules, both tables |
+| `tests/occupied-depth.parity.test.ts` (adapter) | 67 failed / 102 passed — every base, tall, fridge and corner case, and 7 of the 22 round trips |
+
+The 15 round trips that passed against the old code are the wall and hood ones: wave 5F fixed those,
+and this wave leaves them exactly where they were.
+
+### Existing assertions whose meaning changed
+
+None was adjusted to make the change pass without the number being wrong before. Each is a literal
+pinning a **column's** or an **opening's** depth, and each now pins the space its members fill
+instead of the seat encoding they record. The property each test asserts is unchanged.
+
+| Test                                                            | Was | Now | Why the old number was wrong                                             |
+| --------------------------------------------------------------- | --- | --- | ------------------------------------------------------------------------ |
+| domain `insert-depth.test.ts` — "builds to the head-clearance cap" | 580 | 632 | the emptied column's deepest member is a dishwasher niche, which fills 632 |
+| domain `insert-depth.test.ts` — "reads the outgoing body's own depth" | 580 | 620 | `A\|1.30`'s base cabinet fills its worktop's 620                          |
+| adapter `insert-depth.qa.test.ts` — cleared fridge column        | 680 | 742 | the fridge fills 742; 680 is its seat                                     |
+| adapter `insert-depth.test.ts` — re-inserted top-row cabinet     | 600 | 620 | the hood is no longer the column's deepest member; the base run's 620 is  |
+| adapter `resize-depth.test.ts` — `BASE_DEPTH_MM`                 | 580 | 620 | renamed `BASE_OCCUPIED_DEPTH_MM`; the file's own `depthMm` reads occupied depth, and a base run occupies 620 |
+
+Each of those five is a "the trap, stated" assertion whose point is that the frozen opening is deeper
+than what gets built. Every one of them got **sharper**, not weaker.
+
+`hob-base.adversarial.test.ts` — "the two hob bases carry identical catalogue geometry" — is the one
+whose premise moved. It now normalises `occupiedDepth` out of the deep-equal and asserts the
+difference explicitly: the drawer variant finishes at its worktop (620) and the oven variant's fascia
+and bar reach 28 mm past it (648). Nothing *picks* between the two by depth — §5.2 fits on width and
+height and §9 offers on the width model, and their nominal depths are both still 580 — but declaring
+them equal would declare a body 28 mm shallower than the one that gets built.
+
+### A second defect of the same shape, found and fixed: the fake probe
+
+`tests/support/fake-probe.ts` modelled **every** builder as consuming the depth it is handed
+(`request.depthM / 2`). It is DOM-002 wearing the other hat: a base body handed a 620 mm opening
+reported a 620 mm seat, where the real builder reports 580 whatever it is handed. It was invisible
+while `Column.d` happened to equal the seat, and four domain assertions pinned to `580` broke the
+moment the opening changed. Left alone, those four would have had to be "updated" to 620 — a number
+production never records.
+
+`seatOffsetFor` now reads the catalogue's own `occupiedDepth` declaration: a `recorded-shell` entry
+is seated from the depth it was handed, a `wall-plane` entry from its declared `frameDepthMm`. This
+also deletes the duplicated `FRONTED_WALL_BUILD_IDS` set the file's own comment complained about
+(the ADR 0028 shape), and covers the front-hung hood without a second rule. `createFakeProbe` takes
+an optional `catalog` so a test that inserts a synthetic entry seats it from the catalogue it added
+it to.
+
+### Behaviour that changed, deliberately
+
+**Eight of the shipped kitchen's twelve columns publish a different depth.** Measured by deriving
+the seeded columns and comparing each against what the pre-fix `occupiedDepthM` would have answered
+for the same members:
+
+| column | before | after | delta | deepest member now |
+| ------ | ------ | ----- | ----- | ------------------ |
+| `A\|0.45` | 560 | 630 | +70 | the corner leg's corner worktop |
+| `A\|1.30`, `A\|3.20` | 580 | 620 | +40 | a base run's worktop |
+| `A\|2.00` | 580 | 632 | +52 | the dishwasher's door bar |
+| `A\|2.60` | 600 | 620 | +20 | the base run — the hood is no longer deepest |
+| `B\|0.74` | 580 | 600 | +20 | the corner return's worktop |
+| `B\|1.20` | 600 | 638 | +38 | the oven tower's appliance bars |
+| `B\|2.45` | 680 | 742 | +62 | the fridge's door bars |
+| `B\|1.80`, `A\|0.30`, `A\|0.75`, `B\|0.61` | — | — | 0 | unchanged |
+
+**`Column.d` is not only a depth — it positions the column and sizes every void mesh** (review F2).
+`deriveColumns` derives the column's off-wall coordinate as `depth / 2` (`void-engine.ts`), so those
+eight origins move forward with it — `A\|0.45` 280 → 315, `B\|2.45` 340 → 371 — and `recomputeVoids`
+stamps the depth onto every void, which `buildVoidMesh` (`three-adapter/src/void-mesh.ts`) draws. So
+the **rendered void highlight is user-visible and grew**: over a base column it now projects to the
+620 mm worktop line at wall height, roughly 290 mm past the 330 mm cabinets beside it, where it used
+to project 250. Nothing in the suite asserts void geometry, so no test caught this; it is recorded
+here rather than left to be discovered. It is arguably an improvement in honesty — the box now
+covers the space a body really fills — but it was not asked for and it is not asserted anywhere.
+
+**What the panel offers and what a resize accepts is unchanged.** Checked by reading the call sites,
+not inferred from a green suite: no fit gate reads depth (§5.2 judges width and height, `insert-fit.ts`),
+and `refuseBuiltSize` checks width and height only. There is no depth refusal in the model to widen.
+
+#### The claim this record made and got wrong (review F1)
+
+The first version of this section said a wall carcass over a full-height column is "not hit by the
+shipped kitchen". **That is false.** I checked one column — a lone tall pantry — and did not check
+the case an ordinary delete actually produces: deleting the **top cabinet** leaves the full-height
+member standing under the opening, so `hasFullHeightUnder` stays true and `resolveDepthM`'s uncapped
+arm hands the builder the column's whole depth. Run on the shipped design with the real probe
+(delete, then insert `wall-cabinet` into the void):
+
+| deleted | column | void `d` | `hasFullHeightUnder` | built seat | occupies | before |
+| ------- | ------ | -------- | -------------------- | ---------- | -------- | ------ |
+| `p22` | `B\|1.20` | 638 | true | 599 | 638 | 600 |
+| `p23` | `B\|1.80` | 600 | true | 561 | 600 | 600 — unchanged |
+| `p24` | `B\|2.45` | 742 | true | 703 | 742 | 680 |
+
+Two cases are reached by an ordinary delete-then-insert, and both deltas are larger than the 599 I
+named. Delete `p24` and insert a wall cabinet and the customer gets a **742 mm finished wall cabinet
+with a 703 mm carcass**, hanging over a 680 mm fridge — deeper than the appliance, because
+`occupiedDepth` now includes the fridge's door bars. Pre-fix it built 680.
+
+(Deleting the full-height member *itself* does not reach this: `withCurrentFullHeightMembers`
+re-answers `hasFullHeightUnder` from the new records, so the lift goes with it and the cap applies —
+backlog entry 5's positive reading, working as designed. That is the case I checked, and it is the
+wrong one.)
+
+### Found and not fixed — S9-F1 (open, needs its own wave)
+
+**`resolveDepthM`'s uncapped arm asks `occupiedDepthM` the wrong question.** Two different facts are
+being served by one number:
+
+- *"the full extent a body occupies, handles included"* — a **clearance** fact, which is what §3.1
+  asks for and what `occupiedDepthM` computes;
+- *"the depth to build the next body to"* — a **manufactured size**, which is what `resolveDepthM`
+  hands the probe.
+
+Only the first is what `occupiedDepthM` is. `worktop-depth.ts` exists precisely to stop a formula
+inventing a cabinet nobody makes — *"a formula would invent a 372 mm cabinet nobody makes, which is
+why a third worktop size is a new row here and never an interpolation"* — and the uncapped arm is a
+formula doing exactly that, one module over.
+
+**The defect pre-dates this wave.** A 680 mm wall carcass, which is what that arm built before, is no
+more manufacturable than a 742 mm one. What this wave does is **worsen it**: the number the arm reads
+is now the full extent including appliance handles, so it is further from any real cabinet than it
+was, and it is reached on two columns of the shipped kitchen rather than none.
+
+**Reproduced live and persisted — not derived.** In the running product at 390 x 844: delete `p24`,
+then insert `wall-cabinet` into the void it vacates. The document written to the database carries
+`seatDepthMm: 703` — a 742 mm finished wall cabinet hanging over a 680 mm fridge — with `probe=on`,
+an **empty `rejection`**, and zero console errors. No gate on that path paused.
+
+**It has no user-facing tell**, which is why it can reach manufacturing unnoticed:
+
+- **The panel surfaces no depth at all.** The offer sheet for that opening reads *"Spatiu liber ·
+  Perete B · suspendat · **700 x 750 mm**"* and *"4 corpuri intra in 700 x 750 mm"* — width and
+  height only. The 703 appears on **no screen in the product**.
+- **Neither the void nor the rebuilt body looks wrong.** The void is a clean box above the fridge and
+  the rebuilt cabinet renders as a plausible deep cabinet. A person would flag neither, and would
+  catch it only by comparing against the 330 mm run on the other wall.
+- **No camera preset shows wall B at a grazing angle** — *Perete B* is face on, *Perete A* frames the
+  other run — so that column's void depth is not legible in any view the product offers.
+
+Silent in the copy, silent in the render, and it lands as a 703 mm carcass nobody ordered. That is
+what should decide the follow-up's priority: a spec-to-manufacture defect, not a cosmetic one.
+
+**Deliberately not fixed here.** Whether that arm should read `opening.d` at all is a product
+decision — it needs its own wave and probably an ADR, and the coordinator is raising it with the
+owner. Changing `resolveDepthM` inside a wave scoped to DOM-002 would be exactly the silent
+product change this remediation exists to stop.
+
+### Gates run
+
+| Command                                              | Result                                              |
+| ---------------------------------------------------- | --------------------------------------------------- |
+| `pnpm --filter @lemnaria/configurator-domain test`    | exit 0 — 61 files, 1041 tests passed                |
+| `pnpm --filter @lemnaria/configurator-domain lint`    | exit 0                                              |
+| `pnpm --filter @lemnaria/configurator-domain typecheck` | exit 0                                            |
+| `pnpm --filter @lemnaria/three-adapter test`          | exit 0 — 33 files, 889 tests passed                 |
+| `pnpm --filter @lemnaria/three-adapter lint`          | exit 0                                              |
+| `pnpm --filter @lemnaria/three-adapter typecheck`     | exit 0                                              |
+| `pnpm --filter @lemnaria/web test`                    | exit 0 — 40 passed, 1 skipped; 639 passed, 4 skipped |
+| `pnpm --filter @lemnaria/web lint`                    | exit 0                                              |
+| `pnpm --filter @lemnaria/web typecheck`               | exit 0                                              |
+
+`pnpm check` was deliberately not run — the coordinator owns it. Browser verification **was**
+performed after review round 1; see "Browser verification" below. This paragraph originally recorded
+it as a gap, which stopped being true and is corrected here rather than left standing.
+
+### Review round 1 — what changed
+
+Approved with six findings. `resolveDepthM` was deliberately **not** touched (F1's instruction).
+
+| # | Finding | Done |
+| - | ------- | ---- |
+| F1 | the product-behaviour claim was false on the shipped kitchen | claim corrected above with the real numbers, re-measured myself; the underlying defect recorded as open finding **S9-F1** |
+| F2 | `Column.d` also positions the column and sizes every void mesh | added to the behaviour list, with the per-column table and the origin shifts |
+| F3 | an accepted decision was overturned while claiming none was | claim corrected; ADR 0040 flagged as needing a dated amendment, in the record and in `occupied-depth.ts`'s header. The ADR itself is **not** edited here — a scribe owns it |
+| F4 | the fake probe's `wall-plane` arm rested on an ungated coincidence | the insertable parity sweep now asserts `2 × seatOffsetM === frameDepthMm` for all thirteen `wall-plane` entries |
+| F5 | a third encoding of "fronted wall carcass" survived in the adapter | `FRONTED_WALL_BUILD_IDS` is now **derived** from `INSERTABLE_BODY_DEFINITIONS`' own `occupiedDepth` (`recorded-shell` with a front), so there is one declaration and no set to forget |
+| F6 | the `recorded-shell` doc comment overstated | rewritten: the rule is about where the shell sits, not about what the builder is handed |
+
+One correction to the review itself: **eight** of twelve columns changed depth, not nine. Every
+per-column delta the review quoted is right (`A\|0.45` +70, `A\|2.00` +52, `B\|2.45` +62, bases +40);
+the four unchanged are `B\|1.80`, `A\|0.30`, `A\|0.75` and `B\|0.61`. The table above is the full
+count.
+
+### Browser verification
+
+Run after review round 1, because F2 established that the void mesh is user-visible and that nothing
+in the suite asserts it. Driven at **390 x 844** through the project's own Playwright runner, which
+sets the agreed viewport before navigating, starts a fresh dev server, and points `DATABASE_URL` at
+the test database through ADR 0006's `assertSafeTestDatabaseUrl` guard. **Zero console errors and
+zero page errors** across every run.
+
+- **The seeded kitchen renders unchanged** — bodies flush, nothing off the wall, no clipping or
+  z-fighting, the corner intact. Expected: `occupiedDepth` feeds columns and voids, not body
+  geometry.
+- **The base-column void seats on the worktop line**, slightly forward of the cabinet doors beside
+  it, which is where a 620 mm worktop puts it. Correct.
+- **The wall-height void in a base column overhangs its 330 mm neighbours by 290 mm** — 250 mm before
+  this wave. Judged a **misleading affordance rather than a rendering defect**: the box is well
+  formed, and honest about the *column*, which really is 620 deep because of the base run beneath it.
+  It is dishonest about the *opening*, because anything inserted there is capped to 330 by
+  `resolveDepthM`, so the highlight advertises roughly twice the depth of the body that will appear.
+  The same conflation `S9-F1` names, with the void mesh as its third consumer.
+- **`A|0.45` is unobservable, and a future reader should not go looking for its effect.** The column
+  that moved most (560 -> 630, origin 280 -> 315) can **never render a void**: its only member is
+  `p25`, a structural corner, and §13.1 refuses to remove it. Confirmed in the product — the panel
+  offers no remove control and renders the *CORP STRUCTURAL* refusal instead. `B|0.74` and `B|0.61`
+  are the same. Whatever those three columns publish is invisible under every reachable interaction.
+- **Deleting `p24` and re-inserting a wall cabinet persists `seatDepthMm: 703`** with no refusal.
+  That is `S9-F1`, reproduced live; the evidence and what it means are recorded there.
+
+**What this does not cover.** The committed Playwright e2e suite was not run — the verification drove
+the product through that runner but added nothing to the suite. **Void geometry remains unasserted**,
+which is why the F2 change reached review unnoticed in the first place. A spec pinning it is
+defensible and was deliberately not taken here: it is a scope change, not a fix for DOM-002.
+
+**One blemish, owned.** The first run of the throwaway harness crashed in its own cleanup, so one
+design row it minted was **not** deleted from the test database. Later runs cleaned up correctly. The
+row is in the test database and never the application's — ADR 0006's guard is what makes that certain
+— but it is exactly the leak that decision's third mechanism exists to prevent.
+
+## Wave S10 — DB-004
+
+**The finding.** `runMigrations` kept a hard-coded file list, executed every file on every run,
+recorded no applied version or checksum, and ran each file as a separate query. It worked only
+because all three migration files are written to be idempotent. The first backfill, rename,
+constraint validation or non-idempotent transformation would either rerun or leave the database
+part-migrated after a later file failed. ADR 0020 named the gap; the source comments admitted it.
+
+**What replaces it.** An append-only `schema_migrations(version, file_name, checksum, applied_at)`
+ledger. Each pending migration runs in its own transaction, under a transaction-scoped advisory
+lock, with its ledger row inserted by that same transaction. A changed checksum, a gap in the
+sequence, and a ledger row whose file no longer exists are each refused. The file list is now read
+from the directory and required to be a contiguous run from 0001, so adding a file and forgetting a
+list entry can no longer silently skip a migration.
+
+The runner moves from the HTTP `neon()` function to the WebSocket `Client` from the same driver.
+That is not a preference: the HTTP driver has no session, so it cannot hold a lock across a read and
+a write, and its transactions must be handed every statement up front — "read the ledger, then
+decide what to execute" is not expressible over it. `MIGRATION_DATABASE_URL` is still the only
+connection migrations use, and the application role is untouched (ADR 0008 stands).
+
+### The four design decisions
+
+**Bootstrapping.** The ledger cannot be introduced by a migration file — that would be a table
+recording its own creation. The runner issues `create table if not exists schema_migrations` itself,
+inside each transaction and *after* taking the lock. `if not exists` is what makes it safe on a
+database where migrations have already run: it finds the table, changes nothing, and never touches
+`designs`. Taking the lock first is what makes it safe under concurrency, since concurrent
+`create table if not exists` is one of the few statements that genuinely races in Postgres. The DDL
+lives in TypeScript, not a loose `.sql` file, because the build copies only `src/migrations` into
+`dist` — a `.sql` file beside it would be present in the source tree and absent from the published
+package, which is exactly the ADR 0013 failure.
+
+**Adopting a database that already ran these migrations, with no ledger rows.** They are **re-run,
+not backfilled**. The justification is specific rather than general: all three existing files are
+idempotent by construction (`create table if not exists`, `add column if not exists`, and a DO block
+that adds the check constraint only when `pg_constraint` lacks it), so re-executing them is a
+verified no-op. A backfill would instead have to infer from `information_schema` which migrations
+had run, and an inference that is wrong marks an unapplied migration as applied — permanently, and
+silently. That trade is only worth taking when re-running is unsafe, and here it is not. Future
+migrations need no such property, because from the first run onwards the ledger exists.
+
+**What happens the first time this runs against the existing Neon databases** (`lemn-conf-v2`, the
+Preview database, and `lemn-conf-v2-staging`): `schema_migrations` does not exist, so it is created;
+the ledger is empty, so all three files are pending; each runs in its own transaction and each is a
+no-op against the schema that is already there; three ledger rows are written. No `designs` row is
+read, written or deleted, and no schema change occurs. The command prints
+`[migrate] applied 0001_…, 0002_…, 0003_… against <database> (0 already applied)`. Every run after
+that prints `[migrate] applied nothing against <database> (3 already applied)`. This is asserted, on
+a live database, by the "bootstraps its own ledger … and adopts the schema already there" test,
+which inserts a design row first and checks it survives untouched. **No migration was run against
+the application database in this wave** — the whole wave ran against `TEST_DATABASE_URL`.
+
+**Checksum.** SHA-256 over the file's bytes with line endings normalised to LF, and nothing else
+normalised. Line endings because `core.autocrlf` rewrites them on checkout, which would change every
+byte of every migration on a Windows clone and block a deploy over a difference nobody made — the
+one transformation a checkout applies by itself. Nothing else, because any cleverer rule needs to
+understand SQL and every gap in that understanding is somewhere a real edit can hide; because the
+comments in these files are load-bearing (0003's explain a security control); and because an applied
+migration must not be edited at all, so tolerance for "harmless" edits answers a question that should
+not be asked. The consequence is stated in the module: reformatting an applied migration breaks the
+next run, on purpose, and the fix is to revert the file, never to relabel the ledger.
+
+**Advisory lock scope.** Transaction-scoped (`pg_advisory_xact_lock`), not session-scoped. This
+answers "what if the process dies holding it?" by removing the case: Postgres releases the lock at
+commit or rollback, so no uncaught exception, no `process.exit` between statements and no dropped
+connection can leave it held. A session-scoped `pg_advisory_lock` would need a matching unlock on
+every path and would depend on the server noticing a dead connection before the next deploy. The
+cost is that the lock covers one migration rather than a whole run — a second runner can apply a
+later file between two of this one's transactions. That is safe because every transaction re-reads
+the ledger *inside* the lock, so no runner ever decides from a stale view, and both walk the files
+in the same order.
+
+### Changed files
+
+| File                                                | Change                                                        |
+| --------------------------------------------------- | -------------------------------------------------------------- |
+| `packages/persistence/src/migrate.ts`               | Rewritten: ledger-driven, one transaction per migration, under the lock |
+| `packages/persistence/src/migration-ledger.ts`      | New — the ledger's SQL and the lock key, with the scope decision recorded |
+| `packages/persistence/src/migration-plan.ts`        | New — pure: what to apply, and every refusal, decided from two lists |
+| `packages/persistence/src/migration-files.ts`       | New — reads the directory, requires a contiguous run from 0001 |
+| `packages/persistence/src/migration-checksum.ts`    | New — the normalisation rule and why it stops where it does    |
+| `packages/persistence/src/migration-errors.ts`      | New — domain error types; no driver error reaches a caller raw  |
+| `packages/persistence/src/index.ts`                 | Exports the error types and `MigrationRunSummary`               |
+| `packages/persistence/package.json`                 | `build` clears `dist/migrations` before copying (see below)     |
+| `packages/persistence/tests/support/migration-ledger-probe.ts` | New — ledger probes, each guarded by `assertSafeTestDatabaseUrl` |
+| `packages/persistence/tests/migrate.test.ts`        | Live ledger behaviour; `describeMigrationRun` re-pinned          |
+| `packages/persistence/tests/migration-{plan,files,checksum}.test.ts` | New — the offline rules                         |
+| `packages/persistence/tests/neon-configuration-repository.adversarial.test.ts` | Drop-the-column test now forgets the ledger rows too |
+| `packages/persistence/tests/neon-configuration-repository.test.ts` | The re-run test now asserts a skip, not an idempotent re-execution |
+
+**A build bug found on the way, and fixed.** `cp -R src/migrations dist/migrations` copies *into* an
+existing `dist/migrations` rather than replacing it, so an incremental build over a stale `dist` left
+`dist/migrations/0001_…sql` from an older build beside a nested `dist/migrations/migrations/` holding
+the real three. The existing `test -f dist/migrations/0001_create_designs.sql` guard passed anyway.
+Under the old hard-coded list this surfaced as a loud `ENOENT` on 0002; under a directory read it
+would have surfaced as a run that quietly applied only 0001. `rm -rf dist/migrations` now precedes
+the copy, verified by building twice over an existing `dist`.
+
+### Two existing assertions were rewritten, deliberately
+
+ADR 0020's strongest test drops `write_token_hash` and asks the migration to put it back, so that a
+run which did nothing cannot pass. With a ledger the runner correctly skips an applied file, so the
+test now forgets the ledger rows for 0002 and 0003 alongside the column. **This is not a weakening.**
+It pins the stronger property: what the runner executes is decided by the ledger, and the test
+asserts the returned summary names both files. Both rows are forgotten rather than only 0002 because
+0003's check constraint went with the dropped column, and because leaving 0003 recorded while 0002 is
+not is precisely the gap the runner refuses. The neighbouring "is additive" test forgets them too,
+for the same reason — otherwise it would have been asserting row preservation across a run that did
+nothing at all. `neon-configuration-repository.test.ts`'s idempotence test now asserts the skip.
+
+### Tests added, each watched to fail
+
+Against the pre-fix `src/`, the four new test files cannot even load, and the two rewritten
+assertions fail on the summary the old runner does not return:
+
+| Test file                            | Result against pre-fix `src/`                                    |
+| ------------------------------------ | ------------------------------------------------------------------ |
+| `migrate.test.ts`                    | `Cannot find module '../src/migration-checksum.js'`               |
+| `migration-checksum.test.ts`         | `Cannot find module '../src/migration-checksum.js'`               |
+| `migration-files.test.ts`            | `Cannot find module '../src/migration-checksum.js'`               |
+| `migration-plan.test.ts`             | `Cannot find module '../src/migration-errors.js'`                 |
+| re-adds the column after it is dropped | `AssertionError: expected undefined to deeply equal [ …(2) ]`    |
+| skipped on a re-run                  | `AssertionError: expected undefined to deeply equal []`           |
+
+Because "the module does not exist" is a thin proof, each behaviour was then mutated in the finished
+code and the specific test watched to fail:
+
+| Mutation                                          | Failure observed                                                                    |
+| ------------------------------------------------- | ------------------------------------------------------------------------------------- |
+| `begin`/`commit` replaced with `select 1`         | concurrency test and ledger-atomicity test fail — `duplicate key … schema_migrations_pkey`, and the probe table and a version-4 row both survive |
+| checksum comparison short-circuited               | "refuses … no longer matches its recorded checksum" fails                            |
+| gap check short-circuited                         | "refuses … when the ledger has a gap" fails                                          |
+| `pg_advisory_xact_lock` call removed              | "two concurrent runners … exactly once" fails                                        |
+| every file treated as pending (ledger ignored)    | 5 tests fail — `duplicate key value violates unique constraint`, `Key (version)=(1) already exists` |
+| ledger bootstrap DDL removed                      | 9 of 14 tests fail                                                                   |
+
+The required cases are all covered: mid-file failure leaves no ledger row and no partial schema
+change; a changed checksum is refused; a gap is refused; a full re-run is a no-op; two concurrent
+runners apply each file exactly once with the loser finding nothing to do; and the bootstrap path
+runs against a database with no ledger. One case was added beyond the list — a migration whose
+ledger row cannot be recorded — because Postgres already wraps a multi-statement file in an implicit
+transaction, so the *explicit* transaction's real job is binding the schema change and its ledger row
+into one change, and only that test proves it.
+
+### Gates run
+
+| Command                                          | Result                                        |
+| ------------------------------------------------ | ----------------------------------------------- |
+| `pnpm --filter @lemnaria/persistence test`       | exit 0 — 14 files, 127 tests passed            |
+| `pnpm --filter @lemnaria/persistence lint`       | exit 0                                          |
+| `pnpm --filter @lemnaria/persistence typecheck`  | exit 0                                          |
+| `pnpm --filter @lemnaria/persistence build`      | exit 0, twice, over a clean and a stale `dist`  |
+
+`pnpm check` was deliberately not run — the coordinator owns it. Nothing was run against the
+application database, and no environment variable or provisioned resource was added, changed or
+removed.
+
+### Wave S10 — review round 2 (nine findings, all addressed)
+
+**S10-3 (Medium), fixed first, because it was not hypothetical.** The reviewer's own mutation
+spot-check wedged the shared live test database with this wave's test: the synthesised migration at
+`migrate.test.ts` inserts `version = 4` into `schema_migrations` itself, so with the transaction
+under test removed the row and the probe table committed and stayed. A ledger row whose version has
+no file makes every later `runMigrations` throw, the adversarial suite then dropped
+`write_token_hash` and could not restore it, and the whole persistence suite went red until the
+owner authorised a repair. The test's cleanliness depended on the very mechanism it was testing.
+
+Fixed with `dropSynthesisedMigrationArtefacts`, which deletes every `version >= 4` ledger row and
+drops the probe tables. It runs in a `finally` in each of the three synthesising tests **and** in an
+unconditional `afterEach` — the `finally` only runs if the test body was entered, and a `beforeAll`
+failure, a timeout or an unhandled rejection can skip it. Demonstrated by re-running the exact
+mutation that caused the incident: the two discriminating tests still fail, as they must, and the
+database afterwards reads `version 1, 2, 3` with no `db004_*` table left.
+
+**S10-1 (Medium) — a rollback deploy hard-failed with a message that misdirected.** The orphan-row
+guard keyed only on version, so an operator on an older checkout (0004 shipped and applied, the
+deployment rolled back, `migrate` re-run from the older revision as the restore runbook's drill step
+instructs) was told "a migration that ran must not be deleted or renamed" when nobody had deleted
+anything. The guard now separates *the ledger is merely ahead* — every orphan above the highest
+version on disk — from *a genuine hole*, an orphan below a version that does exist. The first now
+says "This checkout is older than the database … Nothing has been deleted and nothing is wrong with
+the database", and points at migrating from the matching revision. **Both still refuse**, and that
+is deliberate: reporting success would tell the operator the database is at the schema this checkout
+expects, which is exactly what it is not, and the runner cannot know whether the extra migration is
+compatible with the code being rolled back to.
+
+**S10-2 (Medium) — a connection failure escaped raw, contradicting this package's own contract.**
+`client.connect()` sat outside the `try`, so `migration-errors.ts`'s "the runner throws nothing
+else" and the changed-files table's "no driver error reaches a caller raw" were both false for that
+path, and the CLI had no catch — Node's uncaught printer would dump a Neon WebSocket error carrying
+endpoint and host detail. `connectOrWrapError` now wraps it in a `MigrationExecutionError` naming
+the database and nothing else from the URL, and the CLI catches, prints
+`describeMigrationFailure(error)` and sets a non-zero exit code. `describeMigrationFailure` prints
+the error's own name and message only — never the object, never the `cause` chain, which is exactly
+where a connection string hides.
+
+**S10-4 (Low) — what the transaction-per-migration rule forbids is now recorded.** `runMigrations`'
+doc comment names the excluded statements (`create index concurrently`, `reindex concurrently`,
+`vacuum`, `alter system`, `create database`, `drop database`, and `alter type … add value` on older
+servers), states the trade, and says that a migration genuinely needing one is an operator action
+deserving its own decision record rather than a quiet exception carved into the runner.
+
+**S10-5 (Low) — `file_name` is now checked, not merely recorded.** The checksum hashes bytes, so a
+rename with no edit passed silently while the refusal message promised to catch "deleted **or**
+renamed". `assertFileNameUnchanged` closes it; the message stays honest.
+
+**S10-6 (Low) — the build guard now asserts the count.** `test -f dist/migrations/0001_…sql` was
+satisfied by a `dist/migrations` holding only 0001 — the silent partial-set failure the `rm -rf` was
+added to prevent, one class up. Verified by experiment on a doctored `dist`: the old guard exits 0,
+the new one exits 1.
+
+**S10-7 (Low) — `databaseNameOf` can no longer print the connection string.** `new URL` raises
+`ERR_INVALID_URL` carrying the whole input as an enumerable property. It now returns
+`<unparseable connection string>` instead of throwing: the run still fails, without a misconfigured
+`MIGRATION_DATABASE_URL` leaking its password into a deploy log.
+
+**S10-8 (Low) — the new table has a privilege assertion.** `application-role-privileges.test.ts`
+now asserts `app_designs` holds no grant at all on `schema_migrations`. Read-only, and true whether
+or not the ledger exists yet in that database; which it was is settled by ADR 0020's schema
+read-back after the first production run.
+
+**S10-9 (Nit)** — `client.query("begin")` moved inside the `try`.
+
+Eleven tests added (127 → 138), including the two message-discrimination cases for S10-1, the
+rename refusal, and four redaction assertions for S10-2 and S10-7.
+
+| Command                                          | Result                                       |
+| ------------------------------------------------ | ---------------------------------------------- |
+| `pnpm --filter @lemnaria/persistence test`       | exit 0 — 14 files, 138 tests passed           |
+| `pnpm --filter @lemnaria/persistence lint`       | exit 0                                         |
+| `pnpm --filter @lemnaria/persistence typecheck`  | exit 0                                         |
+| `pnpm --filter @lemnaria/persistence build`      | exit 0; guard refuses a doctored partial `dist` |
+
+Test database verified clean on exit: ledger holds versions 1–3, no `db004_*` table survives.

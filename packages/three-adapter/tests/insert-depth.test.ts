@@ -162,9 +162,13 @@ describe("re-inserting a deleted top-row cabinet (the handset report)", () => {
     // **600 and not 580 since wave 5F.** §3.2's MAX is now over the space each member fills rather
     // than over its recorded `frame.d`, and this column holds `p13`, the hood, which ADR 0039
     // decision 2 hangs forward to the 600 mm cabinet-depth line. The trap is unchanged and slightly
-    // sharper: an uncapped build here is a 600 mm carcass beside 330 mm neighbours.
+    // sharper: an uncapped build here is a deep carcass beside 330 mm neighbours.
+    //
+    // **620 and not 600 since wave S9 (DOM-002).** The hood has stopped being this column's deepest
+    // member: the base run under it fills 620 — its worktop — where it used to publish the 580 mm
+    // seat it records. Sharper again by 20 mm, and about the same rule.
     const opening = voidAt(emptied, TOP_ROW_COLUMN, TOP_ROW_VOID_Y0_M);
-    expect(toMillimetres(opening.d)).toBe(600);
+    expect(toMillimetres(opening.d)).toBe(620);
     expect(emptied.columns.get(TOP_ROW_COLUMN)?.hasFullHeightUnder).toBe(false);
 
     const result = insertInto(emptied, opening.id, CATALOGUE_WALL_CABINET);

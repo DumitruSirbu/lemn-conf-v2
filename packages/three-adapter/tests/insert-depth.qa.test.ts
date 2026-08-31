@@ -238,9 +238,13 @@ describe("the openings above a cleared fridge, on real geometry", () => {
       const world = clearedFridgeColumn();
       const opening = voidAt(world, FRIDGE_COLUMN, y0M);
 
-      // The trap, stated: the opening still carries the fridge's 680 mm, so an uncapped build is a
-      // 680 mm carcass and this assertion is not vacuous.
-      expect(toMillimetres(opening.d)).toBe(680);
+      // The trap, stated: the opening still carries the fridge's own depth, so an uncapped build
+      // is a carcass that deep and this assertion is not vacuous.
+      //
+      // **742 and not 680 since wave S9 (DOM-002).** 680 is the seat a freestanding fridge records
+      // (ADR 0018); the space it fills is its appliance body plus its two door bars, and the frozen
+      // column keeps *that*. The trap is unchanged and 62 mm sharper.
+      expect(toMillimetres(opening.d)).toBe(742);
       expect(world.columns.get(FRIDGE_COLUMN)?.hasFullHeightUnder).toBe(false);
 
       const result = insert(

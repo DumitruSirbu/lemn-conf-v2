@@ -15,6 +15,8 @@ import {
   derivePlacementRecords,
   KITCHEN_L_BODY_CATALOG,
   KITCHEN_L_DESIGN,
+  NO_FRONT_ASSEMBLY_MM,
+  shellPlusFrontMm,
   type PlacementRecord,
 } from "@lemnaria/configurator-domain";
 import * as THREE from "three";
@@ -232,5 +234,8 @@ function hobRecord(buildId: string): PlacementRecord {
     canReplace: true,
     canDelete: true,
     fixedWidth: true,
+    // A mount fixture, not a fit fixture: nothing here reads the depth, so the record declares the
+    // frame it states rather than the hob base's real worktop line.
+    occupiedDepth: shellPlusFrontMm(NO_FRONT_ASSEMBLY_MM),
   };
 }

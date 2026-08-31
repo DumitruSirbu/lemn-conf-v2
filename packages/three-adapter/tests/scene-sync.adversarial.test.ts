@@ -10,6 +10,8 @@ import {
   derivePlacementRecords,
   KITCHEN_L_BODY_CATALOG,
   KITCHEN_L_DESIGN,
+  NO_FRONT_ASSEMBLY_MM,
+  shellPlusFrontMm,
   TOP_ROW_Y0_M,
   type Frame,
   type PlacementRecord,
@@ -75,6 +77,9 @@ function makeRecord(overrides: RecordOverrides): PlacementRecord {
     canReplace: true,
     canDelete: true,
     fixedWidth: false,
+    // `buildBody` rebuilds from `frame.d` through `rebuildDepthM`; nothing in a scene-sync fixture
+    // reads an occupied depth, so the record declares the frame it states.
+    occupiedDepth: shellPlusFrontMm(NO_FRONT_ASSEMBLY_MM),
     ...overrides,
     frame: {
       x: 2,

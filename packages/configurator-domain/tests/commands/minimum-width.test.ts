@@ -10,10 +10,12 @@ import { describe, expect, it } from "vitest";
 import { SINK_CHIPS_MM } from "../support/width-model.js";
 
 import {
+  BASE_FINISHED_DEPTH_MM,
   buildableSizes,
   INSERTABLE_BODY_DEFINITIONS,
   toInsertableBody,
 } from "../../src/catalog.js";
+import { finishesAtMm } from "../../src/occupied-depth.js";
 import { KITCHEN_L_BODY_CATALOG } from "../../src/fixtures/kitchen-l-design.js";
 import {
   evaluateInsertFit,
@@ -271,6 +273,7 @@ const SYNTHETIC_SET_ENTRY = {
   label: "Nișă sintetică",
   nominalHeightMm: 860,
   nominalDepthMm: 580,
+  occupiedDepth: finishesAtMm(BASE_FINISHED_DEPTH_MM),
 } as const;
 
 const SET_WITHOUT_FLOOR: BodyDefinition = {
