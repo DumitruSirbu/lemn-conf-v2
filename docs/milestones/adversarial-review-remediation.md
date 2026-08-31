@@ -725,10 +725,17 @@ eight for 5D2c and 5F and **no 5E commit**, which is why 5E is the wave left ope
 
 ### S6 review round — approved with findings, and two of them were this wave's own defect class
 
-The close-out was reviewed rather than self-certified. **Approved with findings**: the ADR 0038
-amendment survived intact, with every technical claim in it re-checked against the code, all fifteen
-commit hashes verified, and the test counts and the `.env.example` diff confirmed exact. Six
-findings, all applied.
+The close-out was reviewed rather than self-certified. Verdict: **APPROVED WITH FINDINGS**, six of them,
+all applied.
+
+**The ADR 0038 amendment survived review intact**, with every technical claim in it confirmed against
+the code rather than read for plausibility: both seam call sites (`validateDesignForCatalog` at
+`apps/web/src/app/api/designs/[id]/route.ts:198` and the throwing `assertDesignValidForCatalog` at
+`packages/configurator-domain/src/migrate-design.ts:47`), `MIN_BODY_HEIGHT_MM` in
+`packages/configurator-domain/src/design-bounds.ts`, and the 40 mm test that pins it
+(`packages/configurator-domain/tests/validate-design.test.ts:110`). All fifteen commit hashes cited
+across the close-out verify, and the test counts and the `.env.example` diff are exact. That is the
+part of this wave that will still be read in a year, and it is the part that held.
 
 **The two that matter are the same defect this wave existed to remove, committed while removing it.**
 
@@ -744,8 +751,12 @@ findings, all applied.
   dropped `M5 Wave 5A`, `5B`, `5C`, `Waves 5C2 + 5C3` and `Wave 5D`, five waves of the very milestone
   the rule was written about. A check that reports a clean result while matching nothing is a pattern
   this project has now shipped four times (`docs/WORKFLOW.md`, *QA before review*: two boundary greps
-  and two commands that reported success while doing nothing). Fixed with `-i`; the plural needs no
-  second pattern, since `wave` is a prefix of `waves`, and that was tested rather than assumed.
+  and two commands that reported success while doing nothing). Fixed with `-i` alone. **Worth recording
+  beside the finding: both proposed fixes — the reviewer's and the author's — included a second
+  pattern for the plural, and neither was tested before being proposed.** Running it showed the
+  pattern is redundant, because `wave` is a prefix of `waves` and the one `-i` search returns all 27.
+  A wrong fix for a right finding, caught the same way the finding itself was: by running the command
+  instead of reasoning about it.
 
 **The durable lesson is the pairing, not either correction.** A wave written to stop documentation
 drifting from the commits drifted from the commits, and the tool it shipped to catch that drift was
