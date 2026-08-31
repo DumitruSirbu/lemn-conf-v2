@@ -1,6 +1,7 @@
 # Adversarial review remediation
 
-> **STATUS: IN PROGRESS.** SCENE-001 and WEB-001 are complete. DOM-001 is the active wave.
+> **STATUS: PAUSED at the owner's request on 2026-08-31.** SCENE-001 and WEB-001 are complete and
+> committed. DOM-001 has not started.
 
 Date: 2026-08-30
 Branch: `adversarial-review-reports`
@@ -136,6 +137,9 @@ null-ID mint -> hydrate B, and both completion orders. Do not begin until S1 clo
 - `pnpm check` after QA and Full-tier review
 
 ## Wave S3 — DOM-001
+
+Status: **Not started.** No domain, API-validation, migration, or persistence-load changes were
+made before the remediation milestone was paused.
 
 Review tier: **Full**, including security review. Separate wire-shape parsing from semantic domain
 validation and enforce the same executable-design contract at API write and database load. Cover

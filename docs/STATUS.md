@@ -3,7 +3,10 @@
 **Read this second, right after `AGENTS.md`, before opening any milestone document.** It exists so a
 session can learn where the project stands without reading eight phase plans.
 
-Last updated: 2026-08-29 (**M5 in progress on branch `m5-width`.** Shipped: 5A, 5B, 5C, 5C2, 5C3, 5D, **5D2a** (a cabinet's width is a bound, not a menu of sizes) and **5D2b** (shrinking creates space, a resize squares a column up, and a hood floors its column — ADR 0037's merge was built in this wave and **withdrawn**, because §4 subtracts height and never width, so a cabinet in a merged span closed the level). The headline measurement: the shipped kitchen went from **0 accepted resizes at load to 51**, so width editing no longer requires deleting a column first, and §11 row 14's 450 mm dishwasher column is reachable. Remaining: **5D2c** the panel stepper, **5E** the browser and mobile gate, **5F** depth geometry. Nine ADRs were written or amended across 2026-08-28/29 — **0035** through **0039** — and they supersede large parts of the M5 plan; read them before the plan.)
+Last updated: 2026-08-31. **Adversarial review remediation is paused on branch
+`adversarial-review-reports` at the owner's request.** SCENE-001 and WEB-001 are fixed, verified,
+and committed; DOM-001 has not started. The M5 state recorded below remains the latest phase
+status; this remediation did not resume or close its remaining waves.
 
 ## How to use this file
 
@@ -31,14 +34,36 @@ moment it ships; a decision record does not. When the two disagree, the dated de
 | M6 — Price bar and global settings (**incl. the worktop depth control**, 2026-08-27) | Planned | Yes, when starting |
 | M7 — Step 1, room and presets | Planned | Yes, when starting |
 | M8 — Review, contact, success | Planned | Yes, when starting |
+| Adversarial review remediation | **Paused** — SCENE-001 and WEB-001 complete; DOM-001 not started | Yes — `milestones/adversarial-review-remediation.md` and `testing-reports/` |
+
+## Adversarial review remediation — paused 2026-08-31
+
+Two of the three selected findings are complete on `adversarial-review-reports`:
+
+- **SCENE-001** — commit `db9c402` (`fix(scene): make kitchen shell state independent`). The fixed
+  adapter-owned shell cannot reconstruct a deleted placement, and placement sync is the sole owner
+  of customer bodies. Adversarial QA and both Full-tier reviews reported no findings.
+- **WEB-001** — commit `b0400ac` (`fix(web): bind save jobs to design identity`). Save work now
+  carries immutable design identity/content/generation; persisted identities share ordered save
+  lanes, stale callbacks cannot mutate another hydrated design, and separate provisional designs
+  receive separate mint identities. QA found and verified Q2.1; Full review found and verified
+  R1.1–R1.3, including the A → B → A retry/refusal cases and the production mint cache.
+- **DOM-001** — **not started**. The report's invalid-design trust-boundary defect remains open; no
+  domain, API-validation, migration, or persistence-load code was changed for it.
+
+The coordinator's final `pnpm check` after WEB-001 passed formatting, lint, typecheck, and **2,295
+package tests**: domain 955, persistence 83 (live Neon test database), Three adapter 708, and web
+549, with 4 pre-existing web skips. Nothing was pushed. The separate untracked runbook was not
+touched.
 
 ## What is actually built
 
 A pnpm monorepo on Node 24: an I/O-free domain package, a Three.js adapter, a persistence package
-that is the only place a Postgres driver appears, and a Next.js App Router app. **2 028 unit tests** (domain 852, three-adapter 609, web 484, persistence 83 — counted from a run on 2026-08-27 after wave 5D; was 1 607 after 5C3 and 1 395 that morning)
-(domain 433, three-adapter 440, web 439, persistence 83) plus **20 Playwright e2e tests** and one
-`test.skip`. Every number copied from a run executed on 2026-08-26 after M4 Wave 4D, not carried
-forward.
+that is the only place a Postgres driver appears, and a Next.js App Router app. The latest executed
+`pnpm check`, on 2026-08-31 after WEB-001, passed **2,295 package tests** (domain 955, Three adapter
+708, web 549, persistence 83) with 4 pre-existing web skips. The repository also carried **20
+Playwright e2e tests** and one `test.skip` when that suite was last counted on 2026-08-26; browser
+E2E was not rerun for this status-only update.
 
 Persistence jumped from 30 to 83 without a line of test code being written: **45 of its tests had
 been silently skipping** on every previous run because the `qa_owner` credential in
