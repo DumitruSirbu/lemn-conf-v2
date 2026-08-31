@@ -52,6 +52,34 @@ round. There is now one.
 Repeat implementation through review until blockers are gone and any intentionally deferred issue is
 named with an owner or future phase.
 
+## A wave is complete only once `STATUS.md` says so
+
+**Every commit named `M<n> wave …` must be reflected in `docs/STATUS.md` before that wave counts as
+complete.** The reflection is two things and both are cheap: the wave's state in the phase table, and
+the *What to do next* section pointing at the wave that is genuinely next. Do it on the commit that
+closes the wave, not in a batch later — step 7's archive rules cover a whole phase, and a phase can
+run for days while several waves close inside it.
+
+Before you call a wave done, list the wave commits and check each hash is described in
+`docs/STATUS.md`:
+
+```
+git log --oneline -i --grep='^M5 wave'
+```
+
+**The `-i` is not optional.** This repository's own history writes *wave*, *Wave* and *Waves*: on M5,
+`--grep='^M5 wave'` alone returns 22 commits and the case-insensitive form returns 27, silently
+dropping `M5 Wave 5A`, `5B`, `5C`, `Waves 5C2 + 5C3` and `Wave 5D` — five waves of the milestone this
+section was written about. The plural needs no second pattern, since `wave` is a prefix of `waves`.
+
+This exists because it failed. On 2026-08-31 an adversarial review found `STATUS.md` and
+`docs/milestones/M5-width.md` both saying waves 5D2c and 5F remained open while eight commits
+implementing them were already ancestors of `HEAD`
+(`testing-reports/06-docs-and-process.md`, DOC-001). `AGENTS.md` makes `STATUS.md` the file a session
+reads to decide what to open and what work remains, so an under-reported wave does not merely go
+stale — it dispatches work against behaviour that already shipped, and the second implementation is
+found by whoever hits the conflict.
+
 ## Scope discipline
 
 - At most **five must-fix items** per implementation dispatch, and about **five production files** —

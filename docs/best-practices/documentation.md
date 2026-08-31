@@ -17,6 +17,11 @@ At close-out, append a concise outcome that names shipped scope, verification ac
 review rounds and material findings, deviations with their rationale, documentation updated, and
 deferred work with its owner or future phase.
 
+A **wave** closes earlier and more often than a phase, and it has its own check: every commit named
+`M<n> wave …` must be reflected in `docs/STATUS.md` before the wave counts as complete. The rule and
+the reason live in `docs/WORKFLOW.md`, *A wave is complete only once `STATUS.md` says so* — one
+process document, as that file's own history requires.
+
 ## Evidence and numbers
 
 Copy quantitative claims from inspected source output or files. Do not estimate test counts,

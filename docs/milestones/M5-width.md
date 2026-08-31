@@ -1,8 +1,16 @@
 # M5 — Editing a cabinet's size: width as a boundary move, depth as a derived quantity
 
-> **STATUS: IN PROGRESS.** Waves 5A, 5B, 5C, 5C2, 5C3 and 5D are shipped. **5D2** (the width
-> stepper), **5E** (browser and mobile gate) and **5F** (base carcass depth) remain. Summary:
-> `docs/STATUS.md`.
+> **STATUS: IN PROGRESS.** Waves 5A, 5B, 5C, 5C2, 5C3, 5D, **5D2a, 5D2b, 5D2c and 5F** are shipped.
+> **Only 5E — the browser and mobile gate — remains.** Summary: `docs/STATUS.md`.
+>
+> **Corrected 2026-08-31.** This banner previously said 5D2 and 5F remained, and the *Status* line
+> below said `planned`, while the branch already carried both: 5D2c in `08a01c6`, `a157cc5`,
+> `a2a4da7`, `c3ab574`, `77a90d2` and 5F in `d7a1d94`, `71661d6`, `c1f3aa3`, all dated 2026-08-30 and
+> all ancestors of `HEAD`. A plan that under-reports what shipped can dispatch a wave against
+> behaviour that already exists, which is why this is a defect and not stale prose
+> (`testing-reports/06-docs-and-process.md`, DOC-001). Everything below this banner is the plan as
+> written; where it describes 5D2a–5D2c or 5F as future work, read it as the record of an intention
+> that has since shipped. **Accepted decisions are not edited here** — they live in ADRs 0028–0041.
 >
 > **Rewritten again on 2026-08-28 by [ADR 0035](../decisions/0035-width-is-a-bounded-stepper-not-a-menu-of-sizes.md)
 > and [ADR 0036](../decisions/0036-a-declared-dimension-is-the-finished-cabinet.md).** Width stops
@@ -39,7 +47,8 @@
 > and **`docs/BACKLOG.md` entry 12** (§3.2 cannot express a middle level at its own width; per-level
 > resize is deferred to a possible future milestone, on cost rather than merit).
 
-Status: planned. Depends on M4.
+Status: in progress — 5E only. (This line read `planned` until 2026-08-31; see the banner above.)
+Depends on M4.
 Reference: `DEVELOPMENT-SPEC.md` §5.4, §5.2, §2, §3.2, §3.3, §4, §7, §9 item 6, §12, §13.1, §13.2,
 §13.3; §11 rows 9–14, **19** and 20.
 Decisions: ADR 0011 (Gap A, **Gap D**, and its two 2026-08-26 corrections), 0015, 0016, 0017,
@@ -805,6 +814,10 @@ old plan is not confused:
 | 5D | **5E** | Browser and mobile gate |
 | — | **5F** | The base carcass formula (new) |
 
+**Shipped state, 2026-08-31:** every row below has shipped except **5E**. The 5D2a/5D2b/5D2c
+sub-waves that replaced 5D2 are described further down; 5F shipped on 2026-08-30 in `d7a1d94`,
+`71661d6` and `c1f3aa3`, and its ADRs are 0039 and 0040.
+
 | Wave | Work | Production surface | Tier |
 | --- | --- | --- | --- |
 | **5A** | Work item 5: the worktop → wall depth map as the single source, worktop pinned at 600; §7 and §2 amended | `catalog.ts`, `commands/insert-fit.ts`, and the new map's own module | **Full** — a §11-anchored product rule, and the class of defect ADRs 0016, 0017 and 0021 each caught: a rule stated in prose that the data did not implement. Small, and the tier is cheap at this size |
@@ -993,6 +1006,13 @@ section is *how*, in three sub-waves. They are sequential and each one compiles,
 suite green on its own — `docs/WORKFLOW.md`'s five-production-file guidance is what splits them, and
 the order is data model, then behaviour, then presentation, so that no sub-wave renders a control
 over an engine that cannot yet answer it.
+
+**All three sub-waves below shipped**, dated from the commits rather than from memory. **5D2a is
+entirely 2026-08-28** — `8831f17`, `0256c20`, `e825351`, `09f3b61`. **5D2b spans three days**:
+`4a0c787` on 08-28; `e8adbee`, `c4cfeec`, `b86470c`, `2c79c71`, `0878edd` on 08-29; and the ADR 0037
+withdrawal `2540378` with its two review rounds `8b18bcb` and `3d1b7d3` on 08-30. **5D2c is
+2026-08-30** — `08a01c6`, then `a157cc5`, `a2a4da7`, `c3ab574`, `77a90d2` for its review rounds. Read
+what follows as the plan they were built against, not as work outstanding.
 
 ### 5D2a — the catalogue's width model becomes a bound
 

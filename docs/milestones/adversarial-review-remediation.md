@@ -1,7 +1,14 @@
 # Adversarial review remediation
 
-> **STATUS: PAUSED at the owner's request on 2026-08-31.** SCENE-001 and WEB-001 are complete and
-> committed. DOM-001 has not started.
+> **STATUS: COMPLETE FOR THE SECURITY SCOPE, 2026-08-31.** The pause recorded earlier that day was
+> lifted and the remaining waves ran. Closed on this branch: SCENE-001 (`db9c402`), WEB-001
+> (`b0400ac`), DOM-001 + SEC-002 (`47e2552`), SEC-003 + SEC-004 (`96293c5`), DB-001 + DB-002 + DB-003
+> (`e666d96`), and a continuity-review round (`c5df227`). **SEC-001 is deferred to M8 by the owner's
+> decision and gated** (`f342752`, ADR 0019's 2026-08-31 correction, and
+> `M8-review-contact-success.md`'s launch gate). Still open, all Medium or Low: WEB-002, WEB-003,
+> WEB-004, SCENE-002, DOM-002, DOM-003, DB-004, plus three Low residuals on WEB-001's fix recorded in
+> `docs/STATUS.md`. Coordinator `pnpm check` at `c5df227` exited 0 over 2,415 package tests; the
+> Playwright e2e suite was not run in this session.
 
 Date: 2026-08-30
 Branch: `adversarial-review-reports`
@@ -136,10 +143,13 @@ null-ID mint -> hydrate B, and both completion orders. Do not begin until S1 clo
 - `pnpm --filter @lemnaria/web test`
 - `pnpm check` after QA and Full-tier review
 
-## Wave S3 — DOM-001
+## Wave S3 — DOM-001 (original plan)
 
-Status: **Not started.** No domain, API-validation, migration, or persistence-load changes were
-made before the remediation milestone was paused.
+Status: **Superseded 2026-08-31 — see *Wave S3 — DOM-001 + SEC-002* below, which is the wave that
+ran.** The line that stood here (*"Not started. No domain, API-validation, migration, or
+persistence-load changes were made before the remediation milestone was paused."*) was true when the
+pause was recorded and stopped being true the same day: the work shipped in `47e2552`. The plan text
+below is kept as the dispatch the wave was built against.
 
 Review tier: **Full**, including security review. Separate wire-shape parsing from semantic domain
 validation and enforce the same executable-design contract at API write and database load. Cover
@@ -674,3 +684,89 @@ documented as a property of the two bounds, not as a live defect.
 Re-run: `pnpm --filter @lemnaria/persistence test` **11 files / 98 tests passed**; focused
 `apps/web` backup + cron tests **22 passed (2 files)**; both package lints exit 0; web typecheck
 exit 0.
+
+## Wave S6 — DOC-001, the documentation close-out
+
+Status: **Complete, 2026-08-31.** Documentation only: no application code, no test, no environment
+variable, no resource. Tier **coordinator-only** by `docs/WORKFLOW.md` — there is no behaviour to
+review — and nothing was built or run for it.
+
+What DOC-001 (`testing-reports/06-docs-and-process.md`) asked for, and where each item landed:
+
+- **`docs/STATUS.md`** — 5D2c and 5F marked shipped and 5E named as the only open M5 wave; the
+  remediation section rewritten from *paused* to *complete for the security scope*, with SEC-001's
+  gated M8 deferral and the Medium/Low residuals listed; test counts replaced with the coordinator's
+  `pnpm check` at `c5df227` (2,415 package tests: domain 995, persistence 98, Three adapter 708, web
+  614 with 4 pre-existing skips); the e2e figure explicitly re-dated to its 2026-08-26 count, since
+  that suite was not rerun; the unbounded mint endpoint added to *What is open right now*; and
+  WEB-001's three Low residuals recorded there — not in `docs/BACKLOG.md`, whose own preamble sends
+  engineering deferrals from review rounds to `STATUS.md`.
+- **`docs/milestones/M5-width.md`** — the status banner and the `Status:` line only. Accepted
+  decisions were not touched; they are in ADRs 0028–0041.
+- **`docs/decisions/0038-…`** — a dated correction appended, never a rewrite. The *"no
+  deserialisation surface"* premise is withdrawn, both surfaces are named, DOM-001 and AV-3 are
+  cited, and `47e2552` is linked. The index row in `docs/decisions/README.md` carries the same
+  correction.
+- **`docs/WORKFLOW.md`** — the close-out check, as a new section after step 7: every commit named
+  `M<n> wave …` must be reflected in `STATUS.md` before the wave counts as complete. It went there
+  rather than into a new file because `WORKFLOW.md` is the authoritative process document and its
+  own history records what two process documents cost. `docs/best-practices/documentation.md` gets a
+  one-line pointer, not a copy.
+- **`.env.example`** — three decision links repaired after the ADR renumbering
+  (`2026-08-25-standalone-neon-…` → `0007-…`, `2026-08-25-least-privilege-database-role` → `0008-…`,
+  `2026-08-25-tests-never-touch-the-application-database` → `0006-…`). Comment text only; no
+  variable, value or other line changed. A repository-wide grep for any other
+  `docs/decisions/<date>-` reference found none outside that file.
+
+**How the shipped-wave list was verified rather than taken on trust.** Each of the eight commits was
+resolved with `git log -1` and checked with `git merge-base --is-ancestor <sha> HEAD`; all eight are
+ancestors of `HEAD` and all are dated 2026-08-30. `git log --grep='M5 wave'` returns exactly those
+eight for 5D2c and 5F and **no 5E commit**, which is why 5E is the wave left open.
+
+### S6 review round — approved with findings, and two of them were this wave's own defect class
+
+The close-out was reviewed rather than self-certified. **Approved with findings**: the ADR 0038
+amendment survived intact, with every technical claim in it re-checked against the code, all fifteen
+commit hashes verified, and the test counts and the `.env.example` diff confirmed exact. Six
+findings, all applied.
+
+**The two that matter are the same defect this wave existed to remove, committed while removing it.**
+
+- **An uncited date, written from recall.** The close-out asserted "5D2a and 5D2b landed on
+  2026-08-29". Both halves were wrong — 5D2a is entirely 2026-08-28 (`8831f17`, `0256c20`,
+  `e825351`, `09f3b61`) and 5D2b spans three days (`4a0c787` on 08-28; `e8adbee`, `c4cfeec`,
+  `b86470c`, `2c79c71`, `0878edd` on 08-29; `2540378`, `8b18bcb`, `3d1b7d3` on 08-30). It was the
+  one date in the wave with no commit cited behind it, in a document whose entire premise is that
+  dates are checked against commits rather than remembered. Now dated per commit, like the rest.
+- **A close-out check whose grep could not find the commits it is about.** The rule shipped with
+  `git log --grep='^M<n> wave'`, which is case-sensitive, while this repository's history writes
+  *wave*, *Wave* and *Waves*. On M5 that returns 22 commits where `-i` returns 27 — it silently
+  dropped `M5 Wave 5A`, `5B`, `5C`, `Waves 5C2 + 5C3` and `Wave 5D`, five waves of the very milestone
+  the rule was written about. A check that reports a clean result while matching nothing is a pattern
+  this project has now shipped four times (`docs/WORKFLOW.md`, *QA before review*: two boundary greps
+  and two commands that reported success while doing nothing). Fixed with `-i`; the plural needs no
+  second pattern, since `wave` is a prefix of `waves`, and that was tested rather than assumed.
+
+**The durable lesson is the pairing, not either correction.** A wave written to stop documentation
+drifting from the commits drifted from the commits, and the tool it shipped to catch that drift was
+itself unverified against real history. Neither was carelessness about the subject — the subject was
+the whole point — which is why *knowing* the failure mode is not protection against it. Only running
+the check against real data is. Both were caught by review, not by the author, and that is the
+argument for reviewing a documentation wave at all: a close-out looks like the one kind of work that
+cannot be wrong, which is exactly why it is not self-certified here.
+
+Note against the paragraph above this section: its `git log --grep='M5 wave'` is the case-sensitive
+form. The claim it supports still stands — every 5D2c and 5F commit message is lower-case *wave*, so
+that search does return all eight and no 5E commit — but the command as written would miss
+`M5 Wave 5A` through `5D`, and anyone reusing it should take the `-i` form now in `docs/WORKFLOW.md`.
+
+**The four lower findings, briefly.** A history claim was overstated — catalogue validation was
+*added to both seams at once* in `47e2552`, not moved from the write seam alone, since
+`git show 47e2552^` has both seams running `DesignSchema.safeParse` and no `validate-design.ts` at
+all; `STATUS.md` said "what remains is Medium and Low" two lines after naming the open High SEC-001,
+now scoped as *besides SEC-001*; the ADR index row rendered the corrected premise with a colon where
+ADR 0038 has an em dash — a misquote inside a correction about a misquoted premise; and the seven
+open findings were named only in this milestone's summary rather than under STATUS's own *What is
+open right now* heading, now listed there with the honest note that their descriptions exist only in
+untracked `testing-reports/`, so without that folder they survive as bare identifiers.
+
