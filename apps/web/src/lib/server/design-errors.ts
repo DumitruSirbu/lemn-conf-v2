@@ -3,7 +3,10 @@ import {
   DesignNotFoundError,
   InvalidDesignError,
 } from "@lemnaria/configurator-domain";
-import { DesignWriteForbiddenError } from "@lemnaria/persistence";
+import {
+  DesignWriteConflictError,
+  DesignWriteForbiddenError,
+} from "@lemnaria/persistence";
 import { NextResponse } from "next/server";
 
 /** The two public codes a rejected save answers with. Stable, enumerable, and free of any detail
@@ -17,6 +20,15 @@ const PAYLOAD_TOO_LARGE_CODE = "PAYLOAD_TOO_LARGE";
  *  which is exactly why the response must say no more than that. */
 const DESIGN_UNREADABLE_CODE = "DESIGN_UNREADABLE";
 
+/** The caller is authorised and out of date (WEB-003). A distinct code because the client's answer
+ *  is distinct: not "retry", not "give up", but "reload or overwrite deliberately". */
+const REVISION_CONFLICT_CODE = "DESIGN_REVISION_CONFLICT";
+
+/** The caller did not say which revision it was editing, so there is nothing to enforce the write
+ *  against. Refused rather than defaulted: a save with no expectation is exactly the last-write-wins
+ *  behaviour WEB-003 removed. */
+const REVISION_REQUIRED_CODE = "REVISION_REQUIRED";
+
 /** Maps a repository failure to a clean JSON error response. `InvalidDesignError` here means a
  *  *stored* document failed migration/validation on load — the client didn't cause it, so this is
  *  a 500, unlike `invalidBodyResponse` below, which is for a bad incoming payload on save. Any
@@ -24,6 +36,9 @@ const DESIGN_UNREADABLE_CODE = "DESIGN_UNREADABLE";
 export function designErrorResponse(error: unknown): NextResponse {
   if (error instanceof DesignWriteForbiddenError) {
     return writeForbiddenResponse();
+  }
+  if (error instanceof DesignWriteConflictError) {
+    return writeConflictResponse();
   }
   if (error instanceof DesignNotFoundError) {
     return NextResponse.json({ error: error.message }, { status: 404 });
@@ -70,6 +85,49 @@ export function writeForbiddenResponse(): NextResponse {
   return NextResponse.json(
     { error: "Design write not authorized." },
     { status: 403 },
+  );
+}
+
+/**
+ * A write refused because the design has moved on since the caller read it (WEB-003).
+ *
+ * **This response is only ever produced for a caller whose write token already matched the row**,
+ * because that is the only way `saveAuthorized` raises the error behind it. Anyone else — a wrong
+ * token, a token for another design, an id no row carries — gets the same 403 as before, whatever
+ * revision they claim. So the pair 403/409 is not an oracle: telling them apart requires having
+ * already proved you may write the design, and reveals nothing to a party who has not.
+ *
+ * It names no id, no revision and no reason, for the reason `writeForbiddenResponse` names none.
+ * The client does not need the current revision from here — an overwrite re-reads it, and a value
+ * quoted in this response would already be stale by the time anyone acted on it.
+ */
+export function writeConflictResponse(): NextResponse {
+  return NextResponse.json(
+    {
+      code: REVISION_CONFLICT_CODE,
+      error: "Design changed since it was loaded.",
+    },
+    { status: 409 },
+  );
+}
+
+/**
+ * A save that carried no usable expected revision.
+ *
+ * A 400 rather than a 409: nothing about the stored design is wrong, the request is. Nothing is
+ * logged, for the reason `payloadTooLargeResponse` logs nothing — a caller controls how often it
+ * can drive this path, and a log line per refusal is amplification bought with one cheap request.
+ *
+ * It is returned **after** the credential check, so it is unreachable without a cookie for this
+ * design and cannot be used to probe which ids exist.
+ */
+export function revisionRequiredResponse(): NextResponse {
+  return NextResponse.json(
+    {
+      code: REVISION_REQUIRED_CODE,
+      error: "Design save must state the revision it edits.",
+    },
+    { status: 400 },
   );
 }
 

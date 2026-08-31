@@ -7,11 +7,7 @@
 // the right number of times and the wrong state would pass a call-count assertion and lose a
 // customer's work.
 import { KITCHEN_L_DESIGN } from "@lemnaria/configurator-domain";
-import type {
-  ConfigurationRepository,
-  Design,
-  DesignId,
-} from "@lemnaria/configurator-domain";
+import type { Design, DesignId } from "@lemnaria/configurator-domain";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
@@ -22,6 +18,16 @@ import {
   createSaveCoalescer,
   type SaveStatus,
 } from "../../src/persistence/save-coalescer";
+import type {
+  ClientSaveRepository,
+  CoalescedSaveRequest,
+  CoalescedSaveResult,
+} from "../../src/persistence/save-coalescer";
+
+/** The revision every scripted repository in this file reports and every queue therefore expects.
+ *  These tests are about scheduling, identity and retry — the concurrency rule has its own tests —
+ *  so one value throughout keeps them readable. */
+const TEST_REVISION = "1";
 
 const MIN_SAVE_INTERVAL_MS = 1000;
 
@@ -32,14 +38,14 @@ function withPreset(presetId: string): Design {
 /** Every save recorded in order, with per-call scripting. Deliberately a second, simpler double
  *  than the implementer's: this one records the *order* designs arrive in, which is the property
  *  under test here. */
-class RecordingRepository implements Pick<ConfigurationRepository, "save"> {
+class RecordingRepository implements ClientSaveRepository {
   readonly saved: string[] = [];
   maxConcurrentSaves = 0;
   private inFlight = 0;
   private failuresRemaining = 0;
   private failEverything = false;
 
-  save(id: DesignId | null, design: Design): Promise<DesignId> {
+  save({ id, design }: CoalescedSaveRequest): Promise<CoalescedSaveResult> {
     this.inFlight += 1;
     this.maxConcurrentSaves = Math.max(this.maxConcurrentSaves, this.inFlight);
     const settle = <T>(outcome: Promise<T>): Promise<T> =>
@@ -52,7 +58,9 @@ class RecordingRepository implements Pick<ConfigurationRepository, "save"> {
       return settle(Promise.reject(new Error("write refused")));
     }
     this.saved.push(design.presetId ?? "(none)");
-    return settle(Promise.resolve(id ?? "minted-id"));
+    return settle(
+      Promise.resolve({ id: id ?? "minted-id", revision: TEST_REVISION }),
+    );
   }
 
   failNext(count: number): void {
@@ -89,12 +97,14 @@ describe("the minimum interval never loses the last state", () => {
       repository,
       getDesignId: () => designId,
       getGeneration: () => 0,
-      onSaved: (id) => {
+      onSaved: ({ id }) => {
         designId = id;
       },
       onSaveStatusChange: (status) => {
         statuses.push(status);
       },
+      getRevision: () => TEST_REVISION,
+      readCurrentRevision: () => Promise.resolve(TEST_REVISION),
     });
   }
 
@@ -183,12 +193,14 @@ describe("the interval and the retry backoff do not stall the path", () => {
       repository,
       getDesignId: () => designId,
       getGeneration: () => 0,
-      onSaved: (id) => {
+      onSaved: ({ id }) => {
         designId = id;
       },
       onSaveStatusChange: (status) => {
         statuses.push(status);
       },
+      getRevision: () => TEST_REVISION,
+      readCurrentRevision: () => Promise.resolve(TEST_REVISION),
     });
   }
 
@@ -261,6 +273,8 @@ describe("a credential refusal is terminal, and nothing else is", () => {
       onSaveStatusChange: (status) => {
         statuses.push(status);
       },
+      getRevision: () => TEST_REVISION,
+      readCurrentRevision: () => Promise.resolve(TEST_REVISION),
     });
     return { attempts: () => attempts, statuses, coalescer };
   }
@@ -361,6 +375,8 @@ describe("a credential refusal is terminal, and nothing else is", () => {
       onSaveStatusChange: (status) => {
         statuses.push(status);
       },
+      getRevision: () => TEST_REVISION,
+      readCurrentRevision: () => Promise.resolve(TEST_REVISION),
     });
 
     coalescer.scheduleSave(withPreset("edit"));
@@ -380,14 +396,17 @@ describe("a credential refusal is terminal, and nothing else is", () => {
     const statuses: SaveStatus[] = [];
     const coalescer = createSaveCoalescer({
       repository: {
-        save: (id) => {
+        save: ({ id }) => {
           attempts += 1;
           if (refuse) {
             return Promise.reject(
               new WriteNotAuthorizedError("Saving a design", 403),
             );
           }
-          return Promise.resolve(id ?? MINT_ID);
+          return Promise.resolve({
+            id: id ?? MINT_ID,
+            revision: TEST_REVISION,
+          });
         },
       },
       getDesignId: () => MINT_ID,
@@ -396,6 +415,8 @@ describe("a credential refusal is terminal, and nothing else is", () => {
       onSaveStatusChange: (status) => {
         statuses.push(status);
       },
+      getRevision: () => TEST_REVISION,
+      readCurrentRevision: () => Promise.resolve(TEST_REVISION),
     });
 
     coalescer.scheduleSave(withPreset("refused"));
@@ -433,6 +454,8 @@ describe("the documented retry/interval asymmetry is what the code does", () => 
       getGeneration: () => 0,
       onSaved: () => undefined,
       onSaveStatusChange: () => undefined,
+      getRevision: () => TEST_REVISION,
+      readCurrentRevision: () => Promise.resolve(TEST_REVISION),
     });
 
     coalescer.scheduleSave(withPreset("first"));
@@ -485,6 +508,8 @@ describe("an outage from the very first save is bounded by the backoff, not by t
       onSaveStatusChange: (status) => {
         statuses.push(status);
       },
+      getRevision: () => TEST_REVISION,
+      readCurrentRevision: () => Promise.resolve(TEST_REVISION),
     });
     return { attempts: () => attempts, statuses, coalescer };
   }
@@ -537,6 +562,8 @@ describe("an outage from the very first save is bounded by the backoff, not by t
       getGeneration: () => 0,
       onSaved: () => undefined,
       onSaveStatusChange: () => undefined,
+      getRevision: () => TEST_REVISION,
+      readCurrentRevision: () => Promise.resolve(TEST_REVISION),
     });
 
     coalescer.scheduleSave(withPreset("first"));
@@ -558,6 +585,8 @@ describe("an outage from the very first save is bounded by the backoff, not by t
       onSaveStatusChange: (status) => {
         statuses.push(status);
       },
+      getRevision: () => TEST_REVISION,
+      readCurrentRevision: () => Promise.resolve(TEST_REVISION),
     });
 
     for (const preset of ["a", "b", "c", "d", "e", "f"]) {
@@ -594,6 +623,8 @@ describe("the newest pending state survives the new early return", () => {
       getGeneration: () => 0,
       onSaved: () => undefined,
       onSaveStatusChange: () => undefined,
+      getRevision: () => TEST_REVISION,
+      readCurrentRevision: () => Promise.resolve(TEST_REVISION),
     });
 
     coalescer.scheduleSave(withPreset("failed"));
@@ -617,6 +648,8 @@ describe("the newest pending state survives the new early return", () => {
       getGeneration: () => 0,
       onSaved: () => undefined,
       onSaveStatusChange: () => undefined,
+      getRevision: () => TEST_REVISION,
+      readCurrentRevision: () => Promise.resolve(TEST_REVISION),
     });
 
     coalescer.scheduleSave(withPreset("failed"));
@@ -661,6 +694,8 @@ describe("the newest pending state survives the new early return", () => {
       getGeneration: () => 0,
       onSaved: () => undefined,
       onSaveStatusChange: () => undefined,
+      getRevision: () => TEST_REVISION,
+      readCurrentRevision: () => Promise.resolve(TEST_REVISION),
     });
 
     coalescer.scheduleSave(withPreset("during-outage"));
@@ -690,19 +725,24 @@ describe("only one retry is ever armed", () => {
     let failuresLeft = 6;
     const coalescer = createSaveCoalescer({
       repository: {
-        save: (id) => {
+        save: ({ id }) => {
           timestamps.push(Date.now());
           if (failuresLeft > 0) {
             failuresLeft -= 1;
             return Promise.reject(new Error("still down"));
           }
-          return Promise.resolve(id ?? "minted");
+          return Promise.resolve({
+            id: id ?? "minted",
+            revision: TEST_REVISION,
+          });
         },
       },
       getDesignId: () => "id",
       getGeneration: () => 0,
       onSaved: () => undefined,
       onSaveStatusChange: () => undefined,
+      getRevision: () => TEST_REVISION,
+      readCurrentRevision: () => Promise.resolve(TEST_REVISION),
     });
 
     coalescer.scheduleSave(withPreset("first"));
@@ -734,14 +774,17 @@ describe("a refusal on one design does not silence another", () => {
     const statuses: SaveStatus[] = [];
     const coalescer = createSaveCoalescer({
       repository: {
-        save: (id) => {
+        save: ({ id }) => {
           attempts.push(id);
           if (id === "design-x") {
             return Promise.reject(
               new WriteNotAuthorizedError("Saving a design", 403),
             );
           }
-          return Promise.resolve(id ?? "minted");
+          return Promise.resolve({
+            id: id ?? "minted",
+            revision: TEST_REVISION,
+          });
         },
       },
       getDesignId: () => currentId,
@@ -750,6 +793,8 @@ describe("a refusal on one design does not silence another", () => {
       onSaveStatusChange: (status) => {
         statuses.push(status);
       },
+      getRevision: () => TEST_REVISION,
+      readCurrentRevision: () => Promise.resolve(TEST_REVISION),
     });
 
     coalescer.scheduleSave(withPreset("x-edit"));
@@ -770,19 +815,21 @@ describe("a refusal on one design does not silence another", () => {
     let currentId: DesignId | null = "design-x";
     const coalescer = createSaveCoalescer({
       repository: {
-        save: (id) => {
+        save: ({ id }) => {
           attempts.push(id);
           return id === "design-x"
             ? Promise.reject(
                 new WriteNotAuthorizedError("Saving a design", 403),
               )
-            : Promise.resolve(id ?? "minted");
+            : Promise.resolve({ id: id ?? "minted", revision: TEST_REVISION });
         },
       },
       getDesignId: () => currentId,
       getGeneration: () => 0,
       onSaved: () => undefined,
       onSaveStatusChange: () => undefined,
+      getRevision: () => TEST_REVISION,
+      readCurrentRevision: () => Promise.resolve(TEST_REVISION),
     });
 
     coalescer.scheduleSave(withPreset("x-edit"));

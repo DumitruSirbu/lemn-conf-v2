@@ -1,6 +1,7 @@
 "use client";
 
 import type { Design, DesignId } from "@lemnaria/configurator-domain";
+import type { DesignRevision } from "@lemnaria/persistence";
 import { useEffect } from "react";
 
 import { ConfigureScreen } from "@/app/configurator/configure/configure-screen";
@@ -15,9 +16,11 @@ import { useConfiguratorStore } from "@/store/configurator-store";
 export function HydrateAndConfigure({
   design,
   designId,
+  revision,
 }: {
   design: Design;
   designId: DesignId;
+  revision: DesignRevision;
 }) {
   const currentDesignId = useConfiguratorStore((state) => state.designId);
   if (currentDesignId !== designId) {
@@ -27,7 +30,7 @@ export function HydrateAndConfigure({
     // `WriteAccess`.
     useConfiguratorStore
       .getState()
-      .hydrate({ design, designId, canWrite: "checking" });
+      .hydrate({ design, designId, revision, canWrite: "checking" });
   }
   useWriteAccessProbe(designId);
   return <ConfigureScreen />;
@@ -68,6 +71,10 @@ function useWriteAccessProbe(designId: DesignId): void {
     let isCurrent = true;
     void sessionConfigurationRepository
       .loadWithAccess(designId)
+      // Only `canWrite` is taken. The probe's response also carries a revision, and it is
+      // deliberately discarded: it may be newer than the document this page rendered, and adopting
+      // a revision without the document it belongs to is precisely what would let this browser
+      // overwrite an edit it has never seen (WEB-003).
       .then(({ canWrite }) => {
         if (isCurrent)
           useConfiguratorStore.getState().applyWriteAccess({

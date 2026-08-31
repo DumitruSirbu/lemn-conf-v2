@@ -6,6 +6,10 @@
 // re-imported per test because the coalescer and the minted id are session state by design.
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+/** Every scripted response reports this revision, and the store therefore states it on the next
+ *  save. These tests attack the write path's scheduling, not its concurrency rule. */
+const TEST_REVISION = "1";
+
 const MINTED_ID = "design-under-test";
 /** The fridge of the §10 signature flow: removing it succeeds and leaves a void selected, so the
  *  next command against that selection is a refusal. */
@@ -35,7 +39,7 @@ function stubFetch() {
     }
     const status = method === "POST" ? 201 : 200;
     return Promise.resolve(
-      new Response(JSON.stringify({ id: MINTED_ID }), {
+      new Response(JSON.stringify({ id: MINTED_ID, revision: TEST_REVISION }), {
         status,
         headers: { "content-type": "application/json" },
       }),

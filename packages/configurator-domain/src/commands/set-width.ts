@@ -28,10 +28,7 @@
 // already be there in both directions, whose recorded consequence was that nothing in the shipped
 // kitchen is resizable until something is deleted. A shrink now enters a new empty column at the
 // extent it vacates, so a customer can narrow one column and widen its neighbour afterwards.
-import {
-  resolveBuildableSizes,
-  resolveWidthRangesMm,
-} from "../catalog.js";
+import { resolveBuildableSizes, resolveWidthRangesMm } from "../catalog.js";
 import type { Design, DesignPlacement } from "../design.js";
 import {
   derivePlacementRecords,

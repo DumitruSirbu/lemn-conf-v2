@@ -54,6 +54,32 @@ export class WriteNotAuthorizedError extends WriteNotRetryableError {
   }
 }
 
+/**
+ * The design moved on between the load and the save (WEB-003): this browser holds the write
+ * credential, and the revision it was editing is no longer the one stored.
+ *
+ * A subtype of `WriteNotRetryableError` because the one thing that must not happen is a retry: the
+ * same document against the same expected revision will be refused for ever, at the coalescer's
+ * backoff rate, while the customer watches a spinner. Sitting under that type also means a caller
+ * that has not learned about conflicts yet treats one as terminal, which is the safe way to be
+ * wrong — no write is repeated and nothing is silently overwritten.
+ *
+ * It is nonetheless its own type, because it is the one terminal failure with a **choice** behind
+ * it: the stored design can be reloaded, or this browser's version can be written over it
+ * deliberately. `unauthorized` offers nothing; this offers two things, and only a distinct type
+ * lets a surface tell them apart without parsing a status out of a message.
+ */
+export class WriteConflictError extends WriteNotRetryableError {
+  constructor(operation: string, status: number) {
+    super(operation, status);
+    this.name = "WriteConflictError";
+  }
+}
+
+/** The status a conditional write is refused with when the caller is authorised and stale — see
+ *  `writeConflictResponse` for why it is not the `412` a precondition header would earn. */
+export const REVISION_CONFLICT_STATUS = 409;
+
 /** Whether a failed request is worth repeating: a timeout, a throttle, or a server-side fault is
  *  transient by definition; any other 4xx is the client asking for something this server will keep
  *  refusing. A `fetch` that rejects outright never reaches here — it carries no status, and a

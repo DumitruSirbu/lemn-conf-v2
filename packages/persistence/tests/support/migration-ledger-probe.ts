@@ -1,5 +1,6 @@
 import { neon } from "@neondatabase/serverless";
 
+import { readMigrationFiles } from "../../src/migration-files.js";
 import { assertSafeTestDatabaseUrl } from "../../src/test-database-url.js";
 
 /**
@@ -47,7 +48,7 @@ export async function forgetAppliedMigrations(
  * Unconditional cleanup for the tests that synthesise a migration beyond the real set.
  *
  * These tests deliberately hand the runner a file whose whole job is to fail, and one of them makes
- * the *migration* insert its own `version = 4` ledger row. That row is normally rolled back with the
+ * the *migration* insert its own ledger row at the first synthesised version. That row is normally rolled back with the
  * transaction under test — but the test's cleanliness must not depend on the very mechanism it is
  * testing. When someone mutates the transaction away to watch the test fail (which this wave's
  * falsifiability table actively invites), the row and the probe table commit and stay, and a ledger
@@ -62,7 +63,7 @@ export async function dropSynthesisedMigrationArtefacts(
 ): Promise<void> {
   assertSafeTestDatabaseUrl(databaseUrl);
   const sql = neon(databaseUrl);
-  await sql`delete from schema_migrations where version >= ${FIRST_SYNTHESISED_VERSION}`;
+  await sql`delete from schema_migrations where version >= ${firstSynthesisedVersion()}`;
   for (const tableName of probeTableNames) {
     // Interpolated rather than parameterised because a table name is an identifier, not a value.
     // Safe here and only here: every name comes from a constant in the test file, never from data.
@@ -70,8 +71,20 @@ export async function dropSynthesisedMigrationArtefacts(
   }
 }
 
-/** Every real migration is 1..3; anything at or above this was synthesised by a test. */
-const FIRST_SYNTHESISED_VERSION = 4;
+/**
+ * One past the highest real migration: anything at or above it was synthesised by a test.
+ *
+ * **Read from disk, never written down** (review finding F3). As a literal it was one of three
+ * numbers that had to move together whenever a migration was added, and the one whose staleness is
+ * destructive rather than merely wrong: this value drives a `delete from schema_migrations`, so a
+ * `5` left behind after `0005_…sql` ships would delete that migration's real ledger row on every
+ * test in the file — before any assertion could fire, while its schema change stayed applied. The
+ * helper written to prevent the wedge would have caused it.
+ */
+export function firstSynthesisedVersion(): number {
+  const versions = readMigrationFiles().map((migration) => migration.version);
+  return Math.max(...versions) + 1;
+}
 
 function quoteIdentifier(name: string): string {
   if (!/^[a-z][a-z0-9_]*$/.test(name)) {

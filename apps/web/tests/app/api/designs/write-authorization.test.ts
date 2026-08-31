@@ -4,10 +4,15 @@ import {
   DesignNotFoundError,
   canonicalSerializeDesign,
 } from "@lemnaria/configurator-domain";
-import { DesignWriteForbiddenError } from "@lemnaria/persistence";
+import {
+  DesignWriteConflictError,
+  DesignWriteForbiddenError,
+} from "@lemnaria/persistence";
 import type {
   AuthorizedConfigurationRepository,
   AuthorizedSave,
+  DesignVersion,
+  StoredDesign,
 } from "@lemnaria/persistence";
 import { NextRequest } from "next/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -17,42 +22,57 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
  * depend on: a save succeeds only when the supplied hash equals the one the row was minted with,
  * and a refusal is indistinguishable from an unknown id.
  */
+/** What `0004_add_design_revision.sql` gives every row. These tests mint and save once, so it is
+ *  also the revision every save in this file states. */
+const FIRST_REVISION = "1";
+
 class FakeAuthorizedRepository implements AuthorizedConfigurationRepository {
   private readonly rows = new Map<
     DesignId,
-    { design: Design; writeTokenHash: string | null }
+    { design: Design; writeTokenHash: string | null; revision: string }
   >();
   private nextId = 0;
 
-  mint(design: Design, writeTokenHash: string): Promise<DesignId> {
+  mint(design: Design, writeTokenHash: string): Promise<DesignVersion> {
     const id = `design-${String(this.nextId++)}`;
-    this.rows.set(id, { design, writeTokenHash });
-    return Promise.resolve(id);
+    this.rows.set(id, { design, writeTokenHash, revision: FIRST_REVISION });
+    return Promise.resolve({ id, revision: FIRST_REVISION });
   }
 
   saveAuthorized({
     id,
     design,
     writeTokenHash,
-  }: AuthorizedSave): Promise<DesignId> {
+    expectedRevision,
+  }: AuthorizedSave): Promise<DesignVersion> {
     const row = this.rows.get(id);
+    // The order the real repository uses: the credential decides between 403 and 409, so a caller
+    // without one can never see a conflict and never learn the design exists.
     if (!row || row.writeTokenHash !== writeTokenHash) {
       return Promise.reject(new DesignWriteForbiddenError(id));
     }
-    this.rows.set(id, { ...row, design });
-    return Promise.resolve(id);
+    if (row.revision !== expectedRevision) {
+      return Promise.reject(new DesignWriteConflictError(id));
+    }
+    const revision = String(Number(row.revision) + 1);
+    this.rows.set(id, { ...row, design, revision });
+    return Promise.resolve({ id, revision });
   }
 
-  load(id: DesignId): Promise<Design> {
+  load(id: DesignId): Promise<StoredDesign> {
     const row = this.rows.get(id);
     return row
-      ? Promise.resolve(row.design)
+      ? Promise.resolve({ design: row.design, revision: row.revision })
       : Promise.reject(new DesignNotFoundError(id));
   }
 
   /** A design minted before ADR 0019: readable, and carrying no credential anyone can present. */
   seedTokenlessRow(id: DesignId, design: Design): void {
-    this.rows.set(id, { design, writeTokenHash: null });
+    this.rows.set(id, {
+      design,
+      writeTokenHash: null,
+      revision: FIRST_REVISION,
+    });
   }
 
   storedDesign(id: DesignId): Design | undefined {
@@ -94,13 +114,25 @@ function cookiePairOf(setCookieHeader: string): string {
   return setCookieHeader.split(";")[0] ?? "";
 }
 
+/** Every save this file sends states a revision, because the route refuses one that does not
+ *  (WEB-003). It defaults to the revision a mint produces, which is what these tests hold. */
+const EXPECTED_REVISION_HEADER = "x-expected-revision";
+
 function saveRequest(
   id: string,
-  { design, cookie }: { design: Design; cookie: string },
+  {
+    design,
+    cookie,
+    revision = FIRST_REVISION,
+  }: { design: Design; cookie: string; revision?: string },
 ): NextRequest {
   return new NextRequest(`https://example.test/api/designs/${id}`, {
     method: "PUT",
-    headers: { cookie, "content-type": "application/json" },
+    headers: {
+      cookie,
+      "content-type": "application/json",
+      [EXPECTED_REVISION_HEADER]: revision,
+    },
     body: JSON.stringify(design),
   });
 }
@@ -119,7 +151,11 @@ function rawBodyRequest(
 ): NextRequest {
   return new NextRequest(`https://example.test/api/designs/${id}`, {
     method: "PUT",
-    headers: { cookie, "content-type": "application/json" },
+    headers: {
+      cookie,
+      "content-type": "application/json",
+      [EXPECTED_REVISION_HEADER]: FIRST_REVISION,
+    },
     body,
   });
 }
@@ -401,6 +437,7 @@ describe("GET /api/designs/[id]", () => {
     expect(status).toBe(200);
     expect(body).toEqual({
       id,
+      revision: FIRST_REVISION,
       design: KITCHEN_L_DESIGN,
       canWrite: false,
     });
@@ -472,6 +509,183 @@ describe("GET /api/designs/[id]", () => {
       "canWrite",
       "design",
       "id",
+      "revision",
     ]);
+  });
+});
+
+/**
+ * WEB-003 at the HTTP boundary. Before wave S11 the route handed `saveAuthorized` an id, a
+ * document and a credential and nothing else, so two tabs holding one cookie could both save from
+ * the same revision and the second silently replaced the first.
+ *
+ * Every test here fails against that route: it had no `x-expected-revision` to read, no 409 to
+ * answer with, and no `revision` in either response.
+ */
+describe("PUT /api/designs/[id] — the revision the save is conditional on (WEB-003)", () => {
+  /** The second save in each of these is what the second tab sends: same cookie, same revision,
+   *  different document. */
+  async function saveEditedDesign(
+    id: string,
+    cookie: string,
+    { design, revision }: { design: Design; revision: string },
+  ): Promise<Response> {
+    return PUT(saveRequest(id, { design, cookie, revision }), routeParams(id));
+  }
+
+  it("answers 409 to the second of two saves from one revision, and does not write it", async () => {
+    const { id, cookie } = await mintDesign();
+
+    const first = await saveEditedDesign(id, cookie, {
+      design: EDITED_DESIGN,
+      revision: FIRST_REVISION,
+    });
+    const second = await saveEditedDesign(id, cookie, {
+      design: ATTACKER_DESIGN,
+      revision: FIRST_REVISION,
+    });
+
+    expect(first.status).toBe(200);
+    expect(second.status).toBe(409);
+    expect(await second.json()).toEqual({
+      code: "DESIGN_REVISION_CONFLICT",
+      error: "Design changed since it was loaded.",
+    });
+    // The refusal is worthless if the row moved anyway: the first tab's design is what is stored.
+    expect(storedSerialization(id)).toBe(
+      canonicalSerializeDesign(EDITED_DESIGN),
+    );
+  });
+
+  it("answers the new revision, so the next save has something to state", async () => {
+    const { id, cookie } = await mintDesign();
+
+    const response = await saveEditedDesign(id, cookie, {
+      design: EDITED_DESIGN,
+      revision: FIRST_REVISION,
+    });
+
+    expect(await response.json()).toEqual({ id, revision: "2" });
+  });
+
+  it("accepts the next save once it states the revision the previous one produced", async () => {
+    const { id, cookie } = await mintDesign();
+
+    await saveEditedDesign(id, cookie, {
+      design: EDITED_DESIGN,
+      revision: FIRST_REVISION,
+    });
+    const second = await saveEditedDesign(id, cookie, {
+      design: ATTACKER_DESIGN,
+      revision: "2",
+    });
+
+    expect(second.status).toBe(200);
+    expect(storedSerialization(id)).toBe(
+      canonicalSerializeDesign(ATTACKER_DESIGN),
+    );
+  });
+
+  // The disclosure rule. A 409 is only ever produced for a caller whose credential already matched,
+  // so nobody else can tell a stale save from an unauthorised one — or learn that the design exists.
+  // The *current* revision is the sharpest of these: it is the one claim that is correct in every
+  // respect except the credential.
+  it.each([
+    { name: "the current revision", revision: "1" },
+    { name: "a stale revision", revision: "9999" },
+    { name: "a malformed revision", revision: "not-a-revision" },
+  ])(
+    "answers 403 and never 409 to a caller with the wrong credential claiming $name",
+    async ({ revision }) => {
+      const mine = await mintDesign();
+      const theirs = await mintDesign();
+
+      const response = await saveEditedDesign(theirs.id, mine.cookie, {
+        design: ATTACKER_DESIGN,
+        revision,
+      });
+
+      expect(response.status).toBe(403);
+      expect(await response.json()).toEqual({
+        error: "Design write not authorized.",
+      });
+      expect(storedSerialization(theirs.id)).toBe(
+        canonicalSerializeDesign(KITCHEN_L_DESIGN),
+      );
+    },
+  );
+
+  // Absent and malformed are one case, and both are refused rather than defaulted: a save with no
+  // enforceable expectation is exactly the last-write-wins behaviour this wave removed.
+  it.each([
+    { name: "no revision header at all", revision: undefined },
+    { name: "an empty revision", revision: "" },
+    { name: "a non-numeric revision", revision: "' or '1'='1" },
+    { name: "a leading-zero revision", revision: "01" },
+  ])(
+    "answers 400 to a save stating $name, and writes nothing",
+    async ({ revision }) => {
+      const { id, cookie } = await mintDesign();
+      const headers: Record<string, string> = {
+        cookie,
+        "content-type": "application/json",
+      };
+      if (revision !== undefined) headers[EXPECTED_REVISION_HEADER] = revision;
+
+      const response = await PUT(
+        new NextRequest(`https://example.test/api/designs/${id}`, {
+          method: "PUT",
+          headers,
+          body: JSON.stringify(ATTACKER_DESIGN),
+        }),
+        routeParams(id),
+      );
+
+      expect(response.status).toBe(400);
+      expect(await response.json()).toEqual({
+        code: "REVISION_REQUIRED",
+        error: "Design save must state the revision it edits.",
+      });
+      expect(storedSerialization(id)).toBe(
+        canonicalSerializeDesign(KITCHEN_L_DESIGN),
+      );
+    },
+  );
+
+  it("refuses a credential-less save before it complains about the missing revision", async () => {
+    // Order matters for disclosure: a caller with no cookie must get the same 403 whatever else is
+    // wrong with the request, so the 400 above cannot be used to probe which ids exist.
+    const { id } = await mintDesign();
+
+    const response = await PUT(
+      new NextRequest(`https://example.test/api/designs/${id}`, {
+        method: "PUT",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(ATTACKER_DESIGN),
+      }),
+      routeParams(id),
+    );
+
+    expect(response.status).toBe(403);
+  });
+
+  it("reports the design's revision on the read that hands it out", async () => {
+    // Without this a browser could not state a revision on its first save at all: the credential
+    // cookie and the document arrive together, and the revision has to travel with them.
+    const { id, cookie } = await mintDesign();
+
+    const response = await GET(readRequest(id, cookie), routeParams(id));
+
+    expect((await response.json()) as { revision: string }).toMatchObject({
+      revision: FIRST_REVISION,
+    });
+  });
+
+  it("mints a design already carrying its first revision", async () => {
+    const response = await POST();
+
+    expect((await response.json()) as { revision: string }).toMatchObject({
+      revision: FIRST_REVISION,
+    });
   });
 });

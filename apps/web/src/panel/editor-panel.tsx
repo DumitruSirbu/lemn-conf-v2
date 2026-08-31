@@ -23,6 +23,7 @@ import type {
   PanelFooter,
   PanelHeader,
   PanelNotice,
+  PanelNoticeAction,
   PanelSection,
   PanelView,
   ReplaceSection,
@@ -83,23 +84,21 @@ export function EditorPanel({ view }: { readonly view: PanelView }) {
  *  collapses to nothing visible (`[data-empty="true"]`); it is not hidden, because `display: none`
  *  would take it back out of the tree and undo the whole point.
  *
- *  The retry button appears exactly when the notice carries a label for one — the write-access
- *  check having failed (finding WEB-002). Whether it is offered is `describePanel`'s decision, not
- *  this component's; what it does is wiring, and wiring is what belongs here.
+ *  A button appears for each action the notice carries — the write-access check having failed
+ *  (finding WEB-002), or the stored design having moved on (finding WEB-003). Whether they are
+ *  offered is `describePanel`'s decision, not this component's; what each one does is wiring, and
+ *  wiring is what belongs here.
  *
- *  It sits **inside** the live region, and that is the right place for it rather than an oversight:
- *  pressing it moves `canWrite` back to `"checking"`, so the sentence beside it changes from "could
- *  not be checked" to "checking". Re-announcing the region is exactly what should happen — the
- *  press has no other visible result, and a screen-reader user would otherwise have no confirmation
- *  that anything happened at all. */
+ *  They sit **inside** the live region, and that is the right place for them rather than an
+ *  oversight: pressing retry moves `canWrite` back to `"checking"`, so the sentence beside it
+ *  changes from "could not be checked" to "checking". Re-announcing the region is exactly what
+ *  should happen — the press has no other visible result, and a screen-reader user would otherwise
+ *  have no confirmation that anything happened at all. */
 function PanelNoticeRow({
   notice,
 }: {
   readonly notice: PanelNotice | undefined;
 }) {
-  const retryWriteAccessCheck = useConfiguratorStore(
-    (state) => state.retryWriteAccessCheck,
-  );
   return (
     <p
       className={styles.notice}
@@ -110,18 +109,56 @@ function PanelNoticeRow({
       data-testid="panel-notice"
     >
       {notice?.message ?? ""}
-      {notice?.retryLabel ? (
-        <button
-          type="button"
-          className={styles.noticeAction}
-          data-testid="panel-access-retry"
-          onClick={retryWriteAccessCheck}
-        >
-          {notice.retryLabel}
-        </button>
-      ) : null}
+      {notice?.actions?.map((action) => (
+        <PanelNoticeButton key={action.kind} action={action} />
+      ))}
     </p>
   );
+}
+
+/** The test id each action carries, so a browser test presses a named control rather than the
+ *  n-th button in a paragraph. */
+const NOTICE_ACTION_TEST_IDS: Record<PanelNoticeAction["kind"], string> = {
+  "retry-access-check": "panel-access-retry",
+  "reload-stored": "panel-conflict-reload",
+  "overwrite-stored": "panel-conflict-overwrite",
+};
+
+function PanelNoticeButton({ action }: { readonly action: PanelNoticeAction }) {
+  const performNoticeAction = useNoticeActions();
+  return (
+    <button
+      type="button"
+      className={styles.noticeAction}
+      data-testid={NOTICE_ACTION_TEST_IDS[action.kind]}
+      onClick={() => {
+        performNoticeAction(action.kind);
+      }}
+    >
+      {action.label}
+    </button>
+  );
+}
+
+/**
+ * What each notice action does. One place, so a button cannot be wired to the wrong reducer.
+ *
+ * `reload-stored` is `location.reload()` and not a store action on purpose: the whole point of that
+ * choice is to discard this browser's unsaved design and take the stored one, which is what a
+ * reload is — modelling it as state would imply the store survives it (WEB-003).
+ */
+function useNoticeActions(): (kind: PanelNoticeAction["kind"]) => void {
+  const retryWriteAccessCheck = useConfiguratorStore(
+    (state) => state.retryWriteAccessCheck,
+  );
+  const overwriteConflict = useConfiguratorStore(
+    (state) => state.overwriteConflict,
+  );
+  return (kind) => {
+    if (kind === "retry-access-check") retryWriteAccessCheck();
+    else if (kind === "overwrite-stored") overwriteConflict();
+    else window.location.reload();
+  };
 }
 
 function PanelHeaderRow({

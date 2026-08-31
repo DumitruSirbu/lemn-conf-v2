@@ -225,7 +225,11 @@ export interface PanelFooter {
  * failure branches deliver different things: `error` has a retry armed and will write the state
  * queued behind it, while `stopped` never writes again. One sentence cannot be true of both — it
  * would either tell a customer to wait for a save that is not coming, or to reload and lose the
- * edit a pending retry was about to store. */
+ * edit a pending retry was about to store.
+ *
+ * `save-conflict` (WEB-003) is a third kind for the same reason and is unlike both: no retry is
+ * coming, and yet nothing is lost — the stored design and this screen's design both exist, and the
+ * customer chooses which survives. It is the only notice carrying more than one action. */
 export interface PanelNotice {
   readonly kind:
     | "read-only"
@@ -233,15 +237,29 @@ export interface PanelNotice {
     | "access-checking"
     | "access-uncheckable"
     | "save-failed"
-    | "save-stopped";
+    | "save-stopped"
+    | "save-conflict";
   /** Published resolved so the component styles rather than classifies. */
   readonly tone: "info" | "error";
   readonly message: string;
-  /** The label of the one action any notice offers, and therefore the flag that a notice has one:
-   *  present exactly on `access-uncheckable`, absent everywhere else. Published as a label rather
-   *  than as a boolean so the component renders a value and decides nothing — what pressing it does
-   *  is the shell's wiring (`retryWriteAccessCheck`), which is not a product rule. */
-  readonly retryLabel?: string;
+  /** What this notice offers, in the order it should be read. Absent — never empty — when there is
+   *  nothing to press, which is every notice but two. Each entry publishes a label and the *kind*
+   *  of action it is, so the component renders a value and decides nothing: what a kind does is the
+   *  shell's wiring, which is not a product rule. */
+  readonly actions?: readonly PanelNoticeAction[];
+}
+
+/**
+ * One action on a notice. The `kind` is a name for what the shell must do, deliberately not a
+ * callback: `describePanel` is a pure projection tested as a value, and a function in its output
+ * could not be compared to an expectation.
+ *
+ * `reload` is a page reload rather than a store action, and that is the honest place for it: it
+ * discards the whole client state by definition, so no reducer can model it.
+ */
+export interface PanelNoticeAction {
+  readonly kind: "retry-access-check" | "reload-stored" | "overwrite-stored";
+  readonly label: string;
 }
 
 /** Nothing selected is a real panel state, not a missing one: frames 2A and D2A show no panel at
@@ -410,8 +428,31 @@ function describeNotice(
       tone: "error",
       message: ro.panel.saveStoppedNotice,
     };
+  if (input.saveStatus === "conflict") return CONFLICT_NOTICE;
   return undefined;
 }
+
+/**
+ * WEB-003's two-way choice, and the one notice whose actions are both destructive of something.
+ *
+ * Reload is listed first because it is the conservative one: it keeps what is already stored, and
+ * the design it discards is one the customer can still see while deciding. Overwrite is second
+ * because it discards a version they cannot see.
+ *
+ * The panel is **not** locked while this stands. The edit on screen is real and still editable, the
+ * coalescer refuses further writes for this design rather than losing them, and overwriting sends
+ * whatever the design has become by the time it is pressed — so continuing to work and then
+ * overwriting is a coherent path, where a greyed panel would only add a second thing to undo.
+ */
+const CONFLICT_NOTICE: PanelNotice = {
+  kind: "save-conflict",
+  tone: "error",
+  message: ro.panel.saveConflictNotice,
+  actions: [
+    { kind: "reload-stored", label: ro.panel.saveConflictReloadLabel },
+    { kind: "overwrite-stored", label: ro.panel.saveConflictOverwriteLabel },
+  ],
+};
 
 /**
  * Which sentence a locked panel earned. Four states, told apart by what is true of each — none of
@@ -440,7 +481,9 @@ function describeLockedNotice(input: DescribePanelInput): PanelNotice {
       kind: "access-uncheckable",
       tone: "error",
       message: ro.panel.accessUncheckableNotice,
-      retryLabel: ro.panel.accessRetryLabel,
+      actions: [
+        { kind: "retry-access-check", label: ro.panel.accessRetryLabel },
+      ],
     };
   // Narrowed to a boolean by the two checks above, so the falsy test is right by rule here rather
   // than by accident. `isReadOnly` cannot rely on that — the string states are truthy there, which

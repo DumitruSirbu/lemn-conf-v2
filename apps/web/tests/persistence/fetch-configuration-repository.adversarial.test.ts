@@ -31,6 +31,10 @@ function respondWith(
   });
 }
 
+/** The revision every scripted response reports and every scripted save states. These tests attack
+ *  the transport, not the concurrency rule, so one value keeps them readable. */
+const STORED_REVISION = "1";
+
 function jsonResponse(body: unknown, status: number): Response {
   return new Response(JSON.stringify(body), {
     status,
@@ -58,7 +62,7 @@ describe("mint-exactly-once holds without help from the caller", () => {
           setTimeout(() => {
             resolve(
               jsonResponse(
-                { id: "minted" },
+                { id: "minted", revision: STORED_REVISION },
                 request.method === "POST" ? 201 : 200,
               ),
             );
@@ -68,8 +72,16 @@ describe("mint-exactly-once holds without help from the caller", () => {
     const repository = new FetchConfigurationRepository();
 
     await Promise.all([
-      repository.save(null, KITCHEN_L_DESIGN),
-      repository.save(null, KITCHEN_L_DESIGN),
+      repository.save({
+        id: null,
+        design: KITCHEN_L_DESIGN,
+        expectedRevision: STORED_REVISION,
+      }),
+      repository.save({
+        id: null,
+        design: KITCHEN_L_DESIGN,
+        expectedRevision: STORED_REVISION,
+      }),
     ]);
 
     expect(
@@ -79,12 +91,23 @@ describe("mint-exactly-once holds without help from the caller", () => {
 
   it("mints one row for a sequential pair, which is the path the coalescer takes", async () => {
     respondWith((request) =>
-      jsonResponse({ id: "minted" }, request.method === "POST" ? 201 : 200),
+      jsonResponse(
+        { id: "minted", revision: STORED_REVISION },
+        request.method === "POST" ? 201 : 200,
+      ),
     );
     const repository = new FetchConfigurationRepository();
 
-    await repository.save(null, KITCHEN_L_DESIGN);
-    await repository.save(null, KITCHEN_L_DESIGN);
+    await repository.save({
+      id: null,
+      design: KITCHEN_L_DESIGN,
+      expectedRevision: STORED_REVISION,
+    });
+    await repository.save({
+      id: null,
+      design: KITCHEN_L_DESIGN,
+      expectedRevision: STORED_REVISION,
+    });
 
     expect(
       requests.filter((request) => request.method === "POST"),
@@ -105,7 +128,11 @@ describe("every way a response can disappoint", () => {
       const repository = new FetchConfigurationRepository();
 
       await expect(
-        repository.save("existing-id", KITCHEN_L_DESIGN),
+        repository.save({
+          id: "existing-id",
+          design: KITCHEN_L_DESIGN,
+          expectedRevision: STORED_REVISION,
+        }),
       ).rejects.toThrow(DesignRequestFailedError);
     },
   );
@@ -116,9 +143,13 @@ describe("every way a response can disappoint", () => {
       respondWith(() => jsonResponse({ error: "no" }, status));
       const repository = new FetchConfigurationRepository();
 
-      await expect(repository.save(null, KITCHEN_L_DESIGN)).rejects.toThrow(
-        DesignRequestFailedError,
-      );
+      await expect(
+        repository.save({
+          id: null,
+          design: KITCHEN_L_DESIGN,
+          expectedRevision: STORED_REVISION,
+        }),
+      ).rejects.toThrow(DesignRequestFailedError);
       // And nothing was written: a failed mint must not be followed by a PUT to an id it never got.
       expect(requests.map((request) => request.method)).toEqual(["POST"]);
     },
@@ -131,7 +162,11 @@ describe("every way a response can disappoint", () => {
     const repository = new FetchConfigurationRepository();
 
     await expect(
-      repository.save("existing-id", KITCHEN_L_DESIGN),
+      repository.save({
+        id: "existing-id",
+        design: KITCHEN_L_DESIGN,
+        expectedRevision: STORED_REVISION,
+      }),
     ).rejects.toThrow(TypeError);
   });
 
@@ -142,30 +177,45 @@ describe("every way a response can disappoint", () => {
     const repository = new FetchConfigurationRepository();
 
     await expect(
-      repository.save("existing-id", KITCHEN_L_DESIGN),
+      repository.save({
+        id: "existing-id",
+        design: KITCHEN_L_DESIGN,
+        expectedRevision: STORED_REVISION,
+      }),
     ).rejects.toThrow(/not parseable JSON/);
   });
 
   it.each([
     { name: "an empty object", body: {} },
-    { name: "a null id", body: { id: null } },
-    { name: "a numeric id", body: { id: 7 } },
-    { name: "an empty-string id", body: { id: "" } },
+    { name: "a null id", body: { id: null, revision: STORED_REVISION } },
+    { name: "a numeric id", body: { id: 7, revision: STORED_REVISION } },
+    { name: "an empty-string id", body: { id: "", revision: STORED_REVISION } },
     { name: "a bare null body", body: null },
   ])("rejects a 2xx save carrying $name", async (testCase) => {
     respondWith(() => jsonResponse(testCase.body, 200));
     const repository = new FetchConfigurationRepository();
 
     await expect(
-      repository.save("existing-id", KITCHEN_L_DESIGN),
+      repository.save({
+        id: "existing-id",
+        design: KITCHEN_L_DESIGN,
+        expectedRevision: STORED_REVISION,
+      }),
     ).rejects.toThrow(/carried no design id/);
   });
 
   it("rejects a loaded design that does not validate, with the domain's own error", async () => {
-    respondWith(() => jsonResponse({ id: "x", design: { nope: true } }, 200));
+    respondWith(() =>
+      jsonResponse(
+        { id: "x", revision: STORED_REVISION, design: { nope: true } },
+        200,
+      ),
+    );
     const repository = new FetchConfigurationRepository();
 
-    await expect(repository.load("x")).rejects.toThrow(InvalidDesignError);
+    await expect(repository.loadWithAccess("x")).rejects.toThrow(
+      InvalidDesignError,
+    );
   });
 });
 
@@ -176,10 +226,16 @@ describe("a failure carries the status and never the response body", () => {
     respondWith(() => jsonResponse({ error: serverText }, 403));
     const repository = new FetchConfigurationRepository();
 
-    const failure = await repository.save("existing-id", KITCHEN_L_DESIGN).then(
-      () => undefined,
-      (error: unknown) => error,
-    );
+    const failure = await repository
+      .save({
+        id: "existing-id",
+        design: KITCHEN_L_DESIGN,
+        expectedRevision: STORED_REVISION,
+      })
+      .then(
+        () => undefined,
+        (error: unknown) => error,
+      );
 
     expect(failure).toBeInstanceOf(DesignRequestFailedError);
     expect((failure as Error).message).toContain("403");
@@ -190,10 +246,16 @@ describe("a failure carries the status and never the response body", () => {
 
 describe("the id in the path", () => {
   it("percent-encodes an id that would otherwise change the route", async () => {
-    respondWith(() => jsonResponse({ id: "x" }, 200));
+    respondWith(() =>
+      jsonResponse({ id: "x", revision: STORED_REVISION }, 200),
+    );
     const repository = new FetchConfigurationRepository();
 
-    await repository.save("../../admin?x=1", KITCHEN_L_DESIGN);
+    await repository.save({
+      id: "../../admin?x=1",
+      design: KITCHEN_L_DESIGN,
+      expectedRevision: STORED_REVISION,
+    });
 
     expect(requests[0]?.url).toBe("/api/designs/..%2F..%2Fadmin%3Fx%3D1");
     expect(requests[0]?.url).not.toContain("?");
@@ -211,19 +273,27 @@ describe("a mint that fails is not cached as a failure", () => {
         return jsonResponse({ error: "no" }, 500);
       }
       return jsonResponse(
-        { id: "minted" },
+        { id: "minted", revision: STORED_REVISION },
         request.method === "POST" ? 201 : 200,
       );
     });
     const repository = new FetchConfigurationRepository();
 
-    await expect(repository.save(null, KITCHEN_L_DESIGN)).rejects.toThrow(
-      DesignRequestFailedError,
-    );
+    await expect(
+      repository.save({
+        id: null,
+        design: KITCHEN_L_DESIGN,
+        expectedRevision: STORED_REVISION,
+      }),
+    ).rejects.toThrow(DesignRequestFailedError);
     // The session must not be poisoned: the next save has to try again, and succeed.
-    await expect(repository.save(null, KITCHEN_L_DESIGN)).resolves.toBe(
-      "minted",
-    );
+    await expect(
+      repository.save({
+        id: null,
+        design: KITCHEN_L_DESIGN,
+        expectedRevision: STORED_REVISION,
+      }),
+    ).resolves.toEqual({ id: "minted", revision: STORED_REVISION });
 
     expect(
       requests.filter((request) => request.method === "POST"),
@@ -243,7 +313,7 @@ describe("a mint that fails is not cached as a failure", () => {
             }
             resolve(
               jsonResponse(
-                { id: "minted" },
+                { id: "minted", revision: STORED_REVISION },
                 request.method === "POST" ? 201 : 200,
               ),
             );
@@ -253,8 +323,16 @@ describe("a mint that fails is not cached as a failure", () => {
     const repository = new FetchConfigurationRepository();
 
     const outcomes = await Promise.allSettled([
-      repository.save(null, KITCHEN_L_DESIGN),
-      repository.save(null, KITCHEN_L_DESIGN),
+      repository.save({
+        id: null,
+        design: KITCHEN_L_DESIGN,
+        expectedRevision: STORED_REVISION,
+      }),
+      repository.save({
+        id: null,
+        design: KITCHEN_L_DESIGN,
+        expectedRevision: STORED_REVISION,
+      }),
     ]);
 
     // One attempt shared by both callers, and both told about the failure.
@@ -266,9 +344,13 @@ describe("a mint that fails is not cached as a failure", () => {
       "rejected",
     ]);
 
-    await expect(repository.save(null, KITCHEN_L_DESIGN)).resolves.toBe(
-      "minted",
-    );
+    await expect(
+      repository.save({
+        id: null,
+        design: KITCHEN_L_DESIGN,
+        expectedRevision: STORED_REVISION,
+      }),
+    ).resolves.toEqual({ id: "minted", revision: STORED_REVISION });
     expect(
       requests.filter((request) => request.method === "POST"),
     ).toHaveLength(2);
@@ -276,15 +358,30 @@ describe("a mint that fails is not cached as a failure", () => {
 
   it("keeps a fulfilled mint for the session rather than minting per save", async () => {
     respondWith((request) =>
-      jsonResponse({ id: "minted" }, request.method === "POST" ? 201 : 200),
+      jsonResponse(
+        { id: "minted", revision: STORED_REVISION },
+        request.method === "POST" ? 201 : 200,
+      ),
     );
     const repository = new FetchConfigurationRepository();
 
     await Promise.all([
-      repository.save(null, KITCHEN_L_DESIGN),
-      repository.save(null, KITCHEN_L_DESIGN),
+      repository.save({
+        id: null,
+        design: KITCHEN_L_DESIGN,
+        expectedRevision: STORED_REVISION,
+      }),
+      repository.save({
+        id: null,
+        design: KITCHEN_L_DESIGN,
+        expectedRevision: STORED_REVISION,
+      }),
     ]);
-    await repository.save(null, KITCHEN_L_DESIGN);
+    await repository.save({
+      id: null,
+      design: KITCHEN_L_DESIGN,
+      expectedRevision: STORED_REVISION,
+    });
 
     expect(
       requests.filter((request) => request.method === "POST"),
@@ -305,7 +402,11 @@ describe("only a credential refusal gets the terminal error type", () => {
       const repository = new FetchConfigurationRepository();
 
       const failure = await repository
-        .save("existing-id", KITCHEN_L_DESIGN)
+        .save({
+          id: "existing-id",
+          design: KITCHEN_L_DESIGN,
+          expectedRevision: STORED_REVISION,
+        })
         .then(
           () => undefined,
           (error: unknown) => error,
@@ -349,7 +450,11 @@ describe("only a credential refusal gets the terminal error type", () => {
       const repository = new FetchConfigurationRepository();
 
       const failure = await repository
-        .save("existing-id", KITCHEN_L_DESIGN)
+        .save({
+          id: "existing-id",
+          design: KITCHEN_L_DESIGN,
+          expectedRevision: STORED_REVISION,
+        })
         .then(
           () => undefined,
           (error: unknown) => error,
@@ -380,10 +485,16 @@ describe("only a credential refusal gets the terminal error type", () => {
     respondWith(() => jsonResponse({ error: "no" }, 403));
     const repository = new FetchConfigurationRepository();
 
-    const failure = await repository.save(null, KITCHEN_L_DESIGN).then(
-      () => undefined,
-      (error: unknown) => error,
-    );
+    const failure = await repository
+      .save({
+        id: null,
+        design: KITCHEN_L_DESIGN,
+        expectedRevision: STORED_REVISION,
+      })
+      .then(
+        () => undefined,
+        (error: unknown) => error,
+      );
 
     expect(failure).toBeInstanceOf(DesignRequestFailedError);
     expect(failure).not.toBeInstanceOf(WriteNotAuthorizedError);

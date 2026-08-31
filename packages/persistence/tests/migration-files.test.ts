@@ -20,11 +20,14 @@ describe("readMigrationFiles", () => {
   it("reads this repository's own migrations as a contiguous run from version 1", () => {
     const migrations = readMigrationFiles();
 
-    expect(migrations.map((migration) => migration.version)).toEqual([1, 2, 3]);
+    expect(migrations.map((migration) => migration.version)).toEqual([
+      1, 2, 3, 4,
+    ]);
     expect(migrations.map((migration) => migration.fileName)).toEqual([
       "0001_create_designs.sql",
       "0002_add_write_token_hash.sql",
       "0003_check_write_token_hash_shape.sql",
+      "0004_add_design_revision.sql",
     ]);
   });
 

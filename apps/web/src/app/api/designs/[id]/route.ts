@@ -7,12 +7,14 @@ import {
   validateDesignForCatalog,
 } from "@lemnaria/configurator-domain";
 import type { Design } from "@lemnaria/configurator-domain";
+import { isDesignRevision, type DesignRevision } from "@lemnaria/persistence";
 import { NextResponse, type NextRequest } from "next/server";
 
 import {
   designErrorResponse,
   invalidBodyResponse,
   payloadTooLargeResponse,
+  revisionRequiredResponse,
   writeForbiddenResponse,
 } from "@/lib/server/design-errors";
 import {
@@ -44,6 +46,21 @@ type ReadDesignOutcome =
  * out of static rendering and no CDN caches it without an explicit public directive — these headers
  * are what keeps that true the day someone adds `s-maxage` to a route whose payload looks public.
  */
+/**
+ * Where a save states the revision it edits (WEB-003).
+ *
+ * A header rather than a field in the body: the body of a save **is** the `Design` document and
+ * `DesignSchema` is a `strictObject`, so a revision smuggled into it would be rejected by the
+ * schema — and putting transport metadata inside the customer's document is how the two come to be
+ * confused later.
+ *
+ * Not `If-Match`, deliberately, even though the semantics are a conditional write. That header's
+ * failure is a `412`, and this route answers `409`, which is the status the client's two-way choice
+ * — reload, or overwrite — is written against; `If-Match` also invites a proxy or CDN to act on a
+ * precondition it does not understand here. A custom header is inert to every intermediary.
+ */
+const EXPECTED_REVISION_HEADER = "x-expected-revision";
+
 const PER_CREDENTIAL_HEADERS = {
   "Cache-Control": "private, no-store",
   Vary: "Cookie",
@@ -71,11 +88,12 @@ export async function GET(
 ): Promise<NextResponse> {
   const { id } = await params;
   try {
-    const design = await getRepository().load(id);
+    const { design, revision } = await getRepository().load(id);
     return NextResponse.json(
       {
         id,
         design,
+        revision,
         canWrite: hasWriteCredentialFor(request.cookies, id),
       },
       { headers: PER_CREDENTIAL_HEADERS },
@@ -117,6 +135,11 @@ async function saveDesign(
   const writeTokenHash = readWriteTokenHash(request, id);
   if (writeTokenHash === undefined) return writeForbiddenResponse();
 
+  // After the credential check and before the body is read: an unauthorised caller must not be able
+  // to tell this refusal from the 403, and a request that cannot be enforced is not worth parsing.
+  const expectedRevision = readExpectedRevision(request);
+  if (expectedRevision === undefined) return revisionRequiredResponse();
+
   try {
     // Inside the try, not above it: `readDesign` is not expected to throw — the reader returns its
     // transport failures — but nothing above a `try` has a handler, and this handler's whole reason
@@ -124,19 +147,34 @@ async function saveDesign(
     const body = await readDesign(request);
     if (!body.ok) return body.response;
 
-    const savedId = await getRepository().saveAuthorized({
+    const saved = await getRepository().saveAuthorized({
       id,
       design: body.design,
       writeTokenHash,
+      expectedRevision,
     });
 
     // A save is the proof the design is still in use, so it is also what keeps edit access alive.
-    const response = NextResponse.json({ id: savedId });
+    const response = NextResponse.json({
+      id: saved.id,
+      revision: saved.revision,
+    });
     refreshWriteTokenCookie({ request, response }, id);
     return response;
   } catch (error) {
     return designErrorResponse(error);
   }
+}
+
+/** The revision the caller claims to be editing, or `undefined` when it did not send a usable one.
+ *  Absent and malformed are one case on purpose: neither can be enforced against the row, and
+ *  distinguishing them in the response would describe this route's parser to a caller. */
+function readExpectedRevision(
+  request: NextRequest,
+): DesignRevision | undefined {
+  const header = request.headers.get(EXPECTED_REVISION_HEADER);
+  if (header === null || !isDesignRevision(header)) return undefined;
+  return header;
 }
 
 /**

@@ -5,8 +5,10 @@
 // the already-applied edit. Its caller is the store's `onDesignChanged` seam, which fires after
 // every successful command — mint-on-first-write is simply the first of those, not a special case.
 import type { Design, DesignId } from "@lemnaria/configurator-domain";
+import type { DesignRevision } from "@lemnaria/persistence";
 
 import {
+  WriteConflictError,
   WriteNotAuthorizedError,
   WriteNotRetryableError,
 } from "./design-request-errors";
@@ -23,13 +25,25 @@ import {
  * - `unauthorized` is terminal too, but the one terminal case a surface can say something useful
  *   about (ADR 0019 decision 1: the write credential is a cookie this browser simply does not hold —
  *   the design is read-only here, not failing to save).
+ * - `conflict` is terminal **until the customer chooses** (WEB-003): the credential is right and the
+ *   stored design has moved on, so no retry can succeed and none is armed. Unlike the two above it
+ *   is recoverable, by reloading the stored design or by overwriting it deliberately, and the state
+ *   on screen is intact meanwhile.
  */
 export type SaveStatus =
   | "idle"
   | "saving"
   | "error"
   | "stopped"
-  | "unauthorized";
+  | "unauthorized"
+  | "conflict";
+
+/** The three statuses that stop a design's writes until something outside the coalescer changes.
+ *  Recorded per identity, so returning to a refused design does not quietly start writing again. */
+type RefusedStatus = Extract<
+  SaveStatus,
+  "stopped" | "unauthorized" | "conflict"
+>;
 
 const RETRY_BASE_DELAY_MS = 500;
 const RETRY_MAX_DELAY_MS = 8000;
@@ -43,18 +57,26 @@ function backoffDelayMs(retryCount: number): number {
   );
 }
 
-/**
- * The browser repository accepts one extra, opaque value meaningful only when `id` is `null`.
- * Reusing it deduplicates a mint across retries/overlap for one fresh design; a different value
- * deliberately means a different fresh design. Domain repositories with two arguments remain
- * structurally compatible and simply ignore the extra value.
- */
+/** One save request, and what a successful one answers with. Mirrors
+ *  `fetch-configuration-repository.ts`'s own types, declared here so the coalescer depends on a
+ *  shape rather than on that class. */
+export interface CoalescedSaveRequest {
+  readonly id: DesignId | null;
+  readonly design: Design;
+  /** Ignored when `id` is `null`; a mint decides its own first revision. */
+  readonly expectedRevision: DesignRevision | null;
+  readonly provisionalMintIdentity?: object | undefined;
+}
+
+export interface CoalescedSaveResult {
+  readonly id: DesignId;
+  readonly revision: DesignRevision;
+}
+
 export interface ClientSaveRepository {
   readonly save: (
-    id: DesignId | null,
-    design: Design,
-    provisionalMintIdentity?: object,
-  ) => Promise<DesignId>;
+    request: CoalescedSaveRequest,
+  ) => Promise<CoalescedSaveResult>;
 }
 
 export interface SaveCoalescerDependencies {
@@ -63,14 +85,40 @@ export interface SaveCoalescerDependencies {
   readonly getDesignId: () => DesignId | null;
   /** Unlike an id, the generation also distinguishes two fresh designs that both carry `null`. */
   readonly getGeneration: () => number;
+  /**
+   * The revision the store believes the current design stands at, read **once per identity queue**
+   * when that queue is created (WEB-003).
+   *
+   * It is not read per job on purpose. A job scheduled while an earlier save for the same design is
+   * still in flight would capture the revision that save is about to consume, and would then be
+   * refused as stale for no reason. The queue owns the revision instead, and only a successful save
+   * advances it — see `runSave`.
+   */
+  readonly getRevision: () => DesignRevision | null;
+  /**
+   * Re-reads a design's current revision from the server. The "re-read" half of an explicit
+   * overwrite, and the only thing in this module that may raise the revision a queue expects
+   * without a save having produced it — which is exactly what makes an overwrite a deliberate act
+   * rather than a retry.
+   */
+  readonly readCurrentRevision: (id: DesignId) => Promise<DesignRevision>;
   /** Called after a successful save, scoped to the generation that scheduled it. */
-  readonly onSaved: (id: DesignId, generation: number) => void;
+  readonly onSaved: (saved: CoalescedSaveResult, generation: number) => void;
   readonly onSaveStatusChange: (status: SaveStatus, generation: number) => void;
 }
 
 export interface SaveCoalescer {
   /** Queues `design` to be persisted. Returns immediately; the write happens off this call. */
   scheduleSave: (design: Design) => void;
+  /**
+   * The customer's answer to a conflict: write `design` over whatever the stored design has become
+   * (WEB-003). Re-reads the current revision first, so the overwrite is conditional on the state it
+   * is actually replacing — a blind write with no expectation would reintroduce the very defect
+   * this wave removed, one press further away.
+   *
+   * A no-op unless this design is in `conflict`, so a stray press cannot overwrite anything.
+   */
+  overwriteConflict: (design: Design) => void;
 }
 
 /** The immutable scheduling-time snapshot. No repository call reads live store identity. */
@@ -83,6 +131,13 @@ interface SaveJob {
 interface IdentityQueue {
   /** `null` until this provisional queue completes its first successful save. */
   designId: DesignId | null;
+  /**
+   * The revision the next write for this identity must expect. Seeded from the store when the queue
+   * is created, `null` while the identity is still provisional, and advanced **only** by a
+   * successful save — so a retry re-sends the revision the failed attempt used, never one a
+   * different write already consumed.
+   */
+  expectedRevision: DesignRevision | null;
   /** The newest generation that scheduled work for this persisted identity. */
   generation: number;
   /** Stable across every null-id attempt belonging to this provisional generation. */
@@ -115,23 +170,29 @@ export function createSaveCoalescer(
   let saving = false;
   let lastSaveCompletedAtMs: number | null = null;
   let intervalTimer: ReturnType<typeof setTimeout> | null = null;
-  const refusedPersisted = new Map<
-    DesignId,
-    Extract<SaveStatus, "stopped" | "unauthorized">
-  >();
-  const refusedProvisional = new Map<
-    number,
-    Extract<SaveStatus, "stopped" | "unauthorized">
-  >();
+  const refusedPersisted = new Map<DesignId, RefusedStatus>();
+  const refusedProvisional = new Map<number, RefusedStatus>();
+  /**
+   * The design an in-flight overwrite will write, per identity — the newest one offered while its
+   * re-read is still out.
+   *
+   * It exists because the conflict must **stay** in place across that await. Clearing it first left
+   * a window in which an ordinary edit was no longer blocked: it went out against the revision that
+   * had just been refused, conflicted again, and re-armed the refusal — so the overwrite, arriving
+   * a moment later, was itself refused and sent nothing. The customer pressed a destructive-choice
+   * control and watched it do nothing (review finding F1).
+   *
+   * Holding the edit rather than refusing it is what makes `CONFLICT_NOTICE`'s promise true: the
+   * panel stays editable, so an edit made between the press and the round trip is part of what
+   * "overwrite with what you see now" means, and it is what gets written.
+   */
+  const overwritesInFlight = new Map<DesignId, Design>();
 
   function scheduleSave(design: Design): void {
-    const job: SaveJob = {
-      designId: deps.getDesignId(),
-      design,
-      generation: deps.getGeneration(),
-    };
+    const job = jobFor(design);
     const refusedStatus = refusalStatus(job);
     if (refusedStatus !== undefined) {
+      if (heldByOverwrite(job, design)) return;
       // A terminal identity is still terminal on return to it. Reporting this synchronously avoids
       // accepting a local edit while silently declining even to queue its write.
       deps.onSaveStatusChange(refusedStatus, job.generation);
@@ -147,10 +208,27 @@ export function createSaveCoalescer(
       queue.retryCount = 0;
       clearRetryTimer(queue);
       invalidateReady(queue);
+      // The load that advanced the generation read this design afresh, so the store's revision is
+      // newer than the one this queue was seeded with — and a queue sitting in retry backoff
+      // survives a hydrate away and back carrying the stale one (review finding F4). It fails
+      // closed, as a spurious conflict rather than a lost update, but a design nothing else touched
+      // should not conflict at all.
+      queue.expectedRevision = deps.getRevision();
     }
     queue.pending = job;
     enqueueReady(queue);
     requestSave();
+  }
+
+  /** The immutable snapshot every save is built from: what is on screen, whose design it is, and
+   *  which load generation asked. The revision is deliberately **not** part of it — see
+   *  `getRevision`. */
+  function jobFor(design: Design): SaveJob {
+    return {
+      designId: deps.getDesignId(),
+      design,
+      generation: deps.getGeneration(),
+    };
   }
 
   function queueFor(job: SaveJob): IdentityQueue {
@@ -158,6 +236,7 @@ export function createSaveCoalescer(
       const existing = persistedQueues.get(job.designId);
       if (existing) return existing;
       const queue = newQueue(job.designId, job.generation, undefined);
+      queue.expectedRevision = deps.getRevision();
       persistedQueues.set(job.designId, queue);
       return queue;
     }
@@ -176,6 +255,7 @@ export function createSaveCoalescer(
   ): IdentityQueue {
     return {
       designId,
+      expectedRevision: null,
       generation,
       provisionalMintIdentity,
       pending: null,
@@ -252,9 +332,17 @@ export function createSaveCoalescer(
     }, waitMs);
   }
 
-  function refusalStatus(
-    job: SaveJob,
-  ): Extract<SaveStatus, "stopped" | "unauthorized"> | undefined {
+  /** Whether this edit belongs to an overwrite that is mid-re-read, in which case it replaces what
+   *  that overwrite will write rather than being refused. */
+  function heldByOverwrite(job: SaveJob, design: Design): boolean {
+    const { designId } = job;
+    if (designId === null || !overwritesInFlight.has(designId)) return false;
+    overwritesInFlight.set(designId, design);
+    deps.onSaveStatusChange("saving", job.generation);
+    return true;
+  }
+
+  function refusalStatus(job: SaveJob): RefusedStatus | undefined {
     return job.designId === null
       ? refusedProvisional.get(job.generation)
       : refusedPersisted.get(job.designId);
@@ -280,17 +368,21 @@ export function createSaveCoalescer(
     deps.onSaveStatusChange("saving", job.generation);
 
     try {
-      const id = await deps.repository.save(
-        job.designId,
-        job.design,
-        queue.provisionalMintIdentity,
-      );
+      // The revision comes off the queue, not off the job: it must be the newest one a save for
+      // this identity has actually produced, which a snapshot taken at schedule time need not be.
+      const saved = await deps.repository.save({
+        id: job.designId,
+        design: job.design,
+        expectedRevision: queue.expectedRevision,
+        provisionalMintIdentity: queue.provisionalMintIdentity,
+      });
       queue.retryCount = 0;
       queue.active = false;
+      queue.expectedRevision = saved.revision;
       saving = false;
       lastSaveCompletedAtMs = Date.now();
-      if (job.designId === null) promoteQueue(queue, id);
-      deps.onSaved(id, job.generation);
+      if (job.designId === null) promoteQueue(queue, saved.id);
+      deps.onSaved(saved, job.generation);
       deps.onSaveStatusChange("idle", job.generation);
       enqueueReady(queue);
       deleteQueueIfIdle(queue);
@@ -324,8 +416,7 @@ export function createSaveCoalescer(
     queue.active = false;
     queue.retryCount = 0;
     clearRetryTimer(queue);
-    const status =
-      failure instanceof WriteNotAuthorizedError ? "unauthorized" : "stopped";
+    const status = refusedStatusFor(failure);
     if (job.designId === null) {
       refusedProvisional.set(job.generation, status);
     } else {
@@ -341,6 +432,68 @@ export function createSaveCoalescer(
     deps.onSaveStatusChange(status, affectedGeneration);
     deleteQueueIfIdle(queue);
     requestSave();
+  }
+
+  /** Which terminal state a refusal leaves the identity in. A conflict is separated from the rest
+   *  because it is the only one the customer can act on; falling through to `stopped` would be safe
+   *  but would hide the two choices behind an apology. */
+  function refusedStatusFor(failure: WriteNotRetryableError): RefusedStatus {
+    if (failure instanceof WriteConflictError) return "conflict";
+    if (failure instanceof WriteNotAuthorizedError) return "unauthorized";
+    return "stopped";
+  }
+
+  /**
+   * The customer chose to overwrite: re-read the revision the stored design now stands at, then
+   * queue the newest document against **that** — so the overwrite is still a conditional write, and
+   * a third tab that saved in the meantime conflicts again rather than being silently discarded.
+   *
+   * The conflict is **not** cleared here. It stays until the moment the save is actually queued, so
+   * nothing slips out against the revision that was just refused (review finding F1); edits made
+   * meanwhile are held by `heldByOverwrite` rather than refused.
+   */
+  function overwriteConflict(design: Design): void {
+    const job = jobFor(design);
+    const { designId } = job;
+    if (designId === null) return;
+    if (refusalStatus(job) !== "conflict") return;
+    // One re-read at a time: a second press while the first is out would read the same revision
+    // and queue the same write twice.
+    if (overwritesInFlight.has(designId)) return;
+
+    overwritesInFlight.set(designId, design);
+    deps.onSaveStatusChange("saving", job.generation);
+    void adoptCurrentRevisionAndSave(job, designId);
+  }
+
+  async function adoptCurrentRevisionAndSave(
+    job: SaveJob,
+    designId: DesignId,
+  ): Promise<void> {
+    try {
+      const revision = await deps.readCurrentRevision(designId);
+      const design = overwritesInFlight.get(designId) ?? job.design;
+      overwritesInFlight.delete(designId);
+      // The store may have moved to another design while the re-read was in flight. Overwriting
+      // then would write this document over a design the customer never chose it for.
+      if (deps.getDesignId() !== designId) {
+        reportConflictStanding(job);
+        return;
+      }
+      refusedPersisted.delete(designId);
+      queueFor(job).expectedRevision = revision;
+      scheduleSave(design);
+    } catch {
+      overwritesInFlight.delete(designId);
+      reportConflictStanding(job);
+    }
+  }
+
+  /** An overwrite that did not happen leaves the design exactly as conflicted as it was — the
+   *  refusal was never lifted — so this only has to say so, rather than leaving the customer
+   *  watching a save that is not coming. */
+  function reportConflictStanding(job: SaveJob): void {
+    deps.onSaveStatusChange("conflict", job.generation);
   }
 
   function handleSaveFailure(failedJob: SaveJob, queue: IdentityQueue): void {
@@ -406,5 +559,5 @@ export function createSaveCoalescer(
       persistedQueues.delete(queue.designId);
   }
 
-  return { scheduleSave };
+  return { scheduleSave, overwriteConflict };
 }

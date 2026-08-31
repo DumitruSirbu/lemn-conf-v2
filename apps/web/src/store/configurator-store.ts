@@ -35,6 +35,7 @@ import {
   type RejectionReason,
   type VoidRecord,
 } from "@lemnaria/configurator-domain";
+import type { DesignRevision } from "@lemnaria/persistence";
 import { create, type StoreApi, type UseBoundStore } from "zustand";
 
 import { sessionConfigurationRepository } from "@/persistence/fetch-configuration-repository";
@@ -125,6 +126,14 @@ export interface ConfiguratorState {
    *  without this the flag would keep claiming a probe that measures inside a room nobody renders. */
   readonly detachBodyProbe: () => void;
   readonly designId: DesignId | null;
+  /**
+   * The revision the stored design stood at when this browser last heard from the server — from the
+   * load that hydrated it, or from the last save that succeeded (WEB-003).
+   *
+   * `null` means no row exists yet: a fresh, never-minted design. It is opaque: nothing here parses
+   * it, compares it for order, or derives the next one. Only the server's own answer advances it.
+   */
+  readonly revision: DesignRevision | null;
   readonly saveStatus: SaveStatus;
   /** A future share-link UI gates on this, not on `designId !== null` alone: a design that has
    *  never been written successfully must not present a shareable link (write-path decision 17). */
@@ -160,8 +169,22 @@ export interface ConfiguratorState {
    *  since an id selected in the previous design has no guaranteed meaning in the new one. */
   readonly hydrate: (loaded: LoadedDesignState) => void;
   readonly setSaveStatus: (status: SaveStatus) => void;
-  /** Records a successful save's id — the save-coalescer's `onSaved` hook. */
-  readonly applySavedId: (id: DesignId) => void;
+  /** Records a successful save's id and the revision it produced — the save-coalescer's `onSaved`
+   *  hook. The two arrive together because a save answers both, and an id kept without its new
+   *  revision would leave the next write expecting one already consumed. */
+  readonly applySaved: (saved: {
+    id: DesignId;
+    revision: DesignRevision;
+  }) => void;
+  /**
+   * The customer's answer to `saveStatus: "conflict"` (WEB-003): write what is on screen over the
+   * stored design, having first re-read the revision it now stands at.
+   *
+   * The other answer — reload the stored design and lose the local edit — is not a store action.
+   * It is a page reload, which discards this whole state by definition; giving it a reducer here
+   * would imply the store survives it.
+   */
+  readonly overwriteConflict: () => void;
 }
 
 /** One load's worth of state: the document, the id it lives under, and this browser's access to
@@ -170,6 +193,10 @@ export interface ConfiguratorState {
 export interface LoadedDesignState {
   readonly design: Design;
   readonly designId: DesignId;
+  /** The revision this document was read at. **Required** for the reason `canWrite` is: a loader
+   *  that dropped it would leave the first save with no expectation to state, and the route refuses
+   *  a save that states none. */
+  readonly revision: DesignRevision;
   /**
    * **Required**, so that a loader which does not know has to say so. `/d/{id}` passes
    * `"checking"` — its own request could not carry the `Path=/api/designs/{id}` cookie — and
@@ -190,6 +217,9 @@ export interface ConfiguratorStoreOptions {
   /** Defaults to `null`: the seeded fixture starts out unminted, matching M2's "mint on first
    *  write" trigger. */
   readonly designId?: DesignId | null;
+  /** The revision `designId`'s row stands at. Meaningless without one, and `null` alongside one is
+   *  a store whose first save the route will refuse — nothing in the app constructs that. */
+  readonly revision?: DesignRevision | null;
   /** Wave 3C-2b's seam. Called **after** the store has applied a successful command, never before
    *  it and never on a refusal, and never awaited — no interaction blocks on a write. 3C-2b passes
    *  the save coalescer's `scheduleSave` here; until then it is a no-op. */
@@ -199,6 +229,9 @@ export interface ConfiguratorStoreOptions {
    * identity. Other store instances have no background writer and leave this unset.
    */
   readonly onDesignIdentityChanged?: () => void;
+  /** The overwrite half of WEB-003's conflict choice, wired to the coalescer at the singleton seam.
+   *  Other store instances have no background writer and leave this unset. */
+  readonly onOverwriteRequested?: (design: Design) => void;
   /** The domain reads no clock, so the caller supplies `occurredAt`. Injected so a test can pin
    *  it and so nothing in the domain has to be mocked to make a timestamp predictable. */
   readonly now?: () => string;
@@ -360,6 +393,7 @@ export function createConfiguratorStore(
         set({ bodyProbe: undefined, isBodyProbeAttached: false });
       },
       designId,
+      revision: options.revision ?? null,
       saveStatus: "idle",
       canWrite: options.canWrite ?? true,
       hasPersistedSuccessfully: designId !== null,
@@ -373,6 +407,7 @@ export function createConfiguratorStore(
           selection: null,
           lastRejection: null,
           designId: loaded.designId,
+          revision: loaded.revision,
           canWrite: loaded.canWrite,
           hasPersistedSuccessfully: true,
           // A save status is evidence about the generation that produced it and about no other,
@@ -405,8 +440,11 @@ export function createConfiguratorStore(
       setSaveStatus: (status) => {
         set({ saveStatus: status });
       },
-      applySavedId: (id) => {
-        set({ designId: id, hasPersistedSuccessfully: true });
+      applySaved: ({ id, revision }) => {
+        set({ designId: id, revision, hasPersistedSuccessfully: true });
+      },
+      overwriteConflict: () => {
+        options.onOverwriteRequested?.(get().design);
       },
     };
   });
@@ -429,6 +467,7 @@ export const useConfiguratorStore = createConfiguratorStore({
   catalog: KITCHEN_L_BODY_CATALOG,
   onDesignChanged: persistDesignChange,
   onDesignIdentityChanged: advanceSaveGeneration,
+  onOverwriteRequested: overwriteConflictingDesign,
 });
 
 /** The session's one coalescer, and the whole of the client write path's wiring (ADR 0010
@@ -441,18 +480,32 @@ let saveCoalescer: SaveCoalescer | null = null;
  *  interaction ever blocks on a write (persistence decision 13); the store calls it only after a
  *  successful command, so a refusal persists nothing. */
 function persistDesignChange(design: Design): void {
+  sessionSaveCoalescer().scheduleSave(design);
+}
+
+/** The overwrite half of WEB-003's choice. It reaches the same coalescer as every ordinary save,
+ *  because the overwrite has to reconcile with whatever that coalescer already has queued, retrying
+ *  or refused for this design — a second writer beside it would be a second lost-update mechanism. */
+function overwriteConflictingDesign(design: Design): void {
+  sessionSaveCoalescer().overwriteConflict(design);
+}
+
+function sessionSaveCoalescer(): SaveCoalescer {
   saveCoalescer ??= createSaveCoalescer({
     repository: sessionConfigurationRepository,
     getDesignId: () => useConfiguratorStore.getState().designId,
     getGeneration: () => saveGeneration,
-    onSaved: (id, generation) => {
+    getRevision: () => useConfiguratorStore.getState().revision,
+    readCurrentRevision: async (id) =>
+      (await sessionConfigurationRepository.loadWithAccess(id)).revision,
+    onSaved: (saved, generation) => {
       if (generation !== saveGeneration) return;
-      useConfiguratorStore.getState().applySavedId(id);
+      useConfiguratorStore.getState().applySaved(saved);
     },
     onSaveStatusChange: (status, generation) => {
       if (generation !== saveGeneration) return;
       useConfiguratorStore.getState().setSaveStatus(status);
     },
   });
-  saveCoalescer.scheduleSave(design);
+  return saveCoalescer;
 }

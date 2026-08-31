@@ -29,6 +29,10 @@ const hasLiveDatabase = Boolean(process.env["DATABASE_URL"]);
 const testDatabaseUrl = hasLiveDatabase ? resolveTestDatabaseUrl() : "";
 const SOURCE_DIR = resolve(dirname(fileURLToPath(import.meta.url)), "../src");
 
+/** Every design in this file is minted and then attacked without ever being saved, so the revision
+ *  a legitimate save would state is the one the mint produced. */
+const FIRST_REVISION = "1";
+
 const CORRECT_TOKEN_HASH = "c".repeat(64);
 const ATTACKER_DESIGN: Design = {
   ...KITCHEN_L_DESIGN,
@@ -74,7 +78,10 @@ describe("the write-authorisation predicate under attack (live test database)", 
   async function mintTrackingId(
     writeTokenHash: string = CORRECT_TOKEN_HASH,
   ): Promise<DesignId> {
-    const id = await testRepository().mint(KITCHEN_L_DESIGN, writeTokenHash);
+    const { id } = await testRepository().mint(
+      KITCHEN_L_DESIGN,
+      writeTokenHash,
+    );
     mintedIds.push(id);
     return id;
   }
@@ -120,6 +127,7 @@ describe("the write-authorisation predicate under attack (live test database)", 
         id,
         design: { ...KITCHEN_L_DESIGN, presetId: "authorised" },
         writeTokenHash: CORRECT_TOKEN_HASH,
+        expectedRevision: FIRST_REVISION,
       });
 
       const after = await readRow(id);
@@ -141,6 +149,7 @@ describe("the write-authorisation predicate under attack (live test database)", 
             id,
             design: ATTACKER_DESIGN,
             writeTokenHash: hash,
+            expectedRevision: FIRST_REVISION,
           }),
           name,
         ).rejects.toThrow(DesignWriteForbiddenError);
@@ -169,6 +178,7 @@ describe("the write-authorisation predicate under attack (live test database)", 
             id: "' or 1=1 --",
             design: ATTACKER_DESIGN,
             writeTokenHash: hash,
+            expectedRevision: FIRST_REVISION,
           }),
           name,
         ).rejects.toThrow(DesignWriteForbiddenError);
@@ -252,9 +262,9 @@ describe("the write-authorisation predicate under attack (live test database)", 
       const id = await mintTrackingId();
 
       expect(id).toBeTruthy();
-      expect(canonicalSerializeDesign(await testRepository().load(id))).toBe(
-        canonicalSerializeDesign(KITCHEN_L_DESIGN),
-      );
+      expect(
+        canonicalSerializeDesign((await testRepository().load(id)).design),
+      ).toBe(canonicalSerializeDesign(KITCHEN_L_DESIGN));
     },
   );
 
@@ -349,6 +359,7 @@ describe("the write-authorisation predicate under attack (live test database)", 
           id,
           design: KITCHEN_L_DESIGN,
           writeTokenHash: "a".repeat(64),
+          expectedRevision: FIRST_REVISION,
         }),
       ).rejects.toThrow(DesignWriteForbiddenError);
     },
@@ -368,6 +379,7 @@ describe("the write-authorisation predicate under attack (live test database)", 
           id: first,
           design: ATTACKER_DESIGN,
           writeTokenHash: otherHash,
+          expectedRevision: FIRST_REVISION,
         }),
       ).rejects.toThrow(DesignWriteForbiddenError);
       await expect(
@@ -375,6 +387,7 @@ describe("the write-authorisation predicate under attack (live test database)", 
           id: second,
           design: ATTACKER_DESIGN,
           writeTokenHash: CORRECT_TOKEN_HASH,
+          expectedRevision: FIRST_REVISION,
         }),
       ).rejects.toThrow(DesignWriteForbiddenError);
 
@@ -394,11 +407,13 @@ describe("the write-authorisation predicate under attack (live test database)", 
           id,
           design: authorised,
           writeTokenHash: CORRECT_TOKEN_HASH,
+          expectedRevision: FIRST_REVISION,
         }),
         testRepository().saveAuthorized({
           id,
           design: ATTACKER_DESIGN,
           writeTokenHash: "e".repeat(64),
+          expectedRevision: FIRST_REVISION,
         }),
       ]);
 
@@ -407,9 +422,9 @@ describe("the write-authorisation predicate under attack (live test database)", 
       // Read back through the repository so the comparison is canonical: `jsonb` does not preserve
       // key order, so comparing raw JSON text would fail for a reason that has nothing to do with
       // authorisation.
-      expect(canonicalSerializeDesign(await testRepository().load(id))).toBe(
-        canonicalSerializeDesign(authorised),
-      );
+      expect(
+        canonicalSerializeDesign((await testRepository().load(id)).design),
+      ).toBe(canonicalSerializeDesign(authorised));
     },
   );
 
@@ -430,6 +445,7 @@ describe("the write-authorisation predicate under attack (live test database)", 
             id,
             design: ATTACKER_DESIGN,
             writeTokenHash: hash,
+            expectedRevision: FIRST_REVISION,
           }),
           name,
         ).rejects.toThrow(DesignWriteForbiddenError);
@@ -465,16 +481,23 @@ describe("saveAuthorized is one statement, and the predicate is in it", () => {
     const queries = body.match(/this\.sql`/g) ?? [];
 
     expect(queries).toHaveLength(1);
-    expect(body).toMatch(
-      /where id = \$\{id\} and write_token_hash = \$\{writeTokenHash\}/,
-    );
-    expect(body).toMatch(/returning id/);
+    expect(body).toMatch(/and write_token_hash = \$\{writeTokenHash\}/);
+    // WEB-003: the revision belongs in the same predicate as the credential. Written as a second
+    // statement it would be a read-then-write, which is the very window this whole file exists to
+    // deny — one tab could pass the check and lose the row to the other between the two.
+    expect(body).toMatch(/and revision::text = \$\{expectedRevision\}/);
+    expect(body).toMatch(/returning revision/);
   });
 
   it("reads nothing before it writes", () => {
     const body = bodyOfSaveAuthorized().toLowerCase();
 
-    expect(body).not.toContain("select ");
+    // A `select` is allowed **only** inside the single statement's own CTE, which shares the
+    // update's snapshot — that is what lets a conflict be told apart from a refusal without a
+    // second round trip that could see a different row. Anything outside it would be a read the
+    // update does not see, so what is forbidden is a second query, and the count above is what
+    // forbids it.
+    expect(body).toContain("with authorised as (");
     expect(body).not.toContain("this.load(");
     // A comparison in application code is the other shape this must not take: the hash is compared
     // by Postgres, so there is nothing here to make timing-safe (and nothing here that is not).
@@ -503,7 +526,12 @@ describe("saveAuthorized is one statement, and the predicate is in it", () => {
 // and not by luck. Both files are forgotten, not just 0002, because 0003's check constraint went
 // with the dropped column and because leaving 0003 recorded while 0002 is not is exactly the gap
 // the runner refuses.
-const WRITE_TOKEN_MIGRATION_VERSIONS = [2, 3];
+//
+// **Every version from 2 upward, not only 2 and 3** (WEB-003). The runner refuses a ledger with a
+// hole in it, so forgetting 2 while a later migration stays recorded is itself the gap — it wedges
+// the shared test database rather than re-running the migration under test. Anything added after
+// 0004 belongs in this list for the same reason.
+const WRITE_TOKEN_MIGRATION_VERSIONS = [2, 3, 4];
 describe("the write-token migration actually executes", () => {
   const sql = hasLiveDatabase ? neon(testDatabaseUrl) : undefined;
 
@@ -530,6 +558,7 @@ describe("the write-token migration actually executes", () => {
       expect(summary.applied).toEqual([
         "0002_add_write_token_hash.sql",
         "0003_check_write_token_hash_shape.sql",
+        "0004_add_design_revision.sql",
       ]);
 
       const columns = await writeTokenColumns();
@@ -543,10 +572,9 @@ describe("the write-token migration actually executes", () => {
   it.skipIf(!hasLiveDatabase)(
     "is additive: re-running it preserves the rows and the hashes already stored",
     async () => {
-      const id = await new NeonConfigurationRepository(testDatabaseUrl).mint(
-        KITCHEN_L_DESIGN,
-        CORRECT_TOKEN_HASH,
-      );
+      const { id } = await new NeonConfigurationRepository(
+        testDatabaseUrl,
+      ).mint(KITCHEN_L_DESIGN, CORRECT_TOKEN_HASH);
       try {
         // Forgotten first, so the migrations genuinely re-execute against a table that already
         // holds rows. Without this the ledger would skip them and the assertion below would be

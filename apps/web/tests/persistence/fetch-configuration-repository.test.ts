@@ -8,14 +8,15 @@ import {
   KITCHEN_L_DESIGN,
   InvalidDesignError,
 } from "@lemnaria/configurator-domain";
-import type { Design } from "@lemnaria/configurator-domain";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   DesignRequestFailedError,
   FetchConfigurationRepository,
   sessionConfigurationRepository,
+  WriteConflictError,
   WriteNotAuthorizedError,
+  WriteNotRetryableError,
 } from "../../src/persistence/fetch-configuration-repository";
 
 interface RecordedRequest {
@@ -24,6 +25,11 @@ interface RecordedRequest {
   readonly credentials: RequestCredentials | undefined;
   readonly body: string | undefined;
 }
+
+/** The revision every scripted response reports and every scripted save states. These tests are
+ *  about the HTTP contract, not about concurrency, so one value throughout keeps them readable;
+ *  the conflict behaviour has its own tests below. */
+const STORED_REVISION = "1";
 
 function jsonResponse(payload: unknown, status = 200): Response {
   return new Response(JSON.stringify(payload), {
@@ -58,17 +64,21 @@ describe("FetchConfigurationRepository", () => {
   });
 
   function scriptSuccessfulMint(id: string) {
-    responses.push(() => jsonResponse({ id }, 201));
-    responses.push(() => jsonResponse({ id }));
+    responses.push(() => jsonResponse({ id, revision: STORED_REVISION }, 201));
+    responses.push(() => jsonResponse({ id, revision: STORED_REVISION }));
   }
 
   it("mints with POST and then writes the design to the minted id with PUT", async () => {
     const repository = new FetchConfigurationRepository();
     scriptSuccessfulMint("design-1");
 
-    const savedId = await repository.save(null, KITCHEN_L_DESIGN);
+    const saved = await repository.save({
+      id: null,
+      design: KITCHEN_L_DESIGN,
+      expectedRevision: STORED_REVISION,
+    });
 
-    expect(savedId).toBe("design-1");
+    expect(saved).toEqual({ id: "design-1", revision: STORED_REVISION });
     expect(
       requests.map((request) => `${request.method} ${request.url}`),
     ).toEqual(["POST /api/designs", "PUT /api/designs/design-1"]);
@@ -81,11 +91,19 @@ describe("FetchConfigurationRepository", () => {
     const repository = new FetchConfigurationRepository();
     scriptSuccessfulMint("design-1");
     responses.push(() =>
-      jsonResponse({ id: "design-1", design: KITCHEN_L_DESIGN }),
+      jsonResponse({
+        id: "design-1",
+        revision: STORED_REVISION,
+        design: KITCHEN_L_DESIGN,
+      }),
     );
 
-    await repository.save(null, KITCHEN_L_DESIGN);
-    await repository.load("design-1");
+    await repository.save({
+      id: null,
+      design: KITCHEN_L_DESIGN,
+      expectedRevision: STORED_REVISION,
+    });
+    await repository.loadWithAccess("design-1");
 
     expect(requests).not.toHaveLength(0);
     for (const request of requests)
@@ -94,9 +112,15 @@ describe("FetchConfigurationRepository", () => {
 
   it("updates an existing id without minting anything", async () => {
     const repository = new FetchConfigurationRepository();
-    responses.push(() => jsonResponse({ id: "design-1" }));
+    responses.push(() =>
+      jsonResponse({ id: "design-1", revision: STORED_REVISION }),
+    );
 
-    await repository.save("design-1", KITCHEN_L_DESIGN);
+    await repository.save({
+      id: "design-1",
+      design: KITCHEN_L_DESIGN,
+      expectedRevision: STORED_REVISION,
+    });
 
     expect(requests.map((request) => request.method)).toEqual(["PUT"]);
   });
@@ -106,11 +130,21 @@ describe("FetchConfigurationRepository", () => {
     // read `null`, both mint, and the design forks into two rows.
     const repository = new FetchConfigurationRepository();
     scriptSuccessfulMint("design-1");
-    responses.push(() => jsonResponse({ id: "design-1" }));
+    responses.push(() =>
+      jsonResponse({ id: "design-1", revision: STORED_REVISION }),
+    );
 
     await Promise.all([
-      repository.save(null, KITCHEN_L_DESIGN),
-      repository.save(null, KITCHEN_L_DESIGN),
+      repository.save({
+        id: null,
+        design: KITCHEN_L_DESIGN,
+        expectedRevision: STORED_REVISION,
+      }),
+      repository.save({
+        id: null,
+        design: KITCHEN_L_DESIGN,
+        expectedRevision: STORED_REVISION,
+      }),
     ]);
 
     expect(
@@ -126,14 +160,31 @@ describe("FetchConfigurationRepository", () => {
     const provisionalA = {};
     const provisionalB = {};
     scriptSuccessfulMint("design-a");
-    responses.push(() => jsonResponse({ id: "design-a" }));
+    responses.push(() =>
+      jsonResponse({ id: "design-a", revision: STORED_REVISION }),
+    );
     scriptSuccessfulMint("design-b");
 
     await Promise.all([
-      repository.save(null, KITCHEN_L_DESIGN, provisionalA),
-      repository.save(null, KITCHEN_L_DESIGN, provisionalA),
+      repository.save({
+        id: null,
+        design: KITCHEN_L_DESIGN,
+        expectedRevision: STORED_REVISION,
+        provisionalMintIdentity: provisionalA,
+      }),
+      repository.save({
+        id: null,
+        design: KITCHEN_L_DESIGN,
+        expectedRevision: STORED_REVISION,
+        provisionalMintIdentity: provisionalA,
+      }),
     ]);
-    await repository.save(null, KITCHEN_L_DESIGN, provisionalB);
+    await repository.save({
+      id: null,
+      design: KITCHEN_L_DESIGN,
+      expectedRevision: STORED_REVISION,
+      provisionalMintIdentity: provisionalB,
+    });
 
     expect(
       requests.filter((request) => request.method === "POST"),
@@ -155,19 +206,23 @@ describe("FetchConfigurationRepository", () => {
     // same identity must still collapse on the real singleton, not only on a locally built object.
     const provisionalIdentity = {};
     scriptSuccessfulMint("design-shared");
-    responses.push(() => jsonResponse({ id: "design-shared" }));
+    responses.push(() =>
+      jsonResponse({ id: "design-shared", revision: STORED_REVISION }),
+    );
 
     await Promise.all([
-      sessionConfigurationRepository.save(
-        null,
-        KITCHEN_L_DESIGN,
-        provisionalIdentity,
-      ),
-      sessionConfigurationRepository.save(
-        null,
-        KITCHEN_L_DESIGN,
-        provisionalIdentity,
-      ),
+      sessionConfigurationRepository.save({
+        id: null,
+        design: KITCHEN_L_DESIGN,
+        expectedRevision: STORED_REVISION,
+        provisionalMintIdentity: provisionalIdentity,
+      }),
+      sessionConfigurationRepository.save({
+        id: null,
+        design: KITCHEN_L_DESIGN,
+        expectedRevision: STORED_REVISION,
+        provisionalMintIdentity: provisionalIdentity,
+      }),
     ]);
 
     expect(sessionConfigurationRepository).toBeInstanceOf(
@@ -186,11 +241,19 @@ describe("FetchConfigurationRepository", () => {
     scriptSuccessfulMint("design-1");
 
     await expect(
-      repository.save(null, KITCHEN_L_DESIGN),
+      repository.save({
+        id: null,
+        design: KITCHEN_L_DESIGN,
+        expectedRevision: STORED_REVISION,
+      }),
     ).rejects.toBeInstanceOf(DesignRequestFailedError);
-    await expect(repository.save(null, KITCHEN_L_DESIGN)).resolves.toBe(
-      "design-1",
-    );
+    await expect(
+      repository.save({
+        id: null,
+        design: KITCHEN_L_DESIGN,
+        expectedRevision: STORED_REVISION,
+      }),
+    ).resolves.toEqual({ id: "design-1", revision: STORED_REVISION });
 
     expect(
       requests.filter((request) => request.method === "POST"),
@@ -202,16 +265,28 @@ describe("FetchConfigurationRepository", () => {
     // save, so the coalescer retries with `null` — and an unguarded repository mints a second row,
     // silently forking the design.
     const repository = new FetchConfigurationRepository();
-    responses.push(() => jsonResponse({ id: "design-1" }, 201));
+    responses.push(() =>
+      jsonResponse({ id: "design-1", revision: STORED_REVISION }, 201),
+    );
     responses.push(() => jsonResponse({ error: "nope" }, 500));
-    responses.push(() => jsonResponse({ id: "design-1" }));
+    responses.push(() =>
+      jsonResponse({ id: "design-1", revision: STORED_REVISION }),
+    );
 
     await expect(
-      repository.save(null, KITCHEN_L_DESIGN),
+      repository.save({
+        id: null,
+        design: KITCHEN_L_DESIGN,
+        expectedRevision: STORED_REVISION,
+      }),
     ).rejects.toBeInstanceOf(DesignRequestFailedError);
-    await expect(repository.save(null, KITCHEN_L_DESIGN)).resolves.toBe(
-      "design-1",
-    );
+    await expect(
+      repository.save({
+        id: null,
+        design: KITCHEN_L_DESIGN,
+        expectedRevision: STORED_REVISION,
+      }),
+    ).resolves.toEqual({ id: "design-1", revision: STORED_REVISION });
 
     expect(
       requests.map((request) => `${request.method} ${request.url}`),
@@ -229,7 +304,11 @@ describe("FetchConfigurationRepository", () => {
       responses.push(() => jsonResponse({ error: "refused" }, status));
 
       await expect(
-        repository.save("design-1", KITCHEN_L_DESIGN),
+        repository.save({
+          id: "design-1",
+          design: KITCHEN_L_DESIGN,
+          expectedRevision: STORED_REVISION,
+        }),
       ).rejects.toBeInstanceOf(DesignRequestFailedError);
     });
   }
@@ -241,7 +320,11 @@ describe("FetchConfigurationRepository", () => {
       responses.push(() => jsonResponse({ error: "refused" }, status));
 
       const failure: unknown = await repository
-        .save("design-1", KITCHEN_L_DESIGN)
+        .save({
+          id: "design-1",
+          design: KITCHEN_L_DESIGN,
+          expectedRevision: STORED_REVISION,
+        })
         .then(
           () => undefined,
           (error: unknown) => error,
@@ -258,19 +341,27 @@ describe("FetchConfigurationRepository", () => {
     responses.push(() => jsonResponse({ nothing: true }, 201));
 
     await expect(
-      repository.save(null, KITCHEN_L_DESIGN),
+      repository.save({
+        id: null,
+        design: KITCHEN_L_DESIGN,
+        expectedRevision: STORED_REVISION,
+      }),
     ).rejects.toBeInstanceOf(DesignRequestFailedError);
   });
 
   it("loads and validates a design from GET", async () => {
     const repository = new FetchConfigurationRepository();
     responses.push(() =>
-      jsonResponse({ id: "design-1", design: KITCHEN_L_DESIGN }),
+      jsonResponse({
+        id: "design-1",
+        revision: STORED_REVISION,
+        design: KITCHEN_L_DESIGN,
+      }),
     );
 
-    const loaded: Design = await repository.load("design-1");
+    const loaded = await repository.loadWithAccess("design-1");
 
-    expect(loaded).toEqual(KITCHEN_L_DESIGN);
+    expect(loaded.design).toEqual(KITCHEN_L_DESIGN);
     expect(requests[0]?.url).toBe("/api/designs/design-1");
   });
 
@@ -279,6 +370,7 @@ describe("FetchConfigurationRepository", () => {
     responses.push(() =>
       jsonResponse({
         id: "design-1",
+        revision: STORED_REVISION,
         design: KITCHEN_L_DESIGN,
         canWrite: true,
       }),
@@ -286,7 +378,11 @@ describe("FetchConfigurationRepository", () => {
 
     const loaded = await repository.loadWithAccess("design-1");
 
-    expect(loaded).toEqual({ design: KITCHEN_L_DESIGN, canWrite: true });
+    expect(loaded).toEqual({
+      design: KITCHEN_L_DESIGN,
+      revision: STORED_REVISION,
+      canWrite: true,
+    });
     // One request, not two: the credential answer rides the read it was already going to make.
     expect(requests).toHaveLength(1);
     expect(requests[0]?.method).toBe("GET");
@@ -325,6 +421,7 @@ describe("FetchConfigurationRepository", () => {
     responses.push(() =>
       jsonResponse({
         id: "design-1",
+        revision: STORED_REVISION,
         design: KITCHEN_L_DESIGN,
         canWrite: true,
       }),
@@ -342,6 +439,7 @@ describe("FetchConfigurationRepository", () => {
     responses.push(() =>
       jsonResponse({
         id: "design-1",
+        revision: STORED_REVISION,
         design: KITCHEN_L_DESIGN,
         canWrite: false,
       }),
@@ -360,7 +458,12 @@ describe("FetchConfigurationRepository", () => {
     async ({ payload }) => {
       const repository = new FetchConfigurationRepository();
       responses.push(() =>
-        jsonResponse({ id: "design-1", design: KITCHEN_L_DESIGN, ...payload }),
+        jsonResponse({
+          id: "design-1",
+          revision: STORED_REVISION,
+          design: KITCHEN_L_DESIGN,
+          ...payload,
+        }),
       );
 
       expect((await repository.loadWithAccess("design-1")).canWrite).toBe(
@@ -372,20 +475,163 @@ describe("FetchConfigurationRepository", () => {
   it("rejects a loaded payload that is not a valid design rather than handing it to the store", async () => {
     const repository = new FetchConfigurationRepository();
     responses.push(() =>
-      jsonResponse({ id: "design-1", design: { presetId: 7 } }),
+      jsonResponse({
+        id: "design-1",
+        revision: STORED_REVISION,
+        design: { presetId: 7 },
+      }),
     );
 
-    await expect(repository.load("design-1")).rejects.toBeInstanceOf(
+    await expect(repository.loadWithAccess("design-1")).rejects.toBeInstanceOf(
       InvalidDesignError,
     );
   });
 
   it("percent-encodes the id it puts in the path", async () => {
     const repository = new FetchConfigurationRepository();
-    responses.push(() => jsonResponse({ id: "a/b" }));
+    responses.push(() =>
+      jsonResponse({ id: "a/b", revision: STORED_REVISION }),
+    );
 
-    await repository.save("a/b", KITCHEN_L_DESIGN);
+    await repository.save({
+      id: "a/b",
+      design: KITCHEN_L_DESIGN,
+      expectedRevision: STORED_REVISION,
+    });
 
     expect(requests[0]?.url).toBe("/api/designs/a%2Fb");
+  });
+});
+
+/**
+ * WEB-003 at the transport. Before wave S11 `save` took `(id, design)` and sent a `PUT` with no
+ * statement of what it was editing, so the server had nothing to make the write conditional on.
+ *
+ * Every test here fails against that adapter: there was no header to assert, no `revision` in the
+ * result to read, and a 409 was folded into the undifferentiated terminal failure.
+ */
+describe("FetchConfigurationRepository states the revision it is editing", () => {
+  let requests: { headers: Headers; method: string }[];
+  let respond: () => Response;
+
+  beforeEach(() => {
+    requests = [];
+    respond = () =>
+      new Response(JSON.stringify({ id: "design-1", revision: "2" }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      });
+    vi.stubGlobal("fetch", (_url: string, init: RequestInit) => {
+      requests.push({
+        headers: new Headers(init.headers),
+        method: init.method ?? "GET",
+      });
+      return Promise.resolve(respond());
+    });
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("sends the expected revision as a header, never inside the design document", async () => {
+    // `DesignSchema` is a strictObject, so a revision smuggled into the body would be rejected by
+    // the schema — and transport metadata inside the customer's document is how the two come to be
+    // confused later.
+    const repository = new FetchConfigurationRepository();
+
+    await repository.save({
+      id: "design-1",
+      design: KITCHEN_L_DESIGN,
+      expectedRevision: "7",
+    });
+
+    expect(requests[0]?.headers.get("x-expected-revision")).toBe("7");
+  });
+
+  it("returns the revision the save produced, so the next save can state it", async () => {
+    const repository = new FetchConfigurationRepository();
+
+    const saved = await repository.save({
+      id: "design-1",
+      design: KITCHEN_L_DESIGN,
+      expectedRevision: "1",
+    });
+
+    expect(saved).toEqual({ id: "design-1", revision: "2" });
+  });
+
+  it("carries the mint's own revision into the PUT that follows it", async () => {
+    // A mint decides its own first revision and nothing before it could have known one, so what
+    // the caller passed must be ignored rather than sent.
+    const repository = new FetchConfigurationRepository();
+    respond = () =>
+      new Response(JSON.stringify({ id: "minted", revision: "1" }), {
+        status: requests.at(-1)?.method === "POST" ? 201 : 200,
+        headers: { "content-type": "application/json" },
+      });
+
+    await repository.save({
+      id: null,
+      design: KITCHEN_L_DESIGN,
+      expectedRevision: "99",
+    });
+
+    expect(requests[1]?.headers.get("x-expected-revision")).toBe("1");
+  });
+
+  it("raises WriteConflictError for a 409, which no retry may be armed against", async () => {
+    const repository = new FetchConfigurationRepository();
+    respond = () => new Response("{}", { status: 409 });
+
+    const failure: unknown = await repository
+      .save({
+        id: "design-1",
+        design: KITCHEN_L_DESIGN,
+        expectedRevision: "1",
+      })
+      .then(
+        () => undefined,
+        (error: unknown) => error,
+      );
+
+    expect(failure).toBeInstanceOf(WriteConflictError);
+    // Under the terminal type, so a caller that has not learned about conflicts still stops.
+    expect(failure).toBeInstanceOf(WriteNotRetryableError);
+    // And not the credential type, which would tell the panel the design is read-only when it is
+    // this browser's own design and perfectly writable.
+    expect(failure).not.toBeInstanceOf(WriteNotAuthorizedError);
+  });
+
+  it("rejects a 2xx save that carries no revision rather than reusing the old one", async () => {
+    // Silently keeping the previous revision is how a client starts overwriting its own newer
+    // state: the next save would state a revision the server has already consumed.
+    const repository = new FetchConfigurationRepository();
+    respond = () =>
+      new Response(JSON.stringify({ id: "design-1" }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      });
+
+    await expect(
+      repository.save({
+        id: "design-1",
+        design: KITCHEN_L_DESIGN,
+        expectedRevision: "1",
+      }),
+    ).rejects.toThrow(/carried no design revision/);
+  });
+
+  it("rejects a load that carries no revision, rather than handing over a document it cannot write back", async () => {
+    const repository = new FetchConfigurationRepository();
+    respond = () =>
+      new Response(
+        JSON.stringify({ id: "design-1", design: KITCHEN_L_DESIGN }),
+        { status: 200, headers: { "content-type": "application/json" } },
+      );
+
+    await expect(repository.loadWithAccess("design-1")).rejects.toThrow(
+      /carried no design revision/,
+    );
   });
 });

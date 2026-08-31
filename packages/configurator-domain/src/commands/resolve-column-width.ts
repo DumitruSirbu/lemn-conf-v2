@@ -134,7 +134,9 @@ export function refuseIllegalWidth(
  *  pair. The branch stays because the intersection of declared ranges is not the engine's to assume
  *  non-empty; the sentence then falls back to the chips, which is the truthful thing to say when
  *  there is no common bound. */
-export function intersectColumnRanges(column: ColumnUnit): readonly WidthRangeMm[] {
+export function intersectColumnRanges(
+  column: ColumnUnit,
+): readonly WidthRangeMm[] {
   const perMember = column.members.map((member) =>
     resolveWidthRangesMm(member.body),
   );

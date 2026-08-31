@@ -2,6 +2,7 @@ import {
   KITCHEN_L_BODY_CATALOG,
   KITCHEN_L_DESIGN,
 } from "@lemnaria/configurator-domain";
+import type { Design } from "@lemnaria/configurator-domain";
 import { describe, expect, it } from "vitest";
 
 import { describePanel, type OpenPanel } from "../../src/panel/panel-model";
@@ -13,6 +14,10 @@ import {
 import { ro } from "../../src/content/ro";
 
 import { occupiedMeta, offers } from "../support/selection-meta";
+
+/** The revision a hydrating loader reports. These tests are about identity and generation, not
+ *  about concurrency, so one value throughout keeps them readable. */
+const LOADED_REVISION = "1";
 
 function createSeededStore() {
   return createConfiguratorStore({
@@ -52,6 +57,7 @@ describe("canWrite — who may edit this design", () => {
     store.getState().hydrate({
       design: KITCHEN_L_DESIGN,
       designId: "shared-design",
+      revision: LOADED_REVISION,
       canWrite: false,
     });
 
@@ -65,6 +71,7 @@ describe("canWrite — who may edit this design", () => {
     store.getState().hydrate({
       design: KITCHEN_L_DESIGN,
       designId: "my-design",
+      revision: LOADED_REVISION,
       canWrite: true,
     });
 
@@ -81,6 +88,7 @@ describe("canWrite — who may edit this design", () => {
     store.getState().hydrate({
       design: KITCHEN_L_DESIGN,
       designId: "link-opened",
+      revision: LOADED_REVISION,
       canWrite: "checking",
     });
 
@@ -94,6 +102,7 @@ describe("canWrite — who may edit this design", () => {
     store.getState().hydrate({
       design: KITCHEN_L_DESIGN,
       designId: "link-opened",
+      revision: LOADED_REVISION,
       canWrite: "checking",
     });
 
@@ -109,6 +118,7 @@ describe("canWrite — who may edit this design", () => {
     store.getState().hydrate({
       design: KITCHEN_L_DESIGN,
       designId: "second-design",
+      revision: LOADED_REVISION,
       canWrite: true,
     });
 
@@ -130,6 +140,7 @@ describe("canWrite — who may edit this design", () => {
     store.getState().hydrate({
       design: KITCHEN_L_DESIGN,
       designId: "link-opened",
+      revision: LOADED_REVISION,
       canWrite: "checking",
     });
 
@@ -140,7 +151,9 @@ describe("canWrite — who may edit this design", () => {
     // offers a way out. A load that times out (finding S7-F1) reaches this same branch.
     const panel = panelFrom(store.getState());
     expect(panel.notice?.kind).toBe("access-uncheckable");
-    expect(panel.notice?.retryLabel).toBe(ro.panel.accessRetryLabel);
+    expect(panel.notice?.actions).toEqual([
+      { kind: "retry-access-check", label: ro.panel.accessRetryLabel },
+    ]);
     expect(panel.footer.isRemoveDisabled).toBe(true);
   });
 
@@ -149,6 +162,7 @@ describe("canWrite — who may edit this design", () => {
     store.getState().hydrate({
       design: KITCHEN_L_DESIGN,
       designId: "second-design",
+      revision: LOADED_REVISION,
       canWrite: true,
     });
 
@@ -164,6 +178,7 @@ describe("canWrite — who may edit this design", () => {
     store.getState().hydrate({
       design: KITCHEN_L_DESIGN,
       designId: "link-opened",
+      revision: LOADED_REVISION,
       canWrite: "checking",
     });
     store
@@ -182,6 +197,7 @@ describe("canWrite — who may edit this design", () => {
     store.getState().hydrate({
       design: KITCHEN_L_DESIGN,
       designId: "link-opened",
+      revision: LOADED_REVISION,
       canWrite: "checking",
     });
     store.getState().failWriteAccessCheck({ designId: "link-opened" });
@@ -206,6 +222,7 @@ describe("canWrite — who may edit this design", () => {
     store.getState().hydrate({
       design: KITCHEN_L_DESIGN,
       designId: "link-opened",
+      revision: LOADED_REVISION,
       canWrite: false,
     });
 
@@ -223,6 +240,7 @@ describe("canWrite — who may edit this design", () => {
     store.getState().hydrate({
       design: KITCHEN_L_DESIGN,
       designId: "owned-design",
+      revision: LOADED_REVISION,
       canWrite: true,
     });
 
@@ -248,6 +266,7 @@ describe("canWrite — who may edit this design", () => {
     store.getState().hydrate({
       design: KITCHEN_L_DESIGN,
       designId: "another-design",
+      revision: LOADED_REVISION,
       canWrite: true,
     });
 
@@ -336,12 +355,15 @@ describe("createConfiguratorStore", () => {
     expect(state.hasPersistedSuccessfully).toBe(false);
   });
 
-  it("applySavedId records the id and flips hasPersistedSuccessfully to true", () => {
+  it("applySaved records the id and the revision and flips hasPersistedSuccessfully to true", () => {
     const store = createSeededStore();
 
-    store.getState().applySavedId("design-1");
+    store.getState().applySaved({ id: "design-1", revision: "7" });
 
     expect(store.getState().designId).toBe("design-1");
+    // The revision is kept beside the id because the next save has to state it; an id recorded
+    // without it would leave that save expecting one the server has already consumed (WEB-003).
+    expect(store.getState().revision).toBe("7");
     expect(store.getState().hasPersistedSuccessfully).toBe(true);
   });
 
@@ -364,6 +386,7 @@ describe("createConfiguratorStore", () => {
     store.getState().hydrate({
       design: nextDesign,
       designId: "design-2",
+      revision: LOADED_REVISION,
       canWrite: true,
     });
 
@@ -380,5 +403,77 @@ describe("createConfiguratorStore", () => {
     const storeB = createSeededStore();
     storeA.getState().select({ kind: "placement", id: "p0" });
     expect(storeB.getState().selection).toBeNull();
+  });
+});
+
+/**
+ * WEB-003 in the store: the revision travels with the id, and the overwrite choice reaches the one
+ * writer that owns the design's queue.
+ *
+ * The pre-fix store had no `revision` field and no `overwriteConflict`, so none of this compiles
+ * against it, let alone passes.
+ */
+describe("the revision a loaded design was read at", () => {
+  it("is recorded by hydrate, because the first save has to state it", () => {
+    const store = createSeededStore();
+
+    store.getState().hydrate({
+      design: KITCHEN_L_DESIGN,
+      designId: "link-opened",
+      revision: "4",
+      canWrite: true,
+    });
+
+    expect(store.getState().revision).toBe("4");
+  });
+
+  it("is null for a design that has never been minted, which has no row to be stale against", () => {
+    expect(createSeededStore().getState().revision).toBeNull();
+  });
+
+  it("is replaced wholesale when another design is hydrated, never carried across", () => {
+    // A revision belongs to one row. Carried over, it would make the next save either refuse for
+    // ever or — worse — match a different design's counter.
+    const store = createSeededStore();
+    store.getState().hydrate({
+      design: KITCHEN_L_DESIGN,
+      designId: "first",
+      revision: "9",
+      canWrite: true,
+    });
+
+    store.getState().hydrate({
+      design: KITCHEN_L_DESIGN,
+      designId: "second",
+      revision: "1",
+      canWrite: true,
+    });
+
+    expect(store.getState().revision).toBe("1");
+  });
+
+  it("hands the design on screen to the overwrite writer, so the newest edit is what is pushed", () => {
+    // The customer may keep editing while the conflict notice stands, and pressing overwrite has to
+    // send what they can see rather than the snapshot that was refused.
+    const overwritten: Design[] = [];
+    const store = createConfiguratorStore({
+      design: KITCHEN_L_DESIGN,
+      catalog: KITCHEN_L_BODY_CATALOG,
+      onOverwriteRequested: (design) => {
+        overwritten.push(design);
+      },
+    });
+
+    store.getState().overwriteConflict();
+
+    expect(overwritten).toEqual([store.getState().design]);
+  });
+
+  it("is a no-op on a store with no background writer, rather than a crash", () => {
+    const store = createSeededStore();
+
+    expect(() => {
+      store.getState().overwriteConflict();
+    }).not.toThrow();
   });
 });

@@ -1656,3 +1656,166 @@ rename refusal, and four redaction assertions for S10-2 and S10-7.
 | `pnpm --filter @lemnaria/persistence build`      | exit 0; guard refuses a doctored partial `dist` |
 
 Test database verified clean on exit: ledger holds versions 1–3, no `db004_*` table survives.
+
+## Wave S11 — WEB-003
+
+**Concurrent authorized tabs no longer destroy each other's updates** (Medium,
+`testing-reports/02-web-state-and-client-persistence.md`). `saveAuthorized` matched a row by `id`
+and `write_token_hash` alone, so two tabs holding one legitimate cookie could both load a design,
+make different destructive edits, and both be told the save succeeded — the second commit silently
+replacing the first. ADR 0019 decision 11 accepted this as a consistency footnote. It is now a
+conditional write.
+
+**The concurrency token is an opaque `bigint` revision on the row**, read back as text everywhere
+above SQL so no layer parses it, orders it, or derives the next one. Explicitly **not** a
+client-supplied timestamp: a timestamp is chosen by whoever writes it and has a resolution two saves
+can share. Only a successful `update` decides what the next revision is.
+
+**One statement decides everything.** `saveAuthorized` runs a single query whose `authorised` CTE
+and conditional `update` share one snapshot: the update matches on id, hash **and** revision, and
+the CTE answers whether the credential was right at all. A second query would be a
+time-of-check/time-of-use split — the same window ADR 0019 closed for the credential.
+
+**403 and 409 stay distinct without leaking.** A `409` is raised only when the credential already
+matched, so a caller holding the wrong token, a token for another design, or an id no row carries
+gets the same reasonless `403` it always did, whatever revision it claims — including the correct
+one. Learning "this design exists and you are stale" therefore requires having already proved you
+may write it. A save that states no usable revision is `400 REVISION_REQUIRED`, returned **after**
+the credential check so it cannot be used to probe which ids exist.
+
+**The client stops, and offers a choice.** `WriteConflictError` sits under `WriteNotRetryableError`,
+so a caller that has not learned about conflicts still stops rather than retrying a stale document
+for ever; the coalescer branches on it into a new `conflict` save status, records it against the
+design's identity, and refuses even to queue later edits for it — reporting `conflict` synchronously
+rather than accepting an edit it will not attempt. The panel notice carries two actions: reload the
+stored version, or overwrite it. The panel is **not** locked meanwhile — the edit on screen is real,
+and overwriting sends whatever the design has become by the time it is pressed.
+
+**An overwrite is still a conditional write.** It re-reads the design's current revision and saves
+against that, so a third writer landing in between conflicts again rather than being discarded
+unseen. A failed re-read leaves the conflict standing, and an overwrite is a no-op for a design that
+is not in conflict or that the store has moved away from.
+
+**What a retry now carries.** The immutable job (`designId`, `design`, `generation`) is unchanged;
+the expected revision is **not** part of it. It lives on the identity queue, is seeded from the
+store when that queue is created, and advances **only** on a successful save. So a retry re-sends
+the revision its failed attempt used — never one another write already consumed — and a job
+scheduled while an earlier save is in flight is dispatched with the revision that save produced
+rather than the stale one it was scheduled under. A `409` is never retried at all.
+
+**The migration.** `0004_add_design_revision.sql` —
+`alter table designs add column if not exists revision bigint not null default 1`. Idempotent by
+`if not exists`, which the ledger runner requires. In the deployed databases every existing row
+becomes revision 1 as the column is added (Postgres stores the default as a missing-value attribute,
+so there is no table rewrite and no second statement to get wrong), and no client can hold a
+pre-migration revision because no response ever carried one. It is a release step, not a
+consequence of merging (ADR 0020): **not run against the application database in this wave.**
+
+### The deploy order is load-bearing (review finding F2)
+
+**Apply `0004` to a database BEFORE the web code that reads it reaches that environment.** This is
+not a preference and it is the cheapest thing in this record to get wrong.
+
+`load` now selects `revision::text`. Against a database without the column the driver raises,
+`designErrorResponse` rethrows anything that is not a domain failure, and **every design load and
+every save answers 500** — hard down, and it presents as an outage rather than as a missed
+migration, which is the slowest kind of incident to diagnose.
+
+The reverse order is harmless: the column is additive, and the code that shipped before it never
+named it. So the sequence for each environment is
+
+1. Read the ledger. It should show versions **1–3**.
+2. `pnpm --filter @lemnaria/persistence run migrate` against that environment's
+   `MIGRATION_DATABASE_URL`.
+3. Read the schema back and confirm `revision` exists and the ledger shows **1–4**. Per ADR 0020,
+   verify by inspecting `information_schema`, never by the command's exit status.
+4. Only then deploy the web code.
+
+Preview has its own database (ADR 0009) and needs the same treatment. The repository keeps no
+release-checklist document today, so this list and the header comment in the migration file are
+where it is written down; the ADR this wave earns should carry it durably.
+
+**Once `0004` has been applied anywhere, its bytes are frozen.** The ledger records a checksum, and
+editing so much as a comment in the file makes every later run refuse with
+`MigrationChecksumMismatchError`. (This happened during the wave, on the test database, and was
+repaired by forgetting version 4 — the last row, so no gap — and re-running.)
+
+### An already-open tab will stop saving after the deploy (review finding F6)
+
+A tab loaded before this ships sends no `x-expected-revision`, gets `400 REVISION_REQUIRED`, and
+lands on `stopped` — permanently, until it is reloaded. That is correct, intended and fail-safe;
+`design-request-errors.ts` was already written for exactly this bundle skew, and `stopped` keeps the
+edit on screen rather than discarding it. It is customer-visible, so it belongs in the release note:
+**anyone with the configurator already open should reload the page after this deploy.**
+
+### Review round 1 fixes (F1–F6)
+
+**F1** — `overwriteConflict` cleared the conflict *before* awaiting the re-read, leaving a
+round-trip-long window in which an ordinary edit went out against the revision that had just been
+refused, conflicted, and re-armed the refusal — so the overwrite arriving behind it was itself
+refused and sent nothing. The conflict now stays in place until the save is actually queued, and an
+edit made during the re-read is **held** by `overwritesInFlight` and becomes what the overwrite
+writes. That is what makes the notice's own promise true: the panel is deliberately not locked, so
+an edit between the press and the round trip is part of "overwrite with what you see now".
+
+**F2** — the deploy order is now stated, above and in the migration file's header.
+
+**F3** — `firstSynthesisedVersion()` is read from disk instead of written down, so the destructive
+`delete from schema_migrations where version >= …` can never reach a real ledger row; the
+synthesised versions and `VERSIONS_AFTER_THE_FIRST` derive from the same read.
+
+**`ALL_MIGRATION_FILE_NAMES` stays hand-written, and that is deliberate — do not "improve" it into a
+`readMigrationFiles()` call.** It is the one place a forgotten migration should trip over something,
+and a list derived from the directory agrees with the directory by construction: it would assert
+nothing while reporting green, which is the failure `docs/WORKFLOW.md` records this project as having
+shipped twice already. Everything *destructive* derives from disk, so a stale entry here fails an
+assertion instead of deleting a real ledger row, and the guard `describe` is ordered first in the
+file so it runs before anything writes.
+
+**F4** — a queue whose generation is replaced by a hydrate now re-seeds `expectedRevision` from the
+store, so a queue that sat in retry backoff across a visit elsewhere no longer states a revision
+another tab has since moved past.
+
+**F5 — not accepted, and pinned instead.** The finding says JavaScript's `$` without `/m` matches
+before a trailing newline, making `isDesignRevision("1\n")` true. It does not: JavaScript is not
+Perl, and `$` there is strict end-of-input. Measured — `/^a$/.test("a\n")` is `false`, `/^a$/m` is
+`true`, and `isDesignRevision("1\n")` is `false`. The regex and the doc comment already agree, so
+changing either would have been wrong. What the finding did earn is that the guarantee is
+dialect-specific and worth asserting: `design-revision.test.ts` pins the five anchoring cases, and
+the doc comment now says why no `\A`/`\z` equivalent is needed.
+
+**F6** — the reload note is above.
+
+**Also** — `tests/lib/persistence-imports.test.ts` now asserts that every `@lemnaria/persistence`
+import outside `lib/server/` and `app/api/**/route.ts` is `import type`, so the Neon driver cannot
+reach the client bundle through a specifier someone drops the `type` from. The failure it guards is
+invisible: the app still works, and the only symptom is a bundle nobody is measuring.
+
+Falsifiability, each mutation applied alone and reverted:
+
+| Mutation                                                    | Tests that failed                                        |
+| ----------------------------------------------------------- | -------------------------------------------------------- |
+| Drop `and revision::text = …` from the update predicate      | 10 in `neon-configuration-repository.test.ts`            |
+| Remove the 409 branch from `saveFailureFor`                  | 1 in `fetch-configuration-repository.test.ts`            |
+| Remove the conflict notice from `describeNotice`             | 2 in `panel-model.read-only.test.ts`                     |
+| Never advance `queue.expectedRevision` on success            | 1 in `save-coalescer.conflict.test.ts`                   |
+| Advance `queue.expectedRevision` on a retry                  | 1 in `save-coalescer.conflict.test.ts`                   |
+| Fold `conflict` back into `stopped`                          | 5 in `save-coalescer.conflict.test.ts`                   |
+| Default a missing revision header instead of refusing it     | 4 in `write-authorization.test.ts`                       |
+| F1: clear the conflict before awaiting the re-read           | 2 in `save-coalescer.conflict.test.ts`                   |
+| F4: drop the hydrate revision re-seed                        | 1 in `save-coalescer.conflict.test.ts`                   |
+| F3: let the expectation list go stale                        | 1 in `migrate.test.ts` (database untouched)              |
+| F3: synthesise a version that collides with a real one       | 1 in `migrate.test.ts` (database untouched)              |
+| A value import from the persistence package in the store     | 1 in `persistence-imports.test.ts`                       |
+
+| Command                                          | Result                                        |
+| ------------------------------------------------ | ---------------------------------------------- |
+| `pnpm --filter @lemnaria/persistence test`       | exit 0 — 14 files, 155 tests passed            |
+| `pnpm --filter @lemnaria/persistence lint`       | exit 0                                         |
+| `pnpm --filter @lemnaria/persistence typecheck`  | exit 0                                         |
+| `pnpm --filter @lemnaria/web test`               | exit 0 — 41 files, 677 passed (1 file, 4 tests skipped) |
+| `pnpm --filter @lemnaria/web lint`               | exit 0                                         |
+| `pnpm --filter @lemnaria/web typecheck`          | exit 0                                         |
+
+Test database verified clean on exit: ledger holds versions 1–4, `designs` holds no rows, and no
+probe table survives.

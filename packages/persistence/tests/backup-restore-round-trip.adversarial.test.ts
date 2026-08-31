@@ -30,6 +30,10 @@ import {
 import { resolveTestDatabaseUrl } from "../src/test-database-url.js";
 import { readAllDesignRows } from "./support/read-all-design-rows.js";
 
+/** A restored row carries the revision its dump held, and every dump in this suite predates the
+ *  revision column — so what comes back is the migration's backfill. */
+const RESTORED_REVISION = "1";
+
 const hasLiveDatabase = Boolean(process.env["DATABASE_URL"]);
 const testDatabaseUrl = hasLiveDatabase ? resolveTestDatabaseUrl() : "";
 
@@ -98,7 +102,7 @@ describe("a backup round trip preserves edit access (live test database)", () =>
     "lets the original token still write after export, loss and restore",
     async () => {
       const token = "qa-round-trip-token-not-a-real-credential";
-      const id = await repository().mint(
+      const { id } = await repository().mint(
         KITCHEN_L_DESIGN,
         hashWriteToken(token),
       );
@@ -121,11 +125,12 @@ describe("a backup round trip preserves edit access (live test database)", () =>
           id,
           design: edited,
           writeTokenHash: hashWriteToken(token),
+          expectedRevision: RESTORED_REVISION,
         }),
-      ).resolves.toBe(id);
-      expect(canonicalSerializeDesign(await repository().load(id))).toBe(
-        canonicalSerializeDesign(edited),
-      );
+      ).resolves.toEqual({ id, revision: "2" });
+      expect(
+        canonicalSerializeDesign((await repository().load(id)).design),
+      ).toBe(canonicalSerializeDesign(edited));
     },
     30_000,
   );
@@ -134,7 +139,7 @@ describe("a backup round trip preserves edit access (live test database)", () =>
     "does not hand write access to anyone else after the restore",
     async () => {
       const token = "qa-round-trip-token-two";
-      const id = await repository().mint(
+      const { id } = await repository().mint(
         KITCHEN_L_DESIGN,
         hashWriteToken(token),
       );
@@ -151,6 +156,7 @@ describe("a backup round trip preserves edit access (live test database)", () =>
           id,
           design: KITCHEN_L_DESIGN,
           writeTokenHash: hashWriteToken("a-different-token"),
+          expectedRevision: RESTORED_REVISION,
         }),
       ).rejects.toThrow(DesignWriteForbiddenError);
     },
@@ -161,7 +167,7 @@ describe("a backup round trip preserves edit access (live test database)", () =>
     "carries the hash and never a token, so a leaked backup confers no write access",
     async () => {
       const token = "qa-round-trip-token-three";
-      const id = await repository().mint(
+      const { id } = await repository().mint(
         KITCHEN_L_DESIGN,
         hashWriteToken(token),
       );
@@ -195,14 +201,15 @@ describe("a backup round trip preserves edit access (live test database)", () =>
 
       await restoreRow(legacyLine);
 
-      expect(canonicalSerializeDesign(await repository().load(id))).toBe(
-        canonicalSerializeDesign(KITCHEN_L_DESIGN),
-      );
+      expect(
+        canonicalSerializeDesign((await repository().load(id)).design),
+      ).toBe(canonicalSerializeDesign(KITCHEN_L_DESIGN));
       await expect(
         repository().saveAuthorized({
           id,
           design: KITCHEN_L_DESIGN,
           writeTokenHash: hashWriteToken("any-token-at-all"),
+          expectedRevision: RESTORED_REVISION,
         }),
       ).rejects.toThrow(DesignWriteForbiddenError);
     },
@@ -213,7 +220,7 @@ describe("a backup round trip preserves edit access (live test database)", () =>
     "survives a second restore of the same dump — the conflict branch keeps the hash",
     async () => {
       const token = "qa-round-trip-token-four";
-      const id = await repository().mint(
+      const { id } = await repository().mint(
         KITCHEN_L_DESIGN,
         hashWriteToken(token),
       );
@@ -231,8 +238,9 @@ describe("a backup round trip preserves edit access (live test database)", () =>
           id,
           design: KITCHEN_L_DESIGN,
           writeTokenHash: hashWriteToken(token),
+          expectedRevision: RESTORED_REVISION,
         }),
-      ).resolves.toBe(id);
+      ).resolves.toEqual({ id, revision: "2" });
     },
     30_000,
   );

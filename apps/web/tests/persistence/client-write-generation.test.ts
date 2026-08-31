@@ -1,6 +1,15 @@
 import { KITCHEN_L_DESIGN, type Design } from "@lemnaria/configurator-domain";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+/** The revision a hydrating loader reports. These tests are about identity and generation, not
+ *  about concurrency, so one value throughout keeps them readable. */
+const LOADED_REVISION = "1";
+
+/** The revision every scripted repository in this file reports and every queue therefore expects.
+ *  These tests are about scheduling, identity and retry — the concurrency rule has its own tests —
+ *  so one value throughout keeps them readable. */
+const TEST_REVISION = "1";
+
 const DESIGN_A_ID = "design-a";
 const DESIGN_B_ID = "design-b";
 const MINTED_A_ID = "minted-a";
@@ -36,10 +45,13 @@ class ControlledFetch {
     if (!request)
       throw new Error(`No controlled request at index ${String(index)}`);
     request.answer(
-      new Response(JSON.stringify({ id: options.id }), {
-        status: options.status,
-        headers: { "content-type": "application/json" },
-      }),
+      new Response(
+        JSON.stringify({ id: options.id, revision: TEST_REVISION }),
+        {
+          status: options.status,
+          headers: { "content-type": "application/json" },
+        },
+      ),
     );
     await vi.advanceTimersByTimeAsync(0);
   }
@@ -91,6 +103,7 @@ describe("the singleton write path scopes jobs and callbacks to hydration genera
     store.getState().hydrate({
       design: withPreset("a"),
       designId: DESIGN_A_ID,
+      revision: LOADED_REVISION,
       canWrite: true,
     });
     store.getState().select({ kind: "placement", id: EDITABLE_PLACEMENT_ID });
@@ -104,6 +117,7 @@ describe("the singleton write path scopes jobs and callbacks to hydration genera
     store.getState().hydrate({
       design: withPreset("b"),
       designId: DESIGN_B_ID,
+      revision: LOADED_REVISION,
       canWrite: false,
     });
 
@@ -139,6 +153,7 @@ describe("the singleton write path scopes jobs and callbacks to hydration genera
     store.getState().hydrate({
       design: withPreset("a"),
       designId: DESIGN_A_ID,
+      revision: LOADED_REVISION,
       canWrite: true,
     });
     store.getState().select({ kind: "placement", id: EDITABLE_PLACEMENT_ID });
@@ -148,6 +163,7 @@ describe("the singleton write path scopes jobs and callbacks to hydration genera
     store.getState().hydrate({
       design: withPreset("b"),
       designId: DESIGN_B_ID,
+      revision: LOADED_REVISION,
       canWrite: true,
     });
     store.getState().select({ kind: "placement", id: EDITABLE_PLACEMENT_ID });
@@ -180,6 +196,7 @@ describe("the singleton write path scopes jobs and callbacks to hydration genera
     store.getState().hydrate({
       design: withPreset("a-old"),
       designId: DESIGN_A_ID,
+      revision: LOADED_REVISION,
       canWrite: true,
     });
     store.getState().select({ kind: "placement", id: EDITABLE_PLACEMENT_ID });
@@ -189,6 +206,7 @@ describe("the singleton write path scopes jobs and callbacks to hydration genera
     store.getState().hydrate({
       design: withPreset("b"),
       designId: DESIGN_B_ID,
+      revision: LOADED_REVISION,
       canWrite: true,
     });
     store.getState().select({ kind: "placement", id: EDITABLE_PLACEMENT_ID });
@@ -196,6 +214,7 @@ describe("the singleton write path scopes jobs and callbacks to hydration genera
     store.getState().hydrate({
       design: withPreset("a-current"),
       designId: DESIGN_A_ID,
+      revision: LOADED_REVISION,
       canWrite: true,
     });
     store.getState().select({ kind: "placement", id: EDITABLE_PLACEMENT_ID });
@@ -235,6 +254,7 @@ describe("the singleton write path scopes jobs and callbacks to hydration genera
     store.getState().hydrate({
       design: withPreset("a"),
       designId: DESIGN_A_ID,
+      revision: LOADED_REVISION,
       canWrite: true,
     });
     store.getState().select({ kind: "placement", id: EDITABLE_PLACEMENT_ID });
@@ -246,6 +266,7 @@ describe("the singleton write path scopes jobs and callbacks to hydration genera
     store.getState().hydrate({
       design: withPreset("b"),
       designId: DESIGN_B_ID,
+      revision: LOADED_REVISION,
       canWrite: true,
     });
     store.getState().select({ kind: "placement", id: EDITABLE_PLACEMENT_ID });
@@ -287,6 +308,7 @@ describe("the singleton write path scopes jobs and callbacks to hydration genera
     store.getState().hydrate({
       design: withPreset("b"),
       designId: DESIGN_B_ID,
+      revision: LOADED_REVISION,
       canWrite: true,
     });
     store.getState().select({ kind: "placement", id: EDITABLE_PLACEMENT_ID });
@@ -341,10 +363,12 @@ describe("the singleton write path scopes jobs and callbacks to hydration genera
       repository: new FetchConfigurationRepository(),
       getDesignId: () => null,
       getGeneration: () => generation,
-      onSaved: (id, savedGeneration) => {
+      onSaved: ({ id }, savedGeneration) => {
         saved.push({ id, generation: savedGeneration });
       },
       onSaveStatusChange: () => undefined,
+      getRevision: () => TEST_REVISION,
+      readCurrentRevision: () => Promise.resolve(TEST_REVISION),
     });
 
     coalescer.scheduleSave(withPreset("null-a"));
@@ -383,6 +407,7 @@ describe("the singleton write path scopes jobs and callbacks to hydration genera
       store.getState().hydrate({
         design: withPreset("a"),
         designId: DESIGN_A_ID,
+        revision: LOADED_REVISION,
         canWrite: true,
       });
       store.getState().select({ kind: "placement", id: EDITABLE_PLACEMENT_ID });
@@ -392,6 +417,7 @@ describe("the singleton write path scopes jobs and callbacks to hydration genera
       store.getState().hydrate({
         design: withPreset("b"),
         designId: DESIGN_B_ID,
+        revision: LOADED_REVISION,
         canWrite: true,
       });
       await controlledFetch.answer(0, { status });
@@ -416,6 +442,7 @@ describe("the singleton write path scopes jobs and callbacks to hydration genera
       store.getState().hydrate({
         design: withPreset("a-old"),
         designId: DESIGN_A_ID,
+        revision: LOADED_REVISION,
         canWrite: true,
       });
       store.getState().select({ kind: "placement", id: EDITABLE_PLACEMENT_ID });
@@ -425,6 +452,7 @@ describe("the singleton write path scopes jobs and callbacks to hydration genera
       store.getState().hydrate({
         design: withPreset("b"),
         designId: DESIGN_B_ID,
+        revision: LOADED_REVISION,
         canWrite: true,
       });
       store.getState().select({ kind: "placement", id: EDITABLE_PLACEMENT_ID });
@@ -432,6 +460,7 @@ describe("the singleton write path scopes jobs and callbacks to hydration genera
       store.getState().hydrate({
         design: withPreset("a-current"),
         designId: DESIGN_A_ID,
+        revision: LOADED_REVISION,
         canWrite: true,
       });
       store.getState().select({ kind: "placement", id: EDITABLE_PLACEMENT_ID });

@@ -1,11 +1,7 @@
 // Where the width comes from: the empty column on either side that funds the move, or — on a shrink
 // with no empty column anywhere — the strip the run vacates (ADR 0031 rules 2, 3 and 6; ADR 0035
 // decision 7).
-import {
-  toExactMillimetres,
-  toMetres,
-  toMillimetres,
-} from "../millimetres.js";
+import { toExactMillimetres, toMetres, toMillimetres } from "../millimetres.js";
 import {
   MIN_WIDTH_M,
   type Column,

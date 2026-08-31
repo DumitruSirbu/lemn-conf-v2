@@ -16,11 +16,7 @@ import {
 } from "./insert-body.js";
 import { evaluateInsertFit, openingFromPlacement } from "./insert-fit.js";
 import { findPlacement } from "./resolve-column-members.js";
-import type {
-  Rebuild,
-  Resolved,
-  SetWidthInput,
-} from "./width-resize-model.js";
+import type { Rebuild, Resolved, SetWidthInput } from "./width-resize-model.js";
 
 /** A hood is **moved**, never rebuilt.
  *

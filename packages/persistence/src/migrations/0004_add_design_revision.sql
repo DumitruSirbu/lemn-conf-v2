@@ -1,0 +1,47 @@
+-- WEB-003: the lost-update fix. Until this column existed, `saveAuthorized` matched a row by id and
+-- write token alone, so two tabs holding one legitimate cookie could both load a design, make
+-- different destructive edits, and both be told the save succeeded — the second commit silently
+-- replacing the first. ADR 0019 decision 11 accepted that as a consistency footnote; deletion is
+-- final, there is no undo, and saving is now asynchronous, so it is a data-loss mechanism instead.
+--
+-- The column is the concurrency token and nothing else: opaque to every caller, compared only for
+-- equality, and incremented by the update statement itself. It is deliberately **not** `updated_at`
+-- — a timestamp is supplied by whoever writes it, has a resolution two saves can share, and would
+-- let a client choose the value its own predicate is tested against.
+--
+-- `bigint` rather than `integer`: this is the one column that grows without bound with use, and
+-- wrapping it would make a stale expectation match again. Read back as text everywhere above SQL,
+-- so no layer parses it and no layer can do arithmetic on a value it is supposed to treat as opaque.
+--
+-- **What this does to rows that already exist.** `not null default 1` fills every existing row with
+-- 1 without rewriting the table (Postgres stores the default as a missing-value attribute since
+-- 11), so the backfill is the column addition and there is no second statement to get wrong. Every
+-- stored design therefore starts at revision 1, and every client learns that revision from the same
+-- `GET` that gives it the document — no client can hold a revision from before this migration ran,
+-- because no response carried one.
+--
+-- Idempotent by `if not exists`, which this runner requires: every file is re-offered on every run
+-- and only the ledger decides whether it executes.
+--
+-- **APPLY THIS BEFORE THE WEB CODE THAT READS IT SHIPS.** The order is load-bearing, not a
+-- preference. `load` selects `revision::text`, and against a database without the column the driver
+-- raises, `designErrorResponse` rethrows it, and **every design load and every save answers 500** —
+-- which presents as an outage rather than as a missed migration. Applying this first is harmless in
+-- the other direction: the column is additive, and the code that came before it never named it.
+-- Check the target database's ledger reads 1-3 before running, and 1-4 after (ADR 0020: verify by
+-- reading the schema, never by this command's exit status).
+--
+-- **Once this file has been applied anywhere, its bytes are frozen — comments included.** The
+-- ledger records a checksum over the whole file, so editing even a line of this header makes every
+-- later run refuse with `MigrationChecksumMismatchError` against every database that already ran
+-- it. Tidying a comment here is therefore a schema incident, not a tidy-up.
+--
+-- The fix is a new migration. It is never an edit to this file, and it is never relabelling the
+-- ledger — deleting the recorded row so the new bytes are re-recorded silently discards the only
+-- evidence of what the database actually ran, and on a database holding real rows it makes the
+-- ledger a record of the file as it is now rather than of the migration that was applied.
+--
+-- That repair *was* used twice while this wave was being written, on the test database and only
+-- there, at a point when this migration had been applied to no deployed database at all. Once it
+-- has been, that door is shut.
+alter table designs add column if not exists revision bigint not null default 1;

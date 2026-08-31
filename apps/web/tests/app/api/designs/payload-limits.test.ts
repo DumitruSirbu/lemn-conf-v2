@@ -6,57 +6,76 @@ import {
   migrateDesign,
 } from "@lemnaria/configurator-domain";
 import type { Design, DesignId } from "@lemnaria/configurator-domain";
-import { DesignWriteForbiddenError } from "@lemnaria/persistence";
+import {
+  DesignWriteConflictError,
+  DesignWriteForbiddenError,
+} from "@lemnaria/persistence";
 import type {
   AuthorizedConfigurationRepository,
   AuthorizedSave,
+  DesignVersion,
+  StoredDesign,
 } from "@lemnaria/persistence";
 import { NextRequest } from "next/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 /** The one property these tests need from the repository: a save lands only for the credential the
  *  row was minted with, so a rejection can be attributed to the payload and not to authorisation. */
+/** What `0004_add_design_revision.sql` gives every row. These tests mint and save once, so it is
+ *  also the revision every save in this file states. */
+const FIRST_REVISION = "1";
+
 class FakeAuthorizedRepository implements AuthorizedConfigurationRepository {
   private readonly rows = new Map<
     DesignId,
-    { design: Design; writeTokenHash: string }
+    { design: Design; writeTokenHash: string; revision: string }
   >();
   private readonly rawRows = new Map<DesignId, unknown>();
   private nextId = 0;
 
-  mint(design: Design, writeTokenHash: string): Promise<DesignId> {
+  mint(design: Design, writeTokenHash: string): Promise<DesignVersion> {
     const id = `design-${String(this.nextId++)}`;
-    this.rows.set(id, { design, writeTokenHash });
-    return Promise.resolve(id);
+    this.rows.set(id, { design, writeTokenHash, revision: FIRST_REVISION });
+    return Promise.resolve({ id, revision: FIRST_REVISION });
   }
 
   saveAuthorized({
     id,
     design,
     writeTokenHash,
-  }: AuthorizedSave): Promise<DesignId> {
+    expectedRevision,
+  }: AuthorizedSave): Promise<DesignVersion> {
     const row = this.rows.get(id);
+    // The order the real repository uses: the credential decides between 403 and 409, so a caller
+    // without one can never see a conflict and never learn the design exists.
     if (!row || row.writeTokenHash !== writeTokenHash) {
       return Promise.reject(new DesignWriteForbiddenError(id));
     }
-    this.rows.set(id, { ...row, design });
-    return Promise.resolve(id);
+    if (row.revision !== expectedRevision) {
+      return Promise.reject(new DesignWriteConflictError(id));
+    }
+    const revision = String(Number(row.revision) + 1);
+    this.rows.set(id, { ...row, design, revision });
+    return Promise.resolve({ id, revision });
   }
 
-  load(id: DesignId): Promise<Design> {
+  load(id: DesignId): Promise<StoredDesign> {
     const raw = this.rawRows.get(id);
     // A raw row goes through the real migration, which is what makes an invalid stored document
     // fail here the way it fails in the Neon adapter rather than by a hand-thrown error.
     if (raw !== undefined) {
       try {
-        return Promise.resolve(migrateDesign(1, raw));
+        return Promise.resolve({
+          design: migrateDesign(1, raw),
+          revision: FIRST_REVISION,
+        });
       } catch (error) {
         return Promise.reject(error as Error);
       }
     }
     const row = this.rows.get(id);
     return row
-      ? Promise.resolve(row.design)
+      ? Promise.resolve({ design: row.design, revision: row.revision })
       : Promise.reject(new DesignNotFoundError(id));
   }
 
@@ -97,6 +116,10 @@ function routeParams(id: string): { params: Promise<{ id: string }> } {
   return { params: Promise.resolve({ id }) };
 }
 
+/** Every save this file sends states a revision, because the route refuses one that does not
+ *  (WEB-003). It is always the revision a mint produces, which is what these tests hold. */
+const EXPECTED_REVISION_HEADER = "x-expected-revision";
+
 function saveRequest(
   id: string,
   { body, cookie }: { body: BodyInit; cookie: string },
@@ -105,7 +128,11 @@ function saveRequest(
   // `RequestInit` this project's lib targets, which is the only reason for the cast.
   const init = {
     method: "PUT",
-    headers: { cookie, "content-type": "application/json" },
+    headers: {
+      cookie,
+      "content-type": "application/json",
+      [EXPECTED_REVISION_HEADER]: FIRST_REVISION,
+    },
     body,
     duplex: "half",
   } as unknown as ConstructorParameters<typeof NextRequest>[1];

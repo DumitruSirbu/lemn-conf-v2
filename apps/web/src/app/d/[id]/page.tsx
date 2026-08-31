@@ -24,8 +24,10 @@ export default async function DesignPage({
   const { id } = await params;
 
   try {
-    const design = await getRepository().load(id);
-    return <HydrateAndConfigure design={design} designId={id} />;
+    const { design, revision } = await getRepository().load(id);
+    return (
+      <HydrateAndConfigure design={design} designId={id} revision={revision} />
+    );
   } catch (error) {
     if (error instanceof DesignNotFoundError)
       return <DesignLoadError reason="not-found" />;

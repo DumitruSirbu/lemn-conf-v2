@@ -5,11 +5,7 @@
 import type { BodyProbe } from "../body-probe.js";
 import type { InsertableBody } from "../catalog.js";
 import type { Design } from "../design.js";
-import type {
-  BodyCatalog,
-  Column,
-  PlacementRecord,
-} from "../void-engine.js";
+import type { BodyCatalog, Column, PlacementRecord } from "../void-engine.js";
 import type {
   BodyResizedEffect,
   CommandResult,

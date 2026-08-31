@@ -1,9 +1,5 @@
 import { KITCHEN_L_DESIGN } from "@lemnaria/configurator-domain";
-import type {
-  ConfigurationRepository,
-  Design,
-  DesignId,
-} from "@lemnaria/configurator-domain";
+import type { Design, DesignId } from "@lemnaria/configurator-domain";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
@@ -14,13 +10,23 @@ import {
   createSaveCoalescer,
   type SaveStatus,
 } from "../../src/persistence/save-coalescer";
+import type {
+  ClientSaveRepository,
+  CoalescedSaveRequest,
+  CoalescedSaveResult,
+} from "../../src/persistence/save-coalescer";
+
+/** The revision every scripted repository in this file reports and every queue therefore expects.
+ *  These tests are about scheduling, identity and retry — the concurrency rule has its own tests —
+ *  so one value throughout keeps them readable. */
+const TEST_REVISION = "1";
 
 function withPreset(presetId: string): Design {
   return { ...KITCHEN_L_DESIGN, presetId };
 }
 
 /** Records every `save` call and lets each test script its resolution/rejection per call. */
-class ScriptedRepository implements Pick<ConfigurationRepository, "save"> {
+class ScriptedRepository implements ClientSaveRepository {
   readonly calls: { id: DesignId | null; design: Design }[] = [];
   /** Highest number of saves in flight at once — two concurrent writes to the same row would let
    *  an older design commit after a newer one. */
@@ -33,7 +39,7 @@ class ScriptedRepository implements Pick<ConfigurationRepository, "save"> {
   private nextNotRetryable = 0;
   private holdCount = 0;
 
-  save(id: DesignId | null, design: Design): Promise<DesignId> {
+  save({ id, design }: CoalescedSaveRequest): Promise<CoalescedSaveResult> {
     this.calls.push({ id, design });
     this.inFlight += 1;
     this.maxConcurrentSaves = Math.max(this.maxConcurrentSaves, this.inFlight);
@@ -62,15 +68,20 @@ class ScriptedRepository implements Pick<ConfigurationRepository, "save"> {
     if (this.holdCount > 0) {
       this.holdCount -= 1;
       return settle(
-        new Promise<DesignId>((resolve) => {
+        new Promise<CoalescedSaveResult>((resolve) => {
           this.deferred.push(() => {
-            resolve(id ?? "minted-id");
+            resolve({ id: id ?? "minted-id", revision: TEST_REVISION });
           });
         }),
       );
     }
     const resolve = this.resolutions.shift();
-    return settle(Promise.resolve(resolve ? resolve() : (id ?? "minted-id")));
+    return settle(
+      Promise.resolve({
+        id: resolve ? resolve() : (id ?? "minted-id"),
+        revision: TEST_REVISION,
+      }),
+    );
   }
 
   /** Makes the next `count` saves hang until `releaseHeld()`, so a retry timer can fire while one
@@ -125,13 +136,15 @@ describe("createSaveCoalescer", () => {
       repository,
       getDesignId: () => designId,
       getGeneration: () => 0,
-      onSaved: (id) => {
+      onSaved: ({ id }) => {
         savedIds.push(id);
         designId = id;
       },
       onSaveStatusChange: (status) => {
         statuses.push(status);
       },
+      getRevision: () => TEST_REVISION,
+      readCurrentRevision: () => Promise.resolve(TEST_REVISION),
     });
   }
 
@@ -454,15 +467,15 @@ interface ControlledCall {
 }
 
 /** A repository whose calls settle only when a test says so. */
-class ControlledRepository implements Pick<ConfigurationRepository, "save"> {
+class ControlledRepository implements ClientSaveRepository {
   readonly calls: ControlledCall[] = [];
   maxConcurrentSaves = 0;
   private inFlight = 0;
 
-  save(id: DesignId | null, design: Design): Promise<DesignId> {
+  save({ id, design }: CoalescedSaveRequest): Promise<CoalescedSaveResult> {
     this.inFlight += 1;
     this.maxConcurrentSaves = Math.max(this.maxConcurrentSaves, this.inFlight);
-    return new Promise<DesignId>((resolve, reject) => {
+    return new Promise<CoalescedSaveResult>((resolve, reject) => {
       const settle = <T>(answer: (value: T) => void, value: T): void => {
         this.inFlight -= 1;
         answer(value);
@@ -471,7 +484,7 @@ class ControlledRepository implements Pick<ConfigurationRepository, "save"> {
         id,
         design,
         resolve: (savedId) => {
-          settle(resolve, savedId);
+          settle(resolve, { id: savedId, revision: TEST_REVISION });
         },
         reject: (error) => {
           settle(reject, error);
@@ -503,13 +516,15 @@ describe("save jobs remain bound to their scheduled generation", () => {
       repository,
       getDesignId: () => designId,
       getGeneration: () => generation,
-      onSaved: (id, savedGeneration) => {
+      onSaved: ({ id }, savedGeneration) => {
         saved.push({ id, generation: savedGeneration });
         if (savedGeneration === generation) designId = id;
       },
       onSaveStatusChange: (status, statusGeneration) => {
         statuses.push({ status, generation: statusGeneration });
       },
+      getRevision: () => TEST_REVISION,
+      readCurrentRevision: () => Promise.resolve(TEST_REVISION),
     });
   });
 

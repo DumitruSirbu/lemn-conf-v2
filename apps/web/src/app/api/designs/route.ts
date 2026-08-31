@@ -12,11 +12,16 @@ import { mintWriteToken, setWriteTokenCookie } from "@/lib/server/write-token";
  *  (`docs/milestones/M2-void-engine.md`, "Something has to create the first design"). */
 export async function POST(): Promise<NextResponse> {
   const writeToken = mintWriteToken();
-  const id = await getRepository().mint(KITCHEN_L_DESIGN, writeToken.hash);
+  const { id, revision } = await getRepository().mint(
+    KITCHEN_L_DESIGN,
+    writeToken.hash,
+  );
 
   // The token travels in the `Set-Cookie` header only. It is deliberately absent from the JSON
-  // body, where script could read it and a proxy or log could retain it.
-  const response = NextResponse.json({ id }, { status: 201 });
+  // body, where script could read it and a proxy or log could retain it. The revision is the
+  // opposite kind of value and does belong here: without it the very first save would have no
+  // expectation to state, and the client would have to read the design back to learn one.
+  const response = NextResponse.json({ id, revision }, { status: 201 });
   setWriteTokenCookie(response, { designId: id, token: writeToken.token });
   return response;
 }

@@ -24,7 +24,7 @@ describe("createNeonDesignRowSource (live test database)", () => {
   const mintedIds: DesignId[] = [];
 
   async function mintTrackingId(hash = WRITE_TOKEN_HASH): Promise<DesignId> {
-    const id = await new NeonConfigurationRepository(testDatabaseUrl).mint(
+    const { id } = await new NeonConfigurationRepository(testDatabaseUrl).mint(
       KITCHEN_L_DESIGN,
       hash,
     );
@@ -126,8 +126,11 @@ describe("createNeonDesignRowSource (live test database)", () => {
           id,
           design: { ...KITCHEN_L_DESIGN, presetId: "edited-after-restore" },
           writeTokenHash: WRITE_TOKEN_HASH,
+          // A restored row carries whatever revision the dump held; this suite restores rows the
+          // export wrote before the column existed, so the migration's backfill is the revision.
+          expectedRevision: "1",
         }),
-      ).resolves.toBe(id);
+      ).resolves.toEqual({ id, revision: "2" });
     },
   );
 });

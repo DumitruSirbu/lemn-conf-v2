@@ -20,6 +20,10 @@ import {
 import { columnExtents } from "../support/column-extents";
 import { createFakeBodyProbe } from "../support/fake-body-probe";
 
+/** The revision a hydrating loader reports. These tests are about identity and generation, not
+ *  about concurrency, so one value throughout keeps them readable. */
+const LOADED_REVISION = "1";
+
 const OCCURRED_AT = "2026-08-25T12:00:00.000Z";
 /** The §10 signature flow's column: the freestanding fridge `p7` (0–1.85) with `p24` above it. */
 const FRIDGE_COLUMN = "B|2.45";
@@ -361,6 +365,7 @@ describe("hydrate is the only thing that may move the frozen columns", () => {
     store.getState().hydrate({
       design: loaded,
       designId: "loaded-id",
+      revision: LOADED_REVISION,
       canWrite: true,
     });
 

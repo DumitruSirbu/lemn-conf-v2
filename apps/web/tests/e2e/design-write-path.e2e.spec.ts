@@ -74,15 +74,20 @@ test("a design minted by POST is writable by PUT from the same browser, and only
   const saved = await page.evaluate(
     async (id: string): Promise<SaveOutcome> => {
       const loaded = await fetch(`/api/designs/${id}`);
-      const { design } = (await loaded.json()) as {
+      const { design, revision } = (await loaded.json()) as {
         design: { placements: unknown[] };
+        revision: string;
       };
       const edited = { ...design, placements: design.placements.slice(1) };
 
       const response = await fetch(`/api/designs/${id}`, {
         method: "PUT",
         credentials: "same-origin",
-        headers: { "content-type": "application/json" },
+        headers: {
+          "content-type": "application/json",
+          // WEB-003: a save states the revision it edits, and the route refuses one that does not.
+          "x-expected-revision": revision,
+        },
         body: JSON.stringify(edited),
       });
 
@@ -113,7 +118,10 @@ test("a design minted by POST is writable by PUT from the same browser, and only
       const response = await fetch(`/api/designs/${id}`, {
         method: "PUT",
         credentials: "same-origin",
-        headers: { "content-type": "application/json" },
+        headers: {
+          "content-type": "application/json",
+          "x-expected-revision": "1",
+        },
         body: JSON.stringify({ nothing: true }),
       });
       return response.status;

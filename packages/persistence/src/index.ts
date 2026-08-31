@@ -7,13 +7,18 @@ export type {
 } from "./design-row-source.js";
 export { FakeConfigurationRepository } from "./fake-configuration-repository.js";
 export {
+  DesignWriteConflictError,
   DesignWriteForbiddenError,
   NeonConfigurationRepository,
 } from "./neon-configuration-repository.js";
 export type {
   AuthorizedConfigurationRepository,
   AuthorizedSave,
+  DesignVersion,
+  StoredDesign,
 } from "./neon-configuration-repository.js";
+export { isDesignRevision } from "./design-revision.js";
+export type { DesignRevision } from "./design-revision.js";
 export { runMigrations } from "./migrate.js";
 export type { MigrationRunSummary } from "./migrate.js";
 export {

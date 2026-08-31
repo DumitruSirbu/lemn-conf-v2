@@ -24,6 +24,7 @@ import { resolveTestDatabaseUrl } from "../src/test-database-url.js";
 import {
   dropMigrationLedger,
   dropSynthesisedMigrationArtefacts,
+  firstSynthesisedVersion,
   forgetAppliedMigrations,
   hasTable,
   readMigrationLedger,
@@ -33,12 +34,48 @@ const hasLiveDatabase = Boolean(process.env["DATABASE_URL"]);
 const testDatabaseUrl = hasLiveDatabase ? resolveTestDatabaseUrl() : "";
 const SOURCE_DIR = resolve(dirname(fileURLToPath(import.meta.url)), "../src");
 
+/**
+ * The migration set this file expects, written out rather than read from disk **on purpose**: it is
+ * the one place a forgotten update should be caught, and a list derived from the directory would
+ * agree with the directory by construction and assert nothing.
+ *
+ * Everything destructive derives from disk instead — see `firstSynthesisedVersion` and
+ * `VERSIONS_AFTER_THE_FIRST` — so a stale entry here fails an assertion rather than deleting a real
+ * ledger row (review finding F3). The guard immediately below is ordered first in the file so it
+ * runs before anything that writes.
+ */
 const ALL_MIGRATION_FILE_NAMES = [
   "0001_create_designs.sql",
   "0002_add_write_token_hash.sql",
   "0003_check_write_token_hash_shape.sql",
+  "0004_add_design_revision.sql",
 ];
-const WRITE_TOKEN_VERSIONS = [2, 3];
+
+/** Every version after the first, read from disk. Forgetting a *suffix* of the ledger is the only
+ *  shape the runner will re-apply: forget version 2 while a later one stays recorded and the run is
+ *  refused for the gap, which is what the gap test below asserts deliberately. */
+const VERSIONS_AFTER_THE_FIRST = readMigrationFiles()
+  .map((migration) => migration.version)
+  .slice(1);
+
+// Ordered first in the file, and deliberately: every describe below this one writes to the shared
+// test database, and a stale expectation is worth knowing about before any of that runs.
+describe("this file's expectations match the migrations on disk", () => {
+  it("names every migration file, so nothing here is asserted about a set that has moved on", () => {
+    expect(readMigrationFiles().map((migration) => migration.fileName)).toEqual(
+      ALL_MIGRATION_FILE_NAMES,
+    );
+  });
+
+  it("synthesises versions above every real one, so cleanup can never delete a real ledger row", () => {
+    const realVersions = readMigrationFiles().map(
+      (migration) => migration.version,
+    );
+
+    expect(firstSynthesisedVersion()).toBe(Math.max(...realVersions) + 1);
+    expect(realVersions).not.toContain(firstSynthesisedVersion());
+  });
+});
 const ROLLBACK_PROBE_TABLE = "db004_rollback_probe";
 const LEDGER_ATOMICITY_PROBE_TABLE = "db004_ledger_atomicity_probe";
 const PROBE_TABLES = [ROLLBACK_PROBE_TABLE, LEDGER_ATOMICITY_PROBE_TABLE];
@@ -52,15 +89,17 @@ const PROBE_DOCUMENT = { probe: "db004-adoption" };
 const EXAMPLE_CONNECTION =
   "postgresql://example_user:example_password@ep-example.example.invalid/lemn-conf-example?sslmode=require";
 
-/** The real migration set plus one more that fails half-way, presented as version 4 so the set
- *  stays a contiguous run and every existing ledger row still has its file. */
+/** The real migration set plus one more that fails half-way, presented as the next version after
+ *  the real ones so the set stays a contiguous run and every existing ledger row still has its
+ *  file. */
 function migrationsPlusAFailingOne(): MigrationFile[] {
   const sql = `create table ${ROLLBACK_PROBE_TABLE} (id integer);\nselect 1 / 0;\n`;
+  const version = firstSynthesisedVersion();
   return [
     ...readMigrationFiles(),
     {
-      version: 4,
-      fileName: "0004_deliberately_failing.sql",
+      version,
+      fileName: `${String(version).padStart(4, "0")}_deliberately_failing.sql`,
       sql,
       checksum: checksumOfMigration(sql),
     },
@@ -136,7 +175,9 @@ describe("runMigrations against the live test database", () => {
       const versions = (await readMigrationLedger(testDatabaseUrl)).map(
         (row) => row.version,
       );
-      expect(versions).toEqual([1, 2, 3]);
+      expect(versions).toEqual(
+        ALL_MIGRATION_FILE_NAMES.map((_, index) => index + 1),
+      );
     },
   );
 
@@ -163,9 +204,9 @@ describe("runMigrations against the live test database", () => {
         MigrationSequenceError,
       );
 
-      // Repair through the production path rather than by hand: with 0003 forgotten too there is
-      // no gap left, and the runner re-applies both files and re-records them.
-      await forgetAppliedMigrations(testDatabaseUrl, WRITE_TOKEN_VERSIONS);
+      // Repair through the production path rather than by hand: with every later version forgotten
+      // too there is no gap left, and the runner re-applies those files and re-records them.
+      await forgetAppliedMigrations(testDatabaseUrl, VERSIONS_AFTER_THE_FIRST);
       const summary = await runMigrations(testDatabaseUrl);
       expect(summary.applied).toEqual(ALL_MIGRATION_FILE_NAMES.slice(1));
     },
@@ -174,7 +215,7 @@ describe("runMigrations against the live test database", () => {
   it.skipIf(!hasLiveDatabase)(
     "lets two concurrent runners apply each migration exactly once, the loser finding nothing to do",
     async () => {
-      await forgetAppliedMigrations(testDatabaseUrl, WRITE_TOKEN_VERSIONS);
+      await forgetAppliedMigrations(testDatabaseUrl, VERSIONS_AFTER_THE_FIRST);
 
       const [first, second] = await Promise.all([
         runMigrations(testDatabaseUrl),
@@ -185,7 +226,9 @@ describe("runMigrations against the live test database", () => {
       expect([...first.applied, ...second.applied].sort()).toEqual(
         ALL_MIGRATION_FILE_NAMES.slice(1),
       );
-      expect((await readMigrationLedger(testDatabaseUrl)).length).toBe(3);
+      expect((await readMigrationLedger(testDatabaseUrl)).length).toBe(
+        ALL_MIGRATION_FILE_NAMES.length,
+      );
     },
   );
 
@@ -203,7 +246,7 @@ describe("runMigrations against the live test database", () => {
         const versions = (await readMigrationLedger(testDatabaseUrl)).map(
           (row) => row.version,
         );
-        expect(versions).not.toContain(4);
+        expect(versions).not.toContain(firstSynthesisedVersion());
       } finally {
         await dropSynthesisedMigrationArtefacts(testDatabaseUrl, PROBE_TABLES);
       }
@@ -217,15 +260,16 @@ describe("runMigrations against the live test database", () => {
       // change and the ledger insert being *one* change is the part only the explicit transaction
       // provides. Forced here by a migration that claims its own ledger row, which makes the
       // runner's insert collide with the primary key after the schema change has succeeded.
+      const version = firstSynthesisedVersion();
       const sql =
         `create table ${LEDGER_ATOMICITY_PROBE_TABLE} (id integer);\n` +
         `insert into schema_migrations (version, file_name, checksum)\n` +
-        `values (4, 'claimed_by_the_migration', 'claimed_by_the_migration');\n`;
+        `values (${String(version)}, 'claimed_by_the_migration', 'claimed_by_the_migration');\n`;
       const files = [
         ...readMigrationFiles(),
         {
-          version: 4,
-          fileName: "0004_claims_its_own_ledger_row.sql",
+          version,
+          fileName: `${String(version).padStart(4, "0")}_claims_its_own_ledger_row.sql`,
           sql,
           checksum: checksumOfMigration(sql),
         },
@@ -242,9 +286,9 @@ describe("runMigrations against the live test database", () => {
         const versions = (await readMigrationLedger(testDatabaseUrl)).map(
           (row) => row.version,
         );
-        expect(versions).not.toContain(4);
+        expect(versions).not.toContain(version);
       } finally {
-        // This test's migration commits a `version = 4` row when the transaction under test is
+        // This test's migration commits its own ledger row when the transaction under test is
         // absent. A row whose version has no file makes every later `runMigrations` throw, so the
         // cleanup must not be conditional on the assertions above having passed.
         await dropSynthesisedMigrationArtefacts(testDatabaseUrl, PROBE_TABLES);
@@ -258,7 +302,7 @@ describe("runMigrations against the live test database", () => {
       try {
         await expect(
           applyMigrations(testDatabaseUrl, migrationsPlusAFailingOne()),
-        ).rejects.toThrow(/0004_deliberately_failing\.sql/);
+        ).rejects.toThrow(/deliberately_failing\.sql/);
       } finally {
         await dropSynthesisedMigrationArtefacts(testDatabaseUrl, PROBE_TABLES);
       }
@@ -289,7 +333,9 @@ describe("describeMigrationRun", () => {
     );
 
     expect(line).toContain("applied nothing");
-    expect(line).toContain("3 already applied");
+    expect(line).toContain(
+      `${String(ALL_MIGRATION_FILE_NAMES.length)} already applied`,
+    );
   });
 
   it("never carries a credential into the line an operator sees", () => {

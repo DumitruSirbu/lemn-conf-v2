@@ -212,7 +212,9 @@ describe("the notice says which of the two situations this is", () => {
     expect(panel.notice?.kind).toBe("access-uncheckable");
     expect(panel.notice?.tone).toBe("error");
     expect(panel.notice?.message).toBe(ro.panel.accessUncheckableNotice);
-    expect(panel.notice?.retryLabel).toBe(ro.panel.accessRetryLabel);
+    expect(panel.notice?.actions).toEqual([
+      { kind: "retry-access-check", label: ro.panel.accessRetryLabel },
+    ]);
     expect(
       findSection(panel, "finish").chips.every((chip) => chip.isDisabled),
     ).toBe(true);
@@ -221,7 +223,8 @@ describe("the notice says which of the two situations this is", () => {
 
   it("offers a retry on no other notice, so the only actionable one is the one that is", () => {
     // A retry beside "you cannot edit this design" or beside a failed save would be a button that
-    // cannot help — §9's own rule, applied to the notice rather than to a control.
+    // cannot help — §9's own rule, applied to the notice rather than to a control. A conflict does
+    // carry actions, but neither of them is this one: see the conflict tests.
     const unanswerable: readonly Parameters<typeof openPanel>[1][] = [
       { canWrite: false },
       { canWrite: true, saveStatus: "unauthorized" },
@@ -231,7 +234,7 @@ describe("the notice says which of the two situations this is", () => {
     ];
 
     for (const overrides of unanswerable) {
-      expect(openPanel(occupiedMeta(), overrides).notice?.retryLabel).toBe(
+      expect(openPanel(occupiedMeta(), overrides).notice?.actions).toBe(
         undefined,
       );
     }
@@ -511,5 +514,62 @@ describe("a writable panel is left alone", () => {
     const replace = findSection(openPanel(occupiedMeta()), "replace");
 
     expect(replace.rows[0]?.secondaryLine).toBe(ro.panel.offerSize(600, 860));
+  });
+});
+
+/**
+ * WEB-003's notice. The stored design moved on while this browser was editing it, so the save was
+ * refused rather than silently replacing the other tab's work.
+ *
+ * It is unlike every other notice in this file: nothing is lost yet, and the customer picks which
+ * of the two versions survives. Against the pre-fix panel none of this exists — there was no
+ * `conflict` save status to describe.
+ */
+describe("the panel when the stored design has moved on", () => {
+  it("says what happened and offers both ways out, reload first", () => {
+    // Reload is listed first because it is the conservative one: it keeps what is already stored,
+    // and what it discards is still on screen while the customer decides.
+    const panel = openPanel(occupiedMeta(), { saveStatus: "conflict" });
+
+    expect(panel.notice?.kind).toBe("save-conflict");
+    expect(panel.notice?.tone).toBe("error");
+    expect(panel.notice?.message).toBe(ro.panel.saveConflictNotice);
+    expect(panel.notice?.actions).toEqual([
+      { kind: "reload-stored", label: ro.panel.saveConflictReloadLabel },
+      { kind: "overwrite-stored", label: ro.panel.saveConflictOverwriteLabel },
+    ]);
+  });
+
+  it("keeps the panel editable, because the edit on screen is real and still worth pushing", () => {
+    // Greying the controls here would add a second thing to undo: the coalescer refuses further
+    // writes rather than losing them, and overwriting sends whatever the design has become by the
+    // time it is pressed.
+    const panel = openPanel(occupiedMeta(), { saveStatus: "conflict" });
+
+    expect(panel.footer.isRemoveDisabled).toBe(false);
+    expect(
+      findSection(panel, "finish").chips.some((chip) => chip.isDisabled),
+    ).toBe(false);
+  });
+
+  it("says nothing about a conflict on a panel that has no write credential at all", () => {
+    // A read-only browser cannot have been refused for staleness, and the locked notice is the one
+    // that explains why nothing responds.
+    const panel = openPanel(occupiedMeta(), {
+      canWrite: false,
+      saveStatus: "conflict",
+    });
+
+    expect(panel.notice?.kind).toBe("read-only");
+  });
+
+  it("does not offer the access retry beside a conflict, which it could not resolve", () => {
+    const panel = openPanel(occupiedMeta(), { saveStatus: "conflict" });
+
+    expect(
+      panel.notice?.actions?.some(
+        (action) => action.kind === "retry-access-check",
+      ),
+    ).toBe(false);
   });
 });

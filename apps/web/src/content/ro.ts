@@ -142,8 +142,31 @@ export const ro = {
       "Nu am putut verifica dacă poți modifica această configurație. Până când verificarea reușește o poți doar vedea — o modificare făcută acum nu s-ar salva.",
     /** Not "Doar vizualizare": that states a permission, and this state is the absence of one. */
     accessUncheckableReason: "Acces neverificat",
-    /** The action on `accessUncheckableNotice`, and the only action any notice carries. */
+    /** The action on `accessUncheckableNotice`. */
     accessRetryLabel: "Încearcă din nou",
+    /**
+     * **WEB-003.** The stored design moved on between this browser loading it and this browser
+     * saving: another tab of the same customer saved over it, and the write was refused rather than
+     * silently replacing that other edit — which is what used to happen, in whichever direction the
+     * saves happened to land.
+     *
+     * It says what is true and nothing more. It does **not** say "someone else is editing": the two
+     * writers hold the same cookie, so they are the same person on another tab or another device,
+     * and naming an intruder would be both wrong and alarming. It does not blame the customer for a
+     * mistake they did not make either.
+     *
+     * The tone is `error` because an edit is unsaved, and the sentence has to be honest about which
+     * copy each choice keeps: reloading keeps the version that is stored and discards what is on
+     * screen, overwriting keeps what is on screen and discards the other tab's. Neither is safe by
+     * default, which is exactly why nothing is chosen automatically.
+     */
+    saveConflictNotice:
+      "Această configurație a fost modificată în altă filă sau pe alt dispozitiv, așa că modificarea ta nu a fost salvată. Reîncarcă pentru a vedea versiunea salvată — se pierde ce ai schimbat aici — sau suprascrie cu ce vezi acum, iar cealaltă versiune se pierde.",
+    /** Keep the stored design, discard this screen's edit. */
+    saveConflictReloadLabel: "Reîncarcă versiunea salvată",
+    /** Keep this screen's edit, write it over the stored design — after re-reading it, so a third
+     *  writer that lands in between conflicts again rather than being discarded unseen. */
+    saveConflictOverwriteLabel: "Suprascrie cu ce vezi acum",
     /**
      * Read-only reached the **other** way: the load believed this browser could write, the panel
      * rendered fully interactive, the customer edited — and the save came back 403.
