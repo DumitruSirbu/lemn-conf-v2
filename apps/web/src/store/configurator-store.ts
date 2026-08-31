@@ -55,22 +55,31 @@ export type { Selection };
 export type { SaveStatus };
 
 /**
- * Whether this browser may edit a design, as **three** states rather than two.
+ * Whether this browser may edit a design, as **four** states rather than two.
  *
- * `"unknown"` is the `/d/{id}` load's honest answer: the write-token cookie is scoped
+ * The two non-boolean states are both "no answer yet", told apart by whether one is still coming.
+ * `"checking"` is the `/d/{id}` load's honest opening position: the write-token cookie is scoped
  * `Path=/api/designs/{id}` (ADR 0019 decision 1), so the request that rendered the page never
- * carried it and the server could not have answered. It is spelled out rather than encoded as an
- * absent field, because absence already means the opposite thing one module away —
- * `fetch-configuration-repository.ts` reads an absent `canWrite` as **false**, the safe reading of
- * a load answer that did not arrive, while here the deliberate guess is **writable**. Two opposite
- * defaults for the same missing value is how a genuinely read-only design gets marked writable with
- * no type error; a third named state removes the default from both.
+ * carried it and the server could not have answered — `useWriteAccessProbe` is asking the one route
+ * that can. `"check-failed"` is that probe having failed; nothing further is in flight, and only a
+ * retry changes it.
  *
- * The panel treats `"unknown"` as writable — see `isReadOnly`. That optimism is the point: a panel
- * that starts read-only tells the design's own author they may not edit their own kitchen, while one
- * that briefly offers an edit it turns out not to have is recoverable.
+ * They are spelled out rather than encoded as an absent field, because absence already means the
+ * opposite thing one module away — `fetch-configuration-repository.ts` reads an absent `canWrite`
+ * as **false**, the safe reading of a load answer that did not arrive. Two opposite defaults for
+ * the same missing value is how a genuinely read-only design gets marked writable with no type
+ * error; named states remove the default from both.
+ *
+ * **Neither non-boolean state is writable** (see `isReadOnly`). Until wave S7 `"unknown"` was
+ * deliberately read as writable, so `/d/{id}` rendered fully interactive before anything knew
+ * whether it could write — and a probe that failed left that optimism standing for good. A reader
+ * on a blocked API then edited, believed it saved, and watched the controls disable *after* the
+ * refusal, with the unsaved edit still on screen. `DEVELOPMENT-SPEC.md` §9 forbids exactly that:
+ * never offer what cannot be satisfied. The interface now waits for the answer, which is a change
+ * to what it *offers* only — `canWrite` stays advisory and authorises nothing (ADR 0019 decision 1;
+ * `hasWriteCredentialFor` is still the sole authorisation).
  */
-export type WriteAccess = boolean | "unknown";
+export type WriteAccess = boolean | "checking" | "check-failed";
 
 export interface ConfiguratorState {
   readonly design: Design;
@@ -122,10 +131,10 @@ export interface ConfiguratorState {
   readonly hasPersistedSuccessfully: boolean;
   /**
    * Whether this browser holds the design's write credential (ADR 0019 decision 1), as the server
-   * reported it on the load that produced this state — or `"unknown"` where no load could have
-   * answered. Published so §9's panel can disable what it cannot perform; it is a **fact carried
-   * in**, never a decision made here — what the panel does with it is `describePanel`'s rule, and
-   * what a write is allowed to do is the row's.
+   * reported it on the load that produced this state — or `"checking"` / `"check-failed"` where no
+   * load has answered yet. Published so §9's panel can disable what it cannot perform; it is a
+   * **fact carried in**, never a decision made here — what the panel does with it is
+   * `describePanel`'s rule, and what a write is allowed to do is the row's.
    */
   readonly canWrite: WriteAccess;
   /** Records the server's answer about write access, which for the load-by-link path arrives after
@@ -136,6 +145,16 @@ export interface ConfiguratorState {
     designId: DesignId;
     canWrite: boolean;
   }) => void;
+  /** Records that the probe could not answer at all — a dropped request, a blocked API, an offline
+   *  browser. It moves `canWrite` to `"check-failed"`, which the panel renders as a retryable
+   *  notice rather than as either verdict: a network failure is not evidence about access in either
+   *  direction, and turning it into "writable" is what wave S7 removed. */
+  readonly failWriteAccessCheck: (attempt: { designId: DesignId }) => void;
+  /** The retry behind that notice. Puts `canWrite` back to `"checking"`, which is what the probe
+   *  effect watches — `"checking"` means "a check is wanted and none has answered", so restoring it
+   *  *is* asking again, and no separate attempt counter can drift away from it. A no-op unless the
+   *  last check actually failed, so a stray press cannot discard an answer the probe already gave. */
+  readonly retryWriteAccessCheck: () => void;
   /** Replaces the store's design wholesale — the load-by-link path (`/d/[id]`). The loaded design
    *  already round-tripped through the database, so it counts as persisted; clears the selection,
    *  since an id selected in the previous design has no guaranteed meaning in the new one. */
@@ -153,8 +172,8 @@ export interface LoadedDesignState {
   readonly designId: DesignId;
   /**
    * **Required**, so that a loader which does not know has to say so. `/d/{id}` passes
-   * `"unknown"` — its own request could not carry the `Path=/api/designs/{id}` cookie — and
-   * `applyWriteAccess` corrects it from the one route the cookie does reach. A loader that knows
+   * `"checking"` — its own request could not carry the `Path=/api/designs/{id}` cookie — and
+   * `applyWriteAccess` settles it from the one route the cookie does reach. A loader that knows
    * passes the boolean.
    *
    * It is required rather than optional-defaulting-to-writable because the obvious call,
@@ -369,6 +388,19 @@ export function createConfiguratorStore(
       applyWriteAccess: ({ designId: answeredFor, canWrite }) => {
         if (get().designId !== answeredFor) return;
         set({ canWrite });
+      },
+      failWriteAccessCheck: ({ designId: attemptedFor }) => {
+        const state = get();
+        if (state.designId !== attemptedFor) return;
+        // A boolean is an answer the server actually gave. A later probe failing — a retry, or a
+        // second effect run — must not demote it back to "we do not know", which would take a
+        // writable panel away from its own author on the strength of a dropped packet.
+        if (typeof state.canWrite === "boolean") return;
+        set({ canWrite: "check-failed" });
+      },
+      retryWriteAccessCheck: () => {
+        if (get().canWrite !== "check-failed") return;
+        set({ canWrite: "checking" });
       },
       setSaveStatus: (status) => {
         set({ saveStatus: status });

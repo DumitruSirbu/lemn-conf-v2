@@ -29,6 +29,23 @@ export {
 
 const DESIGNS_ENDPOINT = "/api/designs";
 
+/**
+ * How long a load may stay in flight before it is treated as failed.
+ *
+ * A hung request is not a slow one, and `fetch` never distinguishes them: a captive portal, a hung
+ * proxy, or a mobile network that blackholes rather than resets leaves the promise pending forever.
+ * `/d/{id}`'s write-access probe turns that into a permanently disabled panel with no control to
+ * press, because `"checking"` deliberately carries no retry — only `"check-failed"` does (finding
+ * S7-F1). So the wait has to end somewhere, and it ends in the retryable failure the panel already
+ * knows how to offer a way out of.
+ *
+ * Ten seconds: long enough for a cold serverless function plus a Neon cold start over a slow mobile
+ * connection, short enough that a blackholed request does not hold the controls for a minute. The
+ * cost of being too short is one press of "Încearcă din nou"; the cost of having no bound at all is
+ * a dead end no interaction can leave.
+ */
+const LOAD_TIMEOUT_MS = 10_000;
+
 /** What a load answers: the document, and whether the browser that asked for it holds the write
  *  credential for it. The two travel together because they come from the same response. */
 export interface LoadedDesign {
@@ -112,9 +129,11 @@ export class FetchConfigurationRepository implements ConfigurationRepository {
    * `true` here is never permission to skip handling a refusal.
    */
   async loadWithAccess(id: DesignId): Promise<LoadedDesign> {
-    const response = await this.request(designEndpointFor(id), {
-      method: "GET",
-    });
+    const response = await this.requestWithinTimeout(
+      designEndpointFor(id),
+      { method: "GET" },
+      "Loading a design",
+    );
     if (!response.ok) throw failureFor("Loading a design", response.status);
     const payload = await readJsonBody(response, "Loading a design");
     return { design: readDesign(payload), canWrite: readCanWrite(payload) };
@@ -182,6 +201,36 @@ export class FetchConfigurationRepository implements ConfigurationRepository {
     );
   }
 
+  /**
+   * A `request` that cannot hang, for the one path where hanging is worse than failing.
+   *
+   * **Only the read path is bounded, and deliberately so.** A save's timing is the coalescer's
+   * concern — it already has retry, backoff and a terminal state — and aborting a `PUT` in flight
+   * would leave the browser unable to say whether the write landed, which is a worse answer than a
+   * slow one. A `GET` carries no such ambiguity: nothing was changed, so asking again is free.
+   *
+   * Built from an `AbortController` and a cleared timer rather than `AbortSignal.timeout`, because
+   * this one has to be observable: the timer is what a test advances, and clearing it stops every
+   * completed load leaving a pending timeout behind it.
+   */
+  private async requestWithinTimeout(
+    url: string,
+    init: RequestInit,
+    operation: string,
+  ): Promise<Response> {
+    const controller = new AbortController();
+    const expiry = setTimeout(() => {
+      controller.abort();
+    }, LOAD_TIMEOUT_MS);
+    try {
+      return await this.request(url, { ...init, signal: controller.signal });
+    } catch (error) {
+      throw asTimeoutFailure(error, controller.signal, operation);
+    } finally {
+      clearTimeout(expiry);
+    }
+  }
+
   /** Every request goes through here for one reason: `credentials`. The routes are same-origin, so
    *  the browser default (`same-origin`) already sends the write-token cookie — stating it is what
    *  stops a later refactor to an absolute URL or a wrapper with a different default from dropping
@@ -203,6 +252,22 @@ export class FetchConfigurationRepository implements ConfigurationRepository {
  */
 export const sessionConfigurationRepository =
   new FetchConfigurationRepository();
+
+/** An aborted `fetch` rejects with a `DOMException`, which is a browser type and not this adapter's
+ *  contract: every other failure here is a `DesignRequestFailedError`, and a caller branching on
+ *  that contract would miss this one entirely. Anything the timeout did not cause is passed through
+ *  untouched — a network error is already the right shape and must not be relabelled a timeout. */
+function asTimeoutFailure(
+  error: unknown,
+  signal: AbortSignal,
+  operation: string,
+): unknown {
+  if (!signal.aborted) return error;
+  return new DesignRequestFailedError(
+    operation,
+    `no response within ${String(LOAD_TIMEOUT_MS)} ms`,
+  );
+}
 
 function designEndpointFor(id: DesignId): string {
   return `${DESIGNS_ENDPOINT}/${encodeURIComponent(id)}`;

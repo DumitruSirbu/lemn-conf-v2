@@ -145,19 +145,6 @@ describe("the notice says which of the two situations this is", () => {
     expect(notice?.tone).toBe("error");
   });
 
-  it("says the same of an unauthorized save after a load that could not know", () => {
-    // `/d/{id}` hydrates `"unknown"` and the panel stays interactive on purpose, so the edit-was-
-    // -lost window is reachable from there too — and `"unknown"` must not fall through to the
-    // never-attempted copy.
-    const notice = openPanel(occupiedMeta(), {
-      canWrite: "unknown",
-      saveStatus: "unauthorized",
-    }).notice;
-
-    expect(notice?.kind).toBe("read-only-refused");
-    expect(notice?.message).toBe(ro.panel.readOnlyRefusedNotice);
-  });
-
   it("keeps the never-attempted copy when the load itself said read-only", () => {
     // `canWrite: false` disabled every control from the first frame, so nothing was attempted and
     // nothing was lost. Claiming a lost edit here would be false.
@@ -179,12 +166,83 @@ describe("the notice says which of the two situations this is", () => {
     expect(ro.panel.readOnlyNotice).not.toContain("a fost creată");
   });
 
-  it("leaves the panel interactive while the write-access probe is still unanswered", () => {
-    // The whole purpose of `"unknown"` (ADR 0019 decision 1: `/d/{id}` cannot carry the cookie).
-    // Disabling controls until the probe answers would tell a design's own author they may not
-    // edit their own kitchen.
+  it("offers no edit while the write-access probe is still unanswered", () => {
+    // Finding WEB-002, and the inversion of what this file used to assert. `/d/{id}` hydrates
+    // `"checking"` because ADR 0019 decision 1's cookie could not reach the page's own request —
+    // and an unanswered question satisfies nothing, which is exactly what §9's "never offer what
+    // cannot be satisfied" forbids offering. The alternative shipped a believable but non-persisted
+    // configuration: the reader edited, the write was refused, and the controls disabled only then.
     const panel = openPanel(occupiedMeta(), {
-      canWrite: "unknown",
+      canWrite: "checking",
+      saveStatus: "idle",
+    });
+
+    expect(panel.notice?.kind).toBe("access-checking");
+    // Not a fault: nothing has gone wrong, something is merely still in flight.
+    expect(panel.notice?.tone).toBe("info");
+    expect(panel.notice?.message).toBe(ro.panel.accessCheckingNotice);
+    expect(
+      findSection(panel, "finish").chips.every((chip) => chip.isDisabled),
+    ).toBe(true);
+    expect(
+      findSection(panel, "replace").rows.every((row) => row.isDisabled),
+    ).toBe(true);
+    expect(panel.footer.isRemoveDisabled).toBe(true);
+  });
+
+  it("renders the design while the probe is unanswered, rather than withholding it", () => {
+    // The finding asks for the controls to wait, not for the page to. A blank panel behind a
+    // spinner would be a second product change nobody asked for, and §9's header is a fact about
+    // the selection that no access answer can alter.
+    const panel = openPanel(occupiedMeta(), { canWrite: "checking" });
+
+    expect(panel.header.label).toBe(occupiedMeta().label);
+    expect(panel.sections).not.toHaveLength(0);
+  });
+
+  it("says the access check failed, retryably, rather than granting interactivity", () => {
+    // The probe rejected — a dropped request, a blocked API, an offline browser. Nothing knows
+    // whether this browser may write, so nothing may be offered; but the failure is transient by
+    // nature, so the notice carries the one action that can change the answer.
+    const panel = openPanel(occupiedMeta(), {
+      canWrite: "check-failed",
+      saveStatus: "idle",
+    });
+
+    expect(panel.notice?.kind).toBe("access-uncheckable");
+    expect(panel.notice?.tone).toBe("error");
+    expect(panel.notice?.message).toBe(ro.panel.accessUncheckableNotice);
+    expect(panel.notice?.retryLabel).toBe(ro.panel.accessRetryLabel);
+    expect(
+      findSection(panel, "finish").chips.every((chip) => chip.isDisabled),
+    ).toBe(true);
+    expect(panel.footer.isRemoveDisabled).toBe(true);
+  });
+
+  it("offers a retry on no other notice, so the only actionable one is the one that is", () => {
+    // A retry beside "you cannot edit this design" or beside a failed save would be a button that
+    // cannot help — §9's own rule, applied to the notice rather than to a control.
+    const unanswerable: readonly Parameters<typeof openPanel>[1][] = [
+      { canWrite: false },
+      { canWrite: true, saveStatus: "unauthorized" },
+      { canWrite: true, saveStatus: "error" },
+      { canWrite: true, saveStatus: "stopped" },
+      { canWrite: "checking" },
+    ];
+
+    for (const overrides of unanswerable) {
+      expect(openPanel(occupiedMeta(), overrides).notice?.retryLabel).toBe(
+        undefined,
+      );
+    }
+    expect(unanswerable).toHaveLength(5);
+  });
+
+  it("takes the probe's answer as the thing that opens the panel", () => {
+    // The other half of the wait: `true` is the only value that unlocks anything, and it must
+    // actually unlock it — a check that never re-enables the controls is a read-only app.
+    const panel = openPanel(occupiedMeta(), {
+      canWrite: true,
       saveStatus: "idle",
     });
 
@@ -196,6 +254,23 @@ describe("the notice says which of the two situations this is", () => {
       findSection(panel, "replace").rows.some((row) => row.isDisabled),
     ).toBe(false);
     expect(panel.footer.isRemoveDisabled).toBe(false);
+  });
+
+  it("never says 'Doar vizualizare' about a state nothing has answered", () => {
+    // The reason travels with every greyed control (§13.1), and it is a different fact in each of
+    // the three locked states. "Doar vizualizare" asserts a permission the page has been told
+    // about; while the probe is out, nobody has told it anything.
+    for (const canWrite of ["checking", "check-failed"] as const) {
+      const panel = openPanel(occupiedMeta(), { canWrite });
+      const reasons = stringsWithin(panel.sections);
+
+      expect(reasons).not.toContain(ro.panel.readOnlyReason);
+      expect(panel.footer.removeDisabledReason).not.toBe(
+        ro.panel.readOnlyReason,
+      );
+    }
+    expect(ro.panel.accessCheckingReason).not.toBe(ro.panel.readOnlyReason);
+    expect(ro.panel.accessUncheckableReason).not.toBe(ro.panel.readOnlyReason);
   });
 
   it("never dresses read-only as a failed save, whatever the status", () => {

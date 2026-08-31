@@ -1,6 +1,11 @@
 import { assertSafeTestDatabaseUrl, loadEnvLocal } from "@lemnaria/persistence";
 import { defineConfig, devices } from "@playwright/test";
 
+import {
+  SELECTION_DEBUG_FLAG,
+  SELECTION_DEBUG_FLAG_ENABLED,
+} from "./src/app/configurator/configure/selection-debug-availability";
+
 // The application's own `DATABASE_URL` has to be readable here for `assertSafeTestDatabaseUrl` to
 // have anything to compare against; without it the guard can only pass vacuously (finding DB-001).
 loadEnvLocal();
@@ -60,7 +65,14 @@ export default defineConfig({
     // `.env.local`, i.e. the application's own database. ADR 0006 exists because a suite pointed
     // at real customer data needs only one careless statement to destroy it.
     reuseExistingServer: false,
-    env: { DATABASE_URL: exportTestDatabaseUrl() },
+    env: {
+      DATABASE_URL: exportTestDatabaseUrl(),
+      // `SelectionDebug` is off in every build that does not ask for it (finding WEB-004), and this
+      // suite is the one thing that asks. It is set here rather than in an env file so the opt-in
+      // travels with the runner that needs it: a developer running `next dev` by hand gets a
+      // production-shaped page, and no deployed environment can inherit the flag by accident.
+      [SELECTION_DEBUG_FLAG]: SELECTION_DEBUG_FLAG_ENABLED,
+    },
     timeout: 60_000,
   },
 });

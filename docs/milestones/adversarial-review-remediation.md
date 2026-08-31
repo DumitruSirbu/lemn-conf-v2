@@ -781,3 +781,167 @@ open findings were named only in this milestone's summary rather than under STAT
 open right now* heading, now listed there with the honest note that their descriptions exist only in
 untracked `testing-reports/`, so without that folder they survive as bare identifiers.
 
+
+## Wave S7 — WEB-002 + WEB-004
+
+Two findings from `testing-reports/02-web-state-and-client-persistence.md`, both about the web app
+offering more than it can deliver. Nothing in this wave touches authorisation: ADR 0019 decision 1's
+write token, `saveAuthorized` and `/api/designs/[id]` are all unchanged, and `canWrite` remains
+advisory. What changed is what the interface **offers**.
+
+### WEB-002 (Medium) — unknown authorization was exposed as writable, and probe failure was silent
+
+`/d/{id}` hydrated `canWrite: "unknown"` and `describePanel` deliberately read that as writable, so
+the panel rendered fully interactive before anything knew whether this browser could write. The
+follow-up probe swallowed every failure, leaving that optimism standing permanently. A share-link
+reader on a slow or blocked API therefore edited, believed the edit saved, and had the controls
+disabled only *after* the write was refused — with the unsaved edit still on screen. That is
+`docs/design/DEVELOPMENT-SPEC.md` §9's "never offer what cannot be satisfied", inverted: an
+unanswered question satisfies nothing.
+
+**Acceptance criteria**
+
+- `WriteAccess` names the unanswered states rather than defaulting them: `"checking"` (a check is in
+  flight) and `"check-failed"` (it failed and none is running). Only `true` unlocks the panel —
+  `isReadOnly` asks `!== true`, where it used to ask `=== false`.
+- `/d/{id}` renders the design normally while the check is out; only the mutation controls wait.
+- A probe rejection produces a retryable *access could not be checked* notice, not silence and not a
+  guess in either direction. `retryWriteAccessCheck` puts `canWrite` back to `"checking"`, which is
+  what the probe effect watches — the trigger and the state are one value, not two that can drift.
+- A boolean the server actually gave is never demoted back to unknown by a later failure.
+- Every greyed control carries the reason for *its* state (§13.1). "Doar vizualizare" asserts a
+  permission, so it is no longer said while nothing has answered; `PanelEditability` resolves the
+  sentence once per panel and threads it, replacing the `readOnly: boolean` that was threaded before.
+- No write path reads any of this.
+
+### WEB-004 (Low) — test-only telemetry shipped to every customer
+
+`ConfigureScreen` rendered `SelectionDebug` unconditionally, publishing selection ids, derived
+opening dimensions, save status, design id, probe state and rejection code into DOM attributes on the
+production surface.
+
+**Acceptance criteria**
+
+- Gated behind `NEXT_PUBLIC_LEMNARIA_ENABLE_SELECTION_DEBUG=1`, default off, following the shape and
+  naming of `apps/web/src/app/internal/scene-shot/route-availability.ts` so the repository has one
+  pattern for "test-only surface" rather than two.
+- **No development exemption.** `NODE_ENV === "development"` does not imply E2E observability; the
+  report is explicit about this and the flag is the only way in.
+- `NEXT_PUBLIC_`-prefixed because that is the only prefix Next exposes to client code at all.
+  **Corrected after review (S7-F3):** this record first claimed the readout was *eliminated* from a
+  build without the flag. It is not. A production build with the variable absent emits a runtime read
+  against Next's `process` shim rather than folding the comparison, and the client chunk still
+  contains the readout's markup and attribute names as unreachable code. The security outcome is
+  unchanged and WEB-004 is closed on its own terms — the component returns `null` and no
+  `[data-testid="selection-debug"]` node reaches the page — but "does not render" is the true claim
+  and "is stripped from the bundle" is not.
+- The gate returns before any hook runs, so the store subscriptions never execute.
+- `playwright.config.ts` sets the flag on the dev server it starts — the opt-in travels with the
+  runner that needs it, and no deployed environment can inherit it.
+
+### Env var (add-only)
+
+`NEXT_PUBLIC_LEMNARIA_ENABLE_SELECTION_DEBUG`, documented in `.env.example`. **The owner must not set
+it** in any deployed environment; the e2e runner sets it for itself.
+
+### What was actually run
+
+| Command | Result |
+| --- | --- |
+| `pnpm --filter @lemnaria/web test` | 39 passed, 1 skipped (40 files); 629 passed, 4 skipped |
+| `pnpm --filter @lemnaria/web typecheck` | clean |
+| `pnpm --filter @lemnaria/web lint` | clean (one `no-unnecessary-boolean-literal-compare` found and fixed on the way) |
+| `pnpm --filter @lemnaria/web test:e2e` | 20 passed, 1 skipped, **1 failed** — `signature-flow.e2e.spec.ts`, pre-existing |
+| `playwright test read-only-panel --project=mobile` | 1 passed — the spec WEB-002 changes the premise of |
+
+The e2e failure is **not this wave's**: `signature-flow.e2e.spec.ts` fails identically at `3bbb4d1`
+with this wave's changes stashed, at `offer-base-2door` resolving to 0 elements. Verified by running
+it on the stashed tree, not inferred.
+
+Two further checks were run rather than reasoned about, because the WEB-004 gate depends on a Next
+build-time substitution that a unit test cannot observe: a `next dev` server started **without** the
+flag serves `/configurator/configure` with no `data-testid="selection-debug"` in the HTML, and the
+same server started **with** `NEXT_PUBLIC_LEMNARIA_ENABLE_SELECTION_DEBUG=1` serves it. The Playwright
+suite passing its `readSelection` assertions on the same wiring is the third piece of that evidence.
+
+### Tests
+
+New behaviour is pinned in `apps/web/tests/panel/panel-model.read-only.test.ts` (the probe unanswered
+disables the controls and renders the design; a rejection is retryable and does not enable editing;
+`true` re-enables; the retry is offered on no other notice; "Doar vizualizare" is never said about an
+unanswered state), `apps/web/tests/store/configurator-store.test.ts` (a failed check is recorded, is
+per-design, never demotes a real answer, and the retry round-trips to a writable panel) and
+`apps/web/tests/app/configurator/configure/selection-debug-availability.test.ts` (the flag predicate,
+its `NEXT_PUBLIC_` prefix, and `renderToStaticMarkup(SelectionDebug)` producing the empty string in a
+build that did not opt in, including under `NODE_ENV=development`).
+
+Each was checked to fail against the previous implementation rather than assumed to: restoring
+`isReadOnly`'s `=== false` fails 2 of the panel tests, and removing the `SelectionDebug` gate fails 2
+of the availability tests.
+
+`vitest.config.ts` gained `esbuild: { jsx: "automatic" }` — the app's `tsconfig.json` sets
+`jsx: "preserve"` for Next's own transform, so a `.tsx` module imported by a test would otherwise
+reach the runtime as raw JSX.
+
+### S7 review round — approved with findings, and one of them was a regression this wave introduced
+
+Verdict: **APPROVED WITH FINDINGS**. The security boundary was confirmed unmoved, the state machine
+checked for stale-probe, demotion, retry re-fire and loop holes, and both falsifiability claims
+reproduced at the counts given. Three findings required a fix.
+
+**S7-F1 (Medium) — the fix converted a hang into a permanent dead end, and that is the one worth
+recording.** WEB-002's own wording is "a slow or *blocked* API". This wave handled
+blocked-and-rejecting and missed blocked-and-hanging: `loadWithAccess` issued its `GET` with no
+`AbortSignal` and no timeout, so a captive portal or a blackholing mobile network left the promise
+pending forever, `canWrite` stuck on `"checking"` — and `"checking"` deliberately carries no retry,
+because only `"check-failed"` does. The design's own author would have sat on an indefinitely
+disabled panel reading "Se verifică accesul" with no control to press, escapable only by a reload
+that hangs identically.
+
+**Before this wave the same hang was invisible**, because the panel was optimistically writable
+while it hung. Making the unanswered state honest is what exposed it — the fix did not create the
+network condition, it removed the false interactivity that was hiding it, and stopped one step
+short. That is the shape to remember: closing a "we guessed instead of waiting" defect creates a
+"we wait forever" defect unless the wait is bounded in the same change.
+
+Fixed by bounding the **read** path only, with `LOAD_TIMEOUT_MS = 10_000` in
+`fetch-configuration-repository.ts`. Ten seconds is long enough for a cold serverless function plus
+a Neon cold start over a slow mobile connection and short enough that a blackholed request does not
+hold the controls for a minute; being too short costs one press of the retry, having no bound costs
+a dead end. A save is left unbounded on purpose — the coalescer already owns retry, backoff and a
+terminal state, and aborting a `PUT` in flight would leave the browser unable to say whether the
+write landed, which is worse than slow. The abort lands in the `.catch` that was already there and
+becomes `"check-failed"`: no new state, no new string. Built from an `AbortController` plus a
+cleared timer rather than `AbortSignal.timeout`, so a test can advance it and so a completed load
+leaves no pending timer behind.
+
+**S7-F2 (Low) — the retry was a 32 px target.** `--touch-target` is 44 px, `--chip-height` is 44 px,
+and DEVELOPMENT-SPEC §10.1 requires ≥ 44 px on mobile; the comment above the rule named 44 px and
+then set 32. It is also the only control that escapes `check-failed`, so it was the worst one to
+under-size. Now `inline-flex` with `min-height: var(--touch-target)`, still inline with the
+sentence. The reviewer's a11y note — the button sits inside the `role="status"` live region, so a
+press re-announces it — was considered and deliberately kept: the press changes the sentence from
+"could not be checked" to "checking", and that announcement is the only confirmation a
+screen-reader user gets that anything happened.
+
+**S7-F3 (Low) — wording corrected, above.**
+
+**S7-F4 (Info) — a known limitation, recorded rather than fixed.** WEB-004's remediation asked for a
+production-build assertion that `[data-testid="selection-debug"]` does not exist. What shipped is a
+`renderToStaticMarkup` test: a fair proxy for the component, but it does not observe the Next
+substitution — precisely the step S7-F3 shows behaving differently from what was documented. So
+**nothing in CI would catch `NEXT_PUBLIC_LEMNARIA_ENABLE_SELECTION_DEBUG` being set in a deployed
+environment**; `.env.example` carries a prose warning and nothing enforces it. Closing that properly
+means asserting against a real `next build` output, which is a build-time gate this repository does
+not have and which was not in this wave's scope.
+
+**Also recorded:** the reviewer did not run `signature-flow.e2e.spec.ts` or
+`read-only-panel.e2e.spec.ts`. It verified structurally that S7 cannot have caused the
+signature-flow failure — that spec never visits `/d/{id}`, where the store default makes the old and
+new `isReadOnly` bit-identical — but the stash comparison in the section above remains the only
+empirical evidence for it.
+
+**Gates after the review fixes:** `pnpm --filter @lemnaria/web test` → 40 passed, 1 skipped (41
+files); 634 passed, 4 skipped (638). `typecheck` and `lint` clean.
+`playwright test read-only-panel --project=mobile` → 1 passed, re-run because S7-F2 touches that
+surface.

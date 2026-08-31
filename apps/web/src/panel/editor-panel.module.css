@@ -142,6 +142,32 @@
   background: #fdf3f3;
 }
 
+/* The retry beside an "access could not be checked" notice. Inline with the sentence rather than on
+ * its own row: it is the same statement's verb, and at 390 px a second block would push §9's first
+ * section below the fold.
+ *
+ * `--touch-target`, not a smaller number chosen to sit prettily in a line of text. §10.1 sets the
+ * floor at 44 px on mobile and this is the one control that escapes `check-failed` — the worst
+ * control in the panel to under-size (finding S7-F2). `inline-flex` is what lets an inline element
+ * honour a 44 px box and still centre its label; the top margin keeps the taller box from crowding
+ * the line above it when the sentence wraps. */
+.notice .noticeAction {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--touch-target);
+  margin-top: 4px;
+  margin-left: 6px;
+  padding: 4px 12px;
+  vertical-align: middle;
+  font: inherit;
+  font-weight: 600;
+  color: inherit;
+  background: transparent;
+  border: 1px solid currentColor;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
 /* §9: the banner sits at the top of the panel body, above every section. Authored inside the width
  * section it was invisible on exactly the fixed-width bodies that refuse most. */
 .rejection {

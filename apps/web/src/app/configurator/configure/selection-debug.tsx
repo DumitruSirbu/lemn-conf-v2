@@ -3,6 +3,8 @@
 import { useConfiguratorStore } from "@/store/configurator-store";
 import { useSelectionMeta } from "@/panel/use-panel-view";
 
+import { isSelectionDebugEnabled } from "./selection-debug-availability";
+
 /**
  * Test-only observability hook. Not customer-facing, `hidden`, and rendered by `ConfigureScreen`.
  *
@@ -20,8 +22,27 @@ import { useSelectionMeta } from "@/panel/use-panel-view";
  *
  * Nothing here decides anything: `useSelectionMeta` is the same projection §9's panel reads, so a
  * test asserting on these numbers is asserting on the numbers the panel was given.
+ *
+ * **Off unless the build opted in** (finding WEB-004). Without the flag this returns `null`, so
+ * nothing renders and none of the readout's hooks or store subscriptions run. The unreachable code
+ * is still in the client chunk — Next does not fold the comparison when the variable is absent at
+ * build time (finding S7-F3) — which costs bytes and publishes nothing. See
+ * `selection-debug-availability.ts` for that in full, and for why development is not an exemption.
  */
 export function SelectionDebug() {
+  if (
+    !isSelectionDebugEnabled(
+      process.env.NEXT_PUBLIC_LEMNARIA_ENABLE_SELECTION_DEBUG,
+    )
+  )
+    return null;
+  return <SelectionDebugReadout />;
+}
+
+/** The readout itself, split from the gate above so that the gate can return before a single hook
+ *  runs — a conditional `return null` after `useConfiguratorStore` would be a hook-order violation,
+ *  and eliminating the subscription is half the point of the flag. */
+function SelectionDebugReadout() {
   const selection = useConfiguratorStore((state) => state.selection);
   const meta = useSelectionMeta();
   const saveStatus = useConfiguratorStore((state) => state.saveStatus);

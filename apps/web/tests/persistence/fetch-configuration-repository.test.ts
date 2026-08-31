@@ -292,6 +292,51 @@ describe("FetchConfigurationRepository", () => {
     expect(requests[0]?.method).toBe("GET");
   });
 
+  it("gives up on a load that never settles, so the panel is not stranded", async () => {
+    // Finding S7-F1. `fetch` does not distinguish a hung request from a slow one, and `/d/{id}`'s
+    // probe reads a pending promise as "still checking" — a state that carries no retry. Without a
+    // bound, a blackholed request disables the panel permanently for the design's own author.
+    vi.useFakeTimers();
+    const repository = new FetchConfigurationRepository();
+    vi.stubGlobal("fetch", (_url: string, init: RequestInit) => {
+      return new Promise<Response>((_resolve, reject) => {
+        init.signal?.addEventListener("abort", () => {
+          reject(new DOMException("Aborted", "AbortError"));
+        });
+      });
+    });
+
+    const load = repository.loadWithAccess("design-1");
+    // Attached before the timers run, so the rejection is never unhandled.
+    const outcome = load.catch((error: unknown) => error);
+    await vi.advanceTimersByTimeAsync(10_000);
+
+    // The adapter's own error type, not the browser's `DOMException`: a caller branching on this
+    // module's contract would not recognise the latter.
+    expect(await outcome).toBeInstanceOf(DesignRequestFailedError);
+    vi.useRealTimers();
+  });
+
+  it("leaves a load that answers in time untouched, and cancels nothing behind it", async () => {
+    // The other side of the bound: the timeout must not fire against a completed request, which is
+    // what the cleared timer is for. `vi.getTimerCount()` is the observation that proves it.
+    vi.useFakeTimers();
+    const repository = new FetchConfigurationRepository();
+    responses.push(() =>
+      jsonResponse({
+        id: "design-1",
+        design: KITCHEN_L_DESIGN,
+        canWrite: true,
+      }),
+    );
+
+    const loaded = await repository.loadWithAccess("design-1");
+
+    expect(loaded.canWrite).toBe(true);
+    expect(vi.getTimerCount()).toBe(0);
+    vi.useRealTimers();
+  });
+
   it("reports canWrite: false when the route says so", async () => {
     const repository = new FetchConfigurationRepository();
     responses.push(() =>

@@ -81,12 +81,25 @@ export function EditorPanel({ view }: { readonly view: PanelView }) {
  *  the same moment its first message appears can be announced late or not at all — and for a
  *  read-only customer this notice is the only thing explaining why nothing responds. Empty it
  *  collapses to nothing visible (`[data-empty="true"]`); it is not hidden, because `display: none`
- *  would take it back out of the tree and undo the whole point. */
+ *  would take it back out of the tree and undo the whole point.
+ *
+ *  The retry button appears exactly when the notice carries a label for one — the write-access
+ *  check having failed (finding WEB-002). Whether it is offered is `describePanel`'s decision, not
+ *  this component's; what it does is wiring, and wiring is what belongs here.
+ *
+ *  It sits **inside** the live region, and that is the right place for it rather than an oversight:
+ *  pressing it moves `canWrite` back to `"checking"`, so the sentence beside it changes from "could
+ *  not be checked" to "checking". Re-announcing the region is exactly what should happen — the
+ *  press has no other visible result, and a screen-reader user would otherwise have no confirmation
+ *  that anything happened at all. */
 function PanelNoticeRow({
   notice,
 }: {
   readonly notice: PanelNotice | undefined;
 }) {
+  const retryWriteAccessCheck = useConfiguratorStore(
+    (state) => state.retryWriteAccessCheck,
+  );
   return (
     <p
       className={styles.notice}
@@ -97,6 +110,16 @@ function PanelNoticeRow({
       data-testid="panel-notice"
     >
       {notice?.message ?? ""}
+      {notice?.retryLabel ? (
+        <button
+          type="button"
+          className={styles.noticeAction}
+          data-testid="panel-access-retry"
+          onClick={retryWriteAccessCheck}
+        >
+          {notice.retryLabel}
+        </button>
+      ) : null}
     </p>
   );
 }

@@ -115,13 +115,43 @@ export const ro = {
      *  list, and the explanation is already stated once above it. */
     readOnlyReason: "Doar vizualizare",
     /**
+     * The panel while `/d/{id}`'s write-access probe is still in flight (`canWrite: "checking"`).
+     *
+     * Nothing is wrong, so the tone is `info` and the sentence is a statement about a wait rather
+     * than about a permission. It has to exist because the controls are disabled meanwhile: §13.1
+     * asks for the reason beside every greyed control, and "Doar vizualizare" would be a claim the
+     * page has not earned — the probe may be about to say this browser owns the design.
+     */
+    accessCheckingNotice:
+      "Se verifică dacă poți modifica această configurație. Până atunci o poți doar vedea.",
+    /** The same wait on the control that carries it, kept short for the reason `readOnlyReason` is
+     *  two words: it repeats down a ten-row list under a sentence that already explains it. */
+    accessCheckingReason: "Se verifică accesul",
+    /**
+     * **Wave S7, finding WEB-002.** The probe failed — a dropped request, a blocked API, an offline
+     * browser — so nothing knows whether this browser may edit, and no further attempt is running.
+     *
+     * It reads as a fault (`error`) because one occurred, and it is the one notice with an action
+     * attached: the failure is transient by nature, so the sentence's promise is that pressing
+     * retry can genuinely change the answer. It must not say "you cannot edit this" — that is an
+     * authorisation claim nothing here has evidence for, and it would be false for the design's own
+     * author on a flaky connection. What it does say plainly is that an edit made now would not be
+     * stored, because that is the loss the old optimistic behaviour delivered silently.
+     */
+    accessUncheckableNotice:
+      "Nu am putut verifica dacă poți modifica această configurație. Până când verificarea reușește o poți doar vedea — o modificare făcută acum nu s-ar salva.",
+    /** Not "Doar vizualizare": that states a permission, and this state is the absence of one. */
+    accessUncheckableReason: "Acces neverificat",
+    /** The action on `accessUncheckableNotice`, and the only action any notice carries. */
+    accessRetryLabel: "Încearcă din nou",
+    /**
      * Read-only reached the **other** way: the load believed this browser could write, the panel
      * rendered fully interactive, the customer edited — and the save came back 403.
      *
-     * That window is real and is not closed on purpose. `/d/{id}` cannot know about the write cookie
-     * from its own request, so it hydrates `"unknown"` and the panel stays interactive until the
-     * probe answers; disabling everything meanwhile would tell a design's own author they may not
-     * edit their own kitchen. The cost is that an edit made inside the window is applied on screen
+     * The `/d/{id}` route into this window was closed in wave S7 (finding WEB-002): the panel no
+     * longer renders interactive on a `canWrite` nothing has answered. What remains reachable is a
+     * credential that was present and is not accepted — expired between load and save, or forged —
+     * which `hasWriteCredentialFor` can only discover by being asked. The edit is applied on screen
      * and will never be stored, and `readOnlyNotice` — written for a browser that was never offered
      * an edit at all — says nothing about it.
      *

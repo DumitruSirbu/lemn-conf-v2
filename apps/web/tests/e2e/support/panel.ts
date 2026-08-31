@@ -7,7 +7,9 @@ import type { Page } from "@playwright/test";
  *
  * The verbs are driven through the real panel — `panel-remove` and the `offer-{buildId}` rows —
  * which is what M4 replaced `TemporaryDevControls` with. The numbers the specs assert on come from
- * `[data-testid="selection-debug"]`, the one hook `ConfigureScreen` renders for the purpose.
+ * `[data-testid="selection-debug"]`, the one hook `ConfigureScreen` renders for the purpose. That
+ * hook exists only in a build that set `NEXT_PUBLIC_LEMNARIA_ENABLE_SELECTION_DEBUG=1` (finding
+ * WEB-004); `playwright.config.ts` sets it on the server it starts, and nothing else does.
  *
  * The column under test is the fridge column of `KITCHEN_L_DESIGN` (`B|2.45`), which stands on
  * **wall B**. The overview preset frames it behind the near cabinets, so every helper here assumes

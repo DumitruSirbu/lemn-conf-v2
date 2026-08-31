@@ -91,11 +91,12 @@ export interface WidthChip {
    *  Absent on `active` and on `free` in a writable panel: a width the body already has needs no
    *  explanation, and a reason beside a control that works is noise.
    *
-   *  **Read-only replaces it rather than clearing it**, on every chip including `active`, with
-   *  `ro.panel.readOnlyReason` — the panel's own sentence, not the engine's. A browser that cannot
-   *  write is not being told which widths its cabinet could reach; it is being told it cannot edit,
-   *  and two sentences under one chip would be the panel arguing with itself. This matches what
-   *  `describeChipAvailability` already does for the finish and handle swatches. */
+   *  **A locked panel replaces it rather than clearing it**, on every chip including `active`, with
+   *  `PanelEditability.disabledReason` — the panel's own sentence, not the engine's. A browser that
+   *  cannot write is not being told which widths its cabinet could reach; it is being told it
+   *  cannot edit, or that nothing yet knows whether it may. Two sentences under one chip would be
+   *  the panel arguing with itself. This matches what `describeChipAvailability` already does for
+   *  the finish and handle swatches. */
   readonly reason?: string;
 }
 
@@ -229,11 +230,18 @@ export interface PanelNotice {
   readonly kind:
     | "read-only"
     | "read-only-refused"
+    | "access-checking"
+    | "access-uncheckable"
     | "save-failed"
     | "save-stopped";
   /** Published resolved so the component styles rather than classifies. */
   readonly tone: "info" | "error";
   readonly message: string;
+  /** The label of the one action any notice offers, and therefore the flag that a notice has one:
+   *  present exactly on `access-uncheckable`, absent everywhere else. Published as a label rather
+   *  than as a boolean so the component renders a value and decides nothing — what pressing it does
+   *  is the shell's wiring (`retryWriteAccessCheck`), which is not a product rule. */
+  readonly retryLabel?: string;
 }
 
 /** Nothing selected is a real panel state, not a missing one: frames 2A and D2A show no panel at
@@ -294,8 +302,9 @@ export interface DescribePanelInput {
    *  disabled with that reason rather than tapped and then refused. */
   readonly isBodyProbeAttached: boolean;
   /** Whether this browser holds the design's write credential, as `GET /api/designs/{id}` reported
-   *  it — or `"unknown"` where no load could have answered. Advisory and never an authorisation
-   *  decision — see `hasWriteCredentialFor`. */
+   *  it — or `"checking"` / `"check-failed"` where no load has answered yet. Advisory and never an
+   *  authorisation decision — see `hasWriteCredentialFor`. Only `true` opens the controls; see
+   *  `isReadOnly`. */
   readonly canWrite: WriteAccess;
   readonly saveStatus: SaveStatus;
 }
@@ -305,48 +314,90 @@ const CLOSED_PANEL: ClosedPanel = { kind: "closed" };
 export function describePanel(input: DescribePanelInput): PanelView {
   const { meta } = input;
   if (!meta) return CLOSED_PANEL;
-  const readOnly = isReadOnly(input);
-  const notice = describeNotice(input, readOnly);
+  const editability = describeEditability(input);
+  const notice = describeNotice(input, editability);
   return {
     kind: "open",
     header: describeHeader(meta),
     ...(notice ? { notice } : {}),
-    sections: collectSections(input, meta, readOnly),
-    footer: {
-      canDelete: meta.canDelete,
-      isRemoveDisabled: readOnly,
-      ...(readOnly ? { removeDisabledReason: ro.panel.readOnlyReason } : {}),
-      removeLabel: ro.panel.remove,
-      doneLabel: ro.panel.done,
-    },
+    sections: collectSections(input, meta, editability),
+    footer: describeFooter(meta, editability),
+  };
+}
+
+function describeFooter(
+  meta: SelectionMeta,
+  editability: PanelEditability,
+): PanelFooter {
+  return {
+    canDelete: meta.canDelete,
+    isRemoveDisabled: editability.isReadOnly,
+    ...(editability.isReadOnly
+      ? { removeDisabledReason: editability.disabledReason }
+      : {}),
+    removeLabel: ro.panel.remove,
+    doneLabel: ro.panel.done,
+  };
+}
+
+/** Whether §9's controls may be offered at all, and — when they may not — the one sentence every
+ *  greyed control carries (§13.1). Resolved once per panel and threaded, so ten controls cannot
+ *  answer it in three different ways, and so adding a fourth `WriteAccess` state means editing one
+ *  function rather than six. */
+interface PanelEditability {
+  readonly isReadOnly: boolean;
+  /** Meaningless when `isReadOnly` is false, and never read there. */
+  readonly disabledReason: string;
+}
+
+function describeEditability(input: DescribePanelInput): PanelEditability {
+  return {
+    isReadOnly: isReadOnly(input),
+    disabledReason: describeDisabledReason(input.canWrite),
   };
 }
 
 /**
  * The one place "this panel may not edit" is decided, from the two independent ways it becomes
- * true: the load said so, or a save has already been refused.
+ * true: the load has not said it may, or a save has already been refused.
  *
  * The second is kept even though the first normally covers it. `canWrite` is presence of a cookie,
  * not proof it is the right one (`hasWriteCredentialFor`), so a stale or forged credential reads as
  * writable until a write is attempted — and `unauthorized` is that attempt's answer. Reading both
  * means the panel stops offering edits at the first refusal rather than at every one.
  *
- * Only an explicit `false` locks the panel: `"unknown"` is treated as writable, which is where the
- * `/d/{id}` load's deliberate optimism is spent (see `WriteAccess`). Written as `=== false` rather
- * than `!input.canWrite`, because the string is truthy and the falsy test would have been right by
- * accident rather than by rule.
+ * **Only an explicit `true` unlocks the panel** (wave S7, finding WEB-002). It used to be only an
+ * explicit `false` that locked it, which made `/d/{id}`'s "nobody has asked yet" an offer to edit:
+ * a reader on a slow or blocked API mutated local state, believed it saved, and had the controls
+ * disabled only after the write was refused, with the unsaved edit still on screen.
+ * `DEVELOPMENT-SPEC.md` §9's "never offer what cannot be satisfied" is exactly the rule that
+ * forbids it, and an unanswered question cannot satisfy anything.
+ *
+ * This changes what the interface **offers** and nothing about what the server **authorises**:
+ * `canWrite` stays advisory, ADR 0019 decision 1's write token is still the only thing a write is
+ * allowed on, and no write path reads this function.
  */
 function isReadOnly(input: DescribePanelInput): boolean {
-  return input.canWrite === false || input.saveStatus === "unauthorized";
+  return input.canWrite !== true || input.saveStatus === "unauthorized";
+}
+
+/** §13.1's "greyed and unclickable **with the reason**", where the reason is about this browser
+ *  rather than about this body. The three locked states are three different facts and must not
+ *  share a sentence: "Doar vizualizare" states a permission the page has been told about, and
+ *  saying it while the probe is still in flight would be a claim nothing has answered. */
+function describeDisabledReason(canWrite: WriteAccess): string {
+  if (canWrite === "checking") return ro.panel.accessCheckingReason;
+  if (canWrite === "check-failed") return ro.panel.accessUncheckableReason;
+  return ro.panel.readOnlyReason;
 }
 
 /** `undefined` when there is nothing to say, which is the ordinary case: a writable panel whose
  *  last save is `idle` or in flight says nothing at all, because "saved" is not news. */
 function describeNotice(
   input: DescribePanelInput,
-  readOnly: boolean,
+  editability: PanelEditability,
 ): PanelNotice | undefined {
-  if (readOnly) return describeReadOnlyNotice(input);
+  if (editability.isReadOnly) return describeLockedNotice(input);
   if (input.saveStatus === "error")
     return {
       kind: "save-failed",
@@ -363,18 +414,38 @@ function describeNotice(
 }
 
 /**
- * Which of the two read-only sentences this panel earned, decided by whether an edit was reachable
- * before the refusal.
+ * Which sentence a locked panel earned. Four states, told apart by what is true of each — none of
+ * them "read-only" in the same sense.
  *
- * `canWrite === false` means the load already said so: every control was disabled from the first
- * frame, nothing was attempted and nothing was lost, so the plain statement of fact is the whole
- * truth. Anything else — `true`, or `/d/{id}`'s `"unknown"` — means the panel rendered interactive
- * and the `unauthorized` that put it here is the answer to an edit the customer actually made. That
- * edit is on screen, no retry is coming for it, and the notice has to say so; its tone is `error`
- * for that reason alone, not because being read-only is a fault.
+ * `"checking"` and `"check-failed"` are both "nobody has answered", and they are separated by
+ * whether an answer is still coming: one is a wait, the other is a failure with a retry attached.
+ * Neither may borrow `readOnlyNotice`, which asserts a permission that has not been established.
+ *
+ * `canWrite === false` is the load having said so: every control was disabled from the first frame,
+ * nothing was attempted and nothing was lost, so the plain statement of fact is the whole truth.
+ * What falls through is `canWrite === true` with an `unauthorized` save — the only way a panel that
+ * was genuinely interactive reaches here, since wave S7 stopped the unanswered states from being
+ * interactive at all. That edit is on screen, no retry is coming for it, and the notice has to say
+ * so; its tone is `error` for that reason alone, not because being read-only is a fault.
  */
-function describeReadOnlyNotice(input: DescribePanelInput): PanelNotice {
-  if (input.canWrite === false)
+function describeLockedNotice(input: DescribePanelInput): PanelNotice {
+  if (input.canWrite === "checking")
+    return {
+      kind: "access-checking",
+      tone: "info",
+      message: ro.panel.accessCheckingNotice,
+    };
+  if (input.canWrite === "check-failed")
+    return {
+      kind: "access-uncheckable",
+      tone: "error",
+      message: ro.panel.accessUncheckableNotice,
+      retryLabel: ro.panel.accessRetryLabel,
+    };
+  // Narrowed to a boolean by the two checks above, so the falsy test is right by rule here rather
+  // than by accident. `isReadOnly` cannot rely on that — the string states are truthy there, which
+  // is why it asks `!== true` rather than reading `canWrite` as a boolean.
+  if (!input.canWrite)
     return {
       kind: "read-only",
       tone: "info",
@@ -405,13 +476,13 @@ function describeHeader(meta: SelectionMeta): PanelHeader {
 function collectSections(
   input: DescribePanelInput,
   meta: SelectionMeta,
-  readOnly: boolean,
+  editability: PanelEditability,
 ): PanelSection[] {
   const sections: PanelSection[] = [];
   if (input.rejection) {
     sections.push({ kind: "rejection", message: input.rejection.message });
   }
-  const offered = collectOfferedSections(input, meta, readOnly);
+  const offered = collectOfferedSections(input, meta, editability);
   if (offered.length === 0) {
     const structural = describeStructuralSection(meta);
     if (structural) sections.push(structural);
@@ -427,15 +498,15 @@ function collectSections(
 function collectOfferedSections(
   input: DescribePanelInput,
   meta: SelectionMeta,
-  readOnly: boolean,
+  editability: PanelEditability,
 ): PanelSection[] {
   const sections: PanelSection[] = [];
-  const replace = describeReplaceSection(input, meta, readOnly);
+  const replace = describeReplaceSection(input, meta, editability);
   if (replace) sections.push(replace);
-  if (meta.canFinish) sections.push(describeFinishSection(meta, readOnly));
-  if (meta.canHandle) sections.push(describeHandleSection(meta, readOnly));
+  if (meta.canFinish) sections.push(describeFinishSection(meta, editability));
+  if (meta.canHandle) sections.push(describeHandleSection(meta, editability));
   if (meta.canWidth) {
-    const width = describeWidthSection(input, meta, readOnly);
+    const width = describeWidthSection(input, meta, editability);
     if (width) sections.push(width);
   }
   return sections;
@@ -462,7 +533,7 @@ function describeStructuralSection(
 function describeReplaceSection(
   input: DescribePanelInput,
   meta: SelectionMeta,
-  readOnly: boolean,
+  editability: PanelEditability,
 ): ReplaceSection | undefined {
   if (!meta.canReplace) return undefined;
   if (!meta.empty && !isKnownKind(meta.kind)) return undefined;
@@ -475,7 +546,7 @@ function describeReplaceSection(
   const rows = input.offers.filter(isOffered).map((offer) =>
     describeOfferRow(offer, {
       isBodyProbeAttached: input.isBodyProbeAttached,
-      readOnly,
+      editability,
     }),
   );
   const title = meta.empty
@@ -512,7 +583,7 @@ function isOffered(offer: CatalogOffer): offer is OfferedCatalogOffer {
  *  would be a promise nothing here can keep. */
 interface OfferRowAvailability {
   readonly isBodyProbeAttached: boolean;
-  readonly readOnly: boolean;
+  readonly editability: PanelEditability;
 }
 
 /** §9's secondary line: the reason displaces the size on a disabled row, because at 390 px the row
@@ -533,16 +604,17 @@ function describeOfferRow(
     label: offer.label,
     secondaryLine: describeOfferSecondaryLine(offer, availability),
     isCurrent: offer.isCurrent,
-    isDisabled: availability.readOnly || !availability.isBodyProbeAttached,
+    isDisabled:
+      availability.editability.isReadOnly || !availability.isBodyProbeAttached,
     ...(thumbnailUrl === undefined ? {} : { thumbnailUrl }),
   };
 }
 
 function describeOfferSecondaryLine(
   offer: OfferedCatalogOffer,
-  { isBodyProbeAttached, readOnly }: OfferRowAvailability,
+  { isBodyProbeAttached, editability }: OfferRowAvailability,
 ): string {
-  if (readOnly) return ro.panel.readOnlyReason;
+  if (editability.isReadOnly) return editability.disabledReason;
   if (!isBodyProbeAttached) return ro.panel.probeUnavailable;
   return ro.panel.offerSize(offer.verdict.widthMm, offer.verdict.heightMm);
 }
@@ -610,18 +682,18 @@ function describeBuildableSpanMm(
 /** The disabled half of every `ChoiceChip`, in one place: §13.1 asks for the reason beside the
  *  greyed control, and read-only is the only thing that greys a finish or handle chip today. Spread
  *  into the chip so a clickable one carries no `reason` field at all. */
-function describeChipAvailability(readOnly: boolean): {
+function describeChipAvailability(editability: PanelEditability): {
   readonly isDisabled: boolean;
   readonly reason?: string;
 } {
-  return readOnly
-    ? { isDisabled: true, reason: ro.panel.readOnlyReason }
+  return editability.isReadOnly
+    ? { isDisabled: true, reason: editability.disabledReason }
     : { isDisabled: false };
 }
 
 function describeFinishSection(
   meta: SelectionMeta,
-  readOnly: boolean,
+  editability: PanelEditability,
 ): FinishSection {
   return {
     kind: "finish",
@@ -630,7 +702,7 @@ function describeFinishSection(
       value: finish,
       label: ro.panel.finishLabels[finish],
       isActive: meta.finish === finish,
-      ...describeChipAvailability(readOnly),
+      ...describeChipAvailability(editability),
     })),
     note: ro.panel.finishNote,
   };
@@ -641,7 +713,7 @@ function describeFinishSection(
  *  mark came from the default rather than from a choice. */
 function describeHandleSection(
   meta: SelectionMeta,
-  readOnly: boolean,
+  editability: PanelEditability,
 ): HandleSection {
   const active = meta.handle ?? meta.defaultHandle;
   return {
@@ -651,7 +723,7 @@ function describeHandleSection(
       value: handle,
       label: ro.panel.handleLabels[handle],
       isActive: active === handle,
-      ...describeChipAvailability(readOnly),
+      ...describeChipAvailability(editability),
     })),
     ...(meta.handle === undefined
       ? { note: ro.panel.handleDefaultNote(ro.panel.handleLabels[active]) }
@@ -680,7 +752,7 @@ function describeHandleSection(
 function describeWidthSection(
   input: DescribePanelInput,
   meta: SelectionMeta,
-  readOnly: boolean,
+  editability: PanelEditability,
 ): WidthSection | undefined {
   const options = input.widthOptions;
   if (options.length === 0) return undefined;
@@ -695,15 +767,15 @@ function describeWidthSection(
       ...head,
       control: "stepper",
       steps: [
-        describeWidthStep("narrower", steps.narrower, readOnly),
-        describeWidthStep("wider", steps.wider, readOnly),
+        describeWidthStep("narrower", steps.narrower, editability),
+        describeWidthStep("wider", steps.wider, editability),
       ],
       note: ro.panel.widthStepNote,
     };
   return {
     ...head,
     control: "choice",
-    chips: options.map((option) => describeWidthChip(option, readOnly)),
+    chips: options.map((option) => describeWidthChip(option, editability)),
     note: ro.panel.widthChoiceNote,
   };
 }
@@ -738,15 +810,15 @@ function isSteppedColumn(ranges: readonly WidthRangeMm[]): boolean {
 function describeWidthStep(
   direction: WidthStepDirection,
   option: WidthOption,
-  readOnly: boolean,
+  editability: PanelEditability,
 ): WidthStepButton {
   return {
     direction,
     widthMm: option.widthMm,
     label: ro.panel.widthStepLabels[direction],
     ariaLabel: ro.panel.widthStepAriaLabels[direction],
-    isDisabled: readOnly || option.verdict.status !== "available",
-    ...describeWidthStepReason(option.verdict, readOnly),
+    isDisabled: editability.isReadOnly || option.verdict.status !== "available",
+    ...describeWidthStepReason(option.verdict, editability),
   };
 }
 
@@ -754,9 +826,9 @@ function describeWidthStep(
  *  `describeWidthChipReason` and `describeChipAvailability` use. */
 function describeWidthStepReason(
   verdict: WidthOption["verdict"],
-  readOnly: boolean,
+  editability: PanelEditability,
 ): { readonly reason?: string } {
-  if (readOnly) return { reason: ro.panel.readOnlyReason };
+  if (editability.isReadOnly) return { reason: editability.disabledReason };
   if (verdict.status !== "refused") return {};
   return { reason: renderRejection(verdict.reason) };
 }
@@ -769,14 +841,17 @@ function describeWidthStepReason(
  *  Read-only takes the reason line as well as the click, and takes it first: a browser that cannot
  *  write is not being told which widths its cabinet could reach, it is being told it cannot edit.
  *  Two sentences under one chip would be the panel arguing with itself. */
-function describeWidthChip(option: WidthOption, readOnly: boolean): WidthChip {
+function describeWidthChip(
+  option: WidthOption,
+  editability: PanelEditability,
+): WidthChip {
   const state = describeWidthChipState(option.verdict);
   return {
     widthMm: option.widthMm,
     label: String(option.widthMm),
     state,
-    isDisabled: isWidthChipDisabled(state, readOnly),
-    ...describeWidthChipReason(option.verdict, readOnly),
+    isDisabled: isWidthChipDisabled(state, editability),
+    ...describeWidthChipReason(option.verdict, editability),
   };
 }
 
@@ -797,9 +872,9 @@ function describeWidthChipState(
  *  `describeChipAvailability` uses for the finish and handle swatches. */
 function describeWidthChipReason(
   verdict: WidthOption["verdict"],
-  readOnly: boolean,
+  editability: PanelEditability,
 ): { readonly reason?: string } {
-  if (readOnly) return { reason: ro.panel.readOnlyReason };
+  if (editability.isReadOnly) return { reason: editability.disabledReason };
   if (verdict.status !== "refused") return {};
   return { reason: renderRejection(verdict.reason) };
 }
@@ -809,7 +884,7 @@ function describeWidthChipReason(
  *  that cannot write — which would leave this the one section offering what cannot be satisfied. */
 function isWidthChipDisabled(
   state: WidthChipState,
-  readOnly: boolean,
+  editability: PanelEditability,
 ): boolean {
-  return readOnly || state !== "free";
+  return editability.isReadOnly || state !== "free";
 }

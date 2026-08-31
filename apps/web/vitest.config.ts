@@ -3,6 +3,10 @@ import { resolve } from "node:path";
 import { defineConfig } from "vitest/config";
 
 export default defineConfig({
+  // `tsconfig.json` sets `jsx: "preserve"` because Next does its own JSX transform. Vitest has no
+  // such downstream step, so a `.tsx` module imported by a test would arrive at the runtime as raw
+  // JSX. Named here rather than in the tsconfig, which is the application's contract with Next.
+  esbuild: { jsx: "automatic", jsxImportSource: "react" },
   test: {
     environment: "node",
     include: ["tests/**/*.test.ts"],
