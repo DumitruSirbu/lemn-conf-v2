@@ -819,6 +819,70 @@ ships at M8 — which is blocked on the credential question recorded in that gat
 system may currently delete.
 
 
+## 15. A wall cabinet over a full-height column is built to a depth no one manufactures — NEEDS A DECISION
+
+**Reproduced live in the running product at 390 x 844, 2026-08-31**, during wave S9 of the
+adversarial-review remediation. Delete `p24` — the cabinet over the fridge — and insert a
+`wall-cabinet` back into the void it vacates. The document written to the database carries
+**`seatDepthMm: 703`**: a 742 mm finished wall cabinet hanging over a 680 mm appliance. It was
+persisted with `probe=on`, an **empty `rejection`**, and zero console errors. **No gate on that path
+paused.**
+
+**It has no user-facing tell, which is the part that makes it urgent.**
+
+- **The panel surfaces no depth at all.** The offer sheet for that opening reads *"Spatiu liber ·
+  Perete B · suspendat · 700 x 750 mm"* — width and height only. The 703 appears on **no screen in
+  the product**.
+- **Neither the void nor the rebuilt body looks wrong.** The void is a clean box above the fridge and
+  the rebuilt cabinet renders as a plausible deep cabinet. A person would flag neither, and would
+  catch it only by comparing against the 330 mm run on the other wall.
+- **No camera preset shows wall B at a grazing angle** — *Perete B* is face on and *Perete A* frames
+  the other run — so that column's depth is not legible in any view the product offers.
+
+Silent in the copy, silent in the render, and it lands as a carcass nobody ordered. That is what
+should decide its priority: a spec-to-manufacture defect, not a cosmetic one.
+
+**What is actually true in the code.** `resolveDepthM`'s uncapped arm reads `opening.d` when
+`hasFullHeightUnder` is true, and `opening.d` comes from `occupiedDepthM`. Two different facts are
+being served by one number:
+
+- *"the full extent a body occupies, handles included"* — a **clearance** fact, which is what §3.1
+  asks for and what `occupiedDepthM` computes;
+- *"the depth to build the next body to"* — a **manufactured size**, which is what `resolveDepthM`
+  hands the probe.
+
+Only the first is the one it computes. `packages/configurator-domain/src/worktop-depth.ts` exists
+precisely so a formula cannot invent a cabinet nobody makes — its declared map is a declaration and
+never an interpolation, *because* a formula would produce a 372 mm cabinet no one manufactures — and
+the uncapped arm is a formula doing exactly that, one module over.
+
+**It pre-dates wave S9, and S9 worsened it.** The arm built a **680 mm** wall carcass before the
+wave, which is no more manufacturable than a 742 mm one, so the defect is not new and S9 did not
+introduce it. What changed is that the number the arm reads is now the full extent including
+appliance handles — further from any real cabinet than it was — and that it is reached on **two
+columns of the shipped kitchen rather than none**: `B|1.20` moved 600 → 638 (the oven tower's
+appliance bars) and `B|2.45` moved 680 → 742 (the fridge's door bars). Deleting the top cabinet is an
+ordinary action and leaves the full-height member standing, so `hasFullHeightUnder` stays true and
+the uncapped arm is what answers.
+
+**What deciding it would cost.** Separating clearance from build depth is the real fix, and it is a
+**product decision, not a bug fix** — nobody should pick this up expecting a one-line patch.
+Whether that arm should read `opening.d` at all is the question: a wall cabinet flush with a fridge
+front may be exactly what a customer wants, or the cap may belong there too, or the column may need
+to publish two numbers — the space a body occupies and the depth the next body is built to — which
+is a new fact in the model with `deriveColumns`, the swap opening and the void mesh all reading it
+today. Changing `resolveDepthM` inside a wave scoped to DOM-002 would have been the silent product
+change the remediation exists to stop, which is why it was recorded rather than fixed.
+
+**Evidence.** Commit `f9b92e1` (wave S9, closing DOM-002); the wave record's
+*Found and not fixed — S9-F1* section in `docs/milestones/adversarial-review-remediation.md`, which
+carries the live reproduction and the per-column table; and `testing-reports/03-domain-model.md`,
+whose DOM-002 finding is what the wave was scoped to.
+
+Related: entry 10 is the same seam from the other side — two routes to "a wall cabinet in this slot"
+producing different depths on the uncapped path — and entry 5 is the capped sibling.
+
+
 ## Also open, recorded elsewhere — do not duplicate here
 
 - **Width editing does nothing yet.** Every width chip is `blocked` because §5.4's resize command

@@ -104,3 +104,25 @@ nothing" without going to the database. The column was verified present by readi
   path — which is Wave 3C-3's mobile gate if it runs against Preview rather than locally.
 - Decision 4's owner: whichever wave next touches `packages/persistence/src/migrate.ts`. It must not
   be discovered a third time.
+
+## Amendment — 2026-08-31: decision 4 is settled, and the runner now has a ledger
+
+**Appended, not rewritten**; everything above stands as written.
+
+Decision 4 named its owner as *"whichever wave next touches `packages/persistence/src/migrate.ts`"*.
+That wave has happened: the adversarial-review remediation's wave S10, commit `945de39`, closing
+**DB-004** in `testing-reports/05-persistence-and-backup.md`. It is recorded in
+[ADR 0042](0042-the-database-records-which-migrations-it-ran.md).
+
+**What that supersedes here.** This record describes a runner that deliberately keeps no ledger, so
+the prose above that treats "which migrations ran" as unanswerable from the database is superseded.
+There is now an append-only `schema_migrations(version, checksum, applied_at)` table, one
+transaction per migration with its ledger row inserted inside it, and a run that always prints what
+it applied — decision 4's requirement, met.
+
+**What still stands.** The finding is unchanged, and so are decisions 1, 2 and 3. Applying a
+migration to a deployed environment is still a first-class release step; verification is still by
+inspecting the schema and never by an exit status — a ledger row is evidence about what the runner
+did, not the schema read-back this record requires — and **that read-back is still owed after the
+first production run**. The deployed databases have not been migrated by wave S10. The Preview item
+in Consequences is likewise untouched and still open.

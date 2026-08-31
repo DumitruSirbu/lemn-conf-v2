@@ -66,3 +66,79 @@ records `frame.d` 0.291, rebuilds at 0.291 + 0.039 = 0.330, for as many cycles a
   their assertions had quietly become claims about the encoding rather than about the cabinet — a
   wall cabinet and an open shelf whose fronts land on the same line record 291 and 330, and are
   flush.
+
+## Amendment — 2026-08-31: decision 1's third arm is a declaration, not `frame.d`
+
+**This section corrects one clause of decision 1 above. Nothing before it is edited**, so the
+original wording — and the fact that it was wrong — stays visible.
+
+Decision 1 states the rule as *"the cabinet-depth line for a hood, `frame.d + 39` for a fronted wall
+carcass, **`frame.d` for everything else**"*. **The last clause is no longer true**, as of commit
+`f9b92e1` (adversarial-review remediation, wave S9), which closes **DOM-002** in
+`testing-reports/03-domain-model.md`.
+
+### What survives
+
+The subject of this record is intact. A recorded seat is still converted back into a depth and is
+never read as one; the conversion still lives in **exactly one place in the domain**, and that place
+is still `occupiedDepthM` in `packages/configurator-domain/src/occupied-depth.ts`, read by
+`deriveColumns` (§3.2's MAX) and by `openingFromPlacement` (§5.3's swap opening). Decision 2's
+`rebuildDepthM` in the adapter, decision 3's rejection of a persisted second measurement, and the
+39 mm front assembly are all untouched. Only the third arm changed.
+
+### What changed
+
+The two-armed `kind` switch with a catch-all `return record.frame.d` is gone. A body's finished
+depth is now **declared by its catalogue entry** — `BodyDefinition.occupiedDepth`, an
+`OccupiedDepthRule` — never inferred from a kind, a band or a builder name, which is [ADR
+0022](0022-seeded-entries-declare-their-catalogue-equivalent.md)'s stance applied to depth. Keying
+on the entry rather than the kind is what makes fail-closed possible at all: two bodies of one kind
+occupy 620 and 648.
+
+There are two rules, because the shipped builders come in exactly two shapes and no more:
+
+- **`recorded-shell`** — the builder centres its shell on `z = 0`, so `frame.d` *is* that shell and
+  the body occupies the shell plus whatever stands in front of it (`shellPlusFrontMm`). The wall
+  carcasses are the whole of this set: a fronted one adds
+  [ADR 0036](0036-a-declared-dimension-is-the-finished-cabinet.md) decision 1's 39 mm door-and-handle
+  assembly, an open shelf adds `NO_FRONT_ASSEMBLY_MM`.
+- **`wall-plane`** — the builder ignores the depth it is handed and always builds the same body, so
+  the space it fills is **one declared distance from the wall plane** (`finishesAtMm`). Every base,
+  full-height, appliance and corner body is in this set, and so is the front-hung hood of
+  [ADR 0039](0039-the-hood-is-a-standard-depth-hung-at-the-front.md) decision 2.
+
+There is deliberately no `recorded-shell` arm for a base or a column: `frame.d` is 580 for a base
+carcass whose shell is 560, so "shell plus a front" would be arithmetic on a number that is not a
+shell — a fiction landing on the right answer, which is the defect class
+[ADR 0028](0028-wall-depth-is-derived-from-the-worktop.md) exists to stop.
+
+**An entry that declares no rule, or one this module does not recognise, throws**
+(`UndeclaredOccupiedDepthError`) instead of falling back. It is a programming error rather than a
+number to guess at — the same stance `UnknownWorktopDepthError` takes, and for the same reason.
+
+### Why
+
+`frame.d` under-reported the space every catch-all body fills, so **the opening a removed body left
+behind was shallower than the body that had just vacated it**: base 580 where the body occupies
+**620**, tall 560 where it occupies **599**, freestanding fridge 680 where it occupies **742**, and
+the corner base 560 where it occupies **630**.
+
+Note the corner figure. DOM-002's own table said **580**; measurement against the real builders gave
+**630**, because 580 was arithmetic on the carcass and ignored the corner worktop, which reaches
+350 mm from the origin. The report was taken as a starting point and re-measured, not taken on
+trust.
+
+The same sweep found **four bodies the report never named**, under-reported by the same fallback:
+dishwasher **632**, hob-oven base **648**, oven tower **638**, and the corner return **600**.
+
+### Consequences
+
+- The finished depths are constants in `catalog.ts` with their derivations stated —
+  `BASE_FINISHED_DEPTH_MM` is the worktop depth plus its 20 mm overhang, `TALL_UNIT_FINISHED_DEPTH_MM`
+  is the column depth plus the same 39 mm front assembly a fronted wall carcass carries, and
+  `HOOD_FINISHED_DEPTH_MM` is the cabinet-depth line. The adapter gates the declarations against the
+  meshes, so a declaration that drifts from what is built fails rather than being believed.
+- **This amendment exists because the code said it was owed.** `occupied-depth.ts` carries the note
+  that half of decision 1 was superseded and named `AGENTS.md`'s rule — *a dated record must not be
+  silently overturned* — as the reason. The record is now amended; the note describes a settled
+  state rather than a debt.

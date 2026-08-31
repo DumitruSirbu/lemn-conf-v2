@@ -15,13 +15,12 @@
 // body's finished depth is now declared by its catalogue entry, and a definition that declares
 // nothing throws instead of guessing.
 //
-// **This supersedes half of ADR 0040 decision 1, which needs a dated amendment.** That record states
-// the rule as "the cabinet-depth line for a hood, `frame.d + 39` for a fronted wall carcass,
-// `frame.d` for everything else", and the last clause is no longer true. What the decision is
-// *about* — that a recorded seat is converted back and never read as a depth, in one place — is
-// untouched and is what this module still is. Only the third arm changed, from a guess to a
-// declaration. The amendment is owed to `docs/decisions/0040-…`; `AGENTS.md` rule "a dated record
-// must not be silently overturned" is why this note is here rather than nowhere.
+// **This supersedes half of ADR 0040 decision 1, and that record carries the dated amendment saying
+// so** (2026-08-31). It stated the rule as "the cabinet-depth line for a hood, `frame.d + 39` for a
+// fronted wall carcass, `frame.d` for everything else", and the last clause is no longer true. What
+// the decision is *about* — that a recorded seat is converted back and never read as a depth, in one
+// place — is untouched and is what this module still is. Only the third arm changed, from a guess to
+// a declaration.
 import { toMetres } from "./millimetres.js";
 import type { PlacementRecord } from "./void-engine.js";
 
