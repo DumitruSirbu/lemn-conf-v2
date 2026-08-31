@@ -757,6 +757,44 @@ scope a decision rather than an oversight.
 this seam. Not a 5C fix: it changes what `offersFor` offers, which is M3's machinery and its own
 acceptance criteria.
 
+## 14. Keep only the last few database dumps — RAISED 2026-08-31, NEEDS A DECISION
+
+Owner's request, 2026-08-31: the nightly export should keep only the **last 3 dumps** rather than
+letting them accumulate.
+
+**What is actually true in the code.** Rotation already exists and already deletes — it is just
+keyed on age, not on count. `apps/web/src/lib/server/backup-designs.ts:20` sets
+`BACKUP_RETENTION_DAYS = 14`, and `rotateOldBackups` (`:350`) deletes every blob under
+`backups/designs/` whose timestamp is older than that cutoff. The cron runs nightly, so steady state
+is roughly **14 files**, one per night, each a full NDJSON copy of the `designs` table. Rotation runs
+only after a successful export and its failure is reported separately as `rotation-failed`, so a
+failed rotation never masks a missing backup.
+
+Since wave S5 each pathname is `backups/designs/<ISO timestamp>-<8 hex>.ndjson`. The timestamp still
+leads and is fixed width, so a listing remains in chronological order and "newest last" holds —
+count-based rotation can sort on the same listing rotation already fetches, and needs no new call.
+
+**What deciding it costs.** The change itself is small: replace the age cutoff with "sort the
+listing, keep the newest N, delete the rest", plus a test for the boundary (exactly N present, N+1
+present, and a run that produced no new export). Two things need deciding with it, and they are the
+real content of this entry:
+
+- **Recovery window.** 14 days of nightly dumps means a mistake can be undone up to two weeks later.
+  Three dumps means three days. `docs/runbooks/design-db-restore.md` tells the operator to "pick the
+  newest export at or before the point you're recovering to" — with three files, any corruption
+  noticed on a Thursday that began the previous week is unrecoverable. That is a deliberate trade of
+  recovery depth for storage, and it should be made knowingly rather than as a side effect of tidying.
+- **Which rule wins.** Keeping "the last 3" and "nothing older than 14 days" are different policies.
+  Pick one as authoritative, or state both (keep at least 3, and at most 14 days) so the code has a
+  single answer when they disagree — for example after a fortnight in which the cron did not run.
+
+Storage is the argument for acting: each dump is a full copy of the table, so the folder grows with
+`rows x nights`, and ADR 0019's deferred retention cron means the table itself is currently unbounded
+(SEC-001). Worth noting the two interact — bounding the dumps does not bound what each dump contains.
+
+**Not urgent at current size.** With no real customers the table is small and 14 nightly copies of it
+cost very little. This is a policy decision to take before launch, not a defect.
+
 ## Also open, recorded elsewhere — do not duplicate here
 
 - **Width editing does nothing yet.** Every width chip is `blocked` because §5.4's resize command

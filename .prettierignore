@@ -8,3 +8,7 @@ next-env.d.ts
 
 # Supplier reference geometry, kept verbatim for the parity suite to diff against.
 packages/three-adapter/reference/
+
+# Adversarial review reports, written and maintained outside this repository's own conventions.
+# Deliberately untracked, so formatting them would be churn against files Git does not carry.
+testing-reports/
