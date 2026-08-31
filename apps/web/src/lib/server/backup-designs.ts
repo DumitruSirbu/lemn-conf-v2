@@ -1,5 +1,7 @@
 import "server-only";
 
+import { randomUUID } from "node:crypto";
+
 import { createNeonDesignRowSource } from "@lemnaria/persistence";
 import type {
   DesignBackupRow,
@@ -30,6 +32,10 @@ export const BACKUP_PAGE_SIZE = 200;
  *  designs at this timestamp" — and skipping it would leave the most recent backup an older,
  *  non-empty one, so a restore after a deliberate purge would silently resurrect deleted designs. */
 const EMPTY_EXPORT_BODY = "\n";
+
+/** Enough to separate two runs of the same millisecond; short enough to keep the pathname readable
+ *  in a `vercel blob list` the operator is scanning by eye. */
+const INVOCATION_SUFFIX_LENGTH = 8;
 
 // `DesignBackupRow` and `DesignRowSource` come from `@lemnaria/persistence`: that package owns
 // every Postgres statement in the codebase, so the backup's read lives there too rather than being
@@ -73,12 +79,20 @@ const BACKUP_ERROR_CODES = {
 type BackupStage = keyof typeof BACKUP_ERROR_CODES;
 export type BackupErrorCode = (typeof BACKUP_ERROR_CODES)[BackupStage];
 
+/** What the cron route may publish. `BACKUP_CLEANUP_FAILED` is excluded by type rather than by
+ *  which call sites happen to exist today: routing cleanup through `reportStageFailure` would
+ *  otherwise typecheck and put a code the caller cannot act on into the response. */
+export type PublishedBackupErrorCode = Exclude<
+  BackupErrorCode,
+  "BACKUP_CLEANUP_FAILED"
+>;
+
 export interface BackupResult {
   status: BackupStatus;
   backupPathname?: string;
   rowCount?: number;
   deletedPathnames: string[];
-  errorCode?: BackupErrorCode;
+  errorCode?: PublishedBackupErrorCode;
 }
 
 /**
@@ -168,7 +182,7 @@ export async function backupDesigns(
 
 type ExportOutcome =
   | { ok: true; pathname: string; rowCount: number }
-  | { ok: false; errorCode: BackupErrorCode };
+  | { ok: false; errorCode: PublishedBackupErrorCode };
 
 /** Error handling extracted into its own function per this repo's Clean Code convention (error
  *  handling is one thing): the happy path below stays a single, readable sequence. */
@@ -221,7 +235,10 @@ async function discardTruncatedBackup(
 async function tryRotateOldBackups(
   blobClient: BackupBlobClient,
   now: Date,
-): Promise<{ deletedPathnames: string[]; errorCode?: BackupErrorCode }> {
+): Promise<{
+  deletedPathnames: string[];
+  errorCode?: PublishedBackupErrorCode;
+}> {
   try {
     const deletedPathnames = await rotateOldBackups(blobClient, now);
     return { deletedPathnames };
@@ -314,8 +331,20 @@ function toNdjson(rows: readonly DesignBackupRow[]): string {
   return rows.map((row) => `${JSON.stringify(row)}\n`).join("");
 }
 
+/**
+ * A pathname unique to this invocation, sorting by timestamp first.
+ *
+ * The timestamp alone was not unique: `addRandomSuffix` is off, so two runs landing in the same
+ * millisecond — a duplicated cron delivery, or a manual `runDesignsBackup(now)` — computed the same
+ * path. That was an overwrite hazard before, and NEW-1 turned it into a worse one: run B's
+ * truncation cleanup would delete run A's blob, which may be a complete backup.
+ *
+ * The suffix goes after a fixed-width ISO timestamp, so a lexicographic listing still orders by
+ * upload time and `docs/runbooks/design-db-restore.md`'s "pick the newest export" rule is unchanged.
+ */
 function buildBackupPathname(now: Date): string {
-  return `${BACKUP_BLOB_PREFIX}${now.toISOString()}.ndjson`;
+  const invocationSuffix = randomUUID().slice(0, INVOCATION_SUFFIX_LENGTH);
+  return `${BACKUP_BLOB_PREFIX}${now.toISOString()}-${invocationSuffix}.ndjson`;
 }
 
 async function rotateOldBackups(
@@ -334,13 +363,14 @@ async function rotateOldBackups(
   return expiredPathnames;
 }
 
-function reportStageFailure(
-  stage: BackupStage,
+/** Generic in the stage so each call site gets that stage's literal code, which is what lets
+ *  `PublishedBackupErrorCode` exclude the cleanup code without a cast. */
+function reportStageFailure<Stage extends BackupStage>(
+  stage: Stage,
   cause: unknown,
-): BackupErrorCode {
-  const failure = new BackupStageError(stage, cause);
-  logBackupFailure(failure);
-  return failure.code;
+): (typeof BACKUP_ERROR_CODES)[Stage] {
+  logBackupFailure(new BackupStageError(stage, cause));
+  return BACKUP_ERROR_CODES[stage];
 }
 
 // A redacted structured event, never the error itself: `console.error(stage, error)` printed the

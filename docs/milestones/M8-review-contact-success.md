@@ -80,20 +80,6 @@ All six ship **together**. Any one alone leaves AV-4 open, and the WAF rule is p
 by construction, so it is never quoted as the cap. Verify the fix using ADR 0019's intended low
 rates — **do not use a high-volume loop as the regression test**.
 
-One further item, added 2026-08-31, listed after the six because it is **not** part of that
-ship-together set — it has its own preconditions and blocks nothing the six block:
-
-- [ ] **Flip the CSP from report-only to enforcing** (wave S4,
-      `docs/milestones/adversarial-review-remediation.md`). `apps/web/src/lib/security-headers.ts`
-      ships a nonce-based policy as `Content-Security-Policy-Report-Only` with **no report sink** —
-      a collector would itself be the unauthenticated unthrottled POST endpoint this gate exists to
-      prevent, which is why it lands here rather than in S4. It belongs to this phase because the
-      rate limiter above is what finally makes such an endpoint safe to expose. Two preconditions,
-      both measured in S4: a method of collecting violations, and the prerendered pages
-      (`/`, `/configurator/configure`, `/configurator/contact`, `/_not-found`) carrying no nonce, so
-      enforcing today would blank them. Flipping the one constant
-      `CONTENT_SECURITY_POLICY_MODE` without clearing both would take the app down.
-
 ### Unresolved prerequisite, 2026-08-31 — no credential in the system can perform the retention delete
 
 Found reviewing the API boundary. The retention cron above is not merely unbuilt; under the current
@@ -122,6 +108,23 @@ separate questions and should not be settled as one.
 **Nothing was changed to record this** — no role, grant, environment variable or code. Until it is
 decided, the retention checkbox above cannot be truthfully ticked, and therefore neither can the
 gate.
+
+### Also blocked on this phase — the CSP enforce flip
+
+Added 2026-08-31, under its own heading rather than in the checklist above: this item does **not**
+gate `POST /api/designs` and is not part of the ship-together set. It lands in M8 only because the
+rate limiter above is the thing that would make a violation-report endpoint safe to expose at all.
+
+- [ ] **Flip the CSP from report-only to enforcing** (wave S4,
+      `docs/milestones/adversarial-review-remediation.md`). `apps/web/src/lib/security-headers.ts`
+      ships a nonce-based policy as `Content-Security-Policy-Report-Only` with **no report sink** —
+      a collector would itself be the unauthenticated unthrottled POST endpoint the gate above
+      exists to prevent, which is why it was not built in S4. Two preconditions, both measured in
+      S4: a method of collecting violations, and the five prerendered routes carrying no nonce —
+      `/`, `/_global-error`, `/_not-found`, `/configurator/configure`, `/configurator/contact` —
+      so enforcing today would blank them, `/_global-error` included, which is the error boundary
+      itself. Flipping the one constant `CONTENT_SECURITY_POLICY_MODE` without clearing both
+      preconditions would take the app down.
 
 ## Work items
 

@@ -203,12 +203,18 @@ function findContainmentIssues(
  * and its wall-B fridge (`p7`, centred at 2450 with a 700 mm body) stands out to 2800 mm — 400 mm
  * past the recorded depth. A per-wall bound would reject the design the product ships.
  *
- * **What this actually buys, stated honestly** (review finding F2): it does not confine a body to
- * the wall it stands on, so a placement may overshoot its own wall by up to the difference between
- * the room's two runs. What it does is cap that overshoot at the room, and the room is itself
- * bounded by `MAX_ROOM_*` — so the worst case is roughly the physical shell rather than the ten
- * metres this rule permitted while the room was whatever a caller declared. Reconciling the room
- * record with the scene shell is a separate decision and would let this become the per-wall rule.
+ * **What this actually buys, and what it does not.** It does not confine a body to the wall it
+ * stands on: a placement may overshoot its own wall by the whole difference between the room's two
+ * runs. Because the axes are bounded independently, the shorter wall inherits the longer one's run
+ * — a document declaring `{ widthMm: 6300, depthMm: 1, heightMm: 3900 }` validates clean with a
+ * 600 mm body on wall B at `alongMm: 6000`, which is 2900 mm past wall B's real 3400 mm run and
+ * 1300 mm above the real 2600 mm ceiling. Measured, not reasoned about.
+ *
+ * So the residual is capped at the **bounded room**, not at the wall. That is still a large
+ * improvement — the same rule permitted ten metres while the room was whatever a caller declared —
+ * but it is not the physical shell, and an earlier version of this comment said it was.
+ * Reconciling the room record with the scene shell is the separate decision that would let this
+ * become the per-wall rule and close the residual properly.
  */
 function longestWallRunMm(room: DesignRoom): number {
   return Math.max(room.widthMm, room.depthMm);

@@ -18,9 +18,13 @@ import { readDatabaseUrl } from "./read-database-url.js";
 const ALLOWED_TEST_DATABASE_NAMES: readonly string[] = [
   // ADR 0006's default: the database `resolveTestDatabaseUrl` derives when nothing overrides it.
   "lemnaria_test",
-  // What `TEST_DATABASE_URL` has actually pointed at since the live suites were written. It sits in
-  // the same Neon project as the application database (`lemn-conf-v2`) under a different name,
-  // which is why the name — not the host — is what separates them.
+  // What `TEST_DATABASE_URL` has actually pointed at since the live suites were written, and a
+  // named destructive-test target since the owner's decision of 2026-08-31 (ADR 0006's amendment).
+  // It sits in the same Neon project as the application database (`lemn-conf-v2`) under a different
+  // name, which is why the name — not the host — is what separates them. Despite what it is called
+  // it is NOT a staging environment: every live-suite run deletes design rows from it, and nothing
+  // but those suites may use it. Read that amendment before touching this entry — allowlisting a
+  // name is what authorises deletion there, so this list is the only place the rule is visible.
   "lemn-conf-v2-staging",
 ];
 
@@ -42,10 +46,12 @@ interface DatabaseIdentity {
  * still that database, so they can play no part in deciding what a URL reaches.
  *
  * The database name is read from the path only, which is correct for `@neondatabase/serverless` —
- * the one driver this package uses. Under libpq (`psql`, node-`pg`) a `?dbname=` parameter
- * *overrides* the path, so a URL whose path says `lemnaria_test` can reach another database
- * entirely. Anything that adds a libpq-based driver has to read that parameter here too, or this
- * guard silently starts checking the wrong name.
+ * the one driver this package uses. libpq (`psql`) applies URI query keywords after the path, so a
+ * `?dbname=` parameter *overrides* it and a URL whose path says `lemnaria_test` can reach another
+ * database entirely. Anything that adds a second driver has to check how that driver resolves the
+ * two, and read the parameter here if it can win — otherwise this guard silently starts checking a
+ * name nothing connects to. (Only libpq's behaviour is verified; other clients parse connection
+ * strings themselves and were not checked.)
  */
 function identityOf(connectionUrl: string): DatabaseIdentity {
   const url = new URL(connectionUrl);

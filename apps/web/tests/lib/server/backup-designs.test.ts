@@ -184,8 +184,11 @@ describe("backupDesigns", () => {
 
     const result = await backupDesigns({ rowSource, blobClient, now: NOW });
 
-    expect(result.backupPathname).toBe(
-      `backups/designs/${NOW.toISOString()}.ndjson`,
+    // The timestamp still leads, so a lexicographic `vercel blob list` orders by upload time and
+    // the restore runbook's "pick the newest export" rule holds. The suffix after it makes two runs
+    // of the same millisecond two different blobs (finding 1).
+    expect(result.backupPathname).toMatch(
+      new RegExp(`^backups/designs/${NOW.toISOString()}-[0-9a-f]{8}\\.ndjson$`),
     );
   });
 
@@ -522,8 +525,12 @@ describe("backupDesigns truncation guard", () => {
     }
   }
 
+  let consoleErrorSpy: ReturnType<typeof vi.spyOn>;
+
   beforeEach(() => {
-    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    consoleErrorSpy = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
   });
 
   // Regression only: the rejection propagates through the stream and the surrounding `try` catches
@@ -569,8 +576,30 @@ describe("backupDesigns truncation guard", () => {
 
     expect(result.status).toBe("export-failed");
     const writtenPathname = blobClient.uploadedPathnames[0];
-    expect(writtenPathname).toBe(`backups/designs/${NOW.toISOString()}.ndjson`);
+    expect(writtenPathname).toMatch(
+      new RegExp(`^backups/designs/${NOW.toISOString()}-[0-9a-f]{8}\\.ndjson$`),
+    );
+    // Exactly the blob just written, never a path recomputed from `now` — which is what made a
+    // same-millisecond neighbour deletable.
     expect(blobClient.deleteCalls).toEqual([[writtenPathname]]);
+  });
+
+  it("gives two runs of the same millisecond different pathnames, so neither deletes the other", async () => {
+    const first = new ShortReadingBlobClient();
+    const second = new ShortReadingBlobClient();
+
+    await backupDesigns({
+      rowSource: new EndlessRowSource(),
+      blobClient: first,
+      now: NOW,
+    });
+    await backupDesigns({
+      rowSource: new EndlessRowSource(),
+      blobClient: second,
+      now: NOW,
+    });
+
+    expect(second.deleteCalls[0]).not.toEqual(first.deleteCalls[0]);
   });
 
   it("still reports the truncation, not the cleanup's own error, when the delete fails", async () => {
@@ -588,6 +617,16 @@ describe("backupDesigns truncation guard", () => {
     expect(result.status).toBe("export-failed");
     expect(result.errorCode).toBe("BACKUP_EXPORT_FAILED");
     expect(blobClient.deleteCalls).toHaveLength(1);
+    // The log is the only signal anywhere that a partial was left in Blob. If it is not emitted,
+    // nobody ever learns the file is there.
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      JSON.stringify({
+        operation: "backup",
+        stage: "cleanup",
+        code: "BACKUP_CLEANUP_FAILED",
+        errorName: "Error",
+      }),
+    );
   });
 });
 

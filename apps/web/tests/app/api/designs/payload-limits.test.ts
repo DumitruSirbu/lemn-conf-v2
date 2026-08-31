@@ -194,6 +194,35 @@ describe("PUT /api/designs/[id] payload limits", () => {
     expect(response.status).toBe(413);
   });
 
+  it("answers 413 and logs nothing when an oversized body's stream then errors", async () => {
+    const { id, cookie } = await mintDesign();
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    const error = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
+    const chunk = new Uint8Array(MAX_DESIGN_BYTES + 1);
+    const body = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(chunk);
+      },
+      pull(controller) {
+        controller.error(new Error("aborted by peer"));
+      },
+    });
+
+    const response = await PUT(
+      saveRequest(id, { body, cookie }),
+      routeParams(id),
+    );
+
+    expect(response.status).toBe(413);
+    // The whole point of the silent 413: one attacker-chosen log write per oversized request is
+    // the amplification the byte limit exists to remove.
+    expect(warn).not.toHaveBeenCalled();
+    expect(error).not.toHaveBeenCalled();
+    expect(fakeRepository.storedDesign(id)).toEqual(KITCHEN_L_DESIGN);
+  });
+
   it("answers 400, not a framework 500, when the request stream breaks mid-body", async () => {
     const { id, cookie } = await mintDesign();
     const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);

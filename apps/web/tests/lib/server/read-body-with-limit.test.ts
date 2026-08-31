@@ -125,6 +125,50 @@ describe("readUtf8BodyWithLimit", () => {
     });
   });
 
+  it("still reports too-large when the stream errors after the limit is crossed", async () => {
+    // The shape a client produces by sending one chunk past the limit and resetting the
+    // connection. Answering `stream-failed` here would downgrade a silent 413 to a logged 400.
+    const stream = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(encoder.encode("0123456789"));
+      },
+      pull(controller) {
+        controller.error(new Error("aborted by peer"));
+      },
+    });
+
+    await expect(readUtf8BodyWithLimit(stream, 5)).resolves.toEqual({
+      ok: false,
+      failure: "too-large",
+    });
+  });
+
+  it("still reports too-large when cancelling the stream itself rejects", async () => {
+    const stream = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(encoder.encode("0123456789"));
+      },
+      cancel() {
+        throw new Error("cancel refused");
+      },
+    });
+
+    await expect(readUtf8BodyWithLimit(stream, 5)).resolves.toEqual({
+      ok: false,
+      failure: "too-large",
+    });
+  });
+
+  it("reports a stream failure rather than throwing when the body is already locked", async () => {
+    const { stream } = countingStream(["abc"]);
+    stream.getReader();
+
+    await expect(readUtf8BodyWithLimit(stream, 1000)).resolves.toEqual({
+      ok: false,
+      failure: "stream-failed",
+    });
+  });
+
   it("reads an absent body as empty rather than refusing it", async () => {
     await expect(readUtf8BodyWithLimit(null, 10)).resolves.toEqual({
       ok: true,

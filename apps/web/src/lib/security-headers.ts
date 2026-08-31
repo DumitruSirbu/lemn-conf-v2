@@ -18,11 +18,14 @@ export type ContentSecurityPolicyMode = "report-only" | "enforce";
  *
  * **Do not flip it until the prerendered pages render dynamically.** A nonce only reaches the HTML
  * of a dynamically rendered response. Measured against `next build` at this commit: `/d/[id]` is
- * dynamic and carries nonces on all of its scripts, but `/`, `/configurator/configure`,
- * `/configurator/contact` and `/_not-found` are prerendered and carry **none** — ten same-origin
- * chunk tags plus two inline RSC flight-payload scripts whose content is page-specific, so they
- * cannot be admitted by hash either. Under `"enforce"` every one of them would be blocked and those
- * pages would go blank.
+ * dynamic and carries nonces on all of its scripts, but the five routes in
+ * `.next/prerender-manifest.json` — `/`, `/_global-error`, `/_not-found`,
+ * `/configurator/configure` and `/configurator/contact` — are prerendered and carry **none**: ten
+ * same-origin chunk tags plus two inline RSC flight-payload scripts whose content is page-specific,
+ * so they cannot be admitted by hash either. Under `"enforce"` every one of them would be blocked
+ * and those pages would go blank. `/_global-error` is the worst of the five to lose and the easiest
+ * to miss — it is the boundary that has to render when something else has already failed, and the
+ * printed build route table does not list it at all.
  *
  * **There is deliberately no report sink.** A collector route would be an unauthenticated,
  * unthrottled POST endpoint anyone could flood — the same shape as SEC-001, which the owner has

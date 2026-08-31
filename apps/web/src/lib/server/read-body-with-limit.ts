@@ -35,15 +35,19 @@ export async function readUtf8BodyWithLimit(
   maxBytes: number,
 ): Promise<BoundedBodyOutcome> {
   if (body === null) return { ok: true, value: "" };
-  const reader = body.getReader();
+  // `getReader()` is inside the try, not above it: it throws `TypeError` on an already-locked
+  // stream, and a lock taken by a middleware or an instrumentation hook must reach the caller as
+  // a refusal like any other transport failure, not as a throw out of this function.
+  let reader: ReadableStreamDefaultReader<Uint8Array> | undefined;
   try {
+    reader = body.getReader();
     return await decodeWithinLimit(reader, maxBytes);
   } catch {
     // The reason is deliberately dropped: it is produced by the transport under a caller's control,
     // and a broken stream tells the caller nothing it does not already know.
     return { ok: false, failure: "stream-failed" };
   } finally {
-    reader.releaseLock();
+    reader?.releaseLock();
   }
 }
 
@@ -60,10 +64,28 @@ async function decodeWithinLimit(
     const { done, value } = await reader.read();
     if (done) return { ok: true, value: text + decoder.decode() };
     receivedBytes += value.byteLength;
-    if (receivedBytes > maxBytes) {
-      await reader.cancel();
-      return { ok: false, failure: "too-large" };
-    }
+    if (receivedBytes > maxBytes) return await refuseOversized(reader);
     text += decoder.decode(value, { stream: true });
   }
+}
+
+/**
+ * The refusal is **decided before the stream is cancelled**, and nothing cancelling does can change
+ * it.
+ *
+ * `cancel()` on a stream that has already errored returns a promise rejected with the stored error.
+ * Letting that reach `readUtf8BodyWithLimit`'s catch retags an oversized body as `stream-failed`,
+ * which the route answers with a **logged 400** instead of a silent 413 — one attacker-chosen log
+ * write per oversized request, which is precisely the amplification the byte limit exists to
+ * remove. A client only has to send one chunk past the limit and then reset the connection.
+ *
+ * The body being over the limit is already established at this point; a cancel that rejects adds no
+ * fact, so its rejection is discarded rather than answered.
+ */
+async function refuseOversized(
+  reader: ReadableStreamDefaultReader<Uint8Array>,
+): Promise<BoundedBodyOutcome> {
+  const refusal: BoundedBodyOutcome = { ok: false, failure: "too-large" };
+  await reader.cancel().catch(() => undefined);
+  return refusal;
 }

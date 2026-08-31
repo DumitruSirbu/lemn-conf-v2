@@ -148,8 +148,11 @@ bounded cardinality, and invalid stored rows. Do not begin until S2 closes.
 
 ## Wave S4 — SEC-003 + SEC-004
 
-Status: **Implemented, awaiting adversarial QA and review.** Review tier: **Full**, including
-security review — this is a public-endpoint and browser-policy change.
+Status: **Implemented; adversarial QA, Full review and a continuity review of the post-review fixes
+have all run.** Review tier: **Full**, including security review — this is a public-endpoint and
+browser-policy change. The first review returned approved-with-findings (six items, all applied);
+a continuity reviewer then checked those fixes at `96293c5` and returned approved-with-findings
+again (five documentation-accuracy items, all applied here).
 
 ADR 0019 decision 2 assigns volume and edge concerns to the Vercel firewall. Neither finding here is
 one: SEC-003 is an input the application itself hands to the browser, and SEC-004 is a per-response
@@ -180,8 +183,9 @@ component.
 - **`next.config.ts`** serves the static set on `/:path*`, so it reaches every response including
   static assets: `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`,
   `Referrer-Policy: strict-origin-when-cross-origin`, a `Permissions-Policy` closing fourteen
-  features (camera, microphone, geolocation and every sensor among them), and
-  `X-DNS-Prefetch-Control: off`. These are **enforcing immediately**.
+  features (camera, microphone, geolocation and every sensor among them),
+  `Strict-Transport-Security: max-age=15552000; includeSubDomains`, and
+  `X-DNS-Prefetch-Control: off` — **six** headers. These are **enforcing immediately**.
 - **`src/proxy.ts`** (Next 16's replacement for `middleware.ts`) mints a per-request nonce and sends
   the CSP. `script-src` is `'self' 'nonce-…' 'strict-dynamic'` and never a blanket `'unsafe-inline'`.
   `style-src` does keep `'unsafe-inline'`: React writes `style` attributes and drei injects unnonced
@@ -195,11 +199,34 @@ component.
   unnonced scripts and the report-only rollout would report every one of them.
 
 Known limit, accepted: a nonce reaches only the HTML of a **dynamically rendered** response.
-Mutating request headers in a proxy does not disable static rendering, so `/`,
-`/configurator/configure`, `/configurator/contact` and `/_not-found` keep their static optimisation
-and therefore carry **no nonce** — measured, not assumed, in the build output below. Nothing
+Mutating request headers in a proxy does not disable static rendering, so the **five** prerendered
+routes keep their static optimisation and therefore carry **no nonce**: `/`, `/_global-error`,
+`/_not-found`, `/configurator/configure` and `/configurator/contact`. That list is
+`apps/web/.next/prerender-manifest.json` read back from a real build, quoted under "What was
+actually run" below — not the build's printed route table, which does not show `/_global-error` at
+all. `/_global-error` is the one that matters most: it is the page that has to render precisely
+when something else has already failed, and the page whose blanking is hardest to notice. Nothing
 regressed; this is recorded because it is what makes the enforce flip a decision rather than a
 detail.
+
+**`Strict-Transport-Security`: scope and the withheld `preload`.** Recorded here rather than only in
+a source comment, because the scope choice has a consequence outside this repository.
+
+- `max-age=15552000` — six months. Long enough to be a real guarantee, short enough that a mistake
+  ages out rather than needing a coordinated unwind.
+- `includeSubDomains` — **safe for every path this project uses today**, verified rather than
+  assumed. RFC 6797 §8.1 requires a user agent to ignore an STS header delivered over insecure
+  transport, and both plain-HTTP surfaces are exactly that: the Playwright suite runs against
+  `http://localhost:4320`, and ADR 0019's LAN handset case is `http://<LAN-IP>:3000`. Preview
+  deployments are HTTPS-only on `*.vercel.app`.
+- The residual risk is **external and future**: once the app is deployed on a custom apex domain,
+  `includeSubDomains` binds every sibling subdomain — a marketing host, a mail UI, anything not yet
+  built — to HTTPS for six months. That is a deliberate accepted trade, and it is the thing to
+  re-examine before pointing an apex at this app.
+- `preload` is **withheld deliberately.** Submission to the browsers' built-in preload list is a
+  public and effectively irreversible commitment, binding every current and future subdomain with a
+  removal process measured in months. That is the owner's decision to make, not an implementing
+  agent's, and nothing in SEC-004 requires it.
 
 **There is deliberately no report sink.** A collector route would be an unauthenticated, unthrottled
 POST endpoint anyone could flood — the same shape as SEC-001, which the owner deferred to M8 behind
@@ -216,7 +243,7 @@ prerendered-pages/nonce problem above.
    `1920 x 1080`, and every accepted size is an integer.
 2. A production build serves 404 at `/internal/scene-shot` unless `LEMNARIA_ENABLE_SCENE_SHOT_ROUTE`
    is exactly `1`; no other value opts in.
-3. Every response carries the five static security headers.
+3. Every response carries the six static security headers, `Strict-Transport-Security` among them.
 4. The CSP is sent as `Content-Security-Policy-Report-Only` and never alongside the enforcing header,
    contains `frame-ancestors 'none'`, `object-src 'none'` and `base-uri 'self'`, and admits scripts
    only by a per-request nonce.
@@ -228,14 +255,22 @@ prerendered-pages/nonce problem above.
 - `pnpm --filter @lemnaria/web build` — **succeeded.** `✓ Running next.config.ts took 13ms`, so the
   `./src/lib/security-headers` import from `next.config.ts` resolves under Node outside the app's
   module graph. The route table lists `ƒ Proxy (Middleware)`, so the CSP layer is registered in the
-  production output.
+  production output. Reading `apps/web/.next/prerender-manifest.json` back from that build gives
+  the prerendered set exactly:
+
+  ```
+  ['/', '/_global-error', '/_not-found', '/configurator/configure', '/configurator/contact']
+  ```
+
+  Five, not the four an earlier revision of this section claimed: the printed route table lists
+  `/_global-error` nowhere, so the manifest is the only honest source for this list.
 - `pnpm --filter @lemnaria/web lint` and `… typecheck` — both clean.
 - `pnpm --filter @lemnaria/web test` — this wave's four files are **33 passed (4 files)**. The full
   suite currently shows **4 failed | 580 passed | 4 skipped (588)**; all four failures are
   `design-errors` / `write-authorization` assertions belonging to the concurrent SEC-002 body-limit
   wave in this tree, and no file from this wave appears in them.
 - Live dev server (port 4399), real Chromium at 390 x 844: `/configurator/configure` returned 200
-  with all five static headers plus `content-security-policy-report-only`, a live WebGL context,
+  with all the static headers then defined plus `content-security-policy-report-only`, a live WebGL context,
   **0** CSP-related console lines and **0** page errors. Next stamped the nonce onto 26 attributes
   across 23 `<script>` elements.
 - Production server (`next start`) against the real build:
@@ -324,7 +359,7 @@ no rule here — `DesignWallSchema` is an enum, so a wall other than A or B cann
 | Criterion | Evidence |
 | --- | --- |
 | Bounded wire parsing | `tests/validate-design.test.ts` → `DesignSchema bounds`, 9 cases |
-| One named domain validator, used at both seams | `validateDesignForCatalog` called from `route.ts` and from `migrateDesign` |
+| One named domain validator, used at both seams | `validateDesignForCatalog` called from `route.ts` (write) and from `migrateDesign` (load). **Two seams, not three** — see the continuity-review corrections below |
 | 400 on write, `InvalidDesignError` on load | `payload-limits.test.ts` (400 + `DESIGN_INVALID`); `validate-design.test.ts` → `migrateDesign at the stored-row seam` |
 | No Zod tree in the response or the log | Responses carry a fixed sentence and a code; `describeDesignValidationIssues` caps at 10 `path:code` pairs |
 | 413 by counting stream bytes, before semantic validation | `read-body-with-limit.test.ts`; `payload-limits.test.ts` asserts 413 for a chunked body with no `Content-Length`, that fewer chunks were pulled than sent, and that a large body of the *wrong shape* still answers 413 rather than 400 |
@@ -430,9 +465,16 @@ All four findings accepted; S5-1 was a regression this wave introduced.
   no longer a bypass.
 - **The allowlist had to encode reality.** `TEST_DATABASE_URL` targets **`lemn-conf-v2-staging`**,
   not ADR 0006's `lemnaria_test` — same Neon project as the application database `lemn-conf-v2`,
-  separated only by name. Both names are allowlisted. **The divergence from ADR 0006 is the owner's
-  to resolve**: either the record is updated to name the real database, or the test database is
-  renamed to match it.
+  separated only by name. Both names are allowlisted. The drift went unnoticed for as long as it did
+  because **`lemnaria_test` was never actually created**: nothing ever failed for want of it, so
+  nothing pointed out that the record named a database that did not exist.
+
+  **Resolved, 2026-08-31 — see the amendment in
+  `docs/decisions/0006-tests-never-touch-the-application-database.md`.** The owner decided to keep
+  `lemn-conf-v2-staging` as the destructive-test target rather than create `lemnaria_test` and
+  repoint at it, so it is now a named destructive-test target on the same footing the original text
+  gave `lemnaria_test`, under that amendment's constraint that nothing else may ever use it. The
+  allowlist stands exactly as built; no code change followed the decision.
 - **S5-3** — `streamRowsAsNdjson` exposes `isWalkComplete()`, true only after a short or empty page
   proved the table was exhausted, and false after a `cancel()`. `tryExportDesigns` returns
   `BACKUP_EXPORT_FAILED` when `upload` resolves with the walk incomplete, so a truncated but valid
@@ -550,3 +592,85 @@ than left implicit.
 - `pnpm --filter @lemnaria/configurator-domain test` — **60 files, 995 passed**.
 - `pnpm --filter @lemnaria/web test` — **38 passed | 1 skipped (39 files), 609 passed | 4 skipped**.
 - `pnpm --filter @lemnaria/web typecheck` and `… lint` — both clean.
+
+### Wave S3 continuity review — findings 1, 2, 3 applied
+
+A continuity reviewer examined the F1/F2/F3 round at commit `47e2552`, which no reviewer had seen.
+**Approved with findings**; F2, its knock-on and F3 were confirmed sound and F3's coverage measured
+higher than before. Three follow-ups, all in F1's area.
+
+**Finding 1 · an oversized body whose stream then errors answered a logged 400 instead of a silent
+413.** `await reader.cancel()` sat inside the try whose catch tags everything `stream-failed`, and
+per spec `cancel()` on an already-errored stream rejects with the stored error. So one chunk past
+`MAX_DESIGN_BYTES` followed by a connection reset retagged the refusal, `refuseUnreadBody` sent it to
+`invalidBodyResponse`, and that **logs** — reinstating the exact per-request log write that
+`payloadTooLargeResponse` documents itself as removing, plus the wrong status on the write path.
+
+Fixed by latching, as the review preferred: `refuseOversized` fixes the refusal as a value **before**
+cancelling and discards the cancel's rejection, so nothing cancelling does can change the answer.
+Three tests, all confirmed failing against the previous reader: oversized-then-errored, a `cancel()`
+that throws of its own accord, and a route case asserting **413** with `console.warn` and
+`console.error` both never called.
+
+**Finding 2 · the structural exposure F1 set out to remove was still present.** `getReader()` was
+above the try — it throws `TypeError: Invalid state: ReadableStream is locked` — and the route's
+`readDesign` call was above `saveDesign`'s try. Both moved inside. One test: an already-locked body
+now returns `stream-failed` instead of throwing.
+
+Worth being precise about what the route half buys, because it is less than it looks:
+`designErrorResponse` deliberately **rethrows** anything that is not a domain error, so moving the
+call inside the try does not convert an unexpected `TypeError` into a handled response. It is
+structural containment only. The reader-side fix is what actually closes the hole, and
+`designErrorResponse`'s rethrow is a deliberate choice — masking genuine bugs there would be worse —
+so it was left alone.
+
+**Finding 3 · the residual was overstated, and the correction is measured.** The previous comment
+claimed the worst case was "roughly the physical shell". It is not. Because the room axes are
+bounded independently and `longestWallRunMm` is `max(width, depth)`, the shorter wall inherits the
+longer one's run. Verified locally rather than taken on trust: a document declaring
+`{ shape: "L", widthMm: 6300, depthMm: 1, heightMm: 3900 }` parses clean **and** returns zero domain
+issues with a 600 mm body on wall B at `alongMm: 6000, y0Mm: 3200` — 2900 mm past wall B's real
+3400 mm run and 1300 mm above the real 2600 mm ceiling. The comment now says the residual is capped
+at the **bounded room, not at the wall**, and names reconciling the room record with the scene shell
+as the change that would close it. Documentation only; the rule is unchanged, and no test was added
+because a test pinning this would assert an accepted weakness as correct.
+
+### Two corrections to this record
+
+**There are two seams, not three.** The validator runs at the API write seam (`route.ts`) and the
+migration/load seam (`migrate-design.ts`). There is **no import seam**: `migrateDesign`'s optional
+`catalog` parameter only documents that a future one could pass its own, and no such caller exists.
+Separately, `apps/web/src/persistence/fetch-configuration-repository.ts` is a **fourth parse seam on
+the client**, and it runs `DesignSchema` alone — never `validateDesignForCatalog`. That is
+defensible, since the server rejects an unexecutable document on load before the client ever parses
+it, but it is not "the same validator" and this record previously implied three seams under one
+rule.
+
+**F4 is not reachable at the new numbers, and the smaller budget did not make it so.** Measured
+locally: the worst *domain-valid* `MAX_PLACEMENTS`-placement document — 168 placements, 64-character
+identifiers, the longest catalogue `buildId`, every optional field present — serialises to **41 231
+bytes** against the 87 040-byte budget, leaving 45 809 bytes of headroom. Both sides of the ratio
+shrank together when `MAX_PLACEMENTS` fell from 300 to 168. The byte-versus-UTF-16 gap stays
+documented as a property of the two bounds, not as a live defect.
+
+### Wave S5 — continuity review (findings 1–4)
+
+- **Finding 1** — `buildBackupPathname` appends a per-invocation suffix
+  (`backups/designs/<ISO>-<8 hex>.ndjson`). Two runs of the same millisecond previously computed the
+  same path, so NEW-1's cleanup could delete a *complete* backup written by a concurrent run.
+  `docs/runbooks/design-db-restore.md` is updated: the fixed-width timestamp still leads, so a
+  listing remains in upload order and "pick the newest export" is unchanged.
+- **Finding 2** — `BackupResult.errorCode` is typed `PublishedBackupErrorCode`
+  (`Exclude<BackupErrorCode, "BACKUP_CLEANUP_FAILED">`), and `reportStageFailure` is generic in its
+  stage so each call site yields that stage's literal code without a cast. The cleanup code can no
+  longer reach a client by any edit that typechecks.
+- **Finding 3** — the delete-failure test now asserts the cleanup event was logged, that log being
+  the only signal anywhere that a partial was left in Blob.
+- **Finding 4** — the node-`pg` attribution is removed from the `identityOf` comment. Only libpq's
+  documented precedence is stated, and the comment says explicitly that other clients were not
+  checked.
+- **Nit** — the test-runner markers are trimmed before the non-empty check.
+
+Re-run: `pnpm --filter @lemnaria/persistence test` **11 files / 98 tests passed**; focused
+`apps/web` backup + cron tests **22 passed (2 files)**; both package lints exit 0; web typecheck
+exit 0.

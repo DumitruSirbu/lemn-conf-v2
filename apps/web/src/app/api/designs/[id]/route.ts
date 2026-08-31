@@ -117,10 +117,13 @@ async function saveDesign(
   const writeTokenHash = readWriteTokenHash(request, id);
   if (writeTokenHash === undefined) return writeForbiddenResponse();
 
-  const body = await readDesign(request);
-  if (!body.ok) return body.response;
-
   try {
+    // Inside the try, not above it: `readDesign` is not expected to throw — the reader returns its
+    // transport failures — but nothing above a `try` has a handler, and this handler's whole reason
+    // for existing is that a body read once escaped it.
+    const body = await readDesign(request);
+    if (!body.ok) return body.response;
+
     const savedId = await getRepository().saveAuthorized({
       id,
       design: body.design,

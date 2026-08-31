@@ -49,9 +49,9 @@ function assertRunningUnderATestRunner(): void {
     );
   }
 
-  // Non-empty, not merely present: `VITEST=""` is not a test runner.
+  // Non-empty once trimmed, not merely present: neither `VITEST=""` nor `VITEST=" "` is a runner.
   const isTestRunner = TEST_RUNNER_MARKER_VARIABLES.some(
-    (variable) => (process.env[variable] ?? "") !== "",
+    (variable) => (process.env[variable] ?? "").trim() !== "",
   );
   if (isTestRunner) return;
 
