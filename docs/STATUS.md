@@ -92,8 +92,9 @@ DOM-003, DB-004. None is a reproduced High, and each is described in its report 
 The coordinator's `pnpm check` on 2026-08-31 at commit `c5df227` exited 0 over formatting, lint,
 typecheck and **2,415 package tests**: domain 995, persistence 98 (live Neon test database), Three
 adapter 708, and web 614 with 4 pre-existing skips. **The Playwright e2e suite was not run in this
-session** — the last counted figure is 20 e2e tests plus one `test.skip` on 2026-08-26, and it has
-not been rerun since. Nothing was pushed. The separate untracked runbook was not touched.
+session** — the last counted figure is 20 e2e tests plus one `test.skip` on 2026-08-26. (Rerun on
+2026-09-02 at M5B's close-out, where it was found red for a stale catalogue id and fixed: 21 passed,
+1 skipped. See that section and backlog 24.) Nothing was pushed. The separate untracked runbook was not touched.
 
 ## What is actually built
 
@@ -102,8 +103,9 @@ that is the only place a Postgres driver appears, and a Next.js App Router app. 
 `pnpm check`, run by the coordinator on **2026-08-31 at commit `c5df227`**, exited 0 over **2,415
 package tests** (domain 995, Three adapter 708, web 614, persistence 98 against the live Neon test
 database) with 4 pre-existing web skips. The repository also carried **20 Playwright e2e tests** and
-one `test.skip` when that suite was last counted on 2026-08-26; **the e2e suite has not been rerun
-since**, so that figure is a 2026-08-26 count and not a current one.
+one `test.skip` when that suite was last counted on 2026-08-26, so that figure is a 2026-08-26 count
+and not a current one. (Next rerun: 2026-09-02, M5B's close-out — 21 passed, 1 skipped, after fixing
+two ids ADR 0033's row merge had left stale since 2026-08-27.)
 
 Persistence jumped from 30 to 83 without a line of test code being written: **45 of its tests had
 been silently skipping** on every previous run because the `qa_owner` credential in
@@ -302,11 +304,22 @@ intersection) rather than touching-edges, per ADR 0011's own 2026-08-26 correcti
 kitchen has overlapping column spans (`A|0.45`'s 900 mm corner base spans both its neighbours) that a
 touching-edges test would miss.
 
-**Not verified in this close-out session:** whether the Playwright e2e suite (last counted 20 tests
-plus one skip on 2026-08-26) was rerun before this wave closed, as `M5B-manual-ux-remediation.md`'s
-own *Verification method* requires before the phase counts as closed. The team-lead brief that
-reported 5B4b's numbers did not mention it. **Confirm the e2e run before treating this milestone as
-fully verified**, or run it now — three of these waves changed what the editor loop does.
+**The Playwright e2e suite was rerun for this close-out, and it was red.** It had not run since
+2026-08-26. §10's signature flow at 390x844 failed on `getByTestId("offer-base-2door")` — expected 1,
+received 0 — because the panel builds its test id as `offer-${row.buildId}` and commit `3cc3ed3`
+(2026-08-27, M5 waves 5C2+5C3) merged `base-2door` and `base-1door` into one `base-cabinet` row under
+ADR 0033. The spec was last touched 2026-08-26, the day before. `wall-2door` -> `wall-cabinet` was
+stale in the same file for the same reason.
+
+**Not a regression from any M5B wave, and every other gate stayed green throughout** — the rename was
+consistent everywhere the unit suites look, and no unit test asserts a DOM test id. Both ids were
+corrected and the suite now reports **21 passed, 1 skipped, 0 failed**. §10's flow passing is real
+evidence for this milestone rather than an unrelated green: it deletes the fridge, deletes the unit
+above it, and asserts the two openings merge into one 700 x 2600 column.
+
+The gap itself — `ci:local` does not run Playwright, so nothing but somebody remembering stands
+between a broken e2e suite and a milestone close-out — is **backlog 24**. It surfaced only because
+the scribe closing this wave declined to certify a run it had not been told about.
 
 ## What is open right now
 
@@ -556,8 +569,10 @@ floor; until it lands, no update rate limit can be sized honestly.
 **M5B — Manual UX remediation is complete, 2026-09-02.** All eleven waves shipped; the last, 5B4b
 (the capped merge), closed the milestone — see *M5B — Manual UX remediation, complete 2026-09-02*
 above. Final verified state: domain 1375, web 757 (+4 skipped), `pnpm ci:local` all nine gates PASS.
-**Confirm the Playwright e2e suite has been rerun since 2026-08-26 before treating M5B as fully
-verified** — see the close-out section's last paragraph.
+The Playwright e2e suite was rerun for the close-out: **21 passed, 1 skipped, 0 failed**, after
+fixing two catalogue ids that ADR 0033's row merge had left stale in `signature-flow.e2e.spec.ts`
+since 2026-08-27. See the close-out section's last paragraph, and backlog 24 for the reporting gap
+that let a red suite sit unnoticed for six days.
 
 **Next: M5 wave 5E — the browser and mobile gate.** It was the only M5 wave still open, and it was
 deliberately held back while M5B was changing the width surface it photographs; that condition is now
