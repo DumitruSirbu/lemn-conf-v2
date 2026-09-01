@@ -18,6 +18,7 @@ import {
 } from "../../src/fixtures/kitchen-l-design.js";
 import { clearBodies, resizeTo } from "../support/commands.js";
 import { createWorld, type KitchenWorld } from "../support/kitchen-world.js";
+import { pairWithEmptyColumnRight } from "../support/empty-column-pair.js";
 
 function kitchen(): KitchenWorld {
   return createWorld(KITCHEN_L_DESIGN, KITCHEN_L_BODY_CATALOG);
@@ -114,11 +115,11 @@ describe("a shrink with no empty column anywhere", () => {
     expect(totalOf(result.effect.columns)).toBe(totalOf(before.columns));
   });
 
-  it("creates a sliver `MIN_W` would refuse, because that floor is about consuming", () => {
-    // A 50 mm step creates a 50 mm opening, and ADR 0031's "a remainder below `MIN_W` refuses" would
-    // therefore disable the whole stepper. The floor stays where it was — on a **growth** consuming
-    // space that already exists — and the owner has since decided the other way for what a shrink
-    // leaves behind: an opening no cabinet fits is "ok to have empty space left" (ADR 0037).
+  it("creates a sliver no floor refuses any more (ADR 0043)", () => {
+    // A 50 mm step creates a 50 mm opening. ADR 0031's "a remainder below `MIN_W` refuses" was about
+    // a **growth** consuming space that already exists and never bound this path; ADR 0043 has since
+    // removed it there too, so no floor stands between a step and the strip it leaves. The owner:
+    // "Empty space can be even 100 mm or 50 mm, if somebody want to keep it."
     const result = resizeTo(kitchen(), "p4", 550);
 
     expect(result.ok).toBe(true);
@@ -183,10 +184,11 @@ describe("a shrink that has nowhere to put the space is refused", () => {
   });
 });
 
-describe("growth is unchanged: it still consumes space that is already there", () => {
+describe("growth still consumes space that is already there", () => {
   it("refuses on a kitchen at load, naming both sides absent", () => {
     // The half of ADR 0031's consequence decision 7 leaves standing, and the anti-invariant for the
-    // whole feature: a shrink may make space, a growth may not.
+    // whole feature: a shrink may make space, a growth may not. ADR 0043 removes the *remainder*
+    // floor, not this — a growth with no empty column on either side is still refused.
     const result = resizeTo(kitchen(), "p10", 350);
 
     expect(result.ok).toBe(false);
@@ -229,5 +231,125 @@ describe("growth is unchanged: it still consumes space that is already there", (
     }
     expect(grown.effect.emptyColumnWidthMm).toBe(0);
     expect(grown.effect.columns.has("A|3.45")).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// ADR 0043 — an empty space of any width is a legal state, so a growth has no remainder floor.
+//
+// The owner, 2026-09-01: "Empty space can be even 100 mm or 50 mm, if somebody want to keep it. Such
+// narrow empty space will force user to resize accordingly and not leave such spaces." That
+// supersedes ADR 0031's "a remainder below `MIN_W` refuses", and what it fixes is a stepper that
+// stepped down and could not step back up.
+// ---------------------------------------------------------------------------
+
+/** One `setWidth`, carrying the frozen column map forward the way the store does — which is the only
+ *  way a second step sees the strip the first one made. */
+function stepTo(
+  world: KitchenWorld,
+  id: string,
+  widthMm: number,
+): KitchenWorld {
+  const result = resizeTo(world, id, widthMm);
+  if (!result.ok) {
+    throw new Error(
+      `step to ${String(widthMm)} refused: ${result.reason.code}`,
+    );
+  }
+  return {
+    ...createWorld(result.design, world.catalog),
+    columns: result.effect.columns,
+  };
+}
+
+/** Every column extent on wall A, keyed and in millimetres — the map a leftover strip shows up in. */
+function wallAExtents(
+  columns: ReadonlyMap<
+    string,
+    { readonly wall: string; readonly x: number; readonly w: number }
+  >,
+): Record<string, number> {
+  const extents: Record<string, number> = {};
+  for (const [key, column] of columns) {
+    if (column.wall === "A") extents[key] = Math.round(column.w * 1000);
+  }
+  return extents;
+}
+
+describe("the stepper is reversible at every rung", () => {
+  // `A|3.20` is `p4`, `p14` and `p20` at 600 mm, the run decision 7's own tests step down. Before
+  // ADR 0043 only the **first** rung came back: 600 → 550 leaves a 50 mm strip that `+50` consumes
+  // exactly to zero, but 550 → 500 leaves 100 and `+50` from there would leave 50, which
+  // `remainder_below_floor` refused. Every rung below the first was a one-way trip, and this is the
+  // test that would have caught it.
+  const RUNGS = [600, 550, 500, 450, 400, 350] as const;
+
+  it.each(RUNGS)("returns to %i mm after a -50 followed by a +50", (rungMm) => {
+    let world = kitchen();
+    for (let widthMm = 600; widthMm > rungMm; widthMm -= 50) {
+      world = stepTo(world, "p4", widthMm - 50);
+    }
+    const before = wallAExtents(world.columns);
+
+    const narrower = stepTo(world, "p4", rungMm - 50);
+    const restored = stepTo(narrower, "p4", rungMm);
+
+    for (const id of ["p4", "p14", "p20"]) {
+      const placement = restored.design.placements.find(
+        (entry) => entry.id === id,
+      );
+      expect([id, placement?.body.widthMm]).toEqual([id, rungMm]);
+    }
+    // The whole point: no strip is left behind. The map after the round trip is the map before it,
+    // key for key and millimetre for millimetre.
+    expect(wallAExtents(restored.columns)).toEqual(before);
+  });
+});
+
+describe("a growth may leave a remainder of any width", () => {
+  // Boundary rows against the superseded floor, so the supersession reads as a decision rather than
+  // as a slip: 300 is the floor itself, 298 and 50 are under it, and 2 is the narrowest gap the
+  // engine can be asked to leave. The fixture is shared with the wave's QA suite — see
+  // `tests/support/empty-column-pair.ts` for why it is synthetic and why its members are 860 mm.
+  //
+  // **2 rather than 1, and 298 rather than 299, and both are the geometry rather than a rounding
+  // choice.** A placement's `alongMm` is a whole millimetre, so a body spans `centre ± width / 2`
+  // and a column of odd width would have half-millimetre edges — which `evaluateEmptySpace` refuses
+  // as `absent`, because an extent off the millimetre grid cannot be moved onto it either. An odd
+  // remainder therefore needs an odd *target*, and `setWidth` refuses one of those
+  // `WIDTH_NOT_SUPPORTED` before it ever looks at the space. 1 mm is unreachable by construction,
+  // not by this decision.
+  it.each([
+    { emptyMm: 202, targetMm: 800, remainderMm: 2 },
+    { emptyMm: 250, targetMm: 800, remainderMm: 50 },
+    { emptyMm: 498, targetMm: 800, remainderMm: 298 },
+    { emptyMm: 500, targetMm: 800, remainderMm: 300 },
+  ])(
+    "grows into a $emptyMm mm space and leaves $remainderMm mm",
+    ({ emptyMm, targetMm, remainderMm }) => {
+      const world = pairWithEmptyColumnRight(emptyMm);
+
+      const result = resizeTo(world, "L-base", targetMm);
+
+      expect(result.ok).toBe(true);
+      if (!result.ok) return;
+      expect(result.effect.emptyColumnWidthMm).toBe(remainderMm);
+    },
+  );
+
+  it("still refuses a growth larger than the space that is there", () => {
+    // The one arithmetic bound ADR 0043 leaves on a growth: `remainderMm < 0`.
+    const world = pairWithEmptyColumnRight(100);
+
+    const result = resizeTo(world, "L-base", 800);
+
+    expect(result.ok).toBe(false);
+    if (result.ok || result.reason.code !== "NO_EMPTY_SPACE") {
+      expect.unreachable("expected NO_EMPTY_SPACE");
+    }
+    expect(result.reason.params.sides[0]).toEqual({
+      side: "right",
+      reason: "too_narrow",
+    });
   });
 });

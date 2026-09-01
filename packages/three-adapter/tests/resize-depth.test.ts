@@ -260,13 +260,14 @@ describe("a resize does not change any member's recorded depth", () => {
     //
     // ADR 0035 decision 7 takes it to 230 by making every shrink fund itself out of the space it
     // vacates, so the population stops being "what a delete unlocks" and becomes "every legal move,
-    // plus what a delete unlocks". 230 lines of fixture would bury the one assertion this file
-    // exists for. The itemisation lives in the domain's adversarial census — 26 taps at load, 24
+    // plus what a delete unlocks"; **ADR 0043 takes it to 238** by letting a growth stop short of
+    // consuming the whole freed column. 238 lines of fixture would bury the one assertion this file
+    // exists for. The itemisation lives in the domain's adversarial census — 26 taps at load, 32
     // gained per clear, 2 lost to `RESIZE_OPENS_GAP` — over this exact width list.
     //
     // What this file asserts is unchanged and now holds over fifteen times the population it started
     // with: a resize never changes any member's recorded depth.
-    expect(accepted).toHaveLength(230);
+    expect(accepted).toHaveLength(238);
   });
 });
 

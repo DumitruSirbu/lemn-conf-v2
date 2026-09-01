@@ -129,8 +129,9 @@ type Column = {
 };
 ```
 
-Columns are computed **once at load** and never change. ~~Accessories contribute nothing.~~ **SUPERSEDED by ADR 0038** — `groupByColumn` is unconditional; every placement contributes.
-**WHY (stability):** every void, level and merge keys off the column. The reorder feature was removed precisely so nothing can move horizontally and invalidate it.
+~~Columns are computed **once at load** and never change.~~ **SUPERSEDED, in two steps.** By **ADR 0011 Gap D**: a column's *extent* is frozen at load, while its live predicates (`hasFullHeightUnder`) are re-answered on every derivation. By **ADR 0031** and **[ADR 0046](../decisions/0046-adjacent-empty-columns-merge-under-a-cap-and-an-insert-splits-its-column.md)** (2026-09-01): a resize moves two extents, a merge joins two, and an insert splits one — each written by the command that caused it, never by a global re-derivation. And by **[ADR 0044](../decisions/0044-an-empty-space-is-recorded-in-the-design-document.md)** (2026-09-01): the map is derived at load from the placements **and** from the document's stored `emptyColumns`, because a column with no member is the one kind nothing else can reconstruct.
+~~Accessories contribute nothing.~~ **SUPERSEDED by ADR 0038** — `groupByColumn` is unconditional; every placement contributes.
+**WHY (stability):** every void, level and merge keys off the column. The reorder feature was removed precisely so nothing can move horizontally and invalidate it. **That reason no longer holds as written** — ADR 0031 and ADR 0046 both move columns horizontally. What the void model actually needs is that column identity is stable *within* a command, which it is.
 
 ### 3.3 Void (derived, transient)
 
@@ -189,6 +190,8 @@ Four rules, each earned:
    **WHY:** the 750 mm above an 1850 mm fridge was being cut by the 1500/2200 lines into two useless stubs. The kitchen wants one tall unit there.
 
 Result set for a cleared standard column: `0.00→0.86`, `1.50→2.20`, `2.20→2.60` — three independently selectable slots that all still know `spanH = 2.6`.
+
+**§4 has no horizontal half, and that is fixed outside it — [ADR 0046](../decisions/0046-adjacent-empty-columns-merge-under-a-cap-and-an-insert-splits-its-column.md), 2026-09-01.** The pseudocode above subtracts the **height** a member occupies and never its **width**, so a body narrower than its column closes the level and the remainder is stranded — no void, no column, no second insert. Reachable in four taps with no resize: clear `A|2.60`, insert a 300 mm bottle cargo into the 600 mm opening. The pseudocode is **unchanged**; what changes is that an insert now **splits** its column first, so no column is ever wider than its members by the time this runs. ADR 0037's withdrawal is the record of what happens when a merge widens a column without that split.
 
 ---
 
@@ -337,6 +340,8 @@ Top row ships **push-to-open**: handles are **built and hidden**, not omitted.
 
 `w: 'fit'` = parameterised, builds to the opening. `hFlex` = height parameterised (capped at nominal).
 
+**The four full-height rows are "fixed 600 and refuse other openings with a reason" — except `tall-pantry`.** [ADR 0048](../decisions/0048-the-pantry-column-is-the-one-resizable-column.md) (2026-09-01) makes *Coloană cămară* resizable 400–800 mm with its door count following the width through the threshold ADR 0035 decision 4 already set at 500. `tall-oven-tower`, `tall-fridge-housing` and `fridge-free` are unchanged.
+
 | id | label | band | w | h | flex | builder |
 | --- | --- | --- | --- | --- | --- | --- |
 | `base-2door` | Corp bază 2 uși | base | fit | 0.86 | — | `make.baseCabinet(w,{doors:2})` |
@@ -423,7 +428,7 @@ Sections render only when their flag is true, in this order:
    - zero results → a sentence saying what to clear, never a bare "0"
 4. **Finisaj** — `canFinish` (body has doors).
 5. **Mâner** — `canHandle` (body has handle meshes, visible or hidden).
-6. **Lățime** — **SUPERSEDED by ADR 0035** **and by ADR 0034.** `fixedWidth` is NOT the discriminator — it is `false` on both discrete rows, the dishwasher included; ask the shape of `widthRangesMm` instead. Chips are the column's, not the body's, and each is judged by running `setWidth`. Original text follows. — `canWidth` = selected · not empty · not `fixedWidth`. Chips from `sizes`, each **active / free / blocked(dashed, unclickable)**, plus the consequence line: *"Lățimea se ia de la vecinul din dreapta (600 mm). Maxim 800 mm; sub 300 mm nu se coboară."*
+6. **Lățime** — **SUPERSEDED by ADR 0035** **and by ADR 0034.** `fixedWidth` is NOT the discriminator — it is `false` on both discrete rows, the dishwasher included; ask the shape of `widthRangesMm` instead. Chips are the column's, not the body's, and each is judged by running `setWidth`. **And by [ADR 0049](../decisions/0049-a-fixed-width-cabinet-shows-its-width-section-disabled.md)** (2026-09-01): `fixedWidth` no longer decides whether the section *exists* — a fixed-width cabinet renders one `active` chip at its single width, disabled, carrying the engine's `NOT_RESIZABLE` sentence, per §13.1 and ADR 0032. The section is still omitted where the body resolves **no** width set at all, which is missing catalogue data and must keep failing loudly (finding R2.7). Original text follows. — `canWidth` = selected · not empty · not `fixedWidth`. Chips from `sizes`, each **active / free / blocked(dashed, unclickable)**, plus the consequence line: *"Lățimea se ia de la vecinul din dreapta (600 mm). Maxim 800 mm; sub 300 mm nu se coboară."*
 7. **Footer** — price · **Șterge corpul** (`canDelete`) · **Gata**.
 
 Rules that must survive the port:
@@ -514,8 +519,8 @@ text is kept so the history reads, but the ADR named beside it is what the code 
 | 7 | Sink base into an 860 mm opening | **SUPERSEDED by ADR 0035** — the sink base is bounded 560-800 (ADR 0033's amendment), so an 860 mm opening is refused on width before the carcass fit is judged. **The row's real subject — the faucet is excluded from fit — still holds** and is demonstrable at a width inside the bound. |
 | 8 | Swap sink → drawers | no phantom void from the freed faucet height |
 | 9 | Resize 600 → 800 with a 600 neighbour | **SUPERSEDED by ADR 0031** — stated: neighbour becomes 400, outer edges hold. A resize now moves a whole column, funded by an adjacent empty column; no neighbour is shrunk. |
-| 10 | Resize 600 → 1000 | not offered (would push neighbour under 300) |
-| 11 | Resize next to a corner / appliance | all chips blocked; corners and appliances never donate |
+| 10 | Resize 600 → 1000 | **SUPERSEDED by [ADR 0031](../decisions/0031-a-resize-moves-a-whole-column-into-adjacent-empty-space.md) and [ADR 0043](../decisions/0043-an-empty-space-of-any-width-is-a-legal-state.md)** — stated: not offered, because it would push the neighbour under 300. **The outcome still holds and both of its reasons are gone**: no neighbour is pushed (ADR 0031 — a resize is funded by empty space, and there is no donor), and no floor exists to push anything under (ADR 0043 — a gap of any width is legal). 1000 mm is refused because it is above §7's 800 mm ceiling and in no chip set, which is a different rule from the one this row names. |
+| 11 | Resize next to a corner / appliance | **SUPERSEDED by [ADR 0035](../decisions/0035-width-is-a-bounded-stepper-not-a-menu-of-sizes.md) decision 7** — stated: all chips blocked; corners and appliances never donate. The second half is vacuous under ADR 0031 (nothing donates at all), and the first half is **false**: a shrink funds itself out of the space it vacates, so a body beside a corner steps down today. What still holds is that a corner or an appliance is never a *source* of width. |
 | 12 | Resize after choosing finish + handle | both preserved |
 | 13 | Resize a top-row unit | stays push-to-open unless a handle was chosen |
 | 14 | Dishwasher niche | only 450 / 600; both build a real carcass |
@@ -558,7 +563,7 @@ const Design = z.object({
 });
 ```
 
-- **`Design` is the persisted truth.** Geometry is derived from it on load — never serialise meshes.
+- **`Design` is the persisted truth.** Geometry is derived from it on load — never serialise meshes. The shape above is narrower than the shipped one: `seatDepthMm` (ADR 0011 Gap B) and, from 2026-09-01, an optional `emptyColumns` array ([ADR 0044](../decisions/0044-an-empty-space-is-recorded-in-the-design-document.md)) are both part of the document. An empty column is the one piece of derived state that is **not** derivable — nothing in the placements says how tall a fully cleared column was.
 - Store commands mirror §8: `select`, `remove`, `insert`, `setWidth`, `setFinish`, `setHandle`. Each returns `{ok} | {ok:false, reason}`; the panel renders `reason` in the banner. **No product logic in components.**
 - Recompute voids inside the store after every command; expose `voids` as derived state.
 - `dynamic(..., { ssr: false })` for the 3D subtree — three.js cannot render on the server.
@@ -589,7 +594,7 @@ Conclusions reached in the design session. The rejected ones matter most: each w
 | **Filtered list, never pagination**, for choosing a cabinet | The slot knows its width and band, so 20 catalogue items reduce to ~6 valid ones — there is nothing left to paginate. Pagination hid the right answer 75% of the time and, on mobile, its 44 px pager ate 82 px of sheet height. Three layouts were mocked (paginated grid / filtered list / full catalogue with sticky band tabs); the paginated one was deleted at the user's request. |
 | **Row list, not a grid, on mobile** | At 390 px a row gives the name full width and makes the whole 86 px strip the tap target; a 2-up grid gives 165 px cards and truncated names. |
 | **Replace is same-band; delete makes space; insert offers what fits** | Cross-band replacement needs compatibility maths that never terminates cleanly. These three verbs cover every rearrangement, each single-purpose. |
-| **Reorder (Mută la stânga/dreapta) removed** | Only well-defined when both cabinets share a width; otherwise it breaks vertical alignment or drags in the whole neighbour-slack calculation. Select-then-replace expresses the same intent in two explicit taps. Bonus: nothing can move horizontally any more, so column identity is permanently stable — which is what keeps the void model honest. |
+| **Reorder (Mută la stânga/dreapta) removed** | Only well-defined when both cabinets share a width; otherwise it breaks vertical alignment or drags in the whole neighbour-slack calculation. Select-then-replace expresses the same intent in two explicit taps. Bonus: nothing can move horizontally any more, so column identity is permanently stable — which is what keeps the void model honest. **The rule stands; its stated bonus does not — superseded by ADR 0031 and [ADR 0046](../decisions/0046-adjacent-empty-columns-merge-under-a-cap-and-an-insert-splits-its-column.md) (2026-09-01).** A resize moves columns horizontally, a merge joins them and an insert splits one. Identity is stable *within* a command, which is what the void model needs; permanence was never it. |
 | **Work column by column** (base → middle → top, then the next column) | Preserves vertical alignment by construction rather than by checks. |
 | **Undo removed** | See §5.1 — irreconcilable with merging spans. |
 | **Corners are structural** | No replace, no delete, never a width donor. A sink-in-corner request is a custom product, not a loosened rule. |
@@ -610,7 +615,7 @@ Conclusions reached in the design session. The rejected ones matter most: each w
 ### 13.3 Open questions for production
 
 1. **Unify the occupied swap sets with the fit-filtered catalogue?** Today an occupied cabinet uses a hand-authored per-kind set (5–6 rows) while a void uses the catalogue filtered by fit (10–15). The dishwasher niche has 3, which looks broken beside its neighbours. Unifying gives one source of truth; the cost is losing the implicit discouragement of swapping a plumbed niche for plain storage — that consequence would move into the note or a confirmation.
-2. **Run re-split** — the last piece of the width story (§12).
+2. **Run re-split** — the last piece of the width story (§12). **Half closed 2026-09-01 by [ADR 0046](../decisions/0046-adjacent-empty-columns-merge-under-a-cap-and-an-insert-splits-its-column.md):** the *mechanism* — one span yielding several columns — ships as an insert-time split plus a capped merge. The *offer* does not: nothing shows a customer `800+600` versus `600+400+400` for a run. `docs/BACKLOG.md` entry 2 stays open for that half.
 3. **Click reachability** of placements occluded from every fixed camera (§6.4).
 4. **Arbitrary room shapes.** `LEVELS` and the two wall planes are constants for this 3.6 × 2.4 m L-shaped room. The concepts (column, span, level, run) generalise, but they must become per-wall data.
 5. **Presets have no per-preset geometry.** All four presets load the same `kitchen-l` scene and differ only by door finish and camera angle; their thumbnails in `shots/presets/` were rendered from that scene by `preset-shots.html` (keep that rig — re-run it whenever geometry or finishes change, so thumbnails cannot drift from the model). Real presets need a recipe per preset.

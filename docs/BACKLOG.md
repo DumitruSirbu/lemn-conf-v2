@@ -73,11 +73,20 @@ hob placement to offer a delete on.
 
 ## 2. Rearranging a run: re-split, and the narrow bottle cabinet — DECIDED 2026-08-26; RE-SPLIT MECHANISM DECIDED 2026-08-28
 
-> **STILL OPEN.** ~~The re-split half now has its mechanism: [ADR 0037](decisions/0037-adjacent-empty-columns-merge-into-one-space.md).~~
+> **STILL OPEN, and now half planned.** ~~The re-split half now has its mechanism: [ADR 0037](decisions/0037-adjacent-empty-columns-merge-into-one-space.md).~~
 > ADR 0037 was built in wave 5D2b on 2026-08-29 and **withdrawn on 2026-08-30**: merging the columns
 > without the re-split makes it worse, because §4 subtracts height and never width, so the first
 > cabinet inserted into a merged span closes the level and strands the rest. **Clearing two adjacent
 > cabinets still gives two openings.** The mechanism below is right and waits on the re-split.
+>
+> **AMENDED 2026-09-01 — [ADR 0046](decisions/0046-adjacent-empty-columns-merge-under-a-cap-and-an-insert-splits-its-column.md).**
+> The owner has revived the merge under an **800 mm cap** and decided the missing half is built first,
+> as an **insert-time column split**: a body inserted into a column wider than itself is seated at one
+> edge and the remainder becomes a new empty column. That is the *mechanism* option B needs — one span
+> yielding several columns — and it ships in waves 5B4a and 5B4b (`docs/milestones/M5B-manual-ux-remediation.md`).
+> **This entry stays open for the other half**: nothing offers a customer `800+600` versus
+> `600+400+400` for a run, which is what option B's own wording describes. The cap does **not** by
+> itself cure the stranding — the split does — and ADR 0046 records why.
 > Adjacent columns that are empty at **every** level merge into one space — the same predicate ADR 0031
 > funds a resize from. **800 mm still caps every cabinet**, so a merged 1400 mm space is filled with
 > cabinets up to 800, never with one 1400. Option C (free-form width) stays rejected: ADR 0035's 50 mm
@@ -473,6 +482,17 @@ takes that width. The narrowest seeded placement in the shipped kitchen is 300 m
 no column is under 300 mm wide, so **no opening under 300 mm exists**. There is no bootstrap either:
 the only way to make a narrower opening is to put a narrower body in the column first, and inserting
 one needs the opening.
+
+> **Amended 2026-09-01 — the second sentence is no longer true, and openings under 300 mm are now
+> ordinary.** [ADR 0035](decisions/0035-width-is-a-bounded-stepper-not-a-menu-of-sizes.md) decision 7
+> already falsified it on 2026-08-28: a shrink funds itself out of the space it vacates, so one `−50`
+> on a 600 mm column makes a 50 mm empty column where none could exist before.
+> [ADR 0043](decisions/0043-an-empty-space-of-any-width-is-a-legal-state.md) makes them ordinary in
+> the other direction too — a growth may now *leave* a gap of any width. **This entry's subject is
+> unaffected**: a narrow *opening* is still not a narrow *cabinet*, and reaching the 200 mm cargo
+> needs a column whose members are 200 mm, which a resize refuses on the entry's own floor. The trap
+> two paragraphs below — that `MIN_WIDTH_M` must not be lowered — is unchanged and was honoured by
+> both records.
 
 So `600 + 600 + 200` — the owner's own example, and the sentence that opens ADR 0026 — is still not
 expressible. The only command that could reach it is §5.4's resize, which does not exist yet.

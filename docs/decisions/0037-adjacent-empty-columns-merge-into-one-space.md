@@ -3,7 +3,25 @@
 Status: Accepted
 Date: 2026-08-28
 Type: Decision
-Milestone: M5 — built in wave 5D2b and **withdrawn**; backlog 2 stays open
+Milestone: M5 — built in wave 5D2b and **withdrawn**; **revived under a cap 2026-09-01 by [ADR 0046](0046-adjacent-empty-columns-merge-under-a-cap-and-an-insert-splits-its-column.md)**; backlog 2 stays open
+
+## Revived under a cap, 2026-09-01
+
+**[ADR 0046](0046-adjacent-empty-columns-merge-under-a-cap-and-an-insert-splits-its-column.md)
+supersedes this record.** The owner has decided the merge returns with an **800 mm cap** — adjacent
+empty columns merge when their total is at most 800, and a longer chain merges the widest contiguous
+run at or under 800 — and that the missing half this record was withdrawn over is built first, as an
+**insert-time column split**.
+
+Read the withdrawal section below before ADR 0046, not instead of it: everything it measured is still
+true. The cap alone does **not** cure the stranding — insert a 400 into a merged 600 and 200 mm still
+strands, because §4 still subtracts height and never width. What cures it is the split, and ADR 0046
+ships that first, alone, gated on reproducing this record's own withdrawal scenario.
+
+The rule, the predicate (*empty at every level*) and *"800 mm still caps every cabinet"* are carried
+forward from here verbatim. What ADR 0046 adds is the cap, the split, a sorted greedy scan (a capped
+merge is order-dependent where this record's uncapped one was not) and a refusal to merge columns
+whose `top` disagrees.
 
 ## Context
 
@@ -115,8 +133,12 @@ merge disabled — measured.
 
   **Two things were built and only one survived; see the withdrawal section above.**
 
-  `evaluateEmptySpace` stopped applying `MIN_W` to a **shrink**, and that stands. The floor guards
-  *making* a sliver, and returning space to a strip can only unmake one, so enforcing it there was
+  `evaluateEmptySpace` stopped applying `MIN_W` to a **shrink**, and that stands. ~~The floor guards
+  *making* a sliver~~ — **amended 2026-09-01 by
+  [ADR 0043](0043-an-empty-space-of-any-width-is-a-legal-state.md): the floor is gone on a growth
+  too, because the owner has decided that a gap of any width is a legal state, so there is no longer
+  anything for it to guard.** The waiver recorded in this paragraph is unchanged; only its stated
+  reason narrowed. Returning space to a strip can only unmake one, so enforcing it there was
   what sent every press to `vacatedEmptySpace` for a fresh strip (product-logic review R3.10 had
   called the pair incoherent: the floor enforced where it did harm and waived where it made the
   sliver). This is what delivers the stepper half of this decision — six presses free one 300 mm

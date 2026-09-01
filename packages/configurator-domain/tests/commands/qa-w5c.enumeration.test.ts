@@ -301,7 +301,9 @@ describe("after one column is cleared", () => {
   //   immediately left or right of the cleared key, which is ADR 0031 rule 2 unchanged: growth still
   //   consumes an empty column, and clearing one is still the only way to make one. The two
   //   exceptions are shrinks whose vacated strip collides with the corner leg's column key, and they
-  //   are called out on the `A|0.75` row.
+  //   are called out on the `A|0.75` row. **What ADR 0043 changed is how far a growth reaches**: a
+  //   width that would leave part of the freed column standing is no longer refused, so a clear now
+  //   buys every width up to the ceiling rather than only the ones that consume it exactly.
   // - `lostToDelete` — taps that were accepted at load on a body this row deletes. Not a behaviour
   //   change; the body is gone.
   // - `lostToGap` — taps accepted at load and refused here on a body that is **still standing**.
@@ -310,6 +312,9 @@ describe("after one column is cleared", () => {
   //   stops being resizable while it is still there is the interesting case, and lumping it in with
   //   the deletes would have hidden it.
   const CLEARABLE = [
+    // **ADR 0043, 2026-09-01: the run to the 800 mm ceiling is new.** `A|0.75` grows into the 600 mm
+    // this clear frees, and until the remainder floor went it had to stop at 600 — the widths above
+    // that leave part of the freed column standing, which is now a legal gap rather than a refusal.
     {
       key: "A|0.30",
       ids: ["p8", "p15"],
@@ -320,12 +325,20 @@ describe("after one column is cleared", () => {
         "p10@500",
         "p10@550",
         "p10@600",
+        "p10@650",
+        "p10@700",
+        "p10@750",
+        "p10@800",
         "p16@350",
         "p16@400",
         "p16@450",
         "p16@500",
         "p16@550",
         "p16@600",
+        "p16@650",
+        "p16@700",
+        "p16@750",
+        "p16@800",
       ],
       lostToGap: [],
     },
@@ -338,10 +351,23 @@ describe("after one column is cleared", () => {
     // as `A|0.45`, the corner leg's column; with `A|0.75` cleared there is a real empty column to
     // return the width to instead, so no strip has to be created at all. The two exceptions to
     // "every gain is a growth" are therefore the two taps the key-collision guard refuses at load.
+    // **The eight growths beside them are ADR 0043's.** `A|0.30` can only grow into the 300 mm this
+    // clear frees, so every width above 500 leaves a remainder — refused until 2026-09-01, kept now.
     {
       key: "A|0.75",
       ids: ["p10", "p16"],
-      gained: ["p15@300", "p8@300"],
+      gained: [
+        "p15@300",
+        "p15@650",
+        "p15@700",
+        "p15@750",
+        "p15@800",
+        "p8@300",
+        "p8@650",
+        "p8@700",
+        "p8@750",
+        "p8@800",
+      ],
       lostToGap: [],
     },
     {
@@ -427,20 +453,21 @@ describe("after one column is cleared", () => {
     },
   );
 
-  it("accepts 450 taps across the nine deletable columns", () => {
+  it("accepts 466 taps across the nine deletable columns", () => {
     // The population, as one number over the whole sweep — 112 before ADR 0035 decision 7, 450
-    // after it. The itemisation that used to live here has moved into `CLEARABLE`'s `gained` rows
-    // and the load census's own list, which between them name every tap; what is left for a total
-    // to add is that no *tenth* source of acceptance has appeared.
+    // after it, and 466 since ADR 0043 removed the remainder floor. The itemisation that used to
+    // live here has moved into `CLEARABLE`'s `gained` rows and the load census's own list, which
+    // between them name every tap; what is left for a total to add is that no *tenth* source of
+    // acceptance has appeared.
     //
-    // It is exactly `9 × 51 − 51 − 4 + 46`: nine copies of the load census, less the 51 taps whose
-    // body each row deletes, less the 4 that `A|1.30` loses to `RESIZE_OPENS_GAP`, plus the 46
-    // taps the clears buy. Every one of those four terms is pinned above rather than folded into
-    // this number.
+    // It is exactly `9 × 51 − 51 − 4 + 62`: nine copies of the load census, less the 51 taps whose
+    // body each row deletes, less the 4 that `A|1.30` loses to `RESIZE_OPENS_GAP`, plus the 62
+    // taps the clears buy — 46 of them before ADR 0043 and 16 growths that leave a gap behind.
+    // Every one of those four terms is pinned above rather than folded into this number.
     const all = CLEARABLE.flatMap(
       ({ ids }) => census(clearBodies(kitchen(), [...ids])).accepted,
     );
-    expect(all.length).toBe(450);
+    expect(all.length).toBe(466);
   });
 
   it("keeps RESIZE_OPENS_GAP reachable, on the corner leg", () => {

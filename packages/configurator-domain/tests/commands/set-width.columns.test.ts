@@ -145,9 +145,13 @@ describe("no opening ever appears where a body physically stands", () => {
     // test whose subject is a *phantom opening* buries the assertion above them.
     //
     // The itemisation did not go away: the adversarial file pins the 26 taps accepted at load, the
-    // 24 each clear gains, and the 2 lost to this very refusal, from the same width list. What is
+    // 32 each clear gains, and the 2 lost to this very refusal, from the same width list. What is
     // left here is the guard against a vacuous sweep, which is what the number was always for.
-    expect(accepted.length).toBe(230);
+    //
+    // **230 until ADR 0043**, 2026-09-01: dropping the remainder floor lets a growth stop short of
+    // consuming the whole freed column, which adds eight taps. The subject of this test is unmoved
+    // — every one of the 238 is still checked for a phantom opening, and none appears.
+    expect(accepted.length).toBe(238);
   });
 });
 

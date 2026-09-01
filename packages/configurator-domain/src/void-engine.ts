@@ -19,22 +19,18 @@ export const LEVELS: readonly (readonly [number, number])[] = [
 /** Smallest span (metres) that becomes a void. */
 export const MIN_SPAN_M = 0.3;
 
-/** `DEVELOPMENT-SPEC.md` §2's `MIN_W`: the **default** narrowest cabinet, and M5's resize floor.
+/** `DEVELOPMENT-SPEC.md` §2's `MIN_W`: the **default** narrowest cabinet.
  *
  *  ADR 0026 reads this as a default rather than an absolute: an entry may declare a `minWidthMm`
  *  of its own in either direction, and one declaring a floor *below* this replaces it for that
  *  entry alone. Three rows declare downward since ADR 0030's amendment — `base-bottle-cargo`,
  *  the two hinged rows (`base-cabinet` and `wall-cabinet`, which ADR 0033 merged the former `base-1door`/`wall-1door` into) — and each is reachable only by being chosen deliberately.
  *
- *  ADR 0031 reads this constant for a different subject than §5.4 did. There is no donor any more,
- *  so nothing is left narrow as the residue of somebody else's edit; what this floors now is the
- *  **empty column a resize eats into**, which may be consumed exactly to zero but must never be
- *  left as a sliver under 300 mm that nothing can be inserted into.
- *
- *  **It floors consuming, never creating** (ADR 0035 decision 7). A shrink that makes its own empty
- *  column makes one 50 mm wide on the first step, and applying this floor there would disable the
- *  stepper outright; the owner has ruled that an opening no cabinet fits may simply be left
- *  (ADR 0037). `set-width.ts` says which side of that line each check is on. */
+ *  **It is not a resize floor any more, in any direction** (ADR 0043, 2026-09-01). This doc used to
+ *  say that a resize may consume an empty column to zero but must never leave it as a sliver under
+ *  300 mm. The owner decided otherwise: *"Empty space can be even 100 mm or 50 mm, if somebody want
+ *  to keep it."* A gap is not a cabinet and has no floor, so `setWidth` measures nothing against
+ *  this constant — what it still governs is the narrowest **cabinet** anything may be built at. */
 export const MIN_WIDTH_M = 0.3;
 
 /** `DEVELOPMENT-SPEC.md` §2's `TOL`: the slack every width and height comparison uses. Frame

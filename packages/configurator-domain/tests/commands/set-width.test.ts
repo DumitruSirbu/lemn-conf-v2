@@ -435,19 +435,19 @@ describe("ADR 0031 — when there is no empty space to spend", () => {
     expect(result.reason.params.deltaMm).toBe(50);
   });
 
-  it("refuses growth that would leave the empty column under MIN_W", () => {
+  it("accepts growth that leaves the empty column under MIN_W (ADR 0043)", () => {
+    // This row asserted the opposite until 2026-09-01. ADR 0031 refused a growth leaving the empty
+    // column between 0 and `MIN_W`; the owner has decided that a gap of any width is a legal state
+    // — "Empty space can be even 100 mm or 50 mm, if somebody want to keep it" — so 400 mm of space
+    // funds a 200 mm growth and the 200 mm left over is kept, not refused. `MIN_WIDTH_M` itself is
+    // unchanged: it is still the narrowest *cabinet*, and no cabinet here is built under it.
     const world = pairWithEmptyRight(600, 400);
 
     const result = resizeTo(world, "L-base", 800);
 
-    expect(result.ok).toBe(false);
-    if (result.ok || result.reason.code !== "NO_EMPTY_SPACE") {
-      expect.unreachable("expected NO_EMPTY_SPACE");
-    }
-    expect(result.reason.params.sides[0]).toEqual({
-      side: "right",
-      reason: "remainder_below_floor",
-    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.effect.emptyColumnWidthMm).toBe(200);
   });
 
   it("refuses growth larger than the empty column", () => {

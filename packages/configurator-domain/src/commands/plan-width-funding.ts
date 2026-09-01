@@ -1,12 +1,8 @@
 // Where the width comes from: the empty column on either side that funds the move, or — on a shrink
 // with no empty column anywhere — the strip the run vacates (ADR 0031 rules 2, 3 and 6; ADR 0035
 // decision 7).
-import { toExactMillimetres, toMetres, toMillimetres } from "../millimetres.js";
-import {
-  MIN_WIDTH_M,
-  type Column,
-  type PlacementRecord,
-} from "../void-engine.js";
+import { toExactMillimetres, toMetres } from "../millimetres.js";
+import type { Column, PlacementRecord } from "../void-engine.js";
 import { alongWallM } from "./along-wall.js";
 import type {
   EmptySpaceRefusal,
@@ -41,9 +37,6 @@ import type {
  *  eight above the millimetre↔metre round-trip error. */
 const EDGE_ABUTMENT_TOLERANCE_M = 1e-6;
 
-/** §2's `MIN_W` in millimetres — the floor the **empty column** is measured against (ADR 0031). */
-const MIN_WIDTH_MM = toMillimetres(MIN_WIDTH_M);
-
 /** Right is tried first and left only if right cannot fund the move, so the same design always
  *  resizes the same way. An order, not a set. */
 const EMPTY_SPACE_ORDER: readonly Side[] = ["right", "left"];
@@ -75,7 +68,8 @@ export interface FundingAttempt {
  *  down and back up puts the width back where it came from instead of leaving a sliver beside a
  *  widened opening. That ordering is also what delivers ADR 0037's outcome for the stepper without its merge —
  *  the second `−50` widens the strip the first one made instead of parking a second beside it — and
- *  it only started working when `evaluateEmptySpace` stopped applying `MIN_W` to a shrink.
+ *  it only started working when `evaluateEmptySpace` stopped applying `MIN_W` to a shrink — and
+ *  since ADR 0043 it applies to neither direction.
  *
  *  **Creation is a last resort, not a fallback.** It is offered only when neither side has an empty
  *  column at all — not when one has one that then refuses. A shrink stopped by `RESIZE_OPENS_GAP`
@@ -110,12 +104,12 @@ export function fundingScan(
  *  precisely the strip the members withdrew from and the run total is conserved exactly as it is
  *  for an existing column.
  *
- *  **`MIN_W` deliberately does not apply here.** ADR 0031 refuses to *leave* an empty column between
- *  0 and 300 mm on the way through, on the grounds that an unusable sliver is not a state to create.
- *  A 50 mm step creates one every single time, so applying that floor here would disable the whole
- *  stepper — and the owner has since decided the other way round: an opening no cabinet fits "is ok
- *  to have empty space left" (ADR 0037). The floor stays where it was, on a growth consuming space
- *  that was already there.
+ *  **`MIN_W` does not apply here, and since ADR 0043 it applies nowhere in this file.** A 50 mm step
+ *  creates a sliver every single time, so the floor could never have applied to a strip a shrink
+ *  makes; the owner has since decided the same for a gap a growth *leaves* — "Empty space can be
+ *  even 100 mm or 50 mm, if somebody want to keep it" — which is what makes the stepper reversible.
+ *  ADR 0037 had already settled the wide end of the same question: an opening no cabinet fits "is ok
+ *  to have empty space left".
  *
  *  `undefined` on a growth, which has nothing to vacate, and on a delta of zero. **Nothing else**:
  *  the strip's key colliding with one the frozen map holds is `refuseKeyCollision`'s question and no
@@ -183,14 +177,19 @@ export function refuseNoSideFunds(
     return { code: "COLUMN_KEY_COLLISION", params };
   }
   const opensAGap = sides.some((side) => side.reason === "opens_a_gap");
+  // `NO_EMPTY_SPACE` is reachable on a **growth** only — a shrink always has `vacatedEmptySpace` to
+  // fall back on — and its sentence prints `params.deltaMm` unsigned on that assumption. Nothing in
+  // the type system holds that; what does is the tap sweep in `qa-w5b1.adversarial.test.ts`, which
+  // fails if any reachable resize reaches this line with a negative delta.
   return opensAGap
     ? { code: "RESIZE_OPENS_GAP", params }
     : { code: "NO_EMPTY_SPACE", params };
 }
 
-/** ADR 0031 rules 3 and 6: growing consumes the empty column and shrinking returns width to it,
- *  and a **growth** must leave the remainder either zero or at least `MIN_W`. Both floor reasons are
- *  reachable on growth alone, and deliberately so — see the note on the floor below.
+/** ADR 0031 rules 3 and 6: growing consumes the empty column and shrinking returns width to it.
+ *  **Since ADR 0043 there is no floor on either**, so the one arithmetic refusal left is asking for
+ *  more space than the empty column holds — `too_narrow`, and reachable on a growth alone, because
+ *  a shrink adds to the remainder rather than spending it.
  *
  *  It answers only what can be decided from geometry. `opens_a_gap`, the fourth reason a side can
  *  refuse, needs the rebuilt records and belongs to `fundColumnResize`. */
@@ -210,20 +209,13 @@ function evaluateEmptySpace(
 
   const deltaMm = input.widthMm - plan.extent.widthMm;
   const remainderMm = extent.widthMm - deltaMm;
+  // **The only arithmetic bound on a growth** (ADR 0043). A remainder of any width at or above zero
+  // is a legal state: the owner, 2026-09-01, *"Empty space can be even 100 mm or 50 mm, if somebody
+  // want to keep it. Such narrow empty space will force user to resize accordingly and not leave
+  // such spaces."* ADR 0031's remainder floor is superseded — refusing a growth that left under
+  // `MIN_W` made the stepper one-way below its first rung, since `−50` twice leaves a 100 mm strip
+  // and `+50` back would have left 50. ADR 0037 had already waived the floor on the shrink side.
   if (remainderMm < 0) return { ok: false, reason: "too_narrow" };
-  // **The floor guards *making* a sliver, so only a growth can fail it** (product-logic review
-  // R3.10, ADR 0037). A shrink only ever widens the column it returns space to, so a remainder under
-  // `MIN_W` there means the column was *already* under it — and refusing on that turned the one
-  // thing ADR 0037 asks for into its opposite: the second `−50` could not widen the 50 mm strip the
-  // first had just made, fell through to `vacatedEmptySpace`, and created a second strip beside it.
-  // Six presses freed 300 mm of wall as six unusable 50 mm slivers instead of one 300 mm space.
-  //
-  // It also makes the pair coherent. `vacatedEmptySpace` waives this floor when it *creates* a
-  // strip; enforcing it here on the shrink that would have merged that strip away was the floor
-  // applied exactly where it did harm and waived exactly where it made the sliver.
-  if (deltaMm > 0 && remainderMm > 0 && remainderMm < MIN_WIDTH_MM) {
-    return { ok: false, reason: "remainder_below_floor" };
-  }
   return { ok: true, value: { column: neighbour, side, extent, remainderMm } };
 }
 
@@ -261,10 +253,13 @@ function findAdjacentEmptyColumn(
  *  edge and both be empty.
  *
  *  It used to be whichever `columns.values()` yielded first — map insertion order, which is a
- *  property of how the design was loaded and not a rule anyone chose (logic review R1.8). **The
- *  widest wins**: it is the one most likely to fund the move at all, and the one least likely to be
- *  left under `MIN_W` as an unusable sliver. Ties break on the key, so the order is total and the
- *  same design always resizes the same way. */
+ *  property of how the design was loaded and not a rule anyone chose (logic review R1.8).
+ *
+ *  **The widest wins**, because it is the side most likely to fund the move at all. Ties break on
+ *  the key, so the order is total and the same design always resizes the same way. Under ADR 0043
+ *  this no longer decides whether a move is *allowed* — both choices are legal — only where the
+ *  leftover gap ends up, and it is kept as it is because changing which side a resize spends is a
+ *  product question. */
 function byFundingCapacity(left: Column, right: Column): number {
   return right.w - left.w || left.key.localeCompare(right.key);
 }
