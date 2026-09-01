@@ -893,6 +893,14 @@ function subdivideFreeSpan(
  *  So a body narrower than its column closes the level, and the remainder is stranded — no void, no
  *  column, no second insert. Backlog 2's re-split is the missing piece (§13.3 item 2).
  *
+ *  **Closed for an insert on 2026-09-01 (ADR 0046 part 1), and this function is not where.** A body
+ *  narrower than its column now **splits** that column before this runs (`commands/split-column.ts`),
+ *  so no column is ever wider than its members and there is nothing here to subtract. Subtracting a
+ *  width in this function was considered and rejected by name: it would make a void no column owns,
+ *  and every consumer — `insertBody`'s `COLUMN_MISMATCH` guard, `deriveColumnKeyAt`, the frozen map,
+ *  ADR 0031's funding scan — is written against the rule that an opening belongs to a column. The
+ *  paragraphs below record why the gap existed and are kept as the reasoning behind that choice.
+ *
  *  **This is not the merge's doing, and an earlier version of this note said it was.** Corrected
  *  2026-08-30 after product-logic review: the gap predates M5 and is reachable in four taps with no
  *  resize at all — clear `A|2.60`, insert a 300 mm bottle cargo into the 600 mm opening, and 300 mm

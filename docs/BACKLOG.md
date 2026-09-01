@@ -1106,6 +1106,35 @@ delete.** Whoever picks this up is deciding whether the document records the fro
 empty members, and that is an ADR, not a work item. Gap D's own 2026-08-26 correction is the
 precedent for recording "one design, two answers by route" as its own decision.
 
+## 23. ADR 0032's refused rows are published but never rendered, and only a code comment says so
+
+Found while closing M5B wave 5B4a (2026-09-01). ADR 0032 — *an entry that does not fit is shown
+disabled with its reason* — is Accepted, and its **domain half ships**: `offersFor` publishes the
+refused entries into the offer list, each carrying the engine's own reason. The **panel drops every
+one of them**: `apps/web/src/panel/panel-model.ts:601`, `input.offers.filter(isOffered)`.
+
+So the customer sees a shorter list, not a disabled row with a sentence. Select a 300 mm empty
+column and the too-narrow rows — `base-sink`, `base-dishwasher`, `base-hob-*`, `tall-*` — are simply
+absent, which is the behaviour ADR 0032 exists to replace.
+
+**This is deliberate and the code says so.** The comment above that filter records that rendering
+the disabled row, its sentence, and its effect on the count line "is the panel's own wave", and that
+the filter "is the seam that wave replaces". Nothing is broken; the work is half-landed on purpose.
+
+**The defect is that the other half was tracked nowhere.** It is not in `STATUS.md`, not in this
+file, and not in any milestone — the only record that ADR 0032 is unfinished was that one comment,
+which no one reads unless they are already in that function. M5B wave 5B4a's criterion 3 was written
+as "shown disabled with a reason, never absent" and its visual verification duly found them absent;
+the criterion had to be corrected to be about the offer list rather than the screen. A record that
+lives only in the code it describes will keep producing criteria nobody can pass.
+
+**What the work is.** Render the refused verdicts as disabled rows with their reasons, and decide
+what they do to the "N corpuri intră" count line — the count is the part with a real choice in it.
+`describeReplaceSection` and `describeOfferRow` are where it lands, and `describeEmptyLine` already
+receives the full unfiltered `input.offers`, so the data is there.
+
+Not scheduled. Worth pairing with the next panel wave rather than done alone.
+
 ## Also open, recorded elsewhere — do not duplicate here
 
 - **Width editing does nothing yet.** Every width chip is `blocked` because §5.4's resize command

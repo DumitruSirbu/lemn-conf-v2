@@ -1,7 +1,8 @@
 # M5B — Manual UX remediation
 
-> **STATUS: IN PROGRESS.** 5B1, 5B6, 5B7, 5B3, 5B5, 5B10, 5B8, 5B2a and 5B2b are complete —
-> **wave 5B2 is closed**; 5B4a, 5B4b remain to dispatch. Summary: `docs/STATUS.md`. Branch `ux-manual-fixes`.
+> **STATUS: IN PROGRESS.** 5B1, 5B6, 5B7, 5B3, 5B5, 5B10, 5B8, 5B2a, 5B2b and 5B4a are complete —
+> **wave 5B2 is closed; 5B4a's gate is green, so 5B4b is dispatchable**. Summary: `docs/STATUS.md`.
+> Branch `ux-manual-fixes`.
 
 Status: in progress. Follows M5 (5E still open) and precedes M6.
 Reference: `testing-reports/09-manual-ux-issues.md`; `DEVELOPMENT-SPEC.md` §3.2, §4, §5.2, §7, §9,
@@ -808,65 +809,217 @@ the same result from the same picture every time. Recorded in ADR 0046.
 currently centres a narrower discrete body in a wider opening — *"exactly as `base-dishwasher` has
 always put a 600 in a 700"* (`insert-fit.ts:367`). **After this wave `base-dishwasher` no longer
 centres in a 700 mm opening**: it sits flush left and the 100 mm becomes a real, selectable opening
-on the right. This is criterion 11 below, so it is an assertion rather than something a reviewer
+on the right. This is criterion 12 below (criterion 11 before this section was revised on
+2026-09-01), so it is an assertion rather than something a reviewer
 discovers — and a test that still asserts centring is asserting the defect.
 
-**Work items.** Plan the split in the insert path; write both columns into the frozen map; carry
-them out on the insert effect; restate `refuseColumnDrift`; seat the body at the chosen edge.
+#### What 5B2 changed under this section, 2026-09-01
 
-`CommandEffect`'s `body_inserted` arm currently carries no column map, and `resolveColumns`
-(`apply-command-result.ts:104-112`) replaces the map only for `body_resized`. One of those two has to
-change, and the ADR must say which and why — the existing comment there explains that a store
-re-deriving globally would make §10's delete produce no openings at all, so **the command must own
-the answer**, exactly as the resize does.
+This section was written before 5B2a/5B2b existed. Re-confirmed against what shipped, five things
+moved and they are named here so nothing below reads as unrevised prose:
 
-**Acceptance criteria.**
-1. Insert a 400 mm body into a 600 mm empty column: afterwards there is one 400 mm occupied column
-   and **one** 200 mm empty column, adjacent, on the same wall and row. Not two 100 mm columns.
-2. The run total is conserved to the millimetre: the occupied column's outer edge and the empty
-   column's far edge are exactly where the original column's two edges were.
-3. The 200 mm column publishes an opening at every level the original had free — a column narrower
-   than any cabinet still publishes its opening (`void-engine.ts:735-741`), and ADR 0032's rule is
-   *disabled with a reason*, never removed.
-4. **The four-tap case is cured with no merge in the tree:** clear `A|2.60`, insert a 300 mm bottle
-   cargo into the 600 mm opening, and 300 mm of wall is still selectable. This is ADR 0037's
-   withdrawal condition, and passing it is the gate on dispatching 5B4b.
-5. Inserting a body that fills its column exactly creates **no** empty column and no extra key
-   (the exact-to-zero case, as ADR 0031 rule 6 already has it for a resize).
-6. Neither new key collides with a live key; a collision refuses the insert rather than clobbering a
-   column, reusing `refuseKeyCollision`'s reasoning (`apply-column-moves.ts:95-130`) — writing over
-   an occupied key deletes that column's frozen extent outright and `refuseColumnDrift` is blind
-   to it.
-7. Every centre stays a whole millimetre (§2); an odd remainder refuses rather than rounding.
-8. Save and reload after a split reproduces both columns identically. **Requires 5B2.**
-9. The four column-identity regressions named in M5's Verification section still pass, and §11 rows
-   1, 2, 4, 5, 14, 18, 20 and 23 are re-run.
-10. **Anti-invariant:** no sequence of inserts into one span can produce total column width greater
-    than the span, and none can lose width. Asserted as a property over a swept sequence.
-11. **The left edge, asserted directly.** A 400 mm body into a 600 mm empty column sits at the span's
-    lower along-wall coordinate, and the 200 mm empty column is on its right — never the reverse and
-    never 100 + 100. Includes the named cost: `base-dishwasher` into a 700 mm opening leaves a 600 mm
-    body flush left and a 100 mm empty column on the right, publishing an opening. Any existing test
-    asserting the old centring is updated, and the update is called out in the dispatch rather than
-    slipped in.
+1. **An oversized empty column is now constructible from a document**, so ADR 0037's own withdrawal
+   scenario is executable in this wave with no merge code (criterion 4 below). Before 5B2 it was not.
+2. **The occupied half of a split is backlog 22, not this wave.** ADR 0044 persists **member-less**
+   columns only. A body shorter than its column's `top` leaves a column that still holds a member but
+   whose frozen extent its placements no longer imply — exactly backlog 22's shape. The old criterion
+   8 ("save and reload reproduces **both** columns identically") is therefore **unsatisfiable by
+   construction**, the same failure 5B2's criteria 3 and 4 had, and is rewritten as criterion 10.
+3. **`projectEmptyColumns` throws, uncaught, at the store seam** (`apply-command-result.ts:80-90`,
+   `UnprojectableColumnError`). A split that publishes a fractional centre or a non-integer width is a
+   **crash**, not a refusal. That moves whole-millimetre discipline from a tidiness criterion to a
+   liveness one (criterion 7).
+4. **The nine refusal codes make a stale key a saveable-document failure.** Leaving the original key
+   in the map after the split writes a member-less full-width entry across the new placement, and
+   `validateDesignForCatalog` refuses it with `EMPTY_COLUMN_OVERLAPS_PLACEMENT` at the write seam —
+   the design becomes unsaveable. New criterion 6, replacing the old one (see below).
+5. **`MAX_EMPTY_COLUMNS` is 1262, not 684.** The 5B2 section's derivation above was superseded by
+   what shipped (ADR 0044, *Verified against what shipped — 5B2a*); the number binds on column-key
+   granularity, not on `WIDTH_STEP_MM`. No consequence for this wave beyond not repeating 684.
 
-**Files.** `packages/configurator-domain/src/commands/insert-body.ts`,
-`packages/configurator-domain/src/commands/insert-fit.ts`,
+**The old criterion 6 was near-vacuous and is replaced.** Two keys a split writes are `W/2` apart, and
+`deriveColumnKeyAt` collides only inside 10 mm, so "neither new key collides with a live key" has no
+mutation a product-reachable fixture can make red. What *is* reachable is the stale original key, so
+criterion 6 now asserts that instead. The unreachability of the collision is asserted as
+unreachability, the way 5B2's criterion 7 handled its cap.
+
+**Work items.**
+1. `commands/insert-fit.ts` — `InsertPlan` gains the seated along-wall centre and the remainder
+   width, both in millimetres. Seating is arithmetic on the opening and belongs where the width is
+   chosen, so `resolvePlacementMillimetres` keeps taking `alongMm` through `toExactMillimetres`
+   (which is the refusal that saves an odd-width column from becoming a crash — see criterion 7).
+2. `commands/split-column.ts` (**new**) — the split itself: the two extents in whole millimetres, the
+   original key deleted, both halves carrying the original's `regions`, `top`, `d` and `ry`, and the
+   integer guard on every centre the split writes. It is the insert's `apply-column-moves.ts`, and it
+   belongs beside it rather than inside `void-engine.ts`: ADR 0046 rejected subtracting width in
+   `recomputeVoids` by name, so an implementer who finds themselves editing that function has left
+   the plan.
+3. `commands/command-result.ts` — `BodyInsertedEffect` gains `columns`, for the reason
+   `BodyResizedEffect` has it: which keys may change is a rule about the command (ADR 0011 Gap D).
+4. `commands/insert-body.ts` — read the seated centre off the plan, call the split, restate
+   `refuseColumnDrift` against the key the split planned, publish the map on the effect.
+5. `apps/web/src/store/apply-command-result.ts` — `resolveColumns` gains a `body_inserted` arm.
+
+**Both halves of the split carry the original's frozen extent, not only the remainder.** The earlier
+wording said only the new empty column did. If the occupied half takes `top` and `regions` from the
+body instead, clearing `A|2.60` and inserting a bottle cargo closes the 1780 mm above it — ADR 0011
+Gap D verbatim, and the very defect the four-tap case exists to catch. Only `w` and the centre move,
+exactly as `moveFrozenColumns` moves the resized column.
+
+**Files.** `packages/configurator-domain/src/commands/insert-fit.ts`,
+`packages/configurator-domain/src/commands/split-column.ts` (new),
 `packages/configurator-domain/src/commands/command-result.ts`,
-`packages/configurator-domain/src/void-engine.ts`,
-`apps/web/src/store/apply-command-result.ts` (5 — at the limit).
+`packages/configurator-domain/src/commands/insert-body.ts`,
+`apps/web/src/store/apply-command-result.ts` (5 — at the limit). `void-engine.ts` is **not** in the
+list: its *"§4 has no horizontal half"* doc comment needs a dated pointer to ADR 0046, and that
+comment-only edit is called out in the dispatch as the one permitted sixth file. Any *behavioural*
+edit to `void-engine.ts` splits the wave.
+
+**Acceptance criteria, each with the mutation that must make it red.** A criterion no mutation can
+fail is vacuous; QA applies the mutant and sees red before accepting green. Two shapes this phase has
+been caught by are called out where they apply: a criterion a **fresh seeded load** satisfies under
+any mutant, and a criterion satisfied **in the domain package** while the store seam is unwired.
+
+| | Criterion | The mutation that must make it red |
+| --- | --- | --- |
+| 1 | Insert a 400 mm body into a 600 mm empty column at along-centre `C`: the span yields **exactly two** keys — occupied at `C − 100` with `w = 400`, empty at `C + 200` with `w = 200` — asserted as millimetre **numbers**, not as counts or presence. | Seat centred → two 100 mm slivers. **And**: remainder centre computed as `C + (W − w)/2` = `C + 100` — the plausible wrong formula, which a count-only or presence-only assertion survives. **And**: remainder width as `toMetres(W) − plan.widthM` → not a whole millimetre, which surfaces as criterion 7's crash rather than as a wrong number. |
+| 2 | Conservation, in millimetres: occupied left edge `=` original left edge; remainder right edge `=` original right edge; occupied right edge `=` remainder left edge. Exact integer equality, computed from the stored millimetre fields. | `remainderMm = W − w − 1` or `+ 1`. **And**: the whole arithmetic done in metres — exact integer equality is what makes 1e-16 drift red instead of tolerated. |
+| 3 | The remainder publishes an opening at **every level the original had free**, with the same `spanY0`/`spanH` as the original's, and its too-narrow catalogue rows carry a **refusal verdict with a reason** (ADR 0032) rather than being dropped from the offer list. Run at a **50 mm** remainder (`W = 650`, `w = 600`) as well as at 200. **Corrected 2026-09-01: this is a criterion about the domain's offer list, not about the screen.** The first wording said the rows are "shown disabled", and 5B4a's visual verification duly found them *absent* from the panel — but that is `panel-model.ts`'s deliberate `filter(isOffered)`, whose own comment records that rendering the disabled row and its sentence "is the panel's own wave". ADR 0032's domain half ships and is asserted here; its rendering is not 5B4a's to deliver and is now backlog 23. Asserting "shown" here would have made this criterion unpassable for a reason outside the wave. | Give the remainder `regions: [[y0, y0 + bodyHeight]]` or the body's `top` → a cleared 2600 column's upper openings vanish, which "a column exists" survives. **And**: drop a remainder narrower than `NARROWEST_CATALOG_WIDTH_MM` as tidy-up — ADR 0043 forbids it, a 200 mm example misses it, the 50 mm one catches it. |
+| 4 | **The gate.** Both scenarios, at domain level. (a) **ADR 0037's own withdrawal scenario**, executable for the first time: load a document whose `emptyColumns` carries one 1400 mm entry (5B2's schema is what makes this constructible), insert a 600 mm body, and an 800 mm empty column remains, publishing openings and **accepting a second insert**. (b) **The four-tap case:** clear `A|2.60`, insert a 300 mm bottle cargo into the 600 mm opening, and 300 mm of wall is still selectable. Green in the tree is the gate on dispatching 5B4b. | Revert the split (the pre-wave behaviour) → the level closes and the second insert has no opening to target. Both halves must be asserted as *a second insert succeeding*, not as *a void existing*: a void whose column no command can address is the exact state ADR 0037 withdrew over. |
+| 5 | Exact-to-zero: a 600 mm body into a 600 mm column leaves the map with the **same key string** it had, no extra key, and `projectEmptyColumns` yields no entry for that span — so the saved document's `emptyColumns` key is **absent**, not `[]` (ADR 0031 rule 6, and `withEmptyColumns`' own rule). | Emit a zero-width remainder → `positiveMillimetreSchema` refuses at the write seam. **And**: emit it and filter it downstream → the key-absent half is what catches it; "no crash" survives both. |
+| 6 | **The original key is vacated.** After a split, the original centre's key is absent from the resolved map unless the occupied half landed back on it, and the saved document passes `validateDesignForCatalog` at **both** seams. | `columns.set(newKey, …)` without `columns.delete(originalKey)` → a member-less full-width phantom sits across the new placement and the write seam refuses the document with `EMPTY_COLUMN_OVERLAPS_PLACEMENT`. This is the criterion that ties the wave to 5B2's nine codes, and asserting *the document validates* is what makes it red — an in-memory map assertion does not. |
+| 7 | **Whole millimetres, as liveness not tidiness.** (a) An insert into an **odd-width** empty column (constructible: a resize-created extent whose union of member edges is odd, e.g. 449 mm) is **refused** with `NON_INTEGER_MILLIMETRES` — never rounded, never thrown. (b) No accepted insert ever causes `UnprojectableColumnError` to be thrown at the store seam, asserted over the criterion-11 sweep. | `Math.round` on either written centre → (a) becomes an accepted insert that lands the body 0.5 mm off, and criterion 10 goes red. **And**: bypass `resolvePlacementMillimetres` by computing `alongMm` in `insert-fit.ts` and handing metres to `buildPlacement` → the existing `toExactMillimetres` guard is gone and (a) turns into a store-seam crash, which is the difference (b) exists to state. |
+| 8 | **`refuseColumnDrift` restated, not deleted.** The placed record's `col` equals the key the split planned, and both are derived from **one** millimetre value (ADR 0046 rule 3; `frozenColumnKey`'s discipline). | Delete the guard → a plan whose derived key disagrees with the planned one places a phantom column instead of refusing (ADR 0011 Gap D). **And**: derive the planned key from a separately computed metre value → the two disagree at a `toFixed(2)` boundary (a centre on `x.xx5`), the insert is accepted, and the next `recomputeVoids` publishes no opening for a column the map does not hold. |
+| 9 | **The store seam is wired.** The `body_inserted` effect carries the split map and `resolveColumns` uses it; asserted **at the store**, in `apps/web/tests/store/`, not in the domain package. | Leave the `body_inserted` arm out of `resolveColumns` → it falls through to `withCurrentFullHeightMembers(frozen, records)`, the map still holds the original wide column, and the level closes exactly as it does today. **Every domain-package test in this wave still passes.** This is 5B2b's "projection inside the `body_resized` arm only" mutant transposed, and it is the one that decides where these tests live. |
+| 10 | **Round-trip, scoped to what ADR 0044 stores.** After a split, `deriveGeometry(DesignSchema.parse(JSON.parse(JSON.stringify(design))))` reproduces the **remainder** column on `key`, `wall`, `x`/`z`, `w`, `d`, `ry`, `top` and `min(regions[].start)`. The **occupied** half is excluded by `partiallyEmptiedKeys` — backlog 22, not this wave — and the exclusion is asserted to be exactly that set. Replaces the old criterion 8, which was unsatisfiable. | Projection skips the remainder (it landed under a key a placement is filed under) → red. **And**: `top` defaulted from the placement → red. **Vacuity warning:** a fixture whose original `top` equals the inserted body's top makes the exclusion empty and the criterion passes under every mutant. The fixture is the cleared 2600 mm column with an ~820 mm body, and going through `JSON.stringify` is load-bearing. |
+| 11 | **Anti-invariant, as a property.** Over a swept sequence of ≥ 8 interleaved inserts, deletes and shrinks in one span (`fast-check`, not hand-picked): the column widths on that wall and row sum to the span at every step; no column width is `≤ 0`; no two columns overlap; and every accepted command leaves a document `validateDesignForCatalog` accepts. | The stale-key mutant of criterion 6 — only a sequence shows the accumulation. **And**: the sub-50 tidy-up drop, which loses width only when the sweep reaches a 50 mm remainder. **And**: an inclusive/exclusive slip on the remainder-exceeds-zero test. |
+| 12 | **The left edge, and the named cost.** `base-dishwasher` into a 700 mm opening: a 600 mm body at `C − 50`, a 100 mm empty column at `C + 300` publishing an opening — never centred, never 50 + 50. The assertions of the old centring are updated **by name** in the dispatch: `qa-5b8-pantry.adversarial.test.ts:113` and every assertion that a discrete body's `alongMm` equals its opening's centre. | Keep `alongMm = target.opening.alongM` on the `resolveFixedSetWidth` path only — the plausible half-fix, read as "only cabinetry rows split". Nothing but the discrete-row case goes red, which is why the discrete case is a criterion of its own rather than a footnote to criterion 1. |
+| 13 | The four column-identity regressions in M5's Verification section still pass, and §11 rows 1, 2, 4, 5, 14, 18, 20 and 23 are re-run. | **No mutation, and it is listed as a gate rather than a criterion.** It is regression cover for changes made elsewhere, and pretending it has a mutant of its own is the shape this phase has been caught by. |
+
+**Where the ADR 0037 reproduction belongs.** Criterion 4 (a) and (b) both live in
+`packages/configurator-domain/tests/` — the mechanism is `insertBody` plus `recomputeVoids` over a
+column map, and neither needs the store. Criterion 4 (a)'s fixture is a **document**, parsed through
+`DesignSchema`, so it exercises 5B2's load path as well. Criterion 9 and criterion 10 are the only
+two that must live in `apps/web/tests/store/`.
+
+**Interactions with 5B2, answered.**
+
+- **Fractional centres: yes, and on the occupied half rather than the empty one.** The occupied
+  centre is `C − (W − w)/2` and the remainder's is `C + w/2`. Every insertable width is even (the
+  discrete sets are 200/300/450/600/700; `steppedWidths` is a `WIDTH_STEP_MM` ladder), so the
+  remainder's centre is whole whenever `C` is — but the occupied centre is whole only when the
+  **column's** width `W` is even, and an extent width can be odd, which is precisely the 5B2b
+  blocker's shape (`refuseFractionalCentres`' own note: *"two members offset by an odd millimetre
+  give an odd extent width"*). `refuseFractionalCentres` does **not** cover this: it is the resize
+  path's guard and does not run on an insert. What covers the occupied centre today is
+  `toExactMillimetres` inside `resolvePlacementMillimetres`; **nothing** covers the remainder's
+  centre, and a fractional one reaches `projectEmptyColumns` and throws uncaught. Criterion 7.
+- **Entries the nine codes would reject: yes, by one reachable route.** The stale original key gives
+  `EMPTY_COLUMN_OVERLAPS_PLACEMENT` (criterion 6). An edge-arithmetic slip gives
+  `EMPTY_COLUMN_OVERLAPS_EMPTY_COLUMN` (criteria 2 and 11). `toFixed(2)` **key** collision between
+  the two halves is unreachable through the product — they are `W/2` apart and `deriveColumnKeyAt`
+  collides only inside 10 mm — and is asserted as unreachable rather than branched on, exactly as
+  5B2's criterion 7 handled its cap.
+- **Backlog 22: yes, and it is the reason criterion 8 was rewritten.** A body shorter than its
+  column's `top` leaves an occupied column whose frozen extent no placement implies. In session the
+  space above still publishes; on reload `deriveColumns` recomputes `top` from the placement and it
+  is gone. That is backlog 22 exactly, reached by a new route, and it is **not** this wave's to fix —
+  widening ADR 0044 to the whole frozen map is an ADR. QA's brief says so, so the reload divergence
+  on the occupied half is not filed as a 5B4a regression.
 
 **Review tier: Full**, with adversarial QA given the ADR 0037 withdrawal as its explicit brief.
+**Security review is triggered, scoped to two questions** rather than a full round: 5B2a owned the
+parsing and byte-cap surface and this wave adds none, but it (i) makes a previously unreachable
+uncaught throw reachable from ordinary user input at the store seam, which is a client-side denial,
+and (ii) makes every insert into a wider column add an `emptyColumns` entry, so the growth of a
+document under a scripted command sequence should be checked against `MAX_EMPTY_COLUMNS` and
+`MAX_DESIGN_BYTES` rather than assumed bounded by the room.
 
 **Risk. Highest in the phase, jointly with 5B4b.** It changes a persisted coordinate rule and a
 guard whose deletion re-opens ADR 0011 Gap D.
+
+**Complete, 2026-09-01.** Implemented (`commands/insert-fit.ts` — `InsertPlan.alongMm`/`remainderMm`,
+`seatAlongColumn`, `dividesWholeColumn`, `seatableMillimetres`, `centredInOpening`; new
+`commands/split-column.ts`; `command-result.ts`'s `BodyInsertedEffect.columns`;
+`commands/insert-body.ts`; `apps/web/src/store/apply-command-result.ts`; a comment-only pointer in
+`void-engine.ts`). Tests: `split-column.test.ts`, `insert-splits-column.test.ts`,
+`qa-5b4a.adversarial.test.ts`. Verified: domain 1332 (twice, identical), web 749 (+4 skipped) against
+a freshly rebuilt domain package; `pnpm ci:local` all nine gates PASS.
+
+**Gates.** Adversarial QA (14 mutants, all killed; adjudicated the developer's narrowing of the
+criteria). Clean-code review: no actionable defects. Logic review: matches intent, minor concerns, no
+blocker. Security review, scoped to the two questions named above: safe to commit, no findings.
+Visual review: all six criteria PASS.
+
+**Criterion 12 — NOT met on the case it names, and the table must say so plainly.** Criterion 12 says
+`base-dishwasher` into a 700 mm opening is never centred. On the shipped kitchen it still is, because
+the split's forced precondition (below) is never met there. The tests are honest about this — two
+tests exist, one synthetic where the precondition holds (asserting the criterion as written) and one
+asserting the shipped kitchen still centres (asserting the carve-out) — but this is recorded here so
+the criterion is not read as unrevised.
+
+**The split has a forced precondition — ADR 0046's 2026-09-01 amendment.** A column is divided only
+by an opening running its whole height, which is exactly to say only a column with no member left
+standing in it. Splitting under a surviving member re-keys the occupied half while that member goes
+on deriving the old key — ADR 0011 Gap D's phantom column, reproduced by QA as two
+`EMPTY_COLUMN_OVERLAPS_PLACEMENT` refusals on save, making the document unsaveable. Curing it means
+re-keying the surviving members, which is backlog 2's re-split, out of this phase by name. Both
+reviewers independently verified the precondition is minimal-equivalent — §4 subtracts every member's
+interval, so a full-height opening exists iff no member remains — including the swap path via
+`openingFromPlacement`/`findVacatedSlot`.
+
+**Consequence: nothing splits on the seeded kitchen.** `base-dishwasher` still centres in the 700 mm
+`B|2.45` (the over-fridge cabinet keeps it indivisible), and no seeded base cabinet sits in a column
+one delete makes splittable. So this wave delivers the *mechanism* and gates 5B4b; the seeded
+*outcome* waits on backlog 2.
+
+**The ADR 0037 gate PASSES, which is what unlocks 5B4b.** Both of criterion 4's scenarios assert **a
+second insert succeeding**, not merely a void existing — a void no command can address is the state
+ADR 0037 was withdrawn over. Verified non-vacuous: revert the split and the test throws before its
+assertion. Visual review confirmed it as the customer meets it — a 300 mm leftover, tapped, offering
+"4 corpuri intră", second insert succeeded.
+
+**Visual evidence.** Conservation is exact (occupied left = original left 1500, remainder right =
+original right 2100, shared boundary 1800), flush seating shows a zero-pixel gap on one side and a
+46-px selectable gap on the other where centring would have put ~28 px on both, and the split
+survives a reload byte-identically. All at 390×844 under real touch. **The verifier had to rebuild
+the domain package first** — `dist/commands/split-column.js` did not exist, so the code under test
+was not live — recorded as evidence-integrity practice in `docs/best-practices/ci-and-local-gates.md`.
+
+**What the decision sweep turned up (2026-09-01).**
+
+- **Live:** ADR 0046 (this wave's contract), ADR 0043 (a remainder of any width is legal — the
+  prerequisite), ADR 0044 with **both** its *Verified against what shipped* sections, ADR 0031
+  rule 6, ADR 0011 Gap D **and its 2026-08-26 correction** (the freeze covers the extent only, so the
+  split's new extents still go through `withCurrentFullHeightMembers`), ADR 0032, ADR 0035
+  decision 1.
+- **Withdrawn, and read carefully:** ADR 0037's *merge* is withdrawn as built and superseded by
+  ADR 0046. Its **withdrawal analysis is live** and is this wave's gate. Its *"a span wider than
+  800 mm may simply stay empty"* is also **live** and load-bearing — it is why an 800 mm or a
+  1100 mm remainder is a legal outcome rather than a defect.
+- **An earlier ruling this wave overturns, and ADR 0046 did not sweep it.** [ADR 0033](../decisions/0033-door-count-is-derived-from-width-not-declared.md),
+  *The hood narrows rather than refusing*: *"`resolvePlacementMillimetres` takes `alongMm` from the
+  opening's **centre**, so a narrowed body lands centred with equal margin either side. That property
+  is now asserted rather than assumed."* That is a dated record stating the behaviour ADR 0046
+  ends, and ADR 0046's sweep table does not list it. **It must be amended in place with a dated
+  pointer to ADR 0046 as part of this wave**, or the phase closes with two live records that
+  disagree — which the milestone Goal forbids by name.
+- **Q5 is not closed and is not caused here, but its surface widens a fourth time.** Q5 is a *shrink*
+  growing one column past 800; a split only ever divides a span. But 5B4a makes a >800 mm empty
+  column reachable by a new route — insert a 300 into criterion 4 (a)'s 1400 mm column and 1100 mm
+  remains, where every `widthFlex: 'fit'` body is refused. Legal under ADR 0037's *"ok to have empty
+  space left"*; in QA's brief so it is not filed as a regression.
+- **No earlier record requires an insert to be centred** other than ADR 0033 above, and none places
+  a column-map write inside the insert command — `BodyResizedEffect`'s own comment is the precedent
+  for putting it there rather than in the store.
 
 ---
 
 ### Wave 5B4b — adjacent empty columns merge, capped at 800 mm
 
 **Dispatch only once 5B4a's criterion 4 is green in the tree.** That is the gate, and it is the
-whole reason the merge is split from the split.
+whole reason the merge is split from the split. **5B4a is complete and its criterion 4 is green,
+2026-09-01 — this wave is now dispatchable.**
 
 **Owner decision 2, 2026-09-01.** Adjacent empty columns on the same wall and row merge when their
 total is at most 800 mm; a chain longer than 800 merges the widest contiguous run that stays at or
@@ -1272,6 +1425,6 @@ closed question.
 | **Q1** | Item 6 (dishwasher 450 → 600 blocked) — one session, or after a reload? | **Settled by measurement, not by the owner.** In-session the domain reports `600:available` after shrinking `p1` 600 → 450; the refusal appears only after a reload. | Item mapping above; wave **5B2** owns it. |
 | **Q2** | Should a fixed-width cabinet show a disabled width section with its reason? | **Yes** — greyed, with a sentence saying the cabinet is only made at 600 mm. The silence is what made it read as a defect, and every other blocked control already shows disabled-with-reason. | [ADR 0049](../decisions/0049-a-fixed-width-cabinet-shows-its-width-section-disabled.md); wave **5B5** unblocked. |
 | **Q3** | At 400 mm, is a one-door pantry still full height with the same shelf pitch? | **Yes** — same height, same shelf pitch, fewer things side by side. No second geometry rule. | [ADR 0048](../decisions/0048-the-pantry-column-is-the-one-resizable-column.md); wave **5B8** criterion 6. |
-| **Q4** | Which end of a span does an inserted cabinet sit against? | **The left edge, always.** The proposed conditional rule was rejected. The owner accepted the named cost: `base-dishwasher` no longer centres in a 700 mm opening. | [ADR 0046](../decisions/0046-adjacent-empty-columns-merge-under-a-cap-and-an-insert-splits-its-column.md); wave **5B4a** criterion 11. |
+| **Q4** | Which end of a span does an inserted cabinet sit against? | **The left edge, always.** The proposed conditional rule was rejected. The owner accepted the named cost: `base-dishwasher` no longer centres in a 700 mm opening. | [ADR 0046](../decisions/0046-adjacent-empty-columns-merge-under-a-cap-and-an-insert-splits-its-column.md); wave **5B4a** criterion 12 (numbered 11 before the section was revised). |
 | **Q6** | The hob+oven filler panel is built in the door material on a body the customer cannot finish (`base-hob-oven` was the only entry owning a `kit.M.door`-family mesh while declaring `canFinish: false`, so it stood permanently default white). What should it do? | **Make the filler a finishable front.** The mesh is renamed `oven_filler_front` → `oven_filler_door_front` to reach `finishes.ts`'s `FRONT_MESH_NAME` pattern; `base-hob-oven` gains `canFinish: true` (`canHandle` stays `false` — the filler opens nothing and the body's one bar belongs to the oven). ADR 0027's now-false "the oven is the front, so it owns no `door_front`" ground is struck through and replaced. | [ADR 0050](../decisions/0050-the-hob-oven-filler-is-a-finishable-front.md); wave **5B6**, now complete. |
 | **Q7** | Should an open shelf's compartments be evenly spaced, or its boards evenly spaced? | **Fix the wording, keep the geometry.** The shipped geometry evenly spaces board **centres** (`H·i/(N+1)`), not clear compartment heights — measured at 700 mm: 206.3 / 215.3 / 206.3 mm, a ~9 mm end-compartment shortfall. It stands because it is inherited `openShelf` geometry M1 parity pins at the seeded parameters, it is not visible at the mobile viewport, and re-pinning parity for 9 mm was judged not worth it. | [ADR 0047](../decisions/0047-an-open-shelf-count-follows-its-clearance.md)'s 2026-09-01 correction; wave **5B7** criterion 4 reworded above. |

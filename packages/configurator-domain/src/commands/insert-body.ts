@@ -40,6 +40,7 @@ import {
   type ResolvedOpening,
 } from "./insert-fit.js";
 import type { RejectionDetail } from "./rejection.js";
+import { splitColumn, type ColumnSplit } from "./split-column.js";
 
 export interface InsertBodyInput {
   readonly design: Design;
@@ -144,7 +145,7 @@ function place(
   if (!millimetres.ok) return refuse(input.design, millimetres.detail);
 
   const placement = buildPlacement(input, body, target, millimetres.value);
-  return applyPlacement(input, body, target, placement);
+  return applyPlacement(input, body, { target, plan }, placement);
 }
 
 /** §5.2: "gs = CARCASS box of g → re-check width & height, reject on mismatch". Fit is judged on
@@ -203,6 +204,14 @@ export function refuseUnusableMeasurement(
   };
 }
 
+/** What `place` decided, carried to the write: the opening resolved and the plan measured against
+ *  it. They travel together because the split needs both — the column from one and the remainder
+ *  from the other. */
+interface PlannedInsert {
+  readonly target: ResolvedOpening;
+  readonly plan: InsertPlan;
+}
+
 interface PlacementMillimetres {
   readonly widthMm: number;
   readonly heightMm: number;
@@ -225,9 +234,14 @@ function resolvePlacementMillimetres(
   if (heightMm === undefined) return inexact("heightMm", plan.heightM);
   const y0Mm = toExactMillimetres(plan.y0M);
   if (y0Mm === undefined) return inexact("y0Mm", plan.y0M);
-  const alongM = target.opening.alongM;
-  const alongMm = toExactMillimetres(alongM);
-  if (alongMm === undefined) return inexact("alongMm", alongM);
+  // ADR 0046: the **seated** centre, which is the opening's own only when the body fills its
+  // column. The occupied half of a split sits at `C − (W − w) / 2` and falls between two
+  // millimetres whenever the column's width is odd, so this refusal is what keeps an odd extent
+  // from reaching `projectEmptyColumns` — where it would throw `UnprojectableColumnError`
+  // uncaught at the store seam, a crash rather than a refusal. Never rounded: rounding keys the
+  // body as its neighbour (ADR 0044).
+  const alongMm = plan.alongMm;
+  if (!Number.isInteger(alongMm)) return inexactMillimetres("alongMm", alongMm);
 
   return {
     ok: true,
@@ -248,9 +262,19 @@ function inexact(
   field: string,
   valueM: number,
 ): Resolved<PlacementMillimetres> {
+  return inexactMillimetres(field, valueM * MILLIMETRES_PER_METRE);
+}
+
+/** The same refusal for a value that is already in millimetres — a seated centre is planned there
+ *  (`InsertPlan.alongMm`), so converting it back to metres to state it would be inventing a number
+ *  the customer's kitchen never held. */
+function inexactMillimetres(
+  field: string,
+  valueMm: number,
+): Resolved<PlacementMillimetres> {
   return unresolved({
     code: "NON_INTEGER_MILLIMETRES",
-    params: { field, valueMm: valueM * MILLIMETRES_PER_METRE },
+    params: { field, valueMm },
   });
 }
 
@@ -304,10 +328,10 @@ export function carriedAppearance(
 function applyPlacement(
   input: InsertBodyInput,
   body: InsertableBody,
-  target: ResolvedOpening,
+  planned: PlannedInsert,
   placement: DesignPlacement,
 ): InsertResult {
-  const replacedId = target.replaced?.id;
+  const replacedId = planned.target.replaced?.id;
   const placements =
     replacedId === undefined
       ? [...input.design.placements, placement]
@@ -316,7 +340,19 @@ function applyPlacement(
         );
   const design = withPlacements(input.design, placements, input.occurredAt);
 
-  const drift = refuseColumnDrift(design, input, target, body, placement.id);
+  const records = derivePlacementRecords(design, input.catalog);
+  // ADR 0046: the column the body did not fill becomes two, and the command owns that write.
+  const split = splitColumn({
+    columns: input.columns,
+    column: planned.target.column,
+    records,
+    centreMm: placement.alongMm,
+    widthMm: placement.body.widthMm,
+    remainderMm: planned.plan.remainderMm,
+  });
+  if (!split.ok) return refuse(input.design, split.detail);
+
+  const drift = refuseColumnDrift(records, split.value, body, placement.id);
   if (drift) return refuse(input.design, drift);
 
   return succeedWith(design, {
@@ -324,22 +360,26 @@ function applyPlacement(
     placementId: placement.id,
     buildId: placement.body.buildId,
     ...(replacedId === undefined ? {} : { replacedPlacementId: replacedId }),
+    columns: split.value.columns,
   });
 }
 
-/** ADR 0011 Gap D: an inserted placement's derived column must be the target's own. Insert takes
- *  its `alongMm` from the target opening's along-wall coordinate precisely so that it is, and a
- *  derivation that does not satisfy it is a phantom column — refused, never placed. */
+/** ADR 0011 Gap D: an inserted placement's derived column must be the one the map holds for it —
+ *  **the key the split planned**, which under ADR 0046 is the target opening's own only when
+ *  nothing was divided. A derivation that does not satisfy it is a phantom column: refused, never
+ *  placed.
+ *
+ *  Restated rather than deleted, and both sides come from **one** millimetre value — the placement's
+ *  `alongMm` — so the planned key and the derived one cannot disagree at a `toFixed(2)` boundary
+ *  (ADR 0046 rule 3, `frozenColumnKey`'s discipline). */
 function refuseColumnDrift(
-  design: Design,
-  input: InsertBodyInput,
-  target: ResolvedOpening,
+  records: readonly PlacementRecord[],
+  split: ColumnSplit,
   body: InsertableBody,
   placementId: string,
 ): RejectionDetail | undefined {
-  const records = derivePlacementRecords(design, input.catalog);
   const placed = records.find((record) => record.id === placementId);
-  if (placed?.col === target.opening.col) return undefined;
+  if (placed?.col === split.occupiedKey) return undefined;
   return { code: "COLUMN_MISMATCH", params: { label: body.label } };
 }
 

@@ -123,9 +123,15 @@ function withEmptyColumns(
   return withoutTheKey;
 }
 
-/** ADR 0031: a resize is the **one** command that moves a frozen extent, so it is the one command
- *  whose own answer replaces the map passed in. Every other command leaves the extents alone and
- *  gets `hasFullHeightUnder` re-answered over them (ADR 0011 Gap D).
+/** ADR 0031 and ADR 0046: a resize and an **insert** are the two commands that move a frozen
+ *  extent, so they are the two whose own answer replaces the map passed in. Every other command
+ *  leaves the extents alone and gets `hasFullHeightUnder` re-answered over them (ADR 0011 Gap D).
+ *
+ *  The insert joined them on 2026-09-01: a body narrower than its column splits that column into an
+ *  occupied half and an empty remainder, under two keys the one it replaced did not hold. Without
+ *  this arm the effect's map is discarded, the map still carries the original wide column, and the
+ *  level closes exactly as it did before the split existed — with every domain test still green,
+ *  which is why this seam is asserted at the store.
  *
  *  The resized map arrives already current — `moveFrozenColumns` ends in the same
  *  `withCurrentFullHeightMembers` — so re-applying it here would be a second author for two fields.
@@ -141,7 +147,9 @@ function resolveColumns(
   frozen: ReadonlyMap<string, Column>,
   records: readonly PlacementRecord[],
 ): ReadonlyMap<string, Column> {
-  if (effect.type === "body_resized") return effect.columns;
+  if (effect.type === "body_resized" || effect.type === "body_inserted") {
+    return effect.columns;
+  }
   // Re-answers `hasFullHeightUnder` over the frozen extents, and nothing else. ADR 0037's merge ran
   // here too until 2026-08-30, so the delete path backlog 2 was reported from still gives two
   // openings rather than one — see `void-engine.ts` for why the merge was withdrawn.

@@ -39,6 +39,14 @@ export interface BodyInsertedEffect {
   readonly buildId: string;
   /** Present when this insert was a swap in place (§5.3) — one code path, two entry points. */
   readonly replacedPlacementId?: string;
+  /** ADR 0046: an insert is the **second** command that writes the frozen map. A body narrower than
+   *  the column it goes into splits that column in two, so the keys the map holds change — and
+   *  *which* keys may change is a rule about the command, never something a store may re-derive
+   *  globally (ADR 0011 Gap D, and `BodyResizedEffect` below for what re-deriving costs).
+   *
+   *  Always present, including when nothing was split: an insert that fills its column exactly
+   *  publishes the map it was given, so the store has one thing to apply rather than two. */
+  readonly columns: ReadonlyMap<string, Column>;
 }
 
 /** ADR 0031's resize: the one operation that changes bodies the customer did not select, and the

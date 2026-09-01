@@ -20,7 +20,12 @@ import {
   type InsertableBody,
 } from "../catalog.js";
 import type { DesignWall } from "../design.js";
-import { toMetres, toMillimetres } from "../millimetres.js";
+import {
+  MILLIMETRES_PER_METRE,
+  toExactMillimetres,
+  toMetres,
+  toMillimetres,
+} from "../millimetres.js";
 import { findVacatedVoid } from "../queries/vacated-void.js";
 import {
   recomputeVoids,
@@ -32,6 +37,7 @@ import {
   type VoidRecord,
 } from "../void-engine.js";
 import { occupiedDepthM } from "../occupied-depth.js";
+import { alongWallM } from "./along-wall.js";
 import { wallDepthMmForWorktop, WORKTOP_DEPTH_MM } from "../worktop-depth.js";
 import type { CommandTarget } from "./command-result.js";
 import type { RejectionDetail } from "./rejection.js";
@@ -268,6 +274,24 @@ export interface InsertPlan {
   readonly depthM: number;
   readonly y0M: number;
   readonly slotBand: NormalisedBand;
+  /** ADR 0046: the along-wall centre the body is seated at, in millimetres. Flush against the
+   *  **left** edge of the column when the body is narrower than it, and the opening's own centre
+   *  when it is not.
+   *
+   *  Decided here rather than in `insertBody` because seating is arithmetic on the width, and §9's
+   *  offer list and the command must agree about where a body would land as much as about whether
+   *  it fits.
+   *
+   *  **May be fractional, and is refused rather than rounded downstream.** The seated centre is
+   *  `centre − (columnWidth − bodyWidth) / 2`, which falls between two millimetres whenever the
+   *  column's width is odd — an extent whose members are offset by an odd millimetre gives one
+   *  (`refuseFractionalCentres` in `apply-column-moves.ts` carries the measurement). */
+  readonly alongMm: number;
+  /** ADR 0046: what is left of the column beside the body, in millimetres, and therefore the width
+   *  of the empty column the split creates. `0` means no split — the body fills the column exactly
+   *  (ADR 0031 rule 6's exact-to-zero case, read for an insert) or the column is not this body's to
+   *  divide (see `seatAlongColumn`). */
+  readonly remainderMm: number;
 }
 
 export type InsertFit =
@@ -672,8 +696,95 @@ export function evaluateInsertFit(input: InsertFitInput): InsertFit {
       depthM: resolveDepthM(body, opening, column),
       y0M,
       slotBand,
+      ...seatAlongColumn(opening, column, width.widthM),
     },
   };
+}
+
+/** Where the body sits along the wall, and what the column has left beside it. */
+type Seating = Pick<InsertPlan, "alongMm" | "remainderMm">;
+
+/** ADR 0046 part 1: **a body narrower than the column it is inserted into is seated flush against
+ *  the left edge of the span — the lower along-wall coordinate — and the whole remainder becomes
+ *  one empty column on the right.**
+ *
+ *  Centring it, which is what this path did until 2026-09-01, leaves a sliver on each side of the
+ *  new body, and the two can never merge back because they are not adjacent. The owner chose the
+ *  unconditional left edge over a rule that picks an end: it has no predicate to get wrong and
+ *  gives the customer the same picture from the same input every time.
+ *
+ *  **The named cost, accepted by the owner:** where a column can be divided, `base-dishwasher` no
+ *  longer centres in a 700 mm opening. It stands flush left and the 100 mm becomes a real,
+ *  selectable opening on the right instead of vanishing into width no column owns. On the *seeded*
+ *  kitchen that cost is not yet paid: its only 700 mm column still holds members, so it takes the
+ *  centred branch below — see `dividesWholeColumn`.
+ *
+ *  Measured against the **column**, not the opening: the column extent is what the frozen map holds
+ *  and what the split rewrites, and on a §5.3 swap in place the opening is only the outgoing body's
+ *  own frame (`openingFromPlacement`). */
+function seatAlongColumn(
+  opening: InsertOpening,
+  column: Column,
+  widthM: number,
+): Seating {
+  // **The column still holds a member at another level, so it is not this body's to divide.** This
+  // is a deliberate branch and not a fallback: the insert is *accepted* and centred, exactly as
+  // every insert was before ADR 0046. Refusing it would take away an insert the customer can make
+  // today. Splitting it would move the occupied half onto a new key while the member above or below
+  // went on deriving the old one, and re-keying that member is backlog 2's re-split rather than
+  // this wave. `dividesWholeColumn` carries the measurement.
+  if (!dividesWholeColumn(opening, column)) return centredInOpening(opening);
+
+  const remainderMm =
+    seatableMillimetres(column.w) - seatableMillimetres(widthM);
+  // The body fills its column — ADR 0031 rule 6's exact-to-zero case read for an insert — or
+  // `FIT_TOLERANCE_M` let a discrete size overhang it by a hair. Either way there is no second
+  // column, and the one that is here keeps the key it had.
+  if (remainderMm <= 0) return centredInOpening(opening);
+
+  // `C − (W − w) / 2`: the column's left edge holds and the body's left edge lands on it, which is
+  // ADR 0031's "the outer edge holds" read for an insert.
+  const centreMm = seatableMillimetres(alongWallM(column.wall, column));
+  return { alongMm: centreMm - remainderMm / 2, remainderMm };
+}
+
+/** The seating every insert had before ADR 0046: the body takes its opening's own along-wall
+ *  centre, and no column is created beside it. */
+function centredInOpening(opening: InsertOpening): Seating {
+  return { alongMm: seatableMillimetres(opening.alongM), remainderMm: 0 };
+}
+
+/** **A column is only divided by an opening that runs its whole height**, and this is the guard
+ *  that keeps a split from stranding a body it was never about.
+ *
+ *  §4 subtracts height and never width (`recomputeVoids`), so a member at another level occupies
+ *  the *whole* width of its column at that level — including the width the remainder would claim.
+ *  Splitting under it would move the occupied half onto a new key while that member still derives
+ *  the old one, leaving it in a column the map no longer holds: ADR 0011 Gap D's phantom column,
+ *  and a document `validateDesignForCatalog` refuses with `EMPTY_COLUMN_OVERLAPS_PLACEMENT`.
+ *
+ *  Reachable with no resize and no merge: a 600 mm column with a wall cabinet above it and a
+ *  300 mm bottle cargo going in below. ADR 0046 states the rule for the empty column it was written
+ *  about and does not reach this case; the narrow reading is the safe one, and widening it means
+ *  moving the members at the other levels, which is backlog 2's re-split rather than this wave.
+ *
+ *  Asked of the geometry rather than of the record set, so §9's offer list — which resolves the
+ *  same opening — gets the same answer without being handed the placements. */
+function dividesWholeColumn(opening: InsertOpening, column: Column): boolean {
+  const floorM = Math.min(...column.regions.map(([start]) => start));
+  return (
+    opening.spanY0 <= floorM + COORDINATE_EPSILON_M &&
+    opening.spanY0 + opening.spanH >= column.top - COORDINATE_EPSILON_M
+  );
+}
+
+/** Millimetres for a coordinate that is about to be **checked** for landing on a whole one: the
+ *  exact millimetre where it does — which absorbs the float noise a metre value picks up crossing a
+ *  unit conversion — and the raw product where it does not, so the refusal downstream names the
+ *  millimetres the value actually sits between. Rounding here is what ADR 0044 refuses by name: it
+ *  collapses two column keys into one. */
+function seatableMillimetres(valueM: number): number {
+  return toExactMillimetres(valueM) ?? valueM * MILLIMETRES_PER_METRE;
 }
 
 /** §5.2 hands the builder the **opening's** own depth (`InsertOpening.d`), capped by §7's

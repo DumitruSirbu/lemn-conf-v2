@@ -146,3 +146,25 @@ The `test` job needs the `TEST_DATABASE_URL` repository secret, pointing at the 
 database. `DATABASE_URL` is deliberately unset there: no application runs in CI, so there is no
 application database for the isolation guard to compare against. A Postgres service container is not
 usable — the driver is `@neondatabase/serverless`, which speaks HTTP/WebSocket to Neon.
+
+## Mutation testing across the package boundary: `apps/web` reads `dist/`, not `src/`
+
+`apps/web` resolves `@lemnaria/configurator-domain` to the package's **built `dist/`**, not its
+source. Vitest loads anything under `apps/web/src` from source, so a mutation there is seen
+immediately — but a mutation in `packages/configurator-domain/src` is **invisible to the web suite
+until the domain package is rebuilt**.
+
+This matters only for mutation testing, and it matters a great deal there. Found during M5B wave
+5B4a, 2026-09-01: reverting the column split first read as store **3/3 green**, and only after a
+rebuild did all three store tests fail. That is a false clean — the most expensive kind, because it
+looks exactly like a passing gate.
+
+**The rule: rebuild `packages/configurator-domain` before running the web suite against a
+domain-source mutation.** Without it you are measuring the previous build.
+
+**Reading a stale result you already have.** The failure is one-directional, which is what makes
+older evidence salvageable. A stale `dist` runs *unmutated* domain code, so the suite behaves as if
+nothing changed and reports **green**. It can therefore produce a false green but never a false red.
+So a mutant reported **red** at the store is trustworthy whatever the build state; only a **green**
+is suspect. A mutant killed by the domain suite is killed regardless — a stale web green beside a
+domain red carries no conclusion and invalidates nothing.

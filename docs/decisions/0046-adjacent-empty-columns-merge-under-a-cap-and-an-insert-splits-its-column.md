@@ -66,6 +66,25 @@ first, and it **ships first, in its own wave, with no merge in the tree**, becau
 alone: it cures the four-tap bottle-cargo case that predates every merge. Proving it there is the
 gate on shipping the merge at all.
 
+**Amended 2026-09-01, when wave 5B4a built it — the split has a precondition, and it is forced.**
+A column is divided only by an opening running its **whole height**, which (§4 subtracts every
+member's interval) is exactly to say: only a column with no member left standing in it. Where a
+member stands at another level, the insert is still **accepted and centred**, precisely as it was
+before this record.
+
+The reason is not implementation convenience. Splitting a column under a surviving member re-keys
+the occupied half while that member goes on deriving the *old* key — ADR 0011 Gap D's phantom
+column, reproduced during the wave as two `EMPTY_COLUMN_OVERLAPS_PLACEMENT` on save, which makes the
+document unsaveable. Curing it means moving the surviving members onto the new key, and that is
+backlog 2's re-split, out of this phase by name.
+
+**So on the seeded kitchen, nothing splits yet.** The only 700 mm column is `B|2.45`, and the
+over-fridge cabinet keeps it indivisible, so `base-dishwasher` still centres there — the very case
+this record names below as changed. No seeded base cabinet sits in a column one delete makes
+splittable either. The mechanism is real, proven, and gates the merge; the seeded *outcome* waits on
+backlog 2. Whoever reads this record next should not expect to see a split in the shipped kitchen
+and conclude the wave regressed.
+
 ### The body must be seated at an edge, and this is not a detail
 
 `insertBody` takes the placement's `alongMm` from **the target opening's own along-wall
@@ -267,6 +286,23 @@ moves (600 mm was the owner's own stated fallback), a document written under the
 a merged empty column no code can any longer reproduce from its own placements, and there is no
 record of the pre-merge columns to re-derive it from. **Pre-merge is therefore the better default.**
 5B4b must state which map it projects; this record does not decide it for them.
+
+## Part 1 shipped, and its gate passed — 2026-09-01
+
+Wave 5B4a implemented part 1 and closed all eight gates (adversarial QA, clean-code, logic, security,
+visual). **Criterion 4 — the ADR 0037 withdrawal reproduction plus the four-tap case — is green in
+the tree**, so 5B4b is now dispatchable. Both halves of criterion 4 assert **a second insert
+succeeding**, not merely a void existing, which is the state this record's own withdrawal was about;
+verified non-vacuous by reverting the split and confirming the test throws before its assertion.
+
+The precondition amendment above (a column is divided only by an opening running its whole height)
+was written during 5B4a and is what the wave actually built; nothing here needed correction, only
+confirmation that it shipped as stated.
+
+**The "Note for 5B4b" above still stands, unrevised.** Pre-merge projection remains the better
+default for the reason given there — a merged column is a derived fact, and persisting it under one
+cap forecloses re-deriving it if the cap ever moves. 5B4b must still state which map it projects;
+this record continues not to decide it for them.
 
 ## Consequences
 
