@@ -5,7 +5,7 @@
 
 Status: in progress. Follows M5 (5E still open) and precedes M6.
 Reference: `testing-reports/09-manual-ux-issues.md`; `DEVELOPMENT-SPEC.md` §3.2, §4, §5.2, §7, §9,
-§11 rows 1–5, 14, 18, 20, 23, §12, §13.1, §13.3 items 2 and 4; ADRs **0043–0048**, and **0011**,
+§11 rows 1–5, 14, 18, 20, 23, §12, §13.1, §13.3 items 2 and 4; ADRs **0043–0050**, and **0011**,
 **0027**, **0031**, **0032**, **0033**, **0035**, **0037**, **0038**, **0040** as context.
 
 ## Why this is a milestone and not a fix list
@@ -186,8 +186,10 @@ Recorded as ADR 0047.
    millimetre.
 3. The count never goes below 1 and never exceeds 2 within 300–700 mm, and a height at §4's
    `MIN_SPAN_M` floor still produces a buildable body.
-4. Every interior shelf lies strictly between `shelf_bottom` and `shelf_top`, at even spacing —
-   asserted on measured y, so a wrong divisor cannot pass.
+4. Every interior shelf lies strictly between `shelf_bottom` and `shelf_top`, with board **centres**
+   evenly spaced (`H·i/(N+1)`) — asserted on measured y, so a wrong divisor cannot pass. This is a
+   guarantee about board centres, not about equal clear compartment heights; see ADR 0047's
+   2026-09-01 correction for the ~9 mm end-compartment shortfall this leaves and why it stands.
 5. M1 parity: `buildKitchen()` unchanged.
 
 **Files.** `packages/three-adapter/src/catalog-bodies.ts`, `packages/three-adapter/src/kitchen-parts.ts` (2).
@@ -784,13 +786,15 @@ swept before deciding* table naming every earlier record that said the opposite 
 | [0047](../decisions/0047-an-open-shelf-count-follows-its-clearance.md) | 5B7 | An open shelf's compartment count follows its clearance, not its row. |
 | [0048](../decisions/0048-the-pantry-column-is-the-one-resizable-column.md) | 5B8 | The pantry column is the one resizable column, and its door count already follows its width. |
 | [0049](../decisions/0049-a-fixed-width-cabinet-shows-its-width-section-disabled.md) | 5B5 | A fixed-width cabinet shows its width section disabled, with the reason (owner, 2026-09-01). |
+| [0050](../decisions/0050-the-hob-oven-filler-is-a-finishable-front.md) | 5B6 | The hob+oven filler panel is a finishable front, overturning ADR 0027's now-false "the oven is the front" ground (owner, 2026-09-01; Q6). |
 
 **Amended in place, with dated pointers and nothing deleted:**
 
+- **ADR 0027** — its `base-hob-oven` front claim struck through and superseded by ADR 0050.
 - **ADR 0037** — revived under a cap by ADR 0046, with its withdrawal section left intact and marked
   as still true. It is the record this phase is most at risk of re-deciding wrongly, so read it
   before 0046, not instead of it.
-- **`docs/decisions/README.md`** — index rows for 0044–0048, plus four new *Supersessions* bullets.
+- **`docs/decisions/README.md`** — index rows for 0044–0050, plus five new *Supersessions* bullets.
 - **`docs/BACKLOG.md` entry 2** — the mechanism is being built under a cap; the entry stays open for
   option B's combination offer.
 - **`DEVELOPMENT-SPEC.md`** — §3.2 (*"computed once at load and never change"*), §4 (*"no horizontal
@@ -802,41 +806,8 @@ ADRs 0031 and 0043 were amended by 5B1's implementer and were deliberately left 
 
 ## Open questions for the owner
 
-**Three are open. Q5 is inherited from M5; Q6 and Q7 were raised by adversarial QA on
-2026-09-01 against waves this phase built, and both hold a failing test open until they are
-answered.**
-
-- **Q6 — the hob+oven filler panel is built in the door material on a body the customer cannot
-  finish. What should it do?** Raised by QA on wave **5B6**
-  (`packages/three-adapter/tests/qa-5b6-5b7.adversarial.test.ts` → *never builds a door-material
-  surface on a body the customer cannot finish*, **failing by design**). Measured across the whole
-  catalogue: `base-hob-oven` is the only entry owning a `kit.M.door` mesh while declaring
-  `canFinish: false`. Two live consequences: the panel stays **default white** beside neighbours the
-  customer can set to sage, clay or graphite — the owner asked for the cavity filled *"with the same
-  material/color as the rest of the run"*, and the default is only the same colour by coincidence —
-  and flipping `canFinish` alone would not fix it, because `finishes.ts`'s `FRONT_MESH_NAME` is
-  `/door_front|drawer_front/`, which `oven_filler_front` does not match, so `collectFronts` returns
-  `[]`. It also **falsifies a recorded justification**: `catalog.ts:465` turns finishing off on the
-  stated ground that this body *"is deliberately open-front — the oven **is** the front — so it owns
-  no `door_front`"*. That ground no longer holds, so this is a decision with a dated record behind
-  it, not an implementer's call. Options are roughly: make the filler a finishable front (rename the
-  mesh or widen the pattern, and flip `canFinish` with a corrected justification); build it in the
-  carcass material instead so it is deliberately not a front; or accept it as permanently default.
-  **Until this is answered, wave 5B6 cannot close.**
-
-- **Q7 — should an open shelf's compartments be evenly spaced, or its boards evenly spaced?**
-  Raised by QA on wave **5B7** (same file → *cuts the shelf into compartments of equal clear
-  height*, **failing by design**). Acceptance criterion 4 asks for even spacing and the shipped
-  geometry delivers it — of the board **centres** (`H·i/(N+1)`). The compartments the customer
-  actually sees are not equal: each end compartment loses half a board thickness (9 mm) that the
-  interior ones do not. Measured: 400 mm → 173/173 (equal, one board); 700 mm → 206.3 / **215.3** /
-  206.3. It only shows with two interior boards, which is why the 400 mm case passes. This is
-  **inherited `openShelf` geometry that M1 parity pins at the seeded parameters**, so changing it is
-  not free. The finding is that the criterion and the shipped behaviour measure different things —
-  so either criterion 4 and [ADR 0047](../decisions/0047-an-open-shelf-count-follows-its-clearance.md)
-  say *centres* and record the 9 mm, or the geometry changes and M1 parity is re-pinned. **Low
-  severity — 9 mm is not visible at the mobile viewport** (QA compared the captures and the counts
-  match), so this may reasonably be settled as a documentation correction.
+**One is open, and it is inherited from M5, not introduced by this phase. Q6 and Q7 were raised by
+adversarial QA on 2026-09-01 against waves this phase built and are answered below.**
 
 **Inherited, and not introduced by this phase:**
 
@@ -860,3 +831,5 @@ closed question.
 | **Q2** | Should a fixed-width cabinet show a disabled width section with its reason? | **Yes** — greyed, with a sentence saying the cabinet is only made at 600 mm. The silence is what made it read as a defect, and every other blocked control already shows disabled-with-reason. | [ADR 0049](../decisions/0049-a-fixed-width-cabinet-shows-its-width-section-disabled.md); wave **5B5** unblocked. |
 | **Q3** | At 400 mm, is a one-door pantry still full height with the same shelf pitch? | **Yes** — same height, same shelf pitch, fewer things side by side. No second geometry rule. | [ADR 0048](../decisions/0048-the-pantry-column-is-the-one-resizable-column.md); wave **5B8** criterion 6. |
 | **Q4** | Which end of a span does an inserted cabinet sit against? | **The left edge, always.** The proposed conditional rule was rejected. The owner accepted the named cost: `base-dishwasher` no longer centres in a 700 mm opening. | [ADR 0046](../decisions/0046-adjacent-empty-columns-merge-under-a-cap-and-an-insert-splits-its-column.md); wave **5B4a** criterion 11. |
+| **Q6** | The hob+oven filler panel is built in the door material on a body the customer cannot finish (`base-hob-oven` was the only entry owning a `kit.M.door`-family mesh while declaring `canFinish: false`, so it stood permanently default white). What should it do? | **Make the filler a finishable front.** The mesh is renamed `oven_filler_front` → `oven_filler_door_front` to reach `finishes.ts`'s `FRONT_MESH_NAME` pattern; `base-hob-oven` gains `canFinish: true` (`canHandle` stays `false` — the filler opens nothing and the body's one bar belongs to the oven). ADR 0027's now-false "the oven is the front, so it owns no `door_front`" ground is struck through and replaced. | [ADR 0050](../decisions/0050-the-hob-oven-filler-is-a-finishable-front.md); wave **5B6**, now complete. |
+| **Q7** | Should an open shelf's compartments be evenly spaced, or its boards evenly spaced? | **Fix the wording, keep the geometry.** The shipped geometry evenly spaces board **centres** (`H·i/(N+1)`), not clear compartment heights — measured at 700 mm: 206.3 / 215.3 / 206.3 mm, a ~9 mm end-compartment shortfall. It stands because it is inherited `openShelf` geometry M1 parity pins at the seeded parameters, it is not visible at the mobile viewport, and re-pinning parity for 9 mm was judged not worth it. | [ADR 0047](../decisions/0047-an-open-shelf-count-follows-its-clearance.md)'s 2026-09-01 correction; wave **5B7** criterion 4 reworded above. |

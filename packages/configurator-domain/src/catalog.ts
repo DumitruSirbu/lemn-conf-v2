@@ -462,12 +462,19 @@ export const INSERTABLE_BODY_DEFINITIONS: readonly (readonly [
     "base-hob-oven",
     {
       ...hobBase("Corp plită și cuptor"),
-      // §9's "never offer what cannot be satisfied", and §13.1's "disable, don't warn". This body
-      // is deliberately open-front — the oven *is* the front — so it owns no `door_front` and no
-      // cabinet handle. Measured before this line existed: a recorded finish recoloured nothing,
-      // and `handle: "push"` hid the **oven's** own bar, a cabinet-hardware chip mutating an
-      // appliance. `open-shelf` and `hood` below declare the same two `false` for the same reason.
-      canFinish: false,
+      // §9's "never offer what cannot be satisfied", and §13.1's "disable, don't warn".
+      //
+      // Q6 (owner, 2026-09-01): this body owns **exactly one finishable front** — the fixed filler
+      // panel across the hob band, `oven_filler_door_front`, which M5B wave 5B6 added to close the
+      // cavity the oven leaves under the worktop. So a recorded finish now recolours something, and
+      // the panel takes the run's colour instead of standing default white beside neighbours the
+      // customer can set to sage, clay or graphite. Before that panel existed the body was
+      // front-less and `canFinish` was correctly `false`; the ground has changed, not the rule.
+      //
+      // `canHandle` stays `false`, and for the reason the whole pair once shared: the filler is a
+      // facade, not a leaf — nothing behind it opens — and the body's only bar belongs to the
+      // **oven**, so `handle: "push"` would be a cabinet-hardware chip mutating an appliance.
+      canFinish: true,
       canHandle: false,
       // The oven's own fascia and bar, which reach past the worktop every other base body stops at.
       occupiedDepth: finishesAtMm(HOB_OVEN_BASE_FINISHED_DEPTH_MM),
@@ -537,6 +544,8 @@ export const INSERTABLE_BODY_DEFINITIONS: readonly (readonly [
       kind: "open_shelf_unit",
       // No door and no handle, so its shell and its finished depth are the same number.
       occupiedDepth: shellPlusFrontMm(NO_FRONT_ASSEMBLY_MM),
+      // Open by definition: no fixed front to finish, no leaf to open. Unlike `base-hob-oven`
+      // above, wave 5B6 gave this body no filler panel, so ADR 0050 does not reach it.
       canFinish: false,
       canHandle: false,
     },
@@ -546,6 +555,9 @@ export const INSERTABLE_BODY_DEFINITIONS: readonly (readonly [
     {
       ...wallCabinet("Hotă"),
       kind: EXTRACTOR_HOOD_KIND,
+      // A hood is a canopy and a chimney: no front, so nothing for a finish chip to recolour.
+      // `handle: "push"` here would put cabinet hardware on an extractor. This says nothing about
+      // whether a hood is cabinetry — ADR 0035 decision 5 below rules that it is, for width.
       canFinish: false,
       canHandle: false,
       heightFlex: false,

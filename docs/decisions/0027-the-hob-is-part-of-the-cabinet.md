@@ -177,8 +177,13 @@ absent. The field is reporting, not instruction.
 on the door base. That behaviour pre-dates this record, it is not a duplicate of anything, and it is
 unchanged.
 
-**`base-hob-oven` declares `canFinish: false, canHandle: false`.** It is open-front by design — the
-appliance *is* the front — so it owns no `door_front` and no cabinet handle. Measured before the
+~~**`base-hob-oven` declares `canFinish: false, canHandle: false`.** It is open-front by design — the
+appliance *is* the front — so it owns no `door_front` and no cabinet handle.~~ **Superseded
+2026-09-01 by [ADR 0050](0050-the-hob-oven-filler-is-a-finishable-front.md):** true when written —
+the body had no fixed panel at all — and false once M5B wave 5B6 added one to close the cavity
+between the oven and the worktop. `base-hob-oven` now declares `canFinish: true` and owns exactly one
+finishable front, the filler panel. The `canHandle: false` half is unaffected and stands: the filler
+is a facade, not a leaf, and the body's only bar belongs to the oven. Measured before the 5B6
 fix: a recorded finish recoloured nothing (`collectFronts` returned `[]`), and `handle: "push"` hid
 the **oven's** own bar, a cabinet-hardware chip mutating an appliance. §13.1's "disable, don't warn"
 and §9's "never offer what cannot be satisfied" both say the sections must not render; `open-shelf`

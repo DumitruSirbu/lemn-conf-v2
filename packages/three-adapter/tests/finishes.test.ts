@@ -11,6 +11,7 @@ import { beforeAll, describe, expect, it } from "vitest";
 import {
   applyBodyFinish,
   applyFinish,
+  collectFronts,
   FINISH_COLORS,
   type FinishKey,
   type SolidFinishKey,
@@ -87,5 +88,35 @@ describe("oak is a material, so it is published as no colour at all", () => {
     expect((front.material as THREE.MeshStandardMaterial).map).toBe(
       kit.M.oak.map,
     );
+  });
+});
+
+// Q6 (owner, 2026-09-01): `base-hob-oven`'s filler panel is a **finishable front**, and the whole
+// of that decision rests on the mesh's name — `collectFronts` matches names, not materials, so a
+// panel renamed away from `_door_front` would leave the catalogue declaring `canFinish: true` over
+// a body no finish can reach. That is a silent failure at runtime, so it is a loud one here.
+describe("the hob+oven filler panel is a front the customer can finish", () => {
+  const FILLER_MESH_NAME = "oven_filler_door_front";
+
+  function hobOvenBody(): THREE.Group {
+    return kit.make.hobBaseWithOven(0.6);
+  }
+
+  it("is the front collectFronts finds on the body", () => {
+    const fronts = collectFronts(hobOvenBody());
+
+    expect(fronts.map((front) => front.name)).toEqual([FILLER_MESH_NAME]);
+  });
+
+  it.each(SOLID_FINISH_KEYS)("wears %s once the body is dressed", (key) => {
+    const body = hobOvenBody();
+    const [filler] = collectFronts(body);
+    if (!filler) throw new Error(`no mesh named "${FILLER_MESH_NAME}"`);
+    const before = filler.material;
+
+    applyBodyFinish(body, kit.M, key);
+
+    expect(filler.material).not.toBe(before);
+    expect(colourOf(filler)).toBe(FINISH_COLORS[key]);
   });
 });

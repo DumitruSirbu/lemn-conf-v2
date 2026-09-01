@@ -854,6 +854,12 @@ export function makeKit(options: KitOptions = {}): Kit {
    *  by design, so a customer looking at the cabinet saw straight past the fronts on either side
    *  into the shell. It is a facade, not a leaf — nothing behind it opens, so it carries no handle.
    *
+   *  Named `..._door_front` because it is a front the customer finishes: Q6 (owner, 2026-09-01)
+   *  decided the panel takes the run's finish rather than staying default white beside neighbours
+   *  the customer can recolour, and `finishes.ts`'s `FRONT_MESH_NAME` is `/door_front|drawer_front/`
+   *  — so the name is what makes `collectFronts` reach it. Renaming this mesh silently turns
+   *  finishing off for `base-hob-oven`, whose `canFinish: true` rests on this one panel.
+   *
    *  The band is **measured off the oven that was just built**, not written as 125 mm. That number
    *  is only what a 595 mm appliance happens to leave on a 720 mm carcass, and a typed copy of it
    *  would go stale the moment either moves.
@@ -870,7 +876,7 @@ export function makeKit(options: KitOptions = {}): Kit {
       PLINTH + CARC_H - bandBottom,
       TH,
       M.door,
-      "oven_filler_front",
+      "oven_filler_door_front",
       0,
       bandBottom,
       CARC_D / 2 + TH / 2,

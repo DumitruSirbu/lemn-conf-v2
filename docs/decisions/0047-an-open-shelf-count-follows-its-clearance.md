@@ -79,3 +79,38 @@ middle row's spacing too, which nobody reported and the owner has not seen.
   behaving, not drifting.
 - **The interior pitch is still even**, so a two-compartment shelf is not a three-compartment shelf
   with a board removed — the remaining board re-centres.
+
+## Correction, 2026-09-01 — the even spacing is of board centres, not of clear compartment heights
+
+Adversarial QA on wave 5B7 measured the shipped geometry against this ADR's own vocabulary and found
+a mismatch: "even spacing" above was written loosely enough to read as *equal compartments*, and the
+builder does not deliver that. `openShelf`'s interior boards sit at `H·i/(N+1)` — even spacing of
+board **centres** — so each **end** compartment loses half a board thickness that the interior ones
+keep. Measured at the seeded parameters: at 400 mm (one interior board) the two compartments are
+173/173 mm, equal, because there is only one end split by one board and no interior compartment to
+compare it against. At 700 mm (two interior boards) they are 206.3 / **215.3** / 206.3 mm — a **9 mm**
+shortfall on each end compartment against the middle one.
+
+**This is not a defect and the geometry stands as shipped.** Three reasons, in order of weight:
+
+1. **The owner's decision, 2026-09-01: fix the wording, keep the geometry.** Given the choice between
+   re-pinning parity for an invisible 9 mm correction and correcting the record to describe what the
+   geometry actually does, the owner chose the latter. This is a chosen outcome, not a forced one —
+   changing the divisor was and remains available; the owner judged it not worth doing for 9 mm.
+2. **It is not visible at the mobile viewport.** QA compared the 700 mm capture against the pinned
+   reference and the compartment counts match; a 9 mm asymmetry across a shelf does not read on
+   screen at that scale.
+3. **It is inherited geometry, not new work, and changing it has a cost.** `openShelf`'s interior-board
+   placement predates this ADR and this wave; wave 5B7 changed the interior board **count**, never the
+   spacing formula. Its `heightM` at the seeded parameters is exactly what M1's 1e-6 m structural
+   parity gate pins, so centring on clear compartments instead of board centres would move the seeded
+   kitchen's geometry and require re-pinning that gate. This cost informed the owner's call above; it
+   does not by itself decide the question, and if the parity gate is re-pinned for an unrelated reason
+   in the future, that does not reopen this decision.
+
+**What this corrects, precisely.** "Even spacing" in the Decision and Consequences sections above
+means *board centres are evenly spaced*, not *clear compartment heights are equal*. The
+**compartment count** stays exactly what this ADR decided — a function of clearance, two boards above
+the threshold, one at or below it — that vocabulary is unchanged. Only the spacing claim is corrected.
+Wave 5B7's acceptance criterion 4 is reworded to match, in
+`docs/milestones/M5B-manual-ux-remediation.md`.

@@ -691,6 +691,21 @@ front — in which case the flags were right all along and the *geometry* is wha
 bars alongside its two real door handles) and was scoped out of the same wave; it belongs to
 whoever owns §6.5.
 
+**Q6 answered the product question this entry says to ask first — for the other body (2026-09-01).**
+M5B wave 5B6 met the identical choice on `base-hob-oven` and the owner chose **give it a front**,
+not turn the flags off: [ADR 0050](decisions/0050-the-hob-oven-filler-is-a-finishable-front.md). That
+is precedent, not a ruling on this row — a hob band's filler panel and an integrated dishwasher's
+decor door are different products — but it does mean the "one-line fix" framing above is no longer
+the neutral default. Whoever picks this up should read ADR 0050 before assuming
+`canFinish: false, canHandle: false` is what the owner wants.
+
+**Confirmed live at the mobile viewport, 2026-09-01** by visual verification of that wave. The niche
+fascia stays `222,223,221` under all four finishes while its immediate neighbour tracks each one,
+and the chip still records the pick (`finish-graphite` → `aria-pressed="true"`, no rejection). So the
+customer is told the choice was accepted and nothing changes — which is exactly the complaint that
+opened Q6, still live on this body. `dishwasherHousing` (`packages/three-adapter/src/kitchen-parts.ts:1438`)
+builds no `door_front`/`drawer_front` mesh, so `FRONT_MESH_NAME` reaches nothing.
+
 ## 12. §3.2's column cannot express a middle level at its own width — RAISED BY M5 WAVE 5C
 
 Found while implementing §5.4's resize (M5 wave 5C, 2026-08-27), and **rewritten later the same day**

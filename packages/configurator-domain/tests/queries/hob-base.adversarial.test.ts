@@ -297,14 +297,17 @@ describe("the two hob bases are distinguished only where the choice is made", ()
     if (!drawers || !oven) return;
 
     // Everything §5.2 measures a fit with, and everything §9 offers on, is identical. The fields
-    // that are not are the three the *customer* is choosing between — the Romanian label, and the
-    // two capability flags the oven variant declares `false` because it is open-front and owns no
-    // cabinet door to finish or put a handle on — plus, since wave S9, the depth the built body
-    // occupies, which is asserted on its own below.
+    // that are not are the two the *customer* is choosing between — the Romanian label and
+    // `canHandle`, which the oven variant declares `false` because its only bar belongs to the oven
+    // and the one front it owns is a fixed facade that does not open — plus, since wave S9, the
+    // depth the built body occupies, which is asserted on its own below.
+    //
+    // `canFinish` is deliberately **not** masked. Since Q6 (owner, 2026-09-01, ADR 0050) the hob
+    // band's filler panel is a finishable front, so both variants declare `true` and the equality
+    // below carries that agreement. Masking it here would hide a future divergence.
     const withoutTheChoice = (definition: BodyDefinition) => ({
       ...definition,
       label: "",
-      canFinish: true,
       canHandle: true,
       occupiedDepth: finishesAtMm(0),
     });
@@ -312,7 +315,7 @@ describe("the two hob bases are distinguished only where the choice is made", ()
     expect(withoutTheChoice(drawers)).toEqual(withoutTheChoice(oven));
     expect(drawers.label).not.toBe(oven.label);
     expect([drawers.canFinish, drawers.canHandle]).toEqual([true, true]);
-    expect([oven.canFinish, oven.canHandle]).toEqual([false, false]);
+    expect([oven.canFinish, oven.canHandle]).toEqual([true, false]);
 
     // **The one measurement that does differ, and it is not one anything picks by** (DOM-002).
     // Nominal width, height and depth are identical — those are what §5.2 fits and §9 offers on.

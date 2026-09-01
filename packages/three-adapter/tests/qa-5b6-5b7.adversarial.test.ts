@@ -38,6 +38,13 @@ const HOB_OVEN_DECLARED_DEPTH_MM = 648;
 /** The shadow gap two fronts leave each other, retyped. */
 const FRONT_SHADOW_GAP_MM = 4;
 
+/** ADR 0047's threshold, retyped for the same reason as the numbers above. */
+const OPEN_SHELF_TWO_COMPARTMENT_MAX_HEIGHT_MM = 500;
+
+/** Both sides of that threshold at the millimetre, the two `LEVELS` row heights, and §4's
+ *  `MIN_SPAN_M` floor — every height at which the interior-board count or the divisor changes. */
+const SPACING_SWEEP_MM = [300, 400, 499, 500, 501, 600, 700];
+
 const OCCURRED_AT = "2026-08-27T12:00:00.000Z";
 
 let kit: Kit;
@@ -85,12 +92,12 @@ function hobOvenBody(builtKit: Kit = kit, widthM = 0.6): THREE.Group {
 }
 
 function fillerOf(body: THREE.Object3D): THREE.Mesh {
-  const found = meshesNamed(body, "oven_filler_front");
+  const found = meshesNamed(body, "oven_filler_door_front");
   if (found.length !== 1)
     throw new Error(
-      `expected one oven_filler_front, found ${String(found.length)}`,
+      `expected one oven_filler_door_front, found ${String(found.length)}`,
     );
-  return meshNamed(body, "oven_filler_front");
+  return meshNamed(body, "oven_filler_door_front");
 }
 
 function ovenOf(body: THREE.Object3D): THREE.Object3D {
@@ -198,14 +205,20 @@ describe("5B6: the oven filler front, measured", () => {
     const room = kit.builders["kitchen-l"]();
     room.updateMatrixWorld(true);
 
-    expect(meshesNamed(room, "oven_filler_front")).toHaveLength(0);
+    expect(meshesNamed(room, "oven_filler_door_front")).toHaveLength(0);
   });
 
-  // FINDING Q1. The catalogue turns finishing off for `base-hob-oven` on a stated ground —
-  // "This body is deliberately open-front — the oven *is* the front — so it owns no `door_front`".
-  // Wave 5B6 gives it a front in the run's door material, which falsifies that ground: the panel is
-  // now the one door-material surface in the catalogue that no finish can reach, so it stays the
-  // default white beside neighbours the customer can recolour. Left failing on purpose.
+  // The catalogue-wide invariant this file raised as Q6 against wave 5B6, now settled by ADR 0050:
+  // a body that owns a door-material surface must be one the customer can finish. `base-hob-oven`
+  // satisfies it by having become finishable — `canFinish: true`, plus the mesh name
+  // `oven_filler_door_front` that `finishes.ts`'s `FRONT_MESH_NAME` reaches — and ADR 0027's
+  // "deliberately open-front, so it owns no `door_front`" is struck through in place, because wave
+  // 5B6 built the panel that falsified it.
+  //
+  // What this guards from here on is the invariant, not that one entry: any future body built in
+  // `M.door` while declaring `canFinish: false` lands in `offenders`, and either the flag or the
+  // material is then wrong. A rename away from `/door_front|drawer_front/` is caught by
+  // `finishes.test.ts`'s `FILLER_MESH_NAME`, not here.
   it("never builds a door-material surface on a body the customer cannot finish", () => {
     const offenders: { buildId: string; meshes: string[] }[] = [];
 
@@ -257,6 +270,21 @@ function compartmentHeightsMm(body: THREE.Object3D): number[] {
   for (let i = 0; i < boards.length - 1; i += 1)
     heights.push(mm(nthBox(boards, i + 1).min.y - nthBox(boards, i).max.y));
   return heights;
+}
+
+/** The interior boards only — `shelf_top` and `shelf_bottom` are the carcass, and criterion 4 is a
+ *  statement about what stands between them. Bottom-up, as measured world boxes. */
+function interiorBoardBoxes(body: THREE.Object3D): THREE.Box3[] {
+  const boards: THREE.Box3[] = [];
+  body.updateMatrixWorld(true);
+  body.traverse((node) => {
+    if (isMesh(node) && /^shelf_\d+$/.test(node.name)) boards.push(boxOf(node));
+  });
+  return boards.sort((a, b) => a.min.y - b.min.y);
+}
+
+function centreY(box: THREE.Box3): number {
+  return (box.min.y + box.max.y) / 2;
 }
 
 function openShelfAt(heightMm: number): THREE.Group {
@@ -342,19 +370,61 @@ describe("5B7: open-shelf compartments, counted from geometry", () => {
     expect(compartmentHeightsMm(seeded)).toHaveLength(3);
   });
 
-  // FINDING Q2. Criterion 4 asks for even spacing, and the board *centres* are evenly spaced. The
-  // compartments a customer sees are not: the two end compartments are one board-thickness shorter
-  // than every interior one, because the end boards are half-inside the span the divisor cuts.
-  // Left failing on purpose — the criterion and the geometry disagree about what "even" measures.
-  it("cuts the shelf into compartments of equal clear height", () => {
-    for (const heightMm of [400, 501, 700]) {
-      const heights = compartmentHeightsMm(openShelfAt(heightMm));
-      const spread = Math.max(...heights) - Math.min(...heights);
-      expect({ heightMm, heights, evenToTheMillimetre: spread < 1 }).toEqual({
+  // Criterion 4, as reworded on 2026-09-01 (ADR 0047's correction section): the guarantee is about
+  // board *centres*, not about equal clear compartments. Q2 asked whether the ~9 mm end-compartment
+  // shortfall was a defect; the owner answered that the geometry stands and the records were
+  // imprecise, so this now pins what the geometry actually promises.
+  //
+  // Everything below is measured. The span is taken between the two end boards' outer faces rather
+  // than from `heightMm`, and each centre from the board's own box, so a builder that divided by
+  // `inner` instead of `inner + 1` — or that centred on clear compartments — moves the centres off
+  // these positions and fails here.
+  it("spaces interior board centres at H·i/(N+1) of the measured span", () => {
+    for (const heightMm of SPACING_SWEEP_MM) {
+      const shelf = openShelfAt(heightMm);
+      const bottom = boxOf(meshNamed(shelf, "shelf_bottom"));
+      const top = boxOf(meshNamed(shelf, "shelf_top"));
+      const interior = interiorBoardBoxes(shelf);
+
+      // A shelf that stopped following its clearance would otherwise satisfy the spacing check
+      // vacuously at whatever count it froze on.
+      expect({ heightMm, interior: interior.length }).toEqual({
         heightMm,
-        heights,
-        evenToTheMillimetre: true,
+        interior: heightMm > OPEN_SHELF_TWO_COMPARTMENT_MAX_HEIGHT_MM ? 2 : 1,
       });
+
+      const spanMm = mm(top.max.y - bottom.min.y);
+      const measuredCentresMm = interior.map((board) =>
+        mm(centreY(board) - bottom.min.y),
+      );
+      const evenCentresMm = interior.map((_, index) =>
+        Number(((spanMm * (index + 1)) / (interior.length + 1)).toFixed(3)),
+      );
+
+      expect({ heightMm, measuredCentresMm }).toEqual({
+        heightMm,
+        measuredCentresMm: evenCentresMm,
+      });
+    }
+  });
+
+  // The other half of criterion 4: strictly between the two end boards, with no face touching or
+  // crossing either. A divisor that produced a centre at 0 or at H would still be "even" by the
+  // check above; it would put a board inside the carcass boards, and it fails here.
+  it("keeps every interior board strictly between shelf_bottom and shelf_top", () => {
+    for (const heightMm of SPACING_SWEEP_MM) {
+      const shelf = openShelfAt(heightMm);
+      const bottom = boxOf(meshNamed(shelf, "shelf_bottom"));
+      const top = boxOf(meshNamed(shelf, "shelf_top"));
+
+      for (const [index, board] of interiorBoardBoxes(shelf).entries()) {
+        expect({
+          heightMm,
+          index,
+          aboveBottom: board.min.y > bottom.max.y,
+          belowTop: board.max.y < top.min.y,
+        }).toEqual({ heightMm, index, aboveBottom: true, belowTop: true });
+      }
     }
   });
 });
@@ -423,7 +493,7 @@ describe("5B7: the compartment count the insert flow actually produces", () => {
       const built = compartmentHeightsMm(openShelfAt(heightMm)).length;
       expect({ heightMm, built }).toEqual({
         heightMm,
-        built: heightMm > 500 ? 3 : 2,
+        built: heightMm > OPEN_SHELF_TWO_COMPARTMENT_MAX_HEIGHT_MM ? 3 : 2,
       });
     }
   });

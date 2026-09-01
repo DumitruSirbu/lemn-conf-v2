@@ -42,7 +42,7 @@ moment it ships; a decision record does not. When the two disagree, the dated de
 | M7 — Step 1, room and presets | Planned | Yes, when starting |
 | M8 — Review, contact, success | Planned | Yes, when starting |
 | Adversarial review remediation | **Complete for the security scope** — SCENE-001, WEB-001, DOM-001, SEC-002, SEC-003, SEC-004, DB-001, DB-002, DB-003 closed; SEC-001 deferred to M8, gated; Medium/Low residuals open | Yes — `milestones/adversarial-review-remediation.md` and `testing-reports/` |
-| **M5B — Manual UX remediation** (branch `ux-manual-fixes`) | **In progress** — **5B1 complete** (QA + both reviews applied, green); **5B6 and 5B7 implemented, QA returned two findings**; 5B2 … 5B5, 5B8, 5B4a/b planned | Yes — `milestones/M5B-manual-ux-remediation.md`, **and ADRs 0043–0049** |
+| **M5B — Manual UX remediation** (branch `ux-manual-fixes`) | **In progress** — **5B1 complete** (QA + both reviews applied, green); **5B6 complete** (Q6 answered, ADR 0050); **5B7 complete** (Q7 answered, ADR 0047, QA test re-pointed); 5B2, 5B3, 5B5, 5B8, 5B4a/b planned | Yes — `milestones/M5B-manual-ux-remediation.md`, **and ADRs 0043–0050** |
 
 ## Adversarial review remediation — complete for the security scope, 2026-08-31
 
@@ -226,8 +226,8 @@ any width is legal), **0044** (empty columns are persisted), **0045** (the run-e
 compartments follow clearance), **0048** (the pantry column is resizable) and **0049** (a fixed-width cabinet shows its width section disabled).
 
 **The owner answered four of the phase's five open questions on 2026-09-01**, so nothing below is blocked: wave 5B5 is unblocked (show the disabled section with its reason), an inserted cabinet sits against the **left** edge of a wider span, a 400 mm pantry keeps the 600's height and shelf pitch, and report item 6 was **measured** to be a reload defect owned by 5B2 rather than 5B1. **Q5 alone stays open and is inherited from M5, not introduced here**: whether a shrink may widen an empty column past 800 mm. Wave **5B1** is
-complete; **5B6 and 5B7 are implemented and have been through adversarial QA**, which
-returned two findings — see *Where each M5B wave stands* below. **5B4b — the merge — is the phase's
+complete; **5B6 and 5B7 are complete, implemented and through adversarial QA**, which
+returned two findings, both applied — see *Where each M5B wave stands* below. **5B4b — the merge — is the phase's
 highest risk and is sequenced last**, gated on 5B4a reproducing ADR 0037's own withdrawal scenario
 green.
 
@@ -238,8 +238,8 @@ Nothing in this phase is committed yet; all of it is uncommitted work on `ux-man
 | Wave | State |
 | --- | --- |
 | **5B1** — the growth-side remainder floor, and the sentence that named it | **Complete.** Implemented, adversarial QA (findings Q1–Q4), clean-code review (R1.1–R1.9) and product-logic review (R2.1–R2.4) all applied. Domain 1094 / web 684 / adapter 899 / persistence 177, lint and typecheck clean. |
-| **5B6** — the hob+oven cavity | Implemented and captured on screen; **QA finding Q1 (Medium) open — needs an owner decision**, see below. |
-| **5B7** — open-shelf compartments follow clearance | Implemented and captured on screen; **QA finding Q2 (Low) open** — the criterion and the geometry measure different things. |
+| **5B6** — the hob+oven cavity | **Complete.** QA finding Q6 answered by the owner 2026-09-01 (make the filler a finishable front) and applied: the filler mesh renamed `oven_filler_front` → `oven_filler_door_front`, `base-hob-oven` gains `canFinish: true`, `canHandle` stays `false`. ADR 0050 records it and strikes ADR 0027's now-false ground. `catalog-capability-parity.test.ts`, `hob-base.adversarial.test.ts` (domain and web) re-pointed, not weakened. M1 parity and `occupiedDepth` unchanged. |
+| **5B7** — open-shelf compartments follow clearance | **Complete.** QA finding Q2 was Q7 in the milestone file's open questions; the owner answered it 2026-09-01 (fix the wording, keep the geometry) and ADR 0047 and the acceptance criterion are corrected. `qa-5b6-5b7.adversarial.test.ts` no longer asserts the old *equal clear height* reading — it was replaced by two stronger tests (even board centres measured off built geometry, and every interior board strictly between `shelf_bottom` and `shelf_top`), and the height sweep widened from `[400, 501, 700]` to `[300, 400, 499, 500, 501, 600, 700]`. Adapter suite green: 35 files / 934 tests. |
 | **5B3, 5B5, 5B8, 5B2, 5B4a, 5B4b** | Planned, ADRs written, not dispatched. |
 
 **5B1's real lesson, and it is a process one.** The owner's standing instruction — *check whether an
@@ -260,26 +260,12 @@ Both are fixed; the sweep now runs five worlds against a pinned floor.
 
 ### The M5B items that need the owner, 2026-09-01
 
-Recorded as **Q6** and **Q7** in `milestones/M5B-manual-ux-remediation.md`'s *Open questions*, each
-holding a failing QA test open until it is answered. Q7 is Low and may be a documentation
-correction; the paragraphs below are Q6, which blocks wave 5B6 from closing.
-
-**Wave 5B6's filler panel is built in the door material on a body the customer cannot finish.**
-QA measured it across the whole catalogue: `base-hob-oven` is now the only entry owning a
-`kit.M.door` mesh while declaring `canFinish: false`. Two consequences, both live:
-
-- The panel stays default white beside neighbours the customer can set to sage, clay or graphite.
-  The owner asked for the cavity filled *"with the same material/color as the rest of the run"*; it
-  is filled with the **default** door material, which is only the same colour by coincidence.
-- Flipping `canFinish` to `true` alone would not fix it. `finishes.ts`'s `FRONT_MESH_NAME` is
-  `/door_front|drawer_front/`, which `oven_filler_front` does not match, so `collectFronts` returns
-  `[]` for this body.
-
-It also **falsifies the recorded justification** at `catalog.ts:465`, which turns finishing off on
-the stated ground that this body *"is deliberately open-front — the oven **is** the front — so it
-owns no `door_front`"*. That ground no longer holds. Resolving it means touching the catalogue's
-justification and either the front-name pattern or the mesh name — a product decision with a dated
-record behind it, so it goes to the owner rather than to an implementer.
+Both of this phase's QA-raised owner questions are answered as of 2026-09-01. **Q6** (wave 5B6's
+filler panel) is answered — make it a finishable front — and closed in
+[ADR 0050](decisions/0050-the-hob-oven-filler-is-a-finishable-front.md); wave 5B6 is complete. **Q7**
+(the open-shelf spacing question) was answered the same day — fix the wording, keep the geometry —
+and is folded into ADR 0047 and the milestone file's *Answered* table; wave 5B7 is complete, with
+the QA test re-pointed to the corrected criterion.
 
 **The mint endpoint is unbounded at the application layer.** `POST /api/designs` has no application
 rate limiter and no active retention, which is SEC-001. The owner deferred it to **M8** on
@@ -465,11 +451,11 @@ floor; until it lands, no update rate limit can be sized honestly.
 
 ## What to do next
 
-**M5B — Manual UX remediation, in the order `milestones/M5B-manual-ux-remediation.md` gives.** 5B1 is in flight;
-then 5B6, 5B7, 5B3, 5B5 (blocked on an owner question), 5B8, 5B2, 5B4a, 5B4b. The one forced
-dependency is **5B2 before 5B4** — merged and split empty columns that vanish on reload are worth
-nothing. Everything else is ordered smallest-first so the merge lands last, which is what the owner
-asked for.
+**M5B — Manual UX remediation, in the order `milestones/M5B-manual-ux-remediation.md` gives.** 5B1,
+5B6 and 5B7 are complete. **Next is 5B3**, then 5B5, 5B8,
+5B2, 5B4a, 5B4b. The one forced dependency is **5B2 before 5B4** — merged and split empty columns
+that vanish on reload are worth nothing. Everything else is ordered smallest-first so the merge
+lands last, which is what the owner asked for.
 
 **M5 wave 5E — the browser and mobile gate.** It is the only M5 wave still open. 5D2c (the panel
 stepper) and 5F (base carcass depth as a formula) **both shipped on 2026-08-30**; see the commit list

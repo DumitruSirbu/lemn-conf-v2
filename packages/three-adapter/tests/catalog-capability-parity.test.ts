@@ -235,13 +235,18 @@ describe("every catalogue entry's capability flags match what its builder draws"
   });
 
   // And the case a `handle_bar` count would get wrong, measured rather than asserted from memory:
-  // the open-front hob base's only handle is the oven's, so it has none of its own, and the tower
-  // builds four bars of which two are the cabinet's.
+  // the hob base's only handle is the oven's, so it has none of its own, and the tower builds four
+  // bars of which two are the cabinet's.
+  //
+  // Its one front is the hob band's filler panel (Q6, owner 2026-09-01), which is why the two flags
+  // now differ: a fixed facade is something to finish and nothing to open, so `canFinish` follows
+  // the front and `canHandle` follows the cabinet-handle count, exactly as the gate above reads
+  // them. Before wave 5B6 both numbers were zero and both flags were `false`.
   it("does not count an appliance's handle as the cabinet's", () => {
     expect(censusOf("base-hob-oven")).toMatchObject({
-      fronts: 0,
+      fronts: 1,
       cabinetHandles: 0,
-      canFinish: false,
+      canFinish: true,
       canHandle: false,
     });
     expect(handleBarCountOf("base-hob-oven")).toBe(1);

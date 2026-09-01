@@ -183,15 +183,18 @@ describe("the panel over the shipped hob cabinet", () => {
     expect(oven?.isDisabled).toBe(false);
   });
 
-  // The oven variant is open-front — the appliance *is* the front — so it owns no `door_front` and
-  // no cabinet handle. §13.1's "disable, don't warn" and §9's "never offer what cannot be
-  // satisfied" both say the sections must not render at all, and they only do not because the
-  // catalogue row declares `canFinish: false, canHandle: false`. Measured before it did: the five
-  // finish chips recoloured nothing, and `handle: "push"` hid the **oven's** own bar.
+  // The oven variant owns no cabinet handle — its only bar belongs to the **oven**, and `handle:
+  // "push"` used to hide that. §13.1's "disable, don't warn" and §9's "never offer what cannot be
+  // satisfied" both say the handle section must not render at all, and it only does not because the
+  // catalogue row declares `canHandle: false`.
   //
-  // The drawer variant beside it keeps both sections, which is what makes this a statement about
-  // the body rather than about hob bases in general.
-  it("renders no finish and no handle section over the oven variant, and both over the drawer one", () => {
+  // It does render a *Finisaj* section, and that is the whole of Q6 (owner, 2026-09-01): M5B wave
+  // 5B6 closed the hob band with a fixed filler front in the door material, so the five chips now
+  // recolour something — the one front the body owns — instead of leaving it default white beside
+  // neighbours the customer can set to sage. The drawer variant beside it keeps both sections,
+  // which is what makes the *handle* half a statement about this body rather than about hob bases
+  // in general.
+  it("renders a finish section but no handle section over the oven variant, and both over the drawer one", () => {
     const sectionKindsOn = (buildId: string) => {
       const panel = describePanel({
         meta: describeSelection({
@@ -209,7 +212,7 @@ describe("the panel over the shipped hob cabinet", () => {
       return panel.sections.map((section) => section.kind);
     };
 
-    expect(sectionKindsOn("base-hob-oven")).not.toContain("finish");
+    expect(sectionKindsOn("base-hob-oven")).toContain("finish");
     expect(sectionKindsOn("base-hob-oven")).not.toContain("handle");
     expect(sectionKindsOn("base-hob-2drawer")).toContain("finish");
     expect(sectionKindsOn("base-hob-2drawer")).toContain("handle");
