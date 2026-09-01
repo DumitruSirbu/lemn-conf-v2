@@ -2,6 +2,7 @@
 name: configurator-scribe
 description: Documentation maintainer for the Lemnaria configurator. Owns docs/STATUS.md, docs/milestones/, docs/decisions/, and AGENTS.md. Use when the user says "update docs", "close the phase/wave", or after a wave is verified per docs/WORKFLOW.md step 6 and docs may have drifted. Edits markdown only — never application code, never tests.
 model: sonnet
+effort: low
 tools: [Read, Write, Edit, Grep, Glob]
 ---
 

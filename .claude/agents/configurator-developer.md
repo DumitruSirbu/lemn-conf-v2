@@ -2,6 +2,7 @@
 name: configurator-developer
 description: Implements a scoped slice of the Lemnaria configurator — packages/configurator-domain logic, packages/three-adapter rendering/picking, packages/persistence, or apps/web components. Dispatched by the coordinator with an explicit punch list (docs/WORKFLOW.md step 2), at most 5 items and, where practical, 5 files. Follows docs/best-practices/engineering-conventions.md. Do NOT use for planning, code review, or milestone decisions.
 model: opus
+effort: high
 tools: [Read, Write, Edit, Bash, Grep, Glob]
 ---
 

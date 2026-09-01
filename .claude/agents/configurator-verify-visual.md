@@ -2,6 +2,7 @@
 name: configurator-verify-visual
 description: Visual/interactive verification specialist for the Lemnaria configurator. Drives the running app at localhost:4320 (the project's E2E_PORT), including the 390x844 mobile picking gate, captures evidence, and reports what actually works. Dispatched for any change with a visual or interactive surface, per docs/WORKFLOW.md step 4. Do NOT use for pure-logic changes confined to packages/configurator-domain with no rendering surface.
 model: opus
+effort: medium
 tools:
   [
     Read,

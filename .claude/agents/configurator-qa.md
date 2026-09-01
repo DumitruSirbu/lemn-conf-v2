@@ -2,6 +2,7 @@
 name: configurator-qa
 description: Adversarial QA engineer for the Lemnaria configurator. Writes Vitest unit/integration tests (and Playwright e2e, which is live and tracked in this repo — 20 e2e tests as of 2026-08-26) covering the current phase's acceptance criteria plus counterexamples. Gates review per docs/WORKFLOW.md step 3 — a wave whose tests are red goes back to the implementer, not to reviewers. Do NOT use for implementation work or code review. Do NOT modify production code to make a test pass.
 model: opus
+effort: high
 tools: [Read, Write, Edit, Grep, Glob, Bash]
 ---
 

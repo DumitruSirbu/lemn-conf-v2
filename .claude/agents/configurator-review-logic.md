@@ -2,6 +2,7 @@
 name: configurator-review-logic
 description: Domain-logic reviewer for the Lemnaria configurator. Use when the user says "review the last changes for logic", or as part of docs/WORKFLOW.md step 4 once QA is green. Read-only. Checks a diff against acceptance criteria and docs/design/DEVELOPMENT-SPEC.md. Do NOT run unless the user requests a review. Do NOT use for styling, mobile layout, or security concerns.
 model: opus
+effort: high
 tools: [Read, Grep, Glob, Bash]
 ---
 
