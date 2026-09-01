@@ -1,6 +1,7 @@
 import type {
   Design,
   DesignPlacement,
+  EmptyColumn,
   DesignWall,
   Finish,
   Handle,
@@ -411,6 +412,7 @@ function groupByColumn(
  *  `withCurrentFullHeightMembers`. */
 export function deriveColumns(
   records: readonly PlacementRecord[],
+  emptyColumns: readonly EmptyColumn[] = [],
 ): ReadonlyMap<string, Column> {
   const columns = new Map<string, ColumnExtent>();
   for (const [key, members] of groupByColumn(records)) {
@@ -456,7 +458,61 @@ export function deriveColumns(
       regions,
     });
   }
+  addStoredEmptyColumns(columns, emptyColumns);
   return withCurrentFullHeightMembers(columns, records);
+}
+
+/** ADR 0044: the spaces nothing else can reconstruct, restored into the map the placements built.
+ *
+ *  After the grouping and never inside it. An empty column has no member, so it is restored rather
+ *  than derived, and the member-less throw above stays exactly as it was — that one is about a
+ *  column the *placements* produced, and a placement-derived column with no placements in it is
+ *  still an impossible state.
+ *
+ *  **No key can collide here.** §3.2's key is a wall plus an along-wall coordinate at 10 mm
+ *  granularity, so an entry recorded at an occupied column's centre, or two entries a few
+ *  millimetres apart, would address one slot in this map and one of the two would be lost.
+ *  `validateDesignForCatalog` refuses both shapes at the write seam and the load seam, so there is
+ *  deliberately no tie-break here: a silent drop would be a space the document records and the
+ *  derivation does not have, which is the failure the refusal exists to stop. */
+function addStoredEmptyColumns(
+  columns: Map<string, ColumnExtent>,
+  emptyColumns: readonly EmptyColumn[],
+): void {
+  for (const emptyColumn of emptyColumns) {
+    const extent = toColumnExtent(emptyColumn);
+    columns.set(extent.key, extent);
+  }
+}
+
+function toColumnExtent(emptyColumn: EmptyColumn): ColumnExtent {
+  const alongM = toMetres(emptyColumn.alongMm);
+  const depthM = toMetres(emptyColumn.depthMm);
+  const y0M = toMetres(emptyColumn.y0Mm);
+  const topM = toMetres(emptyColumn.topMm);
+  // Through the transform a placement's own frame goes through, so a restored space stands where a
+  // body recorded at the same coordinate would: the along-wall centre on the wall's tangent, and
+  // the column's own half-depth on its normal (§3.2, and the origin rule in `deriveColumns`).
+  const transform = deriveCabinetWorldTransform({
+    wall: emptyColumn.wall,
+    alongM,
+    y0M,
+    depthM,
+  });
+  return {
+    key: deriveColumnKeyAt(emptyColumn.wall, alongM),
+    wall: emptyColumn.wall,
+    ry: transform.yawRadians,
+    x: transform.position.x,
+    z: transform.position.z,
+    w: toMetres(emptyColumn.widthMm),
+    d: depthM,
+    top: topM,
+    // The frozen extent as a single interval. §4 reads a column's floor and its top and nothing
+    // between them (`deriveFreeSpans` takes `min(regions)` and `top`), and the members whose own
+    // intervals these were are the bodies this space no longer holds.
+    regions: [[y0M, topM]],
+  };
 }
 
 /** The keys whose membership an operation changed, comparing the placement records before and

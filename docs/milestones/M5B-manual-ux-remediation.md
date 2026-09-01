@@ -1,7 +1,7 @@
 # M5B — Manual UX remediation
 
-> **STATUS: IN PROGRESS.** 5B1, 5B6, 5B7, 5B3, 5B5, 5B10 and 5B8 are complete;
-> 5B2, 5B4a, 5B4b remain to dispatch. Summary: `docs/STATUS.md`. Branch `ux-manual-fixes`.
+> **STATUS: IN PROGRESS.** 5B1, 5B6, 5B7, 5B3, 5B5, 5B10, 5B8 and 5B2a are complete;
+> 5B2b, 5B4a, 5B4b remain to dispatch. Summary: `docs/STATUS.md`. Branch `ux-manual-fixes`.
 
 Status: in progress. Follows M5 (5E still open) and precedes M6.
 Reference: `testing-reports/09-manual-ux-issues.md`; `DEVELOPMENT-SPEC.md` §3.2, §4, §5.2, §7, §9,
@@ -525,49 +525,179 @@ second candidate cause for report item 6.
 Option B fails on the `top` row, and it fails on the case §10 calls the signature flow. It is not a
 cheaper version of A; it is a different and weaker rule. **A is chosen**, recorded as ADR 0044.
 
+#### The split, settled by reading the delete path — 2026-09-01
+
+The plan asked whether the delete path drags `remove-placement.ts` in. **It does not, and no command
+file is touched at all.** `removePlacement` (`commands/remove-placement.ts`) takes
+`{ design, catalog, target, occurredAt }` — **it never sees the frozen map**. It re-derives records
+from the pre-removal design and returns `withPlacements(...)`. It therefore cannot write the vacated
+column's `top`, `regions` or `d`: the only values it could compute are re-derivations from current
+state, which is ADR 0011 Gap D's forbidden move verbatim. A column emptied by an *earlier* delete
+has no member in the pre-removal records either, so the command could not even see it.
+
+The authoritative frozen map lives at one seam — `applyCommandResult` / `resolveColumns`
+(`apply-command-result.ts:69-112`) — and the resize already publishes its answer into it through
+`effect.columns`. **So the write-back is a single projection at that seam: the member-less columns
+of the resolved map, written onto the design as `emptyColumns`.** That covers delete, resize, insert
+and every future effect uniformly, and it makes acceptance criterion 4 an invariant by construction
+rather than per-command bookkeeping. `set-width.ts` is off the file list too: `moveFrozenColumns`
+already produces the moved map and it reaches the projection through `effect.columns`.
+
+**The wave still splits, but re-cut.** Not along "does delete need a command file" — it does not —
+but along the document contract versus the write seam, because the first is testable entirely
+against hand-built documents with no store in the picture, and the second is the only half that can
+regress a live session.
+
+**5B2a — the document contract.** A document *may* carry `emptyColumns`; the load honours them; both
+seams refuse a bad one. Nothing writes them yet, so app behaviour is unchanged.
+
+- `packages/configurator-domain/src/design.ts` — `emptyColumns?: EmptyColumn[]`, capped.
+- `packages/configurator-domain/src/design-bounds.ts` — `MAX_EMPTY_COLUMNS`, `MAX_EMPTY_COLUMN_BYTES`,
+  and `MAX_DESIGN_BYTES` re-derived (see *The cap* below).
+- `packages/configurator-domain/src/void-engine.ts` — `deriveColumns` adds the stored entries after
+  grouping the placements; the member-less-**placement**-column throw stays, it is a real invariant.
+- `packages/configurator-domain/src/validate-design.ts` — the overlap refusal.
+
+(4 files. Criteria 2, 5, 6, 7 land here, and criteria 1 and 3's deserialise half.)
+
+**5B2b — the write seam.** The projection, and the store call that uses it.
+
+- `packages/configurator-domain/src/void-engine.ts` — `projectEmptyColumns(columns, records)`, pure,
+  domain-owned: the columns of `columns` with no member in `records`, as wire entries.
+- `apps/web/src/store/apply-command-result.ts` — the projection applied to `result.design` inside the
+  one `set()`, beside `resolveColumns`.
+
+(2 files. Criteria 1, 3, 4 land here.)
+
+**Three requirements added to this brief, 2026-09-01, each with its reason:**
+
+1. **`projectEmptyColumns` must refuse a sub-millimetre centre, never round it.** Rounding collapses
+   two distinct map keys into one, and 5B2a's `EMPTY_COLUMN_KEY_COLLIDES_WITH_EMPTY_COLUMN` /
+   `EMPTY_COLUMN_KEY_COLLIDES_WITH_PLACEMENT` refusals then reject the very document the projection
+   itself produced — the write seam would be refusing its own honest output.
+2. **The projection must guarantee key uniqueness itself, not rely on validation to catch it.**
+   5B2a deleted the silent-drop branch that `deriveColumns` used to have, which reverses the
+   direction of the failure: a stored `emptyColumns` entry now **overwrites** the placements'
+   column at derivation rather than being dropped. `deriveColumns` is pure with no validator inside
+   it, and commands do not validate, so 5B2b must not derive `emptyColumns` from an unvalidated
+   `result.design` — the projection has to be correct by construction, not merely checked afterwards.
+3. **`regions` has a second consumer this wave must account for.** `commands/insert-fit.ts:632`,
+   `resolveSnapY0M`, feeds every region start into the snap-candidate list. It is probably inert —
+   `LEVELS` starts are 0, 1.5 and 2.2, and `minY` is always a candidate — but 5B2b must **prove**
+   that rather than assume it: a restored column offers fewer snap candidates than an in-session one
+   (one region instead of several), and that is exactly the gap criterion 4's sweep exists to catch.
+
+**Dispatch 5B2a first; 5B2b needs its schema.** A design carrying `emptyColumns` that the document
+contract has not yet bounded is the DOM-001 shape exactly, and that ordering is the whole reason
+for the cut.
+
+**5B2a — complete, 2026-09-01.** Implemented, adversarial QA (every mutant killed, none survived),
+clean-code review (no actionable defects), product-logic review (minor concerns, no blocker) and
+security review (safe to commit, reconfirmed after the cap changed) all applied. Domain suite 1276
+passed, deterministic across repeated runs; `pnpm ci:local` all gates PASS. Criterion by criterion:
+met are 2, 5, 6 and 7, plus the deserialise half of criteria 1 and 3 (the write half is 5B2b's).
+Criterion 5's write seam is proven through `validateDesignForCatalog` directly rather than through
+`api/designs/[id]/route.ts` — one real seam and one stand-in; 5B2b is what closes that gap.
+Criteria 3 and 4 were also **corrected** on 2026-09-01 — see their amended wording below; the reason
+is stated in the criteria themselves. **No visual verification for this half**: the wave is confined
+to `configurator-domain`, which has no rendering surface; that belongs to 5B2b.
+
+A shared `findContainmentBreaches` helper, added while implementing criterion 3's overlap refusal,
+exposed that **the placement path had only refusal tests and no acceptance boundary** — loosening
+`>` to `>=` would have gone red for empty columns and stayed green for bodies. A pre-existing gap in
+a shipped rule, closed by six new sweeps rather than left as this wave's problem alone.
+
 **Work items.**
-1. `DesignSchema` gains `emptyColumns?: EmptyColumn[]` — wall, along-wall centre, width, `y0`/`top`,
-   depth — in whole millimetres, bounded like every other coordinate (DOM-001).
-2. `deriveColumns` gains the stored empty columns after grouping the placements, still throwing for
-   a **placement**-derived column with no members (that arm is a real invariant and stays).
-3. Every command that writes the frozen map also writes the array back onto the design: the resize
-   path (`set-width.ts` → `moveFrozenColumns`) and the delete path.
-4. `validateDesignForCatalog` rejects an empty column that overlaps a placement or another empty
-   column, at both seams — the ADR 0038 / DOM-001 lesson is that a new field with no validation is a
-   new way to store a document the domain cannot execute.
+1. (5B2a) `DesignSchema` gains `emptyColumns?: EmptyColumn[]` — wall, along-wall centre, width,
+   `y0`/`top`, depth — in whole millimetres, bounded like every other coordinate (DOM-001), and the
+   array capped.
+2. (5B2a) `deriveColumns` gains the stored empty columns after grouping the placements, still
+   throwing for a **placement**-derived column with no members.
+3. (5B2a) `validateDesignForCatalog` rejects an empty column that overlaps a placement or another
+   empty column, at both seams — the ADR 0038 / DOM-001 lesson is that a new field with no
+   validation is a new way to store a document the domain cannot execute.
+4. (5B2a) `MAX_DESIGN_BYTES` is re-derived to admit a document at the new cap. It is
+   `MAX_PLACEMENTS × MAX_PLACEMENT_BYTES + envelope` today, so without this SEC-002's byte cap
+   refuses a document this product can legally produce.
+5. (5B2b) One projection at the store seam writes the member-less columns of the resolved map back
+   onto the design. No command file changes.
 
-**Acceptance criteria.**
-1. Shrink 600 → 450, serialise, deserialise: a 150 mm empty column is present at the same
-   coordinate, and `+50` from there is accepted.
-2. Delete a whole column, serialise, deserialise: §10's signature flow still yields three level
-   slots with `spanH = 2.6`. This is the criterion option B cannot meet and it is stated so it
-   cannot be quietly satisfied by a neighbour heuristic.
-3. Round-trip idempotence: `deserialise(serialise(d))` produces the same column map as `d`, for a
-   design reached by delete, by shrink, and by delete-then-shrink.
-4. **One document, one picture:** a design reached by mutation and the same design freshly loaded
-   derive identical `columns` and identical `voids`. Asserted as a property over a swept sequence of
-   mutations, not on hand-picked examples.
-5. An `emptyColumns` entry overlapping a placement is refused at the API write seam **and** at the
-   load seam, with different documents proving each.
-6. A document with no `emptyColumns` key loads exactly as today.
-7. `MAX_PLACEMENTS`-style bounding: the array is capped, so a hostile document cannot make
-   derivation quadratic.
+#### The cap
 
-**Files.** `packages/configurator-domain/src/design.ts`,
-`packages/configurator-domain/src/void-engine.ts`,
-`packages/configurator-domain/src/validate-design.ts`,
-`packages/configurator-domain/src/commands/set-width.ts`,
-`apps/web/src/store/apply-command-result.ts` (5 — at the limit).
+**`MAX_EMPTY_COLUMNS = 684`**, derived and not chosen, in `design-bounds.ts`:
 
-If the delete path turns out to need `remove-placement.ts` as well, **split the wave** rather than
-stretching to six: 5B2a = schema + `deriveColumns` + validation, 5B2b = the command write-backs.
-Say so in the dispatch.
+`(floor(MAX_ROOM_WIDTH_MM / WIDTH_STEP_MM) + floor(MAX_ROOM_DEPTH_MM / WIDTH_STEP_MM)) × LEVELS.length`
+`= (floor(6300/50) + floor(5100/50)) × 3 = (126 + 102) × 3 = 684`.
 
-**Review tier: Full** — schema, persistence, and both validation seams. **Security review is
-triggered** by the write seam (`docs/WORKFLOW.md`, tier table).
+The divisor is `WIDTH_STEP_MM` (50, `catalog.ts:41`), **not** `NARROWEST_CATALOG_WIDTH_MM` (200,
+which `MAX_PLACEMENTS` uses). An empty column is not a cabinet: ADR 0043 removed its width floor,
+and ADR 0035's stepper means the narrowest strip any command can leave behind is one 50 mm step. So
+`MAX_PLACEMENTS` is the wrong bound and reusing it would refuse a legal document.
 
-**Risk.** Medium-high, and it is criterion 5. A new document field that reaches a derivation is the
-DOM-001 shape exactly, and DOM-001 was a High.
+**Enforced at the schema** (`design.ts`, `.max(MAX_EMPTY_COLUMNS)`), which is the one gate **both**
+seams already pass through — the API route parses `DesignSchema` and `migrateFromV1`
+(`migrate-design.ts:9-18`) parses the same schema on load. It is deliberately not re-checked at the
+write and load seams separately; what those gain is the *semantic* half, the overlap rule in
+`validateDesignForCatalog`, which both already call.
+
+**Two consequences the cap must carry, or it is decoration:**
+
+- `MAX_DESIGN_BYTES` grows by `MAX_EMPTY_COLUMNS × MAX_EMPTY_COLUMN_BYTES` (128 — a wall enum, five
+  five-digit millimetre values and JSON punctuation, rounded up as `MAX_PLACEMENT_BYTES` is). Work
+  item 4.
+- The overlap check is over **sorted intervals per (wall, row band)**, not a nested scan. Naive it is
+  `O(E × P)` = 684 × 168 ≈ 115k comparisons on every write and every load; sorted it is
+  `O((E+P) log(E+P))` and the cap then genuinely bounds derivation rather than merely bounding the
+  document.
+
+#### Acceptance criteria, each with the mutation that must make it red
+
+A criterion no mutation can fail is vacuous. Each is stated with its mutant; QA's brief is to apply
+the mutant and see red before accepting green.
+
+| | Criterion | The mutation that must make it red |
+| --- | --- | --- |
+| 1 | Shrink 600 → 450, serialise, deserialise: a 150 mm empty column exists **at the same along-wall centre in millimetres** (asserted as a number, not as presence), and `+50` from there is accepted *and lands the body at the same coordinate the in-session `+50` would*. | Projection returns `[]`. **And**: projection emits the entry at the resized column's centre instead of the empty column's own — presence-only would survive this. **And**: `deriveColumns` adds the entry with a default `w` — the `+50` half is what catches it. |
+| 2 | Delete a whole column, serialise, deserialise: §10's signature flow still yields three level slots with `spanH = 2.6`. **The fixture's neighbouring columns must have `top ≠ 2600`** (e.g. a base run at 900), so a neighbour-derived answer gives one slot, not three. | `top` dropped from the wire entry and defaulted to `max(neighbour.top)` — option B's failure mode, made a mutant. **And**: `regions` stored as `[]` rather than the frozen extent's, which changes where the freed opening starts. Without the `top ≠ 2600` neighbour this criterion is vacuous, because the seeded neighbours *are* 2600 and the heuristic would pass. |
+| 3 | **Corrected 2026-09-01.** `deserialise(serialise(d))` produces a column map equal to `d`'s on the **observable** fields — `key`, `wall`, `x`/`z`, `w`, `d`, `ry`, `top`, and `min(regions[].start)` — for a design reached by delete, by shrink, and by delete-then-shrink. Not deep equality of `regions` including order: ADR 0044's wire shape stores one region per empty column (`y0Mm`/`topMm`), which makes full `regions` equality **unsatisfiable by construction** — a column cleared of two stacked bodies is `[[0,0.82],[1.5,2.2]]` in session and `[[0,2.6]]` restored, two different and both-correct representations of the same free space. `deriveFreeSpans` (`void-engine.ts:692-705`) itself reads only `min(regions[].start)` and `top`, so comparing the full array would fail on a difference the domain never acts on. | Any single *observable* field perturbed on the wire entry, one mutant per field; `d` defaulted from a neighbour; `min(regions[].start)` recomputed from the wrong region. A key-set or width-only comparison survives all of these, so the criterion is this narrower equality or it is nothing. |
+| 4 | **One document, one picture.** For a swept sequence of ≥ 8 interleaved deletes, shrinks and inserts, the in-session `voids`, plus each column's `key`, `wall`, `x`/`z`, `w`, `d`, `ry`, `top` and `min(regions[].start)`, equal those of `deriveGeometry(DesignSchema.parse(JSON.parse(JSON.stringify(design))))` — a fresh load **through the wire**, not from the in-memory object. `fast-check` over the mutation sequence, not hand-picked examples. **Corrected 2026-09-01, same reason as criterion 3**: not full `regions` equality — the wire shape cannot reproduce a stacked-occupancy `regions` array, only its `min(start)` and `top`, and those are what `deriveFreeSpans` actually reads. | **The one that matters:** put the projection inside `resolveColumns`' `body_resized` arm only. Every shrink-only example passes; any sweep containing a delete goes red. **And**: `Math.round` on a half-millimetre centre instead of a refusal — drift only accumulates over a long sequence. **And**: drop entries narrower than `NARROWEST_CATALOG_WIDTH_MM` as "tidy-up", which ADR 0043 forbids and which a 150 mm hand-picked example would miss but a 50 mm swept one catches. Going through `JSON.stringify` is load-bearing: comparing against the in-memory design skips the schema and any non-serialisable field passes. |
+| 5 | An `emptyColumns` entry overlapping a placement is refused at the **API write seam** (`api/designs/[id]/route.ts:236`) and at the **load seam** (`migrateDesign(1, raw)`), with **different documents** proving each. Two boundary rows are part of it: entries that **abut** (`a.end === b.start`) are **accepted** — ADR 0046 merges them, it does not refuse them — and 1 mm of overlap is refused. A legal document with entries at the same along-coordinate on **different walls** is accepted. | Remove `assertDesignValidForCatalog` from `migrate-design.ts:47` — the load-seam test must go red on its own. **And**: `>` flipped to `>=` in the overlap predicate — the abutting row is the only thing that catches it, and without that row 5B4b's merge input becomes unrepresentable. **And**: `wall` dropped from the predicate — the different-walls row catches it. |
+| 6 | A document with **no** `emptyColumns` key parses, and `deriveGeometry` over it yields a column map deep-equal to a **map pinned before this wave** (a committed fixture, not a value this code recomputes). | `.optional()` removed from the field. **And**: `deriveColumns` defaulting the absent array to a synthesised one. A criterion that only asserts "does not throw" is vacuous here — this is the 5B3-criterion-4 shape, where a fresh seeded load produces the right answer under any mutant. The pinned fixture is what makes it falsifiable. |
+| 7 | A document with `MAX_EMPTY_COLUMNS + 1` entries fails `DesignSchema` with an issue at path `emptyColumns`, at both seams; **and** a document with exactly `MAX_EMPTY_COLUMNS` entries is accepted **and passes `MAX_DESIGN_BYTES`**. | `.max(...)` removed → the first half red. `MAX_DESIGN_BYTES` left underived → the second half red, which is the half that stops the cap becoming a refusal of legal documents. Note for QA: the projection must never silently truncate to the cap. It cannot exceed it — the cap is the physical bound of the room — so the wave asserts that unreachability rather than adding a runtime branch. |
+
+**Files.** 5B2a: `design.ts`, `design-bounds.ts`, `void-engine.ts`, `validate-design.ts`.
+5B2b: `void-engine.ts`, `apps/web/src/store/apply-command-result.ts`.
+
+**Review tier: Full**, both halves. **Security review is triggered — on 5B2a, not only on 5B2b.**
+The plan previously located it at the write seam; the schema bound, both validation seams and
+`MAX_DESIGN_BYTES` (SEC-002) are all in 5B2a, so that is where the hostile-document surface actually
+is. 5B2b is Full tier for the store-seam regression risk.
+
+**Risk.** 5B2a medium-high, and it is criterion 5 — a new document field that reaches a derivation is
+the DOM-001 shape, and DOM-001 was a High. 5B2b medium: one seam, but it is the seam every command
+passes through.
+
+**What the decision sweep turned up (2026-09-01).**
+
+- **Q5 widens a third time, and 5B2 is not its cause.** A shrink can release width with no ceiling
+  (measured at 900 mm). Today that oversized empty column evaporates on reload; after this wave it
+  **survives**. Same open question, now durable. 5B2 does not close it and must not be read as
+  causing it — this is in QA's brief for both halves so a >800 mm persisted empty column is not
+  filed as a regression.
+- **ADR 0046's 800 mm merge cap does not conflict with a persisted empty column**, and it is a
+  different cap from criterion 7's — 800 mm bounds one merged *span*, 684 bounds the *array length*.
+  One ordering constraint falls out for 5B4b and 5B2b must leave room for it: `projectEmptyColumns`
+  takes the frozen map **as an argument**, so whichever map 5B4b makes canonical — pre- or
+  post-merge — flows through without reopening the write seam. ADR 0046 makes the merge a
+  *derivation*, which argues for storing the pre-merge set (storing a merged column stores a derived
+  fact, and a later change to the cap would leave documents no code reproduces). Criterion 3's deep
+  round-trip catches it either way, since the merge is a fixpoint under the cap. **5B4b's section
+  must state which map it projects; 5B2 does not decide it.**
+- **ADR 0043** is why the cap divides by `WIDTH_STEP_MM` rather than `NARROWEST_CATALOG_WIDTH_MM`.
+  No conflict; the sweep changed the cap's derivation.
+- **ADR 0011 Gap D** is what settles the split: the frozen map belongs to the store seam, the resize
+  is the one command that publishes into it, and `removePlacement` re-deriving an extent would be
+  Gap D reopened. No earlier record places a write-back inside the commands.
 
 ---
 
@@ -708,7 +838,7 @@ Recorded as **ADR 0046**, which revives ADR 0037's rule under the cap and supers
    a greedy left-to-right scan over the run **sorted by along-wall coordinate**, and that must be
    asserted, not assumed.
 2. **Merging columns with different `top` and `regions` invents openings.** `deriveFreeSpans`
-   (`void-engine.ts:637-647`) reads `min(regions[].start)` and `column.top`. A base-run column
+   (`void-engine.ts:692-705`) reads `min(regions[].start)` and `column.top`. A base-run column
    (`top` 0.86) merged with a full-height one (`top` 2.6) yields, under a naive `max`, a wall-level
    and a top-level opening over ground that never had one. §4 rule 1 exists for exactly this —
    *"deleting the wall unit at x=0.30 offered a 2200 mm opening down to the floor, where the corner

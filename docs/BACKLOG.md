@@ -1050,6 +1050,34 @@ Doing it would also close the smaller version of this on every other seeded body
 Not scheduled. Raise it with the owner before spending anything on it — a rename that fires on the
 customer's first resize may be acceptable, and the header is not wrong at either end.
 
+## 21. The rendered shell and the seeded document disagree about the size of the room
+
+Found by the 5B2a logic review (2026-09-01). `kitchen-parts.ts:1795-1797` builds the shell at
+`RW = 4.2, RD = 3.4, WH = 2.6`. `kitchen-l-design.ts:469` declares the same kitchen as
+`{ widthMm: 3600, depthMm: 2400, heightMm: 2600 }`. The height agrees; **both floor dimensions do
+not**, by 600 mm and 1000 mm.
+
+Nothing is currently broken by it. Every seeded placement fits inside 3600, and
+`longestWallRunMm` holds both walls to `max(width, depth)`, so containment validation passes on the
+document's own numbers. The customer sees a room 600 mm wider than the document says it is, and no
+rule reads both figures at once, so nothing has ever compared them.
+
+**Why it matters now.** Wave 5B2a made room containment a validated rule for a new persisted field,
+and two of its test fixtures had to declare 4200 to hold coordinates the shell renders but the
+document forbids. So the mismatch is no longer merely cosmetic — it is load-bearing for test
+fixtures, and the next rule that reads the room will inherit the same choice of which figure is
+true.
+
+**What a fix needs first.** Decide which number is the room: the document is the contract and the
+geometry should follow it, but the shell's 4.2 x 3.4 is what every screenshot and every manual
+session has ever shown, and the M1 1e-6 structural parity gate pins that geometry. Changing the
+shell to 3.6 x 2.4 moves seeded geometry and needs a `DeclaredStructuralChange` under ADR 0051;
+changing the document to 4200 x 3400 moves no geometry but widens the containment envelope every
+validation rule is measured against.
+
+Not scheduled. Raise it with the owner — it is a one-line change either way and a real decision
+about which artefact is authoritative.
+
 ## Also open, recorded elsewhere — do not duplicate here
 
 - **Width editing does nothing yet.** Every width chip is `blocked` because §5.4's resize command

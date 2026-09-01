@@ -52,7 +52,7 @@ overlaps a placement or another empty column, at the API write seam and at the l
 **Synthesise empty columns at load from the unoccupied spans between adjacent columns.** Rejected,
 and not because it costs more — it costs less. It cannot recover the two facts that make a frozen
 extent worth freezing. A **fully cleared** column has no member anywhere in the document, so nothing
-says how tall it was: `deriveFreeSpans` (`void-engine.ts:637-647`) needs `min(regions[].start)` and
+says how tall it was: `deriveFreeSpans` (`void-engine.ts:692-705`) needs `min(regions[].start)` and
 `column.top`, and synthesis would have to guess both from the neighbours. §10's signature flow is
 where the guess shows: clear the fridge column, get one 700 × 2600 opening subdivided into three
 level slots; reload, and a neighbour-derived `top` gives something else. Synthesis is also a
@@ -103,3 +103,27 @@ document's *Still open* section.
   nothing, and the merge is the feature the owner asked for.
 - **This record's cheapness expires with ADR 0038**, at first release. Whoever re-reads ADR 0038
   before launch owns this field too.
+
+## Verified against what shipped — 5B2a, 2026-09-01
+
+**Nine refusal codes**, not a round number chosen in advance: `EMPTY_COLUMN_INVERTED`,
+`EMPTY_COLUMN_BEFORE_WALL_START`, `EMPTY_COLUMN_PAST_WALL_END`, `EMPTY_COLUMN_ABOVE_ROOM`,
+`EMPTY_COLUMN_DEEPER_THAN_ROOM`, `EMPTY_COLUMN_KEY_COLLIDES_WITH_PLACEMENT`,
+`EMPTY_COLUMN_KEY_COLLIDES_WITH_EMPTY_COLUMN`, `EMPTY_COLUMN_OVERLAPS_PLACEMENT`,
+`EMPTY_COLUMN_OVERLAPS_EMPTY_COLUMN` (`validate-design.ts`).
+
+**`MAX_EMPTY_COLUMNS = 1262`, not the 684 first proposed.** The Context section's "bounded exactly
+as every other coordinate is" turned out to admit two different derivations, and the one that
+shipped is neither the width-floor reading nor security's own alternative of 228. What binds the
+count is **column-key granularity**: `deriveColumnKeyAt` renders a metre value with `toFixed(2)`, so
+two centres less than 10 mm apart address one key. `(6300 / 10 + 1) × 2 = 1262`
+(`design-bounds.ts`). `MAX_DESIGN_BYTES` follows at 248 576 B.
+
+**`regions` is deliberately not on the wire, and the consequence is named rather than left implicit.**
+`EmptyColumnSchema` carries `y0Mm`/`topMm` — one region per empty column — not the frozen map's full
+`regions` array. A column cleared of two stacked bodies round-trips as a single region rather than
+its original two, because `deriveFreeSpans` (`void-engine.ts:692-705`) only ever reads
+`min(regions[].start)` and `top`. This is why the milestone's acceptance criteria 3 and 4 were
+corrected on 2026-09-01 to compare the observable answer — `voids`, plus `key`/`wall`/`x`/`z`/`w`/`d`/
+`ry`/`top` and `min(regions)` — rather than the stored shape: deep equality of `regions` including
+order is unsatisfiable by this wire shape, not a bug in it.

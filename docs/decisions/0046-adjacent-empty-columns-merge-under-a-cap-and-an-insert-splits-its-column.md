@@ -145,7 +145,7 @@ removal) — plus, newly possible because of [ADR 0044](0044-an-empty-space-is-r
    insertion order, so a greedy scan over the map would make the geometry depend on the order the
    customer's commands happened to run in. Sorting first is what makes one design one picture.
 2. **Only columns whose floor and `top` agree merge.** `deriveFreeSpans`
-   (`void-engine.ts:637-647`) reads `min(regions[].start)` and `column.top`. A base-run column
+   (`void-engine.ts:692-705`) reads `min(regions[].start)` and `column.top`. A base-run column
    (`top` 0.86) merged with a cleared full-height one (`top` 2.6) would, under a naive `max`, publish
    wall-level and top-level openings over ground that never had any. §4 rule 1 exists for precisely
    this — *"deleting the wall unit at x = 0.30 offered a 2200 mm opening down to the floor, where the
