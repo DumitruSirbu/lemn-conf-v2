@@ -153,7 +153,10 @@ describe("the shipped kitchen, body by body", () => {
     "base-corner-x-900": 630,
     "base-corner-return-320": 600,
     "base-sink-800": 620,
-    "base-dishwasher-600": 632,
+    // ADR 0051 re-baselined this from 632 to an ordinary base run's 620: the 632 was the
+    // appliance's own door bar, and inside a housing the machine is now built fully integrated.
+    // What stands proud here is the decor door's bar, at 619 — behind the worktop's 620.
+    "base-dishwasher-600": 620,
     "base-hob-2drawer-600": 620,
     "base-drawer3-600": 620,
     "tall-oven-tower-600": 638,

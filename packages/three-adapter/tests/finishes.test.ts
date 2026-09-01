@@ -17,6 +17,7 @@ import {
   type SolidFinishKey,
 } from "../src/finishes.js";
 import { makeKit, type Kit } from "../src/kitchen-parts.js";
+import { isMesh } from "../src/three-guards.js";
 import {
   createHeadlessCanvas,
   installHeadlessDocument,
@@ -119,4 +120,60 @@ describe("the hob+oven filler panel is a front the customer can finish", () => {
     expect(filler.material).not.toBe(before);
     expect(colourOf(filler)).toBe(FINISH_COLORS[key]);
   });
+});
+
+// ADR 0051 (owner, 2026-09-01): the dishwasher niche wears a **decor door**, and this is the half
+// of that decision the customer sees — five finish chips that recorded a pick and recoloured
+// nothing, because the builder produced no mesh `FRONT_MESH_NAME` could reach. Unlike the hob
+// filler above, no rename was needed: `doorSlab` already names its slab `door_front`. That is
+// exactly what makes the failure mode here a *deletion* rather than a rename, so the second test
+// measures which meshes a finish reaches and which it must leave alone.
+describe("the dishwasher niche's decor door is a front the customer can finish", () => {
+  const NICHE_WIDTHS_M = [0.45, 0.6];
+
+  function nicheBody(widthM: number): THREE.Group {
+    return kit.make.dishwasherHousing(widthM);
+  }
+
+  it.each(NICHE_WIDTHS_M)(
+    "is the one front collectFronts finds at %s m",
+    (widthM) => {
+      const fronts = collectFronts(nicheBody(widthM));
+
+      expect(fronts.map((front) => front.name)).toEqual(["door_front"]);
+    },
+  );
+
+  it.each(SOLID_FINISH_KEYS)(
+    "wears %s on the door and leaves every other mesh in the body alone",
+    (key) => {
+      const body = nicheBody(0.6);
+      const [door] = collectFronts(body);
+      if (!door) throw new Error('no mesh named "door_front"');
+      const untouched = new Map<
+        THREE.Mesh,
+        THREE.Material | THREE.Material[]
+      >();
+      body.traverse((node) => {
+        if (isMesh(node) && node !== door) untouched.set(node, node.material);
+      });
+
+      applyBodyFinish(body, kit.M, key);
+
+      expect(colourOf(door)).toBe(FINISH_COLORS[key]);
+      for (const [mesh, material] of untouched) {
+        expect(mesh.material, mesh.name).toBe(material);
+      }
+      // The worktop, the plinth, the two sides and the appliance behind the door are all in there.
+      expect([...untouched.keys()].map((mesh) => mesh.name)).toEqual(
+        expect.arrayContaining([
+          "countertop",
+          "plinth",
+          "side_left",
+          "side_right",
+          "dw_body",
+        ]),
+      );
+    },
+  );
 });

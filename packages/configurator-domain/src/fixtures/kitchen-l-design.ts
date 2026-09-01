@@ -1,6 +1,5 @@
 import {
   BASE_FINISHED_DEPTH_MM,
-  DISHWASHER_BASE_FINISHED_DEPTH_MM,
   EXTRACTOR_HOOD_KIND,
   FREESTANDING_FRIDGE_FINISHED_DEPTH_MM,
   HOOD_FINISHED_DEPTH_MM,
@@ -170,7 +169,7 @@ const SEEDED_BODY_DEFINITIONS: readonly (readonly [string, BodyDefinition])[] =
         ...baseCarcass,
         kind: "dishwasher_housing",
         frameDepthMm: 580,
-        occupiedDepth: finishesAtMm(DISHWASHER_BASE_FINISHED_DEPTH_MM),
+        occupiedDepth: finishesAtMm(BASE_FINISHED_DEPTH_MM),
         catalogEquivalentId: "base-dishwasher",
       },
     ],

@@ -1129,30 +1129,7 @@ export function makeKit(options: KitOptions = {}): Kit {
       g.add(barHandle(W - 0.1, D / 2 + 0.028, 0, H - 0.07, false));
       return g;
     },
-    dishwasher: (Wn = 0.6) => {
-      const g = G("dishwasher");
-      const W = Wn - 0.004,
-        H = 0.72,
-        D = 0.56;
-      g.add(box(W - 0.05, H, D - 0.06, M.dark, "dw_body", 0, 0, -0.03));
-      g.add(
-        box(W, H - 0.06, TH, M.door, "dw_panel", 0, 0, D / 2 + TH / 2 - 0.02),
-      );
-      g.add(
-        box(
-          W,
-          0.05,
-          0.03,
-          M.steel,
-          "dw_control_strip",
-          0,
-          H - 0.05,
-          D / 2 - 0.01,
-        ),
-      );
-      g.add(barHandle(W - 0.09, D / 2 + 0.012, 0, H - 0.1, false));
-      return g;
-    },
+    dishwasher: (Wn = 0.6) => exposedDishwasher(Wn),
     cooktop: () => {
       const g = G("induction_cooktop");
       g.add(box(0.59, 0.012, 0.52, M.glassDark, "cooktop_glass", 0, 0, 0));
@@ -1469,7 +1446,84 @@ export function makeKit(options: KitOptions = {}): Kit {
     return g;
   }
 
+  const DW_HEIGHT_M = 0.72,
+    DW_DEPTH_M = 0.56;
+
+  /** The machine is built 4 mm under the width it is handed, and `dishwasherHousing` hands it
+   *  `W - 0.004` in turn, so a 600 mm niche holds a 592 mm machine — 8 mm inside nominal, and
+   *  still clear of the 564 mm inner opening (414 at 450). The number stays: `dw_body` is pinned at
+   *  1e-6 by M1's numeric ledger, so moving it fails the fidelity gate for no product gain.
+   *
+   *  It lives here because the two forms below must agree on it exactly. Composing the exposed form
+   *  on the integrated one already stops the *body* drifting; this stops the one number that is not
+   *  inside that body from drifting instead. */
+  function dishwasherBodyWidth(Wn: number): number {
+    return Wn - 0.004;
+  }
+
+  /** ADR 0051 decision 3: the machine as it is built **inside a housing** — `dw_body` and nothing
+   *  else, the way a fully-integrated dishwasher has no fascia, no control strip and no bar of its
+   *  own, because the door in front of it is the cabinet's.
+   *
+   *  Also the body both forms share, so the exposed one below cannot drift from it. `dw_body`'s
+   *  name is load-bearing: `CARCASS_MESH_NAME_PATTERN` (ADR 0016) reads it, and the recorded
+   *  580 mm seat is derived from it. */
+  function integratedDishwasher(Wn: number): THREE.Group {
+    const g = G("dishwasher");
+    const W = dishwasherBodyWidth(Wn);
+    g.add(
+      box(
+        W - 0.05,
+        DW_HEIGHT_M,
+        DW_DEPTH_M - 0.06,
+        M.dark,
+        "dw_body",
+        0,
+        0,
+        -0.03,
+      ),
+    );
+    return g;
+  }
+
+  /** The freestanding machine `SPEC.md` describes, 596 × 720 × 560: the body plus the fascia, the
+   *  control strip and the appliance's own bar. What the parts gallery draws.
+   *
+   *  Two named factories rather than one with a flag, because the two are different products: this
+   *  one's `dw_panel` is coplanar with a housing's decor door and its `dw_control_strip` crosses
+   *  that plane, which is why the housing cannot simply hide them. */
+  function exposedDishwasher(Wn: number): THREE.Group {
+    const g = integratedDishwasher(Wn);
+    const W = dishwasherBodyWidth(Wn),
+      H = DW_HEIGHT_M,
+      D = DW_DEPTH_M;
+    g.add(
+      box(W, H - 0.06, TH, M.door, "dw_panel", 0, 0, D / 2 + TH / 2 - 0.02),
+    );
+    g.add(
+      box(
+        W,
+        0.05,
+        0.03,
+        M.steel,
+        "dw_control_strip",
+        0,
+        H - 0.05,
+        D / 2 - 0.01,
+      ),
+    );
+    g.add(barHandle(W - 0.09, D / 2 + 0.012, 0, H - 0.1, false));
+    return g;
+  }
+
   // 600 standard, 450 slimline — the niche follows the appliance.
+  //
+  // ADR 0051: a fronted cabinet, not an open niche. It owns one decor door, built with `doorSlab`
+  // at `baseCabinet`'s own anchors — so its slab is named `door_front` and `finishes.ts` reaches
+  // it with no rename, and its front plane is `CARC_D / 2 + TH / 2` and therefore flush with every
+  // neighbouring base front by construction rather than by a typed number. The appliance behind it
+  // is built fully integrated, so the only `handle` group left in this body is the one hanging
+  // beside the front it opens.
   function dishwasherHousing(W = 0.6): THREE.Group {
     const g = G("dishwasher_housing");
     const half = W / 2 - 0.009;
@@ -1488,9 +1542,29 @@ export function makeKit(options: KitOptions = {}): Kit {
         -CARC_D / 2 + 0.01,
       ),
     );
-    const dw = builders.dishwasher(W - 0.004);
+    // The 40 mm of mounting space a real decor door hangs in, and the one place in this body where
+    // the cabinet-depth setting and a fixed appliance meet. The door's inner face is `CARC_D / 2`,
+    // which follows `cabinetDepthMm` (wave 5F); `dw_body`'s front is 0.24 whatever that setting
+    // says, because the machine is a real-world size and this seat is a literal. So the clearance
+    // is `CARC_D / 2 − 0.24` and closes at half a millimetre per millimetre of cabinet depth,
+    // reaching **zero at a 520 mm cabinet** — below which the appliance would come through its own
+    // door. Not reachable today: 600 is the only depth the product can produce, and
+    // `M5-width.md:1125` records that this builder ignores the depth it is handed. Whoever wires
+    // M6's *Setări globale* depth control is the first person who can reach it, which is why the
+    // floor is named here rather than left to be measured after the fact.
+    const dw = integratedDishwasher(W - 0.004);
     dw.position.set(0, PLINTH, 0.02);
     g.add(dw);
+    g.add(
+      doorSlab(
+        W - 0.006,
+        CARC_H - 0.01,
+        0,
+        PLINTH + CARC_H - 0.004,
+        CARC_D / 2 + TH / 2,
+        "top",
+      ),
+    );
     g.add(counter(W));
     return g;
   }

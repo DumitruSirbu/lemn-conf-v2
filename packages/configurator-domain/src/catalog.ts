@@ -301,10 +301,6 @@ const WORKTOP_OVERHANG_MM = 20;
  *  and not its bar handles' (609), both of which stand behind the counter that is already there. */
 export const BASE_FINISHED_DEPTH_MM = WORKTOP_DEPTH_MM + WORKTOP_OVERHANG_MM;
 
-/** The dishwasher niche is the one ordinary base body whose front passes its own worktop: the
- *  appliance's door bar reaches 12 mm past it. */
-export const DISHWASHER_BASE_FINISHED_DEPTH_MM = 632;
-
 /** An oven fascia and its bar stand further proud than a dishwasher door, so the hob-and-oven base
  *  passes its worktop by 28 mm. */
 export const HOB_OVEN_BASE_FINISHED_DEPTH_MM = 648;
@@ -508,12 +504,21 @@ export const INSERTABLE_BODY_DEFINITIONS: readonly (readonly [
       minWidthMm: SINK_MIN_WIDTH_MM,
     },
   ],
+  // ADR 0051: an integrated dishwasher wears a decor door, so this niche is a fronted base body
+  // like any other. `canFinish` and `canHandle` come from `INSERTABLE_DEFAULTS` and both are true
+  // of the geometry: the finish lands on the `door_front` slab `dishwasherHousing` builds with
+  // `doorSlab`, and the only handle in the body hangs beside that slab — the appliance behind it is
+  // built fully integrated and has no bar of its own to mutate. Before that record the flags were
+  // right and the geometry was missing (`docs/BACKLOG.md` entry 11).
+  //
+  // It therefore no longer overrides `baseCabinet`'s occupied depth: what used to reach 632 mm was
+  // the appliance's bar, and the decor door's reaches 619, behind the worktop that already sets the
+  // number for every other base body.
   [
     "base-dishwasher",
     {
       ...baseCabinet("Nișă mașină de spălat vase"),
       kind: "dishwasher_housing",
-      occupiedDepth: finishesAtMm(DISHWASHER_BASE_FINISHED_DEPTH_MM),
       widthFlex: DISHWASHER_WIDTHS_MM,
       ...discreteWidths(DISHWASHER_WIDTHS_MM),
     },

@@ -247,6 +247,51 @@ describe("appliance cavities and proud fronts", () => {
     expect(sizeOf(housed)).toEqual(sizeOf(standalone));
   });
 
+  // ADR 0051. The niche is a fronted base body, and the two halves of that are one decor door in
+  // front and a fully-integrated machine behind it — neither is safe without the other, so both are
+  // measured here at both declared widths.
+  describe.each([0.45, 0.6])(
+    "the %s m dishwasher niche wears a decor door",
+    (w) => {
+      it("hangs its door on exactly the plane baseCabinet hangs its own", () => {
+        // Compared plane to plane rather than against a typed 0.298: the point of ADR 0051's anchor
+        // is that the two are the same expression, so a change to `CARC_D` has to move both together.
+        const niche = kit.make.dishwasherHousing(w);
+        const cabinet = kit.make.baseCabinet(w, { doors: 1 });
+
+        expect(
+          worldBox(niche, findMesh(niche, "door_front")).max.z,
+        ).toBeCloseTo(
+          worldBox(cabinet, findMesh(cabinet, "door_front")).max.z,
+          6,
+        );
+      });
+
+      it("builds the appliance integrated, wholly behind the door's inner face", () => {
+        const niche = kit.make.dishwasherHousing(w);
+        const names = meshNames(niche);
+
+        expect(names).not.toContain("dw_panel");
+        expect(names).not.toContain("dw_control_strip");
+
+        // Every mesh of the appliance, not just `dw_body`: a body where the two overlap is the
+        // regression this asserts against, and naming one mesh would not catch a second one added.
+        const doorInnerFaceZ = worldBox(niche, findMesh(niche, "door_front"))
+          .min.z;
+        const appliance = required(
+          niche.children.find((child) => child.name === "dishwasher"),
+          "the appliance group",
+        );
+        appliance.traverse((node) => {
+          if (!isMesh(node)) return;
+          expect(worldBox(niche, node).max.z, node.name).toBeLessThan(
+            doorInnerFaceZ,
+          );
+        });
+      });
+    },
+  );
+
   it("varies only the dishwasher's width between the 450 and 600 niches", () => {
     // The dishwasher is the one appliance that ships in two widths, so the niche follows the
     // appliance on X. Height and depth are still fixed real-world sizes.

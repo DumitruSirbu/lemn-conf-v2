@@ -42,7 +42,7 @@ moment it ships; a decision record does not. When the two disagree, the dated de
 | M7 — Step 1, room and presets | Planned | Yes, when starting |
 | M8 — Review, contact, success | Planned | Yes, when starting |
 | Adversarial review remediation | **Complete for the security scope** — SCENE-001, WEB-001, DOM-001, SEC-002, SEC-003, SEC-004, DB-001, DB-002, DB-003 closed; SEC-001 deferred to M8, gated; Medium/Low residuals open | Yes — `milestones/adversarial-review-remediation.md` and `testing-reports/` |
-| **M5B — Manual UX remediation** (branch `ux-manual-fixes`) | **In progress** — **5B1, 5B6, 5B7, 5B3 and 5B5 complete**; **5B10 newly planned** (ADR 0051); 5B2, 5B8, 5B4a/b planned | Yes — `milestones/M5B-manual-ux-remediation.md`, **and ADRs 0043–0051** |
+| **M5B — Manual UX remediation** (branch `ux-manual-fixes`) | **In progress** — **5B1, 5B6, 5B7, 5B3, 5B5 and 5B10 complete**; 5B2, 5B8, 5B4a/b planned | Yes — `milestones/M5B-manual-ux-remediation.md`, **and ADRs 0043–0051** |
 
 ## Adversarial review remediation — complete for the security scope, 2026-08-31
 
@@ -242,7 +242,7 @@ Nothing in this phase is committed yet; all of it is uncommitted work on `ux-man
 | **5B7** — open-shelf compartments follow clearance | **Complete.** QA finding Q2 was Q7 in the milestone file's open questions; the owner answered it 2026-09-01 (fix the wording, keep the geometry) and ADR 0047 and the acceptance criterion are corrected. `qa-5b6-5b7.adversarial.test.ts` no longer asserts the old *equal clear height* reading — it was replaced by two stronger tests (even board centres measured off built geometry, and every interior board strictly between `shelf_bottom` and `shelf_top`), and the height sweep widened from `[400, 501, 700]` to `[300, 400, 499, 500, 501, 600, 700]`. Adapter suite green: 35 files / 934 tests. |
 | **5B3** — the run-end panel follows the run it closes | **Complete.** Implemented, adversarial QA green, clean-code and product-logic review applied, and visual verification run against the running app. Acceptance criterion 5 corrected: the panel is never *selected* and never carries a `placementId`, but a tap on it falls through to the cabinet behind it — pre-existing §6.1 raycast behaviour, now recorded as expected rather than a defect. Visual verification measured the authored 1 mm gap holding at exactly 1.000 mm at every position tested (seeded 3.510; −50 mm → 3.460; −100 mm → 3.410; the four re-seats down the run at 2.910/2.310/1.710/0.910; Y span `[0, 0.820]` unchanged throughout), and verified the owner's veto rule live: inserting `tall-pantry-600` at the run end hides the panel with no rendered box and no oak found across 15 pixel probes at five heights. Two caveats recorded: the hide-on-last-cabinet state is unreachable through the UI in the seeded design (the last wall-A base body is the corner unit, whose panel renders no remove control) and was verified through save/hydrate instead; and `setWidth` resizes the whole column, so the state that actually discriminates the x-only-veto bug is deleting `p4` alone, leaving `p14`/`p20` spanning the new seat in x while hanging above it in y — that passed. |
 | **5B5** — a fixed-width cabinet says why it has no width control | **Complete.** Implemented, adversarial QA green, clean-code and product-logic review applied. A `fixedWidth` body now publishes one width carrying the engine's own `NOT_RESIZABLE` sentence, rendered as a single disabled chip through the existing `renderRejection` path; `meta.canWidth` is gone from `collectOfferedSections`, so the domain's published width options are the sole author of whether the section exists. `resolveResizableBody` now publishes `cause: "fixed" | "unresolvable"`, with `unresolvable` winning when a row is both, so a row that is both fixed-width and missing its width data cannot leak an internal `kind` string to the customer. |
-| **5B10** — the dishwasher niche wears a decor door | Newly planned, 2026-09-01, ADR 0051. Not dispatched. |
+| **5B10** — the dishwasher niche wears a decor door | **Complete.** Implemented, adversarial QA green, clean-code review applied. `base-dishwasher`/`base-dishwasher-600` build their own `door_front` (`doorSlab`, flush with every neighbouring base front by construction) and the appliance inside a housing is built fully integrated (`dw_body` only) — the only `handle` group left is the door's. Neither flag changed; `RECORDED_CAPABILITY_GAPS` is now empty. Occupied depth followed the geometry down 632 → 620 mm, the 580 mm seat unchanged, `DISHWASHER_BASE_FINISHED_DEPTH_MM` deleted. **The only M5B wave to move seeded geometry**: M1's structural-parity gate was re-baselined per ADR 0036's rule (declared, not relaxed) — ADR 0051 adds a `DeclaredStructuralChange` form to the ledger, and adversarial QA then found and closed a hole in that form itself (see ADR 0051's 2026-09-01 amendment): declaring one node both `added` and `removed` erased it from comparison, letting a 25 mm `back_panel` move pass 71/71 green; `refuseTwoDeclarationsOnOneNode` now refuses any repeated `(parent, node)` key. Verified state: domain 1139, persistence 177, adapter 1038, web 715 (4 pre-existing skips), M1 parity 71/71 green with the re-baseline, format/lint/typecheck clean. Closes backlog entry 11; its `tall-oven-tower` tail is re-recorded as backlog entry 18, and a new floor the wave exposed is backlog entry 19. |
 | **5B8, 5B2, 5B4a, 5B4b** | Planned, ADRs written, not dispatched. |
 
 **5B1's real lesson, and it is a process one.** The owner's standing instruction — *check whether an
@@ -455,11 +455,11 @@ floor; until it lands, no update rate limit can be sized honestly.
 ## What to do next
 
 **M5B — Manual UX remediation, in the order `milestones/M5B-manual-ux-remediation.md` gives.** 5B1,
-5B6, 5B7, 5B3 and 5B5 are complete — adapter 968 / domain 1139 / web 715 (4 pre-existing skips), M1
-parity 71 green, lint and typecheck clean. **Next is 5B10** (the dishwasher decor door, newly
-planned, ADR 0051), then 5B8, 5B2, 5B4a, 5B4b. The one forced dependency is **5B2 before 5B4** —
-merged and split empty columns that vanish on reload are worth nothing. Everything else is ordered
-smallest-first so the merge lands last, which is what the owner asked for.
+5B6, 5B7, 5B3, 5B5 and 5B10 are complete — domain 1139 / persistence 177 / adapter 1038 / web 715
+(4 pre-existing skips), M1 parity 71/71 green (re-baselined for 5B10 per ADR 0036's rule, not
+relaxed), lint and typecheck clean. **Next is 5B8**, then 5B2, 5B4a, 5B4b. The one forced dependency
+is **5B2 before 5B4** — merged and split empty columns that vanish on reload are worth nothing.
+Everything else is ordered smallest-first so the merge lands last, which is what the owner asked for.
 
 **M5 wave 5E — the browser and mobile gate.** It is the only M5 wave still open. 5D2c (the panel
 stepper) and 5F (base carcass depth as a formula) **both shipped on 2026-08-30**; see the commit list

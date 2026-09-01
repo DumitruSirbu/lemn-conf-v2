@@ -153,12 +153,109 @@ const DECLARED_DIVERGENCES: ReadonlyMap<string, readonly DeclaredDivergence[]> =
     ["kitchen-l", KITCHEN_L_DIVERGENCES],
   ]);
 
+// ---------------------------------------------------------------------------------------------
+// The wave 5B10 re-baseline.
+// ---------------------------------------------------------------------------------------------
+//
+// `DeclaredDivergence` above can only say "this number moved on a node both trees have". ADR 0051
+// adds a node and takes three away: `dishwasherHousing` now builds its own decor door, and the
+// appliance inside it is built fully integrated — no `dw_panel`, no `dw_control_strip`, no bar of
+// its own. Mesh names, hierarchy and child order are compared *before* the numeric ledger is ever
+// consulted, so a structural change has to be declared in its own form.
+//
+// It carries the same discipline: each change names its **parent**, the child that appeared or
+// vanished, every mesh in that child's subtree, and how many times it occurs in this comparison.
+// A structural difference that is not declared still fails the child-order assertion, and a
+// declaration that goes unused — or occurs the wrong number of times — fails just as loudly.
+// Everything else in these trees, and every other builder, still diffs exactly at 1e-6 m.
+interface DeclaredStructuralChange {
+  readonly parent: string;
+  readonly node: string;
+  readonly change: "added" | "removed";
+  /** Every mesh name in the child's subtree, in traversal order. Two things read it, and the
+   *  second is why it is checked rather than trusted: it is what the mesh-name-set comparison adds
+   *  or takes away, so that gate is re-baselined by the same declaration — and the ledger holds it
+   *  to the subtree it actually took out, per declaration. The net delta alone is not enough: one
+   *  added and one removed declaration sharing a wrong list cancel each other out of the sum. */
+  readonly meshes: readonly string[];
+  readonly nodes: number;
+  readonly why: string;
+}
+
+/** `barHandle` draws one bar and two stems, whichever edge it hangs on. */
+const HANDLE_SUBTREE_MESHES = ["handle_bar", "handle_stem", "handle_stem"];
+
+/** ADR 0051 inside one `dishwasherHousing` call, at either declared width. `prefix` is the path
+ *  from the compared root down to the `dishwasher_housing` group. */
+function dishwasherHousingChanges(
+  prefix: string,
+  housings: number,
+): DeclaredStructuralChange[] {
+  const appliance = `${prefix}dishwasher_housing > dishwasher`;
+  return [
+    {
+      parent: `${prefix}dishwasher_housing`,
+      node: "door",
+      change: "added",
+      meshes: ["door_front", ...HANDLE_SUBTREE_MESHES],
+      nodes: housings,
+      why: "decision 1: the niche owns one decor door, built with `doorSlab` at `baseCabinet`'s anchors",
+    },
+    {
+      parent: appliance,
+      node: "dw_panel",
+      change: "removed",
+      meshes: ["dw_panel"],
+      nodes: housings,
+      why: "decision 3: the appliance's fascia is coplanar with the decor door, so it is not built here",
+    },
+    {
+      parent: appliance,
+      node: "dw_control_strip",
+      change: "removed",
+      meshes: ["dw_control_strip"],
+      nodes: housings,
+      why: "decision 3: the control strip crosses the door plane by 7 mm",
+    },
+    {
+      parent: appliance,
+      node: "handle",
+      change: "removed",
+      meshes: HANDLE_SUBTREE_MESHES,
+      nodes: housings,
+      why: "decision 5: a fully-integrated machine has no bar of its own — the door's is the cabinet's",
+    },
+  ];
+}
+
+const DECLARED_STRUCTURAL_CHANGES: ReadonlyMap<
+  string,
+  readonly DeclaredStructuralChange[]
+> = new Map([
+  ["base-dishwasher", dishwasherHousingChanges("", 1)],
+  ["base-dishwasher-450", dishwasherHousingChanges("", 1)],
+  // The seeded kitchen holds exactly one niche, at 2.0 m along wall A. Counted rather than
+  // derived, so a second one appearing — or this one ceasing to be drawn — turns the gate red.
+  ["kitchen-l", dishwasherHousingChanges("kitchen_l_shape > ", 1)],
+  ["dishwasherHousing(0.45)", dishwasherHousingChanges("", 1)],
+  ["dishwasherHousing(0.6)", dishwasherHousingChanges("", 1)],
+]);
+
 /** A divergence ledger for one comparison: it answers "is this exact difference declared?" and
  *  records that the declaration was used, so an unused declaration fails as loudly as an
- *  undeclared difference. */
-function openLedger(declared: readonly DeclaredDivergence[], root: string) {
+ *  undeclared difference. It holds both forms — numeric deltas on nodes both trees have, and
+ *  wave 5B10's structural additions and removals. */
+function openLedger(
+  declared: readonly DeclaredDivergence[],
+  structural: readonly DeclaredStructuralChange[],
+  root: string,
+) {
+  refuseTwoDeclarationsOnOneNode(structural);
   const seen = new Map<DeclaredDivergence, number>(
     declared.map((entry) => [entry, 0]),
+  );
+  const structuralSeen = new Map<DeclaredStructuralChange, number>(
+    structural.map((entry) => [entry, 0]),
   );
   return {
     accepts(node: string, field: string, index: number, deltaM: number) {
@@ -173,6 +270,33 @@ function openLedger(declared: readonly DeclaredDivergence[], root: string) {
       seen.set(entry, (seen.get(entry) ?? 0) + 1);
       return true;
     },
+    /** Takes the declared children out of one side's list — the added ones out of the port's, the
+     *  removed ones out of the reference's — and records each one it took. What is left is
+     *  compared name for name, in order, exactly as before. */
+    reconcileChildren(
+      parent: string,
+      children: readonly StructureNode[],
+      change: DeclaredStructuralChange["change"],
+    ): readonly StructureNode[] {
+      const declaredHere = structural.filter(
+        (candidate) =>
+          `${root} > ${candidate.parent}` === parent &&
+          candidate.change === change,
+      );
+      if (declaredHere.length === 0) return children;
+      return children.filter((child) => {
+        const entry = declaredHere.find(
+          (candidate) => candidate.node === child.name,
+        );
+        if (!entry) return true;
+        expect(
+          meshNamesOfNode(child),
+          `${entry.parent} > ${entry.node}: ${entry.change} — ${entry.why}`,
+        ).toEqual([...entry.meshes]);
+        structuralSeen.set(entry, (structuralSeen.get(entry) ?? 0) + 1);
+        return false;
+      });
+    },
     expectFullyUsed() {
       for (const [entry, count] of seen) {
         expect(
@@ -180,11 +304,52 @@ function openLedger(declared: readonly DeclaredDivergence[], root: string) {
           `${entry.node}: ${entry.field}[${String(entry.index)}] — ${entry.why}`,
         ).toBe(entry.nodes);
       }
+      for (const [entry, count] of structuralSeen) {
+        expect(
+          count,
+          `${entry.parent} > ${entry.node}: ${entry.change} — ${entry.why}`,
+        ).toBe(entry.nodes);
+      }
     },
   };
 }
 
 type Ledger = ReturnType<typeof openLedger>;
+
+/** **The one thing a structural declaration must never be able to do.** Declared both ways, a
+ *  `(parent, node)` pair leaves the port's child list *and* the reference's: child order still
+ *  matches, the mesh multiset nets to zero, and `expectFullyUsed` sees both declarations used
+ *  exactly `nodes` times — so the node and everything under it drops out of the 1e-6 comparison
+ *  with nothing turning red. QA moved a `back_panel` 25 mm through that hole and the suite stayed
+ *  green (wave 5B10, F1).
+ *
+ *  A declaration may say a node stopped existing, or started to. It may never say a node still
+ *  exists on both sides and is not to be compared. Any repeated key is refused, not merely the
+ *  added/removed pairing: two declarations on one node are never the honest way to state anything,
+ *  and a narrower rule would only invite the next shape of this. */
+function refuseTwoDeclarationsOnOneNode(
+  structural: readonly DeclaredStructuralChange[],
+): void {
+  const declaredNodes = new Set<string>();
+  for (const change of structural) {
+    const key = `${change.parent} > ${change.node}`;
+    if (declaredNodes.has(key)) {
+      throw new Error(
+        `${key} carries more than one structural declaration — a node declared both added and ` +
+          `removed would leave the 1e-6 comparison entirely`,
+      );
+    }
+    declaredNodes.add(key);
+  }
+}
+
+/** Every mesh name under a node, itself included, in traversal order — the same order
+ *  `describeStructure` built the children in, so it is comparable to a declaration's `meshes`. */
+function meshNamesOfNode(node: StructureNode): string[] {
+  const names = node.geometry === null ? [] : [node.name];
+  for (const child of node.children) names.push(...meshNamesOfNode(child));
+  return names;
+}
 
 const ALL_BUILDER_KEYS: readonly BuilderKey[] = [
   "base-1door",
@@ -295,36 +460,70 @@ function expectStructureMatches(
       ledger,
     );
   }
+  const actualChildren =
+    ledger?.reconcileChildren(here, actual.children, "added") ??
+    actual.children;
+  const expectedChildren =
+    ledger?.reconcileChildren(here, expected.children, "removed") ??
+    expected.children;
   expect(
-    actual.children.map((child) => child.name),
+    actualChildren.map((child) => child.name),
     `${here}: child order`,
-  ).toEqual(expected.children.map((child) => child.name));
-  actual.children.forEach((child, index) => {
+  ).toEqual(expectedChildren.map((child) => child.name));
+  actualChildren.forEach((child, index) => {
     expectStructureMatches(
       child,
-      required(expected.children[index], `child ${String(index)}`),
+      required(expectedChildren[index], `child ${String(index)}`),
       here,
       ledger,
     );
   });
 }
 
-/** The whole structural diff, with the wave 5F divergences declared for this key. A key with no
- *  declaration is compared exactly as before. */
+/** The whole structural diff, with wave 5F's numeric divergences and wave 5B10's structural
+ *  changes declared for this key. A key with neither is compared exactly as before. */
 function expectStructureMatchesReference(
   actual: StructureNode,
   expected: StructureNode,
   path: string,
   declarationKey = path,
 ) {
-  const declared = DECLARED_DIVERGENCES.get(declarationKey);
-  if (!declared) {
+  const declared = DECLARED_DIVERGENCES.get(declarationKey) ?? [];
+  const structural = DECLARED_STRUCTURAL_CHANGES.get(declarationKey) ?? [];
+  if (declared.length === 0 && structural.length === 0) {
     expectStructureMatches(actual, expected, path);
     return;
   }
-  const ledger = openLedger(declared, path);
+  const ledger = openLedger(declared, structural, path);
   expectStructureMatches(actual, expected, path, ledger);
   ledger.expectFullyUsed();
+}
+
+/** The reference's mesh names with this key's declared structural changes applied — every mesh of
+ *  a removed subtree taken out, every mesh of an added one put in, once per declared occurrence.
+ *  A declared removal that is not there to remove fails here. */
+function meshNamesAfterDeclaredChanges(
+  key: string,
+  referenceNames: readonly string[],
+): string[] {
+  const names = [...referenceNames];
+  for (const change of DECLARED_STRUCTURAL_CHANGES.get(key) ?? []) {
+    const why = `${change.parent} > ${change.node}: ${change.change} — ${change.why}`;
+    for (let occurrence = 0; occurrence < change.nodes; occurrence++) {
+      for (const mesh of change.meshes) {
+        if (change.change === "added") {
+          names.push(mesh);
+          continue;
+        }
+        const at = names.indexOf(mesh);
+        expect(at, `${why}: no ${mesh} left to remove`).toBeGreaterThanOrEqual(
+          0,
+        );
+        names.splice(at, 1);
+      }
+    }
+  }
+  return names;
 }
 
 describe("ported builders reproduce the reference tree", () => {
@@ -339,8 +538,16 @@ describe("ported builders reproduce the reference tree", () => {
         required(reference, `reference builder ${key}`)(),
       );
       const portedNames = meshNames(portedKit.builders[key]());
+      const expectedNames = meshNamesAfterDeclaredChanges(key, referenceNames);
       expect(portedNames.length).toBeGreaterThan(0);
-      expect(portedNames).toEqual(referenceNames);
+      // Traversal order for a key with nothing declared; the same names as a multiset for a key
+      // whose tree gained a node in the middle of that traversal — where the order itself is
+      // asserted, node by node, by the hierarchy comparison below.
+      if (DECLARED_STRUCTURAL_CHANGES.has(key)) {
+        expect([...portedNames].sort()).toEqual([...expectedNames].sort());
+      } else {
+        expect(portedNames).toEqual(expectedNames);
+      }
     },
   );
 
@@ -384,7 +591,7 @@ describe("width-parameterised factories reproduce the reference tree", () => {
 
   it.each([0.45, 0.6])("dishwasherHousing(%s) matches the reference", (w) => {
     const reference = describeStructure(referenceKit.make.dishwasherHousing(w));
-    expectStructureMatches(
+    expectStructureMatchesReference(
       describeStructure(portedKit.make.dishwasherHousing(w)),
       reference,
       `dishwasherHousing(${String(w)})`,
@@ -423,6 +630,41 @@ describe("width-parameterised factories reproduce the reference tree", () => {
         describeStructure(referenceKit.make.hood(w)),
         `hood(${String(w)})`,
       );
+    }
+  });
+});
+
+describe("the structural ledger cannot exempt a node from being compared", () => {
+  const BOTH_WAYS: readonly DeclaredStructuralChange[] = [
+    {
+      parent: "dishwasher_housing",
+      node: "back_panel",
+      change: "added",
+      meshes: ["back_panel"],
+      nodes: 1,
+      why: "F1's hole: a node declared both ways",
+    },
+    {
+      parent: "dishwasher_housing",
+      node: "back_panel",
+      change: "removed",
+      meshes: ["back_panel"],
+      nodes: 1,
+      why: "F1's hole: the other half of the pair",
+    },
+  ];
+
+  it("refuses a node declared both added and removed", () => {
+    expect(() => openLedger([], BOTH_WAYS, "base-dishwasher")).toThrow(
+      /more than one structural declaration/,
+    );
+  });
+
+  it("opens on every declaration this file actually makes", () => {
+    for (const [key, structural] of DECLARED_STRUCTURAL_CHANGES) {
+      expect(() =>
+        openLedger(DECLARED_DIVERGENCES.get(key) ?? [], structural, key),
+      ).not.toThrow();
     }
   });
 });

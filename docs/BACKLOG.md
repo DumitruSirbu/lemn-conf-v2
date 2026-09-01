@@ -658,7 +658,28 @@ fixes the sibling defect over a base run and leaves this divergence exactly as m
 recorded as **question 8** in `docs/milestones/M5-width.md`'s *Not established — Depth* so M5 does
 not mistake it for something already handled.
 
-## 11. `base-dishwasher` offers a finish and a handle it has neither of — NEEDS A DECISION
+## 11. `base-dishwasher` offers a finish and a handle it has neither of — DECIDED 2026-09-01, SHIPPED
+
+**Decided by the owner on 2026-09-01: give the niche a decor door**, not the one-line
+`canFinish: false, canHandle: false` this entry named — following Q6 and
+[ADR 0050](decisions/0050-the-hob-oven-filler-is-a-finishable-front.md), and recorded on this body's
+own terms as [ADR 0051](decisions/0051-the-dishwasher-niche-wears-a-decor-door.md). Shipped as M5B
+wave 5B10. The product question this entry said to ask first is what got asked, and the answer was
+the one it predicted: *the flags were right all along and the geometry is what is missing.*
+
+What landed: `dishwasherHousing` builds its own `door_front` with `doorSlab` at `baseCabinet`'s
+anchors, so it is flush with its neighbours by construction and `FRONT_MESH_NAME` reaches it with no
+rename; the appliance inside a housing is built **fully integrated** (`dw_body` only), so the only
+handle left in the body is the door's and `handle: "push"` hides a cabinet's bar rather than a
+dishwasher's; neither flag changed; occupied depth followed the geometry down 632 → 620 mm and the
+580 mm seat did not move; both ids left `RECORDED_CAPABILITY_GAPS`, which is now empty. M1's 1e-6 m
+parity gate was re-baselined per ADR 0036's rule — each added and removed node declared with its
+parent and count — never relaxed.
+
+**Its `tall-oven-tower` tail is deferred and lives on as entry 18**, because closing this entry must
+not delete the only pointer to it.
+
+### The finding, as recorded before it was decided
 
 Found 2026-08-27 by the catalogue-wide capability gate added with ADR 0027's amendment
 (`packages/three-adapter/tests/catalog-capability-parity.test.ts`), which asserts that a row
@@ -949,6 +970,61 @@ nothing to insert into and no way back to a base cabinet there short of reloadin
 **What deciding this needs.** A deliberate reproduction — hydrate a design with zero wall-A base
 placements and check whether `deriveColumns`/`recomputeVoids` publish a base-row opening for that
 wall — before this is treated as more than a hunch. Out of scope for every wave in M5B.
+
+## 18. A cabinet-hardware choice reaches the oven's and the microwave's bars in `tall-oven-tower` — NEEDS A DECISION
+
+Split out of entry 11 on 2026-09-01 when that entry was decided and closed
+([ADR 0051](decisions/0051-the-dishwasher-niche-wears-a-decor-door.md), Consequences). Entry 11
+carried this as a one-sentence tail; it is recorded here in its own right so the deferral leaves a
+pointer rather than a silence. **Owner: whoever owns §6.5**, which is the placement entry 11 gave it
+and ADR 0051 did not overturn.
+
+`setHandlesVisible` and `applyBlackHandleMaterial` (`packages/three-adapter/src/decomposed-bodies.ts`)
+act on **every** `handle` group in a body. `tall-oven-tower` builds four `handle_bar` meshes, of
+which exactly two are the cabinet's — the other two belong to the oven and to the microwave. So
+`handle: "push"` on that body hides the appliances' bars alongside the cabinet's, and `handle:
+"black"` repaints them in cabinet hardware. `base-hob-oven` carries the same exposure with one bar,
+the oven's, and is held off it only by `canHandle: false`.
+
+**Different cause from entry 11's, which is why it was not folded into wave 5B10.** Nothing about a
+missing front is involved: the flags on `tall-oven-tower` are truthful — it really does have two
+cabinet handles — and the capability gate
+(`packages/three-adapter/tests/catalog-capability-parity.test.ts`) passes it, correctly. The defect
+is downstream, in the path that *applies* a handle choice, which has no notion of whose handle it is
+touching. The fix is to teach that path the same cabinet-versus-appliance rule `opensAFront()`
+already encodes in the gate: a `handle` group is the cabinet's exactly when its own parent also
+holds a front.
+
+**What deciding it costs.** The change is in a file every body in the scene goes through, so its
+blast radius is the whole catalogue rather than one body — which is why folding it into a wave that
+also moved seeded geometry was refused. `base-dishwasher` stopped being an instance of this on
+2026-09-01; `base-hob-oven`'s oven bar and `tall-oven-tower`'s two appliance bars remain.
+
+## 19. The dishwasher decor door meets its own appliance at a 520 mm cabinet depth — NEEDS THE OWNER, WHEN M6 CAN REACH IT
+
+Found while implementing M5B wave 5B10 ([ADR 0051](decisions/0051-the-dishwasher-niche-wears-a-decor-door.md)),
+which anchors `dishwasherHousing`'s decor door on `CARC_D` (the derived `carcassDepthM`) so it follows
+the cabinet-depth setting the way every other base front does. `dw_body` — the appliance behind the
+door — does not follow: it is a real-world machine built at a literal 0.24 m front regardless of what
+`CARC_D` says. The gap between the two is `CARC_D / 2 − 0.24`, so it closes at half a millimetre for
+every millimetre `CARC_D` drops. At the shipped 600 mm kitchen the door's inner face is `CARC_D / 2 =
+0.28`, leaving 40 mm of mounting clearance. The clearance reaches zero — the appliance meeting its own
+door — at a **520 mm cabinet depth**.
+
+**Not reachable today.** 600 mm is the only cabinet depth the product can currently produce; M5's
+worktop-depth map is a single declared constant with no control on it (see backlog *Also open* below).
+This is a floor with no way to be crossed yet, which is why it is backlog rather than a defect.
+
+**The first thing that can reach it is M6's *Setări globale* depth control**
+(`docs/milestones/M6-price-and-global-settings.md` work item 4), so that work is this entry's owner.
+Whoever wires the control needs a decision before a customer can pick a cabinet depth below 520 mm
+with a dishwasher niche in the design: refuse that combination with a stated reason, cap the depth
+control's floor at 520 mm globally, or give the niche its own floor separate from the rest of the
+catalogue. None of those is chosen here.
+
+Already commented at the mounting site — `packages/three-adapter/src/kitchen-parts.ts`, the comment
+above `dishwasherHousing`'s door slab — so the constant and the derivation that produces 520 mm are
+there for whoever picks this up, rather than needing to be re-derived.
 
 ## Also open, recorded elsewhere — do not duplicate here
 
