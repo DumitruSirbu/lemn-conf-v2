@@ -1,7 +1,7 @@
 # M5B — Manual UX remediation
 
-> **STATUS: IN PROGRESS.** 5B1, 5B6, 5B7, 5B3, 5B5, 5B10, 5B8 and 5B2a are complete;
-> 5B2b, 5B4a, 5B4b remain to dispatch. Summary: `docs/STATUS.md`. Branch `ux-manual-fixes`.
+> **STATUS: IN PROGRESS.** 5B1, 5B6, 5B7, 5B3, 5B5, 5B10, 5B8, 5B2a and 5B2b are complete —
+> **wave 5B2 is closed**; 5B4a, 5B4b remain to dispatch. Summary: `docs/STATUS.md`. Branch `ux-manual-fixes`.
 
 Status: in progress. Follows M5 (5E still open) and precedes M6.
 Reference: `testing-reports/09-manual-ux-issues.md`; `DEVELOPMENT-SPEC.md` §3.2, §4, §5.2, §7, §9,
@@ -607,6 +607,41 @@ exposed that **the placement path had only refusal tests and no acceptance bound
 `>` to `>=` would have gone red for empty columns and stayed green for bodies. A pre-existing gap in
 a shipped rule, closed by six new sweeps rather than left as this wave's problem alone.
 
+**5B2b — complete, 2026-09-01. Wave 5B2 is now closed in full.** Implemented, adversarial QA
+(12+ mutants, all killed), clean-code review (no actionable defects), and product-logic review
+(matches intent, no blocker) all applied. `projectEmptyColumns` (pure, `void-engine.ts`) and
+`withEmptyColumns` (`apps/web/src/store/apply-command-result.ts`), wired into
+`configurator-store.ts:262` as `design.emptyColumns`. Domain 1304, web 746 (+4 skipped);
+`pnpm ci:local` all gates PASS.
+
+**The blocker QA found and the developer fixed, recorded because it is the wave's real lesson, not
+a footnote.** `void-engine.ts` had claimed `UnprojectableColumnError` was unreachable because
+`refuseFractionalCentres` refused any centre that was not a whole millimetre. That guard inspected
+only the **members'** centres. The members' centre and the empty column's centre are two different
+expressions — members: `extent.centreMm + (requested − extent.widthMm)/2` (integral iff the delta
+is even); the empty column: `extent.centreMm + requested/2` (integral iff the extent's own centre
+is) — and they decouple whenever the extent's width is odd, which `resolveColumnExtent` can produce
+from the union of the members' edges. Two 600 mm bodies at `alongMm` 1000 and 1001 pass both the
+schema and `validateDesignForCatalog`; `setWidth(600)` then threw `UnprojectableColumnError`
+straight out of the width stepper, uncaught. **5B2b is what turned a silent oddity into a live
+crash — not because 5B2b introduced it, but because it is the first thing that reads that centre and
+must succeed.** Two premises failed: that the guard covered every centre a move writes, and that all
+widths are multiples of 50 mm — the shipped fixture already has `p26` at 320 mm and `p9`/`p21` at
+570 mm. **Fixed** by extending the guard to every centre a move writes (members plus both frozen
+moves), refusing `NON_INTEGER_MILLIMETRES` with `field: "centreMm"` before the projection ever runs.
+
+**QA then swept the other four projected fields.** `top`, `d`, `y0` and `w` are **not** reachable as
+fractional values, for a structural reason rather than luck: the centre had a second expression to
+disagree with itself against; these four have none, and `moveFrozenColumns` passes them through
+untouched. So two of five projected fields are guarded (`alongMm` by the extended guard, `widthMm`
+coupled to it) and three merely hold by construction — a swept assertion now checks all five fields
+on every column in the map, on every mutation sequence.
+
+**Visual evidence.** §10's signature flow was re-verified with `topMm: 2600` read from the **stored**
+document, not inferred — the neighbouring columns top at 2200, so 2600 could only have come from the
+persisted value. Verified at 390×844 under real touch. **Not verified:** the desktop rail and the
+wall-A columns, and insert-after-reload snapping.
+
 **Work items.**
 1. (5B2a) `DesignSchema` gains `emptyColumns?: EmptyColumn[]` — wall, along-wall centre, width,
    `y0`/`top`, depth — in whole millimetres, bounded like every other coordinate (DOM-001), and the
@@ -664,6 +699,30 @@ the mutant and see red before accepting green.
 | 5 | An `emptyColumns` entry overlapping a placement is refused at the **API write seam** (`api/designs/[id]/route.ts:236`) and at the **load seam** (`migrateDesign(1, raw)`), with **different documents** proving each. Two boundary rows are part of it: entries that **abut** (`a.end === b.start`) are **accepted** — ADR 0046 merges them, it does not refuse them — and 1 mm of overlap is refused. A legal document with entries at the same along-coordinate on **different walls** is accepted. | Remove `assertDesignValidForCatalog` from `migrate-design.ts:47` — the load-seam test must go red on its own. **And**: `>` flipped to `>=` in the overlap predicate — the abutting row is the only thing that catches it, and without that row 5B4b's merge input becomes unrepresentable. **And**: `wall` dropped from the predicate — the different-walls row catches it. |
 | 6 | A document with **no** `emptyColumns` key parses, and `deriveGeometry` over it yields a column map deep-equal to a **map pinned before this wave** (a committed fixture, not a value this code recomputes). | `.optional()` removed from the field. **And**: `deriveColumns` defaulting the absent array to a synthesised one. A criterion that only asserts "does not throw" is vacuous here — this is the 5B3-criterion-4 shape, where a fresh seeded load produces the right answer under any mutant. The pinned fixture is what makes it falsifiable. |
 | 7 | A document with `MAX_EMPTY_COLUMNS + 1` entries fails `DesignSchema` with an issue at path `emptyColumns`, at both seams; **and** a document with exactly `MAX_EMPTY_COLUMNS` entries is accepted **and passes `MAX_DESIGN_BYTES`**. | `.max(...)` removed → the first half red. `MAX_DESIGN_BYTES` left underived → the second half red, which is the half that stops the cap becoming a refusal of legal documents. Note for QA: the projection must never silently truncate to the cap. It cannot exceed it — the cap is the physical bound of the room — so the wave asserts that unreachability rather than adding a runtime branch. |
+
+**Criteria closed, 2026-09-01.** Criteria 1, 3 and 4 are met by 5B2b. Criteria 2, 5, 6 and 7 were
+met by 5B2a.
+
+**Criterion 4 carries one exclusion, and it has nothing to do with the fractional-centre blocker
+above — the two are unrelated and must not be conflated.** The sweep excludes **partly emptied
+column keys**: a column that still *holds members* but whose frozen extent its placements no longer
+imply. ADR 0044 persists member-less columns only, so nothing records such a column's frozen extent,
+and it diverges on reload. The exclusion is computed by `partiallyEmptiedKeys`, which compares
+`state.columns` against `deriveColumns(state.records)`.
+
+An exclusion computed by measurement is the shape of a vacuous criterion, so it was proved rather
+than assumed. QA and the logic reviewer each independently established that it is **exactly** the
+diverging set, not an approximation of it: `projectEmptyColumns` skips precisely the occupied keys,
+so reload answers every occupied key with exactly `deriveColumns(records)` — making *excluded* and
+*diverges on reload* the same predicate. `refuseUnreproducibleKey` is what makes the two halves of
+`deriveColumns` provably disjoint rather than merely expected to be. And a **member-less column can
+never enter the excluded set**, because the exclusion is a subset of `deriveColumns(records)`'
+keys — the occupied ones — so the exclusion cannot absorb a projection bug. Four projection mutants
+confirmed it: each turned the sweep red rather than being swallowed.
+
+The residual divergence is recorded as backlog 22: it is user-visible, it predates this wave, and
+closing it means widening ADR 0044 from member-less columns to the whole frozen map, which is an
+ADR-level decision rather than a wave amendment.
 
 **Files.** 5B2a: `design.ts`, `design-bounds.ts`, `void-engine.ts`, `validate-design.ts`.
 5B2b: `void-engine.ts`, `apps/web/src/store/apply-command-result.ts`.

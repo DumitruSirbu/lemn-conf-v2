@@ -43,3 +43,6 @@ apps/web/CLAUDE.md
 # TypeScript tolerates an include entry that matches no file. Verified by deleting it and running
 # `pnpm typecheck` (exit 0) before untracking.
 apps/web/next-env.d.ts
+
+# Playwright MCP session artifacts (console logs, page snapshots) — evidence, not source.
+.playwright-mcp/

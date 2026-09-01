@@ -361,6 +361,70 @@ describe("PUT /api/designs/[id] payload limits", () => {
     expect(fakeRepository.storedDesign(id)).toEqual(KITCHEN_L_DESIGN);
   });
 
+  // ADR 0044 at the **write seam itself**, which is where a hostile or hand-edited document arrives.
+  // Wave 5B2a proved the same refusal through `validateDesignForCatalog` directly; a route that
+  // stopped calling it would leave that test green and this one red, which is the whole point of
+  // asserting it here as well.
+  it("answers 400 for an empty column that overlaps a placement", async () => {
+    const { id, cookie } = await mintDesign();
+    // `p0` is the 800 mm sink at 1300, so it fills 900–1700. This strip is inside it.
+    const design: Design = {
+      ...KITCHEN_L_DESIGN,
+      emptyColumns: [
+        {
+          wall: "A",
+          alongMm: 1500,
+          widthMm: 200,
+          y0Mm: 0,
+          topMm: 820,
+          depthMm: 580,
+        },
+      ],
+    };
+
+    const response = await PUT(
+      saveRequest(id, { body: JSON.stringify(design), cookie }),
+      routeParams(id),
+    );
+
+    expect(response.status).toBe(400);
+    expect(await response.json()).toEqual({
+      code: "DESIGN_INVALID",
+      error: "Design payload failed validation.",
+    });
+    expect(fakeRepository.storedDesign(id)).toEqual(KITCHEN_L_DESIGN);
+  });
+
+  // The boundary the refusal above must not swallow: ADR 0046 **merges** two spaces that touch, so
+  // an entry abutting a placement is a legal document and the write seam has to store it. Without
+  // this row a `>` loosened to `>=` in the overlap predicate would go unnoticed.
+  it("stores an empty column that abuts a placement without overlapping it", async () => {
+    const { id, cookie } = await mintDesign();
+    // `p4` is the 600 mm drawer bank at 3200, so it ends at 3500; this strip starts there and runs
+    // to the end of the 3600 mm wall.
+    const design: Design = {
+      ...KITCHEN_L_DESIGN,
+      emptyColumns: [
+        {
+          wall: "A",
+          alongMm: 3550,
+          widthMm: 100,
+          y0Mm: 0,
+          topMm: 820,
+          depthMm: 580,
+        },
+      ],
+    };
+
+    const response = await PUT(
+      saveRequest(id, { body: JSON.stringify(design), cookie }),
+      routeParams(id),
+    );
+
+    expect(response.status).toBe(200);
+    expect(fakeRepository.storedDesign(id)).toEqual(design);
+  });
+
   it("answers 400 when updatedAt precedes createdAt", async () => {
     const { id, cookie } = await mintDesign();
     const design = {

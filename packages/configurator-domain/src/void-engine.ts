@@ -6,7 +6,7 @@ import type {
   Finish,
   Handle,
 } from "./design.js";
-import { toMetres } from "./millimetres.js";
+import { toExactMillimetres, toMetres } from "./millimetres.js";
 import { deriveCabinetWorldTransform } from "./room-transforms.js";
 
 /** `DEVELOPMENT-SPEC.md` §2 module lines: base | wall | top. The 0.86–1.50 gap is backsplash and
@@ -513,6 +513,136 @@ function toColumnExtent(emptyColumn: EmptyColumn): ColumnExtent {
     // intervals these were are the bodies this space no longer holds.
     regions: [[y0M, topM]],
   };
+}
+
+/** ADR 0044's wire shape, written from the frozen map at the store seam: the columns of `columns`
+ *  with no member in `records`, as the entries `deriveColumns` restores.
+ *
+ *  It is the exact inverse of `toColumnExtent`, and the pairing is the point — a space is stored so
+ *  that a reload rebuilds the column the session was holding, not one that merely resembles it.
+ *  The frozen map is an **argument** rather than something rederived here, so whichever map a later
+ *  wave makes canonical (ADR 0046's merge answers pre- or post-merge) reaches the document without
+ *  reopening this seam.
+ *
+ *  **Membership is asked by column key, which is what makes the result collision-free by
+ *  construction.** A key is unique in the map it came from, and a key that any placement is filed
+ *  under is skipped — so no entry can address an occupied column's slot at load, and no two entries
+ *  can address each other's. That guarantee has to live here rather than in `validateDesignForCatalog`:
+ *  since 5B2a a stored entry **overwrites** the placements' column instead of being dropped, and
+ *  commands do not validate what they return, so a projection that merely expected to be checked
+ *  would have already lost a column by the time anything looked. */
+export function projectEmptyColumns(
+  columns: ReadonlyMap<string, Column>,
+  records: readonly PlacementRecord[],
+): readonly EmptyColumn[] {
+  const occupiedKeys = new Set(records.map((record) => record.col));
+  const projected: EmptyColumn[] = [];
+  for (const [key, column] of columns) {
+    if (occupiedKeys.has(key)) continue;
+    projected.push(toEmptyColumn(key, column));
+  }
+  // Sorted so one state has one document: `Map` iteration follows insertion order, and a resize
+  // deletes and re-adds both keys it moves, so two sessions reaching the same kitchen by different
+  // routes would otherwise serialise to two different strings and save each other's work back and
+  // forth (ADR 0002's round-trip invariant is about one design, not about how it was reached).
+  return projected.sort(compareEmptyColumns);
+}
+
+function compareEmptyColumns(left: EmptyColumn, right: EmptyColumn): number {
+  if (left.wall !== right.wall) return left.wall < right.wall ? -1 : 1;
+  return left.alongMm - right.alongMm;
+}
+
+function toEmptyColumn(key: string, column: Column): EmptyColumn {
+  const alongM = column.wall === "A" ? column.x : column.z;
+  const entry: EmptyColumn = {
+    wall: column.wall,
+    alongMm: exactMillimetresOf("alongMm", alongM, key),
+    widthMm: exactMillimetresOf("widthMm", column.w, key),
+    // §4 reads a column's floor and its top and nothing between them, and `resolveSnapY0M` reads
+    // region starts only below a floor it is already standing on — so the frozen extent's lowest
+    // start and its top are the whole of what a restored column has to reproduce. The intervals
+    // between them belonged to bodies this space no longer holds.
+    y0Mm: exactMillimetresOf("y0Mm", lowestRegionStartM(column, key), key),
+    topMm: exactMillimetresOf("topMm", column.top, key),
+    depthMm: exactMillimetresOf("depthMm", column.d, key),
+  };
+  return refuseUnreproducibleKey(entry, key);
+}
+
+/** The whole millimetre a frozen coordinate sits on, or a refusal.
+ *
+ *  **Never `Math.round`.** `deriveColumnKeyAt` renders metres with `toFixed(2)`, so rounding a
+ *  centre of 3575.1 mm to 3575 keys the entry as its neighbour and two distinct columns collapse
+ *  into one map slot on reload — the seam would be writing a document its own validator refuses
+ *  (`EMPTY_COLUMN_KEY_COLLIDES_WITH_*`). `toExactMillimetres` accepts the float noise a metre
+ *  value picks up crossing a unit conversion and refuses a value that genuinely sits between two
+ *  millimetres, which is the distinction this needs and the one `Math.round` cannot make. */
+function exactMillimetresOf(
+  field: string,
+  valueM: number,
+  key: string,
+): number {
+  const millimetres = toExactMillimetres(valueM);
+  if (millimetres === undefined) {
+    throw new UnprojectableColumnError(
+      key,
+      `${field} is ${String(valueM)} m, which is not a whole millimetre`,
+    );
+  }
+  return millimetres;
+}
+
+function lowestRegionStartM(column: Column, key: string): number {
+  const starts = column.regions.map(([start]) => start);
+  if (starts.length === 0) {
+    throw new UnprojectableColumnError(
+      key,
+      "it has no regions, so it has no floor to record",
+    );
+  }
+  return Math.min(...starts);
+}
+
+/** The last of the two uniqueness halves: an entry has to key back to the slot it came from.
+ *
+ *  Skipping the occupied keys is only sound if a restored entry lands on its own key again, and
+ *  that is arithmetic — `toFixed(2)` on a centre one ulp either side of a half-centimetre boundary
+ *  can render differently. A mismatch is an impossible state rather than a case to handle, and it
+ *  is refused rather than repaired: writing the recomputed key would move the space away from where
+ *  the customer left it, and writing it anyway would silently overwrite a column at load. */
+function refuseUnreproducibleKey(entry: EmptyColumn, key: string): EmptyColumn {
+  const restoredKey = deriveColumnKeyAt(entry.wall, toMetres(entry.alongMm));
+  if (restoredKey !== key) {
+    throw new UnprojectableColumnError(
+      key,
+      `it would be restored under key ${restoredKey}`,
+    );
+  }
+  return entry;
+}
+
+/** A frozen column the document cannot carry.
+ *
+ *  **Defence in depth, not the primary guard.** The primary guard is `refuseFractionalCentres`
+ *  (`commands/apply-column-moves.ts`), which refuses the *command* when either centre a resize
+ *  writes — a member's `alongMm` or a frozen column's `centreMm` — is not a whole millimetre. It
+ *  covers only the resize path, and only the two centres: nothing checks a frozen column's `top`,
+ *  `d` or floor, which are inherited from members whose own values the schema keeps whole.
+ *
+ *  It is deliberately not stated as unreachable, and the earlier claim that it was is what wave
+ *  5B2b's QA disproved: the guard used to inspect the members alone, and a member centre is whole
+ *  when the *delta* is even while a frozen centre is whole when the *extent's centre* is — two
+ *  conditions that part company as soon as an extent's width is odd. No catalogue step size makes
+ *  that impossible; the seeded kitchen already carries 320 mm and 570 mm bodies.
+ *
+ *  Thrown rather than dropped because a silently omitted entry is the defect ADR 0044 exists to
+ *  fix, arriving by a new route. */
+export class UnprojectableColumnError extends Error {
+  constructor(key: string, reason: string) {
+    super(`Column ${key} cannot be recorded as an empty column: ${reason}`);
+    this.name = "UnprojectableColumnError";
+  }
 }
 
 /** The keys whose membership an operation changed, comparing the placement records before and

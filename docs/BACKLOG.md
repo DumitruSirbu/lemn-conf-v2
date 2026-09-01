@@ -1078,6 +1078,34 @@ validation rule is measured against.
 Not scheduled. Raise it with the owner — it is a one-line change either way and a real decision
 about which artefact is authoritative.
 
+## 22. A partly emptied column forgets what it freed, and UX-2 is only half closed
+
+Found by the 5B2b logic review and confirmed on screen by visual verification (2026-09-01). Delete
+`p7` while `p24` still stands above it: in session the freed space shows as two openings, 700x860
+and 700x350, span 1850. Reload, and **both are gone** — the column shows only `p24`. The stored
+document carries `emptyColumns: undefined`, because `projectEmptyColumns` skips any key a placement
+is filed under.
+
+That is not a bug in wave 5B2. It is ADR 0044's scope: the record persists **member-less** columns,
+and this column still has a member. ADR 0011 Gap D then forbids the obvious repair — re-deriving an
+occupied column's extent from its current records is precisely the move Gap D exists to prevent, and
+it is what would drop the region the customer just freed.
+
+So the two available fixes are both above a wave's pay grade: **widen ADR 0044** from member-less
+columns to the whole frozen map, or **accept the divergence and say so**. 5B2b accepted it, on the
+grounds that before this wave reload re-derived *every* column and nothing survived at all — this is
+strictly an improvement, not a new loss.
+
+**What is already true.** The divergence is pinned as a red-when-fixed test
+(`apps/web/tests/store/empty-columns-reload.test.ts:428-449`), and criterion 4's sweep excludes
+exactly these keys — an exclusion proved to be the diverging set exactly, not an approximation, and
+one a member-less column can never enter.
+
+**So UX-2 is closed for a whole cleared column and for a shrink strip, and open for a partial
+delete.** Whoever picks this up is deciding whether the document records the frozen map or only its
+empty members, and that is an ADR, not a work item. Gap D's own 2026-08-26 correction is the
+precedent for recording "one design, two answers by route" as its own decision.
+
 ## Also open, recorded elsewhere — do not duplicate here
 
 - **Width editing does nothing yet.** Every width chip is `blocked` because §5.4's resize command

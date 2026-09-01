@@ -127,3 +127,30 @@ its original two, because `deriveFreeSpans` (`void-engine.ts:692-705`) only ever
 corrected on 2026-09-01 to compare the observable answer — `voids`, plus `key`/`wall`/`x`/`z`/`w`/`d`/
 `ry`/`top` and `min(regions)` — rather than the stored shape: deep equality of `regions` including
 order is unsatisfiable by this wire shape, not a bug in it.
+
+## Verified against what shipped — 5B2b, 2026-09-01
+
+**The projection refuses rather than rounds.** `projectEmptyColumns` refuses a sub-millimetre centre
+outright rather than rounding it — rounding would collapse two distinct map keys into one and hand
+`EMPTY_COLUMN_KEY_COLLIDES_WITH_EMPTY_COLUMN`/`EMPTY_COLUMN_KEY_COLLIDES_WITH_PLACEMENT` a document
+the projection itself produced, refusing its own honest output.
+
+**Key uniqueness is owned by the projection itself, not by validation after the fact.** 5B2a deleted
+the silent-drop branch `deriveColumns` used to have, which reverses the direction of a collision: a
+stored `emptyColumns` entry now **overwrites** the placements' column at derivation rather than being
+dropped, and `deriveColumns` is pure with no validator inside it. So `projectEmptyColumns` has to be
+correct by construction — it cannot rely on a downstream check to catch a bad key.
+
+**`resolveSnapY0M` was proven inert, not assumed.** `insert-fit.ts:632` feeds every region start into
+the snap-candidate list, and a restored column carries fewer regions than an in-session one (one
+region instead of several, per this record's own *"`regions` is deliberately not on the wire"*
+consequence above). Proven rather than assumed: `minY` is always a candidate and survives both
+filters because `refuseHeight` runs first, so both the restored and the in-session answer lie within
+ε = 1e-6 m of each other — which is exactly `EXACT_MILLIMETRE_TOLERANCE_MM` — and can never move a
+persisted millimetre.
+
+**A stated boundary, not a gap in this wave's scope.** The projection is collision-free **by key**,
+which says nothing about **geometric** overlap. Two 50 mm entries 6 mm apart are distinct keys whose
+spans intersect; `validateDesignForCatalog` refuses that document, and no command reaches it —
+unreachable through the product, but a boundary this record should state rather than let readers
+assume the key check subsumes it.

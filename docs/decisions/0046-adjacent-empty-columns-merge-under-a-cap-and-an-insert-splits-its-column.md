@@ -251,6 +251,23 @@ Nothing in the sweep makes the owner's decision unimplementable. The one record 
 opposite — ADR 0037's withdrawal — said it about an **uncapped merge with no split**, and both of
 those conditions are changed here.
 
+## Note for 5B4b, added by 5B2b, 2026-09-01
+
+The milestone left open whether `projectEmptyColumns` (ADR 0044) runs pre- or post-merge — before
+the merge decided here folds adjacent columns into one, or after. **This record does not force
+either.** The seam is neutral by construction: `projectEmptyColumns` takes the resolved column map as
+an argument, so whichever map is canonical at that point — merged or not — flows through it
+unchanged, and 5B2's own criterion 3 (the deep round-trip) catches either choice equally, since the
+merge is a fixpoint under the cap.
+
+But the two choices are not equally good, and the reason is what gets **stored**. A merged column is
+a *derived* fact — it exists because the 800 mm cap said so at the moment it was computed — and
+persisting the merged extent stores that derivation's output rather than its inputs. If the cap ever
+moves (600 mm was the owner's own stated fallback), a document written under the old cap would carry
+a merged empty column no code can any longer reproduce from its own placements, and there is no
+record of the pre-merge columns to re-derive it from. **Pre-merge is therefore the better default.**
+5B4b must state which map it projects; this record does not decide it for them.
+
 ## Consequences
 
 - **`deriveColumns`' horizontal freeze gains its exceptions, and they are now two:** a merge changes

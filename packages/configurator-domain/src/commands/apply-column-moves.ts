@@ -133,37 +133,56 @@ function refuseKeyCollision(
   };
 }
 
-/** Every **persisted** coordinate must land on a whole millimetre (§2). Half of an odd width would
- *  not, and the schema stores `alongMm` as an integer — so a catalogue set that ever lists a width
- *  of the opposite parity to the column's current one is refused here rather than rounded into a
- *  body that no longer meets its neighbour.
+/** Every coordinate this move writes must land on a whole millimetre (§2): the members' centres,
+ *  which the document stores as integer `alongMm`, and the two frozen columns' centres, which
+ *  ADR 0044 now records as an `emptyColumns` entry the moment either one is member-less.
  *
- *  **The members only** (logic review R1.5). It used to check the empty column's new centre too, and
- *  that value is never persisted: it is consumed by `toMetres` and by `deriveColumnKeyAt`, which
- *  rounds to two decimals. §2's rule binds what the document stores, and the frozen map is derived
- *  state — a resize the model represents perfectly was being refused, under a code naming
- *  `alongMm`, a placement field that value is not.
+ *  **The two are different expressions and they decouple** — the reason this checks both since
+ *  wave 5B2b, having checked only the members between logic review R1.5 and then:
  *
- *  Dropping it also settles R1.4, which asked whether an unfundable side should end the scan here.
- *  It cannot: a member's centre is `columnCentre ± (newWidth − oldWidth) / 2`, so it is fractional
- *  exactly when the delta is odd — a fact about the two widths and not about which side pays, and
- *  one the other side would answer identically. Returning immediately is therefore right.
+ *    member centre = `extent.centreMm + (requested − extent.widthMm) / 2` — whole iff the delta is even
+ *    frozen centre = `extent.centreMm ± requested / 2`                    — whole iff `extent.centreMm` is
  *
- *  (The empty column's centre could never have fired alone either, as it happens: it is
- *  `farEdge − remainder / 2`, and both terms move onto half-millimetres together with the delta's
- *  parity. The check was redundant as well as wrong about which rule it was enforcing.) */
+ *  `resolveColumnExtent` takes the **union of the members' edges**, so two members offset by an odd
+ *  millimetre give an odd extent width and a half-millimetre `centreMm`. The delta can still be
+ *  even, so the members pass while the empty column lands between two millimetres — and
+ *  `projectEmptyColumns` refuses such a centre rather than rounding it (rounding collapses two
+ *  column keys into one). Without this half of the guard that refusal arrives as a **throw out of
+ *  `setWidth`**, from a width chip with nothing catching on the path. Nothing in the catalogue
+ *  guarantees the coupling: the seeded kitchen already carries 320 mm and 570 mm bodies.
+ *
+ *  A frozen move of zero width is skipped: rule 6 removes that key instead of recording it, so its
+ *  centre is never written anywhere and refusing on it would reject a resize that consumes an empty
+ *  column exactly.
+ *
+ *  R1.4 is unaffected — it asked whether an unfundable side should end the scan here, and it should:
+ *  every quantity above is a fact about the two widths and the extent, so the other side answers
+ *  identically. Returning immediately is therefore still right. */
 function refuseFractionalCentres(move: ColumnResize): Resolved<ColumnResize> {
-  const fractionalMm = move.members
-    .map((member) => member.alongMm)
-    .find((value) => !Number.isInteger(value));
-  if (fractionalMm === undefined) return { ok: true, value: move };
+  const fractional = writtenCentres(move).find(
+    (candidate) => !Number.isInteger(candidate.valueMm),
+  );
+  if (fractional === undefined) return { ok: true, value: move };
   return {
     ok: false,
-    detail: {
-      code: "NON_INTEGER_MILLIMETRES",
-      params: { field: "alongMm", valueMm: fractionalMm },
-    },
+    detail: { code: "NON_INTEGER_MILLIMETRES", params: fractional },
   };
+}
+
+/** Every centre the move is about to write, named by the field it lands in — `alongMm` on a
+ *  placement, `centreMm` on a frozen column that ADR 0044 may record as an empty one. */
+function writtenCentres(
+  move: ColumnResize,
+): readonly { readonly field: string; readonly valueMm: number }[] {
+  return [
+    ...move.members.map((member) => ({
+      field: "alongMm",
+      valueMm: member.alongMm,
+    })),
+    ...frozenMoves(move)
+      .filter((frozen) => frozen.widthMm > 0)
+      .map((frozen) => ({ field: "centreMm", valueMm: frozen.centreMm })),
+  ];
 }
 
 /** **Both** columns a resize touches, moved as the frozen extents ADR 0011 Gap D says they are:

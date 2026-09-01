@@ -259,7 +259,10 @@ interface CommandContext {
 
 function deriveGeometry(design: Design, catalog: BodyCatalog) {
   const records = derivePlacementRecords(design, catalog);
-  const columns = deriveColumns(records);
+  // ADR 0044: the placements build the occupied columns, and the document carries the ones nothing
+  // could rebuild from them — the space a shrink or a delete freed. Without this argument the
+  // frozen extents survive the session and die at the reload.
+  const columns = deriveColumns(records, design.emptyColumns);
   const voids = recomputeVoids(records, columns);
   return { records, columns, voids };
 }

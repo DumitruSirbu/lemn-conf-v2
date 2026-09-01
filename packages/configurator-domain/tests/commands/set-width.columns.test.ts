@@ -553,6 +553,57 @@ describe("the empty column's centre is derived state, not a persisted one (R1.5)
     }
   });
 
+  // Wave 5B2b. The extent's own centre is the other half of §2's rule, and it is a **different**
+  // expression from the members' — whole when the *delta* is even, where this one is whole only
+  // when `extent.centreMm` is. `resolveColumnExtent` unions the members' edges, so two members one
+  // millimetre apart in the same column key give an odd extent and a half-millimetre centre.
+  //
+  // Since ADR 0044 that centre is written: it becomes an `emptyColumns` entry, which
+  // `projectEmptyColumns` refuses rather than rounds. Refused here, the customer reads a sentence;
+  // unrefused, the refusal arrives as a throw out of `setWidth` with nothing catching it.
+  it("refuses a frozen centre that is not a whole millimetre", () => {
+    const world = createWorld(
+      {
+        room: { shape: "L", widthMm: 4200, depthMm: 2400, heightMm: 2600 },
+        presetId: null,
+        placements: [
+          {
+            id: "base",
+            wall: "A",
+            alongMm: 1000,
+            y0Mm: 0,
+            body: { buildId: "base-drawer3-600", widthMm: 600, heightMm: 820 },
+          },
+          {
+            id: "wall",
+            wall: "A",
+            alongMm: 1001,
+            y0Mm: 1500,
+            body: { buildId: "wall-2door-600", widthMm: 600, heightMm: 700 },
+          },
+        ],
+        createdAt: "2026-08-25T00:00:00.000Z",
+        updatedAt: "2026-08-25T00:00:00.000Z",
+      },
+      KITCHEN_L_BODY_CATALOG,
+    );
+
+    const result = resizeTo(world, "base", 600);
+
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.reason.code).toBe("NON_INTEGER_MILLIMETRES");
+    // Named for the quantity that is actually fractional: the members' centres are whole here, so
+    // a refusal blaming `alongMm` would send the reader to the wrong number.
+    if (result.reason.code !== "NON_INTEGER_MILLIMETRES") return;
+    // The union of the two members' edges is 700–1301, so the extent is 601 wide centred on
+    // 1000.5; the 1 mm the shrink vacates is centred on 1300.5.
+    expect(result.reason.params).toStrictEqual({
+      field: "centreMm",
+      valueMm: 1300.5,
+    });
+  });
+
   it("still refuses a member centre that is not a whole millimetre", () => {
     // The half of the rule that binds the document: 601 → 800 is a delta of 199, so each member's
     // centre would move by 99.5 mm and `DesignSchema` stores an integer.
