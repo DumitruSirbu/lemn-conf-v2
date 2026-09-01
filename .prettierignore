@@ -1,6 +1,12 @@
 catalog-seed/
 design-source/
 docs/
+
+# Skills wired into .claude/skills/, whether a symlink to .agents/skills/ (installed via
+# `npx skills add`) or a vendored copy: kept verbatim so updates stay a clean diff against the
+# source, and a symlink itself can't be handed to prettier as an explicit path anyway.
+.agents/skills/
+.claude/skills/
 pnpm-lock.yaml
 **/dist/
 **/.next/

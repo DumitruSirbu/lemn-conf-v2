@@ -1,5 +1,11 @@
 # Codex dispatch profiles
 
+> **If you are Claude, ignore this directory.** These profiles are Codex-specific (model ids like
+> `gpt-5.6-sol`, `reasoning_effort` frontmatter). Claude Code has its own equivalents in
+> `.claude/agents/` (`configurator-architect`, `configurator-developer`, `configurator-qa`,
+> `configurator-review-logic`, `configurator-review-clean-code`, `configurator-review-security`,
+> `configurator-verify-visual`, `configurator-scribe`) — use those instead.
+
 These profiles are adapted from the eight definitions in the reference project's `.claude/agents/`.
 They are prompt cards for Codex's on-demand agent team: include the applicable card when
 delegating, while the coordinator retains final control of the diff.
