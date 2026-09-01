@@ -78,8 +78,11 @@ function innerShelvesFor(size: CatalogBodySize): number {
     : 1;
 }
 
-/** §7's builder column, one arm per insertable id. The four fixed-size entries ignore the
- *  requested size **by design** — "columns are fixed 600 and refuse other openings with a reason".
+/** §7's builder column, one arm per insertable id. The three remaining fixed-size entries ignore
+ *  the requested size **by design** — "columns are fixed 600 and refuse other openings with a
+ *  reason". ADR 0048 took `tall-pantry` off that list: it has no appliance inside it, so it is
+ *  built to its opening between 400 and 800 mm like any cabinetry row.
+ *
  *  The refusal comes from the *domain*, before any of this runs: `resolveWidth` sees a fixed
  *  `widthFlex` that does not contain the opening and refuses with `WIDTH_TOO_LARGE`, naming the
  *  millimetres (§11 row 5). `insertBody`'s built-size re-check is the backstop behind that, not the
@@ -125,7 +128,11 @@ const CATALOG_BODY_BUILDERS: Readonly<Record<string, CatalogBodyBuilder>> = {
   // requested height minus the canopy the builder always adds.
   hood: (kit, size) =>
     kit.make.hood(size.widthM, size.heightM - HOOD_CANOPY_HEIGHT_M),
-  "tall-pantry": (kit) => kit.builders["tall-pantry"](),
+  // ADR 0048: the one full-height row built to the size it is asked for. Its door count comes from
+  // `doorsFor` — the domain's threshold, the same one `describeBodyLabelAt` names the body with —
+  // so this is ADR 0033's mechanism reaching a third row, not a second rule.
+  "tall-pantry": (kit, size) =>
+    kit.make.tallPantry(size.widthM, doorsFor(size)),
   "tall-oven-tower": (kit) => kit.builders["tall-oven-tower"](),
   "tall-fridge-housing": (kit) => kit.builders["tall-fridge-housing"](),
   "fridge-free": (kit) => kit.builders["fridge-free"](),

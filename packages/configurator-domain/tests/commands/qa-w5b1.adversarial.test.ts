@@ -794,8 +794,11 @@ describe("the census grew by exactly the taps the superseded floor refused", () 
     ]);
   });
 
-  it("accepts 466 taps across the nine clears, of which 450 the old floor also allowed", () => {
-    // Both totals from one sweep, so the pinned 466 cannot go green on a different population.
+  it("accepts 546 taps across the nine clears, of which 530 the old floor also allowed", () => {
+    // Both totals from one sweep, so the pinned 546 cannot go green on a different population.
+    // It was 466/450 until ADR 0048 unfroze the seeded pantry's column; the eighty it added are
+    // `p6` and `p23` moving, and none of them is a growth the superseded floor would have refused,
+    // which is why the gap between the two totals is unchanged at sixteen.
     let accepted = 0;
     let unlockedByThisWave = 0;
     for (const [, ids] of CLEARABLE) {
@@ -814,6 +817,6 @@ describe("the census grew by exactly the taps the superseded floor refused", () 
       }
     }
 
-    expect([accepted, accepted - unlockedByThisWave]).toEqual([466, 450]);
+    expect([accepted, accepted - unlockedByThisWave]).toEqual([546, 530]);
   });
 });

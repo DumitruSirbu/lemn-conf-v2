@@ -156,8 +156,9 @@ describe("every resize the shipped kitchen accepts survives a save and a reload"
     // cap and 450 joined every hinged row; **230 once ADR 0035 decision 7 made every shrink fund
     // itself**, so the population stopped being "what a delete unlocks" and became "every legal
     // move, plus what a delete unlocks"; **238 once ADR 0043 let a growth leave a gap behind**
-    // instead of having to consume the freed column exactly. The itemised list is in
-    // `resize-depth.test.ts`.
+    // instead of having to consume the freed column exactly; **278 once ADR 0048 unfroze the seeded
+    // pantry's column**, which brought `p6` and `p23` into the population at all. The itemised list
+    // is in `resize-depth.test.ts`.
     //
     // **The title is narrower than it reads, for eight of these** (QA finding Q4 on wave 5B1, not
     // fixed here). ADR 0043 lets a growth stop short of consuming the freed column, so eight taps
@@ -166,6 +167,6 @@ describe("every resize the shipped kitchen accepts survives a save and a reload"
     // measures; the gap the resize also produced does not. Wave 5B2 owns that, and ADR 0043's
     // *Still open* section records it. Nothing here is weakened to accommodate it: if a placement
     // ever stopped surviving, this sweep would still fail.
-    expect(swept).toHaveLength(238);
+    expect(swept).toHaveLength(278);
   });
 });

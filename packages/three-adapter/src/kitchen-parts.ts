@@ -152,6 +152,7 @@ export interface Factories {
   bottleCargo: (w: number) => THREE.Group;
   hobBaseWithDrawers: (w: number) => THREE.Group;
   hobBaseWithOven: (w: number) => THREE.Group;
+  tallPantry: (widthM: number, doors: number) => THREE.Group;
 }
 
 export interface BaseCabinetOptions {
@@ -677,6 +678,10 @@ export function makeKit(options: KitOptions = {}): Kit {
    *  21 mm inside its declared depth, which is the honest reading of a cabinet with no handle. */
   const FRONT_ASSEMBLY_D = TH / 2 + 0.024 + 0.006;
 
+  // §7's full-height band, and the width every column but the pantry is fixed at (ADR 0048).
+  const TALL_UNIT_HEIGHT_M = 2.2,
+    COLUMN_WIDTH_M = 0.6;
+
   const PLINTH = 0.1,
     CARC_H = 0.72,
     // M5 work item 7: derived from the declared cabinet depth, not typed. At 600 it is 0.56 to the
@@ -948,22 +953,9 @@ export function makeKit(options: KitOptions = {}): Kit {
     "wall-lift": () => wallLift(),
     "open-shelf": () => openShelf(0.8, 0.3, 2),
 
-    "tall-pantry": () => {
-      const g = tallCarcass();
-      const H = 2.2,
-        W = 0.6,
-        fz = CARC_D / 2 + TH / 2;
-      const dw = (W - 0.009) / 2;
-      const doorBands: readonly (readonly [number, number])[] = [
-        [PLINTH + 1.3, 1.29],
-        [H, 0.79],
-      ];
-      for (const [y, h] of doorBands) {
-        g.add(doorSlab(dw, h, -(dw + GAP) / 2, y, fz, "right"));
-        g.add(doorSlab(dw, h, (dw + GAP) / 2, y, fz, "left"));
-      }
-      return g;
-    },
+    // ADR 0048: the reference builder's own 600 mm two-door pantry, delegating to the
+    // width-parameterised factory. These are its literals, so the seeded kitchen does not move.
+    "tall-pantry": () => tallPantry(COLUMN_WIDTH_M, 2),
     "tall-oven-tower": () => {
       const g = G("tall_unit");
       const W = 0.6,
@@ -1756,12 +1748,43 @@ export function makeKit(options: KitOptions = {}): Kit {
     return g;
   }
 
-  function tallCarcass(): THREE.Group {
+  /** ADR 0048: **the one full-height row a customer may resize**, 400–800 mm, with its door count
+   *  following its width the way `wallCabinet` derives its own. `catalog-bodies.ts` reads the count
+   *  from the domain's `deriveDoorCount`, so the leaf layout here and the label the customer reads
+   *  cannot disagree.
+   *
+   *  **The interior does not change with the width** (owner, 2026-09-01): a 400 mm pantry is the
+   *  same cabinet built narrower, not a second product. The door bands below are y coordinates and
+   *  heights only — nothing in them reads `widthM` — so the bands sit at identical heights at every
+   *  width and only their x extent moves. A narrow pantry with re-pitched bands would pass a width
+   *  check and still be the wrong cabinet.
+   *
+   *  Every part is **built** to the width: `tallCarcass` takes it, and the leaves are derived from
+   *  it. Nothing scales a finished group, which M3's Risks section names as the thing not to do. */
+  function tallPantry(widthM: number, doors: number): THREE.Group {
+    const g = tallCarcass(widthM);
+    const fz = CARC_D / 2 + TH / 2;
+    const doorBands: readonly (readonly [number, number])[] = [
+      [PLINTH + 1.3, 1.29],
+      [TALL_UNIT_HEIGHT_M, 0.79],
+    ];
+    for (const [bandTopY, bandHeight] of doorBands) {
+      if (doors === 1)
+        g.add(doorSlab(widthM - 0.006, bandHeight, 0, bandTopY, fz, "right"));
+      if (doors === 2) {
+        const leafW = (widthM - 0.009) / 2;
+        const leafOffset = (leafW + GAP) / 2;
+        g.add(doorSlab(leafW, bandHeight, -leafOffset, bandTopY, fz, "right"));
+        g.add(doorSlab(leafW, bandHeight, leafOffset, bandTopY, fz, "left"));
+      }
+    }
+    return g;
+  }
+
+  function tallCarcass(W = COLUMN_WIDTH_M): THREE.Group {
     const g = G("tall_unit");
-    const H = 2.2,
-      W = 0.6;
     g.add(plinth(W, CARC_D));
-    g.add(carcass(W, H - PLINTH, CARC_D, PLINTH));
+    g.add(carcass(W, TALL_UNIT_HEIGHT_M - PLINTH, CARC_D, PLINTH));
     return g;
   }
 
@@ -1975,6 +1998,7 @@ export function makeKit(options: KitOptions = {}): Kit {
     bottleCargo,
     hobBaseWithDrawers,
     hobBaseWithOven,
+    tallPantry,
   };
   return {
     builders,

@@ -149,9 +149,16 @@ const LOAD_ACCEPTED_TAPS: readonly string[] = [
   "p20@300",
   "p20@400",
   "p20@450",
+  // ADR 0048: `B|1.80`'s two members. The seeded pantry `p6` stopped being `fixedWidth` when the
+  // owner flipped it on 2026-09-01, and a column moves as one, so the wall cabinet `p23` above it
+  // came with it.
+  "p23@400",
+  "p23@450",
   "p4@300",
   "p4@400",
   "p4@450",
+  "p6@400",
+  "p6@450",
   "p8@200",
   "p8@400",
   "p8@450",
@@ -185,7 +192,12 @@ describe("Q1 — the legal-resize population, enumerated independently", () => {
     expect(accepted).toEqual(LOAD_ACCEPTED_TAPS);
   });
 
-  it("is dead on wall B: every wall-B column holds a corner or a fixedWidth full-height unit", () => {
+  // **ADR 0048 killed half of this row, and the half it left is the interesting one.** Wall B used
+  // to be dead everywhere: every one of its columns held a corner or a `fixedWidth` full-height
+  // unit, so no wall-B clear ever made a wall-B body resizable. `B|1.80` is the seeded pantry, and
+  // the owner unfroze it on 2026-09-01, so that column is alive — which is what report item 8 asked
+  // for. The other four are still dead, for the reasons they always were.
+  it("is dead on wall B apart from the pantry column ADR 0048 unfroze", () => {
     // Derived rather than asserted: for each wall-B column, name the member that stops it.
     const blockers = new Map<string, string>();
     for (const record of kitchen().records.filter(
@@ -204,11 +216,12 @@ describe("Q1 — the legal-resize population, enumerated independently", () => {
       "B|0.61",
       "B|0.74",
       "B|1.20",
-      "B|1.80",
       "B|2.45",
     ]);
 
-    // And so no wall-B clear, alone or paired, ever makes a wall-B body resizable.
+    // And so no wall-B clear, alone or paired, ever makes one of the **blocked** columns' bodies
+    // resizable. `p6` and `p23` are deliberately not on this list any more: they are the pantry
+    // column, and their moving is the decision rather than a leak.
     const wallB = CLEARABLE.filter((column) => column.key.startsWith("B|"));
     for (const cleared of wallB) {
       const taps = acceptedTaps(clearBodies(kitchen(), cleared.ids));
@@ -216,10 +229,8 @@ describe("Q1 — the legal-resize population, enumerated independently", () => {
         taps.filter(
           (tap) =>
             tap.startsWith("p5") ||
-            tap.startsWith("p6") ||
             tap.startsWith("p7") ||
             tap.startsWith("p22") ||
-            tap.startsWith("p23") ||
             tap.startsWith("p24"),
         ),
       ).toEqual([]);
@@ -314,9 +325,13 @@ describe("Q1 — the legal-resize population, enumerated independently", () => {
       { key: "A|3.20", gained: [] },
       // Wall B is corners, appliances and full-height units; nothing on it can change width, and
       // nothing on wall A abuts a wall-B column.
-      { key: "B|1.20", gained: [] },
+      // **ADR 0048: wall B funds a growth now.** `B|1.80` is the pantry column, and clearing either
+      // of its neighbours gives it the empty column ADR 0031 rule 2 requires — so `p6` and `p23`
+      // reach 700 and 800. Clearing `B|1.80` itself still gains nothing: the column that would
+      // grow is the column the clear just emptied. This is the §5.4 consequence the owner accepted.
+      { key: "B|1.20", gained: ["p23@700", "p23@800", "p6@700", "p6@800"] },
       { key: "B|1.80", gained: [] },
-      { key: "B|2.45", gained: [] },
+      { key: "B|2.45", gained: ["p23@700", "p23@800", "p6@700", "p6@800"] },
     ]);
   });
 
@@ -344,23 +359,25 @@ describe("Q1 — the legal-resize population, enumerated independently", () => {
     ]);
   });
 
-  it("accepts 238 taps across the nine clears", () => {
-    // The total, so that a tenth source of acceptance cannot appear unnamed: `9 × 26 − 26 − 2 + 32`
-    // — nine copies of the load census, less the 26 taps whose body each clear deletes, less the two
-    // lost to the corner leg, plus the 32 taps gained. **It was 230 with 24 gained until ADR 0043**
-    // removed the remainder floor; the eight new ones are the growths that leave a gap behind, and
-    // every one of them is on a row above.
+  it("accepts 278 taps across the nine clears", () => {
+    // The total, so that a tenth source of acceptance cannot appear unnamed: `9 × 30 − 30 − 2 + 40`
+    // — nine copies of the load census, less the 30 taps whose body each clear deletes, less the two
+    // lost to the corner leg, plus the 40 taps gained. **It was 230 with 24 gained until ADR 0043**
+    // removed the remainder floor, then 238 with 32; **ADR 0048 took it to 278** by adding four
+    // shrinks to the load census (`p6` and `p23`, twice each) and eight growths to the gains.
+    // Every one of those taps is on a row above.
     const total = CLEARABLE.flatMap((cleared) =>
       acceptedTaps(clearBodies(kitchen(), cleared.ids)),
     ).length;
-    expect(total).toBe(238);
+    expect(total).toBe(278);
   });
 
   it("opens no new column move when a second column is cleared", () => {
     // Untested territory: 36 pairs. Every accepted tap is still one of the single-clear moves, so
     // clearing more space widens the population of *situations* and never the population of moves.
     // That claim is what this row protects, and neither ADR 0033 nor ADR 0035 touched it — the list
-    // below grew from four to eleven, then to fourteen, and — with ADR 0043 — to twenty, because the
+    // below grew from four to eleven, then to fourteen, with ADR 0043 to twenty, and with ADR 0048
+    // to twenty-four, because the
     // moves themselves grew, not because a pair unlocked anything a single clear could not. The two
     // ADR 0043 adds here, `A|0.30@700` and `A|0.30@800`, are both in the single-clear gains above.
     const pairs: string[] = [];
@@ -400,6 +417,13 @@ describe("Q1 — the legal-resize population, enumerated independently", () => {
       "A|3.20@450",
       "A|3.20@700",
       "A|3.20@800",
+      // ADR 0048: the pantry column. Its four widths are exactly the ones a *single* clear already
+      // reaches — `@400` and `@450` at load, `@700` and `@800` from either neighbour — so the claim
+      // this row protects is unchanged: a pair unlocks no move a single clear could not.
+      "B|1.80@400",
+      "B|1.80@450",
+      "B|1.80@700",
+      "B|1.80@800",
     ]);
   });
 });

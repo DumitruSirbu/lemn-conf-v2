@@ -11,6 +11,7 @@ import {
   CABINETRY_CHIPS_MM,
   HINGED_CHIPS_MM,
   HOOD_CHIPS_MM,
+  PANTRY_CHIPS_MM,
   SINK_CHIPS_MM,
 } from "../support/width-model.js";
 import { advance, createWorld, voidAt } from "../support/kitchen-world.js";
@@ -160,7 +161,10 @@ const EXPECTED_SEEDED_SIZES_MM: Readonly<Record<string, readonly number[]>> = {
   p25: [], // base-corner-x-900 — structural, no equivalent (§13.1)
   p26: [], // base-corner-return-320 — structural, no equivalent
   p5: [600], // tall-oven-tower-600 → tall-oven-tower
-  p6: [600], // tall-pantry-600 → tall-pantry
+  // ADR 0048: the one full-height row with a bound rather than a single width. The seeded
+  // instance still declares `fixedWidth: true`, so it publishes this set and refuses every member
+  // of it — the set a body resolves and the widths it may be moved to are two questions.
+  p6: [...PANTRY_CHIPS_MM], // tall-pantry-600 → tall-pantry
   p7: [700], // fridge-free-700 → fridge-free
   // ADR 0033: every seeded wall and top body resolves to the **one** merged `wall-cabinet` entry, so
   // they all carry the same set — and after the owner's 2026-08-28 ruling that set has no gap in it

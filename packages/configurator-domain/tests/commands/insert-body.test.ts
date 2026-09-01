@@ -71,12 +71,15 @@ describe("insert — the band gate (§11 rows 3, 4)", () => {
 });
 
 describe("insert — fit (§11 rows 5, 6, 7, 14, 20)", () => {
+  // The oven tower rather than the pantry, since ADR 0048: the pantry is a bound now and states its
+  // refusal as a set, which is the case below. A column built around an appliance is still one
+  // width, and row 5's "with the millimetres" is what that single width reads as.
   it("row 5: refuses a column into a 300 mm opening, with the millimetres in code and sentence", () => {
     const world = clearBodies(seeded(), ["p10"]);
     const result = insertInto(
       world,
       voidTarget(world, "A|0.75", 1.5),
-      "tall-pantry",
+      "tall-oven-tower",
     );
     expect(result.ok).toBe(false);
     if (result.ok) return;
@@ -86,6 +89,26 @@ describe("insert — fit (§11 rows 5, 6, 7, 14, 20)", () => {
       availableMm: 300,
     });
     expect(result.reason.message).toContain("600");
+    expect(result.reason.message).toContain("300");
+  });
+
+  // ADR 0048: 300 is below the pantry's own 400 mm floor, so row 5's refusal survives the row
+  // becoming resizable — with the widths it *is* made at in the sentence instead of the one it was.
+  it("row 5: refuses the resizable pantry into the same 300 mm opening, naming its bound", () => {
+    const world = clearBodies(seeded(), ["p10"]);
+    const result = insertInto(
+      world,
+      voidTarget(world, "A|0.75", 1.5),
+      "tall-pantry",
+    );
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.reason.code).toBe("WIDTH_NOT_SUPPORTED");
+    expect(result.reason.params).toMatchObject({
+      widthRangesMm: [{ minMm: 400, maxMm: 800 }],
+      availableMm: 300,
+    });
+    expect(result.reason.message).toContain("400");
     expect(result.reason.message).toContain("300");
   });
 

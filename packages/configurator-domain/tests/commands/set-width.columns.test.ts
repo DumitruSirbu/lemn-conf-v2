@@ -149,9 +149,12 @@ describe("no opening ever appears where a body physically stands", () => {
     // left here is the guard against a vacuous sweep, which is what the number was always for.
     //
     // **230 until ADR 0043**, 2026-09-01: dropping the remainder floor lets a growth stop short of
-    // consuming the whole freed column, which adds eight taps. The subject of this test is unmoved
-    // — every one of the 238 is still checked for a phantom opening, and none appears.
-    expect(accepted.length).toBe(238);
+    // consuming the whole freed column, which adds eight taps. **278 since ADR 0048**, which
+    // unfroze the seeded pantry's column — four shrinks on each of `p6` and `p23` in every one of
+    // the nine cleared worlds, less the one clear that deletes them, plus their growths off the two
+    // neighbouring clears. The subject of this test is unmoved — every one of the 278 is still
+    // checked for a phantom opening, and none appears.
+    expect(accepted.length).toBe(278);
   });
 });
 

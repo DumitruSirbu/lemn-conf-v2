@@ -294,38 +294,45 @@ describe("the width section over the real kitchen", () => {
   // and clearing p1, p7, p12 and p24 empties none. **ADR 0035 decision 7** then made a shrink fund
   // itself out of the space it vacates, so narrowing became reachable with no empty column anywhere.
   //
-  // What survives all three, and is still the measurement behind wave 5E's note that a browser gate
-  // needs a delete in front of it: **nothing above a body's own width is ever reachable** while no
-  // column is empty, because growth still has to consume space that already exists. Wave 5D2c makes
-  // that one sentence about both controls — the `+50` is disabled, and no chip above the active one
-  // is free.
-  it("offers no widening anywhere, on either control, while no column is empty", () => {
+  // What survives all three: **growth is reachable exactly where a clear left an empty column
+  // beside the body**, because growth still has to consume space that already exists. Wave 5D2c
+  // makes that one sentence about both controls — the `+50` is disabled, and no chip above the
+  // active one is free.
+  //
+  // **Turned over a fourth time by ADR 0048, and the exception is the decision.** Clearing p7 and
+  // p24 empties the fridge column `B|2.45`, which stands next to the pantry column `B|1.80`. Every
+  // member of that column was frozen by the seeded pantry's own `fixedWidth` flag until the owner
+  // flipped it on 2026-09-01, so the empty space next door funded nothing and "no widening
+  // anywhere" held. It funds the pantry column now — which is report item 8 working — so the two
+  // members of that column are named here rather than the claim being weakened for everyone.
+  const PANTRY_COLUMN_IDS = ["p23", "p6"];
+
+  it("offers widening only where a clear left space, which is the pantry column", () => {
     const world = openedKitchen();
     const rendered: string[] = [];
+    const widenings: string[] = [];
     let narrowings = 0;
     for (const target of everySelectableTarget(world)) {
       for (const section of sectionsAt(world, target)) {
         if (section.kind !== "width") continue;
         rendered.push(target.id);
         if (section.control === "stepper") {
-          expect([target.id, section.steps[1].isDisabled]).toEqual([
-            target.id,
-            true,
-          ]);
+          if (!section.steps[1].isDisabled) widenings.push(target.id);
           if (!section.steps[0].isDisabled) narrowings += 1;
           continue;
         }
         const active = section.chips.find((chip) => chip.state === "active");
         for (const chip of section.chips) {
           if (chip.state !== "free") continue;
+          if (chip.widthMm > (active?.widthMm ?? 0)) {
+            widenings.push(target.id);
+            continue;
+          }
           narrowings += 1;
-          expect([target.id, chip.widthMm < (active?.widthMm ?? 0)]).toEqual([
-            target.id,
-            true,
-          ]);
         }
       }
     }
+    expect([...new Set(widenings)].sort()).toEqual(PANTRY_COLUMN_IDS);
     // And the sweep is not vacuous the other way either: shrinking is reachable from a standing
     // start, which is the whole of what decision 7 buys.
     expect(narrowings).toBeGreaterThan(0);

@@ -241,9 +241,20 @@ const SEEDED_BODY_DEFINITIONS: readonly (readonly [string, BodyDefinition])[] =
       "tall-pantry-600",
       {
         ...columnCarcass,
-        // Fixed for `tall-oven-tower-600`'s reason above: one buildable width, so never a §5.4
-        // donor. `columnCarcass` defaults to `false` (ADR 0027).
-        fixedWidth: true,
+        // **Not fixed, since ADR 0048** — and this row is the one place in the fixture where that
+        // record is visible. It read "Fixed for `tall-oven-tower-600`'s reason above: one buildable
+        // width, so never a §5.4 donor", and that reason has stopped being true of this cabinet:
+        // `tall-pantry` is a 400–800 bound now, nine buildable widths, because no appliance stands
+        // inside it. The oven tower above still is fixed, for the reason it always was.
+        //
+        // The rule is still not "match the catalogue row" — `hood-600` below is `fixedWidth: true`
+        // beside a `hood` row that is not. What decides it is whether *this* body has more than one
+        // width it can be made at, and this one now does.
+        //
+        // **The owner accepted the §5.4 consequence** (2026-09-01): the seeded pantry becomes a
+        // width donor, so shrinking `p6` can hand the width it frees to a neighbour. That is the
+        // point of making it resizable rather than a side effect of it.
+        fixedWidth: false,
         kind: "tall_unit",
         frameDepthMm: 560,
         frameHeightMm: 2200,

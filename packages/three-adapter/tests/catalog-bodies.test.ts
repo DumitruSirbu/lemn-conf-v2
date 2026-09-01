@@ -140,16 +140,28 @@ const SIZE_CASES: readonly SizeCase[] = [
   // §7 fixes the hood at 710 mm in the two widths its chip set offers (ADR 0016).
   parameterised("hood", 0.6, HOOD_HEIGHT_M, WALL_COLUMN_DEPTH_M),
   parameterised("hood", 0.9, HOOD_HEIGHT_M, WALL_COLUMN_DEPTH_M),
-  // The four fixed entries: asked for a size they do not have, they build their own and let
-  // `refuseBuiltSize` turn the mismatch into a refusal. Nothing here may scale a finished group.
+  // ADR 0048: the pantry is built **to the width it is asked for**, three of them, so wave 5B8's
+  // criterion 5 is a measurement rather than a claim about the arguments. Its height is not
+  // flexible and the last case says so: 2.4 requested, 2.2 built, which is still the fixed-entry
+  // behaviour below. Nothing here scales a finished group.
+  ...[0.4, 0.6, 0.8].map((widthM) => ({
+    buildId: "tall-pantry",
+    widthM,
+    heightM: COLUMN_HEIGHT_M,
+    depthM: 0.56,
+    carcassWidthM: widthM,
+    carcassHeightM: COLUMN_HEIGHT_M,
+  })),
   {
     buildId: "tall-pantry",
     widthM: 0.8,
     heightM: 2.4,
     depthM: 0.56,
-    carcassWidthM: COLUMN_WIDTH_M,
+    carcassWidthM: 0.8,
     carcassHeightM: COLUMN_HEIGHT_M,
   },
+  // The three fixed entries: asked for a size they do not have, they build their own and let
+  // `refuseBuiltSize` turn the mismatch into a refusal. Nothing here may scale a finished group.
   {
     buildId: "tall-oven-tower",
     widthM: 0.8,

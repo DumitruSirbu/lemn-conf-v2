@@ -276,7 +276,7 @@ describe("a row that is fixed-width and unfinished at once is missing data", () 
 // -------------------------------------------------------------------------------------------
 
 /** The `fixedWidth` rows a customer can actually insert, read off the catalogue rather than listed,
- *  so a sixth row added later is swept without anyone remembering to add it here. The count is
+ *  so a row added later is swept without anyone remembering to add it here. The count is
  *  pinned beside it: a new `fixedWidth` entry is a new cabinet that will start showing a disabled
  *  width section, which is a product decision and should not arrive silently. */
 const INSERTABLE_FIXED_WIDTH_IDS: readonly string[] = [
@@ -306,11 +306,12 @@ function soleWorldFor(buildId: string): KitchenWorld {
 }
 
 describe("every fixed-width row in the catalogue, placed on its own", () => {
-  it("holds the six the catalogue declares, so a seventh is a decision someone makes", () => {
+  // ADR 0048 took `tall-pantry` off this list — it has no appliance inside it, so its width is not
+  // fixed by anything. The three columns that remain are each built around one.
+  it("holds the five the catalogue declares, so a sixth is a decision someone makes", () => {
     expect(INSERTABLE_FIXED_WIDTH_IDS).toEqual([
       "base-hob-2drawer",
       "base-hob-oven",
-      "tall-pantry",
       "tall-oven-tower",
       "tall-fridge-housing",
       "fridge-free",
@@ -394,9 +395,11 @@ describe("the seeded kitchen's fixed-width bodies, by the rule rather than by id
       }
     }
 
-    // ADR 0049's own consequences list, measured: five bodies gain a section, and the four corners
-    // — which declare no catalogue equivalent — keep failing loudly as no section at all.
-    expect([...withChip].sort()).toEqual(["p13", "p2", "p5", "p6", "p7"]);
+    // ADR 0049's own consequences list, measured: the bodies that are fixed gain a section, and
+    // the four corners — which declare no catalogue equivalent — keep failing loudly as no section
+    // at all. It was five until ADR 0048 made the seeded pantry `p6` resizable; the four that
+    // remain are the two hob bases, the oven tower and the fridge, each fixed by an appliance.
+    expect([...withChip].sort()).toEqual(["p13", "p2", "p5", "p7"]);
     expect([...without].sort()).toEqual(["p21", "p25", "p26", "p9"]);
   });
 
@@ -426,7 +429,7 @@ describe("the seeded kitchen's fixed-width bodies, by the rule rather than by id
       ]);
       checked += 1;
     }
-    expect(checked).toBe(5);
+    expect(checked).toBe(4);
   });
 });
 
@@ -475,7 +478,9 @@ describe("setWidth still refuses NOT_RESIZABLE, at every width including the pub
         attempts += 1;
       }
     }
-    expect(attempts).toBe(9 * SWEPT_WIDTHS_MM.length);
+    // Eight `fixedWidth` records in the shipped kitchen, not nine: ADR 0048 took the seeded pantry
+    // `p6` off the list. The count is the sweep's own guard against silently measuring fewer.
+    expect(attempts).toBe(8 * SWEPT_WIDTHS_MM.length);
   });
 });
 
@@ -541,7 +546,7 @@ describe("a void is still not a fixed-width cabinet", () => {
 });
 
 /** Guard against the file's own fixtures drifting: `syntheticDesign` must still produce a design the
- *  domain would accept, or the six-row sweep above is measuring a document nobody could store. */
+ *  domain would accept, or the row sweep above is measuring a document nobody could store. */
 describe("the sweep's own fixtures are documents the domain accepts", () => {
   it.each(INSERTABLE_FIXED_WIDTH_IDS)(
     "validates the sole-placement design for %s",
@@ -594,7 +599,7 @@ describe("a fixed verdict appears if and only if the body itself is fixedWidth",
         }
       }
 
-      expect(fixedBodies).toBe(5);
+      expect(fixedBodies).toBe(4);
       expect(resizableWithBlockedRows).toBeGreaterThan(0);
     },
   );

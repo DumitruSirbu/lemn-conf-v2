@@ -1026,6 +1026,30 @@ Already commented at the mounting site — `packages/three-adapter/src/kitchen-p
 above `dishwasherHousing`'s door slab — so the constant and the derivation that produces 520 mm are
 there for whoever picks this up, rather than needing to be re-derived.
 
+## 20. A resized seeded body renames itself, and the customer sees two names for one cabinet
+
+Found by visual verification of wave 5B8 (2026-09-01). The seeded pantry's header reads **"Coloană"**
+at 600 mm. Step it to any other width and back to 600, and the same body at the same width now reads
+**"Coloană cămară 2 uși"**.
+
+Nothing is wrong. `resolve-column-members.ts:191-194` says a resize rebuilds through the catalogue
+equivalent, so **a resized seeded body migrates its `buildId`** — it has to, because
+`buildDecomposedBody` takes no width and every seeded id is one fixed geometry. `describe-selection`
+then finds a definition where it previously found none (`catalog.get(record.buildId)`), and the
+catalogue row carries both a real `label` and `doorCountFollowsWidth`, where the seeded id carried
+neither and fell back to `KIND_LABELS_RO.tall_unit`.
+
+So this is two documented rules meeting, not a defect in either. It has applied to base cabinets
+since ADR 0033; wave 5B8 made it reachable for a column, where the two names differ most.
+
+**What a fix would be, if the owner wants one.** Give the seeded rows the labels their catalogue
+equivalents carry, so the migration changes nothing the customer reads. That is a fixture edit, not
+a mechanism change, and it is bounded by the M1 parity gate only in that it touches no geometry.
+Doing it would also close the smaller version of this on every other seeded body.
+
+Not scheduled. Raise it with the owner before spending anything on it — a rename that fires on the
+customer's first resize may be acceptable, and the header is not wrong at either end.
+
 ## Also open, recorded elsewhere — do not duplicate here
 
 - **Width editing does nothing yet.** Every width chip is `blocked` because §5.4's resize command

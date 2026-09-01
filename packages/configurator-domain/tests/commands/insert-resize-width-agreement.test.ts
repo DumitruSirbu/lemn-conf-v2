@@ -123,8 +123,10 @@ const FIT_BODIES: readonly InsertableBody[] = listInsertableBodies(
 describe("the insert path and the width predicate agree, width by width", () => {
   it("has a `fit` entry in every band the sweep visits, so no case is vacuous", () => {
     expect(FIT_BODIES.length).toBeGreaterThan(0);
+    // ADR 0048 added the third band: `tall-pantry` is the first `'fit'` column, so the sweep now
+    // reaches a full-height opening as well.
     expect(new Set(FIT_BODIES.map((body) => body.band))).toEqual(
-      new Set(["base", "wall"]),
+      new Set(["base", "wall", "column"]),
     );
   });
 

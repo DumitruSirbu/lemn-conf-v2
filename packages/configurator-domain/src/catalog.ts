@@ -227,6 +227,19 @@ const DISHWASHER_WIDTHS_MM: readonly number[] = [450, 600];
 const HOOD_FLOOR_WIDTH_MM = 600;
 
 const COLUMN_WIDTHS_MM: readonly number[] = [600];
+
+/** ADR 0048: **the pantry column's own floor**, and the one place a full-height row declares a
+ *  bound instead of a single width. The owner's reason for exempting this row and no other: it has
+ *  no appliance inside it, so nothing fixed constrains how narrow it may be, where an oven tower's
+ *  opening is sized to the appliance it holds.
+ *
+ *  It is the **bound's floor and not a `minWidthMm`**, for the reason `HOOD_FLOOR_WIDTH_MM` is
+ *  (ADR 0026 clause 2): `tallPantry` builds a perfectly correct 350 mm cabinet. What is true at 350
+ *  is that the owner does not sell one, which is a product decision and belongs in the range.
+ *
+ *  The ceiling is `CABINETRY_MAX_WIDTH_MM` — §7's own 800 — so the pantry stops where every other
+ *  cabinetry row stops, rather than carrying a second copy of that number. */
+const PANTRY_FLOOR_WIDTH_MM = 400;
 const FREESTANDING_FRIDGE_WIDTHS_MM: readonly number[] = [700];
 
 /** §2: worktop top = `PLINTH + CARC_H + CTOP`. Every base carcass builds to it. */
@@ -598,7 +611,29 @@ export const INSERTABLE_BODY_DEFINITIONS: readonly (readonly [
       }),
     },
   ],
-  ["tall-pantry", fullHeightUnit("Coloană cămară", "tall_unit")],
+  // ADR 0048: **the one resizable column.** No appliance stands inside it, so it is built to its
+  // opening between 400 and 800 mm and its door count follows that width through the threshold
+  // ADR 0035 decision 4 already fixed at 500 — one door below, two at and above. There is no
+  // `tall-pantry-1door` row, and there must not be: ADR 0033 merged exactly that split away, and a
+  // second row would put the threshold in two places.
+  //
+  // `widthFlex` is restated rather than inherited, and that is the load-bearing line. The spread
+  // above stamps `COLUMN_WIDTHS_MM`, and a row that declared a bound while keeping a fixed set
+  // would resolve on `resolveFixedSetWidth` and build 600 into every opening — which is the hood's
+  // R1.2 defect verbatim (`insert-fit.ts`, `resolveFixedSetWidth`).
+  [
+    "tall-pantry",
+    {
+      ...fullHeightUnit("Coloană cămară", "tall_unit"),
+      widthFlex: "fit",
+      ...cabinetryWidths({
+        minMm: PANTRY_FLOOR_WIDTH_MM,
+        maxMm: CABINETRY_MAX_WIDTH_MM,
+      }),
+      fixedWidth: false,
+      doorCountFollowsWidth: true,
+    },
+  ],
   [
     "tall-oven-tower",
     {

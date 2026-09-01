@@ -111,8 +111,8 @@ describe("the iff, in the direction iterating the row cannot see", () => {
   // closes — `A|3.20` accepted 300 and the panel did not offer it — so a test that only walks the
   // published row would have read green through exactly the bug the wave exists to fix.
   it.each([
-    ["the shipped kitchen", kitchen, 51],
-    ["a kitchen with an emptied column", kitchenWithEmptyColumn, 48],
+    ["the shipped kitchen", kitchen, 59],
+    ["a kitchen with an emptied column", kitchenWithEmptyColumn, 56],
   ])(
     "publishes an available chip for every width the command accepts, in %s",
     (_name, build: () => KitchenWorld, expectedAccepted: number) => {
@@ -137,8 +137,11 @@ describe("the iff, in the direction iterating the row cannot see", () => {
         }
       }
       expect(missing).toEqual([]);
-      // The acceptance count, pinned per world rather than floored. **0 and 12 became 51 and 48
-      // under ADR 0035 decision 7**, which is the whole of that decision seen from the panel's side:
+      // The acceptance count, pinned per world rather than floored. **51 and 48 became 59 and 56
+      // under ADR 0048**, which flipped the seeded pantry `p6` to resizable and unfroze the wall
+      // cabinet `p23` standing in its column: four shrinks each, in both worlds, because the clear
+      // that makes the second world is on wall A and does not touch that column. Before that,
+      // **0 and 12 became 51 and 48 under ADR 0035 decision 7**, which is the whole of that decision seen from the panel's side:
       // the shipped kitchen abuts no empty column and used to accept nothing at all, and now accepts
       // every shrink its columns agree on. It was 0 and 3 until decision 2 stepped the chips at
       // 50 mm, and 0 and 12 after it.
@@ -333,14 +336,16 @@ describe("an odd-parity width is refused, never offered", () => {
   });
 });
 
-/** ADR 0049, which overturned this file's own former expectation: these five used to publish
- *  nothing, and the customer got a vanished `LĂȚIME` section with no explanation. They now publish
- *  the one width they are made at, with the engine's reason.
+/** ADR 0049, which overturned this file's own former expectation: these used to publish nothing,
+ *  and the customer got a vanished `LĂȚIME` section with no explanation. They now publish the one
+ *  width they are made at, with the engine's reason.
  *
  *  Every `fixedWidth` body in the shipped kitchen, not a chosen one: `base-hob-2drawer` is the body
- *  from report item 9, and the other four reach the same arm through different catalogue rows. */
+ *  from report item 9, and the other three reach the same arm through different catalogue rows.
+ *  `p6` was the fifth until ADR 0048 made the seeded pantry resizable — it publishes a nine-width
+ *  stepper now, which is that record rather than a hole in this one. */
 describe("a cabinet made at one width publishes that width, with the reason", () => {
-  it.each(["p2", "p5", "p6", "p7", "p13"])(
+  it.each(["p2", "p5", "p7", "p13"])(
     "renders one active chip carrying NOT_RESIZABLE for the fixedWidth body %s",
     (id) => {
       const world = kitchen();
@@ -492,7 +497,7 @@ describe("a refused chip carries the engine's refusal unchanged", () => {
         refusals += 1;
       }
     }
-    expect(refusals).toBe(90);
+    expect(refusals).toBe(86);
   });
 });
 

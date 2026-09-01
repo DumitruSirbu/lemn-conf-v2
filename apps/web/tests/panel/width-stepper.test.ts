@@ -205,18 +205,22 @@ describe("ADR 0035 decision 3's two controls, chosen by the shape of the bound",
         columnHasFreeWidth(world, record),
       ]);
     }
-    // The guard, itemised rather than counted so a different split fails. Fourteen steppers, the
+    // The guard, itemised rather than counted so a different split fails. Fifteen steppers, the
     // three members of `A|2.00` — the dishwasher niche, whose 450/600 is §11 row 14 and the only
-    // discrete column the shipped kitchen holds — and ADR 0049's five `fixedWidth` bodies, which
+    // discrete column the shipped kitchen holds — and ADR 0049's four `fixedWidth` bodies, which
     // land on the discrete control with no new branch: their ranges are degenerate, which is what
     // decision 3's discriminator already reads.
+    //
+    // **`p6` is the fifteenth stepper, and it is wave 5B8 criterion 3 seen from the panel.** It was
+    // a `choice` at its single 600 until ADR 0048 gave the pantry a 400–800 bound; nothing in this
+    // file changed to move it, which is decision 3's discriminator doing the work.
     expect(controls).toEqual([
       "p0:stepper",
       "p1:choice",
       "p2:choice",
       "p4:stepper",
       "p5:choice",
-      "p6:choice",
+      "p6:stepper",
       "p7:choice",
       "p8:stepper",
       "p10:stepper",
@@ -328,7 +332,7 @@ describe("every stepper the shipped kitchen renders", () => {
         `${String(record.widthMm)} mm`,
       ]);
     }
-    expect(stepped).toBe(14);
+    expect(stepped).toBe(15);
   });
 
   // **The turned-over property, in the stronger form ADR 0035's consequences name.** 5D's version
@@ -370,14 +374,16 @@ describe("every stepper the shipped kitchen renders", () => {
         if (!step.isDisabled) enabled += 1;
       }
     }
-    expect(buttons).toBe(28);
-    // **The measurement that replaces 5D's "51 free chips".** Ten of the fourteen steppers can
+    expect(buttons).toBe(30);
+    // **The measurement that replaces 5D's "51 free chips".** Twelve of the fifteen steppers can
     // shrink on a kitchen nobody has edited — ADR 0035 decision 7's shrink funds itself out of the
     // space it vacates — and none can grow, because growth still has to consume space that already
-    // exists and the shipped kitchen has no empty column at load. The three that can do neither are
-    // `p19`, `p22`, `p23` and `p24`, each sharing a column with a `fixedWidth` body; their buttons
-    // are disabled naming that body, which is the ADR 0032 arrangement doing its job.
-    expect(enabled).toBe(10);
+    // exists and the shipped kitchen has no empty column at load. **Ten until ADR 0048**: the two
+    // new ones are `p6` and `p23`, the pantry column, which was frozen by the seeded pantry's own
+    // `fixedWidth` flag until the owner flipped it. The three that can do neither are `p19`, `p22`
+    // and `p24`, each sharing a column with a `fixedWidth` body; their buttons are disabled naming
+    // that body, which is the ADR 0032 arrangement doing its job.
+    expect(enabled).toBe(12);
   });
 
   // Read-only takes the click and replaces the reason, on both buttons and on a button that works —
@@ -404,7 +410,7 @@ describe("every stepper the shipped kitchen renders", () => {
         buttons += 1;
       }
     }
-    expect(buttons).toBe(28);
+    expect(buttons).toBe(30);
   });
 });
 
@@ -446,17 +452,18 @@ describe("a willing body with no widths gets no section, not an empty one", () =
 });
 
 /** ADR 0049, and the expectation this describe used to hold is the one the owner overturned on
- *  2026-09-01: these five rendered **no** section, and the customer looking at a hob base got a
+ *  2026-09-01: these rendered **no** section, and the customer looking at a hob base got a
  *  vanished `LĂȚIME` with no explanation (report item 9). §13.1's "disable, don't warn" and
  *  ADR 0032 both say an unavailable thing is shown disabled **with its reason**, and this was the
  *  one place in the product where it was not.
  *
- *  p2 (hob base), p5/p6 (columns), p7 (freestanding fridge) and p13 (hood) all resolve non-empty
- *  sets and are all `fixedWidth`. What is still asserted, in the opposite direction, is that
- *  `canWidth` is not what decides: the flag is false on every one of them and the section renders
- *  anyway, from the widths the domain published. */
+ *  p2 (hob base), p5 (oven tower), p7 (freestanding fridge) and p13 (hood) all resolve non-empty
+ *  sets and are all `fixedWidth`. `p6` was the fifth until ADR 0048 made the seeded pantry
+ *  resizable — it renders the stepper asserted above instead. What is still asserted, in the
+ *  opposite direction, is that `canWidth` is not what decides: the flag is false on every one of
+ *  them and the section renders anyway, from the widths the domain published. */
 describe("a fixed-width body shows the one width it is made at", () => {
-  it.each(["p2", "p5", "p6", "p7", "p13"])(
+  it.each(["p2", "p5", "p7", "p13"])(
     "renders one disabled active chip with the engine's reason for %s",
     (id) => {
       const world = seededWorld();

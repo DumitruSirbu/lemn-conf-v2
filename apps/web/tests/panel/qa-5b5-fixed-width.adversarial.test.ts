@@ -279,7 +279,10 @@ describe("a fixed-width section is one active chip that nothing can enable", () 
         bodies += 1;
       }
 
-      expect(bodies).toBe(5);
+      // Four, not five: ADR 0048 took the seeded pantry `p6` off the `fixedWidth` list, so it
+      // renders the 400–800 stepper instead of a single active chip. The four that remain are each
+      // fixed by an appliance.
+      expect(bodies).toBe(4);
     },
   );
 
@@ -309,7 +312,7 @@ describe("a fixed-width section is one active chip that nothing can enable", () 
           chips += 1;
         }
       }
-      expect(chips).toBe(5);
+      expect(chips).toBe(4);
     },
   );
 

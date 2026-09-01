@@ -1,7 +1,7 @@
 # M5B — Manual UX remediation
 
-> **STATUS: IN PROGRESS.** 5B1, 5B6, 5B7, 5B3 and 5B5 are complete; 5B10 is newly planned (ADR 0051);
-> 5B8, 5B2, 5B4a, 5B4b remain to dispatch. Summary: `docs/STATUS.md`. Branch `ux-manual-fixes`.
+> **STATUS: IN PROGRESS.** 5B1, 5B6, 5B7, 5B3, 5B5, 5B10 and 5B8 are complete;
+> 5B2, 5B4a, 5B4b remain to dispatch. Summary: `docs/STATUS.md`. Branch `ux-manual-fixes`.
 
 Status: in progress. Follows M5 (5E still open) and precedes M6.
 Reference: `testing-reports/09-manual-ux-issues.md`; `DEVELOPMENT-SPEC.md` §3.2, §4, §5.2, §7, §9,
@@ -433,13 +433,24 @@ it: at 400 mm the shelves sit at the same y coordinates as at 600 mm and only th
    and nowhere else.
 3. Its width section is a **stepper**, not chips — `widthRangesMm` has `minMm < maxMm`, which is
    ADR 0035 decision 3's discriminator.
-4. `tall-oven-tower`, `tall-fridge-housing` and `fridge-free` still refuse every width but their own,
-   with the millimetres in the message (§11 row 5).
+4. `tall-oven-tower`, `tall-fridge-housing` and `fridge-free` are never **built** at an opening's own
+   width — only at their declared fixed size, centred — with the millimetres in the message on the
+   openings they do refuse (§11 row 5). **Correction, 2026-09-01 (adversarial QA on 5B8):** the
+   original wording — that these three "still refuse every width but their own" — is false of the
+   insert path. An oven tower inserted into a 650, 700 or 800 mm opening is **accepted** and built at
+   600 mm, centred; only openings narrower than 600 mm refuse. The invariant that actually holds, and
+   that the tests measure, is that the built body never takes the opening's width.
 5. A resized pantry's carcass, doors and plinth all take the new width: no mesh keeps 600. Asserted
    on measured bounds at three widths, not on the builder's arguments.
-6. Height stays `COLUMN_HEIGHT_MM` = 2200, `occupiedDepth` is unchanged, **and every shelf sits at
-   the same y coordinate at 400, 600 and 800 mm** — only its x extent changes. A builder that
-   re-pitched the shelves at 400 would pass a width check and still be wrong (owner, 2026-09-01).
+6. Height stays `COLUMN_HEIGHT_MM` = 2200, `occupiedDepth` is unchanged, **and every distinct
+   horizontal line in the built body — each mesh's min and max y — is identical at 400, 600 and
+   800 mm**, only x extent changing. **Correction, 2026-09-01 (adversarial QA on 5B8):** the original
+   wording, "every shelf sits at the same y coordinate," is unfalsifiable — `tallPantry` builds no
+   shelves; its tree is plinth, carcass shell, back, front liner and door slabs. What this criterion
+   actually measures, and what QA confirmed bites (re-pitching the door bands below 500 mm turns it
+   red), is the door-band and carcass y-geometry, not shelves. See ADR 0048's 2026-09-01 correction:
+   if the pantry ever gains an interior, its implementer must add the shelf y-coordinate assertion
+   the owner's rule actually names, in the same change that adds the shelves.
 7. M1 parity: the seeded pantry is byte-identical.
 8. `catalog.test.ts`'s existing guard — that no row keeps an inherited bound it did not mean —
    still passes.
@@ -453,6 +464,36 @@ it: at 400 mm the shelves sit at the same y coordinates as at 600 mm and only th
 new proportion, and criterion 5 is what stops it being faked by scaling a finished group — which
 M3's Risks section names explicitly as the thing not to do. **Q3** in *Open questions* is the one
 product detail this wave cannot answer for itself.
+
+**Complete, 2026-09-01.** Implemented, adversarial QA (all four actionable findings fixed), clean-code
+review and product-logic review all applied. Verified: domain 1214, persistence 177, three-adapter
+1208, web 714 (+4 skipped); `pnpm ci:local` passed every gate; M1 structural parity 73 + 31 = 104 at
+1e-6 m.
+
+**Clean-code review: no actionable defects.** One non-blocking note carried forward rather than
+fixed: the `doors===1/doors===2` leaf pattern is now written a third time (`kitchen-parts.ts:750`,
+`:1411`, `:1772`) — the count went from two to three this wave.
+
+**Product-logic review: matches intent, minor concerns, no blocker.** It independently re-derived
+every census delta and all of them reconciled exactly. Its two findings are already fixed, not left
+open — see the 2026-09-01 corrections above (criterion 4's insert-path wording, and criterion 6's
+door-band/carcass reading in place of the unfalsifiable shelf claim).
+
+**Criteria met by unit test rather than by rendering, and said so rather than claimed as visually
+verified.** Visual verification (`docs/best-practices/browser-and-visual-qa.md`) passed all six
+criteria, but two things were never on screen and the reviewer made no claim about either:
+
+- **Criterion 1's 700/800 mm boundary and criterion 5's widest measured bounds** were not seen live.
+  700/800 mm pantry geometry is unreachable in the seeded kitchen — wall B has no free space on
+  either side, and an emptied column stays a 600 mm column — so only 400–600 mm was observed
+  rendered. 700 and 800 mm stay proven by the unit-level bounds assertions only.
+- **The back inset** is not visible from any camera preset and is likewise unit-pinned only, not
+  rendered.
+
+What *was* rendered: the door-count flip observed live at exactly 500 mm (criterion 1's shipped
+threshold), the door shadow gap holding constant at 1 px across 500/550/600 mm and the plinth band
+staying 13 px tall at identical y across all four widths tested — the fittings are unstretched, which
+is criterion 5's live half. The mobile 390×844 gate passed (buttons 132×44 mm).
 
 ---
 
@@ -915,7 +956,7 @@ criterion 7 by name.
 | 3 | 5B7 | — | Light + visual | Batched with 5B6 for review if both diffs stay small (`docs/WORKFLOW.md`, *Batching fixes before review*); split them if either grows. |
 | 4 | 5B3 | — | Full + visual | Re-crosses `db9c402`'s seam. **Complete.** |
 | 5 | 5B5 | — | Full | **Unblocked 2026-09-01** — the owner answered: show the section disabled, with the reason (ADR 0049). **Complete.** |
-| 6 | 5B8 | — | Full | Catalogue bound plus a new parameterised builder. |
+| 6 | 5B8 | — | Full | Catalogue bound plus a new parameterised builder. **Complete.** |
 | 7 | 5B2 | 5B1's ADR 0043 | Full + security | Prerequisite for both 5B4 waves. **Also owns report item 6**, measured to be a reload defect rather than 5B1's. |
 | 8 | 5B4a | 5B2 | Full | The split. Its criterion 4 gates 5B4b. |
 | 9 | 5B4b | 5B4a green | Full | The merge. Last, as the owner asked. |
@@ -1022,8 +1063,13 @@ adversarial QA on 2026-09-01 against waves this phase built and are answered bel
   decision 7 lets a shrink hand width back to the empty column beside it with no ceiling: measured at
   **900 mm** in nine taps and recorded in `void-engine.ts:744-751`, where every `widthFlex: 'fit'`
   cabinet is refused for trying to fill 900 against §7's 800 mm ceiling. **This is a pre-existing
-  question, open since M5 and recorded in `M5-width.md`; no wave below creates it, widens it or
-  closes it.** ADR 0046's 800 mm merge cap does **not** bound it — that cap governs two columns
+  question, open since M5 and recorded in `M5-width.md`, and no wave below closes it — but
+  [wave 5B8](#wave-5b8--the-pantry-column-is-the-one-resizable-column) widens its surface.** Making
+  the seeded pantry resizable put a resizable column on wall B, where none existed, so the 900 mm
+  column is now two taps away rather than nine: clear `B|2.45` (`p7`, `p24`), then shrink `p6` to
+  400 and the freed 200 mm joins the cleared 700. Same behaviour, cheaper route, new wall. Closing
+  Q5 means bounding the shrink's release the way `RESIZE_OPENS_GAP` bounds wall A. ADR 0046's
+  800 mm merge cap does **not** bound it — that cap governs two columns
   merging, and this is one column growing. It is listed here so a reviewer who meets a >800 mm empty
   column while testing 5B4b does not report it as this phase's regression.
 

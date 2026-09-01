@@ -116,3 +116,49 @@ report asked for a new catalogue variant and the catalogue already has the rule.
   re-pitched the shelves at 400 mm would pass a bounds check on width and still be wrong.
 - **The seeded kitchen is unchanged.** `Builders["tall-pantry"]()` still builds 600 mm with two
   doors, and M1's parity gate asserts it.
+
+## Correction, 2026-09-01
+
+Found by adversarial QA on wave 5B8. The Decision section's most carefully argued sentence — *"same
+height and the same shelf pitch… no second geometry rule… at 400 mm the shelves sit at the same y
+coordinates as at 600"* — is **unfalsifiable as written**, because `tallPantry`
+(`packages/three-adapter/src/kitchen-parts.ts`) builds no shelves at all. Its body tree is a plinth,
+a carcass shell, a back, a front liner and door slabs. There is no interior board for a y-coordinate
+assertion to measure.
+
+Wave 5B8's acceptance criterion 6, written straight from this sentence, inherited the problem: it
+says "every shelf sits at the same y coordinate" and there is nothing in the built body that claim
+can be checked against. What criterion 6 actually pins, and what QA confirmed does bite, is the set
+of distinct horizontal lines in the built body — every mesh's min and max y — being identical at 400,
+600 and 800 mm. That is the door bands and the carcass, not shelves, and it is a real, falsifiable
+guard: re-pitching the door bands below 500 mm turns it red.
+
+This is not a defect in the code or a change of the owner's intent — a 400 mm pantry genuinely is a
+narrower version of the same cabinet, and nothing was built that contradicts what the owner asked
+for. The decision is simply not yet testable on the geometry it names, only on a proxy for it.
+
+**Risk for whoever adds shelves to `tallPantry` next.** If the pantry ever gains an interior, the
+owner's shelf-pitch rule is unguarded on day one — nothing in this codebase currently asserts it
+against shelf geometry, only against door-band and carcass geometry. Whoever adds shelves must add
+the actual y-coordinate assertion (shelves at 400 mm sit at the same y as at 600 mm) in the same
+change that adds the shelves. Do not assume criterion 6's existing test already covers this — it
+does not and cannot, because it was written against parts that did not exist.
+
+## Verified against shipped behaviour, 2026-09-01
+
+Wave 5B8 is complete (`docs/STATUS.md`, `docs/milestones/M5B-manual-ux-remediation.md`). What this
+record predicted was checked against the running app rather than only against tests:
+
+- **The door-count flip landed exactly where decision text says: `>= 500` mm is two doors, below is
+  one.** Visual verification observed the flip live at exactly 500 mm.
+- **The seeded kitchen did not move, and the flip it did carry is a resizability flip, not a geometry
+  one.** `Builders["tall-pantry"]()` still builds 600 mm with two doors, byte-identical under M1
+  parity. What changed under the seeded design is that wall B now holds a resizable column where none
+  existed before this decision — recorded as the mechanism behind the milestone's Q5 note (a shrink on
+  wall B can now reach an empty column past 800 mm in two taps rather than nine), not as a change to
+  this record's own scope.
+- **700 and 800 mm are unreached live**, because the seeded kitchen leaves wall B with no free space
+  on either side and an emptied column stays a 600 mm column. Those two widths, and criterion 5's
+  widest measured bounds, stand on the unit-level bounds assertions only — not on a rendered capture.
+  This is consistent with the record's own position: the acceptance criteria were always written to
+  be checkable without depending on what the seeded kitchen happens to make reachable on screen.
