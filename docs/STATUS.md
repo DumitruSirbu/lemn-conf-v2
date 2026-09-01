@@ -37,11 +37,12 @@ moment it ships; a decision record does not. When the two disagree, the dated de
 | M2 — Void engine, picking, persistence | **Done** (closed 2026-08-25 — its last gate, the unwired client write path, was closed by M3 Wave 3C-2b) | No — `milestones/done/` |
 | M3 — Insert, remove, swap, client write path | **Done** (closed 2026-08-26) | No — `milestones/done/` |
 | M4 — Editor panel and shell | **Done** (closed 2026-08-26 — one criterion unmet by design, ADR 0024) | No — `milestones/done/` |
-| M5 — Width editing, and depth as a derived quantity | **In progress** — 5A–5D, 5D2a, 5D2b, **5D2c and 5F shipped 2026-08-30**; **5E open** | Yes — `milestones/M5-*.md`, **and ADRs 0028–0041**, which supersede large parts of it |
+| M5 — Width editing, and depth as a derived quantity | **In progress** — 5A–5D, 5D2a, 5D2b, **5D2c and 5F shipped 2026-08-30**; **5E open**. Its correction round is **M5B**, below — do not run 5E until M5B's width waves have landed, or 5E photographs a surface M5B is changing | Yes — `milestones/M5-*.md`, **and ADRs 0028–0041**, which supersede large parts of it |
 | M6 — Price bar and global settings (**incl. the worktop depth control**, 2026-08-27) | Planned | Yes, when starting |
 | M7 — Step 1, room and presets | Planned | Yes, when starting |
 | M8 — Review, contact, success | Planned | Yes, when starting |
 | Adversarial review remediation | **Complete for the security scope** — SCENE-001, WEB-001, DOM-001, SEC-002, SEC-003, SEC-004, DB-001, DB-002, DB-003 closed; SEC-001 deferred to M8, gated; Medium/Low residuals open | Yes — `milestones/adversarial-review-remediation.md` and `testing-reports/` |
+| **M5B — Manual UX remediation** (branch `ux-manual-fixes`) | **In progress** — **5B1 complete** (QA + both reviews applied, green); **5B6 and 5B7 implemented, QA returned two findings**; 5B2 … 5B5, 5B8, 5B4a/b planned | Yes — `milestones/M5B-manual-ux-remediation.md`, **and ADRs 0043–0049** |
 
 ## Adversarial review remediation — complete for the security scope, 2026-08-31
 
@@ -216,6 +217,69 @@ page cannot answer it (the cookie is `Path=/api/designs/{id}`), so it hydrates `
 client probe asks the one route the cookie reaches, at the cost of a second GET per shared-link open.
 
 ## What is open right now
+
+**M5B — Manual UX remediation is in progress on branch `ux-manual-fixes`.** It sits between M5 and M6: after M5 because every record it reopens is M5's and because 5E would otherwise gate a surface M5B is changing, before M6 because M6 prices a document M5B is adding a field to. Eleven findings from a manual
+session on 2026-08-31 (`testing-reports/09-manual-ux-issues.md`) plus three owner decisions of
+2026-09-01. The plan is `milestones/M5B-manual-ux-remediation.md`; the decisions are ADRs **0043** (a gap of
+any width is legal), **0044** (empty columns are persisted), **0045** (the run-end panel follows),
+**0046** (the capped merge and the insert-time split, reviving ADR 0037), **0047** (open-shelf
+compartments follow clearance), **0048** (the pantry column is resizable) and **0049** (a fixed-width cabinet shows its width section disabled).
+
+**The owner answered four of the phase's five open questions on 2026-09-01**, so nothing below is blocked: wave 5B5 is unblocked (show the disabled section with its reason), an inserted cabinet sits against the **left** edge of a wider span, a 400 mm pantry keeps the 600's height and shelf pitch, and report item 6 was **measured** to be a reload defect owned by 5B2 rather than 5B1. **Q5 alone stays open and is inherited from M5, not introduced here**: whether a shrink may widen an empty column past 800 mm. Wave **5B1** is
+complete; **5B6 and 5B7 are implemented and have been through adversarial QA**, which
+returned two findings — see *Where each M5B wave stands* below. **5B4b — the merge — is the phase's
+highest risk and is sequenced last**, gated on 5B4a reproducing ADR 0037's own withdrawal scenario
+green.
+
+### Where each M5B wave stands, 2026-09-01
+
+Nothing in this phase is committed yet; all of it is uncommitted work on `ux-manual-fixes`.
+
+| Wave | State |
+| --- | --- |
+| **5B1** — the growth-side remainder floor, and the sentence that named it | **Complete.** Implemented, adversarial QA (findings Q1–Q4), clean-code review (R1.1–R1.9) and product-logic review (R2.1–R2.4) all applied. Domain 1094 / web 684 / adapter 899 / persistence 177, lint and typecheck clean. |
+| **5B6** — the hob+oven cavity | Implemented and captured on screen; **QA finding Q1 (Medium) open — needs an owner decision**, see below. |
+| **5B7** — open-shelf compartments follow clearance | Implemented and captured on screen; **QA finding Q2 (Low) open** — the criterion and the geometry measure different things. |
+| **5B3, 5B5, 5B8, 5B2, 5B4a, 5B4b** | Planned, ADRs written, not dispatched. |
+
+**5B1's real lesson, and it is a process one.** The owner's standing instruction — *check whether an
+earlier record said the opposite before implementing* — caught **five** statements of the rule ADR
+0043 removed, found one at a time and each by a different gate: the implementer's sweep found ADR
+0031's Consequences restating its own bullet; clean-code review found the definition site of
+`MIN_WIDTH_M` in `void-engine.ts` still teaching it; product-logic review found `M5-width.md`
+stating it twice, in a directory **the sweep never covered**. ADR 0043's own sweep table claimed
+ADR 0031 was "the only record that states the rule"; that claim was false and is now recorded as a
+correction rather than quietly reworded. **A decision sweep must cover `docs/milestones/`, not only
+`docs/decisions/`, the spec and the backlog.**
+
+Two tests in that wave were also found to be **vacuous rather than merely weak**: the stepper/chip
+agreement sweep measured `CHECKED=0` — neither the shipped kitchen nor a single cleared column
+contains a body that can grow, so every iteration hit a `continue` — and the reworded shrink
+sentence was covered by a row that called the renderer directly, on a branch no command can reach.
+Both are fixed; the sweep now runs five worlds against a pinned floor.
+
+### The M5B items that need the owner, 2026-09-01
+
+Recorded as **Q6** and **Q7** in `milestones/M5B-manual-ux-remediation.md`'s *Open questions*, each
+holding a failing QA test open until it is answered. Q7 is Low and may be a documentation
+correction; the paragraphs below are Q6, which blocks wave 5B6 from closing.
+
+**Wave 5B6's filler panel is built in the door material on a body the customer cannot finish.**
+QA measured it across the whole catalogue: `base-hob-oven` is now the only entry owning a
+`kit.M.door` mesh while declaring `canFinish: false`. Two consequences, both live:
+
+- The panel stays default white beside neighbours the customer can set to sage, clay or graphite.
+  The owner asked for the cavity filled *"with the same material/color as the rest of the run"*; it
+  is filled with the **default** door material, which is only the same colour by coincidence.
+- Flipping `canFinish` to `true` alone would not fix it. `finishes.ts`'s `FRONT_MESH_NAME` is
+  `/door_front|drawer_front/`, which `oven_filler_front` does not match, so `collectFronts` returns
+  `[]` for this body.
+
+It also **falsifies the recorded justification** at `catalog.ts:465`, which turns finishing off on
+the stated ground that this body *"is deliberately open-front — the oven **is** the front — so it
+owns no `door_front`"*. That ground no longer holds. Resolving it means touching the catalogue's
+justification and either the front-name pattern or the mesh name — a product decision with a dated
+record behind it, so it goes to the owner rather than to an implementer.
 
 **The mint endpoint is unbounded at the application layer.** `POST /api/designs` has no application
 rate limiter and no active retention, which is SEC-001. The owner deferred it to **M8** on
@@ -400,6 +464,12 @@ one write per RTT, and M5's width dragging makes it continuous. ADR 0019 decisio
 floor; until it lands, no update rate limit can be sized honestly.
 
 ## What to do next
+
+**M5B — Manual UX remediation, in the order `milestones/M5B-manual-ux-remediation.md` gives.** 5B1 is in flight;
+then 5B6, 5B7, 5B3, 5B5 (blocked on an owner question), 5B8, 5B2, 5B4a, 5B4b. The one forced
+dependency is **5B2 before 5B4** — merged and split empty columns that vanish on reload are worth
+nothing. Everything else is ordered smallest-first so the merge lands last, which is what the owner
+asked for.
 
 **M5 wave 5E — the browser and mobile gate.** It is the only M5 wave still open. 5D2c (the panel
 stepper) and 5F (base carcass depth as a formula) **both shipped on 2026-08-30**; see the commit list

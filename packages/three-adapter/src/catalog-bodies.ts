@@ -18,8 +18,12 @@ import type { Kit } from "./kitchen-parts.js";
  *  when that builder's canopy changes; the built-size re-check in `insertBody` catches the drift. */
 export const HOOD_CANOPY_HEIGHT_M = 0.13;
 
-/** §7: an open shelf carries two inner shelves whatever its height. */
-const OPEN_SHELF_INNER_SHELVES = 2;
+/** Millimetres. ADR 0047: an open shelf at or below this clearance is built with two compartments,
+ *  above it with three. It lies between the top row's 400 mm and the middle row's 700 mm
+ *  (`LEVELS`, `void-engine.ts`), so it reproduces the owner's rule today and keeps reproducing it
+ *  if a row moves — which is why the rule is keyed on the clearance and not on the row. Moving it
+ *  is a one-line product decision with two boundary tests to update. */
+export const OPEN_SHELF_TWO_COMPARTMENT_MAX_HEIGHT_MM = 500;
 
 /** Metres, always. The width and height §5.2 planned for the opening, in the opening's own depth;
  *  each builder decides how much of that depth it actually uses. */
@@ -59,6 +63,21 @@ function doorsFor(size: CatalogBodySize): number {
   return deriveDoorCount(toMillimetres(size.widthM));
 }
 
+/** ADR 0047: how many **interior** boards an open shelf carries, from the clearance it was built
+ *  into. `openShelf` stands `shelf_bottom` and `shelf_top` around them, so one interior board is
+ *  two compartments and two are three — compartments being the unit the customer counts and the
+ *  record fixes.
+ *
+ *  Same shape as `doorsFor` above, for ADR 0033's reason: a count that follows a dimension is
+ *  derived, never declared. The round trip through millimetres is that function's too — millimetres
+ *  are the unit a catalogue dimension is stated in, and `toMillimetres` rounds, so a height that is
+ *  the threshold by a nanometre lands where it should. */
+function innerShelvesFor(size: CatalogBodySize): number {
+  return toMillimetres(size.heightM) > OPEN_SHELF_TWO_COMPARTMENT_MAX_HEIGHT_MM
+    ? 2
+    : 1;
+}
+
 /** §7's builder column, one arm per insertable id. The four fixed-size entries ignore the
  *  requested size **by design** — "columns are fixed 600 and refuse other openings with a reason".
  *  The refusal comes from the *domain*, before any of this runs: `resolveWidth` sees a fixed
@@ -93,11 +112,13 @@ const CATALOG_BODY_BUILDERS: Readonly<Record<string, CatalogBodyBuilder>> = {
   // good. The scene hides them by slot instead (`scene-sync.ts`, `isPushOpenByDefault`).
   "wall-lift": (kit, size) =>
     kit.make.wallLift(size.widthM, size.heightM, size.depthM),
+  // ADR 0047: the compartment count is **derived** from the clearance the body was built into,
+  // the way the door count is derived from its width.
   "open-shelf": (kit, size) =>
     kit.make.openShelf(
       size.widthM,
       size.depthM,
-      OPEN_SHELF_INNER_SHELVES,
+      innerShelvesFor(size),
       size.heightM,
     ),
   // ADR 0016: the hood's carcass is its canopy *and* its chimney, so the chimney parameter is the

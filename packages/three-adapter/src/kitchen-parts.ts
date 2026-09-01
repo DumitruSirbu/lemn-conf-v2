@@ -835,7 +835,8 @@ export function makeKit(options: KitOptions = {}): Kit {
    *
    *  The oven is seated on the carcass floor, not hung under the worktop. The 125 mm that leaves
    *  between its top and the worktop line is where the hob's own box and its connections go; an
-   *  oven pushed up against the worktop would be occupying that space. */
+   *  oven pushed up against the worktop would be occupying that space, and `ovenFillerFront`
+   *  dresses it. */
   function hobBaseWithOven(w: number): THREE.Group {
     const g = G("base_cabinet");
     g.add(plinth(w, CARC_D));
@@ -843,8 +844,37 @@ export function makeKit(options: KitOptions = {}): Kit {
     const oven = builders.oven();
     oven.position.set(0, PLINTH, OVEN_FORWARD_OFFSET_M);
     g.add(oven);
+    g.add(ovenFillerFront(w, oven));
     g.add(counter(w));
     return seatHobOnWorktop(g);
+  }
+
+  /** The band the oven leaves under the worktop, closed with a **fixed, handleless** front in the
+   *  run's own door material. Left open it read as an unfinished cavity: the carcass is open-front
+   *  by design, so a customer looking at the cabinet saw straight past the fronts on either side
+   *  into the shell. It is a facade, not a leaf — nothing behind it opens, so it carries no handle.
+   *
+   *  The band is **measured off the oven that was just built**, not written as 125 mm. That number
+   *  is only what a 595 mm appliance happens to leave on a 720 mm carcass, and a typed copy of it
+   *  would go stale the moment either moves.
+   *
+   *  Seated on `CARC_D / 2 + TH / 2` — the same front line every door and drawer front in this kit
+   *  stands on, which is what makes it read as the rest of the run rather than as a patch — and
+   *  `GAP` clear of the oven top, the shadow gap any two fronts leave each other. That keeps it
+   *  behind both the oven's fascia and its bar, so the body still finishes exactly where ADR 0040's
+   *  `HOB_OVEN_BASE_FINISHED_DEPTH_MM` declares it does. */
+  function ovenFillerFront(w: number, oven: THREE.Group): THREE.Mesh {
+    const bandBottom = new THREE.Box3().setFromObject(oven).max.y + GAP;
+    return box(
+      w - 0.006,
+      PLINTH + CARC_H - bandBottom,
+      TH,
+      M.door,
+      "oven_filler_front",
+      0,
+      bandBottom,
+      CARC_D / 2 + TH / 2,
+    );
   }
 
   const builders: Builders = {
@@ -1424,6 +1454,11 @@ export function makeKit(options: KitOptions = {}): Kit {
     return g;
   }
 
+  // `inner` counts the **interior** boards, which stand between `shelf_bottom` and `shelf_top` at
+  // an even division of H — so `inner` boards are `inner + 1` compartments, and dropping one
+  // re-centres the rest rather than leaving a gap. The default is the reference builder's own
+  // literal and stays there for M1's parity gate; who asks for how many is the caller's decision,
+  // and for §7's insertable entry that is `innerShelvesFor` in `catalog-bodies.ts` (ADR 0047).
   function openShelf(W = 0.8, D = 0.3, inner = 2, H = 0.7): THREE.Group {
     const g = G("open_shelf_unit");
     g.add(box(0.018, H, D, M.oak, "side_left", -W / 2 + 0.009, 0, 0));
