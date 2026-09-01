@@ -14,8 +14,10 @@ deleting it.
 
 It is not a side panel. It is `end_panel_right`, the finished panel that closes the right end of
 wall A's base run: `box(TH, 0.82, 0.6, M.oak, "end_panel_right")` placed at `x = 3.51`
-(`packages/three-adapter/src/kitchen-parts.ts:1700-1707`) — 3.20 + 0.60/2 + TH/2, the right edge of
-the seeded run, **baked at build time**. It is one of the five names in the shell manifest
+(`packages/three-adapter/src/kitchen-parts.ts:1700-1707`) — 10 mm right of the seeded run's right
+edge (3.20 + 0.60/2 = 3.50), **baked at build time**. See the 2026-09-01 correction below: the
+18 mm slab sits 1 mm proud of the carcass, not centred on it. It is one of the five names in the
+shell manifest
 (`packages/three-adapter/src/kitchen-shell.ts:9-14`), so `syncSolidBodies` never sees it: it is
 shell, not a customer body, and nothing recomputes its position.
 
@@ -101,3 +103,25 @@ was written from a resize only because that is what the owner happened to do fir
   1e-6 m parity gate asserts it.
 - **Wall B has no run-end panel and gains none here.** The seeded scene builds one panel, on wall A.
   Whether wall B's tall run wants one is a product question this record does not open.
+
+## Correction, 2026-09-01
+
+The Context section's arithmetic was wrong: it derived the baked `x = 3.51` as
+`3.20 + 0.60/2 + TH/2`, i.e. the panel centred on the run's right edge with `TH/2` (9 mm) of
+overhang. That formula does not reproduce the shipped number — it evaluates to 3.509, not 3.51 —
+and, more to the point, it describes the wrong geometry. The shipped reference room places
+`end_panel_right` **10 mm** right of the run's right edge (3.20 + 0.60/2 = 3.50), so the 18 mm
+slab sits 1 mm proud of the carcass, not centred on it.
+
+This was caught during wave 5B3's implementation, where it mattered rather than being cosmetic:
+the wave replaced the baked `x` with a derivation, and building that derivation from this record's
+`TH/2` formula would have moved the seeded panel by 1 mm, failing both the wave's acceptance
+criterion 6 and M1's 1e-6 m parity gate. The implementer used the measured 10 mm instead —
+`RUN_END_PANEL_EDGE_OFFSET_M = 0.01` in `packages/three-adapter/src/kitchen-parts.ts`, documented
+at its declaration in the same posture as the existing `BASE_FRONT_OVERHANG_MM` 40-vs-39 note.
+
+The shipped `x = 3.51` is the authority here, not the formula: M1's parity gate pins it to 1e-6 m,
+and the formula was a reconstruction that never matched it. Nothing else in this record depends on
+the wrong arithmetic — the Decision, the `db9c402` analysis, the records swept, and the
+Consequences section all cite `x = 3.51` as a measured fact, not as something derived from
+`TH/2`.

@@ -918,6 +918,38 @@ Related: entry 10 is the same seam from the other side — two routes to "a wall
 producing different depths on the uncapped path — and entry 5 is the capped sibling.
 
 
+## 16. No camera preset frames the right end of wall A's base run at the mobile viewport — NEEDS A DECISION
+
+**Found by visual verification of M5B wave 5B3, 2026-09-01**, outside that wave's scope and outside
+every other wave's. At 390 × 844 the run-end panel (`end_panel_right`, entry point for wave 5B3)
+projects to **x ≈ 514 of a 390 px viewport** under the *Perete A* camera preset — off the right edge
+of the screen. The reviewer needed one orbit drag and 11 zoom steps to bring it into frame.
+
+**What this means for a customer.** On a phone, a customer cannot see the end of their own base run
+— the exact panel wave 5B3 makes follow the run — without doing manual camera work no preset does
+for them. It is a framing/camera-preset issue, not a geometry one: the panel itself renders correctly
+at the position measured, the presets simply do not show it.
+
+**Not scheduled.** No milestone currently owns the camera presets' framing at the mobile viewport;
+this is a new gap, not a regression of anything M5B changed.
+
+## 17. An emptied wall-A base run may render no void to insert into — SUSPECTED, NEEDS VERIFICATION
+
+**Observed incidentally, 2026-09-01**, while verifying M5B wave 5B3's hide-on-empty-run branch
+through the app's save/hydrate path (that path was needed because the seeded design has no reachable
+UI route to a fully-emptied wall-A base run — see wave 5B3's *Verified by visual review*). In a
+design hydrated with **no** wall-A base placements, no base void slots appeared to render on wall A
+at all.
+
+**Not confirmed as a defect.** It was seen in passing, not investigated as its own question, and
+nothing in this backlog entry pins a reproduction, a file, or a mechanism. If it is real, the
+consequence would be serious: a customer who empties their whole base run on a wall would have
+nothing to insert into and no way back to a base cabinet there short of reloading a different design.
+
+**What deciding this needs.** A deliberate reproduction — hydrate a design with zero wall-A base
+placements and check whether `deriveColumns`/`recomputeVoids` publish a base-row opening for that
+wall — before this is treated as more than a hunch. Out of scope for every wave in M5B.
+
 ## Also open, recorded elsewhere — do not duplicate here
 
 - **Width editing does nothing yet.** Every width chip is `blocked` because §5.4's resize command

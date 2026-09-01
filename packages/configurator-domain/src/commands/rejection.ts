@@ -14,6 +14,24 @@ interface LabelParams {
   readonly label: string;
 }
 
+/** Which fact refused a resize, published rather than left to be re-derived by whoever is holding
+ *  the refusal.
+ *
+ *  `fixed` is a **fact about a cabinet**: the catalogue declares this row is made at one width, and
+ *  ADR 0049 renders it as a disabled chip carrying this refusal's own sentence. `unresolvable` is
+ *  **missing catalogue data**: the row resolves no §7 entry to be rebuilt through — the corners
+ *  (ADR 0011 Gap A) by declaration, an unfinished row by omission — and finding R2.7 requires it to
+ *  keep failing loudly rather than being dressed up as a constrained product.
+ *
+ *  **`unresolvable` wins when both are true.** A row that is `fixedWidth` *and* unfinished has
+ *  nothing to say about a cabinet: its label falls back to a `kind` string, and publishing it would
+ *  put `„base_cabinet”` in front of a customer. */
+export type NotResizableCause = "fixed" | "unresolvable";
+
+interface NotResizableParams extends LabelParams {
+  readonly cause: NotResizableCause;
+}
+
 interface BuildIdParams {
   readonly buildId: string;
 }
@@ -173,9 +191,14 @@ export type RejectionDetail =
     }
   | { readonly code: "COLUMN_MISMATCH"; readonly params: LabelParams }
   /** §5.4 on a body that has no width to change: a `fixedWidth` entry, or one with no §7
-   *  equivalent to rebuild through. §9's `canWidth` hides the section for both, so this is the
-   *  engine's own half of the same rule rather than a second one. */
-  | { readonly code: "NOT_RESIZABLE"; readonly params: LabelParams }
+   *  equivalent to rebuild through.
+   *
+   *  **The two are different facts, and since [ADR 0049] a surface acts differently on them**, which
+   *  is why `cause` is published beside the label. The section used to be hidden for both — §9's
+   *  `canWidth` did it — and this code was the engine's own half of that one rule. It is now the
+   *  sentence a fixed-width cabinet shows the customer, so which fact produced it decides whether it
+   *  may be shown at all. */
+  | { readonly code: "NOT_RESIZABLE"; readonly params: NotResizableParams }
   | { readonly code: "WIDTH_UNCHANGED"; readonly params: CurrentWidthParams }
   /** ADR 0031 rule 2: the move needs an adjacent empty column and there is not one.
    *

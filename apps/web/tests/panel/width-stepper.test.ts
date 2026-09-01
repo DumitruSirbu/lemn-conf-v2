@@ -35,6 +35,7 @@ import {
 } from "@lemnaria/configurator-domain";
 import { describe, expect, it } from "vitest";
 
+import { ro } from "@/content/ro";
 import { describePanel, type WidthSection } from "@/panel/panel-model";
 import { widthStepsFor, WIDTH_STEP_MM } from "@lemnaria/configurator-domain";
 
@@ -154,6 +155,12 @@ const HOOD_KIND = "extractor_hood";
  *  then disabled naming the member in the way, which is ADR 0032 rather than a defect: a thirteen-chip
  *  row all dashed would say the same thing thirteen times. */
 function columnHasFreeWidth(world: World, record: PlacementRecord): boolean {
+  // **ADR 0049 first**, because it decides before the shape is read: a body that may not be resized
+  // publishes the single width it is standing at, so its control is a set of one whatever ranges
+  // its own row declares. `hood-600` is why this is stated rather than folded into the sweep below
+  // — it is `fixedWidth` while its catalogue equivalent is bounded 600–800, so reading the ranges
+  // alone would predict a stepper with two buttons that can never move.
+  if (record.fixedWidth) return false;
   const members = world.records.filter(
     (candidate) =>
       candidate.col === record.col &&
@@ -198,17 +205,24 @@ describe("ADR 0035 decision 3's two controls, chosen by the shape of the bound",
         columnHasFreeWidth(world, record),
       ]);
     }
-    // The guard, itemised rather than counted so a different split fails. Fourteen steppers and the
+    // The guard, itemised rather than counted so a different split fails. Fourteen steppers, the
     // three members of `A|2.00` — the dishwasher niche, whose 450/600 is §11 row 14 and the only
-    // discrete column the shipped kitchen holds.
+    // discrete column the shipped kitchen holds — and ADR 0049's five `fixedWidth` bodies, which
+    // land on the discrete control with no new branch: their ranges are degenerate, which is what
+    // decision 3's discriminator already reads.
     expect(controls).toEqual([
       "p0:stepper",
       "p1:choice",
+      "p2:choice",
       "p4:stepper",
+      "p5:choice",
+      "p6:choice",
+      "p7:choice",
       "p8:stepper",
       "p10:stepper",
       "p11:stepper",
       "p12:choice",
+      "p13:choice",
       "p14:stepper",
       "p15:stepper",
       "p16:stepper",
@@ -431,22 +445,112 @@ describe("a willing body with no widths gets no section, not an empty one", () =
   });
 });
 
-describe("a fixed-width body never reads the set it publishes", () => {
-  // p2 (hob base), p5/p6 (columns), p7 (freestanding fridge) and p13 (hood) all resolve non-empty
-  // sets and are all `fixedWidth`. The section must be absent because of the flag — the set beside
-  // it is inert, and this is the assertion that says the two are independent in the direction the
-  // domain cannot show on its own.
+/** ADR 0049, and the expectation this describe used to hold is the one the owner overturned on
+ *  2026-09-01: these five rendered **no** section, and the customer looking at a hob base got a
+ *  vanished `LĂȚIME` with no explanation (report item 9). §13.1's "disable, don't warn" and
+ *  ADR 0032 both say an unavailable thing is shown disabled **with its reason**, and this was the
+ *  one place in the product where it was not.
+ *
+ *  p2 (hob base), p5/p6 (columns), p7 (freestanding fridge) and p13 (hood) all resolve non-empty
+ *  sets and are all `fixedWidth`. What is still asserted, in the opposite direction, is that
+ *  `canWidth` is not what decides: the flag is false on every one of them and the section renders
+ *  anyway, from the widths the domain published. */
+describe("a fixed-width body shows the one width it is made at", () => {
   it.each(["p2", "p5", "p6", "p7", "p13"])(
-    "renders no width section for %s",
+    "renders one disabled active chip with the engine's reason for %s",
     (id) => {
       const world = seededWorld();
+      const record = world.records.find((candidate) => candidate.id === id);
+      if (!record) throw new Error(`no record ${id}`);
       const meta = describeSelection({
         ...world,
         target: { kind: "placement", id },
       });
       expect(meta?.canWidth).toBe(false);
-      expect((meta?.sizesMm ?? []).length).toBeGreaterThan(0);
-      expect(widthSectionAt(world, id)).toBeUndefined();
+
+      const section = widthSectionAt(world, id);
+      if (section?.control !== "choice")
+        throw new Error("expected the discrete control");
+      expect(section.title).toBe(ro.panel.widthTitle);
+      expect(section.valueLabel).toBe(`${String(record.widthMm)} mm`);
+      expect(
+        section.chips.map((chip) => [
+          chip.widthMm,
+          chip.state,
+          chip.isDisabled,
+        ]),
+      ).toEqual([[record.widthMm, "active", true]]);
+      // The sentence is the engine's own, rendered through the very `renderRejection` a blocked
+      // chip's reason goes through — never copy authored in the panel (ADR 0032 rule 2).
+      expect(section.chips[0]?.reason).toBe(
+        renderRejection({
+          code: "NOT_RESIZABLE",
+          params: { label: describeWidthLabelOf(world, id), cause: "fixed" },
+        }),
+      );
     },
   );
+
+  // Report item 9's own body, at its own width: *Corp plită și 2 sertare* is a 600 mm cabinet
+  // because the hob it carries is a 590 × 520 appliance (ADR 0027), and the section now says so.
+  it("names the cabinet and the width in the sentence the customer reads", () => {
+    const section = widthSectionAt(seededWorld(), "p2");
+    if (section?.control !== "choice") throw new Error("expected chips");
+    expect([section.chips[0]?.widthMm, section.chips[0]?.reason]).toEqual([
+      600,
+      "„Corp plită și 2 sertare” nu își poate schimba lățimea.",
+    ]);
+  });
+
+  // **The chip is unclickable, which is what makes it change nothing.** `WidthChoiceView` renders
+  // `disabled={chip.isDisabled}` and calls the store from `onClick` alone, so a disabled chip
+  // reaches neither `setWidth` nor the rejection banner. The command's own refusal is asserted
+  // beside it: this is the state the panel is keeping the customer out of, not one it invented.
+  it("keeps the command's refusal behind a chip that cannot be clicked", () => {
+    const world = seededWorld();
+    const section = widthSectionAt(world, "p2");
+    if (section?.control !== "choice") throw new Error("expected chips");
+    expect(section.chips.every((chip) => chip.isDisabled)).toBe(true);
+
+    const refused = setWidth({
+      design: world.design,
+      catalog: world.catalog,
+      columns: world.columns,
+      target: { kind: "placement", id: "p2" },
+      widthMm: 600,
+      probe: PROBE,
+      occurredAt: OCCURRED_AT,
+    });
+    expect(refused.ok).toBe(false);
+    if (refused.ok) return;
+    expect(refused.reason.code).toBe("NOT_RESIZABLE");
+  });
+
+  /** **The anti-invariant** (FINDING R2.7): `fixedWidth` and *no set at all* are different answers,
+   *  and only the first one changed. A row whose declared floor excludes the only width it lists
+   *  resolves nothing to build, which is missing catalogue data — and a chipless section would make
+   *  broken data look like a constrained product. Both conditions are asked at once, because that
+   *  is the input that would slip through if the flag were read before the set was resolved. */
+  it("still renders no section for a fixedWidth body whose floor empties its set", () => {
+    const world = worldFrom(
+      KITCHEN_L_DESIGN,
+      catalogWith("base-hob-2drawer", { minWidthMm: 900 }),
+    );
+    expect(widthSectionAt(world, "p2")).toBeUndefined();
+    // Non-vacuity: the same body in the same design does render once the floor is left alone.
+    expect(widthSectionAt(seededWorld(), "p2")).toBeDefined();
+  });
 });
+
+/** The label the engine's refusal names, read from the catalogue the same way `resolveResizableBody`
+ *  reads it — the entry the row declares it is an instance of, never the seeded row's own id. */
+function describeWidthLabelOf(world: World, id: string): string {
+  const record = world.records.find((candidate) => candidate.id === id);
+  if (!record) throw new Error(`no record ${id}`);
+  const equivalent = resolveCatalogEquivalent(world.catalog, record.buildId);
+  const label = equivalent
+    ? toInsertableBody(equivalent.buildId, equivalent.definition)?.label
+    : undefined;
+  if (label === undefined) throw new Error(`no label for ${id}`);
+  return label;
+}

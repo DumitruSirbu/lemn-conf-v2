@@ -215,21 +215,33 @@ describe("§6.5's default handle, against every seeded placement's own y0", () =
   });
 });
 
-/** M5 wave 5B. The seeded bodies that render a width section: §9's `canWidth` (not empty, not
- *  `fixedWidth`) narrowed by "resolves a non-empty width set through its declared
- *  `catalogEquivalentId`". Written out rather than computed, so the list is a statement of the
- *  acceptance criteria and not a second copy of the implementation.
+/** M5 wave 5B, **widened by ADR 0049**. The seeded bodies that render a width section: one that
+ *  resolves a non-empty width set through its declared `catalogEquivalentId`, whether or not it may
+ *  be resized. Written out rather than computed, so the list is a statement of the acceptance
+ *  criteria and not a second copy of the implementation, and in `derivePlacementRecords` order so a
+ *  sweep can compare against it directly.
  *
- *  The eight that are absent are absent for a stated reason: the four corners and the hob-bearing
- *  base are `fixedWidth`, and so are the two columns and the freestanding fridge. */
+ *  **The five `fixedWidth` bodies joined this list on 2026-09-01** — `p2` the hob base, `p5` and
+ *  `p6` the two columns, `p7` the freestanding fridge, `p13` the hood. Each renders one `active`
+ *  chip at the width it is made at, carrying the engine's `NOT_RESIZABLE` sentence, because a
+ *  section that vanishes tells the customer nothing.
+ *
+ *  The four that remain absent are the corners (`p9`, `p21`, `p25`, `p26`): they declare no
+ *  catalogue equivalent, resolve no set at all, and that is missing-data-shaped rather than a fact
+ *  about a cabinet, so it keeps failing loudly as no section. */
 const SEEDED_IDS_WITH_A_WIDTH_SECTION: readonly string[] = [
   "p0",
   "p1",
+  "p2",
   "p4",
+  "p5",
+  "p6",
+  "p7",
   "p8",
   "p10",
   "p11",
   "p12",
+  "p13",
   "p14",
   "p15",
   "p16",

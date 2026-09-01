@@ -259,6 +259,41 @@ const BASE_FRONT_OVERHANG_MM = 40;
  *  side — the counter's back face is what a base body's seat is taken from. */
 const COUNTER_OVERHANG_MM = 60;
 
+/** The finished panel that closes the right end of wall A's base run. Named here because ADR 0045
+ *  makes its along-wall seat derived (`kitchen-shell.ts`) while its existence stays a fixed entry
+ *  in the shell manifest — one name, read by the builder and by the derivation. */
+export const RUN_END_PANEL_NAME = "end_panel_right";
+
+/** The panel's own slab, in metres: the reference room's `TH` door/panel thickness, and a
+ *  base-height finished end that stands from the floor to the underside of the worktop. */
+export const RUN_END_PANEL_THICKNESS_M = 0.018;
+export const RUN_END_PANEL_HEIGHT_M = 0.82;
+
+/** The air gap the reference room leaves between the last cabinet's side and the panel's inner
+ *  face, in metres.
+ *
+ *  **Authored, not measured, and it is the invariant the offset below preserves.** The seeded run
+ *  ends at 3.50 (3.20 + 0.60/2) and the panel is placed at 3.51, which is half the slab plus this
+ *  millimetre — so the reference deliberately does not butt the two faces together. Reading the
+ *  10 mm as a measurement would be wrong in a way that only shows up later: were `TH` ever to
+ *  change, a bare 10 mm would silently move the *gap* instead of keeping the overhang. */
+export const RUN_END_PANEL_GAP_M = 0.001;
+
+/** How far the panel's centre stands past the right edge of the last base cabinet, in metres. */
+export const RUN_END_PANEL_EDGE_OFFSET_M =
+  RUN_END_PANEL_THICKNESS_M / 2 + RUN_END_PANEL_GAP_M;
+
+/** The panel's along-wall seat in the reference room, in metres: the seeded base run's right edge
+ *  plus the offset above, kept as its own literal because M1's parity gate diffs this exact number
+ *  against the unmodified reference library at 1e-6 m.
+ *
+ *  It is also where `syncRunEndPanel` parks the panel while it is hidden. Any fixed value would do
+ *  there — what makes a deleted-into scene and a freshly loaded one one picture is that the
+ *  derivation is a pure function of the records, and this constant is only ever observed on a
+ *  hidden object or on a shell that has not been synced yet. The reference seat is chosen so that
+ *  an unsynced shell is the reference room. */
+export const RUN_END_PANEL_SEEDED_X_M = 3.51;
+
 export function makeKit(options: KitOptions = {}): Kit {
   const createCanvas =
     options.createCanvas ?? (() => document.createElement("canvas"));
@@ -1743,12 +1778,24 @@ export function makeKit(options: KitOptions = {}): Kit {
       PLINTH + CARC_H + CTOP,
     );
     seatOnWallA(baseCabinet(0.6, { drawers: 3 }), 3.2);
+    // The seat is the reference room's, kept to the micrometre for M1's parity gate. It is a
+    // starting seat only: ADR 0045 has `syncRunEndPanel` re-derive it from the records on every
+    // sync, so the panel follows the last base cabinet wherever a resize or a delete leaves it.
     place(
-      box(TH, 0.82, 0.6, M.oak, "end_panel_right", 0, 0, 0),
-      3.51,
+      box(
+        RUN_END_PANEL_THICKNESS_M,
+        RUN_END_PANEL_HEIGHT_M,
+        0.6,
+        M.oak,
+        RUN_END_PANEL_NAME,
+        0,
+        0,
+        0,
+      ),
+      RUN_END_PANEL_SEEDED_X_M,
       zA,
       0,
-      0.41,
+      RUN_END_PANEL_HEIGHT_M / 2,
     );
 
     // Wall B tall run: rotated 90° so fronts face +x, seated flush against the wall plane

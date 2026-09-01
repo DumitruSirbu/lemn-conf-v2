@@ -1,7 +1,7 @@
 # M5B — Manual UX remediation
 
-> **STATUS: IN PROGRESS.** Wave 5B1 is dispatched; 5B2 … 5B8 are planned here and not yet
-> dispatched. Summary: `docs/STATUS.md`. Branch `ux-manual-fixes`.
+> **STATUS: IN PROGRESS.** 5B1, 5B6, 5B7, 5B3 and 5B5 are complete; 5B10 is newly planned (ADR 0051);
+> 5B8, 5B2, 5B4a, 5B4b remain to dispatch. Summary: `docs/STATUS.md`. Branch `ux-manual-fixes`.
 
 Status: in progress. Follows M5 (5E still open) and precedes M6.
 Reference: `testing-reports/09-manual-ux-issues.md`; `DEVELOPMENT-SPEC.md` §3.2, §4, §5.2, §7, §9,
@@ -204,8 +204,10 @@ criteria cannot be satisfied by an off-by-one reading of the owner's words.
 ### Wave 5B3 — the run-end panel follows the run it closes
 
 **Verified.** `end_panel_right` is built at `kitchen-parts.ts:1700-1707` as
-`box(TH, 0.82, 0.6, M.oak, "end_panel_right")` placed at `x = 3.51` — the right edge of the seeded
-base run (3.20 + 0.60/2 + TH/2) — **baked at build time**. It is one of the five names in the shell
+`box(TH, 0.82, 0.6, M.oak, "end_panel_right")` placed at `x = 3.51` — 10 mm right of the seeded
+base run's right edge (3.20 + 0.60/2 = 3.50), **baked at build time**. (ADR 0045's 2026-09-01
+correction: the formula was previously misstated as `+ TH/2`, which does not reproduce the shipped
+number.) It is one of the five names in the shell
 manifest (`packages/three-adapter/src/kitchen-shell.ts:9-14`), so `syncSolidBodies` never touches
 it: it is shell, not a customer body. Nothing recomputes its X, which is exactly the report's
 "floating panel detached from the cabinet".
@@ -250,7 +252,10 @@ What this wave adds is narrower in a way that is checkable, not merely smaller:
    mesh tagged with a removed `placementId`, and `end_panel_right` is present-but-hidden rather than
    removed or re-parented. A design loaded fresh with zero base placements renders the same scene as
    one that reached that state by deletion — one document, one picture.
-5. The panel is never selectable and never carries a `placementId` (§6.1 picking is unchanged).
+5. The panel is never **selected** and never carries a `placementId` (§6.1 picking is unchanged). A
+   tap on the panel itself is not required to open nothing — it falls through to whatever stands
+   behind it, exactly as any other unselectable geometry does under §6.1's raycast. See *Verified by
+   visual review* below for what this reads as in practice.
 6. M1 parity: at the seeded design the panel stands at x = 3.51 as before, to 1e-6 m.
 
 **Files.** `packages/three-adapter/src/kitchen-shell.ts`, `packages/three-adapter/src/scene-sync.ts`,
@@ -261,6 +266,36 @@ and that commit is the reason the tier is not Light. Visual review required.
 
 **Risk.** Medium, and it is criterion 4. Wave 5B3's QA must attack the load-versus-mutate
 equivalence specifically, because that is the class of bug `db9c402` shipped and fixed.
+
+**Complete, 2026-09-01.** Implemented, adversarial QA green, clean-code and product-logic review
+applied, and visual verification run against the running app.
+
+**Verified by visual review, 2026-09-01.** The authored 1 mm gap between the panel and the run's
+right-most cabinet holds at **exactly 1.000 mm at every position measured**, read off rendered world
+geometry rather than asserted from the formula: seeded 3.510 mm; shrunk 50 mm → 3.460; shrunk
+100 mm → 3.410; and the four re-seats down the run at 2.910 / 2.310 / 1.710 / 0.910. The panel's
+Y span `[0, 0.820]` did not move at any of those positions.
+
+The owner's veto rule (2026-09-01: the panel hides once nothing base stands on the wall it closes)
+was verified through the UI: inserting a `tall-pantry-600` at the run's end hides the panel entirely
+— no rendered box, and 15 pixel probes across five heights including floor level found no oak.
+
+**Two caveats, recorded rather than smoothed over.** The hide-on-last-cabinet state is
+**unreachable through the UI** in the seeded design, because the last wall-A base body is the corner
+unit and its panel renders no remove control — it was verified through the app's own save/hydrate
+path instead, not through a click sequence. And a `setWidth` resizes the **whole column**, so a plain
+resize is a weaker discriminator for the x-only-veto bug than it first appears — a resize that moved
+only x with the y-membership check absent would still look correct. The state that actually
+discriminates is deleting `p4` alone, leaving `p14`/`p20` spanning the new seat in x while hanging
+above it in y (they never touch the base row's height band). That passed.
+
+**Expected, not a defect — worth stating so a later manual tester finds the answer instead of filing
+it.** After a shrink, the panel moves left with the cabinet it closes and ends up standing **inside**
+the void the shrink just opened, so the customer sees an empty slot to the *right* of a finished end
+panel — looking, at a glance, like the panel is misplaced or floating in open space. It is correct
+under ADR 0045: the panel follows the last cabinet's actual right edge, not the run's conserved
+bookkeeping extent, and an empty column to its right is exactly what a shrink is supposed to leave
+behind (ADR 0043). If this is reported again, it is this paragraph's answer, not a regression.
 
 ---
 
@@ -329,6 +364,25 @@ cost a wave to establish.
 **Review tier: Full** — it changes a panel contract that four ADRs have already corrected once each.
 
 **Risk.** Low mechanically, medium in scope creep. Criterion 4 is the guard.
+
+**Complete, 2026-09-01.** Implemented, adversarial QA green, clean-code and product-logic review
+applied.
+
+**What shipped.** A `fixedWidth` body now publishes its one width carrying the engine's own
+`NOT_RESIZABLE` sentence, rendered as a single disabled chip through the same `renderRejection` path
+a blocked chip already used — no new rendering rule. The `meta.canWidth` gate is gone from
+`collectOfferedSections`, so the domain's published width options are now the **sole** author of
+whether the LĂȚIME section exists at all; the panel no longer has a second opinion.
+
+**A design point the logic review made and is worth keeping.** `canWidth` and
+`columnWidthChoices` were two independent derivations of the same underlying fact
+(`record.fixedWidth`), consistent only by coincidence rather than by construction. Collapsing them
+into one **narrows** authority over the panel contract rather than widening it — one function
+answers "does this section exist and what does it show", not two that happened to agree until now.
+
+**`resolveResizableBody` now publishes `cause: "fixed" | "unresolvable"`.** `unresolvable` wins when
+a row is both — a row that is fixed-width **and** missing its width data would otherwise leak an
+internal `kind` string to the customer through the fixed-width path, which is criterion 4's guard.
 
 ---
 
@@ -695,6 +749,151 @@ above by name.
 
 ---
 
+### Wave 5B10 — the dishwasher niche wears a decor door
+
+Closes `docs/BACKLOG.md` entry 11, open since 2026-08-27. Decided by the owner on 2026-09-01 —
+**give `base-dishwasher` a decor door front**, not the one-line "turn the flags off" fix that entry
+named — following the Q6 / [ADR 0050](../decisions/0050-the-hob-oven-filler-is-a-finishable-front.md)
+precedent. Recorded as [ADR 0051](../decisions/0051-the-dishwasher-niche-wears-a-decor-door.md),
+which carries the full sweep and the alternatives.
+
+**Defect, re-measured live at the mobile viewport on 2026-09-01.** `base-dishwasher` offers five
+enabled finish chips and records the pick (`finish-graphite` → `aria-pressed="true"`, no rejection),
+and nothing recolours: the fascia stays `222,223,221` under all four solid finishes while its
+immediate neighbour tracks each one. `dishwasherHousing`
+(`packages/three-adapter/src/kitchen-parts.ts:1438`) builds an open niche — plinth, two sides, back
+panel, `builders.dishwasher`, worktop — with no `door_front`/`drawer_front` mesh, so
+`finishes.ts`'s `FRONT_MESH_NAME` reaches nothing and `collectFronts` returns `[]`. It also inherits
+`canHandle: true` from `INSERTABLE_DEFAULTS`, so `handle: "push"` reaches `setHandlesVisible`, which
+walks every `handle` mesh in the group and hides the **dishwasher's own** bar — `fridge-free-700`'s
+live defect (ADR 0027's amendment) on a second body.
+
+**This is the one M5B wave that moves seeded geometry**, and the phase's *"a geometry wave moves the
+seeded kitchen"* risk is met by re-baselining rather than by avoidance. Read ADR 0051 decision 7
+before writing any of it.
+
+#### Work items
+
+1. **Split the appliance into two named factories over a shared body helper.**
+   `builders.dishwasher` keeps building the exposed machine (`dw_body` + `dw_panel` +
+   `dw_control_strip` + its `handle`) for the parts gallery and M1's `dishwasher` key; an integrated
+   factory builds `dw_body` alone. Two functions, not a boolean argument. `dw_body`'s **name and
+   geometry are frozen** — `CARCASS_MESH_NAME_PATTERN` reads it (ADR 0016) and the recorded seat
+   depends on it.
+2. **`dishwasherHousing` calls the integrated factory and builds the decor door with `doorSlab`**,
+   at `baseCabinet`'s own anchors: `doorSlab(W − 0.006, CARC_H − 0.01, 0, PLINTH + CARC_H − 0.004,
+   CARC_D / 2 + TH / 2, "top")`, added after the appliance and before the worktop, matching
+   `baseCabinet`'s build order.
+3. **Re-baseline M1's parity gate** with a *declared structural change* form beside the existing
+   numeric `DeclaredDivergence`: each added and removed node named with its parent and its
+   occurrence count, an undeclared difference still failing, and an unused or miscounted declaration
+   failing as loudly. Affects the `base-dishwasher`, `base-dishwasher-450`, `kitchen-l` and
+   `dishwasherHousing(0.45|0.6)` comparisons; the `dishwasher` key must stay exact.
+4. **Move the declared occupied depth to `finishesAtMm(BASE_FINISHED_DEPTH_MM)`**, delete
+   `DISHWASHER_BASE_FINISHED_DEPTH_MM` and its now-false comment, and update the seeded fixture that
+   imports it. Give the catalogue row the comment its flags have never had.
+5. **Take both pins out of `RECORDED_CAPABILITY_GAPS`** and re-point — never delete — the comment
+   that pointed at backlog entry 11.
+6. **Re-record backlog entry 11's `tall-oven-tower` tail as its own backlog entry** before entry 11
+   is closed, so the deferral leaves a pointer rather than a silence. Documentation deliverable of
+   this wave, not a wish.
+
+#### Coordinate anchors, scaling and structural dependencies
+
+Per `docs/best-practices/product-invariants.md`, stated before the work rather than discovered in it.
+All figures are metres in the housing group's frame, whose origin is the carcass centre.
+
+| | Rule |
+| --- | --- |
+| **Anchor** | The decor door's front plane is `CARC_D / 2 + TH / 2 = 0.289`, its outer face `0.298` — the same expressions `baseCabinet` uses, so it is flush with neighbouring base fronts **by construction, not by a typed number**. |
+| **Scaling** | Width follows `W` at both declared sizes (450 and 600). Height and depth do not follow the requested depth: this builder ignores the depth it is handed (ADR 0018), and `CARC_D` is `carcassDepthM`, wave 5F's formula over the cabinet-depth setting. A literal `0.298` would decouple at a 700 mm kitchen — `M5-width.md:1125` is the note this must not make worse. |
+| **Structural dependency** | The appliance must stay behind the door. `dw_body` reaches `0.24`; the door's inner face is `0.28`; the 40 mm between them is the mounting space. `dw_panel` (front face `0.298`) and `dw_control_strip` (`0.275`–`0.305`) both cross that plane, which is why work item 1 removes them from the integrated form rather than moving them. |
+| **What must not move** | `dw_body`'s name and box; the seat (`frame.d = 580`), which is derived from `CARCASS_MESH_NAME_PATTERN` and matches no front mesh; the standalone `builders.dishwasher()`; every other builder and every other seeded body at 1e-6 m. |
+
+#### Acceptance criteria (falsifiable)
+
+1. `dishwasherHousing(0.45)` and `dishwasherHousing(0.6)` each contain **exactly one** mesh matching
+   `/door_front|drawer_front/`, and `collectFronts` on each returns exactly that one mesh.
+2. Each of the four solid finishes changes that mesh's material and colour, measured on the material,
+   and changes the material of **no** other mesh in the body — the worktop, the plinth, the sides and
+   `dw_body` keep theirs.
+3. The decor door's outer face is equal, within 1e-6 m, to the outer face of `baseCabinet`'s door at
+   the same width. Asserted by comparing the two measured planes, not by asserting `0.298` twice.
+4. `dishwasherHousing` at both sizes contains **no** mesh named `dw_panel` and none named
+   `dw_control_strip`, and no mesh belonging to the appliance reaches `z ≥ 0.28` — the door's inner
+   face. A body where the two overlap is the regression this criterion exists to catch.
+5. `builders.dishwasher()` is **byte-identical to the reference** under M1's parity gate: same mesh
+   names, same hierarchy, same numbers at 1e-6 m, no declared divergence used. `SPEC.md`'s
+   596 × 720 × 560 machine is unchanged, and `kitchen-parts.contract.test.ts`'s `dw_panel` size
+   assertion still passes **against the standalone appliance**.
+6. `censusOf("base-dishwasher")` and `censusOf("base-dishwasher-600")` each report
+   `{ fronts: 1, cabinetHandles: 1, canFinish: true, canHandle: true }`, and `handleBarCountOf` is
+   **1** for each — the cabinet's, with no appliance bar left in the group. `RECORDED_CAPABILITY_GAPS`
+   is empty and both ids are in `GATED_BUILD_IDS`.
+7. The census control test still reports `base-hob-oven` at `{ fronts: 1, cabinetHandles: 0 }` and
+   `tall-oven-tower` at `cabinetHandles: 2` / `handleBarCountOf: 4`. **The distinction between an
+   appliance's handle and a cabinet's is not widened, weakened or special-cased for this body** —
+   this is the anti-invariant, and it is the reason the cheap `dw_panel` rename was rejected.
+8. With `handle: "push"` recorded on `p1`, the seeded dishwasher renders with **zero** visible
+   `handle_bar` meshes and with `dw_body` and the decor door still visible; with `handle` unset it
+   renders **one** visible bar, because the base slot is not push-open by default. No appliance bar
+   exists to be erased. Asserted through `syncSolidBodies`, beside the existing `fridge-free-700`
+   case in `seeded-appliance-handles.test.ts`.
+9. `base-dishwasher`'s declared `occupiedDepth` equals what `occupied-depth.parity.test.ts` measures
+   off the built meshes, at **620 mm**, for both the insertable entry and `base-dishwasher-600`; and
+   the recorded seat is still **580 mm** for both. `DISHWASHER_BASE_FINISHED_DEPTH_MM` no longer
+   exists anywhere in the workspace.
+10. M1's parity suite is green with every difference **declared**: the added `door` subtree and the
+    removed `dw_panel`, `dw_control_strip` and appliance `handle` subtrees, each named with its
+    parent and its exact occurrence count, once per housing and once in `kitchen-l`. Removing any one
+    declaration turns the suite red, and so does adding a declaration that does not occur.
+11. `kitchen-parts.decomposition.parity.test.ts` is green **unmodified**: the seeded and the
+    decomposed builds still agree. A change there is a defect, not a re-baseline.
+12. The wave report lists **every** re-pinned expectation with the geometry it was read off. A number
+    changed to make a test pass, without a measurement beside it, fails review.
+13. Backlog entry 11 is closed as DECIDED/SHIPPED **and** its `tall-oven-tower` tail exists as its own
+    open backlog entry with a named owner (§6.5). Closing entry 11 without that entry existing is the
+    failure this criterion prevents.
+
+#### Verification
+
+- Three-adapter unit tests on measured bounds and materials, plus the full M1 parity suite, plus the
+  capability gate and both occupied-depth gates.
+- **A before/after capture at the mobile viewport** per `docs/best-practices/browser-and-visual-qa.md`:
+  the seeded dishwasher under each of the four solid finishes, showing the fascia tracking the run,
+  and one shot with `push` recorded. The seeded kitchen changes visibly and on purpose — tests are
+  not evidence for that.
+- Adversarial QA gates review, per `docs/WORKFLOW.md`.
+
+#### Files, budget and tier
+
+`packages/three-adapter/src/kitchen-parts.ts`,
+`packages/configurator-domain/src/catalog.ts`,
+`packages/configurator-domain/src/fixtures/kitchen-l-design.ts` (**3 production files**, inside the
+~5-file dispatch budget), plus the tests named above.
+
+**One dispatch and one commit, not two.** The geometry half leaves the declared depth wrong and the
+gate pins asserting a defect that no longer exists, so a commit carrying only half of it is red by
+construction.
+
+**Review tier: Full, plus visual.** Everything that made 5B6 Light is false here: this wave moves
+seeded geometry, re-baselines M1's fidelity gate, changes a declared domain constant, and removes a
+gate pin. Product-logic and clean-code review both apply, and the reviewer should be briefed on
+criterion 7 by name.
+
+#### Risks
+
+| Risk | Control |
+| --- | --- |
+| The re-baseline absorbs an unintended move | Declared structural changes are enumerated per node with counts; the numeric diff still runs at 1e-6 m over everything else, and the confinement to one body is the evidence (criterion 10). |
+| The appliance's bar is reclassified as the cabinet's | Criterion 7's control cases, unchanged, on two other bodies. This is why the `dw_panel` rename was rejected — ADR 0051, *Alternatives*. |
+| The 12 mm depth drop breaks something downstream | Criterion 9 measures rather than asserts; criterion 12 forces every re-pinned number to be justified from geometry. The seat, which is what persistence stores, does not move. |
+| `it.each(RECORDED_CAPABILITY_GAPS)` over an empty list | A known Vitest hazard once the list empties. Either guard the companion suite or remove it and keep the census control — whichever, the change is stated in the wave report, not silent. |
+| Closing entry 11 deletes the only pointer to `tall-oven-tower` | Work item 6 and criterion 13. |
+| Two coplanar 18 mm slabs z-fighting | Criterion 4, measured on bounds. |
+
+---
+
 ## Dispatch order and dependencies
 
 ```
@@ -705,6 +904,7 @@ above by name.
   └────────────────────────┴──────────┘   (reload of split / merged columns)
 
 5B6 ─ 5B7 ─ 5B3 ─ 5B8      (independent of everything, and of each other)
+5B10                           (independent; the only wave that moves seeded geometry)
 5B5                            (independent; blocked on owner Q2)
 ```
 
@@ -713,12 +913,13 @@ above by name.
 | 1 | 5B1 | — | Full | In flight. |
 | 2 | 5B6 | — | Light + visual | Smallest, most isolated. |
 | 3 | 5B7 | — | Light + visual | Batched with 5B6 for review if both diffs stay small (`docs/WORKFLOW.md`, *Batching fixes before review*); split them if either grows. |
-| 4 | 5B3 | — | Full + visual | Re-crosses `db9c402`'s seam. |
-| 5 | 5B5 | — | Full | **Unblocked 2026-09-01** — the owner answered: show the section disabled, with the reason (ADR 0049). |
+| 4 | 5B3 | — | Full + visual | Re-crosses `db9c402`'s seam. **Complete.** |
+| 5 | 5B5 | — | Full | **Unblocked 2026-09-01** — the owner answered: show the section disabled, with the reason (ADR 0049). **Complete.** |
 | 6 | 5B8 | — | Full | Catalogue bound plus a new parameterised builder. |
 | 7 | 5B2 | 5B1's ADR 0043 | Full + security | Prerequisite for both 5B4 waves. **Also owns report item 6**, measured to be a reload defect rather than 5B1's. |
 | 8 | 5B4a | 5B2 | Full | The split. Its criterion 4 gates 5B4b. |
 | 9 | 5B4b | 5B4a green | Full | The merge. Last, as the owner asked. |
+| 10 | **5B10** | — | Full + visual | Independent of every wave above and of each other's files. Ordered last because it is the only wave that moves seeded geometry, so it re-baselines M1's parity gate against a tree no other wave is touching. |
 
 **The owner asked for the merge last if nothing depends on it, and nothing does.** The one place the
 order is forced is 5B2 → 5B4: merged and split columns that vanish on reload are worth nothing, and
@@ -769,6 +970,7 @@ shipped.
 | The shell reconstructs a deleted body | 5B3 | Criterion 4 is `db9c402`'s anti-invariant, as a test. |
 | A resized pantry is faked by scaling a finished group | 5B8 | Criterion 5 asserts measured bounds at three widths. |
 | A geometry wave moves the seeded kitchen | 5B3, 5B6, 5B7, 5B8 | M1's 1e-6 m parity suite, named as a criterion in each. |
+| A geometry wave moves the seeded kitchen **on purpose** | 5B10 | The one wave where "nothing seeded moves" is not the control. ADR 0036's rule applies instead: re-baselined as declared structural changes, enumerated per node with counts, with everything else still diffed at 1e-6 m. |
 | Overturning `columnWidthChoices`' written suppression by accident | 5B5 | Criterion 4's anti-invariant preserves R2.7's loud failure. |
 
 ## Decision records
@@ -787,10 +989,15 @@ swept before deciding* table naming every earlier record that said the opposite 
 | [0048](../decisions/0048-the-pantry-column-is-the-one-resizable-column.md) | 5B8 | The pantry column is the one resizable column, and its door count already follows its width. |
 | [0049](../decisions/0049-a-fixed-width-cabinet-shows-its-width-section-disabled.md) | 5B5 | A fixed-width cabinet shows its width section disabled, with the reason (owner, 2026-09-01). |
 | [0050](../decisions/0050-the-hob-oven-filler-is-a-finishable-front.md) | 5B6 | The hob+oven filler panel is a finishable front, overturning ADR 0027's now-false "the oven is the front" ground (owner, 2026-09-01; Q6). |
+| [0051](../decisions/0051-the-dishwasher-niche-wears-a-decor-door.md) | 5B10 | The dishwasher niche wears a decor door and the appliance behind it is built integrated, closing backlog entry 11 (owner, 2026-09-01). |
 
 **Amended in place, with dated pointers and nothing deleted:**
 
 - **ADR 0027** — its `base-hob-oven` front claim struck through and superseded by ADR 0050.
+- **ADR 0027** — its amendment's closing *"the owner… decided to keep both as they are"* exemption
+  for `base-dishwasher` and `base-dishwasher-600` struck through and superseded by ADR 0051.
+- **ADR 0040** — a dated correction owed on its `base-dishwasher` **632** row once 5B10 lands; the
+  measured number becomes 620 and the method is unchanged.
 - **ADR 0037** — revived under a cap by ADR 0046, with its withdrawal section left intact and marked
   as still true. It is the record this phase is most at risk of re-deciding wrongly, so read it
   before 0046, not instead of it.

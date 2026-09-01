@@ -26,6 +26,7 @@ import {
 } from "./decomposed-bodies.js";
 import { applyBodyFinish } from "./finishes.js";
 import type { Kit } from "./kitchen-parts.js";
+import { syncRunEndPanel } from "./kitchen-shell.js";
 import { disposeUnsharedGeometries, isLine, isMesh } from "./three-guards.js";
 import { buildVoidMesh } from "./void-mesh.js";
 
@@ -70,6 +71,11 @@ export function syncSolidBodies(input: SolidSyncInput): void {
   for (const record of missing.values()) {
     input.solidsRoot.add(mountBody(input.kit, record));
   }
+
+  // ADR 0045: the shell's run-end panel closes whatever base run is on screen, so it is re-derived
+  // here — the one place that already sees both the mounted scene and the current records — rather
+  // than at build, where its seat was baked and stayed put through every resize and delete.
+  syncRunEndPanel({ solidsRoot: input.solidsRoot, records: input.records });
 }
 
 /** Replaces the whole void set whenever anything about it changed, and does nothing when nothing

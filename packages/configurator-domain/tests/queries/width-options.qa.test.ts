@@ -161,6 +161,9 @@ describe("the iff, in the direction iterating the row cannot see", () => {
     for (const record of world.records) {
       for (const option of optionsFor(world, record.id)) {
         if (option.verdict.status === "current") continue;
+        // ADR 0049's chip offers no move either, and the command refuses it — see the `fixed`
+        // verdict's own suite for the half of the property that does apply to it.
+        if (option.verdict.status === "fixed") continue;
         const accepts = commandAccepts(world, record.id, option.widthMm);
         if (accepts !== (option.verdict.status === "available")) {
           disagreements.push(
@@ -206,10 +209,14 @@ describe("exactly one active chip, on every body that renders a section", () => 
       const options = optionsFor(world, record.id);
       if (options.length === 0) continue;
       sections += 1;
-      const current = options.filter(
-        (option) => option.verdict.status === "current",
+      // Both ways a body stands on a chip: `current` on a resizable one, ADR 0049's `fixed` on a
+      // cabinet made at one width. §9 puts that number in the value label either way.
+      const active = options.filter(
+        (option) =>
+          option.verdict.status === "current" ||
+          option.verdict.status === "fixed",
       );
-      expect([record.id, current.map((option) => option.widthMm)]).toEqual([
+      expect([record.id, active.map((option) => option.widthMm)]).toEqual([
         record.id,
         [record.widthMm],
       ]);
@@ -326,14 +333,81 @@ describe("an odd-parity width is refused, never offered", () => {
   });
 });
 
-describe("no section at all, and the ways to get there", () => {
+/** ADR 0049, which overturned this file's own former expectation: these five used to publish
+ *  nothing, and the customer got a vanished `LĂȚIME` section with no explanation. They now publish
+ *  the one width they are made at, with the engine's reason.
+ *
+ *  Every `fixedWidth` body in the shipped kitchen, not a chosen one: `base-hob-2drawer` is the body
+ *  from report item 9, and the other four reach the same arm through different catalogue rows. */
+describe("a cabinet made at one width publishes that width, with the reason", () => {
   it.each(["p2", "p5", "p6", "p7", "p13"])(
-    "publishes nothing for the fixedWidth body %s, which resolves a perfectly good set",
+    "renders one active chip carrying NOT_RESIZABLE for the fixedWidth body %s",
     (id) => {
       const world = kitchen();
-      expect(optionsFor(world, id)).toEqual([]);
+      const record = world.records.find((candidate) => candidate.id === id);
+      if (!record) throw new Error(`no record ${id}`);
+      const options = optionsFor(world, id);
+
+      expect(options.map((option) => option.widthMm)).toEqual([record.widthMm]);
+      const [only] = options;
+      expect(only?.verdict.status).toBe("fixed");
+      if (only?.verdict.status !== "fixed") return;
+      expect(only.verdict.reason.code).toBe("NOT_RESIZABLE");
     },
   );
+
+  // The reason is the command's own, carried whole rather than re-derived (ADR 0032 rule 2): the
+  // label the sentence names is the label `setWidth` would have named, so the section cannot start
+  // telling the customer about a different cabinet than the refusal does.
+  it("carries the very refusal setWidth produces for the same body", () => {
+    const world = kitchen();
+    const [only] = optionsFor(world, "p2");
+    const refused = setWidth({
+      design: world.design,
+      catalog: world.catalog,
+      columns: world.columns,
+      target: { kind: "placement", id: "p2" },
+      widthMm: 800,
+      probe: createFakeProbe(),
+      occurredAt: OCCURRED_AT,
+    });
+
+    expect(refused.ok).toBe(false);
+    if (refused.ok) return;
+    if (only?.verdict.status !== "fixed") throw new Error("no fixed verdict");
+    // Code and params, not the whole detail: `refuse` also stamps the rendered `message` onto the
+    // command's result, and a verdict carries the detail the panel renders for itself.
+    expect([only.verdict.reason.code, only.verdict.reason.params]).toEqual([
+      refused.reason.code,
+      refused.reason.params,
+    ]);
+  });
+});
+
+describe("no section at all, and the ways to get there", () => {
+  /** **The anti-invariant, and the one way ADR 0049 can go wrong.** `columnWidthChoices` answered
+   *  `undefined` in two materially different situations and only one of them was changed: a
+   *  `fixedWidth` cabinet is a correct fact about a real cabinet, while a body that resolves no
+   *  width set at all is missing catalogue data (FINDING R2.7). A chipless section would make broken
+   *  data look like a constrained product.
+   *
+   *  So this asks for the two conditions **at once** — `fixedWidth` *and* no set — which is
+   *  precisely the input that would slip through if the new arm were reached before the set was
+   *  resolved. The hob entry's floor is lifted above the only width it lists, so its set is empty
+   *  while its flag is untouched, and the answer must stay "no section". */
+  it("still publishes nothing for a fixedWidth body whose floor empties its set", () => {
+    const world = createWorld(
+      KITCHEN_L_DESIGN,
+      catalogWith("base-hob-2drawer", { minWidthMm: 900 }),
+    );
+    expect(optionsFor(world, "p2")).toEqual([]);
+  });
+
+  // Non-vacuity for the case above: the same body in the same fixture *does* publish its chip once
+  // the floor is left alone, so the empty answer is about the missing set and not about the fixture.
+  it("publishes the chip for the same body when the floor is left alone", () => {
+    expect(optionsFor(kitchen(), "p2")).toHaveLength(1);
+  });
 
   it("publishes nothing when the resolved entry's floor empties its set", () => {
     const world = createWorld(

@@ -21,6 +21,16 @@ import type {
  *  `fixedWidth` entry is made at one size, and a body with no §7 equivalent (the corners, ADR 0011
  *  Gap A) has nothing to be rebuilt through.
  *
+ *  **Both halves refuse, and the refusal says which one did** (`NotResizableCause`). The two
+ *  conditions are not exclusive and the caller cannot tell them apart from the outside: a row that
+ *  is `fixedWidth` and also unfinished satisfies both, and reading the flag back off the record
+ *  would call it a cabinet made at one width. ADR 0049 puts this sentence on screen for `fixed`
+ *  alone, so the one function that already knows which fact refused is the one that publishes it —
+ *  the answer still has a single author, and now so does the reason.
+ *
+ *  `unresolvable` wins when both hold, because a row with no entry to be rebuilt through has no
+ *  label of its own either and would name its `kind` at the customer.
+ *
  *  **Identity is declared, never inferred.** The equivalent comes from `resolveCatalogEquivalent`,
  *  which reads the pointer the row declares (ADR 0022) and verifies it is `insertable`. §5.4's
  *  `buildIdOf` mesh-tree inspection is closed by name in ADR 0011 Gap A, §6.3 and §13.2. */
@@ -36,7 +46,10 @@ export function resolveResizableBody(
     ok: false,
     detail: {
       code: "NOT_RESIZABLE",
-      params: { label: body?.label ?? describeRecordLabel(catalog, record) },
+      params: {
+        label: body?.label ?? describeRecordLabel(catalog, record),
+        cause: body ? "fixed" : "unresolvable",
+      },
     },
   };
 }
@@ -143,7 +156,12 @@ function resolveRebuildableHood(
     ok: false,
     detail: {
       code: "NOT_RESIZABLE",
-      params: { label: describeRecordLabel(catalog, record) },
+      // A hood that cannot be rebuilt is the second half of the same fact: there is no §7 entry to
+      // re-centre it through, which is missing data and never a width the catalogue declares.
+      params: {
+        label: describeRecordLabel(catalog, record),
+        cause: "unresolvable",
+      },
     },
   };
 }

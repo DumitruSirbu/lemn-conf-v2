@@ -107,6 +107,13 @@ export interface ColumnWidthChoices {
    *  be corrected for (`fixedWidth` is `false` on both discrete rows). The panel now reads the fact
    *  the engine already computed. */
   readonly widthRangesMm: readonly WidthRangeMm[];
+  /** The engine's own reason this body may not be resized at all, present exactly when there is
+   *  one (ADR 0049). §9 renders the section anyway — one `active` chip at the width the cabinet is
+   *  made at, carrying this sentence — rather than omitting it, because an unavailable thing is
+   *  shown disabled with its reason and never removed.
+   *
+   *  Absent on every resizable column, so a section that works carries no field nobody filled. */
+  readonly notResizable?: RejectionDetail;
 }
 
 export function setWidth(input: SetWidthInput): SetWidthResult {
@@ -175,21 +182,46 @@ export function columnWidthChoices(
   const record = records.find((candidate) => candidate.id === input.target.id);
   if (!record) return undefined;
 
-  // §9's `canWidth` read from the engine's end, and the same call `setWidth` opens with: a
-  // `fixedWidth` entry is made at one size, and a body with no §7 equivalent has nothing to be
-  // rebuilt through. Asked here so the answer has one author — a
-  // `fixedWidth` body still resolves a perfectly good set, and publishing chips for it would leave
-  // §9's flag as the only thing standing between the customer and a section of dead controls.
-  const selectedBody = resolveResizableBody(input.catalog, record);
-  if (!selectedBody.ok) return undefined;
-  const selected = toColumnMember(input.design, record, selectedBody.value);
-  if (!selected) return undefined;
-
   // The selected body's own set is the floor of what may be rendered, and the **only** thing whose
-  // absence suppresses the section (FINDING R2.7). Resolved before the column, because everything
-  // below is a narrowing of it.
+  // absence suppresses the section (FINDING R2.7). Resolved first, because everything below —
+  // including the refusal arm — is a narrowing of it: a row whose `catalogEquivalentId` points
+  // nowhere, or whose declared floor excludes every listed width, is missing catalogue data rather
+  // than a fact about a cabinet, and it keeps failing loudly as no section at all.
   const declared = resolveBuildableSizes(input.catalog, record.buildId);
   if (declared.length === 0) return undefined;
+
+  // §9's `canWidth` read from the engine's end, and the same call `setWidth` opens with: a
+  // `fixedWidth` entry is made at one size, and a body with no §7 equivalent has nothing to be
+  // rebuilt through. Asked here so the answer has one author — of the refusal *and* of which fact
+  // caused it, which is what `NotResizableCause` publishes.
+  //
+  // **Which of the two causes refused has to be asked of the refusal, because nothing here can
+  // separate them** (QA 5B5 and this wave's logic review;
+  // `tests/queries/qa-5b5-fixed-width.adversarial.test.ts` → *an unfinished catalogue row is missing
+  // data, not a fixed-width cabinet*). The guard above tests the narrower condition:
+  // `resolveBuildableSizes` reads `sizesMm` alone, while `toInsertableBody` also requires `label`,
+  // `widthFlex` and `nominalHeightMm`, so an unfinished row — insertable, listing widths, missing
+  // one of those three — resolves a non-empty set and no rebuildable body. And `record.fixedWidth`
+  // does not separate them either: the two conditions are **not exclusive**, so a row that is both
+  // takes the flag's arm and names its `kind` string at the customer. Either mistake publishes
+  // missing catalogue data as a confident claim about a product, which is worse than the empty
+  // section criterion 4 was protecting against. Only a body the catalogue says is made at one width
+  // may say so, and only the refusal knows that.
+  //
+  // **ADR 0049: the refusal is published rather than swallowed.** This used to answer `undefined`
+  // for a `fixedWidth` body, on the reasoning that publishing chips for one "would leave §9's flag
+  // as the only thing standing between the customer and a section of dead controls." The owner
+  // overturned that on 2026-09-01: the controls are visibly disabled and carry the engine's own
+  // sentence, which is not the failure that reasoning anticipated and is what §13.1 and ADR 0032
+  // already require everywhere else. The silence is what read as a defect — a section that is not
+  // there tells the customer nothing, so they conclude the product is broken.
+  //
+  // `resolveResizableBody` is not loosened and `setWidth` is unchanged: this hands the panel a
+  // refusal it was already receiving and throwing away.
+  const selectedBody = resolveResizableBody(input.catalog, record);
+  if (!selectedBody.ok) return describeFixedWidth(record, selectedBody.detail);
+  const selected = toColumnMember(input.design, record, selectedBody.value);
+  if (!selected) return undefined;
 
   // The **hood-exempt** membership, exactly as `setWidth` computes it (ADR 0035 decision 6): a hood
   // standing in this column narrows nothing, and a column that holds one is no longer a column that
@@ -239,6 +271,43 @@ export function columnWidthChoices(
       intersectedRanges.length > 0
         ? intersectedRanges
         : resolveWidthRangesMm(selectedBody.value),
+  };
+}
+
+/** ADR 0049's fixed-width answer: the one width this cabinet is made at, and why it is the only one.
+ *
+ *  `undefined` for every other refusal, and the test is the refusal's **own** `cause` rather than
+ *  the record's flag or any field of the entry: the two causes are not exclusive, and a row that is
+ *  `fixedWidth` and unfinished at once is missing catalogue data whatever its flag says. That is not
+ *  a second author for *"may this be resized"* — the refusal is still `resolveResizableBody`'s and
+ *  is carried whole — it is that function's own answer to the narrower question, read here.
+ *
+ *  **It depends on its caller having answered FINDING R2.7 first, and that ordering is
+ *  load-bearing.** `columnWidthChoices` returns on an empty `resolveBuildableSizes` before it asks
+ *  for a body, so a row that resolves no width set never reaches here at all. A second call site, or
+ *  that guard moving below this one, would publish a chip at a width the catalogue cannot build and
+ *  would break criterion 4 with every test still green.
+ *
+ *  The column is deliberately not consulted. A body that cannot be resized takes no width from its
+ *  neighbours and gives none, so there is nothing for an intersection to narrow — and the number the
+ *  customer is looking at is the width of the cabinet in front of them.
+ *
+ *  One degenerate range, so ADR 0035 decision 3's discriminator puts this on the discrete control
+ *  with no new branch and no third width presentation. Built from the width rather than read off the
+ *  row, because a row's own bound can disagree with it: `hood-600` is `fixedWidth` while the `hood`
+ *  entry it is built through is bounded 600–800, and reading that bound would give a cabinet that
+ *  cannot be resized a stepper with two buttons that can never move. */
+function describeFixedWidth(
+  record: PlacementRecord,
+  notResizable: RejectionDetail,
+): ColumnWidthChoices | undefined {
+  if (notResizable.code !== "NOT_RESIZABLE") return undefined;
+  if (notResizable.params.cause !== "fixed") return undefined;
+  return {
+    currentWidthMm: record.widthMm,
+    sizesMm: [record.widthMm],
+    widthRangesMm: [{ minMm: record.widthMm, maxMm: record.widthMm }],
+    notResizable,
   };
 }
 

@@ -26,3 +26,17 @@ is scaffolded.
 - Store transient screenshots/traces in the project-defined artifact directory and clean them when
   they are no longer needed. Keep intentional visual baselines only when the project adopts a
   visual-regression workflow.
+
+## A trap that produces confident wrong measurements, not an error
+
+**Never write screenshots or other evidence into a path `next dev` (or any watched dev server) is
+watching, while it is running.** Doing so triggers a hot refresh, and a hot refresh resets the
+running design mid-run — so a measurement taken after the reset is silently reading a fresh seed
+rather than the state the run built up to that point. This does not fail loudly: the run looks fine,
+the screenshots exist, the numbers look plausible. It is wrong anyway, and there is no error to catch
+it by.
+
+Found writing evidence into `testing-reports/` (inside the watched project tree) during M5B wave
+5B3's visual verification, 2026-09-01. Worked around by writing every artifact **outside** the
+project tree instead — that is why that run's reported numbers are trustworthy. **The rule: evidence
+goes outside the watched tree, or the dev server is not watching while evidence is written.**

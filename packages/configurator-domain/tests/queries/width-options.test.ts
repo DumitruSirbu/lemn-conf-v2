@@ -132,7 +132,11 @@ describe("a chip is free if and only if the command would succeed", () => {
     let compared = 0;
     for (const record of world.records) {
       for (const option of optionsFor(world, record.id)) {
+        // Neither of the two chips a body is standing on is a candidate move: `current` is the
+        // width it has, and ADR 0049's `fixed` is the only width it is made at. The command refuses
+        // both, which is why the property is about the chips that offer to change something.
         if (option.verdict.status === "current") continue;
+        if (option.verdict.status === "fixed") continue;
         expect([record.id, option.widthMm, option.verdict.status]).toEqual([
           record.id,
           option.widthMm,
@@ -196,19 +200,23 @@ describe("the current width is a fact about the body, not a refusal code", () =>
     for (const record of world.records) {
       const options = optionsFor(world, record.id);
       if (options.length === 0) continue;
-      const current = options.filter(
-        (option) => option.verdict.status === "current",
+      // `fixed` counts, and counting it is the point (ADR 0049): a fixed-width cabinet's one chip
+      // is the width it is standing at, so it is the section's active chip and the number in the
+      // value label. A body with no active chip at all is the failure this guards, whichever of
+      // the two ways it is standing on one.
+      const active = options.filter(
+        (option) =>
+          option.verdict.status === "current" ||
+          option.verdict.status === "fixed",
       );
-      expect([record.id, current.map((option) => option.widthMm)]).toEqual([
+      expect([record.id, active.map((option) => option.widthMm)]).toEqual([
         record.id,
         [record.widthMm],
       ]);
       bodies += 1;
     }
-    // The seventeen bodies §9 renders a width section for. A `fixedWidth` body resolves a perfectly
-    // good set and is still excluded here rather than at the panel, so the flag is not the only
-    // thing standing between the customer and a section of dead controls.
-    expect(bodies).toBe(17);
+    // Seventeen resizable bodies plus the five `fixedWidth` ones ADR 0049 brought into the section.
+    expect(bodies).toBe(22);
   });
 
   // The same claim where it is load-bearing, **corrected after QA measured it**: the first version
