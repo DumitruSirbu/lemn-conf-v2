@@ -1,0 +1,105 @@
+# ADR 0044 — An empty space is recorded in the design document, not re-guessed at load
+
+Status: Accepted
+Date: 2026-09-01
+Type: Decision
+Milestone: M5B — Manual UX remediation, wave 5B2; prerequisite for [ADR 0046](0046-adjacent-empty-columns-merge-under-a-cap-and-an-insert-splits-its-column.md)
+
+## Context
+
+The owner reported, 2026-09-01: shrink a 600 mm column to 450, reload, and the 150 mm strip is gone.
+The shrink is permanent and the width cannot be given back.
+
+What is true in the code:
+
+- `Design` carries `room`, `presetId` and `placements`, and nothing else
+  (`packages/configurator-domain/src/design.ts`, `DesignSchema`).
+- At load, `deriveGeometry` (`apps/web/src/store/configurator-store.ts:259-264`) builds the column
+  map with `deriveColumns(records)`, which groups **placements** by column key and throws for a
+  member-less column (`packages/configurator-domain/src/void-engine.ts:425-428`). An empty column
+  therefore **cannot exist at load**.
+- In-session an empty column exists only in the frozen map, which is carried forward by
+  `resolveColumns` (`apps/web/src/store/apply-command-result.ts:104-112`) and moved by
+  `moveFrozenColumns` (`commands/apply-column-moves.ts:186-206`). None of that is persisted.
+
+So [ADR 0011](0011-m3-insert-contract-gaps.md) Gap D freezes a column's extent precisely so a
+cleared run keeps the opening it just freed — and a save discards the freeze. One document renders
+two ways depending on whether the customer reloaded, which is the same failure Gap D's own
+`hasFullHeightUnder` correction was written about, in the other direction.
+
+It matters more now than when it was first reachable. [ADR 0035](0035-width-is-a-bounded-stepper-not-a-menu-of-sizes.md)
+decision 7 makes a shrink *create* an empty column, so the ordinary act of resizing produces the
+state that does not survive; and [ADR 0043](0043-an-empty-space-of-any-width-is-a-legal-state.md)
+has just made a gap of any width legal, which multiplies the number of such states a design can hold.
+
+## Decision
+
+**An empty space is part of the design document.** `DesignSchema` gains an optional
+`emptyColumns` array: for each, the wall, the along-wall centre, the width, the floor and top of its
+frozen extent, and its depth — whole millimetres, bounded exactly as every other coordinate is.
+`deriveColumns` adds them to the map it builds from the placements.
+
+**Nothing is migrated and no version is bumped.** [ADR 0038](0038-pre-release-no-stored-designs-no-migrations.md):
+the project is pre-release, no design has ever been stored, so the field is free. A document with no
+`emptyColumns` key loads exactly as it does today. **That licence expires at first release**, and
+after it this field is a schema change like any other.
+
+**The array is validated at both seams.** `validateDesignForCatalog` refuses an empty column that
+overlaps a placement or another empty column, at the API write seam and at the load seam.
+
+## Alternatives considered
+
+**Synthesise empty columns at load from the unoccupied spans between adjacent columns.** Rejected,
+and not because it costs more — it costs less. It cannot recover the two facts that make a frozen
+extent worth freezing. A **fully cleared** column has no member anywhere in the document, so nothing
+says how tall it was: `deriveFreeSpans` (`void-engine.ts:637-647`) needs `min(regions[].start)` and
+`column.top`, and synthesis would have to guess both from the neighbours. §10's signature flow is
+where the guess shows: clear the fridge column, get one 700 × 2600 opening subdivided into three
+level slots; reload, and a neighbour-derived `top` gives something else. Synthesis is also a
+re-derivation of an extent from current state, which is the exact thing ADR 0011 Gap D exists to
+forbid — so it is not a cheaper version of this decision, it is a weaker rule wearing its clothes.
+
+**Store the whole frozen column map.** Rejected: the occupied columns are already fully derivable
+from the placements, and storing a derivable fact is how two authors for one question start. Only
+the columns with no member of their own are unrecoverable, and only those are stored.
+
+**Refuse to leave a gap at all, so nothing needs storing.** Rejected — it is ADR 0043 reversed,
+decided by the owner one day earlier.
+
+## Records swept before deciding, and how each is settled
+
+Per the owner's standing instruction of 2026-09-01, *"when we take a decission need to check if
+earlier it was opposite or ambiguious in another ADRs"*:
+
+| Record | What it says | Settled how |
+| --- | --- | --- |
+| [ADR 0011](0011-m3-insert-contract-gaps.md) Gap D | A column's extent is frozen at load; a cleared run must keep the opening it freed. | **This record is Gap D's missing half, not a departure from it.** Gap D froze the extent in memory; persisting it is what makes the freeze survive the only event that was silently discarding it. Nothing in Gap D is superseded. |
+| [ADR 0011](0011-m3-insert-contract-gaps.md), `hasFullHeightUnder` correction | A column's *live* fields are re-answered on every derivation; only the extent is frozen. | **No conflict, and the boundary is honoured.** `emptyColumns` stores extent fields only. `hasFullHeightUnder` is still re-answered by `withCurrentFullHeightMembers` over the loaded map, empty columns included. |
+| [ADR 0038](0038-pre-release-no-stored-designs-no-migrations.md) | Pre-release; nothing stored; no migration owed. Its correction of 2026-08-31 warns that an unbounded schema field was a live defect at two real seams. | **Relied on for the cheapness, and obeyed for the danger.** The field is bounded and validated at both seams — that correction is exactly why the validation is part of this decision rather than a follow-up. |
+| [ADR 0002](0002-db-backed-shareable-persistence.md) | One `jsonb` document per design; canonical-serialisation round-trip invariant. | **No conflict; the invariant gains a case.** Round-tripping a design carrying `emptyColumns` is an acceptance criterion of the wave. |
+| [ADR 0031](0031-a-resize-moves-a-whole-column-into-adjacent-empty-space.md) | A resize is funded by an adjacent empty column, which is a frozen extent moved by `moveFrozenColumns`. | **Depends on this record to work across a reload.** ADR 0031 is unchanged; without this, its funding column exists only until the customer reloads. |
+| [ADR 0035](0035-width-is-a-bounded-stepper-not-a-menu-of-sizes.md) decision 7 | A shrink creates the empty column it needs. | **Depends on this record.** Untouched; it is the path that makes the defect ordinary rather than rare. |
+| [ADR 0043](0043-an-empty-space-of-any-width-is-a-legal-state.md), *Still open* | Names this defect explicitly and defers it to a wave of its own: *"the gaps this decision makes legal are the gaps that reload has to carry."* | **This is that wave.** ADR 0043's *"Nothing about persistence changes"* line is scoped to its own change — the removal of a refusal — and is not a claim that persistence is correct. No amendment needed; the pointer is added. |
+| `DEVELOPMENT-SPEC.md` §12, production model | The `Design` shape, with `placements` and no empty columns. | **Amended with a dated pointer here.** §12 is titled *recommended* and its schema is already narrower than the shipped one (`seatDepthMm` is absent from it too). |
+| `DEVELOPMENT-SPEC.md` §3.2 | *"derived once at load from the seeded placement set"*. | **Amended with a dated pointer.** After this record the map is derived from the placements **and** the stored empty columns. The freeze is unchanged. |
+
+Nothing found in the sweep contradicts the decision. The one record that came close — ADR 0043's
+*"Nothing about persistence changes"* — is about that record's own scope and says so in the same
+document's *Still open* section.
+
+## Consequences
+
+- **The frozen map has a wire shape for the first time.** It is deliberately not the whole map: only
+  the columns with no member, which are exactly the ones nothing else can reconstruct.
+- **Two seams gain a new refusal.** An overlapping empty column is a document the domain cannot
+  execute, and DOM-001's lesson is that such a document must be refused at the write seam and at the
+  load seam, not at one of them.
+- **A stale array is now possible and must be reconciled.** An empty column overlapping a placement
+  can only arrive from a hand-edited or hostile document, because every command writes both halves
+  together; the validation is what makes that a refusal rather than a derivation throwing.
+- **The array is capped**, like `MAX_PLACEMENTS`, so derivation stays linear in a hostile document.
+- **[ADR 0046](0046-adjacent-empty-columns-merge-under-a-cap-and-an-insert-splits-its-column.md)
+  cannot ship without this.** A merged or split empty column that vanishes on reload is worth
+  nothing, and the merge is the feature the owner asked for.
+- **This record's cheapness expires with ADR 0038**, at first release. Whoever re-reads ADR 0038
+  before launch owns this field too.
