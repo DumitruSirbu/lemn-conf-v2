@@ -31,6 +31,7 @@ import {
   derivePlacementRecords,
   FIT_TOLERANCE_M,
   LEVELS,
+  mergeAdjacentEmptyColumns,
   projectEmptyColumns,
   UnprojectableColumnError,
   type Column,
@@ -121,6 +122,13 @@ describe("the projection's uniqueness guarantee, attacked", () => {
 
   // A stronger statement than "no collisions": the map the projection restores to must be the map
   // it was projected from, on every key. A projection that dropped an entry, or moved one, is red.
+  //
+  // **Restated 2026-09-02 by wave 5B4b, which made the literal reading false.** `deriveColumns` now
+  // merges adjacent empty columns (ADR 0046 part 2), and this fixture's columns are 150 mm wide at
+  // swept centres, so two of them 150 mm apart abut and come back as one 300 mm column. The
+  // comparison is therefore against the **merged** map — the same map the store holds, since
+  // `resolveColumns` merges too — which keeps every mutant this was written for red: a dropped entry
+  // is a missing key and a moved one is a key neither map has.
   propertyTest.prop([
     fc.uniqueArray(fc.integer({ min: 0, max: 6300 }), {
       minLength: 1,
@@ -137,7 +145,7 @@ describe("the projection's uniqueness guarantee, attacked", () => {
     const restored = deriveColumns([], projectEmptyColumns(frozen, []));
 
     expect([...restored.keys()].sort()).toStrictEqual(
-      [...frozen.keys()].sort(),
+      [...mergeAdjacentEmptyColumns(frozen, []).keys()].sort(),
     );
   });
 

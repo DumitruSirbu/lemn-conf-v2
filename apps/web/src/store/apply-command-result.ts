@@ -11,6 +11,7 @@
 import {
   withCurrentFullHeightMembers,
   derivePlacementRecords,
+  mergeAdjacentEmptyColumns,
   findVacatedVoid,
   projectEmptyColumns,
   recomputeVoids,
@@ -127,6 +128,16 @@ function withEmptyColumns(
  *  extent, so they are the two whose own answer replaces the map passed in. Every other command
  *  leaves the extents alone and gets `hasFullHeightUnder` re-answered over them (ADR 0011 Gap D).
  *
+ *  **The merge wraps the whole return value, not one branch.** ADR 0046 part 2 runs after every
+ *  command, and the run that makes a merge possible usually arrives on the `body_inserted` arm: a
+ *  400 mm body split off a 200 mm remainder, and that remainder is what meets the cleared column
+ *  beside it. Merge only the non-effect branch and the freshly split column never meets its
+ *  neighbour, with every domain test still green — which is why this seam is asserted at the store.
+ *
+ *  `withCurrentFullHeightMembers` runs over the merged map even on the arms whose map arrived
+ *  current. That is the same author answering again rather than a second one: a merge rewrites the
+ *  extents the question is asked of, and the funnel is what keeps the answer a fact about now.
+ *
  *  The insert joined them on 2026-09-01: a body narrower than its column splits that column into an
  *  occupied half and an empty remainder, under two keys the one it replaced did not hold. Without
  *  this arm the effect's map is discarded, the map still carries the original wide column, and the
@@ -147,13 +158,18 @@ function resolveColumns(
   frozen: ReadonlyMap<string, Column>,
   records: readonly PlacementRecord[],
 ): ReadonlyMap<string, Column> {
-  if (effect.type === "body_resized" || effect.type === "body_inserted") {
-    return effect.columns;
-  }
-  // Re-answers `hasFullHeightUnder` over the frozen extents, and nothing else. ADR 0037's merge ran
-  // here too until 2026-08-30, so the delete path backlog 2 was reported from still gives two
-  // openings rather than one — see `void-engine.ts` for why the merge was withdrawn.
-  return withCurrentFullHeightMembers(frozen, records);
+  const published =
+    effect.type === "body_resized" || effect.type === "body_inserted"
+      ? effect.columns
+      : frozen;
+  // ADR 0037's merge ran here until 2026-08-30 and was withdrawn because §4 had no horizontal half.
+  // It returns under ADR 0046's 800 mm cap, and what makes that safe is 5B4a's split rather than the
+  // cap: no column is ever wider than its members when `recomputeVoids` runs. The cap cures only the
+  // `widthFlex: 'fit'` refusal — see `merge-empty-columns.ts`.
+  return withCurrentFullHeightMembers(
+    mergeAdjacentEmptyColumns(published, records),
+    records,
+  );
 }
 
 /** §5.1's closing step and the milestone's "selection never dangles" criterion, as one function:

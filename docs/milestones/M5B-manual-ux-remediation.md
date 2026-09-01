@@ -1,10 +1,11 @@
 # M5B — Manual UX remediation
 
-> **STATUS: IN PROGRESS.** 5B1, 5B6, 5B7, 5B3, 5B5, 5B10, 5B8, 5B2a, 5B2b and 5B4a are complete —
-> **wave 5B2 is closed; 5B4a's gate is green, so 5B4b is dispatchable**. Summary: `docs/STATUS.md`.
-> Branch `ux-manual-fixes`.
+> **STATUS: COMPLETE, 2026-09-02.** All eleven waves (5B1, 5B2a, 5B2b, 5B3, 5B4a, 5B4b, 5B5, 5B6,
+> 5B7, 5B8, 5B10) are implemented, gated and closed. **5B4b — the merge — shipped last, as the owner
+> asked, closing the milestone.** Summary and verification evidence: `docs/STATUS.md`.
+> Branch `ux-manual-fixes`, uncommitted.
 
-Status: in progress. Follows M5 (5E still open) and precedes M6.
+Status: complete. Follows M5 (5E still open) and precedes M6.
 Reference: `testing-reports/09-manual-ux-issues.md`; `DEVELOPMENT-SPEC.md` §3.2, §4, §5.2, §7, §9,
 §11 rows 1–5, 14, 18, 20, 23, §12, §13.1, §13.3 items 2 and 4; ADRs **0043–0050**, and **0011**,
 **0027**, **0031**, **0032**, **0033**, **0035**, **0037**, **0038**, **0040** as context.
@@ -752,7 +753,11 @@ passes through.
   *derivation*, which argues for storing the pre-merge set (storing a merged column stores a derived
   fact, and a later change to the cap would leave documents no code reproduces). Criterion 3's deep
   round-trip catches it either way, since the merge is a fixpoint under the cap. **5B4b's section
-  must state which map it projects; 5B2 does not decide it.**
+  must state which map it projects; 5B2 does not decide it.** **Decided 2026-09-02 by 5B4b's plan:
+  the projected map is the *post-merge* one** — not because storing a derived fact is harmless, but
+  because a pre-merge shadow map is not maintainable (a split remainder has no pre-merge
+  decomposition) and would give the store two maps, of which only the merged one can satisfy
+  `COLUMN_MISMATCH`. See *Decision: the projected map is the post-merge map*, wave 5B4b.
 - **ADR 0043** is why the cap divides by `WIDTH_STEP_MM` rather than `NARROWEST_CATALOG_WIDTH_MM`.
   No conflict; the sweep changed the cap's derivation.
 - **ADR 0011 Gap D** is what settles the split: the frozen map belongs to the store seam, the resize
@@ -1017,118 +1022,380 @@ was not live — recorded as evidence-integrity practice in `docs/best-practices
 
 ### Wave 5B4b — adjacent empty columns merge, capped at 800 mm
 
-**Dispatch only once 5B4a's criterion 4 is green in the tree.** That is the gate, and it is the
-whole reason the merge is split from the split. **5B4a is complete and its criterion 4 is green,
-2026-09-01 — this wave is now dispatchable.**
+**Dispatchable, 2026-09-01.** The gate was 5B4a's criterion 4 — ADR 0037's own withdrawal scenario
+plus the four-tap case — and it is green in the tree, asserted as **a second insert succeeding**
+rather than as a void merely existing, and shown non-vacuous by reverting the split. Last wave of the
+phase, and the one the owner has been burned by once.
 
 **Owner decision 2, 2026-09-01.** Adjacent empty columns on the same wall and row merge when their
 total is at most 800 mm; a chain longer than 800 merges the widest contiguous run that stays at or
 under 800, so three adjacent 300s become a 600 and a 300. A 600 and a 400 stay separate and each
-takes its own cabinet — *"and this is a solution"*. The owner rejected a manual merge-left /
-merge-right control: *"It's a additional click for the user that I really want to avoid."* 600 is an
-acceptable fallback cap if 800 proves hard; 800 is preferred.
+takes its own cabinet — *"and this is a solution"*. A manual merge-left / merge-right control was
+rejected: *"It's a additional click for the user that I really want to avoid."* 600 is an acceptable
+fallback cap; 800 is preferred. **Merge at derivation, not at insert time** — an offer-list-only
+merge was rejected because a customer looking at two gaps and offered one cabinet is looking at a
+picture that disagrees with the offer. Recorded as **ADR 0046** part 2.
 
-**Mechanism: merge at derivation, not at insert time** — the owner's choice after being offered the
-alternative. An offer-list-only merge (leave two 300 mm gaps on screen, offer 600 mm cabinets) was
-rejected on UX grounds: a customer looking at two gaps and offered one cabinet is looking at a
-picture that disagrees with the offer. The merged space must be **visible as one space**.
+#### What ADR 0037 got wrong, and what is structurally different now
 
-The seams are the ones ADR 0037's `mergeAdjacentEmptyColumns` used and they still exist:
-`resolveColumns` (`apply-command-result.ts:104-112`) after every command, `moveFrozenColumns`
-(`apply-column-moves.ts:186-206`, whose comment still marks the removal), and — new, and only
-possible because of 5B2 — `deriveColumns` at load.
+This is the only wave in the phase that rebuilds something already built and withdrawn, so the
+withdrawal is the plan's first input rather than a footnote.
 
-Recorded as **ADR 0046**, which revives ADR 0037's rule under the cap and supersedes its withdrawal.
+**The withdrawal, restated from ADR 0037's own measurement.** `recomputeVoids` derives a column's
+free spans from its members' `[y0, y0+h]` intervals and the column's `top`. **Width is never
+subtracted.** Harmless while a column was never wider than its members; a merged column always is.
+Clear `A|1.30` and `A|2.00`, take the promised 1400 mm space, insert a 600 mm cabinet — *"the whole
+level closes, stranding 800 mm of wall with no void, no column and no second insert"*. Every
+structural attack on the merge machinery itself had passed. The merge was not wrong; it was
+**unbuildable on a §4 with no horizontal half**.
 
-**Three traps this wave must not walk into, none of them in ADR 0037.**
+**Three things changed since, and only one of them is the cap.**
+
+1. **§4 has its horizontal half.** Wave 5B4a shipped `splitColumn`
+   (`packages/configurator-domain/src/commands/split-column.ts`): a body inserted into a column
+   wider than itself is seated flush left and the column becomes two extents, so **no column is ever
+   wider than its members when `recomputeVoids` runs**. That is the precondition ADR 0037 said was
+   missing, by name. It is proven on the pre-existing four-tap defect with no merge in the tree.
+2. **Empty columns are first-class state, not an in-session accident.** ADR 0044 shipped in 5B2:
+   `emptyColumns` is persisted, validated by nine refusal codes, restored by `addStoredEmptyColumns`
+   inside `deriveColumns`, and projected by a pure `projectEmptyColumns`. ADR 0037's merge had no
+   load seam at all; this one does, and it is the seam that makes *"the merged space is visible as
+   one space"* survive a reload.
+3. **The cap.** It cures exactly one of the two failures and no more. `resolveFitWidth`
+   (`insert-fit.ts:341-354`) refuses a `widthFlex: 'fit'` body against the entry's declared range,
+   whose upper bound is 800, so a span that never exceeds 800 never asks a `'fit'` body to build
+   past §7's ceiling. **The cap does not cure the stranding.** Insert a 400 into a merged 600 and
+   200 mm still strands, for the identical reason. Anyone reading the cap as the fix is reading it
+   wrong, and ADR 0046 says so in those words.
+
+**Is the reason for the withdrawal still present? No — and the check is item 1, not item 3.** The
+withdrawal was about §4's missing horizontal half; that half exists, is proven, and is a hard
+prerequisite this wave depends on rather than re-litigates. **The wave should ship.** Had 5B4a's
+criterion 4 been red, or had it asserted a void existing rather than a second insert succeeding,
+the correct answer here would have been that the wave must not ship, and the plan would say so.
+
+**One consequence of the cap that the milestone previously got backwards, and it matters for the
+criteria.** ADR 0037's withdrawal scenario is `A|1.30` (800 mm) beside `A|2.00` (600 mm). Under an
+800 mm cap **those two do not merge at all** — 1400 > 800, so the widest contiguous run at or under
+800 is the 800 mm column alone. Re-running that scenario as a *merge* test asserts nothing about
+this wave's code. It is restated below as criterion 13, an anti-invariant, which is what it can
+honestly be.
+
+#### It does not fire on the seeded kitchen from deletes alone — stated up front
+
+Every seeded column, by centre and along-wall span:
+
+| Wall A | `0.30` 600 | `0.45` 900 | `0.75` 300 | `1.30` 800 | `2.00` 600 | `2.60` 600 | `3.20` 600 |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| Wall B | `0.615` 570 | `0.74` 320 | `1.20` 600 | `1.80` 600 | `2.45` 700 | | |
+
+**No pair of adjacent seeded columns totals 800 mm or less.** The narrowest is `A|0.75` at 300 and
+its neighbours are 600 and 800; every other neighbouring pair is 900, 1100, 1200, 1300 or 1400. So
+**clearing two whole cabinets — backlog 2's original report, and the gesture the owner described —
+still produces two openings on the shipped kitchen.** That is the cap working as decided, not a
+regression, and it is the second wave running where the mechanism is real but the seeded outcome is
+not what a reader expects. 5B4a said the same about the split; this says it about the merge, and it
+is said here rather than discovered in review.
+
+The merge **is** reachable in the product, and by exactly one class of route: a column must first
+become narrower than seeded, which happens through a 5B4a split or an ADR 0035 shrink. The canonical
+reachable route is criterion 12's, and it is the wave's headline case:
+
+> Clear `A|2.00` and `A|2.60` (600 + 600 = 1200, so **no merge**). Insert a 400 mm body into
+> `A|2.00`'s column: 5B4a seats it flush left and splits off a 200 mm remainder at 2100–2300. That
+> 200 is now edge-adjacent to the cleared 600 at 2300–2900, and 200 + 600 = 800 ≤ 800, so **they
+> merge into one 800 mm column** — and an 800 mm cabinet becomes selectable where a moment earlier
+> the widest offer was 600.
+
+That single sentence is what the wave is for, and it exercises the split, the cap, the boundary case
+(exactly 800) and the merge's interaction with 5B4a's remainder at once. **Corrected 2026-09-02: this
+route is six taps end to end, not four as first written here** — the count includes both deletes,
+both selections that precede an insert, and both inserts (the one that triggers the split and the
+second one that is criterion 12's own assertion).
+
+#### Decision: the projected map is the **post-merge** map
+
+ADR 0046's *Note for 5B4b* (added by 5B2b, restated unrevised by 5B4a) left this open and argued
+that pre-merge looked like the better default: a merged column is a *derived* fact, and storing it
+records a derivation's output rather than its inputs, so a later change to the cap would leave
+documents that no code can reproduce. **This wave decides post-merge**, and the argument is not that
+the note is wrong about storage hygiene — it is that pre-merge is not well defined and not
+maintainable.
+
+1. **The canonical map must be the merged one, and there can only be one canonical map.** Voids are
+   derived by `recomputeVoids(records, columns)` and carry `col`, the key of the column they came
+   from. `insertBody`'s `COLUMN_MISMATCH` guard and `refuseColumnDrift` (ADR 0011 Gap D) hold an
+   insert to that key. If the store held an unmerged map while the voids were derived from a merged
+   one, **every insert into a merged space would be refused as a phantom column**. So the merged map
+   is what the store holds, and the unmerged one would have to be a second, shadow map.
+2. **The shadow map cannot survive a command.** `splitColumn` deletes the key it divides and writes
+   two new extents; `moveFrozenColumns` does the same for a resize. Once a merged 800 is split by a
+   400 mm insert, its 200 mm remainder has **no pre-merge decomposition** — the 200 and the 600 it
+   came from no longer describe anything. Maintaining a pre-merge shadow would mean a second author
+   for every extent every command writes, which is precisely the smell `resolveColumns`' own comment
+   names when it refuses to re-apply the resized map.
+3. **The harm the note guards against is bounded and, today, empty.** If the cap moved to 600, a
+   document carrying a 700 mm merged empty column would reload as a 700 mm empty column: merging is
+   monotone — it only combines, never splits — so the restored column is a **fixpoint under any
+   cap**, and ADR 0043 makes an empty gap of any width a legal state. Such a document is
+   unreproducible, not invalid, and it is the same species as the >800 mm shrink column Q5 already
+   persists legally. And per **ADR 0038** the project is pre-release with no stored designs, so a
+   cap change today strands nothing at all.
+4. **The seam does not move.** `projectEmptyColumns(columns, records)` in `apply-command-result.ts`
+   is already written against whichever map is canonical, exactly as its doc comment anticipates.
+   Post-merge means **this wave changes nothing at the write seam** — which is also why the choice
+   had to be stated rather than left to fall out.
+
+Recorded against ADR 0046's open note; the note is answered, not overturned.
+
+#### The centre a merge computes, and where its guard belongs — build it, do not discover it
+
+Twice this phase a centre has been fractional because two expressions agreed only by an unstated
+coincidence: 5B2b's blocker (`refuseFractionalCentres` inspected member centres, which are whole
+when the *delta* is even, while a frozen centre is whole when the *extent's* centre is), and 5B4a's
+live risk (`refuseFractionalHalves`, because the occupied half sits at `C − (W − w)/2` and the
+remainder at `C + w/2`, and the two decouple). **A merge computes a third new centre from two
+extents, and the same class applies.**
+
+The merged extent is the two outer edges, ADR 0031's arithmetic:
+
+```
+leftMm  = min over the run of (centreMm − widthMm / 2)
+rightMm = max over the run of (centreMm + widthMm / 2)
+widthMm  = rightMm − leftMm
+centreMm = leftMm + widthMm / 2
+```
+
+`centreMm` is fractional whenever `widthMm` is odd, and `widthMm` is the sum of the run's widths.
+**Every width in the shipped kitchen is even and ADR 0035's step is 50 mm, so today it is whole by
+coincidence and not by rule** — the same shape of coincidence both earlier blockers rested on. Say
+it in the code, not in review.
+
+- **Where the guard belongs: inside the merge, on the millimetre values, before any extent is
+  written** — not at the store seam, not in the validator.
+- **What expression it must match: `projectEmptyColumns`' own.** That function reads a frozen
+  column's along-wall coordinate and width through `exactMillimetresOf` → `toExactMillimetres`, and
+  throws `UnprojectableColumnError` for a value genuinely between two millimetres. `applyCommandResult`
+  **does not catch** it (deliberately, `apply-command-result.ts:83-90`). So the merge must convert
+  each input column's along coordinate and width with `toExactMillimetres`, and must test the
+  computed `centreMm` and `widthMm` with the same `Number.isInteger` discipline `refuseFractionalHalves`
+  uses — never `Math.round`, because `deriveColumnKeyAt` renders metres with `toFixed(2)` and a
+  rounded centre keys a column as its neighbour.
+- **And the merge must *decline*, not refuse.** `splitColumn` can return a `RejectionDetail` because
+  it runs inside a command. This merge also runs inside `deriveColumns`, which is pure, has no
+  rejection channel and cannot fail a load; and at `resolveColumns`, which runs **after** the command
+  already succeeded. So a run whose merged extent would not land on a whole millimetre is simply
+  **left unmerged**, which is a legal state under ADR 0043 and ADR 0037's *"ok to have empty space
+  left"*. A throw here is a crash from ordinary input.
+- **The key comes from the same number as the extent.** `deriveColumnKeyAt(wall, toMetres(centreMm))`,
+  from the identical `centreMm` written into the extent — `frozenColumnKey`
+  (`apply-column-moves.ts:246-248`) and `writeHalf` (`split-column.ts`) are both precedents.
+  `refuseKeyCollision` catches a clash and is blind to drift.
+
+#### Where the merge runs, and the one seam that is easy to miss
+
+Two call sites, and no third:
+
+- **`deriveColumns` (load)**, after `addStoredEmptyColumns` and **before** `withCurrentFullHeightMembers`
+  — whether a full-height member stands under a column is a fact about its extent, so extents are
+  written first. Same ordering `writeHalves` uses.
+- **`resolveColumns` (`apps/web/src/store/apply-command-result.ts:145-…`), on every branch.** It
+  currently returns `effect.columns` unmerged for `body_resized` and `body_inserted`, and
+  `withCurrentFullHeightMembers(frozen, records)` otherwise. **If the merge only wraps the second
+  branch, criterion 12 fails**: the split remainder that makes the run mergeable arrives on the
+  `body_inserted` branch, and the freshly split 200 mm column would never meet the 600 beside it.
+  The merge must wrap the whole return value.
+
+`apply-column-moves.ts` needs **no** change. A resize publishes its map through `effect.columns` and
+`resolveColumns` merges it there; merging inside `moveFrozenColumns` as well would give two authors
+for one fact, which is the failure `resolveColumns`' comment already names.
+
+#### Four traps, none of them in ADR 0037 and the fourth not in ADR 0046 either
 
 1. **The capped merge is order-dependent where the uncapped one was not.** ADR 0037 measured
-   order-independence — a chain of five collapsed to one 3000 mm space whatever the order. Under a
-   cap that property is **gone by construction**: 300 + 500 + 300 gives 800 + 300 scanning left, and
-   300 + 800 scanning right. `columns` is a `Map` and iterates in insertion order, so a greedy scan
-   over it would make the geometry depend on the order commands happened to run in. The rule must be
-   a greedy left-to-right scan over the run **sorted by along-wall coordinate**, and that must be
-   asserted, not assumed.
-2. **Merging columns with different `top` and `regions` invents openings.** `deriveFreeSpans`
+   order-independence; under a cap that property is **gone by construction** — 300 + 500 + 300 gives
+   800 + 300 scanning left and 300 + 800 scanning right. `columns` is a `Map` iterating in insertion
+   order, and a resize deletes and re-adds the keys it moves, so a greedy scan over the map would
+   make the geometry depend on the order the customer's commands happened to run in. **Greedy, left
+   to right, over the run sorted by along-wall coordinate** — asserted over a shuffled map, not
+   assumed.
+2. **Merging columns with different `top` or floor invents openings.** `deriveFreeSpans`
    (`void-engine.ts:692-705`) reads `min(regions[].start)` and `column.top`. A base-run column
-   (`top` 0.86) merged with a full-height one (`top` 2.6) yields, under a naive `max`, a wall-level
-   and a top-level opening over ground that never had one. §4 rule 1 exists for exactly this —
-   *"deleting the wall unit at x=0.30 offered a 2200 mm opening down to the floor, where the corner
-   base actually stands. Overlapping columns."* ADR 0037 does not discuss it because the shipped
-   kitchen's deletable columns happen to agree. **Rule: merge only columns whose `top` and floor
-   agree within `LEVEL_SNAP_M`; otherwise leave them separate.** "Same row" in the owner's decision
-   is what this makes precise.
-3. **The merged centre must land on the key grid.** `deriveColumnKeyAt` rounds to two decimals of a
-   metre (10 mm). A run from 1.30 to 1.85 has centre 1.575 and keys as `1.58`. `refuseKeyCollision`
-   catches a clash but not the drift, so the merged extent and its key must be derived from the same
-   number, the way `frozenColumnKey` already does it.
+   (`top` 0.86) merged with a cleared full-height one (`top` 2.6) publishes, under a naive `max`, a
+   wall-level and a top-level opening over ground that never had one — §4 rule 1 verbatim. **Merge
+   only columns whose `top` and floor agree within `LEVEL_SNAP_M` (0.02 m).** This is what the
+   owner's *"same row"* means in the engine's terms.
+3. **The merged centre must land on the key grid** — the guard section above.
+4. **`d` must agree too, and ADR 0046 rule 2 names only `top` and floor.** A column's depth is part
+   of its frozen extent and `recomputeVoids` reads it. A cleared wall-depth column (≈0.33 m) merged
+   with a cleared base-depth one (0.60 m) would publish, under `max`, an opening 600 deep where only
+   330 ever was — a body would be offered space that does not exist; under `min` it would lose
+   270 mm of real depth on the base half. Neither is acceptable, so **`d` is a third agreement
+   condition within `LEVEL_SNAP_M`, and columns whose depths disagree stay separate.** This
+   *sharpens* ADR 0046 rule 2 rather than contradicting it; the wave's close-out must add a dated
+   note to ADR 0046 saying the agreement predicate is `top`, floor **and** `d`.
+5. **Adjacency by edges is not enough, because seeded columns overlap.** `A|0.45` (the 900 mm corner
+   base) spans 0–900 and therefore overlaps both `A|0.30` (0–600) and `A|0.75` (600–900); on wall B
+   `p9` spans 330–900 and `p26` spans 580–900. A run whose members merely touch at their edges can
+   still enclose ground a *third* column's member stands on. **The merged span must contain no
+   non-accessory placement whose along-wall footprint overlaps it positively and whose vertical
+   interval intersects the merged `[floor, top]`** — the same geometric-rather-than-membership
+   correction ADR 0011 applied to `hasFullHeightUnder` on 2026-08-26. Asserted, not assumed.
 
-**Why the cap plus the split is now sufficient — the verification the lead asked for, and its
-limit.** ADR 0037's measured failure was: merge two clears into 1400 mm, insert a 600 mm cabinet,
-*the whole level closes*, stranding 800 mm with no void and no second insert; and a `widthFlex: 'fit'`
-body is refused outright for trying to fill 1400 against the 800 mm ceiling.
+#### The cap: refused, never partial and never truncated
 
-- The **`'fit'` refusal** is cured by the cap alone. No merged span exceeds 800, so no `'fit'` body
-  is ever asked to build past §7's ceiling. Verified against `resolveFitWidth`
-  (`insert-fit.ts:341-354`), which refuses on `acceptsWidthMm` against the entry's declared range.
-- The **stranding is not cured by the cap.** Insert a 400 into a merged 600 and 200 mm still
-  strands, for the identical reason: `recomputeVoids` subtracts height and never width. The cap
-  bounds how much can strand (to just under 800) but does not prevent it. **The lead's reading is
-  correct and I reproduce it from the code rather than inheriting it.**
-- The **stranding is cured by 5B4a**, and by nothing else in this phase. That is why 5B4a is a
-  hard prerequisite and why its criterion 4 — the four-tap case, green with no merge present — is
-  the dispatch gate for this wave. It proves the mechanism on the *pre-existing* defect before the
-  merge is allowed to make that defect ordinary.
+**A merge that would exceed 800 mm does not happen. No column is ever capped, truncated or split by
+the cap.** The scan takes the widest contiguous sub-run whose total is at or under 800 and leaves
+everything else exactly as it was: 600 + 400 stay two columns of 600 and 400; three 300s become a
+600 and a 300, both at their original outer edges. `MERGE_CAP_MM = 800` is one constant, stated once,
+and every rule here is written in terms of it so the owner's 600 fallback is a one-line change (ADR
+0046's own consequence).
 
-**One residual the cap does not close, stated rather than hidden.** ADR 0035 decision 7 lets a shrink
-widen an empty column with no ceiling: `void-engine.ts:744-751` records nine taps producing a 900 mm
-empty column, where every `'fit'` cabinet is refused. The 800 mm merge cap does **not** bound that
-path, because it is one column growing rather than two merging. It is a pre-existing open product
-question, recorded in `docs/milestones/M5-width.md`, and this phase does not close it — but a
-reviewer will meet a >800 empty column while testing 5B4b and must not read it as this wave's
-regression. **Q5** in *Open questions*.
+This is consistent with **ADR 0035 §7/decision 1** — 800 caps every cabinet, and the merge does not
+lift the ceiling; what it produces is freedom over the number and position of cabinets in a span.
+The exactly-800 case is a merge (`<=`), and criterion 12 is that boundary.
 
-**What this is not.** Backlog 2 chose option B — *"a run's total offered as valid module
-combinations"*. 5B4a + 5B4b deliver the **mechanism** that option B needs and that §12 lists as
-designed-not-built: one span yielding several columns, which is what `findTouchedColumnKeys`'
-comment already anticipates (*"one body becoming two … is the same question as one body moving"*,
-`void-engine.ts:466-471`). They do **not** deliver the product half — nothing offers the customer
-`800+600` versus `600+400+400` for a run. So this is a narrow slice of backlog 2, not the whole of
-it, and **backlog 2 stays open** with its remaining half named. Answering the lead's question
-directly: the split does not drag the full re-split in.
+**Q5 is untouched by this wave — neither closed nor widened a fifth time, and the reason is
+structural.** Q5 is *one column growing* past 800 through ADR 0035 decision 7's uncapped shrink
+release, measured at 900 mm and, since 5B8, two taps away on wall B. The cap here governs *two
+columns merging* and can only ever produce a column of 800 or less, so this wave adds no new route
+to a >800 mm empty column. It does not narrow Q5 either: a >800 mm empty column is already, by
+arithmetic, unmergeable with anything, so it simply sits out every scan. **A reviewer will meet a
+>800 mm empty column while testing this wave — from a shrink, or from 5B4a's remainder after
+inserting a 300 into a wide cleared span — and it must not be filed as this wave's regression.**
 
-**Acceptance criteria.**
-1. Two adjacent empty 300 mm columns on the same wall and row derive as **one** 600 mm empty column,
-   at load and after every command, with one key.
-2. A 600 and a 400 do **not** merge; both survive as separate columns. (Owner's own example.)
-3. Three adjacent 300s give a 600 and a 300 — and the same 600 and 300, in the same positions,
-   whatever order the deletions happened in and whatever order the map iterates. Asserted over a
-   shuffled map.
-4. 300 + 500 + 300 gives one deterministic answer, stated in the ADR, and the test asserts that
-   answer rather than "either is fine".
-5. Columns whose `top` differs by more than `LEVEL_SNAP_M` never merge, and a test builds the
-   base-run-beside-a-cleared-column case explicitly. §4 rule 1 must still hold: no opening is
-   invented over ground a member stands on.
-6. Inserting into a merged span leaves a usable remainder, never a stranded one — 5B4a's criterion
-   1 re-run on a merged column.
-7. **ADR 0037's exact withdrawal scenario, re-run:** clear two adjacent columns, insert into the
-   merged space, and the remaining width is still a selectable opening. Cited by that ADR's own
-   numbers.
-8. The merge is idempotent: merging an already-merged map changes nothing.
-9. Nothing merges across walls, across rows, or through an occupied column.
-10. Save and reload after a merge reproduces the merged column. **Requires 5B2.**
-11. The four column-identity regressions in M5's Verification section pass, and §10's signature flow
-    is re-run end to end.
+**The question the owner may want to answer, framed sharply and not answered here:** this wave puts
+an 800 mm bound on one route to an oversized empty space while leaving the other two unbounded. The
+customer cannot see which route made a gap, so the product now says *"two 500s beside each other
+stay two, because 1000 > 800"* and *"one 500 shrunk nine times becomes a 900, and that is fine"* at
+the same time. **Is 800 the ceiling on any empty column, or only on a merge?** If it is the former,
+`MERGE_CAP_MM` and the bound `RESIZE_OPENS_GAP` would need on wall A are one rule with one constant,
+and Q5 closes. That is an owner decision about the product, not an implementation choice, and it is
+**out of scope for this wave** either way — recorded here because this is the first place the two
+halves of the question are visible together.
 
-**Files.** a new `packages/configurator-domain/src/merge-empty-columns.ts`,
-`packages/configurator-domain/src/void-engine.ts`,
-`packages/configurator-domain/src/commands/apply-column-moves.ts`,
-`apps/web/src/store/apply-command-result.ts` (4).
+#### Acceptance criteria
 
-**Review tier: Full**, with adversarial QA briefed on ADR 0037's withdrawal and on the three traps
-above by name.
+**All 14 criteria met, 2026-09-02**, verified by adversarial QA against the named mutants (two rounds,
+24+ mutants total across this wave, all killed) plus clean-code, logic, security and visual review.
+Criterion 11's second mutant was found mis-specified during QA and is corrected in place below;
+everything else stands as planned. Each is paired with the mutation that must redden it. A criterion
+with no named mutant is presumed vacuous. **Criteria 1–11 need built fixtures; only 12 and 13 are
+reachable end-to-end on the seeded kitchen**, for the reason given above.
+
+| # | Criterion | Mutant that must redden it |
+| --- | --- | --- |
+| 1 | Two edge-adjacent empty 300 mm columns, same wall, same `top`/floor/`d`, derive as **one** 600 mm column: one key equal to `deriveColumnKeyAt(wall, merged centre)`, both original keys **absent**, extent spanning both. Holds at load (`deriveColumns`, from stored `emptyColumns`) **and** after a command (`resolveColumns`). | Make the merge the identity → two keys survive. Also: merge the extents but leave the old keys in the map → the "absent" assertion is what catches it, and a widths-only assertion would not. |
+| 2 | A 600 and a 400 do **not** merge; both survive with their own keys and extents. (Owner's own example.) | Delete the cap comparison (`total <= MERGE_CAP_MM` → `true`) → they merge. Criterion 1 passes under this mutant; criterion 2 is the one that does not. |
+| 3 | Three adjacent 300s give a 600 **and** a 300, with the 600 on the **left** — asserted by key and extent, not by width multiset. | Scan right to left → 300 + 600, same widths, different positions. A widths-only assertion is green under this mutant, which is why the criterion names positions. |
+| 4 | 300 + 500 + 300 gives 800 (the left pair) + 300, and gives **that** answer — not "either is fine" — for **every permutation of the map's insertion order**. Property, `fast-check` over `shuffle`. | Iterate the `Map` directly instead of sorting by along-wall coordinate → some permutations yield 300 + 800. A single fixed-order example is green under this mutant; the shuffle is load-bearing. |
+| 5 | Columns whose `top` or floor differ by more than `LEVEL_SNAP_M` never merge. Built explicitly as a base-run column beside a cleared full-height one, and asserted on the **published voids**: no opening exists below the higher floor. | Drop the agreement predicate → a void appears spanning down to floor 0 under a wall-only column (§4 rule 1). Asserting only the column count is weaker and green under a variant that merges extents but takes `min(top)`. |
+| 6 | Columns whose `d` differ by more than `LEVEL_SNAP_M` never merge; asserted on the published void's `d`. | Replace the depth predicate with `d: Math.max(...)` → the merged column publishes an opening deeper than one of its parts. |
+| 7 | A run whose merged span encloses a placement footprint (overlapping in along-wall extent **and** in the merged `[floor, top]`) does not merge. Built from the corner geometry: `A|0.45`'s 900 mm base under the wall-only columns. | Test adjacency by touching edges alone → the run merges across occupied ground and an opening is published where a body stands. |
+| 8 | **Property.** Over runs of 2–4 adjacent empty columns with widths drawn from 50–800 mm and integer centres, `applyCommandResult` never throws `UnprojectableColumnError`, and every merged column's projected `alongMm`/`widthMm` are whole millimetres. A run whose merged centre would be fractional is **left unmerged**, never thrown on. | (a) Compute the centre as `(c₁ + c₂)/2` — the mean of the centres rather than the mid-point of the extents — wrong geometry for unequal widths and fractional besides. (b) Derive the key from a separately rounded centre → `refuseUnreproducibleKey` throws. (c) Turn the decline into a `throw` → the property fails on the first odd total. Note: with only even widths in the arbitrary, all three are green — the generator **must** admit odd widths. |
+| 9 | The merge is a fixpoint: re-running it on its own output returns an equal map (same key set, same extents), asserted on criteria 3's and 4's chains where greedy blocks abut, not on a single pair. | Seed each run with the previous block's accumulated total → the second pass merges 600 + 300 to 900. A "merge a single merged pair twice" test is green under every mutant here and is not a criterion. |
+| 10 | Nothing merges across walls or across a gap: two empty columns at the same along-wall coordinate on A and on B stay separate; two on one wall separated by 10 mm of unowned wall stay separate. | Group the run by along-wall coordinate with `wall` dropped from the key → the cross-wall pair merges. Relax edge contiguity to a tolerance ≥ the gap → the gapped pair merges and an opening is published over wall nothing owns. |
+| 11 | **Post-merge projection**, per this section's decision: after a merge, `design.emptyColumns` holds **one** entry for the merged column and none for its parts, and a reload reproduces it — compared on `voids` plus `key`/`wall`/`x`/`z`/`w`/`d`/`ry`/`top` and `min(regions)`, per ADR 0044's 5B2a note (deep `regions` equality is unsatisfiable by the wire shape, by design). Requires 5B2. | Skip the merge inside `deriveColumns` → the reload shows two columns where the session showed one. **Corrected 2026-09-02 (QA):** the second mutant this row named — "project from a pre-merge map → two entries" — is mis-specified, because it is not reachable from a *merged* session at all. Post-merge projection means the stored document already carries the merged extent, so a merged session's own reload never asks the load seam to merge anything — there is nothing left to merge. The actual reachable route to two adjacent stored entries is a **pre-5B4b document** — one written before this wave, or one hand-built for the test — carrying two adjacent entries that this wave's code has never seen through the merge path; `deriveColumns` must still merge those on load. That is the mutant this criterion is against, not a merged session losing its own merge. |
+| 12 | **The headline case, end to end on the seeded kitchen.** Clear `A|2.00` and `A|2.60` (they do **not** merge, 1200 > 800); insert a 400 mm body into `A|2.00`; 5B4a splits off a 200 mm remainder; the 200 and the 600 merge into one **800 mm** column; **an 800 mm body is then inserted into it and the insert succeeds**. Asserted as a second insert succeeding, exactly as 5B4a's criterion 4 is — never as a void merely existing. | Identity merge → the 800 mm insert is refused for want of width. Merge only the non-effect branch of `resolveColumns` → the split remainder never merges and the same refusal appears. Make the cap exclusive (`< 800`) → the boundary case fails. |
+| 13 | **ADR 0037's withdrawal scenario, as an anti-invariant.** Clear `A|1.30` (800) and `A|2.00` (600): 1400 > 800, so they **stay two columns** with their own keys; inserting a 600 into the 800 mm one still leaves a selectable 200 mm opening and a second insert into it is offered. | Remove the cap → they merge to 1400 mm and the wave restores exactly the state ADR 0037 was withdrawn over. **This replaces the earlier criterion 7**, which asked for the withdrawal scenario to be re-run as a *merge* test — under the cap this wave's code does nothing there, so the criterion was vacuous and passed on 5B4a alone. |
+| 14 | The four column-identity regressions in M5's Verification section pass, and §10's signature flow is re-run end to end. | Recompute columns globally in `resolveColumns` instead of merging over the frozen map → §10's delete produces no openings (ADR 0011 Gap D). |
+
+**Files.** A new `packages/configurator-domain/src/merge-empty-columns.ts` (beside `split-column.ts`,
+for the same reason it is not inside `void-engine.ts`), `packages/configurator-domain/src/void-engine.ts`
+(`deriveColumns` at load, plus the export), `apps/web/src/store/apply-command-result.ts`
+(`resolveColumns`, every branch). **Three, not four:** `commands/apply-column-moves.ts` is
+deliberately untouched — a resize's map reaches the merge through `effect.columns`.
+
+**Documentation owed at close-out.** A dated note on ADR 0046 recording (a) that 5B4b projects the
+**post-merge** map and why, answering the open *Note for 5B4b*, and (b) that the agreement predicate
+of rule 2 is `top`, floor **and** `d`. ADR 0033's centring amendment is **already done** (amended
+2026-09-01 and corrected the same day by wave 5B4a) — the earlier bullet in this milestone asking
+5B4b to do it is stale and should not be re-executed.
+
+**Review tier: Full + visual + security**, up from the *Full* in the sequencing table.
+
+- **Visual**, because the owner's decision is explicitly about the picture: *"the merged space must
+  be visible as one space"*, and the offer-list-only alternative was rejected on exactly that
+  ground. A test asserting one column is not evidence that a customer sees one gap. Real capture at
+  the mobile viewport, per `docs/best-practices/browser-and-visual-qa.md`, on criterion 12's route.
+- **Security**, narrowly and on the persistence trigger in `docs/WORKFLOW.md`: the wave changes what
+  is written into a persisted, validated array. One question to answer — can a merged extent be
+  projected into an entry `validateDesignForCatalog` refuses (`EMPTY_COLUMN_OVERLAPS_PLACEMENT`,
+  `EMPTY_COLUMN_OVERLAPS_EMPTY_COLUMN`, `EMPTY_COLUMN_KEY_COLLIDES_WITH_*`), making a design
+  unsaveable with nothing in session saying so? `MAX_EMPTY_COLUMNS` and `MAX_DESIGN_BYTES` are not at
+  risk in the widening direction, since merging only ever reduces the entry count.
+- Adversarial QA is briefed by name on ADR 0037's withdrawal, the five traps above, and the fact
+  that the merge does not fire from seeded deletes.
 
 **Risk. Highest in the phase.** The owner has been burned by this once.
+
+**Complete, 2026-09-02. The last wave of M5B — the milestone is now closed.** Adjacent empty columns
+merge under the 800 mm cap (ADR 0046 rule 1, reviving ADR 0037's withdrawn merge). New
+`packages/configurator-domain/src/merge-empty-columns.ts` (`MERGE_CAP_MM = 800`) and a new
+dependency-free leaf `packages/configurator-domain/src/module-grid.ts` owning `LEVELS`,
+`LEVEL_SNAP_M`, `deriveColumnKeyAt`, `alongWallPosition` and `alongWallCoordinate`, which
+`void-engine.ts` re-exports so no caller moved. The merge is called from `deriveColumns` (load) and
+from `resolveColumns` (`apply-command-result.ts`, every branch). Verified: domain 1375, web 757
+(+4 skipped); `pnpm ci:local` all nine gates PASS. Gates: adversarial QA (two rounds, 24+ mutants,
+all killed), clean-code, logic, security (scoped to the persistence trigger) and visual — all green.
+
+**The withdrawal cause is genuinely gone, and the cap was never the cure.** ADR 0037's machinery was
+correct; it was withdrawn because `recomputeVoids` subtracts height and never width, so a merged
+column was wider than its members and an insert closed the whole level. **5B4a's split is the cure**
+— no column is ever wider than its members when `recomputeVoids` runs. Logic review verified this
+independently: an empty column's voids carry the `spanY0`/`spanH` of the whole free span, so
+`dividesWholeColumn` is always true for a merged column and every insert into one splits. The cap
+only cures the `'fit'` refusal and bounds the residual, exactly as this record said before the wave
+shipped.
+
+**Post-merge projection, decided against this record's own "Note for 5B4b" leaning.** See *Part 2
+shipped, and the two notes it owed*, above, for the full reasoning: the stored-derived-fact objection
+is answered by ADR 0038 rather than by the fixpoint argument, which review showed is narrower than it
+reads — `min(top)`/`min(d)` change the agreement predicate, so a second pass can merge what the first
+refused.
+
+**The wave's defining incident.** A module cycle between `void-engine.ts` and the new merge module
+made `LEVEL_SNAP_M` read as `NaN` in the merge's own agreement check, so **the merge silently never
+fired while every test passed.** The developer found it. QA then proved the tests would now catch a
+reintroduction — both packages went red when the cycle was reintroduced — and the cycle was removed
+structurally by extracting `module-grid.ts` as a dependency-free leaf, verified in the built output at
+zero cycles across all 43 `dist` modules. A new test,
+`packages/configurator-domain/tests/dist-module-graph.test.ts`, pins acyclicity and staleness and
+names the offending cycle when it fails, with the incident recorded in its head comment. An
+`import/no-cycle` lint rule was considered and declined on cost — a new dev dependency, lockfile
+churn (itself a CI gate) and a slow rule — in favour of the dist test, which does the same job for
+about 100 lines and no new dependency.
+
+**Four test gaps QA closed, each of which would have shipped silently.** Maximality — the whole of
+ADR 0046 rule 1 — was unasserted: a mutant capping a merged block at two members passed the entire
+domain suite. Criterion 9's own named mutant survived against its own fixture, because that fixture
+was a fixpoint. The load-seam merge (`deriveColumns` merging stored `emptyColumns` on load) was
+unasserted at the store. And §5.1's selection-fallback three properties — `col`-first ordering, strict
+containment, wall comparison — were all unasserted.
+
+**A MAJOR regression found in review and fixed in-wave.** A delete that triggered a merge left the
+selection `null`, violating §5.1 — the merge deletes the vacated key and writes the merged key, so no
+void carried the pre-merge key the selection was still pointing at. Existing §5.1 tests stayed green
+because every seeded delete in that suite never triggers a merge. Fixed by carrying `wall`/`alongM` on
+`VacatedOpening` and falling back to the void whose along-wall span strictly contains the vacated
+centre.
+
+**Security finding, fixed.** The conservative envelope could invert — `max(floor)` with `min(top)` —
+for members shorter than `LEVEL_SNAP_M`, producing `EMPTY_COLUMN_INVERTED` on save: exactly the bypass
+5B2a's guard exists to prevent, since an inverted interval overlaps nothing. Declined by
+`hasPositiveHeight`, which refuses the merge rather than publish an inverted extent.
+
+**Visual — the owner's own question answered on screen.** Two ghost boxes with a divider at the
+1700 mm edge became one undivided box with no seam; all 27 taps across the merged span's range return
+the same id; `openWMm = 800`; an 800 mm `base-cabinet` then inserts into it and the insert succeeds.
+The cap refuses without truncating — 600+600 and 300+600 both stay two columns at their original
+edges. Survives reload. All captured at 390×844. **Not verified: the desktop rail, wall B, and a chain
+longer than two columns.**
+
+**Q5 is untouched, not widened a fifth time.** The cap can only ever produce a column of 800 mm or
+less, and a column already wider than 800 is unmergeable by arithmetic. See *Open questions for the
+owner* below for the sharpened form of the question this wave leaves open: is 800 mm the ceiling on
+any empty column, or only on a merge?
 
 ---
 
@@ -1301,12 +1568,12 @@ criterion 7 by name.
 | 6 | 5B8 | — | Full | Catalogue bound plus a new parameterised builder. **Complete.** |
 | 7 | 5B2 | 5B1's ADR 0043 | Full + security | Prerequisite for both 5B4 waves. **Also owns report item 6**, measured to be a reload defect rather than 5B1's. |
 | 8 | 5B4a | 5B2 | Full | The split. Its criterion 4 gates 5B4b. |
-| 9 | 5B4b | 5B4a green | Full | The merge. Last, as the owner asked. |
+| 9 | 5B4b | 5B4a green | **Full + visual + security** | The merge. Last, as the owner asked. Raised from *Full* by the wave's own plan: the owner's decision is about the picture (*"visible as one space"*), and the merge changes what is written into a persisted, validated array. **Complete.** |
 | 10 | **5B10** | — | Full + visual | Independent of every wave above and of each other's files. Ordered last because it is the only wave that moves seeded geometry, so it re-baselines M1's parity gate against a tree no other wave is touching. |
 
 **The owner asked for the merge last if nothing depends on it, and nothing does.** The one place the
 order is forced is 5B2 → 5B4: merged and split columns that vanish on reload are worth nothing, and
-5B4a's criterion 8 and 5B4b's criterion 10 cannot be met without the stored field. **That
+5B4a's criterion 8 and 5B4b's criterion 11 cannot be met without the stored field. **That
 dependency is confirmed, not refuted.** It moves 5B2 later than its size warrants, which is the
 right trade — it keeps the merge last.
 
@@ -1345,10 +1612,12 @@ shipped.
 
 | Risk | Where | Control |
 | --- | --- | --- |
-| The merge strands width again, as in ADR 0037 | 5B4b | 5B4a ships first and its criterion 4 — the four-tap case, green with no merge in the tree — gates the dispatch. |
-| The capped merge is order-dependent | 5B4b | Sorted greedy scan; criteria 3 and 4 assert one answer over a shuffled map. |
-| Merging unlike columns invents an opening over occupied ground | 5B4b | `top`/floor agreement within `LEVEL_SNAP_M`; criterion 5; §4 rule 1. |
+| The merge strands width again, as in ADR 0037 | 5B4b | 5B4a ships first and its criterion 4 — the four-tap case, green with no merge in the tree — gates the dispatch. **Green 2026-09-01.** |
+| A merge computes a fractional centre and `projectEmptyColumns` throws uncaught | 5B4b | The guard lives inside the merge, on `toExactMillimetres`, and **declines** rather than throws — `deriveColumns` is pure and has no rejection channel; criterion 8's property admits odd widths. |
+| The capped merge is order-dependent | 5B4b | Sorted greedy scan; criteria 3 and 4 assert one answer over a shuffled map, criterion 3 by **position** rather than by width multiset. |
+| Merging unlike columns invents an opening over occupied ground | 5B4b | `top`, floor **and `d`** agreement within `LEVEL_SNAP_M`, plus a geometric no-placement-inside-the-merged-span check — seeded columns overlap, so touching edges are not enough; criteria 5, 6 and 7; §4 rule 1. |
 | Edge alignment breaks `refuseColumnDrift` and re-opens ADR 0011 Gap D | 5B4a | Restate the guard, never delete it; criterion 6. |
+| A merged extent is projected into an entry the validator refuses, making the design unsaveable | 5B4b | Post-merge projection is the canonical map; security review answers this one question; criterion 11. |
 | A new document field becomes a new way to store an unexecutable design | 5B2 | Validation at **both** seams; criterion 5; security review. This is DOM-001's shape. |
 | The shell reconstructs a deleted body | 5B3 | Criterion 4 is `db9c402`'s anti-invariant, as a test. |
 | A resized pantry is faked by scaling a finished group | 5B8 | Criterion 5 asserts measured bounds at three widths. |
@@ -1413,7 +1682,12 @@ adversarial QA on 2026-09-01 against waves this phase built and are answered bel
   Q5 means bounding the shrink's release the way `RESIZE_OPENS_GAP` bounds wall A. ADR 0046's
   800 mm merge cap does **not** bound it — that cap governs two columns
   merging, and this is one column growing. It is listed here so a reviewer who meets a >800 mm empty
-  column while testing 5B4b does not report it as this phase's regression.
+  column while testing 5B4b does not report it as this phase's regression. **5B4b neither closes nor
+  widens Q5** (checked 2026-09-02): the cap governs two columns merging and can only ever produce a
+  column of 800 or less, so it adds no route to an oversized empty column, and a >800 mm one is
+  already unmergeable by arithmetic and simply sits out every scan. 5B4b's section frames the owner
+  question the two halves now make visible together — *is 800 the ceiling on any empty column, or
+  only on a merge?* — without answering it.
 
 ### Answered on 2026-09-01, and folded in above
 

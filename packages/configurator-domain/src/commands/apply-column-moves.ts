@@ -1,8 +1,8 @@
 // ADR 0031's arithmetic: the boundary between the run and the empty column beside it absorbs the
 // whole delta, every member takes the same new centre, and both frozen columns move to new keys.
 import { toMetres } from "../millimetres.js";
+import { alongWallPosition, deriveColumnKeyAt } from "../module-grid.js";
 import {
-  deriveColumnKeyAt,
   withCurrentFullHeightMembers,
   type Column,
   type PlacementRecord,
@@ -226,7 +226,7 @@ export function moveFrozenColumns(
       ...frozen.column,
       key: frozenColumnKey(frozen),
       w: toMetres(frozen.widthMm),
-      ...(frozen.column.wall === "A" ? { x: centreM } : { z: centreM }),
+      ...alongWallPosition(frozen.column.wall, centreM),
     });
   }
   // Last, because `hasFullHeightUnder` is a fact about a column's **extent** and both frozen moves

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { findVacatedVoid } from "../../src/queries/vacated-void.js";
+import type { VacatedOpening } from "../../src/commands/command-result.js";
 import type { VoidRecord } from "../../src/void-engine.js";
 
 function slot(overrides: Partial<VoidRecord>): VoidRecord {
@@ -21,24 +22,29 @@ function slot(overrides: Partial<VoidRecord>): VoidRecord {
   };
 }
 
+/** Where the body stood, as `removePlacement` records it: the key, the height, and — since wave
+ *  5B4b — the wall and the along-wall centre the geometric fallback measures against. */
+function stoodAt(
+  y0: number,
+  overrides: Partial<VacatedOpening> = {},
+): VacatedOpening {
+  return { col: "A|1.30", y0, wall: "A", alongM: 1.3, ...overrides };
+}
+
 describe("findVacatedVoid", () => {
   it("finds the slot containing where the body stood", () => {
     const voids = [
       slot({ id: "base", y0: 0, h: 0.86 }),
       slot({ id: "middle", y0: 1.5, h: 0.7 }),
     ];
-    expect(findVacatedVoid(voids, { col: "A|1.30", y0: 1.5 })?.id).toBe(
-      "middle",
-    );
+    expect(findVacatedVoid(voids, stoodAt(1.5))?.id).toBe("middle");
   });
 
   // §5.1: after a merge, the vacated frame's own start sits *inside* a bigger opening whose id
   // never existed before the recompute.
   it("finds a merged opening that starts below the vacated frame", () => {
     const voids = [slot({ id: "merged", y0: 1.5, h: 0.7 })];
-    expect(findVacatedVoid(voids, { col: "A|1.30", y0: 1.85 })?.id).toBe(
-      "merged",
-    );
+    expect(findVacatedVoid(voids, stoodAt(1.85))?.id).toBe("merged");
   });
 
   // R2.1 / F1. Two level-adjacent slots share the 2.20 module line. Widening the search at the top
@@ -49,7 +55,7 @@ describe("findVacatedVoid", () => {
       slot({ id: "wall", y0: 1.5, h: 0.7 }),
       slot({ id: "top", y0: 2.2, h: 0.4 }),
     ];
-    expect(findVacatedVoid(voids, { col: "A|1.30", y0: 2.2 })?.id).toBe("top");
+    expect(findVacatedVoid(voids, stoodAt(2.2))?.id).toBe("top");
   });
 
   // The same boundary from below: a body standing just under the line belongs to the lower slot.
@@ -58,9 +64,7 @@ describe("findVacatedVoid", () => {
       slot({ id: "wall", y0: 1.5, h: 0.7 }),
       slot({ id: "top", y0: 2.2, h: 0.4 }),
     ];
-    expect(findVacatedVoid(voids, { col: "A|1.30", y0: 2.19 })?.id).toBe(
-      "wall",
-    );
+    expect(findVacatedVoid(voids, stoodAt(2.19))?.id).toBe("wall");
   });
 
   // The float slack the fix needs and the reason it cannot be `FIT_TOLERANCE_M` (ADR 0015): a
@@ -72,15 +76,35 @@ describe("findVacatedVoid", () => {
       slot({ id: "top", y0: 2.2, h: 0.4 }),
     ];
     expect(2.2 - 1.5).toBeGreaterThan(0.7);
-    expect(findVacatedVoid(voids, { col: "A|1.30", y0: 2.2 })?.id).toBe("top");
+    expect(findVacatedVoid(voids, stoodAt(2.2))?.id).toBe("top");
   });
 
-  it("ignores a slot in another column", () => {
-    const voids = [slot({ id: "elsewhere", col: "A|2.00", y0: 0 })];
-    expect(findVacatedVoid(voids, { col: "A|1.30", y0: 0 })).toBeUndefined();
+  // **Restated 2026-09-02 by wave 5B4b.** The fixture used to keep this slot at the vacated body's
+  // own x while giving it another key, which is a record no derivation produces — and since the
+  // merge, "another column" is answered by geometry as well as by key. The slot stands somewhere
+  // else now, which is what the criterion always meant.
+  it("ignores a slot in another column, standing elsewhere on the wall", () => {
+    const voids = [slot({ id: "elsewhere", col: "A|2.00", x: 2, y0: 0 })];
+    expect(findVacatedVoid(voids, stoodAt(0))).toBeUndefined();
+  });
+
+  // The merge's own case (ADR 0046 part 2): the key the body was filed under is gone, because the
+  // column it named was folded into a wider one. The opening that covers where it stood is the
+  // merged column's, and §5.1 has to select it — before this wave the selection came back `null`.
+  it("selects the merged column's opening when the vacated key no longer exists", () => {
+    const merged = slot({ id: "merged", col: "A|1.60", x: 1.6, w: 1.2, y0: 0 });
+    expect(findVacatedVoid([merged], stoodAt(0))?.id).toBe("merged");
+  });
+
+  // The same fallback, refused: an opening that does not reach where the body stood is not the
+  // vacated one, however wide it is. Strict containment, so an opening merely abutting the vacated
+  // centre never claims it either.
+  it("ignores a wide opening that does not contain where the body stood", () => {
+    const beside = slot({ id: "beside", col: "A|2.20", x: 2.2, w: 1.2, y0: 0 });
+    expect(findVacatedVoid([beside], stoodAt(0))).toBeUndefined();
   });
 
   it("returns nothing when the removal created no opening at all", () => {
-    expect(findVacatedVoid([], { col: "A|1.30", y0: 0 })).toBeUndefined();
+    expect(findVacatedVoid([], stoodAt(0))).toBeUndefined();
   });
 });

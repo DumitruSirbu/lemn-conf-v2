@@ -26,6 +26,7 @@ import {
   toMetres,
   toMillimetres,
 } from "../millimetres.js";
+import { alongWallCoordinate } from "../module-grid.js";
 import { findVacatedVoid } from "../queries/vacated-void.js";
 import {
   recomputeVoids,
@@ -181,6 +182,8 @@ function findVacatedSlot(
   return findVacatedVoid(recomputeVoids(remaining, columns), {
     col: record.col,
     y0: record.frame.y0,
+    wall: record.wall,
+    alongM: alongWallCoordinate(record.wall, record.frame),
   });
 }
 

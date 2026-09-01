@@ -3,7 +3,14 @@
 **Read this second, right after `AGENTS.md`, before opening any milestone document.** It exists so a
 session can learn where the project stands without reading eight phase plans.
 
-Last updated: 2026-08-31. **Adversarial review remediation is complete for the security scope** on
+Last updated: 2026-09-02. **M5B — Manual UX remediation is complete.** All eleven waves shipped,
+closing with wave 5B4b (the capped merge) on 2026-09-02. See *M5B — Manual UX remediation, complete
+2026-09-02* below for the close-out, and `docs/milestones/M5B-manual-ux-remediation.md` for the
+criterion-by-criterion record. **Next up is M5 wave 5E**, the browser and mobile gate, which was held
+back specifically so it would not photograph a width surface M5B was still changing — that condition
+no longer holds.
+
+**Adversarial review remediation is complete for the security scope** on
 branch `adversarial-review-reports`. SCENE-001 and WEB-001 were fixed by an earlier session and have
 now been independently verified; DOM-001, SEC-002, SEC-003, SEC-004, DB-001, DB-002 and DB-003 are
 closed on this branch. **SEC-001 — the one remaining High — is deferred to M8 by the
@@ -37,12 +44,12 @@ moment it ships; a decision record does not. When the two disagree, the dated de
 | M2 — Void engine, picking, persistence | **Done** (closed 2026-08-25 — its last gate, the unwired client write path, was closed by M3 Wave 3C-2b) | No — `milestones/done/` |
 | M3 — Insert, remove, swap, client write path | **Done** (closed 2026-08-26) | No — `milestones/done/` |
 | M4 — Editor panel and shell | **Done** (closed 2026-08-26 — one criterion unmet by design, ADR 0024) | No — `milestones/done/` |
-| M5 — Width editing, and depth as a derived quantity | **In progress** — 5A–5D, 5D2a, 5D2b, **5D2c and 5F shipped 2026-08-30**; **5E open**. Its correction round is **M5B**, below — do not run 5E until M5B's width waves have landed, or 5E photographs a surface M5B is changing | Yes — `milestones/M5-*.md`, **and ADRs 0028–0041**, which supersede large parts of it |
+| M5 — Width editing, and depth as a derived quantity | **In progress** — 5A–5D, 5D2a, 5D2b, **5D2c and 5F shipped 2026-08-30**; **5E open, and now unblocked** — M5B, its correction round, closed 2026-09-02 | Yes — `milestones/M5-*.md`, **and ADRs 0028–0041**, which supersede large parts of it |
 | M6 — Price bar and global settings (**incl. the worktop depth control**, 2026-08-27) | Planned | Yes, when starting |
 | M7 — Step 1, room and presets | Planned | Yes, when starting |
 | M8 — Review, contact, success | Planned | Yes, when starting |
 | Adversarial review remediation | **Complete for the security scope** — SCENE-001, WEB-001, DOM-001, SEC-002, SEC-003, SEC-004, DB-001, DB-002, DB-003 closed; SEC-001 deferred to M8, gated; Medium/Low residuals open | Yes — `milestones/adversarial-review-remediation.md` and `testing-reports/` |
-| **M5B — Manual UX remediation** (branch `ux-manual-fixes`) | **In progress** — **5B1, 5B6, 5B7, 5B3, 5B5, 5B10, 5B8 and 5B4a complete; wave 5B2 (5B2a + 5B2b) complete and closed**; **5B4a's gate (ADR 0037's own withdrawal scenario) passed, so 5B4b is now dispatchable** | Yes — `milestones/M5B-manual-ux-remediation.md`, **and ADRs 0043–0051** |
+| **M5B — Manual UX remediation** (branch `ux-manual-fixes`) | **Done, 2026-09-02** — all eleven waves shipped; wave 5B4b (the capped merge) closed the milestone | No for the plan itself — its knowledge now lives in ADRs 0043–0051 and in the code. Not yet moved to `milestones/done/` (this session has no file-move tool); still at `milestones/M5B-manual-ux-remediation.md`, marked complete at its head |
 
 ## Adversarial review remediation — complete for the security scope, 2026-08-31
 
@@ -216,22 +223,106 @@ never the authorisation decision, so ADR 0019's check-then-write prohibition hol
 page cannot answer it (the cookie is `Path=/api/designs/{id}`), so it hydrates `"unknown"` and a
 client probe asks the one route the cookie reaches, at the cost of a second GET per shared-link open.
 
+## M5B — Manual UX remediation, complete 2026-09-02
+
+All eleven waves shipped on branch `ux-manual-fixes` (uncommitted). The last, **5B4b — adjacent
+empty columns merge under an 800 mm cap** — closed the milestone. Full criterion-by-criterion record:
+`docs/milestones/M5B-manual-ux-remediation.md`. Decisions: ADRs **0043–0051**.
+
+**5B4b shipped.** Adjacent empty columns merge under an 800 mm cap (ADR 0046 rule 1, reviving
+ADR 0037's withdrawn merge). New `packages/configurator-domain/src/merge-empty-columns.ts`
+(`MERGE_CAP_MM = 800`) and `src/module-grid.ts` — a new dependency-free leaf owning `LEVELS`,
+`LEVEL_SNAP_M`, `deriveColumnKeyAt`, `alongWallPosition` and `alongWallCoordinate`, which
+`void-engine.ts` re-exports so no caller moved. The merge is called from `deriveColumns` (load) and
+`resolveColumns` (every branch). Verified: domain **1375**, web **757** (+4 skipped);
+`pnpm ci:local` all nine gates PASS. Gates: adversarial QA (two rounds, 24+ mutants), clean-code,
+logic, security (scoped) and visual — all green.
+
+**ADR 0037's withdrawal cause is genuinely gone, and the cap was never the cure.** 0037's machinery
+was correct; it was withdrawn because `recomputeVoids` subtracts height and never width, so a merged
+column was wider than its members and an insert closed the whole level. **5B4a's split is the cure**
+— no column is ever wider than its members when `recomputeVoids` runs. Logic review verified
+independently: an empty column's voids carry the `spanY0`/`spanH` of the whole free span, so
+`dividesWholeColumn` is always true for a merged column and every insert into one splits. The cap
+only cures the `'fit'` refusal and bounds the residual.
+
+**Post-merge projection, decided against ADR 0046's own leaning.** Voids carry `col` and
+`COLUMN_MISMATCH`/`refuseColumnDrift` hold an insert to that key, so a pre-merge map could only ever
+be a shadow — and it cannot survive a command, since an 800 split by a 400 insert leaves a 200
+remainder with no pre-merge decomposition. The stored-derived-fact objection is answered by
+**ADR 0038** (no stored designs to strand), not by the fixpoint argument, which review showed is
+narrower than claimed: `min(top)`/`min(d)` change the agreement predicate, so a second pass can merge
+what the first refused. Recorded as a dated note on ADR 0046.
+
+**The wave's defining incident.** A module cycle (`void-engine` ↔ the merge) made `LEVEL_SNAP_M`
+read as `NaN`, so **the merge silently never fired while every test passed.** The developer found it.
+QA then proved the tests would now catch a reintroduction (both packages red in both), and the cycle
+was removed structurally via `module-grid.ts` — verified at **0 cycles across all 43 `dist` modules**.
+A new test, `packages/configurator-domain/tests/dist-module-graph.test.ts`, pins acyclicity and
+staleness and names the offending cycle when it fails, with the incident in its head comment. An
+`import/no-cycle` lint rule was declined on cost (a new dev dependency, lockfile churn, a slow rule)
+in favour of the ~100-line dist test.
+
+**Four test gaps QA closed, each of which would have shipped silently.** Maximality — the whole of
+ADR 0046 rule 1 — was unasserted (a mutant capping a block at two members passed the entire domain
+suite); criterion 9's own named mutant survived against its own fixture, a fixpoint; the load-seam
+merge was unasserted at the store; and §5.1's selection-fallback three properties (`col`-first
+ordering, strict containment, wall comparison) were all unasserted.
+
+**A MAJOR regression found in review and fixed in-wave.** A delete that triggered a merge left the
+selection `null`, violating §5.1 — the merge deletes the vacated key and writes the merged one, so no
+void carried it. Existing §5.1 tests stayed green because seeded deletes never trigger a merge. Fixed
+by carrying `wall`/`alongM` on `VacatedOpening` and falling back to the void whose along-wall span
+strictly contains the vacated centre.
+
+**Security finding, fixed.** The conservative envelope could invert (`max(floor)` with `min(top)`)
+for members shorter than `LEVEL_SNAP_M`, producing `EMPTY_COLUMN_INVERTED` on save — the exact bypass
+5B2a's guard exists to prevent, since an inverted interval overlaps nothing. Declined by
+`hasPositiveHeight`.
+
+**Visual — the owner's own question answered on screen.** Two ghost boxes with a divider at the
+1700 mm edge became one undivided box with no seam; all 27 taps across the range return the same id;
+`openWMm = 800`; an 800 mm `base-cabinet` then inserts into it and succeeds. The cap refuses without
+truncating (600+600 and 300+600 both stay two columns at original edges). Survives reload. All at
+390×844. **Not verified: the desktop rail, wall B, and chains longer than two columns.**
+
+**Q5 is untouched, not widened a fifth time.** The cap can only ever produce a column ≤800 mm and a
+>800 mm column is unmergeable by arithmetic. The owner's open question is now sharply framed: *is
+800 mm the ceiling on any empty column, or only on a merge?* If the former, `MERGE_CAP_MM` and the
+bound wall B's shrink release needs are one constant, and Q5 closes. See *What is open right now*
+below.
+
+**Documentation owed at close-out — done.** ADR 0046 carries two new dated notes (2026-09-02): the
+post-merge projection decision with its reasoning above, and rule 2's agreement predicate gaining `d`
+as a third condition beside `top` and floor — conservative envelope `min(top)`/`max(floor)`/`min(d)`,
+so 580 vs 600 merge and publish **580** (losing 20 mm rather than inventing an opening over ground
+that was never that deep). ADR 0046 also now names two traps it had not named before: `d`
+disagreement, and that adjacency must be geometric (`standsIn`-style, overlap plus vertical-interval
+intersection) rather than touching-edges, per ADR 0011's own 2026-08-26 correction — the seeded
+kitchen has overlapping column spans (`A|0.45`'s 900 mm corner base spans both its neighbours) that a
+touching-edges test would miss.
+
+**Not verified in this close-out session:** whether the Playwright e2e suite (last counted 20 tests
+plus one skip on 2026-08-26) was rerun before this wave closed, as `M5B-manual-ux-remediation.md`'s
+own *Verification method* requires before the phase counts as closed. The team-lead brief that
+reported 5B4b's numbers did not mention it. **Confirm the e2e run before treating this milestone as
+fully verified**, or run it now — three of these waves changed what the editor loop does.
+
 ## What is open right now
 
-**M5B — Manual UX remediation is in progress on branch `ux-manual-fixes`.** It sits between M5 and M6: after M5 because every record it reopens is M5's and because 5E would otherwise gate a surface M5B is changing, before M6 because M6 prices a document M5B is adding a field to. Eleven findings from a manual
+**M5B — Manual UX remediation is complete, 2026-09-02** — see the section immediately above for the
+close-out. Everything below this line that references M5B as open is historical detail from the
+wave-by-wave record, kept for what each wave actually delivered. It sat between M5 and M6: after M5 because every record it reopens is M5's and because 5E would otherwise gate a surface M5B is changing, before M6 because M6 prices a document M5B is adding a field to. Eleven findings from a manual
 session on 2026-08-31 (`testing-reports/09-manual-ux-issues.md`) plus three owner decisions of
 2026-09-01. The plan is `milestones/M5B-manual-ux-remediation.md`; the decisions are ADRs **0043** (a gap of
 any width is legal), **0044** (empty columns are persisted), **0045** (the run-end panel follows),
 **0046** (the capped merge and the insert-time split, reviving ADR 0037), **0047** (open-shelf
 compartments follow clearance), **0048** (the pantry column is resizable) and **0049** (a fixed-width cabinet shows its width section disabled).
 
-**The owner answered four of the phase's five open questions on 2026-09-01**, so nothing below is blocked: wave 5B5 is unblocked (show the disabled section with its reason), an inserted cabinet sits against the **left** edge of a wider span, a 400 mm pantry keeps the 600's height and shelf pitch, and report item 6 was **measured** to be a reload defect owned by 5B2 rather than 5B1. **Q5 alone stays open and is inherited from M5, not introduced here**: whether a shrink may widen an empty column past 800 mm. Wave **5B1** is
-complete; **5B6 and 5B7 are complete, implemented and through adversarial QA**, which
-returned two findings, both applied — see *Where each M5B wave stands* below. **5B4b — the merge — is the phase's
-highest risk and is sequenced last**, gated on 5B4a reproducing ADR 0037's own withdrawal scenario
-green.
+**The owner answered four of the phase's five open questions on 2026-09-01**: wave 5B5 shows the disabled section with its reason, an inserted cabinet sits against the **left** edge of a wider span, a 400 mm pantry keeps the 600's height and shelf pitch, and report item 6 was **measured** to be a reload defect owned by 5B2 rather than 5B1. **Q5 alone stays open and is inherited from M5, not introduced here**: whether a shrink may widen an empty column past 800 mm — sharpened, not closed, by 5B4b; see the close-out section above. **5B4b — the merge, the phase's
+highest risk — shipped last, as the owner asked, and closed the milestone.**
 
-### Where each M5B wave stands, 2026-09-01
+### Where each M5B wave stands (historical, wave by wave)
 
 Nothing in this phase is committed yet; all of it is uncommitted work on `ux-manual-fixes`.
 
@@ -247,7 +338,7 @@ Nothing in this phase is committed yet; all of it is uncommitted work on `ux-man
 | **5B2a** — the document contract | **Complete.** `emptyColumns` is now an optional, capped field on `DesignSchema` per ADR 0044 (`design.ts`); the cap is `MAX_EMPTY_COLUMNS = 1262`, derived in `design-bounds.ts` from column-key granularity — `deriveColumnKeyAt` renders a metre value with `toFixed(2)`, so keys are 10 mm apart, giving `(6300/10 + 1) × 2 = 1262`. The earlier 684 derivation (wall runs ÷ `WIDTH_STEP_MM` × three module bands) refused legal documents — ADR 0043 leaves an empty column no width floor, so `WIDTH_STEP_MM` bounds nothing — proven by 631 one-millimetre strips 10 mm apart, all schema-valid. `MAX_DESIGN_BYTES` follows at 248 576 B (168 × 512 + 1262 × 128 + 1024). `deriveColumns` (`void-engine.ts`) now takes `deriveColumns(records, emptyColumns = [])` and adds the stored entries after grouping placements; `validate-design.ts` gained nine refusal codes (`EMPTY_COLUMN_INVERTED`, `EMPTY_COLUMN_BEFORE_WALL_START`, `EMPTY_COLUMN_PAST_WALL_END`, `EMPTY_COLUMN_ABOVE_ROOM`, `EMPTY_COLUMN_DEEPER_THAN_ROOM`, `EMPTY_COLUMN_KEY_COLLIDES_WITH_PLACEMENT`, `EMPTY_COLUMN_KEY_COLLIDES_WITH_EMPTY_COLUMN`, `EMPTY_COLUMN_OVERLAPS_PLACEMENT`, `EMPTY_COLUMN_OVERLAPS_EMPTY_COLUMN`). Tests: `empty-columns.test.ts`, `qa-5b2a.adversarial.test.ts`. Domain suite 1276 passed, deterministic across repeated runs; `pnpm ci:local` all gates PASS. Gates: QA (every mutant killed, none survived), clean-code (no actionable defects), logic (minor concerns, no blocker), security (safe to commit, reconfirmed after the cap changed). **No visual verification** — the wave is confined to `configurator-domain`, which has no rendering surface; that belongs to 5B2b. A shared `findContainmentBreaches` helper exposed that the placement path had only refusal tests and no acceptance boundary — loosening `>` to `>=` would have gone red for empty columns and stayed green for bodies — closed by six new sweeps against a pre-existing gap in a shipped rule. `MAX_DESIGN_BYTES` (248 576 B per row, 2.85× the original 87 040) does not move M8's gate parameter, but M8's retention sizing should use this figure. |
 | **5B2b** — the write seam, closing wave 5B2 | **Complete, 2026-09-01. Wave 5B2 (5B2a + 5B2b) is now fully closed.** `projectEmptyColumns` (pure, `void-engine.ts`) and `withEmptyColumns` (`apps/web/src/store/apply-command-result.ts`), wired into `configurator-store.ts:262` as `design.emptyColumns`. Verified: domain 1304, web 746 (+4 skipped); `pnpm ci:local` all gates PASS. Gates: adversarial QA (found and reproduced a blocker — see below — 12+ mutants, all killed), clean-code (no actionable defects), logic (matches intent, no blocker), visual (all six criteria PASS). **The blocker QA found and the developer fixed is this wave's real lesson.** `void-engine.ts` claimed `UnprojectableColumnError` was unreachable because `refuseFractionalCentres` refused any non-integral member centre — but the guard inspected only the *members'* centres, not the empty column's own. The two expressions decouple whenever `resolveColumnExtent`'s width is odd (reachable from the shipped fixture: `p26` at 320 mm, `p9`/`p21` at 570 mm), and two 600 mm bodies at `alongMm` 1000/1001 pass schema and `validateDesignForCatalog` but threw `UnprojectableColumnError` uncaught from `setWidth(600)`. Fixed by extending the guard to every centre a move writes (members plus both frozen moves), refusing `NON_INTEGER_MILLIMETRES` with `field: "centreMm"`. QA then swept `top`, `d`, `y0`, `w` and found them structurally unreachable as fractional values — only `alongMm`/`widthMm` were ever exposed — and a swept assertion now checks all five fields on every column. Visual: §10's signature flow reverified with `topMm: 2600` read from the **stored** document (neighbours top at 2200, so it could not be inferred), at 390×844 under real touch; the desktop rail, wall-A columns, and insert-after-reload snapping were **not** verified. |
 | **5B4a** — an insert splits the column it does not fill | **Complete, 2026-09-01.** Implemented, adversarial QA (14 mutants, all killed; adjudicated the developer's narrowing), clean-code review (no actionable defects), logic review (matches intent, minor concerns, no blocker), security review (scoped to two questions, safe to commit, no findings) and visual review (all six criteria PASS) all applied. Files: `commands/insert-fit.ts` (`InsertPlan.alongMm`/`remainderMm`, `seatAlongColumn`, `dividesWholeColumn`, `seatableMillimetres`, `centredInOpening`), new `commands/split-column.ts`, `command-result.ts` (`BodyInsertedEffect.columns`), `commands/insert-body.ts`, `apps/web/src/store/apply-command-result.ts`, plus a comment-only pointer in `void-engine.ts`. Tests: `split-column.test.ts`, `insert-splits-column.test.ts`, `qa-5b4a.adversarial.test.ts`. Verified: domain 1332 (twice, identical), web 749 (+4 skipped) against a freshly rebuilt domain package; `pnpm ci:local` all nine gates PASS. **The split has a forced precondition, ADR 0046's 2026-09-01 amendment: a column is divided only by an opening running its whole height — no member left standing in it.** Splitting under a surviving member re-keys the occupied half while that member keeps deriving the old key (ADR 0011 Gap D's phantom column), reproduced by QA as two `EMPTY_COLUMN_OVERLAPS_PLACEMENT` refusals on save. Curing it is backlog 2's re-split, out of this phase by name. **Consequence: nothing splits on the seeded kitchen** — `base-dishwasher` still centres in the 700 mm `B|2.45` (the over-fridge cabinet keeps it indivisible), and no seeded base cabinet sits in a column one delete makes splittable. So the wave delivers the mechanism and gates 5B4b; the seeded *outcome* waits on backlog 2. Both reviewers independently verified the precondition is minimal-equivalent. **The ADR 0037 gate PASSES**, which is what unlocks 5B4b: both of criterion 4's scenarios assert a **second insert succeeding**, not merely a void existing — verified non-vacuous (revert the split and the test throws before its assertion) and confirmed live in visual review (a 300 mm leftover, tapped, offering "4 corpuri intră", second insert succeeded). Visual evidence: conservation exact (occupied left = original left 1500, remainder right = original right 2100, shared boundary 1800), flush seating showing a zero-pixel gap on one side and a 46-px selectable gap on the other, split surviving a reload byte-identically, all at 390×844 under real touch. **The verifier had to rebuild the domain package first** — `dist/commands/split-column.js` did not exist, so the code under test was not live at the start of verification; recorded as evidence-integrity practice in `docs/best-practices/ci-and-local-gates.md`. |
-| **5B4b** — adjacent empty columns merge, capped at 800 mm | **Unblocked, not yet dispatched.** Gated on 5B4a's criterion 4 (the ADR 0037 withdrawal reproduction) going green in the tree, which it now has. ADR 0046's "Note for 5B4b" still stands: pre-merge projection is the better default, and 5B4b must state its choice explicitly. |
+| **5B4b** — adjacent empty columns merge, capped at 800 mm | **Complete, 2026-09-02 — closes M5B.** See *M5B — Manual UX remediation, complete 2026-09-02* above for the full close-out: the merge, the module-cycle incident, the MAJOR selection regression fixed in-wave, the security fix, and the visual evidence. Domain 1375, web 757 (+4 skipped); `pnpm ci:local` all nine gates PASS. |
 
 **5B1's real lesson, and it is a process one.** The owner's standing instruction — *check whether an
 earlier record said the opposite before implementing* — caught **five** statements of the rule ADR
@@ -265,7 +356,7 @@ contains a body that can grow, so every iteration hit a `continue` — and the r
 sentence was covered by a row that called the renderer directly, on a branch no command can reach.
 Both are fixed; the sweep now runs five worlds against a pinned floor.
 
-### The M5B items that need the owner, 2026-09-01
+### The M5B items that needed the owner (historical — the phase is closed)
 
 Both of this phase's QA-raised owner questions are answered as of 2026-09-01. **Q6** (wave 5B6's
 filler panel) is answered — make it a finishable front — and closed in
@@ -290,15 +381,19 @@ untracked, recorded rather than discovered later.
 
 **Reported issues that are not scheduled live in `docs/BACKLOG.md`.** The first of the two found in
 the first handset pass is now closed: the induction hob **can** be restored, because ADR 0027 made it
-part of the cabinet body and added two hob-bearing catalogue entries. The second is still open —
-clearing two adjacent cabinets yields two openings rather than one, the run re-split §12 lists as
-"Not built, designed". **Decided on 2026-08-28 by [ADR 0037](decisions/0037-adjacent-empty-columns-merge-into-one-space.md)** —
-adjacent columns empty at every level merge into one space, and 800 mm still caps every cabinet, so
-what a merge buys is freedom over the *number and position* of cabinets in a span rather than a
-bigger one. **Built in 5D2b on 2026-08-29 and withdrawn on 2026-08-30** — it needs backlog 2's
-re-split, which §12 lists as designed and not built, and without that it costs the customer the
-opening it was meant to give. **This defect is therefore still open.** ADR 0035's shrink-creates-space makes it reachable without a
-delete, which is what moved it from backlog to decided.
+part of the cabinet body and added two hob-bearing catalogue entries. The second — clearing two
+adjacent cabinets yields two openings rather than one, the run re-split §12 lists as "Not built,
+designed" — was **decided on 2026-08-28 by [ADR 0037](decisions/0037-adjacent-empty-columns-merge-into-one-space.md)**,
+**built in 5D2b on 2026-08-29 and withdrawn on 2026-08-30** because §4 had no horizontal half. **The
+mechanism is now shipped, under [ADR 0046](decisions/0046-adjacent-empty-columns-merge-under-a-cap-and-an-insert-splits-its-column.md),
+by wave 5B4b on 2026-09-02** — §4 gained its horizontal half in 5B4a, so the merge no longer strands
+a level, and adjacent empty columns totalling at most 800 mm merge into one column and one visible
+opening. **This is only a partial close, and backlog entry 2 stays open**: the merge does not fire
+from a plain double delete on the *seeded* kitchen (every seeded neighbouring pair totals more than
+800 mm), so the report's original gesture is still two openings there, and backlog 2's second half —
+offering a run's total as valid module combinations (`800+600`, `600+400+400`) — is not built. 800 mm
+still caps every cabinet, so what the merge buys is freedom over the *number and position* of
+cabinets in a span rather than a bigger one.
 
 **A third handset report, 2026-08-27, is now scheduled rather than backlog.** Re-inserting a deleted
 top-row cabinet builds it 400 mm deep beside 330 mm neighbours. Diagnosed as backlog 5's unfinished
@@ -458,18 +553,15 @@ floor; until it lands, no update rate limit can be sized honestly.
 
 ## What to do next
 
-**M5B — Manual UX remediation, in the order `milestones/M5B-manual-ux-remediation.md` gives.** 5B1,
-5B6, 5B7, 5B3, 5B5, 5B10 and 5B8 are complete — domain 1214 / persistence 177 / three-adapter 1208 /
-web 714 (+4 skipped), `pnpm ci:local` passed all gates, M1 structural parity 73 + 31 = 104 at 1e-6 m.
-**Wave 5B2 (5B2a + 5B2b) is complete and closed** (domain suite 1304, web 746 (+4 skipped) after
-5B2b landed). **5B4a is now complete too** — domain 1332, web 749 (+4 skipped), `pnpm ci:local` all
-nine gates PASS — and its gate, the ADR 0037 withdrawal reproduction, is green in the tree. **Next is
-5B4b**, now dispatchable. See *Where each M5B wave stands*. The one forced dependency was **5B2
-before 5B4** — merged and split empty columns that vanish on reload would have been worth nothing —
-and it is satisfied; **5B4a before 5B4b** is the second, and it is now satisfied too. Everything else
-is ordered smallest-first so the merge lands last, which is what the owner asked for.
+**M5B — Manual UX remediation is complete, 2026-09-02.** All eleven waves shipped; the last, 5B4b
+(the capped merge), closed the milestone — see *M5B — Manual UX remediation, complete 2026-09-02*
+above. Final verified state: domain 1375, web 757 (+4 skipped), `pnpm ci:local` all nine gates PASS.
+**Confirm the Playwright e2e suite has been rerun since 2026-08-26 before treating M5B as fully
+verified** — see the close-out section's last paragraph.
 
-**M5 wave 5E — the browser and mobile gate.** It is the only M5 wave still open. 5D2c (the panel
+**Next: M5 wave 5E — the browser and mobile gate.** It was the only M5 wave still open, and it was
+deliberately held back while M5B was changing the width surface it photographs; that condition is now
+gone. 5D2c (the panel
 stepper) and 5F (base carcass depth as a formula) **both shipped on 2026-08-30**; see the commit list
 below. 5E photographs the width surface, and the surface it photographs is now the stepper rather
 than the chip row, so read ADR **0035** before writing a single assertion. ADR 0024's reachable

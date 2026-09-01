@@ -6,16 +6,30 @@ import type {
   Finish,
   Handle,
 } from "./design.js";
+import { mergeAdjacentEmptyColumns } from "./merge-empty-columns.js";
 import { toExactMillimetres, toMetres } from "./millimetres.js";
+import {
+  alongWallCoordinate,
+  deriveColumnKeyAt,
+  LEVELS,
+  LEVEL_SNAP_M,
+} from "./module-grid.js";
 import { deriveCabinetWorldTransform } from "./room-transforms.js";
 
-/** `DEVELOPMENT-SPEC.md` §2 module lines: base | wall | top. The 0.86–1.50 gap is backsplash and
- *  is never subdivided into — see the "no fallback" rule in `recomputeVoids`. */
-export const LEVELS: readonly (readonly [number, number])[] = [
-  [0, 0.86],
-  [1.5, 2.2],
-  [2.2, 2.6],
-];
+// The column model has one front door, so everything that already reads `LEVELS`, `LEVEL_SNAP_M` or
+// `deriveColumnKeyAt` from here goes on doing so. They are **defined** in `module-grid.ts`, which
+// nothing in this package's column code imports back — see that module for the cycle it removes.
+export {
+  alongWallCoordinate,
+  alongWallPosition,
+  deriveColumnKeyAt,
+  LEVELS,
+  LEVEL_SNAP_M,
+} from "./module-grid.js";
+export {
+  mergeAdjacentEmptyColumns,
+  MERGE_CAP_MM,
+} from "./merge-empty-columns.js";
 
 /** Smallest span (metres) that becomes a void. */
 export const MIN_SPAN_M = 0.3;
@@ -38,10 +52,6 @@ export const MIN_WIDTH_M = 0.3;
  *  numbers pass through unit conversions and are not bit-identical even when geometrically equal,
  *  so two values that should coincide are compared with this, never with `Number.EPSILON`. */
 export const FIT_TOLERANCE_M = 0.012;
-
-/** How close a free span's start must be to its level's own start to still count as "at" that
- *  level, per §4 rule 4 (a span starting mid-level stays one opening). */
-export const LEVEL_SNAP_M = 0.02;
 
 export type Band = "base" | "wall" | "top" | "column";
 
@@ -287,20 +297,6 @@ export class UnknownBodyError extends Error {
   }
 }
 
-/** §3.2's column key from a wall and an along-wall coordinate, at 10 mm granularity.
- *
- *  Exported because ADR 0031's resize moves an **empty** column, which by definition has no member
- *  to derive a key from — its extent is frozen (ADR 0011 Gap D) and its width is what moves. Its new
- *  key has to be derived the same way every occupied column's is, or a body later inserted into it
- *  lands under a key the map does not hold and `insertBody` refuses `COLUMN_MISMATCH`.
- *
- *  ADR 0035 decision 7 gives it a second caller for the same reason: a shrink *creates* an empty
- *  column at the extent it vacates, and that column has no member either. `set-width.ts` also uses
- *  it to ask whether the key it is about to create is one the map already holds. */
-export function deriveColumnKeyAt(wall: DesignWall, alongM: number): string {
-  return `${wall === "B" ? "B|" : "A|"}${alongM.toFixed(2)}`;
-}
-
 function deriveColumnKey(rotated: boolean, frame: Frame): string {
   return deriveColumnKeyAt(rotated ? "B" : "A", rotated ? frame.z : frame.x);
 }
@@ -459,7 +455,15 @@ export function deriveColumns(
     });
   }
   addStoredEmptyColumns(columns, emptyColumns);
-  return withCurrentFullHeightMembers(columns, records);
+  // ADR 0046 part 2, at the load seam ADR 0037's merge never had. **After the stored spaces are
+  // restored**, because they are most of what there is to merge, and **before**
+  // `withCurrentFullHeightMembers`, because whether a full-height member stands under a column is a
+  // fact about its extent and the merge is what writes the extents — the ordering `writeHalves`
+  // uses for the same reason.
+  return withCurrentFullHeightMembers(
+    mergeAdjacentEmptyColumns(columns, records),
+    records,
+  );
 }
 
 /** ADR 0044: the spaces nothing else can reconstruct, restored into the map the placements built.
@@ -779,21 +783,12 @@ function overlapsAlongWall(
   record: PlacementRecord,
   column: ColumnExtent,
 ): boolean {
-  const recordStart = alongWall(record.wall, record.frame);
-  const columnStart = alongWall(column.wall, column);
+  const recordStart = alongWallCoordinate(record.wall, record.frame);
+  const columnStart = alongWallCoordinate(column.wall, column);
   const overlap =
     Math.min(recordStart + record.frame.w, columnStart + column.w) -
     Math.max(recordStart, columnStart);
   return overlap > SPAN_EPSILON_M;
-}
-
-/** The along-wall coordinate: `x` on wall A, `z` on wall B — the same axis `deriveColumnKey`
- *  buckets on. */
-function alongWall(
-  wall: DesignWall,
-  position: { readonly x: number; readonly z: number },
-): number {
-  return wall === "A" ? position.x : position.z;
 }
 
 interface FreeSpan {

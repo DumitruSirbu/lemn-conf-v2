@@ -1101,8 +1101,24 @@ strictly an improvement, not a new loss.
 exactly these keys — an exclusion proved to be the diverging set exactly, not an approximation, and
 one a member-less column can never enter.
 
+**A second route, found 2026-09-01 by wave 5B4b's visual verification — cheaper and costlier than
+the first.** Clear a column entirely, insert a body that fits it exactly, reload. The wall
+(600 x 700) and top (600 x 400) openings *above* the new body are selectable before the reload and
+gone after. Isolated with no split and no merge involved: clear `A|2.60`, insert an exact-fit 600 mm
+dishwasher, reload.
+
+It is the same mechanism. The insert makes the column occupied, so `projectEmptyColumns` skips its
+key; the stored entry recording a 2600 mm extent is dropped; and the restored column's `top` comes
+from its members, which now reach 860. The column silently shrinks from 2600 to 860 and two usable
+openings disappear.
+
+This route matters more than the partial delete that opened this entry. It takes three taps rather
+than a contrived sequence, it is a *natural* thing to do — fill a column you just cleared — and what
+it costs is not a sliver but 1740 mm of a full-height column. Whoever schedules this work should
+size it against this route, not the original one.
+
 **So UX-2 is closed for a whole cleared column and for a shrink strip, and open for a partial
-delete.** Whoever picks this up is deciding whether the document records the frozen map or only its
+delete and for a column refilled after clearing.** Whoever picks this up is deciding whether the document records the frozen map or only its
 empty members, and that is an ADR, not a work item. Gap D's own 2026-08-26 correction is the
 precedent for recording "one design, two answers by route" as its own decision.
 
@@ -1134,6 +1150,37 @@ what they do to the "N corpuri intră" count line — the count is the part with
 receives the full unfiltered `input.offers`, so the data is there.
 
 Not scheduled. Worth pairing with the next panel wave rather than done alone.
+
+## 24. The e2e suite went six days without being run, and a rename had silently broken it
+
+Found while closing M5B (2026-09-02). `pnpm --filter @lemnaria/web test:e2e` was red:
+§10's signature flow at 390x844 failed on `getByTestId("offer-base-2door")`, expected 1, received 0.
+
+Not a regression from any M5B wave. The panel builds its test id as `offer-${row.buildId}`
+(`editor-panel.tsx:269`), and commit `3cc3ed3` (2026-08-27, M5 waves 5C2+5C3) merged `base-2door` and
+`base-1door` into one `base-cabinet` row under ADR 0033 — the door count became a consequence of the
+width rather than a product to pick. The e2e spec was last touched **2026-08-26, the day before**.
+`wall-2door` -> `wall-cabinet` was stale in the same file for the same reason.
+
+**So the test had been red for six days and nothing said so**, because the suite had not been run
+since 2026-08-26. Every other gate stayed green throughout: the rename was consistent everywhere the
+unit suites look, and no unit test asserts a DOM test id. Fixed by renaming both ids in the spec;
+the suite is now 21 passed, 1 skipped, 0 failed.
+
+**What is worth fixing is the gap, not the ids.** `pnpm ci:local` runs format, lint, typecheck, test,
+build, boundary, lockfile and sca — it does **not** run Playwright. That is a defensible choice (the
+e2e run takes about a minute and needs a browser), but it means the only thing standing between a
+broken e2e suite and a milestone close-out is somebody remembering. Here nobody did: this run
+happened only because the scribe closing M5B noticed the milestone's own Verification method asks for
+it and said it could not certify that it had run.
+
+Options, cheapest first: run it in CI on the remote rather than locally; add it to `ci:local` behind a
+flag the milestone close-out sets; or add a staleness check like
+`packages/configurator-domain/tests/dist-module-graph.test.ts`'s, failing when the catalogue's row ids
+have changed since the e2e spec was last touched. The third is the narrowest and would have caught
+exactly this.
+
+Not scheduled. Worth deciding before the next milestone closes on an unrun gate.
 
 ## Also open, recorded elsewhere — do not duplicate here
 

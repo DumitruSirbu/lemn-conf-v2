@@ -4,7 +4,13 @@
 // The failure branch returns the **exact original `Design` object** — identity, not a structural
 // copy — so a store applying a result unconditionally cannot silently replace state with an equal
 // but different object, and a rejection sweep can assert `toBe`.
-import type { Design, DesignPlacement, Finish, Handle } from "../design.js";
+import type {
+  Design,
+  DesignPlacement,
+  DesignWall,
+  Finish,
+  Handle,
+} from "../design.js";
 import { ConfigurationTimestampSchema } from "../schemas.js";
 import type { Column } from "../void-engine.js";
 import {
@@ -21,10 +27,19 @@ export interface CommandTarget {
 }
 
 /** Where a removed body stood, so the caller can find the void that covers it *by geometry* — void
- *  ids are regenerated on every recompute and a merge changes them (§5.1). */
+ *  ids are regenerated on every recompute and a merge changes them (§5.1).
+ *
+ *  **The wall and the along-wall centre are part of it, and they are not redundant with `col`.**
+ *  ADR 0046 part 2's merge deletes the keys it folds together and writes a new one, so a delete that
+ *  makes two empty columns adjacent leaves *no* void carrying the key the removed body was filed
+ *  under — and §5.1's selection came back `null` where the customer expected the space they just
+ *  freed. The key is still the primary match; these two are what the fallback measures against. */
 export interface VacatedOpening {
   readonly col: string;
   readonly y0: number;
+  readonly wall: DesignWall;
+  /** The removed body's own along-wall centre, in metres. */
+  readonly alongM: number;
 }
 
 export interface PlacementRemovedEffect {

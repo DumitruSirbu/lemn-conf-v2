@@ -7,8 +7,8 @@
 // `insertBody`'s `COLUMN_MISMATCH` guard, `deriveColumnKeyAt`, the frozen map, ADR 0031's funding
 // scan — is written against the rule that an opening belongs to a column.
 import { toMetres } from "../millimetres.js";
+import { alongWallPosition, deriveColumnKeyAt } from "../module-grid.js";
 import {
-  deriveColumnKeyAt,
   withCurrentFullHeightMembers,
   type Column,
   type PlacementRecord,
@@ -166,16 +166,6 @@ function writeHalf(
     ...column,
     key,
     w: toMetres(half.widthMm),
-    ...alongWallPosition(column, centreM),
+    ...alongWallPosition(column.wall, centreM),
   });
-}
-
-/** The half of a column's origin that moves along the wall. The other coordinate is the column's
- *  own half-depth and is carried across untouched — a column starts at the wall, whatever stands
- *  in it (`deriveColumns`). */
-function alongWallPosition(
-  column: Column,
-  centreM: number,
-): Pick<Column, "x"> | Pick<Column, "z"> {
-  return column.wall === "A" ? { x: centreM } : { z: centreM };
 }

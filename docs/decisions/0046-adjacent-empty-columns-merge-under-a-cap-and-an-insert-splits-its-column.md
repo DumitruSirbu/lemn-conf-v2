@@ -299,10 +299,55 @@ The precondition amendment above (a column is divided only by an opening running
 was written during 5B4a and is what the wave actually built; nothing here needed correction, only
 confirmation that it shipped as stated.
 
-**The "Note for 5B4b" above still stands, unrevised.** Pre-merge projection remains the better
-default for the reason given there — a merged column is a derived fact, and persisting it under one
-cap forecloses re-deriving it if the cap ever moves. 5B4b must still state which map it projects;
-this record continues not to decide it for them.
+**The "Note for 5B4b" above still stands, unrevised, as a record of what was argued before the wave
+ran.** 5B4b decided **post-merge** instead — see *Part 2 shipped, and the two notes it owed*, below,
+for the reasoning that overrode it.
+
+## Part 2 shipped, and the two notes it owed — 2026-09-02
+
+Wave 5B4b implemented part 2 and closed every gate (adversarial QA — two rounds, 24+ mutants — clean
+code, logic, security, visual). It decided against this record's own leaning, and the reason is
+recorded here rather than left as a reversal with no argument attached.
+
+**Post-merge projection, decided against the "Note for 5B4b" above.** `projectEmptyColumns` runs on
+the **merged** map, not the pre-merge one. Two things settled it:
+
+1. **The canonical-map argument stands on its own**, independent of storage hygiene: voids carry
+   `col`, and `COLUMN_MISMATCH`/`refuseColumnDrift` hold an insert to that key, so a pre-merge shadow
+   map could only ever be a second author for one fact. It also cannot survive a command — an 800 mm
+   merged column split by a 400 mm insert leaves a 200 mm remainder with no pre-merge decomposition to
+   fall back to.
+2. **The stored-derived-fact objection above is answered by [ADR 0038](0038-pre-release-no-stored-designs-no-migrations.md), not by the fixpoint argument this note leaned on.**
+   The note argued storing a merged extent forecloses re-deriving it if the cap moves; ADR 0038 answers
+   that directly — nothing has ever been stored, so a cap change today strands nothing. The fixpoint
+   argument this note also offered turns out to be **narrower than it reads**: it holds only while the
+   agreement predicate stays `top`/floor. Once rule 2 gains `d` under a conservative envelope
+   (`min(top)`, `max(floor)`, `min(d)` — see below), a second pass can merge what the first refused,
+   because the envelope itself changes at each merge. A "it's a fixpoint anyway" argument that is only
+   sometimes true is not the reason to prefer pre-merge; ADR 0038 is.
+
+**Rule 2 gains a third condition: `d` must agree too, within `LEVEL_SNAP_M`.** The "Three rules the
+cap forces" section above named only `top` and floor; a column's depth is part of its frozen extent
+and `recomputeVoids` reads it, so two columns that disagree on depth by more than `LEVEL_SNAP_M`
+(0.02 m) never merge — merging them under a naive `max` would offer space that is not there, and
+under `min` would lose real depth silently. When two columns **do** agree within tolerance but are not
+identical, the merged column publishes the **conservative envelope**: `min(top)`, `max(floor)`,
+`min(d)`, never the wider reading. So a 580 mm column merged with a 600 mm one publishes **580**,
+losing 20 mm the customer never gets to use, rather than inventing 600 mm of depth over ground that
+was only ever 580 — the same reasoning §4 rule 1 already applies to `top` and floor, extended to `d`.
+
+**Two traps this record never named, closed in 5B4b and worth recording here rather than only in the
+milestone file.**
+
+- **`d` disagreement.** Covered above — it is a merge condition, not merely a display detail, because
+  a column's `d` feeds `recomputeVoids` exactly as `top` and floor do.
+- **Adjacency must be geometric, not touching-edges.** The seeded kitchen has columns whose along-wall
+  spans overlap (`A|0.45`'s 900 mm corner base spans both `A|0.30` and `A|0.75`; `B|p9`/`B|p26`
+  overlap similarly), so a run whose members merely *touch* at their edges can still enclose ground a
+  third column's member stands on. The merge tests containment with the geometric predicate
+  (`standsIn`-style: along-wall footprint overlap **and** vertical-interval intersection with the
+  merged `[floor, top]`), the same correction [ADR 0011](0011-m3-insert-contract-gaps.md) applied to
+  `hasFullHeightUnder` on 2026-08-26, rather than a membership or touching-edges test.
 
 ## Consequences
 

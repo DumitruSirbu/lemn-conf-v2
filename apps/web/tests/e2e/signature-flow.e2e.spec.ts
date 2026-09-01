@@ -99,9 +99,9 @@ test("§10's signature flow runs end to end by touch at 390 x 844", async ({
     matches: (readout) => readout.openHMm === "860",
     description: "the 860 mm base slot",
   });
-  await expect(page.getByTestId("offer-base-2door")).toHaveCount(1);
+  await expect(page.getByTestId("offer-base-cabinet")).toHaveCount(1);
   await expect(page.getByTestId("offer-fridge-free")).toHaveCount(1);
-  await pressPanelControl(page, "offer-base-2door");
+  await pressPanelControl(page, "offer-base-cabinet");
   const base = await readSelection(page);
   expect(base.metaKind).toBe("base_cabinet");
   expect(base.openHMm).toBe("860");
@@ -113,7 +113,7 @@ test("§10's signature flow runs end to end by touch at 390 x 844", async ({
     description: "the 700 mm middle slot",
   });
   expect(middle.selectionId).toContain(":1.50");
-  await pressPanelControl(page, "offer-wall-2door");
+  await pressPanelControl(page, "offer-wall-cabinet");
   expect((await readSelection(page)).metaKind).toBe("wall_cabinet");
 
   // 5. Top slot: 400 mm bodies only. §11 row 6's offer half — the hood is fixed at 710 mm and is
@@ -124,7 +124,7 @@ test("§10's signature flow runs end to end by touch at 390 x 844", async ({
   });
   expect(top.selectionId).toContain(":2.20");
   await expect(page.getByTestId("offer-hood")).toHaveCount(0);
-  await pressPanelControl(page, "offer-wall-2door");
+  await pressPanelControl(page, "offer-wall-cabinet");
 
   const filled = await scanFridgeColumn(page);
   expect(filled.filter(isVoid)).toEqual([]);

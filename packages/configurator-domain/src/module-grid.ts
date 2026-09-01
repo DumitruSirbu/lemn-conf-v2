@@ -1,0 +1,69 @@
+// `DEVELOPMENT-SPEC.md` §2 and §3.2's grid: the level lines every opening is cut against, the snap
+// that decides when two heights are "the same row", the key a column is filed under, and the half of
+// a column's origin that moves along its wall.
+//
+// **A leaf module, and that is the whole reason it exists.** `void-engine.ts` owns the column model
+// and `merge-empty-columns.ts` rewrites it, so the merge needs the key and the snap while the engine
+// needs the merge — a cycle, and while these constants lived in `void-engine.ts` a top-level read of
+// `LEVEL_SNAP_M` from the merge resolved to `undefined` before that module's body had run. Every
+// comparison then answered false and the merge silently never fired, with nothing throwing. The
+// values live here so the reverse edge does not exist rather than being documented as fragile.
+// `body-kinds.ts` was split out of `catalog.ts` for the same reason and records the same argument.
+import type { DesignWall } from "./design.js";
+
+/** `DEVELOPMENT-SPEC.md` §2 module lines: base | wall | top. The 0.86–1.50 gap is backsplash and
+ *  is never subdivided into — see the "no fallback" rule in `recomputeVoids`. */
+export const LEVELS: readonly (readonly [number, number])[] = [
+  [0, 0.86],
+  [1.5, 2.2],
+  [2.2, 2.6],
+];
+
+/** How close a free span's start must be to its level's own start to still count as "at" that
+ *  level, per §4 rule 4 (a span starting mid-level stays one opening).
+ *
+ *  ADR 0046 rule 2 reads it a second way: two columns are on the same row when their floors, their
+ *  tops and their depths agree this closely, which is what the owner's *"same row"* means in the
+ *  engine's terms. */
+export const LEVEL_SNAP_M = 0.02;
+
+/** §3.2's column key from a wall and an along-wall coordinate, at 10 mm granularity.
+ *
+ *  Exported because ADR 0031's resize moves an **empty** column, which by definition has no member
+ *  to derive a key from — its extent is frozen (ADR 0011 Gap D) and its width is what moves. Its new
+ *  key has to be derived the same way every occupied column's is, or a body later inserted into it
+ *  lands under a key the map does not hold and `insertBody` refuses `COLUMN_MISMATCH`.
+ *
+ *  ADR 0035 decision 7 gives it a second caller for the same reason: a shrink *creates* an empty
+ *  column at the extent it vacates, and that column has no member either. `set-width.ts` also uses
+ *  it to ask whether the key it is about to create is one the map already holds. ADR 0046 gives it a
+ *  third and a fourth — a split writes two keys where one was, and a merge writes one where two
+ *  were. */
+export function deriveColumnKeyAt(wall: DesignWall, alongM: number): string {
+  return `${wall === "B" ? "B|" : "A|"}${alongM.toFixed(2)}`;
+}
+
+/** The half of a column's origin that moves along its wall: `x` on wall A, `z` on wall B. The other
+ *  coordinate is the column's own half-depth and is carried across untouched — a column starts at
+ *  the wall, whatever stands in it (`deriveColumns`).
+ *
+ *  One function rather than the same ternary written out wherever a column's centre moves. It is
+ *  three callers now — a resize, a split and a merge — and the shape it replaces is the mirrored
+ *  pair with the operands swapped, which is what gets transposed on the next edit (5F clean-code
+ *  review S5). */
+export function alongWallPosition(
+  wall: DesignWall,
+  centreM: number,
+): { readonly x: number } | { readonly z: number } {
+  return wall === "A" ? { x: centreM } : { z: centreM };
+}
+
+/** The along-wall coordinate of anything that has a world position: `x` on wall A, `z` on wall B —
+ *  the same axis `deriveColumnKeyAt` buckets on, and the reading counterpart of
+ *  `alongWallPosition`. */
+export function alongWallCoordinate(
+  wall: DesignWall,
+  position: { readonly x: number; readonly z: number },
+): number {
+  return wall === "A" ? position.x : position.z;
+}
