@@ -17,18 +17,21 @@ import type {
   DesignRoom,
   DesignWall,
   EmptyColumn,
+  StoredColumnExtent,
 } from "./design.js";
 import { describeBoundedIssues } from "./failure-text.js";
 import {
   MIN_BODY_HEIGHT_MM,
   NARROWEST_CATALOG_WIDTH_MM,
 } from "./design-bounds.js";
-import { toMetres } from "./millimetres.js";
+import { toMetres, toMillimetres } from "./millimetres.js";
 import { InvalidDesignError } from "./repository.js";
 import {
   deriveColumnKeyAt,
+  derivePlacementRecords,
   MAX_EMPTY_COLUMN_WIDTH_MM,
   type BodyCatalog,
+  type PlacementRecord,
 } from "./void-engine.js";
 
 /** Stable, public, and deliberately value-free: a code and a path say what a genuine client got
@@ -52,6 +55,13 @@ export type DesignValidationCode =
   | "EMPTY_COLUMN_OVERLAPS_PLACEMENT"
   | "EMPTY_COLUMN_OVERLAPS_EMPTY_COLUMN"
   | "EMPTY_COLUMN_WIDER_THAN_CAP"
+  | "COLUMN_EXTENT_HAS_NO_MEMBER"
+  | "COLUMN_EXTENT_EXCLUDES_MEMBER"
+  | "COLUMN_EXTENT_KEY_COLLIDES_WITH_COLUMN_EXTENT"
+  | "COLUMN_EXTENT_OUTSIDE_ROOM"
+  | "COLUMN_EXTENT_OVERLAPS_PLACEMENT"
+  | "COLUMN_EXTENT_OVERLAPS_EMPTY_COLUMN"
+  | "COLUMN_EXTENT_OVERLAPS_COLUMN_EXTENT"
   | "TIMESTAMPS_OUT_OF_ORDER";
 
 export interface DesignValidationIssue {
@@ -79,6 +89,7 @@ export function validateDesignForCatalog(
       }),
     ),
     ...findEmptyColumnIssues(design),
+    ...findColumnExtentIssues(design, catalog),
   ];
 }
 
@@ -119,9 +130,221 @@ function findEmptyColumnIssues(design: Design): DesignValidationIssue[] {
     ...findUncontainedEmptyColumns(emptyColumns, design.room),
     ...findInvertedEmptyColumns(emptyColumns),
     ...findOversizedEmptyColumns(emptyColumns),
-    ...findEmptyColumnOverlaps(design.placements, emptyColumns),
+    ...findWallOverlaps(design),
     ...findCollidingColumnKeys(design.placements, emptyColumns),
   ];
+}
+
+/**
+ * ADR 0053's half of the executable contract: a recorded frozen extent that the document's own
+ * placements contradict.
+ *
+ * **This is what replaced a disjointness proof, so it carries the weight that proof used to.**
+ * Until this record, the stored half of the frozen map could never land on a key the placements
+ * produced, and `deriveColumns` could therefore never overwrite a derived column. `columnExtents`
+ * lands on exactly those keys on purpose, so what makes the overwrite safe is proved here instead:
+ * every placement filed under an entry's key lies **inside** that entry. With that, restoring an
+ * extent can only widen a column — it can never lose a member, and it can never publish an opening
+ * over a body, which is the one failure this array could otherwise cause.
+ *
+ * An entry with no member at all is refused rather than restored: on a key the placements do not
+ * hold, a frozen extent is an `emptyColumns` entry wearing the wrong array's name, and the nine
+ * refusals that govern that array — overlap, key collision, the width ceiling — would not be asked
+ * of it.
+ *
+ * **Two rules the empty-column half does not need, and why they are here.** An entry may not share
+ * a key with another entry, because the second would overwrite the first in the map and a space the
+ * document records would not exist in the derivation. And an entry is held to the room, because
+ * containment bounds it only from **below**: a hostile document may declare an extent that contains
+ * its members and still reaches ten metres up or out through the shell, which is review finding F2's
+ * defect arriving on a new field.
+ *
+ * There is deliberately no inversion rule. A `topMm` at or below `y0Mm` cannot contain a member of
+ * positive height, so `COLUMN_EXTENT_EXCLUDES_MEMBER` already refuses every inverted entry — and
+ * an entry with no member is refused before the question is asked.
+ */
+function findColumnExtentIssues(
+  design: Design,
+  catalog: BodyCatalog,
+): DesignValidationIssue[] {
+  const columnExtents = design.columnExtents ?? [];
+  if (columnExtents.length === 0) return [];
+  const membersByKey = describeMembersByColumnKey(design, catalog);
+  // A document naming a body no catalogue entry covers is already refused by `UNKNOWN_BUILD_ID`,
+  // and the containment rule cannot be asked without the catalogue's own depth declaration. Skipping
+  // it here reports one fault instead of two on a document that is refused either way.
+  if (!membersByKey) return [];
+  return [
+    ...findCollidingColumnExtentKeys(columnExtents),
+    ...columnExtents.flatMap((extent, index) =>
+      findOneColumnExtentIssues(extent, index, {
+        membersByKey,
+        room: design.room,
+      }),
+    ),
+  ];
+}
+
+/** What the containment rule needs to know about one placement, in the millimetres the document is
+ *  written in — read off the **derived record** rather than off the placement, because the
+ *  derivation is what a stored extent overrides: `frameHeightMm` and the declared occupied depth
+ *  both part company with what the placement itself says (ADR 0018, ADR 0036, ADR 0039). */
+interface MemberSpan {
+  readonly floorMm: number;
+  readonly topMm: number;
+}
+
+interface ColumnExtentContext {
+  readonly membersByKey: ReadonlyMap<string, MemberSpan[]>;
+  readonly room: DesignRoom;
+}
+
+function findOneColumnExtentIssues(
+  extent: StoredColumnExtent,
+  index: number,
+  context: ColumnExtentContext,
+): DesignValidationIssue[] {
+  const path = `columnExtents.${String(index)}`;
+  const members = context.membersByKey.get(columnExtentKey(extent)) ?? [];
+  if (members.length === 0) {
+    return [issueAt("COLUMN_EXTENT_HAS_NO_MEMBER", path)];
+  }
+  return [
+    ...findExtentRoomIssues(extent, index, context.room),
+    ...(members.every((member) => extentContains(extent, member))
+      ? []
+      : [issueAt("COLUMN_EXTENT_EXCLUDES_MEMBER", path)]),
+  ];
+}
+
+/**
+ * The two ways a member can stand outside the extent that claims it: below its floor, or above its
+ * top. Asked in whole millimetres, because that is the resolution both sides are written in — the
+ * document's own for the extent, and a rounded derivation for the member, whose sub-millimetre float
+ * noise is not a containment breach.
+ *
+ * **Two, and not the four an extent has fields for. The other two are not invariants of the map this
+ * validates, measured rather than assumed.**
+ *
+ * - *Along the wall.* §3.2 derives a column's `w` as the **MIN** over its members' widths, so a
+ *   column is routinely narrower than a body it holds — the seeded `A|1.30` is 500 mm wide and
+ *   carries a 600 mm base. The opposite is false too: a MIN over the original members stays frozen
+ *   when some of them are deleted, so an extent is narrower than every remaining member after a
+ *   partial delete. Neither direction is a rule.
+ * - *Depth.* ADR 0011 Gap D freezes `d`, and a resize rebuilds its members with freshly measured
+ *   seats — so a member's occupied depth can grow past the extent that holds it while the extent
+ *   stays where Gap D put it. Measured on the shipped kitchen: shrinking the pantry leaves `B|1.77`
+ *   frozen at 600 mm deep holding a top box that occupies 639 mm. Refusing that would refuse a
+ *   document the product itself writes.
+ *
+ * Both are bounded from above by the room instead (`findExtentRoomIssues`), which is what stops an
+ * extent reaching across the wall or out through the shell.
+ *
+ * **The vertical pair is the one that carries the guarantee**, and it is monotone by construction:
+ * the floor is a MIN over the members' and the top a MAX, so a stored extent that passes this can
+ * only ever hold *more* space than the placements imply. That is what makes restoring it able to
+ * widen a column and unable to lose the space a member stands in.
+ */
+function extentContains(
+  extent: StoredColumnExtent,
+  member: MemberSpan,
+): boolean {
+  return extent.y0Mm <= member.floorMm && extent.topMm >= member.topMm;
+}
+
+/** The same room bound a placement and an empty column are held to, through the same rule. The path
+ *  names the field rather than the code doing it: one refusal reads as "this extent is not inside
+ *  the room", and which edge it crossed is a detail for the reader of the path. */
+function findExtentRoomIssues(
+  extent: StoredColumnExtent,
+  index: number,
+  room: DesignRoom,
+): DesignValidationIssue[] {
+  const path = `columnExtents.${String(index)}`;
+  const breaches = findContainmentBreaches(
+    toEmptyColumnSpan(extent, index),
+    room,
+  );
+  return [
+    ...(breaches.startsBeforeWall || breaches.endsPastWall
+      ? [issueAt("COLUMN_EXTENT_OUTSIDE_ROOM", `${path}.alongMm`)]
+      : []),
+    ...(breaches.risesAboveRoom
+      ? [issueAt("COLUMN_EXTENT_OUTSIDE_ROOM", `${path}.topMm`)]
+      : []),
+    ...(reachesPastRoomAcrossWall(extent, room)
+      ? [issueAt("COLUMN_EXTENT_OUTSIDE_ROOM", `${path}.depthMm`)]
+      : []),
+  ];
+}
+
+/** Two entries addressing one slot in the column map: `deriveColumns` would restore both and keep
+ *  the last, so one of the extents the document records would not exist in the derivation. Named on
+ *  both sides for the reason `findCollidingColumnKeys` names both — neither entry is the offender
+ *  on its own. */
+function findCollidingColumnExtentKeys(
+  columnExtents: readonly StoredColumnExtent[],
+): DesignValidationIssue[] {
+  const owners = new Map<string, number>();
+  const issues: DesignValidationIssue[] = [];
+  columnExtents.forEach((extent, index) => {
+    const key = columnExtentKey(extent);
+    const first = owners.get(key);
+    if (first === undefined) {
+      owners.set(key, index);
+      return;
+    }
+    issues.push(
+      issueAt(
+        "COLUMN_EXTENT_KEY_COLLIDES_WITH_COLUMN_EXTENT",
+        `columnExtents.${String(first)}`,
+      ),
+      issueAt(
+        "COLUMN_EXTENT_KEY_COLLIDES_WITH_COLUMN_EXTENT",
+        `columnExtents.${String(index)}`,
+      ),
+    );
+  });
+  return issues;
+}
+
+function columnExtentKey(extent: StoredColumnExtent): string {
+  return deriveColumnKeyAt(extent.wall, toMetres(extent.alongMm));
+}
+
+/**
+ * Every placement, as the containment rule sees it, grouped under the column key the derivation
+ * files it under — or `undefined` when the catalogue cannot answer for one of them.
+ *
+ * `derivePlacementRecords` is the one function that knows which key a placement lands on and how
+ * far up the space it fills reaches — `frameHeightMm` parts company with the height the placement
+ * declares — so asking it here is what keeps this rule and `deriveColumns` reading the same numbers.
+ * It throws only for a `buildId` the catalogue does not hold, which the caller has already
+ * excluded.
+ */
+function describeMembersByColumnKey(
+  design: Design,
+  catalog: BodyCatalog,
+): ReadonlyMap<string, MemberSpan[]> | undefined {
+  if (
+    design.placements.some((placement) => !catalog.has(placement.body.buildId))
+  ) {
+    return undefined;
+  }
+  const grouped = new Map<string, MemberSpan[]>();
+  for (const record of derivePlacementRecords(design, catalog)) {
+    const bucket = grouped.get(record.col);
+    if (bucket) bucket.push(toMemberSpan(record));
+    else grouped.set(record.col, [toMemberSpan(record)]);
+  }
+  return grouped;
+}
+
+function toMemberSpan(record: PlacementRecord): MemberSpan {
+  return {
+    floorMm: toMillimetres(record.frame.y0),
+    topMm: toMillimetres(record.frame.y0 + record.frame.h),
+  };
 }
 
 /**
@@ -291,26 +514,36 @@ interface WallSpan {
   readonly alongEndMm: number;
   readonly floorMm: number;
   readonly topMm: number;
-  readonly emptyColumnIndex?: number;
+  readonly kind: "placement" | "emptyColumn" | "columnExtent";
+  /** Which column this run belongs to — what lets an extent be compared with every placement
+   *  **except** the ones it legitimately holds, which are the ones filed under its own key. */
+  readonly columnKey: string;
+  readonly index: number;
 }
 
 /**
  * Sorted per wall and swept, not compared pairwise.
  *
- * At the caps this document may carry that is 684 empty columns against 168 placements — about
- * 115k comparisons on every save and every load, including the overwhelming majority that carry no
- * empty column at all. Sorting once and keeping only the spans still open at the current
- * coordinate makes an honest document linear in its own size, which is what lets `MAX_EMPTY_COLUMNS`
- * bound the derivation rather than merely bound the document.
+ * At the caps this document may carry that is 1262 empty columns and 168 extents against 168
+ * placements, including the overwhelming majority that carry neither array. Sorting once and keeping
+ * only the spans still open at the current coordinate makes an honest document linear in its own
+ * size, which is what lets the caps bound the derivation rather than merely bound the document.
+ *
+ * **Both stored arrays are swept, by the same rule.** A recorded space standing where a body stands
+ * is a document the domain cannot execute, and so is a recorded *extent* reaching across a column it
+ * does not own: `recomputeVoids` builds what is taken from `membersByColumn.get(column.key)` — that
+ * column's **own** members and nothing else — so a 2000 mm extent on a 600 mm column publishes
+ * openings straight through its neighbours' bodies, selectable and insertable into. Containment is a
+ * per-key vertical proof and says nothing across keys. This sweep is what says it.
  */
-function findEmptyColumnOverlaps(
-  placements: readonly DesignPlacement[],
-  emptyColumns: readonly EmptyColumn[],
-): DesignValidationIssue[] {
-  if (emptyColumns.length === 0) return [];
+function findWallOverlaps(design: Design): DesignValidationIssue[] {
+  const emptyColumns = design.emptyColumns ?? [];
+  const columnExtents = design.columnExtents ?? [];
+  if (emptyColumns.length === 0 && columnExtents.length === 0) return [];
   const spans = [
-    ...placements.map(toPlacementSpan),
+    ...design.placements.map(toPlacementSpan),
     ...emptyColumns.map(toEmptyColumnSpan),
+    ...columnExtents.map(toColumnExtentSpan),
   ];
   return [...groupSpansByWall(spans).values()].flatMap(findOverlapsOnOneWall);
 }
@@ -351,30 +584,69 @@ function overlapVertically(first: WallSpan, second: WallSpan): boolean {
   );
 }
 
+/** An extent standing over a body filed under its **own** key is not an overlap — holding that body
+ *  is what the extent is for, and `extentContains` is what judges those. Every other pair is
+ *  compared. */
+function ownsTheMemberItOverlaps(first: WallSpan, second: WallSpan): boolean {
+  const [extent, other] =
+    first.kind === "columnExtent" ? [first, second] : [second, first];
+  return (
+    extent.kind === "columnExtent" &&
+    other.kind === "placement" &&
+    other.columnKey === extent.columnKey
+  );
+}
+
 function recordOverlap(
   issues: Map<string, DesignValidationIssue>,
   first: WallSpan,
   second: WallSpan,
 ): void {
-  const bothEmpty =
-    first.emptyColumnIndex !== undefined &&
-    second.emptyColumnIndex !== undefined;
-  const code: DesignValidationCode = bothEmpty
-    ? "EMPTY_COLUMN_OVERLAPS_EMPTY_COLUMN"
-    : "EMPTY_COLUMN_OVERLAPS_PLACEMENT";
-  for (const span of [first, second]) {
-    if (span.emptyColumnIndex === undefined) continue;
+  if (ownsTheMemberItOverlaps(first, second)) return;
+  for (const [span, other] of [
+    [first, second],
+    [second, first],
+  ] as const) {
+    const code = overlapCodeFor(span.kind, other.kind);
+    if (!code) continue;
     const issue = issueAt(
       code,
-      `emptyColumns.${String(span.emptyColumnIndex)}`,
+      `${arrayNameOf(span.kind)}.${String(span.index)}`,
     );
     issues.set(`${code}:${issue.path}`, issue);
   }
 }
 
+/** The code an overlapping run is named with, or nothing when it is not named at all — a placement
+ *  never is, which is what keeps a placement-on-placement overlap unreportable.
+ *
+ *  **An empty column gains no new code.** ADR 0044's nine refusals govern `emptyColumns` and this
+ *  record leaves their meaning exactly as it found it, so a space overlapping an extent is reported
+ *  once, on the extent: the entry this record added, and the one whose author has to move it. */
+function overlapCodeFor(
+  kind: WallSpan["kind"],
+  otherKind: WallSpan["kind"],
+): DesignValidationCode | undefined {
+  if (kind === "placement") return undefined;
+  if (kind === "emptyColumn") {
+    if (otherKind === "columnExtent") return undefined;
+    return otherKind === "emptyColumn"
+      ? "EMPTY_COLUMN_OVERLAPS_EMPTY_COLUMN"
+      : "EMPTY_COLUMN_OVERLAPS_PLACEMENT";
+  }
+  if (otherKind === "placement") return "COLUMN_EXTENT_OVERLAPS_PLACEMENT";
+  return otherKind === "emptyColumn"
+    ? "COLUMN_EXTENT_OVERLAPS_EMPTY_COLUMN"
+    : "COLUMN_EXTENT_OVERLAPS_COLUMN_EXTENT";
+}
+
+function arrayNameOf(kind: WallSpan["kind"]): string {
+  return kind === "columnExtent" ? "columnExtents" : "emptyColumns";
+}
+
 /** §12: `alongMm` is the centre of the run, on a placement and on an empty column alike, so both
  *  reach the sweep as the same kind of interval. */
-function toPlacementSpan(placement: DesignPlacement): WallSpan {
+function toPlacementSpan(placement: DesignPlacement, index = 0): WallSpan {
   const halfWidthMm = placement.body.widthMm / 2;
   return {
     wall: placement.wall,
@@ -382,18 +654,40 @@ function toPlacementSpan(placement: DesignPlacement): WallSpan {
     alongEndMm: placement.alongMm + halfWidthMm,
     floorMm: placement.y0Mm,
     topMm: placement.y0Mm + placement.body.heightMm,
+    kind: "placement",
+    columnKey: deriveColumnKeyAt(placement.wall, toMetres(placement.alongMm)),
+    index,
   };
 }
 
 function toEmptyColumnSpan(emptyColumn: EmptyColumn, index: number): WallSpan {
-  const halfWidthMm = emptyColumn.widthMm / 2;
+  return toStoredSpan(emptyColumn, index, "emptyColumn");
+}
+
+function toColumnExtentSpan(
+  extent: StoredColumnExtent,
+  index: number,
+): WallSpan {
+  return toStoredSpan(extent, index, "columnExtent");
+}
+
+/** One builder for both stored arrays, because they are one wire shape — the kind is what the sweep
+ *  judges them by. */
+function toStoredSpan(
+  entry: EmptyColumn,
+  index: number,
+  kind: "emptyColumn" | "columnExtent",
+): WallSpan {
+  const halfWidthMm = entry.widthMm / 2;
   return {
-    wall: emptyColumn.wall,
-    alongStartMm: emptyColumn.alongMm - halfWidthMm,
-    alongEndMm: emptyColumn.alongMm + halfWidthMm,
-    floorMm: emptyColumn.y0Mm,
-    topMm: emptyColumn.topMm,
-    emptyColumnIndex: index,
+    wall: entry.wall,
+    alongStartMm: entry.alongMm - halfWidthMm,
+    alongEndMm: entry.alongMm + halfWidthMm,
+    floorMm: entry.y0Mm,
+    topMm: entry.topMm,
+    kind,
+    columnKey: deriveColumnKeyAt(entry.wall, toMetres(entry.alongMm)),
+    index,
   };
 }
 

@@ -1,22 +1,21 @@
 // Adversarial QA for M5B wave 5B2b, store half — ADR 0044's write seam.
 //
-// The subject is criterion 4's exclusion. `empty-columns-reload.test.ts` sweeps a mutation sequence
-// and compares session against reload *outside* a set of keys it computes by measurement
-// (`partiallyEmptiedKeys`), because a column that still holds members but whose frozen extent its
-// own placements no longer imply diverges for a reason that predates this wave. An exclusion
-// computed by measurement is the shape a vacuous criterion takes, so it is audited here rather than
-// trusted:
+// The subject was criterion 4's exclusion: `empty-columns-reload.test.ts` used to compare session
+// against reload *outside* a measured set of keys, because a column that still held members but
+// whose frozen extent its own placements no longer implied diverged on every reload. **ADR 0053
+// deleted that exclusion**, so what is audited here is what replaced it — the sweep is total, and
+// the set that used to be excluded is now the set the document records as `columnExtents`:
 //
-//   1. is it **exactly** the diverging set, or wider — does it remove keys that would have agreed?
-//   2. is it **narrower** anywhere — can a divergence slip past it?
-//   3. can it **move** to absorb a defect in the code the criterion is testing?
+//   1. does **any** key still diverge?
+//   2. is the set the placements alone cannot answer non-empty, so (1) is not passing vacuously?
+//   3. is that set answered from the **stored extent** rather than from the placements?
 //
-// (3) is answered structurally: the exclusion is a subset of the keys placements are filed under, so
-// it can never cover a member-less column — which is the only kind ADR 0044 stores, and therefore
-// the whole of what 5B2b writes. Whatever a broken projection does, it does it where the criterion
-// is still looking.
+// The structural half survives verbatim: the set is a subset of the keys placements are filed under,
+// so it can never contain a member-less column — which is the whole of what `emptyColumns` stores.
+// The two stored arrays are partitioned by that same predicate, which is why they cannot collide.
 import { fc, test as propertyTest } from "@fast-check/vitest";
 import {
+  deriveColumnKeyAt,
   deriveColumns,
   DesignSchema,
   KITCHEN_L_BODY_CATALOG,
@@ -87,9 +86,10 @@ function observableMap(
   );
 }
 
-/** The exclusion under audit, transcribed from `empty-columns-reload.test.ts` so a change there is
- *  visible as a difference here rather than silently re-audited. */
-function excludedKeys(store: Store): Set<string> {
+/** The keys a reload cannot answer from the placements alone: a column whose frozen extent its own
+ *  members no longer imply. Before ADR 0053 this was the set criterion 4 excluded; it is now the set
+ *  `columnExtents` carries, measured the same way so the two readings can be compared. */
+function keysThePlacementsCannotAnswer(store: Store): Set<string> {
   const state = store.getState();
   const fromPlacementsAlone = deriveColumns(state.records);
   const excluded = new Set<string>();
@@ -100,6 +100,15 @@ function excludedKeys(store: Store): Set<string> {
     }
   }
   return excluded;
+}
+
+/** The keys of the extents the document is carrying, as `deriveColumnKeyAt` renders them. */
+function storedExtentKeys(store: Store): Set<string> {
+  return new Set(
+    (store.getState().design.columnExtents ?? []).map((extent) =>
+      deriveColumnKeyAt(extent.wall, extent.alongMm / 1000),
+    ),
+  );
 }
 
 /** What the exclusion claims to describe: the keys on which a reload's column map actually differs
@@ -171,12 +180,11 @@ const SWEEP_EXAMPLES: [Mutation[]][] = [
   ],
 ];
 
-describe("criterion 4's exclusion is exactly the set it claims", () => {
-  // Wider would make the criterion weaker than it reads: a key removed from the comparison that
-  // would have agreed is a key the sweep stopped checking for nothing. Narrower would make it
-  // unsound: a real divergence outside the exclusion has to be a failure, not a pass.
+describe("the sweep is total, and the set it used to exclude is the set now recorded", () => {
+  // The exclusion's replacement, asserted as the empty set. Anything here is a key on which one
+  // document still shows two pictures, which is what ADR 0053 exists to end.
   propertyTest.prop([mutationArbitrary], { examples: SWEEP_EXAMPLES })(
-    "excludes every diverging key and no key that agrees",
+    "leaves no key diverging, and records every key the placements cannot answer",
     (mutations: readonly Mutation[]) => {
       const session = createStore();
 
@@ -184,10 +192,12 @@ describe("criterion 4's exclusion is exactly the set it claims", () => {
         applyMutation(session, mutation);
 
         const reloaded = reload(session);
-        const excluded = excludedKeys(session);
-        const diverging = divergingKeys(session, reloaded);
+        const stored = storedExtentKeys(session);
 
-        expect([...excluded].sort()).toStrictEqual([...diverging].sort());
+        expect([...divergingKeys(session, reloaded)]).toStrictEqual([]);
+        for (const key of keysThePlacementsCannotAnswer(session)) {
+          expect(stored.has(key)).toBe(true);
+        }
       }
     },
   );
@@ -206,7 +216,7 @@ describe("criterion 4's exclusion is exactly the set it claims", () => {
         applyMutation(session, mutation);
 
         const memberLess = memberLessKeys(session);
-        for (const key of excludedKeys(session)) {
+        for (const key of keysThePlacementsCannotAnswer(session)) {
           expect(memberLess.has(key)).toBe(false);
         }
       }
@@ -226,7 +236,7 @@ describe("criterion 4's exclusion is exactly the set it claims", () => {
     // is what ADR 0044 stores and what the exclusion must never touch. One sequence, both shapes.
     for (const id of ["p0", "p1", "p12", "p18"]) {
       removeById(session, id);
-      const excluded = excludedKeys(session);
+      const excluded = keysThePlacementsCannotAnswer(session);
       const compared = [...memberLessKeys(session)].filter(
         (key) => !excluded.has(key),
       );
@@ -238,12 +248,12 @@ describe("criterion 4's exclusion is exactly the set it claims", () => {
     expect(stepsWithAnExclusion).toBeGreaterThan(0);
   });
 
-  // The exclusion's reason, held to its own claim. A key is excluded only because the *placements*
-  // no longer imply the frozen extent — so the reload's answer for an excluded key must be the
-  // placement-derived one, not something the stored array put there. If a stored entry ever reached
-  // an excluded key, the exclusion really would be hiding this wave's output.
+  // The reversal of what this asserted before ADR 0053, and the reason the reversal is not vacuous:
+  // on exactly the keys the placements answer differently, the reload must take the **stored**
+  // answer. A restore that silently fell through to the derivation would satisfy "nothing diverges"
+  // only by shrinking the session's own map to match, and this is what tells the two apart.
   propertyTest.prop([mutationArbitrary], { examples: SWEEP_EXAMPLES })(
-    "leaves every excluded key answered by the placements alone",
+    "answers every such key from the stored extent, never from the placements",
     (mutations: readonly Mutation[]) => {
       const session = createStore();
 
@@ -254,9 +264,11 @@ describe("criterion 4's exclusion is exactly the set it claims", () => {
         const fromPlacementsAlone = observableMap(
           deriveColumns(reloaded.getState().records),
         );
+        const inSession = observableMap(session.getState().columns);
         const restored = observableMap(reloaded.getState().columns);
-        for (const key of excludedKeys(session)) {
-          expect(restored.get(key)).toBe(fromPlacementsAlone.get(key));
+        for (const key of keysThePlacementsCannotAnswer(session)) {
+          expect(restored.get(key)).toBe(inSession.get(key));
+          expect(restored.get(key)).not.toBe(fromPlacementsAlone.get(key));
         }
       }
     },
@@ -354,17 +366,25 @@ describe("a resize on an odd-width column extent crashes the store", () => {
 });
 
 describe("the seam writes one document per state, and nothing for an empty one", () => {
-  // The `[]`-instead-of-delete mutant, asserted on the bytes rather than on a property: ADR 0038's
-  // licence is that a document written before this wave is unchanged, and `"emptyColumns":[]` is a
-  // different document.
-  it("leaves an untouched design byte-identical to its pre-ADR-0044 serialisation", () => {
+  // The `[]`-instead-of-delete mutant, asserted on the bytes rather than on a property: an empty
+  // space that has never existed must leave no `emptyColumns` key at all, and `"emptyColumns":[]`
+  // is a different document.
+  //
+  // **Amended for ADR 0053.** A saved document now also carries `columnExtents`, one entry per
+  // occupied column, so byte-identity with a pre-ADR-0044 serialisation is no longer the rule — what
+  // is left of it is that removing the new key gives back exactly that document. The two halves are
+  // asserted separately, so an accidental `emptyColumns` key still fails here.
+  it("adds only the frozen map to an untouched design, and no empty key", () => {
     const store = createStore();
     const before = canonicalSerializeDesign(KITCHEN_L_DESIGN);
 
     store.getState().select({ kind: "placement", id: "p0" });
     store.getState().setFinish("oak");
+    const saved = store.getState().design;
+    const withoutTheFrozenMap = { ...saved };
+    delete withoutTheFrozenMap.columnExtents;
     const after = canonicalSerializeDesign({
-      ...store.getState().design,
+      ...withoutTheFrozenMap,
       // Only the appearance changed; the placements are restated so the comparison is about the
       // key, not about the edit.
       placements: KITCHEN_L_DESIGN.placements,
@@ -372,8 +392,10 @@ describe("the seam writes one document per state, and nothing for an empty one",
     });
 
     expect(after).toBe(before);
-    expect(JSON.stringify(store.getState().design)).not.toContain(
-      "emptyColumns",
+    expect(saved).not.toHaveProperty("emptyColumns");
+    // Every occupied column, and nothing else: this is the array whose absence is backlog 22.
+    expect((saved.columnExtents ?? []).length).toBe(
+      new Set(store.getState().records.map((record) => record.col)).size,
     );
   });
 
@@ -475,7 +497,9 @@ describe("the seam writes one document per state, and nothing for an empty one",
           design.placements.map((placement) => placement.id),
         );
         expect(occupied.size).toBe(design.placements.length);
-        const restored = deriveColumns([], design.emptyColumns ?? []);
+        const restored = deriveColumns([], {
+          emptyColumns: design.emptyColumns ?? [],
+        });
         const fromPlacements = deriveColumns(session.getState().records);
         for (const key of restored.keys()) {
           expect(fromPlacements.has(key)).toBe(false);

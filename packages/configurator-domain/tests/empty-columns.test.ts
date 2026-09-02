@@ -61,10 +61,9 @@ function codesFor(design: Design): DesignValidationCode[] {
 }
 
 function columnsOf(design: Design): ReadonlyMap<string, Column> {
-  return deriveColumns(
-    derivePlacementRecords(design, CATALOG),
-    design.emptyColumns,
-  );
+  return deriveColumns(derivePlacementRecords(design, CATALOG), {
+    emptyColumns: design.emptyColumns,
+  });
 }
 
 describe("DesignSchema.emptyColumns", () => {

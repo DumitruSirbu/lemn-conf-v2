@@ -14,14 +14,14 @@ import {
   mergeAdjacentEmptyColumns,
   splitOversizedEmptyColumns,
   findVacatedVoid,
-  projectEmptyColumns,
+  projectFrozenMap,
   recomputeVoids,
   type BodyCatalog,
   type Column,
   type CommandEffect,
   type CommandResult,
   type Design,
-  type EmptyColumn,
+  type FrozenMapDocument,
   type PlacementRecord,
   type RejectionReason,
   type VoidRecord,
@@ -82,14 +82,11 @@ export function applyCommandResult(
   return {
     applied: true,
     state: {
-      // Uncaught by design. `projectEmptyColumns` throws `UnprojectableColumnError` only for a
+      // Uncaught by design. `projectFrozenMap` throws `UnprojectableColumnError` only for a
       // frozen column the document cannot carry, and swallowing it here would save a design whose
       // empty space is silently missing — the defect ADR 0044 exists to fix, arriving by a new
       // route. A loud failure is the lesser harm, so this seam does not catch.
-      design: withEmptyColumns(
-        result.design,
-        projectEmptyColumns(columns, records),
-      ),
+      design: withFrozenMap(result.design, projectFrozenMap(columns, records)),
       records,
       columns,
       voids,
@@ -99,30 +96,30 @@ export function applyCommandResult(
   };
 }
 
-/** ADR 0044: the map's member-less columns, recorded on the design that is about to be held and
- *  saved. This is the **one** place it happens, and it is here rather than in a command because
- *  the frozen map is here: `removePlacement` never receives it, and a resize publishes its own
- *  answer into it through `effect.columns`, so projecting from the resolved map covers delete,
- *  resize, insert and every future effect with no per-command bookkeeping.
+/** ADR 0044 and ADR 0053: the whole frozen map — the member-less columns and the frozen extents of
+ *  the occupied ones — recorded on the design that is about to be held and saved. This is the
+ *  **one** place it happens, and it is here rather than in a command because the frozen map is
+ *  here: `removePlacement` never receives it, and a resize publishes its own answer into it through
+ *  `effect.columns`, so projecting from the resolved map covers delete, resize, insert and every
+ *  future effect with no per-command bookkeeping.
  *
  *  Written from `columns`, never re-derived from `result.design` — the design a command returns
- *  still carries the previous state's array, and the whole reason this runs is that the map, not
+ *  still carries the previous state's arrays, and the whole reason this runs is that the map, not
  *  the document, is what the command just moved.
  *
- *  The key is **removed** rather than set to `[]` when nothing is empty, so a kitchen with no free
- *  space serialises exactly as it did before ADR 0044: the field is optional precisely so an
- *  untouched document is not rewritten (ADR 0038), and an empty array would make every command
- *  produce a document that differs from the one it was given by a key with nothing in it. */
-function withEmptyColumns(
-  design: Design,
-  emptyColumns: readonly EmptyColumn[],
-): Design {
-  if (emptyColumns.length > 0) {
-    return { ...design, emptyColumns: [...emptyColumns] };
-  }
-  const withoutTheKey = { ...design };
-  delete withoutTheKey.emptyColumns;
-  return withoutTheKey;
+ *  Each key is **removed** rather than set to `[]` when its half is empty, so a kitchen with no free
+ *  space serialises exactly as it did before ADR 0044: the fields are optional precisely so an
+ *  untouched document is not rewritten, and an empty array would make every command produce a
+ *  document that differs from the one it was given by a key with nothing in it. */
+function withFrozenMap(design: Design, frozen: FrozenMapDocument): Design {
+  const emptyColumns = frozen.emptyColumns ?? [];
+  const columnExtents = frozen.columnExtents ?? [];
+  const next = { ...design };
+  if (emptyColumns.length > 0) next.emptyColumns = [...emptyColumns];
+  else delete next.emptyColumns;
+  if (columnExtents.length > 0) next.columnExtents = [...columnExtents];
+  else delete next.columnExtents;
+  return next;
 }
 
 /** ADR 0031 and ADR 0046: a resize and an **insert** are the two commands that move a frozen

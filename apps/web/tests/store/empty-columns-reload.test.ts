@@ -7,7 +7,6 @@
 // serialisation would pass.
 import { fc, test as propertyTest } from "@fast-check/vitest";
 import {
-  deriveColumns,
   DesignSchema,
   KITCHEN_L_BODY_CATALOG,
   KITCHEN_L_DESIGN,
@@ -318,54 +317,6 @@ function applyMutation(store: Store, mutation: Mutation): void {
   resizeTo(store, target.id, Math.round(target.frame.w * 1000) - WIDTH_STEP_MM);
 }
 
-/**
- * The keys criterion 4 cannot ask about, named rather than quietly skipped.
- *
- * A column that still holds members but whose frozen extent its own placements no longer imply.
- * Two commands reach it: a delete that takes **some** of a column's members, which leaves the
- * frozen floor and depth of the bodies that are gone; and a resize, which rebuilds a member at a
- * depth of its own while ADR 0011 Gap D holds the extent still. Either way the session shows one
- * column and a reload derives another — delete the base cabinet under a wall run and the session
- * keeps the freed space below it, while a reload raises the floor to 1.5.
- *
- * ADR 0044 stores **only** the member-less columns: "the occupied columns are already fully
- * derivable from the placements", which is true of an untouched column and not of these.
- *
- * That divergence predates this wave — before ADR 0044 the load re-derived *every* column — and
- * closing it means storing a frozen extent for an occupied column, which is a decision ADR 0044
- * explicitly took the other way. It is reported rather than papered over, and it is characterised
- * here by measurement, not by a hand-written key list: a column is excluded exactly when its frozen
- * extent is not the one its own placements imply.
- */
-function partiallyEmptiedKeys(store: Store): ReadonlySet<string> {
-  const state = store.getState();
-  const fromPlacementsAlone = deriveColumns(state.records);
-  const excluded = new Set<string>();
-  for (const [key, frozen] of state.columns) {
-    const derived = fromPlacementsAlone.get(key);
-    if (derived && !isSameObservableColumn(frozen, derived)) excluded.add(key);
-  }
-  return excluded;
-}
-
-function isSameObservableColumn(left: Column, right: Column): boolean {
-  const [asLeft] = observableColumns(new Map([[left.key, left]]));
-  const [asRight] = observableColumns(new Map([[right.key, right]]));
-  return JSON.stringify(asLeft) === JSON.stringify(asRight);
-}
-
-function storedColumns(store: Store, excluded: ReadonlySet<string>) {
-  return observableColumns(store.getState().columns).filter(
-    (column) => !excluded.has(column.key),
-  );
-}
-
-function voidsOutside(store: Store, excluded: ReadonlySet<string>) {
-  return sortedVoids(
-    store.getState().voids.filter((record) => !excluded.has(record.col)),
-  );
-}
-
 describe("criterion 4 — one document, one picture", () => {
   propertyTest.prop(
     [
@@ -404,12 +355,16 @@ describe("criterion 4 — one document, one picture", () => {
         applyMutation(session, mutation);
 
         const reloaded = reload(session);
-        const excluded = partiallyEmptiedKeys(session);
-        expect(storedColumns(reloaded, excluded)).toStrictEqual(
-          storedColumns(session, excluded),
+        // **Total since ADR 0053, and the exclusion list is gone.** It used to skip the keys whose
+        // frozen extent their own placements no longer implied — a partial delete's column, a
+        // cleared column refilled with a body — because nothing recorded those. `columnExtents`
+        // records them, so there is nothing left to exclude and the sweep asks about every key the
+        // session holds.
+        expect(observableColumns(reloaded.getState().columns)).toStrictEqual(
+          observableColumns(session.getState().columns),
         );
-        expect(voidsOutside(reloaded, excluded)).toStrictEqual(
-          voidsOutside(session, excluded),
+        expect(sortedVoids(reloaded.getState().voids)).toStrictEqual(
+          sortedVoids(session.getState().voids),
         );
         // The document the seam wrote must also be one the seams accept: since 5B2a a stored entry
         // overwrites the placements' column rather than being dropped, so a projection that emitted
@@ -425,29 +380,113 @@ describe("criterion 4 — one document, one picture", () => {
   );
 });
 
-describe("outside ADR 0044's scope — a column emptied only in part", () => {
-  // Pinned so the gap is visible rather than merely excluded above. **This test asserts a defect,
-  // not a rule.** When ADR 0044's successor decides to store a frozen extent for an occupied
-  // column, this goes red — delete it and `partiallyEmptiedKeys` together.
-  it("still loses the floor a partial delete freed, as it did before this wave", () => {
+/** Criterion 5H-2 — backlog 22's original route, which was pinned here as a red-when-fixed defect
+ *  from wave 5B2b until ADR 0053. The fixture is a column emptied **in part**, so its frozen extent
+ *  is one no placement implies; a column emptied entirely, or never touched, would pass this under
+ *  every mutant. */
+describe("criterion 5H-2 — a partial delete keeps the floor it freed", () => {
+  it("restores the freed region and both its openings after a reload", () => {
     const session = createStore();
     // `A|1.30`: the sink base with a wall unit and a top box above it. Deleting the base leaves the
-    // column occupied, so nothing records the space it freed.
+    // column occupied, so before ADR 0053 nothing recorded the space it freed.
     removeById(session, "p0");
-    const sessionFloor = session.getState().columns.get("A|1.30")?.regions;
+    const sessionColumn = session.getState().columns.get("A|1.30");
 
     const reloaded = reload(session);
 
-    expect(Math.min(...(sessionFloor ?? []).map(([start]) => start))).toBe(0);
-    expect(
-      Math.min(
-        ...(reloaded.getState().columns.get("A|1.30")?.regions ?? []).map(
-          ([start]) => start,
-        ),
-      ),
-    ).toBe(1.5);
+    expect(lowestRegionStartOf(sessionColumn)).toBe(0);
+    expect(lowestRegionStartOf(reloaded.getState().columns.get("A|1.30"))).toBe(
+      0,
+    );
+    expect(voidsInColumn(reloaded, "A|1.30")).toStrictEqual(
+      voidsInColumn(session, "A|1.30"),
+    );
   });
 });
+
+function lowestRegionStartOf(column: Column | undefined): number {
+  return Math.min(...(column?.regions ?? []).map(([start]) => start));
+}
+
+function voidsInColumn(store: Store, key: string) {
+  return sortedVoids(
+    store.getState().voids.filter((record) => record.col === key),
+  );
+}
+
+/** Criterion 5H-1's route, and criterion 5H-3's fixture: backlog 22's three taps. Clear `A|2.60` —
+ *  the base with the hob on it, the wall unit and the top box — and insert a body that fits the
+ *  cleared column exactly. */
+const REFILLED_COLUMN_KEY = "A|2.60";
+const REFILLED_COLUMN_IDS = ["p2", "p13", "p19"];
+const EXACT_FIT_BUILD_ID = "base-dishwasher";
+const FULL_HEIGHT_COLUMN_TOP_MM = 2600;
+
+function clearedThenRefilled(): Store {
+  const store = createStore();
+  for (const id of REFILLED_COLUMN_IDS) removeById(store, id);
+  const opening = store
+    .getState()
+    .voids.find(
+      (record) => record.col === REFILLED_COLUMN_KEY && record.y0 < 0.01,
+    );
+  if (!opening) throw new Error("the cleared column published no base opening");
+  store.getState().select({ kind: "void", id: opening.id });
+  store.getState().insert(EXACT_FIT_BUILD_ID);
+  const rejection = store.getState().lastRejection;
+  if (rejection) throw new Error(`the insert was refused: ${rejection.code}`);
+  return store;
+}
+
+describe("criterion 5H-1 — a cleared column refilled to fit keeps its height", () => {
+  it("comes back 2600 mm tall with both openings above the body", () => {
+    const session = clearedThenRefilled();
+    const inSession = voidsInColumn(session, REFILLED_COLUMN_KEY);
+
+    const reloaded = reload(session);
+
+    // Asserted as the number rather than as "the same as the session", because the defect this
+    // closes is the column silently shrinking to its members: 860 mm, and two openings gone.
+    expect(
+      inMillimetres(
+        reloaded.getState().columns.get(REFILLED_COLUMN_KEY)?.top ?? 0,
+      ),
+    ).toBe(FULL_HEIGHT_COLUMN_TOP_MM);
+    expect(inSession).toHaveLength(2);
+    expect(voidsInColumn(reloaded, REFILLED_COLUMN_KEY)).toStrictEqual(
+      inSession,
+    );
+  });
+});
+
+describe("criterion 5H-3 — the reload sweep is total", () => {
+  /** **The fixture is the post-5H-1 design, and that is the whole criterion.** On a fresh seeded
+   *  load every column's extent already equals the one its members imply, so a sweep over that
+   *  design passes under every mutant — including one that skips the restore for occupied keys
+   *  entirely. This design carries a column whose extent its placements no longer imply. */
+  it("asks every key in the map, with no exclusion list", () => {
+    const session = clearedThenRefilled();
+
+    const reloaded = reload(session);
+
+    expect([...reloaded.getState().columns.keys()].sort()).toStrictEqual(
+      [...session.getState().columns.keys()].sort(),
+    );
+    for (const key of session.getState().columns.keys()) {
+      expect(observableColumn(reloaded, key)).toStrictEqual(
+        observableColumn(session, key),
+      );
+    }
+    expect(sortedVoids(reloaded.getState().voids)).toStrictEqual(
+      sortedVoids(session.getState().voids),
+    );
+  });
+});
+
+function observableColumn(store: Store, key: string) {
+  const column = store.getState().columns.get(key);
+  return observableColumns(new Map(column ? [[key, column]] : []));
+}
 
 /**
  * `regions`' second consumer, checked rather than assumed.
@@ -510,4 +549,58 @@ describe("a restored column snaps an insert where the session's would", () => {
       });
     }
   }
+
+  /**
+   * The same question for an **occupied** column, which is the case ADR 0053 creates.
+   *
+   * Every case above clears a column, so its restored `regions` collapse from several intervals to
+   * one — a shape ADR 0044 already produced. From this record an occupied column's extent is stored
+   * too, so a column that keeps a member also comes back with `[[floor, top]]` where the session
+   * held one interval per body. That is a first, and `resolveSnapY0M` reads region starts, so it is
+   * measured here rather than argued from the cleared case.
+   *
+   * `A|1.30` after a partial delete is the fixture: the sink base is gone and the wall unit and top
+   * box remain, so the session holds `[[1.5,2.2],[2.2,2.6]]` with a floor of 0 and the reload holds
+   * `[[0,2.6]]` — the widest gap between the two spellings that this design can produce.
+   */
+  describe("and does the same for a column that still holds a member", () => {
+    function partlyEmptiedSession(): Store {
+      const store = createStore();
+      removeById(store, "p0");
+      return store;
+    }
+
+    const occupiedVoidIds = partlyEmptiedSession()
+      .getState()
+      .voids.filter((record) => record.col === "A|1.30")
+      .map((record) => record.id);
+
+    // Non-vacuity, on the same terms as the cleared case: an opening has to exist, and at least one
+    // body has to actually land in it, or the comparisons below would compare two untouched designs.
+    it("publishes the freed opening, and something lands in it", () => {
+      const applied = INSERTABLE_BUILD_IDS.flatMap((buildId) =>
+        occupiedVoidIds.filter((voidId) => {
+          const store = partlyEmptiedSession();
+          const before = store.getState().design.placements.length;
+          return insertInto(store, voidId, buildId).placements.length > before;
+        }),
+      );
+
+      expect(occupiedVoidIds.length).toBeGreaterThan(0);
+      expect(applied.length).toBeGreaterThan(0);
+    });
+
+    for (const buildId of INSERTABLE_BUILD_IDS) {
+      for (const voidId of occupiedVoidIds) {
+        it(`lands ${buildId} identically in the occupied column's ${voidId}`, () => {
+          const session = partlyEmptiedSession();
+          const reloaded = reload(session);
+
+          expect(
+            insertInto(reloaded, voidId, buildId).placements,
+          ).toStrictEqual(insertInto(session, voidId, buildId).placements);
+        });
+      }
+    }
+  });
 });

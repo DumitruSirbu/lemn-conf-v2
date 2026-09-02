@@ -259,10 +259,15 @@ interface CommandContext {
 
 function deriveGeometry(design: Design, catalog: BodyCatalog) {
   const records = derivePlacementRecords(design, catalog);
-  // ADR 0044: the placements build the occupied columns, and the document carries the ones nothing
-  // could rebuild from them — the space a shrink or a delete freed. Without this argument the
-  // frozen extents survive the session and die at the reload.
-  const columns = deriveColumns(records, design.emptyColumns);
+  // ADR 0044 and ADR 0053: the placements build the columns they imply, and the document carries
+  // both halves of what they cannot — the spaces with no member left (a shrink's strip, a cleared
+  // run) and the frozen extents of the columns whose members no longer reach as far as the customer
+  // left them (a partial delete, a cleared column refilled with a body that fits). Without these two
+  // arguments the frozen map survives the session and dies at the reload.
+  const columns = deriveColumns(records, {
+    emptyColumns: design.emptyColumns,
+    columnExtents: design.columnExtents,
+  });
   const voids = recomputeVoids(records, columns);
   return { records, columns, voids };
 }

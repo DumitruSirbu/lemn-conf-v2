@@ -124,9 +124,22 @@ const WALL_COUNT = 2;
 export const MAX_EMPTY_COLUMNS =
   (Math.max(...MAX_WALL_RUNS_MM) / COLUMN_KEY_RESOLUTION_MM + 1) * WALL_COUNT;
 
+/**
+ * The most frozen extents of **occupied** columns a document may carry (ADR 0053).
+ *
+ * Derived rather than chosen, and from a different quantity than `MAX_EMPTY_COLUMNS`: an entry is
+ * only legal on a key some placement is filed under, so the placements bound the count directly and
+ * the tighter of the two bounds binds each array on its own. It deliberately does not share
+ * `MAX_EMPTY_COLUMNS`' budget — that one bounds the *keys a wall can present*, which is the right
+ * bound for an array whose entries need no placement at all.
+ */
+export const MAX_COLUMN_EXTENTS = MAX_PLACEMENTS;
+
 /** The longest a single empty column can serialise to: a wall enum, five five-digit millimetre
  *  values and JSON punctuation — well under a hundred bytes — rounded up as `MAX_PLACEMENT_BYTES`
- *  is, so key order and indentation cannot make an honest document fail. */
+ *  is, so key order and indentation cannot make an honest document fail. A stored column extent is
+ *  the same six fields, so it is allowed the same bytes rather than deriving a second number for
+ *  one shape. */
 const MAX_EMPTY_COLUMN_BYTES = 128;
 
 /** Room, `presetId`, and the two timestamps, with the same rounding-up allowance. */
@@ -134,7 +147,8 @@ const DESIGN_ENVELOPE_BYTES = 1024;
 
 /** Bytes of request body a save may carry (SEC-002). Derived from the document that can legally be
  *  built rather than picked, so raising `MAX_PLACEMENTS` or `MAX_EMPTY_COLUMNS` cannot leave a
- *  limit behind that refuses a design **this product produces**. ADR 0044's `emptyColumns` is
+ *  limit behind that refuses a design **this product produces**. ADR 0044's `emptyColumns` and
+ *  ADR 0053's `columnExtents` are
  *  counted here for exactly that reason: a byte cap derived from the placements alone would refuse a
  *  document at `MAX_EMPTY_COLUMNS` that the schema accepts. It is counted off the request stream, never read from
  *  `Content-Length`, which a chunked request need not send truthfully.
@@ -146,4 +160,5 @@ const DESIGN_ENVELOPE_BYTES = 1024;
 export const MAX_DESIGN_BYTES =
   MAX_PLACEMENTS * MAX_PLACEMENT_BYTES +
   MAX_EMPTY_COLUMNS * MAX_EMPTY_COLUMN_BYTES +
+  MAX_COLUMN_EXTENTS * MAX_EMPTY_COLUMN_BYTES +
   DESIGN_ENVELOPE_BYTES;

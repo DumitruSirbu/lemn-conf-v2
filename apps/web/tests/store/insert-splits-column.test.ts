@@ -109,13 +109,13 @@ describe("the store holds the map the insert published", () => {
 });
 
 describe("the split survives the wire", () => {
-  // Criterion 10, scoped to what ADR 0044 stores. The **remainder** must come back field for field.
-  // The occupied half is excluded and the exclusion is asserted to be exactly that one key: a body
-  // shorter than its column's frozen `top` leaves an extent no placement implies, which is backlog
-  // 22's shape and not this wave's to fix. The fixture is the cleared 2600 mm column with an 820 mm
-  // body precisely so the exclusion is not empty — a body as tall as the column would make this
-  // criterion pass under every mutant.
-  it("reproduces the remainder column exactly, and diverges only on the occupied half", () => {
+  // Criterion 10, and since ADR 0053 it is total. The **remainder** must come back field for field,
+  // and so must the occupied half: a body shorter than its column's frozen `top` leaves an extent no
+  // placement implies, which was backlog 22's shape and is now what `columnExtents` records. The
+  // fixture is the cleared 2600 mm column with an 820 mm body precisely so the occupied half is a
+  // column that diverged before this record — a body as tall as its column would make this pass
+  // under every mutant.
+  it("reproduces both halves of the split exactly", () => {
     const session = clearedThenFilled();
     const restored = reload(session);
 
@@ -130,7 +130,10 @@ describe("the split survives the wire", () => {
     expect(observableOf(restoredColumns, REMAINDER_KEY)).toBe(
       observableOf(sessionColumns, REMAINDER_KEY),
     );
-    expect(diverging).toEqual([OCCUPIED_KEY]);
+    expect(observableOf(restoredColumns, OCCUPIED_KEY)).toBe(
+      observableOf(sessionColumns, OCCUPIED_KEY),
+    );
+    expect(diverging).toEqual([]);
   });
 });
 

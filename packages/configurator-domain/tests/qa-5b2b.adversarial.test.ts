@@ -142,7 +142,9 @@ describe("the projection's uniqueness guarantee, attacked", () => {
     // and the map's key set is the answer this compares against, not the input's length.
     const frozen = mapOf(columns);
 
-    const restored = deriveColumns([], projectEmptyColumns(frozen, []));
+    const restored = deriveColumns([], {
+      emptyColumns: projectEmptyColumns(frozen, []),
+    });
 
     expect([...restored.keys()].sort()).toStrictEqual(
       [...mergeAdjacentEmptyColumns(frozen, []).keys()].sort(),

@@ -80,7 +80,7 @@ interface Loaded {
 
 function load(design: Design): Loaded {
   const records = derivePlacementRecords(design, CATALOG);
-  const columns = deriveColumns(records, design.emptyColumns);
+  const columns = deriveColumns(records, { emptyColumns: design.emptyColumns });
   return { design, columns, records, voids: recomputeVoids(records, columns) };
 }
 

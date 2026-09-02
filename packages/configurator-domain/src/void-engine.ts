@@ -2,6 +2,7 @@ import type {
   Design,
   DesignPlacement,
   EmptyColumn,
+  StoredColumnExtent,
   DesignWall,
   Finish,
   Handle,
@@ -399,15 +400,36 @@ function groupByColumn(
   return grouped;
 }
 
+/** The two halves of the frozen map, as `Design` carries them and as `deriveColumns` restores them.
+ *
+ *  **One named object rather than two positional arrays, because the two are the same type.** The
+ *  wire shape of a stored empty column and of a stored column extent is the same six fields, so two
+ *  parameters would swap without a type error and restore each half onto the other — silently, with
+ *  no symptom until a reload put a column where a space should be. Named fields make that swap
+ *  unspellable.
+ *
+ *  Both halves are optional exactly as `Design` declares them: a document with no free space carries
+ *  no `emptyColumns`, and one written before ADR 0053 carries no `columnExtents`. */
+export interface FrozenMapDocument {
+  readonly emptyColumns?: readonly EmptyColumn[] | undefined;
+  readonly columnExtents?: readonly StoredColumnExtent[] | undefined;
+}
+
 /** §3.2: derived once at load from the seeded placement set, and never recomputed afterwards —
  *  `top` and `regions` are load-time facts, not a function of the design's current state.
+ *
+ *  Three sources, in one order that matters: the placements group into the columns they imply, then
+ *  the document's own two stored halves are restored over them — the member-less columns nothing
+ *  could rebuild (ADR 0044) and the frozen extents of the occupied columns the placements no longer
+ *  imply (ADR 0053). Both arrive **before** the merge and before `hasFullHeightUnder` is answered,
+ *  so every later step reads the extents the customer actually left behind.
  *
  *  `hasFullHeightUnder` is the exception and is answered here only because a load is also a
  *  derivation; every derivation after this one re-answers it through
  *  `withCurrentFullHeightMembers`. */
 export function deriveColumns(
   records: readonly PlacementRecord[],
-  emptyColumns: readonly EmptyColumn[] = [],
+  stored: FrozenMapDocument = {},
 ): ReadonlyMap<string, Column> {
   const columns = new Map<string, ColumnExtent>();
   for (const [key, members] of groupByColumn(records)) {
@@ -453,12 +475,23 @@ export function deriveColumns(
       regions,
     });
   }
-  addStoredEmptyColumns(columns, emptyColumns);
+  addStoredEmptyColumns(columns, stored.emptyColumns ?? []);
+  addStoredColumnExtents(columns, stored.columnExtents ?? []);
   // ADR 0046 part 2, at the load seam ADR 0037's merge never had. **After the stored spaces are
   // restored**, because they are most of what there is to merge, and **before**
   // `withCurrentFullHeightMembers`, because whether a full-height member stands under a column is a
   // fact about its extent and the merge is what writes the extents — the ordering `writeParts`
   // uses for the same reason.
+  //
+  // **That last ordering is not commutative in principle, and no reachable document distinguishes
+  // it** — measured 2026-09-02, when swapping the two survived the whole suite. It is unfalsifiable
+  // rather than unimportant: the merge widens a column and the full-height answer is a geometric
+  // along-wall overlap over that width, so the two orders *can* disagree. What stops them today is
+  // that wall A carries no full-height body at all, and on wall B the tall runs partition the wall,
+  // so a member-less key only ever touches its tall neighbours and touching is not overlap. A
+  // hand-built entry that did overlap one is refused before it reaches here. Both of those facts
+  // are pinned by tests, so a wave that puts a tall body on wall A, or lifts that refusal, turns
+  // them red rather than silently making this line matter.
   return withCurrentFullHeightMembers(
     mergeAdjacentEmptyColumns(columns, records),
     records,
@@ -477,13 +510,56 @@ export function deriveColumns(
  *  millimetres apart, would address one slot in this map and one of the two would be lost.
  *  `validateDesignForCatalog` refuses both shapes at the write seam and the load seam, so there is
  *  deliberately no tie-break here: a silent drop would be a space the document records and the
- *  derivation does not have, which is the failure the refusal exists to stop. */
+ *  derivation does not have, which is the failure the refusal exists to stop.
+ *
+ *  That statement is about **this** array and stays exactly as strong as it was. ADR 0053's
+ *  `columnExtents` collides with the placements' keys on purpose, and it is a second array rather
+ *  than a widening of this one precisely so that the nine refusals governing `emptyColumns` and the
+ *  skip rule that makes them sound are untouched — see `addStoredColumnExtents`. */
 function addStoredEmptyColumns(
   columns: Map<string, ColumnExtent>,
   emptyColumns: readonly EmptyColumn[],
 ): void {
-  for (const emptyColumn of emptyColumns) {
-    const extent = toColumnExtent(emptyColumn);
+  restoreStoredExtents(columns, emptyColumns);
+}
+
+/** ADR 0053: the frozen extents of the columns that **do** hold a member, restored over the ones
+ *  their placements imply.
+ *
+ *  These entries land on keys the placements produced, deliberately — that is the whole point of
+ *  them — so this is the one place in the derivation where a stored value overwrites a derived one.
+ *  What makes that safe is not disjointness, which no longer holds here, but **precedence plus
+ *  containment**:
+ *
+ *  - *Precedence*: a stored entry wins on the whole of ADR 0011 Gap D's extent — `x`, `z`, `w`, `d`,
+ *    `top`, `regions`. Nothing else: membership comes from the records, and `hasFullHeightUnder` is
+ *    still re-answered afterwards by `withCurrentFullHeightMembers`, so the extent-frozen /
+ *    live-predicates-re-answered boundary is exactly where Gap D's own correction put it. Gap D is
+ *    obeyed rather than overturned — re-deriving an occupied column's extent from its current
+ *    records is precisely what this **stops** doing.
+ *  - *Containment*: `validateDesignForCatalog` proves at both seams that every placement filed under
+ *    the key lies inside the stored extent. So an overwrite can only ever widen a column: it can
+ *    never lose a member or publish an opening over a body. That is strictly stronger than the
+ *    disjointness it replaces, which only said the two halves never met.
+ *
+ *  It runs after `addStoredEmptyColumns` and the two arrays are partitioned by the same predicate
+ *  (`projectFrozenMap`), so the order between them decides nothing: no key is in both.
+ */
+function addStoredColumnExtents(
+  columns: Map<string, ColumnExtent>,
+  columnExtents: readonly StoredColumnExtent[],
+): void {
+  restoreStoredExtents(columns, columnExtents);
+}
+
+/** One entry, one slot, through `toColumnExtent` — the same conversion for both stored arrays,
+ *  because a frozen extent is one shape whether or not a body stands in it. */
+function restoreStoredExtents(
+  columns: Map<string, ColumnExtent>,
+  stored: readonly EmptyColumn[],
+): void {
+  for (const entry of stored) {
+    const extent = toColumnExtent(entry);
     columns.set(extent.key, extent);
   }
 }
@@ -538,17 +614,52 @@ export function projectEmptyColumns(
   columns: ReadonlyMap<string, Column>,
   records: readonly PlacementRecord[],
 ): readonly EmptyColumn[] {
+  return projectFrozenMap(columns, records).emptyColumns ?? [];
+}
+
+/** ADR 0053's wire shape: the frozen extent of every column of `columns` that **does** hold a
+ *  member in `records` — `projectEmptyColumns`' exact complement, and the reason backlog 22's
+ *  column comes back at 2600 mm instead of 860.
+ *
+ *  Same entries, same conversion, same refusals; only the side of the predicate differs. */
+export function projectColumnExtents(
+  columns: ReadonlyMap<string, Column>,
+  records: readonly PlacementRecord[],
+): readonly StoredColumnExtent[] {
+  return projectFrozenMap(columns, records).columnExtents ?? [];
+}
+
+/** The whole frozen map as the document carries it: two arrays, disjoint by construction.
+ *
+ *  **One pass over one predicate, deliberately.** The two halves are partitioned by
+ *  `occupiedKeys.has(key)` and by nothing else, so their disjointness is a property of this loop
+ *  rather than of two independent scans agreeing with each other — and it is what lets
+ *  `deriveColumns` restore both without either being able to overwrite the other. Written as one
+ *  function for the same reason: a later edit cannot move a key into both halves without making
+ *  this loop visibly contradict itself.
+ *
+ *  Every entry goes through `toEmptyColumn`, so `refuseUnreproducibleKey` and the whole-millimetre
+ *  refusal apply to the occupied half exactly as they apply to the empty one. */
+export function projectFrozenMap(
+  columns: ReadonlyMap<string, Column>,
+  records: readonly PlacementRecord[],
+): FrozenMapDocument {
   const occupiedKeys = new Set(records.map((record) => record.col));
-  const projected: EmptyColumn[] = [];
+  const emptyColumns: EmptyColumn[] = [];
+  const columnExtents: StoredColumnExtent[] = [];
   for (const [key, column] of columns) {
-    if (occupiedKeys.has(key)) continue;
-    projected.push(toEmptyColumn(key, column));
+    const entry = toEmptyColumn(key, column);
+    if (occupiedKeys.has(key)) columnExtents.push(entry);
+    else emptyColumns.push(entry);
   }
   // Sorted so one state has one document: `Map` iteration follows insertion order, and a resize
   // deletes and re-adds both keys it moves, so two sessions reaching the same kitchen by different
   // routes would otherwise serialise to two different strings and save each other's work back and
   // forth (ADR 0002's round-trip invariant is about one design, not about how it was reached).
-  return projected.sort(compareEmptyColumns);
+  return {
+    emptyColumns: emptyColumns.sort(compareEmptyColumns),
+    columnExtents: columnExtents.sort(compareEmptyColumns),
+  };
 }
 
 function compareEmptyColumns(left: EmptyColumn, right: EmptyColumn): number {

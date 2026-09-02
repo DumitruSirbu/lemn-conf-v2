@@ -7,9 +7,11 @@ Last updated: 2026-09-02. **M5B — Manual UX remediation is complete.** All ele
 closing with wave 5B4b (the capped merge) on 2026-09-02. See *M5B — Manual UX remediation, complete
 2026-09-02* below for the close-out, and `docs/milestones/done/M5B-manual-ux-remediation.md` for the
 criterion-by-criterion record. **M5 wave 5G shipped 2026-09-02**, closing Q5 — see *M5 wave 5G —
-800 mm is the ceiling on any empty column, complete 2026-09-02* below. **5H (backlog 22) and 5E
-remain open**, in that order — 5E was held back specifically so it would not photograph a width
-surface still changing, and 5G was the last such change.
+800 mm is the ceiling on any empty column, complete 2026-09-02* below. **M5 wave 5H shipped
+2026-09-02**, closing `docs/BACKLOG.md` entry 22 — see *M5 wave 5H — the frozen map is recorded
+whole, complete 2026-09-02* below. **5E is M5's only wave still open** — it was held back
+specifically so it would not photograph a width surface still changing, and 5G was the last such
+change.
 
 **Adversarial review remediation is complete for the security scope** on
 branch `adversarial-review-reports`. SCENE-001 and WEB-001 were fixed by an earlier session and have
@@ -45,7 +47,7 @@ moment it ships; a decision record does not. When the two disagree, the dated de
 | M2 — Void engine, picking, persistence | **Done** (closed 2026-08-25 — its last gate, the unwired client write path, was closed by M3 Wave 3C-2b) | No — `milestones/done/` |
 | M3 — Insert, remove, swap, client write path | **Done** (closed 2026-08-26) | No — `milestones/done/` |
 | M4 — Editor panel and shell | **Done** (closed 2026-08-26 — one criterion unmet by design, ADR 0024) | No — `milestones/done/` |
-| M5 — Width editing, and depth as a derived quantity | **In progress** — 5A–5D, 5D2a, 5D2b, 5D2c and 5F shipped 2026-08-30; **5G shipped 2026-09-02** (closes Q5); **5H and 5E open** | Yes — `milestones/M5-*.md`, **and ADRs 0028–0041, 0052**, which supersede large parts of it |
+| M5 — Width editing, and depth as a derived quantity | **In progress** — 5A–5D, 5D2a, 5D2b, 5D2c and 5F shipped 2026-08-30; **5G and 5H shipped 2026-09-02** (close Q5 and backlog 22); **5E open** | Yes — `milestones/M5-*.md`, **and ADRs 0028–0041, 0052, 0053**, which supersede large parts of it |
 | M6 — Price bar and global settings (**incl. the worktop depth control**, 2026-08-27) | Planned | Yes, when starting |
 | M7 — Step 1, room and presets | Planned | Yes, when starting |
 | M8 — Review, contact, success | Planned | Yes, when starting |
@@ -374,7 +376,61 @@ delete-is-a-producer justification is retracted as false, in place, in the modul
 wave adds opens the moment it ships. Corrects ADR 0038's premise ("no design has ever been stored") a
 second time; see ADR 0052's sweep table.
 
-**5H (backlog 22, the frozen map recorded whole) and 5E (the browser/mobile gate) remain open.**
+**5H shipped 2026-09-02, closing backlog 22. 5E (the browser/mobile gate) remains open.**
+
+## M5 wave 5H — the frozen map is recorded whole, complete 2026-09-02
+
+Plan: `docs/milestones/M5-frozen-map.md`. Decision: [ADR 0053](decisions/0053-the-design-document-records-the-whole-frozen-map.md).
+Closes `docs/BACKLOG.md` entry 22.
+
+**What shipped.** A second array, `columnExtents`, alongside ADR 0044's `emptyColumns`: the frozen
+extent of a column that still holds a member. `emptyColumns` covers only columns with no member at
+all, so a partial delete or a clear-then-refill lost the extent on reload — the second route was the
+one that mattered, costing 1740 mm of a full-height column on three ordinary taps. A stored extent
+now wins by precedence over the derived column on `wall`/`x`/`z`/`w`/`d`/`top`/`regions`, restored
+after grouping and before the merge and `withCurrentFullHeightMembers`, exactly as ADR 0046 restores
+`emptyColumns`. No schema version bump — additive and optional.
+
+**Verified:** domain **1433** (twice, identical), web **786-788 (+4 skipped)**, persistence **177**;
+`pnpm ci:local` — all nine gates PASS.
+
+**Gates.** Adversarial QA (two rounds), clean-code review (one actionable finding, fixed), logic
+review (one blocker, fixed), security review (one Medium, fixed).
+
+**The blocker was found by three agents independently, and the dangerous part was not the missing
+rule — it was that the code's own stated justification for not needing it was false.** ADR 0053's
+safety argument rests on monotone vertical containment: a stored extent's floor is a MIN and its top
+a MAX over its own members, so restoring it can only widen a column and never lose the space a member
+stands in. That is a **per-key** proof and says nothing across keys, because `recomputeVoids` builds
+what a column publishes from that column's own members alone. An extent whose declared footprint
+reached into a neighbouring column's key passed every containment check while publishing openings
+straight through that neighbour's bodies — reproduced independently by adversarial QA, the logic
+reviewer and the security reviewer, each with a concrete input; QA's: an extent for `A|2.00`
+declaring `widthMm: 3200` inside the 3600 mm wall published openings spanning 0.4–3.6 m of wall A
+through eight real placements, and an insert into one then made the design's own document
+unsaveable on the very next command. The plan's working assumption — "the room bounds every extent,
+so nothing can reach far enough to cause harm" — was false by four orders of magnitude on that case,
+and had been believed and repeated before it was measured. `findWallOverlaps` closes it: a sweep of
+all three span kinds (placements, `emptyColumns`, `columnExtents`) per wall, exempting an extent only
+against placements filed under its own key, adding `COLUMN_EXTENT_OVERLAPS_PLACEMENT`,
+`_EMPTY_COLUMN` and `_COLUMN_EXTENT` to the four per-entry refusal codes the plan already named.
+
+**Two of the plan's own dropped clauses were re-examined, and both stand for corrected reasons.** The
+depth clause was dropped because it refuses documents the product itself writes: 400 swept command
+sequences against the seeded kitchen produced 10 legitimate extents narrower in depth than a member
+they still correctly hold (shrinking the pantry leaves `B|1.77` frozen at 600 mm holding a top box
+that occupies 639 mm). The along-wall clause's original justification was corrected in place: the
+seeded `A|1.30` first cited to justify dropping it was measured wrong — it holds three 800 mm members
+at 800 mm width, not one 600 mm member at 500 mm — and a re-sweep of the same 400 sequences found the
+clause would have refused **zero** of them.
+
+**A consequence worth knowing.** `columnExtents` is populated for every occupied column on the
+resolved map, not only the ones a triggering command touched, so the *next* save of any legacy
+document — of any kind, unrelated to width or free space — is no longer a wire no-op. ADR 0002's
+round-trip invariant (load, validate, re-serialise, compare with no command run) is unaffected;
+what changes is what the next save writes. ADR 0044's premise that no design has ever been stored is
+already corrected (ADR 0052: 5 rows exist, `schema_version` 1) — none of those five carries
+`columnExtents` yet, and the window for this consequence opens the moment a save runs against one.
 
 ## What is open right now
 

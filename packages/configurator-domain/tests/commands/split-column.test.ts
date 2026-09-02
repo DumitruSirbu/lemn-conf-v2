@@ -86,7 +86,7 @@ interface Span {
 
 function loadSpan(design: Design): Span {
   const records = derivePlacementRecords(design, CATALOG);
-  const columns = deriveColumns(records, design.emptyColumns);
+  const columns = deriveColumns(records, { emptyColumns: design.emptyColumns });
   return { design, columns, records, voids: recomputeVoids(records, columns) };
 }
 

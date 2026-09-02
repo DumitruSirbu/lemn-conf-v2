@@ -62,16 +62,16 @@ forbid — so it is not a cheaper version of this decision, it is a weaker rule 
 ~~**Store the whole frozen column map.** Rejected: the occupied columns are already fully derivable
 from the placements, and storing a derivable fact is how two authors for one question start. Only
 the columns with no member of their own are unrecoverable, and only those are stored.~~
-**Superseded 2026-09-02, recorded in wave 5H's plan (`docs/milestones/M5-frozen-map.md`), which
-targets backlog 22.** The premise — "occupied columns are already fully derivable from the placements"
-— is false: an extent a delete or an insert froze is exactly what the placements no longer imply once
-a partial delete or a clear-then-refill happens, and backlog 22 is the measured proof (in session: a
-partial delete loses two openings on reload; a clear-then-refill silently shrinks a 2600 mm column to
-860). Wave 5H has not shipped as of this pointer — only its plan overturns this alternative — and
-the plan's own mechanism is narrower than the rejection it replaces: a *second array*, `columnExtents`,
-carrying only the frozen extents of columns that still hold a member, on precedence-plus-containment
-rather than disjointness. See 5H's plan for the mechanism, and `docs/STATUS.md` for whether it has
-shipped yet.
+**Superseded 2026-09-02 by [ADR 0053](0053-the-design-document-records-the-whole-frozen-map.md)
+(M5 wave 5H), which closes backlog 22.** The premise — "occupied columns are already fully derivable
+from the placements" — is false: an extent a delete or an insert froze is exactly what the placements
+no longer imply once a partial delete or a clear-then-refill happens, and backlog 22 is the measured
+proof (in session: a partial delete loses two openings on reload; a clear-then-refill silently shrinks
+a 2600 mm column to 860). ADR 0053's mechanism is narrower than the rejection it replaces: a *second
+array*, `columnExtents`, carrying only the frozen extents of columns that still hold a member, on
+precedence-plus-containment rather than disjointness — and the containment half is vertical only,
+made safe against neighbouring columns by a separate overlap sweep, not by containment alone. See
+ADR 0053 for the full mechanism.
 
 **Refuse to leave a gap at all, so nothing needs storing.** Rejected — it is ADR 0043 reversed,
 decided by the owner one day earlier.
@@ -86,7 +86,7 @@ earlier it was opposite or ambiguious in another ADRs"*:
 | [ADR 0011](0011-m3-insert-contract-gaps.md) Gap D | A column's extent is frozen at load; a cleared run must keep the opening it freed. | **This record is Gap D's missing half, not a departure from it.** Gap D froze the extent in memory; persisting it is what makes the freeze survive the only event that was silently discarding it. Nothing in Gap D is superseded. |
 | [ADR 0011](0011-m3-insert-contract-gaps.md), `hasFullHeightUnder` correction | A column's *live* fields are re-answered on every derivation; only the extent is frozen. | **No conflict, and the boundary is honoured.** `emptyColumns` stores extent fields only. `hasFullHeightUnder` is still re-answered by `withCurrentFullHeightMembers` over the loaded map, empty columns included. |
 | [ADR 0038](0038-pre-release-no-stored-designs-no-migrations.md) | Pre-release; nothing stored; no migration owed. Its correction of 2026-08-31 warns that an unbounded schema field was a live defect at two real seams. | **Relied on for the cheapness, and obeyed for the danger.** The field is bounded and validated at both seams — that correction is exactly why the validation is part of this decision rather than a follow-up. |
-| [ADR 0002](0002-db-backed-shareable-persistence.md) | One `jsonb` document per design; canonical-serialisation round-trip invariant. | **No conflict; the invariant gains a case.** Round-tripping a design carrying `emptyColumns` is an acceptance criterion of the wave. |
+| [ADR 0002](0002-db-backed-shareable-persistence.md) | One `jsonb` document per design; canonical-serialisation round-trip invariant. | **No conflict; the invariant gains a case.** Round-tripping a design carrying `emptyColumns` is an acceptance criterion of the wave. **Corrected 2026-09-02 by [ADR 0053](0053-the-design-document-records-the-whole-frozen-map.md):** `withFrozenMap`'s own comment reads "an untouched document is not rewritten", true for `emptyColumns` because it is set only when non-empty — but `columnExtents` is populated for **every** occupied column on the resolved map, not only the ones a command just touched, so the very next command a legacy document receives, however unrelated, adds a `columnExtents` entry per occupied column to its wire form. The invariant in ADR 0002 decision 20 (load, validate, re-serialise, compare to the stored canonical form with **no** command run) is untouched — nothing writes `columnExtents` on a bare load. What changes is that the *next save*, of any kind, is no longer a no-op on the wire for a document that has never carried the field. |
 | [ADR 0031](0031-a-resize-moves-a-whole-column-into-adjacent-empty-space.md) | A resize is funded by an adjacent empty column, which is a frozen extent moved by `moveFrozenColumns`. | **Depends on this record to work across a reload.** ADR 0031 is unchanged; without this, its funding column exists only until the customer reloads. |
 | [ADR 0035](0035-width-is-a-bounded-stepper-not-a-menu-of-sizes.md) decision 7 | A shrink creates the empty column it needs. | **Depends on this record.** Untouched; it is the path that makes the defect ordinary rather than rare. |
 | [ADR 0043](0043-an-empty-space-of-any-width-is-a-legal-state.md), *Still open* | Names this defect explicitly and defers it to a wave of its own: *"the gaps this decision makes legal are the gaps that reload has to carry."* | **This is that wave.** ADR 0043's *"Nothing about persistence changes"* line is scoped to its own change — the removal of a refusal — and is not a claim that persistence is correct. No amendment needed; the pointer is added. |

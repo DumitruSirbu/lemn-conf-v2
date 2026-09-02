@@ -101,7 +101,10 @@ function designWithEmptySpan(widthMm: number, alongMm = 2600): Design {
 
 function loadSpan(design: Design): Span {
   const records = derivePlacementRecords(design, CATALOG);
-  return spanOf(design, deriveColumns(records, design.emptyColumns));
+  return spanOf(
+    design,
+    deriveColumns(records, { emptyColumns: design.emptyColumns }),
+  );
 }
 
 /** The seeded kitchen with named placements removed, and the frozen extents the deletes left

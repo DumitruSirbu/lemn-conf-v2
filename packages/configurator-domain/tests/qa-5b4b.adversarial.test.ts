@@ -82,14 +82,14 @@ interface Loaded {
 
 function load(design: Design): Loaded {
   const records = derivePlacementRecords(design, CATALOG);
-  const columns = deriveColumns(records, design.emptyColumns);
+  const columns = deriveColumns(records, { emptyColumns: design.emptyColumns });
   return { columns, records, voids: recomputeVoids(records, columns) };
 }
 
 /** The stored spaces straight into `deriveColumns`, with no placements — `qa-5b2b`'s own round trip,
  *  which runs on a frozen map rather than on a document. */
 function loadStored(emptyColumns: readonly EmptyColumn[]): Loaded {
-  const columns = deriveColumns([], emptyColumns);
+  const columns = deriveColumns([], { emptyColumns: emptyColumns });
   return { columns, records: [], voids: recomputeVoids([], columns) };
 }
 

@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import {
+  MAX_COLUMN_EXTENTS,
   MAX_DESIGN_DIMENSION_MM,
   MAX_EMPTY_COLUMNS,
   MAX_IDENTIFIER_LENGTH,
@@ -102,6 +103,26 @@ export const EmptyColumnSchema = z.strictObject({
 });
 export type EmptyColumn = z.infer<typeof EmptyColumnSchema>;
 
+/**
+ * The frozen extent of a column that **does** still hold a member, as ADR 0053 records it.
+ *
+ * The exact complement of `EmptyColumnSchema` and deliberately the same six fields, because it is
+ * the same fact about the same kind of space: where a column reaches, in whole millimetres, on a
+ * key the document's own placements produce.
+ *
+ * ADR 0044 stored only the member-less columns, on the premise that an occupied column is derivable
+ * from its placements. That premise is false for a column a command has since re-shaped: clear a
+ * column and refill it with a body that fits, or delete some of a column's members, and the
+ * placements imply an extent narrower than the one the customer is looking at. Nothing else records
+ * the difference, so a reload silently shrinks the column and the openings above the body vanish.
+ *
+ * The name is `StoredColumnExtent` rather than `ColumnExtent` because `void-engine.ts` already
+ * exports that name for the in-memory frozen half of a `Column`. This is its wire shape, and the two
+ * are converted into each other in one place (`toColumnExtent`).
+ */
+export const StoredColumnExtentSchema = EmptyColumnSchema;
+export type StoredColumnExtent = z.infer<typeof StoredColumnExtentSchema>;
+
 export const DesignRoomSchema = z.strictObject({
   shape: DesignRoomShapeSchema,
   widthMm: roomDimensionSchema(MAX_ROOM_WIDTH_MM),
@@ -120,6 +141,19 @@ export const DesignSchema = z.strictObject({
    *  The cap is enforced here because this schema is the one gate both seams pass through: the API
    *  write path parses it, and `migrateFromV1` parses it again on load. */
   emptyColumns: z.array(EmptyColumnSchema).max(MAX_EMPTY_COLUMNS).optional(),
+  /** ADR 0053, the other half of the frozen map. Optional and additive, and **that is a real
+   *  backward-compatibility argument rather than a licence borrowed from ADR 0038**, whose premise
+   *  ADR 0052 corrected: a document written without this key loads exactly as it does today, with
+   *  every occupied column's extent derived from its placements. Only documents saved after this
+   *  field exists carry the extents, and only those get the reload the customer expects. No schema
+   *  version bump is owed for a field whose absence is a valid, unchanged state.
+   *
+   *  Capped separately from `emptyColumns` because a different quantity bounds it — see
+   *  `MAX_COLUMN_EXTENTS`. */
+  columnExtents: z
+    .array(StoredColumnExtentSchema)
+    .max(MAX_COLUMN_EXTENTS)
+    .optional(),
   createdAt: ConfigurationTimestampSchema,
   updatedAt: ConfigurationTimestampSchema,
 });

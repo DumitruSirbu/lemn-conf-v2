@@ -196,6 +196,41 @@ required.
 
 ## Wave 5H — the frozen map is recorded whole
 
+**Complete, 2026-09-02.** Decision: [ADR 0053](../decisions/0053-the-design-document-records-the-whole-frozen-map.md).
+Closes `docs/BACKLOG.md` entry 22. Verified: domain **1433** (twice, identical), web **786-788
+(+4 skipped)**, persistence **177**; `pnpm ci:local` — all nine gates PASS. Gates: adversarial QA (two
+rounds — independently reproduced the overlap defect below and confirmed the fix load-bearing),
+clean-code (one actionable finding, fixed), logic (one blocker, fixed), security (one Medium, fixed).
+See `docs/STATUS.md`'s *M5 wave 5H* section for the full close-out.
+
+**The blocker, found by three agents independently.** The plan below reasons that monotone vertical
+containment — floor MIN, top MAX over a column's own members — is what makes restoring a stored
+extent over an occupied column safe. It is necessary and was never sufficient: containment is a
+per-key proof, and `recomputeVoids` builds a column's published openings from that column's own
+members alone, so an extent whose declared footprint reached into a **neighbouring** column's key
+passed every containment check while publishing openings straight through that neighbour's bodies.
+Adversarial QA, the logic reviewer and the security reviewer each reproduced this independently, with
+concrete inputs — an extent for `A|2.00` declaring `widthMm: 3200` inside the 3600 mm wall published
+openings spanning 0.4–3.6 m of wall A through eight real placements. The dangerous part was not that
+the rule was missing; it was that the plan's own stated justification for not needing it — "the room
+bounds every extent" — was false, off by four orders of magnitude on the `A|2.00` case, and had been
+believed and repeated before it was measured. `findWallOverlaps` closes it: a sweep of all three span
+kinds (placements, `emptyColumns`, `columnExtents`) on each wall, exempting an extent only against
+placements filed under its own key, adding `COLUMN_EXTENT_OVERLAPS_PLACEMENT`,
+`_EMPTY_COLUMN` and `_COLUMN_EXTENT` to the four per-entry codes below.
+
+**Two of the plan's own dropped clauses were re-examined and both stand, for measured reasons rather
+than assumed ones.** The depth clause was dropped because it refuses documents the product itself
+writes — 400 swept command sequences against the seeded kitchen produced 10 legitimate extents
+narrower in depth than a member they still correctly hold (the pantry shrink case). The along-wall
+clause's dropped reasoning was corrected in place: the seeded `A|1.30` cited to justify it was
+measured wrong (it holds three 800 mm members at 800 mm width, not one 600 mm member at 500 mm), and
+a re-sweep of the same 400 sequences found the along-wall clause would have refused **zero** of them.
+The clause is still dropped, on the corrected grounds.
+
+See ADR 0053 for the full mechanism, the `regions` collapse this wave extends to every occupied
+column, and the unfalsifiable restore-before-merge ordering.
+
 ### Goal
 
 Close **backlog 22**. ADR 0044 persists **member-less** columns only, so a column that still holds a
@@ -309,6 +344,42 @@ does today and what 5H stops doing.
 | **5H-6** | A document at `MAX_PLACEMENTS` placements, `MAX_EMPTY_COLUMNS` empty columns and `MAX_COLUMN_EXTENTS` extents serialises under `MAX_DESIGN_BYTES` and is accepted by the write seam. | Leave `MAX_DESIGN_BYTES` at 248 576 — the largest legal document is refused, which is the cap-left-behind failure ADR 0044 names. |
 | **5H-7** | Visual, 390×844: 5H-1 on screen, before and after a real reload, reporting the void ids and the `openWMm`/`openHMm` of both openings each time. | The observation gate. It fails if the report cannot name what it measured on both sides of the reload. |
 
+**5H-1 through 5H-6: PASS.** 5H-4 was widened in-wave beyond its original two codes — QA, logic and
+security independently reproduced the cross-column overlap defect (see the wave summary above), and
+`findWallOverlaps` plus its three new codes are now part of what 5H-4 exercises alongside the two
+per-entry containment checks named in the plan.
+
+**5H-7 — PASS, 2026-09-02, all six flows at 390x844 with real taps**, against a `dist` rebuilt and
+checked for `projectFrozenMap` and `addStoredColumnExtents` before any observation, through
+`playwright.config.ts`'s own server (test database, selection debug on).
+
+*The headline route, which is backlog 22's exact defect.* `A|2.60` cleared by touch (p19, p13, p2),
+leaving three voids each `spanHMm` 2600; `base-dishwasher` inserted into the 860 mm one. Before the
+reload: `n0` 600x860, `A|2.60:v0:1.50` 600x700 and `A|2.60:v1:2.20` 600x400, both at span **1740**.
+After a real reload of `/d/{id}`: **identical ids and identical numbers, and the screenshots are
+byte-identical** (md5 `8950bf72…`). The stored document carries
+`{wall: A, alongMm: 2600, widthMm: 600, y0Mm: 0, topMm: 2600, depthMm: 620}` — the 2600 mm top
+survives, so the free span above an 860 mm body is 1740 mm rather than 0. Before this wave, both
+openings vanished and the column shrank to its member's height.
+
+*The partial-delete route.* `p7` deleted with `p24` standing: `p24` 700x750, `B|2.45:v1:1.50`
+700x350 and `B|2.45:v0:0.00` 700x860, span 1850 on both voids, identical before and after reload,
+screenshots byte-identical (`51804fe5…`).
+
+*No regression in the two waves before this one.* 5B2: a fully cleared `B|2.45` returns after a
+reload as three voids with identical ids (`3144cfc2…`). 5G: shrinking `p6` 600 -> 400 split the freed
+900 mm span into 800 mm and 100 mm entries, both within the ceiling, the 800 one picking as
+`B|2.30:v0/v1/v2` and unchanged after reload (`ef1846a8…`).
+
+*Console clean* across all four flows — the only output is the pre-existing `THREE.Clock` deprecation
+warning.
+
+**Two things the verifier would not claim.** The seeded kitchen projects **12** `columnExtents`, not
+the 13 the dispatch had guessed — a reminder that a count in a brief is a guess until something
+measures it. And the 100 mm remainder from the 5G check was read from the stored document only: it
+renders as a sliver at the far-left edge of that preset and sits outside the pickable x range, which
+is [backlog 25](../BACKLOG.md) rather than a 5H finding.
+
 ### Risk
 
 **Medium-high.** One new optional field, but it reaches a derivation from a caller-supplied
@@ -353,7 +424,7 @@ like a contradiction is not one.
 | **ADR 0002** | Canonical-serialisation round-trip invariant. | No conflict; the invariant gains a case (5H-1). |
 | **ADR 0046** | `projectEmptyColumns` takes the frozen map as an argument, so whichever map is canonical flows through without reopening the seam. | **Relied on.** `projectColumnExtents` takes the same argument and the post-merge decision of 2026-09-02 covers both arrays. |
 | **DEVELOPMENT-SPEC §3.2 and §12** | Already carry ADR 0044's dated pointers. | Each gains a second pointer: the map is derived from the placements, the stored empty columns **and** the stored occupied extents. |
-| **New: ADR 0053** | — | *The design document records the whole frozen map, in two disjoint arrays.* |
+| **[ADR 0053](../decisions/0053-the-design-document-records-the-whole-frozen-map.md)** | Written 2026-09-02, wave complete. | *The design document records the whole frozen map, in two disjoint arrays.* Records the supersession of ADR 0044's rejected alternative, the precedence-plus-containment mechanism, why containment alone was insufficient (the overlap sweep, found by three agents independently), the two dropped clauses with their corrected reasons, and the unfalsifiable restore ordering. |
 
 **Nothing in either wave contradicts something already shipped except the two rows marked
 superseded.** The near-miss to name explicitly is ADR 0037: *"800 is the ceiling on any empty

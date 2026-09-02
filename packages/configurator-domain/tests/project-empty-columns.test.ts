@@ -177,7 +177,7 @@ describe("projectEmptyColumns", () => {
     });
 
     const projected = projectEmptyColumns(mapOf([column]), []);
-    const restored = deriveColumns([], projected);
+    const restored = deriveColumns([], { emptyColumns: projected });
 
     expect([...restored.keys()]).toStrictEqual([column.key]);
   });
@@ -201,10 +201,9 @@ describe("projectEmptyColumns", () => {
       ],
     });
 
-    const restored = deriveColumns(
-      [],
-      projectEmptyColumns(mapOf([cleared]), []),
-    );
+    const restored = deriveColumns([], {
+      emptyColumns: projectEmptyColumns(mapOf([cleared]), []),
+    });
 
     const column = restored.get(cleared.key);
     expect(column).toBeDefined();

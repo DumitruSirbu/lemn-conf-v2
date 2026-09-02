@@ -1078,7 +1078,20 @@ validation rule is measured against.
 Not scheduled. Raise it with the owner — it is a one-line change either way and a real decision
 about which artefact is authoritative.
 
-## 22. A partly emptied column forgets what it freed, and UX-2 is only half closed
+## 22. A partly emptied column forgets what it freed, and UX-2 is only half closed — CLOSED 2026-09-02
+
+**CLOSED by M5 wave 5H — [ADR 0053](decisions/0053-the-design-document-records-the-whole-frozen-map.md).**
+A second stored array, `columnExtents`, carries the frozen extent of a column that still holds a
+member — the half `emptyColumns` (ADR 0044) never covered. Both routes below now survive a reload:
+the partial delete (`p7` cleared with `p24` standing keeps its two openings) and the clear-then-refill
+route that mattered more (clearing `A|2.60` and refilling it with an exact-fit dishwasher keeps the
+column's full 2600 mm rather than shrinking to 860). Made safe by monotone vertical containment (a
+restored extent can only widen a column, never lose a member) plus a same-wall overlap sweep that
+catches what containment alone cannot — see ADR 0053 for why containment was insufficient by itself
+and what closed the gap. Verified: domain 1433 (twice, identical), web 786–788 (+4 skipped),
+persistence 177; `pnpm ci:local` all nine gates PASS.
+
+### The finding, as recorded before it was closed
 
 Found by the 5B2b logic review and confirmed on screen by visual verification (2026-09-01). Delete
 `p7` while `p24` still stands above it: in session the freed space shows as two openings, 700x860

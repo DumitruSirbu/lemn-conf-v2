@@ -279,7 +279,10 @@ function advance(
 
 function load(design: Design): World {
   const records = derivePlacementRecords(design, CATALOG);
-  return advance(design, deriveColumns(records, design.emptyColumns));
+  return advance(
+    design,
+    deriveColumns(records, { emptyColumns: design.emptyColumns }),
+  );
 }
 
 /** One step, or the world unchanged. **A refusal is a legal step**: the commands under test refuse
@@ -450,7 +453,7 @@ function loadWide(widthMm: number): World {
   const records = derivePlacementRecords(design, CATALOG);
   return {
     design,
-    columns: deriveColumns(records, design.emptyColumns),
+    columns: deriveColumns(records, { emptyColumns: design.emptyColumns }),
     records,
     voids: [],
   };

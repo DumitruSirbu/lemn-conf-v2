@@ -276,6 +276,16 @@ extents instead (`apps/web/tests/support/column-extents.ts`). That is the weaker
 one that matches the rule, and it still fails on the defect they were written to catch — a
 recomputed column shrinks its `top` and loses its freed region, and both are compared.
 
+**Amended 2026-09-02 by [ADR 0053](0053-the-design-document-records-the-whole-frozen-map.md) (M5
+wave 5H).** This correction froze the extent in memory; ADR 0044 made the member-less half of it
+survive a reload; ADR 0053 makes the **occupied** half survive one too, through a second stored
+array, `columnExtents`. Nothing here is overturned — re-deriving an occupied column's extent from
+its current records on every reload is exactly what this correction's own reasoning forbids, and it
+is what `deriveColumns` did anyway until ADR 0053 stopped it. `withCurrentFullHeightMembers` (this
+Gap's own `hasFullHeightUnder` re-answering, renamed since) still runs after every restore, so the
+extent-frozen / live-predicates-re-answered boundary this correction drew is exactly where ADR 0053
+leaves it.
+
 ## Correction, 2026-08-26 — `hasWorktop` is a geometric question, not a column-membership one
 
 Found in the same QA round. `hasWorktop` was `members.some(band === "base")` — asked of the column's
