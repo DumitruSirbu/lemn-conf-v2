@@ -21,6 +21,7 @@
     "lint:fix": "pnpm --workspace-concurrency=1 --recursive run lint:fix",
     "prepare": "git config core.hooksPath .githooks || true",
     "test": "pnpm --workspace-concurrency=1 --recursive run test",
+    "test:e2e": "pnpm --filter @lemnaria/web run test:e2e",
     "typecheck": "pnpm --workspace-concurrency=1 --recursive run typecheck"
   },
   "devDependencies": {

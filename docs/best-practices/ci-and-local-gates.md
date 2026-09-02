@@ -104,11 +104,27 @@ private repository are a limited monthly allowance (2,000 on Free, 3,000 on Pro)
 free. A push that would fail CI must fail on this machine instead.
 
 `.githooks/pre-push` runs `pnpm ci:local`, which mirrors `.github/workflows/ci.yml` gate for gate:
-format, lint, typecheck, test, build, boundary, lockfile, sca.
+format, lint, typecheck, test, **e2e**, build, boundary, lockfile, sca.
 
-It runs **every** gate rather than stopping at the first failure, because CI reports all nine jobs
+It runs **every** gate rather than stopping at the first failure, because CI reports all ten jobs
 independently — a local gate that hides the second failure until the first is fixed wastes the round
-trip it exists to save. It takes well under a minute on this repository.
+trip it exists to save. Every gate but one takes seconds; `e2e` takes about a minute, because it
+boots a dev server and drives a real browser through it.
+
+### The `e2e` gate, added 2026-09-02, and why it is worth its minute
+
+Until that date **nothing anywhere ran Playwright** — not this script and not the workflow. The
+consequence was measured, not imagined: §10's signature flow sat red for **six days** after ADR 0033
+merged two catalogue rows and renamed `base-2door` to `base-cabinet`, while every other gate stayed
+green throughout. Nothing was wrong with those gates. The rename was consistent everywhere the unit
+suites look, and **no unit test asserts a DOM test id** — the panel builds its own from
+`offer-${row.buildId}`. That class of defect is invisible to everything except a browser.
+
+Two things it needs, and it fails loudly rather than skipping when they are missing, which is the
+point: `TEST_DATABASE_URL` in `.env.test.local` (the suite writes designs, so ADR 0006 keeps it off
+the application database), and a Playwright browser — `pnpm --filter @lemnaria/web exec playwright
+install chromium` if it complains about one. A gate that silently passes when it cannot run is the
+thing this gate exists to replace.
 
 The `boundary` and `lockfile:single-source` gates are the **same shell scripts** the workflow
 invokes (`scripts/gates/`), not reimplementations. That is deliberate: a local gate that has drifted

@@ -609,9 +609,12 @@ actually downloaded from Blob, and Path 1 (Neon PITR) has never been drilled. No
 changed this wave — `write_token_hash` is now exported and restored, without which every restored
 design would have been permanently unwritable.
 
-**Infrastructure state — live as of 2026-08-25.** Repository `DumitruSirbu/lemn-conf-v2` (private),
-CI green on nine gates, and `.githooks/pre-push` runs the same gate set locally so a red build never
-reaches GitHub. Vercel is connected to the repository and deploys `main` to production
+**Infrastructure state — live as of 2026-09-02.** Repository `DumitruSirbu/lemn-conf-v2` (private),
+CI green on **ten** gates — `install`, `format`, `lint`, `typecheck`, `test`, **`e2e`**, `build`,
+`boundary`, `lockfile`, `sca` — and `.githooks/pre-push` runs the same gate set locally so a red
+build never reaches GitHub. The `e2e` gate was added 2026-09-02 to both the workflow and
+`scripts/local-ci.sh` at once; before that **nothing anywhere ran Playwright**, which is how a red
+signature-flow spec sat unnoticed for six days (backlog 24, now closed). Vercel is connected to the repository and deploys `main` to production
 automatically; Root Directory `apps/web`, Next.js preset, Node 24. The backup cron
 `/api/cron/backup-designs` is registered on `0 3 * * *` and has produced its first export.
 

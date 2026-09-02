@@ -1164,7 +1164,54 @@ receives the full unfiltered `input.offers`, so the data is there.
 
 Not scheduled. Worth pairing with the next panel wave rather than done alone.
 
-## 24. The e2e suite went six days without being run, and a rename had silently broken it
+## 24. The e2e suite went six days without being run, and a rename had silently broken it — CLOSED
+
+**Closed 2026-09-02, the same day it was raised**, by adding an `e2e` gate to
+`.github/workflows/ci.yml` **and** to `scripts/local-ci.sh` in one change, so the two stay mirrored
+as the script's own header promises.
+
+The gap was worse than this entry first described. It said `ci:local` does not run Playwright, which
+was true — but neither did the workflow. Its nine jobs were `install`, `format`, `lint`, `typecheck`,
+`test`, `build`, `boundary`, `lockfile`, `sca`, and **not one of them ran the e2e suite**. So the six
+days were luck rather than a near miss: no gate anywhere would have caught it, at any point, on any
+branch.
+
+**What the fix needed, none of it obvious from the entry.** The runner has no browsers, so the job
+installs Chromium alone — both projects in `playwright.config.ts` pin `defaultBrowserType:
+"chromium"`, so the full set would download browsers no spec can select. It reuses the `test` job's
+`TEST_DATABASE_URL` secret and its fail-early assertion. And it inherits a documented weakness worth
+naming: `assertSafeTestDatabaseUrl` compares the test database's name against the application's and
+returns early when no `DATABASE_URL` is set, which CI deliberately does not set — so on a runner only
+the allow-list half of that guard is live. That half is the one that matters, but the comparison is
+vacuous there, exactly as finding DB-001 described.
+
+**Proved non-vacuous rather than assumed.** Reintroducing the original defect — `offer-base-cabinet`
+back to `offer-base-2door` — turns the new gate red (20 passed, 1 failed, exit 1); reverting restores
+it. A gate that would not have caught the bug that motivated it is decoration.
+
+The cost is about a minute locally, which lands on `pre-push` too. That hook already advertises
+"a few minutes" as its trade, so the addition is consistent with what it promises rather than a new
+tax nobody agreed to.
+
+**Two defects the security review caught in the fix itself, both invisible locally.** The `e2e` and
+`test` jobs share one Neon database and, needing only `install`, would have run **in parallel** on
+GitHub — while the live persistence suites execute DDL on the shared `designs` table (`drop column
+if exists revision`, and the same for `write_token_hash`), each with a window before `runMigrations`
+restores it. An e2e `POST /api/designs` landing in that window fails for a reason nobody could
+reproduce, because `scripts/local-ci.sh` runs the two serially. Fixed by `needs: [install, test]`.
+And `playwright.config.ts`'s `webServer` waited on `/`, a bare `redirect()` that compiles in
+milliseconds, so the server was declared ready before the three.js configurator was built and the
+compile landed inside a 30 s test rather than the 60 s startup window — harmless on a warm local
+cache, an intermittent timeout on a cold runner. Now it waits on the page the specs actually open.
+Retries were considered and rejected: a retry hides a flake instead of fixing it.
+
+**One thing to know before widening the failure artifact.** A Playwright trace records response
+headers, and `POST /api/designs` returns the write token in `Set-Cookie` — so a failure artifact
+carries a live write token for a *test-database* row. Acceptable here (private repo, 7-day
+retention, a database ADR 0006 keeps apart from the application's) and not a pattern to reuse
+against real data.
+
+*Original finding, kept for the record:*
 
 Found while closing M5B (2026-09-02). `pnpm --filter @lemnaria/web test:e2e` was red:
 §10's signature flow at 390x844 failed on `getByTestId("offer-base-2door")`, expected 1, received 0.
