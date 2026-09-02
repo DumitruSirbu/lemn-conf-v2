@@ -44,7 +44,7 @@ additionally runs build, boundary, lockfile and audit — the full CI set, and w
 
 ### The `rtk` proxy: do not trust it for verification
 
-Run commands through the `rtk` proxy as described in `RTK.md` when supported, but treat its output
+Run commands through the `rtk` proxy as described in `docs/best-practices/rtk-proxy.md` when supported, but treat its output
 with suspicion for tools it does not model. On 2026-08-25 it reported "All files formatted
 correctly" as the output of `npx prettier --version`, and zero matches for a `find` that had
 matches. Both sent a debugging session down the wrong path.

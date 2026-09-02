@@ -609,10 +609,9 @@ is a new fact in the model with `deriveColumns`, the swap opening and the void m
 today. Changing `resolveDepthM` inside a wave scoped to DOM-002 would have been the silent product
 change the remediation exists to stop, which is why it was recorded rather than fixed.
 
-**Evidence.** Commit `f9b92e1` (wave S9, closing DOM-002); the wave record's
-*Found and not fixed — S9-F1* section in `docs/milestones/adversarial-review-remediation.md`, which
-carries the live reproduction and the per-column table; and `testing-reports/03-domain-model.md`,
-whose DOM-002 finding is what the wave was scoped to.
+**Evidence.** Commit `f9b92e1` (wave S9, closing DOM-002); the wave S9 summary in
+`docs/milestones/adversarial-review-remediation.md`; and `testing-reports/03-domain-model.md`, whose
+DOM-002 finding is what the wave was scoped to.
 
 Related: entry 10 is the same seam from the other side — two routes to "a wall cabinet in this slot"
 producing different depths on the uncapped path — and entry 5 is the capped sibling.

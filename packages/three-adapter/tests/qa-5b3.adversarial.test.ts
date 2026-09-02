@@ -45,7 +45,7 @@ const PANEL_NAME = "end_panel_right";
 const FLOAT_EPSILON_M = 1e-6;
 
 /** The authored 1 mm gap between the run's last drawer front and the panel's inner face,
- *  `docs/CONFIGURATION_MODEL.md:959`: the panel's *centre* stands 10 mm past the carcass edge and
+ *  `docs/CONFIGURATION_MODEL.md:724`: the panel's *centre* stands 10 mm past the carcass edge and
  *  the 18 mm slab therefore leaves 1 mm of air. Retyped from that record, not from the source. */
 const PANEL_CENTRE_OFFSET_M = 0.01;
 const PANEL_INNER_FACE_GAP_M = 0.001;

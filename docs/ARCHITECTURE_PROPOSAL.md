@@ -182,87 +182,6 @@ digits, matching JavaScript millisecond precision.
 > independent placements — they are simply flagged structural (no replace, no delete, never a width
 > donor) instead of being linked by an identifier.
 
-The room shape owns canonical wall order and exact corner anchors. Each wall receives a derived
-room-space transform. A placement first receives a deterministic interval on its wall from its
-wall/band/run-anchor-local order, usable-run constraints, junction reservations, and width; that
-interval then maps into room coordinates. Placements persist `runAnchor: flow | start | end` but no
-world coordinate or derived segment ID. Start/end partitions form margin-attached blocks. Columns
-in those blocks reserve the same interval across base, middle, and top; each remaining band's
-independent flow order packs at the earliest valid integer-grid position and advances across
-obstacle-split segments when a reservation blocks the candidate.
-
-The layout engine must enforce:
-
-- no overlap or wall overflow within a wall/band run;
-- unique contiguous order within each wall/band/run-anchor partition;
-- column reservations across base, middle, and top bands, plus room-space collision checks between
-  all distinct canonical wall pairs, including opposing B/C walls in a U room;
-- the explicit base/middle/top/column Y bands and canonical wall transforms in
-  `docs/CONFIGURATION_MODEL.md`;
-- definition family and placement vertical-band agreement;
-- width support and host clearance for fixed-size bought elements;
-- replacement-group, neighbour, and junction constraints;
-- every column belonging to a contiguous start- or end-anchored group touching that run margin;
-- no implicit offsets, centred/distributed slack, or synthesized fillers: unused segment tails stay
-  free, while filler/end-panel items are explicit catalog-backed placements at supported widths;
-- corner legs remaining separate linked placements; their reference-specific recess and exact
-  butt-joint proof remains distinct from generic layout AABB validation;
-- an open shelf never occupying a prohibited corner slot;
-- deterministic output for the same configuration, catalog, and layout-policy versions.
-
-Cross-wall validation is an integer domain query, not a Three.js bounds check. Once wall-local
-packing and explicit `cornerReservations` have succeeded, each placement exposes a derived
-`PlacementRoomOccupancy` containing its placement/wall/band/anchor, bigint source interval, and
-bigint min/max X/Y/Z bounds. Wall A maps `[s,e]` by depth `d` to
-`X=[s,e], Z=[0,d]`; wall B maps it to `X=[0,d], Z=[lengthB-e,lengthB-s]`; wall C maps it to
-`X=[lengthA-d,lengthA], Z=[s,e]`. Y is the band bottom through the definition's actual height.
-Here `d` is the definition's carcass `depthM`; worktop overhangs, fronts, handles, appliances,
-chamfers, and other renderer envelopes remain for the fixed 3D proof. No scene epsilon or float
-transform participates.
-
-The query checks A/B for L and U rooms, and A/C plus opposing B/C for U rooms. Interior overlap on
-all three axes returns `ROOM_SPACE_COLLISION`; equality on any axis is valid contact. Occupancies
-sort by canonical wall, band, source interval, then locale-independent placement ID. Candidate
-pairs sort lexicographically by their two occupancy indices; the first failure returns both IDs in
-that order. The exact linked pair in one validated `junctionGroupId` is exempt only from this
-generic AABB rejection. Reservations still constrain its local intervals and all other collisions;
-because reservations carry no solid depth, they are never extruded into invented occupancies. The
-reference-specific recess/worktop butt-joint proof remains a separate M0 gate and must use approved
-corner inputs plus actual adapter geometry.
-
-This wave does not add floor-polygon containment: linear rooms expose no depth and unequal U legs
-do not define a closed floor footprint. Cross-wall scanning runs after existing context/schema,
-corner-reservation, vertical, anchor, wall-local packing, column, and obstacle validation, preserving
-their failure precedence. A collision failure contains only the ordered
-`ROOM_SPACE_COLLISION` pair and never leaks a partial success `occupancies` array.
-
-Dragging is an input method, not a separate placement model. During a pointer gesture the UI may
-show an ephemeral preview, but dropping resolves only to a `targetOrder` on the placement's current
-wall, vertical band, and run anchor, then calls `reorderCabinet(placementId, targetOrder)`. In M0,
-changing a column between start and end uses the explicit transactional
-`moveCabinetToRunMargin(placementId, targetSide, targetOrder)` command and recomputes column
-reservations across all cabinet bands; non-column placements are rejected even when their
-definition has a margin rule. Cross-wall or cross-band movement is rejected; it would require a
-separately approved command. Invalid drops
-animate back and leave durable state unchanged. The cabinet sheet
-also exposes move-before/move-after controls so touch, keyboard, and assistive-technology users do
-not depend on precision 3D dragging.
-
-All command results preserve the `placements[]` element sequence: affected placement objects are
-replaced at their original indices, never sorted or spliced into derived layout order. Reorder
-changes only affected `order` fields; margin move changes the target anchor and affected source and
-target orders. Resize preserves the selected definition and all other placement fields.
-Replacement preserves exact width and explicit options and accepts only the compatible target
-defined in the configuration-model contract. Omitted options resolve from the target defaults and
-that resolved change is exposed in the primary effect. `setCabinetOptions` takes a complete object,
-not a patch. Every placement whose persisted fields are unchanged retains its exact object identity
-in the successful array.
-
-All five edits validate original and candidate with the same `derivePlacementLayout` call and
-immutable explicit corner reservations. They never infer or alter a corner extent. Fixed-host
-clearance and neighbour-compatibility metadata are not in the current schemas, so this wave neither
-implements nor invents those future catalogue constraints.
-
 ### 4.4 Undo and reversibility
 
 > **Superseded (2026-08-24).** Undo is retired. `DEVELOPMENT-SPEC.md` §5.1 and §13.1: undo and the
@@ -272,12 +191,6 @@ implements nor invents those future catalogue constraints.
 > declared to the user (a preset that fits only after an adjustment states that adjustment on its
 > card), and camera, selection, open sheet, hover, and gesture state remain presentation state that
 > never enters the saved configuration.
-
-The web store keeps bounded in-memory undo/redo history of successful configuration snapshots.
-Only the current valid snapshot is persisted. Automatic preset adjustments are returned as named
-`DomainEffect` entries for user explanation and are reversible with one undo action. Camera,
-selection, an open sheet, hover, and drag previews are presentation state and never enter the
-saved configuration.
 
 ## 5. Catalog, presets, and pricing
 

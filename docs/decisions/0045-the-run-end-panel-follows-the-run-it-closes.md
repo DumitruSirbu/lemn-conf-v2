@@ -22,7 +22,9 @@ shell manifest
 shell, not a customer body, and nothing recomputes its position.
 
 It is also part of the product model rather than scene dressing: `end_panel` is a declared
-`layoutRole` in `docs/CONFIGURATION_MODEL.md:116` and `docs/ARCHITECTURE_PROPOSAL.md:287`.
+`layoutRole` in `docs/CONFIGURATION_MODEL.md:116` and `docs/ARCHITECTURE_PROPOSAL.md:200` (line
+number corrected 2026-09-02 after that file's dead §4.3/§4.4 bodies were trimmed beneath their own
+superseded banners; the cited text itself is unchanged).
 
 ## Decision
 
@@ -90,7 +92,7 @@ was written from a resize only because that is what the owner happened to do fir
 | [ADR 0043](0043-an-empty-space-of-any-width-is-a-legal-state.md) | A gap of any width is legal. | **Corroborates.** It is what makes a detached panel ordinary: every legal gap at the end of a run is a position the panel must follow to. |
 | `DEVELOPMENT-SPEC.md` §6.1 picking | Solids before voids; lines excluded. | **No conflict.** The panel is not a solid body with a `placementId` and never enters picking. |
 | `DEVELOPMENT-SPEC.md` §11 row 19 | Back face exactly on the wall plane, with two named exceptions. | **No conflict.** The panel's seat on z is unchanged; only its along-wall X moves. |
-| `docs/CONFIGURATION_MODEL.md:116`, `docs/ARCHITECTURE_PROPOSAL.md:287` | `end_panel` is a declared `layoutRole`. | **Corroborates.** The panel is product model, which is why deleting it was the wrong fix. |
+| `docs/CONFIGURATION_MODEL.md:116`, `docs/ARCHITECTURE_PROPOSAL.md:200` (renumbered 2026-09-02) | `end_panel` is a declared `layoutRole`. | **Corroborates.** The panel is product model, which is why deleting it was the wrong fix. |
 
 ## Consequences
 

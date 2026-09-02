@@ -20,6 +20,8 @@ sit in `AGENTS.md`:
   and how to add a CI gate. Read before running the build or changing a gate.
 - `environments-and-resources.md` — the add-only hard rule for environment variables and provisioned
   resources, secret handling, and which `.env` file holds what.
+- `rtk-proxy.md` — the token-optimized `rtk` command proxy, imported wholesale into every session via
+  `AGENTS.md`'s `@docs/best-practices/rtk-proxy.md`.
 
 Use `docs/brand.md` as a provisional visual/voice baseline until a brand-discovery pass confirms or
 replaces it.

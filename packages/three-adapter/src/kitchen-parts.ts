@@ -1541,7 +1541,8 @@ export function makeKit(options: KitOptions = {}): Kit {
     // is `CARC_D / 2 − 0.24` and closes at half a millimetre per millimetre of cabinet depth,
     // reaching **zero at a 520 mm cabinet** — below which the appliance would come through its own
     // door. Not reachable today: 600 is the only depth the product can produce, and
-    // `M5-width.md:1125` records that this builder ignores the depth it is handed. Whoever wires
+    // `docs/decisions/0040-a-recorded-seat-is-converted-back-not-read-as-a-depth.md:109` records
+    // that this builder ignores the depth it is handed. Whoever wires
     // M6's *Setări globale* depth control is the first person who can reach it, which is why the
     // floor is named here rather than left to be measured after the fact.
     const dw = integratedDishwasher(W - 0.004);

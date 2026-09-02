@@ -94,4 +94,4 @@ React/Next.js, browser, image, and document skills.
 `pnpm check` before a commit that closes a phase, `pnpm ci:local` before every push. Full command
 list and the hook rules: `docs/best-practices/ci-and-local-gates.md`.
 
-@RTK.md
+@docs/best-practices/rtk-proxy.md

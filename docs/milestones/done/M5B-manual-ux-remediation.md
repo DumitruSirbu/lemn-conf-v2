@@ -215,7 +215,8 @@ it: it is shell, not a customer body. Nothing recomputes its X, which is exactly
 "floating panel detached from the cabinet".
 
 `end_panel` is a declared `layoutRole` in `docs/CONFIGURATION_MODEL.md:116` and
-`docs/ARCHITECTURE_PROPOSAL.md:287`, so this is part of the product model rather than scene dressing.
+`docs/ARCHITECTURE_PROPOSAL.md:200` (renumbered 2026-09-02 when that file's dead §4.3/§4.4 bodies
+were trimmed), so this is part of the product model rather than scene dressing.
 
 **Owner decision 3, 2026-09-01, verbatim:** the panel should *"follow the cabinets during resizing…
 and if cabinet is removed (the right one) put the panel on the right of the remained cabinet if
@@ -1456,7 +1457,7 @@ All figures are metres in the housing group's frame, whose origin is the carcass
 | | Rule |
 | --- | --- |
 | **Anchor** | The decor door's front plane is `CARC_D / 2 + TH / 2 = 0.289`, its outer face `0.298` — the same expressions `baseCabinet` uses, so it is flush with neighbouring base fronts **by construction, not by a typed number**. |
-| **Scaling** | Width follows `W` at both declared sizes (450 and 600). Height and depth do not follow the requested depth: this builder ignores the depth it is handed (ADR 0018), and `CARC_D` is `carcassDepthM`, wave 5F's formula over the cabinet-depth setting. A literal `0.298` would decouple at a 700 mm kitchen — `M5-width.md:1125` is the note this must not make worse. |
+| **Scaling** | Width follows `W` at both declared sizes (450 and 600). Height and depth do not follow the requested depth: this builder ignores the depth it is handed (ADR 0018), and `CARC_D` is `carcassDepthM`, wave 5F's formula over the cabinet-depth setting. A literal `0.298` would decouple at a 700 mm kitchen — `M5-width.md`'s note that the base family beyond `baseCabinet` does not follow the depth formula at 700/800 mm (in its *What shipped* summary as of the 2026-09-02 trim; formerly line 1125) is the note this must not make worse. |
 | **Structural dependency** | The appliance must stay behind the door. `dw_body` reaches `0.24`; the door's inner face is `0.28`; the 40 mm between them is the mounting space. `dw_panel` (front face `0.298`) and `dw_control_strip` (`0.275`–`0.305`) both cross that plane, which is why work item 1 removes them from the integrated form rather than moving them. |
 | **What must not move** | `dw_body`'s name and box; the seat (`frame.d = 580`), which is derived from `CARCASS_MESH_NAME_PATTERN` and matches no front mesh; the standalone `builders.dishwasher()`; every other builder and every other seeded body at 1e-6 m. |
 
