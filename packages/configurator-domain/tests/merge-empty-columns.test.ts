@@ -16,13 +16,14 @@ import {
   KITCHEN_L_BODY_CATALOG,
   KITCHEN_L_DESIGN,
 } from "../src/fixtures/kitchen-l-design.js";
-import { MERGE_CAP_MM } from "../src/merge-empty-columns.js";
+import { MAX_EMPTY_COLUMN_WIDTH_MM } from "../src/module-grid.js";
 import { toExactMillimetres } from "../src/millimetres.js";
 import { validateDesignForCatalog } from "../src/validate-design.js";
 import {
   deriveColumns,
   derivePlacementRecords,
   mergeAdjacentEmptyColumns,
+  splitOversizedEmptyColumns,
   projectEmptyColumns,
   recomputeVoids,
   withCurrentFullHeightMembers,
@@ -437,7 +438,11 @@ describe("the merge is a fixpoint and never leaves an unprojectable column", () 
   ])(
     "never publishes a column the document cannot carry, at any run of widths",
     (odd, halfWidths) => {
-      const widths = halfWidths.map((half) => (odd ? 2 * half + 1 : 2 * half));
+      // `2h − 1` on the odd arm rather than `2h + 1`, since ADR 0052: the widest entry a document
+      // may carry is the ceiling, so the even arm reaches exactly 800 and the odd arm 799. A wider
+      // one would fail the final assertion on `EMPTY_COLUMN_WIDER_THAN_CAP`, which is a different
+      // rule than the fractional-centre one under test.
+      const widths = halfWidths.map((half) => (odd ? 2 * half - 1 : 2 * half));
       const design = designWith(layOutFromLeftEdge(widths, odd ? 999.5 : 1000));
       const loaded = load(design);
 
@@ -512,7 +517,7 @@ describe("the seeded kitchen: ADR 0037's withdrawal scenario, and the route that
       centreMm: 2000,
       widthMm: 600,
     });
-    expect(800 + 600).toBeGreaterThan(MERGE_CAP_MM);
+    expect(800 + 600).toBeGreaterThan(MAX_EMPTY_COLUMN_WIDTH_MM);
   });
 
   // Criterion 12's route, at the domain: a 600 mm dishwasher into the cleared 800 seats flush left
@@ -572,14 +577,18 @@ function insertInto(loaded: Loaded, key: string, buildId: string): Loaded {
   };
 }
 
-/** The store's `resolveColumns` in one line: merge over whichever map is published, then re-answer
- *  `hasFullHeightUnder` over the extents the merge just wrote. */
+/** The store's `resolveColumns` in one line: split what exceeds ADR 0052's ceiling and merge what
+ *  fits under it, over whichever map is published, then re-answer `hasFullHeightUnder` over the
+ *  extents the pair just wrote. */
 function mergeThenAnswer(
   columns: ReadonlyMap<string, Column>,
   records: readonly PlacementRecord[],
 ): ReadonlyMap<string, Column> {
   return withCurrentFullHeightMembers(
-    mergeAdjacentEmptyColumns(columns, records),
+    mergeAdjacentEmptyColumns(
+      splitOversizedEmptyColumns(columns, records),
+      records,
+    ),
     records,
   );
 }

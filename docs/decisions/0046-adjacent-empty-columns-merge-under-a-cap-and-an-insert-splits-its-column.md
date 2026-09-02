@@ -194,7 +194,8 @@ named above, and the answer is in three parts.
   The merge is dispatched only once that is green in the tree.
 
 **One residual this record does not close.** ADR 0035 decision 7 lets a shrink widen an empty column
-with no ceiling: `void-engine.ts:744-751` records nine taps producing a **900 mm** empty column,
+with no ceiling: `void-engine.ts:906-909` (line numbers as of 2026-09-02; corrected from the
+originally cited 744-751) records nine taps producing a **900 mm** empty column,
 where every `'fit'` cabinet is refused. The 800 mm merge cap does not bound that path — it is one
 column growing, not two merging — and it remains the open product question recorded in
 `docs/milestones/M5-width.md`. A reviewer will meet a >800 mm empty column while testing this and
@@ -348,6 +349,17 @@ milestone file.**
   (`standsIn`-style: along-wall footprint overlap **and** vertical-interval intersection with the
   merged `[floor, top]`), the same correction [ADR 0011](0011-m3-insert-contract-gaps.md) applied to
   `hasFullHeightUnder` on 2026-08-26, rather than a membership or touching-edges test.
+
+## Amended 2026-09-02 by ADR 0052 — the cap stops being the merge's own
+
+`MERGE_CAP_MM`, this record's own constant, is retired into the shared
+`MAX_EMPTY_COLUMN_WIDTH_MM` ([ADR 0052](0052-800-mm-is-the-ceiling-on-any-empty-column.md)), which
+now bounds every empty column regardless of how it came to be empty — a shrink's release and a v1
+document's migration are held to it too, not only the merge. Nothing here changes in behaviour: the
+value is still 800, rule 1's greedy maximal scan and the "an opening belongs to a column" argument
+against stranding are both reused verbatim by the new producers. What changes is only that this
+record is no longer the cap's sole source, and a reader should not expect `MERGE_CAP_MM` to still
+exist in the tree.
 
 ## Consequences
 

@@ -173,6 +173,15 @@ reachable resize produces a negative-delta `NO_EMPTY_SPACE`. Recorded rather tha
 unrepresentable means splitting the params type per code, which is a larger change than this decision
 warrants, and the sweep is where a regression would surface first anyway.
 
+## Amended 2026-09-02 — the no-floor rule now has a ceiling as well, on the other end
+
+[ADR 0052](0052-800-mm-is-the-ceiling-on-any-empty-column.md) caps every empty column at 800 mm,
+including the one a shrink creates. **No conflict with this record.** This decision removed the
+*floor* — a remainder may be any width down to zero — and ADR 0052 adds a *ceiling* on the opposite
+end, splitting a remainder over 800 mm into two columns rather than refusing or stranding it. A
+remainder can still be any width **within [0, 800] per column**; a remainder wider than that no longer
+fails to exist, it becomes two remainders. This record's "no floor" survives unchanged for each of them.
+
 ## Still open
 
 - **An empty column does not survive a save and reload.** Reported by the owner in the same session

@@ -806,6 +806,17 @@ ADR 0024 says to revisit it here, and §5.4 is where a §9 control can legitimat
 
 ## Waves
 
+**Two more since 2026-09-02 — 5G and 5H, planned in [`M5-frozen-map.md`](M5-frozen-map.md).** 5G
+closes **Q5** (800 mm becomes the ceiling on any empty column, and a shrink that frees more splits
+it); 5H closes **backlog 22** (the design document records the whole frozen map). Both run **before
+5E**, which photographs the width surface 5G changes.
+
+**Q5 closed 2026-09-02 by [ADR 0052](../decisions/0052-800-mm-is-the-ceiling-on-any-empty-column.md).**
+Wave 5G shipped: `MAX_EMPTY_COLUMN_WIDTH_MM = 800` bounds every empty column, from every producer —
+the merge, a shrink's release, and a v1 document's migration. A shrink that would free more than the
+ceiling splits into two columns rather than leaving one with no bound. Not widened a fifth time. 5H
+remains open.
+
 **Six since 2026-08-27**, because the work does not fit one dispatch under `docs/WORKFLOW.md`'s limit
 (about five must-fix items and five production files). Each names its review tier, so the choice is
 recorded rather than drifted into.

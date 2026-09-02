@@ -176,7 +176,10 @@ A consequence to state rather than discover: a column containing an appliance ca
 appliance's widths, and the whole column follows. Those columns show the discrete control of
 decision 3, not a stepper, and the reason is a fact about dishwashers rather than a refusal.
 
-**7. Shrinking a column creates empty space.**
+**7. Shrinking a column creates empty space.** **Amended 2026-09-02 by
+[ADR 0052](0052-800-mm-is-the-ceiling-on-any-empty-column.md):** the created column is held to the
+same 800 mm ceiling every empty column now is, rather than left uncapped as this decision first shipped
+it. This is Q5, the open question this decision created and M5 widened four times before closing.
 
 **Shipped in wave 5D2b, 2026-08-28, and the measurement is the point of the decision.** The shipped
 kitchen went from **0 accepted resizes at load to 51**, every one of them a shrink — a customer can

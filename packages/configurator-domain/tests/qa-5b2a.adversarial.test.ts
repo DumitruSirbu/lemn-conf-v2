@@ -260,8 +260,11 @@ describe("the overlap rule at and around its boundary", () => {
   /** One entry swallowing several others: containment is overlap, and a sweep that only compares
    *  neighbours would miss the far end of it. */
   it("names every entry a containing entry swallows", () => {
-    const wide: EmptyColumn = { ...FREED_STRIP, alongMm: 2600, widthMm: 1000 };
-    const inside = [2200, 2400, 2900].map((alongMm) => ({
+    // 800 rather than the 1000 this was written with: ADR 0052 caps an entry at the ceiling, and a
+    // wider one would raise `EMPTY_COLUMN_WIDER_THAN_CAP` as well, which is a different rule than
+    // the one under test. The three entries sit inside 2200–3000 so the swallowing is unchanged.
+    const wide: EmptyColumn = { ...FREED_STRIP, alongMm: 2600, widthMm: 800 };
+    const inside = [2300, 2500, 2900].map((alongMm) => ({
       ...FREED_STRIP,
       alongMm,
       widthMm: 100,
@@ -541,6 +544,10 @@ describe("what holds an empty column to the room", () => {
       "EMPTY_COLUMN_PAST_WALL_END",
       "EMPTY_COLUMN_ABOVE_ROOM",
       "EMPTY_COLUMN_DEEPER_THAN_ROOM",
+      // ADR 0052, since wave 5G: 2000 mm is over the ceiling too. The containment codes are what
+      // this test is about and they are unaffected — an entry outside the room is refused whether
+      // or not it also breaks the width rule.
+      "EMPTY_COLUMN_WIDER_THAN_CAP",
     ]);
     expect(() => migrateDesign(1, throughTheWire(design), CATALOG)).toThrow(
       InvalidDesignError,
@@ -812,7 +819,10 @@ describe("the key a restored entry lands under", () => {
   });
 });
 
-describe("Q5: an oversized empty column now survives the reload", () => {
+describe("Q5, closed: 800 mm is the ceiling on any empty column (ADR 0052)", () => {
+  /** The 900 mm entry this file recorded as Q5's durable half. It is still what a version 1 row may
+   *  hold — every document written before wave 5G was written under a rule that bounded a merge and
+   *  not a column — so it is the exact input the load path has to carry forward. */
   const OVERSIZED: EmptyColumn = {
     ...FREED_STRIP,
     alongMm: 3000,
@@ -821,26 +831,52 @@ describe("Q5: an oversized empty column now survives the reload", () => {
     topMm: 2600,
   };
 
-  /** Recorded as the durable half of the open question, not as a regression of this wave: a 900 mm
-   *  space used to evaporate on reload and now persists intact, ADR 0046's 800 mm merge cap being a
-   *  bound on a merge and not on a stored column. */
-  it("stores, reloads and derives a 900 mm space unchanged", () => {
+  /** Its left edge is 2550, so the ceiling-sized piece is centred at 2950 and the 100 mm overflow at
+   *  3400 — filled left to right, which is what `migrateFromV1` does to a span no command claimed. */
+  const NEAR_PIECE: EmptyColumn = { ...OVERSIZED, alongMm: 2950, widthMm: 800 };
+  const OVERFLOW_PIECE: EmptyColumn = {
+    ...OVERSIZED,
+    alongMm: 3400,
+    widthMm: 100,
+  };
+
+  /** Criterion 5G-4. **The stored share link is what this protects.** A 900 mm column is executable
+   *  — it renders, and all it does wrong is refuse `'fit'` inserts — so refusing the row would brick
+   *  a link to close a bug that costs its holder nothing. It is normalised instead, before the
+   *  validator sees it, and every millimetre is kept: the two pieces span 2550–3450 exactly as the
+   *  one entry did. */
+  it("loads a version 1 row's 900 mm entry as an 800 and a 100", () => {
     const reloaded = migrateDesign(
       1,
       throughTheWire(withEmptyColumns([OVERSIZED])),
       CATALOG,
     );
 
-    expect(reloaded.emptyColumns).toStrictEqual([OVERSIZED]);
-    expect(columnsOf(reloaded).get("A|3.00")?.w).toBe(0.9);
+    expect(reloaded.emptyColumns).toStrictEqual([NEAR_PIECE, OVERFLOW_PIECE]);
+    const columns = columnsOf(reloaded);
+    expect(columns.get("A|2.95")?.w).toBeCloseTo(0.8, 12);
+    expect(columns.get("A|3.40")?.w).toBeCloseTo(0.1, 12);
+    expect(columns.get("A|3.00")).toBeUndefined();
   });
 
-  /** And what the domain then does with it, measured: the restored column publishes one 900 mm
-   *  opening, and **no catalogue body fits it** — every insertable width tops out at 800 mm, so the
-   *  insert is refused `WIDTH_NOT_SUPPORTED`. Q5 stays open and this wave makes its consequence
-   *  durable: before it, an oversized space evaporated on reload; after it, a space no body can
-   *  ever occupy is stored and reloaded intact. Recorded, not filed as a regression of 5B2a. */
-  it("publishes an opening no catalogue body fits, and refuses the insert", () => {
+  /** The other half of criterion 5G-4, and DOM-001's rule that both seams refuse together: a
+   *  version **2** document was written under ADR 0052, so an oversized entry in one is not a legacy
+   *  shape to carry forward. Normalising it here as well would make the invariant unenforceable —
+   *  nothing would ever be refused — which is the mutant this assertion exists to redden. */
+  it("refuses the same entry in a version 2 document, at both seams", () => {
+    const design = withEmptyColumns([OVERSIZED]);
+
+    expect(codesFor(design)).toStrictEqual(["EMPTY_COLUMN_WIDER_THAN_CAP"]);
+    expect(() => migrateDesign(2, throughTheWire(design), CATALOG)).toThrow(
+      InvalidDesignError,
+    );
+  });
+
+  /** What the customer gets out of the ceiling, measured rather than argued: the 900 mm opening no
+   *  catalogue body could ever fill (`WIDTH_NOT_SUPPORTED`, every insertable width topping out at
+   *  800) becomes an 800 mm opening a `base-cabinet` is built into. The narrow one is left as it is,
+   *  which ADR 0037 says is a legal outcome. */
+  it("publishes an opening the widest catalogue body now fits", () => {
     const design = migrateDesign(
       1,
       throughTheWire(withEmptyColumns([OVERSIZED])),
@@ -849,7 +885,7 @@ describe("Q5: an oversized empty column now survives the reload", () => {
     const columns = columnsOf(design);
     const records = derivePlacementRecords(design, CATALOG);
     const opening = recomputeVoids(records, columns).find(
-      (slot) => slot.col === "A|3.00",
+      (slot) => slot.col === "A|2.95",
     );
 
     const result = insertBody({
@@ -862,10 +898,7 @@ describe("Q5: an oversized empty column now survives the reload", () => {
       occurredAt: NOW,
     });
 
-    expect(opening?.w).toBe(0.9);
-    expect(result.ok).toBe(false);
-    expect(result.ok ? undefined : result.reason.code).toBe(
-      "WIDTH_NOT_SUPPORTED",
-    );
+    expect(opening?.w).toBeCloseTo(0.8, 12);
+    expect(result.ok).toBe(true);
   });
 });

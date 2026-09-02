@@ -26,6 +26,8 @@ import {
   deriveColumns,
   derivePlacementRecords,
   projectEmptyColumns,
+  splitOversizedEmptyColumns,
+  withCurrentFullHeightMembers,
   recomputeVoids,
   type Column,
   type PlacementRecord,
@@ -549,11 +551,24 @@ describe("the span survives a sequence, not only one command", () => {
       expect(covered).toBe(original.widthMm);
       expect(extents.every((extent) => extent.widthMm > 0)).toBe(true);
       expect(hasNoOverlap(extents)).toBe(true);
+      // Validated through the map the **store** would save, not the raw published one: since ADR
+      // 0052 the store cuts a member-less column at the ceiling before projecting it, and a delete
+      // is the producer with no command-level split of its own (`resolveColumns`). Without that step
+      // clearing the whole span records one 1400 mm entry, which the validator refuses — correctly,
+      // and for a rule this property is not about.
       expect(
         validateDesignForCatalog(
           {
             ...span.design,
-            emptyColumns: [...projectEmptyColumns(span.columns, span.records)],
+            emptyColumns: [
+              ...projectEmptyColumns(
+                withCurrentFullHeightMembers(
+                  splitOversizedEmptyColumns(span.columns, span.records),
+                  span.records,
+                ),
+                span.records,
+              ),
+            ],
           },
           CATALOG,
         ),

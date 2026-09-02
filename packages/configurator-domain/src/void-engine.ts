@@ -25,11 +25,10 @@ export {
   deriveColumnKeyAt,
   LEVELS,
   LEVEL_SNAP_M,
+  MAX_EMPTY_COLUMN_WIDTH_MM,
 } from "./module-grid.js";
-export {
-  mergeAdjacentEmptyColumns,
-  MERGE_CAP_MM,
-} from "./merge-empty-columns.js";
+export { mergeAdjacentEmptyColumns } from "./merge-empty-columns.js";
+export { splitOversizedEmptyColumns } from "./split-oversized-empty-columns.js";
 
 /** Smallest span (metres) that becomes a void. */
 export const MIN_SPAN_M = 0.3;
@@ -458,7 +457,7 @@ export function deriveColumns(
   // ADR 0046 part 2, at the load seam ADR 0037's merge never had. **After the stored spaces are
   // restored**, because they are most of what there is to merge, and **before**
   // `withCurrentFullHeightMembers`, because whether a full-height member stands under a column is a
-  // fact about its extent and the merge is what writes the extents — the ordering `writeHalves`
+  // fact about its extent and the merge is what writes the extents — the ordering `writeParts`
   // uses for the same reason.
   return withCurrentFullHeightMembers(
     mergeAdjacentEmptyColumns(columns, records),

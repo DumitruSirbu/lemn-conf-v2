@@ -12,6 +12,7 @@ import {
   withCurrentFullHeightMembers,
   derivePlacementRecords,
   mergeAdjacentEmptyColumns,
+  splitOversizedEmptyColumns,
   findVacatedVoid,
   projectEmptyColumns,
   recomputeVoids,
@@ -166,8 +167,32 @@ function resolveColumns(
   // It returns under ADR 0046's 800 mm cap, and what makes that safe is 5B4a's split rather than the
   // cap: no column is ever wider than its members when `recomputeVoids` runs. The cap cures only the
   // `widthFlex: 'fit'` refusal — see `merge-empty-columns.ts`.
+  //
+  // **Split before merge, and both after every command** (ADR 0052). The two are duals — one cuts
+  // what exceeds the ceiling, the other joins what fits under it — and splitting first is what keeps
+  // the answer tidy: a cleared 900 mm column beside a 50 mm strip becomes 800 + 150 rather than
+  // 800 + 100 + 50. Neither can undo the other, so the pair is a fixpoint: no merged run exceeds the
+  // ceiling, and no piece a split produces does.
+  //
+  // The split is here rather than in each command as **defence in depth, and it is reachable from no
+  // document the loader accepts** — corrected 2026-09-02 after adversarial QA measured it.
+  //
+  // The first version of this comment said the delete was a producer with no command to put it in.
+  // It is not: `deriveColumns` takes a column's width as `Math.min` over its members' frames, the
+  // widest deletable body a document may carry is 800 mm (`base-corner-x-900` is `canDelete: false`),
+  // and both seams already hold a *stored* entry to the ceiling. So clearing a column cannot leave
+  // one wider than the cap, and QA confirmed removing this call leaves both suites green but for a
+  // test written against a hand-built map.
+  //
+  // It stays anyway, and the reason is the DOM-001 lesson rather than a known caller: the two
+  // commands that cut their own spans do so by a direction only they know, and this is the one place
+  // that sees every map on its way to being published. A guard here is the difference between a
+  // future producer being a bug and being an unsaveable document.
   return withCurrentFullHeightMembers(
-    mergeAdjacentEmptyColumns(published, records),
+    mergeAdjacentEmptyColumns(
+      splitOversizedEmptyColumns(published, records),
+      records,
+    ),
     records,
   );
 }

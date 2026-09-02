@@ -25,7 +25,11 @@ import {
 } from "./design-bounds.js";
 import { toMetres } from "./millimetres.js";
 import { InvalidDesignError } from "./repository.js";
-import { deriveColumnKeyAt, type BodyCatalog } from "./void-engine.js";
+import {
+  deriveColumnKeyAt,
+  MAX_EMPTY_COLUMN_WIDTH_MM,
+  type BodyCatalog,
+} from "./void-engine.js";
 
 /** Stable, public, and deliberately value-free: a code and a path say what a genuine client got
  *  wrong without echoing the attacker-supplied document back into a response or a log line. */
@@ -47,6 +51,7 @@ export type DesignValidationCode =
   | "EMPTY_COLUMN_KEY_COLLIDES_WITH_EMPTY_COLUMN"
   | "EMPTY_COLUMN_OVERLAPS_PLACEMENT"
   | "EMPTY_COLUMN_OVERLAPS_EMPTY_COLUMN"
+  | "EMPTY_COLUMN_WIDER_THAN_CAP"
   | "TIMESTAMPS_OUT_OF_ORDER";
 
 export interface DesignValidationIssue {
@@ -113,9 +118,40 @@ function findEmptyColumnIssues(design: Design): DesignValidationIssue[] {
   return [
     ...findUncontainedEmptyColumns(emptyColumns, design.room),
     ...findInvertedEmptyColumns(emptyColumns),
+    ...findOversizedEmptyColumns(emptyColumns),
     ...findEmptyColumnOverlaps(design.placements, emptyColumns),
     ...findCollidingColumnKeys(design.placements, emptyColumns),
   ];
+}
+
+/**
+ * ADR 0052: no empty column is wider than `MAX_EMPTY_COLUMN_WIDTH_MM`.
+ *
+ * **This refuses a column, never a space.** ADR 0037 and ADR 0043 both stand — a span of any width
+ * may be left empty, and a document carrying a 1000 mm gap as an 800 and a 200 passes here. What is
+ * refused is the *single entry* recording more than the ceiling, because it publishes an opening no
+ * `widthFlex: 'fit'` body can be built into (`WIDTH_NOT_SUPPORTED`) and no command in the product
+ * can produce one: the merge declines past the ceiling and a shrink splits at it.
+ *
+ * **The stored-row seam does not reach this for a version 1 document**, and that is deliberate:
+ * `migrateFromV1` splits an oversized entry before the validator sees it, so an existing share link
+ * loads as the columns the new rule allows rather than breaking. A version 2 document has no such
+ * excuse — it was written under this rule — so it is refused here and, through the same function, at
+ * the API write seam. DOM-001: both seams refuse together.
+ */
+function findOversizedEmptyColumns(
+  emptyColumns: readonly EmptyColumn[],
+): DesignValidationIssue[] {
+  return emptyColumns.flatMap((emptyColumn, index) =>
+    emptyColumn.widthMm > MAX_EMPTY_COLUMN_WIDTH_MM
+      ? [
+          issueAt(
+            "EMPTY_COLUMN_WIDER_THAN_CAP",
+            `emptyColumns.${String(index)}.widthMm`,
+          ),
+        ]
+      : [],
+  );
 }
 
 /** The room bounds a space exactly as it bounds a body, through the one containment rule and its

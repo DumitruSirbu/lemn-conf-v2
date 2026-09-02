@@ -23,8 +23,8 @@ describe("migrateDesign", () => {
   });
 
   it("throws a clear error for an unsupported schema version", () => {
-    expect(() => migrateDesign(2, validDesignV1)).toThrow(InvalidDesignError);
-    expect(() => migrateDesign(2, validDesignV1)).toThrow(
+    expect(() => migrateDesign(3, validDesignV1)).toThrow(InvalidDesignError);
+    expect(() => migrateDesign(3, validDesignV1)).toThrow(
       /unsupported schema version/,
     );
   });

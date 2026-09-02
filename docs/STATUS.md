@@ -6,9 +6,10 @@ session can learn where the project stands without reading eight phase plans.
 Last updated: 2026-09-02. **M5B — Manual UX remediation is complete.** All eleven waves shipped,
 closing with wave 5B4b (the capped merge) on 2026-09-02. See *M5B — Manual UX remediation, complete
 2026-09-02* below for the close-out, and `docs/milestones/done/M5B-manual-ux-remediation.md` for the
-criterion-by-criterion record. **Next up is M5 wave 5E**, the browser and mobile gate, which was held
-back specifically so it would not photograph a width surface M5B was still changing — that condition
-no longer holds.
+criterion-by-criterion record. **M5 wave 5G shipped 2026-09-02**, closing Q5 — see *M5 wave 5G —
+800 mm is the ceiling on any empty column, complete 2026-09-02* below. **5H (backlog 22) and 5E
+remain open**, in that order — 5E was held back specifically so it would not photograph a width
+surface still changing, and 5G was the last such change.
 
 **Adversarial review remediation is complete for the security scope** on
 branch `adversarial-review-reports`. SCENE-001 and WEB-001 were fixed by an earlier session and have
@@ -44,7 +45,7 @@ moment it ships; a decision record does not. When the two disagree, the dated de
 | M2 — Void engine, picking, persistence | **Done** (closed 2026-08-25 — its last gate, the unwired client write path, was closed by M3 Wave 3C-2b) | No — `milestones/done/` |
 | M3 — Insert, remove, swap, client write path | **Done** (closed 2026-08-26) | No — `milestones/done/` |
 | M4 — Editor panel and shell | **Done** (closed 2026-08-26 — one criterion unmet by design, ADR 0024) | No — `milestones/done/` |
-| M5 — Width editing, and depth as a derived quantity | **In progress** — 5A–5D, 5D2a, 5D2b, **5D2c and 5F shipped 2026-08-30**; **5E open, and now unblocked** — M5B, its correction round, closed 2026-09-02 | Yes — `milestones/M5-*.md`, **and ADRs 0028–0041**, which supersede large parts of it |
+| M5 — Width editing, and depth as a derived quantity | **In progress** — 5A–5D, 5D2a, 5D2b, 5D2c and 5F shipped 2026-08-30; **5G shipped 2026-09-02** (closes Q5); **5H and 5E open** | Yes — `milestones/M5-*.md`, **and ADRs 0028–0041, 0052**, which supersede large parts of it |
 | M6 — Price bar and global settings (**incl. the worktop depth control**, 2026-08-27) | Planned | Yes, when starting |
 | M7 — Step 1, room and presets | Planned | Yes, when starting |
 | M8 — Review, contact, success | Planned | Yes, when starting |
@@ -233,7 +234,9 @@ empty columns merge under an 800 mm cap** — closed the milestone. Full criteri
 
 **5B4b shipped.** Adjacent empty columns merge under an 800 mm cap (ADR 0046 rule 1, reviving
 ADR 0037's withdrawn merge). New `packages/configurator-domain/src/merge-empty-columns.ts`
-(`MERGE_CAP_MM = 800`) and `src/module-grid.ts` — a new dependency-free leaf owning `LEVELS`,
+(`MERGE_CAP_MM = 800` at the time — **retired 2026-09-02 by wave 5G into the shared
+`MAX_EMPTY_COLUMN_WIDTH_MM`; `MERGE_CAP_MM` no longer exists in the tree, see ADR 0052**) and
+`src/module-grid.ts` — a new dependency-free leaf owning `LEVELS`,
 `LEVEL_SNAP_M`, `deriveColumnKeyAt`, `alongWallPosition` and `alongWallCoordinate`, which
 `void-engine.ts` re-exports so no caller moved. The merge is called from `deriveColumns` (load) and
 `resolveColumns` (every branch). Verified: domain **1375**, web **757** (+4 skipped);
@@ -288,11 +291,13 @@ for members shorter than `LEVEL_SNAP_M`, producing `EMPTY_COLUMN_INVERTED` on sa
 truncating (600+600 and 300+600 both stay two columns at original edges). Survives reload. All at
 390×844. **Not verified: the desktop rail, wall B, and chains longer than two columns.**
 
-**Q5 is untouched, not widened a fifth time.** The cap can only ever produce a column ≤800 mm and a
+~~**Q5 is untouched, not widened a fifth time.** The cap can only ever produce a column ≤800 mm and a
 >800 mm column is unmergeable by arithmetic. The owner's open question is now sharply framed: *is
 800 mm the ceiling on any empty column, or only on a merge?* If the former, `MERGE_CAP_MM` and the
 bound wall B's shrink release needs are one constant, and Q5 closes. See *What is open right now*
-below.
+below.~~ **Closed 2026-09-02 by wave 5G.** The owner answered: 800 mm is the ceiling on any empty
+column. See *M5 wave 5G — 800 mm is the ceiling on any empty column, complete 2026-09-02* below and
+[ADR 0052](decisions/0052-800-mm-is-the-ceiling-on-any-empty-column.md).
 
 **Documentation owed at close-out — done.** ADR 0046 carries two new dated notes (2026-09-02): the
 post-merge projection decision with its reasoning above, and rule 2's agreement predicate gaining `d`
@@ -321,6 +326,56 @@ The gap itself — `ci:local` does not run Playwright, so nothing but somebody r
 between a broken e2e suite and a milestone close-out — is **backlog 24**. It surfaced only because
 the scribe closing this wave declined to certify a run it had not been told about.
 
+## M5 wave 5G — 800 mm is the ceiling on any empty column, complete 2026-09-02
+
+Plan: `docs/milestones/M5-frozen-map.md`. Decision: [ADR 0052](decisions/0052-800-mm-is-the-ceiling-on-any-empty-column.md).
+Closes **Q5**, M5's own open question, widened four times during M5B.
+
+**What shipped.** `MAX_EMPTY_COLUMN_WIDTH_MM = 800` (`module-grid.ts`) now bounds every empty column,
+not only the result of a merge (`MERGE_CAP_MM` is retired). A shrink that would free more than the
+ceiling splits the freed span into two columns — the near one against the resized run, up to 800; the
+overflow beyond it — through the same `splitEmptySpanAtCap` arithmetic the merge and the migration both
+use. Schema version bumped to **2**: a v1 document holding an oversized `emptyColumns` entry is
+normalised on load into the columns the new rule allows; a v2 document holding one is refused with the
+tenth refusal code, `EMPTY_COLUMN_WIDER_THAN_CAP`, at both the load seam and the API write seam. An
+odd-width oversized v1 entry (unreachable from any command — every catalogue width is even) is refused
+rather than split, forced by the shared cap-filling function always taking the (even) 800 mm ceiling
+first.
+
+**Verified:** domain **1396**, web **769 (+4 skipped)**, persistence **177**; `pnpm ci:local` — all
+gates PASS.
+
+**Gates.** Adversarial QA (18 tests) found criterion 5G-4's write half vacuous (the v2-refusal
+assertion was not exercised) and it was closed in-wave. Clean-code review found one stale citation and
+it was fixed. Logic review: minor concerns, no blocker — and it corrected the wave's own plan, finding
+that a refused shrink (the option the plan considered and rejected) does not fail the way the plan
+first described: `fundingScan` falls through to `vacatedEmptySpace`, which mints a strip on a key
+distinct from the refusing neighbour's, so `refuseKeyCollision` passes and the map ends with **two
+overlapping empty columns that no validator refuses** — a silently invalid map, not the
+`COLUMN_KEY_COLLISION` first predicted. ADR 0052 records the corrected argument. Security review: safe
+to commit — amplification bounded at **13x** (`MAX_DESIGN_DIMENSION_MM / 800`), the array's own bound
+re-asserted after normalising grows it, termination proven from the loop. Visual review: all seven
+criteria PASS at 390×844 — two ghost boxes (800 and 100) with a visible seam, each holding its own id
+across a tap sweep, the wide one accepting an 800 mm cabinet, the narrow one showing the "may be left
+as it is" sentence; the pair rejoining into one undivided 800 mm box with no seam once `p6` is grown
+back to 500 mm; survives reload.
+
+**Not load-bearing, and the record says so plainly.** The map-level `splitOversizedEmptyColumns` guard
+was reasoned into existence on the premise that a delete could leave a member-less column wider than
+800 mm with no command able to split it. QA measured that premise false: `deriveColumns` takes a
+column's width as the `Math.min` over its members' frames, the widest deletable body in the catalogue
+is 800 mm, and both seams already hold a stored entry to the ceiling. Confirmed by removing the call —
+both suites stayed green but for a test built on a hand-constructed map. It is kept as a DOM-001
+defence-in-depth guard against a future producer this wave did not anticipate; the original
+delete-is-a-producer justification is retracted as false, in place, in the module's own header comment.
+
+**Measured database state before dispatch, 2026-09-02:** 5 `designs` rows, all `schema_version` 1,
+0 carrying `emptyColumns`, 0 over 800 mm. A comfort, not a licence — the window for the migration this
+wave adds opens the moment it ships. Corrects ADR 0038's premise ("no design has ever been stored") a
+second time; see ADR 0052's sweep table.
+
+**5H (backlog 22, the frozen map recorded whole) and 5E (the browser/mobile gate) remain open.**
+
 ## What is open right now
 
 **M5B — Manual UX remediation is complete, 2026-09-02** — see the section immediately above for the
@@ -332,7 +387,7 @@ any width is legal), **0044** (empty columns are persisted), **0045** (the run-e
 **0046** (the capped merge and the insert-time split, reviving ADR 0037), **0047** (open-shelf
 compartments follow clearance), **0048** (the pantry column is resizable) and **0049** (a fixed-width cabinet shows its width section disabled).
 
-**The owner answered four of the phase's five open questions on 2026-09-01**: wave 5B5 shows the disabled section with its reason, an inserted cabinet sits against the **left** edge of a wider span, a 400 mm pantry keeps the 600's height and shelf pitch, and report item 6 was **measured** to be a reload defect owned by 5B2 rather than 5B1. **Q5 alone stays open and is inherited from M5, not introduced here**: whether a shrink may widen an empty column past 800 mm — sharpened, not closed, by 5B4b; see the close-out section above. **5B4b — the merge, the phase's
+**The owner answered four of the phase's five open questions on 2026-09-01**: wave 5B5 shows the disabled section with its reason, an inserted cabinet sits against the **left** edge of a wider span, a 400 mm pantry keeps the 600's height and shelf pitch, and report item 6 was **measured** to be a reload defect owned by 5B2 rather than 5B1. **Q5, inherited from M5 and sharpened four times during M5B, closed 2026-09-02 by M5 wave 5G** — whether a shrink may widen an empty column past 800 mm: no, 800 mm is the ceiling on any empty column. See *M5 wave 5G* below. **5B4b — the merge, the phase's
 highest risk — shipped last, as the owner asked, and closed the milestone.**
 
 ### Where each M5B wave stands (historical, wave by wave)

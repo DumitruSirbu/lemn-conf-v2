@@ -5,7 +5,7 @@
 // 1. **The narrowing.** `dividesWholeColumn` makes a full-height opening a precondition of the
 //    split. The failure it dodges is real and reproduced here; what it silently refuses is
 //    enumerated here too, including ADR 0046's own named scenario on the shipped kitchen.
-// 2. **The guards.** `refuseFractionalHalves` is not reachable through the product and its removal
+// 2. **The guards.** `refuseFractionalParts` is not reachable through the product and its removal
 //    kills nothing in the wave's suite, so it is pinned directly and its unreachability is asserted
 //    rather than assumed — the shape 5B2's criterion 7 used for its cap.
 // 3. **The crash path.** The guarded expression is millimetres under `Number.isInteger`; the
@@ -383,7 +383,7 @@ describe("the whole-millimetre guard against the projection it protects", () => 
 });
 
 describe("the split's own fractional guard", () => {
-  // **`refuseFractionalHalves` kills no test in the wave's suite** — deleting it outright leaves
+  // **`refuseFractionalParts` kills no test in the wave's suite** — deleting it outright leaves
   // 13/13 domain and 3/3 store green — because the only fractional centre the product can reach is
   // the occupied half's, and `resolvePlacementMillimetres` refuses that one first. This pins the
   // guard directly so its removal is red, and the next two tests assert the unreachability that
@@ -594,11 +594,12 @@ describe("the ADR 0037 gate, asserted as commands succeeding rather than voids e
 // 4. Q5's fourth widening — legal under ADR 0037's surviving "ok to have empty space left".
 // ---------------------------------------------------------------------------------------------
 
-describe("a remainder wider than 800 mm is a legal outcome, not a regression", () => {
-  // In QA's brief so it is not filed: insert a 300 into the 1400 mm fixture and 1100 mm remains,
-  // where every `widthFlex: 'fit'` body is refused against §7's 800 mm ceiling. ADR 0046's own
-  // residual, arriving by a new route.
-  it("leaves an 1100 mm column that refuses every fit body and still addresses one", () => {
+describe("a remainder wider than 800 mm is split at the ceiling (ADR 0052)", () => {
+  // What this wave recorded as ADR 0046's residual, closed in wave 5G. Inserting a 300 into the
+  // 1400 mm fixture used to leave one 1100 mm column, where every `widthFlex: 'fit'` body was
+  // refused against §7's 800 mm ceiling — an opening the customer could look at and never fill. The
+  // remainder is now cut at the ceiling, filling from the body outwards.
+  it("leaves an 800 and a 300 where it left an unfillable 1100", () => {
     const start = loadSpan(designWithEmptySpan(1400));
     const result = insertInto(
       start,
@@ -609,9 +610,13 @@ describe("a remainder wider than 800 mm is a legal outcome, not a regression", (
     if (!result.ok) return;
 
     const span = spanOf(result.design, result.effect.columns);
-    expect(widthMmOf(columnAt(span, "A|2.75"))).toBe(1100);
+    // The span 1900–3300 as three columns: the 300 mm body at 2050, then the remainder from the
+    // boundary at 2200 outwards. Total conserved exactly, which is the point of splitting rather
+    // than clamping.
+    expect(widthMmOf(columnAt(span, "A|2.60"))).toBe(800);
+    expect(widthMmOf(columnAt(span, "A|3.15"))).toBe(300);
 
-    const opening = openingIn(span, "A|2.75");
+    const opening = openingIn(span, "A|2.60");
     const offers = offersFor({
       catalog: CATALOG,
       records: span.records,
@@ -619,20 +624,12 @@ describe("a remainder wider than 800 mm is a legal outcome, not a regression", (
       columns: span.columns,
       target: { kind: "void", id: opening.id },
     });
-    // Nothing in the catalogue builds to 1100 — §7's ceiling is 800 — so every row that *would*
-    // have filled the span is refused, and no accepted offer claims more than 800 mm.
-    expect(refused(offers).length).toBeGreaterThan(0);
+    // The whole gain: a `'fit'` row now builds to the opening instead of being refused against it.
     const built = offers
       .map((offer) => offer.verdict)
       .filter((verdict) => verdict.status === "offered")
       .map((verdict) => verdict.widthMm);
+    expect(built).toContain(800);
     expect(built.every((widthMm) => widthMm <= 800)).toBe(true);
-    // Still addressable: a discrete body goes in and splits it again.
-    const second = insertInto(
-      span,
-      { kind: "void", id: opening.id },
-      "base-dishwasher",
-    );
-    expect(second.ok).toBe(true);
   });
 });

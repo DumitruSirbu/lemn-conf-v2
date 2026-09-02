@@ -1182,6 +1182,27 @@ exactly this.
 
 Not scheduled. Worth deciding before the next milestone closes on an unrun gate.
 
+## 25. A narrow empty column can sit clipped against the frame edge, where nobody will see it
+
+Found by wave 5G's visual verification (2026-09-02). Shrinking `p6` from 600 to 400 splits the freed
+900 mm span into `B|2.30` at 800 mm and `B|2.75` at 100 mm, correctly. At the `Perete B` camera
+preset the 100 mm piece renders at canvas x from about 0 to 22 and is **partly clipped by the left
+frame edge** — the verifier had to enlarge the crop to see the seam at all.
+
+Nothing is wrong with the geometry, the split, or the panel: select the sliver and it explains itself
+("the opening is 100 mm, narrower than the narrowest cabinet in the catalogue... the space may be
+left as it is"). The problem is that a customer who never pans has no reason to select it, because
+they cannot see that it is there.
+
+**It is camera framing, not wave 5G.** The presets were fixed long before an empty column could be
+100 mm wide, and every seeded body is wide enough to sit clear of the frame. What changed is that
+ADR 0052's ceiling makes narrow leftovers a *routine* outcome of an ordinary shrink rather than a
+rarity — so a framing rule that was always slightly tight is now load-bearing.
+
+**Worth pairing with whoever next touches the camera presets.** The narrow question to answer is
+whether a preset should frame the wall run plus a margin, rather than the run's nominal extent, so
+that anything the domain can legally leave at the end of a run is visible without panning.
+
 ## Also open, recorded elsewhere — do not duplicate here
 
 - **Width editing does nothing yet.** Every width chip is `blocked` because §5.4's resize command

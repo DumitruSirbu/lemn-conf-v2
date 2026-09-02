@@ -1,5 +1,9 @@
 // M5B wave 5B4b — ADR 0046 part 2: adjacent empty columns on the same wall and row become one
-// column, when the run's total is at most `MERGE_CAP_MM`.
+// column, when the run's total is at most `MAX_EMPTY_COLUMN_WIDTH_MM`.
+//
+// That constant was this module's own `MERGE_CAP_MM` until wave 5G. ADR 0052 made it the ceiling on
+// *any* empty column rather than on a merge alone, so it moved to `module-grid.ts` where the width
+// command, the validator and the v1 migration can read the same 800.
 //
 // Beside `commands/split-column.ts` rather than inside `void-engine.ts`, for the reason ADR 0046
 // gives by name: an opening belongs to a column, so §4's horizontal half is written as a rule about
@@ -20,20 +24,13 @@ import {
   alongWallPosition,
   deriveColumnKeyAt,
   LEVEL_SNAP_M,
+  MAX_EMPTY_COLUMN_WIDTH_MM,
 } from "./module-grid.js";
 // **Types only, and that is what keeps this module a leaf.** `void-engine.ts` imports this one for
 // its values, so a value imported back would close a runtime cycle; a type is erased and closes
 // nothing. `module-grid.ts` carries what the cycle cost when the key and the snap still lived in the
 // engine.
 import type { ColumnExtent, PlacementRecord } from "./void-engine.js";
-
-/** ADR 0046: the widest span a merge may produce. 600 mm is the owner's stated fallback, and this
- *  constant is the whole of that change — every rule in this module is written in terms of it.
- *
- *  **A bound on a merge, not on an empty column.** ADR 0035 decision 7 lets a *shrink* widen one
- *  column past this with no ceiling, and such a column simply sits out every scan below: it cannot
- *  be added to any run without breaking the cap, so it is left alone. */
-export const MERGE_CAP_MM = 800;
 
 /** §4's own snap, in the millimetres this module measures in — which is what the owner's *"same
  *  row"* means in the engine's terms (ADR 0046 rule 2).
@@ -109,7 +106,7 @@ export function mergeAdjacentEmptyColumns(
   const merged = new Map<string, ColumnExtent>(columns);
   for (const plan of plans) {
     // Vacated before the merged column is written, because a merged centre may key back onto one of
-    // its own members' keys — the split's rule, for the same reason (`writeHalves`).
+    // its own members' keys — the split's rule, for the same reason (`writeParts`).
     for (const member of plan.members) merged.delete(member.column.key);
     merged.set(plan.column.key, plan.column);
   }
@@ -260,8 +257,11 @@ function planWidestAcceptedBlockFrom(
  *  never truncated** (ADR 0046): what does not fit is left at its own edges, so 600 + 400 stay a 600
  *  and a 400 and three 300s become a 600 and a 300.
  *
- *  A column already wider than the cap yields a block of one and merges with nothing, which is how
- *  ADR 0035 decision 7's oversized empty column sits out the scan without a case of its own. */
+ *  A column already wider than the cap yields a block of one and merges with nothing. Under ADR 0052
+ *  no command can produce one, and the v1 migration splits the last place a stored one could hide —
+ *  but the branch stays, because it is also what makes the split of ADR 0052 **reversible**: 800 and
+ *  its overflow never re-merge, while a `+50` that brings the run's total back under the ceiling
+ *  restores the single column the customer started with (criterion 5G-2). */
 function widestBlockFrom(
   sorted: readonly MeasuredColumn[],
   start: number,
@@ -275,7 +275,7 @@ function widestBlockFrom(
     const previous = members[members.length - 1];
     if (!candidate || !previous) break;
     if (!abuts(previous, candidate) || !agrees(previous, candidate)) break;
-    if (totalMm + candidate.widthMm > MERGE_CAP_MM) break;
+    if (totalMm + candidate.widthMm > MAX_EMPTY_COLUMN_WIDTH_MM) break;
     totalMm += candidate.widthMm;
     members.push(candidate);
   }
@@ -351,7 +351,7 @@ function planBlock(
  *  and not by rule** — the same shape of coincidence that produced 5B2b's blocker
  *  (`refuseFractionalCentres` inspected member centres, which are whole when the *delta* is even,
  *  while a frozen centre is whole when the *extent's* centre is) and 5B4a's
- *  `refuseFractionalHalves`.
+ *  `refuseFractionalParts`.
  *
  *  It is `projectEmptyColumns`' own question, asked one seam earlier: that function reads a frozen
  *  column's along-wall coordinate and width through `toExactMillimetres` and throws

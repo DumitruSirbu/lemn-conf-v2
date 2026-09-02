@@ -28,7 +28,7 @@ import {
   KITCHEN_L_BODY_CATALOG,
   KITCHEN_L_DESIGN,
 } from "../src/fixtures/kitchen-l-design.js";
-import { MERGE_CAP_MM } from "../src/merge-empty-columns.js";
+import { MAX_EMPTY_COLUMN_WIDTH_MM } from "../src/module-grid.js";
 import { toExactMillimetres } from "../src/millimetres.js";
 import { alongWallCoordinate, deriveColumnKeyAt } from "../src/module-grid.js";
 import { validateDesignForCatalog } from "../src/validate-design.js";
@@ -325,7 +325,7 @@ describe("geometry, and not the cap, is what stops a merge across a standing bod
     expect(emptyExtentsOf(loaded)).toEqual({
       "A|1.85": { centreMm: 1850, widthMm: 600 },
     });
-    expect(600).toBeLessThanOrEqual(MERGE_CAP_MM);
+    expect(600).toBeLessThanOrEqual(MAX_EMPTY_COLUMN_WIDTH_MM);
   });
 
   // The identical run, the identical widths, the identical cap — and the only difference is a body

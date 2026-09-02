@@ -59,9 +59,19 @@ level slots; reload, and a neighbour-derived `top` gives something else. Synthes
 re-derivation of an extent from current state, which is the exact thing ADR 0011 Gap D exists to
 forbid — so it is not a cheaper version of this decision, it is a weaker rule wearing its clothes.
 
-**Store the whole frozen column map.** Rejected: the occupied columns are already fully derivable
+~~**Store the whole frozen column map.** Rejected: the occupied columns are already fully derivable
 from the placements, and storing a derivable fact is how two authors for one question start. Only
-the columns with no member of their own are unrecoverable, and only those are stored.
+the columns with no member of their own are unrecoverable, and only those are stored.~~
+**Superseded 2026-09-02, recorded in wave 5H's plan (`docs/milestones/M5-frozen-map.md`), which
+targets backlog 22.** The premise — "occupied columns are already fully derivable from the placements"
+— is false: an extent a delete or an insert froze is exactly what the placements no longer imply once
+a partial delete or a clear-then-refill happens, and backlog 22 is the measured proof (in session: a
+partial delete loses two openings on reload; a clear-then-refill silently shrinks a 2600 mm column to
+860). Wave 5H has not shipped as of this pointer — only its plan overturns this alternative — and
+the plan's own mechanism is narrower than the rejection it replaces: a *second array*, `columnExtents`,
+carrying only the frozen extents of columns that still hold a member, on precedence-plus-containment
+rather than disjointness. See 5H's plan for the mechanism, and `docs/STATUS.md` for whether it has
+shipped yet.
 
 **Refuse to leave a gap at all, so nothing needs storing.** Rejected — it is ADR 0043 reversed,
 decided by the owner one day earlier.
@@ -101,8 +111,13 @@ document's *Still open* section.
 - **[ADR 0046](0046-adjacent-empty-columns-merge-under-a-cap-and-an-insert-splits-its-column.md)
   cannot ship without this.** A merged or split empty column that vanishes on reload is worth
   nothing, and the merge is the feature the owner asked for.
-- **This record's cheapness expires with ADR 0038**, at first release. Whoever re-reads ADR 0038
-  before launch owns this field too.
+- ~~**This record's cheapness expires with ADR 0038, at first release.** Whoever re-reads ADR 0038
+  before launch owns this field too.~~ **Corrected 2026-09-02 by [ADR 0052](0052-800-mm-is-the-ceiling-on-any-empty-column.md):**
+  ADR 0038's premise — that no design has ever been stored — is itself false, measured rather than
+  argued: 5 `designs` rows exist, all `schema_version` 1. None carries `emptyColumns`, so this field's
+  free ride held in fact for those five rows, but the expiry is not an event still waiting for first
+  release; it is a premise that has now been re-checked and found already untrue in one respect. Read
+  this bullet as "already re-measured, still clean for this field" rather than "not yet due."
 
 ## Verified against what shipped — 5B2a, 2026-09-01
 

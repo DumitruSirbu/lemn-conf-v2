@@ -89,7 +89,13 @@ export interface BodyResizedEffect {
    *  Absent when `emptyColumnWidthMm` is `0` — the resize consumed the space exactly and the column
    *  ceased to exist (rule 6). */
   readonly emptyColumnNewKey?: string;
-  /** The width the empty column was left at. `0` means it was consumed exactly. */
+  /** The width the empty column was left at. `0` means it was consumed exactly.
+   *
+   *  Under ADR 0052 this is the **near** column when a shrink frees more than
+   *  `MAX_EMPTY_COLUMN_WIDTH_MM` and the space splits: the piece against the run, which is the one
+   *  the next resize on this side funds from. The pieces beyond it are in `columns` like every other
+   *  extent and have no field of their own — nothing reads these two for geometry, and a second
+   *  field naming a column the customer's next tap cannot spend would be read as one it can. */
   readonly emptyColumnWidthMm: number;
   readonly columns: ReadonlyMap<string, Column>;
 }

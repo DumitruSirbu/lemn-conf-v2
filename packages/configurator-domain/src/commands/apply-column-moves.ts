@@ -2,6 +2,7 @@
 // whole delta, every member takes the same new centre, and both frozen columns move to new keys.
 import { toMetres } from "../millimetres.js";
 import { alongWallPosition, deriveColumnKeyAt } from "../module-grid.js";
+import { splitEmptySpanAtCap } from "../split-empty-span.js";
 import {
   withCurrentFullHeightMembers,
   type Column,
@@ -35,7 +36,14 @@ export function planMoves(
 
   const emptyFarMm =
     empty.extent.centreMm + (outward * empty.extent.widthMm) / 2;
-  const emptyCentreMm = emptyFarMm - (outward * empty.remainderMm) / 2;
+  // ADR 0052: the freed space, decomposed into columns none of which exceeds the ceiling. The near
+  // edge is the resized run's new facing edge, so the first piece sits against the cabinets the
+  // customer just moved and any overflow lands beyond it.
+  const pieces = splitEmptySpanAtCap(
+    emptyFarMm - outward * empty.remainderMm,
+    emptyFarMm,
+  );
+  const [nearPiece, ...overflowPieces] = pieces;
 
   return chainMoveGuards(
     {
@@ -65,11 +73,19 @@ export function planMoves(
         widthMm: input.widthMm,
         centreMm: alongMm,
       },
-      empty: {
+      // A remainder of zero yields no piece at all, and the zero-width move is what *removes* the
+      // key (ADR 0031 rule 6) — so it is written explicitly rather than dropped. Its centre is the
+      // edge the space collapsed onto and is never read: `moveFrozenColumns` and
+      // `refuseFractionalCentres` both skip a move of zero width.
+      empty: nearPiece
+        ? { column: empty.column, ...nearPiece }
+        : { column: empty.column, widthMm: 0, centreMm: emptyFarMm },
+      // Every piece inherits the same frozen facts — `regions`, `top`, `d`, `ry` — because they are
+      // all the same space (ADR 0011 Gap D); only `w`, the centre and the key differ.
+      emptyOverflow: overflowPieces.map((piece) => ({
         column: empty.column,
-        widthMm: empty.remainderMm,
-        centreMm: emptyCentreMm,
-      },
+        ...piece,
+      })),
     },
     input.columns,
   );
@@ -236,8 +252,15 @@ export function moveFrozenColumns(
   return withCurrentFullHeightMembers(updated, records);
 }
 
+/** Every frozen extent the move writes, in one list, so that the two guards and the map rewrite
+ *  cannot disagree about which columns a move touches — ADR 0052's overflow pieces are guarded and
+ *  written by the same three functions the pair always was.
+ *
+ *  The overflow pieces carry the same source `column` as `empty`, so `moveFrozenColumns` deletes
+ *  that one key several times over and `refuseKeyCollision` vacates it once. Both are idempotent,
+ *  which is why the space can be split without a second bookkeeping rule. */
 function frozenMoves(move: ColumnResize): readonly FrozenColumnMove[] {
-  return [move.resized, move.empty];
+  return [move.resized, move.empty, ...move.emptyOverflow];
 }
 
 /** §3.2's key for a column at its new centre, derived exactly as an occupied column's is — an

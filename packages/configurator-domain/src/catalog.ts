@@ -44,8 +44,16 @@ export const WIDTH_STEP_MM = 50;
  *
  *  ADR 0035 decision 1 makes it the **ceiling** every cabinetry row carries, rather than the last
  *  rung of a ladder. What it stops being is a member of a list: a body is buildable at every width
- *  between its floor and this, and the list that used to stand in for that rule is gone. */
-const CABINETRY_MAX_WIDTH_MM = 800;
+ *  between its floor and this, and the list that used to stand in for that rule is gone.
+ *
+ *  **Not the same constant as `MAX_EMPTY_COLUMN_WIDTH_MM`**, which is ADR 0052's ceiling on an empty
+ *  column. They carry the same 800 and they are not the same rule: this one says how wide a cabinet
+ *  may be built, that one how wide a space may be left. The ceiling on a space exists so that any
+ *  space the customer is left with is one the catalogue can fill, so it must never exceed this —
+ *  the direction of the dependency, asserted by a test rather than by an import. Exported for that
+ *  assertion alone; nothing in the empty-column code may read it, because `module-grid.ts` is a leaf
+ *  and this module is not. */
+export const CABINETRY_MAX_WIDTH_MM = 800;
 
 /** Every multiple of `WIDTH_STEP_MM` inside these ranges: the modular widths a customer picks from.
  *

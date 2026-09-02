@@ -27,6 +27,31 @@ export const LEVELS: readonly (readonly [number, number])[] = [
  *  engine's terms. */
 export const LEVEL_SNAP_M = 0.02;
 
+/** ADR 0052: **the widest an empty column may be**, and since 2026-09-02 that is the whole of the
+ *  rule — owner, *"lets make 800 the maximum of any empty column"*, closing Q5.
+ *
+ *  It was `MERGE_CAP_MM` in `merge-empty-columns.ts` and bounded a *merge* alone, so ADR 0035
+ *  decision 7's shrink handed width back to a neighbouring empty column with no ceiling at all —
+ *  measured at 900 mm, surviving a reload since wave 5B2, publishing an opening every
+ *  `widthFlex: 'fit'` body refuses as `WIDTH_NOT_SUPPORTED`. One constant now bounds both, so a
+ *  merge that declines and a shrink that splits are answering the same question.
+ *
+ *  **A ceiling on a column, never on a space.** ADR 0037 and ADR 0043 both stand: a span of any
+ *  width may be left empty, and a 1000 mm gap is legal — it is simply carried as 800 + 200.
+ *
+ *  **Its relationship to `CABINETRY_MAX_WIDTH_MM`.** That constant is §7's widest *cabinet*; this is
+ *  the widest *empty column*, and they are equal because the point of the ceiling is that anything
+ *  the customer can be left with is something the catalogue can fill. They are separate constants
+ *  because they are separate rules — moving the cabinetry ceiling to 1000 need not move this — and
+ *  the one thing that must hold between them (this at most that) is asserted by a test rather than
+ *  imported, because this module is a leaf and importing the catalogue here is the cycle the file
+ *  head describes.
+ *
+ *  Here rather than in `merge-empty-columns.ts` because it now has four readers across three layers
+ *  — the merge, the width command, the document validator and the v1 migration — and the leaf is
+ *  the one module all of them may import. */
+export const MAX_EMPTY_COLUMN_WIDTH_MM = 800;
+
 /** §3.2's column key from a wall and an along-wall coordinate, at 10 mm granularity.
  *
  *  Exported because ADR 0031's resize moves an **empty** column, which by definition has no member

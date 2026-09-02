@@ -23,6 +23,13 @@ forward from here verbatim. What ADR 0046 adds is the cap, the split, a sorted g
 merge is order-dependent where this record's uncapped one was not) and a refusal to merge columns
 whose `top` disagrees.
 
+**Generalised further 2026-09-02 by [ADR 0052](0052-800-mm-is-the-ceiling-on-any-empty-column.md):**
+the 800 mm ceiling ADR 0046 gave the merge alone now binds *any* empty column, including one a shrink
+creates or widens with no merge involved (`MERGE_CAP_MM` is retired into the shared
+`MAX_EMPTY_COLUMN_WIDTH_MM`). This record's own *"a span wider than 800 mm may simply stay empty"*
+below is unchanged by that — it is still true of the *span*; what changed is that no single *column*
+may now carry more than 800 mm regardless of how it came to be empty.
+
 ## Context
 
 Backlog 2 recorded the defect from a handset: clearing two adjacent cabinets gives **two separate
