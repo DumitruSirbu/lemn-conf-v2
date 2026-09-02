@@ -614,7 +614,10 @@ CI green on **ten** gates — `install`, `format`, `lint`, `typecheck`, `test`, 
 `boundary`, `lockfile`, `sca` — and `.githooks/pre-push` runs the same gate set locally so a red
 build never reaches GitHub. The `e2e` gate was added 2026-09-02 to both the workflow and
 `scripts/local-ci.sh` at once; before that **nothing anywhere ran Playwright**, which is how a red
-signature-flow spec sat unnoticed for six days (backlog 24, now closed). Vercel is connected to the repository and deploys `main` to production
+signature-flow spec sat unnoticed for six days (backlog 24, now closed). Confirmed green on a runner
+in run `33627120272` — ten jobs, e2e reporting 21 passed in 13.1 minutes. On CI the suite is served a
+**production build** rather than `next dev`, because dev compiles each route inside the spec that
+first opens it. Vercel is connected to the repository and deploys `main` to production
 automatically; Root Directory `apps/web`, Next.js preset, Node 24. The backup cron
 `/api/cron/backup-designs` is registered on `0 3 * * *` and has produced its first export.
 

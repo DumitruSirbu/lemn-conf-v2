@@ -1170,6 +1170,12 @@ Not scheduled. Worth pairing with the next panel wave rather than done alone.
 `.github/workflows/ci.yml` **and** to `scripts/local-ci.sh` in one change, so the two stay mirrored
 as the script's own header promises.
 
+**Confirmed green on a real runner**, run `33627120272`: ten jobs, all successful, e2e reporting
+**21 passed in 13.1 minutes**. It took four rounds to get there and every one found something real —
+a secret naming a database the allow-list does not permit, `next dev` compiling routes inside each
+spec's timeout, a scroll assertion that sampled once after a fixed wait, and finally a synthesised
+scroll gesture that does nothing on that browser. None of them was a flake to wait out.
+
 The gap was worse than this entry first described. It said `ci:local` does not run Playwright, which
 was true — but neither did the workflow. Its nine jobs were `install`, `format`, `lint`, `typecheck`,
 `test`, `build`, `boundary`, `lockfile`, `sca`, and **not one of them ran the e2e suite**. So the six
