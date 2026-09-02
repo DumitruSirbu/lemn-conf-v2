@@ -1226,6 +1226,17 @@ smooth scroll it starts runs for roughly 200 ms — so the assertion was always 
 laptop simply always won it. The runner lost, reading 0 while everything about the sheet was
 correct. Now it polls for the condition, which still fails if the body genuinely does not scroll.
 
+**Corrected the same day: the scroll failure was not a race, and polling did not fix it.** The poll
+ran 17.6 s and `scrollTop` never moved, and the failure screenshot — downloaded from the artifact the
+job uploads, which is what that upload is for — showed the sheet open with eight offers, its footer
+pinned, and the list sitting at the top untouched. So the gesture was dispatched and did nothing.
+The cause was `Input.synthesizeScrollGesture` itself: it is a *synthesised smooth-scroll animation*,
+not a touch drag, and it works on a developer machine and not on that runner. Replaced with
+`Input.dispatchTouchEvent` — start, a few moves, end — which needs none of that machinery, is
+handled synchronously, and is closer to what the test is about, since this is the mobile sheet and a
+finger is the interaction it describes. Two inferences were made and one was wrong before the
+evidence was fetched; the artifact should have been the first move, not the third.
+
 **What the production build did not fix, and the honest number.** The suite still takes **13.2
 minutes** on a runner against about one locally, with `signature-flow` alone at 5.7 — essentially
 unchanged by the build. So route compilation was not the dominant cost; the likely remainder is
