@@ -220,8 +220,28 @@ Surfaces:
 - **Review drifting from the editor's grouping.** One projection, three consumers.
 - **A submission path that reports success without a real sink.** Explicitly forbidden.
 
+## A consequence that becomes live after this phase — recorded 2026-09-02
+
+[ADR 0062](../decisions/0062-a-manufacturer-price-dashboard-comes-after-m8-and-shapes-seams-now.md):
+after M8 the project gains a manufacturer-facing dashboard whose **primary purpose is adjusting
+prices** — the manufacturer edits the price book without a developer.
+
+**M8 builds nothing for it.** What M8 owns is one consequence, because this phase is where a price
+first **outlives the book that produced it**: a contact submission snapshots a price, and the moment
+the book can be edited, `CONFIGURATION_MODEL.md`'s pricing-version equality rule stops being
+theoretical. That rule permits **no "current version" fallback and no migration inside pricing**, so
+a design priced under a retired book version cannot simply be re-priced under the current one — and
+a snapshot that silently re-prices is a customer being shown a different number than the one they
+submitted.
+
+Decide, in this phase, what a submission whose pricing version no longer matches the live book does:
+refuse, re-price with the change stated, or keep the snapshot and mark it historical. It is added to
+the open questions below rather than answered here.
+
 ## Open questions gating this phase
 
+- **What happens to a priced snapshot whose book version has been retired** — see the section
+  directly above. Becomes reachable as soon as anyone can edit the book.
 - Consent and privacy copy, retention period, and the deploy-time persistence provider.
 - Whether any response timeframe may be promised.
 - The final "what's not included" list and what the estimate includes.

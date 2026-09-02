@@ -3,9 +3,11 @@
 **Read this second, right after `AGENTS.md`, before opening any milestone document.** It exists so a
 session can learn fast where the project stands, without reading eight phase plans.
 
-Last updated: 2026-09-02. **Currently in progress: M5 wave 5E** (the browser/mobile gate) — see *What
-to do next* below. Everything else through M5B, M5 waves 5G/5H, and the adversarial-review
-remediation is shipped; find any phase's detail in the table below, then follow its **Read** column.
+Last updated: 2026-09-03. **Currently in progress: M6**, on branch `m6-price-and-global-settings`.
+**M5 wave 5E — the browser/mobile gate — remains open and unverified**; it does not block M6 and M6
+started ahead of it by the owner's decision. Everything else through M5B, M5 waves 5G/5H, and the
+adversarial-review remediation is shipped; find any phase's detail in the table below, then follow
+its **Read** column.
 
 ## How to use this file
 
@@ -30,7 +32,7 @@ moment it ships; a decision record does not. When the two disagree, the dated de
 | M3 — Insert, remove, swap, client write path | **Done** (closed 2026-08-26) | No — `milestones/done/` |
 | M4 — Editor panel and shell | **Done** (closed 2026-08-26 — one criterion unmet by design, ADR 0024) | No — `milestones/done/` |
 | M5 — Width editing, and depth as a derived quantity | **In progress — 5E is the only wave open.** 5A–5D2c, 5F, 5G, 5H all shipped | Yes — `milestones/M5-*.md`, and ADRs 0028–0041, 0052, 0053 |
-| M6 — Price bar and global settings (incl. worktop depth control) | Planned | Yes, when starting |
+| M6 — Price bar and global settings (incl. cabinet depth control) | **In progress** — 13 waves in three tracks, all unblocked; 6A and 6H shipped 2026-09-03 | Yes — `milestones/M6-*.md`, and ADRs 0055–0063 |
 | M7 — Step 1, room and presets | Planned | Yes, when starting |
 | M8 — Review, contact, success | Planned | Yes, when starting |
 | Adversarial review remediation | **Every finding closed or gated.** SEC-001 (High) deferred to M8 by owner decision, gated. Everything else — SCENE-001/002, WEB-001–004, DOM-001–003, SEC-002–004, DB-001/002/004 — is implemented and reviewed | Yes — `milestones/adversarial-review-remediation.md`, `milestones/dom-003-set-width-split.md` |
@@ -93,9 +95,12 @@ PASS.
 
 ## What is open right now
 
-- **M5 wave 5E — the browser/mobile gate.** The only M5 wave still open; held back deliberately while
-  M5B changed the width surface it photographs, which is now settled. Read ADR 0035 (the stepper
-  replaced the chip row) before writing an assertion. See *What to do next*.
+- **M5 wave 5E — the browser/mobile gate. Still open and still unverified.** The owner confirmed on
+  2026-09-02 that their manual testing was **desktop-browser only**, which does not close a handset
+  gate: a real touch digitiser, a mobile GPU and device pixel ratio, and iOS Safari all remain
+  verified under emulation alone. M6 started ahead of it by the owner's decision — 5E blocks nothing
+  in M6 — but it must be run before release. Read ADR 0035 (the stepper replaced the chip row)
+  before writing an assertion.
 - **SEC-001, deferred to M8 and gated.** `POST /api/designs` has no application rate limiter and no
   active retention. `milestones/M8-review-contact-success.md`'s *Launch gate* must be checked off
   before the endpoint sees real traffic. ADR 0019's 2026-08-31 correction records the decision.
@@ -159,11 +164,18 @@ policy, so every per-endpoint limit is application code.
 
 ## What to do next
 
-**Next: M5 wave 5E — the browser and mobile gate.** It photographs the width surface, which is now the
-stepper rather than the chip row (5D2c shipped 2026-08-30) — read **ADR 0035** first. ADR 0024's
-reachable rejection banner is also 5E's. Read, in order: ADR 0035 (stepper mechanics), ADR 0032
-(disabled-with-reason), ADR 0034 (the chip-row-to-column seam 5D2a/5D2b kept), then
-`milestones/M5-width.md`'s own *What 5D2c built* section if more detail is needed.
+**Next: M6, on branch `m6-price-and-global-settings`.** Read
+`milestones/M6-price-and-global-settings.md` for the 13-wave breakdown and ADRs 0055–0063 for the
+decisions behind it. All seven owner decisions are closed and every wave is unblocked. **6A** (the
+one canonical projection) and **6H** (cabinet depth becomes a parameter) shipped 2026-09-03. 6L runs
+before both 6B and 6G; 6I2 lands before 6J. Do not start a wave without reading its section — several
+carry criteria inherited from another wave.
+
+**M5 wave 5E is still owed** and is described above under *What is open right now*. It is not next
+only because M6 does not depend on it. Before writing an assertion for it, read **ADR 0035** (stepper
+mechanics), ADR 0032 (disabled-with-reason), ADR 0034 (the chip-row-to-column seam 5D2a/5D2b kept),
+then `milestones/M5-width.md`'s own *What 5D2c built* section if more detail is needed. ADR 0024's
+reachable rejection banner is also 5E's.
 
 What 5E must verify, briefly: a real touch digitiser (not synthesised), a mobile GPU and device pixel
 ratio, iOS Safari, and ADR 0023's compatibility-mouse-event fix under a real digitiser — all currently

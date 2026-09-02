@@ -150,6 +150,23 @@ Boundaries:
   per-preset recipes are unbuilt product work; this phase can prove the mechanism with one real
   recipe and explicit fixtures.
 
+## A seam this phase owes a later one — recorded 2026-09-02
+
+[ADR 0062](../decisions/0062-a-manufacturer-price-dashboard-comes-after-m8-and-shapes-seams-now.md):
+after M8 the project gains a manufacturer-facing dashboard, and one of its **probable** properties —
+the owner's own *"I will think about"*, so not committed — is **enabling or disabling a specific
+cabinet type**. Adding new cabinets is explicitly out of its scope.
+
+**M7 builds nothing for it.** What this phase owes is one shape: **a preset recipe names build ids,
+so preset application must ask whether a body is available rather than assume its presence in the
+catalogue.** If a type is later disabled, a preset referencing it must fail in a *stated* way — the
+phase's own acceptance criterion that a listed preset always applies successfully is what would
+otherwise break silently, or half-apply.
+
+Availability funnels through one predicate today (`toInsertableBody`, and
+`resolveCatalogEquivalent` for the swap path). Route preset application through the same one. No
+flag, no data, no schema — that is the dashboard's work, not this phase's.
+
 ## Open questions gating this phase
 
 - Exact minimum and maximum wall lengths and room heights.
