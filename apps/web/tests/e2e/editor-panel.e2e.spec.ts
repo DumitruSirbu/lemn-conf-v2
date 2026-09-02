@@ -212,10 +212,18 @@ test("the sheet occupies 70-83 vh, scrolls internally, and keeps its footer pinn
 
   const footerBefore = await boxOf(page.getByTestId("panel-done"));
   await swipeUpInside(page, { x: sheet.x + sheet.width / 2, y: sheet.y + 320 });
-  const scrolled = await body.evaluate((element) => element.scrollTop);
-  const footerAfter = await boxOf(page.getByTestId("panel-done"));
 
-  expect(scrolled).toBeGreaterThan(0);
+  // Polled, not sampled once. `Input.synthesizeScrollGesture` returns when the gesture is
+  // *dispatched*, and the smooth scroll it starts runs for about 200 ms at this speed and
+  // distance — so a single read after a fixed wait is a race, and it is a race this machine
+  // happens to win. On a CI runner it loses: the first run of this suite on GitHub read
+  // `scrollTop` as 0 here while everything about the sheet was correct. Waiting for the
+  // condition still fails if the body genuinely does not scroll, which is what the test is for.
+  await expect
+    .poll(async () => body.evaluate((element) => element.scrollTop))
+    .toBeGreaterThan(0);
+
+  const footerAfter = await boxOf(page.getByTestId("panel-done"));
   expect(footerAfter.y).toBeCloseTo(footerBefore.y, 0);
 });
 

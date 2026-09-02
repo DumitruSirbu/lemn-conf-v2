@@ -1218,6 +1218,22 @@ test:e2e`): 21 passed in 1.2 minutes *including* the build, with the previously 
 `editor-rail.desktop:278` passing in 6.4 s. It is also the more honest target — a production build is
 what Vercel serves.
 
+**And a fourth, which only a runner could show (2026-09-02).** With the production build in place the
+timeouts went away, and one genuine test-robustness bug was left standing:
+`editor-panel.e2e.spec.ts:188` sampled `scrollTop` **once**, after a fixed 400 ms wait, following a
+CDP `Input.synthesizeScrollGesture`. That call returns when the gesture is *dispatched*, and the
+smooth scroll it starts runs for roughly 200 ms — so the assertion was always a race, and this
+laptop simply always won it. The runner lost, reading 0 while everything about the sheet was
+correct. Now it polls for the condition, which still fails if the body genuinely does not scroll.
+
+**What the production build did not fix, and the honest number.** The suite still takes **13.2
+minutes** on a runner against about one locally, with `signature-flow` alone at 5.7 — essentially
+unchanged by the build. So route compilation was not the dominant cost; the likely remainder is
+three.js rendering through software rasterisation on a machine with no GPU, which no configuration
+change here addresses. Left as measured rather than guessed at. CI runs only on pull requests to
+`main` and pushes to `main`, so this lands per push while a PR is open rather than on every branch
+push, which is what makes 13 minutes tolerable rather than something to optimise now.
+
 **One thing to know before widening the failure artifact.** A Playwright trace records response
 headers, and `POST /api/designs` returns the write token in `Set-Cookie` — so a failure artifact
 carries a live write token for a *test-database* row. Acceptable here (private repo, 7-day
