@@ -5,7 +5,7 @@ session can learn where the project stands without reading eight phase plans.
 
 Last updated: 2026-09-02. **M5B — Manual UX remediation is complete.** All eleven waves shipped,
 closing with wave 5B4b (the capped merge) on 2026-09-02. See *M5B — Manual UX remediation, complete
-2026-09-02* below for the close-out, and `docs/milestones/M5B-manual-ux-remediation.md` for the
+2026-09-02* below for the close-out, and `docs/milestones/done/M5B-manual-ux-remediation.md` for the
 criterion-by-criterion record. **Next up is M5 wave 5E**, the browser and mobile gate, which was held
 back specifically so it would not photograph a width surface M5B was still changing — that condition
 no longer holds.
@@ -49,7 +49,7 @@ moment it ships; a decision record does not. When the two disagree, the dated de
 | M7 — Step 1, room and presets | Planned | Yes, when starting |
 | M8 — Review, contact, success | Planned | Yes, when starting |
 | Adversarial review remediation | **Complete for the security scope** — SCENE-001, WEB-001, DOM-001, SEC-002, SEC-003, SEC-004, DB-001, DB-002, DB-003 closed; SEC-001 deferred to M8, gated; Medium/Low residuals open | Yes — `milestones/adversarial-review-remediation.md` and `testing-reports/` |
-| **M5B — Manual UX remediation** (branch `ux-manual-fixes`) | **Done, 2026-09-02** — all eleven waves shipped; wave 5B4b (the capped merge) closed the milestone | No for the plan itself — its knowledge now lives in ADRs 0043–0051 and in the code. Not yet moved to `milestones/done/` (this session has no file-move tool); still at `milestones/M5B-manual-ux-remediation.md`, marked complete at its head |
+| **M5B — Manual UX remediation** (branch `ux-manual-fixes`) | **Done, 2026-09-02** — all eleven waves shipped; wave 5B4b (the capped merge) closed the milestone | No for the plan itself — its knowledge now lives in ADRs 0043–0051 and in the code. Not yet moved to `milestones/done/` (this session has no file-move tool); still at `milestones/done/M5B-manual-ux-remediation.md`, marked complete at its head |
 
 ## Adversarial review remediation — complete for the security scope, 2026-08-31
 
@@ -229,7 +229,7 @@ client probe asks the one route the cookie reaches, at the cost of a second GET 
 
 All eleven waves shipped on branch `ux-manual-fixes` (uncommitted). The last, **5B4b — adjacent
 empty columns merge under an 800 mm cap** — closed the milestone. Full criterion-by-criterion record:
-`docs/milestones/M5B-manual-ux-remediation.md`. Decisions: ADRs **0043–0051**.
+`docs/milestones/done/M5B-manual-ux-remediation.md`. Decisions: ADRs **0043–0051**.
 
 **5B4b shipped.** Adjacent empty columns merge under an 800 mm cap (ADR 0046 rule 1, reviving
 ADR 0037's withdrawn merge). New `packages/configurator-domain/src/merge-empty-columns.ts`
@@ -327,7 +327,7 @@ the scribe closing this wave declined to certify a run it had not been told abou
 close-out. Everything below this line that references M5B as open is historical detail from the
 wave-by-wave record, kept for what each wave actually delivered. It sat between M5 and M6: after M5 because every record it reopens is M5's and because 5E would otherwise gate a surface M5B is changing, before M6 because M6 prices a document M5B is adding a field to. Eleven findings from a manual
 session on 2026-08-31 (`testing-reports/09-manual-ux-issues.md`) plus three owner decisions of
-2026-09-01. The plan is `milestones/M5B-manual-ux-remediation.md`; the decisions are ADRs **0043** (a gap of
+2026-09-01. The plan is `milestones/done/M5B-manual-ux-remediation.md`; the decisions are ADRs **0043** (a gap of
 any width is legal), **0044** (empty columns are persisted), **0045** (the run-end panel follows),
 **0046** (the capped merge and the insert-time split, reviving ADR 0037), **0047** (open-shelf
 compartments follow clearance), **0048** (the pantry column is resizable) and **0049** (a fixed-width cabinet shows its width section disabled).
@@ -573,6 +573,10 @@ The Playwright e2e suite was rerun for the close-out: **21 passed, 1 skipped, 0 
 fixing two catalogue ids that ADR 0033's row merge had left stale in `signature-flow.e2e.spec.ts`
 since 2026-08-27. See the close-out section's last paragraph, and backlog 24 for the reporting gap
 that let a red suite sit unnoticed for six days.
+
+The plan is archived at `docs/milestones/done/M5B-manual-ux-remediation.md`. Per that directory's own
+README, **do not read it** — it is a closed intention, and what is live from the phase is this file
+plus ADRs 0043–0051 (with 0033 and 0046 amended at close). Open it only for a historical question.
 
 **Next: M5 wave 5E — the browser and mobile gate.** It was the only M5 wave still open, and it was
 deliberately held back while M5B was changing the width surface it photographs; that condition is now

@@ -116,7 +116,7 @@ Nothing is listed as not-planned.
 Planned and dispatched before this document. Recorded here for the ordering only: it removes
 `remainder_below_floor` from `plan-width-funding.ts` and `rejection.ts`, and rewords
 `renderNoEmptySpace` so the millimetre figure reads as space-needed. Its record is
-[ADR 0043](../decisions/0043-an-empty-space-of-any-width-is-a-legal-state.md), already written.
+[ADR 0043](../../decisions/0043-an-empty-space-of-any-width-is-a-legal-state.md), already written.
 
 **ADR 0043 is a hard prerequisite for 5B4a**, and not merely adjacent to it: an insert-time split
 leaves a remainder of any width, and under ADR 0031's floor most of those remainders were illegal
@@ -319,13 +319,13 @@ rather than the corp's own resizable flag."* It is not. Verified by reading ever
   `widthFlex: [600]`.
 
 Nothing anywhere reads the slot the body was inserted into. **The cabinet the owner chose is a
-600 mm-only cabinet by [ADR 0027](../decisions/0027-the-hob-is-part-of-the-cabinet.md)**: the hob is
+600 mm-only cabinet by [ADR 0027](../../decisions/0027-the-hob-is-part-of-the-cabinet.md)**: the hob is
 part of the body and `builders.cooktop()` is a fixed 590 × 520 plate, so the carcass under it is the
 one width that appliance is made for. The owner's premise — *"If I choose a resizable cabinet it
 doesn't matter where I insert it"* — is already true; they chose a non-resizable one.
 
 **What is nonetheless a real defect: the silence.** §13.1's *"Disable, don't warn"* and
-[ADR 0032](../decisions/0032-an-entry-that-does-not-fit-is-shown-disabled-with-its-reason.md) both
+[ADR 0032](../../decisions/0032-an-entry-that-does-not-fit-is-shown-disabled-with-its-reason.md) both
 say an unavailable thing is **shown disabled with its reason**, never removed. `NOT_RESIZABLE` is a
 refusal the engine already produces and already has a sentence for — and the panel throws it away.
 So the customer gets a vanished section and no explanation, which is exactly what the report
@@ -339,7 +339,7 @@ was put to them.
 **Answered 2026-09-01: show the section, disabled, with the reason.** The owner's grounds: the
 silence is what made it read as a defect during testing, and every other blocked control in this
 product already shows disabled-with-reason. Recorded as
-[ADR 0049](../decisions/0049-a-fixed-width-cabinet-shows-its-width-section-disabled.md). **This wave
+[ADR 0049](../../decisions/0049-a-fixed-width-cabinet-shows-its-width-section-disabled.md). **This wave
 is no longer blocked and may be dispatched.**
 
 **Work item.** Render the width section for a `fixedWidth` body as a
@@ -397,8 +397,8 @@ column with no appliance inside should be the only resizable column type, min 40
 **The door-count half needs no new catalogue entry, and the report's assumption that it does is
 wrong.** `TWO_DOOR_MIN_WIDTH_MM = 500` (`packages/configurator-domain/src/catalog.ts:113`) and
 `deriveDoorCount` (`catalog.ts:651-653`) already implement *"499 and below is one door, 500 and above
-is two"* — [ADR 0035](../decisions/0035-width-is-a-bounded-stepper-not-a-menu-of-sizes.md) decision 4,
-via [ADR 0033](../decisions/0033-door-count-is-derived-from-width-not-declared.md)'s merge. The owner's
+is two"* — [ADR 0035](../../decisions/0035-width-is-a-bounded-stepper-not-a-menu-of-sizes.md) decision 4,
+via [ADR 0033](../../decisions/0033-door-count-is-derived-from-width-not-declared.md)'s merge. The owner's
 400/500 split **is** the shipped threshold. So the rule is `doorCountFollowsWidth: true` on one
 existing row, and the label follows automatically through `describeBodyLabelAt`
 (`catalog.ts:672-680`). Adding a variant entry would re-create precisely the split ADR 0033 merged.
@@ -1002,7 +1002,7 @@ was not live — recorded as evidence-integrity practice in `docs/best-practices
   ADR 0046. Its **withdrawal analysis is live** and is this wave's gate. Its *"a span wider than
   800 mm may simply stay empty"* is also **live** and load-bearing — it is why an 800 mm or a
   1100 mm remainder is a legal outcome rather than a defect.
-- **An earlier ruling this wave overturns, and ADR 0046 did not sweep it.** [ADR 0033](../decisions/0033-door-count-is-derived-from-width-not-declared.md),
+- **An earlier ruling this wave overturns, and ADR 0046 did not sweep it.** [ADR 0033](../../decisions/0033-door-count-is-derived-from-width-not-declared.md),
   *The hood narrows rather than refusing*: *"`resolvePlacementMillimetres` takes `alongMm` from the
   opening's **centre**, so a narrowed body lands centred with equal margin either side. That property
   is now asserted rather than assumed."* That is a dated record stating the behaviour ADR 0046
@@ -1403,8 +1403,8 @@ any empty column, or only on a merge?
 
 Closes `docs/BACKLOG.md` entry 11, open since 2026-08-27. Decided by the owner on 2026-09-01 —
 **give `base-dishwasher` a decor door front**, not the one-line "turn the flags off" fix that entry
-named — following the Q6 / [ADR 0050](../decisions/0050-the-hob-oven-filler-is-a-finishable-front.md)
-precedent. Recorded as [ADR 0051](../decisions/0051-the-dishwasher-niche-wears-a-decor-door.md),
+named — following the Q6 / [ADR 0050](../../decisions/0050-the-hob-oven-filler-is-a-finishable-front.md)
+precedent. Recorded as [ADR 0051](../../decisions/0051-the-dishwasher-niche-wears-a-decor-door.md),
 which carries the full sweep and the alternatives.
 
 **Defect, re-measured live at the mobile viewport on 2026-09-01.** `base-dishwasher` offers five
@@ -1633,15 +1633,15 @@ swept before deciding* table naming every earlier record that said the opposite 
 
 | ADR | Wave | Subject |
 | --- | --- | --- |
-| [0043](../decisions/0043-an-empty-space-of-any-width-is-a-legal-state.md) | 5B1 | An empty space of any width is a legal state (written by 5B1's implementer). |
-| [0044](../decisions/0044-an-empty-space-is-recorded-in-the-design-document.md) | 5B2 | An empty space is recorded in the design document, not re-guessed at load. |
-| [0045](../decisions/0045-the-run-end-panel-follows-the-run-it-closes.md) | 5B3 | The run-end panel follows the run it closes, and hides when there is no run. |
-| [0046](../decisions/0046-adjacent-empty-columns-merge-under-a-cap-and-an-insert-splits-its-column.md) | 5B4a, 5B4b | Adjacent empty columns merge under an 800 mm cap, and an insert splits the column it does not fill. |
-| [0047](../decisions/0047-an-open-shelf-count-follows-its-clearance.md) | 5B7 | An open shelf's compartment count follows its clearance, not its row. |
-| [0048](../decisions/0048-the-pantry-column-is-the-one-resizable-column.md) | 5B8 | The pantry column is the one resizable column, and its door count already follows its width. |
-| [0049](../decisions/0049-a-fixed-width-cabinet-shows-its-width-section-disabled.md) | 5B5 | A fixed-width cabinet shows its width section disabled, with the reason (owner, 2026-09-01). |
-| [0050](../decisions/0050-the-hob-oven-filler-is-a-finishable-front.md) | 5B6 | The hob+oven filler panel is a finishable front, overturning ADR 0027's now-false "the oven is the front" ground (owner, 2026-09-01; Q6). |
-| [0051](../decisions/0051-the-dishwasher-niche-wears-a-decor-door.md) | 5B10 | The dishwasher niche wears a decor door and the appliance behind it is built integrated, closing backlog entry 11 (owner, 2026-09-01). |
+| [0043](../../decisions/0043-an-empty-space-of-any-width-is-a-legal-state.md) | 5B1 | An empty space of any width is a legal state (written by 5B1's implementer). |
+| [0044](../../decisions/0044-an-empty-space-is-recorded-in-the-design-document.md) | 5B2 | An empty space is recorded in the design document, not re-guessed at load. |
+| [0045](../../decisions/0045-the-run-end-panel-follows-the-run-it-closes.md) | 5B3 | The run-end panel follows the run it closes, and hides when there is no run. |
+| [0046](../../decisions/0046-adjacent-empty-columns-merge-under-a-cap-and-an-insert-splits-its-column.md) | 5B4a, 5B4b | Adjacent empty columns merge under an 800 mm cap, and an insert splits the column it does not fill. |
+| [0047](../../decisions/0047-an-open-shelf-count-follows-its-clearance.md) | 5B7 | An open shelf's compartment count follows its clearance, not its row. |
+| [0048](../../decisions/0048-the-pantry-column-is-the-one-resizable-column.md) | 5B8 | The pantry column is the one resizable column, and its door count already follows its width. |
+| [0049](../../decisions/0049-a-fixed-width-cabinet-shows-its-width-section-disabled.md) | 5B5 | A fixed-width cabinet shows its width section disabled, with the reason (owner, 2026-09-01). |
+| [0050](../../decisions/0050-the-hob-oven-filler-is-a-finishable-front.md) | 5B6 | The hob+oven filler panel is a finishable front, overturning ADR 0027's now-false "the oven is the front" ground (owner, 2026-09-01; Q6). |
+| [0051](../../decisions/0051-the-dishwasher-niche-wears-a-decor-door.md) | 5B10 | The dishwasher niche wears a decor door and the appliance behind it is built integrated, closing backlog entry 11 (owner, 2026-09-01). |
 
 **Amended in place, with dated pointers and nothing deleted:**
 
@@ -1670,7 +1670,7 @@ adversarial QA on 2026-09-01 against waves this phase built and are answered bel
 
 **Inherited, and not introduced by this phase:**
 
-- **Q5 — may a shrink widen an empty column past 800 mm?** [ADR 0035](../decisions/0035-width-is-a-bounded-stepper-not-a-menu-of-sizes.md)
+- **Q5 — may a shrink widen an empty column past 800 mm?** [ADR 0035](../../decisions/0035-width-is-a-bounded-stepper-not-a-menu-of-sizes.md)
   decision 7 lets a shrink hand width back to the empty column beside it with no ceiling: measured at
   **900 mm** in nine taps and recorded in `void-engine.ts:744-751`, where every `widthFlex: 'fit'`
   cabinet is refused for trying to fill 900 against §7's 800 mm ceiling. **This is a pre-existing
@@ -1697,8 +1697,8 @@ closed question.
 | | Question | Answer | Where it landed |
 | --- | --- | --- | --- |
 | **Q1** | Item 6 (dishwasher 450 → 600 blocked) — one session, or after a reload? | **Settled by measurement, not by the owner.** In-session the domain reports `600:available` after shrinking `p1` 600 → 450; the refusal appears only after a reload. | Item mapping above; wave **5B2** owns it. |
-| **Q2** | Should a fixed-width cabinet show a disabled width section with its reason? | **Yes** — greyed, with a sentence saying the cabinet is only made at 600 mm. The silence is what made it read as a defect, and every other blocked control already shows disabled-with-reason. | [ADR 0049](../decisions/0049-a-fixed-width-cabinet-shows-its-width-section-disabled.md); wave **5B5** unblocked. |
-| **Q3** | At 400 mm, is a one-door pantry still full height with the same shelf pitch? | **Yes** — same height, same shelf pitch, fewer things side by side. No second geometry rule. | [ADR 0048](../decisions/0048-the-pantry-column-is-the-one-resizable-column.md); wave **5B8** criterion 6. |
-| **Q4** | Which end of a span does an inserted cabinet sit against? | **The left edge, always.** The proposed conditional rule was rejected. The owner accepted the named cost: `base-dishwasher` no longer centres in a 700 mm opening. | [ADR 0046](../decisions/0046-adjacent-empty-columns-merge-under-a-cap-and-an-insert-splits-its-column.md); wave **5B4a** criterion 12 (numbered 11 before the section was revised). |
-| **Q6** | The hob+oven filler panel is built in the door material on a body the customer cannot finish (`base-hob-oven` was the only entry owning a `kit.M.door`-family mesh while declaring `canFinish: false`, so it stood permanently default white). What should it do? | **Make the filler a finishable front.** The mesh is renamed `oven_filler_front` → `oven_filler_door_front` to reach `finishes.ts`'s `FRONT_MESH_NAME` pattern; `base-hob-oven` gains `canFinish: true` (`canHandle` stays `false` — the filler opens nothing and the body's one bar belongs to the oven). ADR 0027's now-false "the oven is the front, so it owns no `door_front`" ground is struck through and replaced. | [ADR 0050](../decisions/0050-the-hob-oven-filler-is-a-finishable-front.md); wave **5B6**, now complete. |
-| **Q7** | Should an open shelf's compartments be evenly spaced, or its boards evenly spaced? | **Fix the wording, keep the geometry.** The shipped geometry evenly spaces board **centres** (`H·i/(N+1)`), not clear compartment heights — measured at 700 mm: 206.3 / 215.3 / 206.3 mm, a ~9 mm end-compartment shortfall. It stands because it is inherited `openShelf` geometry M1 parity pins at the seeded parameters, it is not visible at the mobile viewport, and re-pinning parity for 9 mm was judged not worth it. | [ADR 0047](../decisions/0047-an-open-shelf-count-follows-its-clearance.md)'s 2026-09-01 correction; wave **5B7** criterion 4 reworded above. |
+| **Q2** | Should a fixed-width cabinet show a disabled width section with its reason? | **Yes** — greyed, with a sentence saying the cabinet is only made at 600 mm. The silence is what made it read as a defect, and every other blocked control already shows disabled-with-reason. | [ADR 0049](../../decisions/0049-a-fixed-width-cabinet-shows-its-width-section-disabled.md); wave **5B5** unblocked. |
+| **Q3** | At 400 mm, is a one-door pantry still full height with the same shelf pitch? | **Yes** — same height, same shelf pitch, fewer things side by side. No second geometry rule. | [ADR 0048](../../decisions/0048-the-pantry-column-is-the-one-resizable-column.md); wave **5B8** criterion 6. |
+| **Q4** | Which end of a span does an inserted cabinet sit against? | **The left edge, always.** The proposed conditional rule was rejected. The owner accepted the named cost: `base-dishwasher` no longer centres in a 700 mm opening. | [ADR 0046](../../decisions/0046-adjacent-empty-columns-merge-under-a-cap-and-an-insert-splits-its-column.md); wave **5B4a** criterion 12 (numbered 11 before the section was revised). |
+| **Q6** | The hob+oven filler panel is built in the door material on a body the customer cannot finish (`base-hob-oven` was the only entry owning a `kit.M.door`-family mesh while declaring `canFinish: false`, so it stood permanently default white). What should it do? | **Make the filler a finishable front.** The mesh is renamed `oven_filler_front` → `oven_filler_door_front` to reach `finishes.ts`'s `FRONT_MESH_NAME` pattern; `base-hob-oven` gains `canFinish: true` (`canHandle` stays `false` — the filler opens nothing and the body's one bar belongs to the oven). ADR 0027's now-false "the oven is the front, so it owns no `door_front`" ground is struck through and replaced. | [ADR 0050](../../decisions/0050-the-hob-oven-filler-is-a-finishable-front.md); wave **5B6**, now complete. |
+| **Q7** | Should an open shelf's compartments be evenly spaced, or its boards evenly spaced? | **Fix the wording, keep the geometry.** The shipped geometry evenly spaces board **centres** (`H·i/(N+1)`), not clear compartment heights — measured at 700 mm: 206.3 / 215.3 / 206.3 mm, a ~9 mm end-compartment shortfall. It stands because it is inherited `openShelf` geometry M1 parity pins at the seeded parameters, it is not visible at the mobile viewport, and re-pinning parity for 9 mm was judged not worth it. | [ADR 0047](../../decisions/0047-an-open-shelf-count-follows-its-clearance.md)'s 2026-09-01 correction; wave **5B7** criterion 4 reworded above. |

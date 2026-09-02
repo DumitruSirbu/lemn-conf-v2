@@ -146,7 +146,7 @@ does not and cannot, because it was written against parts that did not exist.
 
 ## Verified against shipped behaviour, 2026-09-01
 
-Wave 5B8 is complete (`docs/STATUS.md`, `docs/milestones/M5B-manual-ux-remediation.md`). What this
+Wave 5B8 is complete (`docs/STATUS.md`, `docs/milestones/done/M5B-manual-ux-remediation.md`). What this
 record predicted was checked against the running app rather than only against tests:
 
 - **The door-count flip landed exactly where decision text says: `>= 500` mm is two doors, below is

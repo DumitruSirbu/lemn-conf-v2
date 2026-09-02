@@ -83,7 +83,7 @@ hob placement to offer a delete on.
 > The owner has revived the merge under an **800 mm cap** and decided the missing half is built first,
 > as an **insert-time column split**: a body inserted into a column wider than itself is seated at one
 > edge and the remainder becomes a new empty column. That is the *mechanism* option B needs — one span
-> yielding several columns — and it ships in waves 5B4a and 5B4b (`docs/milestones/M5B-manual-ux-remediation.md`).
+> yielding several columns — and it ships in waves 5B4a and 5B4b (`docs/milestones/done/M5B-manual-ux-remediation.md`).
 > **This entry stays open for the other half**: nothing offers a customer `800+600` versus
 > `600+400+400` for a run, which is what option B's own wording describes. The cap does **not** by
 > itself cure the stranding — the split does — and ADR 0046 records why.
@@ -791,7 +791,7 @@ builds at is whatever the opening is.
 **sub-600 mm column**. Take a column whose only wall member is a `wall-1door` (own set
 `[200, 300, 400]`, so 300 is legal for that column), clear an adjacent column, resize to 300 — all
 accepted. Now delete the `wall-1door`. The 300 mm void offers *Corp suspendat 2 uși*, and inserting it
-builds **one door under a two-door label**. That is [ADR 0029](../decisions/0029-a-two-door-cabinet-may-not-be-offered-at-one-door-widths.md)
+builds **one door under a two-door label**. That is [ADR 0029](decisions/0029-a-two-door-cabinet-may-not-be-offered-at-one-door-widths.md)
 verbatim, arriving through the path that ADR could not reach.
 
 **This is the same shape ADR 0029 already recorded as unfinished.** Its Consequences say the decision

@@ -113,4 +113,4 @@ means *board centres are evenly spaced*, not *clear compartment heights are equa
 **compartment count** stays exactly what this ADR decided — a function of clearance, two boards above
 the threshold, one at or below it — that vocabulary is unchanged. Only the spacing claim is corrected.
 Wave 5B7's acceptance criterion 4 is reworded to match, in
-`docs/milestones/M5B-manual-ux-remediation.md`.
+`docs/milestones/done/M5B-manual-ux-remediation.md`.

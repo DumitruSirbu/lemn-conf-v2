@@ -1,4 +1,4 @@
-// M5B wave 5B8 (`docs/milestones/M5B-manual-ux-remediation.md`), ADR 0048: the pantry column is the
+// M5B wave 5B8 (`docs/milestones/done/M5B-manual-ux-remediation.md`), ADR 0048: the pantry column is the
 // one resizable column, and a narrower pantry is the **same cabinet** — same height, same shelf
 // pitch, fewer things side by side.
 //
