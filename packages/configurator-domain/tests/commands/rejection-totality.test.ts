@@ -12,7 +12,8 @@
 //   3. the sentence is non-empty Romanian, with no placeholder leaking into the copy.
 import { describe, expect, it } from "vitest";
 
-import { BASE_FINISHED_DEPTH_MM } from "../../src/catalog.js";
+import { baseFinishedDepthMm } from "../../src/catalog.js";
+import { WORKTOP_DEPTH_MM } from "../../src/worktop-depth.js";
 import type { CommandResult } from "../../src/commands/command-result.js";
 import { finishesAtMm } from "../../src/occupied-depth.js";
 import { insertBody } from "../../src/commands/insert-body.js";
@@ -56,7 +57,7 @@ const CORNER_BASE: BodyDefinition = {
   kind: "base_cabinet",
   band: "base",
   frameDepthMm: 580,
-  occupiedDepth: finishesAtMm(BASE_FINISHED_DEPTH_MM),
+  occupiedDepth: finishesAtMm(baseFinishedDepthMm(WORKTOP_DEPTH_MM)),
   canFinish: true,
   canHandle: true,
   canReplace: false,

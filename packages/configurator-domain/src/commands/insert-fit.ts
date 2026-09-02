@@ -69,10 +69,17 @@ export const HEIGHT_FLEX_MIN_OPENING_MM = 400;
  *  **The number itself is the worktop's, not this rule's** (owner, 2026-08-27): it reads the same
  *  map row as §7's `nominalDepthMm`, so the cap and the catalogue nominal cannot drift apart. They
  *  were independent literals agreeing at 400 until then, which is why a re-inserted top-row cabinet
- *  built 400 mm beside 330 mm neighbours. */
-export const WALL_CARCASS_MAX_DEPTH_OVER_WORKTOP_M = toMetres(
-  wallDepthMmForWorktop(WORKTOP_DEPTH_MM),
-);
+ *  built 400 mm beside 330 mm neighbours.
+ *
+ *  **A function of the cabinet depth since M6 wave 6H**, for the reason the catalogue's wall
+ *  nominal is one: the cap is the map's row for the kitchen's depth, and a kitchen carries a depth
+ *  rather than the module having one. It still reads the same map row as §7's `nominalDepthMm`, so
+ *  the two cannot drift apart at any depth — which is the whole of what ADR 0028 asks. */
+export function wallCarcassMaxDepthOverWorktopM(
+  cabinetDepthMm: number,
+): number {
+  return toMetres(wallDepthMmForWorktop(cabinetDepthMm));
+}
 
 /** §5.2: a height-flexible body fills an opening this tall or shorter, and otherwise builds its
  *  nominal height. A 750 mm over-fridge slot gets a 750 mm unit; a cleared 2600 mm column does not
@@ -817,7 +824,9 @@ function resolveDepthM(
   const capApplies =
     normaliseBand(body.band) === "wall" && !column.hasFullHeightUnder;
   if (!capApplies) return opening.d;
-  return Math.min(opening.d, WALL_CARCASS_MAX_DEPTH_OVER_WORKTOP_M);
+  // The declared depth, until wave 6J gives a design one of its own to carry: this wave
+  // parameterises the rule and does not yet thread a setting through the command layer.
+  return Math.min(opening.d, wallCarcassMaxDepthOverWorktopM(WORKTOP_DEPTH_MM));
 }
 
 function refuseBand(

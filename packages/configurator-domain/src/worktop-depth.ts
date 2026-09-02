@@ -24,7 +24,14 @@
  *  constant rather than copying its value.
  *
  *  Nothing persists it and nothing sets it: `DesignSchema` has no field for it, no command takes
- *  one, and M5 therefore never holds two worktop depths at once. */
+ *  one, and M5 therefore never holds two worktop depths at once.
+ *
+ *  **M6 wave 6H narrowed what this constant is without changing its value.** The catalogue's
+ *  depth-derived facts are now functions of a cabinet depth (`buildInsertableBodyDefinitions`,
+ *  `wallCarcassMaxDepthOverWorktopM`), so this is the *declared* depth the shipped kitchen is built
+ *  at rather than the only depth the model can express. Wave 6J's control and wave 6K's stored
+ *  setting are what finally give a design one of its own; until then this is the single argument
+ *  every caller passes, which is why it is still one line to replace. */
 export const WORKTOP_DEPTH_MM = 600;
 
 /** Wall and top carcass depth per worktop depth — **a declaration, not a computation**.

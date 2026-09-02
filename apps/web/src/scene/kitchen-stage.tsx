@@ -26,6 +26,8 @@ import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 
+import { WORKTOP_DEPTH_MM } from "@lemnaria/configurator-domain";
+
 import type { Selection } from "../store/apply-command-result";
 import { useConfiguratorStore } from "../store/configurator-store";
 import { resolveSceneView, sceneViewKey, type SceneView } from "./scene-view";
@@ -88,7 +90,12 @@ export function KitchenStage({ view, finish, onSettled }: KitchenStageProps) {
   );
 
   const stage = useMemo(() => {
-    const kit = makeKit();
+    // **The kit is built at the depth the domain declares, never at the adapter's own default**
+    // (M6 wave 6H). `DEFAULT_CABINET_DEPTH_MM` is a deliberate second copy — §12 keeps product rules
+    // in the domain and builders in the adapter — and `cabinet-depth-source.test.ts` is what stops
+    // the pair drifting. Passing the domain's number here means the app reads the rule rather than
+    // the copy, and is the seam wave 6J's *Setări globale* control replaces with the stored setting.
+    const kit = makeKit({ cabinetDepthMm: WORKTOP_DEPTH_MM });
     const shell = buildKitchenShell(kit);
 
     const solidsRoot = new THREE.Group();

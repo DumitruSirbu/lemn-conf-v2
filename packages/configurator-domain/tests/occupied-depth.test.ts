@@ -11,7 +11,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  BASE_FINISHED_DEPTH_MM,
+  baseFinishedDepthMm,
   INSERTABLE_BODY_DEFINITIONS,
 } from "../src/catalog.js";
 import {
@@ -31,7 +31,10 @@ import {
   derivePlacementRecords,
   type PlacementRecord,
 } from "../src/void-engine.js";
-import { WALL_FRONT_ASSEMBLY_MM } from "../src/worktop-depth.js";
+import {
+  WALL_FRONT_ASSEMBLY_MM,
+  WORKTOP_DEPTH_MM,
+} from "../src/worktop-depth.js";
 
 /** A record carrying nothing but the two facts `occupiedDepthM` reads. Every other field is inert
  *  here and is filled with a value that cannot be mistaken for a measurement. */
@@ -100,7 +103,7 @@ describe("an undeclared body fails closed", () => {
   // number, silently wrong, and indistinguishable from a correct one downstream.
   it("throws rather than answering with the seat encoding", () => {
     const record = withoutDeclaration(
-      recordWith(finishesAtMm(BASE_FINISHED_DEPTH_MM), 0.58),
+      recordWith(finishesAtMm(baseFinishedDepthMm(WORKTOP_DEPTH_MM)), 0.58),
     );
 
     expect(() => occupiedDepthM(record)).toThrow(UndeclaredOccupiedDepthError);
@@ -120,13 +123,13 @@ describe("an undeclared body fails closed", () => {
 
 describe("the two rules", () => {
   it("answers a declared distance from the wall plane, whatever seat is recorded", () => {
-    const rule = finishesAtMm(BASE_FINISHED_DEPTH_MM);
+    const rule = finishesAtMm(baseFinishedDepthMm(WORKTOP_DEPTH_MM));
 
     // The seat a base carcass really records, and two it never would: the answer is the body's, not
     // the encoding's, which is what "declared, never inferred" buys.
     for (const seatDepthM of [0.58, 0.4, 0.9]) {
       expect(toMillimetres(occupiedDepthM(recordWith(rule, seatDepthM)))).toBe(
-        BASE_FINISHED_DEPTH_MM,
+        baseFinishedDepthMm(WORKTOP_DEPTH_MM),
       );
     }
   });

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   acceptsWidthMm,
-  BASE_FINISHED_DEPTH_MM,
+  baseFinishedDepthMm,
   buildableSizes,
   describeBodyLabelAt,
   describeKindLabel,
@@ -11,6 +11,7 @@ import {
   listInsertableBodies,
   toInsertableBody,
 } from "../src/catalog.js";
+import { WORKTOP_DEPTH_MM } from "../src/worktop-depth.js";
 import {
   KITCHEN_L_BODY_CATALOG,
   KITCHEN_L_PLACEMENTS,
@@ -69,7 +70,7 @@ describe("toInsertableBody", () => {
       kind: "base_cabinet",
       band: "base",
       frameDepthMm: 580,
-      occupiedDepth: finishesAtMm(BASE_FINISHED_DEPTH_MM),
+      occupiedDepth: finishesAtMm(baseFinishedDepthMm(WORKTOP_DEPTH_MM)),
       canFinish: true,
       canHandle: true,
       canReplace: true,

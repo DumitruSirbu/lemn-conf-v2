@@ -12,10 +12,11 @@ import {
 } from "../../src/commands/insert-fit.js";
 import { removePlacement } from "../../src/commands/remove-placement.js";
 import {
-  BASE_FINISHED_DEPTH_MM,
+  baseFinishedDepthMm,
   HOB_OVEN_BASE_FINISHED_DEPTH_MM,
   listInsertableBodies,
 } from "../../src/catalog.js";
+import { WORKTOP_DEPTH_MM } from "../../src/worktop-depth.js";
 import { finishesAtMm } from "../../src/occupied-depth.js";
 import {
   KITCHEN_L_BODY_CATALOG,
@@ -323,7 +324,7 @@ describe("the two hob bases are distinguished only where the choice is made", ()
     // variant's fascia and bar reach 28 mm past it. It is measured on the geometry, so declaring
     // them equal would be declaring a body 28 mm shallower than the one that gets built.
     expect([drawers.occupiedDepth, oven.occupiedDepth]).toEqual([
-      finishesAtMm(BASE_FINISHED_DEPTH_MM),
+      finishesAtMm(baseFinishedDepthMm(WORKTOP_DEPTH_MM)),
       finishesAtMm(HOB_OVEN_BASE_FINISHED_DEPTH_MM),
     ]);
     expect([drawers.nominalDepthMm, oven.nominalDepthMm]).toEqual([580, 580]);

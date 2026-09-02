@@ -1,18 +1,19 @@
 import {
-  BASE_FINISHED_DEPTH_MM,
+  baseFinishedDepthMm,
+  COLUMN_DEPTH_MM,
   EXTRACTOR_HOOD_KIND,
   FREESTANDING_FRIDGE_FINISHED_DEPTH_MM,
-  HOOD_FINISHED_DEPTH_MM,
+  hoodFinishedDepthMm,
   INSERTABLE_BODY_DEFINITIONS,
   OVEN_TOWER_FINISHED_DEPTH_MM,
-  TALL_UNIT_FINISHED_DEPTH_MM,
+  tallUnitFinishedDepthMm,
 } from "../catalog.js";
 import {
   finishesAtMm,
   NO_FRONT_ASSEMBLY_MM,
   shellPlusFrontMm,
 } from "../occupied-depth.js";
-import { WALL_FRONT_ASSEMBLY_MM } from "../worktop-depth.js";
+import { WALL_FRONT_ASSEMBLY_MM, WORKTOP_DEPTH_MM } from "../worktop-depth.js";
 import type { Design, DesignPlacement } from "../design.js";
 import type { BodyCatalog, BodyDefinition } from "../void-engine.js";
 
@@ -53,7 +54,7 @@ const baseCarcass: Pick<
   // its worktop's front edge (DOM-002). The four rows that are **not** an ordinary base — the two
   // corner legs, the dishwasher niche and, in the column family, the oven tower — say so on their
   // own line below.
-  occupiedDepth: finishesAtMm(BASE_FINISHED_DEPTH_MM),
+  occupiedDepth: finishesAtMm(baseFinishedDepthMm(WORKTOP_DEPTH_MM)),
   canFinish: true,
   canHandle: true,
   canReplace: true,
@@ -77,7 +78,7 @@ const topCarcass = { ...wallCarcass, band: "top" as const };
 const columnCarcass = {
   ...baseCarcass,
   band: "column" as const,
-  occupiedDepth: finishesAtMm(TALL_UNIT_FINISHED_DEPTH_MM),
+  occupiedDepth: finishesAtMm(tallUnitFinishedDepthMm(COLUMN_DEPTH_MM)),
 };
 
 /** ADR 0025: the X-leg carries a **corner** worktop, which reaches 630 mm from the wall plane — 10
@@ -169,7 +170,7 @@ const SEEDED_BODY_DEFINITIONS: readonly (readonly [string, BodyDefinition])[] =
         ...baseCarcass,
         kind: "dishwasher_housing",
         frameDepthMm: 580,
-        occupiedDepth: finishesAtMm(BASE_FINISHED_DEPTH_MM),
+        occupiedDepth: finishesAtMm(baseFinishedDepthMm(WORKTOP_DEPTH_MM)),
         catalogEquivalentId: "base-dishwasher",
       },
     ],
@@ -344,7 +345,7 @@ const SEEDED_BODY_DEFINITIONS: readonly (readonly [string, BodyDefinition])[] =
         canHandle: false,
         fixedWidth: true,
         frameDepthMm: 700,
-        occupiedDepth: finishesAtMm(HOOD_FINISHED_DEPTH_MM),
+        occupiedDepth: finishesAtMm(hoodFinishedDepthMm(WORKTOP_DEPTH_MM)),
         catalogEquivalentId: "hood",
       },
     ],

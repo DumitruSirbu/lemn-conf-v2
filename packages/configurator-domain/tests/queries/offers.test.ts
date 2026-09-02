@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import { BASE_FINISHED_DEPTH_MM } from "../../src/catalog.js";
+import { baseFinishedDepthMm } from "../../src/catalog.js";
+import { WORKTOP_DEPTH_MM } from "../../src/worktop-depth.js";
 import type { Design } from "../../src/design.js";
 import { finishesAtMm } from "../../src/occupied-depth.js";
 import {
@@ -295,7 +296,7 @@ describe("offersFor — an occupied body", () => {
       kind: "teleporter",
       band: "base",
       frameDepthMm: 580,
-      occupiedDepth: finishesAtMm(BASE_FINISHED_DEPTH_MM),
+      occupiedDepth: finishesAtMm(baseFinishedDepthMm(WORKTOP_DEPTH_MM)),
       canFinish: true,
       canHandle: true,
       canReplace: true,
