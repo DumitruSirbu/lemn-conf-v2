@@ -16,60 +16,11 @@ cost — so the next person can act without re-deriving the investigation.
 
 ---
 
-## 1. The hob cannot be put back once it is removed — DECIDED 2026-08-26, SHIPPED 2026-08-27
+## Open
 
-**Decision (owner, 2026-08-26): the hob becomes part of the cabinet body. Two catalogue entries,
-both fixed at 600 mm.**
-
-- **hob + 2 drawers** — the majority case. When the oven lives in a column, the cabinet under the
-  hob is drawers, because that is where the pots go. The seeded kitchen already renders exactly this
-  composite (`base-drawer2-600` + `cooktop-600`), so the geometry exists.
-- **hob + oven** — common in Moldova, where kitchens are smaller and there is no room for an oven
-  column. The `oven()` builder is 596 x 595 x 560 and a base carcass is 820 mm tall, so it fits.
-
-Rejected: a 3-drawer and a doors variant. Each is another builder, entry and test, and both are
-guesses where the two above are known. Adding a third later is cheap once the pattern exists.
-
-Rejected: making the hob insertable as a standalone accessory. The void model has no accessory slot
-— there is no opening at worktop height to offer one from — so it would mean adding a new kind of
-slot to the engine for one fixture.
-
-**The seeded design migrates.** `p2` + `p3` become one hob-bearing body. That leaves the accessory
-machinery — §6.1's host resolution, the delete cascade, `ACCESSORY_MAX_HEIGHT_M`, the `accessory`
-flag — **with no remaining user**, because the hob is the only accessory in the design. The owner's
-direction is to remove what is then unused rather than keep dead machinery.
-
-Verify that at implementation rather than assuming it: confirm nothing else reads `accessory` before
-deleting anything, and note that §11 row 15 ("click the hob selects its host") becomes trivially
-true once the hob *is* the host.
-
-**Multiple ovens are allowed.** A hob+oven base alongside an oven column gives two ovens, and that
-is permitted deliberately — the owner's reasoning: someone who cooks a lot may want two, the kitchen
-has the space, and there is no reason to refuse something buildable. Revisit only if feedback says
-otherwise.
-
-**SHIPPED 2026-08-27 — `docs/decisions/0027-the-hob-is-part-of-the-cabinet.md`.** Both entries are
-built and offered: `base-hob-2drawer` ("Corp plită și 2 sertare") and `base-hob-oven` ("Corp plită și
-cuptor"), fixed at 600 mm, composed from `baseCabinet`, `builders.cooktop()` and `builders.oven()`
-with no new geometry. The seeded `p2` + `p3` are one placement (`base-hob-2drawer-600`); `p3`'s id is
-retired rather than reused. The kitchen is unchanged, proven three ways: identical derived state,
-330 identical rendered meshes against the M1 reference, and byte-identical 1440 x 900 screenshots.
-
-~~**The accessory machinery was deliberately NOT removed**, which amends the paragraph above.~~
-**Removed on 2026-08-28** — the question this paragraph said the deletion wave must decide first is
-answered by [ADR 0038](decisions/0038-pre-release-no-stored-designs-no-migrations.md): nothing has
-ever been stored, so there are no pre-migration documents to migrate or support. §6.1's host
-resolution, §5.1's cascade, `ACCESSORY_MAX_HEIGHT_M`, the `accessory` flag and `cascadedAccessoryIds`
-are all deleted, along with the `cooktop-600` entry itself. Do not re-decide this from ADR 0027's
-closing paragraph; ADR 0038 supersedes it.
-
-Confirmed at implementation, as the entry asked: **the hob was the only accessory** (`p3` at 40 mm;
-the next shortest body is 400 mm, so `ACCESSORY_MAX_HEIGHT_M` has no near-miss), and **§11 row 15 is
-now trivially true** — the hob is a child mesh of its cabinet's group, so a click resolves to the
-cabinet through `climbToSelectable` without §6.1's accessory rule being consulted, and there is no
-hob placement to offer a delete on.
-
----
+Active, unscheduled items. This is the section to read. Everything under **## Resolved**, near
+the bottom of this file, is already fixed and shipped — skip it unless you are specifically
+researching a past decision.
 
 ## 2. Rearranging a run: re-split, and the narrow bottle cabinet — DECIDED 2026-08-26; RE-SPLIT MECHANISM DECIDED 2026-08-28
 
@@ -159,8 +110,6 @@ so nothing is *chosen* below 400; the 300 floor only governs `'fit'` bodies fill
 Raising it would begin refusing openings that work today — a separate decision with its own
 consequences, not bundled here.
 
-
-
 ### Original wording, superseded by the amendment above
 
 Kept because the near-miss is the point. **The two paragraphs below are wrong as written**: they say
@@ -199,88 +148,6 @@ representable: 1400 = `600+600+200`.
 **Sequencing:** M5 must design the column-identity change knowing re-split is coming, so the model is
 redesigned once rather than twice. Building re-split itself is not required in M5 — M5's own plan
 already lists it as out of scope, and that stands.
-
----
-
-## 3. Telling cabinets apart in the replace list — DECIDED 2026-08-26, SHIPPED
-
-**Decision (owner, 2026-08-26): no filter chips. Cabinet thumbnails instead — and they shipped.**
-
-The owner's own framing: filters are not needed at 3-6 rows, but "especially the base" list mixes
-base cabinets with full-height columns, and an icon would let you tell them apart fast.
-
-The design already answered that better than a glyph would: mockup frame 2B gives every row a
-54 x 54 front-elevation drawing. Those 18 drawings existed only in `design-source/`, which is
-untracked and marked for deletion; five more were commissioned (`base-panbank`, `wall-lift`,
-`tall-fridge-housing`, `base-hob-2drawer`, `base-bottle-cargo`), and all 23 are now vendored into
-`apps/web/public/cabinets/` under version control.
-
-Three of the five replaced drawings the prototype had **reused from a different cabinet**, which was
-wrong on screen — `wall-lift` looked like a glass door, `tall-fridge-housing` like a freestanding
-appliance. That last pair took two passes: the first revision was right at full size and unreadable
-at the real 54 px tile, where both were tall boxes with a horizontal split. They appear in the *same*
-list meaning opposite things, so confusing them means ordering the wrong product.
-
-The distinction the owner asked for works: because the tile scales by height, a 700-tall column
-drawing renders tall and narrow against a 310-tall base drawing. Verified at both viewports.
-
-**§13.3 q1 is still open and was NOT decided here.** The original concern stands — the prototype's
-chips were hand-authored per kind, and unifying swap sets with the fit-filtered catalogue would have
-required deriving them from traits the domain does not record. Thumbnails sidestep that entirely:
-they key off `buildId`, which exists either way. So q1 can be decided on its own merits later.
-
----
-
-### Original finding, kept for context
-
-
-
-**Reported:** 2026-08-26, owner.
-"In the reference, when you click a cabinet and it shows the alternatives, there were filters at the
-top of that list — one door, two doors, columns and so on. Why were they not implemented?"
-
-**Not a decision. An omission**, and it is worth being precise about how it happened: §9 is the
-authoritative behavioural contract, and its replace-section clause lists only the band's swap set,
-the **ACTUAL** badge, the derived count line and the zero-result sentence. The chips appear in
-mockup frame 2B and in no spec section. M4 was built from §9, and the mockup was not reconciled
-against it — even though M4's own reference line names frames 2A/2B/2C as source material.
-
-**What they actually are**, read out of `Lemnaria Configurator Mobil.dc.html`:
-
-```js
-const chips = arr => arr.map((label, i) => ({ label, on: i === 0, off: i !== 0 }));
-base_cabinet:      chips(['Toate 5', 'Cu uși 3', 'Sertare 1', 'Cu instalații 1'])
-wall_cabinet:      chips(['Toate 5', 'Cu uși 3', 'Deschise 1', 'Electro 1'])
-open_shelf_unit:   chips(['Toate 6', 'Cu uși 3', 'Deschise 2', 'Sticlă 1'])
-tall_unit:         chips(['Toate 3', 'Depozitare 1', 'Electro 2'])
-dishwasher_housing:chips(['Toate 3', 'Cu instalații 1', 'Depozitare 2'])
-extractor_hood:    chips(['Toate 3', 'Vizibile 2', 'Încorporate 1'])
-```
-
-Sub-type filters *within* an already band-scoped swap set — by door, drawer, plumbed, appliance —
-each carrying its own count, defaulting to "Toate N".
-
-Two properties of the prototype matter for deciding this:
-
-- They are **hand-authored per kind**, not derived from any body property. Nothing in the domain
-  model today records "has doors" versus "has drawers" as a filterable trait.
-- They are **inert in the prototype**. Rendered as `<span>` with a static `on: i === 0` and no click
-  handler. The mockup shows the affordance; it never proved the interaction.
-
-**The case is weaker than it looks, and the reason is measured.** Offer-list lengths on the real
-catalogue: base **6** rows, wall **5**, top **4**, column **3**, the fridge slot **1**. §13.1 killed
-pagination on exactly this arithmetic — *"20 catalogue items reduce to ~6 valid ones and there is
-nothing left to paginate"* — and recorded that its pager *"ate 82 px of sheet height"* on mobile. A
-chip row costs about the same 44 px and would narrow 5 rows to 3.
-
-**It also collides with an open question.** §13.3 q1 asks whether the hand-authored per-kind swap
-sets should be replaced by the fit-filtered catalogue. These chips are per-kind hand-authored sets.
-Unify the lists and the chips would have to be **derived** from body traits the model does not
-currently carry — so deciding the chips before q1 would be deciding it twice.
-
-**Decision needed**, in this order: settle §13.3 q1 first; then decide whether filters earn their
-vertical space at 3-6 rows; and only then, if yes, decide what trait the domain must publish for
-them to be derived rather than authored.
 
 ---
 
@@ -554,63 +421,6 @@ Three shapes of answer, none of them chosen here:
 The owner should decide before the cargo reaches a customer, since ADR 0026's size set is
 unconfirmed anyway.
 
-## 9. A hood round trip costs a wall opening 100 mm of depth, permanently — CLOSED 2026-08-30
-
-**Found by logic review, 2026-08-26; new with wave A.** Over a full-height column, where §7's cap is
-lifted, a hood round trip costs the opening 100 mm for good. Measured on `p24` — the 700 mm cabinet
-over the freestanding fridge, the one wall opening in the shipped kitchen tall enough to take a
-710 mm hood — with the real builders and the real probe:
-
-```
-p24 -> wall-2door  600 mm
-    -> hood        500 mm
-    -> wall-2door  500 mm      <-- 600 never comes back
-    -> hood        500 mm
-    -> wall-2door  500 mm
-```
-
-The domain's own tests cannot see it: a fake probe reports back the depth it was handed, so the same
-sequence reads 600 throughout. Only the real probe measures what `make.hood` actually built.
-
-**Why.** `openingFromPlacement` takes the opening's depth from the outgoing body's own
-`record.frame.d` (ADR 0018, and the swap-depth fix that put it there). `make.hood(w, chimneyH)` in
-`kitchen-parts.ts` takes **no depth parameter at all** — its canopy is a hardcoded 0.5 m box — so the
-hood ignores the depth it is handed, the probe measures 500, and 500 is what gets recorded as its
-`seatDepthMm`. Swap the hood back out and the opening now measures 500, so the replacement builds
-500.
-
-It **converges** rather than oscillating — a second round trip changes nothing — so it is one 100 mm
-loss and not a runaway. Arguably it is correct: the opening genuinely is 500 mm deep once a hood is
-standing in it. But it is a permanent, invisible 100 mm the customer did not ask for, and the swap
-that produced it was supposed to be the operation that stopped changing depths.
-
-Related: the same mechanism is why a placed body's depth never re-derives — see entry 5's closing
-paragraph.
-
-**CLOSED 2026-08-30, in the opposite direction from what this entry assumed.**
-[ADR 0039](decisions/0039-the-hood-is-a-standard-depth-hung-at-the-front.md) decision 1 makes the
-hood's depth **standard** — *"hood is always standard"*, 500 at a 600 mm kitchen and 500 at a 700 mm
-one — so `make.hood` is *right* to ignore the depth it is handed and giving it a depth parameter is
-explicitly rejected. What had to move is the **seat**: decision 2 hangs the hood at the front, its
-face on the 600 mm cabinet-depth line, with the 100 mm gap behind it.
-
-The leak this entry measured is closed by
-[ADR 0040](decisions/0040-a-recorded-seat-is-converted-back-not-read-as-a-depth.md): the opening a
-body vacates is read through `occupiedDepthM`, which answers the cabinet-depth line for a hood
-instead of the hood's own `frame.d`. Shipped in M5 wave 5F. `p24`'s round trip now returns the 600
-this entry says "never comes back", and the domain's own tests can see it because the fake probe was
-taught the two seats the real one measures — which is the half of this entry's diagnosis that was
-right and still is.
-
-~~**Still open, and now a named question inside M5 (2026-08-27).**~~ The owner's worktop-depth rule
-(entry 5's second half) governs wall depth through a map, and whether the hood follows it is
-**question 1** in `docs/milestones/M5-width.md`'s *Not established — Depth*. The two are one
-decision: putting the hood in the map means giving `make.hood` a depth parameter, which is what this
-entry says it lacks. M5 wave 5A pins `hood-600` at 500 as a regression **precisely because the
-question is open** — the day it is decided, that assertion changes deliberately.
-
----
-
 ## 10. Swap and delete-then-insert give a wall cabinet different depths
 
 **Found by the coordinator while verifying the R3.1 fix, 2026-08-26.** Measured on the shipped
@@ -657,75 +467,6 @@ only. This entry lives on the **uncapped** path — over a full-height column, w
 fixes the sibling defect over a base run and leaves this divergence exactly as measured. It is
 recorded as **question 8** in `docs/milestones/M5-width.md`'s *Not established — Depth* so M5 does
 not mistake it for something already handled.
-
-## 11. `base-dishwasher` offers a finish and a handle it has neither of — DECIDED 2026-09-01, SHIPPED
-
-**Decided by the owner on 2026-09-01: give the niche a decor door**, not the one-line
-`canFinish: false, canHandle: false` this entry named — following Q6 and
-[ADR 0050](decisions/0050-the-hob-oven-filler-is-a-finishable-front.md), and recorded on this body's
-own terms as [ADR 0051](decisions/0051-the-dishwasher-niche-wears-a-decor-door.md). Shipped as M5B
-wave 5B10. The product question this entry said to ask first is what got asked, and the answer was
-the one it predicted: *the flags were right all along and the geometry is what is missing.*
-
-What landed: `dishwasherHousing` builds its own `door_front` with `doorSlab` at `baseCabinet`'s
-anchors, so it is flush with its neighbours by construction and `FRONT_MESH_NAME` reaches it with no
-rename; the appliance inside a housing is built **fully integrated** (`dw_body` only), so the only
-handle left in the body is the door's and `handle: "push"` hides a cabinet's bar rather than a
-dishwasher's; neither flag changed; occupied depth followed the geometry down 632 → 620 mm and the
-580 mm seat did not move; both ids left `RECORDED_CAPABILITY_GAPS`, which is now empty. M1's 1e-6 m
-parity gate was re-baselined per ADR 0036's rule — each added and removed node declared with its
-parent and count — never relaxed.
-
-**Its `tall-oven-tower` tail is deferred and lives on as entry 18**, because closing this entry must
-not delete the only pointer to it.
-
-### The finding, as recorded before it was decided
-
-Found 2026-08-27 by the catalogue-wide capability gate added with ADR 0027's amendment
-(`packages/three-adapter/tests/catalog-capability-parity.test.ts`), which asserts that a row
-declaring `canFinish` has a front to recolour and a row declaring `canHandle` has a **cabinet**
-handle — one whose group also holds the front it opens, as against an appliance's own.
-
-`base-dishwasher` builds an open niche: plinth, two sides, a back panel, a worktop, and
-`builders.dishwasher` inside it. It has no `door_front` and no handle of its own, yet inherits
-`canFinish: true, canHandle: true` from `INSERTABLE_DEFAULTS`. Measured consequences are the ones
-`base-hob-oven` had before it was fixed in the same pass: the five finish chips recolour nothing,
-and `handle: "push"` hides the **dishwasher's** own bar.
-
-It is the identical defect to `base-hob-oven`'s and the identical one-line fix — `canFinish: false,
-canHandle: false`, the way `open-shelf` and `hood` already declare. It is here rather than fixed
-because the owner scoped that wave to the new entry. Until it is decided the id is pinned in the
-gate's `RECORDED_CAPABILITY_GAPS`, and that pin asserts the defect is **still present**, so the day
-someone repairs the row the gate goes red and the pin comes out with it.
-
-**Two ids, one defect.** Since 2026-08-27 the gate covers the seeded population as well, and
-`base-dishwasher-600` — the seeded instance, whose builder arm is `kit.builders["base-dishwasher"]()`
-verbatim — is on the list beside it for the same reason. Whichever way this is decided, both move
-together. The four other violations the extended gate found (`fridge-free-700`, `open-shelf-600`,
-`hood-600`, `cooktop-600`) were fixed in that pass; see ADR 0027's amendment.
-
-**The product question worth asking first**, since it is the reason someone might not want the
-one-line fix: an integrated dishwasher in a real kitchen usually wears a decor door matching the
-cabinets. If that is wanted, the answer is not to turn the flags off but to give the builder a
-front — in which case the flags were right all along and the *geometry* is what is missing.
-`tall-oven-tower` has related appliance-handle exposure (`push` hides its oven's and microwave's
-bars alongside its two real door handles) and was scoped out of the same wave; it belongs to
-whoever owns §6.5.
-
-**Q6 answered the product question this entry says to ask first — for the other body (2026-09-01).**
-M5B wave 5B6 met the identical choice on `base-hob-oven` and the owner chose **give it a front**,
-not turn the flags off: [ADR 0050](decisions/0050-the-hob-oven-filler-is-a-finishable-front.md). That
-is precedent, not a ruling on this row — a hob band's filler panel and an integrated dishwasher's
-decor door are different products — but it does mean the "one-line fix" framing above is no longer
-the neutral default. Whoever picks this up should read ADR 0050 before assuming
-`canFinish: false, canHandle: false` is what the owner wants.
-
-**Confirmed live at the mobile viewport, 2026-09-01** by visual verification of that wave. The niche
-fascia stays `222,223,221` under all four finishes while its immediate neighbour tracks each one,
-and the chip still records the pick (`finish-graphite` → `aria-pressed="true"`, no rejection). So the
-customer is told the choice was accepted and nothing changes — which is exactly the complaint that
-opened Q6, still live on this body. `dishwasherHousing` (`packages/three-adapter/src/kitchen-parts.ts:1438`)
-builds no `door_front`/`drawer_front` mesh, so `FRONT_MESH_NAME` reaches nothing.
 
 ## 12. §3.2's column cannot express a middle level at its own width — RAISED BY M5 WAVE 5C
 
@@ -813,68 +554,6 @@ scope a decision rather than an oversight.
 this seam. Not a 5C fix: it changes what `offersFor` offers, which is M3's machinery and its own
 acceptance criteria.
 
-## 14. Keep only the last few database dumps — DECIDED 2026-08-31, SHIPPED 2026-08-31
-
-Owner's request, 2026-08-31: the nightly export should keep only the **last 3 dumps** rather than
-letting them accumulate.
-
-**What is actually true in the code.** Rotation already exists and already deletes — it is just
-keyed on age, not on count. `apps/web/src/lib/server/backup-designs.ts:20` sets
-`BACKUP_RETENTION_DAYS = 14`, and `rotateOldBackups` (`:350`) deletes every blob under
-`backups/designs/` whose timestamp is older than that cutoff. The cron runs nightly, so steady state
-is roughly **14 files**, one per night, each a full NDJSON copy of the `designs` table. Rotation runs
-only after a successful export and its failure is reported separately as `rotation-failed`, so a
-failed rotation never masks a missing backup.
-
-Since wave S5 each pathname is `backups/designs/<ISO timestamp>-<8 hex>.ndjson`. The timestamp still
-leads and is fixed width, so a listing remains in chronological order and "newest last" holds —
-count-based rotation can sort on the same listing rotation already fetches, and needs no new call.
-
-**What deciding it costs.** The change itself is small: replace the age cutoff with "sort the
-listing, keep the newest N, delete the rest", plus a test for the boundary (exactly N present, N+1
-present, and a run that produced no new export). Two things need deciding with it, and they are the
-real content of this entry:
-
-- **Recovery window.** 14 days of nightly dumps means a mistake can be undone up to two weeks later.
-  Three dumps means three days. `docs/runbooks/design-db-restore.md` tells the operator to "pick the
-  newest export at or before the point you're recovering to" — with three files, any corruption
-  noticed on a Thursday that began the previous week is unrecoverable. That is a deliberate trade of
-  recovery depth for storage, and it should be made knowingly rather than as a side effect of tidying.
-- **Which rule wins.** Keeping "the last 3" and "nothing older than 14 days" are different policies.
-  Pick one as authoritative, or state both (keep at least 3, and at most 14 days) so the code has a
-  single answer when they disagree — for example after a fortnight in which the cron did not run.
-
-Storage is the argument for acting: each dump is a full copy of the table, so the folder grows with
-`rows x nights`, and ADR 0019's deferred retention cron means the table itself is currently unbounded
-(SEC-001). Worth noting the two interact — bounding the dumps does not bound what each dump contains.
-
-**Not urgent at current size.** With no real customers the table is small and 14 nightly copies of it
-cost very little. This is a policy decision to take before launch, not a defect.
-
-**DECIDED 2026-08-31: age stays the rule, and a count ceiling was added beside it.**
-
-The owner asked for "keep the last 3" and, after the trade was laid out, chose to keep the 14-day
-window and add a ceiling instead. The reasoning that decided it: the two pressures move in opposite
-directions. Storage is cheap now — the table is nearly empty and a dump is a few kilobytes — and only
-becomes expensive once there are thousands of real designs, which is exactly when losing two weeks of
-recovery depth would hurt most. A window also has to outlast the time it takes somebody to *notice* a
-problem, and nobody watches this daily; three nightly dumps is a three-day window, inside which a
-Friday mistake found the following Wednesday is already unrecoverable, with deletion final and no
-undo.
-
-Shipped as `MAX_RETAINED_BACKUPS = 30` in `apps/web/src/lib/server/backup-designs.ts`, alongside the
-unchanged `BACKUP_RETENTION_DAYS = 14`. Age is authoritative; the ceiling never binds in normal
-nightly operation (steady state is ~14 files) and exists for the abnormal case — a redelivered cron,
-a manual `runDesignsBackup` loop, or any future schedule more frequent than daily — which would
-otherwise grow the folder without bound between one night's rotation and the next. A blob caught by
-both rules is deleted once.
-
-**What this does not bound**, and it is the larger number: the size of each dump. Every file is a
-full copy of `designs`, and the table itself is unbounded until ADR 0019 decision 7's retention cron
-ships at M8 — which is blocked on the credential question recorded in that gate, since no role in the
-system may currently delete.
-
-
 ## 15. A wall cabinet over a full-height column is built to a depth no one manufactures — NEEDS A DECISION
 
 **Reproduced live in the running product at 390 x 844, 2026-08-31**, during wave S9 of the
@@ -937,7 +616,6 @@ whose DOM-002 finding is what the wave was scoped to.
 
 Related: entry 10 is the same seam from the other side — two routes to "a wall cabinet in this slot"
 producing different depths on the uncapped path — and entry 5 is the capped sibling.
-
 
 ## 16. No camera preset frames the right end of wall A's base run at the mobile viewport — NEEDS A DECISION
 
@@ -1078,6 +756,561 @@ validation rule is measured against.
 Not scheduled. Raise it with the owner — it is a one-line change either way and a real decision
 about which artefact is authoritative.
 
+## 23. ADR 0032's refused rows are published but never rendered, and only a code comment says so
+
+Found while closing M5B wave 5B4a (2026-09-01). ADR 0032 — *an entry that does not fit is shown
+disabled with its reason* — is Accepted, and its **domain half ships**: `offersFor` publishes the
+refused entries into the offer list, each carrying the engine's own reason. The **panel drops every
+one of them**: `apps/web/src/panel/panel-model.ts:601`, `input.offers.filter(isOffered)`.
+
+So the customer sees a shorter list, not a disabled row with a sentence. Select a 300 mm empty
+column and the too-narrow rows — `base-sink`, `base-dishwasher`, `base-hob-*`, `tall-*` — are simply
+absent, which is the behaviour ADR 0032 exists to replace.
+
+**This is deliberate and the code says so.** The comment above that filter records that rendering
+the disabled row, its sentence, and its effect on the count line "is the panel's own wave", and that
+the filter "is the seam that wave replaces". Nothing is broken; the work is half-landed on purpose.
+
+**The defect is that the other half was tracked nowhere.** It is not in `STATUS.md`, not in this
+file, and not in any milestone — the only record that ADR 0032 is unfinished was that one comment,
+which no one reads unless they are already in that function. M5B wave 5B4a's criterion 3 was written
+as "shown disabled with a reason, never absent" and its visual verification duly found them absent;
+the criterion had to be corrected to be about the offer list rather than the screen. A record that
+lives only in the code it describes will keep producing criteria nobody can pass.
+
+**What the work is.** Render the refused verdicts as disabled rows with their reasons, and decide
+what they do to the "N corpuri intră" count line — the count is the part with a real choice in it.
+`describeReplaceSection` and `describeOfferRow` are where it lands, and `describeEmptyLine` already
+receives the full unfiltered `input.offers`, so the data is there.
+
+Not scheduled. Worth pairing with the next panel wave rather than done alone.
+
+## 25. A narrow empty column can sit clipped against the frame edge, where nobody will see it
+
+Found by wave 5G's visual verification (2026-09-02). Shrinking `p6` from 600 to 400 splits the freed
+900 mm span into `B|2.30` at 800 mm and `B|2.75` at 100 mm, correctly. At the `Perete B` camera
+preset the 100 mm piece renders at canvas x from about 0 to 22 and is **partly clipped by the left
+frame edge** — the verifier had to enlarge the crop to see the seam at all.
+
+Nothing is wrong with the geometry, the split, or the panel: select the sliver and it explains itself
+("the opening is 100 mm, narrower than the narrowest cabinet in the catalogue... the space may be
+left as it is"). The problem is that a customer who never pans has no reason to select it, because
+they cannot see that it is there.
+
+**It is camera framing, not wave 5G.** The presets were fixed long before an empty column could be
+100 mm wide, and every seeded body is wide enough to sit clear of the frame. What changed is that
+ADR 0052's ceiling makes narrow leftovers a *routine* outcome of an ordinary shrink rather than a
+rarity — so a framing rule that was always slightly tight is now load-bearing.
+
+**Worth pairing with whoever next touches the camera presets.** The narrow question to answer is
+whether a preset should frame the wall run plus a margin, rather than the run's nominal extent, so
+that anything the domain can legally leave at the end of a run is visible without panning.
+
+## 27. An empty-column selection box is drawn deeper than what will actually fit there
+
+Reported by the owner (2026-09-02), from the same left-wall screenshot as entry 26 (freed columns
+flanking a full-height fridge). The dashed selection/highlight box for an empty column is drawn at
+the fridge's own depth for its full height — wall level and base level alike — even though a wall
+cabinet or a base cabinet inserted there would be shallower than a full-height column.
+
+The owner's read: a full-depth box is the right cue **only** where the slot could plausibly take a
+full-height body bottom-to-top with a matching depth at the top (i.e. genuinely as deep as the
+column it sits beside). In every other case — an ordinary wall-cabinet-over-base-cabinet slot next
+to a full-height neighbor — the box overstates the depth of whatever will actually be offered
+there, which is misleading about what the space can hold.
+
+Not yet triaged: need to find where the empty-column highlight geometry is built (likely near the
+picking/selection outline code in `packages/three-adapter`, paired with whatever computes an empty
+column's candidate depth in `packages/configurator-domain`) and check whether the highlight already
+has access to a per-level candidate depth it simply isn't using, or whether it only knows the
+column's nominal (fridge-derived) depth today.
+
+## 28. PROPOSAL: remove all cabinets in a column at once, not one level at a time
+
+Proposed by the owner (2026-09-02), from the cabinet detail panel's "Șterge corpul" (remove body)
+button (Pasul 2/4, `Corp bază 3 sertare`, Perete B). Today removing a column with a wall cabinet
+over a base cabinet over drawers means opening each body's own panel and pressing "Șterge corpul"
+separately, once per level.
+
+**Idea:** add a second action beside "Șterge corpul" — something like "Șterge toată coloana" —
+that removes every body stacked in that column in one action, leaving the whole column empty
+(subject to whatever entries 2/22/25/26 already say about how a freed column then behaves).
+
+Not a bug, not decided. Needs: where the action lives (per-body panel vs. a column-level
+selection), what it does when the column contains a fixture the customer can't remove (an
+appliance, a fixed member), and how it composes with the existing single-body removal command —
+before this becomes a real work item.
+
+## 29. A refresh on the default route loses edits that were already saved to the database
+
+Found while answering the owner's question (2026-09-02) about whether autosave survives a refresh.
+Autosave itself works: every successful command schedules a coalesced save
+(`apps/web/src/store/configurator-store.ts:310,476,490-492` →
+`apps/web/src/persistence/save-coalescer.ts`), which writes to Postgres via `/api/designs` /
+`/api/designs/{id}` (`apps/web/src/persistence/fetch-configuration-repository.ts:33,151-274`), at
+least one save per second, with retry on transient failure. No localStorage is involved.
+
+**The gap is on load, not save.** `/d/{id}` does a real server-side load and hydrates correctly on
+refresh (`apps/web/src/app/d/[id]/page.tsx:19-38`). But the app's actual landing route — `/` →
+`/configurator/configure` (`apps/web/src/app/page.tsx`,
+`apps/web/src/app/configurator/configure/page.tsx`) — never navigates the browser to `/d/{id}`
+after the first edit mints a design row. It always constructs the store from the hardcoded
+`KITCHEN_L_DESIGN` fixture with `designId: null`. So a customer who edits on the default route and
+refreshes loses everything they see, even though every edit up to that point is sitting in
+Postgres under a design id the browser was never given.
+
+`docs/decisions/0010-m3-client-write-path-unwired.md:65-68` defers the shareable-link *surface*
+("before the first edit there is nothing to share"), which is the right call — but the follow-on
+step, navigating to `/d/{id}` once there *is* something to share, doesn't appear to be a tracked
+work item anywhere. `docs/PRODUCT_REQUIREMENTS.md:145-146` lists the shareable link as in-scope but
+the client-side wiring to reach it isn't in any milestone doc found so far. Worth confirming which
+milestone owns this before someone hits it as a support ticket.
+
+**Not the same gap as M8's planned lead-gen link.** M8 (`docs/milestones/M8-review-contact-success.md`)
+already plans a session/shareable identifier and an emailed edit link — but only on the **success
+screen after a contact-form submission**, per ADR 0002 decision 17 ("a design that has never been
+written successfully must not present a shareable link... this binds M8's success screen"). That is
+a lead-gen artifact for a customer who has already asked to be contacted. This entry is about
+ordinary mid-session editing, before any contact submission: the browser is never pointed at
+`/d/{id}` even though the design is already being saved, so a plain refresh loses visible state
+regardless of whether the customer ever reaches M8's flow. Confirmed unscheduled in any milestone
+doc (M3, M4, M8) as of 2026-09-02.
+
+## 30. PROPOSAL: mint the session id at intake (step 1), not on first edit, and redirect there immediately
+
+Proposed by the owner (2026-09-02), as a way to close entry 29 and extend M8's lead-gen link
+earlier in the funnel. Shape of the idea:
+
+1. Step 1 of the wizard (room type, wall sizes, then either an existing mock or a newly generated
+   one) mints a session id **at that point**, before the customer has made a single cabinet edit.
+2. The browser is redirected to that session's own URL immediately — not deferred until a later
+   mutation — so the id exists in the address bar from the start of editing, not after it.
+3. That same id is later attached to the customer's contact details, if and when they submit them,
+   so it can identify their profile/session for lead follow-up.
+4. The session URL is also the shareable link, and loading it restores the saved configuration —
+   which is also what makes a refresh mid-session safe, closing entry 29 as a side effect rather
+   than needing separate work.
+
+**Grounding against the code as of 2026-09-02:**
+- Step 1 does not exist yet. The wizard shows "Pasul 2 din 4" as a hardcoded label
+  (`apps/web/src/content/ro.ts:18`) and a decorative, non-functional "‹ Cameră" back link
+  (`apps/web/src/app/configurator/configure/configure-screen.tsx:45`), but `/` redirects straight
+  into `/configurator/configure` with a comment that room setup "arrives in a later milestone"
+  (`apps/web/src/app/page.tsx:3-6`). There is no room-type/wall-size intake route and no
+  mock-selection UI anywhere in `apps/web/src/app` today — every new design is minted from the
+  single hardcoded `KITCHEN_L_DESIGN` fixture (`apps/web/src/store/configurator-store.ts:17-18,474-475`).
+- Minting itself already happens server-side from that fixture on `POST /api/designs`
+  (`apps/web/src/persistence/fetch-configuration-repository.ts:231-234`), so "mint earlier" is a
+  matter of *when* the client calls that endpoint and redirects, not new mint machinery.
+- **Open question: id format.** The owner's phrasing suggested a UUID v7 (time-ordered). The
+  current id generator is `nanoid()`, chosen deliberately for the opposite property — its own doc
+  comment says "unguessable and non-sequential... never derive one from a counter, a timestamp, or
+  the database's own sequence" (`packages/persistence/src/generate-design-id.ts:1-8`). A v7 UUID
+  embeds a creation timestamp, which cuts against that stated invariant (a leaked/logged id would
+  reveal roughly when a session started, and ids would sort creation-adjacent in a DB scan). Worth
+  a deliberate decision, not an assumption, before swapping the generator — nanoid can stay and
+  still be minted earlier; the "mint earlier" and "which id scheme" choices are independent.
+
+**Depends on / relates to:**
+- Closes entry 29 (default-route refresh loses state) as a side effect, once step 1 exists and
+  redirects.
+- Is the earlier half of M8's already-planned lead-gen link
+  (`docs/milestones/M8-review-contact-success.md`, ADR 0002 decision 17) — M8 attaches a shareable
+  identifier at the *contact-submission* success screen; this proposal would mean that identifier
+  already exists by the time the customer reaches M8, rather than M8 minting fresh.
+- Needs step 1 itself designed and scheduled first (room type, wall sizes, mock selection/generation)
+  — currently pure UI scaffolding, not a real milestone item found in `docs/milestones/` as of
+  2026-09-02.
+
+Not decided. Needs an owner call on: id scheme (keep nanoid vs. adopt v7 and accept the tradeoff),
+whether step 1 mints before or after the wall-size intake is complete, and which milestone this and
+step 1 itself belong to.
+
+## Also open, recorded elsewhere — do not duplicate here
+
+- **Width editing does nothing yet.** Every width chip is `blocked` because §5.4's resize command
+  does not exist. Scheduled, not backlog.
+- **Depth joined M5 on 2026-08-27** and is no longer "M5's entire scope" being width alone. Entry 5's
+  unfinished half (the unlinked cap and nominal) is M5 wave **5A**, and base carcass depth as a
+  formula is wave **5F**. The wave letters were reassigned when that landed —
+  `docs/milestones/M5-width.md` carries the old→new mapping.
+- **The worktop depth control is M6's, not M5's** (owner, 2026-08-27). M5 owns the geometry with the
+  worktop as a declared constant at 600; `docs/milestones/M6-price-and-global-settings.md` work item
+  4 adds the control. Scheduled in both, so it is not backlog in either.
+- **M4's deferred review findings** (the redundant panel test-file split, `advancePast` opening a
+  span no command can produce, the notice remounting on every retry, the write-access probe's
+  doubled read rate that M8's rate limits must be sized against) are recorded in `docs/STATUS.md`
+  under "What is open right now".
+- **The handset pass itself** was open in `docs/STATUS.md` and is now partly done: the scene renders
+  correctly on iOS Safari against production. The items in this file were all found during it.
+- **The mint endpoint is unbounded at the application layer right now** (recorded 2026-08-31).
+  `POST /api/designs` has no application limiter and no active retention; an adversarial review on
+  2026-08-30 reproduced it as SEC-001 (High) and chained it into AV-4 with SEC-002 and DB-002. The
+  owner reaffirmed the M8 / pre-launch deferral on 2026-08-31 — so this is a scheduled, gated
+  decision, not a backlog item. The gate is `docs/milestones/M8-review-contact-success.md` under
+  "Launch gate"; the decisions are ADR 0019 and its 2026-08-31 correction. Until that gate is
+  checked off, do not expose the endpoint to real traffic.
+
+## Resolved
+
+Fixed and shipped. Kept for history only — skip this section unless you are specifically
+researching a past decision.
+
+## 26. A resized column's freed space opens on different sides depending on position — EXPLAINED, NOT A BUG, 2026-09-02
+
+Reported by the owner (2026-09-02), from two screenshots of a left-wall run (wall units, tall
+units, an oven column, and drawer units under a worktop, with a full-height fridge column in the
+middle). A second, wider screenshot showed the freed spaces on both sides of the fridge column
+opening away from it — symmetric, not an isolated left/right inconsistency.
+
+**Checked against the implementation. There is no neighbor-aware rule, and the symmetry is
+coincidental.** Two independent, unconditional conventions produce it:
+
+- **Insert seating** always pins the inserted body's left edge to the column's left edge, so the
+  leftover always lands on the right — `seatAlongColumn`,
+  `packages/configurator-domain/src/commands/insert-fit.ts:710-752`. This is decided, documented
+  policy: [ADR 0046](decisions/0046-adjacent-empty-columns-merge-under-a-cap-and-an-insert-splits-its-column.md#104)
+  records that a "whichever end abuts an occupied column" rule was proposed and the owner
+  explicitly rejected it for unconditional left ("it has no predicate to get wrong, no tie to
+  break").
+- **Resize/shrink funding** always tries the run's right side first, then left
+  (`EMPTY_SPACE_ORDER`, `packages/configurator-domain/src/commands/plan-width-funding.ts:42`), and
+  a freshly-vacated strip with no adjacent empty column defaults to the run's right edge
+  (`VACATED_SPACE_SIDE`, same file:148) — also arbitrary-but-fixed, not neighbor-aware.
+
+The fridge-symmetric look is a side effect of `findAdjacentEmptyColumn`
+(`plan-width-funding.ts:222-249`), which only counts a column as "empty" if it is free at every
+level. A full-height fixture like the fridge can never be, or sit inside, an empty column, so the
+side of a column touching the fridge can never supply or receive funding — the right-then-left
+scan gets forced outward on both sides of a centered full-height unit, which happens to read as
+"opens away from the fridge" in this particular layout. A run without a centered full-height
+blocker would not show the symmetry.
+
+No code change needed. If a neighbor-aware rule is ever wanted, it is a new decision overriding
+ADR 0046, not a bug fix.
+
+## 1. The hob cannot be put back once it is removed — DECIDED 2026-08-26, SHIPPED 2026-08-27
+
+**Decision (owner, 2026-08-26): the hob becomes part of the cabinet body. Two catalogue entries,
+both fixed at 600 mm.**
+
+- **hob + 2 drawers** — the majority case. When the oven lives in a column, the cabinet under the
+  hob is drawers, because that is where the pots go. The seeded kitchen already renders exactly this
+  composite (`base-drawer2-600` + `cooktop-600`), so the geometry exists.
+- **hob + oven** — common in Moldova, where kitchens are smaller and there is no room for an oven
+  column. The `oven()` builder is 596 x 595 x 560 and a base carcass is 820 mm tall, so it fits.
+
+Rejected: a 3-drawer and a doors variant. Each is another builder, entry and test, and both are
+guesses where the two above are known. Adding a third later is cheap once the pattern exists.
+
+Rejected: making the hob insertable as a standalone accessory. The void model has no accessory slot
+— there is no opening at worktop height to offer one from — so it would mean adding a new kind of
+slot to the engine for one fixture.
+
+**The seeded design migrates.** `p2` + `p3` become one hob-bearing body. That leaves the accessory
+machinery — §6.1's host resolution, the delete cascade, `ACCESSORY_MAX_HEIGHT_M`, the `accessory`
+flag — **with no remaining user**, because the hob is the only accessory in the design. The owner's
+direction is to remove what is then unused rather than keep dead machinery.
+
+Verify that at implementation rather than assuming it: confirm nothing else reads `accessory` before
+deleting anything, and note that §11 row 15 ("click the hob selects its host") becomes trivially
+true once the hob *is* the host.
+
+**Multiple ovens are allowed.** A hob+oven base alongside an oven column gives two ovens, and that
+is permitted deliberately — the owner's reasoning: someone who cooks a lot may want two, the kitchen
+has the space, and there is no reason to refuse something buildable. Revisit only if feedback says
+otherwise.
+
+**SHIPPED 2026-08-27 — `docs/decisions/0027-the-hob-is-part-of-the-cabinet.md`.** Both entries are
+built and offered: `base-hob-2drawer` ("Corp plită și 2 sertare") and `base-hob-oven` ("Corp plită și
+cuptor"), fixed at 600 mm, composed from `baseCabinet`, `builders.cooktop()` and `builders.oven()`
+with no new geometry. The seeded `p2` + `p3` are one placement (`base-hob-2drawer-600`); `p3`'s id is
+retired rather than reused. The kitchen is unchanged, proven three ways: identical derived state,
+330 identical rendered meshes against the M1 reference, and byte-identical 1440 x 900 screenshots.
+
+~~**The accessory machinery was deliberately NOT removed**, which amends the paragraph above.~~
+**Removed on 2026-08-28** — the question this paragraph said the deletion wave must decide first is
+answered by [ADR 0038](decisions/0038-pre-release-no-stored-designs-no-migrations.md): nothing has
+ever been stored, so there are no pre-migration documents to migrate or support. §6.1's host
+resolution, §5.1's cascade, `ACCESSORY_MAX_HEIGHT_M`, the `accessory` flag and `cascadedAccessoryIds`
+are all deleted, along with the `cooktop-600` entry itself. Do not re-decide this from ADR 0027's
+closing paragraph; ADR 0038 supersedes it.
+
+Confirmed at implementation, as the entry asked: **the hob was the only accessory** (`p3` at 40 mm;
+the next shortest body is 400 mm, so `ACCESSORY_MAX_HEIGHT_M` has no near-miss), and **§11 row 15 is
+now trivially true** — the hob is a child mesh of its cabinet's group, so a click resolves to the
+cabinet through `climbToSelectable` without §6.1's accessory rule being consulted, and there is no
+hob placement to offer a delete on.
+
+---
+
+## 3. Telling cabinets apart in the replace list — DECIDED 2026-08-26, SHIPPED
+
+**Decision (owner, 2026-08-26): no filter chips. Cabinet thumbnails instead — and they shipped.**
+
+The owner's own framing: filters are not needed at 3-6 rows, but "especially the base" list mixes
+base cabinets with full-height columns, and an icon would let you tell them apart fast.
+
+The design already answered that better than a glyph would: mockup frame 2B gives every row a
+54 x 54 front-elevation drawing. Those 18 drawings existed only in `design-source/`, which is
+untracked and marked for deletion; five more were commissioned (`base-panbank`, `wall-lift`,
+`tall-fridge-housing`, `base-hob-2drawer`, `base-bottle-cargo`), and all 23 are now vendored into
+`apps/web/public/cabinets/` under version control.
+
+Three of the five replaced drawings the prototype had **reused from a different cabinet**, which was
+wrong on screen — `wall-lift` looked like a glass door, `tall-fridge-housing` like a freestanding
+appliance. That last pair took two passes: the first revision was right at full size and unreadable
+at the real 54 px tile, where both were tall boxes with a horizontal split. They appear in the *same*
+list meaning opposite things, so confusing them means ordering the wrong product.
+
+The distinction the owner asked for works: because the tile scales by height, a 700-tall column
+drawing renders tall and narrow against a 310-tall base drawing. Verified at both viewports.
+
+**§13.3 q1 is still open and was NOT decided here.** The original concern stands — the prototype's
+chips were hand-authored per kind, and unifying swap sets with the fit-filtered catalogue would have
+required deriving them from traits the domain does not record. Thumbnails sidestep that entirely:
+they key off `buildId`, which exists either way. So q1 can be decided on its own merits later.
+
+---
+
+### Original finding, kept for context
+
+**Reported:** 2026-08-26, owner.
+"In the reference, when you click a cabinet and it shows the alternatives, there were filters at the
+top of that list — one door, two doors, columns and so on. Why were they not implemented?"
+
+**Not a decision. An omission**, and it is worth being precise about how it happened: §9 is the
+authoritative behavioural contract, and its replace-section clause lists only the band's swap set,
+the **ACTUAL** badge, the derived count line and the zero-result sentence. The chips appear in
+mockup frame 2B and in no spec section. M4 was built from §9, and the mockup was not reconciled
+against it — even though M4's own reference line names frames 2A/2B/2C as source material.
+
+**What they actually are**, read out of `Lemnaria Configurator Mobil.dc.html`:
+
+```js
+const chips = arr => arr.map((label, i) => ({ label, on: i === 0, off: i !== 0 }));
+base_cabinet:      chips(['Toate 5', 'Cu uși 3', 'Sertare 1', 'Cu instalații 1'])
+wall_cabinet:      chips(['Toate 5', 'Cu uși 3', 'Deschise 1', 'Electro 1'])
+open_shelf_unit:   chips(['Toate 6', 'Cu uși 3', 'Deschise 2', 'Sticlă 1'])
+tall_unit:         chips(['Toate 3', 'Depozitare 1', 'Electro 2'])
+dishwasher_housing:chips(['Toate 3', 'Cu instalații 1', 'Depozitare 2'])
+extractor_hood:    chips(['Toate 3', 'Vizibile 2', 'Încorporate 1'])
+```
+
+Sub-type filters *within* an already band-scoped swap set — by door, drawer, plumbed, appliance —
+each carrying its own count, defaulting to "Toate N".
+
+Two properties of the prototype matter for deciding this:
+
+- They are **hand-authored per kind**, not derived from any body property. Nothing in the domain
+  model today records "has doors" versus "has drawers" as a filterable trait.
+- They are **inert in the prototype**. Rendered as `<span>` with a static `on: i === 0` and no click
+  handler. The mockup shows the affordance; it never proved the interaction.
+
+**The case is weaker than it looks, and the reason is measured.** Offer-list lengths on the real
+catalogue: base **6** rows, wall **5**, top **4**, column **3**, the fridge slot **1**. §13.1 killed
+pagination on exactly this arithmetic — *"20 catalogue items reduce to ~6 valid ones and there is
+nothing left to paginate"* — and recorded that its pager *"ate 82 px of sheet height"* on mobile. A
+chip row costs about the same 44 px and would narrow 5 rows to 3.
+
+**It also collides with an open question.** §13.3 q1 asks whether the hand-authored per-kind swap
+sets should be replaced by the fit-filtered catalogue. These chips are per-kind hand-authored sets.
+Unify the lists and the chips would have to be **derived** from body traits the model does not
+currently carry — so deciding the chips before q1 would be deciding it twice.
+
+**Decision needed**, in this order: settle §13.3 q1 first; then decide whether filters earn their
+vertical space at 3-6 rows; and only then, if yes, decide what trait the domain must publish for
+them to be derived rather than authored.
+
+---
+
+## 9. A hood round trip costs a wall opening 100 mm of depth, permanently — CLOSED 2026-08-30
+
+**Found by logic review, 2026-08-26; new with wave A.** Over a full-height column, where §7's cap is
+lifted, a hood round trip costs the opening 100 mm for good. Measured on `p24` — the 700 mm cabinet
+over the freestanding fridge, the one wall opening in the shipped kitchen tall enough to take a
+710 mm hood — with the real builders and the real probe:
+
+```
+p24 -> wall-2door  600 mm
+    -> hood        500 mm
+    -> wall-2door  500 mm      <-- 600 never comes back
+    -> hood        500 mm
+    -> wall-2door  500 mm
+```
+
+The domain's own tests cannot see it: a fake probe reports back the depth it was handed, so the same
+sequence reads 600 throughout. Only the real probe measures what `make.hood` actually built.
+
+**Why.** `openingFromPlacement` takes the opening's depth from the outgoing body's own
+`record.frame.d` (ADR 0018, and the swap-depth fix that put it there). `make.hood(w, chimneyH)` in
+`kitchen-parts.ts` takes **no depth parameter at all** — its canopy is a hardcoded 0.5 m box — so the
+hood ignores the depth it is handed, the probe measures 500, and 500 is what gets recorded as its
+`seatDepthMm`. Swap the hood back out and the opening now measures 500, so the replacement builds
+500.
+
+It **converges** rather than oscillating — a second round trip changes nothing — so it is one 100 mm
+loss and not a runaway. Arguably it is correct: the opening genuinely is 500 mm deep once a hood is
+standing in it. But it is a permanent, invisible 100 mm the customer did not ask for, and the swap
+that produced it was supposed to be the operation that stopped changing depths.
+
+Related: the same mechanism is why a placed body's depth never re-derives — see entry 5's closing
+paragraph.
+
+**CLOSED 2026-08-30, in the opposite direction from what this entry assumed.**
+[ADR 0039](decisions/0039-the-hood-is-a-standard-depth-hung-at-the-front.md) decision 1 makes the
+hood's depth **standard** — *"hood is always standard"*, 500 at a 600 mm kitchen and 500 at a 700 mm
+one — so `make.hood` is *right* to ignore the depth it is handed and giving it a depth parameter is
+explicitly rejected. What had to move is the **seat**: decision 2 hangs the hood at the front, its
+face on the 600 mm cabinet-depth line, with the 100 mm gap behind it.
+
+The leak this entry measured is closed by
+[ADR 0040](decisions/0040-a-recorded-seat-is-converted-back-not-read-as-a-depth.md): the opening a
+body vacates is read through `occupiedDepthM`, which answers the cabinet-depth line for a hood
+instead of the hood's own `frame.d`. Shipped in M5 wave 5F. `p24`'s round trip now returns the 600
+this entry says "never comes back", and the domain's own tests can see it because the fake probe was
+taught the two seats the real one measures — which is the half of this entry's diagnosis that was
+right and still is.
+
+~~**Still open, and now a named question inside M5 (2026-08-27).**~~ The owner's worktop-depth rule
+(entry 5's second half) governs wall depth through a map, and whether the hood follows it is
+**question 1** in `docs/milestones/M5-width.md`'s *Not established — Depth*. The two are one
+decision: putting the hood in the map means giving `make.hood` a depth parameter, which is what this
+entry says it lacks. M5 wave 5A pins `hood-600` at 500 as a regression **precisely because the
+question is open** — the day it is decided, that assertion changes deliberately.
+
+---
+
+## 11. `base-dishwasher` offers a finish and a handle it has neither of — DECIDED 2026-09-01, SHIPPED
+
+**Decided by the owner on 2026-09-01: give the niche a decor door**, not the one-line
+`canFinish: false, canHandle: false` this entry named — following Q6 and
+[ADR 0050](decisions/0050-the-hob-oven-filler-is-a-finishable-front.md), and recorded on this body's
+own terms as [ADR 0051](decisions/0051-the-dishwasher-niche-wears-a-decor-door.md). Shipped as M5B
+wave 5B10. The product question this entry said to ask first is what got asked, and the answer was
+the one it predicted: *the flags were right all along and the geometry is what is missing.*
+
+What landed: `dishwasherHousing` builds its own `door_front` with `doorSlab` at `baseCabinet`'s
+anchors, so it is flush with its neighbours by construction and `FRONT_MESH_NAME` reaches it with no
+rename; the appliance inside a housing is built **fully integrated** (`dw_body` only), so the only
+handle left in the body is the door's and `handle: "push"` hides a cabinet's bar rather than a
+dishwasher's; neither flag changed; occupied depth followed the geometry down 632 → 620 mm and the
+580 mm seat did not move; both ids left `RECORDED_CAPABILITY_GAPS`, which is now empty. M1's 1e-6 m
+parity gate was re-baselined per ADR 0036's rule — each added and removed node declared with its
+parent and count — never relaxed.
+
+**Its `tall-oven-tower` tail is deferred and lives on as entry 18**, because closing this entry must
+not delete the only pointer to it.
+
+### The finding, as recorded before it was decided
+
+Found 2026-08-27 by the catalogue-wide capability gate added with ADR 0027's amendment
+(`packages/three-adapter/tests/catalog-capability-parity.test.ts`), which asserts that a row
+declaring `canFinish` has a front to recolour and a row declaring `canHandle` has a **cabinet**
+handle — one whose group also holds the front it opens, as against an appliance's own.
+
+`base-dishwasher` builds an open niche: plinth, two sides, a back panel, a worktop, and
+`builders.dishwasher` inside it. It has no `door_front` and no handle of its own, yet inherits
+`canFinish: true, canHandle: true` from `INSERTABLE_DEFAULTS`. Measured consequences are the ones
+`base-hob-oven` had before it was fixed in the same pass: the five finish chips recolour nothing,
+and `handle: "push"` hides the **dishwasher's** own bar.
+
+It is the identical defect to `base-hob-oven`'s and the identical one-line fix — `canFinish: false,
+canHandle: false`, the way `open-shelf` and `hood` already declare. It is here rather than fixed
+because the owner scoped that wave to the new entry. Until it is decided the id is pinned in the
+gate's `RECORDED_CAPABILITY_GAPS`, and that pin asserts the defect is **still present**, so the day
+someone repairs the row the gate goes red and the pin comes out with it.
+
+**Two ids, one defect.** Since 2026-08-27 the gate covers the seeded population as well, and
+`base-dishwasher-600` — the seeded instance, whose builder arm is `kit.builders["base-dishwasher"]()`
+verbatim — is on the list beside it for the same reason. Whichever way this is decided, both move
+together. The four other violations the extended gate found (`fridge-free-700`, `open-shelf-600`,
+`hood-600`, `cooktop-600`) were fixed in that pass; see ADR 0027's amendment.
+
+**The product question worth asking first**, since it is the reason someone might not want the
+one-line fix: an integrated dishwasher in a real kitchen usually wears a decor door matching the
+cabinets. If that is wanted, the answer is not to turn the flags off but to give the builder a
+front — in which case the flags were right all along and the *geometry* is what is missing.
+`tall-oven-tower` has related appliance-handle exposure (`push` hides its oven's and microwave's
+bars alongside its two real door handles) and was scoped out of the same wave; it belongs to
+whoever owns §6.5.
+
+**Q6 answered the product question this entry says to ask first — for the other body (2026-09-01).**
+M5B wave 5B6 met the identical choice on `base-hob-oven` and the owner chose **give it a front**,
+not turn the flags off: [ADR 0050](decisions/0050-the-hob-oven-filler-is-a-finishable-front.md). That
+is precedent, not a ruling on this row — a hob band's filler panel and an integrated dishwasher's
+decor door are different products — but it does mean the "one-line fix" framing above is no longer
+the neutral default. Whoever picks this up should read ADR 0050 before assuming
+`canFinish: false, canHandle: false` is what the owner wants.
+
+**Confirmed live at the mobile viewport, 2026-09-01** by visual verification of that wave. The niche
+fascia stays `222,223,221` under all four finishes while its immediate neighbour tracks each one,
+and the chip still records the pick (`finish-graphite` → `aria-pressed="true"`, no rejection). So the
+customer is told the choice was accepted and nothing changes — which is exactly the complaint that
+opened Q6, still live on this body. `dishwasherHousing` (`packages/three-adapter/src/kitchen-parts.ts:1438`)
+builds no `door_front`/`drawer_front` mesh, so `FRONT_MESH_NAME` reaches nothing.
+
+## 14. Keep only the last few database dumps — DECIDED 2026-08-31, SHIPPED 2026-08-31
+
+Owner's request, 2026-08-31: the nightly export should keep only the **last 3 dumps** rather than
+letting them accumulate.
+
+**What is actually true in the code.** Rotation already exists and already deletes — it is just
+keyed on age, not on count. `apps/web/src/lib/server/backup-designs.ts:20` sets
+`BACKUP_RETENTION_DAYS = 14`, and `rotateOldBackups` (`:350`) deletes every blob under
+`backups/designs/` whose timestamp is older than that cutoff. The cron runs nightly, so steady state
+is roughly **14 files**, one per night, each a full NDJSON copy of the `designs` table. Rotation runs
+only after a successful export and its failure is reported separately as `rotation-failed`, so a
+failed rotation never masks a missing backup.
+
+Since wave S5 each pathname is `backups/designs/<ISO timestamp>-<8 hex>.ndjson`. The timestamp still
+leads and is fixed width, so a listing remains in chronological order and "newest last" holds —
+count-based rotation can sort on the same listing rotation already fetches, and needs no new call.
+
+**What deciding it costs.** The change itself is small: replace the age cutoff with "sort the
+listing, keep the newest N, delete the rest", plus a test for the boundary (exactly N present, N+1
+present, and a run that produced no new export). Two things need deciding with it, and they are the
+real content of this entry:
+
+- **Recovery window.** 14 days of nightly dumps means a mistake can be undone up to two weeks later.
+  Three dumps means three days. `docs/runbooks/design-db-restore.md` tells the operator to "pick the
+  newest export at or before the point you're recovering to" — with three files, any corruption
+  noticed on a Thursday that began the previous week is unrecoverable. That is a deliberate trade of
+  recovery depth for storage, and it should be made knowingly rather than as a side effect of tidying.
+- **Which rule wins.** Keeping "the last 3" and "nothing older than 14 days" are different policies.
+  Pick one as authoritative, or state both (keep at least 3, and at most 14 days) so the code has a
+  single answer when they disagree — for example after a fortnight in which the cron did not run.
+
+Storage is the argument for acting: each dump is a full copy of the table, so the folder grows with
+`rows x nights`, and ADR 0019's deferred retention cron means the table itself is currently unbounded
+(SEC-001). Worth noting the two interact — bounding the dumps does not bound what each dump contains.
+
+**Not urgent at current size.** With no real customers the table is small and 14 nightly copies of it
+cost very little. This is a policy decision to take before launch, not a defect.
+
+**DECIDED 2026-08-31: age stays the rule, and a count ceiling was added beside it.**
+
+The owner asked for "keep the last 3" and, after the trade was laid out, chose to keep the 14-day
+window and add a ceiling instead. The reasoning that decided it: the two pressures move in opposite
+directions. Storage is cheap now — the table is nearly empty and a dump is a few kilobytes — and only
+becomes expensive once there are thousands of real designs, which is exactly when losing two weeks of
+recovery depth would hurt most. A window also has to outlast the time it takes somebody to *notice* a
+problem, and nobody watches this daily; three nightly dumps is a three-day window, inside which a
+Friday mistake found the following Wednesday is already unrecoverable, with deletion final and no
+undo.
+
+Shipped as `MAX_RETAINED_BACKUPS = 30` in `apps/web/src/lib/server/backup-designs.ts`, alongside the
+unchanged `BACKUP_RETENTION_DAYS = 14`. Age is authoritative; the ceiling never binds in normal
+nightly operation (steady state is ~14 files) and exists for the abnormal case — a redelivered cron,
+a manual `runDesignsBackup` loop, or any future schedule more frequent than daily — which would
+otherwise grow the folder without bound between one night's rotation and the next. A blob caught by
+both rules is deleted once.
+
+**What this does not bound**, and it is the larger number: the size of each dump. Every file is a
+full copy of `designs`, and the table itself is unbounded until ADR 0019 decision 7's retention cron
+ships at M8 — which is blocked on the credential question recorded in that gate, since no role in the
+system may currently delete.
+
 ## 22. A partly emptied column forgets what it freed, and UX-2 is only half closed — CLOSED 2026-09-02
 
 **CLOSED by M5 wave 5H — [ADR 0053](decisions/0053-the-design-document-records-the-whole-frozen-map.md).**
@@ -1134,35 +1367,6 @@ size it against this route, not the original one.
 delete and for a column refilled after clearing.** Whoever picks this up is deciding whether the document records the frozen map or only its
 empty members, and that is an ADR, not a work item. Gap D's own 2026-08-26 correction is the
 precedent for recording "one design, two answers by route" as its own decision.
-
-## 23. ADR 0032's refused rows are published but never rendered, and only a code comment says so
-
-Found while closing M5B wave 5B4a (2026-09-01). ADR 0032 — *an entry that does not fit is shown
-disabled with its reason* — is Accepted, and its **domain half ships**: `offersFor` publishes the
-refused entries into the offer list, each carrying the engine's own reason. The **panel drops every
-one of them**: `apps/web/src/panel/panel-model.ts:601`, `input.offers.filter(isOffered)`.
-
-So the customer sees a shorter list, not a disabled row with a sentence. Select a 300 mm empty
-column and the too-narrow rows — `base-sink`, `base-dishwasher`, `base-hob-*`, `tall-*` — are simply
-absent, which is the behaviour ADR 0032 exists to replace.
-
-**This is deliberate and the code says so.** The comment above that filter records that rendering
-the disabled row, its sentence, and its effect on the count line "is the panel's own wave", and that
-the filter "is the seam that wave replaces". Nothing is broken; the work is half-landed on purpose.
-
-**The defect is that the other half was tracked nowhere.** It is not in `STATUS.md`, not in this
-file, and not in any milestone — the only record that ADR 0032 is unfinished was that one comment,
-which no one reads unless they are already in that function. M5B wave 5B4a's criterion 3 was written
-as "shown disabled with a reason, never absent" and its visual verification duly found them absent;
-the criterion had to be corrected to be about the offer list rather than the screen. A record that
-lives only in the code it describes will keep producing criteria nobody can pass.
-
-**What the work is.** Render the refused verdicts as disabled rows with their reasons, and decide
-what they do to the "N corpuri intră" count line — the count is the part with a real choice in it.
-`describeReplaceSection` and `describeOfferRow` are where it lands, and `describeEmptyLine` already
-receives the full unfiltered `input.offers`, so the data is there.
-
-Not scheduled. Worth pairing with the next panel wave rather than done alone.
 
 ## 24. The e2e suite went six days without being run, and a rename had silently broken it — CLOSED
 
@@ -1287,49 +1491,3 @@ have changed since the e2e spec was last touched. The third is the narrowest and
 exactly this.
 
 Not scheduled. Worth deciding before the next milestone closes on an unrun gate.
-
-## 25. A narrow empty column can sit clipped against the frame edge, where nobody will see it
-
-Found by wave 5G's visual verification (2026-09-02). Shrinking `p6` from 600 to 400 splits the freed
-900 mm span into `B|2.30` at 800 mm and `B|2.75` at 100 mm, correctly. At the `Perete B` camera
-preset the 100 mm piece renders at canvas x from about 0 to 22 and is **partly clipped by the left
-frame edge** — the verifier had to enlarge the crop to see the seam at all.
-
-Nothing is wrong with the geometry, the split, or the panel: select the sliver and it explains itself
-("the opening is 100 mm, narrower than the narrowest cabinet in the catalogue... the space may be
-left as it is"). The problem is that a customer who never pans has no reason to select it, because
-they cannot see that it is there.
-
-**It is camera framing, not wave 5G.** The presets were fixed long before an empty column could be
-100 mm wide, and every seeded body is wide enough to sit clear of the frame. What changed is that
-ADR 0052's ceiling makes narrow leftovers a *routine* outcome of an ordinary shrink rather than a
-rarity — so a framing rule that was always slightly tight is now load-bearing.
-
-**Worth pairing with whoever next touches the camera presets.** The narrow question to answer is
-whether a preset should frame the wall run plus a margin, rather than the run's nominal extent, so
-that anything the domain can legally leave at the end of a run is visible without panning.
-
-## Also open, recorded elsewhere — do not duplicate here
-
-- **Width editing does nothing yet.** Every width chip is `blocked` because §5.4's resize command
-  does not exist. Scheduled, not backlog.
-- **Depth joined M5 on 2026-08-27** and is no longer "M5's entire scope" being width alone. Entry 5's
-  unfinished half (the unlinked cap and nominal) is M5 wave **5A**, and base carcass depth as a
-  formula is wave **5F**. The wave letters were reassigned when that landed —
-  `docs/milestones/M5-width.md` carries the old→new mapping.
-- **The worktop depth control is M6's, not M5's** (owner, 2026-08-27). M5 owns the geometry with the
-  worktop as a declared constant at 600; `docs/milestones/M6-price-and-global-settings.md` work item
-  4 adds the control. Scheduled in both, so it is not backlog in either.
-- **M4's deferred review findings** (the redundant panel test-file split, `advancePast` opening a
-  span no command can produce, the notice remounting on every retry, the write-access probe's
-  doubled read rate that M8's rate limits must be sized against) are recorded in `docs/STATUS.md`
-  under "What is open right now".
-- **The handset pass itself** was open in `docs/STATUS.md` and is now partly done: the scene renders
-  correctly on iOS Safari against production. The items in this file were all found during it.
-- **The mint endpoint is unbounded at the application layer right now** (recorded 2026-08-31).
-  `POST /api/designs` has no application limiter and no active retention; an adversarial review on
-  2026-08-30 reproduced it as SEC-001 (High) and chained it into AV-4 with SEC-002 and DB-002. The
-  owner reaffirmed the M8 / pre-launch deferral on 2026-08-31 — so this is a scheduled, gated
-  decision, not a backlog item. The gate is `docs/milestones/M8-review-contact-success.md` under
-  "Launch gate"; the decisions are ADR 0019 and its 2026-08-31 correction. Until that gate is
-  checked off, do not expose the endpoint to real traffic.

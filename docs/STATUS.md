@@ -624,6 +624,22 @@ automatically; Root Directory `apps/web`, Next.js preset, Node 24. The backup cr
 Verified live: `/configurator/configure` serves 200, and the cron endpoint returns 401 to an
 unauthenticated caller and to a wrong bearer token — it fails closed.
 
+**Local development now has a working database, 2026-09-02.** `pnpm dev` failed outright with
+`DATABASE_URL environment variable is not set`, because `next dev` reads `.env*.local` only from
+`apps/web` and the repo-root `.env.local` `vercel env pull` writes is invisible to it. A new,
+gitignored `apps/web/.env.local` points local development at `lemn-conf-v2-preview` — the same
+database Vercel preview deploys write to, under the same least-privilege `app_designs` role
+production runs as. Production and the destructive test database (`lemn-conf-v2-staging`) were both
+rejected as dev targets; a fourth dedicated branch was rejected because the Neon free tier's
+child-branch limit is already reached. See
+[ADR 0054](decisions/0054-local-development-writes-to-the-preview-database.md). Finding it out
+surfaced a second, independent gap: `lemn-conf-v2-preview` had never been migrated and was three
+migrations behind, so **every Vercel preview deploy had been failing since `0002` landed**, unnoticed
+— fixed by running the migration by hand; see
+[ADR 0009](decisions/0009-deployment-configuration-gaps.md)'s 2026-09-02 amendment. **Nothing
+automates migrating preview today**, so the next migration recreates the same breakage there unless
+that is addressed first.
+
 ## The security decision is made — ADR 0019
 
 **ADR 0014 is superseded.** The unauthenticated write surface (S1), the unauthenticated mint (S3)
