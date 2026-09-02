@@ -171,9 +171,13 @@ jobs:
   e2e:
     name: e2e
     runs-on: ubuntu-latest
-    # Longer than `test` (15): this one builds nothing but boots a dev server and
-    # drives a real browser through it. ~1 minute locally, and a cold runner is
-    # slower at both halves.
+    # Longer than `test` (15): this one produces a production build and drives a
+    # real browser through it. On CI `playwright.config.ts` serves `next build &&
+    # next start` rather than `next dev`, because dev compiles each route on its
+    # first request and a runner pays that inside each spec's own timeout — which
+    # is what made the first run here take 13.3 minutes, `signature-flow` alone
+    # accounting for 5.8 of them, with three specs failing on the 30 s default
+    # while doing nothing wrong.
     timeout-minutes: 25
     # **`test`, not just `install`** — the two share one Neon database and would
     # otherwise run in parallel. The live persistence suites execute DDL on the

@@ -1205,6 +1205,19 @@ compile landed inside a 30 s test rather than the 60 s startup window — harmle
 cache, an intermittent timeout on a cold runner. Now it waits on the page the specs actually open.
 Retries were considered and rejected: a retry hides a flake instead of fixing it.
 
+**And a third, found only by running it on a real runner (2026-09-02).** The first CI run took
+**13.3 minutes** — `signature-flow` alone 5.8 of them, against about one minute for the whole suite
+locally — and three specs failed on the 30 s default timeout while doing nothing wrong. The cause is
+`next dev`: it compiles each route on first request, so on a two-core runner with a cold Turbopack
+cache every spec that opens a new page pays a compile inside its own timeout. Fixed by serving a
+**production build on CI** (`next build && next start`) and keeping `next dev` locally, where the
+trade is reversed — a build would add a minute to a suite that finishes in one, and a developer wants
+the tree they are editing. The per-test timeout is raised to 120 s on CI as well; `retries` was again
+declined for the same reason as before. Verified by running the CI path locally (`CI=1 pnpm
+test:e2e`): 21 passed in 1.2 minutes *including* the build, with the previously failing
+`editor-rail.desktop:278` passing in 6.4 s. It is also the more honest target — a production build is
+what Vercel serves.
+
 **One thing to know before widening the failure artifact.** A Playwright trace records response
 headers, and `POST /api/designs` returns the write token in `Set-Cookie` — so a failure artifact
 carries a live write token for a *test-database* row. Acceptable here (private repo, 7-day
