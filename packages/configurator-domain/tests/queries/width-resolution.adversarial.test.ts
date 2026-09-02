@@ -35,6 +35,7 @@ import {
   CABINETRY_CHIPS_MM,
   HINGED_CHIPS_MM,
   HOOD_CHIPS_MM,
+  PANTRY_CHIPS_MM,
   SINK_CHIPS_MM,
 } from "../support/width-model.js";
 import type { BodyCatalog, BodyDefinition } from "../../src/void-engine.js";
@@ -457,7 +458,9 @@ const SET_BY_RESOLVED_ENTRY: Readonly<Record<string, readonly number[]>> = {
   hood: HOOD_CHIPS_MM, // ADR 0035 decision 5: floored at 600
   "base-hob-2drawer": [600],
   "tall-oven-tower": [600],
-  "tall-pantry": [600],
+  // ADR 0048: the one full-height row that is a bound rather than a single width, because it is
+  // the one with no appliance inside it fixing its size.
+  "tall-pantry": PANTRY_CHIPS_MM,
   "fridge-free": [700],
   // ADR 0033: **one row where there were two**, and which door count a customer gets follows the
   // width they choose. Its chips have no gap left: ADR 0029's two-door floor went with the ladder
@@ -604,7 +607,9 @@ describe("canWidth stays §9's literal rule, whatever the set says", () => {
       .filter((record) => record.fixedWidth)
       .filter((record) => metaFor(world, record.id).sizesMm.length > 0)
       .map((record) => record.id);
-    expect(fixedWithSets).toEqual(["p2", "p5", "p6", "p7", "p13"]);
+    // `p6` left this list at ADR 0048: the seeded pantry is resizable, so its set is no longer
+    // inert — it is the stepper the customer uses.
+    expect(fixedWithSets).toEqual(["p2", "p5", "p7", "p13"]);
     for (const id of fixedWithSets) {
       expect([id, metaFor(world, id).canWidth]).toEqual([id, false]);
     }

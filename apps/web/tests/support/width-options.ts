@@ -20,7 +20,9 @@ import type { WidthChoiceSection, WidthSection } from "@/panel/panel-model";
 function refusedBecauseNotResizable(label: string): WidthOption["verdict"] {
   return {
     status: "refused",
-    reason: { code: "NOT_RESIZABLE", params: { label } },
+    // `cause` is required since 5B5's logic review, and `unresolvable` is the honest value for a
+    // fixture: nothing here is a cabinet the catalogue declares is made at one width.
+    reason: { code: "NOT_RESIZABLE", params: { label, cause: "unresolvable" } },
   };
 }
 

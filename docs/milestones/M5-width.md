@@ -587,8 +587,11 @@ State invariants and what must not happen. Rows are `DEVELOPMENT-SPEC.md` §11.
 > **SUPERSEDED 2026-08-27 by [ADR 0031](../decisions/0031-a-resize-moves-a-whole-column-into-adjacent-empty-space.md).**
 > These criteria describe §5.4's donor rule, which is replaced. Read ADR 0031's *Consequences* for how
 > §11 rows 9–11 are re-read against the new rule: **row 9**'s boundary arithmetic still holds with the
-> empty column in the neighbour's place; **row 10**'s floor still binds, as the empty column may not
-> be left under `MIN_W`; **row 11 becomes vacuous rather than false**, because nothing donates any
+> empty column in the neighbour's place; ~~**row 10**'s floor still binds, as the empty column may not
+> be left under `MIN_W`~~ — **SUPERSEDED 2026-09-01 by
+> [ADR 0043](../decisions/0043-an-empty-space-of-any-width-is-a-legal-state.md): no floor binds the
+> empty column in either direction, and a growth is legal for any remainder at or above zero;
+> **row 11 becomes vacuous rather than false**, because nothing donates any
 > more. Rows 12, 13 and 14 are unchanged in intent, and row 12 now covers **every member of the
 > resized column**.
 >
@@ -608,12 +611,18 @@ State invariants and what must not happen. Rows are `DEVELOPMENT-SPEC.md` §11.
   space.
 - **Row 9.** Resizing 600 → 800 beside a 600 mm neighbour leaves the neighbour at 400 and both outer
   edges unmoved.
-- **Row 10.** 600 → 1000 is not offered, because it would push the neighbour under 300. The row's
+- ~~**Row 10.** 600 → 1000 is not offered, because it would push the neighbour under 300. The row's
   own reason, and it is true: `MIN_W` stays at 300 (2026-08-26 decision, below). A second reason
   holds independently — 1000 mm is in no chip set at all (§7, §13.1: two doors top out at 800) — so
   a test that only ever exercises 1000 proves the weaker of the two. Exercise the floor with a width
   that *is* offered: 600 → 800 beside a 400 mm neighbour must be refused, because 400 − 200 = 200 is
-  under `MIN_W`.
+  under `MIN_W`.~~
+  **SUPERSEDED 2026-09-01 by [ADR 0043](../decisions/0043-an-empty-space-of-any-width-is-a-legal-state.md).**
+  There is no floor to exercise. The worked example inverts: 600 → 800 beside a 400 mm empty column
+  is **accepted**, and the 200 mm left over is a legal gap
+  (`tests/commands/set-width.test.ts`, "accepts growth that leaves the empty column under MIN_W").
+  Row 10's *outcome* survives on its second reason alone — 1000 mm is in no chip set and is above
+  §7's 800 mm ceiling — which is why the row is marked rather than deleted.
 - **Row 11.** Beside a corner or an appliance every chip is blocked: corners and accessories never
   donate. Reachable on the shipped design in both directions — `p25` (`base-corner-x-900`, wall A,
   0–900 mm) is `p0`'s left neighbour since ADR 0025, and `p4` at 2900–3500 has no right neighbour at
@@ -796,6 +805,17 @@ ADR 0024 says to revisit it here, and §5.4 is where a §9 control can legitimat
   the 420 px rail. §10.1 holds by construction — the branch is CSS only.
 
 ## Waves
+
+**Two more since 2026-09-02 — 5G and 5H, planned in [`M5-frozen-map.md`](M5-frozen-map.md).** 5G
+closes **Q5** (800 mm becomes the ceiling on any empty column, and a shrink that frees more splits
+it); 5H closes **backlog 22** (the design document records the whole frozen map). Both run **before
+5E**, which photographs the width surface 5G changes.
+
+**Q5 closed 2026-09-02 by [ADR 0052](../decisions/0052-800-mm-is-the-ceiling-on-any-empty-column.md).**
+Wave 5G shipped: `MAX_EMPTY_COLUMN_WIDTH_MM = 800` bounds every empty column, from every producer —
+the merge, a shrink's release, and a v1 document's migration. A shrink that would free more than the
+ceiling splits into two columns rather than leaving one with no bound. Not widened a fifth time. 5H
+remains open.
 
 **Six since 2026-08-27**, because the work does not fit one dispatch under `docs/WORKFLOW.md`'s limit
 (about five must-fix items and five production files). Each names its review tier, so the choice is

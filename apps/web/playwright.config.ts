@@ -10,6 +10,10 @@ import {
 // have anything to compare against; without it the guard can only pass vacuously (finding DB-001).
 loadEnvLocal();
 
+/** GitHub Actions sets `CI`; nothing else here does. Read once, so the server
+ *  command and the timeouts cannot disagree about which machine they are on. */
+const isContinuousIntegration = process.env.CI !== undefined;
+
 const PORT = Number(process.env.E2E_PORT ?? 4320);
 // `localhost`, not `127.0.0.1`: Next's dev server (Turbopack) 403s static chunk requests whose
 // Host doesn't match the origin it printed as "Local" at boot.
@@ -23,6 +27,14 @@ export default defineConfig({
   testMatch: "**/*.e2e.spec.ts",
   fullyParallel: false,
   retries: 0,
+  // A CI runner is roughly ten times slower than this laptop at the same work —
+  // two cores, a cold Turbopack cache, and a scene that compiles three.js on
+  // first paint. Measured 2026-09-02, the first time this suite ran on GitHub:
+  // 13.3 minutes wall-clock against about one locally, with three specs failing
+  // on the 30 s default while doing nothing wrong. The timeout is raised rather
+  // than `retries` — a retry hides a flake; a timeout that fits the machine
+  // states what the machine costs.
+  timeout: process.env.CI === undefined ? 30_000 : 120_000,
   reporter: [["list"]],
   use: {
     baseURL: BASE_URL,
@@ -58,8 +70,27 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: `pnpm exec next dev --port ${String(PORT)}`,
-    url: BASE_URL,
+    // **A production build on CI, `next dev` locally**, and the difference is
+    // not a preference. `next dev` compiles each route on its first request, so
+    // on a runner every spec that opens a new page pays a Turbopack compile
+    // inside its own timeout — which is what made `signature-flow` alone take
+    // 5.8 minutes there. A build pays that once, up front, inside the server
+    // window below, and it is also what Vercel actually serves.
+    //
+    // Locally `dev` stays, because the cost is reversed: a build on every
+    // `pnpm test:e2e` would add a minute to a suite that finishes in one, and a
+    // developer wants the tree they are editing, not a snapshot of it.
+    command: isContinuousIntegration
+      ? `pnpm run build && pnpm exec next start --port ${String(PORT)}`
+      : `pnpm exec next dev --port ${String(PORT)}`,
+    // The configurator page, not `/`. Turbopack compiles a route on first
+    // request, and `/` is a bare `redirect()` that compiles in milliseconds —
+    // so waiting on it declares the server ready while the three.js configurator
+    // has not been built yet, and the compile lands inside a 30 s test instead
+    // of this 60 s window. Locally that is invisible on a warm cache; on a cold
+    // CI runner it is the difference between a green suite and an intermittent
+    // timeout nobody can reproduce. Wait on the page the specs actually open.
+    url: `${BASE_URL}/configurator/configure`,
     // Never reused, even locally. The suite now *writes* — `design-write-path.e2e.spec.ts` mints a
     // design — and a server already listening on this port would be one started against
     // `.env.local`, i.e. the application's own database. ADR 0006 exists because a suite pointed
@@ -73,7 +104,9 @@ export default defineConfig({
       // production-shaped page, and no deployed environment can inherit the flag by accident.
       [SELECTION_DEBUG_FLAG]: SELECTION_DEBUG_FLAG_ENABLED,
     },
-    timeout: 60_000,
+    // Long enough for a cold `next build` on CI; the local `dev` branch reaches
+    // its URL in seconds and never approaches this.
+    timeout: isContinuousIntegration ? 300_000 : 60_000,
   },
 });
 

@@ -36,6 +36,9 @@ const HANDLE_BAR_MESH_NAME = "handle_bar";
 
 const FRIDGE_PLACEMENT_ID = "p7";
 
+/** `base-dishwasher-600`, the seeded niche on wall A. */
+const DISHWASHER_PLACEMENT_ID = "p1";
+
 let kit: Kit;
 let solidsRoot: THREE.Group;
 
@@ -115,6 +118,37 @@ describe("a seeded appliance keeps its own handles", () => {
       kit.M.steel,
       kit.M.steel,
     ]);
+  });
+});
+
+// The other side of the same rule, and the reason ADR 0051 could not add the decor door without
+// removing the appliance's bar in the same change. This body's `canHandle: true` is now *true of
+// the geometry*: the only bar in the group is the decor door's, so `handle: "push"` hides a
+// cabinet's handle — what the customer asked for — instead of erasing a dishwasher's fascia bar.
+describe("the seeded dishwasher niche opens its own decor door", () => {
+  function visibleMeshNamesOf(placementId: string): string[] {
+    const names: string[] = [];
+    mountedBodyOf(placementId).traverse((node) => {
+      if (isMesh(node) && node.visible) names.push(node.name);
+    });
+    return names;
+  }
+
+  it("draws one bar by default, because a base slot is not push-open", () => {
+    mount(KITCHEN_L_DESIGN);
+
+    expect(visibleHandleBarsOf(DISHWASHER_PLACEMENT_ID)).toBe(1);
+  });
+
+  it("hides that one bar, and only it, when the placement carries handle: push", () => {
+    mount(withRecordedHandle(DISHWASHER_PLACEMENT_ID, "push"));
+
+    expect(visibleHandleBarsOf(DISHWASHER_PLACEMENT_ID)).toBe(0);
+    // The door is still there to be pushed, and so is the machine behind it: there is no appliance
+    // bar left in this body for a cabinet-hardware choice to erase.
+    expect(visibleMeshNamesOf(DISHWASHER_PLACEMENT_ID)).toEqual(
+      expect.arrayContaining(["door_front", "dw_body"]),
+    );
   });
 });
 

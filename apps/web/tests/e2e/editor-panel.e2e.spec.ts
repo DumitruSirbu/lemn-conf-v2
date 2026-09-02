@@ -33,6 +33,7 @@ const MAX_ROW_HEIGHT_PX = 86;
 const MIN_CHIP_HEIGHT_PX = 44;
 
 const SETTLE_MS = 400;
+const SWIPE_DISTANCE_PX = 160;
 const SCENE_SETTLE_MS = 2000;
 
 const mintedDesignIds: string[] = [];
@@ -84,15 +85,39 @@ async function boxOf(locator: Locator) {
  * is untrusted and scrolls nothing — so a spec built on one would assert about a scroll that never
  * happened. `Input.synthesizeScrollGesture` with a touch source is the real thing.
  */
+/**
+ * A real touch drag, dispatched event by event.
+ *
+ * It used to be one `Input.synthesizeScrollGesture`, which is a *synthesised smooth-scroll
+ * animation* rather than a touch drag: the call returns as soon as the gesture is dispatched and
+ * the browser then animates the scroll across subsequent frames. That worked on a developer
+ * machine and did nothing at all on a CI runner — the first two runs of this suite on GitHub left
+ * `scrollTop` at 0 while the sheet's height, overflow, scrollability and pinned footer were all
+ * correct, and a 17 s poll never saw it move. The failure screenshot shows the list sitting at the
+ * top, untouched.
+ *
+ * `Input.dispatchTouchEvent` needs none of that machinery: start, a few moves, end, each one a
+ * real event the page handles synchronously. It also stays closer to what the test is about —
+ * this is the mobile sheet, and a finger is the interaction it exists to describe.
+ */
 async function swipeUpInside(page: Page, box: { x: number; y: number }) {
   const session = await page.context().newCDPSession(page);
-  await session.send("Input.synthesizeScrollGesture", {
-    x: box.x,
-    y: box.y,
-    yDistance: -160,
-    gestureSourceType: "touch",
-    speed: 800,
-  });
+  const send = async (
+    type: "touchStart" | "touchMove" | "touchEnd",
+    y: number,
+  ) =>
+    session.send("Input.dispatchTouchEvent", {
+      type,
+      touchPoints: type === "touchEnd" ? [] : [{ x: box.x, y }],
+    });
+
+  await send("touchStart", box.y);
+  // Several steps rather than one: a single large move reads as a fling to some scroll
+  // implementations, and the intent here is a deliberate drag.
+  for (let offset = 32; offset <= SWIPE_DISTANCE_PX; offset += 32) {
+    await send("touchMove", box.y - offset);
+  }
+  await send("touchEnd", box.y - SWIPE_DISTANCE_PX);
   await session.detach();
   await page.waitForTimeout(SETTLE_MS);
 }
@@ -212,10 +237,18 @@ test("the sheet occupies 70-83 vh, scrolls internally, and keeps its footer pinn
 
   const footerBefore = await boxOf(page.getByTestId("panel-done"));
   await swipeUpInside(page, { x: sheet.x + sheet.width / 2, y: sheet.y + 320 });
-  const scrolled = await body.evaluate((element) => element.scrollTop);
-  const footerAfter = await boxOf(page.getByTestId("panel-done"));
 
-  expect(scrolled).toBeGreaterThan(0);
+  // Polled, not sampled once. `Input.synthesizeScrollGesture` returns when the gesture is
+  // *dispatched*, and the smooth scroll it starts runs for about 200 ms at this speed and
+  // distance — so a single read after a fixed wait is a race, and it is a race this machine
+  // happens to win. On a CI runner it loses: the first run of this suite on GitHub read
+  // `scrollTop` as 0 here while everything about the sheet was correct. Waiting for the
+  // condition still fails if the body genuinely does not scroll, which is what the test is for.
+  await expect
+    .poll(async () => body.evaluate((element) => element.scrollTop))
+    .toBeGreaterThan(0);
+
+  const footerAfter = await boxOf(page.getByTestId("panel-done"));
   expect(footerAfter.y).toBeCloseTo(footerBefore.y, 0);
 });
 

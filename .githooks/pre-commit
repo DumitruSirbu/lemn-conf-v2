@@ -16,7 +16,8 @@ set -eu
 cd "$(git rev-parse --show-toplevel)"
 
 staged_list=$(mktemp)
-trap 'rm -f "$staged_list"' EXIT
+format_list=$(mktemp)
+trap 'rm -f "$staged_list" "$format_list"' EXIT
 
 # -z keeps NUL separators so paths containing spaces survive; ACMR skips
 # deletions, which must not be handed to prettier or re-staged.
@@ -26,7 +27,18 @@ if [ ! -s "$staged_list" ]; then
   exit 0
 fi
 
-xargs -0 ./node_modules/.bin/prettier --ignore-unknown --write <"$staged_list"
+# A symlink (a skill wired into .claude/skills/ via `npx skills add`) is
+# excluded from formatting: prettier refuses an explicit symlink argument
+# outright, regardless of .prettierignore, and re-staging it needs no
+# formatting step anyway.
+while IFS= read -r -d '' path; do
+  [ -L "$path" ] && continue
+  printf '%s\0' "$path" >>"$format_list"
+done <"$staged_list"
+
+if [ -s "$format_list" ]; then
+  xargs -0 ./node_modules/.bin/prettier --ignore-unknown --write <"$format_list"
+fi
 xargs -0 git add <"$staged_list"
 
 pnpm lint

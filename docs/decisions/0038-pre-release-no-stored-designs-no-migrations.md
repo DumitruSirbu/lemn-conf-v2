@@ -121,3 +121,18 @@ earlier tree or of nothing at all, and was then carried forward as a reason not 
 justified by reachability is only as good as the last time somebody re-checked the surfaces — so a
 record that defers on those grounds must name the surfaces it checked, as this correction does, and
 must be re-checked whenever a new one is added.
+
+## Correction — 2026-09-02: the "no design has ever been stored" premise is also false
+
+**This decision's title premise, not only its named consequence, is measured false.** M5 wave 5G
+checked rather than inherited it, against the `DATABASE_URL` in `.env.local`: **5 `designs` rows
+exist, all `schema_version` 1.** `persistDesignChange` runs after every successful command and the
+first save mints a row through `POST /api/designs`; M5B's own visual verifications repeatedly asserted
+"survives reload," which only exists because a row was minted. See
+[ADR 0052](0052-800-mm-is-the-ceiling-on-any-empty-column.md) for the measurement and its consequence.
+
+**What does not change.** None of the five rows carries an `emptyColumns` key, so decisions 1–4 above
+held in fact for every model change made under this record so far — nothing has yet had to migrate
+what it changed. What is withdrawn is the premise as stated, a second time, in the same shape as the
+2026-08-31 correction above: a claim written once and then relied on without being re-checked. The
+lesson two paragraphs up applies to this decision's own headline, not only to its consequence.

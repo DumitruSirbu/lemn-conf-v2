@@ -382,6 +382,42 @@ describe("PUT /api/designs/[id] — a body that will not parse", () => {
     },
   );
 
+  /** Criterion 5G-4's write half. ADR 0052 caps an empty column at 800 mm, and DOM-001's rule is
+   *  that both seams refuse together: the load path refuses a version 2 document holding a wider
+   *  entry, and so does this one. The schema accepts it — the entry is perfectly shaped, and
+   *  `MAX_DESIGN_DIMENSION_MM` is the only bound it crosses — so nothing but the executable
+   *  validator stands between a hand-built PUT and a stored share link publishing an opening no
+   *  catalogue body fits. */
+  it("refuses an empty column wider than the ceiling, and stores nothing", async () => {
+    const { id, cookie } = await mintDesign();
+    const before = storedSerialization(id);
+    const oversized: Design = {
+      ...KITCHEN_L_DESIGN,
+      emptyColumns: [
+        {
+          wall: "B",
+          alongMm: 3000,
+          widthMm: 900,
+          y0Mm: 0,
+          topMm: 2600,
+          depthMm: 580,
+        },
+      ],
+    };
+
+    const response = await PUT(
+      saveRequest(id, { design: oversized, cookie }),
+      routeParams(id),
+    );
+
+    expect(response.status).toBe(400);
+    expect(await response.json()).toStrictEqual({
+      code: "DESIGN_INVALID",
+      error: "Design payload failed validation.",
+    });
+    expect(storedSerialization(id)).toBe(before);
+  });
+
   it("still refuses an unauthorised caller before the parser sees the body", async () => {
     const { id } = await mintDesign();
 

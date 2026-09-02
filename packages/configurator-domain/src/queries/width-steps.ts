@@ -48,13 +48,16 @@ export interface WidthSteps {
   readonly wider: WidthOption;
 }
 
-/** `undefined` on exactly the selections that render no width section at all — a void, a body that
- *  no longer resolves, a `fixedWidth` entry, or one with no §7 equivalent. That is the same question
- *  `columnWidthChoices` answers for the chips, asked once so the two controls cannot disagree about
- *  whether there is a section. */
+/** `undefined` on every selection this control has nothing to say about: a void, a body that no
+ *  longer resolves, one with no §7 equivalent — and a `fixedWidth` entry, which under ADR 0049 does
+ *  render a section but renders it as the one chip it is made at. A stepper there would be two
+ *  buttons that can never move, where the discrete control already says the one true thing.
+ *
+ *  Read from `columnWidthChoices` rather than from `fixedWidth`, so the two controls cannot disagree
+ *  about whether there is a section or about which one it is. */
 export function widthStepsFor(input: WidthStepsInput): WidthSteps | undefined {
   const choices = columnWidthChoices(input);
-  if (!choices) return undefined;
+  if (!choices || choices.notResizable) return undefined;
   const { currentWidthMm } = choices;
   return {
     currentWidthMm,

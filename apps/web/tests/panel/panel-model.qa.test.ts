@@ -101,9 +101,18 @@ describe("§9's section gate — every combination, not the three that were writ
     let swept = 0;
     for (const combination of flagMatrix()) {
       const { rejected, ...flags } = combination;
-      const panel = openPanel(occupiedMeta(flags), {
+      const meta = occupiedMeta(flags);
+      // **The fourth axis drives the candidate list, not the flag** (ADR 0049). `canWidth` used to
+      // decide whether the width section exists; it now decides only that every chip in it is
+      // disabled, and a `fixedWidth` cabinet renders one chip with the engine's reason. What is
+      // still true — and is what this sweep is about — is that the section appears exactly when
+      // there is something to put in it, which is the domain's single answer.
+      const panel = openPanel(meta, {
         offers: offers(3),
         rejection: rejected ? REFUSAL : null,
+        widthOptions: flags.canWidth
+          ? noWidthIsFree(meta.widthMm, meta.sizesMm)
+          : [],
       });
       const expected = [
         ...(rejected ? ["rejection"] : []),

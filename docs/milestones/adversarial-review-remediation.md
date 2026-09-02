@@ -1181,6 +1181,12 @@ Four bodies the report's table does not name are also not their seat, and the sw
 | `tall-oven-tower` / `tall-oven-tower-600`   | 560  | 638      | the oven and microwave bars  |
 | `base-corner-return-320`                    | 580  | 600      | its worktop                  |
 
+> **2026-09-01 — the dishwasher's 632 is history, not current.** This table records what was measured
+> on 2026-08-30. [ADR 0051](../decisions/0051-the-dishwasher-niche-wears-a-decor-door.md) removes the
+> appliance's own door bar from `dishwasherHousing` and gives it a decor door instead, so
+> `base-dishwasher` and `base-dishwasher-600` now occupy **620 mm**, deepest member the door's bar
+> rather than the appliance's. See ADR 0040's 2026-09-01 correction for the durable record.
+
 ### Tests added
 
 - `packages/configurator-domain/tests/occupied-depth.test.ts` — every entry in both populations
@@ -1225,6 +1231,11 @@ instead of the seat encoding they record. The property each test asserts is unch
 Each of those five is a "the trap, stated" assertion whose point is that the frozen opening is deeper
 than what gets built. Every one of them got **sharper**, not weaker.
 
+> **2026-09-01 — the first row's 632 is history.** [ADR 0051](../decisions/0051-the-dishwasher-niche-wears-a-decor-door.md)
+> moves the dishwasher niche's occupied depth to 620, so a column whose deepest member is a
+> `base-dishwasher` now fills 620, not 632. This table is unedited because it records what wave S9
+> found true at the time; see ADR 0040's 2026-09-01 correction.
+
 `hob-base.adversarial.test.ts` — "the two hob bases carry identical catalogue geometry" — is the one
 whose premise moved. It now normalises `occupiedDepth` out of the deep-equal and asserts the
 difference explicitly: the drawer variant finishes at its worktop (620) and the oven variant's fascia
@@ -1264,6 +1275,11 @@ for the same members:
 | `B\|1.20` | 600 | 638 | +38 | the oven tower's appliance bars |
 | `B\|2.45` | 680 | 742 | +62 | the fridge's door bars |
 | `B\|1.80`, `A\|0.30`, `A\|0.75`, `B\|0.61` | — | — | 0 | unchanged |
+
+**2026-09-01 — `A|2.00`'s 632 is history, not current.** This table records what wave S9 measured on
+2026-08-30. [ADR 0051](../decisions/0051-the-dishwasher-niche-wears-a-decor-door.md) removes the
+dishwasher's own door bar and gives the niche a decor door instead, so `A|2.00` now fills **620 mm**.
+See ADR 0040's 2026-09-01 correction for the durable record.
 
 **`Column.d` is not only a depth — it positions the column and sizes every void mesh** (review F2).
 `deriveColumns` derives the column's off-wall coordinate as `depth / 2` (`void-engine.ts`), so those

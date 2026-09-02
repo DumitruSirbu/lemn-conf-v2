@@ -44,8 +44,16 @@ export const WIDTH_STEP_MM = 50;
  *
  *  ADR 0035 decision 1 makes it the **ceiling** every cabinetry row carries, rather than the last
  *  rung of a ladder. What it stops being is a member of a list: a body is buildable at every width
- *  between its floor and this, and the list that used to stand in for that rule is gone. */
-const CABINETRY_MAX_WIDTH_MM = 800;
+ *  between its floor and this, and the list that used to stand in for that rule is gone.
+ *
+ *  **Not the same constant as `MAX_EMPTY_COLUMN_WIDTH_MM`**, which is ADR 0052's ceiling on an empty
+ *  column. They carry the same 800 and they are not the same rule: this one says how wide a cabinet
+ *  may be built, that one how wide a space may be left. The ceiling on a space exists so that any
+ *  space the customer is left with is one the catalogue can fill, so it must never exceed this —
+ *  the direction of the dependency, asserted by a test rather than by an import. Exported for that
+ *  assertion alone; nothing in the empty-column code may read it, because `module-grid.ts` is a leaf
+ *  and this module is not. */
+export const CABINETRY_MAX_WIDTH_MM = 800;
 
 /** Every multiple of `WIDTH_STEP_MM` inside these ranges: the modular widths a customer picks from.
  *
@@ -227,6 +235,19 @@ const DISHWASHER_WIDTHS_MM: readonly number[] = [450, 600];
 const HOOD_FLOOR_WIDTH_MM = 600;
 
 const COLUMN_WIDTHS_MM: readonly number[] = [600];
+
+/** ADR 0048: **the pantry column's own floor**, and the one place a full-height row declares a
+ *  bound instead of a single width. The owner's reason for exempting this row and no other: it has
+ *  no appliance inside it, so nothing fixed constrains how narrow it may be, where an oven tower's
+ *  opening is sized to the appliance it holds.
+ *
+ *  It is the **bound's floor and not a `minWidthMm`**, for the reason `HOOD_FLOOR_WIDTH_MM` is
+ *  (ADR 0026 clause 2): `tallPantry` builds a perfectly correct 350 mm cabinet. What is true at 350
+ *  is that the owner does not sell one, which is a product decision and belongs in the range.
+ *
+ *  The ceiling is `CABINETRY_MAX_WIDTH_MM` — §7's own 800 — so the pantry stops where every other
+ *  cabinetry row stops, rather than carrying a second copy of that number. */
+const PANTRY_FLOOR_WIDTH_MM = 400;
 const FREESTANDING_FRIDGE_WIDTHS_MM: readonly number[] = [700];
 
 /** §2: worktop top = `PLINTH + CARC_H + CTOP`. Every base carcass builds to it. */
@@ -300,10 +321,6 @@ const WORKTOP_OVERHANG_MM = 20;
 /** A base run finishes at its **worktop's** front edge — not its carcass's (588 mm from the wall)
  *  and not its bar handles' (609), both of which stand behind the counter that is already there. */
 export const BASE_FINISHED_DEPTH_MM = WORKTOP_DEPTH_MM + WORKTOP_OVERHANG_MM;
-
-/** The dishwasher niche is the one ordinary base body whose front passes its own worktop: the
- *  appliance's door bar reaches 12 mm past it. */
-export const DISHWASHER_BASE_FINISHED_DEPTH_MM = 632;
 
 /** An oven fascia and its bar stand further proud than a dishwasher door, so the hob-and-oven base
  *  passes its worktop by 28 mm. */
@@ -462,12 +479,19 @@ export const INSERTABLE_BODY_DEFINITIONS: readonly (readonly [
     "base-hob-oven",
     {
       ...hobBase("Corp plită și cuptor"),
-      // §9's "never offer what cannot be satisfied", and §13.1's "disable, don't warn". This body
-      // is deliberately open-front — the oven *is* the front — so it owns no `door_front` and no
-      // cabinet handle. Measured before this line existed: a recorded finish recoloured nothing,
-      // and `handle: "push"` hid the **oven's** own bar, a cabinet-hardware chip mutating an
-      // appliance. `open-shelf` and `hood` below declare the same two `false` for the same reason.
-      canFinish: false,
+      // §9's "never offer what cannot be satisfied", and §13.1's "disable, don't warn".
+      //
+      // Q6 (owner, 2026-09-01): this body owns **exactly one finishable front** — the fixed filler
+      // panel across the hob band, `oven_filler_door_front`, which M5B wave 5B6 added to close the
+      // cavity the oven leaves under the worktop. So a recorded finish now recolours something, and
+      // the panel takes the run's colour instead of standing default white beside neighbours the
+      // customer can set to sage, clay or graphite. Before that panel existed the body was
+      // front-less and `canFinish` was correctly `false`; the ground has changed, not the rule.
+      //
+      // `canHandle` stays `false`, and for the reason the whole pair once shared: the filler is a
+      // facade, not a leaf — nothing behind it opens — and the body's only bar belongs to the
+      // **oven**, so `handle: "push"` would be a cabinet-hardware chip mutating an appliance.
+      canFinish: true,
       canHandle: false,
       // The oven's own fascia and bar, which reach past the worktop every other base body stops at.
       occupiedDepth: finishesAtMm(HOB_OVEN_BASE_FINISHED_DEPTH_MM),
@@ -501,12 +525,21 @@ export const INSERTABLE_BODY_DEFINITIONS: readonly (readonly [
       minWidthMm: SINK_MIN_WIDTH_MM,
     },
   ],
+  // ADR 0051: an integrated dishwasher wears a decor door, so this niche is a fronted base body
+  // like any other. `canFinish` and `canHandle` come from `INSERTABLE_DEFAULTS` and both are true
+  // of the geometry: the finish lands on the `door_front` slab `dishwasherHousing` builds with
+  // `doorSlab`, and the only handle in the body hangs beside that slab — the appliance behind it is
+  // built fully integrated and has no bar of its own to mutate. Before that record the flags were
+  // right and the geometry was missing (`docs/BACKLOG.md` entry 11).
+  //
+  // It therefore no longer overrides `baseCabinet`'s occupied depth: what used to reach 632 mm was
+  // the appliance's bar, and the decor door's reaches 619, behind the worktop that already sets the
+  // number for every other base body.
   [
     "base-dishwasher",
     {
       ...baseCabinet("Nișă mașină de spălat vase"),
       kind: "dishwasher_housing",
-      occupiedDepth: finishesAtMm(DISHWASHER_BASE_FINISHED_DEPTH_MM),
       widthFlex: DISHWASHER_WIDTHS_MM,
       ...discreteWidths(DISHWASHER_WIDTHS_MM),
     },
@@ -537,6 +570,8 @@ export const INSERTABLE_BODY_DEFINITIONS: readonly (readonly [
       kind: "open_shelf_unit",
       // No door and no handle, so its shell and its finished depth are the same number.
       occupiedDepth: shellPlusFrontMm(NO_FRONT_ASSEMBLY_MM),
+      // Open by definition: no fixed front to finish, no leaf to open. Unlike `base-hob-oven`
+      // above, wave 5B6 gave this body no filler panel, so ADR 0050 does not reach it.
       canFinish: false,
       canHandle: false,
     },
@@ -546,6 +581,9 @@ export const INSERTABLE_BODY_DEFINITIONS: readonly (readonly [
     {
       ...wallCabinet("Hotă"),
       kind: EXTRACTOR_HOOD_KIND,
+      // A hood is a canopy and a chimney: no front, so nothing for a finish chip to recolour.
+      // `handle: "push"` here would put cabinet hardware on an extractor. This says nothing about
+      // whether a hood is cabinetry — ADR 0035 decision 5 below rules that it is, for width.
       canFinish: false,
       canHandle: false,
       heightFlex: false,
@@ -581,7 +619,29 @@ export const INSERTABLE_BODY_DEFINITIONS: readonly (readonly [
       }),
     },
   ],
-  ["tall-pantry", fullHeightUnit("Coloană cămară", "tall_unit")],
+  // ADR 0048: **the one resizable column.** No appliance stands inside it, so it is built to its
+  // opening between 400 and 800 mm and its door count follows that width through the threshold
+  // ADR 0035 decision 4 already fixed at 500 — one door below, two at and above. There is no
+  // `tall-pantry-1door` row, and there must not be: ADR 0033 merged exactly that split away, and a
+  // second row would put the threshold in two places.
+  //
+  // `widthFlex` is restated rather than inherited, and that is the load-bearing line. The spread
+  // above stamps `COLUMN_WIDTHS_MM`, and a row that declared a bound while keeping a fixed set
+  // would resolve on `resolveFixedSetWidth` and build 600 into every opening — which is the hood's
+  // R1.2 defect verbatim (`insert-fit.ts`, `resolveFixedSetWidth`).
+  [
+    "tall-pantry",
+    {
+      ...fullHeightUnit("Coloană cămară", "tall_unit"),
+      widthFlex: "fit",
+      ...cabinetryWidths({
+        minMm: PANTRY_FLOOR_WIDTH_MM,
+        maxMm: CABINETRY_MAX_WIDTH_MM,
+      }),
+      fixedWidth: false,
+      doorCountFollowsWidth: true,
+    },
+  ],
   [
     "tall-oven-tower",
     {

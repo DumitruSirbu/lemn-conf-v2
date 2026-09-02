@@ -394,7 +394,7 @@ describe("an opening no cabinet fits says so, and does not ask for a delete", ()
     const replace = replaceAt(world, { kind: "void", id: strip.id });
     expect(replace.rows).toEqual([]);
     expect(replace.emptyLine).toBe(
-      "Deschiderea are 50 mm, mai puțin decât cel mai îngust corp din catalog (200 mm). Spațiul poate rămâne gol; se închide când lărgești corpul de lângă el.",
+      "Deschiderea are 50 mm, mai puțin decât cel mai îngust corp din catalog (200 mm). Spațiul poate rămâne gol; se închide pe măsură ce lărgești corpul de lângă el.",
     );
     // The trap this copy exists to avoid, pinned as an anti-assertion: §9's ordinary sentence tells
     // the customer to delete a neighbour, which here makes the opening wider rather than fillable.

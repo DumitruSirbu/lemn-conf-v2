@@ -92,12 +92,65 @@ export const MAX_PLACEMENTS =
  *  — rounded up so indentation and key order cannot make an honest document fail. */
 const MAX_PLACEMENT_BYTES = 512;
 
+/** The along-wall granularity of a column **key**, which is coarser than the document it is
+ *  derived from: `deriveColumnKeyAt` renders a metre value with `toFixed(2)`, so two centres less
+ *  than a centimetre apart address one column. */
+const COLUMN_KEY_RESOLUTION_MM = 10;
+
+/** §2's two walls, A and B — `DesignWallSchema`'s whole domain. */
+const WALL_COUNT = 2;
+
+/**
+ * The most empty columns a document the domain can execute may carry (ADR 0044).
+ *
+ * **Derived from the rules that refuse a second entry, not from how narrow a gap can be.** The
+ * earlier derivation — the narrowest strip a resize can leave, times §2's three module bands — was
+ * wrong twice over, and in opposite directions: `validateDesignForCatalog` refuses two empty
+ * columns that share a `(wall, along)` key *whatever bands they sit in*, so the bands are not a
+ * multiplier at all; and ADR 0043 left an empty column no width floor, so a legal entry is 1 mm
+ * wide and `WIDTH_STEP_MM` bounds nothing here.
+ *
+ * What actually bounds the count is the number of **distinct keys** a wall can present. Every
+ * entry must be contained by its wall, and `longestWallRunMm` bounds both walls by the room's
+ * longer run, so each wall offers the centres from 0 to `MAX_WALL_RUN_MM` at
+ * `COLUMN_KEY_RESOLUTION_MM` — `630 + 1` of them, counting both ends — and no two entries may
+ * share one. `(6300 / 10 + 1) × 2 = 1262`.
+ *
+ * An upper bound on the keys rather than a count of the reachable ones, deliberately: the cap must
+ * never be the thing that refuses a document the domain's own rules accept, and 1262 entries at
+ * 1 mm wide and 10 mm apart is such a document. The number this product actually produces is two
+ * orders of magnitude below it — the shipped kitchen derives thirteen columns in total.
+ */
+export const MAX_EMPTY_COLUMNS =
+  (Math.max(...MAX_WALL_RUNS_MM) / COLUMN_KEY_RESOLUTION_MM + 1) * WALL_COUNT;
+
+/**
+ * The most frozen extents of **occupied** columns a document may carry (ADR 0053).
+ *
+ * Derived rather than chosen, and from a different quantity than `MAX_EMPTY_COLUMNS`: an entry is
+ * only legal on a key some placement is filed under, so the placements bound the count directly and
+ * the tighter of the two bounds binds each array on its own. It deliberately does not share
+ * `MAX_EMPTY_COLUMNS`' budget — that one bounds the *keys a wall can present*, which is the right
+ * bound for an array whose entries need no placement at all.
+ */
+export const MAX_COLUMN_EXTENTS = MAX_PLACEMENTS;
+
+/** The longest a single empty column can serialise to: a wall enum, five five-digit millimetre
+ *  values and JSON punctuation — well under a hundred bytes — rounded up as `MAX_PLACEMENT_BYTES`
+ *  is, so key order and indentation cannot make an honest document fail. A stored column extent is
+ *  the same six fields, so it is allowed the same bytes rather than deriving a second number for
+ *  one shape. */
+const MAX_EMPTY_COLUMN_BYTES = 128;
+
 /** Room, `presetId`, and the two timestamps, with the same rounding-up allowance. */
 const DESIGN_ENVELOPE_BYTES = 1024;
 
 /** Bytes of request body a save may carry (SEC-002). Derived from the document that can legally be
- *  built rather than picked, so raising `MAX_PLACEMENTS` cannot leave a limit behind that refuses a
- *  design **this product produces**. It is counted off the request stream, never read from
+ *  built rather than picked, so raising `MAX_PLACEMENTS` or `MAX_EMPTY_COLUMNS` cannot leave a
+ *  limit behind that refuses a design **this product produces**. ADR 0044's `emptyColumns` and
+ *  ADR 0053's `columnExtents` are
+ *  counted here for exactly that reason: a byte cap derived from the placements alone would refuse a
+ *  document at `MAX_EMPTY_COLUMNS` that the schema accepts. It is counted off the request stream, never read from
  *  `Content-Length`, which a chunked request need not send truthfully.
  *
  *  Not a guarantee for every schema-valid document (review note F4): `MAX_IDENTIFIER_LENGTH` counts
@@ -105,4 +158,7 @@ const DESIGN_ENVELOPE_BYTES = 1024;
  *  serialise past this while remaining schema- and domain-valid. Nothing in the product mints a
  *  non-ASCII identifier — `insertBody` mints `n<index>` and every catalogue key is ASCII. */
 export const MAX_DESIGN_BYTES =
-  MAX_PLACEMENTS * MAX_PLACEMENT_BYTES + DESIGN_ENVELOPE_BYTES;
+  MAX_PLACEMENTS * MAX_PLACEMENT_BYTES +
+  MAX_EMPTY_COLUMNS * MAX_EMPTY_COLUMN_BYTES +
+  MAX_COLUMN_EXTENTS * MAX_EMPTY_COLUMN_BYTES +
+  DESIGN_ENVELOPE_BYTES;

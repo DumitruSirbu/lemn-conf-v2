@@ -9,8 +9,18 @@
 # they cannot drift; the rest are the same pnpm scripts.
 #
 # Deliberately runs every gate rather than stopping at the first failure: CI
-# reports all nine jobs independently, and a local gate that hides the second
+# reports all ten jobs independently, and a local gate that hides the second
 # failure until you have fixed the first wastes the round trip it exists to save.
+#
+# The `e2e` gate was added 2026-09-02, to both this script and the workflow at
+# once. Until then neither ran Playwright, so §10's signature flow sat red for
+# six days after a catalogue id was renamed under it while every other gate
+# stayed green — the rename was consistent everywhere the unit suites look, and
+# no unit test asserts a DOM test id. It is the slowest gate here by a wide
+# margin (about a minute against seconds) and it needs TEST_DATABASE_URL in
+# `.env.test.local` and a Playwright browser; a green run without it is not
+# possible, which is the point. If it fails for a missing browser rather than a
+# real defect, `pnpm --filter @lemnaria/web exec playwright install chromium`.
 #
 # Not covered here, and not coverable: `install` (frozen-lockfile resolution on a
 # clean runner). A lockfile that is out of sync with package.json will still fail
@@ -115,6 +125,7 @@ run_gate format pnpm format:check
 run_gate lint pnpm lint
 run_gate typecheck pnpm typecheck
 run_gate test pnpm test
+run_gate e2e pnpm test:e2e
 run_gate build pnpm build
 run_gate boundary sh scripts/gates/boundary.sh
 run_gate lockfile sh scripts/gates/lockfile.sh

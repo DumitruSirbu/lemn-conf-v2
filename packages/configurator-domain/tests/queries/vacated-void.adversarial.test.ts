@@ -151,7 +151,12 @@ describe("every LEVELS boundary, approached from both sides", () => {
       ];
 
       expect(
-        findVacatedVoid(voids, { col: COLUMN, y0: boundaryM })?.id,
+        findVacatedVoid(voids, {
+          col: COLUMN,
+          y0: boundaryM,
+          wall: "A",
+          alongM: 1,
+        })?.id,
         `boundary ${String(boundaryM)}`,
       ).toBe("starts-here");
     }
@@ -186,7 +191,12 @@ describe("the bottom bound does not make the mirror-image mistake", () => {
       // actually contains the frame must win, and it does because the containment test is the top
       // bound and the voids arrive in ascending order.
       expect(
-        findVacatedVoid([lowerSlot, upperSlot], { col: COLUMN, y0 })?.id,
+        findVacatedVoid([lowerSlot, upperSlot], {
+          col: COLUMN,
+          y0,
+          wall: "A",
+          alongM: 1,
+        })?.id,
       ).toBe("lower");
     },
   );
@@ -194,14 +204,24 @@ describe("the bottom bound does not make the mirror-image mistake", () => {
   it("still absorbs a slot that starts marginally above where the body stood", () => {
     // The bottom tolerance's actual purpose: the body stood at 2.195, the freed opening snaps to
     // the 2.20 module line, and there is no lower slot to claim it.
-    expect(findVacatedVoid([upperSlot], { col: COLUMN, y0: 2.195 })?.id).toBe(
-      "upper",
-    );
+    expect(
+      findVacatedVoid([upperSlot], {
+        col: COLUMN,
+        y0: 2.195,
+        wall: "A",
+        alongM: 1,
+      })?.id,
+    ).toBe("upper");
   });
 
   it("finds nothing when the vacated frame is more than the tolerance below every slot", () => {
     expect(
-      findVacatedVoid([upperSlot], { col: COLUMN, y0: 2.18 }),
+      findVacatedVoid([upperSlot], {
+        col: COLUMN,
+        y0: 2.18,
+        wall: "A",
+        alongM: 1,
+      }),
     ).toBeUndefined();
   });
 });

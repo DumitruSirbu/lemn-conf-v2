@@ -59,18 +59,16 @@ const ALL_BUILD_IDS: readonly string[] = [
  *  pinned to the inverse assertion instead — the companion test asserts each of these still
  *  violates it, so a repaired entry cannot quietly outlive its exemption.
  *
- *  Both are the same open niche, built by the same call: the appliance is the front, so the builder
- *  produces no `door_front` and its only handle belongs to the dishwasher — exactly
- *  `base-hob-oven`'s defect, on an entry that pre-dates ADR 0027. `base-dishwasher-600` is the
- *  seeded instance of `base-dishwasher` and runs `kit.builders["base-dishwasher"]()` verbatim
- *  (`decomposed-bodies.ts`), so it is the same gap seen from the other population, not a second
- *  one. The owner scoped this wave to the new entry and decided explicitly to keep both recorded;
- *  the open product question — an integrated dishwasher usually wears a decor door, in which case
- *  the flags are right and the *geometry* is what is missing — is backlog entry 11. */
-const RECORDED_CAPABILITY_GAPS: readonly string[] = [
-  "base-dishwasher",
-  "base-dishwasher-600",
-];
+ *  **Empty since 2026-09-01, and it was `base-dishwasher` and `base-dishwasher-600` that emptied
+ *  it.** They were the one open niche, seen from each population, and the open product question
+ *  behind them — an integrated dishwasher usually wears a decor door, in which case the flags are
+ *  right and the *geometry* is what is missing — was decided that way by the owner and recorded as
+ *  [ADR 0051](../../../docs/decisions/0051-the-dishwasher-niche-wears-a-decor-door.md), closing
+ *  `docs/BACKLOG.md` entry 11. `dishwasherHousing` now builds its own `door_front` and the
+ *  appliance behind it carries no bar, so both flags became true of the geometry and both ids are
+ *  gated below like every other. Their numbers are pinned by the census control at the foot of
+ *  this file, which is where a regression would show. */
+const RECORDED_CAPABILITY_GAPS: readonly string[] = [];
 
 const GATED_BUILD_IDS = ALL_BUILD_IDS.filter(
   (buildId) => !RECORDED_CAPABILITY_GAPS.includes(buildId),
@@ -167,11 +165,9 @@ describe("every catalogue entry's capability flags match what its builder draws"
   // .includes(id))`, so `[...GATED, ...RECORDED]` equals `ALL` for *any* subset of it — that guard
   // closes stale exemptions, not the list's contents. Widening the list has to mean editing a test
   // that names what is being added, out loud.
-  it("has exactly two recorded gaps, and both are the one the owner decided to keep", () => {
-    expect([...RECORDED_CAPABILITY_GAPS]).toEqual([
-      "base-dishwasher",
-      "base-dishwasher-600",
-    ]);
+  it("has no recorded gaps: every entry in both populations is gated", () => {
+    expect([...RECORDED_CAPABILITY_GAPS]).toEqual([]);
+    expect(GATED_BUILD_IDS).toEqual(ALL_BUILD_IDS);
   });
 
   // The two population sizes ADR 0027's amendment states, so the prose cannot drift from the map.
@@ -208,9 +204,12 @@ describe("every catalogue entry's capability flags match what its builder draws"
 
   // The exemption list, asserted from the other side: each entry on it really does violate the
   // rule. The day someone repairs one, this goes red and the list shrinks with it.
-  it.each(RECORDED_CAPABILITY_GAPS)(
-    "%s is a recorded gap: it still declares a capability its geometry does not have",
-    (buildId) => {
+  //
+  // One test that loops rather than `it.each`, which generates no test at all over an empty list —
+  // and the list is empty since ADR 0051. The assertion has to survive the list being empty, or the
+  // next entry added to it would arrive with no inverse pin at all.
+  it("holds each recorded gap to still declaring a capability its geometry lacks", () => {
+    for (const buildId of RECORDED_CAPABILITY_GAPS) {
       const census = censusOf(buildId);
 
       expect([
@@ -218,8 +217,8 @@ describe("every catalogue entry's capability flags match what its builder draws"
         (census.canFinish && census.fronts === 0) ||
           (census.canHandle && census.cabinetHandles === 0),
       ]).toEqual([buildId, true]);
-    },
-  );
+    }
+  });
 
   // The gate's own premise. If the front regex or the handle rule matched nothing anywhere, every
   // implication above would hold vacuously for the entries that declare the flags `false`, and the
@@ -235,13 +234,34 @@ describe("every catalogue entry's capability flags match what its builder draws"
   });
 
   // And the case a `handle_bar` count would get wrong, measured rather than asserted from memory:
-  // the open-front hob base's only handle is the oven's, so it has none of its own, and the tower
-  // builds four bars of which two are the cabinet's.
+  // the hob base's only handle is the oven's, so it has none of its own, and the tower builds four
+  // bars of which two are the cabinet's.
+  //
+  // Its one front is the hob band's filler panel (Q6, owner 2026-09-01), which is why the two flags
+  // now differ: a fixed facade is something to finish and nothing to open, so `canFinish` follows
+  // the front and `canHandle` follows the cabinet-handle count, exactly as the gate above reads
+  // them. Before wave 5B6 both numbers were zero and both flags were `false`.
+  // ADR 0051, both populations of the repaired entry. The niche is an ordinary fronted base body
+  // now: one `door_front`, one cabinet handle, and **one** `handle_bar` in the whole group — the
+  // door's. A second bar here would mean the appliance was built exposed again, which is the
+  // regression that would silently put an appliance's handle under a cabinet-hardware chip.
+  it("counts the dishwasher niche's decor door and its one cabinet handle", () => {
+    for (const buildId of ["base-dishwasher", "base-dishwasher-600"]) {
+      expect(censusOf(buildId), buildId).toMatchObject({
+        fronts: 1,
+        cabinetHandles: 1,
+        canFinish: true,
+        canHandle: true,
+      });
+      expect(handleBarCountOf(buildId), buildId).toBe(1);
+    }
+  });
+
   it("does not count an appliance's handle as the cabinet's", () => {
     expect(censusOf("base-hob-oven")).toMatchObject({
-      fronts: 0,
+      fronts: 1,
       cabinetHandles: 0,
-      canFinish: false,
+      canFinish: true,
       canHandle: false,
     });
     expect(handleBarCountOf("base-hob-oven")).toBe(1);

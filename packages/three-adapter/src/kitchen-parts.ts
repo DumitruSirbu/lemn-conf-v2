@@ -152,6 +152,7 @@ export interface Factories {
   bottleCargo: (w: number) => THREE.Group;
   hobBaseWithDrawers: (w: number) => THREE.Group;
   hobBaseWithOven: (w: number) => THREE.Group;
+  tallPantry: (widthM: number, doors: number) => THREE.Group;
 }
 
 export interface BaseCabinetOptions {
@@ -258,6 +259,41 @@ const BASE_FRONT_OVERHANG_MM = 40;
  *  at the front and 10 mm behind at the back. ADR 0018 measured the same numbers from the other
  *  side — the counter's back face is what a base body's seat is taken from. */
 const COUNTER_OVERHANG_MM = 60;
+
+/** The finished panel that closes the right end of wall A's base run. Named here because ADR 0045
+ *  makes its along-wall seat derived (`kitchen-shell.ts`) while its existence stays a fixed entry
+ *  in the shell manifest — one name, read by the builder and by the derivation. */
+export const RUN_END_PANEL_NAME = "end_panel_right";
+
+/** The panel's own slab, in metres: the reference room's `TH` door/panel thickness, and a
+ *  base-height finished end that stands from the floor to the underside of the worktop. */
+export const RUN_END_PANEL_THICKNESS_M = 0.018;
+export const RUN_END_PANEL_HEIGHT_M = 0.82;
+
+/** The air gap the reference room leaves between the last cabinet's side and the panel's inner
+ *  face, in metres.
+ *
+ *  **Authored, not measured, and it is the invariant the offset below preserves.** The seeded run
+ *  ends at 3.50 (3.20 + 0.60/2) and the panel is placed at 3.51, which is half the slab plus this
+ *  millimetre — so the reference deliberately does not butt the two faces together. Reading the
+ *  10 mm as a measurement would be wrong in a way that only shows up later: were `TH` ever to
+ *  change, a bare 10 mm would silently move the *gap* instead of keeping the overhang. */
+export const RUN_END_PANEL_GAP_M = 0.001;
+
+/** How far the panel's centre stands past the right edge of the last base cabinet, in metres. */
+export const RUN_END_PANEL_EDGE_OFFSET_M =
+  RUN_END_PANEL_THICKNESS_M / 2 + RUN_END_PANEL_GAP_M;
+
+/** The panel's along-wall seat in the reference room, in metres: the seeded base run's right edge
+ *  plus the offset above, kept as its own literal because M1's parity gate diffs this exact number
+ *  against the unmodified reference library at 1e-6 m.
+ *
+ *  It is also where `syncRunEndPanel` parks the panel while it is hidden. Any fixed value would do
+ *  there — what makes a deleted-into scene and a freshly loaded one one picture is that the
+ *  derivation is a pure function of the records, and this constant is only ever observed on a
+ *  hidden object or on a shell that has not been synced yet. The reference seat is chosen so that
+ *  an unsynced shell is the reference room. */
+export const RUN_END_PANEL_SEEDED_X_M = 3.51;
 
 export function makeKit(options: KitOptions = {}): Kit {
   const createCanvas =
@@ -642,6 +678,10 @@ export function makeKit(options: KitOptions = {}): Kit {
    *  21 mm inside its declared depth, which is the honest reading of a cabinet with no handle. */
   const FRONT_ASSEMBLY_D = TH / 2 + 0.024 + 0.006;
 
+  // §7's full-height band, and the width every column but the pantry is fixed at (ADR 0048).
+  const TALL_UNIT_HEIGHT_M = 2.2,
+    COLUMN_WIDTH_M = 0.6;
+
   const PLINTH = 0.1,
     CARC_H = 0.72,
     // M5 work item 7: derived from the declared cabinet depth, not typed. At 600 it is 0.56 to the
@@ -835,7 +875,8 @@ export function makeKit(options: KitOptions = {}): Kit {
    *
    *  The oven is seated on the carcass floor, not hung under the worktop. The 125 mm that leaves
    *  between its top and the worktop line is where the hob's own box and its connections go; an
-   *  oven pushed up against the worktop would be occupying that space. */
+   *  oven pushed up against the worktop would be occupying that space, and `ovenFillerFront`
+   *  dresses it. */
   function hobBaseWithOven(w: number): THREE.Group {
     const g = G("base_cabinet");
     g.add(plinth(w, CARC_D));
@@ -843,8 +884,43 @@ export function makeKit(options: KitOptions = {}): Kit {
     const oven = builders.oven();
     oven.position.set(0, PLINTH, OVEN_FORWARD_OFFSET_M);
     g.add(oven);
+    g.add(ovenFillerFront(w, oven));
     g.add(counter(w));
     return seatHobOnWorktop(g);
+  }
+
+  /** The band the oven leaves under the worktop, closed with a **fixed, handleless** front in the
+   *  run's own door material. Left open it read as an unfinished cavity: the carcass is open-front
+   *  by design, so a customer looking at the cabinet saw straight past the fronts on either side
+   *  into the shell. It is a facade, not a leaf — nothing behind it opens, so it carries no handle.
+   *
+   *  Named `..._door_front` because it is a front the customer finishes: Q6 (owner, 2026-09-01)
+   *  decided the panel takes the run's finish rather than staying default white beside neighbours
+   *  the customer can recolour, and `finishes.ts`'s `FRONT_MESH_NAME` is `/door_front|drawer_front/`
+   *  — so the name is what makes `collectFronts` reach it. Renaming this mesh silently turns
+   *  finishing off for `base-hob-oven`, whose `canFinish: true` rests on this one panel.
+   *
+   *  The band is **measured off the oven that was just built**, not written as 125 mm. That number
+   *  is only what a 595 mm appliance happens to leave on a 720 mm carcass, and a typed copy of it
+   *  would go stale the moment either moves.
+   *
+   *  Seated on `CARC_D / 2 + TH / 2` — the same front line every door and drawer front in this kit
+   *  stands on, which is what makes it read as the rest of the run rather than as a patch — and
+   *  `GAP` clear of the oven top, the shadow gap any two fronts leave each other. That keeps it
+   *  behind both the oven's fascia and its bar, so the body still finishes exactly where ADR 0040's
+   *  `HOB_OVEN_BASE_FINISHED_DEPTH_MM` declares it does. */
+  function ovenFillerFront(w: number, oven: THREE.Group): THREE.Mesh {
+    const bandBottom = new THREE.Box3().setFromObject(oven).max.y + GAP;
+    return box(
+      w - 0.006,
+      PLINTH + CARC_H - bandBottom,
+      TH,
+      M.door,
+      "oven_filler_door_front",
+      0,
+      bandBottom,
+      CARC_D / 2 + TH / 2,
+    );
   }
 
   const builders: Builders = {
@@ -877,22 +953,9 @@ export function makeKit(options: KitOptions = {}): Kit {
     "wall-lift": () => wallLift(),
     "open-shelf": () => openShelf(0.8, 0.3, 2),
 
-    "tall-pantry": () => {
-      const g = tallCarcass();
-      const H = 2.2,
-        W = 0.6,
-        fz = CARC_D / 2 + TH / 2;
-      const dw = (W - 0.009) / 2;
-      const doorBands: readonly (readonly [number, number])[] = [
-        [PLINTH + 1.3, 1.29],
-        [H, 0.79],
-      ];
-      for (const [y, h] of doorBands) {
-        g.add(doorSlab(dw, h, -(dw + GAP) / 2, y, fz, "right"));
-        g.add(doorSlab(dw, h, (dw + GAP) / 2, y, fz, "left"));
-      }
-      return g;
-    },
+    // ADR 0048: the reference builder's own 600 mm two-door pantry, delegating to the
+    // width-parameterised factory. These are its literals, so the seeded kitchen does not move.
+    "tall-pantry": () => tallPantry(COLUMN_WIDTH_M, 2),
     "tall-oven-tower": () => {
       const g = G("tall_unit");
       const W = 0.6,
@@ -1058,30 +1121,7 @@ export function makeKit(options: KitOptions = {}): Kit {
       g.add(barHandle(W - 0.1, D / 2 + 0.028, 0, H - 0.07, false));
       return g;
     },
-    dishwasher: (Wn = 0.6) => {
-      const g = G("dishwasher");
-      const W = Wn - 0.004,
-        H = 0.72,
-        D = 0.56;
-      g.add(box(W - 0.05, H, D - 0.06, M.dark, "dw_body", 0, 0, -0.03));
-      g.add(
-        box(W, H - 0.06, TH, M.door, "dw_panel", 0, 0, D / 2 + TH / 2 - 0.02),
-      );
-      g.add(
-        box(
-          W,
-          0.05,
-          0.03,
-          M.steel,
-          "dw_control_strip",
-          0,
-          H - 0.05,
-          D / 2 - 0.01,
-        ),
-      );
-      g.add(barHandle(W - 0.09, D / 2 + 0.012, 0, H - 0.1, false));
-      return g;
-    },
+    dishwasher: (Wn = 0.6) => exposedDishwasher(Wn),
     cooktop: () => {
       const g = G("induction_cooktop");
       g.add(box(0.59, 0.012, 0.52, M.glassDark, "cooktop_glass", 0, 0, 0));
@@ -1398,7 +1438,84 @@ export function makeKit(options: KitOptions = {}): Kit {
     return g;
   }
 
+  const DW_HEIGHT_M = 0.72,
+    DW_DEPTH_M = 0.56;
+
+  /** The machine is built 4 mm under the width it is handed, and `dishwasherHousing` hands it
+   *  `W - 0.004` in turn, so a 600 mm niche holds a 592 mm machine — 8 mm inside nominal, and
+   *  still clear of the 564 mm inner opening (414 at 450). The number stays: `dw_body` is pinned at
+   *  1e-6 by M1's numeric ledger, so moving it fails the fidelity gate for no product gain.
+   *
+   *  It lives here because the two forms below must agree on it exactly. Composing the exposed form
+   *  on the integrated one already stops the *body* drifting; this stops the one number that is not
+   *  inside that body from drifting instead. */
+  function dishwasherBodyWidth(Wn: number): number {
+    return Wn - 0.004;
+  }
+
+  /** ADR 0051 decision 3: the machine as it is built **inside a housing** — `dw_body` and nothing
+   *  else, the way a fully-integrated dishwasher has no fascia, no control strip and no bar of its
+   *  own, because the door in front of it is the cabinet's.
+   *
+   *  Also the body both forms share, so the exposed one below cannot drift from it. `dw_body`'s
+   *  name is load-bearing: `CARCASS_MESH_NAME_PATTERN` (ADR 0016) reads it, and the recorded
+   *  580 mm seat is derived from it. */
+  function integratedDishwasher(Wn: number): THREE.Group {
+    const g = G("dishwasher");
+    const W = dishwasherBodyWidth(Wn);
+    g.add(
+      box(
+        W - 0.05,
+        DW_HEIGHT_M,
+        DW_DEPTH_M - 0.06,
+        M.dark,
+        "dw_body",
+        0,
+        0,
+        -0.03,
+      ),
+    );
+    return g;
+  }
+
+  /** The freestanding machine `SPEC.md` describes, 596 × 720 × 560: the body plus the fascia, the
+   *  control strip and the appliance's own bar. What the parts gallery draws.
+   *
+   *  Two named factories rather than one with a flag, because the two are different products: this
+   *  one's `dw_panel` is coplanar with a housing's decor door and its `dw_control_strip` crosses
+   *  that plane, which is why the housing cannot simply hide them. */
+  function exposedDishwasher(Wn: number): THREE.Group {
+    const g = integratedDishwasher(Wn);
+    const W = dishwasherBodyWidth(Wn),
+      H = DW_HEIGHT_M,
+      D = DW_DEPTH_M;
+    g.add(
+      box(W, H - 0.06, TH, M.door, "dw_panel", 0, 0, D / 2 + TH / 2 - 0.02),
+    );
+    g.add(
+      box(
+        W,
+        0.05,
+        0.03,
+        M.steel,
+        "dw_control_strip",
+        0,
+        H - 0.05,
+        D / 2 - 0.01,
+      ),
+    );
+    g.add(barHandle(W - 0.09, D / 2 + 0.012, 0, H - 0.1, false));
+    return g;
+  }
+
   // 600 standard, 450 slimline — the niche follows the appliance.
+  //
+  // ADR 0051: a fronted cabinet, not an open niche. It owns one decor door, built with `doorSlab`
+  // at `baseCabinet`'s own anchors — so its slab is named `door_front` and `finishes.ts` reaches
+  // it with no rename, and its front plane is `CARC_D / 2 + TH / 2` and therefore flush with every
+  // neighbouring base front by construction rather than by a typed number. The appliance behind it
+  // is built fully integrated, so the only `handle` group left in this body is the one hanging
+  // beside the front it opens.
   function dishwasherHousing(W = 0.6): THREE.Group {
     const g = G("dishwasher_housing");
     const half = W / 2 - 0.009;
@@ -1417,13 +1534,38 @@ export function makeKit(options: KitOptions = {}): Kit {
         -CARC_D / 2 + 0.01,
       ),
     );
-    const dw = builders.dishwasher(W - 0.004);
+    // The 40 mm of mounting space a real decor door hangs in, and the one place in this body where
+    // the cabinet-depth setting and a fixed appliance meet. The door's inner face is `CARC_D / 2`,
+    // which follows `cabinetDepthMm` (wave 5F); `dw_body`'s front is 0.24 whatever that setting
+    // says, because the machine is a real-world size and this seat is a literal. So the clearance
+    // is `CARC_D / 2 − 0.24` and closes at half a millimetre per millimetre of cabinet depth,
+    // reaching **zero at a 520 mm cabinet** — below which the appliance would come through its own
+    // door. Not reachable today: 600 is the only depth the product can produce, and
+    // `M5-width.md:1125` records that this builder ignores the depth it is handed. Whoever wires
+    // M6's *Setări globale* depth control is the first person who can reach it, which is why the
+    // floor is named here rather than left to be measured after the fact.
+    const dw = integratedDishwasher(W - 0.004);
     dw.position.set(0, PLINTH, 0.02);
     g.add(dw);
+    g.add(
+      doorSlab(
+        W - 0.006,
+        CARC_H - 0.01,
+        0,
+        PLINTH + CARC_H - 0.004,
+        CARC_D / 2 + TH / 2,
+        "top",
+      ),
+    );
     g.add(counter(W));
     return g;
   }
 
+  // `inner` counts the **interior** boards, which stand between `shelf_bottom` and `shelf_top` at
+  // an even division of H — so `inner` boards are `inner + 1` compartments, and dropping one
+  // re-centres the rest rather than leaving a gap. The default is the reference builder's own
+  // literal and stays there for M1's parity gate; who asks for how many is the caller's decision,
+  // and for §7's insertable entry that is `innerShelvesFor` in `catalog-bodies.ts` (ADR 0047).
   function openShelf(W = 0.8, D = 0.3, inner = 2, H = 0.7): THREE.Group {
     const g = G("open_shelf_unit");
     g.add(box(0.018, H, D, M.oak, "side_left", -W / 2 + 0.009, 0, 0));
@@ -1606,12 +1748,43 @@ export function makeKit(options: KitOptions = {}): Kit {
     return g;
   }
 
-  function tallCarcass(): THREE.Group {
+  /** ADR 0048: **the one full-height row a customer may resize**, 400–800 mm, with its door count
+   *  following its width the way `wallCabinet` derives its own. `catalog-bodies.ts` reads the count
+   *  from the domain's `deriveDoorCount`, so the leaf layout here and the label the customer reads
+   *  cannot disagree.
+   *
+   *  **The interior does not change with the width** (owner, 2026-09-01): a 400 mm pantry is the
+   *  same cabinet built narrower, not a second product. The door bands below are y coordinates and
+   *  heights only — nothing in them reads `widthM` — so the bands sit at identical heights at every
+   *  width and only their x extent moves. A narrow pantry with re-pitched bands would pass a width
+   *  check and still be the wrong cabinet.
+   *
+   *  Every part is **built** to the width: `tallCarcass` takes it, and the leaves are derived from
+   *  it. Nothing scales a finished group, which M3's Risks section names as the thing not to do. */
+  function tallPantry(widthM: number, doors: number): THREE.Group {
+    const g = tallCarcass(widthM);
+    const fz = CARC_D / 2 + TH / 2;
+    const doorBands: readonly (readonly [number, number])[] = [
+      [PLINTH + 1.3, 1.29],
+      [TALL_UNIT_HEIGHT_M, 0.79],
+    ];
+    for (const [bandTopY, bandHeight] of doorBands) {
+      if (doors === 1)
+        g.add(doorSlab(widthM - 0.006, bandHeight, 0, bandTopY, fz, "right"));
+      if (doors === 2) {
+        const leafW = (widthM - 0.009) / 2;
+        const leafOffset = (leafW + GAP) / 2;
+        g.add(doorSlab(leafW, bandHeight, -leafOffset, bandTopY, fz, "right"));
+        g.add(doorSlab(leafW, bandHeight, leafOffset, bandTopY, fz, "left"));
+      }
+    }
+    return g;
+  }
+
+  function tallCarcass(W = COLUMN_WIDTH_M): THREE.Group {
     const g = G("tall_unit");
-    const H = 2.2,
-      W = 0.6;
     g.add(plinth(W, CARC_D));
-    g.add(carcass(W, H - PLINTH, CARC_D, PLINTH));
+    g.add(carcass(W, TALL_UNIT_HEIGHT_M - PLINTH, CARC_D, PLINTH));
     return g;
   }
 
@@ -1702,12 +1875,24 @@ export function makeKit(options: KitOptions = {}): Kit {
       PLINTH + CARC_H + CTOP,
     );
     seatOnWallA(baseCabinet(0.6, { drawers: 3 }), 3.2);
+    // The seat is the reference room's, kept to the micrometre for M1's parity gate. It is a
+    // starting seat only: ADR 0045 has `syncRunEndPanel` re-derive it from the records on every
+    // sync, so the panel follows the last base cabinet wherever a resize or a delete leaves it.
     place(
-      box(TH, 0.82, 0.6, M.oak, "end_panel_right", 0, 0, 0),
-      3.51,
+      box(
+        RUN_END_PANEL_THICKNESS_M,
+        RUN_END_PANEL_HEIGHT_M,
+        0.6,
+        M.oak,
+        RUN_END_PANEL_NAME,
+        0,
+        0,
+        0,
+      ),
+      RUN_END_PANEL_SEEDED_X_M,
       zA,
       0,
-      0.41,
+      RUN_END_PANEL_HEIGHT_M / 2,
     );
 
     // Wall B tall run: rotated 90° so fronts face +x, seated flush against the wall plane
@@ -1813,6 +1998,7 @@ export function makeKit(options: KitOptions = {}): Kit {
     bottleCargo,
     hobBaseWithDrawers,
     hobBaseWithOven,
+    tallPantry,
   };
   return {
     builders,

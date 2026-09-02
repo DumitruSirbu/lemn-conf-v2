@@ -205,6 +205,17 @@ behave differently in a way an acceptance criterion depended on.
     JSON encoder happens to produce. Without that, the invariant in 20 has nothing stable to compare
     against.
 
+    **Note added 2026-09-02, M5 wave 5H, [ADR 0053](0053-the-design-document-records-the-whole-frozen-map.md).**
+    The serialiser itself is key-generic and needed no change for `columnExtents` — the same
+    deterministic ordering that already covered `placements` and `emptyColumns` covers the new array
+    with no special case. Worth naming here because the round trip this decision protects now has a
+    second wrinkle beyond the field itself: a document's first save under ADR 0053 populates
+    `columnExtents` for every occupied column on the resolved map, not only the ones a triggering
+    command touched, so the *next save* of a legacy document differs from what was stored even when
+    nothing the customer sees changed. Invariant 20 is unaffected — it never runs a command, only
+    load, validate, and re-serialise — but a reader should not assume "the design came back
+    unchanged" extends to "the next save writes the same bytes".
+
 ## Backups: two gaps found on review
 
 Added 2026-08-25. The two-tier backup design is sound; these are consequences of it that the section

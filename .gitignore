@@ -12,9 +12,17 @@ test-results/
 **/.tmp/
 
 # Claude Code: session-local runtime state is ignored, but the project's permission
-# rules (settings.json) are committed so they bind every agent working in this repo.
+# rules (settings.json), agent definitions, and skills are committed so they bind every
+# agent working in this repo.
 .claude/*
 !.claude/settings.json
+!.claude/agents/
+!.claude/skills/
+
+# Third-party skills fetched by `npx skills add` (see .claude/skills/*'s symlinks). Reinstalled
+# from the command each SKILL.md documents, not checked in.
+.agents
+skills-lock.json
 
 # Supplier deliverable — copied into docs/design/ and packages/three-adapter/reference/,
 # deleted from the working tree once the port is finished. Nothing may depend on it.
@@ -35,3 +43,6 @@ apps/web/CLAUDE.md
 # TypeScript tolerates an include entry that matches no file. Verified by deleting it and running
 # `pnpm typecheck` (exit 0) before untracking.
 apps/web/next-env.d.ts
+
+# Playwright MCP session artifacts (console logs, page snapshots) — evidence, not source.
+.playwright-mcp/

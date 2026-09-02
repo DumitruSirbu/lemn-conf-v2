@@ -142,3 +142,22 @@ dishwasher **632**, hob-oven base **648**, oven tower **638**, and the corner re
   that half of decision 1 was superseded and named `AGENTS.md`'s rule — *a dated record must not be
   silently overturned* — as the reason. The record is now amended; the note describes a settled
   state rather than a debt.
+
+## Correction — 2026-09-01: the dishwasher's 632 is superseded by ADR 0051
+
+The dishwasher **632** figure in the *Why* section above (and the derivation it implies — the
+appliance's own door bar reaching past the shell) was correctly measured off the geometry as it stood
+on 2026-08-31. [ADR 0051](0051-the-dishwasher-niche-wears-a-decor-door.md) changes that geometry on
+2026-09-01: `dishwasherHousing` now builds its own decor door and the appliance inside it is built
+fully integrated, with no `dw_panel` and no bar of its own. The deepest thing in the niche is now the
+decor door's bar, which reaches less far than the worktop, so `base-dishwasher` and
+`base-dishwasher-600` occupy **620 mm**, not 632, and `DISHWASHER_BASE_FINISHED_DEPTH_MM` is deleted
+from `catalog.ts` along with the constant this figure justified.
+
+**Nothing else here moves.** This record's method — declare a rule per body, gate it against the
+built meshes, throw rather than guess on an undeclared entry — is exactly what produces the new
+number; ADR 0051 supplies a new declared value through that same mechanism, it does not touch the
+mechanism. The other three bodies this sweep found (hob-oven base 648, oven tower 638, corner return
+600) and the derivations for `recorded-shell` and `wall-plane` bodies are unaffected. ADR 0051 is the
+record to read for the dishwasher's current number; this ADR is the record for how any occupied depth
+is computed and converted back.

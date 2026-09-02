@@ -11,13 +11,17 @@
 import {
   withCurrentFullHeightMembers,
   derivePlacementRecords,
+  mergeAdjacentEmptyColumns,
+  splitOversizedEmptyColumns,
   findVacatedVoid,
+  projectFrozenMap,
   recomputeVoids,
   type BodyCatalog,
   type Column,
   type CommandEffect,
   type CommandResult,
   type Design,
+  type FrozenMapDocument,
   type PlacementRecord,
   type RejectionReason,
   type VoidRecord,
@@ -78,7 +82,11 @@ export function applyCommandResult(
   return {
     applied: true,
     state: {
-      design: result.design,
+      // Uncaught by design. `projectFrozenMap` throws `UnprojectableColumnError` only for a
+      // frozen column the document cannot carry, and swallowing it here would save a design whose
+      // empty space is silently missing — the defect ADR 0044 exists to fix, arriving by a new
+      // route. A loud failure is the lesser harm, so this seam does not catch.
+      design: withFrozenMap(result.design, projectFrozenMap(columns, records)),
       records,
       columns,
       voids,
@@ -88,9 +96,51 @@ export function applyCommandResult(
   };
 }
 
-/** ADR 0031: a resize is the **one** command that moves a frozen extent, so it is the one command
- *  whose own answer replaces the map passed in. Every other command leaves the extents alone and
- *  gets `hasFullHeightUnder` re-answered over them (ADR 0011 Gap D).
+/** ADR 0044 and ADR 0053: the whole frozen map — the member-less columns and the frozen extents of
+ *  the occupied ones — recorded on the design that is about to be held and saved. This is the
+ *  **one** place it happens, and it is here rather than in a command because the frozen map is
+ *  here: `removePlacement` never receives it, and a resize publishes its own answer into it through
+ *  `effect.columns`, so projecting from the resolved map covers delete, resize, insert and every
+ *  future effect with no per-command bookkeeping.
+ *
+ *  Written from `columns`, never re-derived from `result.design` — the design a command returns
+ *  still carries the previous state's arrays, and the whole reason this runs is that the map, not
+ *  the document, is what the command just moved.
+ *
+ *  Each key is **removed** rather than set to `[]` when its half is empty, so a kitchen with no free
+ *  space serialises exactly as it did before ADR 0044: the fields are optional precisely so an
+ *  untouched document is not rewritten, and an empty array would make every command produce a
+ *  document that differs from the one it was given by a key with nothing in it. */
+function withFrozenMap(design: Design, frozen: FrozenMapDocument): Design {
+  const emptyColumns = frozen.emptyColumns ?? [];
+  const columnExtents = frozen.columnExtents ?? [];
+  const next = { ...design };
+  if (emptyColumns.length > 0) next.emptyColumns = [...emptyColumns];
+  else delete next.emptyColumns;
+  if (columnExtents.length > 0) next.columnExtents = [...columnExtents];
+  else delete next.columnExtents;
+  return next;
+}
+
+/** ADR 0031 and ADR 0046: a resize and an **insert** are the two commands that move a frozen
+ *  extent, so they are the two whose own answer replaces the map passed in. Every other command
+ *  leaves the extents alone and gets `hasFullHeightUnder` re-answered over them (ADR 0011 Gap D).
+ *
+ *  **The merge wraps the whole return value, not one branch.** ADR 0046 part 2 runs after every
+ *  command, and the run that makes a merge possible usually arrives on the `body_inserted` arm: a
+ *  400 mm body split off a 200 mm remainder, and that remainder is what meets the cleared column
+ *  beside it. Merge only the non-effect branch and the freshly split column never meets its
+ *  neighbour, with every domain test still green — which is why this seam is asserted at the store.
+ *
+ *  `withCurrentFullHeightMembers` runs over the merged map even on the arms whose map arrived
+ *  current. That is the same author answering again rather than a second one: a merge rewrites the
+ *  extents the question is asked of, and the funnel is what keeps the answer a fact about now.
+ *
+ *  The insert joined them on 2026-09-01: a body narrower than its column splits that column into an
+ *  occupied half and an empty remainder, under two keys the one it replaced did not hold. Without
+ *  this arm the effect's map is discarded, the map still carries the original wide column, and the
+ *  level closes exactly as it did before the split existed — with every domain test still green,
+ *  which is why this seam is asserted at the store.
  *
  *  The resized map arrives already current — `moveFrozenColumns` ends in the same
  *  `withCurrentFullHeightMembers` — so re-applying it here would be a second author for two fields.
@@ -106,11 +156,42 @@ function resolveColumns(
   frozen: ReadonlyMap<string, Column>,
   records: readonly PlacementRecord[],
 ): ReadonlyMap<string, Column> {
-  if (effect.type === "body_resized") return effect.columns;
-  // Re-answers `hasFullHeightUnder` over the frozen extents, and nothing else. ADR 0037's merge ran
-  // here too until 2026-08-30, so the delete path backlog 2 was reported from still gives two
-  // openings rather than one — see `void-engine.ts` for why the merge was withdrawn.
-  return withCurrentFullHeightMembers(frozen, records);
+  const published =
+    effect.type === "body_resized" || effect.type === "body_inserted"
+      ? effect.columns
+      : frozen;
+  // ADR 0037's merge ran here until 2026-08-30 and was withdrawn because §4 had no horizontal half.
+  // It returns under ADR 0046's 800 mm cap, and what makes that safe is 5B4a's split rather than the
+  // cap: no column is ever wider than its members when `recomputeVoids` runs. The cap cures only the
+  // `widthFlex: 'fit'` refusal — see `merge-empty-columns.ts`.
+  //
+  // **Split before merge, and both after every command** (ADR 0052). The two are duals — one cuts
+  // what exceeds the ceiling, the other joins what fits under it — and splitting first is what keeps
+  // the answer tidy: a cleared 900 mm column beside a 50 mm strip becomes 800 + 150 rather than
+  // 800 + 100 + 50. Neither can undo the other, so the pair is a fixpoint: no merged run exceeds the
+  // ceiling, and no piece a split produces does.
+  //
+  // The split is here rather than in each command as **defence in depth, and it is reachable from no
+  // document the loader accepts** — corrected 2026-09-02 after adversarial QA measured it.
+  //
+  // The first version of this comment said the delete was a producer with no command to put it in.
+  // It is not: `deriveColumns` takes a column's width as `Math.min` over its members' frames, the
+  // widest deletable body a document may carry is 800 mm (`base-corner-x-900` is `canDelete: false`),
+  // and both seams already hold a *stored* entry to the ceiling. So clearing a column cannot leave
+  // one wider than the cap, and QA confirmed removing this call leaves both suites green but for a
+  // test written against a hand-built map.
+  //
+  // It stays anyway, and the reason is the DOM-001 lesson rather than a known caller: the two
+  // commands that cut their own spans do so by a direction only they know, and this is the one place
+  // that sees every map on its way to being published. A guard here is the difference between a
+  // future producer being a bug and being an unsaveable document.
+  return withCurrentFullHeightMembers(
+    mergeAdjacentEmptyColumns(
+      splitOversizedEmptyColumns(published, records),
+      records,
+    ),
+    records,
+  );
 }
 
 /** §5.1's closing step and the milestone's "selection never dangles" criterion, as one function:

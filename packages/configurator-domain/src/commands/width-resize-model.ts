@@ -114,7 +114,18 @@ export interface ColumnResize {
   readonly widthMm: number;
   readonly members: readonly Rebuild[];
   readonly resized: FrozenColumnMove;
+  /** The empty column the move leaves against the run — **the near piece**, when ADR 0052's ceiling
+   *  splits the space. `widthMm === 0` means the move consumed it exactly. */
   readonly empty: FrozenColumnMove;
+  /** ADR 0052: the pieces of the freed space that did not fit under `MAX_EMPTY_COLUMN_WIDTH_MM`,
+   *  beyond `empty` and away from the run. Empty on every move that frees no more than the ceiling,
+   *  which is every move on the shipped kitchen until something wide is cleared.
+   *
+   *  A separate field rather than making `empty` a list, because the two are asked different
+   *  questions: `empty` is the column the *next* resize on this side will fund from, and it is the
+   *  one whose key `EmptySpace` was resolved against. Both are guarded and written identically —
+   *  see `frozenMoves`. */
+  readonly emptyOverflow: readonly FrozenColumnMove[];
   readonly side: Side;
 }
 

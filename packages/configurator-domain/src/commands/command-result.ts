@@ -4,7 +4,13 @@
 // The failure branch returns the **exact original `Design` object** — identity, not a structural
 // copy — so a store applying a result unconditionally cannot silently replace state with an equal
 // but different object, and a rejection sweep can assert `toBe`.
-import type { Design, DesignPlacement, Finish, Handle } from "../design.js";
+import type {
+  Design,
+  DesignPlacement,
+  DesignWall,
+  Finish,
+  Handle,
+} from "../design.js";
 import { ConfigurationTimestampSchema } from "../schemas.js";
 import type { Column } from "../void-engine.js";
 import {
@@ -21,10 +27,19 @@ export interface CommandTarget {
 }
 
 /** Where a removed body stood, so the caller can find the void that covers it *by geometry* — void
- *  ids are regenerated on every recompute and a merge changes them (§5.1). */
+ *  ids are regenerated on every recompute and a merge changes them (§5.1).
+ *
+ *  **The wall and the along-wall centre are part of it, and they are not redundant with `col`.**
+ *  ADR 0046 part 2's merge deletes the keys it folds together and writes a new one, so a delete that
+ *  makes two empty columns adjacent leaves *no* void carrying the key the removed body was filed
+ *  under — and §5.1's selection came back `null` where the customer expected the space they just
+ *  freed. The key is still the primary match; these two are what the fallback measures against. */
 export interface VacatedOpening {
   readonly col: string;
   readonly y0: number;
+  readonly wall: DesignWall;
+  /** The removed body's own along-wall centre, in metres. */
+  readonly alongM: number;
 }
 
 export interface PlacementRemovedEffect {
@@ -39,6 +54,14 @@ export interface BodyInsertedEffect {
   readonly buildId: string;
   /** Present when this insert was a swap in place (§5.3) — one code path, two entry points. */
   readonly replacedPlacementId?: string;
+  /** ADR 0046: an insert is the **second** command that writes the frozen map. A body narrower than
+   *  the column it goes into splits that column in two, so the keys the map holds change — and
+   *  *which* keys may change is a rule about the command, never something a store may re-derive
+   *  globally (ADR 0011 Gap D, and `BodyResizedEffect` below for what re-deriving costs).
+   *
+   *  Always present, including when nothing was split: an insert that fills its column exactly
+   *  publishes the map it was given, so the store has one thing to apply rather than two. */
+  readonly columns: ReadonlyMap<string, Column>;
 }
 
 /** ADR 0031's resize: the one operation that changes bodies the customer did not select, and the
@@ -66,7 +89,13 @@ export interface BodyResizedEffect {
    *  Absent when `emptyColumnWidthMm` is `0` — the resize consumed the space exactly and the column
    *  ceased to exist (rule 6). */
   readonly emptyColumnNewKey?: string;
-  /** The width the empty column was left at. `0` means it was consumed exactly. */
+  /** The width the empty column was left at. `0` means it was consumed exactly.
+   *
+   *  Under ADR 0052 this is the **near** column when a shrink frees more than
+   *  `MAX_EMPTY_COLUMN_WIDTH_MM` and the space splits: the piece against the run, which is the one
+   *  the next resize on this side funds from. The pieces beyond it are in `columns` like every other
+   *  extent and have no field of their own — nothing reads these two for geometry, and a second
+   *  field naming a column the customer's next tap cannot spend would be read as one it can. */
   readonly emptyColumnWidthMm: number;
   readonly columns: ReadonlyMap<string, Column>;
 }

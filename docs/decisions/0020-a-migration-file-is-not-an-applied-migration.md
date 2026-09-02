@@ -24,6 +24,13 @@ TEST         /lemn-conf-tests-v2  rows: 0  columns: id, schema_version, document
 database, and it got there because `neon-configuration-repository.test.ts`'s `beforeAll` calls
 `runMigrations(testDatabaseUrl)` — the suite migrates the database it is about to use.
 
+**`rows: 0` above is a dated observation, not a ruling, and it is stale.** Re-measured 2026-09-02
+during M5 wave 5G: the application database now carries **5 `designs` rows**, all `schema_version` 1
+(see [ADR 0052](0052-800-mm-is-the-ceiling-on-any-empty-column.md)). This is the same premise ADR 0038
+corrected once already (2026-08-31, on reachability) and again (2026-09-02, on "no design has ever
+been stored"). This paragraph is left as it was measured on 2026-08-25 — it was true then — with this
+pointer added so a reader does not re-inherit `rows: 0` as still current.
+
 The first `POST /api/designs` against the real database would have failed on
 `insert into designs (…, write_token_hash)` with `column … does not exist`. Mint 500s; the entire
 write path is dead.

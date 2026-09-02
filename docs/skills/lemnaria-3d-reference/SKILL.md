@@ -7,8 +7,11 @@ metadata:
 
 # Lemnaria kitchen 3D reference
 
-Read `design-source/3D design reference/SPEC.md` before changing or judging any kitchen 3D model.
-It is the source of truth for the current reference implementation.
+Read `docs/design/SPEC.md` before changing or judging any kitchen 3D model — the original 3D
+contract: coordinates, dimensions, structural dependencies. Where `docs/design/DEVELOPMENT-SPEC.md`
+disagrees with it, DEVELOPMENT-SPEC wins; it is the authoritative behavioural contract. Never read
+`design-source/` — `AGENTS.md` rule 3 forbids importing from it; it is untracked and will be
+deleted, kept only as historical provenance.
 
 ## Preserve the contract
 

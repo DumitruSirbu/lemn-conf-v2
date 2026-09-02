@@ -5,14 +5,31 @@
 // forces the panel to author product copy, and a sentence with no code forces tests to match on
 // prose — which is how a copy edit becomes a failing engine test.
 import type { NormalisedBand } from "../bands.js";
-import { toMillimetres } from "../millimetres.js";
-import { MIN_WIDTH_M, type WidthRangeMm } from "../void-engine.js";
+import type { WidthRangeMm } from "../void-engine.js";
 
 /** A refusal that needs nothing spelled out: the code and its sentence say everything. */
 type NoParams = Readonly<Record<string, never>>;
 
 interface LabelParams {
   readonly label: string;
+}
+
+/** Which fact refused a resize, published rather than left to be re-derived by whoever is holding
+ *  the refusal.
+ *
+ *  `fixed` is a **fact about a cabinet**: the catalogue declares this row is made at one width, and
+ *  ADR 0049 renders it as a disabled chip carrying this refusal's own sentence. `unresolvable` is
+ *  **missing catalogue data**: the row resolves no §7 entry to be rebuilt through — the corners
+ *  (ADR 0011 Gap A) by declaration, an unfinished row by omission — and finding R2.7 requires it to
+ *  keep failing loudly rather than being dressed up as a constrained product.
+ *
+ *  **`unresolvable` wins when both are true.** A row that is `fixedWidth` *and* unfinished has
+ *  nothing to say about a cabinet: its label falls back to a `kind` string, and publishing it would
+ *  put `„base_cabinet”` in front of a customer. */
+export type NotResizableCause = "fixed" | "unresolvable";
+
+interface NotResizableParams extends LabelParams {
+  readonly cause: NotResizableCause;
 }
 
 interface BuildIdParams {
@@ -92,10 +109,6 @@ export type EmptySpaceRefusal =
   | "absent"
   /** There is an empty column, and it is narrower than the growth being asked for. */
   | "too_narrow"
-  /** ADR 0031's coordinator detail: growing would leave the empty column between 0 and `MIN_W`.
-   *  Consuming it *exactly* to zero is allowed; leaving a sliver nothing can be inserted into is
-   *  not a state to create. */
-  | "remainder_below_floor"
   /** The space is there and the arithmetic works, but the move would leave an opening standing over
    *  a body — see `RESIZE_OPENS_GAP`. It is a per-side answer rather than a verdict (FINDING Q1.2):
    *  the scan carries on to the other side, and only refuses when no side can fund the move without
@@ -116,7 +129,10 @@ export interface EmptySpaceSide {
  *  space it needed, and what each side answered — in the order right-then-left it tries them. */
 interface EmptySpaceParams extends LabelParams {
   readonly requestedMm: number;
-  /** Signed: positive grows the column, so the empty column must give that much away. */
+  /** Signed: positive grows the column, so the empty column must give that much away. It stays
+   *  signed because `RESIZE_OPENS_GAP` and `COLUMN_KEY_COLLISION` carry these same params on a
+   *  shrink; only `NO_EMPTY_SPACE` reads it, and only a growth reaches that — see
+   *  `renderNoEmptySpace`. */
   readonly deltaMm: number;
   readonly sides: readonly EmptySpaceSide[];
 }
@@ -175,9 +191,14 @@ export type RejectionDetail =
     }
   | { readonly code: "COLUMN_MISMATCH"; readonly params: LabelParams }
   /** §5.4 on a body that has no width to change: a `fixedWidth` entry, or one with no §7
-   *  equivalent to rebuild through. §9's `canWidth` hides the section for both, so this is the
-   *  engine's own half of the same rule rather than a second one. */
-  | { readonly code: "NOT_RESIZABLE"; readonly params: LabelParams }
+   *  equivalent to rebuild through.
+   *
+   *  **The two are different facts, and since [ADR 0049] a surface acts differently on them**, which
+   *  is why `cause` is published beside the label. The section used to be hidden for both — §9's
+   *  `canWidth` did it — and this code was the engine's own half of that one rule. It is now the
+   *  sentence a fixed-width cabinet shows the customer, so which fact produced it decides whether it
+   *  may be shown at all. */
+  | { readonly code: "NOT_RESIZABLE"; readonly params: NotResizableParams }
   | { readonly code: "WIDTH_UNCHANGED"; readonly params: CurrentWidthParams }
   /** ADR 0031 rule 2: the move needs an adjacent empty column and there is not one.
    *
@@ -328,15 +349,9 @@ function renderWidthsMadeClause(params: SizesParams): string {
   return `doar în ${renderMillimetreList(params.sizesMm)} mm`;
 }
 
-/** §2's `MIN_W` in millimetres, for the one refusal that names it. Read from the constant rather
- *  than written down, so §9's consequence line ("sub 300 mm nu se coboară") and this sentence
- *  cannot come to disagree — that is exactly how the two 400s of ADR 0028 drifted. */
-const MIN_WIDTH_MM = toMillimetres(MIN_WIDTH_M);
-
 const EMPTY_SPACE_REFUSAL_RO: Readonly<Record<EmptySpaceRefusal, string>> = {
   absent: "nu este spațiu liber",
   too_narrow: "spațiul liber este prea îngust",
-  remainder_below_floor: `ar rămâne un spațiu sub ${String(MIN_WIDTH_MM)} mm`,
   opens_a_gap: "s-ar deschide un spațiu liber peste alte corpuri",
   key_taken: "corpul ar ajunge peste altă coloană",
 };
@@ -350,15 +365,21 @@ function renderEmptySpaceSide(side: EmptySpaceSide): string {
   return `${EMPTY_SPACE_SIDE_RO[side.side]} ${EMPTY_SPACE_REFUSAL_RO[side.reason]}`;
 }
 
-/** ADR 0031's sentence: which side was tried, and why the space there could not fund the move.
- *  Growing and shrinking read opposite ways round — one consumes empty space, the other returns
- *  width to it — so the verb follows the sign of the delta rather than being softened into one
- *  phrase that is half wrong in both directions. */
+/** ADR 0031's sentence: which side was tried, and why the space there could not fund the move. The
+ *  number is the **space the move needs**, which is what the owner read wrongly off the earlier
+ *  wording — *"coloana ar trebui să ocupe 50 mm"* names a width the cabinet would end up at.
+ *
+ *  **Only a growth reaches this code, so there is one clause and not two** (QA finding Q1 on wave
+ *  5B1, and it has been true since ADR 0035 decision 7). On a shrink `evaluateEmptySpace` can fail
+ *  only with `absent` — `remainderMm` is the extent *plus* the width being given back, so it is
+ *  never negative — and when both sides are `absent`, `fundingScan` appends `vacatedEmptySpace`,
+ *  which is `undefined` on a growth alone. Every shrink therefore reaches the attempt loop with a
+ *  fundable side, and what it can still be refused for renders as `COLUMN_KEY_COLLISION` or
+ *  `RESIZE_OPENS_GAP`. A shrink-shaped sentence here would be copy no customer could ever read —
+ *  the same reason ADR 0043 deleted `remainder_below_floor` rather than leaving it in the union. */
 function renderNoEmptySpace(params: EmptySpaceParams): string {
-  const verb = params.deltaMm > 0 ? "ocupe" : "elibereze";
-  const neededMm = Math.abs(params.deltaMm);
   const sides = params.sides.map(renderEmptySpaceSide).join(", iar ");
-  return `„${params.label}” nu poate ajunge la ${String(params.requestedMm)} mm: coloana ar trebui să ${verb} ${String(neededMm)} mm, dar ${sides}.`;
+  return `„${params.label}” nu poate ajunge la ${String(params.requestedMm)} mm: coloana ar mai avea nevoie de ${String(params.deltaMm)} mm, dar ${sides}.`;
 }
 
 /** The same scan again, reaching the sharpest of its three verdicts: the space was there and the

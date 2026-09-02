@@ -1,5 +1,11 @@
 # Codex agent team
 
+> **If you are Claude, ignore this file.** These roles are Codex-specific dispatch cards. Claude
+> Code has its own equivalents in `.claude/agents/` (`configurator-architect`,
+> `configurator-developer`, `configurator-qa`, `configurator-review-logic`,
+> `configurator-review-clean-code`, `configurator-review-security`, `configurator-verify-visual`,
+> `configurator-scribe`) — use those instead.
+
 These are dispatch roles, not persistent background processes. The coordinating Codex agent uses
 them only when a bounded task benefits from delegation.
 

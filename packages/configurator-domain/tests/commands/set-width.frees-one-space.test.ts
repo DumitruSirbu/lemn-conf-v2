@@ -61,8 +61,9 @@ describe("six presses of −50 free one space, not six slivers", () => {
   // A 600 mm cabinet with a 300 mm floor, stepped all the way down. Before the merge each shrink
   // fell through to `vacatedEmptySpace` and created a **new** strip: the second press could not
   // widen the first 50 mm strip because `evaluateEmptySpace` refused `remainder_below_floor` at a
-  // remainder of 100. That floor now guards only a growth, which is the whole of the fix here —
-  // returning space to a strip cannot make a sliver, it can only unmake one.
+  // remainder of 100. The fix here was to stop applying that floor to a shrink — returning space to
+  // a strip cannot make a sliver, it can only unmake one. It went on guarding a growth until
+  // **ADR 0043** removed it from that side too, and the refusal no longer exists at all.
   function oneRun(): KitchenWorld {
     return syntheticWorld([
       placement("run-base", 1000, 0, "base-panbank", 600, 860),

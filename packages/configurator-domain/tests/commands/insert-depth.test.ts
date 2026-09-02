@@ -307,14 +307,17 @@ describe("insertBody — a wall carcass over an emptied column (backlog entry 5)
     const opening = voidAt(world, EMPTIED_COLUMN, WALL_VOID_Y0_M);
 
     // The trap, stated: the opening really does still carry the deleted base run's own depth, so
-    // an uncapped build is a 632 mm carcass and this sweep is not vacuous.
+    // an uncapped build is a 620 mm carcass and this sweep is not vacuous.
     //
-    // **632, not 580, since wave S9 (DOM-002).** The number is the *deepest member's* occupied
-    // depth, and this column's was a dishwasher niche, whose appliance door bar reaches 632 mm from
-    // the wall. 580 was the seat encoding that member records (ADR 0018), which is 52 mm short of
-    // the space it filled — the assertion pinned the defect, and what it is about, that the frozen
-    // depth survives the delete and the cap is what holds the build back, is unchanged.
-    expect(toMillimetres(opening.d)).toBe(632);
+    // **620, not 580, since wave S9 (DOM-002).** The number is the *deepest member's* occupied
+    // depth, and this column's was a dishwasher niche, whose worktop reaches 620 mm from the wall.
+    // 580 was the seat encoding that member records (ADR 0018), which is 40 mm short of the space
+    // it filled — the assertion pinned the defect, and what it is about, that the frozen depth
+    // survives the delete and the cap is what holds the build back, is unchanged.
+    //
+    // **632 until ADR 0051**, when the niche stopped exposing the appliance's own door bar and
+    // started wearing a decor door that finishes behind its own worktop like every other base body.
+    expect(toMillimetres(opening.d)).toBe(620);
     expect(world.columns.get(EMPTIED_COLUMN)?.hasFullHeightUnder).toBe(false);
 
     const result = insertWallCabinet(world);

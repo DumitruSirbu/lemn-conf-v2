@@ -81,12 +81,13 @@ function deltasOf(
 }
 
 describe("the shipped kitchen at load", () => {
-  it("derives no voids at all, and accepts fifty-one taps — every one of them a shrink", () => {
+  it("derives no voids at all, and accepts fifty-nine taps — every one of them a shrink", () => {
     // **ADR 0035 decision 7 replaces ADR 0031's headline consequence with half of itself.** The
     // measurement the ADR was accepted on was that `recomputeVoids` returns nothing at load, so
     // *nothing at all* was resizable until the customer deleted something first — width editing was
     // in practice a second step of deleting. A shrink now creates the empty column it needs, so the
-    // consequence survives only for growth: **0 accepted taps becomes 51, and every one is a shrink.**
+    // consequence survives only for growth: **0 accepted taps becomes 59, and every one is a shrink.** (51 until ADR 0048 made the
+    // seeded pantry resizable and its whole column with it.)
     //
     // The first assertion is unchanged and still the reason: the kitchen really does load with no
     // void anywhere. What changed is that a resize no longer needs one.
@@ -94,7 +95,7 @@ describe("the shipped kitchen at load", () => {
     // The sign check is the rule rather than the list. A growth has to consume space that already
     // exists and there is none, so a growth accepted here would be the engine spending something it
     // does not have; a shrink funds itself out of the extent it vacates. The itemised list beside it
-    // is what stops the count going green on a different fifty-one.
+    // is what stops the count going green on a different fifty-nine.
     const world = kitchen();
     expect(world.voids).toEqual([]);
 
@@ -149,12 +150,24 @@ describe("the shipped kitchen at load", () => {
       "p20@450",
       "p20@500",
       "p20@550",
+      // ADR 0048: `B|1.80`'s two members, and they are new here. `p23` (the wall cabinet above)
+      // could always be shrunk on its own account; what held the column was `p6`, the seeded
+      // pantry, which declared `fixedWidth: true` until the owner flipped it on 2026-09-01. A
+      // column moves as one member set, so unfreezing the pantry unfroze the cabinet over it too.
+      "p23@400",
+      "p23@450",
+      "p23@500",
+      "p23@550",
       "p4@300",
       "p4@350",
       "p4@400",
       "p4@450",
       "p4@500",
       "p4@550",
+      "p6@400",
+      "p6@450",
+      "p6@500",
+      "p6@550",
       "p8@200",
       "p8@250",
       "p8@350",
@@ -174,7 +187,10 @@ describe("the shipped kitchen at load", () => {
     const accepted = new Set(
       census(kitchen()).accepted.map((tap) => tap.split("@")[0]),
     );
-    for (const frozen of ["p2", "p13", "p19", "p5", "p6", "p7"]) {
+    // `p6` left this list at ADR 0048 — the seeded pantry is resizable now, which is the whole of
+    // that record. `p5` (oven tower) and `p7` (freestanding fridge) stay: their contents are
+    // appliances at fixed sizes, which is the owner's own reason for exempting only the pantry.
+    for (const frozen of ["p2", "p13", "p19", "p5", "p7"]) {
       expect(accepted.has(frozen)).toBe(false);
     }
   });
@@ -202,12 +218,22 @@ describe("the shipped kitchen at load", () => {
     // other way**, 41 → 40. That direction is the evidence, not an oddity: the new 450s land in
     // columns whose members can now all be built there, so they are refused for a reason about the
     // *design* (no empty space to fund the move) rather than about the width.
+    // **ADR 0048 moved five of the six counts, and `p6` is the whole of it.** Before the flip `p6`
+    // was buildable at 600 alone, so it offered a *single* tap and that tap was refused
+    // `NOT_RESIZABLE` (9 → 8: the one that left is 600, which the flag no longer refuses and
+    // `WIDTH_UNCHANGED` claims instead; the eight that remain belong to `p2`, `p5`, `p7` and
+    // `p13`×5). The other eight of `p6`'s nine chips are **new**, which is why the sweep grew.
+    // Its column also stopped freezing `p23` (`COLUMN_MEMBER_NOT_RESIZABLE` 52 → 39), and the taps
+    // that are now judged on their merits land on the design rather than the flag — `NO_EMPTY_SPACE`
+    // 40 → 48 for the growths `B|1.80` cannot fund, `WIDTH_NOT_SUPPORTED` 40 → 44 for the widths
+    // `p23` cannot be built at. `WIDTH_UNCHANGED` 13 → 15 is the two bodies' own current widths.
+    // `COLUMN_KEY_COLLISION` did not move, and nothing left the six-code set.
     expect(census(kitchen()).refusals).toEqual({
-      NOT_RESIZABLE: 9,
-      COLUMN_MEMBER_NOT_RESIZABLE: 52,
-      WIDTH_NOT_SUPPORTED: 40,
-      WIDTH_UNCHANGED: 13,
-      NO_EMPTY_SPACE: 40,
+      NOT_RESIZABLE: 8,
+      COLUMN_MEMBER_NOT_RESIZABLE: 39,
+      WIDTH_NOT_SUPPORTED: 44,
+      WIDTH_UNCHANGED: 15,
+      NO_EMPTY_SPACE: 48,
       // The two taps whose vacated strip would key onto the corner leg's own column (`p8@300` and
       // `p15@300`). They were counted as "no free space" until clean-code review R3.5 collapsed the
       // two collision guards into one: the space was there, and the refusal is about where it would
@@ -216,7 +242,7 @@ describe("the shipped kitchen at load", () => {
     });
   });
 
-  it("names the forty chips §9 renders that the column cannot take", () => {
+  it("names the forty-four chips §9 renders that the column cannot take", () => {
     // **`WIDTH_NOT_SUPPORTED` is the interesting count**, and it is 5D's to close: ADR 0031 rule 5
     // intersects a column's members' sets, while `describeSelection` still answers for one body, so
     // the panel offers widths the engine refuses.
@@ -280,6 +306,14 @@ describe("the shipped kitchen at load", () => {
       "p18@800",
       "p20@200",
       "p20@250",
+      // ADR 0048: `p23` is a 600 mm wall cabinet in the pantry's column, so once that column can
+      // move, §9 renders its whole hinged set — and the four widths below 400 are ones the pantry
+      // standing under it cannot be built at. This is the column disagreeing about a width, which
+      // is what this list is for, rather than a member that refuses to move at all.
+      "p23@200",
+      "p23@250",
+      "p23@300",
+      "p23@350",
     ]);
   });
 });
@@ -301,7 +335,9 @@ describe("after one column is cleared", () => {
   //   immediately left or right of the cleared key, which is ADR 0031 rule 2 unchanged: growth still
   //   consumes an empty column, and clearing one is still the only way to make one. The two
   //   exceptions are shrinks whose vacated strip collides with the corner leg's column key, and they
-  //   are called out on the `A|0.75` row.
+  //   are called out on the `A|0.75` row. **What ADR 0043 changed is how far a growth reaches**: a
+  //   width that would leave part of the freed column standing is no longer refused, so a clear now
+  //   buys every width up to the ceiling rather than only the ones that consume it exactly.
   // - `lostToDelete` — taps that were accepted at load on a body this row deletes. Not a behaviour
   //   change; the body is gone.
   // - `lostToGap` — taps accepted at load and refused here on a body that is **still standing**.
@@ -309,7 +345,24 @@ describe("after one column is cleared", () => {
   //   Its presence is why the losses are split in two rather than counted together: a body that
   //   stops being resizable while it is still there is the interesting case, and lumping it in with
   //   the deletes would have hidden it.
+  /** ADR 0048: `B|1.80`'s two members reaching for the widths above their current 600. Both are
+   *  named because a column moves as one — the pantry cannot grow without the cabinet above it
+   *  growing to the same width, which is exactly what made `p23` immovable while `p6` was fixed. */
+  const PANTRY_COLUMN_GROWTHS = [
+    "p23@650",
+    "p23@700",
+    "p23@750",
+    "p23@800",
+    "p6@650",
+    "p6@700",
+    "p6@750",
+    "p6@800",
+  ] as const;
+
   const CLEARABLE = [
+    // **ADR 0043, 2026-09-01: the run to the 800 mm ceiling is new.** `A|0.75` grows into the 600 mm
+    // this clear frees, and until the remainder floor went it had to stop at 600 — the widths above
+    // that leave part of the freed column standing, which is now a legal gap rather than a refusal.
     {
       key: "A|0.30",
       ids: ["p8", "p15"],
@@ -320,12 +373,20 @@ describe("after one column is cleared", () => {
         "p10@500",
         "p10@550",
         "p10@600",
+        "p10@650",
+        "p10@700",
+        "p10@750",
+        "p10@800",
         "p16@350",
         "p16@400",
         "p16@450",
         "p16@500",
         "p16@550",
         "p16@600",
+        "p16@650",
+        "p16@700",
+        "p16@750",
+        "p16@800",
       ],
       lostToGap: [],
     },
@@ -338,10 +399,23 @@ describe("after one column is cleared", () => {
     // as `A|0.45`, the corner leg's column; with `A|0.75` cleared there is a real empty column to
     // return the width to instead, so no strip has to be created at all. The two exceptions to
     // "every gain is a growth" are therefore the two taps the key-collision guard refuses at load.
+    // **The eight growths beside them are ADR 0043's.** `A|0.30` can only grow into the 300 mm this
+    // clear frees, so every width above 500 leaves a remainder — refused until 2026-09-01, kept now.
     {
       key: "A|0.75",
       ids: ["p10", "p16"],
-      gained: ["p15@300", "p8@300"],
+      gained: [
+        "p15@300",
+        "p15@650",
+        "p15@700",
+        "p15@750",
+        "p15@800",
+        "p8@300",
+        "p8@650",
+        "p8@700",
+        "p8@750",
+        "p8@800",
+      ],
       lostToGap: [],
     },
     {
@@ -399,11 +473,27 @@ describe("after one column is cleared", () => {
     // `A|3.20` is the end of the run: clearing it leaves an empty column with an occupied neighbour
     // on one side only, and that neighbour is `A|2.60`, frozen by the `fixedWidth` hob base `p2`.
     { key: "A|3.20", ids: ["p4", "p14", "p20"], gained: [], lostToGap: [] },
-    // Wall B is three columns of appliances and full-height units, none of which can change width,
-    // so clearing any of them funds nothing at all. Unchanged by both of ADR 0035's rules.
-    { key: "B|1.20", ids: ["p5", "p22"], gained: [], lostToGap: [] },
+    // Wall B was three columns of appliances and full-height units, none of which could change
+    // width, so clearing any of them funded nothing at all. **ADR 0048 put one movable column on
+    // this wall**: `B|1.80` is the seeded pantry and the cabinet above it, so clearing either
+    // neighbour now buys that column the four growths its own bound reaches. `B|1.80` itself still
+    // gains nothing — the column the clear would fund is the column the clear just deleted.
+    //
+    // This is the §5.4 consequence the owner accepted when they flipped the flag: the pantry is a
+    // width donor and a width recipient, and its neighbours' empty space is what funds it.
+    {
+      key: "B|1.20",
+      ids: ["p5", "p22"],
+      gained: PANTRY_COLUMN_GROWTHS,
+      lostToGap: [],
+    },
     { key: "B|1.80", ids: ["p6", "p23"], gained: [], lostToGap: [] },
-    { key: "B|2.45", ids: ["p7", "p24"], gained: [], lostToGap: [] },
+    {
+      key: "B|2.45",
+      ids: ["p7", "p24"],
+      gained: PANTRY_COLUMN_GROWTHS,
+      lostToGap: [],
+    },
   ] as const;
 
   const LOAD_ACCEPTED = census(kitchen()).accepted;
@@ -427,20 +517,22 @@ describe("after one column is cleared", () => {
     },
   );
 
-  it("accepts 450 taps across the nine deletable columns", () => {
+  it("accepts 546 taps across the nine deletable columns", () => {
     // The population, as one number over the whole sweep — 112 before ADR 0035 decision 7, 450
-    // after it. The itemisation that used to live here has moved into `CLEARABLE`'s `gained` rows
-    // and the load census's own list, which between them name every tap; what is left for a total
-    // to add is that no *tenth* source of acceptance has appeared.
+    // after it, 466 once ADR 0043 removed the remainder floor, and 546 since ADR 0048 unfroze the
+    // seeded pantry's column. The itemisation that used to live here has moved into `CLEARABLE`'s
+    // `gained` rows and the load census's own list, which between them name every tap; what is left
+    // for a total to add is that no *tenth* source of acceptance has appeared.
     //
-    // It is exactly `9 × 51 − 51 − 4 + 46`: nine copies of the load census, less the 51 taps whose
-    // body each row deletes, less the 4 that `A|1.30` loses to `RESIZE_OPENS_GAP`, plus the 46
-    // taps the clears buy. Every one of those four terms is pinned above rather than folded into
-    // this number.
+    // It is exactly `9 × 59 − 59 − 4 + 78`: nine copies of the load census, less the 59 taps whose
+    // body each row deletes, less the 4 that `A|1.30` loses to `RESIZE_OPENS_GAP`, plus the 78
+    // taps the clears buy. Every term moved with ADR 0048 and each moved for one reason: the load
+    // census gained `B|1.80`'s eight shrinks, and the clears gained `PANTRY_COLUMN_GROWTHS` twice
+    // (62 + 16). All four are pinned above rather than folded into this number.
     const all = CLEARABLE.flatMap(
       ({ ids }) => census(clearBodies(kitchen(), [...ids])).accepted,
     );
-    expect(all.length).toBe(450);
+    expect(all.length).toBe(546);
   });
 
   it("keeps RESIZE_OPENS_GAP reachable, on the corner leg", () => {

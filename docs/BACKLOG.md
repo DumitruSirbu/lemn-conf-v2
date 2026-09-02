@@ -73,11 +73,20 @@ hob placement to offer a delete on.
 
 ## 2. Rearranging a run: re-split, and the narrow bottle cabinet — DECIDED 2026-08-26; RE-SPLIT MECHANISM DECIDED 2026-08-28
 
-> **STILL OPEN.** ~~The re-split half now has its mechanism: [ADR 0037](decisions/0037-adjacent-empty-columns-merge-into-one-space.md).~~
+> **STILL OPEN, and now half planned.** ~~The re-split half now has its mechanism: [ADR 0037](decisions/0037-adjacent-empty-columns-merge-into-one-space.md).~~
 > ADR 0037 was built in wave 5D2b on 2026-08-29 and **withdrawn on 2026-08-30**: merging the columns
 > without the re-split makes it worse, because §4 subtracts height and never width, so the first
 > cabinet inserted into a merged span closes the level and strands the rest. **Clearing two adjacent
 > cabinets still gives two openings.** The mechanism below is right and waits on the re-split.
+>
+> **AMENDED 2026-09-01 — [ADR 0046](decisions/0046-adjacent-empty-columns-merge-under-a-cap-and-an-insert-splits-its-column.md).**
+> The owner has revived the merge under an **800 mm cap** and decided the missing half is built first,
+> as an **insert-time column split**: a body inserted into a column wider than itself is seated at one
+> edge and the remainder becomes a new empty column. That is the *mechanism* option B needs — one span
+> yielding several columns — and it ships in waves 5B4a and 5B4b (`docs/milestones/done/M5B-manual-ux-remediation.md`).
+> **This entry stays open for the other half**: nothing offers a customer `800+600` versus
+> `600+400+400` for a run, which is what option B's own wording describes. The cap does **not** by
+> itself cure the stranding — the split does — and ADR 0046 records why.
 > Adjacent columns that are empty at **every** level merge into one space — the same predicate ADR 0031
 > funds a resize from. **800 mm still caps every cabinet**, so a merged 1400 mm space is filled with
 > cabinets up to 800, never with one 1400. Option C (free-form width) stays rejected: ADR 0035's 50 mm
@@ -474,6 +483,17 @@ no column is under 300 mm wide, so **no opening under 300 mm exists**. There is 
 the only way to make a narrower opening is to put a narrower body in the column first, and inserting
 one needs the opening.
 
+> **Amended 2026-09-01 — the second sentence is no longer true, and openings under 300 mm are now
+> ordinary.** [ADR 0035](decisions/0035-width-is-a-bounded-stepper-not-a-menu-of-sizes.md) decision 7
+> already falsified it on 2026-08-28: a shrink funds itself out of the space it vacates, so one `−50`
+> on a 600 mm column makes a 50 mm empty column where none could exist before.
+> [ADR 0043](decisions/0043-an-empty-space-of-any-width-is-a-legal-state.md) makes them ordinary in
+> the other direction too — a growth may now *leave* a gap of any width. **This entry's subject is
+> unaffected**: a narrow *opening* is still not a narrow *cabinet*, and reaching the 200 mm cargo
+> needs a column whose members are 200 mm, which a resize refuses on the entry's own floor. The trap
+> two paragraphs below — that `MIN_WIDTH_M` must not be lowered — is unchanged and was honoured by
+> both records.
+
 So `600 + 600 + 200` — the owner's own example, and the sentence that opens ADR 0026 — is still not
 expressible. The only command that could reach it is §5.4's resize, which does not exist yet.
 
@@ -638,7 +658,28 @@ fixes the sibling defect over a base run and leaves this divergence exactly as m
 recorded as **question 8** in `docs/milestones/M5-width.md`'s *Not established — Depth* so M5 does
 not mistake it for something already handled.
 
-## 11. `base-dishwasher` offers a finish and a handle it has neither of — NEEDS A DECISION
+## 11. `base-dishwasher` offers a finish and a handle it has neither of — DECIDED 2026-09-01, SHIPPED
+
+**Decided by the owner on 2026-09-01: give the niche a decor door**, not the one-line
+`canFinish: false, canHandle: false` this entry named — following Q6 and
+[ADR 0050](decisions/0050-the-hob-oven-filler-is-a-finishable-front.md), and recorded on this body's
+own terms as [ADR 0051](decisions/0051-the-dishwasher-niche-wears-a-decor-door.md). Shipped as M5B
+wave 5B10. The product question this entry said to ask first is what got asked, and the answer was
+the one it predicted: *the flags were right all along and the geometry is what is missing.*
+
+What landed: `dishwasherHousing` builds its own `door_front` with `doorSlab` at `baseCabinet`'s
+anchors, so it is flush with its neighbours by construction and `FRONT_MESH_NAME` reaches it with no
+rename; the appliance inside a housing is built **fully integrated** (`dw_body` only), so the only
+handle left in the body is the door's and `handle: "push"` hides a cabinet's bar rather than a
+dishwasher's; neither flag changed; occupied depth followed the geometry down 632 → 620 mm and the
+580 mm seat did not move; both ids left `RECORDED_CAPABILITY_GAPS`, which is now empty. M1's 1e-6 m
+parity gate was re-baselined per ADR 0036's rule — each added and removed node declared with its
+parent and count — never relaxed.
+
+**Its `tall-oven-tower` tail is deferred and lives on as entry 18**, because closing this entry must
+not delete the only pointer to it.
+
+### The finding, as recorded before it was decided
 
 Found 2026-08-27 by the catalogue-wide capability gate added with ADR 0027's amendment
 (`packages/three-adapter/tests/catalog-capability-parity.test.ts`), which asserts that a row
@@ -670,6 +711,21 @@ front — in which case the flags were right all along and the *geometry* is wha
 `tall-oven-tower` has related appliance-handle exposure (`push` hides its oven's and microwave's
 bars alongside its two real door handles) and was scoped out of the same wave; it belongs to
 whoever owns §6.5.
+
+**Q6 answered the product question this entry says to ask first — for the other body (2026-09-01).**
+M5B wave 5B6 met the identical choice on `base-hob-oven` and the owner chose **give it a front**,
+not turn the flags off: [ADR 0050](decisions/0050-the-hob-oven-filler-is-a-finishable-front.md). That
+is precedent, not a ruling on this row — a hob band's filler panel and an integrated dishwasher's
+decor door are different products — but it does mean the "one-line fix" framing above is no longer
+the neutral default. Whoever picks this up should read ADR 0050 before assuming
+`canFinish: false, canHandle: false` is what the owner wants.
+
+**Confirmed live at the mobile viewport, 2026-09-01** by visual verification of that wave. The niche
+fascia stays `222,223,221` under all four finishes while its immediate neighbour tracks each one,
+and the chip still records the pick (`finish-graphite` → `aria-pressed="true"`, no rejection). So the
+customer is told the choice was accepted and nothing changes — which is exactly the complaint that
+opened Q6, still live on this body. `dishwasherHousing` (`packages/three-adapter/src/kitchen-parts.ts:1438`)
+builds no `door_front`/`drawer_front` mesh, so `FRONT_MESH_NAME` reaches nothing.
 
 ## 12. §3.2's column cannot express a middle level at its own width — RAISED BY M5 WAVE 5C
 
@@ -735,7 +791,7 @@ builds at is whatever the opening is.
 **sub-600 mm column**. Take a column whose only wall member is a `wall-1door` (own set
 `[200, 300, 400]`, so 300 is legal for that column), clear an adjacent column, resize to 300 — all
 accepted. Now delete the `wall-1door`. The 300 mm void offers *Corp suspendat 2 uși*, and inserting it
-builds **one door under a two-door label**. That is [ADR 0029](../decisions/0029-a-two-door-cabinet-may-not-be-offered-at-one-door-widths.md)
+builds **one door under a two-door label**. That is [ADR 0029](decisions/0029-a-two-door-cabinet-may-not-be-offered-at-one-door-widths.md)
 verbatim, arriving through the path that ADR could not reach.
 
 **This is the same shape ADR 0029 already recorded as unfinished.** Its Consequences say the decision
@@ -882,6 +938,376 @@ whose DOM-002 finding is what the wave was scoped to.
 Related: entry 10 is the same seam from the other side — two routes to "a wall cabinet in this slot"
 producing different depths on the uncapped path — and entry 5 is the capped sibling.
 
+
+## 16. No camera preset frames the right end of wall A's base run at the mobile viewport — NEEDS A DECISION
+
+**Found by visual verification of M5B wave 5B3, 2026-09-01**, outside that wave's scope and outside
+every other wave's. At 390 × 844 the run-end panel (`end_panel_right`, entry point for wave 5B3)
+projects to **x ≈ 514 of a 390 px viewport** under the *Perete A* camera preset — off the right edge
+of the screen. The reviewer needed one orbit drag and 11 zoom steps to bring it into frame.
+
+**What this means for a customer.** On a phone, a customer cannot see the end of their own base run
+— the exact panel wave 5B3 makes follow the run — without doing manual camera work no preset does
+for them. It is a framing/camera-preset issue, not a geometry one: the panel itself renders correctly
+at the position measured, the presets simply do not show it.
+
+**Not scheduled.** No milestone currently owns the camera presets' framing at the mobile viewport;
+this is a new gap, not a regression of anything M5B changed.
+
+## 17. An emptied wall-A base run may render no void to insert into — SUSPECTED, NEEDS VERIFICATION
+
+**Observed incidentally, 2026-09-01**, while verifying M5B wave 5B3's hide-on-empty-run branch
+through the app's save/hydrate path (that path was needed because the seeded design has no reachable
+UI route to a fully-emptied wall-A base run — see wave 5B3's *Verified by visual review*). In a
+design hydrated with **no** wall-A base placements, no base void slots appeared to render on wall A
+at all.
+
+**Not confirmed as a defect.** It was seen in passing, not investigated as its own question, and
+nothing in this backlog entry pins a reproduction, a file, or a mechanism. If it is real, the
+consequence would be serious: a customer who empties their whole base run on a wall would have
+nothing to insert into and no way back to a base cabinet there short of reloading a different design.
+
+**What deciding this needs.** A deliberate reproduction — hydrate a design with zero wall-A base
+placements and check whether `deriveColumns`/`recomputeVoids` publish a base-row opening for that
+wall — before this is treated as more than a hunch. Out of scope for every wave in M5B.
+
+## 18. A cabinet-hardware choice reaches the oven's and the microwave's bars in `tall-oven-tower` — NEEDS A DECISION
+
+Split out of entry 11 on 2026-09-01 when that entry was decided and closed
+([ADR 0051](decisions/0051-the-dishwasher-niche-wears-a-decor-door.md), Consequences). Entry 11
+carried this as a one-sentence tail; it is recorded here in its own right so the deferral leaves a
+pointer rather than a silence. **Owner: whoever owns §6.5**, which is the placement entry 11 gave it
+and ADR 0051 did not overturn.
+
+`setHandlesVisible` and `applyBlackHandleMaterial` (`packages/three-adapter/src/decomposed-bodies.ts`)
+act on **every** `handle` group in a body. `tall-oven-tower` builds four `handle_bar` meshes, of
+which exactly two are the cabinet's — the other two belong to the oven and to the microwave. So
+`handle: "push"` on that body hides the appliances' bars alongside the cabinet's, and `handle:
+"black"` repaints them in cabinet hardware. `base-hob-oven` carries the same exposure with one bar,
+the oven's, and is held off it only by `canHandle: false`.
+
+**Different cause from entry 11's, which is why it was not folded into wave 5B10.** Nothing about a
+missing front is involved: the flags on `tall-oven-tower` are truthful — it really does have two
+cabinet handles — and the capability gate
+(`packages/three-adapter/tests/catalog-capability-parity.test.ts`) passes it, correctly. The defect
+is downstream, in the path that *applies* a handle choice, which has no notion of whose handle it is
+touching. The fix is to teach that path the same cabinet-versus-appliance rule `opensAFront()`
+already encodes in the gate: a `handle` group is the cabinet's exactly when its own parent also
+holds a front.
+
+**What deciding it costs.** The change is in a file every body in the scene goes through, so its
+blast radius is the whole catalogue rather than one body — which is why folding it into a wave that
+also moved seeded geometry was refused. `base-dishwasher` stopped being an instance of this on
+2026-09-01; `base-hob-oven`'s oven bar and `tall-oven-tower`'s two appliance bars remain.
+
+## 19. The dishwasher decor door meets its own appliance at a 520 mm cabinet depth — NEEDS THE OWNER, WHEN M6 CAN REACH IT
+
+Found while implementing M5B wave 5B10 ([ADR 0051](decisions/0051-the-dishwasher-niche-wears-a-decor-door.md)),
+which anchors `dishwasherHousing`'s decor door on `CARC_D` (the derived `carcassDepthM`) so it follows
+the cabinet-depth setting the way every other base front does. `dw_body` — the appliance behind the
+door — does not follow: it is a real-world machine built at a literal 0.24 m front regardless of what
+`CARC_D` says. The gap between the two is `CARC_D / 2 − 0.24`, so it closes at half a millimetre for
+every millimetre `CARC_D` drops. At the shipped 600 mm kitchen the door's inner face is `CARC_D / 2 =
+0.28`, leaving 40 mm of mounting clearance. The clearance reaches zero — the appliance meeting its own
+door — at a **520 mm cabinet depth**.
+
+**Not reachable today.** 600 mm is the only cabinet depth the product can currently produce; M5's
+worktop-depth map is a single declared constant with no control on it (see backlog *Also open* below).
+This is a floor with no way to be crossed yet, which is why it is backlog rather than a defect.
+
+**The first thing that can reach it is M6's *Setări globale* depth control**
+(`docs/milestones/M6-price-and-global-settings.md` work item 4), so that work is this entry's owner.
+Whoever wires the control needs a decision before a customer can pick a cabinet depth below 520 mm
+with a dishwasher niche in the design: refuse that combination with a stated reason, cap the depth
+control's floor at 520 mm globally, or give the niche its own floor separate from the rest of the
+catalogue. None of those is chosen here.
+
+Already commented at the mounting site — `packages/three-adapter/src/kitchen-parts.ts`, the comment
+above `dishwasherHousing`'s door slab — so the constant and the derivation that produces 520 mm are
+there for whoever picks this up, rather than needing to be re-derived.
+
+## 20. A resized seeded body renames itself, and the customer sees two names for one cabinet
+
+Found by visual verification of wave 5B8 (2026-09-01). The seeded pantry's header reads **"Coloană"**
+at 600 mm. Step it to any other width and back to 600, and the same body at the same width now reads
+**"Coloană cămară 2 uși"**.
+
+Nothing is wrong. `resolve-column-members.ts:191-194` says a resize rebuilds through the catalogue
+equivalent, so **a resized seeded body migrates its `buildId`** — it has to, because
+`buildDecomposedBody` takes no width and every seeded id is one fixed geometry. `describe-selection`
+then finds a definition where it previously found none (`catalog.get(record.buildId)`), and the
+catalogue row carries both a real `label` and `doorCountFollowsWidth`, where the seeded id carried
+neither and fell back to `KIND_LABELS_RO.tall_unit`.
+
+So this is two documented rules meeting, not a defect in either. It has applied to base cabinets
+since ADR 0033; wave 5B8 made it reachable for a column, where the two names differ most.
+
+**What a fix would be, if the owner wants one.** Give the seeded rows the labels their catalogue
+equivalents carry, so the migration changes nothing the customer reads. That is a fixture edit, not
+a mechanism change, and it is bounded by the M1 parity gate only in that it touches no geometry.
+Doing it would also close the smaller version of this on every other seeded body.
+
+Not scheduled. Raise it with the owner before spending anything on it — a rename that fires on the
+customer's first resize may be acceptable, and the header is not wrong at either end.
+
+## 21. The rendered shell and the seeded document disagree about the size of the room
+
+Found by the 5B2a logic review (2026-09-01). `kitchen-parts.ts:1795-1797` builds the shell at
+`RW = 4.2, RD = 3.4, WH = 2.6`. `kitchen-l-design.ts:469` declares the same kitchen as
+`{ widthMm: 3600, depthMm: 2400, heightMm: 2600 }`. The height agrees; **both floor dimensions do
+not**, by 600 mm and 1000 mm.
+
+Nothing is currently broken by it. Every seeded placement fits inside 3600, and
+`longestWallRunMm` holds both walls to `max(width, depth)`, so containment validation passes on the
+document's own numbers. The customer sees a room 600 mm wider than the document says it is, and no
+rule reads both figures at once, so nothing has ever compared them.
+
+**Why it matters now.** Wave 5B2a made room containment a validated rule for a new persisted field,
+and two of its test fixtures had to declare 4200 to hold coordinates the shell renders but the
+document forbids. So the mismatch is no longer merely cosmetic — it is load-bearing for test
+fixtures, and the next rule that reads the room will inherit the same choice of which figure is
+true.
+
+**What a fix needs first.** Decide which number is the room: the document is the contract and the
+geometry should follow it, but the shell's 4.2 x 3.4 is what every screenshot and every manual
+session has ever shown, and the M1 1e-6 structural parity gate pins that geometry. Changing the
+shell to 3.6 x 2.4 moves seeded geometry and needs a `DeclaredStructuralChange` under ADR 0051;
+changing the document to 4200 x 3400 moves no geometry but widens the containment envelope every
+validation rule is measured against.
+
+Not scheduled. Raise it with the owner — it is a one-line change either way and a real decision
+about which artefact is authoritative.
+
+## 22. A partly emptied column forgets what it freed, and UX-2 is only half closed — CLOSED 2026-09-02
+
+**CLOSED by M5 wave 5H — [ADR 0053](decisions/0053-the-design-document-records-the-whole-frozen-map.md).**
+A second stored array, `columnExtents`, carries the frozen extent of a column that still holds a
+member — the half `emptyColumns` (ADR 0044) never covered. Both routes below now survive a reload:
+the partial delete (`p7` cleared with `p24` standing keeps its two openings) and the clear-then-refill
+route that mattered more (clearing `A|2.60` and refilling it with an exact-fit dishwasher keeps the
+column's full 2600 mm rather than shrinking to 860). Made safe by monotone vertical containment (a
+restored extent can only widen a column, never lose a member) plus a same-wall overlap sweep that
+catches what containment alone cannot — see ADR 0053 for why containment was insufficient by itself
+and what closed the gap. Verified: domain 1433 (twice, identical), web 786–788 (+4 skipped),
+persistence 177; `pnpm ci:local` all nine gates PASS.
+
+### The finding, as recorded before it was closed
+
+Found by the 5B2b logic review and confirmed on screen by visual verification (2026-09-01). Delete
+`p7` while `p24` still stands above it: in session the freed space shows as two openings, 700x860
+and 700x350, span 1850. Reload, and **both are gone** — the column shows only `p24`. The stored
+document carries `emptyColumns: undefined`, because `projectEmptyColumns` skips any key a placement
+is filed under.
+
+That is not a bug in wave 5B2. It is ADR 0044's scope: the record persists **member-less** columns,
+and this column still has a member. ADR 0011 Gap D then forbids the obvious repair — re-deriving an
+occupied column's extent from its current records is precisely the move Gap D exists to prevent, and
+it is what would drop the region the customer just freed.
+
+So the two available fixes are both above a wave's pay grade: **widen ADR 0044** from member-less
+columns to the whole frozen map, or **accept the divergence and say so**. 5B2b accepted it, on the
+grounds that before this wave reload re-derived *every* column and nothing survived at all — this is
+strictly an improvement, not a new loss.
+
+**What is already true.** The divergence is pinned as a red-when-fixed test
+(`apps/web/tests/store/empty-columns-reload.test.ts:428-449`), and criterion 4's sweep excludes
+exactly these keys — an exclusion proved to be the diverging set exactly, not an approximation, and
+one a member-less column can never enter.
+
+**A second route, found 2026-09-01 by wave 5B4b's visual verification — cheaper and costlier than
+the first.** Clear a column entirely, insert a body that fits it exactly, reload. The wall
+(600 x 700) and top (600 x 400) openings *above* the new body are selectable before the reload and
+gone after. Isolated with no split and no merge involved: clear `A|2.60`, insert an exact-fit 600 mm
+dishwasher, reload.
+
+It is the same mechanism. The insert makes the column occupied, so `projectEmptyColumns` skips its
+key; the stored entry recording a 2600 mm extent is dropped; and the restored column's `top` comes
+from its members, which now reach 860. The column silently shrinks from 2600 to 860 and two usable
+openings disappear.
+
+This route matters more than the partial delete that opened this entry. It takes three taps rather
+than a contrived sequence, it is a *natural* thing to do — fill a column you just cleared — and what
+it costs is not a sliver but 1740 mm of a full-height column. Whoever schedules this work should
+size it against this route, not the original one.
+
+**So UX-2 is closed for a whole cleared column and for a shrink strip, and open for a partial
+delete and for a column refilled after clearing.** Whoever picks this up is deciding whether the document records the frozen map or only its
+empty members, and that is an ADR, not a work item. Gap D's own 2026-08-26 correction is the
+precedent for recording "one design, two answers by route" as its own decision.
+
+## 23. ADR 0032's refused rows are published but never rendered, and only a code comment says so
+
+Found while closing M5B wave 5B4a (2026-09-01). ADR 0032 — *an entry that does not fit is shown
+disabled with its reason* — is Accepted, and its **domain half ships**: `offersFor` publishes the
+refused entries into the offer list, each carrying the engine's own reason. The **panel drops every
+one of them**: `apps/web/src/panel/panel-model.ts:601`, `input.offers.filter(isOffered)`.
+
+So the customer sees a shorter list, not a disabled row with a sentence. Select a 300 mm empty
+column and the too-narrow rows — `base-sink`, `base-dishwasher`, `base-hob-*`, `tall-*` — are simply
+absent, which is the behaviour ADR 0032 exists to replace.
+
+**This is deliberate and the code says so.** The comment above that filter records that rendering
+the disabled row, its sentence, and its effect on the count line "is the panel's own wave", and that
+the filter "is the seam that wave replaces". Nothing is broken; the work is half-landed on purpose.
+
+**The defect is that the other half was tracked nowhere.** It is not in `STATUS.md`, not in this
+file, and not in any milestone — the only record that ADR 0032 is unfinished was that one comment,
+which no one reads unless they are already in that function. M5B wave 5B4a's criterion 3 was written
+as "shown disabled with a reason, never absent" and its visual verification duly found them absent;
+the criterion had to be corrected to be about the offer list rather than the screen. A record that
+lives only in the code it describes will keep producing criteria nobody can pass.
+
+**What the work is.** Render the refused verdicts as disabled rows with their reasons, and decide
+what they do to the "N corpuri intră" count line — the count is the part with a real choice in it.
+`describeReplaceSection` and `describeOfferRow` are where it lands, and `describeEmptyLine` already
+receives the full unfiltered `input.offers`, so the data is there.
+
+Not scheduled. Worth pairing with the next panel wave rather than done alone.
+
+## 24. The e2e suite went six days without being run, and a rename had silently broken it — CLOSED
+
+**Closed 2026-09-02, the same day it was raised**, by adding an `e2e` gate to
+`.github/workflows/ci.yml` **and** to `scripts/local-ci.sh` in one change, so the two stay mirrored
+as the script's own header promises.
+
+**Confirmed green on a real runner**, run `33627120272`: ten jobs, all successful, e2e reporting
+**21 passed in 13.1 minutes**. It took four rounds to get there and every one found something real —
+a secret naming a database the allow-list does not permit, `next dev` compiling routes inside each
+spec's timeout, a scroll assertion that sampled once after a fixed wait, and finally a synthesised
+scroll gesture that does nothing on that browser. None of them was a flake to wait out.
+
+The gap was worse than this entry first described. It said `ci:local` does not run Playwright, which
+was true — but neither did the workflow. Its nine jobs were `install`, `format`, `lint`, `typecheck`,
+`test`, `build`, `boundary`, `lockfile`, `sca`, and **not one of them ran the e2e suite**. So the six
+days were luck rather than a near miss: no gate anywhere would have caught it, at any point, on any
+branch.
+
+**What the fix needed, none of it obvious from the entry.** The runner has no browsers, so the job
+installs Chromium alone — both projects in `playwright.config.ts` pin `defaultBrowserType:
+"chromium"`, so the full set would download browsers no spec can select. It reuses the `test` job's
+`TEST_DATABASE_URL` secret and its fail-early assertion. And it inherits a documented weakness worth
+naming: `assertSafeTestDatabaseUrl` compares the test database's name against the application's and
+returns early when no `DATABASE_URL` is set, which CI deliberately does not set — so on a runner only
+the allow-list half of that guard is live. That half is the one that matters, but the comparison is
+vacuous there, exactly as finding DB-001 described.
+
+**Proved non-vacuous rather than assumed.** Reintroducing the original defect — `offer-base-cabinet`
+back to `offer-base-2door` — turns the new gate red (20 passed, 1 failed, exit 1); reverting restores
+it. A gate that would not have caught the bug that motivated it is decoration.
+
+The cost is about a minute locally, which lands on `pre-push` too. That hook already advertises
+"a few minutes" as its trade, so the addition is consistent with what it promises rather than a new
+tax nobody agreed to.
+
+**Two defects the security review caught in the fix itself, both invisible locally.** The `e2e` and
+`test` jobs share one Neon database and, needing only `install`, would have run **in parallel** on
+GitHub — while the live persistence suites execute DDL on the shared `designs` table (`drop column
+if exists revision`, and the same for `write_token_hash`), each with a window before `runMigrations`
+restores it. An e2e `POST /api/designs` landing in that window fails for a reason nobody could
+reproduce, because `scripts/local-ci.sh` runs the two serially. Fixed by `needs: [install, test]`.
+And `playwright.config.ts`'s `webServer` waited on `/`, a bare `redirect()` that compiles in
+milliseconds, so the server was declared ready before the three.js configurator was built and the
+compile landed inside a 30 s test rather than the 60 s startup window — harmless on a warm local
+cache, an intermittent timeout on a cold runner. Now it waits on the page the specs actually open.
+Retries were considered and rejected: a retry hides a flake instead of fixing it.
+
+**And a third, found only by running it on a real runner (2026-09-02).** The first CI run took
+**13.3 minutes** — `signature-flow` alone 5.8 of them, against about one minute for the whole suite
+locally — and three specs failed on the 30 s default timeout while doing nothing wrong. The cause is
+`next dev`: it compiles each route on first request, so on a two-core runner with a cold Turbopack
+cache every spec that opens a new page pays a compile inside its own timeout. Fixed by serving a
+**production build on CI** (`next build && next start`) and keeping `next dev` locally, where the
+trade is reversed — a build would add a minute to a suite that finishes in one, and a developer wants
+the tree they are editing. The per-test timeout is raised to 120 s on CI as well; `retries` was again
+declined for the same reason as before. Verified by running the CI path locally (`CI=1 pnpm
+test:e2e`): 21 passed in 1.2 minutes *including* the build, with the previously failing
+`editor-rail.desktop:278` passing in 6.4 s. It is also the more honest target — a production build is
+what Vercel serves.
+
+**And a fourth, which only a runner could show (2026-09-02).** With the production build in place the
+timeouts went away, and one genuine test-robustness bug was left standing:
+`editor-panel.e2e.spec.ts:188` sampled `scrollTop` **once**, after a fixed 400 ms wait, following a
+CDP `Input.synthesizeScrollGesture`. That call returns when the gesture is *dispatched*, and the
+smooth scroll it starts runs for roughly 200 ms — so the assertion was always a race, and this
+laptop simply always won it. The runner lost, reading 0 while everything about the sheet was
+correct. Now it polls for the condition, which still fails if the body genuinely does not scroll.
+
+**Corrected the same day: the scroll failure was not a race, and polling did not fix it.** The poll
+ran 17.6 s and `scrollTop` never moved, and the failure screenshot — downloaded from the artifact the
+job uploads, which is what that upload is for — showed the sheet open with eight offers, its footer
+pinned, and the list sitting at the top untouched. So the gesture was dispatched and did nothing.
+The cause was `Input.synthesizeScrollGesture` itself: it is a *synthesised smooth-scroll animation*,
+not a touch drag, and it works on a developer machine and not on that runner. Replaced with
+`Input.dispatchTouchEvent` — start, a few moves, end — which needs none of that machinery, is
+handled synchronously, and is closer to what the test is about, since this is the mobile sheet and a
+finger is the interaction it describes. Two inferences were made and one was wrong before the
+evidence was fetched; the artifact should have been the first move, not the third.
+
+**What the production build did not fix, and the honest number.** The suite still takes **13.2
+minutes** on a runner against about one locally, with `signature-flow` alone at 5.7 — essentially
+unchanged by the build. So route compilation was not the dominant cost; the likely remainder is
+three.js rendering through software rasterisation on a machine with no GPU, which no configuration
+change here addresses. Left as measured rather than guessed at. CI runs only on pull requests to
+`main` and pushes to `main`, so this lands per push while a PR is open rather than on every branch
+push, which is what makes 13 minutes tolerable rather than something to optimise now.
+
+**One thing to know before widening the failure artifact.** A Playwright trace records response
+headers, and `POST /api/designs` returns the write token in `Set-Cookie` — so a failure artifact
+carries a live write token for a *test-database* row. Acceptable here (private repo, 7-day
+retention, a database ADR 0006 keeps apart from the application's) and not a pattern to reuse
+against real data.
+
+*Original finding, kept for the record:*
+
+Found while closing M5B (2026-09-02). `pnpm --filter @lemnaria/web test:e2e` was red:
+§10's signature flow at 390x844 failed on `getByTestId("offer-base-2door")`, expected 1, received 0.
+
+Not a regression from any M5B wave. The panel builds its test id as `offer-${row.buildId}`
+(`editor-panel.tsx:269`), and commit `3cc3ed3` (2026-08-27, M5 waves 5C2+5C3) merged `base-2door` and
+`base-1door` into one `base-cabinet` row under ADR 0033 — the door count became a consequence of the
+width rather than a product to pick. The e2e spec was last touched **2026-08-26, the day before**.
+`wall-2door` -> `wall-cabinet` was stale in the same file for the same reason.
+
+**So the test had been red for six days and nothing said so**, because the suite had not been run
+since 2026-08-26. Every other gate stayed green throughout: the rename was consistent everywhere the
+unit suites look, and no unit test asserts a DOM test id. Fixed by renaming both ids in the spec;
+the suite is now 21 passed, 1 skipped, 0 failed.
+
+**What is worth fixing is the gap, not the ids.** `pnpm ci:local` runs format, lint, typecheck, test,
+build, boundary, lockfile and sca — it does **not** run Playwright. That is a defensible choice (the
+e2e run takes about a minute and needs a browser), but it means the only thing standing between a
+broken e2e suite and a milestone close-out is somebody remembering. Here nobody did: this run
+happened only because the scribe closing M5B noticed the milestone's own Verification method asks for
+it and said it could not certify that it had run.
+
+Options, cheapest first: run it in CI on the remote rather than locally; add it to `ci:local` behind a
+flag the milestone close-out sets; or add a staleness check like
+`packages/configurator-domain/tests/dist-module-graph.test.ts`'s, failing when the catalogue's row ids
+have changed since the e2e spec was last touched. The third is the narrowest and would have caught
+exactly this.
+
+Not scheduled. Worth deciding before the next milestone closes on an unrun gate.
+
+## 25. A narrow empty column can sit clipped against the frame edge, where nobody will see it
+
+Found by wave 5G's visual verification (2026-09-02). Shrinking `p6` from 600 to 400 splits the freed
+900 mm span into `B|2.30` at 800 mm and `B|2.75` at 100 mm, correctly. At the `Perete B` camera
+preset the 100 mm piece renders at canvas x from about 0 to 22 and is **partly clipped by the left
+frame edge** — the verifier had to enlarge the crop to see the seam at all.
+
+Nothing is wrong with the geometry, the split, or the panel: select the sliver and it explains itself
+("the opening is 100 mm, narrower than the narrowest cabinet in the catalogue... the space may be
+left as it is"). The problem is that a customer who never pans has no reason to select it, because
+they cannot see that it is there.
+
+**It is camera framing, not wave 5G.** The presets were fixed long before an empty column could be
+100 mm wide, and every seeded body is wide enough to sit clear of the frame. What changed is that
+ADR 0052's ceiling makes narrow leftovers a *routine* outcome of an ordinary shrink rather than a
+rarity — so a framing rule that was always slightly tight is now load-bearing.
+
+**Worth pairing with whoever next touches the camera presets.** The narrow question to answer is
+whether a preset should frame the wall run plus a margin, rather than the run's nominal extent, so
+that anything the domain can legally leave at the end of a run is visible without panning.
 
 ## Also open, recorded elsewhere — do not duplicate here
 

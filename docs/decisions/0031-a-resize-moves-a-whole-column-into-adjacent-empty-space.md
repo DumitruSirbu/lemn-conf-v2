@@ -1,6 +1,6 @@
 # ADR 0031 — A resize moves a whole column, and is funded by adjacent empty space
 
-Status: Accepted
+Status: Accepted (remainder-floor bullet superseded 2026-09-01 → [ADR 0043](0043-an-empty-space-of-any-width-is-a-legal-state.md))
 Date: 2026-08-27
 Type: Decision
 Milestone: M5 wave 5C — `setWidth` and the column update
@@ -126,9 +126,16 @@ Recorded so they are visible and overturnable rather than discovered in the code
   product, and it was chosen on a premise that does not hold.
 
   **Left as decided for wave 5C, and flagged for the browser pass (5E) to reconsider on evidence.**
-- **A remainder below `MIN_W` refuses.** Growing such that the empty column would be left between
+- ~~**A remainder below `MIN_W` refuses.** Growing such that the empty column would be left between
   0 and 300 mm is refused; consuming it **exactly** to zero is allowed and removes it. An unusable
-  sliver nothing can be inserted into is not a state to create.
+  sliver nothing can be inserted into is not a state to create.~~
+  **SUPERSEDED 2026-09-01 by [ADR 0043](0043-an-empty-space-of-any-width-is-a-legal-state.md).** The
+  owner: *"Empty space can be even 100 mm or 50 mm, if somebody want to keep it. Such narrow empty
+  space will force user to resize accordingly and not leave such spaces."* A gap of any width is a
+  legal state, so a growth is legal for any remainder at or above zero; `remainderMm < 0` is still
+  refused as `too_narrow`. Consuming to exactly zero still removes the column, unchanged. What this
+  bullet cost was a stepper that could step down and not back up — from the second rung, `+50` would
+  have left a strip and was refused.
 - **The empty column must be empty at every level**, matching scope. A column empty only at the level
   being edited does not qualify, because the resize moves all levels.
 
@@ -165,8 +172,10 @@ Recorded so they are visible and overturnable rather than discovered in the code
   rule a person can hold in their head, where "two chips somewhere on the top row are live" is not.
 - **Wave 5E's browser pass needs a delete in front of it** to demonstrate anything at all.
 - **§11 rows 9–11 are re-read, not discarded.** Row 9's boundary arithmetic still holds with the
-  empty column in the neighbour's place. Row 10's floor still binds — the empty column may not be
-  left under `MIN_W`. Row 11 (corners and appliances never donate) becomes vacuous rather than false:
+  empty column in the neighbour's place. ~~Row 10's floor still binds — the empty column may not be
+  left under `MIN_W`.~~ **SUPERSEDED 2026-09-01 by
+  [ADR 0043](0043-an-empty-space-of-any-width-is-a-legal-state.md): no floor binds the empty column
+  in either direction.** Row 11 (corners and appliances never donate) becomes vacuous rather than false:
   nothing donates any more.
 - **Most of wave 5C survives.** `rederiveTouchedColumns` takes only the record sets before and after
   and knows nothing of donors; the `buildId` migration, the reload anti-invariant, the real-probe

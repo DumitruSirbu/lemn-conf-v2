@@ -84,9 +84,13 @@ export const ro = {
      *  openings the bottle-cargo refusals are observed in — so the honest answer is a sentence
      *  saying the space may be left. "Șterge un corp vecin" is wrong here too: the neighbours are
      *  what the strip was taken from, and clearing one gives a *wider* opening rather than a usable
-     *  one at this width. */
+     *  one at this width.
+     *
+     *  *"pe măsură ce"* rather than *"când"* since 2026-09-01 (ADR 0043, review finding R2.3): while
+     *  the only legal growth consumed the gap exactly, one press really did close it. A `+50` now
+     *  leaves whatever is left over, so widening is a direction rather than a single press. */
     noOffersTooNarrow: (widthMm: number, minWidthMm: number) =>
-      `Deschiderea are ${String(widthMm)} mm, mai puțin decât cel mai îngust corp din catalog (${String(minWidthMm)} mm). Spațiul poate rămâne gol; se închide când lărgești corpul de lângă el.`,
+      `Deschiderea are ${String(widthMm)} mm, mai puțin decât cel mai îngust corp din catalog (${String(minWidthMm)} mm). Spațiul poate rămâne gol; se închide pe măsură ce lărgești corpul de lângă el.`,
     offerSize: (widthMm: number, heightMm: number) =>
       `${String(widthMm)} × ${String(heightMm)} mm`,
     currentBadge: "Actual",

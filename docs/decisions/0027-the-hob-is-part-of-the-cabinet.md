@@ -177,8 +177,13 @@ absent. The field is reporting, not instruction.
 on the door base. That behaviour pre-dates this record, it is not a duplicate of anything, and it is
 unchanged.
 
-**`base-hob-oven` declares `canFinish: false, canHandle: false`.** It is open-front by design — the
-appliance *is* the front — so it owns no `door_front` and no cabinet handle. Measured before the
+~~**`base-hob-oven` declares `canFinish: false, canHandle: false`.** It is open-front by design — the
+appliance *is* the front — so it owns no `door_front` and no cabinet handle.~~ **Superseded
+2026-09-01 by [ADR 0050](0050-the-hob-oven-filler-is-a-finishable-front.md):** true when written —
+the body had no fixed panel at all — and false once M5B wave 5B6 added one to close the cavity
+between the oven and the worktop. `base-hob-oven` now declares `canFinish: true` and owns exactly one
+finishable front, the filler panel. The `canHandle: false` half is unaffected and stands: the filler
+is a facade, not a leaf, and the body's only bar belongs to the oven. Measured before the 5B6
 fix: a recorded finish recoloured nothing (`collectFronts` returned `[]`), and `handle: "push"` hid
 the **oven's** own bar, a cabinet-hardware chip mutating an appliance. §13.1's "disable, don't warn"
 and §9's "never offer what cannot be satisfied" both say the sections must not render; `open-shelf`
@@ -205,11 +210,22 @@ shipped kitchen — it found four more:
 - `base-dishwasher-600` is the seeded instance of `base-dishwasher` and runs the same builder call,
   so it carries the same gap from the other population rather than a second one.
 
-Two entries therefore remain: `base-dishwasher` and its seeded instance. Both are open niches where
+~~Two entries therefore remain: `base-dishwasher` and its seeded instance. Both are open niches where
 the appliance is the front, so the builder produces no `door_front` and its only handle is the
 appliance's. The owner scoped this wave to the new entry and decided to keep both as they are, so
 each is **exempted** from the implication and **pinned to the inverse assertion** instead — a
 companion test asserts that each still violates the rule, so a repaired entry cannot outlive its
 exemption, and a third test asserts the exemption list's exact contents, so it cannot quietly absorb
 a new defect. The product question behind them — an integrated dishwasher usually wears a decor
-door, in which case the flags are right and the *geometry* is what is missing — is backlog entry 11.
+door, in which case the flags are right and the *geometry* is what is missing — is backlog entry
+11.~~ **Superseded 2026-09-01 by [ADR 0051](0051-the-dishwasher-niche-wears-a-decor-door.md):** true
+when written — the exemption was a scoping decision, not a product ruling, and its own last sentence
+handed the product question to backlog entry 11 — and false once M5B wave 5B10 answered it. The
+owner decided to give the niche a decor door rather than keep it as it stood: `dishwasherHousing` now
+builds its own `door_front` via `doorSlab`, and both `base-dishwasher` and `base-dishwasher-600` are
+ordinary fronted base bodies. `RECORDED_CAPABILITY_GAPS` is now `[]`, both pins are gone, and the
+third test named above now asserts the list has **no** recorded gaps rather than these two exact
+entries. Neither flag changed — `canFinish: true, canHandle: true` stood the whole time — only the
+geometry behind them, exactly as backlog entry 11 predicted. `canHandle` reaches a **different**
+answer from `base-hob-oven`'s above for a stated reason: a decor door opens, where the hob's filler
+does not, so ADR 0051 gives it `true` rather than `false`.

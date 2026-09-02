@@ -88,8 +88,12 @@ export interface WidthChip {
    *  rendered through `renderRejection` exactly as a disabled offer row's is, so the width section
    *  invents no vocabulary of its own (ADR 0032 rule 2).
    *
-   *  Absent on `active` and on `free` in a writable panel: a width the body already has needs no
-   *  explanation, and a reason beside a control that works is noise.
+   *  Absent on `free`, and on the ordinary `active` chip, in a writable panel: a width the body
+   *  already has needs no explanation, and a reason beside a control that works is noise.
+   *
+   *  **The one `active` chip that does carry a reason is a fixed-width cabinet's** (ADR 0049). It is
+   *  the width the cabinet is made at *and* the reason there is no other, which is why the verdict
+   *  carries both and this line says which cabinet and what it is made for.
    *
    *  **A locked panel replaces it rather than clearing it**, on every chip including `active`, with
    *  `PanelEditability.disabledReason` — the panel's own sentence, not the engine's. A browser that
@@ -548,10 +552,18 @@ function collectOfferedSections(
   if (replace) sections.push(replace);
   if (meta.canFinish) sections.push(describeFinishSection(meta, editability));
   if (meta.canHandle) sections.push(describeHandleSection(meta, editability));
-  if (meta.canWidth) {
-    const width = describeWidthSection(input, meta, editability);
-    if (width) sections.push(width);
-  }
+  // **Not gated on `meta.canWidth`** (ADR 0049). §9 item 6 made `fixedWidth` decide whether the
+  // section *exists*, and it would hide the very section that record requires. The flag now gates
+  // nothing in this panel at all: which chips are disabled is decided from the engine's verdict, by
+  // `describeWidthChipState` and `isWidthChipDisabled`. It stays on `SelectionMeta` as §9's literal
+  // statement for `describeSelection`'s other consumers.
+  //
+  // Whether there is anything to render is the domain's single answer — `columnWidthChoices`
+  // publishes chips or it publishes none — and a void, an unresolvable selection and a body with no
+  // width set all reach here with no options and get no section, exactly as the flag used to give
+  // them.
+  const width = describeWidthSection(input, meta, editability);
+  if (width) sections.push(width);
   return sections;
 }
 
@@ -778,15 +790,15 @@ function describeHandleSection(
  *  decision 3): a `+50` / `−50` stepper where the width is free, and wave 5D's discrete choice where
  *  it is genuinely a set.
  *
- *  `undefined` when there is nothing to choose from. §9 defines `canWidth` as "selected · not empty ·
- *  not `fixedWidth`" and nothing more, so the "has widths to show" half of the question is answered
- *  here: a chipless width section offers nothing, and folding the check back into `canWidth` made
- *  `canWidth: true, sizesMm: []` a representable contradiction. M5 wave 5B gave the seeded entries
- *  their sets — resolved through each row's declared `catalogEquivalentId` (ADR 0022) — so the
- *  section renders across the shipped kitchen. What still lands here is a body that publishes
- *  `canWidth` and resolves **no** set — a row that declares no catalogue equivalent and is not
- *  `fixedWidth` — so the flag stays §9's and the emptiness is answered here, which is the
- *  arrangement that made M5's missing data fail loudly.
+ *  `undefined` when there is nothing to choose from, and that is now the **only** thing that
+ *  suppresses the section (ADR 0049). A body that resolves no set at all — a row whose declared
+ *  catalogue equivalent points nowhere, an entry whose floor excludes every listed width — is
+ *  missing catalogue data, and it keeps failing loudly as a section that is not there rather than a
+ *  chipless one that makes broken data look like a constrained product (FINDING R2.7).
+ *
+ *  A `fixedWidth` cabinet is the opposite case and renders: one `active` chip at the width it is
+ *  made at, carrying the engine's `NOT_RESIZABLE` sentence. `canWidth` no longer gates this — see
+ *  `collectOfferedSections`.
  *
  *  The candidate list is the domain's, not `meta.sizesMm`. ADR 0031 resizes a **column** and `meta`
  *  describes one **body**, so the two disagree wherever a column's members declare different sets —
@@ -904,6 +916,11 @@ function describeWidthChipState(
   switch (verdict.status) {
     case "current":
       return "active";
+    // ADR 0049: the width a cabinet that cannot be resized is made at. `active`, because the body is
+    // standing on it and §9 puts that number in the section's value label — not `blocked`, which
+    // would leave the section with no active chip and the value label pointing at a dashed one.
+    case "fixed":
+      return "active";
     case "available":
       return "free";
     case "refused":
@@ -918,7 +935,7 @@ function describeWidthChipReason(
   editability: PanelEditability,
 ): { readonly reason?: string } {
   if (editability.isReadOnly) return { reason: editability.disabledReason };
-  if (verdict.status !== "refused") return {};
+  if (verdict.status === "current" || verdict.status === "available") return {};
   return { reason: renderRejection(verdict.reason) };
 }
 

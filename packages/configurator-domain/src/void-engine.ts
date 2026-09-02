@@ -1,50 +1,57 @@
 import type {
   Design,
   DesignPlacement,
+  EmptyColumn,
+  StoredColumnExtent,
   DesignWall,
   Finish,
   Handle,
 } from "./design.js";
-import { toMetres } from "./millimetres.js";
+import { mergeAdjacentEmptyColumns } from "./merge-empty-columns.js";
+import { toExactMillimetres, toMetres } from "./millimetres.js";
+import {
+  alongWallCoordinate,
+  deriveColumnKeyAt,
+  LEVELS,
+  LEVEL_SNAP_M,
+} from "./module-grid.js";
 import { deriveCabinetWorldTransform } from "./room-transforms.js";
 
-/** `DEVELOPMENT-SPEC.md` §2 module lines: base | wall | top. The 0.86–1.50 gap is backsplash and
- *  is never subdivided into — see the "no fallback" rule in `recomputeVoids`. */
-export const LEVELS: readonly (readonly [number, number])[] = [
-  [0, 0.86],
-  [1.5, 2.2],
-  [2.2, 2.6],
-];
+// The column model has one front door, so everything that already reads `LEVELS`, `LEVEL_SNAP_M` or
+// `deriveColumnKeyAt` from here goes on doing so. They are **defined** in `module-grid.ts`, which
+// nothing in this package's column code imports back — see that module for the cycle it removes.
+export {
+  alongWallCoordinate,
+  alongWallPosition,
+  deriveColumnKeyAt,
+  LEVELS,
+  LEVEL_SNAP_M,
+  MAX_EMPTY_COLUMN_WIDTH_MM,
+} from "./module-grid.js";
+export { mergeAdjacentEmptyColumns } from "./merge-empty-columns.js";
+export { splitOversizedEmptyColumns } from "./split-oversized-empty-columns.js";
 
 /** Smallest span (metres) that becomes a void. */
 export const MIN_SPAN_M = 0.3;
 
-/** `DEVELOPMENT-SPEC.md` §2's `MIN_W`: the **default** narrowest cabinet, and M5's resize floor.
+/** `DEVELOPMENT-SPEC.md` §2's `MIN_W`: the **default** narrowest cabinet.
  *
  *  ADR 0026 reads this as a default rather than an absolute: an entry may declare a `minWidthMm`
  *  of its own in either direction, and one declaring a floor *below* this replaces it for that
  *  entry alone. Three rows declare downward since ADR 0030's amendment — `base-bottle-cargo`,
  *  the two hinged rows (`base-cabinet` and `wall-cabinet`, which ADR 0033 merged the former `base-1door`/`wall-1door` into) — and each is reachable only by being chosen deliberately.
  *
- *  ADR 0031 reads this constant for a different subject than §5.4 did. There is no donor any more,
- *  so nothing is left narrow as the residue of somebody else's edit; what this floors now is the
- *  **empty column a resize eats into**, which may be consumed exactly to zero but must never be
- *  left as a sliver under 300 mm that nothing can be inserted into.
- *
- *  **It floors consuming, never creating** (ADR 0035 decision 7). A shrink that makes its own empty
- *  column makes one 50 mm wide on the first step, and applying this floor there would disable the
- *  stepper outright; the owner has ruled that an opening no cabinet fits may simply be left
- *  (ADR 0037). `set-width.ts` says which side of that line each check is on. */
+ *  **It is not a resize floor any more, in any direction** (ADR 0043, 2026-09-01). This doc used to
+ *  say that a resize may consume an empty column to zero but must never leave it as a sliver under
+ *  300 mm. The owner decided otherwise: *"Empty space can be even 100 mm or 50 mm, if somebody want
+ *  to keep it."* A gap is not a cabinet and has no floor, so `setWidth` measures nothing against
+ *  this constant — what it still governs is the narrowest **cabinet** anything may be built at. */
 export const MIN_WIDTH_M = 0.3;
 
 /** `DEVELOPMENT-SPEC.md` §2's `TOL`: the slack every width and height comparison uses. Frame
  *  numbers pass through unit conversions and are not bit-identical even when geometrically equal,
  *  so two values that should coincide are compared with this, never with `Number.EPSILON`. */
 export const FIT_TOLERANCE_M = 0.012;
-
-/** How close a free span's start must be to its level's own start to still count as "at" that
- *  level, per §4 rule 4 (a span starting mid-level stays one opening). */
-export const LEVEL_SNAP_M = 0.02;
 
 export type Band = "base" | "wall" | "top" | "column";
 
@@ -290,20 +297,6 @@ export class UnknownBodyError extends Error {
   }
 }
 
-/** §3.2's column key from a wall and an along-wall coordinate, at 10 mm granularity.
- *
- *  Exported because ADR 0031's resize moves an **empty** column, which by definition has no member
- *  to derive a key from — its extent is frozen (ADR 0011 Gap D) and its width is what moves. Its new
- *  key has to be derived the same way every occupied column's is, or a body later inserted into it
- *  lands under a key the map does not hold and `insertBody` refuses `COLUMN_MISMATCH`.
- *
- *  ADR 0035 decision 7 gives it a second caller for the same reason: a shrink *creates* an empty
- *  column at the extent it vacates, and that column has no member either. `set-width.ts` also uses
- *  it to ask whether the key it is about to create is one the map already holds. */
-export function deriveColumnKeyAt(wall: DesignWall, alongM: number): string {
-  return `${wall === "B" ? "B|" : "A|"}${alongM.toFixed(2)}`;
-}
-
 function deriveColumnKey(rotated: boolean, frame: Frame): string {
   return deriveColumnKeyAt(rotated ? "B" : "A", rotated ? frame.z : frame.x);
 }
@@ -407,14 +400,36 @@ function groupByColumn(
   return grouped;
 }
 
+/** The two halves of the frozen map, as `Design` carries them and as `deriveColumns` restores them.
+ *
+ *  **One named object rather than two positional arrays, because the two are the same type.** The
+ *  wire shape of a stored empty column and of a stored column extent is the same six fields, so two
+ *  parameters would swap without a type error and restore each half onto the other — silently, with
+ *  no symptom until a reload put a column where a space should be. Named fields make that swap
+ *  unspellable.
+ *
+ *  Both halves are optional exactly as `Design` declares them: a document with no free space carries
+ *  no `emptyColumns`, and one written before ADR 0053 carries no `columnExtents`. */
+export interface FrozenMapDocument {
+  readonly emptyColumns?: readonly EmptyColumn[] | undefined;
+  readonly columnExtents?: readonly StoredColumnExtent[] | undefined;
+}
+
 /** §3.2: derived once at load from the seeded placement set, and never recomputed afterwards —
  *  `top` and `regions` are load-time facts, not a function of the design's current state.
+ *
+ *  Three sources, in one order that matters: the placements group into the columns they imply, then
+ *  the document's own two stored halves are restored over them — the member-less columns nothing
+ *  could rebuild (ADR 0044) and the frozen extents of the occupied columns the placements no longer
+ *  imply (ADR 0053). Both arrive **before** the merge and before `hasFullHeightUnder` is answered,
+ *  so every later step reads the extents the customer actually left behind.
  *
  *  `hasFullHeightUnder` is the exception and is answered here only because a load is also a
  *  derivation; every derivation after this one re-answers it through
  *  `withCurrentFullHeightMembers`. */
 export function deriveColumns(
   records: readonly PlacementRecord[],
+  stored: FrozenMapDocument = {},
 ): ReadonlyMap<string, Column> {
   const columns = new Map<string, ColumnExtent>();
   for (const [key, members] of groupByColumn(records)) {
@@ -460,7 +475,288 @@ export function deriveColumns(
       regions,
     });
   }
-  return withCurrentFullHeightMembers(columns, records);
+  addStoredEmptyColumns(columns, stored.emptyColumns ?? []);
+  addStoredColumnExtents(columns, stored.columnExtents ?? []);
+  // ADR 0046 part 2, at the load seam ADR 0037's merge never had. **After the stored spaces are
+  // restored**, because they are most of what there is to merge, and **before**
+  // `withCurrentFullHeightMembers`, because whether a full-height member stands under a column is a
+  // fact about its extent and the merge is what writes the extents — the ordering `writeParts`
+  // uses for the same reason.
+  //
+  // **That last ordering is not commutative in principle, and no reachable document distinguishes
+  // it** — measured 2026-09-02, when swapping the two survived the whole suite. It is unfalsifiable
+  // rather than unimportant: the merge widens a column and the full-height answer is a geometric
+  // along-wall overlap over that width, so the two orders *can* disagree. What stops them today is
+  // that wall A carries no full-height body at all, and on wall B the tall runs partition the wall,
+  // so a member-less key only ever touches its tall neighbours and touching is not overlap. A
+  // hand-built entry that did overlap one is refused before it reaches here. Both of those facts
+  // are pinned by tests, so a wave that puts a tall body on wall A, or lifts that refusal, turns
+  // them red rather than silently making this line matter.
+  return withCurrentFullHeightMembers(
+    mergeAdjacentEmptyColumns(columns, records),
+    records,
+  );
+}
+
+/** ADR 0044: the spaces nothing else can reconstruct, restored into the map the placements built.
+ *
+ *  After the grouping and never inside it. An empty column has no member, so it is restored rather
+ *  than derived, and the member-less throw above stays exactly as it was — that one is about a
+ *  column the *placements* produced, and a placement-derived column with no placements in it is
+ *  still an impossible state.
+ *
+ *  **No key can collide here.** §3.2's key is a wall plus an along-wall coordinate at 10 mm
+ *  granularity, so an entry recorded at an occupied column's centre, or two entries a few
+ *  millimetres apart, would address one slot in this map and one of the two would be lost.
+ *  `validateDesignForCatalog` refuses both shapes at the write seam and the load seam, so there is
+ *  deliberately no tie-break here: a silent drop would be a space the document records and the
+ *  derivation does not have, which is the failure the refusal exists to stop.
+ *
+ *  That statement is about **this** array and stays exactly as strong as it was. ADR 0053's
+ *  `columnExtents` collides with the placements' keys on purpose, and it is a second array rather
+ *  than a widening of this one precisely so that the nine refusals governing `emptyColumns` and the
+ *  skip rule that makes them sound are untouched — see `addStoredColumnExtents`. */
+function addStoredEmptyColumns(
+  columns: Map<string, ColumnExtent>,
+  emptyColumns: readonly EmptyColumn[],
+): void {
+  restoreStoredExtents(columns, emptyColumns);
+}
+
+/** ADR 0053: the frozen extents of the columns that **do** hold a member, restored over the ones
+ *  their placements imply.
+ *
+ *  These entries land on keys the placements produced, deliberately — that is the whole point of
+ *  them — so this is the one place in the derivation where a stored value overwrites a derived one.
+ *  What makes that safe is not disjointness, which no longer holds here, but **precedence plus
+ *  containment**:
+ *
+ *  - *Precedence*: a stored entry wins on the whole of ADR 0011 Gap D's extent — `x`, `z`, `w`, `d`,
+ *    `top`, `regions`. Nothing else: membership comes from the records, and `hasFullHeightUnder` is
+ *    still re-answered afterwards by `withCurrentFullHeightMembers`, so the extent-frozen /
+ *    live-predicates-re-answered boundary is exactly where Gap D's own correction put it. Gap D is
+ *    obeyed rather than overturned — re-deriving an occupied column's extent from its current
+ *    records is precisely what this **stops** doing.
+ *  - *Containment*: `validateDesignForCatalog` proves at both seams that every placement filed under
+ *    the key lies inside the stored extent. So an overwrite can only ever widen a column: it can
+ *    never lose a member or publish an opening over a body. That is strictly stronger than the
+ *    disjointness it replaces, which only said the two halves never met.
+ *
+ *  It runs after `addStoredEmptyColumns` and the two arrays are partitioned by the same predicate
+ *  (`projectFrozenMap`), so the order between them decides nothing: no key is in both.
+ */
+function addStoredColumnExtents(
+  columns: Map<string, ColumnExtent>,
+  columnExtents: readonly StoredColumnExtent[],
+): void {
+  restoreStoredExtents(columns, columnExtents);
+}
+
+/** One entry, one slot, through `toColumnExtent` — the same conversion for both stored arrays,
+ *  because a frozen extent is one shape whether or not a body stands in it. */
+function restoreStoredExtents(
+  columns: Map<string, ColumnExtent>,
+  stored: readonly EmptyColumn[],
+): void {
+  for (const entry of stored) {
+    const extent = toColumnExtent(entry);
+    columns.set(extent.key, extent);
+  }
+}
+
+function toColumnExtent(emptyColumn: EmptyColumn): ColumnExtent {
+  const alongM = toMetres(emptyColumn.alongMm);
+  const depthM = toMetres(emptyColumn.depthMm);
+  const y0M = toMetres(emptyColumn.y0Mm);
+  const topM = toMetres(emptyColumn.topMm);
+  // Through the transform a placement's own frame goes through, so a restored space stands where a
+  // body recorded at the same coordinate would: the along-wall centre on the wall's tangent, and
+  // the column's own half-depth on its normal (§3.2, and the origin rule in `deriveColumns`).
+  const transform = deriveCabinetWorldTransform({
+    wall: emptyColumn.wall,
+    alongM,
+    y0M,
+    depthM,
+  });
+  return {
+    key: deriveColumnKeyAt(emptyColumn.wall, alongM),
+    wall: emptyColumn.wall,
+    ry: transform.yawRadians,
+    x: transform.position.x,
+    z: transform.position.z,
+    w: toMetres(emptyColumn.widthMm),
+    d: depthM,
+    top: topM,
+    // The frozen extent as a single interval. §4 reads a column's floor and its top and nothing
+    // between them (`deriveFreeSpans` takes `min(regions)` and `top`), and the members whose own
+    // intervals these were are the bodies this space no longer holds.
+    regions: [[y0M, topM]],
+  };
+}
+
+/** ADR 0044's wire shape, written from the frozen map at the store seam: the columns of `columns`
+ *  with no member in `records`, as the entries `deriveColumns` restores.
+ *
+ *  It is the exact inverse of `toColumnExtent`, and the pairing is the point — a space is stored so
+ *  that a reload rebuilds the column the session was holding, not one that merely resembles it.
+ *  The frozen map is an **argument** rather than something rederived here, so whichever map a later
+ *  wave makes canonical (ADR 0046's merge answers pre- or post-merge) reaches the document without
+ *  reopening this seam.
+ *
+ *  **Membership is asked by column key, which is what makes the result collision-free by
+ *  construction.** A key is unique in the map it came from, and a key that any placement is filed
+ *  under is skipped — so no entry can address an occupied column's slot at load, and no two entries
+ *  can address each other's. That guarantee has to live here rather than in `validateDesignForCatalog`:
+ *  since 5B2a a stored entry **overwrites** the placements' column instead of being dropped, and
+ *  commands do not validate what they return, so a projection that merely expected to be checked
+ *  would have already lost a column by the time anything looked. */
+export function projectEmptyColumns(
+  columns: ReadonlyMap<string, Column>,
+  records: readonly PlacementRecord[],
+): readonly EmptyColumn[] {
+  return projectFrozenMap(columns, records).emptyColumns ?? [];
+}
+
+/** ADR 0053's wire shape: the frozen extent of every column of `columns` that **does** hold a
+ *  member in `records` — `projectEmptyColumns`' exact complement, and the reason backlog 22's
+ *  column comes back at 2600 mm instead of 860.
+ *
+ *  Same entries, same conversion, same refusals; only the side of the predicate differs. */
+export function projectColumnExtents(
+  columns: ReadonlyMap<string, Column>,
+  records: readonly PlacementRecord[],
+): readonly StoredColumnExtent[] {
+  return projectFrozenMap(columns, records).columnExtents ?? [];
+}
+
+/** The whole frozen map as the document carries it: two arrays, disjoint by construction.
+ *
+ *  **One pass over one predicate, deliberately.** The two halves are partitioned by
+ *  `occupiedKeys.has(key)` and by nothing else, so their disjointness is a property of this loop
+ *  rather than of two independent scans agreeing with each other — and it is what lets
+ *  `deriveColumns` restore both without either being able to overwrite the other. Written as one
+ *  function for the same reason: a later edit cannot move a key into both halves without making
+ *  this loop visibly contradict itself.
+ *
+ *  Every entry goes through `toEmptyColumn`, so `refuseUnreproducibleKey` and the whole-millimetre
+ *  refusal apply to the occupied half exactly as they apply to the empty one. */
+export function projectFrozenMap(
+  columns: ReadonlyMap<string, Column>,
+  records: readonly PlacementRecord[],
+): FrozenMapDocument {
+  const occupiedKeys = new Set(records.map((record) => record.col));
+  const emptyColumns: EmptyColumn[] = [];
+  const columnExtents: StoredColumnExtent[] = [];
+  for (const [key, column] of columns) {
+    const entry = toEmptyColumn(key, column);
+    if (occupiedKeys.has(key)) columnExtents.push(entry);
+    else emptyColumns.push(entry);
+  }
+  // Sorted so one state has one document: `Map` iteration follows insertion order, and a resize
+  // deletes and re-adds both keys it moves, so two sessions reaching the same kitchen by different
+  // routes would otherwise serialise to two different strings and save each other's work back and
+  // forth (ADR 0002's round-trip invariant is about one design, not about how it was reached).
+  return {
+    emptyColumns: emptyColumns.sort(compareEmptyColumns),
+    columnExtents: columnExtents.sort(compareEmptyColumns),
+  };
+}
+
+function compareEmptyColumns(left: EmptyColumn, right: EmptyColumn): number {
+  if (left.wall !== right.wall) return left.wall < right.wall ? -1 : 1;
+  return left.alongMm - right.alongMm;
+}
+
+function toEmptyColumn(key: string, column: Column): EmptyColumn {
+  const alongM = column.wall === "A" ? column.x : column.z;
+  const entry: EmptyColumn = {
+    wall: column.wall,
+    alongMm: exactMillimetresOf("alongMm", alongM, key),
+    widthMm: exactMillimetresOf("widthMm", column.w, key),
+    // §4 reads a column's floor and its top and nothing between them, and `resolveSnapY0M` reads
+    // region starts only below a floor it is already standing on — so the frozen extent's lowest
+    // start and its top are the whole of what a restored column has to reproduce. The intervals
+    // between them belonged to bodies this space no longer holds.
+    y0Mm: exactMillimetresOf("y0Mm", lowestRegionStartM(column, key), key),
+    topMm: exactMillimetresOf("topMm", column.top, key),
+    depthMm: exactMillimetresOf("depthMm", column.d, key),
+  };
+  return refuseUnreproducibleKey(entry, key);
+}
+
+/** The whole millimetre a frozen coordinate sits on, or a refusal.
+ *
+ *  **Never `Math.round`.** `deriveColumnKeyAt` renders metres with `toFixed(2)`, so rounding a
+ *  centre of 3575.1 mm to 3575 keys the entry as its neighbour and two distinct columns collapse
+ *  into one map slot on reload — the seam would be writing a document its own validator refuses
+ *  (`EMPTY_COLUMN_KEY_COLLIDES_WITH_*`). `toExactMillimetres` accepts the float noise a metre
+ *  value picks up crossing a unit conversion and refuses a value that genuinely sits between two
+ *  millimetres, which is the distinction this needs and the one `Math.round` cannot make. */
+function exactMillimetresOf(
+  field: string,
+  valueM: number,
+  key: string,
+): number {
+  const millimetres = toExactMillimetres(valueM);
+  if (millimetres === undefined) {
+    throw new UnprojectableColumnError(
+      key,
+      `${field} is ${String(valueM)} m, which is not a whole millimetre`,
+    );
+  }
+  return millimetres;
+}
+
+function lowestRegionStartM(column: Column, key: string): number {
+  const starts = column.regions.map(([start]) => start);
+  if (starts.length === 0) {
+    throw new UnprojectableColumnError(
+      key,
+      "it has no regions, so it has no floor to record",
+    );
+  }
+  return Math.min(...starts);
+}
+
+/** The last of the two uniqueness halves: an entry has to key back to the slot it came from.
+ *
+ *  Skipping the occupied keys is only sound if a restored entry lands on its own key again, and
+ *  that is arithmetic — `toFixed(2)` on a centre one ulp either side of a half-centimetre boundary
+ *  can render differently. A mismatch is an impossible state rather than a case to handle, and it
+ *  is refused rather than repaired: writing the recomputed key would move the space away from where
+ *  the customer left it, and writing it anyway would silently overwrite a column at load. */
+function refuseUnreproducibleKey(entry: EmptyColumn, key: string): EmptyColumn {
+  const restoredKey = deriveColumnKeyAt(entry.wall, toMetres(entry.alongMm));
+  if (restoredKey !== key) {
+    throw new UnprojectableColumnError(
+      key,
+      `it would be restored under key ${restoredKey}`,
+    );
+  }
+  return entry;
+}
+
+/** A frozen column the document cannot carry.
+ *
+ *  **Defence in depth, not the primary guard.** The primary guard is `refuseFractionalCentres`
+ *  (`commands/apply-column-moves.ts`), which refuses the *command* when either centre a resize
+ *  writes — a member's `alongMm` or a frozen column's `centreMm` — is not a whole millimetre. It
+ *  covers only the resize path, and only the two centres: nothing checks a frozen column's `top`,
+ *  `d` or floor, which are inherited from members whose own values the schema keeps whole.
+ *
+ *  It is deliberately not stated as unreachable, and the earlier claim that it was is what wave
+ *  5B2b's QA disproved: the guard used to inspect the members alone, and a member centre is whole
+ *  when the *delta* is even while a frozen centre is whole when the *extent's centre* is — two
+ *  conditions that part company as soon as an extent's width is odd. No catalogue step size makes
+ *  that impossible; the seeded kitchen already carries 320 mm and 570 mm bodies.
+ *
+ *  Thrown rather than dropped because a silently omitted entry is the defect ADR 0044 exists to
+ *  fix, arriving by a new route. */
+export class UnprojectableColumnError extends Error {
+  constructor(key: string, reason: string) {
+    super(`Column ${key} cannot be recorded as an empty column: ${reason}`);
+    this.name = "UnprojectableColumnError";
+  }
 }
 
 /** The keys whose membership an operation changed, comparing the placement records before and
@@ -597,21 +893,12 @@ function overlapsAlongWall(
   record: PlacementRecord,
   column: ColumnExtent,
 ): boolean {
-  const recordStart = alongWall(record.wall, record.frame);
-  const columnStart = alongWall(column.wall, column);
+  const recordStart = alongWallCoordinate(record.wall, record.frame);
+  const columnStart = alongWallCoordinate(column.wall, column);
   const overlap =
     Math.min(recordStart + record.frame.w, columnStart + column.w) -
     Math.max(recordStart, columnStart);
   return overlap > SPAN_EPSILON_M;
-}
-
-/** The along-wall coordinate: `x` on wall A, `z` on wall B — the same axis `deriveColumnKey`
- *  buckets on. */
-function alongWall(
-  wall: DesignWall,
-  position: { readonly x: number; readonly z: number },
-): number {
-  return wall === "A" ? position.x : position.z;
 }
 
 interface FreeSpan {
@@ -710,6 +997,14 @@ function subdivideFreeSpan(
  *  column's `top`; nothing subtracts the **width** a member occupies from the width the column has.
  *  So a body narrower than its column closes the level, and the remainder is stranded — no void, no
  *  column, no second insert. Backlog 2's re-split is the missing piece (§13.3 item 2).
+ *
+ *  **Closed for an insert on 2026-09-01 (ADR 0046 part 1), and this function is not where.** A body
+ *  narrower than its column now **splits** that column before this runs (`commands/split-column.ts`),
+ *  so no column is ever wider than its members and there is nothing here to subtract. Subtracting a
+ *  width in this function was considered and rejected by name: it would make a void no column owns,
+ *  and every consumer — `insertBody`'s `COLUMN_MISMATCH` guard, `deriveColumnKeyAt`, the frozen map,
+ *  ADR 0031's funding scan — is written against the rule that an opening belongs to a column. The
+ *  paragraphs below record why the gap existed and are kept as the reasoning behind that choice.
  *
  *  **This is not the merge's doing, and an earlier version of this note said it was.** Corrected
  *  2026-08-30 after product-logic review: the gap predates M5 and is reachable in four taps with no

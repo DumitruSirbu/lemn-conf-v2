@@ -25,6 +25,7 @@ import { beforeAll, describe, expect, it } from "vitest";
 import { buildCatalogBody } from "../src/catalog-bodies.js";
 import { makeKit, type Kit } from "../src/kitchen-parts.js";
 import { createBodyProbe } from "../src/measure-built-body.js";
+import { isMesh } from "../src/three-guards.js";
 import {
   createHeadlessCanvas,
   installHeadlessDocument,
@@ -196,4 +197,126 @@ describe("the hob can be put back after its cabinet is deleted", () => {
       expect(placed?.body.widthMm).toBe(HOB_BASE_WIDTH_MM);
     },
   );
+});
+
+// M5B wave 5B6. Reported by the owner in manual UX testing: the hob-and-oven base showed a raw
+// open cavity between the worktop and the oven's top, because the carcass under a built-in oven is
+// deliberately open-front and nothing spanned the band the appliance leaves.
+//
+// Everything below finds the panel **by measured bounds**, never by mesh name: a name would pass
+// for a mesh built anywhere, and what the defect was about is where the geometry is.
+describe("the hob-and-oven base dresses the band above the oven", () => {
+  /** Written out rather than imported: §2's 860 mm worktop on a 40 mm slab, and the 560 mm carcass
+   *  a 600 mm base body is built to, centred on z 0. A test that reads its expectation out of the
+   *  code under test proves nothing. */
+  const CARCASS_FRONT_Z = 0.28;
+  const COUNTER_UNDERSIDE_Y = 0.82;
+  /** The shadow gap this kit leaves between any two fronts, and the width every front is inset
+   *  from the carcass it covers. */
+  const FRONT_SHADOW_GAP = 0.004;
+  const FRONT_WIDTH_INSET = 0.006;
+  /** ADR 0040's declared finished depth for `base-hob-oven`, on ADR 0018's 580 mm base seat. */
+  const HOB_OVEN_FINISHED_DEPTH_MM = 648;
+  /** Vertex positions come back through float32 buffers, so a measured bound lands within a few
+   *  tens of nanometres of the metre value the builder asked for. M1's fidelity gate reads the same
+   *  geometry at 1e-6 m; these bounds are held to the same epsilon. */
+  const MEASURED_TOLERANCE_M = 1e-6;
+  const BASE_SEAT_M = BASE_SEAT_DEPTH_MM / 1000;
+
+  const WIDTH_M = HOB_BASE_WIDTH_MM / 1000;
+
+  function isInsideAppliance(mesh: THREE.Object3D): boolean {
+    for (let node = mesh.parent; node; node = node.parent) {
+      if (node.name === "oven" || node.name === "cooktop") return true;
+    }
+    return false;
+  }
+
+  /** Every mesh the cabinet itself builds — the bought appliances it carries excluded, since the
+   *  question is what the *cabinetry* does with the band. */
+  function cabinetryBoxes(body: THREE.Group): THREE.Box3[] {
+    const boxes: THREE.Box3[] = [];
+    body.traverse((node) => {
+      if (!isMesh(node) || isInsideAppliance(node)) return;
+      boxes.push(new THREE.Box3().setFromObject(node));
+    });
+    return boxes;
+  }
+
+  function builtBody(): THREE.Group {
+    const body = kit.make.hobBaseWithOven(WIDTH_M);
+    body.updateWorldMatrix(true, true);
+    return body;
+  }
+
+  function ovenBoxOf(body: THREE.Group): THREE.Box3 {
+    const oven = body.getObjectByName("oven");
+    if (!oven) throw new Error("the hob-and-oven base built no oven");
+    return new THREE.Box3().setFromObject(oven);
+  }
+
+  /** The one piece of cabinetry standing at or forward of the carcass front plane and sitting
+   *  wholly under the worktop line — selected by position alone. */
+  function facadeBoxesOf(body: THREE.Group): THREE.Box3[] {
+    return cabinetryBoxes(body).filter(
+      (box) =>
+        box.min.z >= CARCASS_FRONT_Z - MEASURED_TOLERANCE_M &&
+        box.max.y <= COUNTER_UNDERSIDE_Y + MEASURED_TOLERANCE_M,
+    );
+  }
+
+  function theFacadeOf(body: THREE.Group): THREE.Box3 {
+    const found = facadeBoxesOf(body);
+    expect(
+      found,
+      "exactly one front-plane panel under the worktop",
+    ).toHaveLength(1);
+    const [facade] = found;
+    if (!facade) throw new Error("no front-plane panel under the worktop");
+    return facade;
+  }
+
+  it("stands a full-width panel across the band from the oven's top to the worktop", () => {
+    const body = builtBody();
+    const ovenTopY = ovenBoxOf(body).max.y;
+    const facade = theFacadeOf(body);
+
+    // Spans the carcass: no narrower than any other front in the run, which leaves the 560 mm
+    // opening covered with room to spare on both sides.
+    expect(facade.max.x - facade.min.x).toBeGreaterThanOrEqual(
+      WIDTH_M - FRONT_WIDTH_INSET - MEASURED_TOLERANCE_M,
+    );
+    // Closes the band: up to the worktop's underside, and down to the oven's top face bar the one
+    // shadow gap two fronts always leave each other.
+    expect(facade.max.y).toBeCloseTo(COUNTER_UNDERSIDE_Y, 6);
+    expect(facade.min.y - ovenTopY).toBeGreaterThan(0);
+    expect(facade.min.y - ovenTopY).toBeLessThanOrEqual(
+      FRONT_SHADOW_GAP + MEASURED_TOLERANCE_M,
+    );
+    // And stands at or forward of the carcass front plane, so it is a front rather than a shelf
+    // hidden inside the shell.
+    expect(facade.min.z).toBeGreaterThanOrEqual(
+      CARCASS_FRONT_Z - MEASURED_TOLERANCE_M,
+    );
+  });
+
+  it("leaves the oven untouched: no cabinetry mesh reaches into the appliance's own space above it", () => {
+    const body = builtBody();
+    const ovenBox = ovenBoxOf(body);
+    const facade = theFacadeOf(body);
+    expect(facade.intersectsBox(ovenBox)).toBe(false);
+  });
+
+  it("does not make the body deeper than ADR 0040 declares it", () => {
+    const body = builtBody();
+    const bodyFrontZ = new THREE.Box3().setFromObject(body).max.z;
+    const facade = theFacadeOf(body);
+
+    // The oven's own fascia and bar are still the front-most thing on this cabinet.
+    expect(facade.max.z).toBeLessThan(bodyFrontZ);
+    // §11 row 19 seats a body `frame.d / 2` off the wall, so this is the space it occupies.
+    expect(Math.round((BASE_SEAT_M / 2 + bodyFrontZ) * 1000)).toBe(
+      HOB_OVEN_FINISHED_DEPTH_MM,
+    );
+  });
 });

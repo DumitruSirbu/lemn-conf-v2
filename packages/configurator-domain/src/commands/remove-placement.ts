@@ -5,6 +5,7 @@
 // have merged with its neighbours since, so there is no single state to restore (§5.1, §13.1).
 import { describeKindLabel } from "../catalog.js";
 import type { Design } from "../design.js";
+import { alongWallCoordinate } from "../module-grid.js";
 import {
   derivePlacementRecords,
   type BodyCatalog,
@@ -82,7 +83,12 @@ function applyRemoval(
     {
       type: "placement_removed",
       placementId: record.id,
-      vacated: { col: record.col, y0: record.frame.y0 },
+      vacated: {
+        col: record.col,
+        y0: record.frame.y0,
+        wall: record.wall,
+        alongM: alongWallCoordinate(record.wall, record.frame),
+      },
     },
   );
 }

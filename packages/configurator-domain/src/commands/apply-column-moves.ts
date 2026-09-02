@@ -1,8 +1,9 @@
 // ADR 0031's arithmetic: the boundary between the run and the empty column beside it absorbs the
 // whole delta, every member takes the same new centre, and both frozen columns move to new keys.
 import { toMetres } from "../millimetres.js";
+import { alongWallPosition, deriveColumnKeyAt } from "../module-grid.js";
+import { splitEmptySpanAtCap } from "../split-empty-span.js";
 import {
-  deriveColumnKeyAt,
   withCurrentFullHeightMembers,
   type Column,
   type PlacementRecord,
@@ -35,7 +36,14 @@ export function planMoves(
 
   const emptyFarMm =
     empty.extent.centreMm + (outward * empty.extent.widthMm) / 2;
-  const emptyCentreMm = emptyFarMm - (outward * empty.remainderMm) / 2;
+  // ADR 0052: the freed space, decomposed into columns none of which exceeds the ceiling. The near
+  // edge is the resized run's new facing edge, so the first piece sits against the cabinets the
+  // customer just moved and any overflow lands beyond it.
+  const pieces = splitEmptySpanAtCap(
+    emptyFarMm - outward * empty.remainderMm,
+    emptyFarMm,
+  );
+  const [nearPiece, ...overflowPieces] = pieces;
 
   return chainMoveGuards(
     {
@@ -65,11 +73,19 @@ export function planMoves(
         widthMm: input.widthMm,
         centreMm: alongMm,
       },
-      empty: {
+      // A remainder of zero yields no piece at all, and the zero-width move is what *removes* the
+      // key (ADR 0031 rule 6) — so it is written explicitly rather than dropped. Its centre is the
+      // edge the space collapsed onto and is never read: `moveFrozenColumns` and
+      // `refuseFractionalCentres` both skip a move of zero width.
+      empty: nearPiece
+        ? { column: empty.column, ...nearPiece }
+        : { column: empty.column, widthMm: 0, centreMm: emptyFarMm },
+      // Every piece inherits the same frozen facts — `regions`, `top`, `d`, `ry` — because they are
+      // all the same space (ADR 0011 Gap D); only `w`, the centre and the key differ.
+      emptyOverflow: overflowPieces.map((piece) => ({
         column: empty.column,
-        widthMm: empty.remainderMm,
-        centreMm: emptyCentreMm,
-      },
+        ...piece,
+      })),
     },
     input.columns,
   );
@@ -133,37 +149,56 @@ function refuseKeyCollision(
   };
 }
 
-/** Every **persisted** coordinate must land on a whole millimetre (§2). Half of an odd width would
- *  not, and the schema stores `alongMm` as an integer — so a catalogue set that ever lists a width
- *  of the opposite parity to the column's current one is refused here rather than rounded into a
- *  body that no longer meets its neighbour.
+/** Every coordinate this move writes must land on a whole millimetre (§2): the members' centres,
+ *  which the document stores as integer `alongMm`, and the two frozen columns' centres, which
+ *  ADR 0044 now records as an `emptyColumns` entry the moment either one is member-less.
  *
- *  **The members only** (logic review R1.5). It used to check the empty column's new centre too, and
- *  that value is never persisted: it is consumed by `toMetres` and by `deriveColumnKeyAt`, which
- *  rounds to two decimals. §2's rule binds what the document stores, and the frozen map is derived
- *  state — a resize the model represents perfectly was being refused, under a code naming
- *  `alongMm`, a placement field that value is not.
+ *  **The two are different expressions and they decouple** — the reason this checks both since
+ *  wave 5B2b, having checked only the members between logic review R1.5 and then:
  *
- *  Dropping it also settles R1.4, which asked whether an unfundable side should end the scan here.
- *  It cannot: a member's centre is `columnCentre ± (newWidth − oldWidth) / 2`, so it is fractional
- *  exactly when the delta is odd — a fact about the two widths and not about which side pays, and
- *  one the other side would answer identically. Returning immediately is therefore right.
+ *    member centre = `extent.centreMm + (requested − extent.widthMm) / 2` — whole iff the delta is even
+ *    frozen centre = `extent.centreMm ± requested / 2`                    — whole iff `extent.centreMm` is
  *
- *  (The empty column's centre could never have fired alone either, as it happens: it is
- *  `farEdge − remainder / 2`, and both terms move onto half-millimetres together with the delta's
- *  parity. The check was redundant as well as wrong about which rule it was enforcing.) */
+ *  `resolveColumnExtent` takes the **union of the members' edges**, so two members offset by an odd
+ *  millimetre give an odd extent width and a half-millimetre `centreMm`. The delta can still be
+ *  even, so the members pass while the empty column lands between two millimetres — and
+ *  `projectEmptyColumns` refuses such a centre rather than rounding it (rounding collapses two
+ *  column keys into one). Without this half of the guard that refusal arrives as a **throw out of
+ *  `setWidth`**, from a width chip with nothing catching on the path. Nothing in the catalogue
+ *  guarantees the coupling: the seeded kitchen already carries 320 mm and 570 mm bodies.
+ *
+ *  A frozen move of zero width is skipped: rule 6 removes that key instead of recording it, so its
+ *  centre is never written anywhere and refusing on it would reject a resize that consumes an empty
+ *  column exactly.
+ *
+ *  R1.4 is unaffected — it asked whether an unfundable side should end the scan here, and it should:
+ *  every quantity above is a fact about the two widths and the extent, so the other side answers
+ *  identically. Returning immediately is therefore still right. */
 function refuseFractionalCentres(move: ColumnResize): Resolved<ColumnResize> {
-  const fractionalMm = move.members
-    .map((member) => member.alongMm)
-    .find((value) => !Number.isInteger(value));
-  if (fractionalMm === undefined) return { ok: true, value: move };
+  const fractional = writtenCentres(move).find(
+    (candidate) => !Number.isInteger(candidate.valueMm),
+  );
+  if (fractional === undefined) return { ok: true, value: move };
   return {
     ok: false,
-    detail: {
-      code: "NON_INTEGER_MILLIMETRES",
-      params: { field: "alongMm", valueMm: fractionalMm },
-    },
+    detail: { code: "NON_INTEGER_MILLIMETRES", params: fractional },
   };
+}
+
+/** Every centre the move is about to write, named by the field it lands in — `alongMm` on a
+ *  placement, `centreMm` on a frozen column that ADR 0044 may record as an empty one. */
+function writtenCentres(
+  move: ColumnResize,
+): readonly { readonly field: string; readonly valueMm: number }[] {
+  return [
+    ...move.members.map((member) => ({
+      field: "alongMm",
+      valueMm: member.alongMm,
+    })),
+    ...frozenMoves(move)
+      .filter((frozen) => frozen.widthMm > 0)
+      .map((frozen) => ({ field: "centreMm", valueMm: frozen.centreMm })),
+  ];
 }
 
 /** **Both** columns a resize touches, moved as the frozen extents ADR 0011 Gap D says they are:
@@ -207,7 +242,7 @@ export function moveFrozenColumns(
       ...frozen.column,
       key: frozenColumnKey(frozen),
       w: toMetres(frozen.widthMm),
-      ...(frozen.column.wall === "A" ? { x: centreM } : { z: centreM }),
+      ...alongWallPosition(frozen.column.wall, centreM),
     });
   }
   // Last, because `hasFullHeightUnder` is a fact about a column's **extent** and both frozen moves
@@ -217,8 +252,15 @@ export function moveFrozenColumns(
   return withCurrentFullHeightMembers(updated, records);
 }
 
+/** Every frozen extent the move writes, in one list, so that the two guards and the map rewrite
+ *  cannot disagree about which columns a move touches — ADR 0052's overflow pieces are guarded and
+ *  written by the same three functions the pair always was.
+ *
+ *  The overflow pieces carry the same source `column` as `empty`, so `moveFrozenColumns` deletes
+ *  that one key several times over and `refuseKeyCollision` vacates it once. Both are idempotent,
+ *  which is why the space can be split without a second bookkeeping rule. */
 function frozenMoves(move: ColumnResize): readonly FrozenColumnMove[] {
-  return [move.resized, move.empty];
+  return [move.resized, move.empty, ...move.emptyOverflow];
 }
 
 /** §3.2's key for a column at its new centre, derived exactly as an occupied column's is — an

@@ -149,9 +149,16 @@ const LOAD_ACCEPTED_TAPS: readonly string[] = [
   "p20@300",
   "p20@400",
   "p20@450",
+  // ADR 0048: `B|1.80`'s two members. The seeded pantry `p6` stopped being `fixedWidth` when the
+  // owner flipped it on 2026-09-01, and a column moves as one, so the wall cabinet `p23` above it
+  // came with it.
+  "p23@400",
+  "p23@450",
   "p4@300",
   "p4@400",
   "p4@450",
+  "p6@400",
+  "p6@450",
   "p8@200",
   "p8@400",
   "p8@450",
@@ -185,7 +192,12 @@ describe("Q1 — the legal-resize population, enumerated independently", () => {
     expect(accepted).toEqual(LOAD_ACCEPTED_TAPS);
   });
 
-  it("is dead on wall B: every wall-B column holds a corner or a fixedWidth full-height unit", () => {
+  // **ADR 0048 killed half of this row, and the half it left is the interesting one.** Wall B used
+  // to be dead everywhere: every one of its columns held a corner or a `fixedWidth` full-height
+  // unit, so no wall-B clear ever made a wall-B body resizable. `B|1.80` is the seeded pantry, and
+  // the owner unfroze it on 2026-09-01, so that column is alive — which is what report item 8 asked
+  // for. The other four are still dead, for the reasons they always were.
+  it("is dead on wall B apart from the pantry column ADR 0048 unfroze", () => {
     // Derived rather than asserted: for each wall-B column, name the member that stops it.
     const blockers = new Map<string, string>();
     for (const record of kitchen().records.filter(
@@ -204,11 +216,12 @@ describe("Q1 — the legal-resize population, enumerated independently", () => {
       "B|0.61",
       "B|0.74",
       "B|1.20",
-      "B|1.80",
       "B|2.45",
     ]);
 
-    // And so no wall-B clear, alone or paired, ever makes a wall-B body resizable.
+    // And so no wall-B clear, alone or paired, ever makes one of the **blocked** columns' bodies
+    // resizable. `p6` and `p23` are deliberately not on this list any more: they are the pantry
+    // column, and their moving is the decision rather than a leak.
     const wallB = CLEARABLE.filter((column) => column.key.startsWith("B|"));
     for (const cleared of wallB) {
       const taps = acceptedTaps(clearBodies(kitchen(), cleared.ids));
@@ -216,10 +229,8 @@ describe("Q1 — the legal-resize population, enumerated independently", () => {
         taps.filter(
           (tap) =>
             tap.startsWith("p5") ||
-            tap.startsWith("p6") ||
             tap.startsWith("p7") ||
             tap.startsWith("p22") ||
-            tap.startsWith("p23") ||
             tap.startsWith("p24"),
         ),
       ).toEqual([]);
@@ -249,25 +260,36 @@ describe("Q1 — the legal-resize population, enumerated independently", () => {
     }));
 
     expect(gains).toEqual([
-      // `A|0.75` grows into the 600 mm `A|0.30` frees, up to the 600 its own column can take.
+      // `A|0.75` grows into the 600 mm `A|0.30` frees, and — since **ADR 0043**, 2026-09-01 — all
+      // the way to the 800 mm ceiling rather than stopping at 600. Growing from 300 to 700 leaves
+      // 200 mm of the freed column standing, which ADR 0031's remainder floor used to refuse and
+      // which is now a legal gap of its own.
       {
         key: "A|0.30",
         gained: [
           "p10@400",
           "p10@450",
           "p10@600",
+          "p10@700",
+          "p10@800",
           "p16@400",
           "p16@450",
           "p16@600",
+          "p16@700",
+          "p16@800",
         ],
       },
-      // **Two, and neither is a growth.** `p8@300` and `p15@300` narrow `A|0.30` from 600, and at
-      // load the strip they vacate collides with the corner leg's `A|0.45` key; with `A|0.75`
-      // cleared there is a real empty column to return the width to and no strip is created at all.
-      // No growth is gained here: `A|0.30` can only grow on its other side, and `A|1.30`'s members
-      // are already at the 800 mm ceiling.
-      { key: "A|0.75", gained: ["p15@300", "p8@300"] },
-      // The 800 mm clear is the largest, so `A|0.75` reaches the ceiling from 300.
+      // `p8@300` and `p15@300` narrow `A|0.30` from 600, and at load the strip they vacate collides
+      // with the corner leg's `A|0.45` key; with `A|0.75` cleared there is a real empty column to
+      // return the width to and no strip is created at all. **The four growths beside them are
+      // ADR 0043's**: `A|0.30` can only grow into `A|0.75`'s 300 mm, so 700 and 800 each leave a
+      // remainder the floor used to refuse.
+      {
+        key: "A|0.75",
+        gained: ["p15@300", "p15@700", "p15@800", "p8@300", "p8@700", "p8@800"],
+      },
+      // The 800 mm clear is the largest, so `A|0.75` reaches the ceiling from 300 — it already did
+      // before ADR 0043, because 800 consumes the freed 800 exactly.
       {
         key: "A|1.30",
         gained: [
@@ -303,9 +325,13 @@ describe("Q1 — the legal-resize population, enumerated independently", () => {
       { key: "A|3.20", gained: [] },
       // Wall B is corners, appliances and full-height units; nothing on it can change width, and
       // nothing on wall A abuts a wall-B column.
-      { key: "B|1.20", gained: [] },
+      // **ADR 0048: wall B funds a growth now.** `B|1.80` is the pantry column, and clearing either
+      // of its neighbours gives it the empty column ADR 0031 rule 2 requires — so `p6` and `p23`
+      // reach 700 and 800. Clearing `B|1.80` itself still gains nothing: the column that would
+      // grow is the column the clear just emptied. This is the §5.4 consequence the owner accepted.
+      { key: "B|1.20", gained: ["p23@700", "p23@800", "p6@700", "p6@800"] },
       { key: "B|1.80", gained: [] },
-      { key: "B|2.45", gained: [] },
+      { key: "B|2.45", gained: ["p23@700", "p23@800", "p6@700", "p6@800"] },
     ]);
   });
 
@@ -333,22 +359,27 @@ describe("Q1 — the legal-resize population, enumerated independently", () => {
     ]);
   });
 
-  it("accepts 230 taps across the nine clears", () => {
-    // The total, so that a tenth source of acceptance cannot appear unnamed: `9 × 26 − 26 − 2 + 24`
-    // — nine copies of the load census, less the 26 taps whose body each clear deletes, less the two
-    // lost to the corner leg, plus the 24 taps gained.
+  it("accepts 278 taps across the nine clears", () => {
+    // The total, so that a tenth source of acceptance cannot appear unnamed: `9 × 30 − 30 − 2 + 40`
+    // — nine copies of the load census, less the 30 taps whose body each clear deletes, less the two
+    // lost to the corner leg, plus the 40 taps gained. **It was 230 with 24 gained until ADR 0043**
+    // removed the remainder floor, then 238 with 32; **ADR 0048 took it to 278** by adding four
+    // shrinks to the load census (`p6` and `p23`, twice each) and eight growths to the gains.
+    // Every one of those taps is on a row above.
     const total = CLEARABLE.flatMap((cleared) =>
       acceptedTaps(clearBodies(kitchen(), cleared.ids)),
     ).length;
-    expect(total).toBe(230);
+    expect(total).toBe(278);
   });
 
   it("opens no new column move when a second column is cleared", () => {
     // Untested territory: 36 pairs. Every accepted tap is still one of the single-clear moves, so
     // clearing more space widens the population of *situations* and never the population of moves.
     // That claim is what this row protects, and neither ADR 0033 nor ADR 0035 touched it — the list
-    // below grew from four to eleven and then to fourteen because the moves themselves grew, not
-    // because a pair unlocked anything a single clear could not.
+    // below grew from four to eleven, then to fourteen, with ADR 0043 to twenty, and with ADR 0048
+    // to twenty-four, because the
+    // moves themselves grew, not because a pair unlocked anything a single clear could not. The two
+    // ADR 0043 adds here, `A|0.30@700` and `A|0.30@800`, are both in the single-clear gains above.
     const pairs: string[] = [];
     for (let left = 0; left < CLEARABLE.length; left += 1) {
       for (let right = left + 1; right < CLEARABLE.length; right += 1) {
@@ -370,6 +401,8 @@ describe("Q1 — the legal-resize population, enumerated independently", () => {
       "A|0.30@300",
       "A|0.30@400",
       "A|0.30@450",
+      "A|0.30@700",
+      "A|0.30@800",
       "A|0.75@200",
       "A|0.75@400",
       "A|0.75@450",
@@ -384,6 +417,13 @@ describe("Q1 — the legal-resize population, enumerated independently", () => {
       "A|3.20@450",
       "A|3.20@700",
       "A|3.20@800",
+      // ADR 0048: the pantry column. Its four widths are exactly the ones a *single* clear already
+      // reaches — `@400` and `@450` at load, `@700` and `@800` from either neighbour — so the claim
+      // this row protects is unchanged: a pair unlocks no move a single clear could not.
+      "B|1.80@400",
+      "B|1.80@450",
+      "B|1.80@700",
+      "B|1.80@800",
     ]);
   });
 });
@@ -496,7 +536,7 @@ describe("Q2 — conservation and the inverse", () => {
     ]);
   });
 
-  it("refuses a remainder between zero and MIN_W", () => {
+  it("accepts a remainder between zero and MIN_W (ADR 0043)", () => {
     const world = clearBodies(
       syntheticWorld([
         placementAt("a-base", 700, 0, "base-panbank", 600, 860),
@@ -507,10 +547,18 @@ describe("Q2 — conservation and the inverse", () => {
       ["b-base", "b-wall"],
     );
 
+    // Asserted the refusal until 2026-09-01. A 600 mm column growing to 800 into a 300 mm empty one
+    // leaves 100 mm, which the owner has decided is a state a design may hold: *"Empty space can be
+    // even 100 mm or 50 mm, if somebody want to keep it."* The conservation this section is about is
+    // unchanged — the 100 mm is still there, in a column of its own.
     const result = resizeTo(world, "a-base", 800);
-    expect(result.ok).toBe(false);
-    if (result.ok) return;
-    expect(result.reason.code).toBe("NO_EMPTY_SPACE");
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.effect.emptyColumnWidthMm).toBe(100);
+    expect(spansMm(result.design)).toEqual([
+      "a-base:400..1200",
+      "a-wall:400..1200",
+    ]);
   });
 });
 

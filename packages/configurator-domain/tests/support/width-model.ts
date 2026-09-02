@@ -25,3 +25,9 @@ export const CABINETRY_CHIPS_MM = [
  *  the hood (ADR 0035 decision 5, floored at 600) produce the same five widths for two reasons. */
 export const SINK_CHIPS_MM = [600, 650, 700, 750, 800] as const;
 export const HOOD_CHIPS_MM = [600, 650, 700, 750, 800] as const;
+
+/** ADR 0048: the pantry column's own bound — its declared 400 mm floor up to §7's ceiling. The one
+ *  full-height row with a stepper, because it is the one with no appliance inside it. */
+export const PANTRY_CHIPS_MM = [
+  400, 450, 500, 550, 600, 650, 700, 750, 800,
+] as const;

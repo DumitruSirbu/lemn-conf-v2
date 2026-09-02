@@ -130,3 +130,40 @@ describe("renderRejection", () => {
     expect(ontoFloor).toContain("soclu");
   });
 });
+
+// ADR 0031's empty-space sentence, reworded on 2026-09-01 (ADR 0043's consequences).
+//
+// It read „coloana ar trebui să ocupe 50 mm", which the owner read as the column being 50 mm
+// **wide** rather than needing 50 mm more — the number in the sentence is the space the move
+// requires, not a width the cabinet would end up at.
+//
+// **One direction, not two.** A shrink-shaped clause was written here first and removed on QA
+// finding Q1: no command can produce a `NO_EMPTY_SPACE` with a negative delta, so it was copy no
+// customer could reach. The anti-invariant is asserted where it can be *measured* rather than
+// rendered — `qa-w5b1.adversarial.test.ts` sweeps every tap and finds none.
+describe("the empty-space refusal names the space, not a width", () => {
+  const GROWTH = {
+    code: "NO_EMPTY_SPACE",
+    params: {
+      label: "Corp spălător",
+      requestedMm: 700,
+      deltaMm: 50,
+      sides: [{ side: "right", reason: "absent" }],
+    },
+  } as const;
+
+  it("says how much more space a growth would need", () => {
+    const message = renderRejection(GROWTH);
+
+    expect(message).toContain("ar mai avea nevoie de 50 mm");
+    expect(message).not.toContain("ocupe");
+  });
+
+  it("keeps the width asked for and the side that refused", () => {
+    // The rewording is about one clause. The rest of the sentence is what makes the refusal
+    // actionable — which width was tapped, and which side had nothing to give.
+    expect(renderRejection(GROWTH)).toBe(
+      "„Corp spălător” nu poate ajunge la 700 mm: coloana ar mai avea nevoie de 50 mm, dar în dreapta nu este spațiu liber.",
+    );
+  });
+});

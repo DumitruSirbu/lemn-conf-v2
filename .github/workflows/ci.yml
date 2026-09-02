@@ -163,6 +163,93 @@ jobs:
       - name: Test
         run: pnpm test
 
+  # Added 2026-09-02. Until then nothing anywhere ran Playwright: `ci:local` did
+  # not, and neither did this workflow, so §10's signature flow sat red for six
+  # days after a catalogue id was renamed under it and no gate said a word. The
+  # unit suites cannot cover that class — the rename was consistent everywhere
+  # they look, and no unit test asserts a DOM test id.
+  e2e:
+    name: e2e
+    runs-on: ubuntu-latest
+    # Longer than `test` (15): this one produces a production build and drives a
+    # real browser through it. On CI `playwright.config.ts` serves `next build &&
+    # next start` rather than `next dev`, because dev compiles each route on its
+    # first request and a runner pays that inside each spec's own timeout — which
+    # is what made the first run here take 13.3 minutes, `signature-flow` alone
+    # accounting for 5.8 of them, with three specs failing on the 30 s default
+    # while doing nothing wrong.
+    timeout-minutes: 25
+    # **`test`, not just `install`** — the two share one Neon database and would
+    # otherwise run in parallel. The live persistence suites execute DDL on the
+    # shared `designs` table (`drop column if exists revision`, and the same for
+    # `write_token_hash`), each with a window before `runMigrations` restores it;
+    # the adversarial suite's own comment says this "wedges the shared test
+    # database". An e2e `POST /api/designs` landing in that window fails for a
+    # reason nobody can reproduce locally, because `scripts/local-ci.sh` runs the
+    # two serially. Serialising them here costs wall-clock and buys determinism.
+    needs: [install, test]
+    env:
+      # Same secret, same reasoning as the `test` job above, and the same
+      # deliberate omission of DATABASE_URL. Note what that omission costs here:
+      # `assertSafeTestDatabaseUrl` compares the test database's *name* against
+      # the application's and returns early when there is no application URL to
+      # compare with, so on a runner only the allow-list half of that guard runs.
+      # That half is the one that matters — it refuses any database this
+      # repository has not named as a test database — but the comparison is
+      # vacuous here, exactly as finding DB-001 described.
+      TEST_DATABASE_URL: ${{ secrets.TEST_DATABASE_URL }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Setup pnpm
+        uses: pnpm/action-setup@0e279bb959325dab635dd2c09392533439d90093 # v6.0.8
+      - name: Setup Node
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+      - name: Install (frozen lockfile)
+        run: pnpm install --frozen-lockfile
+      # Fails before Playwright with a clear message rather than surfacing a
+      # missing secret as a driver error mid-suite, exactly as `test` does.
+      - name: Assert the test database secret is present
+        run: |
+          if [ -z "$TEST_DATABASE_URL" ]; then
+              echo "TEST_DATABASE_URL is not set. The e2e suite writes designs, so it needs"
+              echo "the dedicated Neon test database. Add it under Settings > Secrets and"
+              echo "variables > Actions as a repository secret named TEST_DATABASE_URL."
+              exit 1
+          fi
+          echo "TEST_DATABASE_URL present; database name: $(node -e "console.log(new URL(process.env.TEST_DATABASE_URL).pathname.slice(1))")"
+      # Chromium alone: both projects in playwright.config.ts pin
+      # `defaultBrowserType: "chromium"`, so installing the full set would cost
+      # download time for browsers no spec can select. `--with-deps` brings the
+      # system libraries a headless Chromium needs on a bare runner.
+      - name: Install Playwright Chromium
+        run: pnpm --filter @lemnaria/web exec playwright install --with-deps chromium
+      # The config starts its own `next dev` with `reuseExistingServer: false`,
+      # so there is no server to stand up here.
+      - name: E2E
+        run: pnpm test:e2e
+      # Traces are retained on failure only (playwright.config.ts), so this
+      # uploads nothing on a green run and the failing run's trace is the first
+      # thing a reader wants.
+      #
+      # Know what is in it before widening this: a trace records response headers,
+      # and `POST /api/designs` returns the write token in `Set-Cookie`. So a
+      # failure artifact carries a live write token for a **test-database** row.
+      # Acceptable here — private repo, 7-day retention, a database ADR 0006
+      # keeps separate from the application's — and not a pattern to reuse
+      # against real data.
+      - name: Upload Playwright trace on failure
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: playwright-trace
+          path: apps/web/test-results/
+          retention-days: 7
+          if-no-files-found: ignore
+
   build:
     name: build
     runs-on: ubuntu-latest

@@ -202,6 +202,43 @@ describe("every insertable entry declares the bound its widths come from", () =>
     },
   );
 
+  // **The same guard's third field, and it is the one that was missing.** The two assertions above
+  // read `widthRangesMm` and `sizesMm`; nothing read `widthFlex`, which is the field that decides
+  // **which resolver an insert takes** — `'fit'` goes to `resolveFitWidth` and builds the opening,
+  // a millimetre set goes to `resolveFixedSetWidth` and takes the widest listed size that fits.
+  //
+  // A row can therefore declare a perfectly good bound, publish chips inside it, satisfy both
+  // assertions above, and still build 600 into every opening from 600 up. That is the hood's
+  // finding R1.2 verbatim (`insert-fit.ts`, `resolveFixedSetWidth`), and ADR 0048's `tall-pantry`
+  // is the second row exposed to it: its `widthFlex: "fit"` sits **after** the `fullHeightUnit`
+  // spread that stamps `COLUMN_WIDTHS_MM`, so moving that one line above the spread would silently
+  // restore the fixed set — an **ordering** mistake, invisible to a guard that reads only the two
+  // fields the row got right. QA on wave 5B8 found this blind spot; the pin is here rather than in
+  // that wave's own file because the rule is the catalogue's, not the pantry's.
+  it.each(INSERTABLE_BODY_DEFINITIONS)(
+    "%s declares the flexibility its own ranges imply",
+    (buildId, definition) => {
+      const isStepped = (definition.widthRangesMm ?? []).some(
+        (range) => range.minMm < range.maxMm,
+      );
+
+      if (isStepped) {
+        expect(
+          definition.widthFlex,
+          `${buildId} declares a bound but not 'fit', so an insert would narrow into it`,
+        ).toBe("fit");
+        return;
+      }
+      // A discrete row's declared set and its offered sizes are the same list, so a row that
+      // overrode one without the other — the shape `discreteWidths` exists to prevent — fails here
+      // rather than at the resolver.
+      expect(
+        definition.widthFlex,
+        `${buildId} is discrete, so its flexibility is its own set`,
+      ).toEqual(definition.sizesMm);
+    },
+  );
+
   // Both shapes ADR 0035 recognises, named rather than counted. A cabinetry row moving into the
   // discrete list would lose its stepper; an appliance row moving into the cabinetry list would let
   // a customer step a dishwasher niche to 550, which is decision 3 by name.
@@ -221,6 +258,9 @@ describe("every insertable entry declares the bound its widths come from", () =>
       "wall-lift",
       "open-shelf",
       "hood",
+      // ADR 0048: the one full-height row with a stepper. It is last because it is last in §7's
+      // order, and it is here at all because no appliance inside it fixes its width.
+      "tall-pantry",
     ]);
 
     const discrete = INSERTABLE_BODY_DEFINITIONS.filter(([, definition]) =>
@@ -237,7 +277,6 @@ describe("every insertable entry declares the bound its widths come from", () =>
       "base-hob-oven",
       "base-bottle-cargo",
       "base-dishwasher",
-      "tall-pantry",
       "tall-oven-tower",
       "tall-fridge-housing",
       "fridge-free",

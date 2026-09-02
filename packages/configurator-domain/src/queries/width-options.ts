@@ -36,6 +36,12 @@ import type { Column } from "../void-engine.js";
 export type WidthVerdict =
   | { readonly status: "current" }
   | { readonly status: "available" }
+  /** ADR 0049: the one width a cabinet that cannot be resized is made at. `current` and `refused`
+   *  at once, and a status of its own rather than a `reason` bolted onto `current`, so that a
+   *  surface has to decide what to do with it instead of silently rendering an unexplained chip.
+   *  The chip is `active` — the body is standing at this width — and it carries the engine's
+   *  `NOT_RESIZABLE` sentence through the same `renderRejection` a blocked chip's goes through. */
+  | { readonly status: "fixed"; readonly reason: RejectionDetail }
   | { readonly status: "refused"; readonly reason: RejectionDetail };
 
 export interface WidthOption {
@@ -71,10 +77,23 @@ export const DISCARDED_OCCURRED_AT = "1970-01-01T00:00:00.000Z";
  *
  *  Empty when the selection is a void, no longer resolves, or resolves no set at all — which is the
  *  same "no chips, therefore no section" answer `describeWidthSection` already makes, and the
- *  arrangement that keeps missing catalogue data failing loudly (M5 wave 5B, FINDING R2.7). */
+ *  arrangement that keeps missing catalogue data failing loudly (M5 wave 5B, FINDING R2.7).
+ *
+ *  **One chip on a cabinet that cannot be resized** (ADR 0049), at the width it is made at, carrying
+ *  the reason. The command is not run for it: `setWidth` refuses this body at every width before it
+ *  looks at which one was asked for, so asking would spend a rebuild to be told what the refusal
+ *  already published — and would put a second sentence where the section needs one. */
 export function widthOptionsFor(input: WidthOptionsInput): WidthOption[] {
   const choices = columnWidthChoices(input);
   if (!choices) return [];
+  if (choices.notResizable) {
+    return [
+      {
+        widthMm: choices.currentWidthMm,
+        verdict: { status: "fixed", reason: choices.notResizable },
+      },
+    ];
+  }
   return choices.sizesMm.map((widthMm) => ({
     widthMm,
     verdict:

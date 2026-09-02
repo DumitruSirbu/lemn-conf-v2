@@ -534,12 +534,18 @@ describe("the load census, re-derived from the rules rather than from the code",
   // | `A|0.30` 600 | p8, p15 | 200–800 (ADR 0026 floor) | 8, less the `A|0.45` collision | 4 |
   // | `A|0.75` 300 | p10, p16 | 200–800 | 2 | 10 |
   // | `A|2.00` 600 | p1, p12, p18 | {450, 600} (§11 row 14) | 1 | 0 |
+  // | `B|1.80` 600 | p6, p23 | 400–800 (ADR 0048's pantry bound) | 4 | 4 |
   //
-  // Shrinks accepted: 4×3 + 6×3 + 7×2 + 2×2 + 1×3 = 12 + 18 + 14 + 4 + 3 = **51**.
+  // **The last row is ADR 0048 and it is the only one that moved.** The seeded pantry `p6` declared
+  // `fixedWidth: true` until the owner flipped it on 2026-09-01, so its column contributed nothing
+  // to any of the three counts; the pantry's own 400 mm floor is what makes the intersection start
+  // there rather than at the wall cabinet's 200.
+  //
+  // Shrinks accepted: 4×3 + 6×3 + 7×2 + 2×2 + 1×3 + 4×2 = 12 + 18 + 14 + 4 + 3 + 8 = **59**.
   // `NO_EMPTY_SPACE`: every growth, since the kitchen loads with no empty column, plus the two
-  // collision-refused shrinks: 0 + 4×3 + 4×2 + 10×2 + 0 + 2 = **42**.
-  // `WIDTH_UNCHANGED` fires once per body that gets that far: 3 + 3 + 2 + 2 + 3 = **13**.
-  it("accepts the fifty-one shrinks the rules predict and refuses the forty-two growths", () => {
+  // collision-refused shrinks: 0 + 4×3 + 4×2 + 10×2 + 0 + 4×2 + 2 = **48**.
+  // `WIDTH_UNCHANGED` fires once per body that gets that far: 3 + 3 + 2 + 2 + 3 + 2 = **15**.
+  it("accepts the fifty-nine shrinks the rules predict and refuses the forty-eight growths", () => {
     const world = kitchen();
     let accepted = 0;
     let noEmptySpace = 0;
@@ -555,7 +561,7 @@ describe("the load census, re-derived from the rules rather than from the code",
         if (result.reason.code === "WIDTH_UNCHANGED") unchanged += 1;
       }
     }
-    expect([accepted, noEmptySpace, unchanged]).toEqual([51, 40, 13]);
+    expect([accepted, noEmptySpace, unchanged]).toEqual([59, 48, 15]);
   });
 
   it("refuses exactly the two taps whose vacated strip keys onto the corner leg's column", () => {

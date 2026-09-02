@@ -17,6 +17,7 @@ import {
   widthOptionsFor,
   type WidthOption,
 } from "../../src/queries/width-options.js";
+import { widthStepsFor } from "../../src/queries/width-steps.js";
 import { resolveBuildableSizes } from "../../src/catalog.js";
 import type { BodyCatalog } from "../../src/void-engine.js";
 import { clearBodies, OCCURRED_AT } from "../support/commands.js";
@@ -131,7 +132,11 @@ describe("a chip is free if and only if the command would succeed", () => {
     let compared = 0;
     for (const record of world.records) {
       for (const option of optionsFor(world, record.id)) {
+        // Neither of the two chips a body is standing on is a candidate move: `current` is the
+        // width it has, and ADR 0049's `fixed` is the only width it is made at. The command refuses
+        // both, which is why the property is about the chips that offer to change something.
         if (option.verdict.status === "current") continue;
+        if (option.verdict.status === "fixed") continue;
         expect([record.id, option.widthMm, option.verdict.status]).toEqual([
           record.id,
           option.widthMm,
@@ -195,19 +200,23 @@ describe("the current width is a fact about the body, not a refusal code", () =>
     for (const record of world.records) {
       const options = optionsFor(world, record.id);
       if (options.length === 0) continue;
-      const current = options.filter(
-        (option) => option.verdict.status === "current",
+      // `fixed` counts, and counting it is the point (ADR 0049): a fixed-width cabinet's one chip
+      // is the width it is standing at, so it is the section's active chip and the number in the
+      // value label. A body with no active chip at all is the failure this guards, whichever of
+      // the two ways it is standing on one.
+      const active = options.filter(
+        (option) =>
+          option.verdict.status === "current" ||
+          option.verdict.status === "fixed",
       );
-      expect([record.id, current.map((option) => option.widthMm)]).toEqual([
+      expect([record.id, active.map((option) => option.widthMm)]).toEqual([
         record.id,
         [record.widthMm],
       ]);
       bodies += 1;
     }
-    // The seventeen bodies §9 renders a width section for. A `fixedWidth` body resolves a perfectly
-    // good set and is still excluded here rather than at the panel, so the flag is not the only
-    // thing standing between the customer and a section of dead controls.
-    expect(bodies).toBe(17);
+    // Seventeen resizable bodies plus the five `fixedWidth` ones ADR 0049 brought into the section.
+    expect(bodies).toBe(22);
   });
 
   // The same claim where it is load-bearing, **corrected after QA measured it**: the first version
@@ -477,5 +486,152 @@ describe("the widths and the ranges fall back together", () => {
     // widths without ranges, which is a bound described as a set.
     expect(choices.sizesMm.length).toBeGreaterThan(0);
     expect(choices.widthRangesMm.length).toBeGreaterThan(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// The two width controls answer with one voice.
+//
+// §9 renders a stepper (ADR 0035 decision 1) and, where a column publishes a set, a chip row
+// (ADR 0034's seam). Both judge by running `setWidth` and discarding the design, so they cannot
+// disagree unless one of them stops asking — and a customer who sees a live `+50` on a chip and a
+// dead one on the stepper has no way to tell which is the product's answer.
+//
+// **They agree by construction today, and that is the point of pinning it.** Nothing in the query
+// layer models a width; both ask. The row below is the guard against a future shortcut — a chip set
+// filtered on a rule of its own, or a stepper that reads a bound instead of running the command —
+// which is the defect class ADRs 0016, 0017, 0029 and 0032 each record arriving a different way.
+// The second test keeps the sweep from being vacuous by pinning a width that is live on both
+// controls only because ADR 0043 removed the remainder floor.
+// ---------------------------------------------------------------------------
+describe("the stepper and the chip row agree about the next width up", () => {
+  function stepsFor(world: KitchenWorld, placementId: string) {
+    return widthStepsFor({
+      design: world.design,
+      catalog: world.catalog,
+      columns: world.columns,
+      target: { kind: "placement", id: placementId },
+      probe: createFakeProbe(),
+    });
+  }
+
+  const SEEDED_SELECTIONS = KITCHEN_L_DESIGN.placements.map(
+    (placement) => placement.id,
+  );
+
+  /** The worlds the sweep runs over. **The shipped kitchen and one cleared dishwasher column are not
+   *  enough**: neither has a body that can grow, so every pair skips and the sweep checks nothing —
+   *  measured at zero when this row was first written (review finding R1.3). Clearing `A|0.30` and
+   *  `A|2.60` is what puts a live `+50` on the board, per the census in
+   *  `qa-w5c.enumeration.test.ts`. */
+  function worldsUnderTest(): KitchenWorld[] {
+    return [
+      kitchen(),
+      kitchenWithEmptyColumn(),
+      clearBodies(kitchen(), ["p8", "p15"]),
+      clearBodies(kitchen(), ["p2", "p13", "p19"]),
+      steppedDown("p4", 500),
+    ];
+  }
+
+  /** The shipped kitchen with one column stepped down through the real command, carrying the frozen
+   *  map forward the way the store does. This is the ADR 0043 shape: the gap the shrinks left is
+   *  narrower than what a `+50` would consume, so the step back up leaves a remainder — which is
+   *  live on both controls now and was refused on both before. */
+  function steppedDown(placementId: string, targetMm: number): KitchenWorld {
+    let world = kitchen();
+    for (let widthMm = 550; widthMm >= targetMm; widthMm -= 50) {
+      const result = setWidth({
+        design: world.design,
+        catalog: world.catalog,
+        columns: world.columns,
+        target: { kind: "placement", id: placementId },
+        widthMm,
+        probe: createFakeProbe(),
+        occurredAt: OCCURRED_AT,
+      });
+      if (!result.ok) throw new Error(`step refused: ${result.reason.code}`);
+      world = {
+        ...createWorld(result.design, world.catalog),
+        columns: result.effect.columns,
+      };
+    }
+    return world;
+  }
+
+  /** How many `(selection, world)` pairs must actually reach the comparison. Both `continue`s below
+   *  are silent skips — a selection with no width section at all, and a chip the command refuses —
+   *  so without a floor this sweep passes when it checks **nothing**, which is exactly what it did
+   *  before R1.3 and what a query that stopped publishing chips would look like. Pinned under the
+   *  measured count, deliberately loose: it is a vacuity guard, not a census, and the census lives
+   *  in `qa-w5c.enumeration.test.ts`. The idiom is `set-width.columns.test.ts`'s own.
+   *
+   *  **Measured at 8 across the five worlds**, and pinned at 6. The number is small because a live
+   *  `+50` is rare on the shipped kitchen — most columns are at a ceiling, frozen by an appliance,
+   *  or have nothing beside them — which is the finding itself: the four selections that can grow
+   *  are the entire evidence this sweep has, so losing one has to fail rather than pass quietly. */
+  const MINIMUM_PAIRS_CHECKED = 6;
+
+  it("offers a live +50 step wherever it offers that chip", () => {
+    const disagreements: string[] = [];
+    let checked = 0;
+
+    for (const placementId of SEEDED_SELECTIONS) {
+      for (const world of worldsUnderTest()) {
+        const steps = stepsFor(world, placementId);
+        if (!steps) continue;
+        const chip = optionsFor(world, placementId).find(
+          (option) => option.widthMm === steps.wider.widthMm,
+        );
+        if (chip?.verdict.status !== "available") continue;
+        checked += 1;
+        if (steps.wider.verdict.status !== "available") {
+          disagreements.push(
+            `${placementId}@${String(steps.wider.widthMm)}: chip available, step ${steps.wider.verdict.status}`,
+          );
+        }
+      }
+    }
+
+    expect(disagreements).toEqual([]);
+    expect(checked).toBeGreaterThanOrEqual(MINIMUM_PAIRS_CHECKED);
+  });
+
+  it("has a live +50 to agree about, on a width ADR 0043 is what unlocks", () => {
+    // The sweep above is satisfied by two controls that both refuse, so it needs one width where
+    // both are known to be *available*. `p4` on the **unedited** kitchen, stepped down twice: the
+    // first `−50` creates a 50 mm strip, the second widens it to 100, and stepping back up consumes
+    // 50 and leaves 50. ADR 0031's remainder floor refused exactly that, on both controls at once —
+    // which is why the stepper could go down and not come back, and why this row fails if the floor
+    // ever returns.
+    let world = kitchen();
+    for (let widthMm = 550; widthMm >= 500; widthMm -= 50) {
+      const result = setWidth({
+        design: world.design,
+        catalog: world.catalog,
+        columns: world.columns,
+        target: { kind: "placement", id: "p4" },
+        widthMm,
+        probe: createFakeProbe(),
+        occurredAt: OCCURRED_AT,
+      });
+      expect(result.ok).toBe(true);
+      if (!result.ok) return;
+      world = {
+        ...createWorld(result.design, world.catalog),
+        columns: result.effect.columns,
+      };
+    }
+
+    const steps = stepsFor(world, "p4");
+    expect(steps?.currentWidthMm).toBe(500);
+    expect(steps?.wider).toEqual({
+      widthMm: 550,
+      verdict: { status: "available" },
+    });
+    const chip = optionsFor(world, "p4").find(
+      (option) => option.widthMm === 550,
+    );
+    expect(chip?.verdict.status).toBe("available");
   });
 });

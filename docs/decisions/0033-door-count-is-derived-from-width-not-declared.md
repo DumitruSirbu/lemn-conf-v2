@@ -211,6 +211,28 @@ The owner named the placement question and it was already answered: `resolvePlac
 `alongMm` from the opening's **centre**, so a narrowed body lands centred with equal margin either side.
 That property is now asserted rather than assumed.
 
+**Amended 2026-09-01 — the centring above is superseded by [ADR 0046](0046-adjacent-empty-columns-merge-under-a-cap-and-an-insert-splits-its-column.md) part 1, but only where a column can be divided.**
+A body narrower than the column it is inserted into is seated flush against the span's **left** edge,
+and the whole remainder becomes one selectable empty column, **in a column the insert may divide —
+one the opening runs the whole height of. Where a member stands at another level the body is still
+centred**, exactly as this record originally described.
+
+That precondition is not a temporary limitation of the implementation; it is forced. Splitting a
+column under a surviving member re-keys the occupied half while that member goes on deriving the old
+key, which is ADR 0011 Gap D's phantom column, and moving the member is backlog 2's re-split. So on
+the shipped kitchen the centring above still governs: `base-dishwasher` still lands dead centre in
+the 700 mm `B|2.45`, because the over-fridge cabinet keeps that column indivisible, and a narrowed
+hood in `A|2.60` still lands with equal margin either side.
+
+The owner accepted the eventual cost by name, for `base-dishwasher` in a 700 mm opening, on the same
+day — it is simply not yet paid on any seeded column. Nothing else in this record moves: the hood
+still narrows rather than refusing, and it is still never built at 700.
+
+**Corrected 2026-09-01, later the same day.** The first version of this amendment said the flush
+seating happened outright. It does not, and the sentence it claimed to retract is still live for
+every column holding a member. Found by the 5B4a logic review, whose falsifying case was the
+amendment's own subject: narrow a hood into `A|2.60` and watch it centre.
+
 ### The pattern, stated for the last time
 
 Four instances in one day, each the same shape: **a discrete list standing in for a rule about a range.**

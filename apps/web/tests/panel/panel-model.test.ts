@@ -138,7 +138,10 @@ describe("describePanel — sections render only when their flag is true", () =>
         canWidth: false,
         canReplace: false,
       }),
-      { offers: offers(4) },
+      // ADR 0049 moved the width section's existence off `canWidth` and onto what the domain
+      // publishes, so a body that offers nothing has to publish no widths — which is what a body
+      // with no width set does.
+      { offers: offers(4), widthOptions: [] },
     );
     expect(panel.sections).toEqual([]);
   });
@@ -161,7 +164,6 @@ describe("describePanel — sections render only when their flag is true", () =>
     const cases = [
       { flags: { canFinish: false }, missing: "finish" },
       { flags: { canHandle: false }, missing: "handle" },
-      { flags: { canWidth: false }, missing: "width" },
       { flags: { canReplace: false }, missing: "replace" },
     ] as const;
     for (const { flags, missing } of cases) {
@@ -169,6 +171,19 @@ describe("describePanel — sections render only when their flag is true", () =>
       expect(sectionKinds(panel.sections)).not.toContain(missing);
       expect(panel.sections.length).toBe(3);
     }
+  });
+
+  /** The width section's own version of the case above, and it is a different question since
+   *  ADR 0049: `canWidth` no longer decides whether the section exists — the widths the domain
+   *  publishes do. A `fixedWidth` cabinet has `canWidth: false` and still renders, so the flag
+   *  cannot be what this asks about; an empty candidate list is. */
+  it("drops the width section when the domain publishes no widths, and no others with it", () => {
+    const panel = openPanelFor(occupiedMeta(), {
+      offers: offers(2),
+      widthOptions: [],
+    });
+    expect(sectionKinds(panel.sections)).not.toContain("width");
+    expect(panel.sections.length).toBe(3);
   });
 });
 

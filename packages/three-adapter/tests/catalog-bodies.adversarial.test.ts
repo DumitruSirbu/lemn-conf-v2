@@ -132,7 +132,14 @@ function refusesFitWidth(
   return fit.ok ? undefined : fit.detail.code;
 }
 
-function countDoors(
+/** The doors this body stands **side by side**, which is the count "2 uși" claims — measured as the
+ *  distinct x centres its `door_front` meshes sit at.
+ *
+ *  Distinct x rather than a mesh tally, because ADR 0048 brought in a body with **stacked** fronts:
+ *  a 600 mm pantry is two leaves abreast in each of two bands, so four slabs, and it is a two-door
+ *  cabinet in every sense the label and the customer use. A tally would have called it four and a
+ *  400 mm one two. For every unstacked row the two readings are the same number. */
+function countDoorsAbreast(
   buildId: string,
   widthMm: number,
   heightMm: number,
@@ -143,11 +150,15 @@ function countDoors(
     heightM: toMetres(heightMm),
     depthM: toMetres(depthMm),
   });
-  let doors = 0;
+  const centresX = new Set<number>();
   group.traverse((node) => {
-    if (node instanceof THREE.Mesh && node.name === "door_front") doors += 1;
+    if (node instanceof THREE.Mesh && node.name === "door_front") {
+      centresX.add(
+        Math.round(node.getWorldPosition(new THREE.Vector3()).x * 1e6),
+      );
+    }
   });
-  return doors;
+  return centresX.size;
 }
 
 const INSERTABLE_ENTRIES: readonly (readonly [string, BodyDefinition])[] =
@@ -444,8 +455,8 @@ describe("no two catalogue ids build the same body", () => {
     // A structural signature carries dimensions as well as shape, so the line above alone would also
     // pass for two widths that build the same cabinet. The *door count* is the part that has to
     // differ, and it is counted off the built bodies rather than read out of a string.
-    expect(countDoors(buildId, 400, 700, 400)).not.toBe(
-      countDoors(buildId, 600, 700, 400),
+    expect(countDoorsAbreast(buildId, 400, 700, 400)).not.toBe(
+      countDoorsAbreast(buildId, 600, 700, 400),
     );
   });
 });
@@ -481,9 +492,12 @@ describe("a derived label that counts doors, against the doors the builder actua
     const claiming = INSERTABLE_ENTRIES.filter(
       ([, definition]) => definition.doorCountFollowsWidth === true,
     );
+    // ADR 0048 added the third: `tall-pantry` is the one column whose door count follows its
+    // width, and it joins this sweep by declaring the flag rather than by being listed anywhere.
     expect(claiming.map(([buildId]) => buildId)).toEqual([
       "base-cabinet",
       "wall-cabinet",
+      "tall-pantry",
     ]);
 
     let swept = 0;
@@ -497,15 +511,16 @@ describe("a derived label that counts doors, against the doors the builder actua
         expect([
           buildId,
           widthMm,
-          countDoors(buildId, widthMm, heightMm, depthMm),
+          countDoorsAbreast(buildId, widthMm, heightMm, depthMm),
         ]).toEqual([buildId, widthMm, claimed]);
         swept += 1;
       }
     }
     // Two entries times thirteen chips — five apiece until ADR 0035 decision 1 stepped the bound at
-    // 50 mm, and twelve until the owner retired ADR 0030's cap on 2026-08-28 and 450 joined the row.
-    // A sweep that silently stopped naming widths would otherwise pass by asserting nothing.
-    expect(swept).toBe(26);
+    // 50 mm, and twelve until the owner retired ADR 0030's cap on 2026-08-28 and 450 joined the row
+    // — plus the pantry's own nine, 400 to 800 (ADR 0048). A sweep that silently stopped naming
+    // widths would otherwise pass by asserting nothing.
+    expect(swept).toBe(35);
   });
 
   // **The anchor, and the reason the sweep above is not circular.** Both numbers are written out and
@@ -513,10 +528,17 @@ describe("a derived label that counts doors, against the doors the builder actua
   // which is the drift the merge would otherwise have made invisible, since the label and the
   // builder now read one constant and would move together.
   it("flips from one door to two between the two widths either side of the threshold", () => {
-    expect(countDoors("wall-cabinet", 400, 700, 400)).toBe(1);
-    expect(countDoors("wall-cabinet", 600, 700, 400)).toBe(2);
-    expect(countDoors("base-cabinet", 400, 860, 580)).toBe(1);
-    expect(countDoors("base-cabinet", 600, 860, 580)).toBe(2);
+    expect(countDoorsAbreast("wall-cabinet", 400, 700, 400)).toBe(1);
+    expect(countDoorsAbreast("wall-cabinet", 600, 700, 400)).toBe(2);
+    expect(countDoorsAbreast("base-cabinet", 400, 860, 580)).toBe(1);
+    expect(countDoorsAbreast("base-cabinet", 600, 860, 580)).toBe(2);
+    // ADR 0048's own ends, and the threshold in between — the boundary pairs wave 5B8 criterion 1
+    // names. 399 and 801 are outside the row's bound and are refused by the domain, so the widths
+    // the builder is asked about are the four inside it.
+    expect(countDoorsAbreast("tall-pantry", 400, 2200, 560)).toBe(1);
+    expect(countDoorsAbreast("tall-pantry", 499, 2200, 560)).toBe(1);
+    expect(countDoorsAbreast("tall-pantry", 500, 2200, 560)).toBe(2);
+    expect(countDoorsAbreast("tall-pantry", 800, 2200, 560)).toBe(2);
   });
 
   // The band that used to be skipped, and is not any more. ADR 0030 capped a single hinged door at
@@ -527,9 +549,9 @@ describe("a derived label that counts doors, against the doors the builder actua
   // What this file asserts is the **geometry**: the builder makes one door across the whole band and
   // two from 500 up, which is what makes the retired cap a product choice rather than a builder limitation.
   it("makes one door across the band ADR 0030's retired cap used to skip", () => {
-    expect(countDoors("wall-cabinet", 430, 700, 400)).toBe(1);
-    expect(countDoors("wall-cabinet", 450, 700, 400)).toBe(1);
-    expect(countDoors("wall-cabinet", 499, 700, 400)).toBe(1);
+    expect(countDoorsAbreast("wall-cabinet", 430, 700, 400)).toBe(1);
+    expect(countDoorsAbreast("wall-cabinet", 450, 700, 400)).toBe(1);
+    expect(countDoorsAbreast("wall-cabinet", 499, 700, 400)).toBe(1);
     const entry = INSERTABLE_ENTRIES.find(([id]) => id === "wall-cabinet");
     expect(entry?.[1].sizesMm).toContain(450);
     expect(entry?.[1].sizesMm).toContain(500);
@@ -551,13 +573,17 @@ describe("a derived label that counts doors, against the doors the builder actua
   // the real builders made, so the product decision moving requires this line to move with it, on
   // purpose.
   it("pins the flip to 500 exactly, and to no other width", () => {
-    expect(countDoors("wall-cabinet", TWO_DOOR_MIN_WIDTH_MM, 700, 400)).toBe(2);
     expect(
-      countDoors("wall-cabinet", TWO_DOOR_MIN_WIDTH_MM - 1, 700, 400),
+      countDoorsAbreast("wall-cabinet", TWO_DOOR_MIN_WIDTH_MM, 700, 400),
+    ).toBe(2);
+    expect(
+      countDoorsAbreast("wall-cabinet", TWO_DOOR_MIN_WIDTH_MM - 1, 700, 400),
     ).toBe(1);
-    expect(countDoors("base-cabinet", TWO_DOOR_MIN_WIDTH_MM, 860, 580)).toBe(2);
     expect(
-      countDoors("base-cabinet", TWO_DOOR_MIN_WIDTH_MM - 1, 860, 580),
+      countDoorsAbreast("base-cabinet", TWO_DOOR_MIN_WIDTH_MM, 860, 580),
+    ).toBe(2);
+    expect(
+      countDoorsAbreast("base-cabinet", TWO_DOOR_MIN_WIDTH_MM - 1, 860, 580),
     ).toBe(1);
   });
 
@@ -589,7 +615,7 @@ describe("the §11 rows that name a body and a number", () => {
     const built = build("wall-cabinet", 570, 700, 400);
 
     expect(built.carcassWidthMm).toBeCloseTo(570, 3);
-    expect(countDoors("wall-cabinet", 570, 700, 400)).toBe(2);
+    expect(countDoorsAbreast("wall-cabinet", 570, 700, 400)).toBe(2);
   });
 
   // Row 14: the dishwasher niche accepts only 450 and 600, and both build a real carcass.

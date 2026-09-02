@@ -9,7 +9,12 @@ import type { DesignRevision } from "./design-revision.js";
 import { generateDesignId } from "./generate-design-id.js";
 import { readDatabaseUrl } from "./read-database-url.js";
 
-const CURRENT_SCHEMA_VERSION = 1;
+/** The version every row this adapter writes is stamped with. **2 since ADR 0052**, which made
+ *  800 mm the ceiling on any empty column: a version 1 document may carry a wider entry and is
+ *  normalised on the way in by `migrateFromV1`, while a version 2 document carrying one is refused.
+ *  The read path never assumes this value — it passes `row.schema_version` to `migrateDesign`, which
+ *  is what lets a stored version 1 row go on loading. */
+const CURRENT_SCHEMA_VERSION = 2;
 
 /** SHA-256 as `node:crypto`'s `digest("hex")` renders it: 64 lowercase hex characters. */
 const SHA256_HEX_DIGEST = /^[0-9a-f]{64}$/;
@@ -170,6 +175,13 @@ export class NeonConfigurationRepository
    * after a failed update reads the row a second time, so a design deleted or re-credentialed in
    * between would turn a genuine conflict into a refusal or the reverse. The CTEs share one
    * snapshot, so the pair of answers is always about one state of the row.
+   *
+   * `schema_version` is restamped with the document, and that is what retires a version. The
+   * document written here was produced by this build, so a row left stamped with the version it was
+   * minted under would say a document was written under a rule it was not — and ADR 0052's version 1
+   * arm could never be removed, because a row it had already normalised would ask for it again on
+   * every load. Safe in both directions: a normalised document is a fixed point of `migrateFromV1`,
+   * so a row half-way through this change loads identically whichever stamp it carries.
    */
   private async updateIfCurrent({
     id,
@@ -183,7 +195,8 @@ export class NeonConfigurationRepository
         where id = ${id} and write_token_hash = ${writeTokenHash}
       ), updated as (
         update designs
-        set document = ${design}, updated_at = now(), revision = revision + 1
+        set document = ${design}, schema_version = ${CURRENT_SCHEMA_VERSION},
+            updated_at = now(), revision = revision + 1
         where id = ${id}
           and write_token_hash = ${writeTokenHash}
           and revision::text = ${expectedRevision}
