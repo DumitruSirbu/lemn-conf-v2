@@ -1,9 +1,15 @@
 # ADR 0027 — The hob is part of the cabinet body, not an accessory standing on it
 
-Status: Accepted
+Status: Accepted (two claims later superseded)
 Date: 2026-08-27
 Type: Decision
 Milestone: Wave B1 — hob-bearing base cabinets
+
+> **Partially superseded.** The `base-hob-oven` "open-front by design, owns no `door_front`" claim is
+> superseded by [ADR 0050](0050-the-hob-oven-filler-is-a-finishable-front.md) (the filler panel is
+> now finishable). The amendment exempting `base-dishwasher`/`base-dishwasher-600` from the
+> capability gate is superseded by [ADR 0051](0051-the-dishwasher-niche-wears-a-decor-door.md) (the
+> niche now builds a decor door). The core decision — the hob is part of the cabinet body — stands.
 
 ## Context
 

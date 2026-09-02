@@ -1,9 +1,14 @@
 # ADR 0033 — Door count is derived from width, not declared as a separate entry
 
-Status: Accepted
+Status: Accepted (amended twice)
 Date: 2026-08-27
 Type: Decision
 Milestone: M5 wave 5C3 — merging the door-count entries
+
+> **Amended twice, 2026-08-27.** A hinged cabinet's widths become two ranges (one door 200–400, two
+> doors 600–800) rather than five discrete values, so the hinged base cabinet reaches the 700 mm
+> opening under the fridge; and `base-sink`/`hood` are restated as cabinetry with fixed apertures
+> rather than discrete rows. See the two "Amended" sections below.
 
 **Supersedes the mechanism of ADR 0029 and ADR 0030 while keeping both their product rules.** Neither
 limit is relaxed; both stop being one entry's declared set and become the single point where the door

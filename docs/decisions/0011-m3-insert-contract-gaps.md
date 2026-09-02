@@ -5,6 +5,12 @@ Date: 2026-08-25
 Type: Finding + Decision
 Milestone: M3 — Insert, remove, swap, client write path
 
+> **Corrected three times, 2026-08-26**, and **amended 2026-09-02.** Gap D's "freeze" was narrowed to
+> cover a column's *extent* only, not its live predicates; the live predicate in question was
+> restated as a geometric question (`hasWorktop` → `hasFullHeightUnder`) and read positively. See the
+> "Correction" sections below. [ADR 0053](0053-the-design-document-records-the-whole-frozen-map.md)
+> (M5 wave 5H) further extends the freeze to a second stored array, `columnExtents`.
+
 Found while turning `docs/milestones/M3-mutations.md` from a phase sketch into a dispatchable plan,
 by reading the M2 code that actually landed rather than the model the sketch was written against.
 Each gap below is a place where `DEVELOPMENT-SPEC.md` §5.1–§5.3 cannot be implemented on top of

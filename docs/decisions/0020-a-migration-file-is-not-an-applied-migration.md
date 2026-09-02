@@ -5,6 +5,11 @@ Date: 2026-08-25
 Type: Finding + Decision
 Milestone: M3 Wave 3C-2a — found by adversarial QA
 
+> **Amended 2026-08-31 (wave S10).** Decision 4, left open here for "whichever wave next touches
+> `migrate.ts`", is settled by [ADR 0042](0042-the-database-records-which-migrations-it-ran.md): an
+> append-only `schema_migrations` ledger, one transaction per migration. This record's finding and
+> decisions 1–3 stand, and its schema read-back is still owed.
+
 ## Context
 
 Wave 3C-2a added `0002_add_write_token_hash.sql` and the code that depends on it. Every gate was

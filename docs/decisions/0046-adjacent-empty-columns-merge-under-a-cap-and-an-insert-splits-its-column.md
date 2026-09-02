@@ -1,9 +1,14 @@
 # ADR 0046 — Adjacent empty columns merge under an 800 mm cap, and an insert splits the column it does not fill
 
-Status: Accepted
+Status: Accepted (MERGE_CAP_MM absorbed into a shared constant)
 Date: 2026-09-01
 Type: Decision
 Milestone: M5B — Manual UX remediation, waves 5B4a and 5B4b; revives [ADR 0037](0037-adjacent-empty-columns-merge-into-one-space.md) under a cap; requires [ADR 0044](0044-an-empty-space-is-recorded-in-the-design-document.md)
+
+> **Superseded in part by [ADR 0052](0052-800-mm-is-the-ceiling-on-any-empty-column.md).**
+> `MERGE_CAP_MM` is retired into one shared `MAX_EMPTY_COLUMN_WIDTH_MM`, read by the merge, a
+> shrink's split and the v1 migration split alike. Rule 1's greedy scan and "an opening belongs to a
+> column" reasoning are reused, not replaced.
 
 ## Context
 

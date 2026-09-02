@@ -1,9 +1,13 @@
 # ADR 0040 — A recorded seat is converted back into a depth, never read as one
 
-Status: Accepted
+Status: Accepted (decision 1's third arm superseded)
 Date: 2026-08-30
 Type: Decision
 Milestone: M5 wave 5F — resolves [ADR 0018](0018-frame-depth-is-rear-overhang.md) clause 3, closes backlog 9
+
+> **Amended 2026-08-31 (wave S9, DOM-002).** Decision 1's third arm — `frame.d` for everything else —
+> was wrong for every body it caught. A body's finished depth is now declared per catalogue entry in
+> two rules (`recorded-shell`, `wall-plane`); an undeclared kind throws. See the amendment below.
 
 ## Context
 

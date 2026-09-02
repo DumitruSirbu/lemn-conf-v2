@@ -1,9 +1,15 @@
 # ADR 0044 — An empty space is recorded in the design document, not re-guessed at load
 
-Status: Accepted
+Status: Accepted (one alternative superseded, one premise corrected)
 Date: 2026-09-01
 Type: Decision
 Milestone: M5B — Manual UX remediation, wave 5B2; prerequisite for [ADR 0046](0046-adjacent-empty-columns-merge-under-a-cap-and-an-insert-splits-its-column.md)
+
+> **Superseded in part by [ADR 0053](0053-the-design-document-records-the-whole-frozen-map.md)**
+> (the rejected "store the whole frozen column map" alternative is adopted, narrower, as a second
+> array for occupied columns) **and corrected by [ADR 0052](0052-800-mm-is-the-ceiling-on-any-empty-column.md)**
+> ("no design has ever been stored" is false; 5 rows measured). The core decision — `emptyColumns` is
+> persisted rather than re-guessed — stands.
 
 ## Context
 

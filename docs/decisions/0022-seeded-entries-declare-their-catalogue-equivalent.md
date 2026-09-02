@@ -5,6 +5,10 @@ Date: 2026-08-26
 Type: Finding + Decision
 Milestone: M4 Wave 4B — found by logic review
 
+> **Amended 2026-08-27 (M5 wave 5B).** The same `catalogEquivalentId` pointer now also resolves a
+> seeded body's width set, through one shared resolution that verifies the target is `insertable`.
+> See the amendment section below.
+
 ## Context
 
 `DEVELOPMENT-SPEC.md` §9 requires that an occupied body's swap list badge its current row **ACTUAL**,

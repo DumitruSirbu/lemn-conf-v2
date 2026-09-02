@@ -1,9 +1,13 @@
 # ADR 0029 — A two-door cabinet may not be offered at a width that builds one door
 
-Status: Accepted
+Status: Accepted (mechanism superseded)
 Date: 2026-08-27
 Type: Finding + Decision
 Milestone: M5 wave 5B — seeded width sets
+
+> **Mechanism superseded the same day by [ADR 0033](0033-door-count-is-derived-from-width-not-declared.md).**
+> The rule this record establishes survives; the two-entry split it introduces does not — the door-
+> count pairs merge into one entry each, deriving the count and its label from one threshold.
 
 ## Context
 

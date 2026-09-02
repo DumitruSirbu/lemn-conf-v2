@@ -1,9 +1,13 @@
 # ADR 0028 — Wall and top carcass depth is derived from one declared worktop depth
 
-Status: Accepted
+Status: Accepted (naming superseded)
 Date: 2026-08-27
 Type: Decision + Finding
 Milestone: M5 wave 5A — the worktop → wall depth map
+
+> **Superseded in part by [ADR 0036](0036-a-declared-dimension-is-the-finished-cabinet.md).**
+> `WORKTOP_DEPTH_MM`, and the map read as a carcass depth, are wrong names — ADR 0036 restates the
+> setting as *cabinet* depth. The mechanism here (a declaration, not a computation) is untouched.
 
 ## Context
 

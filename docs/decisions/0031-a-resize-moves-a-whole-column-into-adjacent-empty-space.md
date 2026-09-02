@@ -1,6 +1,12 @@
 # ADR 0031 — A resize moves a whole column, and is funded by adjacent empty space
 
 Status: Accepted (remainder-floor bullet superseded 2026-09-01 → [ADR 0043](0043-an-empty-space-of-any-width-is-a-legal-state.md))
+
+> **Partially superseded.** The "a remainder below `MIN_W` refuses" bullet, and the Consequences line
+> that row 10's floor still binds, are superseded by
+> [ADR 0043](0043-an-empty-space-of-any-width-is-a-legal-state.md): a gap of any width is now a legal
+> state. The funding rule, column scope and exact-to-zero removal below are unaffected.
+
 Date: 2026-08-27
 Type: Decision
 Milestone: M5 wave 5C — `setWidth` and the column update

@@ -1,9 +1,13 @@
 # ADR 0035 — Width is a bounded ±50 mm stepper, not a menu of sizes
 
-Status: Accepted
+Status: Accepted (decision 7 amended)
 Date: 2026-08-28
 Type: Decision
 Milestone: M5 — supersedes wave 5D's chip row, and gates 5E
+
+> **Amended by [ADR 0052](0052-800-mm-is-the-ceiling-on-any-empty-column.md).** Decision 7,
+> "shrinking a column creates empty space," stated with no ceiling; the created column is now held to
+> the same 800 mm cap every empty column is (closes Q5).
 
 ## Context
 

@@ -1,9 +1,13 @@
 # ADR 0034 — §9's width chips are column-scoped, and each one is judged by running the command
 
-Status: Accepted
+Status: Accepted (chip row superseded)
 Date: 2026-08-27
 Type: Decision
 Milestone: M5 — wave 5D
+
+> **Superseded by [ADR 0035](0035-width-is-a-bounded-stepper-not-a-menu-of-sizes.md).** The chip row
+> and its pinned counts are replaced by a bounded ±50 mm stepper. The engine seam this record wires —
+> judging each candidate by running the command — survives intact.
 
 ## Context
 

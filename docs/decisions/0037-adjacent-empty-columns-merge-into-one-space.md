@@ -1,9 +1,14 @@
 # ADR 0037 — Adjacent empty columns merge into one space, and 800 mm still caps every cabinet
 
-Status: Accepted
+Status: Accepted; built in wave 5D2b; **WITHDRAWN 2026-08-30**; **revived under a cap 2026-09-01**
 Date: 2026-08-28
 Type: Decision
 Milestone: M5 — built in wave 5D2b and **withdrawn**; **revived under a cap 2026-09-01 by [ADR 0046](0046-adjacent-empty-columns-merge-under-a-cap-and-an-insert-splits-its-column.md)**; backlog 2 stays open
+
+> **Built, then withdrawn 2026-08-30, then revived under a cap 2026-09-01 by
+> [ADR 0046](0046-adjacent-empty-columns-merge-under-a-cap-and-an-insert-splits-its-column.md).**
+> The merge stranded 800 mm on the first insert into a merged span; ADR 0046 supplies the missing
+> insert-time column split and caps the merge at 800 mm. Everything measured here stays true.
 
 ## Revived under a cap, 2026-09-01
 

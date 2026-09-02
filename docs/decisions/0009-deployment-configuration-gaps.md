@@ -5,6 +5,11 @@ Date: 2026-08-25
 Type: Finding + Decision
 Milestone: M2 Wave 2B
 
+> **Amended 2026-09-02.** This record's "Verification once deployed" section checked only that the
+> backup cron registers; it never checked that Preview's schema was current, and it wasn't — three
+> migrations behind since `0002` landed, found while wiring [ADR 0054](0054-local-development-writes-to-the-preview-database.md).
+> See the "Amendment, 2026-09-02" section at the bottom of this file for the full record.
+
 Recorded during M2 Wave 2B. Nothing here is broken today — the project has **never been deployed**
 (`vercel ls` reports no deployments) — but each item below silently prevents something from working
 the first time it is. Resolves the "Preview environment has no `DATABASE_URL`" item left
@@ -101,3 +106,36 @@ Production.
 The cron's registration is observable: after a production deploy, the Vercel dashboard's Cron Jobs
 tab lists declared jobs. If `/api/cron/backup-designs` does not appear there, item 1 above is still
 unresolved regardless of what the repository contains.
+
+## Amendment, 2026-09-02 — preview is also the local-development target, and it was unmigrated
+
+Type: Decision + Finding
+Context: [ADR 0054](0054-local-development-writes-to-the-preview-database.md), written the same day
+
+**Preview's database now has a second consumer.** `lemn-conf-v2-preview`, provisioned above for
+preview *deploys*, is now also where `pnpm dev` writes locally — a new `apps/web/.env.local` (repo-root
+`.env.local` is not read by `next dev`, which does not search a monorepo root; see ADR 0054 for the
+full mechanism) points `DATABASE_URL` at it, using the same `app_designs` role this record already
+verified. ADR 0054 records the decision and the two databases (production, the destructive test
+database) rejected in its favour; this amendment records only the consequence for *this* record's
+subject — preview's database and its deployment posture.
+
+**Preview had never been migrated, and nothing in the deployment process migrates it.** The first
+write attempted against it under ADR 0054 failed — `column "write_token_hash" of relation "designs"
+does not exist` — because `lemn-conf-v2-preview` was still at the schema `0001_create_designs.sql`
+left it in. It was migrated by hand that day, applying `0002_add_write_token_hash.sql`,
+`0003_check_write_token_hash_shape.sql` and `0004_add_design_revision.sql`. **This means every Vercel
+preview deploy had been failing the same way since `0002` landed**, unnoticed because nothing had
+exercised a preview deploy's write path until ADR 0054's session did.
+
+**This record's own verification section did not catch it, and that is worth stating rather than
+quietly patching.** "Verification once deployed" above only checks that the cron job registers — it
+never asked whether preview's schema matches what the application code expects. Provisioning the
+database and role was verified in 2026-08-25; keeping its schema current was not, and nothing has
+owned that since.
+
+**Open obligation, not yet closed by this amendment.** Production is migrated deliberately (ADR 0020,
+ADR 0042); preview is migrated only when someone happens to notice it is stale, as happened here. The
+next migration that ships will recreate this exact breakage — on preview deploys and on local
+development alike — unless a migration step is added to the preview deploy process before then. Recorded
+also in `docs/BACKLOG.md`.

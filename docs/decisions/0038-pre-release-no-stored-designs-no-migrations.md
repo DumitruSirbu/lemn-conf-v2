@@ -1,9 +1,15 @@
 # ADR 0038 — The project is pre-release: no design has ever been stored, so no migration is owed
 
-Status: Accepted
+Status: Accepted (premise later measured false)
 Date: 2026-08-28
 Type: Decision
 Milestone: Cross-cutting — retires migration obligations recorded in 0027, 0028 and 0036
+
+> **Corrected 2026-08-31** (a false "unreachable" premise concealed an executable validation defect;
+> see the correction below) **and its founding premise — "no design has ever been stored" — measured
+> false by [ADR 0052](0052-800-mm-is-the-ceiling-on-any-empty-column.md)** (5 `designs` rows exist,
+> `schema_version` 1, measured 2026-09-02). The rules stood correctly for those rows; read the
+> "expires at first release" clause as already re-checked, not as still pending.
 
 ## Context
 
