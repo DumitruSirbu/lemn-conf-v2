@@ -43,7 +43,7 @@ import {
   type ClearanceM,
 } from "../occupied-depth.js";
 import {
-  buildToTheOpeningM,
+  buildToTheClearanceM,
   columnBuildDepthM,
   columnBuildDepthMm,
   shallowerBuildDepthM,
@@ -848,10 +848,12 @@ function seatableMillimetres(valueM: number): number {
  *  delete produces: clearing the base cabinets under a wall run then built a 580 mm carcass, the
  *  frozen `Column.d` of the base cabinet the customer had just deleted, beside 330 mm neighbours.
  *
- *  **Where the cap applies it is a maximum and never a target**: an opening shallower than the
+ *  **Where the cap applies it is a maximum and never a target**: a column shallower than the
  *  declared depth keeps its own depth, so a column that answers `hasFullHeightUnder` wrongly can
- *  only ever make a body *shallower* than the opening it stands in and never push one past it,
- *  which is what keeps §11 row 19 (the back face lands on the wall plane) out of this rule's reach.
+ *  only ever make a body *shallower* than the space it stands in and never push one past it, which
+ *  is what keeps §11 row 19 (the back face lands on the wall plane) out of this rule's reach. The
+ *  maximum is measured against the **column**, which is the space that exists, rather than against
+ *  the outgoing body, which is only what happened to be standing there.
  *
  *  **Where the lift applies the declared line is the target, not a ceiling** — ADR 0060 decision 5,
  *  and the one place the two arms genuinely differ. Taking the shallower of the two would let one of
@@ -868,7 +870,8 @@ function resolveDepthM(
   opening: InsertOpening,
   column: Column,
 ): BuildDepthM {
-  if (normaliseBand(body.band) !== "wall") return buildToTheOpeningM(opening.d);
+  if (normaliseBand(body.band) !== "wall")
+    return buildToTheClearanceM(opening.d);
   // The declared depth, until wave 6J gives a design one of its own to carry: this wave reads the
   // module constant, exactly as `wallCarcassMaxDepthOverWorktopM`'s caller did before it.
   const declaredM = columnBuildDepthM({
@@ -876,7 +879,18 @@ function resolveDepthM(
     hasFullHeightUnder: column.hasFullHeightUnder,
   });
   if (column.hasFullHeightUnder) return declaredM;
-  return shallowerBuildDepthM(declaredM, buildToTheOpeningM(opening.d));
+  // **The floor is the column's clearance, not the opening's** — ADR 0060 decision 3 made total.
+  // `Column.d` is §3.2's MAX over the run and both routes agree on it by construction, where
+  // `InsertOpening.d` does not: a swap publishes the outgoing body's own clearance
+  // (`openingFromPlacement`) and a delete-then-insert publishes the column's (`openingFromVoid`).
+  // Reading the floor from the opening therefore reproduced entry 10's divergence on this arm — a
+  // 200 mm body vacating a 620 mm column gave 200 by swap and 330 by delete-then-insert. Latent
+  // rather than live: no reachable command mints a wall member shallower than the map row, but an
+  // authored or stored document can. Raised by logic review, 2026-09-04.
+  return shallowerBuildDepthM(
+    declaredM,
+    buildToTheClearanceM(recordedClearanceM(column.d)),
+  );
 }
 
 function refuseBand(

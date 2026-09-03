@@ -37,7 +37,7 @@ export {
   type CabinetHandleRule,
   type DoorLeafHandles,
 } from "./cabinet-handles.js";
-// `buildToTheOpeningM` and `shallowerBuildDepthM` stay module-internal: they are how
+// `buildToTheClearanceM` and `shallowerBuildDepthM` stay module-internal: they are how
 // `resolveDepthM` applies the declaration, and a second caller outside this package would be a
 // second way to mint a build depth that no declaration produced — the defect ADR 0060 closes.
 export {

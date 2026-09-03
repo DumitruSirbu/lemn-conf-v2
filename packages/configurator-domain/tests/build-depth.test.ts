@@ -43,6 +43,7 @@ import {
   createWorld,
   type KitchenWorld,
 } from "./support/kitchen-world.js";
+import { syntheticWorld } from "./support/synthetic-world.js";
 
 /** The map's wall depth at the shipped cabinet depth — the build depth where §5.2's head-clearance
  *  cap applies. Written here as the expectation rather than read from the module under test. */
@@ -169,10 +170,24 @@ describe("the build depth is declared, never the clearance MAX (ADR 0060 decisio
     }
   });
 
-  it("refuses a cabinet depth the map does not declare rather than interpolating", () => {
-    expect(() =>
-      columnBuildDepthMm({ cabinetDepthMm: 650, hasFullHeightUnder: false }),
-    ).toThrow(UnknownWorktopDepthError);
+  it("refuses an undeclared cabinet depth on both arms, not only the capped one", () => {
+    // The capped arm gets the check for free from the map lookup. The lifted arm is an identity on
+    // its input, so before the check moved to the entry it answered 650 for a depth the capped arm
+    // refused — a declaration only as far as its input was one. Inert today, because the sole caller
+    // passes `WORKTOP_DEPTH_MM`; from wave 6J the number arrives in a stored document and through
+    // `migrateDesign`, where a worktop value threaded into a cabinet-depth argument would sail
+    // through. Raised by logic review, 2026-09-04.
+    const undeclaredDepthMm = 650;
+    expect(declaredWorktopDepthsMm()).not.toContain(undeclaredDepthMm);
+
+    for (const hasFullHeightUnder of [false, true]) {
+      expect(() =>
+        columnBuildDepthMm({
+          cabinetDepthMm: undeclaredDepthMm,
+          hasFullHeightUnder,
+        }),
+      ).toThrow(UnknownWorktopDepthError);
+    }
   });
 
   it("states the same number in metres as in millimetres", () => {
@@ -235,38 +250,56 @@ describe("entry 10's divergence closes at 600, over the fridge column", () => {
 
 describe("both routes into a slot land on one depth, over every column", () => {
   // §5.3 exists so a swap is **not** a delete plus an insert. Asserted as a property over every
-  // replaceable placement of the shipped kitchen crossed with every insertable entry, rather than on
-  // the fridge column alone — entry 10 was found on one column and the rule is about all of them.
+  // replaceable placement crossed with every insertable entry, rather than on the fridge column
+  // alone — entry 10 was found on one column and the rule is about all of them.
+  //
+  // **Swept over three worlds, because the shipped kitchen alone cannot falsify it.** Every seeded
+  // wall body occupies at least the map row, so the two routes' openings — the outgoing body's
+  // clearance on a swap, the column's on a delete-then-insert — happen to give the same answer
+  // through `min`. A wall member shallower than the row separates them, and until logic review
+  // raised it on 2026-09-04 the capped arm diverged there exactly as entry 10 describes. The
+  // shipped kitchen stays in the sweep as the value-preserving case.
   it("gives the same depth by swap and by delete-then-insert, for every entry it accepts", () => {
-    const world = seeded();
+    const worlds = [
+      { name: "the shipped kitchen", world: seeded() },
+      {
+        name: "a wall member shallower than the map row, in a deeper column",
+        world: shallowWallMemberInADeepColumn(),
+      },
+      { name: "a column shallower than the map row", world: shallowColumn() },
+    ];
     const agreed: string[] = [];
     const columnsCovered = new Set<string>();
     const liftedColumnsCovered = new Set<string>();
+    const shallowPairsCovered: string[] = [];
 
-    for (const record of world.records) {
-      if (!record.canReplace) continue;
-      for (const buildId of INSERTABLE_BUILD_IDS) {
-        const bySwap = swapDepthMm(world, record.id, buildId);
-        const byDelete = deleteThenInsertDepthMm(world, record, buildId);
-        if (bySwap === undefined || byDelete === undefined) continue;
+    for (const { name, world } of worlds) {
+      for (const record of world.records) {
+        if (!record.canReplace) continue;
+        for (const buildId of INSERTABLE_BUILD_IDS) {
+          const bySwap = swapDepthMm(world, record.id, buildId);
+          const byDelete = deleteThenInsertDepthMm(world, record, buildId);
+          if (bySwap === undefined || byDelete === undefined) continue;
 
-        expect({ at: `${record.id}->${buildId}`, depthMm: bySwap }).toEqual({
-          at: `${record.id}->${buildId}`,
-          depthMm: byDelete,
-        });
-        agreed.push(`${record.id}->${buildId}`);
-        columnsCovered.add(record.col);
-        if (world.columns.get(record.col)?.hasFullHeightUnder === true) {
-          liftedColumnsCovered.add(record.col);
+          const at = `${name}: ${record.id}->${buildId}`;
+          expect({ at, depthMm: bySwap }).toEqual({ at, depthMm: byDelete });
+          agreed.push(at);
+          columnsCovered.add(`${name}: ${record.col}`);
+          if (world.columns.get(record.col)?.hasFullHeightUnder === true) {
+            liftedColumnsCovered.add(`${name}: ${record.col}`);
+          }
+          if (name !== "the shipped kitchen") shallowPairsCovered.push(at);
         }
       }
     }
 
-    // Both arms of the rule have to be exercised or the sweep proves only the one it happened to
-    // reach — and the lifted arm is the one this wave changed.
+    // Every arm has to be exercised or the sweep proves only the one it happened to reach: the
+    // lifted arm is the one this wave changed, and the shallow worlds are the only ones that can
+    // fail the capped arm at all.
     expect(agreed.length).toBeGreaterThan(20);
     expect(columnsCovered.size).toBeGreaterThanOrEqual(4);
     expect(liftedColumnsCovered.size).toBeGreaterThanOrEqual(1);
+    expect(shallowPairsCovered.length).toBeGreaterThan(0);
   });
 
   it("builds every wall carcass to a declared size, on either route", () => {
@@ -420,32 +453,100 @@ describe("value-preserving where the capped path already governs", () => {
     );
   });
 
-  it("keeps the cap a maximum and never a target", () => {
-    // An opening shallower than the declared depth keeps its own depth, so this rule can never push
-    // a body past the opening it stands in (§11 row 19). `open-shelf` records what it occupies, so a
-    // 200 mm seat is a 200 mm opening.
-    const world = createWorld(
-      {
-        ...KITCHEN_L_DESIGN,
-        placements: KITCHEN_L_DESIGN.placements.map((placement) =>
-          placement.id === "p19"
-            ? {
-                ...placement,
-                body: {
-                  ...placement.body,
-                  buildId: "open-shelf",
-                  seatDepthMm: 200,
-                },
-              }
-            : placement,
-        ),
-      },
-      KITCHEN_L_BODY_CATALOG,
+  it("keeps the cap a maximum and never a target, measured on the column", () => {
+    // Wave 5A's rule, and the subject it is measured against was corrected on 2026-09-04: a
+    // **column** shallower than the declared depth keeps its own depth, so this rule can never build
+    // a body past the space that exists. It used to be measured against the *opening*, which is the
+    // outgoing body's own clearance on a swap and the column's on a delete-then-insert — so the
+    // rule held on one route and not the other, which is entry 10's shape on the arm this wave had
+    // left alone. Measured on the column both routes agree by construction, and the safety property
+    // 5A stated is unchanged.
+    const world = shallowColumn();
+
+    expect(world.columns.get(SHALLOW_COLUMN_KEY)?.hasFullHeightUnder).toBe(
+      false,
+    );
+    expect(toMillimetres(world.columns.get(SHALLOW_COLUMN_KEY)?.d ?? 0)).toBe(
+      SHALLOW_CLEARANCE_MM,
     );
 
-    expect(swapDepthMm(world, "p19", "open-shelf")).toBe(200);
+    expect(swapDepthMm(world, SHALLOW_COLUMN_MEMBER, "open-shelf")).toBe(
+      SHALLOW_CLEARANCE_MM,
+    );
+    expect(swapDepthMm(world, SHALLOW_COLUMN_MEMBER, "open-shelf")).not.toBe(
+      CAPPED_BUILD_DEPTH_MM,
+    );
+  });
+
+  it("does not let a shallow member drag a deeper column down with it", () => {
+    // The complement, and the case logic review found: the *member* is shallower than the map row
+    // but its column is not, so the declared row governs and both routes say so. Asserting only the
+    // test above would leave "keeps its own depth" reading as a fact about whatever body happens to
+    // be standing there.
+    const world = shallowWallMemberInADeepColumn();
+
+    expect(toMillimetres(world.columns.get("A|2.60")?.d ?? 0)).toBe(620);
+    expect(swapDepthMm(world, "p19", "open-shelf")).toBe(CAPPED_BUILD_DEPTH_MM);
   });
 });
+
+const SHALLOW_COLUMN_KEY = "A|1.00";
+const SHALLOW_COLUMN_MEMBER = "s0";
+
+/** The depth both shallow worlds put below the map row, so the two cases differ only in whether the
+ *  column follows the member down. */
+const SHALLOW_CLEARANCE_MM = 200;
+
+/** A wall member recording a seat far below the map row, standing in a column that is **not**
+ *  shallow: `p19` rewritten as a 200 mm `open-shelf` on `A|2.60`, whose clearance stays the hob
+ *  base's 620. An open shelf has no front assembly, so its seat is what it occupies.
+ *
+ *  Logic review's counterexample, 2026-09-04. Reading the capped arm's floor from the opening gave
+ *  200 by swap and 330 by delete-then-insert here — entry 10's divergence, on the arm this wave had
+ *  not touched. Latent rather than live: no command mints a wall member this shallow while its
+ *  column's clearance is at or above the row, but an authored or stored document can, which is the
+ *  population `recordedClearanceM` exists for. */
+function shallowWallMemberInADeepColumn(): KitchenWorld {
+  return createWorld(
+    {
+      ...KITCHEN_L_DESIGN,
+      placements: KITCHEN_L_DESIGN.placements.map((placement) =>
+        placement.id === "p19"
+          ? {
+              ...placement,
+              body: {
+                ...placement.body,
+                buildId: "open-shelf",
+                seatDepthMm: SHALLOW_CLEARANCE_MM,
+              },
+            }
+          : placement,
+      ),
+    },
+    KITCHEN_L_BODY_CATALOG,
+  );
+}
+
+/** A column whose **whole** clearance is below the map row: one wall member and nothing else, so
+ *  §3.2's MAX over the run is that member's own 200 mm. This is where 5A's "a maximum and never a
+ *  target" is observable, and the seeded kitchen has no such column — every one of its capped
+ *  columns holds a base run at 620. */
+function shallowColumn(): KitchenWorld {
+  return syntheticWorld([
+    {
+      id: SHALLOW_COLUMN_MEMBER,
+      wall: "A",
+      alongMm: 1000,
+      y0Mm: 1500,
+      body: {
+        buildId: "open-shelf",
+        widthMm: 600,
+        heightMm: 700,
+        seatDepthMm: SHALLOW_CLEARANCE_MM,
+      },
+    },
+  ]);
+}
 
 describe("the hood keeps its own answer (ADR 0039, ADR 0040)", () => {
   // Its clearance and its build depth are **legitimately** different numbers, and this wave must not
