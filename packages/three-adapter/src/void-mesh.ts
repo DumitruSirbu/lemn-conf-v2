@@ -31,9 +31,14 @@ export interface VoidMesh {
 export function buildVoidMesh(voidRecord: VoidRecord): VoidMesh {
   const width = voidRecord.w - 2 * VOID_INSET_M;
   const height = voidRecord.h - 2 * VOID_INSET_M;
-  const depth = voidRecord.d - 2 * VOID_INSET_M;
+  // **This reader wants the clearance** (ADR 0060 decision 1): the box shows the customer how much
+  // space is free, so it is drawn to §3.2's MAX over the column's members — appliance door bars
+  // included — and deliberately not to `columnBuildDepthM`, the depth a cabinet dropped in here
+  // would be manufactured to. Over the fridge column those are 742 and 600 mm, and the free space
+  // really is the deeper of the two.
+  const clearanceDepth = voidRecord.d - 2 * VOID_INSET_M;
 
-  const geometry = new THREE.BoxGeometry(width, height, depth);
+  const geometry = new THREE.BoxGeometry(width, height, clearanceDepth);
   const fillMaterial = new THREE.MeshBasicMaterial({
     color: FILL_COLOR,
     transparent: true,

@@ -421,53 +421,6 @@ Three shapes of answer, none of them chosen here:
 The owner should decide before the cargo reaches a customer, since ADR 0026's size set is
 unconfirmed anyway.
 
-## 10. Swap and delete-then-insert give a wall cabinet different depths
-
-**Found by the coordinator while verifying the R3.1 fix, 2026-08-26.** Measured on the shipped
-kitchen, over the fridge column `B|2.45`:
-
-```
-p24 as shipped                      600 mm
-SWAP p24 -> wall-2door              600 mm   (preserves the outgoing body's frame)
-DELETE p24, then insert wall-2door  680 mm   (takes the void's own depth)
-```
-
-Both follow rules that are individually correct. A swap in place reads the outgoing body's `frame.d`
-— that is the fix for the original protruding-cabinet defect. An insert into an empty void reads
-`void.d`, which is `Column.d`, §3.2's MAX over the run — here the freestanding fridge's 680 mm.
-
-So two routes to the same end state — "a `wall-2door` in this slot" — produce cabinets 80 mm apart,
-and which one the customer gets depends on whether they replaced the cabinet or deleted it first.
-
-This is the concrete form of what logic review raised as R3.2: the cap is evadable by ordering,
-because `hasFullHeightUnder` is re-answered for future inserts while a placed body's depth is a
-persisted fact. Fixing R3.1 removed the *harmful* instance (a 580 mm carcass over a worktop). This
-one is not harmful — 680 mm is genuinely the column's depth and there is no worktop to lean over, so
-it violates no rule in backlog entry 5 — but it is an inconsistency a customer can reach.
-
-**Not fixed, because the right answer is not obvious.** Three readings, all defensible:
-
-- **680 is correct.** The opening really is that deep; a cabinet flush with the fridge front is a
-  normal thing to build. The rule says "as deep as the column" and the column is 680.
-- **600 is correct.** The seeded design chose 600 over this fridge deliberately, and an insert should
-  not silently exceed what the kitchen was designed with.
-- **They should simply agree**, whichever value wins, because "delete then re-add" and "replace" are
-  the same intent expressed two ways, and §5.3 exists precisely so a swap is not a delete plus an
-  insert.
-
-The third is the one worth deciding first: the divergence matters more than the number.
-
-Related: entry 9 (a hood round trip costing 100 mm) is the same mechanism — a placed body's depth is
-a persisted fact and nothing re-derives it.
-
-**Not superseded by M5, and the reason is worth stating (2026-08-27).** M5 wave 5A makes the worktop
-→ wall depth map the single source for §7's nominal and §5.2's cap. That governs the **capped** path
-only. This entry lives on the **uncapped** path — over a full-height column, where
-`hasFullHeightUnder` lifts the cap and both 600 and 680 are legitimately the column's depth. So 5A
-fixes the sibling defect over a base run and leaves this divergence exactly as measured. It is
-recorded as **question 8** in `docs/milestones/M5-width.md`'s *Not established — Depth* so M5 does
-not mistake it for something already handled.
-
 ## 12. §3.2's column cannot express a middle level at its own width — RAISED BY M5 WAVE 5C
 
 Found while implementing §5.4's resize (M5 wave 5C, 2026-08-27), and **rewritten later the same day**
@@ -553,68 +506,6 @@ scope a decision rather than an oversight.
 **Sequencing.** Worth settling **before 5D**, because 5D builds the chip-freedom query over exactly
 this seam. Not a 5C fix: it changes what `offersFor` offers, which is M3's machinery and its own
 acceptance criteria.
-
-## 15. A wall cabinet over a full-height column is built to a depth no one manufactures — NEEDS A DECISION
-
-**Reproduced live in the running product at 390 x 844, 2026-08-31**, during wave S9 of the
-adversarial-review remediation. Delete `p24` — the cabinet over the fridge — and insert a
-`wall-cabinet` back into the void it vacates. The document written to the database carries
-**`seatDepthMm: 703`**: a 742 mm finished wall cabinet hanging over a 680 mm appliance. It was
-persisted with `probe=on`, an **empty `rejection`**, and zero console errors. **No gate on that path
-paused.**
-
-**It has no user-facing tell, which is the part that makes it urgent.**
-
-- **The panel surfaces no depth at all.** The offer sheet for that opening reads *"Spatiu liber ·
-  Perete B · suspendat · 700 x 750 mm"* — width and height only. The 703 appears on **no screen in
-  the product**.
-- **Neither the void nor the rebuilt body looks wrong.** The void is a clean box above the fridge and
-  the rebuilt cabinet renders as a plausible deep cabinet. A person would flag neither, and would
-  catch it only by comparing against the 330 mm run on the other wall.
-- **No camera preset shows wall B at a grazing angle** — *Perete B* is face on and *Perete A* frames
-  the other run — so that column's depth is not legible in any view the product offers.
-
-Silent in the copy, silent in the render, and it lands as a carcass nobody ordered. That is what
-should decide its priority: a spec-to-manufacture defect, not a cosmetic one.
-
-**What is actually true in the code.** `resolveDepthM`'s uncapped arm reads `opening.d` when
-`hasFullHeightUnder` is true, and `opening.d` comes from `occupiedDepthM`. Two different facts are
-being served by one number:
-
-- *"the full extent a body occupies, handles included"* — a **clearance** fact, which is what §3.1
-  asks for and what `occupiedDepthM` computes;
-- *"the depth to build the next body to"* — a **manufactured size**, which is what `resolveDepthM`
-  hands the probe.
-
-Only the first is the one it computes. `packages/configurator-domain/src/worktop-depth.ts` exists
-precisely so a formula cannot invent a cabinet nobody makes — its declared map is a declaration and
-never an interpolation, *because* a formula would produce a 372 mm cabinet no one manufactures — and
-the uncapped arm is a formula doing exactly that, one module over.
-
-**It pre-dates wave S9, and S9 worsened it.** The arm built a **680 mm** wall carcass before the
-wave, which is no more manufacturable than a 742 mm one, so the defect is not new and S9 did not
-introduce it. What changed is that the number the arm reads is now the full extent including
-appliance handles — further from any real cabinet than it was — and that it is reached on **two
-columns of the shipped kitchen rather than none**: `B|1.20` moved 600 → 638 (the oven tower's
-appliance bars) and `B|2.45` moved 680 → 742 (the fridge's door bars). Deleting the top cabinet is an
-ordinary action and leaves the full-height member standing, so `hasFullHeightUnder` stays true and
-the uncapped arm is what answers.
-
-**What deciding it would cost.** Separating clearance from build depth is the real fix, and it is a
-**product decision, not a bug fix** — nobody should pick this up expecting a one-line patch.
-Whether that arm should read `opening.d` at all is the question: a wall cabinet flush with a fridge
-front may be exactly what a customer wants, or the cap may belong there too, or the column may need
-to publish two numbers — the space a body occupies and the depth the next body is built to — which
-is a new fact in the model with `deriveColumns`, the swap opening and the void mesh all reading it
-today. Changing `resolveDepthM` inside a wave scoped to DOM-002 would have been the silent product
-change the remediation exists to stop, which is why it was recorded rather than fixed.
-
-**Evidence.** Commit `f9b92e1` (wave S9, closing DOM-002); the wave S9 summary in
-`docs/milestones/adversarial-review-remediation.md`; and `testing-reports/03-domain-model.md`, whose
-DOM-002 finding is what the wave was scoped to.
-
-Related: entry 10 is the same seam from the other side — two routes to "a wall cabinet in this slot"
-producing different depths on the uncapped path — and entry 5 is the capped sibling.
 
 ## 16. No camera preset frames the right end of wall A's base run at the mobile viewport — NEEDS A DECISION
 
@@ -1225,6 +1116,63 @@ question is open** — the day it is decided, that assertion changes deliberatel
 
 ---
 
+## 10. Swap and delete-then-insert give a wall cabinet different depths — CLOSED 2026-09-02, SHIPPED IN M6 WAVE 6I2
+
+**CLOSED 2026-09-02 by [ADR 0060](decisions/0060-a-column-publishes-a-build-depth-beside-its-clearance.md), implemented in M6 wave 6I2.**
+The third reading — *"they should simply agree"* — is the one the owner took, and the value is
+**600**: swap's number, and the smaller of the two measured here. A column now publishes a **build
+depth** beside its clearance, and both routes read it, so §5.3's promise that a swap is not a delete
+plus an insert holds numerically as well as structurally. The 680 this entry records was §3.2's MAX
+over the run (742 since wave S9, once appliance handles were measured); it is a clearance and no
+route builds a cabinet to it any more.
+
+### The finding, as recorded before it was closed
+
+**Found by the coordinator while verifying the R3.1 fix, 2026-08-26.** Measured on the shipped
+kitchen, over the fridge column `B|2.45`:
+
+```
+p24 as shipped                      600 mm
+SWAP p24 -> wall-2door              600 mm   (preserves the outgoing body's frame)
+DELETE p24, then insert wall-2door  680 mm   (takes the void's own depth)
+```
+
+Both follow rules that are individually correct. A swap in place reads the outgoing body's `frame.d`
+— that is the fix for the original protruding-cabinet defect. An insert into an empty void reads
+`void.d`, which is `Column.d`, §3.2's MAX over the run — here the freestanding fridge's 680 mm.
+
+So two routes to the same end state — "a `wall-2door` in this slot" — produce cabinets 80 mm apart,
+and which one the customer gets depends on whether they replaced the cabinet or deleted it first.
+
+This is the concrete form of what logic review raised as R3.2: the cap is evadable by ordering,
+because `hasFullHeightUnder` is re-answered for future inserts while a placed body's depth is a
+persisted fact. Fixing R3.1 removed the *harmful* instance (a 580 mm carcass over a worktop). This
+one is not harmful — 680 mm is genuinely the column's depth and there is no worktop to lean over, so
+it violates no rule in backlog entry 5 — but it is an inconsistency a customer can reach.
+
+**Not fixed, because the right answer is not obvious.** Three readings, all defensible:
+
+- **680 is correct.** The opening really is that deep; a cabinet flush with the fridge front is a
+  normal thing to build. The rule says "as deep as the column" and the column is 680.
+- **600 is correct.** The seeded design chose 600 over this fridge deliberately, and an insert should
+  not silently exceed what the kitchen was designed with.
+- **They should simply agree**, whichever value wins, because "delete then re-add" and "replace" are
+  the same intent expressed two ways, and §5.3 exists precisely so a swap is not a delete plus an
+  insert.
+
+The third is the one worth deciding first: the divergence matters more than the number.
+
+Related: entry 9 (a hood round trip costing 100 mm) is the same mechanism — a placed body's depth is
+a persisted fact and nothing re-derives it.
+
+**Not superseded by M5, and the reason is worth stating (2026-08-27).** M5 wave 5A makes the worktop
+→ wall depth map the single source for §7's nominal and §5.2's cap. That governs the **capped** path
+only. This entry lives on the **uncapped** path — over a full-height column, where
+`hasFullHeightUnder` lifts the cap and both 600 and 680 are legitimately the column's depth. So 5A
+fixes the sibling defect over a base run and leaves this divergence exactly as measured. It is
+recorded as **question 8** in `docs/milestones/M5-width.md`'s *Not established — Depth* so M5 does
+not mistake it for something already handled.
+
 ## 11. `base-dishwasher` offers a finish and a handle it has neither of — DECIDED 2026-09-01, SHIPPED
 
 **Decided by the owner on 2026-09-01: give the niche a decor door**, not the one-line
@@ -1354,6 +1302,85 @@ both rules is deleted once.
 full copy of `designs`, and the table itself is unbounded until ADR 0019 decision 7's retention cron
 ships at M8 — which is blocked on the credential question recorded in that gate, since no role in the
 system may currently delete.
+
+## 15. A wall cabinet over a full-height column is built to a depth no one manufactures — CLOSED 2026-09-02, SHIPPED IN M6 WAVE 6I2
+
+**CLOSED 2026-09-02 by [ADR 0060](decisions/0060-a-column-publishes-a-build-depth-beside-its-clearance.md), implemented in M6 wave 6I2.**
+This entry's own diagnosis is the fix: the column publishes **two** facts. `occupiedDepthM` keeps its
+meaning and its value as the **clearance**, and a separate declared **build depth** — the map's wall
+depth where the cap applies, the cabinet-depth line where a full-height member lifts it, and never
+the clearance MAX — is what `resolveDepthM` hands the probe. The two are different nominal types
+(`ClearanceM`, `BuildDepthM`), so reading one as the other is a compile error rather than a comment.
+703 and 742 are unreachable: the uncapped arm no longer computes anything.
+
+**Entry 9 is the same seam a third time**, and it was re-read before this one was closed: a placed
+body's depth is a persisted fact that nothing re-derives. It is already closed by
+[ADR 0040](decisions/0040-a-recorded-seat-is-converted-back-not-read-as-a-depth.md) — the opening a
+body vacates is read through `occupiedDepthM` rather than through the outgoing body's own `frame.d`.
+That is the *clearance* half of this seam; wave 6I2 closes the *build depth* half. Nothing about
+entry 9's closure changes.
+
+### The finding, as recorded before it was closed
+
+**Reproduced live in the running product at 390 x 844, 2026-08-31**, during wave S9 of the
+adversarial-review remediation. Delete `p24` — the cabinet over the fridge — and insert a
+`wall-cabinet` back into the void it vacates. The document written to the database carries
+**`seatDepthMm: 703`**: a 742 mm finished wall cabinet hanging over a 680 mm appliance. It was
+persisted with `probe=on`, an **empty `rejection`**, and zero console errors. **No gate on that path
+paused.**
+
+**It has no user-facing tell, which is the part that makes it urgent.**
+
+- **The panel surfaces no depth at all.** The offer sheet for that opening reads *"Spatiu liber ·
+  Perete B · suspendat · 700 x 750 mm"* — width and height only. The 703 appears on **no screen in
+  the product**.
+- **Neither the void nor the rebuilt body looks wrong.** The void is a clean box above the fridge and
+  the rebuilt cabinet renders as a plausible deep cabinet. A person would flag neither, and would
+  catch it only by comparing against the 330 mm run on the other wall.
+- **No camera preset shows wall B at a grazing angle** — *Perete B* is face on and *Perete A* frames
+  the other run — so that column's depth is not legible in any view the product offers.
+
+Silent in the copy, silent in the render, and it lands as a carcass nobody ordered. That is what
+should decide its priority: a spec-to-manufacture defect, not a cosmetic one.
+
+**What is actually true in the code.** `resolveDepthM`'s uncapped arm reads `opening.d` when
+`hasFullHeightUnder` is true, and `opening.d` comes from `occupiedDepthM`. Two different facts are
+being served by one number:
+
+- *"the full extent a body occupies, handles included"* — a **clearance** fact, which is what §3.1
+  asks for and what `occupiedDepthM` computes;
+- *"the depth to build the next body to"* — a **manufactured size**, which is what `resolveDepthM`
+  hands the probe.
+
+Only the first is the one it computes. `packages/configurator-domain/src/worktop-depth.ts` exists
+precisely so a formula cannot invent a cabinet nobody makes — its declared map is a declaration and
+never an interpolation, *because* a formula would produce a 372 mm cabinet no one manufactures — and
+the uncapped arm is a formula doing exactly that, one module over.
+
+**It pre-dates wave S9, and S9 worsened it.** The arm built a **680 mm** wall carcass before the
+wave, which is no more manufacturable than a 742 mm one, so the defect is not new and S9 did not
+introduce it. What changed is that the number the arm reads is now the full extent including
+appliance handles — further from any real cabinet than it was — and that it is reached on **two
+columns of the shipped kitchen rather than none**: `B|1.20` moved 600 → 638 (the oven tower's
+appliance bars) and `B|2.45` moved 680 → 742 (the fridge's door bars). Deleting the top cabinet is an
+ordinary action and leaves the full-height member standing, so `hasFullHeightUnder` stays true and
+the uncapped arm is what answers.
+
+**What deciding it would cost.** Separating clearance from build depth is the real fix, and it is a
+**product decision, not a bug fix** — nobody should pick this up expecting a one-line patch.
+Whether that arm should read `opening.d` at all is the question: a wall cabinet flush with a fridge
+front may be exactly what a customer wants, or the cap may belong there too, or the column may need
+to publish two numbers — the space a body occupies and the depth the next body is built to — which
+is a new fact in the model with `deriveColumns`, the swap opening and the void mesh all reading it
+today. Changing `resolveDepthM` inside a wave scoped to DOM-002 would have been the silent product
+change the remediation exists to stop, which is why it was recorded rather than fixed.
+
+**Evidence.** Commit `f9b92e1` (wave S9, closing DOM-002); the wave S9 summary in
+`docs/milestones/adversarial-review-remediation.md`; and `testing-reports/03-domain-model.md`, whose
+DOM-002 finding is what the wave was scoped to.
+
+Related: entry 10 is the same seam from the other side — two routes to "a wall cabinet in this slot"
+producing different depths on the uncapped path — and entry 5 is the capped sibling.
 
 ## 22. A partly emptied column forgets what it freed, and UX-2 is only half closed — CLOSED 2026-09-02
 
