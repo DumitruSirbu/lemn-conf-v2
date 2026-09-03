@@ -88,6 +88,7 @@ Alternatives / Consequences live in each file. For the specific claims a later r
 | [0066](0066-the-wall-corner-returns-get-their-own-kinds-and-names.md) | The wall corner returns get their own kinds and names | Accepted | Decision | M6 6A4 | Two kinds, one per row, mirroring ADR 0025 — one shared kind would leave the priced document showing two identical lines. |
 | [0067](0067-leftover-wall-is-the-normal-case-and-the-price-is-a-floor.md) | Leftover wall is the normal case, and the price is a floor | Accepted | Decision | Cross-cutting | Real walls are not round; a remainder is the expected outcome, not a tolerance; the estimate is a floor. Does not weaken the overrun rule. |
 | [0068](0068-price-steps-at-the-door-count-and-follows-height.md) | Price steps at the door count, and follows height | Accepted | Decision | M6 6B2 | A second and third price shape: a step at the door threshold, and a height term where a body builds to its opening. Shapes stay code, coefficients stay data. |
+| [0069](0069-past-the-wall-is-one-code-family-and-severity-is-declared-per-code.md) | "Past the wall" is one code family, and severity is declared per code | Accepted | Decision | M6 6A3 | The overrun re-enters validation as an empty column and a frozen extent, so all three codes are demoted together. `COLUMN_EXTENT_OUTSIDE_ROOM` splits per edge; severity becomes a total per-code declaration. |
 
 ## Supersessions
 
@@ -191,6 +192,12 @@ replaced it — nothing is deleted or rewritten silently.
   else"* → not superseded, obeyed more fully by **ADR 0053**, which stops `deriveColumns`
   re-deriving an occupied column's extent from its current records on every reload — precisely what
   that correction's reasoning already forbade.
+- **ADR 0053**'s refusal-code list, which names one `COLUMN_EXTENT_OUTSIDE_ROOM` for all four room
+  edges → split per edge by **ADR 0069**. The four edges stopped sharing a severity once ADR 0065
+  made "past the wall end" a mark, so the edge belongs in the code rather than in the issue path.
+- **ADR 0065** decision 7's implementation as a single demoted code → extended by **ADR 0069** to the
+  whole "reaches past the end of its own wall" family, on placements, empty columns and frozen
+  extents alike. Decision 7's requirement is unchanged; what it takes to meet it is not.
 - **ADR 0009**'s "Verification once deployed" section, which checks only that the backup cron
   registers → narrowed by its own **2026-09-02 amendment** and by **ADR 0054**: provisioning
   `lemn-conf-v2-preview` was verified in 2026-08-25, but keeping its schema current was not, and it

@@ -47,6 +47,7 @@ import type {
 } from "../../src/pricing/price-lines.js";
 import { SAMPLE_PRICE_BOOK } from "../../src/pricing/sample-price-book.js";
 import { projectDesignForDisplay } from "../../src/queries/design-projection.js";
+import { findOverflowingPlacementIds } from "../../src/queries/overflowing-placements.js";
 import { validateDesignForCatalog } from "../../src/validate-design.js";
 import type { BodyCatalog, BodyDefinition } from "../../src/void-engine.js";
 
@@ -288,11 +289,8 @@ describe("degenerate designs and degenerate books", () => {
     expect(priced.totalMinor).toBe(0);
   });
 
-  it("prices an empty design with an explicitly empty overflow report, unflagged", () => {
-    const priced = priceOrFail({
-      design: designOf([]),
-      overflowingPlacementIds: [],
-    });
+  it("prices an empty design unflagged, because an empty design overflows nothing", () => {
+    const priced = priceOrFail({ design: designOf([]) });
 
     expect(priced.totalIsFlagged).toBe(false);
     expect(priced.overflowingPlacementIds).toEqual([]);
@@ -646,11 +644,6 @@ describe("fail whole, on every path", () => {
       code: "UNKNOWN_BODY",
     },
     {
-      name: "a stale overflow report",
-      overrides: { overflowingPlacementIds: ["gone"] },
-      code: "UNKNOWN_OVERFLOW_PLACEMENT",
-    },
-    {
       name: "a tier nothing offers",
       overrides: { selections: { hardwareTierId: "hardware.gone" } },
       code: "UNKNOWN_TIER",
@@ -683,43 +676,60 @@ describe("fail whole, on every path", () => {
   });
 });
 
+/** Far enough along any wall that a body centred there passes its end whichever wall it stands on,
+ *  and applied as a **shift** so the placements keep their relative order and the projection's line
+ *  order with it. */
+const PAST_EVERY_WALL_MM = 9_000;
+
+/** The seeded kitchen with every body pushed past the end of its own wall. The overflow has to be
+ *  created in the **document**, because since ADR 0069 decision 5c that is the only place pricing
+ *  reads it from: `priceDesign` derives the fact and accepts no report. */
+function everyBodyPastItsWall(): Design {
+  return designOf(
+    KITCHEN_L_DESIGN.placements.map((placement) => ({
+      ...placement,
+      alongMm: placement.alongMm + PAST_EVERY_WALL_MM,
+    })),
+  );
+}
+
 describe("an overflowing design loses nothing, even when all of it overflows", () => {
-  it("prices every body when every body is marked", () => {
-    const everyPlacement = KITCHEN_L_DESIGN.placements.map(
-      (placement) => placement.id,
-    );
+  it("prices every body when every body overflows", () => {
+    const design = everyBodyPastItsWall();
     const fitting = priceOrFail();
-    const overflowing = priceOrFail({
-      overflowingPlacementIds: everyPlacement,
-    });
+    const overflowing = priceOrFail({ design });
 
     expect(overflowing.lines).toEqual(fitting.lines);
     expect(overflowing.totalMinor).toBe(fitting.totalMinor);
     expect(overflowing.totalMinor).toBeGreaterThan(0);
     expect(overflowing.totalIsFlagged).toBe(true);
-    expect(cabinetLinesOf(overflowing)).toHaveLength(everyPlacement.length);
+    expect(cabinetLinesOf(overflowing)).toHaveLength(design.placements.length);
   });
 
-  it("does not let the overflow report change the hardware quantity", () => {
+  it("does not let the overflow change the hardware quantity", () => {
     const selections = { hardwareTierId: "hardware.premium" } as const;
 
     expect(
       lineOfKind(
-        priceOrFail({
-          selections,
-          overflowingPlacementIds: KITCHEN_L_DESIGN.placements.map((p) => p.id),
-        }),
+        priceOrFail({ selections, design: everyBodyPastItsWall() }),
         "hardware",
       ).quantity,
     ).toBe(lineOfKind(priceOrFail({ selections }), "hardware").quantity);
   });
 
-  it("keeps the echoed report from aliasing the caller's array", () => {
-    const reported = [KITCHEN_L_DESIGN.placements[0]?.id ?? ""];
-    const priced = priceOrFail({ overflowingPlacementIds: reported });
-    reported.push("mutated-after-the-fact");
+  /** The property the deleted `UNKNOWN_OVERFLOW_PLACEMENT` refusal was protecting, restated as what
+   *  now makes it unrepresentable: the published set **is** the design's own, from the one query
+   *  every other surface reads, so a set naming a placement the design does not contain has no way
+   *  in. */
+  it("publishes exactly the ids the published overflow query answers", () => {
+    const design = everyBodyPastItsWall();
 
-    expect(priced.overflowingPlacementIds).toHaveLength(1);
+    expect(priceOrFail({ design }).overflowingPlacementIds).toEqual([
+      ...findOverflowingPlacementIds(design),
+    ]);
+    expect(priceOrFail().overflowingPlacementIds).toEqual([
+      ...findOverflowingPlacementIds(KITCHEN_L_DESIGN),
+    ]);
   });
 });
 

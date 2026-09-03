@@ -51,8 +51,11 @@ const PROBE = createFakeProbe({ catalog: CATALOG });
  *  make every assertion below pass for the wrong reason. The seeded kitchen was used for exactly
  *  such a fixture in the wave's own write-seam test — see `refuses a hand-built version 2 document`
  *  below, which pins the codes rather than trusting the status. */
+/** The room is deliberately **not** `3600 × 2400`: that pair is the room correction's trigger
+ *  (`migrate-design.ts`), and this file is about the `emptyColumns` ceiling rather than about a
+ *  room. Every entry below stays inside the narrower runs. */
 const EMPTY_ROOM: Design = {
-  room: { shape: "L", widthMm: 3600, depthMm: 2400, heightMm: 2600 },
+  room: { shape: "L", widthMm: 3560, depthMm: 2830, heightMm: 2600 },
   presetId: null,
   placements: [],
   createdAt: NOW,

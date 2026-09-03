@@ -39,12 +39,18 @@
 export const PRICE_BOOK_CURRENCY = "MDL" as const;
 export type PriceBookCurrency = typeof PRICE_BOOK_CURRENCY;
 
+/** Every footing a book may be supplied on. A runtime list rather than a bare union, because the
+ *  seam that supplies a book is not TypeScript (ADR 0062 seam 1) and the query has to be able to
+ *  ask whether a declared value is one of these. The type is derived from the list, so the two
+ *  cannot fork. */
+export const PRICE_BOOK_STATUSES = ["estimate", "commercial"] as const;
+
 /** Whether a priced result may be presented as a commercial offer.
  *
  *  `estimate` throughout M6 and every book this repository ships. It is a field rather than a
  *  constant because who supplies a book, and on what footing, is not a property of its shape
  *  (ADR 0062) — and it is deliberately **not** the same question as `amountsProvisional` below. */
-export type PriceBookStatus = "estimate" | "commercial";
+export type PriceBookStatus = (typeof PRICE_BOOK_STATUSES)[number];
 
 /** The two coefficients **every** shape is built on: what the body costs before any dimension is
  *  added, and what a millimetre of width adds to it.
@@ -265,6 +271,11 @@ export interface PricedBody {
  *  `undefined` for a formula whose shape this build does not know, so the caller refuses rather
  *  than guessing. Never `NaN`, never a partial answer.
  *
+ *  **Throws `MalformedPriceCoefficientError`** for a shape it does know carrying a coefficient that
+ *  is not an exact count of minor units. The two are different facts about a book — a shape nothing
+ *  implements, and a number that is not one — and a caller that must name them apart cannot do so
+ *  from a single `undefined`.
+ *
  *  The parameter is typed **wider than a rule declares it**, for the reason `cabinet-handles.ts`
  *  widens its own: the whole point of ADR 0062 seam 1 is that the book comes from somewhere else,
  *  so a formula assembled outside TypeScript can arrive carrying a shape nothing here implements,
@@ -299,19 +310,105 @@ export function amountForBody(
 /** The two coefficients every shape shares, so a shape that adds a term states only what it adds. */
 function widthTerm(coefficients: WidthCoefficients, body: PricedBody): number {
   return (
-    coefficients.baseMinor + coefficients.perWidthMillimetreMinor * body.widthMm
+    usableCoefficientOf(coefficients.baseMinor, "baseMinor") +
+    usableCoefficientOf(
+      coefficients.perWidthMillimetreMinor,
+      "perWidthMillimetreMinor",
+    ) *
+      body.widthMm
   );
 }
 
 function heightTerm(coefficients: HeightCoefficient, body: PricedBody): number {
-  return coefficients.perHeightMillimetreMinor * body.heightMm;
+  return (
+    usableCoefficientOf(
+      coefficients.perHeightMillimetreMinor,
+      "perHeightMillimetreMinor",
+    ) * body.heightMm
+  );
 }
 
 function doorLeafTerm(
   coefficients: DoorLeafCoefficient,
   body: PricedBody,
 ): number {
-  return coefficients.perDoorLeafMinor * body.doorLeafCount;
+  return (
+    usableCoefficientOf(coefficients.perDoorLeafMinor, "perDoorLeafMinor") *
+    body.doorLeafCount
+  );
+}
+
+/** Every amount the book states as a number a price is computed from — every coefficient any shape
+ *  declares, and the two whole-kitchen tier amounts — the only things a malformed-amount refusal can
+ *  name. A literal union rather than `string`, so a typo in a refusal message is a compile error
+ *  instead of a message pointing at a field no rule has: the discipline `CabinetHandleCountField`
+ *  keeps.
+ *
+ *  The tier amounts sit in the same union because they arrive through the same ADR 0062 seam 1
+ *  population and fail in the same way: `perCabinetHandleMinor` and `wholeKitchenMinor` are read
+ *  straight off a book assembled outside TypeScript, and a `null` there multiplies to a perfectly
+ *  exact `0` that the breakdown renders *inclus*. */
+export type PriceCoefficientField =
+  | "baseMinor"
+  | "perWidthMillimetreMinor"
+  | "perHeightMillimetreMinor"
+  | "perDoorLeafMinor"
+  | "perCabinetHandleMinor"
+  | "wholeKitchenMinor";
+
+/**
+ * **A formula that declares a coefficient the arithmetic cannot be performed on.** A programming
+ * error in the *book*, and thrown rather than answered, exactly as `UndeclaredCabinetHandleCountError`
+ * is for a handle count and for the same reason: there is no number to guess at.
+ *
+ * **The quiet half is what this exists for.** A coefficient of `undefined`, `NaN` or `Infinity`
+ * already made the whole amount unusable and was refused downstream by its integrality. `null`,
+ * `false`, `[]` and `""` do not: JavaScript multiplies every one of them by a millimetre count and
+ * answers `0`, a perfectly exact integer, so the term vanishes and the row prices as though the
+ * term the owner ruled for it did not apply — silently, on the most-inserted row in the catalogue
+ * (QA 6B2). That is the population ADR 0062 seam 1 describes: a book is versioned data assembled
+ * outside TypeScript, and its declared `number` is what the seam cannot guarantee.
+ *
+ * **The sign is deliberately not this function's question.** A negative coefficient is arithmetic
+ * the machine can perform exactly; what is wrong with it is that it produces an amount nobody may
+ * be quoted, which is a fact about the published line and is refused there.
+ */
+export class MalformedPriceCoefficientError extends Error {
+  constructor(refusal: {
+    readonly field: PriceCoefficientField;
+    readonly declared: unknown;
+  }) {
+    super(
+      `The price book declares no usable "${refusal.field}" — a whole, exact count of minor units. ` +
+        `Found: ${describeDeclared(refusal.declared)}.`,
+    );
+    this.name = "MalformedPriceCoefficientError";
+  }
+}
+
+function describeDeclared(declared: unknown): string {
+  return declared === undefined ? "nothing" : JSON.stringify(declared);
+}
+
+/** The number an amount is declared as, held to being an **exact count of minor units**: a number,
+ *  whole, and small enough that the products above stay exact. `0` is a real answer and passes —
+ *  `pricedFlat` is written out of one, and a tier that is included in the base price is another.
+ *
+ *  Exported so the whole-kitchen tier amounts pass through **this** guard rather than a second one
+ *  that could drift from it: a per-handle rate and a per-kitchen delta are the same kind of promise
+ *  as a coefficient, made by the same seam, and one convention is what keeps them refusing alike.
+ *
+ *  Typed `unknown` deliberately, although every coefficient and tier interface declares `number`.
+ *  That declaration is what the book seam cannot guarantee, and this function exists for exactly the
+ *  values TypeScript already believes are impossible. */
+export function usableCoefficientOf(
+  declared: unknown,
+  field: PriceCoefficientField,
+): number {
+  if (typeof declared === "number" && Number.isSafeInteger(declared)) {
+    return declared;
+  }
+  throw new MalformedPriceCoefficientError({ field, declared });
 }
 
 /** Every rule id in a book, in the order it is declared — cabinet rules, then the tiers. What the

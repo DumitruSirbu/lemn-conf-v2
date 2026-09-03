@@ -146,7 +146,13 @@ checking those neighbours directly.
 - `COLUMN_EXTENT_KEY_COLLIDES_WITH_COLUMN_EXTENT` — two entries addressing one slot in the column
   map; `deriveColumns` would restore both and keep the last, so one recorded extent would not exist
   in the derivation.
-- `COLUMN_EXTENT_OUTSIDE_ROOM` — the room bound, extended from `emptyColumns` to the new array.
+- ~~`COLUMN_EXTENT_OUTSIDE_ROOM` — the room bound, extended from `emptyColumns` to the new array.~~
+  **Split by [ADR 0069](0069-past-the-wall-is-one-code-family-and-severity-is-declared-per-code.md)
+  (2026-09-03) into `COLUMN_EXTENT_BEFORE_WALL_START`, `COLUMN_EXTENT_PAST_WALL_END`,
+  `COLUMN_EXTENT_ABOVE_ROOM` and `COLUMN_EXTENT_DEEPER_THAN_ROOM`** — one per edge, matching the
+  `emptyColumns` names. The four edges no longer share a severity: past the wall end is a mark
+  (ADR 0065), the other three stay refusals, so which edge was crossed is load-bearing and belongs
+  in the code rather than in the path.
 
 Both seams validate: `validateDesignForCatalog` runs at the API write seam and the load/migration
 seam alike, so a hand-edited or hostile document is refused wherever it arrives — DOM-001's rule

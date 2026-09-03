@@ -11,6 +11,7 @@ import {
 } from "./split-empty-span.js";
 import {
   assertDesignValidForCatalog,
+  fatalDesignValidationIssues,
   validateDesignForCatalog,
 } from "./validate-design.js";
 import type { BodyCatalog } from "./void-engine.js";
@@ -109,12 +110,24 @@ const CORRECTED_ROOM_MM = { widthMm: 3560, depthMm: 2830 } as const;
  *  customer enter their own dimensions, and one of them may genuinely have a 3600 × 2400 room:
  *
  *  1. **The version.** This arm is not reached at version 3, which is what M7 writes. That alone
- *     settles the customer case; the two below are what make a wrong version stamp survivable.
+ *     settles the customer case.
  *  2. **The exact pre-correction pair**, so no other room is a candidate at any version.
- *  3. **It must repair something.** A document its stored room already holds is returned by
- *     identity — a load that changes nothing must not rewrite the object a later save is diffed
- *     against — and so is one the corrected room would not rescue, which then fails on its own
- *     terms with its own issues rather than on a room it never had. */
+ *  3. **The corrected room must not be fatally invalid**, which then fails on its own terms with
+ *     its own fatal issues rather than on a room it never had.
+ *
+ *  **Provenance is why there is no fourth guard asking whether the document is already valid**
+ *  (ADR 0069 decision 5b, amending decision 5). Before M7 there is no room control, so at version
+ *  ≤ 2 the pair `{3600, 2400}` has exactly one origin — the seeded fixture's mis-measurement — and
+ *  the correction is owed to every such row unconditionally. Asking whether the bodies happen to
+ *  fit under the *wrong* room answers a question with no bearing on whether the wall was measured
+ *  correctly, and it declined the correction for exactly the rows that were fine while applying it
+ *  to the ones that were not.
+ *
+ *  **What makes the rewrite safe is not that the result validates.** It is that the corrected room
+ *  is the constant `{3560, 2830}`, reached only at version ≤ 2 from the exact pre-correction pair.
+ *  No room value is ever derived from the document's own placements, so a body at 3000 on wall B is
+ *  still past the wall after the correction and is still marked: nothing is rescued into a room
+ *  nobody entered (ADR 0069 decision 5). */
 function correctPreCorrectionRoom(
   design: Design,
   catalog: BodyCatalog,
@@ -125,8 +138,11 @@ function correctPreCorrectionRoom(
     ...design,
     room: { ...design.room, ...CORRECTED_ROOM_MM },
   };
-  if (isValidForCatalog(design, catalog)) return design;
-  if (!isValidForCatalog(corrected, catalog)) return design;
+  // Fatal findings only: since ADR 0065 an overflow after the correction is a mark, not a failure
+  // to rescue, and wall A narrows by 40 mm, so a corrected row may show a mark it did not show
+  // before. That mark is true — the alternative is a kitchen built against a measurement the
+  // product knows is wrong.
+  if (hasFatalIssues(corrected, catalog)) return design;
   return corrected;
 }
 
@@ -137,8 +153,11 @@ function isPreCorrectionRoom(room: DesignRoom): boolean {
   );
 }
 
-function isValidForCatalog(design: Design, catalog: BodyCatalog): boolean {
-  return validateDesignForCatalog(design, catalog).length === 0;
+function hasFatalIssues(design: Design, catalog: BodyCatalog): boolean {
+  return (
+    fatalDesignValidationIssues(validateDesignForCatalog(design, catalog))
+      .length > 0
+  );
 }
 
 function parseDesign(raw: unknown): Design {

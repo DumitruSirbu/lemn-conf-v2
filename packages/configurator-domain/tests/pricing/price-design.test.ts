@@ -14,6 +14,7 @@ import { deriveDoorCount, TWO_DOOR_MIN_WIDTH_MM } from "../../src/catalog.js";
 import {
   DesignSchema,
   type CabinetBody,
+  type Design,
   type DesignPlacement,
 } from "../../src/design.js";
 import {
@@ -33,6 +34,7 @@ import type {
 } from "../../src/pricing/price-lines.js";
 import { SAMPLE_PRICE_BOOK } from "../../src/pricing/sample-price-book.js";
 import { projectDesignForDisplay } from "../../src/queries/design-projection.js";
+import { findOverflowingPlacementIds } from "../../src/queries/overflowing-placements.js";
 import type { BodyCatalog, BodyDefinition } from "../../src/void-engine.js";
 
 const CATALOG = KITCHEN_L_BODY_CATALOG;
@@ -735,51 +737,81 @@ describe("fail whole", () => {
 });
 
 describe("an overflowing design is priced in full and the total is flagged", () => {
-  const OVERFLOWING = ["p7", "p24"] as const;
+  /** Far enough along any wall that a body centred there passes its end, whichever wall it stands
+   *  on. Applied as a shift, so the placements keep their relative order and the projection's line
+   *  order with them. */
+  const PAST_EVERY_WALL_MM = 9_000;
 
-  it("prices every body, including the ones that do not fit", () => {
-    const fitting = pricedSeededKitchen();
-    const overflowing = pricedSeededKitchen({
-      overflowingPlacementIds: [...OVERFLOWING],
-    });
+  /** The seeded kitchen fits, so the overflow is made in the **document**: since ADR 0069 decision
+   *  5c `priceDesign` derives the fact from the design it is pricing and accepts no report. */
+  function withOneBodyPastItsWall(): Design {
+    const first = KITCHEN_L_DESIGN.placements[0];
+    if (!first) throw new Error("the seeded kitchen has no placements");
+    return {
+      ...KITCHEN_L_DESIGN,
+      placements: KITCHEN_L_DESIGN.placements.map((placement) =>
+        placement.id === first.id
+          ? { ...placement, alongMm: placement.alongMm + PAST_EVERY_WALL_MM }
+          : placement,
+      ),
+    };
+  }
 
-    // The defect this asserts against: excluding the marked bodies would drop the total at the
-    // moment part of the kitchen became unbuildable, and read as a cheaper kitchen.
-    expect(overflowing.lines).toEqual(fitting.lines);
-    expect(overflowing.totalMinor).toBe(fitting.totalMinor);
+  function withThatBodyDeleted(): Design {
+    const overflowing = withOneBodyPastItsWall();
+    const marked = new Set(findOverflowingPlacementIds(overflowing));
+    return {
+      ...overflowing,
+      placements: overflowing.placements.filter(
+        (placement) => !marked.has(placement.id),
+      ),
+    };
+  }
+
+  it("prices every body, including the one that does not fit", () => {
+    const design = withOneBodyPastItsWall();
+    const overflowing = pricedSeededKitchen({ design });
+    const [marked] = findOverflowingPlacementIds(design);
+
+    // The defect this asserts against: excluding the marked body would drop the total at the moment
+    // part of the kitchen became unbuildable, and read as a cheaper kitchen.
+    expect(overflowing.totalMinor).toBe(pricedSeededKitchen().totalMinor);
+    expect(cabinetLinesOf(overflowing)).toHaveLength(design.placements.length);
     expect(cabinetLinesOf(overflowing).map((line) => line.placementId)).toEqual(
-      expect.arrayContaining([...OVERFLOWING]),
+      expect.arrayContaining([marked]),
     );
   });
 
-  it("flags the total and echoes the marked placements", () => {
-    const overflowing = pricedSeededKitchen({
-      overflowingPlacementIds: [...OVERFLOWING],
-    });
+  it("flags the total and names the placements the design itself overflows", () => {
+    const design = withOneBodyPastItsWall();
+    const overflowing = pricedSeededKitchen({ design });
 
     expect(overflowing.totalIsFlagged).toBe(true);
-    expect(overflowing.overflowingPlacementIds).toEqual([...OVERFLOWING]);
+    expect(overflowing.overflowingPlacementIds).toEqual([
+      ...findOverflowingPlacementIds(design),
+    ]);
+    expect(overflowing.overflowingPlacementIds).toHaveLength(1);
   });
 
   it("leaves a fitting design unflagged", () => {
     expect(pricedSeededKitchen().totalIsFlagged).toBe(false);
   });
 
-  it("refuses an overflow report naming a placement the design does not contain", () => {
-    const result = priceDesign({
-      design: KITCHEN_L_DESIGN,
-      catalog: CATALOG,
-      book: BOOK,
-      pricingVersion: BOOK.version,
-      overflowingPlacementIds: ["p999"],
-    });
+  /** What the deleted `UNKNOWN_OVERFLOW_PLACEMENT` refusal was really protecting: the flag matches
+   *  the document. Deriving it makes a mismatch unrepresentable rather than refused, so the
+   *  statement is now about the flag *following* an edit. */
+  it("clears the flag when the overflowing body is deleted", () => {
+    const repaired = withThatBodyDeleted();
 
-    expect(result.ok).toBe(false);
-    if (result.ok) return;
-    expect(result.failure).toMatchObject({
-      code: "UNKNOWN_OVERFLOW_PLACEMENT",
-      placementId: "p999",
-    });
+    expect(repaired.placements).toHaveLength(
+      KITCHEN_L_DESIGN.placements.length - 1,
+    );
+    expect(pricedSeededKitchen({ design: repaired }).totalIsFlagged).toBe(
+      false,
+    );
+    expect(
+      pricedSeededKitchen({ design: repaired }).overflowingPlacementIds,
+    ).toEqual([]);
   });
 });
 
@@ -810,6 +842,40 @@ describe("nothing is rounded and nothing is stored", () => {
       pricingVersion: BOOK.version,
       status: BOOK.status,
     });
+  });
+
+  it("carries the book's provisional-amounts flag forward, and fabricates no value for it", () => {
+    // The flag says whether anybody has ever costed these figures, which `status` does not: every
+    // shipped book is `estimate` **and** provisional, so a surface cannot read one off the other.
+    // Asserted in both directions, because a result that hard-coded `true` would look identical to
+    // one that carried the flag on the only book this repository ships.
+    const costed: PriceBook = { ...BOOK, amountsProvisional: false };
+
+    expect(BOOK.amountsProvisional).toBe(true);
+    expect(pricedSeededKitchen().amountsProvisional).toBe(true);
+    expect(pricedSeededKitchen({ book: costed }).amountsProvisional).toBe(
+      false,
+    );
+  });
+
+  it("refuses a book that declares no provisional-amounts flag rather than reading it as false", () => {
+    // A book assembled outside TypeScript can omit it, and an absent flag carried forward would
+    // publish `undefined` — which every surface reads as "these amounts have been costed", the one
+    // direction this flag must never fail in.
+    const undeclared: Record<string, unknown> = { ...BOOK };
+    delete undeclared["amountsProvisional"];
+
+    const result = priceDesign({
+      design: KITCHEN_L_DESIGN,
+      catalog: CATALOG,
+      book: undeclared as unknown as PriceBook,
+      pricingVersion: BOOK.version,
+    });
+
+    expect(result.ok).toBe(false);
+    expect(result.ok ? undefined : result.failure.code).toBe(
+      "INVALID_PRICE_BOOK",
+    );
   });
 
   it("gains no price field on the design document", () => {

@@ -122,7 +122,11 @@ const EXPECTED_REVISION_HEADER = "x-expected-revision";
 
 function saveRequest(
   id: string,
-  { body, cookie }: { body: BodyInit; cookie: string },
+  {
+    body,
+    cookie,
+    revision = FIRST_REVISION,
+  }: { body: BodyInit; cookie: string; revision?: string },
 ): NextRequest {
   // `duplex` is required by undici for a streamed request body and is absent from the DOM
   // `RequestInit` this project's lib targets, which is the only reason for the cast.
@@ -131,7 +135,7 @@ function saveRequest(
     headers: {
       cookie,
       "content-type": "application/json",
-      [EXPECTED_REVISION_HEADER]: FIRST_REVISION,
+      [EXPECTED_REVISION_HEADER]: revision,
     },
     body,
     duplex: "half",
@@ -183,6 +187,122 @@ describe("PUT /api/designs/[id] payload limits", () => {
 
     expect(response.status).toBe(200);
     expect(fakeRepository.storedDesign(id)).toEqual(design);
+  });
+
+  it("stores an otherwise-valid design whose only diagnostic is placement overflow", async () => {
+    const { id, cookie } = await mintDesign();
+    const first = firstSeededPlacement();
+    const design: Design = {
+      ...KITCHEN_L_DESIGN,
+      placements: [
+        {
+          ...first,
+          alongMm: KITCHEN_L_DESIGN.room.widthMm - first.body.widthMm / 2 + 1,
+        },
+      ],
+    };
+
+    const response = await PUT(
+      saveRequest(id, { body: JSON.stringify(design), cookie }),
+      routeParams(id),
+    );
+
+    expect(response.status).toBe(200);
+    expect(fakeRepository.storedDesign(id)).toEqual(design);
+  });
+
+  it("persists overflow only with the matching credential and revision", async () => {
+    const { id, cookie } = await mintDesign();
+    const first = firstSeededPlacement();
+    const design: Design = {
+      ...KITCHEN_L_DESIGN,
+      placements: [
+        {
+          ...first,
+          alongMm: KITCHEN_L_DESIGN.room.widthMm - first.body.widthMm / 2 + 1,
+        },
+      ],
+    };
+    const body = JSON.stringify(design);
+
+    const forbidden = await PUT(
+      saveRequest(id, { body, cookie: "" }),
+      routeParams(id),
+    );
+    expect(forbidden.status).toBe(403);
+    expect(fakeRepository.storedDesign(id)).toEqual(KITCHEN_L_DESIGN);
+
+    const conflicted = await PUT(
+      saveRequest(id, { body, cookie, revision: "999" }),
+      routeParams(id),
+    );
+    expect(conflicted.status).toBe(409);
+    expect(fakeRepository.storedDesign(id)).toEqual(KITCHEN_L_DESIGN);
+
+    const saved = await PUT(saveRequest(id, { body, cookie }), routeParams(id));
+    expect(saved.status).toBe(200);
+    expect(await saved.json()).toEqual({ id, revision: "2" });
+    expect(fakeRepository.storedDesign(id)).toEqual(design);
+  });
+
+  it("still refuses overflow when a separate fatal placement issue accompanies it", async () => {
+    const { id, cookie } = await mintDesign();
+    const first = firstSeededPlacement();
+    const design: Design = {
+      ...KITCHEN_L_DESIGN,
+      placements: [
+        {
+          ...first,
+          alongMm: KITCHEN_L_DESIGN.room.widthMm - first.body.widthMm / 2 + 1,
+          y0Mm: KITCHEN_L_DESIGN.room.heightMm,
+        },
+      ],
+    };
+
+    const response = await PUT(
+      saveRequest(id, { body: JSON.stringify(design), cookie }),
+      routeParams(id),
+    );
+
+    expect(response.status).toBe(400);
+    expect(fakeRepository.storedDesign(id)).toEqual(KITCHEN_L_DESIGN);
+  });
+
+  it("does not leak hostile values when a fatal body issue accompanies overflow", async () => {
+    const { id, cookie } = await mintDesign();
+    const first = firstSeededPlacement();
+    const canary = "LEAK-CANARY-6A3";
+    const design = {
+      ...KITCHEN_L_DESIGN,
+      placements: [
+        {
+          ...first,
+          id: canary,
+          alongMm: KITCHEN_L_DESIGN.room.widthMm - first.body.widthMm / 2 + 1,
+          body: { ...first.body, buildId: canary },
+        },
+      ],
+    };
+    const logged = vi
+      .spyOn(console, "warn")
+      .mockImplementation(() => undefined);
+
+    const response = await PUT(
+      saveRequest(id, { body: JSON.stringify(design), cookie }),
+      routeParams(id),
+    );
+    const responseBody = await response.text();
+    const logLine = logged.mock.calls.map((call) => call.join(" ")).join("\n");
+
+    expect(response.status).toBe(400);
+    expect(JSON.parse(responseBody)).toEqual({
+      code: "DESIGN_INVALID",
+      error: "Design payload failed validation.",
+    });
+    expect(responseBody).not.toContain(canary);
+    expect(logLine).toContain("UNKNOWN_BUILD_ID");
+    expect(logLine).not.toContain(canary);
+    expect(fakeRepository.storedDesign(id)).toEqual(KITCHEN_L_DESIGN);
   });
 
   it("answers 413 for a chunked body over the limit, without buffering it whole", async () => {

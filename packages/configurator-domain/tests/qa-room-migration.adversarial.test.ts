@@ -8,6 +8,7 @@ import {
 import { migrateDesign } from "../src/migrate-design.js";
 import { MAX_EMPTY_COLUMN_WIDTH_MM } from "../src/module-grid.js";
 import { InvalidDesignError } from "../src/repository.js";
+import { findOverflowingPlacementIds } from "../src/queries/overflowing-placements.js";
 import { validateDesignForCatalog } from "../src/validate-design.js";
 
 const CATALOG = KITCHEN_L_BODY_CATALOG;
@@ -19,6 +20,10 @@ const PRE_CORRECTION_ROOM = {
   depthMm: 2400,
   heightMm: 2600,
 } as const;
+
+/** The room the correction of 2026-09-03 writes over it. Restated rather than imported for the same
+ *  reason the pre-correction pair is: a migration is a statement about documents already written. */
+const CORRECTED_ROOM_MM = { widthMm: 3560, depthMm: 2830 } as const;
 
 /** Through `JSON` first, because that is what a stored row is: a `Design` handed straight to
  *  `migrateDesign` would let a test pass that a real document could not. */
@@ -102,34 +107,31 @@ describe("the room correction composes with the version 1 normalisation", () => 
   });
 });
 
-// **TWO EXPECTED FAILURES BELOW, OWNED BY WAVE 6A3 — `it.fails`, not `it.skip`.**
+// **TWO REGRESSIONS BELOW WERE INHERITED BY WAVE 6A3 AND FLIPPED FROM `it.fails` TO `it`.**
 //
 // **What fails.** A document written under the pre-correction bound may place a body in the band
 // the correction removed — wall A lost 3600 → 3560, wall B lost an inherited 3600 → 2830. It was
-// legal when it was written, the corrected room does not hold it, and `PLACEMENT_PAST_WALL_END` is
-// **fatal on load** today, so `migrateDesign` throws and the share link stops opening.
+// legal when it was written, the corrected room does not hold it, and `PLACEMENT_PAST_WALL_END`
+// was **fatal on load**, so `migrateDesign` threw and the share link stopped opening.
 //
 // **There is no fix inside `migrate-design.ts`, and none should be attempted.** A body at 3200 on
 // wall B is past the real wall; no room value the migration could write makes that untrue, and
 // writing one would rescue the customer into a room they never entered — the exact failure the
 // correction's third guard exists to prevent. The bound is right. Its *fatality* is the defect.
 //
-// **What makes these pass.** Wave 6A3, making a body past the end of its wall a **mark** rather
-// than a refusal (ADR 0065 decision 7: an overflowing design "saves and resumes with the warning
-// intact"). At that point the document loads, carrying its warning.
-//
-// **When they start passing, `it.fails` itself goes red. The correct response is to flip
-// `it.fails` back to `it` — one word — and never to delete the test.** The assertions below are
-// already the assertions 6A3 must satisfy; they are not weakened, and deleting them would retire
-// the only executable statement that a pre-correction share link must keep opening.
+// Wave 6A3 makes it a **mark** rather than a refusal (ADR 0065 decision 7: an overflowing design
+// "saves and resumes with the warning intact"). The assertions are unchanged from the expected-
+// failure form, so the executable statement that a pre-correction share link must keep opening
+// survives the hand-off.
 describe("a pre-correction document edited past the corrected runs", () => {
   /** The correction narrows wall A from 3600 to 3560 and wall B from an inherited 3600 to 2830, so
    *  a document written under the old bound may sit in the band between. It was legal when written
    *  and the corrected room does not hold it, which is the branch that returns the document by
-   *  identity — and `assertDesignValidForCatalog` then refuses it.
+   *  identity. Complete validation retains its `PLACEMENT_PAST_WALL_END` diagnostic, and
+   *  `assertDesignValidForCatalog` filters that one non-fatal mark before allowing the load.
    *
    *  ADR 0065 decision 7 says an overflowing design **saves and resumes with the warning intact**.
-   *  A refusal on load is not that: the work is lost and the share link stops opening. */
+   *  The former refusal lost that work and stopped the share link opening. */
   const EDITED_PAST_WALL_A: Design = {
     ...KITCHEN_L_DESIGN,
     room: { ...PRE_CORRECTION_ROOM },
@@ -152,8 +154,7 @@ describe("a pre-correction document edited past the corrected runs", () => {
     expect(wasLegalWhenWritten(EDITED_PAST_WALL_A)).toBe(true);
   });
 
-  // Flip to `it` when wave 6A3 lands; see the header above.
-  it.fails("still loads — expected failure until wave 6A3", () => {
+  it("still loads after wave 6A3 makes placement overflow non-fatal", () => {
     expect(() => migrateDesign(2, stored(EDITED_PAST_WALL_A))).not.toThrow(
       InvalidDesignError,
     );
@@ -173,18 +174,151 @@ describe("a pre-correction document edited past the corrected runs", () => {
     expect(wasLegalWhenWritten(EDITED_PAST_WALL_B)).toBe(true);
   });
 
-  // Flip to `it` when wave 6A3 lands; see the header above.
-  it.fails("still loads from wall B — expected failure until wave 6A3", () => {
+  it("still loads from wall B after wave 6A3", () => {
     expect(() => migrateDesign(2, stored(EDITED_PAST_WALL_B))).not.toThrow(
       InvalidDesignError,
     );
   });
+
+  /** **The room is a constant and the mark survives the correction, so nothing was rescued.**
+   *  ADR 0069 decision 5 overturned the behaviour this test used to pin — declining the correction
+   *  whenever one body overflowed. What makes the rewrite safe was never that the result validates;
+   *  it is that `{3560, 2830}` is a constant reached only from the exact pre-correction pair, never
+   *  a value derived from where the bodies stand. So the room is corrected, every placement comes
+   *  back byte-identical `alongMm` included, and the body at 3000 is still past wall B. */
+  it.each([1, 2])(
+    "corrects the room without moving or unmarking the overflow at version %i",
+    (version) => {
+      const loaded = migrateDesign(version, stored(EDITED_PAST_WALL_B));
+
+      expect(loaded.room).toStrictEqual({
+        ...PRE_CORRECTION_ROOM,
+        widthMm: CORRECTED_ROOM_MM.widthMm,
+        depthMm: CORRECTED_ROOM_MM.depthMm,
+      });
+      expect(loaded.placements).toStrictEqual(EDITED_PAST_WALL_B.placements);
+      expect(findOverflowingPlacementIds(loaded)).toStrictEqual(["p0"]);
+    },
+  );
+
+  /** A corrected-and-still-overflowing document is a **fixed point**: loading it again — at the
+   *  version it is now stamped with, and at the older ones a mis-stamped row could claim — must not
+   *  move the room a second time or touch a placement. */
+  it.each([1, 2, 3])(
+    "returns the corrected-and-still-overflowing document unchanged at version %i",
+    (version) => {
+      const corrected = migrateDesign(2, stored(EDITED_PAST_WALL_B));
+
+      expect(migrateDesign(version, stored(corrected))).toStrictEqual(
+        corrected,
+      );
+    },
+  );
+
+  /** **The phantom pair is the defect's signature.** A whole seeded row plus one edited body must
+   *  report that one id — not `['edited', 'p24', 'p7']`, which is what the uncorrected 2400 mm
+   *  depth says about two seeded bodies ending at 2800 that nobody moved. */
+  const SEEDED_ROW_WITH_ONE_EDITED_BODY: Design = {
+    ...KITCHEN_L_DESIGN,
+    room: { ...PRE_CORRECTION_ROOM },
+    placements: [
+      ...KITCHEN_L_DESIGN.placements,
+      {
+        id: "edited",
+        wall: "B",
+        alongMm: 3200,
+        y0Mm: 0,
+        body: { buildId: "base-sink-800", widthMm: 800, heightMm: 820 },
+      },
+    ],
+  };
+
+  it.each([1, 2])(
+    "names only the body the customer moved on a whole seeded row at version %i",
+    (version) => {
+      const loaded = migrateDesign(
+        version,
+        stored(SEEDED_ROW_WITH_ONE_EDITED_BODY),
+      );
+
+      expect(findOverflowingPlacementIds(loaded)).toStrictEqual(["edited"]);
+    },
+  );
+
+  const FATAL_COMPANIONS: readonly {
+    name: string;
+    document: unknown;
+  }[] = [
+    {
+      name: "a malformed root",
+      document: { ...EDITED_PAST_WALL_B, attackerField: "not in the schema" },
+    },
+    {
+      name: "an unknown body",
+      document: {
+        ...EDITED_PAST_WALL_B,
+        placements: EDITED_PAST_WALL_B.placements.map((placement) => ({
+          ...placement,
+          body: { ...placement.body, buildId: "unknown-builder" },
+        })),
+      },
+    },
+    {
+      name: "a duplicate placement id",
+      document: {
+        ...EDITED_PAST_WALL_B,
+        placements: [
+          ...EDITED_PAST_WALL_B.placements,
+          {
+            ...EDITED_PAST_WALL_B.placements[0],
+            alongMm: 1000,
+          },
+        ],
+      },
+    },
+    {
+      name: "a body above the ceiling",
+      document: {
+        ...EDITED_PAST_WALL_B,
+        placements: EDITED_PAST_WALL_B.placements.map((placement) => ({
+          ...placement,
+          y0Mm: PRE_CORRECTION_ROOM.heightMm,
+        })),
+      },
+    },
+    {
+      name: "a second body before the wall start",
+      document: {
+        ...EDITED_PAST_WALL_B,
+        placements: [
+          ...EDITED_PAST_WALL_B.placements,
+          {
+            ...EDITED_PAST_WALL_B.placements[0],
+            id: "before-start",
+            alongMm: 100,
+          },
+        ],
+      },
+    },
+  ];
+
+  it.each(
+    [1, 2].flatMap((version) =>
+      FATAL_COMPANIONS.map((sample) => ({ version, ...sample })),
+    ),
+  )(
+    "still refuses $name beside overflow at pre-correction version $version",
+    ({ version, document }) => {
+      expect(() => migrateDesign(version, stored(document as Design))).toThrow(
+        InvalidDesignError,
+      );
+    },
+  );
 });
 
-describe("the guard against rewriting a room nobody asked to change", () => {
-  /** `qa-5g.adversarial.test.ts`'s `EMPTY_ROOM`: an arbitrary synthetic 3600 × 2400 that happens to
-   *  match the pre-correction pair and asserts the document comes back unchanged. It is valid as
-   *  stored, so the third guard returns it by identity. */
+describe("the version gate is the only guard on a room nobody asked to change", () => {
+  /** An arbitrary synthetic 3600 × 2400 carrying nothing at all: valid exactly as stored, and
+   *  therefore the document that used to be returned by identity. */
   const SYNTHETIC_EMPTY_ROOM: Design = {
     room: { ...PRE_CORRECTION_ROOM },
     presetId: null,
@@ -193,14 +327,33 @@ describe("the guard against rewriting a room nobody asked to change", () => {
     updatedAt: NOW,
   };
 
-  it.each([1, 2, 3])(
-    "returns a document its own room already holds unchanged, at version %i",
+  /** **Corrected now, and it used to come back untouched** (ADR 0069 decision 5b). The guard that
+   *  declined the correction for a document already valid under the *wrong* room is deleted:
+   *  whether the bodies happen to fit has no bearing on whether the wall was measured correctly,
+   *  and before M7 there is no room control, so at version ≤ 2 the pair has exactly one origin and
+   *  the correction is owed unconditionally. Everything but the room is byte-identical. */
+  it.each([1, 2])(
+    "corrects a document that was already valid under the wrong room, at version %i",
     (version) => {
-      expect(
-        migrateDesign(version, stored(SYNTHETIC_EMPTY_ROOM)),
-      ).toStrictEqual(SYNTHETIC_EMPTY_ROOM);
+      const migrated = migrateDesign(version, stored(SYNTHETIC_EMPTY_ROOM));
+
+      expect(migrated).toStrictEqual({
+        ...SYNTHETIC_EMPTY_ROOM,
+        room: { ...SYNTHETIC_EMPTY_ROOM.room, ...CORRECTED_ROOM_MM },
+      });
+      expect(migrated.placements).toStrictEqual(
+        SYNTHETIC_EMPTY_ROOM.placements,
+      );
     },
   );
+
+  /** The version gate, which is now the whole of the customer protection: at version 3 the arm is
+   *  not reached and the document comes back exactly as stored. */
+  it("returns the same document unchanged at version 3", () => {
+    expect(migrateDesign(3, stored(SYNTHETIC_EMPTY_ROOM))).toStrictEqual(
+      SYNTHETIC_EMPTY_ROOM,
+    );
+  });
 
   /** M7's customer, who genuinely enters 3600 × 2400. Written at version 3, where no arm may reach
    *  it — byte for byte, including the room. */
@@ -219,11 +372,11 @@ describe("the guard against rewriting a room nobody asked to change", () => {
     );
   });
 
-  /** And when their placements genuinely do not fit their own room, they are told so about **their**
-   *  room rather than rescued into one they never entered. */
-  it("refuses a version 3 misfit on its own room, naming its own issues", () => {
-    expect(() => migrateDesign(3, stored(NEEDS_THE_CORRECTION))).toThrow(
-      InvalidDesignError,
+  /** And when their placements genuinely do not fit their own room, their room is not rewritten:
+   *  the design loads with the diagnostic mark against the dimensions they entered. */
+  it("loads a version 3 misfit in its own room without rescuing it", () => {
+    expect(migrateDesign(3, stored(NEEDS_THE_CORRECTION))).toStrictEqual(
+      NEEDS_THE_CORRECTION,
     );
     expect(
       validateDesignForCatalog(NEEDS_THE_CORRECTION, CATALOG).map(

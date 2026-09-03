@@ -22,20 +22,26 @@ import {
 } from "../cabinet-handles.js";
 import { resolveCatalogEquivalent } from "../catalog.js";
 import type { Design } from "../design.js";
+import { boundedFailureReason } from "../failure-text.js";
 import {
   projectDesignForDisplay,
   type DisplayEntry,
 } from "../queries/design-projection.js";
+import { findOverflowingPlacementIds } from "../queries/overflowing-placements.js";
 import type { BodyCatalog, BodyDefinition } from "../void-engine.js";
 
 import {
   amountForBody,
   listRuleIds,
   PRICE_BOOK_CURRENCY,
+  PRICE_BOOK_STATUSES,
+  usableCoefficientOf,
   type CabinetPriceRule,
   type HardwareTier,
   type MaterialTier,
   type PriceBook,
+  type PriceBookStatus,
+  type PriceCoefficientField,
   type PricedBody,
   type TierGroup,
   type TierIdentity,
@@ -70,19 +76,6 @@ export interface PriceDesignRequest {
    *  no "current version" fallback, and no migration inside pricing. */
   readonly pricingVersion: string;
   readonly selections?: WholeKitchenSelections;
-  /**
-   * **What this wave consumes from ADR 0065's overflow detection, which wave 6A3 owns and which
-   * does not exist yet.** The placements whose extent passes the end of their wall.
-   *
-   * Pricing neither detects this nor acts on it beyond carrying it: every body is priced, including
-   * the ones that do not fit, and the total is flagged. Excluding them is the defect that decision
-   * names — the total would silently drop and read as the kitchen getting *cheaper* at the moment
-   * part of it became unbuildable.
-   *
-   * An id naming no placement is refused rather than ignored, so a stale report cannot silently
-   * flag nothing.
-   */
-  readonly overflowingPlacementIds?: readonly string[];
 }
 
 /**
@@ -114,13 +107,16 @@ export function priceDesign(request: PriceDesignRequest): PricingResult {
     };
   }
 
-  const overflowingPlacementIds = [...(request.overflowingPlacementIds ?? [])];
+  const overflowingPlacementIds = [
+    ...findOverflowingPlacementIds(request.design),
+  ];
   return {
     ok: true,
     priced: {
       currency: request.book.currency,
       pricingVersion: request.book.version,
       status: request.book.status,
+      amountsProvisional: request.book.amountsProvisional,
       lines,
       totalMinor,
       overflowingPlacementIds,
@@ -131,29 +127,83 @@ export function priceDesign(request: PriceDesignRequest): PricingResult {
 
 /** Every refusal that can be decided before a line exists, in the order
  *  `CONFIGURATION_MODEL.md` states: the book itself, then the version, then the design against the
- *  catalogue, then the caller's overflow report. */
+ *  catalogue. */
 function refuseUnusableRequest(
   request: PriceDesignRequest,
 ): PricingFailure | undefined {
   return (
     refuseUnusableBook(request.book) ??
     refuseVersionMismatch(request) ??
-    refuseUncatalogedBody(request) ??
-    refuseUnknownOverflowPlacement(request)
+    refuseUncatalogedBody(request)
   );
 }
 
+/** What the book has to be before any of it is read, in the order it has always been asked: what it
+ *  says about itself, then what its rules say about each other. */
 function refuseUnusableBook(book: PriceBook): PricingFailure | undefined {
+  return (
+    refuseForeignCurrency(book) ??
+    refuseUndeclaredStatus(book) ??
+    refuseUndeclaredProvisionalFlag(book) ??
+    refuseRepeatedRuleId(book) ??
+    refuseRowPricedTwice(book)
+  );
+}
+
+function refuseForeignCurrency(book: PriceBook): PricingFailure | undefined {
   // Read as a plain string, because a book supplied from outside TypeScript can carry any currency
   // it likes and this is the boundary that says so. The declared type is what a caller *promises*;
   // this is what the value is.
   const currency: string = book.currency;
-  if (currency !== PRICE_BOOK_CURRENCY) {
-    return failWith(
-      "INVALID_PRICE_BOOK",
-      `Book currency "${currency}" is not ${PRICE_BOOK_CURRENCY}`,
-    );
-  }
+  if (currency === PRICE_BOOK_CURRENCY) return undefined;
+  return failWith(
+    "INVALID_PRICE_BOOK",
+    `Book currency "${currency}" is not ${PRICE_BOOK_CURRENCY}`,
+  );
+}
+
+/** Read as `unknown` for the same reason the currency is read as a plain string, and refused for
+ *  the same reason the flag below is. The status is **carried onto the priced result rather than
+ *  acted on here**, so a book declaring `"Commercial"` or `null` publishes a `PricedDesign` whose
+ *  status no surface anticipates — and which way that fails depends on how a surface happens to
+ *  spell one equality. `status === "commercial"` fails safe; `status !== "estimate"` presents an
+ *  estimate as a commercial offer. Neither spelling should be load-bearing, so the value is held to
+ *  the union here instead. */
+function refuseUndeclaredStatus(book: PriceBook): PricingFailure | undefined {
+  const declared: unknown = book.status;
+  if (isDeclaredStatus(declared)) return undefined;
+  return failWith(
+    "INVALID_PRICE_BOOK",
+    `Book declares no "status", which is one of ${PRICE_BOOK_STATUSES.join(", ")}. ` +
+      `Found: ${declared === undefined ? "nothing" : JSON.stringify(declared)}`,
+  );
+}
+
+function isDeclaredStatus(declared: unknown): declared is PriceBookStatus {
+  return (
+    typeof declared === "string" &&
+    (PRICE_BOOK_STATUSES as readonly string[]).includes(declared)
+  );
+}
+
+/** Read as `unknown` for the same reason the currency is read as a plain string. The flag is
+ *  **carried onto the priced result rather than acted on here**, so a book that omits it would
+ *  publish an `undefined` that every surface reads as `false` — "these amounts have been costed" —
+ *  which is the one direction this flag must never fail in. Refused rather than defaulted: a
+ *  default would be this module deciding a fact about a book only its author knows. */
+function refuseUndeclaredProvisionalFlag(
+  book: PriceBook,
+): PricingFailure | undefined {
+  const declared: unknown = book.amountsProvisional;
+  if (typeof declared === "boolean") return undefined;
+  return failWith(
+    "INVALID_PRICE_BOOK",
+    `Book declares no "amountsProvisional" flag, which is a boolean. ` +
+      `Found: ${declared === undefined ? "nothing" : JSON.stringify(declared)}`,
+  );
+}
+
+function refuseRepeatedRuleId(book: PriceBook): PricingFailure | undefined {
   // A repeated rule id makes a line untraceable to one rule, which is the whole point of carrying
   // the id on the line.
   const duplicated = firstDuplicate(listRuleIds(book));
@@ -164,6 +214,10 @@ function refuseUnusableBook(book: PriceBook): PricingFailure | undefined {
       { id: duplicated },
     );
   }
+  return undefined;
+}
+
+function refuseRowPricedTwice(book: PriceBook): PricingFailure | undefined {
   // **A second rule for one catalogue row is not a redundancy — it is a book that does not say what
   // the cabinet costs**, and the two rules carry distinct ids, so the sweep above passes it. Without
   // this, `indexRulesByBuildId`'s `Map` keeps whichever came last and nothing anywhere says so.
@@ -214,23 +268,6 @@ function refuseUncatalogedBody(
   return undefined;
 }
 
-function refuseUnknownOverflowPlacement(
-  request: PriceDesignRequest,
-): PricingFailure | undefined {
-  const placementIds = new Set(
-    request.design.placements.map((placement) => placement.id),
-  );
-  for (const placementId of request.overflowingPlacementIds ?? []) {
-    if (placementIds.has(placementId)) continue;
-    return failWith(
-      "UNKNOWN_OVERFLOW_PLACEMENT",
-      `Overflow was reported for placement "${placementId}", which this design does not contain`,
-      { placementId },
-    );
-  }
-  return undefined;
-}
-
 /** The design's bodies in the one display order (ADR 0063, row-major), flattened out of the
  *  projection's groups. The groups are the breakdown's headings; a price line list is flat. */
 function listEntriesInDisplayOrder(
@@ -275,7 +312,10 @@ function priceOnePlacement(
   const body = describePricedBody(entry, pricedAs);
   if (isRefused(body)) return body;
 
-  const amountMinor = amountForBody(rule.formula, body.value);
+  const evaluated = evaluateFormula(rule, body.value, entry.placementId);
+  if (isRefused(evaluated)) return evaluated;
+
+  const amountMinor = evaluated.value;
   if (amountMinor === undefined) {
     return refusal(
       "UNKNOWN_FORMULA_SHAPE",
@@ -284,12 +324,12 @@ function priceOnePlacement(
       { placementId: entry.placementId, id: rule.ruleId },
     );
   }
-  const exact = refuseInexactAmount(
+  const unpublishable = refuseUnpublishableAmount(
     amountMinor,
     rule.ruleId,
     entry.placementId,
   );
-  if (exact) return exact;
+  if (unpublishable) return unpublishable;
 
   return {
     value: {
@@ -308,6 +348,29 @@ function priceOnePlacement(
       amountMinor,
     },
   };
+}
+
+/** `amountForBody` **throws** for a formula carrying a coefficient that is not an exact count of
+ *  minor units (ADR 0062 seam 1: a book is assembled outside TypeScript, so its declared `number`
+ *  is a promise and not a fact). That is right for it — there is no number to guess at — and this
+ *  query refuses with a code instead, so the conversion is here and this function does nothing
+ *  else. The same shape `countHandlesOn` has, for the same reason.
+ *
+ *  `undefined` travels through untouched: a shape nothing implements is the caller's other refusal
+ *  and is not this one. */
+function evaluateFormula(
+  rule: CabinetPriceRule,
+  body: PricedBody,
+  placementId: string,
+): Attempt<number | undefined> {
+  try {
+    return { value: amountForBody(rule.formula, body) };
+  } catch (error) {
+    return refusal("INVALID_AMOUNT", describeError(error), {
+      placementId,
+      id: rule.ruleId,
+    });
+  }
 }
 
 /**
@@ -415,7 +478,9 @@ function describePricedBody(
 
 /** Hardware, then material — after **all** placement lines, and both always emitted. A tier that
  *  costs nothing produces a line whose amount is zero, which the breakdown renders *inclus*; a rule
- *  that is missing is a refusal, never a zero, because omission must never be read as "included". */
+ *  that is missing is a refusal, never a zero, because omission must never be read as "included".
+ *  A tier whose *amount* is missing is the same refusal for the same reason — `checkedTierAmount`,
+ *  which is what stops a `null` from arriving at the line as an honest-looking zero. */
 function priceWholeKitchen(
   entries: readonly DisplayEntry[],
   request: PriceDesignRequest,
@@ -441,7 +506,7 @@ function priceWholeKitchen(
     kind: "hardware",
     tier: hardware.value,
     quantity: handles.value,
-    unitAmountMinor: hardware.value.perCabinetHandleMinor,
+    unitAmount: perCabinetHandleAmount(hardware.value),
   });
   if (isRefused(hardwareLine)) return hardwareLine;
 
@@ -449,7 +514,7 @@ function priceWholeKitchen(
     kind: "material",
     tier: material.value,
     quantity: 1,
-    unitAmountMinor: material.value.wholeKitchenMinor,
+    unitAmount: wholeKitchenAmount(material.value),
   });
   if (isRefused(materialLine)) return materialLine;
 
@@ -473,15 +538,49 @@ function selectTier<TTier extends TierIdentity>(
   return { value: tier };
 }
 
+/**
+ * **The amount a tier is billed by, as the book declares it and before anything is multiplied by
+ * it.** The field name travels with the number because a refusal has to say which of the two was
+ * malformed, and because the number alone has lost that by the time it reaches the guard.
+ *
+ * `declared` is typed `unknown` although `HardwareTier` and `MaterialTier` both declare `number`,
+ * for the reason `usableCoefficientOf` widens its own parameter: ADR 0062 seam 1 makes a book
+ * versioned data authored outside TypeScript, so a declared `number` is a promise and not a fact.
+ */
+interface DeclaredTierAmount {
+  readonly declared: unknown;
+  readonly field: PriceCoefficientField;
+}
+
+/** What a hardware tier charges for one cabinet handle — the quantity ADR 0061 decision 2 defines. */
+function perCabinetHandleAmount(tier: HardwareTier): DeclaredTierAmount {
+  return {
+    declared: tier.perCabinetHandleMinor,
+    field: "perCabinetHandleMinor",
+  };
+}
+
+/** What a material tier charges once for the whole kitchen — the 2E sheet's *de la +9 000* delta,
+ *  which is the largest single figure the book states. */
+function wholeKitchenAmount(tier: MaterialTier): DeclaredTierAmount {
+  return { declared: tier.wholeKitchenMinor, field: "wholeKitchenMinor" };
+}
+
 function wholeKitchenLine(line: {
   readonly kind: "hardware" | "material";
   readonly tier: HardwareTier | MaterialTier;
   readonly quantity: number;
-  readonly unitAmountMinor: number;
+  readonly unitAmount: DeclaredTierAmount;
 }): Attempt<WholeKitchenPriceLine> {
-  const amountMinor = line.quantity * line.unitAmountMinor;
-  const inexact = refuseInexactAmount(amountMinor, line.tier.ruleId);
-  if (inexact) return inexact;
+  const unitAmountMinor = checkedTierAmount(line.unitAmount, line.tier.ruleId);
+  if (isRefused(unitAmountMinor)) return unitAmountMinor;
+
+  const amountMinor = line.quantity * unitAmountMinor.value;
+  const unpublishable = refuseUnpublishableAmount(
+    amountMinor,
+    line.tier.ruleId,
+  );
+  if (unpublishable) return unpublishable;
   return {
     value: {
       lineId: `kitchen:${line.kind}`,
@@ -491,10 +590,35 @@ function wholeKitchenLine(line: {
       name: line.tier.name,
       description: line.tier.description,
       quantity: line.quantity,
-      unitAmountMinor: line.unitAmountMinor,
+      // The **checked** number, never `line.unitAmount.declared`: publishing the raw one would put
+      // a `"9000"` on a field typed `number` on a line the breakdown renders.
+      unitAmountMinor: unitAmountMinor.value,
       amountMinor,
     },
   };
+}
+
+/**
+ * `usableCoefficientOf` **throws** for a tier amount that is not an exact count of minor units,
+ * exactly as it does for a cabinet coefficient and for the same ADR 0062 seam 1 reason. This query
+ * refuses with a code instead, so the conversion is here and this function does nothing else —
+ * the shape `evaluateFormula` already has for the cabinet path.
+ *
+ * **`refuseUnpublishableAmount` cannot stand in for this and never could.** A `null`, `false`, `[]`
+ * or `""` amount multiplied by a handle count is `0`: exact, non-negative, and published as a line
+ * the breakdown renders *inclus* — omission read as "included", which is the one reading
+ * `priceWholeKitchen` exists to prevent. `true` is worse still: a whole material upgrade billed at
+ * one ban.
+ */
+function checkedTierAmount(
+  amount: DeclaredTierAmount,
+  ruleId: string,
+): Attempt<number> {
+  try {
+    return { value: usableCoefficientOf(amount.declared, amount.field) };
+  } catch (error) {
+    return refusal("INVALID_AMOUNT", describeError(error), { id: ruleId });
+  }
 }
 
 /**
@@ -571,6 +695,19 @@ function isExactAmount(amountMinor: number): boolean {
   return Number.isSafeInteger(amountMinor);
 }
 
+/** Everything a finished amount has to be before it may appear on a line, integrality first: a
+ *  fraction is the more specific fact about the number, and a negative fraction is both. */
+function refuseUnpublishableAmount(
+  amountMinor: number,
+  ruleId: string,
+  placementId?: string,
+): Refused | undefined {
+  return (
+    refuseInexactAmount(amountMinor, ruleId, placementId) ??
+    refuseNegativeAmount(amountMinor, ruleId, placementId)
+  );
+}
+
 function refuseInexactAmount(
   amountMinor: number,
   ruleId: string,
@@ -580,6 +717,28 @@ function refuseInexactAmount(
   return refusal(
     "INVALID_AMOUNT",
     `Rule "${ruleId}" produced ${String(amountMinor)}, which is not an exact count of minor units`,
+    { ...(placementId === undefined ? {} : { placementId }), id: ruleId },
+  );
+}
+
+/** **A cabinet the customer would be paid to take.** Every coefficient a book states may be
+ *  negative and the arithmetic stays exact, so integrality says nothing here: a manufacturer typing
+ *  a minus sign through ADR 0062's dashboard published a line at a negative amount and a total that
+ *  under-quoted, with no refusal anywhere (QA 6B2).
+ *
+ *  Asked of the **amount** rather than of the coefficients, because that is where the question
+ *  actually is: a negative rate is not wrong in itself — a discount term the owner ruled would be
+ *  one — and what may never be published is a line the whole of which is below zero. The total
+ *  needs no guard of its own: it is a sum of lines that have each passed this one. */
+function refuseNegativeAmount(
+  amountMinor: number,
+  ruleId: string,
+  placementId?: string,
+): Refused | undefined {
+  if (amountMinor >= 0) return undefined;
+  return refusal(
+    "INVALID_AMOUNT",
+    `Rule "${ruleId}" produced ${String(amountMinor)}, which is below zero`,
     { ...(placementId === undefined ? {} : { placementId }), id: ruleId },
   );
 }
@@ -604,10 +763,21 @@ function refusal(
   return { failure: failWith(code, detail, named) };
 }
 
+/**
+ * The one place a `PricingFailure` is built, and therefore the one place its `detail` is made safe
+ * to log or render.
+ *
+ * **Bounded unconditionally here rather than at each call site**, which is `failure-text.ts`'s own
+ * discipline and the reason validation's copy of this bug is fixed and pricing's was not. Two
+ * populations reach these strings: a book value, which ADR 0062 seam 1 puts outside TypeScript and
+ * which `usableCoefficientOf` stringifies whole into its message, and `selectTier`'s tier id, which
+ * comes straight off `request.selections` and is therefore **caller-chosen**. An unbounded,
+ * un-scrubbed string from either is an amplification and a way to forge a log line.
+ */
 function failWith(
   code: PricingFailureCode,
   detail: string,
   named?: { readonly placementId?: string; readonly id?: string },
 ): PricingFailure {
-  return { code, detail, ...named };
+  return { code, detail: boundedFailureReason(detail), ...named };
 }

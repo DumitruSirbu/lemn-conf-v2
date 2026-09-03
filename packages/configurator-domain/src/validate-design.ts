@@ -25,6 +25,10 @@ import {
   NARROWEST_CATALOG_WIDTH_MM,
 } from "./design-bounds.js";
 import { toMetres, toMillimetres } from "./millimetres.js";
+import {
+  placementExtendsPastOwnWall,
+  wallLengthMm,
+} from "./queries/overflowing-placements.js";
 import { InvalidDesignError } from "./repository.js";
 import {
   deriveColumnKeyAt,
@@ -58,7 +62,10 @@ export type DesignValidationCode =
   | "COLUMN_EXTENT_HAS_NO_MEMBER"
   | "COLUMN_EXTENT_EXCLUDES_MEMBER"
   | "COLUMN_EXTENT_KEY_COLLIDES_WITH_COLUMN_EXTENT"
-  | "COLUMN_EXTENT_OUTSIDE_ROOM"
+  | "COLUMN_EXTENT_BEFORE_WALL_START"
+  | "COLUMN_EXTENT_PAST_WALL_END"
+  | "COLUMN_EXTENT_ABOVE_ROOM"
+  | "COLUMN_EXTENT_DEEPER_THAN_ROOM"
   | "COLUMN_EXTENT_OVERLAPS_PLACEMENT"
   | "COLUMN_EXTENT_OVERLAPS_EMPTY_COLUMN"
   | "COLUMN_EXTENT_OVERLAPS_COLUMN_EXTENT"
@@ -100,10 +107,81 @@ export function assertDesignValidForCatalog(
   design: Design,
   catalog: BodyCatalog,
 ): void {
-  const issues = validateDesignForCatalog(design, catalog);
+  const issues = fatalDesignValidationIssues(
+    validateDesignForCatalog(design, catalog),
+  );
   if (issues.length > 0) {
     throw new InvalidDesignError(describeDesignValidationIssues(issues));
   }
+}
+
+/** What a finding does to a load or a write: a `"refusal"` stops it, a `"mark"` is reported and
+ *  carried. Both severities stay in the complete diagnostic report — migration needs the pre/post
+ *  fact and visible surfaces need the mark. */
+export type DesignIssueSeverity = "mark" | "refusal";
+
+/**
+ * The severity of every validation code, declared per code rather than filtered by a list.
+ *
+ * **The membership rule (ADR 0069 decision 2), which is the artefact to maintain and not this
+ * table.** A finding is a `"mark"` if and only if the single fact it asserts is that a run reaches
+ * past the end of the wall it stands on. Every other finding is a `"refusal"`. A finding that
+ * asserts that fact *together with* any other fact is a refusal until it is split into codes that
+ * each assert one fact — which is why `COLUMN_EXTENT_OUTSIDE_ROOM` became four codes.
+ *
+ * The map is **total**, so adding a member to `DesignValidationCode` without classifying it fails
+ * to compile. A filter list cannot be wrong about a code it was never shown, and a forgotten member
+ * at two seams is exactly the defect ADR 0069 records.
+ *
+ * Severity is declared and never inferred from the code's spelling: a name is a label, not a rule,
+ * and the next code meaning "past the wall" may not be spelled that way (ADR 0061's pattern).
+ */
+export const DESIGN_ISSUE_SEVERITY_BY_CODE: Readonly<
+  Record<DesignValidationCode, DesignIssueSeverity>
+> = {
+  DUPLICATE_PLACEMENT_ID: "refusal",
+  UNKNOWN_BUILD_ID: "refusal",
+  WIDTH_NOT_BUILDABLE: "refusal",
+  BODY_TOO_NARROW: "refusal",
+  BODY_TOO_SHORT: "refusal",
+  PLACEMENT_BEFORE_WALL_START: "refusal",
+  // ADR 0065: the customer's body stays where they put it, saves, and resumes.
+  PLACEMENT_PAST_WALL_END: "mark",
+  PLACEMENT_ABOVE_ROOM: "refusal",
+  EMPTY_COLUMN_INVERTED: "refusal",
+  EMPTY_COLUMN_BEFORE_WALL_START: "refusal",
+  // The same run after its bodies were removed. ADR 0065 tells the customer to remove something;
+  // refusing this refuses precisely that remedy.
+  EMPTY_COLUMN_PAST_WALL_END: "mark",
+  EMPTY_COLUMN_ABOVE_ROOM: "refusal",
+  EMPTY_COLUMN_DEEPER_THAN_ROOM: "refusal",
+  EMPTY_COLUMN_KEY_COLLIDES_WITH_PLACEMENT: "refusal",
+  EMPTY_COLUMN_KEY_COLLIDES_WITH_EMPTY_COLUMN: "refusal",
+  EMPTY_COLUMN_OVERLAPS_PLACEMENT: "refusal",
+  EMPTY_COLUMN_OVERLAPS_EMPTY_COLUMN: "refusal",
+  EMPTY_COLUMN_WIDER_THAN_CAP: "refusal",
+  COLUMN_EXTENT_HAS_NO_MEMBER: "refusal",
+  COLUMN_EXTENT_EXCLUDES_MEMBER: "refusal",
+  COLUMN_EXTENT_KEY_COLLIDES_WITH_COLUMN_EXTENT: "refusal",
+  COLUMN_EXTENT_BEFORE_WALL_START: "refusal",
+  // The frozen extent of the column holding a marked body, which the store rewrites on every
+  // command. Refusing it is refusing the second save.
+  COLUMN_EXTENT_PAST_WALL_END: "mark",
+  COLUMN_EXTENT_ABOVE_ROOM: "refusal",
+  COLUMN_EXTENT_DEEPER_THAN_ROOM: "refusal",
+  COLUMN_EXTENT_OVERLAPS_PLACEMENT: "refusal",
+  COLUMN_EXTENT_OVERLAPS_EMPTY_COLUMN: "refusal",
+  COLUMN_EXTENT_OVERLAPS_COLUMN_EXTENT: "refusal",
+  TIMESTAMPS_OUT_OF_ORDER: "refusal",
+};
+
+/** The validation findings that make a design unsafe to load or write, by the declaration above. */
+export function fatalDesignValidationIssues(
+  issues: readonly DesignValidationIssue[],
+): readonly DesignValidationIssue[] {
+  return issues.filter(
+    (issue) => DESIGN_ISSUE_SEVERITY_BY_CODE[issue.code] === "refusal",
+  );
 }
 
 /** The shape of a domain-validation failure, through the one describer both halves of this
@@ -252,9 +330,14 @@ function extentContains(
   return extent.y0Mm <= member.floorMm && extent.topMm >= member.topMm;
 }
 
-/** The same room bound a placement and an empty column are held to, through the same rule. The path
- *  names the field rather than the code doing it: one refusal reads as "this extent is not inside
- *  the room", and which edge it crossed is a detail for the reader of the path. */
+/** The same room bound a placement and an empty column are held to, through the same rule and now
+ *  under the same four names the `emptyColumns` half has carried since ADR 0044.
+ *
+ *  **The edge is load-bearing and belongs in the code, not only in the path.** The four edges no
+ *  longer share a severity — past the wall's end is a mark and the other three refuse (ADR 0069
+ *  decision 3) — so a single "this extent is not inside the room" code cannot be classified at all
+ *  without reading the path. An extent breaching two edges emits two findings, and the fatal one
+ *  still refuses it while the mark stays true. */
 function findExtentRoomIssues(
   extent: StoredColumnExtent,
   index: number,
@@ -266,14 +349,17 @@ function findExtentRoomIssues(
     room,
   );
   return [
-    ...(breaches.startsBeforeWall || breaches.endsPastWall
-      ? [issueAt("COLUMN_EXTENT_OUTSIDE_ROOM", `${path}.alongMm`)]
+    ...(breaches.startsBeforeWall
+      ? [issueAt("COLUMN_EXTENT_BEFORE_WALL_START", `${path}.alongMm`)]
+      : []),
+    ...(breaches.endsPastWall
+      ? [issueAt("COLUMN_EXTENT_PAST_WALL_END", `${path}.alongMm`)]
       : []),
     ...(breaches.risesAboveRoom
-      ? [issueAt("COLUMN_EXTENT_OUTSIDE_ROOM", `${path}.topMm`)]
+      ? [issueAt("COLUMN_EXTENT_ABOVE_ROOM", `${path}.topMm`)]
       : []),
     ...(reachesPastRoomAcrossWall(extent, room)
-      ? [issueAt("COLUMN_EXTENT_OUTSIDE_ROOM", `${path}.depthMm`)]
+      ? [issueAt("COLUMN_EXTENT_DEEPER_THAN_ROOM", `${path}.depthMm`)]
       : []),
   ];
 }
@@ -420,11 +506,7 @@ function findUncontainedEmptyColumns(
  * The bound is the wall's **own** normal run: §2 sends wall A's depth into the room's depth and
  * wall B's into its width, and no shipped body comes near either.
  *
- * This rule was always per-wall while the along-wall rule next to it took `max(width, depth)`, and
- * the comment here used to justify the difference by *"the 400 mm slack"* the along-wall rule
- * needed. There was no slack: the seeded room's `depthMm` was wrong (`wallRunMm`), and once it was
- * corrected the along-wall rule became per-wall too. The two now agree, which is what they should
- * have done all along.
+ * Per-wall, and the along-wall bound agrees — see `wallLengthMm`.
  */
 function reachesPastRoomAcrossWall(
   emptyColumn: EmptyColumn,
@@ -805,7 +887,13 @@ function findContainmentIssues(
   path: string,
   room: DesignRoom,
 ): DesignValidationIssue[] {
-  const breaches = findContainmentBreaches(toPlacementSpan(placement), room);
+  const breaches = {
+    ...findContainmentBreaches(toPlacementSpan(placement), room),
+    // ADR 0065: a placement's overrun is a **published** fact with one query behind it, and the
+    // scene, the breakdown, the price bar and this validator must mark the same bodies. Only this
+    // edge is read from there; the other two have no such query and come from the helper.
+    endsPastWall: placementExtendsPastOwnWall(placement, room),
+  };
   return [
     ...(breaches.startsBeforeWall
       ? [issueAt("PLACEMENT_BEFORE_WALL_START", `${path}.alongMm`)]
@@ -821,7 +909,13 @@ function findContainmentIssues(
 
 /** Which of the room's three bounds this run breaks. One rule for a body and for a space, reported
  *  without codes or paths so each caller names its own — the bounds themselves must not fork, which
- *  is how an empty column came to be held to nothing while a placement was held to the room. */
+ *  is how an empty column came to be held to nothing while a placement was held to the room. Every
+ *  caller reads `startsBeforeWall` and `risesAboveRoom` from here and nowhere else.
+ *
+ *  **`endsPastWall` is the one exception, and it is stated rather than left to be discovered.** ADR
+ *  0065 makes a placement's overrun a published fact, so `findContainmentIssues` overrides this
+ *  field with `placementExtendsPastOwnWall` — the same rule reached through the query every other
+ *  surface reads. The column paths have no placement to ask and take the copy computed here. */
 interface ContainmentBreaches {
   readonly startsBeforeWall: boolean;
   readonly endsPastWall: boolean;
@@ -834,34 +928,9 @@ function findContainmentBreaches(
 ): ContainmentBreaches {
   return {
     startsBeforeWall: span.alongStartMm < 0,
-    endsPastWall: span.alongEndMm > wallRunMm(span.wall, room),
+    endsPastWall: span.alongEndMm > wallLengthMm(span.wall, room),
     risesAboveRoom: span.topMm > room.heightMm,
   };
-}
-
-/**
- * The horizontal bound a run must fit inside: **its own wall's run** — §2 makes wall A's run the
- * room width and wall B's the room depth (ADR 0065 decision 5).
- *
- * It was `Math.max(widthMm, depthMm)` until 2026-09-03, and the comment that stood here explained
- * the choice as an unavoidable fact about the shipped kitchen: the seeded design recorded a
- * 2400 mm depth while its wall-B fridge (`p7`, centred at 2450 with a 700 mm body) reaches 2800,
- * so per-wall looked as though it would reject the design the product ships. **The 400 mm was not
- * slack in the rule, it was error in the document.** Wall B is 2830 mm — the reference's
- * wall-coverage panel, corroborated against the built tree — and against its true run the seeded
- * kitchen fits with 30 mm to spare. Correcting the fixture is what let the bound be tightened, and
- * the loosening is recorded here rather than deleted because the shape of the mistake is worth
- * keeping: a bound widened to accommodate a measurement nobody had re-checked.
- *
- * What the longer run cost while it stood: the shorter wall inherited the longer one's, so a
- * document declaring `{ widthMm: 6300, depthMm: 1 }` accepted a 600 mm body on wall B at
- * `alongMm: 6000`, 5700 mm past wall B's own run. Each axis now binds only the wall it belongs to.
- *
- * A run **shorter** than its wall is not a breach — decision 4 makes the constraint one-sided, and
- * bare wall at the end of a run is a normal state rather than something to report.
- */
-function wallRunMm(wall: DesignWall, room: DesignRoom): number {
-  return wall === "A" ? room.widthMm : room.depthMm;
 }
 
 function issueAt(

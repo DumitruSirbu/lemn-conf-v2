@@ -4,6 +4,7 @@ import {
   DesignSchema,
   KITCHEN_L_BODY_CATALOG,
   MAX_DESIGN_BYTES,
+  fatalDesignValidationIssues,
   validateDesignForCatalog,
 } from "@lemnaria/configurator-domain";
 import type { Design } from "@lemnaria/configurator-domain";
@@ -233,7 +234,9 @@ function refuseUnreadBody(failure: BoundedBodyFailure): NextResponse {
 function refuseUnexecutableDesign(
   design: Design,
 ): { readonly ok: false; readonly response: NextResponse } | undefined {
-  const issues = validateDesignForCatalog(design, KITCHEN_L_BODY_CATALOG);
+  const issues = fatalDesignValidationIssues(
+    validateDesignForCatalog(design, KITCHEN_L_BODY_CATALOG),
+  );
   if (issues.length === 0) return undefined;
   return {
     ok: false,

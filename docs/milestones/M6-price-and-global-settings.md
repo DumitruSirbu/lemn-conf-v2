@@ -402,6 +402,121 @@ and the same failure if it is not: one design marked in one place and not anothe
   seeded fixture reporting zero at 600 is an assertion this wave owns, not an incidental observation.
   The generative half is `docs/milestones/M7-room-and-presets.md`'s.
 
+#### Wave 6A3 — the QA punch list, ruled 2026-09-03
+
+Adversarial QA found two defects in 6A3 as first implemented. Both are adjudicated in
+**[ADR 0069](../decisions/0069-past-the-wall-is-one-code-family-and-severity-is-declared-per-code.md)**;
+read it before touching either. The work below is settled — nothing here is re-decided by the
+implementer.
+
+**Defect 1 — the room correction declines on exactly the rows it exists for.** *Implementation
+defect in this wave, with a test-fidelity problem attached.* `correctPreCorrectionRoom`'s second
+guard still counts an overflow as a failure, so one body a customer dragged past wall B vetoes the
+measurement correction for the twenty-five that did not move, permanently (every save stamps
+version 3).
+
+1. `migrate-design.ts`: the **second** guard asks fatal-only validity —
+   `fatalDesignValidationIssues(validateDesignForCatalog(corrected, catalog)).length === 0`. The
+   **first** guard stays unfiltered and its commentary says why (it is how the arm recognises a
+   document needing repair; filtering it turns the arm off). ADR 0069 decision 5.
+2. Rewrite the guard commentary's third bullet: what makes the correction safe is that the corrected
+   room is the **constant** `{3560, 2830}` reached only at version ≤ 2 from the exact pre-correction
+   pair — never a value derived from where the bodies stand. Delete *"fails on its own terms with its
+   own issues"* as the justification for the overflow case; keep it for the fatal case.
+3. **Rewrite, do not delete,** `tests/qa-room-migration.adversarial.test.ts:181` *"does not rescue an
+   arbitrary overflow into the corrected room"*. It pinned behaviour this ruling overturns. It must
+   now assert, on the same `EDITED_PAST_WALL_B` document at versions 1 and 2: the room **is**
+   corrected to `{3560, 2830}`; every placement comes back byte-identical, `alongMm` included; and
+   `findOverflowingPlacementIds(loaded)` still names that placement. Name it for what it now pins —
+   the room is a constant and the mark survives the correction, so nothing was rescued.
+4. Add to the same file: the corrected-and-still-overflowing document is a **fixed point** — re-run
+   at versions 1, 2 and 3 it comes back unchanged. And assert the reported set on a seeded row plus
+   one edited body is **exactly that one id**, not `['edited', 'p24', 'p7']`; the phantom pair is the
+   defect's signature and is what a regression would re-raise.
+5. `FATAL_COMPANIONS` keeps its meaning and its assertions unchanged — a fatal fault beside an
+   overflow still refuses, and still leaves the room alone.
+
+**Defect 2 — the demotion is one code wide; the store writes the other two.** *Contract gap: ADR 0065
+decision 7 named a behaviour, never a code set.* Closed by ADR 0069 decisions 1–4.
+
+1. Split `COLUMN_EXTENT_OUTSIDE_ROOM` into `COLUMN_EXTENT_BEFORE_WALL_START`,
+   `COLUMN_EXTENT_PAST_WALL_END`, `COLUMN_EXTENT_ABOVE_ROOM`, `COLUMN_EXTENT_DEEPER_THAN_ROOM` in
+   `findExtentRoomIssues`, matching the `emptyColumns` names. Paths are unchanged. An extent
+   breaching two edges emits two findings and the fatal one still refuses it. Replace the *"which
+   edge it crossed is a detail for the reader of the path"* comment — the edge is now load-bearing.
+2. Replace the filter in `fatalDesignValidationIssues` with a total
+   `Record<DesignValidationCode, "mark" | "refusal">`, so a code added later **fails to compile**
+   until it is classified. Three marks: `PLACEMENT_PAST_WALL_END`, `EMPTY_COLUMN_PAST_WALL_END`,
+   `COLUMN_EXTENT_PAST_WALL_END`. Everything else is a refusal, `*_BEFORE_WALL_START` included —
+   ADR 0069 decision 2 is the rule and belongs in the file as the map's doc comment.
+3. Rewrite `tests/validate-design.test.ts`'s hand-maintained `FATAL_VALIDATION_CODES` table to
+   **read** the production map rather than restate it, and add a test asserting the three marks by
+   name. A second hand-kept exhaustive list is the same forgotten-member failure one seam over.
+4. Pin the defect at the seam that produced it: build through the real
+   `derivePlacementRecords` → `deriveColumns` → `projectFrozenMap` chain on the seeded kitchen with
+   its last wall-A column moved 100 mm along, and assert **`[]` fatal codes** at all three of QA's
+   steps — before freezing, after freezing, and with the column emptied. A hand-built `columnExtents`
+   array does not reproduce this and must not be what the test asserts on.
+5. Prove the surviving refusals still refuse on the split codes: `qa-5h.adversarial.test.ts:299/316`
+   and `column-extents.test.ts:251` change their expected code (to `COLUMN_EXTENT_ABOVE_ROOM` and
+   `COLUMN_EXTENT_DEEPER_THAN_ROOM`) and must keep asserting a **throw** from
+   `assertDesignValidForCatalog`, not merely a reported code.
+
+**Items 4 and 5 — from the logic review, ruled 2026-09-03. Both amend the punch list above; see
+[ADR 0069](../decisions/0069-past-the-wall-is-one-code-family-and-severity-is-declared-per-code.md)
+sections 5b and 5c.**
+
+4. **`migrate-design.ts`: delete guard 1 outright** — do not filter it, do not keep it. This
+   **replaces** item 1 of defect 1 in part: guard 2 still becomes fatal-only, and guard 1 goes. The
+   arm becomes *pre-correction pair and version ≤ 2 → correct, unless the corrected room carries a
+   fatal finding*. Its identity-preservation commentary is wrong and is deleted with it
+   (`isPreCorrectionRoom` already guarantees the rooms differ). **Rewrite, do not delete,**
+   `SYNTHETIC_EMPTY_ROOM`'s versions 1 and 2 case: it now asserts the correction fires with every
+   placement byte-identical, and the version 3 row keeps asserting identity — the version gate is
+   what protects the M7 customer. Re-measure QA's 7 tests rather than assuming; they were red under
+   *filtering* guard 1 and are expected green under *deleting* it.
+5. **`pricing/price-design.ts`: delete `overflowingPlacementIds` and derive.** `priceDesign` calls
+   `findOverflowingPlacementIds(request.design)`; `refuseUnknownOverflowPlacement` and its
+   `UNKNOWN_OVERFLOW_PLACEMENT` failure go with it, as does the test asserting that refusal —
+   rewritten to assert the flag now follows the design itself, on a design whose overflow is present
+   and on one whose overflowing body has been deleted. Wave 6B's *"pricing neither detects this nor
+   acts on it beyond carrying it"* is amended: calling the one published query is reading, not
+   detecting, and ADR 0065 requires every surface to read one answer.
+
+**Item 3 — a production rule lives only in a test.** *Test-fidelity problem. Real, correctly
+diagnosed, and **not 6A3's to close** — it is registered against wave 6J below.*
+
+`seededDesignAt` (`tests/queries/overflowing-placements.test.ts:70`) decides per body whether its
+along-wall position follows the **wall map** or the **base formula** when cabinet depth changes, and
+decides it with `buildId.startsWith("wall-corner-return-570")`. The distinction is ADR 0058's and it
+is exactly why a 30 mm gap opens in the top row at 700. A body filed under the wrong chain makes the
+helper and the assertion wrong together, in the same direction, green — ADR 0028's "two numbers
+agreeing by luck", in the one test the milestone relies on for the 600/700 behaviour.
+
+**It is not already declared, checked before proposing anything.** `cabinet-depth-rule.ts` answers a
+*different* question — whether a body's depth follows the setting at all — and its `cabinet-depth`
+arm explicitly lumps all three chains together: *"whether through the base formula, the wall map or
+the column carcass"*. So the hoped-for collapse into "the test should read the existing declaration"
+is not available. When the fact is declared it belongs as a refinement of that arm, in that file —
+**not a fourth module**.
+
+**Why it does not land in 6A3.** Production cannot change cabinet depth yet, so the fact would have
+exactly one reader and that reader would be the test that checks it. A declaration whose only
+consumer is its own test is not an ADR 0028 parity gate — parity needs two independently derived
+numbers — it is a rename, and it would ship a production seam with no production caller. The second
+reader arrives with 6J, which is the wave that re-places every body at a new depth. Do not expand
+6A3.
+
+**What 6A3 does do, and it is one line of prose:** a comment at `seededDesignAt` stating that the
+prefix stands in for an undeclared production fact, naming ADR 0058 and pointing at wave 6J. The
+helper is otherwise honest and QA verified it — both shifts derived from `buildKitchenLBodyCatalog`,
+no `100`, `70` or `2900` hard-coded, 8 mutations, zero survivors. Nothing else about it changes.
+
+**Not decided here, and not the implementer's to decide.** Demoting the family means the write seam
+accepts an insert into an opening that lies wholly past the end of a wall. Whether the product should
+*offer* such an opening is the insert command's own question, belongs to wave 6M or M7, and is the
+owner's call (ADR 0069 consequences).
+
 ### Wave 6A4 — the wall corner returns get their own kinds and names
 
 **[ADR 0066](../decisions/0066-the-wall-corner-returns-get-their-own-kinds-and-names.md)**, owner
@@ -1066,6 +1181,17 @@ and the void mesh in `packages/three-adapter`.
   wave's ordering exists to prevent.
 - Whatever floor owner decision 6 records is enforced here, in the domain, and not only in 6K's
   control — a control is a surface and a stored document must not depend on one.
+- **Which chain a body's along-wall position follows — the wall map or the base formula — becomes a
+  declared catalogue fact here, and `seededDesignAt`'s `buildId` prefix rule is deleted.**
+  Inherited debt from wave 6A3, ruled 2026-09-03; the prefix is in
+  `tests/queries/overflowing-placements.test.ts` and it is the only statement of that rule anywhere.
+  This wave is where it gains a production reader, so it is where declaring it stops being a rename.
+  It belongs as a refinement of `cabinet-depth-rule.ts`'s `cabinet-depth` arm, which today lumps the
+  base formula, the wall map and the column carcass into one answer — **not** a fourth module, and
+  **not** inferred from `kind` or from an id (ADR 0061: `kind` is demonstrably not enough). The same
+  stance this wave already takes for ADR 0058's pinned pair: read the declaration, never a special
+  case. **Closing it is this wave's, and the 6A3 test must end up reading the declaration rather
+  than restating it** — a second hand-kept copy is the failure, not the prefix's spelling.
 - **Do not restore `COLUMN_DEPTH_MM` or `OVEN_TOWER_FINISHED_DEPTH_MM` on spec.** Wave 6I deleted
   both after finding no readers. If this wave needs a materialisation at the shipped depth it should
   add **exactly what it needs**, named for what it is — reinstating a deleted constant because a

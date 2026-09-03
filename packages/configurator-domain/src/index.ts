@@ -59,8 +59,14 @@ export * from "./commands/insert-body.js";
 export * from "./commands/set-appearance.js";
 export * from "./commands/set-width.js";
 export * from "./queries/describe-selection.js";
-export * from "./queries/design-projection.js";
+export {
+  compareDisplayOrder,
+  projectDesignForDisplay,
+  type DisplayEntry,
+  type DisplayGroup,
+} from "./queries/design-projection.js";
 export * from "./queries/offers.js";
+export { findOverflowingPlacementIds } from "./queries/overflowing-placements.js";
 export * from "./queries/width-options.js";
 export * from "./queries/width-steps.js";
 export * from "./queries/vacated-void.js";

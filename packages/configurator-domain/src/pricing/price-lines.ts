@@ -1,5 +1,6 @@
-// What a priced design **is**: an ordered list of traceable lines, an exact total, and the book's
-// own version and status carried forward. Plus every way pricing can refuse.
+// What a priced design **is**: an ordered list of traceable lines, an exact total, and what the book
+// says about itself — its version, its status, and whether its amounts have been costed at all —
+// carried forward. Plus every way pricing can refuse.
 //
 // No Romanian copy lives here and none may. A pricing failure is never shown to a customer (wave 6C:
 // a failure renders *no* figure — not a zero, not a stale one, not a dash that reads as free), and
@@ -62,14 +63,28 @@ export interface PricedDesign {
    *  under rather than re-priced under whatever is current (M8's inheritance, ADR 0062 seam 3). */
   readonly pricingVersion: string;
   readonly status: PriceBookStatus;
+  /** **Whether anybody has ever costed the amounts this was priced from**, carried from the book
+   *  beside `status` and never derived here.
+   *
+   *  A different question from `status`, and both are needed: `status` says whether a priced result
+   *  may be shown as a commercial offer, this says whether the figures behind it are placeholders.
+   *  Every book this repository ships is both — `estimate` and provisional — which is exactly why a
+   *  surface cannot infer one from the other and why dropping this one silently would let 6C's
+   *  price bar present a placeholder as though it had been costed.
+   *
+   *  Data only. What a surface does with it is 6C's and 6D's, as the flagged total's wording is
+   *  (ADR 0065 decision 7b): no copy for it lives here. */
+  readonly amountsProvisional: boolean;
   /** Placement lines in the projection's order, then hardware, then material. */
   readonly lines: readonly PriceLine[];
   /** The exact sum of every line, in minor units. Presentation rounds; this does not. */
   readonly totalMinor: number;
-  /** The placements the caller reported as reaching past the end of their wall, echoed so a surface
-   *  can mark the same bodies the scene marks (ADR 0065 decision 6). **Every one of them is
-   *  priced**: excluding a body that does not fit would make the total drop at the moment part of
-   *  the kitchen became unbuildable, which is the named defect that decision rejects. */
+  /** The placements reaching past the end of their wall, **derived from the design being priced**
+   *  through `findOverflowingPlacementIds` (ADR 0069 decision 5c), so a surface marks the same
+   *  bodies the scene marks (ADR 0065 decision 6) and no caller can hand pricing a set computed off
+   *  a different document. **Every one of them is priced**: excluding a body that does not fit would
+   *  make the total drop at the moment part of the kitchen became unbuildable, which is the named
+   *  defect that decision rejects. */
   readonly overflowingPlacementIds: readonly string[];
   /** Whether the total must be shown flagged. Derived from the list above and published beside it,
    *  so a surface asking *"is this total flagged?"* does not have to know that an empty array is
@@ -95,9 +110,7 @@ export type PricingFailureCode =
   /** A catalogue entry declares no usable cabinet-handle count (ADR 0061 decision 4). */
   | "UNDECLARED_HANDLE_COUNT"
   /** An amount or a total is not an exact safe integer of minor units. */
-  | "INVALID_AMOUNT"
-  /** An overflow report names a placement this design does not contain. */
-  | "UNKNOWN_OVERFLOW_PLACEMENT";
+  | "INVALID_AMOUNT";
 
 /** Why pricing refused, naming the thing it could not resolve.
  *

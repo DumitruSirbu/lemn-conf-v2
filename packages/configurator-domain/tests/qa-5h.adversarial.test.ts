@@ -25,7 +25,10 @@ import {
   KITCHEN_L_BODY_CATALOG,
   KITCHEN_L_DESIGN,
 } from "../src/fixtures/kitchen-l-design.js";
-import { validateDesignForCatalog } from "../src/validate-design.js";
+import {
+  assertDesignValidForCatalog,
+  validateDesignForCatalog,
+} from "../src/validate-design.js";
 import {
   deriveColumns,
   derivePlacementRecords,
@@ -283,37 +286,41 @@ describe("the four refusals, each on the document that earns it", () => {
   });
 
   it("refuses an entry that rises above the room", () => {
-    expect(
-      codesFor(
-        withColumnExtents([
-          {
-            wall: "A",
-            alongMm: 2600,
-            widthMm: 600,
-            y0Mm: 0,
-            topMm: 2601,
-            depthMm: 620,
-          },
-        ]),
-      ),
-    ).toContain("COLUMN_EXTENT_OUTSIDE_ROOM");
+    const design = withColumnExtents([
+      {
+        wall: "A",
+        alongMm: 2600,
+        widthMm: 600,
+        y0Mm: 0,
+        topMm: 2601,
+        depthMm: 620,
+      },
+    ]);
+
+    expect(codesFor(design)).toContain("COLUMN_EXTENT_ABOVE_ROOM");
+    // Through the ceiling is a refusal and not the demoted past-the-wall-end mark (ADR 0069): the
+    // reported code is not enough, the load path has to fail.
+    expect(() => {
+      assertDesignValidForCatalog(design, CATALOG);
+    }).toThrow(/COLUMN_EXTENT_ABOVE_ROOM/);
   });
 
   it("refuses an entry that reaches out through the shell", () => {
-    expect(
-      codesFor(
-        withColumnExtents([
-          {
-            wall: "A",
-            alongMm: 2600,
-            widthMm: 600,
-            y0Mm: 0,
-            topMm: 2600,
-            depthMm: 2831,
-          },
-        ]),
-      ),
-    ).toStrictEqual(["COLUMN_EXTENT_OUTSIDE_ROOM"]);
+    const design = withColumnExtents([
+      {
+        wall: "A",
+        alongMm: 2600,
+        widthMm: 600,
+        y0Mm: 0,
+        topMm: 2600,
+        depthMm: 2831,
+      },
+    ]);
+
+    expect(codesFor(design)).toStrictEqual(["COLUMN_EXTENT_DEEPER_THAN_ROOM"]);
+    expect(() => {
+      assertDesignValidForCatalog(design, CATALOG);
+    }).toThrow(/COLUMN_EXTENT_DEEPER_THAN_ROOM/);
   });
 
   // An inverted entry is refused without an inversion rule, because no member of positive height

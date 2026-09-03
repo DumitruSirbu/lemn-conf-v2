@@ -28,7 +28,10 @@ import {
 } from "../src/fixtures/kitchen-l-design.js";
 import { migrateDesign } from "../src/migrate-design.js";
 import { canonicalSerializeDesign } from "../src/serialize-design.js";
-import { validateDesignForCatalog } from "../src/validate-design.js";
+import {
+  assertDesignValidForCatalog,
+  validateDesignForCatalog,
+} from "../src/validate-design.js";
 import {
   deriveColumnKeyAt,
   deriveColumns,
@@ -248,7 +251,12 @@ describe("criterion 5H-4 — a stored extent that excludes its own member is ref
       fullHeightExtent({ topMm: KITCHEN_L_DESIGN.room.heightMm + 1 }),
     ]);
 
-    expect(codesFor(design)).toStrictEqual(["COLUMN_EXTENT_OUTSIDE_ROOM"]);
+    expect(codesFor(design)).toStrictEqual(["COLUMN_EXTENT_ABOVE_ROOM"]);
+    // The ceiling edge keeps refusing after ADR 0069 split the code per edge — only the wall-end
+    // edge was demoted — so this asserts the throw and not merely the reported code.
+    expect(() => {
+      assertDesignValidForCatalog(design, CATALOG);
+    }).toThrow(/COLUMN_EXTENT_ABOVE_ROOM/);
   });
 });
 

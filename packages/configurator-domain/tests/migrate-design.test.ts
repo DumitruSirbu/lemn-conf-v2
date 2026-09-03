@@ -6,8 +6,10 @@ import { migrateDesign } from "../src/migrate-design.js";
 import { MAX_EMPTY_COLUMN_WIDTH_MM } from "../src/module-grid.js";
 import { InvalidDesignError } from "../src/repository.js";
 
+/** The room is deliberately **not** `3600 × 2400`: that pair is the room correction's trigger, and
+ *  these tests are about a payload surviving migration rather than about a room. */
 const validDesignV1 = {
-  room: { shape: "L", widthMm: 3600, depthMm: 2400, heightMm: 2600 },
+  room: { shape: "L", widthMm: 3560, depthMm: 2830, heightMm: 2600 },
   presetId: null,
   placements: [],
   createdAt: "2026-08-25T00:00:00.000Z",
@@ -88,17 +90,22 @@ describe("the room correction, on a document stored before it", () => {
     const customerRoom = { ...KITCHEN_L_DESIGN, room: PRE_CORRECTION_ROOM };
     const stored = JSON.parse(JSON.stringify(customerRoom)) as Design;
 
-    expect(() => migrateDesign(3, stored)).toThrow(InvalidDesignError);
+    expect(migrateDesign(3, stored)).toStrictEqual(stored);
     expect(migrateDesign(3, { ...stored, placements: [] })).toStrictEqual({
       ...stored,
       placements: [],
     });
   });
 
-  /** The second half of the same guard, one version down: even at version 2, a document its stored
-   *  room already holds is not a candidate. Only a document the correction actually repairs is
-   *  rewritten, so the correction can never be the thing that changes a working kitchen. */
-  it("leaves a version 2 document the pre-correction room already holds alone", () => {
+  /** **This used to assert the opposite, and the claim it made is overturned** (ADR 0069 decision
+   *  5b): *"a document its stored room already holds is not a candidate… so the correction can
+   *  never be the thing that changes a working kitchen"*. That guard asked whether the bodies
+   *  happen to fit under the **wrong** room, which has no bearing on whether the wall was measured
+   *  correctly — it declined the correction for the rows that were fine and applied it to the ones
+   *  that were not. Before M7 there is no room control, so at version ≤ 2 the pre-correction pair
+   *  has exactly one origin and the correction is owed unconditionally. The version gate above is
+   *  what protects a genuine M7 customer. */
+  it("corrects a version 2 document that fits under the pre-correction room", () => {
     const fits = JSON.parse(
       JSON.stringify({
         ...KITCHEN_L_DESIGN,
@@ -107,7 +114,10 @@ describe("the room correction, on a document stored before it", () => {
       }),
     ) as Design;
 
-    expect(migrateDesign(2, fits)).toStrictEqual(fits);
+    expect(migrateDesign(2, fits)).toStrictEqual({
+      ...fits,
+      room: { ...fits.room, widthMm: 3560, depthMm: 2830 },
+    });
   });
 });
 

@@ -18,7 +18,11 @@ import {
 import { migrateDesign } from "../src/migrate-design.js";
 import { InvalidDesignError } from "../src/repository.js";
 import {
+  assertDesignValidForCatalog,
+  DESIGN_ISSUE_SEVERITY_BY_CODE,
+  fatalDesignValidationIssues,
   validateDesignForCatalog,
+  type DesignIssueSeverity,
   type DesignValidationCode,
 } from "../src/validate-design.js";
 import {
@@ -27,6 +31,20 @@ import {
 } from "../src/void-engine.js";
 
 const CATALOG = KITCHEN_L_BODY_CATALOG;
+
+/** Read off the production declaration rather than restated here. A second hand-kept exhaustive
+ *  list is the same forgotten-member failure one seam over — the defect ADR 0069 records — and two
+ *  such lists disagree the moment a code is added. */
+const MARK_VALIDATION_CODES = codesWithSeverity("mark");
+const FATAL_VALIDATION_CODES = codesWithSeverity("refusal");
+
+function codesWithSeverity(
+  severity: DesignIssueSeverity,
+): readonly DesignValidationCode[] {
+  return Object.entries(DESIGN_ISSUE_SEVERITY_BY_CODE)
+    .filter(([, declared]) => declared === severity)
+    .map(([code]) => code as DesignValidationCode);
+}
 
 /** A one-placement design that is valid in every respect, so each test below changes exactly one
  *  thing and the issue it asserts can only have come from that change. */
@@ -211,6 +229,77 @@ describe("validateDesignForCatalog", () => {
     expect(
       codesFor({ ...VALID_DESIGN, updatedAt: VALID_DESIGN.createdAt }),
     ).toEqual([]);
+  });
+});
+
+describe("fatalDesignValidationIssues", () => {
+  it("keeps placement overflow in the full diagnostic report but not in the fatal report", () => {
+    const overflowing = withPlacement({ alongMm: 3500 });
+    const diagnostic = validateDesignForCatalog(overflowing, CATALOG);
+
+    expect(diagnostic.map((issue) => issue.code)).toEqual([
+      "PLACEMENT_PAST_WALL_END",
+    ]);
+    expect(fatalDesignValidationIssues(diagnostic)).toEqual([]);
+    expect(() => {
+      assertDesignValidForCatalog(overflowing, CATALOG);
+    }).not.toThrow();
+  });
+
+  it("excludes only placement overflow and still refuses every accompanying fatal issue", () => {
+    const overflowingAndTooTall = withPlacement({
+      alongMm: 3500,
+      y0Mm: 2400,
+    });
+    const fatal = fatalDesignValidationIssues(
+      validateDesignForCatalog(overflowingAndTooTall, CATALOG),
+    );
+
+    expect(fatal.map((issue) => issue.code)).toEqual(["PLACEMENT_ABOVE_ROOM"]);
+    expect(() => {
+      assertDesignValidForCatalog(overflowingAndTooTall, CATALOG);
+    }).toThrow(/PLACEMENT_ABOVE_ROOM/);
+  });
+
+  it("keeps every other validation code fatal, including adjacent containment codes", () => {
+    const issues = [
+      ...MARK_VALIDATION_CODES.map((code) => ({
+        code,
+        path: "placements.0",
+      })),
+      ...FATAL_VALIDATION_CODES.map((code, index) => ({
+        code,
+        path: `hostile.${String(index)}`,
+      })),
+    ];
+
+    expect(
+      fatalDesignValidationIssues(issues).map((issue) => issue.code),
+    ).toEqual(FATAL_VALIDATION_CODES);
+  });
+
+  /** The three marks by name, so a reader can answer *which codes are marks?* from one assertion
+   *  and a fourth member arriving by accident is a red test rather than a silent demotion. ADR 0069
+   *  decision 1: the family is exactly the findings whose sole assertion is that a run reaches past
+   *  the end of the wall it stands on, on each of the three arrays it can be recorded in. */
+  it("demotes exactly the three past-the-wall-end codes and nothing else", () => {
+    expect([...MARK_VALIDATION_CODES].sort()).toStrictEqual([
+      "COLUMN_EXTENT_PAST_WALL_END",
+      "EMPTY_COLUMN_PAST_WALL_END",
+      "PLACEMENT_PAST_WALL_END",
+    ]);
+  });
+
+  /** The wall's *start* is not the wall's *end*. ADR 0069 decision 2 is one-sided on purpose, and
+   *  these are the codes a reader who reads "wall bound" for "wall end" would sweep into it. */
+  it("keeps all three before-wall-start codes fatal", () => {
+    for (const code of [
+      "PLACEMENT_BEFORE_WALL_START",
+      "EMPTY_COLUMN_BEFORE_WALL_START",
+      "COLUMN_EXTENT_BEFORE_WALL_START",
+    ] as const) {
+      expect(DESIGN_ISSUE_SEVERITY_BY_CODE[code]).toBe("refusal");
+    }
   });
 });
 

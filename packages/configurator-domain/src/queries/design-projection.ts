@@ -17,6 +17,7 @@ import type {
   Finish,
   Handle,
 } from "../design.js";
+import { compareOpaqueIds } from "../opaque-id-order.js";
 import {
   UnknownBodyError,
   type Band,
@@ -99,7 +100,7 @@ export function compareDisplayOrder(
     BAND_DISPLAY_RANK[left.band] - BAND_DISPLAY_RANK[right.band] ||
     left.y0Mm - right.y0Mm ||
     left.alongMm - right.alongMm ||
-    compareIds(left.placementId, right.placementId)
+    compareOpaqueIds(left.placementId, right.placementId)
   );
 }
 
@@ -181,11 +182,4 @@ function lookupDefinition(
   const definition = catalog.get(buildId);
   if (!definition) throw new UnknownBodyError(buildId);
   return definition;
-}
-
-/** Ids are opaque persisted strings, so they are compared as bytes rather than by a locale that
- *  could order them differently on another machine. */
-function compareIds(left: string, right: string): number {
-  if (left === right) return 0;
-  return left < right ? -1 : 1;
 }

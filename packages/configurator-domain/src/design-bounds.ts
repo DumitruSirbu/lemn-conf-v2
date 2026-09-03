@@ -72,7 +72,7 @@ export const NARROWEST_CATALOG_WIDTH_MM = Math.min(
  *  ADR 0038 named as unreachable — the 40 mm cabinet — and it is reachable through the API. */
 export const MIN_BODY_HEIGHT_MM = toMillimetres(MIN_SPAN_M);
 
-/** The most placements a supported room can physically contain.
+/** The most placements a supported room can physically **contain**.
  *
  *  Derived, not chosen: each wall run at its maximum length, packed end to end with the narrowest
  *  body the catalogue offers, in each of §2's three module bands. Every factor is a constant
@@ -80,7 +80,13 @@ export const MIN_BODY_HEIGHT_MM = toMillimetres(MIN_SPAN_M);
  *  runs from `MAX_DESIGN_DIMENSION_MM` to the room bounds, which is what they always meant.
  *
  *  Today that is `(floor(6300/200) + floor(5100/200)) × 3 = 168`, against 26 in the shipped seeded
- *  kitchen. */
+ *  kitchen.
+ *
+ *  **Containment is no longer what the validation seam enforces.** Since ADR 0069 a body past the
+ *  end of its wall is a mark rather than a refusal, so a centre may reach `MAX_DESIGN_DIMENSION_MM`
+ *  and the same packing gives 300 non-overlapping placements against this cap of 168. The cap
+ *  therefore now binds slightly before the domain's own rules would — deliberately, and two orders
+ *  of magnitude outside any design this product produces. */
 export const MAX_PLACEMENTS =
   MAX_WALL_RUNS_MM.reduce(
     (total, runMm) => total + Math.floor(runMm / NARROWEST_CATALOG_WIDTH_MM),
@@ -110,17 +116,18 @@ const WALL_COUNT = 2;
  * multiplier at all; and ADR 0043 left an empty column no width floor, so a legal entry is 1 mm
  * wide and `WIDTH_STEP_MM` bounds nothing here.
  *
- * What actually bounds the count is the number of **distinct keys** a wall can present. Every
- * entry must be contained by its wall — by that wall's own run since ADR 0065 decision 5, so this
- * stays an upper bound by taking the longer of the two — and each wall offers the centres from
- * 0 to `MAX_WALL_RUN_MM` at
- * `COLUMN_KEY_RESOLUTION_MM` — `630 + 1` of them, counting both ends — and no two entries may
- * share one. `(6300 / 10 + 1) × 2 = 1262`.
+ * What actually bounds the count is the number of **distinct keys** a wall can present, under
+ * physical containment: an entry contained by its wall — by that wall's own run since ADR 0065
+ * decision 5, so this stays an upper bound by taking the longer of the two — has its centre
+ * somewhere from 0 to `MAX_WALL_RUN_MM` at `COLUMN_KEY_RESOLUTION_MM`, `630 + 1` of them counting
+ * both ends, and no two entries may share one. `(6300 / 10 + 1) × 2 = 1262`.
  *
- * An upper bound on the keys rather than a count of the reachable ones, deliberately: the cap must
- * never be the thing that refuses a document the domain's own rules accept, and 1262 entries at
- * 1 mm wide and 10 mm apart is such a document. The number this product actually produces is two
- * orders of magnitude below it — the shipped kitchen derives thirteen columns in total.
+ * **The validation seam no longer enforces that containment at the wall's end.** Since ADR 0069 an
+ * extent past the end of its wall is a mark rather than a refusal, so centres run to
+ * `MAX_DESIGN_DIMENSION_MM` and the same arithmetic gives 2002 distinct keys per wall. This cap
+ * therefore now binds slightly before the domain's own rules would — which is a correction to the
+ * premise, not to the number: 1262 entries at 1 mm wide and 10 mm apart is already two orders of
+ * magnitude past anything reachable, and the shipped kitchen derives thirteen columns in total.
  */
 export const MAX_EMPTY_COLUMNS =
   (Math.max(...MAX_WALL_RUNS_MM) / COLUMN_KEY_RESOLUTION_MM + 1) * WALL_COUNT;

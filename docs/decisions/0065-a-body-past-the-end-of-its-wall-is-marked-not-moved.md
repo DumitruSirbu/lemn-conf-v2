@@ -138,6 +138,19 @@ that is the owner's ruling to make.
 > band is not knowable without database access; it is recorded as a pre-release check in
 > `docs/milestones/M8-review-contact-success.md`'s launch gate.
 
+> **EXTENDED BY [ADR 0069](0069-past-the-wall-is-one-code-family-and-severity-is-declared-per-code.md)
+> (2026-09-03), after wave 6A3's adversarial QA.** Decision 7 named a behaviour and not a code set,
+> and 6A3 implemented it by demoting exactly one validation code. That is not enough: the store
+> rewrites the frozen map on **every** command, so the same overrun re-enters validation as
+> `COLUMN_EXTENT_OUTSIDE_ROOM`, and as `EMPTY_COLUMN_PAST_WALL_END` once the column is emptied. An
+> overflowing design saved once and then stopped saving.
+>
+> **"Reaches past the end of its own wall" is a code family, and the family is demoted together** —
+> on placements, on empty columns and on frozen extents alike. ADR 0069 states the rule that decides
+> membership, splits `COLUMN_EXTENT_OUTSIDE_ROOM` into one code per edge so the wall-end edge can be
+> classified on its own, and moves severity into a total per-code declaration so a code added later
+> cannot be silently forgotten. Decision 7 is unchanged in what it requires.
+
 **8. A marked body is not a rejected edit.** The two must not share a surface: §9's rejection banner
 says *an edit did not happen*, and this says *an edit happened and its result does not fit*. Keeping
 them distinct is what stops "a rejected edit does not move the total" and "an overflowing total moves
