@@ -66,7 +66,10 @@ export {
   type DisplayGroup,
 } from "./queries/design-projection.js";
 export * from "./queries/offers.js";
-export { findOverflowingPlacementIds } from "./queries/overflowing-placements.js";
+export {
+  findOverflowingPlacementIds,
+  wallLengthMm,
+} from "./queries/overflowing-placements.js";
 export * from "./queries/width-options.js";
 export * from "./queries/width-steps.js";
 export * from "./queries/vacated-void.js";

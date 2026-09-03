@@ -29,7 +29,7 @@ export function createWorld(
   catalog: BodyCatalog,
 ): KitchenWorld {
   const records = derivePlacementRecords(design, catalog);
-  const columns = deriveColumns(records);
+  const columns = deriveColumns(records, {}, design.room);
   return {
     design,
     catalog,

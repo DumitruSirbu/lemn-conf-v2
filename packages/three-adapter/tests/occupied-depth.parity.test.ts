@@ -352,7 +352,11 @@ describe("remove → opening → rebuild puts the body back into the space it le
   it.each(swappable)(
     "$id is rebuilt into exactly the opening it vacated",
     (placement) => {
-      const columns = deriveColumns(recordsOf(KITCHEN_L_DESIGN));
+      const columns = deriveColumns(
+        recordsOf(KITCHEN_L_DESIGN),
+        {},
+        KITCHEN_L_DESIGN.room,
+      );
       const vacatedMm = toMillimetres(
         occupiedDepthM(recordFor(KITCHEN_L_DESIGN, placement.id)),
       );

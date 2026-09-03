@@ -47,6 +47,8 @@ const OCCURRED_AT = "2026-08-30T12:00:00.000Z";
  *  that returns a changed map, so the walk below carries the map forward rather than re-deriving it. */
 const SEEDED_COLUMNS = deriveColumns(
   derivePlacementRecords(KITCHEN_L_DESIGN, KITCHEN_L_BODY_CATALOG),
+  {},
+  KITCHEN_L_DESIGN.room,
 );
 
 interface Kitchen {
@@ -423,6 +425,8 @@ describe("an opening no cabinet fits says so, and does not ask for a delete", ()
     };
     const columns = deriveColumns(
       derivePlacementRecords(design, KITCHEN_L_BODY_CATALOG),
+      {},
+      design.room,
     );
     const cleared = removePlacement({
       design,

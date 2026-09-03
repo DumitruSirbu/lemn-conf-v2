@@ -436,6 +436,8 @@ describe("5B7: open-shelf compartments, counted from geometry", () => {
 function seededColumns() {
   return deriveColumns(
     derivePlacementRecords(KITCHEN_L_DESIGN, KITCHEN_L_BODY_CATALOG),
+    {},
+    KITCHEN_L_DESIGN.room,
   );
 }
 

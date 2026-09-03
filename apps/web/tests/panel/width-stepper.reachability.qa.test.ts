@@ -59,6 +59,9 @@ const OCCURRED_AT = "2026-08-30T12:00:00.000Z";
 const CATALOG = KITCHEN_L_BODY_CATALOG;
 const SEEDED_COLUMNS = deriveColumns(
   derivePlacementRecords(KITCHEN_L_DESIGN, CATALOG),
+
+  {},
+  KITCHEN_L_DESIGN.room,
 );
 
 interface Kitchen {

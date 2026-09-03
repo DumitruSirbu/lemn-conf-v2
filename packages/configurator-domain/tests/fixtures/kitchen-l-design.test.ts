@@ -164,7 +164,7 @@ describe("KITCHEN_L_DESIGN", () => {
       KITCHEN_L_BODY_CATALOG,
     );
     expect(records).toHaveLength(KITCHEN_L_DESIGN.placements.length);
-    const columns = deriveColumns(records);
+    const columns = deriveColumns(records, {}, KITCHEN_L_DESIGN.room);
     expect(columns.size).toBeGreaterThan(0);
     expect(() => recomputeVoids(records, columns)).not.toThrow();
   });

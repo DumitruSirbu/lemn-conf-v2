@@ -10,6 +10,7 @@
 // module only re-derives what the design implies and decides which existing thing is selected.
 import {
   withCurrentFullHeightMembers,
+  clipEmptyColumnsAtWallEnd,
   derivePlacementRecords,
   mergeAdjacentEmptyColumns,
   splitOversizedEmptyColumns,
@@ -21,6 +22,7 @@ import {
   type CommandEffect,
   type CommandResult,
   type Design,
+  type DesignRoom,
   type FrozenMapDocument,
   type PlacementRecord,
   type RejectionReason,
@@ -77,7 +79,12 @@ export function applyCommandResult(
   }
 
   const records = derivePlacementRecords(result.design, input.catalog);
-  const columns = resolveColumns(result.effect, input.columns, records);
+  const columns = resolveColumns(
+    result.effect,
+    input.columns,
+    records,
+    result.design.room,
+  );
   const voids = recomputeVoids(records, columns);
   return {
     applied: true,
@@ -155,6 +162,7 @@ function resolveColumns(
   effect: CommandEffect,
   frozen: ReadonlyMap<string, Column>,
   records: readonly PlacementRecord[],
+  room: DesignRoom,
 ): ReadonlyMap<string, Column> {
   const published =
     effect.type === "body_resized" || effect.type === "body_inserted"
@@ -164,6 +172,15 @@ function resolveColumns(
   // It returns under ADR 0046's 800 mm cap, and what makes that safe is 5B4a's split rather than the
   // cap: no column is ever wider than its members when `recomputeVoids` runs. The cap cures only the
   // `widthFlex: 'fit'` refusal — see `merge-empty-columns.ts`.
+  //
+  // **Clip, then split, then merge — every command, in that order.** The clip is the owner's ruling
+  // on ADR 0069's open question: a member-less column may never reach past the end of its own wall,
+  // so it is held to `wallLengthMm` before anything else runs. **Clipping first is provably safe for
+  // the split that follows it**, because a clip can only ever shrink a column's width — the far edge
+  // moves in to the wall's own end and the near edge never moves — so the split can never see a
+  // *wider* column for having run after the clip than it would have seen before. Running the split
+  // first would risk publishing a column already cut to 800 mm that still reached past the wall,
+  // which is exactly the state the clip exists to make unreachable.
   //
   // **Split before merge, and both after every command** (ADR 0052). The two are duals — one cuts
   // what exceeds the ceiling, the other joins what fits under it — and splitting first is what keeps
@@ -184,10 +201,14 @@ function resolveColumns(
   // It stays anyway, and the reason is the DOM-001 lesson rather than a known caller: the two
   // commands that cut their own spans do so by a direction only they know, and this is the one place
   // that sees every map on its way to being published. A guard here is the difference between a
-  // future producer being a bug and being an unsaveable document.
+  // future producer being a bug and being an unsaveable — or, since the clip, an unofferable —
+  // document.
   return withCurrentFullHeightMembers(
     mergeAdjacentEmptyColumns(
-      splitOversizedEmptyColumns(published, records),
+      splitOversizedEmptyColumns(
+        clipEmptyColumnsAtWallEnd(published, records, room),
+        records,
+      ),
       records,
     ),
     records,

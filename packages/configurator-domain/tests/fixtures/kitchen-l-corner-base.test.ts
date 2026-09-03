@@ -254,7 +254,7 @@ describe("the corner legs' seat is the L-joint, not the wall (ADR 0025)", () => 
       KITCHEN_L_DESIGN,
       KITCHEN_L_BODY_CATALOG,
     );
-    const columns = deriveColumns(records);
+    const columns = deriveColumns(records, {}, KITCHEN_L_DESIGN.room);
     expect(recomputeVoids(records, columns)).toEqual(
       recomputeVoids(records, columns),
     );

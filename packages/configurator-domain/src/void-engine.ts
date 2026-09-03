@@ -1,12 +1,14 @@
 import type {
   Design,
   DesignPlacement,
+  DesignRoom,
   EmptyColumn,
   StoredColumnExtent,
   DesignWall,
   Finish,
   Handle,
 } from "./design.js";
+import { clipEmptyColumnsAtWallEnd } from "./clip-empty-columns-at-wall-end.js";
 import { mergeAdjacentEmptyColumns } from "./merge-empty-columns.js";
 import { toExactMillimetres, toMetres } from "./millimetres.js";
 import {
@@ -30,6 +32,7 @@ export {
 } from "./module-grid.js";
 export { mergeAdjacentEmptyColumns } from "./merge-empty-columns.js";
 export { splitOversizedEmptyColumns } from "./split-oversized-empty-columns.js";
+export { clipEmptyColumnsAtWallEnd } from "./clip-empty-columns-at-wall-end.js";
 
 /** Smallest span (metres) that becomes a void. */
 export const MIN_SPAN_M = 0.3;
@@ -453,10 +456,16 @@ export interface FrozenMapDocument {
  *
  *  `hasFullHeightUnder` is the exception and is answered here only because a load is also a
  *  derivation; every derivation after this one re-answers it through
- *  `withCurrentFullHeightMembers`. */
+ *  `withCurrentFullHeightMembers`.
+ *
+ *  `room` is the owner's ruling on ADR 0069's open question, threaded through so
+ *  `clipEmptyColumnsAtWallEnd` can hold every member-less column to the wall it stands on before the
+ *  merge runs. It sits after `stored`, which keeps its own default, so every existing caller is
+ *  broken by a missing argument rather than by one silently landing in the wrong parameter. */
 export function deriveColumns(
   records: readonly PlacementRecord[],
   stored: FrozenMapDocument = {},
+  room: DesignRoom,
 ): ReadonlyMap<string, Column> {
   const columns = new Map<string, ColumnExtent>();
   for (const [key, members] of groupByColumn(records)) {
@@ -519,8 +528,16 @@ export function deriveColumns(
   // hand-built entry that did overlap one is refused before it reaches here. Both of those facts
   // are pinned by tests, so a wave that puts a tall body on wall A, or lifts that refusal, turns
   // them red rather than silently making this line matter.
+  //
+  // **The wall-end clip runs first, before the merge sees anything.** It only ever shrinks a
+  // column, so running it before the merge can only leave the merge less to join than it would
+  // otherwise see, never more — the same "clip first" argument `apply-command-result.ts` makes for
+  // the 800 mm split, applied here to the merge instead.
   return withCurrentFullHeightMembers(
-    mergeAdjacentEmptyColumns(columns, records),
+    mergeAdjacentEmptyColumns(
+      clipEmptyColumnsAtWallEnd(columns, records, room),
+      records,
+    ),
     records,
   );
 }
@@ -845,14 +862,20 @@ function haveSameMembers(
  *    membership.
  *  - a re-derived key loses the load-time regions of members deleted earlier in the session. Only a
  *    key the operation actually moved a body through can be affected; every other key, and every
- *    delete, is untouched. */
+ *    delete, is untouched.
+ *
+ *  `room` exists only because `deriveColumns` now requires one, and it never changes the answer
+ *  here: called with no `stored` document, `deriveColumns` builds every column from `recordsAfter`
+ *  alone (`groupByColumn`), so every column it returns has a member and `clipEmptyColumnsAtWallEnd`
+ *  passes all of them through untouched, whatever `room` is given. */
 export function rederiveTouchedColumns(
   columns: ReadonlyMap<string, Column>,
   recordsBefore: readonly PlacementRecord[],
   recordsAfter: readonly PlacementRecord[],
+  room: DesignRoom,
 ): ReadonlyMap<string, Column> {
   const touched = findTouchedColumnKeys(recordsBefore, recordsAfter);
-  const rederived = deriveColumns(recordsAfter);
+  const rederived = deriveColumns(recordsAfter, {}, room);
   const updated = new Map<string, ColumnExtent>(columns);
   for (const key of touched) {
     const column = rederived.get(key);

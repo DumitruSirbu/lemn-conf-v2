@@ -73,7 +73,7 @@ interface World {
 }
 
 function load(design: Design): World {
-  return { design, columns: deriveColumns(recordsOf(design)) };
+  return { design, columns: deriveColumns(recordsOf(design), {}, design.room) };
 }
 
 function clear(world: World, placementIds: readonly string[]): World {

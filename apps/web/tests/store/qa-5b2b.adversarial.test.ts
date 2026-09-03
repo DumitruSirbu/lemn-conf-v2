@@ -91,7 +91,11 @@ function observableMap(
  *  `columnExtents` carries, measured the same way so the two readings can be compared. */
 function keysThePlacementsCannotAnswer(store: Store): Set<string> {
   const state = store.getState();
-  const fromPlacementsAlone = deriveColumns(state.records);
+  const fromPlacementsAlone = deriveColumns(
+    state.records,
+    {},
+    state.design.room,
+  );
   const excluded = new Set<string>();
   for (const [key, frozen] of state.columns) {
     const derived = fromPlacementsAlone.get(key);
@@ -262,7 +266,11 @@ describe("the sweep is total, and the set it used to exclude is the set now reco
 
         const reloaded = reload(session);
         const fromPlacementsAlone = observableMap(
-          deriveColumns(reloaded.getState().records),
+          deriveColumns(
+            reloaded.getState().records,
+            {},
+            reloaded.getState().design.room,
+          ),
         );
         const inSession = observableMap(session.getState().columns);
         const restored = observableMap(reloaded.getState().columns);
@@ -497,10 +505,16 @@ describe("the seam writes one document per state, and nothing for an empty one",
           design.placements.map((placement) => placement.id),
         );
         expect(occupied.size).toBe(design.placements.length);
-        const restored = deriveColumns([], {
-          emptyColumns: design.emptyColumns ?? [],
-        });
-        const fromPlacements = deriveColumns(session.getState().records);
+        const restored = deriveColumns(
+          [],
+          { emptyColumns: design.emptyColumns ?? [] },
+          design.room,
+        );
+        const fromPlacements = deriveColumns(
+          session.getState().records,
+          {},
+          design.room,
+        );
         for (const key of restored.keys()) {
           expect(fromPlacements.has(key)).toBe(false);
         }

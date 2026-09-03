@@ -416,7 +416,7 @@ function load5G(design: Design): World {
   const records = derivePlacementRecords(design, CATALOG);
   return advance5G(
     design,
-    deriveColumns(records, { emptyColumns: design.emptyColumns }),
+    deriveColumns(records, { emptyColumns: design.emptyColumns }, design.room),
   );
 }
 

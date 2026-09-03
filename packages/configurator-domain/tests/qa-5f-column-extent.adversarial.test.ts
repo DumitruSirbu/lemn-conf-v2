@@ -47,7 +47,10 @@ function loadColumns() {
     KITCHEN_L_DESIGN,
     KITCHEN_L_BODY_CATALOG,
   );
-  return { records, columns: deriveColumns(records) };
+  return {
+    records,
+    columns: deriveColumns(records, {}, KITCHEN_L_DESIGN.room),
+  };
 }
 
 function withoutPlacement(design: Design, placementId: string): Design {

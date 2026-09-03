@@ -17,9 +17,18 @@ import {
 
 const now = "2026-08-25T00:00:00.000Z";
 
+/** `deriveColumns`' fixtures below build occupied columns directly, with no design of their own —
+ *  a room wide enough that none of them is anywhere near it. */
+const ROOM = {
+  shape: "L" as const,
+  widthMm: 3600,
+  depthMm: 2400,
+  heightMm: 2600,
+};
+
 function makeDesign(placements: DesignPlacement[]): Design {
   return {
-    room: { shape: "L", widthMm: 3600, depthMm: 2400, heightMm: 2600 },
+    room: ROOM,
     presetId: null,
     placements,
     createdAt: now,
@@ -197,7 +206,7 @@ describe("deriveColumns", () => {
       frame: { x: 1.35, z: 0.32, ry: 0, y0: 1.5, w: 0.5, h: 0.7, d: 0.56 },
       col: "A|1.30",
     });
-    const columns = deriveColumns([shallow, deep]);
+    const columns = deriveColumns([shallow, deep], {}, ROOM);
     const column = columns.get("A|1.30");
     // Wall A: the normal axis is z, so the coordinate is half the depth and the along-wall x still
     // comes from a member.
@@ -220,7 +229,7 @@ describe("deriveColumns", () => {
       frame: { x: 1.3, z: 0.3, ry: 0, y0: 1.85, w: 0.6, h: 0.75, d: 0.56 },
       col: "A|1.30",
     });
-    const columns = deriveColumns([lower, upper]);
+    const columns = deriveColumns([lower, upper], {}, ROOM);
     const column = columns.get("A|1.30");
     expect(column?.top).toBeCloseTo(2.6, 6);
     expect(column?.regions).toEqual([
@@ -238,7 +247,7 @@ describe("deriveColumns", () => {
       frame: { x: 0.3, z: 0.165, ry: 0, y0: 1.5, w: 0.6, h: 0.7, d: 0.33 },
       col: "A|0.30",
     });
-    const columns = deriveColumns([wallOnly]);
+    const columns = deriveColumns([wallOnly], {}, ROOM);
     expect(columns.get("A|0.30")?.regions[0]?.[0]).toBe(1.5);
   });
 });

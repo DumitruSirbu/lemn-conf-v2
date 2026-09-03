@@ -264,10 +264,14 @@ function deriveGeometry(design: Design, catalog: BodyCatalog) {
   // run) and the frozen extents of the columns whose members no longer reach as far as the customer
   // left them (a partial delete, a cleared column refilled with a body that fits). Without these two
   // arguments the frozen map survives the session and dies at the reload.
-  const columns = deriveColumns(records, {
-    emptyColumns: design.emptyColumns,
-    columnExtents: design.columnExtents,
-  });
+  const columns = deriveColumns(
+    records,
+    {
+      emptyColumns: design.emptyColumns,
+      columnExtents: design.columnExtents,
+    },
+    design.room,
+  );
   const voids = recomputeVoids(records, columns);
   return { records, columns, voids };
 }

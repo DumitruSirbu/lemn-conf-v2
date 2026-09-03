@@ -60,10 +60,14 @@ function loadOf(design: Design): {
   voids: readonly VoidRecord[];
 } {
   const records = derivePlacementRecords(design, CATALOG);
-  const columns = deriveColumns(records, {
-    emptyColumns: design.emptyColumns,
-    columnExtents: design.columnExtents,
-  });
+  const columns = deriveColumns(
+    records,
+    {
+      emptyColumns: design.emptyColumns,
+      columnExtents: design.columnExtents,
+    },
+    design.room,
+  );
   return { records, columns, voids: recomputeVoids(records, columns) };
 }
 
@@ -454,7 +458,7 @@ describe("5H-5 — the two halves partition the frozen map", () => {
         ),
       };
       const records = derivePlacementRecords(design, CATALOG);
-      const columns = deriveColumns(records);
+      const columns = deriveColumns(records, {}, design.room);
 
       const empty = projectEmptyColumns(columns, records);
       const occupied = projectColumnExtents(columns, records);
@@ -473,7 +477,7 @@ describe("5H-5 — the two halves partition the frozen map", () => {
   // The two projections and the partition are one loop, so they must not be able to disagree.
   it("returns the same two arrays as the single-pass projection", () => {
     const records = derivePlacementRecords(KITCHEN_L_DESIGN, CATALOG);
-    const columns = deriveColumns(records);
+    const columns = deriveColumns(records, {}, KITCHEN_L_DESIGN.room);
     const frozen = projectFrozenMap(columns, records);
 
     expect(frozen.emptyColumns).toStrictEqual(
@@ -492,7 +496,7 @@ describe("5H-5 — the two halves partition the frozen map", () => {
     "orders the occupied half independently of the map's insertion order",
     (shuffleKeys: readonly number[]) => {
       const records = derivePlacementRecords(KITCHEN_L_DESIGN, CATALOG);
-      const columns = deriveColumns(records);
+      const columns = deriveColumns(records, {}, KITCHEN_L_DESIGN.room);
       const entries = [...columns.entries()];
       const shuffled = new Map(
         entries

@@ -80,7 +80,11 @@ interface Loaded {
 
 function load(design: Design): Loaded {
   const records = derivePlacementRecords(design, CATALOG);
-  const columns = deriveColumns(records, { emptyColumns: design.emptyColumns });
+  const columns = deriveColumns(
+    records,
+    { emptyColumns: design.emptyColumns },
+    design.room,
+  );
   return { design, columns, records, voids: recomputeVoids(records, columns) };
 }
 
@@ -301,6 +305,8 @@ describe("a run may not merge across ground a body stands on", () => {
     const cleared = removeAll(KITCHEN_L_DESIGN, ["p8", "p15", "p10", "p16"]);
     const frozen = deriveColumns(
       derivePlacementRecords(KITCHEN_L_DESIGN, CATALOG),
+      {},
+      KITCHEN_L_DESIGN.room,
     );
     const records = derivePlacementRecords(cleared, CATALOG);
 
@@ -382,9 +388,14 @@ describe("nothing merges across a wall or a gap", () => {
   // Criterion 10, first half: two spaces whose along-wall extents abut, on different walls. Drop
   // `wall` from the grouping and they merge into a column standing in mid-air.
   it("keeps two abutting coordinates on different walls apart", () => {
-    const loaded = load(
-      designWith([emptySpace(2000, 300), emptySpace(2300, 300, { wall: "B" })]),
-    );
+    const design = designWith([
+      emptySpace(2000, 300),
+      emptySpace(2300, 300, { wall: "B" }),
+    ]);
+    // This is about the wall boundary, not about wall length — the fixture room's own wall B
+    // (`depthMm: 2400`) is shorter than 2450, which would otherwise clip the very entry the test
+    // means to read back untouched.
+    const loaded = load({ ...design, room: { ...design.room, depthMm: 4200 } });
 
     expect(Object.keys(emptyExtentsOf(loaded)).sort()).toEqual([
       "A|2.00",
@@ -492,6 +503,8 @@ describe("the seeded kitchen: ADR 0037's withdrawal scenario, and the route that
     // loaded with and the records are the ones that are left.
     const frozen = deriveColumns(
       derivePlacementRecords(KITCHEN_L_DESIGN, CATALOG),
+      {},
+      KITCHEN_L_DESIGN.room,
     );
     const records = derivePlacementRecords(cleared, CATALOG);
     const columns = mergeThenAnswer(frozen, records);

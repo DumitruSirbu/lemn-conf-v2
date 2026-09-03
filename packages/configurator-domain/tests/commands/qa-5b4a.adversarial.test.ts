@@ -103,7 +103,7 @@ function loadSpan(design: Design): Span {
   const records = derivePlacementRecords(design, CATALOG);
   return spanOf(
     design,
-    deriveColumns(records, { emptyColumns: design.emptyColumns }),
+    deriveColumns(records, { emptyColumns: design.emptyColumns }, design.room),
   );
 }
 
@@ -123,6 +123,8 @@ function seededKitchenWithout(ids: readonly string[]): Span {
   }, KITCHEN_L_DESIGN);
   const frozen = deriveColumns(
     derivePlacementRecords(KITCHEN_L_DESIGN, CATALOG),
+    {},
+    KITCHEN_L_DESIGN.room,
   );
   return spanOf(design, frozen);
 }
@@ -302,7 +304,11 @@ describe("what the whole-height precondition silently refuses", () => {
     const swapped = insertInto(
       spanOf(
         KITCHEN_L_DESIGN,
-        deriveColumns(derivePlacementRecords(KITCHEN_L_DESIGN, CATALOG)),
+        deriveColumns(
+          derivePlacementRecords(KITCHEN_L_DESIGN, CATALOG),
+          {},
+          KITCHEN_L_DESIGN.room,
+        ),
       ),
       { kind: "placement", id: FRIDGE_MEMBER },
       "base-dishwasher",

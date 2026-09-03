@@ -46,6 +46,8 @@ function worldFrom(design: Design) {
   const records = derivePlacementRecords(design, KITCHEN_L_BODY_CATALOG);
   const columns = deriveColumns(
     derivePlacementRecords(KITCHEN_L_DESIGN, KITCHEN_L_BODY_CATALOG),
+    {},
+    KITCHEN_L_DESIGN.room,
   );
   return {
     design,

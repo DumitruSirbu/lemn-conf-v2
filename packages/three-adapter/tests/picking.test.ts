@@ -197,7 +197,18 @@ describe("pick", () => {
         frame: { x: 1.3, z: 0.3, ry: 0, y0: 2.2, w: 0.6, h: 0.4, d: 0.56 },
       }),
     ];
-    const column = required(deriveColumns(sentinels).get(columnKey), "column");
+    // The column is occupied by the two sentinels, so the room is never consulted — wide enough to
+    // say so plainly.
+    const room = {
+      shape: "L" as const,
+      widthMm: 3600,
+      depthMm: 2400,
+      heightMm: 2600,
+    };
+    const column = required(
+      deriveColumns(sentinels, {}, room).get(columnKey),
+      "column",
+    );
     const voidRecords: VoidRecord[] = recomputeVoids(
       [],
       new Map([[columnKey, column]]),

@@ -369,7 +369,10 @@ describe("an overflowing design whose column map has been frozen", () => {
    *  including the one that now reaches past the wall. */
   function withFrozenMap(design: Design): Design {
     const records = derivePlacementRecords(design, CATALOG);
-    const frozen = projectFrozenMap(deriveColumns(records), records);
+    const frozen = projectFrozenMap(
+      deriveColumns(records, {}, design.room),
+      records,
+    );
     return { ...design, columnExtents: [...(frozen.columnExtents ?? [])] };
   }
 
@@ -404,6 +407,8 @@ describe("an overflowing design whose column map has been frozen", () => {
   it("still saves when the overflowing column is emptied instead", () => {
     const columns = deriveColumns(
       derivePlacementRecords(OVERFLOWING_COLUMN, CATALOG),
+      {},
+      OVERFLOWING_COLUMN.room,
     );
     const remaining = OVERFLOWING_COLUMN.placements.filter(
       (placement) => placement.alongMm !== 3300,

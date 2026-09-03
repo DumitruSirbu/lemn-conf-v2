@@ -84,7 +84,7 @@ function fullHeightExtent(
 describe("the projection partitions the frozen map", () => {
   it("records the occupied columns the empty projection skips", () => {
     const records = recordsOf(KITCHEN_L_DESIGN);
-    const columns = deriveColumns(records);
+    const columns = deriveColumns(records, {}, KITCHEN_L_DESIGN.room);
 
     const extents = projectColumnExtents(columns, records);
 
@@ -110,11 +110,15 @@ describe("the projection partitions the frozen map", () => {
     const records = recordsOf(oneBody);
     const key = deriveColumnKeyAt("A", REFILLED_COLUMN_ALONG_MM / 1000);
 
-    const derived = deriveColumns(records).get(key);
-    const restored = deriveColumns(records, {
-      emptyColumns: [],
-      columnExtents: [fullHeightExtent()],
-    }).get(key);
+    const derived = deriveColumns(records, {}, KITCHEN_L_DESIGN.room).get(key);
+    const restored = deriveColumns(
+      records,
+      {
+        emptyColumns: [],
+        columnExtents: [fullHeightExtent()],
+      },
+      KITCHEN_L_DESIGN.room,
+    ).get(key);
 
     expect(Math.round((derived?.top ?? 0) * 1000)).toBe(820);
     expect(Math.round((restored?.top ?? 0) * 1000)).toBe(FULL_HEIGHT_TOP_MM);
@@ -156,7 +160,9 @@ describe("criterion 5H-5 — every key is in exactly one half", () => {
         ...KITCHEN_L_DESIGN,
         placements: [...placements],
       });
-      const columns = new Map(deriveColumns(records));
+      const columns = new Map(
+        deriveColumns(records, {}, KITCHEN_L_DESIGN.room),
+      );
       for (const centreMm of centres) {
         const column = memberLessColumnAt(centreMm);
         columns.set(column.key, column);
@@ -304,7 +310,7 @@ describe("an extent that reaches across a column it does not own is refused", ()
    *  refuses the product's own documents. */
   it("accepts every extent the seeded kitchen's own map projects", () => {
     const records = recordsOf(KITCHEN_L_DESIGN);
-    const columns = deriveColumns(records);
+    const columns = deriveColumns(records, {}, KITCHEN_L_DESIGN.room);
 
     const projected = withColumnExtents(
       projectColumnExtents(columns, records),
@@ -323,9 +329,10 @@ describe("an extent that reaches across a column it does not own is refused", ()
   it("keeps the 900 mm corner-base column, which the empty-column ceiling would refuse", () => {
     const records = recordsOf(KITCHEN_L_DESIGN);
 
-    const corner = projectColumnExtents(deriveColumns(records), records).find(
-      (entry) => entry.wall === "A" && entry.alongMm === 450,
-    );
+    const corner = projectColumnExtents(
+      deriveColumns(records, {}, KITCHEN_L_DESIGN.room),
+      records,
+    ).find((entry) => entry.wall === "A" && entry.alongMm === 450);
 
     expect(corner?.widthMm).toBe(900);
     expect(corner?.widthMm).toBeGreaterThan(MAX_EMPTY_COLUMN_WIDTH_MM);

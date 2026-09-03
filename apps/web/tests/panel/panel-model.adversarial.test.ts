@@ -33,6 +33,9 @@ const OCCURRED_AT = "2026-08-26T12:00:00.000Z";
  *  the symptom is an empty offer list, not a column error. The store freezes them; so does this. */
 const SEEDED_COLUMNS = deriveColumns(
   derivePlacementRecords(KITCHEN_L_DESIGN, KITCHEN_L_BODY_CATALOG),
+
+  {},
+  KITCHEN_L_DESIGN.room,
 );
 
 function worldFrom(design: Design) {

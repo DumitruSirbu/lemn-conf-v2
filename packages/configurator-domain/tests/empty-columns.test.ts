@@ -61,9 +61,11 @@ function codesFor(design: Design): DesignValidationCode[] {
 }
 
 function columnsOf(design: Design): ReadonlyMap<string, Column> {
-  return deriveColumns(derivePlacementRecords(design, CATALOG), {
-    emptyColumns: design.emptyColumns,
-  });
+  return deriveColumns(
+    derivePlacementRecords(design, CATALOG),
+    { emptyColumns: design.emptyColumns },
+    design.room,
+  );
 }
 
 describe("DesignSchema.emptyColumns", () => {
@@ -79,7 +81,7 @@ describe("DesignSchema.emptyColumns", () => {
     const records = derivePlacementRecords(KITCHEN_L_DESIGN, CATALOG);
 
     expect([...columnsOf(KITCHEN_L_DESIGN)]).toStrictEqual([
-      ...deriveColumns(records),
+      ...deriveColumns(records, {}, KITCHEN_L_DESIGN.room),
     ]);
   });
 
@@ -142,8 +144,15 @@ describe("deriveColumns with stored empty columns", () => {
 
   it("puts a wall-B entry on wall B's own axes", () => {
     const onWallB: EmptyColumn = { ...FREED_STRIP, wall: "B", alongMm: 3000 };
+    // This is about the axis swap, not about wall length — `VALID_DESIGN`'s own wall B
+    // (`depthMm: 2400`) is shorter than 3000, which would otherwise clip the very entry the test
+    // means to read back untouched.
+    const design: Design = {
+      ...withEmptyColumns([onWallB]),
+      room: { ...VALID_DESIGN.room, depthMm: 4200 },
+    };
 
-    const column = columnsOf(withEmptyColumns([onWallB])).get("B|3.00");
+    const column = columnsOf(design).get("B|3.00");
 
     expect(column?.x).toBe(0.29);
     expect(column?.z).toBe(3);

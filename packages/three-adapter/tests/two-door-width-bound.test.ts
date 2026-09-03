@@ -95,6 +95,8 @@ function clearedNarrowWall(): Design {
 function narrowOpening(design: Design) {
   const columns = deriveColumns(
     derivePlacementRecords(KITCHEN_L_DESIGN, KITCHEN_L_BODY_CATALOG),
+    {},
+    KITCHEN_L_DESIGN.room,
   );
   const records = derivePlacementRecords(design, KITCHEN_L_BODY_CATALOG);
   const voids = recomputeVoids(records, columns);
@@ -154,6 +156,8 @@ describe("the 700 mm fridge opening takes a two-door again", () => {
     const design = clearedFridge();
     const columns = deriveColumns(
       derivePlacementRecords(KITCHEN_L_DESIGN, KITCHEN_L_BODY_CATALOG),
+      {},
+      KITCHEN_L_DESIGN.room,
     );
     const records = derivePlacementRecords(design, KITCHEN_L_BODY_CATALOG);
     const opening = recomputeVoids(records, columns).find(
@@ -202,6 +206,8 @@ describe("a hood in an opening wider than any hood", () => {
     if (!result.ok) throw new Error(`delete refused: ${result.reason.code}`);
     const columns = deriveColumns(
       derivePlacementRecords(KITCHEN_L_DESIGN, KITCHEN_L_BODY_CATALOG),
+      {},
+      KITCHEN_L_DESIGN.room,
     );
     const records = derivePlacementRecords(
       result.design,

@@ -62,6 +62,8 @@ beforeAll(() => {
 const frozenColumns = () =>
   deriveColumns(
     derivePlacementRecords(KITCHEN_L_DESIGN, KITCHEN_L_BODY_CATALOG),
+    {},
+    KITCHEN_L_DESIGN.room,
   );
 
 /** The design with the hob-bearing cabinet deleted — the state the customer reaches in one click,

@@ -77,7 +77,7 @@ interface World {
 /** ADR 0011 Gap D: extents freeze at load, `hasFullHeightUnder` is re-answered per derivation. */
 function loadWorld(design: Design): World {
   const records = derivePlacementRecords(design, KITCHEN_L_BODY_CATALOG);
-  const columns = deriveColumns(records);
+  const columns = deriveColumns(records, {}, design.room);
   // Derived and discarded: `recomputeVoids` is what a load does, and a load that threw would make
   // every assertion below vacuous.
   recomputeVoids(records, columns);

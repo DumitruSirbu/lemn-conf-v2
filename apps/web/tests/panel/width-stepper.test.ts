@@ -44,6 +44,9 @@ import { createFakeBodyProbe } from "../support/fake-body-probe";
 /** ADR 0011 Gap D: columns are load-time state, frozen from the whole design. */
 const SEEDED_COLUMNS = deriveColumns(
   derivePlacementRecords(KITCHEN_L_DESIGN, KITCHEN_L_BODY_CATALOG),
+
+  {},
+  KITCHEN_L_DESIGN.room,
 );
 
 /** The store's own fake: it measures exactly what it was asked to build, so a resize the domain's

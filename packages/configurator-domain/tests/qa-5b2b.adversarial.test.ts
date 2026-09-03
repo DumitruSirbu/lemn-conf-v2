@@ -18,7 +18,12 @@ import {
   evaluateInsertFit,
   type InsertOpening,
 } from "../src/commands/insert-fit.js";
-import { DesignSchema, EmptyColumnSchema, type Design } from "../src/design.js";
+import {
+  DesignSchema,
+  EmptyColumnSchema,
+  type Design,
+  type DesignRoom,
+} from "../src/design.js";
 import {
   KITCHEN_L_BODY_CATALOG,
   KITCHEN_L_DESIGN,
@@ -39,6 +44,16 @@ import {
 } from "../src/void-engine.js";
 
 const CATALOG = KITCHEN_L_BODY_CATALOG;
+
+/** Wide enough that the 6300 mm sweeps below never reach the wall's own end — this file is
+ *  about the projection/restoration round trip, not `clipEmptyColumnsAtWallEnd`, which has its
+ *  own test file. */
+const ROOM: DesignRoom = {
+  shape: "L",
+  widthMm: 7000,
+  depthMm: 7000,
+  heightMm: 2600,
+};
 
 function columnAt(alongM: number, overrides: Partial<Column> = {}): Column {
   return {
@@ -81,7 +96,9 @@ describe("the projection's uniqueness guarantee, attacked", () => {
       // Every column of the seeded kitchen, plus strips at swept centres. The strips that land on an
       // occupied key are the ones that matter — the projection must drop those and keep the rest.
       const strips = centimetres.map((cm) => columnAt(cm / 100));
-      const frozen = new Map(deriveColumns(KITCHEN_RECORDS));
+      const frozen = new Map(
+        deriveColumns(KITCHEN_RECORDS, {}, KITCHEN_L_DESIGN.room),
+      );
       for (const strip of strips) frozen.set(strip.key, strip);
 
       const projected = projectEmptyColumns(frozen, KITCHEN_RECORDS);
@@ -142,9 +159,11 @@ describe("the projection's uniqueness guarantee, attacked", () => {
     // and the map's key set is the answer this compares against, not the input's length.
     const frozen = mapOf(columns);
 
-    const restored = deriveColumns([], {
-      emptyColumns: projectEmptyColumns(frozen, []),
-    });
+    const restored = deriveColumns(
+      [],
+      { emptyColumns: projectEmptyColumns(frozen, []) },
+      ROOM,
+    );
 
     expect([...restored.keys()].sort()).toStrictEqual(
       [...mergeAdjacentEmptyColumns(frozen, []).keys()].sort(),

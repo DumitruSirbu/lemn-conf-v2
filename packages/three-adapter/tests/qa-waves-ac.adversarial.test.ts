@@ -101,6 +101,8 @@ function swapIfWidthAllows(
     catalog: KITCHEN_L_BODY_CATALOG,
     columns: deriveColumns(
       derivePlacementRecords(KITCHEN_L_DESIGN, KITCHEN_L_BODY_CATALOG),
+      {},
+      KITCHEN_L_DESIGN.room,
     ),
     target: { kind: "placement", id: placementId },
     buildId,

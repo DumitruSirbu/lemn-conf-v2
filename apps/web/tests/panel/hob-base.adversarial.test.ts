@@ -38,6 +38,9 @@ const OCCURRED_AT = "2026-08-27T12:00:00.000Z";
 /** ADR 0011 Gap D: frozen at load, exactly as the store freezes them. */
 const SEEDED_COLUMNS = deriveColumns(
   derivePlacementRecords(KITCHEN_L_DESIGN, KITCHEN_L_BODY_CATALOG),
+
+  {},
+  KITCHEN_L_DESIGN.room,
 );
 
 function worldFrom(design: Design) {

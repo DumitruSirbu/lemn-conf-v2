@@ -73,9 +73,11 @@ function codesFor(design: Design): DesignValidationCode[] {
 }
 
 function columnsOf(design: Design): ReadonlyMap<string, Column> {
-  return deriveColumns(derivePlacementRecords(design, CATALOG), {
-    emptyColumns: design.emptyColumns,
-  });
+  return deriveColumns(
+    derivePlacementRecords(design, CATALOG),
+    { emptyColumns: design.emptyColumns },
+    design.room,
+  );
 }
 
 /** A load through the wire, which is the only comparison that proves a field survives persistence:
