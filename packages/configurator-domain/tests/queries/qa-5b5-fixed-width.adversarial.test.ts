@@ -215,8 +215,10 @@ describe("an unfinished catalogue row is missing data, not a fixed-width cabinet
 /** **The two causes are not exclusive, and a row that is both is missing data** (logic review on
  *  this wave). `resolveResizableBody` refuses on `!body || record.fixedWidth`, so a `fixedWidth` row
  *  that is *also* unfinished satisfies both — and any test made of the record's flag calls it a
- *  cabinet made at one width. Its label falls back through `describeRecordLabel` to the entry's
- *  `kind`, so what the customer would read is `„base_cabinet” nu își poate schimba lățimea.`
+ *  cabinet made at one width. Its label falls back through `describeRecordLabel` to the
+ *  entry's kind **name**, so what the customer would read is
+ *  `„Corp bază” nu își poate schimba lățimea.` — a body named only by its kind, which is what a
+ *  row with no name of its own has.
  *
  *  `base-hob-2drawer` is deliberately the row broken here: it is report item 9's own body and the
  *  most fixed-width thing in the catalogue, so if a flag-shaped discriminator survives anywhere it

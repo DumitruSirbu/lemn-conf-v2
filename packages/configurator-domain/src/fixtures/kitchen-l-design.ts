@@ -14,15 +14,21 @@ import {
   wallCarcassSeatDepthMm,
 } from "../catalog.js";
 import {
+  WALL_CORNER_RETURN_KIND,
+  WALL_CORNER_RETURN_TOP_KIND,
+} from "../body-kinds.js";
+import {
   finishesAtMm,
   NO_FRONT_ASSEMBLY_MM,
   shellPlusFrontMm,
 } from "../occupied-depth.js";
 import { carriesHandles, NO_CABINET_HANDLES } from "../cabinet-handles.js";
 import {
+  cabinetDepthRuleOf,
   FOLLOWS_CABINET_DEPTH,
   IS_A_MANUFACTURED_SIZE,
-  pinnedAtCabinetDepthMm,
+  pinnedAtFinishedDepthMm,
+  type CabinetDepthRule,
 } from "../cabinet-depth-rule.js";
 import { WALL_FRONT_ASSEMBLY_MM, WORKTOP_DEPTH_MM } from "../worktop-depth.js";
 import type { Design, DesignPlacement } from "../design.js";
@@ -83,13 +89,17 @@ function cornerBaseReturnFinishedDepthMm(cabinetDepthMm: number): number {
   return cabinetDepthMm;
 }
 
-/** ADR 0058 decision 1: **the cabinet depth the two deliberately deep top cabinets are pinned at.**
+/** ADR 0058 decision 1: **the finished depth the two deliberately deep top cabinets are pinned at.**
  *
  *  `wall-2door-600-deep-top` (`p22`, `p23`) and `wall-2door-700-over-fridge` (`p24`) are deep because
  *  the *columns* they hang over are — §5.2's head-clearance cap is lifted over a full-height member
  *  rather than mapped — and the owner ruled on 2026-09-02 that they stay put rather than follow the
  *  setting or follow their column. They finish at exactly the 600 mm cabinet-depth line, not at an
- *  arbitrary deep number, which is why the pin is written as a cabinet depth.
+ *  arbitrary deep number — the coincidence that makes this readable, and **not** a licence to read
+ *  the pin as a setting value. It is a finished depth: rebuilding these rows from a setting of 600
+ *  would take them back through the wall map, where `wallCarcassSeatDepthMm(600)` is 291 and would
+ *  shrink them by 270 mm. The seat below is this number less the front assembly, which is the one
+ *  arithmetic that does not go through the map.
  *
  *  **What this costs at 700 is recorded and accepted, not worked around** (ADR 0058): `p23`'s face
  *  is flush with the pantry below it at 600 and becomes a 99 mm step at 700. Nothing overlaps and
@@ -98,7 +108,7 @@ function cornerBaseReturnFinishedDepthMm(cabinetDepthMm: number): number {
  *
  *  The alternative the planning had recommended — follow their column — would have put `p24` at
  *  exactly the 742 mm `docs/BACKLOG.md` entry 15 names as unmanufacturable, on a shipped body. */
-const PINNED_DEEP_TOP_CABINET_DEPTH_MM = 600;
+const PINNED_DEEP_TOP_FINISHED_DEPTH_MM = 600;
 
 /** §13.1: "Corners are structural. No replace, no delete, never a width donor", repeated by §11
  *  row 16 — so a corner body also has no finish and no handle to offer, and the panel renders
@@ -457,7 +467,10 @@ export function buildSeededBodyDefinitions(
         ...wallCarcass,
         cabinetHandles: carriesHandles(1),
         ...STRUCTURAL_CORNER,
-        kind: "wall_cabinet",
+        // ADR 0066: its own kind, so the priced document does not call it and its top-row twin the
+        // same "Corp suspendat" at two different amounts. A name only — it stays structural, keeps
+        // its one handle, and `normaliseBand` still puts it in the wall group.
+        kind: WALL_CORNER_RETURN_KIND,
         frameDepthMm: wallCarcassSeatDepthMm(cabinetDepthMm),
       },
     ],
@@ -555,7 +568,9 @@ export function buildSeededBodyDefinitions(
         ...topCarcass,
         cabinetHandles: carriesHandles(1),
         ...STRUCTURAL_CORNER,
-        kind: "wall_cabinet",
+        // ADR 0066, and the reason there are two kinds rather than one: this return differs from
+        // `wall-corner-return-570` by its row, and the breakdown line renders no band.
+        kind: WALL_CORNER_RETURN_TOP_KIND,
         frameDepthMm: wallCarcassSeatDepthMm(cabinetDepthMm),
         frameHeightMm: 400,
       },
@@ -567,12 +582,17 @@ export function buildSeededBodyDefinitions(
         cabinetHandles: carriesHandles(2),
         kind: "wall_cabinet",
         // **Pinned, and the pin is the declaration below rather than this number** (ADR 0058
-        // decision 2). The seat is derived from the depth it is pinned at exactly as every other
-        // fronted top's is derived from the setting — same arithmetic, different argument — so what
-        // makes this row hold still is one greppable field and not a constant that has quietly
-        // stopped tracking anything. 561 at 600 and 561 at 700.
-        frameDepthMm: PINNED_DEEP_TOP_CABINET_DEPTH_MM - WALL_FRONT_ASSEMBLY_MM,
-        depthRule: pinnedAtCabinetDepthMm(PINNED_DEEP_TOP_CABINET_DEPTH_MM),
+        // decision 2), so what makes this row hold still is one greppable field and not a constant
+        // that has quietly stopped tracking anything. 561 at 600 and 561 at 700.
+        //
+        // The seat is the pinned **finished** depth less the front assembly, and that is
+        // **deliberately not** `wallCarcassSeatDepthMm`'s arithmetic: every other fronted top goes
+        // through the wall map first, where 600 maps to a 330 mm carcass and a 291 mm seat. A
+        // pinned row skips the map — that is what being pinned means — so the two derivations are
+        // different arithmetic over different quantities and only the constant is shared.
+        frameDepthMm:
+          PINNED_DEEP_TOP_FINISHED_DEPTH_MM - WALL_FRONT_ASSEMBLY_MM,
+        depthRule: pinnedAtFinishedDepthMm(PINNED_DEEP_TOP_FINISHED_DEPTH_MM),
         frameHeightMm: 400,
         ...namedAfterCatalogEquivalent("wall-cabinet"),
       },
@@ -587,8 +607,9 @@ export function buildSeededBodyDefinitions(
         // most argument: over the freestanding fridge it already sits 142 mm recessed at 600, and
         // pinning leaves that **unchanged** at 700 where following its column would have rebuilt it
         // at the fridge's own 742 mm.
-        frameDepthMm: PINNED_DEEP_TOP_CABINET_DEPTH_MM - WALL_FRONT_ASSEMBLY_MM,
-        depthRule: pinnedAtCabinetDepthMm(PINNED_DEEP_TOP_CABINET_DEPTH_MM),
+        frameDepthMm:
+          PINNED_DEEP_TOP_FINISHED_DEPTH_MM - WALL_FRONT_ASSEMBLY_MM,
+        depthRule: pinnedAtFinishedDepthMm(PINNED_DEEP_TOP_FINISHED_DEPTH_MM),
         frameHeightMm: 750,
         ...namedAfterCatalogEquivalent("wall-cabinet"),
       },
@@ -596,15 +617,42 @@ export function buildSeededBodyDefinitions(
   ];
 }
 
+/** **Every entry states the depth question, or the catalogue does not load** (ADR 0058 decision 2).
+ *
+ *  The §7 population is a compile error already — `BodyShape.depthRule` is required — but the
+ *  *seeded* one is not: `BodyDefinition.depthRule` is optional, for the reason `cabinetHandles` is,
+ *  so a seeded row that said nothing would have been read as "does not move" by whatever asked next.
+ *  This is where the two populations meet, so it is where the question is asked of both.
+ *
+ *  Exported for the gate in `cabinet-depth-parameter.test.ts` and deliberately **not** on the
+ *  barrel: a caller outside this package has no catalogue of its own to sweep yet. Wave 6J's
+ *  migration is the second caller, and it reads the rule rather than merely refusing its absence. */
+export function refuseUndeclaredDepthRules(
+  entries: readonly (readonly [string, DeclaresADepthRule])[],
+): void {
+  for (const [buildId, definition] of entries) {
+    cabinetDepthRuleOf({ buildId, rule: definition.depthRule });
+  }
+}
+
+/** What the sweep above reads and nothing more — the same stance `CabinetDepthRuleQuery` takes, and
+ *  it is what lets the gate hand it a row that declares nothing without assembling a whole
+ *  `BodyDefinition` around the one field under test. Every catalogue entry satisfies it. */
+interface DeclaresADepthRule {
+  readonly depthRule?: CabinetDepthRule;
+}
+
 /** One map, two populations (ADR 0011 Gap A): M2's seeded instances, which reproduce M1's scene
  *  and are never offered, and §7's parameterised entries, which are the only ones a customer can
  *  insert. Both resolve through the same lookup, so a placement created by `insertBody` loads the
  *  same way a seeded one does. */
 export function buildKitchenLBodyCatalog(cabinetDepthMm: number): BodyCatalog {
-  return new Map<string, BodyDefinition>([
+  const entries = [
     ...buildSeededBodyDefinitions(cabinetDepthMm),
     ...buildInsertableBodyDefinitions(cabinetDepthMm),
-  ]);
+  ];
+  refuseUndeclaredDepthRules(entries);
+  return new Map<string, BodyDefinition>(entries);
 }
 
 /** That catalogue at the depth the kitchen is declared at today — **the one materialisation**, and
@@ -659,7 +707,13 @@ export const KITCHEN_L_PLACEMENTS: readonly DesignPlacement[] = [
 ];
 
 export const KITCHEN_L_DESIGN: Design = {
-  room: { shape: "L", widthMm: 3600, depthMm: 2400, heightMm: 2600 },
+  // ADR 0065 §2: the two wall runs the design reference's wall-coverage panel gives — wall A
+  // 3560 mm (3520 occupied, 40 free at the run end) and wall B 2830 mm (2800 occupied, 30 free
+  // beside the fridge). Both corroborate against the built tree: wall A's placements end at 3500
+  // plus the run-end panel's 18 mm and its 1 mm gap, the 3519 `kitchen-shell.ts` names in its own
+  // comment, and wall B's end at 2800 exactly. It read `3600 × 2400` until 2026-09-03, and the
+  // 2400 in particular was what made the along-wall bound take the longer run.
+  room: { shape: "L", widthMm: 3560, depthMm: 2830, heightMm: 2600 },
   presetId: null,
   placements: [...KITCHEN_L_PLACEMENTS],
   createdAt: "2026-08-25T00:00:00.000Z",

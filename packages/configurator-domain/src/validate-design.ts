@@ -417,10 +417,14 @@ function findUncontainedEmptyColumns(
  * `MAX_DESIGN_DIMENSION_MM`, and `deriveCabinetWorldTransform` refuses nothing above zero — and
  * every later viewer of that share link renders a space protruding out through the shell.
  *
- * The bound is the wall's **own** normal run, and unlike `longestWallRunMm` that costs nothing:
- * §2 sends wall A's depth into the room's depth and wall B's into its width, and no shipped body
- * comes near either. The 400 mm slack that forced the along-wall rule to take the longer run is a
- * fact about along-wall coordinates, not about depths.
+ * The bound is the wall's **own** normal run: §2 sends wall A's depth into the room's depth and
+ * wall B's into its width, and no shipped body comes near either.
+ *
+ * This rule was always per-wall while the along-wall rule next to it took `max(width, depth)`, and
+ * the comment here used to justify the difference by *"the 400 mm slack"* the along-wall rule
+ * needed. There was no slack: the seeded room's `depthMm` was wrong (`wallRunMm`), and once it was
+ * corrected the along-wall rule became per-wall too. The two now agree, which is what they should
+ * have done all along.
  */
 function reachesPastRoomAcrossWall(
   emptyColumn: EmptyColumn,
@@ -830,36 +834,34 @@ function findContainmentBreaches(
 ): ContainmentBreaches {
   return {
     startsBeforeWall: span.alongStartMm < 0,
-    endsPastWall: span.alongEndMm > longestWallRunMm(room),
+    endsPastWall: span.alongEndMm > wallRunMm(span.wall, room),
     risesAboveRoom: span.topMm > room.heightMm,
   };
 }
 
 /**
- * The horizontal bound a placement must fit inside — deliberately the room's **longer** recorded
- * run, not the run belonging to the placement's own wall.
+ * The horizontal bound a run must fit inside: **its own wall's run** — §2 makes wall A's run the
+ * room width and wall B's the room depth (ADR 0065 decision 5).
  *
- * Per-wall would be the honest rule: §2 makes wall A's run the room width and wall B's the room
- * depth. It cannot be applied, because `Design.room` does not describe the shipped scene. The
- * seeded kitchen records a 3600 × 2400 room while `kitchen-parts.ts` builds a 4.2 × 3.4 m shell,
- * and its wall-B fridge (`p7`, centred at 2450 with a 700 mm body) stands out to 2800 mm — 400 mm
- * past the recorded depth. A per-wall bound would reject the design the product ships.
+ * It was `Math.max(widthMm, depthMm)` until 2026-09-03, and the comment that stood here explained
+ * the choice as an unavoidable fact about the shipped kitchen: the seeded design recorded a
+ * 2400 mm depth while its wall-B fridge (`p7`, centred at 2450 with a 700 mm body) reaches 2800,
+ * so per-wall looked as though it would reject the design the product ships. **The 400 mm was not
+ * slack in the rule, it was error in the document.** Wall B is 2830 mm — the reference's
+ * wall-coverage panel, corroborated against the built tree — and against its true run the seeded
+ * kitchen fits with 30 mm to spare. Correcting the fixture is what let the bound be tightened, and
+ * the loosening is recorded here rather than deleted because the shape of the mistake is worth
+ * keeping: a bound widened to accommodate a measurement nobody had re-checked.
  *
- * **What this actually buys, and what it does not.** It does not confine a body to the wall it
- * stands on: a placement may overshoot its own wall by the whole difference between the room's two
- * runs. Because the axes are bounded independently, the shorter wall inherits the longer one's run
- * — a document declaring `{ widthMm: 6300, depthMm: 1, heightMm: 3900 }` validates clean with a
- * 600 mm body on wall B at `alongMm: 6000`, which is 2900 mm past wall B's real 3400 mm run and
- * 1300 mm above the real 2600 mm ceiling. Measured, not reasoned about.
+ * What the longer run cost while it stood: the shorter wall inherited the longer one's, so a
+ * document declaring `{ widthMm: 6300, depthMm: 1 }` accepted a 600 mm body on wall B at
+ * `alongMm: 6000`, 5700 mm past wall B's own run. Each axis now binds only the wall it belongs to.
  *
- * So the residual is capped at the **bounded room**, not at the wall. That is still a large
- * improvement — the same rule permitted ten metres while the room was whatever a caller declared —
- * but it is not the physical shell, and an earlier version of this comment said it was.
- * Reconciling the room record with the scene shell is the separate decision that would let this
- * become the per-wall rule and close the residual properly.
+ * A run **shorter** than its wall is not a breach — decision 4 makes the constraint one-sided, and
+ * bare wall at the end of a run is a normal state rather than something to report.
  */
-function longestWallRunMm(room: DesignRoom): number {
-  return Math.max(room.widthMm, room.depthMm);
+function wallRunMm(wall: DesignWall, room: DesignRoom): number {
+  return wall === "A" ? room.widthMm : room.depthMm;
 }
 
 function issueAt(

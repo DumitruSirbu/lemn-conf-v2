@@ -2,6 +2,7 @@
 // be rebuilt through, and split by ADR 0035 decision 6 into the members the column's width governs
 // and the hoods it does not.
 import {
+  describeKindLabel,
   EXTRACTOR_HOOD_KIND,
   resolveCatalogEquivalent,
   toInsertableBody,
@@ -201,13 +202,19 @@ function resolveRebuildBody(
   return toInsertableBody(equivalent.buildId, equivalent.definition);
 }
 
-/** A seeded row carries no `label`, so the refusal falls back to the entry's kind — the same
- *  fallback §9's header uses. */
+/** A seeded row carries no `label`, so the refusal falls back to the entry's **kind name** — the
+ *  same fallback §9's header uses, via the same `describeKindLabel`.
+ *
+ *  It resolves the kind rather than returning it: every caller puts this string inside a Romanian
+ *  refusal sentence the customer reads, and a bare `kind` is an internal identifier. The four corner
+ *  rows are the ones exposed — they are the bodies with no `label` and no catalogue equivalent to
+ *  inherit one from (ADR 0022) — so before this, `setWidth` on a wall corner return answered
+ *  `„corner_wall_return" nu își poate schimba lățimea.` */
 export function describeRecordLabel(
   catalog: BodyCatalog,
   record: PlacementRecord,
 ): string {
-  return catalog.get(record.buildId)?.label ?? record.kind;
+  return catalog.get(record.buildId)?.label ?? describeKindLabel(record.kind);
 }
 
 export function findPlacement(

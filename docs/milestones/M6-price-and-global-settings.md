@@ -2,7 +2,7 @@
 
 > **STATUS: PLANNED — waves sequenced 2026-09-02.** Depends on M5 (only wave 5E is still open there,
 > and it does not gate anything here). Summary: `docs/STATUS.md`. Start at **Waves** below, then the
-> owner section. **Fourteen waves, all unblocked.** The seven owner decisions were taken on
+> owner section. **Eighteen waves, all unblocked.** The seven owner decisions were taken on
 > 2026-09-02 (ADRs 0055–0061); ADRs 0062–0064 followed, the last two on 2026-09-03.
 
 Status: planned, waves sequenced. Depends on M5.
@@ -148,6 +148,23 @@ Boundaries:
 
 - **Three grouping implementations drifting apart** — scene, breakdown, review. Derive all three
   from one projection.
+- **The four corner rows are one population with one gap — closed 2026-09-03, and worth knowing
+  about.** `base-corner-x-900`, `base-corner-return-320`, `wall-corner-return-570` and `-570-top` are
+  the bodies with **no `label` and no `catalogEquivalentId`** (ADR 0022, correctly), which is exactly
+  why `namedAfterCatalogEquivalent` never reached them and why every path needing a
+  customer-readable name has to remember the `describeKindLabel` fallback.
+
+  It looked like a recurring pattern — 6A2 left them generic, 6A4 named two, and
+  `resolve-column-members` put a raw `corner_wall_return` inside a Romanian refusal sentence — and it
+  **resolved better than that**: all four leaked through the *same* fallback, so one change closed
+  every command path rather than the reported one. It was a single missing fallback, not four
+  separate omissions.
+
+  **The residual risk is the shape, not the bug.** A body with no entry-level name still depends on
+  each new name-producing path remembering the fallback, and three paths did not. Whichever wave next
+  adds such a path should carry the assertion that closes it structurally: **every seeded body
+  resolves a customer-readable name through every name-producing path**, so a new path fails the
+  moment it forgets.
 - **Inventing an amount or an inclusion.** Sample amounts must stay visibly and structurally
   provisional; neither documentation nor code may assert a commercial figure.
 - **Two places, not one, where a global setting can invalidate a per-cabinet choice — corrected
@@ -194,7 +211,9 @@ constant (`worktop-depth.ts` carries a comment saying the rename is owed and def
 | --- | --- | --- | --- |
 | 6A — one canonical projection | P | none | Full |
 | 6A2 — a seeded row carries its equivalent's name *(backlog 20)* | P | 6A | Full |
-| 6B — price book and pure pricing query | P | 6A, 6A2 | Full |
+| 6A3 — a body past its wall is detected, as one domain fact *(ADR 0065)* | P | 6A | Full |
+| 6A4 — the wall corner returns get their own kinds and names *(ADR 0066)* | P | 6A | Full |
+| 6B — price book and pure pricing query | P | 6A, 6A2, 6A3, 6A4 | Full |
 | 6C — the price bar, both shells | P | 6B | Full |
 | 6D — the breakdown (2D / D2D) | P | 6C | Light + visual |
 | 6E — the whole-kitchen settings container | G | 6B | Full |
@@ -206,6 +225,8 @@ constant (`worktop-depth.ts` carries a comment saying the rename is owed and def
 | 6J — the persisted setting and what a change does | D | 6H, 6I, 6I2 — **unblocked, ADRs 0055, 0056, 0058** | Full |
 | 6K — the depth control on the sheet | D | 6J, 6G — **unblocked, ADR 0059** | Light + visual |
 | 6L — the handle path learns cabinet from appliance *(backlog 18)* | G | none — **sequenced before 6B and 6G** | Full |
+| 6M — the overflow is marked and warned about *(ADR 0065)* | — | 6A3 | Light + visual |
+| 6N — the wall-coverage bars *(owner request)* | — | 6D, 6M, decision 8's fixture correction | Light + visual |
 
 The letters are identifiers and the table is in dependency order, with one exception: **6L is listed
 last and runs early.** It has no technical gate on anything and nothing gates on it, so it is placed
@@ -315,6 +336,101 @@ as fixtures-only.
 - **`docs/BACKLOG.md` entry 20 moves from Open to Resolved on close** — that file's rule is that a
   decided item leaves it and the decision lives in `docs/decisions/`. On close, not at dispatch.
 
+### Wave 6A3 — a body past the end of its wall is detected, as one domain fact
+
+**[ADR 0065](../decisions/0065-a-body-past-the-end-of-its-wall-is-marked-not-moved.md).** Detection
+only; the marking and the warning are wave 6M.
+
+**Why detection is its own wave, and why it is early.** Four surfaces have to agree about whether a
+body fits — the scene marks it, the breakdown lists it, the price bar flags the total, and M8's
+review refuses on it. That is the same "one projection, many readers" argument wave 6A exists for,
+and the same failure if it is not: one design marked in one place and not another. **6B needs it**
+(the flagged total), so it lands before 6B rather than beside the depth control.
+
+**Touches.** `packages/configurator-domain/src/validate-design.ts` or a sibling query, and
+`index.ts`. Domain only — nothing visible.
+
+**Acceptance criteria.**
+
+- **One published fact per placement: does this body's along-wall extent pass the end of its own
+  wall?** Every surface reads it; none re-derives it.
+- **The extent is the furthest along-wall reach, never a sum of widths.** Wall B's run is contiguous
+  at 600 and **not at 700**, where a 30 mm gap opens in the top row (ADR 0058: the corner return's
+  top follows the wall map at +70 mm while the deep tops follow the base formula at +100). A sum
+  would read 30 mm short precisely at the depth where the answer matters. ADR 0065's "2800 of 2830"
+  is a contiguous-case shorthand, correct at 600, and must not be reimplemented as a formula.
+- **The bound is the wall's own run** — wall A the room's width, wall B its depth (§2) — and never
+  `longestWallRunMm`. Whether that function's `max` should survive elsewhere is not this wave's
+  question; that it must not answer *this* one is.
+- **One-sided: `run end ≤ wall length`, never equality. A remainder is the expected case, not a
+  tolerance** ([ADR 0067](../decisions/0067-leftover-wall-is-the-normal-case-and-the-price-is-a-floor.md)).
+  Real walls are not round — 2444 mm is typical — and the manufacturer closes the leftover with
+  filler at the real measurement, outside this product. So under-filling is never reported, and **no
+  companion check asserting that a run _reaches_ its wall may be added**: that is the check a gate
+  author looking for things to assert would write, and it would be wrong in the normal case.
+- **The seeded design reports nothing at 600 and two bodies at 700** — `p7` and `p24` — against the
+  corrected wall lengths (A 3560, B 2830). Both halves are asserted: a wave that flags something at
+  600 has the wrong wall length, and one that flags nothing at 700 has the wrong bound.
+- **It depends on the room being corrected first.** Against the document's current `2400`, wall B
+  reports an overrun at 600 that does not exist. Dispatch the fixture correction with this wave or
+  before it.
+- **Nothing is moved, narrowed, removed or refused.** This wave observes; ADR 0055 is untouched.
+- **The demo design must not overflow — a proposed kitchen is held to a stricter rule than an edited
+  one.** Owner, 2026-09-03: everything the product proposes *"should always fit the existing walls,
+  including demo"*. ADR 0065's marking is an acceptable outcome of a **customer's** edit; it is not
+  an acceptable outcome of the seeded design loading, of a preset, or of M7's generation. So the
+  seeded fixture reporting zero at 600 is an assertion this wave owns, not an incidental observation.
+  The generative half is `docs/milestones/M7-room-and-presets.md`'s.
+
+### Wave 6A4 — the wall corner returns get their own kinds and names
+
+**[ADR 0066](../decisions/0066-the-wall-corner-returns-get-their-own-kinds-and-names.md)**, owner
+2026-09-03, mirroring [ADR 0025](../decisions/0025-the-corner-base-legs-seat-on-the-l-joint.md)'s
+treatment of the base corners. Raised by 6I's review.
+
+**The defect.** `wall-corner-return-570` (570 × 700) and `wall-corner-return-570-top` (570 × 400)
+both declare `kind: "wall_cabinet"` and carry no `label` and no `catalogEquivalentId` (ADR 0022:
+correctly, they have no catalogue equivalent), so both fall back to `describeKindLabel` and read
+exactly **"Corp suspendat"**. Wave 6D puts that in a **priced document** — two identical
+descriptions at two different amounts, with nothing on screen explaining the difference.
+
+**Sequenced before 6B**, for the same reason 6A2 is: 6B's line labels come from the projection, and
+building its fixtures against names that then change is wasted work.
+
+**Touches.** The two fixture rows' `kind`, `KIND_LABELS_RO` in `catalog.ts`, and the tests that pin
+either.
+
+**Acceptance criteria.**
+
+- **Two kinds, one per row — not one shared kind.** A single shared kind does **not** fix the
+  reported defect: the two bodies differ by *row* (`wall` and `top`), §9's header renders the band
+  and would separate them either way, but **the breakdown line renders label and width with no
+  band**, so both lines stay identical in the one place the complaint came from. Two kinds is also
+  the literal mirror of ADR 0025, which gave the two base corner bodies two.
+- **A label, not a mechanism.** `"wall_cabinet"` has no behavioural reader — the string appears only
+  in the fixture rows, one catalogue row and its own `WALL_CABINET_KIND` declaration, and nothing
+  branches on it. If the wave finds a branch, it stops: the cost estimate was wrong and the decision
+  needs re-taking.
+- **`normaliseBand` still folds `top` into `wall`** (ADR 0011 Gap C). Both returns keep landing in
+  the *Perete A · suspendate* group and §5.2's gate does not move. Asserted, because a new kind is
+  exactly the kind of change that quietly re-bands a body.
+- **They stay structural (ADR 0021) and keep `carriesHandles(1)`.** A name is not a capability.
+- **No seeded body renders `UNKNOWN_KIND_LABEL_RO`.** Re-asserted here rather than inherited,
+  because this wave changes two kinds and a `kind` has to be spelled identically at three sites —
+  the fixture row, `KIND_LABELS_RO`, and the tests.
+
+  **Corrected 2026-09-03 (6A4 QA): the harm is the label, not the swap list.** This criterion first
+  cited §11 row 24 — a kind missing from the table renders no replace section — and **that is false
+  for these two bodies**: `describeReplaceSection` returns at `if (!meta.canReplace)` one line before
+  it reaches `isKnownKind`, and both returns are structural (ADR 0021) with `canReplace: false`, so
+  they render no swap list at any spelling. What a divergence *would* do is drop both labels to
+  **"Corp"** — in the panel header and, since 6D, in the **priced document** — silently reinstating
+  the very defect this wave exists to remove. The row-24 rule is sound in general, for a body that
+  can actually be replaced; it is not this wave's exposure. See
+  [ADR 0066](../decisions/0066-the-wall-corner-returns-get-their-own-kinds-and-names.md)'s
+  correction.
+- The two lines read differently in the breakdown, for the reason they differ.
+
 ### Wave 6B — the price book and the pure pricing query
 
 **Goal.** Work item 1, which after
@@ -342,6 +458,9 @@ sample book as a separate file), `index.ts`, tests.
   are opaque persisted strings; `"B"` and `"a"` order oppositely under the two. Since this order is
   the price lines' order, a locale-sensitive tie-break would put a **cross-machine difference into a
   customer-visible document**. Recorded here so nobody "improves" it later.
+- **Every owner-ruled string is pinned by a literal**, per wave 6D's statement of the rule — a
+  composed assertion never replaces the literal pin. ADR 0065's overflow warning has **no ruled
+  wording**; a wave must raise it, not invent one.
 - **The comparator's totality rests on placement-id uniqueness, which is the validator's guarantee
   and not the schema's.** `DesignSchema` permits duplicate ids; `findDuplicatePlacementIds`
   (`validate-design.ts`) refuses them at both the write seam and the load seam. Anything that relaxes
@@ -361,6 +480,11 @@ sample book as a separate file), `index.ts`, tests.
   exported book is that one and that its status is `estimate` rather than `commercial`.
 - Nothing stores a total. `DesignSchema` gains no price field in this wave or in any later one
   (§12: derive from `placements`, never store).
+- **An overflowing design is priced in full and the total is flagged** (ADR 0065 decision 6). Every
+  body is listed, including the ones that do not fit; the result carries the overflow flag it read
+  from 6A3, and pricing itself neither excludes a body nor refuses. **Excluding non-fitting bodies is
+  the defect to test against**: the total would silently drop and read as the kitchen getting cheaper
+  at the moment part of it became unbuildable.
 - Rounding is **not** in the query. Amounts are exact integer minor units; presentation rounds.
 
 **Three prohibitions, from [ADR 0062](../decisions/0062-a-manufacturer-price-dashboard-comes-after-m8-and-shapes-seams-now.md).**
@@ -384,6 +508,18 @@ things it must **not** do, each cheap now and expensive to retrofit:
 None of this is in tension with the sample-amount rule above: the book stays a **sample** book
 throughout M6, `status` stays a field on it, and who may edit a book later is not a property of its
 shape.
+- **The handle count comes from the placement's OWN entry, never through `catalogEquivalentId`** —
+  and it is the one lookup in this wave that does not. Rule resolution goes through the equivalent
+  (ADR 0022, ADR 0029) because a price *rule* belongs to the catalogue row a body is named after; the
+  **count** does not, because it is a property of the already-built body standing in the design.
+
+  **One edit away from biting, and 6L does not gate it** (6L logic review, 2026-09-03). Every seeded
+  placement agrees both ways today only because the two rows where they would diverge have no
+  equivalent: `wall-corner-return-570` and `wall-corner-return-570-top` each declare
+  `carriesHandles(1)`, while `wall-cabinet`'s per-door rule at 570 mm yields **2**. Their siblings
+  all already carry `...namedAfterCatalogEquivalent("wall-cabinet")` — wave 6A2 added eighteen such
+  spreads — so a single plausible edit to a corner row turns a silent agreement into a body billed
+  for two handles it does not have. **Pinned by a test on a seeded corner**, not by inspection.
 - **The handle line's quantity is a count of _cabinet_ handles, never of handle meshes**
   ([ADR 0061](../decisions/0061-a-cabinet-handle-is-declared-and-an-appliance-bar-is-not-one.md)
   decision 2). It reads the count wave 6L declares on the catalogue entry, because the domain has no
@@ -418,6 +554,18 @@ module CSS, `apps/web/src/app/configurator/configure/configure-screen.tsx` and i
   requirement — the one M4 closed unmet on purpose and M5 wave 5E still carries.
 - A pricing failure renders **no** figure: not a zero, not a stale one, not a dash that reads as
   free.
+- **An overflowing design shows its total, flagged** (ADR 0065 decision 6) — never suppressed, never
+  reduced. The customer needs the running total precisely then, to decide what to change.
+- **Every owner-ruled string is pinned by a literal**, per wave 6D's statement of the rule — a
+  composed assertion never replaces the literal pin. ADR 0065's overflow warning has **no ruled
+  wording**; a wave must raise it, not invent one.
+- **The flag is not the rejection banner, and the two criteria above do not collide.** They answer
+  different questions: a *rejected* edit never happened, so the total does not move; an *accepted*
+  edit that produces an overflow does move the total, and the total is flagged. Checked for
+  consistency 2026-09-03 — they are consistent, and stay so only while the two surfaces stay
+  distinct (ADR 0065 decision 8). Rendering an overflow through §9's rejection banner would make
+  "a rejected edit does not move the total" and "an overflowing total moves and is flagged" read as
+  a contradiction on one screen.
 - At 390 × 844 the bar does not overlap the selected body's projected screen rectangle. Asserted
   against the scene's projected bounds, not by eye — this is a hard constraint, not a preference.
 
@@ -454,6 +602,50 @@ module CSS, `apps/web/src/app/configurator/configure/configure-screen.tsx` and i
   price. Both render from one model.
 - The inclusion list is **data**. A test renders the component against an empty whole-kitchen
   section and against a full one, so the content slot can be filled later without a code change.
+
+**Every owner-ruled string is pinned by a literal, and single-sourcing a composition never replaces
+that pin.** Stated here in full; waves 6B, 6C and 6N carry the same rule by reference.
+
+Copy is the one thing in this project that **cannot be derived or re-verified from the code**. A
+wrong geometry number eventually surfaces in a measurement or a parity gate; a reworded label
+surfaces nowhere except in front of a customer. The assertion is the only guard, so an assertion that
+cannot fail leaves no guard at all — which is why this is a criterion here rather than general review
+discipline.
+
+**It already happened, in the wave that introduced the first owner-ruled string.** 6A4 shipped
+`expect(describeKindLabel(...)).toEqual(` `` `Dulap de colț ${describeBandLabel("top")}` `` `)` under
+a comment claiming it pinned owner-ruled copy, when it would have held for **any** wording.
+
+**Both halves are required.** Composing the row word from `BAND_LABELS_RO.top` was *right* and must
+be kept — this is not an argument against single-sourcing. The literal sits **alongside** the
+composed assertion and makes the coupling loud.
+
+**It covers disclaimers and warnings, not only labels** — 6D's exclusion disclaimer, 6B and 6C's
+flagged-total warning under ADR 0065, and 6N's remainder copy all carry product meaning in their
+exact wording.
+
+**Where the strings were ruled**, so the criterion is enforceable rather than aspirational:
+
+| String | Ruled in |
+| --- | --- |
+| *"Dulap suspendat de colț"*, *"Dulap de colț rând de sus"* | [ADR 0066](../decisions/0066-the-wall-corner-returns-get-their-own-kinds-and-names.md), owner 2026-09-03 |
+| *"Racord bază de colț"*, *"Corp bază de colț"* | [ADR 0025](../decisions/0025-the-corner-base-legs-seat-on-the-l-joint.md) decision 5 |
+| The *"De la"* prefix and rounding up to the thousand | [ADR 0001](../decisions/0001-initial-product-and-stack.md) decision 4, and the mockups' presentation rule |
+| The 2D disclaimer and *"Nu constituie ofertă comercială"* | Mockup frame 2D |
+| *"inclus"* for a zero-amount tier | Mockup frame 2E |
+| *"Corpurile marcate depășesc lungimea peretelui. Modifică lățimile sau elimină un corp."* — the scene warning | [ADR 0065](../decisions/0065-a-body-past-the-end-of-its-wall-is-marked-not-moved.md) decision 7b, owner 2026-09-03 |
+| *"Prețul include și dulapuri ce depășesc mărimea peretelui și necesită ajustări"* — the flagged total | ADR 0065 decision 7b. **The owner's own phrasing: verbatim, punctuation included, and not to be tidied** |
+| 6N's *"PRACTIC PLIN"* heading and the remainder sentences | **Not ruled** — deliberately not yet put to the owner, so the wording can be judged against a real remainder rather than in the abstract. Still a content slot a wave must not fill |
+
+The last row is the point of the table: **a string nobody has ruled is not pinned by writing one and
+asserting it. It is raised.** ADR 0065's two strings were in that position on 2026-09-03 and were
+ruled the same day; 6N's heading is deliberately still there, because it is better judged against a
+real remainder than in the abstract.
+
+**One thing the table does not settle, and no wave may settle on its own:** the flagged total says
+*dulapuri* where the scene warning says *corpuri*. Deliberate register or incidental, it is the
+owner's to reconcile — **a wave that harmonises them is making a product change**, and a copy pass
+that harmonises them silently is worse.
 
 ### Wave 6E — the whole-kitchen settings container
 
@@ -518,6 +710,24 @@ none of the three means anything alone.
 - Mobile is a full sheet with an explicit apply action; desktop is a popover anchored under the
   chips it controls, with both cancel and apply.
 - Both viewports show the running total, since a configuration exists at that point.
+
+**Open question this wave must meet before it prices a hardware tier — do not reach for
+`deriveDoorCount` without reading this** (6L logic review, 2026-09-03).
+
+The hardware tiers are *"Balamale și glisiere"* — **hinges and slides**, which are priced **per leaf
+and per drawer**. `deriveDoorCount` returns **leaves per band**, not leaves per cabinet: `tallPantry`
+builds two door bands of `doors` leaves each, so a 600 mm pantry has **four** hinged leaves and four
+handles while `deriveDoorCount` answers **2**.
+
+**Nothing is wrong today.** The convention is documented and internally consistent — ADR 0048's
+two-door band layout, and `describeBodyLabelAt` already ships *"Coloană cămară 2 uși"* for a
+four-leaf cabinet — and every handle number is correct at every width, because
+`cabinet-handles.ts` applies the per-band count the way the builder does.
+
+**What is open is a pricing-content question, not a naming one: what does 6G count when it prices
+hinges and slides, and is `deriveDoorCount` the right source for it?** It is recorded here rather
+than answered because it may need the owner. A wave that reaches for `deriveDoorCount` as a
+leaf count without answering it will under-count every banded cabinet in the kitchen.
 
 ### Wave 6H — cabinet depth becomes a parameter, not a module constant
 
@@ -596,6 +806,76 @@ a gap in reach rather than a live defect only because nothing ships at 700.
   `wall-2door-700-over-fridge` finish at 600 at both, while every other cabinetry entry has moved.
   An entry that neither tracks the setting nor declares an exception **fails loudly** rather than
   silently holding still — the same posture `occupiedDepth` already takes for an undeclared kind.
+- **A cabinet's name does not vary with cabinet depth, and the seeded rows' name resolution is
+  asserted to be depth-invariant.** Wave 6A2's `namedAfterCatalogEquivalent` reads `label` and
+  `doorCountFollowsWidth` off `INSERTABLE_BODY_DEFINITIONS`, which 6H made a materialisation at the
+  declared depth; this wave turns the seeded map into `buildSeededBodyDefinitions(cabinetDepthMm)`
+  and so has to choose what the helper resolves against.
+
+  **Either resolution is admissible, _because_ the invariance is asserted** — and the criterion is
+  that assertion, not the choice: build the §7 definitions at every declared depth and assert each
+  entry's `label` and `doorCountFollowsWidth` are **identical across depths**. They are today, since
+  every shape takes its label as a string argument and none derives one from `cabinetDepthMm`, so
+  both resolutions return the same values and the difference is **not observable**. That is what
+  makes the choice safe rather than merely plausible, and it is why this criterion pins the property
+  and not the call site.
+
+  **What the implementation does**, so nobody hunts for a pinned constant that is not there: this
+  wave builds the seeded map's name lookup from `buildInsertableBodyDefinitions(cabinetDepthMm)`
+  rather than leaving it on the module-level `INSERTABLE_BODY_DEFINITIONS` that wave 6A2 resolved
+  against. The reason is internal coherence — a catalogue built at depth *d* should have every part
+  of it derived at *d*, and a lookup pinned to the shipped depth leaves a catalogue built at 700
+  quietly half-built at 600.
+
+  **A wave that makes any label depth-dependent must revisit both** — this criterion and that call
+  site — because the moment the values differ across depths, "admissible either way" stops being
+  true and a cabinet can silently rename itself at 700 inside a priced document. That is what the
+  gate is here to catch ([ADR 0064](../decisions/0064-a-seeded-row-carries-its-catalogue-equivalents-name.md)'s
+  amendment).
+- **Seats are derived too, not only depths.** 6I found every body's *seat* still a literal, so at 700
+  the reference room did not compose — carcasses through walls, worktops intersecting, upper corner
+  returns overlapping by 70 mm. Independently re-measured during 6I's review at both depths, which
+  also confirmed the 700 overflow population exactly: two bodies, `p7` and `p24`, both ending at
+  z 2900 against wall B's 2830. Wall B's chain is derived from the room's own frozen arithmetic
+  (`0.74 = 0.58 + 0.32/2`, `1.2 = 0.90 + 0.6/2`, …), reproducing every number exactly at 600.
+- **Wall B's run extends at 700, ending at 2900 mm against 2800 at 600.** A deeper wall-A run
+  consumes more of wall B at the corner and pushes the whole chain along, and that is correct
+  behaviour rather than a defect: the owner's requirement is that **the run fits the wall it stands
+  on** (owner decision 8), not that its end holds still. Against the reference's **2830 mm** wall B
+  it fits at 600 with 30 mm spare and overruns by 70 mm at 700, where ADR 0065's marking applies.
+
+> **The "run fits its wall" gate is REASSIGNED to wave 6A3 — it is not a criterion 6I owes, and it
+> was not dropped.** Recorded 2026-09-03 after 6I's logic review found the assertion absent from
+> `room-composition.parity.test.ts` and asked, correctly, whether a criterion had gone quietly
+> unmet.
+>
+> **What happened.** This section previously required 6I to assert the fit in its own composition
+> gate, and said the gate should "go red immediately, at 600" because the run overran by 400 mm.
+> **Both halves are superseded.** The 400 mm premise came from a wall B of 2400 mm, which
+> `docs/BACKLOG.md` entry 21's *corrected* resolution replaces with **2830** — so there is no overrun
+> at 600 and nothing for that gate to report there. And
+> [ADR 0065](../decisions/0065-a-body-past-the-end-of-its-wall-is-marked-not-moved.md) moved
+> detection out of a parity test entirely: it is now **one published per-placement fact**, because
+> four surfaces have to agree about it, which a test file cannot give them. **Wave 6A3 owns it**,
+> with the sharper criterion this one could not have had — nothing flagged at 600, `p7` and `p24`
+> flagged at 700.
+>
+> Marked rather than deleted because `docs/WORKFLOW.md`'s rule is to **record what is not met, at the
+> criterion**. A reader finding this section unchanged would score 6I as having dropped an
+> acceptance criterion, and a wave scored wrongly is worse than an unmet gate: it teaches the reader
+> that the record cannot be trusted.
+>
+> The substance of the criterion survives unchanged at 6A3 — the bound is each wall's own run and
+> never `longestWallRunMm`, and the constraint is one-sided, since bare wall at the end of a run is
+> the **expected case** rather than a tolerance (ADR 0065 decision 4, strengthened by ADR 0067) and
+> must never be reported. **No companion check that a run _reaches_ its wall belongs in this wave's
+> composition gate either** — that is the assertion a gate author looking for things to add would
+> write, and it is wrong in the normal case.
+- **`HOB_FORWARD_OFFSET_M = 0.06` is the one literal the seat sweep left.** The hob follows its
+  cabinet's seat, so its clearance to the worktop's front edge grows from 10 mm at 600 to 60 mm at
+  700. It intersects nothing and crosses no wall, so it is **not a composition defect** — it is an
+  appliance sitting further back on a deeper worktop, and whether that is right is a product question
+  nobody has answered. Do not derive it into a formula and do not leave it inherited: raise it.
 - `docs/BACKLOG.md` entries 15 and 10 are **not** this wave's. They are wave 6I2, which follows.
 
 ### Wave 6I2 — clearance is not a build depth (`docs/BACKLOG.md` entries 15 and 10)
@@ -699,6 +979,18 @@ and the void mesh in `packages/three-adapter`.
   wave's ordering exists to prevent.
 - Whatever floor owner decision 6 records is enforced here, in the domain, and not only in 6K's
   control — a control is a surface and a stored document must not depend on one.
+- **Do not restore `COLUMN_DEPTH_MM` or `OVEN_TOWER_FINISHED_DEPTH_MM` on spec.** Wave 6I deleted
+  both after finding no readers. If this wave needs a materialisation at the shipped depth it should
+  add **exactly what it needs**, named for what it is — reinstating a deleted constant because a
+  plan once mentioned it is how a module-level value at one depth comes back into a phase whose
+  whole point is that depth varies.
+- **A stored design predates this wave's schema, and the migration seam is where that is answered.**
+  ADR 0052 measured five rows in the application database at `schema_version` 1. Whatever
+  [ADR 0055](../decisions/0055-a-depth-change-migrates-the-stored-design.md)'s version bump does,
+  it meets documents written before any of this existed, and **ADR 0052's own precedent governs the
+  shape of the answer**: `migrateFromV1` **normalises** a document written under a superseded rule
+  rather than refusing it, because *"a `/d/{id}` share link is the one artefact this project hands to
+  someone who cannot be asked to reload it"*. A load that refuses is a link that is dead.
 
 ### Wave 6K — the depth control on the sheet
 
@@ -786,11 +1078,99 @@ folding this into a wave that also moved seeded geometry was refused.
   does now, swept over the whole catalogue rather than sampled.
 - The M1 fidelity gate holds. No geometry moves; only which meshes a choice reaches.
 
+### Wave 6M — the overflow is marked in the scene and warned about
+
+**[ADR 0065](../decisions/0065-a-body-past-the-end-of-its-wall-is-marked-not-moved.md).** The
+presentation half of 6A3.
+
+**Sequencing, and it differs from where this was expected to land.** The instinct was to put it with
+the depth control at 6K, on the reasoning that 6K is the first thing that can cause an overflow.
+**It is not** — measurement puts an overflow in the shipped kitchen at 600 mm today, so tying the
+marking to 6K would leave the default design overflowing and unmarked until the last wave of the
+phase. It is therefore gated on **6A3 only** and belongs to no track.
+
+**Touches.** The scene's material or overlay for a marked body, the warning surface, `ro.ts`.
+
+**Acceptance criteria.**
+
+- A body 6A3 reports is **visibly marked in the scene** and carries a warning saying those cabinets
+  do not fit. Verified by real interaction, not by a unit test alone.
+- **The marked body is not moved, resized, hidden or deselected.** It stays exactly where it is and
+  stays editable — the customer resolves it by narrowing, removing, or going back to the shallower
+  depth.
+- **It is not rendered through §9's rejection banner** (ADR 0065 decision 8). A rejection says *an
+  edit did not happen*; this says *an edit happened and its result does not fit*.
+- **Bare wall at the end of a run is never marked** — under-filling is normal.
+- **The design still saves and resumes with the warning intact.** No work is lost, and the mark is
+  not a reason to refuse a write.
+- **The default design marks nothing at 600.** If it does, the room dimensions have not been
+  corrected — see decision 8 — and the fix is there, not here.
+
+### Wave 6N — the wall-coverage bars (feature request, 2026-09-03)
+
+**Owner:** *"btw I like this detailed bars what remains from wall, maybe to add them?"* — the
+reference's *LĂȚIME ACOPERITĂ · PRACTIC PLIN* panel: a per-wall bar with occupied and total in
+millimetres, the free remainder **named and located**, and the body list with widths.
+
+**Assessment: it belongs in M6, as its own wave after 6D and 6M.** Three reasons, and one of them is
+the reason it is worth doing here rather than filing it:
+
+- **It is the projection 6A already publishes**, grouped wall → band → order, plus a per-wall total.
+  Almost none of it is new machinery.
+- **It is the honest surface for ADR 0065's marking.** A body past the end of its wall is a bar that
+  visibly overflows its track, which explains *why* far better than a warning sentence does. If this
+  ships, 6M's warning has somewhere to live rather than floating over the scene.
+- **6K gives it a reason to move.** Its value is highest when the depth control changes the answer —
+  the customer sees the bar fill and the free remainder shrink as they choose 700.
+
+**Placed in M6 rather than M7 deliberately.** M7 owns the wall *lengths* as customer input, which
+argues for putting the bar there — but in M7 the bar would arrive at the same time as the numbers it
+divides by, with nothing to compare against. In M6 the wall lengths are fixed and the **depth control
+moves the numerator**, which is exactly the story the bar tells. It carries into M7 unchanged.
+
+**What it needs that does not exist today, flagged rather than assumed:**
+
+- **Correct wall lengths.** The bar's denominator *is* the wall length, and the document currently
+  says 3600 × 2400 against the reference's 3560 × 2830. **This feature is unbuildable until owner
+  decision 8's fixture correction lands** — it would render a wall B bar reading "2800 / 2400", over
+  100% full, on the default design.
+- **The free remainder's _location_ is a new published fact.** *"40 mm liberi la capătul din
+  dreapta"* and *"30 mm liberi lângă frigider"* are not numbers the projection publishes: one is
+  positional (the tail of the run) and one is **relative to a neighbouring body**. Both are derivable
+  — from `emptyColumns`, the run's far end and the adjacent placement — but deriving them is a new
+  query, not a formatting choice, and it must come from one place for the same reason the grouping
+  does.
+- **The end panel counts and placements do not tell you so.** Wall A reads 3520 occupied, which is
+  3500 of placements plus the 18 mm run-end panel and its 1 mm gap. A bar summing placements alone
+  reports 3500 and disagrees with the reference by 20 mm.
+
+**The reference already specifies its copy and layout**, so this is not a design task — the Romanian
+strings, the ordering and the per-body width list all come from the panel. **With one caveat that is
+this wave's alone** ([ADR 0067](../decisions/0067-leftover-wall-is-the-normal-case-and-the-price-is-a-floor.md)):
+the panel was written against a **round** wall with a 30 mm remainder, and its heading is
+*"LĂȚIME ACOPERITĂ · **PRACTIC PLIN**"*. Real walls are not round — 2444 mm is typical — so on a real
+wall the same bar shows a **large** remainder, and **the customer must not read that as an error or
+as the tool failing to fill their kitchen**. The copy has to work at a 200 mm remainder, not only at
+30, and *"practic plin"* may not survive contact with a real wall. **This is the one M6 wave
+meaningfully better tested against a large remainder**, because its output *is* the remainder — a
+test fixture with a ~200 mm leftover belongs here.
+
+- **Every owner-ruled string is pinned by a literal**, per wave 6D's statement of the rule. This wave
+  has the most exposure to it: *"practic plin"* and the remainder sentences are mockup copy written
+  against a round wall, and ADR 0067 already flags that they may not survive a real one. **A wave
+  that rewords them is making a product decision and must raise it rather than assert its own
+  wording.**
+
+**Gate:** 6D and 6M, plus decision 8's fixture correction. **Not started, and lowest priority of the
+open items.**
+
 ## Open questions gating this phase
 
 - Sample and commercial price amounts.
 - What the estimate includes, and therefore which lines the breakdown shows.
 - The rule for a per-cabinet finish invalidated by a material change.
+- **Added 2026-09-03:** what a hardware tier counts when it prices hinges and slides, and whether
+  `deriveDoorCount` — which returns leaves per *band* — is the right source. See wave 6G.
 - **Added 2026-09-02 with the backlog sweep:** the cabinet-depth floor the dishwasher niche needs
   (`docs/BACKLOG.md` entry 19), and what depth a wall cabinet over a full-height column is built to
   (entries 15 and 10). Owner decisions 6 and 7.
@@ -857,7 +1237,8 @@ here.** Where a ruling exists, the remaining choice is stated as what the ADR it
 
 > **Decided 2026-09-02 — all seven are closed and live in dated ADRs.** Each subsection below is
 > kept in full, with its options and their costs, because the alternatives are the part a future
-> reader needs; the outcome is stated at the top of each. **Nothing in M6 now waits on an owner.**
+> reader needs; the outcome is stated at the top of each. **Nothing in M6 waits on an owner.**
+> Decision 8 was added and closed on 2026-09-03.
 >
 > | # | Outcome | Record |
 > | --- | --- | --- |
@@ -868,6 +1249,7 @@ here.** Where a ruling exists, the remaining choice is stated as what the ADR it
 > | 5 | **Stay put — the two deep tops are pinned** | [ADR 0058](../decisions/0058-the-two-deep-top-cabinets-are-pinned.md) |
 > | 6 | A declared 520 mm cabinet-depth floor | [ADR 0059](../decisions/0059-the-dishwasher-niche-declares-a-cabinet-depth-floor.md) |
 > | 7 | Three parts: the column publishes a build depth; both routes land on it, at 600; a pin is not inherited by a replacement | [ADR 0060](../decisions/0060-a-column-publishes-a-build-depth-beside-its-clearance.md) |
+> | 8 | The run must fit the wall it stands on — satisfied at both depths; the give-way rule is M7's | — |
 > | — | 6L confirmed, and the handle line counts cabinet handles | [ADR 0061](../decisions/0061-a-cabinet-handle-is-declared-and-an-appliance-bar-is-not-one.md) |
 
 ### 1. A design saved at 600 when the customer switches to 700 — the mechanism
@@ -1154,6 +1536,130 @@ measured.
 **Recorded outcome of 7b.** Both routes agree at 600, and 6I2 asserts the value rather than the
 equality. Entry 10's own words — *"the divergence matters more than the number"* — are satisfied by
 the divergence closing on the number the seeded design chose deliberately.
+
+### 8. A body past the end of its wall is marked, not moved
+
+**DECIDED 2026-09-03 — [ADR 0065](../decisions/0065-a-body-past-the-end-of-its-wall-is-marked-not-moved.md).**
+The owner replaced the question rather than answering it:
+
+> *"what if we not resize the corner just adapt the depth and if the last cabinets go off the wall to
+> highlight it with red and show a warning that this cabinets can not fit?"*
+
+**Nothing gives.** Depths adapt, the run extends wherever it extends, and any body whose extent
+passes the end of its wall is marked in the scene and warned about. No cabinet is narrowed, none is
+removed, the change is not refused, and **ADR 0055 is not amended** — a marked body is still there,
+so *"nothing left behind"* stays literally true. The draft amendment to ADR 0055 written earlier the
+same day is **withdrawn** and marked so at that record.
+
+**The constraint is one-sided.** `run end ≤ wall length`, never equality. **Leaving bare wall at the
+end is the expected case, not a tolerance**
+([ADR 0067](../decisions/0067-leftover-wall-is-the-normal-case-and-the-price-is-a-floor.md)): real
+walls are not round — 2444 mm is typical — and the manufacturer closes the remainder with filler at
+the real measurement, outside this product. So under-filling is never marked or warned about, and no
+check asserting that a run *reaches* its wall may be added.
+
+**The bound is each wall's own run** — wall A the room's width, wall B its depth — and never
+`longestWallRunMm`'s `max`, whose slack is what hid this.
+
+**When it becomes live: at 700, not at 600 — and the seeded kitchen fits today.** Corrected
+2026-09-03, on the reference's wall-coverage panel (*LĂȚIME ACOPERITĂ · PRACTIC PLIN*), which gives
+**Perete A 3520 / 3560 mm** and **Perete B 2800 / 2830 mm**.
+
+| Wall | Reference wall | Occupied | Free | Document says |
+| --- | --- | --- | --- | --- |
+| A | **3560 mm** | 3520 (3500 of placements + the 18 mm end panel) | 40 mm at the right end | 3600 — **wrong by 40** |
+| B | **2830 mm** | 2800 (`p26` 580–900, `p5` 900–1500, `p6` 1500–2100, `p7` 2100–2800) | 30 mm next to the fridge | 2400 — **wrong by 430** |
+
+**The panel describes this kitchen**, corroborated against the tree rather than accepted: wall A's
+3520 is our measured 3500 plus `RUN_END_PANEL_THICKNESS_M` (18 mm) and its 1 mm gap, and
+`kitchen-shell.ts` names that exact sum in its own comment — *"a shared face that arrives as
+3.5189999"*. Wall B's 2800 is our measured far end to the millimetre.
+
+**So there is no overrun at 600 and no give-way problem: the run fits with 30 mm to spare.** At 700
+it ends at 2900 against 2830 and **overruns by 70 mm**, so ADR 0065's marking becomes live exactly
+when wave 6K ships the depth control — not on the default design's first load.
+
+**Two corrections follow from this and are owed at their source.**
+
+1. **The seeded document's room is wrong on both axes**: `widthMm: 3600` should be **3560** and
+   `depthMm: 2400` should be **2830**. Changing it moves no geometry — the shell is not built from
+   the document — but it tightens the containment envelope every validation rule is measured
+   against. **It is a fixture change with an owner's ruling behind it, not an engineering tidy-up**,
+   and it should be dispatched as one.
+2. **`validate-design.ts`'s "400 mm slack" comment is wrong and should be corrected at the source.**
+   It explains the along-wall bound taking `max(width, depth)` as *"a fact about along-wall
+   coordinates"*. It is not: the bound was compensating for a **bad room dimension**. With 2830 the
+   wall B run fits its own wall, and the `max` is unnecessary rather than load-bearing. A comment
+   asserting a false reason is what the next implementer trusts — ADR 0018's own argument for fixing
+   a comment in the wave that finds it.
+
+**The earlier room screen was not this room.** *Perete A 3,60 / Perete B 2,40* is the input mockup's
+example values: 3.60 is a rounded 3.56, but 2.40 is nothing like 2.83. `docs/BACKLOG.md` entry 21's
+resolution is corrected accordingly at that entry.
+
+**The shell is still the odd one out.** It renders `RW 4.2 × RD 3.4` and matches neither the
+reference nor the corrected document. That half of entry 21 stays open.
+
+**Pricing an overflowing design: price it, flag the total** (6B, 6C). Every body is listed including
+the ones that do not fit, and the total carries the same warning. Rejected: **excluding** non-fitting
+bodies, because the price would silently drop and read as the kitchen getting cheaper at the moment
+part of it became unbuildable; and **showing no price**, because the customer loses the running total
+exactly when they need it to decide what to change.
+
+**Save yes, submit no.** The design saves and resumes with the warning intact, so no work is lost.
+The review/contact step refuses while any body does not fit — that half is **M8's** and is recorded
+in `docs/milestones/M8-review-contact-success.md`.
+
+#### The stored designs, and why the fix is at the migration and never at the bound
+
+The fixture correction tightens the along-wall bound from `longestWallRunMm`'s `max` to each wall's
+own run. **Five designs are already stored** (ADR 0052 measured them, at `schema_version` 1), all
+saved from the seeded design, so each carries `room: { widthMm: 3600, depthMm: 2400 }` in its own
+document. The bound reads **each document's own room**, so tightening it makes those documents
+unreadable.
+
+**The measured chain, because it is what makes the precedent obviously applicable rather than
+arguably so:** `p7` and `p24` are refused with `PLACEMENT_PAST_WALL_END` → `migrateDesign` throws
+`InvalidDesignError` → the load path maps it to **HTTP 500 `DESIGN_UNREADABLE`** → `/d/{id}` renders
+a load error. A share link stops opening.
+
+**The answer is [ADR 0052](../decisions/0052-800-mm-is-the-ceiling-on-any-empty-column.md)'s, not a
+new decision.** `migrateFromV1` **normalises** a document that was legal under the rule in force when
+it was written, rather than refusing it, because *"a `/d/{id}` share link is the one artefact this
+project hands to someone who cannot be asked to reload it"*. A stored design carrying the old room is
+exactly that shape. **So the fix belongs in `migrate-design.ts` and never at the bound** — the bound
+is correct, and the red test is it working.
+
+**An irony worth preserving**, because it argues for ADR 0065's shape from an unrelated direction:
+the two bodies that make an old stored document unreadable at 600 are the **same pair** — `p7` and
+`p24` — that ADR 0065 decision 1 says must be **marked and left in place** at 700. Identical
+geometry, opposite handling, and correctly so: one is a **product state** the customer is shown and
+resolves, the other is a **validation failure** that stops a document loading at all.
+
+**The guard the precedent does not supply, and the one thing a later wave will get wrong.**
+`migrateFromV1` normalises a shape that is *unambiguously* wrong — an empty column wider than any
+ceiling. **`3600 × 2400` is not unambiguously wrong**: it becomes a perfectly legitimate room the
+moment M7 lets a customer type one. So the migration must key on **when the document was written** —
+its schema version — and **never on what its dimensions are**. Written down here because the
+simplification is inviting: a later wave reading a version-keyed arm as ceremony will "simplify" it
+into a value check, and silently rewrite a real customer's room.
+
+#### The four options that were not taken
+
+Kept because three of them were live for a day and one is elegant enough to be re-proposed as new.
+
+- **Extend the run and say nothing** — what 6I built, and geometrically what this decision keeps.
+  What it lacked was any way for the customer to learn the run no longer fits.
+- **Shrink the structural corner return.** The return's left edge moves with the deeper run while its
+  right edge holds, so its width falls out exactly as `320 − delta`: 320 → 220 mm at 700, whole
+  downstream chain fixed. Costs no cabinet and no width a customer chose, since a corner return is
+  structural (ADR 0021) with no chips and no resize. **Why it lost: it changes a part of the kitchen
+  without telling anyone**, where marking tells the customer and changes nothing. It also needed a
+  manufacturability answer for a 220 mm return that nobody had, and it runs out.
+- **Narrow a customer cabinet.** A give-way rule nobody has written, against ADR 0017/0026 floors and
+  ADR 0031's funding rules, overwriting a width set through ADR 0035's stepper.
+- **Drop a body.** Needed ADR 0055 amended and a further "which body" decision that was deliberately
+  never invented.
 
 ### Two content slots — product decisions, not engineering ones
 

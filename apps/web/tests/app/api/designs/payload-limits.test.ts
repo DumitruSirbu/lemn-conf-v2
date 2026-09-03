@@ -401,14 +401,15 @@ describe("PUT /api/designs/[id] payload limits", () => {
   it("stores an empty column that abuts a placement without overlapping it", async () => {
     const { id, cookie } = await mintDesign();
     // `p4` is the 600 mm drawer bank at 3200, so it ends at 3500; this strip starts there and runs
-    // to the end of the 3600 mm wall.
+    // to the end of wall A, which ADR 0065 corrected to 3560 mm — 60 mm, not the 100 this claimed
+    // while the along-wall bound was the longer of the room's two runs.
     const design: Design = {
       ...KITCHEN_L_DESIGN,
       emptyColumns: [
         {
           wall: "A",
-          alongMm: 3550,
-          widthMm: 100,
+          alongMm: 3530,
+          widthMm: 60,
           y0Mm: 0,
           topMm: 820,
           depthMm: 580,

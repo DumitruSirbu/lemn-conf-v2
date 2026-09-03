@@ -268,10 +268,18 @@ describe("validateDesignForCatalog, empty columns", () => {
     ).toBe(true);
   });
 
+  /** Wall B is bounded by the room's **depth** since ADR 0065 decision 5, and this fixture's is
+   *  2400 while `FREED_STRIP` reaches 3650 — so a wall-B twin needs a room deep enough to hold it
+   *  or the fixture, not the key rule, is what the assertion measures. */
+  function deepEnoughForWallB(entries: EmptyColumn[]): Design {
+    const design = withEmptyColumns(entries);
+    return { ...design, room: { ...design.room, depthMm: 4200 } };
+  }
+
   it("accepts the same along-coordinate on the other wall", () => {
     const onWallB: EmptyColumn = { ...FREED_STRIP, wall: "B" };
 
-    expect(codesFor(withEmptyColumns([FREED_STRIP, onWallB]))).toStrictEqual(
+    expect(codesFor(deepEnoughForWallB([FREED_STRIP, onWallB]))).toStrictEqual(
       [],
     );
   });

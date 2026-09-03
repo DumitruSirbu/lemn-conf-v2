@@ -1,5 +1,5 @@
 import { MAX_EMPTY_COLUMNS } from "./design-bounds.js";
-import type { Design, EmptyColumn } from "./design.js";
+import type { Design, DesignRoom, EmptyColumn } from "./design.js";
 import { DesignSchema } from "./design.js";
 import { KITCHEN_L_BODY_CATALOG } from "./fixtures/kitchen-l-design.js";
 import { MAX_EMPTY_COLUMN_WIDTH_MM } from "./module-grid.js";
@@ -9,7 +9,10 @@ import {
   landsOnWholeMillimetres,
   splitEmptySpanAtCap,
 } from "./split-empty-span.js";
-import { assertDesignValidForCatalog } from "./validate-design.js";
+import {
+  assertDesignValidForCatalog,
+  validateDesignForCatalog,
+} from "./validate-design.js";
 import type { BodyCatalog } from "./void-engine.js";
 
 /** Version 1 is every document written before wave 5G, under a rule that bounded a *merge* and not
@@ -25,16 +28,84 @@ import type { BodyCatalog } from "./void-engine.js";
  *
  *  Before `assertDesignValidForCatalog`, because that is the seam that now refuses the oversized
  *  entry — normalising after it would refuse the very document this exists to carry. */
-function migrateFromV1(raw: unknown): Design {
-  return normaliseOversizedEmptyColumnEntries(parseDesign(raw));
+function migrateFromV1(raw: unknown, catalog: BodyCatalog): Design {
+  return normaliseOversizedEmptyColumnEntries(migrateFromV2(raw, catalog));
 }
 
 /** Version 2 is written under ADR 0052, so an oversized entry in one is not a legacy shape to carry
- *  forward — it is a document that disagrees with the rule it was written under. Parsed and handed
- *  to `assertDesignValidForCatalog` unnormalised, which refuses it with
- *  `EMPTY_COLUMN_WIDER_THAN_CAP`, the same code the API write seam refuses it with. */
-function migrateFromV2(raw: unknown): Design {
+ *  forward — it is a document that disagrees with the rule it was written under. Handed to
+ *  `assertDesignValidForCatalog` unnormalised, which refuses it with `EMPTY_COLUMN_WIDER_THAN_CAP`,
+ *  the same code the API write seam refuses it with.
+ *
+ *  What it *is* carried forward across is the room correction of 2026-09-03, because every document
+ *  at this version or below was written from the seed as it then stood. */
+function migrateFromV2(raw: unknown, catalog: BodyCatalog): Design {
+  return correctPreCorrectionRoom(migrateFromV3(raw), catalog);
+}
+
+/** Version 3 is written under the corrected room, so its `room` is the document's own and nothing
+ *  here may touch it — including the 3600 × 2400 an M7 customer may genuinely enter. */
+function migrateFromV3(raw: unknown): Design {
   return parseDesign(raw);
+}
+
+/** The seeded room as every document up to version 2 carried it, and the room the 2026-09-03
+ *  correction replaced it with.
+ *
+ *  Written as literals rather than read from `KITCHEN_L_DESIGN.room`, deliberately: a migration is a
+ *  statement about documents that were already written, so a later edit to the fixture must bring
+ *  its own migration and must not retroactively change what this one produces. */
+const PRE_CORRECTION_ROOM_MM = { widthMm: 3600, depthMm: 2400 } as const;
+const CORRECTED_ROOM_MM = { widthMm: 3560, depthMm: 2830 } as const;
+
+/** The room the correction of 2026-09-03 gave the seeded kitchen, written over the one a document
+ *  stored before it carries — the v1 `emptyColumns` shape again, **normalise rather than refuse**.
+ *
+ *  Wall B's along-wall bound became the room's `depthMm`, and the seeded `p7` and `p24` end at 2800.
+ *  That was legal under the old `max(widthMm, depthMm)` and is not under a 2400 depth, so five rows
+ *  written from the seed stop loading — and a `/d/{id}` share link is the one artefact this project
+ *  hands to someone who cannot be asked to reload it.
+ *
+ *  **Which of the two failures this is, because the next reader to meet a refusal at this seam has
+ *  to tell them apart.** A document that was *legal under the rule in force when it was written* is
+ *  normalised; a document that is malformed or unexecutable is refused, and DOM-001 is why. The
+ *  bound above is not too tight and nothing here may loosen it: these rows are the first kind, and
+ *  the tightening refusing them is the tightening working.
+ *
+ *  **Three guards, because a rewrite of a room is a rewrite of somebody's kitchen.** M7 lets a
+ *  customer enter their own dimensions, and one of them may genuinely have a 3600 × 2400 room:
+ *
+ *  1. **The version.** This arm is not reached at version 3, which is what M7 writes. That alone
+ *     settles the customer case; the two below are what make a wrong version stamp survivable.
+ *  2. **The exact pre-correction pair**, so no other room is a candidate at any version.
+ *  3. **It must repair something.** A document its stored room already holds is returned by
+ *     identity — a load that changes nothing must not rewrite the object a later save is diffed
+ *     against — and so is one the corrected room would not rescue, which then fails on its own
+ *     terms with its own issues rather than on a room it never had. */
+function correctPreCorrectionRoom(
+  design: Design,
+  catalog: BodyCatalog,
+): Design {
+  if (!isPreCorrectionRoom(design.room)) return design;
+
+  const corrected: Design = {
+    ...design,
+    room: { ...design.room, ...CORRECTED_ROOM_MM },
+  };
+  if (isValidForCatalog(design, catalog)) return design;
+  if (!isValidForCatalog(corrected, catalog)) return design;
+  return corrected;
+}
+
+function isPreCorrectionRoom(room: DesignRoom): boolean {
+  return (
+    room.widthMm === PRE_CORRECTION_ROOM_MM.widthMm &&
+    room.depthMm === PRE_CORRECTION_ROOM_MM.depthMm
+  );
+}
+
+function isValidForCatalog(design: Design, catalog: BodyCatalog): boolean {
+  return validateDesignForCatalog(design, catalog).length === 0;
 }
 
 function parseDesign(raw: unknown): Design {
@@ -111,17 +182,20 @@ function isWiderThanCap(emptyColumn: EmptyColumn): boolean {
   return emptyColumn.widthMm > MAX_EMPTY_COLUMN_WIDTH_MM;
 }
 
-const MIGRATIONS: ReadonlyMap<number, (raw: unknown) => Design> = new Map([
+const MIGRATIONS: ReadonlyMap<
+  number,
+  (raw: unknown, catalog: BodyCatalog) => Design
+> = new Map([
   [1, migrateFromV1],
   [2, migrateFromV2],
+  [3, migrateFromV3],
 ]);
 
 /** Validates and migrates a stored payload to the current `Design` shape.
  *
- *  Version 2 is current (ADR 0052). Version 1 is carried forward rather than refused: its one
- *  difference is an `emptyColumns` entry wider than the ceiling, which `migrateFromV1` splits into
- *  the columns the new rule allows. This is the version-keyed lookup `migrate-design.ts` has carried
- *  since it was written and never used.
+ *  Version 3 is current. Older versions are carried forward rather than refused, each arm adding the
+ *  one normalisation its version predates: version 2 predates the 2026-09-03 room correction, and
+ *  version 1 additionally predates ADR 0052's ceiling on an `emptyColumns` entry.
  *
  *  DOM-001: the wire shape is only half the answer, so a migrated document is then held to the same
  *  executable contract the API write path enforces. A stored row that names a body no catalogue
@@ -141,7 +215,7 @@ export function migrateDesign(
       `unsupported schema version ${String(schemaVersion)}`,
     );
   }
-  const design = migrate(raw);
+  const design = migrate(raw, catalog);
   assertDesignValidForCatalog(design, catalog);
   return design;
 }

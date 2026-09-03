@@ -150,6 +150,84 @@ Boundaries:
   per-preset recipes are unbuilt product work; this phase can prove the mechanism with one real
   recipe and explicit fixtures.
 
+## Owner's statement of intent for this phase — recorded 2026-09-03
+
+In the owner's own words:
+
+> *"any future presets (after user will introduce walls size the app will search in presets to found
+> a near to sizes kitchen and will propose it to be selected, if not app will gather based on a algo
+> the cabinets and electric devices to have a functional kitchen) and this should always fit the
+> existing walls, including demo."*
+
+**This is more than "presets fit".** It describes three things, and only the third is in this plan's
+current work items:
+
+1. **Preset selection by nearest room size.** The customer enters wall sizes and the app searches the
+   preset set for a *near* match to propose. This plan's work item 5 says "the list of presets that
+   fit" — a filter — and the owner describes a **search for the nearest**, which is a different
+   operation and needs a distance rule nobody has written.
+
+   **When that rule is written, read [ADR 0067](../decisions/0067-leftover-wall-is-the-normal-case-and-the-price-is-a-floor.md)
+   first.** Real walls are not round — the owner's own example is 2444 mm — so *"the run fits and
+   leaves a remainder"* is the **normal successful outcome** of preset selection, not a near-miss to
+   be corrected. **A distance metric that penalises leftover space would systematically pick the
+   wrong preset**: it would prefer one that fills a wall it was never measured for over one that
+   fits with room to spare. The remainder is closed with filler by the manufacturer at the real
+   measurement, outside this product.
+2. **A generative fallback.** Where no preset is near enough, the app **assembles** a functional
+   kitchen from cabinets and appliances by algorithm. Work item 6 calls this *"bespoke generation
+   when none fits"* and the acceptance criteria carry a priority order; the owner's framing is
+   stronger — the fallback must produce **a functional kitchen**, not merely a placement that fits.
+3. **Everything the product proposes must fit the walls, the demo included.**
+
+**Point 3 is an invariant and it reaches M6.** It is stronger than the fit *gate*
+[ADR 0065](../decisions/0065-a-body-past-the-end-of-its-wall-is-marked-not-moved.md) defines: that
+gate marks a body the **customer** has driven past the end of a wall, and this says the product must
+never **propose** such a kitchen in the first place. A marked body is an acceptable outcome of a
+customer's own edit; it is not an acceptable outcome of a preset, of generation, or of the demo
+design loading. Recorded in M6 as well, at wave 6A3.
+
+**What this phase currently assumes instead**, so the gap is explicit rather than discovered: the
+acceptance criteria below say a listed preset always applies successfully, but nothing asserts that
+what it applies **fits its walls**, and nothing distinguishes "fits" from "nearest". Both are this
+phase's to close.
+
+## A rule this phase owns, handed over by M6 — recorded 2026-09-03
+
+**What gives when a run will not fit its wall at a deeper cabinet depth.** Raised by M6 wave 6I and
+handed here because the case does not occur in M6.
+
+**The requirement, in the owner's terms:** the run must fit the wall it stands on — *"in reality the
+cabinets will not fit the existing wall"*. In M6 that is satisfied by measurement at both declared
+depths: a deeper wall-A run consumes more of wall B at the corner, so wall B's run ends 100 mm
+further along at 700, and it still fits. Nothing has to give, and
+[ADR 0055](../decisions/0055-a-depth-change-migrates-the-stored-design.md) — every body adapts,
+nothing left behind, no confirmation — holds unamended.
+
+**M7 is where that stops being free.** This phase brings real room dimensions and presets, so a
+customer with a **narrower wall** choosing 700 is the first configuration in which a run cannot
+simply extend. Then something must give, and the options were worked out in M6 without being needed:
+
+- **Shrink the structural corner return.** It absorbs the delta exactly — its left edge moves with
+  the deeper run and its right edge holds, so the width falls out as `320 − delta`. Costs no cabinet
+  and no width the customer chose, because a corner return is structural
+  ([ADR 0021](../decisions/0021-corner-returns-are-structural-in-data.md)) with no chips and no
+  resize. Runs out when the return does, and needs a manufacturable minimum only the owner can give.
+- **Narrow a customer cabinet.** Needs a give-way rule nobody has written, against ADR 0017/0026
+  floors and ADR 0031's funding rules, and it overwrites a width the customer set through ADR 0035's
+  stepper.
+- **Drop a body.** The customer loses a cabinet they chose.
+- **Refuse the depth for that room.** Ruled out in general by
+  [ADR 0036](../decisions/0036-a-declared-dimension-is-the-finished-cabinet.md) decision 5, which is
+  why it cannot simply be picked here without a dated amendment.
+
+**The last two, and refusal, require amending ADR 0055** — *"nothing left behind"* is exactly what
+they break. Whichever is chosen, the amendment is this phase's to write, not M6's.
+
+**It interacts with M6 wave 6K**, the wave that first lets a customer choose 700 at all: a room saved
+under M7 can be reopened and re-depthed there, so the rule has to hold on both paths rather than only
+in the phase that introduces the room.
+
 ## A seam this phase owes a later one — recorded 2026-09-02
 
 [ADR 0062](../decisions/0062-a-manufacturer-price-dashboard-comes-after-m8-and-shapes-seams-now.md):

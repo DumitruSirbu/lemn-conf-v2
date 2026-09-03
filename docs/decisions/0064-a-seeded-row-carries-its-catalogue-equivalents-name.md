@@ -1,6 +1,6 @@
 # ADR 0064 — A seeded row carries its catalogue equivalent's name, so a resize never renames a cabinet
 
-Status: Accepted
+Status: Accepted (the mechanism is amended by wave 6A2 — see the amendment at the end)
 Date: 2026-09-03
 Type: Decision + Finding
 Milestone: M6 wave 6A2 — closes `docs/BACKLOG.md` entry 20
@@ -27,6 +27,12 @@ is a different kind of problem from a header that does: the same cabinet is name
 document before a resize and another way after.
 
 ## Decision
+
+> **The rule below stands; the mechanism under it does not.** This section specified copying the
+> equivalent's fields onto each row and accepting one name in two places as a cost. Wave 6A2 built
+> something better within hours — the fields are **read off** the equivalent — and the amendment at
+> the end of this record is what shipped. The original is left unedited because the cost it accepted
+> is why the improvement is worth having.
 
 **Give the seeded rows the labels their catalogue equivalents carry**, as entry 20 itself proposed.
 Owner's decision, 2026-09-03. This is fixture data, not a mechanism change: `describeBodyLabelAt`,
@@ -101,3 +107,52 @@ compares them, rather than comparing either to a literal.
 - `docs/BACKLOG.md` entry 20 moves from **Open** to **Resolved** when 6A2 closes — that file's own
   rule is that a decided item leaves it and the decision lives here. Not before the wave closes.
 - The smaller version of this on every other seeded body closes with it.
+
+## Amendment — 2026-09-03: the fields are read off the equivalent, not copied beside it
+
+**What wave 6A2 built, and what the decision now is.** A fixture-local helper,
+`namedAfterCatalogEquivalent(catalogEquivalentId)`, returns the pointer together with the
+equivalent's `label` and `doorCountFollowsWidth`, **read off `INSERTABLE_BODY_DEFINITIONS`** rather
+than written out beside the row. Eighteen seeded rows read `...namedAfterCatalogEquivalent("x"),`,
+nine of which carry the flag. A pointer naming no entry **throws at module load**, through a
+module-local error class deliberately not exported — the fixture is `export *`'d from `index.ts`, so
+exporting it would widen the package's public API for nothing.
+
+**Why the improvement was accepted.** The decision above accepted "one string in two places" as a
+cost and bought protection back with a derived invariant test. **A derived pointer cannot drift,
+where two copies of one string can** — so the cost is not paid at all, and the test now guards a
+property rather than compensating for a known weakness. The resolution happens once, in fixture data,
+at exactly the seam where `resolveBuildableSizes` already resolves the same pointer, so the seeded
+row's relationship to its equivalent is expressed once and used for two purposes rather than
+restated.
+
+**What this is still not.** `describeBodyLabelAt` is untouched and its signature is unchanged;
+nothing resolves `catalogEquivalentId` inside it. The rejected alternative above — resolving the
+label in the label function — stays rejected, and this remains fixture data rather than the mechanism
+change the owner framed it as not being. The invariant test is still present and still derives both
+sides.
+
+**The corner rows are untouched and that is asserted, not assumed.** `base-corner-x-900`,
+`base-corner-return-320`, `wall-corner-return-570` and `wall-corner-return-570-top` carry no pointer,
+per [ADR 0022](0022-seeded-entries-declare-their-catalogue-equivalent.md): they have no catalogue
+equivalent, nothing can migrate them on a resize, and
+[ADR 0025](0025-the-corner-base-legs-seat-on-the-l-joint.md) already gave their kinds real names.
+
+**One dependency this creates, load-bearing from wave 6I onward.** As shipped in 6A2 the helper
+resolves against `INSERTABLE_BODY_DEFINITIONS`, which wave 6H made a *materialisation* at the
+declared cabinet depth. Wave 6I turns the seeded map into `buildSeededBodyDefinitions(cabinetDepthMm)`
+and therefore has to choose what the lookup resolves against.
+
+**A name must not vary with depth — and neither resolution makes it, so both are admissible.**
+`label` and `doorCountFollowsWidth` are **depth-invariant**: every §7 shape takes its label as a
+string argument and none derives one from `cabinetDepthMm`, so the two resolutions return the same
+values and the difference is not observable. **6I resolves the lookup at the depth the map is being
+built at**, on internal coherence — a catalogue built at depth *d* should have every part of it
+derived at *d*, and a lookup pinned to the shipped depth would leave a catalogue built at 700 quietly
+half-built at 600.
+
+What makes that safe is the assertion rather than the argument, so the M6 plan carries it as a wave
+6I criterion: build the §7 definitions at every declared depth and assert each entry's `label` and
+`doorCountFollowsWidth` are identical across them. **A wave that ever makes a label depth-dependent
+must revisit both** the criterion and that call site, because at that point "admissible either way"
+stops being true and a cabinet can rename itself at 700 inside a priced document.

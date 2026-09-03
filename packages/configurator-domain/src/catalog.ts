@@ -4,7 +4,12 @@
 // split only by `insertable`. One map, because a placement created by `insertBody` must resolve
 // through the same lookup as a seeded one or `UnknownBodyError` becomes reachable at load; two
 // populations, because a seeded entry describes one already-built body and must never be offered.
-import { EXTRACTOR_HOOD_KIND } from "./body-kinds.js";
+import { describeBandLabel } from "./bands.js";
+import {
+  EXTRACTOR_HOOD_KIND,
+  WALL_CORNER_RETURN_KIND,
+  WALL_CORNER_RETURN_TOP_KIND,
+} from "./body-kinds.js";
 import { toMillimetres } from "./millimetres.js";
 import {
   MIN_WIDTH_M,
@@ -365,10 +370,6 @@ export function columnCarcassDepthMm(cabinetDepthMm: number): number {
   return cabinetDepthMm - COLUMN_FRONT_OVERHANG_MM;
 }
 
-/** The column depth the shipped kitchen is built at — the one materialisation of the rule above,
- *  kept for the readers wave 6J has not yet given a setting to. The seeded fixture derives its
- *  columns' finished depth from it rather than writing 599 down twice. */
-export const COLUMN_DEPTH_MM = columnCarcassDepthMm(WORKTOP_DEPTH_MM);
 const FREESTANDING_FRIDGE_DEPTH_MM = 680;
 
 // §3.1's depth, per body: **how far the finished body stands from the wall plane.** A separate
@@ -446,10 +447,6 @@ export function ovenTowerFinishedDepthMm(columnDepthMm: number): number {
   return tallUnitFinishedDepthMm(columnDepthMm) + OVEN_TOWER_APPLIANCE_FRONT_MM;
 }
 
-/** The oven tower's finished depth in the shipped kitchen. */
-export const OVEN_TOWER_FINISHED_DEPTH_MM =
-  ovenTowerFinishedDepthMm(COLUMN_DEPTH_MM);
-
 /** A freestanding fridge: a 680 mm appliance body and the two door bars hung on it. */
 export const FREESTANDING_FRIDGE_FINISHED_DEPTH_MM = 742;
 
@@ -496,8 +493,11 @@ interface BodyShape {
    *  silent would be a §7 row nobody had decided the depth question for, and the whole point of the
    *  declaration is that "holds still because it was decided to" and "holds still because it was
    *  forgotten" stop looking alike. Required here makes the §7 population a compile error rather
-   *  than a test failure; `cabinetDepthRuleOf` is what refuses a definition arriving through the
-   *  `BodyCatalog` port, which no required field can reach. */
+   *  than a test failure; `cabinetDepthRuleOf` is what refuses the entries no required field can
+   *  reach, and `refuseUndeclaredDepthRules` runs it over both populations as the catalogue is
+   *  assembled — so the seeded rows, whose own field is optional, are refused at load. A definition
+   *  arriving through the `BodyCatalog` port from outside TypeScript reaches neither, and is refused
+   *  by the same function at the first wave that reads a rule off it: 6J's migration. */
   readonly depthRule: CabinetDepthRule;
   readonly sizesMm: readonly number[];
   /** **Required, not optional** (logic review R1.10, carried through ADR 0035). `BodyDefinition`
@@ -971,6 +971,16 @@ const KIND_LABELS_RO: Readonly<Record<string, string>> = {
   // calling it one.
   corner_base_x: "Corp bază de colț",
   corner_base_return: "Racord bază de colț",
+  // ADR 0066: the wall band's mirror of the two rows above. Both returns are 570 mm wide and carry
+  // no catalogue equivalent (ADR 0022), so under the shared `wall_cabinet` kind both read exactly
+  // "Corp suspendat" — and the breakdown line renders the label and the width with no band, so wave
+  // 6D's priced document showed two identical descriptions at two different amounts. They differ by
+  // *row*, and the two names say so.
+  [WALL_CORNER_RETURN_KIND]: "Dulap suspendat de colț",
+  // The row word is read off `BAND_LABELS_RO.top` rather than written out a second time: §9's header
+  // already calls this body's row that, and a name that says which row a body stands on is wrong the
+  // moment the two spellings drift.
+  [WALL_CORNER_RETURN_TOP_KIND]: `Dulap de colț ${describeBandLabel("top")}`,
 };
 
 /** ADR 0033: the name the customer reads for this entry **at this width**.

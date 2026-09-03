@@ -44,6 +44,27 @@ built against it.
   same amount of work to render from the map, and it is the difference between a future third row
   costing a data edit and costing a component rewrite.
 
+## Amendment — 2026-09-03: a third row costs more than a data row — WITHDRAWN THE SAME DAY
+
+> **Withdrawn on 2026-09-03 by [ADR 0065](0065-a-body-past-the-end-of-its-wall-is-marked-not-moved.md),
+> hours after it was written.** It was written for an approach — absorbing a deeper run into the
+> structural corner return — that the owner replaced with marking the bodies that do not fit. There
+> is no structural give to exhaust any more, so a third depth row changes only **how often a body is
+> marked**, not how often a customer loses a cabinet. Decision 3's "one data row plus the wall depth
+> it implies" therefore stands as written. **Left visible rather than deleted**, because the cost it
+> named was real under the approach it was written for, and a reader comparing the two approaches
+> should see what changed.
+
+Decision 3 above says adding a third depth is *"one data row plus the wall depth it implies — data,
+not a UI rewrite"*. That remains true **of the control**, and it is no longer the whole cost.
+
+[ADR 0055](0055-a-depth-change-migrates-the-stored-design.md)'s amendment of the same date makes a
+deeper kitchen absorb its extra wall consumption into the structural corner return first, and remove
+a body when that runs out. **The return has a fixed 320 mm to spend**, so a third and deeper row
+exhausts it sooner and makes removal fire more often. Adding a depth is therefore a change to how
+often a customer loses a cabinet, not only a change to a list of options — which is a product
+question, not a data edit.
+
 ## Consequences
 
 - Wave 6K's control renders a toggle today and a list the day a third row lands, from one code path.

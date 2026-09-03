@@ -12,7 +12,7 @@ import { describe, expect, it } from "vitest";
 import {
   cabinetDepthRuleOf,
   depthFollowsSetting,
-  pinnedAtCabinetDepthMm,
+  pinnedAtFinishedDepthMm,
   UndeclaredCabinetDepthRuleError,
 } from "../src/cabinet-depth-rule.js";
 import {
@@ -23,6 +23,7 @@ import {
 import {
   buildKitchenLBodyCatalog,
   KITCHEN_L_BODY_CATALOG,
+  refuseUndeclaredDepthRules,
 } from "../src/fixtures/kitchen-l-design.js";
 import { wallCarcassMaxDepthOverWorktopM } from "../src/commands/insert-fit.js";
 import { toMillimetres } from "../src/millimetres.js";
@@ -339,16 +340,33 @@ describe("wave 6I: an entry that neither tracks the setting nor declares an exce
     ).toThrow(/invented-row/);
   });
 
+  // **And the refusal is wired to something that runs.** The block above proves the function
+  // refuses; without this one it could still have been a function nothing production called, which
+  // is what the seeded population — whose `depthRule` is optional — needed protecting from. The
+  // guard is fed a fabricated undeclared row rather than the shipped map, because the shipped map
+  // has no such row and could not grow one without this sweep failing first.
+  it("assembles the shipped catalogue at both depths without refusing a row", () => {
+    for (const cabinetDepthMm of DECLARED_DEPTHS_MM) {
+      expect(() => buildKitchenLBodyCatalog(cabinetDepthMm)).not.toThrow();
+    }
+  });
+
+  it("refuses to assemble a catalogue holding a row that declares nothing", () => {
+    expect(() => {
+      refuseUndeclaredDepthRules([["undeclared-row", {}]]);
+    }).toThrow(UndeclaredCabinetDepthRuleError);
+  });
+
   // The §7 catalogue has no pinned row — the pin lives on two seeded ones — so the arm is exercised
   // directly here as well as over the whole catalogue in the block below.
   it("reads a pin as an exception rather than as a body that happens not to move", () => {
-    const pinned = pinnedAtCabinetDepthMm(600);
+    const pinned = pinnedAtFinishedDepthMm(600);
 
     expect(depthFollowsSetting(pinned)).toBe(false);
     expect(cabinetDepthRuleOf({ buildId: "pinned-row", rule: pinned })).toEqual(
       {
         follows: "pinned",
-        pinnedAtCabinetDepthMm: 600,
+        pinnedFinishedDepthMm: 600,
       },
     );
   });
@@ -461,7 +479,7 @@ describe("ADR 0058: the two deep top cabinets are pinned, over the whole catalog
     for (const buildId of PINNED_BUILD_IDS) {
       expect(entryOf(700, buildId).depthRule).toEqual({
         follows: "pinned",
-        pinnedAtCabinetDepthMm: 600,
+        pinnedFinishedDepthMm: 600,
       });
     }
   });

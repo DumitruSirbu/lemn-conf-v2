@@ -58,11 +58,14 @@ const OCCURRED_AT = "2026-08-31T12:00:00.000Z";
  *  depth control wave 6J ships would move every body with nothing looking at the result. */
 const DECLARED_CABINET_DEPTHS_MM = [600, 700];
 
-/** The depths a wall carcass is ever built to at a given kitchen depth: §7's head-clearance cap from
- *  the map, and the lifted depth over a full-height column (backlog entry 5), which is the 600 mm
- *  the two deliberately deep tops are pinned at (ADR 0058) and is therefore the same at both. Both
- *  go through the sweep, because the parameterised rule is a formula and a formula checked at one
- *  point is a constant. */
+/** The depths a wall carcass is ever built to at a given kitchen depth, **cap first**: §7's
+ *  head-clearance cap from the map, then the lifted depth over a full-height column (backlog entry
+ *  5), which is the 600 mm the two deliberately deep tops are pinned at (ADR 0058) and is therefore
+ *  the same at both. Both go through the sweep, because the parameterised rule is a formula and a
+ *  formula checked at one point is a constant.
+ *
+ *  The cap's position is load-bearing: `wallDepthMmAt` reads it from here rather than from a second
+ *  map, so the depth a kit is built at and the depth its bodies are swept at cannot drift apart. */
 const WALL_BUILD_DEPTHS_MM_BY_CABINET_DEPTH: ReadonlyMap<
   number,
   readonly number[]
@@ -71,25 +74,36 @@ const WALL_BUILD_DEPTHS_MM_BY_CABINET_DEPTH: ReadonlyMap<
   [700, [400, 600]],
 ]);
 
-/** ADR 0028's map, as the kit takes it: the declared depth of a wall or top carcass at each cabinet
- *  depth. The adapter cannot derive it — §12 keeps the map in the domain — so a kit is handed the
- *  row, and `cabinet-depth-source.test.ts` is what holds these two numbers to the domain's own map.
- *  Both are the first entry of the sweep row above, which is the cap; the second is the lifted depth
- *  over a column and is not what a kit is built at. */
-const WALL_DEPTH_MM_BY_CABINET_DEPTH: ReadonlyMap<number, number> = new Map([
-  [600, 330],
-  [700, 400],
-]);
-
-/** The map row for this kitchen, or a refusal. Total rather than optional so a cabinet depth added
- *  to the sweep without a row fails here instead of silently building every wall body at the kit's
- *  default 330. */
-function wallDepthMmAt(cabinetDepthMm: number): number {
-  const wallDepthMm = WALL_DEPTH_MM_BY_CABINET_DEPTH.get(cabinetDepthMm);
-  if (wallDepthMm === undefined) {
-    throw new Error(`no wall depth row for ${String(cabinetDepthMm)} mm`);
+/** The depths a wall carcass is built to at this kitchen depth, or a refusal. Total rather than
+ *  optional for the reason `wallDepthMmAt` below is: a cabinet depth added to
+ *  `DECLARED_CABINET_DEPTHS_MM` without a row here would otherwise drop **every** wall and top
+ *  carcass case out of the sweep — the whole `recorded-shell` population — with the suite still
+ *  green. */
+function wallBuildDepthsMmAt(cabinetDepthMm: number): readonly number[] {
+  const depthsMm = WALL_BUILD_DEPTHS_MM_BY_CABINET_DEPTH.get(cabinetDepthMm);
+  if (!depthsMm) {
+    throw new Error(
+      `no wall build depths row for ${String(cabinetDepthMm)} mm`,
+    );
   }
-  return wallDepthMm;
+  return depthsMm;
+}
+
+/** ADR 0028's map, as the kit takes it: the declared depth of a wall or top carcass at this cabinet
+ *  depth. The adapter cannot derive it — §12 keeps the map in the domain — so a kit is handed the
+ *  row, and `cabinet-depth-source.test.ts` is what holds these numbers to the domain's own map.
+ *
+ *  Read as the **first** entry of the sweep row above, which is the cap, rather than restated in a
+ *  second map: the second entry is the lifted depth over a column and is not what a kit is built
+ *  at. Two tables carrying the same column is the drift ADR 0028 exists to stop. */
+function wallDepthMmAt(cabinetDepthMm: number): number {
+  const [capMm] = wallBuildDepthsMmAt(cabinetDepthMm);
+  if (capMm === undefined) {
+    throw new Error(
+      `empty wall build depths row for ${String(cabinetDepthMm)}`,
+    );
+  }
+  return capMm;
 }
 
 const kits = new Map<number, { kit: Kit; room: THREE.Object3D }>();
@@ -203,7 +217,7 @@ function insertableCases(): SweepCase[] {
       const definition = insertableDefinitionAt(cabinetDepthMm, buildId);
       const depthsMm =
         definition.occupiedDepth.measuredFrom === "recorded-shell"
-          ? (WALL_BUILD_DEPTHS_MM_BY_CABINET_DEPTH.get(cabinetDepthMm) ?? [])
+          ? wallBuildDepthsMmAt(cabinetDepthMm)
           : [definition.nominalDepthMm ?? 580];
       return (definition.sizesMm ?? [600]).flatMap((widthMm) =>
         depthsMm.map((depthMm) => ({

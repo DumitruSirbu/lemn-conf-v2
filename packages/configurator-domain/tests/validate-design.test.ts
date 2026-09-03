@@ -39,7 +39,7 @@ const VALID_PLACEMENT: DesignPlacement = {
 };
 
 const VALID_DESIGN: Design = {
-  room: { shape: "L", widthMm: 3600, depthMm: 2400, heightMm: 2600 },
+  room: { shape: "L", widthMm: 3560, depthMm: 2830, heightMm: 2600 },
   presetId: null,
   placements: [VALID_PLACEMENT],
   createdAt: "2026-08-25T00:00:00.000Z",
@@ -120,6 +120,75 @@ describe("validateDesignForCatalog", () => {
     const design = withPlacement({ alongMm: 3500 });
 
     expect(codesFor(design)).toEqual(["PLACEMENT_PAST_WALL_END"]);
+  });
+
+  /** ADR 0065 decision 5. The bound was `max(widthMm, depthMm)` until 2026-09-03, which let the
+   *  shorter wall borrow the longer one's run; these are the cases that borrowing hid. */
+  describe("the along-wall bound is each wall's own run", () => {
+    /** The run this refuses — 2700–3300 on wall B — fits inside the room's 3560 mm **width** and
+     *  not inside its 2830 mm depth, so it is exactly what `max(width, depth)` accepted. Widen the
+     *  bound back and this test goes green while the body still hangs 470 mm past wall B. */
+    it("refuses a wall B run that fits only the room's width", () => {
+      const design = withPlacement({ wall: "B", alongMm: 3000 });
+
+      expect(codesFor(design)).toEqual(["PLACEMENT_PAST_WALL_END"]);
+    });
+
+    it("accepts the same run on wall A, whose own bound is the width", () => {
+      expect(codesFor(withPlacement({ alongMm: 3000 }))).toEqual([]);
+    });
+
+    /** The residual `max(width, depth)` left behind, measured rather than reasoned about: a 600 mm
+     *  body on wall B at 6000 in a `{ widthMm: 6300, depthMm: 1 }` room used to validate clean. */
+    it("refuses a run 5700 mm past a wall the other axis is long enough to cover", () => {
+      const design: Design = {
+        ...withPlacement({ wall: "B", alongMm: 6000 }),
+        room: { shape: "L", widthMm: 6300, depthMm: 1, heightMm: 3900 },
+      };
+
+      expect(codesFor(design)).toEqual(["PLACEMENT_PAST_WALL_END"]);
+    });
+  });
+
+  /** The seeded kitchen against **its own** two walls, which is what the fixture correction to
+   *  3560 × 2830 made assertable: wall A's run ends at 3500 with 60 mm of the 3560 to spare and
+   *  wall B's at 2800 with 30 mm of the 2830. Under `max(width, depth)` both were held to 3560 and
+   *  wall B passed by luck — the fridge (`p7`) reached 400 mm past the 2400 the document declared. */
+  describe("the shipped kitchen's runs, per wall", () => {
+    const BOUND_BY_WALL = {
+      A: KITCHEN_L_DESIGN.room.widthMm,
+      B: KITCHEN_L_DESIGN.room.depthMm,
+    } as const;
+
+    /** The furthest along-wall **extent** on the wall, and deliberately not the sum of the widths
+     *  on it. The two agree only while the band is contiguous, and wall B's top band stops being
+     *  contiguous at a 700 mm cabinet depth: the structural corner return is seated off the wall
+     *  map (+70 mm) while the deep tops follow the base formula (+100 mm), so a 30 mm slot opens
+     *  between them that nothing absorbs. ADR 0065's coverage figures were read as a contiguous
+     *  chain, which is why a sum would quietly read 30 mm short there. An extent is right at both
+     *  depths. */
+    function runEndOnWall(wall: "A" | "B"): number {
+      return Math.max(
+        ...KITCHEN_L_DESIGN.placements
+          .filter((placement) => placement.wall === wall)
+          .map((placement) => placement.alongMm + placement.body.widthMm / 2),
+      );
+    }
+
+    it.each([
+      { wall: "A" as const, runEndMm: 3500 },
+      { wall: "B" as const, runEndMm: 2800 },
+    ])(
+      "wall $wall's run ends at $runEndMm, inside its own bound",
+      ({ wall, runEndMm }) => {
+        expect(runEndOnWall(wall)).toBe(runEndMm);
+        expect(runEndMm).toBeLessThanOrEqual(BOUND_BY_WALL[wall]);
+      },
+    );
+
+    it("declares the two runs the reference's wall-coverage panel measures", () => {
+      expect(BOUND_BY_WALL).toStrictEqual({ A: 3560, B: 2830 });
+    });
   });
 
   it("rejects a body standing through the ceiling", () => {

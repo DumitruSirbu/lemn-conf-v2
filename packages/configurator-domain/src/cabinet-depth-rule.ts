@@ -24,15 +24,18 @@
  *    move it: a freestanding fridge is 742 mm deep in a 600 mm kitchen and in a 700 mm one. This is
  *    **not** an exception being granted; it is a statement that the body is not cabinetry.
  *  - **`pinned`** — cabinetry that is deliberately held at one depth anyway (ADR 0058 decision 1).
- *    The pin carries the depth it is pinned at, so the declaration says what the body *is* rather
- *    than merely that it does not move.
+ *    The pin carries the body's own **finished** depth — the space it fills, ADR 0058 decision 3's
+ *    "identical (600) at both" — so the declaration says what the body *is* rather than merely that
+ *    it does not move. Deliberately **not** the cabinet-depth setting it happens to coincide with:
+ *    a reader rebuilding a pinned row from a setting value would send it back through the wall map,
+ *    and `wallCarcassSeatDepthMm(600)` is 291 where these two rows seat at 561.
  *
  *  There is deliberately no arm meaning "unknown" and no default. An entry that answers none of
  *  these has not been thought about, and `cabinetDepthRuleOf` refuses it. */
 export type CabinetDepthRule =
   | { readonly follows: "cabinet-depth" }
   | { readonly follows: "manufactured-size" }
-  | { readonly follows: "pinned"; readonly pinnedAtCabinetDepthMm: number };
+  | { readonly follows: "pinned"; readonly pinnedFinishedDepthMm: number };
 
 /** Cabinetry: this body's depth is a function of the setting. */
 export const FOLLOWS_CABINET_DEPTH: CabinetDepthRule = {
@@ -46,11 +49,13 @@ export const IS_A_MANUFACTURED_SIZE: CabinetDepthRule = {
   follows: "manufactured-size",
 };
 
-/** ADR 0058 decision 1: cabinetry deliberately held at one declared depth. */
-export function pinnedAtCabinetDepthMm(
-  pinnedAtCabinetDepthMm: number,
+/** ADR 0058 decision 1: cabinetry deliberately held at one declared **finished** depth — the space
+ *  the built body fills, which is what a 6J migration reading "rebuild it at the depth it is pinned
+ *  at" has to be handed. The two shipped pinned rows finish at 600 at every setting. */
+export function pinnedAtFinishedDepthMm(
+  pinnedFinishedDepthMm: number,
 ): CabinetDepthRule {
-  return { follows: "pinned", pinnedAtCabinetDepthMm };
+  return { follows: "pinned", pinnedFinishedDepthMm };
 }
 
 /** A catalogue entry that says nothing about whether its depth follows the setting. **A programming

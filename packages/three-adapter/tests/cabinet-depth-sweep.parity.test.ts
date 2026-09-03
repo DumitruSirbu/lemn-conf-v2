@@ -12,7 +12,14 @@
 // found already satisfied — by all four families standing still.
 import { beforeAll, describe, expect, it } from "vitest";
 import * as THREE from "three";
-import { buildInsertableBodyDefinitions } from "@lemnaria/configurator-domain";
+import {
+  buildInsertableBodyDefinitions,
+  cabinetDepthRuleOf,
+  depthFollowsSetting,
+  UndeclaredCabinetDepthRuleError,
+  type CabinetDepthRule,
+  type CabinetDepthRuleQuery,
+} from "@lemnaria/configurator-domain";
 
 import { buildCatalogBody } from "../src/catalog-bodies.js";
 import { makeKit, type Kit } from "../src/kitchen-parts.js";
@@ -106,6 +113,25 @@ function baseCabinetShiftMm(): number {
   return shiftMm((depthMm) => catalogBodyDepthMm(depthMm, "base-cabinet"));
 }
 
+/** What this §7 row declares about the setting, taken from the catalogue built at the shallowest
+ *  depth — the rule is a property of the entry, not of the depth it was materialised at. Typed as
+ *  optional because that is the case the resolver below exists to refuse. */
+function depthRuleOf(buildId: string): CabinetDepthRule | undefined {
+  return buildInsertableBodyDefinitions(SHALLOWEST_DECLARED_DEPTH_MM).find(
+    ([id]) => id === buildId,
+  )?.[1].depthRule;
+}
+
+/** How far this entry's depth is **allowed** to move across the two declared depths: the base
+ *  cabinet's own shift if it follows the setting, and nothing if it declares an exception. The
+ *  switch is the domain's (`depthFollowsSetting`) rather than restated here, and an entry that
+ *  declares neither throws out of `cabinetDepthRuleOf` instead of being read as pinned. */
+function expectedShiftMm(query: CabinetDepthRuleQuery): number {
+  return depthFollowsSetting(cabinetDepthRuleOf(query))
+    ? baseCabinetShiftMm()
+    : 0;
+}
+
 describe("every floor-standing catalogue body moves with the cabinet-depth setting", () => {
   it("moves an ordinary base cabinet by the 100 mm the two depths differ by", () => {
     expect(baseCabinetShiftMm()).toBe(100);
@@ -119,14 +145,24 @@ describe("every floor-standing catalogue body moves with the cabinet-depth setti
     // (`IS_A_MANUFACTURED_SIZE`), and the exception is read off that declaration rather than
     // written here as an id — an entry that stopped following the setting without saying so would
     // otherwise be exempted by this test instead of caught by it.
-    const expected =
-      buildInsertableBodyDefinitions(SHALLOWEST_DECLARED_DEPTH_MM).find(
-        ([id]) => id === buildId,
-      )?.[1].depthRule?.follows === "cabinet-depth"
-        ? baseCabinetShiftMm()
-        : 0;
+    //
+    // Read through `cabinetDepthRuleOf` and `depthFollowsSetting` rather than by matching
+    // `follows` here, which is the whole point of those two existing. A row that declares nothing
+    // **throws** (`UndeclaredCabinetDepthRuleError`) instead of comparing equal to 0 and passing
+    // for standing still — the fail-open this gate exists to close.
+    expect(shift).toBe(
+      expectedShiftMm({ buildId, rule: depthRuleOf(buildId) }),
+    );
+  });
 
-    expect(shift).toBe(expected);
+  // The gate on the gate: the exemption above is granted by a declaration, so a row that declares
+  // nothing must not be able to take it. Written against the resolver the sweep itself calls, with
+  // a row that exists nowhere in the catalogue — the fail-open this replaced returned 0 here, which
+  // any body that did not move would have satisfied.
+  it("refuses a row that declares no depth rule rather than exempting it", () => {
+    expect(() =>
+      expectedShiftMm({ buildId: "undeclared-row", rule: undefined }),
+    ).toThrow(UndeclaredCabinetDepthRuleError);
   });
 });
 

@@ -161,7 +161,7 @@ describe("a validated document must not publish an opening standing in a body", 
 
   // **Defect.** The along-wall clause the plan named (`the along-wall footprint contains each
   // member's`) was dropped, so `widthMm` is held only by the room. `A|2.00` holds 600 mm members;
-  // an extent claiming 1600 mm is inside a 3600 mm wall and passes, and the opening it publishes
+  // an extent claiming 1600 mm is inside a 3560 mm wall and passes, and the opening it publishes
   // spans 1200–2800 mm — straight through the hood in `A|2.60`.
   //
   // Nothing else bounds it: `EMPTY_COLUMN_WIDER_THAN_CAP` (ADR 0052's 800 mm ceiling) governs
@@ -309,7 +309,7 @@ describe("the four refusals, each on the document that earns it", () => {
             widthMm: 600,
             y0Mm: 0,
             topMm: 2600,
-            depthMm: 2401,
+            depthMm: 2831,
           },
         ]),
       ),

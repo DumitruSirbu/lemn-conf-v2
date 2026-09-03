@@ -62,8 +62,9 @@ full-height column still takes `opening.d`. That is wave 6I2's, not this one's.
 
 ### What pinning does cost, at 700
 
-Projected from the depth model waves 6H and 6I build; it is arithmetic over declared constants, not a
-measurement of geometry that exists yet.
+Projected from the depth model waves 6H and 6I build; it was arithmetic over declared constants when
+written, and the **along-wall** row below was later measured on the built room at both depths during
+6I's logic review.
 
 | Top cabinet | Stands over | That body at 700 | Relationship at 700 | Change |
 | --- | --- | --- | --- | --- |
@@ -71,7 +72,29 @@ measurement of geometry that exists yet.
 | `p23` | pantry | 699 | **99 mm recessed** | **flush → recessed** |
 | `p24` | freestanding fridge | 742 — a real machine, does not follow the setting | 142 mm recessed | **unchanged** |
 
-**One demonstrable consequence: `p23`'s face stops being flush.** At 600 the top cabinet and the
+**A second consequence, along the wall rather than across it: a 30 mm gap opens in wall B's top
+row.** Measured on the built room at both depths (6I logic review, 2026-09-03):
+
+| Top-row body | At 600 | At 700 |
+| --- | --- | --- |
+| upper corner return | z 330–**900** | z 400–**970** |
+| first pinned deep top (`p22`) | z **900**–1500 | z **1000**–1600 |
+
+**At 600 they butt exactly; at 700 they do not.** The cause is structural rather than a slip, and it
+is the same pinning this record decides: the corner return's top is seated off the **wall depth map**
+(+70 mm at 700) while the deep tops follow the **base formula** (+100 mm), and `100 − 70 = 30`. The
+return is 570 mm wide and structural ([ADR 0021](0021-corner-returns-are-structural-in-data.md)), so
+nothing absorbs the difference.
+
+**Recorded as an accepted cost, not scheduled as a defect** — the same class as the recessed steps
+above: a visible consequence of pinning, at a depth nothing ships at. It is written here because it
+was neither recorded nor detectable, and a customer meeting it at 700 without warning is exactly
+what these records exist to prevent.
+
+**It does not change the 700 mm overrun.** Wall B's top band still reaches z 2900 against the
+reference's 2830, so `p24` is still the flagged body and the 70 mm is unchanged.
+
+**One demonstrable consequence across the wall: `p23`'s face stops being flush.** At 600 the top cabinet and the
 pantry below it line up within a millimetre; at 700 the pantry moves forward 100 mm and the top
 cabinet does not, so a face that currently reads as one plane becomes a 99 mm step.
 

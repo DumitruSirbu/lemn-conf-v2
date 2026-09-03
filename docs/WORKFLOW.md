@@ -101,6 +101,35 @@ found by whoever hits the conflict.
   behavioural fix.
 - Do not reinterpret a locked decision while implementing. Surface the conflict and revise the
   decision before changing the code.
+
+  **Dispatch the intent, not only the change.** When a wave touches something a dated ADR decided,
+  name that ADR in the dispatch and tell the implementer to check the change against its **intent**
+  *before* proceeding — and to stop and report if the two disagree, rather than implementing and
+  letting review find it.
+
+  **"Intent" is the word doing the work here**, and it is the one an implementer will read loosely.
+  An ADR's *decision* is usually easy to read off; its **intent is the thing that decision was
+  protecting**, and that is what a change can contradict while satisfying the letter. M6 wave 6I is
+  the clean case: ADR 0058 decided the pin is a *declaration*, and the mechanism underneath it stored
+  the wrong quantity — the decision was satisfied and its intent was not.
+
+  **The obligation is on both sides.** "Stop and report" only works if reports are acted on rather
+  than read as an implementer being obstructive: **a wave returned to planning because it conflicts
+  with a dated decision is the process working**, and the coordinator owes it an answer rather than
+  an instruction to proceed.
+
+  **It is not a licence to widen a dispatch.** An implementer that finds a conflict **reports** it —
+  it does not resolve it, and it does not re-decide the ADR on its own reasoning. The convention
+  exists to make *stopping* cheap, not to make *deciding* permissible. Every good outcome this
+  produced came from an implementer stopping: one declining to touch a fixture file another wave
+  owned, one reporting a red it had not caused instead of absorbing it, one flagging a suspected
+  `wall_cabinet` branch instead of working around it.
+
+  Two cases, both from M6 on 2026-09-03. **6I's pin rename**: the implementer checked ADR 0058's
+  intent first and correctly concluded the ADR needed no change, because what was wrong was the
+  quantity stored and not the decision to declare it. **6A4**: an ADR's stated rationale was found
+  false *for the very bodies it was about* — by QA, after the wave. The second is the stronger
+  argument, because it is what the first one avoids.
 - Each behaviour change needs a paired regression test, or an explicit reason it cannot have one —
   and that reason is an architectural concern to record, not a silent exception.
 

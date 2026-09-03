@@ -111,8 +111,9 @@ const WALL_COUNT = 2;
  * wide and `WIDTH_STEP_MM` bounds nothing here.
  *
  * What actually bounds the count is the number of **distinct keys** a wall can present. Every
- * entry must be contained by its wall, and `longestWallRunMm` bounds both walls by the room's
- * longer run, so each wall offers the centres from 0 to `MAX_WALL_RUN_MM` at
+ * entry must be contained by its wall — by that wall's own run since ADR 0065 decision 5, so this
+ * stays an upper bound by taking the longer of the two — and each wall offers the centres from
+ * 0 to `MAX_WALL_RUN_MM` at
  * `COLUMN_KEY_RESOLUTION_MM` — `630 + 1` of them, counting both ends — and no two entries may
  * share one. `(6300 / 10 + 1) × 2 = 1262`.
  *

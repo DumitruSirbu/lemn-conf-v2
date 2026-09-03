@@ -220,6 +220,25 @@ Surfaces:
 - **Review drifting from the editor's grouping.** One projection, three consumers.
 - **A submission path that reports success without a real sink.** Explicitly forbidden.
 
+## An inherited criterion from M6 — recorded 2026-09-03
+
+**The review/contact step refuses while any body does not fit its wall.** From
+[ADR 0065](../decisions/0065-a-body-past-the-end-of-its-wall-is-marked-not-moved.md) decision 7,
+raised by M6 wave 6I and decided by the owner on 2026-09-03.
+
+M6's half is *save yes*: a design with a body past the end of its wall **saves and resumes with its
+warning intact**, so no work is lost and the customer can come back to it. **M8's half is *submit
+no*:** an unbuildable kitchen must not reach the owner as an enquiry.
+
+- The refusal names **which** bodies do not fit, not merely that some do. The customer has to be able
+  to go back and fix it, and M6 marks them in the scene for exactly that.
+- It reads the **same** published fact M6 wave 6A3 detects — the scene, the breakdown, the price bar
+  and this step must not disagree about whether a design fits.
+- It is a **refusal to submit, not a refusal to save**. The design is still stored, still shareable
+  and still editable; only the enquiry is blocked.
+- This sits alongside the *Launch gate* items above rather than inside them: it is a product rule,
+  not a security one, and it does not gate the endpoint — it gates what may be sent through it.
+
 ## A consequence that becomes live after this phase — recorded 2026-09-02
 
 [ADR 0062](../decisions/0062-a-manufacturer-price-dashboard-comes-after-m8-and-shapes-seams-now.md):

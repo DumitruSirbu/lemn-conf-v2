@@ -727,34 +727,6 @@ Doing it would also close the smaller version of this on every other seeded body
 Not scheduled. Raise it with the owner before spending anything on it — a rename that fires on the
 customer's first resize may be acceptable, and the header is not wrong at either end.
 
-## 21. The rendered shell and the seeded document disagree about the size of the room
-
-Found by the 5B2a logic review (2026-09-01). `kitchen-parts.ts:1795-1797` builds the shell at
-`RW = 4.2, RD = 3.4, WH = 2.6`. `kitchen-l-design.ts:469` declares the same kitchen as
-`{ widthMm: 3600, depthMm: 2400, heightMm: 2600 }`. The height agrees; **both floor dimensions do
-not**, by 600 mm and 1000 mm.
-
-Nothing is currently broken by it. Every seeded placement fits inside 3600, and
-`longestWallRunMm` holds both walls to `max(width, depth)`, so containment validation passes on the
-document's own numbers. The customer sees a room 600 mm wider than the document says it is, and no
-rule reads both figures at once, so nothing has ever compared them.
-
-**Why it matters now.** Wave 5B2a made room containment a validated rule for a new persisted field,
-and two of its test fixtures had to declare 4200 to hold coordinates the shell renders but the
-document forbids. So the mismatch is no longer merely cosmetic — it is load-bearing for test
-fixtures, and the next rule that reads the room will inherit the same choice of which figure is
-true.
-
-**What a fix needs first.** Decide which number is the room: the document is the contract and the
-geometry should follow it, but the shell's 4.2 x 3.4 is what every screenshot and every manual
-session has ever shown, and the M1 1e-6 structural parity gate pins that geometry. Changing the
-shell to 3.6 x 2.4 moves seeded geometry and needs a `DeclaredStructuralChange` under ADR 0051;
-changing the document to 4200 x 3400 moves no geometry but widens the containment envelope every
-validation rule is measured against.
-
-Not scheduled. Raise it with the owner — it is a one-line change either way and a real decision
-about which artefact is authoritative.
-
 ## 23. ADR 0032's refused rows are published but never rendered, and only a code comment says so
 
 Found while closing M5B wave 5B4a (2026-09-01). ADR 0032 — *an entry that does not fit is shown
@@ -954,6 +926,79 @@ step 1 itself belong to.
 
 Fixed and shipped. Kept for history only — skip this section unless you are specifically
 researching a past decision.
+
+## 21. The rendered shell and the seeded document disagree about the size of the room — RESOLVED 2026-09-03
+
+**Resolved by the owner, 2026-09-03. Corrected the same day by a second artefact.**
+
+The first answer — the reference's room-dimensions **input screen**, *Perete A 3,60 / Perete B 2,40* —
+turned out to be that screen's **example values, not this kitchen's room**. The authoritative artefact
+is the reference's **wall-coverage panel** (*LĂȚIME ACOPERITĂ · PRACTIC PLIN*): **Perete A 3520 /
+3560 mm**, 40 mm free at the right end; **Perete B 2800 / 2830 mm**, 30 mm free next to the fridge.
+
+Both corroborate against the tree rather than being taken on trust: wall A's 3520 is the measured
+3500 of placements plus `RUN_END_PANEL_THICKNESS_M` (18 mm) and its 1 mm gap — the sum
+`kitchen-shell.ts` names in its own comment as *"3.5189999"* — and wall B's 2800 is the measured far
+end to the millimetre. 3.60 is a rounded 3.56; 2.40 is nothing like 2.83.
+
+Both numbers the project held are **real and correct, and describe different walls** — nothing was
+reconciling them. `longestWallRunMm`'s `max(width, depth)` = 3600 is wall A; the document's
+`depthMm: 2400` is wall B. The document is right. **The shell's `RD = 3.4` m matches neither and is
+the number to chase.**
+
+**What resolving it exposed. The document is wrong on both axes, and the run fits.** `widthMm: 3600`
+should be **3560** and `depthMm: 2400` should be **2830**. With those, the seeded run occupies
+2800 of 2830 on wall B and fits with 30 mm spare — there is no overrun at the shipped depth. At a
+700 mm cabinet depth it ends at 2900 and overruns by 70 mm, which is where
+[ADR 0065](decisions/0065-a-body-past-the-end-of-its-wall-is-marked-not-moved.md)'s marking applies.
+
+**A second correction is owed at its source.** `validate-design.ts`'s along-wall bound takes
+`max(width, depth)` and its comment calls the difference *"the 400 mm slack … a fact about along-wall
+coordinates"*. **That explanation is wrong**: the bound was compensating for a bad room dimension,
+not for a property of along-wall coordinates. With 2830 the wall B run fits its own wall and the
+`max` is unnecessary rather than load-bearing.
+
+**Both corrections landed on 2026-09-03.** The fixture declares `3560 × 2830`, and the along-wall
+bound is `wallRunMm(wall, room)` — wall A the width, wall B the depth, per ADR 0065 decision 5. Four
+test fixtures had been standing in the slack and were corrected with it: three declared wall-B runs
+past the room depth, and one claimed 100 mm of wall A past the corrected 3560.
+
+**Where it now lives:** `docs/milestones/M6-price-and-global-settings.md`, owner decision 8, and
+[ADR 0065](decisions/0065-a-body-past-the-end-of-its-wall-is-marked-not-moved.md).
+
+**One half of this entry stays open**: the **shell** renders `RW 4.2 × RD 3.4` and matches neither
+the reference nor the corrected document. Correcting the document costs no geometry; correcting the
+shell moves seeded geometry and needs a `DeclaredStructuralChange` under ADR 0051. Only the room
+*numbers* are resolved here.
+
+### The original entry, unedited
+
+
+Found by the 5B2a logic review (2026-09-01). `kitchen-parts.ts:1795-1797` builds the shell at
+`RW = 4.2, RD = 3.4, WH = 2.6`. `kitchen-l-design.ts:469` declares the same kitchen as
+`{ widthMm: 3600, depthMm: 2400, heightMm: 2600 }`. The height agrees; **both floor dimensions do
+not**, by 600 mm and 1000 mm.
+
+Nothing is currently broken by it. Every seeded placement fits inside 3600, and
+`longestWallRunMm` holds both walls to `max(width, depth)`, so containment validation passes on the
+document's own numbers. The customer sees a room 600 mm wider than the document says it is, and no
+rule reads both figures at once, so nothing has ever compared them.
+
+**Why it matters now.** Wave 5B2a made room containment a validated rule for a new persisted field,
+and two of its test fixtures had to declare 4200 to hold coordinates the shell renders but the
+document forbids. So the mismatch is no longer merely cosmetic — it is load-bearing for test
+fixtures, and the next rule that reads the room will inherit the same choice of which figure is
+true.
+
+**What a fix needs first.** Decide which number is the room: the document is the contract and the
+geometry should follow it, but the shell's 4.2 x 3.4 is what every screenshot and every manual
+session has ever shown, and the M1 1e-6 structural parity gate pins that geometry. Changing the
+shell to 3.6 x 2.4 moves seeded geometry and needs a `DeclaredStructuralChange` under ADR 0051;
+changing the document to 4200 x 3400 moves no geometry but widens the containment envelope every
+validation rule is measured against.
+
+Not scheduled. Raise it with the owner — it is a one-line change either way and a real decision
+about which artefact is authoritative.
 
 ## 26. A resized column's freed space opens on different sides depending on position — EXPLAINED, NOT A BUG, 2026-09-02
 

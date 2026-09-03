@@ -116,9 +116,12 @@ export interface BodyDefinition {
    *  it and **throws** for an entry that declares nothing.
    *
    *  Optional here and required of every shipped §7 row by `BodyShape`'s own required field, for the
-   *  reason `cabinetHandles` above is optional: the case that must fail loudly is a definition
-   *  arriving through the `BodyCatalog` port from outside TypeScript, which a required field cannot
-   *  reach. */
+   *  reason `cabinetHandles` above is optional: the case that must fail loudly is a definition a
+   *  required field cannot reach. A **seeded** row is exactly that case, and
+   *  `refuseUndeclaredDepthRules` refuses one as `buildKitchenLBodyCatalog` assembles the map — so
+   *  this optionality costs the shipped catalogue nothing. A definition arriving through the
+   *  `BodyCatalog` port from outside TypeScript is refused by the same function at the first wave
+   *  that reads a rule off it, which is 6J's migration and not this one. */
   readonly depthRule?: CabinetDepthRule;
   readonly frameHeightMm?: number;
   readonly canFinish: boolean;

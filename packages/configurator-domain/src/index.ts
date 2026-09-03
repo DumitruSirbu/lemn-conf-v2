@@ -39,7 +39,7 @@ export {
   depthFollowsSetting,
   FOLLOWS_CABINET_DEPTH,
   IS_A_MANUFACTURED_SIZE,
-  pinnedAtCabinetDepthMm,
+  pinnedAtFinishedDepthMm,
   UndeclaredCabinetDepthRuleError,
   type CabinetDepthRule,
   type CabinetDepthRuleQuery,
