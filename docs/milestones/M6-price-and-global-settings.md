@@ -1,6 +1,8 @@
 # M6 — Live price, breakdown, and whole-kitchen settings (2D, 2E)
 
-> **STATUS: PLANNED — waves sequenced 2026-09-02.** Depends on M5 (only wave 5E is still open there,
+> **STATUS: IN PROGRESS — waves sequenced 2026-09-02, first waves shipped 2026-09-03.** Four waves
+> are marked **DONE** in the table below with their commits (6A, 6H, 6A3, 6B2); the others carry no
+> marker and are not to be read as closed either way — see `docs/STATUS.md`. Depends on M5 (only wave 5E is still open there,
 > and it does not gate anything here). Summary: `docs/STATUS.md`. Start at **Waves** below, then the
 > owner section. **Nineteen waves, all unblocked.** The seven owner decisions were taken on
 > 2026-09-02 (ADRs 0055–0061); ADRs 0062–0064 followed, the last two on 2026-09-03.
@@ -209,18 +211,18 @@ constant (`worktop-depth.ts` carries a comment saying the rename is owed and def
 
 | Wave | Track | Gate | Tier |
 | --- | --- | --- | --- |
-| 6A — one canonical projection | P | none | Full |
+| 6A — one canonical projection — **DONE 2026-09-03, `6c1f830`** | P | none | Full |
 | 6A2 — a seeded row carries its equivalent's name *(backlog 20)* | P | 6A | Full |
-| 6A3 — a body past its wall is detected, as one domain fact *(ADR 0065)* | P | 6A | Full |
+| 6A3 — a body past its wall is detected, as one domain fact *(ADR 0065)* — **DONE 2026-09-03, `eb9ba03`** | P | 6A | Full |
 | 6A4 — the wall corner returns get their own kinds and names *(ADR 0066)* | P | 6A | Full |
 | 6B — price book and pure pricing query | P | 6A, 6A2, 6A3, 6A4 | Full |
-| 6B2 — the door step and the height term *(ADR 0068)* | P | 6B **cleared through QA** | Full |
+| 6B2 — the door step and the height term *(ADR 0068)* — **DONE 2026-09-03, `eb9ba03`** | P | 6B **cleared through QA** | Full |
 | 6C — the price bar, both shells | P | 6B | Full |
 | 6D — the breakdown (2D / D2D) | P | 6C | Light + visual |
 | 6E — the whole-kitchen settings container | G | 6B | Full |
 | 6F — a material that invalidates a finish | G | 6E — **unblocked, ADR 0057** | Full |
 | 6G — the settings surface (2E / D2E) | G | 6D, 6E | Light + visual |
-| 6H — cabinet depth becomes a parameter | D | none | Full |
+| 6H — cabinet depth becomes a parameter — **DONE 2026-09-03, `4afda06`** | D | none | Full |
 | 6I — the base family follows the formula | D | 6H | Full |
 | 6I2 — clearance is not a build depth *(backlog 15, 10)* | D | 6I — **unblocked, ADR 0060** | Full |
 | 6J — the persisted setting and what a change does | D | 6H, 6I, 6I2 — **unblocked, ADRs 0055, 0056, 0058** | Full |
@@ -515,7 +517,34 @@ no `100`, `70` or `2900` hard-coded, 8 mutations, zero survivors. Nothing else a
 **Not decided here, and not the implementer's to decide.** Demoting the family means the write seam
 accepts an insert into an opening that lies wholly past the end of a wall. Whether the product should
 *offer* such an opening is the insert command's own question, belongs to wave 6M or M7, and is the
-owner's call (ADR 0069 consequences).
+owner's call (ADR 0069 consequences). **Registered at wave 6M below and in `docs/STATUS.md`**, so the
+question has an owner rather than only a mention.
+
+#### Wave 6A3 — shipped 2026-09-03, commit `eb9ba03`
+
+Both punch lists above are implemented; the ruling is ADR 0069's and nothing was re-decided. What
+landed, against the tree:
+
+- The fact is published by `packages/configurator-domain/src/queries/overflowing-placements.ts`, with
+  `packages/configurator-domain/src/opaque-id-order.ts` beside it (**at the package root, not under
+  `queries/`**).
+- Severity is the total `Record<DesignValidationCode, DesignIssueSeverity>`
+  `DESIGN_ISSUE_SEVERITY_BY_CODE` (`validate-design.ts`), so an unclassified code fails to compile.
+  Three codes are marks — `PLACEMENT_PAST_WALL_END`, `EMPTY_COLUMN_PAST_WALL_END`,
+  `COLUMN_EXTENT_PAST_WALL_END` — and `COLUMN_EXTENT_OUTSIDE_ROOM` is split four ways in
+  `findExtentRoomIssues`.
+- `correctPreCorrectionRoom` (`migrate-design.ts`) is down to one guard, the fatal-only
+  `hasFatalIssues(corrected, catalog)`; guard 1 is deleted.
+- Pricing **derives** the fact: `overflowingPlacementIds`, `refuseUnknownOverflowPlacement` and
+  `UNKNOWN_OVERFLOW_PLACEMENT` no longer exist in `pricing/`.
+
+**Verification.** All ten `pnpm ci:local` gates green, verified by the coordinator: domain 1954,
+persistence 177, three-adapter 1714, web 799 + 4 skipped, e2e PASS.
+
+**Deferred out of this wave:** five engineering items, in `docs/STATUS.md` under *What is open right
+now* — that file owns engineering deferrals from a review round and `docs/BACKLOG.md`'s preamble
+says so; wave 6J's inherited criterion (above, unchanged); and the ADR 0069 owner question registered
+at 6M.
 
 ### Wave 6A4 — the wall corner returns get their own kinds and names
 
@@ -715,6 +744,32 @@ absorbed here.
   hinged leaves while that function answers two. This wave puts a **second** consumer on that count.
   Two rules that each look right and bill a banded cabinet on different denominators is the failure,
   and it is quiet.
+
+#### Wave 6B2 — shipped 2026-09-03, commit `eb9ba03`
+
+The wave first shipped **without** its adversarial QA and received it afterwards. Four defects were
+found and fixed, all in `packages/configurator-domain/src/pricing/`:
+
+- Every declared coefficient **and both whole-kitchen tier amounts** now pass one usable-number guard,
+  exported from `price-book.ts` precisely so the tiers do not get a second guard that could drift from
+  it. `null`, `false`, `[]` and `""` each multiplied to an exact zero and rendered as *inclus* — a
+  missing amount read as an included tier, which is what ADR 0001 decision 4 and 6B's own
+  "omission never means included" exist to stop.
+- A line whose amount is below zero is refused (`price-design.ts`), not published.
+- `amountsProvisional` and `status` are **carried from the book and refused when absent**, never
+  defaulted; the status is carried onto the priced result rather than compared inside pricing.
+- `PricingFailure.detail` is bounded at the one place a failure is built.
+
+**Verification.** The same ten green `pnpm ci:local` gates recorded at 6A3 above.
+
+**Still outstanding, and unchanged by this close-out:** the ADR 0062 report quoted above — whether
+adding the shapes was cheap or required restructuring 6B's registry. Four shapes shipping is a count,
+not that answer, and 6B is not closed against ADR 0062 until it is given.
+
+**One verification task is owed, not a defect.** The comparator-key swap in `design-projection.ts`
+was never mutated, because that file had concurrent uncommitted edits during QA; the literal
+26-placement order pin in `tests/pricing/qa-6b2-door-step-and-height.adversarial.test.ts` stands in
+its place. The tree has settled, so the mutation can now be run — tracked in `docs/STATUS.md`.
 
 ### Wave 6C — the price bar, both shells
 
@@ -1303,6 +1358,14 @@ marking to 6K would leave the default design overflowing and unmarked until the 
 phase. It is therefore gated on **6A3 only** and belongs to no track.
 
 **Touches.** The scene's material or overlay for a marked body, the warning surface, `ro.ts`.
+
+**This wave owns one open owner question, handed on by 6A3 and recorded in ADR 0069's consequences:
+should the product _offer_ an insertion opening that lies wholly past the end of a wall?** It is a
+different question from marking a body the customer already placed, which is ruled (ADR 0065, ADR
+0069) — demoting the family means the write seam now accepts an insert into such an opening. It
+covers both a remnant the product itself creates (this wave, or M7's generation) and a fabricated
+empty-column entry, because **one decision governs both**. Not urgent and not blocking; it needs the
+owner before this wave decides anything about it.
 
 **Acceptance criteria.**
 

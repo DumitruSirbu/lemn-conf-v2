@@ -32,7 +32,7 @@ moment it ships; a decision record does not. When the two disagree, the dated de
 | M3 — Insert, remove, swap, client write path | **Done** (closed 2026-08-26) | No — `milestones/done/` |
 | M4 — Editor panel and shell | **Done** (closed 2026-08-26 — one criterion unmet by design, ADR 0024) | No — `milestones/done/` |
 | M5 — Width editing, and depth as a derived quantity | **In progress — 5E is the only wave open.** 5A–5D2c, 5F, 5G, 5H all shipped | Yes — `milestones/M5-*.md`, and ADRs 0028–0041, 0052, 0053 |
-| M6 — Price bar and global settings (incl. cabinet depth control) | **In progress** — 13 waves in three tracks, all unblocked; 6A and 6H shipped 2026-09-03 | Yes — `milestones/M6-*.md`, and ADRs 0055–0063 |
+| M6 — Price bar and global settings (incl. cabinet depth control) | **In progress** — 13 waves in three tracks, all unblocked; on branch `m6-price-and-global-settings`, 6A (`6c1f830`), 6H (`4afda06`), 6A3 and 6B2 (`eb9ba03`) all shipped 2026-09-03 | Yes — `milestones/M6-*.md`, and ADRs 0055–0069 |
 | M7 — Step 1, room and presets | Planned | Yes, when starting |
 | M8 — Review, contact, success | Planned | Yes, when starting |
 | Adversarial review remediation | **Every finding closed or gated.** SEC-001 (High) deferred to M8 by owner decision, gated. Everything else — SCENE-001/002, WEB-001–004, DOM-001–003, SEC-002–004, DB-001/002/004 — is implemented and reviewed | Yes — `milestones/adversarial-review-remediation.md`, `milestones/dom-003-set-width-split.md` |
@@ -101,6 +101,55 @@ PASS.
   verified under emulation alone. M6 started ahead of it by the owner's decision — 5E blocks nothing
   in M6 — but it must be run before release. Read ADR 0035 (the stepper replaced the chip row)
   before writing an assertion.
+- **A pre-release check on the `designs` table, and its window is closing.** Wave 6A3 deleted
+  `correctPreCorrectionRoom`'s first guard, so from `eb9ba03` a stored row at `schema_version <= 2`
+  carrying the room `{3600, 2400}` receives the 2026-09-03 measurement correction to `{3560, 2830}`
+  on load. **Going forward only.** Rows in that set that were loaded and saved before this commit
+  were stamped `CURRENT_SCHEMA_VERSION = 3` (`packages/configurator-domain/src/migrate-design.ts`),
+  so the set only shrinks and **each row that leaves it leaves permanently uncorrected**. Nothing in
+  code bounds the count: it is a query against the Neon `designs` table that **nobody has run**. The
+  affected rows are those whose wall-B bodies all end at or below 2400 and whose wall-A bodies all end
+  at or below 3600 — **wall B's 430 mm correction is the discriminating one**; wall A's 40 mm rides
+  along with it. Run the count before release.
+- **The open owner question ADR 0069 hands on: should the product _offer_ an insertion opening that
+  lies past the end of a wall?** Distinct from marking a body the customer already placed, which is
+  ruled (ADR 0065, ADR 0069). It covers both a remnant the product itself creates (wave 6M / M7) and
+  a fabricated empty-column entry — one decision governs both. Not urgent, not blocking; **owned by
+  wave 6M**, recorded in ADR 0069's consequences.
+- **One mutation is owed on 6B2's coverage, and it is a verification task rather than a defect.** The
+  comparator-key swap in `packages/configurator-domain/src/queries/design-projection.ts` was never
+  run, because that file carried concurrent uncommitted edits during 6B2's QA; a literal pin of the
+  seeded kitchen's 26-placement line order stands in its place. The tree has since settled, so the
+  mutation can now be run.
+- **Five engineering items deferred out of M6 waves 6A3 and 6B2**, each named with the wave it was
+  deferred out of. **None has a future wave assigned**, and each claim below was read off the tree at
+  `eb9ba03`:
+  - **`describeDeclared` is duplicated inside one package — the DRY threshold is passed.** *Out of
+    6B2.* **Four** byte-identical copies: `pricing/price-book.ts:389`, `cabinet-depth-rule.ts:76`,
+    `cabinet-handles.ts:128`, `occupied-depth.ts:91`, each
+    `declared === undefined ? "nothing" : JSON.stringify(declared)`. They serve four different
+    refusal messages, which is why they were written separately and why nothing failed.
+  - **`priceOnePlacement` is long.** *Out of 6B2.* `pricing/price-design.ts:295-351` — **57 lines**
+    against the ≤20-line convention. A chain of guarded refusals, so it splits cleanly; nothing about
+    it is wrong, only long.
+  - **`findExtentRoomIssues` and `findUncontainedEmptyColumns` are structurally identical.** *Out of
+    6A3.* `validate-design.ts:341` and `:470` — the same four edges through the same
+    `findContainmentBreaches` and `reachesPastRoomAcrossWall`, differing only in the code prefix and
+    the path. **The cost is specific: a fifth edge gets added to one and not the other**, which is the
+    forgotten-member failure ADR 0069 was written about, one seam over.
+  - **Two validity questions whose names do not say which validity each asks.** *Out of 6A3.*
+    `assertDesignValidForCatalog` / `validateDesignForCatalog` ask **complete** validity;
+    `fatalDesignValidationIssues`, and `migrate-design.ts:156`'s `hasFatalIssues` over it, ask
+    **fatal-only**. Since ADR 0069 the two answers genuinely differ and the names do not carry the
+    distinction. **The rename was deferred as the one item here that can move the tree**, so it wants
+    its own wave rather than a ride. ADR 0069's code blocks name an `isValidForCatalog` guard: that is
+    the ADR's shorthand for `migrate-design.ts`'s **deleted** guard 1 and was never a symbol in the
+    tree, so finding nothing by that name does not make this entry stale.
+  - **A span's `kind` misdescribes what it holds.** *Out of 6A3, and it predates that diff.*
+    `findExtentRoomIssues` builds its span with `toEmptyColumnSpan(extent, index)`
+    (`validate-design.ts:348`) rather than `toColumnExtentSpan`, so a column extent is carried in a
+    span labelled as an empty column. Harmless today because only `wall`, `along` and `top` are read
+    off it — which is exactly the kind of "true by luck" the next reader of `kind` breaks.
 - **SEC-001, deferred to M8 and gated.** `POST /api/designs` has no application rate limiter and no
   active retention. `milestones/M8-review-contact-success.md`'s *Launch gate* must be checked off
   before the endpoint sees real traffic. ADR 0019's 2026-08-31 correction records the decision.
@@ -167,7 +216,10 @@ policy, so every per-endpoint limit is application code.
 **Next: M6, on branch `m6-price-and-global-settings`.** Read
 `milestones/M6-price-and-global-settings.md` for the 13-wave breakdown and ADRs 0055–0063 for the
 decisions behind it. All seven owner decisions are closed and every wave is unblocked. **6A** (the
-one canonical projection) and **6H** (cabinet depth becomes a parameter) shipped 2026-09-03. 6L runs
+one canonical projection) and **6H** (cabinet depth becomes a parameter) shipped 2026-09-03, as did
+**6A3** (a body past the end of its wall is one published fact and a non-fatal mark, ADRs 0065/0069)
+and **6B2** (the door step and the height term, ADR 0068) — both in `eb9ba03`, with the three items
+they left open listed under *What is open right now*. 6L runs
 before both 6B and 6G; 6I2 lands before 6J. Do not start a wave without reading its section — several
 carry criteria inherited from another wave.
 
