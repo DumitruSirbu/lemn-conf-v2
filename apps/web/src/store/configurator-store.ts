@@ -21,6 +21,8 @@ import {
   removePlacement,
   setFinish as setFinishOnDesign,
   setHandle as setHandleOnDesign,
+  setHardwareTier as setHardwareTierOnDesign,
+  setMaterialTier as setMaterialTierOnDesign,
   setWidth as setWidthOnDesign,
   type BodyCatalog,
   type BodyProbe,
@@ -108,6 +110,18 @@ export interface ConfiguratorState {
    *  which bodies move, which column funds it and whether it is legal at all are ADR 0031's rules,
    *  and they live in the command. */
   readonly setWidth: (widthMm: number) => void;
+  /** Wave 6E's two whole-kitchen settings. Neither needs a selection — they apply to every body —
+   *  and both take the tier ids the caller's price book offers, because **the store names no price
+   *  book**: `use-priced-design.ts` is the one module in this application that does (ADR 0062
+   *  seam 1), and wave 6G is what supplies the list from there. */
+  readonly setMaterialTier: (
+    tierId: string,
+    availableTierIds: readonly string[],
+  ) => void;
+  readonly setHardwareTier: (
+    tierId: string,
+    availableTierIds: readonly string[],
+  ) => void;
   /** The scene's measuring instrument, published rather than closed over because §9's width chips
    *  need it too: `widthOptionsFor` answers "would this resize succeed" by running the command,
    *  which rebuilds through the real builders. A query cannot reach a closure variable.
@@ -291,6 +305,20 @@ export function createConfiguratorStore(
   const now = options.now ?? nowInIsoMilliseconds;
 
   return create<ConfiguratorState>((set, get) => {
+    /** Apply and schedule, in one `set()`. Shared by the targeted commands below and by wave 6E's
+     *  whole-kitchen pair, which have no target to resolve first. */
+    const applyResult = (result: CommandResult) => {
+      const state = get();
+      const application = applyCommandResult({
+        result,
+        catalog,
+        columns: state.columns,
+        selection: state.selection,
+      });
+      set(application.state);
+      if (application.applied) onDesignChanged(application.state.design);
+    };
+
     /** Call, apply, schedule — in that order, and in one `set()`. A command with no selected
      *  target never reaches the domain, so it borrows the domain's own code for a selection that
      *  resolves to nothing rather than inventing a store-local one. */
@@ -298,20 +326,15 @@ export function createConfiguratorStore(
       command: (context: CommandContext) => CommandResult,
     ) => {
       const state = get();
-      const result = state.selection
-        ? command({
-            design: state.design,
-            columns: state.columns,
-            target: state.selection,
-          })
-        : refuse(state.design, { code: "TARGET_NOT_FOUND", params: {} });
-      const application = applyCommandResult({
-        result,
-        catalog,
-        columns: state.columns,
-      });
-      set(application.state);
-      if (application.applied) onDesignChanged(application.state.design);
+      applyResult(
+        state.selection
+          ? command({
+              design: state.design,
+              columns: state.columns,
+              target: state.selection,
+            })
+          : refuse(state.design, { code: "TARGET_NOT_FOUND", params: {} }),
+      );
     };
 
     return {
@@ -394,6 +417,26 @@ export function createConfiguratorStore(
             : // The same safety net `insert` carries, for the same reason: §9 disables a chip it
               // cannot satisfy, and this is what happens if one is tapped anyway.
               refuse(current, { code: "BODY_PROBE_UNAVAILABLE", params: {} }),
+        );
+      },
+      setMaterialTier: (tierId, availableTierIds) => {
+        applyResult(
+          setMaterialTierOnDesign({
+            design: get().design,
+            tierId,
+            availableTierIds,
+            occurredAt: now(),
+          }),
+        );
+      },
+      setHardwareTier: (tierId, availableTierIds) => {
+        applyResult(
+          setHardwareTierOnDesign({
+            design: get().design,
+            tierId,
+            availableTierIds,
+            occurredAt: now(),
+          }),
         );
       },
       bodyProbe: options.bodyProbe,

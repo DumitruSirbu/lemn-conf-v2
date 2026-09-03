@@ -25,8 +25,9 @@ import { useConfiguratorStore } from "@/store/configurator-store";
  * The current design, priced. Both price surfaces read this one hook — frames 2A / D2A's bar and
  * §9 item 7's footer — so neither can be looking at a different number from the other.
  *
- * No whole-kitchen selections are passed: the design document has nowhere to hold them until wave
- * 6E adds the settings container, and until then the book's own default tiers price the kitchen.
+ * The whole-kitchen selections come straight off `design.settings` (wave 6E). Nothing is defaulted
+ * here: a design carrying no container, or one carrying only the other key, is priced at the book's
+ * own default tier, which is book data rather than a rule living in this hook.
  */
 export function usePricedDesign(): PricingResult {
   const design = useConfiguratorStore((state) => state.design);
@@ -39,6 +40,7 @@ export function usePricedDesign(): PricingResult {
         catalog,
         book: SAMPLE_PRICE_BOOK,
         pricingVersion: SAMPLE_PRICE_BOOK_VERSION,
+        selections: design.settings,
       }),
     [design, catalog],
   );

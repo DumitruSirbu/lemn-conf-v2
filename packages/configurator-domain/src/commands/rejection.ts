@@ -266,7 +266,17 @@ export type RejectionDetail =
       readonly params: MillimetreParams;
     }
   | { readonly code: "FINISH_NOT_SUPPORTED"; readonly params: LabelParams }
-  | { readonly code: "HANDLE_NOT_SUPPORTED"; readonly params: LabelParams };
+  | { readonly code: "HANDLE_NOT_SUPPORTED"; readonly params: LabelParams }
+  /** Wave 6E: the tier asked for is not one the caller's book offers. A refusal rather than a
+   *  silent no-op, for `set-appearance.ts`'s own stated reason — a no-op looks identical to a
+   *  broken control.
+   *
+   *  **`NoParams`, deliberately.** The only thing these two could carry is the tier id, and a raw
+   *  book identifier is developer text: it is never rendered, translated or read by a customer, and
+   *  `LabelParams` has no name to fill from because the domain imports no book to look one up in
+   *  (ADR 0062 seam 1). */
+  | { readonly code: "UNKNOWN_MATERIAL_TIER"; readonly params: NoParams }
+  | { readonly code: "UNKNOWN_HARDWARE_TIER"; readonly params: NoParams };
 
 export type RejectionCode = RejectionDetail["code"];
 
@@ -462,5 +472,11 @@ export function renderRejection(detail: RejectionDetail): string {
       return `„${detail.params.label}” nu are uși, deci nu i se poate schimba finisajul.`;
     case "HANDLE_NOT_SUPPORTED":
       return `„${detail.params.label}” nu are mânere.`;
+    // Ruled 2026-09-04, pending owner review. Both name the choice and the next step, and neither
+    // names the tier id: see the codes' own note above.
+    case "UNKNOWN_MATERIAL_TIER":
+      return "Materialul ales nu mai este disponibil. Alege altă variantă.";
+    case "UNKNOWN_HARDWARE_TIER":
+      return "Feroneria aleasă nu mai este disponibilă. Alege altă variantă.";
   }
 }

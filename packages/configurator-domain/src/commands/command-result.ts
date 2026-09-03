@@ -7,6 +7,7 @@
 import type {
   Design,
   DesignPlacement,
+  DesignSettings,
   DesignWall,
   Finish,
   Handle,
@@ -112,12 +113,27 @@ export interface HandleSetEffect {
   readonly handle: Handle;
 }
 
+/** Wave 6E's whole-kitchen pair, shaped on `FinishSetEffect` — the same fact one scope up. Neither
+ *  names a placement: a whole-kitchen setting points at no cabinet, which is what tells the store
+ *  the selection it is holding was not moved by this command. */
+export interface MaterialTierSetEffect {
+  readonly type: "material_tier_set";
+  readonly materialTierId: string;
+}
+
+export interface HardwareTierSetEffect {
+  readonly type: "hardware_tier_set";
+  readonly hardwareTierId: string;
+}
+
 export type CommandEffect =
   | PlacementRemovedEffect
   | BodyInsertedEffect
   | BodyResizedEffect
   | FinishSetEffect
-  | HandleSetEffect;
+  | HandleSetEffect
+  | MaterialTierSetEffect
+  | HardwareTierSetEffect;
 
 export interface CommandSuccess<TEffect extends CommandEffect = CommandEffect> {
   readonly ok: true;
@@ -164,6 +180,16 @@ export function withPlacements(
   occurredAt: string,
 ): Design {
   return { ...design, placements: [...placements], updatedAt: occurredAt };
+}
+
+/** `withPlacements`' whole-kitchen half: the settings container replaced, `updatedAt` moved to the
+ *  caller's `occurredAt` the same way, and nothing else on the document touched. */
+export function withSettings(
+  design: Design,
+  settings: DesignSettings,
+  occurredAt: string,
+): Design {
+  return { ...design, settings, updatedAt: occurredAt };
 }
 
 /** Rejects a timestamp the domain would otherwise write verbatim into `updatedAt`. */

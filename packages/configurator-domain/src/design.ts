@@ -131,6 +131,29 @@ export const DesignRoomSchema = z.strictObject({
 });
 export type DesignRoom = z.infer<typeof DesignRoomSchema>;
 
+/**
+ * The whole-kitchen settings, as one optional container rather than sibling keys on the design.
+ *
+ * **Designed for three settings and built with two.** Cabinet depth lands in wave 6J and is
+ * deliberately absent here; whether its arrival owes a schema version bump is 6J's decision and is
+ * not pre-empted by this one.
+ *
+ * **Its absence is a valid, unchanged state, so no schema version bump is owed.** The argument is
+ * `columnExtents`' (ADR 0053) — a document written without this key loads exactly as it does today,
+ * priced at the book's own default tiers — and explicitly **not** ADR 0038's "nothing has ever been
+ * stored", whose premise ADR 0052 corrected by measurement: five rows exist at `schema_version` 1.
+ *
+ * **A tier id is an opaque identifier, validated for shape only.** The domain imports no price book
+ * (ADR 0062 seam 1), so *whether* a tier exists is not a question this schema can ask; it is
+ * answered where the book is, by the commands in `commands/set-whole-kitchen-settings.ts`, which
+ * take the available ids from their caller.
+ */
+export const DesignSettingsSchema = z.strictObject({
+  materialTierId: identifierSchema.optional(),
+  hardwareTierId: identifierSchema.optional(),
+});
+export type DesignSettings = z.infer<typeof DesignSettingsSchema>;
+
 export const DesignSchema = z.strictObject({
   room: DesignRoomSchema,
   presetId: z.string().max(MAX_IDENTIFIER_LENGTH).nullable(),
@@ -154,6 +177,9 @@ export const DesignSchema = z.strictObject({
     .array(StoredColumnExtentSchema)
     .max(MAX_COLUMN_EXTENTS)
     .optional(),
+  /** Wave 6E's whole-kitchen container — see `DesignSettingsSchema` for why it is one key and why
+   *  its absence owes no version bump. */
+  settings: DesignSettingsSchema.optional(),
   createdAt: ConfigurationTimestampSchema,
   updatedAt: ConfigurationTimestampSchema,
 });

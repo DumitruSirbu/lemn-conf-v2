@@ -68,6 +68,12 @@ export interface ApplyCommandResultInput {
    *  frozen, a column whose full-height unit was deleted in this session went on reporting one
    *  standing there while the same design reloaded reported none. */
   readonly columns: ReadonlyMap<string, Column>;
+  /** What is selected right now, which a **whole-kitchen** command leaves exactly where it was: it
+   *  points at no cabinet, so it moves no selection (wave 6E). Every other effect names the
+   *  placement it acted on and decides this for itself, so this is only ever read on those two
+   *  arms — and it is required rather than defaulted, because a default here would silently
+   *  deselect whatever the caller forgot to pass. */
+  readonly selection: Selection;
 }
 
 export function applyCommandResult(
@@ -97,7 +103,12 @@ export function applyCommandResult(
       records,
       columns,
       voids,
-      selection: resolveSelection(result.effect, records, voids),
+      selection: resolveSelection(
+        result.effect,
+        records,
+        voids,
+        input.selection,
+      ),
       lastRejection: null,
     },
   };
@@ -221,20 +232,32 @@ function resolveSelection(
   effect: CommandEffect,
   records: readonly PlacementRecord[],
   voids: readonly VoidRecord[],
+  current: Selection,
 ): Selection {
-  const intended = intendSelection(effect, voids);
+  const intended = intendSelection(effect, voids, current);
   return isStillPresent(intended, records, voids) ? intended : null;
 }
 
 function intendSelection(
   effect: CommandEffect,
   voids: readonly VoidRecord[],
+  current: Selection,
 ): Selection {
   if (effect.type === "placement_removed") {
     // Found by geometry, never by a remembered id: void ids are regenerated on every recompute and
     // a merge with a neighbouring opening changes them (§5.1).
     const vacated = findVacatedVoid(voids, effect.vacated);
     return vacated ? { kind: "void", id: vacated.id } : null;
+  }
+  // Wave 6E's two: a whole-kitchen setting acts on no cabinet, so it has no placement to point at
+  // and the selection the customer is holding is carried through untouched. It is still put through
+  // `isStillPresent` below, which is what keeps "the selection never dangles" one rule rather than
+  // one rule with an exception.
+  if (
+    effect.type === "material_tier_set" ||
+    effect.type === "hardware_tier_set"
+  ) {
+    return current;
   }
   return { kind: "placement", id: effect.placementId };
 }

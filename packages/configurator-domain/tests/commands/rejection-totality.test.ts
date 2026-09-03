@@ -20,6 +20,10 @@ import { insertBody } from "../../src/commands/insert-body.js";
 import type { RejectionCode } from "../../src/commands/rejection.js";
 import { removePlacement } from "../../src/commands/remove-placement.js";
 import { setFinish, setHandle } from "../../src/commands/set-appearance.js";
+import {
+  setHardwareTier,
+  setMaterialTier,
+} from "../../src/commands/set-whole-kitchen-settings.js";
 import type { Design } from "../../src/design.js";
 import {
   KITCHEN_L_BODY_CATALOG,
@@ -49,6 +53,9 @@ import {
 const ROMANIAN_LETTERS = /[ăâîșțĂÂÎȘȚ]/;
 const PLACEHOLDER_LEAKS = ["undefined", "null", "NaN", "Infinity", "[object"];
 const FRIDGE_COLUMN = "B|2.45";
+/** What a caller's book offers, opaque to the domain (ADR 0062 seam 1). Both whole-kitchen refusals
+ *  are reached by asking for a tier that is not on it. */
+const OFFERED_TIER_IDS: readonly string[] = ["offered-tier"];
 
 /** §5.1's second refusal is `!canDelete (corners)`. ADR 0025 made the corner legs real placements
  *  and the shipped design reaches the code through `p25`; this synthetic entry keeps the sweep's
@@ -451,6 +458,30 @@ function buildCases(): SweepCase[] {
           occurredAt: OCCURRED_AT,
         }),
     },
+    // Wave 6E's two. The list of offered tiers is the caller's, so a tier that is not on it is the
+    // whole refusal — there is no fixture to build and no book to import (ADR 0062 seam 1).
+    {
+      code: "UNKNOWN_MATERIAL_TIER",
+      design: world.design,
+      run: () =>
+        setMaterialTier({
+          design: world.design,
+          tierId: "material-withdrawn",
+          availableTierIds: OFFERED_TIER_IDS,
+          occurredAt: OCCURRED_AT,
+        }),
+    },
+    {
+      code: "UNKNOWN_HARDWARE_TIER",
+      design: world.design,
+      run: () =>
+        setHardwareTier({
+          design: world.design,
+          tierId: "hardware-withdrawn",
+          availableTierIds: OFFERED_TIER_IDS,
+          occurredAt: OCCURRED_AT,
+        }),
+    },
   ];
 }
 
@@ -509,6 +540,8 @@ const ALL_REJECTION_CODES: Readonly<Record<RejectionCode, true>> = {
   RESIZE_OPENS_GAP: true,
   COLUMN_KEY_COLLISION: true,
   COLUMN_HOOD_FLOOR: true,
+  UNKNOWN_MATERIAL_TIER: true,
+  UNKNOWN_HARDWARE_TIER: true,
 };
 
 describe("every refusal a command can produce", () => {

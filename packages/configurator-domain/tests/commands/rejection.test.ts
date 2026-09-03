@@ -67,6 +67,8 @@ const SAMPLES: readonly RejectionDetail[] = [
   },
   { code: "FINISH_NOT_SUPPORTED", params: { label: "Etajeră deschisă" } },
   { code: "HANDLE_NOT_SUPPORTED", params: { label: "Etajeră deschisă" } },
+  { code: "UNKNOWN_MATERIAL_TIER", params: {} },
+  { code: "UNKNOWN_HARDWARE_TIER", params: {} },
 ];
 
 const ALL_CODES: readonly RejectionCode[] = [
@@ -92,6 +94,8 @@ const ALL_CODES: readonly RejectionCode[] = [
   "NON_INTEGER_MILLIMETRES",
   "FINISH_NOT_SUPPORTED",
   "HANDLE_NOT_SUPPORTED",
+  "UNKNOWN_MATERIAL_TIER",
+  "UNKNOWN_HARDWARE_TIER",
 ];
 
 describe("renderRejection", () => {

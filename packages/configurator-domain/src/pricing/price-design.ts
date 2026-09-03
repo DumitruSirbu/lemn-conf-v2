@@ -54,16 +54,21 @@ import type {
   WholeKitchenPriceLine,
 } from "./price-lines.js";
 
-/** The whole-kitchen choices a design was configured with.
+/** The whole-kitchen choices a design was configured with — since wave 6E, `design.settings`,
+ *  passed straight through by the caller holding the book.
  *
- *  **Passed in rather than read off the document, because the document has no place to hold them
- *  yet**: wave 6E adds the settings container, and this wave must not add a field to `DesignSchema`
- *  ahead of it. An absent choice is priced at the book's own default tier, which is book data and
- *  not a rule living here. When 6E lands, its caller passes `design.settings` straight through and
- *  nothing in this module changes. */
+ *  **Passed in rather than read off the document here**, because this module takes a `Design` and
+ *  still must not reach into it for a choice the *caller* is entitled to override; an absent choice
+ *  is priced at the book's own default tier, which is book data and not a rule living here.
+ *
+ *  Each key is `string | undefined` rather than merely optional, and that is not decoration under
+ *  `exactOptionalPropertyTypes`: `DesignSettings` is inferred from a Zod `.optional()`, which is
+ *  present-and-`undefined`-assignable, so a plain `?: string` here would refuse the very value 6E
+ *  exists to pass. The two readings mean the same thing to `selectTier`, which takes
+ *  `string | undefined`. */
 export interface WholeKitchenSelections {
-  readonly hardwareTierId?: string;
-  readonly materialTierId?: string;
+  readonly hardwareTierId?: string | undefined;
+  readonly materialTierId?: string | undefined;
 }
 
 /** Everything the query needs, named rather than positional. */
@@ -75,7 +80,7 @@ export interface PriceDesignRequest {
   /** The version the caller asked to price at. Matched for **equality** against the book's own —
    *  no "current version" fallback, and no migration inside pricing. */
   readonly pricingVersion: string;
-  readonly selections?: WholeKitchenSelections;
+  readonly selections?: WholeKitchenSelections | undefined;
 }
 
 /**
