@@ -207,6 +207,16 @@ export interface KitDepths {
   /** ADR 0039 decision 2 and §11 row 19's second named exception: a front-hung hood's group origin
    *  sits this far off the wall plane, leaving `cabinetDepth − hoodDepth` of gap behind it. */
   readonly hoodSeatOffsetM: number;
+  /** The corner **return** leg's depth — a placement variable, so it is the front plane of the run
+   *  the leg butts into rather than a property of the leg. Published because the seeded
+   *  decomposition builds that leg by name and has to ask for the same number `buildKitchen()` uses;
+   *  a literal on either side is how the two silently part company at a depth nothing ships at. */
+  readonly cornerReturnDepthM: number;
+  /** ADR 0028's map row for this kitchen: the **declared** depth of a wall or top carcass, doors
+   *  included. The one depth in the model that is a lookup rather than a formula — wall cabinets come
+   *  in manufactured sizes and 100 mm of cabinet buys 70 mm of wall — which is why it arrives as an
+   *  option instead of being derived here. */
+  readonly wallDepthM: number;
 }
 
 export interface Kit {
@@ -235,6 +245,14 @@ export interface KitOptions {
    *  same on every call, so that trap stays inert. M5 has exactly one cabinet depth by
    *  construction; M6's *Setări globale* control is what makes this vary. */
   cabinetDepthMm?: number;
+  /** The wall/top carcass depth ADR 0028's map gives for `cabinetDepthMm` — 330 at 600, 400 at 700.
+   *
+   *  **Passed in rather than derived**, for the reason `cabinetDepthMm` is a literal default here:
+   *  the map is a *product* rule and §12 keeps those in the domain, and a formula in this package
+   *  would invent the 372 mm cabinet nobody makes that ADR 0028 exists to prevent. The two are held
+   *  to the domain's own map at every declared depth by `cabinet-depth-source.test.ts`, which is the
+   *  same treatment the cabinet depth already gets. */
+  wallDepthMm?: number;
 }
 
 /** The cabinet depth a kit built with no options uses — the one M5 declares. It is deliberately a
@@ -243,6 +261,16 @@ export interface KitOptions {
  *  The two cannot drift apart regardless — `cabinet-depth-source.test.ts` asserts they are the same
  *  number, which is ADR 0028's own remedy for two constants agreeing by luck. */
 export const DEFAULT_CABINET_DEPTH_MM = 600;
+
+/** The wall depth the map gives for `DEFAULT_CABINET_DEPTH_MM`. A literal here for the same reason
+ *  that one is, and held to the domain's map by the same gate. */
+export const DEFAULT_WALL_DEPTH_MM = 330;
+
+/** ADR 0058: the declared depth the three deliberately deep top cabinets are **pinned** at, in
+ *  metres. It is the 600 mm cabinet-depth line itself and not an arbitrary deep number, which is
+ *  why it does not move when the setting does. Named so the reference room's three placements say
+ *  *pinned* rather than repeating a 0.6 that reads like a literal somebody forgot. */
+export const PINNED_DEEP_TOP_DEPTH_M = 0.6;
 
 /** ADR 0036 decision 1: a declared dimension is the **finished** cabinet, so a base carcass is the
  *  declared depth less what the builder stands in front of it. Measured on the shipped reference,
@@ -259,6 +287,17 @@ const BASE_FRONT_OVERHANG_MM = 40;
  *  at the front and 10 mm behind at the back. ADR 0018 measured the same numbers from the other
  *  side — the counter's back face is what a base body's seat is taken from. */
 const COUNTER_OVERHANG_MM = 60;
+
+/** How far forward the worktop is seated on the carcass it sits on. */
+const COUNTER_FORWARD_OFFSET_MM = 20;
+
+/** How far the worktop hangs off the **back** of that carcass: half the oversize, less the forward
+ *  seat. It is what makes a base body's recorded seat `cabinetDepth − 20` rather than its carcass's
+ *  `cabinetDepth − 40` (ADR 0018 records a seat as twice the rear overhang), and it is the front
+ *  plane `cornerBaseReturn` has to meet. Derived from the two numbers above so the leg and the run
+ *  it butts into cannot drift apart — the drift ADR 0028 exists to stop. */
+const COUNTER_REAR_OVERHANG_MM =
+  COUNTER_OVERHANG_MM / 2 - COUNTER_FORWARD_OFFSET_MM;
 
 /** The finished panel that closes the right end of wall A's base run. Named here because ADR 0045
  *  makes its along-wall seat derived (`kitchen-shell.ts`) while its existence stays a fixed entry
@@ -302,6 +341,7 @@ export function makeKit(options: KitOptions = {}): Kit {
   // IEEE-754 and M1's parity gate diffs at 1e-6 m, so the arithmetic is done where it is exact.
   const cabinetDepthMm = options.cabinetDepthMm ?? DEFAULT_CABINET_DEPTH_MM;
   const carcassDepthM = (cabinetDepthMm - BASE_FRONT_OVERHANG_MM) / 1000;
+  const wallDepthM = (options.wallDepthMm ?? DEFAULT_WALL_DEPTH_MM) / 1000;
   const counterDepthM =
     (cabinetDepthMm - BASE_FRONT_OVERHANG_MM + COUNTER_OVERHANG_MM) / 1000;
 
@@ -682,6 +722,15 @@ export function makeKit(options: KitOptions = {}): Kit {
   const TALL_UNIT_HEIGHT_M = 2.2,
     COLUMN_WIDTH_M = 0.6;
 
+  // Along-wall widths of the bodies wall B's run is built from. Fixed sizes, every one of them: a
+  // corner return is 320 wide and a freestanding fridge is a 700 mm machine at every cabinet depth.
+  // They are named because the run's seats are derived by butting these together rather than typed,
+  // so a reader can check `0.74 = 0.58 + 0.32/2` without opening three builders.
+  const CORNER_RETURN_WIDTH_M = 0.32;
+  const UPPER_CORNER_RETURN_WIDTH_M = 0.57;
+  const FREESTANDING_FRIDGE_WIDTH_M = 0.7;
+  const FREESTANDING_FRIDGE_DEPTH_M = 0.68;
+
   const PLINTH = 0.1,
     CARC_H = 0.72,
     // M5 work item 7: derived from the declared cabinet depth, not typed. At 600 it is 0.56 to the
@@ -728,7 +777,16 @@ export function makeKit(options: KitOptions = {}): Kit {
     y = PLINTH + CARC_H,
     name = "countertop",
   ): THREE.Mesh {
-    return box(w, CTOP, d, M.stone, name, 0, y, 0.02);
+    return box(
+      w,
+      CTOP,
+      d,
+      M.stone,
+      name,
+      0,
+      y,
+      COUNTER_FORWARD_OFFSET_MM / 1000,
+    );
   }
 
   // ---- builders -------------------------------------------------------------
@@ -763,7 +821,7 @@ export function makeKit(options: KitOptions = {}): Kit {
       // countertop split around the sink aperture (0.70 × 0.36, centred)
       const y = PLINTH + CARC_H,
         cd = counterDepthM,
-        cz = 0.02,
+        cz = COUNTER_FORWARD_OFFSET_MM / 1000,
         ax = 0.28,
         az = 0.2;
       g.add(
@@ -842,14 +900,34 @@ export function makeKit(options: KitOptions = {}): Kit {
    *  cannot drift from the reference geometry the decomposition-parity gate diffs it against. */
   const HOB_FORWARD_OFFSET_M = 0.06;
 
-  /** The oven's forward offset inside a 560 mm-deep carcass, shared with `tall-oven-tower` so the
-   *  two appliances line up with each other rather than each with its own carcass.
+  /** How far a built-in oven's own origin stands **behind the carcass front plane it is mounted
+   *  on**, in metres. Measured off the shipped geometry, which seated it at a flat 0.018 in a
+   *  560 mm carcass whose front plane is 0.28: the difference is this number, and it puts the
+   *  fascia (`oven_front`, reaching 0.273) 11 mm proud of that edge, where a real appliance's
+   *  fascia rests.
    *
-   *  It does **not** bring the oven flush, and is not meant to: measured, the oven front reaches
-   *  z 358 — 28 mm proud of the worktop front at 330, and 78 mm proud of the carcass front at 280
-   *  — which is what an oven door and handle do. `tall-oven-tower` reaches the same 358, so do not
-   *  "correct" this to sit flush without changing the tower too. */
-  const OVEN_FORWARD_OFFSET_M = 0.018;
+   *  **M6 wave 6I's criterion 2, on the geometry side.** An oven is a manufactured size and none of
+   *  its own dimensions follow the cabinet-depth setting; *where it is mounted* does, because the
+   *  carcass front it hangs on does. Held flat at 0.018 it stayed put while the carcass around it
+   *  deepened, so a 700 mm kitchen measured a tower finishing at 699 — the appliance vanishing
+   *  behind its own cabinet front — instead of the 738 ADR 0058 projects. */
+  const OVEN_ORIGIN_BEHIND_CARCASS_FRONT_M = 0.262;
+
+  /** The oven's forward offset inside the carcass it is built into, shared with `tall-oven-tower`
+   *  so the two appliances line up with each other rather than each with its own carcass.
+   *
+   *  It does **not** bring the oven flush, and is not meant to: measured at the declared 600, the
+   *  oven front reaches z 358 — 28 mm proud of the worktop front at 330, and 78 mm proud of the
+   *  carcass front at 280 — which is what an oven door and handle do. `tall-oven-tower` reaches the
+   *  same 358, so do not "correct" this to sit flush without changing the tower too. */
+  const OVEN_FORWARD_OFFSET_M = CARC_D / 2 - OVEN_ORIGIN_BEHIND_CARCASS_FRONT_M;
+
+  /** The microwave's, in the same terms and for the same reason: it is mounted on the carcass front
+   *  the oven below it is, so the two fascias stay on one plane at every cabinet depth. Measured off
+   *  the shipped tower, which seated it at 0.089 against that 0.28 front plane. */
+  const MICROWAVE_ORIGIN_BEHIND_CARCASS_FRONT_M = 0.191;
+  const MICROWAVE_FORWARD_OFFSET_M =
+    CARC_D / 2 - MICROWAVE_ORIGIN_BEHIND_CARCASS_FRONT_M;
 
   function seatHobOnWorktop(cabinet: THREE.Group): THREE.Group {
     const hob = builders.cooktop();
@@ -941,7 +1019,7 @@ export function makeKit(options: KitOptions = {}): Kit {
       const x = cornerBaseX();
       x.position.set(0.45, 0, 0.28);
       g.add(x);
-      const r = cornerBaseReturn(0.58);
+      const r = cornerBaseReturn();
       r.position.set(0.29, 0, 0.74);
       r.rotation.y = Math.PI / 2;
       g.add(r);
@@ -982,7 +1060,7 @@ export function makeKit(options: KitOptions = {}): Kit {
       ov.position.set(0, 0.63, OVEN_FORWARD_OFFSET_M);
       g.add(ov);
       const mw = builders.microwave();
-      mw.position.set(0, 1.25, 0.089);
+      mw.position.set(0, 1.25, MICROWAVE_FORWARD_OFFSET_M);
       g.add(mw);
       g.add(doorSlab(0.594, 0.5, 0, 2.2, fz, "bottom"));
       return g;
@@ -1011,8 +1089,8 @@ export function makeKit(options: KitOptions = {}): Kit {
 
     "fridge-free": () => {
       const g = G("fridge_freestanding");
-      const W = 0.7,
-        D = 0.68,
+      const W = FREESTANDING_FRIDGE_WIDTH_M,
+        D = FREESTANDING_FRIDGE_DEPTH_M,
         H = 1.85,
         split = 1.15;
       g.add(box(W, H, D, M.steel, "fridge_body", 0, 0, 0));
@@ -1377,7 +1455,7 @@ export function makeKit(options: KitOptions = {}): Kit {
 
   /** Where a wall body's group origin sits off the wall plane so its back face lands on it
    *  (§11 row 19). Half the **shell**, not half the declared depth, since 5F. */
-  function wallSeatOffset(D = 0.33): number {
+  function wallSeatOffset(D = wallDepthM): number {
     return wallCarcassDepth(D) / 2;
   }
 
@@ -1398,7 +1476,7 @@ export function makeKit(options: KitOptions = {}): Kit {
     W: number,
     doors: number,
     H = 0.7,
-    D = 0.33,
+    D = wallDepthM,
     pushOpen = false,
   ): THREE.Group {
     const g = G("wall_cabinet");
@@ -1423,7 +1501,7 @@ export function makeKit(options: KitOptions = {}): Kit {
   // `wallCabinet` cannot produce for it, because that builder only chooses a bottom bar for a door
   // shorter than 500 mm and a lift-up's nominal height is 700. The defaults are the reference
   // builder's own literals, so `builders['wall-lift']()` is this call and the geometry is unchanged.
-  function wallLift(W = 0.6, H = 0.7, D = 0.33): THREE.Group {
+  function wallLift(W = 0.6, H = 0.7, D = wallDepthM): THREE.Group {
     const g = wallCabinet(W, 0, H, D);
     g.add(
       doorSlab(
@@ -1621,14 +1699,37 @@ export function makeKit(options: KitOptions = {}): Kit {
   // Placed side by side they meet on a shared face like any two cabinets.
   const CORNER_RECESS = 0.06; // plinth setback from a leg's own carcass front
 
-  // X-leg: 900 wide × 600 deep. Owns the 280 mm door and the lazy susan.
+  /** How far the X-leg's corner worktop stands proud of its own carcass front — the same 50 mm a
+   *  straight run's counter stands proud of its own, which is why ADR 0025 measures this leg's front
+   *  face at 630 from the wall plane against a base run's 620: the 10 mm is the *seat*, not the
+   *  overhang. */
+  const CORNER_X_WORKTOP_FRONT_OVERHANG_M = 0.05;
+
+  /** And how far it stops short at the back. Unlike a straight run's counter, which hangs 10 mm
+   *  behind its carcass, the corner slab stops 10 mm in front of the leg's back face. Named so both
+   *  faces move with the leg rather than one of them being a typed 0.64. */
+  const CORNER_X_WORKTOP_REAR_INSET_M = 0.01;
+
+  /** How far the X-leg's plinth stops short of its carcass at the **back**, matching the recess it
+   *  keeps at the front. The return leg's plinth runs to its own back face instead, which is why the
+   *  two legs compute their plinths differently rather than sharing one. */
+  const CORNER_X_PLINTH_REAR_RECESS_M = 0.02;
+
+  // X-leg: 900 wide, and as deep as the kitchen's cabinets are. Owns the 280 mm door and the lazy
+  // susan.
+  //
+  // **Its footprint follows the cabinet-depth setting** (M6 wave 6I): a corner leg is cabinetry, and
+  // 5F's QA measured it staying byte-identical while `baseCabinet` moved. Unlike a straight base it
+  // gives up no 40 mm front overhang — its front face carries a 280 mm door on the *side*, not a
+  // full-width one — so its carcass is the declared depth itself, which is where the leg's shipped
+  // 0.6 against a base run's 0.56 comes from.
   function cornerBaseX(): THREE.Group {
     const g = G("corner_base_x");
     const W = 0.9,
-      LD = 0.6; // this leg's own carcass footprint
+      LD = cabinetDepthMm / 1000; // this leg's own carcass footprint
     const cFront = LD / 2; // 0.300
-    const pFront = cFront - CORNER_RECESS; // 0.240 — from LD, nothing else
-    const pDepth = 0.52,
+    const pFront = cFront - CORNER_RECESS; // from LD, nothing else
+    const pDepth = LD - CORNER_RECESS - CORNER_X_PLINTH_REAR_RECESS_M,
       pBack = pFront - pDepth;
     g.add(
       box(
@@ -1661,8 +1762,9 @@ export function makeKit(options: KitOptions = {}): Kit {
         "left",
       ),
     );
-    const wFront = cFront + 0.05,
-      wDepth = 0.64;
+    const wFront = cFront + CORNER_X_WORKTOP_FRONT_OVERHANG_M,
+      wDepth =
+        LD + CORNER_X_WORKTOP_FRONT_OVERHANG_M - CORNER_X_WORKTOP_REAR_INSET_M;
     g.add(
       box(
         W,
@@ -1678,12 +1780,42 @@ export function makeKit(options: KitOptions = {}): Kit {
     return g;
   }
 
+  /** The return leg's default depth: the front plane of the base run it butts into, which is that
+   *  run's own recorded seat — the carcass plus the 10 mm its worktop hangs off the back at each end.
+   *  0.58 at the declared 600 mm kitchen, 0.68 at a 700 mm one.
+   *
+   *  **Derived rather than typed since M6 wave 6I** (criterion 1): the leg's whole job is to meet its
+   *  neighbour's front plane, so a literal here is the one number guaranteed to be wrong as soon as
+   *  the neighbour moves — it would leave the return standing 100 mm behind the run it closes. */
+  const CORNER_RETURN_DEPTH_M =
+    (cabinetDepthMm - 2 * COUNTER_REAR_OVERHANG_MM) / 1000;
+
+  /** How far the return leg's own worktop stands proud of its carcass front — the one number the
+   *  slab's *placement* needs, and the reference's own, taken from `LD`. */
+  const CORNER_RETURN_WORKTOP_FRONT_OVERHANG_M = 0.02;
+
+  /** How deep that slab is cut.
+   *
+   *  **Read from the kitchen's cabinet depth and deliberately not from `LD`.** The reference cuts it
+   *  at a flat 0.6, which is `LD + 0.02` at the shipped 0.58 and at no other `LD` — M1's parity gate
+   *  builds this leg at 0.56 and at 0.6 and pins the slab at 0.6 for both, so the slab is a property
+   *  of the *kitchen* and not of the placement variable the leg meets its neighbour with. Following
+   *  `LD` would move it under those two calls and fail the gate.
+   *
+   *  It still has to follow the setting (M6 wave 6I): at the default `LD` the slab's back face is
+   *  flush with the carcass's, and a slab held at 0.6 in a 700 mm kitchen would leave 100 mm of open
+   *  carcass behind it. 0.6 at 600 and 0.7 at 700, and 0.6 for every parity call, because those are
+   *  made on a kit built at the declared depth. */
+  const CORNER_RETURN_WORKTOP_DEPTH_M =
+    (cabinetDepthMm - 2 * COUNTER_REAR_OVERHANG_MM) / 1000 +
+    CORNER_RETURN_WORKTOP_FRONT_OVERHANG_M;
+
   // Return leg: 320 wide along its wall; depth is the PLACEMENT VARIABLE — it
   // must equal the front plane of the neighbour it butts into (0.56 against a
   // standard base cabinet, 0.58 against a deeper tall unit).
-  function cornerBaseReturn(LD = 0.58): THREE.Group {
+  function cornerBaseReturn(LD = CORNER_RETURN_DEPTH_M): THREE.Group {
     const g = G("corner_base_return");
-    const W = 0.32;
+    const W = CORNER_RETURN_WIDTH_M;
     const cFront = LD / 2;
     const pFront = cFront - CORNER_RECESS; // from LD, nothing else
     const pDepth = LD - CORNER_RECESS,
@@ -1703,8 +1835,8 @@ export function makeKit(options: KitOptions = {}): Kit {
     g.add(box(W, CARC_H, LD, M.carcass, "carcass", 0, PLINTH, 0));
     // Butts the X-leg slab (which already covers the corner) instead of running
     // through it — the two stone volumes share a face, no coplanar overlap.
-    const wFront = cFront + 0.02,
-      wDepth = 0.6,
+    const wFront = cFront + CORNER_RETURN_WORKTOP_FRONT_OVERHANG_M,
+      wDepth = CORNER_RETURN_WORKTOP_DEPTH_M,
       wWide = 0.27;
     g.add(
       box(
@@ -1862,8 +1994,43 @@ export function makeKit(options: KitOptions = {}): Kit {
       return obj;
     };
     // Wall A parts face +z (default orientation), seated flush against the wall plane
-    place(cornerBaseX(), 0.45, 0.28);
-    place(cornerBaseReturn(0.58), 0.29, 0.74, Math.PI / 2);
+    //
+    // **The two corner legs are the exception, and their seats are derived rather than measured.**
+    // `seatOnWallA` below puts a body's back face on the plane; ADR 0025 says a corner leg is not
+    // seated by the wall at all — the **L-joint** decides where it stands, so the X-leg's 900 × 700
+    // footprint deliberately overhangs the plane by 20 mm and the return leg meets the base run's
+    // front. Both seats are half the seat depth the domain records for them
+    // (`baseCarcassDepthMm` and `baseSeatDepthMm`, `catalog.ts`), which is what ADR 0018 means by a
+    // seat: 0.28 / 0.29 at a 600 mm kitchen and 0.33 / 0.34 at a 700 mm one.
+    //
+    // **They were literals until M6 wave 6I2's QA**, and that is where the wave's depth
+    // parameterisation stopped one level short: the legs' own depths followed the setting while
+    // where they *stood* did not, so at 700 the X-leg sank 70 mm into the wall, the return leg came
+    // 50 mm through wall B, and their two worktops overlapped over 650 × 50 mm. Every per-body gate
+    // stayed green because none of them measured composition; `room-composition.parity.test.ts` now
+    // does, at both declared depths.
+    place(cornerBaseX(), 0.45, carcassDepthM / 2);
+
+    // **The L-joint: where the X-leg's carcass ends and everything along wall B begins.** Its seat
+    // plus half its own footprint, and its footprint is the declared cabinet depth — so the joint
+    // moves 50 mm further along wall B for every 100 mm of cabinet depth. 0.58 at the declared
+    // 600 mm, 0.68 at 700.
+    //
+    // Wave 6I2's second finding, and the larger half of it: **the deeper cabinet consumes more of
+    // the adjacent wall.** Every along-wall seat on wall B below was a literal frozen at the 600 mm
+    // arithmetic, so at 700 the return leg stayed put while the X-leg grew into it — 100 mm of
+    // carcass through carcass and 700 × 100 mm of worktop through worktop. Each is now derived by
+    // butting the body against the one before it, which is what the reference room's own literals
+    // are: `0.74 = 0.58 + 0.16`, `1.2 = 0.90 + 0.30`, `1.8 = 1.2 + 0.6`, `2.45 = 2.10 + 0.35`. They
+    // reproduce exactly at 600, and the M1 parity gate is what says so.
+    const cornerJointM = carcassDepthM / 2 + cabinetDepthMm / 1000 / 2;
+    const cornerReturnAlongWallM = cornerJointM + CORNER_RETURN_WIDTH_M / 2;
+    place(
+      cornerBaseReturn(),
+      CORNER_RETURN_DEPTH_M / 2,
+      cornerReturnAlongWallM,
+      Math.PI / 2,
+    );
     seatOnWallA(baseCabinet(0.8, { doors: 2, sink: true }), 1.3);
     seatOnWallA(builders["base-dishwasher"](), 2.0);
     const cookBase = seatOnWallA(baseCabinet(0.6, { drawers: 2 }), 2.6);
@@ -1883,7 +2050,12 @@ export function makeKit(options: KitOptions = {}): Kit {
       box(
         RUN_END_PANEL_THICKNESS_M,
         RUN_END_PANEL_HEIGHT_M,
-        0.6,
+        // The finished end spans the **cabinet's** depth, so it closes the run it caps rather than
+        // stopping short of it. 0.6 at the declared 600 mm, exactly as the reference draws it, and
+        // 0.7 at 700 — where a frozen 0.6 would have left 120 mm of the last carcass's side on show
+        // behind the panel meant to hide it. Found by wave 6I2's sweep for literals of the same
+        // class as the corner seats above.
+        cabinetDepthMm / 1000,
         M.oak,
         RUN_END_PANEL_NAME,
         0,
@@ -1896,10 +2068,23 @@ export function makeKit(options: KitOptions = {}): Kit {
       RUN_END_PANEL_HEIGHT_M / 2,
     );
 
-    // Wall B tall run: rotated 90° so fronts face +x, seated flush against the wall plane
-    seatOnWallB(builders["tall-oven-tower"](), 1.2);
-    seatOnWallB(builders["tall-pantry"](), 1.8);
-    place(builders["fridge-free"](), 0.34, 2.45, Math.PI / 2); // already flush; not derived from a shared offset
+    // Wall B tall run: rotated 90° so fronts face +x, seated flush against the wall plane. The run
+    // starts where the return leg ends and each column butts the one before it.
+    const tallRunStartM = cornerReturnAlongWallM + CORNER_RETURN_WIDTH_M / 2;
+    const ovenTowerAlongWallM = tallRunStartM + COLUMN_WIDTH_M / 2;
+    const pantryAlongWallM = ovenTowerAlongWallM + COLUMN_WIDTH_M;
+    const fridgeAlongWallM =
+      pantryAlongWallM + COLUMN_WIDTH_M / 2 + FREESTANDING_FRIDGE_WIDTH_M / 2;
+    seatOnWallB(builders["tall-oven-tower"](), ovenTowerAlongWallM);
+    seatOnWallB(builders["tall-pantry"](), pantryAlongWallM);
+    // Already flush: a freestanding fridge is its own 680 mm body at every cabinet depth, so half of
+    // it is the seat and no setting reaches it.
+    place(
+      builders["fridge-free"](),
+      FREESTANDING_FRIDGE_DEPTH_M / 2,
+      fridgeAlongWallM,
+      Math.PI / 2,
+    );
 
     // upper run — continuous from the corner to the end, all on one line (1.50 → 2.20)
     //
@@ -1907,17 +2092,34 @@ export function makeKit(options: KitOptions = {}): Kit {
     // assembly (ADR 0036), so half of *that* is what puts its back face on the wall plane
     // (§11 row 19). `openShelf` has no front assembly, so its own half-depth is unchanged.
     const yW = 1.5;
+    const upperCornerReturnAlongWallM =
+      wallDepthM + UPPER_CORNER_RETURN_WIDTH_M / 2;
     place(wallCabinet(0.6, 2), 0.3, wallSeatOffset(), 0, yW);
-    place(wallCabinet(0.57, 1), wallSeatOffset(), 0.615, Math.PI / 2, yW); // corner return, closes the upper L
+    // The upper L's corner return butts the wall-A cabinet beside it, whose front face is the
+    // **wall** depth rather than the cabinet depth — so this one follows the map and not the
+    // formula. 0.615 at 600 and 0.685 at 700; frozen at 0.615 it overlapped its neighbour by 70 mm.
+    place(
+      wallCabinet(0.57, 1),
+      wallSeatOffset(),
+      upperCornerReturnAlongWallM,
+      Math.PI / 2,
+      yW,
+    ); // corner return, closes the upper L
     place(wallCabinet(0.3, 1), 0.75, wallSeatOffset(), 0, yW);
     place(wallCabinet(0.8, 2), 1.3, wallSeatOffset(), 0, yW);
-    place(openShelf(0.6, 0.33, 2), 2.0, 0.165, 0, yW);
+    place(openShelf(0.6, wallDepthM, 2), 2.0, wallDepthM / 2, 0, yW);
     place(hood(0.6), 2.6, HOOD_SEAT_OFFSET_M, 0, yW);
     place(wallCabinet(0.6, 2), 3.2, wallSeatOffset(), 0, yW);
 
     // top row — up to the ceiling (2.20 → 2.60), widths matching the middle row.
     // Overhead doors ship push-to-open: the handles are built and hidden, so the
     // configurator can still switch them on.
+    // The broad rule on purpose: every mesh whose name contains "handle", not the narrow
+    // "a handle group whose parent also holds a front" of `cabinet-handle-meshes.ts`. M1's reference
+    // room is a fixed scene that predates the derived bodies and stays independent of their rules,
+    // and these top-row cabinets carry no appliance bar for the two rules to disagree about.
+    // `kitchen-parts.decomposition.parity.test.ts` compares visibility node for node against the
+    // derived build, so the day they do disagree the gate says so.
     const pushOpen = (obj: THREE.Object3D) => {
       obj.traverse((o) => {
         if (isMesh(o) && o.name.includes("handle")) o.visible = false;
@@ -1936,37 +2138,45 @@ export function makeKit(options: KitOptions = {}): Kit {
     ];
     for (const [w, x] of topRow)
       place(
-        pushOpen(wallCabinet(w, w > 0.4 ? 2 : 1, hT, 0.33)),
+        pushOpen(wallCabinet(w, w > 0.4 ? 2 : 1, hT, wallDepthM)),
         x,
         wallSeatOffset(),
         0,
         yT,
       );
     place(
-      pushOpen(wallCabinet(0.57, 1, hT, 0.33)),
+      pushOpen(wallCabinet(0.57, 1, hT, wallDepthM)),
       wallSeatOffset(),
-      0.615,
+      upperCornerReturnAlongWallM,
+      Math.PI / 2,
+      yT,
+    );
+    // **The three deliberately deep tops, and their 0.6 is a pin rather than a stale literal**
+    // (ADR 0058, owner 2026-09-02). They are deep because the *columns* under them are — §5.2's
+    // head-clearance cap is lifted over a full-height member — and the owner ruled they stay at the
+    // 600 mm cabinet-depth line rather than following the setting or following their column. So
+    // these do **not** read `wallDepthM`, and that is the decision and not an oversight: the domain
+    // says the same thing as a declaration on `wall-2door-600-deep-top` and
+    // `wall-2door-700-over-fridge` (`PINNED_DEEP_TOP_CABINET_DEPTH_MM`), and the two are swept
+    // together at both declared depths by `occupied-depth.parity.test.ts`.
+    place(
+      pushOpen(wallCabinet(0.6, 2, hT, PINNED_DEEP_TOP_DEPTH_M)),
+      wallSeatOffset(PINNED_DEEP_TOP_DEPTH_M),
+      ovenTowerAlongWallM,
       Math.PI / 2,
       yT,
     );
     place(
-      pushOpen(wallCabinet(0.6, 2, hT, 0.6)),
-      wallSeatOffset(0.6),
-      1.2,
+      pushOpen(wallCabinet(0.6, 2, hT, PINNED_DEEP_TOP_DEPTH_M)),
+      wallSeatOffset(PINNED_DEEP_TOP_DEPTH_M),
+      pantryAlongWallM,
       Math.PI / 2,
       yT,
     );
     place(
-      pushOpen(wallCabinet(0.6, 2, hT, 0.6)),
-      wallSeatOffset(0.6),
-      1.8,
-      Math.PI / 2,
-      yT,
-    );
-    place(
-      wallCabinet(0.7, 2, 0.75, 0.6),
-      wallSeatOffset(0.6),
-      2.45,
+      wallCabinet(0.7, 2, 0.75, PINNED_DEEP_TOP_DEPTH_M),
+      wallSeatOffset(PINNED_DEEP_TOP_DEPTH_M),
+      fridgeAlongWallM,
       Math.PI / 2,
       1.85,
     ); // over the fridge
@@ -2011,6 +2221,8 @@ export function makeKit(options: KitOptions = {}): Kit {
       frontAssemblyDepthM: FRONT_ASSEMBLY_D,
       hoodDepthM: HOOD_DEPTH_M,
       hoodSeatOffsetM: HOOD_SEAT_OFFSET_M,
+      cornerReturnDepthM: CORNER_RETURN_DEPTH_M,
+      wallDepthM,
     },
     ownsGeometry: (geometry) => owned.geometries.has(geometry),
   };

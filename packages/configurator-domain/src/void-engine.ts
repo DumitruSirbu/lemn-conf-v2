@@ -66,6 +66,8 @@ export type WidthFlex = "fit" | readonly number[];
 export type StructuralReason = "corner";
 
 import { occupiedDepthM, type OccupiedDepthRule } from "./occupied-depth.js";
+import type { CabinetHandleRule } from "./cabinet-handles.js";
+import type { CabinetDepthRule } from "./cabinet-depth-rule.js";
 
 export interface Frame {
   readonly x: number;
@@ -96,6 +98,28 @@ export interface BodyDefinition {
    *  entry cannot be added without answering the question: the catch-all it replaces answered it
    *  wrongly for four body families and nothing failed (DOM-002). `occupied-depth.ts` applies it. */
   readonly occupiedDepth: OccupiedDepthRule;
+  /** **How many of this body's handles are the cabinet's** — the quantity M6 prices, which is not
+   *  the number of handle bars its builder draws: `tall-oven-tower` draws four and two of them are
+   *  the oven's and the microwave's (ADR 0061). Declared, never inferred, for the reason
+   *  `catalogEquivalentId` below is — the domain has no meshes, and the rule that tells the two
+   *  apart inspects geometry. `cabinet-handles.ts` applies it and **throws** for an entry that
+   *  declares nothing, rather than falling back to a mesh count or to zero (ADR 0061 decision 4).
+   *
+   *  Optional here and required of every shipped entry by two sweeps instead — the catalogue-wide
+   *  declaration sweep in `cabinet-handles.test.ts` and the mesh parity gate in
+   *  `@lemnaria/three-adapter` — because the case that must fail loudly is a definition arriving
+   *  through the `BodyCatalog` port from outside TypeScript, which a required field cannot reach. */
+  readonly cabinetHandles?: CabinetHandleRule;
+  /** **Whether this body's depth follows the cabinet-depth setting** — ADR 0058 decision 2, so that
+   *  the two deliberately deep top cabinets are pinned by a declaration a reader can grep rather
+   *  than by a constant that has quietly stopped tracking anything. `cabinet-depth-rule.ts` applies
+   *  it and **throws** for an entry that declares nothing.
+   *
+   *  Optional here and required of every shipped §7 row by `BodyShape`'s own required field, for the
+   *  reason `cabinetHandles` above is optional: the case that must fail loudly is a definition
+   *  arriving through the `BodyCatalog` port from outside TypeScript, which a required field cannot
+   *  reach. */
+  readonly depthRule?: CabinetDepthRule;
   readonly frameHeightMm?: number;
   readonly canFinish: boolean;
   readonly canHandle: boolean;

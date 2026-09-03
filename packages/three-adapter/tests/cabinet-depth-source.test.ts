@@ -7,13 +7,19 @@
 // rules in the domain and the builders here, so the numbers are declared twice on purpose; what must
 // not happen is that they stop being the same number.
 import {
+  buildInsertableBodyDefinitions,
   WALL_FRONT_ASSEMBLY_MM,
   WORKTOP_DEPTH_MM,
 } from "@lemnaria/configurator-domain";
 import * as THREE from "three";
 import { beforeAll, describe, expect, it } from "vitest";
 
-import { DEFAULT_CABINET_DEPTH_MM, makeKit } from "../src/kitchen-parts.js";
+import {
+  DEFAULT_CABINET_DEPTH_MM,
+  DEFAULT_WALL_DEPTH_MM,
+  makeKit,
+  PINNED_DEEP_TOP_DEPTH_M,
+} from "../src/kitchen-parts.js";
 import {
   createHeadlessCanvas,
   installHeadlessDocument,
@@ -48,6 +54,61 @@ describe("the adapter's cabinet depth is the domain's", () => {
   it("derives the same front assembly the domain declares", () => {
     expect(Math.round(kitAt(600).depths.frontAssemblyDepthM * 1000)).toBe(
       WALL_FRONT_ASSEMBLY_MM,
+    );
+  });
+});
+
+describe("the adapter's wall depth is the domain's map row", () => {
+  // **The third pair this file exists for** (M6 wave 6I). Wall depth is the one depth in the model
+  // that is a *lookup* and not a formula — wall cabinets come in manufactured sizes, and ADR 0028
+  // refuses to interpolate a 372 mm cabinet nobody makes — so §12 keeps the map in the domain and a
+  // kit is handed the row. That makes it a second copy of a number, which is precisely the shape
+  // ADR 0028 was written about, so it gets ADR 0028's own remedy rather than a comment.
+  //
+  // Read off the §7 `wall-cabinet` entry built at each depth, which is where the map's answer
+  // actually reaches the product.
+  function domainWallDepthMm(cabinetDepthMm: number): number {
+    const wallDepthMm = buildInsertableBodyDefinitions(cabinetDepthMm).find(
+      ([buildId]) => buildId === "wall-cabinet",
+    )?.[1].nominalDepthMm;
+    if (wallDepthMm === undefined) {
+      throw new Error(
+        `the catalogue declares no wall depth at ${String(cabinetDepthMm)} mm`,
+      );
+    }
+    return wallDepthMm;
+  }
+
+  it("defaults to the map row for the depth the domain declares", () => {
+    expect(DEFAULT_WALL_DEPTH_MM).toBe(domainWallDepthMm(WORKTOP_DEPTH_MM));
+  });
+
+  it.each([600, 700])(
+    "builds a wall carcass at the %i mm row",
+    (cabinetDepthMm) => {
+      const wallDepthMm = domainWallDepthMm(cabinetDepthMm);
+      const kit = makeKit({
+        createCanvas: createHeadlessCanvas,
+        cabinetDepthMm,
+        wallDepthMm,
+      });
+
+      expect(Math.round(kit.depths.wallDepthM * 1000)).toBe(wallDepthMm);
+      // The shell is the declared depth less the front assembly, so the *declared* number is what the
+      // map hands over and the geometry is what proves it arrived.
+      expect(depthMmOf(kit.make.wallCabinet(0.6, 2), "carcass_shell")).toBe(
+        wallDepthMm - WALL_FRONT_ASSEMBLY_MM,
+      );
+    },
+  );
+
+  // ADR 0058, from the geometry side: the three deep tops are pinned at the 600 mm cabinet-depth
+  // line and are the one thing in the reference room that must **not** take the map row. Stated here
+  // beside the map so the two are read together.
+  it("keeps the pinned deep tops off the map at every depth", () => {
+    expect(PINNED_DEEP_TOP_DEPTH_M).toBe(0.6);
+    expect(Math.round(PINNED_DEEP_TOP_DEPTH_M * 1000)).not.toBe(
+      domainWallDepthMm(700),
     );
   });
 });

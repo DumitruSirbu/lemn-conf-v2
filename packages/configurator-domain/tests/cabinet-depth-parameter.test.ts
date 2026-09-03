@@ -10,13 +10,23 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  cabinetDepthRuleOf,
+  depthFollowsSetting,
+  pinnedAtCabinetDepthMm,
+  UndeclaredCabinetDepthRuleError,
+} from "../src/cabinet-depth-rule.js";
+import {
   buildInsertableBodyDefinitions,
   INSERTABLE_BODY_DEFINITIONS,
   type CatalogEntry,
 } from "../src/catalog.js";
+import {
+  buildKitchenLBodyCatalog,
+  KITCHEN_L_BODY_CATALOG,
+} from "../src/fixtures/kitchen-l-design.js";
 import { wallCarcassMaxDepthOverWorktopM } from "../src/commands/insert-fit.js";
 import { toMillimetres } from "../src/millimetres.js";
-import type { BodyDefinition } from "../src/void-engine.js";
+import type { BodyCatalog, BodyDefinition } from "../src/void-engine.js";
 import {
   declaredWorktopDepthsMm,
   UnknownWorktopDepthError,
@@ -70,6 +80,17 @@ function wallPlane(finishedDepthMm: number) {
 
 function recordedShell(frontAssemblyMm: number) {
   return { measuredFrom: "recorded-shell", frontAssemblyMm };
+}
+
+/** Every depth-bearing field of one entry as a single comparable value. "Moved" has to be all three
+ *  and not the finished depth alone: a fronted wall carcass declares the same `+39` rule at both
+ *  depths, and what the setting moves is the shell that rule is measured from. */
+function depthFactsJson(definition: BodyDefinition): string {
+  return JSON.stringify([
+    definition.nominalDepthMm,
+    definition.frameDepthMm,
+    definition.occupiedDepth,
+  ]);
 }
 
 function depthFactsOf(
@@ -157,18 +178,179 @@ describe("a catalogue built at 700 describes a different kitchen", () => {
     }
   });
 
-  // **A gap this wave records rather than closes, and it is wave 6I's by name.** A base entry's
-  // `nominalDepthMm` is the literal `BASE_DEPTH_MM` (580) — the seat `void-engine.ts` falls back to
-  // — and it does not follow the setting, while the *finished* depth above does. So a catalogue
-  // built at 700 currently declares a base body that finishes at 720 on a 580 mm seat.
-  //
-  // Not repaired here: 6H's punch list is the five depth-derived facts, and 6I's criterion is that
-  // *every base-band body's finished depth moves by the same amount the formula moves*
-  // `baseCabinet` *by, asserted per body against the built meshes*. Stated as an assertion so the
-  // gap is a number somebody read; **6I is expected to change this line**, which is the point.
-  it("still carries the base seat as a literal — wave 6I's carry-out, stated", () => {
+  // **6H's recorded carry-out, closed by wave 6I.** This test read `580` at both depths and said
+  // *"6I is expected to change this line"*: a base entry's `nominalDepthMm` was the literal
+  // `BASE_DEPTH_MM`, so a catalogue built at 700 declared a body finishing at 720 on a 580 mm seat —
+  // a back face 50 mm off the wall plane for any placement `void-engine.ts` had to fall back to it
+  // for (§11 row 19). Both numbers are measured on the built meshes by
+  // `occupied-depth.parity.test.ts`; they are written here as data for 6H's own reason.
+  it("moves the base seat with the setting, which 6H left as a literal", () => {
     expect(entryAt(600, "base-cabinet").nominalDepthMm).toBe(580);
-    expect(entryAt(700, "base-cabinet").nominalDepthMm).toBe(580);
+    expect(entryAt(700, "base-cabinet").nominalDepthMm).toBe(680);
+  });
+});
+
+describe("wave 6I: every base-band body follows the formula, not just `baseCabinet`", () => {
+  // The carry-out `docs/milestones/M5-width.md` hands M6 by name. 5F's QA measured the corner,
+  // return, dishwasher and oven-tower bodies staying byte-identical across depths while
+  // `baseCabinet` moved; the criterion is that each moves by **the same amount** as the formula
+  // moves that one by. The mesh-backed half of this lives in `@lemnaria/three-adapter`
+  // (`occupied-depth.parity.test.ts`); this is the declaration it holds to.
+  const BASE_BAND_BUILD_IDS = buildInsertableBodyDefinitions(WORKTOP_DEPTH_MM)
+    .filter(([, definition]) => definition.band === "base")
+    .map(([buildId]) => buildId);
+
+  function finishedDepthShiftMm(buildId: string): number {
+    return (
+      finishedDepthMmOf(entryAt(700, buildId)) -
+      finishedDepthMmOf(entryAt(600, buildId))
+    );
+  }
+
+  it("sweeps the whole base band and not a hand-picked row", () => {
+    expect(BASE_BAND_BUILD_IDS).toEqual([
+      "base-cabinet",
+      "base-3drawer",
+      "base-panbank",
+      "base-hob-2drawer",
+      "base-hob-oven",
+      "base-bottle-cargo",
+      "base-sink",
+      "base-dishwasher",
+    ]);
+  });
+
+  it.each(BASE_BAND_BUILD_IDS)(
+    "%s moves by exactly what the formula moves `base-cabinet` by",
+    (buildId) => {
+      expect(finishedDepthShiftMm(buildId)).toBe(
+        finishedDepthShiftMm("base-cabinet"),
+      );
+    },
+  );
+
+  // The shift being 100 is what stops "they all agree" from being satisfied by nothing moving at
+  // all — the exact failure mode 5F's QA found, where four families agreed by all standing still.
+  it("moves them by the 100 mm the two declared depths differ by", () => {
+    expect(finishedDepthShiftMm("base-cabinet")).toBe(100);
+  });
+
+  it("keeps the hob-and-oven base proud of its own worktop by the appliance's own 28 mm", () => {
+    for (const cabinetDepthMm of DECLARED_DEPTHS_MM) {
+      expect(finishedDepthMmOf(entryAt(cabinetDepthMm, "base-hob-oven"))).toBe(
+        finishedDepthMmOf(entryAt(cabinetDepthMm, "base-cabinet")) + 28,
+      );
+    }
+  });
+});
+
+describe("wave 6I: a full-height cabinet is cabinetry and what stands in it is not", () => {
+  // The criterion is that each body **states which of the two it is** and that a test asserts the
+  // split rather than everything moving together. `COLUMN_DEPTH_MM` and
+  // `OVEN_TOWER_FINISHED_DEPTH_MM` were both literals before this wave.
+  it("moves a column's carcass with the setting", () => {
+    expect(entryAt(600, "tall-pantry").nominalDepthMm).toBe(560);
+    expect(entryAt(700, "tall-pantry").nominalDepthMm).toBe(660);
+  });
+
+  it("moves every full-height carcass, not only the pantry the map is checked on", () => {
+    for (const buildId of [
+      "tall-pantry",
+      "tall-oven-tower",
+      "tall-fridge-housing",
+    ]) {
+      expect(entryAt(700, buildId).nominalDepthMm).toBe(660);
+      expect(finishedDepthMmOf(entryAt(700, buildId))).toBe(
+        finishedDepthMmOf(entryAt(600, buildId)) + 100,
+      );
+    }
+  });
+
+  // **The split.** The tower's finished depth moves by the same 100 the pantry's does, and the gap
+  // between them — the oven's and the microwave's own fascias and bars — is the same 39 mm at both
+  // depths. A wave that had scaled the appliances with the setting would move the tower by more; one
+  // that had pinned the whole body would move it by nothing. Both are excluded here.
+  it("keeps the appliance fronts a manufactured size at both depths", () => {
+    for (const cabinetDepthMm of DECLARED_DEPTHS_MM) {
+      expect(
+        finishedDepthMmOf(entryAt(cabinetDepthMm, "tall-oven-tower")) -
+          finishedDepthMmOf(entryAt(cabinetDepthMm, "tall-pantry")),
+      ).toBe(39);
+    }
+  });
+
+  it("leaves the freestanding fridge alone, because it is a machine and not a carcass", () => {
+    for (const buildId of ["fridge-free"]) {
+      expect(entryAt(700, buildId).nominalDepthMm).toBe(
+        entryAt(600, buildId).nominalDepthMm,
+      );
+      expect(finishedDepthMmOf(entryAt(700, buildId))).toBe(
+        finishedDepthMmOf(entryAt(600, buildId)),
+      );
+    }
+  });
+});
+
+describe("wave 6I: an entry that neither tracks the setting nor declares an exception fails", () => {
+  // ADR 0058 decisions 2 and 3. The pin on the two deliberately deep top cabinets has to be a
+  // **declaration**, because a constant that has silently stopped tracking anything and a body that
+  // was deliberately held still are indistinguishable once the person who wrote it has gone — which
+  // is exactly what `BASE_DEPTH_MM` (6H) and `COLUMN_DEPTH_MM` (this wave) turned out to be.
+  //
+  // The two entries ADR 0058 names are **seeded**, so the falsifiable form over them lives with the
+  // seeded catalogue. What is asserted here is the mechanism they will use, over the §7 population:
+  // every entry declares, the declaration and the measured movement agree, and an entry that
+  // declares nothing is refused rather than read as pinned.
+  const ENTRIES_AT_600 = buildInsertableBodyDefinitions(600);
+
+  it.each(ENTRIES_AT_600.map(([buildId]) => buildId))(
+    "%s declares whether its depth follows the setting",
+    (buildId) => {
+      expect(() =>
+        cabinetDepthRuleOf({
+          buildId,
+          rule: entryAt(600, buildId).depthRule,
+        }),
+      ).not.toThrow();
+    },
+  );
+
+  it.each(ENTRIES_AT_600.map(([buildId]) => buildId))(
+    "%s moves between the two declared depths exactly when it says it does",
+    (buildId) => {
+      const rule = cabinetDepthRuleOf({
+        buildId,
+        rule: entryAt(600, buildId).depthRule,
+      });
+      const moved =
+        depthFactsJson(entryAt(700, buildId)) !==
+        depthFactsJson(entryAt(600, buildId));
+
+      expect(moved).toBe(depthFollowsSetting(rule));
+    },
+  );
+
+  it("refuses an entry that declares nothing, naming it", () => {
+    expect(() =>
+      cabinetDepthRuleOf({ buildId: "invented-row", rule: undefined }),
+    ).toThrow(UndeclaredCabinetDepthRuleError);
+    expect(() =>
+      cabinetDepthRuleOf({ buildId: "invented-row", rule: undefined }),
+    ).toThrow(/invented-row/);
+  });
+
+  // The §7 catalogue has no pinned row — the pin lives on two seeded ones — so the arm is exercised
+  // directly here as well as over the whole catalogue in the block below.
+  it("reads a pin as an exception rather than as a body that happens not to move", () => {
+    const pinned = pinnedAtCabinetDepthMm(600);
+
+    expect(depthFollowsSetting(pinned)).toBe(false);
+    expect(cabinetDepthRuleOf({ buildId: "pinned-row", rule: pinned })).toEqual(
+      {
+        follows: "pinned",
+        pinnedAtCabinetDepthMm: 600,
+      },
+    );
   });
 });
 
@@ -236,4 +418,98 @@ describe("the hood's finished line follows the setting and its body does not", (
       );
     }
   });
+});
+
+describe("ADR 0058: the two deep top cabinets are pinned, over the whole catalogue", () => {
+  // **Decision 3's falsifiable form, verbatim:** build the catalogue at 600 and at 700; these two
+  // entries' finished depth is identical (600) at both, while every other cabinetry entry's has
+  // moved. Both populations are in it, which is what wave 6I had to make possible — until it, the
+  // seeded map was a module constant with no depth to be built at, so the two rows the decision is
+  // about could not be asked the question.
+  const PINNED_BUILD_IDS = [
+    "wall-2door-600-deep-top",
+    "wall-2door-700-over-fridge",
+  ];
+
+  function entryOf(cabinetDepthMm: number, buildId: string): BodyDefinition {
+    const catalogue: BodyCatalog = buildKitchenLBodyCatalog(cabinetDepthMm);
+    const definition = catalogue.get(buildId);
+    if (!definition) throw new Error(`no entry "${buildId}"`);
+    return definition;
+  }
+
+  /** How far this body's finished front stands from the wall plane. A `wall-plane` rule states it
+   *  outright; a `recorded-shell` rule states only what stands in front of the seat, so the seat has
+   *  to be added back. Both arms are needed: the two pinned rows are fronted top carcasses and most
+   *  of the catalogue is not. */
+  function finishedDepthMm(definition: BodyDefinition): number {
+    return definition.occupiedDepth.measuredFrom === "wall-plane"
+      ? definition.occupiedDepth.finishedDepthMm
+      : definition.frameDepthMm + definition.occupiedDepth.frontAssemblyMm;
+  }
+
+  it.each(PINNED_BUILD_IDS)(
+    "%s finishes at 600 at both declared depths",
+    (buildId) => {
+      for (const cabinetDepthMm of DECLARED_DEPTHS_MM) {
+        expect(finishedDepthMm(entryOf(cabinetDepthMm, buildId))).toBe(600);
+      }
+    },
+  );
+
+  it("declares the pin rather than holding still by arithmetic", () => {
+    for (const buildId of PINNED_BUILD_IDS) {
+      expect(entryOf(700, buildId).depthRule).toEqual({
+        follows: "pinned",
+        pinnedAtCabinetDepthMm: 600,
+      });
+    }
+  });
+
+  // The other half of decision 3, and the half that makes the first non-vacuous: everything that is
+  // not pinned and not a machine **has** moved. Without it the pin would be satisfied just as well
+  // by a catalogue in which nothing moved at all — which is the state wave 6I found the seeded map
+  // in, and the reason the decision insists the pin be a declaration.
+  it("has moved every other cabinetry entry, in both populations", () => {
+    const rows = [...buildKitchenLBodyCatalog(600).keys()].map((buildId) => {
+      const rule = cabinetDepthRuleOf({
+        buildId,
+        rule: entryOf(600, buildId).depthRule,
+      });
+      const moved =
+        depthFactsJson(entryOf(700, buildId)) !==
+        depthFactsJson(entryOf(600, buildId));
+      return { buildId, moved, follows: depthFollowsSetting(rule) };
+    });
+
+    // Guards the sweep itself: a catalogue that somehow answered "nothing moved" for everything
+    // would satisfy the per-row check below trivially.
+    expect(rows.filter((row) => row.moved).length).toBeGreaterThan(20);
+    expect(rows.filter((row) => !row.moved).map((row) => row.buildId)).toEqual([
+      "fridge-free-700",
+      "wall-2door-600-deep-top",
+      "wall-2door-700-over-fridge",
+      "fridge-free",
+    ]);
+    for (const row of rows) {
+      expect({ buildId: row.buildId, moved: row.moved }).toEqual({
+        buildId: row.buildId,
+        moved: row.follows,
+      });
+    }
+  });
+
+  // Criterion 3's loud-failure clause over the population it is about: an entry that neither tracks
+  // the setting nor declares an exception is refused rather than silently read as pinned.
+  it.each([...KITCHEN_L_BODY_CATALOG.keys()])(
+    "%s declares whether its depth follows the setting",
+    (buildId) => {
+      expect(() =>
+        cabinetDepthRuleOf({
+          buildId,
+          rule: entryOf(600, buildId).depthRule,
+        }),
+      ).not.toThrow();
+    },
+  );
 });

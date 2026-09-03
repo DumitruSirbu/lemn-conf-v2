@@ -208,8 +208,8 @@ describe("the label is the panel header's label, not a second derivation", () =>
 
   it("reads a seeded pantry and its migrated equivalent exactly as the header does", () => {
     // Backlog entry 20, stated as a parity check rather than as a rename: a resize migrates
-    // `tall-pantry-600` to `tall-pantry`, and the customer sees the name change. What must NOT
-    // happen is the two *surfaces* differing at either end of that migration.
+    // `tall-pantry-600` to `tall-pantry`. What must NOT happen is the two *surfaces* differing at
+    // either end of that migration.
     const before = designOf([
       placement("p", "B", 1800, 0, "tall-pantry-600", 600, 2200),
     ]);
@@ -231,13 +231,26 @@ describe("the label is the panel header's label, not a second derivation", () =>
       expect(projectedLabel).toBe(header?.label);
     }
 
-    // And the migration is real, so the parity above is not two identical strings by accident.
-    expect(projectDesignForDisplay(before, CATALOG)[0]?.entries[0]?.label).toBe(
-      "Coloană",
+    // And the migration is real — two entries, one seeded and one insertable — so the parity above
+    // is not one definition read twice.
+    expect(definitionOf("tall-pantry-600").insertable).not.toBe(
+      definitionOf("tall-pantry").insertable,
     );
-    expect(projectDesignForDisplay(after, CATALOG)[0]?.entries[0]?.label).toBe(
-      "Coloană cămară 2 uși",
+
+    // ADR 0064: what the migration no longer does is rename the cabinet. Derived on both sides
+    // rather than pinned to a string, which now lives on the seeded row and on its equivalent.
+    const labelBefore = projectDesignForDisplay(before, CATALOG)[0]?.entries[0]
+      ?.label;
+    const labelAfter = projectDesignForDisplay(after, CATALOG)[0]?.entries[0]
+      ?.label;
+
+    // Both sides are `string | undefined`, so a projection that returned no group — or no entry —
+    // would leave the parity below comparing two `undefined`s and passing green. The floor is the
+    // name itself, read off the equivalent the resize migrates through.
+    expect(labelBefore).toBe(
+      describeBodyLabelAt(definitionOf("tall-pantry"), 600),
     );
+    expect(labelAfter).toBe(labelBefore);
   });
 
   it("follows the width across the whole door-count transition, not just 400 and 600", () => {

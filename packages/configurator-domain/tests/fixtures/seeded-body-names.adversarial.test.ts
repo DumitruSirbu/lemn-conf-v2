@@ -1,0 +1,433 @@
+// Adversarial QA for M6 wave 6A2 / ADR 0064. The wave's own suite proves the invariant on the
+// pantry's column; this one attacks the parts a single column cannot reach: every seeded row that a
+// resize can migrate, every width it can be migrated to, and the rows that must acquire nothing.
+import { describe, expect, it, vi } from "vitest";
+
+import {
+  describeBodyLabelAt,
+  describeKindLabel,
+  deriveDoorCount,
+  INSERTABLE_BODY_DEFINITIONS,
+  resolveBuildableSizes,
+  TWO_DOOR_MIN_WIDTH_MM,
+} from "../../src/catalog.js";
+import {
+  KITCHEN_L_BODY_CATALOG,
+  KITCHEN_L_DESIGN,
+} from "../../src/fixtures/kitchen-l-design.js";
+import { describeSelection } from "../../src/queries/describe-selection.js";
+import type { BodyDefinition } from "../../src/void-engine.js";
+import { resizeTo } from "../support/commands.js";
+import {
+  advanceWithColumns,
+  createWorld,
+  type KitchenWorld,
+} from "../support/kitchen-world.js";
+
+const WALL_CABINET_EQUIVALENT_ID = "wall-cabinet";
+
+function definitionOf(buildId: string): BodyDefinition {
+  const definition = KITCHEN_L_BODY_CATALOG.get(buildId);
+  if (!definition) throw new Error(`fixture has no entry "${buildId}"`);
+  return definition;
+}
+
+function labelOf(world: KitchenWorld, placementId: string): string | undefined {
+  return describeSelection({
+    records: world.records,
+    voids: world.voids,
+    catalog: world.catalog,
+    target: { kind: "placement", id: placementId },
+  })?.label;
+}
+
+function labelsOf(world: KitchenWorld): ReadonlyMap<string, string> {
+  return new Map(
+    world.design.placements.map((placement) => [
+      placement.id,
+      labelOf(world, placement.id) ?? "<no selection>",
+    ]),
+  );
+}
+
+function buildIdsOf(world: KitchenWorld): ReadonlyMap<string, string> {
+  return new Map(
+    world.design.placements.map((placement) => [
+      placement.id,
+      placement.body.buildId,
+    ]),
+  );
+}
+
+const seededKitchen = (): KitchenWorld =>
+  createWorld(KITCHEN_L_DESIGN, KITCHEN_L_BODY_CATALOG);
+
+/** One `setWidth`, applied the way the store applies it. `undefined` for a refusal, which several
+ *  placements legitimately return: a column with no room to grow is a product rule, not a defect. */
+function resized(
+  world: KitchenWorld,
+  placementId: string,
+  widthMm: number,
+): KitchenWorld | undefined {
+  const result = resizeTo(world, placementId, widthMm);
+  if (!result.ok) return undefined;
+  return advanceWithColumns(world, result.design, result.effect.columns);
+}
+
+/** A width round trip that actually migrated something, or `undefined` if no buildable width was
+ *  accepted for this placement. */
+function roundTripped(
+  world: KitchenWorld,
+  placementId: string,
+): { readonly after: KitchenWorld; readonly viaWidthMm: number } | undefined {
+  const placement = world.design.placements.find(
+    (candidate) => candidate.id === placementId,
+  );
+  if (!placement) throw new Error(`no placement "${placementId}"`);
+  const startWidthMm = placement.body.widthMm;
+
+  for (const widthMm of resolveBuildableSizes(
+    KITCHEN_L_BODY_CATALOG,
+    placement.body.buildId,
+  )) {
+    if (widthMm === startWidthMm) continue;
+    const away = resized(world, placementId, widthMm);
+    if (!away) continue;
+    const back = resized(away, placementId, startWidthMm);
+    if (!back) continue;
+    return { after: back, viaWidthMm: widthMm };
+  }
+  return undefined;
+}
+
+const seededPlacementsWithEquivalent = KITCHEN_L_DESIGN.placements.filter(
+  (placement) =>
+    definitionOf(placement.body.buildId).catalogEquivalentId !== undefined,
+);
+
+const wallCabinetPlacements = KITCHEN_L_DESIGN.placements.filter(
+  (placement) =>
+    definitionOf(placement.body.buildId).catalogEquivalentId ===
+    WALL_CABINET_EQUIVALENT_ID,
+);
+
+describe("6A2 adversarial: the rename is closed for every seeded row, not only the pantry's column", () => {
+  it("survives a width round trip driven at each resizable placement in turn", () => {
+    // The wave's suite drives `p6` only, which migrates that one column. A seeded row in any other
+    // column is reached by no assertion there.
+    const before = seededKitchen();
+    const labelsBefore = labelsOf(before);
+    const migratedSomewhere: string[] = [];
+
+    for (const placement of seededPlacementsWithEquivalent) {
+      const trip = roundTripped(before, placement.id);
+      if (!trip) continue;
+
+      const buildIdsAfter = buildIdsOf(trip.after);
+      const migrated = [...buildIdsOf(before)]
+        .filter(([id, buildId]) => buildIdsAfter.get(id) !== buildId)
+        .map(([id]) => id);
+      migratedSomewhere.push(...migrated);
+
+      expect([placement.id, migrated.length > 0]).toEqual([placement.id, true]);
+      expect([placement.id, [...labelsOf(trip.after)]]).toEqual([
+        placement.id,
+        [...labelsBefore],
+      ]);
+    }
+
+    // Every one of the eight `wall-cabinet` **rows** is actually migrated by one of those trips, so
+    // the parity above is not vacuous for the family the ADR calls out as the half-fix. Asserted per
+    // buildId rather than per placement: `p19`, `p22` and `p24` stand in columns a fixed-width
+    // neighbour makes unresizable (`COLUMN_MEMBER_NOT_RESIZABLE`), and the first two share their row
+    // with a placement that does resize.
+    const migratedRows = new Set(
+      migratedSomewhere.map(
+        (id) =>
+          KITCHEN_L_DESIGN.placements.find((placement) => placement.id === id)
+            ?.body.buildId ?? id,
+      ),
+    );
+    const wallRows = new Set(
+      wallCabinetPlacements.map((placement) => placement.body.buildId),
+    );
+    const neverMigrated = [...wallRows].filter((row) => !migratedRows.has(row));
+
+    // The one wall row no resize can ever reach: `p24` is its only placement and it sits over the
+    // fixed-width fridge. Its name is therefore correct-by-construction rather than by round trip,
+    // and it is listed here so a row *joining* this list is a visible change.
+    expect(neverMigrated).toEqual(["wall-2door-700-over-fridge"]);
+  });
+
+  it("names a wall row the same thing before and after its own buildId migrates", () => {
+    // Per row, not per design: the identity is asserted on the migrated placement itself.
+    const before = seededKitchen();
+
+    let migratedPlacements = 0;
+
+    for (const placement of wallCabinetPlacements) {
+      const trip = roundTripped(before, placement.id);
+      if (!trip) continue;
+      migratedPlacements += 1;
+
+      const buildIdBefore = placement.body.buildId;
+      const buildIdAfter = buildIdsOf(trip.after).get(placement.id);
+      expect([placement.id, buildIdAfter]).toEqual([
+        placement.id,
+        WALL_CABINET_EQUIVALENT_ID,
+      ]);
+      expect([placement.id, buildIdAfter === buildIdBefore]).toEqual([
+        placement.id,
+        false,
+      ]);
+      expect([placement.id, labelOf(trip.after, placement.id)]).toEqual([
+        placement.id,
+        labelOf(before, placement.id),
+      ]);
+    }
+
+    // Ten of the thirteen wall placements resize; the loop above is not silently skipping all of
+    // them.
+    expect(migratedPlacements).toBe(10);
+  });
+});
+
+describe("6A2 adversarial: the name is a function of width, swept rather than sampled", () => {
+  it("agrees with its equivalent at every integer width from 100 to 1200 mm", () => {
+    // A row that copied the label but not `doorCountFollowsWidth` agrees at no width; a row that
+    // copied the flag but not the label agrees at none either. Swept because the criterion is that
+    // the two definitions are indistinguishable to `describeBodyLabelAt`, not that they match at the
+    // one width the fixture happens to seat the body at.
+    for (const placement of seededPlacementsWithEquivalent) {
+      const seeded = definitionOf(placement.body.buildId);
+      const equivalent = definitionOf(seeded.catalogEquivalentId ?? "");
+
+      const disagreements = [];
+      for (let widthMm = 100; widthMm <= 1200; widthMm += 1) {
+        const seededLabel = describeBodyLabelAt(seeded, widthMm);
+        const equivalentLabel = describeBodyLabelAt(equivalent, widthMm);
+        if (seededLabel !== equivalentLabel) {
+          disagreements.push([widthMm, seededLabel, equivalentLabel]);
+        }
+      }
+      expect([placement.body.buildId, disagreements]).toEqual([
+        placement.body.buildId,
+        [],
+      ]);
+    }
+  });
+
+  it("flips a wall row's door suffix at the 500 mm boundary and nowhere else", () => {
+    // ADR 0033: the suffix tracks width. A seeded row that carries a *frozen* suffix — a hand-copied
+    // "2 uși" in the label — would pass a same-width round trip and fail here.
+    const seeded = definitionOf(wallCabinetPlacements[0]?.body.buildId ?? "");
+
+    for (const widthMm of [
+      TWO_DOOR_MIN_WIDTH_MM - 1,
+      TWO_DOOR_MIN_WIDTH_MM,
+      300,
+      400,
+      600,
+      800,
+    ]) {
+      const doors = deriveDoorCount(widthMm);
+      expect([widthMm, describeBodyLabelAt(seeded, widthMm)]).toEqual([
+        widthMm,
+        `${describeKindLabel(seeded.kind)} ${String(doors)} ${doors === 1 ? "ușă" : "uși"}`,
+      ]);
+    }
+  });
+
+  it("renders the width the placement is actually seated at, so a 300 mm wall row reads one door", () => {
+    // `p10` and `p16` are 300 mm. Under the old kind-label path both read the bare generic name; a
+    // label-only fix would have made them read *two* doors' worth of nothing. They must read one.
+    const world = seededKitchen();
+    const narrow = KITCHEN_L_DESIGN.placements.filter(
+      (placement) =>
+        placement.body.widthMm < TWO_DOOR_MIN_WIDTH_MM &&
+        definitionOf(placement.body.buildId).catalogEquivalentId ===
+          WALL_CABINET_EQUIVALENT_ID,
+    );
+
+    expect(narrow.length).toBeGreaterThan(0);
+    for (const placement of narrow) {
+      expect([placement.id, labelOf(world, placement.id)]).toEqual([
+        placement.id,
+        describeBodyLabelAt(
+          definitionOf(placement.body.buildId),
+          placement.body.widthMm,
+        ),
+      ]);
+      expect([
+        placement.id,
+        labelOf(world, placement.id)?.endsWith("1 ușă"),
+      ]).toEqual([placement.id, true]);
+    }
+  });
+});
+
+describe("6A2 adversarial: what the derivation is, and what it must not have acquired", () => {
+  it("carries the same label and door-count flag its catalogue entry carries", () => {
+    // Checked against `INSERTABLE_BODY_DEFINITIONS` — the same list `describeBodyLabelAt` sees for
+    // the equivalent — so a seeded row whose two fields drifted from the entry they were read off
+    // fails here. Value equality is all this can say: the two definition graphs are separate
+    // objects, since `buildSeededBodyDefinitions` and `buildKitchenLBodyCatalog` each call
+    // `buildInsertableBodyDefinitions`. The guard against a hand-copied string is the width sweep.
+    const insertableById = new Map(INSERTABLE_BODY_DEFINITIONS);
+
+    for (const placement of seededPlacementsWithEquivalent) {
+      const seeded = definitionOf(placement.body.buildId);
+      const equivalentId = seeded.catalogEquivalentId ?? "";
+      const equivalent = insertableById.get(equivalentId);
+
+      expect([equivalentId, equivalent === undefined]).toEqual([
+        equivalentId,
+        false,
+      ]);
+      expect([placement.body.buildId, seeded.label]).toEqual([
+        placement.body.buildId,
+        equivalent?.label,
+      ]);
+      expect([placement.body.buildId, seeded.doorCountFollowsWidth]).toEqual([
+        placement.body.buildId,
+        equivalent?.doorCountFollowsWidth,
+      ]);
+    }
+  });
+
+  it("leaves every corner body — base legs and both wall returns — with no name of its own", () => {
+    // ADR 0022 / ADR 0025. Named explicitly rather than derived from "has no equivalent", so that a
+    // future row silently acquiring a pointer is caught here.
+    for (const buildId of [
+      "base-corner-x-900",
+      "base-corner-return-320",
+      "wall-corner-return-570",
+      "wall-corner-return-570-top",
+    ]) {
+      const corner = definitionOf(buildId);
+      expect([
+        buildId,
+        corner.catalogEquivalentId,
+        corner.label,
+        corner.doorCountFollowsWidth,
+      ]).toEqual([buildId, undefined, undefined, undefined]);
+      expect([buildId, describeBodyLabelAt(corner, 570)]).toEqual([
+        buildId,
+        describeKindLabel(corner.kind),
+      ]);
+    }
+  });
+
+  it("refuses a resize of a corner return, so its name has no migration to survive", () => {
+    const world = seededKitchen();
+
+    for (const placementId of ["p9", "p21", "p25", "p26"]) {
+      const result = resizeTo(world, placementId, 600);
+      expect([placementId, result.ok]).toEqual([placementId, false]);
+    }
+  });
+
+  it("changes no seeded body's kind, band or width capability", () => {
+    // The wave is a name. Anything else the spread picked up off the catalogue entry — a different
+    // `kind`, `insertable: true`, a `sizesMm` set, an `occupiedDepth` — would be a geometry or
+    // affordance change wearing a rename's clothes.
+    for (const placement of seededPlacementsWithEquivalent) {
+      const seeded = definitionOf(placement.body.buildId);
+      expect([placement.body.buildId, seeded.insertable]).toEqual([
+        placement.body.buildId,
+        false,
+      ]);
+      expect([placement.body.buildId, seeded.sizesMm]).toEqual([
+        placement.body.buildId,
+        undefined,
+      ]);
+    }
+  });
+});
+
+describe("6A2 adversarial: the seeded rows no placement in the fixture stands on", () => {
+  // `SEEDED_BODY_DEFINITIONS` holds a row — `base-drawer2-600`, pointing at `base-panbank` — that
+  // `KITCHEN_L_PLACEMENTS` never uses. Every assertion in the wave's own suite iterates
+  // `KITCHEN_L_DESIGN.placements`, so that row is covered by nothing there while a design loaded
+  // from storage may well contain it.
+  const seededRows = [...KITCHEN_L_BODY_CATALOG].filter(
+    ([, definition]) =>
+      definition.insertable === false &&
+      definition.catalogEquivalentId !== undefined,
+  );
+  const placedBuildIds = new Set(
+    KITCHEN_L_DESIGN.placements.map((placement) => placement.body.buildId),
+  );
+
+  it("includes at least one row the seeded design does not place", () => {
+    const unplaced = seededRows
+      .map(([buildId]) => buildId)
+      .filter((buildId) => !placedBuildIds.has(buildId));
+
+    expect(unplaced).toEqual(["base-drawer2-600"]);
+  });
+
+  it("gives every seeded row its equivalent's name, placed or not, at every width", () => {
+    for (const [buildId, seeded] of seededRows) {
+      const equivalent = definitionOf(seeded.catalogEquivalentId ?? "");
+      const disagreements = [];
+      for (let widthMm = 100; widthMm <= 1200; widthMm += 1) {
+        if (
+          describeBodyLabelAt(seeded, widthMm) !==
+          describeBodyLabelAt(equivalent, widthMm)
+        ) {
+          disagreements.push(widthMm);
+        }
+      }
+      expect([buildId, disagreements]).toEqual([buildId, []]);
+    }
+  });
+
+  it("gives no seeded row an id an insertable entry already uses", () => {
+    // `KITCHEN_L_BODY_CATALOG` spreads the seeded rows and then the insertable ones into one `Map`,
+    // so a shared id would silently drop the seeded row and the label question would never arise.
+    const insertableIds = new Set(
+      INSERTABLE_BODY_DEFINITIONS.map(([buildId]) => buildId),
+    );
+    const shadowed = seededRows
+      .map(([buildId]) => buildId)
+      .filter((buildId) => insertableIds.has(buildId));
+
+    expect(shadowed).toEqual([]);
+  });
+});
+
+describe("6A2 adversarial: the derivation's failure modes", () => {
+  it("resolves every seeded pointer against the catalogue the derivation read", () => {
+    // The throw in `namedAfterCatalogEquivalent` is unreachable only while this holds. Asserted
+    // rather than assumed, because the module would otherwise fail at import time with a stack that
+    // names no row.
+    const insertableIds = new Set(
+      INSERTABLE_BODY_DEFINITIONS.map(([buildId]) => buildId),
+    );
+    const dangling = [...KITCHEN_L_BODY_CATALOG]
+      .filter(
+        ([, definition]) =>
+          definition.catalogEquivalentId !== undefined &&
+          !insertableIds.has(definition.catalogEquivalentId),
+      )
+      .map(([buildId, definition]) => [
+        buildId,
+        definition.catalogEquivalentId,
+      ]);
+
+    expect(dangling).toEqual([]);
+  });
+
+  it("loads the fixture module on its own, with no other module imported first", async () => {
+    // `namedAfterCatalogEquivalent` runs at module-evaluation time against a `const` exported by
+    // `catalog.ts`. A cycle between the two would leave that binding in its temporal dead zone and
+    // the fixture would throw on import — from a fresh registry, with the fixture as the entry
+    // point, which is the ordering no other test exercises.
+    vi.resetModules();
+    const fresh = await import("../../src/fixtures/kitchen-l-design.js");
+
+    const pantry = fresh.KITCHEN_L_BODY_CATALOG.get("tall-pantry-600");
+    expect(pantry?.label).toBe(definitionOf("tall-pantry").label);
+  });
+});

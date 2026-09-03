@@ -1,18 +1,29 @@
 import {
+  baseCarcassDepthMm,
   baseFinishedDepthMm,
-  COLUMN_DEPTH_MM,
+  baseSeatDepthMm,
+  buildInsertableBodyDefinitions,
+  columnCarcassDepthMm,
   EXTRACTOR_HOOD_KIND,
   FREESTANDING_FRIDGE_FINISHED_DEPTH_MM,
   hoodFinishedDepthMm,
-  INSERTABLE_BODY_DEFINITIONS,
-  OVEN_TOWER_FINISHED_DEPTH_MM,
+  hoodFrameDepthMm,
+  ovenTowerFinishedDepthMm,
   tallUnitFinishedDepthMm,
+  wallCarcassDepthMm,
+  wallCarcassSeatDepthMm,
 } from "../catalog.js";
 import {
   finishesAtMm,
   NO_FRONT_ASSEMBLY_MM,
   shellPlusFrontMm,
 } from "../occupied-depth.js";
+import { carriesHandles, NO_CABINET_HANDLES } from "../cabinet-handles.js";
+import {
+  FOLLOWS_CABINET_DEPTH,
+  IS_A_MANUFACTURED_SIZE,
+  pinnedAtCabinetDepthMm,
+} from "../cabinet-depth-rule.js";
 import { WALL_FRONT_ASSEMBLY_MM, WORKTOP_DEPTH_MM } from "../worktop-depth.js";
 import type { Design, DesignPlacement } from "../design.js";
 import type { BodyCatalog, BodyDefinition } from "../void-engine.js";
@@ -38,58 +49,56 @@ import type { BodyCatalog, BodyDefinition } from "../void-engine.js";
  * where the seat is deliberately larger than the space the body fills.
  */
 
-const baseCarcass: Pick<
-  BodyDefinition,
-  | "band"
-  | "canFinish"
-  | "canHandle"
-  | "canReplace"
-  | "canDelete"
-  | "fixedWidth"
-  | "insertable"
-  | "occupiedDepth"
-> = {
-  band: "base",
-  // A seeded base body is a §7 base body that has already been built, so it fills the same space:
-  // its worktop's front edge (DOM-002). The four rows that are **not** an ordinary base — the two
-  // corner legs, the dishwasher niche and, in the column family, the oven tower — say so on their
-  // own line below.
-  occupiedDepth: finishesAtMm(baseFinishedDepthMm(WORKTOP_DEPTH_MM)),
-  canFinish: true,
-  canHandle: true,
-  canReplace: true,
-  canDelete: true,
-  fixedWidth: false,
-  // ADR 0011 Gap A: every seeded entry reproduces one already-built body at one measured depth,
-  // so it can be loaded but never offered from the catalogue or accepted by `insertBody`.
-  insertable: false,
-};
+/** **`cabinetHandles` is deliberately not in any of the shared shapes below** (ADR 0061 decision 3).
+ *  Every seeded row states its own, because the shapes cannot: `wallCarcass` is spread by a one-door
+ *  300 and a two-door 800 alike, and a count inherited from a shape is the accident DOM-002 was.
+ *  Each is the number of **cabinet** handles the row's builder draws — the appliance bars on
+ *  `fridge-free-700` and the two on `tall-oven-tower-600` are not among them — and every one of them
+ *  is held to the built meshes by `cabinet-handle-count.parity.test.ts` in `@lemnaria/three-adapter`.
+ *  The seeded rows all take a `declared-count` rule rather than a per-door one: ADR 0011 Gap A gives
+ *  each of them one already-built body at one width, so there is no width for a count to follow. */
 
-/** A wall carcass's depth is the one depth in the model that is a placement variable, so its rule
- *  is a formula over the seat it records rather than a declared distance: shell plus ADR 0036
- *  decision 1's front assembly. `open-shelf-600` and `hood-600` are the two rows this is wrong for,
- *  and both override it. */
-const wallCarcass = {
-  ...baseCarcass,
-  band: "wall" as const,
-  occupiedDepth: shellPlusFrontMm(WALL_FRONT_ASSEMBLY_MM),
-};
-const topCarcass = { ...wallCarcass, band: "top" as const };
-const columnCarcass = {
-  ...baseCarcass,
-  band: "column" as const,
-  occupiedDepth: finishesAtMm(tallUnitFinishedDepthMm(COLUMN_DEPTH_MM)),
-};
+/** How much further the X-leg's **corner** worktop reaches than a straight run's — ADR 0025's own
+ *  framing of the same measurement, *"630 mm from the wall plane, 10 more than a straight run's"*.
+ *  It is the leg's wider slab meeting the base run's, so it is a constant and the run it is measured
+ *  from is what follows the setting. */
+const CORNER_BASE_X_WORKTOP_REACH_MM = 10;
 
-/** ADR 0025: the X-leg carries a **corner** worktop, which reaches 630 mm from the wall plane — 10
- *  more than a straight run's, and 70 past the 560 mm seat this entry records. Measured on
- *  `cornerBaseX`'s own `countertop`. */
-const CORNER_BASE_X_FINISHED_DEPTH_MM = 630;
+/** ADR 0025: the X-leg carries a corner worktop, which reaches this far from the wall plane — 630 at
+ *  a 600 mm kitchen and 730 at a 700 mm one, both measured on `cornerBaseX`'s own `countertop`. The
+ *  leg's seat is `baseCarcassDepthMm` and its own footprint is the full declared depth, so it stands
+ *  20 mm inside the wall at every depth; that is the anomaly the record is about and it is preserved
+ *  rather than derived away. */
+function cornerBaseXFinishedDepthMm(cabinetDepthMm: number): number {
+  return baseFinishedDepthMm(cabinetDepthMm) + CORNER_BASE_X_WORKTOP_REACH_MM;
+}
 
-/** The return leg's worktop finishes on the front plane of the tall run it butts into, which is
- *  what its 580 mm placement depth is chosen to make true (`decomposed-bodies.ts`,
- *  `SEEDED_CORNER_RETURN_DEPTH_M`). */
-const CORNER_BASE_RETURN_FINISHED_DEPTH_MM = 600;
+/** The return leg's worktop finishes on the front plane of the tall run it butts into, which is what
+ *  its placement depth is chosen to make true (`decomposed-bodies.ts`,
+ *  `SEEDED_CORNER_RETURN_DEPTH_M`). That lands it on the **cabinet-depth line**: the leg is built
+ *  `baseSeatDepthMm` deep and its slab stands 20 mm proud of that, so the two cancel — 600 at a
+ *  600 mm kitchen and 700 at a 700 mm one, measured on the built leg in
+ *  `cabinet-depth-sweep.parity.test.ts`, where it sits the shipped 1 mm proud of the column run. */
+function cornerBaseReturnFinishedDepthMm(cabinetDepthMm: number): number {
+  return cabinetDepthMm;
+}
+
+/** ADR 0058 decision 1: **the cabinet depth the two deliberately deep top cabinets are pinned at.**
+ *
+ *  `wall-2door-600-deep-top` (`p22`, `p23`) and `wall-2door-700-over-fridge` (`p24`) are deep because
+ *  the *columns* they hang over are — §5.2's head-clearance cap is lifted over a full-height member
+ *  rather than mapped — and the owner ruled on 2026-09-02 that they stay put rather than follow the
+ *  setting or follow their column. They finish at exactly the 600 mm cabinet-depth line, not at an
+ *  arbitrary deep number, which is why the pin is written as a cabinet depth.
+ *
+ *  **What this costs at 700 is recorded and accepted, not worked around** (ADR 0058): `p23`'s face
+ *  is flush with the pantry below it at 600 and becomes a 99 mm step at 700. Nothing overlaps and
+ *  600 remains a manufactured size. Whoever first renders a 700 mm kitchen should read that step as
+ *  this decision rather than report it as a regression.
+ *
+ *  The alternative the planning had recommended — follow their column — would have put `p24` at
+ *  exactly the 742 mm `docs/BACKLOG.md` entry 15 names as unmanufacturable, on a shipped body. */
+const PINNED_DEEP_TOP_CABINET_DEPTH_MM = 600;
 
 /** §13.1: "Corners are structural. No replace, no delete, never a width donor", repeated by §11
  *  row 16 — so a corner body also has no finish and no handle to offer, and the panel renders
@@ -120,9 +129,9 @@ const STRUCTURAL_CORNER: Pick<
  *  — `decomposed-bodies.ts` for the seeded instance, `catalog-bodies.ts` for the §7 entry — and
  *  points at the entry that builds the *same* body: `base-drawer2-600` is
  *  `baseCabinet(0.6, { drawers: 2 })`, which is exactly what `base-panbank` builds, so the two-drawer
- *  base is the pan bank at 600. Five entries carry no pointer because nothing in §7 builds them:
- *  the hob, and the four corner bodies — §13.1 is explicit that a corner is not a body a customer
- *  chooses, so having no catalogue equivalent is the correct answer for them, not a missing one.
+ *  base is the pan bank at 600. Four entries carry no pointer because nothing in §7 builds them:
+ *  the four corner bodies — §13.1 is explicit that a corner is not a body a customer chooses, so
+ *  having no catalogue equivalent is the correct answer for them, not a missing one.
  *
  *  **The pointer now carries a second fact, and it is the one M5 needs.** A seeded entry declares no
  *  `sizesMm`: ADR 0011 Gap A gives it one already-built geometry, so the widths it *could* be
@@ -130,8 +139,133 @@ const STRUCTURAL_CORNER: Pick<
  *  `resolveBuildableSizes` (`catalog.ts`) reads the set and its floor off that entry, which is why
  *  a stale pointer is now a wrong width set as well as a wrong badge. Both fail loudly against the
  *  guard test rather than quietly, which is the whole reason the relationship is declared. */
-const SEEDED_BODY_DEFINITIONS: readonly (readonly [string, BodyDefinition])[] =
-  [
+
+/** ADR 0064: the pointer, **and the name the pointed-at entry carries**, so a body is called the
+ *  same thing before and after a §5.4 resize migrates its `buildId` through that entry
+ *  (`resolve-column-members.ts`). Before this, the seeded pantry read *"Coloană"* until its first
+ *  resize and *"Coloană cămară 2 uși"* after, and 6D puts that name in a priced document.
+ *
+ *  **Two fields, not one.** `describeBodyLabelAt` appends the door count only for a definition that
+ *  declares `doorCountFollowsWidth`, and eight seeded rows point at `wall-cabinet`, whose `label` is
+ *  the same *Corp suspendat* the kind table already returns for them — copying the label alone would
+ *  leave the whole rename intact for them in the suffix.
+ *
+ *  Both are **read off the equivalent** rather than written out beside it: one name in two places is
+ *  the drift ADR 0028 exists to close, and this is the same relationship `resolveBuildableSizes`
+ *  already resolves through. A pointer at no entry throws here, at load, rather than silently
+ *  reverting the row to its generic kind name. */
+type CatalogEquivalentName = Pick<
+  BodyDefinition,
+  "catalogEquivalentId" | "label" | "doorCountFollowsWidth"
+>;
+
+/** The namer, bound to **the depth this catalogue is being built at**.
+ *
+ *  It resolves against `buildInsertableBodyDefinitions(cabinetDepthMm)` and deliberately not against
+ *  `INSERTABLE_BODY_DEFINITIONS`, the materialisation at the shipped depth: a catalogue built at
+ *  700 that resolved half of itself at 600 would be quietly half-built, and it would stay invisible
+ *  because `label` and `doorCountFollowsWidth` happen to be depth-independent in every §7 row today.
+ *  That coincidence is asserted rather than relied on — `seeded-body-names.test.ts` checks that both
+ *  fields are identical for every seeded row at both declared depths — so if a name ever does become
+ *  depth-dependent, a test says so instead of a pinned lookup deciding silently. */
+function catalogEquivalentNamer(
+  cabinetDepthMm: number,
+): (catalogEquivalentId: string) => CatalogEquivalentName {
+  const insertableById = new Map(
+    buildInsertableBodyDefinitions(cabinetDepthMm),
+  );
+  return (catalogEquivalentId: string): CatalogEquivalentName => {
+    const equivalent = insertableById.get(catalogEquivalentId);
+    if (equivalent === undefined) {
+      throw new UnknownCatalogEquivalentError(catalogEquivalentId);
+    }
+    return {
+      catalogEquivalentId,
+      ...(equivalent.label === undefined ? {} : { label: equivalent.label }),
+      ...(equivalent.doorCountFollowsWidth === undefined
+        ? {}
+        : { doorCountFollowsWidth: equivalent.doorCountFollowsWidth }),
+    };
+  };
+}
+
+/** A seeded row points at a §7 entry that is not in the catalogue — a stale pointer, which is also a
+ *  wrong width set (`resolveBuildableSizes`) and not only a wrong name. */
+class UnknownCatalogEquivalentError extends Error {
+  constructor(readonly catalogEquivalentId: string) {
+    super(
+      `Seeded body's catalogEquivalentId "${catalogEquivalentId}" names no catalogue entry`,
+    );
+    this.name = "UnknownCatalogEquivalentError";
+  }
+}
+
+/** M2's seeded instances **at one cabinet depth** — every body `builders['kitchen-l']()` renders,
+ *  as individually mounted placements.
+ *
+ *  **A function since M6 wave 6I**, the shape wave 6H gave `buildInsertableBodyDefinitions`, and for
+ *  the reason that wave gives: a seeded map frozen at one depth cannot describe a design carrying
+ *  another, and every `frameDepthMm` below is a *seat* the geometry moves when the setting does.
+ *  Without this, `occupied-depth.parity.test.ts` could only ever have been a claim about 600.
+ *
+ *  Nothing here persists a depth and nothing sets one — the control and the stored setting are waves
+ *  6K and 6J. */
+export function buildSeededBodyDefinitions(
+  cabinetDepthMm: number,
+): readonly (readonly [string, BodyDefinition])[] {
+  const namedAfterCatalogEquivalent = catalogEquivalentNamer(cabinetDepthMm);
+
+  const baseCarcass: Pick<
+    BodyDefinition,
+    | "band"
+    | "canFinish"
+    | "canHandle"
+    | "canReplace"
+    | "canDelete"
+    | "fixedWidth"
+    | "insertable"
+    | "occupiedDepth"
+    | "depthRule"
+  > = {
+    band: "base",
+    // A seeded base body is a §7 base body that has already been built, so it fills the same space:
+    // its worktop's front edge (DOM-002). The four rows that are **not** an ordinary base — the two
+    // corner legs, the dishwasher niche and, in the column family, the oven tower — say so on their
+    // own line below.
+    occupiedDepth: finishesAtMm(baseFinishedDepthMm(cabinetDepthMm)),
+    // Cabinetry, so it follows the setting (ADR 0058 decision 2). The three rows this is wrong for
+    // — the freestanding fridge and ADR 0058's two pinned tops — override it on their own line, and
+    // the gate that sweeps both depths is what catches a fourth that forgets to.
+    depthRule: FOLLOWS_CABINET_DEPTH,
+    canFinish: true,
+    canHandle: true,
+    canReplace: true,
+    canDelete: true,
+    fixedWidth: false,
+    // ADR 0011 Gap A: every seeded entry reproduces one already-built body at one measured depth,
+    // so it can be loaded but never offered from the catalogue or accepted by `insertBody`.
+    insertable: false,
+  };
+
+  /** A wall carcass's depth is the one depth in the model that is a placement variable, so its rule
+   *  is a formula over the seat it records rather than a declared distance: shell plus ADR 0036
+   *  decision 1's front assembly. `open-shelf-600` and `hood-600` are the two rows this is wrong for,
+   *  and both override it. */
+  const wallCarcass = {
+    ...baseCarcass,
+    band: "wall" as const,
+    occupiedDepth: shellPlusFrontMm(WALL_FRONT_ASSEMBLY_MM),
+  };
+  const topCarcass = { ...wallCarcass, band: "top" as const };
+  const columnCarcass = {
+    ...baseCarcass,
+    band: "column" as const,
+    occupiedDepth: finishesAtMm(
+      tallUnitFinishedDepthMm(columnCarcassDepthMm(cabinetDepthMm)),
+    ),
+  };
+
+  return [
     // ADR 0025. The two base legs of the L. `frameDepthMm` is the seat, not the depth: the X-leg's
     // carcass is 600 deep but seats at 560/2 = 280 mm off the wall, because the L-joint — not the
     // wall — decides where it stands. The return leg's 580 is both at once.
@@ -139,57 +273,68 @@ const SEEDED_BODY_DEFINITIONS: readonly (readonly [string, BodyDefinition])[] =
       "base-corner-x-900",
       {
         ...baseCarcass,
+        cabinetHandles: carriesHandles(1),
         ...STRUCTURAL_CORNER,
         kind: "corner_base_x",
-        frameDepthMm: 560,
-        occupiedDepth: finishesAtMm(CORNER_BASE_X_FINISHED_DEPTH_MM),
+        // ADR 0025's anomaly, preserved: the seat is the **base run's carcass depth** and not this
+        // leg's own 600 mm footprint, because the L-joint decides where it stands. It therefore
+        // stands 20 mm inside the wall — at 600 and at 700 alike.
+        frameDepthMm: baseCarcassDepthMm(cabinetDepthMm),
+        occupiedDepth: finishesAtMm(cornerBaseXFinishedDepthMm(cabinetDepthMm)),
       },
     ],
     [
       "base-corner-return-320",
       {
         ...baseCarcass,
+        cabinetHandles: NO_CABINET_HANDLES,
         ...STRUCTURAL_CORNER,
         kind: "corner_base_return",
-        frameDepthMm: 580,
-        occupiedDepth: finishesAtMm(CORNER_BASE_RETURN_FINISHED_DEPTH_MM),
+        frameDepthMm: baseSeatDepthMm(cabinetDepthMm),
+        occupiedDepth: finishesAtMm(
+          cornerBaseReturnFinishedDepthMm(cabinetDepthMm),
+        ),
       },
     ],
     [
       "base-sink-800",
       {
         ...baseCarcass,
+        cabinetHandles: carriesHandles(2),
         kind: "base_cabinet",
-        frameDepthMm: 580,
-        catalogEquivalentId: "base-sink",
+        frameDepthMm: baseSeatDepthMm(cabinetDepthMm),
+        ...namedAfterCatalogEquivalent("base-sink"),
       },
     ],
     [
       "base-dishwasher-600",
       {
         ...baseCarcass,
+        cabinetHandles: carriesHandles(1),
         kind: "dishwasher_housing",
-        frameDepthMm: 580,
-        occupiedDepth: finishesAtMm(baseFinishedDepthMm(WORKTOP_DEPTH_MM)),
-        catalogEquivalentId: "base-dishwasher",
+        frameDepthMm: baseSeatDepthMm(cabinetDepthMm),
+        occupiedDepth: finishesAtMm(baseFinishedDepthMm(cabinetDepthMm)),
+        ...namedAfterCatalogEquivalent("base-dishwasher"),
       },
     ],
     [
       "base-drawer2-600",
       {
         ...baseCarcass,
+        cabinetHandles: carriesHandles(2),
         kind: "base_cabinet",
-        frameDepthMm: 580,
-        catalogEquivalentId: "base-panbank",
+        frameDepthMm: baseSeatDepthMm(cabinetDepthMm),
+        ...namedAfterCatalogEquivalent("base-panbank"),
       },
     ],
     [
       "base-drawer3-600",
       {
         ...baseCarcass,
+        cabinetHandles: carriesHandles(3),
         kind: "base_cabinet",
-        frameDepthMm: 580,
-        catalogEquivalentId: "base-3drawer",
+        frameDepthMm: baseSeatDepthMm(cabinetDepthMm),
+        ...namedAfterCatalogEquivalent("base-3drawer"),
       },
     ],
     // ADR 0027. The hob-bearing body the seeded kitchen now uses: one placement where `p2` + `p3`
@@ -200,8 +345,9 @@ const SEEDED_BODY_DEFINITIONS: readonly (readonly [string, BodyDefinition])[] =
       "base-hob-2drawer-600",
       {
         ...baseCarcass,
+        cabinetHandles: carriesHandles(2),
         kind: "base_cabinet",
-        frameDepthMm: 580,
+        frameDepthMm: baseSeatDepthMm(cabinetDepthMm),
         // ADR 0027: 600 mm in both directions, matching the catalogue entry. `baseCarcass` defaults
         // to `fixedWidth: false` and this row must not inherit it: the hob is a 600 mm appliance and
         // there is no 400 mm one, so §5.4's `canGive` ("not `fixedWidth`") would otherwise let the
@@ -215,13 +361,14 @@ const SEEDED_BODY_DEFINITIONS: readonly (readonly [string, BodyDefinition])[] =
         // field says what a body carries, and a body that carries a hob and does not say so is the
         // defect waiting to happen the next time something asks.
         carriesAccessoryKind: "induction_cooktop",
-        catalogEquivalentId: "base-hob-2drawer",
+        ...namedAfterCatalogEquivalent("base-hob-2drawer"),
       },
     ],
     [
       "tall-oven-tower-600",
       {
         ...columnCarcass,
+        cabinetHandles: carriesHandles(2),
         // The rule: **a body that can only be built at one width must never be a §5.4 donor**,
         // whose `canGive` reads "not `fixedWidth`". A column is 600 and nothing else, so this is
         // `true`; `columnCarcass` defaults to `false`. Latent until M5 wires resize, found in the
@@ -232,16 +379,22 @@ const SEEDED_BODY_DEFINITIONS: readonly (readonly [string, BodyDefinition])[] =
         // is right: the `hood` entry builds anywhere in 600–800, but this seeded instance is a 600.
         fixedWidth: true,
         kind: "tall_unit",
-        frameDepthMm: 560,
+        frameDepthMm: columnCarcassDepthMm(cabinetDepthMm),
         frameHeightMm: 2200,
-        occupiedDepth: finishesAtMm(OVEN_TOWER_FINISHED_DEPTH_MM),
-        catalogEquivalentId: "tall-oven-tower",
+        // Wave 6I's criterion 2: the carcass follows the setting and the oven and microwave
+        // standing in it do not. 638 at a 600 mm kitchen and 738 at a 700 mm one, which is what
+        // ADR 0058 projected for the body `p22` hangs over.
+        occupiedDepth: finishesAtMm(
+          ovenTowerFinishedDepthMm(columnCarcassDepthMm(cabinetDepthMm)),
+        ),
+        ...namedAfterCatalogEquivalent("tall-oven-tower"),
       },
     ],
     [
       "tall-pantry-600",
       {
         ...columnCarcass,
+        cabinetHandles: carriesHandles(4),
         // **Not fixed, since ADR 0048** — and this row is the one place in the fixture where that
         // record is visible. It read "Fixed for `tall-oven-tower-600`'s reason above: one buildable
         // width, so never a §5.4 donor", and that reason has stopped being true of this cabinet:
@@ -257,15 +410,16 @@ const SEEDED_BODY_DEFINITIONS: readonly (readonly [string, BodyDefinition])[] =
         // point of making it resizable rather than a side effect of it.
         fixedWidth: false,
         kind: "tall_unit",
-        frameDepthMm: 560,
+        frameDepthMm: columnCarcassDepthMm(cabinetDepthMm),
         frameHeightMm: 2200,
-        catalogEquivalentId: "tall-pantry",
+        ...namedAfterCatalogEquivalent("tall-pantry"),
       },
     ],
     [
       "fridge-free-700",
       {
         ...columnCarcass,
+        cabinetHandles: NO_CABINET_HANDLES,
         kind: "fridge_freestanding",
         // A freestanding appliance, not a carcass: it builds no `door_front`, and its two handle
         // bars hang off the appliance's own group. `columnCarcass`'s `true`/`true` therefore
@@ -278,50 +432,60 @@ const SEEDED_BODY_DEFINITIONS: readonly (readonly [string, BodyDefinition])[] =
         frameDepthMm: 680,
         frameHeightMm: 1850,
         occupiedDepth: finishesAtMm(FREESTANDING_FRIDGE_FINISHED_DEPTH_MM),
+        // **Not cabinetry** (ADR 0058 decision 2's third answer), so `columnCarcass`'s
+        // `FOLLOWS_CABINET_DEPTH` is wrong for it: a 680 mm machine is 742 deep in a 600 mm kitchen
+        // and 742 in a 700 mm one. Its §7 row says the same thing, and both are swept at both
+        // depths rather than either being trusted.
+        depthRule: IS_A_MANUFACTURED_SIZE,
         fixedWidth: true,
-        catalogEquivalentId: "fridge-free",
+        ...namedAfterCatalogEquivalent("fridge-free"),
       },
     ],
     [
       "wall-2door-600",
       {
         ...wallCarcass,
+        cabinetHandles: carriesHandles(2),
         kind: "wall_cabinet",
-        frameDepthMm: 291,
-        catalogEquivalentId: "wall-cabinet",
+        frameDepthMm: wallCarcassSeatDepthMm(cabinetDepthMm),
+        ...namedAfterCatalogEquivalent("wall-cabinet"),
       },
     ],
     [
       "wall-corner-return-570",
       {
         ...wallCarcass,
+        cabinetHandles: carriesHandles(1),
         ...STRUCTURAL_CORNER,
         kind: "wall_cabinet",
-        frameDepthMm: 291,
+        frameDepthMm: wallCarcassSeatDepthMm(cabinetDepthMm),
       },
     ],
     [
       "wall-1door-300",
       {
         ...wallCarcass,
+        cabinetHandles: carriesHandles(1),
         kind: "wall_cabinet",
-        frameDepthMm: 291,
-        catalogEquivalentId: "wall-cabinet",
+        frameDepthMm: wallCarcassSeatDepthMm(cabinetDepthMm),
+        ...namedAfterCatalogEquivalent("wall-cabinet"),
       },
     ],
     [
       "wall-2door-800",
       {
         ...wallCarcass,
+        cabinetHandles: carriesHandles(2),
         kind: "wall_cabinet",
-        frameDepthMm: 291,
-        catalogEquivalentId: "wall-cabinet",
+        frameDepthMm: wallCarcassSeatDepthMm(cabinetDepthMm),
+        ...namedAfterCatalogEquivalent("wall-cabinet"),
       },
     ],
     [
       "open-shelf-600",
       {
         ...wallCarcass,
+        cabinetHandles: NO_CABINET_HANDLES,
         kind: "open_shelf_unit",
         // An open shelf has no door and no drawer: `collectFronts` finds nothing to recolour, so
         // `canFinish: true` from `wallCarcass` made §9 render a *Finisaj* section whose every chip
@@ -329,63 +493,70 @@ const SEEDED_BODY_DEFINITIONS: readonly (readonly [string, BodyDefinition])[] =
         // instance is the same body and now says the same thing (capability-parity gate).
         canFinish: false,
         canHandle: false,
-        frameDepthMm: 330,
+        // No front, so unlike its fronted neighbours its seat is the declared wall depth itself
+        // rather than that depth less the door-and-handle assembly.
+        frameDepthMm: wallCarcassDepthMm(cabinetDepthMm),
         occupiedDepth: shellPlusFrontMm(NO_FRONT_ASSEMBLY_MM),
-        catalogEquivalentId: "open-shelf",
+        ...namedAfterCatalogEquivalent("open-shelf"),
       },
     ],
     [
       "hood-600",
       {
         ...wallCarcass,
+        cabinetHandles: NO_CABINET_HANDLES,
         kind: EXTRACTOR_HOOD_KIND,
         // A hood is a canopy and a chimney: no front, so nothing for a finish chip to recolour.
         // Same correction as `open-shelf-600` above, matching the `hood` catalogue row.
         canFinish: false,
         canHandle: false,
         fixedWidth: true,
-        frameDepthMm: 700,
-        occupiedDepth: finishesAtMm(hoodFinishedDepthMm(WORKTOP_DEPTH_MM)),
-        catalogEquivalentId: "hood",
+        frameDepthMm: hoodFrameDepthMm(cabinetDepthMm),
+        occupiedDepth: finishesAtMm(hoodFinishedDepthMm(cabinetDepthMm)),
+        ...namedAfterCatalogEquivalent("hood"),
       },
     ],
     [
       "wall-2door-600-top",
       {
         ...topCarcass,
+        cabinetHandles: carriesHandles(2),
         kind: "wall_cabinet",
-        frameDepthMm: 291,
+        frameDepthMm: wallCarcassSeatDepthMm(cabinetDepthMm),
         frameHeightMm: 400,
-        catalogEquivalentId: "wall-cabinet",
+        ...namedAfterCatalogEquivalent("wall-cabinet"),
       },
     ],
     [
       "wall-1door-300-top",
       {
         ...topCarcass,
+        cabinetHandles: carriesHandles(1),
         kind: "wall_cabinet",
-        frameDepthMm: 291,
+        frameDepthMm: wallCarcassSeatDepthMm(cabinetDepthMm),
         frameHeightMm: 400,
-        catalogEquivalentId: "wall-cabinet",
+        ...namedAfterCatalogEquivalent("wall-cabinet"),
       },
     ],
     [
       "wall-2door-800-top",
       {
         ...topCarcass,
+        cabinetHandles: carriesHandles(2),
         kind: "wall_cabinet",
-        frameDepthMm: 291,
+        frameDepthMm: wallCarcassSeatDepthMm(cabinetDepthMm),
         frameHeightMm: 400,
-        catalogEquivalentId: "wall-cabinet",
+        ...namedAfterCatalogEquivalent("wall-cabinet"),
       },
     ],
     [
       "wall-corner-return-570-top",
       {
         ...topCarcass,
+        cabinetHandles: carriesHandles(1),
         ...STRUCTURAL_CORNER,
         kind: "wall_cabinet",
-        frameDepthMm: 291,
+        frameDepthMm: wallCarcassSeatDepthMm(cabinetDepthMm),
         frameHeightMm: 400,
       },
     ],
@@ -393,32 +564,53 @@ const SEEDED_BODY_DEFINITIONS: readonly (readonly [string, BodyDefinition])[] =
       "wall-2door-600-deep-top",
       {
         ...topCarcass,
+        cabinetHandles: carriesHandles(2),
         kind: "wall_cabinet",
-        frameDepthMm: 561,
+        // **Pinned, and the pin is the declaration below rather than this number** (ADR 0058
+        // decision 2). The seat is derived from the depth it is pinned at exactly as every other
+        // fronted top's is derived from the setting — same arithmetic, different argument — so what
+        // makes this row hold still is one greppable field and not a constant that has quietly
+        // stopped tracking anything. 561 at 600 and 561 at 700.
+        frameDepthMm: PINNED_DEEP_TOP_CABINET_DEPTH_MM - WALL_FRONT_ASSEMBLY_MM,
+        depthRule: pinnedAtCabinetDepthMm(PINNED_DEEP_TOP_CABINET_DEPTH_MM),
         frameHeightMm: 400,
-        catalogEquivalentId: "wall-cabinet",
+        ...namedAfterCatalogEquivalent("wall-cabinet"),
       },
     ],
     [
       "wall-2door-700-over-fridge",
       {
         ...topCarcass,
+        cabinetHandles: carriesHandles(2),
         kind: "wall_cabinet",
-        frameDepthMm: 561,
+        // Pinned for `wall-2door-600-deep-top`'s reason, and this is the row the decision cost the
+        // most argument: over the freestanding fridge it already sits 142 mm recessed at 600, and
+        // pinning leaves that **unchanged** at 700 where following its column would have rebuilt it
+        // at the fridge's own 742 mm.
+        frameDepthMm: PINNED_DEEP_TOP_CABINET_DEPTH_MM - WALL_FRONT_ASSEMBLY_MM,
+        depthRule: pinnedAtCabinetDepthMm(PINNED_DEEP_TOP_CABINET_DEPTH_MM),
         frameHeightMm: 750,
-        catalogEquivalentId: "wall-cabinet",
+        ...namedAfterCatalogEquivalent("wall-cabinet"),
       },
     ],
   ];
+}
 
 /** One map, two populations (ADR 0011 Gap A): M2's seeded instances, which reproduce M1's scene
  *  and are never offered, and §7's parameterised entries, which are the only ones a customer can
  *  insert. Both resolve through the same lookup, so a placement created by `insertBody` loads the
  *  same way a seeded one does. */
-export const KITCHEN_L_BODY_CATALOG: BodyCatalog = new Map<
-  string,
-  BodyDefinition
->([...SEEDED_BODY_DEFINITIONS, ...INSERTABLE_BODY_DEFINITIONS]);
+export function buildKitchenLBodyCatalog(cabinetDepthMm: number): BodyCatalog {
+  return new Map<string, BodyDefinition>([
+    ...buildSeededBodyDefinitions(cabinetDepthMm),
+    ...buildInsertableBodyDefinitions(cabinetDepthMm),
+  ]);
+}
+
+/** That catalogue at the depth the kitchen is declared at today — **the one materialisation**, and
+ *  what every reader M6 has not yet given a setting to still uses. */
+export const KITCHEN_L_BODY_CATALOG: BodyCatalog =
+  buildKitchenLBodyCatalog(WORKTOP_DEPTH_MM);
 
 function placement(
   id: string,

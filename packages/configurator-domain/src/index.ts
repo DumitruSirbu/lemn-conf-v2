@@ -24,6 +24,27 @@ export {
   type OccupiedDepthRule,
 } from "./occupied-depth.js";
 export {
+  cabinetHandleCount,
+  carriesHandles,
+  handlesOnDoorLeaves,
+  NO_CABINET_HANDLES,
+  UndeclaredCabinetHandleCountError,
+  type CabinetHandleCountField,
+  type CabinetHandleQuery,
+  type CabinetHandleRule,
+  type DoorLeafHandles,
+} from "./cabinet-handles.js";
+export {
+  cabinetDepthRuleOf,
+  depthFollowsSetting,
+  FOLLOWS_CABINET_DEPTH,
+  IS_A_MANUFACTURED_SIZE,
+  pinnedAtCabinetDepthMm,
+  UndeclaredCabinetDepthRuleError,
+  type CabinetDepthRule,
+  type CabinetDepthRuleQuery,
+} from "./cabinet-depth-rule.js";
+export {
   UnknownWorktopDepthError,
   WALL_FRONT_ASSEMBLY_MM,
   WORKTOP_DEPTH_MM,

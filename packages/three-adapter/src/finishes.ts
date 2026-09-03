@@ -63,10 +63,20 @@ const FRONT_MESH_NAME = /door_front|drawer_front/;
  *  with the materials it was cloned from. */
 const FINISH_MATERIAL_KEY_PREFIX = "finish:";
 
+/** **What counts as a front**, for every reader in this package. `cabinet-handle-meshes.ts` asks the same
+ *  question from the other side — a handle is the cabinet's when the group it hangs from holds one
+ *  of these — and asking it of a second regex is how two definitions of a front drift apart.
+ *
+ *  Note `door_front` is the generic front name in this kit: `base-panbank` uses it for drawer fronts
+ *  too, so a body with no `drawer_front` mesh is not thereby frontless. */
+export function isFrontMesh(node: THREE.Object3D): node is THREE.Mesh {
+  return isMesh(node) && FRONT_MESH_NAME.test(node.name);
+}
+
 export function collectFronts(root: THREE.Object3D): THREE.Mesh[] {
   const fronts: THREE.Mesh[] = [];
   root.traverse((o) => {
-    if (isMesh(o) && FRONT_MESH_NAME.test(o.name)) fronts.push(o);
+    if (isFrontMesh(o)) fronts.push(o);
   });
   return fronts;
 }

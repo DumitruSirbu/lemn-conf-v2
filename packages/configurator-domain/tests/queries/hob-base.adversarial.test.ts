@@ -19,6 +19,10 @@ import {
 import { WORKTOP_DEPTH_MM } from "../../src/worktop-depth.js";
 import { finishesAtMm } from "../../src/occupied-depth.js";
 import {
+  carriesHandles,
+  NO_CABINET_HANDLES,
+} from "../../src/cabinet-handles.js";
+import {
   KITCHEN_L_BODY_CATALOG,
   KITCHEN_L_DESIGN,
 } from "../../src/fixtures/kitchen-l-design.js";
@@ -311,12 +315,23 @@ describe("the two hob bases are distinguished only where the choice is made", ()
       label: "",
       canHandle: true,
       occupiedDepth: finishesAtMm(0),
+      cabinetHandles: carriesHandles(0),
     });
 
     expect(withoutTheChoice(drawers)).toEqual(withoutTheChoice(oven));
     expect(drawers.label).not.toBe(oven.label);
     expect([drawers.canFinish, drawers.canHandle]).toEqual([true, true]);
     expect([oven.canFinish, oven.canHandle]).toEqual([true, false]);
+
+    // **Masked above and asserted here, since M6 wave 6L** (ADR 0061). The handle *count* is the
+    // same fact `canHandle` states, said to the price instead of to the panel: the drawer variant
+    // carries two of its own, and the oven variant's single bar is the oven's, so it carries none.
+    // Left inside the equality it would have read as "these two bodies differ by a number", which is
+    // exactly the reading this test exists to refuse.
+    expect([drawers.cabinetHandles, oven.cabinetHandles]).toEqual([
+      carriesHandles(2),
+      NO_CABINET_HANDLES,
+    ]);
 
     // **The one measurement that does differ, and it is not one anything picks by** (DOM-002).
     // Nominal width, height and depth are identical — those are what §5.2 fits and §9 offers on.
