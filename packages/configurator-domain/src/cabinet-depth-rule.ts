@@ -174,7 +174,15 @@ export interface ColumnBuildDepthQuery {
  *
  *  - **The cap applies** — the map's wall depth for this cabinet depth: 330 at 600, 400 at 700. The
  *    same row §7's `nominalDepthMm` reads, so the cap and the catalogue nominal cannot drift apart
- *    (ADR 0028 decision 3).
+ *    (ADR 0028 decision 3). This arm **is** §7's `min(d, cap)` cap, and it is a head-clearance rule
+ *    rather than a geometry limit: a wall cabinet above a worktop is shallow so nobody hits their
+ *    head leaning over the counter, and `wallCabinet(W, doors, H, D)` builds any depth it is handed.
+ *    Backlog entry 5, decided by the owner on 2026-08-26. It lives in the domain rather than beside
+ *    the builders because it is a function of the **design** — of what stands under the opening —
+ *    and the adapter cannot see one (§12: the domain owns product rules, the adapter owns builders).
+ *    It had a second name of its own, `wallCarcassMaxDepthOverWorktopM`, until wave 6I2's own
+ *    `resolveDepthM` stopped calling it and only tests were left; a gate reading the cap through a
+ *    test-only alias is how the gate goes missing when the alias does.
  *  - **A full-height member lifts it** — the **cabinet-depth line**: 600 at 600, 700 at 700. The
  *    lift was always meant to raise the ceiling from the map's 330 to that line (ADR 0028
  *    decision 5, *"which is what keeps the two deep top cabinets at 600 over their columns"*), and

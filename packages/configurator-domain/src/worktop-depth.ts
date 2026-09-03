@@ -28,7 +28,7 @@
  *
  *  **M6 wave 6H narrowed what this constant is without changing its value.** The catalogue's
  *  depth-derived facts are now functions of a cabinet depth (`buildInsertableBodyDefinitions`,
- *  `wallCarcassMaxDepthOverWorktopM`), so this is the *declared* depth the shipped kitchen is built
+ *  `columnBuildDepthMm`), so this is the *declared* depth the shipped kitchen is built
  *  at rather than the only depth the model can express. Wave 6J's control and wave 6K's stored
  *  setting are what finally give a design one of its own; until then this is the single argument
  *  every caller passes, which is why it is still one line to replace. */

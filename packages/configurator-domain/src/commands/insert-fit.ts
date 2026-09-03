@@ -45,7 +45,6 @@ import {
 import {
   buildToTheClearanceM,
   columnBuildDepthM,
-  columnBuildDepthMm,
   shallowerBuildDepthM,
   type BuildDepthM,
 } from "../cabinet-depth-rule.js";
@@ -57,47 +56,6 @@ import type { RejectionDetail } from "./rejection.js";
 /** §9: a height-flexible body needs this much opening before it is worth building — below it the
  *  carcass is a strip, not a cabinet. */
 export const HEIGHT_FLEX_MIN_OPENING_MM = 400;
-
-/** §7's `min(d, cap)` on a wall carcass, as what it actually is: a **head-clearance rule**, not a
- *  geometry limit. The cap is the worktop → wall depth map's row for the shipped worktop, never a
- *  value written down here. `wallCabinet(W, doors, H, D)` builds any depth it is handed.
- *
- *  A wall cabinet above a worktop is shallow so you do not hit your head leaning over the counter.
- *  Above a full-height column there is nothing to lean over, so it may be as deep as the column —
- *  which is why the shipped kitchen has 330 mm wall cabinets over its base run and 600 mm ones over
- *  the oven tower, the pantry and the fridge.
- *
- *  **The cap is the rule and the column is the exception**, not the other way round: see
- *  `resolveDepthM`, where reading it as "cap over a worktop" left an emptied column uncapped.
- *
- *  It lives in the domain rather than beside the builders (where it was, as
- *  `WALL_CARCASS_MAX_DEPTH_M`) because the cap is now a function of the **design** — of what stands
- *  under the opening — and the adapter cannot see a design. §12: the domain owns product rules, the
- *  adapter owns builders. The builders now build the depth they are given.
- *
- *  Backlog entry 5, decided by the owner on 2026-08-26.
- *
- *  **The number itself is the worktop's, not this rule's** (owner, 2026-08-27): it reads the same
- *  map row as §7's `nominalDepthMm`, so the cap and the catalogue nominal cannot drift apart. They
- *  were independent literals agreeing at 400 until then, which is why a re-inserted top-row cabinet
- *  built 400 mm beside 330 mm neighbours.
- *
- *  **A function of the cabinet depth since M6 wave 6H**, for the reason the catalogue's wall
- *  nominal is one: the cap is the map's row for the kitchen's depth, and a kitchen carries a depth
- *  rather than the module having one. It still reads the same map row as §7's `nominalDepthMm`, so
- *  the two cannot drift apart at any depth — which is the whole of what ADR 0028 asks.
- *
- *  **Since wave 6I2 it reads `columnBuildDepthMm`'s capped arm rather than the map directly**, so
- *  the cap and the build depth over a capped column are one statement and not two. ADR 0060
- *  decision 2 declares both arms in one place; this function is that place's capped arm under the
- *  name §7 calls it by. */
-export function wallCarcassMaxDepthOverWorktopM(
-  cabinetDepthMm: number,
-): number {
-  return toMetres(
-    columnBuildDepthMm({ cabinetDepthMm, hasFullHeightUnder: false }),
-  );
-}
 
 /** §5.2: a height-flexible body fills an opening this tall or shorter, and otherwise builds its
  *  nominal height. A 750 mm over-fridge slot gets a 750 mm unit; a cleared 2600 mm column does not
@@ -858,9 +816,7 @@ function seatableMillimetres(valueM: number): number {
  *  **Where the lift applies the declared line is the target, not a ceiling** — ADR 0060 decision 5,
  *  and the one place the two arms genuinely differ. Taking the shallower of the two would let one of
  *  ADR 0058's pinned 600 mm tops lend its pin to the catalogue body that replaces it: at a 700 mm
- *  kitchen the incoming body takes the column's build depth of 700, not the 600 it replaced. It also
- *  cannot build past the opening in practice, because decision 4 makes a body shallower than the
- *  line unreachable over such a column in the first place.
+ *  kitchen the incoming body takes the column's build depth of 700, not the 600 it replaced.
  *
  *  The body's band, not the slot's: the cap describes what a wall **carcass** is — hung, with no
  *  plinth and no worktop of its own — and a wall cabinet dropped into a cleared column slot is
@@ -873,7 +829,7 @@ function resolveDepthM(
   if (normaliseBand(body.band) !== "wall")
     return buildToTheClearanceM(opening.d);
   // The declared depth, until wave 6J gives a design one of its own to carry: this wave reads the
-  // module constant, exactly as `wallCarcassMaxDepthOverWorktopM`'s caller did before it.
+  // module constant, which is the single argument every caller has passed since wave 6H.
   const declaredM = columnBuildDepthM({
     cabinetDepthMm: WORKTOP_DEPTH_MM,
     hasFullHeightUnder: column.hasFullHeightUnder,

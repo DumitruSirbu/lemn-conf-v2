@@ -11,6 +11,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   cabinetDepthRuleOf,
+  columnBuildDepthMm,
   depthFollowsSetting,
   pinnedAtFinishedDepthMm,
   UndeclaredCabinetDepthRuleError,
@@ -25,8 +26,6 @@ import {
   KITCHEN_L_BODY_CATALOG,
   refuseUndeclaredDepthRules,
 } from "../src/fixtures/kitchen-l-design.js";
-import { wallCarcassMaxDepthOverWorktopM } from "../src/commands/insert-fit.js";
-import { toMillimetres } from "../src/millimetres.js";
 import type { BodyCatalog, BodyDefinition } from "../src/void-engine.js";
 import {
   declaredWorktopDepthsMm,
@@ -142,7 +141,9 @@ describe("the shipped catalogue is the 600 mm build, to the millimetre", () => {
   });
 
   it("caps a wall carcass at the same map row it always did", () => {
-    expect(toMillimetres(wallCarcassMaxDepthOverWorktopM(600))).toBe(330);
+    expect(
+      columnBuildDepthMm({ cabinetDepthMm: 600, hasFullHeightUnder: false }),
+    ).toBe(330);
   });
 });
 
@@ -166,7 +167,7 @@ describe("a catalogue built at 700 describes a different kitchen", () => {
   it("moves the head-clearance cap with the catalogue's nominal, at both depths", () => {
     for (const cabinetDepthMm of DECLARED_DEPTHS_MM) {
       expect(
-        toMillimetres(wallCarcassMaxDepthOverWorktopM(cabinetDepthMm)),
+        columnBuildDepthMm({ cabinetDepthMm, hasFullHeightUnder: false }),
       ).toBe(entryAt(cabinetDepthMm, "wall-cabinet").nominalDepthMm);
     }
   });

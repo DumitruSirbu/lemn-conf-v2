@@ -335,15 +335,30 @@ describe("both routes into a slot land on one depth, over every column", () => {
   });
 });
 
-describe("a shallow body over a full-height member is unreachable (decision 4)", () => {
+// **No route _writes_ a shallow body over a full-height member** — ADR 0060 decision 4, restated as
+// what is actually true. The record says *"there is no route that puts a 330 mm body over a column
+// for a later swap to inherit"*; the purpose clause is fully satisfied and the literal claim is not.
+//
+// `seatDepthMm` is written in exactly two places — `commands/insert-body.ts` (insert and swap) and
+// `commands/rebuild-resized-bodies.ts` (resize) — and both derive it from `resolveDepthM`, which
+// over a full-height column answers the declared line. `moveHood`, `migrateDesign`, `split-column`,
+// `merge-empty-columns` and `apply-column-moves` write no depth at all. Exhausted by logic review,
+// 2026-09-04, rather than inferred from tests.
+//
+// **But the _state_ is reachable**, because `hasFullHeightUnder` is re-answered from along-wall
+// overlap after every mutation while an existing body's depth is never re-derived: clear a column,
+// insert a full-height unit under a 330 mm wall body, and one is standing over a column without
+// anything having written it there. That is why the assertions below are about what such a body
+// **cannot pass on**, and not about it being impossible to meet.
+describe("a shallow body over a full-height member is never written (decision 4)", () => {
   const FRIDGE_COLUMN = "B|2.45";
   const OVER_THE_FRIDGE = "p24";
 
-  it("does not let a hand-built shallow body lend its depth to its replacement", () => {
-    // Decision 4 says no *route* creates a 330 mm body over such a column. This asserts the half
-    // that makes the agreement stable rather than coincidental: even handed one, the swap does not
-    // inherit it. The depth comes from the column's declaration and from nothing the outgoing body
-    // recorded.
+  it("does not let a shallow body already standing there lend its depth to its replacement", () => {
+    // The half that makes the agreement stable rather than coincidental: however such a body got
+    // there — hand-authored here, or by inserting a full-height unit beneath an existing 330 —
+    // the swap does not inherit its depth. The answer comes from the column's declaration and from
+    // nothing the outgoing body recorded.
     const world = withShallowBodyOverTheFridge();
 
     expect(world.columns.get(FRIDGE_COLUMN)?.hasFullHeightUnder).toBe(true);
@@ -377,10 +392,11 @@ describe("a shallow body over a full-height member is unreachable (decision 4)",
     ).toBe(LIFTED_BUILD_DEPTH_MM);
   });
 
-  /** The seeded kitchen with `p24` recording a **291 mm** seat, so it occupies 330: the shallow body
-   *  over a full-height column that decision 4 says no route produces, hand-built here so its
-   *  non-propagation is asserted rather than assumed. 291 is the seat a 330 mm fronted carcass
-   *  records (ADR 0036's 39 mm front assembly).
+  /** The seeded kitchen with `p24` recording a **291 mm** seat, so it occupies 330: a shallow body
+   *  over a full-height column, authored directly because no writer produces one. It stands for the
+   *  state a customer *can* reach by inserting a full-height unit beneath an existing 330, and it is
+   *  here so its non-propagation is asserted rather than assumed. 291 is the seat a 330 mm fronted
+   *  carcass records (ADR 0036's 39 mm front assembly).
    *
    *  Only the recorded seat is changed — same entry, same width, same height — so the one variable
    *  between the three worlds below is the depth the outgoing body occupies. */
@@ -461,6 +477,12 @@ describe("value-preserving where the capped path already governs", () => {
     // rule held on one route and not the other, which is entry 10's shape on the arm this wave had
     // left alone. Measured on the column both routes agree by construction, and the safety property
     // 5A stated is unchanged.
+    //
+    // **Not redundant against the two worlds beside it, and the distinction is why all three
+    // stay.** This one pins the `min`'s *existence* — delete the `min` and this case builds 330 in
+    // a 200 mm column. Its siblings pin the `min`'s *argument* — swap the argument back to the
+    // opening and they diverge while this one still passes, because a single-member column makes
+    // the two arguments coincide. Neither test can see the other's failure.
     const world = shallowColumn();
 
     expect(world.columns.get(SHALLOW_COLUMN_KEY)?.hasFullHeightUnder).toBe(
