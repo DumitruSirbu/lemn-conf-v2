@@ -78,9 +78,25 @@ export function roundUpToThousandMdl(totalMinor: number): number {
   );
 }
 
+/**
+ * One amount, rounded and grouped, **without the currency** — what frames 2D and D2D print against
+ * every line of the breakdown.
+ *
+ * Here rather than in the breakdown for the reason this whole module exists: grouping is formatting,
+ * and a second `THOUSANDS_SEPARATOR` somewhere else is a second formatter however small. The
+ * currency is left off because the mockups state it once per surface, on the figure the lines sit
+ * under, and repeating it on every line is not what was drawn.
+ *
+ * Rounds through `roundUpToThousandMdl`, the same site the total uses, which is exactly why the
+ * lines and the total **need not sum** — see this module's head comment, and the disclaimer in
+ * `ro.priceBreakdown.note` that carries it.
+ */
+export function describeRoundedAmount(amountMinor: number): string {
+  return groupThousands(roundUpToThousandMdl(amountMinor));
+}
+
 function formatRoundedAmount(totalMinor: number): string {
-  const amountMdl = roundUpToThousandMdl(totalMinor);
-  return `${groupThousands(amountMdl)} ${PRICE_BOOK_CURRENCY}`;
+  return `${describeRoundedAmount(totalMinor)} ${PRICE_BOOK_CURRENCY}`;
 }
 
 /** A price that is not a whole, non-negative count of the smallest unit is a price something has

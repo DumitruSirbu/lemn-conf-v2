@@ -28,10 +28,21 @@ import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import { ro } from "@/content/ro";
+
+import {
+  RULED_TO_CONTAIN_A_SUM_WORD,
+  SUM_CLAIM_PATTERN,
+} from "../support/ruled-price-copy";
 import {
   describeStartingPrice,
   roundUpToThousandMdl,
 } from "@/price/starting-price";
+
+// The sum-claim pattern and the two owner-ruled sentences excluded from it by identity live in
+// `tests/support/ruled-price-copy.ts`, with the whole reason recorded there. One list and one
+// pattern, read by every guard that asserts this rule — including the one over rendered output in
+// `price-breakdown-copy.test.ts`, which asks the same question of a surface that a string sweep
+// cannot see.
 
 /** Re-derived rather than imported, so an agreement here is not an agreement with itself. */
 const BANI_PER_MDL = 100;
@@ -49,6 +60,41 @@ const SEEDED = priceDesign({
   book: SAMPLE_PRICE_BOOK,
   pricingVersion: SAMPLE_PRICE_BOOK_VERSION,
 });
+
+/**
+ * **Every string the price surfaces state**, from every section of `ro` that carries price copy —
+ * `price` (the bar, §9's footer, the flagged total) and `priceBreakdown` (frames 2D / D2D).
+ *
+ * Flattened rather than read with `Object.values`, and both halves of that matter. A section is a
+ * nested object now — `priceBreakdown` groups its band words and its category words — so a flat
+ * read would hand `toMatch` an object and fail for the wrong reason, and would leave the leaves
+ * underneath it never swept at all. **The shape of the data must not decide the shape of the rule.**
+ *
+ * A composing template contributes its **body**: the parameter list and the arrow are stripped, so
+ * `` (wall, band) => `Perete ${wall} · ${band}` `` is swept as the words it would put on a screen.
+ * Without that, a claim written into a template — `` `Total: ${amount}` `` — would sit in price copy
+ * unswept, and `=>` alone would trip the `=` the sweep refuses.
+ */
+const EVERY_PRICE_STRING = [
+  ...priceCopyLeaves(ro.price),
+  ...priceCopyLeaves(ro.priceBreakdown),
+];
+
+/** Every leaf string under a copy section, with a composing template contributing its body. */
+function priceCopyLeaves(section: unknown): string[] {
+  if (typeof section === "string") return [section];
+  if (typeof section === "function")
+    return [templateBodyOf(section as (...args: never[]) => string)];
+  if (typeof section !== "object" || section === null) return [];
+  return Object.values(section).flatMap(priceCopyLeaves);
+}
+
+/** An arrow function's body as source text — everything past its first `=>`. Typed on the shape a
+ *  copy template has, rather than on `Function`: a section composes strings from what a surface
+ *  hands it, and nothing else belongs here. */
+function templateBodyOf(composer: (...args: never[]) => string): string {
+  return String(composer).replace(/^[^=]*=>/, "");
+}
 
 describe("the boundaries around a thousand", () => {
   it("never charges a further thousand for an amount already on the step", () => {
@@ -250,21 +296,34 @@ describe("rounded lines and a rounded total, and what the copy says about them",
     );
   });
 
-  it("is a gap no string in the price section claims to close", () => {
-    // The whole section, not one string: the criterion is that *no surface* claims the two sum, and
-    // a claim added to a fourth label would be as wrong as one added to the total's.
-    const everyPriceString = Object.values(ro.price);
-
-    expect(everyPriceString.length).toBeGreaterThan(0);
-    for (const copy of everyPriceString) {
-      expect(copy, copy).not.toMatch(/total|sum[aă]|adun|egal|\+|=/i);
+  it("is a gap no string in the price sections claims to close", () => {
+    // Every price string in the application, not one section and not one label: the criterion is
+    // that *no surface* claims the two sum, and a claim added to a fourth label would be as wrong
+    // as one added to the total's.
+    expect(EVERY_PRICE_STRING.length).toBeGreaterThan(0);
+    for (const copy of EVERY_PRICE_STRING) {
+      if (RULED_TO_CONTAIN_A_SUM_WORD.includes(copy)) continue;
+      expect(copy, copy).not.toMatch(SUM_CLAIM_PATTERN);
     }
   });
 
-  it("keeps the price section free of amounts altogether, as its own doc comment claims", () => {
+  it("still holds both excluded sentences to the exact wording that was ruled", () => {
+    // The exceptions are by identity, so neither can widen: re-word either sentence and it stops
+    // being this string, the sweep above judges it again, and this assertion says which line to
+    // update. Asserting each is still *in* the swept set is the other half — an exception nothing
+    // reaches is an exception nobody notices has gone stale.
+    expect([ro.priceBreakdown.disclaimer, ro.priceBreakdown.note]).toEqual(
+      RULED_TO_CONTAIN_A_SUM_WORD,
+    );
+    for (const ruled of RULED_TO_CONTAIN_A_SUM_WORD)
+      expect(EVERY_PRICE_STRING, ruled).toContain(ruled);
+  });
+
+  it("keeps the price sections free of amounts altogether, as their own doc comments claim", () => {
     // ADR 0062's third prohibition, made falsifiable: a digit here is copy that happens to agree
-    // with a price rather than a price rendered.
-    for (const copy of Object.values(ro.price)) {
+    // with a price rather than a price rendered. No exception — both excluded sentences state no
+    // amount either, and a template that interpolates one (`${widthMm}`) states no digit of its own.
+    for (const copy of EVERY_PRICE_STRING) {
       expect(copy, copy).not.toMatch(/\d/);
     }
   });
@@ -460,6 +519,11 @@ describe("only these modules may go near a price, and only one of them may round
       "panel/use-panel-view.ts",
       "price/price-bar-model.ts",
       "price/price-bar.tsx",
+      // Wave 6D's breakdown, added here rather than exempted: this list exists so a new module that
+      // can reach a priced amount is a recorded addition, and the two below still have to pass the
+      // three assertions after it — they neither round nor name the step nor name the currency.
+      "price/price-breakdown-model.ts",
+      "price/price-breakdown.tsx",
       THE_FORMATTER,
       "price/use-priced-design.ts",
     ]);

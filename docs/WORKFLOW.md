@@ -255,6 +255,32 @@ The main agent owns the working tree and the final outcome. It may delegate boun
 roles in `AGENT_ROLES.md`, but it retains integration, final verification, and user-facing
 communication.
 
+### Running agents in parallel: the shared resources they collide on
+
+Parallel dispatch is worth it, but two agents in one working tree collide in three ways, all three
+observed on 2026-09-03 and each initially misread as a defect in the code.
+
+- **The working tree.** An agent that edits while another is measuring invalidates the measurement
+  and, worse, produces findings nobody can attribute. Freeze the tree for the duration of a QA or
+  verification pass, and say so explicitly to both agents; when a change genuinely cannot wait, name
+  its exact scope to whoever is measuring so they can decide what to re-run. **This includes a live
+  `next dev` server**: editing under one makes an e2e spec fetch a chunk the bundler is mid-rewrite,
+  which surfaces as `Uncaught SyntaxError: Unexpected end of input` and looks exactly like a flaky
+  test.
+- **Port 4320.** One dev server at a time. An agent that needs the port asks; an agent that finds it
+  held **does not kill the process** — it may be another agent's live run. `next build` writes the
+  same `.next` a dev server owns, so the build gate collides too.
+- **`TEST_DATABASE_URL`.** The migration-rollback suite tears the ledger down and rebuilds it, so a
+  second process reading mid-rebuild sees a `MigrationSequenceError` naming a gap that is real for a
+  few hundred milliseconds and then gone. Two such observations at different instants look like
+  *progressive corruption* and are not. **Before treating a provisioned resource as damaged, inspect
+  it read-only** — the timestamps settle it. The narrow rule: at most one agent runs the rollback
+  suite at a time. **QA agents should run per-package suites (`cd <pkg> && pnpm exec vitest run`)
+  rather than workspace-wide `pnpm test`**, which drags the persistence package into every run.
+
+A guard reporting a real inconsistency is not the same as a defect. Two of the three above were
+guards working correctly on a racing system.
+
 ## Trust but verify
 
 - A green build, lint pass, and existing tests do **not** by themselves prove the acceptance
@@ -263,6 +289,45 @@ communication.
   relevant commands, and record the observed outcome.
 - Review the actual diff before accepting an agent's summary. Agent reports are evidence leads, not
   proof.
+
+### The commonest weak guard: both sides fed by the same source
+
+A test that compares an expected value against an actual one proves nothing if **the same thing
+supplies both sides.** It passes, it looks specific, and it cannot fail for the reason it was
+written.
+
+**The cheap general check, and it takes one question:** ask what *else* could supply the expected
+side. If the answer is "the same thing that supplies the actual side", **make the two disagree and
+assert which one wins.**
+
+Three instances found in one wave on 2026-09-03, all in guards that read as thorough:
+
+- A two-way refusal comparing the groups it was **handed** against the lines it was **handed** — so
+  the component could stop calling the projection entirely and rebuild a plausible, correctly ordered
+  breakdown from price lines, with **187 tests and the e2e still green**. Closed by capturing the
+  argument at the hand-over and requiring two designs whose group structures differ.
+- A count of rendered amounts whose expected list was derived from **the same view the surface
+  renders**, so a subtotal added by the model landed on both sides and cancelled out. Closed by
+  counting against the projection and the price book instead.
+- A label assertion that could not tell whether the model read the projection's entry or the price
+  line, because `CabinetPriceLine` carries the **same** `label` and `widthMm`. Closed by making the
+  two disagree.
+
+None of these is a careless test. Each compares a real property; each was fed by one source wearing
+two hats.
+
+### A surviving mutation may not have been applied
+
+When a mutation is expected to turn a test red and does not, **prove the mutation reached the code
+under test before concluding the guard is weak.** The web suites resolve
+`@lemnaria/configurator-domain` to `dist/`, so editing `packages/configurator-domain/src` and re-running
+a web test mutates nothing — the build still holds the original. Rebuild, or mutate the build, then
+re-run.
+
+Observed on 2026-09-03: a scene-population assertion looked like a restatement because the mutation
+meant to falsify it was a no-op. Against the build it died, and the assertion turned out to be
+genuinely falsifiable. **A survivor is a claim about the guard only once the mutation is known to
+have landed** — otherwise it is a claim about the build.
 
 ## Evidence standards
 

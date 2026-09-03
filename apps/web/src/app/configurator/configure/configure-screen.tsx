@@ -6,6 +6,7 @@ import { useEffect, useMemo, useState } from "react";
 
 import { EditorPanel } from "@/panel/editor-panel";
 import { PriceBar } from "@/price/price-bar";
+import { PriceBreakdown } from "@/price/price-breakdown";
 import { usePanelView } from "@/panel/use-panel-view";
 import { WebGLUnavailable } from "@/components/webgl-unavailable";
 import { ro } from "@/content/ro";
@@ -96,9 +97,14 @@ export function ConfigureScreen() {
         <SelectionDebug />
       </div>
       {/* Frames 2A / D2A: the bottom bar on mobile, the top bar's figure on desktop. Placed in the
-          grid by `configure.module.css`; which of the two it is, is decided there. */}
+          grid by `configure.module.css`; which of the two it is, is decided there.
+
+          The breakdown's control stands beside the figure it explains, in both frames — which is
+          also what makes the desktop popover a popover *anchored to the price* rather than a panel
+          that happens to open near it. */}
       <div className={styles.priceRow}>
         <PriceBar />
+        <PriceBreakdown />
       </div>
     </main>
   );

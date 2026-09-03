@@ -320,6 +320,87 @@ export const ro = {
     overflowingTotalWarning:
       "Prețul include și dulapuri ce depășesc mărimea peretelui și necesită ajustări",
   },
+  /** Frames 2D / D2D's breakdown: *"De ce acest preț"*, the sheet on mobile and the popover on
+   *  desktop.
+   *
+   *  **A section of its own, held to the same rules as `price` by the same single guard.** The
+   *  split is organisation and nothing more: `starting-price.adversarial.test.ts` flattens both
+   *  sections to their leaf strings and sweeps them together, so *"labels only, never an amount"*
+   *  and *"no string claims the lines add up to the total"* mean here exactly what they mean there.
+   *  The disclaimer and the note below are excluded from the sum sweep **by identity, as literals,
+   *  at the guard** — they are the two ruled sentences containing a sum word, and each uses it to
+   *  say the opposite of an equality claim: no sum here is final, every amount was rounded on its
+   *  own. Re-word either and that guard goes red rather than inheriting its exception.
+   *
+   *  **Amounts are still absent here** (ADR 0062's third prohibition), including *"inclus"*, which
+   *  names what a zero-amount tier costs the customer rather than stating a number. */
+  priceBreakdown: {
+    /** Frames 2D and D2D's heading, and frames 2A and D2A's control that opens it — **one string**,
+     *  because the button and the sheet it opens name the same thing and a second copy is how two
+     *  spellings come back (`startingPrefixUnchanged` records that lesson). The mockups draw a
+     *  chevron beside the control; it is decoration and lives in the component, not here. */
+    title: "De ce acest preț",
+    /** Frame 2D, and the wave's own acceptance criterion: transport, worktop and appliances are
+     *  excluded, and the final sum follows an on-site measurement.
+     *
+     *  **The worktop clause does double duty.**
+     *  [ADR 0036](../../../docs/decisions/0036-a-declared-dimension-is-the-finished-cabinet.md)
+     *  decision 3 makes the worktop an external part that influences *neither geometry nor price* —
+     *  so this sentence is also why wave 6K's depth control adds no price line. Weakening it
+     *  weakens that, in a place nobody would think to look.
+     *
+     *  **Frame D2D stops at *electrocasnice* and drops the measurement clause.** The fuller mobile
+     *  sentence ships in both shells: the milestone's copy table rules this string by frame **2D**,
+     *  and its acceptance criterion names the measurement clause outright. One string, two shells,
+     *  as §10.1 requires of every other forked spelling. */
+    disclaimer:
+      "Preț de pornire, rotunjit în sus la mia de lei. Nu include transport, blat sau electrocasnice — suma finală se stabilește după măsurare.",
+    /** Frame 2D's footnote, and **the sentence that carries the non-summing rule**: every amount on
+     *  this surface is rounded up on its own, so the lines a customer adds up do not reach the
+     *  total beneath them. Wave 6C's criterion names this string as what carries it, and no surface
+     *  may add an equality claim, a subtotal or a *total* row beside it. */
+    note: "Toate sumele sunt prețuri de pornire, rotunjite în sus. Nu constituie ofertă comercială.",
+    /** Frames 2D and D2D's own close action. The mobile sheet needs one (it covers the bar it was
+     *  opened from); the desktop popover carries the same one rather than a second wording. */
+    close: "Închide",
+    /** *"Nișă mașină de spălat vase 600"* — one placement line, exactly as frame 2D draws every one
+     *  of them: the body, then the width it is built at.
+     *
+     *  **Both halves come from the projection's entry and neither is derived here.** The name is
+     *  `describeBodyLabelAt`'s answer ([ADR 0033](../../../docs/decisions/0033-door-count-is-derived-from-width-not-declared.md)),
+     *  which is why a *Corp suspendat* reads *2 uși* at 600 and *1 ușă* at 300 on this surface, in
+     *  §9's header and in the offer list alike; the width is the entry's `widthMm`. The mockup's own
+     *  names predate that merge, so the shape is the frame's and the words are the catalogue's.
+     *
+     *  **Frame 2D's *"Etajeră deschisă 600 · stejar"* also names a finish.** The wave's criterion
+     *  asks for the body and its width, and no decision rules how a per-cabinet finish reads on a
+     *  price line — so it is left off rather than invented. */
+    placementLabel: (bodyLabel: string, widthMm: number) =>
+      `${bodyLabel} ${String(widthMm)}`,
+    /** *"Perete A · bază"* — one group's heading. The wall letter and the band are **the
+     *  projection's**, read off the group it produced; this composes the ruled words around them,
+     *  exactly as `panel.headerMeta` composes §9's header line. */
+    groupHeading: (wall: string, bandWord: string) =>
+      `Perete ${wall} · ${bandWord}`,
+    /** The band as a **group of bodies** reads in frames 2D and D2D — plural, and keyed by the
+     *  normalised band because that is what the projection groups on.
+     *
+     *  Deliberately not `panel.bandWords`: those count bodies mid-sentence (*"5 corpuri bază de
+     *  600"*) and read *coloană* where a heading over two of them reads *coloane*. Two grammatical
+     *  roles, two sets of words, and merging them would make one of the two ungrammatical. */
+    bandHeadings: { base: "bază", wall: "suspendate", column: "coloane" },
+    /** *"Feronerie · Hettich"* — a whole-kitchen line. The tier's own name is **book data**
+     *  (ADR 0062: a tier is data rendered, never copy that happens to agree with a number); only
+     *  the category word in front of it is copy. */
+    wholeKitchenLabel: (categoryWord: string, tierName: string) =>
+      `${categoryWord} · ${tierName}`,
+    /** Keyed by the price line's kind, so a third whole-kitchen rule added to the book arrives as a
+     *  key here rather than as a branch in the component. */
+    wholeKitchenCategories: { hardware: "Feronerie", material: "Material" },
+    /** Frame 2E, and frame 2D's material row: a tier that costs nothing extra reads *inclus*, never
+     *  `0`. A zero is a number a customer reads as a price; this says what it means. */
+    included: "inclus",
+  },
   webglUnavailable: {
     titleMobile: "Dispozitivul acesta nu poate afișa 3D",
     titleDesktop: "Browserul acesta nu poate afișa 3D",

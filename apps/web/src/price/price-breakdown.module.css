@@ -1,0 +1,306 @@
+/* Frames 2D and D2D, from one set of markup: a full sheet on mobile, a popover anchored to the
+ * price on desktop. The shell is decided here and nowhere in React — §10.1's one permitted layout
+ * branch, taken exactly as §9's sheet-or-rail is.
+ *
+ * The control lives inside the price row, beside the figure it explains, which is where both frames
+ * draw it. `configure.module.css` lays that row out; this file styles what stands in it. */
+.anchor {
+  position: relative;
+  display: flex;
+}
+
+.trigger {
+  display: flex;
+  gap: 7px;
+  align-items: center;
+  /* The bar's own padding and rule, so the two read as one band rather than as two boxes with a
+   * seam between them. */
+  padding: 12px 18px 20px;
+  font: 700 12px/1 var(--font-ui);
+  color: var(--accent);
+  cursor: pointer;
+  background: none;
+  border: none;
+  border-top: 1px solid var(--line);
+}
+
+.chevron {
+  font-size: 14px;
+}
+
+/* Frame D2D dims the screen behind the popover. Frame 2D's sheet does not, so on mobile there is no
+ * scrim at all rather than a transparent one — a transparent scrim still swallows every tap meant
+ * for the scene behind it. */
+.scrim {
+  display: none;
+}
+
+.surface {
+  position: fixed;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 6;
+  display: flex;
+  flex-direction: column;
+  /* §10, and the sheet §9 already shows at this viewport: roughly 70–83 vh of 390 × 844, so the
+   * scene stays visible above it. */
+  max-height: 78dvh;
+  background: var(--paper);
+  border-top: 1px solid var(--line);
+  border-radius: 22px 22px 0 0;
+  box-shadow: 0 -16px 36px rgb(28 24 20 / 18%);
+}
+
+.grabber {
+  align-self: center;
+  width: 40px;
+  height: 4px;
+  margin-top: 11px;
+  background: var(--line);
+  border-radius: 2px;
+}
+
+.head {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 11px 18px 12px;
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.title {
+  margin: 0;
+  font: 700 18px/1.2 var(--font-ui);
+  letter-spacing: -0.01em;
+}
+
+.disclaimer {
+  margin: 0;
+  font: 400 12px/1.45 var(--font-ui);
+  color: var(--ink-muted);
+}
+
+/* Scrolls internally, so the figure below it stays pinned however long the kitchen runs. */
+.body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 16px;
+  min-height: 0;
+  padding: 14px 18px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.group,
+.wholeKitchen {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+
+/* The whole-kitchen rules follow every placement row, separated by a rule. **Not a subtotal line**:
+ * nothing above it is summed and nothing below it claims to be — see `ro.priceBreakdown.note`. */
+.wholeKitchen {
+  padding-top: 4px;
+  border-top: 1px solid var(--line-soft);
+}
+
+.heading {
+  margin: 0;
+  font: 700 10.5px/1 var(--font-ui);
+  letter-spacing: 0.14em;
+  color: var(--ink-faint);
+  text-transform: uppercase;
+}
+
+.row {
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+}
+
+.rowLabel {
+  font: 400 13px/1.4 var(--font-ui);
+}
+
+.row[data-row="whole-kitchen"] .rowLabel {
+  color: var(--ink-muted);
+}
+
+.rowAmount {
+  font: 700 13px/1.4 var(--font-ui);
+}
+
+.note {
+  display: flex;
+  gap: 9px;
+  align-items: flex-start;
+  margin: 0;
+  padding: 12px 13px;
+  font: 400 12px/1.45 var(--font-ui);
+  color: var(--ink-muted);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+
+.noteMark {
+  flex: 0 0 16px;
+  width: 16px;
+  height: 16px;
+  font: 700 11px/16px var(--font-ui);
+  color: #fff;
+  text-align: center;
+  background: #1d4ed8;
+  border-radius: 50%;
+}
+
+/* ADR 0065 decision 8: the caution palette the bar and §9's footer already paint the flagged total
+ * in, never the refusal's red. `price-breakdown-copy.test.ts` holds the three sites to one
+ * pair of values, for the reason the two of them were held to one before this was the third. */
+.overflow {
+  margin: 0 18px;
+  padding: 9px 11px;
+  font: 400 11.5px/1.4 var(--font-ui);
+  color: #7c4a0c;
+  background: #fdf6ec;
+  border-radius: 10px;
+}
+
+.footer {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 13px 18px 18px;
+  border-top: 1px solid var(--line);
+}
+
+.figure {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin: 0;
+}
+
+.figureLabel {
+  font: 400 10.5px/1 var(--font-ui);
+  letter-spacing: 0.09em;
+  color: var(--ink-faint);
+  text-transform: uppercase;
+}
+
+.figureAmount {
+  font: 700 21px/1 var(--font-ui);
+}
+
+.close {
+  height: 48px;
+  padding: 0 20px;
+  font: 700 14px/1 var(--font-ui);
+  color: var(--ink-muted);
+  cursor: pointer;
+  background: none;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+
+/* Frame D2D: a 520 px popover hanging from the price in the top bar, over a dimmed screen. Same
+ * markup, same model — a different box. */
+@media (min-width: 900px) {
+  .anchor {
+    /* Lifts this whole subtree — trigger, scrim and popover — above the header and the price bar
+     * (both `z-index: 2`) and §9's rail (`4`), and establishes the stacking context the popover is
+     * drawn in.
+     *
+     * **It does not keep the trigger above the scrim, and an earlier comment here claimed it did.**
+     * The scrim is a *child* of this element, so inside the context this creates it paints over the
+     * unpositioned trigger: `document.elementFromPoint` at the trigger's centre returns the scrim,
+     * not the button. Harmless — a click there closes the popover either way, which is why nothing
+     * looked wrong — but the reason written down was not the reason it worked. */
+    z-index: 6;
+    /* Stretched to the whole top bar, not to the control inside it: the popover hangs from
+     * `top: 100%`, and an anchor the height of its button would drop it across the bar's own lower
+     * half. Frame D2D leaves a clear gap between the two. */
+    align-self: stretch;
+    align-items: center;
+  }
+
+  .trigger {
+    padding: 0 28px 0 0;
+    border-top: none;
+  }
+
+  .scrim {
+    position: fixed;
+    inset: 0;
+    z-index: 5;
+    display: block;
+    background: rgb(28 24 20 / 22%);
+  }
+
+  .surface {
+    position: absolute;
+    top: 100%;
+    right: 24px;
+    bottom: auto;
+    left: auto;
+    width: 520px;
+    max-height: 640px;
+    margin-top: 16px;
+    background: var(--paper);
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    box-shadow: 0 22px 48px rgb(28 24 20 / 22%);
+  }
+
+  .grabber {
+    display: none;
+  }
+
+  .head {
+    gap: 7px;
+    padding: 22px 24px 16px;
+  }
+
+  .title {
+    font-size: 19px;
+  }
+
+  .disclaimer {
+    font: 400 12.5px/1.5 var(--font-ui);
+  }
+
+  .body {
+    gap: 18px;
+    padding: 18px 24px;
+  }
+
+  .group,
+  .wholeKitchen {
+    gap: 10px;
+  }
+
+  .heading {
+    font-size: 11px;
+  }
+
+  .rowLabel,
+  .rowAmount {
+    font-size: 13.5px;
+  }
+
+  .overflow {
+    margin: 0 24px;
+  }
+
+  .footer {
+    padding: 16px 24px 20px;
+  }
+
+  .figureAmount {
+    font-size: 20px;
+  }
+}
