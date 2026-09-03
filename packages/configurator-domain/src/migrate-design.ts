@@ -15,38 +15,71 @@ import {
 } from "./validate-design.js";
 import type { BodyCatalog } from "./void-engine.js";
 
-/** Version 1 is every document written before wave 5G, under a rule that bounded a *merge* and not
- *  an empty column — so it may carry an entry ADR 0052 no longer permits, and the answer is to
- *  **normalise it rather than refuse it**.
+/** The version this build writes, and the version at which a document is owed no normalisation at
+ *  all. `neon-configuration-repository.ts` stamps every row it writes with this value, importing it
+ *  rather than restating it: two copies of this number that disagree is a migration that silently
+ *  stops running. */
+export const CURRENT_SCHEMA_VERSION = 3;
+
+/** The oldest version still readable. Nothing below it was ever written, and a row claiming one is
+ *  a row this build cannot account for. */
+const OLDEST_SUPPORTED_SCHEMA_VERSION = 1;
+
+/** One legacy shape, normalised away. Takes the catalogue because deciding whether a normalisation
+ *  is owed can require knowing whether the document is executable, not only how it is shaped. */
+type DesignNormalisation = (design: Design, catalog: BodyCatalog) => Design;
+
+/** Every normalisation a stored document may still be owed, **keyed by the version that owes it**
+ *  and applied in ascending version order by `carryForward`.
  *
- *  A 900 mm empty column is executable: it renders correctly, and all it does wrong is refuse
- *  `widthFlex: 'fit'` inserts. It is a legal document under a superseded rule, not the unexecutable
- *  document DOM-001 refuses, and a `/d/{id}` share link is the one artefact this project hands to
- *  someone who cannot be asked to reload it. Clamping would silently delete wall; grandfathering
- *  would leave the invariant unenforceable. Splitting keeps every millimetre and produces a map that
- *  satisfies the new rule by construction, which the next save writes back in the normalised shape.
+ *  Version 1 is every document written before wave 5G, under a rule that bounded a *merge* and not
+ *  an empty column, so it may carry an entry ADR 0052 no longer permits. Version 2 is every document
+ *  written before the room correction of 2026-09-03, so it carries the seeded room as it then stood.
+ *  A version 1 document is owed both, in that order.
  *
- *  Before `assertDesignValidForCatalog`, because that is the seam that now refuses the oversized
- *  entry — normalising after it would refuse the very document this exists to carry. */
-function migrateFromV1(raw: unknown, catalog: BodyCatalog): Design {
-  return normaliseOversizedEmptyColumnEntries(migrateFromV2(raw, catalog));
+ *  **The order is load-bearing, and one defect has already turned on it.** Each entry may assume
+ *  every older one has already run, and `correctPreCorrectionRoom` relies on it: that entry asks
+ *  whether the corrected room rescues the document, and a version 1 document still carrying an
+ *  oversized `emptyColumns` entry answers *no* for a reason that has nothing to do with its room.
+ *  Run in the other order, the room correction declined to fire on precisely the documents version 1
+ *  exists for — a v1 row carrying both legacy shapes at once. A future arm below these belongs at
+ *  the **front** of this map, and its own guard may not assume anything a younger arm has not yet
+ *  had the chance to fix. */
+const NORMALISATIONS_BY_VERSION_OWING_THEM: ReadonlyMap<
+  number,
+  DesignNormalisation
+> = new Map([
+  [1, normaliseOversizedEmptyColumnEntries],
+  [2, correctPreCorrectionRoom],
+]);
+
+/** Every normalisation the stored version still owes, oldest first. A document already at
+ *  `CURRENT_SCHEMA_VERSION` walks none of them: its room and its columns are its own, including the
+ *  3600 × 2400 an M7 customer may genuinely enter. */
+function carryForward(
+  design: Design,
+  schemaVersion: number,
+  catalog: BodyCatalog,
+): Design {
+  let carried = design;
+  for (
+    let version = schemaVersion;
+    version < CURRENT_SCHEMA_VERSION;
+    version += 1
+  ) {
+    carried = normalisationOwedBy(version)(carried, catalog);
+  }
+  return carried;
 }
 
-/** Version 2 is written under ADR 0052, so an oversized entry in one is not a legacy shape to carry
- *  forward — it is a document that disagrees with the rule it was written under. Handed to
- *  `assertDesignValidForCatalog` unnormalised, which refuses it with `EMPTY_COLUMN_WIDER_THAN_CAP`,
- *  the same code the API write seam refuses it with.
- *
- *  What it *is* carried forward across is the room correction of 2026-09-03, because every document
- *  at this version or below was written from the seed as it then stood. */
-function migrateFromV2(raw: unknown, catalog: BodyCatalog): Design {
-  return correctPreCorrectionRoom(migrateFromV3(raw), catalog);
-}
-
-/** Version 3 is written under the corrected room, so its `room` is the document's own and nothing
- *  here may touch it — including the 3600 × 2400 an M7 customer may genuinely enter. */
-function migrateFromV3(raw: unknown): Design {
-  return parseDesign(raw);
+function normalisationOwedBy(version: number): DesignNormalisation {
+  const normalisation = NORMALISATIONS_BY_VERSION_OWING_THEM.get(version);
+  if (!normalisation) {
+    throw new InvalidDesignError(
+      `no normalisation is declared for schema version ${String(version)}`,
+    );
+  }
+  return normalisation;
 }
 
 /** The seeded room as every document up to version 2 carried it, and the room the 2026-09-03
@@ -182,20 +215,11 @@ function isWiderThanCap(emptyColumn: EmptyColumn): boolean {
   return emptyColumn.widthMm > MAX_EMPTY_COLUMN_WIDTH_MM;
 }
 
-const MIGRATIONS: ReadonlyMap<
-  number,
-  (raw: unknown, catalog: BodyCatalog) => Design
-> = new Map([
-  [1, migrateFromV1],
-  [2, migrateFromV2],
-  [3, migrateFromV3],
-]);
-
 /** Validates and migrates a stored payload to the current `Design` shape.
  *
- *  Version 3 is current. Older versions are carried forward rather than refused, each arm adding the
- *  one normalisation its version predates: version 2 predates the 2026-09-03 room correction, and
- *  version 1 additionally predates ADR 0052's ceiling on an `emptyColumns` entry.
+ *  Version 3 is current. Older versions are carried forward rather than refused, through every
+ *  normalisation their version predates and in the order
+ *  `NORMALISATIONS_BY_VERSION_OWING_THEM` declares them.
  *
  *  DOM-001: the wire shape is only half the answer, so a migrated document is then held to the same
  *  executable contract the API write path enforces. A stored row that names a body no catalogue
@@ -209,13 +233,22 @@ export function migrateDesign(
   raw: unknown,
   catalog: BodyCatalog = KITCHEN_L_BODY_CATALOG,
 ): Design {
-  const migrate = MIGRATIONS.get(schemaVersion);
-  if (!migrate) {
+  refuseUnsupportedVersion(schemaVersion);
+  const design = carryForward(parseDesign(raw), schemaVersion, catalog);
+  assertDesignValidForCatalog(design, catalog);
+  return design;
+}
+
+/** Refused before the payload is parsed: a row stamped with a version this build has never written
+ *  is not a document with a bad field, and reporting its fields would say the wrong thing about it. */
+function refuseUnsupportedVersion(schemaVersion: number): void {
+  const isSupported =
+    Number.isInteger(schemaVersion) &&
+    schemaVersion >= OLDEST_SUPPORTED_SCHEMA_VERSION &&
+    schemaVersion <= CURRENT_SCHEMA_VERSION;
+  if (!isSupported) {
     throw new InvalidDesignError(
       `unsupported schema version ${String(schemaVersion)}`,
     );
   }
-  const design = migrate(raw, catalog);
-  assertDesignValidForCatalog(design, catalog);
-  return design;
 }

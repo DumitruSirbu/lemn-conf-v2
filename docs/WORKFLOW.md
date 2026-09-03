@@ -150,6 +150,29 @@ found by whoever hits the conflict.
 - Sweep a meaningful input range when arithmetic or generation is involved; a few hand-picked
   examples are not evidence that the transitions work. For generated data assert properties — no
   overlap, no unclassified gap, valid schema output.
+- **A deferred test has two shapes and they mean different things. Pick deliberately.**
+
+  | Shape | What it means | Clears |
+  | --- | --- | --- |
+  | `it.fails` / `test.fails` | The test **runs** and asserts the current wrong behaviour. It goes **red the moment the behaviour is fixed** | Itself |
+  | `describe.skip` / `test.skip` | The test **cannot run at all** — the surface it needs does not exist | Only when someone remembers |
+
+  **Use `it.fails` whenever a named wave is expected to change the behaviour**, because the debt
+  clears itself instead of depending on memory. That is the same argument that rules out simply
+  leaving the gate red: a red gate stops being information the second wave that sees it, whereas an
+  expected failure keeps `ci:local` green *and* fires the moment it is obsolete. Use `skip` only
+  where there is nothing to self-clear — the test cannot execute, so there is no assertion to invert.
+
+  **Flip it, do not delete it.** A deleted expected failure is indistinguishable from one that never
+  existed. Say so in the test's name and in a header comment, and name the wave that owes the flip,
+  so the inheriting implementer meets the instruction rather than a puzzle.
+
+  **Verify that the mechanism self-clears; do not assume it.** Make the assertion pass artificially,
+  confirm the expected-failure marker itself goes red, then restore. This is
+  `docs/best-practices/ci-and-local-gates.md`'s *"when adding a gate, prove it fails"* applied to the
+  inverse case, and it is the only thing separating a self-clearing test from a permanently-green one
+  that asserts nothing.
+
 - **A clean report from an adversarial pass is a weak result, not a strong one.** This project has
   shipped a test that asserted a defect as correct, two boundary greps that matched nothing while
   reporting green, and two commands that reported success while doing nothing. "No findings" must be

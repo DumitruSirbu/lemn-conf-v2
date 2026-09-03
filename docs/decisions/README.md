@@ -87,6 +87,7 @@ Alternatives / Consequences live in each file. For the specific claims a later r
 | [0065](0065-a-body-past-the-end-of-its-wall-is-marked-not-moved.md) | A body past the end of its wall is marked, not moved | Accepted | Decision | M6 6A3/6M | Nothing gives: overflow is marked and warned, priced in full with the total flagged, saved but not submittable. Withdraws the 0055 and 0056 amendments of the same day. |
 | [0066](0066-the-wall-corner-returns-get-their-own-kinds-and-names.md) | The wall corner returns get their own kinds and names | Accepted | Decision | M6 6A4 | Two kinds, one per row, mirroring ADR 0025 — one shared kind would leave the priced document showing two identical lines. |
 | [0067](0067-leftover-wall-is-the-normal-case-and-the-price-is-a-floor.md) | Leftover wall is the normal case, and the price is a floor | Accepted | Decision | Cross-cutting | Real walls are not round; a remainder is the expected outcome, not a tolerance; the estimate is a floor. Does not weaken the overrun rule. |
+| [0068](0068-price-steps-at-the-door-count-and-follows-height.md) | Price steps at the door count, and follows height | Accepted | Decision | M6 6B2 | A second and third price shape: a step at the door threshold, and a height term where a body builds to its opening. Shapes stay code, coefficients stay data. |
 
 ## Supersessions
 

@@ -14,7 +14,9 @@ import {
   NO_CABINET_HANDLES,
   TWO_DOOR_MIN_WIDTH_MM,
   UndeclaredCabinetHandleCountError,
+  widthDerivedDoorLeafCount,
 } from "../src/index.js";
+import { deriveDoorCount } from "../src/door-count.js";
 
 const ANY_WIDTH_MM = 600;
 
@@ -181,6 +183,84 @@ describe("a cabinet-handle count is declared, per entry", () => {
   it("refuses a rule it does not recognise rather than reading a number off it", () => {
     expect(() =>
       cabinetHandleCount({
+        buildId: "some-new-body",
+        rule: { countedFrom: "mesh-count", handles: 4 } as never,
+        widthMm: ANY_WIDTH_MM,
+      }),
+    ).toThrow(UndeclaredCabinetHandleCountError);
+  });
+});
+
+describe("the leaf count a width decides, which two readers share", () => {
+  // Extracted 2026-09-03, when M6's price gained a per-door step. `deriveDoorCount` answers leaves
+  // **per band**, so a second reader calling it directly would under-count every banded cabinet —
+  // wave 6G's recorded open question. There is one composition and both readers use it.
+
+  it("multiplies the bands a row stacks by the leaves its width decides", () => {
+    for (const widthMm of [400, 499, TWO_DOOR_MIN_WIDTH_MM, 600, 800]) {
+      expect(
+        widthDerivedDoorLeafCount({
+          buildId: "wall-cabinet",
+          rule: handlesOnDoorLeaves({ doorTiers: 1, handlesPerLeaf: 1 }),
+          widthMm,
+        }),
+      ).toBe(deriveDoorCount(widthMm));
+      expect(
+        widthDerivedDoorLeafCount({
+          buildId: "tall-pantry",
+          rule: handlesOnDoorLeaves({ doorTiers: 2, handlesPerLeaf: 1 }),
+          widthMm,
+        }),
+      ).toBe(2 * deriveDoorCount(widthMm));
+    }
+  });
+
+  it("answers no width-derived leaf for a row whose front population is fixed", () => {
+    // Not "no doors" — `base-sink` has two — but "the width decides none of them".
+    expect(
+      widthDerivedDoorLeafCount({
+        buildId: "base-sink",
+        rule: carriesHandles(2),
+        widthMm: 800,
+      }),
+    ).toBe(0);
+    expect(
+      widthDerivedDoorLeafCount({
+        buildId: "open-shelf",
+        rule: NO_CABINET_HANDLES,
+        widthMm: 800,
+      }),
+    ).toBe(0);
+  });
+
+  it("stays the count the handle line is billed from, at every width", () => {
+    // The invariant the extraction exists for: a leaf carrying one bar makes the two numbers the
+    // same number, so a change to either derivation shows up here rather than in a price nobody
+    // reads twice.
+    const rule = handlesOnDoorLeaves({ doorTiers: 2, handlesPerLeaf: 1 });
+    for (let widthMm = 400; widthMm <= 800; widthMm += 1) {
+      const query = { buildId: "tall-pantry", rule, widthMm };
+      expect(widthDerivedDoorLeafCount(query)).toBe(cabinetHandleCount(query));
+    }
+  });
+
+  it("refuses an unusable declaration rather than guessing a leaf count", () => {
+    expect(() =>
+      widthDerivedDoorLeafCount({
+        buildId: "some-new-body",
+        rule: { countedFrom: "door-count" } as never,
+        widthMm: ANY_WIDTH_MM,
+      }),
+    ).toThrow(/doorTiers/);
+    expect(() =>
+      widthDerivedDoorLeafCount({
+        buildId: "some-new-body",
+        rule: undefined,
+        widthMm: ANY_WIDTH_MM,
+      }),
+    ).toThrow(UndeclaredCabinetHandleCountError);
+    expect(() =>
+      widthDerivedDoorLeafCount({
         buildId: "some-new-body",
         rule: { countedFrom: "mesh-count", handles: 4 } as never,
         widthMm: ANY_WIDTH_MM,

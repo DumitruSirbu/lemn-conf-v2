@@ -1,5 +1,6 @@
 import type { Design, DesignId } from "@lemnaria/configurator-domain";
 import {
+  CURRENT_SCHEMA_VERSION,
   DesignNotFoundError,
   migrateDesign,
 } from "@lemnaria/configurator-domain";
@@ -9,16 +10,11 @@ import type { DesignRevision } from "./design-revision.js";
 import { generateDesignId } from "./generate-design-id.js";
 import { readDatabaseUrl } from "./read-database-url.js";
 
-/** The version every row this adapter writes is stamped with. **3 since the room correction of
- *  2026-09-03**, which gave the seeded kitchen its true depth and made the along-wall bound
- *  per-wall: a document at version 2 or below carries the room as it stood before that and is
- *  corrected on the way in by `migrateFromV2`, while a version 3 document's room is its own and is
- *  never rewritten — which is what lets an M7 customer declare the pre-correction dimensions for
- *  real. Version 2 was ADR 0052's, which made 800 mm the ceiling on any empty column: a version 1
- *  document may carry a wider entry and `migrateFromV1` normalises it.
- *  The read path never assumes this value — it passes `row.schema_version` to `migrateDesign`, which
- *  is what lets a stored older row go on loading. */
-const CURRENT_SCHEMA_VERSION = 3;
+/* `CURRENT_SCHEMA_VERSION` is the version every row this adapter writes is stamped with, and it is
+ * imported from the domain rather than restated here: it is the same number that decides which
+ * normalisations `migrateDesign` still owes a row, and two copies of it that drifted apart would be
+ * a migration that silently stopped running. The read path never assumes it — it passes
+ * `row.schema_version`, which is what lets a stored older row go on loading. */
 
 /** SHA-256 as `node:crypto`'s `digest("hex")` renders it: 64 lowercase hex characters. */
 const SHA256_HEX_DIGEST = /^[0-9a-f]{64}$/;

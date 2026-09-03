@@ -59,6 +59,16 @@ on the condition that it is gated here; the decisions themselves are settled in
 `docs/decisions/0019-security-baseline-writes-throttling-retention.md` (see its 2026-08-31
 correction) and must not be re-litigated.
 
+**Added 2026-09-03, from M6 — check the five stored designs against the corrected wall bounds.**
+Before release, read the live rows and confirm none carries a placement in the bands that the
+along-wall correction retired: **wall A 3560–3600 mm** and **wall B 2830–3600 mm**. Every coordinate
+in both was reachable by ordinary editing — an insert, a width resize or a freed strip — because the
+write seam enforced the same loose bound the load seam did, so this is a customer-facing exposure
+rather than a restore-only one. Whether any live row sits in either band is not knowable without
+database access and must not be guessed. If one does, it is a design that stops loading, and
+[ADR 0065](../decisions/0065-a-body-past-the-end-of-its-wall-is-marked-not-moved.md)'s marking — M6
+wave 6A3 — is what makes it load again.
+
 Today the endpoint has **no application limiter and no active retention**. Every item below must be
 live — not planned, not staged in a runbook — before the endpoint is exposed:
 

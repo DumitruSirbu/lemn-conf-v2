@@ -2,7 +2,7 @@
 
 > **STATUS: PLANNED — waves sequenced 2026-09-02.** Depends on M5 (only wave 5E is still open there,
 > and it does not gate anything here). Summary: `docs/STATUS.md`. Start at **Waves** below, then the
-> owner section. **Eighteen waves, all unblocked.** The seven owner decisions were taken on
+> owner section. **Nineteen waves, all unblocked.** The seven owner decisions were taken on
 > 2026-09-02 (ADRs 0055–0061); ADRs 0062–0064 followed, the last two on 2026-09-03.
 
 Status: planned, waves sequenced. Depends on M5.
@@ -214,6 +214,7 @@ constant (`worktop-depth.ts` carries a comment saying the rename is owed and def
 | 6A3 — a body past its wall is detected, as one domain fact *(ADR 0065)* | P | 6A | Full |
 | 6A4 — the wall corner returns get their own kinds and names *(ADR 0066)* | P | 6A | Full |
 | 6B — price book and pure pricing query | P | 6A, 6A2, 6A3, 6A4 | Full |
+| 6B2 — the door step and the height term *(ADR 0068)* | P | 6B **cleared through QA** | Full |
 | 6C — the price bar, both shells | P | 6B | Full |
 | 6D — the breakdown (2D / D2D) | P | 6C | Light + visual |
 | 6E — the whole-kitchen settings container | G | 6B | Full |
@@ -374,7 +375,26 @@ and the same failure if it is not: one design marked in one place and not anothe
 - **It depends on the room being corrected first.** Against the document's current `2400`, wall B
   reports an overrun at 600 that does not exist. Dispatch the fixture correction with this wave or
   before it.
-- **Nothing is moved, narrowed, removed or refused.** This wave observes; ADR 0055 is untouched.
+- **A design whose body passes the end of its wall LOADS, and is marked. Today it does not load at
+  all** — and this is the wave that fixes it, not merely the wave that detects it.
+  `PLACEMENT_PAST_WALL_END` is fatal on load: `assertDesignValidForCatalog` raises it, `migrateDesign`
+  throws `InvalidDesignError`, the API answers 500 `DESIGN_UNREADABLE`, and `/d/{id}` renders the
+  invalid state. **ADR 0065 decision 7 — "saves and resumes with the warning intact" — is therefore
+  unmet by the code until this wave lands**, and is recorded as unmet at that ADR so nobody reads it
+  as shipped behaviour.
+
+  **The fix is here and not in `migrate-design.ts`.** A body at 3200 on wall B is past the real wall;
+  no room value a migration could write makes that true, and inventing one is the "rescued into a
+  room they never entered" failure the migration's own guard exists to prevent. What is wrong is the
+  **fatality**, not the bound.
+
+  **Two red tests are this wave's inheritance.** The room correction's QA left them failing on
+  purpose so that 6A3 would meet a red test rather than a note nobody reads; they are being converted
+  to an explicitly-expected-failure form that keeps `ci:local` green and **fails the moment 6A3 makes
+  them pass**, so the debt clears itself. **Flip them, do not delete them** — a deleted expected
+  failure is indistinguishable from one that never existed.
+- **Nothing is moved, narrowed, removed or refused.** This wave observes and marks; ADR 0055 is
+  untouched.
 - **The demo design must not overflow — a proposed kitchen is held to a stricter rule than an edited
   one.** Owner, 2026-09-03: everything the product proposes *"should always fit the existing walls,
   including demo"*. ADR 0065's marking is an acceptable outcome of a **customer's** edit; it is not
@@ -529,6 +549,57 @@ shape.
   where it should have resolved through `catalogEquivalentId` (ADR 0022, ADR 0029). The projection is
   the source of **order and labels**; rule resolution is pricing's own, and a test covers a seeded
   placement specifically.
+
+### Wave 6B2 — the door step and the height term
+
+**[ADR 0068](../decisions/0068-price-steps-at-the-door-count-and-follows-height.md)**, owner
+2026-09-03. Two more price shapes, because 6B's single `linear-in-width` is not general.
+
+**Why a separate wave rather than an extension of 6B, and it is a close call.** The shape *is* 6B's
+deliverable, and bolting one on later is the retrofit ADR 0062 warns about — that argues for
+extending. **Against it: 6B is implemented and in QA.** `docs/WORKFLOW.md` forbids reviewing a tree
+that is being edited, and the same reasoning applies to QA: editing under it yields a report about a
+tree that no longer exists. Adding two shapes and their criteria to a finished wave is also a second
+wave's worth of work against the five-item limit.
+
+**And the retrofit objection does not actually apply**, which is what settles it. ADR 0062's
+prohibition is about the *mechanism* — shapes are code, coefficients are data — not about how many
+shapes exist on day one. If 6B built a shape **registry**, a second shape is one new shape function
+plus book data, which is exactly what 0062 asked for. The retrofit it warns about is a per-cabinet
+*function*, not a second shape.
+
+**So this wave is also the test of whether 6B met ADR 0062.** If adding a shape is cheap, 6B built
+the registry. **If it requires restructuring, that is a finding about 6B**, reported as one — not
+absorbed here.
+
+> **That report is outstanding as of 2026-09-03 and is owed before 6B can be considered closed
+> against ADR 0062.** The wave has since produced **four** shapes and re-shaped five sample rows,
+> which is a count and not an answer: what is owed is whether adding them was cheap or required
+> restructuring. **Recorded as unmet rather than assumed met** — a wave that shipped four shapes is
+> evidence the registry works only if nobody had to rebuild it to get there.
+
+**Acceptance criteria.**
+
+- **A step at the door-count threshold**, expressed as a named shape over coefficients — never as a
+  branch per catalogue row. The threshold is `deriveDoorCount`'s, the single place that question is
+  answered; this wave adds a **fourth** reader to it and must not introduce a second threshold.
+- **A height term where a body builds to its opening**, so two instances of one row at different
+  heights price differently.
+- **It keys on the `heightFlex` property, never on a list of build ids.** The owner named `wall-lift`
+  and `open-shelf`; the flag is declared on the **shared wall-band shape**, so `wall-cabinet` has it
+  too and §5.2's 900 mm rule means any of them can build at its opening's height. A rule naming two
+  ids would be correct today and silently wrong for the third row that already behaves the same way.
+- **Height enters additively, not as an area.** The owner did **not** take width × height. `a + b·w +
+  c·h` is a shape over coefficients; `k·w·h` is a product term that no additive shape expresses, and
+  it is a different decision nobody has taken.
+- **ADR 0062's prohibition still binds and is re-asserted here**: no amount, no coefficient and no
+  per-row logic outside the book. If the wave writes a function per cabinet, it has taken the wrong
+  turn and the price book stops being editable by anyone but a developer.
+- **The door step and 6G's hardware tier must count leaves the same way, or neither ships.** See the
+  open question at 6G: `deriveDoorCount` returns leaves **per band**, so a 600 mm pantry has four
+  hinged leaves while that function answers two. This wave puts a **second** consumer on that count.
+  Two rules that each look right and bill a banded cabinet on different denominators is the failure,
+  and it is quiet.
 
 ### Wave 6C — the price bar, both shells
 
@@ -724,10 +795,26 @@ two-door band layout, and `describeBodyLabelAt` already ships *"Coloană cămar�
 four-leaf cabinet — and every handle number is correct at every width, because
 `cabinet-handles.ts` applies the per-band count the way the builder does.
 
-**What is open is a pricing-content question, not a naming one: what does 6G count when it prices
-hinges and slides, and is `deriveDoorCount` the right source for it?** It is recorded here rather
-than answered because it may need the owner. A wave that reaches for `deriveDoorCount` as a
-leaf count without answering it will under-count every banded cabinet in the kitchen.
+**Half of this resolved on 2026-09-03, and not by anyone choosing an answer.** Wave 6B2's
+implementer observed that the physical count the owner's reasoning is about — a handle, a set of
+mechanisms and a processing margin **per door** — is leaves **per cabinet**, which is
+`doorTiers × deriveDoorCount`, and that `cabinetHandleCount` was **already performing that
+composition inline**. It is now extracted as **`widthDerivedDoorLeafCount`** (`cabinet-handles.ts`,
+exported from the domain barrel), and both the handle line and ADR 0068's price step read it. That
+is the same composition named once, not a product decision taken by an implementer.
+
+**So the count exists and has one definition. What is still genuinely open is the owner's: does the
+hardware tier price per leaf, per band, or per cabinet?**
+
+**The under-counting warning stands, and now points somewhere.** A wave that reaches for
+`deriveDoorCount` as a leaf count under-counts every banded cabinet in the kitchen — a 600 mm pantry
+has four hinged leaves and that function answers two. Reaching for the raw derivation is now
+demonstrably the wrong move **and there is a right one to name**: use `widthDerivedDoorLeafCount`.
+
+**If the tier turns out to price per leaf, it must use that same function**, because
+[ADR 0068](../decisions/0068-price-steps-at-the-door-count-and-follows-height.md) already puts a
+carcass's own price on it. Two rules counting leaves on different denominators is the failure, and it
+is quiet.
 
 ### Wave 6H — cabinet depth becomes a parameter, not a module constant
 

@@ -29,6 +29,7 @@ export {
   handlesOnDoorLeaves,
   NO_CABINET_HANDLES,
   UndeclaredCabinetHandleCountError,
+  widthDerivedDoorLeafCount,
   type CabinetHandleCountField,
   type CabinetHandleQuery,
   type CabinetHandleRule,
@@ -63,6 +64,14 @@ export * from "./queries/offers.js";
 export * from "./queries/width-options.js";
 export * from "./queries/width-steps.js";
 export * from "./queries/vacated-void.js";
+export * from "./pricing/price-book.js";
+export * from "./pricing/price-lines.js";
+export * from "./pricing/price-design.js";
+// The barrel is the **one** module that names the sample book (ADR 0062 seam 1): the query takes a
+// book as a parameter and imports none, so a composition root picks this up from the package's
+// public entry point and a book from another source is later a substitution rather than a refactor.
+// `pricing-seams.test.ts` holds the import graph to that.
+export * from "./pricing/sample-price-book.js";
 export * from "./fixtures/kitchen-l-design.js";
 export * from "./serialize-design.js";
 export * from "./repository.js";

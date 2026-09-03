@@ -148,6 +148,12 @@ have made the `format` job pass unconditionally had it run `prettier --write` in
 Write the violation, stage it, watch the gate fail, then remove it and watch the gate pass. Note
 that `git grep` only searches tracked files, so a probe file must be `git add`ed to be seen.
 
+**The same rule inverted covers a deliberately-failing test.** An `it.fails` that never actually
+fires is a permanently-green test asserting nothing — so make its assertion pass artificially,
+confirm the marker itself goes red, then restore. The convention for deferred tests, and when to use
+`it.fails` rather than `skip`, is in `docs/WORKFLOW.md` under *QA before review*; it lives there
+rather than here so there is one home for it.
+
 ## CI workflow shape
 
 `.github/workflows/ci.yml` runs nine jobs so each can be a separate required status check: install,

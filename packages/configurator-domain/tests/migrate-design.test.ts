@@ -1,8 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import type { Design } from "../src/design.js";
+import type { Design, EmptyColumn } from "../src/design.js";
 import { KITCHEN_L_DESIGN } from "../src/fixtures/kitchen-l-design.js";
 import { migrateDesign } from "../src/migrate-design.js";
+import { MAX_EMPTY_COLUMN_WIDTH_MM } from "../src/module-grid.js";
 import { InvalidDesignError } from "../src/repository.js";
 
 const validDesignV1 = {
@@ -107,5 +108,77 @@ describe("the room correction, on a document stored before it", () => {
     ) as Design;
 
     expect(migrateDesign(2, fits)).toStrictEqual(fits);
+  });
+});
+
+/** A version 1 document carrying **both** legacy shapes at once — an oversized `emptyColumns` entry
+ *  and the pre-correction room. This is what version 1 means, not an exotic combination: the five
+ *  stored rows are stamped 1, and `design-db-restore.md`'s restore script pushes every dumped row
+ *  back through `migrateDesign` at the version it was dumped at.
+ *
+ *  The two normalisations must compose. `correctPreCorrectionRoom` asks whether the corrected room
+ *  rescues the document, so an oversized entry — which refuses it for a reason that has nothing to
+ *  do with the room — vetoed the correction while it ran first. */
+describe("the version 1 normalisation and the room correction, on one document", () => {
+  const PRE_CORRECTION_ROOM = {
+    shape: "L",
+    widthMm: 3600,
+    depthMm: 2400,
+    heightMm: 2600,
+  } as const;
+
+  /** One body on wall B ending at 2800 — the seeded `p7`'s extent — so the room is the only thing
+   *  that can refuse this document, and a strip on the far side of wall A that meets nothing. */
+  const NEEDS_THE_CORRECTION: Design = {
+    room: { ...PRE_CORRECTION_ROOM },
+    presetId: null,
+    placements: [
+      {
+        id: "p0",
+        wall: "B",
+        alongMm: 2400,
+        y0Mm: 0,
+        body: { buildId: "base-sink-800", widthMm: 800, heightMm: 820 },
+      },
+    ],
+    createdAt: "2026-08-25T00:00:00.000Z",
+    updatedAt: "2026-08-25T00:00:00.000Z",
+  };
+
+  const OVERSIZED_STRIP: EmptyColumn = {
+    wall: "A",
+    alongMm: 900,
+    widthMm: MAX_EMPTY_COLUMN_WIDTH_MM + 100,
+    y0Mm: 0,
+    topMm: 820,
+    depthMm: 580,
+  };
+
+  function stored(design: Design): unknown {
+    return JSON.parse(JSON.stringify(design)) as unknown;
+  }
+
+  const CARRIES_BOTH: Design = {
+    ...NEEDS_THE_CORRECTION,
+    emptyColumns: [OVERSIZED_STRIP],
+  };
+
+  it("corrects the room and splits the entry in one load", () => {
+    const loaded = migrateDesign(1, stored(CARRIES_BOTH));
+
+    expect(loaded.room.depthMm).toBe(2830);
+    expect(loaded.emptyColumns?.map((entry) => entry.widthMm)).toStrictEqual([
+      MAX_EMPTY_COLUMN_WIDTH_MM,
+      100,
+    ]);
+  });
+
+  /** The ordering property itself, so a later arm appended in the wrong place fails here rather
+   *  than in whichever stored document happens to carry two legacy shapes: an older normalisation's
+   *  unfinished business must not be able to veto a younger one. */
+  it("corrects the room whether or not the oversized entry is present", () => {
+    expect(migrateDesign(1, stored(CARRIES_BOTH)).room).toStrictEqual(
+      migrateDesign(1, stored(NEEDS_THE_CORRECTION)).room,
+    );
   });
 });

@@ -68,6 +68,11 @@ export function handlesOnDoorLeaves(
   };
 }
 
+/** What a row whose front population is fixed contributes to a width-derived leaf count. **Not a
+ *  claim that such a body has no doors** — `base-sink` has two — but that its width decides none of
+ *  them, which is why it is named rather than written as a bare `0`. */
+const NO_WIDTH_DERIVED_LEAVES = 0;
+
 /** A body with no cabinet handle at all — an open shelf, a hood, a freestanding fridge whose only
  *  bars are the appliance's. Named rather than written as a bare `carriesHandles(0)`, so the rule
  *  reads as a statement about the product instead of as an arithmetic no-op, exactly as
@@ -146,9 +151,46 @@ export function cabinetHandleCount(query: CabinetHandleQuery): number {
     case "declared-count":
       return usableCountOf(query, query.rule.handles, "handles");
     case "door-count":
+      // `doorTiers` is read first, inside the call, so a rule missing both numbers still names
+      // `doorTiers` as the field it lacks — the order the refusal message has always had.
+      return (
+        widthDerivedDoorLeafCount(query) *
+        usableCountOf(query, query.rule.handlesPerLeaf, "handlesPerLeaf")
+      );
+    default:
+      throw new UndeclaredCabinetHandleCountError({
+        buildId: query.buildId,
+        declared: query.rule,
+      });
+  }
+}
+
+/**
+ * **How many door leaves this body's width decides** — the count `deriveDoorCount` answers *per
+ * band*, multiplied by the bands the row stacks. `wall-cabinet` is one band, so one leaf below
+ * 500 mm and two at and above it; `tall-pantry` stacks two, so two leaves and four.
+ *
+ * **The one composition of `doorTiers × deriveDoorCount` in the repository, and it has two readers**
+ * — this module's own handle count, and M6's per-door price step. `deriveDoorCount` alone is leaves
+ * per band, so a second reader that called it directly would under-count every banded cabinet
+ * (wave 6G's open question, recorded 2026-09-03). There is nothing for the two to disagree about
+ * because there is nothing for them to disagree with.
+ *
+ * `NO_WIDTH_DERIVED_LEAVES` for a row whose front population is fixed at every width. That is not
+ * "no doors" — `base-sink` has two — it is "the width decides none of them", and it is why such a
+ * row's price does not step. **No amount is named here and none may be**: `pricing-seams.test.ts`
+ * reads this package for a price living outside the book, and this module is not the book.
+ *
+ * Fails closed on an unusable declaration, exactly as `cabinetHandleCount` does and for the same
+ * reason: a guessed leaf count is a wrong amount on a customer-visible line.
+ */
+export function widthDerivedDoorLeafCount(query: CabinetHandleQuery): number {
+  switch (query.rule?.countedFrom) {
+    case "declared-count":
+      return NO_WIDTH_DERIVED_LEAVES;
+    case "door-count":
       return (
         usableCountOf(query, query.rule.doorTiers, "doorTiers") *
-        usableCountOf(query, query.rule.handlesPerLeaf, "handlesPerLeaf") *
         deriveDoorCount(query.widthMm)
       );
     default:

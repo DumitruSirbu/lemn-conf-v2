@@ -109,6 +109,35 @@ _corpuri_.** That may be deliberate register or it may be incidental. **It must 
 normalised to match its neighbour** by a wave, a reviewer or a copy pass; if the two should agree,
 that is the owner's ruling to make.
 
+> **DECISION 7 IS NOT MET BY THE CODE TODAY — recorded 2026-09-03, found by the room correction's
+> QA.** Stated here rather than left to be discovered, per `docs/WORKFLOW.md`'s rule to *record what
+> is not met, at the criterion*: **an overflowing design does not save-and-resume. It does not load
+> at all.**
+>
+> `PLACEMENT_PAST_WALL_END` is **fatal on load**: `assertDesignValidForCatalog` raises it,
+> `migrateDesign` throws `InvalidDesignError`, the API answers **500 `DESIGN_UNREADABLE`**, and
+> `/d/{id}` renders the invalid state. *"Saves and resumes with the warning intact"* describes the
+> behaviour this ADR requires, **not the behaviour that ships**.
+>
+> **What is wrong is the fatality, not the bound.** Tightening the along-wall bound to each wall's
+> own run refuses documents that were legal under the loose one — a 40 mm band on wall A
+> (3560–3600) and a **770 mm** band on wall B (2830–3600), the latter wide because wall B was never
+> bounded by its own run. **There is no fix available inside `migrate-design.ts`**: a body standing
+> at 3200 on wall B is past the real wall, no room value the migration could write would make that
+> true, and inventing one is exactly the "rescued into a room they never entered" failure the
+> migration's own guard 3 exists to prevent.
+>
+> **Wave 6A3 dissolves it**, with no change to the migration: once a non-fitting body is a *mark*
+> rather than a *refusal*, the document loads and decision 7 becomes true. Until then this ADR
+> describes intended behaviour on this point.
+>
+> **Reachability, which sets the severity.** Every coordinate in both bands **was reachable through
+> ordinary editing** — an insert, a width resize, or a freed strip anywhere up to 3600 on either wall
+> passed the write seam, because the write seam enforced the same loose bound. This is a
+> customer-facing exposure, not a restore-only one. Whether any of the five live rows sits in either
+> band is not knowable without database access; it is recorded as a pre-release check in
+> `docs/milestones/M8-review-contact-success.md`'s launch gate.
+
 **8. A marked body is not a rejected edit.** The two must not share a surface: §9's rejection banner
 says *an edit did not happen*, and this says *an edit happened and its result does not fit*. Keeping
 them distinct is what stops "a rejected edit does not move the total" and "an overflowing total moves

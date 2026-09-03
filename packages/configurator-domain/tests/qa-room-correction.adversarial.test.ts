@@ -229,8 +229,11 @@ describe("a stored document written before the correction", () => {
 
   /** The share link ADR 0052 calls *"the one artefact this project hands to someone who cannot be
    *  asked to reload it"*. This document loaded before 2026-09-03 and is unchanged since; the load
-   *  path must still read it. It does not: `migrateDesign` throws, `/d/{id}` renders the invalid
-   *  state and `GET /api/designs/{id}` answers 500. */
+   *  path must still read it.
+   *
+   *  It did not, between the bound being tightened and `migrateFromV2` gaining the room correction:
+   *  `migrateDesign` threw, `GET /api/designs/{id}` answered 500 and `/d/{id}` rendered the invalid
+   *  state. The assertion is unchanged from when it was written red. */
   it("still loads through the migration seam", () => {
     expect(() => migrateDesign(2, STORED_UNDER_THE_OLD_ROOM)).not.toThrow(
       InvalidDesignError,

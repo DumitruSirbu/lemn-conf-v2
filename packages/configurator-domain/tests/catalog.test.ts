@@ -9,6 +9,7 @@ import {
   INSERTABLE_BODY_DEFINITIONS,
   isKnownKind,
   listInsertableBodies,
+  resolveCatalogEquivalent,
   toInsertableBody,
 } from "../src/catalog.js";
 import { WORKTOP_DEPTH_MM } from "../src/worktop-depth.js";
@@ -55,6 +56,59 @@ describe("the one catalogue, two populations (ADR 0011 Gap A)", () => {
       expect(body?.sizesMm.length, buildId).toBeGreaterThan(0);
       expect(body?.nominalHeightMm, buildId).toBeGreaterThan(0);
     }
+  });
+});
+
+describe("every declared catalogue equivalent resolves to an insertable row", () => {
+  // ADR 0022: a seeded body is priced, sized and named through the §7 row it points at. A pointer
+  // naming no row, or naming a row that is not insertable, is a **catalogue** defect, and asserting
+  // it here rather than guarding it in a reader covers `resolveCatalogEquivalent`'s three callers at
+  // once — pricing, `resolveBuildableSizes`, and whichever reader is added next. A guard in the
+  // pricing query would have covered pricing only, and would need re-inventing at every new reader.
+  //
+  // It is also what makes the worse latent case unreachable rather than merely unobserved: a book
+  // that happens to price a seeded id would price a body with a dangling pointer under the wrong
+  // rule and refuse nothing at all.
+
+  it("resolves every pointer the catalogue declares, in both populations", () => {
+    const declared = [...KITCHEN_L_BODY_CATALOG].flatMap(
+      ([buildId, definition]) =>
+        definition.catalogEquivalentId === undefined
+          ? []
+          : [[buildId, definition.catalogEquivalentId] as const],
+    );
+
+    // Not a vacuous sweep: wave 6A2 gave eighteen seeded rows a pointer.
+    expect(declared.length).toBeGreaterThan(17);
+    for (const [buildId, equivalentId] of declared) {
+      const equivalent = KITCHEN_L_BODY_CATALOG.get(equivalentId);
+      expect(equivalent, `${buildId} → ${equivalentId}`).toBeDefined();
+      expect(equivalent?.insertable, `${buildId} → ${equivalentId}`).toBe(true);
+      expect(
+        resolveCatalogEquivalent(KITCHEN_L_BODY_CATALOG, buildId)?.buildId,
+        buildId,
+      ).toBe(equivalentId);
+    }
+  });
+
+  it("leaves the structural corners pointing at nothing, and that is the right answer", () => {
+    // The other half: a sweep that only checked declared pointers would pass on a catalogue that
+    // declared none. ADR 0021 makes these four structural and §13.1 says a customer never chooses
+    // one, so having no equivalent is correct for them and is what a book prices under their own id.
+    const withoutPointer = [...KITCHEN_L_BODY_CATALOG]
+      .filter(
+        ([, definition]) =>
+          definition.insertable !== true &&
+          definition.catalogEquivalentId === undefined,
+      )
+      .map(([buildId]) => buildId);
+
+    expect(withoutPointer.sort()).toEqual([
+      "base-corner-return-320",
+      "base-corner-x-900",
+      "wall-corner-return-570",
+      "wall-corner-return-570-top",
+    ]);
   });
 });
 
