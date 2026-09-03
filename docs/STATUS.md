@@ -101,21 +101,32 @@ PASS.
   verified under emulation alone. M6 started ahead of it by the owner's decision — 5E blocks nothing
   in M6 — but it must be run before release. Read ADR 0035 (the stepper replaced the chip row)
   before writing an assertion.
-- **A pre-release check on the `designs` table, and its window is closing.** Wave 6A3 deleted
-  `correctPreCorrectionRoom`'s first guard, so from `eb9ba03` a stored row at `schema_version <= 2`
-  carrying the room `{3600, 2400}` receives the 2026-09-03 measurement correction to `{3560, 2830}`
-  on load. **Going forward only.** Rows in that set that were loaded and saved before this commit
-  were stamped `CURRENT_SCHEMA_VERSION = 3` (`packages/configurator-domain/src/migrate-design.ts`),
-  so the set only shrinks and **each row that leaves it leaves permanently uncorrected**. Nothing in
-  code bounds the count: it is a query against the Neon `designs` table that **nobody has run**. The
-  affected rows are those whose wall-B bodies all end at or below 2400 and whose wall-A bodies all end
-  at or below 3600 — **wall B's 430 mm correction is the discriminating one**; wall A's 40 mm rides
-  along with it. Run the count before release.
+- **~~A pre-release check on the `designs` table~~ — closed by the owner, 2026-09-03: there is no
+  real user data.** The app is in development and no stored row belongs to a customer, so the
+  migration window this entry described does not need counting and no row is worth rescuing. Kept as
+  a struck entry rather than deleted, because the *mechanism* is still true and will matter the first
+  time real rows exist: wave 6A3 deleted `correctPreCorrectionRoom`'s first guard, so from `eb9ba03`
+  a row at `schema_version <= 2` carrying `{3600, 2400}` is corrected to `{3560, 2830}` on load —
+  **going forward only**, because every save stamps `CURRENT_SCHEMA_VERSION = 3` and a row that
+  leaves the set leaves permanently uncorrected. If this project ever migrates a room again, that is
+  the shape of the problem.
 - **The open owner question ADR 0069 hands on: should the product _offer_ an insertion opening that
   lies past the end of a wall?** Distinct from marking a body the customer already placed, which is
   ruled (ADR 0065, ADR 0069). It covers both a remnant the product itself creates (wave 6M / M7) and
   a fabricated empty-column entry — one decision governs both. Not urgent, not blocking; **owned by
   wave 6M**, recorded in ADR 0069's consequences.
+- **A gate is owed on the rejection banner's newly-found route, and nobody has written it.** Wave 6C's
+  visual verification disproved [ADR 0024](decisions/0024-the-rejection-banner-has-no-reachable-path.md)'s
+  "no refusal is reachable by construction": **a double-tap on `Șterge corpul` reaches the banner** —
+  the first click deletes, the second lands on the now-void selection and refuses, both before React
+  re-renders. It was captured on both shells with a controlled single-versus-double comparison (the
+  total held at `91 000 MDL` while the label read `De la neschimbat`), and the ADR is amended. **But
+  there is no automated gate on it**, and 6C's implementer could not reproduce it through Playwright:
+  neither `dblclick()` nor `mouse.click(..., { clickCount: 2, delay: 0 })` reaches the banner — both
+  yield `panel-rejection` count 0. **That negative result is worth keeping**: whatever reaches the
+  refusal is not a synthetic click pair, which points at real timing or a touch gesture. Ten minutes
+  once someone names the exact gesture. It belongs with **wave 5E**, which owns the handset pass.
+
 - **One mutation is owed on 6B2's coverage, and it is a verification task rather than a defect.** The
   comparator-key swap in `packages/configurator-domain/src/queries/design-projection.ts` was never
   run, because that file carried concurrent uncommitted edits during 6B2's QA; a literal pin of the
