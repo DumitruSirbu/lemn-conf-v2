@@ -88,12 +88,33 @@
   background: var(--stage);
 }
 
-/* The scene's own box. On desktop it is the flex child the 420 px rail leaves room for, which is
- * how "the scene re-lays out" happens without any component knowing a rail exists. */
+/* The two rows the scene shares with ADR 0065's overflow warning. On desktop this is the flex child
+ * the 420 px rail leaves room for, which is how "the scene re-lays out" happens without any
+ * component knowing a rail exists.
+ *
+ * **The warning band is a flow sibling of the scene, never an overlay on it** — the same structural
+ * answer to "it never covers the selected cabinet" that the price bar gives one level up, argued in
+ * full in `scene/overflow-warning-layout.ts`. The same two-track grid `.screen` uses, and for the
+ * second reason too: a grid item in a `minmax(0, 1fr)` track of a definite-height grid has a
+ * definite height, which is what the canvas's own `height: 100%` resolves against. */
 .viewport {
-  position: relative;
+  display: grid;
   flex: 1;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr);
   min-width: 0;
+  min-height: 0;
+}
+
+/* The scene's own box, and the positioning context for the camera chips and the orbit hint — both
+ * are drawn over the scene and must move with it when the warning band takes its height.
+ *
+ * Placed on the second row explicitly, so the band's row simply collapses to nothing while there is
+ * no warning: auto-placement would otherwise put the scene in the first row whenever it is the only
+ * child. */
+.sceneBox {
+  position: relative;
+  grid-row: 2;
   min-height: 0;
 }
 

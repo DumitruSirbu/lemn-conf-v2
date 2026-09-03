@@ -27,7 +27,12 @@ import {
 import { applyBodyFinish } from "./finishes.js";
 import type { Kit } from "./kitchen-parts.js";
 import { syncRunEndPanel } from "./kitchen-shell.js";
-import { disposeUnsharedGeometries, isLine, isMesh } from "./three-guards.js";
+import {
+  disposeUnsharedGeometries,
+  isLine,
+  isMesh,
+  toMaterials,
+} from "./three-guards.js";
 import { buildVoidMesh } from "./void-mesh.js";
 
 /** What picking climbs to (`picking.ts`) and what the selection highlight looks up. */
@@ -119,7 +124,7 @@ function disposeRenderable(
   material: THREE.Material | THREE.Material[],
 ): void {
   geometry.dispose();
-  for (const one of Array.isArray(material) ? material : [material]) {
+  for (const one of toMaterials(material)) {
     one.dispose();
   }
 }

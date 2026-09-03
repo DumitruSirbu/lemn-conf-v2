@@ -6,6 +6,7 @@
 // their cleanups are collected in declaration order and replayed in that order, which is exactly
 // what React's unmount does, and it is what keeps the selection outline leaving `stage.room` before
 // the stage teardown walks it.
+import { KITCHEN_L_DESIGN } from "@lemnaria/configurator-domain";
 import * as React from "react";
 import * as THREE from "three";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -15,8 +16,10 @@ const harness = vi.hoisted(() => ({
   /** The placement the mocked shell answers to, so the outline effect finds a target. */
   selectedPlacementId: "p1",
   disposeKitAndStage: vi.fn(),
+  disposeOverflowMark: vi.fn(),
   disposeSelectionOutline: vi.fn(),
   outline: null as THREE.Group | null,
+  overflowMarks: [] as THREE.Group[],
   roomAtDisposal: null as readonly THREE.Object3D[] | null,
   storeState: {} as Record<string, unknown>,
   threeState: {} as Record<string, unknown>,
@@ -64,6 +67,12 @@ vi.mock("@lemnaria/three-adapter", async () => {
       shell.userData.placementId = harness.selectedPlacementId;
       return shell;
     }),
+    buildOverflowMark: vi.fn(() => {
+      const group = new THREE.Group();
+      group.name = "overflow_mark";
+      harness.overflowMarks.push(group);
+      return { group };
+    }),
     buildSelectionOutline: vi.fn(() => {
       harness.outline = new THREE.Group();
       harness.outline.name = "selection_outline";
@@ -82,6 +91,7 @@ vi.mock("@lemnaria/three-adapter", async () => {
     createShadowGround: vi.fn(() => new THREE.Group()),
     createStudioEnvironment: vi.fn(() => new THREE.Texture()),
     disposeKitAndStage: harness.disposeKitAndStage,
+    disposeOverflowMark: harness.disposeOverflowMark,
     disposeSelectionOutline: harness.disposeSelectionOutline,
     findCameraPreset: vi.fn(() => ({
       id: "overview",
@@ -118,6 +128,7 @@ beforeEach(() => {
   vi.stubGlobal("React", React);
   harness.cleanups = [];
   harness.outline = null;
+  harness.overflowMarks = [];
   harness.roomAtDisposal = null;
   harness.disposeKitAndStage.mockImplementation((stage: DisposedStage) => {
     harness.roomAtDisposal = [...stage.room.children];
@@ -126,6 +137,7 @@ beforeEach(() => {
   harness.storeState = {
     attachBodyProbe: vi.fn(),
     deselect: vi.fn(),
+    design: KITCHEN_L_DESIGN,
     detachBodyProbe: vi.fn(),
     records: [],
     select: vi.fn(),

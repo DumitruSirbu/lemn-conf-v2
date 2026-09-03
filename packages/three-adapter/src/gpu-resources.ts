@@ -8,7 +8,7 @@
 // in `kit-ownership.ts` and applied in `kit-disposal.ts`.
 import type * as THREE from "three";
 
-import { isLine, isMesh, isTexture } from "./three-guards.js";
+import { isLine, isMesh, isTexture, toMaterials } from "./three-guards.js";
 
 export interface GpuResources {
   readonly geometries: Set<THREE.BufferGeometry>;
@@ -89,10 +89,4 @@ export function disposeGpuResources(resources: GpuResources): void {
   for (const geometry of resources.geometries) geometry.dispose();
   for (const material of resources.materials) material.dispose();
   for (const texture of resources.textures) texture.dispose();
-}
-
-function toMaterials(
-  material: THREE.Material | THREE.Material[],
-): readonly THREE.Material[] {
-  return Array.isArray(material) ? material : [material];
 }

@@ -10,6 +10,7 @@ import { PriceBreakdown } from "@/price/price-breakdown";
 import { usePanelView } from "@/panel/use-panel-view";
 import { WebGLUnavailable } from "@/components/webgl-unavailable";
 import { ro } from "@/content/ro";
+import { OverflowWarning } from "@/scene/overflow-warning";
 import type { SceneView } from "@/scene/scene-view";
 import { detectWebGLSupport } from "@/scene/webgl-support";
 
@@ -59,39 +60,46 @@ export function ConfigureScreen() {
           CSS — see `editor-panel.module.css`. */}
       <div className={styles.stage}>
         <div className={styles.viewport}>
-          {support === "probing" ? (
-            <div className={styles.loading}>{ro.configure.loading}</div>
-          ) : (
-            <KitchenCanvas view={view} />
-          )}
-          <div
-            className={styles.presets}
-            role="group"
-            aria-label={ro.configure.cameraGroupLabel}
-          >
-            {CAMERA_PRESETS.map((preset) => (
-              <button
-                key={preset.id}
-                type="button"
-                className={styles.preset}
-                aria-pressed={preset.id === presetId}
-                onClick={() => {
-                  setPresetId(preset.id);
-                }}
-              >
-                {ro.configure.cameraPresets[preset.id]}
-              </button>
-            ))}
+          {/* ADR 0065 decision 7b, and it is a **flow band above the scene, never an overlay on it**
+              — the reason is written out in `scene/overflow-warning-layout.ts`. It stands inside the
+              viewport so it reads beside the bodies it explains, and outside `.sceneBox` so it
+              cannot cover one. */}
+          <OverflowWarning />
+          <div className={styles.sceneBox}>
+            {support === "probing" ? (
+              <div className={styles.loading}>{ro.configure.loading}</div>
+            ) : (
+              <KitchenCanvas view={view} />
+            )}
+            <div
+              className={styles.presets}
+              role="group"
+              aria-label={ro.configure.cameraGroupLabel}
+            >
+              {CAMERA_PRESETS.map((preset) => (
+                <button
+                  key={preset.id}
+                  type="button"
+                  className={styles.preset}
+                  aria-pressed={preset.id === presetId}
+                  onClick={() => {
+                    setPresetId(preset.id);
+                  }}
+                >
+                  {ro.configure.cameraPresets[preset.id]}
+                </button>
+              ))}
+            </div>
+            {/* Frames 2A / D2A: the nothing-selected instruction copy, and the only place it lives.
+                It is hidden while the panel is open, where it would sit behind the sheet — and it is
+                gated on the same `PanelView` the panel renders from, so "panel open" and "hint
+                hidden" cannot answer differently on a state one of them has not considered. */}
+            {panel.kind === "open" ? null : (
+              <p className={styles.hint} data-testid="scene-hint">
+                <span>{ro.configure.orbitHint}</span>
+              </p>
+            )}
           </div>
-          {/* Frames 2A / D2A: the nothing-selected instruction copy, and the only place it lives.
-              It is hidden while the panel is open, where it would sit behind the sheet — and it is
-              gated on the same `PanelView` the panel renders from, so "panel open" and "hint
-              hidden" cannot answer differently on a state one of them has not considered. */}
-          {panel.kind === "open" ? null : (
-            <p className={styles.hint} data-testid="scene-hint">
-              <span>{ro.configure.orbitHint}</span>
-            </p>
-          )}
         </div>
         <EditorPanel view={panel} />
         <SelectionDebug />

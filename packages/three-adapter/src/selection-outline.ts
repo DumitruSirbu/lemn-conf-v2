@@ -19,7 +19,8 @@ import { LineSegments2 } from "three/examples/jsm/lines/LineSegments2.js";
 import { LineSegmentsGeometry } from "three/examples/jsm/lines/LineSegmentsGeometry.js";
 
 import type { SelectionKind } from "./picking.js";
-import { isMesh } from "./three-guards.js";
+import { transformRelativeTo } from "./relative-transform.js";
+import { isMesh, toMaterials } from "./three-guards.js";
 import { NOOP_RAYCAST } from "./void-mesh.js";
 
 /**
@@ -149,12 +150,6 @@ export function disposeSelectionOutline(outline: THREE.Object3D): void {
     }
     for (const material of toMaterials(node.material)) material.dispose();
   });
-}
-
-function toMaterials(
-  material: THREE.Material | THREE.Material[],
-): readonly THREE.Material[] {
-  return Array.isArray(material) ? material : [material];
 }
 
 interface OutlinePassOptions {
@@ -313,15 +308,4 @@ function grow(
   scale: number,
 ): number {
   return centre + ((coordinate ?? centre) - centre) * scale;
-}
-
-function transformRelativeTo(
-  parent: THREE.Object3D,
-  target: THREE.Object3D,
-): THREE.Matrix4 {
-  parent.updateWorldMatrix(true, false);
-  return new THREE.Matrix4()
-    .copy(parent.matrixWorld)
-    .invert()
-    .multiply(target.matrixWorld);
 }

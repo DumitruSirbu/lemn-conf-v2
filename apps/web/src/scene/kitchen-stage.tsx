@@ -3,6 +3,7 @@
 import {
   applyFinish,
   buildKitchenShell,
+  buildOverflowMark,
   buildSelectionOutline,
   collectFronts,
   configureRenderer,
@@ -13,6 +14,7 @@ import {
   createShadowGround,
   createStudioEnvironment,
   disposeKitAndStage,
+  disposeOverflowMark,
   disposeSelectionOutline,
   isDragGesture,
   makeKit,
@@ -31,6 +33,7 @@ import { WORKTOP_DEPTH_MM } from "@lemnaria/configurator-domain";
 import type { Selection } from "../store/apply-command-result";
 import { useConfiguratorStore } from "../store/configurator-store";
 import { resolveSceneView, sceneViewKey, type SceneView } from "./scene-view";
+import { useOverflowingPlacementIds } from "./use-overflowing-placements";
 
 /** Seconds for a preset switch to settle. Long enough to read as a move, short enough that the
  *  customer is not waiting on the camera. */
@@ -82,6 +85,7 @@ export function KitchenStage({ view, finish, onSettled }: KitchenStageProps) {
   const selection = useConfiguratorStore((state) => state.selection);
   const select = useConfiguratorStore((state) => state.select);
   const deselect = useConfiguratorStore((state) => state.deselect);
+  const overflowingIds = useOverflowingPlacementIds();
   const attachBodyProbe = useConfiguratorStore(
     (state) => state.attachBodyProbe,
   );
@@ -249,6 +253,43 @@ export function KitchenStage({ view, finish, onSettled }: KitchenStageProps) {
     };
   }, [selection, stage, records, voids, invalidate]);
 
+  // ADR 0065 decision 1: a body past the end of its wall is **marked**, and marking is the whole of
+  // what happens to it — nothing below moves it, resizes it, hides it or touches the selection. The
+  // mark is an object mounted beside the body, exactly as the outline above is and for the same
+  // reason: this kit's bodies share `KitMaterials` instances, so tinting one body's material would
+  // tint every body drawn with it.
+  //
+  // Mounted on `stage.room` rather than inside `solids`, so it inherits the room's seating transform
+  // while staying outside the subtree §6.1 raycasts — a mark stands in front of the fronts it covers
+  // and must never intercept the tap that selects them.
+  //
+  // The dependency list is the outline's plus the ids: `records` and `voids` are here because
+  // `syncSolidBodies` replaces a mounted instance whenever a body is swapped, resized or refinished,
+  // and a mark still holding the previous instance's transform would sit beside the body instead of
+  // over it.
+  const overflowMarksRef = useRef<THREE.Object3D[]>([]);
+  useEffect(() => {
+    const marks = overflowingIds.flatMap((id) => {
+      const target = findMountedPlacement(stage.solidsRoot, id);
+      if (!target) return [];
+      const { group } = buildOverflowMark({ target, parent: stage.room });
+      stage.room.add(group);
+      return [group];
+    });
+    overflowMarksRef.current = marks;
+    invalidate();
+    // A mark left behind after its body stopped overflowing is a red cabinet the customer has no way
+    // to clear, so the teardown is unconditional: React runs it before every re-run as well as on
+    // unmount, and it detaches before it disposes so the stage teardown below never walks a mark.
+    return () => {
+      for (const mark of overflowMarksRef.current) {
+        mark.removeFromParent();
+        disposeOverflowMark(mark);
+      }
+      overflowMarksRef.current = [];
+    };
+  }, [overflowingIds, stage, records, voids, invalidate]);
+
   // R3F never disposes a `<primitive>`, by design: its reconciler skips disposal when
   // `instance.type === 'primitive'` because a primitive's lifetime is owned outside React. Every
   // object below is one, so without this a client-side remount strands a whole room's buffers,
@@ -329,10 +370,23 @@ function findSelectedObject(
   roots: SelectableRoots,
   selection: NonNullable<Selection>,
 ): THREE.Object3D | null {
-  const isPlacement = selection.kind === "placement";
-  const root = isPlacement ? roots.solidsRoot : roots.voidsRoot;
-  const key = isPlacement ? "placementId" : "voidId";
+  if (selection.kind === "placement")
+    return findMountedPlacement(roots.solidsRoot, selection.id);
   return (
-    root.children.find((child) => child.userData[key] === selection.id) ?? null
+    roots.voidsRoot.children.find(
+      (child) => child.userData.voidId === selection.id,
+    ) ?? null
+  );
+}
+
+/** The mounted body a placement id names, or `null` while the scene has not caught up with it. */
+function findMountedPlacement(
+  solidsRoot: THREE.Object3D,
+  placementId: string,
+): THREE.Object3D | null {
+  return (
+    solidsRoot.children.find(
+      (child) => child.userData.placementId === placementId,
+    ) ?? null
   );
 }
