@@ -81,7 +81,20 @@ reaches the owner as an enquiry.
 
 The scene warning, beside the marked bodies:
 
-> **Corpurile marcate depășesc lungimea peretelui. Modifică lățimile sau elimină un corp.**
+> ~~**Corpurile marcate depășesc lungimea peretelui. Modifică lățimile sau elimină un corp.**~~
+>
+> **Superseded 2026-09-03, same day, by the owner.** The wording below replaces it. The original is
+> struck rather than removed because the pair is the record of *why* the vocabulary settled where it
+> did, and a later reader finding only the replacement cannot tell that the alternative was held and
+> dropped rather than never considered.
+>
+> **Dulapurile marcate depășesc lungimea peretelui. Modifică lățimile sau elimină un dulap.**
+>
+> **What changed and why.** The warning said *corpuri* while the flagged total below says
+> *dulapuri* — the trade term beside the everyday one, for the same cabinets, on one screen. Asked
+> to reconcile them, the owner chose *dulapuri* in both places. Note this narrows, but does not
+> retract, the paragraph that follows: the two strings still say different things and are still not
+> interchangeable. Only the noun is now shared.
 
 The flagged total:
 

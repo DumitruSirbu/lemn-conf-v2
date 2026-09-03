@@ -1,11 +1,36 @@
+/* Three bands on mobile — header, stage, price bar — and two rows on desktop, where frames D2A /
+ * D2B / D2C put the figure at the right-hand end of the top bar instead of in a bar of its own.
+ *
+ * A grid rather than a column, because that is what lets **one** price-bar element sit in two
+ * places without a second copy of it in the markup: §10.1's one permitted layout branch, taken in
+ * CSS exactly as §9's sheet-or-rail is.
+ *
+ * The bar is a **flow sibling of the stage in both shells** — never an overlay — which is how "the
+ * price bar never covers the selected cabinet" is met structurally rather than by tuning a number.
+ */
 .screen {
-  display: flex;
-  flex-direction: column;
+  /* The positioning context for §9's mobile sheet. It used to be `.stage`, and moving it up one
+   * level is what lets the sheet be drawn **over** the price bar — frame 2B shows the sheet
+   * reaching the bottom of the screen, with §9 item 7's own footer figure on it. Anchoring it to
+   * the stage instead would leave the bar below the sheet and, because the sheet's 78 dvh is
+   * measured against the viewport, would cut the strip of scene above it from ~131 px to ~39. */
+  position: relative;
+  display: grid;
+  grid-template-areas:
+    "header"
+    "stage"
+    "price";
+  grid-template-rows: auto minmax(0, 1fr) auto;
   height: 100dvh;
   background: var(--paper);
 }
 
+.priceRow {
+  grid-area: price;
+}
+
 .header {
+  grid-area: header;
   z-index: 2;
   display: flex;
   flex-direction: column;
@@ -54,9 +79,8 @@
 }
 
 .stage {
-  position: relative;
+  grid-area: stage;
   display: flex;
-  flex: 1;
   min-height: 0;
   background: var(--stage);
 }
@@ -130,6 +154,22 @@
 }
 
 @media (min-width: 900px) {
+  /* Frames D2A / D2B / D2C: the price joins the top bar's right-hand end, and the scene takes the
+   * whole width below it. */
+  .screen {
+    grid-template-areas:
+      "header price"
+      "stage  stage";
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+
+  .priceRow {
+    display: flex;
+    align-items: center;
+    background: var(--paper);
+  }
+
   .presets {
     top: 24px;
     left: 28px;

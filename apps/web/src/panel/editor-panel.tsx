@@ -512,6 +512,41 @@ function PanelFooterRow({
   const remove = useConfiguratorStore((state) => state.remove);
   return (
     <footer className={styles.footer}>
+      {/* §9 item 7 and frame 2B: the running total sits at the left of the footer row, opposite the
+          actions. Absent on a failed or unsupplied pricing query — see `PanelFooter.price`. */}
+      {footer.price === undefined ? null : (
+        <p
+          className={styles.footerPrice}
+          data-testid="panel-price"
+          aria-live="polite"
+        >
+          <span className={styles.footerPriceLabel}>{footer.price.label}</span>
+          <span
+            className={styles.footerPriceAmount}
+            data-testid="panel-price-total"
+          >
+            {footer.price.amountText}
+          </span>
+        </p>
+      )}
+      {/* The same live region the bar carries, for the same reason and in the same shape: mounted
+          whether or not there is a warning, and `display: contents` so the footer measures the same
+          either way. On mobile this is the announcement that matters, because §9's sheet covers the
+          bar and this is the only total on screen. */}
+      <div
+        className={styles.footerPriceRegion}
+        role="status"
+        data-testid="panel-price-flag-region"
+      >
+        {footer.overflowWarning === undefined ? null : (
+          <span
+            className={styles.footerPriceWarning}
+            data-testid="panel-price-overflow"
+          >
+            {footer.overflowWarning}
+          </span>
+        )}
+      </div>
       {footer.canDelete && footer.removeDisabledReason !== undefined ? (
         <span className={styles.footerReason} data-testid="panel-remove-reason">
           {footer.removeDisabledReason}

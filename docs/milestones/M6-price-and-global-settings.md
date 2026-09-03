@@ -874,8 +874,10 @@ exact wording.
 | The *"De la"* prefix and rounding up to the thousand | [ADR 0001](../decisions/0001-initial-product-and-stack.md) decision 4, and the mockups' presentation rule |
 | The 2D disclaimer and *"Nu constituie ofertă comercială"* | Mockup frame 2D |
 | *"inclus"* for a zero-amount tier | Mockup frame 2E |
-| *"Corpurile marcate depășesc lungimea peretelui. Modifică lățimile sau elimină un corp."* — the scene warning | [ADR 0065](../decisions/0065-a-body-past-the-end-of-its-wall-is-marked-not-moved.md) decision 7b, owner 2026-09-03 |
+| *"Dulapurile marcate depășesc lungimea peretelui. Modifică lățimile sau elimină un dulap."* — the scene warning | [ADR 0065](../decisions/0065-a-body-past-the-end-of-its-wall-is-marked-not-moved.md) decision 7b, owner 2026-09-03, **re-ruled the same day** to say *dulapuri* rather than *corpuri*, matching the flagged total. The superseded wording is struck through in place at the ADR. Wave 6M builds this string; it exists in no code today |
 | *"Prețul include și dulapuri ce depășesc mărimea peretelui și necesită ajustări"* — the flagged total | ADR 0065 decision 7b. **The owner's own phrasing: verbatim, punctuation included, and not to be tidied** |
+| *"De la neschimbat"* — the price label while an edit is refused | Owner, 2026-09-03. **The code deliberately differs from both mockups here, and that is not a defect.** D2C draws `De la · neschimbat` (U+00B7) and mobile 2C draws `De la, neschimbat`; asked to reconcile the two spellings, the owner removed the separator entirely rather than picking one, so both shells now read `De la neschimbat` from a single constant. The mockup HTML still shows the old forms — it is the record of what was drawn and was not edited. A later reader diffing the code against a frame will find this row before concluding the label is wrong |
+| What a kitchen with no cabinets says instead of *"De la 0 MDL"* | **Not ruled** — raised by 6C's QA, 2026-09-03, and deliberately not filled by the wave. No command reaches it: removal refuses the four structural corner bodies, so the emptiest kitchen a customer can build prices at 8 000 MDL. But `DesignSchema` holds `placements` to `.max(MAX_PLACEMENTS)` with **no `.min()`**, so a zero-placement document passes the write seam and resumes through a share link, and the bar then reads *"De la 0 MDL"*. Whether that is right, or wants its own copy, is the owner's. Likeliest to matter at **M7**, where generation may produce an empty result before it produces a kitchen |
 | 6N's *"PRACTIC PLIN"* heading and the remainder sentences | **Not ruled** — deliberately not yet put to the owner, so the wording can be judged against a real remainder rather than in the abstract. Still a content slot a wave must not fill |
 
 The last row is the point of the table: **a string nobody has ruled is not pinned by writing one and
@@ -883,10 +885,18 @@ asserting it. It is raised.** ADR 0065's two strings were in that position on 20
 ruled the same day; 6N's heading is deliberately still there, because it is better judged against a
 real remainder than in the abstract.
 
-**One thing the table does not settle, and no wave may settle on its own:** the flagged total says
-*dulapuri* where the scene warning says *corpuri*. Deliberate register or incidental, it is the
+**~~One thing the table does not settle, and no wave may settle on its own:~~ Settled by the owner,
+2026-09-03.** The flagged total said *dulapuri* where the scene warning said *corpuri*. It was the
 owner's to reconcile — **a wave that harmonises them is making a product change**, and a copy pass
-that harmonises them silently is worse.
+that harmonises them silently is worse — so it was raised rather than tidied, at the point wave 6C
+first had to render one of the two. **The owner chose *dulapuri* in both.** The scene warning's
+wording changed; the flagged total's did not. ADR 0065 decision 7b carries the supersession with the
+original struck through in place.
+
+The paragraph is kept rather than deleted because the *procedure* it prescribes outlived the
+question it was written about: an inconsistency between two ruled strings is raised to the owner by
+the wave that meets it, and is never harmonised by the wave, a reviewer, or a copy pass. 6N's
+unruled heading in the last table row is the next instance waiting.
 
 ### Wave 6E — the whole-kitchen settings container
 

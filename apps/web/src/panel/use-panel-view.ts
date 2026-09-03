@@ -17,6 +17,7 @@ import {
 } from "@lemnaria/configurator-domain";
 import { useMemo } from "react";
 
+import { usePricedDesign } from "@/price/use-priced-design";
 import { useConfiguratorStore } from "@/store/configurator-store";
 
 import { describePanel, type PanelView } from "./panel-model";
@@ -29,6 +30,9 @@ export function usePanelView(): PanelView {
   const widthRanges = useSelectionWidthRanges();
   const widthSteps = useSelectionWidthSteps();
   const rejection = useConfiguratorStore((state) => state.lastRejection);
+  // §9 item 7's footer price. Derived from the current design by the one hook both price surfaces
+  // read, so the footer and the bar cannot show different numbers for one kitchen.
+  const pricing = usePricedDesign();
   const isBodyProbeAttached = useConfiguratorStore(
     (state) => state.isBodyProbeAttached,
   );
@@ -46,6 +50,7 @@ export function usePanelView(): PanelView {
         widthRanges,
         widthSteps,
         rejection,
+        pricing,
         isBodyProbeAttached,
         canWrite,
         saveStatus,
@@ -57,6 +62,7 @@ export function usePanelView(): PanelView {
       widthRanges,
       widthSteps,
       rejection,
+      pricing,
       isBodyProbeAttached,
       canWrite,
       saveStatus,

@@ -6,7 +6,15 @@
   --line-soft: #e4dfd5;
   --ink: #1c1814;
   --ink-muted: #6b5e52;
-  --ink-faint: #7d7a72;
+  /* **Deliberately darker than the mockups, ruled by the owner on 2026-09-03 for WCAG AA.** The
+   * frames draw this as `#7d7a72`, which the price bar's *De la* label rendered at **4.02:1** on
+   * `--paper` — under AA's 4.5:1 for normal text, and worse on every other surface it sits on.
+   * Three options were put to the owner (darken the token, override it on the price bar alone, or
+   * record and defer) and darkening it everywhere was chosen, so this diverges from the mockups
+   * across all nine sites that use it. The worst case is now **4.515:1**, on `.chipReason` over the
+   * active width chip's `#ece7dd` (ADR 0049 puts a reason on an active chip). Pinned by
+   * `tests/app/ink-faint-contrast.test.ts` — do not "correct" it back to the mockup value. */
+  --ink-faint: #6b6860;
   --accent: #7c5c3d;
   --accent-strong: #5a3e25;
   --accent-pale: #a07850;

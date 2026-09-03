@@ -1,6 +1,10 @@
 # ADR 0024 — §9's rejection banner has no reachable path, and that is the rule working
 
-Status: Accepted
+Status: **Superseded in its central claim, 2026-09-03.** The finding below — that no customer can
+reach §9's rejection banner — **is false.** A double-tap on `Șterge corpul` reaches it. The
+reasoning about the *width and offer paths* stands and is still correct; what was wrong was
+inferring "no path exists" from "no path exists through the offer set". See the amendment at the
+foot of this file before relying on anything here.
 Date: 2026-08-26
 Type: Finding + Decision
 Milestone: M4 Wave 4D — found while writing the browser tests; closes M4 with the gap named
@@ -78,3 +82,64 @@ unchanged.
 - The standing rule is unchanged and worth restating, because it is what makes the gap acceptable:
   any refusal observed reaching the customer is filed against the **list that offered it**, not
   against the banner.
+
+---
+
+## Amendment, 2026-09-03 — the banner is reachable, and M4's debt is now closed on screen
+
+**Found by wave 6C's visual verification**, which went looking for a refusal in order to prove the
+price bar holds its figure during one, and found a route this record did not anticipate.
+
+**The route: a double-tap on `Șterge corpul`.** The first click deletes the body; the second lands
+on the now-void selection and refuses `VOID_SELECTED`. Both clicks land before React re-renders,
+which is why the button is still there to receive the second. This is an ordinary customer gesture —
+double-tapping is routine on a touch screen — not instrumentation, not a forced DOM state, and not a
+manufactured refusal.
+
+**The evidence.** Two fresh controlled runs deleting the same body `p2`, single click against
+double, with the total measured against an accepted-delete-only control:
+
+| | single | double |
+| --- | --- | --- |
+| total after | `91 000 MDL` | `91 000 MDL` |
+| bar label | `De la` | `De la neschimbat` |
+| banner | none | `Aici nu se află niciun corp.` |
+
+The refusal moved the figure by **zero** and relabelled it unchanged while the banner stood. The
+same on mobile. Screenshots at `.playwright-mcp/qa6c/07-desktop-rejection-D2C.png` and
+`16-mobile-rejection-2C.png`.
+
+**What this changes.**
+
+1. **M4's third frame-2C requirement is closed in a browser, genuinely** — not at the model level, as
+   wave 6C's close-out was about to record. The rejection state's three simultaneous requirements
+   are now observable together on screen, which is what M4's Verification section asked for and
+   could not obtain. That is a better outcome than this record allowed for.
+2. **The width and offer-path reasoning above is untouched and still correct.** Wave 6C's
+   implementer independently re-confirmed it: all 26 placements enumerated, every blocked chip and
+   step already rendered `disabled` carrying its reason, and force-enabling one in the DOM does
+   nothing because React reads `disabled` from the fiber's props rather than the node. A refusal
+   cannot be manufactured there either, which is what this ADR wanted.
+3. **The error was in the quantifier, not the analysis.** "None by construction" generalised from
+   one family of paths — the fit-filtered offer set — to every path. The delete command is not in
+   that family: it does not consult the offer set, and its refusal comes from the selection going
+   void between two clicks rather than from a fit evaluation. Worth keeping as the shape of the
+   mistake: an exhaustive-sounding claim proved over one mechanism.
+
+**A product question this raises, deliberately not settled here.** The mechanics are right; the copy
+is wrong for the way it is now known to be reached.
+
+`Aici nu se află niciun corp.` — "there is no cabinet here" — is a true statement about a void the
+customer **deliberately selected**. On this route they selected nothing: the app moved the selection
+out from under their finger between two taps of one gesture. So the sentence answers a question they
+did not ask, and implies they aimed at empty space. Two taps on delete is not a mistake; it is
+impatience with a round trip.
+
+**And it collides with the price label.** The bar reads `De la neschimbat` at the exact moment the
+total *did* change — because the first tap of the same gesture changed it. Both sentences are
+individually true and together confusing: one says nothing happened, the other says nothing is
+there, and what actually happened is that the customer's cabinet was deleted.
+
+**The cheapest fix is not new copy — it is not offering the second click:** the delete button should
+leave the footer with the body it deleted. Recorded as open and owned by a later wave. Wave 6C is
+not the place for it, and the visual verification that found the route said so explicitly.

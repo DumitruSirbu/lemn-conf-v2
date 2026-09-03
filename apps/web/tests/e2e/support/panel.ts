@@ -21,17 +21,38 @@ import type { Page } from "@playwright/test";
 /** A vertical line down the middle of the fridge column, clear of the camera preset buttons. */
 export const FRIDGE_COLUMN_TAP_X = 65;
 
-/** Top of the column (the 2.6 m ceiling line) down to the floor, at 20 px. The column is ~490 px
- *  tall here, so the shortest opening M3 can produce in it — a 400 mm top slot, ~75 px — is
- *  crossed by at least three of these. */
-const FIRST_TAP_Y = 120;
-const LAST_TAP_Y = 700;
-const TAP_Y_STEP = 20;
+/** Top of the column (the 2.6 m ceiling line) down to the floor, in steps of ~2.5% of the canvas.
+ *  The column is ~62% of the canvas here, so the shortest opening M3 can produce in it — a 400 mm
+ *  top slot, ~9.5% — is crossed by at least three of these.
+ *
+ *  **Fractions of the canvas, not page pixels.** They were found as 120 to 700 down a 789 px
+ *  canvas, which is why they are written as those numbers over that one — the provenance is the
+ *  point. Absolute pixels stopped being right the moment the screen's chrome changed: wave 6C's
+ *  price bar takes 92 px of the 390 × 844 viewport, so the scene shrank, the column moved up with
+ *  it, and the last few taps landed past the bottom of the canvas on the bar itself. A perspective
+ *  projection scales with the viewport, so a fraction follows it and a pixel does not. */
+const CANVAS_HEIGHT_THE_TAPS_WERE_FOUND_ON = 789;
+const FIRST_TAP_FRACTION = 120 / CANVAS_HEIGHT_THE_TAPS_WERE_FOUND_ON;
+const LAST_TAP_FRACTION = 700 / CANVAS_HEIGHT_THE_TAPS_WERE_FOUND_ON;
+const TAP_STEP_FRACTION = 20 / CANVAS_HEIGHT_THE_TAPS_WERE_FOUND_ON;
 
-export const FRIDGE_COLUMN_TAP_YS: readonly number[] = Array.from(
-  { length: Math.floor((LAST_TAP_Y - FIRST_TAP_Y) / TAP_Y_STEP) + 1 },
-  (_unused, index) => FIRST_TAP_Y + index * TAP_Y_STEP,
-);
+/** The canvas's own height, which is the viewport less whatever chrome the screen is carrying. */
+async function canvasHeight(page: Page): Promise<number> {
+  const box = await page.locator("canvas").boundingBox();
+  if (!box) throw new Error("the scene canvas is not on the page");
+  return box.height;
+}
+
+async function fridgeColumnTapYs(page: Page): Promise<number[]> {
+  const height = await canvasHeight(page);
+  const firstY = FIRST_TAP_FRACTION * height;
+  const lastY = LAST_TAP_FRACTION * height;
+  const stepY = TAP_STEP_FRACTION * height;
+  return Array.from(
+    { length: Math.floor((lastY - firstY) / stepY) + 1 },
+    (_unused, index) => Math.round(firstY + index * stepY),
+  );
+}
 
 /** The scene needs a moment to mount, seat its camera and settle its easing before a pick means
  *  anything, and again after a preset switch (`CAMERA_EASE_SECONDS` is 0.7). */
@@ -143,7 +164,8 @@ export async function requireInFridgeColumn(
   target: ColumnTarget,
 ): Promise<SelectionReadout> {
   const seen: string[] = [];
-  for (const y of FRIDGE_COLUMN_TAP_YS) {
+  const tapYs = await fridgeColumnTapYs(page);
+  for (const y of tapYs) {
     const readout = await tapFridgeColumn(page, y);
     if (target.matches(readout)) return readout;
     if (readout.selectionId && !seen.includes(readout.selectionId))
@@ -151,7 +173,7 @@ export async function requireInFridgeColumn(
   }
   throw new Error(
     `Nothing in the fridge column matched ${target.description}. ` +
-      `${String(FRIDGE_COLUMN_TAP_YS.length)} taps down x=${String(FRIDGE_COLUMN_TAP_X)} selected: ` +
+      `${String(tapYs.length)} taps down x=${String(FRIDGE_COLUMN_TAP_X)} selected: ` +
       `${seen.join(", ") || "nothing at all"}. The tap constants in tests/e2e/support/panel.ts ` +
       `are pinned to CAMERA_PRESETS.wallB and to the seeded design — if either moved, re-find them.`,
   );
@@ -163,7 +185,7 @@ export async function scanFridgeColumn(
   page: Page,
 ): Promise<SelectionReadout[]> {
   const found: SelectionReadout[] = [];
-  for (const y of FRIDGE_COLUMN_TAP_YS) {
+  for (const y of await fridgeColumnTapYs(page)) {
     const readout = await tapFridgeColumn(page, y);
     if (!readout.selectionId) continue;
     if (found.some((seen) => seen.selectionId === readout.selectionId))

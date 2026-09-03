@@ -281,6 +281,45 @@ export const ro = {
         "Colțul ține legătura dintre cei doi pereți, așa că nu poate fi înlocuit, șters sau redimensionat. Alege un corp de lângă el.",
     },
   },
+  /** The price surfaces: frames 2A / D2A's bar and frame 2C / D2C's unchanged label, plus
+   *  ADR 0065 decision 7b's flagged total.
+   *
+   *  **Labels only — never an amount.** ADR 0062's third prohibition puts every figure, tier and
+   *  delta in the price book, so a number appearing in this section would be copy that happens to
+   *  agree with a price rather than a price rendered. */
+  price: {
+    /** [ADR 0001](../../../docs/decisions/0001-initial-product-and-stack.md) decision 4 and the
+     *  mockups' presentation rule: every displayed figure is prefixed *De la* and rounded up to the
+     *  thousand MDL. Frames 2A and D2A render it above the total; §9 item 7's footer does the same.
+     *  The mockups set it in uppercase through `text-transform`, so the string itself is written as
+     *  it reads. */
+    startingPrefix: "De la",
+    /** While a refusal stands, the figure is labelled unchanged — on the price bar and in §9's
+     *  footer alike. **Owner, 2026-09-03**, and it closes ADR 0024's third frame-2C requirement:
+     *  the one M4 closed unmet because there was no total to leave unmoved.
+     *
+     *  **One string for both shells, and no separator.** Frames D2C and 2C spell it two ways —
+     *  *"De la · neschimbat"* with a middle dot on desktop, *"De la, neschimbat"* with a comma on
+     *  mobile. A wave may not reconcile ruled copy on its own, so wave 6C shipped both verbatim and
+     *  raised the difference; the owner then ruled that the word stays and **neither punctuation
+     *  mark does**. Both mockup spellings are superseded by this one.
+     *
+     *  It is a single constant deliberately: one ruled string stored twice is how two spellings
+     *  come back. */
+    startingPrefixUnchanged: "De la neschimbat",
+    /** [ADR 0065](../../../docs/decisions/0065-a-body-past-the-end-of-its-wall-is-marked-not-moved.md)
+     *  decision 7b, owner 2026-09-03. **The owner's own phrasing: verbatim, punctuation included,
+     *  and not to be tidied.**
+     *
+     *  **Unchanged by the re-ruling of the same day.** This string said *dulapuri* where the scene
+     *  warning said *corpuri*; wave 6C raised the inconsistency rather than tidying it, and the
+     *  owner chose *dulapuri* in both. So the **scene warning's** wording moved and this one did
+     *  not. That warning is wave 6M's and is in no code yet — when it lands it reads
+     *  *"Dulapurile marcate depășesc lungimea peretelui. Modifică lățimile sau elimină un dulap."*,
+     *  and the superseded *corpuri* form is struck through in place at ADR 0065 decision 7b. */
+    overflowingTotalWarning:
+      "Prețul include și dulapuri ce depășesc mărimea peretelui și necesită ajustări",
+  },
   webglUnavailable: {
     titleMobile: "Dispozitivul acesta nu poate afișa 3D",
     titleDesktop: "Browserul acesta nu poate afișa 3D",

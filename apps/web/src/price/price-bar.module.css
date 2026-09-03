@@ -1,0 +1,89 @@
+/* Frame 2A's bottom bar and frame D2A's top-bar figure, from one element.
+ *
+ * The bar is a **flow sibling** of the stage in `configure.module.css`'s grid, never an overlay on
+ * it. That is the whole of "the price bar never covers the selected cabinet": the scene's box is
+ * what is left once this one is placed, so the two cannot intersect at any height. Nothing here may
+ * be given `position: absolute` over the stage without breaking the gate that asserts it.
+ *
+ * `--price-bar-height` is published by `price-bar.tsx` from `PRICE_BAR_RESERVED_HEIGHT_PX`. It is a
+ * floor rather than a fixed height: the flagged-total warning wraps on a narrow viewport and the bar
+ * grows, which only shrinks the scene further. */
+.bar {
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  justify-content: center;
+  min-height: var(--price-bar-height);
+  padding: 12px 18px 20px;
+  background: var(--paper);
+  border-top: 1px solid var(--line);
+}
+
+.figure {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin: 0;
+}
+
+.label {
+  font: 400 10.5px/1 var(--font-ui);
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+.amount {
+  font: 700 21px/1 var(--font-ui);
+}
+
+/* The flagged total's live region: present whether or not there is a warning, and laid out as
+ * though it were not there. `display: contents` is what makes the second half true — the warning
+ * inside it stays a direct flex child of `.bar`, so the bar's box is identical with an empty region
+ * and with none at all. */
+.flagRegion {
+  display: contents;
+}
+
+/* ADR 0065 decision 8: the flag and §9's rejection banner must not share a surface, because "a
+ * rejected edit does not move the total" and "an overflowing total moves and is flagged" read as a
+ * contradiction on one screen if they look alike. So this is deliberately *not* the panel's red
+ * refusal palette — it is a caution about what the number contains, not a report that an edit was
+ * refused. */
+.overflow {
+  padding: 9px 11px;
+  font: 400 11.5px/1.4 var(--font-ui);
+  color: #7c4a0c;
+  background: #fdf6ec;
+  border-radius: 10px;
+}
+
+/* Frames D2A / D2B / D2C: on desktop the figure sits at the right-hand end of the top bar rather
+ * than in a bar of its own, so it drops its own chrome and takes the header's. */
+@media (min-width: 900px) {
+  .bar {
+    flex-direction: row;
+    align-items: center;
+    gap: 16px;
+    justify-content: flex-end;
+    min-height: 0;
+    /* 9 px, not 12: it keeps the figure's box inside the 55 px the header row already measured, so
+     * adding the price leaves the desktop scene exactly where it was. A taller cell would push the
+     * canvas down — and at a *fractional* height it would also leave the canvas on a half-pixel,
+     * where a resize round trip rounds the drawing buffer differently and the scene comes back a
+     * pixel row out. Frame D2B's "the camera does not jump" is asserted byte-for-byte, and that is
+     * how it failed. */
+    padding: 9px 28px 9px 18px;
+    border-top: none;
+    border-bottom: 1px solid var(--line-soft);
+  }
+
+  .figure {
+    align-items: flex-end;
+  }
+
+  .overflow {
+    max-width: 320px;
+  }
+}
