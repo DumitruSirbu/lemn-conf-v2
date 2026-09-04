@@ -443,11 +443,20 @@ describe("one composition of the door count, and no second derivation anywhere",
     }
   });
 
-  it("calls deriveDoorCount from exactly three modules, and each for a different question", () => {
+  it("calls deriveDoorCount from exactly four modules, and each for a different question", () => {
     // Not a co-occurrence heuristic: this is the whole population of callers, pinned. `door-count.ts`
     // declares it, `catalog.ts` re-exports it and asks it for the **label** — leaves per band, which
     // is the right answer for a name — and `cabinet-handles.ts` is the one module that multiplies it
-    // by `doorTiers`. A fourth caller is either a second derivation or owes an explanation here.
+    // by `doorTiers`. A fifth caller is either a second derivation or owes an explanation here.
+    //
+    // **`front-population.ts` is the fourth, added by wave 6S and owed its explanation here.** It
+    // asks the same question `cabinet-handles.ts` does — how many leaves stand in one band at this
+    // width — for a different consumer: ADR 0070 counts hinges by leaf, and a handle count cannot
+    // answer that because `base-panbank`'s two handles are drawers. It is not a second derivation
+    // of the *threshold*: like every other caller it reads `deriveDoorCount`, so there is still
+    // nothing for the label, the handle count, the price step and the leaf count to disagree with.
+    // The composition check below still pins `doorTiers × deriveDoorCount` to one module, and this
+    // one does not perform it — it multiplies by its own declared band count instead.
     const calling = packageSourceFiles().filter((file) =>
       withoutCommentsOrStrings(readPackageSource(file)).includes(
         "deriveDoorCount",
@@ -458,6 +467,7 @@ describe("one composition of the door count, and no second derivation anywhere",
       "src/cabinet-handles.ts",
       "src/catalog.ts",
       "src/door-count.ts",
+      "src/front-population.ts",
     ]);
   });
 

@@ -36,6 +36,21 @@ import {
   NO_CABINET_HANDLES,
   type CabinetHandleRule,
 } from "./cabinet-handles.js";
+import {
+  BASE_DOOR_BAND_HEIGHT_MM,
+  carriesDrawers,
+  carriesFronts,
+  doorBandsMm,
+  FRIDGE_HOUSING_DOOR_BAND_HEIGHTS_MM,
+  OVEN_TOWER_DOOR_BAND_HEIGHTS_MM,
+  PANTRY_DOOR_BAND_HEIGHTS_MM,
+  doorLeavesFollowWidth,
+  NO_DRAWERS,
+  NO_OPENING_FRONTS,
+  oneBandInsetFromFrameMm,
+  WALL_DOOR_BAND_INSET_MM,
+  type FrontPopulationRule,
+} from "./front-population.js";
 import { deriveDoorCount, TWO_DOOR_MIN_WIDTH_MM } from "./door-count.js";
 import {
   FOLLOWS_CABINET_DEPTH,
@@ -489,6 +504,12 @@ interface BodyShape {
    *  `baseCabinet`. A handle count inherited from whichever helper an entry happened to be built
    *  with is DOM-002 in a second field, so every entry passes its own. */
   readonly cabinetHandles: CabinetHandleRule;
+  /** **Required, for the reason `cabinetHandles` above is**, and it is the same three bodies that
+   *  make the point: `base-3drawer` is three drawers, `base-sink` is two door leaves, `base-hob-oven`
+   *  is neither, and all three are a `baseCabinet`. A front population inherited from whichever
+   *  helper an entry happened to be built with would put hinges on drawers, which is DOM-002 in a
+   *  fourth field. Every entry passes its own, beside its handle count so the two are read together. */
+  readonly fronts: FrontPopulationRule;
   /** **Required, for the reason the two above are** (ADR 0058 decision 2). A shape that stayed
    *  silent would be a §7 row nobody had decided the depth question for, and the whole point of the
    *  declaration is that "holds still because it was decided to" and "holds still because it was
@@ -524,10 +545,21 @@ function insertableBody(band: Band, shape: BodyShape): BodyDefinition {
   };
 }
 
+/** **The two front declarations every §7 helper is handed together**, because they are two readings
+ *  of the same fact and are wrong when they disagree: `cabinetHandles` is what the customer grips,
+ *  `fronts` is what the hardware moves, and a push-to-open cabinet has the second and none of the
+ *  first. Passed as one named object rather than as two positional arguments so a row states both or
+ *  neither — and so the identity a reader wants to check (leaves plus drawers against handles) is
+ *  legible in one place at each entry. */
+interface FrontDeclarations {
+  readonly cabinetHandles: CabinetHandleRule;
+  readonly fronts: FrontPopulationRule;
+}
+
 function baseCabinet(
   label: string,
   cabinetDepthMm: number,
-  cabinetHandles: CabinetHandleRule,
+  declarations: FrontDeclarations,
 ): BodyDefinition {
   return insertableBody("base", {
     label,
@@ -537,7 +569,7 @@ function baseCabinet(
     nominalDepthMm: baseSeatDepthMm(cabinetDepthMm),
     occupiedDepth: finishesAtMm(baseFinishedDepthMm(cabinetDepthMm)),
     depthRule: FOLLOWS_CABINET_DEPTH,
-    cabinetHandles,
+    ...declarations,
     ...CABINETRY_WIDTHS,
   });
 }
@@ -548,10 +580,10 @@ function baseCabinet(
 function hobBase(
   label: string,
   cabinetDepthMm: number,
-  cabinetHandles: CabinetHandleRule,
+  declarations: FrontDeclarations,
 ): BodyDefinition {
   return {
-    ...baseCabinet(label, cabinetDepthMm, cabinetHandles),
+    ...baseCabinet(label, cabinetDepthMm, declarations),
     widthFlex: HOB_BASE_WIDTHS_MM,
     ...discreteWidths(HOB_BASE_WIDTHS_MM),
     fixedWidth: true,
@@ -562,12 +594,12 @@ function hobBase(
 function wallCabinet(
   label: string,
   cabinetDepthMm: number,
-  cabinetHandles: CabinetHandleRule,
+  declarations: FrontDeclarations,
 ): BodyDefinition {
   return {
     ...insertableBody("wall", {
       label,
-      cabinetHandles,
+      ...declarations,
       kind: "wall_cabinet",
       widthFlex: "fit",
       nominalHeightMm: WALL_CABINET_HEIGHT_MM,
@@ -588,14 +620,14 @@ function fullHeightUnit(
   label: string,
   kind: string,
   cabinetDepthMm: number,
-  cabinetHandles: CabinetHandleRule,
+  declarations: FrontDeclarations,
 ): BodyDefinition {
   const columnDepthMm = columnCarcassDepthMm(cabinetDepthMm);
   return {
     ...insertableBody("column", {
       label,
       kind,
-      cabinetHandles,
+      ...declarations,
       widthFlex: COLUMN_WIDTHS_MM,
       nominalHeightMm: COLUMN_HEIGHT_MM,
       nominalDepthMm: columnDepthMm,
@@ -639,11 +671,17 @@ export function buildInsertableBodyDefinitions(
       {
         // ADR 0061: the door count decides the handle count as well as the label — one bar per
         // leaf, so one handle below 500 mm and two at and above it.
-        ...baseCabinet(
-          BASE_CABINET_LABEL_RO,
-          cabinetDepthMm,
-          handlesOnDoorLeaves({ doorTiers: 1, handlesPerLeaf: 1 }),
-        ),
+        ...baseCabinet(BASE_CABINET_LABEL_RO, cabinetDepthMm, {
+          cabinetHandles: handlesOnDoorLeaves({
+            doorTiers: 1,
+            handlesPerLeaf: 1,
+          }),
+          // One band of hinged leaves, and the width decides how many stand in it — the same
+          // `deriveDoorCount` the handle rule above reads and the builder is handed.
+          fronts: doorLeavesFollowWidth(
+            doorBandsMm([BASE_DOOR_BAND_HEIGHT_MM]),
+          ),
+        }),
         ...HINGED_CABINET_WIDTHS,
         minWidthMm: HINGED_CABINET_MIN_WIDTH_MM,
         doorCountFollowsWidth: true,
@@ -651,11 +689,20 @@ export function buildInsertableBodyDefinitions(
     ],
     [
       "base-3drawer",
-      baseCabinet("Corp bază 3 sertare", cabinetDepthMm, carriesHandles(3)),
+      baseCabinet("Corp bază 3 sertare", cabinetDepthMm, {
+        cabinetHandles: carriesHandles(3),
+        // Three drawers and no door leaf. This is the row ADR 0070 names first: `carriesHandles(3)`
+        // here and `base-sink`'s `carriesHandles(2)` are the same kind of declaration, and one is
+        // runners while the other is hinges.
+        fronts: carriesDrawers(3),
+      }),
     ],
     [
       "base-panbank",
-      baseCabinet("Sertare pentru oale", cabinetDepthMm, carriesHandles(2)),
+      baseCabinet("Sertare pentru oale", cabinetDepthMm, {
+        cabinetHandles: carriesHandles(2),
+        fronts: carriesDrawers(2),
+      }),
     ],
     // ADR 0027: the two hob-bearing bodies. The hob is part of the cabinet, not a separate placement
     // sitting on it, which is what makes it restorable at all — a seeded entry is never offerable
@@ -666,7 +713,10 @@ export function buildInsertableBodyDefinitions(
     // no room for one.
     [
       "base-hob-2drawer",
-      hobBase("Corp plită și 2 sertare", cabinetDepthMm, carriesHandles(2)),
+      hobBase("Corp plită și 2 sertare", cabinetDepthMm, {
+        cabinetHandles: carriesHandles(2),
+        fronts: carriesDrawers(2),
+      }),
     ],
     [
       "base-hob-oven",
@@ -674,7 +724,14 @@ export function buildInsertableBodyDefinitions(
         // ADR 0061 decision 2: the body's one bar belongs to the **oven**, so it has no cabinet
         // handle to bill and none for a hardware chip to reach. This is the same fact `canHandle:
         // false` below states about the panel, said about the price and the meshes.
-        ...hobBase("Corp plită și cuptor", cabinetDepthMm, NO_CABINET_HANDLES),
+        ...hobBase("Corp plită și cuptor", cabinetDepthMm, {
+          cabinetHandles: NO_CABINET_HANDLES,
+          // **A front, and not a door band.** `ovenFillerFront` closes the cavity the oven leaves
+          // under the worktop with a fixed facade: nothing behind it opens, so it hangs on no hinge
+          // and its height is not a number ADR 0070's rule may read. `canFinish: true` below is
+          // about that same panel and is not a contradiction — a facade is finished, not opened.
+          fronts: NO_OPENING_FRONTS,
+        }),
         // §9's "never offer what cannot be satisfied", and §13.1's "disable, don't warn".
         //
         // Q6 (owner, 2026-09-01): this body owns **exactly one finishable front** — the fixed filler
@@ -699,11 +756,14 @@ export function buildInsertableBodyDefinitions(
     [
       "base-bottle-cargo",
       {
-        ...baseCabinet(
-          "Cargo îngust pentru sticle",
-          cabinetDepthMm,
-          carriesHandles(1),
-        ),
+        ...baseCabinet("Cargo îngust pentru sticle", cabinetDepthMm, {
+          cabinetHandles: carriesHandles(1),
+          // ADR 0026: **a pull-out, so a drawer and not a leaf.** The builder says so in as many
+          // words — "the front is a pull-out's, not a door's" — and it runs on runners like any
+          // other drawer. It carries the whole carcass height as one front, which is why its handle
+          // count alone cannot tell it from a single-door base.
+          fronts: carriesDrawers(1),
+        }),
         widthFlex: BOTTLE_CARGO_WIDTHS_MM,
         ...discreteWidths(BOTTLE_CARGO_WIDTHS_MM),
         minWidthMm: BOTTLE_CARGO_MIN_WIDTH_MM,
@@ -712,7 +772,17 @@ export function buildInsertableBodyDefinitions(
     [
       "base-sink",
       {
-        ...baseCabinet("Corp spălător", cabinetDepthMm, carriesHandles(2)),
+        ...baseCabinet("Corp spălător", cabinetDepthMm, {
+          cabinetHandles: carriesHandles(2),
+          // Two hinged leaves in one band, at every width from the 560 mm aperture up. ADR 0070's
+          // other named row: the same `2` as `base-panbank` above, and nothing but this declaration
+          // says one pair is hinges and the other runners.
+          fronts: carriesFronts({
+            doorBands: doorBandsMm([BASE_DOOR_BAND_HEIGHT_MM]),
+            leavesPerBand: 2,
+            drawers: NO_DRAWERS,
+          }),
+        }),
         // ADR 0033's amendment (owner, 2026-08-27; logic review R1.1): **a sink base is cabinetry with
         // a fixed aperture, not an appliance that comes in sizes.** What is fixed is the bowl — 560 mm,
         // which `minWidthMm` below states — and not the carcass around it. The owner's own case:
@@ -743,11 +813,16 @@ export function buildInsertableBodyDefinitions(
       {
         // ADR 0051: the niche wears a decor door of its own, and the one bar on this body is that
         // door's — the appliance behind it carries none.
-        ...baseCabinet(
-          "Nișă mașină de spălat vase",
-          cabinetDepthMm,
-          carriesHandles(1),
-        ),
+        ...baseCabinet("Nișă mașină de spălat vase", cabinetDepthMm, {
+          cabinetHandles: carriesHandles(1),
+          // ADR 0051: one decor door over the machine, drawn by `doorSlab` at `baseCabinet`'s own
+          // anchors, so it is the same 710 mm band every base leaf is.
+          fronts: carriesFronts({
+            doorBands: doorBandsMm([BASE_DOOR_BAND_HEIGHT_MM]),
+            leavesPerBand: 1,
+            drawers: NO_DRAWERS,
+          }),
+        }),
         kind: "dishwasher_housing",
         widthFlex: DISHWASHER_WIDTHS_MM,
         ...discreteWidths(DISHWASHER_WIDTHS_MM),
@@ -765,11 +840,19 @@ export function buildInsertableBodyDefinitions(
     [
       "wall-cabinet",
       {
-        ...wallCabinet(
-          WALL_CABINET_LABEL_RO,
-          cabinetDepthMm,
-          handlesOnDoorLeaves({ doorTiers: 1, handlesPerLeaf: 1 }),
-        ),
+        ...wallCabinet(WALL_CABINET_LABEL_RO, cabinetDepthMm, {
+          cabinetHandles: handlesOnDoorLeaves({
+            doorTiers: 1,
+            handlesPerLeaf: 1,
+          }),
+          // **The one row family whose band height is not a constant**, because it is the one that
+          // is `heightFlex`: the same entry is built 700 mm tall on the wall row and 400 in the top
+          // row, so its leaves are 694 and 394. The rule follows the frame the body was built into
+          // rather than pinning either number.
+          fronts: doorLeavesFollowWidth(
+            oneBandInsetFromFrameMm(WALL_DOOR_BAND_INSET_MM),
+          ),
+        }),
         ...HINGED_CABINET_WIDTHS,
         minWidthMm: HINGED_CABINET_MIN_WIDTH_MM,
         doorCountFollowsWidth: true,
@@ -777,16 +860,26 @@ export function buildInsertableBodyDefinitions(
     ],
     [
       "wall-lift",
-      wallCabinet(
-        "Corp suspendat rabatabil",
-        cabinetDepthMm,
-        carriesHandles(1),
-      ),
+      wallCabinet("Corp suspendat rabatabil", cabinetDepthMm, {
+        cabinetHandles: carriesHandles(1),
+        // **One full-face leaf, and its handle edge is `"bottom"` rather than `"top"`** — which is
+        // one half of why drawer-ness is declared here and never read off that field. A flap opens
+        // upward on the band's own hinges: one leaf, not a drawer. Its lift mechanism is none of
+        // ADR 0070's three, and decision 6 leaves vertical-opening mechanisms out of scope.
+        fronts: carriesFronts({
+          doorBands: oneBandInsetFromFrameMm(WALL_DOOR_BAND_INSET_MM),
+          leavesPerBand: 1,
+          drawers: NO_DRAWERS,
+        }),
+      }),
     ],
     [
       "open-shelf",
       {
-        ...wallCabinet("Etajeră deschisă", cabinetDepthMm, NO_CABINET_HANDLES),
+        ...wallCabinet("Etajeră deschisă", cabinetDepthMm, {
+          cabinetHandles: NO_CABINET_HANDLES,
+          fronts: NO_OPENING_FRONTS,
+        }),
         kind: "open_shelf_unit",
         // No door and no handle, so its shell and its finished depth are the same number.
         occupiedDepth: shellPlusFrontMm(NO_FRONT_ASSEMBLY_MM),
@@ -799,7 +892,10 @@ export function buildInsertableBodyDefinitions(
     [
       "hood",
       {
-        ...wallCabinet("Hotă", cabinetDepthMm, NO_CABINET_HANDLES),
+        ...wallCabinet("Hotă", cabinetDepthMm, {
+          cabinetHandles: NO_CABINET_HANDLES,
+          fronts: NO_OPENING_FRONTS,
+        }),
         kind: EXTRACTOR_HOOD_KIND,
         // A hood is a canopy and a chimney: no front, so nothing for a finish chip to recolour.
         // `handle: "push"` here would put cabinet hardware on an extractor. This says nothing about
@@ -861,12 +957,19 @@ export function buildInsertableBodyDefinitions(
         // Two tiers of doors, each leaf carrying one bar: two handles at 400 mm and four at 600.
         // The width decides the leaves *per tier* through the same `doorCountFollowsWidth` this row
         // declares below, and the pantry stacks two such tiers.
-        ...fullHeightUnit(
-          "Coloană cămară",
-          "tall_unit",
-          cabinetDepthMm,
-          handlesOnDoorLeaves({ doorTiers: 2, handlesPerLeaf: 1 }),
-        ),
+        ...fullHeightUnit("Coloană cămară", "tall_unit", cabinetDepthMm, {
+          cabinetHandles: handlesOnDoorLeaves({
+            doorTiers: 2,
+            handlesPerLeaf: 1,
+          }),
+          // **The entry ADR 0070 wrote the band declaration for.** Two bands, 1290 and 790, and
+          // they do not sum to this body's 2200 mm frame — so an implementation that read
+          // `heightMm` would disagree with this row everywhere and would put a third hinge on the
+          // short door.
+          fronts: doorLeavesFollowWidth(
+            doorBandsMm(PANTRY_DOOR_BAND_HEIGHTS_MM),
+          ),
+        }),
         widthFlex: "fit",
         ...cabinetryWidths({
           minMm: PANTRY_FLOOR_WIDTH_MM,
@@ -886,7 +989,17 @@ export function buildInsertableBodyDefinitions(
           "Coloană cuptor + microunde",
           "tall_unit",
           cabinetDepthMm,
-          carriesHandles(2),
+          {
+            cabinetHandles: carriesHandles(2),
+            // Two 500 mm cabinet leaves in a 2200 mm frame, one under the oven and one over the
+            // microwave. The lower one is drawn with a `"top"` handle edge and is a door all the
+            // same — the builder's own comment says that edge covers "doors below the worktop" too.
+            fronts: carriesFronts({
+              doorBands: doorBandsMm(OVEN_TOWER_DOOR_BAND_HEIGHTS_MM),
+              leavesPerBand: 1,
+              drawers: NO_DRAWERS,
+            }),
+          },
         ),
         // Two appliance fronts instead of two cabinet doors, and their bars reach further.
         //
@@ -906,7 +1019,17 @@ export function buildInsertableBodyDefinitions(
         "Nișă frigider integrat",
         "fridge_housing",
         cabinetDepthMm,
-        carriesHandles(3),
+        {
+          cabinetHandles: carriesHandles(3),
+          // Three leaves in three bands of their own heights: the fridge door, the freezer door and
+          // the top box's flap. **The clearest case for declaring bands per entry** — one body, three
+          // different heights, and only the tallest is over ADR 0070's 900 mm threshold.
+          fronts: carriesFronts({
+            doorBands: doorBandsMm(FRIDGE_HOUSING_DOOR_BAND_HEIGHTS_MM),
+            leavesPerBand: 1,
+            drawers: NO_DRAWERS,
+          }),
+        },
       ),
     ],
     [
@@ -918,7 +1041,12 @@ export function buildInsertableBodyDefinitions(
           "Frigider, liber",
           "fridge_freestanding",
           cabinetDepthMm,
-          NO_CABINET_HANDLES,
+          {
+            cabinetHandles: NO_CABINET_HANDLES,
+            // A machine somebody else builds: its two fronts are the appliance's own and it draws
+            // no `door_front` at all, so there is no cabinet leaf and no cabinet drawer here.
+            fronts: NO_OPENING_FRONTS,
+          },
         ),
         widthFlex: FREESTANDING_FRIDGE_WIDTHS_MM,
         ...discreteWidths(FREESTANDING_FRIDGE_WIDTHS_MM),

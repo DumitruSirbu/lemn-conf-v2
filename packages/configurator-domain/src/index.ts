@@ -37,6 +37,38 @@ export {
   type CabinetHandleRule,
   type DoorLeafHandles,
 } from "./cabinet-handles.js";
+export {
+  BASE_DOOR_BAND_HEIGHT_MM,
+  carriesDrawers,
+  carriesFronts,
+  ContradictoryFrontDeclarationError,
+  doorBandHeightsMm,
+  doorBandsMm,
+  doorLeafCount,
+  doorLeafHeightsMm,
+  doorLeavesFollowWidth,
+  drawerCount,
+  frontPopulationQueryFor,
+  FRIDGE_HOUSING_DOOR_BAND_HEIGHTS_MM,
+  NO_DOOR_BANDS,
+  NO_DRAWERS,
+  NO_OPENING_FRONTS,
+  oneBandInsetFromFrameMm,
+  refuseContradictoryFrontDeclarations,
+  OVEN_TOWER_DOOR_BAND_HEIGHTS_MM,
+  PANTRY_DOOR_BAND_HEIGHTS_MM,
+  UnbuildableDoorBandError,
+  UndeclaredFrontPopulationError,
+  WALL_DOOR_BAND_INSET_MM,
+  wallDoorBandHeightMm,
+  type DeclaredFronts,
+  type DeclaresFronts,
+  type DoorBandsRule,
+  type FrontPopulationField,
+  type FrontPopulationQuery,
+  type FrontPopulationRule,
+  type PlacedBody,
+} from "./front-population.js";
 // `buildToTheClearanceM` and `shallowerBuildDepthM` stay module-internal: they are how
 // `resolveDepthM` applies the declaration, and a second caller outside this package would be a
 // second way to mint a build depth that no declaration produced — the defect ADR 0060 closes.

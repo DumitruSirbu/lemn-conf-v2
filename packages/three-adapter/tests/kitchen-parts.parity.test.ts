@@ -228,6 +228,93 @@ function dishwasherHousingChanges(
   ];
 }
 
+// ---------------------------------------------------------------------------------------------
+// The wave 6S re-baseline: a declared **rename**.
+// ---------------------------------------------------------------------------------------------
+//
+// `DeclaredDivergence` says "this number moved on a node both trees have"; `DeclaredStructuralChange`
+// says "this node appeared or vanished". Neither can say what 6S did: a mesh both trees build, in
+// the same place, under the same parent, carrying a different **name**.
+//
+// ADR 0070 prices hinges per door leaf and runners per drawer, and until 6S every front in this kit
+// was named `door_front` — `base-panbank`'s drawer fronts included — so nothing in a built scene
+// could tell the two apart and no parity gate could hold a catalogue declaration to them.
+// `drawerSlab` now names its slab `drawer_front`, which `finishes.ts`'s `FRONT_MESH_NAME` already
+// matched before anything drew one, so recolouring is unaffected.
+//
+// The form carries the same discipline as the other two: each rename names its parent, the name it
+// replaces, the name it introduces, and how many times it occurs. It **cannot** hide a node from the
+// comparison — everything else about the renamed mesh still diffs at 1e-6 m, and a rename that is
+// declared and does not occur, or occurs the wrong number of times, turns this red.
+interface DeclaredMeshRename {
+  readonly parent: string;
+  readonly from: string;
+  readonly to: string;
+  /** **The renamed slab's own height, in metres, and it is what makes the declaration precise.**
+   *  A path built from node names cannot tell one `base_cabinet` from another, and `kitchen-l`
+   *  holds five drawer fronts and eight hinged leaves under the identical path — so a declaration
+   *  scoped by path alone would rename a sink's door. A base leaf is 0.710 m tall and a drawer
+   *  front is 0.356 or 0.236, which is the product fact this rename is actually about. */
+  readonly heightM: number;
+  readonly nodes: number;
+  readonly why: string;
+}
+
+const DRAWER_FRONT_RENAME =
+  "wave 6S: a drawer front is named for what it is, so ADR 0070 can price its runners";
+
+/** The two drawer heights `baseCabinet(w, { drawers })` builds, in metres: a three-drawer base
+ *  stacks 240 mm bands and a pan bank stacks 360, each front `GAP` shorter than its band. */
+const PAN_DRAWER_FRONT_HEIGHT_M = 0.356;
+const THREE_DRAWER_FRONT_HEIGHT_M = 0.236;
+
+/** The drawer fronts one `baseCabinet(w, { drawers })` call builds. `prefix` is the path from the
+ *  compared root down to the `base_cabinet` group. */
+function drawerFrontRename(
+  prefix: string,
+  drawer: { readonly heightM: number; readonly nodes: number },
+): DeclaredMeshRename {
+  return {
+    parent: `${prefix}base_cabinet > door`,
+    from: "door_front",
+    to: "drawer_front",
+    heightM: drawer.heightM,
+    nodes: drawer.nodes,
+    why: DRAWER_FRONT_RENAME,
+  };
+}
+
+const DECLARED_MESH_RENAMES: ReadonlyMap<
+  string,
+  readonly DeclaredMeshRename[]
+> = new Map([
+  [
+    "base-3drawer",
+    [drawerFrontRename("", { heightM: THREE_DRAWER_FRONT_HEIGHT_M, nodes: 3 })],
+  ],
+  [
+    "base-panbank",
+    [drawerFrontRename("", { heightM: PAN_DRAWER_FRONT_HEIGHT_M, nodes: 2 })],
+  ],
+  // The seeded kitchen's whole drawer population, and ADR 0070's own figure for it: the hob base's
+  // two pan drawers and the three-drawer base's three. Counted and split by height rather than
+  // derived, so a sixth drawer appearing — or one of these five ceasing to be one, or a hinged leaf
+  // being renamed alongside them — turns the gate red.
+  [
+    "kitchen-l",
+    [
+      drawerFrontRename("kitchen_l_shape > ", {
+        heightM: PAN_DRAWER_FRONT_HEIGHT_M,
+        nodes: 2,
+      }),
+      drawerFrontRename("kitchen_l_shape > ", {
+        heightM: THREE_DRAWER_FRONT_HEIGHT_M,
+        nodes: 3,
+      }),
+    ],
+  ],
+]);
+
 const DECLARED_STRUCTURAL_CHANGES: ReadonlyMap<
   string,
   readonly DeclaredStructuralChange[]
@@ -248,6 +335,7 @@ const DECLARED_STRUCTURAL_CHANGES: ReadonlyMap<
 function openLedger(
   declared: readonly DeclaredDivergence[],
   structural: readonly DeclaredStructuralChange[],
+  renames: readonly DeclaredMeshRename[],
   root: string,
 ) {
   refuseTwoDeclarationsOnOneNode(structural);
@@ -256,6 +344,9 @@ function openLedger(
   );
   const structuralSeen = new Map<DeclaredStructuralChange, number>(
     structural.map((entry) => [entry, 0]),
+  );
+  const renameSeen = new Map<DeclaredMeshRename, number>(
+    renames.map((entry) => [entry, 0]),
   );
   return {
     accepts(node: string, field: string, index: number, deltaM: number) {
@@ -297,7 +388,30 @@ function openLedger(
         return false;
       });
     },
+    /** The name this child is expected to carry: the reference's, unless a rename is declared for
+     *  this exact parent and reference name — in which case the declared new name, recorded as
+     *  used. Everything else about the node is compared as before. Called once per child, by the
+     *  child-order comparison, which then hands the answer to that child's own recursion. */
+    renamedTo(parent: string, expectedChild: StructureNode): string {
+      const entry = renames.find(
+        (candidate) =>
+          `${root} > ${candidate.parent}` === parent &&
+          candidate.from === expectedChild.name &&
+          Math.abs(
+            (expectedChild.size?.[1] ?? Number.NaN) - candidate.heightM,
+          ) <= FLOAT_EPSILON_METRES,
+      );
+      if (!entry) return expectedChild.name;
+      renameSeen.set(entry, (renameSeen.get(entry) ?? 0) + 1);
+      return entry.to;
+    },
     expectFullyUsed() {
+      for (const [entry, count] of renameSeen) {
+        expect(
+          count,
+          `${entry.parent} > ${entry.from} → ${entry.to} — ${entry.why}`,
+        ).toBe(entry.nodes);
+      }
       for (const [entry, count] of seen) {
         expect(
           count,
@@ -409,16 +523,22 @@ function expectNumbersClose(
   });
 }
 
+/** `expectedName` is the reference node's name **with this node's declared rename already applied**,
+ *  resolved once by its parent's child-order comparison below. Passed down rather than looked up
+ *  again here, so a declared rename is counted exactly once per node it renames — looked up twice it
+ *  would satisfy a `nodes: 2` declaration on a single mesh. The root has no parent to resolve it, and
+ *  no rename is ever declared on one. */
 function expectStructureMatches(
   actual: StructureNode,
   expected: StructureNode,
   path = "",
   ledger?: Ledger,
+  expectedName: string = expected.name,
 ) {
   const here = path
     ? `${path} > ${actual.name || actual.kind}`
     : actual.name || actual.kind;
-  expect(actual.name, `${here}: name`).toBe(expected.name);
+  expect(actual.name, `${here}: name`).toBe(expectedName);
   expect(actual.kind, `${here}: object type`).toBe(expected.kind);
   expect(actual.geometry, `${here}: geometry type`).toBe(expected.geometry);
   expect(actual.material, `${here}: material name`).toBe(expected.material);
@@ -466,16 +586,20 @@ function expectStructureMatches(
   const expectedChildren =
     ledger?.reconcileChildren(here, expected.children, "removed") ??
     expected.children;
+  const expectedChildNames = expectedChildren.map(
+    (child) => ledger?.renamedTo(here, child) ?? child.name,
+  );
   expect(
     actualChildren.map((child) => child.name),
     `${here}: child order`,
-  ).toEqual(expectedChildren.map((child) => child.name));
+  ).toEqual(expectedChildNames);
   actualChildren.forEach((child, index) => {
     expectStructureMatches(
       child,
       required(expectedChildren[index], `child ${String(index)}`),
       here,
       ledger,
+      required(expectedChildNames[index], `child name ${String(index)}`),
     );
   });
 }
@@ -490,11 +614,16 @@ function expectStructureMatchesReference(
 ) {
   const declared = DECLARED_DIVERGENCES.get(declarationKey) ?? [];
   const structural = DECLARED_STRUCTURAL_CHANGES.get(declarationKey) ?? [];
-  if (declared.length === 0 && structural.length === 0) {
+  const renames = DECLARED_MESH_RENAMES.get(declarationKey) ?? [];
+  if (
+    declared.length === 0 &&
+    structural.length === 0 &&
+    renames.length === 0
+  ) {
     expectStructureMatches(actual, expected, path);
     return;
   }
-  const ledger = openLedger(declared, structural, path);
+  const ledger = openLedger(declared, structural, renames, path);
   expectStructureMatches(actual, expected, path, ledger);
   ledger.expectFullyUsed();
 }
@@ -506,7 +635,7 @@ function meshNamesAfterDeclaredChanges(
   key: string,
   referenceNames: readonly string[],
 ): string[] {
-  const names = [...referenceNames];
+  const names = renameDeclaredMeshes(key, referenceNames);
   for (const change of DECLARED_STRUCTURAL_CHANGES.get(key) ?? []) {
     const why = `${change.parent} > ${change.node}: ${change.change} — ${change.why}`;
     for (let occurrence = 0; occurrence < change.nodes; occurrence++) {
@@ -522,6 +651,35 @@ function meshNamesAfterDeclaredChanges(
         names.splice(at, 1);
       }
     }
+  }
+  return names;
+}
+
+/** The reference's mesh names with this key's declared **renames** applied, in place: the `nodes`th
+ *  occurrence of each `from` becomes its `to`, and a declaration with fewer occurrences than it
+ *  claims fails here rather than passing as a shorter list.
+ *
+ *  Position-preserving on purpose. For a key with no structural change this list is compared in
+ *  traversal order, so a rename that also moved a slab differs at a position this reports; for a
+ *  key that is compared as a multiset the hierarchy walk pins each rename to its own parent. */
+function renameDeclaredMeshes(
+  key: string,
+  referenceNames: readonly string[],
+): string[] {
+  const names = [...referenceNames];
+  for (const rename of DECLARED_MESH_RENAMES.get(key) ?? []) {
+    const why = `${rename.parent} > ${rename.from} → ${rename.to} — ${rename.why}`;
+    // By name and count only: this list is flat and carries no heights, so a key whose renames are
+    // scoped by height is compared as a multiset (below) and it is the hierarchy walk that pins each
+    // rename to the slab it belongs to.
+    const at = names.flatMap((name, index) =>
+      name === rename.from ? [index] : [],
+    );
+    expect(
+      at.length,
+      `${why}: occurrences of ${rename.from}`,
+    ).toBeGreaterThanOrEqual(rename.nodes);
+    for (const index of at.slice(0, rename.nodes)) names[index] = rename.to;
   }
   return names;
 }
@@ -543,7 +701,10 @@ describe("ported builders reproduce the reference tree", () => {
       // Traversal order for a key with nothing declared; the same names as a multiset for a key
       // whose tree gained a node in the middle of that traversal — where the order itself is
       // asserted, node by node, by the hierarchy comparison below.
-      if (DECLARED_STRUCTURAL_CHANGES.has(key)) {
+      if (
+        DECLARED_STRUCTURAL_CHANGES.has(key) ||
+        DECLARED_MESH_RENAMES.has(key)
+      ) {
         expect([...portedNames].sort()).toEqual([...expectedNames].sort());
       } else {
         expect(portedNames).toEqual(expectedNames);
@@ -655,7 +816,7 @@ describe("the structural ledger cannot exempt a node from being compared", () =>
   ];
 
   it("refuses a node declared both added and removed", () => {
-    expect(() => openLedger([], BOTH_WAYS, "base-dishwasher")).toThrow(
+    expect(() => openLedger([], BOTH_WAYS, [], "base-dishwasher")).toThrow(
       /more than one structural declaration/,
     );
   });
@@ -663,7 +824,12 @@ describe("the structural ledger cannot exempt a node from being compared", () =>
   it("opens on every declaration this file actually makes", () => {
     for (const [key, structural] of DECLARED_STRUCTURAL_CHANGES) {
       expect(() =>
-        openLedger(DECLARED_DIVERGENCES.get(key) ?? [], structural, key),
+        openLedger(
+          DECLARED_DIVERGENCES.get(key) ?? [],
+          structural,
+          DECLARED_MESH_RENAMES.get(key) ?? [],
+          key,
+        ),
       ).not.toThrow();
     }
   });

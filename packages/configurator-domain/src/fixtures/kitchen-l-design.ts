@@ -24,6 +24,19 @@ import {
 } from "../occupied-depth.js";
 import { carriesHandles, NO_CABINET_HANDLES } from "../cabinet-handles.js";
 import {
+  BASE_DOOR_BAND_HEIGHT_MM,
+  carriesDrawers,
+  carriesFronts,
+  doorBandsMm,
+  NO_DRAWERS,
+  NO_OPENING_FRONTS,
+  OVEN_TOWER_DOOR_BAND_HEIGHTS_MM,
+  PANTRY_DOOR_BAND_HEIGHTS_MM,
+  refuseContradictoryFrontDeclarations,
+  wallDoorBandHeightMm,
+  type FrontPopulationRule,
+} from "../front-population.js";
+import {
   cabinetDepthRuleOf,
   FOLLOWS_CABINET_DEPTH,
   IS_A_MANUFACTURED_SIZE,
@@ -109,6 +122,37 @@ function cornerBaseReturnFinishedDepthMm(cabinetDepthMm: number): number {
  *  The alternative the planning had recommended — follow their column — would have put `p24` at
  *  exactly the 742 mm `docs/BACKLOG.md` entry 15 names as unmanufacturable, on a shipped body. */
 const PINNED_DEEP_TOP_FINISHED_DEPTH_MM = 600;
+
+/** **A seeded base body's hinged leaves** — one 710 mm band, this many leaves standing in it. The
+ *  band constant is imported rather than retyped: a seeded base body is `baseCabinet` called at one
+ *  width (ADR 0011 Gap A), so it is the same slab §7's own row declares. */
+function baseLeaves(leavesPerBand: number): FrontPopulationRule {
+  return carriesFronts({
+    doorBands: doorBandsMm([BASE_DOOR_BAND_HEIGHT_MM]),
+    leavesPerBand,
+    drawers: NO_DRAWERS,
+  });
+}
+
+/** **A seeded wall body's hinged leaves** — one band as tall as this already-built carcass leaves
+ *  it, and this many leaves in it. A seeded row states a height rather than a rule for the reason it
+ *  states a handle count rather than a per-door one: it is one body at one size, so there is nothing
+ *  for the height to follow. `wallDoorBandHeightMm` is what keeps that literal and §7's
+ *  `one-band-under-frame` rule from being two numbers that agree by luck. */
+function wallLeaves(leaves: {
+  readonly frameHeightMm: number;
+  readonly leavesPerBand: number;
+}): FrontPopulationRule {
+  return carriesFronts({
+    doorBands: doorBandsMm([wallDoorBandHeightMm(leaves.frameHeightMm)]),
+    leavesPerBand: leaves.leavesPerBand,
+    drawers: NO_DRAWERS,
+  });
+}
+
+/** The one seeded base leaf: `base-corner-x-900`'s 280 mm door and `base-dishwasher-600`'s decor
+ *  door are both one leaf in the same band. */
+const oneBaseLeaf: FrontPopulationRule = baseLeaves(1);
 
 /** §13.1: "Corners are structural. No replace, no delete, never a width donor", repeated by §11
  *  row 16 — so a corner body also has no finish and no handle to offer, and the panel renders
@@ -284,6 +328,7 @@ export function buildSeededBodyDefinitions(
       {
         ...baseCarcass,
         cabinetHandles: carriesHandles(1),
+        fronts: oneBaseLeaf,
         ...STRUCTURAL_CORNER,
         kind: "corner_base_x",
         // ADR 0025's anomaly, preserved: the seat is the **base run's carcass depth** and not this
@@ -298,6 +343,8 @@ export function buildSeededBodyDefinitions(
       {
         ...baseCarcass,
         cabinetHandles: NO_CABINET_HANDLES,
+        // The one seeded base body with no front at all: the return leg is a carcass and a worktop.
+        fronts: NO_OPENING_FRONTS,
         ...STRUCTURAL_CORNER,
         kind: "corner_base_return",
         frameDepthMm: baseSeatDepthMm(cabinetDepthMm),
@@ -311,6 +358,7 @@ export function buildSeededBodyDefinitions(
       {
         ...baseCarcass,
         cabinetHandles: carriesHandles(2),
+        fronts: baseLeaves(2),
         kind: "base_cabinet",
         frameDepthMm: baseSeatDepthMm(cabinetDepthMm),
         ...namedAfterCatalogEquivalent("base-sink"),
@@ -321,6 +369,7 @@ export function buildSeededBodyDefinitions(
       {
         ...baseCarcass,
         cabinetHandles: carriesHandles(1),
+        fronts: oneBaseLeaf,
         kind: "dishwasher_housing",
         frameDepthMm: baseSeatDepthMm(cabinetDepthMm),
         occupiedDepth: finishesAtMm(baseFinishedDepthMm(cabinetDepthMm)),
@@ -332,6 +381,7 @@ export function buildSeededBodyDefinitions(
       {
         ...baseCarcass,
         cabinetHandles: carriesHandles(2),
+        fronts: carriesDrawers(2),
         kind: "base_cabinet",
         frameDepthMm: baseSeatDepthMm(cabinetDepthMm),
         ...namedAfterCatalogEquivalent("base-panbank"),
@@ -342,6 +392,7 @@ export function buildSeededBodyDefinitions(
       {
         ...baseCarcass,
         cabinetHandles: carriesHandles(3),
+        fronts: carriesDrawers(3),
         kind: "base_cabinet",
         frameDepthMm: baseSeatDepthMm(cabinetDepthMm),
         ...namedAfterCatalogEquivalent("base-3drawer"),
@@ -356,6 +407,7 @@ export function buildSeededBodyDefinitions(
       {
         ...baseCarcass,
         cabinetHandles: carriesHandles(2),
+        fronts: carriesDrawers(2),
         kind: "base_cabinet",
         frameDepthMm: baseSeatDepthMm(cabinetDepthMm),
         // ADR 0027: 600 mm in both directions, matching the catalogue entry. `baseCarcass` defaults
@@ -379,6 +431,13 @@ export function buildSeededBodyDefinitions(
       {
         ...columnCarcass,
         cabinetHandles: carriesHandles(2),
+        // Two 500 mm cabinet leaves in a 2200 mm frame — the appliance fascias between them are
+        // neither, for the reason their bars are not cabinet handles (ADR 0061 decision 2).
+        fronts: carriesFronts({
+          doorBands: doorBandsMm(OVEN_TOWER_DOOR_BAND_HEIGHTS_MM),
+          leavesPerBand: 1,
+          drawers: NO_DRAWERS,
+        }),
         // The rule: **a body that can only be built at one width must never be a §5.4 donor**,
         // whose `canGive` reads "not `fixedWidth`". A column is 600 and nothing else, so this is
         // `true`; `columnCarcass` defaults to `false`. Latent until M5 wires resize, found in the
@@ -405,6 +464,14 @@ export function buildSeededBodyDefinitions(
       {
         ...columnCarcass,
         cabinetHandles: carriesHandles(4),
+        // **ADR 0070's named case.** Two bands of two leaves at this width: 1290 mm and 790 mm,
+        // against this row's own declared `frameHeightMm: 2200` below. They do not sum to it, and
+        // that gap is the whole reason a band height is declared rather than read off the frame.
+        fronts: carriesFronts({
+          doorBands: doorBandsMm(PANTRY_DOOR_BAND_HEIGHTS_MM),
+          leavesPerBand: 2,
+          drawers: NO_DRAWERS,
+        }),
         // **Not fixed, since ADR 0048** — and this row is the one place in the fixture where that
         // record is visible. It read "Fixed for `tall-oven-tower-600`'s reason above: one buildable
         // width, so never a §5.4 donor", and that reason has stopped being true of this cabinet:
@@ -430,6 +497,7 @@ export function buildSeededBodyDefinitions(
       {
         ...columnCarcass,
         cabinetHandles: NO_CABINET_HANDLES,
+        fronts: NO_OPENING_FRONTS,
         kind: "fridge_freestanding",
         // A freestanding appliance, not a carcass: it builds no `door_front`, and its two handle
         // bars hang off the appliance's own group. `columnCarcass`'s `true`/`true` therefore
@@ -456,6 +524,10 @@ export function buildSeededBodyDefinitions(
       {
         ...wallCarcass,
         cabinetHandles: carriesHandles(2),
+        // `wall-2door-600`, `wall-1door-300` and `wall-2door-800` are all 700 mm carcasses — the
+        // nominal a wall row is built at, which is why none of them restates it as `frameHeightMm`
+        // — so every one of their leaves is a 694 mm band.
+        fronts: wallLeaves({ frameHeightMm: 700, leavesPerBand: 2 }),
         kind: "wall_cabinet",
         frameDepthMm: wallCarcassSeatDepthMm(cabinetDepthMm),
         ...namedAfterCatalogEquivalent("wall-cabinet"),
@@ -466,6 +538,7 @@ export function buildSeededBodyDefinitions(
       {
         ...wallCarcass,
         cabinetHandles: carriesHandles(1),
+        fronts: wallLeaves({ frameHeightMm: 700, leavesPerBand: 1 }),
         ...STRUCTURAL_CORNER,
         // ADR 0066: its own kind, so the priced document does not call it and its top-row twin the
         // same "Corp suspendat" at two different amounts. A name only — it stays structural, keeps
@@ -479,6 +552,7 @@ export function buildSeededBodyDefinitions(
       {
         ...wallCarcass,
         cabinetHandles: carriesHandles(1),
+        fronts: wallLeaves({ frameHeightMm: 700, leavesPerBand: 1 }),
         kind: "wall_cabinet",
         frameDepthMm: wallCarcassSeatDepthMm(cabinetDepthMm),
         ...namedAfterCatalogEquivalent("wall-cabinet"),
@@ -489,6 +563,7 @@ export function buildSeededBodyDefinitions(
       {
         ...wallCarcass,
         cabinetHandles: carriesHandles(2),
+        fronts: wallLeaves({ frameHeightMm: 700, leavesPerBand: 2 }),
         kind: "wall_cabinet",
         frameDepthMm: wallCarcassSeatDepthMm(cabinetDepthMm),
         ...namedAfterCatalogEquivalent("wall-cabinet"),
@@ -499,6 +574,7 @@ export function buildSeededBodyDefinitions(
       {
         ...wallCarcass,
         cabinetHandles: NO_CABINET_HANDLES,
+        fronts: NO_OPENING_FRONTS,
         kind: "open_shelf_unit",
         // An open shelf has no door and no drawer: `collectFronts` finds nothing to recolour, so
         // `canFinish: true` from `wallCarcass` made §9 render a *Finisaj* section whose every chip
@@ -518,6 +594,7 @@ export function buildSeededBodyDefinitions(
       {
         ...wallCarcass,
         cabinetHandles: NO_CABINET_HANDLES,
+        fronts: NO_OPENING_FRONTS,
         kind: EXTRACTOR_HOOD_KIND,
         // A hood is a canopy and a chimney: no front, so nothing for a finish chip to recolour.
         // Same correction as `open-shelf-600` above, matching the `hood` catalogue row.
@@ -534,6 +611,7 @@ export function buildSeededBodyDefinitions(
       {
         ...topCarcass,
         cabinetHandles: carriesHandles(2),
+        fronts: wallLeaves({ frameHeightMm: 400, leavesPerBand: 2 }),
         kind: "wall_cabinet",
         frameDepthMm: wallCarcassSeatDepthMm(cabinetDepthMm),
         frameHeightMm: 400,
@@ -545,6 +623,7 @@ export function buildSeededBodyDefinitions(
       {
         ...topCarcass,
         cabinetHandles: carriesHandles(1),
+        fronts: wallLeaves({ frameHeightMm: 400, leavesPerBand: 1 }),
         kind: "wall_cabinet",
         frameDepthMm: wallCarcassSeatDepthMm(cabinetDepthMm),
         frameHeightMm: 400,
@@ -556,6 +635,7 @@ export function buildSeededBodyDefinitions(
       {
         ...topCarcass,
         cabinetHandles: carriesHandles(2),
+        fronts: wallLeaves({ frameHeightMm: 400, leavesPerBand: 2 }),
         kind: "wall_cabinet",
         frameDepthMm: wallCarcassSeatDepthMm(cabinetDepthMm),
         frameHeightMm: 400,
@@ -567,6 +647,7 @@ export function buildSeededBodyDefinitions(
       {
         ...topCarcass,
         cabinetHandles: carriesHandles(1),
+        fronts: wallLeaves({ frameHeightMm: 400, leavesPerBand: 1 }),
         ...STRUCTURAL_CORNER,
         // ADR 0066, and the reason there are two kinds rather than one: this return differs from
         // `wall-corner-return-570` by its row, and the breakdown line renders no band.
@@ -580,6 +661,7 @@ export function buildSeededBodyDefinitions(
       {
         ...topCarcass,
         cabinetHandles: carriesHandles(2),
+        fronts: wallLeaves({ frameHeightMm: 400, leavesPerBand: 2 }),
         kind: "wall_cabinet",
         // **Pinned, and the pin is the declaration below rather than this number** (ADR 0058
         // decision 2), so what makes this row hold still is one greppable field and not a constant
@@ -602,6 +684,8 @@ export function buildSeededBodyDefinitions(
       {
         ...topCarcass,
         cabinetHandles: carriesHandles(2),
+        // The one seeded wall body that is neither 700 nor 400: a 750 mm box, so a 744 mm band.
+        fronts: wallLeaves({ frameHeightMm: 750, leavesPerBand: 2 }),
         kind: "wall_cabinet",
         // Pinned for `wall-2door-600-deep-top`'s reason, and this is the row the decision cost the
         // most argument: over the freestanding fridge it already sits 142 mm recessed at 600, and
@@ -652,6 +736,11 @@ export function buildKitchenLBodyCatalog(cabinetDepthMm: number): BodyCatalog {
     ...buildInsertableBodyDefinitions(cabinetDepthMm),
   ];
   refuseUndeclaredDepthRules(entries);
+  // The same stance one declaration over (ADR 0070, wave 6S): `carriesFronts` refuses a
+  // contradictory rule where it is written, and this refuses one that arrived through the
+  // `BodyCatalog` port without passing a constructor — which is also the only caller that has the
+  // row's id to name.
+  refuseContradictoryFrontDeclarations(entries);
   return new Map<string, BodyDefinition>(entries);
 }
 

@@ -37,6 +37,12 @@ import { findMeshes, meshNames, worldBox } from "./support/structure.js";
  *  code it checks proves only that the code equals itself. ADR 0051 decision 2 makes this name the
  *  load-bearing thing, so it is the one string this file must not import. */
 const FRONT_MESH_NAME = /door_front|drawer_front/;
+
+/** The two names that pattern is made of, retyped here for its reason. Wave 6S made the second one
+ *  real: until then every front in the kit was a `door_front`, drawer fronts included, and the
+ *  pattern matched a name nothing drew. */
+const DOOR_FRONT_MESH_NAME = "door_front";
+const DRAWER_FRONT_MESH_NAME = "drawer_front";
 const HANDLE_GROUP_NAME = "handle";
 const HANDLE_BAR_MESH_NAME = "handle_bar";
 
@@ -96,6 +102,43 @@ const DECOR_DOOR_MESHES = [
   "handle_stem",
 ];
 
+/** **Wave 6S's rename, declared rather than absorbed.** Every front in this kit was named
+ *  `door_front` until 6S, drawer fronts included, so no gate could tell a leaf from a drawer — and
+ *  ADR 0070 prices hinges by leaf and runners by drawer. `drawerSlab` now names its slab
+ *  `drawer_front`, and these are the builders that draw one, with how many each draws.
+ *
+ *  Counted per builder rather than pattern-matched: a rename that reached a hinged leaf would show
+ *  up as the wrong count here, and a builder that stopped drawing drawers as an unused declaration.
+ *  `kitchen-l` draws five — the hob base's two pan drawers and the three-drawer base's three — which
+ *  is the seeded kitchen's whole drawer population and ADR 0070's own figure for it. */
+const DRAWER_FRONTS_BY_BUILDER: ReadonlyMap<string, number> = new Map([
+  ["base-3drawer", 3],
+  ["base-panbank", 2],
+  ["kitchen-l", 5],
+]);
+
+/** Holds the port to the reference **position for position**, allowing exactly the declared number
+ *  of `door_front` → `drawer_front` substitutions and nothing else. Stronger than comparing sorted
+ *  multisets: a rename that also moved a slab, or renamed one front and un-renamed another, differs
+ *  at a position this reports. */
+function expectOnlyDrawerFrontsRenamed(
+  portedNames: readonly string[],
+  referenceNames: readonly string[],
+  key: string,
+): void {
+  expect(portedNames.length, `${key}: mesh count`).toBe(referenceNames.length);
+  const substitutions = portedNames.flatMap((name, at) =>
+    name === referenceNames[at] ? [] : [[referenceNames[at], name]],
+  );
+
+  expect(substitutions, key).toEqual(
+    Array.from({ length: DRAWER_FRONTS_BY_BUILDER.get(key) ?? 0 }, () => [
+      DOOR_FRONT_MESH_NAME,
+      DRAWER_FRONT_MESH_NAME,
+    ]),
+  );
+}
+
 function expectedNicheSequence(referenceNames: readonly string[]): string[] {
   const at = referenceNames.indexOf("dw_body");
   expect(at, "the reference tree has no dw_body").toBeGreaterThanOrEqual(0);
@@ -151,8 +194,10 @@ describe("5B10: the declared structural change is exactly what the port builds",
       required(referenceKit.builders["kitchen-l"], "kitchen-l")(),
     );
 
-    expect(meshNames(kit.builders["kitchen-l"]())).toEqual(
+    expectOnlyDrawerFrontsRenamed(
+      meshNames(kit.builders["kitchen-l"]()),
       expectedNicheSequence(referenceNames),
+      "kitchen-l",
     );
   });
 
@@ -169,10 +214,20 @@ describe("5B10: the declared structural change is exactly what the port builds",
 
     for (const key of untouched) {
       const ported = kit.builders[key as keyof typeof kit.builders];
-      expect(meshNames(ported()), key).toEqual(
+      expectOnlyDrawerFrontsRenamed(
+        meshNames(ported()),
         meshNames(required(referenceKit.builders[key], key)()),
+        key,
       );
     }
+
+    // No declaration goes unused: a builder listed as drawing drawers and no longer drawing any is
+    // as much a change as an undeclared rename, and would otherwise pass silently above.
+    expect(
+      [...DRAWER_FRONTS_BY_BUILDER.keys()].filter((key) =>
+        untouched.includes(key),
+      ),
+    ).toEqual(["base-3drawer", "base-panbank"]);
   });
 
   // ADR 0051 decision 3's promise about the *other* factory. The parts gallery still draws the
@@ -257,9 +312,14 @@ function doorGroupOf(group: THREE.Group): THREE.Object3D {
  *  fronts of different sizes — which is what makes "the same edge `base-3drawer` uses" an
  *  assertion rather than a retyped 0.04. */
 function handleAnchorOf(root: THREE.Object3D, door: THREE.Object3D) {
+  // Either front name: wave 6S split `door_front` into `door_front` and `drawer_front`, and this
+  // helper is used on both — the whole point of the comparison below is that a drawer front and a
+  // decor door hang their bar on the same edge.
   const front = required(
-    door.children.find((child) => isMesh(child) && child.name === "door_front"),
-    "door_front",
+    door.children.find(
+      (child) => isMesh(child) && FRONT_MESH_NAME.test(child.name),
+    ),
+    "a front slab",
   );
   const bars = findMeshes(door, HANDLE_BAR_MESH_NAME);
   expect(bars.length, "bars on this front").toBe(1);
@@ -341,26 +401,19 @@ describe("5B10: the decor door subtree, which the parity gate cannot see", () =>
     expect(anchor.offCentreX).toBeCloseTo(0, 9);
     expect(anchor.aboveMidHeight, "a top bar is in the upper half").toBe(true);
 
+    // **Since wave 6S this is found by the name that says what it is**, rather than by "a
+    // `door_front` in a body that happens to be a drawer stack": `base-3drawer` builds three
+    // `drawer_front` slabs and nothing else in the kit answers to that name unless it is a drawer.
     const drawers = kit.builders["base-3drawer"]();
     const drawerDoor = required(
-      drawers.children
-        .flatMap((child) => (isMesh(child) ? [] : child.children))
-        .find(
-          (child) =>
-            !isMesh(child) &&
-            child.children.some(
-              (grandchild) =>
-                isMesh(grandchild) && grandchild.name === "door_front",
-            ),
-        ) ??
-        drawers.children.find(
-          (child) =>
-            !isMesh(child) &&
-            child.children.some(
-              (grandchild) =>
-                isMesh(grandchild) && grandchild.name === "door_front",
-            ),
-        ),
+      drawers.children.find(
+        (child) =>
+          !isMesh(child) &&
+          child.children.some(
+            (grandchild) =>
+              isMesh(grandchild) && grandchild.name === DRAWER_FRONT_MESH_NAME,
+          ),
+      ),
       "a drawer front",
     );
     const drawerAnchor = handleAnchorOf(drawers, drawerDoor);

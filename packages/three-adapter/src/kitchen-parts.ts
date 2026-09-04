@@ -299,6 +299,22 @@ const COUNTER_FORWARD_OFFSET_MM = 20;
 const COUNTER_REAR_OVERHANG_MM =
   COUNTER_OVERHANG_MM / 2 - COUNTER_FORWARD_OFFSET_MM;
 
+/** **The two front slabs this kit draws, and the only thing that tells them apart.** A leaf hangs on
+ *  hinges and a drawer front rides on runners, and ADR 0070 prices those as different mechanisms —
+ *  so the difference has to survive into the built scene for a parity gate to hold the catalogue's
+ *  declaration to it.
+ *
+ *  Until M6 wave 6S **every front in the kit was named `door_front`**, `base-panbank`'s drawer
+ *  fronts included; `finishes.ts` said so in as many words and its `FRONT_MESH_NAME` already
+ *  matched a `drawer_front` nothing drew. So recolouring is unaffected by the split — which is the
+ *  check that made the rename cheap, and it is asserted rather than assumed
+ *  (`front-population.parity.test.ts`).
+ *
+ *  `oven_filler_door_front` is deliberately neither: it is a fixed facade over the oven cavity,
+ *  nothing behind it opens, and it is built by `ovenFillerFront` rather than by these. */
+export const DOOR_FRONT_MESH_NAME = "door_front";
+export const DRAWER_FRONT_MESH_NAME = "drawer_front";
+
 /** The finished panel that closes the right end of wall A's base run. Named here because ADR 0045
  *  makes its along-wall seat derived (`kitchen-shell.ts`) while its existence stays a fixed entry
  *  in the shell manifest — one name, read by the builder and by the derivation. */
@@ -666,10 +682,15 @@ export function makeKit(options: KitOptions = {}): Kit {
 
   const TH = 0.018; // door / panel thickness
 
-  // door slab; handleEdge: 'left'|'right' (vertical bar), or a horizontal bar on
-  // the 'top' edge (drawers, and doors below the worktop) or the 'bottom' edge.
-  // Anything overhead gets its bar at the bottom: that is the edge a hand can
-  // actually reach on a cabinet mounted above eye level.
+  /** **A hinged leaf.** `handleEdge`: `'left'`/`'right'` for a vertical bar, or a horizontal bar on
+   *  the `'top'` edge (drawers, and doors below the worktop) or the `'bottom'` edge. Anything
+   *  overhead gets its bar at the bottom: that is the edge a hand can actually reach on a cabinet
+   *  mounted above eye level.
+   *
+   *  **`handleEdge` says where the bar goes and nothing else** — it is not, and must not become, how
+   *  anything tells a door from a drawer. `'top'` covers both, `bottleCargo`'s pull-out takes it,
+   *  `wall-lift`'s single flap takes `'bottom'`, and the oven tower's lower leaf takes `'top'` while
+   *  being a door. `drawerSlab` below is what states the difference. */
   function doorSlab(
     w: number,
     h: number,
@@ -678,8 +699,41 @@ export function makeKit(options: KitOptions = {}): Kit {
     z: number,
     handleEdge: HandleEdge = "top",
   ): THREE.Group {
+    return frontSlab(w, h, x, y, z, handleEdge, DOOR_FRONT_MESH_NAME);
+  }
+
+  /** **A drawer front**, and the only way this kit says so. Wave 6S: every front in the kit was
+   *  named `door_front`, `finishes.ts`'s `FRONT_MESH_NAME` already anticipated a `drawer_front` and
+   *  nothing drew one, so no parity gate could tell a leaf from a drawer — and ADR 0070 prices
+   *  hinges by leaf and runners by drawer.
+   *
+   *  **Declared here, never inferred from the handle edge** (ADR 0061's `kind`-is-not-enough
+   *  mistake, one field over). A drawer always carries its bar on the top edge, so the parameter is
+   *  not offered: a drawer with a vertical bar is not a body this kit builds.
+   *
+   *  Recolouring is unaffected: `FRONT_MESH_NAME` is `/door_front|drawer_front/` and already matched
+   *  both names before either was drawn, which is what makes this rename cheap. */
+  function drawerSlab(
+    w: number,
+    h: number,
+    x: number,
+    y: number,
+    z: number,
+  ): THREE.Group {
+    return frontSlab(w, h, x, y, z, "top", DRAWER_FRONT_MESH_NAME);
+  }
+
+  function frontSlab(
+    w: number,
+    h: number,
+    x: number,
+    y: number,
+    z: number,
+    handleEdge: HandleEdge,
+    frontMeshName: string,
+  ): THREE.Group {
     const g = G("door");
-    g.add(box(w, h, TH, M.door, "door_front", 0, -h, 0));
+    g.add(box(w, h, TH, M.door, frontMeshName, 0, -h, 0));
     if (handleEdge === "none") {
       /* push-to-open */
     } else if (handleEdge === "top")
@@ -806,7 +860,7 @@ export function makeKit(options: KitOptions = {}): Kit {
       const hs = drawers === 3 ? [0.24, 0.24, 0.24] : [0.36, 0.36];
       let y = PLINTH;
       for (const h of hs) {
-        g.add(doorSlab(w - 0.006, h - GAP, 0, y + h, fz, "top"));
+        g.add(drawerSlab(w - 0.006, h - GAP, 0, y + h, fz));
         y += h;
       }
     } else if (doors === 1) {
@@ -876,11 +930,12 @@ export function makeKit(options: KitOptions = {}): Kit {
   /** ADR 0026: the narrow pull-out for oil and vinegar bottles, ~200 mm wide.
    *
    *  A base carcass under the same worktop as every other base body, carrying **one** front over
-   *  its whole height. The front is a pull-out's, not a door's, and the difference is where the
-   *  handle goes: `"top"` puts a horizontal bar across the top edge, the way a drawer front carries
-   *  one, while a hinged single door (`baseCabinet(w, { doors: 1 })`) carries a vertical bar down
-   *  its opening side. At 200 mm those two read as different cabinets at a glance, which is the
-   *  point — the thumbnail draws the same horizontal bar.
+   *  its whole height. The front is a pull-out's, not a door's, and since wave 6S it is a
+   *  `drawerSlab` and says so: it runs on runners, so ADR 0070 prices it as a drawer and not as a
+   *  leaf on hinges. What a viewer sees is the handle edge — a horizontal bar across the top, the
+   *  way a drawer front carries one, while a hinged single door (`baseCabinet(w, { doors: 1 })`)
+   *  carries a vertical bar down its opening side. At 200 mm those two read as different cabinets
+   *  at a glance, which is the point — the thumbnail draws the same horizontal bar.
    *
    *  Not an option on `baseCabinet`: another flag on a builder that already branches four ways on
    *  `doors`/`drawers`/`sink` would make a fifth path through it, and this body shares only its
@@ -890,9 +945,7 @@ export function makeKit(options: KitOptions = {}): Kit {
     g.add(plinth(w, CARC_D));
     g.add(carcass(w, CARC_H, CARC_D, PLINTH));
     const fz = carcassFrontM + TH / 2;
-    g.add(
-      doorSlab(w - 0.006, CARC_H - 0.01, 0, PLINTH + CARC_H - 0.004, fz, "top"),
-    );
+    g.add(drawerSlab(w - 0.006, CARC_H - 0.01, 0, PLINTH + CARC_H - 0.004, fz));
     g.add(counter(w));
     return g;
   }

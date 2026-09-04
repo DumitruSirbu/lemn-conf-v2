@@ -23,6 +23,10 @@ import {
   NO_CABINET_HANDLES,
 } from "../../src/cabinet-handles.js";
 import {
+  carriesDrawers,
+  NO_OPENING_FRONTS,
+} from "../../src/front-population.js";
+import {
   KITCHEN_L_BODY_CATALOG,
   KITCHEN_L_DESIGN,
 } from "../../src/fixtures/kitchen-l-design.js";
@@ -316,6 +320,7 @@ describe("the two hob bases are distinguished only where the choice is made", ()
       canHandle: true,
       occupiedDepth: finishesAtMm(0),
       cabinetHandles: carriesHandles(0),
+      fronts: NO_OPENING_FRONTS,
     });
 
     expect(withoutTheChoice(drawers)).toEqual(withoutTheChoice(oven));
@@ -331,6 +336,16 @@ describe("the two hob bases are distinguished only where the choice is made", ()
     expect([drawers.cabinetHandles, oven.cabinetHandles]).toEqual([
       carriesHandles(2),
       NO_CABINET_HANDLES,
+    ]);
+
+    // **Masked above and asserted here for `cabinetHandles`' reason, since wave 6S** (ADR 0070).
+    // The same fact a third time, and the first time it is said precisely: the drawer variant's two
+    // fronts are **drawers** and run on runners, while the oven variant's single front is a fixed
+    // facade over the oven cavity that opens on nothing at all. Left inside the equality this would
+    // read as two bodies differing by a measurement, which is what this test refuses.
+    expect([drawers.fronts, oven.fronts]).toEqual([
+      carriesDrawers(2),
+      NO_OPENING_FRONTS,
     ]);
 
     // **The one measurement that does differ, and it is not one anything picks by** (DOM-002).

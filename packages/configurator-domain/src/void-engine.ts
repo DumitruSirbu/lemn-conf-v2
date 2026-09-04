@@ -70,6 +70,7 @@ export type StructuralReason = "corner";
 
 import { occupiedDepthM, type OccupiedDepthRule } from "./occupied-depth.js";
 import type { CabinetHandleRule } from "./cabinet-handles.js";
+import type { FrontPopulationRule } from "./front-population.js";
 import type { CabinetDepthRule } from "./cabinet-depth-rule.js";
 
 export interface Frame {
@@ -113,6 +114,20 @@ export interface BodyDefinition {
    *  `@lemnaria/three-adapter` — because the case that must fail loudly is a definition arriving
    *  through the `BodyCatalog` port from outside TypeScript, which a required field cannot reach. */
   readonly cabinetHandles?: CabinetHandleRule;
+  /** **What this body's fronts are** — how many door leaves, how many drawers, and how tall each
+   *  door band is (ADR 0070's first two recorded implementation gaps). `cabinetHandles` above is
+   *  one number covering the first two of those, and hinges are counted by leaf while runners are
+   *  counted by drawer, so one number cannot serve both. Declared, never inferred, for the reason
+   *  `cabinetHandles` is: the domain has no meshes, and telling a drawer front from a door leaf
+   *  inspects geometry. `front-population.ts` applies it and **throws** for an entry that declares
+   *  nothing, rather than falling back to zero fronts or to the frame height.
+   *
+   *  Optional here and required of every shipped entry by two sweeps instead — the catalogue-wide
+   *  declaration sweep in `front-population.test.ts` and the mesh parity gate in
+   *  `@lemnaria/three-adapter` — for the reason `cabinetHandles` is optional: the case that must
+   *  fail loudly is a definition arriving through the `BodyCatalog` port from outside TypeScript,
+   *  which a required field cannot reach. */
+  readonly fronts?: FrontPopulationRule;
   /** **Whether this body's depth follows the cabinet-depth setting** — ADR 0058 decision 2, so that
    *  the two deliberately deep top cabinets are pinned by a declaration a reader can grep rather
    *  than by a constant that has quietly stopped tracking anything. `cabinet-depth-rule.ts` applies
