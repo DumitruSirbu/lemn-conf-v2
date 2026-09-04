@@ -32,7 +32,7 @@ moment it ships; a decision record does not. When the two disagree, the dated de
 | M3 — Insert, remove, swap, client write path | **Done** (closed 2026-08-26) | No — `milestones/done/` |
 | M4 — Editor panel and shell | **Done** (closed 2026-08-26 — one criterion unmet by design, ADR 0024) | No — `milestones/done/` |
 | M5 — Width editing, and depth as a derived quantity | **In progress — 5E is the only wave open.** 5A–5D2c, 5F, 5G, 5H all shipped | Yes — `milestones/M5-*.md`, and ADRs 0028–0041, 0052, 0053 |
-| M6 — Price bar and global settings (incl. cabinet depth control) | **In progress — 10 of 19 waves DONE.** On branch `m6-price-and-global-settings`: 6A (`6c1f830`), 6H (`4afda06`), 6A3 and 6B2 (`eb9ba03`) shipped 2026-09-03; 6C (`194405b`) and 6D (`a5e161f`) shipped 2026-09-03 but only received their DONE marker this pass — a documentation gap, not new work; 6E (`b558e28`), 6G (`3e546d1`), 6I2 and 6M (merged at `ce77171`) shipped 2026-09-03/04. Open: 6F, 6J, 6K. Shipped-but-uncertified: 6A2, 6A4, 6B, 6I, 6L. Not started: 6N | Yes — `milestones/M6-*.md`, and ADRs 0055–0069 |
+| M6 — Price bar and global settings (incl. cabinet depth control) | **In progress — 11 of 19 tracked waves DONE** (the milestone's own table now runs to 24 with 6P–6T added 2026-09-04). On branch `m6-price-and-global-settings`: 6A (`6c1f830`), 6H (`4afda06`), 6A3 and 6B2 (`eb9ba03`) shipped 2026-09-03; 6C (`194405b`) and 6D (`a5e161f`) shipped 2026-09-03 but only received their DONE marker this pass — a documentation gap, not new work; 6E (`b558e28`), 6G (`3e546d1`), 6I2 and 6M (merged at `ce77171`) shipped 2026-09-03/04; 6S (`280daa4`, `a2bff48`) shipped 2026-09-04. Open: 6J, 6K, plus 6P–6R and 6T. Shipped-but-uncertified: 6A2, 6A4, 6B, 6I, 6L. Not started: 6N. 6F is superseded by ADR 0071's 6P–6R | Yes — `milestones/M6-*.md`, and ADRs 0055–0072 |
 | M7 — Step 1, room and presets | Planned | Yes, when starting |
 | M8 — Review, contact, success | Planned | Yes, when starting |
 | Adversarial review remediation | **Every finding closed or gated.** SEC-001 (High) deferred to M8 by owner decision, gated. Everything else — SCENE-001/002, WEB-001–004, DOM-001–003, SEC-002–004, DB-001/002/004 — is implemented and reviewed | Yes — `milestones/adversarial-review-remediation.md`, `milestones/dom-003-set-width-split.md` |
@@ -232,13 +232,14 @@ policy, so every per-endpoint limit is application code.
 ## What to do next
 
 **Next: M6, on branch `m6-price-and-global-settings`.** Read
-`milestones/M6-price-and-global-settings.md` for the 19-wave breakdown and ADRs 0055–0069 for the
-decisions behind it. All seven owner decisions are closed. **Ten of nineteen waves are DONE**: 6A,
-6H, 6A3, 6B2 (2026-09-03); 6C, 6D (shipped 2026-09-03, DONE marker added this pass — a pre-existing
-documentation gap, not new work); 6E, 6G, 6I2, 6M (2026-09-03/04, merged at `ce77171`). **Three
-remain open — 6F, 6J, 6K.** Five have shipped commits but no recorded criteria check — **6A2, 6A4,
-6B, 6I, 6L**, bundled inside `93e9bc3`/`75668b8`/`dfa6198` — do not read these as either closed or
-blocked without checking their own section. **6N has not started.**
+`milestones/M6-price-and-global-settings.md`, now a 24-wave breakdown (6P–6T added 2026-09-04 on
+ADRs 0070 and 0071, superseding 6F), and ADRs 0055–0072 for the decisions behind it. All seven
+original owner decisions are closed. **Eleven waves are DONE**: 6A, 6H, 6A3, 6B2 (2026-09-03); 6C, 6D
+(shipped 2026-09-03, DONE marker added this pass — a pre-existing documentation gap, not new work);
+6E, 6G, 6I2, 6M (2026-09-03/04, merged at `ce77171`); 6S (`280daa4`, `a2bff48`, 2026-09-04). **6J and
+6K remain open**, along with 6P–6R and 6T. Five have shipped commits but no recorded criteria check —
+**6A2, 6A4, 6B, 6I, 6L**, bundled inside `93e9bc3`/`75668b8`/`dfa6198` — do not read these as either
+closed or blocked without checking their own section. **6N has not started.**
 
 **Measured at the close of this pass by running `scripts/local-ci.sh` on the merged tree at
 `ce77171`** — the coordinating session ran the gates itself rather than accepting an agent's report,

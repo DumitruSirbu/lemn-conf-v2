@@ -1,13 +1,14 @@
 # M6 — Live price, breakdown, and whole-kitchen settings (2D, 2E)
 
 > **STATUS: IN PROGRESS — waves sequenced 2026-09-02, first waves shipped 2026-09-03; four more
-> closed overnight 2026-09-03/04.** **Ten of twenty-four waves are DONE** in the table below, each with
-> its commit(s): 6A (`6c1f830`), 6H (`4afda06`), 6A3 and 6B2 (`eb9ba03`), all shipped 2026-09-03.
+> closed overnight 2026-09-03/04.** **Eleven of twenty-four waves are DONE** in the table below, each
+> with its commit(s): 6A (`6c1f830`), 6H (`4afda06`), 6A3 and 6B2 (`eb9ba03`), all shipped 2026-09-03.
 > **6C (`194405b`) and 6D (`a5e161f`) are marked DONE by this pass** — both had already shipped and
 > `docs/STATUS.md` already carried QA evidence for 6C, but neither had ever received the table's DONE
 > marker; recorded here as the gap it is, not attributed to this session's own work. **6E (`b558e28`),
 > 6G (`3e546d1`), 6I2 and 6M** (merged together at `ce77171`, via intermediate merge `4c4e4e0`) shipped
-> 2026-09-03/04 on branch `m6-price-and-global-settings` and are this pass's actual close-out. **Not
+> 2026-09-03/04 on branch `m6-price-and-global-settings`. **6S** (`280daa4`, `a2bff48`) shipped
+> 2026-09-04 on the same branch and is this pass's close-out. **Not
 > marked DONE, and not to be read as closed either way**: 6B, 6A2, 6A4, 6I, 6L have shipped commits
 > (bundled inside `93e9bc3`/`75668b8`/`dfa6198`) but no recorded criteria check — see `docs/STATUS.md`.
 > **6J, 6K remain open**, and **6N has not started**. **6F is superseded** — see 6P–6R below.
@@ -252,7 +253,7 @@ constant (`worktop-depth.ts` carries a comment saying the rename is owed and def
 | 6P — the finish model: materials, palette, and a document that predates both *(ADR 0071)* | G | 6E | Full |
 | 6Q — a material change resolves every finish it does not offer *(ADR 0071, ADR 0057; supersedes 6F)* | G | 6P | Full |
 | 6R — three control shapes, and six decors the 3D approximates *(ADR 0071)* | G | 6Q, 6G | Light + visual |
-| 6S — door leaves, drawers and door band heights become declared facts *(ADR 0070)* | P | none | Full |
+| 6S — door leaves, drawers and door band heights become declared facts *(ADR 0070)* — **DONE 2026-09-04, `280daa4`/`a2bff48`** | P | none | Full |
 | 6T — hardware priced per mechanism, and the two sink extras *(ADR 0070)* | P | 6S, 6B2 | Full |
 
 The letters are identifiers and the table is in dependency order, with one exception: **6L is listed
@@ -2078,6 +2079,72 @@ claims are confirmed correct on screen and must not be disturbed:
   `front-population.ts`, and no front-slab height in `kitchen-parts.ts` derives from the depth the
   builder is handed. So a cabinet-depth change moves no leaf count, no drawer count and no band
   height.
+
+#### Wave 6S — shipped 2026-09-04, commits `280daa4` (`feat(domain): declare each body's front
+population, held honest by a parity gate`) and `a2bff48` (`fix(web): the overflow band overlaps no
+cabinet — correct a figure recorded as fact` — the owner-ruled scope addition above, deliberately
+split into its own commit so it is findable separately from the catalogue declaration work)
+
+**What shipped.** `front-population.ts` declares `FrontPopulationRule` and `DoorBandsRule`, publishing
+`doorLeafCount`, `drawerCount`, `doorBandHeightsMm` and `doorLeafHeightsMm` per catalogue entry.
+`BodyShape.fronts` is now required (it stays optional on `BodyDefinition`, which arrives through a
+port from outside TypeScript — two sweeps closed that gap). `kitchen-parts.ts` splits `drawerSlab`
+from `doorSlab` over a shared `frontSlab`. A 254-case parity gate holds the declarations to what the
+builders draw, and the wave adds 151 new domain test cases.
+
+**Gates at commit.** `format`, `lint`, `typecheck`, `build`, `boundary`, `lockfile` all PASS. Tests:
+domain **2206**, three-adapter **2021**, web **1284 + 4 skipped**, persistence **177/177**, e2e **57
+passed + 1 skipped**. `sca` clean. Two gate failures on the first run were environmental and confirmed,
+not assumed: 8 persistence tests failed on the known concurrent migration-rollback race and re-ran
+clean at 177/177; `sca` failed on an npm-registry socket timeout and retried clean.
+
+**The cross-check against ADR 0070's 74 hinges, stated as evidence rather than a number.** The owner
+derived 74 hinges from the catalogue *before* these declarations existed. The seeded design answers 36
+leaves with exactly 2 over 900 mm and 5 drawers, reconciling to 74 — verified a third way, off the
+built scene, by a QA probe. The two over-900 leaves are the pantry's 1290 mm bands inside a 2200 mm
+frame — the case a naive frame-height read gets wrong. **Falsified, not merely checked**: mutating the
+pantry to `[2200, 2200]` turns 10 gate cases red, and a sum-preserving permutation
+`[1290, 790] → [1080, 1000]` also dies, so the gate compares a multiset and not a sum.
+
+**QA found no defects. Both reviews returned no blockers.**
+
+**Review found one real interface defect, fixed within the wave.** No seeded placement uses
+`one-band-under-frame`, so a garbage `frameHeightMm` still answered 74 hinges — the wave's strongest
+guard was structurally blind to the input the two `heightFlex` rows depend on, and nothing would have
+caught a future wave 6T sourcing the height from a definition's nominal instead of the placement's
+own. Fixed by building the query from the placement and publishing leaf heights flat, with the count
+defined as their length. **That blindness is now itself a test**, so the 74-hinge check cannot be
+misread as evidence about the height source.
+
+**Three smaller fixes made within the wave:**
+
+- Band heights are copied and frozen at declaration rather than handed out by reference — a JS caller's
+  `.sort()` would otherwise have reordered a module constant process-wide.
+- A declaration with bands but no leaves per band, or the reverse, is now refused where it is written
+  instead of silently answering zero.
+- `FrontPopulationCountField` is renamed to `FrontPopulationField`, since two of its four members are
+  millimetre lengths, not counts.
+
+**An unexplained one-off, recorded rather than attributed.** A `front-population.parity` case failed
+once mid-development and never recurred; the failure message was filtered away and the run is gone.
+It stays **unexplained**. The diagnostic recipe is worth keeping because it makes a recurrence a
+one-line diagnosis: a stale `dist` would **throw** `UndeclaredFrontPopulationError` (the module fails
+closed), while anything else returns an assertion mismatch with two integers.
+
+**Related and newly known, with the exposure narrowed to where it actually is.** The **domain** suite
+has a `src`-newer-than-`dist` staleness guard (`dist-module-graph.test.ts`) and no other package has
+one — `mtimeMs` appears in that file and nowhere else in the repository. That does **not** mean
+`pnpm test` can run the adapter against a stale domain: the adapter's own `test` script is
+`build:deps && vitest run`, and `build:deps` rebuilds the domain first, so the sanctioned invocation
+is safe. The exposure is a bare `npx vitest run` inside `packages/three-adapter`, which skips
+`build:deps` and has nothing to catch what it skipped — and that is exactly how this wave's
+development runs were being made when the one-off occurred. So the filed item is not "give the
+adapter a guard" but "the guard the domain has protects only the package that owns it, and a direct
+`vitest` invocation bypasses the rebuild that stands in for it everywhere else".
+
+**Close-out notes already written above, in this wave's own section, are unchanged by this pass**: the
+two rows' mechanism contradictions (`wall-lift`, `base-bottle-cargo`) stay open for 6T to resolve, and
+`fronts` remains depth-invariant by construction for 6J to rely on without re-deriving it.
 
 ### Wave 6T — hardware priced per mechanism, and the two sink extras
 
