@@ -24,15 +24,18 @@
 > the residue 6K-a found and could not fix; and **6K-e**, on
 > [ADR 0074](../decisions/0074-the-scene-rebuilds-whole-at-a-depth-change.md), whose finding is that
 > the probe measuring a depth change holds a kit at the depth being left; and **6K-d**, adjudicated by
-> the coordinator from adversarial QA's finding, on a rebuild swapping a body for one declared at a
-> different depth under the same declaration kind. **None of the three gates 6K-b** — see
+> the coordinator from adversarial QA's finding and ruled the same day by
+> [ADR 0075](../decisions/0075-a-recorded-shell-declares-its-shell-not-its-finished-depth.md), on a
+> rebuild swapping a body for one declared at a different depth under the same declaration kind — whose
+> ruling reclassifies the measured 39 mm as a **fake-probe artefact** beside a narrower declaration
+> defect. **None of the three gates 6K-b** — see
 > the waves for what makes shipping the control safe before them. ADR 0074 also rules 6K-b's scene
 > half: the stage is rebuilt whole, keyed on the design's depth.
 > Depends on M5 (only wave 5E is still open
 > there, and it does not gate anything here). Summary: `docs/STATUS.md`. Start at **Waves** below,
 > then the owner section. **Twenty-seven waves, all
-> unblocked but 6K-d** (twenty-four until 6K-c, 6K-d and 6K-e were added on 2026-09-04; 6K-d wants an
-> architect pass on an unruled catalogue-declaration question before it can be implemented). The seven owner decisions were taken
+> unblocked** (twenty-four until 6K-c, 6K-d and 6K-e were added on 2026-09-04; 6K-d's architect pass
+> was delivered the same day as ADR 0075 and it is unblocked). The seven owner decisions were taken
 > on 2026-09-02 (ADRs 0055–0061); ADRs 0062–0064 followed, the last two on 2026-09-03.
 >
 > **Five waves added 2026-09-04 on two owner decisions taken that day.**
@@ -265,7 +268,7 @@ constant (`worktop-depth.ts` carries a comment saying the rename is owed and def
 | 6J — the persisted setting and what a change does — **DONE 2026-09-04, `c8ba3af`/`a68482d`** | D | 6H, 6I, 6I2 — **unblocked, ADRs 0055, 0056, 0058** | Full |
 | 6K — the depth control on the sheet (6K-a the store seam, 6K-b the control) | D | 6J, 6G — **unblocked, ADR 0059** | Light + visual |
 | 6K-c — a frozen extent records the body its depth came from *(ADR 0073)* | D | 6K-b — **does not gate it**, see the wave | Full |
-| 6K-d — a rebuild must not swap a body for one declared at a different depth | D | 6K-b — **does not gate it** | Full |
+| 6K-d — a rebuild must not swap a body for one declared at a different depth *(ADR 0075)* | D | 6K-b — **does not gate it** | Full |
 | 6K-e — the probe that measures a depth change is built at that depth *(ADR 0074)* | D | 6K-b — **does not gate it**, see the wave | Full |
 | 6L — the handle path learns cabinet from appliance *(backlog 18)* | G | none — **sequenced before 6B and 6G** | Full |
 | 6M — the overflow is marked and warned about *(ADR 0065)* — **DONE 2026-09-04, `ce77171`** | — | 6A3 | Light + visual |
@@ -1664,22 +1667,59 @@ to a catalogue equivalent is precisely the mistake that once turned `hood-600` i
 changed its height" — recurring on the depth axis, in the file that documents it. That is why it is
 its own wave rather than a patch inside 6K.
 
-**The open question, and it is a catalogue-declaration question rather than an implementation one:
-which of 291 and 330 is the right declared depth for that body?** Unruled. ADR 0058, 0060 and 0061
-all bear on it — a declared depth is not to be inferred, and a clearance is not a build depth — but
-none of them settles this pair. It wants an architect pass before implementation, not a developer
-guessing which number to keep.
+**RULED 2026-09-04 —
+[ADR 0075](../decisions/0075-a-recorded-shell-declares-its-shell-not-its-finished-depth.md), and it
+changes what this wave is.** Two answers, and the second matters more than the first.
+
+**291 is right, and it is not a choice between two defensible numbers.** `frameDepthMm` on a
+`recorded-shell` entry is the **shell**, by ADR 0018's own encoding: `wallCabinet` builds `D − 39`
+centred on `z = 0`, so twice the rear overhang is 291 at a declared 330, and 330 is not a
+rear-overhang measurement of anything. `rebuildDepthM`'s worked convergence (`0.291 + 0.039 = 0.330`,
+"for as many cycles as you care to run") becomes `330 → 369 → 408`; `occupiedDepthM` publishes a
+369 mm wall cabinet nobody manufactures; and the base band already states its **seat** as its
+nominal (580 at 600). `wallCarcassSeatDepthMm`'s own comment already claims the seeded top and §7's
+`wall-cabinet` *"cannot answer differently"*. They do. This restores a stated invariant.
+
+**But the 39 mm the `it.fails` measures is produced by the fake probe, not by the declaration.**
+`rebuild` writes `seatDepthMm` from a **measurement**, never from `frameDepthMm`.
+`createFakeBodyProbe` returns `request.depthM / 2`, so it records the 330 it was asked for; the real
+probe builds the `0.330 − 0.039` shell and records **291**, exactly what the seeded row carried.
+So the round trip is a **test-fidelity failure**, and `frameDepthMm: 330` is a real but narrower
+contract defect the store suite cannot see — reached only by a `wall-cabinet` placement with no
+measured seat, i.e. a stored document ADR 0052 requires us to load rather than refuse.
 
 **Acceptance criteria.**
 
-- The `it.fails` at `qa-6k-a-cabinet-depth.adversarial.test.ts` flips to a passing assertion. It is
-  never deleted, and its self-clearing was verified rather than assumed when it was written.
+- **Verify before fixing.** The wave's first act is the round trip against the **real** adapter probe.
+  If the columns come back, ADR 0075 decision 2 is confirmed and the order below applies; if they do
+  not, the record is amended before anything is edited.
+- **The `it.fails` is flipped by making the fake honest, never by editing the catalogue.** Editing a
+  declaration to satisfy a test-double assertion moves production geometry to match the double, which
+  is the inverse of what the assertion is for. Never deleted (`docs/WORKFLOW.md`).
+- **`createFakeBodyProbe` stops being able to hide either half.** It is the same fake ADR 0074's
+  finding names from the other direction — that one reaches the builders which *ignore* their depth
+  argument, this one the two which *consume* it — so **6K-d and 6K-e agree on one honest fake** rather
+  than each patching it. Any suite that goes red on the honest fake was passing on a fiction and is
+  triaged as a finding, not accommodated with a second lenient fake.
+- **The declaration fix stands on its own evidence.** `frameDepthMm` for the fronted §7 wall rows
+  becomes `wallCarcassSeatDepthMm`; `nominalDepthMm` stays 330/400 and `occupiedDepth` is untouched.
+  `open-shelf` is the declared exception — no front, so its seat *is* `wallCarcassDepthMm` — and both
+  halves of that pair move together or not at all. **Not** derived from `occupiedDepth` inside
+  `insertableBody`: that is one declaration deriving another (ADR 0028 decision 4) and is wrong for
+  `open-shelf`.
+- **A seeded entry and the parameterised entry a rebuild resolves it to may not declare different
+  depths under the same `measuredFrom` kind.** Asserted over the whole catalogue at both declared
+  depths, swept rather than sampled — this pair is the one that was found, not necessarily the only
+  one.
+- **369 has two producers and the wave says which it closed.** ADR 0073's `insert-fit.ts:834` is the
+  other. Fixing that constant alone makes the fake seat 400 and the column publish **439** — the
+  number moves without becoming right. ADR 0075 decision 4.
 - The round-trip partition grows from the six columns it certifies today to all twelve. The partition
   is read off the catalogue and names no build id, so it widens on its own when this lands.
-- **Whatever the ruling, a seeded entry and the parameterised entry a rebuild resolves it to may not
-  declare different depths under the same `measuredFrom` kind.** Asserted over the whole catalogue,
-  swept rather than sampled — this pair is the one that was found, not necessarily the only one.
-- No geometry moves for a design that never changes depth. The M1 fidelity gate holds.
+- No geometry moves for a design that never changes depth, and the M1 fidelity gate is untouched — no
+  builder changes and the default depth does not move. **One stated exception**: a stored document
+  whose `wall-cabinet` placement has no measured seat is seated 39 mm off the wall today and is seated
+  correctly after. A correction on load, not a migration; nothing is rewritten.
 
 ### Wave 6K-e — the probe that measures a depth change is built at the depth it is measuring
 

@@ -201,8 +201,18 @@ probe does not have for these builders. Classified as a **test-fidelity problem 
 implementation defect**: the defect is a third call site left on the pre-6J depth, in the same family
 as ADR 0073's two, and against the same clause (ADR 0055 decision 1).
 
-**Stated as a premise, with the measurement that settles it.** The reasoning above is from the code
-and is not measured; it is a headless measurement, not a browser one, and it belongs in
+**The mechanism is read off the code and independently confirmed** by the coordinator on 2026-09-04,
+on two call sites rather than one: `baseCabinet` builds from the closure `CARC_D` and the request's
+`depthM` never reaches it, and `measureSeatedGroup`'s front line comes from
+`input.kit.depths.cabinetDepthM` — the **kit's** depth, not the requested one. So a probe built from
+the old stage's kit measures at the old depth whatever it is asked for. **The bands it reaches are
+exactly the builders that ignore their depth argument**: base, full-height, appliance and hood. The
+two that consume it — `wallCabinet` and `openShelf`, ADR 0018's own note on which builders take a
+depth — answer at the requested depth regardless of the kit, so the wall band is not reached by this
+finding. It is reached by a different one; see [ADR 0075](0075-a-recorded-shell-declares-its-shell-not-its-finished-depth.md).
+
+**The confirming measurement is still owed, and the withdrawal clause stands.** It is a headless
+measurement, not a browser one, and it belongs in
 `packages/three-adapter`, where a real kit, a real room and a real probe already meet
 (`qa-5f-depth-roundtrip.adversarial.test.ts` is the shape). Run `setCabinetDepth` 600 → 700 twice over
 the seeded fixture: once with `createBodyProbe(makeKit({ cabinetDepthMm: 600, wallDepthMm: 330 }), room)`

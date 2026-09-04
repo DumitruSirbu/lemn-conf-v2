@@ -207,10 +207,28 @@ function insertedSeatDepthMm(store: Store): number | undefined {
 //
 // It is the failure `set-cabinet-depth.ts`'s own comment already warns of, recurring on the depth
 // axis in the file that documents it: *"resolving it to a catalogue equivalent is precisely the
-// mistake that once turned `hood-600` into `hood` and changed its height."* Which of 291 and 330 is
-// the right declared depth is a catalogue-declaration question, so it is **wave 6K-d — a rebuild
-// must not swap a body for one declared at a different depth**, and the expected failure below is
-// what clears when 6K-d lands.
+// mistake that once turned `hood-600` into `hood` and changed its height."* That declaration
+// disagreement is real and is **wave 6K-d**, ruled by
+// [ADR 0075](../../../../docs/decisions/0075-a-recorded-shell-declares-its-shell-not-its-finished-depth.md):
+// 291 is right and 330 is wrong, on four independent readings.
+//
+// **But the 39 mm this file measures is not that defect, and the first version of this comment said
+// it was — corrected 2026-09-04.** `rebuild` writes `seatDepthMm` from a *measurement*, never from
+// `frameDepthMm`. `createFakeBodyProbe` returns `request.depthM / 2`, so it seats a wall body at the
+// 330 it was asked for and the column publishes 330 + 39 = **369**. The real adapter probe builds
+// the `0.330 - 0.039` shell and records **291**, which is what the seeded row carried all along, so
+// against it nothing grows. Measured here, not argued: the two keys below fail at `0.369` where
+// `0.330` is expected.
+//
+// So this is a **test-fidelity failure standing in front of a real declaration defect**, and the
+// order matters. 6K-d verifies against the real probe first; if the columns come back, this
+// assertion is flipped **by making the fake honest, never by editing the catalogue** — editing a
+// declaration so a test double agrees moves production geometry to match the double. The
+// declaration fix then stands on its own evidence and its own whole-catalogue sweep.
+//
+// The same `createFakeBodyProbe` is wave 6K-e's subject from the opposite side (ADR 0074): there the
+// real probe ignores the depth it is handed, here the fake obeys one the real probe does not.
+// Between them the fake misreports every band, and the two waves owe one fix rather than two.
 describe("the round trip a customer takes when they change their mind", () => {
   it("returns every column the swap does not re-declare the depth of", () => {
     const store = createStore();
