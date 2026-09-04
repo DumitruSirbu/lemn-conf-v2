@@ -22,11 +22,17 @@
 // | band above the stage | canvas top | canvas height | strip above the sheet |
 // | -------------------- | ---------- | ------------- | --------------------- |
 // | none                 |      55    |         697   |              130.68   |
-// | 6G's settings row    |     101.94 |         650.06|               83.75   |
-// | + a 56 px flow band  |     158.88 |         593.12|               26.81   |
+// | 6G's settings row    |      98.94 |         653.06|               86.74   |
+// | + a 56 px flow band  |     154.94 |         597.06|               30.74   |
 //
-// 26.81 px is below §10.1's 44 px touch target: the strip stops being tappable and the sheet stops
+// 30.74 px is below §10.1's 44 px touch target: the strip stops being tappable and the sheet stops
 // being dismissable by tapping the scene. That alone settles it.
+//
+// **The middle and bottom rows were 101.94 / 650.06 / 83.75 and 158.88 / 593.12 / 26.81 until wave
+// 6S's fix pass.** They composed a 46.94 px settings row measured on 6G's own branch, before the
+// merge. On the merged tree `.settingsRow` measures 43.9375 and the header 55.0000 — 98.9375
+// together, which is exactly where a capture reports the canvas's top. The conclusion is unchanged:
+// 30.74 is still under the touch target, so the flow band is still ruled out.
 //
 // **And the band is conditional, which the price bar's is not.** A flow band that appears only while
 // a body overflows makes the canvas a different height for a flagged design than for an unflagged
@@ -40,18 +46,29 @@
 // price bar. That is where the band goes, stacked below the orbit hint by `.sceneFooter` so the two
 // overlays cannot occupy the same pixels.
 //
-// **What it costs, measured rather than assumed** (`overflow-warning-viewport.test.ts` holds these):
-// the kitchen's lowest projected pixel leaves 42.3–49.2 px of clearance at the bottom of the scene
-// box at 390 × 844 with 6G's row present, swept across every header height the screen plausibly
-// takes. A 56 px band therefore paints over the bottom **6.8 to 13.7 px** of the lowest cabinets —
-// their plinth line, not their fronts. It does **not** cover the *selected* cabinet, which is the
-// constraint M6 states: at 390 × 844 a selection opens §9's sheet, whose top edge sits at 83.75 px
-// into the scene box while the nearest cabinet starts at 109.9 px, so the sheet has already covered
-// the whole kitchen — and the band with it — before any cabinet can be selected.
+// **What it costs: nothing, measured on a capture of the running app** (wave 6S, owner-ruled).
+// At 390 × 844 with 6G's row present, the band paints over **no cabinet at all** in any of the three
+// camera presets — 25.05 px of clearance to the kitchen's lowest painted pixel on Perete A, 45.06 on
+// Perete B and 49.06 on Vedere generală, and no red-marked body below it either. The band stands on
+// bare floor. Measured off the WebGL buffer with `preserveDrawingBuffer` on, so the pixels behind the
+// band are readable rather than inferred.
+//
+// **This corrects a figure that stood here and was wrong.** It read "paints over the bottom 6.8 to
+// 13.7 px of the lowest cabinets", from a headless projection model with three errors in it: it let
+// a body that is entirely off the left edge of the viewport drive the clearance, it modelled the
+// canvas with the price bar's *reserved* height when an overflowing design's bar carries ADR 0065's
+// flagged-total warning and is 33.7 px taller, and it projected bounding boxes, whose corners land
+// about 18 px below the geometry they bound. `overflow-warning-viewport.test.ts` now holds the
+// corrected model and records all three.
+//
+// It does **not** cover the *selected* cabinet either, which is the constraint M6 states: at
+// 390 × 844 a selection opens §9's sheet, whose top edge sits at 86.74 px into the scene box while
+// the nearest cabinet starts at 109.9 px, so the sheet has already covered the whole kitchen — and
+// the band with it — before any cabinet can be selected.
 //
 // **A later reader must not "restore" the flow version.** It was correct while this band was the
 // only thing competing for that column and it is not correct now; putting it back takes the strip to
-// 26.81 px and breaks sheet dismissal.
+// 30.74 px and breaks sheet dismissal.
 
 /** The warning band's minimum height in CSS pixels, published to the stylesheet as
  *  `--overflow-warning-height` by `overflow-warning.tsx` — a stylesheet cannot import a constant, and

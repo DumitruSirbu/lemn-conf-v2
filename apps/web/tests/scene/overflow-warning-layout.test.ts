@@ -74,7 +74,7 @@ describe("the band's reserved height reaches the stylesheet from one constant", 
 // **Revised by wave 6G, and the direction is the opposite of what this suite first asserted.** The
 // band was a flow row above the scene until 6G added an unconditional settings row: §9's sheet is
 // pinned to the viewport, so every band above the stage comes out of the strip of scene left visible
-// above it, and a second one took that strip from 83.75 px to 26.81 — under the 44 px touch target
+// above it, and a second one took that strip from 86.74 px to 30.74 — under the 44 px touch target
 // that makes the sheet dismissable. `scene/overflow-warning-layout.ts` carries the table. So the
 // assertions below now hold the band **out of flow**, which is exactly what the earlier ones forbade.
 describe("the warning is an overlay on the scene, taking none of its height", () => {
