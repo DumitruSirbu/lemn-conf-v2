@@ -7,7 +7,12 @@ import type {
 } from "./design.js";
 import { cabinetDepthMmOf, LegacyDesignSchema } from "./design.js";
 import { buildKitchenLBodyCatalog } from "./fixtures/kitchen-l-design.js";
-import { DEFAULT_FINISH, isLegacyEnumFinishName } from "./materials.js";
+import {
+  DEFAULT_FINISH,
+  isLegacyEnumFinishName,
+  LEGACY_ENUM_FINISHES,
+  type Finish,
+} from "./materials.js";
 import { MAX_EMPTY_COLUMN_WIDTH_MM } from "./module-grid.js";
 import { InvalidDesignError } from "./repository.js";
 import { describeSchemaIssues } from "./failure-text.js";
@@ -75,10 +80,12 @@ type RawNormalisation = (raw: unknown) => unknown;
  *  Version 1 is every document written before wave 5G, under a rule that bounded a *merge* and not
  *  an empty column, so it may carry an entry ADR 0052 no longer permits. Version 2 is every document
  *  written before the room correction of 2026-09-03, so it carries the seeded room as it then stood.
- *  Version 3 is every document written before wave 6P, when a finish was one of five strings. Its
- *  whole normalisation is **pre-parse** — the map below — because that is the first legacy shape the
- *  current schema cannot even express, so after the parse it is owed nothing. A version 1 document
- *  is owed both of the older two, in that order, and the pre-parse arm before either.
+ *  Version 3 is every document written before wave 6J-a, so it carries no persisted cabinet depth.
+ *  Version 4 is every document written before wave 6P, when a finish was one of five strings; that
+ *  normalisation is **entirely pre-parse** — `RAW_NORMALISATIONS_BY_VERSION_OWING_THEM`, keyed at 4
+ *  — because it is the first legacy shape the current schema cannot even express, so after the parse
+ *  a version 4 document is owed nothing. A version 1 document is owed all three of the older arms,
+ *  in that order, and the pre-parse arm before any of them.
  *
  *  **The order is load-bearing, and one defect has already turned on it.** Each entry may assume
  *  every older one has already run, and `correctPreCorrectionRoom` relies on it: that entry asks
@@ -364,7 +371,31 @@ function replaceOneEnumFinish(placement: unknown): unknown {
   if (!carriesLegacyEnumFinish(placement)) return placement;
   const record = asRecord(placement) ?? {};
   const body = asRecord(record["body"]) ?? {};
-  return { ...record, body: { ...body, finish: DEFAULT_FINISH } };
+  return {
+    ...record,
+    body: { ...body, finish: carriedForwardFrom(body["finish"]) },
+  };
+}
+
+/** What one stored legacy name becomes, and the **two arms are the criterion's own split**.
+ *
+ *  `white`, `graphite` and `oak` are direct palette mappings — PAL *Alb*, PAL *Antracit* and a
+ *  *Stejar* — so the document keeps the colour it was wearing. Only `clay` and `sage` reset, because
+ *  ADR 0071 decision 5 narrows them out of every palette: they are paint and nothing else, and the
+ *  owner's ruling of 2026-09-04 is scoped by its own title to those two. Resetting all five would
+ *  render an anthracite kitchen white on a `/d/{id}` link the customer has already shared, which is
+ *  a loss the ruling never asked for — the ruling traded *those two* colours to keep the document
+ *  off a dearer tier, not every colour the enum could express.
+ *
+ *  **The arm is chosen by the declaration's `kind`, never by naming the two values here.** The reset
+ *  is exactly "this value has no palette entry", so `LEGACY_ENUM_FINISHES` deciding it keeps this
+ *  function and ADR 0071's narrowing from drifting apart — and it is what preserves the guard one
+ *  test over that no migrated document ever holds a free colour, since PAL has no control that
+ *  produces one and a PAL kitchen wearing paint is not a state the product can reach. */
+function carriedForwardFrom(storedName: unknown): Finish {
+  if (!isLegacyEnumFinishName(storedName)) return DEFAULT_FINISH;
+  const declared = LEGACY_ENUM_FINISHES[storedName];
+  return declared.kind === "palette-entry" ? declared : DEFAULT_FINISH;
 }
 
 /** A JSON object, or nothing. An array is not one: `placements` is walked as a list and its members
@@ -433,7 +464,8 @@ function withoutFinish(placement: DesignPlacement): DesignPlacement {
 
 /** Validates and migrates a stored payload to the current `Design` shape.
  *
- *  Version 4 is current. Older versions are carried forward rather than refused, through every
+ *  `CURRENT_SCHEMA_VERSION` — 5 — is current. Older versions are carried forward rather than
+ *  refused, through every
  *  normalisation their version predates and in the order
  *  `NORMALISATIONS_BY_VERSION_OWING_THEM` declares them — preceded by the pre-parse arms
  *  `RAW_NORMALISATIONS_BY_VERSION_OWING_THEM` declares, for the legacy shapes the current schema

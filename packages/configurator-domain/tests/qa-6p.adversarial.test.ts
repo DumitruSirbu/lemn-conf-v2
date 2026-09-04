@@ -39,8 +39,13 @@ import { priceDesign } from "../src/pricing/price-design.js";
 import { SAMPLE_PRICE_BOOK } from "../src/pricing/sample-price-book.js";
 import { InvalidDesignError } from "../src/repository.js";
 
-/** Every version arm this build still carries a document forward from, plus the one it writes. */
-const EVERY_VERSION_ARM = [1, 2, 3, CURRENT_SCHEMA_VERSION] as const;
+/** Every version arm this build still carries a document forward from, plus the one it writes.
+ *
+ *  **4 is the arm wave 6J-a wrote and 6P inherited** — a document that already carries a cabinet
+ *  depth and may still wear a string finish. It was missing here and in the wave's own suite, so
+ *  re-keying the raw map's `4` to `3` left both green while turning every 6J-a row into a dead
+ *  link. */
+const EVERY_VERSION_ARM = [1, 2, 3, 4, CURRENT_SCHEMA_VERSION] as const;
 
 /** A finishable seeded body, and the three the catalogue declares `canFinish: false` on. */
 const FINISHABLE_ID = "p0";

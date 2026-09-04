@@ -63,8 +63,9 @@ export const CabinetBodySchema = z.strictObject({
   seatDepthMm: positiveMillimetreSchema.optional(),
   /** **A finish is two kinds of thing since wave 6P** — a palette entry or a free colour — and
    *  `materials.ts` declares both. A document written under the shipped five-value enum is carried
-   *  forward by `migrateDesign`'s version 3 arm, which is why this bump to schema version 4 is a
-   *  rewrite of stored values (ADR 0055) and not an absent field (ADR 0053). */
+   *  forward **pre-parse** by `migrateDesign`'s version 4 arm — the schema cannot express the stored
+   *  string, so nothing later than the parse could rescue it — which is why wave 6P's bump to schema
+   *  version 5 is a rewrite of stored values (ADR 0055) and not an absent field (ADR 0053). */
   finish: FinishSchema.optional(),
   handle: HandleSchema.optional(),
 });
@@ -200,8 +201,8 @@ export type Design = z.infer<typeof LegacyDesignSchema>;
 /** General domain shape, including stored documents from before cabinet depth existed. */
 export const DesignSchema = LegacyDesignSchema;
 
-/** The current write contract. A successful save must be reloadable at schema version 4, so
- * cabinet depth is mandatory here even though the legacy parser permits its absence. */
+/** The current write contract. A successful save must be reloadable at `CURRENT_SCHEMA_VERSION`,
+ * so cabinet depth is mandatory here even though the legacy parser permits its absence. */
 export const CurrentDesignSchema = LegacyDesignSchema.superRefine(
   (design, context) => {
     if (design.settings?.cabinetDepthMm !== undefined) return;

@@ -317,14 +317,20 @@ export type LegacyEnumFinishName = (typeof LEGACY_ENUM_FINISH_NAMES)[number];
  * keep offering and drawing exactly what they offer and draw today, through one table instead of
  * two that agree.
  *
- * **This is not the migration's table**, and the difference is the owner's ruling of 2026-09-04: a
- * *stored* legacy value resets to PAL's *Alb* (`DEFAULT_FINISH`), because deeming a document to be
- * MDF would move a design onto a dearer tier the customer never chose. This table is about what the
- * live control still offers, which is a different question with a different answer.
+ * **The migration reads this table rather than replacing it**, and reads exactly one thing off each
+ * row: its `kind`. `white`, `graphite` and `oak` are palette entries, so a stored document keeps the
+ * colour it was wearing — direct palette mappings, per the wave's criterion. *Lut* and *Salvie* have
+ * no palette entry to map to, so those two reset to PAL's *Alb* (`DEFAULT_FINISH`).
+ *
+ * **The owner's ruling of 2026-09-04 is scoped by its own title to those two**, and its subject is a
+ * price rather than a colour: deeming a document to be MDF because it wears paint would move a
+ * design onto a dearer tier the customer never chose, on a link they have already shared. Read as
+ * "every legacy value resets", it renders an anthracite kitchen white — a loss the ruling never
+ * asked for. That is what this comment said until 2026-09-04 and what `replaceOneEnumFinish` did.
  *
  * *Lut* and *Salvie* are free colours because ADR 0071 decision 5 narrows them out of every
- * palette — they are paint and nothing else. The two hex values are the ones the adapter has drawn
- * since M1.
+ * palette — they are paint and nothing else, which is why they are the two the migration cannot
+ * carry forward. The two hex values are the ones the adapter has drawn since M1.
  */
 export const LEGACY_ENUM_FINISHES: Readonly<
   Record<LegacyEnumFinishName, Finish>

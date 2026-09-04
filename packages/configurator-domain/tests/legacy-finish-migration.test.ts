@@ -18,7 +18,9 @@ import {
 } from "../src/fixtures/kitchen-l-design.js";
 import {
   DEFAULT_FINISH,
+  FinishSchema,
   LEGACY_ENUM_FINISH_NAMES,
+  LEGACY_ENUM_FINISHES,
   paletteFinish,
 } from "../src/materials.js";
 import {
@@ -31,8 +33,14 @@ import { InvalidDesignError } from "../src/repository.js";
 const FINISHABLE_ID = "p0";
 const UNFINISHABLE_IDS = ["p7", "p12", "p13"] as const;
 
-/** Every version this build still carries a document forward from. Version 4 is what it writes. */
-const LEGACY_VERSIONS = [1, 2, 3] as const;
+/** Every version this build still carries a document forward from. It writes
+ *  `CURRENT_SCHEMA_VERSION`, which is 5.
+ *
+ *  **Version 4 is in this list and is not decoration.** It is the arm wave 6J-a added — a document
+ *  that already carries a cabinet depth and may still carry a legacy string finish, because the two
+ *  waves landed one after the other. Without it, re-keying the raw map's `4` to `3` turns every row
+ *  6J-a wrote into a dead link with the whole suite still green. */
+const LEGACY_VERSIONS = [1, 2, 3, 4] as const;
 
 /** The stored document as JSON, which is the only form a migration ever meets: `migrateDesign`
  *  takes `unknown`, and a legacy finish is a *string* the current schema cannot express, so it
@@ -53,6 +61,16 @@ function storedWithFinishes(
   );
 }
 
+/** The stored document with an explicit cabinet depth on it — what a version 4 row actually holds,
+ *  since 6J-a wrote the setting before 6P changed the finish shape. */
+function withStoredCabinetDepth(stored: unknown): unknown {
+  const document = stored as Record<string, unknown>;
+  return {
+    ...document,
+    settings: { ...(document["settings"] as object), cabinetDepthMm: 600 },
+  };
+}
+
 function finishOf(design: Design, placementId: string) {
   return design.placements.find((placement) => placement.id === placementId)
     ?.body.finish;
@@ -63,8 +81,45 @@ function reserialised(design: Design): unknown {
 }
 
 describe("a document holding any of the five legacy finishes loads", () => {
+  // **The criterion, per value.** `white` -> PAL *Alb*, `graphite` -> PAL *Antracit*, `oak` -> a
+  // *Stejar* are direct palette mappings; only `clay` and `sage` reset, because ADR 0071 decision 5
+  // narrows them out of every palette and the owner's ruling of 2026-09-04 — scoped by its own title
+  // to those two — keeps the document on PAL rather than deeming it MDF. A migration that reset all
+  // five would render an anthracite kitchen white on a link the customer has already shared.
   it.each(LEGACY_ENUM_FINISH_NAMES)(
-    "carries %s forward to PAL's default finish rather than refusing the document",
+    "carries %s forward to the finish the declaration names for it",
+    (name) => {
+      const declared = LEGACY_ENUM_FINISHES[name];
+
+      const loaded = migrateDesign(
+        3,
+        storedWithFinishes({ [FINISHABLE_ID]: name }),
+        KITCHEN_L_BODY_CATALOG,
+      );
+
+      expect(finishOf(loaded, FINISHABLE_ID)).toEqual(
+        declared.kind === "palette-entry" ? declared : DEFAULT_FINISH,
+      );
+    },
+  );
+
+  // The premise the sweep above rests on: the declaration really does distinguish the two arms, so
+  // the test cannot quietly become "every value resets" again.
+  it("declares three of the five as palette entries and two as free colours", () => {
+    const byKind = LEGACY_ENUM_FINISH_NAMES.map(
+      (name) => LEGACY_ENUM_FINISHES[name].kind,
+    );
+
+    expect(byKind.filter((kind) => kind === "palette-entry")).toHaveLength(3);
+    expect(byKind.filter((kind) => kind === "free-colour")).toHaveLength(2);
+    expect(LEGACY_ENUM_FINISHES.graphite).not.toEqual(DEFAULT_FINISH);
+  });
+
+  // *Which* finish each value becomes is the sweep above. This one is the half ADR 0052 governs:
+  // the document is **rescued** rather than refused, and what it comes back holding is a value the
+  // current schema can express rather than the string it was stored as.
+  it.each(LEGACY_ENUM_FINISH_NAMES)(
+    "rescues a document wearing %s rather than refusing it",
     (name) => {
       const loaded = migrateDesign(
         3,
@@ -72,7 +127,9 @@ describe("a document holding any of the five legacy finishes loads", () => {
         KITCHEN_L_BODY_CATALOG,
       );
 
-      expect(finishOf(loaded, FINISHABLE_ID)).toEqual(DEFAULT_FINISH);
+      const finish = finishOf(loaded, FINISHABLE_ID);
+      expect(finish).not.toBe(name);
+      expect(FinishSchema.safeParse(finish).success).toBe(true);
       expect(DEFAULT_FINISH).toEqual(paletteFinish("pal.alb"));
     },
   );
@@ -97,20 +154,31 @@ describe("a document holding any of the five legacy finishes loads", () => {
     },
   );
 
+  // Every value on one document, each landing on its own answer — so a migration that treated the
+  // five as one class would fail here even if each value passed its own case.
   it("carries every legacy value on one document forward at once", () => {
-    const stored = storedWithFinishes({
+    const storedNameByPlacementId = {
       p0: "white",
       p1: "clay",
       p2: "sage",
       p4: "graphite",
       p5: "oak",
-    });
+    } as const;
 
-    const loaded = migrateDesign(3, stored, KITCHEN_L_BODY_CATALOG);
+    const loaded = migrateDesign(
+      3,
+      storedWithFinishes(storedNameByPlacementId),
+      KITCHEN_L_BODY_CATALOG,
+    );
 
-    for (const placementId of ["p0", "p1", "p2", "p4", "p5"]) {
-      expect(finishOf(loaded, placementId)).toEqual(DEFAULT_FINISH);
+    for (const [placementId, name] of Object.entries(storedNameByPlacementId)) {
+      const declared = LEGACY_ENUM_FINISHES[name];
+      expect(finishOf(loaded, placementId)).toEqual(
+        declared.kind === "palette-entry" ? declared : DEFAULT_FINISH,
+      );
     }
+    // Not a class: the anthracite cabinet and the clay one do not come back wearing the same thing.
+    expect(finishOf(loaded, "p4")).not.toEqual(finishOf(loaded, "p1"));
   });
 
   it.each(LEGACY_VERSIONS)(
@@ -125,6 +193,23 @@ describe("a document holding any of the five legacy finishes loads", () => {
       expect(finishOf(loaded, FINISHABLE_ID)).toEqual(DEFAULT_FINISH);
     },
   );
+
+  // The arm 6J-a's own rows land on: a document already carrying a depth, still wearing a string
+  // finish. Both halves are asserted on one document, because a version 4 row is exactly where the
+  // two waves overlap and nothing else in this file reaches it.
+  it("rewrites a version 4 document carrying both a depth and a legacy finish", () => {
+    const stored = withStoredCabinetDepth(
+      storedWithFinishes({ [FINISHABLE_ID]: "graphite", p1: "sage" }),
+    );
+
+    const loaded = migrateDesign(4, stored, KITCHEN_L_BODY_CATALOG);
+
+    expect(loaded.settings?.cabinetDepthMm).toBe(600);
+    expect(finishOf(loaded, FINISHABLE_ID)).toEqual(
+      LEGACY_ENUM_FINISHES.graphite,
+    );
+    expect(finishOf(loaded, "p1")).toEqual(DEFAULT_FINISH);
+  });
 
   it("refuses a finish that is neither a legacy name nor a declared value", () => {
     // The other half of "normalise rather than refuse": a document written under a superseded rule
@@ -280,6 +365,6 @@ describe("no migration writes a finish onto a body that cannot wear one", () => 
       KITCHEN_L_BODY_CATALOG,
     );
 
-    expect(finishOf(loaded, FINISHABLE_ID)).toEqual(DEFAULT_FINISH);
+    expect(finishOf(loaded, FINISHABLE_ID)).toEqual(LEGACY_ENUM_FINISHES.oak);
   });
 });
