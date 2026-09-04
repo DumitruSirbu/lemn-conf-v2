@@ -7,6 +7,7 @@ import {
 } from "../../src/fixtures/kitchen-l-design.js";
 import { clearBodies, insertInto, OCCURRED_AT } from "../support/commands.js";
 import { createWorld } from "../support/kitchen-world.js";
+import { LEGACY_ENUM_FINISHES } from "../../src/materials.js";
 
 const base = {
   design: KITCHEN_L_DESIGN,
@@ -23,17 +24,19 @@ describe("setFinish", () => {
     const result = setFinish({
       ...base,
       target: { kind: "placement", id: "p0" },
-      finish: "sage",
+      finish: LEGACY_ENUM_FINISHES.sage,
     });
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(bodyOf(result.design, "p0")?.finish).toBe("sage");
+    expect(bodyOf(result.design, "p0")?.finish).toEqual(
+      LEGACY_ENUM_FINISHES.sage,
+    );
     expect(bodyOf(result.design, "p2")?.finish).toBeUndefined();
     expect(result.design.updatedAt).toBe(OCCURRED_AT);
     expect(result.effect).toEqual({
       type: "finish_set",
       placementId: "p0",
-      finish: "sage",
+      finish: LEGACY_ENUM_FINISHES.sage,
     });
   });
 
@@ -59,7 +62,7 @@ describe("setFinish", () => {
       catalog: KITCHEN_L_BODY_CATALOG,
       occurredAt: OCCURRED_AT,
       target: { kind: "placement", id: shelf.effect.placementId },
-      finish: "sage",
+      finish: LEGACY_ENUM_FINISHES.sage,
     });
     expect(result.ok).toBe(false);
     if (result.ok) return;
@@ -72,7 +75,7 @@ describe("setFinish", () => {
     const result = setFinish({
       ...base,
       target: { kind: "void", id: "A|1.30:v0:0.00" },
-      finish: "sage",
+      finish: LEGACY_ENUM_FINISHES.sage,
     });
     expect(result.ok).toBe(false);
     if (result.ok) return;

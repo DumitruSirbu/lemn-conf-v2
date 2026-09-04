@@ -30,6 +30,7 @@ import { describe, expect, it } from "vitest";
 
 import { createConfiguratorStore } from "../../src/store/configurator-store";
 import { createFakeBodyProbe } from "../support/fake-body-probe";
+import { LEGACY_ENUM_FINISHES } from "@lemnaria/configurator-domain";
 
 const OCCURRED_AT = "2026-08-25T12:00:00.000Z";
 
@@ -387,7 +388,7 @@ describe("the seam writes one document per state, and nothing for an empty one",
     const before = canonicalSerializeDesign(KITCHEN_L_DESIGN);
 
     store.getState().select({ kind: "placement", id: "p0" });
-    store.getState().setFinish("oak");
+    store.getState().setFinish(LEGACY_ENUM_FINISHES.oak);
     const saved = store.getState().design;
     const withoutTheFrozenMap = { ...saved };
     delete withoutTheFrozenMap.columnExtents;

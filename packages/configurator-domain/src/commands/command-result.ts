@@ -9,9 +9,9 @@ import type {
   DesignPlacement,
   DesignSettings,
   DesignWall,
-  Finish,
   Handle,
 } from "../design.js";
+import type { Finish } from "../materials.js";
 import { ConfigurationTimestampSchema } from "../schemas.js";
 import type { Column } from "../void-engine.js";
 import {

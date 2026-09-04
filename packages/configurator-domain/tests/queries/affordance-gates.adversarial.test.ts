@@ -26,6 +26,7 @@ import {
   KITCHEN_L_DESIGN,
 } from "../../src/fixtures/kitchen-l-design.js";
 import type { CommandTarget } from "../../src/commands/command-result.js";
+import { LEGACY_ENUM_FINISHES } from "../../src/materials.js";
 
 const seededWorld = (): KitchenWorld =>
   createWorld(KITCHEN_L_DESIGN, KITCHEN_L_BODY_CATALOG);
@@ -100,7 +101,7 @@ describe("a control the affordance enables is a command the engine accepts", () 
           design: world.design,
           catalog: world.catalog,
           target,
-          finish: "oak",
+          finish: LEGACY_ENUM_FINISHES.oak,
           occurredAt: OCCURRED_AT,
         });
         expect(

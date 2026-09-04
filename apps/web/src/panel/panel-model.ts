@@ -9,13 +9,16 @@
 // already decided — the one apparent exception, §11 row 24's unknown kind, is asked of the domain's
 // own `isKnownKind` rather than answered here.
 import {
-  FinishSchema,
   HandleSchema,
   isKnownKind,
   normaliseBand,
   renderRejection,
+  LEGACY_ENUM_FINISH_NAMES,
+  LEGACY_ENUM_FINISHES,
+  sameFinish,
   type CatalogOffer,
   type Finish,
+  type LegacyEnumFinishName,
   type Handle,
   type OfferVerdict,
   type PricingResult,
@@ -136,10 +139,20 @@ export interface ReplaceSection {
   readonly emptyLine?: string;
 }
 
+/** A finish chip carries **two** things since wave 6P, and they are no longer the same string.
+ *
+ *  `value` is what the surface is keyed and styled by — the swatch's CSS variable, its test id, its
+ *  React key — and it is still one of the five names §5.5 shipped with. `finish` is the declared
+ *  value the command writes, which is a palette entry or a free colour and cannot be a `data-`
+ *  attribute. Wave 6R replaces both with the material's own control, and the pair goes with them. */
+export interface FinishChip extends ChoiceChip<LegacyEnumFinishName> {
+  readonly finish: Finish;
+}
+
 export interface FinishSection {
   readonly kind: "finish";
   readonly title: string;
-  readonly chips: readonly ChoiceChip<Finish>[];
+  readonly chips: readonly FinishChip[];
   readonly note: string;
 }
 
@@ -824,10 +837,13 @@ function describeFinishSection(
   return {
     kind: "finish",
     title: ro.panel.finishTitle,
-    chips: FinishSchema.options.map((finish) => ({
-      value: finish,
-      label: ro.panel.finishLabels[finish],
-      isActive: meta.finish === finish,
+    chips: LEGACY_ENUM_FINISH_NAMES.map((name) => ({
+      value: name,
+      finish: LEGACY_ENUM_FINISHES[name],
+      label: ro.panel.finishLabels[name],
+      isActive:
+        meta.finish !== undefined &&
+        sameFinish(meta.finish, LEGACY_ENUM_FINISHES[name]),
       ...describeChipAvailability(editability),
     })),
     note: ro.panel.finishNote,

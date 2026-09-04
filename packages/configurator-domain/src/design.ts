@@ -10,6 +10,7 @@ import {
   MAX_ROOM_HEIGHT_MM,
   MAX_ROOM_WIDTH_MM,
 } from "./design-bounds.js";
+import { FinishSchema } from "./materials.js";
 import { ConfigurationTimestampSchema } from "./schemas.js";
 import {
   declaredCabinetDepthsMm,
@@ -41,15 +42,6 @@ function roomDimensionSchema(maximumMm: number) {
   return z.number().int().positive().max(maximumMm);
 }
 
-export const FinishSchema = z.enum([
-  "white",
-  "clay",
-  "sage",
-  "graphite",
-  "oak",
-]);
-export type Finish = z.infer<typeof FinishSchema>;
-
 export const HandleSchema = z.enum(["steel", "black", "push"]);
 export type Handle = z.infer<typeof HandleSchema>;
 
@@ -69,6 +61,10 @@ export const CabinetBodySchema = z.strictObject({
    *  depth. Absent on every design written before M3, which is why it is optional and needs no
    *  schema version bump: `deriveFrame` then falls back to the catalogue's `frameDepthMm`. */
   seatDepthMm: positiveMillimetreSchema.optional(),
+  /** **A finish is two kinds of thing since wave 6P** — a palette entry or a free colour — and
+   *  `materials.ts` declares both. A document written under the shipped five-value enum is carried
+   *  forward by `migrateDesign`'s version 3 arm, which is why this bump to schema version 4 is a
+   *  rewrite of stored values (ADR 0055) and not an absent field (ADR 0053). */
   finish: FinishSchema.optional(),
   handle: HandleSchema.optional(),
 });

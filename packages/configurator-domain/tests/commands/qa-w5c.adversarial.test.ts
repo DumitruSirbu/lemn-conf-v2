@@ -40,6 +40,7 @@ import {
   type KitchenWorld,
 } from "../support/kitchen-world.js";
 import { syntheticWorld } from "../support/synthetic-world.js";
+import { LEGACY_ENUM_FINISHES } from "../../src/materials.js";
 
 function kitchen(): KitchenWorld {
   return createWorld(KITCHEN_L_DESIGN, KITCHEN_L_BODY_CATALOG);
@@ -1207,7 +1208,7 @@ describe("Q10 — §11 rows 12 and 13, for every member", () => {
             buildId: "base-panbank",
             widthMm: 600,
             heightMm: 860,
-            finish: "sage",
+            finish: LEGACY_ENUM_FINISHES.sage,
             handle: "black",
           },
         },
@@ -1220,7 +1221,7 @@ describe("Q10 — §11 rows 12 and 13, for every member", () => {
             buildId: "wall-cabinet",
             widthMm: 600,
             heightMm: 700,
-            finish: "sage",
+            finish: LEGACY_ENUM_FINISHES.sage,
             handle: "black",
           },
         },
@@ -1244,11 +1245,11 @@ describe("Q10 — §11 rows 12 and 13, for every member", () => {
 
     const body = (id: string) =>
       result.design.placements.find((placement) => placement.id === id)?.body;
-    expect(body("a-base")?.finish).toBe("sage");
+    expect(body("a-base")?.finish).toEqual(LEGACY_ENUM_FINISHES.sage);
     expect(body("a-base")?.handle).toBe("black");
     // The selected body is the base one; the wall cabinet above it is the recorded defect —
     // a sage door with black bars reset to white with steel.
-    expect(body("a-wall")?.finish).toBe("sage");
+    expect(body("a-wall")?.finish).toEqual(LEGACY_ENUM_FINISHES.sage);
     expect(body("a-wall")?.handle).toBe("black");
     // An open shelf carries neither, and must not be given one.
     expect(body("a-top")?.finish).toBeUndefined();

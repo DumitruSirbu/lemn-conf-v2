@@ -10,13 +10,8 @@
 // returning plain data.
 import { normaliseBand, type NormalisedBand } from "../bands.js";
 import { describeBodyLabelAt } from "../catalog.js";
-import type {
-  Design,
-  DesignPlacement,
-  DesignWall,
-  Finish,
-  Handle,
-} from "../design.js";
+import type { Design, DesignPlacement, DesignWall, Handle } from "../design.js";
+import type { Finish } from "../materials.js";
 import { compareOpaqueIds } from "../opaque-id-order.js";
 import {
   UnknownBodyError,

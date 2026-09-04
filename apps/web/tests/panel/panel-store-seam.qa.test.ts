@@ -26,6 +26,7 @@ import { describePanel, type PanelView } from "@/panel/panel-model";
 
 import { columnExtents } from "../support/column-extents";
 import { createFakeBodyProbe } from "../support/fake-body-probe";
+import { LEGACY_ENUM_FINISHES } from "@lemnaria/configurator-domain";
 
 /** Exactly what `usePanelView` composes, from exactly the store fields it subscribes to. */
 function panelFromStore(state: ConfiguratorState): PanelView {
@@ -170,7 +171,7 @@ describe("the panel over the store's own state", () => {
   it("marks a finish and a handle the moment the command applies", () => {
     const store = createStore();
     store.getState().select({ kind: "placement", id: "p0" });
-    store.getState().setFinish("sage");
+    store.getState().setFinish(LEGACY_ENUM_FINISHES.sage);
     store.getState().setHandle("black");
 
     const sections = openPanel(store.getState()).sections;

@@ -15,7 +15,8 @@ import {
   resolveBuildableSizes,
 } from "../catalog.js";
 import type { CommandTarget } from "../commands/command-result.js";
-import type { DesignWall, Finish, Handle } from "../design.js";
+import type { DesignWall, Handle } from "../design.js";
+import type { Finish } from "../materials.js";
 import { toMillimetres } from "../millimetres.js";
 import type {
   Band,

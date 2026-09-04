@@ -16,7 +16,7 @@ import { useConfiguratorStore } from "@/store/configurator-store";
 
 import styles from "./editor-panel.module.css";
 import type {
-  ChoiceChip,
+  FinishChip,
   FinishSection,
   HandleSection,
   OfferRow,
@@ -327,7 +327,7 @@ function SwatchButton({
   chip,
   onPick,
 }: {
-  readonly chip: ChoiceChip<Finish>;
+  readonly chip: FinishChip;
   readonly onPick: (finish: Finish) => void;
 }) {
   return (
@@ -338,7 +338,7 @@ function SwatchButton({
       aria-pressed={chip.isActive}
       disabled={chip.isDisabled}
       onClick={() => {
-        onPick(chip.value);
+        onPick(chip.finish);
       }}
     >
       <span className={styles.swatchColor} data-finish={chip.value} />

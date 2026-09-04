@@ -19,6 +19,7 @@ import {
 } from "../../src/store/configurator-store";
 import { columnExtents } from "../support/column-extents";
 import { createFakeBodyProbe } from "../support/fake-body-probe";
+import { LEGACY_ENUM_FINISHES } from "@lemnaria/configurator-domain";
 
 /** The fridge column of the §10 signature flow: `p7` (0 – 1.85) with `p24` (1.85 – 2.60) above it,
  *  and a frozen `top` of 2.60. Every column-stability case below is expressed against it. */
@@ -432,7 +433,7 @@ describe("setFinish and setHandle", () => {
     const updates = vi.fn();
     const unsubscribe = store.subscribe(updates);
 
-    store.getState().setFinish("oak");
+    store.getState().setFinish(LEGACY_ENUM_FINISHES.oak);
     unsubscribe();
 
     const state = store.getState();
@@ -440,10 +441,10 @@ describe("setFinish and setHandle", () => {
     expect(
       state.design.placements.find((placement) => placement.id === "p0")?.body
         .finish,
-    ).toBe("oak");
-    expect(state.records.find((record) => record.id === "p0")?.finishKey).toBe(
-      "oak",
-    );
+    ).toEqual(LEGACY_ENUM_FINISHES.oak);
+    expect(
+      state.records.find((record) => record.id === "p0")?.finishKey,
+    ).toEqual(LEGACY_ENUM_FINISHES.oak);
     expect(state.selection).toEqual({ kind: "placement", id: "p0" });
   });
 
@@ -499,7 +500,7 @@ describe("a refused command", () => {
     [
       "setFinish",
       (state) => {
-        state.setFinish("oak");
+        state.setFinish(LEGACY_ENUM_FINISHES.oak);
       },
       "VOID_SELECTED",
     ],
@@ -578,7 +579,7 @@ describe("column stability (ADR 0011 Gap D)", () => {
 
     removeById(store, "p7");
     store.getState().insert("base-3drawer");
-    store.getState().setFinish("oak");
+    store.getState().setFinish(LEGACY_ENUM_FINISHES.oak);
     store.getState().setHandle("push");
 
     expect(columnExtents(store.getState().columns)).toEqual(extentsBefore);
@@ -616,7 +617,7 @@ describe("the selection after a command", () => {
         state.insert("base-cabinet");
       },
       (state) => {
-        state.setFinish("oak");
+        state.setFinish(LEGACY_ENUM_FINISHES.oak);
       },
       (state) => {
         state.setHandle("push");

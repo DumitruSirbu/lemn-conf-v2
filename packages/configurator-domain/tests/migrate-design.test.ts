@@ -2,7 +2,10 @@ import { describe, expect, it } from "vitest";
 
 import type { Design, EmptyColumn } from "../src/design.js";
 import { KITCHEN_L_DESIGN } from "../src/fixtures/kitchen-l-design.js";
-import { migrateDesign } from "../src/migrate-design.js";
+import {
+  CURRENT_SCHEMA_VERSION,
+  migrateDesign,
+} from "../src/migrate-design.js";
 import { MAX_EMPTY_COLUMN_WIDTH_MM } from "../src/module-grid.js";
 import { InvalidDesignError } from "../src/repository.js";
 
@@ -30,9 +33,16 @@ describe("migrateDesign", () => {
     expect(() => migrateDesign(1, invalid)).toThrow(InvalidDesignError);
   });
 
+  // Derived from `CURRENT_SCHEMA_VERSION` rather than written as a literal: this test was pinned at
+  // 5 and stopped testing anything the moment wave 6P made 5 the current version. One past the
+  // current version is the case it means, at every future bump.
   it("throws a clear error for an unsupported schema version", () => {
-    expect(() => migrateDesign(5, validDesignV1)).toThrow(InvalidDesignError);
-    expect(() => migrateDesign(5, validDesignV1)).toThrow(
+    const beyondCurrent = CURRENT_SCHEMA_VERSION + 1;
+
+    expect(() => migrateDesign(beyondCurrent, validDesignV1)).toThrow(
+      InvalidDesignError,
+    );
+    expect(() => migrateDesign(beyondCurrent, validDesignV1)).toThrow(
       /unsupported schema version/,
     );
   });

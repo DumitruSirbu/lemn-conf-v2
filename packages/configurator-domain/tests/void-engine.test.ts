@@ -14,6 +14,7 @@ import {
   type Column,
   type PlacementRecord,
 } from "../src/void-engine.js";
+import { LEGACY_ENUM_FINISHES } from "../src/materials.js";
 
 const now = "2026-08-25T00:00:00.000Z";
 
@@ -167,13 +168,13 @@ describe("derivePlacementRecords", () => {
           buildId: "base-600",
           widthMm: 600,
           heightMm: 720,
-          finish: "oak",
+          finish: LEGACY_ENUM_FINISHES.oak,
           handle: "black",
         },
       }),
     ]);
     const [record] = derivePlacementRecords(design, catalog);
-    expect(record?.finishKey).toBe("oak");
+    expect(record?.finishKey).toEqual(LEGACY_ENUM_FINISHES.oak);
     expect(record?.handleMode).toBe("black");
   });
 

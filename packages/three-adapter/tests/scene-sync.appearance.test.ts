@@ -20,6 +20,7 @@ import {
   createHeadlessCanvas,
   installHeadlessDocument,
 } from "./support/headless-canvas.js";
+import { LEGACY_ENUM_FINISHES } from "@lemnaria/configurator-domain";
 
 const SAGE = "#8d9a84";
 const WALL_ROW_Y0_M = 1.5;
@@ -114,7 +115,7 @@ function colourOf(mesh: THREE.Mesh): string {
 
 describe("a recorded finish reaches the scene", () => {
   it("recolours the fronts of the body that recorded it", () => {
-    sync([makeRecord({ id: "p1", finishKey: "sage" })]);
+    sync([makeRecord({ id: "p1", finishKey: LEGACY_ENUM_FINISHES.sage })]);
 
     const fronts = frontsOf(mounted("p1"));
     expect(fronts.length).toBeGreaterThan(0);
@@ -123,7 +124,7 @@ describe("a recorded finish reaches the scene", () => {
 
   it("leaves every other body's fronts alone", () => {
     sync([
-      makeRecord({ id: "p1", finishKey: "sage" }),
+      makeRecord({ id: "p1", finishKey: LEGACY_ENUM_FINISHES.sage }),
       makeRecord({ id: "p2", frame: { x: 3 } }),
     ]);
 
@@ -133,7 +134,7 @@ describe("a recorded finish reaches the scene", () => {
   });
 
   it("dresses the fronts in oak rather than a colour", () => {
-    sync([makeRecord({ id: "p1", finishKey: "oak" })]);
+    sync([makeRecord({ id: "p1", finishKey: LEGACY_ENUM_FINISHES.oak })]);
 
     for (const front of frontsOf(mounted("p1"))) {
       expect((front.material as THREE.MeshStandardMaterial).map).toBe(
@@ -143,7 +144,13 @@ describe("a recorded finish reaches the scene", () => {
   });
 
   it("ignores a finish recorded on a body that cannot take one", () => {
-    sync([makeRecord({ id: "p1", finishKey: "sage", canFinish: false })]);
+    sync([
+      makeRecord({
+        id: "p1",
+        finishKey: LEGACY_ENUM_FINISHES.sage,
+        canFinish: false,
+      }),
+    ]);
 
     for (const front of frontsOf(mounted("p1"))) {
       expect(front.material).toBe(kit.M.door);
@@ -152,8 +159,12 @@ describe("a recorded finish reaches the scene", () => {
 
   it("shares one material per finish instead of cloning per front", () => {
     sync([
-      makeRecord({ id: "p1", finishKey: "clay" }),
-      makeRecord({ id: "p2", finishKey: "clay", frame: { x: 3 } }),
+      makeRecord({ id: "p1", finishKey: LEGACY_ENUM_FINISHES.clay }),
+      makeRecord({
+        id: "p2",
+        finishKey: LEGACY_ENUM_FINISHES.clay,
+        frame: { x: 3 },
+      }),
     ]);
 
     const materials = new Set(
@@ -177,10 +188,10 @@ describe("a design that records no finish renders as it did before", () => {
 
 describe("a finish change re-signs the body", () => {
   it("rebuilds the body so the new finish is on screen", () => {
-    sync([makeRecord({ id: "p1", finishKey: "sage" })]);
+    sync([makeRecord({ id: "p1", finishKey: LEGACY_ENUM_FINISHES.sage })]);
     const before = mounted("p1");
 
-    sync([makeRecord({ id: "p1", finishKey: "graphite" })]);
+    sync([makeRecord({ id: "p1", finishKey: LEGACY_ENUM_FINISHES.graphite })]);
 
     expect(mounted("p1")).not.toBe(before);
     for (const front of frontsOf(mounted("p1"))) {
@@ -189,7 +200,9 @@ describe("a finish change re-signs the body", () => {
   });
 
   it("keeps the identical instance when the finish did not change", () => {
-    const records = [makeRecord({ id: "p1", finishKey: "sage" })];
+    const records = [
+      makeRecord({ id: "p1", finishKey: LEGACY_ENUM_FINISHES.sage }),
+    ];
     sync(records);
     const before = mounted("p1");
 
@@ -199,9 +212,15 @@ describe("a finish change re-signs the body", () => {
   });
 
   it("carries the finish through a resize, which is §11 row 12", () => {
-    sync([makeRecord({ id: "p1", finishKey: "sage" })]);
+    sync([makeRecord({ id: "p1", finishKey: LEGACY_ENUM_FINISHES.sage })]);
 
-    sync([makeRecord({ id: "p1", finishKey: "sage", widthMm: 800 })]);
+    sync([
+      makeRecord({
+        id: "p1",
+        finishKey: LEGACY_ENUM_FINISHES.sage,
+        widthMm: 800,
+      }),
+    ]);
 
     const fronts = frontsOf(mounted("p1"));
     expect(fronts.length).toBeGreaterThan(0);
@@ -267,7 +286,13 @@ describe("a recorded handle mode reaches the scene", () => {
 
 describe("finish and handle are independent choices", () => {
   it("applies both to the same body without either undoing the other", () => {
-    sync([makeRecord({ id: "p1", finishKey: "sage", handleMode: "black" })]);
+    sync([
+      makeRecord({
+        id: "p1",
+        finishKey: LEGACY_ENUM_FINISHES.sage,
+        handleMode: "black",
+      }),
+    ]);
 
     const body = mounted("p1");
     for (const front of frontsOf(body)) expect(colourOf(front)).toBe(SAGE);

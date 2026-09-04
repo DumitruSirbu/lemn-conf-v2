@@ -5,6 +5,7 @@
 // `onDesignChanged` → the save coalescer → `FetchConfigurationRepository` → HTTP. The module is
 // re-imported per test because the coalescer and the minted id are session state by design.
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { LEGACY_ENUM_FINISHES } from "@lemnaria/configurator-domain";
 
 /** Every scripted response reports this revision, and the store therefore states it on the next
  *  save. These tests attack the write path's scheduling, not its concurrency rule. */
@@ -112,7 +113,7 @@ describe("the client write path, driven through the app's own store", () => {
 
     // The removal left the vacated void selected, and a void refuses every command.
     store.getState().remove();
-    store.getState().setFinish("oak");
+    store.getState().setFinish(LEGACY_ENUM_FINISHES.oak);
     store.getState().setHandle("push");
     await vi.runAllTimersAsync();
 

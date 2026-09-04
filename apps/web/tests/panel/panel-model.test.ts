@@ -19,6 +19,10 @@ import {
   noWidthIsFree,
   widthOptionRow,
 } from "../support/width-options";
+import {
+  LEGACY_ENUM_FINISH_NAMES,
+  LEGACY_ENUM_FINISHES,
+} from "@lemnaria/configurator-domain";
 
 /** The panel as the app builds it: probe attached, nothing refused. Each test turns off only what
  *  it is about. */
@@ -378,13 +382,28 @@ describe("describePanel — finish and handle chips", () => {
   it("offers every finish and marks the applied one", () => {
     const chips =
       findSection(
-        openPanelFor(occupiedMeta({ finish: "sage" })).sections,
+        openPanelFor(occupiedMeta({ finish: LEGACY_ENUM_FINISHES.sage }))
+          .sections,
         "finish",
       )?.chips ?? [];
     expect(chips).toHaveLength(5);
     expect(
       chips.filter((chip) => chip.isActive).map((chip) => chip.value),
     ).toEqual(["sage"]);
+  });
+
+  // Wave 6P: a chip carries two things that used to be one string — the name the swatch is keyed and
+  // styled by, and the declared value the command writes. A chip that renders one colour and applies
+  // another is the failure this pins, and wave 6R replaces the pair with the material's own control.
+  it("applies the declared finish behind the name it is keyed by", () => {
+    const chips =
+      findSection(openPanelFor(occupiedMeta()).sections, "finish")?.chips ?? [];
+
+    expect(chips.map((chip) => [chip.value, chip.finish] as const)).toEqual(
+      LEGACY_ENUM_FINISH_NAMES.map(
+        (name) => [name, LEGACY_ENUM_FINISHES[name]] as const,
+      ),
+    );
   });
 
   it("marks nothing as chosen when no finish was applied", () => {

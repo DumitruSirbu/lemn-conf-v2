@@ -1,7 +1,13 @@
 import { MAX_EMPTY_COLUMNS } from "./design-bounds.js";
-import type { Design, DesignRoom, EmptyColumn } from "./design.js";
+import type {
+  Design,
+  DesignPlacement,
+  DesignRoom,
+  EmptyColumn,
+} from "./design.js";
 import { cabinetDepthMmOf, LegacyDesignSchema } from "./design.js";
 import { buildKitchenLBodyCatalog } from "./fixtures/kitchen-l-design.js";
+import { DEFAULT_FINISH, isLegacyEnumFinishName } from "./materials.js";
 import { MAX_EMPTY_COLUMN_WIDTH_MM } from "./module-grid.js";
 import { InvalidDesignError } from "./repository.js";
 import { describeSchemaIssues } from "./failure-text.js";
@@ -19,8 +25,30 @@ import type { BodyCatalog } from "./void-engine.js";
 /** The version this build writes, and the version at which a document is owed no normalisation at
  *  all. `neon-configuration-repository.ts` stamps every row it writes with this value, importing it
  *  rather than restating it: two copies of this number that disagree is a migration that silently
- *  stops running. */
-export const CURRENT_SCHEMA_VERSION = 4;
+ *  stops running.
+ *
+ *  **Two waves raised this in the same day: 6J-a from 3 to 4 for the persisted cabinet depth, and
+ *  6P from 4 to 5 for the finish model.** They were built in parallel and each bumped to 4; 6P
+ *  merged second and took 5, keying its own arm at 4. The order is not arbitrary — a document
+ *  written by 6J-a carries a depth and a legacy string finish, so it owes 6P's rewrite and must
+ *  have a version that says so.
+ *
+ *  **The argument for 6P's bump is on the record because the two precedents point opposite ways.** ADR 0053 (`columnExtents`, `settings`): *an absent field whose absence is
+ *  a legal state owes no bump* — a document written without the key loads exactly as it does today,
+ *  and nothing about it is rewritten. ADR 0055 (the depth change): *a rewrite of stored values
+ *  does.* This is the second shape and not the first, on three counts:
+ *
+ *  1. **It rewrites a value a document already carries.** `finish: "sage"` is not an absent field;
+ *     it is a value with a new meaning, and every document holding one leaves this function
+ *     carrying something else.
+ *  2. **The stored shape changed, not only its membership.** A finish went from a string to a
+ *     tagged object, so a document this build writes cannot be read by the build before it. A
+ *     version is the only thing that tells the two apart at the row.
+ *  3. **Without a bump there is no arm to key the normalisation on.** The rewrite would have to run
+ *     unconditionally on every load, including on documents this build itself wrote, and its
+ *     being a fixed point would be the only thing standing between a load and a silent rewrite —
+ *     a computation where the table above is a declaration (ADR 0028). */
+export const CURRENT_SCHEMA_VERSION = 5;
 
 /** The oldest version still readable. Nothing below it was ever written, and a row claiming one is
  *  a row this build cannot account for. */
@@ -30,13 +58,27 @@ const OLDEST_SUPPORTED_SCHEMA_VERSION = 1;
  *  is owed can require knowing whether the document is executable, not only how it is shaped. */
 type DesignNormalisation = (design: Design, catalog: BodyCatalog) => Design;
 
+/** One legacy shape the **current schema cannot express**, normalised away while the document is
+ *  still `unknown`.
+ *
+ *  A second stage exists for exactly one reason: `parseDesign` refuses what it cannot parse, and a
+ *  document written under the shipped five-value finish enum is precisely that. Parsing first would
+ *  refuse the documents this arm exists to rescue, and a load that refuses is a share link that is
+ *  dead (ADR 0052). Nothing here validates: it rewrites one field into a shape the schema can then
+ *  judge on its own terms, and a document that is malformed for any other reason still fails at the
+ *  same gate with the same message. */
+type RawNormalisation = (raw: unknown) => unknown;
+
 /** Every normalisation a stored document may still be owed, **keyed by the version that owes it**
  *  and applied in ascending version order by `carryForward`.
  *
  *  Version 1 is every document written before wave 5G, under a rule that bounded a *merge* and not
  *  an empty column, so it may carry an entry ADR 0052 no longer permits. Version 2 is every document
  *  written before the room correction of 2026-09-03, so it carries the seeded room as it then stood.
- *  A version 1 document is owed both, in that order.
+ *  Version 3 is every document written before wave 6P, when a finish was one of five strings. Its
+ *  whole normalisation is **pre-parse** — the map below — because that is the first legacy shape the
+ *  current schema cannot even express, so after the parse it is owed nothing. A version 1 document
+ *  is owed both of the older two, in that order, and the pre-parse arm before either.
  *
  *  **The order is load-bearing, and one defect has already turned on it.** Each entry may assume
  *  every older one has already run, and `correctPreCorrectionRoom` relies on it: that entry asks
@@ -53,6 +95,7 @@ const NORMALISATIONS_BY_VERSION_OWING_THEM: ReadonlyMap<
   [1, normaliseOversizedEmptyColumnEntries],
   [2, correctPreCorrectionRoom],
   [3, addDefaultCabinetDepth],
+  [4, nothingIsOwedAfterParse],
 ]);
 
 /** Version 3 predates the persisted cabinet depth. Preserve the existing tier selections while
@@ -66,6 +109,24 @@ function addDefaultCabinetDepth(design: Design): Design {
     },
   };
 }
+
+/** Version 4's answer to the table above, stated rather than left as a gap the lookup would throw
+ *  on: everything a version 4 document is owed happens before the parse, so the parsed stage owes it
+ *  nothing. **The `canFinish` strip used to sit here and was wrong there** — see
+ *  `dropFinishFromBodiesThatCannotWearOne`, which is not version-keyed for a reason. */
+function nothingIsOwedAfterParse(design: Design): Design {
+  return design;
+}
+
+/** The pre-parse half of the same table, keyed the same way and walked over the same version range.
+ *  A version with no entry owes nothing at this stage. Keyed at **4** rather than at each of 1-4:
+ *  every older document walks past 4 on its way to the current version, so one entry reaches them
+ *  all, and a document written at 4 — by wave 6J-a, carrying a depth and a legacy string finish —
+ *  is exactly the case that must not be missed. */
+const RAW_NORMALISATIONS_BY_VERSION_OWING_THEM: ReadonlyMap<
+  number,
+  RawNormalisation
+> = new Map([[4, replaceLegacyEnumFinishes]]);
 
 /** Every normalisation the stored version still owes, oldest first. A document already at
  *  `CURRENT_SCHEMA_VERSION` walks none of them: its room and its columns are its own, including the
@@ -82,6 +143,21 @@ function carryForward(
     version += 1
   ) {
     carried = normalisationOwedBy(version)(carried, catalog);
+  }
+  return carried;
+}
+
+/** Every raw normalisation the stored version still owes, oldest first. Mirrors `carryForward` and
+ *  runs before the parse it exists to make possible. */
+function carryRawForward(raw: unknown, schemaVersion: number): unknown {
+  let carried = raw;
+  for (
+    let version = schemaVersion;
+    version < CURRENT_SCHEMA_VERSION;
+    version += 1
+  ) {
+    const normalisation = RAW_NORMALISATIONS_BY_VERSION_OWING_THEM.get(version);
+    if (normalisation) carried = normalisation(carried);
   }
   return carried;
 }
@@ -247,11 +323,122 @@ function isWiderThanCap(emptyColumn: EmptyColumn): boolean {
   return emptyColumn.widthMm > MAX_EMPTY_COLUMN_WIDTH_MM;
 }
 
+/**
+ * **What a document written under the shipped five-value finish enum becomes.**
+ *
+ * Every one of `white`, `clay`, `sage`, `graphite` and `oak` becomes `DEFAULT_FINISH`: the document
+ * stays on PAL, and each cabinet that was wearing a colour resets to PAL's own default, *Alb*,
+ * through the ordinary ADR 0057 reset. **The colour is lost and the price is not**, which is the
+ * trade the owner took on 2026-09-04.
+ *
+ * The alternative on record was to deem a document wearing `clay` or `sage` to be MDF — the
+ * material that still offers what it is wearing — and it was declined: it moves a design onto a
+ * dearer tier the customer never chose, and a price that changes under a link somebody has already
+ * shared is a worse surprise than a colour that does. ADR 0071 decision 5 narrows those two values
+ * out of every palette; nothing here maps them to a nearest decor, for the reason ADR 0057 already
+ * rejected nearest-finish mapping — an invisible substitution is worse than a visible loss.
+ *
+ * **No value is read for its shape.** A stored finish is one of five declared names or it is not a
+ * legacy finish at all, and anything else travels to the schema exactly as it arrived, to be judged
+ * there.
+ *
+ * Returned by identity when no placement carries one, so a load that changes nothing does not
+ * rewrite the object a later save is diffed against — and so this arm is a fixed point on its own
+ * output.
+ */
+function replaceLegacyEnumFinishes(raw: unknown): unknown {
+  const document = asRecord(raw);
+  const placements = document?.["placements"];
+  if (!document || !Array.isArray(placements)) return raw;
+  if (!placements.some(carriesLegacyEnumFinish)) return raw;
+  return { ...document, placements: placements.map(replaceOneEnumFinish) };
+}
+
+function carriesLegacyEnumFinish(placement: unknown): boolean {
+  return isLegacyEnumFinishName(
+    asRecord(asRecord(placement)?.["body"])?.["finish"],
+  );
+}
+
+function replaceOneEnumFinish(placement: unknown): unknown {
+  if (!carriesLegacyEnumFinish(placement)) return placement;
+  const record = asRecord(placement) ?? {};
+  const body = asRecord(record["body"]) ?? {};
+  return { ...record, body: { ...body, finish: DEFAULT_FINISH } };
+}
+
+/** A JSON object, or nothing. An array is not one: `placements` is walked as a list and its members
+ *  are read as objects, and conflating the two is how a hostile document reaches a spread. */
+function asRecord(value: unknown): Record<string, unknown> | undefined {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    return undefined;
+  }
+  return value as Record<string, unknown>;
+}
+
+/**
+ * **A body that cannot wear a finish does not carry one — on every load, at every version.**
+ *
+ * `open-shelf`, `hood` and `fridge-free` declare `canFinish: false`, and no command in this project
+ * writes a finish onto one: `setFinish` refuses it (`commands/set-appearance.ts`) and `insertBody`
+ * does not carry it across a swap. A stored document can still hold one, and the finish rewrite
+ * above must not be the thing that puts it there — a normalisation that helpfully fills in a default
+ * on a frontless body has invented a choice nobody made.
+ *
+ * **Deliberately not a version-keyed arm, and it was one until QA measured it.** Keyed at 3 it never
+ * ran on a version 4 document at all, because `carryForward` walks `schemaVersion` up to
+ * `CURRENT_SCHEMA_VERSION - 1` — so a row this build itself wrote could hold a finish on a hood, be
+ * accepted by `PUT /api/designs/[id]` (nothing in `validate-design.ts` asks the question) and be
+ * persisted with nothing left to remove it. Keying it *later* fixes nothing either: the walk is
+ * ascending, so an arm above this one runs after it and its output is never re-checked. A property
+ * of the loaded document has to be asserted on the loaded document.
+ *
+ * **It normalises rather than refuses**, ADR 0052: a `/d/{id}` link that refuses is a dead link, and
+ * a finish on a frontless body is a document to correct rather than one to reject. An unknown build
+ * id is left exactly as it is — whether the document is executable at all is
+ * `assertDesignValidForCatalog`'s question, asked immediately after this, and answering it here
+ * would refuse a document on the wrong grounds.
+ *
+ * Returned by identity when nothing is owed, so it is a fixed point and so a load that changes
+ * nothing does not rewrite the object a later save is diffed against.
+ */
+function dropFinishFromBodiesThatCannotWearOne(
+  design: Design,
+  catalog: BodyCatalog,
+): Design {
+  const wearsOne = (placement: DesignPlacement): boolean =>
+    wearsAFinishItCannotWear(placement, catalog);
+  if (!design.placements.some(wearsOne)) return design;
+  return {
+    ...design,
+    placements: design.placements.map((placement) =>
+      wearsOne(placement) ? withoutFinish(placement) : placement,
+    ),
+  };
+}
+
+function wearsAFinishItCannotWear(
+  placement: DesignPlacement,
+  catalog: BodyCatalog,
+): boolean {
+  if (placement.body.finish === undefined) return false;
+  return catalog.get(placement.body.buildId)?.canFinish === false;
+}
+
+function withoutFinish(placement: DesignPlacement): DesignPlacement {
+  const body = { ...placement.body };
+  delete body.finish;
+  return { ...placement, body };
+}
+
 /** Validates and migrates a stored payload to the current `Design` shape.
  *
- *  Version 3 is current. Older versions are carried forward rather than refused, through every
+ *  Version 4 is current. Older versions are carried forward rather than refused, through every
  *  normalisation their version predates and in the order
- *  `NORMALISATIONS_BY_VERSION_OWING_THEM` declares them.
+ *  `NORMALISATIONS_BY_VERSION_OWING_THEM` declares them — preceded by the pre-parse arms
+ *  `RAW_NORMALISATIONS_BY_VERSION_OWING_THEM` declares, for the legacy shapes the current schema
+ *  cannot parse at all, and followed by the one normalisation that is owed by no version in
+ *  particular — `dropFinishFromBodiesThatCannotWearOne`, which runs on every load.
  *
  *  DOM-001: the wire shape is only half the answer, so a migrated document is then held to the same
  *  executable contract the API write path enforces. A stored row that names a body no catalogue
@@ -266,11 +453,20 @@ export function migrateDesign(
   catalog?: BodyCatalog,
 ): Design {
   refuseUnsupportedVersion(schemaVersion);
-  const parsed = parseDesign(raw);
+  // The raw stage first: it rescues documents `parseDesign` would refuse, which is the whole reason
+  // it runs on `unknown`.
+  const parsed = parseDesign(carryRawForward(raw, schemaVersion));
   const migrationCatalog =
     catalog ?? buildKitchenLBodyCatalog(cabinetDepthMmOf(parsed));
-  const design = carryForward(parsed, schemaVersion, migrationCatalog);
-  requireCurrentCabinetDepth(design);
+  const carried = carryForward(parsed, schemaVersion, migrationCatalog);
+  requireCurrentCabinetDepth(carried);
+  // Unconditional and after every arm, because it is a property of the loaded document rather than
+  // a debt one version owes — including the version this build writes, and including whatever a
+  // future arm produces.
+  const design = dropFinishFromBodiesThatCannotWearOne(
+    carried,
+    migrationCatalog,
+  );
   assertDesignValidForCatalog(
     design,
     catalog ?? buildKitchenLBodyCatalog(cabinetDepthMmOf(design)),
@@ -281,7 +477,7 @@ export function migrateDesign(
 function requireCurrentCabinetDepth(design: Design): void {
   if (design.settings?.cabinetDepthMm === undefined) {
     throw new InvalidDesignError(
-      "schema version 4 requires settings.cabinetDepthMm",
+      "schema version 5 requires settings.cabinetDepthMm",
     );
   }
 }

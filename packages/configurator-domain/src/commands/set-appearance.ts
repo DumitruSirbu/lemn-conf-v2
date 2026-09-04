@@ -5,7 +5,8 @@
 // Neither is a silent no-op: setting a finish on a body with no doors, or a handle on a body with
 // no handle meshes, is a refusal with its own code. A no-op looks identical to a broken control.
 import { describeKindLabel } from "../catalog.js";
-import type { CabinetBody, Design, Finish, Handle } from "../design.js";
+import type { CabinetBody, Design, Handle } from "../design.js";
+import type { Finish } from "../materials.js";
 import {
   derivePlacementRecords,
   type BodyCatalog,

@@ -24,7 +24,7 @@ import {
   buildDecomposedBody,
   setHandlesVisible,
 } from "./decomposed-bodies.js";
-import { applyBodyFinish } from "./finishes.js";
+import { applyBodyFinish, finishKeyOf, finishSignature } from "./finishes.js";
 import type { Kit } from "./kitchen-parts.js";
 import { syncRunEndPanel } from "./kitchen-shell.js";
 import {
@@ -186,7 +186,11 @@ function applyRecordedAppearance(
   record: PlacementRecord,
 ): void {
   if (record.finishKey && record.canFinish) {
-    applyBodyFinish(body, kit.M, record.finishKey);
+    // A finish this build has no material for leaves the front in the kit's own colour: wave 6R
+    // gives the adapter a material for every declared entry, and guessing a nearby one until then
+    // would show a customer a colour nobody offered.
+    const key = finishKeyOf(record.finishKey);
+    if (key) applyBodyFinish(body, kit.M, key);
   }
   if (record.handleMode === "black" && record.canHandle) {
     applyBlackHandleMaterial(body, kit.M);
@@ -250,6 +254,6 @@ function signBody(record: PlacementRecord): string {
     record.frame.ry,
     record.frame.d,
     record.handleMode ?? "",
-    record.finishKey ?? "",
+    finishSignature(record.finishKey),
   ].join("|");
 }

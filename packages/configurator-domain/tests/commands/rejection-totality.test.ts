@@ -51,6 +51,7 @@ import {
   syntheticWorld,
   type SyntheticMember,
 } from "../support/synthetic-world.js";
+import { LEGACY_ENUM_FINISHES } from "../../src/materials.js";
 
 const ROMANIAN_LETTERS = /[ăâîșțĂÂÎȘȚ]/;
 const PLACEHOLDER_LEAKS = ["undefined", "null", "NaN", "Infinity", "[object"];
@@ -398,7 +399,7 @@ function buildCases(): SweepCase[] {
           design: shelf.world.design,
           catalog: KITCHEN_L_BODY_CATALOG,
           target: { kind: "placement", id: shelf.placementId },
-          finish: "sage",
+          finish: LEGACY_ENUM_FINISHES.sage,
           occurredAt: OCCURRED_AT,
         }),
     },

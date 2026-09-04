@@ -5,6 +5,9 @@ export const CONFIGURATOR_DOMAIN_PACKAGE =
 export * from "./schemas.js";
 export * from "./room-transforms.js";
 export * from "./design.js";
+// The finish shape, the three materials and their palettes (ADR 0071). Exported beside `design.js`
+// because `CabinetBody.finish` is one of its values, and read by every surface that offers a colour.
+export * from "./materials.js";
 export * from "./design-bounds.js";
 export * from "./validate-design.js";
 export * from "./failure-text.js";

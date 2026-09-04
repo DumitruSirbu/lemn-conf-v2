@@ -5,9 +5,9 @@ import type {
   EmptyColumn,
   StoredColumnExtent,
   DesignWall,
-  Finish,
   Handle,
 } from "./design.js";
+import type { Finish } from "./materials.js";
 import { clipEmptyColumnsAtWallEnd } from "./clip-empty-columns-at-wall-end.js";
 import { mergeAdjacentEmptyColumns } from "./merge-empty-columns.js";
 import { toExactMillimetres, toMetres } from "./millimetres.js";
