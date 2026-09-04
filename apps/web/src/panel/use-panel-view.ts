@@ -6,6 +6,7 @@
 // `offersFor` produces the list `meta` alone cannot (it needs the frozen column map). Nothing here
 // decides anything: `describePanel` owns every rule and this hook owns the subscription.
 import {
+  cabinetDepthMmOf,
   describeSelection,
   offersFor,
   columnWidthChoices,
@@ -96,13 +97,26 @@ function useSelectionOffers(): CatalogOffer[] {
   const columns = useConfiguratorStore((state) => state.columns);
   const catalog = useConfiguratorStore((state) => state.catalog);
   const selection = useConfiguratorStore((state) => state.selection);
+  // Off the held design, not off the catalogue: the store's catalogue is built at this same depth
+  // (wave 6K-a), but a map cannot be asked what depth it was built at, and the offer list must run
+  // the evaluation the command would run on **this** document.
+  const cabinetDepthMm = useConfiguratorStore((state) =>
+    cabinetDepthMmOf(state.design),
+  );
 
   return useMemo(
     () =>
       selection
-        ? offersFor({ records, voids, columns, catalog, target: selection })
+        ? offersFor({
+            records,
+            voids,
+            columns,
+            catalog,
+            target: selection,
+            cabinetDepthMm,
+          })
         : [],
-    [records, voids, columns, catalog, selection],
+    [records, voids, columns, catalog, selection, cabinetDepthMm],
   );
 }
 

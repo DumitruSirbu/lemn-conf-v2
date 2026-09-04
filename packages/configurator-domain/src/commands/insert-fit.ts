@@ -49,7 +49,6 @@ import {
   type BuildDepthM,
 } from "../cabinet-depth-rule.js";
 import { alongWallM } from "./along-wall.js";
-import { WORKTOP_DEPTH_MM } from "../worktop-depth.js";
 import type { CommandTarget } from "./command-result.js";
 import type { RejectionDetail } from "./rejection.js";
 
@@ -305,6 +304,18 @@ export interface InsertFitInput {
   readonly body: InsertableBody;
   readonly opening: InsertOpening;
   readonly column: Column;
+  /**
+   * **The cabinet depth of the design being operated on**, which `resolveDepthM` needs and no other
+   * argument carries. Read it off that design with `cabinetDepthMmOf`; never write a number here.
+   *
+   * **Required, and deliberately not defaulted.** Until wave 6K-b this module read the module
+   * constant `WORKTOP_DEPTH_MM`, so at a 700 mm kitchen every wall body was built to the 600 mm map
+   * row (ADR 0073's finding, an implementation defect against ADR 0055 decision 1). A default of 600
+   * would be harmless *today* — no refusal reads the depth, and `offersFor`'s `judge` discards the
+   * plan's `depthM` — and "harmless today, because no reader looks" is the precise reasoning that
+   * produced the defect in the first place. Required, the wrong call site fails to compile.
+   */
+  readonly cabinetDepthMm: number;
 }
 
 function rejectFit(detail: RejectionDetail): InsertFit {
@@ -696,7 +707,7 @@ export function evaluateInsertFit(input: InsertFitInput): InsertFit {
     plan: {
       widthM: width.widthM,
       heightM,
-      depthM: resolveDepthM(body, opening, column),
+      depthM: resolveDepthM(input),
       y0M,
       slotBand,
       ...seatAlongColumn(opening, column, width.widthM),
@@ -821,17 +832,16 @@ function seatableMillimetres(valueM: number): number {
  *  The body's band, not the slot's: the cap describes what a wall **carcass** is — hung, with no
  *  plinth and no worktop of its own — and a wall cabinet dropped into a cleared column slot is
  *  still one. Base and full-height builders ignore the depth they are given anyway (ADR 0018). */
-function resolveDepthM(
-  body: InsertableBody,
-  opening: InsertOpening,
-  column: Column,
-): BuildDepthM {
+function resolveDepthM(input: InsertFitInput): BuildDepthM {
+  const { body, opening, column } = input;
   if (normaliseBand(body.band) !== "wall")
     return buildToTheClearanceM(opening.d);
-  // The declared depth, until wave 6J gives a design one of its own to carry: this wave reads the
-  // module constant, which is the single argument every caller has passed since wave 6H.
+  // **The design's own setting, not a module constant** (wave 6K-b). This read `WORKTOP_DEPTH_MM`
+  // until 2026-09-04, which was right while 600 was the only depth a document could carry and wrong
+  // from wave 6J-a onward: at a 700 mm kitchen it built every wall body to the 600 mm map row — 330
+  // where the map declares 400 — and nothing refused it. ADR 0073's finding carries the measurement.
   const declaredM = columnBuildDepthM({
-    cabinetDepthMm: WORKTOP_DEPTH_MM,
+    cabinetDepthMm: input.cabinetDepthMm,
     hasFullHeightUnder: column.hasFullHeightUnder,
   });
   if (column.hasFullHeightUnder) return declaredM;

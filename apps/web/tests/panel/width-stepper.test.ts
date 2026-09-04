@@ -14,6 +14,7 @@
 // nobody checks against the fact it derives is exactly how ADR 0035 decision 3 came to name
 // `fixedWidth` as the discriminator for a day.
 import {
+  cabinetDepthMmOf,
   columnWidthChoices,
   deriveColumns,
   derivePlacementRecords,
@@ -85,7 +86,11 @@ function panelAt(world: World, target: CommandTarget, canWrite = true) {
   };
   return describePanel({
     meta: describeSelection({ ...world, target }),
-    offers: offersFor({ ...world, target }),
+    offers: offersFor({
+      ...world,
+      target,
+      cabinetDepthMm: cabinetDepthMmOf(world.design),
+    }),
     rejection: null,
     widthOptions: widthOptionsFor(engineInput),
     widthSteps: widthStepsFor(engineInput),
@@ -266,7 +271,11 @@ describe("ADR 0035 decision 3's two controls, chosen by the shape of the bound",
     };
     const panel = describePanel({
       meta: describeSelection({ ...world, target }),
-      offers: offersFor({ ...world, target }),
+      offers: offersFor({
+        ...world,
+        target,
+        cabinetDepthMm: cabinetDepthMmOf(world.design),
+      }),
       rejection: null,
       widthOptions: widthOptionsFor(engineInput),
       widthSteps: widthStepsFor(engineInput),

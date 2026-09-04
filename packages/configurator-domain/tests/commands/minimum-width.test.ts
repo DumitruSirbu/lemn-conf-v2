@@ -32,6 +32,7 @@ import { clearBodies, insertInto } from "../support/commands.js";
 import type { KitchenWorld } from "../support/kitchen-world.js";
 import { createWorld, voidAt } from "../support/kitchen-world.js";
 import { columnWorld } from "../support/synthetic-world.js";
+import { DEFAULT_CABINET_DEPTH_MM } from "../../src/worktop-depth.js";
 
 const SINK_MIN_WIDTH_MM = 560;
 /** §2's `MIN_W`, in millimetres — the default floor both declared floors are read against. */
@@ -306,7 +307,12 @@ function fitInBaseOpening(
   if (!body || !column) {
     throw new Error("fixture entry is not insertable in a derived column");
   }
-  return evaluateInsertFit({ body, opening: openingFromVoid(record), column });
+  return evaluateInsertFit({
+    body,
+    opening: openingFromVoid(record),
+    column,
+    cabinetDepthMm: DEFAULT_CABINET_DEPTH_MM,
+  });
 }
 
 describe("R2.1: a millimetre-set body honours its own minimum width", () => {

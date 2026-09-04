@@ -10,6 +10,7 @@ import {
   toInsertableBody,
   type InsertableBody,
 } from "../catalog.js";
+import { cabinetDepthMmOf } from "../design.js";
 import type { CabinetBody, Design, DesignPlacement } from "../design.js";
 import {
   MILLIMETRES_PER_METRE,
@@ -85,6 +86,7 @@ export function insertBody(input: InsertBodyInput): InsertResult {
     body: body.value,
     opening: target.value.opening,
     column: target.value.column,
+    cabinetDepthMm: cabinetDepthMmOf(design),
   });
   if (!fit.ok) return refuse(design, fit.detail);
 

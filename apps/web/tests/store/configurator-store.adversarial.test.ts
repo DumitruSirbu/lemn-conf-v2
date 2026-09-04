@@ -5,6 +5,7 @@
 // applies one command correctly and the tenth one carries the drift. Every case below therefore
 // asserts a property after every command in a sequence rather than after one hand-picked call.
 import {
+  cabinetDepthMmOf,
   buildKitchenLBodyCatalog,
   KITCHEN_L_BODY_CATALOG,
   KITCHEN_L_DESIGN,
@@ -303,6 +304,7 @@ describe("the §10 signature flow, driven through the store", () => {
       voids: state.voids,
       columns: state.columns,
       catalog: KITCHEN_L_BODY_CATALOG,
+      cabinetDepthMm: cabinetDepthMmOf(state.design),
       target: selection,
     })
       .filter((offer) => offer.verdict.status === "offered")

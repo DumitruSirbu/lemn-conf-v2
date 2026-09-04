@@ -43,6 +43,7 @@ import {
   type Column,
   type PlacementRecord,
 } from "../src/void-engine.js";
+import { DEFAULT_CABINET_DEPTH_MM } from "../src/worktop-depth.js";
 
 const CATALOG = KITCHEN_L_BODY_CATALOG;
 
@@ -442,6 +443,7 @@ describe("a restored column's one region snaps where the session's several did",
         body: BODY,
         opening,
         column: columnWith(regions),
+        cabinetDepthMm: DEFAULT_CABINET_DEPTH_MM,
       });
 
       if (!fit.ok) return;
@@ -471,11 +473,13 @@ describe("a restored column's one region snaps where the session's several did",
         body,
         opening,
         column: columnWith(regions),
+        cabinetDepthMm: DEFAULT_CABINET_DEPTH_MM,
       });
       const restored = evaluateInsertFit({
         body,
         opening,
         column: columnWith(collapsed),
+        cabinetDepthMm: DEFAULT_CABINET_DEPTH_MM,
       });
 
       expect(restored).toStrictEqual(inSession);
@@ -491,6 +495,7 @@ describe("a restored column's one region snaps where the session's several did",
       body: BODY,
       opening,
       column: columnWith([]),
+      cabinetDepthMm: DEFAULT_CABINET_DEPTH_MM,
     });
 
     expect(fit.ok).toBe(true);
@@ -505,6 +510,7 @@ describe("a restored column's one region snaps where the session's several did",
         body: BODY,
         opening: openingIn(levelStart, 0.7, levelStart, 0.7),
         column: columnWith([[0, 2.6]]),
+        cabinetDepthMm: DEFAULT_CABINET_DEPTH_MM,
       });
       return fit.ok;
     });

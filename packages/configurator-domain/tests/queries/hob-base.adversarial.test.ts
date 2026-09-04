@@ -143,6 +143,7 @@ describe("ADR 0027's hob bases against a base opening's width", () => {
         body,
         opening: resolved.value.opening,
         column: resolved.value.column,
+        cabinetDepthMm: world.cabinetDepthMm,
       });
       expect([buildId, fit.ok]).toEqual([buildId, false]);
       if (fit.ok) return;

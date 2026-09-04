@@ -104,6 +104,16 @@ export interface OffersInput {
   readonly columns: ReadonlyMap<string, Column>;
   readonly catalog: BodyCatalog;
   readonly target: CommandTarget;
+  /** The cabinet depth of the design these records came from — `cabinetDepthMmOf(design)`, never a
+   *  number written here.
+   *
+   *  **No verdict on this list reads it**, and it is required anyway. `evaluateInsertFit` needs it
+   *  for the depth it plans, and `judge` below discards that plan's `depthM`; an optional field
+   *  defaulting to 600 would therefore be harmless *today* and would be the same "no reader looks"
+   *  reasoning that put a constant in `resolveDepthM` in the first place. The offer list runs the
+   *  **same** evaluation the command runs (see `judge`), and it cannot be the same one if it is
+   *  handed a different kitchen. */
+  readonly cabinetDepthMm: number;
 }
 
 /** The offer list for a selection, in catalogue order, every band-appropriate entry present.
@@ -125,7 +135,7 @@ export function offersFor(input: OffersInput): CatalogOffer[] {
   return listInsertableBodies(input.catalog)
     .filter((body) => isInOfferedBand(body.band, resolved.value))
     .map((body) => {
-      const verdict = judge(body, resolved.value);
+      const verdict = judge(body, resolved.value, input.cabinetDepthMm);
       return {
         buildId: body.buildId,
         label: describeOfferLabel(body, verdict),
@@ -164,11 +174,16 @@ function describeOfferLabel(
 /** One entry against one opening, by the **same** evaluation `insertBody` runs — which is what makes
  *  a refused verdict the refusal the command would actually give, rather than a second opinion that
  *  can drift from it. */
-function judge(body: InsertableBody, resolved: ResolvedOpening): OfferVerdict {
+function judge(
+  body: InsertableBody,
+  resolved: ResolvedOpening,
+  cabinetDepthMm: number,
+): OfferVerdict {
   const fit = evaluateInsertFit({
     body,
     opening: resolved.opening,
     column: resolved.column,
+    cabinetDepthMm,
   });
   if (!fit.ok) return { status: "refused", reason: fit.detail };
   return {

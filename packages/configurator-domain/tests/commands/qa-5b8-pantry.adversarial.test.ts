@@ -211,6 +211,7 @@ describe("QA 5B8 — the label and the bound agree at every millimetre, not only
       voids: world.voids,
       columns: world.columns,
       catalog: world.catalog,
+      cabinetDepthMm: world.cabinetDepthMm,
       target,
     });
 

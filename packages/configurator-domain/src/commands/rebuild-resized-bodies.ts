@@ -1,6 +1,7 @@
 // One member of the column written at its new width — through the identical path `insertBody` takes —
 // or, for a hood carried along by its neighbours' move, simply re-centred (ADR 0035 decision 6 as
 // amended, ADR 0039 decision 4).
+import { cabinetDepthMmOf } from "../design.js";
 import type { DesignPlacement } from "../design.js";
 import {
   MILLIMETRES_PER_METRE,
@@ -78,7 +79,12 @@ export function rebuild(
     alongM: toMetres(plan.alongMm),
     w: toMetres(plan.widthMm),
   };
-  const fit = evaluateInsertFit({ body: plan.body, opening, column });
+  const fit = evaluateInsertFit({
+    body: plan.body,
+    opening,
+    column,
+    cabinetDepthMm: cabinetDepthMmOf(input.design),
+  });
   if (!fit.ok) return { ok: false, detail: fit.detail };
 
   const measurement = input.probe.measure({

@@ -10,6 +10,7 @@
 // enabled if and only if the step it offers succeeds.* It is asserted by actually walking, one press
 // at a time, through every width the shipped kitchen can reach.
 import {
+  cabinetDepthMmOf,
   columnWidthChoices,
   deriveColumns,
   derivePlacementRecords,
@@ -87,7 +88,11 @@ function panelAt(world: World, target: CommandTarget) {
   };
   return describePanel({
     meta: describeSelection({ ...world, target }),
-    offers: offersFor({ ...world, target }),
+    offers: offersFor({
+      ...world,
+      target,
+      cabinetDepthMm: cabinetDepthMmOf(world.design),
+    }),
     rejection: null,
     widthOptions: widthOptionsFor(engineInput),
     widthSteps: widthStepsFor(engineInput),

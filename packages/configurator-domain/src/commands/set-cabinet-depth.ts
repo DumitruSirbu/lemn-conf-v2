@@ -120,7 +120,20 @@ function rebuildEveryBodyAt(input: SetCabinetDepthInput): Rebuilt {
   // depth it was loaded at, and this command changes exactly that. Re-deriving is the point.
   const columns = deriveColumns(records, {}, input.design.room);
   const widthInput: SetWidthInput = {
-    design: input.design,
+    // **The design carrying the depth being moved to, not the one it is moving from.** `rebuild`
+    // reaches `evaluateInsertFit`, which since wave 6K-b reads the cabinet depth off the design it
+    // is given — so handing it `input.design` would rebuild every wall body to the map row of the
+    // depth the kitchen is leaving, write that as its seat, and leave the new number beside bodies
+    // built to the old one. That is the same "silent mixture" this function refuses two branches
+    // down, and the same constant-versus-document defect ADR 0073's finding records, arriving
+    // through the argument rather than through a module constant.
+    design: {
+      ...input.design,
+      settings: {
+        ...input.design.settings,
+        cabinetDepthMm: input.cabinetDepthMm,
+      },
+    },
     catalog,
     columns,
     // `setWidth`'s own two fields, unused on the `rebuild` path: it reads `design`, `catalog`,

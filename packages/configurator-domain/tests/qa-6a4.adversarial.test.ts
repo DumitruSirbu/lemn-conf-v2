@@ -176,6 +176,7 @@ describe("6A4 — the defect at the surface that reported it", () => {
           voids: world.voids,
           columns: world.columns,
           catalog: world.catalog,
+          cabinetDepthMm: world.cabinetDepthMm,
           target: { kind: "placement", id: placementId },
         }),
       ]).toEqual([placementId, []]);
@@ -187,6 +188,7 @@ describe("6A4 — the defect at the surface that reported it", () => {
       voids: world.voids,
       columns: world.columns,
       catalog: world.catalog,
+      cabinetDepthMm: world.cabinetDepthMm,
       target: { kind: "placement", id: "p8" },
     });
     expect(wallCabinetRows.length).toBeGreaterThan(0);

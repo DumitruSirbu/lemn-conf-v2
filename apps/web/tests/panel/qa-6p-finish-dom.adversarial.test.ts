@@ -13,6 +13,7 @@
 // that reads the same list the component reads agrees with any list the component is given, which
 // is precisely the widening this file exists to refuse.
 import {
+  cabinetDepthMmOf,
   buildKitchenLBodyCatalog,
   describeSelection,
   KITCHEN_L_DESIGN,
@@ -175,6 +176,7 @@ describe("the click an e2e spec performs still lights the swatch it clicked", ()
         voids: store.getState().voids,
         columns: store.getState().columns,
         catalog: store.getState().catalog,
+        cabinetDepthMm: cabinetDepthMmOf(store.getState().design),
         target: { kind: "placement", id: "p0" },
       }),
       rejection: null,

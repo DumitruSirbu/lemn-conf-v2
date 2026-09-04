@@ -34,6 +34,7 @@
 // while `setWidth` still accepts 800. Nothing in the shipped kitchen can then restore it — a single
 // delete never empties a whole column, so the width the customer loaded with is gone for good.
 import {
+  cabinetDepthMmOf,
   columnWidthChoices,
   deriveColumns,
   derivePlacementRecords,
@@ -110,7 +111,11 @@ function stepperAt(kitchen: Kitchen, id: string): WidthStepperSection {
   };
   const panel = describePanel({
     meta: describeSelection({ ...world, target }),
-    offers: offersFor({ ...world, target }),
+    offers: offersFor({
+      ...world,
+      target,
+      cabinetDepthMm: cabinetDepthMmOf(kitchen.design),
+    }),
     rejection: null,
     widthOptions: widthOptionsFor(engineInput(kitchen, id)),
     widthSteps: widthStepsFor(engineInput(kitchen, id)),

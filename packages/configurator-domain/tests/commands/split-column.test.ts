@@ -35,6 +35,7 @@ import {
 } from "../../src/void-engine.js";
 import { createFakeProbe } from "../support/fake-probe.js";
 import { refused, verdictOf } from "../support/offers.js";
+import { cabinetDepthMmOf } from "../../src/design.js";
 
 const CATALOG = KITCHEN_L_BODY_CATALOG;
 const NOW = "2026-08-25T00:00:00.000Z";
@@ -279,6 +280,7 @@ describe("an insert splits the column it does not fill", () => {
       records: after.records,
       voids: after.voids,
       columns: after.columns,
+      cabinetDepthMm: cabinetDepthMmOf(after.design),
       target: { kind: "void", id: strip.id },
     });
 

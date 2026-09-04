@@ -14,6 +14,7 @@ import {
 } from "@/store/configurator-store";
 import {
   buildKitchenLBodyCatalog,
+  cabinetDepthMmOf,
   describeSelection,
   KITCHEN_L_DESIGN,
   offersFor,
@@ -36,7 +37,14 @@ function panelFromStore(state: ConfiguratorState): PanelView {
       ? describeSelection({ records, voids, catalog, target: selection })
       : undefined,
     offers: selection
-      ? offersFor({ records, voids, columns, catalog, target: selection })
+      ? offersFor({
+          records,
+          voids,
+          columns,
+          catalog,
+          target: selection,
+          cabinetDepthMm: cabinetDepthMmOf(state.design),
+        })
       : [],
     rejection: state.lastRejection,
     widthOptions: [],

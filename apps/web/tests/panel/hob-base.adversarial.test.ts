@@ -8,6 +8,7 @@
 // symptom at all**: it is a CSS `background-image`, so there is no broken-image glyph and no failed
 // request to notice.
 import {
+  cabinetDepthMmOf,
   deriveColumns,
   derivePlacementRecords,
   describeSelection,
@@ -50,6 +51,9 @@ function worldFrom(design: Design) {
     columns: SEEDED_COLUMNS,
     voids: recomputeVoids(records, SEEDED_COLUMNS),
     catalog: KITCHEN_L_BODY_CATALOG,
+    // Carried on the world so a spread of it supplies the depth **derived from the design in the
+    // same object**, rather than a number typed beside it that could disagree with the design.
+    cabinetDepthMm: cabinetDepthMmOf(design),
   };
 }
 
@@ -60,7 +64,10 @@ function replaceSectionAt(
   const meta = describeSelection({ ...world, target });
   const panel = describePanel({
     meta,
-    offers: offersFor({ ...world, target }),
+    offers: offersFor({
+      ...world,
+      target,
+    }),
     rejection: null,
     widthOptions: meta ? noWidthIsFree(meta.widthMm, meta.sizesMm) : [],
     isBodyProbeAttached: true,

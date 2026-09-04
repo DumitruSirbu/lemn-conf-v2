@@ -212,6 +212,7 @@ describe("insertBody — the depth an insert into an empty void builds against (
         voids: world.voids,
         columns: world.columns,
         catalog: world.catalog,
+        cabinetDepthMm: world.cabinetDepthMm,
         target: { kind: "void", id: record.id },
       }),
     )[0]?.buildId;

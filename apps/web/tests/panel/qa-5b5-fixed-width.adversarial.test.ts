@@ -12,6 +12,7 @@
 // is the store, so the last describe drives the action the click would have driven and shows exactly
 // what the `disabled` attribute is holding back.
 import {
+  cabinetDepthMmOf,
   buildKitchenLBodyCatalog,
   columnWidthChoices,
   deriveColumns,
@@ -73,7 +74,11 @@ function panelAt(world: World, target: CommandTarget, canWrite = true) {
   };
   return describePanel({
     meta: describeSelection({ ...world, target }),
-    offers: offersFor({ ...world, target }),
+    offers: offersFor({
+      ...world,
+      target,
+      cabinetDepthMm: cabinetDepthMmOf(world.design),
+    }),
     rejection: null,
     widthOptions: widthOptionsFor(engineInput),
     widthSteps: widthStepsFor(engineInput),

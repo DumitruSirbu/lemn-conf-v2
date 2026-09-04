@@ -93,6 +93,7 @@ describe("the deletion is behaviour-free: nothing reachable is accessory-height"
             body,
             opening: resolved.value.opening,
             column: resolved.value.column,
+            cabinetDepthMm: world.cabinetDepthMm,
           });
           if (!fit.ok) continue;
           fitsSeen += 1;

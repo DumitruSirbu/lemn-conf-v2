@@ -497,6 +497,7 @@ describe("the strip a shrink creates", () => {
         catalog: after.catalog,
         columns: after.columns,
         voids: after.voids,
+        cabinetDepthMm: after.cabinetDepthMm,
         target: { kind: "void", id: opening.id },
       });
       expect(
