@@ -18,7 +18,7 @@ import {
   createConfiguratorStore,
   type ConfiguratorState,
 } from "../../src/store/configurator-store";
-import { createFakeBodyProbe } from "../support/fake-body-probe";
+import { createFakeProbeFactory } from "../support/fake-body-probe";
 
 const OCCURRED_AT = "2026-08-25T12:00:00.000Z";
 
@@ -27,7 +27,7 @@ function createStore(design: Design = KITCHEN_L_DESIGN) {
     design,
     catalogAt: buildKitchenLBodyCatalog,
     now: () => OCCURRED_AT,
-    bodyProbe: createFakeBodyProbe(),
+    probeAt: createFakeProbeFactory(),
   });
 }
 
@@ -278,7 +278,7 @@ describe("the state a resize leaves behind", () => {
       design: KITCHEN_L_DESIGN,
       catalogAt: buildKitchenLBodyCatalog,
       now: () => OCCURRED_AT,
-      bodyProbe: createFakeBodyProbe(),
+      probeAt: createFakeProbeFactory(),
       onDesignChanged,
     });
     for (const id of ["p1", "p12", "p18"]) removeById(store, id);

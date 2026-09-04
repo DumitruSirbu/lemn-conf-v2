@@ -20,7 +20,10 @@ import {
   type ConfiguratorState,
 } from "../../src/store/configurator-store";
 import { columnExtents } from "../support/column-extents";
-import { createFakeBodyProbe } from "../support/fake-body-probe";
+import {
+  createFakeBodyProbe,
+  createFakeProbeFactory,
+} from "../support/fake-body-probe";
 import { LEGACY_ENUM_FINISHES } from "@lemnaria/configurator-domain";
 
 /** The revision a hydrating loader reports. These tests are about identity and generation, not
@@ -50,7 +53,7 @@ function createStore(overrides: StoreOverrides = {}) {
     now: () => OCCURRED_AT,
     ...(overrides.withProbe === false
       ? {}
-      : { bodyProbe: createFakeBodyProbe() }),
+      : { probeAt: createFakeProbeFactory() }),
     ...(overrides.onDesignChanged
       ? { onDesignChanged: overrides.onDesignChanged }
       : {}),
@@ -510,7 +513,7 @@ describe("insert without a probe", () => {
     store.getState().insert("wall-lift");
     expect(store.getState().lastRejection?.code).toBe("BODY_PROBE_UNAVAILABLE");
 
-    store.getState().attachBodyProbe(createFakeBodyProbe());
+    store.getState().attachBodyProbe(createFakeProbeFactory());
     store.getState().select({ kind: "placement", id: "p8" });
     store.getState().insert("wall-lift");
 
@@ -528,8 +531,14 @@ describe("insert without a probe", () => {
     const second = vi.fn((request: Parameters<typeof secondProbe.measure>[0]) =>
       secondProbe.measure(request),
     );
-    store.getState().attachBodyProbe({ measure: first });
-    store.getState().attachBodyProbe({ measure: second });
+    store.getState().attachBodyProbe(() => ({
+      probe: { measure: first },
+      release: () => undefined,
+    }));
+    store.getState().attachBodyProbe(() => ({
+      probe: { measure: second },
+      release: () => undefined,
+    }));
     expect(store.getState().isBodyProbeAttached).toBe(true);
 
     store.getState().select({ kind: "placement", id: "p8" });

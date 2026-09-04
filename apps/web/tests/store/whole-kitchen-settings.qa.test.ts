@@ -19,7 +19,7 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 
-import { createFakeBodyProbe } from "../support/fake-body-probe";
+import { createFakeProbeFactory } from "../support/fake-body-probe";
 
 const storeState = vi.hoisted(() => ({ current: undefined as unknown }));
 
@@ -48,7 +48,7 @@ function freshStore(design: Design = KITCHEN_L_DESIGN) {
   return createConfiguratorStore({
     design,
     catalogAt: buildKitchenLBodyCatalog,
-    bodyProbe: createFakeBodyProbe(),
+    probeAt: createFakeProbeFactory(),
     now: () => OCCURRED_AT,
   });
 }

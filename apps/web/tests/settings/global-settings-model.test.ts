@@ -242,10 +242,15 @@ describe("the two selections, which are not the same selection", () => {
     // The chips are visible with the sheet shut, so they must not move under a customer who has not
     // pressed Aplică yet.
     const view = settingsView({
-      applied: { materialTierId: "material.melamine" },
-      pending: { materialTierId: "material.veneer" },
+      applied: { materialTierId: "material.melamine", cabinetDepthMm: 600 },
+      pending: { materialTierId: "material.veneer", cabinetDepthMm: 700 },
     });
 
+    // **Two, and the cabinet depth is deliberately not a third** (wave 6K-b, 2026-09-05). One was
+    // added and withdrawn on measurement: at 390 x 844 the chips row cannot hold three, and a third
+    // pushed the bar over the controls beside it — 44 of 58 e2e specs failed because nothing could
+    // be tapped. Two chips already truncate at that viewport. The depth needs the reminder least of
+    // the three anyway: it is the only one whose change the customer can *see*, in the model itself.
     expect(view.chips.map((chip) => chip.label)).toEqual([
       "Material · PAL melaminat",
       "Feronerie · Standard",

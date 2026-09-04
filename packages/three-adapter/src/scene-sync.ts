@@ -6,6 +6,7 @@
 // the wall seating for bodies already seated), and a body or void that vanished is removed **and
 // disposed** — §4's own pseudocode opens with "dispose all void meshes", and a leak here is
 // invisible until a phone runs out of memory mid-session.
+import { buildAnyBody } from "./build-any-body.js";
 import {
   isPushOpenByDefault,
   toMetres,
@@ -14,14 +15,9 @@ import {
 } from "@lemnaria/configurator-domain";
 import * as THREE from "three";
 
-import {
-  buildCatalogBody,
-  isCatalogBuildId,
-  rebuildDepthM,
-} from "./catalog-bodies.js";
+import { rebuildDepthM } from "./catalog-bodies.js";
 import {
   applyBlackHandleMaterial,
-  buildDecomposedBody,
   setHandlesVisible,
 } from "./decomposed-bodies.js";
 import { applyBodyFinish, finishKeyOf, finishSignature } from "./finishes.js";
@@ -217,10 +213,9 @@ function applyRecordedAppearance(
  *  entry the value is passed through and ignored. The probe suite asserts both halves of that,
  *  entry by entry. */
 function buildBody(kit: Kit, record: PlacementRecord): THREE.Group {
-  if (!isCatalogBuildId(record.buildId)) {
-    return buildDecomposedBody(kit, record.buildId);
-  }
-  return buildCatalogBody(kit, record.buildId, {
+  // The family split lives in `build-any-body.ts` and is asked once, here and in the probe, so the
+  // scene and the thing that measures for it cannot disagree about which builder owns an id.
+  return buildAnyBody(kit, record.buildId, {
     widthM: toMetres(record.widthMm),
     heightM: toMetres(record.heightMm),
     depthM: rebuildDepthM(kit, record.buildId, record.frame.d),

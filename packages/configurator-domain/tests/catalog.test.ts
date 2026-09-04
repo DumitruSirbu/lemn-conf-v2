@@ -213,14 +213,61 @@ describe("every insertable entry's two depth fields agree", () => {
     hood: 2 * 600 - 500,
   };
 
+  /**
+   * **This gate asserted `frameDepthMm === nominalDepthMm` until 2026-09-05, and that premise is
+   * superseded by [ADR 0075](../../../docs/decisions/0075-a-recorded-shell-declares-its-shell-not-its-finished-depth.md)
+   * decision 1.** It was true of every row only because the fronted wall rows were **wrong**: they
+   * stated the finished 330 where ADR 0018 fixes this field as twice the rear overhang, and
+   * `wallCabinet` builds `D − 39` centred on `z = 0`. Held to equality, `rebuildDepthM`'s worked
+   * convergence becomes `330 → 369 → 408` and `occupiedDepthM` publishes a 369 mm wall cabinet
+   * nobody manufactures.
+   *
+   * **The claim it makes now is stronger, not weaker**: the frame depth is the nominal *less what
+   * the builder puts in front of it*, which the row already declares as
+   * `occupiedDepth.frontAssemblyMm`. That is one number for every `recorded-shell` row —
+   * `wall-cabinet` and `wall-lift` at 39, `open-shelf` at 0 — and equality for every row whose
+   * builder seats the whole declared depth. Equality was the special case all along.
+   *
+   * `hood` stays a named exception because ADR 0039 hangs it at the **front**, so neither reading
+   * applies; it is named rather than filtered so the sweep still covers it and a second entry cannot
+   * acquire the disagreement by accident.
+   */
   it.each(INSERTABLE_BODY_DEFINITIONS)(
-    "%s seats on its own nominal depth",
+    "%s seats on the depth its builder actually leaves behind it",
     (buildId, definition) => {
+      // Required of every insertable row, so its absence is a defect rather than a case to handle.
+      const nominalMm = definition.nominalDepthMm;
+      expect(nominalMm, buildId).toBeDefined();
+      if (nominalMm === undefined) return;
+
+      const declared =
+        definition.occupiedDepth.measuredFrom === "recorded-shell"
+          ? nominalMm - definition.occupiedDepth.frontAssemblyMm
+          : nominalMm;
+
       expect(definition.frameDepthMm).toBe(
-        FRONT_HUNG_SEAT_MM[buildId] ?? definition.nominalDepthMm,
+        FRONT_HUNG_SEAT_MM[buildId] ?? declared,
       );
     },
   );
+
+  // The rewrite above would be vacuous if every row were `wall-plane`. Both arms must be reached,
+  // and the `recorded-shell` arm must contain rows on both sides of a zero front assembly.
+  it("reaches both arms, and a fronted row and an unfronted one", () => {
+    const shells = INSERTABLE_BODY_DEFINITIONS.filter(
+      ([, definition]) =>
+        definition.occupiedDepth.measuredFrom === "recorded-shell",
+    );
+    const fronted = shells.filter(
+      ([, definition]) =>
+        definition.occupiedDepth.measuredFrom === "recorded-shell" &&
+        definition.occupiedDepth.frontAssemblyMm > 0,
+    );
+
+    expect(shells.length).toBeGreaterThan(fronted.length);
+    expect(fronted.length).toBeGreaterThan(0);
+    expect(INSERTABLE_BODY_DEFINITIONS.length).toBeGreaterThan(shells.length);
+  });
 
   it("keeps the hood's exception real, and its nominal out of it", () => {
     const hood = INSERTABLE_BODY_DEFINITIONS.find(([id]) => id === "hood")?.[1];

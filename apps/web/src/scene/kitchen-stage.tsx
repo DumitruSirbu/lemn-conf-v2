@@ -13,11 +13,13 @@ import {
   createPickingRaycaster,
   createShadowGround,
   createStudioEnvironment,
+  disposeKit,
   disposeKitAndStage,
   disposeOverflowMark,
   disposeSelectionOutline,
   isDragGesture,
   makeKit,
+  type Kit,
   pick,
   seatObjectOnStage,
   syncSolidBodies,
@@ -31,12 +33,58 @@ import * as THREE from "three";
 import {
   DEFAULT_CABINET_DEPTH_MM,
   wallCarcassDepthMm,
+  type BodyProbeFactory,
 } from "@lemnaria/configurator-domain";
 
 import type { Selection } from "../store/apply-command-result";
 import { useConfiguratorStore } from "../store/configurator-store";
 import { resolveSceneView, sceneViewKey, type SceneView } from "./scene-view";
 import { useOverflowingPlacementIds } from "./use-overflowing-placements";
+
+/**
+ * The store's `BodyProbeFactory`, and **the one place the two kits are told apart**.
+ *
+ * Asked for the depth this stage is already standing at — every command except `setCabinetDepth`,
+ * and a depth change that is not a change — it hands back this stage's own probe and a `release`
+ * that frees nothing. The stage owns that kit and `disposeKitAndStage` will release it; freeing it
+ * here would take the shared geometries out from under the mounted room, which is a black or
+ * invisible object rather than an error (`kit-disposal.ts`).
+ *
+ * Asked for any other depth, it builds a **transient** kit at that depth and releases it when the
+ * command ends (ADR 0074 decision 3: kits are not cached by depth — a `BodyCatalog` owns no GPU
+ * resource and a kit owns buffers, materials and canvas textures). It measures inside that kit's own
+ * room rather than the mounted one, so nothing is added to or removed from the scene the customer is
+ * looking at while the measurement runs.
+ *
+ * **Why it exists at all**: the adapter's base, full-height, appliance and hood builders ignore the
+ * depth they are handed and build the kit's own, so a probe over the standing kit measures the depth
+ * the session is *leaving* whatever it is asked for — 580 against 680 on the same change, measured
+ * (ADR 0074's finding, wave 6K-e).
+ */
+function probeFactoryFor(
+  stage: { kit: Kit; room: THREE.Object3D },
+  standingDepthMm: number,
+): BodyProbeFactory {
+  return (cabinetDepthMm: number) => {
+    if (cabinetDepthMm === standingDepthMm) {
+      return {
+        probe: createBodyProbe(stage.kit, stage.room),
+        release: () => undefined,
+      };
+    }
+    const kit = makeKit({
+      cabinetDepthMm,
+      wallDepthMm: wallCarcassDepthMm(cabinetDepthMm),
+    });
+    const room = kit.builders["kitchen-l"]();
+    return {
+      probe: createBodyProbe(kit, room),
+      release: () => {
+        disposeKit(kit, room);
+      },
+    };
+  };
+}
 
 /** Seconds for a preset switch to settle. Long enough to read as a move, short enough that the
  *  customer is not waiting on the camera. */
@@ -169,11 +217,11 @@ export function KitchenStage({ view, finish, onSettled }: KitchenStageProps) {
   // and the mounted room — neither of which exists until this component runs. The store therefore
   // holds the port and this is the only place the Three.js implementation is handed to it.
   useEffect(() => {
-    attachBodyProbe(createBodyProbe(stage.kit, stage.room));
+    attachBodyProbe(probeFactoryFor(stage, cabinetDepthMm));
     // The probe measures inside *this* room. When the stage goes, so must it — the store is
     // module-scoped and would otherwise keep offering a probe over an unmounted scene.
     return detachBodyProbe;
-  }, [stage, attachBodyProbe, detachBodyProbe]);
+  }, [stage, cabinetDepthMm, attachBodyProbe, detachBodyProbe]);
 
   useEffect(() => {
     configureRenderer(gl);

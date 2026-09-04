@@ -45,7 +45,7 @@ import {
   type ConfiguratorState,
 } from "@/store/configurator-store";
 
-import { createFakeBodyProbe } from "../support/fake-body-probe";
+import { createFakeProbeFactory } from "../support/fake-body-probe";
 
 /** `global-settings-seams.test.ts`'s pattern, for its reason: the component under test runs against
  *  a real store's real fields rather than a hand-written state shape. */
@@ -78,7 +78,7 @@ function storeFor(design: Design) {
   return createConfiguratorStore({
     design,
     catalogAt: buildKitchenLBodyCatalog,
-    bodyProbe: createFakeBodyProbe(),
+    probeAt: createFakeProbeFactory(),
     now: () => FIXED_NOW,
   });
 }
@@ -481,7 +481,7 @@ describe("why apply has to compare before it commits", () => {
     const store = createConfiguratorStore({
       design: KITCHEN_L_DESIGN,
       catalogAt: buildKitchenLBodyCatalog,
-      bodyProbe: createFakeBodyProbe(),
+      probeAt: createFakeProbeFactory(),
       now: () => {
         tick += 1;
         return `2026-09-03T12:00:${String(tick).padStart(2, "0")}.000Z`;

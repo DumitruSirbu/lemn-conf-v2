@@ -36,7 +36,10 @@ import {
   type ConfiguratorState,
 } from "@/store/configurator-store";
 
-import { createFakeBodyProbe } from "../support/fake-body-probe";
+import {
+  createFakeBodyProbe,
+  createFakeProbeFactory,
+} from "../support/fake-body-probe";
 
 const PROBE = createFakeBodyProbe();
 const OCCURRED_AT = "2026-08-30T12:00:00.000Z";
@@ -125,7 +128,7 @@ function storeFor(design: Design = KITCHEN_L_DESIGN) {
     design,
     catalogAt: buildKitchenLBodyCatalog,
     now: () => OCCURRED_AT,
-    bodyProbe: createFakeBodyProbe(),
+    probeAt: createFakeProbeFactory(),
   });
 }
 

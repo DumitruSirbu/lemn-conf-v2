@@ -20,6 +20,19 @@
 
 /* Frame 2E's strip reads the two settings as one line; frame D2E draws them as two pills. Same two
  * elements either way. */
+/* **The row is clipped and its items shrink, so it can never reach the trigger** — a rule about the
+ * row rather than a width that happens to fit today's chips.
+ *
+ * `overflow: hidden` here was not enough on its own. A flex item's default `min-width` is `auto`,
+ * and a `white-space: nowrap` chip's min-content width is its whole label, so the chips **refused to
+ * shrink**: they overflowed this box, pushed the row past its share of `.anchor`, and landed on top
+ * of `global-settings-trigger`. Measured 2026-09-05 on the third chip at 390 px — Playwright's tap
+ * on the trigger was intercepted by the chips subtree, sixteen retries then a timeout, and **44 of
+ * 58 e2e specs failed** because nothing could open the sheet.
+ *
+ * `min-width: 0` on the item is what makes the row's own `flex: 1; min-width: 0` mean anything, and
+ * the ellipsis is what makes a shrunk chip readable rather than cut mid-glyph. A fourth chip (6R's
+ * finish control) narrows the three rather than breaking anything. */
 .chips {
   display: flex;
   flex: 1;
@@ -29,8 +42,11 @@
 }
 
 .chip {
+  min-width: 0;
+  overflow: hidden;
   font: 400 11.5px/1.3 var(--font-ui);
   color: var(--ink-muted);
+  text-overflow: ellipsis;
   white-space: nowrap;
 }
 

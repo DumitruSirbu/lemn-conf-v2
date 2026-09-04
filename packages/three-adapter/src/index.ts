@@ -32,6 +32,7 @@ export { buildKitchenShell } from "./kitchen-shell.js";
 
 export {
   disposeDiscardedBodies,
+  disposeKit,
   disposeKitAndStage,
   type DiscardedBodyDisposal,
   type KitStage,

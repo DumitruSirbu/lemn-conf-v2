@@ -38,7 +38,7 @@ import {
 
 import { offerWholeKitchenTiers } from "@/price/whole-kitchen-tiers";
 
-import { createFakeBodyProbe } from "../support/fake-body-probe";
+import { createFakeProbeFactory } from "../support/fake-body-probe";
 
 /** The store state the component under test reads — `price-wiring.adversarial.test.ts`'s pattern,
  *  for its reason: the real component runs against a real store's real fields. */
@@ -123,7 +123,7 @@ function stateFor(design: Design): ConfiguratorState {
   return createConfiguratorStore({
     design,
     catalogAt: buildKitchenLBodyCatalog,
-    bodyProbe: createFakeBodyProbe(),
+    probeAt: createFakeProbeFactory(),
     now: () => "2026-09-03T12:00:00.000Z",
   }).getState();
 }
@@ -211,7 +211,7 @@ describe("a design carrying a withdrawn tier can be repaired from this surface",
     const store = createConfiguratorStore({
       design: withdrawn,
       catalogAt: buildKitchenLBodyCatalog,
-      bodyProbe: createFakeBodyProbe(),
+      probeAt: createFakeProbeFactory(),
       now: () => "2026-09-04T12:00:00.000Z",
     });
     const offer = offerWholeKitchenTiers({
@@ -247,7 +247,7 @@ describe("the ids this surface offers are the ids the commands accept", () => {
     const store = createConfiguratorStore({
       design: KITCHEN_L_DESIGN,
       catalogAt: buildKitchenLBodyCatalog,
-      bodyProbe: createFakeBodyProbe(),
+      probeAt: createFakeProbeFactory(),
       now: () => "2026-09-03T12:00:00.000Z",
     });
     const tierIds = SAMPLE_PRICE_BOOK.material.tiers.map((tier) => tier.tierId);
@@ -263,7 +263,7 @@ describe("the ids this surface offers are the ids the commands accept", () => {
     const store = createConfiguratorStore({
       design: KITCHEN_L_DESIGN,
       catalogAt: buildKitchenLBodyCatalog,
-      bodyProbe: createFakeBodyProbe(),
+      probeAt: createFakeProbeFactory(),
       now: () => "2026-09-03T12:00:00.000Z",
     });
     const tierIds = SAMPLE_PRICE_BOOK.hardware.tiers.map((tier) => tier.tierId);

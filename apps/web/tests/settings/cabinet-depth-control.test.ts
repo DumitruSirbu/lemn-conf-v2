@@ -22,7 +22,7 @@ import { describe, expect, it } from "vitest";
 
 import { ro } from "@/content/ro";
 
-import { createFakeBodyProbe } from "../support/fake-body-probe";
+import { createFakeProbeFactory } from "../support/fake-body-probe";
 import {
   offerWholeKitchenTiers,
   type WholeKitchenTierOffer,
@@ -181,7 +181,7 @@ describe("applying a depth that is already carried", () => {
     return createConfiguratorStore({
       design: KITCHEN_L_DESIGN,
       catalogAt: buildKitchenLBodyCatalog,
-      bodyProbe: createFakeBodyProbe(),
+      probeAt: createFakeProbeFactory(),
       now: () => {
         tick += 1;
         return `2026-09-04T12:00:${String(tick).padStart(2, "0")}.000Z`;

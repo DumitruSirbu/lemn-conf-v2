@@ -42,7 +42,7 @@ import {
   type ConfiguratorState,
 } from "@/store/configurator-store";
 
-import { createFakeBodyProbe } from "../support/fake-body-probe";
+import { createFakeProbeFactory } from "../support/fake-body-probe";
 import { createHeadlessCanvas } from "../support/headless-canvas";
 
 /** The store state the hooks under test read. Swapped between cases, so the real `usePanelView` and
@@ -67,7 +67,7 @@ function freshStore(design: Design = KITCHEN_L_DESIGN) {
   return createConfiguratorStore({
     design,
     catalogAt: buildKitchenLBodyCatalog,
-    bodyProbe: createFakeBodyProbe(),
+    probeAt: createFakeProbeFactory(),
     now: () => "2026-09-03T12:00:00.000Z",
   });
 }

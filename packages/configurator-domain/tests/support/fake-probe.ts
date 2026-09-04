@@ -7,9 +7,13 @@
 import type {
   BodyMeasurement,
   BodyProbe,
+  BodyProbeFactory,
   BodyProbeRequest,
 } from "../../src/body-probe.js";
-import { KITCHEN_L_BODY_CATALOG } from "../../src/fixtures/kitchen-l-design.js";
+import {
+  buildKitchenLBodyCatalog,
+  KITCHEN_L_BODY_CATALOG,
+} from "../../src/fixtures/kitchen-l-design.js";
 import { toMetres } from "../../src/millimetres.js";
 import type { BodyCatalog, BodyDefinition } from "../../src/void-engine.js";
 
@@ -107,4 +111,20 @@ export function createFakeProbe(options: FakeProbeOptions = {}): BodyProbe & {
       };
     },
   };
+}
+
+/** The `BodyProbeFactory` the commands take, backed by the fake above.
+ *
+ *  It builds at the depth it is asked for, which is what a real factory does: the transient kit is
+ *  created at the target depth. `release` frees nothing — there is no kit behind a fake. */
+export function createFakeProbeFactory(
+  options: FakeProbeOptions = {},
+): BodyProbeFactory {
+  return (cabinetDepthMm: number) => ({
+    probe: createFakeProbe({
+      ...options,
+      catalog: options.catalog ?? buildKitchenLBodyCatalog(cabinetDepthMm),
+    }),
+    release: () => undefined,
+  });
 }

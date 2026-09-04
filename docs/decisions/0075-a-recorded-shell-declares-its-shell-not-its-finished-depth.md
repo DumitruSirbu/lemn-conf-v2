@@ -105,6 +105,48 @@ column 400 — correct. **Any wave measuring 369 must say which of the three it 
 whole-catalogue sweep in decision 1's criteria is what stops the next one being found by arithmetic
 coincidence.
 
+## Amendment, 2026-09-04 — decision 2 confirmed by measurement
+
+Decision 2 was argued from four readings of the source and nothing had ever run it. Decision 3 made
+running it the wave's first act, and [ADR 0074](0074-the-scene-rebuilds-whole-at-a-depth-change.md)
+set the standard this discharges: a finding owes a confirming measurement, not only a reading.
+
+**Nothing here is withdrawn.** The condition in decision 3 is unchanged — the record would have been
+amended had the columns *not* come back. They did.
+
+Run headless in `packages/three-adapter`, against a real `createBodyProbe` over a real kit and the
+room it built, with the kit built at the depth each leg moves to
+(`tests/qa-6k-d-real-probe-round-trip.test.ts`):
+
+```
+start   A|0.30 = 0.3300   A|0.75 = 0.3300   wall seat = (none, falls back to frameDepthMm)
+at 700  A|0.30 = 0.4000   A|0.75 = 0.4000   wall seat = 361
+at 600  A|0.30 = 0.3300   A|0.75 = 0.3300   wall seat = 291
+```
+
+Four things follow, and the last two were not available to this record when it was written.
+
+1. **The wall columns return exactly, so decision 2 holds.** The 39 mm the `it.fails` in
+   `apps/web/tests/store/qa-6k-a-cabinet-depth.adversarial.test.ts` measures is `createFakeBodyProbe`
+   answering the depth it was asked for. It is not the declaration, and the catalogue must not be
+   edited to turn that assertion green (decision 3).
+2. **The middle leg reaches 400 — the declared map row — which discharges decision 4.** Of the three
+   mechanisms that produce 369, this measurement names the one closed: ADR 0073's
+   `insert-fit.ts:834` constant, fixed in wave 6K-b. Under the real probe that fix gives shell 361,
+   seat 361 and a column of 400. Under the fake it would have given 439 — the number moving without
+   becoming right — which is exactly why the measurement had to be taken against a real probe.
+3. **Independent corroboration for decision 1, gathered before any fix.** On the way back the real
+   probe writes the wall seat as **291**, byte-identical to what the *seeded* row
+   (`wall-2door-600`) declares as its `frameDepthMm`. The parameterised row's 330 is the outlier, and
+   that now rests on a measurement rather than on this record's own reasoning.
+4. **Structural bodies are excluded from the fixture, and the exclusion is itself a finding.**
+   `base-corner-x-900`, `base-corner-return-320`, `wall-corner-return-570` and
+   `wall-corner-return-570-top` travel `reseat` rather than `rebuild`, and `createBodyProbe` throws
+   `No catalog builder registered` for every one of them — `measureBuiltBody` calls `buildCatalogBody`
+   unconditionally. They are excluded so that the round trip measures depth rather than passing
+   because something threw. **That the real probe cannot measure them at all is larger than this
+   record and is reported separately.**
+
 ## Alternatives considered
 
 - **Keep 330 and change the seeded rows to match.** Refused on decision 1's four readings: it is the

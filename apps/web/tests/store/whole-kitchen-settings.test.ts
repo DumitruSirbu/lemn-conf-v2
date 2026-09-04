@@ -17,7 +17,7 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 
-import { createFakeBodyProbe } from "../support/fake-body-probe";
+import { createFakeProbeFactory } from "../support/fake-body-probe";
 
 /** The store state the hook under test reads, swapped between cases so the real `usePricedDesign`
  *  runs against a real store's real fields rather than a fixture shaped like one. */
@@ -48,7 +48,7 @@ function freshStore(design: Design = KITCHEN_L_DESIGN) {
   return createConfiguratorStore({
     design,
     catalogAt: buildKitchenLBodyCatalog,
-    bodyProbe: createFakeBodyProbe(),
+    probeAt: createFakeProbeFactory(),
     now: () => OCCURRED_AT,
   });
 }
@@ -127,7 +127,7 @@ describe("the two whole-kitchen store actions", () => {
     const store = createConfiguratorStore({
       design: KITCHEN_L_DESIGN,
       catalogAt: buildKitchenLBodyCatalog,
-      bodyProbe: createFakeBodyProbe(),
+      probeAt: createFakeProbeFactory(),
       now: () => OCCURRED_AT,
       onDesignChanged,
     });

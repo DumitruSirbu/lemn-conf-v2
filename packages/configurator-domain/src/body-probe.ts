@@ -30,3 +30,37 @@ export interface BodyProbe {
    *  a reloaded design will not reproduce the scene it was saved from. */
   measure(request: BodyProbeRequest): BodyMeasurement;
 }
+
+/**
+ * A probe borrowed for the length of one command, and the thing that must give it back.
+ *
+ * **Why a lease and not a probe.** A probe is not plain data: the adapter's implementation closes
+ * over a `Kit`, which owns GPU buffers, materials and canvas textures. A caller that needs a probe
+ * at a depth other than the one the scene is standing at has to build a kit for it, and a kit built
+ * and never released is a leak per command (ADR 0074 decision 3 — exactly one kit is alive per
+ * mounted scene). Handing back a bare `BodyProbe` gives the borrower no way to say when it is done,
+ * and gives the lender no way to know.
+ *
+ * `release` is idempotent and must be called on every path, success or refusal. A lease whose depth
+ * the lender already has standing may release nothing at all — that is the ordinary case, and it is
+ * why the borrower never asks which.
+ */
+export interface BodyProbeLease {
+  readonly probe: BodyProbe;
+  readonly release: () => void;
+}
+
+/**
+ * **A probe built at a stated depth, rather than one handed in already built.**
+ *
+ * The same ruling `SetCabinetDepthInput.catalogAt` carries and for the same reason: a `probe:
+ * BodyProbe` field lets a caller ask for 700 while passing a probe whose kit is at 600, and nothing
+ * downstream can tell — the adapter's base, full-height, appliance and hood builders **ignore the
+ * depth they are handed and build the kit's own** (ADR 0018), so the measurement comes back at the
+ * old depth and is persisted as `seatDepthMm`. Measured, not argued: 580 from a 600-kit probe
+ * against 680 from a 700-kit one, on the same 600 → 700 change
+ * (`packages/three-adapter/tests/qa-6k-b-probe-kit-depth.adversarial.test.ts`).
+ *
+ * A factory makes that call site impossible to write instead of merely wrong.
+ */
+export type BodyProbeFactory = (cabinetDepthMm: number) => BodyProbeLease;

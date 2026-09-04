@@ -21,7 +21,7 @@ import { describe, expect, it } from "vitest";
 
 import { createConfiguratorStore } from "@/store/configurator-store";
 
-import { createFakeBodyProbe } from "../support/fake-body-probe";
+import { createFakeProbeFactory } from "../support/fake-body-probe";
 
 const OCCURRED_AT = "2026-09-04T12:00:00.000Z";
 const DEEPER_MM = 700;
@@ -67,7 +67,7 @@ const DEEPENED_DESIGN: Design = (() => {
     design: KITCHEN_L_DESIGN,
     catalogAt: buildKitchenLBodyCatalog,
     cabinetDepthMm: DEEPER_MM,
-    probe: createFakeBodyProbe(),
+    probeAt: createFakeProbeFactory(),
     occurredAt: OCCURRED_AT,
   });
   if (!result.ok) throw new Error(`fixture refused: ${result.reason.code}`);
@@ -99,7 +99,7 @@ function createStore(overrides: StoreOverrides = {}) {
   return createConfiguratorStore({
     design,
     catalogAt: buildKitchenLBodyCatalog,
-    ...(withProbe ? { bodyProbe: createFakeBodyProbe() } : {}),
+    ...(withProbe ? { probeAt: createFakeProbeFactory() } : {}),
     now: () => OCCURRED_AT,
   });
 }
@@ -186,7 +186,7 @@ describe("setCabinetDepth", () => {
     const store = createConfiguratorStore({
       design: KITCHEN_L_DESIGN,
       catalogAt: buildKitchenLBodyCatalog,
-      bodyProbe: createFakeBodyProbe(),
+      probeAt: createFakeProbeFactory(),
       now: () => OCCURRED_AT,
       onDesignChanged: (design) => {
         saved.push(design);
@@ -362,3 +362,53 @@ describe("a member-less column after a depth change", () => {
     },
   );
 });
+
+// **The customer-visible claim, and the one the visual pass measured through the UI.**
+//
+// A body's `seatDepthMm` is twice its rear overhang (ADR 0018), so it is what places the body
+// against the wall — 100 mm of seat is 50 mm of position. Before wave 6K-e the store handed
+// `setCabinetDepth` the scene's standing probe, whose kit was at the depth the session was
+// **leaving**, so on the way back from 700 every rebuilt body was seated for a 700 mm kitchen and
+// stood 50 mm proud of the back wall in a 600 mm one. Measured in a browser at 390 x 844 on
+// 2026-09-04, before the fix:
+//
+//     base carcasses  0.000..0.620 -> 0.050..0.670   (the whole run 50 mm off the wall)
+//     end panel       80 mm of carcass standing in front of the panel meant to hide it
+//     at 700          the run 50 mm *inside* the wall (min z = -0.05)
+//
+// Asserted here on the seat rather than on a column depth, because the columns came back correctly
+// even while this was broken — a column is derived from the catalogue, a body's position from the
+// measured seat, and only the second one moved.
+describe("the round trip a customer takes, measured where they can see it", () => {
+  it("returns every body to the depth it stood at when it started", () => {
+    const store = createStore();
+    const startedAt = seatedDepthsByPlacementId(store);
+
+    store.getState().setCabinetDepth(DEEPER_MM);
+    const deepened = seatedDepthsByPlacementId(store);
+    store.getState().setCabinetDepth(DEFAULT_CABINET_DEPTH_MM);
+
+    // Not a value compared with itself: the middle leg really does move the bodies it rebuilds.
+    const moved = [...deepened].filter(
+      ([id, depthM]) => depthM !== startedAt.get(id),
+    );
+    expect(moved.length).toBeGreaterThan(0);
+
+    // And they come back — every placement, so a body seated right by luck cannot carry one that
+    // was not. Before wave 6K-e the base run came back 50 mm out.
+    expect(seatedDepthsByPlacementId(store)).toEqual(startedAt);
+  });
+});
+
+/** Where every body's back face stands, as `frame.d` — `deriveFrame`'s
+ *  `seatDepthMm ?? frameDepthMm`, so a seeded body with no measured seat and a rebuilt one with one
+ *  are read the same way. That resolution is the point: the seeded design carries **no** seats at
+ *  all and every body carries one after a rebuild, so comparing raw seats would compare `undefined`
+ *  with a number and say nothing about where anything stands. */
+function seatedDepthsByPlacementId(
+  store: ReturnType<typeof createStore>,
+): ReadonlyMap<string, number> {
+  return new Map(
+    store.getState().records.map((record) => [record.id, record.frame.d]),
+  );
+}

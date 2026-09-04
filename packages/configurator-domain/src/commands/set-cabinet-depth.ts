@@ -15,7 +15,7 @@
 // by naming them here. `depthFollowsSetting` is the one question this module asks about an entry,
 // and it lives in `cabinet-depth-rule.ts` so wave 6I's gate and this migration cannot drift.
 import { depthFollowsSetting } from "../cabinet-depth-rule.js";
-import type { BodyProbe } from "../body-probe.js";
+import type { BodyProbe, BodyProbeFactory } from "../body-probe.js";
 import type { Design, DesignPlacement } from "../design.js";
 import { toMetres, toMillimetres } from "../millimetres.js";
 import {
@@ -50,7 +50,9 @@ export interface SetCabinetDepthInput {
   readonly design: Design;
   readonly catalogAt: (cabinetDepthMm: number) => BodyCatalog;
   readonly cabinetDepthMm: number;
-  readonly probe: BodyProbe;
+  /** **A factory, never a built probe** — see `BodyProbeFactory`. The command leases one at the
+   *  depth it is moving to and releases it on every path. */
+  readonly probeAt: BodyProbeFactory;
   readonly occurredAt: string;
 }
 
@@ -65,7 +67,16 @@ export function setCabinetDepth(
     return refuse(design, { code: "UNKNOWN_CABINET_DEPTH", params: {} });
   }
 
-  const rebuilt = rebuildEveryBodyAt(input);
+  // Leased for the length of the rebuild and released on every path, refusal included: the adapter's
+  // implementation closes over a `Kit`, and a kit built per command and never released is a leak per
+  // command (ADR 0074 decision 3).
+  const lease = input.probeAt(input.cabinetDepthMm);
+  let rebuilt: Rebuilt;
+  try {
+    rebuilt = rebuildEveryBodyAt(input, lease.probe);
+  } finally {
+    lease.release();
+  }
   if (!rebuilt.ok) return refuse(design, rebuilt.detail);
 
   return succeedWith(
@@ -113,7 +124,10 @@ type RejectionDetailOf = Parameters<typeof refuse>[1];
  *  The records and columns are derived from the catalogue **built at the new depth**, so the opening
  *  each body is re-fitted into already carries the new depth — this function never passes a depth
  *  around itself, which is why it cannot pass the wrong one. */
-function rebuildEveryBodyAt(input: SetCabinetDepthInput): Rebuilt {
+function rebuildEveryBodyAt(
+  input: SetCabinetDepthInput,
+  probe: BodyProbe,
+): Rebuilt {
   const catalog = input.catalogAt(input.cabinetDepthMm);
   const records = derivePlacementRecords(input.design, catalog);
   // `{}` rather than the document's frozen extents: ADR 0011 Gap D freezes a column's extent at the
@@ -141,7 +155,7 @@ function rebuildEveryBodyAt(input: SetCabinetDepthInput): Rebuilt {
     // reading them fails to compile instead of silently resizing to zero.
     target: { kind: "placement", id: UNUSED_BY_REBUILD },
     widthMm: 0,
-    probe: input.probe,
+    probe,
     occurredAt: input.occurredAt,
   };
 
@@ -170,7 +184,7 @@ function rebuildEveryBodyAt(input: SetCabinetDepthInput): Rebuilt {
       // one field this rewrites, measured off a body probed at the new depth.
       placements.push(
         reseat({
-          probe: input.probe,
+          probe,
           placement,
           declaredDepthM: toMetres(declaredFrameDepthMm(catalog, record)),
         }),

@@ -12,7 +12,7 @@ import type {
   BodyProbeRequest,
 } from "@lemnaria/configurator-domain";
 
-import { buildCatalogBody } from "./catalog-bodies.js";
+import { buildAnyBody } from "./build-any-body.js";
 import type { Kit } from "./kitchen-parts.js";
 import { disposeUnsharedGeometries, isMesh } from "./three-guards.js";
 
@@ -94,7 +94,11 @@ export function measureBuiltBody(
   input: MeasureBuiltBodyInput,
 ): BodyMeasurement {
   const { request } = input;
-  const group = buildCatalogBody(input.kit, request.buildId, request);
+  // **The same dispatch the scene uses, from the one module that owns it** (wave 6K-d). This called
+  // `buildCatalogBody` directly and threw for every seeded decomposition id, which is exactly the
+  // family `set-cabinet-depth.ts`'s `reseat` arm asks the probe to measure — so a live depth change
+  // on the seeded kitchen threw rather than re-seating its corner returns.
+  const group = buildAnyBody(input.kit, request.buildId, request);
   // §6.2: measured **after** the group is in the room, so a room transform cannot be forgotten.
   input.room.add(group);
   try {

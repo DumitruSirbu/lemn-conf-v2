@@ -28,7 +28,7 @@ import { ro } from "@/content/ro";
 import { describePanel, type PanelView } from "@/panel/panel-model";
 import { createConfiguratorStore } from "@/store/configurator-store";
 
-import { createFakeBodyProbe } from "../support/fake-body-probe";
+import { createFakeProbeFactory } from "../support/fake-body-probe";
 import { occupiedMeta } from "../support/selection-meta";
 import { noWidthIsFree } from "../support/width-options";
 
@@ -159,7 +159,7 @@ describe("the click an e2e spec performs still lights the swatch it clicked", ()
     const store = createConfiguratorStore({
       design: KITCHEN_L_DESIGN,
       catalogAt: buildKitchenLBodyCatalog,
-      bodyProbe: createFakeBodyProbe(),
+      probeAt: createFakeProbeFactory(),
       now: () => "2026-08-26T12:00:00.000Z",
     });
     store.getState().select({ kind: "placement", id: "p0" });

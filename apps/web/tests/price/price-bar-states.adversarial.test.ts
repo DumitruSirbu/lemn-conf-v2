@@ -37,7 +37,7 @@ import { describePanel, type PanelView } from "@/panel/panel-model";
 import { describePriceBar, type PricedBar } from "@/price/price-bar-model";
 import { createConfiguratorStore } from "@/store/configurator-store";
 
-import { createFakeBodyProbe } from "../support/fake-body-probe";
+import { createFakeProbeFactory } from "../support/fake-body-probe";
 import { occupiedMeta } from "../support/selection-meta";
 import { noWidthIsFree } from "../support/width-options";
 
@@ -197,7 +197,7 @@ describe("no refusal the store can produce moves the figure", () => {
     return createConfiguratorStore({
       design: KITCHEN_L_DESIGN,
       catalogAt: buildKitchenLBodyCatalog,
-      bodyProbe: createFakeBodyProbe(),
+      probeAt: createFakeProbeFactory(),
       now: () => "2026-09-03T12:00:00.000Z",
     });
   }

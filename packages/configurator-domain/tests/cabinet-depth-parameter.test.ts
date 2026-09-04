@@ -67,8 +67,22 @@ const SHIPPED_AT_600: readonly (readonly [
   ["base-bottle-cargo", 580, 580, wallPlane(620)],
   ["base-sink", 580, 580, wallPlane(620)],
   ["base-dishwasher", 580, 580, wallPlane(620)],
-  ["wall-cabinet", 330, 330, recordedShell(39)],
-  ["wall-lift", 330, 330, recordedShell(39)],
+  // **Re-baselined 2026-09-05, declared rather than silent** (`docs/WORKFLOW.md`: a re-baseline is
+  // announced, never relaxed). `frameDepthMm` moved 330 → 291 for the two fronted wall rows under
+  // ADR 0075 decision 1: this field is twice the rear overhang (ADR 0018) and `wallCabinet` builds
+  // `D − 39` centred on z = 0, so 330 was the finished cabinet standing in a field that means the
+  // shell. The arithmetic, written out because a moved snapshot number is otherwise indistinguishable
+  // from a hidden defect: **330 declared − 39 front assembly = 291 shell**. The nominal is untouched
+  // at 330 — that is what §7 declares, what the customer is told (ADR 0036 decision 1) and what the
+  // builder is handed.
+  //
+  // **No geometry moves.** M1's parity gate diffs `makeKit()`'s builders, which read no catalogue
+  // field; this one is only `deriveFrame`'s fallback for a placement with **no measured seat**, and
+  // the seeded rows spread `wallCarcass`, which sets one. What changes is a stored document that
+  // carries an unmeasured `wall-cabinet` placement: it seated 39 mm off the wall plane before and
+  // seats correctly now — a correction on load, not a migration.
+  ["wall-cabinet", 330, 291, recordedShell(39)],
+  ["wall-lift", 330, 291, recordedShell(39)],
   ["open-shelf", 330, 330, recordedShell(0)],
   ["hood", 500, 700, wallPlane(600)],
   ["tall-pantry", 560, 560, wallPlane(599)],

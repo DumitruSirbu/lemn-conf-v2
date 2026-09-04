@@ -54,7 +54,7 @@ import {
   type ConfiguratorState,
 } from "@/store/configurator-store";
 
-import { createFakeBodyProbe } from "../support/fake-body-probe";
+import { createFakeProbeFactory } from "../support/fake-body-probe";
 
 /** The store state the component under test reads, swapped between cases — the pattern
  *  `price-wiring.adversarial.test.ts` established, and for its reason: the real component runs
@@ -119,7 +119,7 @@ function stateFor(design: Design): ConfiguratorState {
   return createConfiguratorStore({
     design,
     catalogAt: buildKitchenLBodyCatalog,
-    bodyProbe: createFakeBodyProbe(),
+    probeAt: createFakeProbeFactory(),
     now: () => "2026-09-03T12:00:00.000Z",
   }).getState();
 }

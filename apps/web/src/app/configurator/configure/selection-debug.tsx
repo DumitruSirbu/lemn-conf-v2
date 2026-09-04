@@ -75,6 +75,16 @@ function SelectionDebugReadout() {
       // without them. Empty means the design carries no such key, which is a real state (ADR 0053).
       data-material-tier={design.settings?.materialTierId ?? ""}
       data-hardware-tier={design.settings?.hardwareTierId ?? ""}
+      // Wave 6K-b's third whole-kitchen setting, here for exactly the reason the two above it are:
+      // the sheet shows *"700 mm"* as an option's label and the scene shows a deeper kitchen, but
+      // nothing on the page shows the number the **document** carries — so "applying a depth wrote
+      // it", "cancelling wrote nothing" and "applying an unchanged sheet wrote nothing" are all
+      // unreadable without it. Empty means the design carries none, which a pre-6J-a document does.
+      data-cabinet-depth={
+        design.settings?.cabinetDepthMm === undefined
+          ? ""
+          : String(design.settings.cabinetDepthMm)
+      }
       data-updated-at={design.updatedAt}
       hidden
     />

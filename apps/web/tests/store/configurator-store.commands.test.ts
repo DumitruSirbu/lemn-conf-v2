@@ -8,7 +8,7 @@ import {
   buildKitchenLBodyCatalog,
   KITCHEN_L_DESIGN,
   widthOptionsFor,
-  type BodyProbe,
+  type BodyProbeFactory,
   type Design,
 } from "@lemnaria/configurator-domain";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -18,7 +18,7 @@ import {
   type ConfiguratorState,
 } from "../../src/store/configurator-store";
 import { columnExtents } from "../support/column-extents";
-import { createFakeBodyProbe } from "../support/fake-body-probe";
+import { createFakeProbeFactory } from "../support/fake-body-probe";
 import { LEGACY_ENUM_FINISHES } from "@lemnaria/configurator-domain";
 
 /** The fridge column of the §10 signature flow: `p7` (0 – 1.85) with `p24` (1.85 – 2.60) above it,
@@ -31,11 +31,10 @@ const HOB_HOST_ID = "p2";
 const OCCURRED_AT = "2026-08-25T12:00:00.000Z";
 
 /** The store's own probe, reused where a test has to ask §9's width query what it would offer. */
-const PROBE = createFakeBodyProbe();
 
 interface StoreOverrides {
   readonly onDesignChanged?: (design: unknown) => void;
-  readonly bodyProbe?: BodyProbe;
+  readonly probeAt?: BodyProbeFactory;
   readonly design?: Design;
 }
 
@@ -44,7 +43,7 @@ function createStore(overrides: StoreOverrides = {}) {
     design: overrides.design ?? KITCHEN_L_DESIGN,
     catalogAt: buildKitchenLBodyCatalog,
     now: () => OCCURRED_AT,
-    bodyProbe: overrides.bodyProbe ?? createFakeBodyProbe(),
+    probeAt: overrides.probeAt ?? createFakeProbeFactory(),
     ...(overrides.onDesignChanged
       ? { onDesignChanged: overrides.onDesignChanged }
       : {}),
@@ -280,7 +279,7 @@ describe("insert", () => {
       catalogAt: buildKitchenLBodyCatalog,
       now: () => OCCURRED_AT,
     });
-    store.getState().attachBodyProbe(createFakeBodyProbe());
+    store.getState().attachBodyProbe(createFakeProbeFactory());
     removeById(store, "p7");
 
     store.getState().insert("base-3drawer");
@@ -309,7 +308,7 @@ describe("setWidth", () => {
       catalog: state.catalog,
       columns: state.columns,
       target: { kind: "placement", id: placementId },
-      probe: PROBE,
+      probe: createFakeProbeFactory()(600).probe,
     }).find((option) => option.verdict.status === "available");
     if (!free) throw new Error(`no free width on ${placementId}`);
     return free.widthMm;

@@ -38,7 +38,10 @@ import {
   OCCURRED_AT,
 } from "../support/commands.js";
 import { setCabinetDepth } from "../../src/commands/set-cabinet-depth.js";
-import { createFakeProbe } from "../support/fake-probe.js";
+import {
+  createFakeProbe,
+  createFakeProbeFactory,
+} from "../support/fake-probe.js";
 import {
   advance,
   createWorld,
@@ -495,7 +498,7 @@ function buildCases(): SweepCase[] {
           design: world.design,
           catalogAt: buildKitchenLBodyCatalog,
           cabinetDepthMm: 650,
-          probe: createFakeProbe(),
+          probeAt: createFakeProbeFactory(),
           occurredAt: OCCURRED_AT,
         }),
     },

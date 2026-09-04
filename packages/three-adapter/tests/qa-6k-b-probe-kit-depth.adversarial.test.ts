@@ -1,5 +1,14 @@
-// **A deliberately failing guard. Wave 6K-e owes the flip** — do not delete it, and do not weaken
-// the assertion to make it pass.
+// **Flipped by wave 6K-e**, and flipped rather than deleted (`docs/WORKFLOW.md`: a removed expected
+// failure is indistinguishable from one that never existed).
+//
+// **The claim had to be restated, and that is worth stating plainly.** As an `it.fails` it asserted
+// that the same base seat comes back "whichever kit's probe measures it". That can never be true and
+// 6K-e does not make it so: a probe over a 600 mm kit measures 600 whatever it is asked for — that
+// *is* the finding, and it is a property of the adapter's builders, not a defect to remove. What
+// 6K-e changes is **which probe the command gets**: `SetCabinetDepthInput.probe` became
+// `probeAt: BodyProbeFactory`, so the command leases one built at the depth it is moving to and
+// releases it, and a caller can no longer hand it the kit the session is leaving. The assertion
+// below is that guarantee, and it fails against the old signature.
 //
 // [ADR 0074](../../../docs/decisions/0074-the-scene-rebuilds-whole-at-a-depth-change.md)'s finding:
 // `setCabinetDepth` takes a `BodyProbe` and writes every rebuilt body's `seatDepthMm` from it. The
@@ -76,20 +85,29 @@ beforeAll(() => {
   installHeadlessDocument();
 });
 
-/** The seat `setCabinetDepth` writes for a base body when the probe is built over a kit at
- *  `probeDepthMm`, moving the design to `DEEPER_MM`. */
-function seatWrittenByAProbeAt(probeDepthMm: number): number | undefined {
+/** A real probe over a real kit at one depth, as a lease. `release` frees nothing here: the kits
+ *  built in this file live for the test, and disposing one mid-assertion would take the shared
+ *  geometries out from under the very measurement being made. */
+function leaseRealProbeAt(cabinetDepthMm: number) {
   const kit = makeKit({
     createCanvas: createHeadlessCanvas,
-    cabinetDepthMm: probeDepthMm,
-    wallDepthMm: wallCarcassDepthMm(probeDepthMm),
+    cabinetDepthMm,
+    wallDepthMm: wallCarcassDepthMm(cabinetDepthMm),
   });
   const room: THREE.Object3D = kit.builders["kitchen-l"]();
+  return { probe: createBodyProbe(kit, room), release: () => undefined };
+}
+
+/** The seat `setCabinetDepth` writes for a base body when **every** lease comes from a kit at
+ *  `probeDepthMm`, moving the design to `DEEPER_MM` — the pinned factory that models what the
+ *  application did before 6K-e. */
+function seatWrittenByAProbeAt(probeDepthMm: number): number | undefined {
+  const pinned = leaseRealProbeAt(probeDepthMm);
   const result = setCabinetDepth({
     design: WITHOUT_STRUCTURAL_BODIES,
     catalogAt: buildKitchenLBodyCatalog,
     cabinetDepthMm: DEEPER_MM,
-    probe: createBodyProbe(kit, room),
+    probeAt: () => pinned,
     occurredAt: OCCURRED_AT,
   });
   if (!result.ok) throw new Error(`refused: ${result.reason.code}`);
@@ -119,14 +137,27 @@ describe("the probe that measures a depth change", () => {
     );
   });
 
-  // **Expected failure, owed by wave 6K-e.** The seat a depth change persists must be a fact about
-  // the depth being moved to, never about which kit happened to be mounted when the customer tapped.
-  it.fails(
-    "writes the same base seat whichever kit's probe measures it (6K-e owes this)",
-    () => {
-      expect(seatWrittenByAProbeAt(DEFAULT_MM)).toBe(
-        seatWrittenByAProbeAt(DEEPER_MM),
-      );
-    },
-  );
+  // The seat a depth change persists is a fact about the depth being moved to, never about which
+  // kit happened to be mounted when the customer tapped.
+  it("writes the seat of the depth it is moving to, whatever kit is standing", () => {
+    // A factory that builds at the depth it is asked for, which is what the scene now supplies and
+    // what the command now demands. The 600 kit standing behind it is the one the session is
+    // leaving — before 6K-e that is the kit that measured, and it wrote 580.
+    const written = setCabinetDepth({
+      design: WITHOUT_STRUCTURAL_BODIES,
+      catalogAt: buildKitchenLBodyCatalog,
+      cabinetDepthMm: DEEPER_MM,
+      probeAt: (cabinetDepthMm) => leaseRealProbeAt(cabinetDepthMm),
+      occurredAt: OCCURRED_AT,
+    });
+    if (!written.ok) throw new Error(`refused: ${written.reason.code}`);
+
+    expect(seatOf(written.design, BASE_PLACEMENT_ID)).toBe(
+      seatWrittenByAProbeAt(DEEPER_MM),
+    );
+    // Not a value compared with itself: the kit the session is leaving answers differently.
+    expect(seatOf(written.design, BASE_PLACEMENT_ID)).not.toBe(
+      seatWrittenByAProbeAt(DEFAULT_MM),
+    );
+  });
 });

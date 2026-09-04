@@ -61,7 +61,7 @@ function insertedWallDepthMm(cabinetDepthMm: number): number {
             design: KITCHEN_L_DESIGN,
             catalogAt: buildKitchenLBodyCatalog,
             cabinetDepthMm,
-            probe,
+            probeAt: () => ({ probe, release: () => undefined }),
             occurredAt: OCCURRED_AT,
           }),
         );

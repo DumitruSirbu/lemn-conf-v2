@@ -17,7 +17,7 @@ import {
   declaredCabinetDepthsMm,
   MIN_CABINET_DEPTH_MM,
 } from "../../src/worktop-depth.js";
-import { createFakeProbe } from "../support/fake-probe.js";
+import { createFakeProbeFactory } from "../support/fake-probe.js";
 
 const OCCURRED_AT = "2026-09-04T10:00:00.000Z";
 const DEEPER_MM = 700;
@@ -30,7 +30,7 @@ function changeTo(
     design,
     catalogAt: buildKitchenLBodyCatalog,
     cabinetDepthMm,
-    probe: createFakeProbe(),
+    probeAt: createFakeProbeFactory(),
     occurredAt: OCCURRED_AT,
   });
 }
@@ -162,7 +162,7 @@ describe("refusals", () => {
       design: KITCHEN_L_DESIGN,
       catalogAt: buildKitchenLBodyCatalog,
       cabinetDepthMm: DEEPER_MM,
-      probe: createFakeProbe(),
+      probeAt: createFakeProbeFactory(),
       occurredAt: "not-a-timestamp",
     });
 

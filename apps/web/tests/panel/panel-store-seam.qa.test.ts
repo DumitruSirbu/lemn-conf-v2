@@ -26,7 +26,7 @@ import { ro } from "@/content/ro";
 import { describePanel, type PanelView } from "@/panel/panel-model";
 
 import { columnExtents } from "../support/column-extents";
-import { createFakeBodyProbe } from "../support/fake-body-probe";
+import { createFakeProbeFactory } from "../support/fake-body-probe";
 import { LEGACY_ENUM_FINISHES } from "@lemnaria/configurator-domain";
 
 /** Exactly what `usePanelView` composes, from exactly the store fields it subscribes to. */
@@ -64,7 +64,7 @@ function createStore(overrides: StoreOverrides = {}) {
   return createConfiguratorStore({
     design,
     catalogAt: buildKitchenLBodyCatalog,
-    ...(withProbe ? { bodyProbe: createFakeBodyProbe() } : {}),
+    ...(withProbe ? { probeAt: createFakeProbeFactory() } : {}),
     now: () => "2026-08-26T12:00:00.000Z",
   });
 }
@@ -150,7 +150,7 @@ describe("the panel over the store's own state", () => {
         ro.panel.probeUnavailable,
       ]);
 
-    store.getState().attachBodyProbe(createFakeBodyProbe());
+    store.getState().attachBodyProbe(createFakeProbeFactory());
     const after = openPanel(store.getState()).sections.find(
       (candidate) => candidate.kind === "replace",
     );

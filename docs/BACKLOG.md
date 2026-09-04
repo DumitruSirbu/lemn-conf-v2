@@ -1562,3 +1562,32 @@ have changed since the e2e spec was last touched. The third is the narrowest and
 exactly this.
 
 Not scheduled. Worth deciding before the next milestone closes on an unrun gate.
+
+## 31. A store action that throws leaves no trace on any surface
+
+Found 2026-09-05 by the visual pass on wave 6K-b, while the `reseat` crash was still live.
+
+Pressing *Aplică* on the depth control threw out of `setCabinetDepth`. Nothing recovered: the sheet
+**stayed open** with 700 still selected, `data-rejection` stayed empty, and in production there is no
+message at all — a dead button. Nothing was written and the app stayed usable, which is why no gate
+saw it.
+
+**The crash itself is fixed** (wave 6K-d gave the probe the scene's own dispatch, so `reseat` can
+measure a structural body). What remains is the shape: `applyPending` in
+`apps/web/src/settings/global-settings.tsx` calls `close()` **after** the command, so any future
+throw strands the sheet.
+
+**Not a general error-handling change, and deliberately not routed to `lastRejection`** — ruled
+2026-09-05. That field is a `RejectionReason` with a code and rendered Romanian copy; a thrown
+`Error` has neither, so putting one there means inventing a code or showing a customer a developer
+string. `apps/web/src/store/apply-command-result.ts:116` already takes the opposite stance in as many
+words: *"uncaught by design … a loud failure is the lesser harm"*.
+
+Two candidate fixes, both narrow:
+
+- `close()` in a `finally`, so the sheet always closes and the customer is not left pressing a dead
+  button. Smallest, and it says nothing about what went wrong.
+- An error boundary around the sheet, which can say *something* went wrong without inventing a
+  domain code. Larger, and it is the only one of the two that leaves a trace.
+
+Not scheduled. Worth deciding before any surface gains an action that can throw.

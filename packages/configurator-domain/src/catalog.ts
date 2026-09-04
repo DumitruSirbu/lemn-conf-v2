@@ -493,6 +493,19 @@ interface BodyShape {
   readonly widthFlex: WidthFlex;
   readonly nominalHeightMm: number;
   readonly nominalDepthMm: number;
+  /** **Twice the body's rear overhang** (ADR 0018), where that is not the nominal depth — which is
+   *  the case for every fronted wall row: `wallCabinet` builds `D − 39` centred on `z = 0`, so its
+   *  frame is the **shell** and its nominal is the finished cabinet, 39 mm deeper.
+   *
+   *  Declared per row rather than derived from `occupiedDepth` inside `insertableBody` (ADR 0075
+   *  decision 1): that would be one declaration deriving another, which is ADR 0028 decision 4's own
+   *  subject, and it would read the wrong `frontAssemblyMm` for `open-shelf` — which overrides its
+   *  `occupiedDepth` **after** the spread and whose seat genuinely is the full nominal.
+   *
+   *  Absent means the two are the same number, which is true of every base, full-height and
+   *  appliance row: their builders ignore the depth they are handed and their nominal already states
+   *  the seat (`baseSeatDepthMm` is 580 at 600, not 600). */
+  readonly frameDepthMm?: number;
   /** **Required, like `widthRangesMm` below and for the same reason.** `baseCabinet`, `wallCabinet`
    *  and `fullHeightUnit` each spread a shape, so a shape that stayed silent would inherit whatever
    *  rule the helper it was built with happened to carry — and a depth rule inherited by accident is
@@ -535,13 +548,21 @@ interface BodyShape {
 
 function insertableBody(band: Band, shape: BodyShape): BodyDefinition {
   // An inserted placement carries its own measured `seatDepthMm`, which `deriveFrame` prefers.
-  // `frameDepthMm` is the fallback for a placement that somehow lacks one, and the entry's nominal
-  // depth is the only honest value available before the body has been built and measured.
+  // `frameDepthMm` is the fallback for a placement that lacks one — a document written before a
+  // measured seat existed, or one that arrived by a `/d/{id}` link (ADR 0052: a load that refuses is
+  // a dead link, so such a document is loaded rather than rejected).
+  //
+  // **The nominal is the default and not the rule.** ADR 0018 fixes this field as twice the body's
+  // rear overhang, which equals the nominal only where the builder seats the whole declared depth.
+  // A fronted wall carcass does not: it builds `D − 39` centred on `z = 0`, so it states its own
+  // (ADR 0075 decision 1). Stated at 330 rather than 291 the round trip is `330 → 369 → 408` —
+  // ADR 0018 clause 4's compounding, in the growing direction — and `occupiedDepthM` publishes a
+  // 369 mm wall cabinet nobody manufactures.
   return {
     ...INSERTABLE_DEFAULTS,
     band,
     ...shape,
-    frameDepthMm: shape.nominalDepthMm,
+    frameDepthMm: shape.frameDepthMm ?? shape.nominalDepthMm,
   };
 }
 
@@ -606,6 +627,13 @@ function wallCabinet(
       nominalDepthMm: wallCarcassDepthMm(cabinetDepthMm),
       // The one builder family whose depth is a placement variable: `wallCabinet` centres the shell
       // it is given on z = 0, so `frame.d` is that shell and the finished cabinet is 39 mm deeper.
+      //
+      // **So the frame depth is the shell and the nominal is the finished cabinet**, and they are
+      // two numbers here where every other band has one. `wallCarcassSeatDepthMm` is the same
+      // function the seeded rows read, which is what makes a rebuild's swap
+      // (`resolveRebuildBody`, ADR 0022) depth-neutral — the drift ADR 0028 exists to stop, and the
+      // invariant `wallCarcassSeatDepthMm`'s own comment already claimed.
+      frameDepthMm: wallCarcassSeatDepthMm(cabinetDepthMm),
       occupiedDepth: shellPlusFrontMm(WALL_FRONT_ASSEMBLY_MM),
       // Through the map rather than through a formula (ADR 0028 decision 2), which is still the
       // setting deciding it: 330 at 600 and 400 at 700.
@@ -881,7 +909,11 @@ export function buildInsertableBodyDefinitions(
           fronts: NO_OPENING_FRONTS,
         }),
         kind: "open_shelf_unit",
-        // No door and no handle, so its shell and its finished depth are the same number.
+        // **No door and no handle, so its shell and its finished depth are the same number** — and
+        // the two overrides below move together or not at all (ADR 0075 decision 1). Taking
+        // `wallCabinet`'s shell here would state a seat 39 mm shallower than this body is built to,
+        // for a front it does not have.
+        frameDepthMm: wallCarcassDepthMm(cabinetDepthMm),
         occupiedDepth: shellPlusFrontMm(NO_FRONT_ASSEMBLY_MM),
         // Open by definition: no fixed front to finish, no leaf to open. Unlike `base-hob-oven`
         // above, wave 5B6 gave this body no filler panel, so ADR 0050 does not reach it.

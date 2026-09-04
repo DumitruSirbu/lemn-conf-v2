@@ -276,15 +276,20 @@ describe("the probe leaves the room exactly as it found it", () => {
   });
 
   it("restores the children when the builder throws", () => {
+    // **The id has to be one neither family owns.** It was `base-sink-800` until 2026-09-04, which
+    // was a seeded decomposition the probe could not build — the very defect wave 6K-d closed, so
+    // that input no longer throws and this test would have gone quietly vacuous. A name no
+    // catalogue row and no decomposition declares is what still reaches the failure this asserts
+    // the recovery from.
     const before = [...room.children];
 
     expect(() =>
       measureBuiltBody({
         kit,
         room,
-        request: request("base-sink-800", 800, 860, 0.58),
+        request: request("no-such-body", 800, 860, 0.58),
       }),
-    ).toThrow(/No catalog builder registered/);
+    ).toThrow(/No decomposition builder registered/);
 
     expect(room.children).toEqual(before);
   });

@@ -153,13 +153,45 @@ describe("the seeded fixture's depths are checked against the map, not merely eq
     expect(offenders).toEqual([]);
   });
 
-  it("gives every §7 wall entry the map's own row", () => {
-    const expectedMm = wallDepthMmForWorktop(WORKTOP_DEPTH_MM);
+  /**
+   * **The two populations now answer with one rule, which is the point.**
+   *
+   * This asserted the §7 rows equal the map's row outright — 330 — while the assertion above holds
+   * the *seeded* rows to that row **less the front assembly**, 291. Both were called "the map's own
+   * row" and they were two different numbers, which is the drift
+   * [ADR 0028](../../../docs/decisions/0028-wall-depth-is-derived-from-the-worktop.md) exists to
+   * stop, sitting between two tests in one file.
+   *
+   * [ADR 0075](../../../docs/decisions/0075-a-recorded-shell-declares-its-shell-not-its-finished-depth.md)
+   * decision 1 settled which is right: `frameDepthMm` is twice the rear overhang (ADR 0018), so the
+   * seeded rows were correct and the §7 rows were not. Corrected 2026-09-05 — and this now reads
+   * through `referenceRoomWallSeatMm`, the **same** helper the seeded assertion uses, so the two
+   * cannot be made to disagree again without one of them failing.
+   */
+  it("gives every §7 wall entry the map's own row, less what stands in front of it", () => {
     const offenders = catalogueEntries()
-      .filter(([, definition]) => definition.frameDepthMm !== expectedMm)
+      .filter(
+        ([, definition]) =>
+          definition.frameDepthMm !== referenceRoomWallSeatMm(definition),
+      )
       .map(
         ([buildId, definition]) =>
           `${buildId}=${String(definition.frameDepthMm)}`,
+      );
+
+    expect(offenders).toEqual([]);
+  });
+
+  // The nominal is untouched by that correction and is still the map's row outright — the finished
+  // cabinet the customer is told about (ADR 0036 decision 1). Asserted beside it so the pair is read
+  // together and neither can drift into the other.
+  it("still declares the map's row as every §7 wall entry's nominal depth", () => {
+    const expectedMm = wallDepthMmForWorktop(WORKTOP_DEPTH_MM);
+    const offenders = catalogueEntries()
+      .filter(([, definition]) => definition.nominalDepthMm !== expectedMm)
+      .map(
+        ([buildId, definition]) =>
+          `${buildId}=${String(definition.nominalDepthMm ?? "-")}`,
       );
 
     expect(offenders).toEqual([]);

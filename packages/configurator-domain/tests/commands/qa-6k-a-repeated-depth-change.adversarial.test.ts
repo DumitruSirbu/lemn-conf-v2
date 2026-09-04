@@ -51,7 +51,7 @@ function changeTo(cabinetDepthMm: number, design: Design): ChangeOutcome {
     design,
     catalogAt: buildKitchenLBodyCatalog,
     cabinetDepthMm,
-    probe,
+    probeAt: () => ({ probe, release: () => undefined }),
     occurredAt: OCCURRED_AT,
   });
   if (!result.ok) throw new Error(`refused: ${result.reason.code}`);

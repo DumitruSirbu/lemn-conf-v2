@@ -29,7 +29,7 @@ import { describe, expect, it } from "vitest";
 
 import { createConfiguratorStore } from "@/store/configurator-store";
 
-import { createFakeBodyProbe } from "../support/fake-body-probe";
+import { createFakeProbeFactory } from "../support/fake-body-probe";
 
 const OCCURRED_AT = "2026-09-04T12:00:00.000Z";
 const DEEPER_MM = 700;
@@ -45,7 +45,7 @@ function createStore(design: Design = KITCHEN_L_DESIGN) {
   return createConfiguratorStore({
     design,
     catalogAt: buildKitchenLBodyCatalog,
-    bodyProbe: createFakeBodyProbe(),
+    probeAt: createFakeProbeFactory(),
     now: () => OCCURRED_AT,
   });
 }
@@ -190,8 +190,7 @@ function insertedSeatDepthMm(store: Store): number | undefined {
 // thing. The published columns are 6K-a's own claim, not 6J-b's: the wave says the map describes the
 // run at the design's own depth, and after 600 -> 700 -> 600 the design's own depth is 600 again.
 //
-// **Ten of the twelve columns return; two do not, and the two are a body swap rather than the depth
-// axis.** `resolveRebuildBody` resolves a seeded entry to its parameterised equivalent and never
+// **All twelve columns return — since wave 6K-d, and they did not before.** `resolveRebuildBody` resolves a seeded entry to its parameterised equivalent and never
 // resolves back, and the two entries carry different declared depths under the *same* declaration
 // kind — measured off the built catalogue on 2026-09-04:
 //
@@ -199,10 +198,9 @@ function insertedSeatDepthMm(store: Store): number | undefined {
 //     at 700:  wall-2door-600  frameDepthMm=361   wall-cabinet  frameDepthMm=400
 //     both:    occupiedDepth { measuredFrom: "recorded-shell", frontAssemblyMm: 39 }
 //
-// So `A|0.30` and `A|0.75` publish 0.3300 at the start, 0.3690 at 700, and 0.3690 again on the way
-// back — the column faithfully reporting members that did not come back. It is not the decrease
-// direction (the rule takes the measured depth here, and the measurement really is 0.3690) and it is
-// not [ADR 0073](../../../../docs/decisions/0073-a-frozen-extent-records-the-body-its-depth-came-from.md)'s
+// `A|0.30` and `A|0.75` used to publish 0.3300 at the start, 0.3690 at 700 and 0.3690 again on the
+// way back. It was never the decrease direction (the rule takes the measured depth here) and never
+// [ADR 0073](../../../../docs/decisions/0073-a-frozen-extent-records-the-body-its-depth-came-from.md)'s
 // residue, which is about extents with no member left to measure — these hold every member.
 //
 // It is the failure `set-cabinet-depth.ts`'s own comment already warns of, recurring on the depth
@@ -220,11 +218,14 @@ function insertedSeatDepthMm(store: Store): number | undefined {
 // against it nothing grows. Measured here, not argued: the two keys below fail at `0.369` where
 // `0.330` is expected.
 //
-// So this is a **test-fidelity failure standing in front of a real declaration defect**, and the
-// order matters. 6K-d verifies against the real probe first; if the columns come back, this
-// assertion is flipped **by making the fake honest, never by editing the catalogue** — editing a
-// declaration so a test double agrees moves production geometry to match the double. The
-// declaration fix then stands on its own evidence and its own whole-catalogue sweep.
+// So this was a **test-fidelity failure standing in front of a real declaration defect**, and the
+// order mattered. **Discharged 2026-09-04, wave 6K-d, in that order**: the round trip was run
+// against the real adapter probe first and the wall columns returned exactly
+// (`packages/three-adapter/tests/qa-6k-d-real-probe-round-trip.test.ts`), confirming ADR 0075
+// decision 2; then `createFakeBodyProbe` was made to read the declaration instead of answering the
+// request, and this assertion went green **without the catalogue being touched**. The declaration
+// defect ADR 0075 decision 1 rules is still real and is fixed separately, on its own evidence — it
+// is not what turned this test green, which is the whole point of the ordering.
 //
 // The same `createFakeBodyProbe` is wave 6K-e's subject from the opposite side (ADR 0074): there the
 // real probe ignores the depth it is handed, here the fake obeys one the real probe does not.
@@ -250,26 +251,23 @@ describe("the round trip a customer takes when they change their mind", () => {
     }
   });
 
-  // **Expected failure, owed by wave 6K-d** (see the block above). Left running rather than skipped
-  // so it goes red the moment the swap stops changing a body's declared depth, instead of waiting
-  // for someone to remember it.
+  // **Flipped by wave 6K-d** (see the block above), and flipped rather than deleted: a removed
+  // expected failure is indistinguishable from one that never existed (`docs/WORKFLOW.md`). It is
+  // now an ordinary assertion and stays as the guard against the round trip regressing.
   //
   // **`it.fails` passes on any throw**, so a guard whose body crashes asserts nothing and the suite
   // still reports green. Wave 6K-b's adapter guard
   // (`packages/three-adapter/tests/qa-6k-b-probe-kit-depth.adversarial.test.ts`) was briefly in that
   // state. Print what one produces before trusting it.
-  it.fails(
-    "returns every column to the depth it published at the start",
-    () => {
-      const store = createStore();
-      const started = columnDepthsM(store);
+  it("returns every column to the depth it published at the start", () => {
+    const store = createStore();
+    const started = columnDepthsM(store);
 
-      store.getState().setCabinetDepth(DEEPER_MM);
-      store.getState().setCabinetDepth(DEFAULT_CABINET_DEPTH_MM);
+    store.getState().setCabinetDepth(DEEPER_MM);
+    store.getState().setCabinetDepth(DEFAULT_CABINET_DEPTH_MM);
 
-      expect(columnDepthsM(store)).toEqual(started);
-    },
-  );
+    expect(columnDepthsM(store)).toEqual(started);
+  });
 });
 
 /** The `buildId` each placement stands on, keyed by placement id. A depth change keeps every id, so
@@ -355,7 +353,7 @@ describe("what the store hands the commands after a depth change", () => {
       design: KITCHEN_L_DESIGN,
       catalogAt: buildKitchenLBodyCatalog,
       cabinetDepthMm: DEEPER_MM,
-      probe: createFakeBodyProbe(),
+      probeAt: createFakeProbeFactory(),
       occurredAt: OCCURRED_AT,
     });
     if (!asTheCommandWritesIt.ok) throw new Error("the oracle refused");
@@ -372,17 +370,36 @@ describe("what the store hands the commands after a depth change", () => {
     const store = createStore();
     store.getState().setCabinetDepth(DEEPER_MM);
     const seatedWhenDeepenedMm = seatDepthMmOf(store, "p0");
-    const runDepthMm = Math.round(columnOf(store, OCCUPIED_BASE_KEY).d * 1000);
 
     store.getState().select({ kind: "placement", id: "p0" });
     store.getState().setWidth(700);
 
     expect(store.getState().lastRejection).toBeNull();
-    // The premise: the body really was standing at the deeper kitchen's depth before the resize.
-    expect(seatedWhenDeepenedMm).toBe(runDepthMm);
+    // **The premise: the body really was standing at the deeper kitchen's depth before the resize.**
+    // Against a store that *loaded* at the deeper depth, not against the column's clearance —
+    // `Column.d` is §3.2's MAX over `occupiedDepthM`, a finished depth with the handle projection in
+    // it, where a seat is the carcass. This compared the two until 2026-09-04 and they differ by
+    // 40 mm on a base body; they were equal only while `createFakeBodyProbe` answered the depth it
+    // was asked for, which wave 6K-d stopped it doing.
+    expect(seatedWhenDeepenedMm).toBe(seatDepthMmOf(loadedAtDeeper(), "p0"));
     expect(seatDepthMmOf(store, "p0")).toBe(seatedWhenDeepenedMm);
   });
 });
+
+/** A store holding the design the domain command writes at the deeper setting — the oracle for
+ *  "this body is standing at the deeper kitchen's depth", built through the command rather than
+ *  through the store so it cannot agree with the store by sharing its path. */
+function loadedAtDeeper(): Store {
+  const written = setCabinetDepthOnDesign({
+    design: KITCHEN_L_DESIGN,
+    catalogAt: buildKitchenLBodyCatalog,
+    cabinetDepthMm: DEEPER_MM,
+    probeAt: createFakeProbeFactory(),
+    occurredAt: OCCURRED_AT,
+  });
+  if (!written.ok) throw new Error("the oracle refused");
+  return createStore(written.design);
+}
 
 function seatDepthMmOf(store: Store, placementId: string): number | undefined {
   return store
