@@ -253,6 +253,11 @@ describe("the round trip a customer takes when they change their mind", () => {
   // **Expected failure, owed by wave 6K-d** (see the block above). Left running rather than skipped
   // so it goes red the moment the swap stops changing a body's declared depth, instead of waiting
   // for someone to remember it.
+  //
+  // **`it.fails` passes on any throw**, so a guard whose body crashes asserts nothing and the suite
+  // still reports green. Wave 6K-b's adapter guard
+  // (`packages/three-adapter/tests/qa-6k-b-probe-kit-depth.adversarial.test.ts`) was briefly in that
+  // state. Print what one produces before trusting it.
   it.fails(
     "returns every column to the depth it published at the start",
     () => {

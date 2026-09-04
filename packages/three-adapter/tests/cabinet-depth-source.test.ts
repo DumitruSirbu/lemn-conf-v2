@@ -8,6 +8,8 @@
 // not happen is that they stop being the same number.
 import {
   buildInsertableBodyDefinitions,
+  declaredCabinetDepthsMm,
+  wallCarcassDepthMm,
   WALL_FRONT_ASSEMBLY_MM,
   WORKTOP_DEPTH_MM,
 } from "@lemnaria/configurator-domain";
@@ -101,6 +103,41 @@ describe("the adapter's wall depth is the domain's map row", () => {
       );
     },
   );
+
+  // **The pairing an application call site owes** (M6 wave 6K-b, ADR 0074 decision 4). A caller that
+  // passes `cabinetDepthMm` and lets `wallDepthMm` fall through to the adapter's default gets the
+  // right answer at 600 by coincidence of that default, and a 70 mm error at 700 in every wall
+  // carcass — ADR 0028's own reported defect, arriving through an omitted argument.
+  //
+  // Asserted here rather than in `apps/web`, because a package owns its tests completely and may not
+  // import across a boundary: what is pinned is the **rule** a call site must satisfy, so an app
+  // passing only one of the two fails against a number this file already holds to the domain's map.
+  it("declares the number a call site must pass beside the cabinet depth", () => {
+    for (const cabinetDepthMm of declaredCabinetDepthsMm()) {
+      expect(wallCarcassDepthMm(cabinetDepthMm)).toBe(
+        domainWallDepthMm(cabinetDepthMm),
+      );
+    }
+  });
+
+  it("builds the wrong wall carcass when only the cabinet depth is passed", () => {
+    // The anti-invariant, and the reason the pairing is a rule rather than a convenience: the
+    // omission is silent. Nothing throws, nothing is refused, and the carcass is 70 mm shallow.
+    const deeper = declaredCabinetDepthsMm().find(
+      (cabinetDepthMm) => cabinetDepthMm !== WORKTOP_DEPTH_MM,
+    );
+    if (deeper === undefined) throw new Error("only one depth is declared");
+
+    const omitted = makeKit({
+      createCanvas: createHeadlessCanvas,
+      cabinetDepthMm: deeper,
+    });
+
+    expect(Math.round(omitted.depths.wallDepthM * 1000)).toBe(
+      DEFAULT_WALL_DEPTH_MM,
+    );
+    expect(DEFAULT_WALL_DEPTH_MM).not.toBe(wallCarcassDepthMm(deeper));
+  });
 
   // ADR 0058, from the geometry side: the three deep tops are pinned at the 600 mm cabinet-depth
   // line and are the one thing in the reference room that must **not** take the map row. Stated here
