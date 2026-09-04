@@ -1,7 +1,7 @@
 # M6 — Live price, breakdown, and whole-kitchen settings (2D, 2E)
 
 > **STATUS: IN PROGRESS — waves sequenced 2026-09-02, first waves shipped 2026-09-03; four more
-> closed overnight 2026-09-03/04.** **Ten of nineteen waves are DONE** in the table below, each with
+> closed overnight 2026-09-03/04.** **Ten of twenty-four waves are DONE** in the table below, each with
 > its commit(s): 6A (`6c1f830`), 6H (`4afda06`), 6A3 and 6B2 (`eb9ba03`), all shipped 2026-09-03.
 > **6C (`194405b`) and 6D (`a5e161f`) are marked DONE by this pass** — both had already shipped and
 > `docs/STATUS.md` already carried QA evidence for 6C, but neither had ever received the table's DONE
@@ -10,11 +10,21 @@
 > 2026-09-03/04 on branch `m6-price-and-global-settings` and are this pass's actual close-out. **Not
 > marked DONE, and not to be read as closed either way**: 6B, 6A2, 6A4, 6I, 6L have shipped commits
 > (bundled inside `93e9bc3`/`75668b8`/`dfa6198`) but no recorded criteria check — see `docs/STATUS.md`.
-> **6F, 6J, 6K remain open**, and **6N has not started**. Depends on M5 (only wave 5E is still open
+> **6J, 6K remain open**, and **6N has not started**. **6F is superseded** — see 6P–6R below.
+> Depends on M5 (only wave 5E is still open
 > there, and it does not gate anything here). Summary: `docs/STATUS.md`. Start at **Waves** below,
-> then the owner section. **Nineteen waves, all
+> then the owner section. **Twenty-four waves, all
 > unblocked.** The seven owner decisions were taken on 2026-09-02 (ADRs 0055–0061); ADRs 0062–0064
 > followed, the last two on 2026-09-03.
+>
+> **Five waves added 2026-09-04 on two owner decisions taken that day.**
+> [ADR 0071](../decisions/0071-material-carries-price-colour-carries-a-different-control-per-material.md)
+> (material carries price; the colour control's shape differs per material) adds **6P, 6Q, 6R** and
+> **supersedes 6F**, which was one clause of it.
+> [ADR 0070](../decisions/0070-hardware-is-priced-per-mechanism-not-per-handle.md) (hardware priced
+> per mechanism) adds **6S** and **6T**. Neither decision is re-opened by these waves; what the waves
+> decide is sequencing, boundaries and what must be asserted. **The open inputs they need from the
+> owner are listed in *Open questions gating this phase*, not invented at the wave.**
 
 Status: planned, waves sequenced. Depends on M5.
 Reference: mockup frames 2A, 2D, 2E and D2A, D2D, D2E; `DEVELOPMENT-SPEC.md` §5.5, §9 item 7, §12;
@@ -229,7 +239,7 @@ constant (`worktop-depth.ts` carries a comment saying the rename is owed and def
 | 6C — the price bar, both shells — **DONE 2026-09-03, `194405b`** | P | 6B | Full |
 | 6D — the breakdown (2D / D2D) — **DONE 2026-09-03, `a5e161f`** | P | 6C | Light + visual |
 | 6E — the whole-kitchen settings container — **DONE 2026-09-03, `b558e28`** | G | 6B | Full |
-| 6F — a material that invalidates a finish | G | 6E — **unblocked, ADR 0057** | Full |
+| 6F — a material that invalidates a finish — **SUPERSEDED 2026-09-04 by 6P–6R (ADR 0071)** | G | 6E — **unblocked, ADR 0057** | Full |
 | 6G — the settings surface (2E / D2E) — **DONE 2026-09-04, `3e546d1`** | G | 6D, 6E | Light + visual |
 | 6H — cabinet depth becomes a parameter — **DONE 2026-09-03, `4afda06`** | D | none | Full |
 | 6I — the base family follows the formula | D | 6H | Full |
@@ -239,12 +249,34 @@ constant (`worktop-depth.ts` carries a comment saying the rename is owed and def
 | 6L — the handle path learns cabinet from appliance *(backlog 18)* | G | none — **sequenced before 6B and 6G** | Full |
 | 6M — the overflow is marked and warned about *(ADR 0065)* — **DONE 2026-09-04, `ce77171`** | — | 6A3 | Light + visual |
 | 6N — the wall-coverage bars *(owner request)* | — | 6D, 6M, decision 8's fixture correction | Light + visual |
+| 6P — the finish model: materials, palette, and a document that predates both *(ADR 0071)* | G | 6E | Full |
+| 6Q — a material change resolves every finish it does not offer *(ADR 0071, ADR 0057; supersedes 6F)* | G | 6P | Full |
+| 6R — three control shapes, and six decors the 3D approximates *(ADR 0071)* | G | 6Q, 6G | Light + visual |
+| 6S — door leaves, drawers and door band heights become declared facts *(ADR 0070)* | P | none | Full |
+| 6T — hardware priced per mechanism, and the two sink extras *(ADR 0070)* | P | 6S, 6B2 | Full |
 
 The letters are identifiers and the table is in dependency order, with one exception: **6L is listed
 last and runs early.** It has no technical gate on anything and nothing gates on it, so it is placed
 by choice rather than by dependency — before 6G, so that no global control is the thing that makes
 the defect visible. `6I2` follows M5's own convention for a wave inserted between two already-named
 ones (5C2, 5D2a).
+
+**On the five letters added 2026-09-04, because two conventions could each have claimed them.**
+
+- **They are new letters, not `6F2`/`6F3`.** The `2` suffix in this file marks a wave *inserted
+  between two already-named ones* to keep the table readable in dependency order (6A2, 6I2, and
+  M5's 5C2 and 5D2a). These five gate on 6E, 6G and 6B2 — all shipped — so they run **last**, and
+  the table stays in dependency order by appending them. Reusing 6F's letter would also cost the
+  thing the supersession is for: 6F has to stay legible as the wave that *was* superseded, and
+  `6F`/`6F2` in one table invites a reader to treat them as one wave in two parts.
+- **`6O` is skipped deliberately.** This file writes wave letters inline beside commit hashes and
+  amounts, where `6O` and `60` are one keystroke apart. The gap is recorded here so no reader hunts
+  for a wave that never existed.
+- **6S runs first of the five, and the two tracks are independent.** 6S/6T (track P) need no owner
+  input at all — ADR 0070 is complete — while 6P/6Q carry two open inputs each. Nothing gates
+  across the tracks. **But 6P and 6T must not be dispatched into the same tree at once:** both edit
+  `pricing/price-book.ts` and `pricing/sample-price-book.ts`, on different halves (material tier
+  ids, hardware tier shape). Sequential is fine; parallel is a merge nobody planned.
 
 ### Wave 6A — one canonical projection of a design
 
@@ -946,6 +978,20 @@ than rediscover it.
 
 ### Wave 6F — a global material that invalidates a per-cabinet finish
 
+> **SUPERSEDED 2026-09-04 by waves 6P, 6Q and 6R —
+> [ADR 0071](../decisions/0071-material-carries-price-colour-carries-a-different-control-per-material.md).**
+> Not deleted, and not cancelled: **every criterion below is carried forward by wave 6Q**, which is
+> where the filter, the reset and the warning now ship. What changed is that 6F assumed the only
+> thing a material could invalidate was *membership* of a fixed five-value list. Under ADR 0071 the
+> colour control's **shape** differs per material — a six-decor list for PAL, a RAL picker for MDF,
+> two swatches for veneer — so a finish stops being one of five strings and the schema has to say
+> what one *is* before anything can filter it. That is wave 6P; this wave's own rule is 6Q; the
+> three control shapes are 6R. **ADR 0057 is unchanged and still governs the reset.** Read this
+> section for the reasoning it records, then read 6Q for what is built.
+>
+> **The 6E question below travels on to 6Q**, which is named as its home so it does not fall off
+> with this wave.
+
 **A second open question travels here from wave 6E, above: a stored tier the price book no longer
 offers.** ADR 0057's reconciliation rule for a per-cabinet finish is the proposed mirror for a
 whole-kitchen material or hardware tier, reconciled at load. Not yet decided or built — 6F's own
@@ -1582,11 +1628,416 @@ test fixture with a ~200 mm leftover belongs here.
 **Gate:** 6D and 6M, plus decision 8's fixture correction. **Not started, and lowest priority of the
 open items.**
 
+### Wave 6P — the finish model: three materials, a declared palette, and a document that predates both
+
+**[ADR 0071](../decisions/0071-material-carries-price-colour-carries-a-different-control-per-material.md)**,
+owner 2026-09-04. **With 6Q and 6R this supersedes wave 6F**, which was one clause of it.
+
+**Goal.** Make *a finish* expressible. Three declared materials, price-ordered — **PAL (melamine) <
+MDF (painted) < veneer** (natural wood over MDF) — a declared palette per material, and a
+`DesignSchema` that can hold both kinds of thing a finish now is: a palette entry identified by id
+(a PAL decor, a veneer wood) or a free colour value (MDF's RAL pick). Plus the migration that meets
+a document written under the shipped five-value enum.
+
+**Why here.** `FinishSchema` (`packages/configurator-domain/src/design.ts:40`) is a closed enum of
+five — `white · clay · sage · graphite · oak` — and **it cannot express "any RAL colour"**. Nothing
+about the control shapes (6R), the reset rule (6Q) or the 3D approximation (6R) can be built while a
+finish is one of five strings, and both of those waves read this wave's declaration. It is first so
+that neither is written against a shape still being chosen. **Colour is not a price driver** — the
+material sets the price — so this wave adds no price rule and changes no amount.
+
+**Touches.** `packages/configurator-domain/src/design.ts` (`FinishSchema`, `DesignSettingsSchema`),
+a new material-and-palette module beside it, `migrate-design.ts`, `index.ts` — plus the two places
+that today enumerate the five values by hand and will not compile otherwise:
+`apps/web/src/panel/panel-model.ts:827` (`FinishSchema.options.map`, with `ro.panel.finishLabels`
+keyed on the same five) and `packages/three-adapter/src/finishes.ts:20` (`FinishKey`, **a second
+copy of the enum**). Those two are kept compiling and **value-preserving** here; 6R gives them their
+real shape.
+
+**Acceptance criteria.**
+
+- **The three materials are a declared domain fact, price-ordered, and the price book's material
+  tier ids are exactly them.** Falsifiable in both directions, asserted over the shipped sample
+  book: every `MaterialTier.tierId` resolves to a declared material, and every declared material has
+  a tier. A fourth material on either side then fails a gate instead of rendering a colour control
+  with no options, or a priced tier no colour control offers. **Two independent lists of three is
+  ADR 0028's failure one seam over.** The domain still imports no book
+  ([ADR 0062](../decisions/0062-a-manufacturer-price-dashboard-comes-after-m8-and-shapes-seams-now.md)
+  seam 1), so the assertion lives in a test that composes both — not in `pricing/`, and not in a
+  runtime check inside the domain.
+- **A finish is two kinds of thing and the discriminant is declared, never inferred from the
+  string's shape.** A value that *looks* like a hex code is not thereby an MDF colour, and a palette
+  id is not recognised by failing to parse as one. There is no third kind.
+- **A free colour is bounded and validated at the schema**, which is the one gate both the API write
+  seam and `migrateDesign` pass through. An unparseable, over-long or otherwise malformed value is
+  **refused there** — never defaulted, never normalised into a nearby colour, and never handed to
+  `THREE.Color`. This is the **first free-form string a customer authors** that the document has
+  ever held; every other identifier in `DesignSchema` is a value the product chose, and
+  `identifierSchema`'s posture (shape-validated, length-capped) is the precedent, not the
+  permission.
+- **The six PAL decors are declared with their Egger codes _and_ with each code's verification
+  state.** Two of the six — *Alb* `W1000 ST9 Alb Premium` and *Antracit* `U963 ST9` — are
+  **unconfirmed against a supplier stock list**; the other four were read from a supplier catalogue
+  on 2026-09-04 (ADR 0071 decision 4). The state is a **required field per entry**, so a seventh
+  decor cannot be added without stating which it is, and **the two states are never presented as
+  equally settled**. Whether the code is shown to a customer at all is an open input below; until it
+  is ruled, no unconfirmed code is rendered as a supplier code.
+- **A document holding any of the five legacy values loads**, and normalises per ADR 0071
+  decision 5's table — `white` → PAL *Alb*, `graphite` → PAL *Antracit*, `oak` → a *Stejar*,
+  `clay` and `sage` → MDF only. **ADR 0052's precedent governs the shape of the answer**: normalise
+  a document written under a superseded rule rather than refuse it, because a `/d/{id}` share link
+  is the one artefact this project hands to someone who cannot be asked to reload it. **A load that
+  refuses is a link that is dead.** Asserted per legacy value, not on one fixture that happens to
+  carry two of them.
+- **The migration is a fixed point**: re-run on its own output, at every version arm, it returns the
+  document unchanged. The same assertion 6A3's room correction earned, for the same reason.
+- **Whether this owes a schema version bump is this wave's to decide and to record in its close-out**
+  (ADR 0071 hands it here explicitly), with both precedents named so the choice is argued rather
+  than inherited: `columnExtents`/`settings` — *an absent field whose absence is a legal state owes
+  no bump* (ADR 0053) — and ADR 0055 — *a rewrite of stored values does*. **The recommendation on
+  record is that it owes one**: this rewrites values a document already carries, which is the second
+  shape and not the first.
+- **No finish, decor or colour may ever enter pricing**, and this is asserted rather than noted.
+  Two halves: a **property** — pricing a design, then replacing every cabinet's finish with any
+  legal value generated over palette entries *and* free colours, returns a byte-identical
+  `PricedDesign` (same lines, same amounts, same total, same order) — and a **structural** check
+  that no module under `pricing/` imports the palette module or the finish schema's values. The
+  property is the one that survives someone adding a "premium decor" coefficient later; the
+  structural check is what makes the failure obvious at the seam.
+- **No migration writes a finish onto a body that cannot wear one.** `open-shelf`, `hood` and
+  `fridge-free` declare `canFinish: false`; the property above holds over them too, and a
+  normalisation that helpfully fills in a default violates it.
+
+**Risks.**
+
+- **The adapter's `FinishKey` is already a second copy of the domain enum** (`finishes.ts:20`), and
+  it agrees today because both lists are five values long and were written together. Going from five
+  values to a palette plus a free colour multiplies the drift surface. 6R closes it structurally;
+  **this wave must not close it by widening the copy**, which would leave two lists that no longer
+  even have the same shape.
+- **`clay` and `sage` are narrowed, not renamed.** A `/d/{id}` link shared before this wave renders
+  differently after it, and no migration can avoid that — the colours stop existing on a PAL
+  kitchen. Stated so it is an accepted consequence rather than a defect report later.
+- **What material a legacy document is deemed to carry decides whether that loss happens at all**,
+  and it is an open input below rather than a choice for the implementer.
+
+### Wave 6Q — a material change resolves every finish it does not offer
+
+**[ADR 0057](../decisions/0057-a-material-change-resets-an-unavailable-finish.md), unchanged and
+still governing**, now that the offer differs in **shape** and not only in membership.
+**This wave is where wave 6F ships**; its criteria are carried forward here in full.
+
+**Goal.** Applying a material resets every cabinet whose finish that material does not offer, to the
+material's default; the resolution runs once and produces one command result; the warning naming the
+consequence is shown **before** the apply on both viewports; and no stored design holds a finish its
+material does not offer.
+
+**Why here.** It gates on 6P — there is nothing to filter until a finish is a declared thing — and
+it is deliberately *before* 6R rather than inside it. The rule is domain algebra with a property
+over every (material, finish) pair; the control shapes are assembly with a visual gate. Merging them
+would put a Full-tier rule and a Light-tier surface in one diff and one review.
+
+**Touches.** `packages/configurator-domain/src/commands/set-whole-kitchen-settings.ts`,
+`commands/set-appearance.ts` (`setFinish`'s guard), `commands/rejection.ts`, `validate-design.ts`
+(the invariant at the load seam), and the settings surface's warning copy in
+`apps/web/src/content/ro.ts` (`globalSettings.materialWarning`).
+
+**Acceptance criteria.**
+
+- **The offer is one domain query.** The panel renders its result and decides nothing — 6F's first
+  criterion, unchanged.
+- **No stored design may hold a finish its material does not offer**, asserted as a **property over
+  every (material, finish) pair** — including generated MDF colour values — and not over the pairs a
+  fixture happens to contain. The rule decides what *replaces* an invalid finish; it never decides
+  whether one may survive. Asserted at **both** seams, the write path and the load path.
+- **The resolution runs once, at the point the material is applied, and produces one
+  `CommandResult`** — never a per-cabinet cascade the customer watches happen.
+- **The warning naming the consequence is shown before the apply, on both viewports** (ADR 0057
+  decision 3). A reset that happens without it is the wrong behaviour, not a cosmetic shortfall.
+  **6G shipped `globalSettings.materialWarning` with the finish clause deliberately omitted**,
+  because 6F had not shipped and *"a warning about behaviour that does not exist is decoration"*.
+  This wave adds the clause **in the same change that adds the behaviour** — the two are one edit,
+  and a wave that ships either alone has shipped the defect from one side or the other.
+- **The shape changes too, not only the membership**, and the warning must survive that: switching
+  MDF → veneer replaces a picker with two swatches. **Switching to veneer resets every cabinet that
+  is not already wearing a wood**, since only *Stejar* and *Nuc* are offered — the most destructive
+  path ADR 0057 permits, and the reason its warning precedes the apply. Asserted explicitly, on a
+  design where the cabinets wear different finishes, and asserted as **one** result.
+- **The reset target is each material's declared default finish**, read from 6P's declaration and
+  never a special case in the command. The defaults themselves are an **open input** below; until
+  the owner rules, the wave ships the recommendation and marks it in the code as *pending owner
+  review*, following the precedent 6G set for its own unruled copy. It does not present it as ruled.
+- **A stored material or hardware tier the price book no longer offers is answered here.** The
+  question travelled 6E → 6F and 6F is superseded, so it lands with the wave that owns
+  reconciliation. The recommendation on record is to mirror ADR 0057 at load. **If this wave
+  declines it, it says so and names the wave that inherits it** — it does not fall off with 6F.
+  6G's recovery path (the tier list still renders on a design carrying a stale tier) is unaffected
+  either way.
+- **The finish reset moves nothing.** No geometry, no width, no placement, no `seatDepthMm`, no
+  column extent, and no `Column.d`. *A material change repaints; a depth change moves the model* —
+  this milestone's own Risks section — and this is the wave where that sentence is either true or
+  quietly false.
+- **A body that cannot wear a finish is never reset, never refused and never counted** in the
+  "applies to N bodies" figure the sheet already renders.
+
+### Wave 6R — three control shapes, and six decors the 3D approximates
+
+**Tier: Light + visual.** The contract is settled by 6P and 6Q; this is assembly plus one adapter
+table, and its real evidence is a screen.
+
+**Goal.** ADR 0071 decision 3, the decision with teeth: **PAL** a fixed list of six factory decors,
+**MDF** a RAL colour picker, **veneer** two swatches — *Stejar* and *Nuc*. Three UI shapes reading
+one setting, not one control with three option sets. Plus the adapter drawing every declared entry.
+
+**Why here.** It gates on 6Q because a control that offers a finish the material does not have is
+the state 6Q exists to make unreachable, and on 6G for the sheet it hangs beside. It is last of the
+three because it is the only one whose verification is *look at it*.
+
+**Touches.** `apps/web/src/panel/panel-model.ts` (the finish section), `apps/web/src/panel/editor-panel.tsx`
+and its module CSS, `apps/web/src/content/ro.ts`, `packages/three-adapter/src/finishes.ts`.
+
+**Acceptance criteria.**
+
+- **The control's shape is chosen from the declared material, never from the option count.** A list
+  that happens to hold two entries is not thereby the veneer control, and a PAL list that grows to
+  seven decors does not become a picker.
+- **The adapter's finish table is total over the domain's declared palette, and derived from it
+  rather than restated.** A decor declared in the domain and missing from the adapter is a compile
+  or test failure — not a body that silently renders default white, which is precisely M4's Finisaj
+  defect (`docs/STATUS.md`) one layer down. The adapter already imports `@lemnaria/configurator-domain`
+  in five modules, so this adds no dependency; what it removes is the duplicate `FinishKey` enum.
+- **A tinted wood needs no new machinery, and this wave must not build any.** `buildFinishMaterial`
+  (`finishes.ts:110`) already clones `M.oak` and applies `definition.color` when one is given —
+  today `oak` declares `{ color: null, isOak: true }`. So the two *Stejar* decors and *Nuc Warmia
+  Maro* are `{ color: <tint>, isOak: true }`, and *Alb*, *Antracit* and *Gri Havanna* are flat
+  colours over `M.door`. There is **one** wood texture generator, `woodTex` (`kitchen-parts.ts:402`),
+  instantiated once as `oakTex`; **if the wave finds itself adding a second, it has left its scope**
+  — ADR 0071 decision 2 puts photoreal rendering explicitly out of scope, and that is what licenses
+  the approximation rather than a shortfall to fix.
+- **Every palette entry publishes a swatch colour, including the textured ones.** `FINISH_COLORS`
+  today excludes `oak` and `solidColorOf("oak")` **throws on purpose** — *"a material, not a colour,
+  and has no hex to publish"*. A six-decor list needs six swatches, so the publication changes
+  **shape** rather than growing an exception, and the swatch and the 3D read the same declared
+  value. Two hex codes for one decor is ADR 0028's failure in the one place a customer can see both
+  at once.
+- **The sheet says the swatch and the 3D are an approximation.** ADR 0071 decision 2 rules the
+  *fact*; it rules **no wording**. Per wave 6D's standing rule — *every owner-ruled string is pinned
+  by a literal, and a wave with no ruled wording must raise it rather than invent one* — this wave
+  drafts the sentence, marks it *pending owner review* in the code as 6G did, and lists it in the
+  open inputs below. The same applies to the RAL picker's own label and to the decor names as
+  rendered.
+- **Never offer what cannot be satisfied** (§9, §13.1 *disable, don't warn*): no control offers a
+  finish on a `canFinish: false` body, and the RAL picker is unreachable on a PAL or veneer kitchen —
+  not present and disabled, not present at all, because it is a different control rather than a
+  greyed one.
+- **Verified by real interaction at 390 × 844 and on desktop**: choosing a decor changes the model,
+  and changing the material changes the **shape** of the control on screen — a picker becomes two
+  swatches. A screenshot of one material is not evidence for this wave.
+- **The M1 fidelity gate is not reached and this must stay true.** `finishes.ts` colours materials;
+  nothing here touches a builder and no geometry moves. Asserted, because a wave that adds six
+  materials is exactly the kind that reaches for a builder.
+
+### Wave 6S — door leaves, drawers and door band heights become declared facts
+
+**[ADR 0070](../decisions/0070-hardware-is-priced-per-mechanism-not-per-handle.md)**'s first two
+recorded implementation gaps. **Declaration only — nothing priced changes in this wave.** The shape
+wave 6H used for depth: parameterise first, value-preserving, so the wave that consumes the fact is
+small.
+
+**Goal.** Two catalogue declarations the domain does not have and cannot derive: **door leaves and
+drawers as separate counts**, and **per-band door heights** — each held to the builders by a parity
+gate.
+
+**Why it is its own wave, and why it is before 6T.** ADR 0070 prices per mechanism, and **the domain
+cannot see a mechanism**: §12 keeps meshes out of it, so it can only read numbers the catalogue
+states (ADR 0061 decision 3). Two of those numbers do not exist, and one of them **cannot be
+parity-checked without a change in the builders** (below). Folding this into the pricing wave would
+put a declaration and its first consumer in one diff — the arrangement that lets two numbers agree
+by luck, which is the failure ADR 0028 exists for and the one ADR 0070's own tables are the
+independent check on.
+
+**Touches.** `packages/configurator-domain/src/cabinet-handles.ts`,
+`packages/configurator-domain/src/catalog.ts`,
+`packages/configurator-domain/src/fixtures/kitchen-l-design.ts` (the seeded rows declare their own
+counts — the fixture builds its own catalogue through `buildKitchenLBodyCatalog`),
+`packages/three-adapter/src/kitchen-parts.ts` (`doorSlab`'s front naming), and the parity tests
+`packages/three-adapter/tests/cabinet-handle-count.parity.test.ts` plus a new one for the heights.
+
+**Sequencing note that is not a gate.** 6S and **6J** both rewrite readers of `catalog.ts`; 6J
+re-points every depth-derived reader at `buildInsertableBodyDefinitions`. They must not run
+concurrently. **6S first** is the recommendation: it is additive declaration, while 6J's change
+reads the rows wholesale.
+
+**Acceptance criteria.**
+
+- **Door leaves and drawers are two declared counts, never one number.** `base-3drawer` declares
+  `carriesHandles(3)` and `base-sink` declares `carriesHandles(2)`, and **nothing in the declaration
+  says one is drawers and the other doors**. Hinges are counted by leaf and runners by drawer, so
+  one number cannot serve both.
+- **The totals are preserved, and the wave's own regression is the before/after table.** For every
+  catalogue entry at every legal width, the declared leaves plus drawers reproduce today's
+  `cabinetHandleCount` — recorded before the split, asserted after. **Any entry whose total changes
+  is named with its reason in the close-out**, not adjusted silently. (Every shipped row declares
+  `handlesPerLeaf: 1`, so the identity should hold everywhere; an entry where it does not is a
+  finding about the old declaration, which is worth having.)
+- **Door band heights are declared per catalogue entry**, exactly as ADR 0061 made handle counts
+  declared rather than counted from meshes. **The number that exists today is the wrong one**:
+  `tallPantry` (`packages/three-adapter/src/kitchen-parts.ts:1905`) draws bands of **1290 mm and
+  790 mm** against a declared frame height of **2200**, so a naive read of `heightMm` puts **3
+  hinges on a 790 mm door**.
+- **A parity gate holds the declaration to what the builder draws**, the same remedy
+  `cabinet-handle-count.parity.test.ts` is for the counts. It measures the built front slabs and
+  compares heights, and **it must include at least one entry whose declared bands do not sum to its
+  frame height** — otherwise the gate passes on an implementation that read the frame height, which
+  is the exact defect it exists to catch.
+- **The builders do not record which fronts are drawers, and making them is this wave's work.**
+  Verified: **every front in the kit is named `door_front`** — `finishes.ts:70` says so in as many
+  words (`base-panbank` uses it for drawer fronts too), `FRONT_MESH_NAME` already anticipates a
+  `drawer_front` and **nothing draws one**. So no parity gate can currently tell a leaf from a
+  drawer.
+- **The distinction is declared in the builder, never inferred from `handleEdge`.** A drawer is
+  drawn as `doorSlab(..., "top")` — but that parameter is **handle placement**, and the builder's
+  own comment (`kitchen-parts.ts:669`) says `"top"` covers *"drawers, **and doors below the
+  worktop**"*, while `wall-lift` is a single flap. Inferring drawer-ness from the handle edge is the
+  ADR 0061 mistake repeated one field over: `kind` was demonstrably not enough there, and
+  `handleEdge` is not enough here.
+- **The rename is not free and this wave carries it, rather than discovering it in review.** The
+  string `door_front` is pinned in `kitchen-parts.parity.test.ts:200`, `pantry-resize.test.ts`,
+  `two-door-width-bound.test.ts:118`, `finishes.test.ts:143` and `catalog-capability-parity.test.ts`.
+  `finishes.ts`'s own regex already matches both names, so **recolouring is unaffected** — that is
+  the check that makes the rename cheap, and it must be stated rather than assumed.
+- **Nothing priced changes.** The shipped hardware line still prices per cabinet handle until 6T
+  replaces it, and the priced total of the seeded design at every tier is **identical before and
+  after this wave**. Asserted directly, not inferred from "we only touched declarations".
+- **The 900 mm rule is not implemented here.** This wave supplies the heights; 6T applies the
+  threshold. A wave that also counts hinges has merged the declaration with its first reader and
+  given up the independent check.
+
+### Wave 6T — hardware priced per mechanism, and the two sink extras
+
+**[ADR 0070](../decisions/0070-hardware-is-priced-per-mechanism-not-per-handle.md)**, owner
+2026-09-04 — **the complete ruling; nothing here re-decides it.** Gate: 6S for the declarations,
+6B2 for the shape registry.
+
+**Goal.** Replace `HardwareTier.perCabinetHandleMinor`. ADR 0070's third recorded gap says
+**replace, not extend**: quantity basis, tier data and the query's read of it move together. Plus
+the two sink extras.
+
+**Why here.** The shipped basis prices hardware by multiplying a rate by the **cabinet handle
+count**, so **a push-to-open cabinet — hinges and runners, no handle — prices its hardware at
+exactly zero**. That is not a rounding problem; it is a whole kitchen of mechanisms billed at
+nothing.
+
+**Touches.** `packages/configurator-domain/src/pricing/price-book.ts`, `pricing/price-design.ts`,
+`pricing/sample-price-book.ts`, `pricing/price-lines.ts` if the extras need a line kind, a new
+domain query for the rack's position — and `apps/web/tests/settings/global-settings.adversarial.test.ts`,
+which checks the hardware line against an **independently counted handle population** and must be
+rewritten to count mechanisms, or it will assert the superseded basis as correct.
+
+**Acceptance criteria.**
+
+- **Three mechanisms, counted from 6S's declarations**: **2 hinges per door leaf, 3 where the leaf
+  is taller than 900 mm; 2 runners per drawer; 1 push-to-open per door and per drawer, and only
+  where the cabinet carries `handle: "push"`.** A drawer's *size* does not change the count; the
+  drawer *count* does.
+- **900 mm is a boundary and is asserted as one**: a 900 mm leaf takes 2 hinges and a 901 mm leaf
+  takes 3. ADR 0070's wording is *taller than 900*, and equality is what a re-implementation gets
+  wrong.
+- **The seeded kitchen counts 74 hinges and 5 drawers.** This is ADR 0070's own figure, derived by
+  the owner from the real catalogue and the builders' door-band heights — **an independent
+  derivation, which is the only reason the check means anything.** The test's number comes from
+  6S's declarations. **If the two disagree, the declaration is wrong and the wave stops**; it does
+  not adjust the expected number to whatever the code produces. This is the wave's ADR 0028 parity
+  check and it is the strongest one available to it.
+- **A push-to-open cabinet's hardware is not zero**, asserted directly on a design where every
+  cabinet is `handle: "push"`. This is the defect the wave exists to remove and it must be pinned
+  from the failing side, not implied by the new formula.
+- **A corner cabinet carries one handle per level, never one per opening** (ADR 0070 decision 2),
+  consistent with the structural treatment corner bodies already have (ADR 0021, ADR 0025).
+- **Three tiers — DTC Standard, Blum, Hettich — and DTC Standard's description says it has no
+  soft-close.** A functional difference the customer feels on every door, not a cheaper version of
+  the same mechanism. The description is **book data** (ADR 0062's third prohibition), never copy in
+  a component that happens to agree with it. **The Romanian wording is unruled**: drafted here,
+  marked *pending owner review* as 6G's strings are, and listed in the open inputs below.
+- **Hettich's drawer figure is understated and stays that way**, recorded in the book's own data
+  rather than corrected: Quadro V6 is **runners only** while the DTC and Blum rows are complete
+  boxes. The owner ruled *"for Hettich use it as it is"*. **A wave that quietly makes the three
+  comparable has overturned a decision**, and the imprecision is accepted, not an oversight.
+- **Sample amounts only.** The book keeps `status: estimate` and `amountsProvisional: true`, every
+  amount lives in the one file whose name says it is a sample (6B), and no commercial figure is
+  asserted anywhere. ADR 0070's tables may be typed into `sample-price-book.ts` **here and only
+  here**, because this is the wave that also rebuilds the basis they depend on — the ADR says so in
+  its own consequences.
+- **The aluminium protective cover is always present on a sink base and is never toggled** — it is
+  protection, not an option. ≈200 MDL.
+- **The dish drying rack is priced and never drawn.** No mesh, no geometry, no builder touched, at
+  any width or depth. Asserted **from the adapter side** — the built body has no new part — not
+  merely by the absence of a diff.
+- **The rack goes in the lowest wall-band cabinet whose along-wall extent overlaps the sink's span**
+  (decision 4), a **derived** position and not a catalogue row. Three failure modes, each with its
+  own assertion:
+  - ***any* cabinet above the sink double-bills.** The seeded design has **two** over the sink base's
+    900–1700 span on wall A — a wall cabinet at `y0` 1500 and a top box at `y0` 2200.
+  - ***the highest* puts the rack near the ceiling.**
+  - **a predicate on the raw `band` reads the same as the correct one on the seeded design, and is
+    wrong.** `top` folds into `wall` through `normaliseBand` (ADR 0011 Gap C), and wave 6G's QA
+    already recorded the lesson: *any predicate evaluated over a raw `band` is suspect by default in
+    this codebase.* Here the two readings agree by luck on the shipped fixture, so **the test needs a
+    fixture where the only overlapping cabinet is a `top` row** — otherwise the wrong implementation
+    ships green.
+- **No wall cabinet above the sink → no rack line at all**, and its absence is **not** a zero-amount
+  line. 6B's rule holds in both directions: omission never means *included*, and a zero never means
+  *missing*.
+- **The sink base is not identifiable by `kind`, and the wave must not try.** Verified: `base-sink`
+  declares `kind: "base_cabinet"` like every other base body, and the seeded row is `base-sink-800`.
+  So neither a kind nor a build-id prefix answers this — it resolves through the placement's declared
+  catalogue equivalent (ADR 0022) or through a new declared fact. **Never a string prefix**, which is
+  the rule wave 6J is separately deleting from a test for this exact reason.
+- **`cabinetHandleCount` and its parity gate survive this wave.** Verified: its only production
+  reader is `price-design.ts`'s hardware quantity, so replacing the basis leaves it pricing nothing.
+  It stays as the honest declared side of the handle meshes (ADR 0061) and as the total 6S's split
+  must reproduce. **Deleting it because pricing stopped calling it would remove the only thing
+  holding those declarations to the builders.**
+- **ADR 0062 still binds and is re-asserted here**: shapes are code and coefficients are data; the
+  query imports no book; no amount, tier, delta or rule exists outside the book — not in
+  `catalog.ts`, not in `content/ro.ts`, not in a component.
+- **Fail whole, unchanged.** A design the mechanism rules cannot resolve returns a failure naming
+  what it could not resolve. No partial line set and no partial total, and a missing declaration is
+  never read as zero mechanisms.
+
+**Split trigger, drawn in advance so a split is a cut rather than a re-plan.** If the diff exceeds
+WORKFLOW's five-production-file guidance, **the cut is between the mechanism basis (first) and the
+two sink extras (second, as `6T2`)** — and nowhere else. They share `price-book.ts`,
+`sample-price-book.ts` and `price-design.ts`, so the two halves **run sequentially in one tree and
+never in parallel**. The recommendation is to attempt them as one wave: the extras are two flat
+amounts and one locating query, and splitting costs a second QA and review round on the same three
+files.
+
+**Risks.**
+
+- **Every 2E delta changes by a large factor**, and 6G's two open questions get louder with it: the
+  delta is anchored on the book's **default** tier while the total beside it follows what the design
+  carries, and ADR 0001 decision 4's rounding-up amplifies a delta far more than a total. ADR 0070's
+  measured spread — ~5 100 MDL at DTC Standard against ~10 335 at Blum on the seeded kitchen — is
+  what makes both visible. **Not this wave's to fix**; worth the owner's attention now that the
+  numbers are real rather than placeholders.
+- **Hettich lands 3% *below* Blum on this kitchen** because it is hinge-dominated (74 hinges, 5
+  drawers), and a drawer-heavy kitchen swaps them. That is the measured argument for pricing the
+  whole design at each tier rather than a flat per-tier figure — and it means **a sample-data edit
+  can silently reorder the tiers**. Worth pinning as a sample-book regression so the reorder is
+  visible when it happens.
+
 ## Open questions gating this phase
 
 - Sample and commercial price amounts.
 - What the estimate includes, and therefore which lines the breakdown shows.
-- The rule for a per-cabinet finish invalidated by a material change.
+- The rule for a per-cabinet finish invalidated by a material change. **Answered 2026-09-02 —
+  [ADR 0057](../decisions/0057-a-material-change-resets-an-unavailable-finish.md)** (reset to the
+  new material's default, warned before the apply), and **reshaped 2026-09-04 by
+  [ADR 0071](../decisions/0071-material-carries-price-colour-carries-a-different-control-per-material.md)**,
+  which makes the offer differ in *shape* per material and not only in membership. ADR 0057 is
+  unchanged; the rule ships at wave **6Q**. Left listed rather than deleted because the bullet has
+  read as open since 2026-09-02 and a reader arriving at it needs the pointer, not a gap.
 - **Added 2026-09-03:** what a hardware tier counts when it prices hinges and slides, and whether
   `deriveDoorCount` — which returns leaves per *band* — is the right source. See wave 6G.
   **Answered 2026-09-04 — [ADR 0070](../decisions/0070-hardware-is-priced-per-mechanism-not-per-handle.md):**
@@ -1596,6 +2047,46 @@ open items.**
 - **Added 2026-09-02 with the backlog sweep:** the cabinet-depth floor the dishwasher niche needs
   (`docs/BACKLOG.md` entry 19), and what depth a wall cabinet over a full-height column is built to
   (entries 15 and 10). Owner decisions 6 and 7.
+
+### Added 2026-09-04 with waves 6P–6T — open inputs, not invented at the wave
+
+**None of these blocks dispatch**, and each is recorded here rather than resolved by an implementer.
+Where a wave must ship *something* to be coherent, it ships the recommendation marked **pending
+owner review** in the code — the precedent wave 6G set for its own unruled strings — and never
+presents it as ruled.
+
+- **Each material's default finish** (waves 6P, 6Q). ADR 0057's reset resolves *to* it, so the rule
+  cannot be stated without one. **ADR 0071 records it as owed, explicitly.** Recommendation on
+  record: *Alb* for PAL, white for MDF, *Stejar* for veneer.
+- **What material a legacy document wearing `clay` or `sage` is deemed to carry** (wave 6P). It
+  decides which of two losses the customer takes on a link they already shared. Two options, both
+  lossy, in different currencies: leave the document on the book's default material and let ADR
+  0071 decision 5's narrowing reset the colour (**colour lost**), or declare the migrated document
+  to be MDF, the material that offers what it is wearing (**price changed under the customer**,
+  since MDF is dearer than PAL). Recommendation: **preserve the colour** — a migration's job is to
+  keep what the customer chose, and ADR 0057's reset is for a change the customer *initiates* with a
+  warning in front of it, which a load is not. Stated as a recommendation because the price movement
+  is a real cost and it is the owner's to weigh.
+- **Whether an Egger decor code is shown to the customer at all** (waves 6P, 6R). Two of the six are
+  unconfirmed against a supplier stock list (ADR 0071 decision 4), so this is not only a copy
+  question. Recommendation: show the decor **name** only and keep the code as internal data until
+  both are confirmed.
+- **Whether a handle is priced anywhere once hardware prices mechanisms** (wave 6T). Verified
+  against the tree: `cabinetHandleCount`'s only production reader is the hardware line's quantity,
+  so replacing that basis leaves **no line pricing a handle at all**. ADR 0068's own premise is that
+  a handle, a set of mechanisms and a processing margin are three different things priced in three
+  different places — so the handle's cost is presumably inside the cabinet rule, but **nothing says
+  so**. Recommendation: leave it in the cabinet formula and **never re-add a per-handle hardware
+  term**, which would recreate the basis ADR 0070 replaced.
+- **A second sink base** (wave 6T). ADR 0070 rules the single-sink case. Recommendation: one
+  aluminium cover per sink base, and the rack de-duplicated where two sinks resolve to the same wall
+  cabinet — raised rather than assumed, because "always present" and "included by default" are
+  stated per sink and not per kitchen.
+- **Four unruled strings**, all currently drafted by their waves under wave 6D's rule that a wave
+  with no ruled wording **raises** it rather than inventing one: the sentence saying the swatch and
+  the 3D are an **approximation** (6R), the RAL picker's own label (6R), the decor names as
+  rendered (6R), and DTC Standard's **no soft-close** description (6T, where ADR 0070 decision 3
+  rules the fact and not the sentence).
 
 ### Cabinet depth — recorded 2026-08-27, **partly decided since; corrected 2026-09-02**
 
