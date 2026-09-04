@@ -234,6 +234,15 @@ cabinet depth, so a transient-kit probe may measure inside the live room (`wall_
 without a `KitStage`, which today it cannot — `disposeKitAndStage` requires a room, a ground, a blob
 and a light rig, so 6K-e owes the adapter a kit-only release.
 
+> **Amended 2026-09-05 by [ADR 0076](0076-a-probe-lease-is-a-scoped-borrow-and-the-store-publishes-no-probe.md).**
+> The remedy's stated shape above is out of date twice over, and nothing else in this Finding is
+> withdrawn. 6K-e shipped a factory returning a **lease** — `(cabinetDepthMm) => BodyProbeLease` —
+> rather than a bare `BodyProbe`, because a borrower handed a probe has no way to say when it is
+> done. ADR 0076 then changes that lease's shape again: it becomes a scoped borrow with no `probe`
+> and no `release` field to drop, after the store was found dropping the release at five call sites
+> and stranding one transient kit per depth change. Decision 3 above — exactly one kit alive per
+> mounted scene — is what ADR 0076 implements at the store seam, not something it revises.
+
 **6K-e does not gate 6K-b**, for wave 6K-c's stated reason: nothing ships mid-milestone, and the state
 is already reachable in the tree through 6J-b and 6K-a, so holding the control back does not un-reach
 it. What 6K-b carries instead is a second declared expected failure, on the house's `it.fails` rule.

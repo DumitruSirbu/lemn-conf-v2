@@ -95,6 +95,8 @@ Alternatives / Consequences live in each file. For the specific claims a later r
 | [0073](0073-a-frozen-extent-records-the-body-its-depth-came-from.md) | A frozen extent records the body its depth came from, and a depth change re-asks that body | Accepted | Decision + Finding | M6 6K-c | A member-less column's depth cannot be derived from what it retains (`B\|1.20` and `B\|1.80` are identical and 38 mm apart), so the entry records the `buildId` that supplied §3.2's MAX and a depth change re-asks it in the catalogue at the new setting. Deeper-only fallback where it cannot; no version bump; nothing refused. Finding: `resolveDepthM` and `kitchen-stage.tsx` still hard-code `WORKTOP_DEPTH_MM`. |
 | [0074](0074-the-scene-rebuilds-whole-at-a-depth-change.md) | The scene rebuilds whole at a depth change, and exactly one kit is alive at a time | Accepted | Decision + Finding | M6 6K-b; adds 6K-e | The stage memo is keyed on the design's depth and the whole stage is rebuilt. The narrow kit-and-shell swap is refused with a proof: `signBody` reads the record alone, so ADR 0058's pins keep old-kit instances and the old kit can be neither released nor kept. Ghost-freedom restated as the fixed manifest, not "once per mount". Finding: the probe measuring a depth change holds a kit at the old depth — new wave 6K-e. |
 | [0075](0075-a-recorded-shell-declares-its-shell-not-its-finished-depth.md) | A `recorded-shell` entry's `frameDepthMm` is its shell, and the round trip that measured 39 mm was measuring the fake probe | Accepted | Decision + Finding | M6 6K-d | 291 is right, not 330: ADR 0018's encoding, `rebuildDepthM`'s convergence, `occupiedDepthM` publishing an unmanufactured 369, and the base band's own precedent all agree. But the round trip's 39 mm comes from `createFakeBodyProbe` answering the requested depth where the real builder subtracts the front assembly — a test-fidelity failure beside a narrower declaration defect. Two mechanisms produce 369 and neither closes the other. |
+| [0076](0076-a-probe-lease-is-a-scoped-borrow-and-the-store-publishes-no-probe.md) | A body-probe lease is a scoped borrow, and the store publishes no probe | Accepted | Decision + Finding | M6 6K-f | The store drops `release` at five sites and strands one transient kit per depth change. `bodyProbe` leaves published state: commands and the width queries lease per scope, `probeAt` stays the single source, `isBodyProbeAttached` is untouched (ADR 0074 decision 6). `BodyProbeLease` becomes `use(borrow)` with no `probe` and no `release` field, so the dropped release does not typecheck. Fakes must count leases and revoke the probe on release — the third defect this fake has hidden. |
+| [0077](0077-a-joint-seated-body-declares-its-seat-and-is-never-measured-for-one.md) | A recorded seat is a measurement of one quantity taken at one setting, and reading it without either qualifier is one defect in two places | Accepted | Finding + Decision | M6 6K-h then 6K-g | **Clause 1 (quantity):** `reseat` persisted `2 x` a measured rear overhang over `base-corner-x-900`'s declared joint seat (560 against 600), driving 0.00835 m3 of its carcass into `base-corner-return-320`. Which plane seats a body becomes a declared `SeatRule` with three arms and **no default**, retiring three hand-written copies of the property; `deriveFrame` ignores a stored seat for a `joint` entry. **Clause 2 (setting), in the Addendum:** a depth change planned against `Column.d` derived from the seats it was replacing, so a deepening rebuilt four wall cabinets to the 600 mm shell and published 330 against 400 — deepening only, because the stale clearance loses the `min` in the other direction. The command now clears the seats of bodies that declare they follow the setting, and Gap B is untouched everywhere else. Each arm of `setCabinetDepth` held exactly one of the two clauses. Two false test justifications corrected, not deleted. |
 
 ## Supersessions
 
@@ -208,6 +210,25 @@ replaced it — nothing is deleted or rewritten silently.
   registers → narrowed by its own **2026-09-02 amendment** and by **ADR 0054**: provisioning
   `lemn-conf-v2-preview` was verified in 2026-08-25, but keeping its schema current was not, and it
   sat three migrations behind until ADR 0054's session found it while wiring local development.
+
+- **ADR 0011** Gap B's `seatDepthMm ?? frameDepthMm` -> narrowed by **ADR 0077** decision 4 for
+  entries declaring `seatedOn: "joint"`. The `??` stands wherever a placement's seat is a property of
+  its own mesh; for a joint-seated body the left operand records a quantity the body does not own, so
+  `deriveFrame` reads the declaration and ignores it. One entry today, bounded by a declaration.
+- **ADR 0011** Gap B again -> **suspended, not narrowed**, by **ADR 0077** decision 8 (its Addendum),
+  inside `setCabinetDepth` only, for entries declaring `depthFollowsSetting` only, and only for the
+  records and columns the rebuild plans against. Every read path outside that command is unchanged,
+  and the case Gap B protects — a wall body built deeper than its map row — is re-derived from
+  `column.hasFullHeightUnder` rather than lost. Listed separately from the clause above because the
+  two have different blast radii and must not be read as one change.
+- **ADR 0075**'s amendment clause 4, *"that the real probe cannot measure them at all is larger than
+  this record and is reported separately"* -> reported and ruled by **ADR 0077**. The premise moved:
+  the probe *can* measure the structural family since 6K-d's `buildAnyBody`, and for
+  `base-corner-x-900` the measurement is the wrong quantity.
+- **`declared-frame-depth-sweep.test.ts`'s** claim that `base-corner-x-900` *"is re-seated by `reseat`
+  from its declared frame depth rather than from a measurement of its bounding box"* -> **false when
+  written**, corrected by **ADR 0077** decision 6. Recorded here because a retraction of the
+  reviewer's finding was accepted on 2026-09-05 on the strength of that sentence, and is withdrawn.
 
 ## Adding the next one
 

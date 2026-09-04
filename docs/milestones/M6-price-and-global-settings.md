@@ -33,9 +33,13 @@
 > half: the stage is rebuilt whole, keyed on the design's depth.
 > Depends on M5 (only wave 5E is still open
 > there, and it does not gate anything here). Summary: `docs/STATUS.md`. Start at **Waves** below,
-> then the owner section. **Twenty-seven waves, all
+> then the owner section. **Twenty-eight waves, twenty-seven
 > unblocked** (twenty-four until 6K-c, 6K-d and 6K-e were added on 2026-09-04; 6K-d's architect pass
-> was delivered the same day as ADR 0075 and it is unblocked). The seven owner decisions were taken
+> was delivered the same day as ADR 0075 and it is unblocked). **6K-f was added 2026-09-05 on
+> [ADR 0076](../decisions/0076-a-probe-lease-is-a-scoped-borrow-and-the-store-publishes-no-probe.md)**
+> — the store drops a body-probe lease's `release` at five call sites and strands one transient kit
+> per depth change — and it is **the one wave gated by another**: it is 6K-e's residue and follows it.
+> The seven owner decisions were taken
 > on 2026-09-02 (ADRs 0055–0061); ADRs 0062–0064 followed, the last two on 2026-09-03.
 >
 > **Five waves added 2026-09-04 on two owner decisions taken that day.**
@@ -270,6 +274,7 @@ constant (`worktop-depth.ts` carries a comment saying the rename is owed and def
 | 6K-c — a frozen extent records the body its depth came from *(ADR 0073)* | D | 6K-b — **does not gate it**, see the wave | Full |
 | 6K-d — a rebuild must not swap a body for one declared at a different depth *(ADR 0075)* | D | 6K-b — **does not gate it** | Full |
 | 6K-e — the probe that measures a depth change is built at that depth *(ADR 0074)* | D | 6K-b — **does not gate it**, see the wave | Full |
+| 6K-f — a probe lease is a scoped borrow and the store publishes no probe *(ADR 0076)* | D | 6K-e — **gated by it**, this is 6K-e's residue | Full |
 | 6L — the handle path learns cabinet from appliance *(backlog 18)* | G | none — **sequenced before 6B and 6G** | Full |
 | 6M — the overflow is marked and warned about *(ADR 0065)* — **DONE 2026-09-04, `ce77171`** | — | 6A3 | Light + visual |
 | 6N — the wall-coverage bars *(owner request)* | — | 6D, 6M, decision 8's fixture correction | Light + visual |
@@ -1771,6 +1776,408 @@ reachable in the tree through 6J-b and 6K-a. 6K-b carries the failing guard inst
   the anti-invariant is asserted directly — 600 → 700 → 600 returns every base seat to the value a
   design loaded at 600 carries, with no drift in either direction across three changes.
 - **6K-b's second `it.fails` guard goes red and is flipped here, not deleted.**
+
+### Wave 6K-f — a probe lease is a scoped borrow, and the store publishes no probe
+
+**[ADR 0076](../decisions/0076-a-probe-lease-is-a-scoped-borrow-and-the-store-publishes-no-probe.md)**,
+ruled 2026-09-05 on a confirmed leak reported against 6K-e's own work. **Gated by 6K-e**, which it
+finishes: 6K-e gave the store a factory and the adapter a `disposeKit`, and the store then dropped
+the release at five call sites. Classified in the ADR as a **contract gap first** — the lease
+declared its obligation in prose and typed it as a droppable field — with an implementation defect
+and a test-fidelity problem beside it.
+
+**The defect, in one line.** `leaseAtCurrentDepth`
+(`apps/web/src/store/configurator-store.ts:336-341`) returns `probeAt?.(…).probe` and discards
+`release`, at `applyResult` (`:407`), construction (`:561`), `attachBodyProbe` (`:566`), `hydrate`
+(`:596`) and `detachBodyProbe` (`:572-573`). Where the design's depth differs from the stage's
+standing depth — the state a successful `setCabinetDepth` leaves, and a load at another depth —
+`probeFactoryFor` takes its transient arm, builds a kit and a full reference room, and the real
+`disposeKit` release it returns is thrown away. **One kit per depth change.**
+
+**Goal.** No lease outlives the scope that took it, at any layer, and the expression that drops one
+stops compiling.
+
+#### Scope and boundaries
+
+Three packages, in this order.
+
+- **`packages/configurator-domain`** — `BodyProbeLease` becomes a scoped borrow: one member,
+  `use<T>(borrow: (probe: BodyProbe) => T): T`. The package supplies **the single constructor** that
+  builds a lease from a probe and a release function and wraps the call in `try/finally`, and that
+  constructor is the only `finally` in the seam. `setCabinetDepth`'s hand-rolled `try/finally`
+  (`commands/set-cabinet-depth.ts:73-77`) is replaced by one `use` call. `BodyProbeFactory`'s return
+  type is unchanged in name.
+- **`apps/web/src/scene/kitchen-stage.tsx`** — `probeFactoryFor` builds both arms through the new
+  constructor. The standing arm's release stays a no-op over the mounted kit; the transient arm's
+  release stays `disposeKit(kit, room)`. **The release moves nowhere else**: the site that allocated
+  is the site that frees, and the borrower never learns which arm it got.
+- **`apps/web/src/store/configurator-store.ts`** — `bodyProbe` is **deleted from published state**,
+  along with `leaseAtCurrentDepth` and every `bodyProbe:` write. `insert` and `setWidth` lease per
+  command at `cabinetDepthMmOf(design)`. `probeAt` and `isBodyProbeAttached` are untouched in shape
+  and in meaning.
+- **`apps/web/src/panel/use-panel-view.ts`** — `useSelectionWidthOptions` and
+  `useSelectionWidthSteps` merge into one memo over the same slices, taking **one** lease around both
+  queries. `useSelectionWidthRanges` takes no probe and does not merge.
+- **Not in scope.** `packages/three-adapter/src/kit-disposal.ts` and `measure-built-body.ts` are
+  unchanged — `disposeKit` already exists and is already correct. The stage memo, its keying and the
+  detach/attach ordering are ADR 0074 decisions 1 and 6 and are not touched.
+
+#### Work items
+
+1. The domain's scoped-lease type and its one constructor, with the doc comment stating why there is
+   no `release` field to see.
+2. `setCabinetDepth` moved onto it; its `try/finally` deleted.
+3. `probeFactoryFor`'s two arms moved onto the constructor.
+4. `bodyProbe` removed from the store; `insert` and `setWidth` leased per command; the five dropped
+   call sites deleted rather than fixed.
+5. The two width hooks merged behind one lease.
+6. Both fakes (`apps/web/tests/support/fake-body-probe.ts`,
+   `packages/configurator-domain/tests/support/fake-probe.ts`) rewritten to count and to revoke.
+7. `apps/web/tests/store/qa-6k-e-probe-lease-leak.adversarial.test.ts` taken green, plus the new
+   cases below.
+
+#### Acceptance criteria
+
+Falsifiable, and each says what must **not** happen as well as what must.
+
+- **The dropped release does not compile.** After the change there is no expression in any package
+  that yields a `BodyProbe` from a lease without passing through `use`. Verified by the type: a
+  `.probe` or `.release` member access on a `BodyProbeLease` is a type error, asserted by one
+  `@ts-expect-error` case in the domain's own suite so the property is pinned rather than assumed to
+  survive the next refactor. *A lint rule instead of a type does not satisfy this criterion.*
+- **`apps/web/tests/store/qa-6k-e-probe-lease-leak.adversarial.test.ts` passes all five cases** —
+  it fails four today (`leaks the transient kit …`, `strands one kit per change over a repeated
+  toggle` expecting 0 and getting 2, `leaks the kit a hydrate at another depth leases`, `releases
+  whatever it is still holding when the scene detaches`). **The suite is taken green by the store
+  changing, not by the ledger changing.** Its `leaseLedger` may gain revocation; its counting and its
+  expectations may not be relaxed.
+- **Leases taken equal leases released, after every call returns, over any command sequence.** A
+  `fast-check` property in the store suite: generate a sequence drawn from `setCabinetDepth` at each
+  declared depth, `insert`, `setWidth`, `remove`, `setFinish`, `hydrate` at either depth, and
+  `detachBodyProbe`/`attachBodyProbe`, apply it to a store backed by the counting ledger, and assert
+  after **each** step that no lease is open. A fixed example cannot cover this: the leak is a function
+  of the *ordering* of a depth change relative to the next command, and the four-toggle example above
+  is one path through that space.
+- **No transient kit is built outside the window.** With the design's depth equal to the factory's
+  standing depth, a full round of every command and a full panel render take **zero** transient
+  arms — the ledger records leases at the standing depth only. This is the half a "no leak" assertion
+  alone would not catch: a store that builds and frees a kit per command leaks nothing and is still
+  wrong.
+- **At most one transient kit is open at a time, and none survives the window.** In the window opened
+  by a depth change, the ledger's maximum concurrent open transient leases is 1, and it is 0 once the
+  factory is re-attached at the new depth. Asserted with a real React renderer, not with the mocked
+  `useMemo` — ADR 0074's Consequences already record that `kitchen-stage.test.ts` and
+  `kitchen-stage-disposal.test.ts` cannot observe memoization at all, so a green run of those two is
+  not evidence here.
+- **A probe used after its scope closes fails loudly.** Both fakes revoke on release: `measure`
+  throws a named error rather than answering. **Stricter than reality on purpose** — a real probe over
+  a disposed kit renders a black or invisible object and measures it (`kit-disposal.ts`), and a fake
+  may be stricter than the thing it stands for only where reality fails silently. One test asserts
+  the revocation itself, so the fake's own contract is pinned rather than trusted; this is the third
+  defect this fake has hidden (ADR 0074's, ADR 0075's, and this one), which is why its behaviour is a
+  criterion and not an implementation detail.
+- **The panel does not move.** `isBodyProbeAttached` keeps its value and its timing through a depth
+  change: no render observes it false (ADR 0074 decision 6), `insert` is never offered and then
+  refused, and the width section is **non-empty in the frame immediately after a depth change** with
+  a placement selected — the flicker the "publish `undefined` for the window" alternative was refused
+  for. Asserted against a real renderer at 390 × 844.
+- **The width answers are computed at the new depth in that same frame, not the old one.** With a
+  factory pinned at 600 (`createPinnedFakeProbeFactory` is the existing shape) and a design at 700,
+  the merged width memo's answers differ from the ones the 600 factory gives — the 580-against-680
+  distinction ADR 0074 measured. *A test whose fake answers the depth it is asked for cannot see
+  this; that is exactly the fidelity failure 6K-d corrected in this file.*
+- **One lease, not two, for the two width answers.** Over one render with a selection held and the
+  design at a depth the factory is not standing at, exactly one transient lease is taken.
+- **`setCabinetDepth` still releases on refusal.** An unknown depth and a rebuild failure both leave
+  zero open leases, asserted separately — the `finally` is being deleted and the property it carried
+  must be re-asserted through the new constructor rather than assumed to have moved.
+- **Nothing about seats changes.** 600 → 700 → 600 returns every base seat to the value a design
+  loaded at 600 carries, unchanged from 6K-e. This wave moves ownership, not measurement, and the
+  existing depth suites are the regression gate for that claim.
+
+#### Risks
+
+- **A probe smuggled out of `use`.** `lease.use((probe) => probe)` still compiles; TypeScript has no
+  lifetime. The mitigation is revocation in the fakes plus review, and ADR 0076's Residuals record
+  that no mechanical guard is claimed. Do not write one into a comment as if there were.
+- **A kit built during a React render.** The merged width memo may take the transient arm inside
+  `useMemo`. Bounded by the criteria above, released before the memo returns, and doubled harmlessly
+  under StrictMode by `disposeKit`'s `isReleased` guard. It is the second such site, not the first —
+  the stage memo is the other.
+- **Two transient kits per depth change** (the command's and the render path's) on the interaction
+  ADR 0074 decision 9 is already measuring. If the tap-to-frame interval at 390 × 844 lands over
+  500 ms, record it as decision 9's finding and name ADR 0076's written alternative — one lease shared
+  between the store and the command — as the first reduction to try. **Do not re-open the shape.**
+- **The type change reaches every fake and every suite that builds one.** It is compile-time total, so
+  the risk is churn rather than silence; the mitigation is doing work items 1–3 before 4–7 so the
+  compiler drives the sweep.
+
+#### Verification
+
+Headless first: the domain suite (constructor, `use` on both the success and refusal paths, the
+`@ts-expect-error` case), then the store suite (the existing adversarial file, the `fast-check`
+property, the no-transient-arm-in-steady-state case). Then a **real React renderer** for the two
+criteria about timing — the concurrent-lease bound across the window and the non-empty width section
+in the frame after a depth change — because the mocked `useMemo` in the two stage suites cannot
+observe either. A real-interaction pass at 390 × 844 confirms the panel does not flicker and records
+the tap-to-frame interval against decision 9.
+
+### Wave 6K-h — a depth change plans against the catalogue, not against the seats it is about to replace
+
+**[ADR 0077](../decisions/0077-a-joint-seated-body-declares-its-seat-and-is-never-measured-for-one.md)
+decision 8**, in that record's Addendum of 2026-09-05. **Runs before 6K-g**, which rules on the other
+clause of the same principle and whose fix is far larger. Both edit `commands/set-cabinet-depth.ts`,
+so do not run them in parallel.
+
+**The defect, in one line.** `rebuildEveryBodyAt` derives its records through ADR 0011 Gap B's
+`seatDepthMm ?? frameDepthMm`, so `Column.d` is §3.2's MAX over seats written at the depth the
+kitchen is **leaving**; `resolveDepthM`'s capped arm then returns `min(declared 400, stale 330)` and
+the probe builds, measures and persists a 600 mm shell in a 700 mm kitchen. Measured with the real
+adapter probe: `600 → 600 → 700` leaves `p8`, `p10`, `p15`, `p16` at **291** and columns `A|0.30`,
+`A|0.75` publishing **330 against the map's 400**, where the straight path from the seatless fixture
+gives 361 and 400. It survives a save, a reload and a further change; it is not drift and it does not
+compound. `B|0.61` is correct in the broken runs **because its only members travel `reseat`**, which
+reads no opening — the fingerprint that identifies the mechanism.
+
+**Deepening only, and the asymmetry is arithmetic rather than a rule.** Shallowing is correct because
+the stale clearance is *deeper* than the declared row and loses the `min`; deepening is wrong because
+it is shallower and wins it.
+
+**Goal.** A depth change arrives at the same design whatever seats the document was carrying when it
+started, and reads no stored seat as an input to what it builds.
+
+#### Scope and boundaries
+
+One package, one function.
+
+- **`packages/configurator-domain/src/commands/set-cabinet-depth.ts`** — `rebuildEveryBodyAt` builds
+  one *planning design*: `input.design` with the new `cabinetDepthMm` (which it already does) **and**
+  with `seatDepthMm` removed from every placement whose entry declares `depthFollowsSetting`. Records,
+  columns and `widthInput.design` all come from that one construction, so no call site can get the
+  seated version by accident. The predicate is `movesWithTheSetting`'s existing one, generalised to
+  take a `buildId` — **one author for "does this entry move"**, not a second copy.
+- **Not in scope, and each for a recorded reason.** `resolveDepthM` is unchanged: the floor stays on
+  the column, where ADR 0060 decision 3 put it, and it was given a stale column rather than the wrong
+  one. `deriveFrame`, `openingFromPlacement`, `deriveColumns` and `rebuild` are unchanged. No
+  catalogue field, no schema change, no version bump, no builder change. Clause 1's `reseat` defect is
+  6K-g's and is **not** touched here.
+
+#### Work items
+
+1. `movesWithTheSetting` generalised to a `buildId`, so the clearing and the rebuild loop ask one
+   predicate.
+2. The planning design, built once, with a doc comment stating why a stored seat is not an input to
+   the command that invalidates it — and why a `manufactured-size` body's seat is.
+3. Records, columns and `widthInput.design` all sourced from it.
+4. The suite below, including the two routes into the triggering state.
+
+#### Acceptance criteria
+
+Falsifiable, and each says what must **not** happen as well as what must.
+
+- **A design whose depth-following bodies already carry seats written at another setting deepens
+  correctly.** Reached by **at least two different routes** — a depth change to the value the design
+  already has, and a `setWidth` on the wall column — then deepened to 700: `p8`, `p10`, `p15`, `p16`
+  carry **361** and `A|0.30`/`A|0.75` publish **400**. ***A criterion phrased as "change the depth
+  twice" tests the wrong thing and will pass while the defect stands.*** So will one that changes the
+  depth once from `KITCHEN_L_DESIGN`, which is seatless and is the only state that is.
+- **It takes the whole column, and the test must seat the whole column.** `Column.d` is a MAX, so one
+  stale member is rescued by any deeper sibling — measured on `A|0.30`: seating `p8` alone gives the
+  correct 400, seating `p8` **and** `p15` gives 330. A criterion that seats one body proves nothing.
+  Assert both halves, so the MAX's rescue is pinned as behaviour rather than relied on silently.
+- **Arrival is independent of the path taken to it.** For every sequence over {600, 700} of length up
+  to four, the design at the final depth has the same seats and the same column depths as the
+  straight path to that depth from the seatless fixture. A `fast-check` property over the sequence is
+  the right shape: the defect is a function of the *ordering*, and 16 hand-written cases is the form
+  QA already had to fall back on. ***This is not a claim that a round trip is byte-equal*** — ADR 0055
+  and ADR 0073 decline that, and the extents ADR 0073 owns are excluded from the comparison.
+- **A body whose depth does not follow the setting keeps its seat and its full contribution to the
+  MAX.** `B|2.45` publishes **742 at every depth, on every path**, and ADR 0058's two pinned tops are
+  unmoved. *Clearing every seat instead of the declared ones fails this criterion, and it is the
+  mirror of the defect being fixed.*
+- **A wall body built deeper than its map row is still rebuilt deep.** With a `wall-cabinet` standing
+  over a full-height column, a depth change rebuilds it to the **cabinet-depth line** at the new
+  setting and it re-measures its own seat — not the map row. This is the case ADR 0011 Gap B exists
+  for, and it holds because `resolveDepthM`'s lifted arm never reads `column.d`. Assert it directly;
+  do not infer it from the seeded fixture, which has no such body.
+- **Every other column is untouched.** `B|0.61`, `B|1.20`, `B|1.80`, `B|2.45` and `A|1.30` publish
+  identical depths before and after the change, at both settings and on every path. Only `A|0.30` and
+  `A|0.75` may move, and only to the straight path's values.
+- **The two suites that hold this now go green without being relaxed.**
+  `packages/three-adapter/tests/qa-6k-de-repeated-real-probe.adversarial.test.ts` — 1 failed, 6 passed
+  at the time of writing — passes all seven, and the store-seam sweep passes all 16 sequences. *Taken
+  green by the command changing, not by an expectation changing.*
+- **Nothing is refused and nothing stored is rewritten.** A document carrying stale seats loads
+  unchanged; the correction happens when a depth change is applied, which is a command writing a
+  document rather than a migration reading one.
+
+#### Risks
+
+- **Clearing the wrong set.** The predicate is a declaration and the pinned/machine criterion is what
+  guards it, but a body that declares `follows` and whose real depth is genuinely not reproducible
+  from the catalogue would be rebuilt shallow. None exists today — the deep wall cabinet's depth is a
+  consequence of `hasFullHeightUnder`, which survives the clearing — and the criterion above is what
+  would catch one arriving.
+- **Reading the fix as "seats are unreliable".** They are not; they are correct for the design at the
+  setting they were taken at. Any comment or criterion that generalises this beyond
+  `setCabinetDepth` is a defect in this wave. ADR 0011 Gap B stands everywhere else.
+- **Merge surface with 6K-f and 6K-g.** All three edit `set-cabinet-depth.ts`. Order is 6K-f, this,
+  then 6K-g; do not start against an unrebased tree.
+- **A `fast-check` property that regenerates the fixture per case is slow** — each depth change builds
+  a real kit and a full reference room. Bound the sequence length and reuse one probe factory per
+  depth rather than lowering the case count until the property stops covering the orderings.
+
+#### Verification
+
+Headless, in the domain suite first with a fake probe that is honest about the front assembly (6K-d's
+correction — a fake that answers the depth it is asked for cannot see this at all), then in
+`packages/three-adapter` against the **real** `createBodyProbe` over a real kit and the room it built,
+because that is where the 291-versus-361 distinction lives. Run the existing
+`qa-6k-de-repeated-real-probe.adversarial.test.ts` and the store-seam sweep and quote their counts
+before and after. Then a real-interaction pass at 390 × 844: apply 600, then 700, and confirm the wall
+run stands in line with its neighbours rather than 70 mm shallow — the symptom a customer sees, and
+the one ADR 0028's original report is about.
+
+### Wave 6K-g — a seat fixed by a joint is declared, and every entry declares which plane seats it
+
+**[ADR 0077](../decisions/0077-a-joint-seated-body-declares-its-seat-and-is-never-measured-for-one.md)**,
+ruled 2026-09-05 on a confirmed blocker created by 6K-d's own probe-dispatch fix. **Sequenced after
+6K-f and after 6K-h**, both of which also edit `commands/set-cabinet-depth.ts`. 6K-h goes first
+because its defect is reachable by any customer who uses the depth control twice and its fix is one
+helper, where this wave's is a catalogue-wide field; see ADR 0077's Addendum, *Sequencing*. Classified in the ADR as a **contract gap first** — the seated-plane property is
+load-bearing in three places and declared in none — with a production-reachable implementation defect
+and a two-file test-fidelity problem beside it.
+
+**The defect, in one line.** `cornerBaseX()` takes no arguments and reads `cabinetDepthM` off the
+kit's closure, so the `depthM` `reseat` hands `probe.measure` reaches nothing; `reseat` then persists
+`2 × measurement.seatOffsetM` (`set-cabinet-depth.ts:242`) over the joint seat the entry declares.
+Measured 2026-09-05 against a real `createBodyProbe`: `base-corner-x-900` declares **560** and
+measures **600** at a 600 mm kitchen (660 against 700 at a 700 mm one), while the other three
+structural ids agree exactly at both depths. A full round trip on `KITCHEN_L_DESIGN` moves `p25`'s
+`frame.z` from 0.28 to 0.30 and drives **0.00835 m³** of its carcass into `base-corner-return-320` —
+the two-solids-intersecting case ADR 0025 names by name. It does not compound; the harm is a fixed
+20 mm and a stored `seatDepthMm: 600`.
+
+**Goal.** A body's seat comes from a measurement only where the measurement is of the quantity the
+seat encodes, and which of the three cases a body is, is declared per entry rather than inferred,
+implied by a hand-written set, or read off whether two numbers happen to agree.
+
+#### Scope and boundaries
+
+Two packages, in this order.
+
+- **`packages/configurator-domain`** — a new `SeatRule` beside `OccupiedDepthRule`
+  (`{ seatedOn: "wall-plane" | "cabinet-front-line" | "joint" }`) with three named constructors, a
+  `seatRuleOf` applier that throws `UndeclaredSeatRuleError`, and `refuseUndeclaredSeatRules` called
+  from `buildKitchenLBodyCatalog` beside `refuseUndeclaredDepthRules`. Required on `BodyShape`,
+  optional on `BodyDefinition`, **no default at any call site**. `BodyProbeRequest` gains the rule as
+  a **two-member** union that the `joint` arm cannot be widened into. `reseat` branches: measure for
+  the two measurable arms, and for `joint` call no probe and return the placement with any
+  `seatDepthMm` **removed**. `deriveFrame` reads `frameDepthMm` for a `joint` entry and ignores a
+  stored seat — the narrowing of ADR 0011 Gap B, and the only part that reaches a document already
+  written.
+- **`packages/three-adapter`** — `FRONT_ALIGNED_BUILD_IDS` and `isFrontAligned` are **deleted** from
+  `measure-built-body.ts`; `measureSeatedGroup` branches on what the request carries. Every entry in
+  `fixtures/kitchen-l-design.ts` and `catalog.ts` declares its rule: `joint` for
+  `base-corner-x-900`, `cabinet-front-line` for `hood` and `hood-600`, `wall-plane` for everything
+  else, spelled once in each shared shape.
+- **Not in scope.** No builder changes, no schema field, no version bump, no migration. `Column.d`,
+  `occupiedDepth`, the void map, fit, width and price are untouched — `base-corner-x-900` declares a
+  `wall-plane` occupied depth and this wave does not move it. `KNOWN_WALL_GAP_M` is **not** rewritten
+  to derive from the new field; it stays pinned by value (ADR 0025 decision 3, ADR 0039 decision 3).
+
+#### Work items
+
+1. `SeatRule`, its constructors, `seatRuleOf`, `UndeclaredSeatRuleError`, `refuseUndeclaredSeatRules`
+   wired into `buildKitchenLBodyCatalog`.
+2. `BodyShape.seatRule` required; the compiler sweeps the §7 population. Then the seeded population,
+   driven by the refusal.
+3. `BodyProbeRequest`'s two-member field; every `measure` call site updated.
+4. `measure-built-body.ts` branches on the request; the adapter's own list deleted.
+5. `reseat`'s two arms; `deriveFrame`'s `joint` read.
+6. `declared-frame-depth-sweep.test.ts`: exception set deleted, block comment corrected (not
+   removed), non-vacuity assertion added.
+7. `qa-6k-d-real-probe-round-trip.test.ts`: filter justification corrected; a second block over the
+   unfiltered design added.
+8. The whole-room non-intersection gate, run on the fixture **and** on the round-tripped design.
+
+#### Acceptance criteria
+
+Falsifiable, and each says what must **not** happen as well as what must.
+
+- **The round trip returns the corner leg to its declared seat.** 600 → 700 → 600 on
+  `KITCHEN_L_DESIGN` with a real `createBodyProbe` leaves `p25` with **no** `seatDepthMm` and
+  `frame.d` **0.560**, and `frame.z` back at **0.28**. At the deeper leg `p25`'s frame depth is
+  **660, not 700**. *A criterion phrased as "`p25` does not change" is not this one — the fixture
+  `p25` already has no seat, so it would pass today.*
+- **The two legs never share space.** Over the seeded design at every declared depth, and over the
+  design a 600 → 700 → 600 round trip produces, every pair of placement carcass boxes has **zero**
+  intersection volume, and `base-corner-x-900`'s carcass front and `base-corner-return-320`'s facing
+  carcass edge are coplanar to 1e-6 — they **touch**. Today this measures 0.580 × 0.720 × 0.020 after
+  the round trip. **If the gate finds a pre-existing overlap on any other pair, record it as a
+  finding and do not soften the assertion with a tolerance.**
+- **A stored document with the stale seat draws correctly on load, with nothing rewritten.** A design
+  carrying `p25.seatDepthMm: 600` derives `frame.d` **0.560**, is not refused, and its stored bytes
+  are unchanged by the load. *Fixing only `reseat` fails this criterion, and that is why it is
+  written separately.*
+- **The seat rule cannot be defaulted, inferred or omitted.** A catalogue entry with no `seatRule`
+  makes `buildKitchenLBodyCatalog` **throw**, naming the `buildId`; a §7 shape with none does not
+  compile. Asserted with a definition handed in through the `BodyCatalog` port, which is the case a
+  required field cannot reach. *No `??` fallback to `wall-plane` may appear anywhere, including in a
+  test helper.*
+- **Asking the probe to measure a joint-seated body does not typecheck.** Pinned by one
+  `@ts-expect-error` case in the domain's own suite, so the property survives the next refactor.
+  *A runtime throw instead of a type error does not satisfy this.*
+- **The declared-frame-depth sweep has no exception set.** Every entry, at every declared depth,
+  declares the `frameDepthMm` the probe measures **under that entry's own seat rule** — including
+  `hood-600`, which currently declares 700, measures 500, and is saved only by resolving away through
+  its `catalogEquivalentId`. Plus a non-vacuity assertion that at least one entry declares each of
+  the three arms, so the sweep cannot pass because an arm lost its last member.
+- **The three agreeing structural entries are proved to agree for a reason.**
+  `base-corner-return-320`, `wall-corner-return-570` and `wall-corner-return-570-top` are swept as
+  ordinary `wall-plane` rows and their declared values are unchanged: 580/580 and 291/291 at 600,
+  680/680 and 361/361 at 700. *No assertion in this wave may take "the declaration equals the
+  measurement" as its input for deciding which path a body follows.*
+- **The seeded scene does not move.** M1's fidelity gate, the decomposition-parity partition, the
+  row-19 assertion with `KNOWN_WALL_GAP_M` unchanged at `p25 → −0.02` and `p13 → +0.1`, and the hood's
+  100 mm gap all hold byte-for-byte at both declared depths. This wave changes no builder.
+- **The hood is untouched in geometry and gains a declaration.** `hood`'s measured seat, its front
+  alignment and its 700 mm frame depth are identical before and after the adapter's list is deleted.
+  *The list is deleted because the domain now says the same thing, not because the behaviour changed.*
+- **`rebuiltCount` still counts a joint-seated body.** A depth change on the seeded design reports
+  the same count as before the wave. The seat did change — 560 to 660 — from the declaration.
+- **Both corrected files still explain the false claim.** Each carries prose saying what was asserted,
+  that it was false, and why. *A deleted comment does not satisfy this; `docs/WORKFLOW.md`'s rule for
+  a deleted expected failure applies for the same reason.*
+
+#### Risks
+
+- **A joint arm with one member.** Every gate here is proved against a population of one, and a second
+  joint-seated body would be the first real test of the non-intersection gate. Accepted and recorded
+  in ADR 0077's Residuals. Do not invent a second entry to exercise a test.
+- **The non-intersection gate finding pre-existing overlaps.** Plausible on pairs nobody has measured
+  — a decor door against its neighbour, a worktop against a return. The mesh filter is carcass meshes
+  only, and anything it finds is a **finding to record**, not a reason for a tolerance.
+- **`BodyProbeRequest` reaches every call site.** Compile-time total, so the risk is churn rather than
+  silence; do items 1–3 before 4–5 so the compiler drives the sweep.
+- **Merge surface with 6K-f.** Both rewrite parts of `set-cabinet-depth.ts`. Sequencing this after
+  6K-f is the mitigation; do not start item 5 against an unrebased tree.
+- **Reading the fix as "the declaration always wins".** It does not — §11 row 19's measured seat is
+  load-bearing and §6.2 records two failed attempts at predicting one. Any reviewer comment or doc
+  line that generalises decision 1's third case to the other two is a defect in this wave.
+
+#### Verification
+
+Headless first, in dependency order: the domain suite (the applier's throw, the refusal at catalogue
+assembly, the `@ts-expect-error` case, `reseat`'s two arms, `deriveFrame`'s `joint` read against a
+document carrying a stale seat), then the adapter's declared-frame-depth sweep with no exception set,
+then the round trip and the non-intersection gate at both declared depths. The M1 parity suites —
+`kitchen-parts.parity.test.ts`, `kitchen-parts.decomposition.parity.test.ts`,
+`occupied-depth.parity.test.ts` — are the regression evidence that no builder moved, and their green
+run is quoted, not summarised. Then a real-interaction pass at 390 × 844: change the depth to 700 and
+back to 600 on the seeded kitchen and confirm the corner reads as two cabinets meeting rather than one
+clipping through the other, which is the symptom a customer would see and the one no headless
+assertion describes.
 
 ### Wave 6L — the handle path learns a cabinet handle from an appliance's (`docs/BACKLOG.md` entry 18)
 
