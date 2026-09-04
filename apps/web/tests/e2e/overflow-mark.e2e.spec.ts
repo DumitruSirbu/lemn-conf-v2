@@ -42,20 +42,21 @@ import { readSelection } from "./support/panel";
  * **This file's own background tap, and it may not borrow either of the existing ones.**
  *
  * `editor-panel.e2e.spec.ts` and `kitchen-stage.e2e.spec.ts` both tap canvas `(310, 100)` to reach
- * background while the sheet is open. Both are correct for the designs *they* load and both are
- * unsafe here, because they assume the band's grid row is collapsed:
+ * background while the sheet is open. Both are right for the screen *they* were measured on, and
+ * neither survives wave 6G's settings row:
  *
- * - the canvas starts 55 px below the header;
- * - §9's sheet covers 78 dvh, so its top edge is page `844 − 0.78 × 844 = 185.7`;
- * - with no band that leaves a strip of `185.7 − 55 = 130.7` px, the "~131 px" recorded at
- *   `configure.module.css`, and canvas y = 100 sits inside it;
- * - **with the band** `.sceneBox` starts at `55 + 56 = 111`, so the strip is `185.7 − 111 = 74.7` px
- *   and the sheet's top edge is at canvas y ≈ 75. A tap at y = 100 lands on the sheet.
+ * - §9's sheet is pinned to the **viewport** at 78 dvh, so its top edge is page
+ *   `844 − 0.78 × 844 = 185.68` and does not move when the canvas shrinks;
+ * - the canvas starts 55 px down without 6G's row, leaving a strip of `185.68 − 55 = 130.68` px —
+ *   the "~131 px" recorded at `configure.module.css`, and canvas y = 100 sits inside it;
+ * - with 6G's 46.94 px row the canvas starts at 101.94, so the strip is `185.68 − 101.94 = 83.74` px
+ *   and canvas y = 100 lands **on the sheet**.
  *
- * 40 is comfortably inside the 74.7 px strip and comfortably above the kitchen, which projects no
- * higher than ~119 px into the scene box in this preset. The two existing constants are left alone:
- * they are right for their own specs, and editing two passing files to accommodate a third is the
- * wrong direction.
+ * 40 is inside the strip in both trees with room to spare, and comfortably above the kitchen, which
+ * projects no higher than 126.4 px into the scene box in this preset. The band itself is not in this
+ * arithmetic at all — it is an overlay at the *bottom* of the scene box and takes no flow height,
+ * which is exactly what `overflow-warning-layout.ts` records. The two existing constants are left
+ * alone: editing two passing files to accommodate a third is the wrong direction.
  */
 const BACKGROUND_ABOVE_SHEET_TAP = { x: 310, y: 40 };
 
@@ -259,23 +260,51 @@ test("a stored overflowing design is marked in the scene and warned about, and a
   );
 });
 
-test("the warning band sits above the scene rather than over it", async ({
+test("the warning band is pinned to the scene's bottom edge and costs the canvas no height", async ({
   page,
 }) => {
+  // The placement claim, measured instead of regexed. Wave 6G moved this band out of the flow: what
+  // has to be true now is that it sits on the scene box's bottom edge, and that the canvas is the
+  // same height whether or not it is there.
+  await page.goto("/configurator/configure");
+  await page.waitForSelector("canvas", { state: "attached" });
+  await page.waitForTimeout(SCENE_SETTLE_MS);
+  const canvasWithoutBand = await page.locator("canvas").boundingBox();
+
   const stored = await mintDesign(page);
   await storeAnOverflowingDesign(page, stored);
   await openAndSettle(page, stored.id);
 
   const band = await page.getByTestId("scene-overflow-warning").boundingBox();
   const canvas = await page.locator("canvas").boundingBox();
-  if (!band || !canvas) throw new Error("expected both boxes to be laid out");
+  if (!band || !canvas || !canvasWithoutBand)
+    throw new Error("expected every box to be laid out");
 
-  // The grid-row claim, measured instead of regexed: the band's bottom edge is at or above the
-  // canvas's top edge, so the two boxes cannot intersect whatever height the sentence wraps to.
-  expect(band.y + band.height).toBeLessThanOrEqual(canvas.y + 1);
-  expect(band.height).toBeGreaterThan(0);
-  // And it really is the scene the band is above, not a collapsed canvas.
+  // Pinned low: the band's bottom edge is the canvas's bottom edge, directly above the price bar.
+  expect(band.y + band.height).toBeCloseTo(canvas.y + canvas.height, 0);
+  expect(band.height).toBeGreaterThanOrEqual(56);
+
+  // And it took nothing from the scene. This is the assertion the flow version could not pass, and
+  // the one that keeps every canvas tap constant in this suite single-valued.
+  expect(canvas.height).toBeCloseTo(canvasWithoutBand.height, 0);
+  expect(canvas.y).toBeCloseTo(canvasWithoutBand.y, 0);
   expect(canvas.height).toBeGreaterThan(200);
+});
+
+test("the orbit hint rides above the band rather than inside it", async ({
+  page,
+}) => {
+  // Both are bottom-anchored overlays on the same box. Pinned independently the 56 px band would be
+  // drawn straight through the hint pill, which stands 16 px off the same edge.
+  const stored = await mintDesign(page);
+  await storeAnOverflowingDesign(page, stored);
+  await openAndSettle(page, stored.id);
+
+  const hint = await page.getByTestId("scene-hint").boundingBox();
+  const band = await page.getByTestId("scene-overflow-warning").boundingBox();
+  if (!hint || !band) throw new Error("expected both boxes to be laid out");
+
+  expect(hint.y + hint.height).toBeLessThanOrEqual(band.y);
 });
 
 test("a marked body is still selectable, and the strip above the sheet is still reachable", async ({

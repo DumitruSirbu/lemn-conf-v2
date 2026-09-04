@@ -2,7 +2,9 @@
  *
  * `--overflow-warning-height` is published by `overflow-warning.tsx` from
  * `OVERFLOW_WARNING_RESERVED_HEIGHT_PX`. It is a **floor**, not a fixed height: the sentence wraps at
- * 390 px and the band grows, which only shrinks the scene further.
+ * 390 px and the band grows. Growing costs the scene no layout — the band is an overlay pinned to the
+ * scene box's bottom edge by `.sceneFooter` — so it only paints over more of the lowest cabinets.
+ * `scene/overflow-warning-layout.ts` carries the measurement and the reason it is an overlay at all.
  *
  * The palette is the caution pair the flagged total already wears in `price-bar.module.css` and
  * `editor-panel.module.css` — one visual language for "this design reaches past a wall", read from
@@ -16,18 +18,20 @@
  *
  * The region is mounted always — many screen readers announce only *changes* to a region already in
  * the accessibility tree — and the warning inside it appears only when there is something to say, so
- * the empty region has to cost no layout. It does either way: every padding and the rule below live
- * on `.warning`, so an empty `.region` is 0 px high as a plain block.
+ * the empty region has to cost no layout. It does: every padding and the rule below live on
+ * `.warning`, so an empty `.region` is a 0 px block.
  *
- * What a plain block avoids is a trap. Under `display: contents` the region's *children* become the
- * grid items of `.viewport`, so a second child added here later — an icon, a count, a second
- * sentence — would become a second grid item; and because `.sceneBox` claims row 2 explicitly, that
- * second item would auto-place into an implicit row 3 **below the scene**. As one block the region
- * is the single grid item and anything added inside it stays inside it. */
+ * What a plain block avoids is a trap. Under `display: contents` the region's *children* become
+ * children of `.sceneFooter` directly, so a second child added here later — an icon, a count, a
+ * second sentence — would become a second item of that column and would push the band off the
+ * scene's bottom edge. As one block the region is a single item and anything added inside it stays
+ * inside it. */
 .region {
   display: block;
 }
 
+/* Opaque, and it must stay opaque: it is drawn over the kitchen rather than beside it, so a
+ * translucent band would leave the sentence to be read against whatever cabinet is behind it. */
 .warning {
   display: flex;
   align-items: center;
@@ -39,7 +43,7 @@
   color: #7c4a0c;
   text-align: center;
   background: #fdf6ec;
-  border-bottom: 1px solid var(--line-soft);
+  border-top: 1px solid var(--line-soft);
 }
 
 @media (min-width: 900px) {

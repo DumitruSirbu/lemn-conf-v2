@@ -60,36 +60,36 @@ export function ConfigureScreen() {
           CSS — see `editor-panel.module.css`. */}
       <div className={styles.stage}>
         <div className={styles.viewport}>
-          {/* ADR 0065 decision 7b, and it is a **flow band above the scene, never an overlay on it**
-              — the reason is written out in `scene/overflow-warning-layout.ts`. It stands inside the
-              viewport so it reads beside the bodies it explains, and outside `.sceneBox` so it
-              cannot cover one. */}
-          <OverflowWarning />
-          <div className={styles.sceneBox}>
-            {support === "probing" ? (
-              <div className={styles.loading}>{ro.configure.loading}</div>
-            ) : (
-              <KitchenCanvas view={view} />
-            )}
-            <div
-              className={styles.presets}
-              role="group"
-              aria-label={ro.configure.cameraGroupLabel}
-            >
-              {CAMERA_PRESETS.map((preset) => (
-                <button
-                  key={preset.id}
-                  type="button"
-                  className={styles.preset}
-                  aria-pressed={preset.id === presetId}
-                  onClick={() => {
-                    setPresetId(preset.id);
-                  }}
-                >
-                  {ro.configure.cameraPresets[preset.id]}
-                </button>
-              ))}
-            </div>
+          {support === "probing" ? (
+            <div className={styles.loading}>{ro.configure.loading}</div>
+          ) : (
+            <KitchenCanvas view={view} />
+          )}
+          <div
+            className={styles.presets}
+            role="group"
+            aria-label={ro.configure.cameraGroupLabel}
+          >
+            {CAMERA_PRESETS.map((preset) => (
+              <button
+                key={preset.id}
+                type="button"
+                className={styles.preset}
+                aria-pressed={preset.id === presetId}
+                onClick={() => {
+                  setPresetId(preset.id);
+                }}
+              >
+                {ro.configure.cameraPresets[preset.id]}
+              </button>
+            ))}
+          </div>
+          {/* The scene's bottom stack. Both children are overlays and neither takes flow height, so
+              the canvas's box does not depend on whether either is on screen — which is the whole of
+              wave 6M's revised placement (`scene/overflow-warning-layout.ts`). The warning is last so
+              it keeps the scene's bottom edge, directly above the price bar, with the hint above it
+              rather than inside it. */}
+          <div className={styles.sceneFooter}>
             {/* Frames 2A / D2A: the nothing-selected instruction copy, and the only place it lives.
                 It is hidden while the panel is open, where it would sit behind the sheet — and it is
                 gated on the same `PanelView` the panel renders from, so "panel open" and "hint
@@ -99,6 +99,7 @@ export function ConfigureScreen() {
                 <span>{ro.configure.orbitHint}</span>
               </p>
             )}
+            <OverflowWarning />
           </div>
         </div>
         <EditorPanel view={panel} />

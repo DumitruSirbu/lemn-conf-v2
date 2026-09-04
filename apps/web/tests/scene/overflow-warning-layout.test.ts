@@ -71,7 +71,13 @@ describe("the band's reserved height reaches the stylesheet from one constant", 
   });
 });
 
-describe("the warning is placed above the scene, never over it", () => {
+// **Revised by wave 6G, and the direction is the opposite of what this suite first asserted.** The
+// band was a flow row above the scene until 6G added an unconditional settings row: §9's sheet is
+// pinned to the viewport, so every band above the stage comes out of the strip of scene left visible
+// above it, and a second one took that strip from 83.75 px to 26.81 — under the 44 px touch target
+// that makes the sheet dismissable. `scene/overflow-warning-layout.ts` carries the table. So the
+// assertions below now hold the band **out of flow**, which is exactly what the earlier ones forbade.
+describe("the warning is an overlay on the scene, taking none of its height", () => {
   it("stands inside the viewport, beside the bodies it explains", () => {
     // Wave 6M: the sentence renders in the scene viewport rather than in the header, the panel or a
     // banner elsewhere on the screen.
@@ -80,22 +86,58 @@ describe("the warning is placed above the scene, never over it", () => {
     );
   });
 
-  it("gives the viewport two rows, so the band and the scene are siblings", () => {
+  it("is pinned to the scene box's bottom edge by the footer stack", () => {
+    // Bottom rather than top, and that is the load-bearing half: the clearance problem the flow
+    // version measured is *above* the kitchen, where the camera chips live. The bottom edge has no
+    // chips and sits directly above the price bar.
     expect(screenStylesheet).toMatch(
-      /\.viewport \{[^}]*grid-template-rows: auto minmax\(0, 1fr\);/s,
+      /\.sceneFooter \{[^}]*position: absolute;/s,
     );
-    expect(screenStylesheet).toMatch(/\.sceneBox \{[^}]*grid-row: 2;/s);
+    expect(screenStylesheet).toMatch(/\.sceneFooter \{[^}]*bottom: 0;/s);
+    expect(screenStylesheet).toMatch(
+      /\.sceneFooter \{[^}]*flex-direction: column;/s,
+    );
   });
 
-  it("gives the scene its own box, which is what the band leaves behind", () => {
-    expect(screenSource).toContain("<div className={styles.sceneBox}>");
+  it("leaves the viewport a single box, so the canvas is its whole height", () => {
+    // The conditional-height defect the overlay exists to avoid: a flow band makes the canvas one
+    // height for a flagged design and another for an unflagged one, and every canvas tap constant
+    // then has two correct values. A positioned viewport with no track for the band has one.
+    expect(screenStylesheet).toMatch(/\.viewport \{[^}]*position: relative;/s);
+    expect(screenStylesheet).not.toMatch(
+      /\.viewport \{[^}]*grid-template-rows/s,
+    );
+    expect(screenStylesheet).not.toContain(".sceneBox");
   });
 
-  it("is never positioned out of flow", () => {
-    // The one edit that would break the gate in `overflow-warning-viewport.test.ts` while leaving
-    // every other test green: an absolutely positioned band sits over the scene, and the scene's box
-    // stops being what is left.
-    expect(warningDeclarations).not.toMatch(/position:\s*(absolute|fixed)/);
+  it("stacks below the orbit hint rather than on top of it", () => {
+    // The two are both bottom-anchored overlays. Pinned independently the 56 px band would be drawn
+    // straight through the hint pill, which sat 16 px off the same edge.
+    const footerMarkup =
+      /<div className=\{styles\.sceneFooter\}>([\s\S]*?)<\/div>\s*<\/div>/.exec(
+        screenSource,
+      )?.[1];
+    expect(
+      footerMarkup,
+      "the scene footer stack is not in the markup",
+    ).toBeDefined();
+    expect(footerMarkup).toContain("scene-hint");
+    expect(footerMarkup).toContain("<OverflowWarning />");
+    expect(footerMarkup?.indexOf("scene-hint")).toBeLessThan(
+      footerMarkup?.indexOf("<OverflowWarning />") ?? -1,
+    );
+  });
+
+  it("lets a tap reach the cabinets it is drawn over", () => {
+    // It stands on the lowest cabinets' plinth line by 6.8–13.7 px (measured in
+    // `overflow-warning-viewport.test.ts`), and ADR 0065 requires a marked body to stay selectable.
+    expect(screenStylesheet).toMatch(
+      /\.sceneFooter \{[^}]*pointer-events: none;/s,
+    );
+  });
+
+  it("is opaque, because it is read against the kitchen rather than against paper", () => {
+    expect(warningDeclarations).toMatch(/background:\s*#fdf6ec;/);
   });
 
   it("puts no text of its own on the screen", () => {

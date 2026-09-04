@@ -88,33 +88,17 @@
   background: var(--stage);
 }
 
-/* The two rows the scene shares with ADR 0065's overflow warning. On desktop this is the flex child
- * the 420 px rail leaves room for, which is how "the scene re-lays out" happens without any
- * component knowing a rail exists.
+/* The scene's own box. On desktop it is the flex child the 420 px rail leaves room for, which is
+ * how "the scene re-lays out" happens without any component knowing a rail exists.
  *
- * **The warning band is a flow sibling of the scene, never an overlay on it** — the same structural
- * answer to "it never covers the selected cabinet" that the price bar gives one level up, argued in
- * full in `scene/overflow-warning-layout.ts`. The same two-track grid `.screen` uses, and for the
- * second reason too: a grid item in a `minmax(0, 1fr)` track of a definite-height grid has a
- * definite height, which is what the canvas's own `height: 100%` resolves against. */
+ * It is the positioning context for everything drawn over the scene: the camera chips, the orbit
+ * hint, and — since wave 6M's revision — ADR 0065's overflow warning. All three are overlays and
+ * none of them takes flow height, so the canvas's box is the viewport's box whatever is on screen.
+ * `scene/overflow-warning-layout.ts` records why the warning may not take flow height. */
 .viewport {
-  display: grid;
-  flex: 1;
-  grid-template-columns: minmax(0, 1fr);
-  grid-template-rows: auto minmax(0, 1fr);
-  min-width: 0;
-  min-height: 0;
-}
-
-/* The scene's own box, and the positioning context for the camera chips and the orbit hint — both
- * are drawn over the scene and must move with it when the warning band takes its height.
- *
- * Placed on the second row explicitly, so the band's row simply collapses to nothing while there is
- * no warning: auto-placement would otherwise put the scene in the first row whenever it is the only
- * child. */
-.sceneBox {
   position: relative;
-  grid-row: 2;
+  flex: 1;
+  min-width: 0;
   min-height: 0;
 }
 
@@ -148,14 +132,30 @@
   background: rgb(250 248 244 / 92%);
 }
 
-.hint {
+/* The scene's bottom stack: the orbit hint and, below it, ADR 0065's warning band.
+ *
+ * One absolutely positioned column rather than two independently pinned overlays, because the two
+ * would otherwise occupy the same pixels — the hint sat at `bottom: 16px` and the band is 56 px
+ * tall from `bottom: 0`, so an overflowing design with nothing selected drew the hint pill inside
+ * the band. Stacked, the band keeps the scene's bottom edge and the hint rides above it; with no
+ * band the hint's own margin puts it exactly where it has always been.
+ *
+ * `pointer-events: none` for the whole stack: neither is a control, and the band stands over the
+ * lowest cabinets, so a tap has to reach the scene through it. */
+.sceneFooter {
   position: absolute;
   right: 0;
-  bottom: 16px;
+  bottom: 0;
   left: 0;
   display: flex;
-  justify-content: center;
+  flex-direction: column;
   pointer-events: none;
+}
+
+.hint {
+  display: flex;
+  justify-content: center;
+  margin: 0 0 16px;
 }
 
 .hint span {
@@ -206,7 +206,7 @@
   }
 
   .hint {
-    bottom: 30px;
+    margin-bottom: 30px;
   }
 
   .hint span {
