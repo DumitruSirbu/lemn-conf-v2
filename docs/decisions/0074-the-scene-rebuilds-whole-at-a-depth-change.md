@@ -3,7 +3,7 @@
 Status: Accepted
 Date: 2026-09-04
 Type: Decision + Finding
-Milestone: M6 — wave 6K-b (the scene's half); adds wave 6K-d
+Milestone: M6 — wave 6K-b (the scene's half); adds wave 6K-e
 
 ## Context
 
@@ -87,7 +87,7 @@ in the other direction: that no mounted object can outlive the kit that built it
 to 600 builds a fresh 600 kit; kits are not cached by depth. The store caches *catalogues* by depth
 (`catalogsByDepthMm`, `configurator-store.ts:332`) and that is right — a `BodyCatalog` is plain data
 owning no GPU resource. A kit is not: it owns buffers, materials and canvas textures, and a cached
-kit is a live kit whose resources may never be released. Wave 6K-d's probe (the Finding below) builds
+kit is a live kit whose resources may never be released. Wave 6K-e's probe (the Finding below) builds
 a **transient** kit at the target depth and disposes it when the command ends; it does not cache one.
 
 **4. Both depths are passed to `makeKit`, and both are read from the domain.** Today's call site
@@ -213,18 +213,18 @@ agree, this finding is wrong and must be withdrawn by a dated amendment here.** 
 never re-consults the catalogue, which is the compounding failure `reseat`'s own comment warns about
 one branch over.
 
-**Assigned to a new wave 6K-d, not to 6K-b.** The remedy is a domain signature change — `probe: BodyProbe`
+**Assigned to a new wave 6K-e, not to 6K-b.** The remedy is a domain signature change — `probe: BodyProbe`
 becomes a factory `probeAt: (cabinetDepthMm) => BodyProbe`, the same shape and for the same stated
 reason as `catalogAt`, which `SetCabinetDepthInput` already argues for in its own doc comment: *"a
 factory makes the wrong call site impossible to write instead of merely wrong."* That crosses three
-packages and is not "the scene's response to a depth change". Two premises 6K-d must verify rather
+packages and is not "the scene's response to a depth change". Two premises 6K-e must verify rather
 than assume, both headless: that `readWallPlaneM(room, "wall_back")` is invariant under the kit's
 cabinet depth, so a transient-kit probe may measure inside the live room (`wall_back` is built at
 `z = 0` from room constants, so this is expected to hold); and that a transient kit can be disposed
 without a `KitStage`, which today it cannot — `disposeKitAndStage` requires a room, a ground, a blob
-and a light rig, so 6K-d owes the adapter a kit-only release.
+and a light rig, so 6K-e owes the adapter a kit-only release.
 
-**6K-d does not gate 6K-b**, for wave 6K-c's stated reason: nothing ships mid-milestone, and the state
+**6K-e does not gate 6K-b**, for wave 6K-c's stated reason: nothing ships mid-milestone, and the state
 is already reachable in the tree through 6J-b and 6K-a, so holding the control back does not un-reach
 it. What 6K-b carries instead is a second declared expected failure, on the house's `it.fails` rule.
 
@@ -245,7 +245,7 @@ it. What 6K-b carries instead is a second declared expected failure, on the hous
 
 ## Residuals, stated rather than left implicit
 
-- Until 6K-d lands, a live 600 → 700 change writes base seats measured at 600, and the scene draws what
+- Until 6K-e lands, a live 600 → 700 change writes base seats measured at 600, and the scene draws what
   the document says. The model still visibly changes; part of what it shows is wrong. 6K-b's criteria
   say which half is verified where, so that "it moved" is not read as "it is right".
 - Whether a frame can be drawn showing a newly built shell before its bodies are mounted is not

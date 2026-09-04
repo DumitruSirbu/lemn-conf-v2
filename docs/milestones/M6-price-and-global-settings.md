@@ -5,7 +5,8 @@
 > with its commit(s): 6A (`6c1f830`), 6H (`4afda06`), 6A3 and 6B2 (`eb9ba03`), all shipped 2026-09-03.
 > **6C (`194405b`) and 6D (`a5e161f`) are marked DONE by this pass** — both had already shipped and
 > `docs/STATUS.md` already carried QA evidence for 6C, but neither had ever received the table's DONE
-> marker; recorded here as the gap it is, not attributed to this session's own work. **6E (`b558e28`),
+> marker; recorded here as the gap it is, not attributed to this session's own work.
+> **Thirteen of twenty-six** after the two waves added 2026-09-04. **6E (`b558e28`),
 > 6G (`3e546d1`), 6I2 and 6M** (merged together at `ce77171`, via intermediate merge `4c4e4e0`) shipped
 > 2026-09-03/04 on branch `m6-price-and-global-settings`. **6S** (`280daa4`, `a2bff48`) shipped
 > 2026-09-04 on the same branch. **6J** (`c8ba3af` for 6J-a, `a68482d` for 6J-b) and **6P**
@@ -15,16 +16,23 @@
 > no adversarial pass at all.** Both are recorded here as owed, not as skipped. **Not
 > marked DONE, and not to be read as closed either way**: 6B, 6A2, 6A4, 6I, 6L have shipped commits
 > (bundled inside `93e9bc3`/`75668b8`/`dfa6198`) but no recorded criteria check — see `docs/STATUS.md`.
-> **6K remains open** — 6J shipping is what unblocks it; its 6K-a store seam is implemented in the
-> tree and uncommitted, and its 6K-b control is not started — and **6N has not started**. **6F is
-> superseded** — see 6P–6R below. **One wave added 2026-09-04: 6K-c**, on
+> **6K remains open** — 6J shipping is what unblocks it. **6K-a shipped 2026-09-04** (`30c3bcb`,
+> with its adversarial-QA round at `588e0a0`), and **6K-b's domain half shipped** at `4dc08e0`; the
+> scene half and the control itself are not started. **6N has not started.** **6F is
+> superseded** — see 6P–6R below. **Three waves added 2026-09-04: 6K-c**, on
 > [ADR 0073](../decisions/0073-a-frozen-extent-records-the-body-its-depth-came-from.md), which closes
-> the residue 6K-a found and could not fix. **It does not gate 6K-b** — see the wave for what makes
-> shipping the control safe before it.
+> the residue 6K-a found and could not fix; and **6K-e**, on
+> [ADR 0074](../decisions/0074-the-scene-rebuilds-whole-at-a-depth-change.md), whose finding is that
+> the probe measuring a depth change holds a kit at the depth being left; and **6K-d**, adjudicated by
+> the coordinator from adversarial QA's finding, on a rebuild swapping a body for one declared at a
+> different depth under the same declaration kind. **None of the three gates 6K-b** — see
+> the waves for what makes shipping the control safe before them. ADR 0074 also rules 6K-b's scene
+> half: the stage is rebuilt whole, keyed on the design's depth.
 > Depends on M5 (only wave 5E is still open
 > there, and it does not gate anything here). Summary: `docs/STATUS.md`. Start at **Waves** below,
-> then the owner section. **Twenty-five waves, all
-> unblocked** (twenty-four until 6K-c was added on 2026-09-04). The seven owner decisions were taken
+> then the owner section. **Twenty-seven waves, all
+> unblocked but 6K-d** (twenty-four until 6K-c, 6K-d and 6K-e were added on 2026-09-04; 6K-d wants an
+> architect pass on an unruled catalogue-declaration question before it can be implemented). The seven owner decisions were taken
 > on 2026-09-02 (ADRs 0055–0061); ADRs 0062–0064 followed, the last two on 2026-09-03.
 >
 > **Five waves added 2026-09-04 on two owner decisions taken that day.**
@@ -257,6 +265,8 @@ constant (`worktop-depth.ts` carries a comment saying the rename is owed and def
 | 6J — the persisted setting and what a change does — **DONE 2026-09-04, `c8ba3af`/`a68482d`** | D | 6H, 6I, 6I2 — **unblocked, ADRs 0055, 0056, 0058** | Full |
 | 6K — the depth control on the sheet (6K-a the store seam, 6K-b the control) | D | 6J, 6G — **unblocked, ADR 0059** | Light + visual |
 | 6K-c — a frozen extent records the body its depth came from *(ADR 0073)* | D | 6K-b — **does not gate it**, see the wave | Full |
+| 6K-d — a rebuild must not swap a body for one declared at a different depth | D | 6K-b — **does not gate it** | Full |
+| 6K-e — the probe that measures a depth change is built at that depth *(ADR 0074)* | D | 6K-b — **does not gate it**, see the wave | Full |
 | 6L — the handle path learns cabinet from appliance *(backlog 18)* | G | none — **sequenced before 6B and 6G** | Full |
 | 6M — the overflow is marked and warned about *(ADR 0065)* — **DONE 2026-09-04, `ce77171`** | — | 6A3 | Light + visual |
 | 6N — the wall-coverage bars *(owner request)* | — | 6D, 6M, decision 8's fixture correction | Light + visual |
@@ -1492,6 +1502,66 @@ settles the floor. Still gated on 6J and 6G.
   `skip`: the surface exists, so the debt clears itself the moment 6K-c lands rather than depending on
   somebody remembering.
 
+#### Wave 6K-b — the scene's half, ruled 2026-09-04
+
+**[ADR 0074](../decisions/0074-the-scene-rebuilds-whole-at-a-depth-change.md).** The stage memo is
+keyed on the design's cabinet depth and **the whole stage is rebuilt** — kit, shell, both roots, the
+room, the light rig, the ground and the blob. The narrow "swap the kit and the shell under the mounted
+bodies" shape is **refused**: `signBody` (`scene-sync.ts`) is a function of the record alone, a depth
+change leaves ADR 0058's pinned tops and every `manufactured-size` entry byte-identical, so those
+bodies keep instances built from the old kit — after which the old kit can be neither released
+(survivors go black, no error) nor kept (a kit leaked per toggle). See the ADR for the full proof and
+for why the narrow shape avoids none of the cost.
+
+**Acceptance criteria — the scene half.**
+
+- **The kit follows the design.** `makeKit` is called with the held design's `cabinetDepthMm`, read
+  through a selector returning a **number** (not `state.design`, which would re-render the scene on
+  every command), and the scene imports no depth constant. `WORKTOP_DEPTH_MM` leaves
+  `kitchen-stage.tsx`.
+- **Both depths are passed, and the wall depth is the declared map row.** `wallDepthMm:
+  wallCarcassDepthMm(cabinetDepthMm)` beside it. Falling through to the adapter's
+  `DEFAULT_WALL_DEPTH_MM` is correct at 600 by coincidence and 70 mm wrong at 700 (ADR 0028's own
+  defect, in the scene). `cabinet-depth-source.test.ts` gains the app-side pairing, so a call site
+  passing one without the other fails there and not in a screenshot.
+- **The stage is rebuilt when and only when the depth changes.** Not on an insert, a delete, a resize,
+  a finish change, a handle change, a preset change or a selection. **Asserted against a real React
+  renderer**: `apps/web/tests/scene/kitchen-stage*.test.ts` mock `useMemo` to call its factory every
+  time and never re-render, so a green run of those two proves nothing about this.
+- **Nothing crosses a generation.** After a depth change, no mounted object references the previous
+  kit's geometries, materials or textures, and the previous stage is disposed exactly once through the
+  existing teardown effect, in the declaration order `kitchen-stage-disposal.test.ts` already pins.
+- **The reference-ghost invariant survives, and its comment is corrected.** The guarantee is
+  `buildKitchenShell`'s fixed manifest and its lack of a records argument — **never "built once per
+  mount"**. Falsifiable form: delete a body, change the depth, and no untagged, unpickable copy of it
+  returns; and the newly built shell's run-end panel is seated and shown or hidden from the current
+  records on the new generation's first sync (ADR 0045), never at its seeded 3.51.
+- **`isBodyProbeAttached` is never observed `false` by a render.** The detach/attach pair happens
+  inside one commit's passive-effect flush. The depth command itself cannot be affected — it runs in
+  the event handler, before that commit — so `BODY_PROBE_UNAVAILABLE` must never arise from a rebuild
+  the command started, and no control may go from offered to refused mid-interaction (§9).
+- **The camera does not move.** `seatObjectOnStage` must run for the new generation — it positions and
+  un-hides the new blob and ground — but the customer's orbit survives a depth toggle. Anti-invariant,
+  asserted: the camera position and the controls target after a depth change equal what they were
+  before it.
+- **The end panel is the named visible witness.** Its depth follows the cabinet depth (wave 6I2), so at
+  700 it spans 700 and does not leave 100 mm of the last carcass's side on show behind the panel meant
+  to hide it. A shell kept across the change would show exactly that.
+- **"Visibly changes the model" is verified two ways at 390 × 844, by real touch** (ADR 0023 — the
+  control sits on the sheet over the canvas). **(a) Loaded**: two designs identical but for the
+  setting, captured at the same camera preset, differ in the depth of the base run, the counter and
+  the end panel, and are identical in along-wall position and height. **(b) Live**: the tap redraws the
+  model rather than only the number, the camera does not jump, and the interval from tap to first frame
+  at the new depth is **recorded**. Over 500 ms it is a finding for a later wave, not a reason to
+  re-open the shape (ADR 0074 decision 9). The pass also records whether any intermediate frame shows a
+  room without its cabinets.
+- **Criterion (b) is not evidence that the new geometry is correct**, and must not be written as if it
+  were, until 6K-e lands — see the second failing guard below.
+- **This wave carries a second deliberately failing guard, and 6K-e flips it.** An `it.fails` in
+  `packages/three-adapter` asserting that a 600 → 700 `setCabinetDepth` writes the same base
+  `seatDepthMm` whether it is measured by a probe over a 600 kit or a 700 kit, named for ADR 0074's
+  finding and for the wave that owes the flip.
+
 ### Wave 6K-c — a frozen extent records the body its depth came from
 
 **[ADR 0073](../decisions/0073-a-frozen-extent-records-the-body-its-depth-came-from.md)**, ruled
@@ -1568,6 +1638,99 @@ production files, which is the dispatch limit — the byte-cap edit is one line 
   extent without touching its depth or its source.
 - **6K-b's `it.fails` guard goes red and is flipped in this wave, not deleted.** A deleted expected
   failure is indistinguishable from one that never existed (`docs/WORKFLOW.md`).
+
+### Wave 6K-d — a rebuild must not swap a body for one declared at a different depth
+
+**Found 2026-09-04 by adversarial QA on wave 6K-a, adjudicated by the coordinator against the
+catalogue and held by an `it.fails` in
+`apps/web/tests/store/qa-6k-a-cabinet-depth.adversarial.test.ts`.** Not ADR 0073's residue and not
+the depth-decrease direction — both were ruled out by measurement before this wave was opened.
+
+**The defect.** `resolveRebuildBody` permanently swaps a seeded entry for its parameterised
+equivalent, and the two carry different declared frame depths **under the same declaration kind**:
+
+```
+at 600:  wall-2door-600 = 291      wall-cabinet = 330
+at 700:  wall-2door-600 = 361      wall-cabinet = 400
+both declare occupiedDepth { measuredFrom: "recorded-shell", frontAssemblyMm: 39 }
+```
+
+Because both claim `recorded-shell`, nothing in the system can detect that they disagree. A
+600 → 700 → 600 round trip therefore returns two wall columns **39 mm deeper than they started**, at
+the setting they started at.
+
+**This is the failure mode `set-cabinet-depth.ts`'s own comment already warns about** — "resolving it
+to a catalogue equivalent is precisely the mistake that once turned `hood-600` into `hood` and
+changed its height" — recurring on the depth axis, in the file that documents it. That is why it is
+its own wave rather than a patch inside 6K.
+
+**The open question, and it is a catalogue-declaration question rather than an implementation one:
+which of 291 and 330 is the right declared depth for that body?** Unruled. ADR 0058, 0060 and 0061
+all bear on it — a declared depth is not to be inferred, and a clearance is not a build depth — but
+none of them settles this pair. It wants an architect pass before implementation, not a developer
+guessing which number to keep.
+
+**Acceptance criteria.**
+
+- The `it.fails` at `qa-6k-a-cabinet-depth.adversarial.test.ts` flips to a passing assertion. It is
+  never deleted, and its self-clearing was verified rather than assumed when it was written.
+- The round-trip partition grows from the six columns it certifies today to all twelve. The partition
+  is read off the catalogue and names no build id, so it widens on its own when this lands.
+- **Whatever the ruling, a seeded entry and the parameterised entry a rebuild resolves it to may not
+  declare different depths under the same `measuredFrom` kind.** Asserted over the whole catalogue,
+  swept rather than sampled — this pair is the one that was found, not necessarily the only one.
+- No geometry moves for a design that never changes depth. The M1 fidelity gate holds.
+
+### Wave 6K-e — the probe that measures a depth change is built at the depth it is measuring
+
+**[ADR 0074](../decisions/0074-the-scene-rebuilds-whole-at-a-depth-change.md)'s finding**, recorded
+2026-09-04 while ruling on 6K-b's scene half. **A third call site on the pre-6J depth, after ADR 0073's
+two, and classified the same way**: an implementation defect against
+[ADR 0055](../decisions/0055-a-depth-change-migrates-the-stored-design.md) decision 1, beside a
+test-fidelity problem. No decision needs revising.
+
+`setCabinetDepth` writes every rebuilt body's `seatDepthMm` from the probe it is handed, and the store
+hands it `createBodyProbe(stage.kit, stage.room)` — **the scene's kit, at the depth the session is
+leaving**. Keying the stage memo does not reach it: the command runs in the event handler, before the
+commit that rebuilds the stage. It bites because the adapter's builders ignore the depth they are
+handed and read the kit's own — `baseCabinet` builds at the closure `CARC_D`, which `scene-sync.ts`
+already states from the data side. The store's depth suites run against `createFakeBodyProbe`, whose
+`seatOffsetM: request.depthM / 2` obeys the depth it is asked for, which is exactly the behaviour the
+real probe does not have; that is why nothing is red.
+
+**Does not gate 6K-b**, for 6K-c's stated reason: nothing ships mid-milestone and the state is already
+reachable in the tree through 6J-b and 6K-a. 6K-b carries the failing guard instead.
+
+**Acceptance criteria.**
+
+- **The premise is measured first, and the wave is withdrawn if it does not hold.** Headless, in
+  `packages/three-adapter` where a real kit, room and probe already meet
+  (`qa-5f-depth-roundtrip.adversarial.test.ts` is the shape): run `setCabinetDepth` 600 → 700 with a
+  probe over a 600 kit and with one over a 700 kit, and compare the base `seatDepthMm` written. If they
+  agree, ADR 0074's finding is wrong and is withdrawn by a dated amendment there — this wave does not
+  proceed on the strength of the reasoning alone.
+- **The command takes a factory, never a built probe.** `probe: BodyProbe` becomes
+  `probeAt: (cabinetDepthMm) => BodyProbe`, the same shape and for the same stated reason
+  `SetCabinetDepthInput` already gives for `catalogAt`: *"a factory makes the wrong call site
+  impossible to write instead of merely wrong."* A caller able to pass a 600 probe beside a 700 target
+  must not compile.
+- **Exactly one long-lived kit stays alive** (ADR 0074 decision 3). The probe's kit is **transient**:
+  built at the target depth, used for the whole command, disposed when it ends. Kits are not cached by
+  depth — the store caches catalogues because a `BodyCatalog` owns no GPU resource, and a kit does.
+- **Two premises are verified, not assumed, both headless.** That `readWallPlaneM(room, "wall_back")`
+  is invariant under the kit's cabinet depth, so a transient-kit probe may measure inside the live room
+  (`wall_back` is built at `z = 0` from room constants); and that a transient kit can be released,
+  which today it cannot — `disposeKitAndStage` requires a room, a ground, a blob and a light rig, so
+  this wave owes the adapter a **kit-only release** that reuses the same ownership record rather than
+  inferring what to free.
+- **The fake probe stops being able to hide this.** `createFakeBodyProbe` either takes the depth it is
+  pretending to be built at, or the store's depth suites gain one case that runs against the real
+  adapter. A fake that answers the request rather than the kit is what made a live defect green.
+- **Nothing shrinks and nothing compounds.** `deriveFrame` resolves
+  `placement.body.seatDepthMm ?? definition.frameDepthMm`, so a seat once written is read back forever;
+  the anti-invariant is asserted directly — 600 → 700 → 600 returns every base seat to the value a
+  design loaded at 600 carries, with no drift in either direction across three changes.
+- **6K-b's second `it.fails` guard goes red and is flipped here, not deleted.**
 
 ### Wave 6L — the handle path learns a cabinet handle from an appliance's (`docs/BACKLOG.md` entry 18)
 

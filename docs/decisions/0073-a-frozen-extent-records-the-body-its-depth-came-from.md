@@ -262,3 +262,9 @@ kitchen's wall bodies wrong independently of anything this record decides.
 - **A 600 → 700 → 600 round trip is no more reversible than ADR 0055 already says it is**, and this
   record does not make it so. An extent re-answered through decision 3's fallback does not return to
   where it started.
+
+**Addendum, 2026-09-04 — nothing above is revised.** The finding's second call site,
+`kitchen-stage.tsx:102`, is ruled on by
+[ADR 0074](0074-the-scene-rebuilds-whole-at-a-depth-change.md), which also records a **third** call
+site in the same family and against the same clause: the probe that measures a depth change holds a
+kit at the depth being left, so the seats it writes are the old depth's. New wave 6K-e.
