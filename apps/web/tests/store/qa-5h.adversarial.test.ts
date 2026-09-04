@@ -6,10 +6,10 @@
 // sequence rather than by the two examples the drop was argued from.
 import { fc, test as propertyTest } from "@fast-check/vitest";
 import {
-  DesignSchema,
-  KITCHEN_L_BODY_CATALOG,
-  KITCHEN_L_DESIGN,
+  buildKitchenLBodyCatalog,
   deriveColumnKeyAt,
+  DesignSchema,
+  KITCHEN_L_DESIGN,
   occupiedDepthM,
   type Column,
   type Design,
@@ -27,7 +27,7 @@ const OCCURRED_AT = "2026-08-25T12:00:00.000Z";
 function createStore(design: Design = KITCHEN_L_DESIGN) {
   return createConfiguratorStore({
     design,
-    catalog: KITCHEN_L_BODY_CATALOG,
+    catalogAt: buildKitchenLBodyCatalog,
     now: () => OCCURRED_AT,
     bodyProbe: createFakeBodyProbe(),
   });

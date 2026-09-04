@@ -11,7 +11,10 @@
 import {
   withCurrentFullHeightMembers,
   clipEmptyColumnsAtWallEnd,
+  deriveCabinetWorldTransform,
+  deriveColumns,
   derivePlacementRecords,
+  getWallTransform,
   mergeAdjacentEmptyColumns,
   splitOversizedEmptyColumns,
   findVacatedVoid,
@@ -141,8 +144,10 @@ function withFrozenMap(design: Design, frozen: FrozenMapDocument): Design {
 }
 
 /** ADR 0031 and ADR 0046: a resize and an **insert** are the two commands that move a frozen
- *  extent, so they are the two whose own answer replaces the map passed in. Every other command
- *  leaves the extents alone and gets `hasFullHeightUnder` re-answered over them (ADR 0011 Gap D).
+ *  extent along the wall, so they are the two whose own answer replaces the map passed in. A depth
+ *  change is the third and it moves a different axis — see `atCurrentCabinetDepth` for why that one
+ *  cannot be carried forward either. Every other command leaves the extents alone and gets
+ *  `hasFullHeightUnder` re-answered over them (ADR 0011 Gap D).
  *
  *  **The merge wraps the whole return value, not one branch.** ADR 0046 part 2 runs after every
  *  command, and the run that makes a merge possible usually arrives on the `body_inserted` arm: a
@@ -175,10 +180,7 @@ function resolveColumns(
   records: readonly PlacementRecord[],
   room: DesignRoom,
 ): ReadonlyMap<string, Column> {
-  const published =
-    effect.type === "body_resized" || effect.type === "body_inserted"
-      ? effect.columns
-      : frozen;
+  const published = publishedColumns({ effect, frozen, records, room });
   // ADR 0037's merge ran here until 2026-08-30 and was withdrawn because §4 had no horizontal half.
   // It returns under ADR 0046's 800 mm cap, and what makes that safe is 5B4a's split rather than the
   // cap: no column is ever wider than its members when `recomputeVoids` runs. The cap cures only the
@@ -224,6 +226,97 @@ function resolveColumns(
     ),
     records,
   );
+}
+
+interface PublishedColumnsInput {
+  readonly effect: CommandEffect;
+  readonly frozen: ReadonlyMap<string, Column>;
+  readonly records: readonly PlacementRecord[];
+  readonly room: DesignRoom;
+}
+
+/** Which map goes on to be clipped, split, merged and published — the three commands that move an
+ *  extent, and the fall-through for everything else. */
+function publishedColumns(
+  input: PublishedColumnsInput,
+): ReadonlyMap<string, Column> {
+  const { effect } = input;
+  if (effect.type === "body_resized" || effect.type === "body_inserted") {
+    return effect.columns;
+  }
+  if (effect.type === "cabinet_depth_set") return atCurrentCabinetDepth(input);
+  return input.frozen;
+}
+
+/** **A frozen extent may be carried forward across every command except this one, and the reason is
+ *  the axis rather than the command.**
+ *
+ *  ADR 0011 Gap D freezes a column's extent so a delete frees space instead of shrinking the run to
+ *  what is left. That argument is about the **along-wall and vertical** axes — the width a partial
+ *  delete left behind is the customer's, and nothing can re-derive it. It says nothing about depth,
+ *  which is §3.2's MAX over the members' `occupiedDepthM` and is a pure function of the bodies
+ *  standing there. A depth change rebuilds every one of those bodies, so carried forward unchanged
+ *  the map describes the run at the depth the session **opened** at: the geometry, the openings
+ *  `recomputeVoids` derives from it, and — because `projectFrozenMap` writes this map into
+ *  `columnExtents` — the document that is then saved and reloaded. The domain command makes the same
+ *  observation one package over and re-derives for the same reason (`set-cabinet-depth.ts`).
+ *
+ *  **Deeper only, never shallower**, which is what keeps Gap D intact: a column that is already
+ *  frozen deeper than its current members require was frozen that way on purpose — the freed opening
+ *  where a base cabinet was deleted out from under a wall body is 620 mm deep because a base cabinet
+ *  stood there, and re-deriving it from the wall body alone is exactly what Gap D stops. So this
+ *  takes the deeper of the two, which is §3.2's own MAX over a larger set of members and not a new
+ *  rule.
+ *
+ *  **What it deliberately does not fix, and cannot.** A frozen extent with no member left to measure
+ *  — a member-less column, or one frozen deeper than what still stands in it — keeps the depth it
+ *  was frozen at, and that depth belongs to the old setting. There is nothing present to derive the
+ *  new one from: the body that supplied it is gone, and the mapping is per-band rather than a delta
+ *  (a base run goes 620 → 720 while a wall run goes 330 → 369). Answering it needs a recorded
+ *  decision about what a space with nothing in it does when the kitchen deepens, not a guess here. */
+function atCurrentCabinetDepth(
+  input: PublishedColumnsInput,
+): ReadonlyMap<string, Column> {
+  // No stored half: this map is only ever read for the depth its **members** imply, and restoring
+  // the frozen entries into it would answer with the very numbers being re-measured.
+  const measured = deriveColumns(input.records, {}, input.room);
+  const deepened = new Map(input.frozen);
+  for (const [key, column] of input.frozen) {
+    const atDepth = measured.get(key);
+    if (!atDepth || atDepth.d <= column.d) continue;
+    deepened.set(key, deepenedTo(column, atDepth.d));
+  }
+  return deepened;
+}
+
+/** One column at a new depth, with its along-wall position untouched.
+ *
+ *  The origin is the column's own half-depth on the wall's normal (`deriveColumns`), so the two move
+ *  together or the run is drawn where the shallower kitchen stood. It is recomputed through the
+ *  domain's own transform rather than by naming an axis here: `x` is the along-wall coordinate on
+ *  wall A and the normal one on wall B, and a store that picked the axis itself would be a second
+ *  author for §2's wall convention. The along-wall coordinate is projected back out with the same
+ *  wall's tangent, which is what stops a widened extent from snapping to its members' centre. */
+function deepenedTo(column: Column, depthM: number): Column {
+  const wall = getWallTransform(column.wall);
+  const alongM = wall.tangent.x * column.x + wall.tangent.z * column.z;
+  const { position } = deriveCabinetWorldTransform({
+    wall: column.wall,
+    alongM,
+    y0M: columnFloorM(column),
+    depthM,
+  });
+  return { ...column, d: depthM, x: position.x, z: position.z };
+}
+
+/** The column's own floor, which the transform validates as non-negative and then uses only for a
+ *  `y` this shape does not carry. Read off `regions` rather than passed as zero so the value handed
+ *  to the domain is the column's real one. A column with no region at all reaches neither
+ *  `deriveColumns` nor a restored extent; `0` keeps this total rather than handing the transform the
+ *  infinity an empty `Math.min` produces, which it would reject. */
+function columnFloorM(column: Column): number {
+  const floorsM = column.regions.map(([floorM]) => floorM);
+  return floorsM.length > 0 ? Math.min(...floorsM) : 0;
 }
 
 /** §5.1's closing step and the milestone's "selection never dangles" criterion, as one function:

@@ -11,14 +11,16 @@
 // live field, `hasFullHeightUnder` — whether a full-height member still stands under the opening —
 // is re-answered from the new records after every command; see `applyCommandResult`.
 import {
+  buildKitchenLBodyCatalog,
+  cabinetDepthMmOf,
   deriveColumns,
   derivePlacementRecords,
   insertBody,
-  KITCHEN_L_BODY_CATALOG,
   KITCHEN_L_DESIGN,
   recomputeVoids,
   refuse,
   removePlacement,
+  setCabinetDepth as setCabinetDepthOnDesign,
   setFinish as setFinishOnDesign,
   setHandle as setHandleOnDesign,
   setHardwareTier as setHardwareTierOnDesign,
@@ -87,9 +89,12 @@ export type WriteAccess = boolean | "checking" | "check-failed";
 export interface ConfiguratorState {
   readonly design: Design;
   readonly records: readonly PlacementRecord[];
-  /** The catalogue this store was built against, published so a caller of `describeSelection` or
-   *  `offersFor` reads the same map the commands do. A component importing a catalogue by name
-   *  would be free to pick a different one from the store's. */
+  /** The catalogue the **held design's own cabinet depth** builds, published so a caller of
+   *  `describeSelection` or `offersFor` reads the same map the commands do. A component importing a
+   *  catalogue by name would be free to pick a different one from the store's.
+   *
+   *  Derived, never passed in (wave 6K-a): the store takes `catalogAt` and builds this itself, so a
+   *  design at 700 mm can never be held beside a map built at 600. */
   readonly catalog: BodyCatalog;
   /** Extent frozen at load time, `hasFullHeightUnder` live — see the file header and ADR 0011
    *  Gap D. */
@@ -122,6 +127,12 @@ export interface ConfiguratorState {
     tierId: string,
     availableTierIds: readonly string[],
   ) => void;
+  /** Wave 6J-b's depth, as the third whole-kitchen setting. It takes a depth and nothing else:
+   *  which depths are offered and the 520 mm floor are ADR 0059's rules and live in the command.
+   *
+   *  It needs the body probe for the same reason `insert` and `setWidth` do — every body is rebuilt
+   *  through `evaluateInsertFit` — and refuses `BODY_PROBE_UNAVAILABLE` without one. */
+  readonly setCabinetDepth: (cabinetDepthMm: number) => void;
   /** The scene's measuring instrument, published rather than closed over because §9's width chips
    *  need it too: `widthOptionsFor` answers "would this resize succeed" by running the command,
    *  which rebuilds through the real builders. A query cannot reach a closure variable.
@@ -227,7 +238,14 @@ export interface LoadedDesignState {
 
 export interface ConfiguratorStoreOptions {
   readonly design: Design;
-  readonly catalog: BodyCatalog;
+  /**
+   * **A factory, never an already-built catalogue** — the same ruling `setCabinetDepth` carries one
+   * package over, for the same reason. A `catalog: BodyCatalog` field lets a caller hand in a design
+   * at 700 mm beside a map built at 600, and nothing downstream can tell the two apart: the store's
+   * geometry, its voids and every later command would answer at the wrong depth, silently. Taking
+   * the factory makes that call site impossible to write rather than merely wrong.
+   */
+  readonly catalogAt: (cabinetDepthMm: number) => BodyCatalog;
   /** Defaults to `null`: the seeded fixture starts out unminted, matching M2's "mint on first
    *  write" trigger. */
   readonly designId?: DesignId | null;
@@ -267,6 +285,10 @@ export interface ConfiguratorStoreOptions {
  *  the call/apply/schedule adapter. */
 interface CommandContext {
   readonly design: Design;
+  /** Read from state rather than closed over at construction: a depth change replaces it, and a
+   *  command answered against the map the store opened with would evaluate the new design at the
+   *  old depth. */
+  readonly catalog: BodyCatalog;
   readonly columns: ReadonlyMap<string, Column>;
   readonly target: CommandTarget;
 }
@@ -299,24 +321,51 @@ function nowInIsoMilliseconds(): string {
 export function createConfiguratorStore(
   options: ConfiguratorStoreOptions,
 ): UseBoundStore<StoreApi<ConfiguratorState>> {
-  const { design, catalog } = options;
+  const { design } = options;
   const designId = options.designId ?? null;
   const onDesignChanged = options.onDesignChanged ?? (() => undefined);
   const now = options.now ?? nowInIsoMilliseconds;
+
+  /** One map per depth for the life of the store. `catalog` is published state that components read
+   *  through selectors, so rebuilding an equal-but-new `Map` after every command would re-render all
+   *  of them for a value that did not move. Bounded by the declared depths (ADR 0059). */
+  const catalogsByDepthMm = new Map<number, BodyCatalog>();
+  const catalogFor = (forDesign: Design): BodyCatalog => {
+    const cabinetDepthMm = cabinetDepthMmOf(forDesign);
+    const built =
+      catalogsByDepthMm.get(cabinetDepthMm) ??
+      options.catalogAt(cabinetDepthMm);
+    catalogsByDepthMm.set(cabinetDepthMm, built);
+    return built;
+  };
 
   return create<ConfiguratorState>((set, get) => {
     /** Apply and schedule, in one `set()`. Shared by the targeted commands below and by wave 6E's
      *  whole-kitchen pair, which have no target to resolve first. */
     const applyResult = (result: CommandResult) => {
       const state = get();
+      // The catalogue the result is applied with is the one the store then holds, and both are read
+      // off the **result's own** design. A depth change is the only command that moves it, and this
+      // is what stops it being applied against the map the previous depth built.
+      //
+      // **A refusal needs no branch, and that does not rest on `refuse` returning the same object.**
+      // The lookup is keyed on the design's *depth*, and a refusal cannot change one — so it resolves
+      // to the held map whether identity is preserved or not. The only shape that would break it is a
+      // refusal carrying a design at a different depth, which is a defect in the command however the
+      // store is written. Identity buys the branchlessness its readability, not its safety.
+      const catalog = catalogFor(result.design);
       const application = applyCommandResult({
         result,
         catalog,
         columns: state.columns,
         selection: state.selection,
       });
-      set(application.state);
-      if (application.applied) onDesignChanged(application.state.design);
+      if (!application.applied) {
+        set(application.state);
+        return;
+      }
+      set({ ...application.state, catalog });
+      onDesignChanged(application.state.design);
     };
 
     /** Call, apply, schedule — in that order, and in one `set()`. A command with no selected
@@ -330,6 +379,7 @@ export function createConfiguratorStore(
         state.selection
           ? command({
               design: state.design,
+              catalog: state.catalog,
               columns: state.columns,
               target: state.selection,
             })
@@ -337,6 +387,7 @@ export function createConfiguratorStore(
       );
     };
 
+    const catalog = catalogFor(design);
     return {
       design,
       catalog,
@@ -350,24 +401,24 @@ export function createConfiguratorStore(
         set({ selection: null, lastRejection: null });
       },
       remove: () => {
-        runCommand(({ design: current, target }) =>
+        runCommand(({ design: current, catalog: held, target }) =>
           removePlacement({
             design: current,
             target,
-            catalog,
+            catalog: held,
             occurredAt: now(),
           }),
         );
       },
       insert: (buildId) => {
         const probe = get().bodyProbe;
-        runCommand(({ design: current, columns, target }) =>
+        runCommand(({ design: current, catalog: held, columns, target }) =>
           probe
             ? insertBody({
                 design: current,
                 columns,
                 target,
-                catalog,
+                catalog: held,
                 buildId,
                 probe,
                 occurredAt: now(),
@@ -380,22 +431,22 @@ export function createConfiguratorStore(
         );
       },
       setFinish: (finish) => {
-        runCommand(({ design: current, target }) =>
+        runCommand(({ design: current, catalog: held, target }) =>
           setFinishOnDesign({
             design: current,
             target,
-            catalog,
+            catalog: held,
             finish,
             occurredAt: now(),
           }),
         );
       },
       setHandle: (handle) => {
-        runCommand(({ design: current, target }) =>
+        runCommand(({ design: current, catalog: held, target }) =>
           setHandleOnDesign({
             design: current,
             target,
-            catalog,
+            catalog: held,
             handle,
             occurredAt: now(),
           }),
@@ -403,13 +454,13 @@ export function createConfiguratorStore(
       },
       setWidth: (widthMm) => {
         const probe = get().bodyProbe;
-        runCommand(({ design: current, columns, target }) =>
+        runCommand(({ design: current, catalog: held, columns, target }) =>
           probe
             ? setWidthOnDesign({
                 design: current,
                 columns,
                 target,
-                catalog,
+                catalog: held,
                 widthMm,
                 probe,
                 occurredAt: now(),
@@ -439,6 +490,29 @@ export function createConfiguratorStore(
           }),
         );
       },
+      setCabinetDepth: (cabinetDepthMm) => {
+        const state = get();
+        const probe = state.bodyProbe;
+        applyResult(
+          probe
+            ? setCabinetDepthOnDesign({
+                design: state.design,
+                // The factory, handed straight through: the command builds the map at the depth it
+                // is about to write, and `applyResult` then holds the map that same document
+                // declares. Neither half is given a chance to name a depth of its own.
+                catalogAt: options.catalogAt,
+                cabinetDepthMm,
+                probe,
+                occurredAt: now(),
+              })
+            : // The same safety net `insert` and `setWidth` carry: every body is rebuilt through the
+              // insert path, so there is nothing to rebuild against without a probe.
+              refuse(state.design, {
+                code: "BODY_PROBE_UNAVAILABLE",
+                params: {},
+              }),
+        );
+      },
       bodyProbe: options.bodyProbe,
       isBodyProbeAttached: options.bodyProbe !== undefined,
       attachBodyProbe: (probe) => {
@@ -453,11 +527,17 @@ export function createConfiguratorStore(
       canWrite: options.canWrite ?? true,
       hasPersistedSuccessfully: designId !== null,
       hydrate: (loaded) => {
-        const geometry = deriveGeometry(loaded.design, catalog);
+        // The load half of the invariant, and where it actually bit: `/api/designs/[id]` already
+        // answers with a document carrying its own `settings.cabinetDepthMm`, so a store that
+        // re-used the map it opened with would evaluate a 700 mm kitchen at 600 mm — its geometry,
+        // its voids and every command after it.
+        const loadedCatalog = catalogFor(loaded.design);
+        const geometry = deriveGeometry(loaded.design, loadedCatalog);
         if (get().designId !== loaded.designId)
           options.onDesignIdentityChanged?.();
         set({
           design: loaded.design,
+          catalog: loadedCatalog,
           ...geometry,
           selection: null,
           lastRejection: null,
@@ -519,7 +599,7 @@ function advanceSaveGeneration(): void {
  *  milestone's "Shared" acceptance bullet: the selection owns the target, not any one canvas. */
 export const useConfiguratorStore = createConfiguratorStore({
   design: KITCHEN_L_DESIGN,
-  catalog: KITCHEN_L_BODY_CATALOG,
+  catalogAt: buildKitchenLBodyCatalog,
   onDesignChanged: persistDesignChange,
   onDesignIdentityChanged: advanceSaveGeneration,
   onOverwriteRequested: overwriteConflictingDesign,

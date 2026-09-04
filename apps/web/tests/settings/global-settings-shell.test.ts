@@ -15,12 +15,13 @@
 // renders `disabled`, the trap loses an end and the e2e that presses Tab is the only thing left
 // standing between that and focus leaving the dialog.
 import {
+  buildKitchenLBodyCatalog,
+  findOverflowingPlacementIds,
   KITCHEN_L_BODY_CATALOG,
   KITCHEN_L_DESIGN,
-  SAMPLE_PRICE_BOOK,
-  findOverflowingPlacementIds,
   priceDesign,
   projectDesignForDisplay,
+  SAMPLE_PRICE_BOOK,
   SAMPLE_PRICE_BOOK_VERSION,
   type Design,
   type PricingResult,
@@ -76,7 +77,7 @@ const HARDWARE_TIER_IDS = SAMPLE_PRICE_BOOK.hardware.tiers.map(
 function storeFor(design: Design) {
   return createConfiguratorStore({
     design,
-    catalog: KITCHEN_L_BODY_CATALOG,
+    catalogAt: buildKitchenLBodyCatalog,
     bodyProbe: createFakeBodyProbe(),
     now: () => FIXED_NOW,
   });
@@ -468,7 +469,7 @@ describe("why apply has to compare before it commits", () => {
     let tick = 0;
     const store = createConfiguratorStore({
       design: KITCHEN_L_DESIGN,
-      catalog: KITCHEN_L_BODY_CATALOG,
+      catalogAt: buildKitchenLBodyCatalog,
       bodyProbe: createFakeBodyProbe(),
       now: () => {
         tick += 1;

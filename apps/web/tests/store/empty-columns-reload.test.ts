@@ -7,6 +7,7 @@
 // serialisation would pass.
 import { fc, test as propertyTest } from "@fast-check/vitest";
 import {
+  buildKitchenLBodyCatalog,
   DesignSchema,
   KITCHEN_L_BODY_CATALOG,
   KITCHEN_L_DESIGN,
@@ -26,7 +27,7 @@ const OCCURRED_AT = "2026-08-25T12:00:00.000Z";
 function createStore(design: Design = KITCHEN_L_DESIGN) {
   return createConfiguratorStore({
     design,
-    catalog: KITCHEN_L_BODY_CATALOG,
+    catalogAt: buildKitchenLBodyCatalog,
     now: () => OCCURRED_AT,
     bodyProbe: createFakeBodyProbe(),
   });

@@ -1,5 +1,5 @@
 import {
-  KITCHEN_L_BODY_CATALOG,
+  buildKitchenLBodyCatalog,
   KITCHEN_L_DESIGN,
 } from "@lemnaria/configurator-domain";
 import type { Design } from "@lemnaria/configurator-domain";
@@ -22,7 +22,7 @@ const LOADED_REVISION = "1";
 function createSeededStore() {
   return createConfiguratorStore({
     design: KITCHEN_L_DESIGN,
-    catalog: KITCHEN_L_BODY_CATALOG,
+    catalogAt: buildKitchenLBodyCatalog,
   });
 }
 
@@ -286,7 +286,7 @@ describe("canWrite — who may edit this design", () => {
   it("honours an explicit read-only option at creation", () => {
     const store = createConfiguratorStore({
       design: KITCHEN_L_DESIGN,
-      catalog: KITCHEN_L_BODY_CATALOG,
+      catalogAt: buildKitchenLBodyCatalog,
       designId: "loaded-elsewhere",
       canWrite: false,
     });
@@ -458,7 +458,7 @@ describe("the revision a loaded design was read at", () => {
     const overwritten: Design[] = [];
     const store = createConfiguratorStore({
       design: KITCHEN_L_DESIGN,
-      catalog: KITCHEN_L_BODY_CATALOG,
+      catalogAt: buildKitchenLBodyCatalog,
       onOverwriteRequested: (design) => {
         overwritten.push(design);
       },

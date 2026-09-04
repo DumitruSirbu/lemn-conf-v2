@@ -8,12 +8,12 @@
 // the same place the hook reads: they catch the wiring being deleted, but they cannot say the total
 // moved by the amount the **book** declares. Both sides here are the book.
 import {
-  KITCHEN_L_BODY_CATALOG,
+  buildKitchenLBodyCatalog,
   KITCHEN_L_DESIGN,
   SAMPLE_PRICE_BOOK,
   type Design,
-  type PriceLine,
   type PricedDesign,
+  type PriceLine,
 } from "@lemnaria/configurator-domain";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
@@ -47,7 +47,7 @@ const HARDWARE_TIER_IDS = SAMPLE_PRICE_BOOK.hardware.tiers.map(
 function freshStore(design: Design = KITCHEN_L_DESIGN) {
   return createConfiguratorStore({
     design,
-    catalog: KITCHEN_L_BODY_CATALOG,
+    catalogAt: buildKitchenLBodyCatalog,
     bodyProbe: createFakeBodyProbe(),
     now: () => OCCURRED_AT,
   });

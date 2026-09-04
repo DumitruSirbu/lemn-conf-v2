@@ -6,8 +6,8 @@
 // domain test of this wave still passes**. That is why these two criteria live here and not beside
 // the arithmetic.
 import {
+  buildKitchenLBodyCatalog,
   DesignSchema,
-  KITCHEN_L_BODY_CATALOG,
   KITCHEN_L_DESIGN,
   type Column,
   type Design,
@@ -32,7 +32,7 @@ const REMAINDER_KEY = "A|2.75";
 function createStore(design: Design = KITCHEN_L_DESIGN) {
   return createConfiguratorStore({
     design,
-    catalog: KITCHEN_L_BODY_CATALOG,
+    catalogAt: buildKitchenLBodyCatalog,
     now: () => OCCURRED_AT,
     bodyProbe: createFakeBodyProbe(),
   });

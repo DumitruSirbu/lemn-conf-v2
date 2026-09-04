@@ -15,6 +15,7 @@
 //    caller did not offer, so the surface and the command agreeing about the book is the difference
 //    between a working control and a silent refusal.
 import {
+  buildKitchenLBodyCatalog,
   KITCHEN_L_BODY_CATALOG,
   KITCHEN_L_DESIGN,
   priceDesign,
@@ -121,7 +122,7 @@ function isThisSurface(path: string): boolean {
 function stateFor(design: Design): ConfiguratorState {
   return createConfiguratorStore({
     design,
-    catalog: KITCHEN_L_BODY_CATALOG,
+    catalogAt: buildKitchenLBodyCatalog,
     bodyProbe: createFakeBodyProbe(),
     now: () => "2026-09-03T12:00:00.000Z",
   }).getState();
@@ -209,7 +210,7 @@ describe("a design carrying a withdrawn tier can be repaired from this surface",
     };
     const store = createConfiguratorStore({
       design: withdrawn,
-      catalog: KITCHEN_L_BODY_CATALOG,
+      catalogAt: buildKitchenLBodyCatalog,
       bodyProbe: createFakeBodyProbe(),
       now: () => "2026-09-04T12:00:00.000Z",
     });
@@ -245,7 +246,7 @@ describe("the ids this surface offers are the ids the commands accept", () => {
   it("applies every material tier the book offers, without a refusal", () => {
     const store = createConfiguratorStore({
       design: KITCHEN_L_DESIGN,
-      catalog: KITCHEN_L_BODY_CATALOG,
+      catalogAt: buildKitchenLBodyCatalog,
       bodyProbe: createFakeBodyProbe(),
       now: () => "2026-09-03T12:00:00.000Z",
     });
@@ -261,7 +262,7 @@ describe("the ids this surface offers are the ids the commands accept", () => {
   it("applies every hardware tier the book offers, without a refusal", () => {
     const store = createConfiguratorStore({
       design: KITCHEN_L_DESIGN,
-      catalog: KITCHEN_L_BODY_CATALOG,
+      catalogAt: buildKitchenLBodyCatalog,
       bodyProbe: createFakeBodyProbe(),
       now: () => "2026-09-03T12:00:00.000Z",
     });

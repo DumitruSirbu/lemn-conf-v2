@@ -14,8 +14,8 @@
 //    deliberately does not catch it (`apply-command-result.ts`). A run whose merged centre is
 //    fractional has to survive a real command, which is what this asks.
 import {
+  buildKitchenLBodyCatalog,
   DesignSchema,
-  KITCHEN_L_BODY_CATALOG,
   type Column,
   type Design,
 } from "@lemnaria/configurator-domain";
@@ -54,7 +54,7 @@ function emptySpace(alongMm: number, widthMm: number) {
 function createStore(design: Design) {
   return createConfiguratorStore({
     design,
-    catalog: KITCHEN_L_BODY_CATALOG,
+    catalogAt: buildKitchenLBodyCatalog,
     now: () => OCCURRED_AT,
     bodyProbe: createFakeBodyProbe(),
   });

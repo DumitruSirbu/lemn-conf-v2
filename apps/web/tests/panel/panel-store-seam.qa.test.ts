@@ -13,8 +13,8 @@ import {
   type ConfiguratorState,
 } from "@/store/configurator-store";
 import {
+  buildKitchenLBodyCatalog,
   describeSelection,
-  KITCHEN_L_BODY_CATALOG,
   KITCHEN_L_DESIGN,
   offersFor,
   type Design,
@@ -55,7 +55,7 @@ function createStore(overrides: StoreOverrides = {}) {
   const { withProbe = true, design = KITCHEN_L_DESIGN } = overrides;
   return createConfiguratorStore({
     design,
-    catalog: KITCHEN_L_BODY_CATALOG,
+    catalogAt: buildKitchenLBodyCatalog,
     ...(withProbe ? { bodyProbe: createFakeBodyProbe() } : {}),
     now: () => "2026-08-26T12:00:00.000Z",
   });

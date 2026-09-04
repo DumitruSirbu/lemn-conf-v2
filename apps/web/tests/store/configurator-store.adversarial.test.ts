@@ -5,6 +5,7 @@
 // applies one command correctly and the tenth one carries the drift. Every case below therefore
 // asserts a property after every command in a sequence rather than after one hand-picked call.
 import {
+  buildKitchenLBodyCatalog,
   KITCHEN_L_BODY_CATALOG,
   KITCHEN_L_DESIGN,
   offersFor,
@@ -44,7 +45,7 @@ interface StoreOverrides {
 function createStore(overrides: StoreOverrides = {}) {
   return createConfiguratorStore({
     design: overrides.design ?? KITCHEN_L_DESIGN,
-    catalog: KITCHEN_L_BODY_CATALOG,
+    catalogAt: buildKitchenLBodyCatalog,
     now: () => OCCURRED_AT,
     ...(overrides.withProbe === false
       ? {}

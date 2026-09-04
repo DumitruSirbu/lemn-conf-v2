@@ -15,12 +15,13 @@
 // The two stored arrays are partitioned by that same predicate, which is why they cannot collide.
 import { fc, test as propertyTest } from "@fast-check/vitest";
 import {
+  buildKitchenLBodyCatalog,
+  canonicalSerializeDesign,
   deriveColumnKeyAt,
   deriveColumns,
   DesignSchema,
   KITCHEN_L_BODY_CATALOG,
   KITCHEN_L_DESIGN,
-  canonicalSerializeDesign,
   toExactMillimetres,
   validateDesignForCatalog,
   type Column,
@@ -37,7 +38,7 @@ const OCCURRED_AT = "2026-08-25T12:00:00.000Z";
 function createStore(design: Design = KITCHEN_L_DESIGN) {
   return createConfiguratorStore({
     design,
-    catalog: KITCHEN_L_BODY_CATALOG,
+    catalogAt: buildKitchenLBodyCatalog,
     now: () => OCCURRED_AT,
     bodyProbe: createFakeBodyProbe(),
   });

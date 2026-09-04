@@ -8,7 +8,7 @@
 // finding. The realistic sequence this file builds instead is the one the owner's ruling actually
 // targets: a wall shorter than the body that used to stand on it, which a delete lays bare.
 import {
-  KITCHEN_L_BODY_CATALOG,
+  buildKitchenLBodyCatalog,
   wallLengthMm,
   type Design,
 } from "@lemnaria/configurator-domain";
@@ -43,7 +43,7 @@ const DESIGN: Design = {
 function createStore() {
   return createConfiguratorStore({
     design: DESIGN,
-    catalog: KITCHEN_L_BODY_CATALOG,
+    catalogAt: buildKitchenLBodyCatalog,
     now: () => OCCURRED_AT,
     bodyProbe: createFakeBodyProbe(),
   });

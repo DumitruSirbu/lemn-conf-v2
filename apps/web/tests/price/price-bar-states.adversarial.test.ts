@@ -14,9 +14,10 @@
 // - *"The flag is not the rejection banner"* (ADR 0065 decision 8) is a claim about two surfaces at
 //   once, so the third block renders both and checks neither carries the other's sentence.
 import {
+  buildKitchenLBodyCatalog,
+  findOverflowingPlacementIds,
   KITCHEN_L_BODY_CATALOG,
   KITCHEN_L_DESIGN,
-  findOverflowingPlacementIds,
   priceDesign,
   SAMPLE_PRICE_BOOK,
   SAMPLE_PRICE_BOOK_VERSION,
@@ -195,7 +196,7 @@ describe("no refusal the store can produce moves the figure", () => {
   function freshStore() {
     return createConfiguratorStore({
       design: KITCHEN_L_DESIGN,
-      catalog: KITCHEN_L_BODY_CATALOG,
+      catalogAt: buildKitchenLBodyCatalog,
       bodyProbe: createFakeBodyProbe(),
       now: () => "2026-09-03T12:00:00.000Z",
     });

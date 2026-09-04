@@ -13,8 +13,8 @@
 // that reads the same list the component reads agrees with any list the component is given, which
 // is precisely the widening this file exists to refuse.
 import {
+  buildKitchenLBodyCatalog,
   describeSelection,
-  KITCHEN_L_BODY_CATALOG,
   KITCHEN_L_DESIGN,
   LEGACY_ENUM_FINISHES,
   offersFor,
@@ -157,7 +157,7 @@ describe("the click an e2e spec performs still lights the swatch it clicked", ()
   function pressedAfterClicking(key: string): readonly string[] {
     const store = createConfiguratorStore({
       design: KITCHEN_L_DESIGN,
-      catalog: KITCHEN_L_BODY_CATALOG,
+      catalogAt: buildKitchenLBodyCatalog,
       bodyProbe: createFakeBodyProbe(),
       now: () => "2026-08-26T12:00:00.000Z",
     });

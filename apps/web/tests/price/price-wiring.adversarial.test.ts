@@ -10,12 +10,13 @@
 // disagrees with the shipped hook. The first block below is the test that would catch that: it
 // drives the real `usePanelView` over a real store state and requires a figure out the other end.
 import {
+  buildKitchenLBodyCatalog,
+  derivePlacementRecords,
   KITCHEN_L_BODY_CATALOG,
   KITCHEN_L_DESIGN,
   priceDesign,
   SAMPLE_PRICE_BOOK,
   SAMPLE_PRICE_BOOK_VERSION,
-  derivePlacementRecords,
   WORKTOP_DEPTH_MM,
   type Design,
 } from "@lemnaria/configurator-domain";
@@ -65,7 +66,7 @@ const { usePricedDesign } = await import("@/price/use-priced-design");
 function freshStore(design: Design = KITCHEN_L_DESIGN) {
   return createConfiguratorStore({
     design,
-    catalog: KITCHEN_L_BODY_CATALOG,
+    catalogAt: buildKitchenLBodyCatalog,
     bodyProbe: createFakeBodyProbe(),
     now: () => "2026-09-03T12:00:00.000Z",
   });

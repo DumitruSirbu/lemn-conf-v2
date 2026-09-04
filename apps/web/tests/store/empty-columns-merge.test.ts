@@ -9,8 +9,8 @@
 // It is also the only place criterion 11 can be asked: what `projectEmptyColumns` writes into the
 // document is decided by which map is canonical, and this wave's answer is the merged one.
 import {
+  buildKitchenLBodyCatalog,
   DesignSchema,
-  KITCHEN_L_BODY_CATALOG,
   KITCHEN_L_DESIGN,
   type Column,
   type Design,
@@ -39,7 +39,7 @@ const MERGED_WIDTH_MM = 800;
 function createStore(design: Design = KITCHEN_L_DESIGN) {
   return createConfiguratorStore({
     design,
-    catalog: KITCHEN_L_BODY_CATALOG,
+    catalogAt: buildKitchenLBodyCatalog,
     now: () => OCCURRED_AT,
     bodyProbe: createFakeBodyProbe(),
   });

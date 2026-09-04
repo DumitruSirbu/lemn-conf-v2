@@ -5,7 +5,7 @@
 // alone. The product rules themselves belong to `@lemnaria/configurator-domain` and are asserted
 // there; re-asserting them through the store would only hide which layer had broken.
 import {
-  KITCHEN_L_BODY_CATALOG,
+  buildKitchenLBodyCatalog,
   KITCHEN_L_DESIGN,
   widthOptionsFor,
   type BodyProbe,
@@ -42,7 +42,7 @@ interface StoreOverrides {
 function createStore(overrides: StoreOverrides = {}) {
   return createConfiguratorStore({
     design: overrides.design ?? KITCHEN_L_DESIGN,
-    catalog: KITCHEN_L_BODY_CATALOG,
+    catalogAt: buildKitchenLBodyCatalog,
     now: () => OCCURRED_AT,
     bodyProbe: overrides.bodyProbe ?? createFakeBodyProbe(),
     ...(overrides.onDesignChanged
@@ -227,7 +227,7 @@ describe("insert", () => {
   it("refuses when the scene has attached no probe, and leaves the store untouched", () => {
     const store = createConfiguratorStore({
       design: KITCHEN_L_DESIGN,
-      catalog: KITCHEN_L_BODY_CATALOG,
+      catalogAt: buildKitchenLBodyCatalog,
       now: () => OCCURRED_AT,
     });
     store.getState().select({ kind: "placement", id: "p0" });
@@ -258,7 +258,7 @@ describe("insert", () => {
   it("fails the same way with and without a probe when nothing is selected", () => {
     const withoutProbe = createConfiguratorStore({
       design: KITCHEN_L_DESIGN,
-      catalog: KITCHEN_L_BODY_CATALOG,
+      catalogAt: buildKitchenLBodyCatalog,
     });
     const withProbe = createStore();
     withProbe.getState().deselect();
@@ -277,7 +277,7 @@ describe("insert", () => {
   it("accepts the probe the scene attaches after the store was built", () => {
     const store = createConfiguratorStore({
       design: KITCHEN_L_DESIGN,
-      catalog: KITCHEN_L_BODY_CATALOG,
+      catalogAt: buildKitchenLBodyCatalog,
       now: () => OCCURRED_AT,
     });
     store.getState().attachBodyProbe(createFakeBodyProbe());

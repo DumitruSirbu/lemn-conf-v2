@@ -30,6 +30,7 @@
 // `tests/support/ruled-price-copy.ts`. Two guards over one rule is how the weaker one becomes the
 // one somebody trusts.
 import {
+  buildKitchenLBodyCatalog,
   KITCHEN_L_BODY_CATALOG,
   KITCHEN_L_DESIGN,
   priceDesign,
@@ -117,7 +118,7 @@ function groupsOf(design: Design): readonly DisplayGroup[] {
 function stateFor(design: Design): ConfiguratorState {
   return createConfiguratorStore({
     design,
-    catalog: KITCHEN_L_BODY_CATALOG,
+    catalogAt: buildKitchenLBodyCatalog,
     bodyProbe: createFakeBodyProbe(),
     now: () => "2026-09-03T12:00:00.000Z",
   }).getState();

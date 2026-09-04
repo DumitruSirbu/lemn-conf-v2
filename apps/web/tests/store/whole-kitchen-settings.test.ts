@@ -5,6 +5,7 @@
 // and wave 6G is what supplies the list from there. This file imports the sample book only to build
 // the ids a caller would hand in, and only in the pricing block, which is that module's own test.
 import {
+  buildKitchenLBodyCatalog,
   KITCHEN_L_BODY_CATALOG,
   KITCHEN_L_DESIGN,
   priceDesign,
@@ -46,7 +47,7 @@ const HARDWARE_TIER_IDS = SAMPLE_PRICE_BOOK.hardware.tiers.map(
 function freshStore(design: Design = KITCHEN_L_DESIGN) {
   return createConfiguratorStore({
     design,
-    catalog: KITCHEN_L_BODY_CATALOG,
+    catalogAt: buildKitchenLBodyCatalog,
     bodyProbe: createFakeBodyProbe(),
     now: () => OCCURRED_AT,
   });
@@ -125,7 +126,7 @@ describe("the two whole-kitchen store actions", () => {
     const onDesignChanged = vi.fn();
     const store = createConfiguratorStore({
       design: KITCHEN_L_DESIGN,
-      catalog: KITCHEN_L_BODY_CATALOG,
+      catalogAt: buildKitchenLBodyCatalog,
       bodyProbe: createFakeBodyProbe(),
       now: () => OCCURRED_AT,
       onDesignChanged,

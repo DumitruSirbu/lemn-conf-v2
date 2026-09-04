@@ -12,6 +12,7 @@
 // is the store, so the last describe drives the action the click would have driven and shows exactly
 // what the `disabled` attribute is holding back.
 import {
+  buildKitchenLBodyCatalog,
   columnWidthChoices,
   deriveColumns,
   derivePlacementRecords,
@@ -117,7 +118,7 @@ function everyTarget(world: World): CommandTarget[] {
 function storeFor(design: Design = KITCHEN_L_DESIGN) {
   return createConfiguratorStore({
     design,
-    catalog: KITCHEN_L_BODY_CATALOG,
+    catalogAt: buildKitchenLBodyCatalog,
     now: () => OCCURRED_AT,
     bodyProbe: createFakeBodyProbe(),
   });

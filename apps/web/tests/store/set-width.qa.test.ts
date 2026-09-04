@@ -6,7 +6,7 @@
 // another, so the two could still be given different inputs. Every case below taps the chip and
 // checks the store, rather than asking the query twice.
 import {
-  KITCHEN_L_BODY_CATALOG,
+  buildKitchenLBodyCatalog,
   KITCHEN_L_DESIGN,
   widthOptionsFor,
   type Design,
@@ -25,7 +25,7 @@ const OCCURRED_AT = "2026-08-25T12:00:00.000Z";
 function createStore(design: Design = KITCHEN_L_DESIGN) {
   return createConfiguratorStore({
     design,
-    catalog: KITCHEN_L_BODY_CATALOG,
+    catalogAt: buildKitchenLBodyCatalog,
     now: () => OCCURRED_AT,
     bodyProbe: createFakeBodyProbe(),
   });
@@ -276,7 +276,7 @@ describe("the state a resize leaves behind", () => {
     const onDesignChanged = vi.fn();
     const store = createConfiguratorStore({
       design: KITCHEN_L_DESIGN,
-      catalog: KITCHEN_L_BODY_CATALOG,
+      catalogAt: buildKitchenLBodyCatalog,
       now: () => OCCURRED_AT,
       bodyProbe: createFakeBodyProbe(),
       onDesignChanged,
