@@ -121,6 +121,15 @@ export interface MaterialTierSetEffect {
   readonly materialTierId: string;
 }
 
+/** Wave 6J-b. Carries the count of bodies actually rebuilt, because the customer-visible
+ *  consequence of a depth change is that every cabinet moved — a surface that says so needs the
+ *  number, and a caller that receives 0 has been handed a no-op it should not announce. */
+export interface CabinetDepthSetEffect {
+  readonly type: "cabinet_depth_set";
+  readonly cabinetDepthMm: number;
+  readonly rebuiltCount: number;
+}
+
 export interface HardwareTierSetEffect {
   readonly type: "hardware_tier_set";
   readonly hardwareTierId: string;
@@ -133,7 +142,8 @@ export type CommandEffect =
   | FinishSetEffect
   | HandleSetEffect
   | MaterialTierSetEffect
-  | HardwareTierSetEffect;
+  | HardwareTierSetEffect
+  | CabinetDepthSetEffect;
 
 export interface CommandSuccess<TEffect extends CommandEffect = CommandEffect> {
   readonly ok: true;

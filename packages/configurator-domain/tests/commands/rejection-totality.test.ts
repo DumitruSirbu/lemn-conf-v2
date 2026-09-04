@@ -26,6 +26,7 @@ import {
 } from "../../src/commands/set-whole-kitchen-settings.js";
 import type { Design } from "../../src/design.js";
 import {
+  buildKitchenLBodyCatalog,
   KITCHEN_L_BODY_CATALOG,
   KITCHEN_L_DESIGN,
 } from "../../src/fixtures/kitchen-l-design.js";
@@ -36,6 +37,7 @@ import {
   resizeTo,
   OCCURRED_AT,
 } from "../support/commands.js";
+import { setCabinetDepth } from "../../src/commands/set-cabinet-depth.js";
 import { createFakeProbe } from "../support/fake-probe.js";
 import {
   advance,
@@ -482,6 +484,20 @@ function buildCases(): SweepCase[] {
           occurredAt: OCCURRED_AT,
         }),
     },
+    // Wave 6J-b's one. 650 is between the two declared depths rather than absurd, so the refusal
+    // is the declared set doing its job and not a bounds check catching a wild number.
+    {
+      code: "UNKNOWN_CABINET_DEPTH",
+      design: world.design,
+      run: () =>
+        setCabinetDepth({
+          design: world.design,
+          catalogAt: buildKitchenLBodyCatalog,
+          cabinetDepthMm: 650,
+          probe: createFakeProbe(),
+          occurredAt: OCCURRED_AT,
+        }),
+    },
   ];
 }
 
@@ -542,6 +558,7 @@ const ALL_REJECTION_CODES: Readonly<Record<RejectionCode, true>> = {
   COLUMN_HOOD_FLOOR: true,
   UNKNOWN_MATERIAL_TIER: true,
   UNKNOWN_HARDWARE_TIER: true,
+  UNKNOWN_CABINET_DEPTH: true,
 };
 
 describe("every refusal a command can produce", () => {

@@ -193,7 +193,7 @@ function columnMembers(
  *  the catalogue equivalent, so **a resized seeded body migrates its `buildId`**: after resizing a
  *  `base-drawer2-600` the stored placement carries `base-panbank`. It has to —
  *  `buildDecomposedBody` takes no width, and every seeded id is one fixed geometry. */
-function resolveRebuildBody(
+export function resolveRebuildBody(
   catalog: BodyCatalog,
   record: PlacementRecord,
 ): InsertableBody | undefined {

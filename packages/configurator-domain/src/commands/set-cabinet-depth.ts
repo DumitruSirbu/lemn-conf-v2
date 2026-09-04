@@ -1,0 +1,207 @@
+// Wave 6J-b: the cabinet depth as a command, and what changing it does to every body.
+//
+// `set-whole-kitchen-settings.ts` one file over writes a tier id and nothing else, because a tier is
+// a price fact. A depth is a **geometry** fact: every base carcass is built to it, every capped wall
+// body follows, and `Column.d` is a MAX over what stands in the run. So this command writes the
+// setting *and* rebuilds the design at it, in one result.
+//
+// **The rebuild runs through the same path an insert takes** (ADR 0055 decision 1) — `evaluateInsertFit`,
+// the probe, and the built-carcass re-check behind it — so every fit rule, band gate and width guard
+// fires on the rebuilt bodies. A bespoke transform over the document is the wrong shape *even where
+// it would produce the same numbers*, because the numbers agreeing today is not the property being
+// bought; the property is that a body this command writes is one the engine would have accepted.
+//
+// **Two entries do not move, and they are excluded by reading their declaration** (ADR 0058), never
+// by naming them here. `depthFollowsSetting` is the one question this module asks about an entry,
+// and it lives in `cabinet-depth-rule.ts` so wave 6I's gate and this migration cannot drift.
+import { depthFollowsSetting } from "../cabinet-depth-rule.js";
+import type { BodyProbe } from "../body-probe.js";
+import type { Design, DesignPlacement } from "../design.js";
+import { toMetres, toMillimetres } from "../millimetres.js";
+import {
+  deriveColumns,
+  derivePlacementRecords,
+  type BodyCatalog,
+  type PlacementRecord,
+} from "../void-engine.js";
+import {
+  declaredCabinetDepthsMm,
+  MIN_CABINET_DEPTH_MM,
+} from "../worktop-depth.js";
+import {
+  isValidOccurredAt,
+  refuse,
+  succeedWith,
+  type CabinetDepthSetEffect,
+  type CommandResult,
+} from "./command-result.js";
+import { rebuild } from "./rebuild-resized-bodies.js";
+import { resolveRebuildBody } from "./resolve-column-members.js";
+import type { SetWidthInput } from "./width-resize-model.js";
+
+/** **The catalogue is built here, from a factory, rather than handed in already built.**
+ *
+ *  A `catalog: BodyCatalog` field would let a caller ask for 700 while passing a catalogue built at
+ *  600, and every body would be rebuilt to the old depth with the new number written beside it —
+ *  silently, because nothing downstream can tell the two apart. That is the defect wave 6S found one
+ *  declaration over, where a query took a frame height no arm read. A factory makes the wrong call
+ *  site impossible to write instead of merely wrong. */
+export interface SetCabinetDepthInput {
+  readonly design: Design;
+  readonly catalogAt: (cabinetDepthMm: number) => BodyCatalog;
+  readonly cabinetDepthMm: number;
+  readonly probe: BodyProbe;
+  readonly occurredAt: string;
+}
+
+export function setCabinetDepth(
+  input: SetCabinetDepthInput,
+): CommandResult<CabinetDepthSetEffect> {
+  const { design } = input;
+  if (!isValidOccurredAt(input.occurredAt)) {
+    return refuse(design, { code: "INVALID_OCCURRED_AT", params: {} });
+  }
+  if (!isOfferedCabinetDepthMm(input.cabinetDepthMm)) {
+    return refuse(design, { code: "UNKNOWN_CABINET_DEPTH", params: {} });
+  }
+
+  const rebuilt = rebuildEveryBodyAt(input);
+  if (!rebuilt.ok) return refuse(design, rebuilt.detail);
+
+  return succeedWith(
+    {
+      ...design,
+      placements: [...rebuilt.value.placements],
+      settings: { ...design.settings, cabinetDepthMm: input.cabinetDepthMm },
+      updatedAt: input.occurredAt,
+    },
+    {
+      type: "cabinet_depth_set",
+      cabinetDepthMm: input.cabinetDepthMm,
+      rebuiltCount: rebuilt.value.rebuiltCount,
+    },
+  );
+}
+
+/** Both independent rules, asked as one question so a caller cannot satisfy the set and miss the
+ *  floor. The floor is a domain fact and is enforced here rather than only in 6K's control: a
+ *  control is a surface, and a stored document must not depend on one. */
+function isOfferedCabinetDepthMm(cabinetDepthMm: number): boolean {
+  return (
+    cabinetDepthMm >= MIN_CABINET_DEPTH_MM &&
+    declaredCabinetDepthsMm().includes(cabinetDepthMm)
+  );
+}
+
+/** `SetWidthInput` names a target and a width because a resize has both. A depth change has
+ *  neither: it rebuilds every body at the width it already has. */
+const UNUSED_BY_REBUILD = "";
+
+interface RebuiltDesign {
+  readonly placements: readonly DesignPlacement[];
+  readonly rebuiltCount: number;
+}
+
+type Rebuilt =
+  | { readonly ok: true; readonly value: RebuiltDesign }
+  | { readonly ok: false; readonly detail: RejectionDetailOf };
+
+type RejectionDetailOf = Parameters<typeof refuse>[1];
+
+/** Every placement written at the new depth, in document order.
+ *
+ *  The records and columns are derived from the catalogue **built at the new depth**, so the opening
+ *  each body is re-fitted into already carries the new depth — this function never passes a depth
+ *  around itself, which is why it cannot pass the wrong one. */
+function rebuildEveryBodyAt(input: SetCabinetDepthInput): Rebuilt {
+  const catalog = input.catalogAt(input.cabinetDepthMm);
+  const records = derivePlacementRecords(input.design, catalog);
+  // `{}` rather than the document's frozen extents: ADR 0011 Gap D freezes a column's extent at the
+  // depth it was loaded at, and this command changes exactly that. Re-deriving is the point.
+  const columns = deriveColumns(records, {}, input.design.room);
+  const widthInput: SetWidthInput = {
+    design: input.design,
+    catalog,
+    columns,
+    // `setWidth`'s own two fields, unused on the `rebuild` path: it reads `design`, `catalog`,
+    // `columns` and `probe` only. Named here rather than cast away so a future `rebuild` that starts
+    // reading them fails to compile instead of silently resizing to zero.
+    target: { kind: "placement", id: UNUSED_BY_REBUILD },
+    widthMm: 0,
+    probe: input.probe,
+    occurredAt: input.occurredAt,
+  };
+
+  const placements: DesignPlacement[] = [];
+  let rebuiltCount = 0;
+  for (const placement of input.design.placements) {
+    const record = records.find((candidate) => candidate.id === placement.id);
+    // **A body this command cannot resolve is a refusal, never a pass-through.** Leaving it at the
+    // old depth beside the new setting is the worst of the three outcomes: the document would say
+    // 700 while carrying a 600 body, and nothing downstream could tell. Refusing loses the whole
+    // change, which is recoverable; a silent mixture is not.
+    if (!record) {
+      return { ok: false, detail: { code: "TARGET_NOT_FOUND", params: {} } };
+    }
+    if (!movesWithTheSetting(catalog, record)) {
+      placements.push(placement);
+      continue;
+    }
+    const body = resolveRebuildBody(catalog, record);
+    if (!body) {
+      // **A structural body is re-seated, not rebuilt** — the same split `moveHood` makes one file
+      // over, for the same reason. A corner return is not insertable, so it has no `InsertableBody`
+      // and cannot go through `evaluateInsertFit`; and resolving it to a catalogue equivalent is
+      // precisely the mistake that once turned `hood-600` into `hood` and changed its height. Its
+      // width, height and position are not functions of the depth. Its **seat** is, so that is the
+      // one field this rewrites, measured off a body probed at the new depth.
+      placements.push(reseat(input, record, placement));
+      rebuiltCount += 1;
+      continue;
+    }
+    const written = rebuild(widthInput, records, {
+      record,
+      body,
+      alongMm: placement.alongMm,
+      widthMm: placement.body.widthMm,
+    });
+    if (!written.ok) return { ok: false, detail: written.detail };
+    placements.push(written.value);
+    rebuiltCount += 1;
+  }
+  return { ok: true, value: { placements, rebuiltCount } };
+}
+
+/** One structural body measured again at the depth its column now stands at. `record.frame.d` is
+ *  derived from the catalogue built at the new depth, so the depth is read from the rebuilt world
+ *  rather than passed in — the same reason `rebuildEveryBodyAt` never carries a depth of its own. */
+function reseat(
+  input: SetCabinetDepthInput,
+  record: PlacementRecord,
+  placement: DesignPlacement,
+): DesignPlacement {
+  const measurement = input.probe.measure({
+    buildId: record.buildId,
+    widthM: toMetres(placement.body.widthMm),
+    heightM: toMetres(placement.body.heightMm),
+    depthM: record.frame.d,
+  });
+  return {
+    ...placement,
+    body: {
+      ...placement.body,
+      seatDepthMm: toMillimetres(2 * measurement.seatOffsetM),
+    },
+  };
+}
+
+/** ADR 0058's exclusion, asked of the declaration. An entry with no rule at all is left alone rather
+ *  than guessed at — `cabinetDepthRuleOf` already refuses those as the catalogue is assembled, so
+ *  reaching one here means the catalogue was built outside that path. */
+function movesWithTheSetting(
+  catalog: BodyCatalog,
+  record: PlacementRecord,
+): boolean {
+  const rule = catalog.get(record.buildId)?.depthRule;
+  return rule !== undefined && depthFollowsSetting(rule);
+}

@@ -276,7 +276,11 @@ export type RejectionDetail =
    *  `LabelParams` has no name to fill from because the domain imports no book to look one up in
    *  (ADR 0062 seam 1). */
   | { readonly code: "UNKNOWN_MATERIAL_TIER"; readonly params: NoParams }
-  | { readonly code: "UNKNOWN_HARDWARE_TIER"; readonly params: NoParams };
+  | { readonly code: "UNKNOWN_HARDWARE_TIER"; readonly params: NoParams }
+  /** The depth asked for is not one of the declared manufactured depths, or it is under the floor
+   *  ADR 0059's dishwasher sets. `NoParams` for the same reason the two tiers carry none: the
+   *  millimetre the customer did not choose tells them nothing, and the control offers the set. */
+  | { readonly code: "UNKNOWN_CABINET_DEPTH"; readonly params: NoParams };
 
 export type RejectionCode = RejectionDetail["code"];
 
@@ -478,5 +482,7 @@ export function renderRejection(detail: RejectionDetail): string {
       return "Materialul ales nu mai este disponibil. Alege altă variantă.";
     case "UNKNOWN_HARDWARE_TIER":
       return "Feroneria aleasă nu mai este disponibilă. Alege altă variantă.";
+    case "UNKNOWN_CABINET_DEPTH":
+      return "Adâncimea aleasă nu este disponibilă. Alege una dintre adâncimile oferite.";
   }
 }
