@@ -16,6 +16,7 @@ import {
 } from "../../src/fixtures/kitchen-l-design.js";
 import { findOverflowingPlacementIds } from "../../src/queries/overflowing-placements.js";
 import { validateDesignForCatalog } from "../../src/validate-design.js";
+import { cabinetDepthRuleOf } from "../../src/cabinet-depth-rule.js";
 import type { BodyCatalog } from "../../src/void-engine.js";
 
 const NOW = "2026-08-25T00:00:00.000Z";
@@ -67,15 +68,9 @@ function frameDepthMm(catalog: BodyCatalog, buildId: string): number {
  * corner pushes the base/column/deep-top chain by 100 mm; the mapped wall carcass pushes the two
  * wall-corner returns by 70 mm. No depth delta or target coordinate is restated in this test.
  *
- * **The `startsWith("wall-corner-return-570")` prefix stands in for a production fact no module
- * declares.** It classifies a body into ADR 0058's **wall-map chain** — the bodies whose along-wall
- * position follows the mapped wall carcass — against the **base-formula chain**, and that
- * classification exists nowhere but here: no catalogue field, no query and no rule states which
- * chain a body belongs to, so this test matches on an id shape instead of reading the fact.
- *
- * The debt is registered against **wave 6J**, where `cabinet-depth-rule.ts`'s `cabinet-depth` arm
- * gains the refinement that declares it. Until then the prefix is a stand-in and not the fact, and
- * a body added to either chain under a different id will not be classified by it.
+ * Wave 6J makes the **wall-map chain** versus **base-formula chain** a catalogue declaration. The
+ * projection below reads that declaration, so adding or renaming a body cannot leave this test and
+ * production migration agreeing on an id convention that neither model actually states.
  */
 function seededDesignAt(cabinetDepthMm: number): Design {
   const shallow = buildKitchenLBodyCatalog(SHALLOW_DEPTH_MM);
@@ -91,14 +86,12 @@ function seededDesignAt(cabinetDepthMm: number): Design {
     ...KITCHEN_L_DESIGN,
     placements: KITCHEN_L_DESIGN.placements.map((candidate) => {
       if (candidate.wall !== "B") return candidate;
-      // **The prefix stands in for a production fact no module declares.** It classifies this body
-      // into ADR 0058's wall-map chain against the base-formula chain, and nothing — no catalogue
-      // field, no query, no rule — states which chain a body belongs to, so the test matches an id
-      // shape instead of reading the fact. Registered against **wave 6J**, where
-      // `cabinet-depth-rule.ts`'s `cabinet-depth` arm gains the refinement that declares it.
-      const followsWallMap = candidate.body.buildId.startsWith(
-        "wall-corner-return-570",
-      );
+      const definition = requested.get(candidate.body.buildId);
+      const followsWallMap =
+        cabinetDepthRuleOf({
+          buildId: candidate.body.buildId,
+          rule: definition?.depthRule,
+        }).alongWallPositionFollows === "wall-map";
       return {
         ...candidate,
         alongMm:

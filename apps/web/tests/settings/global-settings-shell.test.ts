@@ -171,7 +171,11 @@ describe("with the sheet shut, what stands on the screen", () => {
 
 describe("the chips name what the design carries, at every state it can carry", () => {
   it("does so for the unset design, where the book's own defaults are what is applied", () => {
-    expect(KITCHEN_L_DESIGN.settings).toBeUndefined();
+    // The unset state is "no tier chosen", not "no `settings` key". Wave 6J-a gives every design a
+    // persisted `cabinetDepthMm`, so `settings` is now always present and the absence that matters
+    // here is the two tier ids.
+    expect(KITCHEN_L_DESIGN.settings?.materialTierId).toBeUndefined();
+    expect(KITCHEN_L_DESIGN.settings?.hardwareTierId).toBeUndefined();
 
     const markup = screenMarkupFor(KITCHEN_L_DESIGN);
 

@@ -17,8 +17,11 @@ const validDesignV1 = {
 };
 
 describe("migrateDesign", () => {
-  it("passes a valid version 1 payload through unchanged", () => {
-    expect(migrateDesign(1, validDesignV1)).toEqual(validDesignV1);
+  it("normalises a valid version 1 payload to the shipped depth", () => {
+    expect(migrateDesign(1, validDesignV1)).toEqual({
+      ...validDesignV1,
+      settings: { cabinetDepthMm: 600 },
+    });
   });
 
   it("throws InvalidDesignError, not a raw Zod error, for an invalid payload", () => {
@@ -28,8 +31,8 @@ describe("migrateDesign", () => {
   });
 
   it("throws a clear error for an unsupported schema version", () => {
-    expect(() => migrateDesign(4, validDesignV1)).toThrow(InvalidDesignError);
-    expect(() => migrateDesign(4, validDesignV1)).toThrow(
+    expect(() => migrateDesign(5, validDesignV1)).toThrow(InvalidDesignError);
+    expect(() => migrateDesign(5, validDesignV1)).toThrow(
       /unsupported schema version/,
     );
   });

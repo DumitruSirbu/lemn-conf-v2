@@ -67,9 +67,14 @@ describe("the two whole-kitchen store actions", () => {
   it("writes the material tier into the design and reports no refusal", () => {
     const store = freshStore();
 
+    // Read before, rather than restating 600: the depth is not this test's subject, and `toEqual`
+    // stays exact so the command adding any *other* key still fails here.
+    const depthMm = store.getState().design.settings?.cabinetDepthMm;
+
     store.getState().setMaterialTier("material.veneer", MATERIAL_TIER_IDS);
 
     expect(store.getState().design.settings).toEqual({
+      cabinetDepthMm: depthMm,
       materialTierId: "material.veneer",
     });
     expect(store.getState().lastRejection).toBeNull();
@@ -78,10 +83,13 @@ describe("the two whole-kitchen store actions", () => {
   it("writes the hardware tier beside a material already chosen", () => {
     const store = freshStore();
 
+    const depthMm = store.getState().design.settings?.cabinetDepthMm;
+
     store.getState().setMaterialTier("material.veneer", MATERIAL_TIER_IDS);
     store.getState().setHardwareTier("hardware.premium", HARDWARE_TIER_IDS);
 
     expect(store.getState().design.settings).toEqual({
+      cabinetDepthMm: depthMm,
       materialTierId: "material.veneer",
       hardwareTierId: "hardware.premium",
     });
@@ -141,11 +149,17 @@ describe("the two whole-kitchen store actions", () => {
 
   it("publishes the hardware refusal under its own code", () => {
     const store = freshStore();
+    // Captured before the refused command, not read back from the object under assertion — reading
+    // it afterwards would compare the settings to themselves and pass however they changed.
+    const settingsBefore = store.getState().design.settings;
 
     store.getState().setHardwareTier("hardware.withdrawn", HARDWARE_TIER_IDS);
 
     expect(store.getState().lastRejection?.code).toBe("UNKNOWN_HARDWARE_TIER");
-    expect(store.getState().design.settings).toBeUndefined();
+    // A refused command writes no tier. Since wave 6J-a, `settings` always exists to carry the
+    // persisted depth, so "wrote nothing" means unchanged rather than absent.
+    expect(store.getState().design.settings).toEqual(settingsBefore);
+    expect(store.getState().design.settings?.hardwareTierId).toBeUndefined();
   });
 });
 

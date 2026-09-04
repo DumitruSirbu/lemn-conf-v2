@@ -36,6 +36,7 @@ describe("setMaterialTier", () => {
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.design.settings).toEqual({
+      cabinetDepthMm: 600,
       materialTierId: "material-premium",
     });
     expect(result.design.updatedAt).toBe(OCCURRED_AT);
@@ -65,6 +66,7 @@ describe("setMaterialTier", () => {
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.design.settings).toEqual({
+      cabinetDepthMm: 600,
       hardwareTierId: "hardware-premium",
       materialTierId: "material-premium",
     });
@@ -92,6 +94,7 @@ describe("setMaterialTier", () => {
     expect(second.ok).toBe(true);
     if (!second.ok) return;
     expect(second.design.settings).toEqual({
+      cabinetDepthMm: 600,
       materialTierId: "material-premium",
     });
   });
@@ -190,6 +193,7 @@ describe("setHardwareTier", () => {
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.design.settings).toEqual({
+      cabinetDepthMm: 600,
       hardwareTierId: "hardware-premium",
     });
     expect(result.effect).toEqual({

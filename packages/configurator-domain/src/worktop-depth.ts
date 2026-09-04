@@ -32,7 +32,25 @@
  *  at rather than the only depth the model can express. Wave 6J's control and wave 6K's stored
  *  setting are what finally give a design one of its own; until then this is the single argument
  *  every caller passes, which is why it is still one line to replace. */
-export const WORKTOP_DEPTH_MM = 600;
+export const DEFAULT_CABINET_DEPTH_MM = 600;
+
+/** ADR 0059: the dishwasher decor door reaches its appliance at 520 mm. The arithmetic stays
+ * beside the floor so a later geometry change cannot leave an unexplained product limit behind. */
+const BASE_FRONT_OVERHANG_MM = 40;
+const DISHWASHER_HALF_DEPTH_MM = 240;
+export const MIN_CABINET_DEPTH_MM =
+  2 * DISHWASHER_HALF_DEPTH_MM + BASE_FRONT_OVERHANG_MM;
+
+/** Compatibility name for the pre-6J single-depth model. New code reads a design's
+ * `cabinetDepthMm` and uses `DEFAULT_CABINET_DEPTH_MM` only while migrating legacy documents.
+ *
+ * **Not marked `@deprecated`, deliberately, until wave 6J-b converts its readers.** Wave 6J-a
+ * declares the persisted depth but does not yet rebuild bodies at it, so every remaining caller
+ * here is still correct code. A `@deprecated` tag over ~30 correct call sites turns `lint` red on
+ * work nobody has done wrong, which is a broken gate rather than a warning — and a gate that is red
+ * for a reason everyone learns to ignore stops being read at all. 6J-b removes the readers and
+ * carries the tag in the same change, so the tag arrives when it means something. */
+export const WORKTOP_DEPTH_MM = DEFAULT_CABINET_DEPTH_MM;
 
 /** Wall and top carcass depth per worktop depth — **a declaration, not a computation**.
  *
@@ -59,6 +77,15 @@ export class UnknownWorktopDepthError extends Error {
   }
 }
 
+export class CabinetDepthBelowMinimumError extends Error {
+  constructor(cabinetDepthMm: number) {
+    super(
+      `Cabinet depth ${String(cabinetDepthMm)} mm is below the ${String(MIN_CABINET_DEPTH_MM)} mm dishwasher floor.`,
+    );
+    this.name = "CabinetDepthBelowMinimumError";
+  }
+}
+
 /** The wall/top carcass depth a given worktop implies. Throws rather than falling back, because a
  *  guessed depth builds a cabinet that is not manufactured. */
 export function wallDepthMmForWorktop(worktopDepthMm: number): number {
@@ -73,6 +100,23 @@ export function wallDepthMmForWorktop(worktopDepthMm: number): number {
  *  whole map rather than a hand-picked row. */
 export function declaredWorktopDepthsMm(): readonly number[] {
   return [...WALL_DEPTH_MM_BY_WORKTOP_DEPTH_MM.keys()];
+}
+
+/** Product-vocabulary alias for the same declaration. */
+export function declaredCabinetDepthsMm(): readonly number[] {
+  return declaredWorktopDepthsMm();
+}
+
+/** Validates both independent domain rules: the dishwasher floor and membership in the declared
+ * manufactured-depth map. No clamp, interpolation or nearest row is permitted. */
+export function requireDeclaredCabinetDepthMm(cabinetDepthMm: number): number {
+  if (cabinetDepthMm < MIN_CABINET_DEPTH_MM) {
+    throw new CabinetDepthBelowMinimumError(cabinetDepthMm);
+  }
+  if (!declaredCabinetDepthsMm().includes(cabinetDepthMm)) {
+    throw new UnknownWorktopDepthError(cabinetDepthMm);
+  }
+  return cabinetDepthMm;
 }
 
 /** **ADR 0036 decision 1, as one declared number**: a declared dimension is the *finished* cabinet,

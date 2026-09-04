@@ -28,7 +28,10 @@ import {
 } from "../src/fixtures/kitchen-l-design.js";
 import type { BodyCatalog, BodyDefinition } from "../src/void-engine.js";
 import {
+  CabinetDepthBelowMinimumError,
   declaredWorktopDepthsMm,
+  MIN_CABINET_DEPTH_MM,
+  requireDeclaredCabinetDepthMm,
   UnknownWorktopDepthError,
   wallDepthMmForWorktop,
   WORKTOP_DEPTH_MM,
@@ -361,19 +364,56 @@ describe("wave 6I: an entry that neither tracks the setting nor declares an exce
   // The §7 catalogue has no pinned row — the pin lives on two seeded ones — so the arm is exercised
   // directly here as well as over the whole catalogue in the block below.
   it("reads a pin as an exception rather than as a body that happens not to move", () => {
-    const pinned = pinnedAtFinishedDepthMm(600);
+    const pinned = pinnedAtFinishedDepthMm(600, "base-formula");
 
     expect(depthFollowsSetting(pinned)).toBe(false);
     expect(cabinetDepthRuleOf({ buildId: "pinned-row", rule: pinned })).toEqual(
       {
         follows: "pinned",
         pinnedFinishedDepthMm: 600,
+        alongWallPositionFollows: "base-formula",
       },
     );
   });
 });
 
+describe("wave 6J: along-wall depth chains are catalogue declarations", () => {
+  function chainOf(buildId: string) {
+    const definition = KITCHEN_L_BODY_CATALOG.get(buildId);
+    return cabinetDepthRuleOf({
+      buildId,
+      rule: definition?.depthRule,
+    }).alongWallPositionFollows;
+  }
+
+  it("puts only the structural wall returns on the wall-map chain", () => {
+    expect(chainOf("wall-corner-return-570")).toBe("wall-map");
+    expect(chainOf("wall-corner-return-570-top")).toBe("wall-map");
+    expect(chainOf("wall-2door-600")).toBe("base-formula");
+    expect(chainOf("fridge-free-700")).toBe("base-formula");
+    expect(chainOf("wall-2door-700-over-fridge")).toBe("base-formula");
+  });
+
+  it("refuses a depth rule that omits the position chain", () => {
+    expect(() =>
+      cabinetDepthRuleOf({
+        buildId: "legacy-rule",
+        rule: { follows: "cabinet-depth" } as never,
+      }),
+    ).toThrow(UndeclaredCabinetDepthRuleError);
+  });
+});
+
 describe("an undeclared cabinet depth refuses to build a catalogue at all", () => {
+  it("enforces the dishwasher-derived 520 mm floor in the domain", () => {
+    expect(MIN_CABINET_DEPTH_MM).toBe(520);
+    expect(() => requireDeclaredCabinetDepthMm(519)).toThrow(
+      CabinetDepthBelowMinimumError,
+    );
+    expect(requireDeclaredCabinetDepthMm(600)).toBe(600);
+    expect(requireDeclaredCabinetDepthMm(700)).toBe(700);
+  });
+
   // ADR 0028 decision 4, carried through the parameterisation rather than softened by it: wall
   // depths are manufactured sizes, so a missing row is a programming error. 650 would interpolate
   // to 372 and 800 would extrapolate to 500 — a plausible future row, and deliberately not a
@@ -481,6 +521,7 @@ describe("ADR 0058: the two deep top cabinets are pinned, over the whole catalog
       expect(entryOf(700, buildId).depthRule).toEqual({
         follows: "pinned",
         pinnedFinishedDepthMm: 600,
+        alongWallPositionFollows: "base-formula",
       });
     }
   });

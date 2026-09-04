@@ -11,6 +11,10 @@ import {
   MAX_ROOM_WIDTH_MM,
 } from "./design-bounds.js";
 import { ConfigurationTimestampSchema } from "./schemas.js";
+import {
+  declaredCabinetDepthsMm,
+  MIN_CABINET_DEPTH_MM,
+} from "./worktop-depth.js";
 
 /** A dimension: a whole millimetre a body or a room can actually measure. Zero and negatives are
  *  not small rooms and thin cabinets, they are documents `deriveCabinetWorldTransform` throws on
@@ -151,10 +155,22 @@ export type DesignRoom = z.infer<typeof DesignRoomSchema>;
 export const DesignSettingsSchema = z.strictObject({
   materialTierId: identifierSchema.optional(),
   hardwareTierId: identifierSchema.optional(),
+  /** Optional only in the wire parser so schema versions 1–3 can reach `migrateDesign`'s v3 arm.
+   * Every version-4 document is required to carry it at that seam. */
+  cabinetDepthMm: z
+    .number()
+    .int()
+    .min(MIN_CABINET_DEPTH_MM)
+    .refine((value) => declaredCabinetDepthsMm().includes(value), {
+      message: "Cabinet depth must be one of the declared manufactured depths",
+    })
+    .optional(),
 });
 export type DesignSettings = z.infer<typeof DesignSettingsSchema>;
 
-export const DesignSchema = z.strictObject({
+/** The legacy wire shape. Exported only for the migration seam, which must parse versions 1–3
+ * before it can add the field they predate. New writes use `DesignSchema` below. */
+export const LegacyDesignSchema = z.strictObject({
   room: DesignRoomSchema,
   presetId: z.string().max(MAX_IDENTIFIER_LENGTH).nullable(),
   placements: z.array(DesignPlacementSchema).max(MAX_PLACEMENTS),
@@ -183,4 +199,26 @@ export const DesignSchema = z.strictObject({
   createdAt: ConfigurationTimestampSchema,
   updatedAt: ConfigurationTimestampSchema,
 });
-export type Design = z.infer<typeof DesignSchema>;
+export type Design = z.infer<typeof LegacyDesignSchema>;
+
+/** General domain shape, including stored documents from before cabinet depth existed. */
+export const DesignSchema = LegacyDesignSchema;
+
+/** The current write contract. A successful save must be reloadable at schema version 4, so
+ * cabinet depth is mandatory here even though the legacy parser permits its absence. */
+export const CurrentDesignSchema = LegacyDesignSchema.superRefine(
+  (design, context) => {
+    if (design.settings?.cabinetDepthMm !== undefined) return;
+    context.addIssue({
+      code: "custom",
+      path: ["settings", "cabinetDepthMm"],
+      message: "Current designs require a cabinet depth",
+    });
+  },
+);
+
+/** The effective depth of an in-memory design. Absence means the legacy default; persisted
+ * version-4 documents are stricter and are checked by `migrateDesign`. */
+export function cabinetDepthMmOf(design: Design): number {
+  return design.settings?.cabinetDepthMm ?? 600;
+}

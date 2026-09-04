@@ -134,6 +134,9 @@ describe("PUT /api/designs/[id] — wave 6E's settings container at the write se
     const chosen: Design = {
       ...KITCHEN_L_DESIGN,
       settings: {
+        // Since wave 6J-a a current design must carry `cabinetDepthMm`, so the seeded settings are
+        // spread rather than replaced — otherwise the 400 under test would be the missing depth.
+        ...KITCHEN_L_DESIGN.settings,
         materialTierId: "material.veneer",
         hardwareTierId: "hardware.premium",
       },
@@ -152,7 +155,12 @@ describe("PUT /api/designs/[id] — wave 6E's settings container at the write se
     const { id, cookie } = await mintDesign();
     const chosen: Design = {
       ...KITCHEN_L_DESIGN,
-      settings: { materialTierId: "material.veneer" },
+      // Spread for the same reason as the both-tiers case above: the depth is mandatory since wave
+      // 6J-a, and this test is about the *other* tier not being invented.
+      settings: {
+        ...KITCHEN_L_DESIGN.settings,
+        materialTierId: "material.veneer",
+      },
     };
 
     const response = await PUT(
@@ -162,13 +170,22 @@ describe("PUT /api/designs/[id] — wave 6E's settings container at the write se
 
     expect(response.status).toBe(200);
     const stored = fakeRepository.storedDesign(id);
-    expect(stored?.settings).toEqual({ materialTierId: "material.veneer" });
+    expect(stored?.settings).toEqual({
+      ...KITCHEN_L_DESIGN.settings,
+      materialTierId: "material.veneer",
+    });
     expect(stored?.settings?.hardwareTierId).toBeUndefined();
   });
 
-  // Absence is the criterion the whole no-version-bump argument rests on: a client that has never
-  // heard of this field must go on saving exactly as it did.
-  it("stores a design with no settings key and adds none", async () => {
+  // Wave 6E's own note here said absence was "the criterion the whole no-version-bump argument
+  // rests on". That argument belonged to 6E and no longer holds: wave 6J-a carries a version bump,
+  // and a current design must declare its depth.
+  //
+  // Was "stores a design with no settings key and adds none" until wave 6J-a made `cabinetDepthMm`
+  // mandatory on a current design. A document with no `settings` key is now refused rather than
+  // stored, so the claim worth keeping is the one this wave still owes: **storing a design that
+  // chooses no tier must not invent one.**
+  it("stores a design that chooses no tier, and invents neither", async () => {
     const { id, cookie } = await mintDesign();
     const unset: Design = { ...KITCHEN_L_DESIGN, presetId: "edited" };
 
@@ -178,13 +195,21 @@ describe("PUT /api/designs/[id] — wave 6E's settings container at the write se
     );
 
     expect(response.status).toBe(200);
-    expect("settings" in (fakeRepository.storedDesign(id) ?? {})).toBe(false);
+    const stored = fakeRepository.storedDesign(id);
+    expect(stored?.settings?.materialTierId).toBeUndefined();
+    expect(stored?.settings?.hardwareTierId).toBeUndefined();
   });
 
   // Each row is one fault in an otherwise-storable document, and the control above stores the same
   // document with a legal container — so a 400 here can only be the container.
   const REFUSED_CONTAINERS: readonly (readonly [string, unknown])[] = [
-    ["an undeclared third setting", { cabinetDepthMm: 600 }],
+    // A valid depth beside the undeclared key, so the refusal can only be the undeclared key.
+    // This row read `{ cabinetDepthMm: 600 }` until wave 6J-a declared that very setting, at which
+    // point it stopped naming a fault at all and passed by asserting a 200 as a 400 would have been.
+    [
+      "an undeclared third setting",
+      { cabinetDepthMm: 600, worktopThicknessMm: 38 },
+    ],
     [
       "a tier id past the identifier bound",
       { materialTierId: "x".repeat(ONE_PAST_THE_IDENTIFIER_BOUND) },

@@ -23,10 +23,12 @@ import { toMetres } from "./millimetres.js";
 // *type* to refuse anything that is not a clearance, and none of its behaviour.
 import type { ClearanceM } from "./occupied-depth.js";
 import {
-  declaredWorktopDepthsMm,
-  UnknownWorktopDepthError,
+  requireDeclaredCabinetDepthMm,
   wallDepthMmForWorktop,
 } from "./worktop-depth.js";
+
+/** Which depth-derived corner chain moves a wall-B placement when the cabinet depth changes. */
+export type AlongWallDepthChain = "base-formula" | "wall-map";
 
 /** **Whether this entry's depth follows the cabinet-depth setting** — declared per catalogue entry
  *  (`BodyDefinition.depthRule`).
@@ -49,13 +51,30 @@ import {
  *  There is deliberately no arm meaning "unknown" and no default. An entry that answers none of
  *  these has not been thought about, and `cabinetDepthRuleOf` refuses it. */
 export type CabinetDepthRule =
-  | { readonly follows: "cabinet-depth" }
-  | { readonly follows: "manufactured-size" }
-  | { readonly follows: "pinned"; readonly pinnedFinishedDepthMm: number };
+  | {
+      readonly follows: "cabinet-depth";
+      readonly alongWallPositionFollows: AlongWallDepthChain;
+    }
+  | {
+      readonly follows: "manufactured-size";
+      readonly alongWallPositionFollows: AlongWallDepthChain;
+    }
+  | {
+      readonly follows: "pinned";
+      readonly pinnedFinishedDepthMm: number;
+      readonly alongWallPositionFollows: AlongWallDepthChain;
+    };
 
 /** Cabinetry: this body's depth is a function of the setting. */
 export const FOLLOWS_CABINET_DEPTH: CabinetDepthRule = {
   follows: "cabinet-depth",
+  alongWallPositionFollows: "base-formula",
+};
+
+/** Structural wall returns follow the wall-depth map rather than the base-run formula. */
+export const FOLLOWS_CABINET_DEPTH_ON_WALL_MAP: CabinetDepthRule = {
+  follows: "cabinet-depth",
+  alongWallPositionFollows: "wall-map",
 };
 
 /** An appliance: this body's depth is a machine's, and no setting reaches it. Named rather than
@@ -63,6 +82,7 @@ export const FOLLOWS_CABINET_DEPTH: CabinetDepthRule = {
  *  a cabinet and this is a fact about a product nobody here builds. */
 export const IS_A_MANUFACTURED_SIZE: CabinetDepthRule = {
   follows: "manufactured-size",
+  alongWallPositionFollows: "base-formula",
 };
 
 /** ADR 0058 decision 1: cabinetry deliberately held at one declared **finished** depth — the space
@@ -70,8 +90,13 @@ export const IS_A_MANUFACTURED_SIZE: CabinetDepthRule = {
  *  at" has to be handed. The two shipped pinned rows finish at 600 at every setting. */
 export function pinnedAtFinishedDepthMm(
   pinnedFinishedDepthMm: number,
+  alongWallPositionFollows: AlongWallDepthChain,
 ): CabinetDepthRule {
-  return { follows: "pinned", pinnedFinishedDepthMm };
+  return {
+    follows: "pinned",
+    pinnedFinishedDepthMm,
+    alongWallPositionFollows,
+  };
 }
 
 /** A catalogue entry that says nothing about whether its depth follows the setting. **A programming
@@ -108,7 +133,15 @@ export interface CabinetDepthRuleQuery {
 export function cabinetDepthRuleOf(
   query: CabinetDepthRuleQuery,
 ): CabinetDepthRule {
-  switch (query.rule?.follows) {
+  if (
+    query.rule?.alongWallPositionFollows !== "base-formula" &&
+    query.rule?.alongWallPositionFollows !== "wall-map"
+  ) {
+    throw new UndeclaredCabinetDepthRuleError(query.buildId, query.rule);
+  }
+  // The guard above throws unless `alongWallPositionFollows` is one of two literals, which narrows
+  // `rule` to non-nullish here — an optional chain would read as though it could still be absent.
+  switch (query.rule.follows) {
     case "cabinet-depth":
     case "manufactured-size":
     case "pinned":
@@ -211,13 +244,6 @@ export function columnBuildDepthMm(column: ColumnBuildDepthQuery): number {
 /** **The one range check both arms pass through.** `wallDepthMmForWorktop` keeps its own guard —
  *  it is the map's fail-closed contract and the single statement of which rows exist — so this is
  *  not a second copy of the declared set but the same set asked before the branch. */
-function requireDeclaredCabinetDepthMm(cabinetDepthMm: number): number {
-  if (!declaredWorktopDepthsMm().includes(cabinetDepthMm)) {
-    throw new UnknownWorktopDepthError(cabinetDepthMm);
-  }
-  return cabinetDepthMm;
-}
-
 /** `columnBuildDepthMm` in the unit the command layer plans in. */
 export function columnBuildDepthM(column: ColumnBuildDepthQuery): BuildDepthM {
   return toMetres(columnBuildDepthMm(column)) as BuildDepthM;

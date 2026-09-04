@@ -1,7 +1,7 @@
 import { MAX_EMPTY_COLUMNS } from "./design-bounds.js";
 import type { Design, DesignRoom, EmptyColumn } from "./design.js";
-import { DesignSchema } from "./design.js";
-import { KITCHEN_L_BODY_CATALOG } from "./fixtures/kitchen-l-design.js";
+import { cabinetDepthMmOf, LegacyDesignSchema } from "./design.js";
+import { buildKitchenLBodyCatalog } from "./fixtures/kitchen-l-design.js";
 import { MAX_EMPTY_COLUMN_WIDTH_MM } from "./module-grid.js";
 import { InvalidDesignError } from "./repository.js";
 import { describeSchemaIssues } from "./failure-text.js";
@@ -20,7 +20,7 @@ import type { BodyCatalog } from "./void-engine.js";
  *  all. `neon-configuration-repository.ts` stamps every row it writes with this value, importing it
  *  rather than restating it: two copies of this number that disagree is a migration that silently
  *  stops running. */
-export const CURRENT_SCHEMA_VERSION = 3;
+export const CURRENT_SCHEMA_VERSION = 4;
 
 /** The oldest version still readable. Nothing below it was ever written, and a row claiming one is
  *  a row this build cannot account for. */
@@ -52,7 +52,20 @@ const NORMALISATIONS_BY_VERSION_OWING_THEM: ReadonlyMap<
 > = new Map([
   [1, normaliseOversizedEmptyColumnEntries],
   [2, correctPreCorrectionRoom],
+  [3, addDefaultCabinetDepth],
 ]);
+
+/** Version 3 predates the persisted cabinet depth. Preserve the existing tier selections while
+ * adding the depth every such document was actually built at. */
+function addDefaultCabinetDepth(design: Design): Design {
+  return {
+    ...design,
+    settings: {
+      ...design.settings,
+      cabinetDepthMm: 600,
+    },
+  };
+}
 
 /** Every normalisation the stored version still owes, oldest first. A document already at
  *  `CURRENT_SCHEMA_VERSION` walks none of them: its room and its columns are its own, including the
@@ -161,7 +174,7 @@ function hasFatalIssues(design: Design, catalog: BodyCatalog): boolean {
 }
 
 function parseDesign(raw: unknown): Design {
-  const result = DesignSchema.safeParse(raw);
+  const result = LegacyDesignSchema.safeParse(raw);
   // The *shape* of the failure, never `error.message`: that renders the whole tree, echoes an
   // unrecognised key verbatim, and grows with the row — and this error's message reaches a reader
   // of the share link through the load path's response.
@@ -250,12 +263,27 @@ function isWiderThanCap(emptyColumn: EmptyColumn): boolean {
 export function migrateDesign(
   schemaVersion: number,
   raw: unknown,
-  catalog: BodyCatalog = KITCHEN_L_BODY_CATALOG,
+  catalog?: BodyCatalog,
 ): Design {
   refuseUnsupportedVersion(schemaVersion);
-  const design = carryForward(parseDesign(raw), schemaVersion, catalog);
-  assertDesignValidForCatalog(design, catalog);
+  const parsed = parseDesign(raw);
+  const migrationCatalog =
+    catalog ?? buildKitchenLBodyCatalog(cabinetDepthMmOf(parsed));
+  const design = carryForward(parsed, schemaVersion, migrationCatalog);
+  requireCurrentCabinetDepth(design);
+  assertDesignValidForCatalog(
+    design,
+    catalog ?? buildKitchenLBodyCatalog(cabinetDepthMmOf(design)),
+  );
   return design;
+}
+
+function requireCurrentCabinetDepth(design: Design): void {
+  if (design.settings?.cabinetDepthMm === undefined) {
+    throw new InvalidDesignError(
+      "schema version 4 requires settings.cabinetDepthMm",
+    );
+  }
 }
 
 /** Refused before the payload is parsed: a row stamped with a version this build has never written

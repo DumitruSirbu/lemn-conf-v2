@@ -94,6 +94,7 @@ describe("the offer list is matched exactly, whatever shape it arrives in", () =
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.design.settings).toEqual({
+      cabinetDepthMm: 600,
       materialTierId: "material-premium",
     });
   });
@@ -164,6 +165,7 @@ describe("setting the tier that is already set", () => {
     expect(again.design).not.toBe(first.design);
     expect(again.design.updatedAt).toBe(LATER_OCCURRED_AT);
     expect(again.design.settings).toEqual({
+      cabinetDepthMm: 600,
       materialTierId: "material-premium",
     });
   });

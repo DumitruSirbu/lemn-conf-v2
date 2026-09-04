@@ -340,6 +340,7 @@ describe("the version gate is the only guard on a room nobody asked to change", 
       expect(migrated).toStrictEqual({
         ...SYNTHETIC_EMPTY_ROOM,
         room: { ...SYNTHETIC_EMPTY_ROOM.room, ...CORRECTED_ROOM_MM },
+        settings: { cabinetDepthMm: 600 },
       });
       expect(migrated.placements).toStrictEqual(
         SYNTHETIC_EMPTY_ROOM.placements,
@@ -347,12 +348,12 @@ describe("the version gate is the only guard on a room nobody asked to change", 
     },
   );
 
-  /** The version gate, which is now the whole of the customer protection: at version 3 the arm is
-   *  not reached and the document comes back exactly as stored. */
-  it("returns the same document unchanged at version 3", () => {
-    expect(migrateDesign(3, stored(SYNTHETIC_EMPTY_ROOM))).toStrictEqual(
-      SYNTHETIC_EMPTY_ROOM,
-    );
+  /** The room arm is not reached at version 3; only 6J's later persisted-depth arm is. */
+  it("keeps the room unchanged while version 3 gains cabinet depth", () => {
+    expect(migrateDesign(3, stored(SYNTHETIC_EMPTY_ROOM))).toStrictEqual({
+      ...SYNTHETIC_EMPTY_ROOM,
+      settings: { cabinetDepthMm: 600 },
+    });
   });
 
   /** M7's customer, who genuinely enters 3600 × 2400. Written at version 3, where no arm may reach
@@ -367,17 +368,21 @@ describe("the version gate is the only guard on a room nobody asked to change", 
     };
     const document = stored(customerKitchen);
 
+    // `document` is `unknown` — the type the migration seam must accept — so the expectation is
+    // built from the design it was serialised from. `stored` is a JSON round trip, so the two carry
+    // the same bytes, which is what this test compares.
     expect(JSON.stringify(migrateDesign(3, document))).toBe(
-      JSON.stringify(document),
+      JSON.stringify({ ...customerKitchen, settings: { cabinetDepthMm: 600 } }),
     );
   });
 
   /** And when their placements genuinely do not fit their own room, their room is not rewritten:
    *  the design loads with the diagnostic mark against the dimensions they entered. */
   it("loads a version 3 misfit in its own room without rescuing it", () => {
-    expect(migrateDesign(3, stored(NEEDS_THE_CORRECTION))).toStrictEqual(
-      NEEDS_THE_CORRECTION,
-    );
+    expect(migrateDesign(3, stored(NEEDS_THE_CORRECTION))).toStrictEqual({
+      ...NEEDS_THE_CORRECTION,
+      settings: { cabinetDepthMm: 600 },
+    });
     expect(
       validateDesignForCatalog(NEEDS_THE_CORRECTION, CATALOG).map(
         (issue) => issue.code,

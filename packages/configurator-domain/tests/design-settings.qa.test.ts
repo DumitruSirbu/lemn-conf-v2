@@ -47,10 +47,20 @@ function asStoredJson(document: Record<string, unknown>): unknown {
 }
 
 describe("a stored settings container survives the load path unchanged", () => {
-  const CONTAINERS: readonly (readonly [string, Record<string, string>])[] = [
-    ["both keys", { materialTierId: "m-1", hardwareTierId: "h-1" }],
-    ["the material key alone", { materialTierId: "m-1" }],
-    ["the hardware key alone", { hardwareTierId: "h-1" }],
+  const CONTAINERS: readonly (readonly [
+    string,
+    Record<string, string | number>,
+  ])[] = [
+    [
+      "both tier keys",
+      {
+        materialTierId: "m-1",
+        hardwareTierId: "h-1",
+        cabinetDepthMm: 600,
+      },
+    ],
+    ["the material tier key", { materialTierId: "m-1", cabinetDepthMm: 600 }],
+    ["the hardware tier key", { hardwareTierId: "h-1", cabinetDepthMm: 600 }],
   ];
 
   it.each(CONTAINERS)(
@@ -76,7 +86,7 @@ describe("a stored settings container survives the load path unchanged", () => {
 
     const migrated = migrateDesign(1, asStoredJson(withSettings(settings)));
 
-    expect(migrated.settings).toEqual(settings);
+    expect(migrated.settings).toEqual({ ...settings, cabinetDepthMm: 600 });
   });
 
   it("carries it through the room correction a version 2 document is owed", () => {
@@ -93,7 +103,10 @@ describe("a stored settings container survives the load path unchanged", () => {
     const migrated = migrateDesign(2, asStoredJson(preCorrection));
 
     expect(migrated.room.widthMm).toBe(3560);
-    expect(migrated.settings).toEqual({ materialTierId: "m-1" });
+    expect(migrated.settings).toEqual({
+      materialTierId: "m-1",
+      cabinetDepthMm: 600,
+    });
   });
 });
 
@@ -129,10 +142,11 @@ describe("the settings container's own bounds, at the seam that enforces them", 
   // `strictObject` inside `strictObject`: the nested refusal has to reach the load path, not only
   // the schema read in isolation — that is the difference between a bound and a bound that is
   // enforced where documents arrive.
-  it("refuses an undeclared third setting at the load path, without echoing it", () => {
+  it("refuses an undeclared setting at the load path, without echoing it", () => {
     const document = withSettings({
       materialTierId: "m-1",
       cabinetDepthMm: 600,
+      secretCanary: "do-not-echo",
     });
 
     expect(() =>
@@ -141,7 +155,7 @@ describe("the settings container's own bounds, at the seam that enforces them", 
     try {
       migrateDesign(CURRENT_SCHEMA_VERSION, asStoredJson(document));
     } catch (error) {
-      expect((error as Error).message).not.toContain("cabinetDepthMm");
+      expect((error as Error).message).not.toContain("do-not-echo");
     }
   });
 
@@ -160,11 +174,15 @@ describe("the settings container's own bounds, at the seam that enforces them", 
 // tell an absent key from a present-and-`undefined` one if anything does: the wire form, the load
 // path, and the price.
 describe("an explicitly-undefined tier id is the same thing as an absent one", () => {
-  const EXPLICIT_UNDEFINED = { materialTierId: undefined };
+  const EXPLICIT_UNDEFINED = {
+    materialTierId: undefined,
+    cabinetDepthMm: 600,
+  };
+  const EMPTY_CURRENT_SETTINGS = { cabinetDepthMm: 600 };
 
   it("serialises identically", () => {
     const explicit = DesignSchema.parse(withSettings(EXPLICIT_UNDEFINED));
-    const empty = DesignSchema.parse(withSettings({}));
+    const empty = DesignSchema.parse(withSettings(EMPTY_CURRENT_SETTINGS));
 
     expect(canonicalSerializeDesign(explicit)).toBe(
       canonicalSerializeDesign(empty),
@@ -176,7 +194,10 @@ describe("an explicitly-undefined tier id is the same thing as an absent one", (
       CURRENT_SCHEMA_VERSION,
       withSettings(EXPLICIT_UNDEFINED),
     );
-    const empty = migrateDesign(CURRENT_SCHEMA_VERSION, withSettings({}));
+    const empty = migrateDesign(
+      CURRENT_SCHEMA_VERSION,
+      withSettings(EMPTY_CURRENT_SETTINGS),
+    );
 
     expect(canonicalSerializeDesign(explicit)).toBe(
       canonicalSerializeDesign(empty),

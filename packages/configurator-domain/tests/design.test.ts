@@ -20,6 +20,7 @@ const design = {
   room: { shape: "L" as const, widthMm: 3600, depthMm: 2400, heightMm: 2600 },
   presetId: null,
   placements: [placement],
+  settings: { cabinetDepthMm: 600 },
   createdAt: "2026-08-25T00:00:00.000Z",
   updatedAt: "2026-08-25T00:00:00.000Z",
 };

@@ -1,8 +1,9 @@
 import {
   describeDesignValidationIssues,
   describeSchemaIssues,
-  DesignSchema,
-  KITCHEN_L_BODY_CATALOG,
+  buildKitchenLBodyCatalog,
+  cabinetDepthMmOf,
+  CurrentDesignSchema,
   MAX_DESIGN_BYTES,
   fatalDesignValidationIssues,
   validateDesignForCatalog,
@@ -51,7 +52,7 @@ type ReadDesignOutcome =
  * Where a save states the revision it edits (WEB-003).
  *
  * A header rather than a field in the body: the body of a save **is** the `Design` document and
- * `DesignSchema` is a `strictObject`, so a revision smuggled into it would be rejected by the
+ * `CurrentDesignSchema` is strict, so a revision smuggled into it would be rejected by the
  * schema — and putting transport metadata inside the customer's document is how the two come to be
  * confused later.
  *
@@ -186,7 +187,7 @@ function readExpectedRevision(
  * a truncated or empty body throws where a well-formed but wrong-shaped one merely fails the schema
  * — which is the one that used to escape the handler entirely, turning a client's malformed payload
  * into a 500 with a stack trace in the log. Then the **executable** contract (DOM-001): a document
- * can pass `DesignSchema` and still name a body no catalogue entry covers, which the schema cannot
+ * can pass `CurrentDesignSchema` and still name a body no catalogue entry covers, which the schema cannot
  * see and every reader of the shared link then crashes on.
  *
  * All of them tell the client the same thing: the payload was rejected, and a stable code, never
@@ -205,7 +206,7 @@ async function readDesign(request: NextRequest): Promise<ReadDesignOutcome> {
     };
   }
 
-  const result = DesignSchema.safeParse(parsed.value);
+  const result = CurrentDesignSchema.safeParse(parsed.value);
   if (!result.success) {
     return {
       ok: false,
@@ -235,7 +236,10 @@ function refuseUnexecutableDesign(
   design: Design,
 ): { readonly ok: false; readonly response: NextResponse } | undefined {
   const issues = fatalDesignValidationIssues(
-    validateDesignForCatalog(design, KITCHEN_L_BODY_CATALOG),
+    validateDesignForCatalog(
+      design,
+      buildKitchenLBodyCatalog(cabinetDepthMmOf(design)),
+    ),
   );
   if (issues.length === 0) return undefined;
   return {

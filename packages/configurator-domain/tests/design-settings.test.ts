@@ -8,6 +8,7 @@ import { describe, expect, it } from "vitest";
 import {
   DesignSchema,
   DesignSettingsSchema,
+  LegacyDesignSchema,
   type DesignSettings,
 } from "../src/design.js";
 import { MAX_IDENTIFIER_LENGTH } from "../src/design-bounds.js";
@@ -69,14 +70,15 @@ describe("DesignSettingsSchema", () => {
     );
   });
 
-  // Strict, like every other object in this schema: a third setting has to be declared here before
-  // it can be stored, which is what keeps wave 6J's depth a decision rather than a leak.
-  it("rejects an undeclared third setting", () => {
+  it("accepts only a declared cabinet depth", () => {
     const result = DesignSettingsSchema.safeParse({
       materialTierId: "material-premium",
       cabinetDepthMm: 600,
     });
-    expect(result.success).toBe(false);
+    expect(result.success).toBe(true);
+    expect(
+      DesignSettingsSchema.safeParse({ cabinetDepthMm: 800 }).success,
+    ).toBe(false);
   });
 });
 
@@ -85,6 +87,7 @@ describe("DesignSchema with the settings container", () => {
     const settings: DesignSettings = {
       materialTierId: "material-premium",
       hardwareTierId: "hardware-premium",
+      cabinetDepthMm: 600,
     };
     const result = DesignSchema.safeParse({
       ...designWithoutSettings,
@@ -93,8 +96,8 @@ describe("DesignSchema with the settings container", () => {
     expect(result.success).toBe(true);
   });
 
-  it("accepts a design with no settings key and adds none", () => {
-    const result = DesignSchema.safeParse(designWithoutSettings);
+  it("accepts a legacy design with no settings key and adds none", () => {
+    const result = LegacyDesignSchema.safeParse(designWithoutSettings);
     expect(result.success).toBe(true);
     if (!result.success) return;
     expect("settings" in result.data).toBe(false);
@@ -111,35 +114,38 @@ describe("DesignSchema with the settings container", () => {
 
 // The backward-compatibility criterion, measured rather than argued: no version bump is owed
 // because a document written before this field existed is not changed by it.
-describe("a design with no settings key round-trips unchanged", () => {
-  it("comes back byte-identical through parse → migrate → serialise", () => {
-    const before = canonicalSerializeDesign(
-      DesignSchema.parse(designWithoutSettings),
-    );
-
-    const migrated = migrateDesign(
-      CURRENT_SCHEMA_VERSION,
-      JSON.parse(JSON.stringify(designWithoutSettings)) as unknown,
-    );
-
-    expect(canonicalSerializeDesign(migrated)).toBe(before);
-    expect("settings" in migrated).toBe(false);
+describe("a design predating cabinet depth is normalised", () => {
+  it("refuses a version 4 document that omits the persisted depth", () => {
+    expect(() =>
+      migrateDesign(
+        CURRENT_SCHEMA_VERSION,
+        JSON.parse(JSON.stringify(designWithoutSettings)) as unknown,
+      ),
+    ).toThrow(/requires settings\.cabinetDepthMm/);
   });
 
-  // The oldest version still readable, which is where the five measured rows sit (ADR 0052). It
-  // walks both normalisation arms and still gains no settings key.
-  it("gains no settings key when carried forward from version 1", () => {
+  it("gains the 600 mm setting when carried forward from version 1", () => {
     const migrated = migrateDesign(1, designWithoutSettings);
-    expect("settings" in migrated).toBe(false);
+    expect(migrated.settings).toEqual({ cabinetDepthMm: 600 });
   });
 
-  it("carries a stored settings container through unchanged", () => {
+  it("preserves a tier selection while version 3 adds cabinet depth", () => {
     const stored = {
       ...designWithoutSettings,
       settings: { materialTierId: "material-premium" },
     };
-    expect(migrateDesign(CURRENT_SCHEMA_VERSION, stored).settings).toEqual({
+    expect(migrateDesign(3, stored).settings).toEqual({
       materialTierId: "material-premium",
+      cabinetDepthMm: 600,
     });
+  });
+
+  it("keeps an explicit current depth byte-identical", () => {
+    const stored = {
+      ...designWithoutSettings,
+      settings: { cabinetDepthMm: 700 },
+    };
+    const before = canonicalSerializeDesign(DesignSchema.parse(stored));
+    expect(canonicalSerializeDesign(migrateDesign(4, stored))).toBe(before);
   });
 });

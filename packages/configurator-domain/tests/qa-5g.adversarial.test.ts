@@ -209,7 +209,10 @@ describe("criterion 5G-4, load half: a stored version 1 document survives the ce
       emptyColumnAt(1500, 800),
     ]);
 
-    expect(load(1, stored)).toStrictEqual(stored);
+    expect(load(1, stored)).toStrictEqual({
+      ...stored,
+      settings: { cabinetDepthMm: 600 },
+    });
   });
 
   /** The security review's own assertion, made executable: an oversized entry that splits into many

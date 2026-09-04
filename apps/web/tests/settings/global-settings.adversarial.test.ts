@@ -87,9 +87,12 @@ function designCarrying(
   selections: WholeKitchenSelections | undefined,
 ): Design {
   if (selections === undefined) {
-    // The seeded design ships with no `settings` key at all, which *is* the unset state — asserted
-    // rather than assumed, so this arm cannot quietly stop being the case it is named for.
-    expect(KITCHEN_L_DESIGN.settings).toBeUndefined();
+    // The seeded design chooses neither tier, which *is* the unset state — asserted rather than
+    // assumed, so this arm cannot quietly stop being the case it is named for. Wave 6J-a made
+    // `settings` always present by persisting `cabinetDepthMm`, so the two tier ids are what carry
+    // the meaning; the key's own absence no longer does.
+    expect(KITCHEN_L_DESIGN.settings?.materialTierId).toBeUndefined();
+    expect(KITCHEN_L_DESIGN.settings?.hardwareTierId).toBeUndefined();
     return KITCHEN_L_DESIGN;
   }
   return { ...KITCHEN_L_DESIGN, settings: selections };

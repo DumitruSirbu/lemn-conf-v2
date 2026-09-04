@@ -39,6 +39,7 @@ import {
 import {
   cabinetDepthRuleOf,
   FOLLOWS_CABINET_DEPTH,
+  FOLLOWS_CABINET_DEPTH_ON_WALL_MAP,
   IS_A_MANUFACTURED_SIZE,
   pinnedAtFinishedDepthMm,
   type CabinetDepthRule,
@@ -537,6 +538,7 @@ export function buildSeededBodyDefinitions(
       "wall-corner-return-570",
       {
         ...wallCarcass,
+        depthRule: FOLLOWS_CABINET_DEPTH_ON_WALL_MAP,
         cabinetHandles: carriesHandles(1),
         fronts: wallLeaves({ frameHeightMm: 700, leavesPerBand: 1 }),
         ...STRUCTURAL_CORNER,
@@ -646,6 +648,7 @@ export function buildSeededBodyDefinitions(
       "wall-corner-return-570-top",
       {
         ...topCarcass,
+        depthRule: FOLLOWS_CABINET_DEPTH_ON_WALL_MAP,
         cabinetHandles: carriesHandles(1),
         fronts: wallLeaves({ frameHeightMm: 400, leavesPerBand: 1 }),
         ...STRUCTURAL_CORNER,
@@ -674,7 +677,10 @@ export function buildSeededBodyDefinitions(
         // different arithmetic over different quantities and only the constant is shared.
         frameDepthMm:
           PINNED_DEEP_TOP_FINISHED_DEPTH_MM - WALL_FRONT_ASSEMBLY_MM,
-        depthRule: pinnedAtFinishedDepthMm(PINNED_DEEP_TOP_FINISHED_DEPTH_MM),
+        depthRule: pinnedAtFinishedDepthMm(
+          PINNED_DEEP_TOP_FINISHED_DEPTH_MM,
+          "base-formula",
+        ),
         frameHeightMm: 400,
         ...namedAfterCatalogEquivalent("wall-cabinet"),
       },
@@ -693,7 +699,10 @@ export function buildSeededBodyDefinitions(
         // at the fridge's own 742 mm.
         frameDepthMm:
           PINNED_DEEP_TOP_FINISHED_DEPTH_MM - WALL_FRONT_ASSEMBLY_MM,
-        depthRule: pinnedAtFinishedDepthMm(PINNED_DEEP_TOP_FINISHED_DEPTH_MM),
+        depthRule: pinnedAtFinishedDepthMm(
+          PINNED_DEEP_TOP_FINISHED_DEPTH_MM,
+          "base-formula",
+        ),
         frameHeightMm: 750,
         ...namedAfterCatalogEquivalent("wall-cabinet"),
       },
@@ -804,6 +813,7 @@ export const KITCHEN_L_DESIGN: Design = {
   // 2400 in particular was what made the along-wall bound take the longer run.
   room: { shape: "L", widthMm: 3560, depthMm: 2830, heightMm: 2600 },
   presetId: null,
+  settings: { cabinetDepthMm: WORKTOP_DEPTH_MM },
   placements: [...KITCHEN_L_PLACEMENTS],
   createdAt: "2026-08-25T00:00:00.000Z",
   updatedAt: "2026-08-25T00:00:00.000Z",
