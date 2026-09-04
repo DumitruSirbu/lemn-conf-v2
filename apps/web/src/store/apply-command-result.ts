@@ -71,6 +71,20 @@ export interface ApplyCommandResultInput {
    *  frozen, a column whose full-height unit was deleted in this session went on reporting one
    *  standing there while the same design reloaded reported none. */
   readonly columns: ReadonlyMap<string, Column>;
+  /**
+   * The records the store held **before** this command — the same design at the depth it was at.
+   *
+   * Read by `cabinet_depth_set` and by nothing else, to ask one question a post-command map cannot
+   * answer: was this frozen extent's depth fully explained by the members standing in it, or is part
+   * of it a surplus a delete left behind? A column frozen deeper *by a delete* and one frozen deeper
+   * *by the old setting* are indistinguishable from the current members alone, and telling them
+   * apart is what lets the setting's own direction be followed without collapsing ADR 0011 Gap D's
+   * freed opening.
+   *
+   * Required rather than defaulted for the reason `selection` is: a default would silently pick one
+   * of the two behaviours for a caller that forgot to pass it.
+   */
+  readonly previousRecords: readonly PlacementRecord[];
   /** What is selected right now, which a **whole-kitchen** command leaves exactly where it was: it
    *  points at no cabinet, so it moves no selection (wave 6E). Every other effect names the
    *  placement it acted on and decides this for itself, so this is only ever read on those two
@@ -88,12 +102,13 @@ export function applyCommandResult(
   }
 
   const records = derivePlacementRecords(result.design, input.catalog);
-  const columns = resolveColumns(
-    result.effect,
-    input.columns,
+  const columns = resolveColumns({
+    effect: result.effect,
+    frozen: input.columns,
     records,
-    result.design.room,
-  );
+    previousRecords: input.previousRecords,
+    room: result.design.room,
+  });
   const voids = recomputeVoids(records, columns);
   return {
     applied: true,
@@ -175,12 +190,10 @@ function withFrozenMap(design: Design, frozen: FrozenMapDocument): Design {
  *  between two columns, and an opening derived from the pre-move extents would be drawn where
  *  nothing is free any more. */
 function resolveColumns(
-  effect: CommandEffect,
-  frozen: ReadonlyMap<string, Column>,
-  records: readonly PlacementRecord[],
-  room: DesignRoom,
+  input: PublishedColumnsInput,
 ): ReadonlyMap<string, Column> {
-  const published = publishedColumns({ effect, frozen, records, room });
+  const { records, room } = input;
+  const published = publishedColumns(input);
   // ADR 0037's merge ran here until 2026-08-30 and was withdrawn because §4 had no horizontal half.
   // It returns under ADR 0046's 800 mm cap, and what makes that safe is 5B4a's split rather than the
   // cap: no column is ever wider than its members when `recomputeVoids` runs. The cap cures only the
@@ -232,6 +245,8 @@ interface PublishedColumnsInput {
   readonly effect: CommandEffect;
   readonly frozen: ReadonlyMap<string, Column>;
   readonly records: readonly PlacementRecord[];
+  /** The same records before the command ran — see `ApplyCommandResultInput.previousRecords`. */
+  readonly previousRecords: readonly PlacementRecord[];
   readonly room: DesignRoom;
 }
 
@@ -261,35 +276,65 @@ function publishedColumns(
  *  `columnExtents` — the document that is then saved and reloaded. The domain command makes the same
  *  observation one package over and re-derives for the same reason (`set-cabinet-depth.ts`).
  *
- *  **Deeper only, never shallower**, which is what keeps Gap D intact: a column that is already
- *  frozen deeper than its current members require was frozen that way on purpose — the freed opening
- *  where a base cabinet was deleted out from under a wall body is 620 mm deep because a base cabinet
- *  stood there, and re-deriving it from the wall body alone is exactly what Gap D stops. So this
- *  takes the deeper of the two, which is §3.2's own MAX over a larger set of members and not a new
- *  rule.
+ *  **The extent is split into what its members explain and what a delete left behind, and only the
+ *  first half follows the setting.** Asked at the *old* depth: if the frozen depth is what the
+ *  members standing there measured before the command, nothing was deleted and the depth the same
+ *  members measure at the *new* setting is authoritative — **in both directions**, because the
+ *  command that publishes this map is the one that just rebuilt every one of them. If the frozen
+ *  depth exceeds that, the surplus came from a body no longer present — the 620 mm opening a base
+ *  cabinet left under a wall run — and it is kept, deeper-only, because re-deriving it from the wall
+ *  body alone is exactly what Gap D stops.
  *
- *  **What it deliberately does not fix, and cannot.** A frozen extent with no member left to measure
- *  — a member-less column, or one frozen deeper than what still stands in it — keeps the depth it
- *  was frozen at, and that depth belongs to the old setting. There is nothing present to derive the
- *  new one from: the body that supplied it is gone, and the mapping is per-band rather than a delta
- *  (a base run goes 620 → 720 while a wall run goes 330 → 369). Answering it needs a recorded
- *  decision about what a space with nothing in it does when the kitchen deepens, not a guess here. */
+ *  **This is why the pre-command records are a parameter.** A column frozen deeper by a delete and
+ *  one frozen deeper by the old setting look identical from the current members; the first must keep
+ *  its depth and the second must lose it. Nothing in the post-command state distinguishes them, and
+ *  a rule with no direction — "deeper only, always" — silently picks the wrong one of the two on
+ *  every decrease.
+ *
+ *  **What it deliberately does not fix, and cannot.** The surplus half, and a member-less column
+ *  where there is nothing to measure at either depth, keep the depth they were frozen at. That depth
+ *  belongs to the old setting, the body that supplied it is gone, and the mapping is per chain
+ *  rather than a delta (a base run goes 620 → 720 while a wall run goes 330 → 400). That is exactly
+ *  the residue [ADR 0073](../../../../docs/decisions/0073-a-frozen-extent-records-the-body-its-depth-came-from.md)
+ *  rules on and wave 6K-c closes, by recording the `buildId` the depth came from and re-asking that
+ *  entry. Do not guess it here. */
 function atCurrentCabinetDepth(
   input: PublishedColumnsInput,
 ): ReadonlyMap<string, Column> {
-  // No stored half: this map is only ever read for the depth its **members** imply, and restoring
-  // the frozen entries into it would answer with the very numbers being re-measured.
-  const measured = deriveColumns(input.records, {}, input.room);
-  const deepened = new Map(input.frozen);
+  // No stored half on either call: these two maps are only ever read for the depth their **members**
+  // imply, and restoring the frozen entries into them would answer with the very numbers being
+  // re-measured.
+  const atNewDepth = deriveColumns(input.records, {}, input.room);
+  const atOldDepth = deriveColumns(input.previousRecords, {}, input.room);
+  const republished = new Map(input.frozen);
   for (const [key, column] of input.frozen) {
-    const atDepth = measured.get(key);
-    if (!atDepth || atDepth.d <= column.d) continue;
-    deepened.set(key, deepenedTo(column, atDepth.d));
+    const measured = atNewDepth.get(key);
+    // Member-less at the new depth: nothing to measure, so ADR 0073's residue and not this rule's.
+    if (!measured) continue;
+    const explained = atOldDepth.get(key);
+    const carriesSurplus =
+      explained === undefined ||
+      column.d - explained.d > FROZEN_SURPLUS_EPSILON_M;
+    const depthM = carriesSurplus ? Math.max(column.d, measured.d) : measured.d;
+    if (depthM === column.d) continue;
+    republished.set(key, atDepthM(column, depthM));
   }
-  return deepened;
+  return republished;
 }
 
-/** One column at a new depth, with its along-wall position untouched.
+/** Float slack on the one comparison that decides which of the two rules a column gets, **not**
+ *  manufacturing slack. Both operands are §3.2's MAX over `occupiedDepthM`, each a sum of declared
+ *  millimetres divided by 1000, so a column whose depth is genuinely explained by its members can
+ *  differ from the frozen value by a few ULPs. Read as a surplus, those ULPs would put the column on
+ *  the deeper-only arm and freeze it at the old setting on every decrease — the defect this
+ *  comparison exists to decide, arriving through its own tolerance.
+ *
+ *  Nine orders of magnitude below `FIT_TOLERANCE_M`, the same distance `MODULE_LINE_EPSILON_M` keeps
+ *  for the same reason: ADR 0015 records what happens when a fit tolerance is used where a float
+ *  epsilon belongs. A real surplus is a body's worth of depth, never a nanometre. */
+const FROZEN_SURPLUS_EPSILON_M = 1e-9;
+
+/** One column at a new depth, in either direction, with its along-wall position untouched.
  *
  *  The origin is the column's own half-depth on the wall's normal (`deriveColumns`), so the two move
  *  together or the run is drawn where the shallower kitchen stood. It is recomputed through the
@@ -297,7 +342,7 @@ function atCurrentCabinetDepth(
  *  wall A and the normal one on wall B, and a store that picked the axis itself would be a second
  *  author for §2's wall convention. The along-wall coordinate is projected back out with the same
  *  wall's tangent, which is what stops a widened extent from snapping to its members' centre. */
-function deepenedTo(column: Column, depthM: number): Column {
+function atDepthM(column: Column, depthM: number): Column {
   const wall = getWallTransform(column.wall);
   const alongM = wall.tangent.x * column.x + wall.tangent.z * column.z;
   const { position } = deriveCabinetWorldTransform({

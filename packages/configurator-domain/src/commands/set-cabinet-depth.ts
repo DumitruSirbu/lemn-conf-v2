@@ -155,7 +155,13 @@ function rebuildEveryBodyAt(input: SetCabinetDepthInput): Rebuilt {
       // precisely the mistake that once turned `hood-600` into `hood` and changed its height. Its
       // width, height and position are not functions of the depth. Its **seat** is, so that is the
       // one field this rewrites, measured off a body probed at the new depth.
-      placements.push(reseat(input, record, placement));
+      placements.push(
+        reseat({
+          probe: input.probe,
+          placement,
+          declaredDepthM: toMetres(declaredFrameDepthMm(catalog, record)),
+        }),
+      );
       rebuiltCount += 1;
       continue;
     }
@@ -172,19 +178,35 @@ function rebuildEveryBodyAt(input: SetCabinetDepthInput): Rebuilt {
   return { ok: true, value: { placements, rebuiltCount } };
 }
 
-/** One structural body measured again at the depth its column now stands at. `record.frame.d` is
- *  derived from the catalogue built at the new depth, so the depth is read from the rebuilt world
- *  rather than passed in — the same reason `rebuildEveryBodyAt` never carries a depth of its own. */
-function reseat(
-  input: SetCabinetDepthInput,
-  record: PlacementRecord,
-  placement: DesignPlacement,
-): DesignPlacement {
+interface ReseatInput {
+  readonly probe: BodyProbe;
+  readonly placement: DesignPlacement;
+  /** What the catalogue built at the **new** setting declares this body's frame depth to be. */
+  readonly declaredDepthM: number;
+}
+
+/** One structural body measured again at the depth the new catalogue declares for it. Its width,
+ *  height and position are not functions of the setting; its **seat** is, so that is the one field
+ *  this rewrites.
+ *
+ *  **The depth comes from the catalogue entry, never from the record's own frame.** `record.frame.d`
+ *  reads as the rebuilt world's answer and is one only the first time: `deriveFrame` resolves it as
+ *  `placement.body.seatDepthMm ?? definition.frameDepthMm` (ADR 0011 Gap B), so the moment this
+ *  function has written a seat, that `??` takes the stored one and the new catalogue's number is
+ *  never consulted again. Every later change then asks the probe to build the body at the depth it
+ *  already has — and for a `recorded-shell` entry, whose builder consumes the depth it is handed and
+ *  subtracts its front assembly, the answer is 39 mm shallower each time, in **either** direction:
+ *  291 → 322 → 283 → 244 → 174, with no floor and nothing on the way refusing it, because each
+ *  individual document is valid. That is the "silent mixture" `rebuildEveryBodyAt` refuses one
+ *  branch over, arriving through this one. `frameDepthMm` is the same fallback `deriveFrame` reads
+ *  for a placement with no seat, so this is the number the first change was already right by. */
+function reseat(input: ReseatInput): DesignPlacement {
+  const { placement } = input;
   const measurement = input.probe.measure({
-    buildId: record.buildId,
+    buildId: placement.body.buildId,
     widthM: toMetres(placement.body.widthMm),
     heightM: toMetres(placement.body.heightMm),
-    depthM: record.frame.d,
+    depthM: input.declaredDepthM,
   });
   return {
     ...placement,
@@ -193,6 +215,20 @@ function reseat(
       seatDepthMm: toMillimetres(2 * measurement.seatOffsetM),
     },
   };
+}
+
+/** The entry's declared frame depth, at whatever setting the catalogue handed here was built at.
+ *  Total rather than optional: `movesWithTheSetting` has already read a depth rule off this same
+ *  entry to get here, so an absent one means the map changed underneath the loop. */
+function declaredFrameDepthMm(
+  catalog: BodyCatalog,
+  record: PlacementRecord,
+): number {
+  const definition = catalog.get(record.buildId);
+  if (!definition) {
+    throw new Error(`setCabinetDepth: ${record.buildId} left the catalogue`);
+  }
+  return definition.frameDepthMm;
 }
 
 /** ADR 0058's exclusion, asked of the declaration. An entry with no rule at all is left alone rather

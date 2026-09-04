@@ -358,6 +358,9 @@ export function createConfiguratorStore(
         result,
         catalog,
         columns: state.columns,
+        // The design as it stood before this command, which only a depth change reads: it is the
+        // one thing that separates an extent a delete froze deep from one the old setting did.
+        previousRecords: state.records,
         selection: state.selection,
       });
       if (!application.applied) {
