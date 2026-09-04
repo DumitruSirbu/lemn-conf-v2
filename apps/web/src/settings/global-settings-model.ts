@@ -12,10 +12,13 @@
 // the design *carries* — `applied` — because they are visible with the sheet shut. The options
 // inside name what the customer has *chosen and not yet applied* — `pending`. Collapsing the two
 // would make the chips change under a customer who has not pressed *Aplică* yet.
-import type {
-  DisplayGroup,
-  PricingResult,
-  RejectionReason,
+import {
+  DEFAULT_CABINET_DEPTH_MM,
+  declaredCabinetDepthsMm,
+  MIN_CABINET_DEPTH_MM,
+  type DisplayGroup,
+  type PricingResult,
+  type RejectionReason,
 } from "@lemnaria/configurator-domain";
 
 import { ro } from "@/content/ro";
@@ -61,6 +64,42 @@ export interface TierGroupView {
   readonly options: readonly TierOption[];
 }
 
+/** One offered cabinet depth, as a customer reads it. **No delta and no anchor**: a depth change
+ *  moves no price, so the tier shape's two price fields would have to be invented empty here — see
+ *  `DepthGroupView`. */
+export interface DepthOption {
+  readonly cabinetDepthMm: number;
+  readonly label: string;
+  /** Against the **pending** choice, like a tier's — the sheet edits pending, not applied. */
+  readonly isSelected: boolean;
+}
+
+/**
+ * The third whole-kitchen group, and **deliberately not a `TierGroupView`**.
+ *
+ * A tier group is shaped by a price: `tierIds` is what the 6E commands take as `availableTierIds`,
+ * `anchor` names what its deltas are measured against, and each option carries a `deltaText`. A
+ * depth has none of the three — it adds no price line at all (ADR 0036 decision 3), so forcing it
+ * through that shape means an empty `tierIds`, an absent anchor and an option type whose price field
+ * is never populated. That is a lie in the type rather than a saving.
+ *
+ * It is a second *shape* in one view, not a second sheet: `describeGlobalSettings` still returns one
+ * value, the component still renders one surface with one apply, and the two section renderers sit
+ * side by side in it.
+ */
+export interface DepthGroupView {
+  readonly heading: string;
+  /** **Read from the declared map, never counted by the component** (ADR 0056): a toggle at two
+   *  declared depths, a list at three or more. Deciding it here is what makes a third depth a data
+   *  row rather than a markup change. */
+  readonly shape: "toggle" | "list";
+  readonly options: readonly DepthOption[];
+  /** Why this group shows no price. Stated so its absence does not read as a line that is missing. */
+  readonly note: string;
+  /** What changing it does, in words unlike the material warning's — see `ro.globalSettings`. */
+  readonly warning: string;
+}
+
 /** One of the two summaries standing beside the control that opens the sheet. */
 export interface SettingsChip {
   readonly key: WholeKitchenGroupKey;
@@ -86,6 +125,9 @@ export interface GlobalSettingsView {
   /** How many bodies this applies to, and that it is not set per cabinet. */
   readonly appliesTo: string;
   readonly groups: readonly TierGroupView[];
+  /** The depth, as its own group. Always present: the map always declares at least one depth, and a
+   *  sheet that hid the control when only one was offered would make the setting undiscoverable. */
+  readonly depthGroup: DepthGroupView;
   readonly warning: string;
   /** The running total, restated here because on both shells this surface covers the bar that shows
    *  it — and because a customer choosing a tier is choosing against a figure. Absent, never zero,
@@ -108,6 +150,9 @@ export interface GlobalSettingsView {
 export interface WholeKitchenChoice {
   readonly materialTierId?: string | undefined;
   readonly hardwareTierId?: string | undefined;
+  /** Optional for the reason the two tier ids are: `design.settings` is, and a document written
+   *  before wave 6J-a carries none. An absent choice reads as the declared default. */
+  readonly cabinetDepthMm?: number | undefined;
 }
 
 export interface DescribeGlobalSettingsInput {
@@ -147,11 +192,43 @@ export function describeGlobalSettings(
       toGroupView("material", material, input.pending.materialTierId),
       toGroupView("hardware", hardware, input.pending.hardwareTierId),
     ],
+    depthGroup: toDepthGroupView(input.pending.cabinetDepthMm),
     warning: ro.globalSettings.materialWarning,
     ...(figure === undefined ? {} : { figure }),
     ...(overflowWarning === undefined ? {} : { overflowWarning }),
     applyLabel: ro.globalSettings.apply,
     cancelLabel: ro.globalSettings.cancel,
+  };
+}
+
+/** **The depths a customer may choose, read off the declared map and held to ADR 0059's floor.**
+ *
+ *  The floor is the domain's own constant rather than the arithmetic behind it — `(d − 40)/2 − 240`
+ *  stays in `worktop-depth.ts`, where the command enforces it too, so a document cannot arrive below
+ *  it by another route. Filtering here rather than trusting the map is §9's *never offer what cannot
+ *  be satisfied*: a depth the map declared and the command would refuse must not reach a control.
+ *  Today the filter removes nothing, and `cabinet-depth-control.test.ts` is what would say so. */
+function offeredCabinetDepthsMm(): readonly number[] {
+  return declaredCabinetDepthsMm().filter(
+    (cabinetDepthMm) => cabinetDepthMm >= MIN_CABINET_DEPTH_MM,
+  );
+}
+
+function toDepthGroupView(pendingDepthMm: number | undefined): DepthGroupView {
+  const offered = offeredCabinetDepthsMm();
+  const selected = offered.includes(pendingDepthMm ?? Number.NaN)
+    ? pendingDepthMm
+    : DEFAULT_CABINET_DEPTH_MM;
+  return {
+    heading: ro.globalSettings.depthHeading,
+    shape: offered.length === 2 ? "toggle" : "list",
+    options: offered.map((cabinetDepthMm) => ({
+      cabinetDepthMm,
+      label: ro.globalSettings.depthOption(cabinetDepthMm),
+      isSelected: cabinetDepthMm === selected,
+    })),
+    note: ro.globalSettings.depthNote,
+    warning: ro.globalSettings.depthWarning,
   };
 }
 

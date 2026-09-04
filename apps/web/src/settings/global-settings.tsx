@@ -38,6 +38,7 @@ import { useConfiguratorStore } from "@/store/configurator-store";
 import {
   describeGlobalSettings,
   type GlobalSettingsView,
+  type DepthGroupView,
   type TierGroupView,
   type WholeKitchenChoice,
   type WholeKitchenGroupKey,
@@ -68,6 +69,9 @@ export function GlobalSettings() {
   );
   const setHardwareTier = useConfiguratorStore(
     (state) => state.setHardwareTier,
+  );
+  const setCabinetDepth = useConfiguratorStore(
+    (state) => state.setCabinetDepth,
   );
   // Only the figure's *label* reads this — the total itself does not move under a refusal. Taken
   // here so the sheet cannot say *"De la"* over the bar it is covering while the bar behind the
@@ -128,6 +132,10 @@ export function GlobalSettings() {
     );
   }
 
+  function chooseDepth(cabinetDepthMm: number): void {
+    setPending((chosen) => ({ ...chosen, cabinetDepthMm }));
+  }
+
   /** **Cancel writes nothing**, and apply writes only what changed — so opening the sheet and
    *  pressing *Aplică* without choosing anything leaves the document untouched rather than stamping
    *  the book's defaults into it. */
@@ -144,6 +152,15 @@ export function GlobalSettings() {
       availableTierIds: offer.hardware.tierIds,
       commit: setHardwareTier,
     });
+    // The same two guards the tiers get, and they matter more here: a depth change rebuilds every
+    // body and the whole 3D scene (ADR 0074), so applying an unchanged depth would be the most
+    // expensive no-op in the product.
+    if (
+      pending.cabinetDepthMm !== undefined &&
+      pending.cabinetDepthMm !== applied.cabinetDepthMm
+    ) {
+      setCabinetDepth(pending.cabinetDepthMm);
+    }
     close();
   }
 
@@ -190,6 +207,7 @@ export function GlobalSettings() {
             ref={surfaceRef}
             view={view}
             onChoose={chooseTier}
+            onChooseDepth={chooseDepth}
             onCancel={close}
             onApply={applyPending}
           />
@@ -283,6 +301,7 @@ export function GlobalSettingsSurface({
   ref,
   view,
   onChoose,
+  onChooseDepth,
   onCancel,
   onApply,
 }: {
@@ -290,6 +309,10 @@ export function GlobalSettingsSurface({
   readonly ref?: Ref<HTMLDivElement>;
   readonly view: GlobalSettingsView;
   readonly onChoose: (key: WholeKitchenGroupKey, tierId: string) => void;
+  /** Separate from `onChoose` because a depth is not a tier id: it carries no group key and no
+   *  `availableTierIds`, and widening the tier callback to take a number would make the type say a
+   *  depth is one of the things a tier group offers. */
+  readonly onChooseDepth: (cabinetDepthMm: number) => void;
   readonly onCancel: () => void;
   readonly onApply: () => void;
 }) {
@@ -327,6 +350,11 @@ export function GlobalSettingsSurface({
             namePrefix={id}
           />
         ))}
+        <DepthGroupSection
+          group={view.depthGroup}
+          onChoose={onChooseDepth}
+          namePrefix={id}
+        />
         <p className={styles.warning} data-testid="global-settings-warning">
           <span className={styles.warningMark} aria-hidden="true">
             {NOTE_GLYPH}
@@ -420,6 +448,72 @@ function whereTabMustLand(
   if (at === -1) return isBackwards ? last : first;
   if (isBackwards) return at === 0 ? last : undefined;
   return at === stops.length - 1 ? first : undefined;
+}
+
+/** The depth group: the same native radios the tier groups use, for the same reason, and a note and
+ *  a warning instead of an anchor and a delta.
+ *
+ *  **`view.depthGroup.shape` is read, never derived here.** Which control two declared depths earn
+ *  is a rule about the declared map (ADR 0056) and it lives in the model; a component counting its
+ *  own options would be a second author for it, and the count is exactly what a third declared depth
+ *  changes. Today both shapes render the same radios and the attribute is what a shell or a test
+ *  reads — the toggle's own layout is CSS, not markup. */
+function DepthGroupSection({
+  group,
+  namePrefix,
+  onChoose,
+}: {
+  readonly group: DepthGroupView;
+  readonly namePrefix: string;
+  readonly onChoose: (cabinetDepthMm: number) => void;
+}) {
+  const headingId = `${namePrefix}-cabinet-depth-heading`;
+  return (
+    <section
+      role="radiogroup"
+      aria-labelledby={headingId}
+      className={styles.group}
+      data-testid="global-settings-depth-group"
+      data-shape={group.shape}
+    >
+      <h3 id={headingId} className={styles.heading}>
+        {group.heading}
+      </h3>
+      {group.options.map((option) => (
+        <label
+          key={option.cabinetDepthMm}
+          className={styles.option}
+          data-selected={option.isSelected}
+          data-testid="global-settings-depth-option"
+        >
+          <input
+            type="radio"
+            className={styles.radio}
+            name={`${namePrefix}-cabinet-depth`}
+            value={option.cabinetDepthMm}
+            checked={option.isSelected}
+            onChange={() => {
+              onChoose(option.cabinetDepthMm);
+            }}
+          />
+          <span className={styles.optionText}>
+            <span className={styles.optionName}>{option.label}</span>
+          </span>
+        </label>
+      ))}
+      {/* Why there is no amount beside any of these, so the absence does not read as a missing
+          line. */}
+      <p className={styles.anchor} data-testid="global-settings-depth-note">
+        {group.note}
+      </p>
+      <p className={styles.warning} data-testid="global-settings-depth-warning">
+        <span className={styles.warningMark} aria-hidden="true">
+          {NOTE_GLYPH}
+        </span>
+        {group.warning}
+      </p>
+    </section>
+  );
 }
 
 /** One group of tiers: native radios, so the arrow keys behave the way a customer's assistive

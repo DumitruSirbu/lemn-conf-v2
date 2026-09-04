@@ -107,6 +107,7 @@ function markupOf(view: GlobalSettingsView): string {
       id: "settings",
       view,
       onChoose: () => undefined,
+      onChooseDepth: () => undefined,
       onCancel: () => undefined,
       onApply: () => undefined,
     }),
@@ -410,7 +411,12 @@ describe("a stored tier the book no longer offers", () => {
 
     for (const tier of SAMPLE_PRICE_BOOK.material.tiers)
       expect(markup, tier.tierId).toContain(`value="${tier.tierId}"`);
-    expect([...markup.matchAll(/checked=""/g)].length).toBe(2);
+    // One per radiogroup, derived — the sheet gained a third group in wave 6K-b and will gain a
+    // fourth with 6R's finish control, and "exactly one option is checked in each" is the claim
+    // either way.
+    expect([...markup.matchAll(/checked=""/g)].length).toBe(
+      [...markup.matchAll(/role="radiogroup"/g)].length,
+    );
   });
 
   it("still hands apply the ids the 6E commands accept", () => {

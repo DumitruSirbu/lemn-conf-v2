@@ -211,6 +211,7 @@ function markupOf(view: GlobalSettingsView): string {
       id: "settings",
       view,
       onChoose: () => undefined,
+      onChooseDepth: () => undefined,
       onCancel: () => undefined,
       onApply: () => undefined,
     }),

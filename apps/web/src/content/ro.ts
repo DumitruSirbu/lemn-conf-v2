@@ -499,6 +499,28 @@ export const ro = {
       `${STARTING_PREFIX.toLowerCase()} ${addedAmount}`,
     /** Frames 2E / D2E's note, less its 6F clause — see this section's own comment. */
     materialWarning: "Schimbarea materialului recalculează întreaga estimare.",
+    /** The third group's heading (ADR 0056). *Adâncime* alone would read as any depth on the
+     *  drawing; the corps are what the setting is about, and the frames head the material group the
+     *  same way — by what it applies to, not by the property's bare name. */
+    depthHeading: "Adâncimea corpurilor",
+    /** One offered depth, as a customer reads it. Millimetres because that is the unit every other
+     *  dimension in this product is stated in, and the number arrives from the declared map — this
+     *  is the two characters around it, never a list of the depths themselves. */
+    depthOption: (cabinetDepthMm: number) => `${String(cabinetDepthMm)} mm`,
+    /** **Deliberately unlike `materialWarning`, because the consequences are not alike.** A material
+     *  change recalculates an estimate — a number moves. A depth change rebuilds every carcass and
+     *  redraws the kitchen — the *model* moves. Copy that made the two read the same way would tell
+     *  a customer to expect a new figure and hand them a new room.
+     *
+     *  It carries **no digit**, deliberately: `starting-price.adversarial.test.ts` holds every
+     *  string in this section to that, because a numeral in copy beside a price list reads as an
+     *  amount. *"modelul 3D"* would be the natural phrase and is exactly what that gate refuses. */
+    depthWarning:
+      "Schimbarea adâncimii reconstruiește toate corpurile și schimbă modelul.",
+    /** **Why there is no price line here**, said once so its absence does not read as a line we
+     *  forgot. ADR 0036 decision 3 keeps the worktop out of geometry and price entirely, and the
+     *  carcass depth changes no tier: the estimate is the same kitchen at a different depth. */
+    depthNote: "Adâncimea nu schimbă estimarea — doar dimensiunile corpurilor.",
     /** Frame 2E's single action, and frame D2E's pair. Both shells carry both: this surface holds
      *  uncommitted state, so a customer who opened it must be able to leave without applying. */
     apply: "Aplică",

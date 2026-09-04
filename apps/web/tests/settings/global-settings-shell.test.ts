@@ -337,6 +337,7 @@ describe("the overflow flag travels with the total onto this surface too", () =>
         id: "settings",
         view: viewOf(overflowing),
         onChoose: () => undefined,
+        onChooseDepth: () => undefined,
         onCancel: () => undefined,
         onApply: () => undefined,
       }),
@@ -350,6 +351,7 @@ describe("the overflow flag travels with the total onto this surface too", () =>
           id: "settings",
           view: viewOf(KITCHEN_L_DESIGN),
           onChoose: () => undefined,
+          onChooseDepth: () => undefined,
           onCancel: () => undefined,
           onApply: () => undefined,
         }),
@@ -402,6 +404,7 @@ describe("the markup preconditions the focus trap is written against", () => {
         id: "settings",
         view,
         onChoose: () => undefined,
+        onChooseDepth: () => undefined,
         onCancel: () => undefined,
         onApply: () => undefined,
       }),
@@ -430,7 +433,10 @@ describe("the markup preconditions the focus trap is written against", () => {
       );
       const groups = [...markup.matchAll(/role="radiogroup"/g)];
 
-      expect(groups.length, JSON.stringify(pending)).toBe(2);
+      // Three since wave 6K-b: the two tier groups and the cabinet depth. The invariant the trap
+      // rests on is the line below — exactly one checked option per group — and it is derived, so a
+      // fourth group does not silently satisfy it by arithmetic.
+      expect(groups.length, JSON.stringify(pending)).toBe(3);
       expect(checked.length, JSON.stringify(pending)).toBe(groups.length);
     }
   });
@@ -447,11 +453,16 @@ describe("the markup preconditions the focus trap is written against", () => {
   });
 
   it("puts a radio at the head of the ring and the apply button at its tail", () => {
-    const stops = tabStopsIn(surfaceMarkupFor(undefined));
+    const markup = surfaceMarkupFor(undefined);
+    const stops = tabStopsIn(markup);
+    // One stop per radiogroup — the browser's own radio behaviour makes a group one stop, which is
+    // the precondition the test above pins — plus cancel and apply. Derived, so the ring's shape is
+    // asserted rather than its length at the moment this was written.
+    const groupCount = [...markup.matchAll(/role="radiogroup"/g)].length;
 
-    expect(stops.length).toBe(4);
-    expect(stops.at(0)).toContain('type="radio"');
-    expect(stops.at(1)).toContain('type="radio"');
+    expect(stops.length).toBe(groupCount + 2);
+    for (let at = 0; at < groupCount; at += 1)
+      expect(stops.at(at), `stop ${String(at)}`).toContain('type="radio"');
     expect(stops.at(-2)).toContain('data-testid="global-settings-cancel"');
     expect(stops.at(-1)).toContain('data-testid="global-settings-apply"');
   });
