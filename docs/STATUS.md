@@ -3,7 +3,7 @@
 **Read this second, right after `AGENTS.md`, before opening any milestone document.** It exists so a
 session can learn fast where the project stands, without reading eight phase plans.
 
-Last updated: 2026-09-03. **Currently in progress: M6**, on branch `m6-price-and-global-settings`.
+Last updated: 2026-09-04. **Currently in progress: M6**, on branch `m6-price-and-global-settings`.
 **M5 wave 5E — the browser/mobile gate — remains open and unverified**; it does not block M6 and M6
 started ahead of it by the owner's decision. Everything else through M5B, M5 waves 5G/5H, and the
 adversarial-review remediation is shipped; find any phase's detail in the table below, then follow
@@ -32,7 +32,7 @@ moment it ships; a decision record does not. When the two disagree, the dated de
 | M3 — Insert, remove, swap, client write path | **Done** (closed 2026-08-26) | No — `milestones/done/` |
 | M4 — Editor panel and shell | **Done** (closed 2026-08-26 — one criterion unmet by design, ADR 0024) | No — `milestones/done/` |
 | M5 — Width editing, and depth as a derived quantity | **In progress — 5E is the only wave open.** 5A–5D2c, 5F, 5G, 5H all shipped | Yes — `milestones/M5-*.md`, and ADRs 0028–0041, 0052, 0053 |
-| M6 — Price bar and global settings (incl. cabinet depth control) | **In progress** — 13 waves in three tracks, all unblocked; on branch `m6-price-and-global-settings`, 6A (`6c1f830`), 6H (`4afda06`), 6A3 and 6B2 (`eb9ba03`) all shipped 2026-09-03 | Yes — `milestones/M6-*.md`, and ADRs 0055–0069 |
+| M6 — Price bar and global settings (incl. cabinet depth control) | **In progress — 10 of 19 waves DONE.** On branch `m6-price-and-global-settings`: 6A (`6c1f830`), 6H (`4afda06`), 6A3 and 6B2 (`eb9ba03`) shipped 2026-09-03; 6C (`194405b`) and 6D (`a5e161f`) shipped 2026-09-03 but only received their DONE marker this pass — a documentation gap, not new work; 6E (`b558e28`), 6G (`3e546d1`), 6I2 and 6M (merged at `ce77171`) shipped 2026-09-03/04. Open: 6F, 6J, 6K. Shipped-but-uncertified: 6A2, 6A4, 6B, 6I, 6L. Not started: 6N | Yes — `milestones/M6-*.md`, and ADRs 0055–0069 |
 | M7 — Step 1, room and presets | Planned | Yes, when starting |
 | M8 — Review, contact, success | Planned | Yes, when starting |
 | Adversarial review remediation | **Every finding closed or gated.** SEC-001 (High) deferred to M8 by owner decision, gated. Everything else — SCENE-001/002, WEB-001–004, DOM-001–003, SEC-002–004, DB-001/002/004 — is implemented and reviewed | Yes — `milestones/adversarial-review-remediation.md`, `milestones/dom-003-set-width-split.md` |
@@ -112,9 +112,10 @@ PASS.
   the shape of the problem.
 - **The open owner question ADR 0069 hands on: should the product _offer_ an insertion opening that
   lies past the end of a wall?** Distinct from marking a body the customer already placed, which is
-  ruled (ADR 0065, ADR 0069). It covers both a remnant the product itself creates (wave 6M / M7) and
-  a fabricated empty-column entry — one decision governs both. Not urgent, not blocking; **owned by
-  wave 6M**, recorded in ADR 0069's consequences.
+  ruled (ADR 0065, ADR 0069). It covers both a remnant the product itself creates and a fabricated
+  empty-column entry — one decision governs both. **Wave 6M shipped 2026-09-04 without touching it**
+  (confirmed at its close-out, `milestones/M6-price-and-global-settings.md`) — it needs the owner
+  before either M6's remaining waves or M7's generation can assume an answer either way.
 - **A gate is owed on the rejection banner's newly-found route, and nobody has written it.** Wave 6C's
   visual verification disproved [ADR 0024](decisions/0024-the-rejection-banner-has-no-reachable-path.md)'s
   "no refusal is reachable by construction": **a double-tap on `Șterge corpul` reaches the banner** —
@@ -225,14 +226,32 @@ policy, so every per-endpoint limit is application code.
 ## What to do next
 
 **Next: M6, on branch `m6-price-and-global-settings`.** Read
-`milestones/M6-price-and-global-settings.md` for the 13-wave breakdown and ADRs 0055–0063 for the
-decisions behind it. All seven owner decisions are closed and every wave is unblocked. **6A** (the
-one canonical projection) and **6H** (cabinet depth becomes a parameter) shipped 2026-09-03, as did
-**6A3** (a body past the end of its wall is one published fact and a non-fatal mark, ADRs 0065/0069)
-and **6B2** (the door step and the height term, ADR 0068) — both in `eb9ba03`, with the three items
-they left open listed under *What is open right now*. 6L runs
-before both 6B and 6G; 6I2 lands before 6J. Do not start a wave without reading its section — several
-carry criteria inherited from another wave.
+`milestones/M6-price-and-global-settings.md` for the 19-wave breakdown and ADRs 0055–0069 for the
+decisions behind it. All seven owner decisions are closed. **Ten of nineteen waves are DONE**: 6A,
+6H, 6A3, 6B2 (2026-09-03); 6C, 6D (shipped 2026-09-03, DONE marker added this pass — a pre-existing
+documentation gap, not new work); 6E, 6G, 6I2, 6M (2026-09-03/04, merged at `ce77171`). **Three
+remain open — 6F, 6J, 6K.** Five have shipped commits but no recorded criteria check — **6A2, 6A4,
+6B, 6I, 6L**, bundled inside `93e9bc3`/`75668b8`/`dfa6198` — do not read these as either closed or
+blocked without checking their own section. **6N has not started.**
+
+**Verified at the close of this pass (`ce77171`), reported by the closing session and not
+independently re-run here**: nine of ten `pnpm ci:local` gates green (format, lint, typecheck, test,
+e2e, build, boundary, lockfile). Domain 102 files / 2044 tests, persistence 15/177, three-adapter
+48/1767, web 84 files / 1280 passed + 4 skipped, **e2e 57 passed**. `sca` failed the whole session on
+`ERR_SOCKET_TIMEOUT` reaching `registry.npmjs.org` — environmental, not caused by any diff in this
+branch.
+
+**Owner questions this pass surfaced, none yet answered — see the milestone file's own wave
+sections for the detail rather than restating it here:** the price delta's anchor and its rounding
+direction (wave 6G close-out); a stored material/hardware tier the price book no longer offers (wave
+6E close-out, registered against wave 6F); the two overflow strings' on-screen distance and the
+scene warning being hidden behind §9's sheet while it is open (wave 6M close-out). **A correction to
+ADR 0060 decision 4's wording is appended to that ADR directly**, not restated here.
+
+6L runs before both 6B and 6G; 6I2 lands before 6J. Do not start a wave without reading its section —
+several carry criteria inherited from another wave, including two now owed by 6J: the command-path
+assertion at 700 mm (6I2's close-out, in the milestone file) and the wall-map-versus-base-formula
+catalogue fact (6A3's own punch list, item 3, in the milestone file — not separately listed here).
 
 **M5 wave 5E is still owed** and is described above under *What is open right now*. It is not next
 only because M6 does not depend on it. Before writing an assertion for it, read **ADR 0035** (stepper

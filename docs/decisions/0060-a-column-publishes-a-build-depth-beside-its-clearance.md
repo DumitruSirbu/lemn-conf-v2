@@ -139,3 +139,28 @@ decision and no longer an inference.
   599 mm pantry stands **1 mm** proud, which is what `p23` does today and is the reference's
   40-versus-39 rounding, recorded in `kitchen-parts.ts`.
 - The M1 fidelity gate is unaffected where the cap already governs; only the lifted arm moves.
+
+## Correction, recorded at wave 6I2's close-out, 2026-09-04
+
+**Decision 4's sentence overreaches, and the fix is in what 6I2 actually shipped, not in this
+record.** *"There is no route that puts a 330 mm body over a column for a later swap to inherit"* is
+literally false: no route **writes** one — `seatDepthMm` has exactly two writers in the domain
+(`commands/insert-body.ts` and `commands/rebuild-resized-bodies.ts`), and neither can produce a
+shallow body over a full-height member — but the *state* is reachable by a different mechanism this
+sentence does not name. `hasFullHeightUnder` is **re-answered** from the along-wall overlap on every
+derivation; an *existing* body's own recorded depth is never re-derived once placed
+([ADR 0040](0040-a-recorded-seat-is-converted-back-not-read-as-a-depth.md) — a recorded seat is
+converted back, not read as a fresh depth). So a shallow wall body placed while nothing stood under
+it, followed by a full-height member inserted under it afterwards, leaves the wall body's own
+`seatDepthMm` exactly where it was: shallow, over a column, without any route having *written* that
+combination in one step.
+
+**Decision 4's purpose clause is fully satisfied regardless** — "which is what makes 3 stable rather
+than coincidental" still holds, because decision 4 is about **swap's** input, and a swap over such a
+column still can only preserve a depth some earlier route produced. The overreach is in the standalone
+claim about reachability, not in what the decision was protecting.
+
+Not amending decision 4's wording above — it is dated and stands as written, and this correction is
+appended rather than folded in, per this project's rule that a decision record accumulates rather
+than erases. A reader relying on "no route puts a 330 mm body over a column" for anything beyond
+decision 3's stability should read this correction first.

@@ -329,6 +329,20 @@ meant to falsify it was a no-op. Against the build it died, and the assertion tu
 genuinely falsifiable. **A survivor is a claim about the guard only once the mutation is known to
 have landed** — otherwise it is a claim about the build.
 
+### A predicate over a band is suspect unless it goes through `normaliseBand`
+
+`top` folds into `wall` (ADR 0011 Gap C) for every reader that groups or counts by band. A predicate
+that reads the raw `band` field instead is silently wrong for every top-row body, and it looks
+correct in isolation because nothing about it fails to compile or to run.
+
+**The same shape bites a set-membership assertion specifically.** A property asserted as "true over
+every member of a set" needs a **minimum count per arm** of whatever it is branching on, not only a
+total count — otherwise the sweep can pass while landing entirely on the arm nobody changed, and it
+certifies nothing about the arm that moved. Found at M6 wave 6I2's close-out (2026-09-04): the
+wave's strongest property was first swept without a floor per arm, and the fixture the sweep reached
+happened to be the arm 6I2 did **not** touch — see `docs/milestones/M6-price-and-global-settings.md`
+wave 6I2's close-out for the specific instance.
+
 ## Evidence standards
 
 - A green command is evidence only when the agent actually ran it and reports the command and result.

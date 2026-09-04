@@ -1,11 +1,20 @@
 # M6 — Live price, breakdown, and whole-kitchen settings (2D, 2E)
 
-> **STATUS: IN PROGRESS — waves sequenced 2026-09-02, first waves shipped 2026-09-03.** Four waves
-> are marked **DONE** in the table below with their commits (6A, 6H, 6A3, 6B2); the others carry no
-> marker and are not to be read as closed either way — see `docs/STATUS.md`. Depends on M5 (only wave 5E is still open there,
-> and it does not gate anything here). Summary: `docs/STATUS.md`. Start at **Waves** below, then the
-> owner section. **Nineteen waves, all unblocked.** The seven owner decisions were taken on
-> 2026-09-02 (ADRs 0055–0061); ADRs 0062–0064 followed, the last two on 2026-09-03.
+> **STATUS: IN PROGRESS — waves sequenced 2026-09-02, first waves shipped 2026-09-03; four more
+> closed overnight 2026-09-03/04.** **Ten of nineteen waves are DONE** in the table below, each with
+> its commit(s): 6A (`6c1f830`), 6H (`4afda06`), 6A3 and 6B2 (`eb9ba03`), all shipped 2026-09-03.
+> **6C (`194405b`) and 6D (`a5e161f`) are marked DONE by this pass** — both had already shipped and
+> `docs/STATUS.md` already carried QA evidence for 6C, but neither had ever received the table's DONE
+> marker; recorded here as the gap it is, not attributed to this session's own work. **6E (`b558e28`),
+> 6G (`3e546d1`), 6I2 and 6M** (merged together at `ce77171`, via intermediate merge `4c4e4e0`) shipped
+> 2026-09-03/04 on branch `m6-price-and-global-settings` and are this pass's actual close-out. **Not
+> marked DONE, and not to be read as closed either way**: 6B, 6A2, 6A4, 6I, 6L have shipped commits
+> (bundled inside `93e9bc3`/`75668b8`/`dfa6198`) but no recorded criteria check — see `docs/STATUS.md`.
+> **6F, 6J, 6K remain open**, and **6N has not started**. Depends on M5 (only wave 5E is still open
+> there, and it does not gate anything here). Summary: `docs/STATUS.md`. Start at **Waves** below,
+> then the owner section. **Nineteen waves, all
+> unblocked.** The seven owner decisions were taken on 2026-09-02 (ADRs 0055–0061); ADRs 0062–0064
+> followed, the last two on 2026-09-03.
 
 Status: planned, waves sequenced. Depends on M5.
 Reference: mockup frames 2A, 2D, 2E and D2A, D2D, D2E; `DEVELOPMENT-SPEC.md` §5.5, §9 item 7, §12;
@@ -217,18 +226,18 @@ constant (`worktop-depth.ts` carries a comment saying the rename is owed and def
 | 6A4 — the wall corner returns get their own kinds and names *(ADR 0066)* | P | 6A | Full |
 | 6B — price book and pure pricing query | P | 6A, 6A2, 6A3, 6A4 | Full |
 | 6B2 — the door step and the height term *(ADR 0068)* — **DONE 2026-09-03, `eb9ba03`** | P | 6B **cleared through QA** | Full |
-| 6C — the price bar, both shells | P | 6B | Full |
-| 6D — the breakdown (2D / D2D) | P | 6C | Light + visual |
-| 6E — the whole-kitchen settings container | G | 6B | Full |
+| 6C — the price bar, both shells — **DONE 2026-09-03, `194405b`** | P | 6B | Full |
+| 6D — the breakdown (2D / D2D) — **DONE 2026-09-03, `a5e161f`** | P | 6C | Light + visual |
+| 6E — the whole-kitchen settings container — **DONE 2026-09-03, `b558e28`** | G | 6B | Full |
 | 6F — a material that invalidates a finish | G | 6E — **unblocked, ADR 0057** | Full |
-| 6G — the settings surface (2E / D2E) | G | 6D, 6E | Light + visual |
+| 6G — the settings surface (2E / D2E) — **DONE 2026-09-04, `3e546d1`** | G | 6D, 6E | Light + visual |
 | 6H — cabinet depth becomes a parameter — **DONE 2026-09-03, `4afda06`** | D | none | Full |
 | 6I — the base family follows the formula | D | 6H | Full |
-| 6I2 — clearance is not a build depth *(backlog 15, 10)* | D | 6I — **unblocked, ADR 0060** | Full |
+| 6I2 — clearance is not a build depth *(backlog 15, 10)* — **DONE 2026-09-04, `ce77171`** | D | 6I — **unblocked, ADR 0060** | Full |
 | 6J — the persisted setting and what a change does | D | 6H, 6I, 6I2 — **unblocked, ADRs 0055, 0056, 0058** | Full |
 | 6K — the depth control on the sheet | D | 6J, 6G — **unblocked, ADR 0059** | Light + visual |
 | 6L — the handle path learns cabinet from appliance *(backlog 18)* | G | none — **sequenced before 6B and 6G** | Full |
-| 6M — the overflow is marked and warned about *(ADR 0065)* | — | 6A3 | Light + visual |
+| 6M — the overflow is marked and warned about *(ADR 0065)* — **DONE 2026-09-04, `ce77171`** | — | 6A3 | Light + visual |
 | 6N — the wall-coverage bars *(owner request)* | — | 6D, 6M, decision 8's fixture correction | Light + visual |
 
 The letters are identifiers and the table is in dependency order, with one exception: **6L is listed
@@ -924,7 +933,23 @@ settings**, built with two of them live.
 - Pricing (6B) reads material and hardware from this object; nothing reads them from component
   state.
 
+#### Wave 6E — shipped 2026-09-03, commit `b558e28`
+
+**One open owner question this wave surfaced, registered against wave 6F rather than answered
+here.** A design can carry a material or hardware tier the price book no longer offers — the same
+shape ADR 0057 already rules on for a per-cabinet finish, one level up. The recommendation on record
+is to **reconcile at load**, mirroring ADR 0057's rule, rather than at write time or not at all; 6E
+itself does not decide it. **6G already covers the recovery path** — the tier list still renders on
+a design carrying a stale tier, so the customer is not stuck — but nothing yet reconciles the stored
+value itself. Not decided here; the next reader of wave 6F should treat this as an open input rather
+than rediscover it.
+
 ### Wave 6F — a global material that invalidates a per-cabinet finish
+
+**A second open question travels here from wave 6E, above: a stored tier the price book no longer
+offers.** ADR 0057's reconciliation rule for a per-cabinet finish is the proposed mirror for a
+whole-kitchen material or hardware tier, reconciled at load. Not yet decided or built — 6F's own
+acceptance criteria below are unchanged and do not cover it.
 
 **UNBLOCKED 2026-09-02 — [ADR 0057](../decisions/0057-a-material-change-resets-an-unavailable-finish.md).**
 An affected cabinet resets to the new material's default finish, and the sheet states that
@@ -995,6 +1020,53 @@ demonstrably the wrong move **and there is a right one to name**: use `widthDeri
 [ADR 0068](../decisions/0068-price-steps-at-the-door-count-and-follows-height.md) already puts a
 carcass's own price on it. Two rules counting leaves on different denominators is the failure, and it
 is quiet.
+
+#### Wave 6G — shipped 2026-09-04, commit `3e546d1`
+
+**Copy fork resolved toward the desktop wording.** Frame D2E's control spells itself *"Setări
+globale"*; frame 2E's own strip spells the same control *"Schimbă global"*. §10.1 admits no copy
+fork per viewport, so one string had to be picked for both shells — `ro.globalSettings.open` ships
+as **"Setări globale"**.
+
+**Copy shipped this wave**, in `apps/web/src/content/ro.ts`'s `globalSettings` block: `open`
+("Setări globale"), `title` ("Setări pentru toată bucătăria"), `appliesTo` (a function of body
+count, with a **drafted singular** form — *"singurului corp din bucătărie"* — because *"tuturor
+celor 1 corp"* is ungrammatical), `groupHeadings` (`material`: "Material corp și fronturi",
+`hardware`: "Feronerie"), `groupAnchors` (`material`: "Față de materialul inclus", `hardware`: "Față
+de feroneria inclusă"), `tierDelta` (the *"de la +N"* composition), `materialWarning`
+("Schimbarea materialului recalculează întreaga estimare.", truncated from the mockups' fuller
+sentence — the 6F clause is omitted rather than greyed, per ADR 0057's consequences), `apply`
+("Aplică"), `cancel` ("Renunță"). Plus two domain refusals in
+`packages/configurator-domain/src/commands/rejection.ts`: `UNKNOWN_MATERIAL_TIER` → "Materialul ales
+nu mai este disponibil. Alege altă variantă." and `UNKNOWN_HARDWARE_TIER` → "Feroneria aleasă nu mai
+este disponibilă. Alege altă variantă." **None of this is in wave 6D's "Where the strings were
+ruled" table yet** — the code's own comments mark it "Ruled 2026-09-04, pending owner review" rather
+than claiming an owner ruling that has not happened, and it should not be read as ruled until the
+table is updated with it.
+
+**Two open owner questions this wave's implementer surfaced, neither settled by the wave.**
+
+- **The delta's anchor.** A tier's delta (*"de la +N"*) is measured from the price book's **default**
+  tier; the total beside it is measured from what the design **currently carries**. A customer who
+  has already applied a non-default tier (veneer, say) reads *inclus* against the one tier that would
+  make their kitchen cheaper, not against what they are standing on. The anchor is kept and named in
+  copy — `groupAnchors` above — rather than re-anchored to the current design, because re-anchoring
+  produces negative deltas, and because a mismatch between "the book's default" and "the cheapest
+  tier" is exactly what this anchor makes detectable. Not re-decided; flagged as the tradeoff it is.
+- **The delta rounds up while *"de la"* promises "possibly more".** ADR 0001 decision 4's rounding
+  rule is inherited by every figure this wave renders, including a hardware delta — and a delta
+  amplifies the rounding's relative size. A soft-close hardware tier priced at exactly 1 845 MDL
+  reads *"de la +2 000"*, 8% high and in the wrong direction for what *"de la"* is supposed to
+  promise (a total's rounding step is invisible against tens of thousands; a delta's is a rounding
+  step out of two). Not this wave's to fix — it is ADR 0001 decision 4 applied faithfully — but worth
+  the owner's attention now that a delta, not only a total, carries it.
+
+#### One process lesson from this wave's QA, recorded because it bit a wave 6I2 property
+
+Any predicate evaluated over a raw `band` rather than through `normaliseBand` is suspect by default
+in this codebase — `top` folds into `wall` (ADR 0011 Gap C) and a predicate that skips that fold is
+silently wrong for every top-row body. This wave's QA found the pattern; the specific miss it caused
+is recorded at wave 6I2's close-out below.
 
 ### Wave 6H — cabinet depth becomes a parameter, not a module constant
 
@@ -1200,6 +1272,15 @@ and the void mesh in `packages/three-adapter`.
   drifting up to the clearance MAX.
 - **Both routes agree over every column, asserted as a property** over every insertable entry rather
   than on the fridge column alone — §5.3 exists so that a swap is not a delete plus an insert.
+
+  > **Narrowed at close-out, 2026-09-04, and it is a narrowing of scope rather than a defect.** "Every
+  > column" overclaims: only **wall-band** carcasses read the build depth this wave publishes. Base,
+  > full-height and appliance builders discard it under [ADR 0040](../decisions/0040-a-recorded-seat-is-converted-back-not-read-as-a-depth.md)'s
+  > `wall-plane` rule — they build to one declared distance from the wall plane regardless of what the
+  > plan hands them — and base depths reach the kit through `makeKit({ cabinetDepthMm })`, never
+  > through the plan at all. The property that actually holds, and is what shipped, is **"both routes
+  > agree over every wall carcass"**. Recorded here rather than silently tightening the original
+  > wording, so a later reader does not read the property as broader than what was built or asserted.
 - **A shallow body over a full-height member is unreachable by construction** (ADR 0060 decision 4):
   an insert derives the build depth and a swap can only preserve what some earlier route produced,
   so no route creates a 330 mm body over a column for a later swap to inherit. Asserted, because it
@@ -1216,12 +1297,31 @@ and the void mesh in `packages/three-adapter`.
   or explicitly left open with what remains. Entry 9's mechanism note is re-read first — it is the
   same seam a third time.
 
+#### Wave 6I2 — shipped 2026-09-04, merged with 6M at commit `ce77171`
+
+**The process lesson this wave's QA exposed, and it is worth carrying forward.** The strongest
+property this wave shipped — both routes agree — was first swept as a set-membership assertion with
+no floor per arm, and the sweep it ran against happened to land entirely on the arm 6I2 did **not**
+change. A set-membership assertion over a band needs a minimum count **per arm**, not only a total,
+or it certifies whichever arm the fixture happens to reach and says nothing about the other. General
+guidance from this — any predicate evaluated over a raw `band` rather than through `normaliseBand`
+is suspect by default, per wave 6G's note above — is recorded in `docs/WORKFLOW.md`, appended this
+pass.
+
 ### Wave 6J — the persisted cabinet depth, and what a change does
 
 **UNBLOCKED 2026-09-02** — [ADR 0055](../decisions/0055-a-depth-change-migrates-the-stored-design.md)
 (migrate on change), [ADR 0056](../decisions/0056-two-cabinet-depths-are-declared-and-the-control-reads-the-map.md)
 (two declared depths) and [ADR 0058](../decisions/0058-the-two-deep-top-cabinets-are-pinned.md)
 (the two deep tops are pinned). Wave 6I2 remains a gate.
+
+**Owed from wave 6I2's close-out: a command-path assertion pinned at 700, not at 600.** 6I2 shipped
+without a test asserting that a pinned outgoing body's replacement takes the build depth *this*
+wave's migration produces at 700 mm specifically. At 600 the pin (ADR 0058's outgoing body) and the
+declared depth line are the same number, so every 6I2-era test can pass green against an
+implementation that composed the wrong two numbers and still landed on 600 by coincidence. This wave
+is the first that can actually build a design at 700, so it is where the 700 assertion belongs — add
+it here rather than assume 6I2's 600-only coverage already proves the composition.
 
 **Acceptance criteria.**
 
@@ -1391,6 +1491,38 @@ owner before this wave decides anything about it.
   not a reason to refuse a write.
 - **The default design marks nothing at 600.** If it does, the room dimensions have not been
   corrected — see decision 8 — and the fix is there, not here.
+
+#### Wave 6M — shipped 2026-09-04, merged with 6I2 at commit `ce77171`
+
+**ADR 0069's open owner question, above, is confirmed untouched by this wave** — it still needs the
+owner, and 6M decided nothing about it.
+
+**Findings from this wave's QA and review, none of them blocking, none yet fixed:**
+
+- **The scene warning and the flagged total sit far apart on screen, and the gap changed shape with
+  the overlay move this wave made.** Both open on the same phrase — *"dulapuri … depășesc … peretelui"*
+  — which ADR 0065's own record says is deliberate (neither restates the other; they answer different
+  questions). Measured after this wave's layout change: **55.5 px apart on mobile**, **~780 px apart
+  on desktop**. The move did not close the gap, it moved which shell carries it — mobile was the
+  wider gap before this wave, desktop is now.
+- **The scene warning is hidden behind §9's sheet while that sheet is open.** The sentence reads
+  *"Modifică lățimile"*, and the width stepper it points at is inside that same sheet — so the
+  instruction is invisible at exactly the moment it is actionable. §9's own footer still carries the
+  flagged total in that state, so the total is not lost; only the scene warning is.
+- **The overlay paints over 7–14 px of the lowest marked cabinets' plinth line** — up to 12.7% of the
+  smallest marked body's height on screen. Guarded to stay under a quarter of body height, and it
+  does, but it is a real overlap worth a line here rather than only in a review report.
+- **The mark is not customer-reachable yet, and this is expected rather than a defect.** An
+  exhaustive sweep of 129 accepted inserts across 25 openings in the seeded kitchen found **zero**
+  overrunning routes — the engine's own fit rules do not let an ordinary edit overrun a wall until
+  6K's depth control (or M7's room control) ships. The e2e suite proves the mark renders and behaves
+  correctly through a mint-and-resume path, not that a customer can reach it through ordinary editing
+  today.
+- **The modal contract — focus return, inert background, `Escape`, the focus trap, the
+  changed-comparison — is assertable only in e2e.** QA's unit-level attempt found the unit test
+  environment is `node` with no DOM library in the tree, so none of those behaviours can be asserted
+  outside a real browser. The e2e suite covers it; 278/278 unit tests still pass because none of them
+  claim to cover this contract.
 
 ### Wave 6N — the wall-coverage bars (feature request, 2026-09-03)
 
