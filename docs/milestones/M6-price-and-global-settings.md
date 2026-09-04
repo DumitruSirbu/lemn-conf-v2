@@ -559,7 +559,9 @@ no `100`, `70` or `2900` hard-coded, 8 mutations, zero survivors. Nothing else a
 accepts an insert into an opening that lies wholly past the end of a wall. Whether the product should
 *offer* such an opening is the insert command's own question, belongs to wave 6M or M7, and is the
 owner's call (ADR 0069 consequences). **Registered at wave 6M below and in `docs/STATUS.md`**, so the
-question has an owner rather than only a mention.
+question has an owner rather than only a mention. **Closed 2026-09-04 — see wave 6M's close-out and
+[ADR 0069's amendment](../decisions/0069-past-the-wall-is-one-code-family-and-severity-is-declared-per-code.md#amendment--2026-09-04-the-reserved-question-is-closed-and-it-was-already-answered-in-code):
+never offered, and already built as a map-level clip.**
 
 #### Wave 6A3 — shipped 2026-09-03, commit `eb9ba03`
 
@@ -974,7 +976,12 @@ is to **reconcile at load**, mirroring ADR 0057's rule, rather than at write tim
 itself does not decide it. **6G already covers the recovery path** — the tier list still renders on
 a design carrying a stale tier, so the customer is not stuck — but nothing yet reconciles the stored
 value itself. Not decided here; the next reader of wave 6F should treat this as an open input rather
-than rediscover it.
+than rediscover it. **Closed 2026-09-04 by
+[ADR 0072](../decisions/0072-price-book-versioning-is-deferred-to-the-manufacturer-dashboard.md) —
+not by the reconcile-at-load recommendation above.** The question dissolves rather than gets answered
+as asked: versioning and stale-price handling belong to the manufacturer dashboard, M6 builds none of
+it, and a book change until then is a developer edit migrated in the same commit. See wave 6Q's
+acceptance criteria for where this lands.
 
 ### Wave 6F — a global material that invalidates a per-cabinet finish
 
@@ -1533,13 +1540,14 @@ phase. It is therefore gated on **6A3 only** and belongs to no track.
 
 **Touches.** The scene's material or overlay for a marked body, the warning surface, `ro.ts`.
 
-**This wave owns one open owner question, handed on by 6A3 and recorded in ADR 0069's consequences:
+**This wave owned one open owner question, handed on by 6A3 and recorded in ADR 0069's consequences:
 should the product _offer_ an insertion opening that lies wholly past the end of a wall?** It is a
 different question from marking a body the customer already placed, which is ruled (ADR 0065, ADR
 0069) — demoting the family means the write seam now accepts an insert into such an opening. It
 covers both a remnant the product itself creates (this wave, or M7's generation) and a fabricated
-empty-column entry, because **one decision governs both**. Not urgent and not blocking; it needs the
-owner before this wave decides anything about it.
+empty-column entry, because **one decision governs both**. Not urgent and not blocking; it needed the
+owner before this wave decided anything about it. **Closed 2026-09-04 — see the wave's close-out
+below**, and see [ADR 0069's amendment](../decisions/0069-past-the-wall-is-one-code-family-and-severity-is-declared-per-code.md#amendment--2026-09-04-the-reserved-question-is-closed-and-it-was-already-answered-in-code).
 
 **Acceptance criteria.**
 
@@ -1558,24 +1566,89 @@ owner before this wave decides anything about it.
 
 #### Wave 6M — shipped 2026-09-04, merged with 6I2 at commit `ce77171`
 
-**ADR 0069's open owner question, above, is confirmed untouched by this wave** — it still needs the
-owner, and 6M decided nothing about it.
+**ADR 0069's open owner question, above, was confirmed untouched by this wave when it shipped** — 6M
+decided nothing about it. **Closed 2026-09-04, and by a different wave's code, not this one's.** The
+owner confirmed the product never offers an insertion slot past the end of a wall — the same
+reasoning wave 6A3 already established (*"[everything the product proposes] should always fit the
+existing walls, including demo"*), applied to an offered slot as one more kind of proposal. **The
+behaviour was already shipped before the question was explicitly closed**:
+`packages/configurator-domain/src/clip-empty-columns-at-wall-end.ts`, called from `deriveColumns` in
+`void-engine.ts`, clips every member-less column to its wall's own length (dropping one that starts
+at or past it) before any command or load can publish it as an insertable opening — verified wired in
+against the tree. Neither this wave's own section nor
+[ADR 0069](../decisions/0069-past-the-wall-is-one-code-family-and-severity-is-declared-per-code.md)
+connected the shipped clip to the reserved question until now; see that ADR's amendment for the full
+record. `EMPTY_COLUMN_PAST_WALL_END` is unchanged by this — it stays a defence-in-depth mark for a
+stored document nobody wrote through a command; the clip makes it unreachable from anything a command
+produces, not meaningless.
 
-**Findings from this wave's QA and review, none of them blocking, none yet fixed:**
+**Findings from this wave's QA and review, none of them blocking. Three are now ruled — the
+on-screen-distance question accepted as built, the plinth-overlap figure corrected, the
+hidden-warning question closed as accept-as-built — and are kept in place rather than moved, since
+this is where each was found:**
 
-- **The scene warning and the flagged total sit far apart on screen, and the gap changed shape with
-  the overlay move this wave made.** Both open on the same phrase — *"dulapuri … depășesc … peretelui"*
-  — which ADR 0065's own record says is deliberate (neither restates the other; they answer different
-  questions). Measured after this wave's layout change: **55.5 px apart on mobile**, **~780 px apart
-  on desktop**. The move did not close the gap, it moved which shell carries it — mobile was the
-  wider gap before this wave, desktop is now.
-- **The scene warning is hidden behind §9's sheet while that sheet is open.** The sentence reads
-  *"Modifică lățimile"*, and the width stepper it points at is inside that same sheet — so the
-  instruction is invisible at exactly the moment it is actionable. §9's own footer still carries the
-  flagged total in that state, so the total is not lost; only the scene warning is.
-- **The overlay paints over 7–14 px of the lowest marked cabinets' plinth line** — up to 12.7% of the
+- **The scene warning and the flagged total sit far apart on screen — ruled 2026-09-04: accept as
+  built, no change.** The gap changed shape with the overlay move this wave made; both open on the
+  same phrase — *"dulapuri … depășesc … peretelui"* — which ADR 0065's own record says is deliberate
+  (neither restates the other; they answer different questions). Measured after this wave's layout
+  change: **55.5 px apart on mobile**, **~780 px apart on desktop**. The move did not close the gap,
+  it moved which shell carries it — mobile was the wider gap before this wave, desktop is now.
+  **The owner saw the rendered screenshot and accepted it.** Recorded reasoning, not only the verdict:
+  ADR 0065 decision 7b requires both strings to exist and states neither restates the other — the band
+  says *what is wrong and what to do*, the total's flag says *what the number contains* — and on
+  mobile the customer sees the problem and its price consequence together, even apart on screen.
+  **The precedent for hiding a duplicate does not apply here.** `editor-panel.module.css`'s
+  `.footerPriceWarning` is hidden at ≥900 px because *"showing it twice would say the same thing
+  twice"* — verified against the stylesheet — but that case hides a second copy of the *same* string;
+  this is two different strings answering two different questions, which is exactly what decision 7b
+  requires to coexist.
+- **The scene warning is hidden behind §9's sheet while that sheet is open — ruled 2026-09-04:
+  accept as built, no change.** The sentence reads *"Modifică lățimile"*, and the width stepper it
+  points at is inside that same sheet — so the instruction is invisible at exactly the moment it is
+  actionable. §9's own footer still carries the flagged total in that state, so the total is not
+  lost; only the scene warning is. **The owner's own words: the message is not needed while a
+  cabinet's settings sheet is open, and staying under the modal is fine.** That is the shipped
+  behaviour, so nothing changes. **The trade this ruling accepts, not only the ruling itself**:
+  `OverflowWarning`'s region is a `role="status"` live region (`apps/web/src/scene/overflow-warning.tsx:52`),
+  mounted regardless of the sheet and gated only on the scene being mounted and something being
+  overflowing — verified unchanged against the tree. So a design that tips into overflow *while the
+  sheet is open* is still announced to a screen reader without ever becoming visible. Hiding the
+  region while the sheet is open would remove the announcement entirely, which is worse — a known
+  trade, accepted, not an oversight.
+- **Corrected 2026-09-04 — the overlay does not overlap the plinth line at all; the 7–14 px figure
+  below was wrong, measured against a projection model rather than the running app.** A visual capture
+  of the real app at 390 × 844, taken off the WebGL buffer with `preserveDrawingBuffer` on and
+  verified against overlay images, measured the overlap as **0 px in all three camera presets**, with
+  **25.05 / 45.06 / 49.06 px** of clearance to the lowest painted pixel. The band sits on bare floor.
+  No red-marked body reaches below it in any preset either — the worst case asked for.
+
+  **Three independent errors in the model, each worth naming as its own trap:**
+  1. **The lowest body it measured is off-screen.** The clearance was driven by `p7`, whose projected
+     x-range at 390 px wide is `[-199, -1]` — entirely past the left edge. Restricted to bodies that
+     intersect the viewport, the model gives 30.8 px clearance and still zero overlap.
+  2. **It used the wrong canvas height.** `sceneHeightFor` subtracts `PRICE_BAR_RESERVED_HEIGHT_PX`
+     (92), but an **overflowing** design's price bar carries ADR 0065's flagged-total warning, which
+     wraps at 390 px and makes the bar **125.6875** px — so the real canvas is **619.375**, not
+     650.06. Confirmed by `getBoundingClientRect`: the canvas loses 33.6875 px and the bar gains
+     exactly 33.6875.
+  3. AABB corners project roughly 18 px lower than the painted geometry.
+
+  **What the model got right, so this does not read as unsound throughout**: the band's bottom edge
+  is the canvas's bottom edge to the pixel, and the band costs the canvas no height. Both were the
+  point of 6M's overlay redesign and both are confirmed true on screen.
+
+  **Owner ruling, 2026-09-04: closed, accept as built, no change** — there is nothing to accept,
+  because there is no overlap.
+
+  **`overflow-warning-viewport.test.ts` still asserts the wrong figure and is not yet fixed — owed
+  to wave 6S**, on the owner's own instruction (*"fix the viewport test in 6S"*), recorded as that
+  wave's scope addition below rather than as done here.
+
+  ~~The overlay paints over 7–14 px of the lowest marked cabinets' plinth line — up to 12.7% of the
   smallest marked body's height on screen. Guarded to stay under a quarter of body height, and it
-  does, but it is a real overlap worth a line here rather than only in a review report.
+  does, but it is a real overlap worth a line here rather than only in a review report.~~ Superseded
+  by the correction above; kept struck through rather than deleted so a reader mid-edit does not
+  reintroduce the old figure.
 - **The mark is not customer-reachable yet, and this is expected rather than a defect.** An
   exhaustive sweep of 129 accepted inserts across 25 openings in the seeded kitchen found **zero**
   overrunning routes — the engine's own fit rules do not let an ordinary edit overrun a wall until
@@ -1698,15 +1771,22 @@ real shape.
   **unconfirmed against a supplier stock list**; the other four were read from a supplier catalogue
   on 2026-09-04 (ADR 0071 decision 4). The state is a **required field per entry**, so a seventh
   decor cannot be added without stating which it is, and **the two states are never presented as
-  equally settled**. Whether the code is shown to a customer at all is an open input below; until it
-  is ruled, no unconfirmed code is rendered as a supplier code.
-- **A document holding any of the five legacy values loads**, and normalises per ADR 0071
-  decision 5's table — `white` → PAL *Alb*, `graphite` → PAL *Antracit*, `oak` → a *Stejar*,
-  `clay` and `sage` → MDF only. **ADR 0052's precedent governs the shape of the answer**: normalise
-  a document written under a superseded rule rather than refuse it, because a `/d/{id}` share link
-  is the one artefact this project hands to someone who cannot be asked to reload it. **A load that
-  refuses is a link that is dead.** Asserted per legacy value, not on one fixture that happens to
-  carry two of them.
+  equally settled** — internally, in the declared data. **Whether the code is shown to a customer at
+  all is ruled 2026-09-04: never** (see *Open questions gating this phase*) — human names only, the
+  code stays internal-only data for the catalogue and the manufacturer, and no unconfirmed code is
+  ever rendered as a supplier code because no code is rendered to a customer at all.
+- **A document holding any of the five legacy values loads.** `white` → PAL *Alb*, `graphite` → PAL
+  *Antracit*, `oak` → a *Stejar* — direct palette mappings, the document's material defaulting to the
+  book's default (PAL) where it carries no whole-kitchen material setting at all (a document
+  predating wave 6E). **`clay` and `sage` — ruled 2026-09-04, see *Open questions gating this
+  phase*: the document stays on PAL and the cabinet resets to PAL's default finish, Alb** (ADR 0071's
+  amendment), through the ordinary ADR 0057 reset rather than through a migration that moves the
+  document to MDF. Colour is lost; price is not — no migration may read `clay` or `sage` and assign
+  MDF as the document's material, because that would move the design onto a dearer tier the customer
+  never chose. **ADR 0052's precedent governs the shape of the answer**: normalise a document written
+  under a superseded rule rather than refuse it, because a `/d/{id}` share link is the one artefact
+  this project hands to someone who cannot be asked to reload it. **A load that refuses is a link
+  that is dead.** Asserted per legacy value, not on one fixture that happens to carry two of them.
 - **The migration is a fixed point**: re-run on its own output, at every version arm, it returns the
   document unchanged. The same assertion 6A3's room correction earned, for the same reason.
 - **Whether this owes a schema version bump is this wave's to decide and to record in its close-out**
@@ -1736,8 +1816,11 @@ real shape.
 - **`clay` and `sage` are narrowed, not renamed.** A `/d/{id}` link shared before this wave renders
   differently after it, and no migration can avoid that — the colours stop existing on a PAL
   kitchen. Stated so it is an accepted consequence rather than a defect report later.
-- **What material a legacy document is deemed to carry decides whether that loss happens at all**,
-  and it is an open input below rather than a choice for the implementer.
+- **What material a legacy document is deemed to carry — ruled 2026-09-04: PAL, so the loss above
+  does happen.** The owner chose the material over the colour: keeping the colour would migrate the
+  document to MDF and raise its price by the material delta, moving a price behind the customer's
+  back, which is the same principle ADR 0072 states for the dashboard's future price changes. Keeping
+  the material and losing the colour changes only the swatch. No longer an open input.
 
 ### Wave 6Q — a material change resolves every finish it does not offer
 
@@ -1786,12 +1869,18 @@ would put a Full-tier rule and a Light-tier surface in one diff and one review.
   and ADR 0071's amendment: *Alb* for PAL, white for MDF, *Stejar* for veneer. The wave ships these as
   decided data, not as the *pending owner review* marker 6G's precedent called for while this was
   still an open input.
-- **A stored material or hardware tier the price book no longer offers is answered here.** The
-  question travelled 6E → 6F and 6F is superseded, so it lands with the wave that owns
-  reconciliation. The recommendation on record is to mirror ADR 0057 at load. **If this wave
-  declines it, it says so and names the wave that inherits it** — it does not fall off with 6F.
-  6G's recovery path (the tier list still renders on a design carrying a stale tier) is unaffected
-  either way.
+- **A stored material or hardware tier the price book no longer offers — no longer this wave's to
+  answer. Ruled 2026-09-04, recorded in
+  [ADR 0072](../decisions/0072-price-book-versioning-is-deferred-to-the-manufacturer-dashboard.md),
+  which deferred it with a home rather than closing it outright.** The question travelled 6E → 6F →
+  6Q looking for the wave that owns reconciliation; ADR 0072 dissolves it instead: prices become
+  versioned and a saved kitchen keeps the price it was quoted at, but **all of that machinery is
+  deferred to the manufacturer dashboard — M6 adds no field, no version and no migration for it.**
+  Until the dashboard exists, the book changes only when a developer edits `sample-price-book.ts`,
+  and any affected stored design is migrated in the same commit — not a load-time reconciliation
+  rule this wave builds. **6G's recovery path (the tier list still renders on a design carrying a
+  stale tier) is what ADR 0072 leans on and is unaffected either way** — this wave owes it no
+  extension.
 - **The finish reset moves nothing.** No geometry, no width, no placement, no `seatDepthMm`, no
   column extent, and no `Column.d`. *A material change repaints; a depth change moves the model* —
   this milestone's own Risks section — and this is the wave where that sentence is either true or
@@ -1881,11 +1970,52 @@ independent check on.
 counts — the fixture builds its own catalogue through `buildKitchenLBodyCatalog`),
 `packages/three-adapter/src/kitchen-parts.ts` (`doorSlab`'s front naming), and the parity tests
 `packages/three-adapter/tests/cabinet-handle-count.parity.test.ts` plus a new one for the heights.
+**Plus, from the scope addition below**, `apps/web/tests/scene/overflow-warning-viewport.test.ts`
+and whatever in `apps/web/src/scene` (`overflow-warning-layout.ts` and its neighbours) the model's
+three errors trace to — unrelated to the catalogue work above, and touched only because the owner
+routed the fix here.
 
 **Sequencing note that is not a gate.** 6S and **6J** both rewrite readers of `catalog.ts`; 6J
 re-points every depth-derived reader at `buildInsertableBodyDefinitions`. They must not run
 concurrently. **6S first** is the recommendation: it is additive declaration, while 6J's change
 reads the rows wholesale.
+
+**Scope addition, 2026-09-04, owner-ruled: this wave also fixes
+`apps/web/tests/scene/overflow-warning-viewport.test.ts`.** Not the architect's plan — the owner's
+own words on dispatch were *"fix the viewport test in 6S"*. Recorded here because the instruction
+first reached a developer's inbox and not this document, which is the drift a wave-plan mismatch
+looks like from the outside; it is written in now rather than left to be re-discovered.
+
+**Why it lands in 6S and not a wave of its own — noted honestly rather than rationalised.** This is
+`apps/web/src/scene` work inside a wave that is otherwise catalogue and adapter declarations under
+ADR 0070. It is here because the owner put it here, not because it belongs to 6S's subject — worth
+one clause so a later reader does not conclude the wave's scope was ever coherent on this point.
+
+**What is wrong and what must survive.** Wave 6M's close-out (above) records the finding: a
+projection model claimed a **7–14 px** overlap between the overflow-warning band and the lowest
+marked cabinets' plinth line; a captured screenshot at 390 × 844 measured **0 px** in all three
+camera presets. The model's own three errors are what this wave fixes, and two of the model's
+claims are confirmed correct on screen and must not be disturbed:
+
+- **Fix, not delete.** `overflow-warning-viewport.test.ts` keeps asserting what the capture
+  confirmed: the band's bottom edge is the canvas's bottom edge to the pixel, and the band costs the
+  canvas no height. Only the overlap assertion the capture disproved changes.
+- **A body that does not intersect the viewport must not drive the clearance figure.** The old
+  model's clearance came from `p7`, whose projected x-range at 390 px wide is `[-199, -1]` —
+  off-screen. Restricted to bodies that intersect the viewport, clearance rises and the overlap does
+  not survive the correction either way.
+- **The canvas height must account for a flagged design's taller price bar.** `sceneHeightFor`
+  subtracted the reserved `PRICE_BAR_RESERVED_HEIGHT_PX` (92), but an **overflowing** design's bar
+  carries ADR 0065's flagged-total warning, which wraps at 390 px to **125.6875** px — so the real
+  canvas is **619.375**, not 650.06. `getBoundingClientRect` confirms the split: the canvas loses
+  33.6875 px and the bar gains exactly 33.6875.
+  AABB corners project roughly 18 px below the painted geometry and must be corrected to the painted
+  edge, not the bounding box.
+- **The clearance is pinned as a floor, not a single exact number** — it moves with the camera
+  preset. Measured: **25.05 / 45.06 / 49.06 px** across the three presets.
+- **A line must survive stating the 7–14 px figure was a model artefact**, naming its three causes
+  (off-screen driver body, wrong canvas height, AABB-versus-painted-geometry gap), so a later reader
+  does not re-derive it as a live defect.
 
 **Acceptance criteria.**
 
@@ -1931,6 +2061,23 @@ reads the rows wholesale.
 - **The 900 mm rule is not implemented here.** This wave supplies the heights; 6T applies the
   threshold. A wave that also counts hinges has merged the declaration with its first reader and
   given up the independent check.
+
+**Close-out notes — what 6S leaves for the wave that reads it.**
+
+- **Two rows carry a mechanism contradiction, recorded here rather than resolved.** `wall-lift` is
+  declared **one door leaf**, which gives it two hinges under ADR 0070 decision 1 — but a lift flap
+  is a vertical-opening mechanism, which decision 6 puts out of scope, so it is none of the three
+  the hardware tier prices. `base-bottle-cargo` is declared **one drawer**, which gives it two
+  standard runners — but a bottle cargo's full-height pull-out is a cargo mechanism, not an ordinary
+  drawer box. **Both are open product inputs for 6T and neither is 6S's to answer.** Neither row is
+  in the seeded design, so ADR 0070's 74 hinges and 5 drawers are unaffected by whichever way they
+  go. What must not happen is 6T resolving either silently by pricing whichever tier line happens to
+  typecheck.
+- **`fronts` is depth-invariant by construction, and 6J does not need to re-derive it.** All four §7
+  helpers pass their `declarations` argument through verbatim, every band constant is module-level in
+  `front-population.ts`, and no front-slab height in `kitchen-parts.ts` derives from the depth the
+  builder is handed. So a cabinet-depth change moves no leaf count, no drawer count and no band
+  height.
 
 ### Wave 6T — hardware priced per mechanism, and the two sink extras
 
@@ -1993,8 +2140,11 @@ rewritten to count mechanisms, or it will assert the superseded basis as correct
   any width or depth. Asserted **from the adapter side** — the built body has no new part — not
   merely by the absence of a diff.
 - **The rack goes in the lowest wall-band cabinet whose along-wall extent overlaps the sink's span**
-  (decision 4), a **derived** position and not a catalogue row. Three failure modes, each with its
-  own assertion:
+  (decision 4), a **derived** position and not a catalogue row, applied **per sink base — ruled
+  2026-09-04 in *Open questions gating this phase*: two sinks means two racks, never de-duplicated
+  even where both resolve to the same cabinet.** The seeded design has one sink base, so this wave's
+  own fixture does not exercise the multi-sink case; the rule is recorded here so a later wave adding
+  a second sink does not re-open it. Three failure modes, each with its own assertion:
   - ***any* cabinet above the sink double-bills.** The seeded design has **two** over the sink base's
     900–1700 span on wall A — a wall cabinet at `y0` 1500 and a top box at `y0` 2200.
   - ***the highest* puts the rack near the ceiling.**
@@ -2074,10 +2224,11 @@ files.
 
 ### Added 2026-09-04 with waves 6P–6T — open inputs, not invented at the wave
 
-**None of these blocks dispatch**, and each is recorded here rather than resolved by an implementer.
-Where a wave must ship *something* to be coherent, it ships the recommendation marked **pending
-owner review** in the code — the precedent wave 6G set for its own unruled strings — and never
-presents it as ruled.
+**None of these blocked dispatch**, and each was recorded here rather than resolved by an
+implementer. Where a wave had to ship *something* to be coherent before the ruling landed, it shipped
+the recommendation marked **pending owner review** in the code — the precedent wave 6G set for its
+own unruled strings — and never presented it as ruled. **All seven items below are now ruled,
+2026-09-04** — the first two that morning, the remaining five later the same day.
 
 - **Each material's default finish** (waves 6P, 6Q). ADR 0057's reset resolves *to* it, so the rule
   cannot be stated without one. **Ruled 2026-09-04, on the recommendation already on record — see
@@ -2098,19 +2249,29 @@ presents it as ruled.
   invented," in the module's own words — rather than becoming unreachable, which splitting the two
   defaults would have risked the moment MDF-as-priced-baseline landed below some other tier's delta
   basis. No code changes; this closes the question the separation would have opened.
-- **What material a legacy document wearing `clay` or `sage` is deemed to carry** (wave 6P). It
-  decides which of two losses the customer takes on a link they already shared. Two options, both
-  lossy, in different currencies: leave the document on the book's default material and let ADR
-  0071 decision 5's narrowing reset the colour (**colour lost**), or declare the migrated document
-  to be MDF, the material that offers what it is wearing (**price changed under the customer**,
-  since MDF is dearer than PAL). Recommendation: **preserve the colour** — a migration's job is to
-  keep what the customer chose, and ADR 0057's reset is for a change the customer *initiates* with a
-  warning in front of it, which a load is not. Stated as a recommendation because the price movement
-  is a real cost and it is the owner's to weigh.
-- **Whether an Egger decor code is shown to the customer at all** (waves 6P, 6R). Two of the six are
-  unconfirmed against a supplier stock list (ADR 0071 decision 4), so this is not only a copy
-  question. Recommendation: show the decor **name** only and keep the code as internal data until
-  both are confirmed.
+- **What material a legacy document wearing `clay` or `sage` is deemed to carry — ruled 2026-09-04:
+  PAL, against the recommendation on record.** (wave 6P.) It decides which of two losses the customer
+  takes on a link they already shared. Two options, both lossy, in different currencies: leave the
+  document on the book's default material and let ADR 0071 decision 5's narrowing reset the colour
+  (**colour lost**), or declare the migrated document to be MDF, the material that offers what it is
+  wearing (**price changed under the customer**, since MDF is dearer than PAL). The recommendation on
+  record was to preserve the colour; **the owner ruled the opposite — stay on PAL, colour lost, reset
+  to Alb.** Reasoning recorded because it overrides rather than confirms the recommendation: raising a
+  design's price by moving it to MDF behind the customer's back is the same failure
+  [ADR 0072](../decisions/0072-price-book-versioning-is-deferred-to-the-manufacturer-dashboard.md)'s
+  design exists to prevent for future book edits — a price must never move without the customer
+  present to see why. Keeping the material and losing the colour is consistent with ADR 0057's
+  ordinary reset rather than an exception to it: the finish resets to the material's default, and
+  PAL's default is Alb (ADR 0071's amendment). See wave 6P above for the corrected criterion.
+- **Whether an Egger decor code is shown to the customer at all — ruled 2026-09-04: never.** (waves
+  6P, 6R.) Human names only — *"Stejar Bardolino Natur"*, never *"H1145 ST10"*; the codes stay in the
+  catalogue as the manufacturer's own reference, not customer-facing copy. Two of the six were
+  unconfirmed against a supplier stock list (ADR 0071 decision 4), which is why this was raised as
+  more than a copy question — moot now that no code reaches the customer either way. **The reasoning
+  strengthens something already planned rather than merely settling the display question**: the real
+  colour is chosen after the on-site measurement, so the app's swatch is indicative by design, not a
+  failed attempt at accuracy — which makes ADR 0071 decision 2's approximation disclaimer a statement
+  of how the product works, not an apology for the renderer.
 - **Whether a handle is priced anywhere once hardware prices mechanisms** (wave 6T). **Answered
   2026-09-04: no — handles are bought by the client, not the manufacturer, and stay out of pricing
   entirely.** Nothing needs deleting: the hardware tiers are already named and described as hinges
@@ -2122,15 +2283,26 @@ presents it as ruled.
   this wave"*) — recorded here as confirmed against the wave plan, not newly added to it. **The
   per-cabinet handle control stays**, because `handle: "push"` still means no handle, which means a
   push-to-open mechanism, which wave 6T does price.
-- **A second sink base** (wave 6T). ADR 0070 rules the single-sink case. Recommendation: one
-  aluminium cover per sink base, and the rack de-duplicated where two sinks resolve to the same wall
-  cabinet — raised rather than assumed, because "always present" and "included by default" are
-  stated per sink and not per kitchen.
-- **Four unruled strings**, all currently drafted by their waves under wave 6D's rule that a wave
-  with no ruled wording **raises** it rather than inventing one: the sentence saying the swatch and
-  the 3D are an **approximation** (6R), the RAL picker's own label (6R), the decor names as
+- **A second sink base — ruled 2026-09-04: the dish rack is per cabinet with a sink, against the
+  recommendation on record.** (wave 6T.) ADR 0070 rules the single-sink case: one aluminium cover per
+  sink base (unambiguous — "always present" is already stated per sink, ADR 0070 decision 4), and the
+  rack at *the lowest wall-band cabinet whose along-wall extent overlaps the sink's span*. The
+  recommendation on record was to de-duplicate the rack where two sinks resolve to the same wall
+  cabinet; **the owner ruled against de-duplication — two sinks means two racks, the rule applied
+  once per sink and never once per kitchen**, even where both resolve to the same cabinet.
+- **Four unruled strings — ruled 2026-09-04: they ship as drafted placeholders, and the process that
+  produced them is now a standing one, not just this milestone's.** The sentence saying the swatch
+  and the 3D are an **approximation** (6R), the RAL picker's own label (6R), the decor names as
   rendered (6R), and DTC Standard's **no soft-close** description (6T, where ADR 0070 decision 3
-  rules the fact and not the sentence).
+  rules the fact and not the sentence) — all drafted by their waves under wave 6D's rule that a wave
+  with no ruled wording raises it rather than inventing one. **The owner's direction: draft strings
+  that carry their meaning now; all customer-facing copy becomes editable from the manufacturer
+  dashboard through language files with an interface, later.** Recorded as a **future requirement
+  alongside ADR 0062's price-book seam** — the same shape, a manufacturer-editable surface arriving
+  after M8 — and `content/ro.ts` already satisfies the precondition by keeping copy in one place
+  rather than scattered through components. **Not M6 scope**: no wave here builds the language-file
+  interface; the four strings still ship marked *pending owner review* in the code as 6G's precedent
+  set, and this ruling is recorded so nobody scatters strings into components in the meantime.
 
 ### Cabinet depth — recorded 2026-08-27, **partly decided since; corrected 2026-09-02**
 

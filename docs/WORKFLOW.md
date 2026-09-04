@@ -141,6 +141,15 @@ found by whoever hits the conflict.
   dispatched only once the suite is green. Reviewing code that is about to change produces findings
   against a state that will not exist, and running reviewers while QA is still editing yields two
   reports describing two different trees.
+- **Freeze the tree before dispatching QA, and say so in the dispatch.** QA's numbers are only
+  attributable to a wave if the wave stopped moving first. In M6 wave 6S the coordinator dispatched
+  QA while the implementer was still landing an owner-ruled scope addition: partway through the pass
+  an untracked probe file vanished and two `apps/web` files appeared as modified. QA caught it,
+  re-ran, and reported the collision rather than quietly averaging over it — and the wave was
+  unharmed only because the change was comment-only and landed in `apps/web` rather than in
+  `packages/`. **Had it landed in a package QA had already measured, none of the counts would have
+  been attributable to anything.** The instruction to the implementer is explicit: *stop editing, a
+  moving diff wastes the pass*. The same applies to reviewers.
 - **QA is adversarial**: the implementer tests what they built, QA tests what they assumed. A test QA
   writes that fails is a *finding*. Leave it failing and report it. QA never weakens an assertion to
   make it pass and never edits production code to make its own test green — that is how a suite ends
@@ -246,6 +255,15 @@ the visual evidence needed to verify the result.
   affects a public configuration/pricing contract.
 - For visual or interactive work, verify the real surface at the agreed mobile viewport. Keep
   temporary screenshots out of the committed project unless the user asks to retain them.
+  **A model that computes a rendering's geometry from its inputs is not evidence about the
+  rendering** — only a capture of the actual output is. M6 wave 6M's close-out recorded a projected
+  overlap of 7–14 px between the overflow-warning band and a marked body's plinth line; a captured
+  screenshot at 390 × 844 with `preserveDrawingBuffer` on measured 0 px in all three camera presets,
+  25–49 px of clearance. Three independent errors compounded in the same direction: the model's
+  "lowest body" was off-screen, it used the wrong canvas height (an overflowing design's wrapped
+  price-bar warning changes `sceneHeightFor`'s subtraction), and its AABB-corner projection sat ~18 px
+  below the painted geometry. Corrected 2026-09-04 — see that wave's close-out in
+  `docs/milestones/M6-price-and-global-settings.md`.
 - Do not add tool-specific hooks, credentials, timers, or machine-local settings from the previous
   Claude project. They are not portable project configuration.
 

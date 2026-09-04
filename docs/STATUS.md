@@ -110,12 +110,18 @@ PASS.
   **going forward only**, because every save stamps `CURRENT_SCHEMA_VERSION = 3` and a row that
   leaves the set leaves permanently uncorrected. If this project ever migrates a room again, that is
   the shape of the problem.
-- **The open owner question ADR 0069 hands on: should the product _offer_ an insertion opening that
-  lies past the end of a wall?** Distinct from marking a body the customer already placed, which is
-  ruled (ADR 0065, ADR 0069). It covers both a remnant the product itself creates and a fabricated
-  empty-column entry — one decision governs both. **Wave 6M shipped 2026-09-04 without touching it**
-  (confirmed at its close-out, `milestones/M6-price-and-global-settings.md`) — it needs the owner
-  before either M6's remaining waves or M7's generation can assume an answer either way.
+- **The owner question ADR 0069 hands on — should the product _offer_ an insertion opening that
+  lies past the end of a wall — is closed, 2026-09-04.** Distinct from marking a body the customer
+  already placed, which is ruled (ADR 0065, ADR 0069). It covers both a remnant the product itself
+  creates and a fabricated empty-column entry — one decision governs both. Wave 6M shipped 2026-09-03/04
+  without touching it (confirmed at its close-out); the owner then confirmed **never**, on the same
+  reasoning wave 6A3 already established for demo/proposed designs. **The behaviour turns out to have
+  already shipped**: `packages/configurator-domain/src/clip-empty-columns-at-wall-end.ts`, wired into
+  `deriveColumns` in `void-engine.ts`, clips every member-less column to its wall's own length before
+  any command or load can offer it as an insertable opening. Neither wave 6M's section nor ADR 0069
+  connected the shipped clip to the reserved question until this ruling; see
+  [ADR 0069's amendment](decisions/0069-past-the-wall-is-one-code-family-and-severity-is-declared-per-code.md#amendment--2026-09-04-the-reserved-question-is-closed-and-it-was-already-answered-in-code)
+  and wave 6M's close-out for the full record.
 - **A gate is owed on the rejection banner's newly-found route, and nobody has written it.** Wave 6C's
   visual verification disproved [ADR 0024](decisions/0024-the-rejection-banner-has-no-reachable-path.md)'s
   "no refusal is reachable by construction": **a double-tap on `Șterge corpul` reaches the banner** —
@@ -248,10 +254,31 @@ pending the owner seeing the result on screen (wave 6G close-out); its **roundin
 ruled 2026-09-04** — rounding stays up everywhere, the objection about "de la" promising "possibly
 more" is overridden rather than dissolved (a *De la* figure must never quote under the true price),
 and the amplification a delta gives that rounding is now an accepted cost, not an open defect (same
-close-out). Still open: a stored material/hardware tier the price book no longer offers (wave 6E
-close-out, registered against wave 6F, now 6Q); the two overflow strings' on-screen distance and the
-scene warning being hidden behind §9's sheet while it is open (wave 6M close-out). **A correction to
-ADR 0060 decision 4's wording is appended to that ADR directly**, not restated here.
+close-out). **A stored material/hardware tier the price book no longer offers is no longer open** —
+ruled 2026-09-04 and deferred with a home, [ADR 0072](decisions/0072-price-book-versioning-is-deferred-to-the-manufacturer-dashboard.md):
+versioning and stale-price handling belong to the manufacturer dashboard, M6 adds no field, version
+or migration for it, and today's book edits migrate any affected stored design in the same commit.
+**Five more owner rulings, 2026-09-04, close the rest of M6's *Added 2026-09-04 with waves 6P–6T*
+open-input list**: each material's default finish (Alb/white/Stejar), the book's default material
+tier (PAL for both the priced baseline and the delta basis), handle pricing (never — hardware prices
+mechanisms only), a legacy `clay`/`sage` document's material (stays PAL, colour lost, against the
+recommendation), Egger decor codes (never shown to the customer), a second sink base (two sinks, two
+racks, never de-duplicated), and the four unruled strings (ship as drafted placeholders; all
+customer-facing copy becomes dashboard-editable later, alongside ADR 0062's price-book seam — not M6
+scope). **The scene warning hidden behind §9's sheet while it is open is also ruled — accept as
+built, no change**, with the accepted trade recorded (the `role="status"` region still announces an
+overflow to a screen reader while invisible behind the sheet). **The two remaining architect-recorded
+questions are also ruled, 2026-09-04 — both accept as built.** The scene warning and the flagged
+total sitting far apart on screen (55.5 px mobile / ~780 px desktop, wave 6M close-out) stand: the
+owner saw the rendered screenshot and accepted it, on the reasoning that the two strings answer
+different questions (ADR 0065 decision 7b) and are not the same-string-twice case the product
+otherwise hides. And ADR 0069's own reserved question — should the product *offer* an insertion
+opening that lies wholly past the end of a wall — is closed **never**, detailed above; it turned out
+to already be shipped as `clip-empty-columns-at-wall-end.ts`, unconnected to the question until this
+ruling. **`docs/milestones/M6-price-and-global-settings.md`'s *Open questions gating this phase* now
+holds only two non-blocking content slots** (sample/commercial price amounts; what the estimate
+includes) — no open decision remains. **A correction to ADR 0060 decision 4's wording is appended to
+that ADR directly**, not restated here.
 
 6L runs before both 6B and 6G; 6I2 lands before 6J. Do not start a wave without reading its section —
 several carry criteria inherited from another wave, including two now owed by 6J: the command-path

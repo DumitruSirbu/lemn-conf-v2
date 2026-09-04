@@ -269,3 +269,37 @@ over, and deriving makes the class unrepresentable rather than guarded.
 - **The classification rule in decision 2 is the artefact to maintain**, not the table. A wave adding
   a validation code answers one question: *is the only thing this says that a run reaches past the
   end of its wall?*
+
+## Amendment — 2026-09-04: the reserved question is closed, and it was already answered in code
+
+Consequences' second-to-last bullet left standing whether the product should **offer** an insertion
+opening that reaches past the end of a wall, naming it "the owner's call". **The owner confirmed:
+never — the product does not offer such a slot.** The reasoning that makes this a confirmation rather
+than a fresh decision: during wave 6A3 the owner ruled that everything the product proposes *"should
+always fit the existing walls, including demo"*. An offered insertion slot is exactly such a
+proposal, the same class of thing that ruling already covers; marking a body the customer placed past
+the wall is [ADR 0065](0065-a-body-past-the-end-of-its-wall-is-marked-not-moved.md)'s business, and
+the product *offering* to build into space that does not exist is a different act.
+
+**It was already built, and neither this record nor wave 6M's own section connected the two until
+now.** `packages/configurator-domain/src/clip-empty-columns-at-wall-end.ts` opens by naming this exact
+question and answering it: an empty column "must never be *offered* as an insertable opening that
+reaches past the end of its own wall," and clips the far edge to the wall's own length (dropping a
+column that starts at or past it entirely) rather than refusing the document over it. It runs inside
+`deriveColumns` in `void-engine.ts`, ahead of `mergeAdjacentEmptyColumns`, so no path that publishes
+an insertable opening — command or load — can produce one past a wall's own length. Verified against
+the tree on 2026-09-04: the module is imported and called, not merely written.
+
+**What this does and does not change.** The write seam still accepts an insert whose body ends up
+past the end of a wall through a route this clip does not see — the consequence above about a width
+resize is untouched, and that body is still `PLACEMENT_PAST_WALL_END`'s mark, not a refusal. What
+changes is narrower: a **member-less** column — an empty opening nothing occupies — is never itself
+offered reaching past the wall. `EMPTY_COLUMN_PAST_WALL_END` stays exactly as it was, a
+defence-in-depth mark for a stored document nobody wrote through a command (the same relationship
+`EMPTY_COLUMN_WIDER_THAN_CAP` has with the 800 mm split): the clip makes that mark unreachable from
+anything a command produces going forward, which does not make the mark meaningless — a hand-crafted
+or pre-clip migrated document can still carry one, and it still reads as a mark rather than a refusal.
+
+Not amending Consequences' wording above — it is dated and stands as written, per this project's rule
+that a decision record accumulates rather than erases. A reader relying on "not decided here" for the
+insertion-offer question should read this amendment first.
