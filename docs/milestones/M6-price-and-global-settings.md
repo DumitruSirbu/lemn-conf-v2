@@ -1069,10 +1069,13 @@ is quiet.
 
 #### Wave 6G — shipped 2026-09-04, commit `3e546d1`
 
-**Copy fork resolved toward the desktop wording.** Frame D2E's control spells itself *"Setări
-globale"*; frame 2E's own strip spells the same control *"Schimbă global"*. §10.1 admits no copy
-fork per viewport, so one string had to be picked for both shells — `ro.globalSettings.open` ships
-as **"Setări globale"**.
+**Copy fork resolved toward the desktop wording, and the owner has since ruled it — 2026-09-04.**
+Frame D2E's control spells itself *"Setări globale"*; frame 2E's own strip spells the same control
+*"Schimbă global"*. §10.1 admits no copy fork per viewport, so one string had to be picked for both
+shells; the implementer shipped `ro.globalSettings.open` as **"Setări globale"** on that structural
+reasoning, and it was recorded as an owner question rather than treated as settled by inference. **The
+owner has now confirmed "Setări globale" for both shells**, so this stands as a ruling, not merely as
+the implementer's read of §10.1.
 
 **Copy shipped this wave**, in `apps/web/src/content/ro.ts`'s `globalSettings` block: `open`
 ("Setări globale"), `title` ("Setări pentru toată bucătăria"), `appliesTo` (a function of body
@@ -1090,22 +1093,37 @@ ruled" table yet** — the code's own comments mark it "Ruled 2026-09-04, pendin
 than claiming an owner ruling that has not happened, and it should not be read as ruled until the
 table is updated with it.
 
-**Two open owner questions this wave's implementer surfaced, neither settled by the wave.**
+**Two open owner questions this wave's implementer surfaced. Both are now ruled, 2026-09-04 — the
+first accepted pending the owner seeing it on screen, the second ruled outright despite the objection
+on record.**
 
-- **The delta's anchor.** A tier's delta (*"de la +N"*) is measured from the price book's **default**
-  tier; the total beside it is measured from what the design **currently carries**. A customer who
-  has already applied a non-default tier (veneer, say) reads *inclus* against the one tier that would
-  make their kitchen cheaper, not against what they are standing on. The anchor is kept and named in
-  copy — `groupAnchors` above — rather than re-anchored to the current design, because re-anchoring
-  produces negative deltas, and because a mismatch between "the book's default" and "the cheapest
-  tier" is exactly what this anchor makes detectable. Not re-decided; flagged as the tradeoff it is.
-- **The delta rounds up while *"de la"* promises "possibly more".** ADR 0001 decision 4's rounding
-  rule is inherited by every figure this wave renders, including a hardware delta — and a delta
-  amplifies the rounding's relative size. A soft-close hardware tier priced at exactly 1 845 MDL
-  reads *"de la +2 000"*, 8% high and in the wrong direction for what *"de la"* is supposed to
-  promise (a total's rounding step is invisible against tens of thousands; a delta's is a rounding
-  step out of two). Not this wave's to fix — it is ADR 0001 decision 4 applied faithfully — but worth
-  the owner's attention now that a delta, not only a total, carries it.
+- **The delta's anchor — answered 2026-09-04, accepted pending on-screen review.** A tier's delta
+  (*"de la +N"*) is measured from the price book's **default** tier; the total beside it is measured
+  from what the design **currently carries**. A customer who has already applied a non-default tier
+  (veneer, say) reads *inclus* against the one tier that would make their kitchen cheaper, not against
+  what they are standing on. The anchor is kept and named in copy — `groupAnchors` above — rather than
+  re-anchored to the current design, because re-anchoring produces negative deltas, and because a
+  mismatch between "the book's default" and "the cheapest tier" is exactly what this anchor makes
+  detectable. **The owner confirmed the delta's meaning is exactly intended**, in their own words:
+  *"when you choose another material, you want to write also how much in plus it will cost, like,
+  plus eighteen thousands if you use veneer or plus nine thousands if you use MDF"* — which is
+  exactly what the shipped badge does, measured above the included material, with `groupAnchors`'
+  copy line *"Față de materialul inclus"* naming the anchor. **Not closed as fully settled**: the
+  owner said they will check the result once they see it on screen, so this is accepted-pending-
+  review, not ruled outright.
+- **The delta rounds up while *"de la"* promises "possibly more" — ruled 2026-09-04: rounding is
+  always up, never down, everywhere, objection and all.** ADR 0001 decision 4's rounding rule is
+  inherited by every figure this wave renders, including a hardware delta — and a delta amplifies the
+  rounding's relative size. A soft-close hardware tier priced at exactly 1 845 MDL reads *"de la
+  +2 000"*, 8% high and in the wrong direction for what *"de la"* is supposed to promise (a total's
+  rounding step is invisible against tens of thousands; a delta's is a rounding step out of two).
+  **The objection stands on the record because the ruling overrides it rather than dissolving it**:
+  the owner weighed it and ruled rounding up anyway, because a *"De la"* figure that rounds up is
+  never **below** what the kitchen actually costs — quoting under the true price is a commercial
+  exposure, quoting a little over is not, and the linguistic oddity is the lesser problem. **This
+  confirms ADR 0001 decision 4's existing rule rather than changing it**, so the "amplified by a
+  delta" concern above is now an accepted cost, not an open defect — not to be re-raised as a finding
+  by a later reader.
 
 #### One process lesson from this wave's QA, recorded because it bit a wave 6I2 property
 
@@ -1764,9 +1782,10 @@ would put a Full-tier rule and a Light-tier surface in one diff and one review.
   path ADR 0057 permits, and the reason its warning precedes the apply. Asserted explicitly, on a
   design where the cabinets wear different finishes, and asserted as **one** result.
 - **The reset target is each material's declared default finish**, read from 6P's declaration and
-  never a special case in the command. The defaults themselves are an **open input** below; until
-  the owner rules, the wave ships the recommendation and marks it in the code as *pending owner
-  review*, following the precedent 6G set for its own unruled copy. It does not present it as ruled.
+  never a special case in the command. **Ruled 2026-09-04** — see *Open questions gating this phase*
+  and ADR 0071's amendment: *Alb* for PAL, white for MDF, *Stejar* for veneer. The wave ships these as
+  decided data, not as the *pending owner review* marker 6G's precedent called for while this was
+  still an open input.
 - **A stored material or hardware tier the price book no longer offers is answered here.** The
   question travelled 6E → 6F and 6F is superseded, so it lands with the wave that owns
   reconciliation. The recommendation on record is to mirror ADR 0057 at load. **If this wave
@@ -2015,12 +2034,17 @@ files.
 
 **Risks.**
 
-- **Every 2E delta changes by a large factor**, and 6G's two open questions get louder with it: the
-  delta is anchored on the book's **default** tier while the total beside it follows what the design
-  carries, and ADR 0001 decision 4's rounding-up amplifies a delta far more than a total. ADR 0070's
-  measured spread — ~5 100 MDL at DTC Standard against ~10 335 at Blum on the seeded kitchen — is
-  what makes both visible. **Not this wave's to fix**; worth the owner's attention now that the
-  numbers are real rather than placeholders.
+- **Every 2E delta changes by a large factor, which is exactly what 6G's two open questions were
+  waiting to get louder — and both are now ruled, 2026-09-04.** The delta is anchored on the book's
+  **default** tier while the total beside it follows what the design carries (answered, accepted
+  pending on-screen review — wave 6G close-out); ADR 0001 decision 4's rounding-up amplifies a delta
+  far more than a total (ruled: rounding stays up everywhere, an accepted cost rather than a defect —
+  same close-out). ADR 0070's measured spread — ~5 100 MDL at DTC Standard against ~10 335 at Blum on
+  the seeded kitchen — is what makes both visible, now that the numbers are real rather than
+  placeholders; neither ruling is this wave's to revisit. **The material group's own default-tier
+  question is ruled too, not open** — see *Open questions gating this phase* above: PAL stays the
+  default for both the priced baseline and the delta basis, which is why `NegativeTierDeltaError`
+  stays reachable only as a book-fault detector and not as a live discount case.
 - **Hettich lands 3% *below* Blum on this kitchen** because it is hinge-dominated (74 hinges, 5
   drawers), and a drawer-heavy kitchen swaps them. That is the measured argument for pricing the
   whole design at each tier rather than a flat per-tier figure — and it means **a sample-data edit
@@ -2056,8 +2080,24 @@ owner review** in the code — the precedent wave 6G set for its own unruled str
 presents it as ruled.
 
 - **Each material's default finish** (waves 6P, 6Q). ADR 0057's reset resolves *to* it, so the rule
-  cannot be stated without one. **ADR 0071 records it as owed, explicitly.** Recommendation on
-  record: *Alb* for PAL, white for MDF, *Stejar* for veneer.
+  cannot be stated without one. **Ruled 2026-09-04, on the recommendation already on record — see
+  ADR 0071's amendment:** *Alb* for PAL, white for MDF, *Stejar* for veneer.
+- **The book's default material tier — ruled 2026-09-04: PAL, for both what an unset design is
+  priced at and what a tier's delta is measured from.** Raised as a question because these are two
+  different things a "default" could mean: MDF is what a Moldovan customer buying a custom kitchen
+  usually chooses (chiefly for humidity resistance, per the owner — PAL is the limited-budget choice
+  and veneer the richer one), which argued for pricing an unset design at MDF while still measuring
+  deltas from the cheapest tier, PAL. **The owner ruled PAL for both — simpler, and it is what
+  `sample-price-book.ts` already declares** (`material.defaultTierId: "material.melamine"`, verified
+  unchanged). The market fact above is recorded because it explains why PAL as the *priced baseline*
+  is not a claim about what most customers buy — it is what keeps *"De la"* honest, since the figure
+  under it is a floor, not a typical order. **Why the separation was declined matters beyond
+  simplicity**: with PAL as both, a tier's delta can never be negative, so `NegativeTierDeltaError`
+  (`apps/web/src/price/whole-kitchen-tiers.ts`) keeps its meaning as a **book-fault detector** — "a
+  book whose default is not its cheapest tier is a book fault to be reported, not a discount to be
+  invented," in the module's own words — rather than becoming unreachable, which splitting the two
+  defaults would have risked the moment MDF-as-priced-baseline landed below some other tier's delta
+  basis. No code changes; this closes the question the separation would have opened.
 - **What material a legacy document wearing `clay` or `sage` is deemed to carry** (wave 6P). It
   decides which of two losses the customer takes on a link they already shared. Two options, both
   lossy, in different currencies: leave the document on the book's default material and let ADR
@@ -2071,13 +2111,17 @@ presents it as ruled.
   unconfirmed against a supplier stock list (ADR 0071 decision 4), so this is not only a copy
   question. Recommendation: show the decor **name** only and keep the code as internal data until
   both are confirmed.
-- **Whether a handle is priced anywhere once hardware prices mechanisms** (wave 6T). Verified
-  against the tree: `cabinetHandleCount`'s only production reader is the hardware line's quantity,
-  so replacing that basis leaves **no line pricing a handle at all**. ADR 0068's own premise is that
-  a handle, a set of mechanisms and a processing margin are three different things priced in three
-  different places — so the handle's cost is presumably inside the cabinet rule, but **nothing says
-  so**. Recommendation: leave it in the cabinet formula and **never re-add a per-handle hardware
-  term**, which would recreate the basis ADR 0070 replaced.
+- **Whether a handle is priced anywhere once hardware prices mechanisms** (wave 6T). **Answered
+  2026-09-04: no — handles are bought by the client, not the manufacturer, and stay out of pricing
+  entirely.** Nothing needs deleting: the hardware tiers are already named and described as hinges
+  and slides (*"Balamale și glisiere"*, `sample-price-book.ts`), and the handle *count* was only ever
+  the quantity `perCabinetHandleMinor` multiplies by — exactly the basis ADR 0070 replaces. This
+  ruling confirms ADR 0070's direction rather than adding scope. **`cabinetHandleCount` will have no
+  production reader once 6T ships**; its parity gate must be kept deliberately regardless, which
+  wave 6T's own acceptance criteria already say (*"`cabinetHandleCount` and its parity gate survive
+  this wave"*) — recorded here as confirmed against the wave plan, not newly added to it. **The
+  per-cabinet handle control stays**, because `handle: "push"` still means no handle, which means a
+  push-to-open mechanism, which wave 6T does price.
 - **A second sink base** (wave 6T). ADR 0070 rules the single-sink case. Recommendation: one
   aluminium cover per sink base, and the rack de-duplicated where two sinks resolve to the same wall
   cabinet — raised rather than assumed, because "always present" and "included by default" are

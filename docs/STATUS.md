@@ -242,10 +242,14 @@ e2e, build, boundary, lockfile). Domain 102 files / 2044 tests, persistence 15/1
 `ERR_SOCKET_TIMEOUT` reaching `registry.npmjs.org` — environmental, not caused by any diff in this
 branch.
 
-**Owner questions this pass surfaced, none yet answered — see the milestone file's own wave
-sections for the detail rather than restating it here:** the price delta's anchor and its rounding
-direction (wave 6G close-out); a stored material/hardware tier the price book no longer offers (wave
-6E close-out, registered against wave 6F); the two overflow strings' on-screen distance and the
+**Owner questions this pass surfaced — see the milestone file's own wave sections for the detail
+rather than restating it here.** The price delta's **anchor was answered 2026-09-04**, accepted
+pending the owner seeing the result on screen (wave 6G close-out); its **rounding direction is also
+ruled 2026-09-04** — rounding stays up everywhere, the objection about "de la" promising "possibly
+more" is overridden rather than dissolved (a *De la* figure must never quote under the true price),
+and the amplification a delta gives that rounding is now an accepted cost, not an open defect (same
+close-out). Still open: a stored material/hardware tier the price book no longer offers (wave 6E
+close-out, registered against wave 6F, now 6Q); the two overflow strings' on-screen distance and the
 scene warning being hidden behind §9's sheet while it is open (wave 6M close-out). **A correction to
 ADR 0060 decision 4's wording is appended to that ADR directly**, not restated here.
 

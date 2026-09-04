@@ -127,3 +127,20 @@ material's default, with the warning shown before the apply.
 Everything checked out. The adapter's error string uses double quotes (`Finish "oak" is a
 material…`) rather than the single quotes quoted in the brief; noted above as the only
 discrepancy, and it does not change any decision recorded here.
+
+## Amendment — 2026-09-04: each material's default finish is ruled, closing the input Consequences left owed
+
+Consequences' final bullet named this owed, not decided, and carried the recommendation forward as
+an open input at waves 6P/6Q (`docs/milestones/M6-price-and-global-settings.md`, *Open questions
+gating this phase*). The owner has now ruled it, on the recommendation already on record:
+
+| Material | Default finish |
+| --- | --- |
+| PAL | **Alb** |
+| MDF | **white** |
+| Veneer | **Stejar** |
+
+This is ADR 0057's reset target for each material — the value a cabinet's finish resolves to when a
+material change (or wave 6P's migration of a legacy document) leaves it holding a finish the new
+material does not offer. Whichever wave ships the rule reads these three values as decided data, not
+as the *pending owner review* marker 6G's precedent called for while this was still open.
