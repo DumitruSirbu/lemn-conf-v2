@@ -234,8 +234,9 @@ remain open — 6F, 6J, 6K.** Five have shipped commits but no recorded criteria
 6B, 6I, 6L**, bundled inside `93e9bc3`/`75668b8`/`dfa6198` — do not read these as either closed or
 blocked without checking their own section. **6N has not started.**
 
-**Verified at the close of this pass (`ce77171`), reported by the closing session and not
-independently re-run here**: nine of ten `pnpm ci:local` gates green (format, lint, typecheck, test,
+**Measured at the close of this pass by running `scripts/local-ci.sh` on the merged tree at
+`ce77171`** — the coordinating session ran the gates itself rather than accepting an agent's report,
+which `WORKFLOW.md`'s closing step requires: nine of ten `pnpm ci:local` gates green (format, lint, typecheck, test,
 e2e, build, boundary, lockfile). Domain 102 files / 2044 tests, persistence 15/177, three-adapter
 48/1767, web 84 files / 1280 passed + 4 skipped, **e2e 57 passed**. `sca` failed the whole session on
 `ERR_SOCKET_TIMEOUT` reaching `registry.npmjs.org` — environmental, not caused by any diff in this
