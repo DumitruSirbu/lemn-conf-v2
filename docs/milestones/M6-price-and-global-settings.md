@@ -1,17 +1,21 @@
 # M6 — Live price, breakdown, and whole-kitchen settings (2D, 2E)
 
 > **STATUS: IN PROGRESS — waves sequenced 2026-09-02, first waves shipped 2026-09-03; four more
-> closed overnight 2026-09-03/04.** **Eleven of twenty-four waves are DONE** in the table below, each
+> closed overnight 2026-09-03/04.** **Thirteen of twenty-four waves are DONE** in the table below, each
 > with its commit(s): 6A (`6c1f830`), 6H (`4afda06`), 6A3 and 6B2 (`eb9ba03`), all shipped 2026-09-03.
 > **6C (`194405b`) and 6D (`a5e161f`) are marked DONE by this pass** — both had already shipped and
 > `docs/STATUS.md` already carried QA evidence for 6C, but neither had ever received the table's DONE
 > marker; recorded here as the gap it is, not attributed to this session's own work. **6E (`b558e28`),
 > 6G (`3e546d1`), 6I2 and 6M** (merged together at `ce77171`, via intermediate merge `4c4e4e0`) shipped
 > 2026-09-03/04 on branch `m6-price-and-global-settings`. **6S** (`280daa4`, `a2bff48`) shipped
-> 2026-09-04 on the same branch and is this pass's close-out. **Not
+> 2026-09-04 on the same branch. **6J** (`c8ba3af` for 6J-a, `a68482d` for 6J-b) and **6P**
+> (`38268b5`) shipped 2026-09-04 on the same branch, merged from parallel worktrees into one
+> sequential line. **6P carries no logic review** — the reviewer was lost to a spend limit mid-run;
+> its adversarial QA ran in full and both findings were fixed and mutation-verified. **6J-b has had
+> no adversarial pass at all.** Both are recorded here as owed, not as skipped. **Not
 > marked DONE, and not to be read as closed either way**: 6B, 6A2, 6A4, 6I, 6L have shipped commits
 > (bundled inside `93e9bc3`/`75668b8`/`dfa6198`) but no recorded criteria check — see `docs/STATUS.md`.
-> **6J, 6K remain open**, and **6N has not started**. **6F is superseded** — see 6P–6R below.
+> **6K remains open** — 6J shipping is what unblocks it — and **6N has not started**. **6F is superseded** — see 6P–6R below.
 > Depends on M5 (only wave 5E is still open
 > there, and it does not gate anything here). Summary: `docs/STATUS.md`. Start at **Waves** below,
 > then the owner section. **Twenty-four waves, all
@@ -245,12 +249,12 @@ constant (`worktop-depth.ts` carries a comment saying the rename is owed and def
 | 6H — cabinet depth becomes a parameter — **DONE 2026-09-03, `4afda06`** | D | none | Full |
 | 6I — the base family follows the formula | D | 6H | Full |
 | 6I2 — clearance is not a build depth *(backlog 15, 10)* — **DONE 2026-09-04, `ce77171`** | D | 6I — **unblocked, ADR 0060** | Full |
-| 6J — the persisted setting and what a change does | D | 6H, 6I, 6I2 — **unblocked, ADRs 0055, 0056, 0058** | Full |
+| 6J — the persisted setting and what a change does — **DONE 2026-09-04, `c8ba3af`/`a68482d`** | D | 6H, 6I, 6I2 — **unblocked, ADRs 0055, 0056, 0058** | Full |
 | 6K — the depth control on the sheet | D | 6J, 6G — **unblocked, ADR 0059** | Light + visual |
 | 6L — the handle path learns cabinet from appliance *(backlog 18)* | G | none — **sequenced before 6B and 6G** | Full |
 | 6M — the overflow is marked and warned about *(ADR 0065)* — **DONE 2026-09-04, `ce77171`** | — | 6A3 | Light + visual |
 | 6N — the wall-coverage bars *(owner request)* | — | 6D, 6M, decision 8's fixture correction | Light + visual |
-| 6P — the finish model: materials, palette, and a document that predates both *(ADR 0071)* | G | 6E | Full |
+| 6P — the finish model: materials, palette, and a document that predates both *(ADR 0071)* — **DONE 2026-09-04, `38268b5`** | G | 6E | Full |
 | 6Q — a material change resolves every finish it does not offer *(ADR 0071, ADR 0057; supersedes 6F)* | G | 6P | Full |
 | 6R — three control shapes, and six decors the 3D approximates *(ADR 0071)* | G | 6Q, 6G | Light + visual |
 | 6S — door leaves, drawers and door band heights become declared facts *(ADR 0070)* — **DONE 2026-09-04, `280daa4`/`a2bff48`** | P | none | Full |

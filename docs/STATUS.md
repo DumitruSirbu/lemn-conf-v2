@@ -32,7 +32,7 @@ moment it ships; a decision record does not. When the two disagree, the dated de
 | M3 — Insert, remove, swap, client write path | **Done** (closed 2026-08-26) | No — `milestones/done/` |
 | M4 — Editor panel and shell | **Done** (closed 2026-08-26 — one criterion unmet by design, ADR 0024) | No — `milestones/done/` |
 | M5 — Width editing, and depth as a derived quantity | **In progress — 5E is the only wave open.** 5A–5D2c, 5F, 5G, 5H all shipped | Yes — `milestones/M5-*.md`, and ADRs 0028–0041, 0052, 0053 |
-| M6 — Price bar and global settings (incl. cabinet depth control) | **In progress — 11 of 19 tracked waves DONE** (the milestone's own table now runs to 24 with 6P–6T added 2026-09-04). On branch `m6-price-and-global-settings`: 6A (`6c1f830`), 6H (`4afda06`), 6A3 and 6B2 (`eb9ba03`) shipped 2026-09-03; 6C (`194405b`) and 6D (`a5e161f`) shipped 2026-09-03 but only received their DONE marker this pass — a documentation gap, not new work; 6E (`b558e28`), 6G (`3e546d1`), 6I2 and 6M (merged at `ce77171`) shipped 2026-09-03/04; 6S (`280daa4`, `a2bff48`) shipped 2026-09-04. Open: 6J, 6K, plus 6P–6R and 6T. Shipped-but-uncertified: 6A2, 6A4, 6B, 6I, 6L. Not started: 6N. 6F is superseded by ADR 0071's 6P–6R | Yes — `milestones/M6-*.md`, and ADRs 0055–0072 |
+| M6 — Price bar and global settings (incl. cabinet depth control) | **In progress — 13 of 24 tracked waves DONE.** On branch `m6-price-and-global-settings`: 6A (`6c1f830`), 6H (`4afda06`), 6A3 and 6B2 (`eb9ba03`) shipped 2026-09-03; 6C (`194405b`) and 6D (`a5e161f`) shipped 2026-09-03 but only received their DONE marker this pass — a documentation gap, not new work; 6E (`b558e28`), 6G (`3e546d1`), 6I2 and 6M (merged at `ce77171`) shipped 2026-09-03/04; 6S (`280daa4`, `a2bff48`), 6J (`c8ba3af` 6J-a, `a68482d` 6J-b) and 6P (`38268b5`) shipped 2026-09-04. Open: 6K, 6Q, 6R, 6T. Shipped-but-uncertified: 6A2, 6A4, 6B, 6I, 6L. Not started: 6N. 6F is superseded by ADR 0071's 6P–6R | Yes — `milestones/M6-*.md`, and ADRs 0055–0072 |
 | M7 — Step 1, room and presets | Planned | Yes, when starting |
 | M8 — Review, contact, success | Planned | Yes, when starting |
 | Adversarial review remediation | **Every finding closed or gated.** SEC-001 (High) deferred to M8 by owner decision, gated. Everything else — SCENE-001/002, WEB-001–004, DOM-001–003, SEC-002–004, DB-001/002/004 — is implemented and reviewed | Yes — `milestones/adversarial-review-remediation.md`, `milestones/dom-003-set-width-split.md` |
@@ -234,15 +234,28 @@ policy, so every per-endpoint limit is application code.
 **Next: M6, on branch `m6-price-and-global-settings`.** Read
 `milestones/M6-price-and-global-settings.md`, now a 24-wave breakdown (6P–6T added 2026-09-04 on
 ADRs 0070 and 0071, superseding 6F), and ADRs 0055–0072 for the decisions behind it. All seven
-original owner decisions are closed. **Eleven waves are DONE**: 6A, 6H, 6A3, 6B2 (2026-09-03); 6C, 6D
+original owner decisions are closed. **Thirteen waves are DONE**: 6A, 6H, 6A3, 6B2 (2026-09-03); 6C, 6D
 (shipped 2026-09-03, DONE marker added this pass — a pre-existing documentation gap, not new work);
-6E, 6G, 6I2, 6M (2026-09-03/04, merged at `ce77171`); 6S (`280daa4`, `a2bff48`, 2026-09-04). **6J and
-6K remain open**, along with 6P–6R and 6T. Five have shipped commits but no recorded criteria check —
-**6A2, 6A4, 6B, 6I, 6L**, bundled inside `93e9bc3`/`75668b8`/`dfa6198` — do not read these as either
-closed or blocked without checking their own section. **6N has not started.**
+6E, 6G, 6I2, 6M (2026-09-03/04, merged at `ce77171`); 6S (`280daa4`, `a2bff48`), 6J (`c8ba3af`,
+`a68482d`) and 6P (`38268b5`), all 2026-09-04. **6K, 6Q, 6R and 6T remain open.** Five have shipped
+commits but no recorded criteria check — **6A2, 6A4, 6B, 6I, 6L**, bundled inside
+`93e9bc3`/`75668b8`/`dfa6198` — do not read these as either closed or blocked without checking their
+own section. **6N has not started.**
 
-**Measured at the close of this pass by running `scripts/local-ci.sh` on the merged tree at
-`ce77171`** — the coordinating session ran the gates itself rather than accepting an agent's report,
+**Two review debts were incurred on 2026-09-04 and are owed rather than skipped.** 6P never received
+a logic review — the reviewer was lost to a spend limit mid-run; its adversarial QA did run in full
+and both findings were fixed and mutation-verified. **6J-b has had no adversarial pass at all.** Both
+shipped on the coordinator's own gate run rather than on a completed review pair.
+
+**Measured on the merged tree at `38268b5`, by the coordinating session running the gates itself:**
+format, lint, typecheck and boundary all 0; domain **2440**, three-adapter **2077**, web **1329
+passed + 4 skipped**, persistence **177/177**, **e2e 57 passed**. Persistence and e2e are the two
+gates neither parallel worktree could run — `.env.*.local` exists only in the main checkout, so the
+worktree's persistence "green" was 86 skipped tests. Both are genuinely run at this commit. Parallel
+worktrees were torn down at the owner's instruction on 2026-09-04; development continues on one
+sequential line.
+
+**Superseded by the paragraph above; kept for the dated record. Measured at `ce77171`** — the coordinating session ran the gates itself rather than accepting an agent's report,
 which `WORKFLOW.md`'s closing step requires: nine of ten `pnpm ci:local` gates green (format, lint, typecheck, test,
 e2e, build, boundary, lockfile). Domain 102 files / 2044 tests, persistence 15/177, three-adapter
 48/1767, web 84 files / 1280 passed + 4 skipped, **e2e 57 passed**. `sca` failed the whole session on
