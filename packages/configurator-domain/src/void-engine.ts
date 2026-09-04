@@ -260,6 +260,14 @@ export interface Column {
   readonly x: number;
   readonly z: number;
   readonly w: number;
+  /** §3.2's MAX over the members' `occupiedDepthM` — **a clearance, and the first of the two depth
+   *  facts a column publishes** (ADR 0060 decision 1). It is how much space the run occupies with
+   *  every handle and appliance door bar in it, and it is what decides where the column sits.
+   *
+   *  It is **not** the depth a body inserted here is built to; `columnBuildDepthM` declares that,
+   *  and over a full-height column the two are different numbers. Carried as a plain `number`
+   *  rather than as `ClearanceM` because ADR 0044 and ADR 0053 persist this field and a stored
+   *  extent arrives off the wire; `openingFromVoid` restates it through `recordedClearanceM`. */
   readonly d: number;
   readonly top: number;
   readonly regions: readonly (readonly [number, number])[];
@@ -489,7 +497,12 @@ export function deriveColumns(
       throw new Error(`deriveColumns: column ${key} has no members`);
     }
     const width = Math.min(...members.map((member) => member.frame.w));
-    const depth = Math.max(...members.map(occupiedDepthM));
+    // **This reader wants the clearance** (ADR 0060 decision 1), and `Column.d` is that fact: the
+    // deepest thing standing in the run, an appliance's door bars included. It is deliberately
+    // *not* the depth a cabinet dropped into this column is built to — that is
+    // `columnBuildDepthM`'s declared answer, which `resolveDepthM` reads and which is a different
+    // number over a full-height column (600, against this 742 over the fridge).
+    const clearanceM = Math.max(...members.map(occupiedDepthM));
     const top = Math.max(
       ...members.map((member) => member.frame.y0 + member.frame.h),
     );
@@ -499,14 +512,14 @@ export function deriveColumns(
         member.frame.y0 + member.frame.h,
       ])
       .sort((a, b) => a[0] - b[0]);
-    const centre = depth / 2;
+    const centre = clearanceM / 2;
     columns.set(key, {
       key,
       wall: orientation.wall,
       ry: orientation.frame.ry,
       ...originOnWall(orientation, centre),
       w: width,
-      d: depth,
+      d: clearanceM,
       top,
       regions,
     });

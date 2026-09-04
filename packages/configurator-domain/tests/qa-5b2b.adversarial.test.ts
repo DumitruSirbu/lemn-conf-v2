@@ -29,6 +29,7 @@ import {
   KITCHEN_L_DESIGN,
 } from "../src/fixtures/kitchen-l-design.js";
 import { toMetres } from "../src/millimetres.js";
+import { recordedClearanceM } from "../src/occupied-depth.js";
 import { validateDesignForCatalog } from "../src/validate-design.js";
 import {
   deriveColumnKeyAt,
@@ -413,7 +414,7 @@ describe("a restored column's one region snaps where the session's several did",
       wall: "A",
       alongM: 1.3,
       w: 0.6,
-      d: 0.58,
+      d: recordedClearanceM(0.58),
       y0,
       h,
       spanY0,

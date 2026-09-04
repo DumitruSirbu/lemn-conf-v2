@@ -465,6 +465,16 @@ const WALL_FRONT_ASSEMBLY_MM = 39;
  *  lands (ADR 0018). */
 const CAP_OVER_WORKTOP_SEAT_MM = CAP_OVER_WORKTOP_MM - WALL_FRONT_ASSEMBLY_MM;
 
+/** **The cabinet-depth line, where a full-height member lifts the cap** — ADR 0060 decision 2, the
+ *  build depth over such a column at a 600 mm kitchen. */
+const CABINET_DEPTH_LINE_MM = 600;
+
+/** The same line as **recorded**, for the reason `CAP_OVER_WORKTOP_SEAT_MM` is: a fronted wall
+ *  carcass finishing on the 600 mm line seats at 561, which is the `frameDepthMm` ADR 0058's two
+ *  pinned deep tops already declare. */
+const CABINET_DEPTH_LINE_SEAT_MM =
+  CABINET_DEPTH_LINE_MM - WALL_FRONT_ASSEMBLY_MM;
+
 describe("the claim the band predicate rests on", () => {
   // `isFullHeightUnder` reads the band rather than any measurement, and the band it reads has to
   // separate the two populations cleanly. Kept from the wave's first round, where the predicate
@@ -559,11 +569,19 @@ describe("hasFullHeightUnder — what the predicate answers, member by member", 
     expect(swapDepthMm(world)).toBe(CAP_OVER_WORKTOP_SEAT_MM);
   });
 
+  // **561 and not 600 since wave 6I2 (ADR 0060), and the move is the wave's subject.** `w0` is a
+  // synthetic `wall-2door-600-deep-top` recording a 600 mm *seat*, so it occupies 639 — and the
+  // uncapped arm used to hand that 639 straight to the probe, recording a 600 mm seat for a 639 mm
+  // cabinet nobody manufactures. The build depth over a full-height column is now the declared
+  // cabinet-depth line, so the incoming body finishes at 600 and seats at 561 whatever the outgoing
+  // body happened to record. The rule this case is about — the cap is *lifted*, not applied — is
+  // unchanged and still falsifiable: 561 is far deeper than the 291 the capped cases assert.
   it("does not cap a wall carcass over a full-height column", () => {
     const world = stackedWorld(TALL_COLUMN, 1000);
 
     expect(world.columns.get("A|1.00")?.hasFullHeightUnder).toBe(true);
-    expect(swapDepthMm(world)).toBe(600);
+    expect(swapDepthMm(world)).toBe(CABINET_DEPTH_LINE_SEAT_MM);
+    expect(swapDepthMm(world)).not.toBe(CAP_OVER_WORKTOP_SEAT_MM);
   });
 
   // The rule read positively: the cap is the default, and only a full-height member lifts it. Read
@@ -590,7 +608,8 @@ describe("hasFullHeightUnder — what the predicate answers, member by member", 
     const world = stackedWorld(WIDE_TALL_COLUMN, 1300);
 
     expect(world.columns.get("A|1.00")?.hasFullHeightUnder).toBe(true);
-    expect(swapDepthMm(world)).toBe(600);
+    expect(swapDepthMm(world)).toBe(CABINET_DEPTH_LINE_SEAT_MM);
+    expect(swapDepthMm(world)).not.toBe(CAP_OVER_WORKTOP_SEAT_MM);
   });
 
   // `hasFullHeightUnder` is the one field on `Column` that is not frozen at load, and

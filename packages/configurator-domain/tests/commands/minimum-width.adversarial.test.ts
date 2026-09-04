@@ -14,6 +14,7 @@ import {
 import { evaluateInsertFit } from "../../src/commands/insert-fit.js";
 import { FIT_TOLERANCE_M } from "../../src/void-engine.js";
 import { toMetres } from "../../src/millimetres.js";
+import { recordedClearanceM } from "../../src/occupied-depth.js";
 import { renderRejection } from "../../src/commands/rejection.js";
 import { offersFor } from "../../src/queries/offers.js";
 import { offered as offeredRows } from "../support/offers.js";
@@ -243,7 +244,7 @@ describe("a millimetre-set entry honours its own minimum width too", () => {
       wall: "A",
       alongM: 1,
       w: widthM,
-      d: 0.58,
+      d: recordedClearanceM(0.58),
       y0: 0,
       h: 0.86,
       spanY0: 0,
@@ -371,7 +372,7 @@ describe("the shipped fixed-set entries resolve exactly as they did before the f
             wall: "A",
             alongM: 1,
             w: widthM,
-            d: 0.58,
+            d: recordedClearanceM(0.58),
             y0: 0,
             h: 2.6,
             spanY0: 0,

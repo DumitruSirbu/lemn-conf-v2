@@ -11,6 +11,22 @@
 //
 // The same stance `occupied-depth.ts` takes for an undeclared depth rule and `cabinet-handles.ts`
 // takes for an undeclared handle count, for the same reason: the failure is invisible in a scene.
+//
+// **Wave 6I2 adds the other half of the same subject** (ADR 0060): what a cabinet standing in a
+// given column is *built* to. The rule above says whether an entry's depth follows the setting;
+// `columnBuildDepthMm` below says what the setting then makes it. Both are declarations read off
+// the map and the line, never measurements of what happens to stand there — which is why they live
+// together rather than beside `occupiedDepthM`, whose whole subject is the opposite: converting a
+// recorded seat back into the space a placed body actually fills.
+import { toMetres } from "./millimetres.js";
+// Type-only, so this module gains no runtime dependency on the clearance side — it needs the
+// *type* to refuse anything that is not a clearance, and none of its behaviour.
+import type { ClearanceM } from "./occupied-depth.js";
+import {
+  declaredWorktopDepthsMm,
+  UnknownWorktopDepthError,
+  wallDepthMmForWorktop,
+} from "./worktop-depth.js";
 
 /** **Whether this entry's depth follows the cabinet-depth setting** — declared per catalogue entry
  *  (`BodyDefinition.depthRule`).
@@ -116,4 +132,141 @@ export function depthFollowsSetting(rule: CabinetDepthRule): boolean {
     case "pinned":
       return false;
   }
+}
+
+// ---------------------------------------------------------------------------------------------
+// ADR 0060 — the build depth, the second fact a column publishes beside its clearance.
+// ---------------------------------------------------------------------------------------------
+
+/** **What a cabinet standing in this column is built to** — a manufactured size, and the type
+ *  `resolveDepthM` and `InsertPlan.depthM` are stated in.
+ *
+ *  Nominal on purpose (ADR 0060 decision 1). A column publishes **two** depth facts and they answer
+ *  different questions: `occupiedDepthM`'s `ClearanceM` is *"how much space does this occupy,
+ *  handles included"* and this is *"how deep is the next body built"*. They were one `number` until
+ *  this wave, which is how `resolveDepthM` came to hand the probe a clearance MAX — 703 and 742 mm,
+ *  depths nobody manufactures (`docs/BACKLOG.md` entry 15). A plain `number` is not assignable
+ *  here, so handing a clearance where a build depth is wanted is a **compile error** rather than a
+ *  comment somebody has to read.
+ *
+ *  There is deliberately no constructor from a bare depth that does not say what it is: this type
+ *  is produced by `columnBuildDepthM` — the declaration — or by `buildToTheClearanceM`, the one named
+ *  crossing, and by nothing else. */
+export type BuildDepthM = number & { readonly __buildDepthM: unique symbol };
+
+/** The two facts ADR 0060 decision 2 derives a build depth from, and nothing else.
+ *
+ *  A named object rather than a number and a positional boolean, per the conventions: the boolean
+ *  is a fact about the column being asked about, not a flag selecting a behaviour. */
+export interface ColumnBuildDepthQuery {
+  /** The kitchen's declared cabinet depth in millimetres — `WORKTOP_DEPTH_MM` until wave 6J gives a
+   *  design one of its own. */
+  readonly cabinetDepthMm: number;
+  /** `Column.hasFullHeightUnder`: whether a full-height member stands under this column, which is
+   *  what lifts §5.2's head-clearance cap. */
+  readonly hasFullHeightUnder: boolean;
+}
+
+/** **ADR 0060 decision 2: the build depth is a declared size, never a measurement of what happens
+ *  to stand there.**
+ *
+ *  Two answers and no third:
+ *
+ *  - **The cap applies** — the map's wall depth for this cabinet depth: 330 at 600, 400 at 700. The
+ *    same row §7's `nominalDepthMm` reads, so the cap and the catalogue nominal cannot drift apart
+ *    (ADR 0028 decision 3). This arm **is** §7's `min(d, cap)` cap, and it is a head-clearance rule
+ *    rather than a geometry limit: a wall cabinet above a worktop is shallow so nobody hits their
+ *    head leaning over the counter, and `wallCabinet(W, doors, H, D)` builds any depth it is handed.
+ *    Backlog entry 5, decided by the owner on 2026-08-26. It lives in the domain rather than beside
+ *    the builders because it is a function of the **design** — of what stands under the opening —
+ *    and the adapter cannot see one (§12: the domain owns product rules, the adapter owns builders).
+ *    It had a second name of its own, `wallCarcassMaxDepthOverWorktopM`, until wave 6I2's own
+ *    `resolveDepthM` stopped calling it and only tests were left; a gate reading the cap through a
+ *    test-only alias is how the gate goes missing when the alias does.
+ *  - **A full-height member lifts it** — the **cabinet-depth line**: 600 at 600, 700 at 700. The
+ *    lift was always meant to raise the ceiling from the map's 330 to that line (ADR 0028
+ *    decision 5, *"which is what keeps the two deep top cabinets at 600 over their columns"*), and
+ *    was implemented as "return the opening's depth", which coincided with the intent only while
+ *    nothing measured an appliance's handles. Wave S9 ended the coincidence.
+ *
+ *  **Never the clearance MAX.** That is ADR 0028 decision 4's rule — a declaration, not a
+ *  computation — applied to the one arm that evaded it: `worktop-depth.ts` exists precisely so a
+ *  formula cannot invent a cabinet nobody makes, and 703 and 742 are what a formula produced one
+ *  module over.
+ *
+ *  **A cabinet depth the map does not declare throws on either arm**, checked once at the entry
+ *  rather than left to whichever arm the caller lands on. The capped arm gets that for free from the
+ *  map lookup; the lifted arm is an identity on its input and so has no range of its own, and an
+ *  identity is a declaration only as far as *its* input is one. Today the sole caller passes
+ *  `WORKTOP_DEPTH_MM`, but from wave 6J the number arrives in a stored document and through
+ *  `migrateDesign`, where a worktop value threaded into a cabinet-depth argument would otherwise
+ *  sail through the lifted arm and be built to. Raised by logic review, 2026-09-04. */
+export function columnBuildDepthMm(column: ColumnBuildDepthQuery): number {
+  const cabinetDepthMm = requireDeclaredCabinetDepthMm(column.cabinetDepthMm);
+  return column.hasFullHeightUnder
+    ? cabinetDepthLineMm(cabinetDepthMm)
+    : wallDepthMmForWorktop(cabinetDepthMm);
+}
+
+/** **The one range check both arms pass through.** `wallDepthMmForWorktop` keeps its own guard —
+ *  it is the map's fail-closed contract and the single statement of which rows exist — so this is
+ *  not a second copy of the declared set but the same set asked before the branch. */
+function requireDeclaredCabinetDepthMm(cabinetDepthMm: number): number {
+  if (!declaredWorktopDepthsMm().includes(cabinetDepthMm)) {
+    throw new UnknownWorktopDepthError(cabinetDepthMm);
+  }
+  return cabinetDepthMm;
+}
+
+/** `columnBuildDepthMm` in the unit the command layer plans in. */
+export function columnBuildDepthM(column: ColumnBuildDepthQuery): BuildDepthM {
+  return toMetres(columnBuildDepthMm(column)) as BuildDepthM;
+}
+
+/** **The cabinet-depth line: the setting itself.** Named rather than passed through anonymously,
+ *  because 600 stands for three different facts in this project — the setting, the line a hood's
+ *  front hangs on (ADR 0039 decision 2), and the finished depth ADR 0058 pins two top cabinets at —
+ *  and only the first of the three is what lifts the cap. */
+function cabinetDepthLineMm(cabinetDepthMm: number): number {
+  return cabinetDepthMm;
+}
+
+/** **The one place a clearance crosses into a build depth.** One greppable site with a stated
+ *  reason, instead of an implicit assignment at every call — which is the whole point of the two
+ *  types being different.
+ *
+ *  **It takes a `ClearanceM` and not a `number`, deliberately.** A bare-`number` parameter would
+ *  launder *any* value into a `BuildDepthM`, which is a hole in the one criterion this wave exists
+ *  to meet: the crossing has to be from a clearance, not from whatever a caller happens to hold.
+ *  Narrowed on review, 2026-09-04. `recordedClearanceM` remains the only way a wire number becomes a
+ *  clearance, and it is at the persistence boundary where that is the fact being stated.
+ *
+ *  Two callers, both in `resolveDepthM`, and they pass **different** clearances on purpose:
+ *
+ *  - **The capped arm's floor — the *column's* clearance.** §7's cap is a maximum and never a
+ *    target (ADR 0028; wave 5A): a column shallower than the declared depth keeps its own depth, so
+ *    a body can never be built past the space that actually exists. Measured against the column and
+ *    not against the opening, because the two routes publish different openings — `openingFromVoid`
+ *    the column's clearance, `openingFromPlacement` the outgoing body's — and a floor read from the
+ *    opening therefore made ADR 0060 decision 3 false wherever the outgoing body was not the
+ *    deepest thing in its column. Raised by logic review, 2026-09-04.
+ *  - **A band the head-clearance rule does not reach — the opening's own clearance.** Base,
+ *    full-height and appliance builders ignore the depth argument entirely (ADR 0040's `wall-plane`
+ *    rule), so no manufactured size is being decided there and §5.2's literal
+ *    `b.mk(w, h, void.d)` governs. */
+export function buildToTheClearanceM(clearanceM: ClearanceM): BuildDepthM {
+  // Through a plain `number` because the two brands deliberately do not overlap, so there is no
+  // direct assertion between them — which is the property that makes this function necessary.
+  const metres: number = clearanceM;
+  return metres as BuildDepthM;
+}
+
+/** The shallower of a declared build depth and what the space itself allows, named rather than
+ *  written as a bare `Math.min` at the call site. Both arguments are build depths, so no clearance
+ *  can reach the result except through `buildToTheClearanceM` above. */
+export function shallowerBuildDepthM(
+  declaredM: BuildDepthM,
+  availableM: BuildDepthM,
+): BuildDepthM {
+  return Math.min(declaredM, availableM) as BuildDepthM;
 }

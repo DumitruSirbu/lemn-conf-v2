@@ -21,8 +21,35 @@
 // the decision is *about* — that a recorded seat is converted back and never read as a depth, in one
 // place — is untouched and is what this module still is. Only the third arm changed, from a guess to
 // a declaration.
+//
+// **What wave 6I2 changed (ADR 0060).** Nothing about the value or the meaning — the change is that
+// the answer now has a **name and a type of its own**. `occupiedDepthM` is a *clearance*, and
+// `resolveDepthM` was handing the same number to the probe as *"the depth to build the next body
+// to"*, a manufactured size (`docs/BACKLOG.md` entry 15). The build depth is declared separately in
+// `cabinet-depth-rule.ts` as `BuildDepthM`, and the two are different nominal types, so handing one
+// where the other is wanted no longer compiles.
 import { toMetres } from "./millimetres.js";
 import type { PlacementRecord } from "./void-engine.js";
+
+/** **How much space a body occupies, handles and appliances included** — §3.1's full extent on the
+ *  depth axis, and the type the clearance fact is stated in (ADR 0060 decision 1).
+ *
+ *  Nominal on purpose, and the pairing with `BuildDepthM` is the point rather than either type
+ *  alone: `Column.d` (§3.2's MAX), `VoidRecord.d` and `InsertOpening.d` are all this, and none of
+ *  them is a depth anybody manufactures. A `ClearanceM` is a `number` and flows freely into the
+ *  arithmetic a clearance belongs in; it is **not** a `BuildDepthM` and cannot become one except
+ *  through the single named crossing `buildToTheOpeningM`. */
+export type ClearanceM = number & { readonly __clearanceM: unique symbol };
+
+/** A depth already measured as a clearance, re-entering the type that says so.
+ *
+ *  `Column.d` and `VoidRecord.d` carry §3.2's MAX as a plain `number` — the frozen map persists it
+ *  and a stored extent arrives off the wire (ADR 0044, ADR 0053) — so this is where a wire number
+ *  is restated as the clearance it is. Deliberately **not** a way to obtain a build depth: nothing
+ *  here can produce a `BuildDepthM`. */
+export function recordedClearanceM(depthM: number): ClearanceM {
+  return depthM as ClearanceM;
+}
 
 /** **How a body's finished front relates to the seat it records** — declared per catalogue entry
  *  (`BodyDefinition.occupiedDepth`), never inferred from a kind, a band or a builder name. ADR 0022:
@@ -105,12 +132,14 @@ interface DeclaredSeat {
 
 /** The declared rule, applied. Separate from `occupiedDepthM` so the widening above happens at a
  *  function boundary and the undeclared case is reachable instead of merely unrepresentable. */
-function occupiedDepthFromSeat(seat: DeclaredSeat): number {
+function occupiedDepthFromSeat(seat: DeclaredSeat): ClearanceM {
   switch (seat.rule?.measuredFrom) {
     case "wall-plane":
-      return toMetres(seat.rule.finishedDepthMm);
+      return recordedClearanceM(toMetres(seat.rule.finishedDepthMm));
     case "recorded-shell":
-      return seat.seatDepthM + toMetres(seat.rule.frontAssemblyMm);
+      return recordedClearanceM(
+        seat.seatDepthM + toMetres(seat.rule.frontAssemblyMm),
+      );
     default:
       throw new UndeclaredOccupiedDepthError(seat.buildId, seat.rule);
   }
@@ -120,10 +149,16 @@ function occupiedDepthFromSeat(seat: DeclaredSeat): number {
  *  on the depth axis, and the single answer `deriveColumns` (§3.2's MAX) and `openingFromPlacement`
  *  (§5.3's swap opening) both read.
  *
+ *  **A clearance, and never a build depth** (ADR 0060 decision 1). Its MAX over a column includes an
+ *  appliance's door bars — 742 mm over the freestanding fridge — which is the correct answer to
+ *  "how much space does this occupy" and no answer at all to "how deep do we build the next body".
+ *  `columnBuildDepthM` in `cabinet-depth-rule.ts` answers the second, and the `ClearanceM` /
+ *  `BuildDepthM` pair is what stops one being read as the other.
+ *
  *  Fails closed. Every reachable placement has a catalogue entry — `derivePlacementRecords` throws
  *  `UnknownBodyError` before this is called — so the only way here without a rule is a `BodyCatalog`
  *  that omitted one, which is a defect in that catalogue and not an occasion for a fallback. */
-export function occupiedDepthM(record: PlacementRecord): number {
+export function occupiedDepthM(record: PlacementRecord): ClearanceM {
   return occupiedDepthFromSeat({
     buildId: record.buildId,
     rule: record.occupiedDepth,
