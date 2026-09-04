@@ -150,6 +150,12 @@ found by whoever hits the conflict.
   `packages/`. **Had it landed in a package QA had already measured, none of the counts would have
   been attributable to anything.** The instruction to the implementer is explicit: *stop editing, a
   moving diff wastes the pass*. The same applies to reviewers.
+- **A finding left as a failing test detects a moving tree for free.** M6 wave 6P's QA had the tree
+  change under it twice mid-pass, and noticed only because a test it had deliberately left red
+  suddenly went green — a loud signal that the code had changed underneath the measurement. A pass
+  that reports its findings only in prose has no such tripwire: it re-runs against different code and
+  reports numbers that are internally consistent and wrong. This is a second, independent reason to
+  leave findings failing rather than describe them.
 - **QA is adversarial**: the implementer tests what they built, QA tests what they assumed. A test QA
   writes that fails is a *finding*. Leave it failing and report it. QA never weakens an assertion to
   make it pass and never edits production code to make its own test green — that is how a suite ends
