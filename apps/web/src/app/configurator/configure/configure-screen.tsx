@@ -10,6 +10,7 @@ import { PriceBreakdown } from "@/price/price-breakdown";
 import { usePanelView } from "@/panel/use-panel-view";
 import { WebGLUnavailable } from "@/components/webgl-unavailable";
 import { ro } from "@/content/ro";
+import { OverflowWarning } from "@/scene/overflow-warning";
 import { GlobalSettings } from "@/settings/global-settings";
 import type { SceneView } from "@/scene/scene-view";
 import { detectWebGLSupport } from "@/scene/webgl-support";
@@ -92,15 +93,23 @@ export function ConfigureScreen() {
               </button>
             ))}
           </div>
-          {/* Frames 2A / D2A: the nothing-selected instruction copy, and the only place it lives.
-              It is hidden while the panel is open, where it would sit behind the sheet — and it is
-              gated on the same `PanelView` the panel renders from, so "panel open" and "hint
-              hidden" cannot answer differently on a state one of them has not considered. */}
-          {panel.kind === "open" ? null : (
-            <p className={styles.hint} data-testid="scene-hint">
-              <span>{ro.configure.orbitHint}</span>
-            </p>
-          )}
+          {/* The scene's bottom stack. Both children are overlays and neither takes flow height, so
+              the canvas's box does not depend on whether either is on screen — which is the whole of
+              wave 6M's revised placement (`scene/overflow-warning-layout.ts`). The warning is last so
+              it keeps the scene's bottom edge, directly above the price bar, with the hint above it
+              rather than inside it. */}
+          <div className={styles.sceneFooter}>
+            {/* Frames 2A / D2A: the nothing-selected instruction copy, and the only place it lives.
+                It is hidden while the panel is open, where it would sit behind the sheet — and it is
+                gated on the same `PanelView` the panel renders from, so "panel open" and "hint
+                hidden" cannot answer differently on a state one of them has not considered. */}
+            {panel.kind === "open" ? null : (
+              <p className={styles.hint} data-testid="scene-hint">
+                <span>{ro.configure.orbitHint}</span>
+              </p>
+            )}
+            <OverflowWarning />
+          </div>
         </div>
         <EditorPanel view={panel} />
         <SelectionDebug />

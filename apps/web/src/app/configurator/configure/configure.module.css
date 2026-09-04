@@ -105,7 +105,12 @@
 }
 
 /* The scene's own box. On desktop it is the flex child the 420 px rail leaves room for, which is
- * how "the scene re-lays out" happens without any component knowing a rail exists. */
+ * how "the scene re-lays out" happens without any component knowing a rail exists.
+ *
+ * It is the positioning context for everything drawn over the scene: the camera chips, the orbit
+ * hint, and — since wave 6M's revision — ADR 0065's overflow warning. All three are overlays and
+ * none of them takes flow height, so the canvas's box is the viewport's box whatever is on screen.
+ * `scene/overflow-warning-layout.ts` records why the warning may not take flow height. */
 .viewport {
   position: relative;
   flex: 1;
@@ -143,14 +148,30 @@
   background: rgb(250 248 244 / 92%);
 }
 
-.hint {
+/* The scene's bottom stack: the orbit hint and, below it, ADR 0065's warning band.
+ *
+ * One absolutely positioned column rather than two independently pinned overlays, because the two
+ * would otherwise occupy the same pixels — the hint sat at `bottom: 16px` and the band is 56 px
+ * tall from `bottom: 0`, so an overflowing design with nothing selected drew the hint pill inside
+ * the band. Stacked, the band keeps the scene's bottom edge and the hint rides above it; with no
+ * band the hint's own margin puts it exactly where it has always been.
+ *
+ * `pointer-events: none` for the whole stack: neither is a control, and the band stands over the
+ * lowest cabinets, so a tap has to reach the scene through it. */
+.sceneFooter {
   position: absolute;
   right: 0;
-  bottom: 16px;
+  bottom: 0;
   left: 0;
   display: flex;
-  justify-content: center;
+  flex-direction: column;
   pointer-events: none;
+}
+
+.hint {
+  display: flex;
+  justify-content: center;
+  margin: 0 0 16px;
 }
 
 .hint span {
@@ -208,7 +229,7 @@
   }
 
   .hint {
-    bottom: 30px;
+    margin-bottom: 30px;
   }
 
   .hint span {

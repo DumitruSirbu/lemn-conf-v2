@@ -38,6 +38,24 @@ export type PixelTest =
        *  blue, and a translucent fill's rendered colour cannot be named as a constant. */
       readonly kind: "blueTint";
       readonly minExcess: number;
+    }
+  | {
+      /** Red by at least this much more than **both** other channels.
+       *
+       *  The same problem as `blueTint` and the same answer, for ADR 0065's overflow mark: the mark
+       *  is a 32 % wash over whatever the body underneath is painted with, so the pixel it produces
+       *  is a blend and is never within counting distance of `OVERFLOW_MARK_COLOR` itself. Measured
+       *  on the real render, the nearest scene pixel to that constant moves only from 108.71 to
+       *  62.32 when the wash covers thousands of pixels — so a `near` test would have to open its
+       *  ball wider than the gap to the selection highlight, at which point it counts both.
+       *
+       *  It compares against **two** channels where `blueTint` compares against one, and that is
+       *  forced by the same palette fact from the other side: the kitchen is warm, so oak and clay
+       *  are already red-over-blue everywhere. Red over green *and* blue is what only the mark is.
+       *  Measured on the seeded design at 390 x 844: zero pixels clear 50 in any camera preset, in
+       *  every one of the three presets, and 7 875 clear it once a body is marked. */
+      readonly kind: "redTint";
+      readonly minExcess: number;
     };
 
 /** Captures `clip` from the live page and counts the pixels in it that satisfy `test`. */
@@ -78,7 +96,9 @@ async function countMatchingPixelsInPage({
         (green - targetGreen) ** 2 +
         (blue - targetBlue) ** 2;
       if (distanceSquared <= test.tolerance ** 2) matches += 1;
-    } else if (blue - red >= test.minExcess) {
+    } else if (test.kind === "blueTint") {
+      if (blue - red >= test.minExcess) matches += 1;
+    } else if (Math.min(red - green, red - blue) >= test.minExcess) {
       matches += 1;
     }
   }

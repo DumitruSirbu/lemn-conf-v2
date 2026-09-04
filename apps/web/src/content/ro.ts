@@ -42,6 +42,22 @@ export const ro = {
       wallB: "Perete B",
     },
     loading: "Se încarcă modelul 3D…",
+    /** [ADR 0065](../../../docs/decisions/0065-a-body-past-the-end-of-its-wall-is-marked-not-moved.md)
+     *  decision 7b's scene warning, owner 2026-09-03. **The owner's own phrasing: verbatim,
+     *  punctuation included, and not to be tidied.**
+     *
+     *  It replaces an earlier *corpuri* wording, ruled the same day: the warning said *corpuri*
+     *  while `price.overflowingTotalWarning` said *dulapuri*, and asked to reconcile them the owner
+     *  chose *dulapuri* in both. Only the noun is shared. The superseded form is struck through in
+     *  place at the ADR, so a later reader can see the alternative was held and dropped.
+     *
+     *  **It is not the flagged total's sentence and neither restates the other**, which is why they
+     *  are two constants: this one says what is wrong and what to do about it, the total's flag says
+     *  what the number contains and that it is not final. It is also not §9's rejection banner
+     *  (decision 8) — a rejection says an edit did not happen, this says an edit happened and its
+     *  result does not fit. */
+    overflowWarning:
+      "Dulapurile marcate depășesc lungimea peretelui. Modifică lățimile sau elimină un dulap.",
   },
   /** §9's panel. Derived sentences are functions rather than strings so the whole of the panel's
    *  copy still lives in this one module: §9 requires the count line to be *derived* ("5 corpuri
@@ -328,9 +344,8 @@ export const ro = {
      *  **Unchanged by the re-ruling of the same day.** This string said *dulapuri* where the scene
      *  warning said *corpuri*; wave 6C raised the inconsistency rather than tidying it, and the
      *  owner chose *dulapuri* in both. So the **scene warning's** wording moved and this one did
-     *  not. That warning is wave 6M's and is in no code yet — when it lands it reads
-     *  *"Dulapurile marcate depășesc lungimea peretelui. Modifică lățimile sau elimină un dulap."*,
-     *  and the superseded *corpuri* form is struck through in place at ADR 0065 decision 7b. */
+     *  not. That warning landed with wave 6M as `configure.overflowWarning`, and the superseded
+     *  *corpuri* form is struck through in place at ADR 0065 decision 7b. */
     overflowingTotalWarning:
       "Prețul include și dulapuri ce depășesc mărimea peretelui și necesită ajustări",
   },

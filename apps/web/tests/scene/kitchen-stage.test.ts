@@ -51,6 +51,7 @@ vi.mock("@lemnaria/three-adapter", async () => {
   return {
     applyFinish: vi.fn(),
     buildKitchenShell: harness.buildKitchenShell,
+    buildOverflowMark: vi.fn(() => ({ group: new THREE.Group() })),
     buildSelectionOutline: vi.fn(() => ({ group: new THREE.Group() })),
     collectFronts: vi.fn(() => []),
     configureRenderer: vi.fn(),
@@ -64,6 +65,7 @@ vi.mock("@lemnaria/three-adapter", async () => {
     createPickingRaycaster: vi.fn(() => new THREE.Raycaster()),
     createShadowGround: vi.fn(() => new THREE.Group()),
     createStudioEnvironment: vi.fn(() => new THREE.Texture()),
+    disposeOverflowMark: vi.fn(),
     disposeSelectionOutline: vi.fn(),
     findCameraPreset: vi.fn(() => ({
       id: "overview",
@@ -102,6 +104,7 @@ beforeEach(() => {
   harness.storeState = {
     attachBodyProbe: vi.fn(),
     deselect: vi.fn(),
+    design: KITCHEN_L_DESIGN,
     detachBodyProbe: vi.fn(),
     records: CURRENT_RECORDS,
     select: vi.fn(),

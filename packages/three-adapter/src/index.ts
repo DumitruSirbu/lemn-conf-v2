@@ -71,6 +71,15 @@ export {
 } from "./scene-sync.js";
 
 export {
+  buildOverflowMark,
+  disposeOverflowMark,
+  OVERFLOW_MARK_COLOR,
+  OVERFLOW_MARK_OPACITY,
+  type OverflowMark,
+  type OverflowMarkInput,
+} from "./overflow-mark.js";
+
+export {
   buildSelectionOutline,
   disposeSelectionOutline,
   OCCLUDED_OUTLINE_OPACITY,
