@@ -1591,3 +1591,59 @@ Two candidate fixes, both narrow:
   domain code. Larger, and it is the only one of the two that leaves a trace.
 
 Not scheduled. Worth deciding before any surface gains an action that can throw.
+
+## 32. The chips row grows past the column; only the chips themselves are contained
+
+Found 2026-09-05 by the visual pass on wave 6K-d/6K-e, at 390 x 844.
+
+Wave 6K-b3 reverted a third chip after it intercepted pointer events over the price bar and took 44
+e2e tests down, and added `min-width: 0; overflow: hidden; text-overflow: ellipsis` to `.chip`. That
+rule works — every chip ellipsises, measured. **The containment leak is one level up.**
+`.settingsRow` keeps its flex default `min-width: auto` and grows past its column:
+
+| chips | `.settingsRow` width | trigger's right edge |
+| --- | --- | --- |
+| 2 | 390 (fits) | on screen |
+| 3 | 442 | **412**, off a 390 px screen |
+| 3 (long label) | 563 | further off |
+| 4 | 632 | further off |
+
+`body.scrollWidth` reaches 442 against `documentElement.clientWidth` 390. The failure mode changed
+from *"chips cover the trigger"* to *"trigger leaves the screen"* — a different defect, not a fixed
+one.
+
+`apps/web/src/settings/global-settings.module.css:33` claims a fourth chip *"narrows the three rather
+than breaking anything"*. That claim is measurably false and should be corrected whatever is decided
+here, because it is the reason the next person will add a chip without measuring.
+
+Harmless today at two chips. **Blocks wave 6R**, which adds a finish control and therefore a third.
+
+## 33. The settings trigger is a 93.5 x 13 px touch target
+
+Found 2026-09-05 by the visual pass on wave 6K-d/6K-e, at 390 x 844.
+
+`.trigger` has `padding: 0`, so its tappable box is the text line box — 13 px tall. The 40 px pill a
+customer sees around it is `.anchor`, a different element. Every other control on the surface is
+fine: `Aplică` 86x44, `Renunță` 98x44, the depth options 354x51 and 354x49.
+
+Pre-existing and not introduced by any 6K wave, but it is the control that opens the whole
+whole-kitchen settings surface, so it is the one worth fixing first.
+
+## 34. One interrupted persistence run reds the whole package until repaired
+
+Found 2026-09-05 while verifying gates on `d4e58a4`.
+
+`packages/persistence`' live-database suite failed with
+`MigrationSequenceError: Migration 4 ... is recorded as applied, but 2 ... is not`, and
+`column "write_token_hash" of relation "designs" does not exist` — 2 failed, 171 passed.
+
+Cause: the adversarial test *"re-adds the column after it is dropped, so a no-op run cannot pass"*
+drops `write_token_hash` and re-applies the migration. If anything interrupts it between the two, the
+ledger is left recording migrations 3 and 4 without 2, and **every** live-database test in the
+package then fails the sequence check — not just the one that broke.
+
+It self-repaired on a later run (177 passed, verified), so there is nothing to fix in the database
+now. What is worth fixing is the fragility: one interrupted run reds an entire package, and the error
+tells the reader to *"resolve the gap by hand"* with no documented repair.
+
+Not scheduled.

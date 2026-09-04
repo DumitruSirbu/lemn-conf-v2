@@ -129,25 +129,15 @@ function rebuildEveryBodyAt(
   probe: BodyProbe,
 ): Rebuilt {
   const catalog = input.catalogAt(input.cabinetDepthMm);
-  const records = derivePlacementRecords(input.design, catalog);
+  // The one design everything below plans against, so no branch can reach the seated version by
+  // accident: the records, the columns derived from them, and the design `rebuild` itself reads.
+  const planning = planningDesign(input, catalog);
+  const records = derivePlacementRecords(planning, catalog);
   // `{}` rather than the document's frozen extents: ADR 0011 Gap D freezes a column's extent at the
   // depth it was loaded at, and this command changes exactly that. Re-deriving is the point.
-  const columns = deriveColumns(records, {}, input.design.room);
+  const columns = deriveColumns(records, {}, planning.room);
   const widthInput: SetWidthInput = {
-    // **The design carrying the depth being moved to, not the one it is moving from.** `rebuild`
-    // reaches `evaluateInsertFit`, which since wave 6K-b reads the cabinet depth off the design it
-    // is given — so handing it `input.design` would rebuild every wall body to the map row of the
-    // depth the kitchen is leaving, write that as its seat, and leave the new number beside bodies
-    // built to the old one. That is the same "silent mixture" this function refuses two branches
-    // down, and the same constant-versus-document defect ADR 0073's finding records, arriving
-    // through the argument rather than through a module constant.
-    design: {
-      ...input.design,
-      settings: {
-        ...input.design.settings,
-        cabinetDepthMm: input.cabinetDepthMm,
-      },
-    },
+    design: planning,
     catalog,
     columns,
     // `setWidth`'s own two fields, unused on the `rebuild` path: it reads `design`, `catalog`,
@@ -170,7 +160,7 @@ function rebuildEveryBodyAt(
     if (!record) {
       return { ok: false, detail: { code: "TARGET_NOT_FOUND", params: {} } };
     }
-    if (!movesWithTheSetting(catalog, record)) {
+    if (!movesWithTheSetting(catalog, record.buildId)) {
       placements.push(placement);
       continue;
     }
@@ -203,6 +193,66 @@ function rebuildEveryBodyAt(
     rebuiltCount += 1;
   }
   return { ok: true, value: { placements, rebuiltCount } };
+}
+
+/** **The design this command plans against: the new setting, and no seat written at the old one.**
+ *
+ *  Two things are stripped of the depth the kitchen is leaving, for one reason.
+ *
+ *  **The setting itself.** `rebuild` reaches `evaluateInsertFit`, which since wave 6K-b reads the
+ *  cabinet depth off the design it is given — so planning against `input.design` would rebuild every
+ *  wall body to the map row of the depth being left, write that as its seat, and leave the new number
+ *  beside bodies built to the old one. That is the "silent mixture" the rebuild loop refuses, and the
+ *  same constant-versus-document defect ADR 0073's finding records, arriving through an argument.
+ *
+ *  **And the recorded seats of the bodies that follow it** (ADR 0077 decision 8). A seat carries a
+ *  qualifier the number does not: the setting it was measured at. It is authoritative for the design
+ *  at that setting and for nothing else, so **a stored seat is not an input to the command that
+ *  invalidates it** — not directly, and not through a column derived from one. Left in, `deriveFrame`
+ *  resolves `seatDepthMm ?? frameDepthMm` (ADR 0011 Gap B), §3.2's `Column.d` is a MAX over frames
+ *  measured at the old depth, and `resolveDepthM`'s capped arm returns `min(declared 400, stale 330)`
+ *  — a 600 mm wall shell built, measured and persisted in a 700 mm kitchen. It is the move this
+ *  function already makes by passing `{}` for the frozen extents, extended to the other fact this
+ *  command changes; discarding the extents while re-deriving from stale seats discards the copy and
+ *  keeps the original.
+ *
+ *  **A `manufactured-size` body keeps its seat, and that is not an exception being granted.** Its
+ *  seat is a fact about a real machine rather than about the setting, so it keeps its full
+ *  contribution to the MAX — as do ADR 0058's pinned rows, by the same declaration. Clearing every
+ *  seat instead of the declared ones is the mirror of the defect being fixed.
+ *
+ *  **Gap B is suspended here and narrowed nowhere.** Only inside this command, only for entries that
+ *  declare `depthFollowsSetting`, and only for planning; every read path outside — load, scene sync,
+ *  picking, pricing, validation — reads the stored seat exactly as before. The case Gap B protects is
+ *  re-derived rather than lost: a wall cabinet seating at 561 does so because it stands over a
+ *  full-height column, and `resolveDepthM`'s lifted arm reads `column.hasFullHeightUnder` — never
+ *  `column.d` — off members that clearing a seat cannot remove. */
+function planningDesign(
+  input: SetCabinetDepthInput,
+  catalog: BodyCatalog,
+): Design {
+  return {
+    ...input.design,
+    settings: {
+      ...input.design.settings,
+      cabinetDepthMm: input.cabinetDepthMm,
+    },
+    placements: input.design.placements.map((placement) =>
+      movesWithTheSetting(catalog, placement.body.buildId)
+        ? withoutRecordedSeat(placement)
+        : placement,
+    ),
+  };
+}
+
+/** The placement with no `seatDepthMm` **at all**, rather than one holding the catalogue's declared
+ *  number: absent is what `deriveFrame`'s `??` is written for, and writing that fallback in by hand
+ *  here would be a second author for it. A placement that carries no seat is already what this
+ *  function is asked for and is returned as it stands. */
+function withoutRecordedSeat(placement: DesignPlacement): DesignPlacement {
+  const { seatDepthMm, ...seatlessBody } = placement.body;
+  if (seatDepthMm === undefined) return placement;
+  return { ...placement, body: seatlessBody };
 }
 
 interface ReseatInput {
@@ -260,11 +310,13 @@ function declaredFrameDepthMm(
 
 /** ADR 0058's exclusion, asked of the declaration. An entry with no rule at all is left alone rather
  *  than guessed at — `cabinetDepthRuleOf` already refuses those as the catalogue is assembled, so
- *  reaching one here means the catalogue was built outside that path. */
-function movesWithTheSetting(
-  catalog: BodyCatalog,
-  record: PlacementRecord,
-): boolean {
-  const rule = catalog.get(record.buildId)?.depthRule;
+ *  reaching one here means the catalogue was built outside that path.
+ *
+ *  **Takes a `buildId` rather than a record, so the two questions this module asks are one author.**
+ *  The seats are cleared before any record exists and the rebuild loop decides from a record, and
+ *  "does this entry move" answered twice is exactly how a clearing and a rebuild come to disagree
+ *  about which bodies the setting reaches. */
+function movesWithTheSetting(catalog: BodyCatalog, buildId: string): boolean {
+  const rule = catalog.get(buildId)?.depthRule;
   return rule !== undefined && depthFollowsSetting(rule);
 }
