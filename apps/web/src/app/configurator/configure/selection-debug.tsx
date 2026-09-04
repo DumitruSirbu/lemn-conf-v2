@@ -45,6 +45,7 @@ export function SelectionDebug() {
 function SelectionDebugReadout() {
   const selection = useConfiguratorStore((state) => state.selection);
   const meta = useSelectionMeta();
+  const design = useConfiguratorStore((state) => state.design);
   const saveStatus = useConfiguratorStore((state) => state.saveStatus);
   const designId = useConfiguratorStore((state) => state.designId);
   const isBodyProbeAttached = useConfiguratorStore(
@@ -67,6 +68,14 @@ function SelectionDebugReadout() {
       // The refusal's stable **code**, never its rendered Romanian sentence: the sentence is §9's
       // banner copy and is asserted where it renders, in the panel.
       data-rejection={lastRejection?.code ?? ""}
+      // Wave 6E's whole-kitchen container, and the timestamp a successful command moves. Both are
+      // document fields nothing renders — the 2E sheet shows a tier's *name*, and no surface shows
+      // an `updatedAt` at all — so "cancel wrote nothing", "apply wrote only the group that changed"
+      // and "applying an unchanged sheet did not bump the document" are unreadable from the page
+      // without them. Empty means the design carries no such key, which is a real state (ADR 0053).
+      data-material-tier={design.settings?.materialTierId ?? ""}
+      data-hardware-tier={design.settings?.hardwareTierId ?? ""}
+      data-updated-at={design.updatedAt}
       hidden
     />
   );

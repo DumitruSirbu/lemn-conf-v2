@@ -78,6 +78,11 @@ const SEEDED = priceDesign({
 const EVERY_PRICE_STRING = [
   ...priceCopyLeaves(ro.price),
   ...priceCopyLeaves(ro.priceBreakdown),
+  // Wave 6G's settings sheet, swept here rather than exempted: it carries a *delta* badge, which is
+  // price copy by every rule this block enforces. Its `appliesTo` and `tierDelta` templates
+  // contribute their bodies like any other, so a digit or an equality claim written into either is
+  // refused the same way one in the breakdown's own templates would be.
+  ...priceCopyLeaves(ro.globalSettings),
 ];
 
 /** Every leaf string under a copy section, with a composing template contributing its body. */
@@ -480,7 +485,7 @@ describe("only these modules may go near a price, and only one of them may round
    *  Wider than the shipped guard's two field names on purpose: a second formatter does not have to
    *  touch `totalMinor` to exist — it only has to reach the string. */
   const REACHES_A_PRICE =
-    /totalMinor|amountMinor|amountText|PriceFigure|describeStartingPrice|roundUpToThousandMdl|usePricedDesign|PricingResult|priceDesign|describeFlaggedTotalWarning|totalIsFlagged|PricedDesign/;
+    /totalMinor|amountMinor|amountText|PriceFigure|describeStartingPrice|describeAddedAmount|roundUpToThousandMdl|usePricedDesign|PricingResult|priceDesign|describeFlaggedTotalWarning|totalIsFlagged|PricedDesign/;
 
   /** The verbs a rounding rule is written with. Refused outright in every module but the formatter,
    *  rather than only on the line that names the amount — one `const` of indirection is all it takes
@@ -526,6 +531,12 @@ describe("only these modules may go near a price, and only one of them may round
       "price/price-breakdown.tsx",
       THE_FORMATTER,
       "price/use-priced-design.ts",
+      // Wave 6G. `whole-kitchen-tiers.ts` prices the design six times over to measure a delta, and
+      // the two settings modules render the result — all three added here rather than exempted, and
+      // all three still have to pass the three assertions below.
+      "price/whole-kitchen-tiers.ts",
+      "settings/global-settings-model.ts",
+      "settings/global-settings.tsx",
     ]);
   });
 

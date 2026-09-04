@@ -10,6 +10,7 @@ import { PriceBreakdown } from "@/price/price-breakdown";
 import { usePanelView } from "@/panel/use-panel-view";
 import { WebGLUnavailable } from "@/components/webgl-unavailable";
 import { ro } from "@/content/ro";
+import { GlobalSettings } from "@/settings/global-settings";
 import type { SceneView } from "@/scene/scene-view";
 import { detectWebGLSupport } from "@/scene/webgl-support";
 
@@ -54,6 +55,14 @@ export function ConfigureScreen() {
           <span />
         </div>
       </header>
+      {/* Frames 2E / D2E: the material and hardware chips and the control that opens them — a strip
+          under the header on mobile, part of the top bar on desktop. A band of the screen's own grid
+          rather than a child of the header, because the sheet it opens is modal on both shells: the
+          scrim and the popover have to paint above the price bar and §9's rail, and a subtree of the
+          header cannot (`configure.module.css` lifts this band, and says so there). */}
+      <div className={styles.settingsRow}>
+        <GlobalSettings />
+      </div>
       {/* On mobile this is the positioning context for the bottom sheet; on desktop it is the row
           the 420 px rail takes its space from. Which of the two happens is decided entirely in
           CSS — see `editor-panel.module.css`. */}

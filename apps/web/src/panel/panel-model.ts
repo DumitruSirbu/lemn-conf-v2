@@ -31,6 +31,7 @@ import type { WriteAccess } from "@/store/configurator-store";
 import { ro } from "@/content/ro";
 import {
   describeFlaggedTotalWarning,
+  describeStartingLabel,
   describeStartingPrice,
   type PriceFigure,
 } from "@/price/starting-price";
@@ -427,16 +428,9 @@ function describeFooterPrice(context: FooterContext): PriceFigure | undefined {
   const { pricing } = context;
   if (!pricing?.ok) return undefined;
   return describeStartingPrice({
-    label: describeFooterPriceLabel(context.rejection),
+    label: describeStartingLabel(context.rejection),
     totalMinor: pricing.priced.totalMinor,
   });
-}
-
-/** The figure itself does not move — a refusal leaves the design it is derived from untouched — so
- *  what a rejection changes here is only what the figure is called. The price bar calls it the same
- *  thing, from the same constant (owner, 2026-09-03: one wording for both shells). */
-function describeFooterPriceLabel(rejection: RejectionReason | null): string {
-  return rejection ? ro.price.startingPrefixUnchanged : ro.price.startingPrefix;
 }
 
 /** Whether §9's controls may be offered at all, and — when they may not — the one sentence every

@@ -18,11 +18,27 @@
   display: grid;
   grid-template-areas:
     "header"
+    "settings"
     "stage"
     "price";
-  grid-template-rows: auto minmax(0, 1fr) auto;
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
   height: 100dvh;
   background: var(--paper);
+}
+
+/* Frames 2E / D2E's whole-kitchen chips, and the control that opens their sheet. A band of its own
+ * rather than a child of the header, and the reason is stacking rather than taste: the sheet is
+ * **modal on both shells**, so its scrim has to cover the price bar (`z-index: 2`), §9's rail (`4`)
+ * and the breakdown's own popover (`6`). `.header` establishes a stacking context at `2`, and
+ * nothing inside a context can paint above what stands over it — so mounted there, the scrim would
+ * have dimmed the scene and left the bar bright and clickable underneath it. */
+.settingsRow {
+  grid-area: settings;
+  z-index: 7;
+  display: flex;
+  padding: 0 18px 11px;
+  background: var(--paper);
+  border-bottom: 1px solid var(--line-soft);
 }
 
 /* The bar and the breakdown's control share one band, as frames 2A and D2A draw them. On desktop
@@ -161,10 +177,17 @@
    * whole width below it. */
   .screen {
     grid-template-areas:
-      "header price"
-      "stage  stage";
-    grid-template-columns: minmax(0, 1fr) auto;
+      "header settings price"
+      "stage  stage    stage";
+    grid-template-columns: minmax(0, 1fr) auto auto;
     grid-template-rows: auto minmax(0, 1fr);
+  }
+
+  /* Frame D2E puts the chips in the top bar, between the step nav and the price. */
+  .settingsRow {
+    align-items: center;
+    padding: 0 24px 0 0;
+    border-bottom: none;
   }
 
   .priceRow {

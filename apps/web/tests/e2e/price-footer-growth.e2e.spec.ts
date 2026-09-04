@@ -2,6 +2,7 @@ import { expect, test, type Page } from "@playwright/test";
 
 import { ro } from "../../src/content/ro";
 import { readSelection } from "./support/panel";
+import { tapCanvas } from "./support/canvas-taps";
 import { deleteMintedDesigns } from "./support/minted-designs";
 
 /**
@@ -40,7 +41,7 @@ test.beforeEach(async ({ page }) => {
   await page.goto("/configurator/configure");
   await page.waitForSelector("canvas", { state: "attached" });
   await page.waitForTimeout(SCENE_SETTLE_MS);
-  await page.tap("canvas", { position: SINK_CABINET_TAP });
+  await tapCanvas(page, SINK_CABINET_TAP);
   await expect(page.getByTestId("editor-panel")).toHaveCount(1);
   await page.waitForTimeout(SETTLE_MS);
 

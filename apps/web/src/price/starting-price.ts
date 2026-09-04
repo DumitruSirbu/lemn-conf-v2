@@ -18,6 +18,7 @@
 import {
   PRICE_BOOK_CURRENCY,
   type PricedDesign,
+  type RejectionReason,
 } from "@lemnaria/configurator-domain";
 
 import { ro } from "@/content/ro";
@@ -38,6 +39,10 @@ const DIGITS_PER_GROUP = 3;
  *  byte comparison rather than `localeCompare` (wave 6B) applies to the number beside them. */
 const THOUSANDS_SEPARATOR = " ";
 
+/** The mockups' own mark for an amount a choice *adds* to the figure rather than being it — frames
+ *  2E / D2E's *+9 000*. See `describeAddedAmount`. */
+const ADDED_AMOUNT_SIGN = "+";
+
 /** A figure as a surface renders it: the ruled label above, the rounded amount below.
  *
  *  Two fields rather than one sentence because the mockups style them differently — the label is
@@ -55,6 +60,27 @@ export interface StartingPriceInput {
   readonly label: string;
   /** Exact minor units, as a priced line or a priced total publishes them. */
   readonly totalMinor: number;
+}
+
+/**
+ * **What a figure is called while a refusal stands** — *"De la neschimbat"* — and what it is called
+ * otherwise. Owner, 2026-09-03: one wording for both shells.
+ *
+ * Here rather than beside any one surface because **three** surfaces now show a total, and until
+ * wave 6G there were two private copies of this line — `price-bar-model.ts`'s `describeBarLabel` and
+ * `panel-model.ts`'s `describeFooterPriceLabel` — agreeing by inspection. A third copy is how they
+ * start disagreeing, and the disagreement is invisible: each surface looks right on its own, and
+ * only a customer with both in view sees one total call itself unchanged while the other does not.
+ * That is exactly what 6G's settings sheet produced before this existed, on the one total a mobile
+ * customer can actually see, because the sheet covers the bar it was opened from.
+ *
+ * The figure itself never moves — a refusal leaves the design it is derived from untouched — so what
+ * a rejection changes is only what the figure is called.
+ */
+export function describeStartingLabel(
+  rejection: RejectionReason | null,
+): string {
+  return rejection ? ro.price.startingPrefixUnchanged : ro.price.startingPrefix;
 }
 
 /** Builds the one shape a figure may be rendered from. Every displayed price on every surface —
@@ -93,6 +119,24 @@ export function roundUpToThousandMdl(totalMinor: number): number {
  */
 export function describeRoundedAmount(amountMinor: number): string {
   return groupThousands(roundUpToThousandMdl(amountMinor));
+}
+
+/**
+ * **An amount a choice *adds*, signed** — frames 2E / D2E's *+9 000*, the figure their *de la*
+ * badge is built from.
+ *
+ * Rounded through `roundUpToThousandMdl` like every other displayed amount, so a tier's delta and
+ * the total it moves cannot round by two different rules. The sign lives here rather than in
+ * `ro.ts` for the reason the currency does: it is part of the *figure*, and a `+` written into a
+ * copy module is somebody authoring arithmetic into a label.
+ *
+ * **Only a non-negative amount reaches this.** A tier cheaper than its group's default is refused
+ * where the delta is measured (`NegativeTierDeltaError`), because what is wrong with it is a fact
+ * about the book rather than about the formatting — and `assertExactMinorAmount` below would refuse
+ * it here anyway.
+ */
+export function describeAddedAmount(amountMinor: number): string {
+  return `${ADDED_AMOUNT_SIGN}${describeRoundedAmount(amountMinor)}`;
 }
 
 function formatRoundedAmount(totalMinor: number): string {

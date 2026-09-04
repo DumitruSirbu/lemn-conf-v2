@@ -9,6 +9,7 @@ import {
   waitForMintedDesignId,
 } from "./support/panel";
 import { deleteMintedDesigns } from "./support/minted-designs";
+import { tapCanvas, tapSceneStripAboveSheet } from "./support/canvas-taps";
 
 /**
  * M2's mobile picking gate (`docs/milestones/M2-void-engine.md`, "Surfaces"): tapping a body and
@@ -28,18 +29,32 @@ import { deleteMintedDesigns } from "./support/minted-designs";
  * rather than an obstacle to work around: the customer dismisses the sheet to look at the scene.
  */
 
+/** **In the coordinates of the canvas they were found on** — 390 × 697 — and converted to the
+ *  canvas in front of the browser by `tapCanvas`. `support/canvas-taps.ts` carries the conversion
+ *  and the measurements behind it. They are left as the numbers that were measured rather than
+ *  re-typed for today's chrome: this is the second time a band added above the stage has moved them,
+ *  and a constant silently re-typed each time stops being a measurement of anything. */
 const SINK_CABINET_TAP = { x: 215, y: 500 };
 const WALL_CABINET_TAP = { x: 195, y: 165 };
 /** Background in the overview preset that is **above** the sheet, so it can be tapped while a body
- *  is selected. M3's background constant, (195, 150), cannot be: it sits below the sheet's top
- *  edge, which at this viewport is canvas y ≈ 131. */
+ *  is selected. M3's background constant, (195, 150), cannot be: it sits below the sheet's top edge.
+ *
+ *  **Only its `x` is used**, and that is the one constant here that is derived rather than
+ *  converted. The strip above the sheet is not a piece of the scene — it is the gap between the
+ *  canvas's top and a sheet pinned to the viewport at 78 dvh — so it shrinks faster than the canvas:
+ *  130.68 px before wave 6G's band, **83.75 px** after. Converting this point's `y` gives 93.3,
+ *  which is *below* the new edge and would land the tap on the sheet. */
 const BACKGROUND_ABOVE_SHEET_TAP = { x: 310, y: 100 };
+/** **Page** coordinates, for a screenshot clip rather than a tap — and therefore *not* converted by
+ *  `tapCanvas`, which speaks canvas coordinates. The only case that reads it is skipped, so it has
+ *  not moved with wave 6G's band and would need `atThisCanvas` plus the canvas's own origin the day
+ *  that case is unskipped. */
 const HIGHLIGHT_REGION = { x: 110, y: 380, width: 160, height: 280 };
 
 /** The last case in this file works in the "Perete B" preset instead, where the fridge column is
  *  face on — see `support/panel.ts` for how its pixel constants were found. The void the fridge
  *  leaves behind is the 860 mm base slot of that column, whose id encodes its column and its floor
- *  line. The patch is in page coordinates: the canvas starts 55 px below the header. */
+ *  line. Canvas coordinates on the reference canvas, like the two above, and converted the same way. */
 const VACATED_VOID_TAP = { x: 65, y: 560 };
 /** Above the column's ceiling line, where nothing stands in this preset.
  *  `BACKGROUND_ABOVE_SHEET_TAP` is an overview-preset constant and means nothing here. */
@@ -76,7 +91,7 @@ test("tapping a cabinet body selects it and starts with nothing selected", async
 }) => {
   expect(await readTarget(page)).toEqual(NOTHING_SELECTED);
 
-  await page.tap("canvas", { position: SINK_CABINET_TAP });
+  await tapCanvas(page, SINK_CABINET_TAP);
 
   await expect(async () => {
     expect(await readTarget(page)).toEqual({ kind: "placement", id: "p0" });
@@ -84,7 +99,7 @@ test("tapping a cabinet body selects it and starts with nothing selected", async
 });
 
 test("tapping a second body moves the selection to it", async ({ page }) => {
-  await page.tap("canvas", { position: SINK_CABINET_TAP });
+  await tapCanvas(page, SINK_CABINET_TAP);
   await expect(async () => {
     expect((await readTarget(page)).kind).toBe("placement");
   }).toPass({ timeout: 2000 });
@@ -92,7 +107,7 @@ test("tapping a second body moves the selection to it", async ({ page }) => {
 
   // §10's loop: the sheet is dismissed to reach the scene, then the next body is tapped.
   await dismissPanel(page);
-  await page.tap("canvas", { position: WALL_CABINET_TAP });
+  await tapCanvas(page, WALL_CABINET_TAP);
 
   await expect(async () => {
     const second = await readTarget(page);
@@ -104,12 +119,12 @@ test("tapping a second body moves the selection to it", async ({ page }) => {
 /** Tapped **while the body is still selected**, and above the sheet rather than through it, so
  *  what this proves is the canvas deselecting and not the sheet's × doing it. */
 test("tapping empty background deselects", async ({ page }) => {
-  await page.tap("canvas", { position: SINK_CABINET_TAP });
+  await tapCanvas(page, SINK_CABINET_TAP);
   await expect(async () => {
     expect((await readTarget(page)).kind).toBe("placement");
   }).toPass({ timeout: 2000 });
 
-  await page.tap("canvas", { position: BACKGROUND_ABOVE_SHEET_TAP });
+  await tapSceneStripAboveSheet(page, BACKGROUND_ABOVE_SHEET_TAP);
 
   await expect(async () => {
     expect(await readTarget(page)).toEqual(NOTHING_SELECTED);
@@ -135,7 +150,7 @@ test.skip("a selected body renders a visible highlight distinct from no selectio
   page,
 }) => {
   const before = await page.screenshot({ clip: HIGHLIGHT_REGION });
-  await page.tap("canvas", { position: SINK_CABINET_TAP });
+  await tapCanvas(page, SINK_CABINET_TAP);
   const after = await page.screenshot({ clip: HIGHLIGHT_REGION });
   expect(Buffer.compare(before, after)).not.toBe(0);
 });
@@ -179,12 +194,12 @@ test("tapping an empty void slot selects it at 390 x 844", async ({ page }) => {
   // The remove leaves the vacated void selected. Deselect first, so what the tap below proves is
   // the tap and not the command that preceded it — and so the sheet is off the scene.
   await dismissPanel(page);
-  await page.tap("canvas", { position: WALL_B_BACKGROUND_TAP });
+  await tapCanvas(page, WALL_B_BACKGROUND_TAP);
   await expect(async () => {
     expect(await readTarget(page)).toEqual(NOTHING_SELECTED);
   }).toPass({ timeout: 2000 });
 
-  await page.tap("canvas", { position: VACATED_VOID_TAP });
+  await tapCanvas(page, VACATED_VOID_TAP);
 
   await expect(async () => {
     expect(await readTarget(page)).toEqual({

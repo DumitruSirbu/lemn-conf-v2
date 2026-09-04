@@ -1,0 +1,387 @@
+/* Frames 2E and D2E, from one set of markup: a full sheet on mobile, a popover hanging from the
+ * chips on desktop. The shell is decided here and nowhere in React — §10.1's one permitted layout
+ * branch, taken exactly as the breakdown's sheet-or-popover is.
+ *
+ * **The scrim is drawn on both shells**, which is where this file and `price-breakdown.module.css`
+ * deliberately differ: that surface is a list to read and stays non-modal, this one holds
+ * uncommitted state. `global-settings.tsx`'s head comment carries the reason. */
+.anchor {
+  position: relative;
+  display: flex;
+  flex: 1;
+  gap: 9px;
+  align-items: center;
+  min-width: 0;
+  padding: 9px 11px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+
+/* Frame 2E's strip reads the two settings as one line; frame D2E draws them as two pills. Same two
+ * elements either way. */
+.chips {
+  display: flex;
+  flex: 1;
+  gap: 10px;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.chip {
+  font: 400 11.5px/1.3 var(--font-ui);
+  color: var(--ink-muted);
+  white-space: nowrap;
+}
+
+.trigger {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 6px;
+  align-items: center;
+  padding: 0;
+  font: 700 11.5px/1 var(--font-ui);
+  color: var(--accent);
+  cursor: pointer;
+  background: none;
+  border: none;
+}
+
+.chevron {
+  font-size: 13px;
+}
+
+.scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  display: block;
+  background: rgb(28 24 20 / 30%);
+}
+
+.surface {
+  position: fixed;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  /* Frame 2E draws 648 of the 844 px viewport. */
+  max-height: 77dvh;
+  background: var(--paper);
+  border-top: 1px solid var(--line);
+  border-radius: 22px 22px 0 0;
+  box-shadow: 0 -16px 36px rgb(28 24 20 / 18%);
+}
+
+.grabber {
+  align-self: center;
+  width: 40px;
+  height: 4px;
+  margin-top: 11px;
+  background: var(--line);
+  border-radius: 2px;
+}
+
+.head {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 11px 18px 13px;
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.title {
+  margin: 0;
+  font: 700 18px/1.2 var(--font-ui);
+  letter-spacing: -0.01em;
+}
+
+.appliesTo {
+  margin: 0;
+  font: 400 12px/1.45 var(--font-ui);
+  color: var(--ink-muted);
+}
+
+/* Scrolls internally, so the figure and the two actions stay pinned however many tiers the book
+ * offers. */
+.body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 19px;
+  min-height: 0;
+  padding: 15px 18px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.group {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+
+.heading {
+  margin: 0;
+  font: 700 10.5px/1 var(--font-ui);
+  letter-spacing: 0.14em;
+  color: var(--ink-faint);
+  text-transform: uppercase;
+}
+
+/* Immediately under the group heading, and set like the sheet's own quiet copy: what the amounts on
+ * the right of each row are measured against. */
+.anchor {
+  margin: -3px 0 0;
+  font: 400 11.5px/1.35 var(--font-ui);
+  color: var(--ink-muted);
+}
+
+.option {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  min-height: var(--touch-target);
+  padding: 13px;
+  cursor: pointer;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+
+/* Frames 2E and D2E mark the chosen tier with a second border rather than a tick, and the mark is
+ * driven by the model's own `isSelected` so the paint cannot disagree with the radio. */
+.option[data-selected="true"] {
+  border: 2px solid var(--accent);
+}
+
+.radio {
+  flex: 0 0 auto;
+  width: 18px;
+  height: 18px;
+  accent-color: var(--accent-strong);
+}
+
+.optionText {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.optionName {
+  font: 700 14px/1.2 var(--font-ui);
+}
+
+.optionDescription {
+  font: 400 11.5px/1.35 var(--font-ui);
+  color: var(--ink-muted);
+}
+
+.optionDelta {
+  flex: 0 0 auto;
+  font: 700 12px/1 var(--font-ui);
+  color: var(--ink-muted);
+}
+
+.warning {
+  display: flex;
+  gap: 9px;
+  align-items: flex-start;
+  margin: 0;
+  padding: 12px 13px;
+  font: 400 12px/1.45 var(--font-ui);
+  color: var(--ink-muted);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+
+.warningMark {
+  flex: 0 0 16px;
+  width: 16px;
+  height: 16px;
+  font: 700 11px/16px var(--font-ui);
+  color: #fff;
+  text-align: center;
+  background: #1d4ed8;
+  border-radius: 50%;
+}
+
+/* ADR 0065 decision 8's caution palette — the same pair the bar, §9's footer and the breakdown
+ * paint a flagged total in, never the refusal's red. */
+.overflow {
+  margin: 0 18px;
+  padding: 9px 11px;
+  font: 400 11.5px/1.4 var(--font-ui);
+  color: #7c4a0c;
+  background: #fdf6ec;
+  border-radius: 10px;
+}
+
+.footer {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 13px 18px 18px;
+  border-top: 1px solid var(--line);
+}
+
+.figure {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin: 0;
+}
+
+.figureLabel {
+  font: 400 10.5px/1 var(--font-ui);
+  letter-spacing: 0.09em;
+  color: var(--ink-faint);
+  text-transform: uppercase;
+}
+
+.figureAmount {
+  font: 700 19px/1 var(--font-ui);
+}
+
+.actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.cancel {
+  height: var(--touch-target);
+  padding: 0 20px;
+  font: 700 14px/1 var(--font-ui);
+  color: var(--ink-muted);
+  cursor: pointer;
+  background: none;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+
+.apply {
+  height: var(--touch-target);
+  padding: 0 22px;
+  font: 700 14px/1 var(--font-ui);
+  color: var(--paper);
+  cursor: pointer;
+  background: var(--accent-strong);
+  border: none;
+  border-radius: 12px;
+}
+
+/* Frame D2E: two pills and a text control in the top bar, and a 900 px popover hanging under them
+ * over a dimmed screen. Same markup, same model — a different box. */
+@media (min-width: 900px) {
+  .anchor {
+    flex: 0 0 auto;
+    gap: 10px;
+    padding: 0;
+    background: none;
+    border: none;
+    border-radius: 0;
+  }
+
+  .chips {
+    gap: 10px;
+  }
+
+  .chip {
+    padding: 9px 12px;
+    font-size: 12.5px;
+    color: var(--accent-strong);
+    background: var(--surface);
+    border: 2px solid var(--accent);
+    border-radius: var(--radius-chip);
+  }
+
+  .trigger {
+    font-size: 12.5px;
+  }
+
+  .surface {
+    position: absolute;
+    top: 100%;
+    right: auto;
+    bottom: auto;
+    left: 0;
+    width: 640px;
+    max-width: calc(100vw - 48px);
+    max-height: 660px;
+    margin-top: 16px;
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    box-shadow: 0 22px 48px rgb(28 24 20 / 22%);
+  }
+
+  .grabber {
+    display: none;
+  }
+
+  .head {
+    gap: 6px;
+    padding: 22px 26px 16px;
+  }
+
+  .title {
+    font-size: 20px;
+  }
+
+  .appliesTo {
+    font: 400 13px/1.5 var(--font-ui);
+  }
+
+  .body {
+    gap: 22px;
+    padding: 22px 26px;
+  }
+
+  .group {
+    gap: 12px;
+  }
+
+  .heading {
+    font-size: 11px;
+  }
+
+  .anchor {
+    font-size: 12.5px;
+  }
+
+  .option {
+    gap: 14px;
+    padding: 15px;
+  }
+
+  .optionName {
+    font-size: 15px;
+  }
+
+  .optionDescription {
+    font-size: 12.5px;
+  }
+
+  .optionDelta {
+    font-size: 13px;
+  }
+
+  .overflow {
+    margin: 0 26px;
+  }
+
+  .footer {
+    padding: 16px 26px 20px;
+  }
+
+  .figureAmount {
+    font-size: 20px;
+  }
+}

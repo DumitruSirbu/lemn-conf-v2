@@ -1,5 +1,7 @@
 import type { Page } from "@playwright/test";
 
+import { alongThisCanvas } from "./canvas-taps";
+
 /**
  * Navigation and selector helpers for the specs that drive §9's panel by touch. No assertion lives
  * here (`docs/best-practices/browser-and-visual-qa.md`): these only move the app and read what it
@@ -18,7 +20,13 @@ import type { Page } from "@playwright/test";
  * they are sensitive to `CAMERA_PRESETS.wallB` and to the seeded design, and to nothing else.
  */
 
-/** A vertical line down the middle of the fridge column, clear of the camera preset buttons. */
+/** A vertical line down the middle of the fridge column, clear of the camera preset buttons.
+ *
+ *  **Converted through `alongThisCanvas` at every use**, and only the horizontal half of the rule:
+ *  the y positions below are already fractions of the live canvas, so running the whole point
+ *  through `atThisCanvas` would scale them twice. A shorter canvas widens the camera's horizontal
+ *  field, so a world position moves *toward* the centre — wave 6G's band moves this line from 65 to
+ *  73.75 — which no fraction of the height can express. See `support/canvas-taps.ts`. */
 export const FRIDGE_COLUMN_TAP_X = 65;
 
 /** Top of the column (the 2.6 m ceiling line) down to the floor, in steps of ~2.5% of the canvas.
@@ -140,7 +148,8 @@ export async function tapFridgeColumn(
   y: number,
 ): Promise<SelectionReadout> {
   await dismissPanel(page);
-  await page.tap("canvas", { position: { x: FRIDGE_COLUMN_TAP_X, y } });
+  const x = await alongThisCanvas(page, FRIDGE_COLUMN_TAP_X);
+  await page.tap("canvas", { position: { x, y } });
   await page.waitForTimeout(PICK_SETTLE_MS);
   return readSelection(page);
 }

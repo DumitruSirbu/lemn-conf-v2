@@ -25,10 +25,9 @@ import type {
   RejectionReason,
 } from "@lemnaria/configurator-domain";
 
-import { ro } from "@/content/ro";
-
 import {
   describeFlaggedTotalWarning,
+  describeStartingLabel,
   describeStartingPrice,
   type PriceFigure,
 } from "./starting-price";
@@ -67,16 +66,9 @@ export function describePriceBar(input: DescribePriceBarInput): PriceBarView {
   return {
     kind: "priced",
     figure: describeStartingPrice({
-      label: describeBarLabel(input.rejection),
+      label: describeStartingLabel(input.rejection),
       totalMinor: priced.totalMinor,
     }),
     ...(warning === undefined ? {} : { overflowWarning: warning }),
   };
-}
-
-/** The unchanged label, chosen here rather than in the component so that "the figure is labelled
- *  unchanged" is a property of a value a test can read. The same string §9's footer uses: the
- *  owner's 2026-09-03 ruling is one wording for both shells. */
-function describeBarLabel(rejection: RejectionReason | null): string {
-  return rejection ? ro.price.startingPrefixUnchanged : ro.price.startingPrefix;
 }

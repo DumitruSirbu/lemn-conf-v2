@@ -12,6 +12,20 @@ function pluraliseBodies(count: number): string {
   return isPlainPlural ? "corpuri" : "de corpuri";
 }
 
+/** Whose bodies a whole-kitchen setting applies to, as frames 2E / D2E say it — *"tuturor celor 14
+ *  corpuri"*. The singular is a separate form because the drawn one is ungrammatical at one:
+ *  *"tuturor celor 1 corp"* is not Romanian. Zero takes the drawn form and reads *"0 de corpuri"*,
+ *  which is what `pluraliseBodies`' documented rule answers and is the truth about an empty
+ *  kitchen. */
+function everyBodyPhrase(bodyCount: number): string {
+  if (bodyCount === 1) return "singurului corp din bucătărie";
+  return `tuturor celor ${String(bodyCount)} ${pluraliseBodies(bodyCount)}`;
+}
+
+/** ADR 0001 decision 4's prefix, held as one binding so the whole-kitchen sheet's *de la* badge is
+ *  the same two words as the figure's *De la* rather than a second spelling of them. */
+const STARTING_PREFIX = "De la";
+
 export const ro = {
   brand: "Lemnaria",
   configure: {
@@ -293,7 +307,7 @@ export const ro = {
      *  thousand MDL. Frames 2A and D2A render it above the total; §9 item 7's footer does the same.
      *  The mockups set it in uppercase through `text-transform`, so the string itself is written as
      *  it reads. */
-    startingPrefix: "De la",
+    startingPrefix: STARTING_PREFIX,
     /** While a refusal stands, the figure is labelled unchanged — on the price bar and in §9's
      *  footer alike. **Owner, 2026-09-03**, and it closes ADR 0024's third frame-2C requirement:
      *  the one M4 closed unmet because there was no total to leave unmoved.
@@ -400,6 +414,80 @@ export const ro = {
     /** Frame 2E, and frame 2D's material row: a tier that costs nothing extra reads *inclus*, never
      *  `0`. A zero is a number a customer reads as a price; this says what it means. */
     included: "inclus",
+  },
+  /** Frames 2E / D2E: the whole-kitchen settings sheet on mobile, the popover under the chips on
+   *  desktop.
+   *
+   *  **Labels only, and swept with `price` and `priceBreakdown` by the same guard**
+   *  (`starting-price.adversarial.test.ts`), because this section carries a delta badge and is
+   *  therefore price copy. ADR 0062's third prohibition in full: every tier's name, its one-line
+   *  description and its delta are **book data rendered**, so nothing here names a tier, states an
+   *  amount, or says what one costs.
+   *
+   *  **What is deliberately absent.** Frames 2E and D2E draw the material warning as *"Schimbarea
+   *  materialului recalculează întreaga estimare **și poate limita unele finisaje per corp**"*. The
+   *  second clause describes wave 6F's filter, which has not shipped, so it is **omitted rather
+   *  than greyed out**: a warning about behaviour that does not exist is decoration, which is the
+   *  defect M4's Finisaj section shipped and `docs/STATUS.md` records. It comes back with 6F, in
+   *  the mockups' own words. */
+  globalSettings: {
+    /** The control that opens the sheet, standing beside the chips it controls. **One string for
+     *  both shells**: frame D2E spells it *"Setări globale"* and frame 2E's strip spells it
+     *  *"Schimbă global"*, and §10.1 admits no copy fork per viewport — `startingPrefixUnchanged`
+     *  records what two spellings of one ruled string cost. The mockups draw a chevron beside it;
+     *  that is decoration and lives in the component. */
+    open: "Setări globale",
+    /** Frames 2E and D2E's heading. Distinct from `open` on purpose: the control names the thing it
+     *  opens, the sheet names what it is about, and both frames draw them differently. */
+    title: "Setări pentru toată bucătăria",
+    /** Frames 2E / D2E's second line, and the wave's first criterion: **how many bodies this applies
+     *  to, and that it is not set per cabinet.** The count is `projectDesignForDisplay`'s — voids and
+     *  empty columns are not bodies — and is derived rather than written, exactly as §9's count line
+     *  is. */
+    appliesTo: (bodyCount: number) =>
+      `Se aplică ${everyBodyPhrase(bodyCount)}. Nu se setează pe fiecare corp în parte.`,
+    /** The two section headings, in the frames' own words, keyed by the book's group.
+     *
+     *  Deliberately **not** `priceBreakdown.wholeKitchenCategories`, which those frames also use:
+     *  there the word labels one line of a list (*"Material · PAL melaminat"*, and the chips beside
+     *  the control below reuse exactly that composition); here it heads a column of choices and the
+     *  frames spell the material one out as *"Material corp și fronturi"*. Two roles, two sets of
+     *  words — the same split `priceBreakdown.bandHeadings` keeps from `panel.bandWords`. */
+    groupHeadings: {
+      material: "Material corp și fronturi",
+      hardware: "Feronerie",
+    },
+    /** **What each group's deltas are measured against**, in words a customer can act on rather
+     *  than in arithmetic.
+     *
+     *  The anchor is the book's **default** tier — the one a kitchen that chose nothing is priced at
+     *  — and not what the design currently carries. Without this line the two are indistinguishable
+     *  on screen, and they differ the moment a customer applies anything: having chosen veneer, they
+     *  would read *inclus* against the melamine that would make their kitchen cheaper, and
+     *  *de la +18 000* against the veneer they already own. Neither figure is wrong; nothing said
+     *  what they were differences *from*.
+     *
+     *  One line per group rather than one for the sheet, because the anchor is per group and the two
+     *  could later differ. **Named in the product's own words** — the tier that is included — never
+     *  as the subtraction that produced it: *"diferența față de tariful standard"* is developer text
+     *  wearing Romanian. */
+    groupAnchors: {
+      material: "Față de materialul inclus",
+      hardware: "Față de feroneria inclusă",
+    },
+    /** *"de la +9 000"* against a tier that costs extra. The amount arrives already rounded and
+     *  signed from `starting-price.ts`, the one site that formats a figure; these are the two words
+     *  around it, and they are `startingPrefix`'s own so the badge and the total cannot come to
+     *  spell them differently. A tier that adds nothing reads `priceBreakdown.included` instead —
+     *  never `0`. */
+    tierDelta: (addedAmount: string) =>
+      `${STARTING_PREFIX.toLowerCase()} ${addedAmount}`,
+    /** Frames 2E / D2E's note, less its 6F clause — see this section's own comment. */
+    materialWarning: "Schimbarea materialului recalculează întreaga estimare.",
+    /** Frame 2E's single action, and frame D2E's pair. Both shells carry both: this surface holds
+     *  uncommitted state, so a customer who opened it must be able to leave without applying. */
+    apply: "Aplică",
+    cancel: "Renunță",
   },
   webglUnavailable: {
     titleMobile: "Dispozitivul acesta nu poate afișa 3D",
