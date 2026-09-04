@@ -89,6 +89,7 @@ Alternatives / Consequences live in each file. For the specific claims a later r
 | [0067](0067-leftover-wall-is-the-normal-case-and-the-price-is-a-floor.md) | Leftover wall is the normal case, and the price is a floor | Accepted | Decision | Cross-cutting | Real walls are not round; a remainder is the expected outcome, not a tolerance; the estimate is a floor. Does not weaken the overrun rule. |
 | [0068](0068-price-steps-at-the-door-count-and-follows-height.md) | Price steps at the door count, and follows height | Accepted | Decision | M6 6B2 | A second and third price shape: a step at the door threshold, and a height term where a body builds to its opening. Shapes stay code, coefficients stay data. |
 | [0069](0069-past-the-wall-is-one-code-family-and-severity-is-declared-per-code.md) | "Past the wall" is one code family, and severity is declared per code | Accepted | Decision | M6 6A3 | The overrun re-enters validation as an empty column and a frozen extent, so all three codes are demoted together. `COLUMN_EXTENT_OUTSIDE_ROOM` splits per edge; severity becomes a total per-code declaration. |
+| [0070](0070-hardware-is-priced-per-mechanism-not-per-handle.md) | Hardware is priced per mechanism, not per handle | Accepted | Decision | M6 6G | Hinges (2 per leaf, 3 over 900 mm), drawer runners (2 per drawer) and push-to-open (1, handle-less only) replace per-handle pricing; three named tiers (DTC Standard, Blum, Hettich); two sink extras; closes 6G's leaf-counting question. |
 
 ## Supersessions
 

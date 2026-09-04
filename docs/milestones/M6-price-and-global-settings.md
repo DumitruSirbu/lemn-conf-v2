@@ -1589,6 +1589,10 @@ open items.**
 - The rule for a per-cabinet finish invalidated by a material change.
 - **Added 2026-09-03:** what a hardware tier counts when it prices hinges and slides, and whether
   `deriveDoorCount` — which returns leaves per *band* — is the right source. See wave 6G.
+  **Answered 2026-09-04 — [ADR 0070](../decisions/0070-hardware-is-priced-per-mechanism-not-per-handle.md):**
+  neither leaves nor `deriveDoorCount`. Hardware prices per **mechanism** — 2 hinges per door leaf (3
+  over 900 mm), 2 runners per drawer, 1 push-to-open per handle-less door or drawer — which the
+  shipped 6G book does not yet implement; see that ADR's recorded implementation gap.
 - **Added 2026-09-02 with the backlog sweep:** the cabinet-depth floor the dishwasher niche needs
   (`docs/BACKLOG.md` entry 19), and what depth a wall cabinet over a full-height column is built to
   (entries 15 and 10). Owner decisions 6 and 7.
