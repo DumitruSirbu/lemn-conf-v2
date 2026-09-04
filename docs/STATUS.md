@@ -32,7 +32,7 @@ moment it ships; a decision record does not. When the two disagree, the dated de
 | M3 — Insert, remove, swap, client write path | **Done** (closed 2026-08-26) | No — `milestones/done/` |
 | M4 — Editor panel and shell | **Done** (closed 2026-08-26 — one criterion unmet by design, ADR 0024) | No — `milestones/done/` |
 | M5 — Width editing, and depth as a derived quantity | **In progress — 5E is the only wave open.** 5A–5D2c, 5F, 5G, 5H all shipped | Yes — `milestones/M5-*.md`, and ADRs 0028–0041, 0052, 0053 |
-| M6 — Price bar and global settings (incl. cabinet depth control) | **In progress — 13 of 24 tracked waves DONE.** On branch `m6-price-and-global-settings`: 6A (`6c1f830`), 6H (`4afda06`), 6A3 and 6B2 (`eb9ba03`) shipped 2026-09-03; 6C (`194405b`) and 6D (`a5e161f`) shipped 2026-09-03 but only received their DONE marker this pass — a documentation gap, not new work; 6E (`b558e28`), 6G (`3e546d1`), 6I2 and 6M (merged at `ce77171`) shipped 2026-09-03/04; 6S (`280daa4`, `a2bff48`), 6J (`c8ba3af` 6J-a, `a68482d` 6J-b) and 6P (`38268b5`) shipped 2026-09-04. Open: 6K, 6Q, 6R, 6T. Shipped-but-uncertified: 6A2, 6A4, 6B, 6I, 6L. Not started: 6N. 6F is superseded by ADR 0071's 6P–6R | Yes — `milestones/M6-*.md`, and ADRs 0055–0072 |
+| M6 — Price bar and global settings (incl. cabinet depth control) | **In progress — 13 of 25 tracked waves DONE.** On branch `m6-price-and-global-settings`: 6A (`6c1f830`), 6H (`4afda06`), 6A3 and 6B2 (`eb9ba03`) shipped 2026-09-03; 6C (`194405b`) and 6D (`a5e161f`) shipped 2026-09-03 but only received their DONE marker this pass — a documentation gap, not new work; 6E (`b558e28`), 6G (`3e546d1`), 6I2 and 6M (merged at `ce77171`) shipped 2026-09-03/04; 6S (`280daa4`, `a2bff48`), 6J (`c8ba3af` 6J-a, `a68482d` 6J-b) and 6P (`38268b5`) shipped 2026-09-04. Open: 6K, 6K-c, 6Q, 6R, 6T. Shipped-but-uncertified: 6A2, 6A4, 6B, 6I, 6L. Not started: 6N. 6F is superseded by ADR 0071's 6P–6R | Yes — `milestones/M6-*.md`, and ADRs 0055–0073 |
 | M7 — Step 1, room and presets | Planned | Yes, when starting |
 | M8 — Review, contact, success | Planned | Yes, when starting |
 | Adversarial review remediation | **Every finding closed or gated.** SEC-001 (High) deferred to M8 by owner decision, gated. Everything else — SCENE-001/002, WEB-001–004, DOM-001–003, SEC-002–004, DB-001/002/004 — is implemented and reviewed | Yes — `milestones/adversarial-review-remediation.md`, `milestones/dom-003-set-width-split.md` |
@@ -232,15 +232,28 @@ policy, so every per-endpoint limit is application code.
 ## What to do next
 
 **Next: M6, on branch `m6-price-and-global-settings`.** Read
-`milestones/M6-price-and-global-settings.md`, now a 24-wave breakdown (6P–6T added 2026-09-04 on
-ADRs 0070 and 0071, superseding 6F), and ADRs 0055–0072 for the decisions behind it. All seven
+`milestones/M6-price-and-global-settings.md`, now a 25-wave breakdown (6P–6T added 2026-09-04 on
+ADRs 0070 and 0071, superseding 6F; 6K-c added the same day on ADR 0073), and ADRs 0055–0073 for the
+decisions behind it. All seven
 original owner decisions are closed. **Thirteen waves are DONE**: 6A, 6H, 6A3, 6B2 (2026-09-03); 6C, 6D
 (shipped 2026-09-03, DONE marker added this pass — a pre-existing documentation gap, not new work);
 6E, 6G, 6I2, 6M (2026-09-03/04, merged at `ce77171`); 6S (`280daa4`, `a2bff48`), 6J (`c8ba3af`,
-`a68482d`) and 6P (`38268b5`), all 2026-09-04. **6K, 6Q, 6R and 6T remain open.** Five have shipped
+`a68482d`) and 6P (`38268b5`), all 2026-09-04. **6K, 6K-c, 6Q, 6R and 6T remain open.** Five have shipped
 commits but no recorded criteria check — **6A2, 6A4, 6B, 6I, 6L**, bundled inside
 `93e9bc3`/`75668b8`/`dfa6198` — do not read these as either closed or blocked without checking their
 own section. **6N has not started.**
+
+**Two call sites still hard-code the pre-6J cabinet depth, and this is the largest open thing wave 6K
+carries.** Found 2026-09-04 while ruling on
+[ADR 0073](decisions/0073-a-frozen-extent-records-the-body-its-depth-came-from.md) and recorded as
+that ADR's finding. `packages/configurator-domain/src/commands/insert-fit.ts:834` passes
+`cabinetDepthMm: WORKTOP_DEPTH_MM` (600) to `columnBuildDepthM`, so **at a 700 mm kitchen every wall
+body is rebuilt to the 600 mm map row** — the fingerprint is 6K-a's measured `A|0.75: 0.3300 →
+0.3690`, where 369 is `330 + WALL_FRONT_ASSEMBLY_MM` and the correct answer is
+`wallCarcassDepthMm(700) = 400`. `apps/web/src/scene/kitchen-stage.tsx:102` hard-codes the same
+constant into `makeKit`, so the scene is built at 600 whatever the design carries. Classified as an
+implementation defect against ADR 0055 decision 1, **not** a contract gap — both are wave 6K-b's, and
+the second is what gates its *"changing it visibly changes the model"* criterion.
 
 **Two review debts were incurred on 2026-09-04 and are owed rather than skipped.** 6P never received
 a logic review — the reviewer was lost to a spend limit mid-run; its adversarial QA did run in full

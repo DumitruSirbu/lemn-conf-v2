@@ -1,7 +1,7 @@
 # M6 — Live price, breakdown, and whole-kitchen settings (2D, 2E)
 
 > **STATUS: IN PROGRESS — waves sequenced 2026-09-02, first waves shipped 2026-09-03; four more
-> closed overnight 2026-09-03/04.** **Thirteen of twenty-four waves are DONE** in the table below, each
+> closed overnight 2026-09-03/04.** **Thirteen of twenty-five waves are DONE** in the table below, each
 > with its commit(s): 6A (`6c1f830`), 6H (`4afda06`), 6A3 and 6B2 (`eb9ba03`), all shipped 2026-09-03.
 > **6C (`194405b`) and 6D (`a5e161f`) are marked DONE by this pass** — both had already shipped and
 > `docs/STATUS.md` already carried QA evidence for 6C, but neither had ever received the table's DONE
@@ -15,12 +15,17 @@
 > no adversarial pass at all.** Both are recorded here as owed, not as skipped. **Not
 > marked DONE, and not to be read as closed either way**: 6B, 6A2, 6A4, 6I, 6L have shipped commits
 > (bundled inside `93e9bc3`/`75668b8`/`dfa6198`) but no recorded criteria check — see `docs/STATUS.md`.
-> **6K remains open** — 6J shipping is what unblocks it — and **6N has not started**. **6F is superseded** — see 6P–6R below.
+> **6K remains open** — 6J shipping is what unblocks it; its 6K-a store seam is implemented in the
+> tree and uncommitted, and its 6K-b control is not started — and **6N has not started**. **6F is
+> superseded** — see 6P–6R below. **One wave added 2026-09-04: 6K-c**, on
+> [ADR 0073](../decisions/0073-a-frozen-extent-records-the-body-its-depth-came-from.md), which closes
+> the residue 6K-a found and could not fix. **It does not gate 6K-b** — see the wave for what makes
+> shipping the control safe before it.
 > Depends on M5 (only wave 5E is still open
 > there, and it does not gate anything here). Summary: `docs/STATUS.md`. Start at **Waves** below,
-> then the owner section. **Twenty-four waves, all
-> unblocked.** The seven owner decisions were taken on 2026-09-02 (ADRs 0055–0061); ADRs 0062–0064
-> followed, the last two on 2026-09-03.
+> then the owner section. **Twenty-five waves, all
+> unblocked** (twenty-four until 6K-c was added on 2026-09-04). The seven owner decisions were taken
+> on 2026-09-02 (ADRs 0055–0061); ADRs 0062–0064 followed, the last two on 2026-09-03.
 >
 > **Five waves added 2026-09-04 on two owner decisions taken that day.**
 > [ADR 0071](../decisions/0071-material-carries-price-colour-carries-a-different-control-per-material.md)
@@ -250,7 +255,8 @@ constant (`worktop-depth.ts` carries a comment saying the rename is owed and def
 | 6I — the base family follows the formula | D | 6H | Full |
 | 6I2 — clearance is not a build depth *(backlog 15, 10)* — **DONE 2026-09-04, `ce77171`** | D | 6I — **unblocked, ADR 0060** | Full |
 | 6J — the persisted setting and what a change does — **DONE 2026-09-04, `c8ba3af`/`a68482d`** | D | 6H, 6I, 6I2 — **unblocked, ADRs 0055, 0056, 0058** | Full |
-| 6K — the depth control on the sheet | D | 6J, 6G — **unblocked, ADR 0059** | Light + visual |
+| 6K — the depth control on the sheet (6K-a the store seam, 6K-b the control) | D | 6J, 6G — **unblocked, ADR 0059** | Light + visual |
+| 6K-c — a frozen extent records the body its depth came from *(ADR 0073)* | D | 6K-b — **does not gate it**, see the wave | Full |
 | 6L — the handle path learns cabinet from appliance *(backlog 18)* | G | none — **sequenced before 6B and 6G** | Full |
 | 6M — the overflow is marked and warned about *(ADR 0065)* — **DONE 2026-09-04, `ce77171`** | — | 6A3 | Light + visual |
 | 6N — the wall-coverage bars *(owner request)* | — | 6D, 6M, decision 8's fixture correction | Light + visual |
@@ -1467,6 +1473,101 @@ settles the floor. Still gated on 6J and 6G.
   constant carrying its own arithmetic — `(cabinetDepth − 40)/2 − 240`, which gives the 40 mm
   clearance measured at 600 and reaches zero at 520 — and it is enforced in the domain as well as
   here, so a document cannot arrive below it by another route.
+- **Two call sites still hard-code the pre-6J constant, and the second one gates the criterion above
+  it.** Recorded 2026-09-04 as [ADR 0073](../decisions/0073-a-frozen-extent-records-the-body-its-depth-came-from.md)'s
+  finding, classified as an implementation defect against
+  [ADR 0055](../decisions/0055-a-depth-change-migrates-the-stored-design.md) decision 1 and **not** a
+  contract gap — no decision needs revising.
+  `packages/configurator-domain/src/commands/insert-fit.ts:834` passes
+  `cabinetDepthMm: WORKTOP_DEPTH_MM` (600) to `columnBuildDepthM`, so at a 700 mm kitchen every wall
+  body is rebuilt to the **600 mm** map row; the fingerprint is 6K-a's measured `A|0.75: 0.3300 →
+  0.3690`, where 369 is `330 + WALL_FRONT_ASSEMBLY_MM` and the correct answer is
+  `wallCarcassDepthMm(700) = 400`. `apps/web/src/scene/kitchen-stage.tsx:102` hard-codes the same
+  constant into `makeKit`, so the scene is built at 600 whatever the design carries — which is what
+  makes *"changing it visibly changes the model"* unmeetable until it moves. Both are this wave's.
+  `worktop-depth.ts` carries the `@deprecated` tag 6J-b owed once the readers are gone.
+- **This wave carries one deliberately failing guard, and 6K-c flips it.** Per `docs/WORKFLOW.md`'s
+  deferred-test rule, an `it.fails` asserting the correct depth for a **member-less** column after a
+  600 → 700 change, named for ADR 0073 and for the wave that owes the flip. `it.fails` rather than
+  `skip`: the surface exists, so the debt clears itself the moment 6K-c lands rather than depending on
+  somebody remembering.
+
+### Wave 6K-c — a frozen extent records the body its depth came from
+
+**[ADR 0073](../decisions/0073-a-frozen-extent-records-the-body-its-depth-came-from.md)**, ruled
+2026-09-04. Wave 6K-a fixed what a depth change can fix locally — an extent whose column still has
+members is re-answered as the MAX of the frozen extent and what those members measure, never
+shrinking. This wave closes the residue it named: **a frozen extent with no member left to measure
+keeps the old setting's depth**, and `projectFrozenMap` saves it.
+
+**It does not gate 6K-b, and here is what makes shipping the control safe in the meantime.** Nothing
+ships mid-milestone, so "reachable by a customer" is not the test; "reachable in the tree" is, and the
+tree is already there — 6J-b makes the depth change reachable in the domain and 6K-a in the store, so
+holding 6K-b back does not un-reach the residue. What the control adds is a second route to a state
+that already exists. The safety is the failing guard 6K-b carries (above) plus the bound ADR 0073
+measures: the residue reaches a **built** body on the wall band only, through `resolveDepthM`'s
+`shallowerBuildDepthM(declaredM, buildToTheClearanceM(column.d))` floor, and it reaches nothing on the
+base, full-height, appliance or hood bands, whose `occupiedDepth` is a `finishesAtMm` declaration read
+off the catalogue at the design's own depth. Everywhere else it is a drawn-and-saved depth, not a
+manufactured one.
+
+**Touches.** `packages/configurator-domain/src/design.ts` (the shared entry shape),
+`void-engine.ts` (`deriveColumns`' MAX, `toEmptyColumn`, `toColumnExtent`),
+`merge-empty-columns.ts` (the template's source), `design-bounds.ts` (the per-entry allowance and
+`MAX_DESIGN_BYTES`), and `apps/web/src/store/apply-command-result.ts` (`atCurrentCabinetDepth`). Five
+production files, which is the dispatch limit — the byte-cap edit is one line and is counted.
+
+**Acceptance criteria.**
+
+- **The entry records a `buildId`, not a band and not a chain.** `depthFromBuildId` is optional on
+  `EmptyColumnSchema` — and therefore on `StoredColumnExtentSchema`, which *is* that schema (ADR 0053)
+  — and carries the `buildId` of the member whose `occupiedDepthM` won §3.2's MAX. `deriveColumns`
+  writes it as it takes the MAX; a column derived from placements and the same column after a save and
+  a reload carry the same value, asserted rather than assumed.
+- **A depth change re-answers a recorded extent through `occupiedDepthM` over the catalogue built at
+  the new depth, and introduces no arithmetic of its own.** The falsifiable form: mutate any one of
+  `baseFinishedDepthMm`, `wallCarcassDepthMm` or `tallUnitFinishedDepthMm` and this path's answer moves
+  with it. A second copy of any of those numbers in the store or in the void engine is the failure.
+- **An extent whose depth came from a body the setting does not move must not move.** `fridge-free-700`
+  is the named case: a column cleared of it is frozen at **742 mm** and is still 742 at 700 mm and at
+  600 mm, because `finishesAtMm(FREESTANDING_FRIDGE_FINISHED_DEPTH_MM)` is not a function of the depth.
+  ADR 0058's two pinned tops are the second case, at **600** at both settings. Asserted through the
+  declaration, never by naming the ids in this wave's code.
+- **The measured residue closes.** On the shipped fixture at 600 → 700: `A|2.00` cleared of its base
+  member goes 0.6200 → 0.7200, and the `columnExtents` entry at `alongMm: 2000` goes 620 → 720. Both
+  are 620 → 620 today.
+- **Nothing shrinks, in any arm.** Every rule here is deeper-only or an exact re-answer of the same
+  body, so ADR 0011 Gap D holds: the 620 mm opening a delete freed under a wall run is still 620 mm
+  after a command that is not a depth change, and is 720 mm after one. The anti-invariant is asserted
+  directly — no sequence of commands makes a frozen extent shallower than it was frozen at.
+- **An extent that cannot be re-answered is deepened to the column's declared build depth and never
+  below.** Three inputs reach it and each has its own test: an entry with no `depthFromBuildId` (every
+  stored document written before this wave), an entry naming a `buildId` the catalogue does not hold,
+  and a merged entry. A member-less **wall** column frozen at 330 measures 400 after a 600 → 700
+  change; a member-less **base** column frozen at 620 stays 620 and is the stated residual, not a
+  defect to be fixed by inventing a number.
+- **No schema version bump.** `CURRENT_SCHEMA_VERSION` stays **5**, `migrate-design.ts` gains no arm,
+  and the anti-invariant is asserted: a stored document without the field parses, loads with byte-identical
+  geometry to today, and **is not rewritten by a load**. ADR 0073 decision 6 draws the line and it is
+  ADR 0053's side of it, not ADR 0055's.
+- **Nothing is refused.** An absent field and an unknown `buildId` both fall through to the deeper-only
+  rule; `validateDesignForCatalog` gains no refusal that a stored document can trip (ADR 0052 — a load
+  that refuses is a dead link). A malformed value — one that is not a `buildId`-shaped string — is
+  refused at both seams, fail-closed.
+- **`MAX_DESIGN_BYTES` is re-derived, not assumed, and a test pins the longest entry the schema can
+  express.** ADR 0053's 128-byte per-entry allowance does not survive the new field: the longest
+  `buildId` in the catalogue is `wall-corner-return-570-top` at 26 characters and the key, quotes,
+  colon and comma add 21 more. Derive the new allowance and the new cap by ADR 0053's own arithmetic,
+  and assert against a *constructed* worst-case entry rather than a hand-picked one — a boundary grep
+  that matches nothing while reporting green is a failure this project has shipped twice.
+- **The merge carries the shallowest member's source, and a chain that spans two sources is the tested
+  case.** `mergeAdjacentEmptyColumns` already takes the shallowest member as its envelope template, so
+  the source follows it. The tolerance makes this real rather than theoretical: 620 and 638 agree
+  within `AGREEMENT_TOLERANCE_MM` (20 mm), so a merged run genuinely descends from a base carcass and
+  an oven tower. A split writes the source to both halves; a resize and the wall-end clip move an
+  extent without touching its depth or its source.
+- **6K-b's `it.fails` guard goes red and is flipped in this wave, not deleted.** A deleted expected
+  failure is indistinguishable from one that never existed (`docs/WORKFLOW.md`).
 
 ### Wave 6L — the handle path learns a cabinet handle from an appliance's (`docs/BACKLOG.md` entry 18)
 
