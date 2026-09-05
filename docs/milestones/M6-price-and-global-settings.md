@@ -42,6 +42,15 @@
 > **6K-i was added 2026-09-05** for the finding ADR 0079 recorded and did not rule: two ordinary
 > deletes leave the shipped kitchen unable to change its own depth (`HEIGHT_EXCEEDS_LEVEL`). It is
 > older than 6K-c, gates nothing, and begins with the adjudication rather than a fix.
+> **6Q-c was added 2026-09-05 on an owner ruling** —
+> [ADR 0081](../decisions/0081-a-material-change-confirms-only-when-a-chosen-colour-would-be-lost.md):
+> a material change now shows a **conditional, blocking confirmation** where 6Q's plan had an
+> always-shown sentence, and it is silent when no cabinet carries a chosen colour. It gates on 6Q-b
+> and gates nothing. The same ruling **closes ADR 0078's raised carry-over question — no carry-over**
+> — and withdraws 6Q-b's `materialWarning` clause. **A second owner ruling the same day**,
+> [ADR 0082](../decisions/0082-the-settings-strip-wraps-and-nothing-leaves-the-viewport.md), makes
+> the whole-kitchen strip wrap rather than overflow and adds no wave: it lands inside **6R** as a
+> scope addition, closing `docs/BACKLOG.md` entry 32 and scheduling entry 33.
 > The seven owner decisions were taken
 > on 2026-09-02 (ADRs 0055–0061); ADRs 0062–0064 followed, the last two on 2026-09-03.
 >
@@ -279,13 +288,14 @@ constant (`worktop-depth.ts` carries a comment saying the rename is owed and def
 | 6K-e — the probe that measures a depth change is built at that depth *(ADR 0074)* | D | 6K-b — **does not gate it**, see the wave | Full |
 | 6K-f — a probe lease is a scoped borrow and the store publishes no probe *(ADR 0076)* | D | 6K-e — **gated by it**, this is 6K-e's residue | Full |
 | 6K-i — a depth change refused by two ordinary deletes *(ADR 0079's finding, unadjudicated)* | D | none — **adjudication first**, and it gates nothing | Full |
-| 6K-j — an empty space follows the setting, and the fallback is not a ratchet *(ADR 0080, owner instruction 2026-09-05)* | D | 6K-c — **gated by it**, and it gates nothing | Full |
+| 6K-j — an empty space follows the setting, and the fallback is not a ratchet *(ADR 0080, owner instruction 2026-09-05; **amended after QA, same day** — the predicate is an equality)* | D | 6K-c — **gated by it**, and it gates nothing | Full |
 | 6L — the handle path learns cabinet from appliance *(backlog 18)* | G | none — **sequenced before 6B and 6G** | Full |
 | 6M — the overflow is marked and warned about *(ADR 0065)* — **DONE 2026-09-04, `ce77171`** | — | 6A3 | Light + visual |
 | 6N — the wall-coverage bars *(owner request)* | — | 6D, 6M, decision 8's fixture correction | Light + visual |
 | 6P — the finish model: materials, palette, and a document that predates both *(ADR 0071)* — **DONE 2026-09-04, `38268b5`** | G | 6E | Full |
-| 6Q — a material change resolves every finish it does not offer *(ADR 0071, ADR 0057; supersedes 6F)* | G | 6P | Full |
-| 6R — three control shapes, and six decors the 3D approximates *(ADR 0071)* | G | 6Q, 6G | Light + visual |
+| 6Q — a material change resolves every finish it does not offer *(ADR 0071, ADR 0057; supersedes 6F)*; splits 6Q-a → 6Q-b *(ADR 0078)* | G | 6P | Full |
+| 6Q-c — the change confirms before it wipes a chosen colour, and is silent when none was *(ADR 0081, owner 2026-09-05)* | G | 6Q-b — **gated by it** | Full + visual |
+| 6R — three control shapes, six decors the 3D approximates, and a strip that wraps *(ADR 0071, ADR 0082)* | G | 6Q, 6G | Light + visual |
 | 6S — door leaves, drawers and door band heights become declared facts *(ADR 0070)* — **DONE 2026-09-04, `280daa4`/`a2bff48`** | P | none | Full |
 | 6T — hardware priced per mechanism, and the two sink extras *(ADR 0070)* | P | 6S, 6B2 | Full |
 
@@ -1636,6 +1646,19 @@ production files, which is the dispatch limit — the byte-cap edit is one line 
   and a merged entry. A member-less **wall** column frozen at 330 measures 400 after a 600 → 700
   change; a member-less **base** column frozen at 620 stays 620 and is the stated residual, not a
   defect to be fixed by inventing a number.
+
+  **Re-scoped by wave 6K-j ([ADR 0080](../decisions/0080-an-empty-space-follows-the-setting-and-a-fallback-is-not-a-ratchet.md)
+  decisions 3 and 5); the 620 is unchanged and the sentence around it is not.** Two things this arm
+  did are different things, and only one of them survives. The **surplus** — 620, deeper than
+  `columnBuildDepthM` can express at any setting — is kept, and *"stays 620"* is still the right
+  answer. The **never-below** half is dropped where the frozen depth is one this rule itself could
+  have produced at the setting being left: the wall column above is deepened 330 → 400 at 700 and now
+  returns to **330** at 600, where this wave left it at 400 — 70 mm proud of every wall body around
+  it, which is the ratchet the owner's instruction names.
+
+  And the residual is a statement about a **population, not about empty spaces**: every column any
+  build from this wave onward publishes carries a source, so it describes documents written before
+  wave 6K-c and nothing else. Wave 6K-j asserts that closure rather than assuming it.
 - **No schema version bump.** `CURRENT_SCHEMA_VERSION` stays **5**, `migrate-design.ts` gains no arm,
   and the anti-invariant is asserted: a stored document without the field parses, loads with byte-identical
   geometry to today, and **is not rewritten by a load**. ADR 0073 decision 6 draws the line and it is
@@ -1800,6 +1823,18 @@ measured on the shipped fixture, every current-schema column's depth is already 
   A member-less wall column with no source is deepened 330 → 400 at 700 and **stays 400 at 600**,
   70 mm proud of every wall body around it. **This wave ends it.**
 
+**Amended 2026-09-05, after the implementation landed and adversarial QA swept it**
+([ADR 0080](../decisions/0080-an-empty-space-follows-the-setting-and-a-fallback-is-not-a-ratchet.md)'s
+amendment, sections A–I; QA's files are `apps/web/tests/store/qa-6k-j-fallback-rule.adversarial.test.ts`
+and `qa-6k-j-closure.adversarial.test.ts`). **The predicate is an equality, not a bound**, and three of
+the criteria below were rewritten because QA falsified the sentences they were built on. Every depth
+this rule publishes is either `columnBuildDepthM` **exactly** or a surplus strictly above it, so
+*"a depth this rule itself could have published"* is `column.d === atFreezeM`. Written as `<=` it also
+swallowed every depth **below** the ceiling, and an inserted `tall-pantry` overlapping a member-less
+slot — `isFullHeightUnder` is asked by overlap, not membership — raised that ceiling 400 → 700 and made
+a genuine 620 follow the setting to 600. Classified as a **contract gap in ADR 0080**, not a defect in
+this wave's code, which was faithful to the record.
+
 **Touches.** `apps/web/src/store/apply-command-result.ts` (`frozenDepthAtThisSetting`, and one field on
 each of `ApplyCommandResultInput` and `PublishedColumnsInput`) and
 `apps/web/src/store/configurator-store.ts` (one argument at the one call site). **Two production files,
@@ -1812,22 +1847,75 @@ domain file, no schema, no migration.
    `previousCabinetDepthMm` on `ApplyCommandResultInput` and `PublishedColumnsInput`, passed as
    `cabinetDepthMmOf(state.design)` from `configurator-store.ts`. Required rather than defaulted, for
    the reason `previousRecords` beside it is.
-2. `frozenDepthAtThisSetting`'s fallback arm becomes ADR 0080 decision 4: `columnBuildDepthM` at the
-   new setting **exactly, with no source**, unless `column.d` is deeper than `columnBuildDepthM` at the
-   setting the design is leaving — in which case the existing deeper-only MAX and the existing source
-   handling are unchanged.
-3. Tests, below.
-4. Re-scope ADR 0073's stated residual and wave 6K-c's residual sentence in this file: the base column
-   frozen at 620 still stays 620, and the sentence names the population — documents written before wave
-   6K-c — rather than reading as a standing rule about empty spaces.
+2. `frozenDepthAtThisSetting`'s fallback arm becomes ADR 0080 decision 4 **as amended**:
+   `columnBuildDepthM` at the new setting **exactly, with no source**, when `column.d` **equals**
+   `columnBuildDepthM` at the setting the design is leaving —
+   `Math.abs(query.column.d - atFreezeM) <= FROZEN_SURPLUS_EPSILON_M`. Otherwise the existing
+   deeper-only MAX and the existing source handling are unchanged. **Not `<=`**, which additionally
+   swallows every depth below the ceiling and is the wave's one measured defect.
+3. Correct two sentences in the same file's doc comment, both falsified by QA. *"The asymmetry it can
+   produce runs one way only"* is true again but for a different reason and must say so: a flipped
+   `hasFullHeightUnder` makes the **equality fail**, and a failed equality routes to the surplus arm,
+   which keeps more. And *"every column any build since then publishes carries a source"* is **false of
+   this build by design** — the follow arm publishes no source (ADR 0079 decision 2 requires that) and
+   `projectFrozenMap` writes it out — so it becomes the descent form in work item 5.
+4. Tests, below, including the re-authoring constraint on QA's two characterisation tests.
+5. Re-scope ADR 0073's stated residual and wave 6K-c's residual sentence in this file, and state the
+   closure as **closed under descent rather than by date**: the base column frozen at 620 still stays
+   620; no document whose columns all carry sources ever *enters* this arm; a document already in it
+   stays in it, and the arm converges, because its answer is `columnBuildDepthM` at the design's own
+   setting and that follows the setting in both directions.
 
 **Acceptance criteria.**
 
-- **Exactly one published depth changes, and it is the ratchet.** Against wave 6K-c, over the whole
-  scenario set at both declared settings, the only difference is a legacy member-less **wall** column:
-  330 → 400 on the increase (unchanged) and **400 → 330** on the decrease, where 6K-c leaves 400. Every
-  other column, on every scenario, is byte-identical — asserted as a criterion, not hoped for. A wave
-  that publishes a different kitchen anywhere else has not met this.
+- **A legacy document never differs from its sourced twin where the ceiling could have expressed the
+  sourced answer at _both_ declared settings.** *(This criterion has now been written three times. The
+  first — "exactly one published depth changes" — was withdrawn on 2026-09-05 for being bounded by the
+  implementer's six scenarios: broadened to **every deletable placement** across four states it is
+  **10 entries over 6 columns**. The second replaced it with a shape stated by **listing its chains**
+  — "a base or corner run's 620/720 and 630/730" — and logic review falsified it against its own
+  snapshot: three of the ten entries are neither, three are not at the deeper setting, and the
+  catalogue holds at least five inexpressible chains plus the fridge's 742 and ADR 0058's pinned
+  600/600. **A shape stated by listing its instances is a scenario set wearing a different word**, and
+  this wave made that mistake twice in one day. ADR 0080's second amendment, sections J and M.)* The
+  form above names no chain, so a catalogue change cannot age it out. Measured over the same 22 × 4
+  sweep: **1 046 agreeing states, of which 264 are ceiling-expressible at both settings** — the
+  predicate is not vacuous — and **0 violations**, with all 10 differences carrying a source the
+  ceiling cannot express. The difference set is written out **whole rather than counted**, since a
+  count is what hid a slice once already (wave 6K-c's 2026-09-05 correction).
+- **"At both settings" is load-bearing, and the entries that break it are asserted at catalogue
+  level.** *"Never on a wall column, at any setting"* is true, and its previous justification — *"the
+  wall map is exactly what the fallback can express"* — was **false**: ADR 0058's two pins are
+  wall-family entries declaring **600 at both settings**, not 330/400. A member-less column frozen at
+  600 reading `hasFullHeightUnder: true` sits exactly on `columnBuildDepthM(600, true)`, so the
+  equality reads it as this rule's own answer and follows the setting to **700** — 100 mm proud of a
+  pinned depth. The assertion is the hazard itself, swept over the whole catalogue at both settings and
+  both readings: **no entry sits on `columnBuildDepthM` at one declared setting and off it at the
+  other, except `wall-2door-600-deep-top` and `wall-2door-700-over-fridge`, which are named**. Measured
+  2026-09-05: exactly those two, catalogue-wide. Not phrased as *"every wall-family entry declares the
+  map"* — that is a second statement of the map (ADR 0028 decision 4) and names the wrong population.
+  **The safety today is fixture-bounded and is recorded as such**: `B|1.80` is the only column whose
+  recorded source is a pin and it holds a full-height `tall-pantry-600`, so it is never member-less
+  while that pin is its depth, and `wall-2door-700-over-fridge` never wins its column's MAX at all. It
+  becomes reachable the moment a pinned deep top is left alone in a column a full-height body overlaps,
+  or a new entry declares the same depth at both settings. **Not a 6K-j regression** — 6K-c reaches the
+  same 700 by `max(600, 700)` and then ratchets it; only this wave lets it come back.
+- **The arms switch at the ceiling and nowhere else.** `column.d === atFreezeM` within
+  `FROZEN_SURPLUS_EPSILON_M` follows the setting; one millimetre either side of it is a surplus. The
+  falsifiable form is the case that separates the two operators, and it is the wave's own defect: with
+  an inserted `tall-pantry` overlapping the member-less dishwasher slot, a legacy **620** under a
+  700 mm freeze-time ceiling is **620** at the 600 mm setting, not 600. Asserted against a *raised*
+  ceiling specifically, because that is the direction `<=` got wrong.
+- **It closes the down-leg, and the round trip from the shallower setting is the ruled trade, not a
+  defect to be re-reported.** Measured on the same shape: a document stored at **700** holding an
+  unsourced 620 traces `620 → 620 → 700` under both rules, which is what the criterion above asserts. A
+  document stored at **600** traces `620 → 700 → 600 → 700` here and `620 → 700 → 700 → 700` under
+  6K-c: **the 620 is destroyed on the up-leg by ADR 0073 decision 3's own MAX**, `max(620, 700)`,
+  before this wave's predicate is consulted again. Trading that deepening away is option O1, refused on
+  290 mm, and it is what closes the only residue case that reaches a built body. Against the customer's
+  620 this wave is **20 mm** out where 6K-c is **80 mm** out, and unlike 6K-c it returns to 700 when the
+  kitchen does. Asserted as a trace so it is not rediscovered as a finding (ADR 0080's second
+  amendment, section L).
 - **The surplus is not traded away, and each shape has its own test.** A legacy cleared **base** slot
   frozen at 620 with no source is **620 at 600 and 620 at 700** — never 330, never 400. A legacy fridge
   niche frozen at 742 is **742 at both settings**. The test asserts the number *and* names why:
@@ -1841,19 +1929,51 @@ domain file, no schema, no migration.
   gains exactly one case — *the depth being left is what this rule itself would have published at the
   setting being left* — and the addition is required to go **red against 6K-c's code** on the `A|0.30`
   trail and green nowhere else. A predicate that also lets the 620 slot shrink is a weakened one.
-- **No current-schema document reaches the fallback arm at all, and that is asserted rather than
-  believed.** Over the states QA's existing sweep reaches from the shipped fixture, every published
-  column carries a `depthFromBuildId` the catalogue holds. Non-vacuity is asserted three ways: the
-  inspected count is non-zero, the two declared catalogues hold **identical `buildId` sets** (so an
-  unknown source is unreachable across a depth change — measured 2026-09-05, symmetric difference
-  empty), and a deliberately source-stripped document *does* reach the arm. This is what makes ADR 0080
-  decision 5 — the population is closed at documents older than 6K-c — a checked fact.
-- **`hasFullHeightUnder` is asked once and used for both operands**, and the resulting asymmetry is
-  pinned by a test rather than left for a reviewer to find: a deleted full-height member lowers the
-  freeze-time ceiling from 600 to 330, so the rule keeps *more*, never less.
+- **No current-schema document *enters* the fallback arm, and the population is closed under
+  descent rather than by date.** *(Restated 2026-09-05: "an unsourced extent is written by no build
+  from 6K-c onward" is **false of this build by design** — the follow arm publishes no source, and
+  `projectFrozenMap` writes that column into the document, which reaches the arm again on the next
+  load. The sentence conflated entering the arm with remaining in it.)* Two halves, both asserted:
+  every published column of a current-schema document carries a `depthFromBuildId` the catalogue holds,
+  so nothing new enters; and a document already in the arm **converges** rather than accumulating
+  error, because the arm's answer is `columnBuildDepthM` at the design's own setting and that follows
+  the setting in both directions — a descendant is no worse off than its ancestor. Non-vacuity is
+  asserted three ways: the inspected count is non-zero, the two declared catalogues hold **identical
+  `buildId` sets** (so an unknown source is unreachable across a depth change — measured 2026-09-05,
+  symmetric difference empty), and a deliberately source-stripped document *does* reach the arm.
+- **A ratchet the old rule already wrote into a document survives the load, and that is declared
+  behaviour with a criterion rather than a silence.** A pre-6K-c document at 600 carrying an unsourced
+  `A|0.30` at **400** publishes 400 on load and after every command that is not a depth change; it
+  takes a full 600 → 700 → 600 round trip to reach 330. ADR 0080 decision 4 licenses it — two documents
+  declaring different settings are two documents — and re-answering an extent on load would be
+  ADR 0055 decision 1's *"depth is never re-derived on load"* and ADR 0011 Gap D at once. It is a
+  criterion because it materially shrinks what this wave delivers for the population it targets, and
+  because the owner is owed the sentence: *a kitchen saved under the old rule with a 400 mm opening in
+  a 600 mm run still shows that opening on the next load, and follows the setting only after the depth
+  is changed and changed back.*
+- **`hasFullHeightUnder` is asked once and used for both ceilings, and the "keeps more, never less"
+  claim is now a theorem rather than an assumption.** *(Restated 2026-09-05: under `<=` the claim was
+  **false** — QA measured 20 mm kept less, `expected 600 to be close to 620`. It covered the falling
+  direction only; the rising one, 400 → 700, turned a genuine surplus into "this rule's own previous
+  answer".)* Under the equality it holds in **both** directions of a flip and the test says why: a
+  flipped reading makes the comparison **fail**, and a failed comparison routes to the surplus arm.
+  `true → false` — a 600 published under the lifted arm meets a 330 ceiling, is read as a surplus and
+  is kept. `false → true` — a 400 published under the capped arm meets a 700 ceiling, is read as a
+  surplus and is deepened to 600 by the MAX. Both are pinned, because one of them was the defect.
+- **QA's two characterisation tests are re-authored to the new boundary, never deleted or relaxed.**
+  The amended predicate turns QA's F1 assertion green and turns two siblings red — *"answers with the
+  new ceiling below the ceiling it is leaving"* and *"collapses every legacy depth up to the 700
+  ceiling"* — and both are characterisations of the `<=` rule rather than of a defect. The
+  replacements **must go red against the `<=` code**, demonstrated by running them there. A criterion
+  met by deleting the test that measured the old behaviour is the failure mode `docs/WORKFLOW.md`
+  names.
 - **Nothing else moves.** No schema change, no `CURRENT_SCHEMA_VERSION` bump, no migration arm, no new
-  refusal at either seam, no change to `MAX_DESIGN_BYTES`, no domain file touched. The full web suite is
-  green — measured at 1 442 passed / 4 skipped / 0 failed in a copy of the tree carrying this change.
+  refusal at either seam, no change to `MAX_DESIGN_BYTES`, no domain file touched, and **no persisted
+  `hasFullHeightUnder`** — recording the freeze-time reading is refused twice over (a field this wave
+  forbids, and it re-freezes what ADR 0011's 2026-08-26 correction deliberately unfroze). Measured with
+  the amended predicate on 2026-09-05: the full web suite is **1 477 passed / 4 skipped / 1 failed**,
+  the one failure being the characterisation test the criterion above requires re-authoring, and the
+  closure sweep's difference set is **unchanged at the same 10 entries**.
 
 **Risks.**
 
@@ -1861,13 +1981,34 @@ domain file, no schema, no migration.
   records. This wave changes the direction it fails in — toward the setting the customer is looking at
   — and does not remove it. Stated so it is not re-reported as a defect.
 - **The wave is legacy-only in what it changes today**, which makes it easy to under-test. The criteria
-  above are written so the *closure* (no current-schema document reaches the arm) is the thing asserted,
-  because that is what stops a future producer of a sourceless column silently inheriting a ratchet.
+  above are written so the *closure* (nothing new enters the arm) is the thing asserted, because that
+  is what stops a future producer of a sourceless column silently inheriting a ratchet.
+- **A criterion measured over a chosen scenario set is the failure this wave has now made twice.** The
+  withdrawn *"exactly one published depth changes"* read as 2 entries over six scenarios and as 10 over
+  every deletable placement; its replacement then stated the shape by **listing the chains it had seen**
+  and was falsified by its own snapshot. Any criterion that names its scenarios — or its instances —
+  rather than the property is the same mistake with different numbers, and the third form is written as
+  a predicate over the catalogue precisely so there is nothing left to enumerate.
+- **The wall-column claim is safe today for a fixture reason, not a structural one.** ADR 0058's two
+  pins declare 600 at both settings and sit on the lifted ceiling at one of them; nothing but the
+  fixture's own membership keeps them out of the fallback arm. The catalogue-level assertion above is
+  the tripwire, and a reviewer should read it as bounding a known hazard rather than proving one absent.
 
 **Verification.** Drive `createConfiguratorStore` over the shipped fixture through
 `setCabinetDepth(700)` → `setCabinetDepth(600)` → save-and-reload, dumping every `Column.d` and
-`depthFromBuildId`, for both the current-schema and the source-stripped forms of each scenario, and diff
-against the same dump under 6K-c. The expected diff is two lines. Then `pnpm check`.
+`depthFromBuildId`, for both the current-schema and the source-stripped forms of **every deletable
+placement**, and diff the legacy dump against its sourced twin. The difference set is written out
+whole and is the 10 entries QA's closure sweep pins. Then `pnpm check`.
+
+**How the finding was sized, recorded because the first sizing was against the wrong baseline.** QA
+measured the F1 loss against *"ADR 0073 decision 3 as 6K-c ships it"* and reported up to 99 mm. On the
+column that number comes from, 6K-c's own answer is 100 mm wrong. Against the **sourced twin** — the
+truth, since it is the same document with its sources intact — the wave is **never worse than 6K-c on
+the sweep and 101 mm better on two entries** (`delete p23 @600` and `@reload` on `B|1.80`: truth 599,
+6K-c 700, this wave 600). The real F1 harm is the **20 mm** on QA's own failing example, where a legacy
+depth is a base run's 620 under a column that now reads full-height, and the equality closes it. A
+cleared `tall-pantry` niche following the setting to 600 is not a 99 mm loss; the sourced answer is 599
+and the 699 it was measured against is the stale depth this family of records exists to end.
 
 ### Wave 6K-d — a rebuild must not swap a body for one declared at a different depth
 
@@ -2797,6 +2938,14 @@ would put a Full-tier rule and a Light-tier surface in one diff and one review.
   because 6F had not shipped and *"a warning about behaviour that does not exist is decoration"*.
   This wave adds the clause **in the same change that adds the behaviour** — the two are one edit,
   and a wave that ships either alone has shipped the defect from one side or the other.
+  **Amended 2026-09-05 by the owner, recorded in
+  [ADR 0081](../decisions/0081-a-material-change-confirms-only-when-a-chosen-colour-would-be-lost.md):
+  the warning is no longer a clause in `materialWarning` at all.** It becomes a **conditional,
+  blocking confirmation** shown when — and only when — some cabinet carries a colour that differs
+  from its current material's declared default, and the apply runs no command until it is confirmed.
+  `materialWarning` stays exactly as 6G shipped it and gains nothing. The criterion above is
+  strengthened rather than relaxed: *before the apply* now means *nothing is written until the
+  customer agrees*, and the wave that ships it is **6Q-c**.
 - **The shape changes too, not only the membership**, and the warning must survive that: switching
   MDF → veneer replaces a picker with two swatches. **Switching to veneer resets every cabinet that
   is not already wearing a wood**, since only *Stejar* and *Nuc* are offered — the most destructive
@@ -2826,7 +2975,7 @@ would put a Full-tier rule and a Light-tier surface in one diff and one review.
 - **A body that cannot wear a finish is never reset, never refused and never counted** in the
   "applies to N bodies" figure the sheet already renders.
 
-#### The plan, 2026-09-05 — [ADR 0078](../decisions/0078-a-materials-offer-is-its-controls-shape-and-the-load-seam-resolves-before-it-validates.md). Two sub-waves, in this order
+#### The plan, 2026-09-05 — [ADR 0078](../decisions/0078-a-materials-offer-is-its-controls-shape-and-the-load-seam-resolves-before-it-validates.md). Two sub-waves, in this order — **now three, see 6Q-c**
 
 **[ADR 0078](../decisions/0078-a-materials-offer-is-its-controls-shape-and-the-load-seam-resolves-before-it-validates.md)
 rules the three things 6P left open** and this plan sits on: what *"offers"* means now that a finish
@@ -2849,6 +2998,15 @@ persistence semantics.
 **Sizing.** Nine production files is the whole of 6Q; four and five is the split, each with five
 punch-list items. Neither sub-wave is a candidate for batching with 6R, whose real evidence is a
 screen.
+
+**Revised 2026-09-05 —
+[ADR 0081](../decisions/0081-a-material-change-confirms-only-when-a-chosen-colour-would-be-lost.md)
+adds a third sub-wave.** The owner replaced the always-shown warning with a **conditional, blocking
+confirmation**, which is a domain predicate plus an interactive step on a modal surface. Folding it
+into 6Q-b would put a load-path migration, a validation refusal and a two-step dialog with a focus
+trap in one diff, and would break 6Q-b's own stated verification — *"no visual agent is owed"* — on
+the day it was written. So: **6Q-a → 6Q-b → 6Q-c**, and the sizing becomes four, four and four
+production files. 6Q-c is the only one of the three whose evidence is a screen.
 
 ##### 6Q-a — the offer, and nothing new may create a violation
 
@@ -2923,18 +3081,157 @@ reaches into `panel-model.ts` to pre-empt it has taken 6R's diff.
    discretion, and the total map means an unclassified member does not compile. It reaches a client
    as `PUT /api/designs/[id]`'s existing `invalidBodyResponse`; no new response shape, no reason
    echoed (ADR 0014 S2).
-5. **The warning clause, in the same diff.** `ro.globalSettings.materialWarning` gains the finish
+5. ~~**The warning clause, in the same diff.** `ro.globalSettings.materialWarning` gains the finish
    clause, drafted and marked *pending owner review*. **Static, not conditional, and carrying no
-   count** — the digit sweep forbids the number, and a sentence that appears and disappears while the
-   customer browses tiers is a new product behaviour ADR 0057 did not ask for. Two live assertions in
-   `apps/web/tests/settings/global-settings-model.test.ts` must be **inverted, not deleted**: the
-   pinned literal, and *"omits the sentence about limiting per-cabinet finishes entirely"* — which
-   was correct while 6F had not shipped and becomes exactly wrong the moment this item lands.
+   count**… Two live assertions in `apps/web/tests/settings/global-settings-model.test.ts` must be
+   **inverted, not deleted**.~~ **Withdrawn 2026-09-05 by the owner's ruling —
+   [ADR 0081](../decisions/0081-a-material-change-confirms-only-when-a-chosen-colour-would-be-lost.md)
+   decision 5.** The finish consequence is no longer a clause in this sheet's standing copy; it is a
+   conditional blocking confirmation, and it ships in **6Q-c** with the query that decides when it
+   appears. `ro.globalSettings.materialWarning` is **unchanged**, so the two assertions are **kept,
+   not inverted** — the pinned literal still holds, and *"omits the sentence about limiting
+   per-cabinet finishes entirely"* stays true of the sheet's steady state, with only its comment
+   rewritten to say why (the consequence is stated where it happens, not that 6F has not shipped).
+   The struck text is left in place rather than deleted because it was dispatch-ready for one day and
+   a reader who saw it needs to find out what replaced it.
 
-**What 6Q-b must not do.** No new control, no change to `describeGlobalSettings`' shape beyond the
-string, and no change to the *"applies to N bodies"* figure — that count is the material's reach and
-the material reaches a frontless carcass like any other. Nothing in `panel-model.ts` or
-`three-adapter`.
+   **6Q-b therefore touches four production files, not five** — `ro.ts` falls out of its diff.
+
+**What 6Q-b must not do.** No new control, no change to `describeGlobalSettings`' shape, and no
+change to the *"applies to N bodies"* figure — that count is the material's reach and the material
+reaches a frontless carcass like any other. Nothing in `panel-model.ts` or `three-adapter`.
+**And nothing in `ro.ts`**: the copy moved to 6Q-c with the behaviour it describes, which is the same
+"the clause and the behaviour are one edit" rule the criteria state, applied to where the behaviour
+actually landed.
+
+##### 6Q-c — the confirmation that precedes the wipe, and the silence when there is nothing to wipe
+
+**Added 2026-09-05 on the owner's ruling, recorded in
+[ADR 0081](../decisions/0081-a-material-change-confirms-only-when-a-chosen-colour-would-be-lost.md).**
+Read that record before dispatching: it carries the predicate's exact table, the two counts that
+must not be confused, and the consequence the owner may not have weighed.
+
+**Tier: Full + visual.** Full because the predicate is domain algebra over a declaration and a
+document — the same class of rule 6Q-a and 6Q-b carry — and visual because the thing being shipped is
+a modal step a customer presses, on two shells, over a live canvas. 6Q-b's *"no visual agent is
+owed"* was true of 6Q-b and does not extend here.
+
+**Gate: 6Q-b.** The confirmation names a consequence; until 6Q-b's reset exists, the consequence does
+not. Shipping the modal first would be the mirror of 6G's own refused shortcut — *"a warning about
+behaviour that does not exist is decoration"*.
+
+**Touches, four production files:** `packages/configurator-domain/src/chosen-finishes.ts` (new),
+`packages/configurator-domain/src/index.ts`, `apps/web/src/settings/global-settings-model.ts`,
+`apps/web/src/settings/global-settings.tsx`, plus `apps/web/src/content/ro.ts` and
+`apps/web/src/settings/global-settings.module.css` for the step's copy and its box. **Nothing in
+`packages/three-adapter`, nothing in `panel-model.ts`, and no command.**
+
+1. **One domain query, and it answers a number.** `countCabinetsWearingAChosenFinish(design)` in its
+   own module. It reads `MATERIALS` and the design and nothing else (ADR 0062 seam 1), it throws on
+   nothing — an undeclared `materialTierId` uses 6Q-a's total lookup — and it obeys ADR 0081
+   decision 1's three-part rule exactly: a present finish, a declared material or the undeclared
+   arm, and `sameFinish` against `defaultFinish`.
+
+   **It takes the design and not the catalogue, deliberately.** A body that cannot wear a finish
+   carries none: `dropFinishFromBodiesThatCannotWearOne` strips it at the load seam and
+   `insert-body.ts`'s `carriedAppearance` refuses to carry one onto an incoming body whose
+   definition says `canFinish: false`. A catalogue argument would put a **second authority** on
+   `canFinish` beside those two. Both guarantees are asserted in this wave's own test file rather
+   than assumed, so the day one of them changes, this query's silence about it is loud.
+
+2. **The composition is the view's, and the component decides nothing.**
+   `describeGlobalSettings` takes the count as an input and publishes
+   `materialResetConfirm?: MaterialResetConfirmView` — present **iff** a pending material is chosen,
+   it differs from the applied one, and the count is above zero. The component holds one boolean of
+   its own: *am I on the confirm step*. It never asks whether a confirmation is owed.
+   `global-settings-model.ts` is where this belongs by its own head comment — *"this module owns
+   every rule and every string"* — and the finish rule itself stays in the domain, which is 6Q's
+   first criterion.
+
+3. **One dialog, two steps.** The confirm step replaces the sheet's body and footer inside the
+   existing `aria-modal` surface, with the existing focus trap and the existing document-level
+   Escape handler. **No second scrim, no second trap, no second Escape listener** — ADR 0081
+   decision 3, and `global-settings.tsx`'s own head comment plus `price-breakdown.tsx`'s recorded
+   cost are why. On the confirm step, **Escape and a scrim click both step back** to the choosing
+   step; neither closes the sheet and neither writes.
+
+4. **The apply is gated whole.** Pressing *Aplică* with a confirmation owed runs **no command** —
+   not material, not hardware, not depth. Confirming runs `applyPending` exactly as it runs today.
+   Cancelling leaves the pending choices intact, the document untouched and the store's `selection`
+   untouched. A partial apply is not a state this product has.
+
+5. **The copy, drafted and marked *pending owner review*.** A new `ro.globalSettings`
+   sub-object: a title, a body composing the count, a confirm action naming what it does (never
+   *OK*), and a step-back action. `materialWarning` is **not touched**.
+
+   **Two hard constraints on where the words may live.** The plural branch goes in a module-level
+   helper beside `everyBodyPhrase`, because `starting-price.adversarial.test.ts` sweeps a composing
+   template's **source body** for a digit and `(n) => n === 1 ? … : …` fails on the `1` in its own
+   condition. And the new strings carry comma-below `ș`/`ț` (U+0219/U+021B), asserted the way
+   `ro.price.overflowingTotalWarning` already is.
+
+**Acceptance criteria.**
+
+- **The silent path is asserted, not inherited.** Where every cabinet already sits at its material's
+  declared default — including a design where **no** cabinet wears a finish at all — switching
+  material is **immediate**: no confirm step in the markup, one command, `onDesignChanged` once.
+  This is a criterion precisely because it is what every shipped fixture already does, so an
+  implementation that made the modal unconditional for simplicity would pass every other test in
+  the suite.
+- **The interesting branch cannot go untested, and three devices make sure of it.** (a) The wave
+  reuses **6Q-b's veneer fixture**, imported rather than rewritten, and pins
+  `countCabinetsWearingAChosenFinish` on it as a **literal** in the same file — the *"not a vacuous
+  sweep"* convention. (b) The suite asserts **both branches non-empty**: at least one design that
+  confirms and at least one that does not, counted. (c) The e2e test **creates** the state rather
+  than assuming a fixture has it — it recolours a cabinet through the panel to a non-default PAL
+  decor, then switches material. That path is reachable today: the panel's legacy *graphite* chip
+  writes `pal.antracit`, which is offered by PAL and is not its default.
+- **`KITCHEN_L_DESIGN` carries no finish on any placement — verified 2026-09-05** — so
+  `apps/web/tests/store/whole-kitchen-settings.test.ts:137`'s *"notifies the save path exactly once"*
+  is **vacuous for this wave's purposes as well as 6Q-b's**: nothing resets, so nothing confirms. The
+  same re-pointing 6Q-b owes it serves both, and this wave asserts the confirm-gated count on the
+  re-pointed fixture rather than adding a third.
+- **The awkward boundary that separates the two rules**: a cabinet set explicitly to `pal.alb` on a
+  PAL kitchen — a real choice the customer made, landing on the declared default — **does not
+  confirm**. The product cannot tell it from a cabinet nobody touched, and under ADR 0081 it does not
+  try. Asserted, so it stays a decision rather than becoming an accident.
+- **Absence is not a chosen colour, and a `canFinish: false` body is not one either.** A placement
+  with no `finish` key never contributes to the count; a hood is excluded by carrying none at all,
+  asserted through the two upstream guarantees in item 1 rather than by a branch in the query.
+- **An undeclared material id confirms rather than throws.** On a design whose `materialTierId`
+  names no declared material, the query returns the number of finish-carrying cabinets and nothing
+  throws — 6G's recovery path keeps working (ADR 0072, ADR 0078 decision 3), and the customer is
+  warned that colours will go, because they will.
+- **`#ECEEEB` on an MDF kitchen counts as chosen and does confirm.** The comparison is `sameFinish`
+  and no second, case-folding equality is introduced. Asserted as the deliberate over-warn it is.
+- **The two counts are tied together, as a property.** For every design satisfying the load seam's
+  invariant and every declared target material,
+  `countCabinetsWearingAChosenFinish(design) ≤ setMaterialTier(…).effect.resolvedCount`, and their
+  difference is exactly the number of cabinets sitting at the current material's declared default.
+  Run over the same generated pair space 6Q-a builds in
+  `packages/configurator-domain/tests/support/`, never a second one.
+- **One `CommandResult` still, and the confirmation adds none.** Zero commands run while the confirm
+  step stands; exactly one `setMaterialTier` runs after it; `onDesignChanged` fires once. The
+  criterion 6Q-b owns is unchanged by this wave and is asserted here as unchanged.
+- **The copy never appears after the apply.** No toast, no banner, no note. A consequence reported
+  once it has happened is what ADR 0057 decision 3 forbids in a different costume — asserted by the
+  markup carrying none of the confirmation's words once the sheet has closed.
+- **Both viewports, by real interaction** (ADR 0057 decision 3 is explicit that the warning is owed
+  on both): at **390 × 844** and on desktop, choosing a material that would wipe a colour shows the
+  step, cancelling writes nothing, confirming writes once. **Focus stays inside the one dialog on
+  the confirm step**, Escape steps back rather than closing, and — ADR 0023's geometry — a tap on
+  the confirm action does not also reach the canvas beneath it.
+- **The count on screen is the query's, not the effect's.** Asserted directly, on a fixture where
+  the two differ: at least one cabinet at the current material's default alongside at least two
+  wearing chosen colours, so a wave that wires the effect's number into the copy fails.
+
+**What 6Q-c must not do.** It must not touch `migrate-design.ts` or `validate-design.ts` — 6Q-b owns
+both seams and this wave adds no invariant. It must not add a `RejectionDetail`, a
+`DesignValidationCode` or anything reaching `lastRejection` (ADR 0081 decision 7). It must not add a
+confirmation to the **depth** control by symmetry: ADR 0036 decision 5 rules that every body adapts to
+a depth change with no confirmation step, and a depth change discards no choice. And it must not
+"improve" the predicate into a nearest-colour carry-over on the way past — ADR 0078 decision 4, now
+reaffirmed by the owner.
 
 ##### Where each criterion above lands
 
@@ -2943,7 +3240,8 @@ the material reaches a frontless carcass like any other. Nothing in `panel-model
 | The offer is one domain query | **6Q-a** | The query exists in `materials.ts` and nothing outside it decides membership; the panel is untouched until 6R |
 | No stored design holds a finish its material does not offer, over every pair, at both seams | **6Q-a** (the query) then **6Q-b** (the two seams' outputs) | The generated-pair property, run three times: against the query, against `migrateDesign`'s output, against `setMaterialTier`'s |
 | The resolution runs once and produces one `CommandResult` | **6Q-b** | The effect's count, plus `onDesignChanged` called exactly once — below |
-| The warning is shown before the apply, on both viewports | **6Q-b** | DOM order in the one rendered markup, plus the two inverted assertions |
+| The warning is shown before the apply, on both viewports | **6Q-c** (moved from 6Q-b, ADR 0081) | The confirm step gates the apply: zero commands run while it stands, one after it. Asserted in the model, in the store and by real interaction on both shells |
+| The confirmation appears only when a chosen colour would be lost, and never otherwise | **6Q-c** | `countCabinetsWearingAChosenFinish`, both branches counted and both non-empty |
 | The shape changes too — MDF → veneer, asserted on mixed finishes, as one result | **6Q-b** | The veneer fixture — below |
 | The reset target is each material's declared default | **6Q-b** | `defaultFinish` read from `MATERIALS`; a mutation of the declaration moves the reset |
 | A stale tier the book no longer offers | **neither** — ADR 0072 dissolved it | ADR 0078 decision 3 is the only thing owed: an undeclared id resolves and refuses nothing (**6Q-a** item 2) |
@@ -3058,23 +3356,56 @@ assertion rather than a sentence.
   its own pair space rather than importing 6Q-a's, the two can pass while disagreeing.
 - **`materialById` throws.** Every new call site is a load path. Item 2 of 6Q-a exists for this and is
   the item most likely to be skipped as ceremony.
+- **6Q-c's conditional branch can ship untested in its interesting direction, and nothing in the
+  shipped suite would say so.** Every fixture carries no finish, so *"switching is immediate"* is
+  what every existing test already exercises — a modal made unconditional for simplicity, or a
+  predicate that answers zero for the wrong reason, both pass. The three devices in 6Q-c's second
+  criterion exist for this and none of them is optional.
+- **The confirmation's count and the effect's count are different numbers** and look interchangeable
+  in a diff. Wiring the effect's number into the copy shows the customer the cabinets that were
+  going to be repainted anyway. ADR 0081 decision 4 states the inequality; 6Q-c asserts it.
+- **A second modal over a modal.** The obvious implementation of a confirmation is a new dialog, and
+  it would arrive with a second focus trap, a second scrim and a second document-level Escape
+  handler over a surface that already has all three. Named in the dispatch.
 
 ##### Verification
 
 `pnpm ci:local`. Adversarial QA per sub-wave, tree frozen, before either review round; logic **and**
-clean-code review in parallel on both, per Full tier. **No visual agent is owed**: 6Q-b adds a
-sentence to a node 6G already verified on both shells, and the real-interaction gate — the control
-changing *shape* when the material changes — is 6R's, where it can actually be seen.
+clean-code review in parallel on all three, per Full tier. **No visual agent is owed for 6Q-a or
+6Q-b**: 6Q-b touches a node 6G already verified on both shells, and the real-interaction gate for
+the control changing *shape* is 6R's, where it can actually be seen. **6Q-c is owed one**, and it is
+the reason that wave exists as its own: a modal step, on two shells, over a live canvas, whose
+correctness is *whether it appeared* — which no `renderToStaticMarkup` assertion can see.
 
 ##### Open inputs this plan adds
 
-- **Two drafted strings, shipped marked *pending owner review***: the new refusal sentence
-  (`rejection.ts`) and the `materialWarning` finish clause (`ro.ts`). Under the owner's standing
-  direction of 2026-09-04 these do not block dispatch; they are listed here so they are not mistaken
-  for ruled copy.
-- **Raised, not answered, and blocking nothing: should PAL → MDF carry the colour over?** ADR 0078's
-  final section states it precisely. Wave 6Q ships ADR 0057's reset as ruled either way; a change is
-  a new dated decision amending ADR 0057, not an implementation choice.
+- **Drafted strings, shipped marked *pending owner review***: the new refusal sentence
+  (`rejection.ts`, 6Q-a), and — replacing the withdrawn `materialWarning` clause — **the
+  confirmation's four strings** (6Q-c: title, body, confirm action, step-back action). Under the
+  owner's standing direction of 2026-09-04 these do not block dispatch; they are listed here so they
+  are not mistaken for ruled copy.
+- ~~**Raised, not answered: should PAL → MDF carry the colour over?**~~ **Answered by the owner,
+  2026-09-05: no.** They declined to build a mapping between materials by name — *"instead of carry
+  over the colours and trying to make an algorithm of mapping these colours between different
+  materials, I will go with just checking if there are different colours compared to default for
+  each cabinet"* — so ADR 0057's rejection of nearest-finish mapping and ADR 0078 decision 4's
+  prohibition both stand, **reaffirmed rather than merely unrevisited**. The same message replaced
+  the warning's shape; see
+  [ADR 0081](../decisions/0081-a-material-change-confirms-only-when-a-chosen-colour-would-be-lost.md)
+  and wave 6Q-c.
+- **Raised 2026-09-05, blocking nothing: should a free colour be canonicalised to lower case?**
+  `FREE_COLOUR_PATTERN` admits both cases, `sameFinish` compares by string equality, and ADR 0081
+  decision 1 rules **no second, case-folding equality** — so `#ECEEEB` is treated as a chosen colour
+  on an MDF kitchen and confirms. The over-warn is the safe direction and is asserted as deliberate.
+  The alternative — canonicalising in `freeColourFinish` — changes what 6P ships and what stored rows
+  carry, and is owed a decision only if the owner wants the false confirmation gone. Wave 6R's picker
+  must emit lower case either way.
+- **Recorded 2026-09-05 for the owner's eye, and nothing is blocked on it: a kitchen entirely at its
+  material's default is repainted with no warning.** PAL's default is *Alb* and veneer's is *Stejar*,
+  so a fourteen-body PAL kitchen nobody has recoloured turns oak on a single press with no
+  confirmation — the ruling working exactly as stated, since nothing the customer *chose* is lost.
+  The exact number is knowable at any moment (`resolvedCount − chosenCount`). ADR 0081's final
+  section states the trade and the small fix, if the owner decides it is the wrong one.
 
 ### Wave 6R — three control shapes, and six decors the 3D approximates
 
@@ -3091,6 +3422,11 @@ three because it is the only one whose verification is *look at it*.
 
 **Touches.** `apps/web/src/panel/panel-model.ts` (the finish section), `apps/web/src/panel/editor-panel.tsx`
 and its module CSS, `apps/web/src/content/ro.ts`, `packages/three-adapter/src/finishes.ts`.
+**Plus, from the scope addition below (owner-ruled 2026-09-05,
+[ADR 0082](../decisions/0082-the-settings-strip-wraps-and-nothing-leaves-the-viewport.md)):**
+`apps/web/src/settings/global-settings.module.css` and
+`apps/web/src/app/configurator/configure/configure.module.css` — unrelated to this wave's subject and
+here because it is the wave that carries the visual gate on that screen.
 
 **Acceptance criteria.**
 
@@ -3132,6 +3468,73 @@ and its module CSS, `apps/web/src/content/ro.ts`, `packages/three-adapter/src/fi
 - **The M1 fidelity gate is not reached and this must stay true.** `finishes.ts` colours materials;
   nothing here touches a builder and no geometry moves. Asserted, because a wave that adds six
   materials is exactly the kind that reaches for a builder.
+
+#### Scope addition, 2026-09-05, owner-ruled: the whole-kitchen strip wraps and nothing leaves the screen
+
+**[ADR 0082](../decisions/0082-the-settings-strip-wraps-and-nothing-leaves-the-viewport.md)**, closing
+`docs/BACKLOG.md` entry 32 and scheduling entry 33. Read the record before dispatching; it carries the
+measurements, the refused alternatives and the reason horizontal scrolling is not one of them.
+
+**The owner's ruling**, on being shown the measured defect — at three chips the row is 442 px on a
+390 px screen and the settings trigger's right edge lands at 412, off the screen entirely:
+
+> *"I will go with showing everything, not going off the screen, even if we shrink — just to make
+> sure that everything remains visible. Even if you need to just increase the height and take from
+> the vertical height, I'm totally okay with this."*
+
+**Why it lands in 6R, stated honestly rather than rationalised.** This is settings-strip CSS inside a
+wave that is otherwise the per-cabinet colour control and an adapter table. It is here because 6R is
+the next wave carrying a **visual gate on this screen** and the fix's only real evidence is a
+measurement, and because the two stylesheets should be measured once rather than twice. It is not
+here because the subject fits.
+
+**Entry 32's stated premise does not survive a read of 6R's scope, and the fix stands anyway.** The
+entry says the defect *"blocks wave 6R, which adds a finish control and therefore a third
+[chip]"*. **6R adds no chip**: its finish control is per cabinet, in the editor panel — this
+milestone's own criteria put finish, handle and width in the cabinet editor and material, hardware and
+cabinet depth in the whole-kitchen sheet. What blocks nothing still breaks something: the strip's
+containment leak is live **today at two chips**, because a chip's label carries a price-book tier
+name and the book is data authored outside TypeScript (ADR 0062 seam 1). A long tier name is a book
+edit away.
+
+**Acceptance criteria, added to this wave's own.**
+
+- **Nothing on the strip leaves the viewport, at any chip count.**
+  `document.documentElement.scrollWidth` equals `clientWidth`, and every chip and the trigger has its
+  bounding box fully inside the viewport. Measured at **two, three, four and five** chips, at
+  390 × 844 and on desktop — including at the 900 px breakpoint's own tight edge, where the desktop
+  top bar has least room. A count above two is **simulated** to be measured, which is how the entry's
+  own table was produced.
+- **The chips wrap; the strip is not a scroll container in either axis.** No `overflow-x: auto`, no
+  `scroll-snap`, nothing that hides a control behind a gesture.
+- **A chip is never narrowed below the line it is alone on.** Ellipsis survives for exactly one case —
+  a single label longer than a whole line — and stops being the strip's normal state. **Measured at
+  four and five chips**: no chip is truncated that a wrap could have shown. No numeric `min-width` is
+  introduced; the floor is the line, so it scales with the viewport.
+- **The trigger is pinned and does not join the wrap.** Its position is a function of the viewport,
+  not of the chip count — it stays `flex: 0 0 auto` beside the chips box, and the chips wrap inside
+  the width it leaves.
+- **Vertical growth is absorbed by the stage and by nothing else.** At five chips the price bar is
+  fully visible, the canvas keeps a positive height, and the strip overlays neither. Measured on a
+  **flagged** design too, where ADR 0065's wrapped warning has already taken 33.7 px off the canvas —
+  the two growths must not be assumed independent.
+- **The `z-index: 7` interception cannot recur.** The failure wave 6K-b3 reverted was an overflowing
+  chips subtree painting over the price bar and swallowing the pointer, taking 44 of 58 e2e specs
+  down. With the row contained, a tap on the price bar's own control reaches it at every chip count —
+  asserted, not inferred from the absence of red.
+- **One rule for both shells.** Containment is not one of §10.1's permitted layout forks. The desktop
+  pill styling stays; the answer to *"may a control leave the screen"* is the same on both.
+- **`docs/BACKLOG.md` entry 33 is fixed here too** (ADR 0082 decision 8): `.trigger` has
+  `padding: 0`, so its tappable box is a 93.5 × 13 px text line box while the 40 px pill the customer
+  sees is `.anchor`. Its tappable box becomes at least `var(--touch-target)` — the 44 px token
+  `globals.css` already declares, never a smaller number chosen to sit prettily in a line of text —
+  on both shells, **without pushing a chip off the line it is on**. Measured, like the depth options
+  (354 × 51) and the two sheet actions (86 × 44, 98 × 44) already are.
+- **The false comment is corrected, and replaced by what was measured.**
+  `apps/web/src/settings/global-settings.module.css:33` claims a fourth chip *"narrows the three
+  rather than breaking anything"*. It is measurably false and is the sentence that would persuade the
+  next person to add a chip without measuring. The wave that lands the fix corrects it — and the
+  replacement states the invariant and the assertion that holds it, not a new prediction.
 
 ### Wave 6S — door leaves, drawers and door band heights become declared facts
 
@@ -3563,21 +3966,36 @@ own unruled strings — and never presented it as ruled. **All seven items below
 **Neither blocks dispatch.** Both are recorded here rather than resolved by an implementer, under the
 same rule the seven items above were.
 
-- **Two drafted strings, shipping marked *pending owner review***: the refusal sentence for a finish
+- **Drafted strings, shipping marked *pending owner review***: the refusal sentence for a finish
   the design's material does not offer (`commands/rejection.ts`, beside the two 6E tier codes that
-  already carry the marker), and the finish clause added to
-  `ro.globalSettings.materialWarning` (wave 6Q-b). Both are drafted under the owner's standing
-  direction of 2026-09-04 — *draft strings that carry their meaning now* — and neither may carry a
-  digit or a body count: `starting-price.adversarial.test.ts` sweeps every leaf of
-  `ro.globalSettings` and refuses one.
-- **Raised and not answered: should switching PAL → MDF carry the colour over?** Under ADR 0078
-  decision 1, MDF offers no palette entry, so a PAL kitchen loses all six decors to MDF's white
-  default — as destructive as the veneer path the criteria already single out, and ADR 0057 working
-  exactly as ruled. It is raised because one premise of ADR 0057's rejection of nearest-finish
-  mapping has moved: wave 6R publishes an exact swatch colour per decor, so a carry-over would no
-  longer need an unauditable owner-authored table. **Nothing is blocked** — wave 6Q ships the reset
-  as ruled — and a change would be a **new dated decision amending ADR 0057**, not an implementation
-  choice. ADR 0078's final section states the argument on both sides.
+  already carry the marker); and ~~the finish clause added to `ro.globalSettings.materialWarning`
+  (wave 6Q-b)~~ **— withdrawn 2026-09-05, ADR 0081 decision 5 — replaced by the confirmation's four
+  strings in wave 6Q-c** (title, body, confirm action, step-back action). All are drafted under the
+  owner's standing direction of 2026-09-04 — *draft strings that carry their meaning now* — and none
+  may carry a **literal** digit: `starting-price.adversarial.test.ts` sweeps every leaf of
+  `ro.globalSettings`, template **source bodies** included. A count interpolated at runtime is fine
+  and has a shipped precedent one line up (`appliesTo`'s *"tuturor celor 14 corpuri"*); a
+  singular/plural branch written inline is not, because its own `n === 1` trips the sweep.
+- ~~**Raised and not answered: should switching PAL → MDF carry the colour over?**~~ **Answered by
+  the owner, 2026-09-05: no.** They declined to build a mapping between materials by name, so
+  ADR 0057's rejection of nearest-finish mapping and ADR 0078 decision 4 both stand, reaffirmed
+  rather than merely unrevisited. What the same message *did* change is the warning's shape —
+  conditional and blocking, not a standing sentence — which is
+  [ADR 0081](../decisions/0081-a-material-change-confirms-only-when-a-chosen-colour-would-be-lost.md)
+  and wave **6Q-c**.
+
+### Added 2026-09-05 with ADR 0081 — one raised, one recorded, neither blocking
+
+- **Should a free colour be canonicalised to lower case?** `FREE_COLOUR_PATTERN` admits both cases
+  and `sameFinish` compares by string equality, so under ADR 0081 decision 1 an MDF kitchen wearing
+  `#ECEEEB` is treated as carrying a *chosen* colour and confirms. The over-warn is the safe
+  direction and ships asserted as deliberate; the alternative is canonicalising in `freeColourFinish`,
+  which changes what 6P ships and what stored rows carry. Wave 6R's picker must emit lower case
+  either way.
+- **Recorded for the owner's eye: a kitchen entirely at its material's default is repainted with no
+  warning.** PAL's default is *Alb*, veneer's is *Stejar* — so an untouched PAL kitchen turns oak on
+  one press, silently. That is the ruling working as stated (nothing *chosen* is lost) and nothing is
+  blocked; ADR 0081's final section states the trade and the one-line fix if it is the wrong one.
 
 ### Cabinet depth — recorded 2026-08-27, **partly decided since; corrected 2026-09-02**
 

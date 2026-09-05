@@ -1616,7 +1616,23 @@ one.
 than breaking anything"*. That claim is measurably false and should be corrected whatever is decided
 here, because it is the reason the next person will add a chip without measuring.
 
-Harmless today at two chips. **Blocks wave 6R**, which adds a finish control and therefore a third.
+~~Harmless today at two chips. **Blocks wave 6R**, which adds a finish control and therefore a
+third.~~
+
+**Ruled by the owner 2026-09-05 and closed —
+[ADR 0082](decisions/0082-the-settings-strip-wraps-and-nothing-leaves-the-viewport.md).** Nothing may
+leave the viewport at any chip count; the chips **wrap**, and vertical growth is the accepted currency
+— *"even if you need to just increase the height and take from the vertical height, I'm totally okay
+with this"*. Horizontal scrolling is refused, and a chip is never narrowed below the line it is alone
+on. **It lands as a scope addition inside wave 6R**, with measured criteria at two, three, four and
+five chips on both shells; see that wave in `milestones/M6-price-and-global-settings.md`.
+
+**Two corrections to this entry, recorded rather than edited away.** *"Blocks wave 6R, which adds a
+finish control and therefore a third"* rests on a misreading of 6R's scope — **6R adds no chip**, its
+finish control being per cabinet in the editor panel, while the whole-kitchen settings are material,
+hardware and cabinet depth. And *"harmless today at two chips"* is too kind: a chip's label carries a
+price-book tier name, and the book is data authored outside TypeScript (ADR 0062 seam 1), so a long
+tier name reaches the same overflow with today's two.
 
 ## 33. The settings trigger is a 93.5 x 13 px touch target
 
@@ -1628,6 +1644,14 @@ fine: `Aplică` 86x44, `Renunță` 98x44, the depth options 354x51 and 354x49.
 
 Pre-existing and not introduced by any 6K wave, but it is the control that opens the whole
 whole-kitchen settings surface, so it is the one worth fixing first.
+
+**Scheduled 2026-09-05 into wave 6R, alongside entry 32 —
+[ADR 0082](decisions/0082-the-settings-strip-wraps-and-nothing-leaves-the-viewport.md) decision 8.**
+Not itself owner-ruled; scheduled by the architect for a stated reason. It is a different defect, but
+it lives in the same two stylesheets, on the same control, and the wave's visual gate measures that
+strip anyway — fixing them separately means measuring the same row twice. The trigger's tappable box
+becomes at least `var(--touch-target)` (44 px, already declared in `globals.css`) on both shells,
+**without pushing a chip off the line it is on**.
 
 ## 34. One interrupted persistence run reds the whole package until repaired
 

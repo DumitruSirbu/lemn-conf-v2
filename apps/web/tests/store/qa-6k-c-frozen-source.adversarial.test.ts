@@ -124,6 +124,19 @@ function reload(store: Store): Store {
   return createStore(throughTheWire(store.getState().design));
 }
 
+/** The shipped fixture as a document written **before** wave 6K-c: driven far enough to carry a
+ *  frozen map, then saved with every `depthFromBuildId` stripped and reloaded through the wire. It is
+ *  the only population ADR 0080 decision 5 leaves reaching the fallback arm. */
+function openLegacyStore(): Store {
+  const cleared = createStore();
+  for (const member of cleared
+    .getState()
+    .records.filter((record) => record.col === "A|0.30")) {
+    remove(cleared, member.id);
+  }
+  return reloadWithSource(cleared, undefined);
+}
+
 /** Every frozen entry the document carries, both arrays, keyed the way a reader compares two saves. */
 function storedEntries(store: Store): ReadonlyMap<string, EmptyColumn> {
   const held = store.getState().design;
@@ -583,6 +596,9 @@ describe("over sequences of commands rather than single transitions", () => {
     readonly source: string | undefined;
     readonly isItsSourcesDeclaration: boolean;
     readonly measuredM: number | undefined;
+    /** The live predicate `columnBuildDepthM` needs, read off the column rather than re-derived, so
+     *  `followsTheFallbackDown` asks the same question the store asked (ADR 0080 decision 4). */
+    readonly hasFullHeightUnder: boolean;
   }
 
   const TOLERANCE_M = 1e-9;
@@ -610,6 +626,7 @@ describe("over sequences of commands rather than single transitions", () => {
               declaredM !== undefined &&
               Math.abs(column.d - declaredM) < TOLERANCE_M,
             measuredM: measured.get(key)?.d,
+            hasFullHeightUnder: column.hasFullHeightUnder,
           },
         ];
       }),
@@ -634,7 +651,34 @@ describe("over sequences of commands rather than single transitions", () => {
       was.isItsSourcesDeclaration &&
       now.isItsSourcesDeclaration &&
       was.source === now.source;
-    return membersExplainIt || reAnswersOneBody;
+    return membersExplainIt || reAnswersOneBody || followsTheFallbackDown(was);
+  }
+
+  /** **The third allowed shrink, added by wave 6K-j** (ADR 0080 decision 4) — added to the two above,
+   *  never carved out of them.
+   *
+   *  An extent with **no recorded source** whose depth is what the fallback itself would have
+   *  published at the setting being left is not information: it is this rule's own previous answer,
+   *  and holding it on the way back down is the ratchet the owner's instruction names. A member-less
+   *  wall column deepened 330 → 400 at 700 and kept at 400 in a 600 mm kitchen stands 70 mm proud of
+   *  every wall body around it.
+   *
+   *  **Narrow on purpose, and it is the narrowness that matters.** It fires only where there is no
+   *  source at all — so it cannot touch the sourced arms above — and only where the depth being left
+   *  is one `columnBuildDepthM` could have produced at the setting being left. A legacy cleared base
+   *  slot at 620 is deeper than that ceiling at either setting, so this arm never reaches it and the
+   *  surplus stays a surplus. A predicate that let the 620 shrink would be a weakened one. */
+  function followsTheFallbackDown(was: Reading): boolean {
+    if (was.source !== undefined) return false;
+    return declaredCabinetDepthsMm().some(
+      (cabinetDepthMm) =>
+        Math.abs(
+          columnBuildDepthM({
+            cabinetDepthMm,
+            hasFullHeightUnder: was.hasFullHeightUnder,
+          }) - was.depthM,
+        ) < TOLERANCE_M,
+    );
   }
 
   interface SweepResult {
@@ -642,8 +686,11 @@ describe("over sequences of commands rather than single transitions", () => {
     readonly refusals: readonly string[];
   }
 
-  function sweep(sequence: readonly Step[]): SweepResult {
-    const store = createStore();
+  function sweep(
+    sequence: readonly Step[],
+    openStore: () => Store = createStore,
+  ): SweepResult {
+    const store = openStore();
     const deepest = new Map<string, Reading>();
     const violations: string[] = [];
     const refusals: string[] = [];
@@ -702,6 +749,37 @@ describe("over sequences of commands rather than single transitions", () => {
 
     expect(names).toContain("depth 600 | depth 600 | depth 700");
     expect(names.length).toBeGreaterThan(100);
+  });
+
+  // **The legacy half, added by wave 6K-j.** The sweep above starts from the shipped fixture, where
+  // every column carries a source — so it never reaches the fallback arm and never exercised the
+  // shrink `followsTheFallbackDown` allows. This one starts from the same fixture saved with every
+  // `depthFromBuildId` stripped, which is the one population ADR 0080 decision 5 says that arm
+  // governs: documents written before wave 6K-c.
+  //
+  // Depth changes only, and three steps rather than four: the arm is reached by a setting change and
+  // by nothing else, so the delete steps would only re-source the columns and take the sweep back to
+  // the case above.
+  //
+  // **Without `followsTheFallbackDown` this goes red**, which is the proof the arm was added rather
+  // than carved out of the two beside it: `A|0.30` shrinks 400 → 330 with no source at all, so
+  // `membersExplainIt` is false (nothing stands there) and `reAnswersOneBody` is false (no source to
+  // re-answer), and the shrink is reported as a violation.
+  it("holds over every sequence of three depth changes on a legacy document", () => {
+    const violations: string[] = [];
+    for (const sequence of sequences(3)) {
+      if (sequence.some((step) => !step[0].startsWith("depth"))) continue;
+      violations.push(...sweep(sequence, openLegacyStore).violations);
+    }
+
+    // Non-vacuous: the legacy store really does publish sourceless columns, which is the only state
+    // in which the new arm can fire.
+    expect(
+      [...openLegacyStore().getState().columns].filter(
+        ([, column]) => column.depthFromBuildId === undefined,
+      ).length,
+    ).toBeGreaterThan(0);
+    expect(violations).toStrictEqual([]);
   });
 
   // Depth changes alone, interleaved with each other — the cheapest half of the sweep, and the one

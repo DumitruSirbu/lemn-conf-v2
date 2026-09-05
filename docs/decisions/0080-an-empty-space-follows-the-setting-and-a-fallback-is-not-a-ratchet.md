@@ -275,3 +275,288 @@ reported in decision 7 rather than resolved here.
 - **The closure is now a thing to assert rather than a thing to believe.** That no current-schema
   document reaches the fallback arm at all is what makes decision 5 true, and it holds only while
   every producer of a column carries a source. 6K-j pins it.
+
+## Amendment, 2026-09-05 — decision 4's predicate is an equality, not a bound
+
+Ruled after wave 6K-j's implementation landed, on adversarial QA's two files
+(`apps/web/tests/store/qa-6k-j-fallback-rule.adversarial.test.ts`,
+`qa-6k-j-closure.adversarial.test.ts`), re-run for this amendment on 2026-09-05. **Decisions 1, 2, 3,
+5, 6 and 7 are unrevised.** Decision 4's rule is corrected in one operator, and one sentence it makes
+about that rule is withdrawn and replaced by the same sentence made true.
+
+### A. The finding, upheld: the asymmetry runs both ways, and `hasFullHeightUnder` is not the cause
+
+Decision 4 says *"`hasFullHeightUnder` … can only ever make this rule keep more"*, and the wave's
+criterion and `apply-command-result.ts`'s comment repeat it. **It is false**, and QA's failing
+assertion is `expected 600 to be close to 620`. The falling direction is the only one the sentence
+considered: a deleted full-height member lowers the freeze-time ceiling 600 → 330 and a frozen depth
+that sat on it becomes a surplus. The **rising** direction was not considered and is reachable — an
+inserted `tall-pantry` at `widthFlex: "fit"` spans 1300–2100 and overlaps `A|2.00`, and
+`isFullHeightUnder` is asked by overlap rather than by membership, so a member-less 620 mm slot reads
+`true`. The ceiling rises 400 → 700, a genuine 620 falls under it, and the rule reads it as its own
+previous answer and follows the setting to 600.
+
+**Classified as a contract gap in this record, not an implementation defect.** The implementation is
+faithful to decision 4 line for line; decision 4 is what is wrong.
+
+### B. The root cause is the operator, and the coordinator's diagnosis is half right
+
+The reading offered — *a fact about the current state used to reconstruct a freeze-time ceiling, which
+is ADR 0011's 2026-08-26 correction in its own shape* — is right about the danger and **wrong about
+where the defect is**. `hasFullHeightUnder` is not what breaks; `<=` is.
+
+**Every depth this rule publishes is either `columnBuildDepthM` exactly, or a surplus strictly above
+it.** The follow arm returns `declaredM` unchanged, and the surplus arm returns `max(column.d,
+declaredM)`, which is `declaredM` exactly when `declaredM` wins. So *"a depth this rule itself could
+have published at the setting being left"* is an **equality**. Written as `d - atFreezeM <= ε`, it
+additionally swallows every depth **below** the ceiling — and that is F1 whole: a raised ceiling
+swallowing a 620 that no version of this rule ever published.
+
+The two forms differ on exactly one shape: `declaredM < column.d < atFreezeM`, which is a decrease
+whose frozen depth lies strictly between the two ceilings. Below `declaredM` the surplus arm's own MAX
+returns `declaredM` anyway, so the answers coincide; above `atFreezeM` both call it a surplus.
+
+### C. The rule, corrected
+
+> Decision 4's first bullet reads: **if `column.d` equals `atFreezeM` within
+> `FROZEN_SURPLUS_EPSILON_M`, the answer is `newM` exactly, in both directions, and it carries no
+> source.** Otherwise it is a surplus and ADR 0073 decision 3 is unchanged.
+
+In the code this is `Math.abs(query.column.d - atFreezeM) <= FROZEN_SURPLUS_EPSILON_M`. The float
+band is already justified where it stands and QA already pins the reason it is safe (*"publishes the
+ceiling bit-for-bit, so the next call subtracts to exactly zero"*).
+
+**The withdrawn sentence returns as a theorem instead of an assumption.** With an equality, a
+`hasFullHeightUnder` that flipped between the freeze and now makes the comparison **fail**, and a
+failed comparison routes to the surplus arm, which keeps `max(column.d, newM)`. So the asymmetry
+genuinely runs one way — *"it can only ever make this rule keep more"* — and now it is true in both
+directions of the flip rather than in one:
+
+- `true → false`: a 600 published under the lifted arm meets a 330 ceiling, is read as a surplus, and
+  is kept.
+- `false → true`: a 400 published under the capped arm meets a 700 ceiling, is read as a surplus, and
+  is deepened to 600 by the MAX. Deeper, never shallower.
+
+### D. None of the three candidates raised, and why each fails
+
+- **Take the ceiling that keeps more — `min` of the two `hasFullHeightUnder` readings.** It is not a
+  third option: `columnBuildDepthM` is 330/400 with the predicate false and 600/700 with it true, so
+  the `min` **is** the capped arm, and this candidate is identical to the next one.
+- **Drop `hasFullHeightUnder` from the freeze-time operand.** It **reintroduces the ratchet for every
+  full-height column**, which is the defect this wave exists to end: a member-less column reading
+  `true` takes the fallback's 700 at the deeper setting, and against a capped freeze-time ceiling of
+  400 that 700 is read as a surplus and held at the 600 mm setting — 100 mm proud, the owner's own
+  sentence, one column over.
+- **Record the freeze-time reading.** Refused twice. It is a persisted field, which decision 6 and
+  wave 6K-j both forbid; and it re-freezes the live predicate ADR 0011's 2026-08-26 correction
+  deliberately unfroze, whose stated reason is that *"which depth the customer got was decided by the
+  route they took to the design, not by the design"*. A frozen `hasFullHeightUnder` is that defect
+  restored for the sake of a rule that does not need it.
+
+### E. The finding's size, re-measured — QA's 99 mm is against a baseline that is itself wrong
+
+Reported because it changes what the owner is told, not to diminish the finding.
+
+QA sizes the loss against *"ADR 0073 decision 3 as 6K-c ships it"*. On the column the 99 mm figure
+comes from, that baseline is 100 mm wrong. Measured over **every deletable placement** on the shipped
+fixture across four states each — QA's own closure sweep, re-run under both rules on 2026-09-05, with
+the *sourced twin* as the truth:
+
+| Entry | truth (sourced) | 6K-c | 6K-j |
+| --- | --- | --- | --- |
+| `delete p23 @600 B\|1.80` | 599 | **700** | **600** |
+| `delete p23 @reload B\|1.80` | 599 | **700** | **600** |
+| the other 8 entries | — | identical | identical |
+
+So on this sweep 6K-j is **never worse than 6K-c and is 101 mm better on two entries**, and the
+delta set is 10 entries under both rules and under the corrected predicate as well — the correction
+changes nothing the fixture reaches. The genuine F1 harm is the **20 mm** on QA's own failing
+example, where a legacy depth is a base run's 620 under a column that now reads full-height, and
+section C closes it. **A cleared `tall-pantry` niche following the setting to 600 is not a 99 mm
+loss** — the sourced answer is 599, and the 699 it is measured against is the stale depth this whole
+family of records exists to end.
+
+### F. F2 — the ratchet already written into a document survives the load, and the owner is told
+
+Upheld, and it is **declared behaviour rather than a defect**: decision 4's own sentence — *"a
+document at 600 carrying an unsourced 400 and a document at 700 carrying an unsourced 400 are two
+different documents and get two different answers"* — licenses it, and a rule that re-answered an
+extent on load would be ADR 0055 decision 1's *"depth is never re-derived on load"* and ADR 0011
+Gap D at once.
+
+**But no criterion of the wave states it, and it materially shrinks what the wave delivers**, so it
+is written here in customer terms and the coordinator is right that the owner should hear one
+sentence: *a kitchen saved under the old rule with a 400 mm opening in a 600 mm run still shows that
+opening on the next load, and follows the setting only after the depth is changed and changed back.*
+The wave owes a criterion asserting it — QA's two tests already are it — not a fix.
+
+### G. F3 — the closure is under **descent**, not by date, and decision 5's sentence is corrected
+
+Decision 5 says *"an unsourced extent is written by no build from wave 6K-c onward"*, and
+`apply-command-result.ts` repeats it as *"every column any build since then publishes carries a
+source"*. **False of this build, by design:** decision 4's follow arm publishes a depth with **no**
+source — ADR 0079 decision 2 requires exactly that, since `columnBuildDepthM` is no body's
+declaration — and `projectFrozenMap` writes it into the document, which reaches the arm again on the
+next load.
+
+Corrected, and the corrected sentence is narrower rather than weaker:
+
+> The population is **documents descended from one written before wave 6K-c**, closed under descent
+> rather than by date. No document whose columns all carry sources ever enters this arm, and a
+> document that is already in it stays in it — but the arm converges: its answer is
+> `columnBuildDepthM` at the design's own setting, which follows the setting in both directions, so a
+> descendant is no worse off than its ancestor and is not accumulating error.
+
+Decision 5's conclusion is unaffected: no current-schema document *enters* the arm, which is what
+makes the ruling legacy-only. It is the phrase *"nothing new enters this arm"* that overstated, by
+conflating entering with remaining.
+
+### H. F4 — the headline criterion is scenario-bound and is withdrawn
+
+*"Exactly one published depth changes"* and *"every other column, on every scenario, is
+byte-identical"* were measured over six chosen scenarios. Broadened to every deletable placement the
+legacy-versus-sourced delta is **10 entries across 6 columns**, including shallower legacy answers. The
+criterion is not true as written and is not made true by section C.
+
+**Replaced by a shape, which no scenario set bounds**: a legacy document may differ from its sourced
+twin **only where the missing source is the whole point** — a chain `columnBuildDepthM` cannot express,
+which is a base or corner run's 620/720 and 630/730 — and **never on a wall column at any setting**,
+because the wall map is exactly what the fallback can express. The difference set is written out whole
+rather than counted, since a count is what hid a slice once already (wave 6K-c's 2026-09-05
+correction). QA's sweep is that criterion and needs no re-authoring.
+
+### I. What may and may not be re-authored in QA's files
+
+Section C turns QA's F1 assertion green and turns **two** of its siblings red, and both are
+characterisations of the `<=` rule rather than of a defect: *"answers with the new ceiling below the
+ceiling it is leaving"* asserts the swallowing directly, and *"collapses every legacy depth up to the
+700 ceiling"* is the defect stated as a property. Re-authoring them to the corrected boundary is
+legitimate; deleting them is not, and neither is relaxing the assertion that found the defect.
+
+**The replacements must go red against the `<=` code**, demonstrated by running them there. The
+boundary they pin is the new one: the arms switch at `column.d === atFreezeM` and at nothing else, so
+a depth one millimetre either side of the ceiling it is leaving is a surplus, and only the ceiling
+itself follows the setting.
+
+Measured with the corrected predicate on 2026-09-05: QA's F1 test green, the closure sweep's delta set
+unchanged at the same 10 entries, and the full web suite **1 477 passed, 4 skipped, 1 failed** — the
+one failure being the characterisation named above, which section I requires re-authoring rather than
+weakening.
+
+## Second amendment, 2026-09-05 — the shape criterion enumerated chains, and the hazard it hid is exactly two entries
+
+Ruled on logic review of wave 6K-j (*matches intent, no blocker*), which independently re-derived the
+difference set over 22 deletable placements × 4 states and reproduced QA's snapshot. Re-measured here
+on 2026-09-05 before ruling; the harness reproduces the same 10 entries. **Nothing in decisions 1–7 or
+in the first amendment's sections A–I moves, except the two sentences named below.**
+
+### J. The shape criterion is withdrawn a second time, and this time the phrasing is the defect
+
+The first amendment replaced *"exactly one published depth changes"* — withdrawn for being bounded by
+six chosen scenarios — with *"a legacy document may differ from its sourced twin only where the missing
+source is the whole point, which is a base or corner run's 620/720 and 630/730."* **That enumeration is
+false, and its own snapshot contradicts it.** Measured:
+
+| entry | truth | legacy | chain that explains it |
+| --- | --- | --- | --- |
+| `delete p5 @700 B\|1.20` | 738 | 638 | `tall-oven-tower-600`, 638/738 — a tall run, not a base or corner one |
+| `delete p23 @700 B\|1.80` | 699 | 700 | `tall-pantry`, 599/699 |
+| `delete p23 @600 / @reload B\|1.80` | 599 | 600 | `tall-pantry` — **at the shallower setting**, not the deeper one |
+| `delete p2 @600 / @reload A\|2.60` | 620 | 600 | `base-hob-2drawer-600` at the shallower setting |
+
+The catalogue holds at least five chains the ceiling cannot express — 620/720, 630/730, 638/738,
+648/748, 599/699 — plus the fridge's 742 and ADR 0058's pinned 600/600. **The criterion was written
+from a scenario set, which is the mistake the criterion it replaced was withdrawn for.** Recorded as a
+process finding, not only a content one: a shape stated by listing its instances is a scenario set
+wearing a different word, and this record made that mistake twice in one day.
+
+**Replaced by the reviewer's form, with one qualifier added:**
+
+> A legacy document **never differs from its sourced twin where `columnBuildDepthM` could have
+> expressed the sourced answer at _both_ declared settings.** Everywhere else it may differ, and the
+> difference set is written out whole rather than counted.
+
+No chain is named, so a catalogue change cannot age it out. Measured over the same 22 × 4 sweep:
+**1 046 agreeing states, of which 264 are ceiling-expressible at both settings** — so the predicate is
+non-vacuous — and **0 violations**: no state that is expressible-at-both differs, and all 10
+differences carry a source the ceiling cannot express.
+
+**The qualifier "at both settings" is load-bearing and is section K's subject.** Without it the
+criterion is *false* for an entry that sits on the ceiling at one setting and off it at the other,
+because the follow arm takes such a depth from the setting where it agrees to the setting where it
+does not. There are exactly two such entries and they are ADR 0058's pins.
+
+### K. The wall-column claim is true and its stated reason was false; the hazard set is exactly two
+
+The first amendment justified *"never on a wall column, at any setting"* with *"the wall map is exactly
+what the fallback can express."* **False of ADR 0058's two pins**, which are wall-family entries
+declaring **600 at both settings** rather than 330/400.
+
+Swept over the whole catalogue at both declared settings, for both readings of `hasFullHeightUnder`,
+for entries that sit on `columnBuildDepthM` at one setting and off it at the other:
+
+```
+HAZARD ENTRIES 2
+  wall-2door-600-deep-top     declared 600/600   ceiling (full) 600/700
+  wall-2door-700-over-fridge  declared 600/600   ceiling (full) 600/700
+```
+
+**Exactly two, catalogue-wide, and they are the two ADR 0058 pins.** The consequence if one is reached:
+a member-less column frozen at 600 reading `hasFullHeightUnder: true` sits exactly on
+`columnBuildDepthM(600, true)`, the equality reads it as this rule's own answer, and it follows the
+setting to **700** — 100 mm proud of a pinned depth.
+
+**Ruled: restate the reason at entry level *and* assert the hazard at catalogue level.** Not as *"every
+wall-family entry but the two pins declares the map"* — that is a second statement of the map, which
+ADR 0028 decision 4 forbids, and it names the wrong population, since the hazard is not about the wall
+family but about any entry that sits on a ceiling at one setting only. The assertion is the hazard
+predicate itself, and it goes red the day a third entry joins the set.
+
+**Why it is unreachable today, stated so the next person adding an entry knows what they are near.**
+Measured on the fixture: `B|1.80` is the only column whose recorded source is a pin
+(`wall-2door-600-deep-top`), and it holds `p6:tall-pantry-600:column` — a full-height member — so the
+column is never member-less while that pin is its recorded depth. `wall-2door-700-over-fridge` never
+wins its column's MAX at all, because `B|2.45` is the fridge's 742. **That is fixture-bounded safety,
+and it is recorded as such rather than as a structural guarantee.** It becomes reachable the moment a
+member-less column's recorded depth is one of those two 600s while the column reads
+`hasFullHeightUnder: true` — a pinned deep top left alone in a column that a full-height body overlaps,
+or a new entry declaring the same depth at both settings.
+
+**It is not a 6K-j regression**, and that follows from the rule rather than from a run: with an
+unsourced 600 and a `true` reading, ADR 0073 decision 3's MAX gives `max(600, 700) = 700` at the deeper
+setting under 6K-c as well, and then holds 700 at the shallower one. This wave reaches the same 700 and
+does not ratchet it. The pin is 100 mm proud under both rules; only 6K-j lets it come back.
+
+### L. The 20 mm is closed in one direction, not around the round trip
+
+The first amendment's *"section C closes it"* (section E) overstates, and the sentence is corrected.
+Measured on the F1 shape — the cleared dishwasher slot holding an unsourced 620 with an inserted
+`tall-pantry` overlapping it, so `hasFullHeightUnder` is `true`:
+
+```
+stored at 700 holding 620,  → 600 → 700 :   620 → 620 → 700    (both rules)
+stored at 600 holding 620,  → 700 → 600 → 700 :
+    this wave   620 → 700 → 600 → 700
+    6K-c        620 → 700 → 700 → 700
+```
+
+**Reached from 600 the 620 is destroyed on the up-leg, under both rules**, by ADR 0073 decision 3's own
+MAX: `max(620, columnBuildDepthM(700, true) = 700)` is 700, and the 620's identity is gone before this
+wave's predicate is consulted again. Section C closes the **down-leg from a document stored at the
+deeper setting**, which is the direction QA's failing assertion measured; it does not restore a depth an
+earlier up-leg already replaced.
+
+**Confirmed as the accepted trade, not reopened.** The deepening on the up-leg is decision 3's, and it
+is what closes the only case in ADR 0073's residue that reaches a **built** body — a legacy wall column
+frozen at 330 capping an inserted cabinet 70 mm shallower than its neighbours. Trading it away to
+preserve a 620 is option O1, refused in decision 3 on 290 mm. Against the customer's 620 this wave's
+600 is **20 mm** out and 6K-c's 700 is **80 mm** out, so the wave is four times closer at the setting
+the customer is looking at, and — unlike 6K-c — it returns to 700 when the kitchen does.
+
+### M. What each of the three changes
+
+| Finding | Classification | Change |
+| --- | --- | --- |
+| The shape criterion enumerates chains | **Documentation defect in this record and in the wave's criteria.** No code is wrong. | Section J: the enumeration is withdrawn and replaced by the expressible-at-both-settings form, with its non-vacuity and violation count measured. |
+| The wall-column reason is false | **Documentation defect plus a missing assertion.** The claim is true; the reason is not, and nothing pins the set that makes it true. | Section K: the reason is restated at entry level, and the catalogue-level hazard assertion is added to the wave. Fixture-bounded safety is named as such. |
+| The round trip keeps 20 mm less | **Confirmed as the ruled trade**, not a defect and not reopened. | Section L: section E's *"section C closes it"* is corrected to name the direction it closes. |

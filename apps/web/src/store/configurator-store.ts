@@ -371,6 +371,10 @@ export function createConfiguratorStore(
         // The design as it stood before this command, which only a depth change reads: it is the
         // one thing that separates an extent a delete froze deep from one the old setting did.
         previousRecords: state.records,
+        // …and the setting it stood at, which separates an unsourced depth this rule itself published
+        // one setting ago from one no rule could have produced (ADR 0080 decision 4). Read off the
+        // **held** design, not the result's: the two differ by exactly the command being applied.
+        previousCabinetDepthMm: cabinetDepthMmOf(state.design),
         selection: state.selection,
       });
       if (!application.applied) {

@@ -1,6 +1,6 @@
 # ADR 0057 — A global material change resets a per-cabinet finish it does not offer, and says so first
 
-Status: Accepted
+Status: Accepted (decision 3 amended 2026-09-05 → [0081](0081-a-material-change-confirms-only-when-a-chosen-colour-would-be-lost.md))
 Date: 2026-09-02
 Type: Decision
 Milestone: M6 — unblocks wave 6F
@@ -29,9 +29,16 @@ consequence before the change is applied.**
 2. Applying a material resets every cabinet whose finish the new material does not offer, to that
    material's default. The reset runs **once**, at the point the material is applied, and produces
    one command result — never a per-cabinet cascade the customer watches happen.
-3. **The warning is shown before the apply, on both viewports.** This is what makes a destructive
+3. ~~**The warning is shown before the apply, on both viewports.** This is what makes a destructive
    reset acceptable rather than a surprise: 2E on mobile and the D2E popover on desktop both already
-   carry an explicit apply action, so the customer is told the consequence and then confirms it.
+   carry an explicit apply action, so the customer is told the consequence and then confirms it.~~
+   **Amended 2026-09-05 by the owner —
+   [ADR 0081](0081-a-material-change-confirms-only-when-a-chosen-colour-would-be-lost.md).** Still
+   before the apply and still on both viewports, but as a **conditional, blocking confirmation**
+   rather than a standing sentence: it appears only when some cabinet carries a colour differing from
+   its current material's declared default, and while it stands **no command runs**. Where no colour
+   was chosen the switch is immediate and silent — which is the half of this clause the amendment
+   removes, and ADR 0081 records what that costs.
 4. The invariant is unchanged and is not the rule's to weaken: **no stored design may hold a finish
    its material does not offer**, asserted over every (material, finish) pair rather than over the
    pairs a fixture happens to contain.
@@ -61,4 +68,7 @@ consequence before the change is applied.**
   and `docs/STATUS.md` records because nowhere else holds it.
 - A customer can lose a colour choice by changing material, deliberately and with notice. If that
   turns out to be the wrong trade in use, the alternative to revisit first is refusal, not
-  nearest-finish.
+  nearest-finish. **Reaffirmed by the owner on 2026-09-05**, who declined a PAL → MDF carry-over by
+  name — *"instead of… an algorithm of mapping these colours between different materials"* — when
+  ADR 0078 raised it as a live question. The rejection of nearest-finish mapping is the owner's, not
+  only this record's.

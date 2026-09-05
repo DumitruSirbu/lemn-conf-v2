@@ -89,6 +89,20 @@ export interface ApplyCommandResultInput {
    * of the two behaviours for a caller that forgot to pass it.
    */
   readonly previousRecords: readonly PlacementRecord[];
+  /**
+   * The cabinet depth the held design declared **before** this command — the setting the kitchen is
+   * leaving.
+   *
+   * Read by `cabinet_depth_set` and by nothing else, for ADR 0080 decision 4's one question: is this
+   * extent's depth a **surplus** no rule could have produced, or is it simply what the fallback
+   * itself published one setting ago? The second is a ratchet and follows the setting down; the first
+   * is the absence of information and is kept.
+   *
+   * Required rather than defaulted for the reason `previousRecords` above is: a default would
+   * silently pick one of the two behaviours for a caller that forgot to pass it, and here the two
+   * differ by 70 mm on a wall opening.
+   */
+  readonly previousCabinetDepthMm: number;
   /** What is selected right now, which a **whole-kitchen** command leaves exactly where it was: it
    *  points at no cabinet, so it moves no selection (wave 6E). Every other effect names the
    *  placement it acted on and decides this for itself, so this is only ever read on those two
@@ -125,6 +139,7 @@ export function applyCommandResult(
     // no arm, and no effect that forgets to carry it.
     catalog: input.catalog,
     cabinetDepthMm: cabinetDepthMmOf(result.design),
+    previousCabinetDepthMm: input.previousCabinetDepthMm,
   });
   const voids = recomputeVoids(records, columns);
   return {
@@ -273,6 +288,9 @@ interface PublishedColumnsInput {
   /** The design's own declared cabinet depth, for the one operand `catalog` cannot supply: ADR 0073
    *  decision 3's `columnBuildDepthM` fallback, for an extent whose source is absent or unknown. */
   readonly cabinetDepthMm: number;
+  /** The same setting as the design declared it **before** this command — see
+   *  `ApplyCommandResultInput.previousCabinetDepthMm`. */
+  readonly previousCabinetDepthMm: number;
 }
 
 /** Which map goes on to be clipped, split, merged and published — the three commands that move an
@@ -439,16 +457,38 @@ interface FrozenDepthQuery {
  *    catalogue built at the new depth. This gets the exceptions right *without naming them*: a
  *    `manufactured-size` machine and ADR 0058's two pinned tops declare `finishesAtMm`, which is not
  *    a function of the setting, so a column cleared of one does not move.
- *  - **Decision 3 — no source, or one the catalogue no longer holds.** Every document written before
- *    ADR 0073 is in this arm, and it is deepened to the column's own declared build depth and never
- *    below: the same deeper-only rule, one more operand. It is what turns a legacy cleared wall
- *    column frozen at 330 into the map's 400 at a 700 mm kitchen rather than leaving it capping an
- *    inserted cabinet 70 mm shallower than its neighbours (ADR 0028's defect, in mirror image).
+ *  - **Decision 3 as ADR 0080 decision 4 amends it — no source, or one the catalogue no longer
+ *    holds.** The extent is answered by `columnBuildDepthM`, and the question that decides how is
+ *    *"was this depth ever more than this rule could have produced"* — never *"is it deeper than the
+ *    new answer"*, which is the ratchet.
  *
- *  **The residual, stated rather than fixed** (ADR 0073's own consequence): a pre-ADR-0073 cleared
- *  *base* column frozen at 620 stays 620, because 620 is already deeper than the declared build depth
- *  and the fact that would have moved it was never recorded. It reaches no built body, and it
- *  self-corrects the moment anything is inserted into that column. */
+ *    A depth the fallback **itself** published one setting ago is not information: it follows the
+ *    setting, exactly and in both directions, and carries no source. That ends the case ADR 0080
+ *    condemns — a member-less wall column deepened 330 → 400 at 700 and then held at 400 in a 600 mm
+ *    kitchen, standing 70 mm proud of every wall body around it, which is ADR 0028's own defect in
+ *    mirror image arriving through a rule instead of a constant.
+ *
+ *    A depth **deeper than this rule could have produced at the setting being left** is a surplus,
+ *    and there ADR 0073 decision 3 is unchanged: deeper-only, with the column's own source. It is the
+ *    absence of information rather than a preference, and `columnBuildDepthM` cannot replace it —
+ *    that function is a build *ceiling* (330/400, or 600/700 over a full-height member) and no
+ *    setting makes it express a base run's 620/720. Answering a legacy cleared base slot from the
+ *    wall map is 290 mm wrong at the setting it was frozen at, measured.
+ *
+ *  **The residual, re-scoped rather than fixed** (ADR 0080 decision 5, as amendment G corrects it): a
+ *  cleared *base* column frozen at 620 with no recorded source stays 620 at both settings, because
+ *  620 is deeper than this rule could ever produce and the fact that would have moved it was never
+ *  recorded. It reaches no built body, and it self-corrects the moment anything is inserted into that
+ *  column.
+ *
+ *  **The population is closed under descent, not by date.** No document whose columns all carry
+ *  sources ever *enters* this arm — that is what makes the rule legacy-only. But a document already
+ *  in it stays in it, and this build is why: the arm above publishes a depth with **no** source (ADR
+ *  0079 decision 2 requires that, since `columnBuildDepthM` is no body's declaration) and
+ *  `projectFrozenMap` writes that back out, so the saved document reaches the arm again on the next
+ *  load. That is convergence rather than decay — the answer is `columnBuildDepthM` at the design's own
+ *  setting, which follows the setting in both directions, so a descendant is never worse off than its
+ *  ancestor. */
 function frozenDepthAtThisSetting(query: FrozenDepthQuery): PublishedDepth {
   const recorded = recordedSourceEntry(query);
   if (recorded) {
@@ -457,22 +497,64 @@ function frozenDepthAtThisSetting(query: FrozenDepthQuery): PublishedDepth {
       depthFromBuildId: recorded.buildId,
     };
   }
+  // **Asked once and used for both ceilings** (ADR 0080 decision 4). It is the live predicate, so the
+  // two operands are the same answer about the same column.
+  //
+  // **That it can only ever make this rule keep more is a theorem of the comparison below, not an
+  // assumption about the predicate** (ADR 0080 amendment C — the earlier claim was asserted, and was
+  // false in the direction it did not consider). The test is an *equality*, so a reading that flipped
+  // between the freeze and now makes it fail, and a failed test routes to the surplus arm, which
+  // returns `max(column.d, declaredM)` — `declaredM` being the ceiling at the setting the design now
+  // declares, bound just below. Both directions therefore keep at least as much:
+  //
+  //   true -> false : a 600 published under the lifted arm meets a 330 `atFreezeM`, reads as a
+  //                   surplus, and is kept.
+  //   false -> true : a 400 published under the capped arm meets a 600 `atFreezeM`, reads as a
+  //                   surplus, and the MAX deepens it to `declaredM`. Deeper, never shallower.
+  const { hasFullHeightUnder } = query.column;
   const declaredM = columnBuildDepthM({
     cabinetDepthMm: query.published.cabinetDepthMm,
-    hasFullHeightUnder: query.column.hasFullHeightUnder,
+    hasFullHeightUnder,
   });
-  // The fallback's own MAX, written as a choice between two producers rather than as `Math.max`,
-  // because the two answer the source differently and **a source survives exactly when the depth it
-  // explains survives** (ADR 0079 decision 2).
+  const atFreezeM = columnBuildDepthM({
+    cabinetDepthMm: query.published.previousCabinetDepthMm,
+    hasFullHeightUnder,
+  });
+
+  // **A depth this rule itself could have published is not information** (ADR 0080 decision 4). It
+  // follows the setting exactly, in both directions, and carries no source — `columnBuildDepthM` is a
+  // declared size and no body's declaration, so claiming one for it would be an invention, and that
+  // includes dropping an id the column was carrying: a legacy wall column deepened 330 → 400 must not
+  // keep an id declaring 330 against the day that id returns to the catalogue.
   //
-  // `columnBuildDepthM` is a declared size and no body's declaration, so a depth it supplied carries
-  // no source at all — and that includes dropping an id the column was carrying. A legacy wall column
-  // the fallback deepens from 330 to 400 must **not** keep an id declaring 330, or this wave writes a
-  // fresh F1-shaped lie against the day that id returns to the catalogue.
+  // **An equality, not a bound** (ADR 0080 amendment B and C). Every depth this rule publishes is
+  // either `columnBuildDepthM` *exactly* — the arm below returns `declaredM` unchanged, and the
+  // surplus arm's MAX returns it exactly when it wins — or a surplus strictly above it. So *"could
+  // this rule have published this depth"* is an equality, and writing it as `d - atFreezeM <= ε`
+  // additionally swallowed every depth **below** the ceiling. That was the defect: a raised ceiling
+  // (an inserted full-height body overlapping a member-less slot) swallowing a legacy 620 that no
+  // version of this rule ever published, and following the setting down to 600. The two forms differ
+  // on exactly one shape, `declaredM < column.d < atFreezeM`; below `declaredM` the surplus arm's own
+  // MAX returns `declaredM` anyway, so there they agree.
   //
-  // The frozen depth surviving is the other case, and there the column's own source travels with it —
-  // including one the catalogue no longer holds, which explains that depth as well as anything can
-  // and is the id a later catalogue would restore meaning to.
+  // **The predicate reads two fields of one document** — `column.d` and the setting the design
+  // declared before this command — and never the session's history, so one document answers one way
+  // whatever route reached it (ADR 0011's 2026-08-26 correction, satisfied by construction). A
+  // document at 600 carrying an unsourced 400 and one at 700 carrying an unsourced 400 are two
+  // different documents and get two different answers.
+  //
+  // The float band is the one the surplus test beside it uses: both operands are sums of declared
+  // millimetres divided by 1000, and this arm publishes the ceiling bit-for-bit, so the next call
+  // subtracts to exactly zero. No whole millimetre lies strictly inside the band, which QA pins.
+  if (Math.abs(query.column.d - atFreezeM) <= FROZEN_SURPLUS_EPSILON_M) {
+    return { d: declaredM };
+  }
+
+  // Otherwise it is a surplus no rule can re-answer, and ADR 0073 decision 3 is unchanged: the
+  // deeper-only MAX, written as a choice between two producers rather than as `Math.max` because the
+  // two answer the source differently and **a source survives exactly when the depth it explains
+  // survives** (ADR 0079 decision 2). The column's own source travels with a surviving frozen depth —
+  // including one the catalogue no longer holds, which explains that depth as well as anything can.
   return query.column.d > declaredM
     ? { d: query.column.d, depthFromBuildId: query.column.depthFromBuildId }
     : { d: declaredM };
@@ -490,12 +572,23 @@ function recordedSourceEntry(
   return definition ? { buildId, definition } : undefined;
 }
 
-/** Float slack on the one comparison that decides which of the two rules a column gets, **not**
- *  manufacturing slack. Both operands are §3.2's MAX over `occupiedDepthM`, each a sum of declared
- *  millimetres divided by 1000, so a column whose depth is genuinely explained by its members can
- *  differ from the frozen value by a few ULPs. Read as a surplus, those ULPs would put the column on
- *  the deeper-only arm and freeze it at the old setting on every decrease — the defect this
- *  comparison exists to decide, arriving through its own tolerance.
+/** Float slack on the comparisons that decide which rule a column gets, **not** manufacturing slack.
+ *
+ *  **Its first caller** is `explainsTheFrozenDepth`. Both operands there are §3.2's MAX over
+ *  `occupiedDepthM`, each a sum of declared millimetres divided by 1000, so a column whose depth is
+ *  genuinely explained by its members can differ from the frozen value by a few ULPs. Read as a
+ *  surplus, those ULPs would put the column on the deeper-only arm and freeze it at the old setting
+ *  on every decrease — the defect that comparison exists to decide, arriving through its own
+ *  tolerance.
+ *
+ *  **Its second caller is `frozenDepthAtThisSetting`'s ratchet equality** (wave 6K-j), which is a
+ *  structurally different decision: a frozen depth against `columnBuildDepthM` at the setting being
+ *  left, rather than two measurements of the same members. The band is borrowed rather than
+ *  duplicated because both are comparisons of declared millimetres over 1000 at the same magnitude,
+ *  and the argument for why it is sound *there* — the arm publishes the ceiling bit-for-bit, so the
+ *  next call subtracts to exactly zero, and no whole millimetre lies strictly inside the band — is
+ *  written at that call site and pinned by `qa-6k-j-fallback-rule.adversarial.test.ts`. Named here so
+ *  a later edit to this constant knows it moves two rules, not one.
  *
  *  Nine orders of magnitude below `FIT_TOLERANCE_M`, the same distance `MODULE_LINE_EPSILON_M` keeps
  *  for the same reason: ADR 0015 records what happens when a fit tolerance is used where a float

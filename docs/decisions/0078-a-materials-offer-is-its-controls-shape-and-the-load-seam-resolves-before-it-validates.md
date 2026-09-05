@@ -156,7 +156,17 @@ Per the owner's standing instruction, checked before ruling.
 
 Nothing found in the sweep contradicts this decision.
 
-## An owner question this raises and does not answer
+## An owner question this raises and does not answer — **answered 2026-09-05: no carry-over**
+
+> **Closed by the owner on 2026-09-05, recorded in
+> [ADR 0081](0081-a-material-change-confirms-only-when-a-chosen-colour-would-be-lost.md).** They
+> declined the carry-over by name — *"instead of carry over the colours and trying to make an
+> algorithm of mapping these colours between different materials, I will go with just checking if
+> there are different colours compared to default for each cabinet"* — so decision 4 above and
+> ADR 0057's rejection of nearest-finish mapping both stand, reaffirmed rather than merely
+> unrevisited. The same message replaced the warning's *shape*: it becomes a conditional, blocking
+> confirmation. **Nothing in this record changes.** The section below is left standing because the
+> argument on both sides is what makes the answer legible.
 
 **Switching PAL → MDF resets every cabinet, exactly as switching to veneer does.** Under decision 1
 MDF offers no palette entry at all, so a PAL kitchen wearing six decors loses all six to MDF's white
@@ -181,7 +191,9 @@ would not change wave 6Q's shape.
 - Wave 6Q splits into **6Q-a** (the offer query, the undeclared-material rule, `setFinish`'s second
   refusal) and **6Q-b** (the reset in `setMaterialTier`, both seams, and the warning clause), in that
   order. The order is forced by decision 2: the refusal code may not land before the resolution that
-  makes it unreachable on the load path.
+  makes it unreachable on the load path. **A third, 6Q-c, was added 2026-09-05 by
+  [ADR 0081](0081-a-material-change-confirms-only-when-a-chosen-colour-would-be-lost.md)**, which
+  takes the warning out of 6Q-b and makes it a conditional blocking confirmation of its own.
 - The invariant becomes assertable as a property over a **generated** pair space — three materials ×
   (eight declared palette entries ∪ generated free colours) — rather than over a fixture's contents,
   which is what ADR 0057 asked for and what nothing before 6P could express.
