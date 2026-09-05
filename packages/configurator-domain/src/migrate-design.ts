@@ -6,7 +6,10 @@ import type {
   EmptyColumn,
 } from "./design.js";
 import { cabinetDepthMmOf, LegacyDesignSchema } from "./design.js";
-import { buildKitchenLBodyCatalog } from "./fixtures/kitchen-l-design.js";
+import {
+  buildKitchenLBodyCatalog,
+  KITCHEN_L_DESIGN,
+} from "./fixtures/kitchen-l-design.js";
 import {
   DEFAULT_FINISH,
   DEFAULT_MATERIAL_ID,
@@ -191,14 +194,29 @@ function normalisationOwedBy(version: number): DesignNormalisation {
   return normalisation;
 }
 
-/** The seeded room as every document up to version 2 carried it, and the room the 2026-09-03
- *  correction replaced it with.
+/** The seeded room as every document up to version 2 carried it.
  *
- *  Written as literals rather than read from `KITCHEN_L_DESIGN.room`, deliberately: a migration is a
- *  statement about documents that were already written, so a later edit to the fixture must bring
- *  its own migration and must not retroactively change what this one produces. */
+ *  Written as a literal rather than read from anywhere, deliberately: this half is a statement about
+ *  documents that were **already written**, so no later edit to any fixture may retroactively change
+ *  which documents this arm is reached from. */
 const PRE_CORRECTION_ROOM_MM = { widthMm: 3600, depthMm: 2400 } as const;
-const CORRECTED_ROOM_MM = { widthMm: 3560, depthMm: 2830 } as const;
+
+/** The room the correction writes, **read from the fixture rather than restated beside it**
+ *  (ADR 0083 decision 9).
+ *
+ *  The other half is a statement about documents already written; this half is not. The arm exists
+ *  to repair rows that *are copies of the demo*, so repairing them into a room the demo no longer
+ *  has is two lists agreeing by luck — with a live consequence, since a rescued row whose customer
+ *  then chooses the 700 mm depth would overflow where the demo does not.
+ *
+ *  **This does not weaken the safety property wave 6A3 established.** The value is still a constant
+ *  — fixed at module load from a frozen fixture, never derived from the document being migrated or
+ *  from where its bodies stand — and it is still reached only at schema version ≤ 2 from the exact
+ *  pre-correction pair above. */
+const CORRECTED_ROOM_MM = {
+  widthMm: KITCHEN_L_DESIGN.room.widthMm,
+  depthMm: KITCHEN_L_DESIGN.room.depthMm,
+} as const;
 
 /** The room the correction of 2026-09-03 gave the seeded kitchen, written over the one a document
  *  stored before it carries — the v1 `emptyColumns` shape again, **normalise rather than refuse**.
@@ -235,7 +253,7 @@ const CORRECTED_ROOM_MM = { widthMm: 3560, depthMm: 2830 } as const;
  *  to the ones that were not.
  *
  *  **What makes the rewrite safe is not that the result validates.** It is that the corrected room
- *  is the constant `{3560, 2830}`, reached only at version ≤ 2 from the exact pre-correction pair.
+ *  is the constant `CORRECTED_ROOM_MM`, reached only at version ≤ 2 from the exact pre-correction pair.
  *  No room value is ever derived from the document's own placements, so a body at 3000 on wall B is
  *  still past the wall after the correction and is still marked: nothing is rescued into a room
  *  nobody entered (ADR 0069 decision 5). */

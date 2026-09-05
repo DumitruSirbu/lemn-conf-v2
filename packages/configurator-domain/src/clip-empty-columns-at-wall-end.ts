@@ -53,8 +53,9 @@ import type { ColumnExtent, PlacementRecord } from "./void-engine.js";
  *  past its wall is `PLACEMENT_PAST_WALL_END`'s mark, unchanged by this pass.
  *
  *  The input map is returned by identity when nothing reaches past the wall, which is every state
- *  the shipped kitchen reaches (its walls end with 40 mm and 30 mm of the run still bare): the
- *  common case costs a scan and no allocation. */
+ *  the shipped kitchen reaches (at the 600 mm cabinet depth its walls end with 40 mm and 120 mm of
+ *  the run still bare, and wall B's run still clears its wall by 20 mm at 700): the common case
+ *  costs a scan and no allocation. */
 export function clipEmptyColumnsAtWallEnd(
   columns: ReadonlyMap<string, ColumnExtent>,
   records: readonly PlacementRecord[],

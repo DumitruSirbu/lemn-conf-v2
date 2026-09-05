@@ -2,7 +2,7 @@
 // write-time pipeline must never publish a `design.emptyColumns` entry reaching past its own wall.
 //
 // Not built on the seeded kitchen: wall A's placements end at 3500 on a 3560 mm wall and wall B's
-// end exactly at 2800 on a 2830 mm wall (the fixture's own comment in `kitchen-l-design.ts`), so no
+// end exactly at 2800 on a 2920 mm wall (the fixture's own comment in `kitchen-l-design.ts`), so no
 // delete of a seeded body — at either the 600 mm or the 700 mm depth — leaves a member-less column
 // reaching past its wall; the domain-level file's own "seeded kitchen" case records the same
 // finding. The realistic sequence this file builds instead is the one the owner's ruling actually
@@ -23,7 +23,10 @@ const CREATED_AT = "2026-08-20T00:00:00.000Z";
 /** Wall A is 750 mm — shorter than the 800 mm sink cabinet standing on it, which is legal to load
  *  (`PLACEMENT_PAST_WALL_END` is a mark since ADR 0069) and is what makes the delete below realistic
  *  rather than hand-forced: the body's own frozen extent, not a constructed empty column, is what
- *  reaches past the wall once nothing holds it up any more. */
+ *  reaches past the wall once nothing holds it up any more.
+ *
+ *  The 2830 mm depth is filler — nothing in this file stands on wall B — so it is **not** the demo's
+ *  wall B and did not move with it. */
 const DESIGN: Design = {
   room: { shape: "L", widthMm: 750, depthMm: 2830, heightMm: 2600 },
   presetId: null,

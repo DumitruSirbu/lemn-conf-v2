@@ -25,6 +25,7 @@ import { describe, expect, it } from "vitest";
 import { createConfiguratorStore } from "@/store/configurator-store";
 
 import { createFakeProbeFactory } from "../support/fake-body-probe";
+import { columnKeyAt } from "../support/wall-b-column-keys";
 import {
   assertSourcesExplainTheirDepths,
   columnsWithKnownSources,
@@ -182,7 +183,13 @@ describe("an extent whose depth came from a body the setting does not move", () 
       declaredDepthM(buildId, DEFAULT_CABINET_DEPTH_MM),
       6,
     );
-    expect(columnOf(store, key).d).toBeCloseTo(frozenM, 6);
+    // ADR 0090 decision 2: the **depth** does not move, which is what this test is about, and the
+    // wall-B coordinate it is read at does — a deeper corner on wall A takes more of wall B. Only
+    // the anchor is setting-dependent; the three assertions are the ones this test always made.
+    expect(columnOf(store, columnKeyAt(key, DEEPER_MM)).d).toBeCloseTo(
+      frozenM,
+      6,
+    );
     expect(declaredDepthM(buildId, DEEPER_MM)).toBeCloseTo(frozenM, 6);
   });
 
@@ -399,12 +406,17 @@ describe("a published depth names the body it came from", () => {
     const store = createStore();
     removeAll(store, ["p23"]);
     store.getState().setCabinetDepth(DEEPER_MM);
-    const repaired = columnOf(store, PANTRY_KEY);
+    // **The guard's assertion is unchanged and its anchor is now setting-dependent** (ADR 0090
+    // decision 7). The column this test corrupts is the same column; wave 6J-d slid it 100 mm along
+    // wall B, so naming `B|1.80` at 700 names no column at all — and a guard that throws before it
+    // asserts is the check-that-cannot-fail this test exists to prevent.
+    const pantryKey = columnKeyAt(PANTRY_KEY, DEEPER_MM);
+    const repaired = columnOf(store, pantryKey);
 
     // The pre-fix answer: the same depth — 699 is correct, the pantry is standing in it — beside the
     // source the old code carried across untouched, which declares 600 at every setting.
     const asPublishedBeforeTheFix = new Map(store.getState().columns).set(
-      PANTRY_KEY,
+      pantryKey,
       { ...repaired, depthFromBuildId: PINNED_TOP_BUILD_ID },
     );
 
@@ -464,6 +476,12 @@ describe("the depths this wave promised not to move", () => {
         "B|2450": 742,
       },
     },
+    // **Wave 6J-d moved the wall-B keys of this half, and no depth in it** (ADR 0090 decisions 2 and
+    // 8). A wall-A body's depth is measured along wall B, so a deeper corner slides wall B's whole
+    // run: `wall-map` by 70 mm and `base-formula` by 100. Every number below is the number this
+    // fixture carried before that wave — 400, 700, 738, 699, 742 — read at the coordinate the run
+    // now stands at. The `at the default setting` half above is untouched, which is the wave's own
+    // "value-preserving at 600" criterion stated as a fixture.
     "at the deeper setting": {
       columns: {
         "A|0.30": 0.39999999999999997,
@@ -473,11 +491,11 @@ describe("the depths this wave promised not to move", () => {
         "A|2.00": 0.72,
         "A|2.60": 0.72,
         "A|3.20": 0.72,
-        "B|0.61": 0.39999999999999997,
-        "B|0.74": 0.7,
-        "B|1.20": 0.738,
-        "B|1.80": 0.699,
-        "B|2.45": 0.742,
+        "B|0.69": 0.39999999999999997,
+        "B|0.84": 0.7,
+        "B|1.30": 0.738,
+        "B|1.90": 0.699,
+        "B|2.55": 0.742,
       },
       saved: {
         "A|300": 400,
@@ -487,11 +505,11 @@ describe("the depths this wave promised not to move", () => {
         "A|2000": 720,
         "A|2600": 720,
         "A|3200": 720,
-        "B|615": 400,
-        "B|740": 700,
-        "B|1200": 738,
-        "B|1800": 699,
-        "B|2450": 742,
+        "B|685": 400,
+        "B|840": 700,
+        "B|1300": 738,
+        "B|1900": 699,
+        "B|2550": 742,
       },
     },
   } as const;

@@ -1,3 +1,4 @@
+import { NARROWED_ROOM_OVERFLOWING_DESIGN } from "@lemnaria/configurator-domain";
 import {
   OVERFLOW_MARK_COLOR,
   SELECTION_HIGHLIGHT_COLOR,
@@ -74,8 +75,12 @@ const MARKED_BODY_TAP = { x: 330, y: 440 };
 /** The room this document declares, and the bodies that then reach past wall A — in the **byte**
  *  order `findOverflowingPlacementIds` publishes them in (`compareOpaqueIds`), which is why `p13`
  *  precedes `p2`. Derived from the design the API returns rather than written out, so the set cannot
- *  drift from the fixture. */
-const NARROWED_ROOM_WIDTH_MM = 2800;
+ *  drift from the fixture.
+ *
+ *  The width is read off the domain's declared narrowed-room fixture (ADR 0083 decision 10) rather
+ *  than restated here, so this spec and 6N-c's visual gate photograph the same room. The document
+ *  itself is still built from what the API returns — only the number is shared. */
+const NARROWED_ROOM_WIDTH_MM = NARROWED_ROOM_OVERFLOWING_DESIGN.room.widthMm;
 const MARKED_PLACEMENT_IDS = ["p13", "p14", "p19", "p2", "p20", "p4"];
 
 const SCENE_SETTLE_MS = 2500;

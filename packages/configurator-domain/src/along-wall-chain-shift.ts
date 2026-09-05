@@ -26,12 +26,19 @@
 // depth always eventually do.
 import {
   cabinetDepthRuleOf,
+  FOLLOWS_CABINET_DEPTH,
   type AlongWallDepthChain,
 } from "./cabinet-depth-rule.js";
 import { baseCarcassDepthMm, wallCarcassSeatDepthMm } from "./catalog.js";
 import type { DesignPlacement } from "./design.js";
+import { toExactMillimetres } from "./millimetres.js";
+import { alongWallCoordinate } from "./module-grid.js";
 import type { WallId } from "./room-transforms.js";
-import type { BodyCatalog } from "./void-engine.js";
+import type {
+  BodyCatalog,
+  ColumnExtent,
+  PlacementRecord,
+} from "./void-engine.js";
 
 /** **The wall whose run the corner is taken out of.** Wall A is anchored at the corner and wall B
  *  begins past it, so a deeper corner consumes wall B's length and never wall A's. Named rather
@@ -128,4 +135,153 @@ export function alongWallPositionAtMm(query: AlongWallPositionQuery): number {
       }).alongWallPositionFollows,
     })
   );
+}
+
+/** How far each column's members moved along their wall, by the key that column had **before** the
+ *  move — the operand rung 2 of the ladder below is built on.
+ *
+ *  Two derivations of the same placements, paired by id: `before` is where every body stood at the
+ *  setting being left, `after` is where `alongWallPositionAtMm` puts it at the setting being reached.
+ *  A column with no member has no entry, which is exactly the question rung 2 asks.
+ *
+ *  **A column whose members disagree gets no entry either**, and that is the ladder degrading rather
+ *  than guessing: "the delta its own members moved" is not a number when they moved by two, so the
+ *  extent falls to rung 3 and slides on the source it recorded — which is itself one of those
+ *  members. Unreachable on the shipped catalogue, where every column is chain-homogeneous
+ *  (`docs/BACKLOG.md` 51 records that nothing enforces it on an arbitrary document).
+ *
+ *  Answered in millimetres, for the reason `alongWallExtentPositionAtMm` gives below. */
+export function alongWallShiftByColumnMm(
+  before: readonly PlacementRecord[],
+  after: readonly PlacementRecord[],
+): ReadonlyMap<string, number> {
+  const arrivedAt = new Map(after.map((record) => [record.id, record]));
+  const shiftsByColumn = new Map<string, Set<number>>();
+  for (const record of before) {
+    const moved = arrivedAt.get(record.id);
+    if (!moved) continue;
+    const shiftMm = alongWallShiftBetween(record, moved);
+    if (shiftMm === undefined) continue;
+    const seen = shiftsByColumn.get(record.col) ?? new Set<number>();
+    seen.add(shiftMm);
+    shiftsByColumn.set(record.col, seen);
+  }
+  const agreed = new Map<string, number>();
+  for (const [key, shifts] of shiftsByColumn) {
+    const [only] = [...shifts];
+    if (shifts.size === 1 && only !== undefined) agreed.set(key, only);
+  }
+  return agreed;
+}
+
+/** One body's own move along its wall, or nothing when either coordinate is off the millimetre grid
+ *  — no record any document can carry, and the safe answer for an operand rung 2 is exact or not at
+ *  all. */
+function alongWallShiftBetween(
+  before: PlacementRecord,
+  after: PlacementRecord,
+): number | undefined {
+  const fromMm = toExactMillimetres(
+    alongWallCoordinate(before.wall, before.frame),
+  );
+  const toMm = toExactMillimetres(alongWallCoordinate(after.wall, after.frame));
+  if (fromMm === undefined || toMm === undefined) return undefined;
+  return toMm - fromMm;
+}
+
+/** One frozen extent, the catalogue that holds the body it recorded, and the move being made. */ /** One frozen extent, the catalogue that holds the body it recorded, and the move being made. */
+export interface AlongWallExtentPositionQuery {
+  readonly extent: ColumnExtent;
+  readonly catalog: BodyCatalog;
+  readonly fromCabinetDepthMm: number;
+  readonly toCabinetDepthMm: number;
+  /** **How far this column's own members moved**, or `undefined` when it holds none — rung 2 of the
+   *  ladder below, and `alongWallShiftByColumnMm` is what answers it.
+   *
+   *  Required rather than optional, so a caller that has the records cannot silently skip the one
+   *  rung that is exact and land on a declaration instead. `undefined` is the member-less answer and
+   *  is stated, not defaulted into. */
+  readonly membersShiftMm: number | undefined;
+}
+
+/** **Where this frozen extent stands along its wall at the new setting** — ADR 0090 decision 2 as its
+ *  2026-09-06 amendment states it, and the sibling of `alongWallPositionAtMm` above.
+ *
+ *  `Design.emptyColumns` and `Design.columnExtents` record where a column *stands*, so the command
+ *  that slides a run slides them with it or returns a document that contradicts its own placements.
+ *
+ *  **An information ladder, ordered by how much the document actually knows** — the shape ADR 0080
+ *  decision 4 already uses on the depth axis. Every rung below the first is a positive answer; there
+ *  is no arm that abstains, because on a run that has moved, **standing still is not abstention**. It
+ *  is a positive claim that this column follows a third chain no entry declares and whose shift is
+ *  zero — the worst guess available, wrong by the full 100 mm, which is what the amendment overturned
+ *  decision 4a for.
+ *
+ *  1. **Wall A** — unchanged. Wall A is anchored at the corner and does not move at any setting.
+ *  2. **The column holds a member** — the delta its own members moved, from `membersShiftMm`. Exact,
+ *     and it reads no chain and no source at all: an extent *is* the column those members are in, and
+ *     the command has just computed where every one of them stands. This rung is decision 2's own
+ *     claim promoted from an assertion into the derivation, and it is what makes rung 4 safe — a
+ *     rigid default moves the legacy `wall-map` corner extent `B|615` by +100 while its members move
+ *     +70, and 30 mm parts an extent from the column it records.
+ *  3. **Member-less, with a recorded source** — that source's declared chain (decision 2, unchanged).
+ *     `deriveColumns` records as `depthFromBuildId` the member that won §3.2's MAX, so the recorded
+ *     source is a member of that column and its chain is the column's. ADR 0073 decision 1's field,
+ *     read for a second axis: no new field, no migration.
+ *  4. **Member-less and sourceless** — the chain `FOLLOWS_CABINET_DEPTH` declares, read from that
+ *     constant so the fallback and the catalogue's own default cannot part. Not a preference between
+ *     two chains: the only two `wall-map` entries are `STRUCTURAL_CORNER`, answer `NOT_DELETABLE` and
+ *     appear in no insertable row, so **a `wall-map` column can never become member-less** and this is
+ *     the only reachable answer rather than the likelier of two.
+ *
+ *  No rung reads a band, a level or a vertical interval. Inferring a chain from the band an extent
+ *  sits in is refused by measurement (`wall-2door-600-deep-top` and `wall-corner-return-570-top` are
+ *  both `top` band and declare different chains, 30 mm apart at 700).
+ *
+ *  It **declines** — answering nothing — only for an extent whose coordinate is not on a whole
+ *  millimetre, which is no document the loader accepts, exactly as `clipEmptyColumnsAtWallEnd` does
+ *  for its own ungriddable input.
+ *
+ *  Answered in millimetres rather than metres because the placements' own slide is: `0.615 + 0.07`
+ *  in metres keys to `B|0.54` on the way back down where `615 + 70` keys to `B|0.55`, and a map
+ *  keyed a hair differently from the records it describes is the whole defect this closes. */
+export function alongWallExtentPositionAtMm(
+  query: AlongWallExtentPositionQuery,
+): number | undefined {
+  const { extent } = query;
+  const alongMm = toExactMillimetres(alongWallCoordinate(extent.wall, extent));
+  if (alongMm === undefined) return undefined;
+  if (extent.wall !== WALL_THE_CORNER_IS_TAKEN_FROM) return alongMm;
+  if (query.membersShiftMm !== undefined) {
+    return alongMm + query.membersShiftMm;
+  }
+  return (
+    alongMm +
+    alongWallShiftMm({
+      fromCabinetDepthMm: query.fromCabinetDepthMm,
+      toCabinetDepthMm: query.toCabinetDepthMm,
+      chain: chainOfRecordedSource(query),
+    })
+  );
+}
+
+/** Rungs 3 and 4, as one question about one extent: the chain the body this extent recorded declares,
+ *  or the catalogue's own default when it recorded none — or named one the catalogue no longer holds,
+ *  which ADR 0073 decision 7 treats the same way and for the same reason (a load that refuses is a
+ *  dead link).
+ *
+ *  `FOLLOWS_CABINET_DEPTH` rather than the string it carries, so a catalogue that changed its default
+ *  moves this fallback with it. It is also the value the catalogue already gives an entry that says
+ *  nothing special, which is what decision 3's *"declared, never inferred"* asks for. */
+function chainOfRecordedSource(
+  query: AlongWallExtentPositionQuery,
+): AlongWallDepthChain {
+  const source = query.extent.depthFromBuildId;
+  const definition =
+    source === undefined ? undefined : query.catalog.get(source);
+  if (source === undefined || !definition) {
+    return FOLLOWS_CABINET_DEPTH.alongWallPositionFollows;
+  }
+  return cabinetDepthRuleOf({ buildId: source, rule: definition.depthRule })
+    .alongWallPositionFollows;
 }

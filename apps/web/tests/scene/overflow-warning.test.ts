@@ -5,7 +5,16 @@
 // *dulapuri* — so a test that rebuilt it from the same constant the component reads would agree with
 // any wording at all, including a tidied one. Wave 6D states the rule; this is that rule applied to
 // the string this wave adds.
-import { KITCHEN_L_DESIGN, type Design } from "@lemnaria/configurator-domain";
+// `OVERFLOWING_KITCHEN_L_DESIGN` is the **one declared** overflow fixture (ADR 0083 decision 10):
+// the seeded kitchen with one body a millimetre past the end of wall B, positioned relative to the
+// room so a wall moving cannot silently stop it overflowing. It was hand-built in six test files
+// and agreed everywhere only because the six were written together. Aliased to the local name the
+// cases below already use.
+import {
+  KITCHEN_L_DESIGN,
+  OVERFLOWING_KITCHEN_L_DESIGN as OVERFLOWING_DESIGN,
+  type Design,
+} from "@lemnaria/configurator-domain";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -28,21 +37,6 @@ vi.mock("@/store/configurator-store", () => ({
 }));
 
 const { OverflowWarning } = await import("@/scene/overflow-warning");
-
-/** The seeded kitchen with one body standing one millimetre past the end of wall B. */
-const OVERFLOWING_DESIGN: Design = {
-  ...KITCHEN_L_DESIGN,
-  placements: [
-    ...KITCHEN_L_DESIGN.placements,
-    {
-      id: "dragged-past-wall-b",
-      wall: "B",
-      alongMm: KITCHEN_L_DESIGN.room.depthMm - 400 + 1,
-      y0Mm: 0,
-      body: { buildId: "base-sink-800", widthMm: 800, heightMm: 820 },
-    },
-  ],
-};
 
 /** Wall A's run cut back to its first metre, so most of the wall is bare (ADR 0067). */
 const LARGE_REMAINDER_DESIGN: Design = {

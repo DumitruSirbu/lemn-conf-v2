@@ -10,6 +10,7 @@ import {
   MAX_ROOM_DEPTH_MM,
   MAX_ROOM_WIDTH_MM,
 } from "../../src/design-bounds.js";
+import { declaredCabinetDepthsMm } from "../../src/worktop-depth.js";
 import {
   buildKitchenLBodyCatalog,
   KITCHEN_L_DESIGN,
@@ -221,14 +222,40 @@ describe("findOverflowingPlacementIds", () => {
     ]);
   });
 
-  it("reports no seeded body at 600 and exactly p7 and p24 at 700", () => {
-    expect(
-      findOverflowingPlacementIds(seededDesignAt(SHALLOW_DEPTH_MM)),
-    ).toEqual([]);
-    expect(findOverflowingPlacementIds(seededDesignAt(DEEP_DEPTH_MM))).toEqual([
-      "p24",
-      "p7",
-    ]);
+  // **The owner's requirement, stated positively** (ADR 0083 decisions 1 and 10). This replaces
+  // *"reports no seeded body at 600 and exactly `p7` and `p24` at 700"*, which had a subject only
+  // while wall B was 2830: the run ends at 2900 at the deeper setting and the wall is now 2920, so
+  // the marking has no seeded subject at either depth. The claim is stronger than the one it
+  // replaces — the demo fits the walls it stands on, whichever depth the customer picks — and it is
+  // asserted rather than deleted because a deleted assertion is indistinguishable from one that was
+  // never written.
+  it.each(declaredCabinetDepthsMm())(
+    "reports no seeded body overflowing at %i",
+    (cabinetDepthMm) => {
+      const seeded = seededDesignAt(cabinetDepthMm);
+
+      // Not vacuous: the whole seeded kitchen was a candidate and both walls carry a run.
+      expect(seeded.placements.length).toBeGreaterThan(0);
+      expect(
+        new Set(seeded.placements.map((placement) => placement.wall)),
+      ).toStrictEqual(new Set(["A", "B"]));
+      expect(findOverflowingPlacementIds(seeded)).toEqual([]);
+    },
+  );
+
+  // The wall the run has to clear, named rather than left to whatever the fixture happens to say:
+  // wall B's run ends at 2900 at the deeper setting and the room declares 2920 (ADR 0083's 20 mm of
+  // the owner's 20–50 mm band). If this fails the clearance was spent, and the fix is in the fixture.
+  it("clears wall B's declared length at the deeper setting rather than landing on it", () => {
+    const deep = seededDesignAt(DEEP_DEPTH_MM);
+    const runEndMm = Math.max(
+      ...deep.placements
+        .filter((placement) => placement.wall === "B")
+        .map((placement) => placement.alongMm + placement.body.widthMm / 2),
+    );
+
+    expect(runEndMm).toBe(2900);
+    expect(KITCHEN_L_DESIGN.room.depthMm).toBe(2920);
   });
 
   it("leaves malformed and duplicate ids to the existing wire and validation boundaries", () => {

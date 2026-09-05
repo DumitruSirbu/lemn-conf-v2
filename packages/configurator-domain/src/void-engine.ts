@@ -34,6 +34,7 @@ export {
 export { mergeAdjacentEmptyColumns } from "./merge-empty-columns.js";
 export { splitOversizedEmptyColumns } from "./split-oversized-empty-columns.js";
 export { clipEmptyColumnsAtWallEnd } from "./clip-empty-columns-at-wall-end.js";
+export { clipEmptyColumnsToFreeGround } from "./clip-empty-columns-to-free-ground.js";
 
 /** Smallest span (metres) that becomes a void. */
 export const MIN_SPAN_M = 0.3;
@@ -895,6 +896,33 @@ export function projectFrozenMap(
     emptyColumns: emptyColumns.sort(compareEmptyColumns),
     columnExtents: columnExtents.sort(compareEmptyColumns),
   };
+}
+
+/** ADR 0044 and ADR 0053: the whole frozen map recorded on the design that is about to be held and
+ *  saved, written from a `FrozenMapDocument` `projectFrozenMap` produced.
+ *
+ *  Each key is **removed** rather than set to `[]` when its half is empty, so a kitchen with no free
+ *  space serialises exactly as it did before ADR 0044: the fields are optional precisely so an
+ *  untouched document is not rewritten, and an empty array would make every command produce a
+ *  document that differs from the one it was given by a key with nothing in it.
+ *
+ *  One author for that rule, and it is here rather than at the store seam because since ADR 0090 the
+ *  depth command writes the frozen map onto its own result — a command may not return a document
+ *  whose recorded map contradicts its own placements — and the store writes it for every other
+ *  command. Two spellings of "delete when empty" is exactly how one of them comes to serialise `[]`.
+ */
+export function withFrozenMap(
+  design: Design,
+  frozen: FrozenMapDocument,
+): Design {
+  const emptyColumns = frozen.emptyColumns ?? [];
+  const columnExtents = frozen.columnExtents ?? [];
+  const next = { ...design };
+  if (emptyColumns.length > 0) next.emptyColumns = [...emptyColumns];
+  else delete next.emptyColumns;
+  if (columnExtents.length > 0) next.columnExtents = [...columnExtents];
+  else delete next.columnExtents;
+  return next;
 }
 
 function compareEmptyColumns(left: EmptyColumn, right: EmptyColumn): number {

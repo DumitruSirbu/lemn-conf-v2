@@ -39,8 +39,8 @@ export function placementExtendsPastOwnWall(
  * §2's own-wall bounds, shared with validation so an empty span cannot fork the wall mapping.
  *
  * This was once `Math.max(widthMm, depthMm)` for both walls to accommodate a bad 2400 mm fixture
- * depth. The corrected wall B is 2830 mm; lending either wall the other axis would again hide the
- * exact overrun this fact exists to report (ADR 0065 decision 5).
+ * depth. The seeded wall B is 2920 mm and wall A 3560; lending either wall the other axis would
+ * again hide the exact overrun this fact exists to report (ADR 0065 decision 5).
  */
 export function wallLengthMm(
   wall: DesignPlacement["wall"],

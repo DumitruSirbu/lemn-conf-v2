@@ -14,8 +14,12 @@
 // **Two entries do not move, and they are excluded by reading their declaration** (ADR 0058), never
 // by naming them here. `depthFollowsSetting` is the one question this module asks about an entry,
 // and it lives in `cabinet-depth-rule.ts` so wave 6I's gate and this migration cannot drift.
-import { alongWallPositionAtMm } from "../along-wall-chain-shift.js";
+import {
+  alongWallPositionAtMm,
+  alongWallShiftByColumnMm,
+} from "../along-wall-chain-shift.js";
 import { depthFollowsSetting } from "../cabinet-depth-rule.js";
+import { frozenMapAtCabinetDepth } from "../frozen-map-at-cabinet-depth.js";
 import { seatRuleOf, type SeatRule } from "../seat-rule.js";
 import type { BodyProbe, BodyProbeFactory } from "../body-probe.js";
 import { cabinetDepthMmOf } from "../design.js";
@@ -24,7 +28,11 @@ import { toMetres, toMillimetres } from "../millimetres.js";
 import {
   deriveColumns,
   derivePlacementRecords,
+  projectFrozenMap,
+  withFrozenMap,
   type BodyCatalog,
+  type Column,
+  type FrozenMapDocument,
   type PlacementRecord,
 } from "../void-engine.js";
 import {
@@ -80,17 +88,31 @@ export function setCabinetDepth(
     .use((probe) => rebuildEveryBodyAt(input, probe));
   if (!rebuilt.ok) return refuse(design, rebuilt.detail);
 
+  const deepened: Design = {
+    ...design,
+    placements: [...rebuilt.value.placements],
+    settings: { ...design.settings, cabinetDepthMm: input.cabinetDepthMm },
+    updatedAt: input.occurredAt,
+  };
+  // **The frozen map is part of this result, not something the store adds afterwards** (ADR 0090
+  // decision 1). `Design.emptyColumns` and `Design.columnExtents` record where a column stands, the
+  // expression above just moved wall B's whole run, and a command may not return a document whose
+  // recorded map contradicts its own placements.
+  const republished = republishedFrozenMap({
+    input,
+    rebuilt: rebuilt.value,
+    design: deepened,
+  });
   return succeedWith(
-    {
-      ...design,
-      placements: [...rebuilt.value.placements],
-      settings: { ...design.settings, cabinetDepthMm: input.cabinetDepthMm },
-      updatedAt: input.occurredAt,
-    },
+    withFrozenMap(
+      deepened,
+      projectFrozenMap(republished.columns, republished.records),
+    ),
     {
       type: "cabinet_depth_set",
       cabinetDepthMm: input.cabinetDepthMm,
       rebuiltCount: rebuilt.value.rebuiltCount,
+      columns: republished.columns,
     },
   );
 }
@@ -112,6 +134,11 @@ const UNUSED_BY_REBUILD = "";
 interface RebuiltDesign {
   readonly placements: readonly DesignPlacement[];
   readonly rebuiltCount: number;
+  /** The catalogue built at the depth being moved **to**, carried out of the rebuild rather than
+   *  built a second time beside it. `SetCabinetDepthInput` takes a factory precisely so that a
+   *  caller cannot pair one depth with another's map (see that type), and a second `catalogAt` call
+   *  here would be a second place the pairing could go wrong. */
+  readonly catalog: BodyCatalog;
 }
 
 type Rebuilt =
@@ -203,7 +230,104 @@ function rebuildEveryBodyAt(
     placements.push(written.value);
     rebuiltCount += 1;
   }
-  return { ok: true, value: { placements, rebuiltCount } };
+  return { ok: true, value: { placements, rebuiltCount, catalog } };
+}
+
+/** The command's three inputs to the frozen-map answer, in one place. */
+interface RepublishQuery {
+  readonly input: SetCabinetDepthInput;
+  readonly rebuilt: RebuiltDesign;
+  /** The design as this command is about to return it — the new setting, the rebuilt bodies and the
+   *  along-wall coordinates the corner leaves them at. */
+  readonly design: Design;
+}
+
+/** The published map and the records it describes, derived once and returned together so the two
+ *  halves of `projectFrozenMap`'s partition cannot come from two different derivations. */
+interface RepublishedFrozenMap {
+  readonly columns: ReadonlyMap<string, Column>;
+  readonly records: readonly PlacementRecord[];
+}
+
+/** **The whole frozen map at the new setting** — ADR 0090 decision 5, assembled here because this is
+ *  the one place that holds all three of its operands.
+ *
+ *  `frozen-map-at-cabinet-depth.ts` states the rules; this states where their inputs come from:
+ *
+ *  - the **frozen map the document records**, rebuilt from the design this command was handed, at
+ *    the coordinates and depths it was holding;
+ *  - the **records the command just wrote**, at the new depth and the new coordinates;
+ *  - the **pre-command records, re-keyed at the new coordinates** — the same bodies with the same
+ *    stored seats read through the catalogue of the depth being *left*, moved onto the chain their
+ *    entries declare so that all three operands share one key space. Keyed the old way this operand
+ *    answers for no column on wall B and every one of them falls into ADR 0080's surplus arm. */
+function republishedFrozenMap(query: RepublishQuery): RepublishedFrozenMap {
+  const { input, rebuilt, design } = query;
+  const previousCabinetDepthMm = cabinetDepthMmOf(input.design);
+  const previousCatalog = input.catalogAt(previousCabinetDepthMm);
+  const records = derivePlacementRecords(design, rebuilt.catalog);
+  // The same bodies twice, at the setting being left: where they stood, and where the corner leaves
+  // them. Their difference is the ladder's exact rung and the `explains` operand's key space, and
+  // both come from one pair so the two cannot describe different runs.
+  const heldRecords = derivePlacementRecords(input.design, previousCatalog);
+  const slidRecords = derivePlacementRecords(
+    heldDesignSlidAlongTheWall(input, rebuilt.catalog),
+    previousCatalog,
+  );
+  return {
+    records,
+    columns: frozenMapAtCabinetDepth({
+      frozen: deriveColumns(
+        heldRecords,
+        storedFrozenMapOf(input.design),
+        input.design.room,
+      ),
+      records,
+      previousRecords: slidRecords,
+      membersShiftMmByColumn: alongWallShiftByColumnMm(
+        heldRecords,
+        slidRecords,
+      ),
+      room: design.room,
+      catalog: rebuilt.catalog,
+      cabinetDepthMm: input.cabinetDepthMm,
+      previousCabinetDepthMm,
+    }),
+  };
+}
+
+/** The two stored halves of the frozen map, as the document carries them and as `deriveColumns`
+ *  restores them.
+ *
+ *  **Read off the document rather than taken as a parameter**, because the document is what ADR 0053
+ *  says records the whole map — a command that took the caller's map would be answerable for a map
+ *  its own result cannot reproduce, which is the shape of the defect this wave closes. */
+function storedFrozenMapOf(design: Design): FrozenMapDocument {
+  return {
+    emptyColumns: design.emptyColumns,
+    columnExtents: design.columnExtents,
+  };
+}
+
+/** The held design with **only** the along-wall coordinates moved: the old setting, the old seats,
+ *  the old catalogue's answer for every body — measured where the run is arriving rather than where
+ *  it is leaving.
+ *
+ *  It is `planningDesign`'s smaller sibling and shares the move with it, so the coordinate the
+ *  `explains` operand is keyed at and the coordinate the rebuilt bodies land at cannot part company.
+ *  What it deliberately does **not** share is the seat clearing: this operand exists to say what the
+ *  members measured at the depth being left, and clearing their seats would answer with the
+ *  declaration instead of the measurement. */
+function heldDesignSlidAlongTheWall(
+  input: SetCabinetDepthInput,
+  catalog: BodyCatalog,
+): Design {
+  return {
+    ...input.design,
+    placements: input.design.placements.map((placement) =>
+      slidAlongItsWall({ input, catalog, placement }),
+    ),
+  };
 }
 
 /** **The design this command plans against: the new setting, no seat written at the old one, and
@@ -275,17 +399,24 @@ interface PlannedPlacementInput {
  *  same entry — ADR 0058's pinned tops and the freestanding fridge keep their depth **and** still
  *  slide, because the corner in front of them took more wall. */
 function planned(planning: PlannedPlacementInput): DesignPlacement {
-  const { catalog, placement } = planning;
-  const seated = movesWithTheSetting(catalog, placement.body.buildId)
-    ? withoutRecordedSeat(placement)
-    : placement;
+  const slid = slidAlongItsWall(planning);
+  return movesWithTheSetting(planning.catalog, slid.body.buildId)
+    ? withoutRecordedSeat(slid)
+    : slid;
+}
+
+/** One placement at the along-wall coordinate the new corner leaves it (ADR 0089), and nothing else
+ *  touched. Shared with `heldDesignSlidAlongTheWall` above so the run has one author for where it
+ *  stands, whichever of the command's two derivations is asking. */
+function slidAlongItsWall(planning: PlannedPlacementInput): DesignPlacement {
+  const { placement } = planning;
   const alongMm = alongWallPositionAtMm({
     placement,
-    catalog,
+    catalog: planning.catalog,
     fromCabinetDepthMm: cabinetDepthMmOf(planning.input.design),
     toCabinetDepthMm: planning.input.cabinetDepthMm,
   });
-  return alongMm === seated.alongMm ? seated : { ...seated, alongMm };
+  return alongMm === placement.alongMm ? placement : { ...placement, alongMm };
 }
 
 /** The placement with no `seatDepthMm` **at all**, rather than one holding the catalogue's declared

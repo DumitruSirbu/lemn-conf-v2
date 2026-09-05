@@ -27,7 +27,8 @@ import {
 import { InvalidDesignError } from "../src/repository.js";
 import { canonicalSerializeDesign } from "../src/serialize-design.js";
 
-/** The seeded room as corrected on 2026-09-03, so nothing here trips the room normalisation. */
+/** Any room but `3600 × 2400`, so nothing here trips the room normalisation. Not the seeded room —
+ *  this file is about settings on a stored document, so the pair only has to miss the trigger. */
 const storedDocument = {
   room: { shape: "L" as const, widthMm: 3560, depthMm: 2830, heightMm: 2600 },
   presetId: null,

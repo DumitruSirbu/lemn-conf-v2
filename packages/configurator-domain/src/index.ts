@@ -120,6 +120,13 @@ export {
   WORKTOP_DEPTH_MM,
 } from "./worktop-depth.js";
 export * from "./body-probe.js";
+// ADR 0090 decision 5: the whole frozen-map answer at a new cabinet depth, in the package that holds
+// the three inputs it needs. Exported beside the command that publishes it — the store no longer
+// computes any part of this map and reads it off `CabinetDepthSetEffect.columns`.
+export {
+  frozenMapAtCabinetDepth,
+  type FrozenMapAtCabinetDepthInput,
+} from "./frozen-map-at-cabinet-depth.js";
 export * from "./commands/rejection.js";
 export * from "./commands/command-result.js";
 export * from "./commands/insert-fit.js";

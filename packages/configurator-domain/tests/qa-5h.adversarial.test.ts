@@ -315,6 +315,9 @@ describe("the four refusals, each on the document that earns it", () => {
     }).toThrow(/COLUMN_EXTENT_ABOVE_ROOM/);
   });
 
+  // One millimetre deeper than the room the fixture declares, derived rather than written out: the
+  // number is "past the back wall by the smallest step the schema can express", so a room change
+  // must move it rather than quietly leave the entry inside the shell (ADR 0083 decision 1).
   it("refuses an entry that reaches out through the shell", () => {
     const design = withColumnExtents([
       {
@@ -323,7 +326,7 @@ describe("the four refusals, each on the document that earns it", () => {
         widthMm: 600,
         y0Mm: 0,
         topMm: 2600,
-        depthMm: 2831,
+        depthMm: KITCHEN_L_DESIGN.room.depthMm + 1,
       },
     ]);
 

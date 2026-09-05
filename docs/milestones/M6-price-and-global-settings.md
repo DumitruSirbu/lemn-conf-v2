@@ -3361,11 +3361,17 @@ red invariant tests are its gate.
 
 **Work items.**
 
-1. **`alongWallExtentPositionAtMm` in `along-wall-chain-shift.ts`** — one frozen extent, the
-   catalogue, and the two settings, returning its new `alongMm`. Wall A and a sourceless extent
-   return `alongMm` unchanged (ADR 0090 decisions 2 and 4a); a wall-B extent whose
-   `depthFromBuildId` the catalogue holds returns `alongMm + alongWallShiftMm(...)` on that entry's
-   declared chain. Total, no default arm, no band read.
+1. **`alongWallExtentPositionAtMm` in `along-wall-chain-shift.ts`** — one frozen extent and the two
+   settings, returning its new `alongMm` by ADR 0090's amended **information ladder**, in this order:
+   **(1)** wall A is unchanged, because wall A is anchored at the corner; **(2)** a column that holds a
+   member moves by **the delta its own members moved** — exact, and it reads no chain and no source;
+   **(3)** a member-less extent with a recorded source slides on that source's declared chain
+   (decision 2); **(4)** a member-less, sourceless extent slides on the chain `FOLLOWS_CABINET_DEPTH`
+   declares, read from the constant and never written as the literal. **Rung 2 is not optional, and is
+   what the amendment corrects**: a rigid default moves the legacy `wall-map` corner extent `B|615`
+   +100 while its members move +70, parting the extent from the column it records —
+   `COLUMN_EXTENT_OVERLAPS_PLACEMENT` + `COLUMN_EXTENT_HAS_NO_MEMBER`, both refusals, measured in
+   **every** legacy scenario that carries a wall-B map. No band read anywhere, on any rung.
 2. **`frozen-map-at-cabinet-depth.ts`** — the whole map at the new setting: `atCurrentCabinetDepth`'s
    depth rules (ADR 0073 decisions 2/3, ADR 0079 decisions 1/2, ADR 0080 decision 4) moved
    **unchanged in what they decide**, over entries re-keyed by item 1. The `explains` operand is
@@ -3415,14 +3421,36 @@ red invariant tests are its gate.
   declare the same `alongWallPositionFollows`. Measured true today — `B|0.61` is `wall-map` on both
   members, every other column `base-formula` throughout. It is not enforced by any refusal
   (`docs/BACKLOG.md` 51) and this wave does not add one.
+- **A sourceless wall-B extent lands where its neighbours leave it, asserted by value.** On the
+  legacy (source-stripped) scenarios the suites already build: the cleared appliance niche lands at
+  `[2200..2900]` abutting `p6`, the cleared pantry at `[1600..2200]` abutting `p5` and `p7`, and the
+  cleared oven tower at `[1000..1600]` — measured in ADR 0090's amendment. **Abutting, not merely
+  non-overlapping**: a rule that shifted by anything other than the declared chain would leave a gap
+  or an overlap, and only exactness passes.
+- **The `wall-map` column cannot become member-less, asserted rather than assumed.** Deleting `p9` or
+  `p21` returns `NOT_DELETABLE` (measured on both), and neither entry is insertable. This is the fact
+  that makes rung 4's default the only *reachable* answer rather than the likelier of two, so it is
+  pinned — if a future catalogue makes a `wall-map` body deletable, this criterion goes red and rung 4
+  is re-opened deliberately rather than silently becoming wrong.
 - **Band inference is unrepresentable, asserted structurally.** No production file reads `y0Mm`,
   `topMm`, `band` or a level grid to choose a chain. The anti-invariant is measurable:
   `wall-2door-600-deep-top` (band `top`, `base-formula`) and `wall-corner-return-570-top` (band
   `top`, `wall-map`) must resolve to **different** chains through the production reader.
 - **`clipEmptyColumnsToFreeGround` drops nothing across the existing store suites**, asserted, with
-  a **non-vacuity case** — a legacy sourceless wall-B extent through a 600 → 700 change — proving it
-  can drop. A guard that cannot fire and a guard that quietly eats a space are the two failures here
-  and both are checked.
+  a **non-vacuity case** proving it can drop. A guard that cannot fire and a guard that quietly eats a
+  space are the two failures here and both are checked. **The criterion stands and is not withdrawn**:
+  it is falsified only against ADR 0090's struck decision 4a, under which the guard fired in five of
+  six wall-B legacy scenarios, and it is *satisfied* under the ladder. A criterion a wrong rule cannot
+  meet is the criterion doing its job. **The non-vacuity case is therefore a hand-built map, not a
+  legacy document** — under the ladder no legacy scenario overlaps any more, so a legacy fixture would
+  make this criterion silently vacuous.
+- **With `clipEmptyColumnsToFreeGround` disabled at both call sites, every legacy scenario still
+  validates with no refusal.** The wave's own counterfactual, kept as a standing assertion rather than
+  a one-off measurement: it is what distinguishes *the rule is right and the guard is idle* from *the
+  guard is hiding the rule*. Measured over the legacy scenarios by ADR 0090's amendment — **0
+  refusal-class issues under the ladder against 7–10 under 4a and exactly 2 under a rigid default** —
+  and every issue that remains must be a `mark`. The `…_PAST_WALL_END` family is expected: wall B is
+  2830 until wave 6N-0 lands.
 - **600 → 700 → 600 returns the whole map**, keys included, not just the depths: the published
   `columns`, `design.emptyColumns` and `design.columnExtents` are identical to the start state. True
   today for the depths and for the coordinates by accident (nothing moved); it must stay true once

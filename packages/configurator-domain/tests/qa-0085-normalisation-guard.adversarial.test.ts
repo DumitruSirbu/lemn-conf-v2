@@ -40,11 +40,11 @@ const PRE_CORRECTION_ROOM = {
   heightMm: 2600,
 } as const;
 
-/** **Wall A's width and nothing else is pinned here.** ADR 0085's *Consequences* leave
- *  `CORRECTED_ROOM_MM`'s `depthMm` to wave 6N-0, which changes it from 2830 to 2920, and the record
+/** **Wall A's width and nothing else is pinned here.** ADR 0085's *Consequences* left
+ *  `CORRECTED_ROOM_MM`'s `depthMm` to wave 6N-0, which moved it from 2830 to 2920, and the record
  *  states the two waves rebase onto each other precisely because wall A is 3560 in both. Every
  *  assertion below reads the width, and reads the corrected depth off an actual load rather than
- *  restating it. */
+ *  restating it — which is why this file did not move when the depth did. */
 const CORRECTED_WIDTH_MM = 3560;
 
 /** The version the room arm is owed by. */

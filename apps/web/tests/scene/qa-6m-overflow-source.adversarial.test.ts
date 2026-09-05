@@ -12,10 +12,16 @@
 // So these make the two disagree and assert which one wins: the domain query is mocked to answer
 // something the geometry does not imply, and the surfaces must follow the **query**. A hook that
 // re-derives the geometry answers the other way and turns these red.
+// `OVERFLOWING_KITCHEN_L_DESIGN` is the **one declared** overflow fixture (ADR 0083 decision 10):
+// the seeded kitchen with one body a millimetre past the end of wall B, positioned relative to the
+// room so a wall moving cannot silently stop it overflowing. It was hand-built in six test files
+// and agreed everywhere only because the six were written together. Aliased to the local name the
+// cases below already use.
 import {
   derivePlacementRecords,
   KITCHEN_L_BODY_CATALOG,
   KITCHEN_L_DESIGN,
+  OVERFLOWING_KITCHEN_L_DESIGN as OVERFLOWING_DESIGN,
   type Design,
 } from "@lemnaria/configurator-domain";
 import { createElement } from "react";
@@ -145,22 +151,6 @@ const OVERVIEW_VIEW = {
   position: [4.3, 3, 5.3],
   target: [1.6, 1.35, 0.85],
 } as const;
-
-/** The seeded kitchen with one body a millimetre past the end of wall B — geometrically overflowing,
- *  whatever the query is told to say about it. */
-const OVERFLOWING_DESIGN: Design = {
-  ...KITCHEN_L_DESIGN,
-  placements: [
-    ...KITCHEN_L_DESIGN.placements,
-    {
-      id: "dragged-past-wall-b",
-      wall: "B",
-      alongMm: KITCHEN_L_DESIGN.room.depthMm - 400 + 1,
-      y0Mm: 0,
-      body: { buildId: "base-sink-800", widthMm: 800, heightMm: 820 },
-    },
-  ],
-};
 
 /** A body of the seeded kitchen that fits with room to spare: wall A's run ends at 3500 of 3560, and
  *  this one is nowhere near the end. Nothing about its geometry says "overflowing". */

@@ -32,6 +32,7 @@ import { describe, expect, it } from "vitest";
 import { createConfiguratorStore } from "@/store/configurator-store";
 
 import { createFakeProbeFactory } from "../support/fake-body-probe";
+import { columnKeyAt } from "../support/wall-b-column-keys";
 
 const OCCURRED_AT = "2026-09-05T11:00:00.000Z";
 const DEEPER_MM = 700;
@@ -166,9 +167,12 @@ describe("a kitchen deepened for the second time", () => {
     );
     const straight = change(createStore(), DEEPER_MM);
 
-    expect(columnDepthMm(store, UNAFFECTED_KEY)).toBe(
-      columnDepthMm(straight, UNAFFECTED_KEY),
-    );
+    // Both stores end at the deeper setting, where wall B's run stands 70 mm further along than it
+    // does at 600 (ADR 0090 decision 2) — so the key is read at that setting on both sides. The
+    // claim is the one it always was: the wall-B column is the same depth however many legs it took
+    // to get here.
+    const key = columnKeyAt(UNAFFECTED_KEY, DEEPER_MM);
+    expect(columnDepthMm(store, key)).toBe(columnDepthMm(straight, key));
   });
 
   // **The durable half.** "Wrong for this session" and "wrong for good" are different defects, and

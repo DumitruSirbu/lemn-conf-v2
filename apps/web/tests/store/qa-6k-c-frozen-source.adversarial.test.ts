@@ -33,6 +33,7 @@ import {
   assertStoredSourcesExplainTheirDepths,
   DECLARED_DEPTH_EPSILON_M,
 } from "../support/frozen-source-invariant";
+import { columnKeyAt } from "../support/wall-b-column-keys";
 
 const OCCURRED_AT = "2026-09-05T12:00:00.000Z";
 const DEEPER_MM = 700;
@@ -79,6 +80,29 @@ function columnOf(store: Store, key: string): Column {
 
 function depthMOf(store: Store, key: string): number {
   return columnOf(store, key).d;
+}
+
+/** The member-less column whose depth this body's declaration supplied, wherever it now stands —
+ *  ADR 0073 decision 1's recorded source used as the anchor a moving coordinate can no longer be.
+ *  Member-less by construction in these tests, and asserted so rather than assumed: an occupied
+ *  column carrying the same source would be a different claim. */
+function spaceLeftBy(store: Store, buildId: string): string {
+  const { columns, records } = store.getState();
+  const found = [...columns].find(
+    ([key, column]) =>
+      column.depthFromBuildId === buildId &&
+      !records.some((record) => record.col === key),
+  );
+  if (!found) throw new Error(`no member-less column records ${buildId}`);
+  return found[0];
+}
+
+/** The along-wall coordinate a published column stands at, in whole millimetres — the number a
+ *  placement in that column carries as its own `alongMm`. Read off the map rather than restated,
+ *  because since ADR 0090 decision 2 it is a function of the setting on wall B. */
+function alongMmOf(store: Store, key: string): number {
+  const column = columnOf(store, key);
+  return Math.round((column.wall === "A" ? column.x : column.z) * 1000);
 }
 
 function remove(store: Store, id: string): void {
@@ -385,8 +409,14 @@ describe("a frozen extent never becomes shallower than the body standing in it l
     remove(store, PINNED_TOP_PLACEMENT);
     // 2. Deepen. The pantry follows the setting to 699 and the extent follows it — deeper-only —
     //    while the recorded source still names the pinned top, which declares 600 at every setting.
+    //    **The column is also 100 mm further along wall B now** (ADR 0090 decision 2): a deeper
+    //    corner on wall A takes more of wall B, so the key this column is filed under is a function
+    //    of the setting. The anchor moves with it; every assertion below is the one this test always
+    //    made.
     setDepth(store, DEEPER_MM);
-    expect(depthMOf(store, PINNED_SOURCE_KEY)).toBeGreaterThan(
+    const deepKey = columnKeyAt(PINNED_SOURCE_KEY, DEEPER_MM);
+    const deepAlongMm = alongMmOf(store, deepKey);
+    expect(depthMOf(store, deepKey)).toBeGreaterThan(
       declaredDepthM("wall-2door-600-deep-top", DEEPER_MM),
     );
     // 3. Delete the pantry. Now nothing stands here, and the space the delete freed is 699 mm deep.
@@ -394,12 +424,11 @@ describe("a frozen extent never becomes shallower than the body standing in it l
       .getState()
       .design.placements.find(
         (placement) =>
-          placement.wall === "B" &&
-          placement.alongMm === PINNED_SOURCE_ALONG_MM,
+          placement.wall === "B" && placement.alongMm === deepAlongMm,
       );
     if (!survivor) throw new Error("no member left to delete");
     remove(store, survivor.id);
-    const freedM = depthMOf(store, PINNED_SOURCE_KEY);
+    const freedM = depthMOf(store, deepKey);
 
     // 4. Any depth change. Nothing stands here to measure, so the whole answer comes from the
     //    recorded source — which must therefore be a body that really did have this depth.
@@ -420,17 +449,22 @@ describe("a frozen extent never becomes shallower than the body standing in it l
     const store = createStore();
     remove(store, PINNED_TOP_PLACEMENT);
     setDepth(store, DEEPER_MM);
+    // The same anchor, for the same reason as the test above: at 700 this column stands 100 mm
+    // further along wall B (ADR 0090 decision 2).
+    const deepAlongMm = alongMmOf(
+      store,
+      columnKeyAt(PINNED_SOURCE_KEY, DEEPER_MM),
+    );
     const survivor = store
       .getState()
       .design.placements.find(
         (placement) =>
-          placement.wall === "B" &&
-          placement.alongMm === PINNED_SOURCE_ALONG_MM,
+          placement.wall === "B" && placement.alongMm === deepAlongMm,
       );
     if (!survivor) throw new Error("no member left to delete");
     remove(store, survivor.id);
     const frozenMm = storedEntries(store).get(
-      `B|${String(PINNED_SOURCE_ALONG_MM)}`,
+      `B|${String(deepAlongMm)}`,
     )?.depthMm;
     const frozenM = (frozenMm ?? 0) / 1000;
 
@@ -1108,13 +1142,19 @@ describe("an extent whose depth came from a body no setting moves", () => {
         remove(store, member.id);
       }
       const frozenM = depthMOf(store, key);
+      const source = columnOf(store, key).depthFromBuildId ?? "";
 
       for (const depthMm of declaredCabinetDepthsMm()) {
         setDepth(store, depthMm);
-        expect(depthMOf(store, key), `at ${String(depthMm)}`).toBeCloseTo(
-          frozenM,
-          9,
-        );
+        // **The space is found by the body that froze it, not by the coordinate it stood at**
+        // (ADR 0090 decision 2). A wall-B column slides with its run when the corner on wall A gets
+        // deeper, and near the wall's own end ADR 0069's clip then narrows what is left — so the key
+        // is a function of the setting twice over. What this test asserts is unchanged: a pinned
+        // source's extent is the same depth at every declared setting.
+        expect(
+          depthMOf(store, spaceLeftBy(store, source)),
+          `at ${String(depthMm)}`,
+        ).toBeCloseTo(frozenM, 9);
       }
     },
   );

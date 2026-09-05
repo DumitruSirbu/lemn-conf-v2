@@ -57,6 +57,9 @@ const VALID_PLACEMENT: DesignPlacement = {
   body: { buildId: "base-sink-800", widthMm: 800, heightMm: 820 },
 };
 
+/** This file's own synthetic room, and **not** the seeded one. Its 2830 is a length the bound cases
+ *  below do arithmetic against — wide enough to hold a 2700–3300 run on wall A and short enough to
+ *  refuse it on wall B — so it did not move when the demo's wall B did (ADR 0083 decision 1). */
 const VALID_DESIGN: Design = {
   room: { shape: "L", widthMm: 3560, depthMm: 2830, heightMm: 2600 },
   presetId: null,
@@ -146,7 +149,10 @@ describe("validateDesignForCatalog", () => {
   describe("the along-wall bound is each wall's own run", () => {
     /** The run this refuses — 2700–3300 on wall B — fits inside the room's 3560 mm **width** and
      *  not inside its 2830 mm depth, so it is exactly what `max(width, depth)` accepted. Widen the
-     *  bound back and this test goes green while the body still hangs 470 mm past wall B. */
+     *  bound back and this test goes green while the body still hangs 470 mm past wall B.
+     *
+     *  The room here is this file's own synthetic one and stays at 2830 deliberately: the number is
+     *  doing arithmetic, not standing for the demo's wall. */
     it("refuses a wall B run that fits only the room's width", () => {
       const design = withPlacement({ wall: "B", alongMm: 3000 });
 
@@ -169,10 +175,15 @@ describe("validateDesignForCatalog", () => {
     });
   });
 
-  /** The seeded kitchen against **its own** two walls, which is what the fixture correction to
-   *  3560 × 2830 made assertable: wall A's run ends at 3500 with 60 mm of the 3560 to spare and
-   *  wall B's at 2800 with 30 mm of the 2830. Under `max(width, depth)` both were held to 3560 and
-   *  wall B passed by luck — the fridge (`p7`) reached 400 mm past the 2400 the document declared. */
+  /** The seeded kitchen against **its own** two walls, which is what the fixture correction of
+   *  2026-09-03 made assertable: wall A's run ends at 3500 with 60 mm of the 3560 to spare and
+   *  wall B's at 2800 with 120 mm of the 2920. Under `max(width, depth)` both were held to 3560 and
+   *  wall B passed by luck — the fridge (`p7`) reached 400 mm past the 2400 the document declared.
+   *
+   *  **The two bounds are not the same kind of number** (ADR 0083 decision 1): wall A's 3560 is the
+   *  design reference's measurement and wall B's 2920 is chosen, 20 mm past the 2900 its run reaches
+   *  at the 700 mm cabinet depth. The 2830 the reference gives wall B would put the marking on the
+   *  design the app opens with, and the owner ruled the demo fits at both depths instead. */
   describe("the shipped kitchen's runs, per wall", () => {
     const BOUND_BY_WALL = {
       A: KITCHEN_L_DESIGN.room.widthMm,
@@ -205,8 +216,12 @@ describe("validateDesignForCatalog", () => {
       },
     );
 
-    it("declares the two runs the reference's wall-coverage panel measures", () => {
-      expect(BOUND_BY_WALL).toStrictEqual({ A: 3560, B: 2830 });
+    /** Pinned by value so wall B's bound is a **stated** number rather than whatever the fixture
+     *  happens to say. 2920 is inside the owner's ruled 20–50 mm clearance band past 2900; a wave
+     *  that moves it to 2930 edits this line, and one that moves it to 2900 or 3000 needs a ruling
+     *  first. */
+    it("declares the two runs the demo room is built to clear", () => {
+      expect(BOUND_BY_WALL).toStrictEqual({ A: 3560, B: 2920 });
     });
   });
 

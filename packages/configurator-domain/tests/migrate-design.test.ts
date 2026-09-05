@@ -17,7 +17,8 @@ import {
 } from "../src/validate-design.js";
 
 /** The room is deliberately **not** `3600 × 2400`: that pair is the room correction's trigger, and
- *  these tests are about a payload surviving migration rather than about a room. */
+ *  these tests are about a payload surviving migration rather than about a room. Any other pair
+ *  does, so this one is left where it was when the demo's wall B moved to 2920. */
 const validDesignV1 = {
   room: { shape: "L", widthMm: 3560, depthMm: 2830, heightMm: 2600 },
   presetId: null,
@@ -55,11 +56,16 @@ describe("migrateDesign", () => {
   });
 });
 
-/** The room correction of 2026-09-03 moved the seeded kitchen from `3600 × 2400` to `3560 × 2830`
- *  and made the along-wall bound each wall's own run. Every document at schema version 2 or below
- *  was written from the seed as it then stood — five rows, measured 2026-09-02 — so their wall B
- *  bodies now end past a 2400 mm depth and the load path refuses them. `migrateFromV2` corrects the
- *  room instead, the same way `migrateFromV1` normalises an oversized `emptyColumns` entry. */
+/** The room correction of 2026-09-03 moved the seeded kitchen off `3600 × 2400` and made the
+ *  along-wall bound each wall's own run. Every document at schema version 2 or below was written
+ *  from the seed as it then stood — five rows, measured 2026-09-02 — so their wall B bodies now end
+ *  past a 2400 mm depth and the load path refuses them. `migrateFromV2` corrects the room instead,
+ *  the same way `migrateFromV1` normalises an oversized `emptyColumns` entry.
+ *
+ *  **The room it corrects into is read off the fixture, never restated here** (ADR 0083 decision 9).
+ *  The arm repairs rows that *are* copies of the demo, so a correction into a room the demo no
+ *  longer has would rescue a row into an envelope nobody ships — and a customer of that row then
+ *  choosing the 700 mm depth would overflow where the demo does not. */
 describe("the room correction, on a document stored before it", () => {
   const PRE_CORRECTION_ROOM = {
     shape: "L",
@@ -136,7 +142,11 @@ describe("the room correction, on a document stored before it", () => {
 
     expect(migrateDesign(2, fits)).toStrictEqual({
       ...fits,
-      room: { ...fits.room, widthMm: 3560, depthMm: 2830 },
+      room: {
+        ...fits.room,
+        widthMm: KITCHEN_L_DESIGN.room.widthMm,
+        depthMm: KITCHEN_L_DESIGN.room.depthMm,
+      },
     });
   });
 });
@@ -198,7 +208,7 @@ describe("the version 1 normalisation and the room correction, on one document",
   it("corrects the room and splits the entry in one load", () => {
     const loaded = migrateDesign(1, stored(CARRIES_BOTH));
 
-    expect(loaded.room.depthMm).toBe(2830);
+    expect(loaded.room.depthMm).toBe(KITCHEN_L_DESIGN.room.depthMm);
     expect(loaded.emptyColumns?.map((entry) => entry.widthMm)).toStrictEqual([
       MAX_EMPTY_COLUMN_WIDTH_MM,
       100,
@@ -226,7 +236,7 @@ describe("the version 1 normalisation and the room correction, on one document",
  *
  *  Both are built from the seeded design at the pre-correction pair plus empty columns the
  *  correction's own narrowing can reach. Wall B's across-wall bound is the room's `widthMm`
- *  (3600 → 3560) and wall A's is its `depthMm` (2400 → 2830), so one column can be made fatal only
+ *  (3600 → 3560) and wall A's is its `depthMm` (2400 → 2920), so one column can be made fatal only
  *  after the correction and the other fatal only before it. Both sit in bands the seeded placements
  *  leave free, so `EMPTY_COLUMN_DEEPER_THAN_ROOM` is the only fatal finding either produces. */
 describe("the room correction's guard, on documents the correction itself changes", () => {
@@ -247,7 +257,8 @@ describe("the room correction's guard, on documents the correction itself change
     depthMm: 3580,
   };
 
-  /** Fatal only **before** the correction: 2500 is past a 2400 wall-A bound and within a 2830 one. */
+  /** Fatal only **before** the correction: 2500 is past a 2400 wall-A bound and within the
+   *  corrected depth, whatever the fixture declares it to be (2920 since ADR 0083). */
   const DEEPER_THAN_THE_STORED_DEPTH: EmptyColumn = {
     wall: "A",
     alongMm: 3530,

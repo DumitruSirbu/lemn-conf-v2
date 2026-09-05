@@ -845,17 +845,110 @@ export const KITCHEN_L_PLACEMENTS: readonly DesignPlacement[] = [
   placement("p24", "B", 2450, 1850, "wall-2door-700-over-fridge", 700, 750),
 ];
 
+/** Wall B's declared length, and the **one number in this room that is not a measurement**.
+ *
+ *  ADR 0083 decision 1. The design reference's wall-coverage panel gives wall B as 2830 mm, landed
+ *  on 2026-09-03 and corroborated against built geometry to the millimetre. The demo declares
+ *  **2920** instead, which moves it 90 mm *away* from the kitchen it was measured from, on purpose:
+ *  the seeded run's intended end at the 700 mm cabinet depth is 2900, and at 2830 the demo would
+ *  overrun by 70 mm and wear ADR 0065's overflow marking on the design the app opens with.
+ *
+ *  **The owner's clearance band is 20–50 mm past that 2900 end.** 2920 spends 20 of it. A later
+ *  wave wanting 2930 or 2950 is making a fixture adjustment inside a ruled range and needs no
+ *  ruling; 2900 (a flush fit, which the gate would accept — equality fits) or 3000 is outside the
+ *  band and is a new question for the owner.
+ *
+ *  **A later reader must not "correct" this back to 2830.** The bar's two denominators are not the
+ *  same kind of number — wall A's 3560 is the reference's own and wall B's length does not move it,
+ *  so one is measured and one is chosen. */
+const WALL_B_LENGTH_MM = 2920;
+
 export const KITCHEN_L_DESIGN: Design = {
   // ADR 0065 §2: the two wall runs the design reference's wall-coverage panel gives — wall A
-  // 3560 mm (3520 occupied, 40 free at the run end) and wall B 2830 mm (2800 occupied, 30 free
-  // beside the fridge). Both corroborate against the built tree: wall A's placements end at 3500
-  // plus the run-end panel's 18 mm and its 1 mm gap, the 3519 `kitchen-shell.ts` names in its own
-  // comment, and wall B's end at 2800 exactly. It read `3600 × 2400` until 2026-09-03, and the
-  // 2400 in particular was what made the along-wall bound take the longer run.
-  room: { shape: "L", widthMm: 3560, depthMm: 2830, heightMm: 2600 },
+  // 3560 mm (3520 occupied, 40 free at the run end) and wall B 2800 occupied. Wall A corroborates
+  // against the built tree: its placements end at 3500 plus the run-end panel's 18 mm and its 1 mm
+  // gap, the 3519 `kitchen-shell.ts` names in its own comment. Wall B's run ends at 2800 exactly at
+  // the 600 mm cabinet depth and at 2900 at the 700 mm one, inside the length above. The room read
+  // `3600 × 2400` until 2026-09-03, and the 2400 in particular was what made the along-wall bound
+  // take the longer run.
+  room: {
+    shape: "L",
+    widthMm: 3560,
+    depthMm: WALL_B_LENGTH_MM,
+    heightMm: 2600,
+  },
   presetId: null,
   settings: { cabinetDepthMm: WORKTOP_DEPTH_MM },
   placements: [...KITCHEN_L_PLACEMENTS],
   createdAt: "2026-08-25T00:00:00.000Z",
   updatedAt: "2026-08-25T00:00:00.000Z",
+};
+
+/** How far past the end of its own wall a body in `OVERFLOWING_KITCHEN_L_DESIGN` reaches.
+ *
+ *  One millimetre is the smallest overrun the wire schema can express — `alongMm` and `widthMm` are
+ *  integers — so the fixture demonstrates ADR 0065's marking at the boundary the gate is written
+ *  against rather than at a comfortable distance from it. Equality fits (ADR 0083 decision 3), so
+ *  zero would report nothing. */
+const PAST_WALL_END_MM = 1;
+
+/** A body declared by **which wall it overruns and what it is**, never by where it stands. */
+type OverflowingBody = Pick<DesignPlacement, "id" | "wall" | "body">;
+
+/** The overflowing population, declared as data. Each entry's seat is derived from the room by
+ *  `seatedPastItsWall`, so the population follows a room change instead of being re-measured once
+ *  per reader — which is how six hand-written copies stayed in agreement only by luck. */
+const OVERFLOWING_POPULATION: readonly OverflowingBody[] = [
+  {
+    id: "dragged-past-wall-b",
+    wall: "B",
+    body: { buildId: "base-sink-800", widthMm: 800, heightMm: 820 },
+  },
+];
+
+/** The seeded kitchen with one body standing one millimetre past the end of wall B, and nothing
+ *  else changed. Its only diagnostic is `PLACEMENT_PAST_WALL_END`.
+ *
+ *  **ADR 0083 decision 10: one declared fixture, not six hand-built copies.** This shape was written
+ *  out in six test files and agreed everywhere only because the six were written together. The scene
+ *  mark, the warning band, the loading gate, the API seam and 6N-c's visual gate all read this one.
+ *
+ *  It follows the room: at 2830 the body seated at 2431 and at 2920 it seats at 2521, one
+ *  millimetre past the wall in both, so a room change never silently stops it overflowing. */
+export const OVERFLOWING_KITCHEN_L_DESIGN: Design = {
+  ...KITCHEN_L_DESIGN,
+  placements: [
+    ...KITCHEN_L_DESIGN.placements,
+    ...OVERFLOWING_POPULATION.map(seatedPastItsWall),
+  ],
+};
+
+function seatedPastItsWall(overflowing: OverflowingBody): DesignPlacement {
+  const wallRunMm =
+    overflowing.wall === "A"
+      ? KITCHEN_L_DESIGN.room.widthMm
+      : KITCHEN_L_DESIGN.room.depthMm;
+  return {
+    id: overflowing.id,
+    wall: overflowing.wall,
+    alongMm: wallRunMm - overflowing.body.widthMm / 2 + PAST_WALL_END_MM,
+    y0Mm: 0,
+    body: { ...overflowing.body },
+  };
+}
+
+/** The seeded kitchen in a room whose **wall A is declared narrower than the run standing on it** —
+ *  the second reachable overflow shape, and the one ADR 0065 was actually written from: a room
+ *  measured smaller than its kitchen, which M7's room control makes reachable.
+ *
+ *  **Nothing moves.** Only `room.widthMm` changes, so a capture of this design and one of
+ *  `KITCHEN_L_DESIGN` are the same scene and whatever differs between them *is* the mark. A fixture
+ *  that added a body instead cannot tell a wash from the cabinet it just added.
+ *
+ *  **2800 rather than any narrower value**, because the six bodies it marks stand in the middle of
+ *  the overview camera preset. A narrower room marks bodies past the right edge of the frame, where
+ *  the mark renders perfectly and photographs as nothing. */
+export const NARROWED_ROOM_OVERFLOWING_DESIGN: Design = {
+  ...KITCHEN_L_DESIGN,
+  room: { ...KITCHEN_L_DESIGN.room, widthMm: 2800 },
 };

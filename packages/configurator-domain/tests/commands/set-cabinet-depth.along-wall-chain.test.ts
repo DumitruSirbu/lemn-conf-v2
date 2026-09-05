@@ -239,13 +239,17 @@ describe("what the shift must not change", () => {
   });
 
   // ADR 0065: a body the slide pushes past the end of its wall is **marked**, never moved back and
-  // never a refusal. The seeded room is 2830 deep and the run now ends at 2900, so the two bodies at
-  // the far end are reported by the query that reports such things — which is the outcome the ruling
-  // asks for, and the opposite of the silent `[]` the broken command produced.
-  it("marks the bodies the slide pushes past the wall rather than refusing or clawing them back", () => {
+  // never a refusal — and ADR 0083 decision 1 then gave the demo a wall long enough that the slide
+  // does not push anything past it. The run ends at 2900 and the room declares 2920, so the answer
+  // here is the empty list *because the run fits*, not because the command silently did nothing:
+  // `p7` really did move to 2900, which is the fact the broken command could not produce.
+  //
+  // The marking keeps its demo on `OVERFLOWING_KITCHEN_L_DESIGN`, a document that really overruns.
+  it("slides the run to its wall's end without pushing anything past it", () => {
     const deep = changeTo(KITCHEN_L_DESIGN, DEEP_MM);
 
-    expect(findOverflowingPlacementIds(deep)).toEqual(["p24", "p7"]);
     expect(spanById(deep, "p7")[1]).toBe(2900);
+    expect(deep.room.depthMm).toBe(2920);
+    expect(findOverflowingPlacementIds(deep)).toEqual([]);
   });
 });

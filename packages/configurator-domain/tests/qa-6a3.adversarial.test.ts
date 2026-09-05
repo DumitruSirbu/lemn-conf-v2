@@ -27,10 +27,15 @@ import {
 const CATALOG = KITCHEN_L_BODY_CATALOG;
 const NOW = "2026-08-25T00:00:00.000Z";
 
-/** The two runs the correction of 2026-09-03 gave the seeded kitchen, restated rather than read off
- *  `KITCHEN_L_DESIGN.room` so an accidental edit to the fixture cannot move this file's boundary. */
+/** The two runs the seeded kitchen declares, restated rather than read off `KITCHEN_L_DESIGN.room`
+ *  so an accidental edit to the fixture cannot move this file's boundary — a boundary test that
+ *  reads the value it is bounding passes whatever that value becomes.
+ *
+ *  Wall B is 2920 since ADR 0083 decision 1: the reference measures 2830, the run reaches 2900 at
+ *  the 700 mm cabinet depth, and the owner chose 20 mm of clearance past it over a demo that wears
+ *  the overflow marking at the deeper setting. */
 const WALL_A_RUN_MM = 3560;
-const WALL_B_RUN_MM = 2830;
+const WALL_B_RUN_MM = 2920;
 
 /** The room as every document up to schema version 2 carries it — the measurement the correction
  *  replaced. Wall B at 2400 is 430 mm short of the real wall. */
@@ -141,7 +146,7 @@ describe("the room correction on a pre-correction row a customer has edited past
   );
 
   /** **The correction has to fire on exactly this document.** Its whole reason for existing is that
-   *  the stored 2400 mm is not wall B — the wall is 2830 — and every seeded body between them
+   *  the stored 2400 mm is not wall B — the wall is 2920 — and every seeded body between them
    *  (`p7` and `p24`, both ending at 2800) is a body the milestone names as "an overrun at 600 that
    *  does not exist". One customer edit must not be able to veto the measurement correction for the
    *  twenty-five bodies that did not move. */
@@ -224,9 +229,10 @@ describe("the one-sided rule at the seeded kitchen's own runs", () => {
 
 describe("the extent is the furthest reach and not a sum of widths", () => {
   /** Wall B's real base row: the corner return, two tall units and the fridge. Their widths add to
-   *  far less than the wall, while the run reaches 2800 — so a sum answers "fits" for a design
-   *  whose furthest body is 1030 mm beyond where a sum would put it. Pushed one millimetre past the
-   *  wall, only the max-based rule notices. */
+   *  2220 mm while the run reaches 2800 — the run does not start at the wall's origin, since its
+   *  first 580 mm is wall A's corner body turning the corner, and there is a gap beside the fridge.
+   *  So a sum answers "fits" for a design whose furthest body is 580 mm beyond where a sum would
+   *  put it. Pushed one millimetre past the wall, only the max-based rule notices. */
   const WALL_B_BASE_ROW = KITCHEN_L_DESIGN.placements.filter(
     (placement) => placement.wall === "B" && placement.y0Mm === 0,
   );
@@ -241,13 +247,16 @@ describe("the extent is the furthest reach and not a sum of widths", () => {
         (placement) => placement.alongMm + placement.body.widthMm / 2,
       ),
     );
+    // Derived from the wall rather than written as a literal, so the push stays exactly one
+    // millimetre past the end whatever clearance the demo room is given.
+    const pushMm = WALL_B_RUN_MM - furthestReachMm + 1;
     const pushedPastTheWall = WALL_B_BASE_ROW.map((placement) =>
       placement.alongMm + placement.body.widthMm / 2 === furthestReachMm
-        ? { ...placement, alongMm: placement.alongMm + 31 }
+        ? { ...placement, alongMm: placement.alongMm + pushMm }
         : placement,
     );
 
-    // The sum still says "fits" after the push — it is 579 mm short of the wall — while the
+    // The sum still says "fits" after the push — it is 700 mm short of the wall — while the
     // furthest reach is one millimetre past it. Only the max-based rule can answer.
     expect(summedWidthsMm).toBeLessThan(WALL_B_RUN_MM);
     expect(furthestReachMm).toBeGreaterThan(summedWidthsMm);

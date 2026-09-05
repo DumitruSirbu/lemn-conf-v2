@@ -195,11 +195,18 @@ describe("the shipped kitchen against the corrected bound", () => {
     },
   );
 
-  /** The overrun ADR 0065 decision 1 accepts at a 700 mm cabinet depth — wall B's run reaching
-   *  2900 — must still be refused by this bound. Nothing may be widened to let 700 through; the
-   *  answer is to mark the body, which is wave 6A3's work and not this rule's. */
-  it("still refuses the 2900 mm wall B run a 700 mm depth would produce", () => {
-    expect(codesFor(bodyEndingAt("B", 2900))).toStrictEqual([
+  /** **ADR 0083 decision 1 reverses the outcome this case used to assert, without touching the
+   *  rule it is about.** ADR 0065 accepted that wall B's run reaches 2900 at the 700 mm cabinet
+   *  depth and overruns a 2830 mm wall; the owner's answer was to give the demo a 2920 mm wall
+   *  rather than to widen anything, so the run now clears it and the marking keeps its demo on a
+   *  document that really does overrun.
+   *
+   *  **The bound is unchanged, and that is still what is under test.** One millimetre past the
+   *  wall is refused, on the wall's own length rather than on a number written here. */
+  it("accepts the 2900 mm wall B run a 700 mm depth produces, and refuses one past the wall", () => {
+    expect(codesFor(bodyEndingAt("B", 2900))).toStrictEqual([]);
+    expect(codesFor(bodyEndingAt("B", WALL_B_RUN_MM))).toStrictEqual([]);
+    expect(codesFor(bodyEndingAt("B", WALL_B_RUN_MM + 1))).toStrictEqual([
       "PLACEMENT_PAST_WALL_END",
     ]);
   });

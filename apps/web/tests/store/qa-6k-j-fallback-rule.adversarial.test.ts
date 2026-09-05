@@ -26,6 +26,7 @@ import { describe, expect, it } from "vitest";
 import { createConfiguratorStore } from "@/store/configurator-store";
 
 import { createFakeProbeFactory } from "../support/fake-body-probe";
+import { columnKeyAt } from "../support/wall-b-column-keys";
 
 const OCCURRED_AT = "2026-09-05T12:00:00.000Z";
 const DEEPER_MM = 700;
@@ -293,7 +294,12 @@ describe("hasFullHeightUnder feeds both ceilings, and the asymmetry runs both wa
     // live answer is what makes it a surplus and keeps it.
     expect(ceilingMm(DEFAULT_CABINET_DEPTH_MM, true)).toBeCloseTo(600, 6);
     expect(ceilingMm(DEFAULT_CABINET_DEPTH_MM, false)).toBeLessThan(600);
-    expect(depthMmOf(store, "B|1.80")).toBeCloseTo(600, 6);
+    // ADR 0090 decision 2: the depth does not move and the wall-B coordinate does — a deeper corner
+    // on wall A takes more of wall B. Only the anchor is setting-dependent.
+    expect(depthMmOf(store, columnKeyAt("B|1.80", DEEPER_MM))).toBeCloseTo(
+      600,
+      6,
+    );
   });
 
   // **The direction the wave says cannot happen.**

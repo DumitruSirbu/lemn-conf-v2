@@ -1,5 +1,11 @@
+// `OVERFLOWING_KITCHEN_L_DESIGN` is the **one declared** overflow fixture (ADR 0083 decision 10):
+// the seeded kitchen with one body a millimetre past the end of wall B, positioned relative to the
+// room so a wall moving cannot silently stop it overflowing. It was hand-built in six test files
+// and agreed everywhere only because the six were written together. Aliased to the local name the
+// cases below already use.
 import {
   KITCHEN_L_DESIGN,
+  OVERFLOWING_KITCHEN_L_DESIGN as OVERFLOWING_DESIGN,
   DesignNotFoundError,
   findOverflowingPlacementIds,
   migrateDesign,
@@ -135,22 +141,6 @@ function saveRequest(
 function loadRequest(id: string): NextRequest {
   return new NextRequest(`https://example.test/api/designs/${id}`);
 }
-
-/** The seeded kitchen with one body dragged one millimetre past the end of wall B, and nothing else
- *  changed. Its only diagnostic is `PLACEMENT_PAST_WALL_END`. */
-const OVERFLOWING_DESIGN: Design = {
-  ...KITCHEN_L_DESIGN,
-  placements: [
-    ...KITCHEN_L_DESIGN.placements,
-    {
-      id: "dragged-past-wall-b",
-      wall: "B",
-      alongMm: KITCHEN_L_DESIGN.room.depthMm - 400 + 1,
-      y0Mm: 0,
-      body: { buildId: "base-sink-800", widthMm: 800, heightMm: 820 },
-    },
-  ],
-};
 
 describe("the seams that read validation, on an overflowing design", () => {
   it("is exactly one overflowing body and no other complaint", () => {

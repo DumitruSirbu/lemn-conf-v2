@@ -397,6 +397,13 @@ describe("what actually changed, measured over a wider scenario set than the wav
 
     // Written out whole rather than counted, because the count is what an earlier draft of the
     // sibling suite asserted and it hid a slice (M6, wave 6K-c's 2026-09-05 correction).
+    //
+    // **Two wall-B keys in this snapshot moved at the deeper setting, and no value did** (wave 6J-d,
+    // ADR 0090 decision 2): a wall-A body's depth is measured along wall B, so a deeper corner slides
+    // wall B's whole run — `B|1.80` → `B|1.90` and `B|1.20` → `B|1.30`, both `base-formula`, both
+    // +100 mm. The `@600` and `@reload` rows are unchanged, which is the wave's value-preservation at
+    // 600 showing up here as a fixture. The **set** is what this test asserts and it is the same set:
+    // same scenarios, same depths, same sourced-versus-legacy pairs.
     expect([...differences].sort()).toMatchInlineSnapshot(`
       [
         "delete p0 @700 A|1.30: sourced 720 legacy 620",
@@ -405,10 +412,10 @@ describe("what actually changed, measured over a wider scenario set than the wav
         "delete p2 @700 A|2.60: sourced 720 legacy 700",
         "delete p2 @reload A|2.60: sourced 620 legacy 600",
         "delete p23 @600 B|1.80: sourced 599 legacy 600",
-        "delete p23 @700 B|1.80: sourced 699 legacy 700",
+        "delete p23 @700 B|1.90: sourced 699 legacy 700",
         "delete p23 @reload B|1.80: sourced 599 legacy 600",
         "delete p4 @700 A|3.20: sourced 720 legacy 620",
-        "delete p5 @700 B|1.20: sourced 738 legacy 638",
+        "delete p5 @700 B|1.30: sourced 738 legacy 638",
       ]
     `);
   });

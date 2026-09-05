@@ -10,12 +10,18 @@
 //   on a **round** 3560 mm wall. ADR 0067 is explicit that a real wall is not round — 2444 mm is
 //   typical — and that a large remainder is the product working. Both shapes are swept here, and the
 //   size of the remainder is asserted so the case cannot quietly stop being one.
+// `OVERFLOWING_KITCHEN_L_DESIGN` is the **one declared** overflow fixture (ADR 0083 decision 10):
+// the seeded kitchen with one body a millimetre past the end of wall B, positioned relative to the
+// room so a wall moving cannot silently stop it overflowing. It was hand-built in six test files
+// and agreed everywhere only because the six were written together. Aliased to the local name the
+// cases below already use.
 import {
   DesignSchema,
   fatalDesignValidationIssues,
   findOverflowingPlacementIds,
   KITCHEN_L_BODY_CATALOG,
   KITCHEN_L_DESIGN,
+  OVERFLOWING_KITCHEN_L_DESIGN as OVERFLOWING_DESIGN,
   validateDesignForCatalog,
   type Design,
   type DesignPlacement,
@@ -39,22 +45,6 @@ vi.mock("@/store/configurator-store", () => ({
 }));
 
 const { OverflowWarning } = await import("@/scene/overflow-warning");
-
-/** The seeded kitchen with one body a millimetre past the end of wall B — the reachable shape, and
- *  the one the wave's own fixtures use. */
-const OVERFLOWING_DESIGN: Design = {
-  ...KITCHEN_L_DESIGN,
-  placements: [
-    ...KITCHEN_L_DESIGN.placements,
-    {
-      id: "dragged-past-wall-b",
-      wall: "B",
-      alongMm: KITCHEN_L_DESIGN.room.depthMm - 400 + 1,
-      y0Mm: 0,
-      body: { buildId: "base-sink-800", widthMm: 800, heightMm: 820 },
-    },
-  ],
-};
 
 /** ADR 0067's real wall: not round, and the manufacturer closes what is left at final measurement.
  *  A run ending `remainderMm` short of it is the normal case and must produce no sentence. */

@@ -30,6 +30,7 @@ import { describe, expect, it } from "vitest";
 import { createConfiguratorStore } from "@/store/configurator-store";
 
 import { createFakeProbeFactory } from "../support/fake-body-probe";
+import { columnKeyAt } from "../support/wall-b-column-keys";
 
 const OCCURRED_AT = "2026-09-04T12:00:00.000Z";
 const DEEPER_MM = 700;
@@ -318,18 +319,27 @@ function columnsTheSwapDoesNotReDeclare(
 // across-wall one on wall B, so a store that named the axis itself would pass every test in the wave
 // and draw the whole of wall B in the wrong place.
 describe("the wall the wave's own measurements do not read", () => {
-  it("moves a wall B column across the wall and leaves it along the wall", () => {
+  // **The along-wall half of this test was rewritten by wave 6J-d, and its axis half was not**
+  // (ADR 0089 and ADR 0090 decision 2). It used to assert that a depth change moved a wall-B column
+  // on the normal only. That was true of wave 6K-a and is false now: both walls walk from the room's
+  // corner, so a wall-A body's *depth* is measured along wall B, and a deeper corner takes 100 mm of
+  // wall B out of this column's coordinate. The axis question this test was written for — that the
+  // store does not name the axis itself — is unchanged and is what the two `x` assertions carry.
+  it("moves a wall B column across the wall and along it", () => {
     const store = createStore();
     const before = columnOf(store, OCCUPIED_WALL_B_KEY);
 
     store.getState().setCabinetDepth(DEEPER_MM);
 
-    const after = columnOf(store, OCCUPIED_WALL_B_KEY);
+    const after = columnOf(store, columnKeyAt(OCCUPIED_WALL_B_KEY, DEEPER_MM));
     expect(after.d).toBeGreaterThan(before.d);
     // Across the wall: wall B's normal is +X, and a column's origin is its own half depth along it.
     expect(after.x).toBeCloseTo(after.d / 2, 6);
-    // Along the wall: wall B's tangent is +Z, and a depth change moves nothing on that axis.
-    expect(after.z).toBeCloseTo(before.z, 6);
+    // Along the wall: wall B's tangent is +Z, and this column's members declare `base-formula`, so
+    // it slides by what the corner's base carcass gained — 560 → 660 mm. Stated as the measured
+    // number rather than read back through the production chain, which would assert it against
+    // itself.
+    expect(after.z).toBeCloseTo(before.z + 0.1, 6);
   });
 });
 

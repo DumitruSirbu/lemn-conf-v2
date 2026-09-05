@@ -1,6 +1,6 @@
 # ADR 0090 — A frozen space slides with the run it belongs to, and follows the body it recorded
 
-Status: Accepted
+Status: Accepted — **decision 4a overturned by this record's own amendment of 2026-09-06** (see *Amendment*, at the end). Decisions 1, 2, 3, 4b and 5–8 stand.
 Date: 2026-09-06
 Type: Decision (adjudication of the seam wave 6J-c exposed) + Finding
 Milestone: M6 — opens wave 6J-d; **amends [ADR 0088](0088-a-depth-change-plans-against-the-frozen-extent-and-re-derives-only-the-depth.md)
@@ -203,11 +203,15 @@ than fixed here.
 
 Two halves, and the second is what makes the first safe.
 
-**4a. A sourceless extent keeps its coordinate.** `depthFromBuildId` is absent only on documents
-written before wave 6K-c — ADR 0080 decision 5 measured that population closed — and there is nothing
-in such a document to read a chain from. Guessing one is decision 3's refused inference; declaring a
-default is worse, because a wrong default of 30 or 100 mm is not an inaccuracy but an overlap and
-therefore an unsaveable document.
+**4a. ~~A sourceless extent keeps its coordinate.~~ OVERTURNED 2026-09-06 by this record's own
+amendment — see *Amendment* at the end. A sourceless extent moves, on the ladder stated there.** The
+struck reasoning is kept in place rather than deleted, because it is the argument the amendment
+refutes and the refutation is the more useful half:
+
+> ~~`depthFromBuildId` is absent only on documents written before wave 6K-c — ADR 0080 decision 5
+> measured that population closed — and there is nothing in such a document to read a chain from.
+> Guessing one is decision 3's refused inference; declaring a default is worse, because a wrong
+> default of 30 or 100 mm is not an inaccuracy but an overlap and therefore an unsaveable document.~~
 
 **4b. The published map is held to a new invariant: a member-less column may not occupy ground a
 placement occupies.** A fourth stage joins the clip → split → merge funnel, ahead of the split, on the
@@ -345,6 +349,174 @@ moves an anchor and re-keys a map, and decision 3 of ADR 0088 stays true.
   column key across a command — the scene, the selection, a probe — meets decision 1. ADR 0074 already
   rebuilds the scene whole at a depth change, so no adapter change is owed here; this is recorded so
   that the next such reader is checked rather than assumed.
+
+## Amendment — 2026-09-06: decision 4a is overturned, and standing still is not abstention
+
+**Raised by wave 6J-d's implementer**, who closed the measured defect exactly as decisions 1–3 rule
+(orphan columns 4 → 0, `emptyColumns` 5 → 1 at `B|1300`, `columnExtents` 7 → 11, `voids` 12 → 3, five
+refusals → none, `B|1.30` reproduced) and then found that **two of the six invariants decision 7 rules
+must go green unchanged cannot go green under decision 4a**, and correctly refused to touch them
+without a ruling. They were right to escalate, and the ruling is that **the invariants stand and 4a
+goes.**
+
+### The contradiction was inside this record from the start
+
+Decision 4b's own acceptance criterion, as written in wave 6J-d's plan, is that
+`clipEmptyColumnsToFreeGround` **drops nothing across the existing store suites**. Decision 4a makes it
+drop a space in nearly every legacy scenario those suites build. **The two halves of decision 4
+contradict each other**, and the wave found it. That is the tell that 4a was the error rather than the
+tests.
+
+### First measurement — where a member-less space lands
+
+Run at `2bdd923` with wave 6J-d's working tree, over the legacy (source-stripped) scenarios
+`qa-6k-j-fallback-rule.adversarial.test.ts` already builds, plus three multi-space ones. Each wall-B
+member-less space is placed by 4a (no shift) and by a `base-formula` default (+100 mm), and swept
+against every wall-B placement at 700 on both axes — the same two-axis test `findWallOverlaps` applies.
+
+| legacy scenario | space at 600 | **4a — no shift** | **`base-formula` default — +100** |
+| --- | --- | --- | --- |
+| cleared appliance niche | `B\|2450` w700 | `[2100..2800]` — **overlaps `p6` `p23`** | `[2200..2900]` — **clear, abutting `p6` exactly** |
+| cleared pantry | `B\|1800` w600 | `[1500..2100]` — **overlaps `p5` `p22`** | `[1600..2200]` — **clear, abutting `p5` and `p7`** |
+| cleared oven tower | `B\|1200` w600 | `[900..1500]` — **overlaps `p26` `p9` `p21`** | `[1000..1600]` — **clear** |
+| oven tower **and** pantry | two spaces | one overlaps three bodies | **both clear**, `[1000..1600]` `[1600..2200]` |
+| oven tower **and** fridge | two spaces | **both overlap** | **both clear**, `[1000..1600]` `[2200..2900]` |
+| cleared wall column, cleared base slot | — | no wall-B **space** — but see the second table | — |
+
+**4a overlaps in five of the six wall-B cases and the default overlaps in none.** Where the default
+lands it lands *exactly* — abutting the neighbour the space sat against, to the millimetre.
+
+### Second measurement — the whole map, through the product's own validator
+
+The first table places a member-less space by hand. This one moves the whole legacy map by each
+candidate rule, puts the real 700 mm placements beside it, and runs
+`validateDesignForCatalog(…, buildKitchenLBodyCatalog(700))` — because the first table cannot see an
+**occupied** extent parting from its members, and that is the failure that corrects the amendment
+itself. Refusal-class issues counted separately from the `…_PAST_WALL_END` marks.
+
+| legacy scenario | **4a — nothing moves** | **rigid `FOLLOWS_CABINET_DEPTH` on every entry** | **the ladder** |
+| --- | --- | --- | --- |
+| cleared wall column (wall A) | **10** | 2 | **0** |
+| cleared base slot (wall A) | **10** | 2 | **0** |
+| cleared appliance niche | **9** | 2 | **0** |
+| cleared pantry | **9** | 2 | **0** |
+| cleared oven tower | **9** | 2 | **0** |
+| oven tower and pantry | **7** | 2 | **0** |
+| oven tower and fridge | **8** | 2 | **0** |
+| untouched | 0 | 0 | 0 |
+
+Three things this table says that the first one could not.
+
+- **4a wrecks a legacy document even when the delete was on wall A.** `asLegacyDocument` strips the
+  source from `columnExtents` as well as `emptyColumns`, so under 4a **no wall-B entry moves at all**
+  while every wall-B placement does: the occupied half goes stale exactly as it did before this wave,
+  and the two wall-A scenarios report ten refusals apiece —
+  `COLUMN_EXTENT_OVERLAPS_PLACEMENT` × 5 and `COLUMN_EXTENT_HAS_NO_MEMBER` × 5. This corrects a claim
+  made while ruling: those two scenarios were called *"unaffected either way"*, which is true of the
+  first table and false of the document.
+- **The rigid default fails, and always in the same one place.** Exactly two refusals in every
+  scenario that carries a wall-B map, always `COLUMN_EXTENT_OVERLAPS_PLACEMENT` and
+  `COLUMN_EXTENT_HAS_NO_MEMBER` on `B|615` — the `wall-corner-return-570`/`-top` column, the one
+  column on wall B whose members follow `wall-map`. A default of +100 moves its extent while its
+  members move +70, and 30 mm parts an extent from the column it records.
+- **The ladder is clean everywhere.** Every issue that remains is a `mark` —
+  `PLACEMENT_PAST_WALL_END`, `COLUMN_EXTENT_PAST_WALL_END`, `EMPTY_COLUMN_PAST_WALL_END` — and all of
+  them are wall B being **2830** rather than ADR 0083's 2920, because wave 6N-0 has not started.
+  ADR 0065's family, expected, and not this wave's. The untouched row is 0 under every rule for a
+  duller reason: no command has run, so that document carries no frozen map to be stale.
+
+This is the same experiment wave 6J-d's implementer ran with `clipEmptyColumnsToFreeGround` disabled
+at both call sites, reported as 9 and 10 refusals on two legacy scenarios. The construction differs —
+theirs disables the guard in the real pipeline, this one moves the arrays and validates — so the
+counts are not expected to match to the unit, and they do not. **What both say is the same thing: the
+pre-clip document is unsaveable under 4a and saveable under the ladder.** The guard was deleting the
+evidence of a wrong rule, not doing work.
+
+### Why the reasoning failed
+
+**Not moving is not abstention. On a run that has moved, standing still is a positive claim — that
+this column follows a third chain, one no catalogue entry declares and whose shift is zero.** It is
+not the absence of a guess; it is the worst guess available, wrong by the full 100 mm on every
+reachable entry, where the alternative it was chosen over is wrong by at most 30 mm and in one place
+the ladder now covers exactly. The struck sentence *"a wrong default of 30 or 100 mm is not an
+inaccuracy but an overlap"* is true and was aimed at the wrong option: **4a is the 100 mm error.**
+
+This is ADR 0080 decision 3's own finding on the other axis — *"a depth kept in mind because of where
+the kitchen used to be"* — and that record's answer was not to refuse to answer. It **declared a
+fallback** (`columnBuildDepthM` at the current setting) and accepted a bounded error, on the ground
+that *"a depth the fallback itself produced follows the setting like everything else."* The position
+axis owes the same treatment and this record failed to give it.
+
+### The replacement rule — an information ladder, four rungs
+
+**Corrected once more, 2026-09-06, before any of it was implemented.** The amendment first said only
+*"a sourceless extent slides on the chain `FOLLOWS_CABINET_DEPTH` declares"*, and the second
+measurement above shows that sentence is right for a **member-less** extent and wrong for an
+**occupied** one. So the rule is stated as a ladder ordered by how much the document actually knows —
+the shape ADR 0080 decision 4 already uses on the depth axis:
+
+> 1. **Wall A** — the coordinate is unchanged. Wall A is anchored at the corner and does not move.
+> 2. **The column holds a member** — the extent moves by **the delta its own members moved**. Exact,
+>    and it reads no chain and no source at all: the command has just computed where every member
+>    stands, and an extent *is* the column those members are in.
+> 3. **Member-less, with a recorded source** — the chain that source declares (decision 2, unchanged).
+> 4. **Member-less and sourceless** — the chain **`FOLLOWS_CABINET_DEPTH`** declares, today
+>    `base-formula`. Read from that constant, never written as the literal, so the fallback and the
+>    catalogue's own default cannot part.
+
+Rung 2 is not so much a new rule as decision 2's own claim made load-bearing: that decision already
+says an occupied extent lands exactly where its members land, and asks the wave to assert it. Here
+that agreement becomes the **derivation** rather than a coincidence to be checked — which is what
+makes rung 4 safe to be a bare declaration, because by the time it is reached there is nothing left to
+be exact about.
+
+**Rung 4 is not a preference between two chains. On the shipped catalogue the other chain is
+unreachable for a member-less column, and that is measured rather than argued.** The only two entries
+that declare `wall-map` are `wall-corner-return-570` and `wall-corner-return-570-top`; both carry
+`STRUCTURAL_CORNER` (`canDelete: false`, `canReplace: false`, `kitchen-l-design.ts:171`) and neither
+appears in `catalog.ts`'s insertable rows. Deleting either returns **`NOT_DELETABLE`**, measured on
+both. So **the `wall-map` column can never become member-less**, and every member-less wall-B column
+the product can reach is a `base-formula` column. The default is the only *reachable* answer, not the
+likelier of two.
+
+`FOLLOWS_CABINET_DEPTH` is also the value the catalogue already gives an entry that says nothing
+special — as do `IS_A_MANUFACTURED_SIZE` and both shipped `pinnedAtFinishedDepthMm` calls — so this
+reads an existing declaration rather than minting a constant, which is what decision 3's *"declared,
+never inferred"* asks for.
+
+### What this restores
+
+- **Both invariants go green unchanged, and are not touched.** Every rung is a pure function of the
+  setting — rung 2's delta is itself a difference of two corner reaches — so 600 → 700 → 600 returns
+  the coordinate exactly and a legacy map is again a function of the setting alone;
+  `qa-6k-j-fallback-rule`'s two-cycle property holds. Nothing is dropped, so `qa-6k-j-closure`'s
+  sourced-versus-legacy difference set is not widened.
+- **Decision 7 is unamended, and is why this went the way it did.** *"An invariant edited to
+  accommodate a defect is the defect laundered"* was written against an implementer weakening a test;
+  it binds the architect who wrote the rule the invariant caught at least as hard. The escalation was
+  correct and the record was wrong.
+- **Decision 4b stands, and becomes the guard it was described as.** It drops nothing on any scenario
+  in the suites — the criterion wave 6J-d's plan already states — and keeps the structural claim that
+  no published map places free space on occupied ground. Its non-vacuity case can no longer be a
+  legacy document, since none of them overlaps any more; the wave supplies a hand-built map instead.
+- **The wave's *"drops nothing"* criterion is upheld, not withdrawn.** It is falsified only against
+  the struck 4a and satisfied under the ladder, which is a criterion doing its job rather than one
+  that has gone stale. It is deliberately **not** the case ADR 0085 decision 6 withdrew: that
+  criterion was *unverifiable* — two normalisations that commute on every input — where this one
+  verified something and returned a true answer.
+- **The customer-facing guarantee is not qualified, and nothing is owed to the owner.** Under 4a a
+  legacy document silently lost a space on a 600 → 700 → 600 round trip, and *"ADR 0055 permits the
+  loss"* would have been a true sentence covering a defect. Permitting a loss and a customer silently
+  losing a space they can see are different claims; under the ladder there is no loss to surface,
+  because every space returns on every reachable document, legacy or current-schema.
+
+### Consequences for the wave
+
+Wave 6J-d's plan is updated in place: work item 1 becomes the ladder, the sourceless arm is asserted
+by value, `NOT_DELETABLE` is pinned so a future catalogue change re-opens rung 4 deliberately, the
+clip-disabled counterfactual becomes a standing assertion rather than a one-off measurement, and 4b's
+non-vacuity case becomes a hand-built map. **No other criterion moves** — in particular the six
+invariants and the value-preservation at 600 are unchanged.
 
 ## Finding, recorded and NOT ruled: the validator is blind to a cross-wall corner intersection
 

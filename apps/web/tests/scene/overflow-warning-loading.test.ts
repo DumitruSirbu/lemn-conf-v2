@@ -11,7 +11,16 @@
 // slices this file has no reason to model; what is under test is which of the viewport's own children
 // render while the scene is absent, and those — the loading placeholder, the camera chips, the hint
 // and the band — are all real.
-import { KITCHEN_L_DESIGN, type Design } from "@lemnaria/configurator-domain";
+// `OVERFLOWING_KITCHEN_L_DESIGN` is the **one declared** overflow fixture (ADR 0083 decision 10):
+// the seeded kitchen with one body a millimetre past the end of wall B, positioned relative to the
+// room so a wall moving cannot silently stop it overflowing. It was hand-built in six test files
+// and agreed everywhere only because the six were written together. Aliased to the local name the
+// cases below already use.
+import {
+  KITCHEN_L_DESIGN,
+  OVERFLOWING_KITCHEN_L_DESIGN as OVERFLOWING_DESIGN,
+  type Design,
+} from "@lemnaria/configurator-domain";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -47,22 +56,6 @@ vi.mock("@/panel/use-panel-view", () => ({
 const { ConfigureScreen } = await import(
   "@/app/configurator/configure/configure-screen"
 );
-
-/** The seeded kitchen with one body standing one millimetre past the end of wall B — the document
- *  wave 6A3's route tests proved loads and resumes with its overflow intact. */
-const OVERFLOWING_DESIGN: Design = {
-  ...KITCHEN_L_DESIGN,
-  placements: [
-    ...KITCHEN_L_DESIGN.placements,
-    {
-      id: "dragged-past-wall-b",
-      wall: "B",
-      alongMm: KITCHEN_L_DESIGN.room.depthMm - 400 + 1,
-      y0Mm: 0,
-      body: { buildId: "base-sink-800", widthMm: 800, heightMm: 820 },
-    },
-  ],
-};
 
 function renderScreen(): string {
   return renderToStaticMarkup(createElement(ConfigureScreen));

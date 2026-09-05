@@ -34,6 +34,7 @@ import { describe, expect, it } from "vitest";
 import { createConfiguratorStore } from "@/store/configurator-store";
 
 import { createFakeProbeFactory } from "../support/fake-body-probe";
+import { columnKeyAt } from "../support/wall-b-column-keys";
 
 const OCCURRED_AT = "2026-09-05T12:00:00.000Z";
 const DEEPER_MM = 700;
@@ -67,6 +68,28 @@ function createStore(design: Design = KITCHEN_L_DESIGN) {
 }
 
 type Store = ReturnType<typeof createStore>;
+
+/** **The one space this scenario cleared, wherever the setting has left it.** Two things move a
+ *  member-less column between settings and neither is this file's subject: ADR 0090's chain slides
+ *  every wall-B column with its run, and ADR 0069's wall-end clip then narrows one that reaches past
+ *  wall B's 2830 mm end. Each scenario here clears exactly one whole column, so "the member-less
+ *  column on this wall" identifies the same space at every setting without naming a coordinate — and
+ *  the uniqueness is asserted rather than assumed, so a fixture that grew a second space fails here
+ *  instead of silently measuring the wrong one. */
+function theOneClearedColumnOn(store: Store, wall: "A" | "B"): Column {
+  const { columns, records } = store.getState();
+  const cleared = [...columns].filter(
+    ([key, column]) =>
+      column.wall === wall && !records.some((record) => record.col === key),
+  );
+  const [only] = cleared;
+  if (cleared.length !== 1 || !only) {
+    throw new Error(
+      `expected one member-less column on wall ${wall}, found ${String(cleared.length)}`,
+    );
+  }
+  return only[1];
+}
 
 function columnOf(store: Store, key: string): Column {
   const column = store.getState().columns.get(key);
@@ -186,11 +209,16 @@ describe("a depth the fallback could never have produced is kept", () => {
     ["a cleared appliance niche", FRIDGE_KEY, FRIDGE_MEMBERS],
   ])("holds %s at both declared settings", (_name, key, members) => {
     const store = asLegacyDocument(removeAll(createStore(), members));
+    const wall = key.startsWith("B") ? "B" : "A";
     const { hasFullHeightUnder } = columnOf(store, key);
     const frozenM = depthMOf(store, key);
 
     setDepth(store, DEEPER_MM);
-    const deepenedM = depthMOf(store, key);
+    // **The space is found on its wall, not at the coordinate it had.** Since ADR 0090 a wall-B
+    // column slides with its run at a depth change, and near the wall's own end ADR 0069's clip then
+    // narrows what is left — so `B|2.45` names no column at 700. The claim is unchanged: the depth
+    // this space was frozen at is the depth it has at every declared setting.
+    const deepenedM = theOneClearedColumnOn(store, wall).d;
     setDepth(store, DEFAULT_CABINET_DEPTH_MM);
 
     // The reason it is a surplus, asserted rather than asserted-about: no setting makes the ceiling
@@ -202,7 +230,7 @@ describe("a depth the fallback could never have produced is kept", () => {
       ).toBeGreaterThan(ceilingM(cabinetDepthMm, hasFullHeightUnder));
     }
     expect(deepenedM).toBeCloseTo(frozenM, 9);
-    expect(depthMOf(store, key)).toBeCloseTo(frozenM, 9);
+    expect(theOneClearedColumnOn(store, wall).d).toBeCloseTo(frozenM, 9);
   });
 
   // The surplus keeps its column's own source, including one the catalogue cannot resolve — ADR 0079
@@ -326,7 +354,12 @@ describe("hasFullHeightUnder feeds both ceilings, and keeping more is a theorem"
     expect(hasFullHeightUnder).toBe(false);
     expect(ceilingM(DEFAULT_CABINET_DEPTH_MM, true)).toBeCloseTo(frozenM, 9);
     expect(ceilingM(DEFAULT_CABINET_DEPTH_MM, false)).toBeLessThan(frozenM);
-    expect(depthMOf(store, PANTRY_KEY)).toBeCloseTo(frozenM, 9);
+    // ADR 0090 decision 2: the depth does not move and the wall-B coordinate does. Only the anchor
+    // is setting-dependent; the claim is the one this test always made.
+    expect(depthMOf(store, columnKeyAt(PANTRY_KEY, DEEPER_MM))).toBeCloseTo(
+      frozenM,
+      9,
+    );
   });
 });
 

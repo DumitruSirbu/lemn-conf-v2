@@ -21,9 +21,14 @@ const PRE_CORRECTION_ROOM = {
   heightMm: 2600,
 } as const;
 
-/** The room the correction of 2026-09-03 writes over it. Restated rather than imported for the same
- *  reason the pre-correction pair is: a migration is a statement about documents already written. */
-const CORRECTED_ROOM_MM = { widthMm: 3560, depthMm: 2830 } as const;
+/** The room the correction writes over it, **restated here on purpose**.
+ *
+ *  Production reads it off `KITCHEN_L_DESIGN.room` since ADR 0083 decision 9, so the arm repairs a
+ *  copy of the demo into the room the demo actually has. Restating the pair here is what keeps that
+ *  from being unfalsifiable: an assertion that reads the same fixture the production constant reads
+ *  passes whatever either becomes. A fixture edit inside the owner's 20–50 mm clearance band lands
+ *  here as a red test that has to be re-stated deliberately, which is the point. */
+const CORRECTED_ROOM_MM = { widthMm: 3560, depthMm: 2920 } as const;
 
 /** Through `JSON` first, because that is what a stored row is: a `Design` handed straight to
  *  `migrateDesign` would let a test pass that a real document could not. */
@@ -47,7 +52,7 @@ function wasLegalWhenWritten(design: Design): boolean {
 }
 
 /** One body on wall B ending at 2800 — the seeded `p7`'s extent, in a document small enough that
- *  nothing else can speak. Refused under a 2400 mm depth, accepted under 2830. */
+ *  nothing else can speak. Refused under a 2400 mm depth, accepted under the corrected one. */
 const NEEDS_THE_CORRECTION: Design = {
   room: { ...PRE_CORRECTION_ROOM },
   presetId: null,
@@ -92,8 +97,7 @@ describe("the room correction composes with the version 1 normalisation", () => 
 
     expect(loaded.room).toStrictEqual({
       ...PRE_CORRECTION_ROOM,
-      widthMm: 3560,
-      depthMm: 2830,
+      ...CORRECTED_ROOM_MM,
     });
     expect(loaded.emptyColumns).toHaveLength(2);
   });
@@ -102,7 +106,7 @@ describe("the room correction composes with the version 1 normalisation", () => 
    *  and not anything else about the document. */
   it("corrects the room when the entry is absent", () => {
     expect(migrateDesign(1, stored(NEEDS_THE_CORRECTION)).room.depthMm).toBe(
-      2830,
+      CORRECTED_ROOM_MM.depthMm,
     );
   });
 });
@@ -110,7 +114,7 @@ describe("the room correction composes with the version 1 normalisation", () => 
 // **TWO REGRESSIONS BELOW WERE INHERITED BY WAVE 6A3 AND FLIPPED FROM `it.fails` TO `it`.**
 //
 // **What fails.** A document written under the pre-correction bound may place a body in the band
-// the correction removed — wall A lost 3600 → 3560, wall B lost an inherited 3600 → 2830. It was
+// the correction removed — wall A lost 3600 → 3560, wall B lost an inherited 3600 → 2920. It was
 // legal when it was written, the corrected room does not hold it, and `PLACEMENT_PAST_WALL_END`
 // was **fatal on load**, so `migrateDesign` threw and the share link stopped opening.
 //
@@ -124,7 +128,7 @@ describe("the room correction composes with the version 1 normalisation", () => 
 // failure form, so the executable statement that a pre-correction share link must keep opening
 // survives the hand-off.
 describe("a pre-correction document edited past the corrected runs", () => {
-  /** The correction narrows wall A from 3600 to 3560 and wall B from an inherited 3600 to 2830, so
+  /** The correction narrows wall A from 3600 to 3560 and wall B from an inherited 3600 to 2920, so
    *  a document written under the old bound may sit in the band between. It was legal when written
    *  and the corrected room does not hold it, which is the branch that returns the document by
    *  identity. Complete validation retains its `PLACEMENT_PAST_WALL_END` diagnostic, and
@@ -160,8 +164,8 @@ describe("a pre-correction document edited past the corrected runs", () => {
     );
   });
 
-  /** Wall B's band is 770 mm wide, not 40: the old bound handed wall B the room's width, so a body
-   *  anywhere up to 3600 was legal on it and only 2830 survives the correction. */
+  /** Wall B's band is 680 mm wide, not 40: the old bound handed wall B the room's width, so a body
+   *  anywhere up to 3600 was legal on it and only 2920 survives the correction. */
   const EDITED_PAST_WALL_B: Design = {
     ...NEEDS_THE_CORRECTION,
     placements: NEEDS_THE_CORRECTION.placements.map((placement) => ({
@@ -183,7 +187,8 @@ describe("a pre-correction document edited past the corrected runs", () => {
   /** **The room is a constant and the mark survives the correction, so nothing was rescued.**
    *  ADR 0069 decision 5 overturned the behaviour this test used to pin — declining the correction
    *  whenever one body overflowed. What makes the rewrite safe was never that the result validates;
-   *  it is that `{3560, 2830}` is a constant reached only from the exact pre-correction pair, never
+   *  it is that `CORRECTED_ROOM_MM` is a constant reached only from the exact pre-correction pair,
+   *  fixed at module load from a frozen fixture and never
    *  a value derived from where the bodies stand. So the room is corrected, every placement comes
    *  back byte-identical `alongMm` included, and the body at 3000 is still past wall B. */
   it.each([1, 2])(

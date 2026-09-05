@@ -22,14 +22,9 @@ import {
   type PlacementRecord,
 } from "../src/void-engine.js";
 
-/** ADR 0065 §2's corrected pair: wall A is 3560 mm and wall B is 2830 mm — the same room the seeded
- *  kitchen carries, used here directly so the fixtures below read against the real bound. */
-const ROOM: DesignRoom = {
-  shape: "L",
-  widthMm: 3560,
-  depthMm: 2830,
-  heightMm: 2600,
-};
+/** The room the seeded kitchen carries, **read from it** rather than restated, so the fixtures
+ *  below go on reading against the real bound when the demo's walls move (ADR 0083 decision 1). */
+const ROOM: DesignRoom = { ...KITCHEN_L_DESIGN.room };
 
 /** A member-less column at the given along-wall centre and width, on wall A unless overridden —
  *  structurally the `ColumnExtent` `deriveColumns` would hand this pass. */
@@ -233,7 +228,7 @@ describe("clipping at the load seam, before the merge runs", () => {
 
 describe("the seeded kitchen", () => {
   // Recorded rather than assumed: wall A's placements end at 3500 on a 3560 mm wall and wall B's
-  // end exactly at 2800 on a 2830 mm wall (the fixture's own comment), so no delete of a seeded body
+  // end exactly at 2800 on a 2920 mm wall (the fixture's own comment), so no delete of a seeded body
   // — at either the 600 mm or the 700 mm depth — leaves a member-less column reaching past its
   // wall. This pass is therefore never exercised by the shipped kitchen alone; the store-level test
   // in `apps/web` constructs the one realistic case instead: a delete on a wall shorter than the

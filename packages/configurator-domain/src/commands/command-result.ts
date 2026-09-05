@@ -139,6 +139,20 @@ export interface CabinetDepthSetEffect {
   readonly type: "cabinet_depth_set";
   readonly cabinetDepthMm: number;
   readonly rebuiltCount: number;
+  /** ADR 0090 decisions 1 and 5: a depth change is the **third** command that moves a frozen extent
+   *  along the wall, so it is the third whose own answer replaces the map the store passes in.
+   *
+   *  A wall-A body's depth is measured along wall B, so a deeper corner slides wall B's whole run —
+   *  and `Design.emptyColumns` and `Design.columnExtents` record where a column *stands*, not merely
+   *  how deep and how tall it is. Carried forward unchanged they described the coordinates the
+   *  command had just vacated: four standing runs filed under no column at all, five
+   *  `EMPTY_COLUMN_OVERLAPS_PLACEMENT` refusals, and a 700 mm kitchen the customer could not save.
+   *
+   *  It is published here rather than recomputed by the store for the reason ADR 0088 decision 2
+   *  requires a wave to state: the answer needs the pre-command design, the catalogue at the depth
+   *  being left and the shift itself, and `setCabinetDepth` holds all three natively while the store
+   *  holds none of them. `frozen-map-at-cabinet-depth.ts` is the one author. */
+  readonly columns: ReadonlyMap<string, Column>;
 }
 
 export interface HardwareTierSetEffect {

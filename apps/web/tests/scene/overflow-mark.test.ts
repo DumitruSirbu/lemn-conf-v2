@@ -7,12 +7,18 @@
 // The effects are run the way React runs them — cleanups collected in declaration order and replayed
 // in that order — for the reason `kitchen-stage-disposal.test.ts` gives: that order is the coupling
 // that keeps the marks out of `stage.room` before the stage teardown walks it.
+// `OVERFLOWING_KITCHEN_L_DESIGN` is the **one declared** overflow fixture (ADR 0083 decision 10):
+// the seeded kitchen with one body a millimetre past the end of wall B, positioned relative to the
+// room so a wall moving cannot silently stop it overflowing. It was hand-built in six test files
+// and agreed everywhere only because the six were written together. Aliased to the local name the
+// cases below already use.
 import {
   derivePlacementRecords,
   DesignSchema,
   findOverflowingPlacementIds,
   KITCHEN_L_BODY_CATALOG,
   KITCHEN_L_DESIGN,
+  OVERFLOWING_KITCHEN_L_DESIGN as OVERFLOWING_DESIGN,
   type Design,
 } from "@lemnaria/configurator-domain";
 import * as React from "react";
@@ -129,22 +135,6 @@ const OVERVIEW_VIEW = {
   target: [1.6, 1.35, 0.85],
 } as const;
 
-/** The seeded kitchen with one body standing one millimetre past the end of wall B, and nothing else
- *  changed — the reachable shape wave 6A3's own seam tests use. */
-const OVERFLOWING_DESIGN: Design = {
-  ...KITCHEN_L_DESIGN,
-  placements: [
-    ...KITCHEN_L_DESIGN.placements,
-    {
-      id: "dragged-past-wall-b",
-      wall: "B",
-      alongMm: KITCHEN_L_DESIGN.room.depthMm - 400 + 1,
-      y0Mm: 0,
-      body: { buildId: "base-sink-800", widthMm: 800, heightMm: 820 },
-    },
-  ],
-};
-
 /** Wall A's run cut back to its first metre, so most of the wall is bare. ADR 0067: under-filling is
  *  the normal case and is never a defect. */
 const LARGE_REMAINDER_DESIGN: Design = {
@@ -257,8 +247,10 @@ describe("which bodies the scene marks", () => {
   });
 
   it("marks nothing on the seeded design at 600", () => {
-    // ADR 0065's consequences: the corrected room fits the shipped kitchen with 30 mm to spare. If
-    // this ever fails the room dimensions have regressed, and the fix is in the fixture, not here.
+    // ADR 0065's consequences: the demo room fits the shipped kitchen at both declared depths —
+    // wall B is 2920 and its run ends at 2800 here and at 2900 at the 700 mm depth (ADR 0083
+    // decision 1). If this ever fails the room dimensions have regressed, and the fix is in the
+    // fixture, not here.
     mountWith(KITCHEN_L_DESIGN);
 
     // Not vacuous: the whole kitchen was mounted and every body was a candidate.
