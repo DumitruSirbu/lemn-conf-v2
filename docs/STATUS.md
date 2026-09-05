@@ -32,9 +32,9 @@ moment it ships; a decision record does not. When the two disagree, the dated de
 | M3 — Insert, remove, swap, client write path | **Done** (closed 2026-08-26) | No — `milestones/done/` |
 | M4 — Editor panel and shell | **Done** (closed 2026-08-26 — one criterion unmet by design, ADR 0024) | No — `milestones/done/` |
 | M5 — Width editing, and depth as a derived quantity | **In progress — 5E is the only wave open.** 5A–5D2c, 5F, 5G, 5H all shipped | Yes — `milestones/M5-*.md`, and ADRs 0028–0041, 0052, 0053 |
-| M6 — Price bar and global settings (incl. cabinet depth control) | **In progress —** ~~13 of 25 tracked waves DONE~~ **corrected 2026-09-05: 13 of 36 wave-table rows are DONE, counted directly** (see *What to do next* below for the recount; the drop of 6N-b/6N-c did not change the denominator, since a dropped wave keeps its row exactly as superseded 6F already did within the stale 25). On branch `m6-price-and-global-settings`: 6A (`6c1f830`), 6H (`4afda06`), 6A3 and 6B2 (`eb9ba03`) shipped 2026-09-03; 6C (`194405b`) and 6D (`a5e161f`) shipped 2026-09-03 but only received their DONE marker this pass — a documentation gap, not new work; 6E (`b558e28`), 6G (`3e546d1`), 6I2 and 6M (merged at `ce77171`) shipped 2026-09-03/04; 6S (`280daa4`, `a2bff48`), 6J (`c8ba3af` 6J-a, `a68482d` 6J-b) and 6P (`38268b5`) shipped 2026-09-04. Open: 6K, 6K-c, 6Q, 6R, 6T. **Certified 2026-09-05** (`59f8669`): 6A4, 6B (CERTIFIED); 6A2, 6L, 6I
+| M6 — Price bar and global settings (incl. cabinet depth control) | **In progress —** ~~13 of 25 tracked waves DONE~~ ~~corrected 2026-09-05: 13 of 36 wave-table rows are DONE, counted directly~~ **corrected again 2026-09-05: 23 of 38 wave-table rows are DONE, counted directly** — two rows added for 6K-g and 6K-h (real waves with full plans and shipped commits that had never had a table row) and ten more rows reconciled against `git log`: 6K, 6K-c, 6K-d, 6K-e, 6K-f, 6K-g, 6K-h, 6K-j, 6Q and 6Q-c, all closing 2026-09-05 (see *What to do next* below for the full recount and its arithmetic). On branch `m6-price-and-global-settings`: 6A (`6c1f830`), 6H (`4afda06`), 6A3 and 6B2 (`eb9ba03`) shipped 2026-09-03; 6C (`194405b`) and 6D (`a5e161f`) shipped 2026-09-03 but only received their DONE marker this pass — a documentation gap, not new work; 6E (`b558e28`), 6G (`3e546d1`), 6I2 and 6M (merged at `ce77171`) shipped 2026-09-03/04; 6S (`280daa4`, `a2bff48`), 6J (`c8ba3af` 6J-a, `a68482d` 6J-b) and 6P (`38268b5`) shipped 2026-09-04. **6K's whole family closed 2026-09-05**: 6K-a and 6K-b (`30c3bcb`/`4dc08e0`/`30d419b`/`e664e33`, 2026-09-04), 6K-c (`56b6815`), 6K-d and 6K-e (one commit, `d4e58a4`), 6K-f (`827e1e1`), 6K-h (`e90ccc8`), 6K-g (`52e3c70`), 6K-j (`151429f`) — which also closes 6Q, via 6Q-a (`9e9d54e`), 6Q-b (`59f8669`) and 6Q-c (`14cef90`). Open: 6K-i (ADR 0079's finding, unadjudicated), 6R, 6T, 6U. **Certified 2026-09-05** (`59f8669`): 6A4, 6B (CERTIFIED); 6A2, 6L, 6I
 (CERTIFIED WITH FINDINGS) — see *Where the project stands*'s certification note below. Not started:
-6N. 6F is superseded by ADR 0071's 6P–6R | Yes — `milestones/M6-*.md`, and ADRs 0055–0073 |
+6J-c, 6N-0, 6N-a. 6F is superseded by ADR 0071's 6P–6R; 6N-b and 6N-c are dropped, 2026-09-05, owner ruling | Yes — `milestones/M6-*.md`, and ADRs 0055–0073 |
 | M7 — Step 1, room and presets | Planned | Yes, when starting |
 | M8 — Review, contact, success | Planned | Yes, when starting |
 | Adversarial review remediation | **Every finding closed or gated.** SEC-001 (High) deferred to M8 by owner decision, gated. Everything else — SCENE-001/002, WEB-001–004, DOM-001–003, SEC-002–004, DB-001/002/004 — is implemented and reviewed | Yes — `milestones/adversarial-review-remediation.md`, `milestones/dom-003-set-width-split.md` |
@@ -235,25 +235,35 @@ policy, so every per-endpoint limit is application code.
 
 **Next: M6, on branch `m6-price-and-global-settings`.** Read
 `milestones/M6-price-and-global-settings.md`, ~~now a 25-wave breakdown (6P–6T added 2026-09-04 on
-ADRs 0070 and 0071, superseding 6F; 6K-c added the same day on ADR 0073)~~ **now a 36-row wave table,
-counted directly 2026-09-05** — the 25 above is stale, not from the 6N-b/6N-c drop (a dropped wave
-keeps its row, exactly as superseded 6F already did within that same 25) but from eleven rows added
-since: 6K-c's own siblings 6K-d/e/f/i/j (+5, ADRs 0074–0080), 6N splitting from one wave into
-6N-0/6N-a/6N-b/6N-c (+3, ADR 0083), 6J-c (+1, ADR 0083's finding), 6Q splitting off 6Q-c (+1, ADR
-0081), and 6U (+1, ADR 0087) — and ADRs 0055–0073 for the
-decisions behind it. All seven
-original owner decisions are closed. **Thirteen waves are DONE**: 6A, 6H, 6A3, 6B2 (2026-09-03); 6C, 6D
-(shipped 2026-09-03, DONE marker added this pass — a pre-existing documentation gap, not new work);
-6E, 6G, 6I2, 6M (2026-09-03/04, merged at `ce77171`); 6S (`280daa4`, `a2bff48`), 6J (`c8ba3af`,
-`a68482d`) and 6P (`38268b5`), all 2026-09-04. **6K, 6K-c, 6Q, 6R and 6T remain open.** Five shipped
-commits bundled inside `93e9bc3`/`75668b8`/`dfa6198` — **6A2, 6A4, 6B, 6I, 6L** — now carry a recorded
+ADRs 0070 and 0071, superseding 6F; 6K-c added the same day on ADR 0073)~~ ~~now a 36-row wave table,
+counted directly 2026-09-05~~ **now a 38-row wave table, counted directly 2026-09-05** — the 36 above
+grew by two, not thirteen: **6K-g and 6K-h were found to be real waves with full plans and shipped
+commits (`52e3c70`, `e90ccc8`) that had never had a table row at all**, discovered only by
+cross-checking `git log` against the table (`docs/WORKFLOW.md`'s new *"the scribe runs after the
+commit"* section records why this kept happening). All seven original owner decisions are closed.
+
+**Twenty-three waves are DONE**, ten more than the last count: the original thirteen — 6A, 6H, 6A3,
+6B2 (2026-09-03); 6C, 6D (shipped 2026-09-03, DONE marker added that pass — a pre-existing
+documentation gap, not new work); 6E, 6G, 6I2, 6M (2026-09-03/04, merged at `ce77171`); 6S
+(`280daa4`, `a2bff48`), 6J (`c8ba3af`, `a68482d`) and 6P (`38268b5`), all 2026-09-04 — plus ten rows
+this pass reconciled against `git log` rather than left unmarked: **6K's whole family**, all closing
+2026-09-05 — 6K-a and 6K-b (`30c3bcb`/`4dc08e0`/`30d419b`/`e664e33`, 2026-09-04), 6K-c (`56b6815`),
+6K-d and 6K-e (one commit, `d4e58a4` — the hash exists, it simply had no `(6K-d)`/`(6K-e)` tag in its
+subject and fell through the first pass's grep), 6K-f (`827e1e1`), 6K-h (`e90ccc8`), 6K-g (`52e3c70`),
+6K-j (`151429f`) — and **6Q**, via 6Q-a (`9e9d54e`), 6Q-b (`59f8669`) and 6Q-c (`14cef90`, closed this
+pass with its own gate run and visual verification — see its section for the focus-trap defect found
+and fixed). **13 + 10 = 23, of 38.** Five shipped commits bundled inside
+`93e9bc3`/`75668b8`/`dfa6198` — **6A2, 6A4, 6B, 6I, 6L** — now carry a recorded
 certification verdict from the 2026-09-05 audit below (three CERTIFIED WITH FINDINGS, two CERTIFIED;
 none NOT CERTIFIED) — check each wave's own section for the finding it carries before reading it as
-fully closed. **6N has not started, and two of its four sub-waves are now dropped**: the owner
-descoped the wall-coverage bars 2026-09-05 ("skip it in general for now... not critical and on
-mobile it will take a lot of place"), which drops **6N-c** (the bars) and **6N-b** (the coverage
-query 6N-c was its only reader for). **6N-0** and **6N-a** are unaffected and still open — see the
-milestone file's own ruling at the end of wave 6N's section.
+fully closed. **6R, 6T and 6U remain open**, and **6K-i remains genuinely unstarted** — no commit, no
+plan section, only the header-block mention and its "unadjudicated" row; it begins with an ADR 0079
+adjudication rather than a fix. **6N has not started**, and two of its four sub-waves are now
+dropped: the owner descoped the wall-coverage bars 2026-09-05 ("skip it in general for now... not
+critical and on mobile it will take a lot of place"), which drops **6N-c** (the bars) and **6N-b**
+(the coverage query 6N-c was its only reader for). **6N-0** and **6N-a** are unaffected and still
+open — see the milestone file's own ruling at the end of wave 6N's section. **6J-c is also not
+started.**
 
 **Certification audit closed 2026-09-05, run at `59f8669` — all five shipped-but-uncertified M6 waves
 now have a recorded verdict.** 6A4 CERTIFIED (6/6 mutations killed). 6B CERTIFIED (10/10). 6A2
@@ -267,17 +277,19 @@ runs through a file its own wave does not own. See each wave's own section in
 `docs/milestones/M6-price-and-global-settings.md` for the wave-specific detail; `docs/BACKLOG.md`
 entries 42-47 queue the code-level findings the same audit turned up.
 
-**Two call sites still hard-code the pre-6J cabinet depth, and this is the largest open thing wave 6K
-carries.** Found 2026-09-04 while ruling on
+**Closed 2026-09-05 — verified against the tree, not just the milestone prose.** ~~Two call sites
+still hard-code the pre-6J cabinet depth, and this is the largest open thing wave 6K carries.~~ Found
+2026-09-04 while ruling on
 [ADR 0073](decisions/0073-a-frozen-extent-records-the-body-its-depth-came-from.md) and recorded as
-that ADR's finding. `packages/configurator-domain/src/commands/insert-fit.ts:834` passes
-`cabinetDepthMm: WORKTOP_DEPTH_MM` (600) to `columnBuildDepthM`, so **at a 700 mm kitchen every wall
-body is rebuilt to the 600 mm map row** — the fingerprint is 6K-a's measured `A|0.75: 0.3300 →
-0.3690`, where 369 is `330 + WALL_FRONT_ASSEMBLY_MM` and the correct answer is
-`wallCarcassDepthMm(700) = 400`. `apps/web/src/scene/kitchen-stage.tsx:102` hard-codes the same
-constant into `makeKit`, so the scene is built at 600 whatever the design carries. Classified as an
-implementation defect against ADR 0055 decision 1, **not** a contract gap — both are wave 6K-b's, and
-the second is what gates its *"changing it visibly changes the model"* criterion.
+that ADR's finding; fixed by wave 6K-b (`4dc08e0`, `30d419b`). Confirmed 2026-09-05:
+`packages/configurator-domain/src/commands/insert-fit.ts` (`resolveDepthM`) now reads "the design's
+own setting, not a module constant (wave 6K-b)" in its own doc comment, and
+`apps/web/src/scene/kitchen-stage.tsx` no longer imports `WORKTOP_DEPTH_MM` at all — it reads
+`state.design.settings?.cabinetDepthMm ?? DEFAULT_CABINET_DEPTH_MM` and passes
+`wallDepthMm: wallCarcassDepthMm(cabinetDepthMm)` beside it, exactly as 6K-b's acceptance criteria
+required. Classified as an implementation defect against ADR 0055 decision 1, **not** a contract
+gap — both were wave 6K-b's, and the second is what gated its *"changing it visibly changes the
+model"* criterion, now met.
 
 **Two review debts were incurred on 2026-09-04 and are owed rather than skipped.** 6P never received
 a logic review — the reviewer was lost to a spend limit mid-run; its adversarial QA did run in full

@@ -80,6 +80,35 @@ reads to decide what to open and what work remains, so an under-reported wave do
 stale — it dispatches work against behaviour that already shipped, and the second implementation is
 found by whoever hits the conflict.
 
+## The scribe runs after the commit, not before it
+
+This failed again on 2026-09-05, on M6's 6K sequence and on 6Q-b/6Q-c: the wave table and several
+milestone sections lagged what had actually shipped, and the gap was found only by cross-checking
+`git log` by hand. **The wave table is load-bearing** — it was used the same day to answer the
+owner's question about what work remains, and because it lagged, it gave the wrong answer.
+A table that lags is worse than no table, because it is trusted.
+
+Two mechanical causes, not a diligence problem:
+
+1. **The scribe was dispatched before the commit existed**, so the hash was not yet available and
+   every wave needed a second round-trip to go back and record it. When that follow-up did not
+   happen, the row stayed unmarked. 6Q-b needed exactly that follow-up (`ab162ab`); 6Q-c's section
+   went stale the same way, closed minutes before `14cef90` landed.
+2. **Waves were run back-to-back with documentation batched to the end.** The 6K sequence
+   (6K-a, 6K-b1–b3, 6K-c, 6K-d/e, 6K-f, 6K-g, 6K-h, 6K-j) ran this way, and the batch never fully
+   happened before work moved on to 6Q.
+3. **The check used to find the drift shared the drift's own blind spot.** The table assumes one
+   wave per row; the `git log` grep used to audit it assumed one wave per commit subject. `d4e58a4`
+   closes two waves (6K-d and 6K-e) in one commit tagged `(6K-d, 6K-e, step 4)`, so it was invisible
+   to both at once — a check built on the same assumption as the artefact it is checking cannot find
+   where that assumption breaks.
+
+**The rule: the scribe runs after the commit, handed the commit hash and the measured gate
+numbers, and a wave is not done until its table row and its milestone section say so.**
+Documentation is part of finishing a wave — put it in the step order alongside implementation,
+QA and review — not a catch-up task to be batched across several. The hash cannot exist before the
+commit, so any earlier ordering guarantees a second pass that may never come.
+
 ## Nothing ships mid-milestone
 
 Nothing reaches real users until every milestone is delivered, and the owner has further work planned

@@ -845,6 +845,29 @@ is descoped by the owner's 2026-09-05 ruling (see
 **This needs an architect's ruling, not a coordinator's or a scribe's** — recorded here so it is not
 lost, not decided.
 
+## 48. `apps/web`'s vitest environment has no DOM — a focus-trap defect is only catchable by the visual agent
+
+**Found by wave 6Q-c's visual verification, 2026-09-05.** `apps/web/vitest.config.ts:11` sets
+`environment: "node"`, and `apps/web/package.json` lists neither `jsdom` nor any
+`@testing-library/*` package. No headless test in that package can dispatch a keypress or read
+`document.activeElement`, so nothing but Playwright can observe whether focus is where a trap
+requires it to be.
+
+6Q-c shipped exactly this class of defect: the confirm-step swap unmounted the focused button,
+`document.activeElement` fell back to `<body>`, and the dialog's key trap — hung off its own
+`onKeyDown` (`apps/web/src/settings/global-settings.tsx`) — went silent, so one Shift+Tab reached
+the trigger and a stray Enter discarded the customer's pending material choice with no warning. It
+was found by the visual agent's real-interaction pass, not by the package's own suite, and could not
+have been: no assertion in `apps/web`'s headless suite is capable of noticing it. The fix (keying the
+focus effect on the step as well as on open) has a headless-looking shape, but nothing in the package
+can regress-test it.
+
+This is a standing gap, not a one-off: any future focus-management defect in this app — a trap, a
+restore-on-close, a roving tabindex — is only ever catchable by a human or an agent driving a real
+browser. Closing it means adding `jsdom` (or `happy-dom`) and `@testing-library/react` to `apps/web`
+and giving at least the existing dialogs (`global-settings.tsx`, the price breakdown) a headless
+focus-trap regression suite. Not scheduled to any wave.
+
 ## Also open, recorded elsewhere — do not duplicate here
 
 - **Width editing does nothing yet.** Every width chip is `blocked` because §5.4's resize command

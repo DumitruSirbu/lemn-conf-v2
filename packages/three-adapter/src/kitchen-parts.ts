@@ -299,6 +299,27 @@ const COUNTER_FORWARD_OFFSET_MM = 20;
 const COUNTER_REAR_OVERHANG_MM =
   COUNTER_OVERHANG_MM / 2 - COUNTER_FORWARD_OFFSET_MM;
 
+/** How deep the induction plate itself is. A **manufactured size**
+ *  (`docs/best-practices/product-invariants.md`): a 590 × 520 hob is bought, and a 620 mm-deep one
+ *  is not made, so no setting reaches this number — the same split ADR 0039 makes for the hood and
+ *  `OVEN_FORWARD_OFFSET_M` for the oven. `cooktop` draws `cooktop_glass` from it so the seat below
+ *  and the plate it seats cannot drift apart. */
+const HOB_DEPTH_MM = 520;
+
+/** ADR 0087: **how much worktop is left in front of the hob, and it is the declared fact.**
+ *
+ *  The owner's ruling — *"the gap (space) should be not in front but between wall and hob... when
+ *  you cook you should use easy the back hob circles in same way as it was 600 mm worktop"* — is
+ *  that the cook's reach to the back burners does not change with the cabinet-depth setting. So the
+ *  clearance in front is declared, the **seat** is derived from it (`HOB_SEAT_OFFSET_M`), and every
+ *  millimetre of added depth lands behind the appliance, against the wall.
+ *
+ *  10 mm is what the shipped 600 mm kitchen measures, kept to the micrometre: the derivation there
+ *  is `330 − 10 − 260 = 60`, exactly the literal it replaces, which is why M1's parity gate needs no
+ *  re-baselining. It is deliberately not zero — a flush hob would be the front-most mesh of its own
+ *  body and would silently change what `baseFinishedDepthMm` declares that body finishes at. */
+const HOB_FRONT_CLEARANCE_MM = 10;
+
 /** **The two front slabs this kit draws, and the only thing that tells them apart.** A leaf hangs on
  *  hinges and a drawer front rides on runners, and ADR 0070 prices those as different mechanisms —
  *  so the difference has to survive into the built scene for a parity gate to hold the catalogue's
@@ -359,8 +380,9 @@ export function makeKit(options: KitOptions = {}): Kit {
   const cabinetDepthM = cabinetDepthMm / 1000;
   const carcassDepthM = (cabinetDepthMm - BASE_FRONT_OVERHANG_MM) / 1000;
   const wallDepthM = (options.wallDepthMm ?? DEFAULT_WALL_DEPTH_MM) / 1000;
-  const counterDepthM =
-    (cabinetDepthMm - BASE_FRONT_OVERHANG_MM + COUNTER_OVERHANG_MM) / 1000;
+  const counterDepthMm =
+    cabinetDepthMm - BASE_FRONT_OVERHANG_MM + COUNTER_OVERHANG_MM;
+  const counterDepthM = counterDepthMm / 1000;
 
   const mat = (
     name: string,
@@ -950,12 +972,32 @@ export function makeKit(options: KitOptions = {}): Kit {
     return g;
   }
 
-  /** ADR 0027: where the hob sits on its own cabinet's worktop, as a **local** offset.
+  /** Where the worktop's front edge — the edge the cook stands at — falls in a base body's own
+   *  frame, in millimetres. The slab is `COUNTER_OVERHANG_MM` deeper than its carcass and seated
+   *  `COUNTER_FORWARD_OFFSET_MM` forward of it, so its front is half its depth past that seat. */
+  const worktopFrontMm = COUNTER_FORWARD_OFFSET_MM + counterDepthMm / 2;
+
+  /** ADR 0087: where the hob sits on its own cabinet's worktop, as a **local** offset.
    *
-   *  Not a new number — it is the seat `buildKitchen()` already gives the standalone cooktop,
-   *  relative to the drawer base it stands on, and both sites read it from here so the composite
-   *  cannot drift from the reference geometry the decomposition-parity gate diffs it against. */
-  const HOB_FORWARD_OFFSET_M = 0.06;
+   *  **Derived from the declared clearance in front of it, never written as a number.** The hob is a
+   *  manufactured size that does not follow the cabinet-depth setting, but *where it is mounted*
+   *  does — the shape `HOOD_SEAT_OFFSET_M` and `OVEN_FORWARD_OFFSET_M` already use. Held flat at
+   *  0.06 it stood still while the worktop grew fore and aft around it, so at 700 the appliance sat
+   *  28 mm behind its own drawer fronts, 21 mm behind the oven fascia in the same cabinet, and
+   *  60 mm forward of the hood extracting over it.
+   *
+   *  At the declared 600 this is `330 − 10 − 260 = 60` mm — the literal it replaces, to the
+   *  micrometre — and at 700 it is 110, which puts the whole 100 mm behind the hob.
+   *
+   *  Millimetres divided once, never metres subtracted, for the reason `makeKit` states at the top:
+   *  M1's parity gate diffs at 1e-6 m and IEEE-754 does not survive the metre form.
+   *
+   *  Both hob-bearing bodies reach it through `seatHobOnWorktop`, and `buildKitchen()`'s standalone
+   *  cooktop composes this same value onto its cabinet's seat rather than being parented to it —
+   *  the reference room draws the two as siblings and the decomposition-parity gate diffs the room
+   *  child by child. */
+  const HOB_SEAT_OFFSET_M =
+    (worktopFrontMm - HOB_FRONT_CLEARANCE_MM - HOB_DEPTH_MM / 2) / 1000;
 
   /** How far a built-in oven's own origin stands **behind the carcass front plane it is mounted
    *  on**, in metres. Measured off the shipped geometry, which seated it at a flat 0.018 in a
@@ -989,7 +1031,7 @@ export function makeKit(options: KitOptions = {}): Kit {
 
   function seatHobOnWorktop(cabinet: THREE.Group): THREE.Group {
     const hob = builders.cooktop();
-    hob.position.set(0, PLINTH + CARC_H + CTOP, HOB_FORWARD_OFFSET_M);
+    hob.position.set(0, PLINTH + CARC_H + CTOP, HOB_SEAT_OFFSET_M);
     cabinet.add(hob);
     return cabinet;
   }
@@ -1260,7 +1302,18 @@ export function makeKit(options: KitOptions = {}): Kit {
     dishwasher: (Wn = 0.6) => exposedDishwasher(Wn),
     cooktop: () => {
       const g = G("induction_cooktop");
-      g.add(box(0.59, 0.012, 0.52, M.glassDark, "cooktop_glass", 0, 0, 0));
+      g.add(
+        box(
+          0.59,
+          0.012,
+          HOB_DEPTH_MM / 1000,
+          M.glassDark,
+          "cooktop_glass",
+          0,
+          0,
+          0,
+        ),
+      );
       const rings: readonly (readonly [number, number, number])[] = [
         [-0.145, -0.15, 0.085],
         [0.145, -0.15, 0.1],
@@ -2098,7 +2151,7 @@ export function makeKit(options: KitOptions = {}): Kit {
     place(
       builders.cooktop(),
       2.6,
-      zA + HOB_FORWARD_OFFSET_M,
+      zA + HOB_SEAT_OFFSET_M,
       0,
       PLINTH + CARC_H + CTOP,
     );

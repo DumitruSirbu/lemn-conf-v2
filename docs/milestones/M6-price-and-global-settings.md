@@ -1,5 +1,13 @@
 # M6 — Live price, breakdown, and whole-kitchen settings (2D, 2E)
 
+> **Superseded 2026-09-05 — read the wave table below and `docs/STATUS.md` for the current count,
+> not this blockquote.** Everything below this note was written across several passes starting
+> 2026-09-02 and was current at the time each sentence was added, but the wave table's own DONE
+> markers (each with its own commit hash) are now ahead of it — in particular, **6K's whole family,
+> 6Q and 6Q-c are now DONE**, which this block still calls open. Kept rather than rewritten, per this
+> project's own rule of appending corrections instead of erasing prior context; do not read it as
+> current.
+
 > **STATUS: IN PROGRESS — waves sequenced 2026-09-02, first waves shipped 2026-09-03; four more
 > closed overnight 2026-09-03/04.** **Thirteen of twenty-five waves are DONE** in the table below, each
 > with its commit(s): 6A (`6c1f830`), 6H (`4afda06`), 6A3 and 6B2 (`eb9ba03`), all shipped 2026-09-03.
@@ -290,23 +298,25 @@ constant (`worktop-depth.ts` carries a comment saying the rename is owed and def
 | 6I — the base family follows the formula — **CERTIFIED WITH FINDINGS 2026-09-05, `59f8669`** | D | 6H | Full |
 | 6I2 — clearance is not a build depth *(backlog 15, 10)* — **DONE 2026-09-04, `ce77171`** | D | 6I — **unblocked, ADR 0060** | Full |
 | 6J — the persisted setting and what a change does — **DONE 2026-09-04, `c8ba3af`/`a68482d`** | D | 6H, 6I, 6I2 — **unblocked, ADRs 0055, 0056, 0058** | Full |
-| 6K — the depth control on the sheet (6K-a the store seam, 6K-b the control) | D | 6J, 6G — **unblocked, ADR 0059** | Light + visual |
-| 6K-c — a frozen extent records the body its depth came from *(ADR 0073)* | D | 6K-b — **does not gate it**, see the wave | Full |
-| 6K-d — a rebuild must not swap a body for one declared at a different depth *(ADR 0075)* | D | 6K-b — **does not gate it** | Full |
-| 6K-e — the probe that measures a depth change is built at that depth *(ADR 0074)* | D | 6K-b — **does not gate it**, see the wave | Full |
-| 6K-f — a probe lease is a scoped borrow and the store publishes no probe *(ADR 0076)* | D | 6K-e — **gated by it**, this is 6K-e's residue | Full |
-| 6K-i — a depth change refused by two ordinary deletes *(ADR 0079's finding, unadjudicated)* | D | none — **adjudication first**, and it gates nothing | Full |
-| 6K-j — an empty space follows the setting, and the fallback is not a ratchet *(ADR 0080, owner instruction 2026-09-05; **amended after QA, same day** — the predicate is an equality)* | D | 6K-c — **gated by it**, and it gates nothing | Full |
+| 6K — the depth control on the sheet (6K-a the store seam, 6K-b the control) — **DONE 2026-09-04: 6K-a `30c3bcb`, 6K-b `4dc08e0`/`30d419b`/`e664e33`** | D | 6J, 6G — **unblocked, ADR 0059** | Light + visual |
+| 6K-c — a frozen extent records the body its depth came from *(ADR 0073)* — **DONE 2026-09-05, `56b6815`** | D | 6K-b — **does not gate it**, see the wave | Full |
+| 6K-d — a rebuild must not swap a body for one declared at a different depth *(ADR 0075)* — **DONE 2026-09-05, `d4e58a4`** | D | 6K-b — **does not gate it** | Full |
+| 6K-e — the probe that measures a depth change is built at that depth *(ADR 0074)* — **DONE 2026-09-05, `d4e58a4`** (one commit with 6K-d) | D | 6K-b — **does not gate it**, see the wave | Full |
+| 6K-f — a probe lease is a scoped borrow and the store publishes no probe *(ADR 0076)* — **DONE 2026-09-05, `827e1e1`** | D | 6K-e — **gated by it**, this is 6K-e's residue | Full |
+| 6K-h — a depth change plans against the catalogue, not against the seats it is about to replace *(ADR 0077 decision 8, addendum)* — **DONE 2026-09-05, `e90ccc8`** | D | 6K-f — **runs before 6K-g**, both edit `set-cabinet-depth.ts` | Full |
+| 6K-g — a seat fixed by a joint is declared, and every entry declares which plane seats it *(ADR 0077)* — **DONE 2026-09-05, `52e3c70`** | D | 6K-f, 6K-h — **sequenced after both**, same file | Full |
+| 6K-i — a depth change plans against the frozen extent, and only the depth is re-derived *(ADR 0079's finding, **adjudicated 2026-09-06 by ADR 0088** — implementation defect; the wave is owed and planned)* | D | none — and it gates nothing | Full |
+| 6K-j — an empty space follows the setting, and the fallback is not a ratchet *(ADR 0080, owner instruction 2026-09-05; **amended after QA, same day** — the predicate is an equality)* — **DONE 2026-09-05, `151429f`** | D | 6K-c — **gated by it**, and it gates nothing | Full |
 | 6L — the handle path learns cabinet from appliance *(backlog 18)* — **CERTIFIED WITH FINDINGS 2026-09-05, `59f8669`** | G | none — **sequenced before 6B and 6G** | Full |
 | 6M — the overflow is marked and warned about *(ADR 0065)* — **DONE 2026-09-04, `ce77171`** | — | 6A3 | Light + visual |
-| 6J-c — the along-wall chain gains its production reader *(ADR 0083's finding; 6J-a's unmet criterion)* | D | none — **and it gates nothing, 6N included** | Full |
+| 6J-c — the along-wall chain gains its production reader *(ADR 0083's finding; 6J-a's unmet criterion; **kept and confirmed 2026-09-06 by ADR 0089** — the descoped 6N-b/6N-c were never its consumer)* | D | none — **and it gates nothing, 6N included** | Full |
 | 6N-0 — the demo room clears its run at both depths, `3560 × 2920` *(ADR 0083, owner 2026-09-05)* | — | none | Full |
 | 6N-a — the run-end panel's seat is a domain fact *(ADR 0083)* | — | none | Full |
 | 6N-b — one published coverage fact per wall *(ADR 0083)* — **DROPPED 2026-09-05, owner ruling: its only reader was the bars** | — | 6N-0, 6N-a | Full |
 | 6N-c — the wall-coverage bars, both shells *(owner request)* — **DROPPED 2026-09-05, owner ruling: "skip it in general for now"** | — | 6D, 6M, 6N-b — **and ADR 0083's owner question Q1, the missing reference artefact** | Light + visual |
 | 6P — the finish model: materials, palette, and a document that predates both *(ADR 0071)* — **DONE 2026-09-04, `38268b5`** | G | 6E | Full |
-| 6Q — a material change resolves every finish it does not offer *(ADR 0071, ADR 0057; supersedes 6F)*; splits 6Q-a → 6Q-b *(ADR 0078)* — **6Q-b DONE 2026-09-05, `59f8669`, ADR 0085** | G | 6P | Full |
-| 6Q-c — the change confirms before it wipes a chosen colour, and is silent when none was *(ADR 0081, owner 2026-09-05; dispatchable per ADR 0086)* | G | 6Q-b — **gated by it** | Full + visual |
+| 6Q — a material change resolves every finish it does not offer *(ADR 0071, ADR 0057; supersedes 6F)*; splits 6Q-a → 6Q-b *(ADR 0078)* — **DONE 2026-09-05: 6Q-a `9e9d54e`, 6Q-b `59f8669` (ADR 0085); 6Q-c also done, see its own row below (`14cef90`)** | G | 6P | Full |
+| 6Q-c — the change confirms before it wipes a chosen colour, and is silent when none was *(ADR 0081, owner 2026-09-05; dispatchable per ADR 0086)* — **DONE 2026-09-05, `14cef90`** | G | 6Q-b — **gated by it** | Full + visual |
 | 6R — three control shapes, six decors the 3D approximates, and a strip that wraps *(ADR 0071, ADR 0082)* | G | 6Q, 6G | Light + visual |
 | 6S — door leaves, drawers and door band heights become declared facts *(ADR 0070)* — **DONE 2026-09-04, `280daa4`/`a2bff48`** | P | none | Full |
 | 6T — hardware priced per mechanism, and the two sink extras *(ADR 0070)* | P | 6S, 6B2 | Full |
@@ -1525,7 +1535,7 @@ it here rather than assume 6I2's 600-only coverage already proves the compositio
   rather than refusing it, because *"a `/d/{id}` share link is the one artefact this project hands to
   someone who cannot be asked to reload it"*. A load that refuses is a link that is dead.
 
-### Wave 6K — the depth control on the sheet
+### Wave 6K — the depth control on the sheet — **DONE 2026-09-04 (6K-a, `30c3bcb`); 6K-b below**
 
 **UNBLOCKED 2026-09-02** — [ADR 0059](../decisions/0059-the-dishwasher-niche-declares-a-cabinet-depth-floor.md)
 settles the floor. Still gated on 6J and 6G.
@@ -1565,7 +1575,7 @@ settles the floor. Still gated on 6J and 6G.
   `skip`: the surface exists, so the debt clears itself the moment 6K-c lands rather than depending on
   somebody remembering.
 
-#### Wave 6K-b — the scene's half, ruled 2026-09-04
+#### Wave 6K-b — the scene's half, ruled 2026-09-04 — **DONE 2026-09-04, `4dc08e0`/`30d419b`/`e664e33`**
 
 **[ADR 0074](../decisions/0074-the-scene-rebuilds-whole-at-a-depth-change.md).** The stage memo is
 keyed on the design's cabinet depth and **the whole stage is rebuilt** — kit, shell, both roots, the
@@ -1625,7 +1635,7 @@ for why the narrow shape avoids none of the cost.
   `seatDepthMm` whether it is measured by a probe over a 600 kit or a 700 kit, named for ADR 0074's
   finding and for the wave that owes the flip.
 
-### Wave 6K-c — a frozen extent records the body its depth came from
+### Wave 6K-c — a frozen extent records the body its depth came from — **DONE 2026-09-05, `56b6815`**
 
 **[ADR 0073](../decisions/0073-a-frozen-extent-records-the-body-its-depth-came-from.md)**, ruled
 2026-09-04. Wave 6K-a fixed what a depth change can fix locally — an extent whose column still has
@@ -1843,7 +1853,7 @@ Two sentences above are **re-scoped, not changed**: the member-less base column 
 rules about empty spaces, and the ratchet inside that fallback is wave 6K-j's. Nothing is added to
 6K-c's criteria.
 
-### Wave 6K-j — an empty space follows the setting, and the fallback is not a ratchet
+### Wave 6K-j — an empty space follows the setting, and the fallback is not a ratchet — **DONE 2026-09-05, `151429f`**
 
 **[ADR 0080](../decisions/0080-an-empty-space-follows-the-setting-and-a-fallback-is-not-a-ratchet.md)**,
 ruled 2026-09-05 on a direct owner instruction: *"everything — cabinets, empty spaces, everything —
@@ -2050,7 +2060,16 @@ depth is a base run's 620 under a column that now reads full-height, and the equ
 cleared `tall-pantry` niche following the setting to 600 is not a 99 mm loss; the sourced answer is 599
 and the 699 it was measured against is the stale depth this family of records exists to end.
 
-### Wave 6K-d — a rebuild must not swap a body for one declared at a different depth
+### Wave 6K-d — a rebuild must not swap a body for one declared at a different depth — **DONE 2026-09-05, `d4e58a4`**
+
+**A note on the closing commit's own body, because git history is immutable and disagrees with the
+record below.** `d4e58a4`'s body reads: *"6K-d — the scene rebuilds whole at a depth change (ADR
+0074)."* That citation is wrong, and not by one digit: ADR 0074 is titled *"The scene rebuilds whole
+at a depth change"* — true of the sentence, false of the wave it is attached to here — and ADR
+0075, titled *"A `recorded-shell` entry's `frameDepthMm` is its shell…"*, is this wave's own record.
+The ADR headers are authoritative: **ADR 0075's own header names wave 6K-d; ADR 0074's names 6K-b
+and 6K-e.** Read the pairing as 6K-d → ADR 0075 (below) and 6K-e → ADR 0074, not as the commit body
+states it.
 
 **Found 2026-09-04 by adversarial QA on wave 6K-a, adjudicated by the coordinator against the
 catalogue and held by an `it.fails` in
@@ -2129,7 +2148,13 @@ measured seat, i.e. a stored document ADR 0052 requires us to load rather than r
   whose `wall-cabinet` placement has no measured seat is seated 39 mm off the wall today and is seated
   correctly after. A correction on load, not a migration; nothing is rewritten.
 
-### Wave 6K-e — the probe that measures a depth change is built at the depth it is measuring
+### Wave 6K-e — the probe that measures a depth change is built at the depth it is measuring — **DONE 2026-09-05, `d4e58a4`** (one commit with 6K-d)
+
+**The same closing commit's body transposes this wave too — see 6K-d's note above.** `d4e58a4`'s
+body reads: *"6K-e — the probe is a factory, never a built probe (ADR 0073)."* ADR 0073 is titled *"A
+frozen extent records the body its depth came from"* — wave 6K-c's own record, word for word. The
+ADR headers are authoritative: this wave is **ADR 0074**, as the citation immediately below already
+states.
 
 **[ADR 0074](../decisions/0074-the-scene-rebuilds-whole-at-a-depth-change.md)'s finding**, recorded
 2026-09-04 while ruling on 6K-b's scene half. **A third call site on the pre-6J depth, after ADR 0073's
@@ -2180,7 +2205,7 @@ reachable in the tree through 6J-b and 6K-a. 6K-b carries the failing guard inst
   design loaded at 600 carries, with no drift in either direction across three changes.
 - **6K-b's second `it.fails` guard goes red and is flipped here, not deleted.**
 
-### Wave 6K-f — a probe lease is a scoped borrow, and the store publishes no probe
+### Wave 6K-f — a probe lease is a scoped borrow, and the store publishes no probe — **DONE 2026-09-05, `827e1e1`**
 
 **[ADR 0076](../decisions/0076-a-probe-lease-is-a-scoped-borrow-and-the-store-publishes-no-probe.md)**,
 ruled 2026-09-05 on a confirmed leak reported against 6K-e's own work. **Gated by 6K-e**, which it
@@ -2325,7 +2350,7 @@ in the frame after a depth change — because the mocked `useMemo` in the two st
 observe either. A real-interaction pass at 390 × 844 confirms the panel does not flicker and records
 the tap-to-frame interval against decision 9.
 
-### Wave 6K-h — a depth change plans against the catalogue, not against the seats it is about to replace
+### Wave 6K-h — a depth change plans against the catalogue, not against the seats it is about to replace — **DONE 2026-09-05, `e90ccc8`**
 
 **[ADR 0077](../decisions/0077-a-joint-seated-body-declares-its-seat-and-is-never-measured-for-one.md)
 decision 8**, in that record's Addendum of 2026-09-05. **Runs before 6K-g**, which rules on the other
@@ -2441,7 +2466,7 @@ before and after. Then a real-interaction pass at 390 × 844: apply 600, then 70
 run stands in line with its neighbours rather than 70 mm shallow — the symptom a customer sees, and
 the one ADR 0028's original report is about.
 
-### Wave 6K-g — a seat fixed by a joint is declared, and every entry declares which plane seats it
+### Wave 6K-g — a seat fixed by a joint is declared, and every entry declares which plane seats it — **DONE 2026-09-05, `52e3c70`**
 
 **[ADR 0077](../decisions/0077-a-joint-seated-body-declares-its-seat-and-is-never-measured-for-one.md)**,
 ruled 2026-09-05 on a confirmed blocker created by 6K-d's own probe-dispatch fix. **Sequenced after
@@ -2581,6 +2606,166 @@ run is quoted, not summarised. Then a real-interaction pass at 390 × 844: chang
 back to 600 on the seeded kitchen and confirm the corner reads as two cabinets meeting rather than one
 clipping through the other, which is the symptom a customer would see and the one no headless
 assertion describes.
+
+### Wave 6K-i — a depth change plans against the frozen extent, and only the depth is re-derived
+
+**Adjudicated 2026-09-06 by
+[ADR 0088](../decisions/0088-a-depth-change-plans-against-the-frozen-extent-and-re-derives-only-the-depth.md)**,
+which rules ADR 0079's recorded-and-unruled finding an **implementation defect** in
+`set-cabinet-depth.ts` against ADR 0011 Gap D and ADR 0053 — not a contract gap and not a
+test-fidelity problem. Read that record first: it carries the measurements, the two refused cures and
+the sweep. This section is the wave.
+
+**Goal.** `setCabinetDepth` plans against the frozen extent the document carries on the vertical and
+along-wall axes, and re-derives only the depth axis, so no sequence of ordinary deletes leaves the
+shipped kitchen unable to change its own depth.
+
+**The defect in one line.** `rebuildEveryBodyAt` builds its planning map with
+`deriveColumns(records, {}, planning.room)` (`set-cabinet-depth.ts:137`). The `{}` is there to force
+§3.2's depth MAX to be re-taken at the new setting, which is right; it also discards `top`, `regions`
+and `w`, which are the facts ADR 0011 Gap D froze *because the placements no longer imply them*.
+Delete `p12` and `p18` from `A|2.00` and the column's top collapses 2600 → 820 mm — the recorded
+height of the dishwasher niche, the only member left — so the vacated slot the rebuild plans into is
+820 mm and §7's 860 mm base body refuses `HEIGHT_EXCEEDS_LEVEL`. The store's `atCurrentCabinetDepth`
+already makes exactly this axis split one package over; the domain command does not.
+
+#### Scope and boundaries
+
+**Touches.** `packages/configurator-domain/src/commands/set-cabinet-depth.ts`, and **one** module for
+the axis split — either a named export beside `deriveColumns` in `void-engine.ts` or a new leaf file.
+Two production files. **Tier: Full** — it is domain algebra on the map every rebuilt body is fitted
+against, and it decides whether a stored document can change its own depth.
+
+**Out of scope, deliberately, each with its record.**
+
+- **`Column.top` is not given a floor at the level line**, and `openingFromPlacement` is not given a
+  fallback for "the target is its column's tallest member". Both were considered and refused by name
+  in ADR 0088 decision 4; a wave that reaches for either has taken the cure this record rejected.
+- **`rederiveTouchedColumns` (`void-engine.ts:1077`) is not this wave's** (ADR 0088 decision 5). Its
+  identical `{}` is bounded to keys an insert or a resize moved a body through, never a delete, and
+  its doc block already discloses the loss.
+- **The §5.3 swap and the §9 offer list are not touched.** They show the same symptom on a map
+  derived without a frozen extent — measured, eight offers and eight `HEIGHT_EXCEEDS_LEVEL` verdicts
+  — but they read the store's frozen map, so it is not reachable through the product.
+
+**Coordinate anchors, scaling rules and structural dependencies** (per
+`docs/best-practices/product-invariants.md`):
+
+- **Anchors.** `Column.top` and `Column.regions` are metres on the vertical axis; the column's floor
+  is `min(regions)`. The along-wall origin is the column's centre on its wall's tangent, and `w` is a
+  MIN over its members' frames. `Column.d` is §3.2's MAX over its members' `occupiedDepthM`, taken by
+  naming its winner (`depthFromBuildId`, ADR 0073 decision 1).
+- **Scaling rule.** **Only `d` follows the cabinet-depth setting.** `top`, `regions`, `w` and the
+  origin do not, at either declared depth. That sentence is the whole of this wave.
+- **Structural dependency.** `deriveFreeSpans` reads `min(regions)` and `top` and nothing between
+  them; `subdivideFreeSpan` cuts the result against `LEVELS`; `findVacatedSlot` asks
+  `recomputeVoids` for the void the target's removal would create; `evaluateInsertFit` judges the
+  rebuilt body's height against that slot. A change to `top` reaches the refusal through four hops
+  and no compile error.
+
+#### Work items
+
+1. **The planning map is assembled from two sources**: the design's own `emptyColumns` and
+   `columnExtents` for `top`, `regions`, `w` and the origin, and the records at the new setting for
+   `d` and `depthFromBuildId`. `deriveColumns` cannot express this as it stands —
+   `addStoredColumnExtents` calls `columns.set(extent.key, extent)` and replaces the derived column
+   outright — so the merge is new code, and it goes through `deriveColumns`'s own clip → merge →
+   `withCurrentFullHeightMembers` tail rather than around it.
+2. **The rule is written once.** `atCurrentCabinetDepth` states the same split in `apps/web`. Either
+   share it or state in the wave's close-out which one was chosen and why the two are not one author.
+3. **The carried-debt block in `apps/web/tests/store/qa-6k-c-frozen-source.adversarial.test.ts` is
+   deleted** — `CARRIED_REFUSAL_TRAILS`, `THE_FINDINGS_DELETE`, and the test named *"refuses a depth
+   change only where ADR 0079's open finding already does"*. Its own header instructs this:
+   *"Whichever wave adjudicates ADR 0079's finding deletes this block."* The sweep it guarded stays
+   and must assert that **no** trail is refused.
+4. **A domain-package regression for the minimal reproduction**, because the defect is
+   `evaluateInsertFit`'s and needs neither the store nor a fake probe to observe.
+
+#### Acceptance criteria
+
+- **The four-step sweep collects zero refusals, of any code.** Not "only `HEIGHT_EXCEEDS_LEVEL`",
+  not "only these 34 trails" — zero. The existing sweep in
+  `apps/web/tests/store/qa-6k-c-frozen-source.adversarial.test.ts` is the assertion; its
+  refusal-exemption block is deleted rather than narrowed.
+- **The minimal reproduction succeeds in the domain package.** Delete `p12` (`open-shelf-600`) and
+  `p18` (`wall-2door-600-top`) from `A|2.00`, then `setCabinetDepth` at **both** declared settings:
+  the command succeeds and `p1` is rebuilt with `heightMm` 860. Measured at `14cef90`, the same
+  sequence refuses `HEIGHT_EXCEEDS_LEVEL` with `requiredMm` 860 and `availableMm` 820.
+- **The invariant, asserted directly rather than through its symptom.** For every key the design's
+  `columnExtents` and `emptyColumns` carry, the planning map's `top`, its lowest region start and its
+  `w` equal the stored entry's `topMm`, `y0Mm` and `widthMm`. The two criteria above are consequences
+  of this one; this is the one that catches the next member of the family.
+- **Value-preserving on the depth axis, asserted against `HEAD`.** For every column key the planning
+  map holds today, `d` and `depthFromBuildId` are **identical** to what
+  `deriveColumns(records, {}, room)` returns. A surplus a delete left in the frozen extent must not
+  reach the planning map's depth.
+- **Anti-invariant, and it is measured rather than argued: restoring the extent wholesale re-opens
+  wave 6K-h.** At the 700 mm setting after the two deletes, a planning map built by passing the
+  stored map straight into `deriveColumns` plans `p8`, `p10`, `p15` and `p16` at `d` = **330 mm** —
+  the *600 mm* kitchen's wall-map carcass in a 700 mm kitchen, which is ADR 0077 decision 8's defect
+  verbatim. Assert **400 mm** for all four at 700, and assert it per arm rather than as a total.
+- **ADR 0058's two pinned rows are unmoved**, at both settings, through the new map:
+  `wall-2door-600-deep-top` and `wall-2door-700-over-fridge` finish at 600 at 600 and at 700.
+- **A document that carries no frozen map plans exactly as it does today.** No `columnExtents`, no
+  `emptyColumns` — the merge falls through to the derived column, nothing throws, and no extent is
+  invented. This is the pre-ADR-0053 document the loader still accepts.
+- **Restoring the member-less half changes no placement.** On a design carrying member-less columns,
+  the placements the command writes are byte-identical with and without the empty half in the
+  planning map. `rebuildEveryBodyAt` looks a column up only for a placement, so this must be true —
+  and it is asserted rather than assumed, because it is the cheapest way to catch a merge that
+  reaches the rebuild loop by a route nobody intended.
+- **The 800 mm cap and the wall-end clip still hold over the planning map.** A restored member-less
+  extent goes through `clipEmptyColumnsAtWallEnd` and `splitOversizedEmptyColumns`'s ceiling
+  (ADR 0052, ADR 0046) exactly as the load path's does. A merge written outside `deriveColumns`'s
+  tail is how that stops being true.
+- **Nothing is refused, narrowed or removed.** No new rejection code and no new refusal path.
+  `setCabinetDepth`'s refusals stay `INVALID_OCCURRED_AT`, `UNKNOWN_CABINET_DEPTH`,
+  `TARGET_NOT_FOUND` and whatever `rebuild` refuses on a genuinely unfittable body.
+- **`rederiveTouchedColumns` does not regress.** If the wave's shared helper happens to close its
+  bounded loss too, that is a stated change with its own test, not a side effect discovered later.
+
+**What this wave must not assert.**
+
+- **Not that `column.top` never falls below its level line.** ADR 0088 decision 4 refuses that cure;
+  a test asserting it pins a rule this project did not take.
+- **Not that the swap or the offer list is fixed.** Neither is touched. A criterion claiming the
+  eight-refusal offer list is cured would be asserting about a state the product cannot reach and
+  would go red the day someone derives a map without a frozen extent for a legitimate reason.
+- **Not a 600 → 700 → 600 document round trip.** ADR 0055 declines to promise it and ADR 0073
+  decision 3's fallback arm does not return. What may be asserted is that this wave writes the same
+  placements the command writes today wherever it succeeds today.
+- **Not a weakened sweep.** If the four-step sweep is still red, the fix is not done. Making its
+  exemption set smaller instead of empty is the shape ADR 0079 amendment E already refused once.
+
+#### Risks
+
+- **The command starts reading an input it never read.** `SetCabinetDepthInput` already carries
+  `design`, and the frozen arrays live on it, so no signature moves — but a design whose frozen map
+  is stale relative to its placements now has that staleness reach the rebuild. Through the store it
+  cannot be stale (`applyCommandResult` re-projects after every command); a hand-built test design
+  can be, and a test that builds one is asserting about an unreachable state. Say so in the test
+  rather than pinning it.
+- **The merge's direction decides the outcome.** "Take the stored extent, then overwrite the depth
+  pair" is correct; "take the derived column, then overwrite it with the extent" is
+  `addStoredColumnExtents` again and reintroduces the 330 mm defect. The two read almost the same in
+  a diff.
+- **Two authors for one rule.** Work item 2 exists because the store and the command now both state
+  the axis split. This project has twice found two implementations of one rule parted later; a wave
+  that leaves two must say it did.
+
+#### Verification
+
+Headless, in dependency order, and per-package rather than workspace-wide: the domain suite first
+(the minimal reproduction, the depth-axis parity against `HEAD`, the no-frozen-map document, the
+pinned pair), then `apps/web`'s store suite (the four-step sweep at zero refusals, with the
+carried-debt block gone). Then the whole-tree `pnpm format:check`, and `pnpm ci:local` before any
+push.
+
+Then a real-interaction pass at 390 × 844, because the customer-visible half is a control that stops
+working: on the seeded kitchen delete the open shelf and the top cabinet above the dishwasher niche,
+then change the depth to 700 and back to 600 and confirm the command is accepted both ways and the
+wall openings the deletes freed are still offered. Measured at `14cef90`, the depth control refuses
+at that point with a sentence about height.
 
 ### Wave 6L — the handle path learns a cabinet handle from an appliance's (`docs/BACKLOG.md` entry 18)
 
@@ -3066,6 +3251,13 @@ that rewrites stored placements under migrate-on-change (ADR 0055).
 - **The composition defect is closed and measured at both depths**: at 700 no wall-B body intersects
   wall A's run at the corner. Wave 6I's review measured *"carcasses through walls, worktops
   intersecting, upper corner returns overlapping by 70 mm"*; this is the wave that makes that false.
+- **At 700 mm no wall-B placement's near edge sits inside wall A's corner reach**, asserted **per
+  chain and not as a total** ([ADR 0089](../decisions/0089-the-along-wall-chain-is-kept-and-its-reader-is-the-depth-command.md)
+  decision 3). Measured at `14cef90`, the two arms are different numbers and both are negative at
+  700: `base-formula` — `base-corner-return-320`'s near edge 580 against `base-corner-x-900`'s frame
+  depth 560 → 660, so +20 mm becomes **−80 mm**; `wall-map` — `wall-corner-return-570`/`-top`'s near
+  edge 330 against the wall-band carcass's 291 → 361, so +39 mm becomes **−31 mm**. A sweep with no
+  floor per arm can pass while landing entirely on the arm that was already right.
 - **Value-preserving at 600.** Every placement is byte-identical to what the command writes today.
 - **Nothing is refused, narrowed or removed.** ADR 0055 and ADR 0065 are untouched: bodies move
   along their wall because the corner consumed more of it, and any body that then passes the wall's
@@ -3633,7 +3825,7 @@ trap in one diff, and would break 6Q-b's own stated verification — *"no visual
 the day it was written. So: **6Q-a → 6Q-b → 6Q-c**, and the sizing becomes four, four and four
 production files. 6Q-c is the only one of the three whose evidence is a screen.
 
-##### 6Q-a — the offer, and nothing new may create a violation
+##### 6Q-a — the offer, and nothing new may create a violation — **DONE 2026-09-05, `9e9d54e`**
 
 **Tier: Full.** Touches, four production files: `packages/configurator-domain/src/materials.ts`,
 `packages/configurator-domain/src/commands/set-appearance.ts`,
@@ -3766,7 +3958,7 @@ falsifiable ones ADR 0085 decision 6 states, reflected in the criteria row above
 PASSED on all ten gates; domain 2783 passed / 0 failed, web 1510 passed / 4 skipped. QA green; logic
 review found the implementation matches intent with no blocker; clean-code review clean.
 
-##### 6Q-c — the confirmation that precedes the wipe, and the silence when there is nothing to wipe
+##### 6Q-c — the confirmation that precedes the wipe, and the silence when there is nothing to wipe — **DONE 2026-09-05, `14cef90`**
 
 **Added 2026-09-05 on the owner's ruling, recorded in
 [ADR 0081](../decisions/0081-a-material-change-confirms-only-when-a-chosen-colour-would-be-lost.md);
@@ -4047,6 +4239,26 @@ rather than workspace-wide `pnpm test`, so the persistence package is not dragge
 Then the e2e spec at both projects, one at a time on port 4320. Then `pnpm format:check` whole-tree,
 last. Then `pnpm ci:local` once, held by one agent. Freeze the tree before QA and before the visual
 pass, and say so in both dispatches.
+
+**Close-out, 2026-09-05, `14cef90`.** `pnpm ci:local` PASSED on all ten gates; domain 2809 passed,
+three-adapter 2186 passed, persistence 177 passed, web 1538 passed / 4 skipped. QA green; logic review
+found the implementation matches intent with no blocker; clean-code review clean after one comment
+fix. Visual verification passed at both viewports (390 × 844, 1440 × 900) — but only after a focus
+fix, and the defect it found is a standing gap rather than a one-off. **The defect:** the confirm-step
+swap unmounts the focused button — the choosing and confirming steps are different component types
+at the same position, so React tears the old one down — `document.activeElement` falls back to
+`<body>`, and the dialog's key trap goes silent because it hangs off its own `onKeyDown`
+(`apps/web/src/settings/global-settings.tsx`): one Shift+Tab from there reached
+`global-settings-trigger` (the one control `useBackgroundInert` deliberately leaves live), and Enter
+on it re-opened the sheet, discarding the customer's pending material choice with no warning. **The
+fix:** the step-change effect that lands focus on the dialog is now keyed on the step
+(`isConfirming`) as well as on `isOpen` (`global-settings.tsx:161-163`), so focus returns to the
+dialog on every step change, not only on open. **There is no regression test for this and there
+cannot be one today**: `apps/web/vitest.config.ts:11` sets `environment: "node"`, and `apps/web` has
+neither `jsdom` nor any `@testing-library/*` package installed, so nothing outside Playwright can
+dispatch a keypress or read `document.activeElement`. This whole class of defect — a focus trap that
+goes silent because focus left it — is only ever catchable by the visual agent driving a real
+browser. `docs/BACKLOG.md` entry 48 records the testing gap.
 
 ##### Where each criterion above lands
 
