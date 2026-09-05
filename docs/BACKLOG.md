@@ -1758,3 +1758,55 @@ exactly these two named ids — so a new entry of that shape turns it red. It is
 predicate rather than as *"every wall-family entry declares the map"*, which would restate the map
 (ADR 0028 decision 4) and name the wrong population: the hazard is any entry sitting on a ceiling at
 one setting only, not a fact about wall cabinets.
+
+## 38. `resolveFinishesTheTierDoesNotOffer`'s `Set<DesignPlacement>` is membership by object identity
+
+Found 2026-09-05 while closing wave 6Q-b.
+`packages/configurator-domain/src/commands/set-whole-kitchen-settings.ts:114-123` collects the
+placements that wear a finish the tier does not offer into `new Set(...)`, then tests membership with
+`unoffered.has(placement)` while mapping over `applied.placements`. A `Set` of objects is keyed by
+reference, not by `id`, so two placements that are `===`-aliased (the same object appearing twice in
+`applied.placements`) would be rewritten twice on the map pass and counted once in `unoffered.size`.
+
+**Unreachable today.** A document with two placement entries sharing one object can only arise from a
+duplicate `id`, and `DUPLICATE_PLACEMENT_ID` refuses such a document at both seams the tier command can
+be reached from — `assertDesignValidForCatalog` on load and `setWholeKitchenSettings`'s own guard —
+before this function ever sees it.
+
+**Logged rather than fixed** because the identity semantics are load-bearing and unstated: nothing in
+the function or its name says membership is by reference, and
+`resolveFinishesTheMaterialDoesNotOffer` one module over (`migrate-design.ts:567`) answers the same
+question by calling a predicate per placement rather than building a `Set`, so the two authorities for
+"does this placement wear an unoffered finish" disagree on how they'd behave if the refusal above ever
+moved. Not scheduled.
+
+## 39. `wearsAFinishTheMaterialDoesNotOffer` and `wearing` are duplicated verbatim, twice
+
+Found 2026-09-05 while closing wave 6Q-b. The pair of helpers —
+`wearsAFinishTheMaterialDoesNotOffer(placement, material)` (reads `placement.body.finish` and refuses
+via `materialOffersFinish`) and `wearing(placement, finish)` (returns the placement with that finish
+written into `body`) — appear byte-identical at `migrate-design.ts:587-597` and
+`set-whole-kitchen-settings.ts:133-143`.
+
+**Under this project's three-copy DRY threshold**, so not a violation on its own terms, and both
+copies delegate to the single authority that matters: `materialOffersFinish`
+(`packages/configurator-domain/src/materials.ts`), which is what ADR 0078 decision 1 declares "decided
+in one place" and what stays true here — neither copy re-derives the offer rule, only the two small
+wrappers around it are repeated.
+
+**Logged so the count is visible before a third caller arrives.** `materials.ts`, beside
+`materialOffersFinish`, is the extraction target the day a third module needs either helper. Not
+scheduled.
+
+## 40. Comments naming a schema-version number go stale silently, and the codebase has not been swept
+
+Found 2026-09-05 while closing wave 6Q-b. `migrate-design.ts:214`'s comment read "not reached at
+version 3, which is what M7 writes" while `CURRENT_SCHEMA_VERSION` (`migrate-design.ts:60`) had already
+moved to **5** — fixed in this wave's diff, so the comment at that line is current as of this entry.
+
+**The class of defect is the point, not this one instance.** A comment that spells out a specific
+schema-version number is a claim that goes stale the moment `CURRENT_SCHEMA_VERSION` moves again, and
+nothing enforces that a version bump revisits every comment naming the old one — this one was found by
+inspection, not by a gate. The codebase has not been swept for other comments naming a schema version
+number by literal value. Not scheduled; worth a grep for `version \d` / `schema_version` in comments
+the next time `CURRENT_SCHEMA_VERSION` moves.

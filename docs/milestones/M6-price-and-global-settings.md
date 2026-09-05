@@ -297,7 +297,7 @@ constant (`worktop-depth.ts` carries a comment saying the rename is owed and def
 | 6N-b — one published coverage fact per wall *(ADR 0083)* | — | 6N-0, 6N-a | Full |
 | 6N-c — the wall-coverage bars, both shells *(owner request)* | — | 6D, 6M, 6N-b — **and ADR 0083's owner question Q1, the missing reference artefact** | Light + visual |
 | 6P — the finish model: materials, palette, and a document that predates both *(ADR 0071)* — **DONE 2026-09-04, `38268b5`** | G | 6E | Full |
-| 6Q — a material change resolves every finish it does not offer *(ADR 0071, ADR 0057; supersedes 6F)*; splits 6Q-a → 6Q-b *(ADR 0078)* | G | 6P | Full |
+| 6Q — a material change resolves every finish it does not offer *(ADR 0071, ADR 0057; supersedes 6F)*; splits 6Q-a → 6Q-b *(ADR 0078)* — **6Q-b DONE 2026-09-05, ADR 0085** | G | 6P | Full |
 | 6Q-c — the change confirms before it wipes a chosen colour, and is silent when none was *(ADR 0081, owner 2026-09-05)* | G | 6Q-b — **gated by it** | Full + visual |
 | 6R — three control shapes, six decors the 3D approximates, and a strip that wraps *(ADR 0071, ADR 0082)* | G | 6Q, 6G | Light + visual |
 | 6S — door leaves, drawers and door band heights become declared facts *(ADR 0070)* — **DONE 2026-09-04, `280daa4`/`a2bff48`** | P | none | Full |
@@ -3602,7 +3602,7 @@ reaches into `panel-model.ts` to pre-empt it has taken 6R's diff.
 > See ADR 0078 decision 6's own correction for the full table. The interim is still accepted, and
 > 6Q-a's scope above is unchanged; only the cost named here was understated.
 
-##### 6Q-b — the resolution at both seams, and the warning that precedes it
+##### 6Q-b — the resolution at both seams, and the warning that precedes it — **DONE 2026-09-05**
 
 **Tier: Full.** Touches, five production files:
 `packages/configurator-domain/src/commands/set-whole-kitchen-settings.ts`,
@@ -3659,6 +3659,36 @@ reaches a frontless carcass like any other. Nothing in `panel-model.ts` or `thre
 **And nothing in `ro.ts`**: the copy moved to 6Q-c with the behaviour it describes, which is the same
 "the clause and the behaviour are one edit" rule the criteria state, applied to where the behaviour
 actually landed.
+
+**And no `BodyCatalog` on `WholeKitchenTierInput` — ruled 2026-09-05,
+[ADR 0084](../decisions/0084-canfinish-is-the-load-seams-and-a-command-fixture-constructs-only-its-own-contracts-inputs.md)
+decision 4, and the answer does not expire with this wave.** It is a decision about the **pair**:
+`setHardwareTier` shares the shape, would never read the field, and a parameter one command ignores
+is the flag argument that module's head comment already refused once. It would also be a **third
+authority on `canFinish`** beside the load seam's strip and `carriedAppearance`/`setFinish` — the
+same prohibition 6Q-c's item 1 already carries for `countCabinetsWearingAChosenFinish`, one wave
+earlier. And the branch is unreachable, so it would be dead code whose only test constructs its own
+premise. **This is not a rule that commands take no catalogue** — `insertBody`, `setFinish`,
+`setWidth` and `setCabinetDepth` all take one, rightly. It is the narrower one: a whole-kitchen
+setting is defined over the document and the declaration, and asks the catalogue nothing.
+
+**The duplicated fixture is correct and stays duplicated** (`docs/best-practices/engineering-conventions.md`:
+a helper two packages need is imported through a public entry point or duplicated, and a domain
+package's `tests/support/` is not one). Publishing it from `src/` to avoid the copy would put test
+infrastructure in what ships. Drift is made loud **inside each copy** instead of shared away: each
+asserts, in its own package's suite, that exactly `FINISHES_RESOLVED_BY_VENEER` of its own placements
+wear a finish `materialOffersFinish(veneer, ·)` refuses — not circular with `setMaterialTier`, since
+the offer query is 6Q-a's and is pinned by its own independently written expected-miss table — and
+the domain copy names the web copy the way the web copy already names it.
+
+**Close-out, 2026-09-05.** Adversarial QA's one red finding — the load-seam ordering criterion this
+section's table originally stated, `packages/configurator-domain/tests/qa-6q-b-load-seam.adversarial.test.ts`
+attack 6 — is settled by [ADR 0085](../decisions/0085-a-normalisations-guard-asks-what-the-normalisation-changes.md):
+`correctPreCorrectionRoom`'s guard becomes a comparison across the rewrite rather than an absolute
+reading of the corrected document, and the withdrawn ordering criterion is replaced by the two
+falsifiable ones ADR 0085 decision 6 states, reflected in the criteria row above. `pnpm ci:local`
+PASSED on all ten gates; domain 2783 passed / 0 failed, web 1510 passed / 4 skipped. QA green; logic
+review found the implementation matches intent with no blocker; clean-code review clean.
 
 ##### 6Q-c — the confirmation that precedes the wipe, and the silence when there is nothing to wipe
 
@@ -3802,7 +3832,7 @@ reaffirmed by the owner.
 | The reset target is each material's declared default | **6Q-b** | `defaultFinish` read from `MATERIALS`; a mutation of the declaration moves the reset |
 | A stale tier the book no longer offers | **neither** — ADR 0072 dissolved it | ADR 0078 decision 3 is the only thing owed: an undeclared id resolves and refuses nothing (**6Q-a** item 2) |
 | The finish reset moves nothing | **6Q-b** | Whole-document comparison with named exclusions — below |
-| A body that cannot wear a finish is never reset, never refused, never counted | **6Q-b** | Ordering (item 3), plus the `appliesTo` figure pinned unchanged |
+| A body that cannot wear a finish is never reset, never refused, never counted | **6Q-b**, and the three verbs land at three different seams — [ADR 0084](../decisions/0084-canfinish-is-the-load-seams-and-a-command-fixture-constructs-only-its-own-contracts-inputs.md) decision 2 | **Never reset**: asserted as the **output**, not as the ordering — a hood stored wearing `pal.alb` on a veneer kitchen loads carrying **no finish at all** (`packages/configurator-domain/tests/finish-resolution-at-the-load-seam.test.ts`, plus the sweep over all three materials), which [ADR 0084](../decisions/0084-canfinish-is-the-load-seams-and-a-command-fixture-constructs-only-its-own-contracts-inputs.md) decision 2a already rules the right home for it. **The wave's original wording — *"the strip runs first, so nothing frontless reaches the resolution"* — is withdrawn as unverifiable ([ADR 0085](../decisions/0085-a-normalisations-guard-asks-what-the-normalisation-changes.md) decision 6): the two normalisations commute on every input, QA measured zero failures from swapping them, and a criterion no test can fail is not a criterion.** What guards the ordering's *intent* instead is the invariant that makes it immaterial: `resolveFinishesTheMaterialDoesNotOffer` changes the set of placements carrying a `finish` key **not at all** — for every placement, `finish === undefined` before iff after — swept over 6Q-a's generated pair space with both branches non-empty (at least one placement rewritten, at least one absence preserved) and the count of finish-carrying placements pinned as a literal. That assertion goes red the moment either normalisation grows a condition, which is the outcome the ordering was written to defend. **Never counted**: `resolvedFinishCount`, which is 2 on a fixture whose hood carries nothing; the `appliesTo` figure is the material's *reach* and counts the hood, pinned **unchanged**. **Never refused**: on the **load path**, by the same ordering; `PUT` refuses a payload no command produces, and that is accepted |
 
 ##### The property, stated exactly, and the guard against a third vacuous sweep
 
@@ -3873,15 +3903,59 @@ built by writing finishes onto its bodies, and it must contain all five of these
 - **One body already wearing `veneer.stejar`**, which veneer does offer. It must come through
   **untouched** — the placement equal to what went in, not merely equal in `finish`.
 - **One body wearing `veneer.nuc`**, so "already wearing a wood" is not one entry's special case.
-- **One `canFinish: false` body — the hood — carrying a stored finish**, which the strip removes and
-  the resolution must not re-add.
+- ~~**One `canFinish: false` body — the hood — carrying a stored finish**, which the strip removes and
+  the resolution must not re-add.~~ **Corrected 2026-09-05 — see the block below.**
 - **One `canFinish: true` body wearing no finish**, which stays wearing none.
 
 Asserted as **one** result, with the effect's count naming exactly the two free-colour bodies:
-not five, which would mean the wood-wearing bodies were rewritten to the same value they held; not
-three, which would mean the hood was counted. The PAL → MDF direction is the same fixture read the
-other way and is **equally destructive** — MDF offers no palette entry, so every decor resets to
-white. That is ADR 0057 working as ruled; see ADR 0078's raised owner question.
+not five, which would mean the wood-wearing bodies were rewritten to the same value they held; ~~not
+three, which would mean the hood was counted~~ — **struck 2026-09-05, see below**. The PAL → MDF
+direction is the same fixture read the other way and is **equally destructive** — MDF offers no
+palette entry, so every decor resets to white. That is ADR 0057 working as ruled; see ADR 0078's
+raised owner question.
+
+> **Corrected 2026-09-05 —
+> [ADR 0084](../decisions/0084-canfinish-is-the-load-seams-and-a-command-fixture-constructs-only-its-own-contracts-inputs.md).
+> The criterion above named one fixture for a guarantee that lives at two seams, and the two halves
+> it asked for could not both hold.** `setMaterialTier` takes `WholeKitchenTierInput`, which carries
+> no `BodyCatalog` — deliberately, since `setHardwareTier` takes the same shape — so the command
+> cannot tell a frontless body from a finishable one and a hood wearing something veneer refuses is
+> counted, giving 3. The struck text is left standing because the number was reasoned and a reader
+> who met it needs to find out what replaced it.
+>
+> **The hood-carrying-a-stored-finish case is the load seam's, and only the load seam's.** That is
+> where `dropFinishFromBodiesThatCannotWearOne` runs and where *"the resolution must not re-add it"*
+> is a claim about code rather than about a fixture. It is asserted in
+> `tests/finish-resolution-at-the-load-seam.test.ts`, on a hood stored wearing **`pal.alb` on a
+> veneer kitchen** — a finish veneer *refuses*, which is sharper than the criterion asked for — plus
+> a sweep of the same case across all three materials.
+>
+> **The command's fixture holds a hood wearing nothing**, which is the state every loaded design
+> presents: ADR 0084 decision 1 walks all six routes into `setMaterialTier` and none of them delivers
+> a `canFinish: false` body wearing a finish. The count is then **2 because the hood carries
+> nothing**, not because its finish was chosen to slip past the filter.
+>
+> **So the two fixture states, exactly:**
+>
+> | Fixture | Its hood | What it measures |
+> | --- | --- | --- |
+> | `mdf-kitchen-wearing-chosen-colours.ts` (both copies) | `p13` wears **no finish** | The command's own rule: two different free colours reset to veneer's declared default, `veneer.stejar` and `veneer.nuc` come back as **the same placement objects**, the bare finishable body stays bare, and the bare **frontless** body stays bare too — absence stays absence, including where it could only ever have been absence. |
+> | The load-seam test's own stored documents | A hood wearing `pal.alb`, and the same across all three materials | The strip, and the ordering: it runs **before** the resolution, so the hood loads carrying nothing rather than `veneer.stejar`, and **before** `assertDesignValidForCatalog`, so no stored row is refused. |
+>
+> **What the count no longer carries, said plainly.** With the hood bare, MDF → MDF also resolves 2
+> (`p4`, `p5`), so the count alone stops separating *"resolved against the tier being applied"* from
+> *"resolved against the tier already stored"*. That discrimination moves to where it was always
+> stronger and is already implemented: `p0`/`p1` hold veneer's declared default, and `p4`/`p5` come
+> back by **object identity** (`toBe`, not `toEqual`). A count can be right by accident; identity on
+> the untouched half cannot. Both directions must name **which** placements moved, not only how many.
+>
+> **And the two other conflations in the same sentence.** *"Never counted"* names
+> `resolvedFinishCount`, **not** the sheet's *"applies to N bodies"* figure — that figure is the
+> material's reach, it counts the hood ([ADR 0016](../decisions/0016-hood-chimney-is-carcass.md)) and
+> must keep counting it, exactly as this wave's *What it must not do* already says. *"Never refused"*
+> is scoped to the **load path**, where a refusal is a dead `/d/{id}` link; at
+> `PUT /api/designs/[id]` the validator is document-level and catalogue-blind by design, and a
+> payload no command of ours can produce is refused there — accepted, and not to be "fixed".
 
 ##### "The finish reset moves nothing", asserted so it stays true
 

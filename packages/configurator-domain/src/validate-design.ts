@@ -24,6 +24,11 @@ import {
   MIN_BODY_HEIGHT_MM,
   NARROWEST_CATALOG_WIDTH_MM,
 } from "./design-bounds.js";
+import {
+  DEFAULT_MATERIAL_ID,
+  lookUpMaterial,
+  materialOffersFinish,
+} from "./materials.js";
 import { toMetres, toMillimetres } from "./millimetres.js";
 import {
   placementExtendsPastOwnWall,
@@ -69,7 +74,8 @@ export type DesignValidationCode =
   | "COLUMN_EXTENT_OVERLAPS_PLACEMENT"
   | "COLUMN_EXTENT_OVERLAPS_EMPTY_COLUMN"
   | "COLUMN_EXTENT_OVERLAPS_COLUMN_EXTENT"
-  | "TIMESTAMPS_OUT_OF_ORDER";
+  | "TIMESTAMPS_OUT_OF_ORDER"
+  | "PLACEMENT_WEARS_UNOFFERED_FINISH";
 
 export interface DesignValidationIssue {
   readonly code: DesignValidationCode;
@@ -97,7 +103,53 @@ export function validateDesignForCatalog(
     ),
     ...findEmptyColumnIssues(design),
     ...findColumnExtentIssues(design, catalog),
+    ...findUnofferedFinishIssues(design),
   ];
+}
+
+/**
+ * **ADR 0057's invariant at the write seam: no stored design holds a finish its material does not
+ * offer.**
+ *
+ * A document-level rule rather than a per-placement one, because the question it asks is about
+ * `design.settings` and not about the catalogue — the same shape `findTimestampIssues` and
+ * `findEmptyColumnIssues` have. The offer is `materialOffersFinish`, ADR 0078 decision 1's table
+ * read off the declared `ColourControl.shape`, so *"does not offer"* is decided in one place.
+ *
+ * **It refuses rather than rewriting** (ADR 0078's fourth alternative). The write seam receives a
+ * whole document from a client; silently rewriting the customer's payload and answering `200` is how
+ * a client bug becomes invisible, and every legitimate write already passed through a command that
+ * resolved. It reaches a client as `invalidBodyResponse`, a code and a path and no reason echoed
+ * (ADR 0014 S2).
+ *
+ * **Unreachable on the load path by construction**, which is the ordering the whole wave turns on:
+ * `migrateDesign` runs `resolveFinishesTheMaterialDoesNotOffer` immediately before
+ * `assertDesignValidForCatalog`, so no stored row is ever refused for wearing the wrong finish.
+ *
+ * **An undeclared `materialTierId` reports nothing** (ADR 0078 decision 3): a material this product
+ * does not declare makes no offer, so there is nothing to judge the document against, and wave 6G's
+ * recovery path depends on such a row still saving. **Absence reports nothing either** (decision 5):
+ * a body wearing no finish is not wearing one the material fails to offer.
+ */
+function findUnofferedFinishIssues(design: Design): DesignValidationIssue[] {
+  const lookup = lookUpMaterial(
+    design.settings?.materialTierId ?? DEFAULT_MATERIAL_ID,
+  );
+  if (lookup.kind === "undeclared") return [];
+
+  const material = lookup.material;
+  return design.placements.flatMap((placement, index) => {
+    const finish = placement.body.finish;
+    if (finish === undefined || materialOffersFinish(material, finish)) {
+      return [];
+    }
+    return [
+      issueAt(
+        "PLACEMENT_WEARS_UNOFFERED_FINISH",
+        `placements.${String(index)}.body.finish`,
+      ),
+    ];
+  });
 }
 
 /** The same rule, for a caller whose only sane response to a bad document is to fail: the stored-row
@@ -135,6 +187,16 @@ export type DesignIssueSeverity = "mark" | "refusal";
  *
  * Severity is declared and never inferred from the code's spelling: a name is a label, not a rule,
  * and the next code meaning "past the wall" may not be spelled that way (ADR 0061's pattern).
+ *
+ * **This table has two readers, and a wave adding a code answers only to the first.**
+ * `assertDesignValidForCatalog` is the one the membership rule is written for. The other is
+ * `migrate-design.ts`, where the room correction asks whether its own rewrite *creates* a fatal
+ * finding. Nobody had written that second reader down, and the wave that added
+ * `PLACEMENT_WEARS_UNOFFERED_FINISH` could not have been expected to check it — so ADR 0085
+ * decision 2 removed the need to: **no entry in this table can change whether a room correction
+ * fires**, because a code reaches that guard only when its findings differ between two documents
+ * that differ only in `design.room`. Adding a member here is still one question, and it is still the
+ * membership rule above.
  */
 export const DESIGN_ISSUE_SEVERITY_BY_CODE: Readonly<
   Record<DesignValidationCode, DesignIssueSeverity>
@@ -173,6 +235,13 @@ export const DESIGN_ISSUE_SEVERITY_BY_CODE: Readonly<
   COLUMN_EXTENT_OVERLAPS_EMPTY_COLUMN: "refusal",
   COLUMN_EXTENT_OVERLAPS_COLUMN_EXTENT: "refusal",
   TIMESTAMPS_OUT_OF_ORDER: "refusal",
+  // ADR 0069 decision 2's membership rule leaves no discretion: the single fact this asserts is not
+  // "past the end of its wall", so it is a refusal. The *refusal* is reachable only at
+  // `PUT /api/designs/[id]` — `migrateDesign` resolves the same violation immediately before it
+  // asserts (ADR 0078 decision 2) — and this entry was read as meaning the code has no effect on the
+  // load path, which is a different and, then, false statement. See the table's own head comment for
+  // the second reader that made it so.
+  PLACEMENT_WEARS_UNOFFERED_FINISH: "refusal",
 };
 
 /** The validation findings that make a design unsafe to load or write, by the declaration above. */

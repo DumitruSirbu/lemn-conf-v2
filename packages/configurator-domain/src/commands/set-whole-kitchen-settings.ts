@@ -13,15 +13,27 @@
 // seam 1) and `DesignSettingsSchema` therefore validates a tier id for shape only. A tier the book
 // does not hold is a refusal with its own code rather than a silent no-op — again `set-appearance`'s
 // stated reason: a no-op looks identical to a broken control.
+//
+// **Wave 6Q-b gave `setMaterialTier` one more job**, and it is the only place a whole-kitchen
+// setting reaches a per-cabinet one: ADR 0057's reset, composed out of `withPlacements(withSettings(
+// …))` so `command-result.ts` stays the one place a command writes a new `Design`.
 import {
   DesignSettingsSchema,
   type Design,
+  type DesignPlacement,
   type DesignSettings,
 } from "../design.js";
+import {
+  lookUpMaterial,
+  materialOffersFinish,
+  type Finish,
+  type Material,
+} from "../materials.js";
 import {
   isValidOccurredAt,
   refuse,
   succeedWith,
+  withPlacements,
   withSettings,
   type CommandResult,
   type HardwareTierSetEffect,
@@ -48,10 +60,86 @@ export function setMaterialTier(
   const settings = withOneSetting(input, { materialTierId: input.tierId });
   const detail = findRefusal(input, settings, "UNKNOWN_MATERIAL_TIER");
   if (detail) return refuse(input.design, detail);
-  return succeedWith(withSettings(input.design, settings, input.occurredAt), {
+
+  const applied = withSettings(input.design, settings, input.occurredAt);
+  const resolution = resolveFinishesTheTierDoesNotOffer(applied, input);
+  return succeedWith(resolution.design, {
     type: "material_tier_set",
     materialTierId: input.tierId,
+    resolvedFinishCount: resolution.resolvedFinishCount,
   });
+}
+
+/** The document the reset produced, and how many cabinets it moved. */
+interface FinishResolution {
+  readonly design: Design;
+  readonly resolvedFinishCount: number;
+}
+
+/**
+ * **ADR 0057's reset, in one document and on success only.**
+ *
+ * Every placement wearing a finish the material **being applied** does not offer is rewritten to
+ * that material's declared `defaultFinish` — read off `materialById`'s declaration through
+ * `lookUpMaterial`, with no branch per material and no table here. ADR 0078 decision 4 forbids the
+ * one alternative that looks helpful: constructing a free colour from a palette entry's swatch hex
+ * is ADR 0057's rejected nearest-finish mapping, and a swatch that stays the same colour while the
+ * priced material changes underneath it is the most invisible substitution there is.
+ *
+ * **Against the tier being applied, and not skipped when it equals the stored one.** Setting the
+ * tier that is already set is not a refusal (`findRefusal` above), so it must not become a silent
+ * skip either: a document that was already carrying an unoffered finish is resolved by the tap that
+ * re-applies its own material, exactly as it would be by a tap that changes it.
+ *
+ * **An undeclared tier resolves nothing** (ADR 0078 decision 3). The caller's book offered the id,
+ * but the domain declares no material for every id a book may hold, and a document is not corrected
+ * against a material nobody can look up.
+ *
+ * **Absence stays absence** (ADR 0078 decision 5). A placement with no `finish` key never reaches
+ * `materialOffersFinish` and never gains one: the reset corrects a choice, it does not invent one.
+ *
+ * Returns the design it was given when nothing is owed — including its `placements` array by
+ * identity — so a material change that resolves nothing moves nothing a save is diffed against
+ * beyond `settings` and `updatedAt`.
+ */
+function resolveFinishesTheTierDoesNotOffer(
+  applied: Design,
+  input: WholeKitchenTierInput,
+): FinishResolution {
+  const lookup = lookUpMaterial(input.tierId);
+  if (lookup.kind === "undeclared") {
+    return { design: applied, resolvedFinishCount: 0 };
+  }
+  const material = lookup.material;
+  const unoffered = new Set(
+    applied.placements.filter((placement) =>
+      wearsAFinishTheMaterialDoesNotOffer(placement, material),
+    ),
+  );
+  if (unoffered.size === 0) {
+    return { design: applied, resolvedFinishCount: 0 };
+  }
+  const placements = applied.placements.map((placement) =>
+    unoffered.has(placement)
+      ? wearing(placement, material.defaultFinish)
+      : placement,
+  );
+  return {
+    design: withPlacements(applied, placements, input.occurredAt),
+    resolvedFinishCount: unoffered.size,
+  };
+}
+
+function wearsAFinishTheMaterialDoesNotOffer(
+  placement: DesignPlacement,
+  material: Material,
+): boolean {
+  const finish = placement.body.finish;
+  return finish !== undefined && !materialOffersFinish(material, finish);
+}
+
+function wearing(placement: DesignPlacement, finish: Finish): DesignPlacement {
+  return { ...placement, body: { ...placement.body, finish } };
 }
 
 export function setHardwareTier(

@@ -41,9 +41,13 @@ describe("setMaterialTier", () => {
     });
     expect(result.design.updatedAt).toBe(OCCURRED_AT);
     expect(result.design.createdAt).toBe(KITCHEN_L_DESIGN.createdAt);
+    // Wave 6Q-b: the effect carries ADR 0057's reset count. These tier ids are the caller's book's
+    // and name no material this product declares, so nothing resolves against them (ADR 0078
+    // decision 3) — `tests/commands/material-finish-reset.test.ts` is where a non-zero count lives.
     expect(result.effect).toEqual({
       type: "material_tier_set",
       materialTierId: "material-premium",
+      resolvedFinishCount: 0,
     });
   });
 

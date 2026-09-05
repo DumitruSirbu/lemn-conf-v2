@@ -51,10 +51,17 @@ const EVERY_VERSION_ARM = [1, 2, 3, 4, CURRENT_SCHEMA_VERSION] as const;
 const FINISHABLE_ID = "p0";
 const UNFINISHABLE_IDS = ["p7", "p12", "p13"] as const;
 
-function storedWith(finishByPlacementId: Readonly<Record<string, unknown>>) {
+function storedWith(
+  finishByPlacementId: Readonly<Record<string, unknown>>,
+  materialTierId?: string,
+) {
   return JSON.parse(
     JSON.stringify({
       ...KITCHEN_L_DESIGN,
+      settings:
+        materialTierId === undefined
+          ? KITCHEN_L_DESIGN.settings
+          : { ...KITCHEN_L_DESIGN.settings, materialTierId },
       placements: KITCHEN_L_DESIGN.placements.map((placement) => {
         const finish = finishByPlacementId[placement.id];
         return finish === undefined
@@ -320,14 +327,33 @@ describe("the migration is a fixed point at every value, not only at the fixture
   it.each([3, CURRENT_SCHEMA_VERSION])(
     "leaves a document carrying no legacy value byte-identical at version %i",
     (version) => {
-      const stored = storedWith({
-        [FINISHABLE_ID]: paletteFinish("veneer.nuc"),
-        p1: freeColourFinish("#b8c4a1"),
-      });
+      // **Amended by wave 6Q-b.** Since ADR 0078 decision 2 the load seam also resolves a finish the
+      // document's *material* does not offer, so carrying no legacy value is no longer sufficient
+      // for a document to be left alone: it also has to be wearing what its material offers. One
+      // document per finish kind, each on the material whose control produces that kind — which is
+      // what the single mixed document above could not be, since no material offers both.
+      const untouchedDocuments = [
+        storedWith(
+          {
+            [FINISHABLE_ID]: paletteFinish("veneer.nuc"),
+            p1: paletteFinish("veneer.stejar"),
+          },
+          "material.veneer",
+        ),
+        storedWith(
+          {
+            [FINISHABLE_ID]: freeColourFinish("#b8c4a1"),
+            p1: freeColourFinish("#cbc3b8"),
+          },
+          "material.painted-mdf",
+        ),
+      ];
 
-      expect(
-        reserialised(migrateDesign(version, stored, KITCHEN_L_BODY_CATALOG)),
-      ).toEqual(stored);
+      for (const stored of untouchedDocuments) {
+        expect(
+          reserialised(migrateDesign(version, stored, KITCHEN_L_BODY_CATALOG)),
+        ).toEqual(stored);
+      }
     },
   );
 });
@@ -414,9 +440,15 @@ describe("the free colour bound is one gate and both seams reach it", () => {
   it.each(EVERY_VERSION_ARM)(
     "carries a well-formed colour through migrateDesign at version %i untouched",
     (version) => {
+      // On MDF, whose RAL picker is the control that produces a free colour: since wave 6Q-b the
+      // same colour on a PAL kitchen resolves to *Alb*, which is that wave's rule and not a
+      // statement about the bound this block is measuring.
       const loaded = migrateDesign(
         version,
-        storedWith({ [FINISHABLE_ID]: freeColourFinish("#b8c4a1") }),
+        storedWith(
+          { [FINISHABLE_ID]: freeColourFinish("#b8c4a1") },
+          "material.painted-mdf",
+        ),
         KITCHEN_L_BODY_CATALOG,
       );
 

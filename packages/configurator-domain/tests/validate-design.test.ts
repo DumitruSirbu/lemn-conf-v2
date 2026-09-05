@@ -15,6 +15,7 @@ import {
   KITCHEN_L_BODY_CATALOG,
   KITCHEN_L_DESIGN,
 } from "../src/fixtures/kitchen-l-design.js";
+import { paletteFinish, type Finish } from "../src/materials.js";
 import { migrateDesign } from "../src/migrate-design.js";
 import { InvalidDesignError } from "../src/repository.js";
 import {
@@ -229,6 +230,103 @@ describe("validateDesignForCatalog", () => {
     expect(
       codesFor({ ...VALID_DESIGN, updatedAt: VALID_DESIGN.createdAt }),
     ).toEqual([]);
+  });
+});
+
+// Wave 6Q-b, ADR 0057's invariant at the write seam. `migrateDesign` resolves the same violation
+// immediately before it asserts (ADR 0078 decision 2), so this code is reachable only where a client
+// handed `PUT /api/designs/[id]` a whole document that bypassed the command.
+describe("a placement wearing a finish its material does not offer", () => {
+  function onVeneerWearing(finish: Finish | undefined): Design {
+    return {
+      ...withBody(finish === undefined ? {} : { finish }),
+      settings: { cabinetDepthMm: 600, materialTierId: "material.veneer" },
+    };
+  }
+
+  it("is refused, and the path names the finish rather than the placement", () => {
+    const issues = validateDesignForCatalog(
+      onVeneerWearing(paletteFinish("pal.alb")),
+      CATALOG,
+    );
+
+    expect(issues).toEqual([
+      {
+        code: "PLACEMENT_WEARS_UNOFFERED_FINISH",
+        path: "placements.0.body.finish",
+      },
+    ]);
+  });
+
+  it("is a refusal and not a mark, which ADR 0069 decision 2 leaves no discretion about", () => {
+    expect(DESIGN_ISSUE_SEVERITY_BY_CODE.PLACEMENT_WEARS_UNOFFERED_FINISH).toBe(
+      "refusal",
+    );
+    expect(FATAL_VALIDATION_CODES).toContain(
+      "PLACEMENT_WEARS_UNOFFERED_FINISH",
+    );
+  });
+
+  it("is accepted when the material does offer it", () => {
+    expect(codesFor(onVeneerWearing(paletteFinish("veneer.stejar")))).toEqual(
+      [],
+    );
+  });
+
+  it("reports nothing when the placement wears no finish at all", () => {
+    expect(codesFor(onVeneerWearing(undefined))).toEqual([]);
+  });
+
+  // ADR 0078 decision 3: a material this product does not declare makes no offer, so there is
+  // nothing to judge the document against and wave 6G's recovery path keeps saving.
+  it("reports nothing under a material tier the product declares nothing for", () => {
+    const design: Design = {
+      ...withBody({ finish: paletteFinish("pal.alb") }),
+      settings: { cabinetDepthMm: 600, materialTierId: "material.laminate" },
+    };
+
+    expect(codesFor(design)).toEqual([]);
+  });
+
+  // **ADR 0084 decision 2d, pinned so a later wave does not "fix" it.** This validator is
+  // document-level and catalogue-blind by design, so a payload arriving at `PUT /api/designs/[id]`
+  // with an unoffered finish on a frontless body **is** refused. That is correct: no command in this
+  // product produces such a document, nothing stored is refused (the load seam strips and then
+  // resolves before `assertDesignValidForCatalog`), and exempting it would make the write seam accept
+  // a document the product cannot write while adding a third authority on `canFinish` beside the two
+  // that exist.
+  it("refuses one on a frontless body too, rather than consulting the catalogue", () => {
+    const hood: DesignPlacement = {
+      id: "p13",
+      wall: "A",
+      alongMm: 2600,
+      y0Mm: 1500,
+      body: {
+        buildId: "hood-600",
+        widthMm: 600,
+        heightMm: 700,
+        finish: paletteFinish("pal.alb"),
+      },
+    };
+    expect(CATALOG.get("hood-600")?.canFinish).toBe(false);
+
+    const design: Design = {
+      ...VALID_DESIGN,
+      placements: [hood],
+      settings: { cabinetDepthMm: 600, materialTierId: "material.veneer" },
+    };
+
+    expect(codesFor(design)).toEqual(["PLACEMENT_WEARS_UNOFFERED_FINISH"]);
+  });
+
+  // A document with no `materialTierId` is deemed to be on PAL, so the offer is PAL's.
+  it("judges a document carrying no material tier against the default material", () => {
+    expect(codesFor(withBody({ finish: paletteFinish("pal.alb") }))).toEqual(
+      [],
+    );
+    expect(codesFor(withBody({ finish: paletteFinish("veneer.nuc") }))).toEqual(
+      ["PLACEMENT_WEARS_UNOFFERED_FINISH"],
+    );
   });
 });
 

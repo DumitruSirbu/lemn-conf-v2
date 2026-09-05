@@ -8,6 +8,8 @@ import {
   buildKitchenLBodyCatalog,
   KITCHEN_L_BODY_CATALOG,
   KITCHEN_L_DESIGN,
+  materialById,
+  materialOffersFinish,
   priceDesign,
   SAMPLE_PRICE_BOOK,
   SAMPLE_PRICE_BOOK_VERSION,
@@ -18,6 +20,13 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 
 import { createFakeProbeFactory } from "../support/fake-body-probe";
+import {
+  countMovedFinishes,
+  FINISHES_RESOLVED_BY_VENEER,
+  HOOD_PLACEMENT_ID,
+  MDF_KITCHEN_WEARING_CHOSEN_COLOURS,
+  VENEER_TIER_ID,
+} from "../support/mdf-kitchen-wearing-chosen-colours";
 
 /** The store state the hook under test reads, swapped between cases so the real `usePricedDesign`
  *  runs against a real store's real fields rather than a fixture shaped like one. */
@@ -122,18 +131,66 @@ describe("the two whole-kitchen store actions", () => {
     expect(store.getState().selection).toEqual(before);
   });
 
-  it("notifies the save path exactly once per applied change", () => {
+  // **The web copy's own drift guard** (ADR 0084 decision 6). The fixture below is a deliberate
+  // duplicate of the domain package's, and what keeps the two literal counts from parting is that
+  // each copy checks *its own* placements against the public offer query — not a shared constant and
+  // not an import across the package boundary. It is not circular with `setMaterialTier`: the offer
+  // query is wave 6Q-a's and is pinned by its own suite.
+  it("holds exactly FINISHES_RESOLVED_BY_VENEER finishes veneer refuses", () => {
+    const veneer = materialById(VENEER_TIER_ID);
+    const refused = MDF_KITCHEN_WEARING_CHOSEN_COLOURS.placements.filter(
+      (placement) =>
+        placement.body.finish !== undefined &&
+        !materialOffersFinish(veneer, placement.body.finish),
+    );
+
+    expect(refused.map((placement) => placement.id)).toEqual(["p0", "p1"]);
+    expect(refused).toHaveLength(FINISHES_RESOLVED_BY_VENEER);
+  });
+
+  // ADR 0084 decision 2b: the frontless body arrives bare and leaves bare — absence stays absence
+  // where it could only ever have been absence.
+  it("leaves the frontless body wearing nothing, before and after the change", () => {
+    const store = freshStore(MDF_KITCHEN_WEARING_CHOSEN_COLOURS);
+    const hoodBefore = MDF_KITCHEN_WEARING_CHOSEN_COLOURS.placements.find(
+      (placement) => placement.id === HOOD_PLACEMENT_ID,
+    );
+    expect(hoodBefore?.body.finish).toBeUndefined();
+
+    store.getState().setMaterialTier(VENEER_TIER_ID, MATERIAL_TIER_IDS);
+
+    const hoodAfter = store
+      .getState()
+      .design.placements.find(
+        (placement) => placement.id === HOOD_PLACEMENT_ID,
+      );
+    expect(hoodAfter?.body.finish).toBeUndefined();
+  });
+
+  // **ADR 0057: the reset runs once and produces one result — never a per-cabinet cascade the
+  // customer watches happen.** Pointed at a design where two cabinets actually have to reset, because
+  // `KITCHEN_L_DESIGN` carries no finish on any placement: on the seeded fixture nothing resets, so a
+  // cascade would have nothing to iterate and this assertion would pass for either implementation.
+  // With N cabinets moving, a per-cabinet cascade shows here as N + 1 saves through the coalescer.
+  it("notifies the save path exactly once however many finishes the change resets", () => {
     const onDesignChanged = vi.fn();
     const store = createConfiguratorStore({
-      design: KITCHEN_L_DESIGN,
+      design: MDF_KITCHEN_WEARING_CHOSEN_COLOURS,
       catalogAt: buildKitchenLBodyCatalog,
       probeAt: createFakeProbeFactory(),
       now: () => OCCURRED_AT,
       onDesignChanged,
     });
 
-    store.getState().setMaterialTier("material.veneer", MATERIAL_TIER_IDS);
+    store.getState().setMaterialTier(VENEER_TIER_ID, MATERIAL_TIER_IDS);
 
+    expect(
+      countMovedFinishes(
+        MDF_KITCHEN_WEARING_CHOSEN_COLOURS,
+        store.getState().design,
+      ),
+    ).toBe(FINISHES_RESOLVED_BY_VENEER);
+    expect(FINISHES_RESOLVED_BY_VENEER).toBeGreaterThanOrEqual(2);
     expect(onDesignChanged).toHaveBeenCalledTimes(1);
     expect(onDesignChanged.mock.calls[0]?.[0]).toBe(store.getState().design);
   });

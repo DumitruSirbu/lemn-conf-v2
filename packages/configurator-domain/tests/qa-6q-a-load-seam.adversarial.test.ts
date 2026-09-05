@@ -31,6 +31,7 @@ import {
   LEGACY_ENUM_FINISHES,
   lookUpMaterial,
   materialById,
+  materialOffersFinish,
   MATERIAL_IDS,
   MATERIALS,
   PALETTE_ENTRY_IDS,
@@ -60,8 +61,8 @@ const FINISHABLE_ID = "p0";
 const UNDECLARED_TIER_ID = "material.laminate";
 
 /** The severity map's size, pinned so a code added anywhere in the repository has to come past this
- *  file. 6Q-a is the wave that must add **none**. */
-const DECLARED_VALIDATION_CODE_COUNT = 29;
+ *  file. 6Q-a added **none**; 6Q-b added exactly one, `PLACEMENT_WEARS_UNOFFERED_FINISH`. */
+const DECLARED_VALIDATION_CODE_COUNT = 30;
 
 const PACKAGE_ROOT = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -161,26 +162,39 @@ describe("lookUpMaterial is total, and nothing on a load path can throw through 
   });
 });
 
+// **Amended by wave 6Q-b, and the amendment is the point of the file rather than a break in it.**
+// 6Q-a's version of this block asserted the stronger *"and leaves it exactly as stored"*, which was
+// true only because 6Q-a shipped no resolution. ADR 0078 decision 2 orders the resolution before the
+// refusal precisely so this describe's own title stays true once the refusal exists, so what is
+// asserted here is the title: **the load never refuses**, and its output is a document the shared
+// validator accepts. What a load may now *change* is the finish, to the material's declared default.
 describe("no stored document is refused that could be loaded before wave 6Q-a", () => {
   it.each(
     everyFinish().map((finish) => [JSON.stringify(finish), finish] as const),
-  )(
-    "loads %s on a PAL kitchen and leaves it exactly as stored",
-    (_label, finish) => {
-      const loaded = migrateDesign(
-        CURRENT_SCHEMA_VERSION,
-        storedRow({ finish }),
-        KITCHEN_L_BODY_CATALOG,
-      );
+  )("loads %s on a PAL kitchen without refusing it", (_label, finish) => {
+    const loaded = migrateDesign(
+      CURRENT_SCHEMA_VERSION,
+      storedRow({ finish }),
+      KITCHEN_L_BODY_CATALOG,
+    );
 
-      expect(finishOn(loaded, FINISHABLE_ID)).toEqual(finish);
-    },
-  );
+    const carried = finishOn(loaded, FINISHABLE_ID);
+    expect(carried).toBeDefined();
+    if (!carried) return;
+    // PAL offers its own six decors and nothing else, so the two woods and the three free colours
+    // resolve to *Alb* and the six decors come through as stored.
+    const material = materialById(DEFAULT_MATERIAL_ID);
+    expect(carried).toEqual(
+      materialOffersFinish(material, finish) ? finish : DEFAULT_FINISH,
+    );
+  });
 
-  it("loads every (material, finish) pair unchanged — the whole space, not a sample", () => {
+  it("loads every (material, finish) pair, and every one of them wearing an offered finish", () => {
     let loadedCount = 0;
+    let resolvedCount = 0;
 
     for (const materialId of MATERIAL_IDS) {
+      const material = materialById(materialId);
       for (const finish of everyFinish()) {
         const loaded = migrateDesign(
           CURRENT_SCHEMA_VERSION,
@@ -189,7 +203,11 @@ describe("no stored document is refused that could be loaded before wave 6Q-a", 
         );
 
         expect(loaded.settings?.materialTierId).toBe(materialId);
-        expect(finishOn(loaded, FINISHABLE_ID)).toEqual(finish);
+        const carried = finishOn(loaded, FINISHABLE_ID);
+        expect(carried).toBeDefined();
+        if (!carried) return;
+        expect(materialOffersFinish(material, carried)).toBe(true);
+        if (!materialOffersFinish(material, finish)) resolvedCount += 1;
         loadedCount += 1;
       }
     }
@@ -197,6 +215,8 @@ describe("no stored document is refused that could be loaded before wave 6Q-a", 
     // Three materials by eleven finishes — eight declared entries and three free colours, of which
     // *Lut* and *Salvie* are the two the panel still writes onto a PAL kitchen today.
     expect(loadedCount).toBe(33);
+    // Not a vacuous sweep: PAL offers 6 of 11, MDF 3 of 11 and veneer 2 of 11, so 33 − 11 resolve.
+    expect(resolvedCount).toBe(22);
   });
 
   it("reports no validation finding for a document wearing an unoffered finish", () => {
@@ -243,21 +263,31 @@ describe("no stored document is refused that could be loaded before wave 6Q-a", 
     }
   });
 
-  it("adds no validation code, and the severity map is the size it was", () => {
+  it("declares exactly one finish code, added by wave 6Q-b and classified a refusal", () => {
     const codes = Object.keys(DESIGN_ISSUE_SEVERITY_BY_CODE);
 
     expect(codes).toHaveLength(DECLARED_VALIDATION_CODE_COUNT);
+    // 6Q-a added none; 6Q-b added this one, after the resolution that makes it unreachable from the
+    // load path. A second finish code appearing here is a wave that has to justify itself.
     expect(
       codes.filter((code) => /FINISH|MATERIAL|COLOUR|OFFER/.test(code)),
-    ).toEqual([]);
+    ).toEqual(["PLACEMENT_WEARS_UNOFFERED_FINISH"]);
+    expect(DESIGN_ISSUE_SEVERITY_BY_CODE.PLACEMENT_WEARS_UNOFFERED_FINISH).toBe(
+      "refusal",
+    );
   });
 
-  it("leaves the two load-seam modules untouched by this wave's vocabulary", () => {
+  it("reaches the offer from both load-seam modules and the command's code from neither", () => {
+    // 6Q-a asserted the opposite of the first two lines, because 6Q-a was forbidden to touch these
+    // modules at all. 6Q-b is the wave that wires them, and the ordering — the resolution in
+    // `migrate-design.ts` *before* the refusal `validate-design.ts` declares — is what the
+    // "no stored document is refused" sweep above measures.
     for (const file of ["validate-design.ts", "migrate-design.ts"]) {
       const source = sourceOf(file);
-      expect(source).not.toContain("materialOffersFinish");
+      expect(source).toContain("materialOffersFinish");
+      expect(source).toContain("lookUpMaterial");
+      // Still the command's own rejection code, and still not a validation finding.
       expect(source).not.toContain("FINISH_NOT_OFFERED");
-      expect(source).not.toContain("lookUpMaterial");
     }
   });
 

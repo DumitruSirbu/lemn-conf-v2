@@ -126,10 +126,20 @@ function storedSerialization(id: string): string {
   return canonicalSerializeDesign(design);
 }
 
-/** The seeded kitchen with one body wearing whatever the caller wrote, as wire bytes. */
-function bodyWearing(finish: unknown): string {
+/** The seeded kitchen with one body wearing whatever the caller wrote, as wire bytes.
+ *
+ *  **The material is a parameter since wave 6Q-b**, because the write seam now also refuses a finish
+ *  the document's material does not offer (ADR 0078 decision 2) and the seeded kitchen carries no
+ *  `materialTierId`, so it is a PAL kitchen — which offers its own six decors and no free colour at
+ *  all. Every case below still turns on the bound `FinishSchema` declares; naming the material is
+ *  what keeps the offer from being the thing that answers. */
+function bodyWearing(finish: unknown, materialTierId?: string): string {
   return JSON.stringify({
     ...KITCHEN_L_DESIGN,
+    settings:
+      materialTierId === undefined
+        ? KITCHEN_L_DESIGN.settings
+        : { ...KITCHEN_L_DESIGN.settings, materialTierId },
     placements: KITCHEN_L_DESIGN.placements.map((placement) =>
       placement.id === FINISHABLE_ID
         ? { ...placement, body: { ...placement.body, finish } }
@@ -138,10 +148,17 @@ function bodyWearing(finish: unknown): string {
   });
 }
 
+/** The material whose control is the RAL picker, and therefore the only one that offers a free
+ *  colour at all (ADR 0078 decision 1). */
+const RAL_PICKER_TIER_ID = "material.painted-mdf";
+
 describe("PUT /api/designs/[id] — the free colour bound is the route's gate too", () => {
   it("stores a well-formed colour, so every refusal below can only be the bound", async () => {
     const { id, cookie } = await mintDesign();
-    const wellFormed = bodyWearing({ kind: "free-colour", value: "#b8c4a1" });
+    const wellFormed = bodyWearing(
+      { kind: "free-colour", value: "#b8c4a1" },
+      RAL_PICKER_TIER_ID,
+    );
 
     const response = await PUT(
       saveRequest(id, { body: wellFormed, cookie }),
@@ -244,5 +261,79 @@ describe("PUT /api/designs/[id] — the free colour bound is the route's gate to
     );
 
     expect(JSON.stringify(await response.json())).not.toContain("gggggg");
+  });
+});
+
+// **Wave 6Q-b's write seam, asserted here because this is where the route's plumbing already is.**
+//
+// The two are different gates on the same field and the difference is the point: above, a value
+// `FinishSchema` cannot parse; here, a value it parses perfectly that the document's own material
+// does not offer (ADR 0078 decision 1). `migrateDesign` resolves this violation immediately before
+// it validates, so the only seam that can meet it is a client sending a whole document that never
+// passed through `setFinish` or `setMaterialTier`.
+describe("PUT /api/designs/[id] — a finish the document's material does not offer", () => {
+  it("refuses a wood on a PAL kitchen and stores nothing", async () => {
+    const { id, cookie } = await mintDesign();
+    const before = storedSerialization(id);
+
+    const response = await PUT(
+      saveRequest(id, {
+        body: bodyWearing(paletteFinish("veneer.stejar")),
+        cookie,
+      }),
+      routeParams(id),
+    );
+
+    expect(response.status).toBe(400);
+    expect(await response.json()).toStrictEqual({
+      code: "DESIGN_INVALID",
+      error: "Design payload failed validation.",
+    });
+    expect(storedSerialization(id)).toBe(before);
+  });
+
+  it("refuses a PAL decor on a veneer kitchen, so the rule is the material's and not one palette's", async () => {
+    const { id, cookie } = await mintDesign();
+
+    const response = await PUT(
+      saveRequest(id, {
+        body: bodyWearing(paletteFinish("pal.alb"), "material.veneer"),
+        cookie,
+      }),
+      routeParams(id),
+    );
+
+    expect(response.status).toBe(400);
+  });
+
+  it("stores the same finish once the document names the material that offers it", async () => {
+    const { id, cookie } = await mintDesign();
+
+    const response = await PUT(
+      saveRequest(id, {
+        body: bodyWearing(paletteFinish("veneer.stejar"), "material.veneer"),
+        cookie,
+      }),
+      routeParams(id),
+    );
+
+    expect(response.status).toBe(200);
+  });
+
+  // ADR 0014 S2 again: a stable code, never the reason. The code names no placement and no colour.
+  it("echoes neither the finish nor the material back to the caller", async () => {
+    const { id, cookie } = await mintDesign();
+
+    const response = await PUT(
+      saveRequest(id, {
+        body: bodyWearing(paletteFinish("veneer.stejar")),
+        cookie,
+      }),
+      routeParams(id),
+    );
+
+    const body = JSON.stringify(await response.json());
+    expect(body).not.toContain("veneer.stejar");
+    expect(body).not.toContain("UNOFFERED");
   });
 });

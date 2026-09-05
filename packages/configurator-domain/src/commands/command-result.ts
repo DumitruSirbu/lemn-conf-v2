@@ -119,6 +119,17 @@ export interface HandleSetEffect {
 export interface MaterialTierSetEffect {
   readonly type: "material_tier_set";
   readonly materialTierId: string;
+  /** Wave 6Q-b. How many cabinets ADR 0057's reset moved to the new material's default finish.
+   *
+   *  **`CabinetDepthSetEffect.rebuiltCount` is the precedent and the reason.** ADR 0057 rules the
+   *  reset to run *once* and produce *one* result — never a per-cabinet cascade the customer
+   *  watches happen — so one result carrying *N* is the structurally different thing a cascade
+   *  cannot fake, and it is what a test can measure the difference on.
+   *
+   *  **It is not rendered.** A numeral in `ro.globalSettings` is refused by
+   *  `starting-price.adversarial.test.ts`'s digit sweep; the consequence is stated where it happens
+   *  (wave 6Q-c's confirmation), not counted in the sheet's standing copy. */
+  readonly resolvedFinishCount: number;
 }
 
 /** Wave 6J-b. Carries the count of bodies actually rebuilt, because the customer-visible

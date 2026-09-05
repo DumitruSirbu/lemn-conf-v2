@@ -215,6 +215,26 @@ which turns 7 tests red because a valid-except-overflow document then returns by
 that changes is `SYNTHETIC_EMPTY_ROOM` at versions 1 and 2. The implementer measures this rather than
 assuming it.
 
+> **EXTENDED BY [ADR 0085](0085-a-normalisations-guard-asks-what-the-normalisation-changes.md)
+> (2026-09-05), after wave 6Q-b's adversarial QA. Guard 2's predicate becomes a comparison; nothing
+> above is overturned.** Decisions 5 and 5b measure the corrected document *absolutely* — *"unless
+> the corrected room carries a fatal finding"* — and wave 6Q-b added
+> `PLACEMENT_WEARS_UNOFFERED_FINISH` to the severity table, a finding that is a function of
+> `design.settings` and `design.placements` and of no room at all. So a document carrying it declined
+> the room correction for a reason with no bearing on whether a wall was measured correctly:
+> **measured, `room.widthMm` came back 3600 with the finish and 3560 without it.** That is 5b's own
+> objection to guard 1 — *"a guard keyed on an irrelevant fact protects the case that is fine and
+> fails the case that is not"* — arriving at guard 2 through a code that did not exist on 2026-09-03.
+>
+> The arm now reads: **pre-correction pair and version ≤ 2 → correct, unless the correction
+> *creates* a fatal finding the uncorrected document did not carry**, compared by the `(code, path)`
+> pair. Guard 1 stays deleted, guard 2 stays and stays fatal-only, and decision 5's table is what
+> justifies the narrowing: its first row (*the corrected room is not the answer to this document's
+> problems*) and the dead-`/d/{id}`-link cost are both preserved, because a correction that narrows
+> wall A by 40 mm genuinely can create a fatal finding — measured witness, a wall-B `emptyColumns`
+> entry of `depthMm: 3580`, fatal against 3560 and legal against 3600. Decision 4 is untouched and is
+> what rules out fixing this with a second list of "room-relevant" codes.
+
 ### 5c. Pricing derives the overflow fact; it does not accept it
 
 `PriceDesignRequest.overflowingPlacementIds` is deleted and `priceDesign` calls
