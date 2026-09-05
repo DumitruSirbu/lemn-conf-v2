@@ -14,6 +14,7 @@
 // BROKEN  settled → 700     A|0.30=330 A|0.75=330 | B|0.61=400 B|2.45=742 B|1.20=738 B|1.80=699 A|1.30=720
 // FIXED   settled → 700     A|0.30=400 A|0.75=400 | B|0.61=400 B|2.45=742 B|1.20=738 B|1.80=699 A|1.30=720
 // ```
+import { createBodyProbeLease } from "@lemnaria/configurator-domain";
 import {
   buildKitchenLBodyCatalog,
   deriveColumns,
@@ -80,7 +81,7 @@ function changeTo(design: Design, cabinetDepthMm: number): Design {
     cabinetDepthMm,
     probeAt: (askedForMm: number) => {
       const { kit, room } = kitAt(askedForMm);
-      return { probe: createBodyProbe(kit, room), release: () => undefined };
+      return createBodyProbeLease(createBodyProbe(kit, room), () => undefined);
     },
     occurredAt: OCCURRED_AT,
   });

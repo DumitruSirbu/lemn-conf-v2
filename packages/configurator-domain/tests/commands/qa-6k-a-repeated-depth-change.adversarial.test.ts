@@ -9,6 +9,7 @@
 // A fake probe is a model of a builder and two of them in this repo model it differently, so a test
 // written against the returned seat would be measuring the fake. The request is the command's own
 // output either way: `reseat` decides it, and it must be the depth the rebuilt world declares.
+import { createBodyProbeLease } from "../../src/body-probe.js";
 import { describe, expect, it } from "vitest";
 
 import { setCabinetDepth } from "../../src/commands/set-cabinet-depth.js";
@@ -51,7 +52,7 @@ function changeTo(cabinetDepthMm: number, design: Design): ChangeOutcome {
     design,
     catalogAt: buildKitchenLBodyCatalog,
     cabinetDepthMm,
-    probeAt: () => ({ probe, release: () => undefined }),
+    probeAt: () => createBodyProbeLease(probe, () => undefined),
     occurredAt: OCCURRED_AT,
   });
   if (!result.ok) throw new Error(`refused: ${result.reason.code}`);

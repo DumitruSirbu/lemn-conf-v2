@@ -32,22 +32,53 @@ export interface BodyProbe {
 }
 
 /**
- * A probe borrowed for the length of one command, and the thing that must give it back.
+ * A probe borrowed for the length of one bracketed use, and nothing longer.
  *
  * **Why a lease and not a probe.** A probe is not plain data: the adapter's implementation closes
  * over a `Kit`, which owns GPU buffers, materials and canvas textures. A caller that needs a probe
  * at a depth other than the one the scene is standing at has to build a kit for it, and a kit built
  * and never released is a leak per command (ADR 0074 decision 3 — exactly one kit is alive per
- * mounted scene). Handing back a bare `BodyProbe` gives the borrower no way to say when it is done,
- * and gives the lender no way to know.
+ * mounted scene).
  *
- * `release` is idempotent and must be called on every path, success or refusal. A lease whose depth
- * the lender already has standing may release nothing at all — that is the ordinary case, and it is
- * why the borrower never asks which.
+ * **Why the lease *is* the use, rather than a pair of fields** (ADR 0076 decision 3). A
+ * `{ probe, release }` shape asks every borrower to remember an obligation, and the web store forgot
+ * it at five call sites — including the load path, so a `/d/{id}` link at another depth stranded a
+ * kit on first paint. `.probe` was the whole of that defect, so `.probe` is gone: there is no
+ * `release` to forget because there is no `release` on this side of the interface, and the release
+ * moves to the site that allocated it.
+ *
+ * **The honest limit**, recorded rather than glossed: `lease.use((probe) => probe)` still compiles.
+ * TypeScript has no lifetime. What changes is that smuggling a probe past its scope is now something
+ * a reviewer can see being *written*, where the leak was something a reader had to notice being
+ * *missing* — and a fake that revokes on release makes the escaped probe fail loudly at the point of
+ * use rather than answering (ADR 0076 decision 5).
  */
 export interface BodyProbeLease {
-  readonly probe: BodyProbe;
-  readonly release: () => void;
+  /** Invokes `borrow` with the probe and releases before returning, on every path including a
+   *  throw. The borrower never learns which arm it got — a lease at a depth the lender already has
+   *  standing releases nothing, and that is the ordinary case. */
+  use<T>(borrow: (probe: BodyProbe) => T): T;
+}
+
+/**
+ * The only constructor for a lease, and **the only `finally` in this seam**.
+ *
+ * `release` is called exactly once per `use`, before it returns, and is expected to be idempotent —
+ * a lender whose depth is already standing passes one that frees nothing.
+ */
+export function createBodyProbeLease(
+  probe: BodyProbe,
+  release: () => void,
+): BodyProbeLease {
+  return {
+    use(borrow) {
+      try {
+        return borrow(probe);
+      } finally {
+        release();
+      }
+    },
+  };
 }
 
 /**

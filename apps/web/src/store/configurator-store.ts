@@ -27,7 +27,6 @@ import {
   setMaterialTier as setMaterialTierOnDesign,
   setWidth as setWidthOnDesign,
   type BodyCatalog,
-  type BodyProbe,
   type BodyProbeFactory,
   type Column,
   type CommandResult,
@@ -134,34 +133,28 @@ export interface ConfiguratorState {
    *  It needs the body probe for the same reason `insert` and `setWidth` do — every body is rebuilt
    *  through `evaluateInsertFit` — and refuses `BODY_PROBE_UNAVAILABLE` without one. */
   readonly setCabinetDepth: (cabinetDepthMm: number) => void;
-  /** The scene's measuring instrument, published rather than closed over because §9's width chips
-   *  need it too: `widthOptionsFor` answers "would this resize succeed" by running the command,
-   *  which rebuilds through the real builders. A query cannot reach a closure variable.
-   *
-   *  `undefined` until the scene mounts and after it unmounts — the store is module-scoped and
-   *  outlives any one canvas. */
-  readonly bodyProbe: BodyProbe | undefined;
   /**
-   * **The factory the scene attached**, and the one thing `isBodyProbeAttached` is derived from.
+   * **The factory the scene attached** — the single source, and the one thing
+   * `isBodyProbeAttached` is derived from.
    *
-   * `bodyProbe` above is this factory leased at the design's **current** depth, which is what
-   * `insert`, `setWidth` and §9's width chips need and what the mounted stage's own kit already
-   * answers. `setCabinetDepth` is the one command that needs a probe at a depth the scene is *not*
-   * standing at, and it takes the factory rather than the probe for the reason
-   * `BodyProbeFactory` gives: the adapter's base, full-height, appliance and hood builders ignore
-   * the depth they are handed and build the kit's own, so a probe over the old kit measures the old
-   * depth whatever it is asked for.
+   * **Nothing here holds a probe** (ADR 0076 decision 2). A published `bodyProbe` was a lease taken
+   * once and never given back, at five sites including `hydrate`, so a `/d/{id}` link to a 700 mm
+   * design opened in a 600 mm session stranded a GPU kit on first paint. Every consumer borrows for
+   * its own scope instead: `insert` and `setWidth` lease at `cabinetDepthMmOf(design)`,
+   * `setCabinetDepth` at the depth it is moving to, and the width hooks take one lease around both
+   * their queries.
    *
-   * **One source, never a pair.** The scene attaches the factory alone and `bodyProbe` is derived
-   * from it here, so a caller cannot hand in a probe at 600 beside a factory that builds at 700 —
-   * the mismatched pair this whole seam exists to make unwriteable.
+   * The factory, not a probe, for the reason `BodyProbeFactory` gives: the adapter's base,
+   * full-height, appliance and hood builders ignore the depth they are handed and build the kit's
+   * own, so a probe over the old kit measures the old depth whatever it is asked for.
    */
   readonly probeAt: BodyProbeFactory | undefined;
   /** Whether `insert` can do anything. False until the scene calls `attachBodyProbe`, and
    *  published so a control is disabled rather than offered and then refused ("never offer what
    *  cannot be satisfied", §9). `insert` refuses `BODY_PROBE_UNAVAILABLE` if one is called anyway.
    *
-   *  Written only alongside `bodyProbe`, from the same value, so the two cannot come to disagree. */
+   *  Derived from `probeAt !== undefined` and written only by attach/detach. One source is
+   *  strictly better than two that must agree (ADR 0076 decision 6). */
   readonly isBodyProbeAttached: boolean;
   readonly attachBodyProbe: (probeAt: BodyProbeFactory) => void;
   /** The scene's unmount half. The store is module-scoped and outlives any one mounted scene, so
@@ -329,17 +322,6 @@ function deriveGeometry(design: Design, catalog: BodyCatalog) {
   return { records, columns, voids };
 }
 
-/** The scene's factory leased at the design's own depth, which is the probe every command except
- *  `setCabinetDepth` wants. The lease is held for as long as the scene's stage stands: a factory
- *  asked for the depth its own kit is already at returns that kit's probe and a `release` that frees
- *  nothing (`disposeKit`'s stated rule), and the scene re-attaches on the next generation. */
-function leaseAtCurrentDepth(
-  probeAt: BodyProbeFactory | undefined,
-  design: Design,
-): BodyProbe | undefined {
-  return probeAt?.(cabinetDepthMmOf(design)).probe;
-}
-
 function nowInIsoMilliseconds(): string {
   return new Date().toISOString();
 }
@@ -395,17 +377,10 @@ export function createConfiguratorStore(
         set(application.state);
         return;
       }
-      // **The probe follows the held depth exactly as the catalogue does.** `bodyProbe` is the
-      // factory leased at the design's own depth, so a depth change makes the held lease describe a
-      // kitchen the store has left — and the next `insert` or `setWidth` would re-seat a body at it.
-      // Measured: a resize straight after a 600 -> 700 change re-seated a base body at 580.
-      // Re-derived here rather than left to the scene's re-attach, because the store's own contract
-      // is that its published probe measures the design it is holding.
-      set({
-        ...application.state,
-        catalog,
-        bodyProbe: leaseAtCurrentDepth(state.probeAt, application.state.design),
-      });
+      // The catalogue follows the held depth. The probe no longer needs to: every consumer leases
+      // at `cabinetDepthMmOf(design)` when it needs one, so nothing survives here that could still
+      // describe the kitchen the store has left (ADR 0076 decision 2).
+      set({ ...application.state, catalog });
       onDesignChanged(application.state.design);
     };
 
@@ -452,18 +427,21 @@ export function createConfiguratorStore(
         );
       },
       insert: (buildId) => {
-        const probe = get().bodyProbe;
+        const probeAt = get().probeAt;
         runCommand(({ design: current, catalog: held, columns, target }) =>
-          probe
-            ? insertBody({
-                design: current,
-                columns,
-                target,
-                catalog: held,
-                buildId,
-                probe,
-                occurredAt: now(),
-              })
+          probeAt
+            ? // Borrowed for this command and given back before it returns (ADR 0076 decision 1).
+              probeAt(cabinetDepthMmOf(current)).use((probe) =>
+                insertBody({
+                  design: current,
+                  columns,
+                  target,
+                  catalog: held,
+                  buildId,
+                  probe,
+                  occurredAt: now(),
+                }),
+              )
             : // A missing probe is a refusal, not a throw: `isBodyProbeAttached` exists so a
               // control is never offered before the scene is ready, and this is the safety net
               // beneath that. It sits **after** the selection check, so `insert` fails the same
@@ -494,18 +472,20 @@ export function createConfiguratorStore(
         );
       },
       setWidth: (widthMm) => {
-        const probe = get().bodyProbe;
+        const probeAt = get().probeAt;
         runCommand(({ design: current, catalog: held, columns, target }) =>
-          probe
-            ? setWidthOnDesign({
-                design: current,
-                columns,
-                target,
-                catalog: held,
-                widthMm,
-                probe,
-                occurredAt: now(),
-              })
+          probeAt
+            ? probeAt(cabinetDepthMmOf(current)).use((probe) =>
+                setWidthOnDesign({
+                  design: current,
+                  columns,
+                  target,
+                  catalog: held,
+                  widthMm,
+                  probe,
+                  occurredAt: now(),
+                }),
+              )
             : // The same safety net `insert` carries, for the same reason: §9 disables a chip it
               // cannot satisfy, and this is what happens if one is tapped anyway.
               refuse(current, { code: "BODY_PROBE_UNAVAILABLE", params: {} }),
@@ -558,19 +538,16 @@ export function createConfiguratorStore(
         );
       },
       probeAt: options.probeAt,
-      bodyProbe: leaseAtCurrentDepth(options.probeAt, design),
       isBodyProbeAttached: options.probeAt !== undefined,
       attachBodyProbe: (probeAt) => {
         set({
           probeAt,
-          bodyProbe: leaseAtCurrentDepth(probeAt, get().design),
           isBodyProbeAttached: true,
         });
       },
       detachBodyProbe: () => {
         set({
           probeAt: undefined,
-          bodyProbe: undefined,
           isBodyProbeAttached: false,
         });
       },
@@ -591,9 +568,6 @@ export function createConfiguratorStore(
         set({
           design: loaded.design,
           catalog: loadedCatalog,
-          // The load half of the same rule: a hydrated design at another depth must not be measured
-          // by a probe leased at the one the session opened with.
-          bodyProbe: leaseAtCurrentDepth(get().probeAt, loaded.design),
           ...geometry,
           selection: null,
           lastRejection: null,

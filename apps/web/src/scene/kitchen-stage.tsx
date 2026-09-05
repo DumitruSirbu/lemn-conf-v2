@@ -33,6 +33,7 @@ import * as THREE from "three";
 import {
   DEFAULT_CABINET_DEPTH_MM,
   wallCarcassDepthMm,
+  createBodyProbeLease,
   type BodyProbeFactory,
 } from "@lemnaria/configurator-domain";
 
@@ -67,22 +68,23 @@ function probeFactoryFor(
 ): BodyProbeFactory {
   return (cabinetDepthMm: number) => {
     if (cabinetDepthMm === standingDepthMm) {
-      return {
-        probe: createBodyProbe(stage.kit, stage.room),
-        release: () => undefined,
-      };
+      // Frees nothing: the stage owns this kit and `disposeKitAndStage` will release it. Disposing
+      // here would take the shared geometries out from under the mounted room.
+      return createBodyProbeLease(
+        createBodyProbe(stage.kit, stage.room),
+        () => undefined,
+      );
     }
     const kit = makeKit({
       cabinetDepthMm,
       wallDepthMm: wallCarcassDepthMm(cabinetDepthMm),
     });
     const room = kit.builders["kitchen-l"]();
-    return {
-      probe: createBodyProbe(kit, room),
-      release: () => {
-        disposeKit(kit, room);
-      },
-    };
+    // **This is the site that allocates, so this is the site that frees** (ADR 0076 decision 3).
+    // The borrower cannot drop it: `use` runs this in a `finally` and never hands the probe out.
+    return createBodyProbeLease(createBodyProbe(kit, room), () => {
+      disposeKit(kit, room);
+    });
   };
 }
 

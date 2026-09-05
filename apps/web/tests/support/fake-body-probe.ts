@@ -31,6 +31,8 @@ import {
   type BodyProbe,
   type BodyProbeFactory,
   type BodyProbeRequest,
+  createBodyProbeLease,
+  type BodyProbeLease,
 } from "@lemnaria/configurator-domain";
 import { isCatalogBuildId } from "@lemnaria/three-adapter";
 
@@ -115,15 +117,15 @@ export function createFakeBodyProbe(
  * `setCabinetDepth` the scene's standing probe, whose kit was at the depth the session was *leaving*
  * — `createPinnedFakeProbeFactory` is how a test models that deliberately.
  *
- * `release` frees nothing: there is no kit behind a fake. The real factory's release disposes the
- * transient kit it built, and returns a no-op lease when the standing stage is already at the
- * requested depth (`disposeKit`'s stated rule).
+ * The lease **counts and revokes** — see `revokingLease`. Pass a ledger to assert that leases taken
+ * equal leases released.
  */
-export function createFakeProbeFactory(): BodyProbeFactory {
-  return (cabinetDepthMm: number) => ({
-    probe: createFakeBodyProbe({ cabinetDepthMm }),
-    release: () => undefined,
-  });
+export function createFakeProbeFactory(ledger?: {
+  take: () => void;
+  release: () => void;
+}): BodyProbeFactory {
+  return (cabinetDepthMm: number) =>
+    revokingLease(createFakeBodyProbe({ cabinetDepthMm }), ledger);
 }
 
 /** A factory whose kit never moves, whatever depth it is asked for — the application's behaviour
@@ -132,5 +134,73 @@ export function createPinnedFakeProbeFactory(
   cabinetDepthMm: number,
 ): BodyProbeFactory {
   const probe = createFakeBodyProbe({ cabinetDepthMm });
-  return () => ({ probe, release: () => undefined });
+  return () => revokingLease(probe);
+}
+
+/**
+ * A lease over a fake probe that **counts and revokes** (ADR 0076 decision 5).
+ *
+ * Every fake in this repo used to return `release: () => undefined` and a probe that kept working
+ * afterwards, which is precisely why a dropped release was invisible at the store layer — that
+ * leniency has now been the reason four separate defects were green. So a fake lease records that it
+ * was taken and released, and `measure` after release throws rather than answering.
+ *
+ * **Revoking is deliberately stricter than reality, and that is the point.** A real probe over a
+ * disposed kit does not throw; it measures a black or invisible object. A fake may be stricter than
+ * the thing it stands for **when reality's failure is silent** — that is the only kind of infidelity
+ * that makes a test more truthful.
+ */
+export class ReleasedProbeUsedError extends Error {
+  constructor() {
+    super(
+      "measure() was called on a probe whose lease had already been released",
+    );
+    this.name = "ReleasedProbeUsedError";
+  }
+}
+
+export interface LeaseLedger {
+  readonly taken: number;
+  readonly released: number;
+}
+
+export function createLeaseLedger(): LeaseLedger & {
+  take: () => void;
+  release: () => void;
+} {
+  const counts = { taken: 0, released: 0 };
+  return {
+    get taken() {
+      return counts.taken;
+    },
+    get released() {
+      return counts.released;
+    },
+    take: () => {
+      counts.taken += 1;
+    },
+    release: () => {
+      counts.released += 1;
+    },
+  };
+}
+
+/** Wraps a probe in a lease that revokes it on release. `release` stays idempotent. */
+function revokingLease(
+  probe: BodyProbe,
+  ledger?: { take: () => void; release: () => void },
+): BodyProbeLease {
+  let released = false;
+  ledger?.take();
+  const guarded: BodyProbe = {
+    measure: (request) => {
+      if (released) throw new ReleasedProbeUsedError();
+      return probe.measure(request);
+    },
+  };
+  return createBodyProbeLease(guarded, () => {
+    if (released) return;
+    released = true;
+    ledger?.release();
+  });
 }

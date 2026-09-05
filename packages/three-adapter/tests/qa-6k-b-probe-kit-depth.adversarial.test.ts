@@ -39,6 +39,7 @@
 //
 // **This test is also ADR 0074's own withdrawal clause.** If the two probes agree, the finding is
 // wrong and must be withdrawn by a dated amendment there rather than by deleting this file.
+import { createBodyProbeLease } from "@lemnaria/configurator-domain";
 import {
   buildKitchenLBodyCatalog,
   KITCHEN_L_DESIGN,
@@ -95,7 +96,7 @@ function leaseRealProbeAt(cabinetDepthMm: number) {
     wallDepthMm: wallCarcassDepthMm(cabinetDepthMm),
   });
   const room: THREE.Object3D = kit.builders["kitchen-l"]();
-  return { probe: createBodyProbe(kit, room), release: () => undefined };
+  return createBodyProbeLease(createBodyProbe(kit, room), () => undefined);
 }
 
 /** The seat `setCabinetDepth` writes for a base body when **every** lease comes from a kit at

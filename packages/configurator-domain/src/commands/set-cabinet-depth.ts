@@ -67,16 +67,14 @@ export function setCabinetDepth(
     return refuse(design, { code: "UNKNOWN_CABINET_DEPTH", params: {} });
   }
 
-  // Leased for the length of the rebuild and released on every path, refusal included: the adapter's
-  // implementation closes over a `Kit`, and a kit built per command and never released is a leak per
-  // command (ADR 0074 decision 3).
-  const lease = input.probeAt(input.cabinetDepthMm);
-  let rebuilt: Rebuilt;
-  try {
-    rebuilt = rebuildEveryBodyAt(input, lease.probe);
-  } finally {
-    lease.release();
-  }
+  // Borrowed for the length of the rebuild and released by the lease itself, on every path
+  // including a refusal: the adapter's implementation closes over a `Kit`, and a kit built per
+  // command and never released is a leak per command (ADR 0074 decision 3). The `try/finally` this
+  // used to spell out lives in `createBodyProbeLease` now — one obligation, written once, rather
+  // than once per borrower (ADR 0076 decision 3).
+  const rebuilt = input
+    .probeAt(input.cabinetDepthMm)
+    .use((probe) => rebuildEveryBodyAt(input, probe));
   if (!rebuilt.ok) return refuse(design, rebuilt.detail);
 
   return succeedWith(

@@ -5,6 +5,7 @@
 // promise: the panel reads the query off one set of store slices and the action runs the command off
 // another, so the two could still be given different inputs. Every case below taps the chip and
 // checks the store, rather than asking the query twice.
+import { cabinetDepthMmOf } from "@lemnaria/configurator-domain";
 import {
   buildKitchenLBodyCatalog,
   KITCHEN_L_DESIGN,
@@ -50,15 +51,17 @@ function storeWithEmptyColumn(): Store {
 /** The chips §9 would render for one body, read exactly as `use-panel-view.ts` reads them. */
 function chipsFor(store: Store, placementId: string): WidthOption[] {
   const state = store.getState();
-  const probe = state.bodyProbe;
-  if (!probe) throw new Error("the fixture store has no probe");
-  return widthOptionsFor({
-    design: state.design,
-    catalog: state.catalog,
-    columns: state.columns,
-    target: { kind: "placement", id: placementId },
-    probe,
-  });
+  const probeAt = state.probeAt;
+  if (!probeAt) throw new Error("the fixture store has no probe factory");
+  return probeAt(cabinetDepthMmOf(state.design)).use((probe) =>
+    widthOptionsFor({
+      design: state.design,
+      catalog: state.catalog,
+      columns: state.columns,
+      target: { kind: "placement", id: placementId },
+      probe,
+    }),
+  );
 }
 
 const UNTOUCHED_BY_A_REFUSAL = [

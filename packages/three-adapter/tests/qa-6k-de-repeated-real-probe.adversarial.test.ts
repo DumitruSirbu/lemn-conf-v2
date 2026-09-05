@@ -16,6 +16,7 @@
 // Nothing here is compared against a written-down millimetre. The oracle is the design's own state
 // at the start, and the deeper leg is compared against a design that was **only ever** deep — an
 // independent path to the same kitchen.
+import { createBodyProbeLease } from "@lemnaria/configurator-domain";
 import {
   buildKitchenLBodyCatalog,
   declaredCabinetDepthsMm,
@@ -76,7 +77,7 @@ function changeTo(design: Design, cabinetDepthMm: number): Design {
       // silently equal number.
       expect(askedForMm).toBe(cabinetDepthMm);
       const { kit, room } = kitAt(askedForMm);
-      return { probe: createBodyProbe(kit, room), release: () => undefined };
+      return createBodyProbeLease(createBodyProbe(kit, room), () => undefined);
     },
     occurredAt: OCCURRED_AT,
   });

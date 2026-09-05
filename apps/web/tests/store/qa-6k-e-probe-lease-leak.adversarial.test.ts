@@ -18,6 +18,10 @@
 // depth, a no-op release over the mounted kit; any other depth, a transient kit that must be freed.
 // A store that drops the release of the second kind leaks one kit per depth change.
 import {
+  createBodyProbeLease,
+  type BodyProbeRequest,
+} from "@lemnaria/configurator-domain";
+import {
   buildKitchenLBodyCatalog,
   DEFAULT_CABINET_DEPTH_MM,
   DesignSchema,
@@ -81,19 +85,19 @@ function leaseLedger(standingDepthMm: number): LeaseLedger {
       const row = { askedForMm: cabinetDepthMm, released: false };
       leases.push(row);
       const probe = createFakeBodyProbe({ cabinetDepthMm });
-      return {
-        probe: {
-          measure: (request) => {
+      return createBodyProbeLease(
+        {
+          measure: (request: BodyProbeRequest) => {
             if (row.released) throw new ReleasedProbeUsedError(cabinetDepthMm);
             return probe.measure(request);
           },
         },
-        // Idempotent, as `BodyProbeLease` requires: a second call is not an error and does not
+        // Idempotent, as `createBodyProbeLease` expects: a second call is not an error and does not
         // double-count.
-        release: () => {
+        () => {
           row.released = true;
         },
-      };
+      );
     },
   };
 }
@@ -109,14 +113,18 @@ function createStore(ledger: LeaseLedger, design: Design = KITCHEN_L_DESIGN) {
 
 describe("the kits a depth change leaves behind", () => {
   // The premise, so nothing below is a claim about an unused factory: the store really does lease.
-  it("leases at the depth the design holds when the scene attaches", () => {
+  // Was "leases at the depth the design holds when the scene attaches", asserting that construction
+  // took one lease. **ADR 0076 decision 2 deleted the thing it was watching**: the store publishes no
+  // probe, so construction and `attachBodyProbe` take no lease at all and there is nothing to hold.
+  // Rewritten rather than removed, because the claim worth keeping is the stronger half of decision
+  // 7 — *no transient arm is ever taken in steady state* — which a store that dutifully built and
+  // freed a kit per command would satisfy on "leaks nothing" and still fail here.
+  it("takes no lease at all when the scene attaches", () => {
     const ledger = leaseLedger(DEFAULT_CABINET_DEPTH_MM);
 
     createStore(ledger);
 
-    expect(ledger.leases.map((lease) => lease.askedForMm)).toEqual([
-      DEFAULT_CABINET_DEPTH_MM,
-    ]);
+    expect(ledger.leases).toEqual([]);
     expect(ledger.leakedTransientKits()).toBe(0);
   });
 
@@ -207,13 +215,15 @@ describe("a probe the store publishes after its lease ended", () => {
       depthM: 0.58,
     };
 
-    expect(() => lease.probe.measure(request)).not.toThrow();
-    lease.release();
-    expect(() => lease.probe.measure(request)).toThrow(ReleasedProbeUsedError);
-    // Idempotent: a second release is not an error.
-    expect(() => {
-      lease.release();
-    }).not.toThrow();
+    // Inside the scope the probe answers; `use` releases before it returns, so the smuggled
+    // reference is dead afterwards. `use((probe) => probe)` compiling is ADR 0076's stated limit —
+    // escape is now something written rather than something missing, and this asserts it fails loud.
+    const escaped = lease.use((probe) => {
+      expect(() => probe.measure(request)).not.toThrow();
+      return probe;
+    });
+
+    expect(() => escaped.measure(request)).toThrow(ReleasedProbeUsedError);
   });
 
   it("is never measured through by an insert after a depth change", () => {

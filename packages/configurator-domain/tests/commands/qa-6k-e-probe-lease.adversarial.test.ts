@@ -14,7 +14,12 @@
 // `released` are two independent numbers and a leak is a subtraction.
 import { describe, expect, it } from "vitest";
 
-import type { BodyProbe, BodyProbeFactory } from "../../src/body-probe.js";
+import { createBodyProbeLease } from "../../src/body-probe.js";
+import type {
+  BodyProbe,
+  BodyProbeFactory,
+  BodyProbeRequest,
+} from "../../src/body-probe.js";
 import { setCabinetDepth } from "../../src/commands/set-cabinet-depth.js";
 import type { Design } from "../../src/design.js";
 import {
@@ -56,12 +61,9 @@ function countingFactory(
     probeAt: (cabinetDepthMm: number) => {
       askedForMm.push(cabinetDepthMm);
       acquired += 1;
-      return {
-        probe: probeFor(cabinetDepthMm),
-        release: () => {
-          released += 1;
-        },
-      };
+      return createBodyProbeLease(probeFor(cabinetDepthMm), () => {
+        released += 1;
+      });
     },
   };
 }
@@ -215,15 +217,15 @@ describe("the probe lease a depth change takes", () => {
       const inner = createFakeProbe({
         catalog: buildKitchenLBodyCatalog(cabinetDepthMm),
       });
-      return {
-        probe: {
-          measure: (request) => {
+      return createBodyProbeLease(
+        {
+          measure: (request: BodyProbeRequest) => {
             events.push("measure");
             return inner.measure(request);
           },
         },
-        release: () => events.push("release"),
-      };
+        () => events.push("release"),
+      );
     };
 
     const result = setCabinetDepth({
@@ -278,10 +280,9 @@ describe("the fake factory these suites run against", () => {
     };
 
     const seats = declaredCabinetDepthsMm().map((cabinetDepthMm) => {
-      const lease = factory(cabinetDepthMm);
-      const seat = lease.probe.measure(request).seatOffsetM;
-      lease.release();
-      return seat;
+      return factory(cabinetDepthMm).use(
+        (probe) => probe.measure(request).seatOffsetM,
+      );
     });
 
     expect(new Set(seats).size).toBe(declaredCabinetDepthsMm().length);
@@ -302,10 +303,12 @@ describe("the fake factory these suites run against", () => {
       depthM: 0.58,
     };
 
-    const atDefault = pinnedAt600(DEFAULT_CABINET_DEPTH_MM).probe.measure(
-      request,
-    ).seatOffsetM;
-    const atDeeper = pinnedAt600(DEEPER_MM).probe.measure(request).seatOffsetM;
+    const atDefault = pinnedAt600(DEFAULT_CABINET_DEPTH_MM).use(
+      (probe) => probe.measure(request).seatOffsetM,
+    );
+    const atDeeper = pinnedAt600(DEEPER_MM).use(
+      (probe) => probe.measure(request).seatOffsetM,
+    );
 
     // Documented as observed behaviour, not endorsed: the two must differ for an honest factory and
     // they do not. Reported as finding QA-6Kde-3.

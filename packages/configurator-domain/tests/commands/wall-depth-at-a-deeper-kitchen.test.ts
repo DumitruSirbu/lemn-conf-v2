@@ -10,6 +10,7 @@
 // **The assertion is on the depth the probe is asked to build at**, which is `fit.plan.depthM` and
 // therefore `resolveDepthM`'s own output. A test written against the seat that comes back would be
 // measuring the fake probe's model of a builder rather than the rule under test.
+import { createBodyProbeLease } from "../../src/body-probe.js";
 import { describe, expect, it } from "vitest";
 
 import { wallCarcassDepthMm } from "../../src/catalog.js";
@@ -61,7 +62,7 @@ function insertedWallDepthMm(cabinetDepthMm: number): number {
             design: KITCHEN_L_DESIGN,
             catalogAt: buildKitchenLBodyCatalog,
             cabinetDepthMm,
-            probeAt: () => ({ probe, release: () => undefined }),
+            probeAt: () => createBodyProbeLease(probe, () => undefined),
             occurredAt: OCCURRED_AT,
           }),
         );

@@ -14,6 +14,7 @@
 // **Structural bodies are excluded because `createBodyProbe` has no builder for them** — it throws
 // `No catalog builder registered` — and a test that passes because the body threw measures nothing.
 // They travel `reseat` rather than `rebuild` and are not what the round trip is about.
+import { createBodyProbeLease } from "@lemnaria/configurator-domain";
 import {
   buildKitchenLBodyCatalog,
   deriveColumns,
@@ -75,10 +76,8 @@ function changeTo(design: Design, cabinetDepthMm: number): Design {
     design,
     catalogAt: buildKitchenLBodyCatalog,
     cabinetDepthMm,
-    probeAt: () => ({
-      probe: realProbeAt(cabinetDepthMm),
-      release: () => undefined,
-    }),
+    probeAt: () =>
+      createBodyProbeLease(realProbeAt(cabinetDepthMm), () => undefined),
     occurredAt: OCCURRED_AT,
   });
   if (!result.ok) throw new Error(`refused: ${result.reason.code}`);

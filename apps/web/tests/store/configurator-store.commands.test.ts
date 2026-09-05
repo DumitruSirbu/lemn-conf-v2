@@ -303,13 +303,17 @@ describe("setWidth", () => {
    *  test cannot drift from what the panel would have offered. */
   function firstFreeWidthMm(store: Store, placementId: string): number {
     const state = store.getState();
-    const free = widthOptionsFor({
-      design: state.design,
-      catalog: state.catalog,
-      columns: state.columns,
-      target: { kind: "placement", id: placementId },
-      probe: createFakeProbeFactory()(600).probe,
-    }).find((option) => option.verdict.status === "available");
+    const free = createFakeProbeFactory()(600)
+      .use((probe) =>
+        widthOptionsFor({
+          design: state.design,
+          catalog: state.catalog,
+          columns: state.columns,
+          target: { kind: "placement", id: placementId },
+          probe,
+        }),
+      )
+      .find((option) => option.verdict.status === "available");
     if (!free) throw new Error(`no free width on ${placementId}`);
     return free.widthMm;
   }

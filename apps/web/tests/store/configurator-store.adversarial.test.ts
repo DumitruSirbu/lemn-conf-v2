@@ -4,6 +4,7 @@
 // sequences*, which is where frozen columns and a non-dangling selection actually fail: the store
 // applies one command correctly and the tenth one carries the drift. Every case below therefore
 // asserts a property after every command in a sequence rather than after one hand-picked call.
+import { createBodyProbeLease } from "@lemnaria/configurator-domain";
 import {
   cabinetDepthMmOf,
   buildKitchenLBodyCatalog,
@@ -531,14 +532,16 @@ describe("insert without a probe", () => {
     const second = vi.fn((request: Parameters<typeof secondProbe.measure>[0]) =>
       secondProbe.measure(request),
     );
-    store.getState().attachBodyProbe(() => ({
-      probe: { measure: first },
-      release: () => undefined,
-    }));
-    store.getState().attachBodyProbe(() => ({
-      probe: { measure: second },
-      release: () => undefined,
-    }));
+    store
+      .getState()
+      .attachBodyProbe(() =>
+        createBodyProbeLease({ measure: first }, () => undefined),
+      );
+    store
+      .getState()
+      .attachBodyProbe(() =>
+        createBodyProbeLease({ measure: second }, () => undefined),
+      );
     expect(store.getState().isBodyProbeAttached).toBe(true);
 
     store.getState().select({ kind: "placement", id: "p8" });
