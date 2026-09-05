@@ -207,7 +207,7 @@ describe("a handle choice reaches the cabinet's handles and no appliance's", () 
 
   // The sweep above is only worth its runtime if the two populations it splits are both non-empty
   // somewhere, and if `handlePartsOf` splits bodies the same way the apply path does.
-  it("sees appliance bars on three bodies and cabinet handles on the rest", () => {
+  it("sees appliance bars on five bodies, three families, and cabinet handles on the rest", () => {
     const withApplianceBars: string[] = [];
     let cabinetHandlesSeen = 0;
 

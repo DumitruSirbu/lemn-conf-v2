@@ -832,7 +832,7 @@ copy of the declared set but the same set asked before the branch"* — sits dir
 it actually describes. **Line numbers verified against the tree 2026-09-05**; an earlier note cited
 242-245, which is off by two lines.
 
-## 47. `alongWallPositionFollows` has a validator and no consumer — NEEDS AN ARCHITECT RULING
+## 47. `alongWallPositionFollows` has a validator and no consumer — RULED 2026-09-06: KEPT, reader owed to M6 wave 6J-c
 
 **Found by the 2026-09-05 certification audit.** `cabinet-depth-rule.ts:137`
 (`packages/configurator-domain/src/cabinet-depth-rule.ts`) throws
@@ -844,6 +844,17 @@ is descoped by the owner's 2026-09-05 ruling (see
 [ADR 0083](decisions/0083-wall-coverage-is-the-runs-extent-and-the-finished-end-is-part-of-it.md)).
 **This needs an architect's ruling, not a coordinator's or a scribe's** — recorded here so it is not
 lost, not decided.
+
+**RULED 2026-09-06 by
+[ADR 0089](decisions/0089-the-along-wall-chain-is-kept-and-its-reader-is-the-depth-command.md): the
+field is kept and M6 wave 6J-c gives it its reader.** The measurement above is right; the premise
+under the lean is not. The descoped bars (6N-b/6N-c) would have *displayed* a coverage figure — the
+chain decides *geometry*, and 6J-c's wave row has said `6N included` since it was written. Measured
+at `14cef90`: at 700 mm two wall-B bodies are driven into wall A's run at the corner, by 80 mm on the
+base chain and 31 mm on the wall-map chain, and `validateDesignForCatalog` reports neither. The two
+literals carry two different deltas, +100 mm and +70 mm, so the field selects between behaviours
+rather than labelling one. This entry belongs in **Resolved** once someone reconciles the file; it is
+marked in place so the ruling is not lost in the meantime.
 
 ## 48. `apps/web`'s vitest environment has no DOM — a focus-trap defect is only catchable by the visual agent
 
@@ -867,6 +878,32 @@ restore-on-close, a roving tabindex — is only ever catchable by a human or an 
 browser. Closing it means adding `jsdom` (or `happy-dom`) and `@testing-library/react` to `apps/web`
 and giving at least the existing dialogs (`global-settings.tsx`, the price breakdown) a headless
 focus-trap regression suite. Not scheduled to any wave.
+
+## 49. The hob's front clearance reads as flush with the worktop's edge, more conspicuously at 700 — NEEDS THE OWNER
+
+**Found by wave 6U's visual verification, 2026-09-06.** The wave itself reads correctly: 190 mm of
+bare worktop behind the hob at 700 mm cabinet depth reads as a usable back ledge, bounded by the
+backsplash, not as a void. What it raised is something wave 6U **preserves rather than causes** — the
+hob's front edge sits 10 mm from the worktop's front lip, essentially flush, at every declared cabinet
+depth ([ADR 0087](decisions/0087-the-hob-holds-its-reach-and-a-deeper-worktop-grows-behind-it.md)
+decision 1).
+
+At 600 mm that is already what ships today, unchanged by 6U. At 700 mm the contrast is more
+conspicuous: a generous ledge behind the hob and effectively zero landing space in front of it, so the
+appliance reads as pushed hard against the front edge. To someone who cooks, near-zero margin in front
+of a hob is the part that looks off — pan handles project past the counter edge, and there is nowhere
+to set a lid down in front.
+
+**This is not a 6U defect.** Changing it means reopening ADR 0087 itself, whose 10 mm front clearance
+is the owner's own ruling (*"the gap should be not in front but between wall and hob"*), not fixing
+something 6U got wrong. Recorded here as a product observation for the owner to decide, not scheduled
+to any wave.
+
+**What visual verification did not cover, so this is not read as a broader clearance beyond it.**
+390 × 844 was skipped deliberately (6U is a `packages/three-adapter`-only, non-interactive geometry
+fix). Fore-aft hood-over-hob overlap was not measurable from the captured angles — the shots confirm
+width alignment; the depth axis rests on the algebraic concentricity ADR 0087's consequences already
+derive, not on a fourth screenshot. Only the seeded L-kitchen was exercised.
 
 ## Also open, recorded elsewhere — do not duplicate here
 

@@ -233,7 +233,11 @@ export interface ColumnBuildDepthQuery {
  *  identity is a declaration only as far as *its* input is one. Today the sole caller passes
  *  `WORKTOP_DEPTH_MM`, but from wave 6J the number arrives in a stored document and through
  *  `migrateDesign`, where a worktop value threaded into a cabinet-depth argument would otherwise
- *  sail through the lifted arm and be built to. Raised by logic review, 2026-09-04. */
+ *  sail through the lifted arm and be built to. Raised by logic review, 2026-09-04.
+ *
+ *  **`requireDeclaredCabinetDepthMm` is that one check, and it is not a second copy of the declared
+ *  set.** `wallDepthMmForWorktop` keeps its own guard — the map's fail-closed contract and the
+ *  single statement of which rows exist — so this asks the same set, once, before the branch. */
 export function columnBuildDepthMm(column: ColumnBuildDepthQuery): number {
   const cabinetDepthMm = requireDeclaredCabinetDepthMm(column.cabinetDepthMm);
   return column.hasFullHeightUnder
@@ -241,9 +245,6 @@ export function columnBuildDepthMm(column: ColumnBuildDepthQuery): number {
     : wallDepthMmForWorktop(cabinetDepthMm);
 }
 
-/** **The one range check both arms pass through.** `wallDepthMmForWorktop` keeps its own guard —
- *  it is the map's fail-closed contract and the single statement of which rows exist — so this is
- *  not a second copy of the declared set but the same set asked before the branch. */
 /** `columnBuildDepthMm` in the unit the command layer plans in. */
 export function columnBuildDepthM(column: ColumnBuildDepthQuery): BuildDepthM {
   return toMetres(columnBuildDepthMm(column)) as BuildDepthM;

@@ -16,6 +16,7 @@ import {
   buildInsertableBodyDefinitions,
   cabinetDepthRuleOf,
   depthFollowsSetting,
+  requireDeclaredCabinetDepthMm,
   UndeclaredCabinetDepthRuleError,
   type CabinetDepthRule,
   type CabinetDepthRuleQuery,
@@ -257,11 +258,22 @@ describe("what stands inside a cabinet is a manufactured size and does not scale
     },
   );
 
-  it("stays above ADR 0059's declared 520 mm floor at every declared depth", () => {
-    // The arithmetic the ADR records, re-checked against the measurement rather than restated:
-    // `(cabinetDepth − 40) / 2 − 240`, which reaches zero at 520.
+  it("builds both kits at a depth the product's own floor and map allow", () => {
+    // Repointed 2026-09-06. This used to re-state ADR 0059's arithmetic over the literals above —
+    // `(cabinetDepth − 40) / 2 − 240 > 0`, which evaluates `40 > 0` and `90 > 0` and calls no
+    // production code, so it passed whatever the shipped floor was. Measured: dropping the overhang
+    // term, which silently moves the floor to 480, left the whole adapter suite green.
+    //
+    // What it asks now is the one thing this file is entitled to ask and nobody else can: that the
+    // two depths **it** builds its kits at are depths the domain still declares and still allows.
+    // The floor's own value is pinned in the domain (`cabinet-depth-parameter.test.ts`), and the
+    // clearance that produced it is measured on the meshes above and in `qa-5b10.adversarial`, so
+    // neither is restated here.
     for (const cabinetDepthMm of DECLARED_DEPTHS_MM) {
-      expect((cabinetDepthMm - 40) / 2 - 240).toBeGreaterThan(0);
+      expect([
+        cabinetDepthMm,
+        requireDeclaredCabinetDepthMm(cabinetDepthMm),
+      ]).toEqual([cabinetDepthMm, cabinetDepthMm]);
     }
   });
 });

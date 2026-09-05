@@ -251,6 +251,15 @@ describe("the label is the panel header's label, not a second derivation", () =>
       describeBodyLabelAt(definitionOf("tall-pantry"), 600),
     );
     expect(labelAfter).toBe(labelBefore);
+
+    // **The one literal copy of a rendered name this file is allowed, and why it earns its keep.**
+    // Every comparison above derives both of its sides through `describeBodyLabelAt`, so they
+    // degrade *together*: a `describeBodyLabelAt` that stopped reading `definition.label`, or a
+    // catalogue that renamed this row to the bare kind label, leaves all of them green — measured
+    // 2026-09-06, both mutations passed this file whole. Pinned on the *rendered* name, door count
+    // included, because that string is what the panel header and the projection both put in front
+    // of the customer. It is the floor under the parity, not a replacement for it.
+    expect(labelBefore).toBe("Coloană cămară 2 uși");
   });
 
   it("follows the width across the whole door-count transition, not just 400 and 600", () => {

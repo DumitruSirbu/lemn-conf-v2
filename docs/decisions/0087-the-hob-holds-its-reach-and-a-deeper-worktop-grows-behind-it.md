@@ -276,3 +276,43 @@ body and silently change what the domain declares that body finishes at.
 - **A third declared depth extends the sweep and changes nothing else.** The seat is arithmetic over
   whatever `cabinetDepthMm` the kit is built at, so ADR 0056 decision 3's "one data row" cost is
   unaffected.
+
+## Amendment — 2026-09-06: the hob's own floor, found while verifying wave 6U
+
+Wave 6U shipped (`38d5cad`) implementing decision 1's derived seat. While verifying it, QA measured a
+limit nobody had documented: **the hob has its own geometric floor, and it is 510 mm — ten below the
+520 mm dishwasher floor `MIN_CABINET_DEPTH_MM` already declares.** It is not a defect, because it is
+unreachable: `requireDeclaredCabinetDepthMm` (`packages/configurator-domain/src/worktop-depth.ts`)
+throws below 520 and throws on any cabinet depth off the declared map, so no path in the product can
+build a kit below 510. It is recorded because a derived seat with an undocumented floor of its own is
+exactly the shape that bites the day someone declares a new depth.
+
+**The derivation, read off `kitchen-parts.ts`'s own constants** (`HOB_DEPTH_MM = 520`,
+`HOB_FRONT_CLEARANCE_MM = 10`, `COUNTER_OVERHANG_MM = 60`, `BASE_FRONT_OVERHANG_MM = 40`):
+
+```
+hobFloorMm = HOB_DEPTH_MM + HOB_FRONT_CLEARANCE_MM − COUNTER_OVERHANG_MM + BASE_FRONT_OVERHANG_MM
+           = 520 + 10 − 60 + 40
+           = 510
+```
+
+Below `hobFloorMm`, the hob's own back edge crosses the worktop's back plane and the hob — not the
+worktop — becomes the back-most mesh of its own body, silently changing what that body occupies.
+**Measured**: at cabinet depth 510 the hob's back edge sits flush with the worktop's back edge; at
+**509** it crosses (`hobBack` at −245 against `wtBack` at −244, both local `z`, millimetres) and the
+body's occupied extent exceeds what `base-cabinet`'s own declaration says it finishes at.
+
+**The 520 mm coincidence is a coincidence, not a shared limit, and it is worth stating so nobody
+later assumes one design decision protects the other.** `HOB_DEPTH_MM` is 520 and
+`MIN_CABINET_DEPTH_MM` is 520, and `docs/BACKLOG.md` entry 19 independently named 520 as where the
+dishwasher's decor door meets its own appliance — three appearances of the same number with three
+different causes. QA measured both gaps as functions of cabinet depth `d`: the dishwasher's clearance
+is `(d − 40) / 2 − 240` (ADR 0059); the hob's is `d − 510` (this amendment). **No term is shared
+between the two formulas.** Two independent limits ten millimetres apart, and **the dishwasher's is
+the binding one** — the declared 520 mm floor protects the hob with exactly 10 mm to spare, by luck
+rather than by design. No hob/dishwasher geometric interaction exists at any declared depth.
+
+**Consequence.** No code change is owed: the floor is unreachable and stays unreachable as long as
+`requireDeclaredCabinetDepthMm`'s 520 mm minimum stands. If a future depth below 520 is ever proposed,
+this amendment — not the dishwasher floor — is what must be re-checked, because the two limits do not
+move together.

@@ -320,7 +320,7 @@ constant (`worktop-depth.ts` carries a comment saying the rename is owed and def
 | 6R — three control shapes, six decors the 3D approximates, and a strip that wraps *(ADR 0071, ADR 0082)* | G | 6Q, 6G | Light + visual |
 | 6S — door leaves, drawers and door band heights become declared facts *(ADR 0070)* — **DONE 2026-09-04, `280daa4`/`a2bff48`** | P | none | Full |
 | 6T — hardware priced per mechanism, and the two sink extras *(ADR 0070)* | P | 6S, 6B2 | Full |
-| 6U — the hob holds its reach, and a deeper worktop grows behind it *(ADR 0087; wave 6I's unraised question, owner 2026-09-05)* | D | none — **after 6Q**, and it gates nothing | Full + visual |
+| 6U — the hob holds its reach, and a deeper worktop grows behind it *(ADR 0087; wave 6I's unraised question, owner 2026-09-05)* — **DONE 2026-09-06, `38d5cad`** | D | none — **after 6Q**, and it gates nothing | Full + visual |
 
 The letters are identifiers and the table is in dependency order, with one exception: **6L is listed
 last and runs early.** It has no technical gate on anything and nothing gates on it, so it is placed
@@ -2662,6 +2662,25 @@ against, and it decides whether a stored document can change its own depth.
   `recomputeVoids` for the void the target's removal would create; `evaluateInsertFit` judges the
   rebuilt body's height against that slot. A change to `top` reaches the refusal through four hops
   and no compile error.
+
+**No new declaration is needed, and that is what bounds this wave to two files.** Every fact the
+split needs is already in the document and already typed: `Design` carries `emptyColumns` and
+`columnExtents` (ADR 0053), `toColumnExtent` already turns a stored entry into a `ColumnExtent` with
+`top`, `regions`, `w` and the origin, and `deriveColumns(records, {}, room)` already produces the
+correct depth pair. The split is **field selection between two `ColumnExtent`s under the same key** —
+no new field on `Column`, no new catalogue declaration, no schema version, no migration. Three arms
+and no fourth:
+
+- **key in both** — the stored extent, with `d` and `depthFromBuildId` taken from the derived one;
+- **derived only** — the derived column unchanged (a pre-ADR-0053 document carries no frozen map);
+- **stored only** — the stored extent whole, depth included. A member-less column has no members to
+  re-measure, its depth is ADR 0080's subject and the store's to re-answer, and `rebuildEveryBodyAt`
+  never looks one up.
+
+**Not a boolean on `deriveColumns`.** It is the obvious reach — the behaviour differs from
+`addStoredColumnExtents` by one line — and it is a flag argument on the function every derivation in
+three packages calls. A separate named export, or a named restore mode, keeps the call sites saying
+which question they asked.
 
 #### Work items
 
@@ -5763,6 +5782,31 @@ There is a real visual surface, and both depths must be seen. Captured through t
    the check a reader can make without a ruler, and it is why it is here.
 4. **The same three at 600 after the fix**, so a reviewer can see the two depths side by side and
    confirm the *only* difference is where the bare worktop is.
+
+#### Close-out — DONE 2026-09-06, `38d5cad`
+
+`pnpm ci:local` PASSED, all ten gates green. Domain 2809, three-adapter 2204, persistence 177, web
+1538 passed / 4 skipped. QA clean; logic review found the diff matches intent with no blocker;
+visual verification passed on the four shots above.
+
+The new parity suite (`packages/three-adapter/tests/hob-front-clearance.parity.test.ts`) failed **9
+of 18** against unfixed source — every failure at cabinet depth 700, every 600 mm assertion already
+green, which is the red-before-green record this wave's acceptance criteria required. QA's own
+independent whole-mesh diff of the built kit, before versus after, found **exactly 18 changed
+entries, all at 700, all hob children, zero changes at 600 anywhere** — corroborating the parity
+suite from a second, unrelated method rather than repeating it. And the literal the derivation
+replaces is exact: `(330 − 10 − 260) / 1000` is `0.06`, `Object.is` true, so no floating-point drift
+was introduced and the 600 mm kitchen is provably untouched — no M1 baseline needed re-basing.
+
+**ADR 0087 carries a 2026-09-06 amendment, added by this close-out, recording a limit QA measured
+while verifying the fix: the hob's own geometric floor is 510 mm, ten below the declared 520 mm
+minimum, and unreachable today only because `requireDeclaredCabinetDepthMm` refuses it.** See the
+amendment itself for the full derivation and measurement.
+
+**`docs/BACKLOG.md` entry 49** records a product observation visual verification raised — the hob's
+front clearance reads as flush against the worktop's front lip, more conspicuously at 700 than at
+600 — as **NEEDS THE OWNER**, not a 6U defect: 6U preserves the 10 mm front clearance rather than
+introducing it, and any change reopens ADR 0087's own ruling.
 
 ### Two content slots — product decisions, not engineering ones
 
