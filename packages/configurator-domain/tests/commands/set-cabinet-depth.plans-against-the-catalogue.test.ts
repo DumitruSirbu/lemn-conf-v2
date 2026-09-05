@@ -65,23 +65,28 @@ const STUCK_KEYS = ["A|0.30", "A|0.75"] as const;
 /** Their members: `p8` and `p15` in `A|0.30`, `p10` and `p16` in `A|0.75`. */
 const STUCK_PLACEMENT_IDS = ["p8", "p10", "p15", "p16"] as const;
 
-/** Columns the change must leave exactly where the broken command already left them, with the depth
- *  the ruling's own simulation measured at 700 mm. Written out rather than only compared against a
- *  straight run, because "byte-identical between the broken and the fixed command" is the statement,
- *  and a fix that widened past the declared entries would move one of these while every
- *  same-versus-same comparison stayed green.
+/** Columns whose **depth** the change must leave exactly where the broken command already left it,
+ *  with the number the ruling's own simulation measured at 700 mm. Written out rather than only
+ *  compared against a straight run, because a fix that widened past the declared entries would move
+ *  one of these while every same-versus-same comparison stayed green.
  *
- *  **`B|0.61` is deliberately absent, and its exclusion is named rather than silent.** It is the
+ *  **Named by a member rather than by a column key since wave 6J-c**, and the depth is what is
+ *  pinned. Wall B's columns now *slide* along their wall when the corner deepens (ADR 0089), so
+ *  `B|1.20` is `B|1.30` at 700 — the column is the same column carrying the same bodies at the same
+ *  depth, standing 100 mm further along. A literal key here would have read that intended move as a
+ *  regression, and pinning the key would have re-stated the very coordinate this wave changes.
+ *
+ *  **`p9`'s column is deliberately absent, and its exclusion is named rather than silent.** It is the
  *  column whose members travel `reseat`, and the fake probe seats a `wall-plane` body at its
  *  declared `frameDepthMm` where the real one measures the built return — 361 here against the
  *  adapter's 400. That is a fake-fidelity difference and not a behaviour, so the number belongs in
- *  the real-probe suite; the assertion below still holds `B|0.61` to the straight path's value. */
+ *  the real-probe suite; the assertion below still holds it to the straight path's value. */
 const UNTOUCHED_DEPTHS_AT_700_MM: ReadonlyMap<string, number> = new Map([
-  ["A|1.30", 720],
-  ["B|1.20", 738],
-  ["B|1.80", 699],
+  ["p11", 720],
+  ["p5", 738],
+  ["p6", 699],
   // The freestanding fridge: a manufactured size, and the column ADR 0058's pinned top stands in.
-  ["B|2.45", 742],
+  ["p7", 742],
 ]);
 
 /** The column key it publishes now — read off the record rather than written down, because ADR
@@ -308,7 +313,11 @@ describe("what the clearing must not reach", () => {
       ),
     ]) {
       expect(bodyOf(design, "p7")).toStrictEqual(fridgeBefore);
-      expect(columnDepthMm(design, DEEPER_MM, "B|2.45")).toBe(742);
+      // The key is resolved off the design because wave 6J-c slides wall B's columns along the wall
+      // when the corner deepens; the fridge's *body* and its column's depth are what must not move.
+      expect(
+        columnDepthMm(design, DEEPER_MM, columnKeyOf(design, DEEPER_MM, "p7")),
+      ).toBe(742);
     }
   });
 
@@ -414,15 +423,19 @@ describe("arrival at a depth, whatever path reached it", () => {
     );
 
     const depths = columnDepthsMm(walked, DEEPER_MM);
-    for (const [key, depthMm] of UNTOUCHED_DEPTHS_AT_700_MM) {
-      expect(depths.get(key), key).toBe(depthMm);
+    for (const [memberId, depthMm] of UNTOUCHED_DEPTHS_AT_700_MM) {
+      const key = columnKeyOf(walked, DEEPER_MM, memberId);
+      expect(depths.get(key), `${memberId} in ${key}`).toBe(depthMm);
     }
-    // `B|0.61`'s number is the real probe's to state, but its *stability* is this suite's: it is the
-    // one column that was already right in the broken runs, and a fix that moved it would have
-    // reached the arm that never read an opening.
-    expect(depths.get("B|0.61")).toBe(
-      columnDepthsMm(changeTo(KITCHEN_L_DESIGN, DEEPER_MM), DEEPER_MM).get(
-        "B|0.61",
+    // `p9`'s column: its number is the real probe's to state, but its *stability* is this suite's —
+    // it is the one column that was already right in the broken runs, and a fix that moved its depth
+    // would have reached the arm that never read an opening. Both sides resolve the key off their
+    // own design, because the straight path and the walked one put that column in the same place
+    // and this assertion is about the depth it publishes there.
+    const straight = changeTo(KITCHEN_L_DESIGN, DEEPER_MM);
+    expect(depths.get(columnKeyOf(walked, DEEPER_MM, "p9"))).toBe(
+      columnDepthsMm(straight, DEEPER_MM).get(
+        columnKeyOf(straight, DEEPER_MM, "p9"),
       ),
     );
     // The two that may move, so the assertion above is not a claim that nothing moved at all.

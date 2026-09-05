@@ -33,8 +33,10 @@ moment it ships; a decision record does not. When the two disagree, the dated de
 | M4 — Editor panel and shell | **Done** (closed 2026-08-26 — one criterion unmet by design, ADR 0024) | No — `milestones/done/` |
 | M5 — Width editing, and depth as a derived quantity | **In progress — 5E is the only wave open.** 5A–5D2c, 5F, 5G, 5H all shipped | Yes — `milestones/M5-*.md`, and ADRs 0028–0041, 0052, 0053 |
 | M6 — Price bar and global settings (incl. cabinet depth control) | **In progress —** ~~13 of 25 tracked waves DONE~~ ~~corrected 2026-09-05: 13 of 36 wave-table rows are DONE, counted directly~~ ~~corrected again 2026-09-05: 23 of 38 wave-table rows are DONE, counted directly~~ **corrected again 2026-09-06: 24 of 38, wave 6U closed** — two rows added for 6K-g and 6K-h (real waves with full plans and shipped commits that had never had a table row) and ten more rows reconciled against `git log`: 6K, 6K-c, 6K-d, 6K-e, 6K-f, 6K-g, 6K-h, 6K-j, 6Q and 6Q-c, all closing 2026-09-05 (see *What to do next* below for the full recount and its arithmetic). On branch `m6-price-and-global-settings`: 6A (`6c1f830`), 6H (`4afda06`), 6A3 and 6B2 (`eb9ba03`) shipped 2026-09-03; 6C (`194405b`) and 6D (`a5e161f`) shipped 2026-09-03 but only received their DONE marker this pass — a documentation gap, not new work; 6E (`b558e28`), 6G (`3e546d1`), 6I2 and 6M (merged at `ce77171`) shipped 2026-09-03/04; 6S (`280daa4`, `a2bff48`), 6J (`c8ba3af` 6J-a, `a68482d` 6J-b) and 6P (`38268b5`) shipped 2026-09-04. **6K's whole family closed 2026-09-05**: 6K-a and 6K-b (`30c3bcb`/`4dc08e0`/`30d419b`/`e664e33`, 2026-09-04), 6K-c (`56b6815`), 6K-d and 6K-e (one commit, `d4e58a4`), 6K-f (`827e1e1`), 6K-h (`e90ccc8`), 6K-g (`52e3c70`), 6K-j (`151429f`) — which also closes 6Q, via 6Q-a (`9e9d54e`), 6Q-b (`59f8669`) and 6Q-c (`14cef90`). **6U closed 2026-09-06, `38d5cad`** — ADR 0087's hob-seat fix (the front clearance is now derived, not a literal); ADR 0087 carries a 2026-09-06 amendment recording the hob's own 510 mm geometric floor, found by 6U's QA and unreachable today because `requireDeclaredCabinetDepthMm` refuses below 520. Open: 6K-i (ADR 0079's finding, unadjudicated), 6R, 6T. **Certified 2026-09-05** (`59f8669`): 6A4, 6B (CERTIFIED); 6A2, 6L, 6I
-(CERTIFIED WITH FINDINGS) — see *Where the project stands*'s certification note below. Not started:
-6J-c, 6N-0, 6N-a. 6F is superseded by ADR 0071's 6P–6R; 6N-b and 6N-c are dropped, 2026-09-05, owner ruling | Yes — `milestones/M6-*.md`, and ADRs 0055–0073 |
+(CERTIFIED WITH FINDINGS) — see *Where the project stands*'s certification note below. **6J-c is implemented and NOT landed, 2026-09-06** — it met its plan and exposed the frozen map's
+positioned facts; ADR 0090 opens **6J-d** and rules the two land together, on one branch, because the
+tree as it stands publishes a 700 mm kitchen the `PUT` seam refuses. Not started:
+6J-d, 6N-0, 6N-a. 6F is superseded by ADR 0071's 6P–6R; 6N-b and 6N-c are dropped, 2026-09-05, owner ruling | Yes — `milestones/M6-*.md`, and ADRs 0055–0073 |
 | M7 — Step 1, room and presets | Planned | Yes, when starting |
 | M8 — Review, contact, success | Planned | Yes, when starting |
 | Adversarial review remediation | **Every finding closed or gated.** SEC-001 (High) deferred to M8 by owner decision, gated. Everything else — SCENE-001/002, WEB-001–004, DOM-001–003, SEC-002–004, DB-001/002/004 — is implemented and reviewed | Yes — `milestones/adversarial-review-remediation.md`, `milestones/dom-003-set-width-split.md` |
@@ -264,8 +266,16 @@ adjudication rather than a fix. **6N has not started**, and two of its four sub-
 dropped: the owner descoped the wall-coverage bars 2026-09-05 ("skip it in general for now... not
 critical and on mobile it will take a lot of place"), which drops **6N-c** (the bars) and **6N-b**
 (the coverage query 6N-c was its only reader for). **6N-0** and **6N-a** are unaffected and still
-open — see the milestone file's own ruling at the end of wave 6N's section. **6J-c is also not
-started.**
+open — see the milestone file's own ruling at the end of wave 6N's section. **6J-c is implemented and uncommitted at `e28ab25`, and does not land alone.** It met every criterion
+in its plan, then exposed the seam [ADR 0090](decisions/0090-a-frozen-space-slides-with-its-run-and-follows-the-body-it-recorded.md)
+adjudicates on 2026-09-06: the frozen map's `alongMm` does not move with the run the command now
+slides, so at 700 mm on the seeded kitchen four standing wall-B runs are recorded as free space,
+`voids` go 3 → 12, and `validateDesignForCatalog` returns five `EMPTY_COLUMN_OVERLAPS_PLACEMENT` —
+a declared **refusal**, run at the `PUT` seam, so **the kitchen cannot be saved**. Domain (2 835) and
+adapter (2 204) are green; `@lemnaria/web` is **8 failed / 1 530 passed**, and six of the eight are
+invariants rather than fixtures. ADR 0090 opens **wave 6J-d**, rules that 6J-c commits on a branch and
+reaches `main` only with it, and **amends ADR 0088 decision 1** — so **6K-i's plan changed before it
+was written** and 6K-i is now sequenced after 6J-d (same file; do not dispatch both into one tree).
 
 **Certification audit closed 2026-09-05, run at `59f8669` — all five shipped-but-uncertified M6 waves
 now have a recorded verdict.** 6A4 CERTIFIED (6/6 mutations killed). 6B CERTIFIED (10/10). 6A2

@@ -16,8 +16,8 @@ import {
 } from "../../src/fixtures/kitchen-l-design.js";
 import { findOverflowingPlacementIds } from "../../src/queries/overflowing-placements.js";
 import { validateDesignForCatalog } from "../../src/validate-design.js";
-import { cabinetDepthRuleOf } from "../../src/cabinet-depth-rule.js";
-import type { BodyCatalog } from "../../src/void-engine.js";
+import { setCabinetDepth } from "../../src/commands/set-cabinet-depth.js";
+import { createFakeProbeFactory } from "../support/fake-probe.js";
 
 const NOW = "2026-08-25T00:00:00.000Z";
 const SHALLOW_DEPTH_MM = 600;
@@ -57,49 +57,26 @@ function designOf(
   };
 }
 
-function frameDepthMm(catalog: BodyCatalog, buildId: string): number {
-  const definition = catalog.get(buildId);
-  if (!definition) throw new Error(`No catalogue definition for ${buildId}`);
-  return definition.frameDepthMm;
-}
-
 /**
- * The same parameterized catalogue facts that made the reference room move in wave 6I. The base
- * corner pushes the base/column/deep-top chain by 100 mm; the mapped wall carcass pushes the two
- * wall-corner returns by 70 mm. No depth delta or target coordinate is restated in this test.
+ * The seeded design at a cabinet depth, **from the command that writes it**.
  *
- * Wave 6J makes the **wall-map chain** versus **base-formula chain** a catalogue declaration. The
- * projection below reads that declaration, so adding or renaming a body cannot leave this test and
- * production migration agreeing on an id convention that neither model actually states.
+ * This was a hand-written projection of `setCabinetDepth`'s along-wall chain until wave 6J-c gave
+ * that chain its production reader (ADR 0089). A second model of a rule, living in a test beside the
+ * real one, is the drift this project keeps finding — so the model is gone and the question is asked
+ * of the command.
  */
 function seededDesignAt(cabinetDepthMm: number): Design {
-  const shallow = buildKitchenLBodyCatalog(SHALLOW_DEPTH_MM);
-  const requested = buildKitchenLBodyCatalog(cabinetDepthMm);
-  const baseRunShiftMm =
-    frameDepthMm(requested, "base-corner-x-900") -
-    frameDepthMm(shallow, "base-corner-x-900");
-  const wallCornerShiftMm =
-    frameDepthMm(requested, "wall-corner-return-570") -
-    frameDepthMm(shallow, "wall-corner-return-570");
-
-  return {
-    ...KITCHEN_L_DESIGN,
-    placements: KITCHEN_L_DESIGN.placements.map((candidate) => {
-      if (candidate.wall !== "B") return candidate;
-      const definition = requested.get(candidate.body.buildId);
-      const followsWallMap =
-        cabinetDepthRuleOf({
-          buildId: candidate.body.buildId,
-          rule: definition?.depthRule,
-        }).alongWallPositionFollows === "wall-map";
-      return {
-        ...candidate,
-        alongMm:
-          candidate.alongMm +
-          (followsWallMap ? wallCornerShiftMm : baseRunShiftMm),
-      };
-    }),
-  };
+  const result = setCabinetDepth({
+    design: KITCHEN_L_DESIGN,
+    catalogAt: buildKitchenLBodyCatalog,
+    cabinetDepthMm,
+    probeAt: createFakeProbeFactory(),
+    occurredAt: NOW,
+  });
+  if (!result.ok) {
+    throw new Error(`setCabinetDepth refused: ${result.reason.code}`);
+  }
+  return result.design;
 }
 
 describe("findOverflowingPlacementIds", () => {

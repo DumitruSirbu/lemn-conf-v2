@@ -14,6 +14,11 @@
 // BROKEN  settled → 700     A|0.30=330 A|0.75=330 | B|0.61=400 B|2.45=742 B|1.20=738 B|1.80=699 A|1.30=720
 // FIXED   settled → 700     A|0.30=400 A|0.75=400 | B|0.61=400 B|2.45=742 B|1.20=738 B|1.80=699 A|1.30=720
 // ```
+//
+// **Wave 6J-c moved wall B's keys and none of these depths** (ADR 0089): the deeper corner consumes
+// wall B, so at 700 that row reads `B|0.685`, `B|2.55`, `B|1.30`, `B|1.90` — the same columns
+// carrying the same bodies at the same depths, 70 or 100 mm further along. The table above is left
+// as the simulation recorded it, and the assertions below resolve each key off the design.
 import { createBodyProbeLease } from "@lemnaria/configurator-domain";
 import {
   buildKitchenLBodyCatalog,
@@ -42,14 +47,20 @@ const DEEPER_MM = 700;
  *  cabinet, so §3.2's MAX over them is a pure function of what those bodies were last rebuilt to. */
 const MAY_MOVE_KEYS = ["A|0.30", "A|0.75"] as const;
 
-/** Every other column the seeded kitchen publishes at 700 mm, byte-identical between the broken
- *  command and the fixed one. */
+/** Every other column the seeded kitchen publishes at 700 mm, with the **depth** each one publishes
+ *  there — the number that is byte-identical between the broken command and the fixed one.
+ *
+ *  **Named by a member rather than by a column key since wave 6J-c**, which slides wall B's run along
+ *  its wall by what the deeper corner consumed (ADR 0089): `p9`'s column is `B|0.61` at 600 and
+ *  `B|0.685` at 700, and `p5`'s is `B|1.20` and `B|1.30`. Same columns, same members, same depths,
+ *  standing further along. A literal key would have read that intended move as a regression and
+ *  would also have pinned the very coordinate that wave changes. */
 const UNMOVED_DEPTHS_AT_700_MM: ReadonlyMap<string, number> = new Map([
-  ["B|0.61", 400],
-  ["A|1.30", 720],
-  ["B|1.20", 738],
-  ["B|1.80", 699],
-  ["B|2.45", 742],
+  ["p9", 400],
+  ["p11", 720],
+  ["p5", 738],
+  ["p6", 699],
+  ["p7", 742],
 ]);
 
 beforeAll(() => {
@@ -89,6 +100,21 @@ function changeTo(design: Design, cabinetDepthMm: number): Design {
   return result.design;
 }
 
+/** The column key a placement publishes now, read off its record rather than written down: wave
+ *  6J-c moves wall B's columns along the wall, and the key is the column's own origin. */
+function columnKeyOf(
+  design: Design,
+  cabinetDepthMm: number,
+  placementId: string,
+): string {
+  const record = derivePlacementRecords(
+    design,
+    buildKitchenLBodyCatalog(cabinetDepthMm),
+  ).find((candidate) => candidate.id === placementId);
+  if (!record) throw new Error(`no record for ${placementId}`);
+  return record.col;
+}
+
 function columnDepthsMm(
   design: Design,
   cabinetDepthMm: number,
@@ -124,10 +150,12 @@ describe("the columns a depth change may move", () => {
   it("leaves every other column exactly where the broken command left it", () => {
     const settled = changeTo(KITCHEN_L_DESIGN, DEFAULT_MM);
 
-    const depths = columnDepthsMm(changeTo(settled, DEEPER_MM), DEEPER_MM);
+    const deepened = changeTo(settled, DEEPER_MM);
+    const depths = columnDepthsMm(deepened, DEEPER_MM);
 
-    for (const [key, depthMm] of UNMOVED_DEPTHS_AT_700_MM) {
-      expect(depths.get(key), key).toBe(depthMm);
+    for (const [memberId, depthMm] of UNMOVED_DEPTHS_AT_700_MM) {
+      const key = columnKeyOf(deepened, DEEPER_MM, memberId);
+      expect(depths.get(key), `${memberId} in ${key}`).toBe(depthMm);
     }
   });
 
@@ -141,8 +169,9 @@ describe("the columns a depth change may move", () => {
 
     const depths = columnDepthsMm(walked, DEEPER_MM);
 
-    for (const [key, depthMm] of UNMOVED_DEPTHS_AT_700_MM) {
-      expect(depths.get(key), key).toBe(depthMm);
+    for (const [memberId, depthMm] of UNMOVED_DEPTHS_AT_700_MM) {
+      const key = columnKeyOf(walked, DEEPER_MM, memberId);
+      expect(depths.get(key), `${memberId} in ${key}`).toBe(depthMm);
     }
     for (const key of MAY_MOVE_KEYS) {
       expect(depths.get(key), key).toBe(wallCarcassDepthMm(DEEPER_MM));

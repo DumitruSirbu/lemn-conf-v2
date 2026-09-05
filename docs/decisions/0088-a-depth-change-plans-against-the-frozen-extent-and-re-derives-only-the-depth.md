@@ -1,6 +1,6 @@
 # ADR 0088 — A depth change plans against the frozen extent and re-derives only the depth axis
 
-Status: Accepted
+Status: Accepted — **decision 1 amended 2026-09-06 by [ADR 0090](0090-a-frozen-space-slides-with-its-run-and-follows-the-body-it-recorded.md) decision 6.** This record is planned (wave 6K-i) and not implemented; read the amendment before writing it.
 Date: 2026-09-06
 Type: Decision (adjudication of ADR 0079's recorded finding)
 Milestone: M6 — wave 6K-i, the finding [ADR 0079](0079-a-republished-depth-names-the-body-it-came-from.md)
@@ -123,6 +123,15 @@ opening it is measured against.
 ## Decision
 
 ### 1. The planning map carries the frozen extent's vertical and along-wall axes, and re-derives the depth axis
+
+> **Amended 2026-09-06 by [ADR 0090](0090-a-frozen-space-slides-with-its-run-and-follows-the-body-it-recorded.md)
+> decision 6.** This decision was written against a command that moved nothing along the wall. Wave 6J-c now
+> slides wall B's run, so *carried* means **not re-derived from the members standing there** — it does not mean
+> immune to the command's own move. Wave 6K-i builds its planning map from the frozen extents **as ADR 0090
+> decision 2 moves them**, and runs **after** wave 6J-d. Taken literally as written below, this decision would
+> restore the extents at the coordinates the run is leaving while the placements plan at the ones it is
+> arriving at — the same defect ADR 0090 measured, one seam earlier and inside `evaluateInsertFit`.
+
 
 `rebuildEveryBodyAt` builds its planning map from the design's own `emptyColumns` and `columnExtents`
 for `top`, `regions`, `w` and the along-wall origin, and from the records at the new setting for `d`

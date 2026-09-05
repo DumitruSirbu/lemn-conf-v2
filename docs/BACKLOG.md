@@ -905,6 +905,73 @@ fix). Fore-aft hood-over-hob overlap was not measurable from the captured angles
 width alignment; the depth axis rests on the algebraic concentricity ADR 0087's consequences already
 derive, not on a fourth screenshot. Only the seeded L-kitchen was exercised.
 
+## 50. `validateDesignForCatalog` is blind to a cross-wall corner intersection — RECORDED 2026-09-06, NOT SCHEDULED
+
+**Found by wave 6J-c, confirmed by [ADR 0090](decisions/0090-a-frozen-space-slides-with-its-run-and-follows-the-body-it-recorded.md).**
+
+The validator has no rule that compares a wall-A body against a wall-B body at the corner they share.
+It returned `[]` on the design where `base-corner-return-320` overlapped wall A's corner by **80 mm**
+and `wall-corner-return-570`/`-top` overlapped by **31 mm** — [ADR 0089](decisions/0089-the-along-wall-chain-is-kept-and-its-reader-is-the-depth-command.md)
+decision 3's measurement at `14cef90` — and it would have returned `[]` had 6J-c's fix been wrong in
+the same direction. So the one geometry the wave existed to correct is invisible to the gate that runs
+at both the load and the write seam.
+
+**The blindness is declared, not accidental**, and its declaration names the reason it is only true
+away from the corner. `findWallOverlaps` groups spans by wall, and `groupSpansByWall`
+(`packages/configurator-domain/src/validate-design.ts`) carries the comment:
+
+> *"Both walls originate at the same corner and walk their own axis (§2), so the same along-wall
+> coordinate on wall A and on wall B are two different places and are never compared."*
+
+True everywhere except at the corner, where a wall-A body's **depth** is measured along wall B — the
+exact fact `along-wall-chain-shift.ts` is built on.
+
+**The same-wall case is covered and works.** ADR 0090 measured the sweep firing correctly: five
+`EMPTY_COLUMN_OVERLAPS_PLACEMENT` on the same wall, at the same tree. The gap is the corner and only
+the corner.
+
+**What deciding it would cost.** It is a **reporting** gap, not a geometry gap — the geometry is
+correct once 6J-c and 6J-d land — so nothing on screen changes. The cost is at the load seam: a new
+code can make an already-stored document unloadable, which is
+[ADR 0052](decisions/0052-800-mm-is-the-ceiling-on-any-empty-column.md)'s dead link and needs its own
+adjudication before a severity is chosen. The likely answer is a **`mark`** beside
+`PLACEMENT_PAST_WALL_END` rather than a refusal, and severity is declared per code
+([ADR 0069](decisions/0069-past-the-wall-is-one-code-family-and-severity-is-declared-per-code.md)), so
+it is a choice someone has to make rather than a default to inherit. Implementation is small: one
+extra comparison for spans within the corner reach on either wall, using the reach
+`cornerReachAlongWallMm` already computes.
+
+**Deserves its own small wave, not M6's depth track.** Widening 6J-d into it would enlarge a wave that
+is already on the critical path, and the wave that adds it should be the one that also decides the
+severity.
+
+## 51. Column chain-homogeneity is an invariant nothing enforces — RECORDED 2026-09-06, NOT SCHEDULED
+
+**Raised by [ADR 0090](decisions/0090-a-frozen-space-slides-with-its-run-and-follows-the-body-it-recorded.md)
+decision 3, recorded there and deliberately not ruled.**
+
+A column is one vertical stack at one along-wall coordinate and must slide as one thing or tear. ADR
+0090 decision 2 relies on that: a frozen extent slides on the chain its recorded `depthFromBuildId`
+declares, and the recorded source is a member of that column, so the extent lands where its members
+land **provided every member of a column declares the same `alongWallPositionFollows`**.
+
+**Measured true on the seeded design at 600** (ADR 0090): `B|0.61` is `wall-map` on both its members
+(`wall-corner-return-570`, `wall-corner-return-570-top`) and every other column is `base-formula`
+throughout. Wave 6J-d asserts it at both settings.
+
+**Nothing enforces it on an arbitrary document.** A column whose members declared two different chains
+would tear by 30 mm at 700 — 6J-c's own measured difference between the chains — with the frozen
+extent sliding on its recorded source's chain while a member slid on its own, and every layer
+downstream internally consistent and wrong together.
+
+**Whether it is reachable was not measured.** It needs an offer list that can place a `wall-map` entry
+into a column already holding a `base-formula` one, and the two shipped `wall-map` entries are
+`STRUCTURAL_CORNER`. **What deciding it would cost**: either a new refusal code at the load seam
+(ADR 0052, [ADR 0084](decisions/0084-canfinish-is-the-load-seams-and-a-command-fixture-constructs-only-its-own-contracts-inputs.md))
+or a catalogue-level sweep that cannot see which entries share a column. Choosing between those is the
+decision, and it should start by measuring whether the state is reachable at all through the offer
+list.
+
 ## Also open, recorded elsewhere — do not duplicate here
 
 - **Width editing does nothing yet.** Every width chip is `blocked` because §5.4's resize command

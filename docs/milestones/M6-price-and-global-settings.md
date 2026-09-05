@@ -305,11 +305,12 @@ constant (`worktop-depth.ts` carries a comment saying the rename is owed and def
 | 6K-f — a probe lease is a scoped borrow and the store publishes no probe *(ADR 0076)* — **DONE 2026-09-05, `827e1e1`** | D | 6K-e — **gated by it**, this is 6K-e's residue | Full |
 | 6K-h — a depth change plans against the catalogue, not against the seats it is about to replace *(ADR 0077 decision 8, addendum)* — **DONE 2026-09-05, `e90ccc8`** | D | 6K-f — **runs before 6K-g**, both edit `set-cabinet-depth.ts` | Full |
 | 6K-g — a seat fixed by a joint is declared, and every entry declares which plane seats it *(ADR 0077)* — **DONE 2026-09-05, `52e3c70`** | D | 6K-f, 6K-h — **sequenced after both**, same file | Full |
-| 6K-i — a depth change plans against the frozen extent, and only the depth is re-derived *(ADR 0079's finding, **adjudicated 2026-09-06 by ADR 0088** — implementation defect; the wave is owed and planned)* | D | none — and it gates nothing | Full |
+| 6K-i — a depth change plans against the frozen extent, and only the depth is re-derived *(ADR 0079's finding, **adjudicated 2026-09-06 by ADR 0088** — implementation defect; the wave is owed and planned. **ADR 0088 decision 1 was amended 2026-09-06 by [ADR 0090](../decisions/0090-a-frozen-space-slides-with-its-run-and-follows-the-body-it-recorded.md) decision 6** — build the planning map from the *moved* extents)* | D | **6J-d — sequenced after it, same file; do not dispatch both into one tree**. It gates nothing | Full |
 | 6K-j — an empty space follows the setting, and the fallback is not a ratchet *(ADR 0080, owner instruction 2026-09-05; **amended after QA, same day** — the predicate is an equality)* — **DONE 2026-09-05, `151429f`** | D | 6K-c — **gated by it**, and it gates nothing | Full |
 | 6L — the handle path learns cabinet from appliance *(backlog 18)* — **CERTIFIED WITH FINDINGS 2026-09-05, `59f8669`** | G | none — **sequenced before 6B and 6G** | Full |
 | 6M — the overflow is marked and warned about *(ADR 0065)* — **DONE 2026-09-04, `ce77171`** | — | 6A3 | Light + visual |
-| 6J-c — the along-wall chain gains its production reader *(ADR 0083's finding; 6J-a's unmet criterion; **kept and confirmed 2026-09-06 by ADR 0089** — the descoped 6N-b/6N-c were never its consumer)* | D | none — **and it gates nothing, 6N included** | Full |
+| 6J-c — the along-wall chain gains its production reader *(ADR 0083's finding; 6J-a's unmet criterion; **kept and confirmed 2026-09-06 by ADR 0089** — the descoped 6N-b/6N-c were never its consumer)* — **IMPLEMENTED, NOT LANDED: it exposed the frozen map's positioned facts and does not reach `main` without 6J-d ([ADR 0090](../decisions/0090-a-frozen-space-slides-with-its-run-and-follows-the-body-it-recorded.md) decision 7)** | D | none — **and it gates nothing, 6N included** | Full |
+| 6J-d — the frozen map slides with the run it records *(ADR 0090; the seam 6J-c exposed — four standing wall-B runs recorded as free space at 700, five `EMPTY_COLUMN_OVERLAPS_PLACEMENT` refusals, and a 700 mm kitchen that cannot be saved)* | D | 6J-c — **gated by it and lands with it, one branch** | Full |
 | 6N-0 — the demo room clears its run at both depths, `3560 × 2920` *(ADR 0083, owner 2026-09-05)* | — | none | Full |
 | 6N-a — the run-end panel's seat is a domain fact *(ADR 0083)* | — | none | Full |
 | 6N-b — one published coverage fact per wall *(ADR 0083)* — **DROPPED 2026-09-05, owner ruling: its only reader was the bars** | — | 6N-0, 6N-a | Full |
@@ -3281,6 +3282,188 @@ that rewrites stored placements under migrate-on-change (ADR 0055).
 - **Nothing is refused, narrowed or removed.** ADR 0055 and ADR 0065 are untouched: bodies move
   along their wall because the corner consumed more of it, and any body that then passes the wall's
   end is **marked**, not moved back.
+
+##### Wave 6J-d — the frozen map slides with the run it records
+
+**Gated by 6J-c and lands with it.** [ADR 0090](../decisions/0090-a-frozen-space-slides-with-its-run-and-follows-the-body-it-recorded.md).
+6J-c moves wall B's placements and leaves `Design.emptyColumns`, `Design.columnExtents` and the
+store's `columns` map at the coordinates it just vacated. **6J-c does not reach `main` without this
+wave** (ADR 0090 decision 7): both commit on one branch, and the branch merges when `pnpm ci:local`
+is green.
+
+**Goal.** Every positioned fact in the frozen map moves with the run it belongs to, in the command
+that moves the run, so `setCabinetDepth` returns a document that does not contradict its own
+placements — and the store stops being a second author for a map it cannot fully compute.
+
+**What is being fixed, measured at `e28ab25` with 6J-c's working tree** (ADR 0090's measurement, on
+`KITCHEN_L_DESIGN` with `p5`/`p22` removed, through `setCabinetDepth(700)`):
+
+- The `columns` map keeps all 12 of its 600 mm keys while the records move to
+  `B|0.69 B|0.84 B|1.90 B|2.55`, so **four standing wall-B runs are filed under no column at all**.
+- `projectFrozenMap` partitions on `occupiedKeys.has(key)`, so those four are written to
+  `emptyColumns` — 1 entry becomes **5** and `columnExtents` 11 becomes **7**.
+- `recomputeVoids` publishes openings through them: `voids` **3 → 12**.
+- `validateDesignForCatalog` returns **five `EMPTY_COLUMN_OVERLAPS_PLACEMENT`**, declared `"refusal"`
+  (`validate-design.ts:222`), which `refuseUnexecutableDesign` runs at the `PUT` seam. **A 700 mm
+  kitchen cannot be saved.** (The two `PLACEMENT_PAST_WALL_END` marks beside them are ADR 0065 and
+  6J-c working as planned; they are not this wave's.)
+- 600 → 700 → 600 returns exactly, so it is not a ratchet — it is wrong at the deep setting.
+
+**Touches.** Six production files across two packages, and the count is the point of ADR 0090
+decision 5 rather than an overrun to be trimmed:
+
+1. `packages/configurator-domain/src/commands/set-cabinet-depth.ts` — build the moved-and-republished
+   map, write it onto the returned design, publish it on the effect.
+2. A new `packages/configurator-domain/src/frozen-map-at-cabinet-depth.ts` — the whole answer, one
+   author. `atCurrentCabinetDepth` and its helpers move here from `apps/web`.
+3. `packages/configurator-domain/src/commands/command-result.ts` — `CabinetDepthSetEffect` gains
+   `columns`.
+4. `packages/configurator-domain/src/index.ts` — exports.
+5. `apps/web/src/store/apply-command-result.ts` — the `cabinet_depth_set` arm becomes
+   `return effect.columns`; `atCurrentCabinetDepth`, `republishedDepth`, `frozenDepthAtThisSetting`,
+   `explainsTheFrozenDepth` and the two pre-command inputs are deleted.
+6. `apps/web/src/store/configurator-store.ts` — stops passing `previousRecords` and
+   `previousCabinetDepthMm`.
+
+Plus one funnel stage (work item 4) in `packages/configurator-domain/src/void-engine.ts` or a module
+beside `merge-empty-columns.ts`, called from the same place `clipEmptyColumnsAtWallEnd` is.
+
+**Tier: Full.** It is domain algebra that rewrites stored positioned facts under migrate-on-change
+(ADR 0055), it moves ADR 0073/0079/0080's depth rules across a package boundary, and eight currently
+red invariant tests are its gate.
+
+**Module boundaries.**
+
+- **The chain lives in `along-wall-chain-shift.ts` and nowhere else.** 6J-c's module already answers
+  *"how far does the corner reach on this chain"* and *"where does this placement stand"*. This wave
+  adds one sibling — *where does this **extent** stand* — reading the same `cornerReachAlongWallMm`.
+  No second delta, no literal 100 or 70 anywhere.
+- **`apps/web/src/store/apply-command-result.ts` states no product rule.** Its head comment already
+  says so; today it is the one file that breaks it. After this wave the `cabinet_depth_set` arm is
+  one line, and the store keeps the funnel, the void recompute and the selection.
+- **No new `Design` field, no `CURRENT_SCHEMA_VERSION` bump, no migration.** ADR 0073 decision 1's
+  `depthFromBuildId` is read for a second axis; its shape does not change.
+
+**Coordinate anchors, scaling rules and structural dependencies** (`docs/best-practices/product-invariants.md`):
+
+- **Anchor.** Both walls originate at the room corner and walk their own axis (§2,
+  `room-transforms.ts`). Wall A is anchored at the corner and **does not move at any setting**; wall
+  B's run is displaced by exactly what wall A's corner body gained, because a wall-A body's *depth*
+  is measured along wall B.
+- **Scaling.** Two chains, read from `catalog.ts`'s own formulas and never restated:
+  `base-formula` = `baseCarcassDepthMm` (560 → 660, **+100**), `wall-map` = `wallCarcassSeatDepthMm`
+  (291 → 361, **+70**). The 30 mm difference is the product's answer (6A3's *"never a sum of
+  widths"*), not a seam to smooth.
+- **Structural dependency.** A `Column`'s key is `deriveColumnKeyAt(wall, alongM)` — a **function of
+  the coordinate this wave moves**. Every map keyed that way is downstream: `columns`,
+  `record.col`, `projectFrozenMap`'s partition, `recomputeVoids`, and `validate-design.ts`'s
+  `columnKey`. This is why re-keying and re-anchoring are one change and cannot be split.
+
+**Work items.**
+
+1. **`alongWallExtentPositionAtMm` in `along-wall-chain-shift.ts`** — one frozen extent, the
+   catalogue, and the two settings, returning its new `alongMm`. Wall A and a sourceless extent
+   return `alongMm` unchanged (ADR 0090 decisions 2 and 4a); a wall-B extent whose
+   `depthFromBuildId` the catalogue holds returns `alongMm + alongWallShiftMm(...)` on that entry's
+   declared chain. Total, no default arm, no band read.
+2. **`frozen-map-at-cabinet-depth.ts`** — the whole map at the new setting: `atCurrentCabinetDepth`'s
+   depth rules (ADR 0073 decisions 2/3, ADR 0079 decisions 1/2, ADR 0080 decision 4) moved
+   **unchanged in what they decide**, over entries re-keyed by item 1. The `explains` operand is
+   taken from the pre-command records **at the new coordinates**, so all three operands share one key
+   space — this is the input the store could not build and the reason the module is here.
+3. **`CabinetDepthSetEffect.columns`, and the returned design carries the same map.**
+   `setCabinetDepth` writes `emptyColumns`/`columnExtents` from it through the existing
+   `projectFrozenMap`, so the command's result is self-consistent before any store sees it.
+4. **`clipEmptyColumnsToFreeGround`** — ADR 0090 decision 4b. A member-less column that overlaps any
+   placement on its wall, along-wall **and** vertically, is dropped whole. Runs in the funnel
+   **after** the wall-end clip and **before** the split, on the funnel's own recorded argument that a
+   clip only shrinks. Called from both the store's funnel and item 2's map.
+5. **The store arm collapses.** `publishedColumns`' `cabinet_depth_set` branch becomes
+   `return effect.columns`; the two pre-command inputs and their doc blocks go with the code they fed.
+6. **The moved tests move.** `apps/web/tests/store/`'s assertions on the depth rules follow the code
+   to `packages/configurator-domain/tests/`. What each asserts does not change.
+
+**Acceptance criteria.**
+
+- **Six red invariant tests go green *unchanged*.** `qa-6k-j-fallback-rule.adversarial.test.ts`'s
+  *"publishes one map for five routes, on every legacy scenario"* and *"converges to a two-cycle
+  keyed only on the setting"*; `qa-6k-j-closure.adversarial.test.ts`'s *"publishes no unsourced depth
+  off another setting's row of the map"* and *"differs from its sourced twin only on a base run at
+  the deeper setting"*; `qa-6k-c-frozen-source.adversarial.test.ts`'s two Gap D assertions. **None is
+  edited, skipped or marked `it.fails`.** If one has to be weakened to pass, the fix is wrong and the
+  wave goes back — an invariant edited to accommodate a defect is the defect laundered.
+- **Two fixture tests are updated and say why.** `cabinet-depth-frozen-source.test.ts`'s golden
+  `BEFORE_THIS_WAVE` map and its `PANTRY_KEY` non-vacuity guard name wall-B keys this wave moves. The
+  guard's assertion survives — only the key it is anchored to becomes setting-dependent — and each
+  edit carries a comment naming ADR 0090. **Deleting the guard is not an option**; it is the check
+  that the test can fail at all.
+- **The store's published map holds a column for every record, at every setting.** Falsifiable and
+  the head of the whole defect: for each `record.col`, `columns.has(col)`. Today four wall-B records
+  fail it at 700. Asserted at 600 and 700, before and after a save-and-reload.
+- **`validateDesignForCatalog(state.design, catalogAt(setting))` reports no `refusal`-severity issue
+  at either setting**, on the seeded kitchen and on each of the four cleared scenarios
+  `qa-6k-j-fallback-rule` already builds. **`PLACEMENT_PAST_WALL_END` is expected and must remain**
+  — two of them at 700 — so the criterion is over `fatalDesignValidationIssues`, not over the whole
+  list. ADR 0065 is not re-opened.
+- **`voids` at 700 is 3 on the measured scenario, not 12**, and every void's column key is one the
+  map holds.
+- **The frozen extents land where their own members land.** For every occupied column, the extent's
+  new `alongMm` equals the column key its members are filed under. This is the assertion behind
+  ADR 0090 decision 2's claim that one rule serves both halves of the map; if it fails, the recorded
+  source and the members disagree and the wave has found the chain-homogeneity finding live.
+- **Chain-homogeneity, asserted on the seeded design at both settings**: every column's members
+  declare the same `alongWallPositionFollows`. Measured true today — `B|0.61` is `wall-map` on both
+  members, every other column `base-formula` throughout. It is not enforced by any refusal
+  (`docs/BACKLOG.md` 51) and this wave does not add one.
+- **Band inference is unrepresentable, asserted structurally.** No production file reads `y0Mm`,
+  `topMm`, `band` or a level grid to choose a chain. The anti-invariant is measurable:
+  `wall-2door-600-deep-top` (band `top`, `base-formula`) and `wall-corner-return-570-top` (band
+  `top`, `wall-map`) must resolve to **different** chains through the production reader.
+- **`clipEmptyColumnsToFreeGround` drops nothing across the existing store suites**, asserted, with
+  a **non-vacuity case** — a legacy sourceless wall-B extent through a 600 → 700 change — proving it
+  can drop. A guard that cannot fire and a guard that quietly eats a space are the two failures here
+  and both are checked.
+- **600 → 700 → 600 returns the whole map**, keys included, not just the depths: the published
+  `columns`, `design.emptyColumns` and `design.columnExtents` are identical to the start state. True
+  today for the depths and for the coordinates by accident (nothing moved); it must stay true once
+  they do move.
+- **Value-preserving at 600.** Every published column, every stored entry and every void is
+  byte-identical to what the tree produces today at the default setting. A wave that changes a 600 mm
+  number has done the wrong thing.
+- **No schema change.** `CURRENT_SCHEMA_VERSION` unchanged, no new `Design` field, no new validation
+  code, no severity changed, no migration added. A document saved before this wave loads and answers
+  the same way.
+- **The domain result is self-consistent before the store sees it**, asserted in
+  `packages/configurator-domain/tests/` with no store and no fake probe:
+  `validateDesignForCatalog(setCabinetDepth(...).design, catalogAt(700))` reports no refusal. This is
+  the criterion that would have caught the defect at its own seam.
+- **The moved depth rules assert exactly what they asserted in `apps/web`.** A moved test that got
+  shorter, lost a scenario, or dropped a property generator is a finding, not a tidy-up.
+- **`pnpm ci:local` green on the branch before it merges**, with the whole-tree `pnpm format:check`.
+
+**Risks.**
+
+- **Moving ADR 0073/0079/0080's rules across a package boundary is where a subtle depth regression
+  would hide.** Mitigated by the two criteria above — the invariant tests go green unchanged, and the
+  600 mm state is byte-identical — and by moving the rules in one commit that changes no arm.
+- **The `explains` operand is the subtle one.** It compares the frozen depth against what the members
+  measured *at the old setting*; after this wave those members are at new coordinates, so the map it
+  is looked up in must be keyed the same way. Getting it wrong flips every wall-B column into
+  ADR 0080's surplus arm — a wrong depth, quietly, on the arm the whole 6K-c/6K-j line exists to get
+  right. The "identical at 600, invariants green at 700" pair is what catches it.
+- **6K-i edits the same file.** ADR 0090 decision 6 amends ADR 0088 decision 1 and sequences 6K-i
+  after this wave. **Do not dispatch them into one tree at once.**
+- **The wave is six production files on the critical path.** The smaller split — position in the
+  domain, depth in the store — is refused by name in ADR 0090's alternatives, because it puts two
+  authors on one map at one seam.
+
+**Verification method.** Domain and adapter suites green (`2 835` and `2 204` at the branch point,
+both measured); the whole `@lemnaria/web` suite green including the eight tests currently red; the
+ADR 0090 measurement re-run and reported with its numbers — record columns, orphans, `voids`,
+`emptyColumns`/`columnExtents` counts and the validator's output at 600, at 700 and back at 600.
+**Adversarial QA gates review** (`docs/WORKFLOW.md`), and QA's first job is the non-vacuity of the
+funnel stage and the moved tests. No visual verification is owed: ADR 0074 rebuilds the scene whole
+at a depth change, and no adapter file is touched.
 
 ##### Wave 6N-a — the run-end panel's seat is a domain fact
 

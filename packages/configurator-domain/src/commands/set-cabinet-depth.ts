@@ -14,9 +14,11 @@
 // **Two entries do not move, and they are excluded by reading their declaration** (ADR 0058), never
 // by naming them here. `depthFollowsSetting` is the one question this module asks about an entry,
 // and it lives in `cabinet-depth-rule.ts` so wave 6I's gate and this migration cannot drift.
+import { alongWallPositionAtMm } from "../along-wall-chain-shift.js";
 import { depthFollowsSetting } from "../cabinet-depth-rule.js";
 import { seatRuleOf, type SeatRule } from "../seat-rule.js";
 import type { BodyProbe, BodyProbeFactory } from "../body-probe.js";
+import { cabinetDepthMmOf } from "../design.js";
 import type { Design, DesignPlacement } from "../design.js";
 import { toMetres, toMillimetres } from "../millimetres.js";
 import {
@@ -150,7 +152,13 @@ function rebuildEveryBodyAt(
 
   const placements: DesignPlacement[] = [];
   let rebuiltCount = 0;
-  for (const placement of input.design.placements) {
+  // **The planning design's placements, not the stored ones.** They are the same bodies in the same
+  // order, already carrying the along-wall coordinate the corner leaves them at (ADR 0089), so the
+  // fit each body is re-checked against is the opening it will actually stand in — and the three
+  // branches below cannot part company over where a body is. Reading the stored list here would
+  // re-fit wall B's run at the coordinates of the depth it is leaving and then write the new ones
+  // over the top, which is the "silent mixture" this loop refuses one branch down.
+  for (const placement of planning.placements) {
     const record = records.find((candidate) => candidate.id === placement.id);
     // **A body this command cannot resolve is a refusal, never a pass-through.** Leaving it at the
     // old depth beside the new setting is the worst of the three outcomes: the document would say
@@ -198,7 +206,8 @@ function rebuildEveryBodyAt(
   return { ok: true, value: { placements, rebuiltCount } };
 }
 
-/** **The design this command plans against: the new setting, and no seat written at the old one.**
+/** **The design this command plans against: the new setting, no seat written at the old one, and
+ *  wall B's run standing where the corner leaves it.**
  *
  *  Two things are stripped of the depth the kitchen is leaving, for one reason.
  *
@@ -229,7 +238,16 @@ function rebuildEveryBodyAt(
  *  picking, pricing, validation — reads the stored seat exactly as before. The case Gap B protects is
  *  re-derived rather than lost: a wall cabinet seating at 561 does so because it stands over a
  *  full-height column, and `resolveDepthM`'s lifted arm reads `column.hasFullHeightUnder` — never
- *  `column.d` — off members that clearing a seat cannot remove. */
+ *  `column.d` — off members that clearing a seat cannot remove.
+ *
+ *  **And the third thing, which is a move rather than a removal: wall B's along-wall coordinates**
+ *  (ADR 0089). A deeper corner body on wall A consumes more of wall B, so wall B's run slides by
+ *  what the corner gained — `base-formula` by 100 mm and `wall-map` by 70 mm between 600 and 700,
+ *  each read off the chain its own catalogue entry declares. It is applied here rather than after
+ *  the loop so that the records, the columns and every fit check below see the run where it will
+ *  stand; wall A is anchored at the corner and does not move. Nothing is refused or moved back:
+ *  a body the slide pushes past the end of its wall is **marked** (ADR 0065), by the queries that
+ *  already do that, and this command writes it where the geometry puts it. */
 function planningDesign(
   input: SetCabinetDepthInput,
   catalog: BodyCatalog,
@@ -241,11 +259,33 @@ function planningDesign(
       cabinetDepthMm: input.cabinetDepthMm,
     },
     placements: input.design.placements.map((placement) =>
-      movesWithTheSetting(catalog, placement.body.buildId)
-        ? withoutRecordedSeat(placement)
-        : placement,
+      planned({ input, catalog, placement }),
     ),
   };
+}
+
+interface PlannedPlacementInput {
+  readonly input: SetCabinetDepthInput;
+  readonly catalog: BodyCatalog;
+  readonly placement: DesignPlacement;
+}
+
+/** One placement as the command plans it: seatless if its depth follows the setting, and at the
+ *  along-wall coordinate the new corner leaves it. The two are independent questions asked of the
+ *  same entry — ADR 0058's pinned tops and the freestanding fridge keep their depth **and** still
+ *  slide, because the corner in front of them took more wall. */
+function planned(planning: PlannedPlacementInput): DesignPlacement {
+  const { catalog, placement } = planning;
+  const seated = movesWithTheSetting(catalog, placement.body.buildId)
+    ? withoutRecordedSeat(placement)
+    : placement;
+  const alongMm = alongWallPositionAtMm({
+    placement,
+    catalog,
+    fromCabinetDepthMm: cabinetDepthMmOf(planning.input.design),
+    toCabinetDepthMm: planning.input.cabinetDepthMm,
+  });
+  return alongMm === seated.alongMm ? seated : { ...seated, alongMm };
 }
 
 /** The placement with no `seatDepthMm` **at all**, rather than one holding the catalogue's declared
