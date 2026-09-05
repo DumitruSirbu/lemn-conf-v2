@@ -297,7 +297,7 @@ constant (`worktop-depth.ts` carries a comment saying the rename is owed and def
 | 6N-b — one published coverage fact per wall *(ADR 0083)* | — | 6N-0, 6N-a | Full |
 | 6N-c — the wall-coverage bars, both shells *(owner request)* | — | 6D, 6M, 6N-b — **and ADR 0083's owner question Q1, the missing reference artefact** | Light + visual |
 | 6P — the finish model: materials, palette, and a document that predates both *(ADR 0071)* — **DONE 2026-09-04, `38268b5`** | G | 6E | Full |
-| 6Q — a material change resolves every finish it does not offer *(ADR 0071, ADR 0057; supersedes 6F)*; splits 6Q-a → 6Q-b *(ADR 0078)* — **6Q-b DONE 2026-09-05, ADR 0085** | G | 6P | Full |
+| 6Q — a material change resolves every finish it does not offer *(ADR 0071, ADR 0057; supersedes 6F)*; splits 6Q-a → 6Q-b *(ADR 0078)* — **6Q-b DONE 2026-09-05, `59f8669`, ADR 0085** | G | 6P | Full |
 | 6Q-c — the change confirms before it wipes a chosen colour, and is silent when none was *(ADR 0081, owner 2026-09-05)* | G | 6Q-b — **gated by it** | Full + visual |
 | 6R — three control shapes, six decors the 3D approximates, and a strip that wraps *(ADR 0071, ADR 0082)* | G | 6Q, 6G | Light + visual |
 | 6S — door leaves, drawers and door band heights become declared facts *(ADR 0070)* — **DONE 2026-09-04, `280daa4`/`a2bff48`** | P | none | Full |
@@ -3602,7 +3602,7 @@ reaches into `panel-model.ts` to pre-empt it has taken 6R's diff.
 > See ADR 0078 decision 6's own correction for the full table. The interim is still accepted, and
 > 6Q-a's scope above is unchanged; only the cost named here was understated.
 
-##### 6Q-b — the resolution at both seams, and the warning that precedes it — **DONE 2026-09-05**
+##### 6Q-b — the resolution at both seams, and the warning that precedes it — **DONE 2026-09-05, `59f8669`**
 
 **Tier: Full.** Touches, five production files:
 `packages/configurator-domain/src/commands/set-whole-kitchen-settings.ts`,
