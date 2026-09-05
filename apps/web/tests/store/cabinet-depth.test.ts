@@ -22,6 +22,7 @@ import { describe, expect, it } from "vitest";
 import { createConfiguratorStore } from "@/store/configurator-store";
 
 import { createFakeProbeFactory } from "../support/fake-body-probe";
+import { assertSourcesExplainTheirDepths } from "../support/frozen-source-invariant";
 
 const OCCURRED_AT = "2026-09-04T12:00:00.000Z";
 const DEEPER_MM = 700;
@@ -262,6 +263,11 @@ describe("the columns a depth change publishes", () => {
 
     store.getState().setCabinetDepth(DEEPER_MM);
 
+    // ADR 0079 decision 10 part 2: the state predicate, run here as well as in this wave's own file,
+    // so an ordinary depth-change test carries it. A published depth that no longer names the body it
+    // came from is invisible to every other assertion below — both 6K-c defects looked exactly like a
+    // green run of this test.
+    assertSourcesExplainTheirDepths(store.getState(), "after setCabinetDepth");
     expect(beforeM).toBeCloseTo(0.62, 6);
     expect(columnOf(store.getState().columns, OCCUPIED_BASE_KEY).d).toBeCloseTo(
       0.72,
@@ -327,40 +333,35 @@ function columnOf(columns: ReadonlyMap<string, Column>, key: string): Column {
   return column;
 }
 
-// **A deliberately failing guard. Wave 6K-c owes the flip** — do not delete it, and do not weaken
-// the assertion to make it pass.
+// **Flipped by wave 6K-c, and flipped rather than deleted**: a removed expected failure is
+// indistinguishable from one that never existed (`docs/WORKFLOW.md`). The assertion below is exactly
+// the one the failing guard carried.
 //
-// Wave 6K-a's `atCurrentCabinetDepth` re-answers a frozen extent whose column still has members. It
-// cannot re-answer one with **no member left to measure**: the body that froze the depth is gone,
-// and the mapping is per chain rather than a delta, so a base run goes 620 → 720 while a wall run
-// goes 330 → 400. [ADR 0073](../../../../docs/decisions/0073-a-frozen-extent-records-the-body-its-depth-came-from.md)
+// Wave 6K-a's `atCurrentCabinetDepth` re-answered a frozen extent from the members standing in it.
+// It could not re-answer the half **no member explains**: the body that froze the depth is gone, and
+// the mapping is per chain rather than a delta, so a base run goes 620 → 720 while a wall run goes
+// 330 → 400. [ADR 0073](../../../../docs/decisions/0073-a-frozen-extent-records-the-body-its-depth-came-from.md)
 // rules on it — a frozen extent records the `buildId` its depth came from, and a depth change
 // re-asks that entry in the catalogue built at the new setting — and wave 6K-c implements it.
-//
-// `it.fails` rather than `skip`: the surface exists and the state is reachable, so the debt clears
-// itself the moment 6K-c lands rather than depending on somebody remembering.
 //
 // **`it.fails` passes on any throw**, so a guard whose body crashes asserts nothing and the suite
 // still reports green. Wave 6K-b's adapter guard
 // (`packages/three-adapter/tests/qa-6k-b-probe-kit-depth.adversarial.test.ts`) was briefly in that
 // state. Print what one produces before trusting it.
 describe("a member-less column after a depth change", () => {
-  it.fails(
-    "follows the setting like the run it sits in (6K-c owes this)",
-    () => {
-      const store = createStore();
-      store.getState().select({ kind: "placement", id: "p1" });
-      store.getState().remove();
-      const freedM = columnOf(store.getState().columns, "A|2.00").d;
+  it("follows the setting like the run it sits in", () => {
+    const store = createStore();
+    store.getState().select({ kind: "placement", id: "p1" });
+    store.getState().remove();
+    const freedM = columnOf(store.getState().columns, "A|2.00").d;
 
-      store.getState().setCabinetDepth(DEEPER_MM);
+    store.getState().setCabinetDepth(DEEPER_MM);
 
-      // The base run beside it deepens by the setting's own delta; the freed opening does not.
-      const runM = columnOf(store.getState().columns, "A|1.30").d;
-      const freedAfterM = columnOf(store.getState().columns, "A|2.00").d;
-      expect(freedAfterM - freedM).toBeCloseTo(runM - 0.62, 6);
-    },
-  );
+    // The base run beside it deepens by the setting's own delta; the freed opening does not.
+    const runM = columnOf(store.getState().columns, "A|1.30").d;
+    const freedAfterM = columnOf(store.getState().columns, "A|2.00").d;
+    expect(freedAfterM - freedM).toBeCloseTo(runM - 0.62, 6);
+  });
 });
 
 // **The customer-visible claim, and the one the visual pass measured through the UI.**

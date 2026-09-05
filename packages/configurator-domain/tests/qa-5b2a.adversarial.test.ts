@@ -394,6 +394,9 @@ describe("a document with no emptyColumns key", () => {
       z: 2.45,
       w: 0.7,
       d: 0.742,
+      // ADR 0073 decision 1: the member that won §3.2's MAX, recorded as the MAX is taken — the
+      // fridge's 742 mm, which no cabinet-depth setting moves.
+      depthFromBuildId: "fridge-free-700",
       top: 2.6,
       regions: [
         [0, 1.85],

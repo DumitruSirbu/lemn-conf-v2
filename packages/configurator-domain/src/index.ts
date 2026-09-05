@@ -22,9 +22,11 @@ export {
   finishesAtMm,
   NO_FRONT_ASSEMBLY_MM,
   occupiedDepthM,
+  occupiedDepthOfEntryM,
   recordedClearanceM,
   shellPlusFrontMm,
   UndeclaredOccupiedDepthError,
+  type CatalogEntryDepthQuery,
   type ClearanceM,
   type OccupiedDepthRule,
 } from "./occupied-depth.js";

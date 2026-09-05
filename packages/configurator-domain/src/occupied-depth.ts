@@ -29,7 +29,7 @@
 // `cabinet-depth-rule.ts` as `BuildDepthM`, and the two are different nominal types, so handing one
 // where the other is wanted no longer compiles.
 import { toMetres } from "./millimetres.js";
-import type { PlacementRecord } from "./void-engine.js";
+import type { BodyDefinition, PlacementRecord } from "./void-engine.js";
 
 /** **How much space a body occupies, handles and appliances included** — §3.1's full extent on the
  *  depth axis, and the type the clearance fact is stated in (ADR 0060 decision 1).
@@ -163,5 +163,36 @@ export function occupiedDepthM(record: PlacementRecord): ClearanceM {
     buildId: record.buildId,
     rule: record.occupiedDepth,
     seatDepthM: record.frame.d,
+  });
+}
+
+/** What `occupiedDepthOfEntryM` is asked about: one row of the catalogue, and the id it is filed
+ *  under, because the refusal has to name it. */
+export interface CatalogEntryDepthQuery {
+  readonly buildId: string;
+  readonly definition: BodyDefinition;
+}
+
+/** **The same declared answer as `occupiedDepthM`, asked of a catalogue entry instead of a placed
+ *  body** — ADR 0073 decision 2, for a frozen extent whose member is gone.
+ *
+ *  It introduces no arithmetic and no second rule: `finishesAtMm` answers directly and is not a
+ *  function of the depth at all, so a `manufactured-size` machine and ADR 0058's two pinned tops come
+ *  back unmoved without being named anywhere; `shellPlusFrontMm` answers over the entry's own
+ *  `frameDepthMm`, which is exactly `deriveFrame`'s documented fallback for a placement with no
+ *  measured seat (ADR 0011 Gap B) — and an extent with no member is precisely that case. Build the
+ *  catalogue at the new cabinet depth and the answer follows the setting, because the map is what
+ *  wave 6H parameterised.
+ *
+ *  It lives here, beside `occupiedDepthM`, because this module is the **one** place the declaration
+ *  is applied (ADR 0040 decision 1). A caller reading `occupiedDepth` off a definition itself would
+ *  be a second author for the switch, which is the shape ADR 0028 exists to stop. */
+export function occupiedDepthOfEntryM(
+  entry: CatalogEntryDepthQuery,
+): ClearanceM {
+  return occupiedDepthFromSeat({
+    buildId: entry.buildId,
+    rule: entry.definition.occupiedDepth,
+    seatDepthM: toMetres(entry.definition.frameDepthMm),
   });
 }

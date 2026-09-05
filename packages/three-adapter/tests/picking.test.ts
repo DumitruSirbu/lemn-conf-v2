@@ -5,6 +5,7 @@
 import {
   deriveColumns,
   NO_FRONT_ASSEMBLY_MM,
+  pinnedAtFinishedDepthMm,
   recomputeVoids,
   shellPlusFrontMm,
   type PlacementRecord,
@@ -33,6 +34,11 @@ function makeRecord(overrides: Partial<PlacementRecord> = {}): PlacementRecord {
     // A sentinel, not a body: this file is about which object a ray hits, so the record's occupied
     // depth is declared equal to the frame it states rather than to the real cabinet's worktop.
     occupiedDepth: shellPlusFrontMm(NO_FRONT_ASSEMBLY_MM),
+    // Two sentinels of equal depth in one column tie §3.2's MAX, and the tie-break reads this
+    // (ADR 0079 decision 6 key 2) — an entry that declares nothing throws there, deliberately.
+    // `pinned` because the sentinel's depth above is a fixed number and not a function of any
+    // setting; saying it follows one would be a declaration this fixture cannot honour.
+    depthRule: pinnedAtFinishedDepthMm(560, "base-formula"),
     col: "A|2.60",
     wall: "A",
     rotated: false,

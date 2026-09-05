@@ -179,6 +179,11 @@ describe("the document carries the merged column, and a reload rebuilds it", () 
         y0Mm: 0,
         topMm: 2600,
         depthMm: 620,
+        // ADR 0073 decision 8: the merged entry carries the **template's** source, and the template
+        // is the shallowest member — the same extent that supplied `depthMm` above, so the depth and
+        // the body it came from stay one answer. Both parts froze at 620 here and the sink column is
+        // the one the envelope took, so no new choice was made.
+        depthFromBuildId: "base-sink-800",
       },
     ]);
   });

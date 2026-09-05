@@ -72,7 +72,11 @@ export type StructuralReason = "corner";
 import { occupiedDepthM, type OccupiedDepthRule } from "./occupied-depth.js";
 import type { CabinetHandleRule } from "./cabinet-handles.js";
 import type { FrontPopulationRule } from "./front-population.js";
-import type { CabinetDepthRule } from "./cabinet-depth-rule.js";
+import {
+  cabinetDepthRuleOf,
+  depthFollowsSetting,
+  type CabinetDepthRule,
+} from "./cabinet-depth-rule.js";
 
 export interface Frame {
   readonly x: number;
@@ -258,6 +262,28 @@ export interface PlacementRecord {
    *  `frame.d` for a parameterised wall carcass and `frame.d` is what a resize rewrites. Read it
    *  through `occupiedDepthM`, never directly: the rule is a declaration, not a depth. */
   readonly occupiedDepth: OccupiedDepthRule;
+  /** **Whether this body's depth follows the cabinet-depth setting** — copied off the definition
+   *  exactly as `occupiedDepth` above is, and for the same reason: `deepestMember` has to break a tie
+   *  on a declaration the record carries rather than reach back into a catalogue it was not handed
+   *  (ADR 0079 decision 6 key 2). Read it through `depthFollowsSetting`, never directly.
+   *
+   *  Optional because `BodyDefinition.depthRule` is: `BodyCatalog` is a port, and a definition
+   *  assembled outside TypeScript can arrive without one. Carried **raw**, the way `occupiedDepth`
+   *  above is, and resolved where it decides something.
+   *
+   *  **But "can arrive without one" no longer means it will be tolerated.** Since ADR 0079 amendment
+   *  D the tie-break resolves this through `cabinetDepthRuleOf`, which throws — so a catalogue
+   *  assembled without a declaration fails an ordinary `deriveColumns`, not merely some later query.
+   *  That the shipped product never sees it is a fact about **one gate and not about this type**:
+   *  `buildKitchenLBodyCatalog` runs `refuseUndeclaredDepthRules` over both populations as it
+   *  assembles the map, and `frozen-extent-depth-source.test.ts` pins the consequence by name.
+   *
+   *  And it is reached often rather than at an edge: a tie is anything two members declare within a
+   *  millimetre of each other, which on the shipped kitchen is `A|0.30`, `A|0.75` and `B|0.61` at a
+   *  gap of exactly zero. Any column holding two same-depth members reaches the comparator's second
+   *  key. Two hand-built test fixtures were refused when this landed, and each was fixed by declaring
+   *  a rule rather than by relaxing the throw — which is ADR 0058 decision 2's stance, working. */
+  readonly depthRule?: CabinetDepthRule;
   readonly col: string;
   readonly wall: DesignWall;
   readonly rotated: boolean;
@@ -289,6 +315,28 @@ export interface Column {
    *  rather than as `ClearanceM` because ADR 0044 and ADR 0053 persist this field and a stored
    *  extent arrives off the wire; `openingFromVoid` restates it through `recordedClearanceM`. */
   readonly d: number;
+  /** **Which member's clearance supplied `d`** — ADR 0073 decision 1, and the one fact a member-less
+   *  column could not otherwise keep. `deriveColumns` records the `buildId` that won §3.2's MAX,
+   *  `toEmptyColumn` writes it and `toColumnExtent` restores it, so it survives a save and a reload
+   *  with the extent it belongs to.
+   *
+   *  **The pairing invariant** (ADR 0079 decision 1): wherever a `d` is written, this names the body
+   *  whose declaration produced *that* number at the setting the design then declares — or it is
+   *  absent, and absence means ADR 0073 decision 3's fallback owns the depth and no body is claimed
+   *  for it. `deriveColumns` obeys it by construction; the merge, the split, the wall-end clip and
+   *  the stored restore obey it by carrying the whole extent. `atCurrentCabinetDepth` was the one
+   *  writer that could part the two, and QA measured 99 mm lost four commands later.
+   *
+   *  **It travels with `d` and never on its own.** This is not the re-derivation ADR 0011's
+   *  2026-08-26 correction pulled `hasFullHeightUnder` out of, and the difference is exact: what that
+   *  forbids is a source re-derived from the current members *while the depth is not*. A frozen depth
+   *  keeps its frozen source; a source moves only when the depth beside it was taken from those same
+   *  members. The pair travels or neither does.
+   *
+   *  Optional because a document written before ADR 0073 carries none and is loaded rather than
+   *  refused; the store's `atCurrentCabinetDepth` falls to the column's declared build depth,
+   *  deeper-only, when it is absent or names an entry the catalogue no longer holds. */
+  readonly depthFromBuildId?: string | undefined;
   readonly top: number;
   readonly regions: readonly (readonly [number, number])[];
   /** Whether a full-height member stands under this column — §7's head-clearance cap on a wall
@@ -411,6 +459,9 @@ export function derivePlacementRecords(
       kind: definition.kind,
       frame,
       occupiedDepth: definition.occupiedDepth,
+      ...(definition.depthRule !== undefined
+        ? { depthRule: definition.depthRule }
+        : {}),
       col: deriveColumnKey(rotated, frame),
       wall: placement.wall,
       rotated,
@@ -461,7 +512,7 @@ function groupByColumn(
 /** The two halves of the frozen map, as `Design` carries them and as `deriveColumns` restores them.
  *
  *  **One named object rather than two positional arrays, because the two are the same type.** The
- *  wire shape of a stored empty column and of a stored column extent is the same six fields, so two
+ *  wire shape of a stored empty column and of a stored column extent is one shape, so two
  *  parameters would swap without a type error and restore each half onto the other — silently, with
  *  no symptom until a reload put a column where a space should be. Named fields make that swap
  *  unspellable.
@@ -522,7 +573,12 @@ export function deriveColumns(
     // *not* the depth a cabinet dropped into this column is built to — that is
     // `columnBuildDepthM`'s declared answer, which `resolveDepthM` reads and which is a different
     // number over a full-height column (600, against this 742 over the fridge).
-    const clearanceM = Math.max(...members.map(occupiedDepthM));
+    //
+    // **The MAX is taken by naming its winner** (ADR 0073 decision 1), because the winner is what a
+    // depth change has to re-ask once this column has no member left to measure. Recorded as it is
+    // taken, in one place, so the depth and the body it came from cannot be two separate authors.
+    const deepest = deepestMember(members);
+    const clearanceM = occupiedDepthM(deepest);
     const top = Math.max(
       ...members.map((member) => member.frame.y0 + member.frame.h),
     );
@@ -540,6 +596,7 @@ export function deriveColumns(
       ...originOnWall(orientation, centre),
       w: width,
       d: clearanceM,
+      depthFromBuildId: deepest.buildId,
       top,
       regions,
     });
@@ -572,6 +629,100 @@ export function deriveColumns(
       records,
     ),
     records,
+  );
+}
+
+/** §3.2's MAX, as the member that wins it rather than as the number it produces — so `Column.d` and
+ *  `Column.depthFromBuildId` are one answer read twice and can never disagree.
+ *
+ *  **Not a `>` on two floats** (ADR 0079 decision 5). The MAX used to be `Math.max` over the members,
+ *  a number with no winner and so no ordering to depend on; naming the winner made an ordering
+ *  question exist, and answered below the millimetre it answered it wrong. `occupiedDepthFromSeat`'s
+ *  `recorded-shell` arm accumulates (`0.561 + 0.039` is `0.6000000000000001`) where its `wall-plane`
+ *  arm returns an exact `0.6`, so four catalogue pairs sit `1.11e-16` m apart — and a `>` let the
+ *  pinned row of each pair win by that ULP and be recorded as the source of a depth it does not
+ *  declare at the other setting. 100 mm, decided six orders of magnitude below the finest number
+ *  `toEmptyColumn` can persist.
+ *
+ *  Groups are never empty — `groupByColumn` produces no empty group and `deriveColumns` throws before
+ *  this on one — so there is no seed and no empty case to invent an answer for. */
+function deepestMember(members: readonly PlacementRecord[]): PlacementRecord {
+  return members.reduce((winner, member) =>
+    winsTheMax(member, winner) ? member : winner,
+  );
+}
+
+/** **The millimetre band §3.2's MAX is decided at**, and never manufacturing slack (ADR 0015).
+ *
+ *  Derived, not chosen. Both operands are sums of declared millimetres divided by 1000, and
+ *  `toEmptyColumn` persists the result as a whole millimetre — so any difference the document cannot
+ *  express is arithmetic noise rather than depth, and the comparison must not turn on it. This is the
+ *  band `FROZEN_SURPLUS_EPSILON_M` and `MODULE_LINE_EPSILON_M` already occupy: nine orders of
+ *  magnitude below `FIT_TOLERANCE_M`, so it can never be mistaken for a fit; and six orders above the
+ *  `1.11e-16` m ULPs the catalogue actually produces, so it swallows every one of them.
+ *
+ *  **Its transitivity is a claim and is asserted, not assumed.** A reduce over an epsilon comparison
+ *  is a total order only if no two values sit near the band's edge. They do not here — every real
+ *  difference between two declared occupied depths is at least a millimetre, a million times this —
+ *  and `qa-6k-c-frozen-source.adversarial.test.ts` sweeps every catalogue pair at every declared
+ *  setting to say so. */
+const DECLARED_DEPTH_EPSILON_M = 1e-9;
+
+/** **Whether this member takes the MAX from the one holding it**, on three keys in order
+ *  (ADR 0079 decision 6). The order is total, so one design is one document whatever order the
+ *  placements are listed in — which is the whole of what F2 was.
+ *
+ *  1. **Deeper wins, at the millimetre.** Anything finer is noise the document cannot carry.
+ *  2. **A member whose depth follows the setting beats one whose does not**, read off the entry's own
+ *     `CabinetDepthRule`. Not a preference invented here: recording the pinned member of a tie is
+ *     exactly the *"it stays put"* outcome ADR 0073 decision 5 refused for this whole class, on
+ *     ADR 0055's *"every body adapts, with nothing left behind"* — a column cleared down to that
+ *     record would freeze at the old kitchen's depth for good.
+ *  3. **The byte order of `buildId`**, ascending — ADR 0063's own last key, and a byte comparison
+ *     rather than `localeCompare` for the reason that record gives: these are opaque persisted
+ *     strings, not text anybody reads. A formality that makes the order total, and its
+ *     unobservability is asserted rather than hoped for: two members that reach it declare the same
+ *     depth at every setting the product offers, so which is recorded cannot change an answer.
+ *
+ *  **Key 2 does not abstain on an entry that declares no rule — it throws** (ADR 0079 amendment D),
+ *  through `cabinetDepthRuleOf`, exactly as `occupiedDepthM` throws three lines above for the sibling
+ *  declaration. `cabinet-depth-rule.ts` says of its own type that *"there is deliberately no arm
+ *  meaning 'unknown' and no default"*, and an abstention is that arm with key 3 as its default: which
+ *  body got recorded would then depend on **which catalogue assembled the map** rather than on the
+ *  design, which is ADR 0011's 2026-08-26 correction arriving one level up.
+ *
+ *  It is not a refusal of anything a customer can store. ADR 0073 decision 7 draws that line — a
+ *  malformed `depthFromBuildId` is refused while an absent one is accepted, *"a malformed document,
+ *  not an old one"* — and a `BodyCatalog` assembled without a declaration is a programming error in
+ *  that catalogue. **Unreachable for every catalogue this product builds**, because
+ *  `buildKitchenLBodyCatalog` runs `refuseUndeclaredDepthRules` over both populations as it assembles
+ *  the map; `frozen-extent-depth-source.test.ts` pins that dependency by name, so deleting the
+ *  assembly gate turns something red at this comparator rather than nowhere.
+ *
+ *  It is read **here**, where it decides something, rather than resolved onto every record as a column
+ *  is derived. That is fail-closed a step later on purpose: eight test files build entries with an
+ *  `occupiedDepth` and no `depthRule`, several driving `deriveColumns`, and they stay green unless one
+ *  of their fixtures actually ties at the millimetre — at which point it is a catalogue that has not
+ *  been thought about, which is what ADR 0058 decision 2 wants surfaced. */
+function winsTheMax(
+  challenger: PlacementRecord,
+  holder: PlacementRecord,
+): boolean {
+  const gapM = occupiedDepthM(challenger) - occupiedDepthM(holder);
+  if (Math.abs(gapM) > DECLARED_DEPTH_EPSILON_M) return gapM > 0;
+
+  const challengerFollows = followsTheSetting(challenger);
+  if (challengerFollows !== followsTheSetting(holder)) return challengerFollows;
+
+  return challenger.buildId < holder.buildId;
+}
+
+/** What this member's entry declares about the setting. Fails closed on an entry that declares
+ *  nothing — see `winsTheMax` for why that is the right stance at this seam and why no catalogue the
+ *  product assembles can reach it. */
+function followsTheSetting(record: PlacementRecord): boolean {
+  return depthFollowsSetting(
+    cabinetDepthRuleOf({ buildId: record.buildId, rule: record.depthRule }),
   );
 }
 
@@ -655,7 +806,7 @@ function toColumnExtent(emptyColumn: EmptyColumn): ColumnExtent {
     y0M,
     depthM,
   });
-  return {
+  const extent: ColumnExtent = {
     key: deriveColumnKeyAt(emptyColumn.wall, alongM),
     wall: emptyColumn.wall,
     ry: transform.yawRadians,
@@ -669,6 +820,13 @@ function toColumnExtent(emptyColumn: EmptyColumn): ColumnExtent {
     // intervals these were are the bodies this space no longer holds.
     regions: [[y0M, topM]],
   };
+  // ADR 0073 decision 1: restored beside the depth it explains, and `toEmptyColumn` writes it back —
+  // the two are exact inverses, so a column derived from placements and the same column after a save
+  // and a reload carry the same source. Omitted rather than restored as `undefined` when the document
+  // carries none, so a pre-ADR-0073 document loads to exactly the column it always did.
+  return emptyColumn.depthFromBuildId === undefined
+    ? extent
+    : { ...extent, depthFromBuildId: emptyColumn.depthFromBuildId };
 }
 
 /** ADR 0044's wire shape, written from the frozen map at the store seam: the columns of `columns`
@@ -746,7 +904,7 @@ function compareEmptyColumns(left: EmptyColumn, right: EmptyColumn): number {
 
 function toEmptyColumn(key: string, column: Column): EmptyColumn {
   const alongM = column.wall === "A" ? column.x : column.z;
-  const entry: EmptyColumn = {
+  const extent: EmptyColumn = {
     wall: column.wall,
     alongMm: exactMillimetresOf("alongMm", alongM, key),
     widthMm: exactMillimetresOf("widthMm", column.w, key),
@@ -758,6 +916,14 @@ function toEmptyColumn(key: string, column: Column): EmptyColumn {
     topMm: exactMillimetresOf("topMm", column.top, key),
     depthMm: exactMillimetresOf("depthMm", column.d, key),
   };
+  // ADR 0073 decision 1, and **omitted rather than written as `undefined`** when the column has no
+  // recorded source: the same rule `withFrozenMap` follows for the two arrays themselves, so a
+  // document loaded without the field and saved again untouched is byte-identical to the one that
+  // arrived. A column derived from placements always has one.
+  const entry: EmptyColumn =
+    column.depthFromBuildId === undefined
+      ? extent
+      : { ...extent, depthFromBuildId: column.depthFromBuildId };
   return refuseUnreproducibleKey(entry, key);
 }
 

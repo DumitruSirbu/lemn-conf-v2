@@ -143,12 +143,36 @@ export const MAX_EMPTY_COLUMNS =
  */
 export const MAX_COLUMN_EXTENTS = MAX_PLACEMENTS;
 
-/** The longest a single empty column can serialise to: a wall enum, five five-digit millimetre
- *  values and JSON punctuation — well under a hundred bytes — rounded up as `MAX_PLACEMENT_BYTES`
- *  is, so key order and indentation cannot make an honest document fail. A stored column extent is
- *  the same six fields, so it is allowed the same bytes rather than deriving a second number for
- *  one shape. */
-const MAX_EMPTY_COLUMN_BYTES = 128;
+/** The geometry half of an empty column: a wall enum, five five-digit millimetre values and JSON
+ *  punctuation — well under a hundred bytes — rounded up as `MAX_PLACEMENT_BYTES` is, so key order
+ *  and indentation cannot make an honest document fail. ADR 0053's per-entry allowance, unchanged. */
+const EMPTY_COLUMN_GEOMETRY_BYTES = 128;
+
+/** ADR 0073's `depthFromBuildId`, which the allowance above does **not** absorb — the record says so
+ *  and re-derives rather than assuming: 26 bytes for the longest `buildId` the catalogue holds
+ *  (`wall-corner-return-570-top`), and 21 for `"depthFromBuildId":""` — the key, both pairs of quotes
+ *  and the colon. The comma that separates it from the field before it comes out of the round-up
+ *  above, which stands about ten bytes clear of what the six geometry fields actually serialise to.
+ *
+ *  Derived from the catalogue rather than from `MAX_IDENTIFIER_LENGTH`, exactly as
+ *  `MAX_PLACEMENT_BYTES` is derived from the document the product produces rather than from the
+ *  widest one the schema can express.
+ *
+ *  **The margin is one byte, and it is stated here so the next field to arrive on this shape learns
+ *  it from the comment rather than from a red test.** The longest entry `EmptyColumnSchema` can
+ *  express — every coordinate at `MAX_DESIGN_DIMENSION_MM` and a `depthFromBuildId` at
+ *  `MAX_IDENTIFIER_LENGTH` — serialises to 173 bytes, 174 with the comma that separates it from the
+ *  entry before it, against the 175 below. Measured, not reasoned: `qa-5h.adversarial.test.ts`
+ *  ("allows more bytes per entry than the longest entry the schema can express") and
+ *  `qa-6k-c-frozen-source.adversarial.test.ts` both build that entry, parse it before measuring it,
+ *  and hold it to this allowance. A seventh field on this shape overflows unless the allowance moves
+ *  with it. */
+const DEPTH_FROM_BUILD_ID_BYTES = 26 + 21;
+
+/** The longest a single empty column can serialise to. A stored column extent is the same shape, so
+ *  it is allowed the same bytes rather than deriving a second number for one shape. */
+const MAX_EMPTY_COLUMN_BYTES =
+  EMPTY_COLUMN_GEOMETRY_BYTES + DEPTH_FROM_BUILD_ID_BYTES;
 
 /** Room, `presetId`, and the two timestamps, with the same rounding-up allowance. */
 const DESIGN_ENVELOPE_BYTES = 1024;

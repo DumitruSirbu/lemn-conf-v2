@@ -33,12 +33,15 @@
 > half: the stage is rebuilt whole, keyed on the design's depth.
 > Depends on M5 (only wave 5E is still open
 > there, and it does not gate anything here). Summary: `docs/STATUS.md`. Start at **Waves** below,
-> then the owner section. **Twenty-eight waves, twenty-seven
+> then the owner section. **Twenty-nine waves, twenty-eight
 > unblocked** (twenty-four until 6K-c, 6K-d and 6K-e were added on 2026-09-04; 6K-d's architect pass
 > was delivered the same day as ADR 0075 and it is unblocked). **6K-f was added 2026-09-05 on
 > [ADR 0076](../decisions/0076-a-probe-lease-is-a-scoped-borrow-and-the-store-publishes-no-probe.md)**
 > — the store drops a body-probe lease's `release` at five call sites and strands one transient kit
 > per depth change — and it is **the one wave gated by another**: it is 6K-e's residue and follows it.
+> **6K-i was added 2026-09-05** for the finding ADR 0079 recorded and did not rule: two ordinary
+> deletes leave the shipped kitchen unable to change its own depth (`HEIGHT_EXCEEDS_LEVEL`). It is
+> older than 6K-c, gates nothing, and begins with the adjudication rather than a fix.
 > The seven owner decisions were taken
 > on 2026-09-02 (ADRs 0055–0061); ADRs 0062–0064 followed, the last two on 2026-09-03.
 >
@@ -275,6 +278,8 @@ constant (`worktop-depth.ts` carries a comment saying the rename is owed and def
 | 6K-d — a rebuild must not swap a body for one declared at a different depth *(ADR 0075)* | D | 6K-b — **does not gate it** | Full |
 | 6K-e — the probe that measures a depth change is built at that depth *(ADR 0074)* | D | 6K-b — **does not gate it**, see the wave | Full |
 | 6K-f — a probe lease is a scoped borrow and the store publishes no probe *(ADR 0076)* | D | 6K-e — **gated by it**, this is 6K-e's residue | Full |
+| 6K-i — a depth change refused by two ordinary deletes *(ADR 0079's finding, unadjudicated)* | D | none — **adjudication first**, and it gates nothing | Full |
+| 6K-j — an empty space follows the setting, and the fallback is not a ratchet *(ADR 0080, owner instruction 2026-09-05)* | D | 6K-c — **gated by it**, and it gates nothing | Full |
 | 6L — the handle path learns cabinet from appliance *(backlog 18)* | G | none — **sequenced before 6B and 6G** | Full |
 | 6M — the overflow is marked and warned about *(ADR 0065)* — **DONE 2026-09-04, `ce77171`** | — | 6A3 | Light + visual |
 | 6N — the wall-coverage bars *(owner request)* | — | 6D, 6M, decision 8's fixture correction | Light + visual |
@@ -1617,7 +1622,14 @@ production files, which is the dispatch limit — the byte-cap edit is one line 
 - **Nothing shrinks, in any arm.** Every rule here is deeper-only or an exact re-answer of the same
   body, so ADR 0011 Gap D holds: the 620 mm opening a delete freed under a wall run is still 620 mm
   after a command that is not a depth change, and is 720 mm after one. The anti-invariant is asserted
-  directly — no sequence of commands makes a frozen extent shallower than it was frozen at.
+  directly — no sequence of commands makes a frozen extent shallower than it has been, **except** the
+  two shrinks the records rule: the members standing there explain the new depth, or the recorded
+  source is unchanged and the depth is that source's declaration at both settings (`tall-pantry`'s
+  699 at 700 and 599 at 600). Amended 2026-09-05 — see ADR 0079's amendment, section A: a bare
+  "never shallower" across a **depth decrease** asks the empty space to be the one thing in the
+  kitchen that does not follow the setting, which is the outcome ADR 0073 decision 5 refused. The
+  replacement predicate is QA's own `isAllowedShrink`, and it is required to go **red against the
+  pre-fix code** — demonstrated by running it there, not reasoned about.
 - **An extent that cannot be re-answered is deepened to the column's declared build depth and never
   below.** Three inputs reach it and each has its own test: an entry with no `depthFromBuildId` (every
   stored document written before this wave), an entry naming a `buildId` the catalogue does not hold,
@@ -1646,6 +1658,216 @@ production files, which is the dispatch limit — the byte-cap edit is one line 
   extent without touching its depth or its source.
 - **6K-b's `it.fails` guard goes red and is flipped in this wave, not deleted.** A deleted expected
   failure is indistinguishable from one that never existed (`docs/WORKFLOW.md`).
+
+**Residue found by adversarial QA before this wave was committed, ruled 2026-09-05 by
+[ADR 0079](../decisions/0079-a-republished-depth-names-the-body-it-came-from.md).** Two findings, both
+on the uncommitted diff and neither reaching a shipped wave — `depthFromBuildId` appears in no
+committed file. The wave **stays one wave** and absorbs them: one is store-only, the other domain-only,
+and no contract crosses between them.
+
+**F1 — the recorded source and the recorded depth part in ONE command.** `atCurrentCabinetDepth`
+publishes the winner of its own MAX through `atDepthM` and carried the old `depthFromBuildId` across
+untouched. A single `setCabinetDepth(700)` on the untouched fixture is enough: `B|1.80` froze at the
+pinned top's 600, the surviving pantry measures 699, the *fully explained* arm publishes 699 and the
+record still names a body declaring 600 at every setting. **699 is the right depth while the pantry
+stands — the record is what is false**, and it is what answers once the pantry is deleted. Exhaustively
+there are exactly two such pairs, both on `B|1.80`, drifting in both directions (600 against 699, and
+600 against 599). F1's four-step sequence is how the lie is *observed* — 699 → 600, saved and reloaded
+— and it violates this wave's own *"nothing shrinks, in any arm"* criterion above. The rule that would
+meet it was never stated: see ADR 0079's classification.
+
+**F2 — §3.2's MAX was decided by a float ULP, and by document order below that.** `deepestMember`'s
+strict `>` on metre floats: 121 exact ties in the catalogue take the first member in document order
+(one design, two saved documents), and 26 pairs sit `1.11e-16` m apart, four of which part by 100 mm
+at the other setting — `hood-600` and `base-corner-return-320` against ADR 0058's two pinned tops. The
+document persists the whole millimetre, so the deciding difference is one the product cannot record.
+
+**Touches, revised.** The five above, plus nothing new: F1 is `apps/web/src/store/apply-command-result.ts`
+(`atCurrentCabinetDepth`, `republishedDepthM`, `atDepthM`) and F2 is
+`packages/configurator-domain/src/void-engine.ts` (`deepestMember`, and one copied field on
+`PlacementRecord`), both already in the list.
+
+**Acceptance criteria, added.**
+
+- **A published depth and the source that explains it are written together.** The invariant, asserted
+  over every column the store publishes and in every state rather than across a transition: either
+  `depthFromBuildId` is absent, or `occupiedDepthOfEntryM` of that entry at the design's declared depth
+  equals `Column.d`. Absence is legal and means ADR 0073 decision 3's fallback owns the depth — a
+  fallback answer must **not** invent a source for itself.
+- **The store's MAX names its winner, as `deriveColumns`' does.** When the published depth is the
+  measured operand's, the published source is the measured column's — including when a *different*
+  member wins the MAX at the new setting. When it is the frozen operand's, the frozen source travels
+  unchanged. The falsifiable form is QA's four-step sweep: 4 096 sequences of depth changes and deletes
+  over `A|2.00`, `B|1.80` and `A|0.30`, no unallowed shrink, with the two allowed shrinks stated
+  (members explain it, or the same recorded body re-answered at two settings).
+- **No floor is added to the recorded arm, and the decrease keeps working.** `A|2.00` cleared of
+  `base-dishwasher-600` is 720 at 700 and **620** again at 600, and the round trip returns to where it
+  started. Measured in a detached worktree: the floor greens F1's three assertions and turns those two
+  green tests red (`expected 0.72 to be close to 0.62`, twice), pinning the column at 720 mm at the
+  600 mm setting. A floor at `columnBuildDepthM` instead unpins ADR 0058's tops over a full-height
+  column. ADR 0079 decision 4 records both refutations, and neither repairs the record anyway.
+- **No published depth changes.** The fix is to the record, not to what is drawn: every `Column.d` the
+  store publishes on the fixture at both declared settings is identical before and after this wave, and
+  every saved `depthMm` is identical without exception. The one admitted difference is the tie-break
+  changing which of two tied members wins, bounded at one ULP and below the millimetre the document
+  records. A criterion met by publishing a different kitchen is not met.
+- **A source survives exactly when the depth it explains survives.** `frozenDepthAtThisSettingM`
+  returns a pair from three producers and no fourth: the recorded entry re-answered, `columnBuildDepthM`
+  (**no** source — a declared size is no body's declaration), and the frozen `column.d` where it wins
+  the fallback's MAX. A legacy wall column deepened 330 → 400 by the fallback must **not** keep an id
+  declaring 330, or an F1-shaped lie is written for the day that id returns to the catalogue.
+- **§3.2's MAX is not decided below the millimetre the document records.** The comparison carries a
+  float epsilon in `FROZEN_SURPLUS_EPSILON_M`'s band with its derivation written beside it, never
+  `FIT_TOLERANCE_M` (ADR 0015). Its use in a `reduce` is safe only because a real difference is at
+  least 1 mm, and that is **asserted by sweeping every catalogue pair at every declared setting** for a
+  gap that is zero or greater than 1e-6 m, not assumed.
+- **One design records one source, whichever order the document lists its members in.** The order is:
+  deeper at the millimetre; then a member whose depth follows the setting beats one whose does not
+  (`depthFollowsSetting` over the entry's declared `CabinetDepthRule`, which `PlacementRecord` carries
+  the way it already carries `occupiedDepth`); then the **byte** order of `buildId`, never
+  `localeCompare` (ADR 0063's own last key). The last key's unobservability is asserted: two members
+  that reach it declare the same depth at every setting `declaredCabinetDepthsMm()` offers.
+- **The merge's tie is stated, not changed.** `planBlock` takes the **leftmost** of the shallowest
+  members, which ADR 0046 rule 1's along-wall sort already makes order-independent; ADR 0073 decision
+  8 is read that way and the doc comment says so, since the tie now decides a source as well as a depth.
+- **The invariant is checkable, not merely true** — the criterion this wave owes the two defects that
+  passed a green suite. Three parts, ordered by how little each depends on being remembered:
+  `republishedDepthM` returns the **winning operand** rather than a number, so a depth from one and a
+  source from the other is a compile error; QA's `unexplainedColumns` state predicate moves into a
+  **shared helper the ordinary store suite calls**, asserted after every command rather than as a
+  transition outcome, because both 6K defects published a *right* depth beside a wrong record; and its
+  non-vacuity is asserted — it holds on the shipped kitchen as it loads, it inspects a non-zero number
+  of columns carrying catalogue-known sources, and the pre-fix code violates it. No refusal is added at
+  `toEmptyColumn`: the check needs a catalogue and a setting the frozen-map writer does not hold.
+- **QA's two test files go green without an assertion being weakened**, and the four-step sweep, the
+  one-command invariant block and the order-independence test become this wave's own. A criterion met
+  by relaxing the test that found it is the failure mode `docs/WORKFLOW.md` names.
+
+**Carried debt, and 6K-c closes with it red-turned-bounded.** QA's sweep also found a depth change
+**refused** —
+delete `p12` and `p18` from `A|2.00`, then any `setCabinetDepth`, and the rebuild plans the dishwasher
+niche at 860 mm against the base level's 820 and refuses `HEIGHT_EXCEEDS_LEVEL`. The shipped kitchen is
+then unable to change its own depth, which ADR 0055 decision 1 does not admit. It reproduces without
+`depthFromBuildId` (QA's attribution, not independently re-measured), no decision record mentions the
+code, and it needs its own adjudication in `set-cabinet-depth.ts`'s family — ADR 0077's addendum and
+wave 6K-h — rather than a patch here. **It does not block this wave**, and the sweep's assertion is
+converted to a bounded pin rather than an `it.fails`: every collected refusal carries code
+`HEIGHT_EXCEEDS_LEVEL` and the trail set is exactly the thirty-four measured, so a thirty-fifth trail or
+another code turns it red the day it appears (ADR 0079 amendment, section E). A count held by an
+expected failure would let thirty-four become more in silence.
+
+**Correction, 2026-09-05.** This section previously read "three measured" — an earlier draft of the
+assertion sliced the sorted refusal list to its first three entries rather than asserting the set, so
+the record documented the slice and not the defect. The shipped test
+(`apps/web/tests/store/qa-6k-c-frozen-source.adversarial.test.ts:771`) asserts thirty-four trails, all
+carrying `HEIGHT_EXCEEDS_LEVEL` and all containing the finding's minimal reproduction. Nothing grew:
+see ADR 0079 amendment, section E for the count's arithmetic.
+
+**The tie-break does not abstain on an undeclared `CabinetDepthRule`.** Key 2 reads it through
+`cabinetDepthRuleOf`, which throws, as `occupiedDepthM` does for the sibling declaration in the same
+function; `buildKitchenLBodyCatalog` already refuses an undeclared rule over both populations at
+assembly, so the throw is unreachable for any catalogue the product builds and a test names that
+dependency. `PlacementRecord` carries the rule raw and it is resolved where it is consulted, which
+leaves the eight test files that build entries without one green. ADR 0079 amendment, section D.
+
+**Confirmed by the owner on 2026-09-05, and this wave's scope is unchanged.**
+[ADR 0080](../decisions/0080-an-empty-space-follows-the-setting-and-a-fallback-is-not-a-ratchet.md)
+records the instruction — *"everything, cabinets, empty spaces, everything, should change to six
+hundred depth"* — and measures this wave against it: once 6K-c lands, every current-schema column's
+depth is a pure function of (recorded source, setting) in both directions, which is the requirement.
+Two sentences above are **re-scoped, not changed**: the member-less base column frozen at 620 and the
+`columnBuildDepthM` fallback are statements about documents written **before this wave**, not standing
+rules about empty spaces, and the ratchet inside that fallback is wave 6K-j's. Nothing is added to
+6K-c's criteria.
+
+### Wave 6K-j — an empty space follows the setting, and the fallback is not a ratchet
+
+**[ADR 0080](../decisions/0080-an-empty-space-follows-the-setting-and-a-fallback-is-not-a-ratchet.md)**,
+ruled 2026-09-05 on a direct owner instruction: *"everything — cabinets, empty spaces, everything —
+should change to six hundred depth… you don't keep all their depth in mind because there was earlier a
+cabinet deeper, and now this is missing."*
+
+**Read the record before this section.** The instruction **confirms** wave 6K-c and does not widen it:
+measured on the shipped fixture, every current-schema column's depth is already a pure function of
+(recorded source, setting) in both directions once 6K-c lands. What it reaches is one half of
+**ADR 0073 decision 3** — the fallback that answers for an extent whose source was never recorded. That
+`Math.max` does two jobs, and only one of them is history:
+
+- **the surplus** — an unsourced depth deeper than the fallback could ever produce (a legacy cleared
+  base slot at 620, a legacy fridge niche at 742). **Kept**, on measurement: removing it is 290 mm
+  wrong at the setting the extent was frozen at, and unpins a `manufactured-size` depth.
+- **the ratchet** — a depth the fallback *itself* produced one setting ago, held on the way back down.
+  A member-less wall column with no source is deepened 330 → 400 at 700 and **stays 400 at 600**,
+  70 mm proud of every wall body around it. **This wave ends it.**
+
+**Touches.** `apps/web/src/store/apply-command-result.ts` (`frozenDepthAtThisSetting`, and one field on
+each of `ApplyCommandResultInput` and `PublishedColumnsInput`) and
+`apps/web/src/store/configurator-store.ts` (one argument at the one call site). **Two production files,
+three added lines and a predicate** — measured by building it in a copy of the tree, not estimated. No
+domain file, no schema, no migration.
+
+**Work items.**
+
+1. Thread the design's **own declared setting before the command** to the store seam:
+   `previousCabinetDepthMm` on `ApplyCommandResultInput` and `PublishedColumnsInput`, passed as
+   `cabinetDepthMmOf(state.design)` from `configurator-store.ts`. Required rather than defaulted, for
+   the reason `previousRecords` beside it is.
+2. `frozenDepthAtThisSetting`'s fallback arm becomes ADR 0080 decision 4: `columnBuildDepthM` at the
+   new setting **exactly, with no source**, unless `column.d` is deeper than `columnBuildDepthM` at the
+   setting the design is leaving — in which case the existing deeper-only MAX and the existing source
+   handling are unchanged.
+3. Tests, below.
+4. Re-scope ADR 0073's stated residual and wave 6K-c's residual sentence in this file: the base column
+   frozen at 620 still stays 620, and the sentence names the population — documents written before wave
+   6K-c — rather than reading as a standing rule about empty spaces.
+
+**Acceptance criteria.**
+
+- **Exactly one published depth changes, and it is the ratchet.** Against wave 6K-c, over the whole
+  scenario set at both declared settings, the only difference is a legacy member-less **wall** column:
+  330 → 400 on the increase (unchanged) and **400 → 330** on the decrease, where 6K-c leaves 400. Every
+  other column, on every scenario, is byte-identical — asserted as a criterion, not hoped for. A wave
+  that publishes a different kitchen anywhere else has not met this.
+- **The surplus is not traded away, and each shape has its own test.** A legacy cleared **base** slot
+  frozen at 620 with no source is **620 at 600 and 620 at 700** — never 330, never 400. A legacy fridge
+  niche frozen at 742 is **742 at both settings**. The test asserts the number *and* names why:
+  `columnBuildDepthM` is a build ceiling (330/400, or 600/700 over a full-height member) and cannot
+  express a base run's 620/720, so it must never answer where a deeper unsourced depth stands.
+- **One document answers one way, whatever route reached it.** The surplus predicate reads `column.d`
+  and the document's own `settings.cabinetDepthMm` — two fields of the design being mutated, never the
+  session's command history. Asserted by driving the *same* document to the same state by two different
+  routes and comparing the published map, which is ADR 0011's 2026-08-26 correction in its own terms.
+- **The new allowed shrink is added to `isAllowedShrink`, not carved out of it.** 6K-c's sweep predicate
+  gains exactly one case — *the depth being left is what this rule itself would have published at the
+  setting being left* — and the addition is required to go **red against 6K-c's code** on the `A|0.30`
+  trail and green nowhere else. A predicate that also lets the 620 slot shrink is a weakened one.
+- **No current-schema document reaches the fallback arm at all, and that is asserted rather than
+  believed.** Over the states QA's existing sweep reaches from the shipped fixture, every published
+  column carries a `depthFromBuildId` the catalogue holds. Non-vacuity is asserted three ways: the
+  inspected count is non-zero, the two declared catalogues hold **identical `buildId` sets** (so an
+  unknown source is unreachable across a depth change — measured 2026-09-05, symmetric difference
+  empty), and a deliberately source-stripped document *does* reach the arm. This is what makes ADR 0080
+  decision 5 — the population is closed at documents older than 6K-c — a checked fact.
+- **`hasFullHeightUnder` is asked once and used for both operands**, and the resulting asymmetry is
+  pinned by a test rather than left for a reviewer to find: a deleted full-height member lowers the
+  freeze-time ceiling from 600 to 330, so the rule keeps *more*, never less.
+- **Nothing else moves.** No schema change, no `CURRENT_SCHEMA_VERSION` bump, no migration arm, no new
+  refusal at either seam, no change to `MAX_DESIGN_BYTES`, no domain file touched. The full web suite is
+  green — measured at 1 442 passed / 4 skipped / 0 failed in a copy of the tree carrying this change.
+
+**Risks.**
+
+- **A round trip through the fallback still does not return**, which ADR 0073's consequence already
+  records. This wave changes the direction it fails in — toward the setting the customer is looking at
+  — and does not remove it. Stated so it is not re-reported as a defect.
+- **The wave is legacy-only in what it changes today**, which makes it easy to under-test. The criteria
+  above are written so the *closure* (no current-schema document reaches the arm) is the thing asserted,
+  because that is what stops a future producer of a sourceless column silently inheriting a ratchet.
+
+**Verification.** Drive `createConfiguratorStore` over the shipped fixture through
+`setCabinetDepth(700)` → `setCabinetDepth(600)` → save-and-reload, dumping every `Column.d` and
+`depthFromBuildId`, for both the current-schema and the source-stripped forms of each scenario, and diff
+against the same dump under 6K-c. The expected diff is two lines. Then `pnpm check`.
 
 ### Wave 6K-d — a rebuild must not swap a body for one declared at a different depth
 
@@ -2604,6 +2826,256 @@ would put a Full-tier rule and a Light-tier surface in one diff and one review.
 - **A body that cannot wear a finish is never reset, never refused and never counted** in the
   "applies to N bodies" figure the sheet already renders.
 
+#### The plan, 2026-09-05 — [ADR 0078](../decisions/0078-a-materials-offer-is-its-controls-shape-and-the-load-seam-resolves-before-it-validates.md). Two sub-waves, in this order
+
+**[ADR 0078](../decisions/0078-a-materials-offer-is-its-controls-shape-and-the-load-seam-resolves-before-it-validates.md)
+rules the three things 6P left open** and this plan sits on: what *"offers"* means now that a finish
+has two kinds (derived from `ColourControl.shape`, and MDF offers **every** free colour the schema
+admits), where the invariant is enforced (the load seam **resolves**, the write seam **refuses**, and
+the ordering is what makes both true), and what a stored material id naming no declared material does
+(nothing — ADR 0072). **The criteria above are unchanged**; everything below says who ships each one.
+
+**Why it splits, and why not along the line the criteria suggest.** The obvious cut is domain rule
+versus surface copy, and it is the wrong one: the fourth criterion states that the clause and the
+behaviour are **one edit**, and a wave shipping either alone has shipped the defect from one side.
+The cut that is actually forced is **by seam**, by ADR 0078 decision 2 — a refusal code in
+`validate-design.ts` may not land before the resolution that makes it unreachable on the load path,
+because the rows it would strand exist now (a PAL design wearing *Lut*, written by the five legacy
+chips 6P left standing, in the preview database). So: 6Q-a declares the offer and stops anything new
+from creating a violation; 6Q-b resolves what exists, at both seams, and says so in the copy. Both
+are **Full** tier — this is domain algebra with a load-path migration in it, and 6Q-b touches
+persistence semantics.
+
+**Sizing.** Nine production files is the whole of 6Q; four and five is the split, each with five
+punch-list items. Neither sub-wave is a candidate for batching with 6R, whose real evidence is a
+screen.
+
+##### 6Q-a — the offer, and nothing new may create a violation
+
+**Tier: Full.** Touches, four production files: `packages/configurator-domain/src/materials.ts`,
+`packages/configurator-domain/src/commands/set-appearance.ts`,
+`packages/configurator-domain/src/commands/rejection.ts`,
+`packages/configurator-domain/src/index.ts`.
+
+1. **One query, derived from the declared shape.** `materialOffersFinish(material, finish)` in
+   `materials.ts`, total over both finish kinds and over all three control shapes, per ADR 0078
+   decision 1's table. **It reads `ColourControl.shape` and never an entry count**, and it restates
+   no material's entry list — `paletteEntriesOf` is already the accessor and the `ral-picker` Special
+   Case already answers "no entries" without a null check.
+2. **An undeclared material id is a state, not an exception.** `materialById` throws
+   `UnknownMaterialError` and every in-package caller today holds an id the schema accepted — but
+   `DesignSettingsSchema` validates a tier id for **shape only**, so a stored id naming no declared
+   material reaches both of 6Q-b's seams. Publish a **total** lookup beside it that answers "no
+   declared material" as a value; `SupplierDecorCode`'s `{ kind: "none" }` in this same module is the
+   local precedent for saying so rather than returning a bare `undefined`. Neither seam may throw.
+3. **`setFinish` gains its second refusal.** A finish the design's material does not offer is refused
+   with its own code — `set-appearance.ts`'s standing reason, *a no-op looks identical to a broken
+   control*, and here the alternative is worse than a no-op: it is storing the invalid state the
+   whole wave exists to make unreachable. The design's material is read off `design.settings`, and an
+   undeclared one refuses nothing (item 2).
+4. **The refusal's sentence is drafted and marked.** A new `RejectionDetail` member, `NoParams` for
+   the reason the two 6E tier codes carry none — the material id is developer text and the domain has
+   no book to name it from. The sentence is **drafted, marked *pending owner review*** in
+   `rejection.ts` beside the two 6E codes that carry that marker already, and listed in *Open
+   questions gating this phase* under the owner's standing direction of 2026-09-04 (*draft strings
+   that carry their meaning now*). It names the choice and the next step, and states no digit.
+5. **The property over every (material, finish) pair, against the query** — stated in full below.
+
+**What 6Q-a must not do.** It must not add a validation code, must not touch `migrate-design.ts`, and
+must not touch any surface. It must not "fix" the panel's five legacy chips: **between 6Q-a and 6R,
+tapping *Lut* or *Salvie* on a PAL kitchen refuses with a Romanian sentence instead of silently
+storing an invalid finish.** That is a named, accepted interim (ADR 0078 decision 6), it is strictly
+better than what ships today, and 6R clears it by making the offer the control's own. A wave that
+reaches into `panel-model.ts` to pre-empt it has taken 6R's diff.
+
+##### 6Q-b — the resolution at both seams, and the warning that precedes it
+
+**Tier: Full.** Touches, five production files:
+`packages/configurator-domain/src/commands/set-whole-kitchen-settings.ts`,
+`packages/configurator-domain/src/commands/command-result.ts`,
+`packages/configurator-domain/src/migrate-design.ts`,
+`packages/configurator-domain/src/validate-design.ts`,
+`apps/web/src/content/ro.ts`.
+
+1. **The reset, inside `setMaterialTier`, after the guard and in one document.** On success only, and
+   against the material **being applied** — not the one stored, and not skipped when the two are the
+   same, because *"setting the tier that is already set is not a refusal"* and must not become a
+   silent skip either. The target is `materialById(...).defaultFinish` read from 6P's declaration:
+   **no branch per material, no table in the command, and never a colour derived from a decor's
+   swatch** (ADR 0078 decision 4). Compose the two existing writers — `withPlacements(withSettings(…))`
+   — rather than adding a third, so `command-result.ts` stays *the one place a command writes a new
+   `Design`*.
+2. **`MaterialTierSetEffect` carries the count of finishes resolved.** `CabinetDepthSetEffect.rebuiltCount`
+   is the precedent and the reason: one result carrying *N* is a structurally different thing from
+   *N* results, and it is the observation the cascade test needs. **It is not rendered** — a numeral
+   in `ro.globalSettings` is refused by `starting-price.adversarial.test.ts`'s digit sweep, which is
+   the gate, not an oversight.
+3. **The load seam resolves, unconditionally and in the right place.** A sibling of
+   `dropFinishFromBodiesThatCannotWearOne` in `migrate-design.ts`, keyed to **no version**, placed
+   **after** the strip and **before** `assertDesignValidForCatalog`. After the strip so that a
+   frontless body carrying a stored finish is left wearing **nothing** rather than reset to the
+   material's default; before the validator so the refusal in item 4 is unreachable on the load path.
+   Returned by identity when nothing is owed, so the fixed-point property 6P earned still holds.
+   **This wave takes no schema version bump** and must not: ADR 0055 governs a rewrite *a version
+   owes*, and 6P's QA measured what keying an unconditional property at a version costs.
+4. **The write seam refuses.** One `DesignValidationCode` in `validate-design.ts`, classified
+   `"refusal"` in `DESIGN_ISSUE_SEVERITY_BY_CODE` — ADR 0069 decision 2's membership rule leaves no
+   discretion, and the total map means an unclassified member does not compile. It reaches a client
+   as `PUT /api/designs/[id]`'s existing `invalidBodyResponse`; no new response shape, no reason
+   echoed (ADR 0014 S2).
+5. **The warning clause, in the same diff.** `ro.globalSettings.materialWarning` gains the finish
+   clause, drafted and marked *pending owner review*. **Static, not conditional, and carrying no
+   count** — the digit sweep forbids the number, and a sentence that appears and disappears while the
+   customer browses tiers is a new product behaviour ADR 0057 did not ask for. Two live assertions in
+   `apps/web/tests/settings/global-settings-model.test.ts` must be **inverted, not deleted**: the
+   pinned literal, and *"omits the sentence about limiting per-cabinet finishes entirely"* — which
+   was correct while 6F had not shipped and becomes exactly wrong the moment this item lands.
+
+**What 6Q-b must not do.** No new control, no change to `describeGlobalSettings`' shape beyond the
+string, and no change to the *"applies to N bodies"* figure — that count is the material's reach and
+the material reaches a frontless carcass like any other. Nothing in `panel-model.ts` or
+`three-adapter`.
+
+##### Where each criterion above lands
+
+| Criterion | Sub-wave | Asserted by |
+| --- | --- | --- |
+| The offer is one domain query | **6Q-a** | The query exists in `materials.ts` and nothing outside it decides membership; the panel is untouched until 6R |
+| No stored design holds a finish its material does not offer, over every pair, at both seams | **6Q-a** (the query) then **6Q-b** (the two seams' outputs) | The generated-pair property, run three times: against the query, against `migrateDesign`'s output, against `setMaterialTier`'s |
+| The resolution runs once and produces one `CommandResult` | **6Q-b** | The effect's count, plus `onDesignChanged` called exactly once — below |
+| The warning is shown before the apply, on both viewports | **6Q-b** | DOM order in the one rendered markup, plus the two inverted assertions |
+| The shape changes too — MDF → veneer, asserted on mixed finishes, as one result | **6Q-b** | The veneer fixture — below |
+| The reset target is each material's declared default | **6Q-b** | `defaultFinish` read from `MATERIALS`; a mutation of the declaration moves the reset |
+| A stale tier the book no longer offers | **neither** — ADR 0072 dissolved it | ADR 0078 decision 3 is the only thing owed: an undeclared id resolves and refuses nothing (**6Q-a** item 2) |
+| The finish reset moves nothing | **6Q-b** | Whole-document comparison with named exclusions — below |
+| A body that cannot wear a finish is never reset, never refused, never counted | **6Q-b** | Ordering (item 3), plus the `appliesTo` figure pinned unchanged |
+
+##### The property, stated exactly, and the guard against a third vacuous sweep
+
+**The pair space is generated from the declaration, never enumerated beside it:** `MATERIALS`
+(three) × (`PALETTE_ENTRIES` (eight, `MATERIALS.flatMap`-derived and so incapable of missing a
+material's palette) ∪ `fast-check`'s free colours, drawn against `FREE_COLOUR_PATTERN`). Twenty-four
+palette pairs plus a generated colour per material. A fourth material or a seventh decor enters the
+sweep by existing.
+
+**This project has shipped two boundary greps that matched nothing while reporting green**
+(`docs/WORKFLOW.md`), and 6P shipped three circular assertions that compared a value against the code
+that produced it. Three guards, and all three are required rather than offered:
+
+1. **The counts are pinned as literals.** `MATERIALS.length` is 3 and `PALETTE_ENTRIES.length` is 8,
+   asserted in the same file as the sweep. A list that empties or a rename that filters everything
+   out fails loudly instead of passing over nothing — the *"Not a vacuous sweep"* convention this
+   repository already uses in `catalog.test.ts` and `front-population.test.ts`.
+2. **Both branches are counted and both must be non-empty.** The sweep tallies offers accepted and
+   offers refused and asserts each is greater than zero. A property that holds because it never met a
+   violation is the failure mode; a property that met sixteen is evidence.
+3. **The expected misses are an independently written literal table** — the device 6P's QA used to
+   close the unpinned bridge table, and the only one of the three that catches an offer query that is
+   wrong in the same direction as the sweep that reads it. Written out, importing nothing it pins:
+   PAL misses **2** of the eight palette entries (both veneer woods) and every free colour; MDF
+   misses **all 8** and no free colour; veneer misses **6** and every free colour. Sixteen misses and
+   eight hits across the twenty-four palette pairs. If those three numbers are derived from
+   `paletteEntriesOf` rather than written down, the guard is worth nothing.
+
+The generator belongs in `packages/configurator-domain/tests/support/` beside `offers.ts` and
+`invariants.ts`, so 6Q-a's property and 6Q-b's two both read one pair space and a later wave cannot
+narrow one of them quietly.
+
+**Two anti-invariants the property must carry, or it tests the wrong thing:**
+
+- **Absence is not a violation.** A placement with no `finish` key satisfies the invariant, and
+  neither seam may add one. A property phrased as *"every placement's finish is offered"* passes
+  while a resolution helpfully fills in defaults on fourteen bodies; phrase it as *"every finish a
+  placement **carries** is offered, and every placement carrying none still carries none."*
+- **A `canFinish: false` body is out of the pair space entirely.** After the strip it carries no
+  finish, so the sweep must show it is reached and correct — a hood stored wearing `pal.alb` on a
+  veneer kitchen loads carrying **no finish at all**, not `veneer.stejar`.
+
+##### The one-result criterion, made falsifiable
+
+A cascade cannot be represented in `CommandResult<MaterialTierSetEffect>`, so the criterion is not
+about the command's type — it is about what a **surface** could reintroduce: applying the material
+and then walking the placements calling `setFinish`. Two observations, and the second is the one that
+fails:
+
+1. **The effect names the count.** One effect carrying *N* resolved finishes, with *N* ≥ 2 in the
+   fixture, and one `updatedAt` value across every rewritten placement.
+2. **`onDesignChanged` fires exactly once.** `apps/web/tests/store/whole-kitchen-settings.test.ts:137`
+   already asserts this for a material set — **and it is vacuous today**, because `KITCHEN_L_DESIGN`
+   carries no `finish` on any placement, so nothing resets and a cascade would have nothing to
+   iterate. 6Q-b re-points that test at a fixture where *N* ≥ 2 cabinets must reset and asserts *N*
+   in the same test. A per-cabinet cascade then shows up as *N* + 1 saves through the coalescer, at
+   the seam where it would actually be written.
+
+##### The veneer fixture, so the destructive path is measured rather than assumed
+
+`KITCHEN_L_DESIGN`'s placements carry **no finish at all** — verified 2026-09-05 — so it cannot
+measure a reset, and any test built on it passes for the wrong reason. The MDF → veneer fixture is
+built by writing finishes onto its bodies, and it must contain all five of these at once:
+
+- **At least two `canFinish: true` bodies wearing *different* free colours** (the MDF state), which
+  veneer offers none of. These are the reset, and they must be different so that a resolution
+  collapsing everything to one value is distinguishable from one resolving each.
+- **One body already wearing `veneer.stejar`**, which veneer does offer. It must come through
+  **untouched** — the placement equal to what went in, not merely equal in `finish`.
+- **One body wearing `veneer.nuc`**, so "already wearing a wood" is not one entry's special case.
+- **One `canFinish: false` body — the hood — carrying a stored finish**, which the strip removes and
+  the resolution must not re-add.
+- **One `canFinish: true` body wearing no finish**, which stays wearing none.
+
+Asserted as **one** result, with the effect's count naming exactly the two free-colour bodies:
+not five, which would mean the wood-wearing bodies were rewritten to the same value they held; not
+three, which would mean the hood was counted. The PAL → MDF direction is the same fixture read the
+other way and is **equally destructive** — MDF offers no palette entry, so every decor resets to
+white. That is ADR 0057 working as ruled; see ADR 0078's raised owner question.
+
+##### "The finish reset moves nothing", asserted so it stays true
+
+**A whole-document comparison with named exclusions, not a list of fields.** Take the design before
+and after `setMaterialTier`, and compare them with exactly three things neutralised: every
+placement's `body.finish`, `settings.materialTierId`, and `updatedAt`. Everything else — every
+placement's position, width, `seatDepthMm`, every `columnExtents` entry, the room, the empty
+columns — must be deep-equal. Enumerating *"no `seatDepthMm`, no `Column.d`"* tests the fields
+someone thought of; this tests the document, and a wave that adds a field it genuinely moves has to
+add it to the exclusion list where a reviewer sees it.
+
+**Plus the derived half, because `Column.d` is not in the document.** Derive records and columns from
+both designs: `derivePlacementRecords` compared with `finishKey` neutralised, and the columns map
+compared with **nothing** neutralised — a finish never enters a column, so any difference at all is
+the failure. This is what makes *"a material change repaints; a depth change moves the model"* an
+assertion rather than a sentence.
+
+##### Risks
+
+- **The refusal may not ship before the resolution, and that is the whole reason 6Q-a carries no
+  validation code.** A `"refusal"` in the shared validator refuses stored rows, and the rows it would
+  refuse exist. An implementer who moves the code into 6Q-a to "finish the invariant in one place"
+  strands every *Lut*-on-PAL row in the preview database. Name this constraint in the dispatch — it
+  is the one thing about this wave that is not recoverable by a follow-up commit.
+- **6R will publish a hex per decor**, and the day it does, mapping *Alb* → an MDF free colour looks
+  like a kindness. ADR 0078 decision 4 forbids it; the reset reads `defaultFinish` and nothing else.
+- **The two seams can drift.** They share the offer query and must share the property; if 6Q-b writes
+  its own pair space rather than importing 6Q-a's, the two can pass while disagreeing.
+- **`materialById` throws.** Every new call site is a load path. Item 2 of 6Q-a exists for this and is
+  the item most likely to be skipped as ceremony.
+
+##### Verification
+
+`pnpm ci:local`. Adversarial QA per sub-wave, tree frozen, before either review round; logic **and**
+clean-code review in parallel on both, per Full tier. **No visual agent is owed**: 6Q-b adds a
+sentence to a node 6G already verified on both shells, and the real-interaction gate — the control
+changing *shape* when the material changes — is 6R's, where it can actually be seen.
+
+##### Open inputs this plan adds
+
+- **Two drafted strings, shipped marked *pending owner review***: the new refusal sentence
+  (`rejection.ts`) and the `materialWarning` finish clause (`ro.ts`). Under the owner's standing
+  direction of 2026-09-04 these do not block dispatch; they are listed here so they are not mistaken
+  for ruled copy.
+- **Raised, not answered, and blocking nothing: should PAL → MDF carry the colour over?** ADR 0078's
+  final section states it precisely. Wave 6Q ships ADR 0057's reset as ruled either way; a change is
+  a new dated decision amending ADR 0057, not an implementation choice.
+
 ### Wave 6R — three control shapes, and six decors the 3D approximates
 
 **Tier: Light + visual.** The contract is settled by 6P and 6Q; this is assembly plus one adapter
@@ -3085,6 +3557,27 @@ own unruled strings — and never presented it as ruled. **All seven items below
   rather than scattered through components. **Not M6 scope**: no wave here builds the language-file
   interface; the four strings still ship marked *pending owner review* in the code as 6G's precedent
   set, and this ruling is recorded so nobody scatters strings into components in the meantime.
+
+### Added 2026-09-05 with wave 6Q's plan — [ADR 0078](../decisions/0078-a-materials-offer-is-its-controls-shape-and-the-load-seam-resolves-before-it-validates.md)
+
+**Neither blocks dispatch.** Both are recorded here rather than resolved by an implementer, under the
+same rule the seven items above were.
+
+- **Two drafted strings, shipping marked *pending owner review***: the refusal sentence for a finish
+  the design's material does not offer (`commands/rejection.ts`, beside the two 6E tier codes that
+  already carry the marker), and the finish clause added to
+  `ro.globalSettings.materialWarning` (wave 6Q-b). Both are drafted under the owner's standing
+  direction of 2026-09-04 — *draft strings that carry their meaning now* — and neither may carry a
+  digit or a body count: `starting-price.adversarial.test.ts` sweeps every leaf of
+  `ro.globalSettings` and refuses one.
+- **Raised and not answered: should switching PAL → MDF carry the colour over?** Under ADR 0078
+  decision 1, MDF offers no palette entry, so a PAL kitchen loses all six decors to MDF's white
+  default — as destructive as the veneer path the criteria already single out, and ADR 0057 working
+  exactly as ruled. It is raised because one premise of ADR 0057's rejection of nearest-finish
+  mapping has moved: wave 6R publishes an exact swatch colour per decor, so a carry-over would no
+  longer need an unauditable owner-authored table. **Nothing is blocked** — wave 6Q ships the reset
+  as ruled — and a change would be a **new dated decision amending ADR 0057**, not an implementation
+  choice. ADR 0078's final section states the argument on both sides.
 
 ### Cabinet depth — recorded 2026-08-27, **partly decided since; corrected 2026-09-02**
 

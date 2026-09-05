@@ -268,3 +268,18 @@ kitchen's wall bodies wrong independently of anything this record decides.
 [ADR 0074](0074-the-scene-rebuilds-whole-at-a-depth-change.md), which also records a **third** call
 site in the same family and against the same clause: the probe that measures a depth change holds a
 kit at the depth being left, so the seats it writes are the old depth's. New wave 6K-e.
+
+**Amendment, 2026-09-05 — one unstated invariant, supplied by
+[ADR 0079](0079-a-republished-depth-names-the-body-it-came-from.md); nothing above is revised.**
+Decision 1 records the winner of §3.2's MAX *"when the extent was frozen"* and says nothing about the
+**second** place a MAX is taken: `atCurrentCabinetDepth` publishes a depth from one operand and
+carried the recorded source across untouched, so a republished `d` and its `depthFromBuildId` could
+part. Adversarial QA reached the parted state in **one** command on the untouched fixture — a depth change
+publishing a depth its members explain, beside a source that does not — and measured 99 mm lost when a
+later delete makes that record the only answer, saved and reloaded. ADR 0079 states the invariant — a
+published depth and the source that explains it are written together, or the source is absent and
+decision 3's fallback owns the depth — and rules the two things decision 1 left open once the winner
+had a name: that the MAX is not decided below the millimetre the document records, and how a tie
+between two declarations is broken. Decisions 2 and 3 are load-bearing in that ruling and neither
+moves: decision 2's exact re-answer in **both** directions is what refutes a floor on the recorded
+arm, and decision 3's fallback is refused as one. Wave 6K-c absorbs it and stays one wave.

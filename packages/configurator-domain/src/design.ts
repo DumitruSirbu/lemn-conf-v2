@@ -101,13 +101,30 @@ export const EmptyColumnSchema = z.strictObject({
   y0Mm: coordinateMillimetreSchema,
   topMm: coordinateMillimetreSchema,
   depthMm: positiveMillimetreSchema,
+  /**
+   * **The `buildId` whose clearance supplied `depthMm`** — the member that won §3.2's MAX when this
+   * extent was frozen (ADR 0073 decision 1), so a depth change can re-ask that body in the catalogue
+   * built at the new setting instead of carrying the old setting's number forward.
+   *
+   * A `buildId` rather than a band or a chain: a band cannot tell an oven tower's 638 from a deep
+   * top's 600, and a chain would be a second statement of arithmetic the catalogue already owns.
+   *
+   * **Optional, additive, and no schema version bump** (ADR 0073 decision 6). A document written
+   * before this wave carries none, parses unchanged, loads with the geometry it always had and is
+   * not rewritten by a load; the field arrives on the next save. An absent value and a `buildId` the
+   * catalogue no longer holds both fall to the deeper-only rule and neither is refused (ADR 0052 — a
+   * load that refuses is a dead link). What **is** refused, fail-closed at both seams, is a value
+   * that is not a `buildId`-shaped string, which is why this is `identifierSchema` and the same
+   * schema `CabinetBodySchema.buildId` is parsed against: a malformed document, not an old one.
+   */
+  depthFromBuildId: identifierSchema.optional(),
 });
 export type EmptyColumn = z.infer<typeof EmptyColumnSchema>;
 
 /**
  * The frozen extent of a column that **does** still hold a member, as ADR 0053 records it.
  *
- * The exact complement of `EmptyColumnSchema` and deliberately the same six fields, because it is
+ * The exact complement of `EmptyColumnSchema` and deliberately the same shape, because it is
  * the same fact about the same kind of space: where a column reaches, in whole millimetres, on a
  * key the document's own placements produce.
  *

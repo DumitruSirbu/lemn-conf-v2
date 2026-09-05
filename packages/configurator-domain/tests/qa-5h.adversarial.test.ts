@@ -18,9 +18,15 @@ import { describe, expect, it } from "vitest";
 import {
   MAX_COLUMN_EXTENTS,
   MAX_DESIGN_BYTES,
+  MAX_EMPTY_COLUMNS,
+  MAX_IDENTIFIER_LENGTH,
   MAX_PLACEMENTS,
 } from "../src/design-bounds.js";
-import type { Design, StoredColumnExtent } from "../src/design.js";
+import {
+  EmptyColumnSchema,
+  type Design,
+  type StoredColumnExtent,
+} from "../src/design.js";
 import {
   KITCHEN_L_BODY_CATALOG,
   KITCHEN_L_DESIGN,
@@ -527,9 +533,42 @@ describe("the caps", () => {
 
   // The cap-left-behind mutant: leaving `MAX_DESIGN_BYTES` at 248 576 refuses the largest document
   // the schema accepts, which is the failure ADR 0044's own byte-cap comment names.
-  it("raises the byte cap by exactly the new array's allowance", () => {
-    expect(MAX_DESIGN_BYTES).toBe(270_080);
-    expect(MAX_DESIGN_BYTES - 248_576).toBe(MAX_COLUMN_EXTENTS * 128);
+  //
+  // It has moved twice and is re-derived rather than assumed each time: ADR 0053 added the second
+  // array, and ADR 0073 widened the entry **both** arrays share, because `depthFromBuildId` does not
+  // fit inside ADR 0053's 128-byte allowance. The per-entry allowance is read back out of the cap
+  // rather than restated, so the two cannot be moved independently of each other.
+  it("raises the byte cap by exactly the allowance both frozen-map arrays share", () => {
+    const perEntryBytes =
+      (MAX_DESIGN_BYTES - MAX_PLACEMENTS * 512 - 1024) /
+      (MAX_EMPTY_COLUMNS + MAX_COLUMN_EXTENTS);
+
+    expect(MAX_DESIGN_BYTES).toBe(337_290);
+    expect(perEntryBytes).toBe(175);
+  });
+
+  // **The worst case is constructed, never hand-picked** — a boundary grep that matches nothing
+  // while reporting green is a failure this project has shipped twice. The entry below is the longest
+  // one `EmptyColumnSchema` can express: every coordinate at `MAX_DESIGN_DIMENSION_MM` and a
+  // `depthFromBuildId` at `MAX_IDENTIFIER_LENGTH`, which is more than twice the longest `buildId`
+  // the catalogue holds. It is **parsed before it is measured**, so a "worst case" the schema would
+  // have refused cannot stand in for one.
+  it("allows more bytes per entry than the longest entry the schema can express", () => {
+    const longest = EmptyColumnSchema.parse({
+      wall: "A",
+      alongMm: 10_000,
+      widthMm: 10_000,
+      y0Mm: 10_000,
+      topMm: 10_000,
+      depthMm: 10_000,
+      depthFromBuildId: "b".repeat(MAX_IDENTIFIER_LENGTH),
+    });
+
+    // The separating comma, which belongs to the array rather than to the entry.
+    const bytes = Buffer.byteLength(JSON.stringify(longest), "utf8") + 1;
+
+    expect(bytes).toBeGreaterThan(128);
+    expect(bytes).toBeLessThanOrEqual(175);
   });
 
   it("holds a document at every cap inside the byte cap", () => {
@@ -540,10 +579,16 @@ describe("the caps", () => {
       y0Mm: 12_345,
       topMm: 23_456,
       depthMm: 12_345,
+      // The longest the schema accepts, not the longest the catalogue holds: this asks whether the
+      // cap holds the largest *schema-valid* document, and the derivation deliberately budgets for
+      // the catalogue's own 26 characters.
+      depthFromBuildId: "b".repeat(MAX_IDENTIFIER_LENGTH),
     });
     const document = JSON.stringify({
       ...KITCHEN_L_DESIGN,
-      emptyColumns: Array.from({ length: 1262 }, (_, index) => entry(index)),
+      emptyColumns: Array.from({ length: MAX_EMPTY_COLUMNS }, (_, index) =>
+        entry(index),
+      ),
       columnExtents: Array.from({ length: MAX_COLUMN_EXTENTS }, (_, index) =>
         entry(index),
       ),

@@ -10,17 +10,21 @@
 // module only re-derives what the design implies and decides which existing thing is selected.
 import {
   withCurrentFullHeightMembers,
+  cabinetDepthMmOf,
   clipEmptyColumnsAtWallEnd,
+  columnBuildDepthM,
   deriveCabinetWorldTransform,
   deriveColumns,
   derivePlacementRecords,
   getWallTransform,
   mergeAdjacentEmptyColumns,
+  occupiedDepthOfEntryM,
   splitOversizedEmptyColumns,
   findVacatedVoid,
   projectFrozenMap,
   recomputeVoids,
   type BodyCatalog,
+  type CatalogEntryDepthQuery,
   type Column,
   type CommandEffect,
   type CommandResult,
@@ -108,6 +112,19 @@ export function applyCommandResult(
     records,
     previousRecords: input.previousRecords,
     room: result.design.room,
+    // Both read off the **result's own** design, so they describe the depth the command just wrote
+    // rather than the one the store is leaving — `configurator-store.ts` builds the catalogue from
+    // the same document for the same reason, and no depth constant is reached for here. ADR 0073's
+    // own finding is two call sites still hard-coding `WORKTOP_DEPTH_MM`; this is not a third.
+    //
+    // **Not `effect.cabinetDepthMm`, which `CabinetDepthSetEffect` does carry.** The two are equal by
+    // construction — `setCabinetDepth` writes the setting and the effect from one input — and taking
+    // one operand from the effect while the catalogue beside it came from the design would be two
+    // authors for one number. The document is also the half that gets saved and the half the map was
+    // built at, so it is the one to agree with. Reading it off the design keeps this total as well:
+    // no arm, and no effect that forgets to carry it.
+    catalog: input.catalog,
+    cabinetDepthMm: cabinetDepthMmOf(result.design),
   });
   const voids = recomputeVoids(records, columns);
   return {
@@ -248,6 +265,14 @@ interface PublishedColumnsInput {
   /** The same records before the command ran — see `ApplyCommandResultInput.previousRecords`. */
   readonly previousRecords: readonly PlacementRecord[];
   readonly room: DesignRoom;
+  /** The catalogue at the depth the command wrote, read by `cabinet_depth_set` and by nothing else:
+   *  ADR 0073 decision 2 re-answers a frozen extent by asking the body it recorded for its declared
+   *  `occupiedDepth` in **this** map. It is the map the store goes on to hold, so the answer and the
+   *  geometry beside it cannot come from two different depths. */
+  readonly catalog: BodyCatalog;
+  /** The design's own declared cabinet depth, for the one operand `catalog` cannot supply: ADR 0073
+   *  decision 3's `columnBuildDepthM` fallback, for an extent whose source is absent or unknown. */
+  readonly cabinetDepthMm: number;
 }
 
 /** Which map goes on to be clipped, split, merged and published — the three commands that move an
@@ -291,13 +316,20 @@ function publishedColumns(
  *  a rule with no direction — "deeper only, always" — silently picks the wrong one of the two on
  *  every decrease.
  *
- *  **What it deliberately does not fix, and cannot.** The surplus half, and a member-less column
- *  where there is nothing to measure at either depth, keep the depth they were frozen at. That depth
- *  belongs to the old setting, the body that supplied it is gone, and the mapping is per chain
- *  rather than a delta (a base run goes 620 → 720 while a wall run goes 330 → 400). That is exactly
- *  the residue [ADR 0073](../../../../docs/decisions/0073-a-frozen-extent-records-the-body-its-depth-came-from.md)
- *  rules on and wave 6K-c closes, by recording the `buildId` the depth came from and re-asking that
- *  entry. Do not guess it here. */
+ *  **The surplus half follows the setting too, since wave 6K-c**, and that is the whole of what this
+ *  wave changed here. The surplus is a depth some body supplied and the extent now records which one
+ *  ([ADR 0073](../../../../docs/decisions/0073-a-frozen-extent-records-the-body-its-depth-came-from.md)
+ *  decision 1), so instead of carrying the frozen number forward it is re-asked in the catalogue
+ *  built at the new depth — see `frozenDepthAtThisSettingM`. Guessing it was what could not be done;
+ *  reading a recorded declaration is not a guess.
+ *
+ *  **And it publishes a depth and a source together, never a depth alone**
+ *  ([ADR 0079](../../../../docs/decisions/0079-a-republished-depth-names-the-body-it-came-from.md)
+ *  decision 1). This was the one writer in the product that could part them: it took the winner's
+ *  depth and carried the *old* `depthFromBuildId` across untouched, so one ordinary depth change on
+ *  the shipped fixture recorded a pinned top as the source of a 699 mm pantry — correct depth, false
+ *  record — and the record is what answers once the pantry is deleted. QA measured 99 mm lost four
+ *  commands later, saved and reloaded. */
 function atCurrentCabinetDepth(
   input: PublishedColumnsInput,
 ): ReadonlyMap<string, Column> {
@@ -308,18 +340,154 @@ function atCurrentCabinetDepth(
   const atOldDepth = deriveColumns(input.previousRecords, {}, input.room);
   const republished = new Map(input.frozen);
   for (const [key, column] of input.frozen) {
-    const measured = atNewDepth.get(key);
-    // Member-less at the new depth: nothing to measure, so ADR 0073's residue and not this rule's.
-    if (!measured) continue;
-    const explained = atOldDepth.get(key);
-    const carriesSurplus =
-      explained === undefined ||
-      column.d - explained.d > FROZEN_SURPLUS_EPSILON_M;
-    const depthM = carriesSurplus ? Math.max(column.d, measured.d) : measured.d;
-    if (depthM === column.d) continue;
-    republished.set(key, atDepthM(column, depthM));
+    const published = republishedDepth({
+      frozen: frozenDepthAtThisSetting({ column, published: input }),
+      measured: atNewDepth.get(key),
+      explains: explainsTheFrozenDepth(column, atOldDepth.get(key)),
+    });
+    // **Both halves, not just the depth.** A depth that did not move can still have changed hands —
+    // at a new setting a different member can win §3.2's MAX at the same number — and skipping on the
+    // depth alone would leave the old source standing beside it, which is F1 in miniature.
+    if (
+      published.d === column.d &&
+      published.depthFromBuildId === column.depthFromBuildId
+    ) {
+      continue;
+    }
+    republished.set(key, atDepthM(column, published));
   }
   return republished;
+}
+
+/** **A depth and the body whose declaration produced it**, or a depth with no body claimed for it.
+ *
+ *  The pairing invariant as a type (ADR 0079 decisions 1 and 3): every writer of a `Column.d` in this
+ *  module hands one of these over, so a store that publishes a depth without saying where it came
+ *  from does not compile. It is deliberately *not* the full value object option (c) proposed — that
+ *  is a rewrite of every reader of `column.d` in three packages to prevent a mistake this one
+ *  signature prevents at the only seam that has ever made it.
+ *
+ *  **Keyed `d` rather than `depthM`, so that a `Column` already is one** (ADR 0079 decision 10
+ *  part 1). That is the whole point: `republishedDepth` *returns an operand* rather than assembling a
+ *  result from two, so a depth taken from one operand and a source from the other is not a mistake to
+ *  be tested for — it is a sentence that cannot be written. F1 was exactly that sentence. */
+interface PublishedDepth {
+  readonly d: number;
+  /** Absent means ADR 0073 decision 3's fallback owns this depth: `columnBuildDepthM` is a declared
+   *  size and no body's declaration, so claiming one for it would be the invention ADR 0073 refused.
+   *  The next depth change re-applies the fallback. */
+  readonly depthFromBuildId?: string | undefined;
+}
+
+/** The three answers one column's depth can have after the change, in one place so the arms cannot
+ *  drift apart. */
+interface RepublishedDepthQuery {
+  /** The frozen depth, re-asked at the new setting, with the body that answered it (ADR 0073). */
+  readonly frozen: PublishedDepth;
+  /** §3.2's MAX over the members standing here **now**, or nothing if none are. `deriveColumns`
+   *  records the winner of that MAX, so this operand carries its own source too. */
+  readonly measured: Column | undefined;
+  /** Whether those members already explained the frozen depth at the old setting. */
+  readonly explains: boolean;
+}
+
+/** **Which of the two rules a column gets** — unchanged from wave 6K-a in its arms, and changed in
+ *  what it returns: the winning operand supplies both the depth **and** the source, because both
+ *  operands are sourced (ADR 0079 decision 2).
+ *
+ *  - *Fully explained by its members* — the frozen depth was §3.2's MAX over the bodies the command
+ *    just rebuilt, so what they measure now is authoritative, in both directions, and the source is
+ *    the measured column's. **Even when the frozen source is present and looks right**: at a new
+ *    setting a different member can win the MAX, and the source must move with the depth.
+ *  - *Carrying a surplus* — the deeper of the two, and where they are equal within
+ *    `FROZEN_SURPLUS_EPSILON_M` the measured operand wins, because a member standing there is the
+ *    better claim on a depth the members explain. Never shallower than either operand, which is
+ *    ADR 0011 Gap D's freed opening intact.
+ *  - *Member-less* — the frozen answer whole, source and all, or with no source when decision 3's
+ *    fallback produced it. */
+function republishedDepth(query: RepublishedDepthQuery): PublishedDepth {
+  const { measured } = query;
+  if (measured === undefined) return query.frozen;
+  if (query.explains) return measured;
+  return query.frozen.d - measured.d > FROZEN_SURPLUS_EPSILON_M
+    ? query.frozen
+    : measured;
+}
+
+/** Whether the members standing here explain the whole frozen depth — asked at the **old** depth,
+ *  which is why the pre-command records are a parameter of this seam. */
+function explainsTheFrozenDepth(
+  column: Column,
+  explained: Column | undefined,
+): boolean {
+  if (explained === undefined) return false;
+  return column.d - explained.d <= FROZEN_SURPLUS_EPSILON_M;
+}
+
+interface FrozenDepthQuery {
+  readonly column: Column;
+  readonly published: PublishedColumnsInput;
+}
+
+/** **The frozen depth itself, re-asked at the new setting** — ADR 0073, and the residue wave 6K-a
+ *  named and could not close.
+ *
+ *  Two arms, and no arithmetic of this module's own in either:
+ *
+ *  - **Decision 2 — the recorded body, re-asked.** The extent records the `buildId` whose clearance
+ *    supplied its depth, so the answer is that entry's own `occupiedDepth` declaration read off the
+ *    catalogue built at the new depth. This gets the exceptions right *without naming them*: a
+ *    `manufactured-size` machine and ADR 0058's two pinned tops declare `finishesAtMm`, which is not
+ *    a function of the setting, so a column cleared of one does not move.
+ *  - **Decision 3 — no source, or one the catalogue no longer holds.** Every document written before
+ *    ADR 0073 is in this arm, and it is deepened to the column's own declared build depth and never
+ *    below: the same deeper-only rule, one more operand. It is what turns a legacy cleared wall
+ *    column frozen at 330 into the map's 400 at a 700 mm kitchen rather than leaving it capping an
+ *    inserted cabinet 70 mm shallower than its neighbours (ADR 0028's defect, in mirror image).
+ *
+ *  **The residual, stated rather than fixed** (ADR 0073's own consequence): a pre-ADR-0073 cleared
+ *  *base* column frozen at 620 stays 620, because 620 is already deeper than the declared build depth
+ *  and the fact that would have moved it was never recorded. It reaches no built body, and it
+ *  self-corrects the moment anything is inserted into that column. */
+function frozenDepthAtThisSetting(query: FrozenDepthQuery): PublishedDepth {
+  const recorded = recordedSourceEntry(query);
+  if (recorded) {
+    return {
+      d: occupiedDepthOfEntryM(recorded),
+      depthFromBuildId: recorded.buildId,
+    };
+  }
+  const declaredM = columnBuildDepthM({
+    cabinetDepthMm: query.published.cabinetDepthMm,
+    hasFullHeightUnder: query.column.hasFullHeightUnder,
+  });
+  // The fallback's own MAX, written as a choice between two producers rather than as `Math.max`,
+  // because the two answer the source differently and **a source survives exactly when the depth it
+  // explains survives** (ADR 0079 decision 2).
+  //
+  // `columnBuildDepthM` is a declared size and no body's declaration, so a depth it supplied carries
+  // no source at all — and that includes dropping an id the column was carrying. A legacy wall column
+  // the fallback deepens from 330 to 400 must **not** keep an id declaring 330, or this wave writes a
+  // fresh F1-shaped lie against the day that id returns to the catalogue.
+  //
+  // The frozen depth surviving is the other case, and there the column's own source travels with it —
+  // including one the catalogue no longer holds, which explains that depth as well as anything can
+  // and is the id a later catalogue would restore meaning to.
+  return query.column.d > declaredM
+    ? { d: query.column.d, depthFromBuildId: query.column.depthFromBuildId }
+    : { d: declaredM };
+}
+
+/** The catalogue row this extent's depth came from, or nothing — an absent `depthFromBuildId` and one
+ *  the map does not hold are the same answer here and neither is an error (ADR 0073 decision 7; a
+ *  load that refuses is a dead link). */
+function recordedSourceEntry(
+  query: FrozenDepthQuery,
+): CatalogEntryDepthQuery | undefined {
+  const buildId = query.column.depthFromBuildId;
+  if (buildId === undefined) return undefined;
+  const definition = query.published.catalog.get(buildId);
+  return definition ? { buildId, definition } : undefined;
 }
 
 /** Float slack on the one comparison that decides which of the two rules a column gets, **not**
@@ -334,25 +502,46 @@ function atCurrentCabinetDepth(
  *  epsilon belongs. A real surplus is a body's worth of depth, never a nanometre. */
 const FROZEN_SURPLUS_EPSILON_M = 1e-9;
 
-/** One column at a new depth, in either direction, with its along-wall position untouched.
+/** One column at a published depth, in either direction, with its along-wall position untouched.
  *
  *  The origin is the column's own half-depth on the wall's normal (`deriveColumns`), so the two move
  *  together or the run is drawn where the shallower kitchen stood. It is recomputed through the
  *  domain's own transform rather than by naming an axis here: `x` is the along-wall coordinate on
  *  wall A and the normal one on wall B, and a store that picked the axis itself would be a second
  *  author for §2's wall convention. The along-wall coordinate is projected back out with the same
- *  wall's tangent, which is what stops a widened extent from snapping to its members' centre. */
-function atDepthM(column: Column, depthM: number): Column {
+ *  wall's tangent, which is what stops a widened extent from snapping to its members' centre.
+ *
+ *  **It takes a `PublishedDepth` and not a bare number** (ADR 0079 decision 3), which is the whole of
+ *  the guarantee: this is the one seam in the product that has ever written a `Column.d` without the
+ *  source that explains it, and a caller that tries to now fails to compile rather than shipping a
+ *  record that lies about where its own depth came from. */
+function atDepthM(column: Column, published: PublishedDepth): Column {
   const wall = getWallTransform(column.wall);
   const alongM = wall.tangent.x * column.x + wall.tangent.z * column.z;
   const { position } = deriveCabinetWorldTransform({
     wall: column.wall,
     alongM,
     y0M: columnFloorM(column),
-    depthM,
+    depthM: published.d,
   });
-  return { ...column, d: depthM, x: position.x, z: position.z };
+  const moved: MutableColumn = {
+    ...column,
+    d: published.d,
+    x: position.x,
+    z: position.z,
+  };
+  // Deleted rather than set to `undefined`, so an unsourced column is shaped exactly like one that
+  // never had a source — the rule `toEmptyColumn` and `toColumnExtent` already follow, and the one
+  // `JSON.stringify` and an `in` check disagree about.
+  if (published.depthFromBuildId === undefined) delete moved.depthFromBuildId;
+  else moved.depthFromBuildId = published.depthFromBuildId;
+  return moved;
 }
+
+/** A `Column` under construction. `Column`'s own fields are `readonly` — they are, correctly, a
+ *  frozen extent — and this is the one place a field has to be **removed** rather than overwritten,
+ *  which no spread can express. */
+type MutableColumn = { -readonly [Field in keyof Column]: Column[Field] };
 
 /** The column's own floor, which the transform validates as non-negative and then uses only for a
  *  `y` this shape does not carry. Read off `regions` rather than passed as zero so the value handed
