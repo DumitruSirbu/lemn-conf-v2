@@ -275,6 +275,34 @@ export function paletteEntriesOf(material: Material): readonly PaletteEntry[] {
     : material.colourControl.entries;
 }
 
+/** **Whether a material offers a finish**, ADR 0078 decision 1 — the one query the reset rule, the
+ *  command guard and both of wave 6Q-b's seams read, so *"does not offer"* is decided in one place.
+ *
+ *  **It asks the control's declared `shape` and never counts entries.** ADR 0071 decision 3's own
+ *  reason: two swatches and a list of two are the same array and different products, so a query that
+ *  branched on `entries.length` would answer for the wrong product the day veneer gains a third wood.
+ *
+ *  **A RAL picker offers every free colour `FinishSchema` admits, and no palette entry at all.**
+ *  ADR 0071 declares MDF's *control* to be a picker and declares no RAL set; narrowing the offer to a
+ *  table nobody has authored would reset colours a customer chose. The list half is
+ *  `paletteEntriesOf`'s, not restated here — two lists of what PAL offers is ADR 0028's failure one
+ *  seam over.
+ *
+ *  **Absence is not asked about.** A body wearing no finish has no finish to be offered (ADR 0078
+ *  decision 5), so it never reaches this query and nothing here invents one for it. */
+export function materialOffersFinish(
+  material: Material,
+  finish: Finish,
+): boolean {
+  if (material.colourControl.shape === "ral-picker") {
+    return finish.kind === "free-colour";
+  }
+  return (
+    finish.kind === "palette-entry" &&
+    paletteEntriesOf(material).some((entry) => entry.entryId === finish.entryId)
+  );
+}
+
 export class UnknownMaterialError extends Error {
   constructor(materialId: string) {
     super(`no material is declared for tier id "${materialId}"`);
@@ -282,14 +310,39 @@ export class UnknownMaterialError extends Error {
   }
 }
 
-/** The material a stored `materialTierId` names. Throws rather than returning `undefined`, because
- *  every caller inside this package has already been handed an id the schema accepted. */
+/** The material a declared id names. Throws rather than returning `undefined`, because a caller
+ *  reaching this holds an id from this module's own declaration — the reset target and the three
+ *  defaults. **A caller holding a stored id wants `lookUpMaterial` below**, which answers instead of
+ *  throwing. */
 export function materialById(materialId: string): Material {
+  const lookup = lookUpMaterial(materialId);
+  if (lookup.kind === "undeclared") throw new UnknownMaterialError(materialId);
+  return lookup.material;
+}
+
+/** What a stored `materialTierId` resolves to when nobody may throw. The discriminated shape is
+ *  `SupplierDecorCode`'s, one declaration up: *"this product declares no material for that id"* is an
+ *  answer, and a bare `undefined` reads as an oversight instead. */
+export type MaterialLookup =
+  | { readonly kind: "declared"; readonly material: Material }
+  | { readonly kind: "undeclared" };
+
+/** The Special Case an undeclared id resolves to, so no caller writes the literal twice. */
+export const UNDECLARED_MATERIAL: MaterialLookup = { kind: "undeclared" };
+
+/** **The total lookup, for the load paths** (ADR 0078 decision 3). `DesignSettingsSchema` validates
+ *  `materialTierId` for shape only — the domain imports no price book (ADR 0062 seam 1) — so a stored
+ *  id naming no declared material is a reachable state and not a programming error. It must keep
+ *  loading, which is what wave 6G's recovery path stands on (ADR 0072).
+ *
+ *  **A material this product does not declare makes no offer**, so a caller holding
+ *  `{ kind: "undeclared" }` corrects nothing and refuses nothing. Use `materialById` only where the
+ *  id came from this module's own declaration. */
+export function lookUpMaterial(materialId: string): MaterialLookup {
   const material = MATERIALS.find(
     (candidate) => candidate.materialId === materialId,
   );
-  if (!material) throw new UnknownMaterialError(materialId);
-  return material;
+  return material ? { kind: "declared", material } : UNDECLARED_MATERIAL;
 }
 
 /** The finish a design wearing nothing is deemed to wear, and the finish wave 6P's migration resets

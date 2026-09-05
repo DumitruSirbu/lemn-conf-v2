@@ -179,7 +179,10 @@ describe("the panel over the store's own state", () => {
   it("marks a finish and a handle the moment the command applies", () => {
     const store = createStore();
     store.getState().select({ kind: "placement", id: "p0" });
-    store.getState().setFinish(LEGACY_ENUM_FINISHES.sage);
+    // *Antracit* rather than *Salvie* since wave 6Q-a: the fixture carries no settings, so it is a
+    // PAL kitchen and PAL offers no free colour (ADR 0078 decision 1). What is under test is that
+    // the panel marks a chip the moment the command applies, which needs a command that applies.
+    store.getState().setFinish(LEGACY_ENUM_FINISHES.graphite);
     store.getState().setHandle("black");
 
     const sections = openPanel(store.getState()).sections;
@@ -189,7 +192,7 @@ describe("the panel over the store's own state", () => {
       throw new Error("expected both appearance sections");
     expect(
       finish.chips.filter((chip) => chip.isActive).map((chip) => chip.value),
-    ).toEqual(["sage"]);
+    ).toEqual(["graphite"]);
     expect(
       handle.chips.filter((chip) => chip.isActive).map((chip) => chip.value),
     ).toEqual(["black"]);

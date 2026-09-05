@@ -266,6 +266,20 @@ export type RejectionDetail =
       readonly params: MillimetreParams;
     }
   | { readonly code: "FINISH_NOT_SUPPORTED"; readonly params: LabelParams }
+  /** Wave 6Q-a, ADR 0078 decision 6: the colour asked for is one the kitchen's **material** does not
+   *  offer — a PAL decor on a veneer kitchen, a free colour on either. Refused rather than stored,
+   *  because the invalid state this refusal prevents is exactly the one the load seam would then
+   *  have to correct, and because a silent no-op looks identical to a broken control.
+   *
+   *  **`NoParams`, for the two 6E tier codes' reason.** The material id is developer text the domain
+   *  has no book to name from (ADR 0062 seam 1), and the colour the customer just tapped is already
+   *  on screen in front of them.
+   *
+   *  Between this wave and 6R the panel still offers the five legacy chips, two of which (*Lut*,
+   *  *Salvie*) write a free colour onto a PAL kitchen and land here. That is a named, accepted
+   *  interim — a sentence instead of a stored violation — and 6R clears it by making the offer the
+   *  control's own. */
+  | { readonly code: "FINISH_NOT_OFFERED"; readonly params: NoParams }
   | { readonly code: "HANDLE_NOT_SUPPORTED"; readonly params: LabelParams }
   /** Wave 6E: the tier asked for is not one the caller's book offers. A refusal rather than a
    *  silent no-op, for `set-appearance.ts`'s own stated reason — a no-op looks identical to a
@@ -474,6 +488,11 @@ export function renderRejection(detail: RejectionDetail): string {
       return `Dimensiunea calculată (${detail.params.field}: ${String(detail.params.valueMm)} mm) nu este un număr întreg de milimetri.`;
     case "FINISH_NOT_SUPPORTED":
       return `„${detail.params.label}” nu are uși, deci nu i se poate schimba finisajul.`;
+    // Ruled 2026-09-05, pending owner review. ADR 0078 decision 6 ruled the refusal; the sentence
+    // is this wave's draft under the owner's standing direction, and names the choice and the next
+    // step without stating a digit — the same marker the two tier codes below carry.
+    case "FINISH_NOT_OFFERED":
+      return "Culoarea aceasta nu se face în materialul ales pentru bucătărie. Alege altă culoare sau schimbă materialul.";
     case "HANDLE_NOT_SUPPORTED":
       return `„${detail.params.label}” nu are mânere.`;
     // Ruled 2026-09-04, pending owner review. Both name the choice and the next step, and neither

@@ -1703,3 +1703,58 @@ was not done. The gate needs oriented bounding boxes, or a per-pair comparison i
 frame, before it says anything true.
 
 Not scheduled. Until it lands, the joint arm's only gate is the seat it declares.
+
+## 36. `HEIGHT_EXCEEDS_LEVEL` refuses a depth change after two ordinary deletes
+
+Found 2026-09-05 by adversarial QA on wave 6K-c; adjudication deferred by
+[ADR 0079](decisions/0079-a-republished-depth-names-the-body-it-came-from.md), which records it
+under *"Finding, recorded and NOT ruled here"*. Wave 6K-c closed **around** it, not over it.
+
+A four-step sweep from the shipped fixture reaches 34 trails on which a `setCabinetDepth` is
+refused with `HEIGHT_EXCEEDS_LEVEL`. Every one contains the same minimal reproduction — two deletes
+of a non-source member of `A|2.00` (`open-shelf-600` and `wall-2door-600-top`) before the depth
+change — so **34 is one defect's closure over the sweep alphabet, not 34 defects**: 2 three-step
+trails plus 32 four-step, the latter being 16 distinct three-prefixes at each of the two settings.
+
+It reproduces without wave 6K-c's field and is older than that wave.
+
+**Bounded, with a tripwire.** `apps/web/tests/store/qa-6k-c-frozen-source.adversarial.test.ts:771`
+asserts the code set is exactly `["HEIGHT_EXCEEDS_LEVEL"]`, that every trail carries the minimal
+reproduction, and the exact set of trails as data. A thirty-fifth trail, or a refusal of any other
+code, turns it red the day it appears. Deliberately **not** an `it.fails`, which would keep passing
+if three refusals became thirty.
+
+Whichever wave adjudicates ADR 0079's finding deletes that block.
+
+## 37. Two pinned deep tops are 100 mm proud if a depth change ever reaches them
+
+Found 2026-09-05 by the logic review on wave 6K-j; ruled as fixture-bounded safety by
+[ADR 0080](decisions/0080-an-empty-space-follows-the-setting-and-a-fallback-is-not-a-ratchet.md)'s
+amendment. **Not a regression** — it predates 6K-j and reaches the same 700 under wave 6K-c, which
+then holds it there; only 6K-j lets it come back down.
+
+[ADR 0058](decisions/0058-the-two-deep-top-cabinets-are-pinned.md)'s two pins declare **600 at both
+settings**, so each sits *on* `columnBuildDepthM` at one declared setting and *off* it at the other:
+
+```
+wall-2door-600-deep-top     declared 600/600   ceiling (hasFullHeightUnder) 600/700
+wall-2door-700-over-fridge  declared 600/600   ceiling (hasFullHeightUnder) 600/700
+```
+
+A member-less column frozen at 600 with a full-height member overhead is therefore read as carrying
+this rule's own previous answer, and follows the setting to 700 — 100 mm proud of a pinned depth.
+
+**Unreachable on today's fixture, and for a reason the fixture supplies rather than the rule.**
+`B|1.80` is the only column recording a pin and it holds a full-height `tall-pantry-600`, so it is
+never member-less while that pin is its depth; `wall-2door-700-over-fridge` wins no column's MAX at
+all, because `B|2.45` is the fridge's 742.
+
+**It becomes reachable** when a pinned deep top is left alone in a column a full-height body
+overlaps, or when any new catalogue entry declares the same depth at both settings.
+
+**Tripwire, not a fix.** `apps/web/tests/store/cabinet-depth-legacy-fallback.test.ts` sweeps every
+catalogue entry × both `hasFullHeightUnder` readings × both settings and asserts the hazard set is
+exactly these two named ids — so a new entry of that shape turns it red. It is written as the hazard
+predicate rather than as *"every wall-family entry declares the map"*, which would restate the map
+(ADR 0028 decision 4) and name the wrong population: the hazard is any entry sitting on a ceiling at
+one setting only, not a fact about wall cabinets.

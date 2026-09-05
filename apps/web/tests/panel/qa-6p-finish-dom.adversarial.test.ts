@@ -155,7 +155,12 @@ describe("the click an e2e spec performs still lights the swatch it clicked", ()
    *  `setFinish`, the design records it, `describeSelection` publishes it, and the panel is asked
    *  which swatch is pressed. Wave 6P is the first time the value written and the value rendered
    *  are different strings, so nothing before it could have caught them disagreeing. */
-  function pressedAfterClicking(key: string): readonly string[] {
+  interface ClickOutcome {
+    readonly pressed: readonly string[];
+    readonly rejectionCode: string | null;
+  }
+
+  function clickSwatch(key: string): ClickOutcome {
     const store = createConfiguratorStore({
       design: KITCHEN_L_DESIGN,
       catalogAt: buildKitchenLBodyCatalog,
@@ -192,7 +197,7 @@ describe("the click an e2e spec performs still lights the swatch it clicked", ()
     if (!chip) throw new Error(`no chip keyed ${key}`);
 
     store.getState().setFinish(chip.finish);
-    expect(store.getState().lastRejection).toBeNull();
+    const rejectionCode = store.getState().lastRejection?.code ?? null;
 
     const after = describePanel({
       meta: describeSelection({
@@ -211,13 +216,49 @@ describe("the click an e2e spec performs still lights the swatch it clicked", ()
     if (after.kind !== "open") throw new Error("expected an open panel");
     const pressed = after.sections.find((one) => one.kind === "finish");
     if (pressed?.kind !== "finish") throw new Error("no finish section");
-    return pressed.chips.filter((one) => one.isActive).map((one) => one.value);
+    return {
+      pressed: pressed.chips
+        .filter((one) => one.isActive)
+        .map((one) => one.value),
+      rejectionCode,
+    };
   }
 
-  it.each(SHIPPED_SWATCH_KEYS)(
+  /** **The seeded kitchen carries no settings, so it is PAL** — and since wave 6Q-a the five chips
+   *  no longer land the same way. Three write a PAL decor; *Lut* and *Salvie* write a free colour,
+   *  which a decor list does not offer (ADR 0078 decision 1), and the command refuses them.
+   *
+   *  Written out rather than partitioned by asking the domain, for this file's own stated reason: a
+   *  test that reads the same query the command reads agrees with it however it is wrong. */
+  const OFFERED_ON_PAL = ["white", "graphite", "oak"] as const;
+  const REFUSED_ON_PAL = ["clay", "sage"] as const;
+
+  it("splits the five shipped swatches between the two branches and drops none", () => {
+    expect([...OFFERED_ON_PAL, ...REFUSED_ON_PAL].sort()).toEqual(
+      [...SHIPPED_SWATCH_KEYS].sort(),
+    );
+  });
+
+  it.each(OFFERED_ON_PAL)(
     "leaves %s pressed and nothing else, exactly as the e2e spec expects",
     (key) => {
-      expect(pressedAfterClicking(key)).toEqual([key]);
+      const outcome = clickSwatch(key);
+      expect(outcome.rejectionCode).toBeNull();
+      expect(outcome.pressed).toEqual([key]);
+    },
+  );
+
+  /** **ADR 0078 decision 6's named, accepted interim, asserted rather than left to be discovered.**
+   *  A customer tapping *Lut* or *Salvie* on a PAL kitchen gets a Romanian sentence instead of a
+   *  silently stored finish its material does not offer. Wave 6R clears it by making the panel's
+   *  offer the control's own; until then this is the behaviour, and it is strictly better than
+   *  writing the invalid state. */
+  it.each(REFUSED_ON_PAL)(
+    "refuses %s on a PAL kitchen and presses nothing at all",
+    (key) => {
+      const outcome = clickSwatch(key);
+      expect(outcome.rejectionCode).toBe("FINISH_NOT_OFFERED");
+      expect(outcome.pressed).toEqual([]);
     },
   );
 });

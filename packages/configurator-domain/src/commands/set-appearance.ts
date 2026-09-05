@@ -4,9 +4,20 @@
 //
 // Neither is a silent no-op: setting a finish on a body with no doors, or a handle on a body with
 // no handle meshes, is a refusal with its own code. A no-op looks identical to a broken control.
+//
+// **`setFinish` refuses on two counts and they are different questions.** Whether the *body* can
+// wear a finish at all, and whether the *kitchen's material* offers the one being asked for
+// (ADR 0078 decision 6). The capability question is asked first: a body with no doors has nothing to
+// say about a colour, and naming the material at a hood would send the customer to the wrong
+// control.
 import { describeKindLabel } from "../catalog.js";
 import type { CabinetBody, Design, Handle } from "../design.js";
-import type { Finish } from "../materials.js";
+import {
+  DEFAULT_MATERIAL_ID,
+  lookUpMaterial,
+  materialOffersFinish,
+  type Finish,
+} from "../materials.js";
 import {
   derivePlacementRecords,
   type BodyCatalog,
@@ -84,6 +95,9 @@ export function setFinish(
       params: { label: describeKindLabel(selected.record.kind) },
     });
   }
+  if (!designOffersFinish(input.design, input.finish)) {
+    return refuse(input.design, { code: "FINISH_NOT_OFFERED", params: {} });
+  }
   return succeedWith(
     applyToBody(input, selected.record.id, { finish: input.finish }),
     {
@@ -91,6 +105,23 @@ export function setFinish(
       placementId: selected.record.id,
       finish: input.finish,
     },
+  );
+}
+
+/** ADR 0078 decision 6, read off the design rather than passed in: the whole-kitchen material is
+ *  already in the document this command is rewriting, so a caller cannot hand it a different one.
+ *
+ *  **An undeclared `materialTierId` offers nothing and refuses nothing** (ADR 0078 decision 3). The
+ *  id is a reachable stored state, wave 6G's recovery path depends on it loading, and a material this
+ *  product does not declare has no palette to judge a colour against — so the command lets the
+ *  finish through rather than making a stale tier unrecolourable. */
+function designOffersFinish(design: Design, finish: Finish): boolean {
+  const lookup = lookUpMaterial(
+    design.settings?.materialTierId ?? DEFAULT_MATERIAL_ID,
+  );
+  return (
+    lookup.kind === "undeclared" ||
+    materialOffersFinish(lookup.material, finish)
   );
 }
 

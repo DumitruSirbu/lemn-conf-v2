@@ -1,9 +1,17 @@
 import { KITCHEN_L_DESIGN, type Design } from "@lemnaria/configurator-domain";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import {
-  LEGACY_ENUM_FINISHES,
-  type Finish,
-} from "@lemnaria/configurator-domain";
+import { paletteFinish, type Finish } from "@lemnaria/configurator-domain";
+
+/** **Four distinct PAL decors, one per edit in a sequence.** These fixtures carry no settings, so
+ *  every design here is a PAL kitchen, and since wave 6Q-a a finish PAL does not offer is refused at
+ *  the command (ADR 0078 decision 1) — the legacy *Lut* and *Salvie* values that used to stand here
+ *  are free colours, so they would now schedule no write at all, which is not what any test below
+ *  is about. **Which** colour each edit is has never mattered; that each one differs from the last
+ *  is the whole of it. */
+const FIRST_EDIT = paletteFinish("pal.stejar-bardolino");
+const SECOND_EDIT = paletteFinish("pal.antracit");
+const THIRD_EDIT = paletteFinish("pal.alb");
+const FOURTH_EDIT = paletteFinish("pal.gri-havanna");
 
 /** The revision a hydrating loader reports. These tests are about identity and generation, not
  *  about concurrency, so one value throughout keeps them readable. */
@@ -113,13 +121,13 @@ describe("the singleton write path scopes jobs and callbacks to hydration genera
       canWrite: true,
     });
     store.getState().select({ kind: "placement", id: EDITABLE_PLACEMENT_ID });
-    store.getState().setFinish(LEGACY_ENUM_FINISHES.oak);
+    store.getState().setFinish(FIRST_EDIT);
     expect(store.getState().lastRejection).toBeNull();
     await vi.advanceTimersByTimeAsync(0);
     expect(controlledFetch.requests).toHaveLength(1);
     await controlledFetch.answer(0, { status: 200, id: DESIGN_A_ID });
 
-    store.getState().setFinish(LEGACY_ENUM_FINISHES.clay);
+    store.getState().setFinish(THIRD_EDIT);
     store.getState().hydrate({
       design: withPreset("b"),
       designId: DESIGN_B_ID,
@@ -135,9 +143,7 @@ describe("the singleton write path scopes jobs and callbacks to hydration genera
       `/api/designs/${DESIGN_A_ID}`,
     );
     expect(requestDesign(controlledFetch.requests[1]).presetId).toBe("a");
-    expect(requestedFinish(controlledFetch.requests[1])).toEqual(
-      LEGACY_ENUM_FINISHES.clay,
-    );
+    expect(requestedFinish(controlledFetch.requests[1])).toEqual(THIRD_EDIT);
     expect(store.getState()).toMatchObject({
       designId: DESIGN_B_ID,
       saveStatus: "idle",
@@ -165,7 +171,7 @@ describe("the singleton write path scopes jobs and callbacks to hydration genera
       canWrite: true,
     });
     store.getState().select({ kind: "placement", id: EDITABLE_PLACEMENT_ID });
-    store.getState().setFinish(LEGACY_ENUM_FINISHES.oak);
+    store.getState().setFinish(FIRST_EDIT);
     await vi.advanceTimersByTimeAsync(0);
 
     store.getState().hydrate({
@@ -175,7 +181,7 @@ describe("the singleton write path scopes jobs and callbacks to hydration genera
       canWrite: true,
     });
     store.getState().select({ kind: "placement", id: EDITABLE_PLACEMENT_ID });
-    store.getState().setFinish(LEGACY_ENUM_FINISHES.sage);
+    store.getState().setFinish(SECOND_EDIT);
 
     await controlledFetch.answer(0, { status: 200, id: DESIGN_A_ID });
     expect(store.getState().designId).toBe(DESIGN_B_ID);
@@ -187,12 +193,8 @@ describe("the singleton write path scopes jobs and callbacks to hydration genera
     ]);
     expect(requestDesign(controlledFetch.requests[0]).presetId).toBe("a");
     expect(requestDesign(controlledFetch.requests[1]).presetId).toBe("b");
-    expect(requestedFinish(controlledFetch.requests[0])).toEqual(
-      LEGACY_ENUM_FINISHES.oak,
-    );
-    expect(requestedFinish(controlledFetch.requests[1])).toEqual(
-      LEGACY_ENUM_FINISHES.sage,
-    );
+    expect(requestedFinish(controlledFetch.requests[0])).toEqual(FIRST_EDIT);
+    expect(requestedFinish(controlledFetch.requests[1])).toEqual(SECOND_EDIT);
     expect(store.getState().saveStatus).toBe("saving");
 
     await controlledFetch.answer(1, { status: 200, id: DESIGN_B_ID });
@@ -212,7 +214,7 @@ describe("the singleton write path scopes jobs and callbacks to hydration genera
       canWrite: true,
     });
     store.getState().select({ kind: "placement", id: EDITABLE_PLACEMENT_ID });
-    store.getState().setFinish(LEGACY_ENUM_FINISHES.oak);
+    store.getState().setFinish(FIRST_EDIT);
     await vi.advanceTimersByTimeAsync(0);
 
     store.getState().hydrate({
@@ -222,7 +224,7 @@ describe("the singleton write path scopes jobs and callbacks to hydration genera
       canWrite: true,
     });
     store.getState().select({ kind: "placement", id: EDITABLE_PLACEMENT_ID });
-    store.getState().setFinish(LEGACY_ENUM_FINISHES.sage);
+    store.getState().setFinish(SECOND_EDIT);
     store.getState().hydrate({
       design: withPreset("a-current"),
       designId: DESIGN_A_ID,
@@ -230,7 +232,7 @@ describe("the singleton write path scopes jobs and callbacks to hydration genera
       canWrite: true,
     });
     store.getState().select({ kind: "placement", id: EDITABLE_PLACEMENT_ID });
-    store.getState().setFinish(LEGACY_ENUM_FINISHES.clay);
+    store.getState().setFinish(THIRD_EDIT);
 
     await controlledFetch.answer(0, { status: 200, id: DESIGN_A_ID });
     expect(store.getState()).toMatchObject({
@@ -252,9 +254,7 @@ describe("the singleton write path scopes jobs and callbacks to hydration genera
     expect(requestDesign(controlledFetch.requests[2]).presetId).toBe(
       "a-current",
     );
-    expect(requestedFinish(controlledFetch.requests[2])).toEqual(
-      LEGACY_ENUM_FINISHES.clay,
-    );
+    expect(requestedFinish(controlledFetch.requests[2])).toEqual(THIRD_EDIT);
     await controlledFetch.answer(2, { status: 200, id: DESIGN_A_ID });
     expect(store.getState()).toMatchObject({
       designId: DESIGN_A_ID,
@@ -272,7 +272,7 @@ describe("the singleton write path scopes jobs and callbacks to hydration genera
       canWrite: true,
     });
     store.getState().select({ kind: "placement", id: EDITABLE_PLACEMENT_ID });
-    store.getState().setFinish(LEGACY_ENUM_FINISHES.oak);
+    store.getState().setFinish(FIRST_EDIT);
     await vi.advanceTimersByTimeAsync(0);
     await controlledFetch.answer(0, { status: 500 });
     expect(store.getState().saveStatus).toBe("error");
@@ -284,7 +284,7 @@ describe("the singleton write path scopes jobs and callbacks to hydration genera
       canWrite: true,
     });
     store.getState().select({ kind: "placement", id: EDITABLE_PLACEMENT_ID });
-    store.getState().setFinish(LEGACY_ENUM_FINISHES.sage);
+    store.getState().setFinish(SECOND_EDIT);
     await vi.advanceTimersByTimeAsync(0);
     expect(controlledFetch.requests[1]?.url).toBe(
       `/api/designs/${DESIGN_B_ID}`,
@@ -298,9 +298,7 @@ describe("the singleton write path scopes jobs and callbacks to hydration genera
       `/api/designs/${DESIGN_A_ID}`,
     );
     expect(requestDesign(controlledFetch.requests[2]).presetId).toBe("a");
-    expect(requestedFinish(controlledFetch.requests[2])).toEqual(
-      LEGACY_ENUM_FINISHES.oak,
-    );
+    expect(requestedFinish(controlledFetch.requests[2])).toEqual(FIRST_EDIT);
     expect(store.getState()).toMatchObject({
       designId: DESIGN_B_ID,
       saveStatus: "idle",
@@ -318,8 +316,8 @@ describe("the singleton write path scopes jobs and callbacks to hydration genera
   it("keeps a null-id mint and its pending A content on minted A after B hydrates", async () => {
     const store = await loadFreshStore();
     store.getState().select({ kind: "placement", id: EDITABLE_PLACEMENT_ID });
-    store.getState().setFinish(LEGACY_ENUM_FINISHES.oak);
-    store.getState().setFinish(LEGACY_ENUM_FINISHES.clay);
+    store.getState().setFinish(FIRST_EDIT);
+    store.getState().setFinish(THIRD_EDIT);
 
     store.getState().hydrate({
       design: withPreset("b"),
@@ -328,7 +326,7 @@ describe("the singleton write path scopes jobs and callbacks to hydration genera
       canWrite: true,
     });
     store.getState().select({ kind: "placement", id: EDITABLE_PLACEMENT_ID });
-    store.getState().setFinish(LEGACY_ENUM_FINISHES.sage);
+    store.getState().setFinish(SECOND_EDIT);
 
     expect(controlledFetch.requests[0]).toMatchObject({
       url: "/api/designs",
@@ -339,9 +337,7 @@ describe("the singleton write path scopes jobs and callbacks to hydration genera
       `/api/designs/${MINTED_A_ID}`,
     );
     expect(requestDesign(controlledFetch.requests[1]).presetId).not.toBe("b");
-    expect(requestedFinish(controlledFetch.requests[1])).toEqual(
-      LEGACY_ENUM_FINISHES.oak,
-    );
+    expect(requestedFinish(controlledFetch.requests[1])).toEqual(FIRST_EDIT);
 
     await controlledFetch.answer(1, { status: 200, id: MINTED_A_ID });
     expect(store.getState().designId).toBe(DESIGN_B_ID);
@@ -350,9 +346,7 @@ describe("the singleton write path scopes jobs and callbacks to hydration genera
       `/api/designs/${MINTED_A_ID}`,
     );
     expect(requestDesign(controlledFetch.requests[2]).presetId).not.toBe("b");
-    expect(requestedFinish(controlledFetch.requests[2])).toEqual(
-      LEGACY_ENUM_FINISHES.clay,
-    );
+    expect(requestedFinish(controlledFetch.requests[2])).toEqual(THIRD_EDIT);
 
     await controlledFetch.answer(2, { status: 200, id: MINTED_A_ID });
     await vi.advanceTimersByTimeAsync(MIN_SAVE_INTERVAL_MS);
@@ -360,9 +354,7 @@ describe("the singleton write path scopes jobs and callbacks to hydration genera
       `/api/designs/${DESIGN_B_ID}`,
     );
     expect(requestDesign(controlledFetch.requests[3]).presetId).toBe("b");
-    expect(requestedFinish(controlledFetch.requests[3])).toEqual(
-      LEGACY_ENUM_FINISHES.sage,
-    );
+    expect(requestedFinish(controlledFetch.requests[3])).toEqual(SECOND_EDIT);
     expect(
       controlledFetch.requests.filter((request) => request.method === "POST"),
     ).toHaveLength(1);
@@ -433,7 +425,7 @@ describe("the singleton write path scopes jobs and callbacks to hydration genera
         canWrite: true,
       });
       store.getState().select({ kind: "placement", id: EDITABLE_PLACEMENT_ID });
-      store.getState().setFinish(LEGACY_ENUM_FINISHES.oak);
+      store.getState().setFinish(FIRST_EDIT);
       await vi.advanceTimersByTimeAsync(0);
 
       store.getState().hydrate({
@@ -468,7 +460,7 @@ describe("the singleton write path scopes jobs and callbacks to hydration genera
         canWrite: true,
       });
       store.getState().select({ kind: "placement", id: EDITABLE_PLACEMENT_ID });
-      store.getState().setFinish(LEGACY_ENUM_FINISHES.oak);
+      store.getState().setFinish(FIRST_EDIT);
       await vi.advanceTimersByTimeAsync(0);
 
       store.getState().hydrate({
@@ -478,7 +470,7 @@ describe("the singleton write path scopes jobs and callbacks to hydration genera
         canWrite: true,
       });
       store.getState().select({ kind: "placement", id: EDITABLE_PLACEMENT_ID });
-      store.getState().setFinish(LEGACY_ENUM_FINISHES.sage);
+      store.getState().setFinish(SECOND_EDIT);
       store.getState().hydrate({
         design: withPreset("a-current"),
         designId: DESIGN_A_ID,
@@ -486,7 +478,7 @@ describe("the singleton write path scopes jobs and callbacks to hydration genera
         canWrite: true,
       });
       store.getState().select({ kind: "placement", id: EDITABLE_PLACEMENT_ID });
-      store.getState().setFinish(LEGACY_ENUM_FINISHES.clay);
+      store.getState().setFinish(THIRD_EDIT);
 
       await controlledFetch.answer(0, { status });
       expect(store.getState()).toMatchObject({
@@ -501,7 +493,7 @@ describe("the singleton write path scopes jobs and callbacks to hydration genera
       expect(controlledFetch.requests).toHaveLength(2);
       expect(store.getState().saveStatus).toBe(expectedStatus);
 
-      store.getState().setFinish(LEGACY_ENUM_FINISHES.graphite);
+      store.getState().setFinish(FOURTH_EDIT);
       expect(store.getState().saveStatus).toBe(expectedStatus);
       await vi.advanceTimersByTimeAsync(MIN_SAVE_INTERVAL_MS * 2);
       expect(controlledFetch.requests).toHaveLength(2);

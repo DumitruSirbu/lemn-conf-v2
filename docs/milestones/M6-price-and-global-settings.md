@@ -291,7 +291,11 @@ constant (`worktop-depth.ts` carries a comment saying the rename is owed and def
 | 6K-j — an empty space follows the setting, and the fallback is not a ratchet *(ADR 0080, owner instruction 2026-09-05; **amended after QA, same day** — the predicate is an equality)* | D | 6K-c — **gated by it**, and it gates nothing | Full |
 | 6L — the handle path learns cabinet from appliance *(backlog 18)* | G | none — **sequenced before 6B and 6G** | Full |
 | 6M — the overflow is marked and warned about *(ADR 0065)* — **DONE 2026-09-04, `ce77171`** | — | 6A3 | Light + visual |
-| 6N — the wall-coverage bars *(owner request)* | — | 6D, 6M, decision 8's fixture correction | Light + visual |
+| 6J-c — the along-wall chain gains its production reader *(ADR 0083's finding; 6J-a's unmet criterion)* | D | none — **and it gates nothing, 6N included** | Full |
+| 6N-0 — the demo room clears its run at both depths, `3560 × 2920` *(ADR 0083, owner 2026-09-05)* | — | none | Full |
+| 6N-a — the run-end panel's seat is a domain fact *(ADR 0083)* | — | none | Full |
+| 6N-b — one published coverage fact per wall *(ADR 0083)* | — | 6N-0, 6N-a | Full |
+| 6N-c — the wall-coverage bars, both shells *(owner request)* | — | 6D, 6M, 6N-b — **and ADR 0083's owner question Q1, the missing reference artefact** | Light + visual |
 | 6P — the finish model: materials, palette, and a document that predates both *(ADR 0071)* — **DONE 2026-09-04, `38268b5`** | G | 6E | Full |
 | 6Q — a material change resolves every finish it does not offer *(ADR 0071, ADR 0057; supersedes 6F)*; splits 6Q-a → 6Q-b *(ADR 0078)* | G | 6P | Full |
 | 6Q-c — the change confirms before it wipes a chosen colour, and is silent when none was *(ADR 0081, owner 2026-09-05)* | G | 6Q-b — **gated by it** | Full + visual |
@@ -2798,6 +2802,551 @@ test fixture with a ~200 mm leftover belongs here.
 **Gate:** 6D and 6M, plus decision 8's fixture correction. **Not started, and lowest priority of the
 open items.**
 
+> **Planned 2026-09-05, and the section above is superseded in five places by
+> [ADR 0083](../decisions/0083-wall-coverage-is-the-runs-extent-and-the-finished-end-is-part-of-it.md).**
+> Kept unedited above rather than rewritten, because it is the record of what the feature request was
+> assessed as before anything was measured, and three of its four "what it needs" bullets were right.
+> The corrections, each stated at its bullet below, and then the four waves this splits into.
+
+#### What changed since the assessment above was written
+
+**1. The gate cleared on 2026-09-03, and the owner has since moved the room again.** The
+`3600 × 2400` → `3560 × 2830` correction landed in commit `75668b8`; `docs/BACKLOG.md` entry 21 is
+**RESOLVED**. *"This feature is unbuildable until…"* and *"it would render a wall B bar reading
+2800 / 2400"* were true for one afternoon. **The room is now `3560 × 2920`** by the owner's ruling of
+2026-09-05 — ADR 0083 decision 1, with the clearance range 20–50 mm recorded there. That is wave
+**6N-0** below, and it is the one piece of fixture work 6N still owes.
+
+**No body moved with the 2830 correction, and this was checked rather than argued.** `git show
+75668b8 -- …/kitchen-l-design.ts` touches **zero** `placement(...)` lines. `room` is a validation
+envelope, not a geometry source; wall B's frozen chain is measured from the corner and reproduces
+unchanged. **The same is true of 2830 → 2920** — no placement moves with it either, and 6N-0's first
+criterion is that assertion.
+
+**The blast radius of 2830 → 2920, grepped for this change rather than carried over from the last
+one.** `2830` appears on **32 lines across 12 files** (`packages/` and `apps/`, excluding `dist/` and
+`.qa-mutant/`), splitting three ways:
+
+- **3 production sites in 3 files** — `src/fixtures/kitchen-l-design.ts` (the value at `:855`, its
+  comment at `:850`), `src/migrate-design.ts` (`CORRECTED_ROOM_MM` at `:189`, comment at `:223`), and
+  a comment in `src/queries/overflowing-placements.ts:42`.
+- **6 test files whose assertions are *about* the seeded room and must move with it** —
+  `qa-room-migration.adversarial.test.ts` (8 lines), `validate-design.test.ts` (5, including
+  `BOUND_BY_WALL`'s `toStrictEqual` on the pair), `migrate-design.test.ts` (4),
+  `clip-empty-columns-at-wall-end.test.ts` (3), `qa-6a3.adversarial.test.ts` (2, `WALL_B_RUN_MM`),
+  and `apps/web/tests/store/clip-empty-columns-at-wall-end.test.ts` (2, one of them a comment).
+- **3 test files holding 2830 as an unrelated synthetic wall length** — `qa-5g.adversarial`,
+  `design-settings`, `design-settings.qa`. **Their values do not change**; each carries a comment
+  saying it is deliberately not the seeded pair, and those comments want a read.
+
+**A grep for `2830` alone misses one file, and it is the load-bearing one.**
+`apps/web/tests/scene/overflow-mark.test.ts:260` carries the *derived* remainder —
+*"the corrected room fits the shipped kitchen with 30 mm to spare. If this ever fails the room
+dimensions have regressed, and the fix is in the fixture, not here."* Its **assertion still passes**
+at 2920 (nothing is marked at 600); its number is wrong, in a comment that explicitly tells the next
+reader where to go. **So the real radius is 13 files**, and the wave's sweep must be for `2830` **and**
+the derived 30 mm, not the number alone.
+
+**Nothing derived moves, and this is measured for this change rather than inferred from `75668b8`.**
+At `2830 → 2920` on the seeded design, `derivePlacementRecords` (26 records), `deriveColumns` (12
+columns), `validateDesignForCatalog` and `findOverflowingPlacementIds` are all **byte-identical**,
+and `DesignSchema` parses at both. **No body, no column, no extent, no void.** The envelope is
+nonetheless observable — a member-less column spanning 2600–2900 on wall B raises
+`EMPTY_COLUMN_PAST_WALL_END` at 2830 and not at 2920 — so *"nothing changes"* would be too strong,
+and that difference is what the six test files above are actually asserting.
+
+**Its own wave, and the mechanical size is not what decides it.** 32 lines across 12 files is small,
+and nothing derived moves — on that alone it could be an item inside 6N-a. It is not, for three
+reasons that are about risk rather than volume: it rewrites a **constant on the load path**
+(`CORRECTED_ROOM_MM`, ADR 0083 decision 9), it **replaces an assertion** rather than editing one
+(ADR 0083 decision 10), and one of its 13 files is **invisible to the grep that finds the other 12**.
+Folding that into a wave whose subject is the run-end panel would put a load-path change under a
+review scoped to adapter geometry. **6N-0 is its own wave; 6N-b gates on it; 6N-a does not.**
+
+**2. *"The free remainder's location is a new published fact"* is right, and its stated derivation is
+wrong.** The two reference sentences are not a positional fact and a relative one: `p7` is
+`fridge-free-700` spanning 2100–2800, and 2800 **is** wall B's run end at 600. Both describe the tail;
+the fridge is named because the fridge is the last body. And **`emptyColumns` is not a source** —
+the seeded design declares none, `clip-empty-columns-at-wall-end.ts` already clips every member-less
+column to its own wall, and by construction no column holds the tail. ADR 0083 decision 7.
+
+**3. *"The end panel counts and placements do not tell you so"* is right, and the arithmetic in it is
+one millimetre off.** The finished end's outer face is `3500 + 1 + 18 = 3519`, not 3520; free is
+**41**, not 40. The reference rounded. **No wave may recover 3520 with a 20 mm constant** — that pins
+a rounding and stops the finished end tracking the run it closes.
+
+**4. *"The reference already specifies its copy and layout, so this is not a design task"* is not
+supportable from this repository.** The panel is not in the three tracked mockups, not in
+`DEVELOPMENT-SPEC.md` or `SPEC.md`, and not in the untracked `design-source/…(6)/` — searched for
+*ACOPERIT*, *PLIN*, *3520*, *2830* and *3560*, zero hits in all of them. Every appearance of its
+figures and copy in this project is a quotation inside our own prose. **This blocks 6N-c only**, and
+it is ADR 0083's owner question Q1.
+
+**5. The room change is a divergence from the measured kitchen, not a correction toward it — and the
+bar's two denominators are no longer the same kind of number.** The fixture already **is** the
+reference at 2830, landed 2026-09-03 and corroborated against built geometry to the millimetre; 2920
+moves it 90 mm **away**. The owner chose it with the cost stated — *the room is no longer the kitchen
+it was measured from, and the bars are dividing by an invented number* — so it is informed, not
+accidental. Wall A's 3560 stays measured. **6N-b pins that asymmetry at the assertion**, so nobody
+later reads the demo as a survey of a real room and corrects it back.
+
+#### The measurement, and the finding it turned up
+
+Run against the built domain, with the real `setCabinetDepth` command and the domain's own fake
+probe — not a hand projection.
+
+| Depth | Wall | Wall (2920) | Run far end, **as built today** | Run far end, **intended** | Finished end | Occupied (built) | Remainder (built) |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 600 | A | 3560 | 3500 | 3500 | +19 | 3519 | **41** |
+| 600 | B | 2920 | 2800 | 2800 | — | 2800 | **120** |
+| 700 | A | 3560 | 3500 | 3500 | +19 | 3519 | **41** |
+| 700 | B | 2920 | **2800** | **2900** | — | 2800 | **120** |
+
+**`setCabinetDepth(700)` moves zero placements along their walls.** Measured: `rebuilt=22`,
+`placements whose alongMm changed: 0`, wall B's far end 2800 at both depths,
+`findOverflowingPlacementIds` empty at both. **The 2900 the owner's ruling is built on is the
+*intended* geometry, and no production code produces it** — `alongWallPositionFollows` has no reader
+in `src/` anywhere in the monorepo. **Wave 6J-a's own acceptance criterion is unmet**; ADR 0083's
+Finding classifies it and **wave 6J-c** below closes it. Wave 6I's review independently measured the
+consequence in built geometry: at 700 the reference room does not compose.
+
+**Until 6J-c lands, wall B reads 2800 / 2920 with 120 mm free at both depths.** Legal and
+unremarkable under [ADR 0067](../decisions/0067-leftover-wall-is-the-normal-case-and-the-price-is-a-floor.md)
+— never marked, never warned about — but 90 mm more bare wall than the reference panel shows, and a
+reader comparing the two should find this paragraph first.
+
+**Exactly two numbers move at 600 → 700 once 6J-c lands, and both are wall B's: occupied
+2800 → 2900, remainder 120 → 20. Wall A's bar is byte-identical at both depths** — no wall-A
+placement's `alongMm` is a function of the setting, and the finished end follows the rightmost
+wall-A base body, which does not move. That is the falsifiable form of *"6K gives it a reason to
+move"*: it moves one wall's numerator, and a wave whose test reports wall A moving has derived
+something wrong.
+
+**ADR 0065's marking fires on the seeded design at neither depth, by the owner's choice.** How it is
+exercised instead is ruled in ADR 0083 decision 10 and is 6N-0's scope, not a gap.
+
+#### The four waves
+
+**Order.** 6N stays **last in the queue**, after 6T, and is now four waves. Nothing gates on it. 6N-c
+contends with 6R for `configure-screen.tsx`, and its own gate is an owner answer nobody has asked for
+yet. **6J-c is not part of 6N and does not gate it** — it belongs to the depth track, it fixes a
+defect that exists whether or not 6N is ever built, and 6N's own criteria are written to hold before
+and after it.
+
+##### Wave 6N-0 — the demo room clears its run at both depths
+
+**Goal.** The seeded room becomes `3560 × 2920` (ADR 0083 decision 1), and the marking gets the
+fixture it now needs (decision 10).
+
+**Touches.** `packages/configurator-domain/src/fixtures/kitchen-l-design.ts` (the room, its comment,
+and the new overflow fixture beside it), `src/migrate-design.ts`,
+`src/queries/overflowing-placements.ts` (a comment), `src/index.ts`. Four production files.
+**Tier: Full** — it moves a fixture six test files assert against and rewrites a migration constant
+on the load path.
+
+**Acceptance criteria.**
+
+- **The room is `{ widthMm: 3560, depthMm: 2920 }` and no placement moves with it.** Asserted by
+  value: every `placement(...)` line is byte-identical to `HEAD`, `alongMm` included. The room is a
+  validation envelope, not a geometry source, and a wave that moves a body has misread the ruling.
+- **The owner's clearance range is recorded at the constant**, not only here: 2900 is the run's
+  intended end at 700 and 20–50 mm is the ruled band. A later wave moving to 2930 is a fixture
+  adjustment; moving to 2900 or 3000 is a new question.
+- **The room is not a function of the cabinet-depth setting**, asserted structurally: no arm of
+  `setCabinetDepth`, `migrateDesign` or any command writes `room.depthMm`. ADR 0083 decision 2 — a
+  room that grew with the setting would make ADR 0065's fit gate unfireable on *any* design.
+- **`CORRECTED_ROOM_MM` reads the fixture's room rather than restating it** (ADR 0083 decision 9),
+  and the v2 arm's safety property is unchanged: the corrected room is still a **constant**, reached
+  only at schema version ≤ 2 from the exact pre-correction pair, never derived from where the bodies
+  stand. The fixed-point assertion at every version arm holds.
+- **Every derived artefact is byte-identical before and after**, asserted rather than assumed:
+  `derivePlacementRecords`, `deriveColumns`, `validateDesignForCatalog` and
+  `findOverflowingPlacementIds` on the seeded design at 2830 and at 2920. This wave moves the
+  validation envelope and nothing else, and the gate that says so is what stops a later reader
+  believing it moved geometry.
+- **The seeded design reports nothing overflowing at either declared depth**, asserted at both — the
+  owner's requirement stated positively. This **replaces**
+  `tests/queries/overflowing-placements.test.ts:247`'s *"exactly `p7` and `p24` at 700"*, which has
+  no subject at 2920. **Replaced, not deleted**: a deleted assertion is indistinguishable from one
+  that never existed.
+- **The overflow fixture is consolidated, not invented.** `OVERFLOWING_DESIGN` is hand-built in
+  **six** test files, and the e2e spec shrinks `room.widthMm` 3560 → 2800 inside itself — seven
+  statements of one fixture. They keep working at 2920 because the body's position is written
+  `room.depthMm - 400 + 1`, **relative to the room**, so nothing breaks and nothing forces the
+  cleanup; six copies that agree because they were written together is why it is owed anyway. One
+  declared fixture in `src/fixtures/`, with its overflowing population declared as data, read by all
+  of them and by 6N-c's visual gate.
+- **The 13 files whose assertions are about the seeded room move with it**, and the three holding
+  2830 as an unrelated synthetic length **do not** — their values stay and their comments are re-read.
+  **Sweep for the derived 30 mm as well as for `2830`**: `apps/web/tests/scene/overflow-mark.test.ts:260`
+  names the remainder and not the wall, so a grep for the number alone misses it, and its comment is
+  the one that tells the next reader the fix belongs in the fixture.
+- `validate-design.test.ts`'s `BOUND_BY_WALL` `toStrictEqual({ A: 3560, B: 2920 })` — the pin that
+  makes wall B's bound a stated number rather than whatever the fixture happens to say.
+
+##### Wave 6J-c — the along-wall chain gains its production reader
+
+**Not part of 6N, and it does not gate it.** Scheduled here because this is where it was found;
+it belongs to the depth track and closes a criterion wave 6J-a recorded and did not meet.
+
+**Goal.** `setCabinetDepth` shifts each wall-B placement along its wall by the chain its catalogue
+entry declares, so the geometry the project has been reasoning about since ADR 0065 is the geometry
+the command produces.
+
+**Touches.** `packages/configurator-domain/src/commands/set-cabinet-depth.ts`, and a chain-shift
+module beside `cabinet-depth-rule.ts`. Two production files. **Tier: Full** — it is domain algebra
+that rewrites stored placements under migrate-on-change (ADR 0055).
+
+**Acceptance criteria.**
+
+- **`alongWallPositionFollows` has a production reader**, asserted structurally: a grep-equivalent
+  test that the declaration is read outside `tests/`. Today it is read nowhere, which is exactly the
+  failure `cabinet-depth-rule.ts`'s own head comment is written against.
+- **At 700 the seeded wall-B run ends at 2900**, from the command's output rather than a hand
+  projection — `p26` 680–1000, `p5` 1000–1600, `p6` 1600–2200, `p7` 2200–2900, and the wall-map pair
+  `p9`/`p21` at 400–970. **Wall A does not move.**
+- **`tests/queries/overflowing-placements.test.ts`'s `seededDesignAt` helper is deleted, not kept
+  beside the real thing.** It is a hand-written model of this command; once the command does it, a
+  second copy is the drift this project keeps finding. Its callers read the command.
+- **The 30 mm gap in wall B's top row at 700 is asserted, not smoothed** — the wall-map chain moves
+  +70 and the base formula +100, so `p21` ends at 970 where `p22` starts at 1000. It is the case
+  wave 6A3's *"never a sum of widths"* criterion exists for, and a wave that makes the run
+  contiguous at 700 has changed the product.
+- **600 → 700 → 600 returns every `alongMm` to its original value** where no body was resized in
+  between. The shift is a pure function of the setting and the declaration, so it is reversible even
+  though ADR 0055 declines to promise the whole document round-trips.
+- **The composition defect is closed and measured at both depths**: at 700 no wall-B body intersects
+  wall A's run at the corner. Wave 6I's review measured *"carcasses through walls, worktops
+  intersecting, upper corner returns overlapping by 70 mm"*; this is the wave that makes that false.
+- **Value-preserving at 600.** Every placement is byte-identical to what the command writes today.
+- **Nothing is refused, narrowed or removed.** ADR 0055 and ADR 0065 are untouched: bodies move
+  along their wall because the corner consumed more of it, and any body that then passes the wall's
+  end is **marked**, not moved back.
+
+##### Wave 6N-a — the run-end panel's seat is a domain fact
+
+**Goal.** Move ADR 0045's seat derivation — and only the derivation — from the adapter into the
+domain, so wall A's occupied width and the panel on screen come from one rule. **Value-preserving
+throughout: no geometry moves and no number changes.** ADR 0083 decision 5.
+
+**Touches.** A new `packages/configurator-domain/src/run-end-panel.ts`, `index.ts`,
+`packages/three-adapter/src/kitchen-shell.ts` (`syncRunEndPanel` calls it), and
+`packages/three-adapter/src/kitchen-parts.ts` (`RUN_END_PANEL_THICKNESS_M` and `RUN_END_PANEL_GAP_M`
+re-exported from the domain rather than declared). Four production files. **Tier: Full.**
+
+**Acceptance criteria.**
+
+- **The seat, the veto and the two slab constants have exactly one definition each**, and the
+  adapter reads them. Falsifiable structurally: `kitchen-shell.ts` declares no thickness, no gap and
+  no edge offset of its own, and `RUN_END_PANEL_EDGE_OFFSET_M` resolves through the domain's
+  constants. Two lists that agree today and part on ADR 0045's veto case is what this closes.
+- **Value-preserving, asserted against `HEAD` rather than eyeballed.** M1's 1e-6 m structural parity
+  gate holds, `kitchen-shell.run-end-panel.test.ts` passes unchanged, and the seeded seat is still
+  `3.51` exactly. A wave that changes a coordinate has done the wrong thing.
+- **ADR 0045's veto survives intact and is asserted through the new seam**: a full-height body
+  standing where the panel would go still hides it, and a wall-A body hanging at 1500 mm still does
+  not. Both halves — the along-wall overlap and the vertical one — because `blocksSeat`'s own
+  commentary records that neither alone is sufficient.
+- **The panel's *existence* is still a literal in the shell manifest.** No record creates it and none
+  removes it; only `position.x` and `visible` are derived, exactly as before. `db9c402`'s boundary is
+  not re-crossed, and a reviewer must be able to check that in one file.
+- **`RUN_END_PANEL_SEEDED_X_M` stays in the adapter.** It is a parking position for a hidden object
+  and an M1 parity literal, not a product fact.
+- **Property, over generated record sets**: the derived seat is a pure function of the records — a
+  scene reached by deleting into a state and one loaded directly into it produce the same seat and
+  the same visibility. ADR 0045's own anti-invariant, now assertable without a scene.
+
+##### Wave 6N-b — one published coverage fact per wall
+
+**Goal.** `describeWallCoverage(design, catalog)`: one entry per wall the design uses, carrying the
+wall's length, its occupied width, its remainder, its overrun, and the placement that ends the run.
+Domain only, nothing visible. ADR 0083 decisions 4, 6 and 7.
+
+**Touches.** A new `packages/configurator-domain/src/queries/wall-coverage.ts` and `index.ts`. Two
+production files. **Tier: Full.** **Gate: 6N-0 and 6N-a.**
+
+**Acceptance criteria.**
+
+- **Occupied is the furthest along-wall reach from the wall's own origin, and the query proves it is
+  not a sum.** Pinned by value: wall A **3519**, wall B **2800**. Wall B's base row sums to 2220, so
+  a sum-of-widths implementation fails immediately and by 580 mm — the assertion is chosen so it
+  cannot pass by accident.
+- **The two denominators are pinned as different kinds of number, at the point they are pinned.**
+  Wall A's 3560 is the reference kitchen's, measured. **Wall B's 2920 is a product choice, 90 mm
+  longer than the reference's own 2830**, made to clear the run at 700 (ADR 0083 decision 1) at the
+  stated cost that the bar then divides by an invented wall. The comment belongs at the assertion,
+  not only in a record — 2830 is the number a reader who finds the reference panel will expect, and
+  without it the obvious "fix" is to put it back.
+- **It is the same quantity the overflow mark reads.** Falsifiable in both directions over a
+  generated design: `overrunMm > 0` for a wall **iff** `findOverflowingPlacementIds` names a
+  placement on that wall. A design marked in the scene and reported under-full by the bar is the one
+  failure ADR 0065 exists to prevent, and this is where it becomes unrepresentable.
+- **`remainderMm ≥ 0`, `overrunMm ≥ 0`, and at most one is non-zero.** Asserted as a property over
+  arbitrary designs; both zero exactly when a run ends flush on its wall, which
+  **is a fitting state** — the gate's comparison is strict (ADR 0083 decision 3). **No signed field
+  exists**, so `free < 0` is not a state anything downstream can read.
+- **Wall A counts the finished end and wall B does not**, reading 6N-a's fact. When the panel is
+  hidden by ADR 0045's veto, wall A's occupied drops to the run's far end **in the same derivation**
+  — not through a second branch that asks whether a panel exists.
+- **Bare wall is never reported as anything but a remainder**, and **no criterion asserting that a
+  run *reaches* its wall may be added**
+  ([ADR 0067](../decisions/0067-leftover-wall-is-the-normal-case-and-the-price-is-a-floor.md)). It is
+  the check a gate author looking for things to assert would write; it is wrong in the normal case,
+  and this wave is the one most likely to attract it. **Wall B's own 120 mm at 600 is the live
+  example** until 6J-c lands.
+- **The large-remainder fixture is strengthened and single-sourced, not invented.** It already
+  exists: `LARGE_REMAINDER_DESIGN`, wall A's run cut back to its first metre, defined **twice** — in
+  `apps/web/tests/scene/overflow-mark.test.ts` and `overflow-warning.test.ts` — and wave 6M's own QA
+  already recorded that it *"asserts only `placements.length > 0`"*. ADR 0067 names 6N as the one M6
+  wave meaningfully better tested against a real wall, so this is where it earns a real assertion: a
+  remainder of **~200 mm** (2444 mm is the owner's own example) producing a remainder figure and
+  **no** finding, no warning and no issue code of any kind. A third copy would be the failure the
+  bullet above refuses.
+- **A wall with no placement on it produces no entry**, matching `projectDesignForDisplay`'s rule
+  that a group is never empty. Not an entry reading `0 / 3560`.
+- **The body list per wall is the projection's**, reused rather than re-sorted
+  ([ADR 0063](../decisions/0063-a-group-is-listed-row-major-height-before-position.md)), and empty
+  spaces are not in it.
+- **No document field is added and no schema version is owed.** Derived on every read, stored
+  nowhere (§12).
+- **The wave holds before *and* after 6J-c.** No criterion above pins wall B's occupied to 2800 at
+  700; the one that pins 2800 names 600. A wave that writes `at 700, wall B occupies 2800` has
+  pinned a defect.
+
+##### Wave 6N-c — the coverage bars, both shells
+
+**Goal.** The reference's per-wall bar rendered from 6N-b's fact. **Gated on ADR 0083's owner
+question Q1** — the reference artefact is not in the tree, so its placement and layout are not known.
+**Do not start this wave on a guess.**
+
+**Touches.** A new `apps/web/src/coverage/wall-coverage-model.ts`, `wall-coverage.tsx`,
+`wall-coverage.module.css`, `content/ro.ts`, and one mounting. Five production files.
+**Tier: Light + visual gate at 390 × 844.**
+
+**Acceptance criteria.**
+
+- **The component renders and decides nothing.** Every number, every ordering and every string
+  selection is the model's; the model's numbers are 6N-b's. Deleting the query call breaks the
+  surface rather than changing it — 6D's own criterion, and `price-breakdown-model.ts` is the shape
+  to copy.
+- **An overrunning run overflows its own track**, by the overrun and visibly, rather than clamping at
+  100%. A bar that saturates tells the customer the run is exactly full at the moment it does not
+  fit. **The seeded design no longer reaches this state at either depth** (ADR 0083 decision 1), so
+  it is captured against 6N-0's declared overflow fixture — which is what that fixture is for.
+- **The bodies the list names that `findOverflowingPlacementIds` reports carry the same mark the
+  scene gives them**, read from that one query and never re-derived.
+- **Wave 6M's scene warning is not moved, absorbed, reworded or hidden** (ADR 0083 decision 8). Its
+  placement was put to the owner and accepted as built on 2026-09-04, twice. A wave that relocates it
+  is overturning a dated ruling.
+- **Every string is a literal pinned in a test, and no unruled string is written at all.** The
+  heading, *"practic plin"* and the remainder sentences are ADR 0083's question Q2 and 6D's own last
+  table row: **a wave that words them is making a product decision and must raise it.** This wave
+  ships the owner's answer or it does not ship the copy.
+- **Visual gate at 390 × 844**, against the running app: the bar takes no height from the canvas it
+  is not entitled to, nothing leaves the viewport
+  ([ADR 0082](../decisions/0082-the-settings-strip-wraps-and-nothing-leaves-the-viewport.md)'s rule
+  applied to a second surface), and **three states are captured** — the seeded kitchen's fitting bar,
+  the ~200 mm remainder, and the overflow fixture's overflowing bar. Measured off the running page,
+  not modelled; wave 6M's three-error correction of 2026-09-04 is why.
+- **The overflowing capture is taken with 6M's warning on screen at the same time**, and the pair is
+  judged together. This is the case the *"6M's warning has somewhere to live"* argument was written
+  for, and it is planned rather than discovered: the bar shows **how far past** the wall the run
+  reaches, the warning says **what to do about it**, and the demo must not read as broken merely
+  because both are visible. If the pair reads badly, that is an owner question about the warning's
+  placement — a dated ruling, not this wave's to change.
+
+**Risks.**
+
+- **The shell still renders `RW 4.2 × RD 3.4`**, matching neither the reference nor the document —
+  `docs/BACKLOG.md` entry 21's still-open half. So the bar reports a 2920 mm wall beside a room drawn
+  3400 deep. Not this wave's to fix (it moves seeded geometry and needs a `DeclaredStructuralChange`
+  under ADR 0051) and **not a defect to report against 6N**, but this is the first surface that puts
+  the two numbers on one screen.
+- **The union-versus-extent consequence is visible here first.** Under ADR 0083 decision 4 a design
+  with a 600 mm gap mid-run reports the same occupied width as one without it. Accepted, recorded,
+  and part of Q2's copy question — not a defect for a later wave to "fix" by changing the numerator.
+
+**2. *"The free remainder's location is a new published fact"* is right, and its stated derivation is
+wrong.** The two reference sentences are not a positional fact and a relative one: `p7` is
+`fridge-free-700` spanning 2100–2800, and **2800 is wall B's run end**. Both sentences describe the
+tail of the run; the fridge is named because the fridge is the last body. And **`emptyColumns` is not
+a source** — the seeded design declares none, `clip-empty-columns-at-wall-end.ts` already clips every
+member-less column to its own wall, and by construction no column holds the tail. ADR 0083
+decision 4.
+
+**3. *"The end panel counts and placements do not tell you so"* is right, and the arithmetic in it is
+one millimetre off.** The finished end's outer face is `3500 + 1 + 18 = 3519`, not 3520; free is
+**41**, not 40. The reference rounded. **No wave may recover 3520 with a 20 mm constant** — that
+pins a rounding and stops the finished end tracking the run it closes. ADR 0083's measurement table.
+
+**4. *"The reference already specifies its copy and layout, so this is not a design task"* is not
+supportable from this repository.** The panel is not in the three tracked mockups, not in
+`DEVELOPMENT-SPEC.md` or `SPEC.md`, and not in the untracked `design-source/…(6)/` — searched for
+*ACOPERIT*, *PLIN*, *3520*, *2830* and *3560*, zero hits in all of them. Every appearance of its
+figures and copy in this project is a quotation inside our own prose. **This blocks 6N-c only**, and
+it is ADR 0083's owner question Q1.
+
+#### What the bar reads, measured, so the waves have numbers rather than descriptions
+
+Run against the built domain on `KITCHEN_L_DESIGN`, with wall-B placements shifted by the per-entry
+`alongWallPositionFollows` chain 6J-a declared — the projection
+`tests/queries/overflowing-placements.test.ts` already uses.
+
+| Depth | Wall | Wall | Run far end | Finished end | Occupied | Remainder | Overrun |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 600 | A | 3560 | 3500 | +19 | 3519 | **41** | 0 |
+| 600 | B | 2830 | 2800 | — | 2800 | **30** | 0 |
+| 700 | A | 3560 | 3500 | +19 | 3519 | **41** | 0 |
+| 700 | B | 2830 | 2900 | — | 2900 | 0 | **70** |
+
+`findOverflowingPlacementIds` returns `[]` at 600 and `['p24', 'p7']` at 700.
+
+**Exactly two numbers move at 600 → 700, and both are wall B's. Wall A's bar is byte-identical at
+both depths.** That is the falsifiable form of *"6K gives it a reason to move"*: it moves one wall's
+numerator, and a wave whose test reports wall A moving has derived something wrong.
+
+**ADR 0065's marking does not fire on the default design as shipped, and does fire the moment the
+customer picks 700.** Confirmed against the corrected fixture, at both depths, on the exact
+population ADR 0065 names. This is already the recorded owner position — decision 8's body text and
+ADR 0065's Context both state it — so **there is no new product decision here and nothing to raise**.
+The seeded kitchen does not ship with a warning showing.
+
+#### The three waves
+
+**Order.** 6N stays **last in the queue**, after 6T, and is now three waves rather than one. It is
+unblocked rather than gated, so the placement is a choice: 6N-c contends with 6R for
+`configure-screen.tsx` and the settings strip, and its own gate is an owner answer that has not been
+asked yet. 6N-a and 6N-b gate 6N-c; nothing gates them, and nothing gates on 6N at all.
+
+##### Wave 6N-a — the run-end panel's seat is a domain fact
+
+**Goal.** Move ADR 0045's seat derivation — and only the derivation — from the adapter into the
+domain, so wall A's occupied width and the panel on screen come from one rule. **Value-preserving
+throughout: no geometry moves and no number changes.** ADR 0083 decision 2.
+
+**Touches.** A new `packages/configurator-domain/src/run-end-panel.ts`, `index.ts`,
+`packages/three-adapter/src/kitchen-shell.ts` (`syncRunEndPanel` calls it), and
+`packages/three-adapter/src/kitchen-parts.ts` (`RUN_END_PANEL_THICKNESS_M` and `RUN_END_PANEL_GAP_M`
+re-exported from the domain rather than declared). Four production files. **Tier: Full.**
+
+**Acceptance criteria.**
+
+- **The seat, the veto and the two slab constants have exactly one definition each**, and the
+  adapter reads them. Falsifiable structurally: `kitchen-shell.ts` declares no thickness, no gap and
+  no edge offset of its own, and `RUN_END_PANEL_EDGE_OFFSET_M` resolves through the domain's
+  constants. Two lists that agree today and part on ADR 0045's veto case is what this closes.
+- **Value-preserving, asserted against `HEAD` rather than eyeballed.** M1's 1e-6 m structural parity
+  gate holds, `kitchen-shell.run-end-panel.test.ts` passes unchanged, and the seeded seat is still
+  `3.51` exactly. A wave that changes a coordinate has done the wrong thing.
+- **ADR 0045's veto survives intact and is asserted through the new seam**: a full-height body
+  standing where the panel would go still hides it, and a wall-A body hanging at 1500 mm still does
+  not. Both halves — the along-wall overlap and the vertical one — because `blocksSeat`'s own
+  commentary records that neither alone is sufficient.
+- **The panel's *existence* is still a literal in the shell manifest.** No record creates it and none
+  removes it; only `position.x` and `visible` are derived, exactly as before. `db9c402`'s boundary is
+  not re-crossed, and a reviewer must be able to check that in one file.
+- **`RUN_END_PANEL_SEEDED_X_M` stays in the adapter.** It is a parking position for a hidden object
+  and an M1 parity literal, not a product fact.
+- **Property, over generated record sets**: the derived seat is a pure function of the records —
+  a scene reached by deleting into a state and one loaded directly into it produce the same seat and
+  the same visibility. ADR 0045's own anti-invariant, now assertable without a scene.
+
+##### Wave 6N-b — one published coverage fact per wall
+
+**Goal.** `describeWallCoverage(design, catalog)`: one entry per wall the design uses, carrying the
+wall's length, its occupied width, its remainder, its overrun, and the placement that ends the run.
+Domain only, nothing visible. ADR 0083 decisions 1, 3 and 4.
+
+**Touches.** A new `packages/configurator-domain/src/queries/wall-coverage.ts` and `index.ts`. Two
+production files. **Tier: Full.**
+
+**Acceptance criteria.**
+
+- **Occupied is the furthest along-wall reach from the wall's own origin, and the query proves it is
+  not a sum.** Pinned at the measured values: wall A **3519**, wall B **2800** at 600 and **2900** at
+  700. Wall B's base row sums to 2220, so a sum-of-widths implementation fails immediately and by
+  580 mm — the assertion is chosen so it cannot pass by accident.
+- **It is the same quantity the overflow mark reads.** Falsifiable in both directions over a
+  generated design: `overrunMm > 0` for a wall **iff** `findOverflowingPlacementIds` names a
+  placement on that wall. A design marked in the scene and reported under-full by the bar is the one
+  failure ADR 0065 exists to prevent, and this is where it becomes unrepresentable.
+- **`remainderMm ≥ 0`, `overrunMm ≥ 0`, and at most one is non-zero.** Asserted as a property over
+  arbitrary designs, both zero only when a run ends exactly on its wall. **No signed field exists**,
+  so `free < 0` is not a state anything downstream can read — ADR 0067's rule made structural rather
+  than remembered.
+- **Wall A counts the finished end and wall B does not**, reading 6N-a's fact. When the panel is
+  hidden by ADR 0045's veto, wall A's occupied drops to the run's far end in the same derivation —
+  not through a second branch that asks whether a panel exists.
+- **Bare wall is never reported as anything but a remainder**, and **no criterion asserting that a
+  run *reaches* its wall may be added** ([ADR 0067](../decisions/0067-leftover-wall-is-the-normal-case-and-the-price-is-a-floor.md)).
+  This is the check a gate author looking for things to assert would write; it is wrong in the normal
+  case, and this wave is the one most likely to attract it.
+- **The large-remainder fixture is strengthened and single-sourced, not invented.** It already
+  exists: `LARGE_REMAINDER_DESIGN`, wall A's run cut back to its first metre, defined **twice** — in
+  `apps/web/tests/scene/overflow-mark.test.ts` and `overflow-warning.test.ts` — and wave 6M's own QA
+  already recorded that it *"asserts only `placements.length > 0`"*. ADR 0067 names 6N as the one M6
+  wave meaningfully better tested against a real wall, so this is where it earns a real assertion: a
+  remainder of **~200 mm** (2444 mm is the owner's own example) producing a remainder figure and
+  **no** finding, no warning and no issue code of any kind. A third copy would be the failure the
+  bullet above refuses. Nothing in the repository exercises this today.
+- **A wall with no placement on it produces no entry**, matching `projectDesignForDisplay`'s rule
+  that a group is never empty. Not an entry reading `0 / 3560`.
+- **The body list per wall is the projection's**, reused rather than re-sorted
+  ([ADR 0063](../decisions/0063-a-group-is-listed-row-major-height-before-position.md)), and empty
+  spaces are not in it — `projectDesignForDisplay` already excludes them and this query adds no
+  second population.
+- **No document field is added and no schema version is owed.** The fact is derived on every read,
+  stored nowhere (§12).
+
+##### Wave 6N-c — the coverage bars, both shells
+
+**Goal.** The reference's per-wall bar rendered from 6N-b's fact. **Gated on ADR 0083's owner
+question Q1** — the reference artefact is not in the tree, so its placement and layout are not known.
+**Do not start this wave on a guess.**
+
+**Touches.** A new `apps/web/src/coverage/wall-coverage-model.ts`, `wall-coverage.tsx`,
+`wall-coverage.module.css`, `content/ro.ts`, and one mounting. Five production files.
+**Tier: Light + visual gate at 390 × 844.**
+
+**Acceptance criteria.**
+
+- **The component renders and decides nothing.** Every number, every ordering and every string
+  selection is the model's; the model's numbers are 6N-b's. Deleting the query call breaks the
+  surface rather than changing it — 6D's own criterion, and `price-breakdown-model.ts` is the shape
+  to copy.
+- **An overrunning run overflows its own track**, by the overrun and visibly, rather than clamping at
+  100%. At 700 wall B is 2900 of 2830. A bar that saturates tells the customer the run is exactly
+  full at the moment it does not fit.
+- **The bodies the list names that `findOverflowingPlacementIds` reports carry the same mark the
+  scene gives them**, read from that one query and never re-derived.
+- **Wave 6M's scene warning is not moved, absorbed, reworded or hidden** (ADR 0083 decision 5). Its
+  placement was put to the owner and accepted as built on 2026-09-04, twice. A wave that relocates it
+  is overturning a dated ruling.
+- **Every string is a literal pinned in a test, and no unruled string is written at all.** The
+  heading, *"practic plin"* and the remainder sentences are ADR 0083's question Q2 and 6D's own last
+  table row: **a wave that words them is making a product decision and must raise it.** This wave
+  ships the owner's answer or it does not ship the copy.
+- **Visual gate at 390 × 844**, against the running app: the bar takes no height from the canvas it
+  is not entitled to, nothing leaves the viewport
+  ([ADR 0082](../decisions/0082-the-settings-strip-wraps-and-nothing-leaves-the-viewport.md)'s rule,
+  applied to a second surface), and the overflowing state is captured at 700 as well as the fitting
+  one at 600. Measured off the running page, not modelled — wave 6M's three-error correction of
+  2026-09-04 is why.
+- **Rendered at the ~200 mm remainder fixture too.** ADR 0067's point is that the copy has to be
+  legible and non-alarming at a large remainder, and that is a judgement about pixels, not a unit
+  test.
+
+**Risks.**
+
+- **The shell still renders `RW 4.2 × RD 3.4`**, matching neither the reference nor the corrected
+  document — `docs/BACKLOG.md` entry 21's still-open half. So the bar will report a 3560 mm wall
+  beside a room drawn 640 mm wider. Not this wave's to fix (it moves seeded geometry and needs a
+  `DeclaredStructuralChange` under ADR 0051), and **not a defect to report against 6N**, but it is
+  the first surface that puts the two numbers on one screen and someone will notice.
+- **The union-versus-extent consequence is visible here first.** Under ADR 0083 decision 1 a design
+  with a 600 mm gap mid-run reports the same occupied width as one without it. Accepted, recorded,
+  and part of Q2's copy question — not a defect for a later wave to "fix" by changing the numerator.
+
 ### Wave 6P — the finish model: three materials, a declared palette, and a document that predates both
 
 **[ADR 0071](../decisions/0071-material-carries-price-colour-carries-a-different-control-per-material.md)**,
@@ -3045,6 +3594,13 @@ tapping *Lut* or *Salvie* on a PAL kitchen refuses with a Romanian sentence inst
 storing an invalid finish.** That is a named, accepted interim (ADR 0078 decision 6), it is strictly
 better than what ships today, and 6R clears it by making the offer the control's own. A wave that
 reaches into `panel-model.ts` to pre-empt it has taken 6R's diff.
+
+> **Corrected 2026-09-05.** "Tapping *Lut* or *Salvie* on a PAL kitchen" is the mildest of ten
+> refusals across the fifteen (material, chip) pairs the settings sheet makes reachable, pinned at
+> `apps/web/tests/panel/qa-6q-a-refusal-surface.adversarial.test.ts:63-67` — PAL refuses 2 of 5, MDF
+> refuses the other 3 of 5, and **veneer refuses all 5, leaving its finish control inert** until 6R.
+> See ADR 0078 decision 6's own correction for the full table. The interim is still accepted, and
+> 6Q-a's scope above is unchanged; only the cost named here was understated.
 
 ##### 6Q-b — the resolution at both seams, and the warning that precedes it
 
@@ -3419,6 +3975,12 @@ one setting, not one control with three option sets. Plus the adapter drawing ev
 **Why here.** It gates on 6Q because a control that offers a finish the material does not have is
 the state 6Q exists to make unreachable, and on 6G for the sheet it hangs beside. It is last of the
 three because it is the only one whose verification is *look at it*.
+
+**Noted 2026-09-05 (ADR 0078 decision 6's correction).** Until this wave lands, a veneer kitchen has
+no reachable colour at all — the panel's five legacy chips all refuse on `material.veneer`, and
+6Q-b's default-finish reset leaves the other declared wood, `veneer.nuc`, unreachable through any
+surface. This wave's three-shape control is what restores it; nothing in this wave's own scope
+changes because of it.
 
 **Touches.** `apps/web/src/panel/panel-model.ts` (the finish section), `apps/web/src/panel/editor-panel.tsx`
 and its module CSS, `apps/web/src/content/ro.ts`, `packages/three-adapter/src/finishes.ts`.
@@ -4071,7 +4633,7 @@ here.** Where a ruling exists, the remaining choice is stated as what the ADR it
 > | 5 | **Stay put — the two deep tops are pinned** | [ADR 0058](../decisions/0058-the-two-deep-top-cabinets-are-pinned.md) |
 > | 6 | A declared 520 mm cabinet-depth floor | [ADR 0059](../decisions/0059-the-dishwasher-niche-declares-a-cabinet-depth-floor.md) |
 > | 7 | Three parts: the column publishes a build depth; both routes land on it, at 600; a pin is not inherited by a replacement | [ADR 0060](../decisions/0060-a-column-publishes-a-build-depth-beside-its-clearance.md) |
-> | 8 | The run must fit the wall it stands on — satisfied at both depths; the give-way rule is M7's | — |
+> | 8 | The run must fit the wall it stands on — **the requirement is met at both depths; the run itself is not, at 700** (see the correction below); the give-way rule is M7's | — |
 > | — | 6L confirmed, and the handle line counts cabinet handles | [ADR 0061](../decisions/0061-a-cabinet-handle-is-declared-and-an-appliance-bar-is-not-one.md) |
 
 ### 1. A design saved at 600 when the customer switches to 700 — the mechanism
@@ -4400,6 +4962,33 @@ check asserting that a run *reaches* its wall may be added.
 **So there is no overrun at 600 and no give-way problem: the run fits with 30 mm to spare.** At 700
 it ends at 2900 against 2830 and **overruns by 70 mm**, so ADR 0065's marking becomes live exactly
 when wave 6K ships the depth control — not on the default design's first load.
+
+> **Both corrections below LANDED on 2026-09-03, in commit `75668b8`. The wall B figure is then
+> superseded on 2026-09-05 by the owner — see
+> [ADR 0083](../decisions/0083-wall-coverage-is-the-runs-extent-and-the-finished-end-is-part-of-it.md),
+> which this whole subsection now defers to.**
+>
+> What landed: `{ widthMm: 3560, depthMm: 2830 }`, the along-wall bound as each wall's own run, and a
+> v2 migration arm. **Zero placements moved with it** — the commit touches no `placement(...)` line,
+> because `room` is a validation envelope and not a geometry source.
+>
+> **What the owner then changed, 2026-09-05:** told that 2830 costs a visible overflow marking on the
+> default design at 700, they chose the other side — *"then for 700 deep adapt and make 2900"*, plus
+> *"yes add clearance 20-50 mm"*. **Wall B becomes 2920.** The demo fits at both depths and ADR 0065's
+> marking fires on it at neither; how the marking is exercised instead is ADR 0083 decision 10. Wave
+> **6N-0**.
+>
+> **And what the same measurement turned up, which is the larger item:** the *"2900 at 700"* this all
+> turns on is **intended** geometry that no production code produces. `setCabinetDepth(700)` moves
+> **zero** placements along their walls — measured through the real command — because
+> `alongWallPositionFollows`, declared by wave 6J-a, has no reader in `src/` anywhere. **6J-a's own
+> acceptance criterion is unmet**; wave **6J-c** closes it. Until it does, wall B's run ends at 2800
+> at both depths.
+>
+> So the index row's *"satisfied at both depths"* was never a claim that the run fits — it is a claim
+> about the **requirement**, which ADR 0065 meets by marking rather than moving. `docs/BACKLOG.md`
+> entry 21 is RESOLVED; its still-open half (the shell's `RW 4.2 × RD 3.4`) is untouched by any of
+> this.
 
 **Two corrections follow from this and are owed at their source.**
 

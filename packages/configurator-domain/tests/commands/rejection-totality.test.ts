@@ -407,6 +407,20 @@ function buildCases(): SweepCase[] {
         }),
     },
     {
+      // ADR 0078 decision 6: *Salvie* is a free colour and the seeded kitchen carries no settings,
+      // so it is PAL — a decor list, which offers no free colour at all.
+      code: "FINISH_NOT_OFFERED",
+      design: world.design,
+      run: () =>
+        setFinish({
+          design: world.design,
+          catalog: KITCHEN_L_BODY_CATALOG,
+          target: { kind: "placement", id: "p0" },
+          finish: LEGACY_ENUM_FINISHES.sage,
+          occurredAt: OCCURRED_AT,
+        }),
+    },
+    {
       code: "NOT_RESIZABLE",
       design: world.design,
       // ADR 0027: the hob-bearing base is 600 mm and nothing else, so it has no width to change.
@@ -552,6 +566,7 @@ const ALL_REJECTION_CODES: Readonly<Record<RejectionCode, true>> = {
   COLUMN_MISMATCH: true,
   NON_INTEGER_MILLIMETRES: true,
   FINISH_NOT_SUPPORTED: true,
+  FINISH_NOT_OFFERED: true,
   HANDLE_NOT_SUPPORTED: true,
   NOT_RESIZABLE: true,
   WIDTH_UNCHANGED: true,

@@ -115,6 +115,33 @@ design's material does not offer is refused at the command with its own code, fo
 kitchen. That is a named, accepted interim — it replaces silently storing an invalid finish with a
 sentence — and 6R clears it by making the offer the control's own.
 
+> **Corrected 2026-09-05 — the interim's cost was understated, not the interim itself.** Found by
+> logic review of wave 6Q-a and pinned independently by the wave's own QA, at
+> `apps/web/tests/panel/qa-6q-a-refusal-surface.adversarial.test.ts:63-67`. The paragraph above names
+> two refusals; the settings sheet makes fifteen (material, chip) pairs reachable, not five, and ten
+> of the fifteen refuse:
+>
+> | Material | Chips that apply | Chips that refuse |
+> | --- | --- | --- |
+> | PAL | white, graphite, oak (3) | clay, sage (2) |
+> | MDF | clay, sage (2) | white, graphite, oak (3) |
+> | veneer | none | all five (5) |
+>
+> Eight of the ten refusals are outside what the paragraph above names. The sharpest case:
+> `sample-price-book.ts:275` declares `material.veneer`, which 6G's settings sheet offers, and on a
+> veneer kitchen every one of the five chips refuses — **the finish control is inert.** 6Q-b's reset
+> (decision 4) then puts every cabinet on `veneer.stejar`, leaving `veneer.nuc` — the other declared
+> wood — unreachable through any surface until 6R.
+>
+> **The conclusion above is unchanged.** `materialOffersFinish` is exactly decision 1's table, 6Q-a
+> is forbidden from touching `panel-model.ts` to pre-empt it, and the interim is still accepted on
+> the same argument — it still replaces silently storing an invalid finish with a sentence. What was
+> wrong is the cost that argument was weighed against: ten-of-fifteen refusals including one dead
+> control, not two-of-five. Nothing ships mid-milestone, so this reaches no customer; it does reach
+> local development against the preview database
+> ([ADR 0054](0054-local-development-writes-to-the-preview-database.md)), so anyone testing a veneer
+> kitchen before 6R meets it.
+
 ## Alternatives considered
 
 - **Put the invariant only in `validate-design.ts`, as the milestone's wave sketch says.** Rejected

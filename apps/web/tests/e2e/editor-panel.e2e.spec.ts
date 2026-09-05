@@ -398,10 +398,14 @@ test("× and Gata both dismiss without committing or cancelling, and the state s
   page,
 }) => {
   await selectSinkCabinet(page);
-  await page.getByTestId("finish-sage").tap();
+  // *Stejar* rather than *Salvie* since wave 6Q-a: the seeded kitchen is PAL, and PAL offers no
+  // free colour (ADR 0078 decision 1), so tapping *Salvie* here now refuses instead of applying.
+  // What this test is about is that a dismissal neither commits nor cancels an edit that was made —
+  // which needs an edit that lands.
+  await page.getByTestId("finish-oak").tap();
   await page.waitForTimeout(SETTLE_MS);
   await keepForDeletion(page);
-  await expect(page.getByTestId("finish-sage")).toHaveAttribute(
+  await expect(page.getByTestId("finish-oak")).toHaveAttribute(
     "aria-pressed",
     "true",
   );
@@ -424,7 +428,7 @@ test("× and Gata both dismiss without committing or cancelling, and the state s
     expect(writes).toEqual([]);
 
     await selectSinkCabinet(page);
-    await expect(page.getByTestId("finish-sage")).toHaveAttribute(
+    await expect(page.getByTestId("finish-oak")).toHaveAttribute(
       "aria-pressed",
       "true",
     );
