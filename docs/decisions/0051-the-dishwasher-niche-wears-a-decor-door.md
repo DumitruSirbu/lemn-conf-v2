@@ -289,3 +289,29 @@ It may never say a node exists on both sides and is not to be compared — that 
 version of honesty, it is the one thing a structural declaration exists to rule out. Any future wave
 that moves seeded geometry and needs a second declaration form should read this rule before writing
 one, rather than rediscovering it the way this wave's QA round did.
+
+## Correction — 2026-09-05: `opensAFront()` was never shipped production code
+
+**Found by the M6 certification audit, sweeping every mention of `opensAFront()` in `docs/` after the
+same error was found in [ADR 0061](0061-a-cabinet-handle-is-declared-and-an-appliance-bar-is-not-one.md).**
+This record refers to `opensAFront()` four times — decision 5 (twice: *"the one `doorSlab` hangs
+beside the front it opens. `opensAFront()` therefore classifies it..."* and *"`opensAFront()` would
+have started counting an appliance's handle..."*), the second Alternative considered (*"renaming it
+makes that bar a sibling of a front, and `opensAFront()` starts counting the dishwasher's own
+handle..."*), and the Consequences' `tall-oven-tower` deferral (*"the same cabinet-versus-appliance
+rule `opensAFront()` already encodes"*) — in each case as though it were shipped production code.
+
+**It never was.** `opensAFront()` has only ever lived in
+`packages/three-adapter/tests/catalog-capability-parity.test.ts:152`, a test-local helper whose own
+comment calls it "this gate's own reading of ADR 0061's rule … used nowhere but the independence
+assertion." The rule as **shipped** is `isCabinetHandleGroup`
+(`packages/three-adapter/src/cabinet-handle-meshes.ts:26`), read by both the apply path
+(`setHandlesVisible`, `decomposed-bodies.ts`) and the capability gate. The capability gate itself
+decides whether a body *has* a handle choice at all through the declared `BodyDefinition.canHandle`
+flag (`catalog.ts`), not through either of these functions — those decide which meshes *within* a
+body a handle choice reaches, a narrower and later question.
+
+**Nothing in this record's substance changes.** Decision 5's classification of the dishwasher's own
+bar, the rejected rename alternative's reasoning, and the `tall-oven-tower` deferral all hold exactly
+as decided — only the name borrowed from the test is corrected here rather than silently swapped, the
+same treatment ADR 0061 gave its own four mentions on the same date.

@@ -47,7 +47,11 @@
 > a material change now shows a **conditional, blocking confirmation** where 6Q's plan had an
 > always-shown sentence, and it is silent when no cabinet carries a chosen colour. It gates on 6Q-b
 > and gates nothing. The same ruling **closes ADR 0078's raised carry-over question — no carry-over**
-> — and withdraws 6Q-b's `materialWarning` clause. **A second owner ruling the same day**,
+> — and withdraws 6Q-b's `materialWarning` clause. **Made dispatchable 2026-09-05 by
+> [ADR 0086](../decisions/0086-the-confirmation-counts-chosen-colours-and-only-a-different-declared-material-owes-one.md)**,
+> which corrects the presence condition to compare materials rather than id strings and replaces the
+> `chosenCount ≤ resolvedCount` criterion — measured false on three reachable inputs, one of them the
+> fixture the wave reuses. **A second owner ruling the same day**,
 > [ADR 0082](../decisions/0082-the-settings-strip-wraps-and-nothing-leaves-the-viewport.md), makes
 > the whole-kitchen strip wrap rather than overflow and adds no wave: it lands inside **6R** as a
 > scope addition, closing `docs/BACKLOG.md` entry 32 and scheduling entry 33.
@@ -259,6 +263,10 @@ items** and are marked *(backlog)* in the table:
   track G and **sequenced before 6G**. One premise it was routed on does not survive a read of the
   mockups; the wave and its ordering stand for other reasons, both stated at 6L.
 
+- **Wave 6I's own unraised question** — `HOB_FORWARD_OFFSET_M`, the one literal 6I's seat sweep
+  left. Not a backlog entry (it was never written down anywhere but 6I's criterion), found by the M6
+  certification audit on 2026-09-05 and ruled by the owner the same day. New wave **6U**, ADR 0087.
+
 **The setting is called cabinet depth from here on, not worktop depth** —
 [ADR 0036](../decisions/0036-a-declared-dimension-is-the-finished-cabinet.md) decision 3, which this
 plan's older prose above pre-dates. The worktop is an external part that influences neither geometry
@@ -268,10 +276,10 @@ constant (`worktop-depth.ts` carries a comment saying the rename is owed and def
 | Wave | Track | Gate | Tier |
 | --- | --- | --- | --- |
 | 6A — one canonical projection — **DONE 2026-09-03, `6c1f830`** | P | none | Full |
-| 6A2 — a seeded row carries its equivalent's name *(backlog 20)* | P | 6A | Full |
+| 6A2 — a seeded row carries its equivalent's name *(backlog 20)* — **CERTIFIED WITH FINDINGS 2026-09-05, `59f8669`** | P | 6A | Full |
 | 6A3 — a body past its wall is detected, as one domain fact *(ADR 0065)* — **DONE 2026-09-03, `eb9ba03`** | P | 6A | Full |
-| 6A4 — the wall corner returns get their own kinds and names *(ADR 0066)* | P | 6A | Full |
-| 6B — price book and pure pricing query | P | 6A, 6A2, 6A3, 6A4 | Full |
+| 6A4 — the wall corner returns get their own kinds and names *(ADR 0066)* — **CERTIFIED 2026-09-05, `59f8669`** | P | 6A | Full |
+| 6B — price book and pure pricing query — **CERTIFIED 2026-09-05, `59f8669`** | P | 6A, 6A2, 6A3, 6A4 | Full |
 | 6B2 — the door step and the height term *(ADR 0068)* — **DONE 2026-09-03, `eb9ba03`** | P | 6B **cleared through QA** | Full |
 | 6C — the price bar, both shells — **DONE 2026-09-03, `194405b`** | P | 6B | Full |
 | 6D — the breakdown (2D / D2D) — **DONE 2026-09-03, `a5e161f`** | P | 6C | Light + visual |
@@ -279,7 +287,7 @@ constant (`worktop-depth.ts` carries a comment saying the rename is owed and def
 | 6F — a material that invalidates a finish — **SUPERSEDED 2026-09-04 by 6P–6R (ADR 0071)** | G | 6E — **unblocked, ADR 0057** | Full |
 | 6G — the settings surface (2E / D2E) — **DONE 2026-09-04, `3e546d1`** | G | 6D, 6E | Light + visual |
 | 6H — cabinet depth becomes a parameter — **DONE 2026-09-03, `4afda06`** | D | none | Full |
-| 6I — the base family follows the formula | D | 6H | Full |
+| 6I — the base family follows the formula — **CERTIFIED WITH FINDINGS 2026-09-05, `59f8669`** | D | 6H | Full |
 | 6I2 — clearance is not a build depth *(backlog 15, 10)* — **DONE 2026-09-04, `ce77171`** | D | 6I — **unblocked, ADR 0060** | Full |
 | 6J — the persisted setting and what a change does — **DONE 2026-09-04, `c8ba3af`/`a68482d`** | D | 6H, 6I, 6I2 — **unblocked, ADRs 0055, 0056, 0058** | Full |
 | 6K — the depth control on the sheet (6K-a the store seam, 6K-b the control) | D | 6J, 6G — **unblocked, ADR 0059** | Light + visual |
@@ -289,19 +297,20 @@ constant (`worktop-depth.ts` carries a comment saying the rename is owed and def
 | 6K-f — a probe lease is a scoped borrow and the store publishes no probe *(ADR 0076)* | D | 6K-e — **gated by it**, this is 6K-e's residue | Full |
 | 6K-i — a depth change refused by two ordinary deletes *(ADR 0079's finding, unadjudicated)* | D | none — **adjudication first**, and it gates nothing | Full |
 | 6K-j — an empty space follows the setting, and the fallback is not a ratchet *(ADR 0080, owner instruction 2026-09-05; **amended after QA, same day** — the predicate is an equality)* | D | 6K-c — **gated by it**, and it gates nothing | Full |
-| 6L — the handle path learns cabinet from appliance *(backlog 18)* | G | none — **sequenced before 6B and 6G** | Full |
+| 6L — the handle path learns cabinet from appliance *(backlog 18)* — **CERTIFIED WITH FINDINGS 2026-09-05, `59f8669`** | G | none — **sequenced before 6B and 6G** | Full |
 | 6M — the overflow is marked and warned about *(ADR 0065)* — **DONE 2026-09-04, `ce77171`** | — | 6A3 | Light + visual |
 | 6J-c — the along-wall chain gains its production reader *(ADR 0083's finding; 6J-a's unmet criterion)* | D | none — **and it gates nothing, 6N included** | Full |
 | 6N-0 — the demo room clears its run at both depths, `3560 × 2920` *(ADR 0083, owner 2026-09-05)* | — | none | Full |
 | 6N-a — the run-end panel's seat is a domain fact *(ADR 0083)* | — | none | Full |
-| 6N-b — one published coverage fact per wall *(ADR 0083)* | — | 6N-0, 6N-a | Full |
-| 6N-c — the wall-coverage bars, both shells *(owner request)* | — | 6D, 6M, 6N-b — **and ADR 0083's owner question Q1, the missing reference artefact** | Light + visual |
+| 6N-b — one published coverage fact per wall *(ADR 0083)* — **DROPPED 2026-09-05, owner ruling: its only reader was the bars** | — | 6N-0, 6N-a | Full |
+| 6N-c — the wall-coverage bars, both shells *(owner request)* — **DROPPED 2026-09-05, owner ruling: "skip it in general for now"** | — | 6D, 6M, 6N-b — **and ADR 0083's owner question Q1, the missing reference artefact** | Light + visual |
 | 6P — the finish model: materials, palette, and a document that predates both *(ADR 0071)* — **DONE 2026-09-04, `38268b5`** | G | 6E | Full |
 | 6Q — a material change resolves every finish it does not offer *(ADR 0071, ADR 0057; supersedes 6F)*; splits 6Q-a → 6Q-b *(ADR 0078)* — **6Q-b DONE 2026-09-05, `59f8669`, ADR 0085** | G | 6P | Full |
-| 6Q-c — the change confirms before it wipes a chosen colour, and is silent when none was *(ADR 0081, owner 2026-09-05)* | G | 6Q-b — **gated by it** | Full + visual |
+| 6Q-c — the change confirms before it wipes a chosen colour, and is silent when none was *(ADR 0081, owner 2026-09-05; dispatchable per ADR 0086)* | G | 6Q-b — **gated by it** | Full + visual |
 | 6R — three control shapes, six decors the 3D approximates, and a strip that wraps *(ADR 0071, ADR 0082)* | G | 6Q, 6G | Light + visual |
 | 6S — door leaves, drawers and door band heights become declared facts *(ADR 0070)* — **DONE 2026-09-04, `280daa4`/`a2bff48`** | P | none | Full |
 | 6T — hardware priced per mechanism, and the two sink extras *(ADR 0070)* | P | 6S, 6B2 | Full |
+| 6U — the hob holds its reach, and a deeper worktop grows behind it *(ADR 0087; wave 6I's unraised question, owner 2026-09-05)* | D | none — **after 6Q**, and it gates nothing | Full + visual |
 
 The letters are identifiers and the table is in dependency order, with one exception: **6L is listed
 last and runs early.** It has no technical gate on anything and nothing gates on it, so it is placed
@@ -427,6 +436,12 @@ as fixtures-only.
   `packages/three-adapter/src`; no geometry moves.
 - **`docs/BACKLOG.md` entry 20 moves from Open to Resolved on close** — that file's rule is that a
   decided item leaves it and the decision lives in `docs/decisions/`. On close, not at dispatch.
+
+**Certification, 2026-09-05, audit run at `59f8669`: CERTIFIED WITH FINDINGS — 4/6 mutations killed
+by 6A2's own files, 6/6 killed by the full suite.** The invariant holds, but through 5B8's own
+literals rather than through a test 6A2 itself added — one instance of the cross-wave pattern
+`docs/STATUS.md`'s certification note records once for all three waves it touches. `docs/BACKLOG.md`
+entry 43 queues the missing literal pin.
 
 ### Wave 6A3 — a body past the end of its wall is detected, as one domain fact
 
@@ -686,6 +701,8 @@ either.
   correction.
 - The two lines read differently in the breakdown, for the reason they differ.
 
+**Certification, 2026-09-05, audit run at `59f8669`: CERTIFIED — 6/6 mutations killed.**
+
 ### Wave 6B — the price book and the pure pricing query
 
 **Goal.** Work item 1, which after
@@ -784,6 +801,8 @@ shape.
   where it should have resolved through `catalogEquivalentId` (ADR 0022, ADR 0029). The projection is
   the source of **order and labels**; rule resolution is pricing's own, and a test covers a seeded
   placement specifically.
+
+**Certification, 2026-09-05, audit run at `59f8669`: CERTIFIED — 10/10 mutations killed.**
 
 ### Wave 6B2 — the door step and the height term
 
@@ -1334,7 +1353,24 @@ a gap in reach rather than a live defect only because nothing ships at 700.
   700. It intersects nothing and crosses no wall, so it is **not a composition defect** — it is an
   appliance sitting further back on a deeper worktop, and whether that is right is a product question
   nobody has answered. Do not derive it into a formula and do not leave it inherited: raise it.
+
+  > **NOT MET AT 6I's CLOSE — the question was never raised. Answered 2026-09-05 by
+  > [ADR 0087](../decisions/0087-the-hob-holds-its-reach-and-a-deeper-worktop-grows-behind-it.md),
+  > and fixed by wave 6U below.** Found by the M6 certification audit, two waves after the depth
+  > control shipped: searching all of `docs/` for `HOB_FORWARD_OFFSET` returned this sentence and
+  > nothing else — no backlog entry, no *Not established* question, no record. **6I's own judgement
+  > was right on both counts it made** — this is not a composition defect, and deriving it on a
+  > wave's own authority would have been a silent product change. What it got wrong is only that it
+  > never asked. The owner's ruling: the clearance in **front** is constant and the added depth
+  > appears **behind** the hob, because the back burners must be no further from the cook at 700 than
+  > at 600. Marked rather than deleted, per `docs/WORKFLOW.md` — a criterion that was handed forward
+  > and dropped has to stay visible at the criterion.
 - `docs/BACKLOG.md` entries 15 and 10 are **not** this wave's. They are wave 6I2, which follows.
+
+**Certification, 2026-09-05, audit run at `59f8669`: CERTIFIED WITH FINDINGS — 7/7 mutations
+killed.** The dishwasher-floor guarantee is covered by the domain test rather than by the
+three-adapter test named for it, which the audit found inert — one instance of the cross-wave pattern
+`docs/STATUS.md`'s certification note records once for all three waves it touches.
 
 ### Wave 6I2 — clearance is not a build depth (`docs/BACKLOG.md` entries 15 and 10)
 
@@ -2587,14 +2623,21 @@ folding this into a wave that also moved seeded geometry was refused.
 **Acceptance criteria.**
 
 - A `handle` group is treated as the cabinet's exactly when its own parent also holds a front — the
-  same rule `opensAFront()` already encodes in the capability gate, applied in the path that
-  *applies* a choice rather than only in the path that gates it. One rule, two callers, asserted to
-  be the same rule.
+  same rule shipped as `isCabinetHandleGroup`
+  (`packages/three-adapter/src/cabinet-handle-meshes.ts`), applied in the path that *applies* a
+  choice rather than only in the path that gates it. One rule, two callers, asserted to be the same
+  rule. **Corrected 2026-09-05**: this criterion named the rule `opensAFront()`, as though that were
+  shipped production code; it never was — `opensAFront()` lives only in
+  `catalog-capability-parity.test.ts:152`, as that test's own comment says. The capability gate that
+  decides whether a body *has* a handle choice at all reads the declared `BodyDefinition.canHandle`
+  flag, not either of these functions, which decide which meshes within a body a choice reaches — a
+  narrower question (see ADR 0061's own 2026-09-05 correction).
 - **The cabinet-handle count is declared on the catalogue entry, and a three-adapter parity gate
   holds the declaration to the meshes actually built** (ADR 0061 decision 3). Forced by §12, not
-  chosen: pricing is a pure domain query, the domain has no meshes, and `opensAFront()` inspects
-  geometry. The gate is ADR 0028's remedy for two numbers agreeing by luck, applied to the pair this
-  creates — the same shape as `cabinet-depth-source.test.ts`.
+  chosen: pricing is a pure domain query, the domain has no meshes, and `isCabinetHandleGroup`
+  (corrected 2026-09-05, was `opensAFront()`) inspects geometry. The gate is ADR 0028's remedy for two
+  numbers agreeing by luck, applied to the pair this creates — the same shape as
+  `cabinet-depth-source.test.ts`.
 - **An entry that declares no count fails loudly**, rather than falling back to its mesh count or to
   zero. A silent default is how four families carried a wrong `occupiedDepth` with every suite green
   (DOM-002).
@@ -2609,6 +2652,11 @@ folding this into a wave that also moved seeded geometry was refused.
 - Every other body in the catalogue is unchanged: a body with no appliance bar behaves exactly as it
   does now, swept over the whole catalogue rather than sampled.
 - The M1 fidelity gate holds. No geometry moves; only which meshes a choice reaches.
+
+**Certification, 2026-09-05, audit run at `59f8669`: CERTIFIED WITH FINDINGS — 8/9 mutations
+killed.** The declared-count guarantee is covered by 6B2's price-step test rather than by a test in
+6L's own files — one instance of the cross-wave pattern `docs/STATUS.md`'s certification note records
+once for all three waves it touches.
 
 ### Wave 6M — the overflow is marked in the scene and warned about
 
@@ -3347,6 +3395,34 @@ question Q1** — the reference artefact is not in the tree, so its placement an
   with a 600 mm gap mid-run reports the same occupied width as one without it. Accepted, recorded,
   and part of Q2's copy question — not a defect for a later wave to "fix" by changing the numerator.
 
+##### Owner ruling, 2026-09-05 — the wall-coverage bars are descoped
+
+**Owner:** *"skip it in general for now, just record it as a potential improvement, is not critical
+and on mobile it will take a lot of place and there is already too many things on screen."*
+
+**6N-c (the bars themselves) DROPS.** It is the surface this ruling names directly. Recorded as a
+potential improvement for later, not lost: the reference's *LĂȚIME ACOPERITĂ · PRACTIC PLIN* panel is
+exactly what a future wave would build against if this is revisited.
+
+**6N-b (one published coverage fact per wall) DROPS with it.** Its only reader was 6N-c — a domain
+query nothing renders and nothing else consumes is the same "a fact nothing reads is decoration" case
+this project already refuses to carry elsewhere (`docs/BACKLOG.md` entry 47's
+`alongWallPositionFollows`, one seam over). `describeWallCoverage`'s shape stays recorded above as
+what a later wave would build on, should this be revisited.
+
+**6N-0 and 6N-a are unaffected and KEEP, on grounds independent of the bars — a reader must not read
+this ruling as cancelling the whole 6N chain:**
+
+- **6N-0** (the demo room clears its run at both depths, `3560 × 2920`) rests on a **separate
+  ruling**: the fixture correction [ADR 0083](../decisions/0083-wall-coverage-is-the-runs-extent-and-the-finished-end-is-part-of-it.md)
+  records, which wave 6Q-b was already built around. It is what the room *is*, independent of whether
+  any bar ever renders its coverage.
+- **6N-a** (the run-end panel's seat becomes a domain fact) is **not bars groundwork**. Its subject is
+  that the run-end panel's seat, its veto and its two slab constants are defined **twice** — once in
+  the domain, once in the adapter — agree today by luck, and would part on ADR 0045's veto case. The
+  run-end panel is a shipped, rendered surface from wave 5B3, reachable regardless of any coverage
+  bar; this wave closes a duplicate-definition risk that exists whether or not 6N-c ever ships.
+
 ### Wave 6P — the finish model: three materials, a declared palette, and a document that predates both
 
 **[ADR 0071](../decisions/0071-material-carries-price-colour-carries-a-different-control-per-material.md)**,
@@ -3693,90 +3769,156 @@ review found the implementation matches intent with no blocker; clean-code revie
 ##### 6Q-c — the confirmation that precedes the wipe, and the silence when there is nothing to wipe
 
 **Added 2026-09-05 on the owner's ruling, recorded in
-[ADR 0081](../decisions/0081-a-material-change-confirms-only-when-a-chosen-colour-would-be-lost.md).**
-Read that record before dispatching: it carries the predicate's exact table, the two counts that
-must not be confused, and the consequence the owner may not have weighed.
+[ADR 0081](../decisions/0081-a-material-change-confirms-only-when-a-chosen-colour-would-be-lost.md);
+made dispatchable 2026-09-05 by
+[ADR 0086](../decisions/0086-the-confirmation-counts-chosen-colours-and-only-a-different-declared-material-owes-one.md),
+which corrects this section's presence condition, replaces its inequality criterion and re-aims its
+"the count on screen is the query's" criterion.** Read both before dispatching: ADR 0081 carries the
+predicate's exact table and the consequence the owner may not have weighed; ADR 0086 carries the
+three measurements that moved this plan and the seven rulings an implementer needs.
+
+**Gate: 6Q-b (`59f8669`, done).** The confirmation names a consequence; until 6Q-b's reset exists,
+the consequence does not. Shipping the modal first would be the mirror of 6G's own refused shortcut —
+*"a warning about behaviour that does not exist is decoration"*.
+
+**Goal.** Applying a material that would discard a colour the customer chose stops and asks first,
+naming how many cabinets are affected; applying one that would discard nothing is immediate and
+silent. Nothing is written while the question stands, and a cancel writes nothing at all.
 
 **Tier: Full + visual.** Full because the predicate is domain algebra over a declaration and a
 document — the same class of rule 6Q-a and 6Q-b carry — and visual because the thing being shipped is
 a modal step a customer presses, on two shells, over a live canvas. 6Q-b's *"no visual agent is
 owed"* was true of 6Q-b and does not extend here.
 
-**Gate: 6Q-b.** The confirmation names a consequence; until 6Q-b's reset exists, the consequence does
-not. Shipping the modal first would be the mirror of 6G's own refused shortcut — *"a warning about
-behaviour that does not exist is decoration"*.
+**Touches, four production files** plus copy and a stylesheet:
+`packages/configurator-domain/src/chosen-finishes.ts` (new),
+`packages/configurator-domain/src/index.ts`,
+`apps/web/src/settings/global-settings-model.ts`,
+`apps/web/src/settings/global-settings.tsx`, with `apps/web/src/content/ro.ts` and
+`apps/web/src/settings/global-settings.module.css` for the step's copy and its box.
+**Nothing in `packages/three-adapter`, nothing in `panel-model.ts`, and no command.**
 
-**Touches, four production files:** `packages/configurator-domain/src/chosen-finishes.ts` (new),
-`packages/configurator-domain/src/index.ts`, `apps/web/src/settings/global-settings-model.ts`,
-`apps/web/src/settings/global-settings.tsx`, plus `apps/web/src/content/ro.ts` and
-`apps/web/src/settings/global-settings.module.css` for the step's copy and its box. **Nothing in
-`packages/three-adapter`, nothing in `panel-model.ts`, and no command.**
+###### The three numbers, named once, because two of them are confusable
 
-1. **One domain query, and it answers a number.** `countCabinetsWearingAChosenFinish(design)` in its
-   own module. It reads `MATERIALS` and the design and nothing else (ADR 0062 seam 1), it throws on
-   nothing — an undeclared `materialTierId` uses 6Q-a's total lookup — and it obeys ADR 0081
-   decision 1's three-part rule exactly: a present finish, a declared material or the undeclared
-   arm, and `sameFinish` against `defaultFinish`.
+| Number | Where it comes from | Value on the reused fixture | Where it may appear |
+| --- | --- | --- | --- |
+| Displayed body count | `countBodies(input.groups)` — wave 6A's projection | **14** | `appliesTo`, on the **choosing** step only |
+| Chosen-colour count | `countCabinetsWearingAChosenFinish(design)` — this wave's query | **4** | the confirmation's body, and nowhere else |
+| Resolved-finish count | `MaterialTierSetEffect.resolvedFinishCount` — 6Q-b's effect | **2** (MDF → veneer) | **nowhere in `apps/web`**, and it is not reachable there |
+
+Measured against `packages/configurator-domain/dist` on 2026-09-05, at `59f8669`, on
+`tests/support/mdf-kitchen-wearing-chosen-colours.ts`. The third is already unwriteable twice over:
+the effect is absent from `apps/web` entirely, and the confirmation is composed **before** the
+command that would produce it. **The one that can genuinely be written by mistake is the first**,
+which is in scope in the same function — ADR 0086 decision 2, and the reason item 2 below is shaped
+the way it is.
+
+###### Work items
+
+1. **One domain query, and it answers a number.** `countCabinetsWearingAChosenFinish(design): number`
+   in `packages/configurator-domain/src/chosen-finishes.ts`, exported from `index.ts`. It reads
+   `MATERIALS` and the design and nothing else (ADR 0062 seam 1), it throws on nothing — an
+   undeclared `materialTierId` takes 6Q-a's total lookup — and it obeys ADR 0081 decision 1's
+   three-part rule exactly: a present finish, a declared material resolved as
+   `design.settings?.materialTierId ?? DEFAULT_MATERIAL_ID` or the undeclared arm, and `sameFinish`
+   against that material's `defaultFinish`.
 
    **It takes the design and not the catalogue, deliberately.** A body that cannot wear a finish
    carries none: `dropFinishFromBodiesThatCannotWearOne` strips it at the load seam and
-   `insert-body.ts`'s `carriedAppearance` refuses to carry one onto an incoming body whose
-   definition says `canFinish: false`. A catalogue argument would put a **second authority** on
-   `canFinish` beside those two. Both guarantees are asserted in this wave's own test file rather
-   than assumed, so the day one of them changes, this query's silence about it is loud.
+   `insert-body.ts`'s `carriedAppearance` refuses to carry one onto an incoming body whose definition
+   says `canFinish: false`. A catalogue argument would put a **second authority** on `canFinish`
+   beside those two, which ADR 0084 decision 4 refuses for the whole-kitchen pair generally. Both
+   guarantees are asserted in this wave's own test file rather than assumed, so the day one of them
+   changes, this query's silence about it is loud.
 
-2. **The composition is the view's, and the component decides nothing.**
-   `describeGlobalSettings` takes the count as an input and publishes
-   `materialResetConfirm?: MaterialResetConfirmView` — present **iff** a pending material is chosen,
-   it differs from the applied one, and the count is above zero. The component holds one boolean of
-   its own: *am I on the confirm step*. It never asks whether a confirmation is owed.
-   `global-settings-model.ts` is where this belongs by its own head comment — *"this module owns
-   every rule and every string"* — and the finish rule itself stays in the domain, which is 6Q's
-   first criterion.
+   **No second equality.** `sameFinish` decides it, so `#ECEEEB` on an MDF kitchen counts as chosen
+   and does confirm — ADR 0081 decision 1's deliberate over-warn, in the safe direction.
+
+2. **The composition is the view's, the component decides nothing, and the wrong number is out of
+   scope rather than discouraged.** `describeGlobalSettings` gains one input — the chosen-colour
+   count — and publishes `materialResetConfirm?: MaterialResetConfirmView`.
+
+   **Present if and only if** the pending choice names a **declared** material, that material is not
+   the declared material the design is already on, and the count is above zero — ADR 0086 decision 3's
+   table, which is a comparison of **materials** and not of id strings, resolved on both sides
+   through `lookUpMaterial`. It asks `lookUpMaterial` and never `materialOffersFinish`: the view
+   decides whether the material changed, the domain decides what a chosen colour is, and the offer
+   keeps one author.
+
+   **The view is built by a helper that takes the count, not the input** —
+   `toMaterialResetConfirm(chosenColourCount, …)`, `toDepthGroupView(pendingDepthMm)`'s existing shape
+   one function up. `input.groups` is then not an identifier inside it, so `appliesTo`'s 14 cannot be
+   written into the confirmation's sentence by reaching for the nearer number.
+
+   The component holds one boolean of its own: *am I on the confirm step*. It never asks whether a
+   confirmation is owed. `global-settings-model.ts` is where this belongs by its own head comment —
+   *"this module owns every rule and every string"*.
+
+   The count is computed in `global-settings.tsx` and memoised on `design` alone — the query reads
+   nothing else, and memoising on `pending` would make a number about the stored document move when
+   the customer taps a radio. `projectDesignForDisplay`'s memo two lines up is the precedent.
 
 3. **One dialog, two steps.** The confirm step replaces the sheet's body and footer inside the
-   existing `aria-modal` surface, with the existing focus trap and the existing document-level
-   Escape handler. **No second scrim, no second trap, no second Escape listener** — ADR 0081
-   decision 3, and `global-settings.tsx`'s own head comment plus `price-breakdown.tsx`'s recorded
-   cost are why. On the confirm step, **Escape and a scrim click both step back** to the choosing
-   step; neither closes the sheet and neither writes.
+   existing `aria-modal` surface, with the existing focus trap and the existing document-level Escape
+   handler. **No second scrim, no second trap, no second Escape listener** — ADR 0081 decision 3, and
+   `global-settings.tsx`'s own head comment plus `price-breakdown.tsx`'s recorded cost are why. On the
+   confirm step, **Escape and a scrim click both step back** to the choosing step; neither closes the
+   sheet and neither writes.
 
-4. **The apply is gated whole.** Pressing *Aplică* with a confirmation owed runs **no command** —
-   not material, not hardware, not depth. Confirming runs `applyPending` exactly as it runs today.
-   Cancelling leaves the pending choices intact, the document untouched and the store's `selection`
-   untouched. A partial apply is not a state this product has.
+   **The head follows the step** (ADR 0086 decision 6): its `<h2>` carries the confirmation's title,
+   `appliesTo` is not rendered, and the figure and the overflow warning go with the footer they are
+   part of. `aria-labelledby` keeps pointing at the same heading, so the dialog's accessible name
+   changes with the step. Without this the sheet renders *"tuturor celor ~~14~~ **26** corpuri"* four
+   lines above *"4 corpuri"*, about one button (corrected 2026-09-05 — `KITCHEN_L_DESIGN` has 26
+   placements, not 14).
 
-5. **The copy, drafted and marked *pending owner review*.** A new `ro.globalSettings`
-   sub-object: a title, a body composing the count, a confirm action naming what it does (never
-   *OK*), and a step-back action. `materialWarning` is **not touched**.
+4. **The apply is gated whole.** Pressing *Aplică* with a confirmation owed runs **no command** — not
+   material, not hardware, not depth. Confirming runs `applyPending` exactly as it runs today, all
+   three settings together. Cancelling leaves the pending choices intact, the stored document
+   untouched, the store's `selection` untouched and `lastRejection` **untouched and specifically not
+   cleared** (ADR 0086 decision 5). A partial apply is not a state this product has.
 
-   **Two hard constraints on where the words may live.** The plural branch goes in a module-level
-   helper beside `everyBodyPhrase`, because `starting-price.adversarial.test.ts` sweeps a composing
-   template's **source body** for a digit and `(n) => n === 1 ? … : …` fails on the `1` in its own
-   condition. And the new strings carry comma-below `ș`/`ț` (U+0219/U+021B), asserted the way
+5. **The copy, drafted and marked `// Ruled 2026-09-05, pending owner review.`** A new
+   `ro.globalSettings.materialResetConfirm` sub-object: a title, a body composing the count, a confirm
+   action naming what it does (never *OK*) and a step-back action naming what it keeps.
+   `materialWarning` is **not touched** (ADR 0081 decision 5). ADR 0086 decision 7 carries the drafted
+   four.
+
+   **Three hard constraints on where the words may live, and the second is the one ADR 0081 did not
+   name.** The plural branch goes in a module-level helper beside `everyBodyPhrase`, because
+   `starting-price.adversarial.test.ts` sweeps a composing template's **source body** for a digit and
+   `(n) => n === 1 ? … : …` fails on the `1` in its own condition. The same sweep also applies
+   `SUM_CLAIM_PATTERN` — `total|sum[aăe]|adun|egal|+|=`, case-insensitive — to every leaf of this
+   section, so *"în total"* is refused and *"toate"* passes only because it is not *"total"*. And the
+   new strings carry comma-below `ș`/`ț` (U+0219/U+021B), asserted with a positive control the way
    `ro.price.overflowingTotalWarning` already is.
 
 **Acceptance criteria.**
 
 - **The silent path is asserted, not inherited.** Where every cabinet already sits at its material's
   declared default — including a design where **no** cabinet wears a finish at all — switching
-  material is **immediate**: no confirm step in the markup, one command, `onDesignChanged` once.
-  This is a criterion precisely because it is what every shipped fixture already does, so an
-  implementation that made the modal unconditional for simplicity would pass every other test in
-  the suite.
+  material is **immediate**: no confirm step in the markup, one command, `onDesignChanged` once. This
+  is a criterion precisely because it is what every shipped fixture already does, so an
+  implementation that made the modal unconditional for simplicity would pass every other test in the
+  suite.
+- **Both branches are counted and both are non-empty**, with a **floor per arm**: at least one design
+  that confirms and at least one that does not, asserted as counts rather than as the existence of a
+  case. A set-membership sweep that lands entirely on the arm nobody changed certifies nothing
+  (`docs/WORKFLOW.md`).
 - **The interesting branch cannot go untested, and three devices make sure of it.** (a) The wave
-  reuses **6Q-b's veneer fixture**, imported rather than rewritten, and pins
-  `countCabinetsWearingAChosenFinish` on it as a **literal** in the same file — the *"not a vacuous
-  sweep"* convention. (b) The suite asserts **both branches non-empty**: at least one design that
-  confirms and at least one that does not, counted. (c) The e2e test **creates** the state rather
-  than assuming a fixture has it — it recolours a cabinet through the panel to a non-default PAL
-  decor, then switches material. That path is reachable today: the panel's legacy *graphite* chip
-  writes `pal.antracit`, which is offered by PAL and is not its default.
-- **`KITCHEN_L_DESIGN` carries no finish on any placement — verified 2026-09-05** — so
-  `apps/web/tests/store/whole-kitchen-settings.test.ts:137`'s *"notifies the save path exactly once"*
-  is **vacuous for this wave's purposes as well as 6Q-b's**: nothing resets, so nothing confirms. The
-  same re-pointing 6Q-b owes it serves both, and this wave asserts the confirm-gated count on the
-  re-pointed fixture rather than adding a third.
+  reuses **6Q-b's veneer fixture**, imported rather than rewritten from either copy, and pins
+  `countCabinetsWearingAChosenFinish` on it as the **literal 4** in the same file — the *"not a
+  vacuous sweep"* convention. (b) The three numbers of the table above are pinned as literals in one
+  place — 14, 4, 2 — pairwise distinct, so wiring any wrong one into the copy fails. (c) The e2e test
+  **creates** the state rather than assuming a fixture has it: it recolours a cabinet through the
+  panel to a non-default PAL decor, then switches material. That path is reachable today — the
+  panel's legacy *graphite* chip writes `pal.antracit`, which PAL offers and which is not its default.
+- **A material change that changes no material never confirms.** On a design carrying no
+  `materialTierId` at all, choosing `material.melamine` explicitly and pressing *Aplică* applies
+  immediately: `undefined` resolves to `DEFAULT_MATERIAL_ID`, which is melamine, so nothing is lost
+  and nothing is asked. **Asserted with a chosen colour standing** — the count is above zero and the
+  confirmation is still owed nothing, which is the whole content of ADR 0086 decision 3 and the one
+  case the id-string comparison got wrong.
 - **The awkward boundary that separates the two rules**: a cabinet set explicitly to `pal.alb` on a
   PAL kitchen — a real choice the customer made, landing on the declared default — **does not
   confirm**. The product cannot tell it from a cabinet nobody touched, and under ADR 0081 it does not
@@ -3784,40 +3926,127 @@ behaviour that does not exist is decoration"*.
 - **Absence is not a chosen colour, and a `canFinish: false` body is not one either.** A placement
   with no `finish` key never contributes to the count; a hood is excluded by carrying none at all,
   asserted through the two upstream guarantees in item 1 rather than by a branch in the query.
-- **An undeclared material id confirms rather than throws.** On a design whose `materialTierId`
-  names no declared material, the query returns the number of finish-carrying cabinets and nothing
-  throws — 6G's recovery path keeps working (ADR 0072, ADR 0078 decision 3), and the customer is
-  warned that colours will go, because they will.
+- **An undeclared material id confirms rather than throws.** On a design whose `materialTierId` names
+  no declared material, the query returns the number of finish-carrying cabinets and nothing throws —
+  6G's recovery path keeps working (ADR 0072, ADR 0078 decision 3). **And the mirror**: a *pending*
+  id the domain does not declare confirms **nothing**, because the command's undeclared arm resolves
+  nothing and there is no loss to announce.
 - **`#ECEEEB` on an MDF kitchen counts as chosen and does confirm.** The comparison is `sameFinish`
   and no second, case-folding equality is introduced. Asserted as the deliberate over-warn it is.
-- **The two counts are tied together, as a property.** For every design satisfying the load seam's
-  invariant and every declared target material,
-  `countCabinetsWearingAChosenFinish(design) ≤ setMaterialTier(…).effect.resolvedCount`, and their
-  difference is exactly the number of cabinets sitting at the current material's declared default.
-  Run over the same generated pair space 6Q-a builds in
-  `packages/configurator-domain/tests/support/`, never a second one.
+- **The two counts are tied together, as a property with its preconditions in the generator**
+  (ADR 0086 decision 1). For a design **D** whose material resolves to a **declared** material **M**,
+  where every finish D carries is one M offers, and for a **declared** target **T ≠ M**:
+  `countCabinetsWearingAChosenFinish(D) ≤ setMaterialTier(D, T).effect.resolvedFinishCount`, and their
+  difference is exactly the number of cabinets sitting at M's declared default. Run over the same
+  generated pair space 6Q-a builds in `packages/configurator-domain/tests/support/`, never a second
+  one, with **both arms non-empty**: at least one design whose difference is zero and at least one
+  whose difference is positive. **The preconditions are constraints on the generator, not a filter
+  after it** — a filter that rejects everything leaves a property that passes vacuously.
 - **One `CommandResult` still, and the confirmation adds none.** Zero commands run while the confirm
   step stands; exactly one `setMaterialTier` runs after it; `onDesignChanged` fires once. The
   criterion 6Q-b owns is unchanged by this wave and is asserted here as unchanged.
+- **A cancel writes nothing, across four fields named individually**: the stored document, the
+  store's `selection`, `lastRejection` — **not cleared**, so a standing refusal keeps the figure
+  reading *"De la neschimbat"* through `describeStartingLabel` — and the pending choices, which
+  survive intact so the customer can change their material back and apply the rest. Asserted through
+  `selection-debug`'s `data-material-tier`, `data-hardware-tier`, `data-cabinet-depth`,
+  `data-updated-at`, `data-selection-id` and `data-rejection`; **no new debug attribute is added**.
 - **The copy never appears after the apply.** No toast, no banner, no note. A consequence reported
-  once it has happened is what ADR 0057 decision 3 forbids in a different costume — asserted by the
-  markup carrying none of the confirmation's words once the sheet has closed.
+  once it has happened is what ADR 0057 decision 3 forbids in a different costume — asserted against
+  the **rendered document** once the sheet has closed, not against a component that was never
+  mounted.
+- **`KITCHEN_L_DESIGN` carries no finish on any placement — verified 2026-09-05** — so
+  `apps/web/tests/store/whole-kitchen-settings.test.ts:137`'s *"notifies the save path exactly once"*
+  is vacuous for this wave's purposes as well as 6Q-b's: nothing resets, so nothing confirms. This
+  wave asserts the confirm-gated count on 6Q-b's re-pointed fixture rather than adding a third.
 - **Both viewports, by real interaction** (ADR 0057 decision 3 is explicit that the warning is owed
-  on both): at **390 × 844** and on desktop, choosing a material that would wipe a colour shows the
-  step, cancelling writes nothing, confirming writes once. **Focus stays inside the one dialog on
-  the confirm step**, Escape steps back rather than closing, and — ADR 0023's geometry — a tap on
-  the confirm action does not also reach the canvas beneath it.
-- **The count on screen is the query's, not the effect's.** Asserted directly, on a fixture where
-  the two differ: at least one cabinet at the current material's default alongside at least two
-  wearing chosen colours, so a wave that wires the effect's number into the copy fails.
+  on both) — see the visual gate below.
+
+**The visual gate.** At **390 × 844** (the `mobile` project) and at **1440 × 900** (`desktop`), on a
+design carrying a chosen colour, with the confirm step standing:
+
+- **One dialog and one scrim.** Exactly one `[role="dialog"]` and exactly one
+  `global-settings-scrim` in the document. A second of either is ADR 0081 decision 3's refused shape
+  and is invisible in a screenshot, so it is counted as well as captured.
+- **Nothing leaves the viewport** (ADR 0082 decision 1, one rule for both shells):
+  `document.documentElement.scrollWidth === clientWidth`, and the dialog's bounding box, the title,
+  the body sentence and **both actions** are fully inside the viewport. At 390 × 844 the step is
+  shorter than the choosing step it replaces, so a captured overflow would mean the head or the
+  footer was left standing.
+- **Both actions are tappable**: at least `var(--touch-target)` — 44 px — in both dimensions, on both
+  shells (ADR 0082 decision 8's rule, applied to the two controls this wave adds).
+- **ADR 0023's geometry**: a **tap** on the confirm action at 390 × 844 does not also reach the canvas
+  beneath it — `data-selection-id` is unchanged across the tap. This is the exact geometry that
+  defect had, which is why ADR 0081's own sweep flagged it.
+- **Focus stays inside the one dialog on the confirm step.** Tab and Shift+Tab from the container both
+  land inside; the trigger — the one control `useBackgroundInert` deliberately leaves live — is never
+  reached. Escape steps **back** to the choosing step with the pending material still selected, and a
+  second Escape closes the sheet.
+- **The desktop popover stays anchored** to the chips it hangs from, within its `max-height: 660px`,
+  and shows the same one model and the same strings. §10.1: the only fork is layout, in CSS.
+
+**A model that computes the step's geometry from its inputs is not evidence** — `docs/WORKFLOW.md`,
+and wave 6M's close-out is what that sentence cost. Captures, at both viewports.
 
 **What 6Q-c must not do.** It must not touch `migrate-design.ts` or `validate-design.ts` — 6Q-b owns
 both seams and this wave adds no invariant. It must not add a `RejectionDetail`, a
 `DesignValidationCode` or anything reaching `lastRejection` (ADR 0081 decision 7). It must not add a
-confirmation to the **depth** control by symmetry: ADR 0036 decision 5 rules that every body adapts to
-a depth change with no confirmation step, and a depth change discards no choice. And it must not
-"improve" the predicate into a nearest-colour carry-over on the way past — ADR 0078 decision 4, now
-reaffirmed by the owner.
+`BodyCatalog` to any whole-kitchen input (ADR 0084 decision 4). It must not add a confirmation to the
+**depth** control by symmetry: ADR 0036 decision 5 rules that every body adapts to a depth change with
+no confirmation step, and a depth change discards no choice. It must not widen either copy of
+`mdf-kitchen-wearing-chosen-colours.ts` into a general-purpose table, and must not "fix" the
+duplication (ADR 0084's last section). And it must not "improve" the predicate into a nearest-colour
+carry-over on the way past — ADR 0078 decision 4, now reaffirmed by the owner.
+
+**What this wave must not assert, so nobody writes it.** Each of these is unverifiable, false, or
+green for the wrong reason:
+
+- **`chosenCount ≤ resolvedCount` without its three preconditions.** Measured false on three
+  reachable inputs (ADR 0086's measurement section), including on the fixture this plan tells the
+  wave to reuse: 4 ≤ 2. A criterion that fails for a correct implementation is worse than none,
+  because the fix an implementer reaches for is to weaken the code.
+- **Anything about the order of `dropFinishFromBodiesThatCannotWearOne` and
+  `resolveFinishesTheMaterialDoesNotOffer`.** They commute on every input; QA measured zero failures
+  from swapping them; ADR 0085 decision 6 withdrew the criterion. It is 6Q-b's settled ground and
+  nothing here reopens it.
+- **"The count on screen is not the effect's", asserted by a grep over `apps/web/src` alone.** It
+  matches nothing today and would report green if the source vanished. State it structurally — the
+  effect is not in scope where the view is composed — and let the pairwise-distinct literals do the
+  falsifying.
+- **"The confirmation tells the customer how many colours they will lose."** It does not. It counts
+  cabinets wearing a colour that differs from the current material's default, which equals the loss
+  only under decision 1's preconditions. The copy must not claim the target's refusal count, and no
+  test may assert that it does.
+- **"Exactly one modal exists", asserted in a jsdom render where the price breakdown never mounts.**
+  The two surfaces cannot both be open because this one marks the other's trigger inert — a property
+  of the real document, not of a render harness.
+- **"No toast after the apply", asserted against a component that renders no toast anywhere.** Assert
+  against the rendered document after the sheet has closed, so the claim is about the screen.
+- **Anything as `describe.skip`.** Nothing this wave needs is unbuildable; a deferred test here would
+  be an `it.fails` or it would be a gap (`docs/WORKFLOW.md`).
+
+**Risks.**
+
+- **The silent branch is what every existing fixture exercises**, so an unconditional modal passes
+  almost the whole suite. Mitigated by the both-branches-non-empty criterion with a floor per arm,
+  and by the explicit no-material-change criterion.
+- **The reused fixture is deliberately outside the load seam's invariant**, so it is the right place
+  for a literal and the wrong place for the property. Mitigated by pinning the literal and the
+  property in the same file with a comment saying which is which — the confusion is one file apart,
+  not one repository apart.
+- **The copy sweep bites late.** Both gates run whole-tree, so a string that trips `SUM_CLAIM_PATTERN`
+  or the digit sweep fails a suite nobody was editing. Mitigated by drafting the four strings in the
+  plan and by running `pnpm format:check` and the `starting-price` suite before review, not after.
+- **The confirm step is a new tappable target over a live canvas at 390 px.** ADR 0023's defect, in
+  its own geometry. Mitigated by the tap criterion in the visual gate, which is an interaction and
+  not a screenshot.
+
+**Verification method.** Per-package suites during development
+(`cd packages/configurator-domain && pnpm exec vitest run`, then `cd apps/web && pnpm exec vitest run`)
+rather than workspace-wide `pnpm test`, so the persistence package is not dragged into every run.
+Then the e2e spec at both projects, one at a time on port 4320. Then `pnpm format:check` whole-tree,
+last. Then `pnpm ci:local` once, held by one agent. Freeze the tree before QA and before the visual
+pass, and say so in both dispatches.
 
 ##### Where each criterion above lands
 
@@ -3827,7 +4056,7 @@ reaffirmed by the owner.
 | No stored design holds a finish its material does not offer, over every pair, at both seams | **6Q-a** (the query) then **6Q-b** (the two seams' outputs) | The generated-pair property, run three times: against the query, against `migrateDesign`'s output, against `setMaterialTier`'s |
 | The resolution runs once and produces one `CommandResult` | **6Q-b** | The effect's count, plus `onDesignChanged` called exactly once — below |
 | The warning is shown before the apply, on both viewports | **6Q-c** (moved from 6Q-b, ADR 0081) | The confirm step gates the apply: zero commands run while it stands, one after it. Asserted in the model, in the store and by real interaction on both shells |
-| The confirmation appears only when a chosen colour would be lost, and never otherwise | **6Q-c** | `countCabinetsWearingAChosenFinish`, both branches counted and both non-empty |
+| The confirmation appears only when a chosen colour would be lost, and never otherwise | **6Q-c** | `countCabinetsWearingAChosenFinish`, both branches counted and both non-empty, with a floor per arm. **The presence condition compares materials, not id strings** ([ADR 0086](../decisions/0086-the-confirmation-counts-chosen-colours-and-only-a-different-declared-material-owes-one.md) decision 3): `(applied: undefined, pending: "material.melamine")` is not a material change, because `undefined` resolves to `DEFAULT_MATERIAL_ID`, which *is* melamine — asserted with a chosen colour standing, so a confirmation that appeared there would fail. **The `chosenCount ≤ resolvedCount` criterion is withdrawn as generalised** and replaced by the same relation under its three preconditions plus three pairwise-distinct literals (~~14~~ **26** bodies — corrected 2026-09-05, `KITCHEN_L_DESIGN` has 26 placements and the projection carries all of them; 4 chosen, 2 resolved): measured false at 4 ≤ 2 on the fixture this plan reuses, at 1 ≤ 0 on a valid PAL kitchen re-applying PAL, and at 1 ≤ 0 on an undeclared tier |
 | The shape changes too — MDF → veneer, asserted on mixed finishes, as one result | **6Q-b** | The veneer fixture — below |
 | The reset target is each material's declared default | **6Q-b** | `defaultFinish` read from `MATERIALS`; a mutation of the declaration moves the reset |
 | A stale tier the book no longer offers | **neither** — ADR 0072 dissolved it | ADR 0078 decision 3 is the only thing owed: an undeclared id resolves and refuses nothing (**6Q-a** item 2) |
@@ -4402,6 +4631,15 @@ rewritten to count mechanisms, or it will assert the superseded basis as correct
 - **900 mm is a boundary and is asserted as one**: a 900 mm leaf takes 2 hinges and a 901 mm leaf
   takes 3. ADR 0070's wording is *taller than 900*, and equality is what a re-implementation gets
   wrong.
+- **Owner ruling, 2026-09-05: the mechanism count keys off cabinet WIDTH, never off the cabinet's
+  own overall height.** ADR 0070's 900 mm leaf-height boundary is a **door-band** height, declared per
+  entry by wave 6S, and stays exactly as is. What this ruling closes is a different, larger question:
+  whether a *taller-than-usual* cabinet (near a high ceiling, say) should ever add a mechanism the
+  formula does not already give it from its declared door and drawer counts. The owner's reasoning:
+  typical ceiling heights run **2500-2800 mm**; anything taller is unreachable by the customer without
+  a ladder, and in that rare case the manufacturer adjusts the price by hand rather than the product
+  encoding a rule for it. **So no height-keyed mechanism rule is to be built** — width (via the door
+  and drawer counts a body's width already determines) is the only axis this wave prices from.
 - **The seeded kitchen counts 74 hinges and 5 drawers.** This is ADR 0070's own figure, derived by
   the owner from the real catalogue and the builders' door-band heights — **an independent
   derivation, which is the only reason the check means anything.** The test's number comes from
@@ -4413,6 +4651,17 @@ rewritten to count mechanisms, or it will assert the superseded basis as correct
   from the failing side, not implied by the new formula.
 - **A corner cabinet carries one handle per level, never one per opening** (ADR 0070 decision 2),
   consistent with the structural treatment corner bodies already have (ADR 0021, ADR 0025).
+- **Owner ruling, 2026-09-05: the hardware tier names become Standard / Hettich / Blum**, replacing
+  the shipped `Standard` / `Închidere lentă` / `Premium`. Owner's reason: the prices were collected
+  from those suppliers, so the name and the amount now agree about what is being quoted, rather than
+  a tier named for a feature ("slow close") sitting beside two named for a marketing tier
+  ("Standard"/"Premium"). **Six strings currently unpinned by any test** — the three `name` fields and
+  the three `description` fields on `SAMPLE_PRICE_BOOK.hardware.tiers`
+  (`packages/configurator-domain/src/pricing/sample-price-book.ts:231-256` — verified 2026-09-05, an
+  earlier note cited 230-282, which over-runs into the unrelated material-tier block below it;
+  threaded to the UI by `apps/web/src/price/whole-kitchen-tiers.ts:233-234`) — none of this wave's
+  code is touched here; the
+  rename lands with wave 6T, which is already rebuilding this book section under ADR 0070.
 - **Three tiers — DTC Standard, Blum, Hettich — and DTC Standard's description says it has no
   soft-close.** A functional difference the customer feels on every door, not a cheaper version of
   the same mechanism. The description is **book data** (ADR 0062's third prohibition), never copy in
@@ -4610,8 +4859,15 @@ same rule the seven items above were.
   owner's standing direction of 2026-09-04 — *draft strings that carry their meaning now* — and none
   may carry a **literal** digit: `starting-price.adversarial.test.ts` sweeps every leaf of
   `ro.globalSettings`, template **source bodies** included. A count interpolated at runtime is fine
-  and has a shipped precedent one line up (`appliesTo`'s *"tuturor celor 14 corpuri"*); a
-  singular/plural branch written inline is not, because its own `n === 1` trips the sweep.
+  and has a shipped precedent one line up (`appliesTo`'s *"tuturor celor ~~14~~ **26** corpuri"* —
+  corrected 2026-09-05, `KITCHEN_L_DESIGN` has 26 placements, not 14); a singular/plural branch
+  written inline is not, because its own `n === 1` trips the sweep.
+
+  **Owner ruling, 2026-09-05, on this and every other batch of copy still marked *pending owner
+  review* in this milestone: ship as drafted.** The owner reviews the drafted copy once it is on
+  screen in the running app, rather than blocking any wave's dispatch on a wording sign-off beforehand
+  — the same practice wave 6G already set as precedent, now confirmed as the standing process rather
+  than a one-off accommodation.
 - ~~**Raised and not answered: should switching PAL → MDF carry the colour over?**~~ **Answered by
   the owner, 2026-09-05: no.** They declined to build a mapping between materials by name, so
   ADR 0057's rejection of nearest-finish mapping and ADR 0078 decision 4 both stand, reaffirmed
@@ -4628,10 +4884,12 @@ same rule the seven items above were.
   direction and ships asserted as deliberate; the alternative is canonicalising in `freeColourFinish`,
   which changes what 6P ships and what stored rows carry. Wave 6R's picker must emit lower case
   either way.
-- **Recorded for the owner's eye: a kitchen entirely at its material's default is repainted with no
-  warning.** PAL's default is *Alb*, veneer's is *Stejar* — so an untouched PAL kitchen turns oak on
-  one press, silently. That is the ruling working as stated (nothing *chosen* is lost) and nothing is
-  blocked; ADR 0081's final section states the trade and the one-line fix if it is the wrong one.
+- **Ruled by the owner, 2026-09-05 — confirms 6Q-c as built: a kitchen entirely at its material's
+  default is repainted with no warning, silently.** PAL's default is *Alb*, veneer's is *Stejar* — so
+  an untouched PAL kitchen turns oak on one press, silently. This was recorded "for the owner's eye"
+  rather than resolved; it is now ruled rather than assumed. That is the ruling working as stated
+  (nothing *chosen* is lost) and nothing is blocked; ADR 0081's final section states the trade and the
+  one-line fix if it ever turns out to be the wrong one.
 
 ### Cabinet depth — recorded 2026-08-27, **partly decided since; corrected 2026-09-02**
 
@@ -5145,6 +5403,154 @@ Kept because three of them were live for a day and one is elegant enough to be r
   ADR 0031's funding rules, overwriting a width set through ADR 0035's stepper.
 - **Drop a body.** Needed ADR 0055 amended and a further "which body" decision that was deliberately
   never invented.
+
+### Wave 6U — the hob holds its reach, and a deeper worktop grows behind it
+
+**[ADR 0087](../decisions/0087-the-hob-holds-its-reach-and-a-deeper-worktop-grows-behind-it.md)**,
+answering the one product question **wave 6I was told to raise and never did**. Owner-ruled
+2026-09-05. `packages/three-adapter` only — no domain declaration, no store action, no surface, no
+stored field, no schema version.
+
+**Goal.** The hob's clearance to the front of its worktop is a **declared** 10 mm at every declared
+cabinet depth, and its seat is derived from it. Every millimetre of added cabinet depth appears
+**behind** the hob, between it and the wall. The owner's reason, which is the invariant worth
+testing: the back burners must be no further from the cook at 700 than they are at 600.
+
+**Why it is a wave and not a one-line edit.** The one-line edit is the trap. `HOB_FORWARD_OFFSET_M`
+is not wrong at 600 — it is exactly right there, and the fix must reproduce it to the micrometre or
+M1's parity gate needs re-baselining for a defect that only exists at a depth nothing ships at. What
+the wave actually buys is the **third class of gate** ADR 0087's consequences name: two shipped
+suites sweep both declared depths and neither could have caught this, because
+`cabinet-depth-sweep.parity.test.ts` measures each body's finished **envelope** (which the worktop
+defines, and the hob never reaches) and `room-composition.parity.test.ts` measures **bodies against
+walls and neighbours** (and the hob intersects nothing). Nothing asks where a part sits **inside**
+the body that contains it.
+
+**Sequencing.** After 6Q. It touches no file any other open M6 wave touches except
+`kitchen-parts.ts`, so it must not run concurrently with a wave editing that file; it is otherwise
+independent and can land at any point before M6 closes.
+
+**Touches.** `packages/three-adapter/src/kitchen-parts.ts` — the constant at `:958`, its reader
+`seatHobOnWorktop` at `:992`, and the seeded room's standalone cooktop at `:2101` — plus one new
+parity suite in `packages/three-adapter/tests/`.
+
+#### The measurement this wave is written against
+
+Built through `makeKit({ cabinetDepthMm })` at both depths ADR 0056 declares, read off named meshes
+in each body's own local frame, metres. Reproduced here because every criterion below is a
+difference between two of these rows, not a number to look up:
+
+| Local `z` | at 600 | at 700 today | at 700 after |
+| --- | --- | --- | --- |
+| worktop back edge — the wall plane | −0.290 | −0.340 | −0.340 |
+| carcass shell front | 0.280 | 0.330 | 0.330 |
+| drawer / door front face | 0.298 | 0.348 | 0.348 |
+| drawer handle bar, front of | 0.319 | 0.369 | 0.369 |
+| `oven_front` fascia (`base-hob-oven`) | 0.291 | 0.341 | 0.341 |
+| **`cooktop_glass` front** | **0.320** | **0.320** | **0.370** |
+| **`cooktop_glass` back** | **−0.200** | **−0.200** | **−0.150** |
+| back `burner_ring` centres | −0.090 | −0.090 | −0.040 |
+| worktop front edge | 0.330 | 0.380 | 0.380 |
+
+#### Acceptance criteria
+
+- **The reach to the back burners is the same at every declared cabinet depth.** Build a kit at each
+  depth in ADR 0056's map; in each, measure the distance from the `countertop` mesh's front edge to
+  the centre of the rearmost `burner_ring` meshes of a `base-hob-2drawer`. It is **420 mm at every
+  depth**. This is the criterion the wave exists for and it is the owner's own sentence in
+  millimetres. **It must fail on `HEAD` before the fix — 420 against 470 — and the wave records the
+  red run**, because a test that was green before it was needed is the shape the certification audit
+  just found (a test named for ADR 0059's floor that calls no production code and evaluates
+  `40 > 0`).
+- **The clearance in front of the hob is identical at every declared depth, and equals the shipped
+  600 mm value.** `countertop` front edge minus `cooktop_glass` front edge is **10 mm** at 600 and at
+  700, for **both** `base-hob-2drawer` and `base-hob-oven`.
+- **All of the added depth is behind the hob.** `cooktop_glass` back edge to the wall plane grows by
+  exactly the change in cabinet depth: **90 mm at 600, 190 mm at 700**. The two criteria above are
+  satisfiable by a hob that shrinks; this one is not, and together with the fixed glass size they
+  pin the direction the gap opens.
+- **The shipped 600 mm kitchen does not move by a micrometre.** M1's decomposition and structural
+  parity suites pass **unchanged and un-re-baselined**, and every hob mesh's world transform in
+  `builders["kitchen-l"]()` at 600 is bit-identical before and after. The derivation is
+  `330 − 10 − 260 = 60`, which is the literal it replaces; if a re-baseline is proposed, the
+  arithmetic is wrong.
+- **The arithmetic is in millimetres, divided once.** `makeKit` already states why at
+  `kitchen-parts.ts:357` — `0.6 − 0.04` is `0.5599999999999999` and the parity gate diffs at 1e-6 m.
+  No metre subtraction anywhere in the new seat.
+- **No depth-independent seat value survives in the source.** After the wave there is no metre
+  constant a later reader can copy, and a literal reintroduced there fails the sweep at 700 rather
+  than at code review. The shape is `HOOD_SEAT_OFFSET_M` and `OVEN_FORWARD_OFFSET_M`, which are
+  already derived from the depth-parameterised locals in the same closure.
+- **Both call sites move, and the seeded room's hob is one of them.** `:2101` composes the same
+  derived seat onto its cabinet's own seat. Measured in the built room: `cooktop_glass` spans
+  0.090–0.610 at 600 and must span **0.190–0.710** at 700, against a `countertop` that ends at 0.720.
+- **The hood sits over the hob again, and this is asserted on the room rather than assumed.**
+  `hood_canopy` spans 0.100–0.600 at 600 and 0.200–0.700 at 700 (ADR 0039 hangs it at the front and
+  it is already correct). The hob is inset **10 mm at each end of the canopy at both depths** — which
+  is true today at 600 and false at 700, where the extraction stands 60 mm forward of the pan.
+  `docs/design/DEVELOPMENT-SPEC.md` line 610 names *"hob under the hood"* as a position that carries
+  meaning.
+- **The hob stays strictly behind its body's front-most mesh at every depth.** `base-hob-2drawer`
+  finishes at its **worktop** (620 / 720 mm, `baseFinishedDepthMm`) and `base-hob-oven` at its
+  **oven bar** (648 / 748 mm, `hobOvenBaseFinishedDepthMm`). `occupied-depth.parity.test.ts` passes
+  with **both declarations unchanged**. A hob that reaches its worktop's edge would silently change
+  what the domain declares those bodies finish at.
+- **The `base-hob-oven` pair stops splaying.** The hob's front edge stands **29 mm proud of
+  `oven_front` at both depths** — today it is 29 mm proud at 600 and 21 mm *behind* at 700, a 50 mm
+  disagreement between two appliances in one cabinet.
+- **A third declared depth extends the sweep and needs no other edit.** The gate reads its depths as
+  data (the stance `cabinet-depth-sweep.parity.test.ts` and `room-composition.parity.test.ts` both
+  take: a test that reads the values it checks out of the module it checks proves nothing).
+
+#### What the wave must NOT assert, and must not do
+
+- **Do not assert a table of absolute hob positions.** ADR 0028's failure mode is two numbers
+  agreeing by luck; a table of expected `z` values passes just as well if every entry is wrong
+  together. Every assertion above is a **difference between two meshes measured in the same built
+  kit**.
+- **Do not read the expected clearance out of the constant under test.** 10 mm, 420 mm, 90/190 mm
+  and 29 mm are written into the test as data.
+- **Do not move the oven, the microwave, the oven filler panel or the hood.**
+  `OVEN_FORWARD_OFFSET_M` and `MICROWAVE_FORWARD_OFFSET_M` are already derived from `carcassFrontM`;
+  `ovenFillerFront` measures its band off the oven that was just built; `HOOD_SEAT_OFFSET_M` is
+  already correct under ADR 0039. The splay closes because the hob moves to where the oven already
+  is. A diff that touches any of them is over scope.
+- **Do not parent the seeded room's cooktop to its cabinet.** The reference room draws them as
+  siblings and `kitchen-parts.decomposition.parity.test.ts` diffs child by child. The room site
+  composes the seat; it does not call `seatHobOnWorktop`.
+- **Do not give the hob a depth that follows the setting.** A 590 × 520 induction plate is a bought
+  appliance (`docs/best-practices/product-invariants.md`); a 620 mm-deep one is not manufactured.
+  Its size is fixed and only its mount moves — the split `OVEN_FRONT_PAST_WORKTOP_MM`'s comment in
+  `catalog.ts` already draws.
+- **Do not declare a per-entry exception or a pin.** ADR 0058's pin says a value does *not* follow
+  the setting; this seat does. An exception declared for a body that has none is how the exception
+  population stops being greppable.
+- **Do not touch the sink.** ADR 0087 records that `base-sink`'s bowl, rim, drain and faucet have the
+  same class of defect — byte-identical at both depths while the worktop grows around them — and
+  leaves it **undecided** as `docs/BACKLOG.md` entry 41. The owner ruled on the hob and only the hob.
+- **Do not migrate anything, and do not bump a schema version.** No field of `Design` records the
+  hob's seat, and no body's recorded depth or seat changes (measured: the extent is the worktop's,
+  unchanged at both depths).
+- **Do not re-baseline `packages/three-adapter/reference/`.** It is the fidelity anchor and the
+  600 mm result is unchanged; a re-baseline here would mean the derivation is wrong.
+
+#### Visual verification
+
+There is a real visual surface, and both depths must be seen. Captured through the application's own
+`/internal/scene-shot` route from a production build, at both **600** and **700** cabinet depth:
+
+1. **Before and after at 600 are byte-identical** — same SHA-256 on the kitchen shot and on a
+   close-up of the hob cabinet. This is the precedent ADR 0027 set for its own migration and it is
+   the cheapest possible proof that the shipped kitchen did not move.
+2. **A front-quarter close-up of `p2` at 700, before and after.** Before: the hob's glass sits
+   visibly back from the drawer fronts under it, with a wide band of bare worktop in front of it and
+   the plate hard against nothing at the back. After: a thin 10 mm rim of worktop in front of the
+   glass, matching the 600 mm shot, and the added depth showing as bare worktop **behind** the hob.
+3. **A shot framing the hob and the hood together at 700, before and after.** Before: the canopy
+   overhangs forward of the plate. After: the canopy is centred over it, the same as at 600. This is
+   the check a reader can make without a ruler, and it is why it is here.
+4. **The same three at 600 after the fix**, so a reviewer can see the two depths side by side and
+   confirm the *only* difference is where the bare worktop is.
 
 ### Two content slots — product decisions, not engineering ones
 

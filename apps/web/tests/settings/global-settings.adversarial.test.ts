@@ -25,6 +25,7 @@
 //    hidden behind `display: none` or `aria-hidden` rather than being satisfied by one.
 import { fc, test as propertyTest } from "@fast-check/vitest";
 import {
+  countCabinetsWearingAChosenFinish,
   cabinetHandleCount,
   KITCHEN_L_BODY_CATALOG,
   KITCHEN_L_DESIGN,
@@ -191,6 +192,7 @@ function viewOf(
     applied: design.settings ?? {},
     pending: design.settings ?? {},
     rejection: null,
+    chosenColourCount: countCabinetsWearingAChosenFinish(design),
     ...overrides,
   });
   return view;

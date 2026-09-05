@@ -6,6 +6,7 @@
 // than a UI rewrite — and so this file cannot pass by agreeing with a literal it also supplies.
 import {
   buildKitchenLBodyCatalog,
+  countCabinetsWearingAChosenFinish,
   declaredCabinetDepthsMm,
   KITCHEN_L_BODY_CATALOG,
   KITCHEN_L_DESIGN,
@@ -69,6 +70,7 @@ function settingsView(
     applied: {},
     pending: {},
     rejection: null,
+    chosenColourCount: countCabinetsWearingAChosenFinish(KITCHEN_L_DESIGN),
     ...overrides,
   });
 }

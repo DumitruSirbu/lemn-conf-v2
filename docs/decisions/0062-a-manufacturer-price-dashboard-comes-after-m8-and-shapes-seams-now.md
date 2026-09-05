@@ -54,6 +54,15 @@ Two smaller constraints in the same family:
   `catalog.ts`, not in `content/ro.ts`, not in a component. The 2E sheet's *"de la +9 000"* is book
   data rendered, not copy that happens to agree with a number.
 
+  > **Correction — 2026-09-05, found by the M6 certification audit.** The prohibition above names
+  > `content/ro.ts` and components, both `apps/web`. **The automated gate does not**:
+  > `pricing-seams.test.ts`'s *"no amount, tier, delta or rule exists outside the book"* sweep
+  > (`packages/configurator-domain/tests/pricing/pricing-seams.test.ts`) scans `SOURCE_ROOT`, which
+  > resolves to `packages/configurator-domain/src` only — it cannot see `apps/web` at all. The web
+  > side was verified clean **by hand** on 2026-09-05, not by this gate. The gap belongs to whichever
+  > wave first rendered a price in `apps/web` (**wave 6C**); nothing here is retracted, only the claim
+  > that a gate — rather than a person — was holding it.
+
 **Not in tension with the sample-amount constraint.** The book is a *sample* book throughout M6 and
 [ADR 0001](0001-initial-product-and-stack.md) decision 4's rule is unchanged: no commercial figure is
 asserted anywhere in docs or code. Who may later edit a book is not a property of its shape, and

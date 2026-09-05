@@ -14,7 +14,9 @@
 // would make the chips change under a customer who has not pressed *Aplică* yet.
 import {
   DEFAULT_CABINET_DEPTH_MM,
+  DEFAULT_MATERIAL_ID,
   declaredCabinetDepthsMm,
+  lookUpMaterial,
   MIN_CABINET_DEPTH_MM,
   type DisplayGroup,
   type PricingResult,
@@ -100,6 +102,29 @@ export interface DepthGroupView {
   readonly warning: string;
 }
 
+/**
+ * **The step that stands between *Aplică* and a material change that would discard a chosen colour**
+ * (ADR 0081 decisions 2 and 3, ADR 0086).
+ *
+ * Its presence *is* the rule: the component holds one boolean of its own — *am I on the confirm
+ * step* — and never asks whether a confirmation is owed. Absent, never an empty view, when nothing
+ * would be lost, so a sheet that always confirmed could not be built out of this shape.
+ *
+ * **The title travels with the step** (ADR 0086 decision 6): it replaces the head's `<h2>`, so the
+ * dialog's accessible name follows what the screen is asking, and `appliesTo`'s count of *every*
+ * body is not left standing four lines above this one's count of chosen colours.
+ */
+export interface MaterialResetConfirmView {
+  readonly title: string;
+  /** The consequence, with the number of cabinets it applies to. **The query's count, never the
+   *  command's `resolvedFinishCount`** — see `toMaterialResetConfirm`. */
+  readonly body: string;
+  /** Names the change, never *OK*. */
+  readonly confirmLabel: string;
+  /** Names what is kept, never *Anulează*. */
+  readonly backLabel: string;
+}
+
 /** One of the two summaries standing beside the control that opens the sheet. */
 export interface SettingsChip {
   readonly key: WholeKitchenGroupKey;
@@ -142,6 +167,8 @@ export interface GlobalSettingsView {
   readonly overflowWarning?: string;
   readonly applyLabel: string;
   readonly cancelLabel: string;
+  /** Present exactly when pressing *Aplică* must ask first — see `toMaterialResetConfirm`. */
+  readonly materialResetConfirm?: MaterialResetConfirmView;
 }
 
 /** What the design carries, and what the sheet is editing. Both keys of both are optional because
@@ -166,6 +193,18 @@ export interface DescribeGlobalSettingsInput {
   readonly pending: WholeKitchenChoice;
   /** The last refusal, or `null`. Only the figure's *label* reads it — see `figure`. */
   readonly rejection: RejectionReason | null;
+  /** `countCabinetsWearingAChosenFinish`'s answer about the **stored** design, and the only count
+   *  the confirmation may state. Required rather than optional: an absent one would read as zero,
+   *  which is *never confirm* — the one wrong answer that passes every other test in the suite. */
+  readonly chosenColourCount: number;
+}
+
+/** The material half of the press, as `toMaterialResetConfirm` asks about it. **Both sides are tier
+ *  ids and both are optional**, because `design.settings` is and because a customer may not have
+ *  touched the material control at all. */
+interface PendingMaterialChange {
+  readonly appliedMaterialTierId: string | undefined;
+  readonly pendingMaterialTierId: string | undefined;
 }
 
 /** The category word in front of a chip's tier name, and the composition around it, are
@@ -180,6 +219,10 @@ export function describeGlobalSettings(
   const { material, hardware } = input.offer;
   const figure = describeFigure(input);
   const overflowWarning = describeOverflow(input);
+  const materialResetConfirm = toMaterialResetConfirm(input.chosenColourCount, {
+    appliedMaterialTierId: input.applied.materialTierId,
+    pendingMaterialTierId: input.pending.materialTierId,
+  });
   return {
     openLabel: ro.globalSettings.open,
     chips: [
@@ -198,6 +241,54 @@ export function describeGlobalSettings(
     ...(overflowWarning === undefined ? {} : { overflowWarning }),
     applyLabel: ro.globalSettings.apply,
     cancelLabel: ro.globalSettings.cancel,
+    ...(materialResetConfirm === undefined ? {} : { materialResetConfirm }),
+  };
+}
+
+/**
+ * **The confirmation, or nothing at all** — ADR 0086 decision 3's table, in one place.
+ *
+ * Present if and only if the pending choice names a **declared** material, that material is not the
+ * declared material the design is already on, and a chosen colour would be lost. The applied side
+ * resolves through `?? DEFAULT_MATERIAL_ID`, which is the same resolution the query and the
+ * validator give it — so choosing melamine on a design that carries no material at all is **not** a
+ * material change, and announces no loss the command would not produce.
+ *
+ * **It compares materials, not id strings**, and it asks `lookUpMaterial` and never
+ * `materialOffersFinish`: this decides whether the material changed, the domain decides what a
+ * chosen colour is, and the offer keeps one author (ADR 0078 decision 1).
+ *
+ * **It takes the count and not the input** (ADR 0086 decision 2), which is `toDepthGroupView`'s
+ * shape one function up applied for a stronger reason than tidiness. `countBodies(input.groups)` is
+ * the other number of cabinets derivable in `describeGlobalSettings` — both are counts of bodies,
+ * both are design-dependent, and on the seeded kitchen they differ — and here it is not an
+ * identifier at all rather than merely the wrong one to reach for. The two are pinned as literals
+ * side by side in `tests/settings/material-reset-confirm.test.ts`, which is where their values live.
+ */
+function toMaterialResetConfirm(
+  chosenColourCount: number,
+  change: PendingMaterialChange,
+): MaterialResetConfirmView | undefined {
+  if (chosenColourCount === 0) return undefined;
+  if (change.pendingMaterialTierId === undefined) return undefined;
+  const pending = lookUpMaterial(change.pendingMaterialTierId);
+  // An id the book offers and the domain does not declare resolves nothing when the command runs
+  // (ADR 0078 decision 3), so there is no loss to announce.
+  if (pending.kind === "undeclared") return undefined;
+  const applied = lookUpMaterial(
+    change.appliedMaterialTierId ?? DEFAULT_MATERIAL_ID,
+  );
+  if (
+    applied.kind === "declared" &&
+    applied.material.materialId === pending.material.materialId
+  ) {
+    return undefined;
+  }
+  return {
+    title: ro.globalSettings.materialResetConfirm.title,
+    body: ro.globalSettings.materialResetConfirm.body(chosenColourCount),
+    confirmLabel: ro.globalSettings.materialResetConfirm.confirm,
+    backLabel: ro.globalSettings.materialResetConfirm.back,
   };
 }
 

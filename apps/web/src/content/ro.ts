@@ -22,6 +22,17 @@ function everyBodyPhrase(bodyCount: number): string {
   return `tuturor celor ${String(bodyCount)} ${pluraliseBodies(bodyCount)}`;
 }
 
+/** How many cabinets wear a colour the customer chose — *"corpuri"* behind a count the design
+ *  decides — as the material change's confirmation says it. A **module-level helper rather than an
+ *  inline branch**, which is a gate rather than a preference:
+ *  `starting-price.adversarial.test.ts` sweeps a composing template's source body for a digit, so
+ *  `(n) => n === 1 ? … : …` written into the copy would fail on the `1` in its own condition. It
+ *  reuses `pluraliseBodies` above, so twenty and above takes *"de corpuri"* by the rule already
+ *  written there. */
+function chosenCabinetPhrase(chosenCount: number): string {
+  return `${String(chosenCount)} ${pluraliseBodies(chosenCount)}`;
+}
+
 /** ADR 0001 decision 4's prefix, held as one binding so the whole-kitchen sheet's *de la* badge is
  *  the same two words as the figure's *De la* rather than a second spelling of them. */
 const STARTING_PREFIX = "De la";
@@ -525,6 +536,30 @@ export const ro = {
      *  uncommitted state, so a customer who opened it must be able to leave without applying. */
     apply: "Aplică",
     cancel: "Renunță",
+    /** **The step that stands between a material change and the colours it discards** (ADR 0081,
+     *  ADR 0086 decision 7). Shown only when a colour the customer chose would be lost, which is
+     *  what makes it worth reading: a confirmation that always appears is one that is always
+     *  dismissed.
+     *
+     *  **Neither action is *OK* and neither is *Anulează*.** Both name their outcome — the
+     *  destructive one names the change, the safe one names what it keeps — so a customer
+     *  dismissing this by muscle memory still keeps what they chose.
+     *
+     *  **It does not say *"în total"***, natural as that phrasing is here:
+     *  `starting-price.adversarial.test.ts` sweeps every leaf of this section for an equality claim,
+     *  and *"total"* is one of the words it refuses. *"toate"* passes because it is a different
+     *  word, not because the sweep was relaxed. */
+    materialResetConfirm: {
+      // Ruled 2026-09-05, pending owner review.
+      title: "Culorile alese se pierd",
+      // Ruled 2026-09-05, pending owner review.
+      body: (chosenCount: number) =>
+        `Ai ales alte culori pentru ${chosenCabinetPhrase(chosenCount)}. Fiecare material are propriile culori, așa că toate revin la culoarea implicită a materialului nou.`,
+      // Ruled 2026-09-05, pending owner review.
+      confirm: "Schimbă materialul",
+      // Ruled 2026-09-05, pending owner review.
+      back: "Păstrează culorile",
+    },
   },
   webglUnavailable: {
     titleMobile: "Dispozitivul acesta nu poate afișa 3D",

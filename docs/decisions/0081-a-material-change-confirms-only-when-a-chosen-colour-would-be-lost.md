@@ -238,6 +238,10 @@ out to be the wrong trade, the fix is small and its shape is already known: stat
 consequence in the always-shown `materialWarning` as well, which is decision 5's second string
 turned back on. **No wave is blocked on it and wave 6Q-c ships as ruled.**
 
+> **Confirmed by the owner, 2026-09-05.** This consequence was recorded above "for the owner's eye"
+> rather than as a settled question. It is now ruled, not merely assumed: the owner confirmed the
+> silent all-default switch as built, as wave 6Q-c ships it. No wording change follows.
+
 ## Consequences
 
 - **Wave 6Q-c is added**, after 6Q-b: the query, the confirm step, and the copy. It is the first wave

@@ -272,7 +272,11 @@
   align-items: center;
 }
 
+/* ADR 0082 decision 8's rule is about **both** dimensions, so the width floor is declared beside the
+ * height rather than left to whatever the label happens to measure. Both actions on both steps take
+ * these two classes, so the confirm step's pair is tappable by construction. */
 .cancel {
+  min-width: var(--touch-target);
   height: var(--touch-target);
   padding: 0 20px;
   font: 700 14px/1 var(--font-ui);
@@ -284,6 +288,7 @@
 }
 
 .apply {
+  min-width: var(--touch-target);
   height: var(--touch-target);
   padding: 0 22px;
   font: 700 14px/1 var(--font-ui);
@@ -292,6 +297,15 @@
   background: var(--accent-strong);
   border: none;
   border-radius: 12px;
+}
+
+/* The confirm step's sentence, in the box the choosing step's groups scroll in. Larger than the
+ * head's second line and unlike `.warning`: this is what the screen is about, not a note beside
+ * something else. */
+.confirmBody {
+  margin: 0;
+  font: 400 14px/1.55 var(--font-ui);
+  color: var(--ink);
 }
 
 /* Frame D2E: two pills and a text control in the top bar, and a 900 px popover hanging under them
@@ -353,6 +367,10 @@
 
   .appliesTo {
     font: 400 13px/1.5 var(--font-ui);
+  }
+
+  .confirmBody {
+    font-size: 15px;
   }
 
   .body {

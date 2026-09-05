@@ -52,6 +52,21 @@ numbers agreeing by luck, applied to the pair this creates.
 zero. A silent default is what let four families carry a wrong `occupiedDepth` with every suite green
 (DOM-002).
 
+> **Correction — 2026-09-05, found by the M6 certification audit.** This record's Context and Decision
+> 1 refer to `opensAFront()` as though it were shipped production code that "already encodes" the
+> cabinet-versus-appliance rule. **It never was.** `opensAFront()` has only ever lived in a test —
+> `packages/three-adapter/tests/catalog-capability-parity.test.ts:152`, whose own comment calls it
+> "this gate's own reading of ADR 0061's rule … used nowhere but the independence assertion." The rule
+> as **shipped** is `isCabinetHandleGroup`
+> (`packages/three-adapter/src/cabinet-handle-meshes.ts:26`), read by both the apply path
+> (`setHandlesVisible`, `decomposed-bodies.ts`) and the capability gate, exactly as decision 1
+> requires — "one rule, two callers" is correct; the name of that rule in this record is not. The
+> capability gate itself decides whether a body *has* a handle choice at all through the declared
+> `BodyDefinition.canHandle` flag (`catalog.ts`), not through `opensAFront()`/`isCabinetHandleGroup` —
+> that function decides which **meshes within a body** the choice reaches, a different and narrower
+> question. Nothing in the Decision or its Consequences is wrong in substance; only the name borrowed
+> from the test is corrected here rather than silently swapped.
+
 ## Alternatives considered
 
 - **Count meshes in the adapter and hand the number to pricing.** Rejected: it puts a pricing input

@@ -7,6 +7,7 @@
 // mockups' own frames and have not been through the owner, so the pins are what makes a change to
 // any of them a deliberate act rather than a diff nobody reads.
 import {
+  countCabinetsWearingAChosenFinish,
   KITCHEN_L_BODY_CATALOG,
   KITCHEN_L_DESIGN,
   priceDesign,
@@ -72,6 +73,7 @@ function inputFor(
     applied: {},
     pending: {},
     rejection: null,
+    chosenColourCount: countCabinetsWearingAChosenFinish(KITCHEN_L_DESIGN),
     ...overrides,
   };
 }
@@ -397,6 +399,7 @@ describe("a stored tier the book no longer offers", () => {
       applied: withdrawn.settings ?? {},
       pending: withdrawn.settings ?? {},
       rejection: null,
+      chosenColourCount: countCabinetsWearingAChosenFinish(withdrawn),
     });
   }
 

@@ -71,6 +71,15 @@ renders no replace section at all for one.
 **4. The M1 fidelity gate is not reached.** `label` is read nowhere in `packages/three-adapter/src` —
 no builder consumes it. Entry 20's "touches no geometry" is confirmed rather than assumed.
 
+> **Correction — 2026-09-05, found by the M6 certification audit.** *"`label` is read nowhere in
+> `packages/three-adapter/src`"* is false as a literal grep: `kitchen-parts.ts:14` declares a `label`
+> field on `PartItem`, and `kitchen-parts.ts:26-36` populates it for every row of the legacy demo
+> picker (`PARTS`). That `label` is unrelated to the catalogue's `BodyDefinition.label` this record is
+> about — it names a demo-picker entry, not a cabinet — and no builder reads either one to draw
+> geometry. **The substance holds**: no `label` of either kind reaches a mesh, so the M1 fidelity gate
+> is still not reached and entry 20's "touches no geometry" is still confirmed. Only the sentence's
+> literal claim ("read nowhere") was too strong.
+
 **5. It is fixture data _plus_ test updates**, so the wave is not literally fixtures-only. At least
 `packages/configurator-domain/tests/queries/design-projection.adversarial.test.ts` asserts
 `"Coloană"` today, and `catalog.test.ts`, `catalog.qa.test.ts` and

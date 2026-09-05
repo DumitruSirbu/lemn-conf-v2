@@ -399,7 +399,14 @@ The fix is a decision, not a repair: `w` as the MIN over a whole vertical run is
 question, since the widths in a run are independent per level (backlog entry 4 records that they
 already are). Related: [entry 6](#6-the-200-mm-cargo-is-unreachable-by-any-insert--input-for-m5).
 
-## 8. A fixed-set body in a much wider opening leaves an unbuilt gap — NEEDS THE OWNER
+## 8. A fixed-set body in a much wider opening leaves an unbuilt gap — RULED 2026-09-05, NOT M6 SCOPE
+
+**Ruled by the owner, 2026-09-05: the third option.** Split the opening so the remainder becomes a
+void the customer can fill — the same mechanism as backlog entry 2's level-B re-split. **This is not
+M6 scope and needs its own plan**; the entry stays open here because nothing is built yet, only
+decided which of the three shapes below is wanted.
+
+### The finding, as recorded before it was ruled
 
 **Raised by logic review as a disagreement, 2026-08-26.** §5.2 has a millimetre-set body take the
 widest size in its set that fits. Choose the bottle cargo in an 800 mm opening and it builds 300 mm
@@ -507,7 +514,13 @@ scope a decision rather than an oversight.
 this seam. Not a 5C fix: it changes what `offersFor` offers, which is M3's machinery and its own
 acceptance criteria.
 
-## 16. No camera preset frames the right end of wall A's base run at the mobile viewport — NEEDS A DECISION
+## 16. No camera preset frames the right end of wall A's base run at the mobile viewport — RULED 2026-09-05, NOT YET BUILT
+
+**Ruled by the owner, 2026-09-05: fit-to-run framing on the *Perete A* preset**, so the run end is on
+screen at 390 px, rather than a separate preset. The owner accepted the proposal as put to them. Not
+built yet — this entry stays open until a wave implements it.
+
+### The finding, as recorded before it was ruled
 
 **Found by visual verification of M5B wave 5B3, 2026-09-01**, outside that wave's scope and outside
 every other wave's. At 390 × 844 the run-end panel (`end_panel_right`, entry point for wave 5B3)
@@ -538,85 +551,6 @@ nothing to insert into and no way back to a base cabinet there short of reloadin
 **What deciding this needs.** A deliberate reproduction — hydrate a design with zero wall-A base
 placements and check whether `deriveColumns`/`recomputeVoids` publish a base-row opening for that
 wall — before this is treated as more than a hunch. Out of scope for every wave in M5B.
-
-## 18. A cabinet-hardware choice reaches the oven's and the microwave's bars in `tall-oven-tower` — NEEDS A DECISION
-
-Split out of entry 11 on 2026-09-01 when that entry was decided and closed
-([ADR 0051](decisions/0051-the-dishwasher-niche-wears-a-decor-door.md), Consequences). Entry 11
-carried this as a one-sentence tail; it is recorded here in its own right so the deferral leaves a
-pointer rather than a silence. **Owner: whoever owns §6.5**, which is the placement entry 11 gave it
-and ADR 0051 did not overturn.
-
-`setHandlesVisible` and `applyBlackHandleMaterial` (`packages/three-adapter/src/decomposed-bodies.ts`)
-act on **every** `handle` group in a body. `tall-oven-tower` builds four `handle_bar` meshes, of
-which exactly two are the cabinet's — the other two belong to the oven and to the microwave. So
-`handle: "push"` on that body hides the appliances' bars alongside the cabinet's, and `handle:
-"black"` repaints them in cabinet hardware. `base-hob-oven` carries the same exposure with one bar,
-the oven's, and is held off it only by `canHandle: false`.
-
-**Different cause from entry 11's, which is why it was not folded into wave 5B10.** Nothing about a
-missing front is involved: the flags on `tall-oven-tower` are truthful — it really does have two
-cabinet handles — and the capability gate
-(`packages/three-adapter/tests/catalog-capability-parity.test.ts`) passes it, correctly. The defect
-is downstream, in the path that *applies* a handle choice, which has no notion of whose handle it is
-touching. The fix is to teach that path the same cabinet-versus-appliance rule `opensAFront()`
-already encodes in the gate: a `handle` group is the cabinet's exactly when its own parent also
-holds a front.
-
-**What deciding it costs.** The change is in a file every body in the scene goes through, so its
-blast radius is the whole catalogue rather than one body — which is why folding it into a wave that
-also moved seeded geometry was refused. `base-dishwasher` stopped being an instance of this on
-2026-09-01; `base-hob-oven`'s oven bar and `tall-oven-tower`'s two appliance bars remain.
-
-## 19. The dishwasher decor door meets its own appliance at a 520 mm cabinet depth — NEEDS THE OWNER, WHEN M6 CAN REACH IT
-
-Found while implementing M5B wave 5B10 ([ADR 0051](decisions/0051-the-dishwasher-niche-wears-a-decor-door.md)),
-which anchors `dishwasherHousing`'s decor door on `CARC_D` (the derived `carcassDepthM`) so it follows
-the cabinet-depth setting the way every other base front does. `dw_body` — the appliance behind the
-door — does not follow: it is a real-world machine built at a literal 0.24 m front regardless of what
-`CARC_D` says. The gap between the two is `CARC_D / 2 − 0.24`, so it closes at half a millimetre for
-every millimetre `CARC_D` drops. At the shipped 600 mm kitchen the door's inner face is `CARC_D / 2 =
-0.28`, leaving 40 mm of mounting clearance. The clearance reaches zero — the appliance meeting its own
-door — at a **520 mm cabinet depth**.
-
-**Not reachable today.** 600 mm is the only cabinet depth the product can currently produce; M5's
-worktop-depth map is a single declared constant with no control on it (see backlog *Also open* below).
-This is a floor with no way to be crossed yet, which is why it is backlog rather than a defect.
-
-**The first thing that can reach it is M6's *Setări globale* depth control**
-(`docs/milestones/M6-price-and-global-settings.md` work item 4), so that work is this entry's owner.
-Whoever wires the control needs a decision before a customer can pick a cabinet depth below 520 mm
-with a dishwasher niche in the design: refuse that combination with a stated reason, cap the depth
-control's floor at 520 mm globally, or give the niche its own floor separate from the rest of the
-catalogue. None of those is chosen here.
-
-Already commented at the mounting site — `packages/three-adapter/src/kitchen-parts.ts`, the comment
-above `dishwasherHousing`'s door slab — so the constant and the derivation that produces 520 mm are
-there for whoever picks this up, rather than needing to be re-derived.
-
-## 20. A resized seeded body renames itself, and the customer sees two names for one cabinet
-
-Found by visual verification of wave 5B8 (2026-09-01). The seeded pantry's header reads **"Coloană"**
-at 600 mm. Step it to any other width and back to 600, and the same body at the same width now reads
-**"Coloană cămară 2 uși"**.
-
-Nothing is wrong. `resolve-column-members.ts:191-194` says a resize rebuilds through the catalogue
-equivalent, so **a resized seeded body migrates its `buildId`** — it has to, because
-`buildDecomposedBody` takes no width and every seeded id is one fixed geometry. `describe-selection`
-then finds a definition where it previously found none (`catalog.get(record.buildId)`), and the
-catalogue row carries both a real `label` and `doorCountFollowsWidth`, where the seeded id carried
-neither and fell back to `KIND_LABELS_RO.tall_unit`.
-
-So this is two documented rules meeting, not a defect in either. It has applied to base cabinets
-since ADR 0033; wave 5B8 made it reachable for a column, where the two names differ most.
-
-**What a fix would be, if the owner wants one.** Give the seeded rows the labels their catalogue
-equivalents carry, so the migration changes nothing the customer reads. That is a fixture edit, not
-a mechanism change, and it is bounded by the M1 parity gate only in that it touches no geometry.
-Doing it would also close the smaller version of this on every other seeded body.
-
-Not scheduled. Raise it with the owner before spending anything on it — a rename that fires on the
-customer's first resize may be acceptable, and the header is not wrong at either end.
 
 ## 23. ADR 0032's refused rows are published but never rendered, and only a code comment says so
 
@@ -788,6 +722,129 @@ Not decided. Needs an owner call on: id scheme (keep nanoid vs. adopt v7 and acc
 whether step 1 mints before or after the wall-size intake is complete, and which milestone this and
 step 1 itself belong to.
 
+## 41. The sink, its bowl and its faucet do not follow the cabinet-depth setting — NEEDS AN OWNER DECISION
+
+Found 2026-09-05 while measuring the hob for
+[ADR 0087](decisions/0087-the-hob-holds-its-reach-and-a-deeper-worktop-grows-behind-it.md). **Same
+class of defect, different fixture, and deliberately not decided by that record** — the owner ruled
+on the hob and only the hob, and inventing the parallel ruling for a sink is the silent product
+change this file exists to prevent.
+
+**What was observed.** Build `base-sink` at both depths ADR 0056 declares and the entire sink
+assembly is **byte-identical** at 600 and at 700 — `sink_rim_*`, `bowl_*`, `drain_*` and every
+`faucet_*` mesh — while the worktop around it grows 50 mm forward and 50 mm back. Measured in the
+body's own local frame, metres, `+z` towards the customer:
+
+| Local `z` | at 600 | at 700 |
+| --- | --- | --- |
+| worktop back edge — the wall plane | −0.290 | −0.340 |
+| `faucet_escutcheon` | −0.288 … −0.192 | −0.288 … −0.192 |
+| sink aperture (`sink_rim_back` … `sink_rim_front`) | −0.200 … 0.200 | −0.200 … 0.200 |
+| door front face | 0.298 | 0.348 |
+| worktop front edge | 0.330 | 0.380 |
+
+So at 600 the bowl's front rim is **130 mm** behind the worktop's front edge and the faucet stands
+**2 mm** off the worktop's back edge; at 700 those become **180 mm** and **52 mm**.
+
+**What is actually true in the code.** `baseCabinet`'s sink arm (`packages/three-adapter/src/
+kitchen-parts.ts`) splits the counter around a fixed `0.70 × 0.36` aperture centred on the body
+origin, and seats `builders["sink-faucet"]()` by setting **only** its `y` — its `z` stays at the
+carcass centre. Nothing in the assembly reads `carcassFrontM` or `counterDepthM`, which is what
+`OVEN_FORWARD_OFFSET_M`, `MICROWAVE_FORWARD_OFFSET_M` and `HOOD_SEAT_OFFSET_M` all do.
+
+**It is not a geometry defect and no gate is wrong to be green.** Nothing intersects, nothing
+floats, no wall is crossed, and the body's finished depth is its worktop's at both depths
+(`baseFinishedDepthMm`, 620 / 720) — so `cabinet-depth-sweep.parity.test.ts`,
+`room-composition.parity.test.ts` and `occupied-depth.parity.test.ts` are all correct to pass. The
+sink also stays a constant 20 mm rear of its worktop's centre at both depths, which is a **coherent
+rule** — "a sink is centred in its worktop" — and may well be the right one.
+
+**Why it still needs an answer.** The owner's reason for the hob ruling was reach: *"when you cook
+you should use easy the back hob circles in same way as it was 600 mm worktop"*. A bowl 50 mm further
+away and a tap 50 mm further back are the same argument on the fixture a customer leans over most.
+Three shapes, and only the owner can choose:
+
+- **Front-aligned, like the hob and the hood** — the aperture holds a constant clearance to the
+  worktop's front edge and the added depth appears behind the tap. Consistent with ADR 0087 and
+  ADR 0039; costs the tap its position hard against the back edge, which is where a tap normally
+  goes.
+- **Centred in the worktop** — what ships today. Splits the 100 mm evenly; the bowl loses 25 mm of
+  reach and the tap gains 25 mm of counter behind it.
+- **Rear-aligned** — the tap holds its 2 mm to the back edge and all 100 mm appears in **front** of
+  the bowl. Physically what a plumber would do, and the worst of the three for reach.
+
+**What deciding it would cost.** One wave in `packages/three-adapter` only, the shape of wave 6U: the
+aperture's and the faucet's seats become derived from the depth-parameterised locals instead of the
+body origin, with a sweep over ADR 0056's declared depths asserting the chosen relation at both. No
+domain declaration moves (the body finishes at its worktop either way), no stored field changes and
+no migration is owed, for the reason ADR 0087 decision 5 gives for the hob. **Reachable today** —
+`p0` is the shipped 800 mm sink base and the depth control shipped in wave 6K.
+
+## 42. `tall-pantry`'s door-leaf/handle declaration should be pinned separately from the real catalogue — HIGH, QUEUED FROM THE 2026-09-05 CERTIFICATION AUDIT
+
+**Found by the 2026-09-05 certification audit.** `catalog.ts:1020-1022`
+(`packages/configurator-domain/src/catalog.ts`) declares `tall-pantry`'s
+`cabinetHandles: handlesOnDoorLeaves({ doorTiers: 2, handlesPerLeaf: 1 })`. Swapping the pair to
+`{ doorTiers: 1, handlesPerLeaf: 2 }` keeps wave 6L's 391 tests **and** all 2186 adapter tests green
+while halving the door-leaf count the price step bills — a mutation the wave's own suite cannot
+catch today. Needs a literal test pinning the declared shape on its own, separate from the general
+catalogue sweep, so a swap like this fails loudly instead of passing every gate. Recorded here as a
+docs-only entry; the fix itself is code and is not attempted in this pass.
+
+## 43. Wave 6A2's own files carry no literal pin on the seeded row's rendered name
+
+**Found by the 2026-09-05 certification audit.** 6A2's invariant — a body's name does not change when
+its `buildId` migrates on resize — is proven by construction, and holds, but the guarantee is
+currently covered by wave 5B8's own literals rather than by a pin inside 6A2's own files (measured:
+4/6 mutations killed by 6A2's own files, 6/6 by the full suite — see `docs/STATUS.md`'s certification
+note). Add one literal pin, in 6A2's own file, with a comment stating why it is the one allowed copy
+— the invariant test already derives both sides, and this is the one place a literal earns its keep.
+
+## 44. A vacuous test in `cabinet-depth-sweep.parity.test.ts` calls no production code
+
+**Found by the 2026-09-05 certification audit.** `cabinet-depth-sweep.parity.test.ts:264`
+(`packages/three-adapter/tests/`):
+
+```
+expect((cabinetDepthMm - 40) / 2 - 240).toBeGreaterThan(0);
+```
+
+asserts an inline re-statement of ADR 0059's arithmetic over `DECLARED_DEPTHS_MM`, never
+`MIN_CABINET_DEPTH_MM` or any exported function — it cannot fail regardless of what the declared
+constant actually is. Delete it or repoint it at `MIN_CABINET_DEPTH_MM` and
+`declaredCabinetDepthsMm()` so it exercises production code.
+
+## 45. A stale test name in `cabinet-handle-apply.test.ts` undercounts its own assertion
+
+**Found by the 2026-09-05 certification audit.** `cabinet-handle-apply.test.ts:210`
+(`packages/three-adapter/tests/`) names the test *"sees appliance bars on three bodies and cabinet
+handles on the rest"*, but the array it asserts (lines 226–232) has **five** entries: `base-hob-oven`,
+`fridge-free`, `fridge-free-700`, `tall-oven-tower`, `tall-oven-tower-600`. The assertion is correct;
+only the name is stale, most likely predating the two `-700`/`-600` rows. Rename it.
+
+## 46. An orphaned doc comment in `cabinet-depth-rule.ts` is attached to the wrong function
+
+**Found by the 2026-09-05 certification audit.** `cabinet-depth-rule.ts:244-246`
+(`packages/configurator-domain/src/`) — *"The one range check both arms pass through … not a second
+copy of the declared set but the same set asked before the branch"* — sits directly above
+`columnBuildDepthM`'s own one-line doc comment (line 247) and function (line 248), but describes wave
+6I2's `wallDepthMmForWorktop` range guard, not 6I's `columnBuildDepthM`. Reattach it to the function
+it actually describes. **Line numbers verified against the tree 2026-09-05**; an earlier note cited
+242-245, which is off by two lines.
+
+## 47. `alongWallPositionFollows` has a validator and no consumer — NEEDS AN ARCHITECT RULING
+
+**Found by the 2026-09-05 certification audit.** `cabinet-depth-rule.ts:137`
+(`packages/configurator-domain/src/cabinet-depth-rule.ts`) throws
+(`UndeclaredCabinetDepthRuleError`) unless `alongWallPositionFollows` is one of two literals
+(`"base-formula"`, `"wall-map"`), but nothing anywhere branches on **which** of the two it is — it is
+checked and then discarded. The coordinator's own lean is to delete the field rather than give it a
+reader, now that the surface that might have consumed it — the wall-coverage bars, waves 6N-b/6N-c —
+is descoped by the owner's 2026-09-05 ruling (see
+[ADR 0083](decisions/0083-wall-coverage-is-the-runs-extent-and-the-finished-end-is-part-of-it.md)).
+**This needs an architect's ruling, not a coordinator's or a scribe's** — recorded here so it is not
+lost, not decided.
+
 ## Also open, recorded elsewhere — do not duplicate here
 
 - **Width editing does nothing yet.** Every width chip is `blocked` because §5.4's resize command
@@ -817,6 +874,113 @@ step 1 itself belong to.
 
 Fixed and shipped. Kept for history only — skip this section unless you are specifically
 researching a past decision.
+
+## 18. A cabinet-hardware choice reaches the oven's and the microwave's bars in `tall-oven-tower` — CLOSED 2026-09-02, SHIPPED IN M6 WAVE 6L
+
+**CLOSED 2026-09-02 by [ADR 0061](decisions/0061-a-cabinet-handle-is-declared-and-an-appliance-bar-is-not-one.md), implemented in M6 wave 6L, certified 2026-09-05 (CERTIFIED WITH FINDINGS, 8/9 mutations killed — see `docs/STATUS.md`).**
+The apply path now carries the same cabinet-versus-appliance rule the capability gate already used —
+shipped as `isCabinetHandleGroup` (`packages/three-adapter/src/cabinet-handle-meshes.ts`), not as the
+entry's own `opensAFront()` name. The owner's addition on top of the diagnosis — that the price must
+count cabinet handles, never handle meshes — is ADR 0061 decision 2, consumed by wave 6B.
+
+### The finding, as recorded before it was closed
+
+Split out of entry 11 on 2026-09-01 when that entry was decided and closed
+([ADR 0051](decisions/0051-the-dishwasher-niche-wears-a-decor-door.md), Consequences). Entry 11
+carried this as a one-sentence tail; it is recorded here in its own right so the deferral leaves a
+pointer rather than a silence. **Owner: whoever owns §6.5**, which is the placement entry 11 gave it
+and ADR 0051 did not overturn.
+
+`setHandlesVisible` and `applyBlackHandleMaterial` (`packages/three-adapter/src/decomposed-bodies.ts`)
+act on **every** `handle` group in a body. `tall-oven-tower` builds four `handle_bar` meshes, of
+which exactly two are the cabinet's — the other two belong to the oven and to the microwave. So
+`handle: "push"` on that body hides the appliances' bars alongside the cabinet's, and `handle:
+"black"` repaints them in cabinet hardware. `base-hob-oven` carries the same exposure with one bar,
+the oven's, and is held off it only by `canHandle: false`.
+
+**Different cause from entry 11's, which is why it was not folded into wave 5B10.** Nothing about a
+missing front is involved: the flags on `tall-oven-tower` are truthful — it really does have two
+cabinet handles — and the capability gate
+(`packages/three-adapter/tests/catalog-capability-parity.test.ts`) passes it, correctly. The defect
+is downstream, in the path that *applies* a handle choice, which has no notion of whose handle it is
+touching. The fix is to teach that path the same cabinet-versus-appliance rule `opensAFront()`
+already encodes in the gate: a `handle` group is the cabinet's exactly when its own parent also
+holds a front.
+
+**What deciding it costs.** The change is in a file every body in the scene goes through, so its
+blast radius is the whole catalogue rather than one body — which is why folding it into a wave that
+also moved seeded geometry was refused. `base-dishwasher` stopped being an instance of this on
+2026-09-01; `base-hob-oven`'s oven bar and `tall-oven-tower`'s two appliance bars remain.
+
+## 19. The dishwasher decor door meets its own appliance at a 520 mm cabinet depth — CLOSED 2026-09-02, DECLARED FLOOR SHIPPED
+
+**CLOSED 2026-09-02 by [ADR 0059](decisions/0059-the-dishwasher-niche-declares-a-cabinet-depth-floor.md).**
+Verified against the tree 2026-09-05: `MIN_CABINET_DEPTH_MM` (`packages/configurator-domain/src/worktop-depth.ts`)
+is declared as `2 * DISHWASHER_HALF_DEPTH_MM + BASE_FRONT_OVERHANG_MM` = `2 * 240 + 40` = **520**, and
+`setCabinetDepth` (`packages/configurator-domain/src/commands/set-cabinet-depth.ts`) refuses with
+`UNKNOWN_CABINET_DEPTH` whenever `cabinetDepthMm < MIN_CABINET_DEPTH_MM` — the third of this entry's
+three named options (a declared, product-wide floor) is the one that shipped. Pinned at
+`packages/configurator-domain/tests/cabinet-depth-parameter.test.ts:423`
+(`expect(MIN_CABINET_DEPTH_MM).toBe(520)`) and exercised at the boundary in
+`packages/configurator-domain/tests/commands/set-cabinet-depth.test.ts:152`.
+
+### The finding, as recorded before it was closed
+
+Found while implementing M5B wave 5B10 ([ADR 0051](decisions/0051-the-dishwasher-niche-wears-a-decor-door.md)),
+which anchors `dishwasherHousing`'s decor door on `CARC_D` (the derived `carcassDepthM`) so it follows
+the cabinet-depth setting the way every other base front does. `dw_body` — the appliance behind the
+door — does not follow: it is a real-world machine built at a literal 0.24 m front regardless of what
+`CARC_D` says. The gap between the two is `CARC_D / 2 − 0.24`, so it closes at half a millimetre for
+every millimetre `CARC_D` drops. At the shipped 600 mm kitchen the door's inner face is `CARC_D / 2 =
+0.28`, leaving 40 mm of mounting clearance. The clearance reaches zero — the appliance meeting its own
+door — at a **520 mm cabinet depth**.
+
+**Not reachable today.** 600 mm is the only cabinet depth the product can currently produce; M5's
+worktop-depth map is a single declared constant with no control on it (see backlog *Also open* below).
+This is a floor with no way to be crossed yet, which is why it is backlog rather than a defect.
+
+**The first thing that can reach it is M6's *Setări globale* depth control**
+(`docs/milestones/M6-price-and-global-settings.md` work item 4), so that work is this entry's owner.
+Whoever wires the control needs a decision before a customer can pick a cabinet depth below 520 mm
+with a dishwasher niche in the design: refuse that combination with a stated reason, cap the depth
+control's floor at 520 mm globally, or give the niche its own floor separate from the rest of the
+catalogue. None of those is chosen here.
+
+Already commented at the mounting site — `packages/three-adapter/src/kitchen-parts.ts`, the comment
+above `dishwasherHousing`'s door slab — so the constant and the derivation that produces 520 mm are
+there for whoever picks this up, rather than needing to be re-derived.
+
+## 20. A resized seeded body renames itself, and the customer sees two names for one cabinet — RESOLVED 2026-09-03, SHIPPED IN M6 WAVE 6A2
+
+**RESOLVED 2026-09-03 by [ADR 0064](decisions/0064-a-seeded-row-carries-its-catalogue-equivalents-name.md), implemented in M6 wave 6A2, certified 2026-09-05 (CERTIFIED WITH FINDINGS, 4/6 mutations killed by 6A2's own files, 6/6 by the full suite — see `docs/STATUS.md`).**
+The owner chose exactly the fix this entry proposed — give the seeded rows the labels their catalogue
+equivalents carry — and wave 6A2 built it better than planned: the fields are **read off** the
+equivalent through `namedAfterCatalogEquivalent`, rather than copied beside each row, so the two
+strings this entry accepted as a cost cannot drift apart.
+
+### The finding, as recorded before it was closed
+
+Found by visual verification of wave 5B8 (2026-09-01). The seeded pantry's header reads **"Coloană"**
+at 600 mm. Step it to any other width and back to 600, and the same body at the same width now reads
+**"Coloană cămară 2 uși"**.
+
+Nothing is wrong. `resolve-column-members.ts:191-194` says a resize rebuilds through the catalogue
+equivalent, so **a resized seeded body migrates its `buildId`** — it has to, because
+`buildDecomposedBody` takes no width and every seeded id is one fixed geometry. `describe-selection`
+then finds a definition where it previously found none (`catalog.get(record.buildId)`), and the
+catalogue row carries both a real `label` and `doorCountFollowsWidth`, where the seeded id carried
+neither and fell back to `KIND_LABELS_RO.tall_unit`.
+
+So this is two documented rules meeting, not a defect in either. It has applied to base cabinets
+since ADR 0033; wave 5B8 made it reachable for a column, where the two names differ most.
+
+**What a fix would be, if the owner wants one.** Give the seeded rows the labels their catalogue
+equivalents carry, so the migration changes nothing the customer reads. That is a fixture edit, not
+a mechanism change, and it is bounded by the M1 parity gate only in that it touches no geometry.
+Doing it would also close the smaller version of this on every other seeded body.
+
+Not scheduled. Raise it with the owner before spending anything on it — a rename that fires on the
+customer's first resize may be acceptable, and the header is not wrong at either end.
 
 ## 21. The rendered shell and the seeded document disagree about the size of the room — RESOLVED 2026-09-03
 

@@ -15,6 +15,7 @@
 // renders `disabled`, the trap loses an end and the e2e that presses Tab is the only thing left
 // standing between that and focus leaving the dialog.
 import {
+  countCabinetsWearingAChosenFinish,
   buildKitchenLBodyCatalog,
   findOverflowingPlacementIds,
   KITCHEN_L_BODY_CATALOG,
@@ -302,6 +303,7 @@ describe("the overflow flag travels with the total onto this surface too", () =>
       applied: design.settings ?? {},
       pending: design.settings ?? {},
       rejection: null,
+      chosenColourCount: countCabinetsWearingAChosenFinish(design),
     });
     return view;
   }
@@ -398,6 +400,7 @@ describe("the markup preconditions the focus trap is written against", () => {
       applied: design.settings ?? {},
       pending: design.settings ?? {},
       rejection: null,
+      chosenColourCount: countCabinetsWearingAChosenFinish(design),
     });
     return renderToStaticMarkup(
       createElement(GlobalSettingsSurface, {

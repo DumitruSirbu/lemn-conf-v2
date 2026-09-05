@@ -32,7 +32,9 @@ moment it ships; a decision record does not. When the two disagree, the dated de
 | M3 — Insert, remove, swap, client write path | **Done** (closed 2026-08-26) | No — `milestones/done/` |
 | M4 — Editor panel and shell | **Done** (closed 2026-08-26 — one criterion unmet by design, ADR 0024) | No — `milestones/done/` |
 | M5 — Width editing, and depth as a derived quantity | **In progress — 5E is the only wave open.** 5A–5D2c, 5F, 5G, 5H all shipped | Yes — `milestones/M5-*.md`, and ADRs 0028–0041, 0052, 0053 |
-| M6 — Price bar and global settings (incl. cabinet depth control) | **In progress — 13 of 25 tracked waves DONE.** On branch `m6-price-and-global-settings`: 6A (`6c1f830`), 6H (`4afda06`), 6A3 and 6B2 (`eb9ba03`) shipped 2026-09-03; 6C (`194405b`) and 6D (`a5e161f`) shipped 2026-09-03 but only received their DONE marker this pass — a documentation gap, not new work; 6E (`b558e28`), 6G (`3e546d1`), 6I2 and 6M (merged at `ce77171`) shipped 2026-09-03/04; 6S (`280daa4`, `a2bff48`), 6J (`c8ba3af` 6J-a, `a68482d` 6J-b) and 6P (`38268b5`) shipped 2026-09-04. Open: 6K, 6K-c, 6Q, 6R, 6T. Shipped-but-uncertified: 6A2, 6A4, 6B, 6I, 6L. Not started: 6N. 6F is superseded by ADR 0071's 6P–6R | Yes — `milestones/M6-*.md`, and ADRs 0055–0073 |
+| M6 — Price bar and global settings (incl. cabinet depth control) | **In progress —** ~~13 of 25 tracked waves DONE~~ **corrected 2026-09-05: 13 of 36 wave-table rows are DONE, counted directly** (see *What to do next* below for the recount; the drop of 6N-b/6N-c did not change the denominator, since a dropped wave keeps its row exactly as superseded 6F already did within the stale 25). On branch `m6-price-and-global-settings`: 6A (`6c1f830`), 6H (`4afda06`), 6A3 and 6B2 (`eb9ba03`) shipped 2026-09-03; 6C (`194405b`) and 6D (`a5e161f`) shipped 2026-09-03 but only received their DONE marker this pass — a documentation gap, not new work; 6E (`b558e28`), 6G (`3e546d1`), 6I2 and 6M (merged at `ce77171`) shipped 2026-09-03/04; 6S (`280daa4`, `a2bff48`), 6J (`c8ba3af` 6J-a, `a68482d` 6J-b) and 6P (`38268b5`) shipped 2026-09-04. Open: 6K, 6K-c, 6Q, 6R, 6T. **Certified 2026-09-05** (`59f8669`): 6A4, 6B (CERTIFIED); 6A2, 6L, 6I
+(CERTIFIED WITH FINDINGS) — see *Where the project stands*'s certification note below. Not started:
+6N. 6F is superseded by ADR 0071's 6P–6R | Yes — `milestones/M6-*.md`, and ADRs 0055–0073 |
 | M7 — Step 1, room and presets | Planned | Yes, when starting |
 | M8 — Review, contact, success | Planned | Yes, when starting |
 | Adversarial review remediation | **Every finding closed or gated.** SEC-001 (High) deferred to M8 by owner decision, gated. Everything else — SCENE-001/002, WEB-001–004, DOM-001–003, SEC-002–004, DB-001/002/004 — is implemented and reviewed | Yes — `milestones/adversarial-review-remediation.md`, `milestones/dom-003-set-width-split.md` |
@@ -232,16 +234,38 @@ policy, so every per-endpoint limit is application code.
 ## What to do next
 
 **Next: M6, on branch `m6-price-and-global-settings`.** Read
-`milestones/M6-price-and-global-settings.md`, now a 25-wave breakdown (6P–6T added 2026-09-04 on
-ADRs 0070 and 0071, superseding 6F; 6K-c added the same day on ADR 0073), and ADRs 0055–0073 for the
+`milestones/M6-price-and-global-settings.md`, ~~now a 25-wave breakdown (6P–6T added 2026-09-04 on
+ADRs 0070 and 0071, superseding 6F; 6K-c added the same day on ADR 0073)~~ **now a 36-row wave table,
+counted directly 2026-09-05** — the 25 above is stale, not from the 6N-b/6N-c drop (a dropped wave
+keeps its row, exactly as superseded 6F already did within that same 25) but from eleven rows added
+since: 6K-c's own siblings 6K-d/e/f/i/j (+5, ADRs 0074–0080), 6N splitting from one wave into
+6N-0/6N-a/6N-b/6N-c (+3, ADR 0083), 6J-c (+1, ADR 0083's finding), 6Q splitting off 6Q-c (+1, ADR
+0081), and 6U (+1, ADR 0087) — and ADRs 0055–0073 for the
 decisions behind it. All seven
 original owner decisions are closed. **Thirteen waves are DONE**: 6A, 6H, 6A3, 6B2 (2026-09-03); 6C, 6D
 (shipped 2026-09-03, DONE marker added this pass — a pre-existing documentation gap, not new work);
 6E, 6G, 6I2, 6M (2026-09-03/04, merged at `ce77171`); 6S (`280daa4`, `a2bff48`), 6J (`c8ba3af`,
-`a68482d`) and 6P (`38268b5`), all 2026-09-04. **6K, 6K-c, 6Q, 6R and 6T remain open.** Five have shipped
-commits but no recorded criteria check — **6A2, 6A4, 6B, 6I, 6L**, bundled inside
-`93e9bc3`/`75668b8`/`dfa6198` — do not read these as either closed or blocked without checking their
-own section. **6N has not started.**
+`a68482d`) and 6P (`38268b5`), all 2026-09-04. **6K, 6K-c, 6Q, 6R and 6T remain open.** Five shipped
+commits bundled inside `93e9bc3`/`75668b8`/`dfa6198` — **6A2, 6A4, 6B, 6I, 6L** — now carry a recorded
+certification verdict from the 2026-09-05 audit below (three CERTIFIED WITH FINDINGS, two CERTIFIED;
+none NOT CERTIFIED) — check each wave's own section for the finding it carries before reading it as
+fully closed. **6N has not started, and two of its four sub-waves are now dropped**: the owner
+descoped the wall-coverage bars 2026-09-05 ("skip it in general for now... not critical and on
+mobile it will take a lot of place"), which drops **6N-c** (the bars) and **6N-b** (the coverage
+query 6N-c was its only reader for). **6N-0** and **6N-a** are unaffected and still open — see the
+milestone file's own ruling at the end of wave 6N's section.
+
+**Certification audit closed 2026-09-05, run at `59f8669` — all five shipped-but-uncertified M6 waves
+now have a recorded verdict.** 6A4 CERTIFIED (6/6 mutations killed). 6B CERTIFIED (10/10). 6A2
+CERTIFIED WITH FINDINGS (4/6 killed by 6A2's own files, 6/6 by the full suite). 6L CERTIFIED WITH
+FINDINGS (8/9). 6I CERTIFIED WITH FINDINGS (7/7). None NOT CERTIFIED, and all five still hold at
+`59f8669` — no wave was silently broken by a later one. **Worth recording once, not five times: in 3
+of 5, the wave's own guarantee is covered by ANOTHER wave's literals, not its own** — 6A2's name
+through wave 5B8's, 6L's declaration through 6B2's price step, 6I's dishwasher floor through the
+domain test while the adapter test named for it is inert. Each chain was closed 2026-09-05, and each
+runs through a file its own wave does not own. See each wave's own section in
+`docs/milestones/M6-price-and-global-settings.md` for the wave-specific detail; `docs/BACKLOG.md`
+entries 42-47 queue the code-level findings the same audit turned up.
 
 **Two call sites still hard-code the pre-6J cabinet depth, and this is the largest open thing wave 6K
 carries.** Found 2026-09-04 while ruling on

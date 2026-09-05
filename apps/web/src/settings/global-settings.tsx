@@ -16,7 +16,10 @@
 // against. So here there is a scrim on both shells, `aria-modal`, a real focus trap, and the rest of
 // the screen marked inert while it is open. Two neighbouring surfaces with opposite focus stories is
 // not a bug in either.
-import { projectDesignForDisplay } from "@lemnaria/configurator-domain";
+import {
+  countCabinetsWearingAChosenFinish,
+  projectDesignForDisplay,
+} from "@lemnaria/configurator-domain";
 import {
   useCallback,
   useEffect,
@@ -39,6 +42,7 @@ import {
   describeGlobalSettings,
   type GlobalSettingsView,
   type DepthGroupView,
+  type MaterialResetConfirmView,
   type TierGroupView,
   type WholeKitchenChoice,
   type WholeKitchenGroupKey,
@@ -85,8 +89,20 @@ export function GlobalSettings() {
     [design, catalog],
   );
 
+  // **On `design` alone**, unlike the projection above: the query reads the document and the
+  // material declaration and nothing else, so memoising it on `pending` too would make a number
+  // about what is *stored* move every time the customer taps a radio.
+  const chosenColourCount = useMemo(
+    () => countCabinetsWearingAChosenFinish(design),
+    [design],
+  );
+
   const applied: WholeKitchenChoice = design.settings ?? {};
   const [isOpen, setIsOpen] = useState(false);
+  // **The component's one boolean, and it is about the step rather than about the rule.** Whether a
+  // confirmation is owed is `view.materialResetConfirm`'s presence, decided in the model; this only
+  // records that the customer has been asked and has not answered yet.
+  const [isConfirming, setIsConfirming] = useState(false);
   // What the customer has chosen and not yet applied. Seeded from the design each time the sheet
   // opens, so cancelling and re-opening starts from what is actually stored.
   const [pending, setPending] = useState<WholeKitchenChoice>({});
@@ -103,24 +119,55 @@ export function GlobalSettings() {
     applied,
     pending,
     rejection,
+    chosenColourCount,
   });
 
   const close = useCallback(() => {
     setIsOpen(false);
+    setIsConfirming(false);
     // Back to what opened it, on cancel and on apply alike: a customer who reached the control by
     // keyboard has to be able to carry on from where they were.
     triggerRef.current?.focus();
   }, []);
 
+  /** **What Escape and the scrim dismiss: the topmost thing, one step at a time.** On the confirm
+   *  step that is the question, so both step back to the choosing step with the pending choices
+   *  intact and nothing written — not the document, not `selection`, and not `lastRejection`, which
+   *  a dismissal must not clear (ADR 0086 decision 5). A second press leaves the sheet. */
+  const dismiss = useCallback(() => {
+    if (isConfirming) {
+      setIsConfirming(false);
+      return;
+    }
+    close();
+  }, [isConfirming, close]);
+
+  /**
+   * **Focus lands on the dialog on open and again on every step change** — and the second half is
+   * not tidiness, it is what keeps the trap a trap.
+   *
+   * The two steps are different component types at the same position, so React unmounts the focused
+   * button when the step swaps. `document.activeElement` then falls back to `<body>`, the dialog's
+   * `onKeyDown` never fires because focus is outside it, and `whereTabMustLand`'s guarantee is
+   * bypassed rather than wrong: measured in a browser at both viewports, one Shift+Tab from there
+   * reached `global-settings-trigger` — the one control `useBackgroundInert` deliberately leaves
+   * live — and Enter on it re-opened the sheet, discarding the pending material choice with no
+   * warning. **In both directions**, forward to the confirm step and back from it.
+   *
+   * Forward Tab happened to land inside anyway, because Chromium starts sequential focus where the
+   * destroyed button was. That is a browser detail and not the trap working, which is why the
+   * dependency is the step rather than a patch aimed at one direction.
+   */
   useEffect(() => {
     if (isOpen) surfaceRef.current?.focus();
-  }, [isOpen]);
+  }, [isOpen, isConfirming]);
 
-  useEscapeToClose(isOpen, close);
+  useEscapeToDismiss(isOpen, dismiss);
   useBackgroundInert(isOpen, anchorRef);
 
   function openSheet(): void {
     setPending(applied);
+    setIsConfirming(false);
     setIsOpen(true);
   }
 
@@ -134,6 +181,17 @@ export function GlobalSettings() {
 
   function chooseDepth(cabinetDepthMm: number): void {
     setPending((chosen) => ({ ...chosen, cabinetDepthMm }));
+  }
+
+  /** **The whole press is gated, not the material half of it** (ADR 0081 decision 2). With a
+   *  confirmation owed this runs no command at all — not material, not hardware, not depth — and
+   *  asks instead. A partial apply is not a state this product has. */
+  function requestApply(): void {
+    if (view.materialResetConfirm === undefined) {
+      applyPending();
+      return;
+    }
+    setIsConfirming(true);
   }
 
   /** **Cancel writes nothing**, and apply writes only what changed — so opening the sheet and
@@ -200,7 +258,7 @@ export function GlobalSettings() {
             className={styles.scrim}
             aria-hidden="true"
             data-testid="global-settings-scrim"
-            onClick={close}
+            onClick={dismiss}
           />
           <GlobalSettingsSurface
             id={surfaceId}
@@ -209,7 +267,16 @@ export function GlobalSettings() {
             onChoose={chooseTier}
             onChooseDepth={chooseDepth}
             onCancel={close}
-            onApply={applyPending}
+            onApply={requestApply}
+            {...(isConfirming && view.materialResetConfirm !== undefined
+              ? {
+                  confirming: {
+                    view: view.materialResetConfirm,
+                    onConfirm: applyPending,
+                    onStepBack: dismiss,
+                  },
+                }
+              : {})}
           />
         </>
       ) : null}
@@ -236,25 +303,29 @@ function applyTierIfChanged(application: TierApplication): void {
 }
 
 /**
- * **Escape closes it wherever focus has got to**, which is why this listens on the document rather
- * than on the surface — `price-breakdown.tsx` records what binding it to the dialog cost.
+ * **Escape dismisses it wherever focus has got to**, which is why this listens on the document
+ * rather than on the surface — `price-breakdown.tsx` records what binding it to the dialog cost.
  *
  * Registered only while open. It is the second such handler in the application, which the
  * breakdown's own comment anticipated: the rule it states is that the topmost surface registers last
  * and **no handler calls `stopPropagation`**, and both hold here. The two cannot both be open —
  * this one marks the rest of the screen inert, and the breakdown's trigger is part of it.
+ *
+ * **Still one listener with the confirm step**, and it dismisses one step rather than the sheet —
+ * ADR 0081 decision 3. A second document-level handler for a second dialog is what that decision
+ * refuses, and what `dismiss` above exists to make unnecessary.
  */
-function useEscapeToClose(isOpen: boolean, close: () => void): void {
+function useEscapeToDismiss(isOpen: boolean, dismiss: () => void): void {
   useEffect(() => {
     if (!isOpen) return undefined;
-    function closeOnEscape(event: KeyboardEvent): void {
-      if (event.key === "Escape") close();
+    function dismissOnEscape(event: KeyboardEvent): void {
+      if (event.key === "Escape") dismiss();
     }
-    document.addEventListener("keydown", closeOnEscape);
+    document.addEventListener("keydown", dismissOnEscape);
     return () => {
-      document.removeEventListener("keydown", closeOnEscape);
+      document.removeEventListener("keydown", dismissOnEscape);
     };
-  }, [isOpen, close]);
+  }, [isOpen, dismiss]);
 }
 
 /**
@@ -300,6 +371,7 @@ export function GlobalSettingsSurface({
   id,
   ref,
   view,
+  confirming,
   onChoose,
   onChooseDepth,
   onCancel,
@@ -308,6 +380,11 @@ export function GlobalSettingsSurface({
   readonly id: string;
   readonly ref?: Ref<HTMLDivElement>;
   readonly view: GlobalSettingsView;
+  /** **The confirm step, or nothing** — its presence is which step this is. A `MaterialResetConfirm`
+   *  and its two actions rather than a boolean beside them: a flag switching what a surface renders
+   *  is the argument this codebase splits functions to avoid, and the step's data and the step's
+   *  handlers arrive or are absent together. */
+  readonly confirming?: MaterialResetConfirmStep;
   readonly onChoose: (key: WholeKitchenGroupKey, tierId: string) => void;
   /** Separate from `onChoose` because a depth is not a tier id: it carries no group key and no
    *  `availableTierIds`, and widening the tier callback to take a number would make the type say a
@@ -327,33 +404,128 @@ export function GlobalSettingsSurface({
       tabIndex={-1}
       className={styles.surface}
       data-testid="global-settings-surface"
+      data-step={confirming === undefined ? "choosing" : "confirm"}
       onKeyDown={trapTab}
     >
       <span className={styles.grabber} aria-hidden="true" />
+      {/* **The head follows the step** (ADR 0086 decision 6). `aria-labelledby` keeps naming this
+          same heading, so the dialog's accessible name is whatever the screen is asking; and
+          `appliesTo` goes, because it states how many bodies the sheet applies to, four lines above
+          a sentence stating how many wear a chosen colour — two different counts of cabinets on one
+          screen, about one button. */}
       <div className={styles.head}>
         <h2 id={headingId} className={styles.title}>
-          {view.title}
+          {confirming === undefined ? view.title : confirming.view.title}
         </h2>
+        {confirming === undefined ? (
+          <p
+            className={styles.appliesTo}
+            data-testid="global-settings-applies-to"
+          >
+            {view.appliesTo}
+          </p>
+        ) : null}
+      </div>
+      {confirming === undefined ? (
+        <ChoosingStep
+          view={view}
+          namePrefix={id}
+          onChoose={onChoose}
+          onChooseDepth={onChooseDepth}
+          onCancel={onCancel}
+          onApply={onApply}
+        />
+      ) : (
+        <ConfirmStep step={confirming} />
+      )}
+    </div>
+  );
+}
+
+/** The confirm step's own view and its own two actions, which arrive together or not at all. */
+interface MaterialResetConfirmStep {
+  readonly view: MaterialResetConfirmView;
+  /** Runs the apply the choosing step's *Aplică* withheld — all three settings, one press. */
+  readonly onConfirm: () => void;
+  /** Back to the choosing step, writing nothing. */
+  readonly onStepBack: () => void;
+}
+
+/**
+ * **The consequence, and the two ways out of it.** It replaces the sheet's body and footer inside
+ * the one dialog above — no second scrim, no second focus trap and no second Escape listener
+ * (ADR 0081 decision 3).
+ *
+ * **The figure and the overflow warning go with the footer they belong to.** A running total beside
+ * *Schimbă materialul* invites the reading that the price is what changes, and the estimate is not
+ * what this step is about.
+ */
+function ConfirmStep({ step }: { readonly step: MaterialResetConfirmStep }) {
+  return (
+    <>
+      <div className={styles.body}>
         <p
-          className={styles.appliesTo}
-          data-testid="global-settings-applies-to"
+          className={styles.confirmBody}
+          data-testid="global-settings-confirm-body"
         >
-          {view.appliesTo}
+          {step.view.body}
         </p>
       </div>
+      <div className={styles.footer}>
+        <div className={styles.actions}>
+          <button
+            type="button"
+            className={styles.cancel}
+            data-testid="global-settings-confirm-back"
+            onClick={step.onStepBack}
+          >
+            {step.view.backLabel}
+          </button>
+          <button
+            type="button"
+            className={styles.apply}
+            data-testid="global-settings-confirm"
+            onClick={step.onConfirm}
+          >
+            {step.view.confirmLabel}
+          </button>
+        </div>
+      </div>
+    </>
+  );
+}
+
+/** The step the sheet opens on: the three groups, the warning, the figure and the apply. */
+function ChoosingStep({
+  view,
+  namePrefix,
+  onChoose,
+  onChooseDepth,
+  onCancel,
+  onApply,
+}: {
+  readonly view: GlobalSettingsView;
+  readonly namePrefix: string;
+  readonly onChoose: (key: WholeKitchenGroupKey, tierId: string) => void;
+  readonly onChooseDepth: (cabinetDepthMm: number) => void;
+  readonly onCancel: () => void;
+  readonly onApply: () => void;
+}) {
+  return (
+    <>
       <div className={styles.body}>
         {view.groups.map((group) => (
           <TierGroupSection
             key={group.key}
             group={group}
             onChoose={onChoose}
-            namePrefix={id}
+            namePrefix={namePrefix}
           />
         ))}
         <DepthGroupSection
           group={view.depthGroup}
           onChoose={onChooseDepth}
-          namePrefix={id}
+          namePrefix={namePrefix}
         />
         <p className={styles.warning} data-testid="global-settings-warning">
           <span className={styles.warningMark} aria-hidden="true">
@@ -402,7 +574,7 @@ export function GlobalSettingsSurface({
           </button>
         </div>
       </div>
-    </div>
+    </>
   );
 }
 
@@ -436,6 +608,12 @@ function trapTab(event: ReactKeyboardEvent<HTMLDivElement>): void {
  *
  * So focus not being on any of this dialog's own stops is a case in its own right, and it takes the
  * end the direction implies.
+ *
+ * **What this cannot do is fire when focus has left the dialog altogether**, because it hangs off
+ * the dialog's own `onKeyDown`. The same defect recurred through that gap — the confirm step
+ * unmounted the focused button and dropped focus on `<body>` — so the guarantee above holds only
+ * while something keeps focus inside. That something is the step-change effect in `GlobalSettings`,
+ * and the two are one mechanism read from its two ends.
  */
 function whereTabMustLand(
   stops: readonly HTMLElement[],
