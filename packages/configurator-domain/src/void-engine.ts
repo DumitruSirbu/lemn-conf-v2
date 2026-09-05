@@ -11,6 +11,7 @@ import type { Finish } from "./materials.js";
 import { clipEmptyColumnsAtWallEnd } from "./clip-empty-columns-at-wall-end.js";
 import { mergeAdjacentEmptyColumns } from "./merge-empty-columns.js";
 import { toExactMillimetres, toMetres } from "./millimetres.js";
+import type { SeatRule } from "./seat-rule.js";
 import {
   alongWallCoordinate,
   deriveColumnKeyAt,
@@ -141,6 +142,10 @@ export interface BodyDefinition {
    *  `BodyCatalog` port from outside TypeScript is refused by the same function at the first wave
    *  that reads a rule off it, which is 6J's migration and not this one. */
   readonly depthRule?: CabinetDepthRule;
+  /** Which plane seats this body (ADR 0077). Optional here for the reason `depthRule` is —
+   *  `BodyDefinition` is the port a catalogue arrives through — and refused at assembly by
+   *  `refuseUndeclaredSeatRules`, which is the only caller holding the row's id to name. */
+  readonly seatRule?: SeatRule;
   readonly frameHeightMm?: number;
   readonly canFinish: boolean;
   readonly canHandle: boolean;

@@ -1,3 +1,8 @@
+import {
+  buildKitchenLBodyCatalog,
+  measurableSeatOf,
+  type MeasurableSeatedOn,
+} from "@lemnaria/configurator-domain";
 // **The gate that makes DOM-002's fix a fact rather than a claim.**
 //
 // The domain declares how deep the space each body fills (`BodyDefinition.occupiedDepth`), and it
@@ -46,6 +51,16 @@ import {
   createHeadlessCanvas,
   installHeadlessDocument,
 } from "./support/headless-canvas.js";
+
+/** The plane the catalogue says seats this body — read, never assumed, which is the whole of
+ *  ADR 0077. Hard-coding `"wall-plane"` would put the front-hung hood on the wrong plane, and is
+ *  exactly the second list the ruling deleted from `measure-built-body.ts`. */
+function seatedOnOf(buildId: string, cabinetDepthMm = 600): MeasurableSeatedOn {
+  return measurableSeatOf({
+    buildId,
+    rule: buildKitchenLBodyCatalog(cabinetDepthMm).get(buildId)?.seatRule,
+  });
+}
 
 const OCCURRED_AT = "2026-08-31T12:00:00.000Z";
 
@@ -254,6 +269,7 @@ describe("every insertable body fills the depth its catalogue entry declares", (
       const measured = createBodyProbe(built.kit, built.room).measure({
         buildId: sweep.buildId,
         ...size,
+        seatedOn: seatedOnOf(sweep.buildId, sweep.cabinetDepthMm),
       });
       const seatDepthM = 2 * measured.seatOffsetM;
 

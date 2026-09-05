@@ -208,11 +208,12 @@ describe("a probe the store publishes after its lease ended", () => {
   it("is refused by the ledger's own fake", () => {
     const ledger = leaseLedger(DEFAULT_CABINET_DEPTH_MM);
     const lease = ledger.probeAt(DEEPER_MM);
-    const request = {
+    const request: BodyProbeRequest = {
       buildId: "base-3drawer",
       widthM: 0.6,
       heightM: 0.72,
       depthM: 0.58,
+      seatedOn: "wall-plane",
     };
 
     // Inside the scope the probe answers; `use` releases before it returns, so the smuggled

@@ -24,6 +24,7 @@
 // contract is held to the real geometry at both declared depths by
 // `packages/three-adapter/tests/qa-6k-d-frame-depth-fixed-point.adversarial.test.ts`, which measures
 // the built group's rear face rather than trusting the declaration.
+import { measurableSeatOf } from "../../src/seat-rule.js";
 import { describe, expect, it } from "vitest";
 
 import { setCabinetDepth } from "../../src/commands/set-cabinet-depth.js";
@@ -37,15 +38,30 @@ import { createFakeProbe, createFakeProbeFactory } from "./fake-probe.js";
 
 const OCCURRED_AT = "2026-09-05T12:00:00.000Z";
 
-/** The seeded ids a depth change cannot resolve to a catalogue equivalent, so `reseat` measures them
- *  as they are. Derived from the declaration rather than listed. */
+/** The seeded ids a depth change cannot resolve to a catalogue equivalent, so `reseat` handles them
+ *  as they are. Derived from the declaration rather than listed.
+ *
+ *  **Joint-seated entries are excluded, and by their own declaration** (ADR 0077 decision 1). Since
+ *  that ruling `reseat` does not measure them at all — it removes any stored seat and lets the
+ *  declaration answer — so asking the probe for one is not a wrong number, it is a
+ *  `JointSeatIsNotMeasurableError`. They are asserted separately below rather than dropped. */
 function reseatedBuildIds(cabinetDepthMm: number): readonly string[] {
   const catalog = buildKitchenLBodyCatalog(cabinetDepthMm);
   return [
     ...new Set(KITCHEN_L_DESIGN.placements.map((p) => p.body.buildId)),
   ].filter(
-    (buildId) => catalog.get(buildId)?.catalogEquivalentId === undefined,
+    (buildId) =>
+      catalog.get(buildId)?.catalogEquivalentId === undefined &&
+      catalog.get(buildId)?.seatRule?.seatedOn !== "joint",
   );
+}
+
+/** The joint-seated ids among the seeded population, by declaration. */
+function jointSeatedBuildIds(cabinetDepthMm: number): readonly string[] {
+  const catalog = buildKitchenLBodyCatalog(cabinetDepthMm);
+  return [
+    ...new Set(KITCHEN_L_DESIGN.placements.map((p) => p.body.buildId)),
+  ].filter((buildId) => catalog.get(buildId)?.seatRule?.seatedOn === "joint");
 }
 
 describe("the domain's fake probe, on the bodies reseat measures", () => {
@@ -60,7 +76,7 @@ describe("the domain's fake probe, on the bodies reseat measures", () => {
           catalog.get(buildId)?.occupiedDepth.measuredFrom === "recorded-shell",
       );
 
-      expect(reseatedBuildIds(cabinetDepthMm)).toHaveLength(4);
+      expect(reseatedBuildIds(cabinetDepthMm)).toHaveLength(3);
       expect(shells.length).toBeGreaterThan(1);
       expect(shells.length).toBeLessThan(4);
     },
@@ -81,6 +97,10 @@ describe("the domain's fake probe, on the bodies reseat measures", () => {
           2 *
             probe.measure({
               buildId,
+              seatedOn: measurableSeatOf({
+                buildId,
+                rule: definition.seatRule,
+              }),
               widthM: 0.6,
               heightM: 0.72,
               depthM: toMetres(definition.frameDepthMm),
@@ -126,6 +146,32 @@ describe("the domain's fake probe, on the bodies reseat measures", () => {
         .filter((row) => row.seatDepthMm !== row.declared);
 
       expect(wrong).toEqual([]);
+    },
+  );
+
+  // **The joint arm, asserted rather than assumed absent.** A depth change must leave a joint-seated
+  // body carrying no recorded seat at all, so `deriveFrame` falls through to the declaration at
+  // whatever depth is current. A stored 600 written before ADR 0077 is removed on the next change.
+  it.each(declaredCabinetDepthsMm())(
+    "records no seat for a joint-seated body, at %i mm",
+    (cabinetDepthMm) => {
+      const result = setCabinetDepth({
+        design: KITCHEN_L_DESIGN,
+        catalogAt: buildKitchenLBodyCatalog,
+        cabinetDepthMm,
+        probeAt: createFakeProbeFactory(),
+        occurredAt: OCCURRED_AT,
+      });
+      if (!result.ok) throw new Error(`refused: ${result.reason.code}`);
+      const jointSeated = new Set(jointSeatedBuildIds(cabinetDepthMm));
+
+      // Non-vacuity: the seeded kitchen holds one, and if it ever holds none this test is silent.
+      expect(jointSeated.size).toBeGreaterThan(0);
+      const carryingASeat = result.design.placements
+        .filter((placement) => jointSeated.has(placement.body.buildId))
+        .filter((placement) => placement.body.seatDepthMm !== undefined);
+
+      expect(carryingASeat).toEqual([]);
     },
   );
 });

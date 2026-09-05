@@ -58,6 +58,7 @@ function buildAt(buildId: string, widthMm: number) {
       widthM: toMetres(widthMm),
       heightM: toMetres(definition.nominalHeightMm ?? 0),
       depthM: toMetres(definition.nominalDepthMm ?? 0),
+      seatedOn: "wall-plane",
     },
   });
 }

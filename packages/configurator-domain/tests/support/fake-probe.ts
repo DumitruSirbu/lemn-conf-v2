@@ -82,11 +82,26 @@ function seatOffsetFor(
   catalog: BodyCatalog,
   request: BodyProbeRequest,
 ): number {
-  const { occupiedDepth, frameDepthMm } = requireDefinition(
-    catalog,
-    request.buildId,
-  );
-  if (occupiedDepth.measuredFrom === "recorded-shell") {
+  const definition = requireDefinition(catalog, request.buildId);
+  const { occupiedDepth, frameDepthMm } = definition;
+  // **Only a body a catalogue builder builds consumes the depth it is handed.** A decomposition —
+  // the four structural corner entries — is drawn by its own builder from the kit's dimensions and
+  // never reads the request, so subtracting a front assembly from it invents a number the real probe
+  // never returns. Measured: `wall-corner-return-570` declares 291 and this fake answered 252 at
+  // 600, and 322 against 361 at 700, on every domain depth suite (QA finding F3).
+  //
+  // `isCatalogBuildId` is the adapter's way of asking this and `configurator-domain` cannot import
+  // it — the package depends on nothing but `zod`. This is the same question asked of the
+  // declaration: an entry that is neither insertable nor named after a catalogue equivalent has no
+  // catalogue builder behind it.
+  // Written as two statements rather than `a || b`: `insertable` is a real `false` for every seeded
+  // row, so `??` would short-circuit on it and misclassify the seeded wall cabinets that *do* name a
+  // catalogue equivalent. The lint rule that prefers `??` is right in general and wrong here.
+  const isBuiltByItsOwnCatalogueRow = definition.insertable === true;
+  const resolvesToACatalogueRow = definition.catalogEquivalentId !== undefined;
+  const hasACatalogueBuilder =
+    isBuiltByItsOwnCatalogueRow || resolvesToACatalogueRow;
+  if (hasACatalogueBuilder && occupiedDepth.measuredFrom === "recorded-shell") {
     return (request.depthM - toMetres(occupiedDepth.frontAssemblyMm)) / 2;
   }
   return toMetres(frameDepthMm) / 2;

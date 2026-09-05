@@ -747,6 +747,7 @@ describe("5B10: the depth follows the geometry and the seat does not", () => {
         widthM,
         heightM: (definition.nominalHeightMm ?? 0) / 1000,
         depthM: (definition.nominalDepthMm ?? 0) / 1000,
+        seatedOn: "wall-plane",
       });
 
       expect(Math.round(measurement.seatOffsetM * 2 * 1000)).toBe(

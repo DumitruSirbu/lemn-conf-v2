@@ -13,6 +13,7 @@
 // direction — the geometry is the authority and the declaration follows.
 import {
   buildKitchenLBodyCatalog,
+  measurableSeatOf,
   declaredCabinetDepthsMm,
   toMetres,
   wallCarcassDepthMm,
@@ -57,45 +58,32 @@ function measuredFrameDepthMm(
     widthM: 0.6,
     heightM: 0.72,
     depthM: toMetres(definition.frameDepthMm),
+    seatedOn: measurableSeatOf({ buildId, rule: definition.seatRule }),
   });
   return Math.round(2 * measurement.seatOffsetM * 1000);
 }
 
 /**
- * **Two bodies are deliberately not seated against the wall plane, and for them the invariant above
- * is false by design.** Listed rather than derived, because **nothing declares it** — that gap is
- * reported as a finding rather than papered over, and this set is the smallest honest statement of
- * it until it is ruled on.
+ * **There is no exception set any more, and that is the point of ADR 0077.**
  *
- * - `base-corner-x-900` — [ADR 0025](../../../docs/decisions/0025-the-corner-base-legs-seat-on-the-l-joint.md)
- *   drives the X-leg **20 mm into** the return leg rather than leaving a visible gap behind it, and
- *   fixes its origin at `0.58 − 0.600/2 = 0.28`. So `frameDepthMm` is 560 — twice that origin, which
- *   is the placement quantity — while the mesh's back face is 0.300 behind the origin and the probe
- *   answers 600. The 40 mm difference is exactly twice the 20 mm inset.
- * - `hood-600` — [ADR 0039](../../../docs/decisions/0039-the-hood-is-a-standard-depth-hung-at-the-front.md) hangs the
- *   hood at the **front**, so a standard 500 mm hood at a 600 mm kitchen leaves 100 mm of gap behind
- *   it. Its origin is its own centre at 0.350, so `frameDepthMm` is 700 while the body is 500 deep
- *   and the probe answers 500.
+ * This file used to carry a hand-written `NOT_SEATED_ON_THE_WALL_PLANE` of `base-corner-x-900` and
+ * `hood-600`, with a comment saying the set existed "because the property is not declarable today".
+ * It is declarable now: every entry states its `seatRule`, and each row below is measured against
+ * **its own declared plane** rather than against an assumed one. A list nobody can add a row to is
+ * strictly better than a list that is asserted to be exactly two.
  *
- * **Neither is reachable as a defect**: `hood-600` declares a `catalogEquivalentId`, so a depth
- * change resolves it away before the probe sees it, and `base-corner-x-900` is re-seated by `reseat`
- * from its **declared** frame depth rather than from a measurement of its bounding box.
+ * **One sentence in that comment was false when it was written**, and is recorded here because it is
+ * why the defect survived the wave that introduced it. It said neither exception was "reachable as a
+ * defect" because `base-corner-x-900` is "re-seated by `reseat` from its **declared** frame depth
+ * rather than from a measurement of its bounding box". `reseat` passed the declaration *in* as the
+ * probe's `depthM` argument and persisted `2 × seatOffsetM` *out*; `cornerBaseX()` takes no
+ * arguments, so the declaration reached nothing and the measurement was what got stored. A round
+ * trip moved the leg 20 mm forward into `base-corner-return-320`.
  *
- * `occupiedDepth.measuredFrom` cannot express this. `wall-plane` says the *occupied* depth is
- * measured forward from the wall plane, which is true of both of these; it says nothing about
- * whether the body's own back face touches it.
- *
- * **This set is hand-written because the property is not declarable today, and that is the defect
- * behind it.** The proper fix is a catalogue field saying whether a body's back face sits on the
- * wall plane — declared per entry, never inferred, which is the stance ADR 0058, ADR 0060 and
- * ADR 0061 all take about depth facts. Deferred deliberately (2026-09-05): it is a catalogue-shape
- * change, and until it lands the assertion below that the set is *exactly* these two is what stops
- * a third being absorbed into a list instead of found.
+ * `hood-600` now joins the sweep rather than being excused from it: under `cabinet-front-line` its
+ * declared 700 is measurable, which closes a latent defect where it declared 700, measured 500, and
+ * was saved only by being resolved away before the probe saw it.
  */
-const NOT_SEATED_ON_THE_WALL_PLANE: ReadonlySet<string> = new Set([
-  "base-corner-x-900",
-  "hood-600",
-]);
 
 /** Every entry whose builder **ignores** the depth it is handed, so its seat is a fact about the
  *  body rather than about the request. `recorded-shell` entries are excluded because their seat is a
@@ -104,9 +92,13 @@ function depthIgnoringEntries(
   cabinetDepthMm: number,
 ): readonly (readonly [string, BodyDefinition])[] {
   return [...buildKitchenLBodyCatalog(cabinetDepthMm)].filter(
-    ([buildId, definition]) =>
+    ([, definition]) =>
       definition.occupiedDepth.measuredFrom === "wall-plane" &&
-      !NOT_SEATED_ON_THE_WALL_PLANE.has(buildId),
+      // **Excused by its own declaration, not by a list.** A joint-seated body has no plane of its
+      // own, so "declares twice its measured seat" is not a claim that can be made about it — the
+      // probe cannot be asked. Its gate is the non-intersection check instead, which is a stronger
+      // claim than the one it is excused from, not a weaker one.
+      definition.seatRule?.seatedOn !== "joint",
   );
 }
 
@@ -127,22 +119,27 @@ describe("a wall-plane entry declares the frame depth its builder produces", () 
     },
   );
 
-  // **The exception set is exactly two, and a third would fail here rather than be added quietly.**
-  // Each is a body a dated decision moves off the wall plane; a row that disagrees for any other
-  // reason is a defect and must be found, not listed.
+  // **Every arm has a member, so the sweep cannot pass by reaching only one kind of body.** This is
+  // what the deleted exception set is replaced by: not a shorter list, but a check that the three
+  // declared arms are all populated and therefore all exercised somewhere in this file.
   it.each(declaredCabinetDepthsMm())(
-    "has no row off the wall plane beyond the two declared, at %i mm",
+    "has a member of every declared seat rule at %i mm",
     (cabinetDepthMm) => {
-      const offPlane = [...buildKitchenLBodyCatalog(cabinetDepthMm)]
-        .filter(
-          ([buildId, definition]) =>
-            definition.occupiedDepth.measuredFrom === "wall-plane" &&
-            definition.frameDepthMm !==
-              measuredFrameDepthMm(cabinetDepthMm, buildId, definition),
-        )
-        .map(([buildId]) => buildId);
+      const bySeatRule = new Map<string, string[]>();
+      for (const [buildId, definition] of buildKitchenLBodyCatalog(
+        cabinetDepthMm,
+      )) {
+        const seatedOn = definition.seatRule?.seatedOn ?? "undeclared";
+        bySeatRule.set(seatedOn, [
+          ...(bySeatRule.get(seatedOn) ?? []),
+          buildId,
+        ]);
+      }
 
-      expect(new Set(offPlane)).toEqual(NOT_SEATED_ON_THE_WALL_PLANE);
+      expect(bySeatRule.get("undeclared")).toBeUndefined();
+      expect(bySeatRule.get("wall-plane")?.length).toBeGreaterThan(5);
+      expect(bySeatRule.get("cabinet-front-line")?.length).toBeGreaterThan(0);
+      expect(bySeatRule.get("joint")?.length).toBeGreaterThan(0);
     },
   );
 

@@ -4,6 +4,7 @@
 // Forking them is on record as the cause of a silent, total failure of the replace feature: a void
 // rewrite dropped the swap branch and every "Înlocuiește" row did nothing at all. One path also
 // keeps the fit guards from drifting apart.
+import { measurableSeatOf } from "../seat-rule.js";
 import type { BodyProbe, BodyMeasurement } from "../body-probe.js";
 import {
   describeKindLabel,
@@ -125,6 +126,12 @@ function place(
 ): InsertResult {
   const measurement = input.probe.measure({
     buildId: body.buildId,
+    // Read off the entry, and a throw rather than a default if it is joint-seated: an insertable
+    // body always has a plane of its own (ADR 0077 decision 3).
+    seatedOn: measurableSeatOf({
+      buildId: body.buildId,
+      rule: input.catalog.get(body.buildId)?.seatRule,
+    }),
     widthM: plan.widthM,
     heightM: plan.heightM,
     // §5.2's `b.mk(w, h, void.d)`: the **opening's** own depth, which on a §5.3 swap in place is

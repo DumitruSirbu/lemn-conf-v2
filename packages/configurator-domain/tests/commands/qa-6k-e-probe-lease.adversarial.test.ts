@@ -272,11 +272,12 @@ describe("a depth change to the depth already held", () => {
 describe("the fake factory these suites run against", () => {
   it("builds a different catalogue per declared depth", () => {
     const factory = createFakeProbeFactory();
-    const request = {
+    const request: BodyProbeRequest = {
       buildId: "base-3drawer",
       widthM: 0.6,
       heightM: 0.72,
       depthM: 0.58,
+      seatedOn: "wall-plane",
     };
 
     const seats = declaredCabinetDepthsMm().map((cabinetDepthMm) => {
@@ -296,11 +297,12 @@ describe("the fake factory these suites run against", () => {
     const pinnedAt600 = createFakeProbeFactory({
       catalog: buildKitchenLBodyCatalog(DEFAULT_CABINET_DEPTH_MM),
     });
-    const request = {
+    const request: BodyProbeRequest = {
       buildId: "base-3drawer",
       widthM: 0.6,
       heightM: 0.72,
       depthM: 0.58,
+      seatedOn: "wall-plane",
     };
 
     const atDefault = pinnedAt600(DEFAULT_CABINET_DEPTH_MM).use(

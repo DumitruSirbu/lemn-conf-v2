@@ -92,6 +92,19 @@ export {
   type ColumnBuildDepthQuery,
 } from "./cabinet-depth-rule.js";
 export {
+  isMeasurableSeat,
+  JointSeatIsNotMeasurableError,
+  measurableSeatOf,
+  seatRuleOf,
+  seatedByAJoint,
+  seatedOnCabinetFrontLine,
+  seatedOnWallPlane,
+  UndeclaredSeatRuleError,
+  type MeasurableSeatedOn,
+  type SeatRule,
+  type SeatedOn,
+} from "./seat-rule.js";
+export {
   CabinetDepthBelowMinimumError,
   declaredCabinetDepthsMm,
   DEFAULT_CABINET_DEPTH_MM,

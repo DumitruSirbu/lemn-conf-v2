@@ -149,7 +149,13 @@ describe("insert — fit (§11 rows 5, 6, 7, 14, 20)", () => {
     const [request] = probe.requests;
     expect(request).toBeDefined();
     const measured = probe.measure(
-      request ?? { buildId: "", widthM: 0, heightM: 0, depthM: 0 },
+      request ?? {
+        buildId: "",
+        widthM: 0,
+        heightM: 0,
+        depthM: 0,
+        seatedOn: "wall-plane" as const,
+      },
     );
     expect(measured.fullHeightM).toBeGreaterThan(0.86);
     expect(measured.carcassHeightM).toBeLessThanOrEqual(0.86);

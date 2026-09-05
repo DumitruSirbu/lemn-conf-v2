@@ -59,7 +59,12 @@ function probe() {
       readonly widthM: number;
       readonly heightM: number;
       readonly depthM: number;
-    }) => measureBuiltBody({ kit, room, request }),
+    }) =>
+      measureBuiltBody({
+        kit,
+        room,
+        request: { ...request, seatedOn: "wall-plane" },
+      }),
   };
 }
 
@@ -188,7 +193,13 @@ function seatedBackFace(
   depthM: number,
   wall: DesignWall,
 ): { readonly backM: number; readonly planeM: number } {
-  const request = { buildId, widthM, heightM, depthM };
+  const request = {
+    buildId,
+    widthM,
+    heightM,
+    depthM,
+    seatedOn: "wall-plane" as const,
+  };
   const measurement = measureBuiltBody({ kit, room, request });
   const persistedMm = toMillimetres(2 * measurement.seatOffsetM);
   const transform = deriveCabinetWorldTransform({
@@ -278,7 +289,13 @@ describe("the persisted seat is the depth the builder was handed, less its own f
       const measured = measureBuiltBody({
         kit,
         room,
-        request: { buildId, widthM: 0.6, heightM: 0.7, depthM: depthMm / 1000 },
+        request: {
+          buildId,
+          widthM: 0.6,
+          heightM: 0.7,
+          depthM: depthMm / 1000,
+          seatedOn: "wall-plane",
+        },
       });
       if (toMillimetres(2 * measured.seatOffsetM) !== depthMm - frontMm) {
         drifted.push(
@@ -357,6 +374,7 @@ describe("the bottle cargo builder over its declared width range", () => {
             widthM,
             heightM: 0.86,
             depthM: 0.58,
+            seatedOn: "wall-plane",
           },
         });
         if (toMillimetres(measured.carcassWidthM) !== widthMm) {
@@ -393,6 +411,7 @@ describe("the bottle cargo builder over its declared width range", () => {
               widthM: 0.2,
               heightM: 0.86,
               depthM,
+              seatedOn: "wall-plane",
             },
           }).seatOffsetM,
       ),

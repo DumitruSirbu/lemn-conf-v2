@@ -127,6 +127,7 @@ describe("a stored placement with no measured seat rebuilds to the depth it decl
             2000 *
               probe.measure({
                 buildId,
+                seatedOn: "wall-plane",
                 widthM: 0.6,
                 heightM: heightMOf(definition),
                 depthM: buildDepthM(
@@ -160,6 +161,7 @@ describe("a stored placement with no measured seat rebuilds to the depth it decl
               widthM: 0.6,
               heightM: heightMOf(definition),
               depthM: buildDepthM(kit, buildId, frameDepthM),
+              seatedOn: "wall-plane",
             }).seatOffsetM;
         }
         if (Math.round(frameDepthM * 1000) !== definition.frameDepthMm) {

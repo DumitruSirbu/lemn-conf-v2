@@ -115,6 +115,7 @@ describe("the one dispatch the scene and the probe share", () => {
           widthM: 0.6,
           heightM: 0.72,
           depthM: toMetres(catalog.get(buildId)?.frameDepthMm ?? 600),
+          seatedOn: "wall-plane",
         }),
       ).not.toThrow();
     }
@@ -125,6 +126,7 @@ describe("the one dispatch the scene and the probe share", () => {
 
     const measured = probe.measure({
       buildId,
+      seatedOn: "wall-plane",
       widthM: 0.6,
       heightM: 0.72,
       depthM: toMetres(

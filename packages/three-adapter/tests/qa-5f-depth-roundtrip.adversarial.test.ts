@@ -1,3 +1,8 @@
+import {
+  buildKitchenLBodyCatalog,
+  measurableSeatOf,
+  type MeasurableSeatedOn,
+} from "@lemnaria/configurator-domain";
 // Adversarial QA for M5 wave 5F, on ADR 0040's two conversions.
 //
 // `occupiedDepthM` (domain) and `rebuildDepthM` (adapter) are the same correction applied on two
@@ -44,6 +49,15 @@ import {
   createHeadlessCanvas,
   installHeadlessDocument,
 } from "./support/headless-canvas.js";
+
+/** The plane the catalogue declares for this body (ADR 0077) — read rather than assumed, so the
+ *  front-hung hood is not silently measured against the wall. */
+function seatedOnOf(buildId: string, cabinetDepthMm = 600): MeasurableSeatedOn {
+  return measurableSeatOf({
+    buildId,
+    rule: buildKitchenLBodyCatalog(cabinetDepthMm).get(buildId)?.seatRule,
+  });
+}
 
 const OCCURRED_AT = "2026-08-30T12:00:00.000Z";
 
@@ -244,6 +258,7 @@ describe("ADR 0036 decision 1: a declared dimension is the finished cabinet", ()
     const probe = createBodyProbe(kit, room);
     const measured = probe.measure({
       buildId: "hood",
+      seatedOn: seatedOnOf("hood"),
       widthM: 0.6,
       heightM: 0.7,
       depthM: 0.33,

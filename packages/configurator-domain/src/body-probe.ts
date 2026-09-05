@@ -1,3 +1,4 @@
+import type { MeasurableSeatedOn } from "./seat-rule.js";
 // The one thing `insertBody` cannot do purely: measure a body that does not exist yet.
 //
 // ADR 0011 Gap B. `frameDepthMm` is a measurement of one specific seeded body, so it cannot seat a
@@ -10,6 +11,12 @@ export interface BodyProbeRequest {
   readonly widthM: number;
   readonly heightM: number;
   readonly depthM: number;
+  /** **Which plane to measure the seat against — and a two-member union, deliberately** (ADR 0077
+   *  decision 3). `SeatRule.seatedOn` has three arms; `joint` is not one of them here, so asking the
+   *  probe to measure a joint-seated body does not typecheck rather than throwing at runtime. This
+   *  is also what lets the adapter delete its own `FRONT_ALIGNED_BUILD_IDS` list: the request now
+   *  carries the fact the list was standing in for. */
+  readonly seatedOn: MeasurableSeatedOn;
 }
 
 export interface BodyMeasurement {

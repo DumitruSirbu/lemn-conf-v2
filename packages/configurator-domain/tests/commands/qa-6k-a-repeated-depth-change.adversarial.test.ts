@@ -69,11 +69,19 @@ function changeTo(cabinetDepthMm: number, design: Design): ChangeOutcome {
 }
 
 /** What the catalogue at a depth says each structural body's frame depth is — the number the probe
- *  should be asked to build at, read off the declaration rather than written out here. */
+ *  should be asked to build at, read off the declaration rather than written out here.
+ *
+ *  **A joint-seated entry is not among them, by its own declaration** (ADR 0077 decision 1). Since
+ *  that ruling `reseat` never measures one: it removes any stored seat and leaves the declaration as
+ *  the authority, so the probe is not asked at all. Filtered here rather than removed from
+ *  `STRUCTURAL_BUILD_IDS`, so that list stays the full set the *other* assertions sweep and a
+ *  future entry changing its rule moves this expectation on its own. */
 function declaredDepthsMm(cabinetDepthMm: number): ReadonlyMap<string, number> {
   const catalog = buildKitchenLBodyCatalog(cabinetDepthMm);
   return new Map(
-    STRUCTURAL_BUILD_IDS.map((buildId) => {
+    STRUCTURAL_BUILD_IDS.filter(
+      (buildId) => catalog.get(buildId)?.seatRule?.seatedOn !== "joint",
+    ).map((buildId) => {
       const definition = catalog.get(buildId);
       if (!definition) throw new Error(`${buildId} is not in the catalogue`);
       return [buildId, definition.frameDepthMm];

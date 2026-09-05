@@ -139,6 +139,7 @@ describe("the whole seeded kitchen, structural bodies included", () => {
           widthM: 0.6,
           heightM: 0.72,
           depthM: toMetres(definition.frameDepthMm),
+          seatedOn: "wall-plane",
         }),
       ).not.toThrow();
     }

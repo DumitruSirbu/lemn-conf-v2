@@ -308,6 +308,7 @@ describe("the rebuilt carcass really is the width that was asked for", () => {
         widthM: 0.6,
         heightM: record.frame.h,
         depthM: rebuildDepthM(kit, record.buildId, record.frame.d),
+        seatedOn: "wall-plane",
       });
       expect(toMillimetres(measurement.carcassWidthM)).toBe(600);
       expect(toMillimetres(2 * measurement.seatOffsetM)).toBe(

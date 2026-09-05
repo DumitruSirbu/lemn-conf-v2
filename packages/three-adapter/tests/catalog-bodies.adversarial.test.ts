@@ -77,6 +77,7 @@ function build(
       widthM: toMetres(widthMm),
       heightM: toMetres(heightMm),
       depthM: toMetres(depthMm),
+      seatedOn: "wall-plane",
     },
   });
   return {

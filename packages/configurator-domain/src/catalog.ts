@@ -4,6 +4,8 @@
 // split only by `insertable`. One map, because a placement created by `insertBody` must resolve
 // through the same lookup as a seeded one or `UnknownBodyError` becomes reachable at load; two
 // populations, because a seeded entry describes one already-built body and must never be offered.
+import { seatedOnCabinetFrontLine, seatedOnWallPlane } from "./seat-rule.js";
+import type { SeatRule } from "./seat-rule.js";
 import { describeBandLabel } from "./bands.js";
 import {
   EXTRACTOR_HOOD_KIND,
@@ -533,6 +535,11 @@ interface BodyShape {
    *  arriving through the `BodyCatalog` port from outside TypeScript reaches neither, and is refused
    *  by the same function at the first wave that reads a rule off it: 6J's migration. */
   readonly depthRule: CabinetDepthRule;
+  /** **Required, and with no default anywhere** (ADR 0077). Which plane fixes this body along the
+   *  wall normal. A silent `?? wall-plane` is how a joint-seated corner leg came to be measured and
+   *  re-seated 40 mm too deep; making the field required turns the §7 population into a compile
+   *  error rather than a sweep somebody has to remember to run. */
+  readonly seatRule: SeatRule;
   readonly sizesMm: readonly number[];
   /** **Required, not optional** (logic review R1.10, carried through ADR 0035). `BodyDefinition`
    *  reads an absent declaration as "derive the ranges", which is the conservative direction there.
@@ -585,6 +592,11 @@ function baseCabinet(
   return insertableBody("base", {
     label,
     kind: "base_cabinet",
+    // Every insertable body's back face sits on the wall plane, so its seat is measurable and
+    // must stay measured (ADR 0077 decision 1; ADR 0011 Gap B §6.2 records two failed attempts at
+    // predicting one). The two exceptions are seeded rows and declare their own.
+    seatRule: seatedOnWallPlane,
+
     widthFlex: "fit",
     nominalHeightMm: WORKTOP_HEIGHT_MM,
     nominalDepthMm: baseSeatDepthMm(cabinetDepthMm),
@@ -620,6 +632,10 @@ function wallCabinet(
   return {
     ...insertableBody("wall", {
       label,
+      // Every insertable body's back face sits on the wall plane, so its seat is measurable and
+      // must stay measured (ADR 0077 decision 1; ADR 0011 Gap B §6.2 records two failed attempts at
+      // predicting one). The two exceptions are seeded rows and declare their own.
+      seatRule: seatedOnWallPlane,
       ...declarations,
       kind: "wall_cabinet",
       widthFlex: "fit",
@@ -655,6 +671,11 @@ function fullHeightUnit(
     ...insertableBody("column", {
       label,
       kind,
+      // Every insertable body's back face sits on the wall plane, so its seat is measurable and
+      // must stay measured (ADR 0077 decision 1; ADR 0011 Gap B §6.2 records two failed attempts at
+      // predicting one). The two exceptions are seeded rows and declare their own.
+      seatRule: seatedOnWallPlane,
+
       ...declarations,
       widthFlex: COLUMN_WIDTHS_MM,
       nominalHeightMm: COLUMN_HEIGHT_MM,
@@ -929,6 +950,12 @@ export function buildInsertableBodyDefinitions(
           fronts: NO_OPENING_FRONTS,
         }),
         kind: EXTRACTOR_HOOD_KIND,
+        // **Front-hung** (ADR 0039 decision 2): its front face sits on the cabinet-depth line, so
+        // its seat is measured forward to that line rather than back from its own rear face. Still
+        // measurable — which is why `cabinet-front-line` is its own arm and not folded in with the
+        // corner leg's `joint`. This override is what the adapter's deleted `FRONT_ALIGNED_BUILD_IDS`
+        // used to stand in for, and that set had already drifted: it held "hood" and not "hood-600".
+        seatRule: seatedOnCabinetFrontLine,
         // A hood is a canopy and a chimney: no front, so nothing for a finish chip to recolour.
         // `handle: "push"` here would put cabinet hardware on an extractor. This says nothing about
         // whether a hood is cabinetry — ADR 0035 decision 5 below rules that it is, for width.

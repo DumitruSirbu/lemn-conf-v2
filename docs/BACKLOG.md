@@ -1647,3 +1647,35 @@ now. What is worth fixing is the fragility: one interrupted run reds an entire p
 tells the reader to *"resolve the gap by hand"* with no documented repair.
 
 Not scheduled.
+
+## 35. The joint-seat non-intersection gate needs oriented boxes, not AABBs
+
+Wave 6K-g work item 8, attempted 2026-09-05 and **not shipped**.
+
+ADR 0077 excuses a `joint`-seated entry from `declared-frame-depth-sweep.test.ts` — it has no plane
+of its own to measure — and the excuse is only honest if what replaces it is stronger. The
+replacement the wave specifies is a whole-room gate: no two placed carcasses may occupy the same
+space, run on the seeded design **and** on the design a round trip produces.
+
+**Written, measured, and withdrawn.** Built from `THREE.Box3` over every mesh whose name starts with
+`carcass`, placed exactly as `scene-sync` places them (`frame.x`, `frame.y0`, `frame.z`, `frame.ry`)
+and built through `rebuildDepthM` so a fronted shell is not 39 mm shallow. Two things it got right,
+recorded because the next attempt needs them:
+
+- The volumes separate cleanly. Neighbouring cabinets sharing a plane report **at most 1.2e-8 m³** of
+  floating-point sliver; a genuine intersection reports **4.5e-3 m³** or more. A threshold of
+  `1e-6 m³` sits in five orders of magnitude of empty space.
+- The **round-trip arms passed**, which is the signal that matters: after `600 → 700 → 600` the
+  corner legs no longer intersect, so wave 6K-g's fix holds.
+
+**Why it is not shipped.** An axis-aligned box cannot express a body rotated 90°, and the L corner is
+where every joint-seated body lives. The gate reports three intersections on the **seeded** fixture —
+`p25 ∩ p26` at 4.9e-2 m³, `p8 ∩ p9` at 7.8e-3, `p15 ∩ p21` at 4.5e-3 — all of them pairs on different
+walls whose AABBs overlap in the corner square while the solids do not touch. ADR 0077's own
+measurement avoided this by comparing the z extent alone.
+
+Whitelisting those three pairs would rebuild the hand-written exception set 6K-g just deleted, so it
+was not done. The gate needs oriented bounding boxes, or a per-pair comparison in the shared local
+frame, before it says anything true.
+
+Not scheduled. Until it lands, the joint arm's only gate is the seat it declares.

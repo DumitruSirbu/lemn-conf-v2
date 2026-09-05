@@ -51,7 +51,13 @@ function measure(
   buildId: string,
   size: { widthM: number; heightM: number; depthM: number },
 ): BodyMeasurement {
-  return { ...measureBuiltBody({ kit, room, request: { buildId, ...size } }) };
+  return {
+    ...measureBuiltBody({
+      kit,
+      room,
+      request: { buildId, ...size, seatedOn: "wall-plane" },
+    }),
+  };
 }
 
 interface SizeCase {

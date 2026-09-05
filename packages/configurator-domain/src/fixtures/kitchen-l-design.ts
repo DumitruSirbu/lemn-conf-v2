@@ -1,4 +1,11 @@
 import {
+  seatRuleOf,
+  seatedByAJoint,
+  seatedOnCabinetFrontLine,
+  seatedOnWallPlane,
+  type SeatRule,
+} from "../seat-rule.js";
+import {
   baseCarcassDepthMm,
   baseFinishedDepthMm,
   baseSeatDepthMm,
@@ -281,6 +288,7 @@ export function buildSeededBodyDefinitions(
     | "insertable"
     | "occupiedDepth"
     | "depthRule"
+    | "seatRule"
   > = {
     band: "base",
     // A seeded base body is a §7 base body that has already been built, so it fills the same space:
@@ -292,6 +300,10 @@ export function buildSeededBodyDefinitions(
     // — the freestanding fridge and ADR 0058's two pinned tops — override it on their own line, and
     // the gate that sweeps both depths is what catches a fourth that forgets to.
     depthRule: FOLLOWS_CABINET_DEPTH,
+    // Its back face sits on the wall plane, so its seat is measurable and must stay measured
+    // (ADR 0077 decision 1). The rows this is wrong for — the X-leg, seated by its joint, and the
+    // two hoods, seated on the cabinet front line — override it on their own line below.
+    seatRule: seatedOnWallPlane,
     canFinish: true,
     canHandle: true,
     canReplace: true,
@@ -307,12 +319,14 @@ export function buildSeededBodyDefinitions(
    *  decision 1's front assembly. `open-shelf-600` and `hood-600` are the two rows this is wrong for,
    *  and both override it. */
   const wallCarcass = {
+    seatRule: seatedOnWallPlane,
     ...baseCarcass,
     band: "wall" as const,
     occupiedDepth: shellPlusFrontMm(WALL_FRONT_ASSEMBLY_MM),
   };
   const topCarcass = { ...wallCarcass, band: "top" as const };
   const columnCarcass = {
+    seatRule: seatedOnWallPlane,
     ...baseCarcass,
     band: "column" as const,
     occupiedDepth: finishesAtMm(
@@ -332,6 +346,11 @@ export function buildSeededBodyDefinitions(
         fronts: oneBaseLeaf,
         ...STRUCTURAL_CORNER,
         kind: "corner_base_x",
+        // **Seated by the joint, not by the wall** (ADR 0077 decision 1). There is no plane of its
+        // own to measure: the return leg decides where it stands, which is why the declared 560
+        // disagrees with the 600 its bounding box reports and why measuring it re-seated the leg
+        // 20 mm forward into its neighbour.
+        seatRule: seatedByAJoint,
         // ADR 0025's anomaly, preserved: the seat is the **base run's carcass depth** and not this
         // leg's own 600 mm footprint, because the L-joint decides where it stands. It therefore
         // stands 20 mm inside the wall — at 600 and at 700 alike.
@@ -595,6 +614,9 @@ export function buildSeededBodyDefinitions(
       "hood-600",
       {
         ...wallCarcass,
+        // Front-hung (ADR 0039): fixed against the cabinet front line rather than the wall plane.
+        // Still measurable, but to that plane — which is the distinction a boolean would lose.
+        seatRule: seatedOnCabinetFrontLine,
         cabinetHandles: NO_CABINET_HANDLES,
         fronts: NO_OPENING_FRONTS,
         kind: EXTRACTOR_HOOD_KIND,
@@ -735,6 +757,24 @@ interface DeclaresADepthRule {
   readonly depthRule?: CabinetDepthRule;
 }
 
+/** **Every entry states which plane seats it, or the catalogue does not load** (ADR 0077).
+ *
+ *  The same two-population split `refuseUndeclaredDepthRules` handles, for the same reason and at
+ *  the same moment: `BodyShape.seatRule` is required so §7 is a compile error, but a *seeded* row
+ *  that said nothing would have been read as `wall-plane` by whatever asked next — and that silent
+ *  reading is the whole of ADR 0077's defect. `base-corner-x-900` is a seeded row. */
+export function refuseUndeclaredSeatRules(
+  entries: readonly (readonly [string, DeclaresASeatRule])[],
+): void {
+  for (const [buildId, definition] of entries) {
+    seatRuleOf({ buildId, rule: definition.seatRule });
+  }
+}
+
+interface DeclaresASeatRule {
+  readonly seatRule?: SeatRule;
+}
+
 /** One map, two populations (ADR 0011 Gap A): M2's seeded instances, which reproduce M1's scene
  *  and are never offered, and §7's parameterised entries, which are the only ones a customer can
  *  insert. Both resolve through the same lookup, so a placement created by `insertBody` loads the
@@ -745,6 +785,7 @@ export function buildKitchenLBodyCatalog(cabinetDepthMm: number): BodyCatalog {
     ...buildInsertableBodyDefinitions(cabinetDepthMm),
   ];
   refuseUndeclaredDepthRules(entries);
+  refuseUndeclaredSeatRules(entries);
   // The same stance one declaration over (ADR 0070, wave 6S): `carriesFronts` refuses a
   // contradictory rule where it is written, and this refuses one that arrived through the
   // `BodyCatalog` port without passing a constructor — which is also the only caller that has the

@@ -15,6 +15,7 @@
 // by naming them here. `depthFollowsSetting` is the one question this module asks about an entry,
 // and it lives in `cabinet-depth-rule.ts` so wave 6I's gate and this migration cannot drift.
 import { depthFollowsSetting } from "../cabinet-depth-rule.js";
+import { seatRuleOf, type SeatRule } from "../seat-rule.js";
 import type { BodyProbe, BodyProbeFactory } from "../body-probe.js";
 import type { Design, DesignPlacement } from "../design.js";
 import { toMetres, toMillimetres } from "../millimetres.js";
@@ -174,6 +175,10 @@ function rebuildEveryBodyAt(
         reseat({
           probe,
           placement,
+          seatRule: seatRuleOf({
+            buildId: record.buildId,
+            rule: catalog.get(record.buildId)?.seatRule,
+          }),
           declaredDepthM: toMetres(declaredFrameDepthMm(catalog, record)),
         }),
       );
@@ -256,6 +261,9 @@ function withoutRecordedSeat(placement: DesignPlacement): DesignPlacement {
 interface ReseatInput {
   readonly probe: BodyProbe;
   readonly placement: DesignPlacement;
+  /** Which plane seats this body — the one question that decides whether it is measured at all
+   *  (ADR 0077 decision 1). Read off the entry, never inferred from its band or its id. */
+  readonly seatRule: SeatRule;
   /** What the catalogue built at the **new** setting declares this body's frame depth to be. */
   readonly declaredDepthM: number;
 }
@@ -277,11 +285,25 @@ interface ReseatInput {
  *  for a placement with no seat, so this is the number the first change was already right by. */
 function reseat(input: ReseatInput): DesignPlacement {
   const { placement } = input;
+  if (input.seatRule.seatedOn === "joint") {
+    // **A joint-seated body is never measured** (ADR 0077 decision 1). There is no plane of its own
+    // to measure: `base-corner-x-900` declares 560 and its bounding box reports 600, and persisting
+    // the measurement made the leg flush and drove 0.00835 m³ of its carcass into
+    // `base-corner-return-320`. The stored seat is **removed** rather than rewritten, so
+    // `deriveFrame` falls through to the declaration at whatever depth is current — one authority,
+    // not a copy of it that can go stale.
+    //
+    // Deliberately not "take the declaration where it disagrees with the measurement": that would
+    // make the agreement an *input*, so a joint-seated body that happened to be flush would take the
+    // measured path and be silently right until its neighbour moved.
+    return withoutRecordedSeat(placement);
+  }
   const measurement = input.probe.measure({
     buildId: placement.body.buildId,
     widthM: toMetres(placement.body.widthMm),
     heightM: toMetres(placement.body.heightMm),
     depthM: input.declaredDepthM,
+    seatedOn: input.seatRule.seatedOn,
   });
   return {
     ...placement,
