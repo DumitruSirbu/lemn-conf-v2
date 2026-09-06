@@ -406,8 +406,23 @@ describe("a sink pushed past its wall keeps its cover and loses its rack", () =>
     expect(quantityOf(pushedOut, "dishDryingRack")).toBeUndefined();
   });
 
-  /** The cabinet line for the body that does not fit survives untouched — ADR 0065 decision 6's
-   *  actual guarantee — and what the total loses is exactly one rack and nothing else. */
+  /** **Pinned as measured, not as ruled.** The cabinet line for the body that does not fit survives
+   *  untouched — ADR 0065 decision 6's *stated* guarantee — and what the total loses is exactly one
+   *  rack and nothing else.
+   *
+   *  **What is unruled is whether it should lose it at all.** Decision 6's *reasoning* is that a
+   *  price must not "silently drop at the moment part of it became unbuildable", and here it drops
+   *  by 40 000 minor while the flagged-total string says the total *includes* the overflowing
+   *  cabinets — it has no form for *a line was removed*, so the on-screen explanation points the
+   *  wrong way. That is a contract gap in ADR 0092 decision 10, which specified host resolution and
+   *  never said what an out-of-bounds sink's rack is; it is an open owner input, not a decision this
+   *  test makes.
+   *
+   *  Two facts bound the harm and belong beside the pin: the design is already un-submittable
+   *  (ADR 0065 decision 7), so no order rests on the reduced figure; and `qa-6b-pricing`'s untouched
+   *  case shows a *uniform* overflow loses nothing, so the drop is relative geometry rather than
+   *  overflow itself. The alternative — billing a rack with nowhere to hang — is worse, which is why
+   *  the behaviour is pinned rather than failed. */
   it("drops exactly the rack's amount and keeps every placement line", () => {
     const seeded = priceOrFail(KITCHEN_L_DESIGN);
     const pushedOut = priceOrFail(seededWithTheSinkPushedOut());
