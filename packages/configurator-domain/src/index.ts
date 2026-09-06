@@ -120,6 +120,17 @@ export {
   WORKTOP_DEPTH_MM,
 } from "./worktop-depth.js";
 export * from "./body-probe.js";
+// ADR 0083 decision 5: the run-end panel's seat is a domain fact, so wall A's occupied width and
+// the panel on screen come from one rule. Deliberately not `export *`: `blocksSeat`, the overlap
+// test and the touching tolerance stay module-internal, so no second caller can mint a seat the
+// veto never saw — which is the two-derivations defect this module closes.
+export {
+  RUN_END_PANEL_EDGE_OFFSET_M,
+  RUN_END_PANEL_GAP_M,
+  RUN_END_PANEL_HEIGHT_M,
+  RUN_END_PANEL_THICKNESS_M,
+  runEndPanelSeatM,
+} from "./run-end-panel.js";
 // ADR 0090 decision 5: the whole frozen-map answer at a new cabinet depth, in the package that holds
 // the three inputs it needs. Exported beside the command that publishes it — the store no longer
 // computes any part of this map and reads it off `CabinetDepthSetEffect.columns`.
