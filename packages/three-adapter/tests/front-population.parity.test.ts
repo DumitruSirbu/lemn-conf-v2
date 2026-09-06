@@ -21,6 +21,7 @@ import {
   doorLeafCount,
   doorLeafHeightsMm,
   drawerCount,
+  freeColourFinish,
   KITCHEN_L_BODY_CATALOG,
   UndeclaredFrontPopulationError,
   type BodyDefinition,
@@ -30,7 +31,7 @@ import { beforeAll, describe, expect, it } from "vitest";
 
 import { buildCatalogBody, isCatalogBuildId } from "../src/catalog-bodies.js";
 import { buildDecomposedBody } from "../src/decomposed-bodies.js";
-import { applyFinish, collectFronts, FINISH_COLORS } from "../src/finishes.js";
+import { applyFinish, collectFronts, swatchOf } from "../src/finishes.js";
 import { makeKit, type Kit } from "../src/kitchen-parts.js";
 import { isMesh } from "../src/three-guards.js";
 import {
@@ -38,6 +39,10 @@ import {
   installHeadlessDocument,
 } from "./support/headless-canvas.js";
 import { worldBox } from "./support/structure.js";
+
+/** *Salvie*, reached by the free colour wave 6P mapped it to. The recolouring assertion is about
+ *  which meshes a finish reaches, so any finish would do; this is the one it has used since M4. */
+const SAGE = freeColourFinish("#8d9a84");
 
 /** `kitchen-parts.ts`'s own two names, **retyped rather than imported**, for the reason
  *  `catalog-capability-parity.test.ts` retypes `FRONT_MESH_NAME`: a gate that reads its definition
@@ -392,14 +397,14 @@ describe("the rename leaves recolouring alone", () => {
   it("still recolours every one of them", () => {
     const built = buildBodyOf(drawerBody);
     const fronts = collectFronts(built);
-    applyFinish(fronts, kit.M, "sage");
+    applyFinish(fronts, kit.M, SAGE);
 
     expect(fronts.length).toBe(3);
     for (const front of fronts) {
       const material = front.material as THREE.MeshStandardMaterial;
       expect([front.name, `#${material.color.getHexString()}`]).toEqual([
         DRAWER_FRONT_MESH_NAME,
-        FINISH_COLORS.sage,
+        swatchOf(SAGE).color,
       ]);
     }
   });

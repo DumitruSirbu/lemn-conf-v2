@@ -7,8 +7,9 @@
 // decided by a table lookup that cannot answer "known" for a key nobody put in it.
 import {
   HandleSchema,
-  LEGACY_ENUM_FINISH_NAMES,
-  LEGACY_ENUM_FINISHES,
+  materialById,
+  paletteEntriesOf,
+  paletteFinish,
   type SelectionMeta,
 } from "@lemnaria/configurator-domain";
 import { describe, expect, it } from "vitest";
@@ -28,6 +29,8 @@ import {
   noWidthIsFree,
   widthOptionRow,
 } from "../support/width-options";
+import { PAL_KITCHEN } from "../support/panel-material";
+import { swatchSectionOf } from "../support/panel-sections";
 
 /** §9's order, as a list, so a test can assert "a subsequence of this" rather than restate it. */
 const SECTION_ORDER: readonly PanelSection["kind"][] = [
@@ -43,6 +46,7 @@ function openPanel(
   overrides: Partial<Parameters<typeof describePanel>[0]> = {},
 ) {
   const panel = describePanel({
+    material: PAL_KITCHEN,
     meta,
     offers: [],
     rejection: null,
@@ -471,11 +475,12 @@ describe("the width section renders the engine's verdicts and adds nothing", () 
 describe("finish and handle chips", () => {
   it("offers every schema option exactly once, in both sections", () => {
     const panel = openPanel(occupiedMeta());
-    const finish = panel.sections.find((s) => s.kind === "finish");
     const handle = panel.sections.find((s) => s.kind === "handle");
-    expect(
-      finish?.kind === "finish" ? finish.chips.map((chip) => chip.value) : [],
-    ).toEqual([...LEGACY_ENUM_FINISH_NAMES]);
+    expect(swatchSectionOf(panel).chips.map((chip) => chip.value)).toEqual(
+      paletteEntriesOf(materialById("material.melamine")).map(
+        (entry) => entry.entryId,
+      ),
+    );
     expect(
       handle?.kind === "handle" ? handle.chips.map((chip) => chip.value) : [],
     ).toEqual([...HandleSchema.options]);
@@ -510,20 +515,21 @@ describe("finish and handle chips", () => {
   });
 
   it("marks exactly one finish when one is applied and none when it is not", () => {
-    for (const name of LEGACY_ENUM_FINISH_NAMES) {
-      const section = openPanel(
-        occupiedMeta({ finish: LEGACY_ENUM_FINISHES[name] }),
-      ).sections.find((s) => s.kind === "finish");
-      if (section?.kind !== "finish") throw new Error("no finish section");
+    // Swept over the material's whole declared palette rather than over a sample: the mark is what
+    // tells a customer which of six decors their kitchen is wearing.
+    for (const entry of paletteEntriesOf(materialById("material.melamine"))) {
+      const section = swatchSectionOf(
+        openPanel(occupiedMeta({ finish: paletteFinish(entry.entryId) })),
+      );
       expect(
         section.chips.filter((chip) => chip.isActive).map((c) => c.value),
-      ).toEqual([name]);
+      ).toEqual([entry.entryId]);
     }
-    const bare = openPanel(occupiedMeta()).sections.find(
-      (s) => s.kind === "finish",
-    );
+
     expect(
-      bare?.kind === "finish" ? bare.chips.some((chip) => chip.isActive) : true,
+      swatchSectionOf(openPanel(occupiedMeta())).chips.some(
+        (chip) => chip.isActive,
+      ),
     ).toBe(false);
   });
 });
@@ -534,6 +540,7 @@ describe("the closed panel", () => {
       for (const list of [offers(0), offers(4)]) {
         expect(
           describePanel({
+            material: PAL_KITCHEN,
             meta: undefined,
             offers: list,
             rejection,

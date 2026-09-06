@@ -40,6 +40,7 @@ import { createConfiguratorStore } from "@/store/configurator-store";
 import { createFakeProbeFactory } from "../support/fake-body-probe";
 import { occupiedMeta } from "../support/selection-meta";
 import { noWidthIsFree } from "../support/width-options";
+import { PAL_KITCHEN } from "../support/panel-material";
 
 /** The store's pricing seam and its store, both stubbed, so the bar can be rendered in a state the
  *  seeded design cannot reach — a failed query — and in one it can. `PriceBar` reads exactly these
@@ -349,6 +350,7 @@ function openPanelFor(
 ): Extract<PanelView, { kind: "open" }> {
   const meta = occupiedMeta();
   const panel = describePanel({
+    material: PAL_KITCHEN,
     meta,
     offers: [],
     rejection: null,

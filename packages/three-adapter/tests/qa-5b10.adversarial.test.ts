@@ -8,7 +8,9 @@
 // compares an ordered sequence; where the implementer's suite measures at one cabinet depth, this
 // one sweeps the depths the formula can produce.
 import {
+  freeColourFinish,
   KITCHEN_L_BODY_CATALOG,
+  paletteFinish,
   type BodyDefinition,
 } from "@lemnaria/configurator-domain";
 import { makeKit as makeReferenceKit } from "@reference/kitchen-parts";
@@ -17,12 +19,7 @@ import { beforeAll, describe, expect, it } from "vitest";
 
 import { buildCatalogBody } from "../src/catalog-bodies.js";
 import { buildDecomposedBody } from "../src/decomposed-bodies.js";
-import {
-  applyBodyFinish,
-  collectFronts,
-  FINISH_COLORS,
-  type SolidFinishKey,
-} from "../src/finishes.js";
+import { applyBodyFinish, collectFronts, swatchOf } from "../src/finishes.js";
 import { makeKit, type Kit } from "../src/kitchen-parts.js";
 import { createBodyProbe } from "../src/measure-built-body.js";
 import { isMesh } from "../src/three-guards.js";
@@ -57,12 +54,16 @@ const NICHE_OCCUPIED_MM = 620;
  *  600 mm. */
 const CABINET_DEPTH_SWEEP_MM = [600, 700, 800];
 
-const SOLID_FINISH_KEYS: readonly SolidFinishKey[] = [
-  "white",
-  "clay",
-  "sage",
-  "graphite",
-];
+/** The four flat colours this file has swept since M4, reached by the values wave 6P mapped the
+ *  shipped enum's names onto: two PAL decors and two free colours. Written out rather than read from
+ *  the domain's palette, because the claim under test is about which meshes a recolour reaches and
+ *  the sweep must not silently grow or shrink with the catalogue. */
+const FLAT_FINISHES = [
+  ["Alb", paletteFinish("pal.alb")],
+  ["Lut", freeColourFinish("#cbc3b8")],
+  ["Salvie", freeColourFinish("#8d9a84")],
+  ["Antracit", paletteFinish("pal.antracit")],
+] as const;
 
 let kit: Kit;
 let referenceKit: ReturnType<typeof makeReferenceKit>;
@@ -611,13 +612,13 @@ describe("5B10: the finish the five chips promised", () => {
     expect(byPattern).toEqual(["door_front"]);
   });
 
-  const cases = SOLID_FINISH_KEYS.flatMap((key) =>
-    NICHE_WIDTHS_M.map((widthM) => ({ key, widthM })),
+  const cases = FLAT_FINISHES.flatMap(([name, finish]) =>
+    NICHE_WIDTHS_M.map((widthM) => ({ key: name, finish, widthM })),
   );
 
   it.each(cases)(
     "$key at $widthM m recolours the door and touches nothing else, here or on a neighbour",
-    ({ key, widthM }) => {
+    ({ finish, widthM }) => {
       const niche = kit.make.dishwasherHousing(widthM);
       const neighbour = kit.make.baseCabinet(widthM, { doors: 1 });
       const door = doorOf(niche);
@@ -636,13 +637,13 @@ describe("5B10: the finish the five chips promised", () => {
         });
       }
 
-      applyBodyFinish(niche, kit.M, key);
+      applyBodyFinish(niche, kit.M, finish);
 
       const material = door.material;
       expect(Array.isArray(material)).toBe(false);
       expect(
         `#${(material as THREE.MeshStandardMaterial).color.getHexString()}`,
-      ).toBe(FINISH_COLORS[key]);
+      ).toBe(swatchOf(finish).color);
       for (const [mesh, was] of before) {
         expect(mesh.material, `${mesh.name}: material identity`).toBe(was);
       }

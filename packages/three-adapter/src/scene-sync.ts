@@ -20,7 +20,7 @@ import {
   applyBlackHandleMaterial,
   setHandlesVisible,
 } from "./decomposed-bodies.js";
-import { applyBodyFinish, finishKeyOf, finishSignature } from "./finishes.js";
+import { applyBodyFinish, finishSignature } from "./finishes.js";
 import type { Kit } from "./kitchen-parts.js";
 import { syncRunEndPanel } from "./kitchen-shell.js";
 import {
@@ -181,12 +181,12 @@ function applyRecordedAppearance(
   body: THREE.Group,
   record: PlacementRecord,
 ): void {
+  // Wave 6R made the adapter's table total over the domain's declared palette, so every finish a
+  // record can carry has a material: the "no material for this finish" branch that used to sit here
+  // is gone rather than defaulted, because a missing decor is now a compile failure in
+  // `finishes.ts` instead of a front silently left in the kit's own colour.
   if (record.finishKey && record.canFinish) {
-    // A finish this build has no material for leaves the front in the kit's own colour: wave 6R
-    // gives the adapter a material for every declared entry, and guessing a nearby one until then
-    // would show a customer a colour nobody offered.
-    const key = finishKeyOf(record.finishKey);
-    if (key) applyBodyFinish(body, kit.M, key);
+    applyBodyFinish(body, kit.M, record.finishKey);
   }
   if (record.handleMode === "black" && record.canHandle) {
     applyBlackHandleMaterial(body, kit.M);

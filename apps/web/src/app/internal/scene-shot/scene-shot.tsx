@@ -1,6 +1,7 @@
 "use client";
 
-import { STAGE_BACKGROUND, type FinishKey } from "@lemnaria/three-adapter";
+import type { Finish } from "@lemnaria/configurator-domain";
+import { STAGE_BACKGROUND } from "@lemnaria/three-adapter";
 import { useCallback, useMemo, useRef, useState } from "react";
 
 import KitchenCanvas from "@/scene/kitchen-canvas";
@@ -14,7 +15,7 @@ export interface SceneShotProps {
   height: number;
   position: [number, number, number];
   target: [number, number, number];
-  finish: FinishKey;
+  finish: Finish;
 }
 
 /**

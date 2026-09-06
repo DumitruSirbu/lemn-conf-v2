@@ -36,6 +36,7 @@ import { ro } from "@/content/ro";
 import { REFUSAL } from "../support/selection-meta";
 
 import { createFakeBodyProbe } from "../support/fake-body-probe";
+import { PAL_KITCHEN } from "../support/panel-material";
 
 /** Measures exactly what it was asked to build, so a resize the domain's guards accept is not then
  *  failed by the built-size re-check. */
@@ -86,6 +87,7 @@ function panelAt(
 ) {
   const meta = describeSelection({ ...world, target });
   return describePanel({
+    material: PAL_KITCHEN,
     meta,
     offers: offersFor({
       ...world,

@@ -7,8 +7,7 @@
 //
 // No product rule lives here either. Every section, every disabled state and every sentence arrives
 // already decided in the `PanelView` that `describePanel` produced; this file chooses markup.
-import type { Finish } from "@lemnaria/configurator-domain";
-import { FINISH_COLORS } from "@lemnaria/three-adapter";
+import { freeColourFinish, type Finish } from "@lemnaria/configurator-domain";
 import type { CSSProperties } from "react";
 
 import { ro } from "@/content/ro";
@@ -26,22 +25,14 @@ import type {
   PanelNoticeAction,
   PanelSection,
   PanelView,
+  PaletteSwatchSection,
+  RalPickerSection,
   ReplaceSection,
   WidthChoiceSection,
   WidthSection,
   WidthStepButton,
   WidthStepperSection,
 } from "./panel-model";
-
-/** The swatch colours are the adapter's own, published onto the shell as custom properties so the
- *  stylesheet paints exactly what the 3D materials are built from. A stylesheet cannot import a
- *  constant; this is the seam that lets it read one. */
-const FINISH_SWATCH_COLORS = {
-  "--finish-white": FINISH_COLORS.white,
-  "--finish-clay": FINISH_COLORS.clay,
-  "--finish-sage": FINISH_COLORS.sage,
-  "--finish-graphite": FINISH_COLORS.graphite,
-} as CSSProperties;
 
 /** The `view` arrives as a prop rather than from `usePanelView` here, so that the screen above can
  *  gate frame 2A's instruction copy on the very same value: §9's open/closed rule then has one
@@ -54,11 +45,7 @@ export function EditorPanel({ view }: { readonly view: PanelView }) {
   if (view.kind === "closed") return null;
 
   return (
-    <aside
-      className={styles.shell}
-      style={FINISH_SWATCH_COLORS}
-      data-testid="editor-panel"
-    >
+    <aside className={styles.shell} data-testid="editor-panel">
       <span className={styles.grabber} aria-hidden="true" />
       <PanelHeaderRow header={view.header} onClose={deselect} />
       <PanelNoticeRow notice={view.notice} />
@@ -308,12 +295,43 @@ function OfferThumbnail({ url }: { readonly url: string | undefined }) {
   );
 }
 
+/** ADR 0071 decision 3's three controls, and the only place the choice between them is made in
+ *  this file. The branch is on `section.control`, which `describePanel` copied from the material's
+ *  declaration — nothing here counts chips, and nothing here may start to.
+ *
+ *  `data-finish-control` carries the shape into the DOM so a browser test can tell a decor list
+ *  from two wood swatches from a picker without inferring it from how many buttons it found. */
 function FinishSectionView({ section }: { readonly section: FinishSection }) {
+  return section.control === "ral-picker" ? (
+    <RalPickerView section={section} />
+  ) : (
+    <PaletteSwatchView section={section} />
+  );
+}
+
+/** PAL's six factory decors and veneer's two woods. One projection, two layouts: the list runs down
+ *  the sheet at full width where a decor's name needs the room, and the pair sits side by side. */
+function PaletteSwatchView({
+  section,
+}: {
+  readonly section: PaletteSwatchSection;
+}) {
   const setFinish = useConfiguratorStore((state) => state.setFinish);
   return (
-    <section className={styles.section} data-testid="section-finish">
+    <section
+      className={styles.section}
+      data-testid="section-finish"
+      data-finish-control={section.control}
+    >
       <span className={styles.sectionTitle}>{section.title}</span>
-      <div className={styles.chipRow}>
+      <div
+        // PAL's list scrolls as §10's chip row does; veneer's pair fills the row. The class is
+        // chosen from the declared shape, never from how many chips arrived.
+        className={
+          section.control === "decor-list" ? styles.chipRow : styles.woodPair
+        }
+        data-testid="colour-options"
+      >
         {section.chips.map((chip) => (
           <SwatchButton key={chip.value} chip={chip} onPick={setFinish} />
         ))}
@@ -323,6 +341,10 @@ function FinishSectionView({ section }: { readonly section: FinishSection }) {
   );
 }
 
+/** The swatch paints from the one hex the model carried over from the adapter, published as a
+ *  custom property because a stylesheet cannot import a constant. A wood adds a grain **derived
+ *  from that same property** — there is no second colour authored in CSS for it, which is what
+ *  stopped the two surfaces from disagreeing about what a decor looks like. */
 function SwatchButton({
   chip,
   onPick,
@@ -334,17 +356,54 @@ function SwatchButton({
     <button
       type="button"
       className={styles.swatch}
+      style={{ "--swatch-colour": chip.swatchColor } as CSSProperties}
       data-testid={`finish-${chip.value}`}
+      data-wood={chip.isWood ? "true" : "false"}
       aria-pressed={chip.isActive}
       disabled={chip.isDisabled}
       onClick={() => {
         onPick(chip.finish);
       }}
     >
-      <span className={styles.swatchColor} data-finish={chip.value} />
+      <span className={styles.swatchColor} aria-hidden="true" />
       <span className={styles.swatchLabel}>{chip.label}</span>
       <ChipReason reason={chip.reason} />
     </button>
+  );
+}
+
+/** MDF's control: any colour, because painted MDF can be any colour. A native colour input, so the
+ *  customer gets their platform's own picker rather than a grid this product would have to author
+ *  and would then be claiming to manufacture.
+ *
+ *  The value is **lower-cased before it is written**. `FinishSchema` admits both cases and
+ *  ADR 0081 decision 1 rules no second, case-folding equality, so `#ECEEEB` and `#eceeeb` would be
+ *  two different chosen colours to every reader that compares them. */
+function RalPickerView({ section }: { readonly section: RalPickerSection }) {
+  const setFinish = useConfiguratorStore((state) => state.setFinish);
+  return (
+    <section
+      className={styles.section}
+      data-testid="section-finish"
+      data-finish-control="ral-picker"
+    >
+      <span className={styles.sectionTitle}>{section.title}</span>
+      <label className={styles.picker}>
+        <input
+          type="color"
+          className={styles.pickerInput}
+          data-testid="finish-colour-picker"
+          value={section.value}
+          disabled={section.isDisabled}
+          onChange={(event) => {
+            setFinish(freeColourFinish(event.target.value.toLowerCase()));
+          }}
+        />
+        <span className={styles.pickerLabel}>{section.label}</span>
+      </label>
+      <ChipReason reason={section.reason} />
+      <p className={styles.note}>{section.note}</p>
+    </section>
   );
 }
 

@@ -1,14 +1,15 @@
-// **Wave 6P gave `applyRecordedAppearance` a branch it never had, and until this file nothing
-// exercised the false arm at the scene.**
+// **Wave 6P gave `applyRecordedAppearance` a branch it never had; wave 6R deleted it, and this file
+// is what holds the deletion.**
 //
-// Before the wave, every `PlacementRecord.finishKey` was one of five strings this build draws. Since
-// the wave it is a declared `Finish`, and `scene-sync.ts:189` reads it through `finishKeyOf`, which
-// returns `undefined` for the six declared entries and every free colour this build has no material
-// for. `finishes.test.ts` asserts `finishKeyOf` returns nothing for those; **the scene is where that
-// nothing has to be harmless**, and that is what this file attacks.
+// The branch was `finishKeyOf` returning `undefined` for a declared finish the adapter had no
+// material for — six of the eight palette entries and every free colour — which left the front in
+// the kit's own colour. 6R made the adapter's table total, so **there is no such finish left**, and
+// the property this file asserts inverted: every value a `PlacementRecord` can carry now reaches
+// the front.
 //
-// Three ways it could not be harmless: a throw, a front left wearing the *previous* finish because
-// the body did not re-sign, and a front painted a colour nobody offered because something guessed.
+// Everything else it attacked still matters and is unchanged. The old branch could have stranded a
+// front wearing the *previous* finish because the body did not re-sign; the same failure is
+// reachable through `finishSignature` alone, and the re-signing tests below are what catch it.
 import {
   freeColourFinish,
   LEGACY_ENUM_FINISHES,
@@ -21,6 +22,7 @@ import {
 import * as THREE from "three";
 import { beforeAll, beforeEach, describe, expect, it } from "vitest";
 
+import { swatchOf } from "../src/finishes.js";
 import { makeKit, type Kit } from "../src/kitchen-parts.js";
 import { syncSolidBodies } from "../src/scene-sync.js";
 import { isMesh } from "../src/three-guards.js";
@@ -31,9 +33,11 @@ import {
 
 const WALL_ROW_Y0_M = 1.5;
 
-/** Every declared finish this build has no material for — the six palette entries outside the
- *  legacy five, plus a free colour a RAL picker will produce the moment wave 6R ships one. */
-const UNDRAWABLE_FINISHES = [
+/** The finishes that had no material before wave 6R — the six palette entries outside the legacy
+ *  five, plus the free colours the RAL picker now produces. Kept as this file's own sweep rather
+ *  than replaced by the domain's generator: the claim is about exactly the values that used to fall
+ *  through the deleted branch. */
+const ONCE_UNDRAWABLE_FINISHES = [
   paletteFinish("pal.stejar-halifax"),
   paletteFinish("pal.gri-havanna"),
   paletteFinish("pal.nuc-warmia"),
@@ -102,6 +106,14 @@ function mounted(placementId: string): THREE.Object3D {
   return body;
 }
 
+function colourOf(mesh: THREE.Mesh): string {
+  const material = mesh.material;
+  if (Array.isArray(material) || !("color" in material)) {
+    throw new Error(`Mesh "${mesh.name}" has no single coloured material`);
+  }
+  return `#${(material.color as THREE.Color).getHexString()}`;
+}
+
 function frontsOf(root: THREE.Object3D): readonly THREE.Mesh[] {
   const found: THREE.Mesh[] = [];
   root.traverse((node) => {
@@ -112,33 +124,41 @@ function frontsOf(root: THREE.Object3D): readonly THREE.Mesh[] {
   return found;
 }
 
-describe("a declared finish this build cannot draw", () => {
-  it.each(UNDRAWABLE_FINISHES)("mounts the body at all for %j", (finish) => {
-    expect(() => {
-      sync([makeRecord({ id: "p1", finishKey: finish })]);
-    }).not.toThrow();
+describe("every declared finish now reaches the front it was recorded on", () => {
+  it.each(ONCE_UNDRAWABLE_FINISHES)(
+    "mounts the body at all for %j",
+    (finish) => {
+      expect(() => {
+        sync([makeRecord({ id: "p1", finishKey: finish })]);
+      }).not.toThrow();
 
-    expect(frontsOf(mounted("p1")).length).toBeGreaterThan(0);
-  });
+      expect(frontsOf(mounted("p1")).length).toBeGreaterThan(0);
+    },
+  );
 
-  it.each(UNDRAWABLE_FINISHES)(
-    "leaves the front in the kit's own material for %j rather than guessing a nearby colour",
+  it.each(ONCE_UNDRAWABLE_FINISHES)(
+    "paints %j with the colour the adapter publishes for it, never the kit's default",
     (finish) => {
       sync([makeRecord({ id: "p1", finishKey: finish })]);
 
-      for (const front of frontsOf(mounted("p1"))) {
-        expect(front.material).toBe(kit.M.door);
+      const fronts = frontsOf(mounted("p1"));
+      expect(fronts.length).toBeGreaterThan(0);
+      for (const front of fronts) {
+        // Identity first: a front still wearing `kit.M.door` is the silent default this wave
+        // removed, and it would read as "white" rather than as a failure.
+        expect(front.material).not.toBe(kit.M.door);
+        expect(colourOf(front)).toBe(swatchOf(finish).color);
       }
     },
   );
 
-  it.each(UNDRAWABLE_FINISHES)(
-    "clears a finish it *could* draw when the record moves to %j",
+  it.each(ONCE_UNDRAWABLE_FINISHES)(
+    "replaces the colour a body was already wearing when the record moves to %j",
     (finish) => {
-      // The failure the branch invites: `applyBodyFinish` is skipped, and if the body were not
-      // re-signed it would still be the sage one from the previous sync — a customer picking a
-      // decor and seeing the old colour stay put, which is the exact defect §5.5's seam was
-      // written to close.
+      // The failure the deleted branch invited, and the one `finishSignature` still has to prevent:
+      // if the body were not re-signed it would still be the sage one from the previous sync — a
+      // customer picking a decor and seeing the old colour stay put, which is the exact defect
+      // §5.5's seam was written to close.
       sync([makeRecord({ id: "p1", finishKey: LEGACY_ENUM_FINISHES.sage })]);
       const before = mounted("p1");
 
@@ -146,14 +166,14 @@ describe("a declared finish this build cannot draw", () => {
 
       expect(mounted("p1")).not.toBe(before);
       for (const front of frontsOf(mounted("p1"))) {
-        expect(front.material).toBe(kit.M.door);
+        expect(colourOf(front)).toBe(swatchOf(finish).color);
       }
     },
   );
 
-  it("re-signs between two finishes it cannot draw either", () => {
-    // Both render identically today, so only the signature can tell them apart. A signature that
-    // collapsed them would strand the first one on screen once wave 6R gives them materials.
+  it("re-signs between the two veneer woods", () => {
+    // Before 6R both rendered identically, so only the signature could tell them apart; now they
+    // are two colours and a collapsed signature would strand the first one on screen.
     sync([makeRecord({ id: "p1", finishKey: paletteFinish("veneer.stejar") })]);
     const before = mounted("p1");
 
@@ -182,7 +202,7 @@ describe("a declared finish this build cannot draw", () => {
     expect(mounted("p1")).not.toBe(before);
   });
 
-  it.each(UNDRAWABLE_FINISHES)(
+  it.each(ONCE_UNDRAWABLE_FINISHES)(
     "keeps the identical instance for %j when nothing changed",
     (finish) => {
       const records = [makeRecord({ id: "p1", finishKey: finish })];

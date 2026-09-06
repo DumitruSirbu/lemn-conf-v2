@@ -1,3 +1,4 @@
+import { materialOfDesign } from "./design-material.js";
 import { MAX_EMPTY_COLUMNS } from "./design-bounds.js";
 import type {
   Design,
@@ -12,10 +13,8 @@ import {
 } from "./fixtures/kitchen-l-design.js";
 import {
   DEFAULT_FINISH,
-  DEFAULT_MATERIAL_ID,
   isLegacyEnumFinishName,
   LEGACY_ENUM_FINISHES,
-  lookUpMaterial,
   materialOffersFinish,
   type Finish,
   type Material,
@@ -583,9 +582,7 @@ function withoutFinish(placement: DesignPlacement): DesignPlacement {
  * nothing does not rewrite the object a later save is diffed against.
  */
 function resolveFinishesTheMaterialDoesNotOffer(design: Design): Design {
-  const lookup = lookUpMaterial(
-    design.settings?.materialTierId ?? DEFAULT_MATERIAL_ID,
-  );
+  const lookup = materialOfDesign(design);
   if (lookup.kind === "undeclared") return design;
 
   const material = lookup.material;

@@ -8,9 +8,11 @@
 import {
   cabinetDepthMmOf,
   describeSelection,
+  materialOfDesign,
   offersFor,
   columnWidthChoices,
   widthOptionsFor,
+  type MaterialLookup,
   type WidthRangeMm,
   type CatalogOffer,
   type SelectionMeta,
@@ -31,6 +33,7 @@ export function usePanelView(): PanelView {
   const widthOptions = widthAnswers.options;
   const widthRanges = useSelectionWidthRanges();
   const widthSteps = widthAnswers.steps;
+  const material = useSelectionMaterial();
   const rejection = useConfiguratorStore((state) => state.lastRejection);
   // §9 item 7's footer price. Derived from the current design by the one hook both price surfaces
   // read, so the footer and the bar cannot show different numbers for one kitchen.
@@ -52,6 +55,7 @@ export function usePanelView(): PanelView {
         widthRanges,
         widthSteps,
         rejection,
+        material,
         pricing,
         isBodyProbeAttached,
         canWrite,
@@ -64,12 +68,25 @@ export function usePanelView(): PanelView {
       widthRanges,
       widthSteps,
       rejection,
+      material,
       pricing,
       isBodyProbeAttached,
       canWrite,
       saveStatus,
     ],
   );
+}
+
+/** **Which colour control §9's Finisaj section gets** (ADR 0071 decision 3): the shape is the
+ *  design's material's own, so this is read off the held design and never off the selected body.
+ *
+ *  Memoised over the design rather than resolved inside the selector: a declared lookup is a fresh
+ *  object every call, and returning one from a store selector re-renders the panel on every store
+ *  change whether or not the material moved. */
+function useSelectionMaterial(): MaterialLookup {
+  const design = useConfiguratorStore((state) => state.design);
+
+  return useMemo(() => materialOfDesign(design), [design]);
 }
 
 /** §8's `meta` — the panel's entire input. `undefined` when nothing is selected, and also when a

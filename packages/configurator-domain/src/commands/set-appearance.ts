@@ -10,14 +10,10 @@
 // (ADR 0078 decision 6). The capability question is asked first: a body with no doors has nothing to
 // say about a colour, and naming the material at a hood would send the customer to the wrong
 // control.
+import { materialOfDesign } from "../design-material.js";
 import { describeKindLabel } from "../catalog.js";
 import type { CabinetBody, Design, Handle } from "../design.js";
-import {
-  DEFAULT_MATERIAL_ID,
-  lookUpMaterial,
-  materialOffersFinish,
-  type Finish,
-} from "../materials.js";
+import { materialOffersFinish, type Finish } from "../materials.js";
 import {
   derivePlacementRecords,
   type BodyCatalog,
@@ -116,9 +112,7 @@ export function setFinish(
  *  product does not declare has no palette to judge a colour against — so the command lets the
  *  finish through rather than making a stale tier unrecolourable. */
 function designOffersFinish(design: Design, finish: Finish): boolean {
-  const lookup = lookUpMaterial(
-    design.settings?.materialTierId ?? DEFAULT_MATERIAL_ID,
-  );
+  const lookup = materialOfDesign(design);
   return (
     lookup.kind === "undeclared" ||
     materialOffersFinish(lookup.material, finish)

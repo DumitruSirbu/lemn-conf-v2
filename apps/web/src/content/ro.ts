@@ -251,14 +251,28 @@ export const ro = {
     saveStoppedNotice:
       "Salvarea s-a oprit pentru această configurație și nu va reporni singură. Ce vezi pe ecran nu este salvat și se pierde dacă închizi sau reîncarci pagina. Deschide configuratorul într-o filă nouă și reia modificările acolo.",
     finishTitle: "Finisaj",
-    finishLabels: {
-      white: "Alb mat",
-      oak: "Stejar",
-      clay: "Lut",
-      sage: "Salvie",
-      graphite: "Grafit",
-    },
-    finishNote: "Doar combinațiile material + culoare validate apar aici.",
+    /**
+     * **The decor names are not here**, and that is deliberate. Wave 6R replaced the five hardcoded
+     * labels with the material's own palette, whose names ADR 0071 decision 4 confirms with the
+     * owner and `materials.ts` declares — so a decor is rendered by its declared name and this file
+     * holds no second copy of it to drift.
+     *
+     * ADR 0071 decision 2 rules that the swatch and the 3D are an approximation and rules **no
+     * wording** for saying so. Drafted here per wave 6D's standing rule, which asks a wave with no
+     * ruled wording to draft one and mark it rather than invent one silently.
+     *
+     * Ruled 2026-09-06, pending owner review.
+     */
+    finishApproximationNote:
+      "Culoarea din pastilă și cea din vizualizare sunt orientative — nuanța finală se alege pe mostra fizică.",
+    /**
+     * MDF's control is a colour picker rather than a list (ADR 0071 decision 3), and a colour input
+     * carries no label inside itself. Names the picker without naming a price: colour never affects
+     * price, for PAL or for MDF (decision 1).
+     *
+     * Ruled 2026-09-06, pending owner review.
+     */
+    finishPickerLabel: "Alege culoarea",
     handleTitle: "Mâner",
     handleLabels: {
       steel: "Bară inox",

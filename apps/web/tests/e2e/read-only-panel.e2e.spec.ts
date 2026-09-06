@@ -95,7 +95,7 @@ test("a shared link opened without the write-token cookie renders a read-only pa
     "true",
   );
   await expect(page.getByTestId("panel-remove")).toBeEnabled();
-  await expect(page.getByTestId("finish-graphite")).toBeEnabled();
+  await expect(page.getByTestId("finish-pal.antracit")).toBeEnabled();
 
   // Same browser, same viewport, no credential — a link opened by someone who never held one.
   await context.clearCookies();

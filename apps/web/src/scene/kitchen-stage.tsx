@@ -24,7 +24,6 @@ import {
   seatObjectOnStage,
   syncSolidBodies,
   syncVoidMeshes,
-  type FinishKey,
 } from "@lemnaria/three-adapter";
 import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
@@ -35,6 +34,7 @@ import {
   wallCarcassDepthMm,
   createBodyProbeLease,
   type BodyProbeFactory,
+  type Finish,
 } from "@lemnaria/configurator-domain";
 
 import type { Selection } from "../store/apply-command-result";
@@ -106,7 +106,7 @@ interface CameraGoal {
 
 export interface KitchenStageProps {
   view: SceneView;
-  finish?: FinishKey;
+  finish?: Finish;
   onSettled?: () => void;
 }
 

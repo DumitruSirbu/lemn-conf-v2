@@ -8,6 +8,7 @@
 // resources exactly once, and the shell's partial teardown must free none of them at all.
 import {
   derivePlacementRecords,
+  freeColourFinish,
   KITCHEN_L_BODY_CATALOG,
   KITCHEN_L_DESIGN,
   type VoidRecord,
@@ -17,6 +18,11 @@ import { beforeAll, describe, expect, it, vi } from "vitest";
 
 import { applyBlackHandleMaterial } from "../src/decomposed-bodies.js";
 import { applyFinish, collectFronts } from "../src/finishes.js";
+
+/** The finish this file dresses a front in. Any one would do — it is the derived material's
+ *  lifetime under test, not its colour — and *Salvie* is the one it has used since M4, reached by
+ *  the free colour wave 6P mapped it to. */
+const SAGE = freeColourFinish("#8d9a84");
 import { disposeKitAndStage, type KitStage } from "../src/kit-disposal.js";
 import { kitOwnedResources } from "../src/kit-ownership.js";
 import { buildKitchenShell } from "../src/kitchen-shell.js";
@@ -223,7 +229,7 @@ describe("disposeKitAndStage", () => {
   it("disposes the materials derived from the kit — a finish and the black handle", () => {
     const kit = newKit();
     const stage = mountStage(kit);
-    applyFinish(collectFronts(stage.room), kit.M, "sage");
+    applyFinish(collectFronts(stage.room), kit.M, SAGE);
     applyBlackHandleMaterial(stage.room, kit.M);
     const derived = [
       soleMaterialOf(required(collectFronts(stage.room)[0], "a front mesh")),
@@ -272,11 +278,11 @@ describe("disposeKitAndStage", () => {
     const kit = newKit();
     const stage = mountStage(kit);
     const front = required(collectFronts(stage.room)[0], "a front mesh");
-    applyFinish([front], kit.M, "sage");
+    applyFinish([front], kit.M, SAGE);
     const disposedFinish = front.material;
 
     disposeKitAndStage(stage);
-    applyFinish([front], kit.M, "sage");
+    applyFinish([front], kit.M, SAGE);
 
     expect(front.material).not.toBe(disposedFinish);
   });

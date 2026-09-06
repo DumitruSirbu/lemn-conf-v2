@@ -681,7 +681,10 @@ function DepthGroupSection({
       ))}
       {/* Why there is no amount beside any of these, so the absence does not read as a missing
           line. */}
-      <p className={styles.anchor} data-testid="global-settings-depth-note">
+      <p
+        className={styles.groupAnchor}
+        data-testid="global-settings-depth-note"
+      >
         {group.note}
       </p>
       <p className={styles.warning} data-testid="global-settings-depth-warning">
@@ -723,7 +726,7 @@ function TierGroupSection({
       {/* What this group's amounts are measured against, in the product's own words. Rendered only
           when there are amounts for it to be about. */}
       {group.anchor === undefined ? null : (
-        <p className={styles.anchor} data-testid="global-settings-anchor">
+        <p className={styles.groupAnchor} data-testid="global-settings-anchor">
           {group.anchor}
         </p>
       )}

@@ -8,6 +8,9 @@ export * from "./design.js";
 // The finish shape, the three materials and their palettes (ADR 0071). Exported beside `design.js`
 // because `CabinetBody.finish` is one of its values, and read by every surface that offers a colour.
 export * from "./materials.js";
+// Which material a design is on, resolved by the two rules every reader of `materialTierId` owes:
+// PAL when unset, and an answer rather than a throw when the id names nothing declared.
+export * from "./design-material.js";
 // The count the material change's confirmation is conditional on (ADR 0081 decision 1). Beside
 // `materials.js` because it is the second query the same declaration answers.
 export * from "./chosen-finishes.js";

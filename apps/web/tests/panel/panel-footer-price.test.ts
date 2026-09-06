@@ -19,6 +19,7 @@ import { describeStartingPrice } from "@/price/starting-price";
 
 import { occupiedMeta, REFUSAL } from "../support/selection-meta";
 import { noWidthIsFree } from "../support/width-options";
+import { PAL_KITCHEN } from "../support/panel-material";
 
 const SEEDED_PRICE: PricingResult = priceDesign({
   design: KITCHEN_L_DESIGN,
@@ -39,6 +40,7 @@ function footerFor(
 ): PanelFooter {
   const meta = occupiedMeta();
   const panel = describePanel({
+    material: PAL_KITCHEN,
     meta,
     offers: [],
     rejection: null,

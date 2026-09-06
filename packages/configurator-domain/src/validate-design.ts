@@ -6,6 +6,7 @@
 //
 // One validator, three seams: the API write path, the stored-row load path, and any future import.
 
+import { materialOfDesign } from "./design-material.js";
 import {
   acceptsWidthMm,
   resolveCatalogEquivalent,
@@ -24,11 +25,7 @@ import {
   MIN_BODY_HEIGHT_MM,
   NARROWEST_CATALOG_WIDTH_MM,
 } from "./design-bounds.js";
-import {
-  DEFAULT_MATERIAL_ID,
-  lookUpMaterial,
-  materialOffersFinish,
-} from "./materials.js";
+import { materialOffersFinish } from "./materials.js";
 import { toMetres, toMillimetres } from "./millimetres.js";
 import {
   placementExtendsPastOwnWall,
@@ -132,9 +129,7 @@ export function validateDesignForCatalog(
  * a body wearing no finish is not wearing one the material fails to offer.
  */
 function findUnofferedFinishIssues(design: Design): DesignValidationIssue[] {
-  const lookup = lookUpMaterial(
-    design.settings?.materialTierId ?? DEFAULT_MATERIAL_ID,
-  );
+  const lookup = materialOfDesign(design);
   if (lookup.kind === "undeclared") return [];
 
   const material = lookup.material;
