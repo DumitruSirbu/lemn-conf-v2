@@ -82,16 +82,25 @@ describe("a tier's delta is the whole kitchen, twice", () => {
     expect(deltaOf(SHIPPED.hardware, SHIPPED.hardware.defaultTierId)).toBe(0);
   });
 
-  it("does not print a hardware tier's per-handle rate as a whole-kitchen figure", () => {
-    // The case this wave's open question warns about, made falsifiable: the seeded kitchen has many
-    // more than one cabinet handle, so a delta equal to the book's own `perCabinetHandleMinor` would
-    // mean the surface had transcribed a rate.
+  it("does not print a hardware tier's per-mechanism rate as a whole-kitchen figure", () => {
+    // The case this wave's open question warns about, made falsifiable: the seeded kitchen carries
+    // many more than one mechanism of each kind, so a delta equal to any one of the book's own
+    // three rates would mean the surface had transcribed a rate. Swept over all three since wave 6T
+    // replaced the single per-handle rate with them (ADR 0070 decision 1) — checking one would
+    // leave a surface that transcribed either of the others green.
     for (const tier of SAMPLE_PRICE_BOOK.hardware.tiers) {
-      if (tier.perCabinetHandleMinor === 0) continue;
-      expect(
-        deltaOf(SHIPPED.hardware, tier.tierId),
-        tier.tierId,
-      ).toBeGreaterThan(tier.perCabinetHandleMinor);
+      const deltaMinor = deltaOf(SHIPPED.hardware, tier.tierId);
+      if (deltaMinor === 0) continue;
+      for (const rateMinor of [
+        tier.perHingeMinor,
+        tier.perDrawerMinor,
+        tier.perPushToOpenMinor,
+      ]) {
+        expect(deltaMinor, `${tier.tierId} @ ${String(rateMinor)}`).not.toBe(
+          rateMinor,
+        );
+      }
+      expect(deltaMinor, tier.tierId).toBeGreaterThan(tier.perHingeMinor);
     }
   });
 

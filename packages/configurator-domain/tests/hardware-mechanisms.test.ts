@@ -46,7 +46,9 @@ function definitionOf(buildId: string): BodyDefinition {
 /** A display entry at a real catalogue row, with only what the caller cares about stated. The
  *  fields this module never reads carry obvious placeholders, so a reader can see at a glance that
  *  a wall, a band and a position are not inputs to a mechanism count. */
-function entryAt(overrides: Partial<DisplayEntry> & { buildId: string }): DisplayEntry {
+function entryAt(
+  overrides: Partial<DisplayEntry> & { buildId: string },
+): DisplayEntry {
   return {
     placementId: `p-${overrides.buildId}`,
     label: "under test",
@@ -72,7 +74,16 @@ function catalogDeclaring(fronts: FrontPopulationRule): BodyCatalog {
  *  what `exactOptionalPropertyTypes` distinguishes and what a catalogue assembled outside TypeScript
  *  actually arrives as. */
 function catalogDeclaringNothing(): BodyCatalog {
-  const { fronts: _undeclared, ...withoutFronts } = definitionOf("base-sink");
+  const declared = definitionOf("base-sink");
+  if (!declared.fronts) {
+    throw new Error(
+      "base-sink declares no fronts, so removing them proves nothing",
+    );
+  }
+  const withoutFronts = Object.fromEntries(
+    Object.entries(declared).filter(([field]) => field !== "fronts"),
+  ) as BodyDefinition;
+
   return new Map([["under-test", withoutFronts]]);
 }
 
@@ -88,7 +99,9 @@ function leavesOf(bandHeightsMm: readonly number[], leavesPerBand: number) {
 // hinges plus the pantry's two 1290 mm leaves at three.
 describe("the seeded kitchen's mechanisms, against ADR 0070's independent derivation", () => {
   it("counts 74 hinges, 5 drawers and 0 push-to-open", () => {
-    expect(countHardwareMechanisms(SEEDED_ENTRIES, KITCHEN_L_BODY_CATALOG)).toEqual({
+    expect(
+      countHardwareMechanisms(SEEDED_ENTRIES, KITCHEN_L_BODY_CATALOG),
+    ).toEqual({
       hinges: 74,
       drawers: 5,
       pushToOpen: 0,
@@ -220,7 +233,8 @@ describe("push-to-open is counted per opening front, and only on a push body", (
 
   it("counts one per door leaf and one per drawer across the seeded kitchen", () => {
     expect(
-      countHardwareMechanisms(pushEverywhere, KITCHEN_L_BODY_CATALOG).pushToOpen,
+      countHardwareMechanisms(pushEverywhere, KITCHEN_L_BODY_CATALOG)
+        .pushToOpen,
     ).toBe(36 + 5);
   });
 
@@ -243,7 +257,8 @@ describe("push-to-open is counted per opening front, and only on a push body", (
       countHardwareMechanisms(withSteel, KITCHEN_L_BODY_CATALOG).pushToOpen,
     ).toBe(0);
     expect(
-      countHardwareMechanisms(SEEDED_ENTRIES, KITCHEN_L_BODY_CATALOG).pushToOpen,
+      countHardwareMechanisms(SEEDED_ENTRIES, KITCHEN_L_BODY_CATALOG)
+        .pushToOpen,
     ).toBe(0);
   });
 });

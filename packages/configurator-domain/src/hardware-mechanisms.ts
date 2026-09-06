@@ -2,14 +2,16 @@
 // latches, counted over a design's bodies from the facts wave 6S declared.
 //
 // ADR 0070 decision 1 prices hardware **per mechanism and never per handle**: a `handle: "push"`
-// body carries hinges and runners and no handle at all, so the shipped
-// `HardwareTier.perCabinetHandleMinor` basis bills a whole push-to-open kitchen at exactly zero.
-// This module answers the three quantities that replace it.
+// body carries hinges and runners and no handle at all, so the superseded per-cabinet-handle basis
+// billed a whole push-to-open kitchen at exactly zero. This module answers the three quantities
+// that replace it.
 //
 // **It counts; it does not price.** It lives beside `cabinet-handles.ts` and `front-population.ts`
 // and deliberately **outside `pricing/`** (ADR 0092 decision 4): a mechanism count is a fact about
 // a design's bodies, not about money, and the manufacturer price dashboard (ADR 0062) will want it
-// without importing a price book. No amount, rate or tier appears here.
+// without importing a price book. **No amount, rate or tier appears here, and none is named here
+// either** — ADR 0062's third prohibition is held by a source scan for a minor-unit field name
+// (`pricing-seams.test.ts`), which reads prose as well as code and is meant to.
 //
 // **Nothing here reads a mesh or a `kind`.** Every number comes from the placement's own catalogue
 // entry through `frontPopulationQueryFor`, which is the seam 6S's review round created so that a

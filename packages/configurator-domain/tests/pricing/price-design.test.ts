@@ -21,6 +21,10 @@ import {
   KITCHEN_L_BODY_CATALOG,
   KITCHEN_L_DESIGN,
 } from "../../src/fixtures/kitchen-l-design.js";
+import {
+  countHardwareMechanisms,
+  type HardwareMechanismCounts,
+} from "../../src/hardware-mechanisms.js";
 import { priceDesign } from "../../src/pricing/price-design.js";
 import {
   pricedFlat,
@@ -39,6 +43,28 @@ import type { BodyCatalog, BodyDefinition } from "../../src/void-engine.js";
 
 const CATALOG = KITCHEN_L_BODY_CATALOG;
 const BOOK = SAMPLE_PRICE_BOOK;
+
+/** What the book's **default** hardware tier charges the seeded kitchen, recomposed from that
+ *  tier's own three rates and the design's own three counts. Never a literal here: the
+ *  reconciliation to ADR 0092 decision 6's table is `hardware-tier-reconciliation.test.ts`'s job. */
+function hardwareAmountOfDefaultTier(): number {
+  const tier = BOOK.hardware.tiers.find(
+    (candidate) => candidate.tierId === BOOK.hardware.defaultTierId,
+  );
+  if (!tier) throw new Error("the book offers no default hardware tier");
+  const mechanisms = countHardwareMechanisms(
+    projectDesignForDisplay(KITCHEN_L_DESIGN, CATALOG).flatMap(
+      (group) => group.entries,
+    ),
+    CATALOG,
+  );
+
+  return (
+    tier.perHingeMinor * mechanisms.hinges +
+    tier.perDrawerMinor * mechanisms.drawers +
+    tier.perPushToOpenMinor * mechanisms.pushToOpen
+  );
+}
 
 /** The seeded design with its placements replaced, so a test writes only the document it is about
  *  while the room and the timestamps stay the ones the product ships. */
@@ -496,7 +522,12 @@ describe("rule resolution goes through catalogEquivalentId", () => {
   });
 });
 
-describe("the handle line counts cabinet handles, from the placement's own entry", () => {
+/** **The hardware line is one line at `quantity: 1`** since wave 6T (ADR 0092 decision 4): three
+ *  per-mechanism rates cannot share one unit price, so the line no longer publishes a count and the
+ *  count has to be read where it is derived. `cabinetHandleCount` survives with no production
+ *  reader and its parity gate with it, so it is asserted directly here; what the *price* is billed
+ *  off is the mechanism count, which is asserted through the line's amount. */
+describe("the mechanism count comes from the placement's own entry", () => {
   const PREMIUM = { hardwareTierId: "hardware.premium" } as const;
 
   function hardwareLineOf(priced: PricedDesign): PriceLine {
@@ -507,28 +538,77 @@ describe("the handle line counts cabinet handles, from the placement's own entry
     return line;
   }
 
+  /** What a tier charges for these mechanisms, recomposed from the book's own rates. */
+  function hardwareAmountFor(
+    tierId: string,
+    mechanisms: HardwareMechanismCounts,
+  ): number {
+    const tier = BOOK.hardware.tiers.find(
+      (candidate) => candidate.tierId === tierId,
+    );
+    if (!tier) throw new Error(`the book holds no "${tierId}"`);
+    return (
+      tier.perHingeMinor * mechanisms.hinges +
+      tier.perDrawerMinor * mechanisms.drawers +
+      tier.perPushToOpenMinor * mechanisms.pushToOpen
+    );
+  }
+
+  /** What the design would be billed if `countHardwareMechanisms` were reading the same entries the
+   *  query reads — recomposed here from the projection and the book, so a query that swapped which
+   *  row it counted off goes red on the *amount* rather than on nothing. */
+  function expectedHardwareAmount(
+    design: Design,
+    catalog: BodyCatalog,
+  ): number {
+    return hardwareAmountFor(
+      PREMIUM.hardwareTierId,
+      countHardwareMechanisms(
+        projectDesignForDisplay(design, catalog).flatMap(
+          (group) => group.entries,
+        ),
+        catalog,
+      ),
+    );
+  }
+
   it("bills the oven tower for two handles, not the four bars its builder draws", () => {
-    const priced = priceOrFail({
-      design: designOf([
-        {
-          id: "t",
-          wall: "B",
-          alongMm: 1200,
-          y0Mm: 0,
-          body: {
-            buildId: "tall-oven-tower-600",
-            widthMm: 600,
-            heightMm: 2200,
-          },
+    const tower = designOf([
+      {
+        id: "t",
+        wall: "B",
+        alongMm: 1200,
+        y0Mm: 0,
+        body: {
+          buildId: "tall-oven-tower-600",
+          widthMm: 600,
+          heightMm: 2200,
         },
-      ]),
+      },
+    ]);
+    const priced = priceOrFail({
+      design: tower,
       catalog: CATALOG,
       book: BOOK,
       pricingVersion: BOOK.version,
       selections: PREMIUM,
     });
 
-    expect(hardwareLineOf(priced).quantity).toBe(2);
+    // The declared count the mesh parity gate holds, read straight off the row — ADR 0061's two,
+    // against the four bars the builder draws. It has no production reader since wave 6T and this
+    // is what keeps it from silently drifting.
+    expect(
+      cabinetHandleCount({
+        buildId: "tall-oven-tower-600",
+        rule: CATALOG.get("tall-oven-tower-600")?.cabinetHandles,
+        widthMm: 600,
+      }),
+    ).toBe(2);
+
+    const line = hardwareLineOf(priced);
+    expect(line.quantity).toBe(1);
+    expect(line.amountMinor).toBe(expectedHardwareAmount(tower, CATALOG));
+    expect(line.amountMinor).toBeGreaterThan(0);
   });
 
   it("reads a seeded corner's count off its own row even when that row names an equivalent", () => {
@@ -563,8 +643,25 @@ describe("the handle line counts cabinet handles, from the placement's own entry
 
     // The rule resolved through the equivalent…
     expect(lineFor(priced, "c").pricedAsBuildId).toBe("wall-cabinet");
-    // …and the count did not. Two would be the defect.
-    expect(hardwareLineOf(priced).quantity).toBe(1);
+    // …and the mechanism count did not: the corner declares one leaf, `wall-cabinet` at 570 mm
+    // would derive two, and the hardware amount is the corner's own.
+    expect(hardwareLineOf(priced).amountMinor).toBe(
+      expectedHardwareAmount(corner, named),
+    );
+    expect(hardwareLineOf(priced).amountMinor).not.toBe(
+      expectedHardwareAmount(
+        designOf([
+          {
+            id: "c",
+            wall: "B",
+            alongMm: 615,
+            y0Mm: 1500,
+            body: { buildId: "wall-cabinet", widthMm: 570, heightMm: 700 },
+          },
+        ]),
+        CATALOG,
+      ),
+    );
     expect(
       cabinetHandleCount({
         buildId: "wall-cabinet",
@@ -575,7 +672,11 @@ describe("the handle line counts cabinet handles, from the placement's own entry
   });
 
   it("sums the seeded kitchen's declared counts and nothing else", () => {
-    const expected = KITCHEN_L_DESIGN.placements.reduce(
+    // Both halves of the split ADR 0070 made: the handle count the parity gate still holds, and the
+    // mechanism count the price is now billed off. They are different numbers on purpose —
+    // `base-panbank`'s two handles are drawers and its leaves are none — so asserting one says
+    // nothing about the other.
+    const declaredHandles = KITCHEN_L_DESIGN.placements.reduce(
       (handles, placement) =>
         handles +
         cabinetHandleCount({
@@ -585,10 +686,13 @@ describe("the handle line counts cabinet handles, from the placement's own entry
         }),
       0,
     );
+    expect(declaredHandles).toBe(41);
 
-    expect(
-      hardwareLineOf(pricedSeededKitchen({ selections: PREMIUM })).quantity,
-    ).toBe(expected);
+    const line = hardwareLineOf(pricedSeededKitchen({ selections: PREMIUM }));
+    expect(line.quantity).toBe(1);
+    expect(line.amountMinor).toBe(
+      expectedHardwareAmount(KITCHEN_L_DESIGN, CATALOG),
+    );
   });
 
   it("refuses a body whose entry declares no count, rather than billing zero", () => {
@@ -608,11 +712,26 @@ describe("the handle line counts cabinet handles, from the placement's own entry
 });
 
 describe("a tier that costs nothing is a line, and a missing rule is never a zero", () => {
-  it("emits both whole-kitchen lines at zero for the default tiers", () => {
+  /** **The two defaults stopped being alike in wave 6T** (ADR 0092 decision 15, shipped as an
+   *  interim). The default *material* tier still costs nothing, so its line is a zero the breakdown
+   *  renders *inclus*. The default *hardware* tier no longer does: Standard prices the seeded
+   *  kitchen's mechanisms, because ADR 0070's totals table is the only figure on record for what a
+   *  Standard tier costs and it does not say nothing. Whether the customer's Standard line should
+   *  be that number or zero is an open owner input; a line at zero is still not the same thing as a
+   *  rule that is missing, in either group, and that is what this block is about. */
+  it("emits a priced hardware line and a zero material line for the default tiers", () => {
     const priced = pricedSeededKitchen();
     const wholeKitchen = priced.lines.filter((line) => line.kind !== "cabinet");
 
-    expect(wholeKitchen.map((line) => line.amountMinor)).toEqual([0, 0]);
+    expect(wholeKitchen.map((line) => line.kind)).toEqual([
+      "hardware",
+      "material",
+    ]);
+    expect(wholeKitchen.map((line) => line.amountMinor)).toEqual([
+      hardwareAmountOfDefaultTier(),
+      0,
+    ]);
+    expect(hardwareAmountOfDefaultTier()).toBeGreaterThan(0);
     expect(wholeKitchen).toHaveLength(2);
   });
 

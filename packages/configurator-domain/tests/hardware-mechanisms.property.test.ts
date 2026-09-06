@@ -28,6 +28,7 @@ import {
   CABINET_SIZED_OPENING_MAX_M,
   HEIGHT_FLEX_MIN_OPENING_MM,
 } from "../src/commands/insert-fit.js";
+import { KITCHEN_L_PLACEMENTS } from "../src/fixtures/kitchen-l-design.js";
 
 /** §5.2's cap, in the millimetres this file works in. */
 const CABINET_SIZED_OPENING_MAX_MM = CABINET_SIZED_OPENING_MAX_M * 1000;
@@ -37,11 +38,26 @@ const CABINET_SIZED_OPENING_MAX_MM = CABINET_SIZED_OPENING_MAX_M * 1000;
 const TALLEST_FLEXIBLE_BAND_MM =
   CABINET_SIZED_OPENING_MAX_MM - WALL_DOOR_BAND_INSET_MM;
 
-/** Every width a row can be built to — the sizes an insertable row declares, and the one already
- *  built size a seeded row is (ADR 0011 Gap A). */
-function legalWidthsMm(definition: BodyDefinition): readonly number[] {
-  if (definition.insertable !== true) return [definition.nominalWidthMm ?? 600];
-  return definition.sizesMm ?? [];
+/** The widths each seeded row actually stands at in the fixture. A seeded entry declares no width of
+ *  its own (ADR 0011 Gap A: it *is* one already-built body), so the built size has to be read off
+ *  the placements rather than guessed at with a nominal the definition does not carry. */
+const SEEDED_WIDTHS_BY_BUILD_ID: ReadonlyMap<string, readonly number[]> =
+  KITCHEN_L_PLACEMENTS.reduce((widths, placement) => {
+    const known = widths.get(placement.body.buildId) ?? [];
+    return widths.set(placement.body.buildId, [
+      ...known,
+      placement.body.widthMm,
+    ]);
+  }, new Map<string, number[]>());
+
+/** Every width a row can be built to — the sizes an insertable row declares, and the already built
+ *  sizes a seeded row stands at (ADR 0011 Gap A). */
+function legalWidthsMm(
+  buildId: string,
+  definition: BodyDefinition,
+): readonly number[] {
+  if (definition.insertable === true) return definition.sizesMm ?? [];
+  return SEEDED_WIDTHS_BY_BUILD_ID.get(buildId) ?? [];
 }
 
 /** Every frame height a row can be built to. A `heightFlex` row fills any cabinet-sized opening and
@@ -74,7 +90,7 @@ interface SweptLeaf {
  *  the assertions below read off one measurement rather than three. */
 const EVERY_LEAF: readonly SweptLeaf[] = [...KITCHEN_L_BODY_CATALOG].flatMap(
   ([buildId, definition]) =>
-    legalWidthsMm(definition).flatMap((widthMm) =>
+    legalWidthsMm(buildId, definition).flatMap((widthMm) =>
       legalFrameHeightsMm(definition).flatMap((frameHeightMm) => {
         const query: FrontPopulationQuery = {
           buildId,
@@ -135,16 +151,21 @@ describe("no leaf over 900 mm can come from a flexible row", () => {
       min: HEIGHT_FLEX_MIN_OPENING_MM,
       max: CABINET_SIZED_OPENING_MAX_MM,
     }),
-  ])("holds for any cabinet-sized opening, not only the swept ones", (frameHeightMm) => {
-    const leaves = doorLeafHeightsMm({
-      buildId: "wall-lift",
-      rule: KITCHEN_L_BODY_CATALOG.get("wall-lift")?.fronts,
-      widthMm: 600,
-      frameHeightMm,
-    });
+  ])(
+    "holds for any cabinet-sized opening, not only the swept ones",
+    (frameHeightMm) => {
+      const leaves = doorLeafHeightsMm({
+        buildId: "wall-lift",
+        rule: KITCHEN_L_BODY_CATALOG.get("wall-lift")?.fronts,
+        widthMm: 600,
+        frameHeightMm,
+      });
 
-    expect(leaves.every((leafHeightMm) => leafHeightMm <= TALLEST_FLEXIBLE_BAND_MM)).toBe(
-      true,
-    );
-  });
+      expect(
+        leaves.every(
+          (leafHeightMm) => leafHeightMm <= TALLEST_FLEXIBLE_BAND_MM,
+        ),
+      ).toBe(true);
+    },
+  );
 });

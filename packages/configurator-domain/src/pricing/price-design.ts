@@ -578,12 +578,21 @@ interface DeclaredTierAmount {
  */
 function hardwareUnitAmount(
   tier: HardwareTier,
-  design: { readonly entries: readonly DisplayEntry[]; readonly catalog: BodyCatalog },
+  design: {
+    readonly entries: readonly DisplayEntry[];
+    readonly catalog: BodyCatalog;
+  },
 ): Attempt<number> {
-  const perHinge = checkedTierAmount(hardwareRate(tier, "perHingeMinor"), tier.ruleId);
+  const perHinge = checkedTierAmount(
+    hardwareRate(tier, "perHingeMinor"),
+    tier.ruleId,
+  );
   if (isRefused(perHinge)) return perHinge;
 
-  const perDrawer = checkedTierAmount(hardwareRate(tier, "perDrawerMinor"), tier.ruleId);
+  const perDrawer = checkedTierAmount(
+    hardwareRate(tier, "perDrawerMinor"),
+    tier.ruleId,
+  );
   if (isRefused(perDrawer)) return perDrawer;
 
   const perPushToOpen = checkedTierAmount(

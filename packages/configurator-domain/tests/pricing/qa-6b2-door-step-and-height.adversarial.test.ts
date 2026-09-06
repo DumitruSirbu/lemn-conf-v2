@@ -18,6 +18,15 @@ import { describe, expect, it } from "vitest";
 
 import { widthDerivedDoorLeafCount } from "../../src/cabinet-handles.js";
 import {
+  doorLeafHeightsMm,
+  frontPopulationQueryFor,
+} from "../../src/front-population.js";
+import {
+  HINGES_PER_DOOR_LEAF,
+  HINGES_PER_TALL_DOOR_LEAF,
+  TALL_DOOR_LEAF_THRESHOLD_MM,
+} from "../../src/hardware-mechanisms.js";
+import {
   buildableSizes,
   INSERTABLE_BODY_DEFINITIONS,
   resolveWidthRangesMm,
@@ -483,6 +492,43 @@ describe("one composition of the door count, and no second derivation anywhere",
     expect(composing).toEqual(["src/cabinet-handles.ts"]);
   });
 
+  /** One ban per hinge, so the hardware amount divides back to a **count** with no rounding and no
+   *  reliance on the shipped rates staying what they are. */
+  const ONE_MINOR_UNIT_PER_HINGE = 1;
+
+  /** A book whose hardware tiers charge for hinges and for nothing else. Constructed rather than
+   *  taken from the shipped book, because the amount is being read as a count: a non-zero drawer or
+   *  push rate would fold a second mechanism into the same number. */
+  function hingeOnlyBook(perHingeMinor: number): PriceBook {
+    return {
+      ...BOOK,
+      hardware: {
+        ...BOOK.hardware,
+        tiers: BOOK.hardware.tiers.map((tier) => ({
+          ...tier,
+          perHingeMinor,
+          perDrawerMinor: 0,
+          perPushToOpenMinor: 0,
+        })),
+      },
+    };
+  }
+
+  /** How many hinges these leaves take — two each, three over the 900 mm threshold. Recomposed from
+   *  the leaf heights rather than assumed flat, because `tall-pantry` carries two 1290 mm bands and
+   *  a flat multiplier would read its sweep as a different number while still agreeing with
+   *  itself. */
+  function hingesOn(leafHeightsMm: readonly number[]): number {
+    return leafHeightsMm.reduce(
+      (total, leafHeightMm) =>
+        total +
+        (leafHeightMm > TALL_DOOR_LEAF_THRESHOLD_MM
+          ? HINGES_PER_TALL_DOOR_LEAF
+          : HINGES_PER_DOOR_LEAF),
+      0,
+    );
+  }
+
   const LEAF_ROWS = [
     { buildId: "wall-cabinet", handlesPerLeaf: 1 },
     { buildId: "base-cabinet", handlesPerLeaf: 1 },
@@ -490,11 +536,17 @@ describe("one composition of the door count, and no second derivation anywhere",
   ] as const;
 
   for (const row of LEAF_ROWS) {
-    it(`bills ${row.buildId}'s handles and its door step off the same count, at every width`, () => {
+    it(`bills ${row.buildId}'s hinges and its door step off the same count, at every width`, () => {
       // The step is isolated by pricing the same body twice against two books that differ only in
       // `perDoorLeafMinor`: the difference divided by the delta is the leaf count the price step was
-      // billed for, whatever the base and width terms are. It must equal the count the handle line
-      // is billed for, at every width including the threshold and one millimetre either side.
+      // billed for, whatever the base and width terms are. It must equal the count the **hardware**
+      // line is billed for, at every width including the threshold and one millimetre either side.
+      //
+      // **Wave 6T moved which line that is, not whether there is one.** The hardware line used to
+      // publish the count as its `quantity`; it is now one line at `quantity: 1` whose amount is
+      // three rates times three counts (ADR 0092 decision 4), so the count is read out of the
+      // amount by pricing against a tier whose hinge rate is the only non-zero one. The property
+      // 6B2 established is unchanged: one leaf derivation, two consumers, no second one.
       const definition = CATALOG.get(row.buildId);
       if (!definition) throw new Error(`fixture has no "${row.buildId}"`);
       const base = ruleFor(BOOK, row.buildId).formula;
@@ -513,13 +565,19 @@ describe("one composition of the door count, and no second derivation anywhere",
         const pricedLeaves =
           amountOfOneBody(body, { book: withStep }) -
           amountOfOneBody(body, { book: withoutStep });
-        const handleQuantity = lineOfKind(
-          priceOrFail({
-            design: designOf([placedAt({ id: "solo", body })]),
-            selections: { hardwareTierId: "hardware.premium" },
-          }),
-          "hardware",
-        ).quantity;
+        const billedHinges =
+          lineOfKind(
+            priceOrFail({
+              design: designOf([placedAt({ id: "solo", body })]),
+              book: hingeOnlyBook(ONE_MINOR_UNIT_PER_HINGE),
+              selections: { hardwareTierId: BOOK.hardware.defaultTierId },
+            }),
+            "hardware",
+          ).amountMinor / ONE_MINOR_UNIT_PER_HINGE;
+
+        const leafHeightsMm = doorLeafHeightsMm(
+          frontPopulationQueryFor({ body, definition }),
+        );
 
         expect(pricedLeaves).toBe(
           widthDerivedDoorLeafCount({
@@ -528,7 +586,10 @@ describe("one composition of the door count, and no second derivation anywhere",
             widthMm,
           }),
         );
-        expect(handleQuantity).toBe(pricedLeaves * row.handlesPerLeaf);
+        // The one count, reached from both sides: the leaves the price step was billed for, and the
+        // leaves the hinges were billed over.
+        expect(leafHeightsMm.length).toBe(pricedLeaves * row.handlesPerLeaf);
+        expect(billedHinges).toBe(hingesOn(leafHeightsMm));
       }
     });
   }

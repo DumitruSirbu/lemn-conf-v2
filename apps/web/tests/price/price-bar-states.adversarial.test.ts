@@ -321,7 +321,7 @@ describe("a pricing failure puts nothing on the page", () => {
 
     expect(markup).toContain('data-testid="price-bar"');
     expect(markup).toContain("De la");
-    expect(markup).toContain("95 000 MDL");
+    expect(markup).toContain("99 000 MDL");
   });
 
   it("also renders nothing in §9's footer, and nothing that reads as free", () => {
@@ -374,7 +374,7 @@ describe("an overflowing design, on the page", () => {
   it("shows the total and the flag together, and shows the same total as a design that fits", () => {
     const markup = barMarkup(priceOf(overflowing));
 
-    expect(markup).toContain("95 000 MDL");
+    expect(markup).toContain("99 000 MDL");
     expect(markup).toContain(ro.price.overflowingTotalWarning);
     expect(markup).toContain(
       "Prețul include și dulapuri ce depășesc mărimea peretelui și necesită ajustări",
@@ -526,7 +526,7 @@ describe("the flagged total on the mobile shell, while §9's sheet is open", () 
       }),
     );
 
-    expect(footer.price?.amountText).toBe("95 000 MDL");
+    expect(footer.price?.amountText).toBe("99 000 MDL");
     expect(footer.overflowWarning).toBe(ro.price.overflowingTotalWarning);
     expect(textOfElement(markup, "panel-price-overflow")).toBe(
       "Prețul include și dulapuri ce depășesc mărimea peretelui și necesită ajustări",

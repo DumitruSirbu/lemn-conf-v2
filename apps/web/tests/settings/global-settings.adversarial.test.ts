@@ -8,9 +8,11 @@
 // 1. **The delta is compared against the function that produces it.** Both sides of
 //    `whole-kitchen-tiers.test.ts`'s central assertion are `priceDesign`, which is the shape
 //    `docs/WORKFLOW.md` names as the commonest weak guard. The hardware delta is re-derived here
-//    from the **book's rate and an independently counted handle population** — `cabinetHandleCount`
-//    over `projectDesignForDisplay`, never through `priceDesign` — so an agreement is an agreement
-//    between two things.
+//    from the **book's rates and an independently counted mechanism population** —
+//    `countHardwareMechanisms` over `projectDesignForDisplay`, never through `priceDesign` — so an
+//    agreement is an agreement between two things. It counted *handles* until wave 6T priced
+//    hardware per mechanism (ADR 0070 decision 1); a handle population would now assert the
+//    superseded basis as correct.
 // 2. **A delta measured with the other group "held at what the design carries" could depend on the
 //    held group.** If it did, the number beside *Furnir natural* would move when a customer changed
 //    a hardware tier they are not looking at. Swept over the whole 3 × 3 cross product, plus the
@@ -27,6 +29,8 @@ import { fc, test as propertyTest } from "@fast-check/vitest";
 import {
   countCabinetsWearingAChosenFinish,
   cabinetHandleCount,
+  countHardwareMechanisms,
+  type HardwareMechanismCounts,
   KITCHEN_L_BODY_CATALOG,
   KITCHEN_L_DESIGN,
   priceDesign,
@@ -51,6 +55,7 @@ import {
   describeRoundedAmount,
 } from "@/price/starting-price";
 import {
+  NegativeTierDeltaError,
   offerWholeKitchenTiers,
   type OfferedTierGroup,
   type WholeKitchenTierOffer,
@@ -124,12 +129,28 @@ function deltaOf(group: OfferedTierGroup, tierId: string): number {
  *
  * The one expected side that is not `priceDesign`. `whole-kitchen-tiers.test.ts` compares a measured
  * delta against a second call to the same query, which cannot fail for the reason it was written;
- * this walks the projection and asks the catalogue's own `cabinetHandleCount` per body, which is the
- * quantity ADR 0061 decision 2 defines and the number the hardware line is billed on.
+ * this walks the projection and asks the domain's own `countHardwareMechanisms` per body, which is
+ * the quantity ADR 0070 decision 1 defines and the population the hardware line is billed on.
+ *
+ * **It counts mechanisms and not handles since wave 6T.** A handle population would now assert the
+ * superseded basis as correct: `base-panbank`'s two handles are drawers, a `handle: "push"` body
+ * carries none at all, and hinges are counted by leaf. `cabinetHandleCount` still answers ADR 0061
+ * decision 2's question and nothing prices it.
  *
  * It computes no door or leaf count of its own, and it is a **test**: the seam guard's prohibition
  * is on a module under `src/` deriving one, not on a measurement re-deriving the domain's answer.
  */
+function countMechanismsIn(design: Design): HardwareMechanismCounts {
+  return countHardwareMechanisms(
+    projectDesignForDisplay(design, KITCHEN_L_BODY_CATALOG).flatMap(
+      (group) => group.entries,
+    ),
+    KITCHEN_L_BODY_CATALOG,
+  );
+}
+
+/** The **superseded** denominator, kept only so an assertion below can say the mechanism count is
+ *  not it. ADR 0061 decision 2's handle count survives the wave with no production reader. */
 function countHandlesIn(design: Design): number {
   return projectDesignForDisplay(design, KITCHEN_L_BODY_CATALOG)
     .flatMap((group) => group.entries)
@@ -145,12 +166,26 @@ function countHandlesIn(design: Design): number {
     );
 }
 
-function bookRateFor(tierId: string): number {
+/** Every mechanism in the design, as one number — the denominator the assertions below name. */
+function totalMechanismsIn(design: Design): number {
+  const counts = countMechanismsIn(design);
+  return counts.hinges + counts.drawers + counts.pushToOpen;
+}
+
+/** What the book charges this design at this tier: three rates against three counts, composed here
+ *  rather than read off a line, which is what makes it the independent side. */
+function bookAmountFor(tierId: string, design: Design): number {
   const tier = SAMPLE_PRICE_BOOK.hardware.tiers.find(
     (one) => one.tierId === tierId,
   );
   if (!tier) throw new Error(`the book holds no hardware tier "${tierId}"`);
-  return tier.perCabinetHandleMinor;
+  const mechanisms = countMechanismsIn(design);
+
+  return (
+    tier.perHingeMinor * mechanisms.hinges +
+    tier.perDrawerMinor * mechanisms.drawers +
+    tier.perPushToOpenMinor * mechanisms.pushToOpen
+  );
 }
 
 function bookWholeKitchenFor(tierId: string): number {
@@ -282,22 +317,26 @@ describe("a delta cannot depend on a setting the customer is not looking at", ()
 });
 
 describe("the arithmetic, re-derived from something that is not priceDesign", () => {
-  it("bills a hardware delta at the book's rate times a handle population counted from the catalogue", () => {
+  it("bills a hardware delta at the book's rates times a mechanism population counted from the catalogue", () => {
     // The independent expected side. `whole-kitchen-tiers.test.ts` only asserts the delta is
-    // *larger* than the per-handle rate, which a delta computed on any denominator above one would
+    // *larger* than one mechanism's rate, which a delta computed on any denominator above one would
     // satisfy; this names the denominator.
-    const handles = countHandlesIn(KITCHEN_L_DESIGN);
-    const defaultRate = bookRateFor(SAMPLE_PRICE_BOOK.hardware.defaultTierId);
+    const mechanisms = totalMechanismsIn(KITCHEN_L_DESIGN);
     const hardware = measure(KITCHEN_L_DESIGN).hardware;
 
-    // The denominator this assertion would still pass under if it were wrong. A handle count that
-    // happened to equal the body count would make the two readings indistinguishable, and the
-    // measurement above would prove nothing about which one the hardware line is billed on.
-    expect(handles).not.toBe(KITCHEN_L_DESIGN.placements.length);
-    expect(handles).toBeGreaterThan(1);
+    // The denominators this assertion would still pass under if it were wrong. A mechanism count
+    // that happened to equal the body count — or the handle count the wave superseded — would make
+    // those readings indistinguishable from this one.
+    expect(mechanisms).not.toBe(KITCHEN_L_DESIGN.placements.length);
+    expect(mechanisms).not.toBe(countHandlesIn(KITCHEN_L_DESIGN));
+    expect(mechanisms).toBeGreaterThan(1);
     for (const tierId of HARDWARE_TIER_IDS) {
       expect(deltaOf(hardware, tierId), tierId).toBe(
-        (bookRateFor(tierId) - defaultRate) * handles,
+        bookAmountFor(tierId, KITCHEN_L_DESIGN) -
+          bookAmountFor(
+            SAMPLE_PRICE_BOOK.hardware.defaultTierId,
+            KITCHEN_L_DESIGN,
+          ),
       );
     }
   });
@@ -311,23 +350,23 @@ describe("the arithmetic, re-derived from something that is not priceDesign", ()
         (placement) => placement.wall === "B",
       ),
     };
-    const handles = countHandlesIn(wallBOnly);
-    const defaultRate = bookRateFor(SAMPLE_PRICE_BOOK.hardware.defaultTierId);
-
-    expect(handles).toBeLessThan(countHandlesIn(KITCHEN_L_DESIGN));
+    expect(totalMechanismsIn(wallBOnly)).toBeLessThan(
+      totalMechanismsIn(KITCHEN_L_DESIGN),
+    );
     for (const tierId of HARDWARE_TIER_IDS) {
       expect(deltaOf(measure(wallBOnly).hardware, tierId), tierId).toBe(
-        (bookRateFor(tierId) - defaultRate) * handles,
+        bookAmountFor(tierId, wallBOnly) -
+          bookAmountFor(SAMPLE_PRICE_BOOK.hardware.defaultTierId, wallBOnly),
       );
     }
   });
 
   it("charges nothing for any hardware tier in a kitchen with no bodies, and says so in words", () => {
-    // The boundary the sheet is reachable at. No body means no handle, so every hardware tier is
+    // The boundary the sheet is reachable at. No body means no mechanism, so every hardware tier is
     // billed on zero and the badge is the ruled word rather than a *de la +0*.
     const empty: Design = { ...KITCHEN_L_DESIGN, placements: [] };
 
-    expect(countHandlesIn(empty)).toBe(0);
+    expect(totalMechanismsIn(empty)).toBe(0);
     for (const tierId of HARDWARE_TIER_IDS)
       expect(deltaOf(measure(empty).hardware, tierId), tierId).toBe(0);
     expect(
@@ -556,6 +595,28 @@ describe("how many bodies, and which part of the document says so", () => {
     throw new Error(`no count is stated in "${view.appliesTo}"`);
   }
 
+  /**
+   * **Whether this design is one the sheet can be measured at at all** — asked of the book's own
+   * rates, never of a list of build ids.
+   *
+   * Wave 6T prices hardware per mechanism (ADR 0070 decision 1), and Hettich's drawer figure is a
+   * runners-only product line the owner ruled stays understated against Standard's complete box. So
+   * a **drawer-dominant** design prices Hettich *below* the default tier, and
+   * `offerWholeKitchenTiers` refuses rather than render a discount as a delta. That refusal is not
+   * weakened here and this sweep does not route around it: it asserts it where the book predicts it
+   * and asserts the sentence everywhere else. **Wave 6W owns what a customer should be shown for
+   * such a design** (ADR 0092 decision 12); 6T owns that the case is on record.
+   */
+  function pricesAnyTierBelowItsDefault(design: Design): boolean {
+    const defaultAmount = bookAmountFor(
+      SAMPLE_PRICE_BOOK.hardware.defaultTierId,
+      design,
+    );
+    return HARDWARE_TIER_IDS.some(
+      (tierId) => bookAmountFor(tierId, design) < defaultAmount,
+    );
+  }
+
   propertyTest.prop([anyPlacementSubset])(
     "states the number of bodies the projection holds, at every population the seeded design can be cut to",
     (design) => {
@@ -564,9 +625,37 @@ describe("how many bodies, and which part of the document says so", () => {
         KITCHEN_L_BODY_CATALOG,
       ).reduce((count, group) => count + group.entries.length, 0);
 
+      if (pricesAnyTierBelowItsDefault(design)) {
+        expect(() => viewOf(design)).toThrow(NegativeTierDeltaError);
+        return;
+      }
       expect(statedCount(viewOf(design))).toBe(projected);
     },
   );
+
+  /** The witness the sweep above finds by chance, pinned so it is a statement rather than a seed:
+   *  one `base-drawer3-600` carries three drawers and no hinge, and Hettich's understated drawer
+   *  rate puts it 4 200 minor below Standard. */
+  it("refuses the sheet for a drawer-dominant design, by the book's own arithmetic", () => {
+    const drawersOnly: Design = {
+      ...KITCHEN_L_DESIGN,
+      placements: KITCHEN_L_DESIGN.placements.filter(
+        (placement) => placement.body.buildId === "base-drawer3-600",
+      ),
+    };
+
+    expect(drawersOnly.placements).toHaveLength(1);
+    expect(countMechanismsIn(drawersOnly)).toEqual({
+      hinges: 0,
+      drawers: 3,
+      pushToOpen: 0,
+    });
+    expect(
+      bookAmountFor("hardware.soft-close", drawersOnly) -
+        bookAmountFor(SAMPLE_PRICE_BOOK.hardware.defaultTierId, drawersOnly),
+    ).toBe(-4_200);
+    expect(() => viewOf(drawersOnly)).toThrow(NegativeTierDeltaError);
+  });
 
   it("does not count empty columns, and does not count the space a column map freezes", () => {
     // The half of the criterion that is falsifiable: `emptyColumns` and `columnExtents` are space

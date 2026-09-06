@@ -167,8 +167,14 @@ describe("the catalogue's own totals, priced and shown", () => {
 
     // Pinned rather than recomputed: a change to the sample book that moved the figure a customer
     // reads should be visible in a diff, not absorbed by an expression that follows it.
-    expect(SEEDED.priced.totalMinor).toBe(9_427_500);
-    expect(amountTextFor(SEEDED.priced.totalMinor)).toBe("95 000 MDL");
+    //
+    // **It moved in wave 6T, and this is that diff.** It was 9 427 500 / *95 000 MDL* while the
+    // default hardware tier cost nothing. ADR 0070 decision 1 prices hardware per mechanism, and
+    // ADR 0092 decision 15 ships the absolute model as its interim, so the Standard tier now bills
+    // the seeded kitchen's 74 hinges and 5 drawers at 450 240 minor and the whole design is that
+    // much dearer. Nothing else in the total moved.
+    expect(SEEDED.priced.totalMinor).toBe(9_427_500 + 450_240);
+    expect(amountTextFor(SEEDED.priced.totalMinor)).toBe("99 000 MDL");
   });
 
   it("rounds every line the catalogue can produce without leaving the step", () => {

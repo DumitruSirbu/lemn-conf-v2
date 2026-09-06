@@ -9,7 +9,10 @@
 // moved by the amount the **book** declares. Both sides here are the book.
 import {
   buildKitchenLBodyCatalog,
+  countHardwareMechanisms,
+  KITCHEN_L_BODY_CATALOG,
   KITCHEN_L_DESIGN,
+  projectDesignForDisplay,
   SAMPLE_PRICE_BOOK,
   type Design,
   type PricedDesign,
@@ -239,7 +242,7 @@ describe("the settings container reaches the price, by the book's own amounts", 
   );
 
   it.each(HARDWARE_TIER_IDS)(
-    "prices %s at that tier's own per-handle amount",
+    "prices %s at that tier's own per-mechanism amounts",
     (tierId) => {
       const store = freshStore();
       const atDefault = priceOf(store.getState());
@@ -251,18 +254,30 @@ describe("the settings container reaches the price, by the book's own amounts", 
       const defaultTier = hardwareTier(
         SAMPLE_PRICE_BOOK.hardware.defaultTierId,
       );
-      // The quantity is the kitchen's handle count, which no selection can change — so it is the
-      // one thing taken from the priced result rather than from the book.
-      const handles = lineOfKind(chosen, "hardware").quantity;
-      expect(handles).toBeGreaterThan(0);
+      // **The mechanism counts are what no selection can change**, so they are the one thing taken
+      // from the design rather than from the book. Since wave 6T the hardware line is one line at
+      // `quantity: 1` (ADR 0092 decision 4), so the population has to be counted rather than read
+      // off the line — three rates cannot share one unit price.
+      const mechanisms = countHardwareMechanisms(
+        projectDesignForDisplay(
+          KITCHEN_L_DESIGN,
+          KITCHEN_L_BODY_CATALOG,
+        ).flatMap((group) => group.entries),
+        KITCHEN_L_BODY_CATALOG,
+      );
+      const amountAt = (tier: typeof chosenTier): number =>
+        tier.perHingeMinor * mechanisms.hinges +
+        tier.perDrawerMinor * mechanisms.drawers +
+        tier.perPushToOpenMinor * mechanisms.pushToOpen;
+
+      expect(mechanisms.hinges + mechanisms.drawers).toBeGreaterThan(0);
       expect(lineOfKind(chosen, "hardware").tierId).toBe(tierId);
+      expect(lineOfKind(chosen, "hardware").quantity).toBe(1);
       expect(lineOfKind(chosen, "hardware").unitAmountMinor).toBe(
-        chosenTier.perCabinetHandleMinor,
+        amountAt(chosenTier),
       );
       expect(chosen.totalMinor - atDefault.totalMinor).toBe(
-        handles *
-          (chosenTier.perCabinetHandleMinor -
-            defaultTier.perCabinetHandleMinor),
+        amountAt(chosenTier) - amountAt(defaultTier),
       );
     },
   );
