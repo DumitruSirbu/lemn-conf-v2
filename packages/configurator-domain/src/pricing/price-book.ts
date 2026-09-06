@@ -243,6 +243,60 @@ export interface MaterialTier extends TierIdentity {
   readonly wholeKitchenMinor: number;
 }
 
+/**
+ * **One extra a design earns rather than chooses** — ADR 0070 decision 4's aluminium sink cover and
+ * dish drying rack, and today no others.
+ *
+ * Not a tier: there are no grades to pick between and no control selects it, so it carries no
+ * `tierId` and no default. What it carries is what a tier carries otherwise — an id a line traces
+ * to, and the name and one-line description a surface renders (ADR 0062's third prohibition: an
+ * accessory's words are book data, never copy in a component that happens to agree with a number).
+ *
+ * **Untiered in a second sense too**: the amount is the same whichever hardware or material tier a
+ * design is priced at, which is what ADR 0070's own totals table says by giving *"Sink extras 600"*
+ * identically in all three tier columns.
+ */
+export interface AccessoryRule {
+  /** Unique across the whole book, like a cabinet rule's and a tier's. */
+  readonly ruleId: string;
+  readonly name: string;
+  readonly description: string;
+  /** Charged per unit — per sink for both of today's two. The **quantity** is a fact about the
+   *  design and is never stated here. */
+  readonly perUnitMinor: number;
+}
+
+/**
+ * **The accessories a book declares: two named fields, not a list keyed by id.**
+ *
+ * Named fields because the *rule* — when an accessory applies, and how many of it — is code. An
+ * array would invite a book to declare a third accessory nothing implements, and it would arrive
+ * through ADR 0062 seam 1 looking like data when it is a shape. A new accessory is a new field here
+ * and a new rule in the query, which is exactly where ADR 0062 draws its line.
+ */
+export interface BookAccessories {
+  /** ADR 0070 decision 4: mounted on the sink base against humidity and leaks. **Always present and
+   *  never toggled** — it is protection, not an option — so no setting, no design field and no
+   *  control reaches it. */
+  readonly sinkProtectiveCover: AccessoryRule;
+  /** ADR 0070 decision 4: hung in the wall cabinet above the sink. **Priced and never drawn** — the
+   *  geometry stays untouched, and no builder has a part for it. */
+  readonly dishDryingRack: AccessoryRule;
+}
+
+/** **Which accessory a line is for**, as the book's own field names spell it. A literal union rather
+ *  than `string`, for the reason `PriceCoefficientField` is one: a typo is a compile error instead of
+ *  a line naming an accessory no book holds. */
+export type AccessoryId = keyof BookAccessories;
+
+/** Both accessory ids, in the order their lines are published. Derived from nothing — it is the
+ *  order itself — and read by every caller that sweeps the two, so a third accessory is added in one
+ *  place rather than in each sweep. */
+export const ACCESSORY_IDS: readonly AccessoryId[] = [
+  "sinkProtectiveCover",
+  "dishDryingRack",
+];
+
 /** One whole-kitchen choice: the tiers on offer and the one a design that has chosen nothing is
  *  priced at. The default is book data, so "what an unset kitchen costs" is not a rule living in
  *  the query. */
@@ -271,6 +325,7 @@ export interface PriceBook {
   readonly cabinetRules: readonly CabinetPriceRule[];
   readonly hardware: TierGroup<HardwareTier>;
   readonly material: TierGroup<MaterialTier>;
+  readonly accessories: BookAccessories;
 }
 
 /** **Everything a formula may read about one body, and nothing else.**
@@ -382,6 +437,7 @@ export type PriceCoefficientField =
   | "perHingeMinor"
   | "perDrawerMinor"
   | "perPushToOpenMinor"
+  | "perUnitMinor"
   | "wholeKitchenMinor";
 
 /**
@@ -439,12 +495,52 @@ export function usableCoefficientOf(
   throw new MalformedPriceCoefficientError({ field, declared });
 }
 
-/** Every rule id in a book, in the order it is declared — cabinet rules, then the tiers. What the
- *  query sweeps for duplicates, since a repeated id makes a line untraceable to one rule. */
+/** Every rule id in a book, in the order it is declared — cabinet rules, then the tiers, then the
+ *  accessories. What the query sweeps for duplicates, since a repeated id makes a line untraceable
+ *  to one rule.
+ *
+ *  **The accessories are swept like everything else**, so two rules sharing an id *anywhere* in the
+ *  book is `INVALID_PRICE_BOOK` rather than a rule family nobody checked. */
 export function listRuleIds(book: PriceBook): readonly string[] {
   return [
     ...book.cabinetRules.map((rule) => rule.ruleId),
     ...book.hardware.tiers.map((tier) => tier.ruleId),
     ...book.material.tiers.map((tier) => tier.ruleId),
+    ...listAccessoryRuleIds(book),
   ];
+}
+
+/** The ids of whatever accessory rules a book actually holds.
+ *
+ *  Reads the section as possibly-absent although `PriceBook` declares it required, for the reason
+ *  `usableCoefficientOf` widens its own parameter: ADR 0062 seam 1 makes a book versioned data
+ *  authored outside TypeScript, so a declared field is a promise and not a fact — and a duplicate
+ *  sweep that threw on a book missing a section would refuse it with the wrong reason. */
+function listAccessoryRuleIds(book: PriceBook): readonly string[] {
+  return ACCESSORY_IDS.flatMap((accessoryId) => {
+    const ruleId = accessoryRuleOf(book, accessoryId)?.ruleId;
+    return ruleId === undefined ? [] : [ruleId];
+  });
+}
+
+/** **The one reader of a book's accessory section**, so no caller spells the property access itself
+ *  and every one of them treats an absent section alike.
+ *
+ *  Reads the section as **possibly absent** although `PriceBook` declares it required, for the
+ *  reason `usableCoefficientOf` widens its own parameter: ADR 0062 seam 1 makes a book versioned
+ *  data authored outside TypeScript, so a declared field is a promise and not a fact. The widening
+ *  is done by the parameter below rather than by a local annotation, because a `const` is narrowed
+ *  back to its initialiser's type and a parameter is not. */
+export function accessoryRuleOf(
+  book: PriceBook,
+  accessoryId: AccessoryId,
+): AccessoryRule | undefined {
+  return ruleIn(book.accessories, accessoryId);
+}
+
+function ruleIn(
+  declared: Partial<BookAccessories> | undefined,
+  accessoryId: AccessoryId,
+): AccessoryRule | undefined {
+  return declared?.[accessoryId];
 }

@@ -356,7 +356,12 @@ describe("the boundaries the wave plan names", () => {
         perPushToOpenMinor: 0,
       }),
     });
-    const wholeKitchen = priced.lines.filter((line) => line.kind !== "cabinet");
+    // **Selected by membership, not by `!== "cabinet"`.** Wave 6T2 added `accessory` lines, which the
+    // seeded kitchen earns two of; this block is about the two whole-kitchen lines still being
+    // published when every rate is zero, and the negation stopped naming exactly those two.
+    const wholeKitchen = priced.lines.filter(
+      (line) => line.kind === "hardware" || line.kind === "material",
+    );
 
     expect(wholeKitchen.map((line) => line.kind)).toEqual([
       "hardware",

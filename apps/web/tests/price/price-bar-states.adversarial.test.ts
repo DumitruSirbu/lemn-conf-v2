@@ -16,6 +16,7 @@
 import {
   buildKitchenLBodyCatalog,
   findOverflowingPlacementIds,
+  declaresASink,
   KITCHEN_L_BODY_CATALOG,
   KITCHEN_L_DESIGN,
   priceDesign,
@@ -144,9 +145,15 @@ function textOfElement(markup: string, testId: string): string {
 
 const PAST_THE_WALL_END_MM = 500;
 
+/** **The moved body holds no sink**, which is wave 6T2's constraint on this fixture: wall A's first
+ *  placement is the sink, and pushing it past the wall's end takes it out from under the wall
+ *  cabinet its drying rack hangs in — so the total would legitimately fall and this block, which
+ *  asserts the total is never reduced, would fail for the wrong reason. */
 function overflowingDesign(): Design {
   const onWallA = KITCHEN_L_DESIGN.placements.find(
-    (placement) => placement.wall === "A",
+    (placement) =>
+      placement.wall === "A" &&
+      !declaresASink(KITCHEN_L_BODY_CATALOG.get(placement.body.buildId)),
   );
   if (!onWallA) throw new Error("the seeded design has no wall A placement");
   return {

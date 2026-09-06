@@ -53,7 +53,12 @@ import {
 } from "../cabinet-depth-rule.js";
 import { WALL_FRONT_ASSEMBLY_MM, WORKTOP_DEPTH_MM } from "../worktop-depth.js";
 import type { Design, DesignPlacement } from "../design.js";
-import type { BodyCatalog, BodyDefinition } from "../void-engine.js";
+import {
+  CARRIES_SINK,
+  NO_SINK,
+  type BodyCatalog,
+  type BodyDefinition,
+} from "../void-engine.js";
 
 /**
  * The seeded L-kitchen: every body M1's `builders['kitchen-l']()` renders whole, expressed as
@@ -289,8 +294,13 @@ export function buildSeededBodyDefinitions(
     | "occupiedDepth"
     | "depthRule"
     | "seatRule"
+    | "sink"
   > = {
     band: "base",
+    // ADR 0092 decision 9's default for M2's already-built bodies, right for every seeded row but
+    // `base-sink-800`, which overrides it on its own line. The same parity gate holds both
+    // populations — see `BodyDefinition.sink`.
+    sink: NO_SINK,
     // A seeded base body is a §7 base body that has already been built, so it fills the same space:
     // its worktop's front edge (DOM-002). The four rows that are **not** an ordinary base — the two
     // corner legs, the dishwasher niche and, in the column family, the oven tower — say so on their
@@ -381,6 +391,11 @@ export function buildSeededBodyDefinitions(
         fronts: baseLeaves(2),
         kind: "base_cabinet",
         frameDepthMm: baseSeatDepthMm(cabinetDepthMm),
+        // ADR 0092 decision 9. **Declared here as well as on `base-sink`, and not inherited from
+        // it.** `namedAfterCatalogEquivalent` below points a *price rule* at the §7 row (ADR 0022);
+        // it does not carry the row's declarations across, and a sink rule that read the equivalent
+        // id would be keyed on a list of literal ids rather than on the property.
+        sink: CARRIES_SINK,
         ...namedAfterCatalogEquivalent("base-sink"),
       },
     ],

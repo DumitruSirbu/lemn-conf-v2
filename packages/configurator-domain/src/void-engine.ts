@@ -100,6 +100,44 @@ export interface WidthRangeMm {
   readonly maxMm: number;
 }
 
+/** **Whether a catalogue row holds a sink**, as the row itself states it (ADR 0092 decision 9).
+ *
+ *  An object rather than a bare boolean field, so the two answers are named — `CARRIES_SINK` and
+ *  `NO_SINK` — and a row reads as a statement about the product rather than as a flag somebody set.
+ *  The same discipline `NO_CABINET_HANDLES` and `NO_OPENING_FRONTS` keep for their own fields.
+ *
+ *  It lives here, beside `BodyDefinition`, rather than in a module of its own: the other declared
+ *  facts each own a module because each carries a query and a refusal, and this one carries a single
+ *  answered-or-not boolean whose only guard is the builder parity gate. */
+export interface SinkRule {
+  readonly carriesSink: boolean;
+}
+
+/** A row whose body holds a sink: `base-sink` and the seeded `base-sink-800`, and no third row. */
+export const CARRIES_SINK: SinkRule = Object.freeze({ carriesSink: true });
+
+/** Every other row. Named rather than written as a bare `false`, for the reason `NO_DOOR_BANDS` is
+ *  named: a default 37 rows inherit should read as an answer, not as a field left blank. */
+export const NO_SINK: SinkRule = Object.freeze({ carriesSink: false });
+
+/**
+ * **Does this catalogue row hold a sink?**
+ *
+ * The one reader of the declaration, so no caller spells the property access itself and no caller
+ * can read an absent declaration as anything but *no sink* — which is the answer the parity gate
+ * makes safe.
+ *
+ * Takes a possibly-absent definition because `BodyCatalog.get` answers one: a body the catalogue
+ * does not hold declares no sink, which is a real answer here rather than a refusal. Nothing is
+ * priced off it that a missing row could make wrong — `priceDesign` refuses an uncataloged body
+ * whole, before a line exists.
+ */
+export function declaresASink(
+  definition: { readonly sink?: SinkRule } | undefined,
+): boolean {
+  return definition?.sink?.carriesSink === true;
+}
+
 export interface BodyDefinition {
   readonly kind: string;
   readonly band: Band;
@@ -135,6 +173,26 @@ export interface BodyDefinition {
    *  fail loudly is a definition arriving through the `BodyCatalog` port from outside TypeScript,
    *  which a required field cannot reach. */
   readonly fronts?: FrontPopulationRule;
+  /** **Whether this body holds a sink** — ADR 0092 decision 9, the fact the two sink extras are
+   *  billed per (ADR 0070 decision 4). Declared beside `cabinetHandles` and `fronts` and read the
+   *  same way, because it is the same kind of fact: what the body is made of, stated by the
+   *  catalogue rather than inferred.
+   *
+   *  **Never inferred, and each of the three tempting inferences is wrong.** `kind` does not say it
+   *  — `base-sink` declares `base_cabinet` like every other base body. A build-id prefix does not
+   *  say it — the seeded row is `base-sink-800` and the next one need not be spelled that way. And
+   *  an equivalent-id comparison does not say it either: that is a rule written against a list of
+   *  literal ids, which ADR 0068's population correction names as the failure to avoid — *pricing
+   *  must key on the property, not on a list of ids*.
+   *
+   *  Optional here, and defaulted to `NO_SINK` by the shape helpers, for the reason `cabinetHandles`
+   *  above is optional. **The default is right for 37 of the 38 shipped rows and is only safe
+   *  because of the gate**: `sink-declaration.parity.test.ts` in `@lemnaria/three-adapter` holds
+   *  every entry's declaration to the `sink_faucet` group its builder draws, in **both**
+   *  directions — a row that declares a sink builds one, and a row that builds one declares it. The
+   *  second direction is what catches a new sink row somebody forgot to declare, which is the whole
+   *  reason the fact is declared rather than hard-coded. */
+  readonly sink?: SinkRule;
   /** **Whether this body's depth follows the cabinet-depth setting** — ADR 0058 decision 2, so that
    *  the two deliberately deep top cabinets are pinned by a declaration a reader can grep rather
    *  than by a constant that has quietly stopped tracking anything. `cabinet-depth-rule.ts` applies

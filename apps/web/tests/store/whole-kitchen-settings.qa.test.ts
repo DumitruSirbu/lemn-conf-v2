@@ -80,7 +80,10 @@ function lineOfKind(
   kind: "hardware" | "material",
 ): Extract<PriceLine, { readonly kind: "hardware" | "material" }> {
   const line = priced.lines.find((candidate) => candidate.kind === kind);
-  if (!line || line.kind === "cabinet") {
+  // **Narrowed by membership, not by `!== "cabinet"`.** Wave 6T2 added a third non-cabinet kind, so
+  // the negation stopped naming the two whole-kitchen lines this helper returns (ADR 0092
+  // decision 11).
+  if (!line || (line.kind !== "hardware" && line.kind !== "material")) {
     throw new Error(`expected a ${kind} line`);
   }
   return line;

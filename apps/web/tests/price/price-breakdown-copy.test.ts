@@ -226,9 +226,14 @@ describe("every ruled string, as a literal and in the frame that ruled it", () =
   });
 
   it("names a whole-kitchen line by its category and the book's tier name", () => {
+    // **`accessory` joined the record at wave 6T2**, and the key is what that wave is about: the
+    // breakdown selected these rows by *"not a cabinet"*, so an accessory line found no word here
+    // and rendered `undefined · Uscător de vase` while compiling (ADR 0092 decision 11). The word
+    // itself is drafted copy, not ruled — frames 2D / D2D show no accessory row.
     expect(ro.priceBreakdown.wholeKitchenCategories).toEqual({
       hardware: "Feronerie",
       material: "Material",
+      accessory: "Accesorii",
     });
     expect(
       ro.priceBreakdown.wholeKitchenLabel("Material", "PAL melaminat"),

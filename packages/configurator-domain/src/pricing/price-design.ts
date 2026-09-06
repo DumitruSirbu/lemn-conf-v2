@@ -33,14 +33,19 @@ import {
   type DisplayEntry,
 } from "../queries/design-projection.js";
 import { findOverflowingPlacementIds } from "../queries/overflowing-placements.js";
+import { findSinkAccessories } from "../queries/sink-accessories.js";
 import type { BodyCatalog, BodyDefinition } from "../void-engine.js";
 
 import {
+  ACCESSORY_IDS,
+  accessoryRuleOf,
   amountForBody,
   listRuleIds,
   PRICE_BOOK_CURRENCY,
   PRICE_BOOK_STATUSES,
   usableCoefficientOf,
+  type AccessoryId,
+  type AccessoryRule,
   type CabinetPriceRule,
   type HardwareTier,
   type MaterialTier,
@@ -52,6 +57,7 @@ import {
   type TierIdentity,
 } from "./price-book.js";
 import type {
+  AccessoryPriceLine,
   CabinetPriceLine,
   PricingFailure,
   PricingFailureCode,
@@ -105,7 +111,15 @@ export function priceDesign(request: PriceDesignRequest): PricingResult {
   if (isRefused(wholeKitchenLines))
     return { ok: false, failure: wholeKitchenLines.failure };
 
-  const lines = [...cabinetLines.value, ...wholeKitchenLines.value];
+  const accessoryLines = priceAccessories(entries, request);
+  if (isRefused(accessoryLines))
+    return { ok: false, failure: accessoryLines.failure };
+
+  const lines = [
+    ...cabinetLines.value,
+    ...wholeKitchenLines.value,
+    ...accessoryLines.value,
+  ];
   const totalMinor = lines.reduce((sum, line) => sum + line.amountMinor, 0);
   if (!isExactAmount(totalMinor)) {
     return {
@@ -489,7 +503,7 @@ function describePricedBody(
 /** Hardware, then material — after **all** placement lines, and both always emitted. A tier that
  *  costs nothing produces a line whose amount is zero, which the breakdown renders *inclus*; a rule
  *  that is missing is a refusal, never a zero, because omission must never be read as "included".
- *  A tier whose *amount* is missing is the same refusal for the same reason — `checkedTierAmount`,
+ *  A tier whose *amount* is missing is the same refusal for the same reason — `checkedBookAmount`,
  *  which is what stops a `null` from arriving at the line as an honest-looking zero. */
 function priceWholeKitchen(
   entries: readonly DisplayEntry[],
@@ -522,7 +536,7 @@ function priceWholeKitchen(
   });
   if (isRefused(hardwareLine)) return hardwareLine;
 
-  const materialAmount = checkedTierAmount(
+  const materialAmount = checkedBookAmount(
     wholeKitchenAmount(material.value),
     material.value.ruleId,
   );
@@ -556,15 +570,17 @@ function selectTier<TTier extends TierIdentity>(
 }
 
 /**
- * **The amount a tier is billed by, as the book declares it and before anything is multiplied by
- * it.** The field name travels with the number because a refusal has to say which of the two was
- * malformed, and because the number alone has lost that by the time it reaches the guard.
+ * **An amount the book states outright, before anything is multiplied by it** — a tier's, or an
+ * accessory's per-unit rate. The field name travels with the number because a refusal has to say
+ * which one was malformed, and because the number alone has lost that by the time it reaches the
+ * guard.
  *
- * `declared` is typed `unknown` although `HardwareTier` and `MaterialTier` both declare `number`,
- * for the reason `usableCoefficientOf` widens its own parameter: ADR 0062 seam 1 makes a book
- * versioned data authored outside TypeScript, so a declared `number` is a promise and not a fact.
+ * `declared` is typed `unknown` although `HardwareTier`, `MaterialTier` and `AccessoryRule` all
+ * declare `number`, for the reason `usableCoefficientOf` widens its own parameter: ADR 0062 seam 1
+ * makes a book versioned data authored outside TypeScript, so a declared `number` is a promise and
+ * not a fact.
  */
-interface DeclaredTierAmount {
+interface DeclaredBookAmount {
   readonly declared: unknown;
   readonly field: PriceCoefficientField;
 }
@@ -587,19 +603,19 @@ function hardwareUnitAmount(
     readonly catalog: BodyCatalog;
   },
 ): Attempt<number> {
-  const perHinge = checkedTierAmount(
+  const perHinge = checkedBookAmount(
     hardwareRate(tier, "perHingeMinor"),
     tier.ruleId,
   );
   if (isRefused(perHinge)) return perHinge;
 
-  const perDrawer = checkedTierAmount(
+  const perDrawer = checkedBookAmount(
     hardwareRate(tier, "perDrawerMinor"),
     tier.ruleId,
   );
   if (isRefused(perDrawer)) return perDrawer;
 
-  const perPushToOpen = checkedTierAmount(
+  const perPushToOpen = checkedBookAmount(
     hardwareRate(tier, "perPushToOpenMinor"),
     tier.ruleId,
   );
@@ -621,7 +637,7 @@ function hardwareUnitAmount(
 function hardwareRate(
   tier: HardwareTier,
   field: "perHingeMinor" | "perDrawerMinor" | "perPushToOpenMinor",
-): DeclaredTierAmount {
+): DeclaredBookAmount {
   return { declared: tier[field], field };
 }
 
@@ -686,7 +702,7 @@ function refuseUnreadableFrontsCause(
 
 /** What a material tier charges once for the whole kitchen — the 2E sheet's *de la +9 000* delta,
  *  which is the largest single figure the book states. */
-function wholeKitchenAmount(tier: MaterialTier): DeclaredTierAmount {
+function wholeKitchenAmount(tier: MaterialTier): DeclaredBookAmount {
   return { declared: tier.wholeKitchenMinor, field: "wholeKitchenMinor" };
 }
 
@@ -729,8 +745,101 @@ function wholeKitchenLine(line: {
 const WHOLE_KITCHEN_QUANTITY = 1;
 
 /**
- * `usableCoefficientOf` **throws** for a tier amount that is not an exact count of minor units,
- * exactly as it does for a cabinet coefficient and for the same ADR 0062 seam 1 reason. This query
+ * **The sink extras, after every other line** — ADR 0070 decision 4, as ADR 0092 decision 11 prices
+ * it. Two lines at most, and often none.
+ *
+ * **Per sink, never per kitchen** (owner, 2026-09-04). The cover's quantity is the number of sink
+ * bodies; the rack's is the number of sinks that resolved a host. A two-sink kitchen is billed two
+ * covers and two racks **even where both racks resolve to the same wall cabinet** — no
+ * de-duplication, which was the recommendation on record and which the owner ruled against.
+ *
+ * **A quantity of zero is no line at all, and that is the whole point of the omission.** A kitchen
+ * with no sink has neither line, and a sink with no wall cabinet above it has the cover and not the
+ * rack. Publishing a zero instead would render *inclus* in the breakdown — telling a customer a
+ * drying rack they are not getting is included in the price. 6B's rule holds in both directions:
+ * omission never means *included*, and a zero never means *missing*.
+ */
+function priceAccessories(
+  entries: readonly DisplayEntry[],
+  request: PriceDesignRequest,
+): Attempt<readonly AccessoryPriceLine[]> {
+  const sinks = findSinkAccessories(entries, request.catalog);
+  const quantities: Readonly<Record<AccessoryId, number>> = {
+    sinkProtectiveCover: sinks.length,
+    dishDryingRack: sinks.filter(
+      (sink) => sink.rackHostPlacementId !== undefined,
+    ).length,
+  };
+
+  const lines: AccessoryPriceLine[] = [];
+  for (const accessoryId of ACCESSORY_IDS) {
+    const line = accessoryLine({
+      rule: accessoryRuleOf(request.book, accessoryId),
+      accessoryId,
+      quantity: quantities[accessoryId],
+    });
+    if (isRefused(line)) return line;
+    if (line.value) lines.push(line.value);
+  }
+  return { value: lines };
+}
+
+/** One accessory the design earns, priced — or **nothing at all** where it earns none of it.
+ *  `undefined` is the omission, a real answer, and the one thing this must never turn into an
+ *  amount of zero. */
+function accessoryLine(billed: {
+  readonly rule: AccessoryRule | undefined;
+  readonly accessoryId: AccessoryId;
+  readonly quantity: number;
+}): Attempt<AccessoryPriceLine | undefined> {
+  if (billed.quantity < ONE_ACCESSORY) return { value: undefined };
+
+  // A book holding no rule for an accessory this design **earns** cannot price the design, and it
+  // is refused rather than skipped: a skipped line is an omission, and omission would say the
+  // customer is not getting a cover they are.
+  const { rule } = billed;
+  if (!rule) {
+    return refusal(
+      "INVALID_PRICE_BOOK",
+      `Book declares no "${billed.accessoryId}" accessory rule, ` +
+        `which this design earns ${String(billed.quantity)} of`,
+      { id: billed.accessoryId },
+    );
+  }
+
+  const unitAmountMinor = checkedBookAmount(
+    { declared: rule.perUnitMinor, field: "perUnitMinor" },
+    rule.ruleId,
+  );
+  if (isRefused(unitAmountMinor)) return unitAmountMinor;
+
+  const amountMinor = billed.quantity * unitAmountMinor.value;
+  const unpublishable = refuseUnpublishableAmount(amountMinor, rule.ruleId);
+  if (unpublishable) return unpublishable;
+
+  return {
+    value: {
+      lineId: `accessory:${billed.accessoryId}`,
+      kind: "accessory",
+      ruleId: rule.ruleId,
+      accessoryId: billed.accessoryId,
+      name: rule.name,
+      description: rule.description,
+      quantity: billed.quantity,
+      unitAmountMinor: unitAmountMinor.value,
+      amountMinor,
+    },
+  };
+}
+
+/** The smallest quantity that is a line. Below it there is nothing to bill, and the line is omitted
+ *  rather than published at nothing. */
+const ONE_ACCESSORY = 1;
+
+/**
+ * `usableCoefficientOf` **throws** for a tier or accessory amount that is not an exact count of
+ * minor units, exactly as it does for a cabinet coefficient and for the same ADR 0062 seam 1
+ * reason. This query
  * refuses with a code instead, so the conversion is here and this function does nothing else —
  * the shape `evaluateFormula` already has for the cabinet path.
  *
@@ -740,8 +849,8 @@ const WHOLE_KITCHEN_QUANTITY = 1;
  * `priceWholeKitchen` exists to prevent. `true` is worse still: a whole material upgrade billed at
  * one ban.
  */
-function checkedTierAmount(
-  amount: DeclaredTierAmount,
+function checkedBookAmount(
+  amount: DeclaredBookAmount,
   ruleId: string,
 ): Attempt<number> {
   try {
