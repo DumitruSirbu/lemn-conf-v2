@@ -5,6 +5,8 @@
 // mesh's `position.x` **is** `runEndPanelSeatM`'s answer rather than a second derivation agreeing
 // with it. The two would agree on the shipped kitchen either way, so the sweep below is chosen to
 // carry the veto case, which is where two derivations part.
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import {
   derivePlacementRecords,
   KITCHEN_L_BODY_CATALOG,
@@ -140,6 +142,34 @@ describe("the adapter's panel constants are the domain's, not a copy", () => {
     expect(RUN_END_PANEL_GAP_M).toBe(DOMAIN_GAP_M);
     expect(RUN_END_PANEL_HEIGHT_M).toBe(DOMAIN_HEIGHT_M);
     expect(RUN_END_PANEL_EDGE_OFFSET_M).toBe(DOMAIN_EDGE_OFFSET_M);
+  });
+
+  /** Wave 6N-a's own structural criterion: *`kitchen-shell.ts` declares no thickness, no gap and no
+   *  edge offset of its own.*
+   *
+   *  **Read off the module source, and that is the only instrument that can see this.** The claim is
+   *  about what the file *declares*, not about what it produces — a restored
+   *  `const PANEL_HALF_THICKNESS_M = 0.009` that seats from its own copy agrees with the domain on
+   *  every record set, so `position.x` cannot distinguish it and neither can the binding identity
+   *  above, which is a fact about `kitchen-parts.ts`. There is no value only the domain can produce
+   *  to route this through: the module exposes no constant of its own to compare against.
+   *
+   *  Asserted as "no numeric literal survives the comment strip", which is stronger than the
+   *  criterion and true today: the module's entire arithmetic is `runEndPanelSeatM`'s answer and a
+   *  seeded parking coordinate it imports. A wave that needs a number here has to say so. */
+  it("declares no slab number of its own", () => {
+    const source = readFileSync(
+      resolve(import.meta.dirname, "../src/kitchen-shell.ts"),
+      "utf8",
+    );
+    const code = source
+      .replace(/\/\*[\s\S]*?\*\//g, "")
+      .replace(/\/\/[^\n]*/g, "");
+
+    // Non-vacuity: the strip left the seating code standing rather than eating the file.
+    expect(code).toContain("syncRunEndPanel");
+    expect(code).toContain("runEndPanelSeatM");
+    expect(code).not.toMatch(/(?<![\w$])\d[\d_]*(?:\.\d+)?(?:e[+-]?\d+)?/i);
   });
 
   /** ADR 0083 decision 5's 3519, read off the built scene rather than off the constants: the

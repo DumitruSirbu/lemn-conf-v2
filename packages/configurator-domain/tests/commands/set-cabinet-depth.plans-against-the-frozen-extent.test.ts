@@ -321,14 +321,23 @@ describe("the axis split, asserted directly rather than through its symptom", ()
     }
   });
 
+  // **The frozen operand is the map production builds, not an empty one.** `rebuildEveryBodyAt`
+  // always passes `deriveRecordedColumns(heldRecords, storedFrozenMapOf(design))`, and on a
+  // pre-ADR-0053 document that stored half is `{}` while the map itself is the **full derived map** —
+  // one entry per column of the shipped kitchen. Handing `new Map()` in instead asserted that a merge
+  // with nothing changes nothing, which no implementation of the axis split can fail; the real
+  // operand makes every column take the merge's three arms and still land on the derived value.
   it("plans exactly as it does today on a document that carries no frozen map", () => {
     const records = recordsAt(KITCHEN_L_DESIGN, DEEP_MM);
+    const frozen = recordedMapOf(KITCHEN_L_DESIGN, DEEP_MM);
 
     // The pre-ADR-0053 document the loader still accepts: no `emptyColumns`, no `columnExtents`.
     expect(KITCHEN_L_DESIGN.emptyColumns).toBeUndefined();
     expect(KITCHEN_L_DESIGN.columnExtents).toBeUndefined();
+    // Non-vacuity, and the whole point of the operand: the map production hands in is populated.
+    expect(frozen.size).toBeGreaterThan(0);
     expect(
-      deriveColumnsOverFrozenExtents(records, new Map(), KITCHEN_L_DESIGN.room),
+      deriveColumnsOverFrozenExtents(records, frozen, KITCHEN_L_DESIGN.room),
     ).toStrictEqual(deriveColumns(records, {}, KITCHEN_L_DESIGN.room));
   });
 

@@ -298,15 +298,32 @@ describe("the smallest record sets the rule can be handed", () => {
     );
   });
 
-  it("hides the panel when wall A carries only bodies that veto", () => {
-    const column = bodyAt({
+  // The veto needs a run to veto: `runEndPanelSeatM` returns before `blocksSeat` when wall A carries
+  // no base at all, so a fixture of vetoing bodies alone hides the panel for the *other* reason and
+  // leaves `blocksSeat` unexecuted. This is the smallest set that reaches it — one base to end the
+  // run, one column standing in the seat that run's finished end would take.
+  it("hides the panel when a column stands in the seat past the smallest run", () => {
+    const soleBase = bodyAt({
+      wall: "A",
+      band: "base",
+      leftEdgeM: 1,
+      y0M: 0,
+      heightM: 0.82,
+      widthM: 0.6,
+    });
+    const columnInTheSeat = bodyAt({
       wall: "A",
       band: "column",
-      leftEdgeM: 1,
+      leftEdgeM: 1.6,
       y0M: 0,
       heightM: 2.2,
     });
 
-    expect(runEndPanelSeatM([column])).toBeUndefined();
+    // Non-vacuity: the run alone seats the panel, so the `undefined` below is the veto's answer and
+    // not the missing-run branch's.
+    expect(runEndPanelSeatM([soleBase])).toBe(
+      1.6 + RUN_END_PANEL_EDGE_OFFSET_M,
+    );
+    expect(runEndPanelSeatM([soleBase, columnInTheSeat])).toBeUndefined();
   });
 });
