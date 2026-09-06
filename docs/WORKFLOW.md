@@ -379,6 +379,21 @@ observed on 2026-09-03 and each initially misread as a defect in the code.
   it read-only** — the timestamps settle it. The narrow rule: at most one agent runs the rollback
   suite at a time. **QA agents should run per-package suites (`cd <pkg> && pnpm exec vitest run`)
   rather than workspace-wide `pnpm test`**, which drags the persistence package into every run.
+- **`docs/`.** Not touching docs is not enough on its own: the standing instruction to run
+  `pnpm format` whole-tree at wave end reaches every file in the repository, docs included, and a
+  scribe editing `docs/` at the same moment loses whatever the formatter's write collides with. The
+  same rule this section already gives QA and verification applies to a documentation pass: freeze
+  `docs/` and code together, and dispatch a scribe only once nothing else is writing to the tree.
+  **This is the coordinator's failure to guard against, not an implementer's or a scribe's** — both
+  agents did exactly what they were dispatched to do; nobody declared the two dispatches
+  incompatible. It cost roughly 192 lines of an ADR amendment on 2026-09-06: never staged, an empty
+  stash, and `git fsck` finding no blob to recover it from.
+- **A directory you did not author, in a shared tree.** `git checkout -- <dir>` (or `git restore`)
+  discards every uncommitted change under that path, including another agent's — it does not ask, and
+  it does not distinguish your edits from theirs. Run `git status` and `git stash push -u` before
+  reverting anything wider than a file you know you alone are editing. The 192-line loss above was
+  exactly this: a `docs/` revert run to undo one agent's edit took a concurrent scribe's uncommitted
+  section with it.
 
 A guard reporting a real inconsistency is not the same as a defect. Two of the three above were
 guards working correctly on a racing system.

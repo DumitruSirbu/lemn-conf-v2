@@ -309,9 +309,9 @@ constant (`worktop-depth.ts` carries a comment saying the rename is owed and def
 | 6K-j — an empty space follows the setting, and the fallback is not a ratchet *(ADR 0080, owner instruction 2026-09-05; **amended after QA, same day** — the predicate is an equality)* — **DONE 2026-09-05, `151429f`** | D | 6K-c — **gated by it**, and it gates nothing | Full |
 | 6L — the handle path learns cabinet from appliance *(backlog 18)* — **CERTIFIED WITH FINDINGS 2026-09-05, `59f8669`** | G | none — **sequenced before 6B and 6G** | Full |
 | 6M — the overflow is marked and warned about *(ADR 0065)* — **DONE 2026-09-04, `ce77171`** | — | 6A3 | Light + visual |
-| 6J-c — the along-wall chain gains its production reader *(ADR 0083's finding; 6J-a's unmet criterion; **kept and confirmed 2026-09-06 by ADR 0089** — the descoped 6N-b/6N-c were never its consumer)* — **IMPLEMENTED, NOT LANDED: it exposed the frozen map's positioned facts and does not reach `main` without 6J-d ([ADR 0090](../decisions/0090-a-frozen-space-slides-with-its-run-and-follows-the-body-it-recorded.md) decision 7)** | D | none — **and it gates nothing, 6N included** | Full |
-| 6J-d — the frozen map slides with the run it records *(ADR 0090; the seam 6J-c exposed — four standing wall-B runs recorded as free space at 700, five `EMPTY_COLUMN_OVERLAPS_PLACEMENT` refusals, and a 700 mm kitchen that cannot be saved)* | D | 6J-c — **gated by it and lands with it, one branch** | Full |
-| 6N-0 — the demo room clears its run at both depths, `3560 × 2920` *(ADR 0083, owner 2026-09-05)* | — | none | Full |
+| 6J-c — the along-wall chain gains its production reader *(ADR 0083's finding; 6J-a's unmet criterion; **kept and confirmed 2026-09-06 by ADR 0089** — the descoped 6N-b/6N-c were never its consumer)* — **DONE 2026-09-06, `2bdd923`, landed with 6J-d, merged to `main` at `e7eba07`** | D | none — **and it gates nothing, 6N included** | Full |
+| 6J-d — the frozen map slides with the run it records *(ADR 0090; the seam 6J-c exposed — four standing wall-B runs recorded as free space at 700, five `EMPTY_COLUMN_OVERLAPS_PLACEMENT` refusals, and a 700 mm kitchen that cannot be saved)* — **DONE 2026-09-06, `cf53e8e` + Amendment B's D1 fix `b4d93c7`, merged to `main` at `e7eba07`** | D | 6J-c — **gated by it and lands with it, one branch** | Full |
+| 6N-0 — the demo room clears its run at both depths, `3560 × 2920` *(ADR 0083, owner 2026-09-05)* — **DONE 2026-09-06, `cf53e8e` (one commit with 6J-d), merged to `main` at `e7eba07`** | — | none | Full |
 | 6N-a — the run-end panel's seat is a domain fact *(ADR 0083)* | — | none | Full |
 | 6N-b — one published coverage fact per wall *(ADR 0083)* — **DROPPED 2026-09-05, owner ruling: its only reader was the bars** | — | 6N-0, 6N-a | Full |
 | 6N-c — the wall-coverage bars, both shells *(owner request)* — **DROPPED 2026-09-05, owner ruling: "skip it in general for now"** | — | 6D, 6M, 6N-b — **and ADR 0083's owner question Q1, the missing reference artefact** | Light + visual |
@@ -3237,6 +3237,17 @@ on the load path.
 - `validate-design.test.ts`'s `BOUND_BY_WALL` `toStrictEqual({ A: 3560, B: 2920 })` — the pin that
   makes wall B's bound a stated number rather than whatever the fixture happens to say.
 
+#### Close-out — DONE 2026-09-06, `cf53e8e` (one commit with 6J-d), merged to `main` at `e7eba07`
+
+Shipped on branch `wave/6j-cd-along-wall-chain` alongside 6J-d, because the far-end-of-wall
+measurement both waves needed (ADR 0090 Amendment B's D1) only exists in the 2920 mm room this wave
+produces — the same failure is invisible in the pre-6N-0 2830 mm room only because wall B's run does
+not reach its end there. The room is `{ widthMm: 3560, depthMm: 2920 }`; the acceptance criteria
+above — no placement moving with it, derived artefacts byte-identical, the corrected-room fixed point
+unchanged — are the criteria 6J-d's own verification exercises when it runs the seeded design at 600
+and 700 in this room. See 6J-d's close-out below for the merged-tree gate numbers, which cover this
+wave's diff as well as 6J-c's and 6J-d's — all three landed in one branch and one merge.
+
 ##### Wave 6J-c — the along-wall chain gains its production reader
 
 **Not part of 6N, and it does not gate it.** Scheduled here because this is where it was found;
@@ -3282,6 +3293,30 @@ that rewrites stored placements under migrate-on-change (ADR 0055).
 - **Nothing is refused, narrowed or removed.** ADR 0055 and ADR 0065 are untouched: bodies move
   along their wall because the corner consumed more of it, and any body that then passes the wall's
   end is **marked**, not moved back.
+
+#### Close-out — DONE 2026-09-06, `2bdd923`, landed with 6J-d, merged to `main` at `e7eba07`
+
+**What this wave fixed: the shipped 700 mm kitchen did not compose.** Before this wave,
+`base-corner-return-320` overlapped wall A's corner by 80 mm and the wall corner return overlapped it
+by 31 mm (ADR 0089 decision 3's measurement, at `14cef90`) — and `validateDesignForCatalog` returned
+`[]` on that design. The validator did not catch it: `findWallOverlaps` groups spans by wall and never
+compares a wall-A coordinate against a wall-B one, so a corner intersection is invisible to it by
+construction (recorded, not fixed, as ADR 0090's "the validator is blind to a cross-wall corner
+intersection" finding, `docs/BACKLOG.md` entry 50). The composition was wrong and nothing was
+refusing it.
+
+**The field this wave gives a production reader — `alongWallPositionFollows` — is what selects the
+fix, and a single uniform shift would have been wrong.** The catalogue declares two chains for the
+along-wall shift a corner body's growth forces on the rest of its wall: `base-formula`
+(`baseCarcassDepthMm`, 560 → 660 mm, **+100** at 700) and `wall-map` (`wallCarcassSeatDepthMm`,
+291 → 361 mm, **+70** at 700). `wall-2door-600-deep-top` and `wall-corner-return-570-top` sit in the
+same band at the same vertical interval and declare different chains — so a rule that shifted every
+wall-B body by one constant would be **30 mm wrong** for whichever chain it did not choose, and 30 mm
+is an overlap and a refused save (ADR 0090 decision 3). Reading the declared field per entry, rather
+than inferring a shift from a band, is what avoids that.
+
+Gate numbers for this wave are reported together with 6J-d's below — both landed in the same branch
+and the same merge, and were measured on the merged tree.
 
 ##### Wave 6J-d — the frozen map slides with the run it records
 
@@ -3532,6 +3567,73 @@ ADR 0090 measurement re-run and reported with its numbers — record columns, or
 **Adversarial QA gates review** (`docs/WORKFLOW.md`), and QA's first job is the non-vacuity of the
 funnel stage and the moved tests. No visual verification is owed: ADR 0074 rebuilds the scene whole
 at a depth change, and no adapter file is touched.
+
+#### Close-out — DONE 2026-09-06, `cf53e8e` + Amendment B's D1 fix `b4d93c7`, merged to `main` at `e7eba07`
+
+**What this wave fixed: a 700 mm kitchen that could not be saved at all.** Before this wave,
+`setCabinetDepth(700)` left `Design.emptyColumns` and `Design.columnExtents` at the coordinates
+6J-c's placements had just vacated — `columns` kept all 12 of its 600 mm keys, four standing wall-B
+runs (the corner returns, the pantry/wall-2door column, the fridge/wall-2door-over-fridge column)
+were filed under no column at all and written to `emptyColumns` instead, `voids` went 3 → 12, and
+`validateDesignForCatalog` returned **five `EMPTY_COLUMN_OVERLAPS_PLACEMENT` refusals** at the `PUT`
+seam. This wave moves every positioned fact in the frozen map with the run it belongs to, in the same
+command that moves the run (ADR 0090 decisions 1–2), so the returned document no longer contradicts
+its own placements.
+
+**Two rulings inside this wave were overturned by the wave's own tests before either reached `main`,
+and the record keeps both wrong answers rather than erasing them.**
+
+- **The first ruling (ADR 0090 decision 4a) said a member-less space with no recorded source keeps its
+  coordinate — stands still.** Measured against the legacy scenarios `qa-6k-j-fallback-rule` already
+  builds, that answer is wrong in **seven of the eight** scenarios carrying a wall-B map (Amendment A's
+  second measurement table): every legacy scenario reports `COLUMN_EXTENT_OVERLAPS_PLACEMENT` and
+  `COLUMN_EXTENT_HAS_NO_MEMBER` refusals under it, because standing still is not the absence of a
+  guess — on a run that has moved, it is a claim that a column follows a third chain no catalogue entry
+  declares, wrong by the full shift on every reachable entry. Overturned the same day (Amendment A) by
+  a four-rung information ladder: wall A unchanged, an occupied column moves by the delta its own
+  members moved, a sourced member-less extent slides on its declared chain, and only a sourceless
+  member-less extent falls back to `FOLLOWS_CABINET_DEPTH`.
+- **The ladder's own first statement of itself — "no space is lost, because every space returns on
+  every reachable document" — was also wrong, and adversarial QA found the case the two amendments
+  before it had not measured.** On a recorded space flush to wall B's end, the slide plus the
+  room-derived wall-end cap moved the record from `[2320..2920]` (600) to `[2420..2920]` (700) to
+  `[2320..2820]` (back at 600) — **100 mm lost permanently**, schema-valid and validator-silent, on a
+  document Amendment A's own text had just said this could not happen to. Ruled by Amendment B: a
+  room-derived cap may bound what the map **publishes** and may never rewrite what the document
+  **records** — the recorded extent slides exactly and keeps its width, only the published column is
+  capped at the wall, and the round trip returns.
+- **Six tests were declared invariants before either ruling was made, and neither wrong ruling was
+  allowed to edit them to pass.** When 6J-c landed alone, `@lemnaria/web` reported 8 failed tests, six
+  of them these invariants (`qa-6k-j-fallback-rule`'s two, `qa-6k-j-closure`'s two,
+  `qa-6k-c-frozen-source`'s two Gap D assertions). Two of the six could not be made to pass under the
+  first wrong ruling (decision 4a) — the implementer stopped and escalated rather than weakening them,
+  which is what surfaced 4a as the error rather than the tests. All six now pass, with **only their
+  anchors moved** (a wall-B key renamed to the coordinate the ladder now computes) and every expected
+  value, tolerance, generator range and scenario byte-identical to before. **This is the record this
+  project has to show that the invariant discipline works**: two wrong rulings were tried against the
+  same six tests in one wave, and the tests were never the thing that gave way.
+
+**The residue is introduced by this wave, and it is not closed by it.** `setCabinetDepth` obeys
+Amendment B's rule — the recorded width survives its own slide. `setWidth` and `insertBody` do not:
+`CommandContext.columns` hands them the **published** map and their `effect.columns` replaces the
+record whole, so an unrelated resize on a different wall still carries the wall-end cap into what is
+recorded. Measured on the branch: a space recorded at `B|2620 w600` survives `setCabinetDepth(700)`
+(recorded `B|2720 w600`, published `B|2670 w500`) and survives a delete on wall B, but a resize of
+`p0` on **wall A** — a body on the wall the capped space has nothing to do with — collapses the
+recorded width to the published one, taking 100 mm permanently. **At `e28ab25`, before this wave, the
+depth command slid no extent at all, so a far-end space was never pushed past its wall and was never
+capped — there was no loss on this path on `main`, in either direction.** The residue is this wave's
+own, not inherited, and direction is already ruled (ADR 0090's Amendment B addendum): the wall-end cap
+must preserve the column's key, and `setWidth`/`insertBody` should then be handed the recorded map
+rather than the published one. Recorded as `docs/BACKLOG.md` entry 52, unscheduled.
+
+**Gate numbers, merged tree at `e7eba07`, reported by the coordinator** (covers this wave, 6J-c and
+6N-0 together — all three landed in one branch and one merge): `pnpm ci:local` PASSED, all ten gates.
+Domain 2929 passed, three-adapter 2204 passed, persistence 177 passed, web 1601 passed / 4 skipped.
+**The gates were run twice against a tree still being written** before this final run — once mid-wave
+and once after an intervening edit — and both earlier runs are superseded by this one; a gate run is
+only attributable to a wave once the wave has stopped moving, the same freeze this project already
+applies to QA and review.
 
 ##### Wave 6N-a — the run-end panel's seat is a domain fact
 
