@@ -1,0 +1,266 @@
+{
+  "brand": "Lemnaria",
+  "meta": {
+    "title": "{brand} — configurator bucătărie",
+    "description": "Configurează-ți bucătăria direct în model."
+  },
+  "configure": {
+    "step": "Pasul 2 din 4",
+    "back": "‹ Cameră",
+    "orbitHint": "Atinge un corp pentru a-l edita · trage pentru a roti",
+    "cameraGroupLabel": "Vedere cameră",
+    "cameraPresets": {
+      "overview": "Vedere generală",
+      "wallA": "Perete A",
+      "wallB": "Perete B"
+    },
+    "loading": "Se încarcă modelul 3D…",
+    "overflowWarning": "Dulapurile marcate depășesc lungimea peretelui. Modifică lățimile sau elimină un dulap."
+  },
+  "panel": {
+    "close": "Închide panoul",
+    "done": "Gata",
+    "remove": "Șterge corpul",
+    "headerMeta": "Perete {wall} · {bandLabel} · {widthMm, number, ::group-off} × {heightMm, number, ::group-off} mm",
+    "replaceTitleOccupied": "Înlocuiește",
+    "replaceTitleEmpty": "Pune un corp aici",
+    "bandWords": {
+      "base": {
+        "one": "bază",
+        "many": "bază"
+      },
+      "wall": {
+        "one": "suspendat",
+        "many": "suspendate"
+      },
+      "column": {
+        "one": "coloană",
+        "many": "coloană"
+      }
+    },
+    "countForBody": "{count, plural, one {# corp} few {# corpuri} other {# de corpuri}} {bandWord} de {widthMm, number, ::group-off}",
+    "countForSlot": "{count, plural, one {# corp} few {# corpuri} other {# de corpuri}} intră în {widthMm, number, ::group-off} × {heightMm, number, ::group-off} mm",
+    "noOffersForBody": "Niciun alt corp {bandWord} nu încape aici. Șterge corpul ca să eliberezi deschiderea și să vezi ce intră în ea.",
+    "noOffersForSlot": "Niciun corp din catalog nu intră în {widthMm, number, ::group-off} × {heightMm, number, ::group-off} mm. Șterge un corp vecin ca să lărgești deschiderea.",
+    "noOffersTooWide": "Deschiderea are {widthMm, number, ::group-off} mm, mai mult decât cel mai lat corp din catalog ({maxWidthMm, number, ::group-off} mm). Niciun corp nu o umple singur, iar ștergerea unui vecin ar lărgi-o și mai mult. Spațiul poate rămâne gol, sau îl poți împărți punând la loc un corp lângă el.",
+    "noOffersTooNarrow": "Deschiderea are {widthMm, number, ::group-off} mm, mai puțin decât cel mai îngust corp din catalog ({minWidthMm, number, ::group-off} mm). Spațiul poate rămâne gol; se închide pe măsură ce lărgești corpul de lângă el.",
+    "offerSize": "{widthMm, number, ::group-off} × {heightMm, number, ::group-off} mm",
+    "currentBadge": "Actual",
+    "probeUnavailable": "Modelul 3D se pregătește — poți alege în câteva momente.",
+    "readOnlyNotice": "Poți vedea această configurație, dar nu o poți modifica din acest browser.",
+    "readOnlyReason": "Doar vizualizare",
+    "accessCheckingNotice": "Se verifică dacă poți modifica această configurație. Până atunci o poți doar vedea.",
+    "accessCheckingReason": "Se verifică accesul",
+    "accessUncheckableNotice": "Nu am putut verifica dacă poți modifica această configurație. Până când verificarea reușește o poți doar vedea — o modificare făcută acum nu s-ar salva.",
+    "accessUncheckableReason": "Acces neverificat",
+    "accessRetryLabel": "Încearcă din nou",
+    "saveConflictNotice": "Această configurație a fost modificată în altă filă sau pe alt dispozitiv, așa că modificarea ta nu a fost salvată. Reîncarcă pentru a vedea versiunea salvată — se pierde ce ai schimbat aici — sau suprascrie cu ce vezi acum, iar cealaltă versiune se pierde.",
+    "saveConflictReloadLabel": "Reîncarcă versiunea salvată",
+    "saveConflictOverwriteLabel": "Suprascrie cu ce vezi acum",
+    "readOnlyRefusedNotice": "Modificarea nu a fost salvată: acest browser nu poate modifica această configurație. Ce vezi pe ecran nu este salvat și se pierde dacă închizi sau reîncarci pagina. Deschide configuratorul într-o filă nouă dacă vrei să faci modificări pe care le poți salva.",
+    "saveFailedNotice": "Modificarea este aplicată pe ecran și încercăm în continuare să o salvăm. Nu o reface și nu reîncărca pagina: o reîncărcare acum ar șterge versiunea care așteaptă să fie salvată.",
+    "saveStoppedNotice": "Salvarea s-a oprit pentru această configurație și nu va reporni singură. Ce vezi pe ecran nu este salvat și se pierde dacă închizi sau reîncarci pagina. Deschide configuratorul într-o filă nouă și reia modificările acolo.",
+    "finishTitle": "Finisaj",
+    "finishApproximationNote": "Culoarea din pastilă și cea din vizualizare sunt orientative — nuanța finală se alege pe mostra fizică.",
+    "finishPickerLabel": "Alege culoarea",
+    "handleTitle": "Mâner",
+    "handleLabels": {
+      "steel": "Bară inox",
+      "black": "Bară neagră",
+      "push": "Push-to-open"
+    },
+    "handleDefaultNote": "Implicit pentru acest corp: {label}.",
+    "widthTitle": "Lățime",
+    "widthValue": "{widthMm, number, ::group-off} mm",
+    "widthStepLabels": {
+      "narrower": "−50 mm",
+      "wider": "+50 mm"
+    },
+    "widthStepAriaLabels": {
+      "narrower": "Micșorează lățimea cu 50 mm",
+      "wider": "Mărește lățimea cu 50 mm"
+    },
+    "widthStepNote": "Lățimea se schimbă din 50 în 50 mm, mutând granița coloanei în spațiul liber alăturat — întâi în dreapta, apoi în stânga. Când un buton este gri, sub el scrie de ce.",
+    "widthChoiceNote": "Coloana asta se face doar în lățimile afișate, așa că alegi una dintre ele în loc să reglezi din 50 în 50 mm. Alegerea schimbă lățimea întregii coloane, nu doar a acestui corp.",
+    "structuralTitle": "Corp structural",
+    "structuralReasons": {
+      "corner": "Colțul ține legătura dintre cei doi pereți, așa că nu poate fi înlocuit, șters sau redimensionat. Alege un corp de lângă el."
+    }
+  },
+  "price": {
+    "startingPrefix": "De la",
+    "startingPrefixUnchanged": "De la neschimbat",
+    "overflowingTotalWarning": "Prețul include și dulapuri ce depășesc mărimea peretelui și necesită ajustări"
+  },
+  "priceBreakdown": {
+    "title": "De ce acest preț",
+    "disclaimer": "Preț de pornire, rotunjit în sus la mia de lei. Nu include transport, blat sau electrocasnice — suma finală se stabilește după măsurare.",
+    "note": "Toate sumele sunt prețuri de pornire, rotunjite în sus. Nu constituie ofertă comercială.",
+    "close": "Închide",
+    "placementLabel": "{bodyLabel} {widthMm, number, ::group-off}",
+    "groupHeading": "Perete {wall} · {bandWord}",
+    "bandHeadings": {
+      "base": "bază",
+      "wall": "suspendate",
+      "column": "coloane"
+    },
+    "wholeKitchenLabel": "{categoryWord} · {tierName}",
+    "wholeKitchenCategories": {
+      "hardware": "Feronerie",
+      "material": "Material"
+    },
+    "included": "inclus"
+  },
+  "globalSettings": {
+    "open": "Setări globale",
+    "title": "Setări pentru toată bucătăria",
+    "appliesTo": "Se aplică {bodyCount, plural, one {singurului corp din bucătărie} few {tuturor celor # corpuri} other {tuturor celor # de corpuri}}. Nu se setează pe fiecare corp în parte.",
+    "groupHeadings": {
+      "material": "Material corp și fronturi",
+      "hardware": "Feronerie"
+    },
+    "groupAnchors": {
+      "material": "Față de materialul inclus",
+      "hardware": "Față de feroneria inclusă"
+    },
+    "tierDelta": "de la {addedAmount}",
+    "materialWarning": "Schimbarea materialului recalculează întreaga estimare.",
+    "depthHeading": "Adâncimea corpurilor",
+    "depthOption": "{cabinetDepthMm, number, ::group-off} mm",
+    "depthWarning": "Schimbarea adâncimii reconstruiește toate corpurile și schimbă modelul.",
+    "depthNote": "Adâncimea nu schimbă estimarea — doar dimensiunile corpurilor.",
+    "apply": "Aplică",
+    "cancel": "Renunță",
+    "materialResetConfirm": {
+      "title": "Culorile alese se pierd",
+      "body": "Ai ales alte culori pentru {chosenCount, plural, one {# corp} few {# corpuri} other {# de corpuri}}. Fiecare material are propriile culori, așa că toate revin la culoarea implicită a materialului nou.",
+      "confirm": "Schimbă materialul",
+      "back": "Păstrează culorile"
+    }
+  },
+  "webglUnavailable": {
+    "titleMobile": "Dispozitivul acesta nu poate afișa 3D",
+    "titleDesktop": "Browserul acesta nu poate afișa 3D",
+    "bodyMobile": "Configurarea se face direct în model, așa că nu putem continua fără 3D. Deschide configuratorul pe alt telefon sau pe calculator — sau lasă-ne datele și îl configurăm împreună.",
+    "bodyDesktop": "Configurarea se face direct în model, așa că nu putem continua fără 3D. Încearcă alt browser sau activează accelerarea grafică — ori lasă-ne datele și îl configurăm împreună.",
+    "emailLink": "Trimite-mi linkul pe e-mail",
+    "contactLink": "Vreau să mă contactați",
+    "noFakePreview": "Nu afișăm o previzualizare statică falsă: fără 3D nu există configurare reală, deci nici preț."
+  },
+  "designLoadError": {
+    "title": "Nu am putut deschide acest link",
+    "bodyNotFound": "Linkul acesta nu mai corespunde niciunei configurații salvate. Poate a fost șters sau adresa este greșită.",
+    "bodyInvalid": "Configurația salvată la acest link nu poate fi citită. Ne pare rău pentru inconvenient.",
+    "startOver": "Pornește o configurare nouă"
+  },
+  "contactPlaceholder": {
+    "title": "Formularul de contact urmează",
+    "body": "Pasul de contact nu este încă disponibil în această versiune a configuratorului.",
+    "back": "Înapoi la configurare"
+  },
+  "band": {
+    "base": "bază",
+    "wall": "suspendat",
+    "top": "rând de sus",
+    "column": "coloană"
+  },
+  "finish": {
+    "pal": {
+      "alb": "Alb",
+      "stejar-bardolino": "Stejar Bardolino Natur",
+      "stejar-halifax": "Stejar Halifax Natur",
+      "antracit": "Antracit",
+      "gri-havanna": "Gri Havanna",
+      "nuc-warmia": "Nuc Warmia Maro"
+    },
+    "veneer": {
+      "stejar": "Stejar",
+      "nuc": "Nuc"
+    }
+  },
+  "catalog": {
+    "emptySlot": "Spațiu liber",
+    "unknownKind": "Corp",
+    "bodyLabelWithDoors": "{name} {doors, plural, one {# ușă} few {# uși} other {# de uși}}",
+    "kinds": {
+      "base_cabinet": "Corp bază",
+      "dishwasher_housing": "Nișă mașină de spălat vase",
+      "induction_cooktop": "Plită cu inducție",
+      "tall_unit": "Coloană",
+      "fridge_housing": "Nișă frigider integrat",
+      "fridge_freestanding": "Frigider",
+      "wall_cabinet": "Corp suspendat",
+      "open_shelf_unit": "Etajeră deschisă",
+      "extractor_hood": "Hotă",
+      "corner_base_x": "Corp bază de colț",
+      "corner_base_return": "Racord bază de colț",
+      "corner_wall_return": "Dulap suspendat de colț",
+      "corner_wall_return_top": "Dulap de colț {rowWord}"
+    },
+    "entries": {
+      "base-cabinet": "Corp bază",
+      "base-3drawer": "Corp bază 3 sertare",
+      "base-panbank": "Sertare pentru oale",
+      "base-hob-2drawer": "Corp plită și 2 sertare",
+      "base-hob-oven": "Corp plită și cuptor",
+      "base-bottle-cargo": "Cargo îngust pentru sticle",
+      "base-sink": "Corp spălător",
+      "base-dishwasher": "Nișă mașină de spălat vase",
+      "wall-cabinet": "Corp suspendat",
+      "wall-lift": "Corp suspendat rabatabil",
+      "open-shelf": "Etajeră deschisă",
+      "hood": "Hotă",
+      "tall-pantry": "Coloană cămară",
+      "tall-oven-tower": "Coloană cuptor + microunde",
+      "tall-fridge-housing": "Nișă frigider integrat",
+      "fridge-free": "Frigider, liber"
+    }
+  },
+  "rejection": {
+    "VOID_SELECTED": "Aici nu se află niciun corp.",
+    "TARGET_NOT_FOUND": "Selecția nu mai există. Alege din nou un corp sau un spațiu liber.",
+    "INVALID_OCCURRED_AT": "Momentul modificării nu este valid, așa că nu am salvat nimic.",
+    "BODY_PROBE_UNAVAILABLE": "Modelul 3D nu este încă pregătit, așa că nu pot adăuga un corp. Încearcă din nou într-o clipă.",
+    "ACCESSORY_NOT_DELETABLE": "„{label}” face parte din corpul de sub ea și nu poate fi ștearsă separat.",
+    "NOT_DELETABLE": "„{label}” face parte din structura bucătăriei și nu poate fi șters.",
+    "NOT_IN_LIBRARY": "Corpul acesta nu există în catalog.",
+    "NOT_INSERTABLE": "„{label}” face parte din configurația inițială și nu poate fi adăugat din catalog.",
+    "TARGET_NOT_REPLACEABLE": "„{label}” face parte din structura bucătăriei și nu poate fi înlocuit.",
+    "BAND_MISMATCH": "{slotBand, select, base {„{label}” este un corp suspendat: nu are soclu și nici blat, deci nu poate sta pe podea.} other {„{label}” este un corp de bază și nu poate fi montat pe perete. Doar coloanele pot depăși un nivel.}}",
+    "WIDTH_TOO_LARGE": "„{label}” are {requiredMm, number, ::group-off} mm lățime, iar deschiderea are doar {availableMm, number, ::group-off} mm.",
+    "WIDTH_TOO_SMALL": "„{label}” are nevoie de cel puțin {requiredMm, number, ::group-off} mm lățime, iar deschiderea are doar {availableMm, number, ::group-off} mm.",
+    "WIDTH_TOO_SMALL_UNKNOWN_FLOOR": "„{label}” nu poate fi adăugat: lățimea minimă din catalog nu este o valoare validă.",
+    "WIDTH_NOT_SUPPORTED_NO_WIDTH": "„{label}” nu poate fi construit la nicio lățime pe care o acceptă și corpurile de deasupra.",
+    "WIDTH_NOT_SUPPORTED_COLUMN": "„{label}” este într-o coloană care se face {widthsMadeClause}, iar acum are {availableMm, number, ::group-off} mm.",
+    "WIDTH_NOT_SUPPORTED_BODY": "„{label}” se face {widthsMadeClause}, iar deschiderea are {availableMm, number, ::group-off} mm.",
+    "OPENING_TOO_SHORT": "Deschiderea are doar {availableMm, number, ::group-off} mm înălțime; sub {minimumMm, number, ::group-off} mm nu se poate construi un corp.",
+    "HEIGHT_EXCEEDS_LEVEL": "„{label}” are {requiredMm, number, ::group-off} mm înălțime și nu încape pe acest nivel de {availableMm, number, ::group-off} mm. Doar coloanele pot depăși un nivel.",
+    "HEIGHT_TOO_LARGE": "„{label}” are {requiredMm, number, ::group-off} mm înălțime, iar spațiul liber are {availableMm, number, ::group-off} mm.",
+    "NO_SNAP_POSITION": "„{label}” nu poate fi așezat pe niciuna dintre liniile de modul ale acestei coloane.",
+    "BUILT_SIZE_MISMATCH": "„{label}” s-a construit la {builtMm, number, ::group-off} mm în loc de {requiredMm, number, ::group-off} mm, așa că nu l-am așezat.",
+    "MEASUREMENT_UNUSABLE": "Nu am putut măsura corpul „{label}” după ce a fost construit, așa că nu l-am așezat.",
+    "COLUMN_MISMATCH": "„{label}” ar ieși din coloana în care a fost adăugat.",
+    "NOT_RESIZABLE": "„{label}” nu își poate schimba lățimea.",
+    "WIDTH_UNCHANGED": "„{label}” are deja {widthMm, number, ::group-off} mm lățime.",
+    "NO_EMPTY_SPACE": "„{label}” nu poate ajunge la {requestedMm, number, ::group-off} mm: coloana ar mai avea nevoie de {deltaMm, number, ::group-off} mm, dar {sides}.",
+    "COLUMN_MEMBER_NOT_RESIZABLE": "„{label}” nu poate fi redimensionat: în aceeași coloană stă „{memberLabel}”, care nu își poate schimba lățimea.",
+    "RESIZE_OPENS_GAP": "„{label}” nu poate fi redimensionat aici: {sides}.",
+    "COLUMN_KEY_COLLISION": "„{label}” nu poate ajunge la {requestedMm, number, ::group-off} mm: {sides}.",
+    "COLUMN_HOOD_FLOOR": "„{label}” nu poate coborî la {requestedMm, number, ::group-off} mm: hota de deasupra are {hoodWidthMm, number, ::group-off} mm.",
+    "NON_INTEGER_MILLIMETRES": "Dimensiunea calculată ({field}: {valueMm} mm) nu este un număr întreg de milimetri.",
+    "FINISH_NOT_SUPPORTED": "„{label}” nu are uși, deci nu i se poate schimba finisajul.",
+    "FINISH_NOT_OFFERED": "Culoarea aceasta nu se face în materialul ales pentru bucătărie. Alege altă culoare sau schimbă materialul.",
+    "HANDLE_NOT_SUPPORTED": "„{label}” nu are mânere.",
+    "UNKNOWN_MATERIAL_TIER": "Materialul ales nu mai este disponibil. Alege altă variantă.",
+    "UNKNOWN_HARDWARE_TIER": "Feroneria aleasă nu mai este disponibilă. Alege altă variantă.",
+    "UNKNOWN_CABINET_DEPTH": "Adâncimea aleasă nu este disponibilă. Alege una dintre adâncimile oferite.",
+    "parts": {
+      "emptySpaceSide": "{side, select, right {în dreapta} other {în stânga}} {reason, select, absent {nu este spațiu liber} too_narrow {spațiul liber este prea îngust} opens_a_gap {s-ar deschide un spațiu liber peste alte corpuri} other {corpul ar ajunge peste altă coloană}}",
+      "sidesJoin": ", iar ",
+      "widthsMadeBetween": "între {minMm, number, ::group-off} și {maxMm, number, ::group-off} mm",
+      "widthsMadeAt": "la {minMm, number, ::group-off} mm",
+      "widthsMadeList": "doar în {sizes} mm",
+      "widthsJoin": " sau "
+    }
+  }
+}
