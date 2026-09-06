@@ -1,10 +1,10 @@
 "use client";
 
+import type { Finish } from "@lemnaria/configurator-domain";
 import {
   CAMERA_FIELD_OF_VIEW_DEGREES,
   MAX_DEVICE_PIXEL_RATIO,
   RENDERER_PARAMETERS,
-  type FinishKey,
 } from "@lemnaria/three-adapter";
 import { OrbitControls } from "@react-three/drei";
 import { Canvas } from "@react-three/fiber";
@@ -14,7 +14,7 @@ import type { SceneView } from "./scene-view";
 
 export interface KitchenCanvasProps {
   view: SceneView;
-  finish?: FinishKey;
+  finish?: Finish;
   /** `always` only for the capture harness, which needs frames without a gesture to drive them. */
   frameloop?: "demand" | "always";
   onSettled?: () => void;

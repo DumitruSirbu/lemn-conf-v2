@@ -27,8 +27,14 @@ import { deleteMintedDesigns } from "./support/minted-designs";
 
 const SINK_CABINET_FULL_WIDTH = { x: 700, y: 560 };
 /** The same scene once the rail has taken its 420 px and the world has re-projected into 1020 px:
- *  a base cabinet well clear of the patches below, and the fridge column. */
-const FAR_BASE_CABINET = { x: 700, y: 560 };
+ *  a base cabinet well clear of the patches below, and the fridge column.
+ *
+ *  **Re-measured 2026-09-06** (ADR 0094 criterion 4f), because wave 6R-b's settings row moved the
+ *  canvas 45 px down and this point was the first casualty: at y 560 it now lands on background and
+ *  selects nothing. Scanned in the running app at x 700 with the rail open — 545, 550, 555 and 560
+ *  reach nothing, and **565 through 720 all reach `p2`**. 640 is inside that band by 75 px at the
+ *  measured edge and is not a value nudged until the count passed. */
+const FAR_BASE_CABINET = { x: 700, y: 640 };
 const FRIDGE = { x: 200, y: 500 };
 
 const VIEWPORT_WIDTH_PX = 1440;
@@ -40,28 +46,40 @@ const MIN_ROW_HEIGHT_PX = 52;
 const MAX_ROW_HEIGHT_PX = 70;
 const MIN_CHIP_HEIGHT_PX = 52;
 
-/** Patches of **page** pixels around the two bodies under test; the canvas starts 55 px down. */
-const SINK_PATCH: PixelRect = { x: 420, y: 520, width: 180, height: 180 };
+/**
+ * Patches of **page** pixels around the two bodies under test; **the canvas starts 100 px down**.
+ *
+ * **Re-derived 2026-09-06 against the new canvas origin** (ADR 0094 criterion 4f). Wave 6R-b gave
+ * the settings strip its own grid row, so the desktop bands measure header 55 px + strip 45 px (44
+ * of content and the band's own 1 px rule) and the canvas box is y 100, 1440 × 800 — it was y 55,
+ * 1440 × 845. A shorter canvas re-projects the whole scene, so neither patch is the old one shifted
+ * by 45: each is the highlight's own bounding box, **measured in the running app** and padded by
+ * 12 px. A patch nudged until a count passes is the failure ADR 0028 exists for.
+ */
+/** The sink cabinet's highlight, measured with the rail open at page x 432–588, y 480–693. */
+const SINK_PATCH: PixelRect = { x: 420, y: 468, width: 180, height: 240 };
 /** The opening the fridge leaves behind, once §5.1 has selected it. Found the same way as the tap
  *  coordinates: by removing the fridge in the running app and reading where the vacated slot
- *  projects with the rail open. */
+ *  projects with the rail open — measured at page x 32–259, y 597–840. */
 const VACATED_FRIDGE_PATCH: PixelRect = {
   x: 20,
-  y: 560,
-  width: 240,
-  height: 280,
+  y: 585,
+  width: 252,
+  height: 268,
 };
 
 /**
- * The thresholds below are measured, not chosen. Captured at 1440 x 900 in the overview preset on
- * 2026-08-26, counting pixels within `HIGHLIGHT_TOLERANCE` of `SELECTION_HIGHLIGHT_COLOR`:
+ * The thresholds below are measured, not chosen. Re-captured at 1440 x 900 in the overview preset on
+ * 2026-09-06 through the patches above, counting pixels within `HIGHLIGHT_TOLERANCE` of
+ * `SELECTION_HIGHLIGHT_COLOR` (the 2026-08-26 table read 3 075 and 1 694 through the pre-6R-b
+ * patches, and its shape is unchanged):
  *
  * | state                                   | sink patch | vacated-fridge patch |
  * | --------------------------------------- | ---------- | -------------------- |
  * | nothing selected                        |          0 |                    0 |
- * | sink cabinet selected                   |      3 075 |                    0 |
+ * | sink cabinet selected                   |      3 962 |                    0 |
  * | a different body selected               |          0 |                    0 |
- * | the vacated fridge opening selected     |          0 |                1 694 |
+ * | the vacated fridge opening selected     |          0 |                1 759 |
  *
  * `MIN_HIGHLIGHT_PIXELS` is 800: under half of the sparser of the two positive cases (the void's
  * outline is dashed, so it covers less of its own frame than a body's solid one), which leaves
@@ -77,8 +95,9 @@ const MIN_HIGHLIGHT_PIXELS = 800;
 const MAX_ABSENT_PIXELS = 10;
 
 /** A void's translucent blue fill, which is what keeps a selected slot distinguishable from a
- *  selected body (M2's mobile gate). Measured in the same run: 1 074 pixels in the vacated-fridge
- *  patch, and **0** in the sink patch with the sink cabinet selected. The floor is 300. */
+ *  selected body (M2's mobile gate). Measured in the same run: 1 123 pixels in the vacated-fridge
+ *  patch with the slot selected and 1 429 with it unselected, and **0** in the sink patch with the
+ *  sink cabinet selected. The floor is 300. */
 const VOID_BLUE_EXCESS = 25;
 const MIN_VOID_FILL_PIXELS = 300;
 
@@ -112,7 +131,8 @@ async function keepForDeletion(page: Page): Promise<void> {
 }
 
 /** Page coordinates, which is how the constants above were found — the canvas fills the stage and
- *  starts 55 px below the header, so a canvas-relative click would be a different world point. */
+ *  starts **100 px** below the top of the screen (the 55 px header row and the 45 px settings band
+ *  wave 6R-b gave the strip), so a canvas-relative click would be a different world point. */
 async function clickScene(
   page: Page,
   position: { x: number; y: number },
@@ -249,12 +269,12 @@ test("an edit repaints the scene while the panel is still open", async ({
   await selectInRail(page, "p0");
   const before = await page.screenshot({ clip: SINK_PATCH });
 
-  await page.getByTestId("finish-graphite").click();
+  await page.getByTestId("finish-pal.antracit").click();
   await page.waitForTimeout(COMMAND_SETTLE_MS);
   await keepForDeletion(page);
 
   await expect(page.getByTestId("editor-panel")).toHaveCount(1);
-  await expect(page.getByTestId("finish-graphite")).toHaveAttribute(
+  await expect(page.getByTestId("finish-pal.antracit")).toHaveAttribute(
     "aria-pressed",
     "true",
   );

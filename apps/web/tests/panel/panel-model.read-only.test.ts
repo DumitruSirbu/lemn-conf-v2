@@ -35,13 +35,21 @@ import {
   noWidthIsFree,
   widthOptionRow,
 } from "../support/width-options";
+import { MDF_KITCHEN, PAL_KITCHEN } from "../support/panel-material";
+import { pickerSectionOf, swatchSectionOf } from "../support/panel-sections";
 
-/** The writable, healthy panel every case here varies from exactly one axis at a time. */
+/** The writable, healthy panel every case here varies from exactly one axis at a time.
+ *
+ *  **The material is one of those axes since wave 6R.** Every case below that does not name one is
+ *  on PAL and reads `chips`; MDF renders a single colour input instead, and a rule asserted only
+ *  over chips says nothing about it — which is how a live picker could ship on a read-only share
+ *  link. `overrides` carries `material`, so a case names it exactly where it matters. */
 function openPanel(
   meta: SelectionMeta,
   overrides: Partial<Parameters<typeof describePanel>[0]> = {},
 ): OpenPanel {
   const panel = describePanel({
+    material: PAL_KITCHEN,
     meta,
     offers: offers(3),
     rejection: null,
@@ -122,9 +130,9 @@ describe("the notice says which of the two situations this is", () => {
       saveStatus: "unauthorized",
     });
 
-    expect(
-      findSection(panel, "finish").chips.every((chip) => chip.isDisabled),
-    ).toBe(true);
+    expect(swatchSectionOf(panel).chips.every((chip) => chip.isDisabled)).toBe(
+      true,
+    );
     expect(panel.footer.isRemoveDisabled).toBe(true);
   });
 
@@ -181,9 +189,9 @@ describe("the notice says which of the two situations this is", () => {
     // Not a fault: nothing has gone wrong, something is merely still in flight.
     expect(panel.notice?.tone).toBe("info");
     expect(panel.notice?.message).toBe(ro.panel.accessCheckingNotice);
-    expect(
-      findSection(panel, "finish").chips.every((chip) => chip.isDisabled),
-    ).toBe(true);
+    expect(swatchSectionOf(panel).chips.every((chip) => chip.isDisabled)).toBe(
+      true,
+    );
     expect(
       findSection(panel, "replace").rows.every((row) => row.isDisabled),
     ).toBe(true);
@@ -215,9 +223,9 @@ describe("the notice says which of the two situations this is", () => {
     expect(panel.notice?.actions).toEqual([
       { kind: "retry-access-check", label: ro.panel.accessRetryLabel },
     ]);
-    expect(
-      findSection(panel, "finish").chips.every((chip) => chip.isDisabled),
-    ).toBe(true);
+    expect(swatchSectionOf(panel).chips.every((chip) => chip.isDisabled)).toBe(
+      true,
+    );
     expect(panel.footer.isRemoveDisabled).toBe(true);
   });
 
@@ -250,9 +258,9 @@ describe("the notice says which of the two situations this is", () => {
     });
 
     expect(panel.notice).toBeUndefined();
-    expect(
-      findSection(panel, "finish").chips.some((chip) => chip.isDisabled),
-    ).toBe(false);
+    expect(swatchSectionOf(panel).chips.some((chip) => chip.isDisabled)).toBe(
+      false,
+    );
     expect(
       findSection(panel, "replace").rows.some((row) => row.isDisabled),
     ).toBe(false);
@@ -368,13 +376,51 @@ describe("a read-only panel offers nothing it cannot perform", () => {
     // §13.1: greyed and unclickable **with the reason**. A bare dimmed swatch says nothing about
     // why it stopped responding, and a disabled control is not focusable, so the reason has to be
     // on the chip rather than reachable from it.
-    const finish = findSection(readOnlyPanel(), "finish");
+    const finish = swatchSectionOf(readOnlyPanel());
 
     expect(finish.chips).not.toHaveLength(0);
     for (const chip of finish.chips) {
       expect(chip.isDisabled).toBe(true);
       expect(chip.reason).toBe(ro.panel.readOnlyReason);
     }
+  });
+
+  it("disables MDF's colour picker and gives it the same reason", () => {
+    // §13.1 again, for the control that has no chips to carry it: on MDF the finish section *is*
+    // one input, so the availability lands on the section itself. Every read-only case above is on
+    // PAL and reads `chips`, which is why this went unasserted — and an MDF design opened from a
+    // shared link is exactly the reachable state where a live colour input would be offered to a
+    // browser that cannot write.
+    const picker = pickerSectionOf(
+      readOnlyPanel(occupiedMeta(), { material: MDF_KITCHEN }),
+    );
+
+    expect(picker.isDisabled).toBe(true);
+    expect(picker.reason).toBe(ro.panel.readOnlyReason);
+  });
+
+  it("locks the picker in every state that locks a chip, each with that state's own reason", () => {
+    // The four locked states, asserted on MDF because `describeChipAvailability` is threaded into
+    // the picker section by the same spread and could be dropped from one and not the other.
+    const locked = [
+      [{ canWrite: false }, ro.panel.readOnlyReason],
+      [{ canWrite: true, saveStatus: "unauthorized" }, ro.panel.readOnlyReason],
+      [{ canWrite: "checking" }, ro.panel.accessCheckingReason],
+      [{ canWrite: "check-failed" }, ro.panel.accessUncheckableReason],
+    ] as const satisfies readonly (readonly [
+      Parameters<typeof openPanel>[1],
+      string,
+    ])[];
+
+    for (const [overrides, reason] of locked) {
+      const picker = pickerSectionOf(
+        openPanel(occupiedMeta(), { material: MDF_KITCHEN, ...overrides }),
+      );
+
+      expect([overrides, picker.isDisabled]).toEqual([overrides, true]);
+      expect([overrides, picker.reason]).toEqual([overrides, reason]);
+    }
+    expect(locked).toHaveLength(4);
   });
 
   it("disables every handle chip and gives each one its reason", () => {
@@ -475,6 +521,7 @@ describe("read-only withholds nothing from the customer's eyes", () => {
   it("leaves the closed panel closed — a read-only browser with nothing selected sees no panel", () => {
     expect(
       describePanel({
+        material: PAL_KITCHEN,
         meta: undefined,
         offers: [],
         rejection: null,
@@ -494,20 +541,32 @@ describe("a writable panel is left alone", () => {
     expect(
       findSection(panel, "replace").rows.every((row) => row.isDisabled),
     ).toBe(false);
-    expect(
-      findSection(panel, "finish").chips.some((chip) => chip.isDisabled),
-    ).toBe(false);
+    expect(swatchSectionOf(panel).chips.some((chip) => chip.isDisabled)).toBe(
+      false,
+    );
     expect(
       findSection(panel, "handle").chips.some((chip) => chip.isDisabled),
     ).toBe(false);
     expect(panel.footer.isRemoveDisabled).toBe(false);
     // No reason beside a control that works.
     expect(
-      findSection(panel, "finish").chips.every(
-        (chip) => chip.reason === undefined,
-      ),
+      swatchSectionOf(panel).chips.every((chip) => chip.reason === undefined),
     ).toBe(true);
     expect(panel.footer.removeDisabledReason).toBeUndefined();
+  });
+
+  it("leaves MDF's picker live, with no reason beside a control that works", () => {
+    // The anti-vacuity partner: a picker hard-coded to `isDisabled: true` would satisfy every case
+    // above and would ship an MDF kitchen nobody can recolour.
+    const picker = pickerSectionOf(
+      openPanel(occupiedMeta(), {
+        material: MDF_KITCHEN,
+        saveStatus: "error",
+      }),
+    );
+
+    expect(picker.isDisabled).toBe(false);
+    expect(picker.reason).toBeUndefined();
   });
 
   it("keeps the offer size on the secondary line", () => {
@@ -547,9 +606,9 @@ describe("the panel when the stored design has moved on", () => {
     const panel = openPanel(occupiedMeta(), { saveStatus: "conflict" });
 
     expect(panel.footer.isRemoveDisabled).toBe(false);
-    expect(
-      findSection(panel, "finish").chips.some((chip) => chip.isDisabled),
-    ).toBe(false);
+    expect(swatchSectionOf(panel).chips.some((chip) => chip.isDisabled)).toBe(
+      false,
+    );
   });
 
   it("says nothing about a conflict on a panel that has no write credential at all", () => {

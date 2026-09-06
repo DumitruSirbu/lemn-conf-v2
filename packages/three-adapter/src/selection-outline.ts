@@ -24,13 +24,25 @@ import { isMesh, toMaterials } from "./three-guards.js";
 import { NOOP_RAYCAST } from "./void-mesh.js";
 
 /**
- * Signal red, and it must contrast against everything this kitchen can put behind it: the warm
- * paper/stage background (`globals.css` `--paper #faf8f4`, `--stage #f2f0ea`), the five §5.5
- * finishes (white `#eceeeb`, clay `#cbc3b8`, sage `#8d9a84`, graphite `#2b2d30`, oak's browns) and
- * the room's own white walls and worktop. None of them is saturated in the red channel alone: the
- * warmest, oak, still carries a green channel around 110–140, so a colour with a near-zero green
- * and blue is the one hue in the scene that cannot be confused with the kitchen itself. That is
- * also what makes it countable in a pixel test — see `editor-rail.desktop.e2e.spec.ts`.
+ * Signal red, chosen for contrast against the **declared** palette: the warm paper/stage background
+ * (`globals.css` `--paper #faf8f4`, `--stage #f2f0ea`), ADR 0071's six PAL decors and two veneer
+ * woods, and the room's own white walls and worktop. Against those it still reads — none of them is
+ * saturated in the red channel alone, and the warmest wood keeps a green channel well clear of this
+ * one's.
+ *
+ * **It is not a hue the kitchen cannot contain, and it is no longer countable** (ADR 0091, wave 6R).
+ * ADR 0071 decision 3 gives MDF a RAL picker and ADR 0078 decision 1 rules its offer to be every
+ * free colour `FinishSchema` admits, so a customer can paint a front `0xff2d2d` exactly; wave 6R's
+ * free-colour arm then puts that colour in the framebuffer, where the outline tracing it is at
+ * distance 0 from the surface it is supposed to distinguish. `editor-rail.desktop.e2e.spec.ts`
+ * counts selection pixels by nearness to this constant, and that measurement is valid only because
+ * the seeded fixture wears no finish —
+ * `packages/three-adapter/tests/qa-6m-mark-composite.adversarial.test.ts` asserts that premise and
+ * the breach beside it.
+ *
+ * **Wave 6V owns both halves**: an outline that distinguishes itself by something a front cannot
+ * equal, and counters that measure a difference rather than a colour. **The constant does not
+ * move** — the picker admits every hex, so repainting it would relocate the hole, not close it.
  */
 export const SELECTION_HIGHLIGHT_COLOR = 0xff2d2d;
 

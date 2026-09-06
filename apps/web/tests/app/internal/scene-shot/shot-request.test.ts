@@ -1,3 +1,4 @@
+import { LEGACY_ENUM_FINISHES } from "@lemnaria/configurator-domain";
 import { describe, expect, it } from "vitest";
 
 import { parseSceneShotRequest } from "../../../../src/app/internal/scene-shot/shot-request";
@@ -13,7 +14,9 @@ describe("parseSceneShotRequest", () => {
       height: 640,
       position: [4.3, 2.9, 5.3],
       target: [1.5, 1.15, 0.9],
-      finish: "white",
+      // The reference's own preset names are still the route's vocabulary; what they resolve to is
+      // the declared finish wave 6P mapped each onto (`white` → PAL *Alb*).
+      finish: LEGACY_ENUM_FINISHES.white,
     });
   });
 
@@ -36,10 +39,24 @@ describe("parseSceneShotRequest", () => {
   });
 
   it("accepts every catalogued finish and rejects anything else", () => {
-    expect(parseSceneShotRequest({ finish: "sage" }).finish).toBe("sage");
-    expect(parseSceneShotRequest({ finish: "chartreuse" }).finish).toBe(
-      "white",
+    expect(parseSceneShotRequest({ finish: "sage" }).finish).toEqual(
+      LEGACY_ENUM_FINISHES.sage,
     );
+    expect(parseSceneShotRequest({ finish: "chartreuse" }).finish).toEqual(
+      LEGACY_ENUM_FINISHES.white,
+    );
+  });
+
+  it("resolves all five of the reference's preset names and no sixth", () => {
+    // The M1 fidelity capture drives this route by those five names
+    // (`scripts/fidelity-shots.mjs`), and wave 6R did not change the reference — only what each
+    // name resolves to. An unrecognised name is the reference's own default: a capture harness has
+    // nowhere to show a refusal.
+    for (const name of ["white", "clay", "sage", "graphite", "oak"] as const) {
+      expect(parseSceneShotRequest({ finish: name }).finish).toEqual(
+        LEGACY_ENUM_FINISHES[name],
+      );
+    }
   });
 
   it("ignores a non-positive canvas size", () => {

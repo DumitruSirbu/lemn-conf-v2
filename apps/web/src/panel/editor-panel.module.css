@@ -387,6 +387,28 @@
   cursor: not-allowed;
 }
 
+/* ADR 0071 decision 3's three controls are three layouts over one chip, and the two that offer a
+   declared palette differ here rather than in React.
+
+   PAL's decors are a LIST to scan: §10's chip row, scrolling horizontally rather than wrapping or
+   shrinking below the touch target, exactly as the five swatches did. ADR 0082 changed that rule
+   for the whole-kitchen strip and scoped itself to it — §10 still governs this row, so this wave
+   does not quietly reverse it here. That is `.chipRow` below, reused rather than restated.
+
+   Veneer's two woods are a PAIR to compare, not a list to scan: each takes half the row, so the
+   sample is twice the size and nothing scrolls. The layout is chosen from the declared control
+   shape and never from finding two entries in the array — a decor list that shrank to two decors
+   still scrolls, and a third wood would still sit in this row. */
+.woodPair {
+  display: flex;
+  gap: 9px;
+}
+
+.woodPair .swatch {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
 .swatch {
   display: flex;
   flex: 1 0 auto;
@@ -407,45 +429,62 @@
   border: 2px solid var(--accent);
 }
 
+/* **One declared hex per decor, and this is where it arrives.** `editor-panel.tsx` publishes the
+   adapter's own colour for this entry as `--swatch-colour` on the button, so the swatch paints from
+   the value the 3D material is built from. No decor's colour is written in this file — a second hex
+   here is how the swatch and the scene would come to disagree about one decor. */
 .swatchColor {
   width: 100%;
   height: 34px;
+  background: var(--swatch-colour);
   border: 1px solid var(--line);
   border-radius: 7px;
 }
 
-/* The four solid finishes read the adapter's own `FINISH_COLORS`, which `editor-panel.tsx` sets on
-   the panel shell as custom properties. */
-.swatchColor[data-finish="white"] {
-  background: var(--finish-white);
-}
-
-.swatchColor[data-finish="clay"] {
-  background: var(--finish-clay);
-}
-
-.swatchColor[data-finish="sage"] {
-  background: var(--finish-sage);
-}
-
-.swatchColor[data-finish="graphite"] {
-  background: var(--finish-graphite);
-}
-
-/* Oak is the one swatch that cannot be derived: the adapter models it as a wood MATERIAL, not a
-   colour, so there is no exported hex for it to track. These values APPROXIMATE that material for a
-   34px chip and answer to nothing but the eye. */
-.swatchColor[data-finish="oak"] {
-  --oak-material-approximation: #d8b483;
-  --oak-material-approximation-grain: #cfa876;
-  --oak-material-approximation-edge: #c9a56f;
-
+/* A wood reads as timber rather than as a flat rectangle, and the grain is DERIVED from the same
+   one custom property: `color-mix` darkens it for the stripe instead of naming a second colour.
+   This is an approximation of a material at 34px and answers to nothing but the eye — ADR 0071
+   decision 2 puts photoreal rendering out of scope, which is what licenses it. */
+.swatch[data-wood="true"] .swatchColor {
   background: repeating-linear-gradient(
     90deg,
-    var(--oak-material-approximation) 0 3px,
-    var(--oak-material-approximation-grain) 3px 6px
+    var(--swatch-colour) 0 3px,
+    color-mix(in srgb, var(--swatch-colour) 88%, #000) 3px 6px
   );
-  border-color: var(--oak-material-approximation-edge);
+}
+
+/* MDF's picker (ADR 0071 decision 3): a native colour input, so a customer gets their platform's
+   own picker rather than a grid this product would be implying it manufactures. The label sits
+   beside it because a colour input has no room to carry one. */
+.picker {
+  display: flex;
+  gap: 11px;
+  align-items: center;
+  min-height: var(--touch-target);
+  cursor: pointer;
+}
+
+/* Sized to the touch target rather than to the browser's default swatch box, which is ~50 x 27 on
+   Chrome and below §13's floor on its short edge. */
+.pickerInput {
+  flex: 0 0 auto;
+  width: 64px;
+  height: var(--touch-target);
+  padding: 0;
+  background: none;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  cursor: pointer;
+}
+
+.pickerInput:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.pickerLabel {
+  font: 700 12.5px/1.2 var(--font-ui);
+  color: var(--ink);
 }
 
 .swatchLabel {

@@ -26,6 +26,7 @@ import { describePanel, type PanelSection } from "@/panel/panel-model";
 import { offeredBuildIds } from "../support/offers";
 
 import { noWidthIsFree } from "../support/width-options";
+import { PAL_KITCHEN } from "../support/panel-material";
 
 const OCCURRED_AT = "2026-08-26T12:00:00.000Z";
 
@@ -57,6 +58,7 @@ type World = ReturnType<typeof worldFrom>;
 function panelAt(world: World, target: CommandTarget) {
   const meta = describeSelection({ ...world, target });
   return describePanel({
+    material: PAL_KITCHEN,
     meta,
     offers: offersFor({
       ...world,

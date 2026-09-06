@@ -102,9 +102,22 @@ export function frozenMapAtCabinetDepth(
   input: FrozenMapAtCabinetDepthInput,
 ): ReadonlyMap<string, Column> {
   return clipEmptyColumnsToFreeGround(
-    atCurrentCabinetDepth(slidAlongTheWall(input), input),
+    atCurrentCabinetDepth(frozenExtentsSlidAlongTheWall(input), input),
     input.records,
   );
+}
+
+/** The five operands the slide reads, and none of the ones only the depth rules need.
+ *
+ *  **Narrower than `FrozenMapAtCabinetDepthInput` on purpose**, because wave 6K-i's planning map is
+ *  built *before* the rebuild and so has no post-command records to offer. `FrozenMapAtCabinetDepthInput`
+ *  satisfies it structurally, which is what lets the republished map keep passing itself. */
+export interface FrozenExtentsSlideQuery {
+  readonly frozen: ReadonlyMap<string, Column>;
+  readonly catalog: BodyCatalog;
+  readonly cabinetDepthMm: number;
+  readonly previousCabinetDepthMm: number;
+  readonly membersShiftMmByColumn: ReadonlyMap<string, number>;
 }
 
 /** ADR 0090 decisions 1 and 2: every positioned fact in the map moved onto the chain the body it
@@ -120,9 +133,15 @@ export function frozenMapAtCabinetDepth(
  *  Only the along-wall coordinate and the key move. The width, the floor, the top, the regions and
  *  the depth are ADR 0011 Gap D's frozen extent and are carried across untouched — this re-derives
  *  nothing from what stands in the column, which is the amendment ADR 0090 decision 6 makes to
- *  ADR 0088 decision 1. */
-function slidAlongTheWall(
-  input: FrozenMapAtCabinetDepthInput,
+ *  ADR 0088 decision 1.
+ *
+ *  **Exported because wave 6K-i's planning map is built from the same moved extents.** ADR 0090
+ *  decision 6 says the planning map takes the extents *as decision 2 moves them*; restoring them at
+ *  the coordinates the run is leaving while the placements plan at the ones it is arriving at is the
+ *  same defect one seam earlier, inside `evaluateInsertFit`. One author, because a second copy of
+ *  the ladder is what ADR 0088 decision 2 exists to prevent. */
+export function frozenExtentsSlidAlongTheWall(
+  input: FrozenExtentsSlideQuery,
 ): ReadonlyMap<string, Column> {
   const slid = new Map<string, Column>();
   for (const column of input.frozen.values()) {
@@ -134,7 +153,7 @@ function slidAlongTheWall(
 
 function alongWallQueryFor(
   extent: Column,
-  input: FrozenMapAtCabinetDepthInput,
+  input: FrozenExtentsSlideQuery,
 ): AlongWallExtentPositionQuery {
   return {
     extent,
@@ -163,6 +182,17 @@ function atAlongWallPosition(
 
 /** **A frozen extent may be carried forward across every command except this one, and the reason is
  *  the axis rather than the command.**
+ *
+ *  **Its sibling is `deriveColumnsOverFrozenExtents`, and the two are not one author** (ADR 0088
+ *  decision 2, answered by wave 6K-i). They share the axis split's first half exactly — the vertical
+ *  and along-wall axes are carried, and the along-wall move has one author in
+ *  `frozenExtentsSlidAlongTheWall` above. They differ on the depth axis because they are asked
+ *  different questions. The **planning** map is what a rebuilt body is fitted into, so its depth must
+ *  be §3.2's MAX over what actually stands there at the new setting and nothing more — ADR 0088
+ *  decision 3 makes that value-identical to `deriveColumns(records, {}, room)`, key for key. The
+ *  **published** map is what the document then records, so a surplus a delete left behind is the
+ *  customer's and survives here (ADR 0073, ADR 0079, ADR 0080). Merging them would put a surplus into
+ *  a slot a body is about to be built into.
  *
  *  ADR 0011 Gap D freezes a column's extent so a delete frees space instead of shrinking the run to
  *  what is left. That argument is about the **along-wall and vertical** axes — the width a partial
@@ -468,7 +498,7 @@ const FROZEN_SURPLUS_EPSILON_M = 1e-9;
  *  wall A and the normal one on wall B, and a module that picked the axis itself would be a second
  *  author for §2's wall convention. The along-wall coordinate is projected back out with the same
  *  wall's tangent, which is what stops a widened extent from snapping to its members' centre — and
- *  it is the coordinate `slidAlongTheWall` has already moved this column to.
+ *  it is the coordinate `frozenExtentsSlidAlongTheWall` has already moved this column to.
  *
  *  **It takes a `PublishedDepth` and not a bare number** (ADR 0079 decision 3), which is the whole of
  *  the guarantee: this is the one seam in the product that has ever written a `Column.d` without the

@@ -16,8 +16,13 @@
 //
 // The property they leave unguarded: **a chip must not render one colour and apply another.** That
 // is pinned here, and here because the adapter is the only package holding both tables — the
-// domain's declaration and `FINISH_COLORS`, which is derived from the `FINISHES` table this
-// package has drawn since M1 and which no wave-6P edit touched.
+// domain's declaration and the finish table this package has drawn since M1.
+//
+// **Wave 6R changed the second half's shape and not its job.** A free colour is now its own colour
+// by construction, so comparing the stored value to what the adapter publishes for it became a
+// tautology. The pin therefore moved onto the literal hexes M1 drew: a decor id resolved through
+// the adapter against a number written out here is still two tables that do not read each other,
+// which is the only property that made the original catch the one-digit drift.
 import {
   FinishSchema,
   LEGACY_ENUM_FINISHES,
@@ -29,7 +34,7 @@ import {
 } from "@lemnaria/configurator-domain";
 import { describe, expect, it } from "vitest";
 
-import { FINISH_COLORS } from "../src/finishes.js";
+import { swatchOf } from "../src/finishes.js";
 
 /** ADR 0071 decision 5's table for the five shipped finishes, written out. Derived from nothing —
  *  a pin that reads the table it pins is the circularity this file exists to break. */
@@ -81,30 +86,51 @@ describe("a chip never applies a colour other than the one it shows", () => {
     expect(painted).toEqual([...PAINTED_NAMES]);
   });
 
-  it.each(PAINTED_NAMES)(
-    "stores for %s exactly the hex this build paints and the swatch shows",
-    (name) => {
-      // The cross-table pin, and the one that catches a one-digit drift without a literal:
-      // `FINISH_COLORS` comes from the adapter's own `FINISHES` table, which the domain does not
-      // read and wave 6P did not touch. `editor-panel.tsx` publishes the same constant to the
-      // stylesheet, so this is the document, the pixel and the swatch agreeing.
-      const finish = LEGACY_ENUM_FINISHES[name];
-      if (finish.kind !== "free-colour")
-        throw new Error(`${name} is not paint`);
+  /** **The colours M1 drew, written out.** Every one of the five is reached through
+   *  `LEGACY_ENUM_FINISHES` and then through the adapter's own table, and compared against a number
+   *  neither of them can read. That is the shape that caught `#cbc3b8` becoming `#cbc3b9`, and it
+   *  survives wave 6R because the literal is still on this side of both tables. */
+  const M1_COLOUR_OF = {
+    white: "#eceeeb",
+    clay: "#cbc3b8",
+    sage: "#8d9a84",
+    graphite: "#2b2d30",
+  } as const;
 
-      expect(finish.value).toBe(FINISH_COLORS[name]);
+  it.each(Object.entries(M1_COLOUR_OF))(
+    "still reaches %s at the hex this build has painted since M1",
+    (name, hex) => {
+      const finish = LEGACY_ENUM_FINISHES[name as LegacyEnumFinishName];
+
+      expect(swatchOf(finish).color).toBe(hex);
     },
   );
 
-  it("leaves no free colour unchecked against the table that paints it", () => {
+  it.each(PAINTED_NAMES)("stores %s as that same hex, not near it", (name) => {
+    // The document half: what the panel writes, against the same literal the adapter was checked
+    // against. A drift in either table now fails under its own name rather than agreeing with
+    // itself.
+    const finish = LEGACY_ENUM_FINISHES[name];
+    if (finish.kind !== "free-colour") throw new Error(`${name} is not paint`);
+
+    expect(finish.value).toBe(M1_COLOUR_OF[name]);
+  });
+
+  it("leaves no free colour unchecked against the colour that paints it", () => {
     // Not a vacuous pair: if a sixth name became paint, or `white`/`graphite` did, the sweep above
     // would silently stop covering it.
     const painted = LEGACY_ENUM_FINISH_NAMES.filter(
       (name) => LEGACY_ENUM_FINISHES[name].kind === "free-colour",
     );
 
-    expect(painted.every((name) => name in FINISH_COLORS)).toBe(true);
+    expect(painted.every((name) => name in M1_COLOUR_OF)).toBe(true);
     expect(painted).toHaveLength(PAINTED_NAMES.length);
+  });
+
+  it("draws oak's successor as a wood and not as a flat colour", () => {
+    // The one of the five with no M1 hex to pin: `oak` was `{ color: null, isOak: true }` and had
+    // none to publish. What survives of that statement is which material it is drawn on.
+    expect(swatchOf(LEGACY_ENUM_FINISHES.oak).isWood).toBe(true);
   });
 });
 

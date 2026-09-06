@@ -5,10 +5,15 @@
  * **The scrim is drawn on both shells**, which is where this file and `price-breakdown.module.css`
  * deliberately differ: that surface is a list to read and stays non-modal, this one holds
  * uncommitted state. `global-settings.tsx`'s head comment carries the reason. */
+/* **The chips box and the trigger, and the trigger never joins the wrap** (ADR 0082 decision 4).
+ * `nowrap` here is what keeps the trigger's position a function of the viewport rather than of how
+ * many settings the strip names — a control that moves down the screen as an unrelated setting is
+ * added is a control a customer has to hunt for. */
 .anchor {
   position: relative;
   display: flex;
   flex: 1;
+  flex-wrap: nowrap;
   gap: 9px;
   align-items: center;
   min-width: 0;
@@ -20,29 +25,51 @@
 
 /* Frame 2E's strip reads the two settings as one line; frame D2E draws them as two pills. Same two
  * elements either way. */
-/* **The row is clipped and its items shrink, so it can never reach the trigger** — a rule about the
- * row rather than a width that happens to fit today's chips.
+/* **The chips wrap, and nothing on this strip leaves the viewport at any chip count**
+ * (ADR 0082 decisions 1 and 2) — a rule about the row rather than a width that happens to fit
+ * today's chips.
  *
- * `overflow: hidden` here was not enough on its own. A flex item's default `min-width` is `auto`,
- * and a `white-space: nowrap` chip's min-content width is its whole label, so the chips **refused to
- * shrink**: they overflowed this box, pushed the row past its share of `.anchor`, and landed on top
- * of `global-settings-trigger`. Measured 2026-09-05 on the third chip at 390 px — Playwright's tap
- * on the trigger was intercepted by the chips subtree, sixteen retries then a timeout, and **44 of
- * 58 e2e specs failed** because nothing could open the sheet.
+ * The comment this replaces claimed a fourth chip *"narrows the three rather than breaking
+ * anything"*. That was measurably false: at three chips the row was 442 px on a 390 px screen and
+ * `global-settings-trigger`'s right edge landed at 412, off the screen. The correction is not a new
+ * prediction — the containment is asserted, at two, three, four and five chips, by
+ * `apps/web/tests/e2e/settings-strip-containment.e2e.spec.ts` at 390 × 844 and by its
+ * `.desktop.e2e.spec.ts` sibling at 900 and 1440, and those assertions are what a later reader
+ * should trust rather than this paragraph.
  *
- * `min-width: 0` on the item is what makes the row's own `flex: 1; min-width: 0` mean anything, and
- * the ellipsis is what makes a shrunk chip readable rather than cut mid-glyph. A fourth chip (6R's
- * finish control) narrows the three rather than breaking anything. */
+ * **What contains it.** `configure.module.css`'s `.settingsRow` no longer sizes to its content: it
+ * declares `min-width: 0`, so the band is its grid track rather than its contents, and on desktop
+ * that track is **a full-width row of the screen's grid** (ADR 0094 decision 2) rather than a column
+ * beside the nav and the price. It was the flexible middle column until 2026-09-06, and that made
+ * the strip's width the residue of a book-authored tier name and a flagged total's sentence: at 900
+ * px on a flagged design the residue was 78.98 px, this box computed to 0, and each chip rendered
+ * 28 px. Here, `flex-wrap: wrap` spends the overflow on vertical height instead — the owner's ruling
+ * of 2026-09-05 — which the stage's `minmax(0, 1fr)` row track absorbs and the price bar does not.
+ *
+ * **Not a scroll container, in either axis.** The `overflow: hidden` that used to sit here is gone
+ * with the shrinking it enabled: hiding a chip is the failure this fixes, not a smaller version of
+ * it. Horizontal scrolling is refused outright (decision 2) — it hides a control behind a gesture
+ * with no affordance saying it is there. */
 .chips {
   display: flex;
   flex: 1;
-  gap: 10px;
+  flex-wrap: wrap;
+  gap: 6px 10px;
   min-width: 0;
-  overflow: hidden;
 }
 
+/* **A chip is never narrowed below the line it is alone on** (ADR 0082 decision 3). `flex: 0 0 auto`
+ * is what makes the box wrap rather than shrink, so a chip that does not fit beside its neighbour
+ * moves to the next line at full width instead of ellipsising beside it.
+ *
+ * The ellipsis survives for exactly one case: a single label longer than a whole line, which
+ * `max-width: 100%` clamps. **No numeric `min-width` is declared** — the floor is the line, so it
+ * scales with the viewport instead of needing to be re-picked at each one. `min-width: 0` stays
+ * because `min-width: auto` would otherwise win over that clamp and put the label back off-screen. */
 .chip {
+  flex: 0 0 auto;
   min-width: 0;
+  max-width: 100%;
   overflow: hidden;
   font: 400 11.5px/1.3 var(--font-ui);
   color: var(--ink-muted);
@@ -50,12 +77,21 @@
   white-space: nowrap;
 }
 
+/* **The tappable box is the pill, not the line of text** — `docs/BACKLOG.md` entry 33, closed by
+ * ADR 0082 decision 8. With `padding: 0` this button's own box was the 13 px text line box while the
+ * 40 px pill the customer sees is `.anchor`, a different element; a miss landed on the strip and did
+ * nothing. The floor is `--touch-target`, the 44 px token `globals.css` already declares, and never
+ * a smaller number chosen to sit prettily in a line of text.
+ *
+ * It grows the strip and pushes no chip off the line it is on: `.anchor` centres its two items and
+ * the chips box wraps within the width this one leaves, which `flex: 0 0 auto` keeps constant. */
 .trigger {
   display: flex;
   flex: 0 0 auto;
   gap: 6px;
   align-items: center;
-  padding: 0;
+  min-height: var(--touch-target);
+  padding: 0 4px;
   font: 700 11.5px/1 var(--font-ui);
   color: var(--accent);
   cursor: pointer;
@@ -149,8 +185,14 @@
 }
 
 /* Immediately under the group heading, and set like the sheet's own quiet copy: what the amounts on
- * the right of each row are measured against. */
-.anchor {
+ * the right of each row are measured against.
+ *
+ * **Not `.anchor`**, though it read naturally as one: that name is already the strip's own container
+ * higher up this file, and a CSS module merges two rules of the same name onto both elements. The
+ * `margin: -3px` below therefore reached the strip too, and once ADR 0082's top bar row began hugging
+ * the strip's height it pulled the first chip's top edge to y = -3 — off the screen the containment
+ * exists to keep it on. */
+.groupAnchor {
   margin: -3px 0 0;
   font: 400 11.5px/1.35 var(--font-ui);
   color: var(--ink-muted);
@@ -311,8 +353,11 @@
 /* Frame D2E: two pills and a text control in the top bar, and a 900 px popover hanging under them
  * over a dimmed screen. Same markup, same model — a different box. */
 @media (min-width: 900px) {
+  /* The pill styling forks here; **the flex does not** (ADR 0082 decision 6). This rule used to add
+   * `flex: 0 0 auto`, which cannot shrink and is what let the strip overflow the top bar's settings
+   * column instead of wrapping inside it. Containment is not one of §10.1's permitted layout forks, so
+   * the base rule's `flex: 1; min-width: 0` governs both shells and only the paint differs here. */
   .anchor {
-    flex: 0 0 auto;
     gap: 10px;
     padding: 0;
     background: none;
@@ -320,8 +365,18 @@
     border-radius: 0;
   }
 
+  /* Frame D2E draws the chips against the trigger, so on desktop they cluster at the right-hand end
+   * of the band and the slack is taken from the left. On mobile the strip starts at the screen's
+   * left edge and this does not apply.
+   *
+   * **This alignment is paint, and it is only safe because the band is now a row** (ADR 0094
+   * decision 2). Laying a box's overflow out leftwards is what painted the chips inside the step
+   * nav's column when this box computed to 0 px; ADR 0094 criterion 4b — every chip inside
+   * `.settingsRow`'s own box on all four edges — is what holds it either way, and it is asserted in
+   * `tests/e2e/settings-strip-containment.desktop.e2e.spec.ts` rather than promised here. */
   .chips {
     gap: 10px;
+    justify-content: flex-end;
   }
 
   .chip {
@@ -386,7 +441,7 @@
     font-size: 11px;
   }
 
-  .anchor {
+  .groupAnchor {
     font-size: 12.5px;
   }
 

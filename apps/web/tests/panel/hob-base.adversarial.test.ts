@@ -27,6 +27,7 @@ import { listCabinetDrawingFilenames } from "@/panel/cabinet-thumbnails";
 import { describePanel, type ReplaceSection } from "@/panel/panel-model";
 
 import { noWidthIsFree } from "../support/width-options";
+import { PAL_KITCHEN } from "../support/panel-material";
 
 const HOB_BUILD_IDS = ["base-hob-2drawer", "base-hob-oven"] as const;
 
@@ -63,6 +64,7 @@ function replaceSectionAt(
 ): ReplaceSection {
   const meta = describeSelection({ ...world, target });
   const panel = describePanel({
+    material: PAL_KITCHEN,
     meta,
     offers: offersFor({
       ...world,
@@ -207,6 +209,7 @@ describe("the panel over the shipped hob cabinet", () => {
   it("renders a finish section but no handle section over the oven variant, and both over the drawer one", () => {
     const sectionKindsOn = (buildId: string) => {
       const panel = describePanel({
+        material: PAL_KITCHEN,
         meta: describeSelection({
           ...worldFrom(withHobCabinetBuiltAs(buildId)),
           target,

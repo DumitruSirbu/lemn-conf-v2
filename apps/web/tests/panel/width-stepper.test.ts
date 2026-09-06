@@ -41,6 +41,7 @@ import { describePanel, type WidthSection } from "@/panel/panel-model";
 import { widthStepsFor, WIDTH_STEP_MM } from "@lemnaria/configurator-domain";
 
 import { createFakeBodyProbe } from "../support/fake-body-probe";
+import { PAL_KITCHEN } from "../support/panel-material";
 
 /** ADR 0011 Gap D: columns are load-time state, frozen from the whole design. */
 const SEEDED_COLUMNS = deriveColumns(
@@ -85,6 +86,7 @@ function panelAt(world: World, target: CommandTarget, canWrite = true) {
     probe: PROBE,
   };
   return describePanel({
+    material: PAL_KITCHEN,
     meta: describeSelection({ ...world, target }),
     offers: offersFor({
       ...world,
@@ -270,6 +272,7 @@ describe("ADR 0035 decision 3's two controls, chosen by the shape of the bound",
       probe: PROBE,
     };
     const panel = describePanel({
+      material: PAL_KITCHEN,
       meta: describeSelection({ ...world, target }),
       offers: offersFor({
         ...world,

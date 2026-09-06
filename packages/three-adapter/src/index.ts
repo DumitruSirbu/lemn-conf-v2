@@ -15,11 +15,9 @@ export {
 export {
   applyFinish,
   collectFronts,
-  FINISH_COLORS,
-  finishKeyOf,
   finishSignature,
-  type FinishKey,
-  type SolidFinishKey,
+  swatchOf,
+  type FinishSwatch,
 } from "./finishes.js";
 
 export {

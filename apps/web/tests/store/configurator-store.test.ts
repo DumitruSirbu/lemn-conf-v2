@@ -5,7 +5,11 @@ import {
 import type { Design } from "@lemnaria/configurator-domain";
 import { describe, expect, it } from "vitest";
 
-import { describePanel, type OpenPanel } from "../../src/panel/panel-model";
+import {
+  describePanel,
+  type FinishSection,
+  type OpenPanel,
+} from "../../src/panel/panel-model";
 import {
   createConfiguratorStore,
   type ConfiguratorState,
@@ -14,6 +18,7 @@ import {
 import { ro } from "../../src/content/ro";
 
 import { occupiedMeta, offers } from "../support/selection-meta";
+import { PAL_KITCHEN } from "../support/panel-material";
 
 /** The revision a hydrating loader reports. These tests are about identity and generation, not
  *  about concurrency, so one value throughout keeps them readable. */
@@ -31,6 +36,7 @@ function createSeededStore() {
  *  is a fixture: which body is selected has nothing to do with who may write. */
 function panelFrom(state: ConfiguratorState): OpenPanel {
   const panel = describePanel({
+    material: PAL_KITCHEN,
     meta: occupiedMeta(),
     offers: offers(3),
     rejection: null,
@@ -252,7 +258,11 @@ describe("canWrite — who may edit this design", () => {
     expect(panel.notice).toBeUndefined();
     expect(panel.footer.isRemoveDisabled).toBe(false);
     for (const section of panel.sections) {
-      if (section.kind === "finish" || section.kind === "handle")
+      // The RAL picker carries no chips — it is one control, disabled or not as a whole — so the
+      // finish section is asked in whichever of its two shapes this fixture's material declares.
+      if (section.kind === "finish")
+        expect(isFinishControlEnabled(section)).toBe(true);
+      if (section.kind === "handle")
         expect(section.chips.every((chip) => chip.isDisabled)).toBe(false);
       if (section.kind === "replace")
         expect(section.rows.every((row) => row.isDisabled)).toBe(false);
@@ -477,3 +487,10 @@ describe("the revision a loaded design was read at", () => {
     }).not.toThrow();
   });
 });
+
+/** Whether §9's colour control can be operated at all, asked of either shape. */
+function isFinishControlEnabled(section: FinishSection): boolean {
+  return section.control === "ral-picker"
+    ? !section.isDisabled
+    : section.chips.every((chip) => !chip.isDisabled);
+}

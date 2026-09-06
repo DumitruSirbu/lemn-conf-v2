@@ -19,13 +19,9 @@
 //
 // **It asks `lookUpMaterial` and never `materialOffersFinish`** (ADR 0086 decision 3). What a
 // material offers has one author; what a chosen colour is has this one.
+import { materialOfDesign } from "./design-material.js";
 import type { Design, DesignPlacement } from "./design.js";
-import {
-  DEFAULT_MATERIAL_ID,
-  lookUpMaterial,
-  sameFinish,
-  type MaterialLookup,
-} from "./materials.js";
+import { sameFinish, type MaterialLookup } from "./materials.js";
 
 /**
  * The cabinets whose finish differs from the declared default of the material the design is on.
@@ -40,9 +36,7 @@ import {
  *   MDF kitchen is therefore counted as chosen — the deliberate over-warn, in the safe direction.
  */
 export function countCabinetsWearingAChosenFinish(design: Design): number {
-  const material = lookUpMaterial(
-    design.settings?.materialTierId ?? DEFAULT_MATERIAL_ID,
-  );
+  const material = materialOfDesign(design);
   return design.placements.filter((placement) =>
     wearsAChosenFinish(placement, material),
   ).length;

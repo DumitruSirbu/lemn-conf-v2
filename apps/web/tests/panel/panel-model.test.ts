@@ -20,9 +20,12 @@ import {
   widthOptionRow,
 } from "../support/width-options";
 import {
-  LEGACY_ENUM_FINISH_NAMES,
-  LEGACY_ENUM_FINISHES,
+  materialById,
+  paletteEntriesOf,
+  paletteFinish,
 } from "@lemnaria/configurator-domain";
+import { PAL_KITCHEN } from "../support/panel-material";
+import { swatchSectionOf } from "../support/panel-sections";
 
 /** The panel as the app builds it: probe attached, nothing refused. Each test turns off only what
  *  it is about. */
@@ -31,6 +34,7 @@ function panelFor(
   overrides: Partial<Parameters<typeof describePanel>[0]> = {},
 ) {
   return describePanel({
+    material: PAL_KITCHEN,
     meta,
     offers: [],
     rejection: null,
@@ -379,37 +383,51 @@ describe("describePanel — the replace list", () => {
 });
 
 describe("describePanel — finish and handle chips", () => {
-  it("offers every finish and marks the applied one", () => {
-    const chips =
-      findSection(
-        openPanelFor(occupiedMeta({ finish: LEGACY_ENUM_FINISHES.sage }))
-          .sections,
-        "finish",
-      )?.chips ?? [];
-    expect(chips).toHaveLength(5);
+  it("offers exactly the material's declared palette and marks the applied one", () => {
+    const section = swatchSectionOf(
+      openPanelFor(occupiedMeta({ finish: paletteFinish("pal.gri-havanna") }))
+        .sections,
+    );
+
+    expect(section.chips.map((chip) => chip.value)).toEqual(
+      paletteEntriesOf(materialById("material.melamine")).map(
+        (entry) => entry.entryId,
+      ),
+    );
     expect(
-      chips.filter((chip) => chip.isActive).map((chip) => chip.value),
-    ).toEqual(["sage"]);
+      section.chips.filter((chip) => chip.isActive).map((chip) => chip.value),
+    ).toEqual(["pal.gri-havanna"]);
   });
 
-  // Wave 6P: a chip carries two things that used to be one string — the name the swatch is keyed and
-  // styled by, and the declared value the command writes. A chip that renders one colour and applies
-  // another is the failure this pins, and wave 6R replaces the pair with the material's own control.
-  it("applies the declared finish behind the name it is keyed by", () => {
-    const chips =
-      findSection(openPanelFor(occupiedMeta()).sections, "finish")?.chips ?? [];
+  // Wave 6P split a chip into two strings — the name the swatch was keyed by, and the declared
+  // value the command wrote — because the panel offered five names the command could no longer
+  // take. Wave 6R closed the gap: a chip is keyed by the entry id it applies, so a chip that shows
+  // one decor and applies another is now unrepresentable rather than merely tested for.
+  it("keys each chip by the very entry it applies", () => {
+    const section = swatchSectionOf(openPanelFor(occupiedMeta()).sections);
 
-    expect(chips.map((chip) => [chip.value, chip.finish] as const)).toEqual(
-      LEGACY_ENUM_FINISH_NAMES.map(
-        (name) => [name, LEGACY_ENUM_FINISHES[name]] as const,
+    expect(section.chips.map((chip) => [chip.value, chip.finish])).toEqual(
+      section.chips.map((chip) => [
+        chip.value,
+        { kind: "palette-entry", entryId: chip.value },
+      ]),
+    );
+  });
+
+  it("labels each chip with the decor's own declared name", () => {
+    const section = swatchSectionOf(openPanelFor(occupiedMeta()).sections);
+
+    expect(section.chips.map((chip) => chip.label)).toEqual(
+      paletteEntriesOf(materialById("material.melamine")).map(
+        (entry) => entry.name,
       ),
     );
   });
 
   it("marks nothing as chosen when no finish was applied", () => {
-    const chips =
-      findSection(openPanelFor(occupiedMeta()).sections, "finish")?.chips ?? [];
-    expect(chips.some((chip) => chip.isActive)).toBe(false);
+    const section = swatchSectionOf(openPanelFor(occupiedMeta()).sections);
+
+    expect(section.chips.some((chip) => chip.isActive)).toBe(false);
   });
 
   // §6.5 / §11 row 13: with nothing chosen, the marked chip is the one the scene is rendering.

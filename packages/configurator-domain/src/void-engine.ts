@@ -14,6 +14,7 @@ import { toExactMillimetres, toMetres } from "./millimetres.js";
 import type { SeatRule } from "./seat-rule.js";
 import {
   alongWallCoordinate,
+  alongWallPosition,
   deriveColumnKeyAt,
   LEVELS,
   LEVEL_SNAP_M,
@@ -638,6 +639,18 @@ export function deriveColumns(
   // column, so running it before the merge can only leave the merge less to join than it would
   // otherwise see, never more — the same "clip first" argument `apply-command-result.ts` makes for
   // the 800 mm split, applied here to the merge instead.
+  return publishedFunnel(columns, records, room);
+}
+
+/** `deriveColumns`' tail, named once so every map that claims to be a published one goes through
+ *  the same three stages in the same order — the clip that only ever shrinks, ADR 0046's merge, and
+ *  the live full-height answer. A second assembly written beside it is how the 800 mm cap and the
+ *  wall-end clip stop applying to one caller's map without any call site saying so. */
+function publishedFunnel(
+  columns: Map<string, ColumnExtent>,
+  records: readonly PlacementRecord[],
+  room: DesignRoom,
+): ReadonlyMap<string, Column> {
   return withCurrentFullHeightMembers(
     mergeAdjacentEmptyColumns(
       clipEmptyColumnsAtWallEnd(columns, records, room),
@@ -646,6 +659,114 @@ export function deriveColumns(
     records,
   );
 }
+
+/** **The axis split: the frozen extent's vertical and along-wall axes, and the records' depth**
+ *  (ADR 0088 decision 1, as ADR 0090 decision 6 amends it).
+ *
+ *  `deriveColumns(records, {}, room)` re-derives all three axes, which is right on exactly one of
+ *  them. §3.2's `Column.d` is a MAX over the members' `occupiedDepthM` and is a pure function of the
+ *  bodies standing there, so a depth change that rebuilds every one of them must re-take it. `top`,
+ *  `regions`, `w` and the along-wall origin are the opposite: ADR 0011 Gap D froze them **because
+ *  the placements no longer imply them**, and re-deriving them collapses a partly cleared column onto
+ *  its tallest surviving member — 2600 → 820 mm on the shipped kitchen after two ordinary deletes,
+ *  measured, which then refuses §7's own 860 mm base body with `HEIGHT_EXCEEDS_LEVEL`.
+ *
+ *  **`frozen` is the map at the coordinates the run is *arriving* at.** This function keys the merge
+ *  and re-keys nothing: an extent handed in at the coordinate its run is leaving lands beside the
+ *  placements instead of on them, which is the same defect one seam earlier. ADR 0090 decision 2's
+ *  slide is the caller's, because the chain is read off a catalogue this module does not take.
+ *
+ *  **Three arms and no fourth**, which is what makes it a field selection rather than a policy:
+ *
+ *  - *In both* — the frozen extent, with `d` and `depthFromBuildId` from the derived column. The
+ *    depth axis is value-preserving against `deriveColumns(records, {}, room)`, key for key
+ *    (ADR 0088 decision 3).
+ *  - *Derived only* — the derived column untouched. A pre-ADR-0053 document carries no frozen map
+ *    and must plan exactly as it does today.
+ *  - *Frozen only* — the extent whole, depth included. A member-less column has nothing to
+ *    re-measure and its depth is ADR 0080's subject.
+ *
+ *  **Not a flag on `deriveColumns`.** The behaviour differs from `addStoredColumnExtents` by one
+ *  line, and that line is a boolean argument on the function every derivation in three packages
+ *  calls. A separate named export keeps each call site saying which question it asked.
+ *
+ *  It ends in the same `publishedFunnel`, so a restored member-less extent meets ADR 0069's wall-end
+ *  clip and ADR 0046's merge exactly as the load path's does.
+ *
+ *  **`clipEmptyColumnsToFreeGround` is deliberately not in that funnel, and this is the record that
+ *  it was considered.** ADR 0090 decision 4b added that pass because a *slide* can leave a
+ *  member-less extent standing on ground a placement now occupies, and this is the only map in the
+ *  product built from slid extents that does not end in it — `frozenMapAtCabinetDepth` does, and the
+ *  load path does not but never slides, so it never has the input the pass was written for. It is
+ *  omitted because this map is planning input rather than a published face: an overlap here would be
+ *  refused by `evaluateInsertFit`, which is the seam that decides, rather than silently published.
+ *  **Measured latent** across all 704 delete×depth scenarios the wave was swept over: the pass
+ *  removes **0** columns from this map. A wave that makes it non-zero owes this line a change.
+ *
+ *  **Its sibling is `atCurrentCabinetDepth` in `frozen-map-at-cabinet-depth.ts`**, which states the
+ *  same split for the map the command *publishes*. The two agree on the carried half and differ on
+ *  the depth axis by design — a planning map takes §3.2's MAX over what stands there now, a published
+ *  map keeps the surplus a delete left behind — and that difference is written out at the sibling. */
+export function deriveColumnsOverFrozenExtents(
+  records: readonly PlacementRecord[],
+  frozen: ReadonlyMap<string, ColumnExtent>,
+  room: DesignRoom,
+): ReadonlyMap<string, Column> {
+  const derived = restoredColumns(records, {});
+  const planned = new Map<string, ColumnExtent>(derived);
+  for (const [key, extent] of frozen) {
+    planned.set(key, atDerivedDepth(extent, derived.get(key)));
+  }
+  return publishedFunnel(planned, records, room);
+}
+
+/** One frozen extent carrying the depth the members standing in it measure now, or the extent whole
+ *  when no member stands in it.
+ *
+ *  **The direction is the whole of it** (ADR 0088's second risk): the frozen extent is the base and
+ *  the depth pair is overwritten onto it. The mirror — the derived column with the extent laid over
+ *  it — is `addStoredColumnExtents` again, and it plans the *600 mm* kitchen's 330 mm wall carcass
+ *  inside a 700 mm kitchen, which is ADR 0077 decision 8's defect and wave 6K-h's fix undone.
+ *
+ *  **The off-wall origin travels with the depth, because it *is* the depth.** A column's coordinate
+ *  on its wall's normal is `d / 2` — `deriveColumns` sets it that way through `originOnWall`,
+ *  `toColumnExtent` restates it, and `atDepthM` recomputes it whenever it republishes a depth. So a
+ *  merge that took `d` from one operand and the normal coordinate from the other would publish a
+ *  700 mm kitchen's clearance at the 600 mm kitchen's centre — measured on the shipped fixture,
+ *  11 of 12 columns, `A|0.30` at `d` 400 standing at 0.165 where 0.200 is its own half-depth. It is
+ *  latent today because no reader of this map observes the normal axis, and it is corrected here
+ *  rather than left latent because the origin belongs to the depth axis, which ADR 0088 decision 1
+ *  says is re-derived. There are three arms and no fourth.
+ *
+ *  **The along-wall coordinate is the extent's and is not touched**, which is the half Gap D froze:
+ *  it is written back last, through the same `alongWallPosition`/`alongWallCoordinate` pair every
+ *  other reader of §2's wall convention uses, so no axis is named here. */
+function atDerivedDepth(
+  extent: ColumnExtent,
+  derived: ColumnExtent | undefined,
+): ColumnExtent {
+  if (!derived) return extent;
+  const atDepth: MutableColumnExtent = {
+    ...extent,
+    d: derived.d,
+    x: derived.x,
+    z: derived.z,
+    ...alongWallPosition(extent.wall, alongWallCoordinate(extent.wall, extent)),
+  };
+  // Deleted rather than assigned `undefined`, so a column whose derived depth claims no source is
+  // shaped exactly like one that never had one — the rule `atDepthM` and `toColumnExtent` follow,
+  // and the one `JSON.stringify` and an `in` check disagree about.
+  if (derived.depthFromBuildId === undefined) delete atDepth.depthFromBuildId;
+  else atDepth.depthFromBuildId = derived.depthFromBuildId;
+  return atDepth;
+}
+
+/** A `ColumnExtent` under construction: `Column`'s fields are `readonly` — they are, correctly, a
+ *  frozen extent — and `depthFromBuildId` has to be **removed** rather than overwritten, which no
+ *  spread can express. */
+type MutableColumnExtent = {
+  -readonly [Field in keyof ColumnExtent]: ColumnExtent[Field];
+};
 
 /** **The map as the document records it: everything `deriveColumns` answers, minus the wall-end
  *  cap** (ADR 0090 Amendment B, and ADR 0069's own amendment of the same date).

@@ -54,6 +54,7 @@ import { describePanel, type WidthStepperSection } from "@/panel/panel-model";
 import { widthStepsFor } from "@lemnaria/configurator-domain";
 
 import { createFakeBodyProbe } from "../support/fake-body-probe";
+import { PAL_KITCHEN } from "../support/panel-material";
 
 const PROBE = createFakeBodyProbe();
 const OCCURRED_AT = "2026-08-30T12:00:00.000Z";
@@ -110,6 +111,7 @@ function stepperAt(kitchen: Kitchen, id: string): WidthStepperSection {
     catalog: CATALOG,
   };
   const panel = describePanel({
+    material: PAL_KITCHEN,
     meta: describeSelection({ ...world, target }),
     offers: offersFor({
       ...world,

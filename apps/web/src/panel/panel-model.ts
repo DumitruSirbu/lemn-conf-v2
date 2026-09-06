@@ -13,20 +13,24 @@ import {
   isKnownKind,
   normaliseBand,
   renderRejection,
-  LEGACY_ENUM_FINISH_NAMES,
-  LEGACY_ENUM_FINISHES,
   sameFinish,
   type CatalogOffer,
+  type ColourControl,
   type Finish,
-  type LegacyEnumFinishName,
   type Handle,
+  type Material,
+  type MaterialLookup,
   type OfferVerdict,
+  type PaletteEntry,
+  type PaletteEntryId,
   type PricingResult,
   type RejectionReason,
   type SelectionMeta,
   type WidthOption,
   type WidthRangeMm,
 } from "@lemnaria/configurator-domain";
+
+import { swatchOf } from "@lemnaria/three-adapter";
 
 import type { SaveStatus } from "@/persistence/save-coalescer";
 import type { WriteAccess } from "@/store/configurator-store";
@@ -139,20 +143,71 @@ export interface ReplaceSection {
   readonly emptyLine?: string;
 }
 
-/** A finish chip carries **two** things since wave 6P, and they are no longer the same string.
+/** One entry of a material's declared palette, ready to render.
  *
- *  `value` is what the surface is keyed and styled by — the swatch's CSS variable, its test id, its
- *  React key — and it is still one of the five names §5.5 shipped with. `finish` is the declared
- *  value the command writes, which is a palette entry or a free colour and cannot be a `data-`
- *  attribute. Wave 6R replaces both with the material's own control, and the pair goes with them. */
-export interface FinishChip extends ChoiceChip<LegacyEnumFinishName> {
+ *  `value` is the entry's own **declared id** — the React key, the test id and the string a browser
+ *  test addresses it by. Wave 6P had to carry a second string here because the panel offered five
+ *  legacy names the command could no longer take; there is no second string now, because the chip
+ *  offers exactly what `materials.ts` declares.
+ *
+ *  `swatchColor` is the adapter's own hex for this entry, carried across rather than re-derived: a
+ *  stylesheet cannot import a constant, so the value travels on the chip and the component publishes
+ *  it as a custom property. `isWood` is published beside it so the swatch can draw a grain from that
+ *  one hex — never from a second one authored in CSS. */
+export interface FinishChip extends ChoiceChip<PaletteEntryId> {
   readonly finish: Finish;
+  readonly swatchColor: string;
+  readonly isWood: boolean;
 }
 
-export interface FinishSection {
+/**
+ * **§9's Finisaj section, in the shape the design's material declares** (ADR 0071 decision 3).
+ *
+ * `control` is copied from `Material.colourControl.shape` and is **never inferred from how many
+ * entries came back**: two swatches and a list of two are the same array and different products, so
+ * a veneer kitchen that grew a third wood would otherwise turn into a decor list, and a PAL list
+ * that shrank to two would turn into the wood swatches. The union below is discriminated on it, so
+ * a reader cannot reach a decor list's chips without having read that it is one.
+ */
+export type FinishSection = PaletteSwatchSection | RalPickerSection;
+
+/**
+ * The two controls that offer a declared palette — PAL's fixed list of factory decors, and veneer's
+ * two named woods.
+ *
+ * They share a projection and **not** a rendering: `control` says which one this is, copied from
+ * the material's declaration, and the surface draws a list against a pair of swatches from it. It
+ * is a published field rather than something the component works out from `chips.length`, which is
+ * the same unfalsifiable predicate one layer up.
+ */
+export interface PaletteSwatchSection {
   readonly kind: "finish";
+  readonly control: "decor-list" | "wood-swatches";
   readonly title: string;
   readonly chips: readonly FinishChip[];
+  readonly note: string;
+}
+
+/**
+ * MDF: a colour picker, because painted MDF can be any colour and no list can stand in for that.
+ *
+ * It carries a `value` rather than chips — the six-digit hex the control opens on. That is the
+ * body's own colour where it has one, and the material's declared default where it does not; a
+ * picker with nothing in it would open on the browser's own black.
+ *
+ * **Reachable only on an MDF kitchen**, and on a PAL or veneer one it is not present at all rather
+ * than present and disabled (§13.1): it is a different control, not a greyed one.
+ */
+export interface RalPickerSection {
+  readonly kind: "finish";
+  readonly control: "ral-picker";
+  readonly title: string;
+  /** The control's own label, which a colour input has no room to carry inside itself. */
+  readonly label: string;
+  readonly value: string;
+  readonly isDisabled: boolean;
+  /** §13.1's reason beside the greyed control, on the same condition a chip carries one. */
+  readonly reason?: string;
   readonly note: string;
 }
 
@@ -354,6 +409,20 @@ export interface DescribePanelInput {
    *  supplies it; fixtures that are not about the width control leave it out. */
   readonly widthRanges?: readonly WidthRangeMm[];
   readonly rejection: RejectionReason | null;
+  /**
+   * **The design's material, already looked up** (ADR 0071 decision 3) — what decides the *shape*
+   * of §9's Finisaj control, not merely which options it holds.
+   *
+   * **Required rather than optional**, unlike `pricing` and `widthRanges`. An absent material has
+   * no safe default: PAL's decor list on an MDF kitchen offers six finishes the command refuses,
+   * which is the state §9's "never offer what cannot be satisfied" exists to forbid. Making it
+   * required is what stops a caller forgetting it.
+   *
+   * A `MaterialLookup` rather than a `Material`, because a stored `materialTierId` naming nothing
+   * this product declares is a reachable state (ADR 0078 decision 3) and the panel must keep
+   * rendering everything else.
+   */
+  readonly material: MaterialLookup;
   /** The current design priced, as `usePricedDesign` derived it this render — never a stored total
    *  and never a figure this module computes (§12, and wave 6C's criterion).
    *
@@ -634,7 +703,10 @@ function collectOfferedSections(
   const sections: PanelSection[] = [];
   const replace = describeReplaceSection(input, meta, editability);
   if (replace) sections.push(replace);
-  if (meta.canFinish) sections.push(describeFinishSection(meta, editability));
+  if (meta.canFinish) {
+    const finish = describeFinishSection(input.material, meta, editability);
+    if (finish) sections.push(finish);
+  }
   if (meta.canHandle) sections.push(describeHandleSection(meta, editability));
   // **Not gated on `meta.canWidth`** (ADR 0049). §9 item 6 made `fixedWidth` decide whether the
   // section *exists*, and it would hide the very section that record requires. The flag now gates
@@ -830,24 +902,104 @@ function describeChipAvailability(editability: PanelEditability): {
     : { isDisabled: false };
 }
 
+/**
+ * **§9's Finisaj control, in the shape the design's material declares** (ADR 0071 decision 3).
+ *
+ * The branch below is on `colourControl.shape` and on nothing else. It is deliberately not on
+ * `paletteEntriesOf(material).length`, which happens to distinguish the three materials today —
+ * six, none and two — and would keep doing so right up until veneer gained a third wood or PAL lost
+ * a decor, at which point the customer would be handed the wrong control with no test having moved.
+ *
+ * `undefined` when the design's `materialTierId` names no declared material (ADR 0078 decision 3).
+ * A material this product does not declare makes no offer, and there is no control shape to render
+ * for it — the rest of the panel keeps working, which is what 6G's recovery path stands on.
+ */
 function describeFinishSection(
+  lookup: MaterialLookup,
   meta: SelectionMeta,
   editability: PanelEditability,
-): FinishSection {
+): FinishSection | undefined {
+  if (lookup.kind === "undeclared") return undefined;
+  const { material } = lookup;
+  if (material.colourControl.shape === "ral-picker") {
+    return describeRalPickerSection(material, meta, editability);
+  }
+  return describeSwatchSection(material.colourControl, meta, editability);
+}
+
+/** The two list-shaped controls, which differ in their `control` and in nothing else here: PAL's
+ *  fixed decor list and veneer's two woods are the same projection, and it is the surface that
+ *  draws a list against a pair of swatches. The shape is carried across from the declaration, so
+ *  neither can turn into the other by its entries changing. */
+function describeSwatchSection(
+  control: Extract<ColourControl, { entries: readonly PaletteEntry[] }>,
+  meta: SelectionMeta,
+  editability: PanelEditability,
+): PaletteSwatchSection {
   return {
     kind: "finish",
+    control: control.shape,
     title: ro.panel.finishTitle,
-    chips: LEGACY_ENUM_FINISH_NAMES.map((name) => ({
-      value: name,
-      finish: LEGACY_ENUM_FINISHES[name],
-      label: ro.panel.finishLabels[name],
-      isActive:
-        meta.finish !== undefined &&
-        sameFinish(meta.finish, LEGACY_ENUM_FINISHES[name]),
-      ...describeChipAvailability(editability),
-    })),
-    note: ro.panel.finishNote,
+    chips: control.entries.map((entry) =>
+      describeFinishChip(entry, meta, editability),
+    ),
+    note: ro.panel.finishApproximationNote,
   };
+}
+
+/** One decor, rendered. The label is the entry's own declared name — ADR 0071 decision 4's, in the
+ *  product's Romanian — and never a supplier code, which `materials.ts` keeps as internal
+ *  provenance. The colour is the adapter's, so the swatch and the 3D paint from one declared hex. */
+function describeFinishChip(
+  entry: PaletteEntry,
+  meta: SelectionMeta,
+  editability: PanelEditability,
+): FinishChip {
+  const finish: Finish = { kind: "palette-entry", entryId: entry.entryId };
+  const swatch = swatchOf(finish);
+  return {
+    value: entry.entryId,
+    finish,
+    label: entry.name,
+    swatchColor: swatch.color,
+    isWood: swatch.isWood,
+    isActive: meta.finish !== undefined && sameFinish(meta.finish, finish),
+    ...describeChipAvailability(editability),
+  };
+}
+
+function describeRalPickerSection(
+  material: Material,
+  meta: SelectionMeta,
+  editability: PanelEditability,
+): RalPickerSection {
+  return {
+    kind: "finish",
+    control: "ral-picker",
+    title: ro.panel.finishTitle,
+    label: ro.panel.finishPickerLabel,
+    value: describePickerValue(material, meta),
+    ...describeChipAvailability(editability),
+    note: ro.panel.finishApproximationNote,
+  };
+}
+
+/**
+ * **Where the picker opens**, which is a position for a control and never a finish anything writes.
+ *
+ * The body's own colour when it has one; otherwise the material's declared default, which for the
+ * one material declaring a picker is itself a free colour and so arrives verbatim.
+ *
+ * **Never the body's current decor read as a hex.** ADR 0078 decision 4 forbids constructing a free
+ * colour from a palette entry's swatch, and a body still wearing a PAL decor on an MDF kitchen is
+ * the transient 6Q-b's reset clears — seeding the picker from it is exactly the invisible
+ * substitution ADR 0057 rejected, arriving through the door this wave opens by publishing a hex per
+ * decor.
+ */
+function describePickerValue(material: Material, meta: SelectionMeta): string {
+  const opening =
+    meta.finish?.kind === "free-colour" ? meta.finish : material.defaultFinish;
+  return swatchOf(opening).color;
 }
 
 /** §6.5 and §11 row 13: with nothing chosen, the chip that is marked is the one the scene is

@@ -40,6 +40,7 @@ import {
   createFakeBodyProbe,
   createFakeProbeFactory,
 } from "../support/fake-body-probe";
+import { PAL_KITCHEN } from "../support/panel-material";
 
 const PROBE = createFakeBodyProbe();
 const OCCURRED_AT = "2026-08-30T12:00:00.000Z";
@@ -76,6 +77,7 @@ function panelAt(world: World, target: CommandTarget, canWrite = true) {
     probe: PROBE,
   };
   return describePanel({
+    material: PAL_KITCHEN,
     meta: describeSelection({ ...world, target }),
     offers: offersFor({
       ...world,

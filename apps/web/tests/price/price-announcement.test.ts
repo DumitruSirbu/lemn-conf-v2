@@ -33,6 +33,7 @@ import { describePanel, type PanelView } from "@/panel/panel-model";
 
 import { occupiedMeta } from "../support/selection-meta";
 import { noWidthIsFree } from "../support/width-options";
+import { PAL_KITCHEN } from "../support/panel-material";
 
 /** The same two seams `PriceBar` reads, stubbed for the same reason the adversarial suite stubs
  *  them: the flagged state is not reachable from the seeded design. */
@@ -86,6 +87,7 @@ function barMarkup(pricing: PricingResult): string {
 function panelMarkup(pricing: PricingResult): string {
   const meta = occupiedMeta();
   const view: PanelView = describePanel({
+    material: PAL_KITCHEN,
     meta,
     offers: [],
     rejection: null,

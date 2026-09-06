@@ -37,6 +37,13 @@ const derivedMaterialsByKit = new WeakMap<
   Map<string, THREE.Material>
 >();
 
+/** The bounded memo, kept apart from the one above so that an open key space can never crowd out a
+ *  closed one: the black handle and the declared decors are built once and must stay built. */
+const boundedMaterialsByKit = new WeakMap<
+  KitMaterials,
+  Map<string, THREE.Material>
+>();
+
 /** This kit's ownership record, created on first use. */
 export function kitOwnedResources(M: KitMaterials): KitOwnedResources {
   const existing = resourcesByKit.get(M);
@@ -75,6 +82,56 @@ export function deriveKitMaterial(
   return material;
 }
 
+/** A key in a memo that has a ceiling, and what that ceiling is. */
+export interface BoundedMaterialRequest {
+  readonly key: string;
+  /** The most materials this key space may retain per kit. Every caller derives it from what the
+   *  product can wear at once rather than picking a number: see `finishes.ts`. */
+  readonly capacity: number;
+}
+
+/**
+ * A derived material for a key space the **customer** can enlarge without limit — built once per
+ * kit per `key` as `deriveKitMaterial` does, but retained only while it is one of the `capacity`
+ * most recently asked for.
+ *
+ * `deriveKitMaterial`'s memo may be unbounded because both its key spaces are closed and small: one
+ * black handle, and one entry per declared decor, which `Record<PaletteEntryId, …>` checks at
+ * compile time. A free colour has no such table. `<input type="color">` fires React's `onChange` on
+ * the native `input` event, which Chrome and Safari raise continuously while the picker is dragged,
+ * so one drag across the gradient asks for hundreds of distinct keys — and an unbounded memo turns
+ * every one of them into a clone held until `disposeKitAndStage`.
+ *
+ * **The evicted material is disposed here** rather than left to the teardown, because leaving the
+ * memo also removes it from the kit's ownership record and no other reader would then free it. That
+ * is safe for the caller this exists for: a free colour clones `M.door`, which samples no map, so
+ * the disposal releases that clone's own shader program and nothing shared. A front that has not
+ * re-signed since may still be assigned an evicted material — three.js re-initialises a material it
+ * is asked to render after a dispose, so the cost is one program re-acquisition rather than a black
+ * front, and the next sync misses the memo and rebuilds it.
+ */
+export function deriveBoundedKitMaterial(
+  M: KitMaterials,
+  request: BoundedMaterialRequest,
+  build: () => THREE.Material,
+): THREE.Material {
+  const derived = boundedMaterialsFor(M);
+  const cached = derived.get(request.key);
+  if (cached) {
+    // Re-inserted so the map's insertion order stays least-recently-asked-for first, which is what
+    // `evictBeyondCapacity` walks: a colour still on screen is asked for on every re-sign.
+    derived.delete(request.key);
+    derived.set(request.key, cached);
+    return cached;
+  }
+
+  const material = build();
+  derived.set(request.key, material);
+  kitOwnedResources(M).materials.add(material);
+  evictBeyondCapacity(M, request.capacity);
+  return material;
+}
+
 /**
  * Marks a kit dead once its resources have been disposed. Called only by `disposeKitAndStage`.
  *
@@ -94,6 +151,7 @@ export function releaseKitOwnedResources(M: KitMaterials): void {
   owned.textures.clear();
   owned.isReleased = true;
   derivedMaterialsByKit.delete(M);
+  boundedMaterialsByKit.delete(M);
 }
 
 /** Refuses a question that only makes sense about a live kit. Its answer after a release would be
@@ -113,4 +171,28 @@ function derivedMaterialsFor(M: KitMaterials): Map<string, THREE.Material> {
   const created = new Map<string, THREE.Material>();
   derivedMaterialsByKit.set(M, created);
   return created;
+}
+
+function boundedMaterialsFor(M: KitMaterials): Map<string, THREE.Material> {
+  const existing = boundedMaterialsByKit.get(M);
+  if (existing) return existing;
+
+  const created = new Map<string, THREE.Material>();
+  boundedMaterialsByKit.set(M, created);
+  return created;
+}
+
+/** Drops the oldest entries until the memo is back inside its ceiling, disposing each and dropping
+ *  it from the kit's ownership record — the two have to move together, or a teardown would dispose
+ *  a material this memo could still hand out, or leave one nothing ever frees. */
+function evictBeyondCapacity(M: KitMaterials, capacity: number): void {
+  const derived = boundedMaterialsFor(M);
+  const owned = kitOwnedResources(M);
+
+  for (const [key, material] of derived) {
+    if (derived.size <= capacity) return;
+    derived.delete(key);
+    owned.materials.delete(material);
+    material.dispose();
+  }
 }

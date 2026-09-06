@@ -350,9 +350,9 @@ export function lookUpMaterial(materialId: string): MaterialLookup {
 export const DEFAULT_FINISH: Finish =
   materialById(DEFAULT_MATERIAL_ID).defaultFinish;
 
-/** **The five finishes the shipped enum offered.** The migration's input alphabet — a stored value
- *  is one of these or it is not a legacy finish at all — and, until wave 6R, the list the panel's
- *  five chips and the adapter's five keys are still built from. */
+/** **The five finishes the shipped enum offered.** The migration's input alphabet: a stored value is
+ *  one of these or it is not a legacy finish at all. Until wave 6R it was also the list the panel's
+ *  five chips and the adapter's five keys were built from; both now read the declared palette. */
 export const LEGACY_ENUM_FINISH_NAMES = [
   "white",
   "clay",
@@ -363,12 +363,13 @@ export const LEGACY_ENUM_FINISH_NAMES = [
 export type LegacyEnumFinishName = (typeof LEGACY_ENUM_FINISH_NAMES)[number];
 
 /**
- * **A wave 6P bridge, and wave 6R deletes it.**
+ * **What each of the shipped enum's five names is, expressed in the shape that replaced it.**
  *
- * What each of the shipped enum's five names is, expressed in the shape that replaced it — so the
- * two hand-written copies of that enum (`panel-model.ts`'s chips and `finishes.ts`'s `FinishKey`)
- * keep offering and drawing exactly what they offer and draw today, through one table instead of
- * two that agree.
+ * It began as a wave 6P bridge for the two hand-written copies of that enum — `panel-model.ts`'s
+ * chips and `finishes.ts`'s `FinishKey`. **Wave 6R deleted both**, and this table stayed, because
+ * two readers of it are not bridges: `migrateDesign` needs it to meet a document written under the
+ * old enum, and `/internal/scene-shot` needs it because the M1 reference's own preset shots are
+ * keyed by those five names and the reference did not change.
  *
  * **The migration reads this table rather than replacing it**, and reads exactly one thing off each
  * row: its `kind`. `white`, `graphite` and `oak` are palette entries, so a stored document keeps the

@@ -32,10 +32,16 @@
  * and the breakdown's own popover (`6`). `.header` establishes a stacking context at `2`, and
  * nothing inside a context can paint above what stands over it — so mounted there, the scrim would
  * have dimmed the scene and left the bar bright and clickable underneath it. */
+/* **`min-width: 0` is the containment** (ADR 0082 decision 1). A grid item's automatic minimum size
+ * is its min-content size, so without this the band sizes to its own content and grows past the
+ * column it stands in — which is how `global-settings-trigger`'s right edge reached 412 on a 390 px
+ * screen. Zeroed, the band is whatever its track is, and the strip inside it spends the difference on
+ * `flex-wrap: wrap` rather than on width (`settings/global-settings.module.css`). */
 .settingsRow {
   grid-area: settings;
   z-index: 7;
   display: flex;
+  min-width: 0;
   padding: 0 18px 11px;
   background: var(--paper);
   border-bottom: 1px solid var(--line-soft);
@@ -196,19 +202,52 @@
 @media (min-width: 900px) {
   /* Frames D2A / D2B / D2C: the price joins the top bar's right-hand end, and the scene takes the
    * whole width below it. */
+  /* **The strip gets a row of its own, and its width is the viewport's** (ADR 0094 decision 2). The
+   * top bar keeps the nav and the price; the strip spans both columns underneath them. The stage
+   * stays the only flexible row (`minmax(0, 1fr)`), which is how ADR 0082 decision 5's "vertical
+   * growth is absorbed by the stage" survives structurally rather than by re-argument.
+   *
+   * **Why a residue track was refused, since it is the arrangement this replaces.** The strip used to
+   * be the flexible middle of `auto minmax(0, 1fr) auto`, i.e. the arithmetic residue of two contents
+   * it does not control: a book-authored tier name in a chip (ADR 0062 seam 1) and the owner-ruled
+   * sentence ADR 0065 gives a flagged total. Containment then held only while
+   *
+   *   nav's content + price's content <= viewport - (widest chip + the trigger)
+   *
+   * — an inequality between three independently-authored strings, none of which any test guards.
+   * Measured 2026-09-06 on a flagged design at 900 px: the residue was 78.98 px, the chips box
+   * computed to 0, both chips rendered 28 px with 138 and 115 px of label cut, and the trigger stood
+   * 39.06 x 44.00 px over the price bar. **A row is an invariant; a residue is an inequality**, and a
+   * longer tier name is a book edit rather than a code change.
+   *
+   * The residue is not abolished, only confined: the nav is `minmax(0, 1fr)` beside the price's
+   * `auto`, so what is left to argue over is two contents this repository owns. That confinement is
+   * measured, not claimed — `tests/e2e/settings-strip-containment.desktop.e2e.spec.ts` asserts the
+   * nav's own text is uncut at 900 on a flagged design.
+   *
+   * **The cost is the strip's row**, about 44 px of canvas at every desktop width, and a departure
+   * from frame D2E, which draws the pills inside the top bar. Both are ruled: ADR 0082 decision 6
+   * says a frame does not answer "may a control leave the screen", and the owner's ruling of
+   * 2026-09-05 names vertical height as the currency. **No width threshold is declared here**
+   * (ADR 0094 criterion 4i) — the measured 1150 is a property of today's three strings, not of the
+   * layout. */
   .screen {
     grid-template-areas:
-      "header settings price"
-      "stage  stage    stage";
-    grid-template-columns: minmax(0, 1fr) auto auto;
-    grid-template-rows: auto minmax(0, 1fr);
+      "header   price"
+      "settings settings"
+      "stage    stage";
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-rows: auto auto minmax(0, 1fr);
   }
 
-  /* Frame D2E puts the chips in the top bar, between the step nav and the price. */
+  /* A band across the screen rather than a cell in the top bar, so the overrides written for that
+   * cell are re-decided here: the band takes the header's own 18 px left inset and the price bar's
+   * 28 px right one, so the chips line up under the step nav and the trigger under the figure. The
+   * base rule's bottom rule comes back with it — a full-width band is separated from the scene the
+   * way the mobile one already is, and `border-bottom: none` belonged to the cell. */
   .settingsRow {
     align-items: center;
-    padding: 0 24px 0 0;
-    border-bottom: none;
+    padding: 0 28px 0 18px;
   }
 
   .priceRow {

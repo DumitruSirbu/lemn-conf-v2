@@ -162,9 +162,9 @@ test("the §10 loop completes by touch: select, replace, finish, handle, dismiss
     "true",
   );
 
-  await page.getByTestId("finish-graphite").tap();
+  await page.getByTestId("finish-pal.antracit").tap();
   await page.waitForTimeout(SETTLE_MS);
-  await expect(page.getByTestId("finish-graphite")).toHaveAttribute(
+  await expect(page.getByTestId("finish-pal.antracit")).toHaveAttribute(
     "aria-pressed",
     "true",
   );
@@ -195,7 +195,7 @@ test("the §10 loop completes by touch: select, replace, finish, handle, dismiss
 /** Selecting a body must not also press whatever §9 puts under the finger. A touch on the canvas
  *  produces compatibility mouse events that are hit-tested when they are dispatched, by which time
  *  the sheet covers the bottom ~78 dvh — so one tap that selected the fridge used to arrive as a
- *  `click` on `finish-white` and applied a finish nobody chose, minting a design in the process.
+ *  `click` on the first finish swatch and applied a finish nobody chose, minting a design in the process.
  *  `kitchen-canvas.tsx` cancels `touchend` to stop it. This is that regression, stated as the
  *  milestone states it: the sheet never steals or leaks pointer events into the canvas. */
 test("the tap that opens the sheet is not also delivered to the sheet", async ({
@@ -289,7 +289,7 @@ test("rows and chips meet the touch scale, and chip rows scroll rather than wrap
   // line, and a container that scrolls — asserted as the rule rather than as today's overflow,
   // which depends on how many finishes the catalogue happens to carry.
   const finishRow = page
-    .getByTestId("finish-white")
+    .getByTestId("finish-pal.alb")
     .locator("xpath=ancestor::div[1]");
   expect(
     await finishRow.evaluate((element) => getComputedStyle(element).overflowX),
@@ -398,14 +398,14 @@ test("× and Gata both dismiss without committing or cancelling, and the state s
   page,
 }) => {
   await selectSinkCabinet(page);
-  // *Stejar* rather than *Salvie* since wave 6Q-a: the seeded kitchen is PAL, and PAL offers no
-  // free colour (ADR 0078 decision 1), so tapping *Salvie* here now refuses instead of applying.
-  // What this test is about is that a dismissal neither commits nor cancels an edit that was made —
-  // which needs an edit that lands.
-  await page.getByTestId("finish-oak").tap();
+  // *Stejar Bardolino Natur*, one of PAL's six decors: the seeded kitchen carries no settings, so
+  // it is PAL, and since wave 6R the panel offers exactly what PAL offers. What this test is about
+  // is that a dismissal neither commits nor cancels an edit that was made — which needs an edit
+  // that lands.
+  await page.getByTestId("finish-pal.stejar-bardolino").tap();
   await page.waitForTimeout(SETTLE_MS);
   await keepForDeletion(page);
-  await expect(page.getByTestId("finish-oak")).toHaveAttribute(
+  await expect(page.getByTestId("finish-pal.stejar-bardolino")).toHaveAttribute(
     "aria-pressed",
     "true",
   );
@@ -428,10 +428,9 @@ test("× and Gata both dismiss without committing or cancelling, and the state s
     expect(writes).toEqual([]);
 
     await selectSinkCabinet(page);
-    await expect(page.getByTestId("finish-oak")).toHaveAttribute(
-      "aria-pressed",
-      "true",
-    );
+    await expect(
+      page.getByTestId("finish-pal.stejar-bardolino"),
+    ).toHaveAttribute("aria-pressed", "true");
   }
   await dismissPanel(page);
 });

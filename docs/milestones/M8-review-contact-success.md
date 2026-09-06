@@ -48,6 +48,34 @@ endpoint the owner named as most needing throttling.
   customer can edit from another device. Storing passwords for people who never made an account was
   considered and rejected — see ADR 0019 Alternatives.
 
+### Added 2026-09-06, owner-ruled: a driver error must not print the connection string
+
+**Found incidentally** by wave 6R's visual-verification pass, not by a security review: with a
+malformed `DATABASE_URL`, the `neon()` driver's own thrown error prints the **full connection string,
+credentials included**, into the dev server log. The owner ruled it here rather than into M6 —
+*"If milestone eight will be focused on security, record, if needed, the fix for this situation to be
+done in milestone eight."*
+
+**Why it is not urgent and is still real.** It was observed in local development, where the operator
+already holds the credential, and it needs a malformed URL to fire — so it leaks nothing to a
+customer today. What makes it M8's rather than nobody's is where those logs go once this product is
+deployed: a platform log drain is a second place the credential then lives, read by a wider audience
+than the person who typed it, and retained on someone else's retention schedule.
+
+**Where it comes from.** The driver is constructed in three places —
+`packages/persistence/src/design-row-source.ts:77`,
+`packages/persistence/src/neon-configuration-repository.ts:117` and
+`packages/persistence/src/delete-designs-for-tests.ts:38` — plus the lazy wrapper at
+`apps/web/src/lib/server/repository.ts`. The string is printed by the driver's own error, so the fix
+is to catch and re-throw a domain error naming the *variable* and never its value, at the boundary
+where the URL is read. `packages/persistence` is the only place a Postgres driver appears
+(`scripts/gates/boundary.sh` holds that), so the seam is already single.
+
+**Acceptance criterion.** With `DATABASE_URL` set to a malformed value carrying a recognisable fake
+password, no log line, thrown message or stack frame produced by any of the four construction sites
+contains that password — asserted by a test, not by reading the code. The error still names which
+environment variable is wrong, because an error that hides the variable too is a support call.
+
 ## Launch gate — `POST /api/designs` must not meet real traffic until this is checked off
 
 Added 2026-08-31. This is a **hard pre-launch blocker**, not a work item that can be traded away

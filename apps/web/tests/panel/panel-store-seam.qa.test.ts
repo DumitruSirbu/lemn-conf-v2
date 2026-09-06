@@ -27,12 +27,15 @@ import { describePanel, type PanelView } from "@/panel/panel-model";
 
 import { columnExtents } from "../support/column-extents";
 import { createFakeProbeFactory } from "../support/fake-body-probe";
-import { LEGACY_ENUM_FINISHES } from "@lemnaria/configurator-domain";
+import { paletteFinish } from "@lemnaria/configurator-domain";
+import { PAL_KITCHEN } from "../support/panel-material";
+import { swatchSectionOf } from "../support/panel-sections";
 
 /** Exactly what `usePanelView` composes, from exactly the store fields it subscribes to. */
 function panelFromStore(state: ConfiguratorState): PanelView {
   const { records, voids, columns, catalog, selection } = state;
   return describePanel({
+    material: PAL_KITCHEN,
     meta: selection
       ? describeSelection({ records, voids, catalog, target: selection })
       : undefined,
@@ -180,19 +183,20 @@ describe("the panel over the store's own state", () => {
     const store = createStore();
     store.getState().select({ kind: "placement", id: "p0" });
     // *Antracit* rather than *Salvie* since wave 6Q-a: the fixture carries no settings, so it is a
-    // PAL kitchen and PAL offers no free colour (ADR 0078 decision 1). What is under test is that
-    // the panel marks a chip the moment the command applies, which needs a command that applies.
-    store.getState().setFinish(LEGACY_ENUM_FINISHES.graphite);
+    // PAL kitchen and PAL offers no free colour (ADR 0078 decision 1). Named by its own entry id
+    // since wave 6R, which is what the chip is keyed by. What is under test is that the panel marks
+    // a chip the moment the command applies, which needs a command that applies.
+    store.getState().setFinish(paletteFinish("pal.antracit"));
     store.getState().setHandle("black");
 
     const sections = openPanel(store.getState()).sections;
-    const finish = sections.find((section) => section.kind === "finish");
+    const finish = swatchSectionOf(sections);
     const handle = sections.find((section) => section.kind === "handle");
-    if (finish?.kind !== "finish" || handle?.kind !== "handle")
-      throw new Error("expected both appearance sections");
+    if (handle?.kind !== "handle")
+      throw new Error("expected the handle section");
     expect(
       finish.chips.filter((chip) => chip.isActive).map((chip) => chip.value),
-    ).toEqual(["graphite"]);
+    ).toEqual(["pal.antracit"]);
     expect(
       handle.chips.filter((chip) => chip.isActive).map((chip) => chip.value),
     ).toEqual(["black"]);

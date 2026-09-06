@@ -1,13 +1,13 @@
-import type { PlacementRecord } from "@lemnaria/configurator-domain";
+import {
+  runEndPanelSeatM,
+  type PlacementRecord,
+} from "@lemnaria/configurator-domain";
 import type { Group, Object3D } from "three";
 
 import { disposeDiscardedBodies } from "./kit-disposal.js";
 import {
-  RUN_END_PANEL_EDGE_OFFSET_M,
-  RUN_END_PANEL_HEIGHT_M,
   RUN_END_PANEL_NAME,
   RUN_END_PANEL_SEEDED_X_M,
-  RUN_END_PANEL_THICKNESS_M,
   type Kit,
 } from "./kitchen-parts.js";
 
@@ -47,12 +47,6 @@ function isCustomerBody(child: Object3D): boolean {
  * to. Declared here rather than imported because `scene-sync.ts` depends on this module. */
 const PLACEMENT_ID_KEY = "placementId";
 
-const PANEL_HALF_THICKNESS_M = RUN_END_PANEL_THICKNESS_M / 2;
-
-/** M1's float-artefact allowance, which is what separates "touching" from "intersecting" here. It
- * is not a product tolerance — `DEVELOPMENT-SPEC.md` §2 owns those. */
-const TOUCHING_TOLERANCE_M = 1e-6;
-
 export interface RunEndPanelInput {
   /** The `solids` group: the shell plus every mounted customer body. */
   readonly solidsRoot: Object3D;
@@ -62,6 +56,12 @@ export interface RunEndPanelInput {
 /** ADR 0045: the run-end panel closes the **last base cabinet on screen**, not the run's nominal
  *  extent, so its along-wall seat and its visibility are re-derived from the current records on
  *  every sync — a shrink, a delete and an insert all move the end of the run.
+ *
+ *  **The seat itself is not derived here.** `runEndPanelSeatM` is the domain's, because the panel
+ *  is also part of wall A's occupied width and a coverage query needs the same number (ADR 0083
+ *  decision 5). This function is the projection of that one fact onto a mesh: it finds the panel,
+ *  seats it, and shows or hides it. Re-deriving the seat, the veto or either slab constant here
+ *  would restore the two-derivation defect the move closed.
  *
  *  This re-crosses the seam `db9c402` closed, and stays on the narrow side of it deliberately:
  *  membership is still the literal manifest above, so no record can create the panel and none can
@@ -82,81 +82,6 @@ export function syncRunEndPanel(input: RunEndPanelInput): void {
   const seatM = runEndPanelSeatM(input.records);
   panel.visible = seatM !== undefined;
   panel.position.x = seatM ?? RUN_END_PANEL_SEEDED_X_M;
-}
-
-/** Where the panel stands, or `undefined` when there is nowhere for it to stand.
- *
- *  ADR 0045 says the panel closes the last base cabinet *"if possible"*, and this is the "if
- *  possible": owner, 2026-09-01, the panel is hidden when something already occupies the seat it
- *  would take. A full-height column can stand immediately right of the last base cabinet — delete a
- *  base, a wall and a top body, let §10 merge the opening, insert `tall-pantry-600` — and the panel
- *  would otherwise be buried 19 mm inside its side, two solids sharing a face.
- *
- *  Only the seat is contested, never the run: a column is where a base run *ends*, not a member of
- *  it, and a base-height end panel finishes nothing against a 2200 mm body. So the run's end is
- *  still read from base placements alone, and every other wall-A body can only veto. */
-function runEndPanelSeatM(
-  records: readonly PlacementRecord[],
-): number | undefined {
-  const runEndM = baseRunRightEdgeM(records);
-  if (runEndM === undefined) return undefined;
-
-  const seatM = runEndM + RUN_END_PANEL_EDGE_OFFSET_M;
-  return records.some((record) => blocksSeat(record, seatM))
-    ? undefined
-    : seatM;
-}
-
-/** The right edge of the right-most wall-A base placement, or `undefined` when the wall carries
- *  none. `frame.x` is a wall-A body's centre along the wall and `frame.w` its carcass width, so
- *  the edge is the one plus half the other — the same arithmetic §12 validates a placement with. */
-function baseRunRightEdgeM(
-  records: readonly PlacementRecord[],
-): number | undefined {
-  let rightEdgeM: number | undefined;
-  for (const record of records) {
-    if (record.wall !== "A" || record.band !== "base") continue;
-    const edgeM = record.frame.x + record.frame.w / 2;
-    if (rightEdgeM === undefined || edgeM > rightEdgeM) rightEdgeM = edgeM;
-  }
-  return rightEdgeM;
-}
-
-/** Whether this record stands where the panel would, in the two axes the panel occupies.
- *
- *  Both are needed and neither alone is: wall A's cabinets share an along-wall line with the base
- *  run — the seeded wall body over `p4` spans the same 2.90–3.50 — and one hanging at 1500 mm is
- *  nowhere near a panel that ends at 820. A veto on `x` alone would hide the panel for a cabinet
- *  that is not touching it; a veto on `y` alone would hide it for every wall-A body in the room. */
-function blocksSeat(record: PlacementRecord, seatM: number): boolean {
-  if (record.wall !== "A" || record.band === "base") return false;
-  return (
-    overlaps(
-      [
-        record.frame.x - record.frame.w / 2,
-        record.frame.x + record.frame.w / 2,
-      ],
-      [seatM - PANEL_HALF_THICKNESS_M, seatM + PANEL_HALF_THICKNESS_M],
-    ) &&
-    overlaps(
-      [record.frame.y0, record.frame.y0 + record.frame.h],
-      // The panel stands on the floor, so its own interval starts at 0.
-      [0, RUN_END_PANEL_HEIGHT_M],
-    )
-  );
-}
-
-/** Open intervals: two bodies that merely touch, which is what a cabinet standing exactly beside
- *  the panel does, do not intersect. The tolerance is M1's own float-artefact allowance, so a
- *  shared face that arrives as 3.5189999 does not read as an overlap. */
-function overlaps(
-  [leftLow, leftHigh]: readonly [number, number],
-  [rightLow, rightHigh]: readonly [number, number],
-): boolean {
-  return (
-    leftLow < rightHigh - TOUCHING_TOLERANCE_M &&
-    rightLow < leftHigh - TOUCHING_TOLERANCE_M
-  );
 }
 
 /** The shell is the one `solidsRoot` child `syncSolidBodies` did not mount, which is the manifest's
