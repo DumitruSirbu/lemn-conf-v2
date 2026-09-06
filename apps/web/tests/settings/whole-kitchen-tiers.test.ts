@@ -1,12 +1,12 @@
 // Wave 6G's measured deltas, and the book shape that keeps them measurable.
 //
-// **The assertion that matters is that a delta is not the book's own number.** Both hardware tiers
-// that cost anything are stated *per cabinet handle* (ADR 0061 decision 2), so a surface that
-// rendered `perCabinetHandleMinor` would print a per-handle rate as a whole-kitchen figure — a
-// number the customer would read as the price of the upgrade and which is wrong by the number of
-// handles in their kitchen. Every case below compares against a second, independent evaluation of
-// `priceDesign` rather than against a literal, so nothing here can agree with the book by
-// transcription.
+// **The assertion that matters is that a delta is not the book's own number.** Every hardware tier
+// costs something, and each states three *per-mechanism* rates — `perHingeMinor`, `perDrawerMinor`
+// and `perPushToOpenMinor` (ADR 0070 decision 1) — so a surface that rendered any one of them would
+// print a per-mechanism rate as a whole-kitchen figure: a number the customer would read as the
+// price of the upgrade and which is wrong by the number of mechanisms in their kitchen. Every case
+// below compares against a second, independent evaluation of `priceDesign` rather than against a
+// literal, so nothing here can agree with the book by transcription.
 import {
   KITCHEN_L_BODY_CATALOG,
   KITCHEN_L_DESIGN,
@@ -82,16 +82,25 @@ describe("a tier's delta is the whole kitchen, twice", () => {
     expect(deltaOf(SHIPPED.hardware, SHIPPED.hardware.defaultTierId)).toBe(0);
   });
 
-  it("does not print a hardware tier's per-handle rate as a whole-kitchen figure", () => {
-    // The case this wave's open question warns about, made falsifiable: the seeded kitchen has many
-    // more than one cabinet handle, so a delta equal to the book's own `perCabinetHandleMinor` would
-    // mean the surface had transcribed a rate.
+  it("does not print a hardware tier's per-mechanism rate as a whole-kitchen figure", () => {
+    // The case this wave's open question warns about, made falsifiable: the seeded kitchen carries
+    // many more than one mechanism of each kind, so a delta equal to any one of the book's own
+    // three rates would mean the surface had transcribed a rate. Swept over all three since wave 6T
+    // replaced the single per-handle rate with them (ADR 0070 decision 1) — checking one would
+    // leave a surface that transcribed either of the others green.
     for (const tier of SAMPLE_PRICE_BOOK.hardware.tiers) {
-      if (tier.perCabinetHandleMinor === 0) continue;
-      expect(
-        deltaOf(SHIPPED.hardware, tier.tierId),
-        tier.tierId,
-      ).toBeGreaterThan(tier.perCabinetHandleMinor);
+      const deltaMinor = deltaOf(SHIPPED.hardware, tier.tierId);
+      if (deltaMinor === 0) continue;
+      for (const rateMinor of [
+        tier.perHingeMinor,
+        tier.perDrawerMinor,
+        tier.perPushToOpenMinor,
+      ]) {
+        expect(deltaMinor, `${tier.tierId} @ ${String(rateMinor)}`).not.toBe(
+          rateMinor,
+        );
+      }
+      expect(deltaMinor, tier.tierId).toBeGreaterThan(tier.perHingeMinor);
     }
   });
 

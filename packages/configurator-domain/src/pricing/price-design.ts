@@ -16,13 +16,18 @@
 // - **It fails whole.** Every refusal returns before a single line is published.
 //
 // I/O-free, rendering-free, persistence-free: a function of its arguments returning plain data.
-import {
-  cabinetHandleCount,
-  widthDerivedDoorLeafCount,
-} from "../cabinet-handles.js";
+import { widthDerivedDoorLeafCount } from "../cabinet-handles.js";
 import { resolveCatalogEquivalent } from "../catalog.js";
 import type { Design } from "../design.js";
 import { boundedFailureReason } from "../failure-text.js";
+import {
+  UnbuildableDoorBandError,
+  UndeclaredFrontPopulationError,
+} from "../front-population.js";
+import {
+  countHardwareMechanisms,
+  type HardwareMechanismCounts,
+} from "../hardware-mechanisms.js";
 import {
   projectDesignForDisplay,
   type DisplayEntry,
@@ -359,7 +364,7 @@ function priceOnePlacement(
  *  minor units (ADR 0062 seam 1: a book is assembled outside TypeScript, so its declared `number`
  *  is a promise and not a fact). That is right for it — there is no number to guess at — and this
  *  query refuses with a code instead, so the conversion is here and this function does nothing
- *  else. The same shape `countHandlesOn` has, for the same reason.
+ *  else. The same shape `refuseUnreadableFronts` has, for the same reason.
  *
  *  `undefined` travels through untouched: a shape nothing implements is the caller's other refusal
  *  and is not this one. */
@@ -450,9 +455,9 @@ function describeUnresolvedRule(pricedAs: PricingRow): string {
  * (2026-09-03).
  *
  * The leaf count is read from the **priced-as** row, and that is deliberate and is the opposite of
- * what `countCabinetHandles` does. A door step is part of a price *rule*, so it is a property of the
- * catalogue row the body is priced as; a handle *count* is a property of the already-built body
- * standing in the design. The difference is load-bearing rather than academic: every seeded row
+ * what `countHardwareMechanisms` does. A door step is part of a price *rule*, so it is a property of
+ * the catalogue row the body is priced as; a *mechanism* count is a property of the already-built
+ * body standing in the design. The difference is load-bearing rather than academic: every seeded row
  * declares `carriesHandles(n)` frozen at the size it was built, so reading the leaf count off the
  * placement's own entry would give a resized seeded `wall-2door-600` **no** step at 800 mm while an
  * inserted `wall-cabinet` beside it got one — two identical bodies at two prices.
@@ -504,22 +509,29 @@ function priceWholeKitchen(
   );
   if (isRefused(material)) return material;
 
-  const handles = countCabinetHandles(entries, request.catalog);
-  if (isRefused(handles)) return handles;
+  const hardwareAmount = hardwareUnitAmount(hardware.value, {
+    entries,
+    catalog: request.catalog,
+  });
+  if (isRefused(hardwareAmount)) return hardwareAmount;
 
   const hardwareLine = wholeKitchenLine({
     kind: "hardware",
     tier: hardware.value,
-    quantity: handles.value,
-    unitAmount: perCabinetHandleAmount(hardware.value),
+    unitAmountMinor: hardwareAmount.value,
   });
   if (isRefused(hardwareLine)) return hardwareLine;
+
+  const materialAmount = checkedTierAmount(
+    wholeKitchenAmount(material.value),
+    material.value.ruleId,
+  );
+  if (isRefused(materialAmount)) return materialAmount;
 
   const materialLine = wholeKitchenLine({
     kind: "material",
     tier: material.value,
-    quantity: 1,
-    unitAmount: wholeKitchenAmount(material.value),
+    unitAmountMinor: materialAmount.value,
   });
   if (isRefused(materialLine)) return materialLine;
 
@@ -557,12 +569,119 @@ interface DeclaredTierAmount {
   readonly field: PriceCoefficientField;
 }
 
-/** What a hardware tier charges for one cabinet handle — the quantity ADR 0061 decision 2 defines. */
-function perCabinetHandleAmount(tier: HardwareTier): DeclaredTierAmount {
+/**
+ * **What this whole kitchen's hardware costs at this tier** — the hardware line's unit amount, and
+ * the line's whole amount, because the line's quantity is 1 (ADR 0092 decision 4). Three rates
+ * cannot share one unit price, and 74 hinges plus 5 drawers do not add to a quantity anything can
+ * be priced by.
+ *
+ * **All three rates are checked, whatever the design counts.** A book declaring `null` for its
+ * push-to-open rate is malformed whether or not this particular kitchen has a push body — and the
+ * seeded kitchen has none, so checking only the rates with a non-zero count would let that book
+ * through every reconciliation this wave asserts.
+ */
+function hardwareUnitAmount(
+  tier: HardwareTier,
+  design: {
+    readonly entries: readonly DisplayEntry[];
+    readonly catalog: BodyCatalog;
+  },
+): Attempt<number> {
+  const perHinge = checkedTierAmount(
+    hardwareRate(tier, "perHingeMinor"),
+    tier.ruleId,
+  );
+  if (isRefused(perHinge)) return perHinge;
+
+  const perDrawer = checkedTierAmount(
+    hardwareRate(tier, "perDrawerMinor"),
+    tier.ruleId,
+  );
+  if (isRefused(perDrawer)) return perDrawer;
+
+  const perPushToOpen = checkedTierAmount(
+    hardwareRate(tier, "perPushToOpenMinor"),
+    tier.ruleId,
+  );
+  if (isRefused(perPushToOpen)) return perPushToOpen;
+
+  const mechanisms = countMechanisms(design.entries, design.catalog);
+  if (isRefused(mechanisms)) return mechanisms;
+
   return {
-    declared: tier.perCabinetHandleMinor,
-    field: "perCabinetHandleMinor",
+    value:
+      perHinge.value * mechanisms.value.hinges +
+      perDrawer.value * mechanisms.value.drawers +
+      perPushToOpen.value * mechanisms.value.pushToOpen,
   };
+}
+
+/** One of a hardware tier's three rates, carrying **its own** field name so a refusal says which of
+ *  the three was unusable rather than only which tier was. */
+function hardwareRate(
+  tier: HardwareTier,
+  field: "perHingeMinor" | "perDrawerMinor" | "perPushToOpenMinor",
+): DeclaredTierAmount {
+  return { declared: tier[field], field };
+}
+
+/** Every mechanism the design carries, or a refusal naming the first body whose fronts could not be
+ *  read. **Guarded body by body before the total is taken**, because the error `countHardwareMechanisms`
+ *  throws carries the build id in its message and a build id is not a placement id — and ADR 0092
+ *  decision 1 requires the refusal to name both. */
+function countMechanisms(
+  entries: readonly DisplayEntry[],
+  catalog: BodyCatalog,
+): Attempt<HardwareMechanismCounts> {
+  for (const entry of entries) {
+    const unreadable = refuseUnreadableFronts(entry, catalog);
+    if (unreadable) return unreadable;
+  }
+  return { value: countHardwareMechanisms(entries, catalog) };
+}
+
+/** `countHardwareMechanisms` **throws** for a body whose fronts cannot be read (ADR 0092 decision 1),
+ *  which is right for it: reading a missing declaration as zero mechanisms would price a whole
+ *  kitchen's hinges at nothing and look implemented. This query refuses with a code instead, so the
+ *  conversion is here and this function does nothing else — the shape the handle count's own
+ *  conversion had before ADR 0092 replaced the hardware quantity basis.
+ *
+ *  **Two declared causes convert, and everything else propagates unchanged** (ADR 0092 decision 16).
+ *  A bare `catch` labelled a `TypeError` from a malformed port object as a data condition and gave
+ *  `UnbuildableDoorBandError` — a placement height, not a missing declaration — the name of a cause
+ *  it is not. A code family is declared per cause (ADR 0069), and *"or anything else"* is not one:
+ *  a third "unexpected" code would be the same relabelling wearing an honest name. Throwing out of a
+ *  query that runs in render is this repository's own stance already — `projectDesignForDisplay`
+ *  throws `UnknownBodyError` — and this narrowed catch is what asserts that the only errors this
+ *  path produces are the two named below. */
+function refuseUnreadableFronts(
+  entry: DisplayEntry,
+  catalog: BodyCatalog,
+): Refused | undefined {
+  try {
+    countHardwareMechanisms([entry], catalog);
+    return undefined;
+  } catch (error) {
+    return refuseUnreadableFrontsCause(error, entry);
+  }
+}
+
+/** Which of the two declared causes this is. Anything else is a defect in this repository rather
+ *  than a fact about the customer's kitchen, so it leaves as itself — same instance, same stack —
+ *  and never as a refusal a surface could render. */
+function refuseUnreadableFrontsCause(
+  error: unknown,
+  entry: DisplayEntry,
+): Refused {
+  const named = { placementId: entry.placementId, id: entry.buildId };
+
+  if (error instanceof UndeclaredFrontPopulationError) {
+    return refusal("UNDECLARED_FRONT_POPULATION", describeError(error), named);
+  }
+  if (error instanceof UnbuildableDoorBandError) {
+    return refusal("UNBUILDABLE_DOOR_BAND", describeError(error), named);
+  }
+  throw error;
 }
 
 /** What a material tier charges once for the whole kitchen — the 2E sheet's *de la +9 000* delta,
@@ -571,18 +690,22 @@ function wholeKitchenAmount(tier: MaterialTier): DeclaredTierAmount {
   return { declared: tier.wholeKitchenMinor, field: "wholeKitchenMinor" };
 }
 
+/** **Both whole-kitchen lines carry `quantity: 1`** (ADR 0092 decision 4). The material line always
+ *  did; the hardware line does now that it prices three mechanisms at three rates, because three
+ *  rates cannot share one unit price and 74 hinges plus 5 drawers do not add to a quantity anything
+ *  can be priced by. `amountMinor === quantity × unitAmountMinor` still holds, trivially — and it is
+ *  a published invariant of every line, so it holds here by construction rather than by luck.
+ *
+ *  Takes an **already-checked** amount: the two kinds reach one by different routes — a material
+ *  tier declares its amount outright, a hardware tier declares three rates that are multiplied by a
+ *  count — and folding both into this function would give it two reasons to change. */
 function wholeKitchenLine(line: {
   readonly kind: "hardware" | "material";
   readonly tier: HardwareTier | MaterialTier;
-  readonly quantity: number;
-  readonly unitAmount: DeclaredTierAmount;
+  readonly unitAmountMinor: number;
 }): Attempt<WholeKitchenPriceLine> {
-  const unitAmountMinor = checkedTierAmount(line.unitAmount, line.tier.ruleId);
-  if (isRefused(unitAmountMinor)) return unitAmountMinor;
-
-  const amountMinor = line.quantity * unitAmountMinor.value;
   const unpublishable = refuseUnpublishableAmount(
-    amountMinor,
+    line.unitAmountMinor,
     line.tier.ruleId,
   );
   if (unpublishable) return unpublishable;
@@ -594,14 +717,16 @@ function wholeKitchenLine(line: {
       tierId: line.tier.tierId,
       name: line.tier.name,
       description: line.tier.description,
-      quantity: line.quantity,
-      // The **checked** number, never `line.unitAmount.declared`: publishing the raw one would put
-      // a `"9000"` on a field typed `number` on a line the breakdown renders.
-      unitAmountMinor: unitAmountMinor.value,
-      amountMinor,
+      quantity: WHOLE_KITCHEN_QUANTITY,
+      unitAmountMinor: line.unitAmountMinor,
+      amountMinor: WHOLE_KITCHEN_QUANTITY * line.unitAmountMinor,
     },
   };
 }
+
+/** A whole-kitchen line is billed once for the kitchen, so its quantity is one. Named rather than
+ *  written as a bare `1` twice, because it is the same fact both times. */
+const WHOLE_KITCHEN_QUANTITY = 1;
 
 /**
  * `usableCoefficientOf` **throws** for a tier amount that is not an exact count of minor units,
@@ -610,8 +735,8 @@ function wholeKitchenLine(line: {
  * the shape `evaluateFormula` already has for the cabinet path.
  *
  * **`refuseUnpublishableAmount` cannot stand in for this and never could.** A `null`, `false`, `[]`
- * or `""` amount multiplied by a handle count is `0`: exact, non-negative, and published as a line
- * the breakdown renders *inclus* — omission read as "included", which is the one reading
+ * or `""` amount multiplied by a mechanism count is `0`: exact, non-negative, and published as a
+ * line the breakdown renders *inclus* — omission read as "included", which is the one reading
  * `priceWholeKitchen` exists to prevent. `true` is worse still: a whole material upgrade billed at
  * one ban.
  */
@@ -623,55 +748,6 @@ function checkedTierAmount(
     return { value: usableCoefficientOf(amount.declared, amount.field) };
   } catch (error) {
     return refusal("INVALID_AMOUNT", describeError(error), { id: ruleId });
-  }
-}
-
-/**
- * **How many cabinet handles this kitchen has** — the hardware line's quantity, which is a count of
- * *cabinet* handles and never of handle meshes (ADR 0061 decision 2): `tall-oven-tower` bills two,
- * not the four bars its builder draws, because the oven's and the microwave's arrived with the
- * appliances.
- *
- * **Read from the placement's own catalogue entry, and this is the one lookup in this module that
- * does not go through `catalogEquivalentId`.** A price *rule* belongs to the catalogue row a body is
- * named after; a handle *count* is a property of the already-built body standing in the design.
- * The two diverge on a real row: `wall-corner-return-570` declares one handle, while
- * `wall-cabinet`'s per-door rule at 570 mm yields two.
- */
-function countCabinetHandles(
-  entries: readonly DisplayEntry[],
-  catalog: BodyCatalog,
-): Attempt<number> {
-  let handles = 0;
-  for (const entry of entries) {
-    const counted = countHandlesOn(entry, catalog.get(entry.buildId));
-    if (isRefused(counted)) return counted;
-    handles += counted.value;
-  }
-  return { value: handles };
-}
-
-/** `cabinetHandleCount` **throws** for an entry that declares no usable count (ADR 0061 decision 4),
- *  which is right for it: a silent default would bill an appliance's bars as cabinet hardware, or
- *  stop billing hardware the customer is buying. This query refuses with a code instead, so the
- *  conversion is here and this function does nothing else. */
-function countHandlesOn(
-  entry: DisplayEntry,
-  definition: BodyDefinition | undefined,
-): Attempt<number> {
-  try {
-    return {
-      value: cabinetHandleCount({
-        buildId: entry.buildId,
-        rule: definition?.cabinetHandles,
-        widthMm: entry.widthMm,
-      }),
-    };
-  } catch (error) {
-    return refusal("UNDECLARED_HANDLE_COUNT", describeError(error), {
-      placementId: entry.placementId,
-      id: entry.buildId,
-    });
   }
 }
 

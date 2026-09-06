@@ -198,7 +198,12 @@ describe("the two lookups that must differ, read from the other direction", () =
     });
 
     expect(cabinetLinesOf(priced)[0]?.pricedAsBuildId).toBe("wall-cabinet");
-    expect(lineOfKind(priced, "hardware").quantity).toBe(0);
+    // **Since wave 6T the quantity is 1 and the count is inside the amount** (ADR 0092 decision 4),
+    // so the mis-read is caught where it would now be paid: a hood carries no opening front, so a
+    // tier with three positive rates must still bill it nothing. A swapped lookup would bill the
+    // two leaves `wall-cabinet` derives at 600 mm, which is four hinges.
+    expect(lineOfKind(priced, "hardware").quantity).toBe(1);
+    expect(lineOfKind(priced, "hardware").amountMinor).toBe(0);
     expect(
       cabinetHandleCount({
         buildId: "wall-cabinet",
@@ -391,26 +396,32 @@ describe("no rounding, and no float that could produce one", () => {
     ).toBe(false);
   });
 
-  it("refuses a fractional hardware tier amount rather than a fractional handle line", () => {
-    const fractionalHardware: PriceBook = {
-      ...BOOK,
-      hardware: {
-        ...BOOK.hardware,
-        tiers: BOOK.hardware.tiers.map((tier) =>
-          tier.tierId === BOOK.hardware.defaultTierId
-            ? { ...tier, perCabinetHandleMinor: 0.25 }
-            : tier,
-        ),
-      },
-    };
+  it.each(["perHingeMinor", "perDrawerMinor", "perPushToOpenMinor"] as const)(
+    "refuses a fractional hardware %s rather than a fractional hardware line",
+    (field) => {
+      const fractionalHardware: PriceBook = {
+        ...BOOK,
+        hardware: {
+          ...BOOK.hardware,
+          tiers: BOOK.hardware.tiers.map((tier) =>
+            tier.tierId === BOOK.hardware.defaultTierId
+              ? { ...tier, [field]: 0.25 }
+              : tier,
+          ),
+        },
+      };
 
-    // Named on the **tier's** rule, not merely caught later by the total's own guard: a refusal
-    // that only says "the total is not exact" points at nothing anybody can fix.
-    expect(refusalFrom({ book: fractionalHardware })).toMatchObject({
-      code: "INVALID_AMOUNT",
-      id: BOOK.hardware.defaultTierId,
-    });
-  });
+      // Named on the **tier's** rule, not merely caught later by the total's own guard: a refusal
+      // that only says "the total is not exact" points at nothing anybody can fix. Swept over the
+      // three rates wave 6T split the basis into, and the refusal names the one that is fractional
+      // — naming only the tier would leave a reader to find which of three.
+      expect(refusalFrom({ book: fractionalHardware })).toMatchObject({
+        code: "INVALID_AMOUNT",
+        id: BOOK.hardware.defaultTierId,
+      });
+      expect(refusalFrom({ book: fractionalHardware }).detail).toContain(field);
+    },
+  );
 
   it("gives the same total however the placements are stored", () => {
     // Integer addition is exact, so this holds — but it is the property that fails first if an

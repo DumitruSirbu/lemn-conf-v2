@@ -13,6 +13,27 @@
 // rotunjite în sus"* — is what carries it; wave 6C shows the total alone and no line, so it makes
 // no such claim.
 //
+// **What *De la* claims, now that a tier can price below the default** (wave 6W, ADR 0092
+// decision 12). The claim is left **true and unqualified**, and the reasoning is recorded here
+// because the alternative was reached for first and rejected.
+//
+// M6's PAL-as-both-defaults ruling justified itself partly on *De la* being a **floor**, and 6W
+// falsifies one reading of that: a drawer-dominant kitchen costs *less* at Hettich than at the
+// default hardware tier, so the default-tier total is no longer the cheapest total the customer
+// could reach. But that reading — *no choice you could make costs less than this* — is a sentence in
+// a repository record, not one this product ever put on a screen. What the customer is shown is
+// `priceBreakdown.disclaimer`: a starting price for **the kitchen as it currently stands**, rounded
+// up, excluding transport, worktop and appliances, with the final sum set after the on-site
+// measurement. Every clause of that stays true when a tier prices below the default, because the
+// figure is re-derived from the design the customer is looking at — choose Hettich and the figure
+// itself comes down with it. So there is nothing to qualify: qualifying it would mean adding a
+// clause about a claim the copy does not make.
+//
+// **Interim, pending owner review** — the marker wave 6G set. If the owner reads *De la* as a
+// cross-tier floor rather than a pre-measurement one, the fix is a copy change to
+// `ro.price.startingPrefix` and `ro.priceBreakdown.disclaimer`, and this comment is where it lands;
+// no arithmetic here moves either way, which is why the wave does not wait on the answer.
+//
 // Rounding is presentation and lives only here: `packages/configurator-domain/src/pricing/` keeps
 // exact integer minor units and never rounds.
 import {
@@ -130,10 +151,13 @@ export function describeRoundedAmount(amountMinor: number): string {
  * `ro.ts` for the reason the currency does: it is part of the *figure*, and a `+` written into a
  * copy module is somebody authoring arithmetic into a label.
  *
- * **Only a non-negative amount reaches this.** A tier cheaper than its group's default is refused
- * where the delta is measured (`NegativeTierDeltaError`), because what is wrong with it is a fact
- * about the book rather than about the formatting — and `assertExactMinorAmount` below would refuse
- * it here anyway.
+ * **Only a non-negative amount reaches this**, still, and by two rules rather than one since
+ * wave 6W (`whole-kitchen-tiers.ts`'s `BelowDefaultTierRule`): a **material** tier cheaper than its
+ * group's default is refused where the delta is measured (`NegativeTierDeltaError`), because what is
+ * wrong with it is a fact about the book; a **hardware** tier cheaper than its group's default is a
+ * fact about the customer's own kitchen and states no amount at all, so none arrives here. The sign
+ * is still not this module's question, and `assertExactMinorAmount` below would refuse a negative
+ * here anyway.
  */
 export function describeAddedAmount(amountMinor: number): string {
   return `${ADDED_AMOUNT_SIGN}${describeRoundedAmount(amountMinor)}`;

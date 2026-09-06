@@ -5,13 +5,31 @@ Date: 2026-09-06
 Type: Decision + Finding
 Milestone: M6 — plans waves 6T and 6T2, and opens wave 6W
 
-**Amended 2026-09-06, the same day, on two defects a developer found while implementing 6T.**
+**Amended 2026-09-06, the same day, on three defects found while implementing 6T.**
 **Amendment A** corrects decision 6's reconciliation table, which billed 6T2's sink extras inside
 figures 6T was asked to reproduce — so 6T's own criterion demanded a number 6T cannot produce.
 **Amendment B** is decision 15: this record moved the default hardware tier off zero without noticing
-that it was a customer-visible baseline, and without a ruling that says it should. Both corrections
-are made in place, because the record is one day old and its numbers are load-bearing; what changed
-and why is stated at each site.
+that it was a customer-visible baseline, and without a ruling that says it should.
+**Amendment C** carries the owner's push-to-open ruling of 2026-09-06 and corrects decision 3, whose
+safety premise — *"the seeded design carries no push placement"* — is false: the product's notion of
+push-to-open is broader than the recorded handle mode, and the shipped demo carries **16** push
+fronts, not zero. Every *"0 push"* figure in this record inherits that error and each is corrected at
+its site. All three corrections are made in place, because the record is one day old and its numbers
+are load-bearing; what changed and why is stated at each site.
+
+**Implementation status, recorded 2026-09-07.** Three of the four waves this record plans are
+**implemented and not yet on `main`**: **6T** (`0d0ee61`, QA `88f85e2`, `e9ab7b2`), **6T-a**
+(`0a9ce1a`, QA `fb127b8`) and **6W** (`1d6fc7e`, QA `ca35b96`), all on branch **`wave/6t-finish`**,
+which reaches `main` as one merge per decision 12. Amendment C itself is `bf2ba61`. Gated at
+`ca35b96`: **all ten `pnpm ci:local` gates PASS**, `pnpm test` **7 387 passed / 4 skipped across 334
+files**, **e2e 99 passed / 1 skipped**. **6T2 is still open.** Two things this record's own decisions
+now depend on are stated where they belong rather than here — open input 1 (the three drafted
+push-to-open rates, now load-bearing on a customer-visible price) and open input 4 (6W's *De la*
+claim, shipped under an architect's interim the owner has not ruled on). **Checked at the same
+pass: Amendment C's millimetre-literal rule is stated in `docs/milestones/M6-price-and-global-settings.md`
+and the false float premise that once justified it — that `TOP_ROW_Y0_M * 1000` evaluates to
+`2200.0000000000002`, when it is exactly `2200` — appears only there, struck and corrected. This
+record never carried it and there is nothing here to unwind.**
 
 ## Context
 
@@ -49,9 +67,17 @@ Verified against the tree on 2026-09-06, not inherited from ADR 0070's prose or 
   band up. **So "overlap" must be a positive-length intersection.** Were touching counted, `p12`
   (`open-shelf-600`) would tie with `p11` at the same `y0`, and the rack would resolve to a body with
   no carcass to hang it in.
-- **The seeded design carries no `handle: "push"` placement.** No placement in
+- ~~**The seeded design carries no `handle: "push"` placement.** No placement in
   `KITCHEN_L_PLACEMENTS` declares `handle` at all, which is why ADR 0070's totals table has a hinge
-  row, a drawer row and a sink-extras row and no push row.
+  row, a drawer row and a sink-extras row and no push row.~~
+  **Corrected by Amendment C.** The first sentence is true and the inference drawn from it is not.
+  No placement declares `handle`, but a front with no *recorded* mode is still push-to-open when it
+  stands in the top row: §6.5 ships that row push-to-open by slot, `isPushOpenByDefault`
+  (`bands.ts:73`) is the rule, and `scene-sync.ts:236-239` hides the bars accordingly. `p15`–`p23`
+  (`kitchen-l-design.ts:836-844`) are nine top-row placements carrying **16 door leaves and no
+  drawers**, so the seeded design carries **16 push fronts**. ADR 0070's totals table has no push row
+  because the owner priced hinges and drawers and published no push figure — not because the kitchen
+  has no latches in it.
 - **The only door leaves in the catalogue over 900 mm are two declarations.**
   `PANTRY_DOOR_BAND_HEIGHTS_MM` is `[1290, 790]` and `FRIDGE_HOUSING_DOOR_BAND_HEIGHTS_MM` is
   `[1350, 530, 190]` (`front-population.ts:97,106`). A `one-band-under-frame` row **cannot** reach the
@@ -142,12 +168,91 @@ in ADR 0070's totals table is exactly **5 × one of its own listed per-drawer pr
 5 550 / 74 = 75.00, with 74 × 17.60 = 1 302.40 against the owner's rounded 1 300. The denominators
 are not a reading of the prose; they are recoverable from the numbers alone.
 
-### 3. Push-to-open is one mechanism per opening front on a `handle: "push"` body, and its three rates are drafted, not measured
+### 3. Push-to-open is one mechanism per opening front that carries no handle, and its three rates are drafted, not measured
 
-**Count.** One per **door leaf** and one per **drawer**, on a placement whose `handle` is `"push"`
-and only there. Per front, not per body and not per band — a push latch is fitted to each front that
-opens, which is the same denominator the hinge rule uses. The handle mode is per placement
-(`DisplayEntry.handle`, §6.5), so the count is read there and not from the catalogue.
+**Count.** One per **door leaf** and one per **drawer**. Per front, not per body and not per band — a
+push latch is fitted to each front that opens, which is the same denominator the hinge rule uses.
+
+~~…on a placement whose `handle` is `"push"` and only there. The handle mode is per placement
+(`DisplayEntry.handle`, §6.5), so the count is read there and not from the catalogue.~~
+
+**Amendment C, 2026-09-06 — the owner priced the latch, and the recorded handle mode is not the
+product's notion of push-to-open.** The struck clause is what shipped in
+`hardware-mechanisms.ts:139-141`, and it is wrong in both directions. The owner's ruling, verbatim:
+
+> "Hmm, push to open mechanisms cost money, and when you have a cabinet with handle you don't need a
+> push to open mechanism, as I mentioned handles are bought by customer but push to open by
+> manufacturer and should be priced"
+
+Two things are settled by it, and they are complementary: a push latch **is** a manufacturer cost and
+**must** be priced, and **a front that carries a handle does not carry a latch**. Every opening front
+has one or the other. It does not overturn decision 1 of
+[ADR 0070](0070-hardware-is-priced-per-mechanism-not-per-handle.md), which already said *"1 mechanism
+per door and per drawer, and **only where the cabinet has no handle**"* — it says which fact answers
+*"has no handle"*, and it is not the recorded mode.
+
+**The two predicates that disagreed.** The scene decides whether a front carries a handle at
+`scene-sync.ts:236-239`:
+
+```ts
+function hidesHandles(record: PlacementRecord): boolean {
+  if (record.handleMode && record.canHandle) return record.handleMode === "push";
+  return isPushOpenByDefault(record.frame.y0);
+}
+```
+
+Pricing decided it again, differently, and the two disagree in **both** directions:
+
+- **Direction A — a hidden bar billed at nothing.** No recorded mode plus a top-row slot: the scene
+  hides the bars, the panel says *"Implicit pentru acest corp: Push-to-open"*
+  (`describe-selection.ts:198-200`), and pricing counted **0**. On the shipped demo that is `p15`–`p23`
+  — **16 leaves, 16 latches, billed at zero**, which is the exact defect wave 6T exists to remove,
+  surviving inside the wave that removes it.
+- **Direction B — a visible bar billed a latch.** A recorded `push` on a body whose definition says
+  `canHandle: false`: the scene keeps the bars — `scene-sync.ts:229-234` says so outright, and names
+  the hand-edited or migrated document that produces it — and pricing billed a latch per front.
+
+**The ruling: one predicate, published by the domain, called by both.** `hidesHandles` becomes the
+domain's answer and the adapter calls it rather than restating it. The predicate reads three facts —
+the front's floor, the recorded mode, and whether the body's definition permits a mode at all — and
+nothing else. Its signature, its home and its unit are ruled in the wave section below rather than
+here, because they are module boundaries and not product rules; what this record fixes is that
+**there is one of it**, and that the scene and the price cannot answer it differently.
+
+**How `canHandle: false` participates, ruled explicitly, because the owner's sentence does not cover
+it.** `canHandle` **disqualifies the recorded mode and nothing more.** It does not exempt a body from
+carrying latches, and it does not mean the body has no handle:
+
+- **Measured in the catalogue, both parts.** Every row that declares `NO_CABINET_HANDLES` also
+  declares `NO_OPENING_FRONTS` (`base-hob-oven`, `open-shelf`, `hood`, `fridge-free`), so a body with
+  nothing to grip also has nothing that opens and contributes zero of every mechanism. And the
+  corner returns declare `canHandle: false` **beside** `carriesHandles(1)` and one door leaf
+  (`kitchen-l-design.ts:557-569`, `:670-683`) — a flag that keeps a structural body out of the
+  panel's *Mâner* section ([ADR 0021](0021-corner-returns-are-structural-in-data.md) decision 2), not
+  a statement that the front has no bar.
+- **So the flag is read exactly where the scene reads it.** `wall-corner-return-570` at `y0` 1500 has
+  its bar built and visible: a handle, no latch. Its twin `wall-corner-return-570-top` at `y0` 2200
+  has the same bar built and **hidden by the slot**, and the customer cannot turn it back on: that
+  front opens with nothing to grip, so it is push-to-open and it is billed a latch. The owner's
+  *"when you have a cabinet with handle you don't need a push to open mechanism"* is a statement
+  about the bar on the front, and this reading is the one that answers it per front.
+- **The case nobody has built: an opening front with neither a bar nor a permitted mode.** No such
+  row exists today. If one is added it is a **catalogue defect** — a front that cannot be opened —
+  and not a pricing question, so the wave asserts `openingFronts > 0 ⇒ cabinetHandles > 0` as a
+  property over every entry rather than letting pricing invent an answer for it.
+
+**Records swept before ruling `canHandle`, none overturned.** [ADR 0021](0021-corner-returns-are-structural-in-data.md)
+decision 2 (structural corners take `canFinish`/`canHandle` false as a §13.1 extension),
+[ADR 0025](0025-the-corner-base-legs-seat-on-the-l-joint.md) decision 4,
+[ADR 0027](0027-the-hob-is-part-of-the-cabinet.md) (*"`canHandle` implies a **cabinet** handle — one
+whose group also holds the front it opens"*), [ADR 0050](0050-the-hob-oven-filler-is-a-finishable-front.md)
+decision 3 (*"the filler is a facade, not a leaf — nothing behind it opens"*),
+[ADR 0051](0051-the-dishwasher-niche-wears-a-decor-door.md) decision 5 (`canHandle: true`,
+deliberately unlike ADR 0050) and [ADR 0061](0061-a-cabinet-handle-is-declared-and-an-appliance-bar-is-not-one.md)
+(the panel decides through the declared flag). **Every one of them rules what the flag does to a
+*control* or to a *mesh*; not one rules what it does to a *price*.** ADR 0050's *"nothing behind it
+opens"* is the sense in which the flag coincides with having no fronts, and the corner returns are
+the case where it does not — which is why this is stated rather than assumed.
 
 **Rates.** ADR 0070 priced hinges and drawers and **published no push-to-open figure**. No number in
 this repository or in that record supports one. The three sample rates in decision 6 are therefore
@@ -155,10 +260,43 @@ this repository or in that record supports one. The three sample rates in decisi
 an open owner input below. Their *ordering* follows each tier's own hinge rate, which is the only
 defensible relation available; their magnitudes are not evidence of anything.
 
-**Nothing asserted depends on them.** The seeded design carries no push placement, so every
+~~**Nothing asserted depends on them.** The seeded design carries no push placement, so every
 reconciliation in decision 6 is computed at zero push mechanisms. That is what makes shipping a
 drafted amount safe here, and it is the condition under which it stays safe: **a fixture that adds a
-push placement to a reconciled total has made a placeholder load-bearing.**
+push placement to a reconciled total has made a placeholder load-bearing.**~~
+
+**Amendment C — the premise was false and the safeguard it justified has already been spent.** The
+seeded design carries **16** push fronts, so under the corrected predicate the demo's own hardware
+total contains a drafted amount at every tier. The owner has ordered counting and has supplied no
+figures, so the choice is not whether a placeholder becomes load-bearing for a *total* — it already
+has — but whether it is allowed to become load-bearing for an *expectation*. **It is not:**
+
+- **The count is pinned as a number**, because it is a product fact derived from the design and the
+  catalogue and answerable without any amount: the seeded kitchen carries **74 hinges, 5 drawers and
+  16 push mechanisms**.
+- **The seeded push *amount* is never pinned as a literal.** Any assertion that reaches it computes
+  it as `count × the tier's declared rate, read from the book`, so replacing a drafted rate with a
+  measured one moves the book and moves no expectation. A test typing `64_000` has made the
+  placeholder load-bearing in the way this paragraph forbids.
+- **The hinge and drawer columns stay pinned as literals** against ADR 0070's own columns, and are
+  untouched by any of this: 74 and 5 do not move.
+- **Tier *order* must not be pinned while the magnitudes are drafted** — see the two measured
+  consequences below, the second of which is an order the placeholders alone produce.
+
+**What the drafted magnitudes now do, measured on the shipped demo.** Both figures are consequences
+of placeholders, not of anything the owner priced:
+
+1. **The demo's hardware line rises by 640 / 1 920 / 1 600 MDL** at Standard / Hettich / Blum —
+   16 latches at the drafted 40 / 120 / 100.
+2. **Hettich overtakes Blum.** At 16 latches Hettich totals **11 340 MDL** against Blum's **11 335**,
+   inverting the order ADR 0070's own totals table states (~10 020 against ~10 335) and which holds
+   on the hinge and drawer columns alone. **The most expensive tier a customer sees is decided by a
+   number with no supplier source.** It refuses nothing and corrupts nothing — the deltas stay
+   positive and `NegativeTierDeltaError` is not reached — but it is a customer-visible ordering
+   produced by a placeholder, and it is why the three real figures are now load-bearing.
+
+**So open input 1 is promoted**: the three push-to-open rates are the first item on the pending-owner
+list and they are **load-bearing**, no longer a placeholder nothing depends on.
 
 **They must be non-zero at every tier.** The defect 6T exists to remove is a push-to-open kitchen
 billing its hardware at exactly zero; a zero placeholder reinstates it while looking implemented.
@@ -237,7 +375,19 @@ own totals table rather than chosen**:
 inside it.
 
 **The derivation reconciles against ADR 0070's independently derived totals**, on the seeded kitchen
-at 74 hinges, 5 drawers, 0 push mechanisms and 1 sink.
+at 74 hinges, 5 drawers, ~~0~~ **16** push mechanisms and 1 sink.
+
+**Amendment C — the reconciliation is against ADR 0070's *columns*, and the push column reconciles
+against nothing.** ADR 0070 priced hinges and drawers on this kitchen and published no push figure,
+so its ~5 100 / ~10 020 / ~10 335 totals are hinge + drawer + sink-extras totals. They remain the
+check for those three columns and they are **not** the check for the shipped total, which exceeds
+them by the push column at every tier. Stated as an equation rather than as a table of totals, so it
+survives the owner supplying real rates:
+
+**hardware total = 74 × perHinge + 5 × perDrawer + 16 × perPushToOpen**, and the first two terms are
+`450_240` / `942_000` / `973_500` — unchanged, and still the figures the columns below reconcile.
+The third term is drafted, so it is asserted as `16 × the book's own declared rate` and never as an
+amount. A criterion naming the shipped total as a literal has pinned a placeholder.
 
 **Amendment A, 2026-09-06 — the reconciliation is per column, and each wave owns its own columns.**
 As first written this table published only the *Total* column, which includes the sink extras
@@ -258,6 +408,15 @@ reconcile against his total.
 which is what says the extras sit outside the tier rather than inside it. **The whole-total check is
 6T2's, and it is the wave that can first perform it**; a 6T criterion naming `510_240` is a criterion
 6T fails by construction.
+
+**Amendment C — the *Together* column is no longer ADR 0070's total, and the difference is the push
+column.** Every figure in the table above is still correct as *hinges + drawers (+ extras)*, and
+those are the columns each wave reconciles. What is no longer true is the last column's implied
+identity: with 16 push fronts the shipped totals are `514_240` / `1_134_000` / `1_133_500` before the
+extras and `574_240` / `1_194_000` / `1_193_500` after them, against ADR 0070's ~5 100 / ~10 020 /
+~10 335. **The gap is the push column and only the push column**, it is made of drafted amounts, and
+it is asserted as `16 × the book's declared rate` rather than pinned. 6T2's whole-total criterion is
+restated the same way: `450_240 + 60_000 + 16 × perPushToOpen`, per tier.
 
 **Two of the three reconcile to the leu**; Standard is 2.40 MDL above the ADR's 5 100, which is the
 owner's own rounding of 74 × 17.60 = 1 302.40 to 1 300. **That gap is the evidence the derivation is
@@ -315,6 +474,15 @@ place: beside the number, in the sample book, not in a comment nobody reads.
 
 Neither row appears in the seeded design, so ADR 0070's 74 hinges and 5 drawers are unaffected either
 way — which is exactly why neither may be settled silently.
+
+**Amendment C — this decision's own obligation is unmet in the shipped tree, and wave 6T-a closes
+it.** The Hettich understatement is recorded where this decision requires, beside its rate
+(`sample-price-book.ts:296-301`). Its twin is not: `cabinet.base-bottle-cargo`
+(`sample-price-book.ts:100-103`) carries no comment at all, so the accepted imprecision exists only
+in this record — which is the *"in a comment nobody reads"* outcome the sentence above rejects, one
+step worse. One comment beside that rule closes it, in the twin's shape: a cargo pull-out costs more
+than the one drawer box its hardware is billed as, ADR 0070 publishes no cargo figure, and a wave
+that quietly prices one has overturned a decision.
 
 ### 9. A sink is a **declared catalogue fact**, held to the builders by a parity gate in both directions
 
@@ -434,10 +602,22 @@ halves and Q1 is asked of each:
   test goes red and the question re-opens deliberately); and **carry the obligation forward as a named
   wave**, which is 6W and not a comment.
 
+**Amendment C — the quantifier has a third term, and the witness survives.** *"Hettich prices below
+Standard whenever `drawers > 4.81 × hinges`"* was derived at zero push mechanisms. Hettich's drafted
+push rate is 8 000 minor **above** Standard's, so a latch pushes Hettich *up* and the true condition
+is `1_400 × drawers > 6_740 × hinges + 8_000 × push`, i.e. **`drawers > 4.81 × hinges + 5.71 ×
+push`**. A criterion restating the two-term form is now false in general. **The witness is
+unaffected**: one `base-3drawer` stands at `y0` 0 with no recorded mode, so it carries 3 drawers, 0
+hinges and **0** push fronts, and the delta is still exactly −4 200 minor. Both coefficients are
+derived from the book's declared rates and never restated beside them, so the derivation survives the
+owner replacing the drafted push figures — the *value* 5.71 does not, and that is why it is computed
+rather than written into a test.
+
 **6T does not reach `main` alone.** The precedent is ADR 0090 decision 7, and the situation is the
 same shape: a customer-reachable break behind a wave that is otherwise correct. 6T and 6W land on one
-branch and reach `main` together when `pnpm ci:local` is green. **6T2 is independent and may land
-separately.**
+branch and reach `main` together when `pnpm ci:local` is green. **6T-a rides with them** — it repairs
+6T's own quantity basis and cannot sensibly reach `main` ahead of or behind it. **6T2 is independent
+and may land separately.**
 
 **What 6W must decide is an owner question, not an implementer's.** The recommendation on record —
 clearly a recommendation — is that a tier pricing **below its group's default** is offered **with no
@@ -464,8 +644,15 @@ more than *"two flat amounts and one locating query"*.
   [declaration + query] / [lines + copy]**, in that order.
 - **6W — the below-default tier.** Opened by decision 12, gated on 6T, on the same branch.
 
-**6T and 6T2 must not be dispatched into the same tree at once**, and neither may run beside 6P: all
-three edit `price-book.ts` and `sample-price-book.ts`.
+**Amendment C adds a fourth: 6T-a — one push-to-open predicate.** Opened by Amendment C's correction
+of decision 3. Gate: 6T, whose quantity basis it repairs; **same branch as 6T and 6W**. Its full plan
+is written directly into `docs/milestones/M6-price-and-global-settings.md` rather than pasted from
+here, because the coordinator's copy is the one a dispatch reads and this amendment landed after 6T's
+section was already pasted. **It is not a fourth parallel wave**: it edits
+`hardware-mechanisms.ts` and `sample-price-book.ts`, so the no-parallel rule below covers it too.
+
+**6T and 6T2 must not be dispatched into the same tree at once**, and neither may run beside 6P or
+6T-a: all four edit `price-book.ts` and `sample-price-book.ts`.
 
 ### 14. What does not change
 
@@ -546,6 +733,35 @@ comment stops saying both default tiers cost nothing — the **material** defaul
 hardware default no longer does, and a comment that flattens the two hides exactly the asymmetry the
 owner is being asked about.
 
+### 16. Amendment C, 2026-09-06 — a refusal code names a cause, so the pricing catch stops relabelling everything
+
+`refuseUnreadableFronts` (`price-design.ts:645-658`) wraps `countHardwareMechanisms` in a bare
+`catch (error)` and labels **anything** thrown `UNDECLARED_FRONT_POPULATION`. It fails closed and the
+thrown message survives into the refusal's detail, so nothing a customer sees is wrong today — but
+two different causes and one genuine bug all arrive under one code:
+
+- **`UndeclaredFrontPopulationError`** — the case the code is named for.
+- **`UnbuildableDoorBandError`** (`front-population.ts:577`) — a *different* condition, and a
+  reachable one: a placement whose frame height leaves no band a door could be hung in. Its own
+  comment says it exists because *"a silently wrong number is worse than a refusal"*, and labelling
+  it as a missing declaration sends whoever reads the code to the catalogue's declarations for a
+  fault that is in the placement's height.
+- **A `TypeError`** — a defect in this repository, reported to a customer as a data condition.
+
+**The ruling.** The catch narrows to the two declared domain errors — `UndeclaredFrontPopulationError`
+keeps `UNDECLARED_FRONT_POPULATION`, `UnbuildableDoorBandError` takes a new code naming the band —
+and **anything else propagates unchanged**. This is [ADR 0069](0069-past-the-wall-is-one-code-family-and-severity-is-declared-per-code.md)'s
+rule applied where it was not: a code family is declared per cause, and a code that means *"or
+anything else"* is not a declared cause. **A third code for "something unexpected" is refused**: it
+is the same relabelling wearing an honest name.
+
+**The precedent for throwing into render is this repository's own.** `projectDesignForDisplay`
+already throws `UnknownBodyError` out of a query that runs in render, on the stated ground that *"a
+list that silently omits a body the customer owns is worse than one that refuses to render"*, and
+`apps/web/src` carries no error boundary today. So the change is not a new hazard class; it is the
+same stance, and the narrowed catch is what asserts that the only errors this path can produce are
+the two named ones. **Adding an error boundary is not this wave's work** and is not smuggled into it.
+
 ## Alternatives considered
 
 | Alternative | Why it is refused |
@@ -558,6 +774,18 @@ owner is being asked about.
 | **Raise Hettich's drawer figure to a complete-box comparable.** | Overturns ADR 0070's explicit ruling, *"for Hettich use it as it is"*, which that record already recorded as accepted rather than an oversight. |
 | **Degrade `NegativeTierDeltaError` inside 6T so the settings sheet stops crashing.** | Fails ADR 0091 decision 1's Q1: the refusal's product half is customer-visible, so it is an invariant, and ADR 0090 decision 7 binds — *an invariant edited to accommodate a defect is the defect laundered*. It is promoted to wave 6W instead. |
 | **Ship 6T and leave the crash to a later wave in the queue.** | It is reachable from a one-body design and it breaks the one control a customer with an unpriceable document has to recover with. Hence the same-branch rule, which is ADR 0090 decision 7's own remedy. |
+
+**Added by Amendment C, 2026-09-06:**
+
+| Alternative | Why it is refused |
+| --- | --- |
+| **Leave pricing on the recorded mode and add `isPushOpenByDefault` to it** — count a latch where the mode is `push` **or** the slot is the top row. | Closes direction A and leaves direction B open: a recorded `push` on a `canHandle: false` body still bills latches for fronts whose bars the scene keeps. Two predicates that agree more often are still two predicates, and the next divergence is not announced. |
+| **Publish `canHandle` on `DisplayEntry` so the projection answers the whole question.** | A published field with no reader outside one query — the shape ADR 0072 finding 2 refused twice in this milestone. The counting query already holds the definition it needs; the projection is not the place the flag is missing from. |
+| **Treat `canHandle: false` as "no handle, therefore a latch on every front".** | Measured false in the catalogue: the corner returns declare `canHandle: false` beside `carriesHandles(1)` and a leaf, so the bar exists and, below the top row, is visible. It would bill a latch for a front the customer grips by its handle. |
+| **Treat `canHandle: false` as "no mechanism at all, the body is structural".** | It would bill `wall-corner-return-570-top` nothing for a front whose bar the scene hides and whose mode the customer cannot change — the same zero the wave exists to remove, on a smaller population. The flag governs a control; it has never governed hardware. |
+| **Block 6T until the owner supplies the three push rates.** | The owner ordered counting in the same message that named the gap, and the branch already carries 6W. Blocking trades a stated placeholder for a stalled wave. The rates ship drafted, marked, and load-bearing on the pending list — with no expectation pinned to their magnitudes. |
+| **Pin the seeded push amount as a literal so the reconciliation table stays whole.** | It makes a placeholder load-bearing in exactly the way decision 3 forbids: replacing a drafted rate with a measured one would then be a test edit, and a test edit is where a supplier figure gets fitted to an expectation. Assert `count × the book's own rate` instead. |
+| **Give the unexpected error its own "internal" refusal code** rather than letting it propagate. | A code that means *"or anything else"* is the relabelling this record is fixing, renamed. ADR 0069 declares severity per cause, and "unknown cause" is not one. |
 | **Identify the sink through `pricedAsBuildId === "base-sink"`**, which the wave plan does permit. | Two sink rows already exist and a third would silently lose its cover; it is the id-list rule ADR 0068's population correction names, and it cannot be parity-gated against the builder. The declared fact costs one field, one default and one gate. |
 | **De-duplicate racks where two sinks resolve to one cabinet.** | Owner-ruled against, 2026-09-04, explicitly and against the recommendation then on record. |
 | **Emit a zero-amount rack line where no wall cabinet sits above the sink.** | A zero renders *inclus*. It would tell a customer a rack they are not getting is included. |
@@ -591,17 +819,27 @@ owner is being asked about.
 
 - **Wave 6T's design is fully specified**: three rates, three counts, one line, one new failure code,
   and a rename of six strings with the ids held still.
-- **The seeded kitchen's total moves in two steps, one per wave**: `+450_240` minor at **6T**, as the
-  hardware line goes from `0` to what its mechanisms cost, and a further `+60_000` at **6T2** for the
-  two accessory lines — `+510_240` once both have landed. Every shipped assertion pinning the seeded
-  total, the hardware quantity or a hardware delta changes, and each wave names the ones it edits.
+- **The seeded kitchen's total moves in ~~two~~ three steps, one per wave**: `+450_240` minor at
+  **6T**, as the hardware line goes from `0` to what its hinges and drawers cost; **`+64_000` /
+  `+192_000` / `+160_000` at 6T-a** for the 16 latches the corrected predicate finds, which is the
+  first movement that differs per tier (Amendment C); and a further `+60_000` at **6T2** for the two
+  accessory lines. Every shipped assertion pinning the seeded total, the hardware quantity or a
+  hardware delta changes, and each wave names the ones it edits.
 - **The 6T half of that movement is provisional in a way the rest of this record is not.** It is the
   absolute model decision 15 ships as an interim, and the owner may rule it back to zero — a
   one-function change with the same coefficients and the same deltas.
 - **A push-to-open kitchen stops billing its hardware at zero**, which is the defect 6T exists to
-  remove.
-- **Three unmeasured amounts enter the sample book** — the push-to-open rates — and are the only
-  amounts in it with no supplier source. No reconciled total depends on them.
+  remove. **Amendment C: 6T as first implemented removed it only for a *recorded* mode, so the
+  shipped demo's own 16 top-row latches were still billed at zero. 6T-a is what actually closes it**,
+  and the seeded totals move a second time — `+64_000` / `+192_000` / `+160_000` minor at Standard /
+  Hettich / Blum, at the drafted rates.
+- ~~**Three unmeasured amounts enter the sample book** — the push-to-open rates — and are the only
+  amounts in it with no supplier source. No reconciled total depends on them.~~
+  **Amendment C: every reconciled total now depends on them.** They are still the only amounts in the
+  book with no supplier source, and they now decide the demo's hardware line at all three tiers and
+  which tier the customer sees as dearest. They are asserted as `count × the book's own rate` so that
+  no expectation moves when the owner supplies figures, but the *numbers a customer reads* are
+  drafted, and that is the state the wave ships in with the owner's ruling on record.
 - **A live product finding is on record and owned.** From the moment 6T's amounts land, a
   drawer-dominant kitchen — a single three-drawer base is enough — throws
   `NegativeTierDeltaError` on the settings surface, and the price bar's *De la* stops being a floor
@@ -621,20 +859,56 @@ owner is being asked about.
 None blocks dispatch. Each ships as a drafted recommendation marked *pending owner review* in the
 code, the standing process ruled on 2026-09-04.
 
-1. **The three push-to-open rates.** No figure exists in ADR 0070 or anywhere else. Drafted at 40 /
-   120 / 100 MDL, ordered by each tier's hinge rate. The magnitudes are placeholders.
+1. **The three push-to-open rates — now load-bearing, and the first thing this list wants
+   (Amendment C).** No figure exists in ADR 0070 or anywhere else. Drafted at 40 / 120 / 100 MDL,
+   ordered by each tier's hinge rate. **When this record was written nothing depended on them; the
+   owner's 2026-09-06 ruling and the corrected predicate mean everything priced does.** The two
+   measured consequences on the shipped demo, both produced by the placeholders alone: the hardware
+   line rises by **640 / 1 920 / 1 600 MDL** at Standard / Hettich / Blum, and at 16 latches
+   **Hettich (11 340 MDL) overtakes Blum (11 335)** — an ordering ADR 0070's own totals table
+   contradicts, and the most expensive tier a customer sees. Nothing refuses and no document is
+   corrupted; the figures are simply not evidence of anything. **This is no longer a placeholder that
+   can wait.**
+
+   **Updated 2026-09-07, at 6T-a's close-out: the rates have shipped in that state.** They stand at
+   40 / 120 / 100 MDL on branch `wave/6t-finish`, drafted and marked, and both measured consequences
+   above are now what the demo actually prices. No expectation is pinned to their magnitudes —
+   assertions compute `count × the book's own rate` — so the owner's figures move the book and move
+   no test. **What the owner's answer changes is a customer-visible total and which tier reads as
+   dearest**, not a diff's size.
 2. **The three tier descriptions**, and Standard's in particular, which must state that it has no
    soft-close. The drafts avoid naming product lines; the owner may prefer that they name them.
 3. **The two accessory names and descriptions, and the breakdown's category word for them.**
 4. **Wave 6W's question — what a customer sees when a tier prices below the default**, and whether
    the price bar's *De la* claim needs anything said about it. Recommendation in decision 12; the
    alternative is a negative badge the mockups have no form for.
+
+   **Updated 2026-09-07, at 6W's close-out. The wave shipped and this input did not close.** 6W
+   implemented decision 12's recommendation — a below-default **hardware** tier is offered with no
+   delta badge, the **material** refusal intact — so the crash is gone. What remains open is the
+   *De la* half of the same criterion, and it is recorded as an interim rather than as a ruling:
+
+   - **The claim was left true, not qualified**, under an **architect's interim marked pending owner
+     review**. **The owner has not ruled**, so 6W's criterion *"which of the two was chosen is
+     recorded with the owner's words"* is met in code and **not** in the record. The interim's
+     reasoning: the disclaimer scopes the figure to **this kitchen, pre-measurement**, rather than
+     claiming a floor across tiers, and the figure **re-derives when a tier is chosen**.
+   - **What constrains the answer, found by 6W's logic review**: `exactDelta` **discards the
+     magnitude** of a below-default difference — it answers *that* the delta degraded, not by how
+     much. **So any owner copy naming how much cheaper a tier is needs domain re-plumbing, not a
+     string change.** A copy ruling taken as a wording edit has under-scoped its own wave.
+   - **A second copy call, on the same surface.** With a below-default tier the settings sheet reads
+     `inclus` / *(blank)* / `de la +…` down the three rows, and **a blank between two figures reads
+     as "price unavailable" rather than "cheaper"**. Nothing refuses and no document is corrupted;
+     it is the owner's copy call and it travels with this input.
 5. **Whether a cargo pull-out and a lift arm should ever be priced.** Recorded by decision 8 as
    knowingly unpriced. Either needs a measured amount from the owner.
 6. **Does the quoted cabinet price include standard hardware, or is hardware billed on top?**
    (decision 15, Amendment B.) **The number attached: the seeded kitchen's Standard hardware line
    becomes `450_240` minor — 4 502.40 MDL — where it is `0` today, and the tier description says
-   *incluse în preț*.** The interim is the absolute model; the alternative is a line priced as the
+   *incluse în preț*.** (Amendment C: **`514_240` — 5 142.40 MDL — once 6T-a lands**, the difference
+   being 16 latches at a drafted rate. The question is unchanged and so is its answer's cost; only
+   the figure attached to it moves.) The interim is the absolute model; the alternative is a line priced as the
    difference from the default tier, which costs one function to switch to, changes no coefficient
    and changes no delta. **This one is unlike the other five**: it is not a placeholder awaiting a
    figure, it is a live customer-visible baseline shipping under an architect's interim, and it wants
@@ -686,12 +960,18 @@ population must become a **mechanism** count, or it asserts the superseded basis
   every catalogue entry at every legal size: the only leaves over 900 mm in the catalogue are the
   pantry's 1290s and the fridge housing's 1350. This is what makes the owner's *no height rule*
   ruling and the 900 mm threshold consistent rather than merely coexisting.
-- **The seeded kitchen counts 74 hinges, 5 drawers and 0 push mechanisms.** ADR 0070's figure,
-  derived by the owner before the declarations existed — **an independent derivation, which is the
-  only reason the check means anything. If the two disagree the declaration is wrong and the wave
-  stops**; it does not adjust the expected number to whatever the code produces.
-- **A push-to-open cabinet's hardware is not zero**, asserted on a design where every placement
-  carries `handle: "push"`, pinned from the failing side.
+- **The seeded kitchen counts 74 hinges, 5 drawers and ~~0~~ 16 push mechanisms** (Amendment C).
+  ADR 0070's hinge and drawer figures are the owner's, derived before the declarations existed —
+  **an independent derivation, which is the only reason the check means anything. If the two disagree
+  the declaration is wrong and the wave stops**; it does not adjust the expected number to whatever
+  the code produces. **The 16 is not ADR 0070's** — that record published no push row — and it is
+  derived independently too: `p15`–`p23` are nine top-row placements carrying 16 leaves and no
+  drawers.
+- ~~**A push-to-open cabinet's hardware is not zero**, asserted on a design where every placement
+  carries `handle: "push"`, pinned from the failing side.~~ **Superseded by 6T-a**: stamping
+  `handle: "push"` onto *every* placement stamps it onto bodies whose definition refuses a mode, so
+  the fixture demonstrates the wrong direction of the defect. 6T-a replaces it with three witnesses;
+  see that wave's criteria.
 - **The hardware line stays one line, `quantity: 1`**, its unit amount the whole kitchen's hardware
   at that tier, and `amountMinor === quantity × unitAmountMinor` still holds.
 - **Each of the three rates refuses on its own.** Set to `null`, to `1.5` and to a string
@@ -709,8 +989,13 @@ population must become a **mechanism** count, or it asserts the superseded basis
   the leu; Standard 2.40 MDL above, which is the owner's rounding of 1 302.40 to 1 300. **The
   `510_240` / `1_002_000` / `1_033_500` totals include 6T2's sink extras and are 6T2's check, not
   this wave's** — ADR 0092 Amendment A; a 6T criterion naming them is one 6T fails by construction.
+  **Amendment C: `450_240` / `942_000` / `973_500` remain the hinge-and-drawer figures and remain
+  what reconciles against ADR 0070. They stop being the whole hardware line once 6T-a lands** — the
+  line is those figures plus `16 × the tier's declared push rate` — so a criterion asserting the
+  hardware **line** equals `450_240` is one 6T-a must restate, not extend.
 - **The Standard tier's hardware line stops being zero, and nothing in the book keeps claiming
-  otherwise.** The seeded default line goes from `0` to `450_240`. In the same wave the tier's
+  otherwise.** The seeded default line goes from `0` to `450_240`, and to `514_240` once 6T-a's
+  latches are counted (Amendment C). In the same wave the tier's
   description stops saying *incluse în preț* and the sample book's doc comment stops saying both
   default tiers cost nothing — the **material** default still does and the hardware default no longer
   does. **This is ADR 0092 decision 15's interim, not a settled rule**: it ships as the absolute
@@ -741,8 +1026,14 @@ population must become a **mechanism** count, or it asserts the superseded basis
 
 - **Every 2E delta changes by a large factor**, and the two rulings that make it visible — the
   delta's anchor and ADR 0001 decision 4's rounding-up — are not this wave's to revisit.
-- **A sample-data edit can silently reorder Hettich and Blum**, since this kitchen is hinge-dominated
-  and a drawer-heavy one swaps them. Pin the order as a sample-book regression.
+- ~~**A sample-data edit can silently reorder Hettich and Blum**, since this kitchen is
+  hinge-dominated and a drawer-heavy one swaps them. Pin the order as a sample-book regression.~~
+  **Amendment C: the risk has occurred, and pinning the order would now pin a placeholder.** With the
+  corrected predicate the drafted push rates alone put Hettich (11 340 MDL) above Blum (11 335) on
+  this kitchen. A regression pinning *"Blum is dearest"* freezes an ordering no supplier figure
+  supports; a regression pinning *"Hettich is dearest"* freezes the placeholder. **Pin neither.** Pin
+  the arithmetic instead — each tier's hardware total equals its three declared rates times the three
+  counts — and carry the ordering as open owner input 1.
 
 ### Wave 6T2 — the two sink extras
 
@@ -802,7 +1093,9 @@ five-file guidance** — ADR 0092 decision 13 states the reason and the fallback
 - **The whole-total check is this wave's, because this is the wave that can first perform it.** With
   6T landed, the seeded kitchen totals `510_240` / `1_002_000` / `1_033_500` minor at Standard /
   Hettich / Blum against ADR 0070's ~5 100 / ~10 020 / ~10 335 MDL — 6T's hardware-only figures plus
-  `60_000` in each column (ADR 0092 Amendment A).
+  `60_000` in each column (Amendment A). **Amendment C restates it once 6T-a lands**: the total is
+  `450_240 + 60_000 + 16 × the tier's declared push rate` per tier, and ADR 0070's totals stay the
+  check for the hinge, drawer and extras **columns** rather than for the whole figure.
 
 ### Wave 6W — a tier that prices below the default
 
@@ -845,6 +1138,11 @@ alternative is a negative badge, which the mockups' *de la +9 000* has no form f
 
 | Wave | Track | Gate | Tier |
 | --- | --- | --- | --- |
-| 6T — hardware priced per mechanism *(ADR 0070, planned by ADR 0092)* | P | 6S, 6B2 — **lands on one branch with 6W** | Full |
-| 6T2 — the two sink extras *(ADR 0070 decision 4, ADR 0092 decisions 9–11)* | P | 6T — **same files, never in parallel; and never beside 6P** | Full |
+| 6T — hardware priced per mechanism *(ADR 0070, planned by ADR 0092)* | P | 6S, 6B2 — **lands on one branch with 6W and 6T-a** | Full |
+| 6T-a — one push-to-open predicate *(ADR 0092 Amendment C, owner 2026-09-06)* | P | 6T — **same branch, reaches `main` with 6T and 6W; never in parallel with 6T, 6T2 or 6P** | Full |
+| 6T2 — the two sink extras *(ADR 0070 decision 4, ADR 0092 decisions 9–11)* | P | 6T — **same files, never in parallel; and never beside 6P or 6T-a** | Full |
 | 6W — a tier that prices below the default *(ADR 0092 decision 12)* | P | 6T — **same branch, reaches `main` with it** | Full |
+
+**6T-a's wave section is written directly into `docs/milestones/M6-price-and-global-settings.md`**
+rather than pasted from here, because this amendment landed after 6T's section was already in that
+file. The row above is the only thing this record contributes to the table.

@@ -107,8 +107,29 @@ export type PricingFailureCode =
   | "UNKNOWN_FORMULA_SHAPE"
   /** A selection, or a book's own default, names a tier the book does not hold. */
   | "UNKNOWN_TIER"
-  /** A catalogue entry declares no usable cabinet-handle count (ADR 0061 decision 4). */
+  /** The row a body is **priced as** declares no usable door-leaf count, so the price's door step
+   *  cannot be taken (`describePricedBody`). The name is older than what the code means by it: since
+   *  wave 6T this is raised on the door-step path alone, never on a hardware quantity — a body whose
+   *  mechanisms cannot be counted raises `UNDECLARED_FRONT_POPULATION` instead. */
   | "UNDECLARED_HANDLE_COUNT"
+  /** A catalogue entry declares no usable front population, so its hinges, drawers and push-to-open
+   *  latches cannot be counted (ADR 0092 decision 1). **Never read as zero mechanisms**: that would
+   *  price a whole kitchen's hardware at nothing and look implemented. */
+  | "UNDECLARED_FRONT_POPULATION"
+  /** A placement's own frame height leaves a `one-band-under-frame` row no band a door could be
+   *  hung in, so its leaves — and the hinges counted over them — cannot be read
+   *  (`UnbuildableDoorBandError`, ADR 0092 decision 16). **A different cause from the code above,
+   *  so a different code**: nothing is missing from the catalogue, the fault is the height on the
+   *  placement, and labelling it as a missing declaration sends whoever reads it to the wrong file.
+   *  **Reachable only from a `wall-cabinet` or a `wall-lift`, and only on a document no validator
+   *  passed**: those two are the `one-band-under-frame` rows, and `open-shelf` declares
+   *  `NO_OPENING_FRONTS`, so its `doorBandHeightsMm` answers `[]` and it can never raise this. A
+   *  band at or below `WALL_DOOR_BAND_INSET_MM` needs a frame of 6 mm or less, and
+   *  `findBodyDimensionIssues` floors a placement at `MIN_BODY_HEIGHT_MM` (300), so a **validated**
+   *  design cannot carry one — this code exists for the hand-edited and migrated documents that
+   *  reach pricing without passing through it. Names the placement and the build id; the band height
+   *  that is not a door is in `detail`. */
+  | "UNBUILDABLE_DOOR_BAND"
   /** An amount or a total is not an exact safe integer of minor units. */
   | "INVALID_AMOUNT";
 

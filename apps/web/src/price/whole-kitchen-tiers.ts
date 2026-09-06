@@ -2,21 +2,23 @@
 //
 // Frames 2E / D2E print *inclus* against one tier and *de la +9 000* against the next. Neither
 // number is readable off the book: `wholeKitchenMinor` is a whole-kitchen amount only by accident of
-// the material group's shape, and `perCabinetHandleMinor` is a **per-handle rate** (ADR 0061
-// decision 2), so a surface that rendered the book's figure would be quoting a hardware price nobody
-// pays. So a tier's delta here is **the whole design priced at that tier, less the same design
-// priced at the group's own `defaultTierId`** — six evaluations of a pure query, one per offered
-// tier, with the *other* group held at whatever the design already carries. The material term and
-// the hardware term are both additive, so the held group cancels out of every difference.
+// the material group's shape, and a hardware tier states three **per-mechanism rates** —
+// `perHingeMinor`, `perDrawerMinor` and `perPushToOpenMinor` (ADR 0070 decision 1) — so a surface
+// that rendered the book's figure would be quoting a hardware price nobody pays. So a tier's delta
+// here is **the whole design priced at that tier, less the same design priced at the group's own
+// `defaultTierId`** — six evaluations of a pure query, one per offered tier, with the *other* group
+// held at whatever the design already carries. The material term and the hardware term are both
+// additive, so the held group cancels out of every difference.
 //
 // **This module names no price book** (ADR 0062 seam 1): it takes one, exactly as `priceDesign`
 // does, and `use-priced-design.ts` remains the one module in this application that names the sample.
 // `whole-kitchen-tiers.seams.test.ts` reads the source tree and holds that to one module.
 //
-// **It computes no door, leaf or handle count and must not start.** How many things a hardware tier
-// is billed for is wave 6B's, settled per cabinet handle by ADR 0061 decision 2 and already inside
-// `priceDesign`. A surface reaching for `deriveDoorCount` or `widthDerivedDoorLeafCount` would be
-// pricing a second time, on a denominator nobody ruled — the failure M6's plan warns about by name.
+// **It computes no door, leaf or mechanism count and must not start.** How many things a hardware
+// tier is billed for is settled per mechanism — hinges, drawers and push-to-open latches — by
+// ADR 0070 decision 1, and is already inside `priceDesign`. A surface reaching for `deriveDoorCount`
+// or `widthDerivedDoorLeafCount` would be pricing a second time, on a denominator nobody ruled —
+// the failure M6's plan warns about by name.
 import {
   priceDesign,
   type BodyCatalog,
@@ -35,13 +37,16 @@ export interface OfferedTier {
   readonly description: string;
   /**
    * What choosing this adds, in exact minor units — presentation rounds it, and only in
-   * `starting-price.ts`. Zero for the group's default, and never negative
-   * (`NegativeTierDeltaError`).
+   * `starting-price.ts`. Zero for the group's default, and never negative.
    *
    * **Absent when the design could not be priced**, which is the whole reason it is optional: a
    * document carrying a tier the book has since withdrawn makes `priceDesign` refuse, and the one
    * control that could put that document right is this list. A pricing failure costs the customer
    * the numbers; it must never cost them the choice.
+   *
+   * **Absent, too, where a *hardware* tier prices this design below its group's default** — the
+   * same degraded path, for the same reason, reached for a different cause. See
+   * `BelowDefaultTierRule`.
    */
   readonly deltaMinor?: number | undefined;
 }
@@ -71,6 +76,10 @@ export interface WholeKitchenTierOffer {
  * badge means to a customer, so a book whose default is not its cheapest tier is a book fault to be
  * reported, not a discount to be invented. `whole-kitchen-tiers.test.ts` holds the sample book to
  * the shape that keeps this unreachable.
+ *
+ * **Raised by the material group alone** since wave 6W — see `BelowDefaultTierRule`. Its meaning and
+ * its message are unchanged: what changed is which group can be in the state it describes, and a
+ * flat per-kitchen amount ordered below its own default still is.
  */
 export class NegativeTierDeltaError extends Error {
   constructor(tierId: string, deltaMinor: number) {
@@ -119,6 +128,12 @@ export interface OfferWholeKitchenTiersRequest {
  * material evaluation succeeds, because it overrides the bad key. Publishing that half-set would put
  * two groups on one screen whose amounts were measured against different kitchens, and nothing on
  * screen would say so.
+ *
+ * **A tier that prices below its group's default is the one omission that is *per tier*, and that is
+ * not an exception to the rule above** (`BelowDefaultTierRule`): every delta still published was
+ * measured on the same kitchen against the same baseline, so nothing on screen is comparable to
+ * anything it was not measured against. What the rule forbids is a half-set of amounts that
+ * disagree about which kitchen they describe; this is a single amount that is not an addition.
  */
 export function offerWholeKitchenTiers(
   request: OfferWholeKitchenTiersRequest,
@@ -136,11 +151,15 @@ export function offerWholeKitchenTiers(
 function measureEveryDelta(
   request: OfferWholeKitchenTiersRequest,
 ): ReadonlyMap<string, number> | undefined {
-  const material = measureGroup(request.book.material, (materialTierId) =>
-    totalAt(request, { materialTierId }),
+  const material = measureGroup(
+    request.book.material,
+    (materialTierId) => totalAt(request, { materialTierId }),
+    "refuse",
   );
-  const hardware = measureGroup(request.book.hardware, (hardwareTierId) =>
-    totalAt(request, { hardwareTierId }),
+  const hardware = measureGroup(
+    request.book.hardware,
+    (hardwareTierId) => totalAt(request, { hardwareTierId }),
+    "offer-with-no-delta",
   );
   if (material === undefined || hardware === undefined) return undefined;
   return new Map([...material, ...hardware]);
@@ -162,6 +181,33 @@ function totalAt(
   return result.ok ? result.priced.totalMinor : undefined;
 }
 
+/**
+ * **What a group does with a tier that prices *this design* below the group's own default**
+ * (ADR 0092 decision 12, wave 6W).
+ *
+ * **Interim, pending owner review — ruled 2026-09-06 by the standing process, not by the owner**,
+ * and marked here the way wave 6G marked its unruled strings so nobody reads it as settled. The
+ * alternative the owner may prefer is a negative badge, which the mockups' *de la +9 000* has no
+ * form for; it is a copy and design question and this is the half of 6W most likely to be overruled.
+ *
+ * The two groups differ because the *cause* differs, not because one is more convenient:
+ *
+ * - **`"offer-with-no-delta"` — hardware.** A hardware tier states three per-mechanism rates, so
+ *   which tier is cheapest is a property of **the customer's own kitchen** and not of the book.
+ *   ADR 0070's Hettich drawer figure is runners-only against Standard's complete box — an
+ *   imprecision the owner accepted explicitly — so a drawer-dominant design genuinely does cost less
+ *   at Hettich. Refusing there would take the settings sheet away from a customer whose only fault
+ *   was deleting the wall cabinets, and the sheet is the one control an unpriceable document is
+ *   recovered with. So the tier is offered with **no delta badge** — the module's existing
+ *   *"the deltas degrade; the choice does not"* path, reached for a second cause rather than a
+ *   second path invented beside it.
+ * - **`"refuse"` — material.** A material tier is one flat per-kitchen amount, so its ordering
+ *   against the default is a property of **the book alone**: no design can produce it and no design
+ *   can put it right. That is still a book fault to be reported, and `NegativeTierDeltaError` keeps
+ *   its meaning and its message for it.
+ */
+type BelowDefaultTierRule = "refuse" | "offer-with-no-delta";
+
 /** One tier and the total the whole kitchen reaches under it. */
 interface MeasuredTier<TTier extends TierIdentity> {
   readonly tier: TTier;
@@ -172,6 +218,7 @@ interface MeasuredTier<TTier extends TierIdentity> {
 function measureGroup<TTier extends TierIdentity>(
   group: TierGroup<TTier>,
   totalFor: (tierId: string) => number | undefined,
+  belowDefault: BelowDefaultTierRule,
 ): ReadonlyMap<string, number> | undefined {
   const measured: MeasuredTier<TTier>[] = [];
   for (const tier of group.tiers) {
@@ -186,22 +233,37 @@ function measureGroup<TTier extends TierIdentity>(
   );
   if (baseline === undefined)
     throw new UnofferedDefaultTierError(group.defaultTierId);
-  return new Map(
-    measured.map((one) => [
-      one.tier.tierId,
-      exactDelta(one, baseline.totalMinor),
-    ]),
-  );
+  return additiveDeltas(measured, baseline.totalMinor, belowDefault);
 }
 
+/** Every tier that states an amount, keyed by id. **A tier priced below the default is left out
+ *  rather than entered as a negative**: absence is already how this module says *no amount*, so the
+ *  surface needs no new state to render it and no formatter needs a sign. */
+function additiveDeltas<TTier extends TierIdentity>(
+  measured: readonly MeasuredTier<TTier>[],
+  baselineMinor: number,
+  belowDefault: BelowDefaultTierRule,
+): ReadonlyMap<string, number> {
+  const deltas = new Map<string, number>();
+  for (const one of measured) {
+    const deltaMinor = exactDelta(one, baselineMinor, belowDefault);
+    if (deltaMinor !== undefined) deltas.set(one.tier.tierId, deltaMinor);
+  }
+  return deltas;
+}
+
+/** What choosing this tier adds, or `undefined` where it subtracts and the group's rule is to offer
+ *  it anyway. */
 function exactDelta<TTier extends TierIdentity>(
   measured: MeasuredTier<TTier>,
   baselineMinor: number,
-): number {
+  belowDefault: BelowDefaultTierRule,
+): number | undefined {
   const deltaMinor = measured.totalMinor - baselineMinor;
-  if (deltaMinor < 0)
+  if (deltaMinor >= 0) return deltaMinor;
+  if (belowDefault === "refuse")
     throw new NegativeTierDeltaError(measured.tier.tierId, deltaMinor);
-  return deltaMinor;
+  return undefined;
 }
 
 /** The book's own list, with a delta attached to each tier where one was measured.

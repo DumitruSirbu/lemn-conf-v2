@@ -21,6 +21,11 @@ import {
   KITCHEN_L_BODY_CATALOG,
   KITCHEN_L_DESIGN,
 } from "../../src/fixtures/kitchen-l-design.js";
+import { WALL_DOOR_BAND_INSET_MM } from "../../src/front-population.js";
+import {
+  countHardwareMechanisms,
+  type HardwareMechanismCounts,
+} from "../../src/hardware-mechanisms.js";
 import { priceDesign } from "../../src/pricing/price-design.js";
 import {
   pricedFlat,
@@ -39,6 +44,28 @@ import type { BodyCatalog, BodyDefinition } from "../../src/void-engine.js";
 
 const CATALOG = KITCHEN_L_BODY_CATALOG;
 const BOOK = SAMPLE_PRICE_BOOK;
+
+/** What the book's **default** hardware tier charges the seeded kitchen, recomposed from that
+ *  tier's own three rates and the design's own three counts. Never a literal here: the
+ *  reconciliation to ADR 0092 decision 6's table is `hardware-tier-reconciliation.test.ts`'s job. */
+function hardwareAmountOfDefaultTier(): number {
+  const tier = BOOK.hardware.tiers.find(
+    (candidate) => candidate.tierId === BOOK.hardware.defaultTierId,
+  );
+  if (!tier) throw new Error("the book offers no default hardware tier");
+  const mechanisms = countHardwareMechanisms(
+    projectDesignForDisplay(KITCHEN_L_DESIGN, CATALOG).flatMap(
+      (group) => group.entries,
+    ),
+    CATALOG,
+  );
+
+  return (
+    tier.perHingeMinor * mechanisms.hinges +
+    tier.perDrawerMinor * mechanisms.drawers +
+    tier.perPushToOpenMinor * mechanisms.pushToOpen
+  );
+}
 
 /** The seeded design with its placements replaced, so a test writes only the document it is about
  *  while the room and the timestamps stay the ones the product ships. */
@@ -289,6 +316,21 @@ describe("the price steps where the door count does, and nowhere else", () => {
     ).toBe(0);
     expect(ruleFor("base-sink").formula.shape).toBe("linear-in-width");
   });
+
+  it("refuses a body whose entry declares no count, rather than billing zero", () => {
+    const undeclared = catalogDeclaringNoHandles("wall-cabinet");
+    const result = priceDesign({
+      design: designOf([placedAt({ id: "x" })]),
+      catalog: undeclared,
+      book: BOOK,
+      pricingVersion: BOOK.version,
+    });
+
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.failure.code).toBe("UNDECLARED_HANDLE_COUNT");
+    expect(result.failure.placementId).toBe("x");
+  });
 });
 
 describe("a body built to its opening is priced by the height it was built to", () => {
@@ -496,7 +538,12 @@ describe("rule resolution goes through catalogEquivalentId", () => {
   });
 });
 
-describe("the handle line counts cabinet handles, from the placement's own entry", () => {
+/** **The hardware line is one line at `quantity: 1`** since wave 6T (ADR 0092 decision 4): three
+ *  per-mechanism rates cannot share one unit price, so the line no longer publishes a count and the
+ *  count has to be read where it is derived. `cabinetHandleCount` survives with no production
+ *  reader and its parity gate with it, so it is asserted directly here; what the *price* is billed
+ *  off is the mechanism count, which is asserted through the line's amount. */
+describe("the mechanism count comes from the placement's own entry", () => {
   const PREMIUM = { hardwareTierId: "hardware.premium" } as const;
 
   function hardwareLineOf(priced: PricedDesign): PriceLine {
@@ -507,28 +554,79 @@ describe("the handle line counts cabinet handles, from the placement's own entry
     return line;
   }
 
-  it("bills the oven tower for two handles, not the four bars its builder draws", () => {
-    const priced = priceOrFail({
-      design: designOf([
-        {
-          id: "t",
-          wall: "B",
-          alongMm: 1200,
-          y0Mm: 0,
-          body: {
-            buildId: "tall-oven-tower-600",
-            widthMm: 600,
-            heightMm: 2200,
-          },
+  /** What a tier charges for these mechanisms, recomposed from the book's own rates. */
+  function hardwareAmountFor(
+    tierId: string,
+    mechanisms: HardwareMechanismCounts,
+  ): number {
+    const tier = BOOK.hardware.tiers.find(
+      (candidate) => candidate.tierId === tierId,
+    );
+    if (!tier) throw new Error(`the book holds no "${tierId}"`);
+    return (
+      tier.perHingeMinor * mechanisms.hinges +
+      tier.perDrawerMinor * mechanisms.drawers +
+      tier.perPushToOpenMinor * mechanisms.pushToOpen
+    );
+  }
+
+  /** What the design would be billed if `countHardwareMechanisms` were reading the same entries the
+   *  query reads — recomposed here from the projection and the book, so a query that swapped which
+   *  row it counted off goes red on the *amount* rather than on nothing. */
+  function expectedHardwareAmount(
+    design: Design,
+    catalog: BodyCatalog,
+  ): number {
+    return hardwareAmountFor(
+      PREMIUM.hardwareTierId,
+      countHardwareMechanisms(
+        projectDesignForDisplay(design, catalog).flatMap(
+          (group) => group.entries,
+        ),
+        catalog,
+      ),
+    );
+  }
+
+  it("holds the oven tower's declared handle count at two", () => {
+    // The declared count the mesh parity gate holds, read straight off the row — ADR 0061's two,
+    // against the four bars the builder draws. It has no production reader since wave 6T and this
+    // is what keeps it from silently drifting.
+    expect(
+      cabinetHandleCount({
+        buildId: "tall-oven-tower-600",
+        rule: CATALOG.get("tall-oven-tower-600")?.cabinetHandles,
+        widthMm: 600,
+      }),
+    ).toBe(2);
+  });
+
+  it("bills the oven tower off its own mechanisms", () => {
+    const tower = designOf([
+      {
+        id: "t",
+        wall: "B",
+        alongMm: 1200,
+        y0Mm: 0,
+        body: {
+          buildId: "tall-oven-tower-600",
+          widthMm: 600,
+          heightMm: 2200,
         },
-      ]),
+      },
+    ]);
+    const priced = priceOrFail({
+      design: tower,
       catalog: CATALOG,
       book: BOOK,
       pricingVersion: BOOK.version,
       selections: PREMIUM,
     });
 
-    expect(hardwareLineOf(priced).quantity).toBe(2);
+    const line = hardwareLineOf(priced);
+    expect(line.quantity).toBe(1);
+    expect(line.amountMinor).toBe(expectedHardwareAmount(tower, CATALOG));
+    expect(line.amountMinor).toBeGreaterThan(0);
   });
 
   it("reads a seeded corner's count off its own row even when that row names an equivalent", () => {
@@ -563,8 +661,25 @@ describe("the handle line counts cabinet handles, from the placement's own entry
 
     // The rule resolved through the equivalent…
     expect(lineFor(priced, "c").pricedAsBuildId).toBe("wall-cabinet");
-    // …and the count did not. Two would be the defect.
-    expect(hardwareLineOf(priced).quantity).toBe(1);
+    // …and the mechanism count did not: the corner declares one leaf, `wall-cabinet` at 570 mm
+    // would derive two, and the hardware amount is the corner's own.
+    expect(hardwareLineOf(priced).amountMinor).toBe(
+      expectedHardwareAmount(corner, named),
+    );
+    expect(hardwareLineOf(priced).amountMinor).not.toBe(
+      expectedHardwareAmount(
+        designOf([
+          {
+            id: "c",
+            wall: "B",
+            alongMm: 615,
+            y0Mm: 1500,
+            body: { buildId: "wall-cabinet", widthMm: 570, heightMm: 700 },
+          },
+        ]),
+        CATALOG,
+      ),
+    );
     expect(
       cabinetHandleCount({
         buildId: "wall-cabinet",
@@ -575,7 +690,11 @@ describe("the handle line counts cabinet handles, from the placement's own entry
   });
 
   it("sums the seeded kitchen's declared counts and nothing else", () => {
-    const expected = KITCHEN_L_DESIGN.placements.reduce(
+    // Both halves of the split ADR 0070 made: the handle count the parity gate still holds, and the
+    // mechanism count the price is now billed off. They are different numbers on purpose —
+    // `base-panbank`'s two handles are drawers and its leaves are none — so asserting one says
+    // nothing about the other.
+    const declaredHandles = KITCHEN_L_DESIGN.placements.reduce(
       (handles, placement) =>
         handles +
         cabinetHandleCount({
@@ -585,34 +704,37 @@ describe("the handle line counts cabinet handles, from the placement's own entry
         }),
       0,
     );
+    expect(declaredHandles).toBe(41);
 
-    expect(
-      hardwareLineOf(pricedSeededKitchen({ selections: PREMIUM })).quantity,
-    ).toBe(expected);
-  });
-
-  it("refuses a body whose entry declares no count, rather than billing zero", () => {
-    const undeclared = catalogDeclaringNoHandles("wall-cabinet");
-    const result = priceDesign({
-      design: designOf([placedAt({ id: "x" })]),
-      catalog: undeclared,
-      book: BOOK,
-      pricingVersion: BOOK.version,
-    });
-
-    expect(result.ok).toBe(false);
-    if (result.ok) return;
-    expect(result.failure.code).toBe("UNDECLARED_HANDLE_COUNT");
-    expect(result.failure.placementId).toBe("x");
+    const line = hardwareLineOf(pricedSeededKitchen({ selections: PREMIUM }));
+    expect(line.quantity).toBe(1);
+    expect(line.amountMinor).toBe(
+      expectedHardwareAmount(KITCHEN_L_DESIGN, CATALOG),
+    );
   });
 });
 
 describe("a tier that costs nothing is a line, and a missing rule is never a zero", () => {
-  it("emits both whole-kitchen lines at zero for the default tiers", () => {
+  /** **The two defaults stopped being alike in wave 6T** (ADR 0092 decision 15, shipped as an
+   *  interim). The default *material* tier still costs nothing, so its line is a zero the breakdown
+   *  renders *inclus*. The default *hardware* tier no longer does: Standard prices the seeded
+   *  kitchen's mechanisms, because ADR 0070's totals table is the only figure on record for what a
+   *  Standard tier costs and it does not say nothing. Whether the customer's Standard line should
+   *  be that number or zero is an open owner input; a line at zero is still not the same thing as a
+   *  rule that is missing, in either group, and that is what this block is about. */
+  it("emits a priced hardware line and a zero material line for the default tiers", () => {
     const priced = pricedSeededKitchen();
     const wholeKitchen = priced.lines.filter((line) => line.kind !== "cabinet");
 
-    expect(wholeKitchen.map((line) => line.amountMinor)).toEqual([0, 0]);
+    expect(wholeKitchen.map((line) => line.kind)).toEqual([
+      "hardware",
+      "material",
+    ]);
+    expect(wholeKitchen.map((line) => line.amountMinor)).toEqual([
+      hardwareAmountOfDefaultTier(),
+      0,
+    ]);
+    expect(hardwareAmountOfDefaultTier()).toBeGreaterThan(0);
     expect(wholeKitchen).toHaveLength(2);
   });
 
@@ -897,4 +1019,132 @@ describe("nothing is rounded and nothing is stored", () => {
     expect(priced.lines).toHaveLength(2);
     expect(priced.totalMinor).toBe(0);
   });
+});
+
+/**
+ * **The catch around the mechanism count converts two declared causes and relabels nothing**
+ * (ADR 0092 decision 16). It used to wrap `countHardwareMechanisms` in a bare `catch` and call
+ * everything that came out of it `UNDECLARED_FRONT_POPULATION` — a missing declaration, a placement
+ * height that leaves no door, and a genuine `TypeError` all under one name. A code family is
+ * declared per cause (ADR 0069), so each of the three is asserted here separately.
+ */
+describe("the pricing catch names its causes", () => {
+  /** The tallest frame that leaves a `one-band-under-frame` row nothing to hang a door in: the band
+   *  is the frame less the declared inset, so at exactly the inset the band is zero. Read off the
+   *  declaration rather than typed, because the boundary is the constant's and not this test's. */
+  const NO_BAND_LEFT_FRAME_HEIGHT_MM = WALL_DOOR_BAND_INSET_MM;
+
+  /** A `wall-cabinet` built too short to carry a door, priced with everything else shipping as it
+   *  ships — so what refuses is the placement's own height and not a doctored catalogue. */
+  function priceAWallCabinetAt(frameHeightMm: number) {
+    return priceDesign({
+      design: designOf([
+        placedAt({ id: "flat", body: { heightMm: frameHeightMm } }),
+      ]),
+      catalog: CATALOG,
+      book: BOOK,
+      pricingVersion: BOOK.version,
+    });
+  }
+
+  it("gives an unbuildable door band its own code, naming the placement and the build id", () => {
+    const result = priceAWallCabinetAt(NO_BAND_LEFT_FRAME_HEIGHT_MM);
+
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.failure).toMatchObject({
+      code: "UNBUILDABLE_DOOR_BAND",
+      placementId: "flat",
+      id: "wall-cabinet",
+    });
+    // The band height is the fact this cause turns on, so it survives into the detail.
+    expect(result.failure.detail).toContain("0 mm door band");
+  });
+
+  /** The same row one millimetre taller builds a 1 mm band, which is a door as far as this check is
+   *  concerned — so the refusal above is the boundary and not the whole height range. */
+  it("prices the same row at the first frame height that leaves a band", () => {
+    expect(priceAWallCabinetAt(NO_BAND_LEFT_FRAME_HEIGHT_MM + 1).ok).toBe(true);
+  });
+
+  it("still labels a missing front declaration as the cause it is named for", () => {
+    const stripped: Record<string, unknown> = {
+      ...definitionOf("wall-cabinet"),
+    };
+    delete stripped["fronts"];
+
+    const result = priceDesign({
+      design: designOf([placedAt({ id: "flat" })]),
+      catalog: catalogWith(
+        "wall-cabinet",
+        stripped as unknown as BodyDefinition,
+      ),
+      book: BOOK,
+      pricingVersion: BOOK.version,
+    });
+
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.failure).toMatchObject({
+      code: "UNDECLARED_FRONT_POPULATION",
+      placementId: "flat",
+      id: "wall-cabinet",
+    });
+  });
+
+  /** **A defect in this repository, not a data condition.** `BodyCatalog` is a port, so a
+   *  definition can arrive with a `fronts` accessor that throws — the shape a `TypeError` reaches
+   *  this seam in. It must come back out as **the same instance**: a refusal here would report a
+   *  bug to a customer as a fact about their kitchen, and a third "unexpected" code would be the
+   *  relabelling this change removes, renamed. */
+  it("lets an error it declares no cause for propagate as the same instance", () => {
+    const thrownByThePort = new TypeError("fronts is not an object");
+    const request = {
+      design: designOf([placedAt({ id: "flat" })]),
+      catalog: catalogWhoseFrontsThrow("wall-cabinet", thrownByThePort),
+      book: BOOK,
+      pricingVersion: BOOK.version,
+    };
+
+    expect(() => priceDesign(request)).toThrow(thrownByThePort);
+    try {
+      priceDesign(request);
+      expect.unreachable("priceDesign refused instead of propagating");
+    } catch (error) {
+      expect(error).toBe(thrownByThePort);
+    }
+  });
+
+  function definitionOf(buildId: string): BodyDefinition {
+    const definition = CATALOG.get(buildId);
+    if (!definition) throw new Error(`the catalogue holds no "${buildId}"`);
+    return definition;
+  }
+
+  /** The shipped catalogue with one row replaced, so every other row prices as it ships. */
+  function catalogWith(
+    buildId: string,
+    definition: BodyDefinition,
+  ): BodyCatalog {
+    return new Map(CATALOG).set(buildId, definition);
+  }
+
+  /** One row whose `fronts` cannot be read at all — an accessor rather than a bad value, because a
+   *  bad value is a declaration the domain refuses by name and this case is the one it does not. */
+  function catalogWhoseFrontsThrow(
+    buildId: string,
+    thrown: unknown,
+  ): BodyCatalog {
+    const malformed = Object.defineProperty(
+      { ...definitionOf(buildId) },
+      "fronts",
+      {
+        get: (): never => {
+          throw thrown;
+        },
+      },
+    ) as BodyDefinition;
+
+    return catalogWith(buildId, malformed);
+  }
 });
