@@ -71,6 +71,19 @@ vi.mock("@/store/configurator-store", async (importActual) => {
 
 const { PriceBar } = await import("@/price/price-bar");
 
+/** **What the seeded kitchen's total renders as, derived rather than typed.** Since wave 6T-a the
+ *  figure contains a drafted push-to-open rate with no supplier source (ADR 0092 Amendment C), and
+ *  this file's subject is *which* figure a bar shows and when — never what a kitchen costs, which
+ *  `starting-price.adversarial.test.ts` owns and reconciles. */
+function seededTotalText(): string {
+  const bar = describePriceBar({
+    pricing: priceOf(KITCHEN_L_DESIGN),
+    rejection: null,
+  });
+  if (bar.kind !== "priced") throw new Error("the seeded design did not price");
+  return bar.figure.amountText;
+}
+
 function priceOf(design: Design): PricingResult {
   return priceDesign({
     design,
@@ -321,7 +334,7 @@ describe("a pricing failure puts nothing on the page", () => {
 
     expect(markup).toContain('data-testid="price-bar"');
     expect(markup).toContain("De la");
-    expect(markup).toContain("99 000 MDL");
+    expect(markup).toContain(seededTotalText());
   });
 
   it("also renders nothing in §9's footer, and nothing that reads as free", () => {
@@ -374,7 +387,7 @@ describe("an overflowing design, on the page", () => {
   it("shows the total and the flag together, and shows the same total as a design that fits", () => {
     const markup = barMarkup(priceOf(overflowing));
 
-    expect(markup).toContain("99 000 MDL");
+    expect(markup).toContain(seededTotalText());
     expect(markup).toContain(ro.price.overflowingTotalWarning);
     expect(markup).toContain(
       "Prețul include și dulapuri ce depășesc mărimea peretelui și necesită ajustări",
@@ -526,7 +539,7 @@ describe("the flagged total on the mobile shell, while §9's sheet is open", () 
       }),
     );
 
-    expect(footer.price?.amountText).toBe("99 000 MDL");
+    expect(footer.price?.amountText).toBe(seededTotalText());
     expect(footer.overflowWarning).toBe(ro.price.overflowingTotalWarning);
     expect(textOfElement(markup, "panel-price-overflow")).toBe(
       "Prețul include și dulapuri ce depășesc mărimea peretelui și necesită ajustări",

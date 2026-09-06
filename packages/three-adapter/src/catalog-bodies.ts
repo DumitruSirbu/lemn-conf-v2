@@ -112,7 +112,7 @@ const CATALOG_BODY_BUILDERS: Readonly<Record<string, CatalogBodyBuilder>> = {
   // A lift-up is a flap, not a hinged door: `make.wallLift` builds zero doors plus one full-face
   // slab with its bar on the bottom edge (§6.5). Deliberately **not** §7's literal `pushOpen=true`
   // — that omits the handle meshes, which turns `canHandle` false and takes the choice away for
-  // good. The scene hides them by slot instead (`scene-sync.ts`, `isPushOpenByDefault`).
+  // good. The scene hides them by slot instead (`scene-sync.ts`, `isPushToOpen`).
   "wall-lift": (kit, size) =>
     kit.make.wallLift(size.widthM, size.heightM, size.depthM),
   // ADR 0047: the compartment count is **derived** from the clearance the body was built into,

@@ -235,13 +235,17 @@ describe("whole-kitchen tier amounts are held to being amounts", () => {
     });
   });
 
-  /** The seeded kitchen carries **no** push-to-open placement, so its push rate multiplies a count
-   *  of zero and a book declaring `null` for it produces an amount that is exactly right anyway.
-   *  The sweep above still refuses it — every rate is checked whatever the design counts — and this
-   *  states why that is not over-strictness: a malformed book is malformed before a design is
-   *  chosen, and the next design is the one that would be billed from it. */
-  it("counts no push-to-open mechanism in the seeded kitchen, so the push rate is checked unused", () => {
-    expect(countHardwareMechanisms(SEEDED_ENTRIES, CATALOG).pushToOpen).toBe(0);
+  /** **Every one of the three rates multiplies a non-zero count on the shipped demo**, so the sweep
+   *  above is checking rates the seeded kitchen is actually billed by rather than guarding against a
+   *  design nobody has built. It did not used to be: while the push count was read off the recorded
+   *  handle mode the seeded kitchen answered zero latches, and a book declaring `null` for the push
+   *  rate produced an amount that was exactly right anyway (ADR 0092 Amendment C). */
+  it("bills the seeded kitchen by all three rates, so none of them is checked unused", () => {
+    const mechanisms = countHardwareMechanisms(SEEDED_ENTRIES, CATALOG);
+
+    expect(mechanisms.hinges).toBeGreaterThan(0);
+    expect(mechanisms.drawers).toBeGreaterThan(0);
+    expect(mechanisms.pushToOpen).toBeGreaterThan(0);
   });
 
   /** The defect said in the terms it was found in: not "a refusal is missing" but "a number nobody

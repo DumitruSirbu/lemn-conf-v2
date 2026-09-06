@@ -5642,7 +5642,14 @@ seeded hardware line or a hardware delta.
   `PlacementRecord` (via the existing `toMillimetres`) can supply it. `bands.ts` keeps
   `TOP_ROW_Y0_M = 2.2` as the one threshold constant and `isPushOpenByDefault(y0M)` as the band fact
   the new module wraps; a millimetre sibling is written as the literal `2_200` and **never** as
-  `TOP_ROW_Y0_M * 1000`, which evaluates to `2200.0000000000002`.
+  `TOP_ROW_Y0_M * 1000`. ~~which evaluates to `2200.0000000000002`~~ — **corrected 2026-09-06, the
+  stated reason was false**: `2.2 * 1000 === 2200` exactly, because 2.2's representation error
+  (1.78e-16) scaled by 1000 is 1.78e-13, under half an ulp at 2200 (≈2.27e-13), so the product
+  rounds to 2200 itself. The rule stands on its real ground — a threshold the reader can compare
+  against `y0Mm` without performing a unit conversion in their head, and one that cannot drift if
+  `TOP_ROW_Y0_M` is ever restated in another unit. **No comment or test may assert the float
+  claim**, which is why the implementer refused to write one (ADR 0092 decision 15: a comment
+  contradicting the numbers beside it is the failure this milestone has already named once).
 - **`DisplayEntry` gains no field.** `canHandle` comes from the `BodyDefinition` the counting query
   already looks up; only `mechanismsOn`'s narrowed parameter type widens to carry it.
 - **`describe-selection.ts`'s `defaultHandle` is not unified with this** and does not change: it

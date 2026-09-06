@@ -61,6 +61,20 @@ const SEEDED = priceDesign({
   pricingVersion: SAMPLE_PRICE_BOOK_VERSION,
 });
 
+/** The seeded kitchen's top row: nine placements, sixteen door leaves, every bar hidden by the slot
+ *  (ADR 0092 Amendment C). A count, so it is pinned; the rate it multiplies is drafted, so it is
+ *  not. */
+const SEEDED_PUSH_TO_OPEN = 16;
+
+const DEFAULT_PUSH_RATE_MINOR = (() => {
+  const tier = SAMPLE_PRICE_BOOK.hardware.tiers.find(
+    (candidate) =>
+      candidate.tierId === SAMPLE_PRICE_BOOK.hardware.defaultTierId,
+  );
+  if (!tier) throw new Error("the sample book holds no default hardware tier");
+  return tier.perPushToOpenMinor;
+})();
+
 /**
  * **Every string the price surfaces state**, from every section of `ro` that carries price copy —
  * `price` (the bar, §9's footer, the flagged total) and `priceBreakdown` (frames 2D / D2D).
@@ -173,8 +187,38 @@ describe("the catalogue's own totals, priced and shown", () => {
     // ADR 0092 decision 15 ships the absolute model as its interim, so the Standard tier now bills
     // the seeded kitchen's 74 hinges and 5 drawers at 450 240 minor and the whole design is that
     // much dearer. Nothing else in the total moved.
-    expect(SEEDED.priced.totalMinor).toBe(9_427_500 + 450_240);
-    expect(amountTextFor(SEEDED.priced.totalMinor)).toBe("99 000 MDL");
+    //
+    // **It moved again in wave 6T-a, and that term is read from the book rather than typed.** The
+    // seeded kitchen's top row carries 16 push-to-open fronts (ADR 0092 Amendment C) and the three
+    // push rates are drafted placeholders with no supplier source, so a literal here would make one
+    // load-bearing on the one figure the whole product's landing page shows.
+    expect(SEEDED.priced.totalMinor).toBe(
+      9_427_500 + 450_240 + SEEDED_PUSH_TO_OPEN * DEFAULT_PUSH_RATE_MINOR,
+    );
+  });
+
+  /** **What the customer reads is the thousand at or above that total**, asserted as the rounding
+   *  rule rather than as a string. The string itself follows the drafted push rate — it is
+   *  *100 000 MDL* today and would be another thousand at another rate — and ADR 0092 Amendment C
+   *  refuses to pin an expectation to a placeholder's magnitude. The formatter's own examples,
+   *  pinned as strings throughout this file, are what hold the rendering. */
+  it("renders it as the thousand at or above the exact figure", () => {
+    if (!SEEDED.ok) throw new Error("expected the seeded design to price");
+
+    const renderedMdl = roundUpToThousandMdl(SEEDED.priced.totalMinor);
+
+    // The exact figure and the thousand it rounds to render as the same sentence, which is the
+    // customer-visible half of the rule and needs no separator typed out here.
+    expect(amountTextFor(SEEDED.priced.totalMinor)).toBe(
+      amountTextFor(renderedMdl * BANI_PER_MDL),
+    );
+    expect(renderedMdl % ROUNDING_STEP_MDL).toBe(0);
+    expect(renderedMdl * BANI_PER_MDL).toBeGreaterThanOrEqual(
+      SEEDED.priced.totalMinor,
+    );
+    expect((renderedMdl - ROUNDING_STEP_MDL) * BANI_PER_MDL).toBeLessThan(
+      SEEDED.priced.totalMinor,
+    );
   });
 
   it("rounds every line the catalogue can produce without leaving the step", () => {

@@ -8,8 +8,9 @@
 // invisible until a phone runs out of memory mid-session.
 import { buildAnyBody } from "./build-any-body.js";
 import {
-  isPushOpenByDefault,
+  isPushToOpen,
   toMetres,
+  toMillimetres,
   type PlacementRecord,
   type VoidRecord,
 } from "@lemnaria/configurator-domain";
@@ -230,12 +231,19 @@ function buildBody(kit: Kit, record: PlacementRecord): THREE.Group {
  *  `carriedAppearance` already refuses to carry one onto a body that cannot take it, so the command
  *  path cannot produce the case — but a hand-edited or migrated design can, and a `push` on
  *  `fridge-free` (whose doors do build `handle_bar` meshes) would hide bars that no panel section
- *  exists to turn back on. That is §6.5's own WHY, arriving from the data side. */
+ *  exists to turn back on. That is §6.5's own WHY, arriving from the data side.
+ *
+ *  **The rule itself is the domain's** (`isPushToOpen`, ADR 0092 decision 3 Amendment C) and this
+ *  is a call rather than a second copy: the same question decides whether a bar is drawn and
+ *  whether a latch is billed, and while the adapter held its own answer the two disagreed in both
+ *  directions on the shipped demo. The conversion is all that is left here — the predicate reads
+ *  the document's millimetres and the scene keeps a metre frame. */
 function hidesHandles(record: PlacementRecord): boolean {
-  if (record.handleMode && record.canHandle) {
-    return record.handleMode === "push";
-  }
-  return isPushOpenByDefault(record.frame.y0);
+  return isPushToOpen({
+    y0Mm: toMillimetres(record.frame.y0),
+    recordedHandle: record.handleMode,
+    canHandle: record.canHandle,
+  });
 }
 
 function signBody(record: PlacementRecord): string {

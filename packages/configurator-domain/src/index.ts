@@ -80,6 +80,14 @@ export {
   type FrontPopulationRule,
   type PlacedBody,
 } from "./front-population.js";
+// The one answer to *"does this front carry a handle bar"* (ADR 0092 decision 3, Amendment C).
+// Exported because the three-adapter is a consumer: `scene-sync.ts` hides the bars by this and no
+// longer restates the rule, so the scene and the price cannot answer it differently.
+export {
+  isPushToOpen,
+  TOP_ROW_Y0_MM,
+  type PushToOpenQuery,
+} from "./push-to-open.js";
 export {
   countHardwareMechanisms,
   HINGES_PER_DOOR_LEAF,

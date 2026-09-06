@@ -21,6 +21,7 @@ import {
   KITCHEN_L_BODY_CATALOG,
   KITCHEN_L_DESIGN,
 } from "../../src/fixtures/kitchen-l-design.js";
+import { WALL_DOOR_BAND_INSET_MM } from "../../src/front-population.js";
 import {
   countHardwareMechanisms,
   type HardwareMechanismCounts,
@@ -1018,4 +1019,132 @@ describe("nothing is rounded and nothing is stored", () => {
     expect(priced.lines).toHaveLength(2);
     expect(priced.totalMinor).toBe(0);
   });
+});
+
+/**
+ * **The catch around the mechanism count converts two declared causes and relabels nothing**
+ * (ADR 0092 decision 16). It used to wrap `countHardwareMechanisms` in a bare `catch` and call
+ * everything that came out of it `UNDECLARED_FRONT_POPULATION` — a missing declaration, a placement
+ * height that leaves no door, and a genuine `TypeError` all under one name. A code family is
+ * declared per cause (ADR 0069), so each of the three is asserted here separately.
+ */
+describe("the pricing catch names its causes", () => {
+  /** The tallest frame that leaves a `one-band-under-frame` row nothing to hang a door in: the band
+   *  is the frame less the declared inset, so at exactly the inset the band is zero. Read off the
+   *  declaration rather than typed, because the boundary is the constant's and not this test's. */
+  const NO_BAND_LEFT_FRAME_HEIGHT_MM = WALL_DOOR_BAND_INSET_MM;
+
+  /** A `wall-cabinet` built too short to carry a door, priced with everything else shipping as it
+   *  ships — so what refuses is the placement's own height and not a doctored catalogue. */
+  function priceAWallCabinetAt(frameHeightMm: number) {
+    return priceDesign({
+      design: designOf([
+        placedAt({ id: "flat", body: { heightMm: frameHeightMm } }),
+      ]),
+      catalog: CATALOG,
+      book: BOOK,
+      pricingVersion: BOOK.version,
+    });
+  }
+
+  it("gives an unbuildable door band its own code, naming the placement and the build id", () => {
+    const result = priceAWallCabinetAt(NO_BAND_LEFT_FRAME_HEIGHT_MM);
+
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.failure).toMatchObject({
+      code: "UNBUILDABLE_DOOR_BAND",
+      placementId: "flat",
+      id: "wall-cabinet",
+    });
+    // The band height is the fact this cause turns on, so it survives into the detail.
+    expect(result.failure.detail).toContain("0 mm door band");
+  });
+
+  /** The same row one millimetre taller builds a 1 mm band, which is a door as far as this check is
+   *  concerned — so the refusal above is the boundary and not the whole height range. */
+  it("prices the same row at the first frame height that leaves a band", () => {
+    expect(priceAWallCabinetAt(NO_BAND_LEFT_FRAME_HEIGHT_MM + 1).ok).toBe(true);
+  });
+
+  it("still labels a missing front declaration as the cause it is named for", () => {
+    const stripped: Record<string, unknown> = {
+      ...definitionOf("wall-cabinet"),
+    };
+    delete stripped["fronts"];
+
+    const result = priceDesign({
+      design: designOf([placedAt({ id: "flat" })]),
+      catalog: catalogWith(
+        "wall-cabinet",
+        stripped as unknown as BodyDefinition,
+      ),
+      book: BOOK,
+      pricingVersion: BOOK.version,
+    });
+
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.failure).toMatchObject({
+      code: "UNDECLARED_FRONT_POPULATION",
+      placementId: "flat",
+      id: "wall-cabinet",
+    });
+  });
+
+  /** **A defect in this repository, not a data condition.** `BodyCatalog` is a port, so a
+   *  definition can arrive with a `fronts` accessor that throws — the shape a `TypeError` reaches
+   *  this seam in. It must come back out as **the same instance**: a refusal here would report a
+   *  bug to a customer as a fact about their kitchen, and a third "unexpected" code would be the
+   *  relabelling this change removes, renamed. */
+  it("lets an error it declares no cause for propagate as the same instance", () => {
+    const thrownByThePort = new TypeError("fronts is not an object");
+    const request = {
+      design: designOf([placedAt({ id: "flat" })]),
+      catalog: catalogWhoseFrontsThrow("wall-cabinet", thrownByThePort),
+      book: BOOK,
+      pricingVersion: BOOK.version,
+    };
+
+    expect(() => priceDesign(request)).toThrow(thrownByThePort);
+    try {
+      priceDesign(request);
+      expect.unreachable("priceDesign refused instead of propagating");
+    } catch (error) {
+      expect(error).toBe(thrownByThePort);
+    }
+  });
+
+  function definitionOf(buildId: string): BodyDefinition {
+    const definition = CATALOG.get(buildId);
+    if (!definition) throw new Error(`the catalogue holds no "${buildId}"`);
+    return definition;
+  }
+
+  /** The shipped catalogue with one row replaced, so every other row prices as it ships. */
+  function catalogWith(
+    buildId: string,
+    definition: BodyDefinition,
+  ): BodyCatalog {
+    return new Map(CATALOG).set(buildId, definition);
+  }
+
+  /** One row whose `fronts` cannot be read at all — an accessor rather than a bad value, because a
+   *  bad value is a declaration the domain refuses by name and this case is the one it does not. */
+  function catalogWhoseFrontsThrow(
+    buildId: string,
+    thrown: unknown,
+  ): BodyCatalog {
+    const malformed = Object.defineProperty(
+      { ...definitionOf(buildId) },
+      "fronts",
+      {
+        get: (): never => {
+          throw thrown;
+        },
+      },
+    ) as BodyDefinition;
+
+    return catalogWith(buildId, malformed);
+  }
 });

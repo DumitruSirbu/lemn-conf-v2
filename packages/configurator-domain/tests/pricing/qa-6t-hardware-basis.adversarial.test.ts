@@ -127,46 +127,52 @@ const SEEDED_CENSUS: readonly (readonly [
   placementId: string,
   hinges: number,
   drawers: number,
+  pushToOpen: number,
 ])[] = [
   // Wall A base run — a 900 mm corner with one leaf, the sink's two, the dishwasher's decor door,
-  // and the two drawer rows.
-  ["p25", 2, 0],
-  ["p0", 4, 0],
-  ["p1", 2, 0],
-  ["p2", 0, 2],
-  ["p4", 0, 3],
+  // and the two drawer rows. Every one of them stands on the floor with its bars visible.
+  ["p25", 2, 0, 0],
+  ["p0", 4, 0, 0],
+  ["p1", 2, 0, 0],
+  ["p2", 0, 2, 0],
+  ["p4", 0, 3, 0],
   // Wall A wall band at 1500 — two-door and one-door boxes, and two bodies with no front at all.
-  ["p8", 4, 0],
-  ["p10", 2, 0],
-  ["p11", 4, 0],
-  ["p12", 0, 0],
-  ["p13", 0, 0],
-  ["p14", 4, 0],
-  // Wall A top band at 2200 — six boxes of 394 mm leaves, none near the threshold.
-  ["p15", 4, 0],
-  ["p16", 2, 0],
-  ["p17", 4, 0],
-  ["p18", 4, 0],
-  ["p19", 4, 0],
-  ["p20", 4, 0],
-  // Wall B — the structural base return opens nothing; the wall returns carry one leaf each.
-  ["p26", 0, 0],
-  ["p9", 2, 0],
-  ["p24", 4, 0],
-  ["p21", 2, 0],
-  ["p22", 4, 0],
-  ["p23", 4, 0],
+  ["p8", 4, 0, 0],
+  ["p10", 2, 0, 0],
+  ["p11", 4, 0, 0],
+  ["p12", 0, 0, 0],
+  ["p13", 0, 0, 0],
+  ["p14", 4, 0, 0],
+  // Wall A top band at 2200 — six boxes of 394 mm leaves, none near the threshold, and every one of
+  // their eleven leaves push-to-open by the slot (ADR 0092 Amendment C).
+  ["p15", 4, 0, 2],
+  ["p16", 2, 0, 1],
+  ["p17", 4, 0, 2],
+  ["p18", 4, 0, 2],
+  ["p19", 4, 0, 2],
+  ["p20", 4, 0, 2],
+  // Wall B — the structural base return opens nothing; the wall returns carry one leaf each, and
+  // **the pair is the whole `canHandle` ruling in two rows**: `p9` and `p21` declare the identical
+  // `carriesHandles(1)` and the identical `canHandle: false` and differ only by the row they stand
+  // on, so `p9`'s bar is visible and takes no latch while `p21`'s is hidden by the slot and takes
+  // one the customer cannot turn off.
+  ["p26", 0, 0, 0],
+  ["p9", 2, 0, 0],
+  ["p24", 4, 0, 0],
+  ["p21", 2, 0, 1],
+  ["p22", 4, 0, 2],
+  ["p23", 4, 0, 2],
   // Wall B tall run — the oven tower's two cabinet leaves at 500 mm, the pantry's four leaves of
   // which two are over 900 mm, and a freestanding fridge that is not a cabinet.
-  ["p5", 4, 0],
-  ["p6", 10, 0],
-  ["p7", 0, 0],
+  ["p5", 4, 0, 0],
+  ["p6", 10, 0, 0],
+  ["p7", 0, 0, 0],
 ];
 
-describe("the 74 and the 5 are a census, not only a total", () => {
+describe("the 74, the 5 and the 16 are a census, not only a total", () => {
   it.each(SEEDED_CENSUS)(
-    "counts %s at %i hinges and %i drawers",
-    (placementId, hinges, drawers) => {
+    "counts %s at %i hinges, %i drawers and %i latches",
+    (placementId, hinges, drawers, pushToOpen) => {
       const placement = KITCHEN_L_DESIGN.placements.find(
         (candidate) => candidate.id === placementId,
       );
@@ -175,7 +181,7 @@ describe("the 74 and the 5 are a census, not only a total", () => {
       expect(mechanismsIn(designOf([placement]))).toEqual({
         hinges,
         drawers,
-        pushToOpen: 0,
+        pushToOpen,
       });
     },
   );
@@ -186,19 +192,16 @@ describe("the 74 and the 5 are a census, not only a total", () => {
     );
 
     const summed = SEEDED_CENSUS.reduce(
-      (totals, [, hinges, drawers]) => ({
+      (totals, [, hinges, drawers, pushToOpen]) => ({
         hinges: totals.hinges + hinges,
         drawers: totals.drawers + drawers,
+        pushToOpen: totals.pushToOpen + pushToOpen,
       }),
-      { hinges: 0, drawers: 0 },
+      { hinges: 0, drawers: 0, pushToOpen: 0 },
     );
 
-    expect(summed).toEqual({ hinges: 74, drawers: 5 });
-    expect(mechanismsIn(KITCHEN_L_DESIGN)).toEqual({
-      hinges: 74,
-      drawers: 5,
-      pushToOpen: 0,
-    });
+    expect(summed).toEqual({ hinges: 74, drawers: 5, pushToOpen: 16 });
+    expect(mechanismsIn(KITCHEN_L_DESIGN)).toEqual(summed);
   });
 
   /** The one row in the design that reaches the 900 mm threshold, isolated so the third hinge is a

@@ -658,8 +658,12 @@ describe("an entry that declares nothing refuses", () => {
  * nothing.
  *
  * **The three hardware amounts are ADR 0092 decision 6's table, reconciled to ADR 0070's own hinge
- * and drawer columns** — 1 300 + 3 200, 6 290 + 3 130, 5 550 + 4 185 MDL. Hettich and Blum land on
- * the leu; Standard lands 2.40 MDL above, which is the owner's rounding of 1 302.40 down to 1 300.
+ * and drawer columns** — 1 300 + 3 200, 6 290 + 3 130, 5 550 + 4 185 MDL — **plus a push column
+ * that record never published** (ADR 0092 Amendment C): the seeded kitchen's top row carries 16
+ * latches. Hettich and Blum land on the leu; Standard lands 2.40 MDL above, which is the owner's
+ * rounding of 1 302.40 down to 1 300. The hinge and drawer terms are written out because they
+ * reconcile against the owner's own columns; **the push term is read from the book**, because the
+ * three push rates are drafted placeholders and a literal here would make one load-bearing.
  * `hardware-tier-reconciliation.test.ts` is where that derivation is asserted; here the point is
  * only that the whole design's total is the old cabinet total plus exactly that hardware line and
  * nothing else has drifted.
@@ -694,6 +698,18 @@ describe("what wave 6S declared, wave 6T prices", () => {
    *  stopped being zero. */
   const CABINETRY_AND_MATERIAL_MINOR = 9_427_500;
 
+  /** The seeded kitchen's 16 latches, pinned as the count they are — a product fact answerable
+   *  without any amount, unlike the rate it multiplies. */
+  const SEEDED_PUSH_TO_OPEN = 16;
+
+  const latchesAt = (tierId: string): number => {
+    const tier = SAMPLE_PRICE_BOOK.hardware.tiers.find(
+      (candidate) => candidate.tierId === tierId,
+    );
+    if (!tier) throw new Error(`the book holds no "${tierId}"`);
+    return SEEDED_PUSH_TO_OPEN * tier.perPushToOpenMinor;
+  };
+
   it("prices the seeded design at its cabinetry plus one hardware line, at every tier", () => {
     expect(SAMPLE_PRICE_BOOK.hardware.tiers.map((tier) => tier.tierId)).toEqual(
       ["hardware.standard", "hardware.soft-close", "hardware.premium"],
@@ -702,13 +718,13 @@ describe("what wave 6S declared, wave 6T prices", () => {
     // The default tier is Standard, and it is no longer free (ADR 0092 decision 15's interim).
     expect(totalAt(undefined)).toBe(totalAt("hardware.standard"));
     expect(totalAt("hardware.standard")).toBe(
-      CABINETRY_AND_MATERIAL_MINOR + 450_240,
+      CABINETRY_AND_MATERIAL_MINOR + 450_240 + latchesAt("hardware.standard"),
     );
     expect(totalAt("hardware.soft-close")).toBe(
-      CABINETRY_AND_MATERIAL_MINOR + 942_000,
+      CABINETRY_AND_MATERIAL_MINOR + 942_000 + latchesAt("hardware.soft-close"),
     );
     expect(totalAt("hardware.premium")).toBe(
-      CABINETRY_AND_MATERIAL_MINOR + 973_500,
+      CABINETRY_AND_MATERIAL_MINOR + 973_500 + latchesAt("hardware.premium"),
     );
   });
 
@@ -729,8 +745,8 @@ describe("what wave 6S declared, wave 6T prices", () => {
   /** **The handle count survives the wave and stops being what hardware is billed by.** The seeded
    *  design's 41 handles are the 36 leaves plus 5 drawers above, and that identity is still what
    *  makes the split checkable. What no longer holds is that any tier spread divides by 41: ADR
-   *  0070 decision 1 prices per mechanism, so the spread is a function of 74 hinges and 5 drawers
-   *  and there is no per-handle rate left to recover from it. */
+   *  0070 decision 1 prices per mechanism, so the spread is a function of 74 hinges, 5 drawers and
+   *  16 latches, and there is no per-handle rate left to recover from it. */
   it("keeps the 41 handles the split reproduces, and prices none of them", () => {
     const handlesInSeededDesign = KITCHEN_L_PLACEMENTS.reduce(
       (sum, placement) =>
@@ -747,9 +763,14 @@ describe("what wave 6S declared, wave 6T prices", () => {
 
     const spreadMinor =
       totalAt("hardware.soft-close") - totalAt("hardware.standard");
-    expect(spreadMinor).toBe(942_000 - 450_240);
-    // Not a per-handle rate: 491 760 over 41 handles is 11 994.14…, and an exact per-handle basis
-    // is precisely what a wave reintroducing the old quantity would make this divide by.
+    expect(spreadMinor).toBe(
+      942_000 -
+        450_240 +
+        latchesAt("hardware.soft-close") -
+        latchesAt("hardware.standard"),
+    );
+    // Not a per-handle rate: the spread over 41 handles is not a whole number of bani, and an exact
+    // per-handle basis is precisely what a wave reintroducing the old quantity would make it be.
     expect(Number.isInteger(spreadMinor / handlesInSeededDesign)).toBe(false);
   });
 });

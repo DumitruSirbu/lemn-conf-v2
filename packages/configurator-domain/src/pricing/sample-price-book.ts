@@ -97,6 +97,12 @@ const SAMPLE_CABINET_RULES: readonly CabinetPriceRule[] = [
     formula: pricedFlat(420_000),
   },
   {
+    // **Its hardware is billed as one drawer box, and that understates it** (ADR 0092 decision 8).
+    // A full-height cargo pull-out costs more than the single drawer this row declares, and
+    // ADR 0070 publishes no cargo figure at all — so the row is billed for what it demonstrably
+    // has, and what it also has and nobody priced is recorded here rather than invented. This is
+    // the same accepted imprecision as Hettich's runners-only drawer rate below, in the same place:
+    // beside the number. **A wave that quietly prices a cargo pull-out has overturned a decision.**
     ruleId: "cabinet.base-bottle-cargo",
     buildId: "base-bottle-cargo",
     formula: pricedByWidth({ baseMinor: 90_000, perWidthMillimetreMinor: 450 }),
@@ -223,10 +229,17 @@ const SAMPLE_CABINET_RULES: readonly CabinetPriceRule[] = [
  * Their **ordering** follows each tier's own hinge rate, which is the only defensible relation
  * available. Their **magnitudes are not evidence of anything** and must not be quoted as a price.
  *
- * **Nothing asserted depends on them.** The seeded kitchen carries no `handle: "push"` placement, so
- * every reconciliation in this wave is computed at zero push mechanisms — which is the condition
- * under which shipping a drafted amount is safe, and the condition a fixture adding a push placement
- * to a reconciled total would silently break.
+ * **They are load-bearing, and this comment used to say the opposite.** The owner ruled on
+ * 2026-09-06 that push-to-open is priced, and the shipped demo carries **16** push fronts — its nine
+ * top-row placements, which record no `handle` and are push-to-open by slot. So every seeded
+ * hardware total now moves with these three numbers, and replacing one with a supplier figure moves
+ * a customer-visible price. **They are open owner input 1** (ADR 0092 decision 3, Amendment C).
+ * Assertions read the rate off this book and multiply; none types a magnitude, because a test
+ * carrying a literal would make a placeholder a pinned expectation.
+ *
+ * **A customer-visible ordering rests on them today**: at 16 latches Hettich passes Blum,
+ * contradicting ADR 0070's own totals. It refuses nothing, and it is why the three real rates are
+ * the first thing on the pending-owner list.
  *
  * **They are non-zero on purpose.** The defect ADR 0070 exists to remove is a push-to-open kitchen
  * billing its hardware at exactly zero; a zero placeholder would reinstate it while looking

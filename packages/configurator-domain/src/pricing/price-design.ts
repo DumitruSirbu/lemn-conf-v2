@@ -21,6 +21,10 @@ import { resolveCatalogEquivalent } from "../catalog.js";
 import type { Design } from "../design.js";
 import { boundedFailureReason } from "../failure-text.js";
 import {
+  UnbuildableDoorBandError,
+  UndeclaredFrontPopulationError,
+} from "../front-population.js";
+import {
   countHardwareMechanisms,
   type HardwareMechanismCounts,
 } from "../hardware-mechanisms.js";
@@ -636,12 +640,20 @@ function countMechanisms(
   return { value: countHardwareMechanisms(entries, catalog) };
 }
 
-/** `countHardwareMechanisms` **throws** `UndeclaredFrontPopulationError` for a body whose front
- *  population cannot be read (ADR 0092 decision 1), which is right for it: reading a missing
- *  declaration as zero mechanisms would price a whole kitchen's hinges at nothing and look
- *  implemented. This query refuses with a code instead, so the conversion is here and this function
- *  does nothing else — the shape the handle count's own conversion had before ADR 0092 replaced
- *  the hardware quantity basis. */
+/** `countHardwareMechanisms` **throws** for a body whose fronts cannot be read (ADR 0092 decision 1),
+ *  which is right for it: reading a missing declaration as zero mechanisms would price a whole
+ *  kitchen's hinges at nothing and look implemented. This query refuses with a code instead, so the
+ *  conversion is here and this function does nothing else — the shape the handle count's own
+ *  conversion had before ADR 0092 replaced the hardware quantity basis.
+ *
+ *  **Two declared causes convert, and everything else propagates unchanged** (ADR 0092 decision 16).
+ *  A bare `catch` labelled a `TypeError` from a malformed port object as a data condition and gave
+ *  `UnbuildableDoorBandError` — a placement height, not a missing declaration — the name of a cause
+ *  it is not. A code family is declared per cause (ADR 0069), and *"or anything else"* is not one:
+ *  a third "unexpected" code would be the same relabelling wearing an honest name. Throwing out of a
+ *  query that runs in render is this repository's own stance already — `projectDesignForDisplay`
+ *  throws `UnknownBodyError` — and this narrowed catch is what asserts that the only errors this
+ *  path produces are the two named below. */
 function refuseUnreadableFronts(
   entry: DisplayEntry,
   catalog: BodyCatalog,
@@ -650,11 +662,26 @@ function refuseUnreadableFronts(
     countHardwareMechanisms([entry], catalog);
     return undefined;
   } catch (error) {
-    return refusal("UNDECLARED_FRONT_POPULATION", describeError(error), {
-      placementId: entry.placementId,
-      id: entry.buildId,
-    });
+    return refuseUnreadableFrontsCause(error, entry);
   }
+}
+
+/** Which of the two declared causes this is. Anything else is a defect in this repository rather
+ *  than a fact about the customer's kitchen, so it leaves as itself — same instance, same stack —
+ *  and never as a refusal a surface could render. */
+function refuseUnreadableFrontsCause(
+  error: unknown,
+  entry: DisplayEntry,
+): Refused {
+  const named = { placementId: entry.placementId, id: entry.buildId };
+
+  if (error instanceof UndeclaredFrontPopulationError) {
+    return refusal("UNDECLARED_FRONT_POPULATION", describeError(error), named);
+  }
+  if (error instanceof UnbuildableDoorBandError) {
+    return refusal("UNBUILDABLE_DOOR_BAND", describeError(error), named);
+  }
+  throw error;
 }
 
 /** What a material tier charges once for the whole kitchen — the 2E sheet's *de la +9 000* delta,

@@ -1,10 +1,15 @@
 // **How many mechanisms a kitchen's hardware is priced by** — hinges, drawers and push-to-open
 // latches, counted over a design's bodies from the facts wave 6S declared.
 //
-// ADR 0070 decision 1 prices hardware **per mechanism and never per handle**: a `handle: "push"`
-// body carries hinges and runners and no handle at all, so the superseded per-cabinet-handle basis
+// ADR 0070 decision 1 prices hardware **per mechanism and never per handle**: a push-to-open body
+// carries hinges and runners and no handle at all, so the superseded per-cabinet-handle basis
 // billed a whole push-to-open kitchen at exactly zero. This module answers the three quantities
 // that replace it.
+//
+// **Which bodies are push-to-open is `push-to-open.ts`'s answer, not this module's** (ADR 0092
+// decision 3, Amendment C). Deciding it here from the recorded handle mode is what left the shipped
+// demo's sixteen hidden-bar latches billed at nothing while billing latches for bars the scene keeps
+// drawing — and the adapter draws the bar by the same call, so the two cannot disagree again.
 //
 // **It counts; it does not price.** It lives beside `cabinet-handles.ts` and `front-population.ts`
 // and deliberately **outside `pricing/`** (ADR 0092 decision 4): a mechanism count is a fact about
@@ -16,13 +21,13 @@
 // **Nothing here reads a mesh or a `kind`.** Every number comes from the placement's own catalogue
 // entry through `frontPopulationQueryFor`, which is the seam 6S's review round created so that a
 // later wave could not source a height from a definition's nominal instead.
-import type { Handle } from "./design.js";
 import {
   doorLeafHeightsMm,
   drawerCount,
   frontPopulationQueryFor,
   type DeclaresFronts,
 } from "./front-population.js";
+import { isPushToOpen, type PushToOpenQuery } from "./push-to-open.js";
 import type { DisplayEntry } from "./queries/design-projection.js";
 import type { BodyCatalog } from "./void-engine.js";
 
@@ -54,9 +59,6 @@ export const NO_HARDWARE_MECHANISMS: HardwareMechanismCounts = {
   drawers: 0,
   pushToOpen: 0,
 };
-
-/** ADR 0092 decision 3: a push latch is fitted to each front that opens. */
-const PUSH_TO_OPEN_HANDLE: Handle = "push";
 
 /**
  * **Every mechanism this design's bodies carry**, summed over the projection.
@@ -91,27 +93,60 @@ export function countHardwareMechanisms(
  *  built at 400, 700 and 750. */
 function mechanismsOn(
   entry: DisplayEntry,
-  definition: DeclaresFronts | undefined,
+  definition: DeclaresMechanismFacts | undefined,
 ): HardwareMechanismCounts {
-  const query = frontPopulationQueryFor({
-    body: entry,
-    definition: definition ?? DECLARES_NOTHING,
-  });
+  const declared = definition ?? DECLARES_NOTHING;
+  const query = frontPopulationQueryFor({ body: entry, definition: declared });
   const leafHeightsMm = doorLeafHeightsMm(query);
   const drawers = drawerCount(query);
 
   return {
     hinges: countHinges(leafHeightsMm),
     drawers,
-    pushToOpen: countPushToOpen(entry, leafHeightsMm.length + drawers),
+    pushToOpen: countPushToOpen(
+      pushToOpenQueryFor(entry, declared),
+      leafHeightsMm.length + drawers,
+    ),
   };
+}
+
+/** What this module reads off a catalogue entry: the front population, and whether the row permits
+ *  a recorded handle mode at all. Structural for the reason `DeclaresFronts` is — `void-engine.ts`
+ *  imports the front-population module, so an import of `BodyDefinition` back would be a cycle.
+ *
+ *  `canHandle` is declared **optional here and required by `BodyDefinition`**, and that gap is the
+ *  absent-row case rather than a policy: see `DECLARES_NOTHING`. */
+interface DeclaresMechanismFacts extends DeclaresFronts {
+  readonly canHandle?: boolean;
 }
 
 /** A body the catalogue does not hold declares no fronts — which `doorLeafHeightsMm` refuses by
  *  naming the build id, exactly as it refuses an entry that declares nothing. Stated as a value
  *  rather than left to a `?.` so that the absent-entry case reaches the same refusal as the
- *  undeclared one instead of a different, quieter path. */
-const DECLARES_NOTHING: DeclaresFronts = {};
+ *  undeclared one instead of a different, quieter path.
+ *
+ *  **It declares no `canHandle` either, and must not be given one.** The refusal above runs before
+ *  anything reads it, so an absent row's handle capability decides nothing — and a `true` or a
+ *  `false` written here would look like a ruling on a case that never reaches a price. */
+const DECLARES_NOTHING: DeclaresMechanismFacts = {};
+
+/** The three facts `isPushToOpen` reads, assembled from the two places they live: the floor and the
+ *  recorded mode are the **placement's** (§6.5 — two `base-sink-800`s can carry different handles),
+ *  and the permission is the **catalogue row's**.
+ *
+ *  A row that declares no permission reads as permitting none, which decides nothing on any reachable
+ *  path: `doorLeafHeightsMm` has already refused a body the catalogue does not hold, and every
+ *  `BodyDefinition` declares the field. */
+function pushToOpenQueryFor(
+  entry: DisplayEntry,
+  declared: DeclaresMechanismFacts,
+): PushToOpenQuery {
+  return {
+    y0Mm: entry.y0Mm,
+    recordedHandle: entry.handle,
+    canHandle: declared.canHandle === true,
+  };
+}
 
 /** **Counted over `doorLeafHeightsMm`, one entry per leaf — never over `doorBandHeightsMm`.** A
  *  pantry at 600 mm answers `[1290, 1290, 790, 790]`, and applying the threshold to its two *bands*
@@ -135,10 +170,15 @@ function hingesOnLeaf(leafHeightMm: number): number {
  *  decision 3). Per front rather than per body or per band, which is the denominator the hinge rule
  *  uses too: a latch is fitted to each thing that opens.
  *
- *  The handle mode is a **placement** fact (§6.5, `DisplayEntry.handle`), so it is read here and
- *  never from the catalogue — two `base-sink-800`s can carry different handles. */
-function countPushToOpen(entry: DisplayEntry, openingFronts: number): number {
-  return entry.handle === PUSH_TO_OPEN_HANDLE ? openingFronts : 0;
+ *  **Whether the body is push-to-open is `isPushToOpen`'s answer and not this module's.** Reading
+ *  the recorded mode here instead is what billed the shipped demo's 16 hidden-bar latches at zero
+ *  while billing latches for bars the scene keeps drawing (ADR 0092 decision 3, Amendment C), and
+ *  `scene-sync.ts` decides whether to draw the bar by the same call. */
+function countPushToOpen(
+  front: PushToOpenQuery,
+  openingFronts: number,
+): number {
+  return isPushToOpen(front) ? openingFronts : 0;
 }
 
 function addCounts(

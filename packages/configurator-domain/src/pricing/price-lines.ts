@@ -116,6 +116,15 @@ export type PricingFailureCode =
    *  latches cannot be counted (ADR 0092 decision 1). **Never read as zero mechanisms**: that would
    *  price a whole kitchen's hardware at nothing and look implemented. */
   | "UNDECLARED_FRONT_POPULATION"
+  /** A placement's own frame height leaves a `one-band-under-frame` row no band a door could be
+   *  hung in, so its leaves — and the hinges counted over them — cannot be read
+   *  (`UnbuildableDoorBandError`, ADR 0092 decision 16). **A different cause from the code above,
+   *  so a different code**: nothing is missing from the catalogue, the fault is the height on the
+   *  placement, and labelling it as a missing declaration sends whoever reads it to the wrong file.
+   *  Reachable from a `wall-cabinet`, `wall-lift` or `open-shelf` built at or below its
+   *  `WALL_DOOR_BAND_INSET_MM`. Names the placement and the build id; the band height that is not a
+   *  door is in `detail`. */
+  | "UNBUILDABLE_DOOR_BAND"
   /** An amount or a total is not an exact safe integer of minor units. */
   | "INVALID_AMOUNT";
 
