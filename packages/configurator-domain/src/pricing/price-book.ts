@@ -230,7 +230,11 @@ export interface HardwareTier extends TierIdentity {
    *  the owner's derivation and they win. A runner *set* is what one drawer takes, and one drawer's
    *  price buys the pair — which is why this field is named for the drawer and not for the runner. */
   readonly perDrawerMinor: number;
-  /** Charged per push-to-open latch, one per opening front on a `handle: "push"` body. */
+  /** Charged per push-to-open latch, one per opening front on a body whose fronts open **without a
+   *  bar** — `isPushToOpen`, not the recorded mode alone (ADR 0092 Amendment C). A body records no
+   *  handle and is still latched: all 16 latches on the seeded kitchen are the top row's, where the
+   *  slot hides the bars and nothing is recorded. Reading `handle: "push"` here is the defect
+   *  wave 6T-a removed, and it billed those 16 at zero. */
   readonly perPushToOpenMinor: number;
 }
 
