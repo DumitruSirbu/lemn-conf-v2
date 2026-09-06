@@ -5,9 +5,9 @@
     "description": "Configurează-ți bucătăria direct în model."
   },
   "configure": {
-    "step": "Pasul 2 din 4",
+    "step": "Pasul {step, number} din {totalSteps, number}",
     "back": "‹ Cameră",
-    "orbitHint": "Atinge un corp pentru a-l edita · trage pentru a roti",
+    "orbitHint": "Atinge un dulap pentru a-l edita · trage pentru a roti",
     "cameraGroupLabel": "Vedere cameră",
     "cameraPresets": {
       "overview": "Vedere generală",
@@ -20,14 +20,14 @@
   "panel": {
     "close": "Închide panoul",
     "done": "Gata",
-    "remove": "Șterge corpul",
+    "remove": "Elimină dulapul",
     "headerMeta": "Perete {wall} · {bandLabel} · {widthMm, number, ::group-off} × {heightMm, number, ::group-off} mm",
     "replaceTitleOccupied": "Înlocuiește",
-    "replaceTitleEmpty": "Pune un corp aici",
+    "replaceTitleEmpty": "Adaugă aici un dulap",
     "bandWords": {
       "base": {
         "one": "bază",
-        "many": "bază"
+        "many": "baze"
       },
       "wall": {
         "one": "suspendat",
@@ -35,15 +35,15 @@
       },
       "column": {
         "one": "coloană",
-        "many": "coloană"
+        "many": "coloane"
       }
     },
-    "countForBody": "{count, plural, one {# corp} few {# corpuri} other {# de corpuri}} {bandWord} de {widthMm, number, ::group-off}",
-    "countForSlot": "{count, plural, one {# corp} few {# corpuri} other {# de corpuri}} intră în {widthMm, number, ::group-off} × {heightMm, number, ::group-off} mm",
-    "noOffersForBody": "Niciun alt corp {bandWord} nu încape aici. Șterge corpul ca să eliberezi deschiderea și să vezi ce intră în ea.",
-    "noOffersForSlot": "Niciun corp din catalog nu intră în {widthMm, number, ::group-off} × {heightMm, number, ::group-off} mm. Șterge un corp vecin ca să lărgești deschiderea.",
-    "noOffersTooWide": "Deschiderea are {widthMm, number, ::group-off} mm, mai mult decât cel mai lat corp din catalog ({maxWidthMm, number, ::group-off} mm). Niciun corp nu o umple singur, iar ștergerea unui vecin ar lărgi-o și mai mult. Spațiul poate rămâne gol, sau îl poți împărți punând la loc un corp lângă el.",
-    "noOffersTooNarrow": "Deschiderea are {widthMm, number, ::group-off} mm, mai puțin decât cel mai îngust corp din catalog ({minWidthMm, number, ::group-off} mm). Spațiul poate rămâne gol; se închide pe măsură ce lărgești corpul de lângă el.",
+    "countForBody": "{count, plural, one {# dulap} few {# dulapuri} other {# de dulapuri}} {bandWord} de {widthMm, number, ::group-off}",
+    "countForSlot": "{count, plural, one {# dulap} few {# dulapuri} other {# de dulapuri}} intră în {widthMm, number, ::group-off} × {heightMm, number, ::group-off} mm",
+    "noOffersForBody": "Niciun alt dulap {bandWord} nu încape aici. Șterge dulapul actual, pentru a obține mai mult spațiu.",
+    "noOffersForSlot": "Niciun dulap din catalog nu intră în {widthMm, number, ::group-off} × {heightMm, number, ::group-off} mm. Șterge un dulap vecin ca să obții mai mult spațiu.",
+    "noOffersTooWide": "Spațiul liber are {widthMm, number, ::group-off} mm, mai mult decât cel mai lat dulap din catalog ({maxWidthMm, number, ::group-off} mm). Niciun dulap nu poate ocupa tot spațiul liber existent. O parte din spațiul liber poate rămâne goală, sau îl poți împărți adăugând un alt dulap lângă el.",
+    "noOffersTooNarrow": "Spațiul liber are {widthMm, number, ::group-off} mm, mai puțin decât cel mai îngust dulap din catalog ({minWidthMm, number, ::group-off} mm). Spațiul poate rămâne gol; se închide pe măsură ce lărgești dulapul de lângă el.",
     "offerSize": "{widthMm, number, ::group-off} × {heightMm, number, ::group-off} mm",
     "currentBadge": "Actual",
     "probeUnavailable": "Modelul 3D se pregătește — poți alege în câteva momente.",
@@ -69,7 +69,7 @@
       "black": "Bară neagră",
       "push": "Push-to-open"
     },
-    "handleDefaultNote": "Implicit pentru acest corp: {label}.",
+    "handleDefaultNote": "Implicit pentru acest dulap: {label}.",
     "widthTitle": "Lățime",
     "widthValue": "{widthMm, number, ::group-off} mm",
     "widthStepLabels": {
@@ -81,10 +81,10 @@
       "wider": "Mărește lățimea cu 50 mm"
     },
     "widthStepNote": "Lățimea se schimbă din 50 în 50 mm, mutând granița coloanei în spațiul liber alăturat — întâi în dreapta, apoi în stânga. Când un buton este gri, sub el scrie de ce.",
-    "widthChoiceNote": "Coloana asta se face doar în lățimile afișate, așa că alegi una dintre ele în loc să reglezi din 50 în 50 mm. Alegerea schimbă lățimea întregii coloane, nu doar a acestui corp.",
-    "structuralTitle": "Corp structural",
+    "widthChoiceNote": "Coloana asta se face doar în lățimile afișate, așa că alegi una dintre ele în loc să reglezi din 50 în 50 mm. Alegerea schimbă lățimea întregii coloane, nu doar a acestui dulap.",
+    "structuralTitle": "Dulap structural",
     "structuralReasons": {
-      "corner": "Colțul ține legătura dintre cei doi pereți, așa că nu poate fi înlocuit, șters sau redimensionat. Alege un corp de lângă el."
+      "corner": "Colțul ține legătura dintre cei doi pereți, așa că nu poate fi înlocuit, șters sau redimensionat. Alege un dulap de lângă el."
     }
   },
   "price": {
@@ -114,7 +114,7 @@
   "globalSettings": {
     "open": "Setări globale",
     "title": "Setări pentru toată bucătăria",
-    "appliesTo": "Se aplică {bodyCount, plural, one {singurului corp din bucătărie} few {tuturor celor # corpuri} other {tuturor celor # de corpuri}}. Nu se setează pe fiecare corp în parte.",
+    "appliesTo": "Se aplică {bodyCount, plural, one {singurului dulap din bucătărie} few {tuturor celor # dulapuri} other {tuturor celor # de dulapuri}}. Nu se setează pe fiecare dulap în parte.",
     "groupHeadings": {
       "material": "Material corp și fronturi",
       "hardware": "Feronerie"
@@ -125,15 +125,15 @@
     },
     "tierDelta": "de la {addedAmount}",
     "materialWarning": "Schimbarea materialului recalculează întreaga estimare.",
-    "depthHeading": "Adâncimea corpurilor",
+    "depthHeading": "Adâncimea dulapurilor",
     "depthOption": "{cabinetDepthMm, number, ::group-off} mm",
-    "depthWarning": "Schimbarea adâncimii reconstruiește toate corpurile și schimbă modelul.",
-    "depthNote": "Adâncimea nu schimbă estimarea — doar dimensiunile corpurilor.",
+    "depthWarning": "Schimbarea adâncimii reconstruiește toate dulapurile și schimbă modelul.",
+    "depthNote": "Adâncimea nu schimbă estimarea — doar dimensiunile dulapurilor.",
     "apply": "Aplică",
     "cancel": "Renunță",
     "materialResetConfirm": {
       "title": "Culorile alese se pierd",
-      "body": "Ai ales alte culori pentru {chosenCount, plural, one {# corp} few {# corpuri} other {# de corpuri}}. Fiecare material are propriile culori, așa că toate revin la culoarea implicită a materialului nou.",
+      "body": "Ai ales alte culori pentru {chosenCount, plural, one {# dulap} few {# dulapuri} other {# de dulapuri}}. Fiecare material are propriile culori, așa că toate revin la culoarea implicită a materialului nou.",
       "confirm": "Schimbă materialul",
       "back": "Păstrează culorile"
     }
@@ -180,34 +180,34 @@
   },
   "catalog": {
     "emptySlot": "Spațiu liber",
-    "unknownKind": "Corp",
+    "unknownKind": "Dulap",
     "bodyLabelWithDoors": "{name} {doors, plural, one {# ușă} few {# uși} other {# de uși}}",
     "kinds": {
-      "base_cabinet": "Corp bază",
+      "base_cabinet": "Dulap bază",
       "dishwasher_housing": "Nișă mașină de spălat vase",
       "induction_cooktop": "Plită cu inducție",
       "tall_unit": "Coloană",
       "fridge_housing": "Nișă frigider integrat",
       "fridge_freestanding": "Frigider",
-      "wall_cabinet": "Corp suspendat",
+      "wall_cabinet": "Dulap suspendat",
       "open_shelf_unit": "Etajeră deschisă",
       "extractor_hood": "Hotă",
-      "corner_base_x": "Corp bază de colț",
+      "corner_base_x": "Dulap bază de colț",
       "corner_base_return": "Racord bază de colț",
       "corner_wall_return": "Dulap suspendat de colț",
       "corner_wall_return_top": "Dulap de colț {rowWord}"
     },
     "entries": {
-      "base-cabinet": "Corp bază",
-      "base-3drawer": "Corp bază 3 sertare",
+      "base-cabinet": "Dulap bază",
+      "base-3drawer": "Dulap bază 3 sertare",
       "base-panbank": "Sertare pentru oale",
-      "base-hob-2drawer": "Corp plită și 2 sertare",
-      "base-hob-oven": "Corp plită și cuptor",
+      "base-hob-2drawer": "Dulap plită și 2 sertare",
+      "base-hob-oven": "Dulap plită și cuptor",
       "base-bottle-cargo": "Cargo îngust pentru sticle",
-      "base-sink": "Corp spălător",
+      "base-sink": "Dulap spălător",
       "base-dishwasher": "Nișă mașină de spălat vase",
-      "wall-cabinet": "Corp suspendat",
-      "wall-lift": "Corp suspendat rabatabil",
+      "wall-cabinet": "Dulap suspendat",
+      "wall-lift": "Dulap suspendat rabatabil",
       "open-shelf": "Etajeră deschisă",
       "hood": "Hotă",
       "tall-pantry": "Coloană cămară",
@@ -217,28 +217,28 @@
     }
   },
   "rejection": {
-    "VOID_SELECTED": "Aici nu se află niciun corp.",
-    "TARGET_NOT_FOUND": "Selecția nu mai există. Alege din nou un corp sau un spațiu liber.",
+    "VOID_SELECTED": "Aici nu se află niciun dulap.",
+    "TARGET_NOT_FOUND": "Selecția nu mai există. Alege din nou un dulap sau un spațiu liber.",
     "INVALID_OCCURRED_AT": "Momentul modificării nu este valid, așa că nu am salvat nimic.",
-    "BODY_PROBE_UNAVAILABLE": "Modelul 3D nu este încă pregătit, așa că nu pot adăuga un corp. Încearcă din nou într-o clipă.",
-    "ACCESSORY_NOT_DELETABLE": "„{label}” face parte din corpul de sub ea și nu poate fi ștearsă separat.",
+    "BODY_PROBE_UNAVAILABLE": "Modelul 3D nu este încă pregătit, așa că nu pot adăuga un dulap. Încearcă din nou într-o clipă.",
+    "ACCESSORY_NOT_DELETABLE": "„{label}” face parte din dulapul de sub ea și nu poate fi ștearsă separat.",
     "NOT_DELETABLE": "„{label}” face parte din structura bucătăriei și nu poate fi șters.",
-    "NOT_IN_LIBRARY": "Corpul acesta nu există în catalog.",
+    "NOT_IN_LIBRARY": "Dulapul acesta nu există în catalog.",
     "NOT_INSERTABLE": "„{label}” face parte din configurația inițială și nu poate fi adăugat din catalog.",
     "TARGET_NOT_REPLACEABLE": "„{label}” face parte din structura bucătăriei și nu poate fi înlocuit.",
-    "BAND_MISMATCH": "{slotBand, select, base {„{label}” este un corp suspendat: nu are soclu și nici blat, deci nu poate sta pe podea.} other {„{label}” este un corp de bază și nu poate fi montat pe perete. Doar coloanele pot depăși un nivel.}}",
-    "WIDTH_TOO_LARGE": "„{label}” are {requiredMm, number, ::group-off} mm lățime, iar deschiderea are doar {availableMm, number, ::group-off} mm.",
-    "WIDTH_TOO_SMALL": "„{label}” are nevoie de cel puțin {requiredMm, number, ::group-off} mm lățime, iar deschiderea are doar {availableMm, number, ::group-off} mm.",
+    "BAND_MISMATCH": "{slotBand, select, base {„{label}” este un dulap suspendat: nu are soclu și nici blat, deci nu poate sta pe podea.} other {„{label}” este un dulap de bază și nu poate fi montat pe perete. Doar coloanele pot depăși un nivel.}}",
+    "WIDTH_TOO_LARGE": "„{label}” are {requiredMm, number, ::group-off} mm lățime, iar spațiul liber are doar {availableMm, number, ::group-off} mm.",
+    "WIDTH_TOO_SMALL": "„{label}” are nevoie de cel puțin {requiredMm, number, ::group-off} mm lățime, iar spațiul liber are doar {availableMm, number, ::group-off} mm.",
     "WIDTH_TOO_SMALL_UNKNOWN_FLOOR": "„{label}” nu poate fi adăugat: lățimea minimă din catalog nu este o valoare validă.",
-    "WIDTH_NOT_SUPPORTED_NO_WIDTH": "„{label}” nu poate fi construit la nicio lățime pe care o acceptă și corpurile de deasupra.",
+    "WIDTH_NOT_SUPPORTED_NO_WIDTH": "„{label}” nu poate fi construit la nicio lățime pe care o acceptă și dulapurile de deasupra.",
     "WIDTH_NOT_SUPPORTED_COLUMN": "„{label}” este într-o coloană care se face {widthsMadeClause}, iar acum are {availableMm, number, ::group-off} mm.",
-    "WIDTH_NOT_SUPPORTED_BODY": "„{label}” se face {widthsMadeClause}, iar deschiderea are {availableMm, number, ::group-off} mm.",
-    "OPENING_TOO_SHORT": "Deschiderea are doar {availableMm, number, ::group-off} mm înălțime; sub {minimumMm, number, ::group-off} mm nu se poate construi un corp.",
+    "WIDTH_NOT_SUPPORTED_BODY": "„{label}” se face {widthsMadeClause}, iar spațiul liber are {availableMm, number, ::group-off} mm.",
+    "OPENING_TOO_SHORT": "Spațiul liber are doar {availableMm, number, ::group-off} mm înălțime; sub {minimumMm, number, ::group-off} mm nu se poate construi un dulap.",
     "HEIGHT_EXCEEDS_LEVEL": "„{label}” are {requiredMm, number, ::group-off} mm înălțime și nu încape pe acest nivel de {availableMm, number, ::group-off} mm. Doar coloanele pot depăși un nivel.",
     "HEIGHT_TOO_LARGE": "„{label}” are {requiredMm, number, ::group-off} mm înălțime, iar spațiul liber are {availableMm, number, ::group-off} mm.",
     "NO_SNAP_POSITION": "„{label}” nu poate fi așezat pe niciuna dintre liniile de modul ale acestei coloane.",
     "BUILT_SIZE_MISMATCH": "„{label}” s-a construit la {builtMm, number, ::group-off} mm în loc de {requiredMm, number, ::group-off} mm, așa că nu l-am așezat.",
-    "MEASUREMENT_UNUSABLE": "Nu am putut măsura corpul „{label}” după ce a fost construit, așa că nu l-am așezat.",
+    "MEASUREMENT_UNUSABLE": "Nu am putut măsura dulapul „{label}” după ce a fost construit, așa că nu l-am așezat.",
     "COLUMN_MISMATCH": "„{label}” ar ieși din coloana în care a fost adăugat.",
     "NOT_RESIZABLE": "„{label}” nu își poate schimba lățimea.",
     "WIDTH_UNCHANGED": "„{label}” are deja {widthMm, number, ::group-off} mm lățime.",
@@ -255,7 +255,7 @@
     "UNKNOWN_HARDWARE_TIER": "Feroneria aleasă nu mai este disponibilă. Alege altă variantă.",
     "UNKNOWN_CABINET_DEPTH": "Adâncimea aleasă nu este disponibilă. Alege una dintre adâncimile oferite.",
     "parts": {
-      "emptySpaceSide": "{side, select, right {în dreapta} other {în stânga}} {reason, select, absent {nu este spațiu liber} too_narrow {spațiul liber este prea îngust} opens_a_gap {s-ar deschide un spațiu liber peste alte corpuri} other {corpul ar ajunge peste altă coloană}}",
+      "emptySpaceSide": "{side, select, right {în dreapta} other {în stânga}} {reason, select, absent {nu este spațiu liber} too_narrow {spațiul liber este prea îngust} opens_a_gap {s-ar deschide un spațiu liber peste alte dulapuri} other {dulapul ar ajunge peste altă coloană}}",
       "sidesJoin": ", iar ",
       "widthsMadeBetween": "între {minMm, number, ::group-off} și {maxMm, number, ::group-off} mm",
       "widthsMadeAt": "la {minMm, number, ::group-off} mm",
