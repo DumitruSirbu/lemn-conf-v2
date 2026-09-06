@@ -77,6 +77,14 @@ export {
   type FrontPopulationRule,
   type PlacedBody,
 } from "./front-population.js";
+export {
+  countHardwareMechanisms,
+  HINGES_PER_DOOR_LEAF,
+  HINGES_PER_TALL_DOOR_LEAF,
+  NO_HARDWARE_MECHANISMS,
+  TALL_DOOR_LEAF_THRESHOLD_MM,
+  type HardwareMechanismCounts,
+} from "./hardware-mechanisms.js";
 // `buildToTheClearanceM` and `shallowerBuildDepthM` stay module-internal: they are how
 // `resolveDepthM` applies the declaration, and a second caller outside this package would be a
 // second way to mint a build depth that no declaration produced — the defect ADR 0060 closes.

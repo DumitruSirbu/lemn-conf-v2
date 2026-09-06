@@ -215,12 +215,50 @@ const SAMPLE_CABINET_RULES: readonly CabinetPriceRule[] = [
 ];
 
 /**
+ * **PENDING OWNER INPUT — drafted placeholders with no supplier source** (ADR 0092 decision 3, open
+ * input 1). Every other amount in this book traces to a figure the owner gathered on 2026-09-04;
+ * **these three trace to nothing.** ADR 0070 priced hinges and drawers and published no
+ * push-to-open figure at all, and no number anywhere in this repository supports one.
+ *
+ * Their **ordering** follows each tier's own hinge rate, which is the only defensible relation
+ * available. Their **magnitudes are not evidence of anything** and must not be quoted as a price.
+ *
+ * **Nothing asserted depends on them.** The seeded kitchen carries no `handle: "push"` placement, so
+ * every reconciliation in this wave is computed at zero push mechanisms — which is the condition
+ * under which shipping a drafted amount is safe, and the condition a fixture adding a push placement
+ * to a reconciled total would silently break.
+ *
+ * **They are non-zero on purpose.** The defect ADR 0070 exists to remove is a push-to-open kitchen
+ * billing its hardware at exactly zero; a zero placeholder would reinstate it while looking
+ * implemented.
+ */
+const DRAFTED_PUSH_TO_OPEN_MINOR = {
+  standard: 4_000,
+  hettich: 12_000,
+  blum: 10_000,
+} as const;
+
+/**
  * A provisional sample book. **Not a quote, not a price list, and not checked against anything.**
  *
- * The hardware tiers are priced **per cabinet handle** (ADR 0061 decision 2) and the material tiers
- * once for the whole kitchen, which is the shape the 2E sheet renders as a single delta. Both
- * default tiers cost nothing, so an unconfigured kitchen carries two lines at zero — the breakdown
- * renders *inclus* for them, and a line at zero is not the same thing as a rule that is missing.
+ * The hardware tiers are priced **per mechanism** (ADR 0070 decision 1) — three rates multiplied by
+ * the hinge, drawer and push-to-open counts `countHardwareMechanisms` answers — and the material
+ * tiers once for the whole kitchen, which is the shape the 2E sheet renders as a single delta.
+ *
+ * **The two defaults are no longer alike, and that asymmetry is deliberate and open.** The default
+ * *material* tier still costs nothing, so an unconfigured kitchen's material line is zero and the
+ * breakdown renders *inclus* for it. The default *hardware* tier no longer does: Standard prices the
+ * seeded kitchen's mechanisms at `450_240` minor, because ADR 0070's own totals table is the only
+ * figure on record for what a Standard tier costs and it says ~5 100 MDL rather than 0.
+ *
+ * **Whether the customer's Standard hardware line should be that number or zero is an owner input**
+ * (ADR 0092 decision 15, open input 6): it decides whether the quoted cabinet price includes
+ * standard hardware or hardware is billed on top of it, and no dated record has ever ruled it. The
+ * absolute model ships as the interim because the alternative — a line pricing the difference from
+ * the default — goes **negative** on a drawer-dominant design and fails `priceDesign` whole, so the
+ * price bar would render no figure at all.
+ *
+ * A line at zero is still not the same thing as a rule that is missing, in either group.
  */
 export const SAMPLE_PRICE_BOOK: PriceBook = {
   version: SAMPLE_PRICE_BOOK_VERSION,
@@ -230,27 +268,49 @@ export const SAMPLE_PRICE_BOOK: PriceBook = {
   cabinetRules: SAMPLE_CABINET_RULES,
   hardware: {
     defaultTierId: "hardware.standard",
+    // **The tier ids are opaque keys and two of them no longer describe their tier.** They are
+    // **persisted** in `DesignSettings.hardwareTierId`, so renaming one refuses every stored design
+    // carrying it with `UNKNOWN_TIER` and owes a migration that ADR 0072 places in the dashboard era
+    // — so ADR 0092 decision 7 renamed the six customer-facing strings and moved no id. Read them
+    // as: `hardware.soft-close` **is Hettich**, `hardware.premium` **is Blum**. Neither id is a
+    // claim about soft-close or about a premium grade any more.
     tiers: [
       {
         tierId: "hardware.standard",
         ruleId: "hardware.standard",
         name: "Standard",
-        description: "Balamale și glisiere standard, incluse în preț.",
-        perCabinetHandleMinor: 0,
+        // **Says it has no soft-close**, which ADR 0070 decision 3 calls a functional difference the
+        // customer feels on every door rather than a cheaper version of the same mechanism. It no
+        // longer says *incluse în preț*: this tier's mechanisms are now billed, and a description
+        // asserting the opposite of the book's own numbers is worse than one pending review.
+        description: "Balamale și glisiere fără amortizare, închidere simplă.",
+        perHingeMinor: 1_760,
+        perDrawerMinor: 64_000,
+        perPushToOpenMinor: DRAFTED_PUSH_TO_OPEN_MINOR.standard,
       },
       {
         tierId: "hardware.soft-close",
         ruleId: "hardware.soft-close",
-        name: "Închidere lentă",
-        description: "Balamale și glisiere cu amortizare pe fiecare front.",
-        perCabinetHandleMinor: 4_500,
+        name: "Hettich",
+        description: "Balamale și glisiere cu amortizare, de la Hettich.",
+        perHingeMinor: 8_500,
+        // **Understated, and staying that way.** ADR 0070's Hettich drawer figure is a
+        // **runners-only** product line while Standard's and Blum's are complete boxes — box sides
+        // included — so this number is missing a cost the other two carry. The owner ruled it
+        // explicitly: *"for Hettich use it as it is"*. **A wave that quietly makes the three
+        // comparable has overturned a decision**, and it is this understatement that makes Hettich
+        // cheaper per drawer than Standard and opens wave 6W.
+        perDrawerMinor: 62_600,
+        perPushToOpenMinor: DRAFTED_PUSH_TO_OPEN_MINOR.hettich,
       },
       {
         tierId: "hardware.premium",
         ruleId: "hardware.premium",
-        name: "Premium",
-        description: "Feronerie premium, cu deschidere completă și amortizare.",
-        perCabinetHandleMinor: 9_000,
+        name: "Blum",
+        description: "Balamale și glisiere cu amortizare, de la Blum.",
+        perHingeMinor: 7_500,
+        perDrawerMinor: 83_700,
+        perPushToOpenMinor: DRAFTED_PUSH_TO_OPEN_MINOR.blum,
       },
     ],
   },

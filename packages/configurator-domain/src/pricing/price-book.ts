@@ -210,10 +210,28 @@ export interface TierIdentity {
   readonly description: string;
 }
 
-/** A hardware tier, priced **per cabinet handle** — the quantity ADR 0061 decision 2 defines, which
- *  is not the number of handle bars a builder draws. */
+/** A hardware tier, priced **per mechanism** — ADR 0070 decision 1, which replaced the per-handle
+ *  basis rather than extending it. A handle and a mechanism are different cost drivers, and a
+ *  `handle: "push"` body carries mechanisms and no handle at all, so the old quantity billed a whole
+ *  push-to-open kitchen at exactly zero.
+ *
+ *  Three rates because there are three mechanisms and they are priced independently — a tier can be
+ *  the dearest on hinges and the cheapest on drawers, which is measurably true of Hettich and is the
+ *  argument for pricing a whole design at each tier rather than by a flat per-tier figure.
+ *
+ *  `countHardwareMechanisms` (`hardware-mechanisms.ts`) answers the three quantities these are
+ *  multiplied by. It lives outside `pricing/` on purpose: a mechanism count is a fact about bodies,
+ *  not about money. */
 export interface HardwareTier extends TierIdentity {
-  readonly perCabinetHandleMinor: number;
+  /** Charged per hinge — 2 on a door leaf, 3 on one taller than 900 mm. */
+  readonly perHingeMinor: number;
+  /** Charged **per drawer, not per runner** (ADR 0092 decision 2). ADR 0070's prose says *"2
+   *  mechanisms per drawer"* and its own totals bill 5 drawers at 640 to reach 3 200; the totals are
+   *  the owner's derivation and they win. A runner *set* is what one drawer takes, and one drawer's
+   *  price buys the pair — which is why this field is named for the drawer and not for the runner. */
+  readonly perDrawerMinor: number;
+  /** Charged per push-to-open latch, one per opening front on a `handle: "push"` body. */
+  readonly perPushToOpenMinor: number;
 }
 
 /** A material tier, priced once for the whole kitchen — the 2E sheet's *de la +9 000* delta. */
@@ -345,15 +363,21 @@ function doorLeafTerm(
  *  keeps.
  *
  *  The tier amounts sit in the same union because they arrive through the same ADR 0062 seam 1
- *  population and fail in the same way: `perCabinetHandleMinor` and `wholeKitchenMinor` are read
- *  straight off a book assembled outside TypeScript, and a `null` there multiplies to a perfectly
- *  exact `0` that the breakdown renders *inclus*. */
+ *  population and fail in the same way: a hardware rate and `wholeKitchenMinor` are read straight
+ *  off a book assembled outside TypeScript, and a `null` there multiplies to a perfectly exact `0`
+ *  that the breakdown renders *inclus*.
+ *
+ *  **The three hardware rates are three fields and not one**, so a book that declares a usable hinge
+ *  rate and an unusable drawer rate refuses naming the drawer — a single field would name the tier
+ *  and leave the reader to find which of the three was wrong. */
 export type PriceCoefficientField =
   | "baseMinor"
   | "perWidthMillimetreMinor"
   | "perHeightMillimetreMinor"
   | "perDoorLeafMinor"
-  | "perCabinetHandleMinor"
+  | "perHingeMinor"
+  | "perDrawerMinor"
+  | "perPushToOpenMinor"
   | "wholeKitchenMinor";
 
 /**

@@ -109,6 +109,10 @@ export type PricingFailureCode =
   | "UNKNOWN_TIER"
   /** A catalogue entry declares no usable cabinet-handle count (ADR 0061 decision 4). */
   | "UNDECLARED_HANDLE_COUNT"
+  /** A catalogue entry declares no usable front population, so its hinges, drawers and push-to-open
+   *  latches cannot be counted (ADR 0092 decision 1). **Never read as zero mechanisms**: that would
+   *  price a whole kitchen's hardware at nothing and look implemented. */
+  | "UNDECLARED_FRONT_POPULATION"
   /** An amount or a total is not an exact safe integer of minor units. */
   | "INVALID_AMOUNT";
 
