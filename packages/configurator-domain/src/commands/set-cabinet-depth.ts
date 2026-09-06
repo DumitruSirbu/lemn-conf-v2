@@ -19,14 +19,17 @@ import {
   alongWallShiftByColumnMm,
 } from "../along-wall-chain-shift.js";
 import { depthFollowsSetting } from "../cabinet-depth-rule.js";
-import { frozenMapAtCabinetDepth } from "../frozen-map-at-cabinet-depth.js";
+import {
+  frozenExtentsSlidAlongTheWall,
+  frozenMapAtCabinetDepth,
+} from "../frozen-map-at-cabinet-depth.js";
 import { seatRuleOf, type SeatRule } from "../seat-rule.js";
 import type { BodyProbe, BodyProbeFactory } from "../body-probe.js";
 import { cabinetDepthMmOf } from "../design.js";
 import type { Design, DesignPlacement } from "../design.js";
 import { toMetres, toMillimetres } from "../millimetres.js";
 import {
-  deriveColumns,
+  deriveColumnsOverFrozenExtents,
   deriveRecordedColumns,
   derivePlacementRecords,
   projectFrozenMap,
@@ -140,6 +143,10 @@ interface RebuiltDesign {
    *  caller cannot pair one depth with another's map (see that type), and a second `catalogAt` call
    *  here would be a second place the pairing could go wrong. */
   readonly catalog: BodyCatalog;
+  /** The run as it stood before the command, derived inside the rebuild and carried out rather than
+   *  derived a second time beside the republish: the planning map and the republished map are built
+   *  from the same slide, and two derivations of it are two runs. */
+  readonly held: HeldRunAcrossTheCommand;
 }
 
 type Rebuilt =
@@ -162,9 +169,25 @@ function rebuildEveryBodyAt(
   // accident: the records, the columns derived from them, and the design `rebuild` itself reads.
   const planning = planningDesign(input, catalog);
   const records = derivePlacementRecords(planning, catalog);
-  // `{}` rather than the document's frozen extents: ADR 0011 Gap D freezes a column's extent at the
-  // depth it was loaded at, and this command changes exactly that. Re-deriving is the point.
-  const columns = deriveColumns(records, {}, planning.room);
+  const held = heldRunAcrossTheCommand(input, catalog);
+  // **The frozen extent on the vertical and along-wall axes, the records on the depth axis**
+  // (ADR 0088 decision 1, as ADR 0090 decision 6 amends it). This used to be
+  // `deriveColumns(records, {}, room)`. The `{}` was right about the depth — §3.2's MAX is the fact
+  // this command changes, and re-taking it at the new setting is the point — and it discarded `top`,
+  // `regions` and `w` with it, which ADR 0011 Gap D froze precisely because the placements no longer
+  // imply them. Two ordinary deletes then collapsed `A|2.00` from 2600 to 820 mm and the rebuild
+  // refused §7's own 860 mm base body.
+  const columns = deriveColumnsOverFrozenExtents(
+    records,
+    frozenExtentsSlidAlongTheWall({
+      frozen: held.frozen,
+      catalog,
+      cabinetDepthMm: input.cabinetDepthMm,
+      previousCabinetDepthMm: held.previousCabinetDepthMm,
+      membersShiftMmByColumn: held.membersShiftMmByColumn,
+    }),
+    planning.room,
+  );
   const widthInput: SetWidthInput = {
     design: planning,
     catalog,
@@ -231,7 +254,61 @@ function rebuildEveryBodyAt(
     placements.push(written.value);
     rebuiltCount += 1;
   }
-  return { ok: true, value: { placements, rebuiltCount, catalog } };
+  return { ok: true, value: { placements, rebuiltCount, catalog, held } };
+}
+
+/** The run as it stood **before** this command, in the three forms both of its maps need.
+ *
+ *  Both maps are built from it: the planning map every rebuilt body is fitted against, and the
+ *  frozen map the result publishes. Derived once so the two cannot describe two different runs — the
+ *  failure ADR 0090 measured, where the map kept the coordinates the command had just left and four
+ *  standing runs were filed under no column at all.
+ *
+ *  **Its three fields do not share one key space, and the name says nothing about coordinates for
+ *  that reason.** Two of them are keyed where the run is *leaving*, because that is what their
+ *  consumers require; only `previousRecords` is keyed where it is arriving. Each field says which
+ *  below, because in this file a name claiming one key space for all three is the hazard. */
+interface HeldRunAcrossTheCommand {
+  /** The frozen map as the pre-command document records it, **at the coordinates and depths it was
+   *  holding** — the operand `frozenExtentsSlidAlongTheWall` moves, so it is pre-slide by
+   *  requirement rather than by omission.
+   *
+   *  **The recorded face, never the published one** (ADR 0090 Amendment B). `deriveColumns` ends in
+   *  ADR 0069's wall-end cap, and a map this command slides and then writes back into the document
+   *  must not carry a truncation the room imposed at one setting: a space flush to wall B's end went
+   *  600 → 500 mm at 700 and kept the 500 on the way back to 600. */
+  readonly frozen: ReadonlyMap<string, Column>;
+  /** How far each column's members moved along their wall, **by the key that column had before the
+   *  command** — rung 2 of `alongWallExtentPositionAtMm`'s ladder, and the one rung that is exact.
+   *  Keyed the leaving way because the extent it is looked up for has not moved yet. */
+  readonly membersShiftMmByColumn: ReadonlyMap<string, number>;
+  /** The same bodies as they stood before the command, read through the catalogue of the depth
+   *  being *left* and **re-keyed at the coordinates they are arriving at** — the one field of the
+   *  three that is, so all three of `frozenMapAtCabinetDepth`'s operands share one key space. */
+  readonly previousRecords: readonly PlacementRecord[];
+  readonly previousCabinetDepthMm: number;
+}
+
+function heldRunAcrossTheCommand(
+  input: SetCabinetDepthInput,
+  catalog: BodyCatalog,
+): HeldRunAcrossTheCommand {
+  const previousCabinetDepthMm = cabinetDepthMmOf(input.design);
+  const previousCatalog = input.catalogAt(previousCabinetDepthMm);
+  // The same bodies twice, at the setting being left: where they stood, and where the corner leaves
+  // them. Their difference is the ladder's exact rung and the `explains` operand's key space, and
+  // both come from one pair so the two cannot describe different runs.
+  const heldRecords = derivePlacementRecords(input.design, previousCatalog);
+  const slidRecords = derivePlacementRecords(
+    heldDesignSlidAlongTheWall(input, catalog),
+    previousCatalog,
+  );
+  return {
+    frozen: deriveRecordedColumns(heldRecords, storedFrozenMapOf(input.design)),
+    membersShiftMmByColumn: alongWallShiftByColumnMm(heldRecords, slidRecords),
+    previousRecords: slidRecords,
+    previousCabinetDepthMm,
+  };
 }
 
 /** The command's three inputs to the frozen-map answer, in one place. */
@@ -261,41 +338,26 @@ interface RepublishedFrozenMap {
  *  - the **pre-command records, re-keyed at the new coordinates** — the same bodies with the same
  *    stored seats read through the catalogue of the depth being *left*, moved onto the chain their
  *    entries declare so that all three operands share one key space. Keyed the old way this operand
- *    answers for no column on wall B and every one of them falls into ADR 0080's surplus arm. */
+ *    answers for no column on wall B and every one of them falls into ADR 0080's surplus arm.
+ *
+ *  The last two are `HeldRunAcrossTheCommand`, and they are **read off the rebuild rather than
+ *  re-derived here**: the rebuild plans against the same slide, and a second derivation of it is a
+ *  second author for where the run stands. */
 function republishedFrozenMap(query: RepublishQuery): RepublishedFrozenMap {
   const { input, rebuilt, design } = query;
-  const previousCabinetDepthMm = cabinetDepthMmOf(input.design);
-  const previousCatalog = input.catalogAt(previousCabinetDepthMm);
+  const { held } = rebuilt;
   const records = derivePlacementRecords(design, rebuilt.catalog);
-  // The same bodies twice, at the setting being left: where they stood, and where the corner leaves
-  // them. Their difference is the ladder's exact rung and the `explains` operand's key space, and
-  // both come from one pair so the two cannot describe different runs.
-  const heldRecords = derivePlacementRecords(input.design, previousCatalog);
-  const slidRecords = derivePlacementRecords(
-    heldDesignSlidAlongTheWall(input, rebuilt.catalog),
-    previousCatalog,
-  );
   return {
     records,
     columns: frozenMapAtCabinetDepth({
-      // **The recorded face, never the published one** (ADR 0090 Amendment B). `deriveColumns`
-      // ends in ADR 0069's wall-end cap, and a map this command slides and then writes back into
-      // the document must not carry a truncation the room imposed at one setting: a space flush to
-      // wall B's end went 600 → 500 mm at 700 and kept the 500 on the way back to 600.
-      frozen: deriveRecordedColumns(
-        heldRecords,
-        storedFrozenMapOf(input.design),
-      ),
+      frozen: held.frozen,
       records,
-      previousRecords: slidRecords,
-      membersShiftMmByColumn: alongWallShiftByColumnMm(
-        heldRecords,
-        slidRecords,
-      ),
+      previousRecords: held.previousRecords,
+      membersShiftMmByColumn: held.membersShiftMmByColumn,
       room: design.room,
       catalog: rebuilt.catalog,
       cabinetDepthMm: input.cabinetDepthMm,
-      previousCabinetDepthMm,
+      previousCabinetDepthMm: held.previousCabinetDepthMm,
     }),
   };
 }
