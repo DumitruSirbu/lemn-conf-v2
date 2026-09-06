@@ -107,7 +107,10 @@ export type PricingFailureCode =
   | "UNKNOWN_FORMULA_SHAPE"
   /** A selection, or a book's own default, names a tier the book does not hold. */
   | "UNKNOWN_TIER"
-  /** A catalogue entry declares no usable cabinet-handle count (ADR 0061 decision 4). */
+  /** The row a body is **priced as** declares no usable door-leaf count, so the price's door step
+   *  cannot be taken (`describePricedBody`). The name is older than what the code means by it: since
+   *  wave 6T this is raised on the door-step path alone, never on a hardware quantity — a body whose
+   *  mechanisms cannot be counted raises `UNDECLARED_FRONT_POPULATION` instead. */
   | "UNDECLARED_HANDLE_COUNT"
   /** A catalogue entry declares no usable front population, so its hinges, drawers and push-to-open
    *  latches cannot be counted (ADR 0092 decision 1). **Never read as zero mechanisms**: that would

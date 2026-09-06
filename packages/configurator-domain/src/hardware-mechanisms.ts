@@ -62,7 +62,8 @@ const PUSH_TO_OPEN_HANDLE: Handle = "push";
  * **Every mechanism this design's bodies carry**, summed over the projection.
  *
  * **Read from each placement's own catalogue entry, never from the row it is priced as.** This is
- * the same split `countCabinetHandles` already makes and it is load-bearing for the same reason
+ * the far side of the split `describePricedBody` (`pricing/price-design.ts`) makes for the door-step
+ * leaf count, which it reads off the priced-as row for the same load-bearing reason
  * (ADR 0092 decision 1): a price *rule* belongs to the catalogue row a body is named after
  * (ADR 0022), while a mechanism is a property of the body standing in the kitchen.
  *

@@ -708,8 +708,8 @@ const WHOLE_KITCHEN_QUANTITY = 1;
  * the shape `evaluateFormula` already has for the cabinet path.
  *
  * **`refuseUnpublishableAmount` cannot stand in for this and never could.** A `null`, `false`, `[]`
- * or `""` amount multiplied by a handle count is `0`: exact, non-negative, and published as a line
- * the breakdown renders *inclus* — omission read as "included", which is the one reading
+ * or `""` amount multiplied by a mechanism count is `0`: exact, non-negative, and published as a
+ * line the breakdown renders *inclus* — omission read as "included", which is the one reading
  * `priceWholeKitchen` exists to prevent. `true` is worse still: a whole material upgrade billed at
  * one ban.
  */

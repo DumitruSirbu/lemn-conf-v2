@@ -2,21 +2,23 @@
 //
 // Frames 2E / D2E print *inclus* against one tier and *de la +9 000* against the next. Neither
 // number is readable off the book: `wholeKitchenMinor` is a whole-kitchen amount only by accident of
-// the material group's shape, and `perCabinetHandleMinor` is a **per-handle rate** (ADR 0061
-// decision 2), so a surface that rendered the book's figure would be quoting a hardware price nobody
-// pays. So a tier's delta here is **the whole design priced at that tier, less the same design
-// priced at the group's own `defaultTierId`** — six evaluations of a pure query, one per offered
-// tier, with the *other* group held at whatever the design already carries. The material term and
-// the hardware term are both additive, so the held group cancels out of every difference.
+// the material group's shape, and a hardware tier states three **per-mechanism rates** —
+// `perHingeMinor`, `perDrawerMinor` and `perPushToOpenMinor` (ADR 0070 decision 1) — so a surface
+// that rendered the book's figure would be quoting a hardware price nobody pays. So a tier's delta
+// here is **the whole design priced at that tier, less the same design priced at the group's own
+// `defaultTierId`** — six evaluations of a pure query, one per offered tier, with the *other* group
+// held at whatever the design already carries. The material term and the hardware term are both
+// additive, so the held group cancels out of every difference.
 //
 // **This module names no price book** (ADR 0062 seam 1): it takes one, exactly as `priceDesign`
 // does, and `use-priced-design.ts` remains the one module in this application that names the sample.
 // `whole-kitchen-tiers.seams.test.ts` reads the source tree and holds that to one module.
 //
-// **It computes no door, leaf or handle count and must not start.** How many things a hardware tier
-// is billed for is wave 6B's, settled per cabinet handle by ADR 0061 decision 2 and already inside
-// `priceDesign`. A surface reaching for `deriveDoorCount` or `widthDerivedDoorLeafCount` would be
-// pricing a second time, on a denominator nobody ruled — the failure M6's plan warns about by name.
+// **It computes no door, leaf or mechanism count and must not start.** How many things a hardware
+// tier is billed for is settled per mechanism — hinges, drawers and push-to-open latches — by
+// ADR 0070 decision 1, and is already inside `priceDesign`. A surface reaching for `deriveDoorCount`
+// or `widthDerivedDoorLeafCount` would be pricing a second time, on a denominator nobody ruled —
+// the failure M6's plan warns about by name.
 import {
   priceDesign,
   type BodyCatalog,

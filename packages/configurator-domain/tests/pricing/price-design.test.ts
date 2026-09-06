@@ -315,6 +315,21 @@ describe("the price steps where the door count does, and nowhere else", () => {
     ).toBe(0);
     expect(ruleFor("base-sink").formula.shape).toBe("linear-in-width");
   });
+
+  it("refuses a body whose entry declares no count, rather than billing zero", () => {
+    const undeclared = catalogDeclaringNoHandles("wall-cabinet");
+    const result = priceDesign({
+      design: designOf([placedAt({ id: "x" })]),
+      catalog: undeclared,
+      book: BOOK,
+      pricingVersion: BOOK.version,
+    });
+
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.failure.code).toBe("UNDECLARED_HANDLE_COUNT");
+    expect(result.failure.placementId).toBe("x");
+  });
 });
 
 describe("a body built to its opening is priced by the height it was built to", () => {
@@ -572,7 +587,20 @@ describe("the mechanism count comes from the placement's own entry", () => {
     );
   }
 
-  it("bills the oven tower for two handles, not the four bars its builder draws", () => {
+  it("holds the oven tower's declared handle count at two", () => {
+    // The declared count the mesh parity gate holds, read straight off the row — ADR 0061's two,
+    // against the four bars the builder draws. It has no production reader since wave 6T and this
+    // is what keeps it from silently drifting.
+    expect(
+      cabinetHandleCount({
+        buildId: "tall-oven-tower-600",
+        rule: CATALOG.get("tall-oven-tower-600")?.cabinetHandles,
+        widthMm: 600,
+      }),
+    ).toBe(2);
+  });
+
+  it("bills the oven tower off its own mechanisms", () => {
     const tower = designOf([
       {
         id: "t",
@@ -593,17 +621,6 @@ describe("the mechanism count comes from the placement's own entry", () => {
       pricingVersion: BOOK.version,
       selections: PREMIUM,
     });
-
-    // The declared count the mesh parity gate holds, read straight off the row — ADR 0061's two,
-    // against the four bars the builder draws. It has no production reader since wave 6T and this
-    // is what keeps it from silently drifting.
-    expect(
-      cabinetHandleCount({
-        buildId: "tall-oven-tower-600",
-        rule: CATALOG.get("tall-oven-tower-600")?.cabinetHandles,
-        widthMm: 600,
-      }),
-    ).toBe(2);
 
     const line = hardwareLineOf(priced);
     expect(line.quantity).toBe(1);
@@ -693,21 +710,6 @@ describe("the mechanism count comes from the placement's own entry", () => {
     expect(line.amountMinor).toBe(
       expectedHardwareAmount(KITCHEN_L_DESIGN, CATALOG),
     );
-  });
-
-  it("refuses a body whose entry declares no count, rather than billing zero", () => {
-    const undeclared = catalogDeclaringNoHandles("wall-cabinet");
-    const result = priceDesign({
-      design: designOf([placedAt({ id: "x" })]),
-      catalog: undeclared,
-      book: BOOK,
-      pricingVersion: BOOK.version,
-    });
-
-    expect(result.ok).toBe(false);
-    if (result.ok) return;
-    expect(result.failure.code).toBe("UNDECLARED_HANDLE_COUNT");
-    expect(result.failure.placementId).toBe("x");
   });
 });
 

@@ -1,12 +1,12 @@
 // Wave 6G's measured deltas, and the book shape that keeps them measurable.
 //
-// **The assertion that matters is that a delta is not the book's own number.** Both hardware tiers
-// that cost anything are stated *per cabinet handle* (ADR 0061 decision 2), so a surface that
-// rendered `perCabinetHandleMinor` would print a per-handle rate as a whole-kitchen figure — a
-// number the customer would read as the price of the upgrade and which is wrong by the number of
-// handles in their kitchen. Every case below compares against a second, independent evaluation of
-// `priceDesign` rather than against a literal, so nothing here can agree with the book by
-// transcription.
+// **The assertion that matters is that a delta is not the book's own number.** Every hardware tier
+// costs something, and each states three *per-mechanism* rates — `perHingeMinor`, `perDrawerMinor`
+// and `perPushToOpenMinor` (ADR 0070 decision 1) — so a surface that rendered any one of them would
+// print a per-mechanism rate as a whole-kitchen figure: a number the customer would read as the
+// price of the upgrade and which is wrong by the number of mechanisms in their kitchen. Every case
+// below compares against a second, independent evaluation of `priceDesign` rather than against a
+// literal, so nothing here can agree with the book by transcription.
 import {
   KITCHEN_L_BODY_CATALOG,
   KITCHEN_L_DESIGN,
