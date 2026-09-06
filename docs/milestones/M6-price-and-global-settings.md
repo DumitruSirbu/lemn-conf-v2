@@ -322,8 +322,9 @@ constant (`worktop-depth.ts` carries a comment saying the rename is owed and def
 | 6R — three control shapes, six decors the 3D approximates, and a strip that wraps *(ADR 0071, ADR 0082)* — **DONE 2026-09-06, `aa6ad9e`** (one commit with 6R-b) | G | 6Q, 6G | Light + visual |
 | 6R-b — the strip gets its own row, and containment is measured against its own band *(opened by [ADR 0094](../decisions/0094-the-strip-gets-its-own-row-and-containment-is-measured-against-its-own-band.md), which amends ADR 0082 decision 1 — **6R did not close without it**)* — **DONE 2026-09-06, `aa6ad9e`** (one commit with 6R) | G | **6R — the same two stylesheets, never in parallel** | Light + visual |
 | 6S — door leaves, drawers and door band heights become declared facts *(ADR 0070)* — **DONE 2026-09-04, `280daa4`/`a2bff48`** | P | none | Full |
-| 6T — hardware priced per mechanism *(ADR 0070, planned by ADR 0092)* | P | 6S, 6B2 — **lands on one branch with 6W** | Full |
-| 6T2 — the two sink extras *(ADR 0070 decision 4, ADR 0092 decisions 9–11)* | P | 6T — **same files, never in parallel; and never beside 6P** | Full |
+| 6T — hardware priced per mechanism *(ADR 0070, planned by ADR 0092)* | P | 6S, 6B2 — **lands on one branch with 6W and 6T-a** | Full |
+| 6T-a — one push-to-open predicate *(opened by [ADR 0092](../decisions/0092-hardware-prices-three-mechanisms-and-a-sink-carries-two-extras.md) Amendment C, on the owner's ruling of 2026-09-06 — 6T counts a latch only on a **recorded** mode, so the demo's 16 top-row latches bill at zero)* | P | 6T — **same branch, reaches `main` with 6T and 6W; never in parallel with 6T, 6T2 or 6P** | Full |
+| 6T2 — the two sink extras *(ADR 0070 decision 4, ADR 0092 decisions 9–11)* | P | 6T — **same files, never in parallel; and never beside 6P or 6T-a** | Full |
 | 6W — a tier that prices below the default *(ADR 0092 decision 12)* | P | 6T — **same branch, reaches `main` with it** | Full |
 | 6U — the hob holds its reach, and a deeper worktop grows behind it *(ADR 0087; wave 6I's unraised question, owner 2026-09-05)* — **DONE 2026-09-06, `38d5cad`** | D | none — **after 6Q**, and it gates nothing | Full + visual |
 | 6V — a selection is counted by what changed, not by what colour it is *(opened by [ADR 0091](../decisions/0091-an-instruments-premise-is-re-quantified-and-the-product-claim-inside-it-becomes-a-wave.md) decision 6 — the debt wave 6R was obliged to carry rather than discharge)* | — | **6R — gated by it**, and it gates nothing | Test infra + one product fix |
@@ -5515,12 +5516,18 @@ population must become a **mechanism** count, or it asserts the superseded basis
   every catalogue entry at every legal size: the only leaves over 900 mm in the catalogue are the
   pantry's 1290s and the fridge housing's 1350. This is what makes the owner's *no height rule*
   ruling and the 900 mm threshold consistent rather than merely coexisting.
-- **The seeded kitchen counts 74 hinges, 5 drawers and 0 push mechanisms.** ADR 0070's figure,
-  derived by the owner before the declarations existed — **an independent derivation, which is the
-  only reason the check means anything. If the two disagree the declaration is wrong and the wave
-  stops**; it does not adjust the expected number to whatever the code produces.
-- **A push-to-open cabinet's hardware is not zero**, asserted on a design where every placement
-  carries `handle: "push"`, pinned from the failing side.
+- **The seeded kitchen counts 74 hinges, 5 drawers and ~~0~~ 16 push mechanisms** (ADR 0092
+  Amendment C). ADR 0070's hinge and drawer figures are the owner's, derived before the declarations
+  existed — **an independent derivation, which is the only reason the check means anything. If the
+  two disagree the declaration is wrong and the wave stops**; it does not adjust the expected number
+  to whatever the code produces. **The 16 is not ADR 0070's** — that record published no push row —
+  and it is derived independently too: `p15`–`p23` are nine top-row placements carrying 16 leaves and
+  no drawers. **This criterion is wave 6T-a's to land**; 6T as planned answers 0.
+- ~~**A push-to-open cabinet's hardware is not zero**, asserted on a design where every placement
+  carries `handle: "push"`, pinned from the failing side.~~ **Superseded by 6T-a** (ADR 0092
+  Amendment C): stamping `handle: "push"` onto *every* placement stamps it onto bodies whose
+  definition refuses a mode, so the fixture demonstrates the wrong direction of the defect. 6T-a
+  replaces it with three witnesses.
 - **The hardware line stays one line, `quantity: 1`**, its unit amount the whole kitchen's hardware
   at that tier, and `amountMinor === quantity × unitAmountMinor` still holds.
 - **Each of the three rates refuses on its own.** Set to `null`, to `1.5` and to a string
@@ -5538,6 +5545,10 @@ population must become a **mechanism** count, or it asserts the superseded basis
   the leu; Standard 2.40 MDL above, which is the owner's rounding of 1 302.40 to 1 300. **The
   `510_240` / `1_002_000` / `1_033_500` totals include 6T2's sink extras and are 6T2's check, not
   this wave's** — ADR 0092 Amendment A; a 6T criterion naming them is one 6T fails by construction.
+  **ADR 0092 Amendment C: `450_240` / `942_000` / `973_500` remain the hinge-and-drawer figures and
+  remain what reconciles against ADR 0070. They stop being the whole hardware line once 6T-a lands** —
+  the line is those figures plus `16 × the tier's declared push rate` — so a criterion asserting the
+  hardware **line** equals `450_240` is one 6T-a restates rather than extends.
 - **The Standard tier's hardware line stops being zero, and nothing in the book keeps claiming
   otherwise.** The seeded default line goes from `0` to `450_240`. In the same wave the tier's
   description stops saying *incluse în preț* and the sample book's doc comment stops saying both
@@ -5570,8 +5581,152 @@ population must become a **mechanism** count, or it asserts the superseded basis
 
 - **Every 2E delta changes by a large factor**, and the two rulings that make it visible — the
   delta's anchor and ADR 0001 decision 4's rounding-up — are not this wave's to revisit.
-- **A sample-data edit can silently reorder Hettich and Blum**, since this kitchen is hinge-dominated
-  and a drawer-heavy one swaps them. Pin the order as a sample-book regression.
+- ~~**A sample-data edit can silently reorder Hettich and Blum**, since this kitchen is
+  hinge-dominated and a drawer-heavy one swaps them. Pin the order as a sample-book regression.~~
+  **ADR 0092 Amendment C: the risk has occurred, and pinning the order would now pin a placeholder.**
+  With 6T-a's corrected predicate the drafted push rates alone put Hettich (11 340 MDL) above Blum
+  (11 335) on this kitchen. A regression pinning *"Blum is dearest"* freezes an ordering no supplier
+  figure supports; one pinning *"Hettich is dearest"* freezes the placeholder. **Pin neither.** Pin
+  the arithmetic instead — each tier's hardware total equals its three declared rates times the three
+  counts — and carry the ordering as open owner input 1.
+
+### Wave 6T-a — one push-to-open predicate
+
+**Opened by [ADR 0092](../decisions/0092-hardware-prices-three-mechanisms-and-a-sink-carries-two-extras.md)
+Amendment C (decision 3), on the owner's ruling of 2026-09-06.** Gate: **6T**, whose quantity basis
+it repairs. **Same branch as 6T and 6W; the three reach `main` together** (ADR 0092 decision 12).
+**Must not run beside 6T, 6T2 or 6P** — all four edit `sample-price-book.ts`. Tier: **Full**.
+
+**Goal.** The domain publishes **one** predicate for *"does this front carry a handle"*, and the
+scene and the price both call it instead of each deciding again. 6T counts a latch only where the
+placement **records** `handle: "push"`; the product's notion of push-to-open is broader and lives in
+the adapter. Closing the gap in both directions is what makes the demo's 16 top-row latches billable
+and stops a migrated document billing latches for fronts whose bars are visible.
+
+**Why it exists, in one sentence each.**
+
+- **Direction A.** `p15`–`p23` (`kitchen-l-design.ts:836-844`) are nine top-row placements with 16
+  door leaves and no recorded handle: the scene hides their bars, the panel reads *"Implicit pentru
+  acest corp: Push-to-open"*, and pricing counts **0** — the defect 6T exists to remove, surviving
+  inside 6T.
+- **Direction B.** A recorded `push` on a body whose definition says `canHandle: false` keeps its
+  bars in the scene (`scene-sync.ts:229-234` names the hand-edited or migrated document that produces
+  it) and is billed a latch per front by pricing.
+
+**The rule being implemented** (ADR 0092 decision 3, Amendment C). A front is push-to-open when its
+handle bar is not on it — *"when you have a cabinet with handle you don't need a push to open
+mechanism"* — and the flag `canHandle` **disqualifies the recorded mode and nothing more**. It does
+not exempt a body from latches: `wall-corner-return-570-top` declares `canHandle: false` beside
+`carriesHandles(1)` and one leaf, its bar is hidden by the slot, the customer cannot turn it on, so
+it is push-to-open and it is billed.
+
+**Touches.** A new `packages/configurator-domain/src/push-to-open.ts`, `src/index.ts`,
+`src/hardware-mechanisms.ts`, `src/pricing/price-design.ts`, `src/pricing/price-lines.ts`,
+`src/pricing/sample-price-book.ts`, and `packages/three-adapter/src/scene-sync.ts` (which loses its
+private copy of the rule and gains a call). Tests:
+`packages/configurator-domain/tests/hardware-mechanisms.test.ts`,
+`tests/pricing/hardware-tier-reconciliation.test.ts` (**expectations restated, not extended**),
+`packages/three-adapter/tests/` for the cross-seam parity case, plus every assertion pinning the
+seeded hardware line or a hardware delta.
+
+**Module boundary, stated so the implementer does not have to choose it.**
+
+- **The predicate lives in its own module**, `push-to-open.ts`, beside `cabinet-handles.ts` and
+  `front-population.ts` — one module, one declared fact, which is this package's existing habit.
+  **Not in `bands.ts`**, which owns band vocabulary in metres, and **not in `hardware-mechanisms.ts`**,
+  which the adapter must not import to decide whether to draw a bar.
+- **It reads three facts and nothing else**: the front's floor, the recorded mode, and whether the
+  definition permits a mode. Shape it as one structural parameter object so a caller cannot swap two
+  positional booleans.
+- **Its unit is millimetres**, because that is the document's unit and both `DisplayEntry.y0Mm` and a
+  `PlacementRecord` (via the existing `toMillimetres`) can supply it. `bands.ts` keeps
+  `TOP_ROW_Y0_M = 2.2` as the one threshold constant and `isPushOpenByDefault(y0M)` as the band fact
+  the new module wraps; a millimetre sibling is written as the literal `2_200` and **never** as
+  `TOP_ROW_Y0_M * 1000`, which evaluates to `2200.0000000000002`.
+- **`DisplayEntry` gains no field.** `canHandle` comes from the `BodyDefinition` the counting query
+  already looks up; only `mechanismsOn`'s narrowed parameter type widens to carry it.
+- **`describe-selection.ts`'s `defaultHandle` is not unified with this** and does not change: it
+  answers *"which mode applies when none is recorded"* for a panel string, which is a different
+  question the moment a mode **is** recorded.
+
+**Acceptance criteria.**
+
+- **There is one predicate, and the scene calls it.** `hidesHandles` in `scene-sync.ts` is a call,
+  not a reimplementation; grepping the adapter finds no second reading of a handle mode against a
+  `y0`. **Pricing does not call `isPushOpenByDefault` directly** — doing so closes direction A and
+  leaves direction B open.
+- **Direction A, on the shipped demo.** `KITCHEN_L_DESIGN` counts **16** push mechanisms — 74 hinges,
+  5 drawers, 16 latches — with no placement in it declaring `handle` at all. Pinned as a number.
+- **Direction B, from the failing side.** A single `wall-corner-return-570` at `y0` 1500 carrying a
+  recorded `handle: "push"` keeps its bars in the scene **and** is billed **zero** latches. A
+  fixture that only stamps `push` on `canHandle: true` bodies does not witness this.
+- **A genuine push kitchen is a separate fixture and is named for what it is.** Every body that
+  *can* take a mode records `push`, and every opening front on those bodies carries exactly one
+  latch. **`PUSH_EVERYWHERE` (`hardware-tier-reconciliation.test.ts:149-155`) is replaced, not
+  renamed**: stamping `push` onto `hood-600`, `open-shelf-600`, `fridge-free-700` and the corner
+  returns exercises direction B while claiming to demonstrate a push kitchen.
+- **The seam is asserted across both packages.** For every placement in a design, the per-body push
+  contribution is non-zero **iff** `hidesHandles` answers true for the corresponding
+  `PlacementRecord`. A test that checks only the domain side cannot catch the two drifting apart
+  again, which is the whole reason this wave exists.
+- **Units agree everywhere.** The millimetre predicate and `isPushOpenByDefault` agree for every
+  integral `y0Mm` over the legal range — a property, not three examples — and the millimetre
+  threshold equals `Math.round(TOP_ROW_Y0_M * 1000)`. `2199` is not push-to-open and `2200` is.
+- **A latch is never counted on a front that does not open.** The push count never exceeds
+  leaves + drawers for any body, at any handle mode: `hood`, `open-shelf` and `fridge-free` declare
+  `NO_OPENING_FRONTS` and contribute zero however they are stamped.
+- **An opening front always has something to open it**, asserted as a property over every catalogue
+  entry at every legal size: `openingFronts > 0 ⇒ cabinetHandles > 0`. No row violates it today; a
+  row that did would have a front with neither a bar nor a latch, and that is a catalogue defect the
+  gate refuses rather than a price pricing invents.
+- **The seeded reconciliation is restated at its true push count.** `450_240` / `942_000` /
+  `973_500` stay the **hinge and drawer** figures and keep reconciling against ADR 0070's own
+  columns; the hardware **line** becomes those figures plus `16 × the tier's declared push rate`.
+  **Asserted as `count × the rate read from the book`, never as a literal amount** — a test typing
+  `64_000` has made a drafted placeholder load-bearing, which ADR 0092 decision 3 forbids.
+  ADR 0070's ~5 100 / ~10 020 / ~10 335 are hinge + drawer + extras totals and are **not** the check
+  for the shipped total; the gap is the push column and only the push column.
+- **6T2's whole-total criterion is restated the same way**, to `450_240 + 60_000 + 16 ×
+  perPushToOpen` per tier, whichever of the two waves lands second.
+- **The drafted rates ship, marked, and no expectation is pinned to their magnitudes.** The owner
+  ordered counting and supplied no figures; `sample-price-book.ts:235-239` still carries the drafted
+  40 / 120 / 100 MDL. **Its doc comment stops saying the seeded kitchen carries no push placement and
+  that nothing asserted depends on them** — both are now false, and a comment asserting the opposite
+  of the book's own numbers is the failure ADR 0092 decision 15 already named once in this milestone.
+- **Neither tier ordering is pinned.** No regression asserts that Blum or that Hettich is the dearest
+  tier while the push magnitudes are drafted. What is pinned is the arithmetic: each tier's hardware
+  total equals its three declared rates times the three counts.
+- **6W's quantifier gains its third term.** Hettich prices below Standard when `drawers > 4.81 ×
+  hinges + 5.71 × push`, both coefficients **derived from the book's declared rates** and never
+  restated beside them. The one-`base-3drawer` witness is unaffected — 3 drawers, 0 hinges, 0 push,
+  delta still exactly −4 200 minor — and stays pinned as a passing test.
+- **`base-bottle-cargo`'s understatement is recorded beside its number** (ADR 0092 decision 8,
+  Amendment C), as a comment on the `cabinet.base-bottle-cargo` rule in `sample-price-book.ts`, in
+  the shape its twin already uses at `:296-301`: a cargo pull-out costs more than the one drawer box
+  its hardware is billed as, ADR 0070 publishes no cargo figure, and a wave that quietly prices one
+  has overturned a decision.
+- **The pricing catch names its causes** (ADR 0092 decision 16). `UndeclaredFrontPopulationError`
+  keeps `UNDECLARED_FRONT_POPULATION`; `UnbuildableDoorBandError` takes its own code naming the
+  placement, the build id and the band height; **anything else propagates unchanged** — asserted by
+  a stub that throws a `TypeError` and a test that receives that same instance, not a refusal.
+  **No third "unexpected" code is added.** No error boundary is added to `apps/web`: that is out of
+  scope and is stated here so it is not smuggled in.
+- **Nothing visual changes.** No builder, no mesh, no geometry: the scene's answer for every seeded
+  placement is byte-identical before and after, because the predicate it now calls is the one it
+  used to hold privately. Asserted on the seeded design's full set of records.
+- **6T-a does not reach `main` alone.** Branch with 6T and 6W; all three green under
+  `pnpm ci:local`.
+
+**Risks.**
+
+- **The demo's price moves again, per tier this time** — `+640` / `+1 920` / `+1 600` MDL — so every
+  assertion pinning the seeded hardware line or a hardware delta is edited twice in one branch, once
+  by 6T and once here. Restate them, do not extend them.
+- **A customer-visible ordering now rests on a placeholder.** At 16 latches Hettich (11 340 MDL)
+  passes Blum (11 335), contradicting ADR 0070's own totals. It refuses nothing, and it is why the
+  three real rates are item 1 on the pending-owner list and load-bearing.
+- **The adapter and the domain must be edited together.** A branch that lands the domain predicate
+  and leaves `hidesHandles` private has shipped the two-predicate defect with an extra module.
 
 ### Wave 6T2 — the two sink extras
 
@@ -5631,7 +5786,11 @@ five-file guidance** — ADR 0092 decision 13 states the reason and the fallback
 - **The whole-total check is this wave's, because this is the wave that can first perform it.** With
   6T landed, the seeded kitchen totals `510_240` / `1_002_000` / `1_033_500` minor at Standard /
   Hettich / Blum against ADR 0070's ~5 100 / ~10 020 / ~10 335 MDL — 6T's hardware-only figures plus
-  `60_000` in each column (ADR 0092 Amendment A).
+  `60_000` in each column (ADR 0092 Amendment A). **Restated by ADR 0092 Amendment C once 6T-a has
+  landed**: the total is `450_240 + 60_000 + 16 × the tier's declared push rate` per tier, and
+  ADR 0070's totals stay the check for the hinge, drawer and extras **columns** rather than for the
+  whole figure — that record published no push row. Whichever of 6T-a and 6T2 lands second owns the
+  restatement; if it is 6T2, this criterion is written in the derived form from the start.
 
 ### Wave 6W — a tier that prices below the default
 
@@ -5665,8 +5824,11 @@ alternative is a negative badge, which the mockups' *de la +9 000* has no form f
 - **The material group still refuses** a book whose default is not its cheapest material tier, with
   `NegativeTierDeltaError` unchanged in meaning and message.
 - **The 6T-pinned witness is updated in exactly one direction**: it stops asserting a throw and
-  starts asserting whatever the ruling says the customer sees. The derived `drawers > 4.81 × hinges`
-  quantifier survives unchanged.
+  starts asserting whatever the ruling says the customer sees. The derived quantifier survives
+  unchanged in **form** — and its form gained a third term at 6T-a (ADR 0092 Amendment C):
+  `drawers > 4.81 × hinges + 5.71 × push`, both coefficients computed from the book's declared rates
+  and never restated beside them. The witness itself is untouched: one `base-3drawer` carries 0 push
+  fronts and the delta is still exactly −4 200 minor.
 - **The *De la* claim is either true or qualified**, and which of the two was chosen is recorded with
   the owner's words.
 
