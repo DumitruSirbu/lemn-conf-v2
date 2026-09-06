@@ -337,10 +337,14 @@ describe("the tier rates relate to each other in ways the book itself decides", 
       hettich.perPushToOpenMinor - standard.perPushToOpenMinor;
     const drawerSavingMinor = standard.perDrawerMinor - hettich.perDrawerMinor;
 
-    // Hettich costs more per hinge and per latch and less per drawer, which is what makes an
-    // inversion possible at all. All three signs are the precondition, not the conclusion.
+    // Hettich costs more per hinge and less per drawer, which is what makes an inversion possible at
+    // all. Those two signs are the precondition, not the conclusion. **The latch surcharge's sign is
+    // deliberately not asserted**: both push rates are drafted placeholders with no supplier source
+    // (ADR 0092 Amendment C), so pinning their order pins a figure the owner has not ruled — and the
+    // inequality below needs no such pin, being sign-agnostic in that term. A *positive* latch
+    // surcharge makes the inversion harder to reach rather than possible, and the seeded assertion
+    // clears on the hinge term alone.
     expect(hingeSurchargeMinor).toBeGreaterThan(0);
-    expect(pushSurchargeMinor).toBeGreaterThan(0);
     expect(drawerSavingMinor).toBeGreaterThan(0);
 
     const seeded = countHardwareMechanisms(SEEDED_ENTRIES, CATALOG);

@@ -71,7 +71,16 @@ export interface PushToOpenQuery {
  * has the same bar hidden by the slot, cannot be turned back on, and takes one.
  */
 export function isPushToOpen(front: PushToOpenQuery): boolean {
-  if (front.recordedHandle && front.canHandle) {
+  // **`canHandle` is compared against `true`, not trusted for its truthiness**, and it is read as
+  // `unknown` first because that is what it is: the catalogue is a supplied port (`BodyCatalog`), so
+  // a definition can arrive from outside TypeScript, and `derivePlacementRecords` copies
+  // `definition.canHandle` straight into this `boolean` field without coercing. A truthy
+  // non-boolean would then take the recorded-mode branch for the caller that passes it raw while
+  // `hardware-mechanisms.ts` — which already coerces with `=== true` — took the slot branch. That is
+  // the two-answer defect this module exists to close, re-entering at the boundary. Normalised in
+  // the one predicate rather than in each caller, and to the stricter of the two answers.
+  const declaresHandleCapability: unknown = front.canHandle;
+  if (front.recordedHandle !== undefined && declaresHandleCapability === true) {
     return front.recordedHandle === PUSH_TO_OPEN;
   }
   return front.y0Mm >= TOP_ROW_Y0_MM;

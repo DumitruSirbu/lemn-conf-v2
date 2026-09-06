@@ -49,7 +49,10 @@ export interface TierOption {
   readonly description: string;
   /** *"inclus"* at zero, *"de la +9 000"* above it — never `0`, see `describeDelta`. **Absent when
    *  the design could not be priced**: the tier is still offered, with nothing said about what it
-   *  would cost. */
+   *  would cost. **Absent, too, on a hardware tier that prices this design below the group's
+   *  default** — `whole-kitchen-tiers.ts`'s `BelowDefaultTierRule`, which publishes no amount for
+   *  it rather than a negative one. Both are the same state on screen, deliberately: a tier that is
+   *  offered with nothing said about its price. */
   readonly deltaText?: string;
   /** Against the **pending** choice, which is what the sheet is editing. */
   readonly isSelected: boolean;

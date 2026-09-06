@@ -55,7 +55,6 @@ import {
   describeRoundedAmount,
 } from "@/price/starting-price";
 import {
-  NegativeTierDeltaError,
   offerWholeKitchenTiers,
   type OfferedTierGroup,
   type WholeKitchenTierOffer,
@@ -601,11 +600,13 @@ describe("how many bodies, and which part of the document says so", () => {
    *
    * Wave 6T prices hardware per mechanism (ADR 0070 decision 1), and Hettich's drawer figure is a
    * runners-only product line the owner ruled stays understated against Standard's complete box. So
-   * a **drawer-dominant** design prices Hettich *below* the default tier, and
-   * `offerWholeKitchenTiers` refuses rather than render a discount as a delta. That refusal is not
-   * weakened here and this sweep does not route around it: it asserts it where the book predicts it
-   * and asserts the sentence everywhere else. **Wave 6W owns what a customer should be shown for
-   * such a design** (ADR 0092 decision 12); 6T owns that the case is on record.
+   * a **drawer-dominant** design prices Hettich *below* the default tier.
+   *
+   * **Wave 6W ruled what the customer sees there, and it is not a refusal** (ADR 0092 decision 12,
+   * interim pending owner review): the sheet renders, every tier stays choosable, and the tier that
+   * prices below the default states **no amount at all**. So this predicate no longer selects a case
+   * the sheet cannot be measured at — it selects the case where one badge is missing on purpose, and
+   * the sweep asserts the sentence at *every* population rather than branching away from some.
    */
   function pricesAnyTierBelowItsDefault(design: Design): boolean {
     const defaultAmount = bookAmountFor(
@@ -625,18 +626,28 @@ describe("how many bodies, and which part of the document says so", () => {
         KITCHEN_L_BODY_CATALOG,
       ).reduce((count, group) => count + group.entries.length, 0);
 
-      if (pricesAnyTierBelowItsDefault(design)) {
-        expect(() => viewOf(design)).toThrow(NegativeTierDeltaError);
-        return;
-      }
-      expect(statedCount(viewOf(design))).toBe(projected);
+      const view = viewOf(design);
+      expect(statedCount(view)).toBe(projected);
+
+      // The half that keeps the predicate honest, now that neither side of it throws: exactly the
+      // populations the book inverts on carry a hardware option with no badge, and no others do.
+      const silentOptions = groupNamed(view, "hardware").options.filter(
+        (option) => option.deltaText === undefined,
+      );
+      expect(silentOptions.length > 0).toBe(
+        pricesAnyTierBelowItsDefault(design),
+      );
     },
   );
 
   /** The witness the sweep above finds by chance, pinned so it is a statement rather than a seed:
    *  one `base-drawer3-600` carries three drawers and no hinge, and Hettich's understated drawer
-   *  rate puts it 4 200 minor below Standard. */
-  it("refuses the sheet for a drawer-dominant design, by the book's own arithmetic", () => {
+   *  rate puts it 4 200 minor below Standard.
+   *
+   *  **The design and its arithmetic are untouched by wave 6W; what moved is what is asserted of
+   *  the sheet.** It renders, it states its one body, every tier is still listed and choosable, and
+   *  the tier that prices below the default is the only one carrying no amount. */
+  it("renders the sheet for a drawer-dominant design, with no amount on the tier that prices below the default", () => {
     const drawersOnly: Design = {
       ...KITCHEN_L_DESIGN,
       placements: KITCHEN_L_DESIGN.placements.filter(
@@ -654,7 +665,43 @@ describe("how many bodies, and which part of the document says so", () => {
       bookAmountFor("hardware.soft-close", drawersOnly) -
         bookAmountFor(SAMPLE_PRICE_BOOK.hardware.defaultTierId, drawersOnly),
     ).toBe(-4_200);
-    expect(() => viewOf(drawersOnly)).toThrow(NegativeTierDeltaError);
+
+    const view = viewOf(drawersOnly);
+    const hardware = groupNamed(view, "hardware");
+
+    // On the page and not only in the model: 6W's first criterion is that the sheet *renders* for
+    // this design, and every tier's own name is on it whether or not it states an amount.
+    const markup = markupOf(view);
+    for (const tier of SAMPLE_PRICE_BOOK.hardware.tiers) {
+      expect(markup, tier.tierId).toContain(tier.name);
+    }
+
+    expect(hardware.tierIds).toEqual(HARDWARE_TIER_IDS);
+    expect(hardware.options.map((option) => option.tierId)).toEqual(
+      HARDWARE_TIER_IDS,
+    );
+    const dearerTierId = "hardware.premium";
+    expect(
+      hardware.options.map((option) => [option.tierId, option.deltaText]),
+    ).toEqual([
+      [SAMPLE_PRICE_BOOK.hardware.defaultTierId, ro.priceBreakdown.included],
+      // The one that prices below the default: offered, selectable, and silent about its amount.
+      ["hardware.soft-close", undefined],
+      // And the tier on the other side of the default still states its own, so what is missing
+      // above is one tier's badge rather than the group's arithmetic.
+      [
+        dearerTierId,
+        ro.globalSettings.tierDelta(
+          describeAddedAmount(
+            bookAmountFor(dearerTierId, drawersOnly) -
+              bookAmountFor(
+                SAMPLE_PRICE_BOOK.hardware.defaultTierId,
+                drawersOnly,
+              ),
+          ),
+        ),
+      ],
+    ]);
   });
 
   it("does not count empty columns, and does not count the space a column map freezes", () => {

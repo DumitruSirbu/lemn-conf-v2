@@ -121,9 +121,14 @@ export type PricingFailureCode =
    *  (`UnbuildableDoorBandError`, ADR 0092 decision 16). **A different cause from the code above,
    *  so a different code**: nothing is missing from the catalogue, the fault is the height on the
    *  placement, and labelling it as a missing declaration sends whoever reads it to the wrong file.
-   *  Reachable from a `wall-cabinet`, `wall-lift` or `open-shelf` built at or below its
-   *  `WALL_DOOR_BAND_INSET_MM`. Names the placement and the build id; the band height that is not a
-   *  door is in `detail`. */
+   *  **Reachable only from a `wall-cabinet` or a `wall-lift`, and only on a document no validator
+   *  passed**: those two are the `one-band-under-frame` rows, and `open-shelf` declares
+   *  `NO_OPENING_FRONTS`, so its `doorBandHeightsMm` answers `[]` and it can never raise this. A
+   *  band at or below `WALL_DOOR_BAND_INSET_MM` needs a frame of 6 mm or less, and
+   *  `findBodyDimensionIssues` floors a placement at `MIN_BODY_HEIGHT_MM` (300), so a **validated**
+   *  design cannot carry one — this code exists for the hand-edited and migrated documents that
+   *  reach pricing without passing through it. Names the placement and the build id; the band height
+   *  that is not a door is in `detail`. */
   | "UNBUILDABLE_DOOR_BAND"
   /** An amount or a total is not an exact safe integer of minor units. */
   | "INVALID_AMOUNT";
