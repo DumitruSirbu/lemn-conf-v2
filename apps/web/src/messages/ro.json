@@ -61,7 +61,7 @@
     "saveFailedNotice": "Modificarea este aplicată pe ecran și încercăm în continuare să o salvăm. Nu o reface și nu reîncărca pagina: o reîncărcare acum ar șterge versiunea care așteaptă să fie salvată.",
     "saveStoppedNotice": "Salvarea s-a oprit pentru această configurație și nu va reporni singură. Ce vezi pe ecran nu este salvat și se pierde dacă închizi sau reîncarci pagina. Deschide configuratorul într-o filă nouă și reia modificările acolo.",
     "finishTitle": "Finisaj",
-    "finishApproximationNote": "Culoarea din pastilă și cea din vizualizare sunt orientative — nuanța finală se alege pe mostra fizică.",
+    "finishApproximationNote": "Culoarea de pe ecran și cea din vizualizare sunt orientative — nuanța finală se alege pe mostra fizică.",
     "finishPickerLabel": "Alege culoarea",
     "handleTitle": "Mâner",
     "handleLabels": {
