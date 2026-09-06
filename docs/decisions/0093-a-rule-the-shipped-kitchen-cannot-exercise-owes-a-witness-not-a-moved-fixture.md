@@ -80,11 +80,11 @@ leaving keys as member-less columns and the five arriving keys as purely derived
 divergence QA measured, it is a fact about the shipped kitchen and no other document, and **it goes
 red the instant the slide is removed.**
 
-### ~~A second finding, met while measuring, and it strengthens the case~~ WITHDRAWN 2026-09-07 by Amendment A — no merged revision of that file was ever in this state
+### ~~A second finding, met while measuring, and it strengthens the case~~ WITHDRAWN 2026-09-07 by Amendment A — the file has never been in this state, in any blob in this repository
 
 **Kept in place, struck, because it is the finding Amendment A refutes**, and because the shape of
-the mistake — a durable record written against a working tree rather than against the merged line —
-is the amendment's own subject.
+the mistake — a **paraphrase of code set in a code fence**, which every later reader took for a
+quotation — is the amendment's own subject.
 
 > ~~`plannedMapOf` in `packages/configurator-domain/tests/commands/qa-6k-i-planning-map.adversarial.test.ts`
 > models the planning map as~~
@@ -106,13 +106,14 @@ is the amendment's own subject.
 > item 1.~~
 
 **The measured account, which replaces it.** At `deb237f` the file already read the production slide
-and already paired it with the pre-command records at the previous catalogue. Its wall-B assertions
-are not all bounds: the member-less arm asserts an exact count against the document's own
-`emptyColumns` length, and the comment above it names, in advance, the very failure this section
-accused it of — *"a model that dropped the slide would pass every per-column assertion below while
-iterating five wall-B runs' leaving-coordinate extents instead of the one column that genuinely holds
-nothing. The count is what separates them."* The tree can be green with the slide removed **from the
-command's call site** for a different and narrower reason: that file calls the *exported* function
+and already paired it with the pre-command records at the previous catalogue. The struck paragraph is
+right that its **per-column** wall-B assertions are bounds, and that is part of why the misreading
+was plausible; what it misses is that the member-less arm asserts an **exact count** against the
+document's own `emptyColumns` length, under a comment naming in advance the very failure this section
+accused the file of — *"a model that dropped the slide would pass every per-column assertion below
+while iterating five wall-B runs' leaving-coordinate extents instead of the one column that genuinely
+holds nothing. The count is what separates them."* The tree can be green with the slide removed **from
+the command's call site** for a different and narrower reason: that file calls the *exported* function
 itself, so a mutation confined to the call site never reaches it. See Amendment A.
 
 ## Classification
@@ -284,7 +285,9 @@ at `deb237f` — 6K-i's own commit and the file's **first merged revision** — 
 wrapped its `frozen` operand in `frozenExtentsSlidAlongTheWall` and already derived it from
 `heldRecords` at the *previous* catalogue, the same operand pair `heldRunAcrossTheCommand` gives
 production (`packages/configurator-domain/src/commands/set-cabinet-depth.ts:301,307`). It shares one
-key space, it reads the production slide, and it always did on the merged line. See Amendment A.
+key space, it reads the production slide, and no blob in this repository has ever held it in any other
+state. **The described defect was a misreading of the merged file, and the snippet a paraphrase rather
+than a quotation** — see Amendment A §1 and §2.
 
 ### 5. Wave 6K-i merges, and wave 6X is recorded before it merges
 
@@ -441,9 +444,11 @@ At `deb237f` — 6K-i's own commit and the file's first merged revision — `pla
 its `frozen` operand in `frozenExtentsSlidAlongTheWall` and already derived it from `heldRecords` at
 the previous catalogue, the operands `heldRunAcrossTheCommand` gives production
 (`packages/configurator-domain/src/commands/set-cabinet-depth.ts:301,307`). The only commit between
-that and `HEAD` is `1116ae9`, a refactor into `planningOperandsOf` that preserved both operands. **The
-wave touches `qa-6k-i-planning-map.adversarial.test.ts` not at all**, and its `Touches` line above is
-narrowed to the one new file accordingly.
+that and `HEAD` is `1116ae9`, a refactor into `planningOperandsOf` that preserved both operands, and a
+sweep of all 3 337 blobs in the object database finds **only those two ever holding that path, both of
+them sliding**. The described defect was a **misreading of the merged file**. **The wave touches
+`qa-6k-i-planning-map.adversarial.test.ts` not at all**, and its `Touches` line above is narrowed to
+the one new file accordingly.
 
 **Work item 2 — the divergence on the shipped kitchen (ADR 0093 decision 3a).** On the seeded design
 carrying its own projected frozen map, at 700 mm: the planning map's wall-B half, keyed at the
@@ -548,9 +553,10 @@ reachable from today's seed, and the reason is a fact about §7 rather than an o
 - ~~**Item 1 can surface a real disagreement.** If correcting `plannedMapOf` changes a wall-A value the
   file asserts today, that is a finding about 6K-i and not a number to update — ADR 0090 decision 7
   binds, and the wave stops and reports.~~ **Moot 2026-09-07: item 1 is withdrawn.** The risk that
-  replaces it is the one the withdrawal exposes — **a durable record written against an agent's
-  working tree rather than against the merged line.** ADR 0093 Amendment A states the rule; a wave
-  that quotes code into a record cites the commit it read.
+  replaces it is the one the withdrawal exposes — **a paraphrase of code set in a code fence inside a
+  durable record, which every later reader takes for a quotation.** ADR 0093 Amendment A §2 states the
+  rule: code in a record is copied from a named commit, and a described defect is reproduced from that
+  commit before a wave is dispatched to fix it.
 - **Item 3's declared design may be refused by a seam nobody expected** — the load seam, the schema, or
   a validator. If it cannot be expressed at all, item 3 is blocked and the wave delivers items 1, 2, 4
   and 5 in full, reports the blockage with the refusal code, and **does not substitute a seeded change**
@@ -563,7 +569,7 @@ reachable from today's seed, and the reason is a fact about §7 rather than an o
 
 ---
 
-## Amendment A — 2026-09-07: decision 4 is withdrawn, the witness needs two mutations rather than one, and a record is written against the merged line
+## Amendment A — 2026-09-07: decision 4 is withdrawn as a misreading, the witness needs two mutations rather than one, and a record quotes the file it accuses
 
 **Raised by adversarial QA on wave 6X**, which found that the wave's first work item was owed nothing
 and that one of its acceptance criteria could not be met by any test it was allowed to write. Both
@@ -580,10 +586,11 @@ one withdrawn finding, one false sentence about falsifiability, and three measur
 | --- | --- | --- |
 | `plannedMapOf`'s shape at 6K-i's first merged revision | `git show deb237f:packages/configurator-domain/tests/commands/qa-6k-i-planning-map.adversarial.test.ts` | Already wraps `frozen` in `frozenExtentsSlidAlongTheWall`; already derives it from `heldRecords` at the previous catalogue |
 | The same at `HEAD` | `git show HEAD:…` | Same operands, refactored into `planningOperandsOf` |
-| Every revision of that file | `git log --oneline --all -- …` | Exactly two: `deb237f` and `1116ae9` |
-| Where the ADR's snippet came from | `git log --all -S "storedHalves"` | **One commit: `80ece58`, this record itself.** The identifier exists nowhere in any revision of any source file, on any ref |
-| Whether the file existed at `2073b2a` | `git cat-file -e 2073b2a:…` | Absent — `2073b2a` is the *base* the 6K-i worktree branched from, and `deb237f`'s parent |
-| Unreachable copies | `git fsck --lost-found`, `git worktree list`, `git reflog --all` | No dangling commits; the 6K-i worktree no longer exists |
+| Every revision of that file | `git log --oneline --all -- …` | Exactly two commits: `deb237f` and `1116ae9` |
+| **Every blob ever written**, reachable or not | `git cat-file --batch-all-objects` over all **3 337** blobs, each one grepped | **Exactly two blobs have ever held that path** — `4521b539` (at `deb237f`) and `8f9162fc` (at `HEAD`) — **and both call `frozenExtentsSlidAlongTheWall`, twice each** |
+| Where the ADR's snippet came from | the same sweep, grepped for `storedHalves` | **One blob in the entire object database: `6776662d`, this record itself.** The identifier has never existed in any source file in this repository |
+| Whether the database had been pruned | `git fsck --dangling` | **31 dangling commits**, with WIP stashes back to 2026-08-25 — nothing has been aggressively pruned, so the sweep above is not an artefact of lost objects |
+| Whether the file existed at `2073b2a` | `git cat-file -e 2073b2a:…` | Absent — `2073b2a` is the *base* the 6K-i branch was cut from, and `deb237f`'s parent |
 | The 820 mm rows | `packages/configurator-domain/src/fixtures/kitchen-l-design.ts:830,831,835,836` | **Four** wall-A base rows, not one |
 
 ### 1. Decision 4 is withdrawn. The defect it records was never in a merged revision
@@ -603,47 +610,61 @@ The count is what separates them, and it is the document's own rather than a lit
 assertion, so decision 4's supporting claim that *"its only strict assertions are on `A|2.00`"* is
 false as well.
 
-**Whether the flawed form was ever real: it cannot be located, and this record does not choose.** Two
-accounts remain open and the evidence separates neither:
+**The flawed form was a misreading of the merged file, and this record says so rather than leaving
+it open.** The object-database sweep is what decides it: every blob ever written, reachable or not,
+was enumerated and grepped, and **only two have ever held that path — both of which slide.** The
+database has not been pruned (31 dangling commits, stashes back to 2026-08-25), so "the evidence was
+collected" is not an available explanation. And `storedHalves` — the local identifier the snippet is
+written around — exists in exactly one blob in the whole repository, this record. **An identifier that
+was invented for the prose is the signature of a paraphrase, not of a quotation.**
 
-- an **uncommitted or later-amended state** in the 6K-i agent worktree, read live while this record
-  was being written and never committed — that worktree has since been removed and its reflog with
-  it, so such a state is unrecoverable; or
-- a **misreading of the merged file**, which is possible because the correct code passes `frozen`
-  through a wrapper whose argument names (`frozen`, `records`) invite exactly this confusion.
+Three things about the merged file account for how the misreading happened, and they are recorded
+because they are what a later reader will want:
 
-`storedHalves`, the identifier the snippet is written around, has never existed in any source file on
-any ref in this repository — which is consistent with either account, since a paraphrase and a lost
-draft both explain it. **The wave 6X commit `9e07da3` states as fact that the second model "was a
-pre-merge revision of that file"; that is asserted beyond the evidence and is corrected here to
-"cannot be located".** A record that cannot tell which of two stories is true says so, rather than
-picking the more flattering one.
+- The correct code passes `frozen` through a wrapper, so the operands `deriveRecordedColumns` receives
+  are one call away from where a reader looks for them.
+- **This record's other characterisations of the file are accurate**: its per-column wall-B
+  assertions really are `toBeLessThanOrEqual` bounds rather than values, which is what made the
+  surrounding paragraph read as though it had been checked.
+- **The file discusses a slide-less model in prose, in a comment, right beside those bounds.** At
+  `deb237f` line 296: *"a model that dropped the slide would pass every per-column assertion below
+  while iterating five wall-B runs' leaving-coordinate extents instead of the one column that
+  genuinely holds nothing."* Decision 4 ended up describing that hypothetical as if it were the code.
+
+**The wave 6X commit `9e07da3` states as fact that the second model "was a pre-merge revision of that
+file"; there is no such revision, and that sentence is corrected here.** The one thing no sweep can
+falsify is an uncommitted edit in a since-removed worktree, because an uncommitted edit leaves no
+object at all — that residual possibility is stated plainly and the amendment rests on what is
+recoverable, which points one way.
 
 **What is true, and is the narrower fact decision 4 was reaching for:** because that file calls the
 **exported** `frozenExtentsSlidAlongTheWall` directly, a mutation confined to the command's **call
 site** cannot reach it. That is a property of every in-test model of the seam, including wave 6X's
 own item 2, and it is what correction 2 below is about.
 
-### 2. A durable record is written against the merged line, and quotes the commit it read
+### 2. A record that accuses a file quotes it, and names the commit the quotation came from
 
 Stated so it binds beyond this instance:
 
-> **A finding about code is written against a commit on the merged line, and the record names that
-> commit. Code read out of an agent's working tree is a lead, not a finding: the tree may hold work
-> that is never committed, is amended away, or belongs to another agent — and when the worktree is
-> removed the evidence for the record goes with it. A record whose defect cannot be reproduced from
-> a named commit is withdrawn, not softened.**
+> **Code in a record is a quotation or it is nothing. A paraphrase set in a code fence is
+> indistinguishable from a quotation to every later reader, and a paraphrase that invents an
+> identifier the file does not contain cannot be checked against the file at all. A finding about
+> code names the commit it was read at, and its snippet is copied rather than reconstructed.**
 
-**This is the third time in this project that work in an unmerged worktree has produced a wrong
-durable record**, which is why it is a rule here rather than an anecdote: the orphaned 6K-i and 6N-a
-branches, the shared-tree collision of 2026-09-06, and now this record's own decision 4. The failure
-mode is the same each time and it is not carelessness — it is that a working tree looks exactly like
-the merged line while being neither reproducible nor durable.
+**This is the mechanism that produced decision 4, and it is worth stating because nothing else would
+have caught it.** The snippet reads as evidence: it is in a `ts` fence, it names real functions, and
+its shape is a plausible model of the seam. Every reader of this record — including the wave that was
+dispatched to fix it — treated it as the code. The only tell was `storedHalves`, a name the file never
+had, and finding that tell required sweeping the object database rather than reading the record.
 
-**Two consequences that are procedure, not prose.** A record that quotes code cites the commit
-(`git show <sha>:<path>`), and a plan that assigns a fix to a described defect is only dispatched once
-that defect has been reproduced from a commit. Wave 6X's work item 1 was dispatched without that step
-and cost an implementer a round.
+**Two consequences that are procedure, not prose.** A record that shows code cites it as
+`git show <sha>:<path>` and copies the lines, and a plan that assigns a fix to a described defect is
+only dispatched once that defect has been reproduced from the named commit. Wave 6X's work item 1 was
+dispatched without that step and cost an implementer a round.
+
+**What this is not.** It is not a worktree-drift failure, and it is deliberately not filed as one: the
+history shows no unmerged copy of the file in any state other than the merged one, and attributing the
+error to drift would blame a failure the record cannot show happened.
 
 ### 3. Decision 3a's falsifiability sentence is false, and the criterion becomes two mutations
 
@@ -765,8 +786,9 @@ state of the code for it to have ruled on.
   withdrawn as owed nothing, and the wave's `Touches` narrows to the one new file.
 - **6X's mutation criterion is now dischargeable**, in two mutations rather than one, and QA can
   report against it without arguing.
-- **A rule about where findings are read from**, in §2, is the durable half of this amendment. It
-  costs one line in a record and saves a dispatched round.
+- **A rule about how code enters a record**, in §2, is the durable half of this amendment: a
+  quotation with its commit, never a paraphrase in a code fence. It costs one line in a record and
+  saves a dispatched round.
 - **Wave 6X-a is opened** for the swapped-operand residue, below. No backlog entry: it is scheduled
   and owned.
 - **Nothing is owed to the owner.** No seeded row, room, catalogue entry or price moves, and the

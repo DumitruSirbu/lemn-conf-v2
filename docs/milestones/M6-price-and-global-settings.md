@@ -6919,9 +6919,11 @@ At `deb237f` — 6K-i's own commit and the file's first merged revision — `pla
 its `frozen` operand in `frozenExtentsSlidAlongTheWall` and already derived it from `heldRecords` at
 the previous catalogue, the operands `heldRunAcrossTheCommand` gives production
 (`packages/configurator-domain/src/commands/set-cabinet-depth.ts:301,307`). The only commit between
-that and `HEAD` is `1116ae9`, a refactor into `planningOperandsOf` that preserved both operands. **The
-wave touches `qa-6k-i-planning-map.adversarial.test.ts` not at all**, and its `Touches` line above is
-narrowed to the one new file accordingly.
+that and `HEAD` is `1116ae9`, a refactor into `planningOperandsOf` that preserved both operands, and a
+sweep of all 3 337 blobs in the object database finds **only those two ever holding that path, both of
+them sliding**. The described defect was a **misreading of the merged file**. **The wave touches
+`qa-6k-i-planning-map.adversarial.test.ts` not at all**, and its `Touches` line above is narrowed to
+the one new file accordingly.
 
 **Work item 2 — the divergence on the shipped kitchen (ADR 0093 decision 3a).** On the seeded design
 carrying its own projected frozen map, at 700 mm: the planning map's wall-B half, keyed at the
@@ -7031,9 +7033,10 @@ boundary and is **wave 6X-a's**, per ADR 0093 Amendment A §6.
 - ~~**Item 1 can surface a real disagreement.** If correcting `plannedMapOf` changes a wall-A value the
   file asserts today, that is a finding about 6K-i and not a number to update — ADR 0090 decision 7
   binds, and the wave stops and reports.~~ **Moot 2026-09-07: item 1 is withdrawn.** The risk that
-  replaces it is the one the withdrawal exposes — **a durable record written against an agent's
-  working tree rather than against the merged line.** ADR 0093 Amendment A states the rule; a wave
-  that quotes code into a record cites the commit it read.
+  replaces it is the one the withdrawal exposes — **a paraphrase of code set in a code fence inside a
+  durable record, which every later reader takes for a quotation.** ADR 0093 Amendment A §2 states the
+  rule: code in a record is copied from a named commit, and a described defect is reproduced from that
+  commit before a wave is dispatched to fix it.
 - **Item 3's declared design may be refused by a seam nobody expected** — the load seam, the schema, or
   a validator. If it cannot be expressed at all, item 3 is blocked and the wave delivers items 1, 2, 4
   and 5 in full, reports the blockage with the refusal code, and **does not substitute a seeded change**
