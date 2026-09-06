@@ -5,6 +5,14 @@ Date: 2026-09-06
 Type: Decision + Finding
 Milestone: M6 — plans waves 6T and 6T2, and opens wave 6W
 
+**Amended 2026-09-06, the same day, on two defects a developer found while implementing 6T.**
+**Amendment A** corrects decision 6's reconciliation table, which billed 6T2's sink extras inside
+figures 6T was asked to reproduce — so 6T's own criterion demanded a number 6T cannot produce.
+**Amendment B** is decision 15: this record moved the default hardware tier off zero without noticing
+that it was a customer-visible baseline, and without a ruling that says it should. Both corrections
+are made in place, because the record is one day old and its numbers are load-bearing; what changed
+and why is stated at each site.
+
 ## Context
 
 [ADR 0070](0070-hardware-is-priced-per-mechanism-not-per-handle.md) (owner, 2026-09-04) ruled that
@@ -49,6 +57,12 @@ Verified against the tree on 2026-09-06, not inherited from ADR 0070's prose or 
   `[1350, 530, 190]` (`front-population.ts:97,106`). A `one-band-under-frame` row **cannot** reach the
   threshold: `insert-fit.ts:62` caps a cabinet-sized opening at `CABINET_SIZED_OPENING_MAX_M = 0.9`,
   and `WALL_DOOR_BAND_INSET_MM` is 6, so the tallest band such a row can ever declare is **894 mm**.
+- **The 74-hinge stop condition is already checkable against 6S's shipped pins, not against this
+  record's reasoning.** `front-population.test.ts:207` pins the seeded kitchen at 26 placements,
+  **36 leaves** and **5 drawers**; `:229` pins the leaves over 900 mm as exactly `[1290, 1290]`. So
+  34 × 2 + 2 × 3 = **74**, agreeing with ADR 0070's independently derived figure — which means 6T's
+  *"if the two disagree the wave stops"* criterion is answerable before a line of 6T is written, and
+  it does not trigger.
 - **6S's queries are the whole basis 6T needs.** `doorLeafHeightsMm`, `doorLeafCount`, `drawerCount`
   and `frontPopulationQueryFor` (`front-population.ts`) answer per placement, built from the
   placement's own width and height — the seam 6S's review round explicitly fixed so that a later wave
@@ -120,6 +134,13 @@ takes, and one drawer's price buys the pair.
 So the book declares `perDrawerMinor` and the quantity is the drawer count. **A wave that multiplies
 by two doubles the drawer line and disagrees with ADR 0070's own arithmetic by a factor of two on
 every tier.** The field is named for the drawer and not for the runner so that no reader is tempted.
+
+**The arithmetic confirms it three times over, and each is an exact division.** Every drawer subtotal
+in ADR 0070's totals table is exactly **5 × one of its own listed per-drawer prices** — 3 200 = 5 ×
+640, 3 130 = 5 × 626, 4 185 = 5 × 837 — so a doubled quantity would need the seeded kitchen to hold
+**2.5 drawers**. The hinge column divides exactly the same way at 74: 6 290 / 74 = 85.00 and
+5 550 / 74 = 75.00, with 74 × 17.60 = 1 302.40 against the owner's rounded 1 300. The denominators
+are not a reading of the prose; they are recoverable from the numbers alone.
 
 ### 3. Push-to-open is one mechanism per opening front on a `handle: "push"` body, and its three rates are drafted, not measured
 
@@ -216,18 +237,36 @@ own totals table rather than chosen**:
 inside it.
 
 **The derivation reconciles against ADR 0070's independently derived totals**, on the seeded kitchen
-at 74 hinges, 5 drawers, 0 push mechanisms and 1 sink:
+at 74 hinges, 5 drawers, 0 push mechanisms and 1 sink.
 
-| Tier | Hinges | Drawers | Extras | Total, minor | Total, MDL | ADR 0070 |
+**Amendment A, 2026-09-06 — the reconciliation is per column, and each wave owns its own columns.**
+As first written this table published only the *Total* column, which includes the sink extras
+decision 13 moved to **6T2** — so 6T's acceptance criterion demanded a figure 6T cannot produce, and
+6T2's had no total at all. **Nothing about the amounts changed; the arithmetic is separated.** No
+check is lost by separating it: ADR 0070's own table is already columnar — *Hinges | Drawers | Sink
+extras | Total* — so each wave reconciles against the owner's own columns and the two together
+reconcile against his total.
+
+| Tier | Hinges | Drawers | **6T reconciles to** | 6T2 adds | **Together** | ADR 0070's total |
 | --- | --- | --- | --- | --- | --- | --- |
-| Standard | `130_240` | `320_000` | `60_000` | `510_240` | 5 102.40 | ~5 100 |
-| Hettich | `629_000` | `313_000` | `60_000` | `1_002_000` | 10 020.00 | ~10 020 |
-| Blum | `555_000` | `418_500` | `60_000` | `1_033_500` | 10 335.00 | ~10 335 |
+| Standard | `130_240` | `320_000` | **`450_240`** (4 502.40 MDL) | `60_000` | `510_240` (5 102.40) | ~5 100 |
+| Hettich | `629_000` | `313_000` | **`942_000`** (9 420.00 MDL) | `60_000` | `1_002_000` (10 020.00) | ~10 020 |
+| Blum | `555_000` | `418_500` | **`973_500`** (9 735.00 MDL) | `60_000` | `1_033_500` (10 335.00) | ~10 335 |
+
+**6T reconciles against ADR 0070's hinge and drawer columns** — 1 300 + 3 200, 6 290 + 3 130,
+5 550 + 4 185 — and **6T2 against its flat *Sink extras 600*, identical in all three tier columns**,
+which is what says the extras sit outside the tier rather than inside it. **The whole-total check is
+6T2's, and it is the wave that can first perform it**; a 6T criterion naming `510_240` is a criterion
+6T fails by construction.
 
 **Two of the three reconcile to the leu**; Standard is 2.40 MDL above the ADR's 5 100, which is the
 owner's own rounding of 74 × 17.60 = 1 302.40 to 1 300. **That gap is the evidence the derivation is
 not fitted to the answer** — a rule chosen to hit 5 100 exactly would have needed a hinge rate the
 ADR's range does not contain.
+
+**What `450_240` is, and what it is not, is decision 15's question** — it is the seeded kitchen's
+hardware **cost** at the Standard tier, and whether the *customer's* Standard line is that number or
+zero is not settled by any record.
 
 **These are sample amounts.** The book keeps `status: "estimate"` and `amountsProvisional: true`, and
 every amount lives in the one file whose name says it is a sample.
@@ -446,6 +485,67 @@ three edit `price-book.ts` and `sample-price-book.ts`.
   place amounts are edited. **No dashboard code, no scope, no field.**
 - **Bi-fold vertical-opening mechanisms stay out of scope** (ADR 0070 decision 6).
 
+### 15. Amendment B, 2026-09-06 — the default hardware tier stops costing nothing, and whether it should is an **owner input**
+
+**The question, which this record moved without asking.** Under decision 6 the Standard tier prices
+the seeded kitchen's hardware at `450_240` minor (4 502.40 MDL). The shipped book prices it at
+**zero** (`perCabinetHandleMinor: 0`) and says so to the customer in two places: the tier's own
+description, *"Balamale și glisiere standard, **incluse în preț**"*, and the sample book's doc
+comment, *"Both default tiers cost nothing, so an unconfigured kitchen carries two lines at zero."*
+So decision 6 does not only change a rate — it answers a product question nobody asked: **does the
+quoted cabinet price include standard hardware, or is hardware billed on top of it?**
+
+**Swept, and not settled by anything.**
+
+- **ADR 0070 leans toward billing it, and stops short of ruling it.** Its totals table prices DTC
+  Standard's hardware at ~5 100 MDL rather than at 0, which is the only figure on record for what a
+  Standard tier costs. But that table exists to justify *pricing the whole design at each tier*
+  against a flat per-tier figure — it is a **cost** comparison, and a manufacturer knows their
+  hardware cost at each tier however the customer's quote is structured.
+- **ADR 0070 decision 5 points the other way about the amounts themselves**: *"Prices are retail…
+  margin sits on top of them and is not part of this record."* A shelf price is what the manufacturer
+  pays, not what the customer is charged, so no amount in this book is yet a customer price under
+  either model.
+- **The M6 ruling on defaults settles a different question.** *PAL stays the default for both the
+  priced baseline and the delta basis* fixes **which** tier is the default and what deltas are
+  measured from; it says nothing about whether a default tier's amount is zero.
+- **The zero is a convention, not a decision.** It appears in book data and one doc comment, and no
+  dated record ever ruled it.
+
+**So it is an owner input, and it is recorded as one** (open input 6 below), with the number
+attached. It changes what every unconfigured kitchen costs and what *"incluse în preț"* means, which
+is a statement about the manufacturer's price list rather than about this repository's structure.
+
+**The interim, so no wave stalls: 6T ships the absolute model — the Standard line costs what its
+mechanisms cost.** Four reasons, in the order they bind:
+
+1. **The delta model does not merely change a number; it makes a drawer-dominant kitchen
+   unpriceable.** Under it the hardware line is `tierCost − defaultCost`, which for Hettich on the
+   one-`base-3drawer` design of decision 12 is **−4 200** — and `refuseNegativeAmount`
+   (`price-design.ts:712`) refuses a negative line with `INVALID_AMOUNT`, so **`priceDesign` fails
+   whole and the price bar renders no figure at all**. That is strictly worse than 6W's missing
+   badge: it moves the breakage from a settings chip into the price itself.
+2. **It weakens 6T's own falsification of the defect the wave exists to remove.** *"A push-to-open
+   cabinet's hardware is not zero"* could then only be asserted away from the default tier, because
+   the default tier's line is zero for every design by construction.
+3. **ADR 0070's table is the only figure on record**, and it says 5 100, not 0.
+4. **The accessories are absolute by ADR 0070 decision 4** — always present, ≈200 and ≈400 MDL — so a
+   delta-shaped hardware line beside absolute accessory lines is two conventions in one book section.
+
+**The interim is cheap to reverse, and that is why it is defensible rather than merely convenient.**
+The coefficients are identical under both models — they stay ADR 0070's retail rates either way — so
+reversing is a **shape** change in one function (*the hardware line prices the difference from the
+default tier*), not a re-derivation. **And every delta is identical under both models**, since a
+delta is a difference and the baseline cancels: Hettich `+491_760`, Blum `+523_260` on the seeded
+kitchen. **So wave 6W's question is untouched by whichever way the owner rules**, and neither blocks
+the other.
+
+**What 6T must not do is leave the book asserting the opposite of its own numbers.** In the same
+wave: the Standard tier's description stops saying *incluse în preț*, and the sample book's doc
+comment stops saying both default tiers cost nothing — the **material** default still does, the
+hardware default no longer does, and a comment that flattens the two hides exactly the asymmetry the
+owner is being asked about.
+
 ## Alternatives considered
 
 | Alternative | Why it is refused |
@@ -462,6 +562,8 @@ three edit `price-book.ts` and `sample-price-book.ts`.
 | **De-duplicate racks where two sinks resolve to one cabinet.** | Owner-ruled against, 2026-09-04, explicitly and against the recommendation then on record. |
 | **Emit a zero-amount rack line where no wall cabinet sits above the sink.** | A zero renders *inclus*. It would tell a customer a rack they are not getting is included. |
 | **Draft the push-to-open rates as zero, since no figure exists.** | Reinstates the exact defect 6T exists to remove — a push-to-open kitchen billing its mechanisms at nothing — while looking implemented. |
+| **Keep the default hardware tier at zero by pricing the hardware line as a difference from it** (decision 15's other model), as the interim rather than as an owner question. | `refuseNegativeAmount` refuses a negative line, so a drawer-dominant kitchen would stop pricing altogether and the price bar would render nothing — worse than the missing badge 6W is for. It also confines 6T's *"a push-to-open cabinet's hardware is not zero"* check to non-default tiers. Recorded as the owner's choice with the reversal cost measured, not taken silently in either direction. |
+| **Keep 6T's `510_240` reconciliation and move the sink extras back into 6T** so the figure is producible. | Undoes decision 13's split, which was measured rather than guessed, to fix a presentation defect in a table. ADR 0070's own table is columnar, so the split reconciliation costs no check. |
 | **Add a fourth mechanism kind for the lift arm and the cargo pull-out.** | No amount exists for either, ADR 0070 decision 6 puts vertical-opening mechanisms out of scope, and inventing two supplier figures to fill a shape is what decision 8 refuses. |
 
 ## Records swept before deciding, and how each is settled
@@ -489,9 +591,13 @@ three edit `price-book.ts` and `sample-price-book.ts`.
 
 - **Wave 6T's design is fully specified**: three rates, three counts, one line, one new failure code,
   and a rename of six strings with the ids held still.
-- **The seeded kitchen's total moves by exactly `+510_240` minor** — the hardware line from `0` to
-  `450_240`, plus two accessory lines totalling `60_000`. Every shipped assertion pinning the seeded
-  total, the hardware quantity or a hardware delta changes, and the wave names each one it edits.
+- **The seeded kitchen's total moves in two steps, one per wave**: `+450_240` minor at **6T**, as the
+  hardware line goes from `0` to what its mechanisms cost, and a further `+60_000` at **6T2** for the
+  two accessory lines — `+510_240` once both have landed. Every shipped assertion pinning the seeded
+  total, the hardware quantity or a hardware delta changes, and each wave names the ones it edits.
+- **The 6T half of that movement is provisional in a way the rest of this record is not.** It is the
+  absolute model decision 15 ships as an interim, and the owner may rule it back to zero — a
+  one-function change with the same coefficients and the same deltas.
 - **A push-to-open kitchen stops billing its hardware at zero**, which is the defect 6T exists to
   remove.
 - **Three unmeasured amounts enter the sample book** — the push-to-open rates — and are the only
@@ -525,6 +631,14 @@ code, the standing process ruled on 2026-09-04.
    alternative is a negative badge the mockups have no form for.
 5. **Whether a cargo pull-out and a lift arm should ever be priced.** Recorded by decision 8 as
    knowingly unpriced. Either needs a measured amount from the owner.
+6. **Does the quoted cabinet price include standard hardware, or is hardware billed on top?**
+   (decision 15, Amendment B.) **The number attached: the seeded kitchen's Standard hardware line
+   becomes `450_240` minor — 4 502.40 MDL — where it is `0` today, and the tier description says
+   *incluse în preț*.** The interim is the absolute model; the alternative is a line priced as the
+   difference from the default tier, which costs one function to switch to, changes no coefficient
+   and changes no delta. **This one is unlike the other five**: it is not a placeholder awaiting a
+   figure, it is a live customer-visible baseline shipping under an architect's interim, and it wants
+   the owner's answer sooner than the rest.
 
 ---
 
@@ -539,6 +653,9 @@ existing section; the second and third are new sections after it; the fourth is 
 [ADR 0092](../decisions/0092-hardware-prices-three-mechanisms-and-a-sink-carries-two-extras.md).**
 Gate: 6S for the declarations, 6B2 for the shape registry. **The two sink extras have moved to 6T2**
 — ADR 0092 decision 13 takes the plan's own split trigger in advance, on a measured file count.
+**Carries one open owner input and does not stall on it**: whether the default hardware tier still
+costs the customer nothing (ADR 0092 decision 15, which ships an interim and states its reversal
+cost).
 
 **Goal.** Replace `HardwareTier.perCabinetHandleMinor` with three per-mechanism rates and a
 mechanism count read from 6S's declarations. Quantity basis, tier data and the query's read of it
@@ -586,10 +703,20 @@ population must become a **mechanism** count, or it asserts the superseded basis
 - **`wall-lift` prices 2 hinges and its lift arm prices nothing**; **`base-bottle-cargo` prices one
   drawer**, with the understatement recorded beside the number (ADR 0092 decision 8). Neither is
   resolved by whichever tier line happens to typecheck.
-- **The sample amounts are ADR 0092 decision 6's table**, and the seeded totals reconcile:
-  `510_240` / `1_002_000` / `1_033_500` minor at Standard / Hettich / Blum, against ADR 0070's
-  ~5 100 / ~10 020 / ~10 335 MDL. Hettich and Blum to the leu; Standard 2.40 MDL above, which is the
-  owner's rounding of 1 302.40 to 1 300.
+- **The sample amounts are ADR 0092 decision 6's table, and 6T reconciles to the hardware-only
+  column**: `450_240` / `942_000` / `973_500` minor at Standard / Hettich / Blum, against ADR 0070's
+  own **hinge and drawer columns** — 1 300 + 3 200, 6 290 + 3 130, 5 550 + 4 185. Hettich and Blum to
+  the leu; Standard 2.40 MDL above, which is the owner's rounding of 1 302.40 to 1 300. **The
+  `510_240` / `1_002_000` / `1_033_500` totals include 6T2's sink extras and are 6T2's check, not
+  this wave's** — ADR 0092 Amendment A; a 6T criterion naming them is one 6T fails by construction.
+- **The Standard tier's hardware line stops being zero, and nothing in the book keeps claiming
+  otherwise.** The seeded default line goes from `0` to `450_240`. In the same wave the tier's
+  description stops saying *incluse în preț* and the sample book's doc comment stops saying both
+  default tiers cost nothing — the **material** default still does and the hardware default no longer
+  does. **This is ADR 0092 decision 15's interim, not a settled rule**: it ships as the absolute
+  model, it is open owner input 6, and reversing it is one function with the same coefficients and
+  the same deltas. A wave that moves the baseline and leaves the description contradicting it has
+  shipped the half that is visible to a customer and hidden the half that explains it.
 - **Hettich's drawer figure stays understated** — runners only against complete boxes. A wave that
   quietly makes the three comparable has overturned a decision.
 - **The tier names become `Standard` / `Hettich` / `Blum` and the tier ids do not move.** Standard's
@@ -670,7 +797,12 @@ five-file guidance** — ADR 0092 decision 13 states the reason and the fallback
 - **`listRuleIds` sweeps the accessory rules**, so two rules sharing an id anywhere in the book is
   `INVALID_PRICE_BOOK`.
 - **The seeded design's extras total `60_000` minor**, which is the third independent reconciliation
-  against ADR 0070's flat *"Sink extras 600"* in all three tier columns.
+  against ADR 0070's flat *"Sink extras 600"* — identical in all three tier columns, which is what
+  says the extras sit outside the tier rather than inside it.
+- **The whole-total check is this wave's, because this is the wave that can first perform it.** With
+  6T landed, the seeded kitchen totals `510_240` / `1_002_000` / `1_033_500` minor at Standard /
+  Hettich / Blum against ADR 0070's ~5 100 / ~10 020 / ~10 335 MDL — 6T's hardware-only figures plus
+  `60_000` in each column (ADR 0092 Amendment A).
 
 ### Wave 6W — a tier that prices below the default
 

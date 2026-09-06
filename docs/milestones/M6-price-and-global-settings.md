@@ -5046,6 +5046,9 @@ two rows' mechanism contradictions (`wall-lift`, `base-bottle-cargo`) stay open 
 [ADR 0092](../decisions/0092-hardware-prices-three-mechanisms-and-a-sink-carries-two-extras.md).**
 Gate: 6S for the declarations, 6B2 for the shape registry. **The two sink extras have moved to 6T2**
 — ADR 0092 decision 13 takes the plan's own split trigger in advance, on a measured file count.
+**Carries one open owner input and does not stall on it**: whether the default hardware tier still
+costs the customer nothing (ADR 0092 decision 15, which ships an interim and states its reversal
+cost).
 
 **Goal.** Replace `HardwareTier.perCabinetHandleMinor` with three per-mechanism rates and a
 mechanism count read from 6S's declarations. Quantity basis, tier data and the query's read of it
@@ -5093,10 +5096,20 @@ population must become a **mechanism** count, or it asserts the superseded basis
 - **`wall-lift` prices 2 hinges and its lift arm prices nothing**; **`base-bottle-cargo` prices one
   drawer**, with the understatement recorded beside the number (ADR 0092 decision 8). Neither is
   resolved by whichever tier line happens to typecheck.
-- **The sample amounts are ADR 0092 decision 6's table**, and the seeded totals reconcile:
-  `510_240` / `1_002_000` / `1_033_500` minor at Standard / Hettich / Blum, against ADR 0070's
-  ~5 100 / ~10 020 / ~10 335 MDL. Hettich and Blum to the leu; Standard 2.40 MDL above, which is the
-  owner's rounding of 1 302.40 to 1 300.
+- **The sample amounts are ADR 0092 decision 6's table, and 6T reconciles to the hardware-only
+  column**: `450_240` / `942_000` / `973_500` minor at Standard / Hettich / Blum, against ADR 0070's
+  own **hinge and drawer columns** — 1 300 + 3 200, 6 290 + 3 130, 5 550 + 4 185. Hettich and Blum to
+  the leu; Standard 2.40 MDL above, which is the owner's rounding of 1 302.40 to 1 300. **The
+  `510_240` / `1_002_000` / `1_033_500` totals include 6T2's sink extras and are 6T2's check, not
+  this wave's** — ADR 0092 Amendment A; a 6T criterion naming them is one 6T fails by construction.
+- **The Standard tier's hardware line stops being zero, and nothing in the book keeps claiming
+  otherwise.** The seeded default line goes from `0` to `450_240`. In the same wave the tier's
+  description stops saying *incluse în preț* and the sample book's doc comment stops saying both
+  default tiers cost nothing — the **material** default still does and the hardware default no longer
+  does. **This is ADR 0092 decision 15's interim, not a settled rule**: it ships as the absolute
+  model, it is an open owner input, and reversing it is one function with the same coefficients and
+  the same deltas. A wave that moves the baseline and leaves the description contradicting it has
+  shipped the half that is visible to a customer and hidden the half that explains it.
 - **Hettich's drawer figure stays understated** — runners only against complete boxes. A wave that
   quietly makes the three comparable has overturned a decision.
 - **The tier names become `Standard` / `Hettich` / `Blum` and the tier ids do not move.** Standard's
@@ -5177,7 +5190,12 @@ five-file guidance** — ADR 0092 decision 13 states the reason and the fallback
 - **`listRuleIds` sweeps the accessory rules**, so two rules sharing an id anywhere in the book is
   `INVALID_PRICE_BOOK`.
 - **The seeded design's extras total `60_000` minor**, which is the third independent reconciliation
-  against ADR 0070's flat *"Sink extras 600"* in all three tier columns.
+  against ADR 0070's flat *"Sink extras 600"* — identical in all three tier columns, which is what
+  says the extras sit outside the tier rather than inside it.
+- **The whole-total check is this wave's, because this is the wave that can first perform it.** With
+  6T landed, the seeded kitchen totals `510_240` / `1_002_000` / `1_033_500` minor at Standard /
+  Hettich / Blum against ADR 0070's ~5 100 / ~10 020 / ~10 335 MDL — 6T's hardware-only figures plus
+  `60_000` in each column (ADR 0092 Amendment A).
 
 ### Wave 6W — a tier that prices below the default
 
