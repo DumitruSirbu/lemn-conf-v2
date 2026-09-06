@@ -646,9 +646,12 @@ describe("no shipped insert writes a seeded-style row onto wall B", () => {
         ),
       ];
 
-      // Non-vacuity as the measured population: a sweep that stopped offering anything would
-      // otherwise pass by finding nothing.
-      expect(rows.length).toBeGreaterThan(20);
+      // **The measured population, not a floor under it.** A `toBeGreaterThan(20)` here would
+      // stay green after losing 35 of the 56 rows this sweep actually visits, which is the
+      // weakness this wave exists to remove — the same standard `6x-slide-witness.test.ts:710`
+      // already applies to its own count. 56 at both settings: the seeded wall B offers 8 voids,
+      // and each of the six deletable rows opens one more.
+      expect(rows.length).toBe(56);
       expect(
         rows.filter((row) => row.heightMm !== row.offeredHeightMm),
       ).toStrictEqual([]);
