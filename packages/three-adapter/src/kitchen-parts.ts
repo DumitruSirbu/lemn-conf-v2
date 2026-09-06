@@ -4,6 +4,12 @@
 // This is a port, not a reimplementation: the builder math, mesh hierarchy, mesh names, materials,
 // chamfer cache and structural dependencies are carried over unchanged. `SPEC.md` documents why
 // each of those is load-bearing, and `docs/milestones/M1-scene-port.md` gates any drift.
+import {
+  RUN_END_PANEL_EDGE_OFFSET_M,
+  RUN_END_PANEL_GAP_M,
+  RUN_END_PANEL_HEIGHT_M,
+  RUN_END_PANEL_THICKNESS_M,
+} from "@lemnaria/configurator-domain";
 import * as THREE from "three";
 
 import { kitOwnedResources } from "./kit-ownership.js";
@@ -341,24 +347,20 @@ export const DRAWER_FRONT_MESH_NAME = "drawer_front";
  *  in the shell manifest — one name, read by the builder and by the derivation. */
 export const RUN_END_PANEL_NAME = "end_panel_right";
 
-/** The panel's own slab, in metres: the reference room's `TH` door/panel thickness, and a
- *  base-height finished end that stands from the floor to the underside of the worktop. */
-export const RUN_END_PANEL_THICKNESS_M = 0.018;
-export const RUN_END_PANEL_HEIGHT_M = 0.82;
-
-/** The air gap the reference room leaves between the last cabinet's side and the panel's inner
- *  face, in metres.
+/** The panel's slab, its base height, the air gap the reference leaves at its inner face, and the
+ *  offset those compose into — **declared in `@lemnaria/configurator-domain`'s `run-end-panel.ts`
+ *  and re-exported here**, so the builder that sizes the box and the rule that seats it read one
+ *  set of numbers (ADR 0083 decision 5). Each carries its unit and its reason at that declaration.
  *
- *  **Authored, not measured, and it is the invariant the offset below preserves.** The seeded run
- *  ends at 3.50 (3.20 + 0.60/2) and the panel is placed at 3.51, which is half the slab plus this
- *  millimetre — so the reference deliberately does not butt the two faces together. Reading the
- *  10 mm as a measurement would be wrong in a way that only shows up later: were `TH` ever to
- *  change, a bare 10 mm would silently move the *gap* instead of keeping the overhang. */
-export const RUN_END_PANEL_GAP_M = 0.001;
-
-/** How far the panel's centre stands past the right edge of the last base cabinet, in metres. */
-export const RUN_END_PANEL_EDGE_OFFSET_M =
-  RUN_END_PANEL_THICKNESS_M / 2 + RUN_END_PANEL_GAP_M;
+ *  They are re-exported rather than moved outright because this module is a port of the reference
+ *  library and every caller of these names reaches for `kitchen-parts.ts`; the re-export keeps that
+ *  surface while removing the second declaration. */
+export {
+  RUN_END_PANEL_EDGE_OFFSET_M,
+  RUN_END_PANEL_GAP_M,
+  RUN_END_PANEL_HEIGHT_M,
+  RUN_END_PANEL_THICKNESS_M,
+};
 
 /** The panel's along-wall seat in the reference room, in metres: the seeded base run's right edge
  *  plus the offset above, kept as its own literal because M1's parity gate diffs this exact number
