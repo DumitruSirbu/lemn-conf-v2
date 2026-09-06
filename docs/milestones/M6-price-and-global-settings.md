@@ -320,8 +320,12 @@ constant (`worktop-depth.ts` carries a comment saying the rename is owed and def
 | 6Q-c — the change confirms before it wipes a chosen colour, and is silent when none was *(ADR 0081, owner 2026-09-05; dispatchable per ADR 0086)* — **DONE 2026-09-05, `14cef90`** | G | 6Q-b — **gated by it** | Full + visual |
 | 6R — three control shapes, six decors the 3D approximates, and a strip that wraps *(ADR 0071, ADR 0082)* | G | 6Q, 6G | Light + visual |
 | 6S — door leaves, drawers and door band heights become declared facts *(ADR 0070)* — **DONE 2026-09-04, `280daa4`/`a2bff48`** | P | none | Full |
-| 6T — hardware priced per mechanism, and the two sink extras *(ADR 0070)* | P | 6S, 6B2 | Full |
+| 6T — hardware priced per mechanism *(ADR 0070, planned by ADR 0092)* | P | 6S, 6B2 — **lands on one branch with 6W** | Full |
+| 6T2 — the two sink extras *(ADR 0070 decision 4, ADR 0092 decisions 9–11)* | P | 6T — **same files, never in parallel; and never beside 6P** | Full |
+| 6W — a tier that prices below the default *(ADR 0092 decision 12)* | P | 6T — **same branch, reaches `main` with it** | Full |
 | 6U — the hob holds its reach, and a deeper worktop grows behind it *(ADR 0087; wave 6I's unraised question, owner 2026-09-05)* — **DONE 2026-09-06, `38d5cad`** | D | none — **after 6Q**, and it gates nothing | Full + visual |
+| 6V — a selection is counted by what changed, not by what colour it is *(opened by [ADR 0091](../decisions/0091-an-instruments-premise-is-re-quantified-and-the-product-claim-inside-it-becomes-a-wave.md) decision 6 — the debt wave 6R was obliged to carry rather than discharge)* | — | **6R — gated by it**, and it gates nothing | Test infra + one product fix |
+| 6X — the slide is witnessed by an assertion, not by a redecorated demo *(opened by [ADR 0093](../decisions/0093-a-rule-the-shipped-kitchen-cannot-exercise-owes-a-witness-not-a-moved-fixture.md); ADR 0090 decision 6 has no falsifiable check)* | D | **6K-i — gated by it**, and it gates nothing | Test fidelity |
 
 The letters are identifiers and the table is in dependency order, with one exception: **6L is listed
 last and runs early.** It has no technical gate on anything and nothing gates on it, so it is placed
@@ -3126,7 +3130,7 @@ column to its own wall, and by construction no column holds the tail. ADR 0083 d
 **3. *"The end panel counts and placements do not tell you so"* is right, and the arithmetic in it is
 one millimetre off.** The finished end's outer face is `3500 + 1 + 18 = 3519`, not 3520; free is
 **41**, not 40. The reference rounded. **No wave may recover 3520 with a 20 mm constant** — that pins
-a rounding and stops the finished end tracking the run it closes.
+a rounding and stops the finished end tracking the run it closes. ADR 0083's measurement table.
 
 **4. *"The reference already specifies its copy and layout, so this is not a design task"* is not
 supportable from this repository.** The panel is not in the three tracked mockups, not in
@@ -3635,6 +3639,38 @@ and once after an intervening edit — and both earlier runs are superseded by t
 only attributable to a wave once the wave has stopped moving, the same freeze this project already
 applies to QA and review.
 
+#### What the bar reads, measured, so the waves have numbers rather than descriptions
+
+Run against the built domain on `KITCHEN_L_DESIGN`, with wall-B placements shifted by the per-entry
+`alongWallPositionFollows` chain 6J-a declared — the projection
+`tests/queries/overflowing-placements.test.ts` already uses.
+
+| Depth | Wall | Wall | Run far end | Finished end | Occupied | Remainder | Overrun |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 600 | A | 3560 | 3500 | +19 | 3519 | **41** | 0 |
+| 600 | B | 2830 | 2800 | — | 2800 | **30** | 0 |
+| 700 | A | 3560 | 3500 | +19 | 3519 | **41** | 0 |
+| 700 | B | 2830 | 2900 | — | 2900 | 0 | **70** |
+
+`findOverflowingPlacementIds` returns `[]` at 600 and `['p24', 'p7']` at 700.
+
+**Exactly two numbers move at 600 → 700, and both are wall B's. Wall A's bar is byte-identical at
+both depths.** That is the falsifiable form of *"6K gives it a reason to move"*: it moves one wall's
+numerator, and a wave whose test reports wall A moving has derived something wrong.
+
+**ADR 0065's marking does not fire on the default design as shipped, and does fire the moment the
+customer picks 700.** Confirmed against the corrected fixture, at both depths, on the exact
+population ADR 0065 names. This is already the recorded owner position — decision 8's body text and
+ADR 0065's Context both state it — so **there is no new product decision here and nothing to raise**.
+The seeded kitchen does not ship with a warning showing.
+
+#### The three waves
+
+**Order.** 6N stays **last in the queue**, after 6T, and is now three waves rather than one. It is
+unblocked rather than gated, so the placement is a choice: 6N-c contends with 6R for
+`configure-screen.tsx` and the settings strip, and its own gate is an owner answer that has not been
+asked yet. 6N-a and 6N-b gate 6N-c; nothing gates them, and nothing gates on 6N at all.
+
 ##### Wave 6N-a — the run-end panel's seat is a domain fact
 
 **Goal.** Move ADR 0045's seat derivation — and only the derivation — from the adapter into the
@@ -3680,9 +3716,9 @@ production files. **Tier: Full.** **Gate: 6N-0 and 6N-a.**
 **Acceptance criteria.**
 
 - **Occupied is the furthest along-wall reach from the wall's own origin, and the query proves it is
-  not a sum.** Pinned by value: wall A **3519**, wall B **2800**. Wall B's base row sums to 2220, so
-  a sum-of-widths implementation fails immediately and by 580 mm — the assertion is chosen so it
-  cannot pass by accident.
+  not a sum.** Pinned by value: wall A **3519**, wall B **2800** at 600 and **2900** at 700. Wall B's
+  base row sums to 2220, so a sum-of-widths implementation fails immediately and by 580 mm — the
+  assertion is chosen so it cannot pass by accident.
 - **The two denominators are pinned as different kinds of number, at the point they are pinned.**
   Wall A's 3560 is the reference kitchen's, measured. **Wall B's 2920 is a product choice, 90 mm
   longer than the reference's own 2830**, made to clear the run at 700 (ADR 0083 decision 1) at the
@@ -3775,187 +3811,6 @@ question Q1** — the reference artefact is not in the tree, so its placement an
   under ADR 0051) and **not a defect to report against 6N**, but this is the first surface that puts
   the two numbers on one screen.
 - **The union-versus-extent consequence is visible here first.** Under ADR 0083 decision 4 a design
-  with a 600 mm gap mid-run reports the same occupied width as one without it. Accepted, recorded,
-  and part of Q2's copy question — not a defect for a later wave to "fix" by changing the numerator.
-
-**2. *"The free remainder's location is a new published fact"* is right, and its stated derivation is
-wrong.** The two reference sentences are not a positional fact and a relative one: `p7` is
-`fridge-free-700` spanning 2100–2800, and **2800 is wall B's run end**. Both sentences describe the
-tail of the run; the fridge is named because the fridge is the last body. And **`emptyColumns` is not
-a source** — the seeded design declares none, `clip-empty-columns-at-wall-end.ts` already clips every
-member-less column to its own wall, and by construction no column holds the tail. ADR 0083
-decision 4.
-
-**3. *"The end panel counts and placements do not tell you so"* is right, and the arithmetic in it is
-one millimetre off.** The finished end's outer face is `3500 + 1 + 18 = 3519`, not 3520; free is
-**41**, not 40. The reference rounded. **No wave may recover 3520 with a 20 mm constant** — that
-pins a rounding and stops the finished end tracking the run it closes. ADR 0083's measurement table.
-
-**4. *"The reference already specifies its copy and layout, so this is not a design task"* is not
-supportable from this repository.** The panel is not in the three tracked mockups, not in
-`DEVELOPMENT-SPEC.md` or `SPEC.md`, and not in the untracked `design-source/…(6)/` — searched for
-*ACOPERIT*, *PLIN*, *3520*, *2830* and *3560*, zero hits in all of them. Every appearance of its
-figures and copy in this project is a quotation inside our own prose. **This blocks 6N-c only**, and
-it is ADR 0083's owner question Q1.
-
-#### What the bar reads, measured, so the waves have numbers rather than descriptions
-
-Run against the built domain on `KITCHEN_L_DESIGN`, with wall-B placements shifted by the per-entry
-`alongWallPositionFollows` chain 6J-a declared — the projection
-`tests/queries/overflowing-placements.test.ts` already uses.
-
-| Depth | Wall | Wall | Run far end | Finished end | Occupied | Remainder | Overrun |
-| --- | --- | --- | --- | --- | --- | --- | --- |
-| 600 | A | 3560 | 3500 | +19 | 3519 | **41** | 0 |
-| 600 | B | 2830 | 2800 | — | 2800 | **30** | 0 |
-| 700 | A | 3560 | 3500 | +19 | 3519 | **41** | 0 |
-| 700 | B | 2830 | 2900 | — | 2900 | 0 | **70** |
-
-`findOverflowingPlacementIds` returns `[]` at 600 and `['p24', 'p7']` at 700.
-
-**Exactly two numbers move at 600 → 700, and both are wall B's. Wall A's bar is byte-identical at
-both depths.** That is the falsifiable form of *"6K gives it a reason to move"*: it moves one wall's
-numerator, and a wave whose test reports wall A moving has derived something wrong.
-
-**ADR 0065's marking does not fire on the default design as shipped, and does fire the moment the
-customer picks 700.** Confirmed against the corrected fixture, at both depths, on the exact
-population ADR 0065 names. This is already the recorded owner position — decision 8's body text and
-ADR 0065's Context both state it — so **there is no new product decision here and nothing to raise**.
-The seeded kitchen does not ship with a warning showing.
-
-#### The three waves
-
-**Order.** 6N stays **last in the queue**, after 6T, and is now three waves rather than one. It is
-unblocked rather than gated, so the placement is a choice: 6N-c contends with 6R for
-`configure-screen.tsx` and the settings strip, and its own gate is an owner answer that has not been
-asked yet. 6N-a and 6N-b gate 6N-c; nothing gates them, and nothing gates on 6N at all.
-
-##### Wave 6N-a — the run-end panel's seat is a domain fact
-
-**Goal.** Move ADR 0045's seat derivation — and only the derivation — from the adapter into the
-domain, so wall A's occupied width and the panel on screen come from one rule. **Value-preserving
-throughout: no geometry moves and no number changes.** ADR 0083 decision 2.
-
-**Touches.** A new `packages/configurator-domain/src/run-end-panel.ts`, `index.ts`,
-`packages/three-adapter/src/kitchen-shell.ts` (`syncRunEndPanel` calls it), and
-`packages/three-adapter/src/kitchen-parts.ts` (`RUN_END_PANEL_THICKNESS_M` and `RUN_END_PANEL_GAP_M`
-re-exported from the domain rather than declared). Four production files. **Tier: Full.**
-
-**Acceptance criteria.**
-
-- **The seat, the veto and the two slab constants have exactly one definition each**, and the
-  adapter reads them. Falsifiable structurally: `kitchen-shell.ts` declares no thickness, no gap and
-  no edge offset of its own, and `RUN_END_PANEL_EDGE_OFFSET_M` resolves through the domain's
-  constants. Two lists that agree today and part on ADR 0045's veto case is what this closes.
-- **Value-preserving, asserted against `HEAD` rather than eyeballed.** M1's 1e-6 m structural parity
-  gate holds, `kitchen-shell.run-end-panel.test.ts` passes unchanged, and the seeded seat is still
-  `3.51` exactly. A wave that changes a coordinate has done the wrong thing.
-- **ADR 0045's veto survives intact and is asserted through the new seam**: a full-height body
-  standing where the panel would go still hides it, and a wall-A body hanging at 1500 mm still does
-  not. Both halves — the along-wall overlap and the vertical one — because `blocksSeat`'s own
-  commentary records that neither alone is sufficient.
-- **The panel's *existence* is still a literal in the shell manifest.** No record creates it and none
-  removes it; only `position.x` and `visible` are derived, exactly as before. `db9c402`'s boundary is
-  not re-crossed, and a reviewer must be able to check that in one file.
-- **`RUN_END_PANEL_SEEDED_X_M` stays in the adapter.** It is a parking position for a hidden object
-  and an M1 parity literal, not a product fact.
-- **Property, over generated record sets**: the derived seat is a pure function of the records —
-  a scene reached by deleting into a state and one loaded directly into it produce the same seat and
-  the same visibility. ADR 0045's own anti-invariant, now assertable without a scene.
-
-##### Wave 6N-b — one published coverage fact per wall
-
-**Goal.** `describeWallCoverage(design, catalog)`: one entry per wall the design uses, carrying the
-wall's length, its occupied width, its remainder, its overrun, and the placement that ends the run.
-Domain only, nothing visible. ADR 0083 decisions 1, 3 and 4.
-
-**Touches.** A new `packages/configurator-domain/src/queries/wall-coverage.ts` and `index.ts`. Two
-production files. **Tier: Full.**
-
-**Acceptance criteria.**
-
-- **Occupied is the furthest along-wall reach from the wall's own origin, and the query proves it is
-  not a sum.** Pinned at the measured values: wall A **3519**, wall B **2800** at 600 and **2900** at
-  700. Wall B's base row sums to 2220, so a sum-of-widths implementation fails immediately and by
-  580 mm — the assertion is chosen so it cannot pass by accident.
-- **It is the same quantity the overflow mark reads.** Falsifiable in both directions over a
-  generated design: `overrunMm > 0` for a wall **iff** `findOverflowingPlacementIds` names a
-  placement on that wall. A design marked in the scene and reported under-full by the bar is the one
-  failure ADR 0065 exists to prevent, and this is where it becomes unrepresentable.
-- **`remainderMm ≥ 0`, `overrunMm ≥ 0`, and at most one is non-zero.** Asserted as a property over
-  arbitrary designs, both zero only when a run ends exactly on its wall. **No signed field exists**,
-  so `free < 0` is not a state anything downstream can read — ADR 0067's rule made structural rather
-  than remembered.
-- **Wall A counts the finished end and wall B does not**, reading 6N-a's fact. When the panel is
-  hidden by ADR 0045's veto, wall A's occupied drops to the run's far end in the same derivation —
-  not through a second branch that asks whether a panel exists.
-- **Bare wall is never reported as anything but a remainder**, and **no criterion asserting that a
-  run *reaches* its wall may be added** ([ADR 0067](../decisions/0067-leftover-wall-is-the-normal-case-and-the-price-is-a-floor.md)).
-  This is the check a gate author looking for things to assert would write; it is wrong in the normal
-  case, and this wave is the one most likely to attract it.
-- **The large-remainder fixture is strengthened and single-sourced, not invented.** It already
-  exists: `LARGE_REMAINDER_DESIGN`, wall A's run cut back to its first metre, defined **twice** — in
-  `apps/web/tests/scene/overflow-mark.test.ts` and `overflow-warning.test.ts` — and wave 6M's own QA
-  already recorded that it *"asserts only `placements.length > 0`"*. ADR 0067 names 6N as the one M6
-  wave meaningfully better tested against a real wall, so this is where it earns a real assertion: a
-  remainder of **~200 mm** (2444 mm is the owner's own example) producing a remainder figure and
-  **no** finding, no warning and no issue code of any kind. A third copy would be the failure the
-  bullet above refuses. Nothing in the repository exercises this today.
-- **A wall with no placement on it produces no entry**, matching `projectDesignForDisplay`'s rule
-  that a group is never empty. Not an entry reading `0 / 3560`.
-- **The body list per wall is the projection's**, reused rather than re-sorted
-  ([ADR 0063](../decisions/0063-a-group-is-listed-row-major-height-before-position.md)), and empty
-  spaces are not in it — `projectDesignForDisplay` already excludes them and this query adds no
-  second population.
-- **No document field is added and no schema version is owed.** The fact is derived on every read,
-  stored nowhere (§12).
-
-##### Wave 6N-c — the coverage bars, both shells
-
-**Goal.** The reference's per-wall bar rendered from 6N-b's fact. **Gated on ADR 0083's owner
-question Q1** — the reference artefact is not in the tree, so its placement and layout are not known.
-**Do not start this wave on a guess.**
-
-**Touches.** A new `apps/web/src/coverage/wall-coverage-model.ts`, `wall-coverage.tsx`,
-`wall-coverage.module.css`, `content/ro.ts`, and one mounting. Five production files.
-**Tier: Light + visual gate at 390 × 844.**
-
-**Acceptance criteria.**
-
-- **The component renders and decides nothing.** Every number, every ordering and every string
-  selection is the model's; the model's numbers are 6N-b's. Deleting the query call breaks the
-  surface rather than changing it — 6D's own criterion, and `price-breakdown-model.ts` is the shape
-  to copy.
-- **An overrunning run overflows its own track**, by the overrun and visibly, rather than clamping at
-  100%. At 700 wall B is 2900 of 2830. A bar that saturates tells the customer the run is exactly
-  full at the moment it does not fit.
-- **The bodies the list names that `findOverflowingPlacementIds` reports carry the same mark the
-  scene gives them**, read from that one query and never re-derived.
-- **Wave 6M's scene warning is not moved, absorbed, reworded or hidden** (ADR 0083 decision 5). Its
-  placement was put to the owner and accepted as built on 2026-09-04, twice. A wave that relocates it
-  is overturning a dated ruling.
-- **Every string is a literal pinned in a test, and no unruled string is written at all.** The
-  heading, *"practic plin"* and the remainder sentences are ADR 0083's question Q2 and 6D's own last
-  table row: **a wave that words them is making a product decision and must raise it.** This wave
-  ships the owner's answer or it does not ship the copy.
-- **Visual gate at 390 × 844**, against the running app: the bar takes no height from the canvas it
-  is not entitled to, nothing leaves the viewport
-  ([ADR 0082](../decisions/0082-the-settings-strip-wraps-and-nothing-leaves-the-viewport.md)'s rule,
-  applied to a second surface), and the overflowing state is captured at 700 as well as the fitting
-  one at 600. Measured off the running page, not modelled — wave 6M's three-error correction of
-  2026-09-04 is why.
-- **Rendered at the ~200 mm remainder fixture too.** ADR 0067's point is that the copy has to be
-  legible and non-alarming at a large remainder, and that is a judgement about pixels, not a unit
-  test.
-
-**Risks.**
-
-- **The shell still renders `RW 4.2 × RD 3.4`**, matching neither the reference nor the corrected
-  document — `docs/BACKLOG.md` entry 21's still-open half. So the bar will report a 3560 mm wall
-  beside a room drawn 640 mm wider. Not this wave's to fix (it moves seeded geometry and needs a
-  `DeclaredStructuralChange` under ADR 0051), and **not a defect to report against 6N**, but it is
-  the first surface that puts the two numbers on one screen and someone will notice.
-- **The union-versus-extent consequence is visible here first.** Under ADR 0083 decision 1 a design
   with a 600 mm gap mid-run reports the same occupied width as one without it. Accepted, recorded,
   and part of Q2's copy question — not a defect for a later wave to "fix" by changing the numerator.
 
@@ -5185,147 +5040,181 @@ adapter a guard" but "the guard the domain has protects only the package that ow
 two rows' mechanism contradictions (`wall-lift`, `base-bottle-cargo`) stay open for 6T to resolve, and
 `fronts` remains depth-invariant by construction for 6J to rely on without re-deriving it.
 
-### Wave 6T — hardware priced per mechanism, and the two sink extras
+### Wave 6T — hardware priced per mechanism
 
-**[ADR 0070](../decisions/0070-hardware-is-priced-per-mechanism-not-per-handle.md)**, owner
-2026-09-04 — **the complete ruling; nothing here re-decides it.** Gate: 6S for the declarations,
-6B2 for the shape registry.
+**[ADR 0070](../decisions/0070-hardware-is-priced-per-mechanism-not-per-handle.md), planned by
+[ADR 0092](../decisions/0092-hardware-prices-three-mechanisms-and-a-sink-carries-two-extras.md).**
+Gate: 6S for the declarations, 6B2 for the shape registry. **The two sink extras have moved to 6T2**
+— ADR 0092 decision 13 takes the plan's own split trigger in advance, on a measured file count.
 
-**Goal.** Replace `HardwareTier.perCabinetHandleMinor`. ADR 0070's third recorded gap says
-**replace, not extend**: quantity basis, tier data and the query's read of it move together. Plus
-the two sink extras.
-
-**Why here.** The shipped basis prices hardware by multiplying a rate by the **cabinet handle
-count**, so **a push-to-open cabinet — hinges and runners, no handle — prices its hardware at
-exactly zero**. That is not a rounding problem; it is a whole kitchen of mechanisms billed at
-nothing.
+**Goal.** Replace `HardwareTier.perCabinetHandleMinor` with three per-mechanism rates and a
+mechanism count read from 6S's declarations. Quantity basis, tier data and the query's read of it
+move together.
 
 **Touches.** `packages/configurator-domain/src/pricing/price-book.ts`, `pricing/price-design.ts`,
-`pricing/sample-price-book.ts`, `pricing/price-lines.ts` if the extras need a line kind, a new
-domain query for the rack's position — and `apps/web/tests/settings/global-settings.adversarial.test.ts`,
-which checks the hardware line against an **independently counted handle population** and must be
-rewritten to count mechanisms, or it will assert the superseded basis as correct.
+`pricing/sample-price-book.ts`, a new `src/hardware-mechanisms.ts`, `src/index.ts`. Tests:
+`apps/web/tests/settings/global-settings.adversarial.test.ts` (its independently counted **handle**
+population must become a **mechanism** count, or it asserts the superseded basis as correct),
+`apps/web/tests/price/starting-price.adversarial.test.ts`,
+`apps/web/tests/settings/whole-kitchen-tiers.test.ts`,
+`packages/configurator-domain/tests/pricing/*` and `tests/front-population.test.ts`'s tier totals.
 
 **Acceptance criteria.**
 
-- **Three mechanisms, counted from 6S's declarations**: **2 hinges per door leaf, 3 where the leaf
-  is taller than 900 mm; 2 runners per drawer; 1 push-to-open per door and per drawer, and only
-  where the cabinet carries `handle: "push"`.** A drawer's *size* does not change the count; the
-  drawer *count* does.
-- **900 mm is a boundary and is asserted as one**: a 900 mm leaf takes 2 hinges and a 901 mm leaf
-  takes 3. ADR 0070's wording is *taller than 900*, and equality is what a re-implementation gets
-  wrong.
-- **Owner ruling, 2026-09-05: the mechanism count keys off cabinet WIDTH, never off the cabinet's
-  own overall height.** ADR 0070's 900 mm leaf-height boundary is a **door-band** height, declared per
-  entry by wave 6S, and stays exactly as is. What this ruling closes is a different, larger question:
-  whether a *taller-than-usual* cabinet (near a high ceiling, say) should ever add a mechanism the
-  formula does not already give it from its declared door and drawer counts. The owner's reasoning:
-  typical ceiling heights run **2500-2800 mm**; anything taller is unreachable by the customer without
-  a ladder, and in that rare case the manufacturer adjusts the price by hand rather than the product
-  encoding a rule for it. **So no height-keyed mechanism rule is to be built** — width (via the door
-  and drawer counts a body's width already determines) is the only axis this wave prices from.
-- **The seeded kitchen counts 74 hinges and 5 drawers.** This is ADR 0070's own figure, derived by
-  the owner from the real catalogue and the builders' door-band heights — **an independent
-  derivation, which is the only reason the check means anything.** The test's number comes from
-  6S's declarations. **If the two disagree, the declaration is wrong and the wave stops**; it does
-  not adjust the expected number to whatever the code produces. This is the wave's ADR 0028 parity
-  check and it is the strongest one available to it.
-- **A push-to-open cabinet's hardware is not zero**, asserted directly on a design where every
-  cabinet is `handle: "push"`. This is the defect the wave exists to remove and it must be pinned
-  from the failing side, not implied by the new formula.
-- **A corner cabinet carries one handle per level, never one per opening** (ADR 0070 decision 2),
-  consistent with the structural treatment corner bodies already have (ADR 0021, ADR 0025).
-- **Owner ruling, 2026-09-05: the hardware tier names become Standard / Hettich / Blum**, replacing
-  the shipped `Standard` / `Închidere lentă` / `Premium`. Owner's reason: the prices were collected
-  from those suppliers, so the name and the amount now agree about what is being quoted, rather than
-  a tier named for a feature ("slow close") sitting beside two named for a marketing tier
-  ("Standard"/"Premium"). **Six strings currently unpinned by any test** — the three `name` fields and
-  the three `description` fields on `SAMPLE_PRICE_BOOK.hardware.tiers`
-  (`packages/configurator-domain/src/pricing/sample-price-book.ts:231-256` — verified 2026-09-05, an
-  earlier note cited 230-282, which over-runs into the unrelated material-tier block below it;
-  threaded to the UI by `apps/web/src/price/whole-kitchen-tiers.ts:233-234`) — none of this wave's
-  code is touched here; the
-  rename lands with wave 6T, which is already rebuilding this book section under ADR 0070.
-- **Three tiers — DTC Standard, Blum, Hettich — and DTC Standard's description says it has no
-  soft-close.** A functional difference the customer feels on every door, not a cheaper version of
-  the same mechanism. The description is **book data** (ADR 0062's third prohibition), never copy in
-  a component that happens to agree with it. **The Romanian wording is unruled**: drafted here,
-  marked *pending owner review* as 6G's strings are, and listed in the open inputs below.
-- **Hettich's drawer figure is understated and stays that way**, recorded in the book's own data
-  rather than corrected: Quadro V6 is **runners only** while the DTC and Blum rows are complete
-  boxes. The owner ruled *"for Hettich use it as it is"*. **A wave that quietly makes the three
-  comparable has overturned a decision**, and the imprecision is accepted, not an oversight.
-- **Sample amounts only.** The book keeps `status: estimate` and `amountsProvisional: true`, every
-  amount lives in the one file whose name says it is a sample (6B), and no commercial figure is
-  asserted anywhere. ADR 0070's tables may be typed into `sample-price-book.ts` **here and only
-  here**, because this is the wave that also rebuilds the basis they depend on — the ADR says so in
-  its own consequences.
-- **The aluminium protective cover is always present on a sink base and is never toggled** — it is
-  protection, not an option. ≈200 MDL.
-- **The dish drying rack is priced and never drawn.** No mesh, no geometry, no builder touched, at
-  any width or depth. Asserted **from the adapter side** — the built body has no new part — not
-  merely by the absence of a diff.
-- **The rack goes in the lowest wall-band cabinet whose along-wall extent overlaps the sink's span**
-  (decision 4), a **derived** position and not a catalogue row, applied **per sink base — ruled
-  2026-09-04 in *Open questions gating this phase*: two sinks means two racks, never de-duplicated
-  even where both resolve to the same cabinet.** The seeded design has one sink base, so this wave's
-  own fixture does not exercise the multi-sink case; the rule is recorded here so a later wave adding
-  a second sink does not re-open it. Three failure modes, each with its own assertion:
-  - ***any* cabinet above the sink double-bills.** The seeded design has **two** over the sink base's
-    900–1700 span on wall A — a wall cabinet at `y0` 1500 and a top box at `y0` 2200.
-  - ***the highest* puts the rack near the ceiling.**
-  - **a predicate on the raw `band` reads the same as the correct one on the seeded design, and is
-    wrong.** `top` folds into `wall` through `normaliseBand` (ADR 0011 Gap C), and wave 6G's QA
-    already recorded the lesson: *any predicate evaluated over a raw `band` is suspect by default in
-    this codebase.* Here the two readings agree by luck on the shipped fixture, so **the test needs a
-    fixture where the only overlapping cabinet is a `top` row** — otherwise the wrong implementation
-    ships green.
-- **No wall cabinet above the sink → no rack line at all**, and its absence is **not** a zero-amount
-  line. 6B's rule holds in both directions: omission never means *included*, and a zero never means
-  *missing*.
-- **The sink base is not identifiable by `kind`, and the wave must not try.** Verified: `base-sink`
-  declares `kind: "base_cabinet"` like every other base body, and the seeded row is `base-sink-800`.
-  So neither a kind nor a build-id prefix answers this — it resolves through the placement's declared
-  catalogue equivalent (ADR 0022) or through a new declared fact. **Never a string prefix**, which is
-  the rule wave 6J is separately deleting from a test for this exact reason.
-- **`cabinetHandleCount` and its parity gate survive this wave.** Verified: its only production
-  reader is `price-design.ts`'s hardware quantity, so replacing the basis leaves it pricing nothing.
-  It stays as the honest declared side of the handle meshes (ADR 0061) and as the total 6S's split
-  must reproduce. **Deleting it because pricing stopped calling it would remove the only thing
-  holding those declarations to the builders.**
-- **ADR 0062 still binds and is re-asserted here**: shapes are code and coefficients are data; the
-  query imports no book; no amount, tier, delta or rule exists outside the book — not in
-  `catalog.ts`, not in `content/ro.ts`, not in a component.
-- **Fail whole, unchanged.** A design the mechanism rules cannot resolve returns a failure naming
-  what it could not resolve. No partial line set and no partial total, and a missing declaration is
-  never read as zero mechanisms.
-
-**Split trigger, drawn in advance so a split is a cut rather than a re-plan.** If the diff exceeds
-WORKFLOW's five-production-file guidance, **the cut is between the mechanism basis (first) and the
-two sink extras (second, as `6T2`)** — and nowhere else. They share `price-book.ts`,
-`sample-price-book.ts` and `price-design.ts`, so the two halves **run sequentially in one tree and
-never in parallel**. The recommendation is to attempt them as one wave: the extras are two flat
-amounts and one locating query, and splitting costs a second QA and review round on the same three
-files.
+- **Three rates, three counts.** 2 hinges per door leaf and **3 where that leaf is taller than
+  900 mm**; one drawer rate per **drawer** — *not* per runner (ADR 0092 decision 2: multiplying by
+  two doubles the line and contradicts ADR 0070's totals); 1 push-to-open per door leaf and per
+  drawer, **only** where the placement declares `handle: "push"`.
+- **900 mm is a boundary asserted as one**: a 900 mm leaf takes 2 hinges, a 901 mm leaf takes 3.
+- **The threshold is applied to leaves, never to bands.** A pantry at 600 mm answers
+  `[1290, 1290, 790, 790]`; applying the threshold to the two *bands* answers 45 hinges on the seeded
+  kitchen against the correct 74, and both numbers look plausible.
+- **The counts come from the placement's own catalogue entry**, through `frontPopulationQueryFor`.
+  A test mutates a placement's `heightMm` on a row with **declared** band heights (the pantry, 2200 →
+  2600) and the hinge count does not move — the wave reads no frame height and no nominal.
+- **No leaf over 900 mm can come from a `one-band-under-frame` row**, asserted as a property over
+  every catalogue entry at every legal size: the only leaves over 900 mm in the catalogue are the
+  pantry's 1290s and the fridge housing's 1350. This is what makes the owner's *no height rule*
+  ruling and the 900 mm threshold consistent rather than merely coexisting.
+- **The seeded kitchen counts 74 hinges, 5 drawers and 0 push mechanisms.** ADR 0070's figure,
+  derived by the owner before the declarations existed — **an independent derivation, which is the
+  only reason the check means anything. If the two disagree the declaration is wrong and the wave
+  stops**; it does not adjust the expected number to whatever the code produces.
+- **A push-to-open cabinet's hardware is not zero**, asserted on a design where every placement
+  carries `handle: "push"`, pinned from the failing side.
+- **The hardware line stays one line, `quantity: 1`**, its unit amount the whole kitchen's hardware
+  at that tier, and `amountMinor === quantity × unitAmountMinor` still holds.
+- **Each of the three rates refuses on its own.** Set to `null`, to `1.5` and to a string
+  independently, each produces `INVALID_AMOUNT` **naming that field** — never a zero line and never a
+  total silently short.
+- **A body whose front population cannot be read fails the design whole**, with the new
+  `UNDECLARED_FRONT_POPULATION` code naming the placement and the build id. **A missing declaration
+  is never read as zero mechanisms**, and there is no partial line set and no partial total.
+- **`wall-lift` prices 2 hinges and its lift arm prices nothing**; **`base-bottle-cargo` prices one
+  drawer**, with the understatement recorded beside the number (ADR 0092 decision 8). Neither is
+  resolved by whichever tier line happens to typecheck.
+- **The sample amounts are ADR 0092 decision 6's table**, and the seeded totals reconcile:
+  `510_240` / `1_002_000` / `1_033_500` minor at Standard / Hettich / Blum, against ADR 0070's
+  ~5 100 / ~10 020 / ~10 335 MDL. Hettich and Blum to the leu; Standard 2.40 MDL above, which is the
+  owner's rounding of 1 302.40 to 1 300.
+- **Hettich's drawer figure stays understated** — runners only against complete boxes. A wave that
+  quietly makes the three comparable has overturned a decision.
+- **The tier names become `Standard` / `Hettich` / `Blum` and the tier ids do not move.** Standard's
+  description says it has **no soft-close**. Six strings; the ids stay `hardware.standard` /
+  `hardware.soft-close` / `hardware.premium` and the book states, where they are declared, which
+  supplier each now denotes.
+- **`cabinetHandleCount` and its parity gate survive** with no production reader.
+- **Sample amounts only.** `status: estimate`, `amountsProvisional: true`, every amount in the file
+  whose name says it is a sample, and the three push-to-open rates marked in the data as drafted and
+  unmeasured.
+- **ADR 0062 re-asserted**: the query imports no book; no amount, tier, delta or rule exists outside
+  it.
+- **The negative-delta witness is pinned as a passing test** (ADR 0092 decision 12): a design of one
+  `base-3drawer` prices Hettich `4_200` minor **below** Standard and throws `NegativeTierDeltaError`.
+  The surviving true statement is asserted over a quantifier **derived from the book's own rates** —
+  the inversion needs `drawers > 4.81 × hinges` — and never restated beside them. **The refusal
+  itself is not weakened here.**
+- **6T does not reach `main` alone.** It lands on a branch with **6W** and the two merge together
+  green.
 
 **Risks.**
 
-- **Every 2E delta changes by a large factor, which is exactly what 6G's two open questions were
-  waiting to get louder — and both are now ruled, 2026-09-04.** The delta is anchored on the book's
-  **default** tier while the total beside it follows what the design carries (answered, accepted
-  pending on-screen review — wave 6G close-out); ADR 0001 decision 4's rounding-up amplifies a delta
-  far more than a total (ruled: rounding stays up everywhere, an accepted cost rather than a defect —
-  same close-out). ADR 0070's measured spread — ~5 100 MDL at DTC Standard against ~10 335 at Blum on
-  the seeded kitchen — is what makes both visible, now that the numbers are real rather than
-  placeholders; neither ruling is this wave's to revisit. **The material group's own default-tier
-  question is ruled too, not open** — see *Open questions gating this phase* above: PAL stays the
-  default for both the priced baseline and the delta basis, which is why `NegativeTierDeltaError`
-  stays reachable only as a book-fault detector and not as a live discount case.
-- **Hettich lands 3% *below* Blum on this kitchen** because it is hinge-dominated (74 hinges, 5
-  drawers), and a drawer-heavy kitchen swaps them. That is the measured argument for pricing the
-  whole design at each tier rather than a flat per-tier figure — and it means **a sample-data edit
-  can silently reorder the tiers**. Worth pinning as a sample-book regression so the reorder is
-  visible when it happens.
+- **Every 2E delta changes by a large factor**, and the two rulings that make it visible — the
+  delta's anchor and ADR 0001 decision 4's rounding-up — are not this wave's to revisit.
+- **A sample-data edit can silently reorder Hettich and Blum**, since this kitchen is hinge-dominated
+  and a drawer-heavy one swaps them. Pin the order as a sample-book regression.
+
+### Wave 6T2 — the two sink extras
+
+**[ADR 0070](../decisions/0070-hardware-is-priced-per-mechanism-not-per-handle.md) decision 4, planned
+by [ADR 0092](../decisions/0092-hardware-prices-three-mechanisms-and-a-sink-carries-two-extras.md)
+decisions 9–11.** Gate: 6T (same files). **Must not run beside 6T or 6P.**
+
+**Goal.** A sink is a declared catalogue fact; the rack's host is a derived position; both extras are
+priced as `accessory` lines, per sink, and neither is drawn.
+
+**Touches.** `packages/configurator-domain/src/catalog.ts`, `src/fixtures/kitchen-l-design.ts`, a new
+`src/queries/sink-accessories.ts`, `src/pricing/price-book.ts`, `pricing/price-lines.ts`,
+`pricing/price-design.ts`, `pricing/sample-price-book.ts`, `src/index.ts`,
+`apps/web/src/price/price-breakdown-model.ts`, `apps/web/src/content/ro.ts`, plus a new
+three-adapter parity case for the sink declaration. **Nine production edits, above WORKFLOW's
+five-file guidance** — ADR 0092 decision 13 states the reason and the fallback cut.
+
+**Acceptance criteria.**
+
+- **A sink is declared, never inferred.** Not from `kind` — `base-sink` declares `base_cabinet` like
+  every other base body — not from a build-id prefix, and not from an equivalent-id comparison. Both
+  `base-sink` and the seeded `base-sink-800` declare it.
+- **The parity gate runs in both directions over every catalogue entry**: declares-a-sink ⇒ builds a
+  `sink_faucet` group, **and** builds one ⇒ declares one. A one-directional gate passes on the
+  `NO_SINK` default and is not this gate.
+- **The cover is always present on a sink base and is never toggled** — no setting, no design field,
+  no control. `20_000` minor per sink.
+- **The rack is priced and never drawn**: no builder touched, at any width and any depth, **asserted
+  from the adapter side** — the built body has no new part — not by the absence of a diff. `40_000`
+  minor.
+- **The rack's host is the lowest wall-band body, on the same wall, that declares at least one door
+  leaf and whose along-wall extent strictly overlaps the sink's span.** On the seeded design that is
+  `p11`, and each of the four wrong readings is falsified by its own case:
+  - ***any* overlapping body double-bills** — two overlap the seeded sink's 900–1700 span, `p11` at
+    `y0` 1500 and `p17` at `y0` 2200.
+  - ***the highest* puts the rack near the ceiling.**
+  - **a predicate on the raw `band` agrees by luck on the seeded design** — `top` folds into `wall`
+    (ADR 0011 Gap C), so the test needs a fixture whose **only** overlapping body is a `top` row.
+  - **touching is not overlapping** — `p12` begins exactly at 1700 where the sink ends, and counting
+    it ties it with `p11` at the same `y0` and hangs a rack in an open shelf.
+- **The tie-break is deterministic and asserted**: lowest `y0Mm`, then the larger overlap, then the
+  projection's order — never the placements array's order.
+- **Per sink, never per kitchen.** A two-sink fixture bills **two** covers and **two** racks even
+  where both racks resolve to the same wall cabinet (owner, 2026-09-04).
+- **No wall cabinet above the sink → no rack line at all**, and its absence is **not** a zero-amount
+  line. A kitchen with no sink has neither line. A zero renders *inclus*.
+- **The breakdown's `isWholeKitchenLine` stops being `kind !== "cabinet"`.** Left as a negation it
+  compiles and renders `undefined · <accessory name>`. Asserted on a rendered breakdown, not on the
+  predicate.
+- **Line order is placements, hardware, material, accessories**, and `PricedDesign.lines`' own doc
+  comment says so.
+- **`listRuleIds` sweeps the accessory rules**, so two rules sharing an id anywhere in the book is
+  `INVALID_PRICE_BOOK`.
+- **The seeded design's extras total `60_000` minor**, which is the third independent reconciliation
+  against ADR 0070's flat *"Sink extras 600"* in all three tier columns.
+
+### Wave 6W — a tier that prices below the default
+
+**Opened by [ADR 0092](../decisions/0092-hardware-prices-three-mechanisms-and-a-sink-carries-two-extras.md)
+decision 12.** Gate: 6T — the condition is not reachable until 6T's amounts exist. **Same branch as
+6T; the two reach `main` together.** Carries one open owner input.
+
+**Goal.** Decide and implement what a customer sees when a hardware tier prices their kitchen below
+the group's default, and what happens to the price bar's *De la* claim when the default is no longer
+a floor.
+
+**Why it exists.** ADR 0070's Hettich drawer figure is runners-only against complete boxes — an
+imprecision the owner accepted explicitly — so Hettich costs 1 400 minor **less** per drawer than
+Standard while costing 6 740 more per hinge. A design of **one `base-3drawer`** inverts the two, and
+`exactDelta` throws on the settings surface, which is the one control a customer with an unpriceable
+document has to recover with.
+
+**What must not happen.** The refusal is not weakened to make 6T's book fit it — that is ADR 0090
+decision 7's laundering, and ADR 0091 decision 1's Q1 puts the customer-visible half of this refusal
+firmly on the invariant side.
+
+**Recommendation, pending the owner** (ADR 0092 decision 12): a **hardware** tier pricing below its
+group's default is offered with **no delta badge**, reusing the module's existing *"the deltas
+degrade; the choice does not"* path; the **material** group keeps throwing, because a flat
+per-kitchen amount's ordering is a property of the book alone and is still a genuine book fault. The
+alternative is a negative badge, which the mockups' *de la +9 000* has no form for.
+
+**Acceptance criteria.**
+
+- **The one-`base-3drawer` design renders the settings sheet**, with every tier still choosable.
+- **The material group still refuses** a book whose default is not its cheapest material tier, with
+  `NegativeTierDeltaError` unchanged in meaning and message.
+- **The 6T-pinned witness is updated in exactly one direction**: it stops asserting a throw and
+  starts asserting whatever the ruling says the customer sees. The derived `drawers > 4.81 × hinges`
+  quantifier survives unchanged.
+- **The *De la* claim is either true or qualified**, and which of the two was chosen is recorded with
+  the owner's words.
 
 ## Open questions gating this phase
 
@@ -6175,6 +6064,195 @@ point without a code change.
   list — transport, worktop and appliances excluded, the final sum after an on-site measurement — is
   what 6D builds against, and 6D's criterion is that the inclusion list is data the component
   renders rather than logic it contains.
+
+### Wave 6V — a selection is counted by what changed, not by what colour it is
+
+**Tier: Test infrastructure + one product fix. Runner-only evidence.**
+
+**Goal.** Retire the colour-identity premise from all three pixel counters and replace it with a
+measurement that survives an open palette, then close the selection-contrast hole the open palette
+opened. **Gates on 6R** — the free-colour arm and the woods must be on screen before the replacement
+instrument can be shown to work.
+
+**Why it is its own wave.** ADR 0091 decisions 3 and 6. A counter cannot be rewritten in the diff its
+own output is the evidence for, and the replacement must be demonstrated against a fixture that
+deliberately breaks the old one, which is not the fixture 6R is judged on.
+
+**Touches.** `apps/web/tests/e2e/support/pixels.ts`,
+`apps/web/tests/e2e/editor-rail.desktop.e2e.spec.ts`, `apps/web/tests/e2e/overflow-mark.e2e.spec.ts`,
+`packages/three-adapter/tests/qa-6m-mark-composite.adversarial.test.ts`, and — for item 1 —
+`packages/three-adapter/src/selection-outline.ts`. **No domain file, no schema, no builder.**
+
+**Work item 1 — the selection outline stays visible against a colour equal to it.** The product half,
+and it is first because the instrument cannot measure what the product does not do. The remedy is
+**not** a new constant a customer can also pick: the direction on record is that the outline
+distinguishes itself by something the front cannot equal — a second contrasting pass, a luminance
+inversion against the surface it traces, or a dashed rhythm the fronts have no equivalent of. The
+wave chooses and records which; the **acceptance criterion is stated without naming a mechanism**, so
+the choice can be made against a real render.
+
+**Work item 2 — the counters measure a difference, not a colour.** `editor-rail.desktop.e2e.spec.ts`
+already captures the same patch selected and unselected and its own comment says *"the camera and the
+design are identical and the selection frame is the only difference"*. **That is the measurement, and
+it is being thrown away in favour of a colour match.** A differencing counter — pixels whose value
+changed by more than a noise floor between two otherwise identical captures — is immune to the base
+palette by construction, because the customer's colour is in both frames. The same applies to the
+void fill and to the overflow mark: each is a state the design can be toggled into and out of.
+
+**Work item 3 — what remains colour-keyed declares its fixture.** Any counter that still names a
+colour states, as an executable assertion, the fixture property that makes it valid — the shape
+ADR 0091 decision 4a puts into the 6M guard, applied at the e2e seam.
+
+**Acceptance criteria.**
+
+- **The replacement counter is demonstrated on a fixture that breaks the old one.** A design wearing
+  `freeColourFinish("#ff2d2d")` on the body under test: the old `near` counter reports a large count
+  with **nothing selected** (recorded as the witness), and the new counter reports under
+  `MAX_ABSENT_PIXELS`. **A wave that only shows the new counter working on the seeded design has not
+  demonstrated anything** — the seeded design never broke the old one.
+- **Symmetrically for the other two.** A body wearing `veneer.nuc` breaks `redTint`; a body wearing a
+  blue free colour breaks `blueTint`. Both are witnessed before and after.
+- **The positive counts do not collapse.** The selected/unselected/void counts stay above their
+  measured floors on the seeded design at 1440 × 900 in the overview preset — the same four-row table
+  `editor-rail.desktop.e2e.spec.ts` records — so the new instrument is shown to be at least as
+  sensitive as the one it replaces, not merely more robust. Any threshold that moves is re-measured
+  and re-tabulated in place, with the reason.
+- **A selection outline is visible on a front painted the highlight's own colour.** Item 1's criterion,
+  mechanism-free: with the body selected and its front at `#ff2d2d`, the outline is distinguishable
+  from the front in a captured render, **inspected** per `docs/best-practices/browser-and-visual-qa.md`,
+  and countable by the item-2 counter. Swept over at least the highlight's exact hex, a near
+  neighbour (`#cc2222`), and one wood.
+- **The mark and the selection remain distinguishable to the counters on a walnut kitchen.** With a
+  `veneer.nuc` front marked and a *different* body selected, the mark's count and the selection's
+  count are each attributed to the right body. This is the case whose composite margin is 43.0 and
+  the one the 6M guard's rewrite pins as a known breach — it is what makes 6V's success checkable.
+- **The 6M guard's decision-4b breach block goes green throughout and is not edited by this wave.**
+  The breach is a fact about the colour space; 6V changes the instrument, not the geometry of the
+  ball. **If a work item requires that block to change, the wave stops and asks** — that is the
+  laundering ADR 0090 decision 7 forbids, arriving one wave later.
+- **The three false `PixelTest` comments are replaced by true ones**, and no counter keeps a premise
+  it does not assert.
+- **Runner evidence, not local.** Both pixel-counting specs are desktop-gated and the whole e2e gate
+  is a runner artefact; the close-out names the run.
+
+**Risks.**
+
+- **The differencing counter is sensitive to any non-selection change between the two captures** —
+  a hover state, a tooltip, an animation still settling, a re-render at a different tone-mapped
+  exposure. The noise floor is a measured number on the real render at all three camera presets, not
+  a chosen one, and the wave records the floor beside the counts.
+- **Item 1 can grow.** If the chosen remedy needs a shader or a second render pass it has left this
+  wave's tier; the fallback that stays in scope is a second contrasting outline pass, which
+  `selection-outline.ts` already has the machinery for (`OCCLUDED_OUTLINE_OPACITY`'s pass is one).
+- **Item 1 must not reach a geometry builder.** M1's fidelity gate is not this wave's to re-baseline.
+
+### Wave 6X — the slide is witnessed by an assertion, not by a redecorated demo
+
+**Tier: test fidelity, domain package only. No production code, no fixture, no runner evidence.**
+
+**Goal.** Give ADR 0090 decision 6 an assertion that goes red when `frozenExtentsSlidAlongTheWall` is
+removed from `rebuildEveryBodyAt`'s planning map, supply the non-vacuity case that shows what the rule
+protects, and pin — derived, not declared — why the shipped kitchen cannot be that assertion.
+
+**Gates on 6K-i** being merged. It asserts 6K-i's seam and cannot be written before it lands. It gates
+nothing itself and is owed before M6 closes.
+
+**Why it is its own wave.** ADR 0093 decision 5: 6K-i is in review under the tree freeze, and widening
+it reopens a review round for a test that gates nothing.
+
+**Touches.** `packages/configurator-domain/tests/commands/qa-6k-i-planning-map.adversarial.test.ts`
+(work item 1) and **one new test file** in the same directory (items 2–5; the name is the wave's).
+**No `src/` file in any package. No fixture. No `apps/web` file. No schema, no golden map, no
+screenshot, no e2e spec, no parity ledger.**
+
+**What this wave invalidates: nothing.** Stated as a list because the question was asked. No golden
+map moves — `apps/web/tests/store/cabinet-depth-frozen-source.test.ts`'s two per-column maps and
+`packages/configurator-domain/tests/commands/set-cabinet-depth.frozen-map.test.ts`'s wall-B key list
+are untouched. No screenshot moves; the visual gate is not run and not re-baselined. No pinned count
+moves — the 26 placements, the 704 commands, the 22 seeded build ids, the 22 on-screen bodies. No
+price total, no wall-coverage figure, no parity declaration. **If any of these moves, the wave has
+left its scope and stops.**
+
+**Work item 1 — `plannedMapOf` stops being a second map.** ADR 0093 decision 4. It reads
+`frozenExtentsSlidAlongTheWall` rather than omitting it, and it is given the pre-command records at
+the previous catalogue — the operands the production seam gives `deriveRecordedColumns` — so its two
+inputs share one key space. Every existing assertion in that file survives **unchanged in what it
+asserts**; a wall-A value that moves under this correction is a finding, not a re-baseline.
+
+**Work item 2 — the divergence on the shipped kitchen (ADR 0093 decision 3a).** On the seeded design
+carrying its own projected frozen map, at 700 mm: the planning map's wall-B half, keyed at the
+arriving coordinates and carrying the recorded extents, asserted against the same map built from
+un-slid extents.
+
+**Work item 3 — the consequence, on a declared design (ADR 0093 decision 3b).** A wall-B column
+holding a placement that records 820 mm under a deletable member; the member deleted; the frozen map
+projected the way the product projects it, never hand-written. Both planning maps built, both fits
+evaluated through `evaluateInsertFit`.
+
+**Work item 4 — the shipped kitchen's limitation, derived and pinned.** Why no wall-B column can
+witness item 3, swept out of the fixture's own entries rather than listed.
+
+**Work item 5 — the reachability boundary, stated as an assertion.** Item 3's document is not
+reachable from today's seed, and the reason is a fact about §7 rather than an opinion.
+
+**Acceptance criteria.** Each is falsifiable by a QA agent without reading this record's prose.
+
+- **The wall-B planning-map keys at 700 are exactly `B|0.69`, `B|0.84`, `B|1.30`, `B|1.90`, `B|2.55`**,
+  measured literals per setting, on the seeded design carrying its projected frozen map. Each of the
+  five carries the **recorded** `y0Mm`, `topMm` and `w` from the document, not the derived column's —
+  asserted per key with its own numbers, never as a set-membership check and never as a minimum over
+  the five.
+- **The same map built from the un-slid extents differs, and the difference is asserted by value, not
+  by inequality.** It holds the five **leaving** keys `B|0.61`, `B|0.74`, `B|1.20`, `B|1.80`, `B|2.45`
+  as member-less columns, and its five arriving keys carry the columns the records imply rather than
+  the recorded extents — at least one of which differs from the recorded value, named with both
+  numbers. **A criterion that only says "the two maps are not equal" does not discharge this**: the
+  point is which coordinates the extents land on.
+- **Wall A is unmoved between the two maps**, key for key and value for value. The slide is a wall-B
+  fact and a wave that made wall A move has broken ADR 0090 decision 2's rung 1.
+- **The un-slid planning map refuses a rebuild that the slid one fits**, on the declared design of
+  item 3: `evaluateInsertFit` returns `HEIGHT_EXCEEDS_LEVEL` with **required 860 and available 820**
+  against the un-slid map, and a fit at **860** against the slid one. Both numbers asserted. The
+  design is built through `projectFrozenMap` over the pre-delete columns — the construction
+  `set-cabinet-depth.plans-against-the-frozen-extent.test.ts` already uses — and **the entry is not
+  hand-written**, for that file's own stated reason.
+- **The full command agrees with the fit.** `setCabinetDepth(700)` on that design returns `ok` and the
+  rebuilt body's height is 860, so the criterion is not resting on a fit evaluated outside the command
+  that runs it.
+- **Item 3's design is declared unreachable, by measurement.** A body inserted into a wall-B column
+  through the §7 offer list records **860** and not 820 — asserted through the insert path, not stated
+  in a comment — which is why the refusal cannot be reached from the seed. **A wave that finds it *is*
+  reachable has found something better than this criterion and says so**, and ADR 0093's conditional
+  owner input does not arise.
+- **The limitation is derived from the fixture, never listed.** The wave sweeps the seeded design's
+  wall-B members and asserts that every one of them is `canDelete: false`, or carries
+  `IS_A_MANUFACTURED_SIZE` or a `pinnedAtFinishedDepthMm` rule, or has a rebuild height equal to its
+  recorded height — with the count of members swept asserted to be non-zero and equal to its measured
+  value. **A hand-written list of build ids fails this criterion** (ADR 0085 decision 3). It goes red
+  the day wall B gains a column that could witness item 3, which is the direction that wants noticing.
+- **Every assertion in item 2 and item 4 fails when the slide is removed, and this is demonstrated.**
+  QA reverts `frozenExtentsSlidAlongTheWall`'s call in `rebuildEveryBodyAt` to the identity, records
+  which assertions go red and with what values, and restores it. **A wave whose new tests stay green
+  under that mutation has not discharged its goal** — that is the whole of ADR 0093 decision 1.
+- **Nothing else in the tree moves under the same mutation, and that is recorded too.** QA reports the
+  full red set. If a test outside this wave's two files goes red, QA's byte-identity measurement was
+  incomplete and the finding is reported rather than absorbed.
+- **`pnpm check` green**, and `pnpm format:check` over the whole tree at the wave's end.
+
+**Risks.**
+
+- **Item 1 can surface a real disagreement.** If correcting `plannedMapOf` changes a wall-A value the
+  file asserts today, that is a finding about 6K-i and not a number to update — ADR 0090 decision 7
+  binds, and the wave stops and reports.
+- **Item 3's declared design may be refused by a seam nobody expected** — the load seam, the schema, or
+  a validator. If it cannot be expressed at all, item 3 is blocked and the wave delivers items 1, 2, 4
+  and 5 in full, reports the blockage with the refusal code, and **does not substitute a seeded change**
+  — that is the conditional owner input ADR 0093 records.
+- **The temptation to assert the divergence as an inequality.** Two maps that differ is nearly free to
+  write and nearly worthless: it stays green under a slide that moves the wrong distance. Every
+  criterion above is a value for that reason.
+- **Scope creep into backlog 51.** Chain-homogeneity is next door and is not this wave's; ADR 0090
+  recorded it as needing its own adjudication, starting with whether the state is reachable.
 
 ## Verification
 
