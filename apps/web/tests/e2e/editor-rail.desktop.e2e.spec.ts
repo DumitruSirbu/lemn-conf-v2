@@ -31,9 +31,11 @@ const SINK_CABINET_FULL_WIDTH = { x: 700, y: 560 };
  *
  *  **Re-measured 2026-09-06** (ADR 0094 criterion 4f), because wave 6R-b's settings row moved the
  *  canvas 45 px down and this point was the first casualty: at y 560 it now lands on background and
- *  selects nothing. Scanned in the running app at x 700 with the rail open — 545, 550, 555 and 560
- *  reach nothing, and **565 through 720 all reach `p2`**. 640 is inside that band by 75 px at the
- *  measured edge and is not a value nudged until the count passed. */
+ *  selects nothing. Scanned in the running app at x 700 with the rail open: the `p0`/background
+ *  boundary **flaps** across 545-560 — an independent re-measure reached nothing at 545 and 555 but
+ *  `p0` at 550 and 560 — and **565 through 720 all reach `p2`** in both scans. 640 is inside that
+ *  unbroken band by 75 px at the measured edge and is not a value nudged until the count passed.
+ *  The flapping edge is why the anchor is taken deep inside the band rather than near it. */
 const FAR_BASE_CABINET = { x: 700, y: 640 };
 const FRIDGE = { x: 200, y: 500 };
 
