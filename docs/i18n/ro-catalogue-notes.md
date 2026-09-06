@@ -221,3 +221,28 @@ Deliberately absent, each for a recorded reason:
 
 Nothing else was run: two other developers hold uncommitted work in this tree, so the suites were
 left alone deliberately.
+
+---
+
+## Ruled by the owner, 2026-09-06 — the register
+
+**The product addresses the customer as `tu` (informal, 2nd person singular).** Owner's ruling at
+Gate O1, taken against the polite `dumneavoastră` and against a person-free neutral phrasing.
+
+The catalogue was already unanimous — 23 strings informal, none polite — so nothing changed. It is
+recorded because a convention that is only implicit in the copy is one a later wave re-decides by
+accident, and because **`ru.json` inherits it**: Russian's ты/вы split is the same choice, and the
+translation takes **ты**.
+
+**The one deliberate exception is not an exception to this rule.** `webglUnavailable.contactLink`
+reads *"Vreau să mă contactați"* — polite plural, because there the **customer is addressing the
+company**, not the company addressing the customer. The rule governs one direction only: the product
+says `tu` to the customer; the customer says `dumneavoastră` to Lemnaria. Both Russian forms follow
+the same split.
+
+**What this rules out**, so it does not have to be re-argued: `alege-ți` and similar reflexive
+forms are *not* a politer middle ground — they are still `tu`. There is no third register between
+the two; a string that wants to sound more formal without switching person has to be rephrased to
+address nobody, which the owner considered and declined.
+
+Wave **6B-j** carries this into the written convention M7 and M8 author against.
