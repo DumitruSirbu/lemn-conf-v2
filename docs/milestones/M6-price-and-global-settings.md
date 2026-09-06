@@ -328,7 +328,8 @@ constant (`worktop-depth.ts` carries a comment saying the rename is owed and def
 | 6W — a tier that prices below the default *(ADR 0092 decision 12)* — **DONE 2026-09-06, `1d6fc7e`, QA at `ca35b96`. Same branch, ready to merge, not yet on `main`. Criterion 4 — the *De la* claim — is met in code under an architect's interim and **not** with the owner's words; see the close-out and ADR 0092 open input 4** | P | 6T — **same branch, reaches `main` with it** | Full |
 | 6U — the hob holds its reach, and a deeper worktop grows behind it *(ADR 0087; wave 6I's unraised question, owner 2026-09-05)* — **DONE 2026-09-06, `38d5cad`** | D | none — **after 6Q**, and it gates nothing | Full + visual |
 | 6V — a selection is counted by what changed, not by what colour it is *(opened by [ADR 0091](../decisions/0091-an-instruments-premise-is-re-quantified-and-the-product-claim-inside-it-becomes-a-wave.md) decision 6 — the debt wave 6R was obliged to carry rather than discharge)* | — | **6R — gated by it**, and it gates nothing | Test infra + one product fix |
-| 6X — the slide is witnessed by an assertion, not by a redecorated demo *(opened by [ADR 0093](../decisions/0093-a-rule-the-shipped-kitchen-cannot-exercise-owes-a-witness-not-a-moved-fixture.md); ADR 0090 decision 6 has no falsifiable check)* | D | **6K-i — gated by it**, and it gates nothing | Test fidelity |
+| 6X — the slide is witnessed by an assertion, not by a redecorated demo *(opened by [ADR 0093](../decisions/0093-a-rule-the-shipped-kitchen-cannot-exercise-owes-a-witness-not-a-moved-fixture.md); ADR 0090 decision 6 has no falsifiable check)* — **work item 1 withdrawn and the mutation criterion corrected 2026-09-07 by [ADR 0093 Amendment A](../decisions/0093-a-rule-the-shipped-kitchen-cannot-exercise-owes-a-witness-not-a-moved-fixture.md)** | D | **6K-i — gated by it**, and it gates nothing | Test fidelity |
+| 6X-a — the ladder's direction is asserted, not only its existence *(opened by [ADR 0093](../decisions/0093-a-rule-the-shipped-kitchen-cannot-exercise-owes-a-witness-not-a-moved-fixture.md) Amendment A §6 — swapping the depth operands moves a member-less extent 100 mm the wrong way and nothing goes red)* | D | **6X — gated by it**, and it gates nothing | Test fidelity |
 
 The letters are identifiers and the table is in dependency order, with one exception: **6L is listed
 last and runs early.** It has no technical gate on anything and nothing gates on it, so it is placed
@@ -6890,10 +6891,12 @@ nothing itself and is owed before M6 closes.
 **Why it is its own wave.** ADR 0093 decision 5: 6K-i is in review under the tree freeze, and widening
 it reopens a review round for a test that gates nothing.
 
-**Touches.** `packages/configurator-domain/tests/commands/qa-6k-i-planning-map.adversarial.test.ts`
-(work item 1) and **one new test file** in the same directory (items 2–5; the name is the wave's).
-**No `src/` file in any package. No fixture. No `apps/web` file. No schema, no golden map, no
-screenshot, no e2e spec, no parity ledger.**
+**Touches.** ~~`packages/configurator-domain/tests/commands/qa-6k-i-planning-map.adversarial.test.ts`
+(work item 1) and~~ **one new test file** in
+`packages/configurator-domain/tests/commands/` (items 2–5; the name is the wave's). **Narrowed
+2026-09-07 (ADR 0093 Amendment A): work item 1 is withdrawn, so the 6K-i adversarial file is not
+touched.** **No `src/` file in any package. No fixture. No `apps/web` file. No schema, no golden map,
+no screenshot, no e2e spec, no parity ledger.**
 
 **What this wave invalidates: nothing.** Stated as a list because the question was asked. No golden
 map moves — `apps/web/tests/store/cabinet-depth-frozen-source.test.ts`'s two per-column maps and
@@ -6903,11 +6906,22 @@ moves — the 26 placements, the 704 commands, the 22 seeded build ids, the 22 o
 price total, no wall-coverage figure, no parity declaration. **If any of these moves, the wave has
 left its scope and stops.**
 
-**Work item 1 — `plannedMapOf` stops being a second map.** ADR 0093 decision 4. It reads
-`frozenExtentsSlidAlongTheWall` rather than omitting it, and it is given the pre-command records at
-the previous catalogue — the operands the production seam gives `deriveRecordedColumns` — so its two
-inputs share one key space. Every existing assertion in that file survives **unchanged in what it
-asserts**; a wall-A value that moves under this correction is a finding, not a re-baseline.
+**~~Work item 1 — `plannedMapOf` stops being a second map.~~ WITHDRAWN 2026-09-07 (ADR 0093
+Amendment A): the item was owed nothing and changed nothing.**
+
+> ~~ADR 0093 decision 4. It reads `frozenExtentsSlidAlongTheWall` rather than omitting it, and it is
+> given the pre-command records at the previous catalogue — the operands the production seam gives
+> `deriveRecordedColumns` — so its two inputs share one key space. Every existing assertion in that
+> file survives **unchanged in what it asserts**; a wall-A value that moves under this correction is a
+> finding, not a re-baseline.~~
+
+At `deb237f` — 6K-i's own commit and the file's first merged revision — `plannedMapOf` already wrapped
+its `frozen` operand in `frozenExtentsSlidAlongTheWall` and already derived it from `heldRecords` at
+the previous catalogue, the operands `heldRunAcrossTheCommand` gives production
+(`packages/configurator-domain/src/commands/set-cabinet-depth.ts:301,307`). The only commit between
+that and `HEAD` is `1116ae9`, a refactor into `planningOperandsOf` that preserved both operands. **The
+wave touches `qa-6k-i-planning-map.adversarial.test.ts` not at all**, and its `Touches` line above is
+narrowed to the one new file accordingly.
 
 **Work item 2 — the divergence on the shipped kitchen (ADR 0093 decision 3a).** On the seeded design
 carrying its own projected frozen map, at 700 mm: the planning map's wall-B half, keyed at the
@@ -6960,20 +6974,66 @@ reachable from today's seed, and the reason is a fact about §7 rather than an o
   recorded height — with the count of members swept asserted to be non-zero and equal to its measured
   value. **A hand-written list of build ids fails this criterion** (ADR 0085 decision 3). It goes red
   the day wall B gains a column that could witness item 3, which is the direction that wants noticing.
-- **Every assertion in item 2 and item 4 fails when the slide is removed, and this is demonstrated.**
+- **Item 4's reason is pinned per member by id, and to *every* reason that applies — a four-arm
+  histogram does not discharge it** (added 2026-09-07, ADR 0093 Amendment A). `whyItCannotWitness`
+  returns on the first arm that matches, so `3 not deletable / 1 manufactured / 3 pinned / 2 rebuilds
+  to the height it records` is a property of the **arm order** as much as of wall B: the three corner
+  returns satisfy `not deletable` **and** `no catalogue equivalent`, `p7` satisfies two, and
+  reordering the arms yields `0 / 1 / 3 / 2 / 3` from the same nine members. The criterion is that
+  **each of the nine is asserted by id against the full set of reasons that exclude it.** The reason
+  recorded for the three corner returns is **having no §7 row**, not deletability: a structural return
+  is reseated and never fitted through a catalogue equivalent, so it could not refuse a rebuild
+  whether or not anything could delete it. The totals may remain as a secondary assertion; they do not
+  discharge this one.
+- ~~**Every assertion in item 2 and item 4 fails when the slide is removed, and this is demonstrated.**
   QA reverts `frozenExtentsSlidAlongTheWall`'s call in `rebuildEveryBodyAt` to the identity, records
-  which assertions go red and with what values, and restores it. **A wave whose new tests stay green
-  under that mutation has not discharged its goal** — that is the whole of ADR 0093 decision 1.
-- **Nothing else in the tree moves under the same mutation, and that is recorded too.** QA reports the
-  full red set. If a test outside this wave's two files goes red, QA's byte-identity measurement was
-  incomplete and the finding is reported rather than absorbed.
+  which assertions go red and with what values, and restores it.~~ **CORRECTED 2026-09-07 (ADR 0093
+  Amendment A): false as written — measured 0 of item 2's 4 and 0 of item 4's 2 — and not
+  dischargeable by rewriting the tests.** Two mutations are run, and each item answers to the one
+  that can reach it:
+  - **The call-site mutation.** `frozenExtentsSlidAlongTheWall`'s call in `rebuildEveryBodyAt`
+    reverted to the identity. **Item 3's assertions go red**, named and with their values, and they
+    are the wave's witness for the **seam** — they are the only ones that route through
+    `setCabinetDepth`. **A wave whose item 3 stays green under this mutation has not discharged its
+    goal**; that is the whole of ADR 0093 decision 1.
+  - **The export mutation.** The body of `frozenExtentsSlidAlongTheWall` itself neutered to the
+    identity. **Item 2's assertions go red**, named and with their values, and they are the witness
+    for the **export** — the artefact ADR 0090 decision 6 names and the reason it is exported at all.
+  - **Item 2 is not required to go red under the call-site mutation, and must not be rewritten until
+    it does.** It builds both planning maps inside the test from the operands the command builds them
+    from, so no call-site mutation can reach it — and it cannot be routed through the command
+    instead, because the command's output is **byte-identical** with the slide removed, which is the
+    finding that opened this wave. Recording item 2 as a witness of the export rather than of the
+    seam is the accurate description, not a weakening.
+  - **Item 2 is nonetheless not a `docs/WORKFLOW.md` "both sides fed by the same source" guard, and
+    that is asserted rather than assumed.** Its expected side is independent literals, each checked
+    twice — once against the design document's own `columnExtents` entry and once against the
+    planning map — so the document and the map must each agree with a third party rather than with
+    each other.
+  - **Item 4 goes red under neither mutation, by construction, and that is correct.** It sweeps the
+    fixture's wall-B members and calls no slide at all. Its falsifiability is a **fixture** mutation
+    — give wall B a deletable member that rebuilds taller than it records — and the criterion below
+    is what binds it.
+- **Nothing else in the tree moves under the call-site mutation, and that is recorded too.** QA
+  reports the full red set. If a test outside this wave's file goes red, QA's byte-identity
+  measurement was incomplete and the finding is reported rather than absorbed. **The export mutation
+  is expected to move a great deal of the tree** — it is the rule's whole reach — and its red set is
+  recorded as a count and a spread, not as a failure.
 - **`pnpm check` green**, and `pnpm format:check` over the whole tree at the wave's end.
+
+**6X's own residue, recorded here so it is not lost:** swapping `cabinetDepthMm` and
+`previousCabinetDepthMm` at the planning call site slides a member-less extent 100 mm the wrong way,
+differs on 6 of 508 trails, and leaves the whole tree green. It is unobservable at the command
+boundary and is **wave 6X-a's**, per ADR 0093 Amendment A §6.
 
 **Risks.**
 
-- **Item 1 can surface a real disagreement.** If correcting `plannedMapOf` changes a wall-A value the
+- ~~**Item 1 can surface a real disagreement.** If correcting `plannedMapOf` changes a wall-A value the
   file asserts today, that is a finding about 6K-i and not a number to update — ADR 0090 decision 7
-  binds, and the wave stops and reports.
+  binds, and the wave stops and reports.~~ **Moot 2026-09-07: item 1 is withdrawn.** The risk that
+  replaces it is the one the withdrawal exposes — **a durable record written against an agent's
+  working tree rather than against the merged line.** ADR 0093 Amendment A states the rule; a wave
+  that quotes code into a record cites the commit it read.
 - **Item 3's declared design may be refused by a seam nobody expected** — the load seam, the schema, or
   a validator. If it cannot be expressed at all, item 3 is blocked and the wave delivers items 1, 2, 4
   and 5 in full, reports the blockage with the refusal code, and **does not substitute a seeded change**
@@ -6983,6 +7043,57 @@ reachable from today's seed, and the reason is a fact about §7 rather than an o
   criterion above is a value for that reason.
 - **Scope creep into backlog 51.** Chain-homogeneity is next door and is not this wave's; ADR 0090
   recorded it as needing its own adjudication, starting with whether the state is reachable.
+
+### Wave 6X-a — the ladder's direction is asserted, not only its existence
+
+**Tier: test fidelity, domain package only. No production code, no fixture, no runner evidence.**
+
+**Goal.** Give the declared-chain rungs of `frozenExtentsSlidAlongTheWall` an assertion that goes red
+when the depth operands are swapped, so that a rung which moves an extent 100 mm the wrong way is
+distinguishable from one that moves it right.
+
+**Gates on 6X** being merged; it asserts the same seam and would collide in the same file's directory.
+It gates nothing.
+
+**Why it is its own wave.** ADR 0093 Amendment A §6, on ADR 0090 Amendment B addendum's rule: 6X is
+delivered with QA read against it, and this is a rung 6X's scope statement does not cover.
+
+**Touches.** One new test file in `packages/configurator-domain/tests/`. **No `src/` file. No fixture.
+No `apps/web` file. No schema, no golden map, no screenshot, no e2e spec.**
+
+**Work item 1 — a member-less extent's arriving coordinate, asserted by value.** On a design that
+carries a member-less column — the shipped kitchen after the oven tower is deleted is one, and the
+6K-i adversarial file already builds it — the slid extent's along-wall coordinate and key are asserted
+as literals at both declared settings, in both directions.
+
+**Work item 2 — the swap is demonstrated to be caught.** QA swaps `cabinetDepthMm` and
+`previousCabinetDepthMm` at `rebuildEveryBodyAt`'s planning call site and at the exported function's
+own operand read, records the red set for each, and restores both.
+
+**Acceptance criteria.**
+
+- **The member-less extent's arriving key and along-wall coordinate are asserted as literals**, per
+  setting and per direction — never as "it moved", never as an inequality, and never as a bound.
+- **The 100 mm the swap displaces is named with both numbers**: the coordinate the correct direction
+  produces and the one the swap produces, so a rung that moves the right distance the wrong way is
+  told apart from one that does not move.
+- **Every new assertion goes red under the swap at the call site**, and QA records which and with what
+  values. **A wave whose tests stay green under that swap has not discharged its goal.**
+- **Occupied extents are asserted unchanged under the swap**, because they move by `membersShiftMm`
+  and are indifferent to it. A wave that made an occupied extent move under the swap has found
+  something else and reports it.
+- **Wall A is unmoved**, key for key and value for value (ADR 0090 decision 2 rung 1).
+- **Nothing outside this wave's file goes red under the swap**, and if something does, ADR 0093
+  Amendment A §6's byte-identity measurement was incomplete and the finding is reported.
+- **`pnpm check` green**, and `pnpm format:check` over the whole tree at the wave's end.
+
+**Risks.**
+
+- **The member-less document may be harder to build than the 6K-i file makes it look.** If it cannot
+  be built without a seeded change, the wave stops and reports rather than moving the fixture — ADR
+  0093 decision 2 binds unchanged.
+- **Scope creep into the occupied rung.** Rung 1 is witnessed by wave 6X item 2 and is not re-asserted
+  here beyond the indifference check above.
 
 ## Verification
 
