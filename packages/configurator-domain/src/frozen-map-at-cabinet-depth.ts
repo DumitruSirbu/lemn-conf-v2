@@ -212,14 +212,13 @@ function atCurrentCabinetDepth(
   const atOldDepth = deriveColumns(input.previousRecords, {}, input.room);
   // **The columns the records imply, with the frozen extents restored over them** — `deriveColumns`'
   // own ordering at the load seam (ADR 0044 and ADR 0053), and the reason this is not merely a copy
-  // of the frozen map: an extent that ADR 0090 decision 4a leaves standing while its members slide
-  // away is no longer that column's extent, and a map built from the frozen keys alone would file
-  // those members under no column at all. That is the head of the whole defect, arriving on the
-  // legacy arm instead of on the current-schema one.
+  // of the frozen map: an extent the ladder declines to move is no longer its column's extent once
+  // the members have slid away, and a map built from the frozen keys alone would file those members
+  // under no column at all. That is the head of the whole defect, arriving one arm over.
   //
-  // On a current-schema document the overlay is total — every occupied key is in the frozen map and
-  // lands on its members' new key by decision 2 — so this base contributes nothing and the map is
-  // the frozen one exactly.
+  // The overlay is total on any document whose extents the ladder can place — every occupied key is
+  // in the frozen map and lands on its members' new key by rung 2 — so this base normally
+  // contributes nothing and the map is the frozen one exactly.
   const republished = new Map([...atNewDepth, ...slid]);
   for (const [key, column] of slid) {
     const published = republishedDepth({
@@ -343,8 +342,9 @@ interface FrozenDepthQuery {
  *  cleared *base* column frozen at 620 with no recorded source stays 620 at both settings, because
  *  620 is deeper than this rule could ever produce and the fact that would have moved it was never
  *  recorded. It reaches no built body, and it self-corrects the moment anything is inserted into that
- *  column. It is also the population ADR 0090 decision 4a leaves standing on its own coordinate, and
- *  `clipEmptyColumnsToFreeGround` is what keeps that safe.
+ *  column. Its **coordinate** is answered by the last rung of `alongWallExtentPositionAtMm`'s ladder
+ *  rather than by its depth, so it slides with its neighbours even though its depth cannot be
+ *  re-derived (ADR 0090 Amendment A).
  *
  *  **The population is closed under descent, not by date.** No document whose columns all carry
  *  sources ever *enters* this arm — that is what makes the rule legacy-only. But a document already

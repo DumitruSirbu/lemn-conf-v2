@@ -11,12 +11,14 @@
 // *"following, not disappearing"* is not violated, because when a cabinet is standing on that
 // ground the space genuinely is gone.
 //
-// **It is a guard, and it is meant to do no work.** Its reachable population is ADR 0090 decision
-// 4a's legacy tail: an extent written before wave 6K-c records no `depthFromBuildId`, so it cannot
-// follow a sliding run and can be left standing under one. On a current-schema document decisions
-// 1–3 make an overlap unreachable, which is the same defence-in-depth stance
-// `splitOversizedEmptyColumns` is already documented as taking for a producer that does not yet
-// exist.
+// **It is a guard, and it has no reachable population.** It was written for what ADR 0090's struck
+// decision 4a produced — a sourceless extent left on its own coordinate while the run slid out from
+// under it — and Amendment A overturned that rule: every extent now slides, on the last rung of the
+// ladder if nothing better is known, so it lands beside its neighbours rather than under them. What
+// remains is the structural statement that no published map places free space on occupied ground,
+// held for a producer that does not yet exist — the same defence-in-depth stance
+// `splitOversizedEmptyColumns` is already documented as taking. That it drops nothing is asserted,
+// and so is the fact that it still can.
 //
 // **The two-axis test is `findWallOverlaps`', deliberately.** A member-less column in the wall band
 // and a base cabinet at the same along-wall coordinate share no ground at all, so the vertical

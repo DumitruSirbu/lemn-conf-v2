@@ -1,6 +1,6 @@
 # ADR 0090 — A frozen space slides with the run it belongs to, and follows the body it recorded
 
-Status: Accepted — **decision 4a overturned by this record's own amendment of 2026-09-06** (see *Amendment*, at the end). Decisions 1, 2, 3, 4b and 5–8 stand.
+Status: Accepted — **decision 4a overturned by this record's own amendment of 2026-09-06** (see *Amendment A*), and **decision 4b's seam corrected by *Amendment B***, both at the end. Decisions 1, 2, 3 and 5–8 stand.
 Date: 2026-09-06
 Type: Decision (adjudication of the seam wave 6J-c exposed) + Finding
 Milestone: M6 — opens wave 6J-d; **amends [ADR 0088](0088-a-depth-change-plans-against-the-frozen-extent-and-re-derives-only-the-depth.md)
@@ -204,7 +204,7 @@ than fixed here.
 Two halves, and the second is what makes the first safe.
 
 **4a. ~~A sourceless extent keeps its coordinate.~~ OVERTURNED 2026-09-06 by this record's own
-amendment — see *Amendment* at the end. A sourceless extent moves, on the ladder stated there.** The
+amendment — see *Amendment A* at the end. A sourceless extent moves, on the ladder stated there.** The
 struck reasoning is kept in place rather than deleted, because it is the argument the amendment
 refutes and the refutation is the more useful half:
 
@@ -350,7 +350,7 @@ moves an anchor and re-keys a map, and decision 3 of ADR 0088 stays true.
   rebuilds the scene whole at a depth change, so no adapter change is owed here; this is recorded so
   that the next such reader is checked rather than assumed.
 
-## Amendment — 2026-09-06: decision 4a is overturned, and standing still is not abstention
+## Amendment A — 2026-09-06: decision 4a is overturned, and standing still is not abstention
 
 **Raised by wave 6J-d's implementer**, who closed the measured defect exactly as decisions 1–3 rule
 (orphan columns 4 → 0, `emptyColumns` 5 → 1 at `B|1300`, `columnExtents` 7 → 11, `voids` 12 → 3, five
@@ -517,6 +517,238 @@ by value, `NOT_DELETABLE` is pinned so a future catalogue change re-opens rung 4
 clip-disabled counterfactual becomes a standing assertion rather than a one-off measurement, and 4b's
 non-vacuity case becomes a hand-built map. **No other criterion moves** — in particular the six
 invariants and the value-preservation at 600 are unchanged.
+
+## Amendment B — 2026-09-06: a cap derived from the room bounds what is published and never rewrites what is recorded
+
+**Raised by adversarial QA on the branch at `cf53e8e`**, left red, and it contradicts Amendment A in
+terms: that section says *"under the ladder there is no loss to surface, because every space returns
+on every reachable document."* **It does not, and QA found the case.** The sentence was true of every
+scenario measured and false as a general claim, and the difference is the far end of the wall — which
+no measurement in either amendment reached.
+
+### The measurement
+
+Reproduced by this record at `cf53e8e`, in the shipped 2920 mm room, on a recorded space standing
+flush to wall B's end on ground no body occupies:
+
+```
+emptyColumn  B|2620 w600   [2320..2920]   at 600
+             B|2670 w500   [2420..2920]   at 700     slid +100, then clipped at the wall
+             B|2570 w500   [2320..2820]   back at 600
+```
+
+**100 mm gone, and gone permanently.** `DesignSchema.safeParse` succeeds and
+`validateDesignForCatalog` returns `[]` on the document that comes back, so the `PUT` seam stores it
+and a later session opens a space 100 mm short with nothing anywhere saying so. QA measured the same
+room at `e28ab25`: 600 mm at 600, at 700, and back. **The branch introduces it.**
+
+**It is the case Amendment A's own distinction was written for** — *"permitting a loss and a customer
+silently losing a space they can see are different claims"* — and it is the second of the two.
+
+### Classification
+
+**An implementation defect in wave 6J-d, sitting on a contract gap in [ADR 0069](0069-past-the-wall-is-one-code-family-and-severity-is-declared-per-code.md)
+that this amendment closes.** The slide is correct; the clip is correct *at 700*; what is wrong is
+that the clipped width is written back into the document as the new recorded truth. Nothing had
+decided whether a room-derived cap may rewrite a recorded fact, because until this wave no reversible
+command could push a legitimate space past a wall.
+
+### The rule
+
+> **A pass that derives its answer from the room may bound what the map publishes and may not rewrite
+> what the document records. A pass that derives its answer from the placements, or from a declared
+> ceiling, does both.**
+>
+> `clipEmptyColumnsAtWallEnd` is the first kind. `clipEmptyColumnsToFreeGround` (decision 4b),
+> `splitOversizedEmptyColumns` (ADR 0052's 800 mm ceiling) and `mergeAdjacentEmptyColumns`
+> (ADR 0046) are the second: free ground is a fact about the bodies in the design, and the cap and
+> the merge are declared rules about a column. None of them is undone by moving a setting back.
+
+Applied to D1: the recorded extent slides exactly and keeps its width; the published column is capped
+at the wall. `B|2620 w600` → recorded `B|2720 w600`, published `B|2670 w500` → recorded and published
+`B|2620 w600` again. **The round trip returns.**
+
+**A recorded extent that the slide puts past the wall is marked, not shortened** —
+`EMPTY_COLUMN_PAST_WALL_END`, already declared a `mark` (`validate-design.ts:217`), so the write seam
+accepts it. That is precisely what [ADR 0065](0065-a-body-past-the-end-of-its-wall-is-marked-not-moved.md)
+rules for a *placement* the same slide pushes past the same wall, and wave 6J-c's plan says so in as
+many words. **The asymmetry was the defect**: one slide, two populations, and only the one that cannot
+speak for itself was silently truncated.
+
+### It reaches ADR 0069, and it does not overturn its owner ruling
+
+The team lead asked whether the real question is ADR 0069's rather than 6J-d's. It is both, and the
+distinction that keeps them apart is the seam rather than the rule.
+
+ADR 0069's owner ruling — closed 2026-09-04, *"never"* — is about what the product **offers**: no
+member-less column reaching past the end of its wall may be presented as an insertable opening. **That
+is preserved exactly.** The cap still runs, the published map is still bounded by the wall, and no
+opening past the wall is ever derived, drawn or offered. What changes is that the cap stops being
+written back through `projectFrozenMap` into `emptyColumns`.
+
+So ADR 0069 is **amended in its seam, not in its decision**, and the amendment is recorded on that
+record as well as here. Its clip was written for a space that was *always* past the end — a fabricated
+entry or a remnant — where truncating it and keeping the truncation is right, because nothing will
+ever make the wall longer. A space a **reversible command** put there is a different input, and the
+setting the customer can move back is exactly what makes it different.
+
+### 6N-0 is currently hiding this, and the wave must not rely on it
+
+QA measured the same failure pre-6N-0: in the 2830 mm room the ordinary *cleared appliance niche*
+scenario reaches it, 700 → 630, not restored. It is invisible on `main` only because 6N-0 widened wall
+B to 2920. **A wave whose correctness depends on another wave's room width has a coupling nobody
+declared**, and reverting 6N-0 would return the defect silently.
+
+So the criterion is written against **a room narrow enough to trigger the cap, declared in the test**,
+not against whichever width the fixture happens to carry. That severs the coupling rather than
+documenting it.
+
+### The two lower-severity findings, ruled
+
+**The clip-idle assertion was vacuous, and QA's replacement is a good criterion but a different one.**
+`clipEmptyColumnsToFreeGround(state.columns, state.records)` returning its input proves idempotence,
+not idleness — the pass only removes, and `state.columns` has already been through it, so
+`clip(clip(m)) === clip(m)` holds whatever the first pass did. QA is right and the demonstration is
+correct. But the replacement it offers — the population of recorded runs identical before, at 700 and
+back — measures **no loss**, which is this amendment's own D1 gate and is owed on its own account.
+Idleness is a separate claim and is asserted on the input the funnel actually hands the pass: the map
+after the slide and after the wall-end cap, and *before* the free-ground clip. Both criteria are owed,
+and neither discharges the other.
+
+**Decision 7's *"none is edited"* is amended: an anchor may move and nothing else may.** The
+prohibition was written before decision 2 made a wall-B column key a function of the setting, and as
+written it forbids the single edit decision 2 makes unavoidable. It is narrowed rather than relaxed:
+
+> An invariant test may have its **anchor** changed and nothing else. An anchor is a value naming
+> *which* object the test inspects; an assertion is a value the test compares against. The diff may
+> change only a key or id used in a lookup, or a key embedded in a snapshot row, and must leave every
+> expected value, every tolerance, every generator range and every scenario in the list
+> byte-identical. The new anchor is a **measured literal per setting**, never computed through the
+> production reader under test. A derived read may select an object and may never appear inside an
+> `expect`.
+>
+> **Anything else remains forbidden in full.** An edit that changes an expected value, widens a
+> tolerance, narrows a generator or drops a case is not an anchor change, and decision 7 applies to it
+> as written.
+
+The three edits are checked against that and qualify. `qa-6k-j-closure`'s inline snapshot moves two
+keys — `B|1.80` → `B|1.90`, `B|1.20` → `B|1.30` — and **every depth in it is byte-identical** (699 /
+700, 738 / 638), the set is the same size, and the `@reload` rows are untouched.
+`qa-6k-j-fallback-rule` wraps one lookup in `columnKeyAt` and leaves `toBeCloseTo(600, 6)` alone.
+`qa-6k-c-frozen-source` does the same twice and reaches for the coordinate only to choose which
+placement to delete, never inside an assertion.
+
+**The record was wrong and the authorisation was right**, which is the order this needs to be said in:
+the team lead approved these on the substance and asked for the criterion to be corrected rather than
+defended, and that is what this paragraph is.
+
+### What Amendment A said, corrected
+
+Amendment A's *"there is no loss to surface, because every space returns on every reachable
+document"* is **withdrawn as stated** and replaced by: *under the ladder no space is lost to a
+neighbour's slide, and a space at the far end of the wall was lost to the room-derived cap until this
+amendment.* The ladder is unaffected — D1 reproduces with the ladder implemented, at the far end of
+the wall, on a fully sourced current-schema document. Nothing in Amendment A's rungs, measurements or
+`NOT_DELETABLE` finding changes.
+
+**And the owner question is answered the same way, for the same reason.** With Amendment B nothing is
+lost, so there is nothing to surface. Had the fix been unavailable — had the wall genuinely been too
+short to restore — the answer would have been the other one, because a customer losing 100 mm of a
+space they can see is not a thing to record and move past.
+
+### Consequences for the wave
+
+The branch does not merge until D1 is green. Wave 6J-d's plan gains the criteria in its own section:
+the round trip is asserted at the **far end of the wall** in a room declared by the test, the recorded
+and published widths are asserted to differ at 700 and agree at 600, and the free-ground guard's
+idleness is asserted on the input the funnel hands it. The stale prose in
+`apps/web/src/store/apply-command-result.ts`'s funnel comment — which still describes decision 4a's
+*"legacy tail on its own coordinate"* — is corrected in the same pass.
+
+## Amendment B addendum — 2026-09-06: a second route survives, and one column may not have two keys
+
+Raised by wave 6J-d's implementer after D1 was closed, and reproduced by this record at `cf53e8e`
+plus the D1 fix. Both halves are ruled here in **direction**; neither is 6J-d's to build.
+
+### The second route, measured
+
+`CommandContext.columns` hands `setWidth` and `insertBody` the **published** map, and their
+`effect.columns` replaces the map whole — so on those two commands the cap rides into the recorded
+face. On a recorded space flush to wall B's end in the 2920 mm room:
+
+```
+at 600                     recorded B|2620 w600   published B|2.62 w600
+after setCabinetDepth(700) recorded B|2720 w600   published B|2.67 w500   <- Amendment B working
+after a delete on wall B   recorded B|2720 w600   published B|2.67 w500   <- fall-through arm, record survives
+after resizing p0, wall A  recorded B|2670 w500   published B|2.67 w500   *** the record adopts the cap ***
+```
+
+An unrelated resize on the **other wall** takes the recorded entry's width *and* its centre from the
+published face. It is the same loss D1 names, reached by a different command.
+
+### The rule: the two faces differ in width and centre, and may not differ in key
+
+The implementer asks whether *"one column, two keys"* is intended. **The width and centre divergence
+is intended and is forced** — a cap holds the near edge and moves the far edge in, so the centre must
+move. **The key divergence is not intended, was not foreseen when Amendment B was written, and is not
+endorsed.** A column's key is its **identity across the two faces**; letting the cap re-derive it from
+the moved centre turns one column into two, and that is precisely what makes the second route
+expensive to close.
+
+It is safe today — a void carries the published key and an insert matches against the same key, so
+nothing resolves a void against the recorded map — so this is a **finding on the branch, not a defect
+in it**. What makes it correctable rather than a standing contradiction is a fact
+`clip-empty-columns-at-wall-end.ts` already states: *"An occupied column is never clipped."* A capped
+column is therefore always member-less, no `record.col` is ever derived onto its key, and
+`key = deriveColumnKeyAt(centre)` — mandatory for the recorded face and for every occupied column —
+is **not** load-bearing for a capped published one.
+
+### Direction for the wave, so it is not a coin flip between two costed options
+
+**Neither option as posed.** Option 1's only stated cost — `insertBody` answering `COLUMN_MISMATCH`
+because the void names `B|2.67` and the recorded map holds `B|2.72` — **is created by the key
+divergence**. Remove the divergence and option 1 is clean:
+
+> 1. **The wall-end cap preserves the column's key**, changing `w`, `x`/`z` and nothing else. One
+>    column, one identity, two faces.
+> 2. **`CommandContext.columns` hands `setWidth` and `insertBody` the recorded map**, as
+>    `setCabinetDepth` is already handed what it needs.
+
+**Option 2 is refused by name.** Reconciling in the store afterwards, by matching rather than lookup
+because a resize moves keys, adds a product rule at the seam whose whole stated purpose is that it
+states none (`apply-command-result.ts`'s head comment) — and a match that silently finds the wrong
+partner is the failure shape this project has recorded three times.
+
+**What the wave must measure, because this record has not.** Whether anything computes a column key
+from a coordinate and looks it up in the **published** map — picking, `findVacatedVoid`, the adapter's
+selection — since that is the one place `key = f(centre)` could still be load-bearing for a
+member-less column. If it is, direction 1 needs a different shape and the wave says so with its
+measurement rather than proceeding.
+
+**It is ADR 0088 decision 2's question a third time** — which map does a map-publishing command
+receive, and who owns the reconciliation — and it touches `setWidth` and `insertBody` rather than the
+depth track, so it is its own wave. Recorded as `docs/BACKLOG.md` entry 52.
+
+### The branch merges, and the residue is the branch's own, not inherited
+
+**Correcting the framing it was offered under.** The reading that *"the branch is strictly better than
+`main` on this path"* does not survive checking: at `e28ab25` the depth command slid no extent at all,
+so a far-end space was never pushed past its wall and **never capped — there was no loss on this path
+on `main`, in either direction.** QA measured exactly that. The residue is **introduced by this
+branch**, not inherited from before it, and calling it otherwise is how a residue gets forgotten.
+
+**It merges anyway, and the argument is a comparison rather than an absolution.** What the branch
+closes is a 700 mm kitchen that cannot be saved at all — five `EMPTY_COLUMN_OVERLAPS_PLACEMENT`
+refusals at the `PUT` seam, four standing runs recorded as free space, openings drawn through
+cabinets. What it opens is 100 mm of one recorded space at the far end of one wall, reachable only by
+a later unrelated resize or insert, silent but bounded and not compounding. Holding the branch does
+not shrink the residue; it keeps the larger defect shipped.
+
+**Two conditions on the close, and they are what make this honest rather than convenient.** The
+residue is recorded with its measurement and a named wave before the merge, not after. And **wave
+6J-d's criteria may not claim more than the wave delivers**: any criterion asserting that a recorded
+width survives is scoped to the commands 6J-d owns — the depth change and the fall-through arm — so a
+later reader meets the boundary in the plan rather than rediscovering it in the tree.
 
 ## Finding, recorded and NOT ruled: the validator is blind to a cross-wall corner intersection
 

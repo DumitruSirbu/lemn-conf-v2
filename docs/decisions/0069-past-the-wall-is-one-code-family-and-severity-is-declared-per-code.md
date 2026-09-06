@@ -1,6 +1,6 @@
 # ADR 0069 — "Past the wall" is one code family, and severity is declared per code
 
-Status: Accepted
+Status: Accepted — **the wall-end clip's seam amended 2026-09-06 by [ADR 0090](0090-a-frozen-space-slides-with-its-run-and-follows-the-body-it-recorded.md) Amendment B.** The owner ruling below — nothing past the wall is ever offered — is unchanged; what moved is that the cap no longer rewrites the stored document.
 Date: 2026-09-03
 Type: Decision
 Milestone: M6 — wave 6A3. Extends [ADR 0065](0065-a-body-past-the-end-of-its-wall-is-marked-not-moved.md)
@@ -323,3 +323,30 @@ or pre-clip migrated document can still carry one, and it still reads as a mark 
 Not amending Consequences' wording above — it is dated and stands as written, per this project's rule
 that a decision record accumulates rather than erases. A reader relying on "not decided here" for the
 insertion-offer question should read this amendment first.
+
+## Amendment — 2026-09-06: the wall-end cap bounds what is published and does not rewrite what is recorded
+
+[ADR 0090](0090-a-frozen-space-slides-with-its-run-and-follows-the-body-it-recorded.md) Amendment B,
+raised by wave 6J-d's adversarial QA. **This record's decision is not changed. Its seam is.**
+
+`clipEmptyColumnsAtWallEnd` was written for a member-less column that was *always* past the end of its
+wall — a fabricated entry or a remnant — where truncating it and keeping the truncation is right,
+because nothing will ever make the wall longer. Wave 6J-c introduced an input this record could not
+have had in view: a **reversible command** that pushes a legitimate space past the wall, because a
+deeper corner on wall A takes more of wall B. Measured at `cf53e8e` in the 2920 mm room, a space
+flush to wall B's end went `[2320..2920]` at 600 → `[2420..2920]` clipped at 700 → `[2320..2820]` back
+at 600: **100 mm lost permanently**, with `validateDesignForCatalog` silent and the document storing
+cleanly.
+
+The rule ADR 0090 Amendment B states: **a pass that derives its answer from the room may bound what
+the map publishes and may not rewrite what the document records.** So the cap still runs on every
+published map, and no opening past a wall is ever derived, drawn or offered — this record's owner
+ruling of 2026-09-04, intact and unqualified. What stops is the clipped width being written back
+through `projectFrozenMap` into `emptyColumns`. A recorded extent the slide puts past the wall is
+**marked** instead, on `EMPTY_COLUMN_PAST_WALL_END`, which this record already declares a `mark` — the
+same treatment [ADR 0065](0065-a-body-past-the-end-of-its-wall-is-marked-not-moved.md) gives a
+placement the same slide pushes past the same wall.
+
+`clipEmptyColumnsToFreeGround`, `splitOversizedEmptyColumns` and `mergeAdjacentEmptyColumns` are on
+the other side of that line and are unaffected: they derive from the placements or from a declared
+ceiling, and no setting change undoes them.

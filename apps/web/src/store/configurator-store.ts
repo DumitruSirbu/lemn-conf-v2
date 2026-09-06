@@ -14,6 +14,7 @@ import {
   buildKitchenLBodyCatalog,
   cabinetDepthMmOf,
   deriveColumns,
+  deriveRecordedColumns,
   derivePlacementRecords,
   insertBody,
   KITCHEN_L_DESIGN,
@@ -99,6 +100,9 @@ export interface ConfiguratorState {
   /** Extent frozen at load time, `hasFullHeightUnder` live — see the file header and ADR 0011
    *  Gap D. */
   readonly columns: ReadonlyMap<string, Column>;
+  /** The same map with ADR 0069's wall-end cap not applied — what the document is projected from,
+   *  and read by nothing else (ADR 0090 Amendment B, and `AppliedCommandState.recordedColumns`). */
+  readonly recordedColumns: ReadonlyMap<string, Column>;
   readonly voids: readonly VoidRecord[];
   readonly selection: Selection;
   readonly select: (target: NonNullable<Selection>) => void;
@@ -310,16 +314,19 @@ function deriveGeometry(design: Design, catalog: BodyCatalog) {
   // run) and the frozen extents of the columns whose members no longer reach as far as the customer
   // left them (a partial delete, a cleared column refilled with a body that fits). Without these two
   // arguments the frozen map survives the session and dies at the reload.
-  const columns = deriveColumns(
-    records,
-    {
-      emptyColumns: design.emptyColumns,
-      columnExtents: design.columnExtents,
-    },
-    design.room,
-  );
+  const stored = {
+    emptyColumns: design.emptyColumns,
+    columnExtents: design.columnExtents,
+  };
+  // **Two faces of one map** (ADR 0090 Amendment B). `deriveColumns` ends in ADR 0069's wall-end cap
+  // and is what openings, the scene and an insert are matched against; `deriveRecordedColumns` is
+  // the same derivation without it and is what the next command's projection is built from. The cap
+  // bounds what is published and does not rewrite what is recorded — otherwise a space flush to a
+  // wall's end loses 100 mm at 700 and keeps the loss at 600, one command at a time.
+  const columns = deriveColumns(records, stored, design.room);
+  const recordedColumns = deriveRecordedColumns(records, stored);
   const voids = recomputeVoids(records, columns);
-  return { records, columns, voids };
+  return { records, columns, recordedColumns, voids };
 }
 
 function nowInIsoMilliseconds(): string {
@@ -367,7 +374,9 @@ export function createConfiguratorStore(
       const application = applyCommandResult({
         result,
         catalog,
-        columns: state.columns,
+        // The **recorded** face: ADR 0069's cap belongs to what is offered, never to what is
+        // stored, so the map that becomes the next document is the one it has not touched.
+        columns: state.recordedColumns,
         selection: state.selection,
       });
       if (!application.applied) {

@@ -27,6 +27,8 @@ import {
   validateDesignForCatalog,
 } from "../../src/validate-design.js";
 import {
+  clipEmptyColumnsAtWallEnd,
+  clipEmptyColumnsToFreeGround,
   derivePlacementRecords,
   type BodyCatalog,
   type Column,
@@ -426,6 +428,116 @@ describe("a sourceless extent, on the last rung of the ladder", () => {
     for (const [buildId, definition] of onTheWallMap) {
       expect(definition.canDelete, buildId).toBe(false);
       expect(definition.canReplace, buildId).toBe(false);
+    }
+  });
+});
+
+describe("a space at the far end of the wall", () => {
+  // **ADR 0090 Amendment B's D1, and the room is the test's own.** The same failure reaches the
+  // ordinary cleared-appliance-niche scenario in the pre-6N-0 2830 mm room, so taking the width from
+  // `KITCHEN_L_DESIGN` would couple this wave's correctness to 6N-0's and let a revert there return
+  // the defect silently. 2920 is the shipped wall B; the space below is flush to its end.
+  const WALL_B_MM = 2920;
+
+  /** A recorded space standing flush to wall B's end, on ground no body occupies. Its far edge is
+   *  the wall's own end at 600, so the +100 mm slide puts it 100 mm past — the one input ADR 0069's
+   *  cap was never written for, because until wave 6J-c no reversible command could produce it. */
+  function withASpaceAtTheFarEnd(): Design {
+    return {
+      ...KITCHEN_L_DESIGN,
+      room: { ...KITCHEN_L_DESIGN.room, depthMm: WALL_B_MM },
+      placements: KITCHEN_L_DESIGN.placements.filter(
+        (placement) => !["p7", "p24"].includes(placement.id),
+      ),
+      emptyColumns: [
+        {
+          wall: "B",
+          alongMm: 2620,
+          widthMm: 600,
+          y0Mm: 0,
+          topMm: 2600,
+          depthMm: 742,
+          depthFromBuildId: "fridge-free-700",
+        },
+      ],
+    };
+  }
+
+  function theSpace(design: Design): EmptyColumn {
+    const [space] = design.emptyColumns ?? [];
+    if (!space) throw new Error("the space did not survive the change");
+    return space;
+  }
+
+  // Measured at `cf53e8e`: `[2320..2920]` → `[2420..2920]` → `[2320..2820]`. 100 mm gone, and gone
+  // permanently — `DesignSchema` parses it and `validateDesignForCatalog` is silent, so the `PUT`
+  // stores it and a later session opens a space 100 mm short with nothing saying so.
+  it("returns to the width and the coordinate it started at", () => {
+    const start = withASpaceAtTheFarEnd();
+
+    const deep = changeTo(start, DEEP_MM);
+    const back = changeTo(deep.design, SHALLOW_MM);
+
+    expect(theSpace(back.design)).toStrictEqual(theSpace(start));
+  });
+
+  // ADR 0090 Amendment B's rule, made falsifiable: **the recorded extent slides exactly and keeps
+  // its width.** A cap derived from the room bounds what the map publishes and does not rewrite what
+  // the document records.
+  it("records the whole width at the deeper setting, past the wall", () => {
+    const deep = changeTo(withASpaceAtTheFarEnd(), DEEP_MM);
+    const space = theSpace(deep.design);
+
+    expect(space.widthMm).toBe(600);
+    expect(space.alongMm).toBe(2720);
+    expect(space.alongMm + space.widthMm / 2).toBeGreaterThan(WALL_B_MM);
+  });
+
+  // **Marked, not shortened** — the same treatment ADR 0065 gives a placement the same slide pushes
+  // past the same wall, now applied to the population that cannot speak for itself.
+  // `EMPTY_COLUMN_PAST_WALL_END` is already declared a `mark`, so the write seam accepts it.
+  it("is marked at the deeper setting and refused at neither", () => {
+    const deep = changeTo(withASpaceAtTheFarEnd(), DEEP_MM);
+    const issues = validateDesignForCatalog(
+      deep.design,
+      buildKitchenLBodyCatalog(DEEP_MM),
+    );
+
+    expect(issues.map((issue) => issue.code)).toContain(
+      "EMPTY_COLUMN_PAST_WALL_END",
+    );
+    expect(fatalIssuesOf(deep.design, DEEP_MM)).toEqual([]);
+    expect(
+      fatalIssuesOf(changeTo(deep.design, SHALLOW_MM).design, SHALLOW_MM),
+    ).toEqual([]);
+  });
+
+  // **The free-ground guard's idleness, on the input the funnel actually hands it** — the map after
+  // the slide and after the wall-end cap, and *before* the free-ground clip.
+  //
+  // Asserting `clipEmptyColumnsToFreeGround(state.columns, records) === state.columns` is **vacuous**
+  // and was asked for in that form by mistake: the pass only removes, so re-applying it to its own
+  // output is idempotence and holds whatever the first pass did. Reconstructing the funnel's input
+  // is what makes the claim mean something.
+  it("hands the free-ground guard nothing to do", () => {
+    for (const design of [withASpaceAtTheFarEnd(), withTheOvenTowerCleared()]) {
+      for (const cabinetDepthMm of [SHALLOW_MM, DEEP_MM]) {
+        const changed = changeTo(design, cabinetDepthMm);
+        const records = derivePlacementRecords(
+          changed.design,
+          buildKitchenLBodyCatalog(cabinetDepthMm),
+        );
+        const handedToTheGuard = clipEmptyColumnsAtWallEnd(
+          changed.columns,
+          records,
+          changed.design.room,
+        );
+
+        expect(
+          clipEmptyColumnsToFreeGround(handedToTheGuard, records),
+          `at ${String(cabinetDepthMm)}`,
+        ).toBe(handedToTheGuard);
+      }
     }
   });
 });

@@ -3391,7 +3391,19 @@ red invariant tests are its gate.
 
 **Acceptance criteria.**
 
-- **Six red invariant tests go green *unchanged*.** `qa-6k-j-fallback-rule.adversarial.test.ts`'s
+- **Six red invariant tests go green, with only their anchors moved** — ADR 0090 decision 7 as
+  **narrowed by Amendment B**. An anchor is a value naming *which* object the test inspects: a key or
+  id used in a lookup, or a key embedded in a snapshot row. Every expected value, tolerance, generator
+  range and scenario in the list stays byte-identical, the new anchor is a **measured literal per
+  setting** from `tests/support/wall-b-column-keys.ts`, and a derived read may select an object but
+  may never appear inside an `expect`. **Everything else stays forbidden in full**: an edit that
+  changes an expected value, widens a tolerance, narrows a generator or drops a case is not an anchor
+  change, and the original prohibition applies to it as written. The three edits made on the branch
+  are checked against this and qualify — `qa-6k-j-closure`'s snapshot moves `B|1.80` → `B|1.90` and
+  `B|1.20` → `B|1.30` with every depth in it identical (699/700, 738/638) and the `@reload` rows
+  untouched.
+- ~~**Six red invariant tests go green *unchanged*.**~~ Superseded by the criterion above; the
+  original text follows because the prohibition it states still governs every non-anchor edit. `qa-6k-j-fallback-rule.adversarial.test.ts`'s
   *"publishes one map for five routes, on every legacy scenario"* and *"converges to a two-cycle
   keyed only on the setting"*; `qa-6k-j-closure.adversarial.test.ts`'s *"publishes no unsourced depth
   off another setting's row of the map"* and *"differs from its sourced twin only on a base run at
@@ -3444,6 +3456,14 @@ red invariant tests are its gate.
   meet is the criterion doing its job. **The non-vacuity case is therefore a hand-built map, not a
   legacy document** — under the ladder no legacy scenario overlaps any more, so a legacy fixture would
   make this criterion silently vacuous.
+- **The free-ground guard's idleness is asserted on the input the funnel hands it** — the map after
+  the slide and after the wall-end cap, and **before** the free-ground clip. Asserting
+  `clipEmptyColumnsToFreeGround(state.columns, state.records) === state.columns` is **vacuous** and
+  was asked for in that form by mistake: the pass only removes and `state.columns` has already been
+  through it, so `clip(clip(m)) === clip(m)` holds whatever the first pass did — demonstrated by QA on
+  a map where the guard provably drops a column. QA's replacement, the population of recorded runs
+  identical before, at 700 and back, is a **good criterion and a different one**: it measures no loss,
+  which is the D1 gate above. Both are owed and neither discharges the other.
 - **With `clipEmptyColumnsToFreeGround` disabled at both call sites, every legacy scenario still
   validates with no refusal.** The wave's own counterfactual, kept as a standing assertion rather than
   a one-off measurement: it is what distinguishes *the rule is right and the guard is idle* from *the
@@ -3455,6 +3475,26 @@ red invariant tests are its gate.
   `columns`, `design.emptyColumns` and `design.columnExtents` are identical to the start state. True
   today for the depths and for the coordinates by accident (nothing moved); it must stay true once
   they do move.
+- **The round trip is asserted at the far end of the wall, in a room the test declares** — ADR 0090
+  Amendment B's D1. A recorded space flush to wall B's end went `[2320..2920]` → `[2420..2920]` →
+  `[2320..2820]` at `cf53e8e`: **100 mm lost permanently**, schema-valid and validator-silent. The
+  room is declared by the fixture the test builds and **not taken from `KITCHEN_L_DESIGN`**, because
+  the same failure reaches the ordinary *cleared appliance niche* scenario in the pre-6N-0 2830 mm
+  room — a wave whose correctness depends on another wave's room width has a coupling nobody
+  declared, and reverting 6N-0 would return the defect silently.
+- **The recorded width and the published width differ at 700 and agree at 600**, asserted as two
+  reads of the same command's output. **Scoped to the commands this wave owns** — the depth change and
+  the fall-through arm — and *not* claimed of the map in general: `setWidth` and `insertBody` receive
+  the published map and their `effect.columns` replaces it whole, so on those two the cap still rides
+  into the record. Measured, direction ruled in ADR 0090's Amendment B addendum, and scheduled as
+  `docs/BACKLOG.md` entry 52. A criterion that claimed the recorded width survives *every* command
+  would be false the moment a reader tried it, which is why the boundary is in the plan. This is ADR 0090 Amendment B's rule made falsifiable: a
+  room-derived cap bounds what is published and does not rewrite what is recorded. A wave that makes
+  the two agree at 700 has re-introduced D1; one that makes them differ at 600 has broken the cap.
+- **A recorded extent the slide puts past the wall is marked, not shortened.**
+  `EMPTY_COLUMN_PAST_WALL_END` on the document at 700, and no `refusal`-severity issue — ADR 0065's
+  treatment of a placement the same slide pushes past the same wall, now applied to the population
+  that cannot speak for itself.
 - **Value-preserving at 600.** Every published column, every stored entry and every void is
   byte-identical to what the tree produces today at the default setting. A wave that changes a 600 mm
   number has done the wrong thing.

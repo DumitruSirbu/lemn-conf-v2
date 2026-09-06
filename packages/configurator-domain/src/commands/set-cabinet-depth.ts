@@ -27,6 +27,7 @@ import type { Design, DesignPlacement } from "../design.js";
 import { toMetres, toMillimetres } from "../millimetres.js";
 import {
   deriveColumns,
+  deriveRecordedColumns,
   derivePlacementRecords,
   projectFrozenMap,
   withFrozenMap,
@@ -277,10 +278,13 @@ function republishedFrozenMap(query: RepublishQuery): RepublishedFrozenMap {
   return {
     records,
     columns: frozenMapAtCabinetDepth({
-      frozen: deriveColumns(
+      // **The recorded face, never the published one** (ADR 0090 Amendment B). `deriveColumns`
+      // ends in ADR 0069's wall-end cap, and a map this command slides and then writes back into
+      // the document must not carry a truncation the room imposed at one setting: a space flush to
+      // wall B's end went 600 → 500 mm at 700 and kept the 500 on the way back to 600.
+      frozen: deriveRecordedColumns(
         heldRecords,
         storedFrozenMapOf(input.design),
-        input.design.room,
       ),
       records,
       previousRecords: slidRecords,

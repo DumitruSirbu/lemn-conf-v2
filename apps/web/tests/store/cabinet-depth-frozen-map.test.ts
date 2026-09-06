@@ -20,6 +20,7 @@ import {
   fatalDesignValidationIssues,
   KITCHEN_L_DESIGN,
   validateDesignForCatalog,
+  wallLengthMm,
   type Design,
   type EmptyColumn,
 } from "@lemnaria/configurator-domain";
@@ -140,6 +141,38 @@ function storedCoordinates(design: Design): readonly string[] {
         `${entry.wall}|${String(entry.alongMm)} w${String(entry.widthMm)} d${String(entry.depthMm)}`,
     )
     .sort();
+}
+
+/** Every recorded run as one string, so "the population is the same" is a single comparison rather
+ *  than a set difference a reader has to reconstruct. Depths are deliberately **not** in it: they
+ *  follow the setting by design and this claim is about which runs exist. */
+function recordedPopulation(store: Store): string {
+  const { design } = store.getState();
+  return [...(design.emptyColumns ?? []), ...(design.columnExtents ?? [])]
+    .map((entry) => `${entry.wall}|${String(entry.widthMm)}`)
+    .sort()
+    .join(" ");
+}
+
+/** The width the document records for the one member-less run on this wall. */
+function recordedWidthMm(store: Store, wall: "A" | "B"): number {
+  const spaces = (store.getState().design.emptyColumns ?? []).filter(
+    (entry) => entry.wall === wall,
+  );
+  const [only] = spaces;
+  if (spaces.length !== 1 || !only) {
+    throw new Error(
+      `expected one recorded space on wall ${wall}, found ${String(spaces.length)}`,
+    );
+  }
+  return only.widthMm;
+}
+
+/** The width the store publishes for that same run, which ADR 0069's cap may have bounded. */
+function publishedWidthMm(store: Store, key: string): number {
+  const column = store.getState().columns.get(key);
+  if (!column) throw new Error(`no column ${key} is published`);
+  return Math.round(column.w * 1000);
 }
 
 function orphanRecordColumns(store: Store): readonly string[] {
@@ -331,50 +364,43 @@ describe("what this wave promised not to move", () => {
   });
 });
 
-describe("the free-ground guard is idle, and is not hiding the rule", () => {
-  // **ADR 0090 decision 4b's non-vacuity criterion, from the other side** — the wave's counterfactual
-  // kept as a standing assertion rather than a one-off measurement.
-  //
-  // `clipEmptyColumnsToFreeGround` returns its input **by identity** when it drops nothing, so
-  // asking it again over the published map answers exactly the question the counterfactual asks: is
-  // there a member-less column standing on ground a placement occupies? Identity means no, which
-  // means the document that was validated above **is** the pre-clip document — the guard is idle and
-  // the ladder is what is keeping the map right.
-  //
-  // Under ADR 0090's struck decision 4a this fired in five of six wall-B legacy scenarios, and
-  // disabling it put 9 and 10 refusal-class issues back on two of them. That is what it looks like
-  // when the guard is hiding a wrong rule rather than backing up a right one.
-  //
-  // The other half of "drops nothing" — that no space vanished — is carried by the round-trip and
-  // orphan criteria above: a dropped column does not come back at 600.
-  it.each(CLEARED_SCENARIOS)(
-    "%s, sourced, at both settings",
-    (_name, members) => {
-      const store = removeAll(createStore(), members);
+describe("the free-ground guard drops nothing, and can still fire", () => {
+  // **QA's criterion, and it replaces one of mine that was vacuous.** Asserting
+  // `clipEmptyColumnsToFreeGround(state.columns, state.records) === state.columns` proves
+  // *idempotence*, not idleness: the pass only removes and `state.columns` has already been through
+  // it, so `clip(clip(m)) === clip(m)` holds whatever the first pass did. Idleness on the input the
+  // funnel actually hands the guard is asserted where the funnel's input can be reconstructed —
+  // `packages/configurator-domain/tests/commands/set-cabinet-depth.frozen-map.test.ts`. This is the
+  // other claim and neither discharges the other: **the population of recorded runs is the same
+  // before, at 700 and back**, so nothing was dropped by anything.
+  it.each(CLEARED_SCENARIOS)("%s, sourced", (_name, members) => {
+    const store = removeAll(createStore(), members);
+    const before = recordedPopulation(store);
 
-      for (const cabinetDepthMm of [DEEPER_MM, DEFAULT_CABINET_DEPTH_MM]) {
-        setDepth(store, cabinetDepthMm);
-        const { columns, records } = store.getState();
-        expect(
-          clipEmptyColumnsToFreeGround(columns, records),
-          `at ${String(cabinetDepthMm)}`,
-        ).toBe(columns);
-      }
-    },
-  );
+    setDepth(store, DEEPER_MM);
+    const deep = recordedPopulation(store);
+    setDepth(store, DEFAULT_CABINET_DEPTH_MM);
+
+    expect(deep, "at 700").toBe(before);
+    expect(recordedPopulation(store), "back at 600").toBe(before);
+  });
 
   it.each(CLEARED_SCENARIOS)("%s, as a legacy document", (_name, members) => {
     const store = asLegacyDocument(removeAll(createStore(), members));
+    const before = recordedPopulation(store);
 
     setDepth(store, DEEPER_MM);
+    const deep = recordedPopulation(store);
+    setDepth(store, DEFAULT_CABINET_DEPTH_MM);
 
-    const { columns, records } = store.getState();
-    expect(clipEmptyColumnsToFreeGround(columns, records)).toBe(columns);
+    expect(deep, "at 700").toBe(before);
+    expect(recordedPopulation(store), "back at 600").toBe(before);
   });
 
   // The guard can still fire — `clip-empty-columns-to-free-ground.test.ts` proves that on a
-  // hand-built map. It is deliberately **not** a legacy document any more: under the ladder none of
-  // them overlaps, so a legacy fixture would make the non-vacuity case silently vacuous.
+  // hand-built map, and this is its store-level twin. It is deliberately **not** a legacy document:
+  // since ADR 0090's Amendment A every extent slides, so no reachable document overlaps and a legacy
+  // fixture would make the non-vacuity case silently vacuous.
   it("is a guard that can fire, on a map no rule produces", () => {
     const { columns, records } = removeAll(
       createStore(),
@@ -392,5 +418,72 @@ describe("the free-ground guard is idle, and is not hiding the rule", () => {
     expect(
       clipEmptyColumnsToFreeGround(onOccupiedGround, records).has(stranded.key),
     ).toBe(false);
+  });
+});
+
+describe("the cap bounds what is published and not what is recorded", () => {
+  // ADR 0090 Amendment B, as two reads of one command's output. A wave that makes the two agree at
+  // 700 has re-introduced D1; one that makes them differ at 600 has broken ADR 0069's cap.
+  //
+  // **The room is the fixture's own here on purpose**, because this pair is about the seam rather
+  // than about the far end: the space is put where the shipped wall B already ends. The far-end
+  // round trip, in a room the test declares so 6N-0 cannot hide it, is the domain file's.
+  const FAR_END = {
+    wall: "B",
+    alongMm: 2620,
+    widthMm: 600,
+    y0Mm: 0,
+    topMm: 2600,
+    depthMm: 742,
+    depthFromBuildId: "fridge-free-700",
+  } as const;
+
+  function withASpaceAtTheFarEnd(): Store {
+    return createStore({
+      ...KITCHEN_L_DESIGN,
+      placements: KITCHEN_L_DESIGN.placements.filter(
+        (placement) => !["p7", "p24"].includes(placement.id),
+      ),
+      emptyColumns: [FAR_END],
+    });
+  }
+
+  it("differs at the deeper setting and agrees at the default one", () => {
+    const store = withASpaceAtTheFarEnd();
+
+    setDepth(store, DEEPER_MM);
+    const deepRecorded = recordedWidthMm(store, "B");
+    // **The published key is the cap's, not the record's.** `clipEmptyColumnsAtWallEnd` re-derives a
+    // clipped column's key from its new centre, so the record stands at 2720 while what is offered
+    // stands at 2670 — 2420 to the wall's own 2920. The two faces differ in coordinate as well as in
+    // width, and an insert is matched against the offered one.
+    const deepPublished = publishedWidthMm(store, "B|2.67");
+    setDepth(store, DEFAULT_CABINET_DEPTH_MM);
+
+    expect(deepRecorded).toBe(600);
+    expect(deepPublished).toBe(500);
+    expect(recordedWidthMm(store, "B")).toBe(600);
+    expect(publishedWidthMm(store, "B|2.62")).toBe(600);
+  });
+
+  // The half ADR 0069's owner ruling keeps: nothing past the end of a wall is ever offered. The
+  // opening derived at 700 is the capped one, and it is the capped column an insert would match.
+  it("offers only the bounded column", () => {
+    const store = withASpaceAtTheFarEnd();
+
+    setDepth(store, DEEPER_MM);
+
+    const opening = store
+      .getState()
+      .voids.find((record) => record.col === "B|2.67");
+    expect(Math.round((opening?.w ?? 0) * 1000)).toBe(500);
+    for (const column of store.getState().columns.values()) {
+      const farEdgeMm = Math.round(
+        ((column.wall === "A" ? column.x : column.z) + column.w / 2) * 1000,
+      );
+      expect(farEdgeMm, column.key).toBeLessThanOrEqual(
+        wallLengthMm(column.wall, store.getState().design.room),
+      );
+    }
   });
 });

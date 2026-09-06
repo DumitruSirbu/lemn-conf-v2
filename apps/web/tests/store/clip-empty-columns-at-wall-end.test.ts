@@ -1,5 +1,14 @@
 // M6 — the store half of the owner's ruling on ADR 0069's open question: `applyCommandResult`'s
-// write-time pipeline must never publish a `design.emptyColumns` entry reaching past its own wall.
+// pipeline must never **publish** a column reaching past its own wall.
+//
+// **Amended 2026-09-06 by ADR 0090 Amendment B and ADR 0069's own amendment of the same date.** The
+// ruling is unchanged and the seam moved: a pass that derives its answer from the **room** bounds
+// what the map publishes and does not rewrite what the document records. So the entry in
+// `design.emptyColumns` keeps the width the delete freed and is **marked**
+// (`EMPTY_COLUMN_PAST_WALL_END`, a `mark` since ADR 0069), while the published map, the openings
+// derived from it and everything offered are bounded by the wall exactly as before. This file
+// asserts both faces, because either one alone is the defect: the record clipped is 6J-d's D1, and
+// the publication unclipped is what ADR 0069 forbids.
 //
 // Not built on the seeded kitchen: wall A's placements end at 3500 on a 3560 mm wall and wall B's
 // end exactly at 2800 on a 2920 mm wall (the fixture's own comment in `kitchen-l-design.ts`), so no
@@ -9,6 +18,9 @@
 // targets: a wall shorter than the body that used to stand on it, which a delete lays bare.
 import {
   buildKitchenLBodyCatalog,
+  DEFAULT_CABINET_DEPTH_MM,
+  fatalDesignValidationIssues,
+  validateDesignForCatalog,
   wallLengthMm,
   type Design,
 } from "@lemnaria/configurator-domain";
@@ -53,22 +65,50 @@ function createStore() {
 }
 
 describe("the write-time pipeline never publishes an emptyColumns entry past its wall", () => {
-  it("clips the remnant a delete leaves on a wall shorter than the body it held", () => {
+  it("bounds the column a delete leaves on a wall shorter than the body it held", () => {
     const store = createStore();
 
     store.getState().select({ kind: "placement", id: "p0" });
     store.getState().remove();
 
     expect(store.getState().lastRejection).toBeNull();
+    const [column] = [...store.getState().columns.values()];
+    if (!column) throw new Error("no column is published");
+    const farEdgeMm = Math.round((column.x + column.w / 2) * 1000);
+    expect(farEdgeMm).toBeLessThanOrEqual(wallLengthMm("A", DESIGN.room));
+    // The near edge is exactly what the delete freed — the cap shrinks the far edge inward and
+    // never moves the near one.
+    expect(Math.round((column.x - column.w / 2) * 1000)).toBe(0);
+    expect(Math.round(column.w * 1000)).toBe(750);
+    // And the opening offered from it is bounded too, which is what the owner ruling is about.
+    const [opening] = store.getState().voids;
+    expect(Math.round((opening?.w ?? 0) * 1000)).toBe(750);
+  });
+
+  // The other face, and the half ADR 0090 Amendment B moved: the document keeps the width the
+  // delete freed and says so, rather than carrying a truncation the room imposed. A recorded extent
+  // the wall no longer covers is marked — the same treatment ADR 0065 gives a *placement* past the
+  // end of the same wall, which is what `p0` itself was before it was deleted.
+  it("records the width the delete freed, and marks it rather than shortening it", () => {
+    const store = createStore();
+
+    store.getState().select({ kind: "placement", id: "p0" });
+    store.getState().remove();
+
     const emptyColumns = store.getState().design.emptyColumns ?? [];
     expect(emptyColumns).toHaveLength(1);
     const [entry] = emptyColumns;
-    const farEdgeMm = (entry?.alongMm ?? 0) + (entry?.widthMm ?? 0) / 2;
-    expect(farEdgeMm).toBeLessThanOrEqual(wallLengthMm("A", DESIGN.room));
-    // The near edge is exactly what the delete freed — clipping shrinks the far edge inward and
-    // never moves the near one.
+    expect(entry?.widthMm).toBe(800);
     expect((entry?.alongMm ?? 0) - (entry?.widthMm ?? 0) / 2).toBe(0);
-    expect(entry?.widthMm).toBe(750);
+
+    const issues = validateDesignForCatalog(
+      store.getState().design,
+      buildKitchenLBodyCatalog(DEFAULT_CABINET_DEPTH_MM),
+    );
+    expect(issues.map((issue) => issue.code)).toContain(
+      "EMPTY_COLUMN_PAST_WALL_END",
+    );
+    expect(fatalDesignValidationIssues(issues)).toEqual([]);
   });
 
   it("keeps every column of the resulting map on or inside its own wall", () => {

@@ -525,28 +525,16 @@ export interface FrozenMapDocument {
   readonly columnExtents?: readonly StoredColumnExtent[] | undefined;
 }
 
-/** §3.2: derived once at load from the seeded placement set, and never recomputed afterwards —
- *  `top` and `regions` are load-time facts, not a function of the design's current state.
+/** The two derivable halves of a column map, before any funnel stage runs: the columns the
+ *  placements imply, with the document's own stored halves restored over them (ADR 0044 and
+ *  ADR 0053, in that order and for the reason `deriveColumns` gives).
  *
- *  Three sources, in one order that matters: the placements group into the columns they imply, then
- *  the document's own two stored halves are restored over them — the member-less columns nothing
- *  could rebuild (ADR 0044) and the frozen extents of the occupied columns the placements no longer
- *  imply (ADR 0053). Both arrive **before** the merge and before `hasFullHeightUnder` is answered,
- *  so every later step reads the extents the customer actually left behind.
- *
- *  `hasFullHeightUnder` is the exception and is answered here only because a load is also a
- *  derivation; every derivation after this one re-answers it through
- *  `withCurrentFullHeightMembers`.
- *
- *  `room` is the owner's ruling on ADR 0069's open question, threaded through so
- *  `clipEmptyColumnsAtWallEnd` can hold every member-less column to the wall it stands on before the
- *  merge runs. It sits after `stored`, which keeps its own default, so every existing caller is
- *  broken by a missing argument rather than by one silently landing in the wrong parameter. */
-export function deriveColumns(
+ *  Extracted so the recorded face and the published face are the **same** derivation with a
+ *  different set of passes over it, rather than two derivations that have to be kept in step. */
+function restoredColumns(
   records: readonly PlacementRecord[],
-  stored: FrozenMapDocument = {},
-  room: DesignRoom,
-): ReadonlyMap<string, Column> {
+  stored: FrozenMapDocument,
+): Map<string, ColumnExtent> {
   const columns = new Map<string, ColumnExtent>();
   for (const [key, members] of groupByColumn(records)) {
     // §3.2's MAX is over the **space each member fills**, not over its recorded `frame.d`. The two
@@ -604,6 +592,32 @@ export function deriveColumns(
   }
   addStoredEmptyColumns(columns, stored.emptyColumns ?? []);
   addStoredColumnExtents(columns, stored.columnExtents ?? []);
+  return columns;
+}
+
+/** §3.2: derived once at load from the seeded placement set, and never recomputed afterwards —
+ *  `top` and `regions` are load-time facts, not a function of the design's current state.
+ *
+ *  Three sources, in one order that matters: the placements group into the columns they imply, then
+ *  the document's own two stored halves are restored over them — the member-less columns nothing
+ *  could rebuild (ADR 0044) and the frozen extents of the occupied columns the placements no longer
+ *  imply (ADR 0053). Both arrive **before** the merge and before `hasFullHeightUnder` is answered,
+ *  so every later step reads the extents the customer actually left behind.
+ *
+ *  `hasFullHeightUnder` is the exception and is answered here only because a load is also a
+ *  derivation; every derivation after this one re-answers it through
+ *  `withCurrentFullHeightMembers`.
+ *
+ *  `room` is the owner's ruling on ADR 0069's open question, threaded through so
+ *  `clipEmptyColumnsAtWallEnd` can hold every member-less column to the wall it stands on before the
+ *  merge runs. It sits after `stored`, which keeps its own default, so every existing caller is
+ *  broken by a missing argument rather than by one silently landing in the wrong parameter. */
+export function deriveColumns(
+  records: readonly PlacementRecord[],
+  stored: FrozenMapDocument = {},
+  room: DesignRoom,
+): ReadonlyMap<string, Column> {
+  const columns = restoredColumns(records, stored);
   // ADR 0046 part 2, at the load seam ADR 0037's merge never had. **After the stored spaces are
   // restored**, because they are most of what there is to merge, and **before**
   // `withCurrentFullHeightMembers`, because whether a full-height member stands under a column is a
@@ -629,6 +643,47 @@ export function deriveColumns(
       clipEmptyColumnsAtWallEnd(columns, records, room),
       records,
     ),
+    records,
+  );
+}
+
+/** **The map as the document records it: everything `deriveColumns` answers, minus the wall-end
+ *  cap** (ADR 0090 Amendment B, and ADR 0069's own amendment of the same date).
+ *
+ *  > A pass that derives its answer from the **room** may bound what the map publishes and may not
+ *  > rewrite what the document records. A pass that derives its answer from the **placements**, or
+ *  > from a **declared ceiling**, does both.
+ *
+ *  The merge (ADR 0046), ADR 0052's split and the free-ground clip (ADR 0090 decision 4b) are the
+ *  second kind and stay in both faces: no setting change undoes any of them.
+ *  `clipEmptyColumnsAtWallEnd` is the first kind and is only in `deriveColumns`, because wave 6J-c
+ *  made the wall's own length reversible from the customer's side — a deeper corner on wall A takes
+ *  100 mm of wall B, and a space flush to the far end was truncated at 700 and then carried the
+ *  truncation back to 600. Measured at `cf53e8e`: `[2320..2920]` → `[2420..2920]` → `[2320..2820]`,
+ *  100 mm gone, schema-valid and validator-silent.
+ *
+ *  **This is what a projection into `emptyColumns`/`columnExtents` must be built from.** What is
+ *  offered, drawn and inserted into is `deriveColumns` above — bounded by the wall, exactly as
+ *  ADR 0069's owner ruling requires and unchanged by this split. A recorded extent the wall no
+ *  longer covers is **marked** rather than shortened, on `EMPTY_COLUMN_PAST_WALL_END`, which is the
+ *  same treatment ADR 0065 gives a placement the same slide pushes past the same wall.
+ *
+ *  **Written as the sibling pipeline rather than as a reordering.** Lifting the clip to the end of
+ *  `deriveColumns` would have let one function serve both faces, and it is not a no-op: the merge
+ *  is capped at 800 mm (ADR 0052), so a pair the clip narrows below the cap merges where the same
+ *  pair uncapped declines. Two pipelines differing by one stage change no published answer; one
+ *  pipeline with a moved stage changes some.
+ *
+ *  **It takes no `DesignRoom`, and that is the signature saying what the two faces differ by.** The
+ *  cap is the only stage that reads the room, so the recorded face has nothing to read it for — and
+ *  a caller reaching for one function where it meant the other fails to compile rather than
+ *  publishing an unbounded map or recording a bounded one. */
+export function deriveRecordedColumns(
+  records: readonly PlacementRecord[],
+  stored: FrozenMapDocument = {},
+): ReadonlyMap<string, Column> {
+  return withCurrentFullHeightMembers(
+    mergeAdjacentEmptyColumns(restoredColumns(records, stored), records),
     records,
   );
 }

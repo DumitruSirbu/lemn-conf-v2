@@ -214,7 +214,7 @@ export interface AlongWallExtentPositionQuery {
  *  decision 4 already uses on the depth axis. Every rung below the first is a positive answer; there
  *  is no arm that abstains, because on a run that has moved, **standing still is not abstention**. It
  *  is a positive claim that this column follows a third chain no entry declares and whose shift is
- *  zero — the worst guess available, wrong by the full 100 mm, which is what the amendment overturned
+ *  zero — the worst guess available, wrong by the full 100 mm, which is what Amendment A overturned
  *  decision 4a for.
  *
  *  1. **Wall A** — unchanged. Wall A is anchored at the corner and does not move at any setting.

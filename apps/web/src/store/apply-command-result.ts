@@ -21,6 +21,7 @@ import {
   withFrozenMap,
   type BodyCatalog,
   type Column,
+  type ColumnExtent,
   type CommandEffect,
   type CommandResult,
   type Design,
@@ -40,10 +41,23 @@ export type Selection = {
 export interface AppliedCommandState {
   readonly design: Design;
   readonly records: readonly PlacementRecord[];
-  /** The frozen extents, with `hasFullHeightUnder` re-answered from the new records — the one
-   *  column field that describes what stands under an opening now rather than how far the run
-   *  reaches. */
+  /** **The published face**: the frozen extents with `hasFullHeightUnder` re-answered from the new
+   *  records, and every member-less column bounded by the length of the wall it stands on. This is
+   *  what openings are derived from, what the scene draws and what an insert is matched against —
+   *  ADR 0069's owner ruling, that nothing past the end of a wall is ever offered. */
   readonly columns: ReadonlyMap<string, Column>;
+  /** **The recorded face**: the same map with ADR 0069's wall-end cap *not* applied, which is what
+   *  the document is projected from (ADR 0090 Amendment B).
+   *
+   *  > A pass that derives its answer from the **room** may bound what the map publishes and may not
+   *  > rewrite what the document records.
+   *
+   *  The cap is the only stage on that side of the line. The free-ground clip, ADR 0052's split and
+   *  ADR 0046's merge derive from the placements or from a declared ceiling and are in both faces:
+   *  no setting change undoes them. The cap is different because wave 6J-c made the wall's own
+   *  length reversible from the customer's side — a space flush to wall B's end lost 100 mm at 700
+   *  and kept the loss on the way back to 600, schema-valid and validator-silent. */
+  readonly recordedColumns: ReadonlyMap<string, Column>;
   readonly voids: readonly VoidRecord[];
   readonly selection: Selection;
   readonly lastRejection: null;
@@ -67,7 +81,12 @@ export interface ApplyCommandResultInput {
    *
    *  `hasFullHeightUnder` is the one field that is not part of that extent and *is* re-answered:
    *  frozen, a column whose full-height unit was deleted in this session went on reporting one
-   *  standing there while the same design reloaded reported none. */
+   *  standing there while the same design reloaded reported none.
+   *
+   *  **The store's recorded face, not its published one** (ADR 0090 Amendment B). Handing the
+   *  wall-bounded map in would carry ADR 0069's cap into the next command's record and out through
+   *  `projectFrozenMap`, which is the defect that amendment closes — one command per 100 mm, and
+   *  each document valid on its own. */
   readonly columns: ReadonlyMap<string, Column>;
   /** What is selected right now, which a **whole-kitchen** command leaves exactly where it was: it
    *  points at no cabinet, so it moves no selection (wave 6E). Every other effect names the
@@ -86,13 +105,13 @@ export function applyCommandResult(
   }
 
   const records = derivePlacementRecords(result.design, input.catalog);
-  const columns = resolveColumns({
+  const { recorded, published } = resolveColumns({
     effect: result.effect,
     frozen: input.columns,
     records,
     room: result.design.room,
   });
-  const voids = recomputeVoids(records, columns);
+  const voids = recomputeVoids(records, published);
   return {
     applied: true,
     state: {
@@ -100,9 +119,14 @@ export function applyCommandResult(
       // frozen column the document cannot carry, and swallowing it here would save a design whose
       // empty space is silently missing — the defect ADR 0044 exists to fix, arriving by a new
       // route. A loud failure is the lesser harm, so this seam does not catch.
-      design: withFrozenMap(result.design, projectFrozenMap(columns, records)),
+      // **Projected from the recorded face** (ADR 0090 Amendment B): the document keeps the width
+      // the customer left, and a recorded extent the wall no longer covers is *marked* rather than
+      // shortened — the same treatment ADR 0065 gives a placement the same slide pushes past the
+      // same wall.
+      design: withFrozenMap(result.design, projectFrozenMap(recorded, records)),
       records,
-      columns,
+      columns: published,
+      recordedColumns: recorded,
       voids,
       selection: resolveSelection(
         result.effect,
@@ -157,9 +181,7 @@ export function applyCommandResult(
  *  `voids` are recomputed against **this** map, not the one passed in. A resize moves the boundary
  *  between two columns, and an opening derived from the pre-move extents would be drawn where
  *  nothing is free any more. */
-function resolveColumns(
-  input: PublishedColumnsInput,
-): ReadonlyMap<string, Column> {
+function resolveColumns(input: PublishedColumnsInput): ResolvedColumns {
   const { records, room } = input;
   const published = publishedColumns(input);
   // ADR 0037's merge ran here until 2026-08-30 and was withdrawn because §4 had no horizontal half.
@@ -201,22 +223,45 @@ function resolveColumns(
   // **The free-ground clip joins them, between the two** (ADR 0090 decision 4b). A member-less
   // column standing on ground a placement occupies is dropped whole, and it earns its place in the
   // funnel by the same argument the wall-end clip does: a pass that only ever removes cannot hand
-  // the split more work than it already had. Its reachable population is the legacy tail decision 4a
-  // leaves on its own coordinate — an extent with no recorded source cannot follow a sliding run —
-  // and on a current-schema document it drops nothing, which is asserted rather than assumed.
-  return withCurrentFullHeightMembers(
-    mergeAdjacentEmptyColumns(
-      splitOversizedEmptyColumns(
-        clipEmptyColumnsToFreeGround(
-          clipEmptyColumnsAtWallEnd(published, records, room),
+  // the split more work than it already had.
+  //
+  // **It is a guard with no reachable population, and that is the amended state of the rule.** The
+  // first version of this comment said its population was decision 4a's legacy tail — an extent with
+  // no recorded source, left on its own coordinate while the run slid out from under it. ADR 0090's
+  // Amendment A overturned 4a: a sourceless extent now slides on the chain `FOLLOWS_CABINET_DEPTH`
+  // declares, so it lands beside its neighbours rather than under them and there is nothing here to
+  // drop. What the guard keeps is the structural statement — no published map places free space on
+  // occupied ground — for a producer that does not yet exist, which is the same stance
+  // `splitOversizedEmptyColumns` is documented as taking two paragraphs up. That it drops nothing is
+  // asserted, and so is the fact that it still can.
+  //
+  // **And the funnel has two faces, differing by exactly one stage** (ADR 0090 Amendment B). The
+  // wall-end cap derives its answer from the **room**, so it may bound what the map publishes and
+  // may not rewrite what the document records; every other stage derives from the placements or
+  // from a declared ceiling and is in both. Written as two pipelines rather than as a reordering:
+  // ADR 0052 caps the merge at 800 mm, so a pair the cap narrows below that ceiling merges where the
+  // same pair uncapped declines, and moving the stage would change a published answer.
+  const funnelled = (columns: ReadonlyMap<string, ColumnExtent>) =>
+    withCurrentFullHeightMembers(
+      mergeAdjacentEmptyColumns(
+        splitOversizedEmptyColumns(
+          clipEmptyColumnsToFreeGround(columns, records),
           records,
         ),
         records,
       ),
       records,
-    ),
-    records,
-  );
+    );
+  return {
+    recorded: funnelled(published),
+    published: funnelled(clipEmptyColumnsAtWallEnd(published, records, room)),
+  };
+}
+
+/** The two faces of one map: what is offered and drawn, and what is written back to the document. */
+interface ResolvedColumns {
+  readonly recorded: ReadonlyMap<string, Column>;
+  readonly published: ReadonlyMap<string, Column>;
 }
 
 interface PublishedColumnsInput {
