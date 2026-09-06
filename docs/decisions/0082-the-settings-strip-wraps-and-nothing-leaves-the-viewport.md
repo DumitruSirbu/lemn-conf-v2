@@ -1,6 +1,8 @@
 # ADR 0082 — The whole-kitchen strip wraps, and nothing on it leaves the viewport
 
-Status: Accepted
+Status: Accepted — **decision 1's predicate is amended by this record's own amendment of 2026-09-06**
+(see *Amendment A* at the end, raised by [ADR 0094](0094-the-strip-gets-its-own-row-and-containment-is-measured-against-its-own-band.md)).
+Decisions 2–8 stand unchanged.
 Date: 2026-09-05
 Type: Finding + Decision
 Milestone: M6 — closes `docs/BACKLOG.md` entry 32, schedules entry 33; lands in wave 6R
@@ -42,6 +44,10 @@ The owner ruled on 2026-09-05:
 
 **1. Nothing on the strip may leave the viewport, at any chip count. This is an invariant of the
 row, not a width that happens to fit today's labels.**
+
+> **Amended 2026-09-06 — the predicate below is necessary and was not sufficient. Read it together
+> with *Amendment A* at the end of this record**, which adds the strip's own band and the chip's own
+> clip to it, and names the surface all three are measured on.
 
 At every supported viewport: `document.documentElement.scrollWidth` equals `clientWidth`, and every
 element of the strip — each chip and the trigger — has its bounding box fully inside the viewport.
@@ -156,3 +162,62 @@ Nothing found in the sweep contradicts this decision, and nothing recorded is ov
   that way.
 - **The next control added to this strip inherits an assertion instead of a comment.** That is the
   whole point of decision 7.
+
+---
+
+## Amendment A — 2026-09-06: containment is measured against three boxes, and on a flagged design
+
+**Raised by wave 6R's visual pass**, which implemented decisions 1–8, went green on all ten
+`pnpm ci:local` gates, and then measured a state that satisfies decision 1's predicate **exactly**
+while the strip is not contained in any sense this record intended. Adjudicated in
+[ADR 0094](0094-the-strip-gets-its-own-row-and-containment-is-measured-against-its-own-band.md); the
+amendment is entered here because a predicate that a clipped pill passes is a gap in this record, not
+in the wave that satisfied it.
+
+### The state that passed
+
+Desktop at 900 × 900, on a design carrying [ADR 0065](0065-a-body-past-the-end-of-its-wall-is-marked-not-moved.md)'s
+overflow flag, at the **shipped two chips** — no chip-count simulation:
+
+| thing | measured |
+| --- | --- |
+| `document.documentElement.scrollWidth` / `clientWidth` | **900 / 900** — decision 1 satisfied |
+| every chip's and the trigger's box inside the viewport | **yes** — decision 1 satisfied |
+| `global-settings-chips` box width | **0.00** |
+| each chip's rendered width | **28.00 px**, with **138** and **115** px of label cut |
+| the chips' x-range | 155.39 – 183.39 — **left of their own band**, inside the step nav's column |
+| the trigger | 39.06 px past its band's right edge, overlapping `price-bar` by **39.06 × 44.00** |
+| `elementFromPoint` at `price-bar-total`'s left edge | **`global-settings-trigger`** |
+
+Two pills reading *"M…"* and *"Fe…"* standing on *"Pasul 2 din 4"*, and the settings trigger standing
+on the price. `scrollWidth` was equal to `clientWidth` throughout.
+
+### The amendment
+
+**Decision 1's predicate becomes three predicates, not one.** At every supported viewport, at every
+chip count, and with any label the price book can author:
+
+1. `document.documentElement.scrollWidth` equals `clientWidth`, and every chip and the trigger has
+   its bounding box fully inside the viewport — **as originally written, unchanged**;
+2. every chip and the trigger has its bounding box fully inside **`.settingsRow`'s own box**, on all
+   four edges. A control inside the viewport but outside its own band is standing on a surface that
+   belongs to something else, and the original predicate could not tell the two apart;
+3. **no chip is clipped by the box it stands in**: each chip's `scrollWidth − clientWidth` is 0
+   unless its own label is longer than a full line of the strip, which is decision 3's single
+   permitted case. A line narrower than one chip is not that case.
+
+**And the surface is named, because that is what made the gap invisible.** All three hold on a design
+carrying ADR 0065's overflow flag as well as on the seeded one. A flagged design gives the price bar
+an extra sentence and therefore a different width demand;
+`apps/web/tests/e2e/settings-strip-containment.desktop.e2e.spec.ts` measured truncation on the
+unflagged seeded design only, which is why ten green gates stood over the table above. A containment
+assertion evaluated only on the input that cannot falsify it is not a gate.
+
+**Decision 3 is not softened by predicate 3 — it is made assertable.** *"A chip is never narrowed
+below the width of the line it is alone on"* also forbids a **line narrower than a chip**; a 0 px line
+does not turn two clipped stubs into decision 3's one permitted ellipsis.
+
+**Decisions 2 and 5 are unamended and are what the fix is built from.** ADR 0094 gives the strip its
+own full-width grid row on the desktop shell, so its width stops being the residue of two contents it
+does not control — the step nav's and the price bar's — and becomes the viewport's. The height that
+costs comes from the stage, which is decision 2's currency and the owner's own ruling.

@@ -3,11 +3,14 @@
 **Read this second, right after `AGENTS.md`, before opening any milestone document.** It exists so a
 session can learn fast where the project stands, without reading eight phase plans.
 
-Last updated: 2026-09-04. **Currently in progress: M6**, on branch `m6-price-and-global-settings`.
+Last updated: 2026-09-06. **Currently in progress: M6**, now on branch
+`wave/6r-control-shapes-and-strip-row`. **Five M6 waves remain: 6T, 6T2, 6W, 6V, 6X** — see *What to
+do next*, which also records what a partially-implemented 6T is sitting in an unmerged worktree.
 **M5 wave 5E — the browser/mobile gate — remains open and unverified**; it does not block M6 and M6
-started ahead of it by the owner's decision. Everything else through M5B, M5 waves 5G/5H, and the
-adversarial-review remediation is shipped; find any phase's detail in the table below, then follow
-its **Read** column.
+started ahead of it by the owner's decision. **A new phase, M6B — internationalization — runs
+immediately after M6 and before M7** (owner ruling, 2026-09-06); it is in the table below. Everything
+else through M5B, M5 waves 5G/5H, and the adversarial-review remediation is shipped; find any phase's
+detail in the table below, then follow its **Read** column.
 
 ## How to use this file
 
@@ -32,8 +35,9 @@ moment it ships; a decision record does not. When the two disagree, the dated de
 | M3 — Insert, remove, swap, client write path | **Done** (closed 2026-08-26) | No — `milestones/done/` |
 | M4 — Editor panel and shell | **Done** (closed 2026-08-26 — one criterion unmet by design, ADR 0024) | No — `milestones/done/` |
 | M5 — Width editing, and depth as a derived quantity | **In progress — 5E is the only wave open.** 5A–5D2c, 5F, 5G, 5H all shipped | Yes — `milestones/M5-*.md`, and ADRs 0028–0041, 0052, 0053 |
-| M6 — Price bar and global settings (incl. cabinet depth control) | **In progress —** ~~13 of 25 tracked waves DONE~~ ~~corrected 2026-09-05: 13 of 36 wave-table rows are DONE, counted directly~~ ~~corrected again 2026-09-05: 23 of 38 wave-table rows are DONE, counted directly~~ ~~corrected again 2026-09-06: 24 of 38, wave 6U closed~~ **corrected again 2026-09-06: 27 of 38, waves 6J-c, 6J-d and 6N-0 closed** — two rows added for 6K-g and 6K-h (real waves with full plans and shipped commits that had never had a table row) and ten more rows reconciled against `git log`: 6K, 6K-c, 6K-d, 6K-e, 6K-f, 6K-g, 6K-h, 6K-j, 6Q and 6Q-c, all closing 2026-09-05 (see *What to do next* below for the full recount and its arithmetic). On branch `m6-price-and-global-settings`: 6A (`6c1f830`), 6H (`4afda06`), 6A3 and 6B2 (`eb9ba03`) shipped 2026-09-03; 6C (`194405b`) and 6D (`a5e161f`) shipped 2026-09-03 but only received their DONE marker this pass — a documentation gap, not new work; 6E (`b558e28`), 6G (`3e546d1`), 6I2 and 6M (merged at `ce77171`) shipped 2026-09-03/04; 6S (`280daa4`, `a2bff48`), 6J (`c8ba3af` 6J-a, `a68482d` 6J-b) and 6P (`38268b5`) shipped 2026-09-04. **6K's whole family closed 2026-09-05**: 6K-a and 6K-b (`30c3bcb`/`4dc08e0`/`30d419b`/`e664e33`, 2026-09-04), 6K-c (`56b6815`), 6K-d and 6K-e (one commit, `d4e58a4`), 6K-f (`827e1e1`), 6K-h (`e90ccc8`), 6K-g (`52e3c70`), 6K-j (`151429f`) — which also closes 6Q, via 6Q-a (`9e9d54e`), 6Q-b (`59f8669`) and 6Q-c (`14cef90`). **6U closed 2026-09-06, `38d5cad`** — ADR 0087's hob-seat fix (the front clearance is now derived, not a literal); ADR 0087 carries a 2026-09-06 amendment recording the hob's own 510 mm geometric floor, found by 6U's QA and unreachable today because `requireDeclaredCabinetDepthMm` refuses below 520. **6J-c, 6J-d and 6N-0 closed 2026-09-06** — `2bdd923` (6J-c), `cf53e8e` (6J-d + 6N-0), `b4d93c7` (6J-d's D1 fix), merged to `main` at `e7eba07`; see *What to do next* below for what these waves cost. Open: 6K-i (ADR 0079's finding, unadjudicated), 6N-a, 6R, 6T. **Certified 2026-09-05** (`59f8669`): 6A4, 6B (CERTIFIED); 6A2, 6L, 6I
-(CERTIFIED WITH FINDINGS) — see *Where the project stands*'s certification note below. 6F is superseded by ADR 0071's 6P–6R; 6N-b and 6N-c are dropped, 2026-09-05, owner ruling | Yes — `milestones/M6-*.md`, and ADRs 0055–0073 |
+| M6 — Price bar and global settings (incl. cabinet depth control) | **In progress —** ~~13 of 25 tracked waves DONE~~ ~~corrected 2026-09-05: 13 of 36 wave-table rows are DONE, counted directly~~ ~~corrected again 2026-09-05: 23 of 38 wave-table rows are DONE, counted directly~~ ~~corrected again 2026-09-06: 24 of 38, wave 6U closed~~ **corrected again 2026-09-06: 27 of 38, waves 6J-c, 6J-d and 6N-0 closed** — two rows added for 6K-g and 6K-h (real waves with full plans and shipped commits that had never had a table row) and ten more rows reconciled against `git log`: 6K, 6K-c, 6K-d, 6K-e, 6K-f, 6K-g, 6K-h, 6K-j, 6Q and 6Q-c, all closing 2026-09-05 (see *What to do next* below for the full recount and its arithmetic). On branch `m6-price-and-global-settings`: 6A (`6c1f830`), 6H (`4afda06`), 6A3 and 6B2 (`eb9ba03`) shipped 2026-09-03; 6C (`194405b`) and 6D (`a5e161f`) shipped 2026-09-03 but only received their DONE marker this pass — a documentation gap, not new work; 6E (`b558e28`), 6G (`3e546d1`), 6I2 and 6M (merged at `ce77171`) shipped 2026-09-03/04; 6S (`280daa4`, `a2bff48`), 6J (`c8ba3af` 6J-a, `a68482d` 6J-b) and 6P (`38268b5`) shipped 2026-09-04. **6K's whole family closed 2026-09-05**: 6K-a and 6K-b (`30c3bcb`/`4dc08e0`/`30d419b`/`e664e33`, 2026-09-04), 6K-c (`56b6815`), 6K-d and 6K-e (one commit, `d4e58a4`), 6K-f (`827e1e1`), 6K-h (`e90ccc8`), 6K-g (`52e3c70`), 6K-j (`151429f`) — which also closes 6Q, via 6Q-a (`9e9d54e`), 6Q-b (`59f8669`) and 6Q-c (`14cef90`). **6U closed 2026-09-06, `38d5cad`** — ADR 0087's hob-seat fix (the front clearance is now derived, not a literal); ADR 0087 carries a 2026-09-06 amendment recording the hob's own 510 mm geometric floor, found by 6U's QA and unreachable today because `requireDeclaredCabinetDepthMm` refuses below 520. **6J-c, 6J-d and 6N-0 closed 2026-09-06** — `2bdd923` (6J-c), `cf53e8e` (6J-d + 6N-0), `b4d93c7` (6J-d's D1 fix), merged to `main` at `e7eba07`; see *What to do next* below for what these waves cost. ~~Open: 6K-i (ADR 0079's finding, unadjudicated), 6N-a, 6R, 6T.~~ **Corrected 2026-09-06: 6K-i, 6N-a, 6R and the new 6R-b are all DONE — see the recount at the end of this cell. Open: 6T, 6T2, 6W, 6V, 6X.** **Certified 2026-09-05** (`59f8669`): 6A4, 6B (CERTIFIED); 6A2, 6L, 6I
+(CERTIFIED WITH FINDINGS) — see *Where the project stands*'s certification note below. 6F is superseded by ADR 0071's 6P–6R; 6N-b and 6N-c are dropped, 2026-09-05, owner ruling. **Corrected again 2026-09-06: 31 of 44 wave-table rows are DONE, counted directly — and the denominator moved as well as the numerator.** The table is **44 rows**, not the 38 counted 2026-09-05: six were added since by ADRs 0090–0094 (6J-d, 6R-b, 6T2, 6W, 6V, 6X), each citing its own record in the row. The four closing this pass, all on branch `wave/6r-control-shapes-and-strip-row`: **6R and 6R-b** (`aa6ad9e`, one commit — three control shapes, six decors, the adapter's total finish table, and ADR 0094's own full-width settings row on desktop), **6K-i** (`deb237f`) and **6N-a** (`7ad15e1`), the last two implemented in agent worktrees a day earlier and merged here, with four review findings closed at `1116ae9` (all test-strength, no production change). Arithmetic, so it can be checked rather than trusted: 31 DONE + 5 CERTIFIED (6A2, 6A4, 6B, 6I, 6L) + 3 not-shipping (6F superseded, 6N-b and 6N-c dropped) + 5 open (6T, 6T2, 6W, 6V, 6X) = 44. **Two of those rows were materially wrong in this file until this pass** — 6K-i was called *"genuinely unstarted — no commit, no plan section"* when it had both, and 6N-a was listed as simply open when it was finished; see *What to do next* for the cause | Yes — `milestones/M6-*.md`, and ADRs 0055–0094 |
+| M6B — Internationalization (Romanian is the source, other locales are translations) | **Planned — runs immediately after M6 and before M7** (owner ruling, 2026-09-06). No milestone document yet; the scope it is drawn from is `docs/BACKLOG.md` entry 53, *"Russian is a supported locale — decided on day one, no milestone owns it"*. The driver is [ADR 0001](decisions/0001-initial-product-and-stack.md) decision 5 — *"Launch with Romanian as the default locale and Russian as a supported locale"* — **Accepted 2026-08-20, never superseded, and owned by no milestone until this row**. Named M6B on M5B's precedent for a phase inserted between two numbered ones | Yes, when starting — and read ADR 0001 first |
 | M7 — Step 1, room and presets | Planned | Yes, when starting |
 | M8 — Review, contact, success | Planned | Yes, when starting |
 | Adversarial review remediation | **Every finding closed or gated.** SEC-001 (High) deferred to M8 by owner decision, gated. Everything else — SCENE-001/002, WEB-001–004, DOM-001–003, SEC-002–004, DB-001/002/004 — is implemented and reviewed | Yes — `milestones/adversarial-review-remediation.md`, `milestones/dom-003-set-width-split.md` |
@@ -232,10 +236,13 @@ policy, so every per-endpoint limit is application code.
 
 ## What to do next
 
-**Next: M6, on branch `m6-price-and-global-settings`.** Read
+**Next: M6, now on branch `wave/6r-control-shapes-and-strip-row`** (the branch 6R, 6R-b, 6K-i and 6N-a
+landed on, 2026-09-06). Read
 `milestones/M6-price-and-global-settings.md`, ~~now a 25-wave breakdown (6P–6T added 2026-09-04 on
 ADRs 0070 and 0071, superseding 6F; 6K-c added the same day on ADR 0073)~~ ~~now a 36-row wave table,
-counted directly 2026-09-05~~ **now a 38-row wave table, counted directly 2026-09-05** — the 36 above
+counted directly 2026-09-05~~ ~~now a 38-row wave table, counted directly 2026-09-05~~ **now a 44-row
+wave table, counted directly 2026-09-06** (six rows added since the 38, by ADRs 0090–0094 — 6J-d,
+6R-b, 6T2, 6W, 6V and 6X, each naming its own record in its row). The 36 above
 grew by two, not thirteen: **6K-g and 6K-h were found to be real waves with full plans and shipped
 commits (`52e3c70`, `e90ccc8`) that had never had a table row at all**, discovered only by
 cross-checking `git log` against the table (`docs/WORKFLOW.md`'s new *"the scribe runs after the
@@ -257,13 +264,17 @@ shipped commits bundled inside
 `93e9bc3`/`75668b8`/`dfa6198` — **6A2, 6A4, 6B, 6I, 6L** — now carry a recorded
 certification verdict from the 2026-09-05 audit below (three CERTIFIED WITH FINDINGS, two CERTIFIED;
 none NOT CERTIFIED) — check each wave's own section for the finding it carries before reading it as
-fully closed. **6R and 6T remain open**, and **6K-i remains genuinely unstarted** — no commit, no
+fully closed. ~~**6R and 6T remain open**, and **6K-i remains genuinely unstarted** — no commit, no
 plan section, only the header-block mention and its "unadjudicated" row; it begins with an ADR 0079
-adjudication rather than a fix. **6N is no longer fully unstarted**: two of its four sub-waves are
+adjudication rather than a fix.~~ **Struck 2026-09-06, and both halves of that sentence about 6K-i were
+false when written**: 6K-i had a full 179-line plan section in the milestone file *and* a finished
+implementation at `deb237f`, in an agent worktree, the whole time. 6R closed the same day. See the
+2026-09-06 recount below. **6N is no longer fully unstarted**: two of its four sub-waves are
 dropped — the owner descoped the wall-coverage bars 2026-09-05 ("skip it in general for now... not
 critical and on mobile it will take a lot of place"), which drops **6N-c** (the bars) and **6N-b**
-(the coverage query 6N-c was its only reader for) — and **6N-0 closed 2026-09-06** (below). **6N-a**
-alone remains open.
+(the coverage query 6N-c was its only reader for) — and **6N-0 closed 2026-09-06** (below). ~~**6N-a**
+alone remains open.~~ **6N-a closed 2026-09-06 as well, `7ad15e1`** — it too was finished in an agent
+worktree before this file said so. The whole 6N chain is now closed: two waves delivered, two dropped.
 
 **Corrected again 2026-09-06: 27 of 38 — 6J-c, 6J-d and 6N-0 closed**, on one branch
 (`wave/6j-cd-along-wall-chain`) and one merge to `main` at `e7eba07`: `2bdd923` (6J-c), `cf53e8e`
@@ -287,6 +298,59 @@ reached `main`, the residue this branch introduces, and the merged-tree gate num
 them there rather than through this summary. **ADR 0090 also amends ADR 0088 decision 1** — so
 **6K-i's plan changed before it was written** and 6K-i is now sequenced after 6J-d (same file; do not
 dispatch both into one tree).
+
+**Corrected again 2026-09-06: 31 of 44 — 6R, 6R-b, 6K-i and 6N-a closed**, all on branch
+`wave/6r-control-shapes-and-strip-row`, with the gates run on the merged tree by the coordinating
+session rather than accepted from an agent. **6R and 6R-b shipped in one commit, `aa6ad9e`**: 6R is the
+three control shapes (a six-decor list for PAL, a RAL picker for MDF, two swatches for veneer), the six
+decors the 3D approximates, and the adapter's finish table made **total** over the domain's declared
+palette by type annotation; 6R-b is [ADR 0094](decisions/0094-the-strip-gets-its-own-row-and-containment-is-measured-against-its-own-band.md)'s
+own wave, opened the same day — on desktop the settings strip takes **its own full-width grid row**,
+because 6R's shipped two chips were cut to 28 px on a flagged design at every desktop width below
+1150 px and the settings trigger stood 39.06 × 44.00 px over the price bar, with all ten gates green
+over it. **6R-b's cost is stated rather than absorbed**: about **44 px of desktop canvas at every
+width** (the measured band is 45 px — 44 of content and the band's own 1 px rule; the canvas box goes
+from y 55, 1440 × 845 to y 100, 1440 × 800), and a narrow departure from frame D2E, which
+[ADR 0082](decisions/0082-the-settings-strip-wraps-and-nothing-leaves-the-viewport.md) decision 6
+already permits — a frame does not answer *"may a control leave the screen"*. **6K-i shipped at
+`deb237f`** and **6N-a at `7ad15e1`**, both implemented in agent worktrees on 2026-09-06 and merged
+onto this branch; **`1116ae9` closes four review findings across the two, all test-strength, with no
+production change**. **One item inside 6K-i is a recorded disagreement rather than a defect, and the
+reviewer asked for it in the close-out**: the merge receives the whole recorded map, so every
+*occupied* column's vertical axis and `w` are carried from the pre-command derivation and not only from
+the document's stored entries — wider than ADR 0088 decision 1's literal words, value-identical in
+practice, and what makes the key space work. Read it at the wave's own close-out in
+`milestones/M6-price-and-global-settings.md`, not here. **Gate numbers, merged tree, coordinator's own
+run:** `pnpm ci:local` PASSED, all ten gates — domain **2996**, persistence **177**, three-adapter
+**2328**, web **1643 passed + 4 skipped**, e2e **99 passed + 1 skipped**. The 2996/2328 figures are the
+tree after `1116ae9`; the full ten-gate run was at 2993/2327, before those four test additions.
+
+**The process failure this pass exposed, recorded because this project records what its process costs.**
+**Two finished waves sat invisible in agent worktrees for a day while this file called one of them
+unstarted.** 6K-i was written here as *"genuinely unstarted — no commit, no plan section"* when it had a
+179-line plan section and a working implementation at `deb237f`; 6N-a was listed as simply open with its
+commit already written at `7ad15e1`. The consequence was not a lost commit but a lost *bearing*: **M6
+looked further from done than it was**, and a wave that was ready for review was described as one that
+had not begun. The cause the owner named is worth writing down plainly — **sessions hitting the 5-hour
+context limit mid-wave and never reaching a merge**. Work finished in a worktree stops existing for
+every later reader the moment the session that made it ends, because nothing but that session's memory
+connected the branch to the tracker. The mitigation this file can carry is the same rule `WORKFLOW.md`
+already learned once (*"the scribe runs after the commit"*), extended one step: **a wave is not recorded
+as open once its commit exists — it is recorded as implemented-and-unmerged, with the commit hash and
+the worktree, before the session that built it can end.** Until that is habitual, a `git log` sweep of
+every worktree branch is the only thing standing between finished work and a tracker that denies it.
+
+**M6's remaining work, stated exactly: 6T, 6T2, 6W, 6V, 6X — five waves, and both gates just cleared.**
+6T (hardware priced per mechanism, ADR 0092) lands on one branch with **6W** (a tier that prices below
+the default); **6T2** (the two sink extras) follows 6T in the same files, never in parallel and never
+beside 6P. **6V** (a selection counted by what changed, not by what colour it is, ADR 0091 decision 6)
+was gated on 6R and is now unblocked; **6X** (the slide is witnessed by an assertion, ADR 0093) was
+gated on 6K-i and is now unblocked. **6T is already partially implemented, and it must not be lost:**
+**8 uncommitted files** sit in the agent worktree `agent-ac47cf4d0050600d5`, based on current `main` — a
+new `packages/configurator-domain/src/hardware-mechanisms.ts`, two test files, and edits across the
+pricing modules. It is **unreviewed and uncommitted**; whoever picks 6T up starts by reading that
+worktree rather than by writing the module again. This is the same failure mode the paragraph above
+describes, caught while it is still recoverable.
 
 **The residue these waves leave is not closed by them, and it is introduced by them, not
 inherited.** `setCabinetDepth` obeys ADR 0090 Amendment B's rule that a room-derived cap may bound
@@ -441,3 +505,10 @@ this project:
   other documents: this pass found a stale "still open" list inside
   `milestones/adversarial-review-remediation.md`'s own status banner, and a stale "not yet fixed"
   claim about the save coalescer in this file — both are corrected above, at the record, not silently.
+- **A commit in a worktree is work this file must already know about.** Added 2026-09-06, after this
+  file called wave 6K-i *"genuinely unstarted — no commit, no plan section"* while both existed, and
+  listed 6N-a as open with its commit written. An unmerged branch is invisible to every reader who was
+  not in the session that made it, and sessions end mid-wave at the 5-hour context limit. Record a wave
+  as **implemented-and-unmerged, with its commit and its worktree**, the moment the commit exists —
+  never as open. The live instance of the same hazard is the partially-implemented 6T in
+  `agent-ac47cf4d0050600d5`, named above so it cannot go the same way.
