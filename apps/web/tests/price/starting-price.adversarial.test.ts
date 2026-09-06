@@ -66,6 +66,11 @@ const SEEDED = priceDesign({
  *  not. */
 const SEEDED_PUSH_TO_OPEN = 16;
 
+/** ADR 0070 decision 4's flat sink column — one aluminium cover and one drying rack, the owner's own
+ *  figures, identical in all three tier columns. A literal, unlike the push term, because that is
+ *  what it reconciles against. */
+const SINK_EXTRAS_MINOR = 60_000;
+
 const DEFAULT_PUSH_RATE_MINOR = (() => {
   const tier = SAMPLE_PRICE_BOOK.hardware.tiers.find(
     (candidate) =>
@@ -192,8 +197,16 @@ describe("the catalogue's own totals, priced and shown", () => {
     // seeded kitchen's top row carries 16 push-to-open fronts (ADR 0092 Amendment C) and the three
     // push rates are drafted placeholders with no supplier source, so a literal here would make one
     // load-bearing on the one figure the whole product's landing page shows.
+    //
+    // **And once more at wave 6T2**, which added ADR 0070 decision 4's two sink extras: the seeded
+    // kitchen holds one sink under one wall cabinet, so it earns one cover and one rack. That term
+    // *is* a literal, because it is the owner's own flat *"Sink extras 600"* column being
+    // reconciled against — the same standing the hinge and drawer literals have.
     expect(SEEDED.priced.totalMinor).toBe(
-      9_427_500 + 450_240 + SEEDED_PUSH_TO_OPEN * DEFAULT_PUSH_RATE_MINOR,
+      9_427_500 +
+        450_240 +
+        SINK_EXTRAS_MINOR +
+        SEEDED_PUSH_TO_OPEN * DEFAULT_PUSH_RATE_MINOR,
     );
   });
 

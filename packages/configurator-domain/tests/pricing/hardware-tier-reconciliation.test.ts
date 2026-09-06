@@ -7,9 +7,9 @@
 // they disagree the declaration is wrong and the wave stops**; the expected figures are not adjusted
 // to whatever the code produces (ADR 0028 is on record for what that costs).
 //
-// **The hardware-only column is 6T's, and the sink column is not.** ADR 0092 Amendment A moved the
-// two sink extras to wave 6T2, so the `510_240` / `1_002_000` / `1_033_500` totals are 6T2's check
-// and naming one here would be a criterion this wave fails by construction.
+// **The hardware-only column is 6T's, and the sink column arrived at 6T2**, which is the last block
+// in this file. ADR 0092 Amendment A moved the two sink extras out of 6T; with 6T2 landed the whole
+// figure can be reconciled here for the first time, and Amendment C says in what form.
 //
 // **Restated by wave 6T-a, and restated rather than extended** (ADR 0092 Amendment C). The seeded
 // kitchen carries 16 push-to-open fronts, not zero, so the hardware **line** is ADR 0070's two
@@ -34,6 +34,7 @@ import {
 import { countHardwareMechanisms } from "../../src/hardware-mechanisms.js";
 import type { HardwareTier } from "../../src/pricing/price-book.js";
 import { priceDesign } from "../../src/pricing/price-design.js";
+import type { PricedDesign } from "../../src/pricing/price-lines.js";
 import { SAMPLE_PRICE_BOOK } from "../../src/pricing/sample-price-book.js";
 import { projectDesignForDisplay } from "../../src/queries/design-projection.js";
 
@@ -409,5 +410,82 @@ describe("the tier rates relate to each other in ways the book itself decides", 
       hardwareAmountAt("hardware.soft-close") -
         hardwareAmountAt(BOOK.hardware.defaultTierId),
     ).toBe(-4_200);
+  });
+});
+
+/**
+ * **The whole figure, and the wave that can first state it** (ADR 0092 decision 6, Amendment A,
+ * restated by Amendment C).
+ *
+ * ADR 0070's totals table gives the seeded kitchen ~5 100 / ~10 020 / ~10 335 MDL at Standard,
+ * Hettich and Blum. Those are **column** checks — hinges, drawers and the flat sink extras — and no
+ * longer the whole figure, because Amendment C added a push column that record never published. So
+ * the total is `450_240 + 60_000 + 16 × the tier's own declared push rate`, per tier.
+ *
+ * **The hinge, drawer and extras terms are literals and the push term is not**, and the split is the
+ * whole discipline: the first three reconcile against owner-derived figures and do not move, while
+ * the three push rates are drafted placeholders with no supplier source (ADR 0092 open input 1). A
+ * test typing their product would make a placeholder a pinned expectation.
+ */
+describe("the seeded kitchen's whole hardware-and-extras figure, per tier", () => {
+  /** ADR 0070's hinge and drawer columns, summed — the same literal the hardware-line block above
+   *  reconciles, restated as one number because this block is about the whole figure. */
+  const HINGES_AND_DRAWERS_MINOR: Readonly<Record<string, number>> = {
+    "hardware.standard": 130_240 + 320_000,
+    "hardware.soft-close": 629_000 + 313_000,
+    "hardware.premium": 555_000 + 418_500,
+  };
+
+  /** ADR 0070's flat *"Sink extras 600"*, identical in all three of its tier columns — which is what
+   *  says the extras sit outside the tier rather than inside it. */
+  const SINK_EXTRAS_MINOR = 60_000;
+
+  function pricedAt(tierId: string): PricedDesign {
+    const result = priceDesign({
+      design: KITCHEN_L_DESIGN,
+      catalog: CATALOG,
+      book: BOOK,
+      pricingVersion: BOOK.version,
+      selections: { hardwareTierId: tierId },
+    });
+    if (!result.ok)
+      throw new Error(`seeded design refused: ${result.failure.code}`);
+    return result.priced;
+  }
+
+  /** Every line that is not a cabinet: the hardware tier, the material tier and the two extras. */
+  function unplacedAmountAt(tierId: string): number {
+    return pricedAt(tierId)
+      .lines.filter((line) => line.kind !== "cabinet")
+      .reduce((sum, line) => sum + line.amountMinor, 0);
+  }
+
+  it.each(EVERY_TIER_ID)(
+    "bills %s its hinges and drawers, its latches, and the flat sink column",
+    (tierId) => {
+      const hingesAndDrawers = HINGES_AND_DRAWERS_MINOR[tierId];
+      if (hingesAndDrawers === undefined)
+        throw new Error(`no ADR 0070 column for "${tierId}"`);
+
+      // The default material tier costs nothing, so what this sums is exactly the three terms.
+      expect(unplacedAmountAt(tierId)).toBe(
+        hingesAndDrawers +
+          SINK_EXTRAS_MINOR +
+          SEEDED_MECHANISM_COUNTS.pushToOpen *
+            tierOf(tierId).perPushToOpenMinor,
+      );
+    },
+  );
+
+  /** **The extras are the same 60 000 in every column**, which is the property that says they are
+   *  outside the tier. Derived by subtracting each tier's own hardware line rather than restated. */
+  it("charges the same extras whichever hardware tier is chosen", () => {
+    const extrasAt = EVERY_TIER_ID.map((tierId) =>
+      pricedAt(tierId)
+        .lines.filter((line) => line.kind === "accessory")
+        .reduce((sum, line) => sum + line.amountMinor, 0),
+    );
+
+    expect(new Set(extrasAt)).toEqual(new Set([SINK_EXTRAS_MINOR]));
   });
 });

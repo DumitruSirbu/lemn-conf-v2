@@ -448,9 +448,18 @@ export const ro = {
      *  the category word in front of it is copy. */
     wholeKitchenLabel: (categoryWord: string, tierName: string) =>
       `${categoryWord} · ${tierName}`,
-    /** Keyed by the price line's kind, so a third whole-kitchen rule added to the book arrives as a
-     *  key here rather than as a branch in the component. */
-    wholeKitchenCategories: { hardware: "Feronerie", material: "Material" },
+    /** Keyed by the price line's kind, so a rule family added to the book arrives as a key here
+     *  rather than as a branch in the component.
+     *
+     *  **`accessory` is one of them since wave 6T2**, and the key is what the wave is really about:
+     *  the model used to select these rows by *"not a cabinet"*, so an accessory line found no word
+     *  here and rendered `undefined · Uscător de vase` while compiling perfectly (ADR 0092
+     *  decision 11). */
+    wholeKitchenCategories: {
+      hardware: "Feronerie",
+      material: "Material",
+      accessory: "Accesorii",
+    },
     /** Frame 2E, and frame 2D's material row: a tier that costs nothing extra reads *inclus*, never
      *  `0`. A zero is a number a customer reads as a price; this says what it means. */
     included: "inclus",

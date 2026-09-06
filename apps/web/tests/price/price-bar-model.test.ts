@@ -8,6 +8,7 @@ import {
   priceDesign,
   SAMPLE_PRICE_BOOK,
   SAMPLE_PRICE_BOOK_VERSION,
+  declaresASink,
   KITCHEN_L_BODY_CATALOG,
   KITCHEN_L_DESIGN,
   type Design,
@@ -33,15 +34,26 @@ function priceOf(design: Design): PricingResult {
   });
 }
 
-function firstPlacementIdOnWallA(): string {
+/**
+ * The body pushed past the wall's end: the first on wall A that **holds no sink**.
+ *
+ * **The exclusion is wave 6T2's and is not cosmetic.** Wall A's first placement is `p0`, the seeded
+ * kitchen's sink, standing under `p11`; pushing it past the wall's end takes it out from under every
+ * wall cabinet, so the design legitimately stops earning a drying rack and the total legitimately
+ * falls. This block asserts that an overflowing design's total is **not reduced**, and a fixture that
+ * also moved an accessory would fail it for a reason that is not the defect it guards.
+ */
+function firstPlacementIdOnWallAWithNoSink(): string {
   const placement = KITCHEN_L_DESIGN.placements.find(
-    (candidate) => candidate.wall === "A",
+    (candidate) =>
+      candidate.wall === "A" &&
+      !declaresASink(KITCHEN_L_BODY_CATALOG.get(candidate.body.buildId)),
   );
   if (!placement) throw new Error("the seeded design has no wall A placement");
   return placement.id;
 }
 
-const OVERFLOWING_ID = firstPlacementIdOnWallA();
+const OVERFLOWING_ID = firstPlacementIdOnWallAWithNoSink();
 
 function movePastWallEnd(design: Design): Design {
   return {

@@ -8,9 +8,10 @@
 // (ADR 0065 decision 7b). A domain module inventing either would be inventing product copy.
 import type { PriceBookCurrency, PriceBookStatus } from "./price-book.js";
 
-/** What a line is for. `cabinet` traces to a placement; the other two are the named whole-kitchen
- *  rules §12 permits a line to trace to instead. */
-export type PriceLineKind = "cabinet" | "hardware" | "material";
+/** What a line is for. `cabinet` traces to a placement; `hardware` and `material` are the named
+ *  whole-kitchen rules §12 permits a line to trace to instead; `accessory` traces to neither — it is
+ *  billed per sink, which is a count of bodies rather than one body or the whole kitchen. */
+export type PriceLineKind = "cabinet" | "hardware" | "material" | "accessory";
 
 /** The fields every line carries, whatever it prices.
  *
@@ -52,7 +53,29 @@ export interface WholeKitchenPriceLine extends PriceLineCommon {
   readonly description: string;
 }
 
-export type PriceLine = CabinetPriceLine | WholeKitchenPriceLine;
+/** **An extra the design earns rather than chooses** — ADR 0070 decision 4's two sink extras, and
+ *  today no others. Carries the same book-data-rendered shape a tier line does (ADR 0062's third
+ *  prohibition: never copy in a component that happens to agree with a number) and **no `tierId`**,
+ *  because an accessory has no tier: it is not offered at grades and no control selects it.
+ *
+ *  Its `quantity` is a count of sinks, so `amountMinor` is that count times the book's per-unit
+ *  amount. **A quantity of zero is not a line**: the query omits it rather than publishing an
+ *  amount of nothing, which the breakdown would render *inclus* — telling a customer a rack they
+ *  are not getting is included. */
+export interface AccessoryPriceLine extends PriceLineCommon {
+  readonly kind: "accessory";
+  /** Which of the book's named accessory rules produced this line. Stable, and not the rule id: one
+   *  says *which accessory*, the other says *which priced rule* — the same split `tierId` and
+   *  `ruleId` keep on a tier line. */
+  readonly accessoryId: string;
+  readonly name: string;
+  readonly description: string;
+}
+
+export type PriceLine =
+  | CabinetPriceLine
+  | WholeKitchenPriceLine
+  | AccessoryPriceLine;
 
 /** A priced design. Derived on every read and stored nowhere: §12's *"derive from `placements`,
  *  never store a total"*, which is why `DesignSchema` gains no price field in this wave or any
@@ -75,7 +98,10 @@ export interface PricedDesign {
    *  Data only. What a surface does with it is 6C's and 6D's, as the flagged total's wording is
    *  (ADR 0065 decision 7b): no copy for it lives here. */
   readonly amountsProvisional: boolean;
-  /** Placement lines in the projection's order, then hardware, then material. */
+  /** Placement lines in the projection's order, then hardware, then material, then accessories.
+   *
+   *  Accessories are **appended** rather than interleaved, which is what keeps every shipped
+   *  *"hardware then material"* assertion true (ADR 0092 decision 11). */
   readonly lines: readonly PriceLine[];
   /** The exact sum of every line, in minor units. Presentation rounds; this does not. */
   readonly totalMinor: number;
@@ -95,7 +121,8 @@ export interface PricedDesign {
 /** Every way pricing refuses. Codes rather than sentences: nothing renders these to a customer, and
  *  a test asserting on prose is a test a copy edit breaks. */
 export type PricingFailureCode =
-  /** The book is not usable at all: wrong currency, or a rule id used twice. */
+  /** The book is not usable at all: wrong currency, a rule id used twice, or no rule at all for an
+   *  accessory the design earns. */
   | "INVALID_PRICE_BOOK"
   /** The book's version is not the one the caller asked to price at. */
   | "PRICING_VERSION_MISMATCH"

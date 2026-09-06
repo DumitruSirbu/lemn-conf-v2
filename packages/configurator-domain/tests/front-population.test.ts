@@ -698,6 +698,12 @@ describe("what wave 6S declared, wave 6T prices", () => {
    *  stopped being zero. */
   const CABINETRY_AND_MATERIAL_MINOR = 9_427_500;
 
+  /** ADR 0070 decision 4's two sink extras, which wave 6T2 added to every one of these totals: the
+   *  seeded kitchen holds one sink under one wall cabinet, so it earns one cover and one rack. Flat
+   *  and identical in all three tier columns, which is what says they sit outside the tier —
+   *  `sink-extras.test.ts` is where that is reconciled against ADR 0070's own column. */
+  const SINK_EXTRAS_MINOR = 60_000;
+
   /** The seeded kitchen's 16 latches, pinned as the count they are — a product fact answerable
    *  without any amount, unlike the rate it multiplies. */
   const SEEDED_PUSH_TO_OPEN = 16;
@@ -718,13 +724,22 @@ describe("what wave 6S declared, wave 6T prices", () => {
     // The default tier is Standard, and it is no longer free (ADR 0092 decision 15's interim).
     expect(totalAt(undefined)).toBe(totalAt("hardware.standard"));
     expect(totalAt("hardware.standard")).toBe(
-      CABINETRY_AND_MATERIAL_MINOR + 450_240 + latchesAt("hardware.standard"),
+      CABINETRY_AND_MATERIAL_MINOR +
+        SINK_EXTRAS_MINOR +
+        450_240 +
+        latchesAt("hardware.standard"),
     );
     expect(totalAt("hardware.soft-close")).toBe(
-      CABINETRY_AND_MATERIAL_MINOR + 942_000 + latchesAt("hardware.soft-close"),
+      CABINETRY_AND_MATERIAL_MINOR +
+        SINK_EXTRAS_MINOR +
+        942_000 +
+        latchesAt("hardware.soft-close"),
     );
     expect(totalAt("hardware.premium")).toBe(
-      CABINETRY_AND_MATERIAL_MINOR + 973_500 + latchesAt("hardware.premium"),
+      CABINETRY_AND_MATERIAL_MINOR +
+        SINK_EXTRAS_MINOR +
+        973_500 +
+        latchesAt("hardware.premium"),
     );
   });
 
@@ -733,8 +748,13 @@ describe("what wave 6S declared, wave 6T prices", () => {
    *  must be the number this design priced at before either wave touched it. This is what makes the
    *  block above a check on the hardware basis rather than three fresh expectations. */
   it("leaves every cabinet and material line exactly where wave 6S found them", () => {
+    // The sink extras come off with the hardware, because they too are a whole-figure term that does
+    // not move with the tier — the point of subtracting is to recover the *cabinetry*.
     const withoutHardware = SAMPLE_PRICE_BOOK.hardware.tiers.map(
-      (tier) => totalAt(tier.tierId) - hardwareAmountAt(tier.tierId),
+      (tier) =>
+        totalAt(tier.tierId) -
+        hardwareAmountAt(tier.tierId) -
+        SINK_EXTRAS_MINOR,
     );
 
     expect(new Set(withoutHardware)).toEqual(

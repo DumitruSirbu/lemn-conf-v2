@@ -40,7 +40,11 @@ import type {
 import { SAMPLE_PRICE_BOOK } from "../../src/pricing/sample-price-book.js";
 import { projectDesignForDisplay } from "../../src/queries/design-projection.js";
 import { findOverflowingPlacementIds } from "../../src/queries/overflowing-placements.js";
-import type { BodyCatalog, BodyDefinition } from "../../src/void-engine.js";
+import {
+  declaresASink,
+  type BodyCatalog,
+  type BodyDefinition,
+} from "../../src/void-engine.js";
 
 const CATALOG = KITCHEN_L_BODY_CATALOG;
 const BOOK = SAMPLE_PRICE_BOOK;
@@ -490,11 +494,19 @@ describe("the line order is the projection's, which is row-major", () => {
     }
   });
 
-  it("puts both whole-kitchen lines after every placement line, hardware first", () => {
+  /** **Placements, hardware, material, accessories** (ADR 0092 decision 11). The accessories are
+   *  appended rather than interleaved, which is what keeps 6B's *"hardware then material"* claim
+   *  true; the seeded kitchen holds a sink under a wall cabinet, so it earns both of them. */
+  it("puts the whole-kitchen and accessory lines after every placement line, in that order", () => {
     const kinds = pricedSeededKitchen().lines.map((line) => line.kind);
 
-    expect(kinds.slice(-2)).toEqual(["hardware", "material"]);
-    expect(kinds.slice(0, -2).every((kind) => kind === "cabinet")).toBe(true);
+    expect(kinds.slice(-4)).toEqual([
+      "hardware",
+      "material",
+      "accessory",
+      "accessory",
+    ]);
+    expect(kinds.slice(0, -4).every((kind) => kind === "cabinet")).toBe(true);
   });
 });
 
@@ -724,7 +736,9 @@ describe("a tier that costs nothing is a line, and a missing rule is never a zer
    *  rule that is missing, in either group, and that is what this block is about. */
   it("emits a priced hardware line and a zero material line for the default tiers", () => {
     const priced = pricedSeededKitchen();
-    const wholeKitchen = priced.lines.filter((line) => line.kind !== "cabinet");
+    const wholeKitchen = priced.lines.filter(
+      (line) => line.kind === "hardware" || line.kind === "material",
+    );
 
     expect(wholeKitchen.map((line) => line.kind)).toEqual([
       "hardware",
@@ -864,15 +878,33 @@ describe("an overflowing design is priced in full and the total is flagged", () 
    *  order with them. */
   const PAST_EVERY_WALL_MM = 9_000;
 
+  /**
+   * The body that is pushed past its wall: a base body that **holds no sink and hosts no rack**.
+   *
+   * **Chosen by that property rather than by being first, and the reason is wave 6T2.** The seeded
+   * kitchen's first placement is `p0`, its sink, standing under `p11`; shifting it 9 m along the
+   * wall takes it out from under every wall cabinet, so the design legitimately stops earning a
+   * drying rack and the total legitimately falls by that line. This block is about a body that does
+   * not fit still being priced, and a fixture that also moved an accessory would fail it for a
+   * reason that is not the defect it guards.
+   */
+  function movedBody(): DesignPlacement {
+    const found = KITCHEN_L_DESIGN.placements.find((placement) => {
+      const definition = CATALOG.get(placement.body.buildId);
+      return !declaresASink(definition) && definition?.band === "base";
+    });
+    if (!found) throw new Error("the seeded kitchen has no such placement");
+    return found;
+  }
+
   /** The seeded kitchen fits, so the overflow is made in the **document**: since ADR 0069 decision
    *  5c `priceDesign` derives the fact from the design it is pricing and accepts no report. */
   function withOneBodyPastItsWall(): Design {
-    const first = KITCHEN_L_DESIGN.placements[0];
-    if (!first) throw new Error("the seeded kitchen has no placements");
+    const moved = movedBody();
     return {
       ...KITCHEN_L_DESIGN,
       placements: KITCHEN_L_DESIGN.placements.map((placement) =>
-        placement.id === first.id
+        placement.id === moved.id
           ? { ...placement, alongMm: placement.alongMm + PAST_EVERY_WALL_MM }
           : placement,
       ),
@@ -891,6 +923,10 @@ describe("an overflowing design is priced in full and the total is flagged", () 
   }
 
   it("prices every body, including the one that does not fit", () => {
+    // Pinned so a fixture change that started moving the sink again is visible here rather than in
+    // a total nobody reads.
+    expect(movedBody().id).toBe("p1");
+
     const design = withOneBodyPastItsWall();
     const overflowing = pricedSeededKitchen({ design });
     const [marked] = findOverflowingPlacementIds(design);

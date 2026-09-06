@@ -14,7 +14,9 @@ import {
 } from "./body-kinds.js";
 import { toMillimetres } from "./millimetres.js";
 import {
+  CARRIES_SINK,
   MIN_WIDTH_M,
+  NO_SINK,
   type Band,
   type BodyCatalog,
   type BodyDefinition,
@@ -481,6 +483,10 @@ export function hoodFinishedDepthMm(cabinetDepthMm: number): number {
 
 const INSERTABLE_DEFAULTS = {
   insertable: true,
+  // ADR 0092 decision 9's default, right for every §7 row but `base-sink`, which overrides it on its
+  // own line. Safe only because the parity gate holds both directions of the declaration against the
+  // `sink_faucet` group the builders draw — see `BodyDefinition.sink`.
+  sink: NO_SINK,
   canFinish: true,
   canHandle: true,
   canReplace: true,
@@ -845,6 +851,11 @@ export function buildInsertableBodyDefinitions(
           maxMm: CABINETRY_MAX_WIDTH_MM,
         }),
         minWidthMm: SINK_MIN_WIDTH_MM,
+        // ADR 0092 decision 9. **The one §7 row that holds a sink, and it says so rather than being
+        // recognised.** Its `kind` is `base_cabinet`, its label is Romanian and its id is spelled
+        // however §7 spells it; none of the three is the fact ADR 0070 decision 4 prices two extras
+        // per, and each of them is a way of getting a second sink row wrong.
+        sink: CARRIES_SINK,
       },
     ],
     // ADR 0051: an integrated dishwasher wears a decor door, so this niche is a fronted base body

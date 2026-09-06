@@ -26,6 +26,7 @@ import {
   pricedByWidthHeightAndDoorLeaves,
   pricedFlat,
   PRICE_BOOK_CURRENCY,
+  type BookAccessories,
   type CabinetPriceRule,
   type PriceBook,
 } from "./price-book.js";
@@ -252,6 +253,37 @@ const DRAFTED_PUSH_TO_OPEN_MINOR = {
 } as const;
 
 /**
+ * **ADR 0070 decision 4's two sink extras, and the one block in this file whose magnitudes are the
+ * owner's rather than drafted.** The owner priced both on 2026-09-04 from Chișinău retail — ≈200 MDL
+ * for the cover and ≈400 for the rack — and published them as a flat *"Sink extras 600"* column,
+ * **identical in all three tier columns**, which is the record's own way of saying the extras sit
+ * outside the hardware tier rather than inside it. That is why they are here and not on a tier.
+ *
+ * **Their names and descriptions are not owner-ruled**, and ship as drafted placeholders under the
+ * standing direction of 2026-09-04 — draft strings that carry their meaning now, and the manufacturer
+ * dashboard makes copy editable later. Nothing pins their wording.
+ *
+ * **The rack is priced and never drawn** (ADR 0070 decision 4): no builder has a part for it, at any
+ * width and any depth, and `sink-declaration.parity.test.ts` asserts that from the adapter side.
+ */
+const SAMPLE_ACCESSORIES: BookAccessories = {
+  sinkProtectiveCover: {
+    ruleId: "accessory.sink-protective-cover",
+    name: "Protecție de aluminiu pentru corpul spălătorului",
+    description:
+      "Montată în corpul spălătorului, împotriva umidității și a scurgerilor. Inclusă întotdeauna.",
+    perUnitMinor: 20_000,
+  },
+  dishDryingRack: {
+    ruleId: "accessory.dish-drying-rack",
+    name: "Uscător de vase",
+    description:
+      "Montat în corpul suspendat de deasupra spălătorului. Inclus unde există un corp suspendat.",
+    perUnitMinor: 40_000,
+  },
+};
+
+/**
  * A provisional sample book. **Not a quote, not a price list, and not checked against anything.**
  *
  * The hardware tiers are priced **per mechanism** (ADR 0070 decision 1) — three rates multiplied by
@@ -353,4 +385,5 @@ export const SAMPLE_PRICE_BOOK: PriceBook = {
       },
     ],
   },
+  accessories: SAMPLE_ACCESSORIES,
 };

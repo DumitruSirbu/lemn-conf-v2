@@ -178,6 +178,14 @@ export {
   findOverflowingPlacementIds,
   wallLengthMm,
 } from "./queries/overflowing-placements.js";
+// Where a kitchen's two sink extras go (ADR 0070 decision 4, ADR 0092 decision 10). Deliberately not
+// `export *`: the overlap arithmetic, the host predicate and the tie-break stay module-internal, so
+// no second caller can derive a rack's position by a rule the query never saw — the two-derivations
+// defect this module exists to close.
+export {
+  findSinkAccessories,
+  type SinkAccessoryPositions,
+} from "./queries/sink-accessories.js";
 export * from "./queries/width-options.js";
 export * from "./queries/width-steps.js";
 export * from "./queries/vacated-void.js";

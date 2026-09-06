@@ -199,10 +199,28 @@ describe("the whole-kitchen section, which is data", () => {
     );
   });
 
-  it("renders the tiers the book produced, named from the book", () => {
+  /** **Every row here is book data rendered, and none of it is a component's words.** The two
+   *  accessory rows arrived at wave 6T2 with no change to this surface beyond a category word — the
+   *  seeded kitchen holds a sink under a wall cabinet, so it earns both extras. */
+  it("renders the tiers and accessories the book produced, named from the book", () => {
     expect(shippedBreakdown().wholeKitchenRows.map((row) => row.label)).toEqual(
-      ["Feronerie · Standard", "Material · PAL melaminat"],
+      [
+        "Feronerie · Standard",
+        "Material · PAL melaminat",
+        "Accesorii · Protecție de aluminiu pentru corpul spălătorului",
+        "Accesorii · Uscător de vase",
+      ],
     );
+  });
+
+  /** The trap ADR 0092 decision 11 names by hand: with `isWholeKitchenLine` left as
+   *  `kind !== "cabinet"` the accessory rows still appear and their category word is `undefined`.
+   *  Asserted on the **rendered** breakdown rather than on the predicate, because the predicate
+   *  compiles either way. */
+  it("renders no row whose category word is missing", () => {
+    for (const row of shippedBreakdown().wholeKitchenRows) {
+      expect(row.label).not.toContain("undefined");
+    }
   });
 
   it("renders nothing at all when the book produced no whole-kitchen line", () => {

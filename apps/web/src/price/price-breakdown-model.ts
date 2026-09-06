@@ -24,6 +24,7 @@
 // disclaimer and note are what carry that; nothing here adds a subtotal, an equality claim, or a
 // row labelled *total*.
 import type {
+  AccessoryPriceLine,
   CabinetPriceLine,
   DisplayGroup,
   PriceLine,
@@ -71,8 +72,10 @@ export interface AvailableBreakdown {
   /** Frame 2D's exclusions and the on-site measurement, ADR 0036 decision 3's worktop among them. */
   readonly disclaimer: string;
   readonly groups: readonly BreakdownGroup[];
-  /** Hardware and material, **after** every placement row. Empty is a real answer: the inclusion
-   *  list is book data, so a tier added later becomes a row with no change here. */
+  /** Hardware and material, then the accessories billed per sink, **after** every placement row.
+   *  Empty is a real answer: the inclusion list is book data, so a tier added later becomes a row
+   *  with no change here — and an accessory the design earns none of is **no row**, because the
+   *  query publishes no line for it rather than a zero this surface would render *inclus*. */
   readonly wholeKitchenRows: readonly BreakdownRow[];
   /** The sentence that says the amounts above are each rounded up on their own. */
   readonly note: string;
@@ -117,10 +120,14 @@ export class PriceBreakdownDivergenceError extends Error {
 
 const UNAVAILABLE_BREAKDOWN: UnavailableBreakdown = { kind: "unavailable" };
 
-/** The whole-kitchen category words, keyed by the kind of line the book produced. */
-const WHOLE_KITCHEN_CATEGORIES: Readonly<
-  Record<WholeKitchenPriceLine["kind"], string>
-> = ro.priceBreakdown.wholeKitchenCategories;
+/** Every line that is **not** one body in the list above — the two whole-kitchen tiers, and the
+ *  accessories billed per sink. They share a section because they share a shape: a category word, a
+ *  name the book states, and an amount that traces to no placement row. */
+type UnplacedPriceLine = WholeKitchenPriceLine | AccessoryPriceLine;
+
+/** The category words, keyed by the kind of line the book produced. */
+const UNPLACED_CATEGORIES: Readonly<Record<UnplacedPriceLine["kind"], string>> =
+  ro.priceBreakdown.wholeKitchenCategories;
 
 /** The heading word for a group, keyed by the **normalised** band the projection grouped on. */
 const BAND_HEADINGS: Readonly<Record<DisplayGroup["band"], string>> =
@@ -144,9 +151,7 @@ export function describePriceBreakdown(
     title: ro.priceBreakdown.title,
     disclaimer: ro.priceBreakdown.disclaimer,
     groups,
-    wholeKitchenRows: priced.lines
-      .filter(isWholeKitchenLine)
-      .map(toWholeKitchenRow),
+    wholeKitchenRows: priced.lines.filter(isUnplacedLine).map(toUnplacedRow),
     note: ro.priceBreakdown.note,
     figure: describeStartingPrice({
       label: ro.price.startingPrefix,
@@ -181,11 +186,11 @@ function toBreakdownGroup(
   };
 }
 
-function toWholeKitchenRow(line: WholeKitchenPriceLine): BreakdownRow {
+function toUnplacedRow(line: UnplacedPriceLine): BreakdownRow {
   return {
     key: line.lineId,
     label: ro.priceBreakdown.wholeKitchenLabel(
-      WHOLE_KITCHEN_CATEGORIES[line.kind],
+      UNPLACED_CATEGORIES[line.kind],
       line.name,
     ),
     amountText: describeRowAmount(line.amountMinor),
@@ -243,6 +248,18 @@ function isCabinetLine(line: PriceLine): line is CabinetPriceLine {
   return line.kind === "cabinet";
 }
 
-function isWholeKitchenLine(line: PriceLine): line is WholeKitchenPriceLine {
-  return line.kind !== "cabinet";
+/**
+ * **An explicit membership test, and never `kind !== "cabinet"` again** (ADR 0092 decision 11).
+ *
+ * The negation is what a new line kind slips through: it compiles, it selects the new line, and
+ * `UNPLACED_CATEGORIES` has no word for it — so the row renders `undefined · Uscător de vase`, which
+ * is exactly what happened when the `accessory` kind arrived.
+ *
+ * **Membership is asked of the category record itself**, so the two can never disagree: a kind this
+ * section is meant to list is a kind that has a word, and one with no word is not selected at all
+ * rather than selected and rendered with a hole in its label. Adding a kind to `UnplacedPriceLine`
+ * without also giving it a word is a **compile** error, because the record is keyed on that union.
+ */
+function isUnplacedLine(line: PriceLine): line is UnplacedPriceLine {
+  return Object.hasOwn(UNPLACED_CATEGORIES, line.kind);
 }
