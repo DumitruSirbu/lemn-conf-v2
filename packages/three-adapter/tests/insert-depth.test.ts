@@ -51,6 +51,23 @@ const TOP_ROW_PLACEMENT_ID = "p19";
 const TOP_ROW_COLUMN = "A|2.60";
 const TOP_ROW_VOID_Y0_M = 2.2;
 
+/** The column `docs/BACKLOG.md` entry 10 was measured on: `p7` is the freestanding fridge and `p24`
+ *  the wall body over it. The fridge stays put while `p24` is deleted, so `hasFullHeightUnder`
+ *  remains true and §5.2's cap remains lifted — which is the whole of what makes this the uncapped
+ *  path rather than the capped one `insert-depth.qa.test.ts` reaches by clearing the fridge too. */
+const OVER_THE_FRIDGE_PLACEMENT_ID = "p24";
+const FRIDGE_COLUMN = "B|2.45";
+const OVER_THE_FRIDGE_VOID_Y0_M = 1.85;
+
+/** ADR 0060 decision 2's lifted arm at the shipped cabinet depth — the **cabinet-depth line**, and
+ *  the depth entry 10 closes at. Written as the expectation rather than imported. */
+const CABINET_DEPTH_LINE_MM = 600;
+
+/** The clearance of the fridge column: a 680 mm appliance plus its two door bars. It is what the
+ *  uncapped arm used to hand the probe, and stating it is what keeps the assertion below from being
+ *  read as "the two routes happen to agree". */
+const FRIDGE_COLUMN_CLEARANCE_MM = 742;
+
 /** A wall entry bounded 300–800 with no hole in the middle, so it builds into every opening these
  *  cases reach — the fridge column is 700 mm, and ADR 0032 made a bounded set bind the `'fit'` path.
  *  A shelf declares no floor of its own, so it opens at §2's default rather than at the hinged rows'
@@ -78,7 +95,7 @@ interface World {
 
 function loadWorld(design: Design): World {
   const records = derivePlacementRecords(design, KITCHEN_L_BODY_CATALOG);
-  const columns = deriveColumns(records);
+  const columns = deriveColumns(records, {}, design.room);
   return { design, columns, voids: recomputeVoids(records, columns) };
 }
 
@@ -229,6 +246,72 @@ describe("re-inserting a deleted top-row cabinet (the handset report)", () => {
     expect(depthOfMm(reinserted.design, reinserted.effect.placementId)).toBe(
       depthOfMm(swapped.design, swapped.effect.placementId),
     );
+  });
+});
+
+// M6 wave 6I2 — ADR 0060. `docs/BACKLOG.md` entry 10, on the geometry the customer actually gets.
+describe("swap and delete-then-insert over the fridge column (backlog entry 10)", () => {
+  function emptiedFridgeTop(): World {
+    return deleteBody(
+      loadWorld(KITCHEN_L_DESIGN),
+      OVER_THE_FRIDGE_PLACEMENT_ID,
+    );
+  }
+
+  it("builds to the cabinet-depth line, not to the column's 742 mm clearance", () => {
+    const emptied = emptiedFridgeTop();
+
+    // The trap, stated: the fridge is still standing, so the cap is lifted and the opening still
+    // carries §3.2's MAX — the appliance plus its door bars. The old uncapped arm handed exactly
+    // this number to the probe and persisted a 742 mm wall carcass.
+    const opening = voidAt(emptied, FRIDGE_COLUMN, OVER_THE_FRIDGE_VOID_Y0_M);
+    expect(toMillimetres(opening.d)).toBe(FRIDGE_COLUMN_CLEARANCE_MM);
+    expect(emptied.columns.get(FRIDGE_COLUMN)?.hasFullHeightUnder).toBe(true);
+
+    const result = insertInto(emptied, opening.id, CATALOGUE_WALL_CABINET);
+    const builtDepthMm = depthOfMm(result.design, result.effect.placementId);
+
+    // An open shelf has no front assembly, so its recorded seat *is* its finished depth.
+    expect(builtDepthMm).toBe(CABINET_DEPTH_LINE_MM);
+    expect(builtDepthMm).not.toBe(FRIDGE_COLUMN_CLEARANCE_MM);
+  });
+
+  it("agrees with the swap route at 600 — the smaller of the two numbers entry 10 measured", () => {
+    // The literal is the assertion. "They must agree" would also be satisfied by both routes
+    // drifting up to the clearance MAX, and 742 is the one number in ADR 0060's table no cabinet was
+    // ever built to; 600 is what the seeded design chose over this fridge deliberately.
+    const opening = voidAt(
+      emptiedFridgeTop(),
+      FRIDGE_COLUMN,
+      OVER_THE_FRIDGE_VOID_Y0_M,
+    );
+    const reinserted = insertInto(
+      emptiedFridgeTop(),
+      opening.id,
+      CATALOGUE_WALL_CABINET,
+    );
+
+    const seeded = loadWorld(KITCHEN_L_DESIGN);
+    const swapped = insertBody({
+      design: seeded.design,
+      catalog: KITCHEN_L_BODY_CATALOG,
+      columns: seeded.columns,
+      target: { kind: "placement", id: OVER_THE_FRIDGE_PLACEMENT_ID },
+      buildId: CATALOGUE_WALL_CABINET,
+      probe: createBodyProbe(kit, room),
+      occurredAt: OCCURRED_AT,
+    });
+    expect(swapped.ok).toBe(true);
+    if (!swapped.ok) return;
+
+    const bySwapMm = depthOfMm(swapped.design, swapped.effect.placementId);
+    const byInsertMm = depthOfMm(
+      reinserted.design,
+      reinserted.effect.placementId,
+    );
+
+    expect(bySwapMm).toBe(CABINET_DEPTH_LINE_MM);
+    expect(byInsertMm).toBe(CABINET_DEPTH_LINE_MM);
   });
 });
 

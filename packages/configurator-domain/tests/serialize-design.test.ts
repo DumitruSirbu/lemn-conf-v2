@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type { Design } from "../src/design.js";
 import { canonicalSerializeDesign } from "../src/serialize-design.js";
+import { LEGACY_ENUM_FINISHES } from "../src/materials.js";
 
 const placement = {
   id: "placement-1",
@@ -12,7 +13,7 @@ const placement = {
     buildId: "base-600",
     widthMm: 600,
     heightMm: 720,
-    finish: "oak" as const,
+    finish: LEGACY_ENUM_FINISHES.oak,
     handle: "black" as const,
   },
 };

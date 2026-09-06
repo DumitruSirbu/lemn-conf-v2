@@ -6,8 +6,9 @@
 // line survives a full sweep rather than five hand-picked counts, and that an unknown `kind` is
 // decided by a table lookup that cannot answer "known" for a key nobody put in it.
 import {
-  FinishSchema,
   HandleSchema,
+  LEGACY_ENUM_FINISH_NAMES,
+  LEGACY_ENUM_FINISHES,
   type SelectionMeta,
 } from "@lemnaria/configurator-domain";
 import { describe, expect, it } from "vitest";
@@ -474,7 +475,7 @@ describe("finish and handle chips", () => {
     const handle = panel.sections.find((s) => s.kind === "handle");
     expect(
       finish?.kind === "finish" ? finish.chips.map((chip) => chip.value) : [],
-    ).toEqual([...FinishSchema.options]);
+    ).toEqual([...LEGACY_ENUM_FINISH_NAMES]);
     expect(
       handle?.kind === "handle" ? handle.chips.map((chip) => chip.value) : [],
     ).toEqual([...HandleSchema.options]);
@@ -509,14 +510,14 @@ describe("finish and handle chips", () => {
   });
 
   it("marks exactly one finish when one is applied and none when it is not", () => {
-    for (const finish of FinishSchema.options) {
-      const section = openPanel(occupiedMeta({ finish })).sections.find(
-        (s) => s.kind === "finish",
-      );
+    for (const name of LEGACY_ENUM_FINISH_NAMES) {
+      const section = openPanel(
+        occupiedMeta({ finish: LEGACY_ENUM_FINISHES[name] }),
+      ).sections.find((s) => s.kind === "finish");
       if (section?.kind !== "finish") throw new Error("no finish section");
       expect(
         section.chips.filter((chip) => chip.isActive).map((c) => c.value),
-      ).toEqual([finish]);
+      ).toEqual([name]);
     }
     const bare = openPanel(occupiedMeta()).sections.find(
       (s) => s.kind === "finish",

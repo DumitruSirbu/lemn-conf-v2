@@ -73,9 +73,11 @@ function codesFor(design: Design): DesignValidationCode[] {
 }
 
 function columnsOf(design: Design): ReadonlyMap<string, Column> {
-  return deriveColumns(derivePlacementRecords(design, CATALOG), {
-    emptyColumns: design.emptyColumns,
-  });
+  return deriveColumns(
+    derivePlacementRecords(design, CATALOG),
+    { emptyColumns: design.emptyColumns },
+    design.room,
+  );
 }
 
 /** A load through the wire, which is the only comparison that proves a field survives persistence:
@@ -291,14 +293,17 @@ describe("the overlap rule at and around its boundary", () => {
       (entry) => ({ ...entry, wall: "B" as const }),
     );
 
+    // Wall B is bounded by the room's **depth** since ADR 0065 decision 5, and `BASE_DESIGN`'s is
+    // 2400 while these entries reach 3800 — deepened here so the assertion measures the sweep and
+    // not the fixture.
+    const design = withEmptyColumns([
+      FREED_STRIP,
+      { ...FREED_STRIP, alongMm: 3725 },
+      ...onWallB,
+    ]);
+
     expect(
-      codesFor(
-        withEmptyColumns([
-          FREED_STRIP,
-          { ...FREED_STRIP, alongMm: 3725 },
-          ...onWallB,
-        ]),
-      ),
+      codesFor({ ...design, room: { ...design.room, depthMm: 4200 } }),
     ).toStrictEqual([]);
   });
 
@@ -389,6 +394,9 @@ describe("a document with no emptyColumns key", () => {
       z: 2.45,
       w: 0.7,
       d: 0.742,
+      // ADR 0073 decision 1: the member that won §3.2's MAX, recorded as the MAX is taken — the
+      // fridge's 742 mm, which no cabinet-depth setting moves.
+      depthFromBuildId: "fridge-free-700",
       top: 2.6,
       regions: [
         [0, 1.85],
@@ -779,8 +787,11 @@ describe("the key a restored entry lands under", () => {
    *  *replaces* the column the placements built rather than being dropped. The refusal above is the
    *  only thing standing between a hostile document and that replacement. */
   it("keeps every placement-derived column intact beside the stored entries", () => {
+    // Inside the seeded wall A, which ADR 0065 corrected to 3560 mm: the placements end at 3500,
+    // so the strip takes the 60 mm that are left rather than the 100 it used to claim past the
+    // wall's end.
     const design = {
-      ...withEmptyColumns([{ ...FREED_STRIP, alongMm: 3550, widthMm: 100 }]),
+      ...withEmptyColumns([{ ...FREED_STRIP, alongMm: 3530, widthMm: 60 }]),
       placements: KITCHEN_L_DESIGN.placements,
       room: KITCHEN_L_DESIGN.room,
     };
@@ -788,7 +799,7 @@ describe("the key a restored entry lands under", () => {
     const columns = columnsOf(design);
 
     expect(columns.get("B|2.45")?.w).toBe(0.7);
-    expect(columns.get("A|3.55")?.w).toBe(0.1);
+    expect(columns.get("A|3.53")?.w).toBe(0.06);
     expect(columns.size).toBe(13);
     expect(codesFor(design)).toStrictEqual([]);
   });

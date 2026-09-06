@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { Design, DesignPlacement } from "../src/design.js";
+import { pinnedAtFinishedDepthMm } from "../src/cabinet-depth-rule.js";
 import { finishesAtMm, shellPlusFrontMm } from "../src/occupied-depth.js";
 import {
   deriveColumns,
@@ -14,12 +15,22 @@ import {
   type Column,
   type PlacementRecord,
 } from "../src/void-engine.js";
+import { LEGACY_ENUM_FINISHES } from "../src/materials.js";
 
 const now = "2026-08-25T00:00:00.000Z";
 
+/** `deriveColumns`' fixtures below build occupied columns directly, with no design of their own —
+ *  a room wide enough that none of them is anywhere near it. */
+const ROOM = {
+  shape: "L" as const,
+  widthMm: 3600,
+  depthMm: 2400,
+  heightMm: 2600,
+};
+
 function makeDesign(placements: DesignPlacement[]): Design {
   return {
-    room: { shape: "L", widthMm: 3600, depthMm: 2400, heightMm: 2600 },
+    room: ROOM,
     presetId: null,
     placements,
     createdAt: now,
@@ -42,12 +53,20 @@ function makePlacement(
 
 /** A synthetic base body whose finished depth is its own declared 560 — this file's worlds are
  *  about column arithmetic, not about any shipped body's geometry, so the entry declares the
- *  simplest rule that keeps the two numbers equal. */
+ *  simplest rule that keeps the two numbers equal.
+ *
+ *  **And it declares a `depthRule`, because §3.2's MAX now reads one to break a tie** (ADR 0079
+ *  decision 6 key 2). Every record below occupies 560, so every multi-member column here is an exact
+ *  tie and the comparator reaches that key — where an entry declaring nothing throws, deliberately.
+ *  `pinned` rather than `cabinet-depth`, because `finishesAtMm(560)` above is not a function of any
+ *  setting: declaring that it follows one would be the lie ADR 0058 decision 2 exists to prevent, in
+ *  a fixture. */
 const baseDefinition: BodyDefinition = {
   kind: "base_cabinet",
   band: "base",
   frameDepthMm: 560,
   occupiedDepth: finishesAtMm(560),
+  depthRule: pinnedAtFinishedDepthMm(560, "base-formula"),
   canFinish: true,
   canHandle: true,
   canReplace: true,
@@ -70,6 +89,7 @@ const wallDefinition: BodyDefinition = {
   // A synthetic carcass with no front assembly, so its shell and its finished depth agree and the
   // column arithmetic below stays about the arithmetic.
   occupiedDepth: shellPlusFrontMm(0),
+  depthRule: pinnedAtFinishedDepthMm(330, "wall-map"),
 };
 
 const catalog: BodyCatalog = new Map([
@@ -103,6 +123,9 @@ function makeRecord(overrides: Partial<PlacementRecord> = {}): PlacementRecord {
     kind: "base_cabinet",
     frame: { x: 1.3, z: 0.3, ry: 0, y0: 0, w: 0.6, h: 2.6, d: 0.56 },
     occupiedDepth: finishesAtMm(560),
+    // Carried on the record the way `occupiedDepth` is, and read at the tie-break — see
+    // `baseDefinition` for why a fixture that ties has to declare one.
+    depthRule: pinnedAtFinishedDepthMm(560, "base-formula"),
     col: "A|1.30",
     wall: "A",
     rotated: false,
@@ -158,13 +181,13 @@ describe("derivePlacementRecords", () => {
           buildId: "base-600",
           widthMm: 600,
           heightMm: 720,
-          finish: "oak",
+          finish: LEGACY_ENUM_FINISHES.oak,
           handle: "black",
         },
       }),
     ]);
     const [record] = derivePlacementRecords(design, catalog);
-    expect(record?.finishKey).toBe("oak");
+    expect(record?.finishKey).toEqual(LEGACY_ENUM_FINISHES.oak);
     expect(record?.handleMode).toBe("black");
   });
 
@@ -197,7 +220,7 @@ describe("deriveColumns", () => {
       frame: { x: 1.35, z: 0.32, ry: 0, y0: 1.5, w: 0.5, h: 0.7, d: 0.56 },
       col: "A|1.30",
     });
-    const columns = deriveColumns([shallow, deep]);
+    const columns = deriveColumns([shallow, deep], {}, ROOM);
     const column = columns.get("A|1.30");
     // Wall A: the normal axis is z, so the coordinate is half the depth and the along-wall x still
     // comes from a member.
@@ -220,7 +243,7 @@ describe("deriveColumns", () => {
       frame: { x: 1.3, z: 0.3, ry: 0, y0: 1.85, w: 0.6, h: 0.75, d: 0.56 },
       col: "A|1.30",
     });
-    const columns = deriveColumns([lower, upper]);
+    const columns = deriveColumns([lower, upper], {}, ROOM);
     const column = columns.get("A|1.30");
     expect(column?.top).toBeCloseTo(2.6, 6);
     expect(column?.regions).toEqual([
@@ -238,7 +261,7 @@ describe("deriveColumns", () => {
       frame: { x: 0.3, z: 0.165, ry: 0, y0: 1.5, w: 0.6, h: 0.7, d: 0.33 },
       col: "A|0.30",
     });
-    const columns = deriveColumns([wallOnly]);
+    const columns = deriveColumns([wallOnly], {}, ROOM);
     expect(columns.get("A|0.30")?.regions[0]?.[0]).toBe(1.5);
   });
 });

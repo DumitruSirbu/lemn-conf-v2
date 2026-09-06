@@ -37,42 +37,24 @@ import {
   type PlacementRecord,
   type VoidRecord,
 } from "../void-engine.js";
-import { occupiedDepthM } from "../occupied-depth.js";
+import {
+  occupiedDepthM,
+  recordedClearanceM,
+  type ClearanceM,
+} from "../occupied-depth.js";
+import {
+  buildToTheClearanceM,
+  columnBuildDepthM,
+  shallowerBuildDepthM,
+  type BuildDepthM,
+} from "../cabinet-depth-rule.js";
 import { alongWallM } from "./along-wall.js";
-import { wallDepthMmForWorktop, WORKTOP_DEPTH_MM } from "../worktop-depth.js";
 import type { CommandTarget } from "./command-result.js";
 import type { RejectionDetail } from "./rejection.js";
 
 /** §9: a height-flexible body needs this much opening before it is worth building — below it the
  *  carcass is a strip, not a cabinet. */
 export const HEIGHT_FLEX_MIN_OPENING_MM = 400;
-
-/** §7's `min(d, cap)` on a wall carcass, as what it actually is: a **head-clearance rule**, not a
- *  geometry limit. The cap is the worktop → wall depth map's row for the shipped worktop, never a
- *  value written down here. `wallCabinet(W, doors, H, D)` builds any depth it is handed.
- *
- *  A wall cabinet above a worktop is shallow so you do not hit your head leaning over the counter.
- *  Above a full-height column there is nothing to lean over, so it may be as deep as the column —
- *  which is why the shipped kitchen has 330 mm wall cabinets over its base run and 600 mm ones over
- *  the oven tower, the pantry and the fridge.
- *
- *  **The cap is the rule and the column is the exception**, not the other way round: see
- *  `resolveDepthM`, where reading it as "cap over a worktop" left an emptied column uncapped.
- *
- *  It lives in the domain rather than beside the builders (where it was, as
- *  `WALL_CARCASS_MAX_DEPTH_M`) because the cap is now a function of the **design** — of what stands
- *  under the opening — and the adapter cannot see a design. §12: the domain owns product rules, the
- *  adapter owns builders. The builders now build the depth they are given.
- *
- *  Backlog entry 5, decided by the owner on 2026-08-26.
- *
- *  **The number itself is the worktop's, not this rule's** (owner, 2026-08-27): it reads the same
- *  map row as §7's `nominalDepthMm`, so the cap and the catalogue nominal cannot drift apart. They
- *  were independent literals agreeing at 400 until then, which is why a re-inserted top-row cabinet
- *  built 400 mm beside 330 mm neighbours. */
-export const WALL_CARCASS_MAX_DEPTH_OVER_WORKTOP_M = toMetres(
-  wallDepthMmForWorktop(WORKTOP_DEPTH_MM),
-);
 
 /** §5.2: a height-flexible body fills an opening this tall or shorter, and otherwise builds its
  *  nominal height. A 750 mm over-fridge slot gets a 750 mm unit; a cleared 2600 mm column does not
@@ -93,7 +75,13 @@ export interface InsertOpening {
    *  coordinate is *not* taken from here; it comes from the body's own measured seat. */
   readonly alongM: number;
   readonly w: number;
-  /** The depth the body is built to — §5.2's `void.d`, handed to the probe as `depthM`.
+  /** **How deep the opening is** — a `ClearanceM`, not the depth a body is built to.
+   *
+   *  It was both until wave 6I2, and that is `docs/BACKLOG.md` entry 15: the number is §3.2's MAX
+   *  over a column's members with an appliance's door bars in it, and `resolveDepthM` was handing it
+   *  to the probe as a manufactured size. What a body is built to is `BuildDepthM`, declared in
+   *  `cabinet-depth-rule.ts`; the two are different types now, so this field cannot be read as one
+   *  by accident (ADR 0060 decision 1).
    *
    *  It belongs to the **opening**, never to the column. `Column.d` is §3.2's MAX over the whole
    *  vertical run, so reading the depth from there builds a wall cabinet to the depth of the base
@@ -102,7 +90,7 @@ export interface InsertOpening {
    *  neighbours. ADR 0018 is why that reads as a depth at all — `frame.d` is twice a body's rear
    *  overhang, which for the two builders that consume a depth (`wallCabinet`, `openShelf`, whose
    *  carcass is centred on z = 0) is exactly the depth they were given. */
-  readonly d: number;
+  readonly d: ClearanceM;
   readonly y0: number;
   readonly h: number;
   readonly spanY0: number;
@@ -115,7 +103,10 @@ export function openingFromVoid(record: VoidRecord): InsertOpening {
     wall: record.wall,
     alongM: record.wall === "A" ? record.x : record.z,
     w: record.w,
-    d: record.d,
+    // §3.3 stamps a void with its column's own depth, which `deriveColumns` derived as the MAX of
+    // its members' clearances. Restated as the `ClearanceM` it is, because `VoidRecord` carries it
+    // as a plain number: the frozen map persists it and a stored extent arrives off the wire.
+    d: recordedClearanceM(record.d),
     y0: record.y0,
     h: record.h,
     spanY0: record.spanY0,
@@ -162,10 +153,15 @@ export function openingFromPlacement(
   };
 }
 
-/** `occupiedDepthM` under the name this call site reads it by: the depth of the space a body
+/** `occupiedDepthM` under the name this call site reads it by: the **clearance** of the space a body
  *  *vacates*, which is the space the next insert is planned into. The rule itself lives in
- *  `occupied-depth.ts` and its reasoning in ADR 0040. */
-const vacatedOpeningDepthM = occupiedDepthM;
+ *  `occupied-depth.ts` and its reasoning in ADR 0040.
+ *
+ *  This reader wants the clearance and says so (ADR 0060 decision 1): an opening is a hole, and how
+ *  big the hole is is a different question from how deep a cabinet dropped into it is built. Its
+ *  `ClearanceM` return type is what carries that through to `resolveDepthM`. */
+const vacatedOpeningDepthM: (record: PlacementRecord) => ClearanceM =
+  occupiedDepthM;
 
 /** The void that would cover this body if it were removed — §4's own derivation, run once with the
  *  target taken out, so a swap and a delete-then-insert see the identical opening.
@@ -271,10 +267,13 @@ function findOpening(lookup: OpeningLookup): PartialResolution {
 export interface InsertPlan {
   readonly widthM: number;
   readonly heightM: number;
-  /** §5.2's `void.d`, capped by §7's head-clearance rule where it applies — the depth handed to the
-   *  probe as `b.mk(w, h, d)`'s third argument. Decided here, with the rest of the plan, so the
-   *  offer list and `insertBody` cannot disagree about how deep a body would be built. */
-  readonly depthM: number;
+  /** **The depth this body is built to** — `b.mk(w, h, d)`'s third argument, a manufactured size.
+   *  Decided here, with the rest of the plan, so the offer list and `insertBody` cannot disagree
+   *  about how deep a body would be built.
+   *
+   *  Typed `BuildDepthM` since wave 6I2, so an opening's `ClearanceM` cannot land here without
+   *  passing through `resolveDepthM`'s declared rule (ADR 0060). */
+  readonly depthM: BuildDepthM;
   readonly y0M: number;
   readonly slotBand: NormalisedBand;
   /** ADR 0046: the along-wall centre the body is seated at, in millimetres. Flush against the
@@ -305,6 +304,18 @@ export interface InsertFitInput {
   readonly body: InsertableBody;
   readonly opening: InsertOpening;
   readonly column: Column;
+  /**
+   * **The cabinet depth of the design being operated on**, which `resolveDepthM` needs and no other
+   * argument carries. Read it off that design with `cabinetDepthMmOf`; never write a number here.
+   *
+   * **Required, and deliberately not defaulted.** Until wave 6K-b this module read the module
+   * constant `WORKTOP_DEPTH_MM`, so at a 700 mm kitchen every wall body was built to the 600 mm map
+   * row (ADR 0073's finding, an implementation defect against ADR 0055 decision 1). A default of 600
+   * would be harmless *today* — no refusal reads the depth, and `offersFor`'s `judge` discards the
+   * plan's `depthM` — and "harmless today, because no reader looks" is the precise reasoning that
+   * produced the defect in the first place. Required, the wrong call site fails to compile.
+   */
+  readonly cabinetDepthMm: number;
 }
 
 function rejectFit(detail: RejectionDetail): InsertFit {
@@ -696,7 +707,7 @@ export function evaluateInsertFit(input: InsertFitInput): InsertFit {
     plan: {
       widthM: width.widthM,
       heightM,
-      depthM: resolveDepthM(body, opening, column),
+      depthM: resolveDepthM(input),
       y0M,
       slotBand,
       ...seatAlongColumn(opening, column, width.widthM),
@@ -790,9 +801,14 @@ function seatableMillimetres(valueM: number): number {
   return toExactMillimetres(valueM) ?? valueM * MILLIMETRES_PER_METRE;
 }
 
-/** §5.2 hands the builder the **opening's** own depth (`InsertOpening.d`), capped by §7's
- *  head-clearance rule everywhere that rule applies — which is everywhere but over a full-height
- *  member, and only for a wall carcass.
+/** **The one reader that wants a build depth rather than a clearance** (ADR 0060 decision 1): what
+ *  the body standing in this opening is manufactured to, handed to the probe as `b.mk(w, h, d)`'s
+ *  third argument.
+ *
+ *  It reads `columnBuildDepthM`'s **declaration** and never the opening's own MAX. Until wave 6I2 it
+ *  returned `opening.d` over a full-height column, which is §3.2's MAX with an appliance's door bars
+ *  in it: 703 and 742 mm wall carcasses, depths nobody manufactures, written to the database on two
+ *  columns of the shipped kitchen by an ordinary delete-then-insert (`docs/BACKLOG.md` entry 15).
  *
  *  **The cap is the default and the lift is the exception**, which is the direction backlog entry 5
  *  states the rule in: "over a full-height column there is nothing to lean over". Read the other way
@@ -801,23 +817,46 @@ function seatableMillimetres(valueM: number): number {
  *  delete produces: clearing the base cabinets under a wall run then built a 580 mm carcass, the
  *  frozen `Column.d` of the base cabinet the customer had just deleted, beside 330 mm neighbours.
  *
- *  The cap is a maximum and never a target: an opening shallower than the cap keeps its own depth,
- *  and a column that answers `hasFullHeightUnder` wrongly can only ever make a body *shallower*
- *  than the opening it stands in. It can never push a body past its opening, which is what keeps
- *  §11 row 19 (the back face lands on the wall plane) out of reach of this rule.
+ *  **Where the cap applies it is a maximum and never a target**: a column shallower than the
+ *  declared depth keeps its own depth, so a column that answers `hasFullHeightUnder` wrongly can
+ *  only ever make a body *shallower* than the space it stands in and never push one past it, which
+ *  is what keeps §11 row 19 (the back face lands on the wall plane) out of this rule's reach. The
+ *  maximum is measured against the **column**, which is the space that exists, rather than against
+ *  the outgoing body, which is only what happened to be standing there.
+ *
+ *  **Where the lift applies the declared line is the target, not a ceiling** — ADR 0060 decision 5,
+ *  and the one place the two arms genuinely differ. Taking the shallower of the two would let one of
+ *  ADR 0058's pinned 600 mm tops lend its pin to the catalogue body that replaces it: at a 700 mm
+ *  kitchen the incoming body takes the column's build depth of 700, not the 600 it replaced.
  *
  *  The body's band, not the slot's: the cap describes what a wall **carcass** is — hung, with no
  *  plinth and no worktop of its own — and a wall cabinet dropped into a cleared column slot is
  *  still one. Base and full-height builders ignore the depth they are given anyway (ADR 0018). */
-function resolveDepthM(
-  body: InsertableBody,
-  opening: InsertOpening,
-  column: Column,
-): number {
-  const capApplies =
-    normaliseBand(body.band) === "wall" && !column.hasFullHeightUnder;
-  if (!capApplies) return opening.d;
-  return Math.min(opening.d, WALL_CARCASS_MAX_DEPTH_OVER_WORKTOP_M);
+function resolveDepthM(input: InsertFitInput): BuildDepthM {
+  const { body, opening, column } = input;
+  if (normaliseBand(body.band) !== "wall")
+    return buildToTheClearanceM(opening.d);
+  // **The design's own setting, not a module constant** (wave 6K-b). This read `WORKTOP_DEPTH_MM`
+  // until 2026-09-04, which was right while 600 was the only depth a document could carry and wrong
+  // from wave 6J-a onward: at a 700 mm kitchen it built every wall body to the 600 mm map row — 330
+  // where the map declares 400 — and nothing refused it. ADR 0073's finding carries the measurement.
+  const declaredM = columnBuildDepthM({
+    cabinetDepthMm: input.cabinetDepthMm,
+    hasFullHeightUnder: column.hasFullHeightUnder,
+  });
+  if (column.hasFullHeightUnder) return declaredM;
+  // **The floor is the column's clearance, not the opening's** — ADR 0060 decision 3 made total.
+  // `Column.d` is §3.2's MAX over the run and both routes agree on it by construction, where
+  // `InsertOpening.d` does not: a swap publishes the outgoing body's own clearance
+  // (`openingFromPlacement`) and a delete-then-insert publishes the column's (`openingFromVoid`).
+  // Reading the floor from the opening therefore reproduced entry 10's divergence on this arm — a
+  // 200 mm body vacating a 620 mm column gave 200 by swap and 330 by delete-then-insert. Latent
+  // rather than live: no reachable command mints a wall member shallower than the map row, but an
+  // authored or stored document can. Raised by logic review, 2026-09-04.
+  return shallowerBuildDepthM(
+    declaredM,
+    buildToTheClearanceM(recordedClearanceM(column.d)),
+  );
 }
 
 function refuseBand(

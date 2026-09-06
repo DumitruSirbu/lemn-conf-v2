@@ -15,12 +15,13 @@
 // The two stored arrays are partitioned by that same predicate, which is why they cannot collide.
 import { fc, test as propertyTest } from "@fast-check/vitest";
 import {
+  buildKitchenLBodyCatalog,
+  canonicalSerializeDesign,
   deriveColumnKeyAt,
   deriveColumns,
   DesignSchema,
   KITCHEN_L_BODY_CATALOG,
   KITCHEN_L_DESIGN,
-  canonicalSerializeDesign,
   toExactMillimetres,
   validateDesignForCatalog,
   type Column,
@@ -29,16 +30,17 @@ import {
 import { describe, expect, it } from "vitest";
 
 import { createConfiguratorStore } from "../../src/store/configurator-store";
-import { createFakeBodyProbe } from "../support/fake-body-probe";
+import { createFakeProbeFactory } from "../support/fake-body-probe";
+import { LEGACY_ENUM_FINISHES } from "@lemnaria/configurator-domain";
 
 const OCCURRED_AT = "2026-08-25T12:00:00.000Z";
 
 function createStore(design: Design = KITCHEN_L_DESIGN) {
   return createConfiguratorStore({
     design,
-    catalog: KITCHEN_L_BODY_CATALOG,
+    catalogAt: buildKitchenLBodyCatalog,
     now: () => OCCURRED_AT,
-    bodyProbe: createFakeBodyProbe(),
+    probeAt: createFakeProbeFactory(),
   });
 }
 
@@ -91,7 +93,11 @@ function observableMap(
  *  `columnExtents` carries, measured the same way so the two readings can be compared. */
 function keysThePlacementsCannotAnswer(store: Store): Set<string> {
   const state = store.getState();
-  const fromPlacementsAlone = deriveColumns(state.records);
+  const fromPlacementsAlone = deriveColumns(
+    state.records,
+    {},
+    state.design.room,
+  );
   const excluded = new Set<string>();
   for (const [key, frozen] of state.columns) {
     const derived = fromPlacementsAlone.get(key);
@@ -262,7 +268,11 @@ describe("the sweep is total, and the set it used to exclude is the set now reco
 
         const reloaded = reload(session);
         const fromPlacementsAlone = observableMap(
-          deriveColumns(reloaded.getState().records),
+          deriveColumns(
+            reloaded.getState().records,
+            {},
+            reloaded.getState().design.room,
+          ),
         );
         const inSession = observableMap(session.getState().columns);
         const restored = observableMap(reloaded.getState().columns);
@@ -379,7 +389,7 @@ describe("the seam writes one document per state, and nothing for an empty one",
     const before = canonicalSerializeDesign(KITCHEN_L_DESIGN);
 
     store.getState().select({ kind: "placement", id: "p0" });
-    store.getState().setFinish("oak");
+    store.getState().setFinish(LEGACY_ENUM_FINISHES.oak);
     const saved = store.getState().design;
     const withoutTheFrozenMap = { ...saved };
     delete withoutTheFrozenMap.columnExtents;
@@ -497,10 +507,16 @@ describe("the seam writes one document per state, and nothing for an empty one",
           design.placements.map((placement) => placement.id),
         );
         expect(occupied.size).toBe(design.placements.length);
-        const restored = deriveColumns([], {
-          emptyColumns: design.emptyColumns ?? [],
-        });
-        const fromPlacements = deriveColumns(session.getState().records);
+        const restored = deriveColumns(
+          [],
+          { emptyColumns: design.emptyColumns ?? [] },
+          design.room,
+        );
+        const fromPlacements = deriveColumns(
+          session.getState().records,
+          {},
+          design.room,
+        );
         for (const key of restored.keys()) {
           expect(fromPlacements.has(key)).toBe(false);
         }

@@ -18,12 +18,18 @@ import {
   evaluateInsertFit,
   type InsertOpening,
 } from "../src/commands/insert-fit.js";
-import { DesignSchema, EmptyColumnSchema, type Design } from "../src/design.js";
+import {
+  DesignSchema,
+  EmptyColumnSchema,
+  type Design,
+  type DesignRoom,
+} from "../src/design.js";
 import {
   KITCHEN_L_BODY_CATALOG,
   KITCHEN_L_DESIGN,
 } from "../src/fixtures/kitchen-l-design.js";
 import { toMetres } from "../src/millimetres.js";
+import { recordedClearanceM } from "../src/occupied-depth.js";
 import { validateDesignForCatalog } from "../src/validate-design.js";
 import {
   deriveColumnKeyAt,
@@ -37,8 +43,19 @@ import {
   type Column,
   type PlacementRecord,
 } from "../src/void-engine.js";
+import { DEFAULT_CABINET_DEPTH_MM } from "../src/worktop-depth.js";
 
 const CATALOG = KITCHEN_L_BODY_CATALOG;
+
+/** Wide enough that the 6300 mm sweeps below never reach the wall's own end — this file is
+ *  about the projection/restoration round trip, not `clipEmptyColumnsAtWallEnd`, which has its
+ *  own test file. */
+const ROOM: DesignRoom = {
+  shape: "L",
+  widthMm: 7000,
+  depthMm: 7000,
+  heightMm: 2600,
+};
 
 function columnAt(alongM: number, overrides: Partial<Column> = {}): Column {
   return {
@@ -81,7 +98,9 @@ describe("the projection's uniqueness guarantee, attacked", () => {
       // Every column of the seeded kitchen, plus strips at swept centres. The strips that land on an
       // occupied key are the ones that matter — the projection must drop those and keep the rest.
       const strips = centimetres.map((cm) => columnAt(cm / 100));
-      const frozen = new Map(deriveColumns(KITCHEN_RECORDS));
+      const frozen = new Map(
+        deriveColumns(KITCHEN_RECORDS, {}, KITCHEN_L_DESIGN.room),
+      );
       for (const strip of strips) frozen.set(strip.key, strip);
 
       const projected = projectEmptyColumns(frozen, KITCHEN_RECORDS);
@@ -142,9 +161,11 @@ describe("the projection's uniqueness guarantee, attacked", () => {
     // and the map's key set is the answer this compares against, not the input's length.
     const frozen = mapOf(columns);
 
-    const restored = deriveColumns([], {
-      emptyColumns: projectEmptyColumns(frozen, []),
-    });
+    const restored = deriveColumns(
+      [],
+      { emptyColumns: projectEmptyColumns(frozen, []) },
+      ROOM,
+    );
 
     expect([...restored.keys()].sort()).toStrictEqual(
       [...mergeAdjacentEmptyColumns(frozen, []).keys()].sort(),
@@ -394,7 +415,7 @@ describe("a restored column's one region snaps where the session's several did",
       wall: "A",
       alongM: 1.3,
       w: 0.6,
-      d: 0.58,
+      d: recordedClearanceM(0.58),
       y0,
       h,
       spanY0,
@@ -422,6 +443,7 @@ describe("a restored column's one region snaps where the session's several did",
         body: BODY,
         opening,
         column: columnWith(regions),
+        cabinetDepthMm: DEFAULT_CABINET_DEPTH_MM,
       });
 
       if (!fit.ok) return;
@@ -451,11 +473,13 @@ describe("a restored column's one region snaps where the session's several did",
         body,
         opening,
         column: columnWith(regions),
+        cabinetDepthMm: DEFAULT_CABINET_DEPTH_MM,
       });
       const restored = evaluateInsertFit({
         body,
         opening,
         column: columnWith(collapsed),
+        cabinetDepthMm: DEFAULT_CABINET_DEPTH_MM,
       });
 
       expect(restored).toStrictEqual(inSession);
@@ -471,6 +495,7 @@ describe("a restored column's one region snaps where the session's several did",
       body: BODY,
       opening,
       column: columnWith([]),
+      cabinetDepthMm: DEFAULT_CABINET_DEPTH_MM,
     });
 
     expect(fit.ok).toBe(true);
@@ -485,6 +510,7 @@ describe("a restored column's one region snaps where the session's several did",
         body: BODY,
         opening: openingIn(levelStart, 0.7, levelStart, 0.7),
         column: columnWith([[0, 2.6]]),
+        cabinetDepthMm: DEFAULT_CABINET_DEPTH_MM,
       });
       return fit.ok;
     });

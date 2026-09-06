@@ -4,6 +4,7 @@
 // likely defect of this phase, and it reads as "delete does nothing" rather than as a column bug —
 // so the test world models the contract the store must implement, and a test that passes here
 // cannot be passing because the columns quietly moved.
+import { cabinetDepthMmOf } from "../../src/design.js";
 import type { Design } from "../../src/design.js";
 import {
   withCurrentFullHeightMembers,
@@ -18,6 +19,12 @@ import {
 
 export interface KitchenWorld {
   readonly design: Design;
+  /** The design's own cabinet depth, carried so a spread of this world into `offersFor` or
+   *  `evaluateInsertFit` supplies it **derived from the design in the same object** rather than
+   *  typed out beside it. A fixture that wrote the number here could hand the engine a 600 mm depth
+   *  with a 700 mm design, which is the mismatched pair wave 6K-b's required field exists to make
+   *  unwriteable. Re-derived wherever the design changes, never carried across one. */
+  readonly cabinetDepthMm: number;
   readonly catalog: BodyCatalog;
   readonly columns: ReadonlyMap<string, Column>;
   readonly records: readonly PlacementRecord[];
@@ -29,9 +36,10 @@ export function createWorld(
   catalog: BodyCatalog,
 ): KitchenWorld {
   const records = derivePlacementRecords(design, catalog);
-  const columns = deriveColumns(records);
+  const columns = deriveColumns(records, {}, design.room);
   return {
     design,
+    cabinetDepthMm: cabinetDepthMmOf(design),
     catalog,
     columns,
     records,
@@ -70,6 +78,7 @@ export function advance(world: KitchenWorld, design: Design): KitchenWorld {
   return {
     ...world,
     design,
+    cabinetDepthMm: cabinetDepthMmOf(design),
     records,
     columns,
     voids: recomputeVoids(records, columns),
@@ -110,6 +119,7 @@ export function advanceWithColumns(
   return {
     ...world,
     design,
+    cabinetDepthMm: cabinetDepthMmOf(design),
     records,
     columns,
     voids: recomputeVoids(records, columns),

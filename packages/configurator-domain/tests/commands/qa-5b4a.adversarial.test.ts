@@ -42,6 +42,7 @@ import {
 } from "../../src/void-engine.js";
 import { createFakeProbe } from "../support/fake-probe.js";
 import { refused, verdictOf } from "../support/offers.js";
+import { cabinetDepthMmOf } from "../../src/design.js";
 
 const CATALOG = KITCHEN_L_BODY_CATALOG;
 const NOW = "2026-08-25T00:00:00.000Z";
@@ -103,7 +104,7 @@ function loadSpan(design: Design): Span {
   const records = derivePlacementRecords(design, CATALOG);
   return spanOf(
     design,
-    deriveColumns(records, { emptyColumns: design.emptyColumns }),
+    deriveColumns(records, { emptyColumns: design.emptyColumns }, design.room),
   );
 }
 
@@ -123,6 +124,8 @@ function seededKitchenWithout(ids: readonly string[]): Span {
   }, KITCHEN_L_DESIGN);
   const frozen = deriveColumns(
     derivePlacementRecords(KITCHEN_L_DESIGN, CATALOG),
+    {},
+    KITCHEN_L_DESIGN.room,
   );
   return spanOf(design, frozen);
 }
@@ -302,7 +305,11 @@ describe("what the whole-height precondition silently refuses", () => {
     const swapped = insertInto(
       spanOf(
         KITCHEN_L_DESIGN,
-        deriveColumns(derivePlacementRecords(KITCHEN_L_DESIGN, CATALOG)),
+        deriveColumns(
+          derivePlacementRecords(KITCHEN_L_DESIGN, CATALOG),
+          {},
+          KITCHEN_L_DESIGN.room,
+        ),
       ),
       { kind: "placement", id: FRIDGE_MEMBER },
       "base-dishwasher",
@@ -543,6 +550,7 @@ describe("the ADR 0037 gate, asserted as commands succeeding rather than voids e
       records: span.records,
       voids: span.voids,
       columns: span.columns,
+      cabinetDepthMm: cabinetDepthMmOf(span.design),
       target: { kind: "void", id: strip.id },
     });
     expect(offers.length).toBeGreaterThan(0);
@@ -625,6 +633,7 @@ describe("a remainder wider than 800 mm is split at the ceiling (ADR 0052)", () 
       records: span.records,
       voids: span.voids,
       columns: span.columns,
+      cabinetDepthMm: cabinetDepthMmOf(span.design),
       target: { kind: "void", id: opening.id },
     });
     // The whole gain: a `'fit'` row now builds to the opening instead of being refused against it.

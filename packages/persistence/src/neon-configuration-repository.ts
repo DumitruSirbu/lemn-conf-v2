@@ -1,5 +1,6 @@
 import type { Design, DesignId } from "@lemnaria/configurator-domain";
 import {
+  CURRENT_SCHEMA_VERSION,
   DesignNotFoundError,
   migrateDesign,
 } from "@lemnaria/configurator-domain";
@@ -9,12 +10,11 @@ import type { DesignRevision } from "./design-revision.js";
 import { generateDesignId } from "./generate-design-id.js";
 import { readDatabaseUrl } from "./read-database-url.js";
 
-/** The version every row this adapter writes is stamped with. **2 since ADR 0052**, which made
- *  800 mm the ceiling on any empty column: a version 1 document may carry a wider entry and is
- *  normalised on the way in by `migrateFromV1`, while a version 2 document carrying one is refused.
- *  The read path never assumes this value — it passes `row.schema_version` to `migrateDesign`, which
- *  is what lets a stored version 1 row go on loading. */
-const CURRENT_SCHEMA_VERSION = 2;
+/* `CURRENT_SCHEMA_VERSION` is the version every row this adapter writes is stamped with, and it is
+ * imported from the domain rather than restated here: it is the same number that decides which
+ * normalisations `migrateDesign` still owes a row, and two copies of it that drifted apart would be
+ * a migration that silently stopped running. The read path never assumes it — it passes
+ * `row.schema_version`, which is what lets a stored older row go on loading. */
 
 /** SHA-256 as `node:crypto`'s `digest("hex")` renders it: 64 lowercase hex characters. */
 const SHA256_HEX_DIGEST = /^[0-9a-f]{64}$/;
@@ -178,10 +178,10 @@ export class NeonConfigurationRepository
    *
    * `schema_version` is restamped with the document, and that is what retires a version. The
    * document written here was produced by this build, so a row left stamped with the version it was
-   * minted under would say a document was written under a rule it was not — and ADR 0052's version 1
-   * arm could never be removed, because a row it had already normalised would ask for it again on
-   * every load. Safe in both directions: a normalised document is a fixed point of `migrateFromV1`,
-   * so a row half-way through this change loads identically whichever stamp it carries.
+   * minted under would say a document was written under a rule it was not — and an older arm could
+   * never be removed, because a row it had already normalised would ask for it again on every load.
+   * Safe in both directions: a normalised document is a fixed point of every arm below the current
+   * version, so a row half-way through such a change loads identically whichever stamp it carries.
    */
   private async updateIfCurrent({
     id,

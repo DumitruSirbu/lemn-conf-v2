@@ -9,6 +9,10 @@ export default tseslint.config(
       "**/.next/**",
       "**/next-env.d.ts",
       "design-source/**",
+      // Claude Code's session-local state, which `.gitignore` already excludes. Agent worktrees are
+      // checked out under `.claude/worktrees/`, so without this the recursive root run walks into a
+      // second copy of every package and lints files no tsconfig covers.
+      ".claude/**",
       "catalog-seed/**",
       // Supplier reference geometry, vendored verbatim for the structural-parity suite to diff
       // against. Not our source, not in any tsconfig, and deliberately not reformatted — linting it

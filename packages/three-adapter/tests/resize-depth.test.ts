@@ -73,7 +73,7 @@ interface World {
 }
 
 function load(design: Design): World {
-  return { design, columns: deriveColumns(recordsOf(design)) };
+  return { design, columns: deriveColumns(recordsOf(design), {}, design.room) };
 }
 
 function clear(world: World, placementIds: readonly string[]): World {
@@ -308,6 +308,7 @@ describe("the rebuilt carcass really is the width that was asked for", () => {
         widthM: 0.6,
         heightM: record.frame.h,
         depthM: rebuildDepthM(kit, record.buildId, record.frame.d),
+        seatedOn: "wall-plane",
       });
       expect(toMillimetres(measurement.carcassWidthM)).toBe(600);
       expect(toMillimetres(2 * measurement.seatOffsetM)).toBe(

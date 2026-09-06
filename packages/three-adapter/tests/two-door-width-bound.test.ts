@@ -16,6 +16,7 @@
 // builders can say how many doors a 300 mm carcass actually has. A fake probe reports back the size
 // it was handed and would agree with anything, which is precisely what let the original ship.
 import {
+  cabinetDepthMmOf,
   INSERTABLE_BODY_DEFINITIONS,
   derivePlacementRecords,
   deriveColumns,
@@ -95,6 +96,8 @@ function clearedNarrowWall(): Design {
 function narrowOpening(design: Design) {
   const columns = deriveColumns(
     derivePlacementRecords(KITCHEN_L_DESIGN, KITCHEN_L_BODY_CATALOG),
+    {},
+    KITCHEN_L_DESIGN.room,
   );
   const records = derivePlacementRecords(design, KITCHEN_L_BODY_CATALOG);
   const voids = recomputeVoids(records, columns);
@@ -154,6 +157,8 @@ describe("the 700 mm fridge opening takes a two-door again", () => {
     const design = clearedFridge();
     const columns = deriveColumns(
       derivePlacementRecords(KITCHEN_L_DESIGN, KITCHEN_L_BODY_CATALOG),
+      {},
+      KITCHEN_L_DESIGN.room,
     );
     const records = derivePlacementRecords(design, KITCHEN_L_BODY_CATALOG);
     const opening = recomputeVoids(records, columns).find(
@@ -202,6 +207,8 @@ describe("a hood in an opening wider than any hood", () => {
     if (!result.ok) throw new Error(`delete refused: ${result.reason.code}`);
     const columns = deriveColumns(
       derivePlacementRecords(KITCHEN_L_DESIGN, KITCHEN_L_BODY_CATALOG),
+      {},
+      KITCHEN_L_DESIGN.room,
     );
     const records = derivePlacementRecords(
       result.design,
@@ -304,6 +311,7 @@ describe("so the 300 mm opening gets a one-door, correctly named — backlog 13"
       voids,
       columns,
       catalog: KITCHEN_L_BODY_CATALOG,
+      cabinetDepthMm: cabinetDepthMmOf(design),
       target: { kind: "void", id: opening.id },
     }).find((offer) => offer.buildId === WALL_CABINET_BUILD_ID);
 
@@ -321,6 +329,7 @@ describe("so the 300 mm opening gets a one-door, correctly named — backlog 13"
       voids,
       columns,
       catalog: KITCHEN_L_BODY_CATALOG,
+      cabinetDepthMm: cabinetDepthMmOf(design),
       target: { kind: "placement", id: "p8" },
     }).find((offer) => offer.buildId === WALL_CABINET_BUILD_ID);
     expect(seededWide?.label).toBe("Corp suspendat 2 uși");

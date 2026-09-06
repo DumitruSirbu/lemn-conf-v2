@@ -7,11 +7,13 @@
 // the panel offers and the engine then refuses. That shape is invisible to a builder test that
 // only asserts "a group came back with meshes in it".
 import {
+  DEFAULT_CABINET_DEPTH_MM,
   evaluateInsertFit,
   FIT_TOLERANCE_M,
   describeBodyLabelAt,
   INSERTABLE_BODY_DEFINITIONS,
   MIN_WIDTH_M,
+  recordedClearanceM,
   toInsertableBody,
   toMetres,
   type BodyDefinition,
@@ -75,6 +77,7 @@ function build(
       widthM: toMetres(widthMm),
       heightM: toMetres(heightMm),
       depthM: toMetres(depthMm),
+      seatedOn: "wall-plane",
     },
   });
   return {
@@ -110,7 +113,7 @@ function refusesFitWidth(
     wall: "A",
     alongM: 1,
     w: toMetres(openingWidthMm),
-    d: 0.58,
+    d: recordedClearanceM(0.58),
     y0: 0,
     h: 0.86,
     spanY0: 0,
@@ -128,7 +131,12 @@ function refusesFitWidth(
     regions: [[0, 0.86]],
     hasFullHeightUnder: true,
   };
-  const fit = evaluateInsertFit({ body, opening, column });
+  const fit = evaluateInsertFit({
+    body,
+    opening,
+    column,
+    cabinetDepthMm: DEFAULT_CABINET_DEPTH_MM,
+  });
   return fit.ok ? undefined : fit.detail.code;
 }
 

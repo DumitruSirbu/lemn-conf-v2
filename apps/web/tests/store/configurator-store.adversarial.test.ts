@@ -4,7 +4,10 @@
 // sequences*, which is where frozen columns and a non-dangling selection actually fail: the store
 // applies one command correctly and the tenth one carries the drift. Every case below therefore
 // asserts a property after every command in a sequence rather than after one hand-picked call.
+import { createBodyProbeLease } from "@lemnaria/configurator-domain";
 import {
+  cabinetDepthMmOf,
+  buildKitchenLBodyCatalog,
   KITCHEN_L_BODY_CATALOG,
   KITCHEN_L_DESIGN,
   offersFor,
@@ -18,7 +21,11 @@ import {
   type ConfiguratorState,
 } from "../../src/store/configurator-store";
 import { columnExtents } from "../support/column-extents";
-import { createFakeBodyProbe } from "../support/fake-body-probe";
+import {
+  createFakeBodyProbe,
+  createFakeProbeFactory,
+} from "../support/fake-body-probe";
+import { LEGACY_ENUM_FINISHES } from "@lemnaria/configurator-domain";
 
 /** The revision a hydrating loader reports. These tests are about identity and generation, not
  *  about concurrency, so one value throughout keeps them readable. */
@@ -43,11 +50,11 @@ interface StoreOverrides {
 function createStore(overrides: StoreOverrides = {}) {
   return createConfiguratorStore({
     design: overrides.design ?? KITCHEN_L_DESIGN,
-    catalog: KITCHEN_L_BODY_CATALOG,
+    catalogAt: buildKitchenLBodyCatalog,
     now: () => OCCURRED_AT,
     ...(overrides.withProbe === false
       ? {}
-      : { bodyProbe: createFakeBodyProbe() }),
+      : { probeAt: createFakeProbeFactory() }),
     ...(overrides.onDesignChanged
       ? { onDesignChanged: overrides.onDesignChanged }
       : {}),
@@ -139,7 +146,7 @@ describe("the frozen column map survives a long sequence, not just one command",
       [
         "setFinish",
         () => {
-          store.getState().setFinish("oak");
+          store.getState().setFinish(LEGACY_ENUM_FINISHES.oak);
         },
       ],
       [
@@ -301,6 +308,7 @@ describe("the §10 signature flow, driven through the store", () => {
       voids: state.voids,
       columns: state.columns,
       catalog: KITCHEN_L_BODY_CATALOG,
+      cabinetDepthMm: cabinetDepthMmOf(state.design),
       target: selection,
     })
       .filter((offer) => offer.verdict.status === "offered")
@@ -314,7 +322,7 @@ describe("the save seam fires exactly once per applied command and never on a re
     const store = createStore({ onDesignChanged });
 
     store.getState().select({ kind: "placement", id: "p8" });
-    store.getState().setFinish("oak");
+    store.getState().setFinish(LEGACY_ENUM_FINISHES.oak);
     store.getState().setHandle("push");
     store.getState().remove();
     const afterSuccesses = onDesignChanged.mock.calls.length;
@@ -322,7 +330,7 @@ describe("the save seam fires exactly once per applied command and never on a re
     // Four refusals: a void is selected after the remove above, which refuses all three of these,
     // and an unknown build id refuses the fourth.
     store.getState().remove();
-    store.getState().setFinish("oak");
+    store.getState().setFinish(LEGACY_ENUM_FINISHES.oak);
     store.getState().setHandle("push");
     store.getState().insert("not-a-body");
 
@@ -342,7 +350,7 @@ describe("the save seam fires exactly once per applied command and never on a re
     });
 
     store.getState().select({ kind: "placement", id: "p8" });
-    store.getState().setFinish("oak");
+    store.getState().setFinish(LEGACY_ENUM_FINISHES.oak);
     store.getState().setHandle("push");
 
     expect(seen).toEqual([true, true]);
@@ -393,7 +401,7 @@ describe("lastRejection is transient and never leaks into the design", () => {
     store.getState().remove();
     expect(store.getState().lastRejection).toBeNull();
 
-    store.getState().setFinish("oak");
+    store.getState().setFinish(LEGACY_ENUM_FINISHES.oak);
     expect(store.getState().lastRejection).not.toBeNull();
     store.getState().deselect();
     expect(store.getState().lastRejection).toBeNull();
@@ -506,7 +514,7 @@ describe("insert without a probe", () => {
     store.getState().insert("wall-lift");
     expect(store.getState().lastRejection?.code).toBe("BODY_PROBE_UNAVAILABLE");
 
-    store.getState().attachBodyProbe(createFakeBodyProbe());
+    store.getState().attachBodyProbe(createFakeProbeFactory());
     store.getState().select({ kind: "placement", id: "p8" });
     store.getState().insert("wall-lift");
 
@@ -524,8 +532,16 @@ describe("insert without a probe", () => {
     const second = vi.fn((request: Parameters<typeof secondProbe.measure>[0]) =>
       secondProbe.measure(request),
     );
-    store.getState().attachBodyProbe({ measure: first });
-    store.getState().attachBodyProbe({ measure: second });
+    store
+      .getState()
+      .attachBodyProbe(() =>
+        createBodyProbeLease({ measure: first }, () => undefined),
+      );
+    store
+      .getState()
+      .attachBodyProbe(() =>
+        createBodyProbeLease({ measure: second }, () => undefined),
+      );
     expect(store.getState().isBodyProbeAttached).toBe(true);
 
     store.getState().select({ kind: "placement", id: "p8" });

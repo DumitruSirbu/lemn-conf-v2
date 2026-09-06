@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { CabinetBodySchema, DesignSchema } from "../src/design.js";
+import { LEGACY_ENUM_FINISHES } from "../src/materials.js";
 
 const body = {
   buildId: "base-600",
@@ -20,6 +21,7 @@ const design = {
   room: { shape: "L" as const, widthMm: 3600, depthMm: 2400, heightMm: 2600 },
   presetId: null,
   placements: [placement],
+  settings: { cabinetDepthMm: 600 },
   createdAt: "2026-08-25T00:00:00.000Z",
   updatedAt: "2026-08-25T00:00:00.000Z",
 };
@@ -28,7 +30,7 @@ describe("CabinetBodySchema", () => {
   it("accepts a body with optional finish and handle", () => {
     const result = CabinetBodySchema.safeParse({
       ...body,
-      finish: "oak",
+      finish: LEGACY_ENUM_FINISHES.oak,
       handle: "black",
     });
     expect(result.success).toBe(true);

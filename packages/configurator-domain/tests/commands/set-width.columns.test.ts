@@ -691,7 +691,9 @@ describe("a body that lands on an existing column key merges into it", () => {
     ).columns;
 
     const merged = nonNull(
-      rederiveTouchedColumns(frozen, before, after).get("A|1.30"),
+      rederiveTouchedColumns(frozen, before, after, runDesign([]).room).get(
+        "A|1.30",
+      ),
     );
 
     expect(merged.w).toBeCloseTo(0.6, 9);
@@ -727,7 +729,12 @@ describe("the column update is expressible for a re-split", () => {
       KITCHEN_L_BODY_CATALOG,
     ).columns;
 
-    const updated = rederiveTouchedColumns(frozen, before, after);
+    const updated = rederiveTouchedColumns(
+      frozen,
+      before,
+      after,
+      runDesign([]).room,
+    );
 
     expect([...updated.keys()].sort()).toEqual(["A|1.10", "A|1.50", "A|2.00"]);
     expect(updated.get("A|1.10")?.w).toBeCloseTo(0.4, 9);

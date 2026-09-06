@@ -35,6 +35,7 @@ import {
 } from "../../src/void-engine.js";
 import { createFakeProbe } from "../support/fake-probe.js";
 import { refused, verdictOf } from "../support/offers.js";
+import { cabinetDepthMmOf } from "../../src/design.js";
 
 const CATALOG = KITCHEN_L_BODY_CATALOG;
 const NOW = "2026-08-25T00:00:00.000Z";
@@ -86,7 +87,11 @@ interface Span {
 
 function loadSpan(design: Design): Span {
   const records = derivePlacementRecords(design, CATALOG);
-  const columns = deriveColumns(records, { emptyColumns: design.emptyColumns });
+  const columns = deriveColumns(
+    records,
+    { emptyColumns: design.emptyColumns },
+    design.room,
+  );
   return { design, columns, records, voids: recomputeVoids(records, columns) };
 }
 
@@ -275,6 +280,7 @@ describe("an insert splits the column it does not fill", () => {
       records: after.records,
       voids: after.voids,
       columns: after.columns,
+      cabinetDepthMm: cabinetDepthMmOf(after.design),
       target: { kind: "void", id: strip.id },
     });
 
@@ -425,7 +431,7 @@ describe("an insert splits the column it does not fill", () => {
   // synthetic span.
   it("still centres a discrete body in the shipped kitchen's 700 mm column", () => {
     const records = derivePlacementRecords(KITCHEN_L_DESIGN, CATALOG);
-    const columns = deriveColumns(records);
+    const columns = deriveColumns(records, {}, KITCHEN_L_DESIGN.room);
 
     const result = insertBody({
       design: KITCHEN_L_DESIGN,
@@ -484,6 +490,8 @@ describe("the gate: ADR 0037's withdrawal scenario and the four-tap case", () =>
 
     const frozen = deriveColumns(
       derivePlacementRecords(KITCHEN_L_DESIGN, CATALOG),
+      {},
+      KITCHEN_L_DESIGN.room,
     );
     const records = derivePlacementRecords(cleared, CATALOG);
     const start: Span = {

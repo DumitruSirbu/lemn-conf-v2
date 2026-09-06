@@ -7,6 +7,7 @@
 // serialisation would pass.
 import { fc, test as propertyTest } from "@fast-check/vitest";
 import {
+  buildKitchenLBodyCatalog,
   DesignSchema,
   KITCHEN_L_BODY_CATALOG,
   KITCHEN_L_DESIGN,
@@ -18,16 +19,17 @@ import {
 import { describe, expect, it } from "vitest";
 
 import { createConfiguratorStore } from "../../src/store/configurator-store";
-import { createFakeBodyProbe } from "../support/fake-body-probe";
+import { createFakeProbeFactory } from "../support/fake-body-probe";
+import { LEGACY_ENUM_FINISHES } from "@lemnaria/configurator-domain";
 
 const OCCURRED_AT = "2026-08-25T12:00:00.000Z";
 
 function createStore(design: Design = KITCHEN_L_DESIGN) {
   return createConfiguratorStore({
     design,
-    catalog: KITCHEN_L_BODY_CATALOG,
+    catalogAt: buildKitchenLBodyCatalog,
     now: () => OCCURRED_AT,
-    bodyProbe: createFakeBodyProbe(),
+    probeAt: createFakeProbeFactory(),
   });
 }
 
@@ -166,7 +168,7 @@ describe("criterion 1 — a shrink's leftover strip survives the reload", () => 
     const store = createStore();
 
     store.getState().select({ kind: "placement", id: "p0" });
-    store.getState().setFinish("oak");
+    store.getState().setFinish(LEGACY_ENUM_FINISHES.oak);
 
     expect(store.getState().design).not.toHaveProperty("emptyColumns");
   });

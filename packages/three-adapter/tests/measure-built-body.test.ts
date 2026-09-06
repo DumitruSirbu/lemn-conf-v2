@@ -1,3 +1,8 @@
+import {
+  buildKitchenLBodyCatalog,
+  measurableSeatOf,
+  type MeasurableSeatedOn,
+} from "@lemnaria/configurator-domain";
 // M3 work item 7: the `BodyProbe` implementation, and `DEVELOPMENT-SPEC.md` §11 row 19 for the
 // bodies a customer inserts.
 //
@@ -29,6 +34,16 @@ import {
   installHeadlessDocument,
 } from "./support/headless-canvas.js";
 
+/** The plane the catalogue says seats this body — read, never assumed, which is the whole of
+ *  ADR 0077. Hard-coding `"wall-plane"` would put the front-hung hood on the wrong plane, and is
+ *  exactly the second list the ruling deleted from `measure-built-body.ts`. */
+function seatedOnOf(buildId: string, cabinetDepthMm = 600): MeasurableSeatedOn {
+  return measurableSeatOf({
+    buildId,
+    rule: buildKitchenLBodyCatalog(cabinetDepthMm).get(buildId)?.seatRule,
+  });
+}
+
 /** M1's parity epsilon — the same one §11 row 19 names ("0.000", asserted at 1e-6 m). */
 const FLOAT_EPSILON_METRES = 1e-6;
 
@@ -59,7 +74,7 @@ function request(
   heightM: number,
   depthM: number,
 ): BodyProbeRequest {
-  return { buildId, widthM, heightM, depthM };
+  return { buildId, widthM, heightM, depthM, seatedOn: seatedOnOf(buildId) };
 }
 
 const SINK_REQUEST = request("base-sink", 0.8, WORKTOP_HEIGHT_M, 0.58);
@@ -335,6 +350,7 @@ describe("rebuilding at the persisted seat depth", () => {
           widthM: testCase.widthM,
           heightM: testCase.heightM,
           depthM: givenDepthM,
+          seatedOn: seatedOnOf(testCase.buildId),
         },
       });
 

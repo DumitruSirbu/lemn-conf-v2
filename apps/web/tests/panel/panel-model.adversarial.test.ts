@@ -6,6 +6,7 @@
 // broken by the *list it was handed*, not by its rendering (a wall body in a base set, a fallback
 // set for the hob, `base-sink` offered into an opening it cannot build).
 import {
+  cabinetDepthMmOf,
   deriveColumns,
   derivePlacementRecords,
   describeSelection,
@@ -33,6 +34,9 @@ const OCCURRED_AT = "2026-08-26T12:00:00.000Z";
  *  the symptom is an empty offer list, not a column error. The store freezes them; so does this. */
 const SEEDED_COLUMNS = deriveColumns(
   derivePlacementRecords(KITCHEN_L_DESIGN, KITCHEN_L_BODY_CATALOG),
+
+  {},
+  KITCHEN_L_DESIGN.room,
 );
 
 function worldFrom(design: Design) {
@@ -42,6 +46,9 @@ function worldFrom(design: Design) {
     columns: SEEDED_COLUMNS,
     voids: recomputeVoids(records, SEEDED_COLUMNS),
     catalog: KITCHEN_L_BODY_CATALOG,
+    // Carried on the world so a spread of it supplies the depth **derived from the design in the
+    // same object**, rather than a number typed beside it that could disagree with the design.
+    cabinetDepthMm: cabinetDepthMmOf(design),
   };
 }
 
@@ -51,7 +58,10 @@ function panelAt(world: World, target: CommandTarget) {
   const meta = describeSelection({ ...world, target });
   return describePanel({
     meta,
-    offers: offersFor({ ...world, target }),
+    offers: offersFor({
+      ...world,
+      target,
+    }),
     rejection: null,
     widthOptions: meta ? noWidthIsFree(meta.widthMm, meta.sizesMm) : [],
     isBodyProbeAttached: true,
@@ -172,7 +182,12 @@ describe("the panel over the seeded kitchen", () => {
       if (!section) continue;
       swept += 1;
       expect(section.rows.map((row) => row.buildId)).toEqual(
-        offeredBuildIds(offersFor({ ...world, target })),
+        offeredBuildIds(
+          offersFor({
+            ...world,
+            target,
+          }),
+        ),
       );
     }
     expect(swept).toBeGreaterThan(0);

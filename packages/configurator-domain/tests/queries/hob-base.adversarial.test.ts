@@ -12,11 +12,20 @@ import {
 } from "../../src/commands/insert-fit.js";
 import { removePlacement } from "../../src/commands/remove-placement.js";
 import {
-  BASE_FINISHED_DEPTH_MM,
+  baseFinishedDepthMm,
   HOB_OVEN_BASE_FINISHED_DEPTH_MM,
   listInsertableBodies,
 } from "../../src/catalog.js";
+import { WORKTOP_DEPTH_MM } from "../../src/worktop-depth.js";
 import { finishesAtMm } from "../../src/occupied-depth.js";
+import {
+  carriesHandles,
+  NO_CABINET_HANDLES,
+} from "../../src/cabinet-handles.js";
+import {
+  carriesDrawers,
+  NO_OPENING_FRONTS,
+} from "../../src/front-population.js";
 import {
   KITCHEN_L_BODY_CATALOG,
   KITCHEN_L_DESIGN,
@@ -134,6 +143,7 @@ describe("ADR 0027's hob bases against a base opening's width", () => {
         body,
         opening: resolved.value.opening,
         column: resolved.value.column,
+        cabinetDepthMm: world.cabinetDepthMm,
       });
       expect([buildId, fit.ok]).toEqual([buildId, false]);
       if (fit.ok) return;
@@ -310,6 +320,8 @@ describe("the two hob bases are distinguished only where the choice is made", ()
       label: "",
       canHandle: true,
       occupiedDepth: finishesAtMm(0),
+      cabinetHandles: carriesHandles(0),
+      fronts: NO_OPENING_FRONTS,
     });
 
     expect(withoutTheChoice(drawers)).toEqual(withoutTheChoice(oven));
@@ -317,13 +329,33 @@ describe("the two hob bases are distinguished only where the choice is made", ()
     expect([drawers.canFinish, drawers.canHandle]).toEqual([true, true]);
     expect([oven.canFinish, oven.canHandle]).toEqual([true, false]);
 
+    // **Masked above and asserted here, since M6 wave 6L** (ADR 0061). The handle *count* is the
+    // same fact `canHandle` states, said to the price instead of to the panel: the drawer variant
+    // carries two of its own, and the oven variant's single bar is the oven's, so it carries none.
+    // Left inside the equality it would have read as "these two bodies differ by a number", which is
+    // exactly the reading this test exists to refuse.
+    expect([drawers.cabinetHandles, oven.cabinetHandles]).toEqual([
+      carriesHandles(2),
+      NO_CABINET_HANDLES,
+    ]);
+
+    // **Masked above and asserted here for `cabinetHandles`' reason, since wave 6S** (ADR 0070).
+    // The same fact a third time, and the first time it is said precisely: the drawer variant's two
+    // fronts are **drawers** and run on runners, while the oven variant's single front is a fixed
+    // facade over the oven cavity that opens on nothing at all. Left inside the equality this would
+    // read as two bodies differing by a measurement, which is what this test refuses.
+    expect([drawers.fronts, oven.fronts]).toEqual([
+      carriesDrawers(2),
+      NO_OPENING_FRONTS,
+    ]);
+
     // **The one measurement that does differ, and it is not one anything picks by** (DOM-002).
     // Nominal width, height and depth are identical — those are what §5.2 fits and §9 offers on.
     // What the built bodies occupy is not: the drawer variant finishes at its worktop, and the oven
     // variant's fascia and bar reach 28 mm past it. It is measured on the geometry, so declaring
     // them equal would be declaring a body 28 mm shallower than the one that gets built.
     expect([drawers.occupiedDepth, oven.occupiedDepth]).toEqual([
-      finishesAtMm(BASE_FINISHED_DEPTH_MM),
+      finishesAtMm(baseFinishedDepthMm(WORKTOP_DEPTH_MM)),
       finishesAtMm(HOB_OVEN_BASE_FINISHED_DEPTH_MM),
     ]);
     expect([drawers.nominalDepthMm, oven.nominalDepthMm]).toEqual([580, 580]);

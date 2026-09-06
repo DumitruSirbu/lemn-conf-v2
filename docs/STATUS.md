@@ -3,9 +3,11 @@
 **Read this second, right after `AGENTS.md`, before opening any milestone document.** It exists so a
 session can learn fast where the project stands, without reading eight phase plans.
 
-Last updated: 2026-09-02. **Currently in progress: M5 wave 5E** (the browser/mobile gate) — see *What
-to do next* below. Everything else through M5B, M5 waves 5G/5H, and the adversarial-review
-remediation is shipped; find any phase's detail in the table below, then follow its **Read** column.
+Last updated: 2026-09-04. **Currently in progress: M6**, on branch `m6-price-and-global-settings`.
+**M5 wave 5E — the browser/mobile gate — remains open and unverified**; it does not block M6 and M6
+started ahead of it by the owner's decision. Everything else through M5B, M5 waves 5G/5H, and the
+adversarial-review remediation is shipped; find any phase's detail in the table below, then follow
+its **Read** column.
 
 ## How to use this file
 
@@ -30,7 +32,11 @@ moment it ships; a decision record does not. When the two disagree, the dated de
 | M3 — Insert, remove, swap, client write path | **Done** (closed 2026-08-26) | No — `milestones/done/` |
 | M4 — Editor panel and shell | **Done** (closed 2026-08-26 — one criterion unmet by design, ADR 0024) | No — `milestones/done/` |
 | M5 — Width editing, and depth as a derived quantity | **In progress — 5E is the only wave open.** 5A–5D2c, 5F, 5G, 5H all shipped | Yes — `milestones/M5-*.md`, and ADRs 0028–0041, 0052, 0053 |
-| M6 — Price bar and global settings (incl. worktop depth control) | Planned | Yes, when starting |
+| M6 — Price bar and global settings (incl. cabinet depth control) | **In progress —** ~~13 of 25 tracked waves DONE~~ ~~corrected 2026-09-05: 13 of 36 wave-table rows are DONE, counted directly~~ ~~corrected again 2026-09-05: 23 of 38 wave-table rows are DONE, counted directly~~ **corrected again 2026-09-06: 24 of 38, wave 6U closed** — two rows added for 6K-g and 6K-h (real waves with full plans and shipped commits that had never had a table row) and ten more rows reconciled against `git log`: 6K, 6K-c, 6K-d, 6K-e, 6K-f, 6K-g, 6K-h, 6K-j, 6Q and 6Q-c, all closing 2026-09-05 (see *What to do next* below for the full recount and its arithmetic). On branch `m6-price-and-global-settings`: 6A (`6c1f830`), 6H (`4afda06`), 6A3 and 6B2 (`eb9ba03`) shipped 2026-09-03; 6C (`194405b`) and 6D (`a5e161f`) shipped 2026-09-03 but only received their DONE marker this pass — a documentation gap, not new work; 6E (`b558e28`), 6G (`3e546d1`), 6I2 and 6M (merged at `ce77171`) shipped 2026-09-03/04; 6S (`280daa4`, `a2bff48`), 6J (`c8ba3af` 6J-a, `a68482d` 6J-b) and 6P (`38268b5`) shipped 2026-09-04. **6K's whole family closed 2026-09-05**: 6K-a and 6K-b (`30c3bcb`/`4dc08e0`/`30d419b`/`e664e33`, 2026-09-04), 6K-c (`56b6815`), 6K-d and 6K-e (one commit, `d4e58a4`), 6K-f (`827e1e1`), 6K-h (`e90ccc8`), 6K-g (`52e3c70`), 6K-j (`151429f`) — which also closes 6Q, via 6Q-a (`9e9d54e`), 6Q-b (`59f8669`) and 6Q-c (`14cef90`). **6U closed 2026-09-06, `38d5cad`** — ADR 0087's hob-seat fix (the front clearance is now derived, not a literal); ADR 0087 carries a 2026-09-06 amendment recording the hob's own 510 mm geometric floor, found by 6U's QA and unreachable today because `requireDeclaredCabinetDepthMm` refuses below 520. Open: 6K-i (ADR 0079's finding, unadjudicated), 6R, 6T. **Certified 2026-09-05** (`59f8669`): 6A4, 6B (CERTIFIED); 6A2, 6L, 6I
+(CERTIFIED WITH FINDINGS) — see *Where the project stands*'s certification note below. **6J-c is implemented and NOT landed, 2026-09-06** — it met its plan and exposed the frozen map's
+positioned facts; ADR 0090 opens **6J-d** and rules the two land together, on one branch, because the
+tree as it stands publishes a 700 mm kitchen the `PUT` seam refuses. Not started:
+6J-d, 6N-0, 6N-a. 6F is superseded by ADR 0071's 6P–6R; 6N-b and 6N-c are dropped, 2026-09-05, owner ruling | Yes — `milestones/M6-*.md`, and ADRs 0055–0073 |
 | M7 — Step 1, room and presets | Planned | Yes, when starting |
 | M8 — Review, contact, success | Planned | Yes, when starting |
 | Adversarial review remediation | **Every finding closed or gated.** SEC-001 (High) deferred to M8 by owner decision, gated. Everything else — SCENE-001/002, WEB-001–004, DOM-001–003, SEC-002–004, DB-001/002/004 — is implemented and reviewed | Yes — `milestones/adversarial-review-remediation.md`, `milestones/dom-003-set-width-split.md` |
@@ -93,9 +99,79 @@ PASS.
 
 ## What is open right now
 
-- **M5 wave 5E — the browser/mobile gate.** The only M5 wave still open; held back deliberately while
-  M5B changed the width surface it photographs, which is now settled. Read ADR 0035 (the stepper
-  replaced the chip row) before writing an assertion. See *What to do next*.
+- **M5 wave 5E — the browser/mobile gate. Still open and still unverified.** The owner confirmed on
+  2026-09-02 that their manual testing was **desktop-browser only**, which does not close a handset
+  gate: a real touch digitiser, a mobile GPU and device pixel ratio, and iOS Safari all remain
+  verified under emulation alone. M6 started ahead of it by the owner's decision — 5E blocks nothing
+  in M6 — but it must be run before release. Read ADR 0035 (the stepper replaced the chip row)
+  before writing an assertion.
+- **~~A pre-release check on the `designs` table~~ — closed by the owner, 2026-09-03: there is no
+  real user data.** The app is in development and no stored row belongs to a customer, so the
+  migration window this entry described does not need counting and no row is worth rescuing. Kept as
+  a struck entry rather than deleted, because the *mechanism* is still true and will matter the first
+  time real rows exist: wave 6A3 deleted `correctPreCorrectionRoom`'s first guard, so from `eb9ba03`
+  a row at `schema_version <= 2` carrying `{3600, 2400}` is corrected to `{3560, 2830}` on load —
+  **going forward only**, because every save stamps `CURRENT_SCHEMA_VERSION = 3` and a row that
+  leaves the set leaves permanently uncorrected. If this project ever migrates a room again, that is
+  the shape of the problem.
+- **The owner question ADR 0069 hands on — should the product _offer_ an insertion opening that
+  lies past the end of a wall — is closed, 2026-09-04.** Distinct from marking a body the customer
+  already placed, which is ruled (ADR 0065, ADR 0069). It covers both a remnant the product itself
+  creates and a fabricated empty-column entry — one decision governs both. Wave 6M shipped 2026-09-03/04
+  without touching it (confirmed at its close-out); the owner then confirmed **never**, on the same
+  reasoning wave 6A3 already established for demo/proposed designs. **The behaviour turns out to have
+  already shipped**: `packages/configurator-domain/src/clip-empty-columns-at-wall-end.ts`, wired into
+  `deriveColumns` in `void-engine.ts`, clips every member-less column to its wall's own length before
+  any command or load can offer it as an insertable opening. Neither wave 6M's section nor ADR 0069
+  connected the shipped clip to the reserved question until this ruling; see
+  [ADR 0069's amendment](decisions/0069-past-the-wall-is-one-code-family-and-severity-is-declared-per-code.md#amendment--2026-09-04-the-reserved-question-is-closed-and-it-was-already-answered-in-code)
+  and wave 6M's close-out for the full record.
+- **A gate is owed on the rejection banner's newly-found route, and nobody has written it.** Wave 6C's
+  visual verification disproved [ADR 0024](decisions/0024-the-rejection-banner-has-no-reachable-path.md)'s
+  "no refusal is reachable by construction": **a double-tap on `Șterge corpul` reaches the banner** —
+  the first click deletes, the second lands on the now-void selection and refuses, both before React
+  re-renders. It was captured on both shells with a controlled single-versus-double comparison (the
+  total held at `91 000 MDL` while the label read `De la neschimbat`), and the ADR is amended. **But
+  there is no automated gate on it**, and 6C's implementer could not reproduce it through Playwright:
+  neither `dblclick()` nor `mouse.click(..., { clickCount: 2, delay: 0 })` reaches the banner — both
+  yield `panel-rejection` count 0. **That negative result is worth keeping**: whatever reaches the
+  refusal is not a synthetic click pair, which points at real timing or a touch gesture. Ten minutes
+  once someone names the exact gesture. It belongs with **wave 5E**, which owns the handset pass.
+
+- **One mutation is owed on 6B2's coverage, and it is a verification task rather than a defect.** The
+  comparator-key swap in `packages/configurator-domain/src/queries/design-projection.ts` was never
+  run, because that file carried concurrent uncommitted edits during 6B2's QA; a literal pin of the
+  seeded kitchen's 26-placement line order stands in its place. The tree has since settled, so the
+  mutation can now be run.
+- **Five engineering items deferred out of M6 waves 6A3 and 6B2**, each named with the wave it was
+  deferred out of. **None has a future wave assigned**, and each claim below was read off the tree at
+  `eb9ba03`:
+  - **`describeDeclared` is duplicated inside one package — the DRY threshold is passed.** *Out of
+    6B2.* **Four** byte-identical copies: `pricing/price-book.ts:389`, `cabinet-depth-rule.ts:76`,
+    `cabinet-handles.ts:128`, `occupied-depth.ts:91`, each
+    `declared === undefined ? "nothing" : JSON.stringify(declared)`. They serve four different
+    refusal messages, which is why they were written separately and why nothing failed.
+  - **`priceOnePlacement` is long.** *Out of 6B2.* `pricing/price-design.ts:295-351` — **57 lines**
+    against the ≤20-line convention. A chain of guarded refusals, so it splits cleanly; nothing about
+    it is wrong, only long.
+  - **`findExtentRoomIssues` and `findUncontainedEmptyColumns` are structurally identical.** *Out of
+    6A3.* `validate-design.ts:341` and `:470` — the same four edges through the same
+    `findContainmentBreaches` and `reachesPastRoomAcrossWall`, differing only in the code prefix and
+    the path. **The cost is specific: a fifth edge gets added to one and not the other**, which is the
+    forgotten-member failure ADR 0069 was written about, one seam over.
+  - **Two validity questions whose names do not say which validity each asks.** *Out of 6A3.*
+    `assertDesignValidForCatalog` / `validateDesignForCatalog` ask **complete** validity;
+    `fatalDesignValidationIssues`, and `migrate-design.ts:156`'s `hasFatalIssues` over it, ask
+    **fatal-only**. Since ADR 0069 the two answers genuinely differ and the names do not carry the
+    distinction. **The rename was deferred as the one item here that can move the tree**, so it wants
+    its own wave rather than a ride. ADR 0069's code blocks name an `isValidForCatalog` guard: that is
+    the ADR's shorthand for `migrate-design.ts`'s **deleted** guard 1 and was never a symbol in the
+    tree, so finding nothing by that name does not make this entry stale.
+  - **A span's `kind` misdescribes what it holds.** *Out of 6A3, and it predates that diff.*
+    `findExtentRoomIssues` builds its span with `toEmptyColumnSpan(extent, index)`
+    (`validate-design.ts:348`) rather than `toColumnExtentSpan`, so a column extent is carried in a
+    span labelled as an empty column. Harmless today because only `wall`, `along` and `top` are read
+    off it — which is exactly the kind of "true by luck" the next reader of `kind` breaks.
 - **SEC-001, deferred to M8 and gated.** `POST /api/designs` has no application rate limiter and no
   active retention. `milestones/M8-review-contact-success.md`'s *Launch gate* must be checked off
   before the endpoint sees real traffic. ADR 0019's 2026-08-31 correction records the decision.
@@ -159,11 +235,136 @@ policy, so every per-endpoint limit is application code.
 
 ## What to do next
 
-**Next: M5 wave 5E — the browser and mobile gate.** It photographs the width surface, which is now the
-stepper rather than the chip row (5D2c shipped 2026-08-30) — read **ADR 0035** first. ADR 0024's
-reachable rejection banner is also 5E's. Read, in order: ADR 0035 (stepper mechanics), ADR 0032
-(disabled-with-reason), ADR 0034 (the chip-row-to-column seam 5D2a/5D2b kept), then
-`milestones/M5-width.md`'s own *What 5D2c built* section if more detail is needed.
+**Next: M6, on branch `m6-price-and-global-settings`.** Read
+`milestones/M6-price-and-global-settings.md`, ~~now a 25-wave breakdown (6P–6T added 2026-09-04 on
+ADRs 0070 and 0071, superseding 6F; 6K-c added the same day on ADR 0073)~~ ~~now a 36-row wave table,
+counted directly 2026-09-05~~ **now a 38-row wave table, counted directly 2026-09-05** — the 36 above
+grew by two, not thirteen: **6K-g and 6K-h were found to be real waves with full plans and shipped
+commits (`52e3c70`, `e90ccc8`) that had never had a table row at all**, discovered only by
+cross-checking `git log` against the table (`docs/WORKFLOW.md`'s new *"the scribe runs after the
+commit"* section records why this kept happening). All seven original owner decisions are closed.
+
+**Twenty-three waves are DONE**, ten more than the last count: the original thirteen — 6A, 6H, 6A3,
+6B2 (2026-09-03); 6C, 6D (shipped 2026-09-03, DONE marker added that pass — a pre-existing
+documentation gap, not new work); 6E, 6G, 6I2, 6M (2026-09-03/04, merged at `ce77171`); 6S
+(`280daa4`, `a2bff48`), 6J (`c8ba3af`, `a68482d`) and 6P (`38268b5`), all 2026-09-04 — plus ten rows
+this pass reconciled against `git log` rather than left unmarked: **6K's whole family**, all closing
+2026-09-05 — 6K-a and 6K-b (`30c3bcb`/`4dc08e0`/`30d419b`/`e664e33`, 2026-09-04), 6K-c (`56b6815`),
+6K-d and 6K-e (one commit, `d4e58a4` — the hash exists, it simply had no `(6K-d)`/`(6K-e)` tag in its
+subject and fell through the first pass's grep), 6K-f (`827e1e1`), 6K-h (`e90ccc8`), 6K-g (`52e3c70`),
+6K-j (`151429f`) — and **6Q**, via 6Q-a (`9e9d54e`), 6Q-b (`59f8669`) and 6Q-c (`14cef90`, closed this
+pass with its own gate run and visual verification — see its section for the focus-trap defect found
+and fixed). ~~13 + 10 = 23, of 38.~~ **Corrected 2026-09-06: 24 of 38 — 6U closed**, `38d5cad`,
+ADR 0087's hob-seat fix, gates all green (see its own wave section for the full evidence). Five
+shipped commits bundled inside
+`93e9bc3`/`75668b8`/`dfa6198` — **6A2, 6A4, 6B, 6I, 6L** — now carry a recorded
+certification verdict from the 2026-09-05 audit below (three CERTIFIED WITH FINDINGS, two CERTIFIED;
+none NOT CERTIFIED) — check each wave's own section for the finding it carries before reading it as
+fully closed. **6R and 6T remain open**, and **6K-i remains genuinely unstarted** — no commit, no
+plan section, only the header-block mention and its "unadjudicated" row; it begins with an ADR 0079
+adjudication rather than a fix. **6N has not started**, and two of its four sub-waves are now
+dropped: the owner descoped the wall-coverage bars 2026-09-05 ("skip it in general for now... not
+critical and on mobile it will take a lot of place"), which drops **6N-c** (the bars) and **6N-b**
+(the coverage query 6N-c was its only reader for). **6N-0** and **6N-a** are unaffected and still
+open — see the milestone file's own ruling at the end of wave 6N's section. **6J-c is implemented and uncommitted at `e28ab25`, and does not land alone.** It met every criterion
+in its plan, then exposed the seam [ADR 0090](decisions/0090-a-frozen-space-slides-with-its-run-and-follows-the-body-it-recorded.md)
+adjudicates on 2026-09-06: the frozen map's `alongMm` does not move with the run the command now
+slides, so at 700 mm on the seeded kitchen four standing wall-B runs are recorded as free space,
+`voids` go 3 → 12, and `validateDesignForCatalog` returns five `EMPTY_COLUMN_OVERLAPS_PLACEMENT` —
+a declared **refusal**, run at the `PUT` seam, so **the kitchen cannot be saved**. Domain (2 835) and
+adapter (2 204) are green; `@lemnaria/web` is **8 failed / 1 530 passed**, and six of the eight are
+invariants rather than fixtures. ADR 0090 opens **wave 6J-d**, rules that 6J-c commits on a branch and
+reaches `main` only with it, and **amends ADR 0088 decision 1** — so **6K-i's plan changed before it
+was written** and 6K-i is now sequenced after 6J-d (same file; do not dispatch both into one tree).
+
+**Certification audit closed 2026-09-05, run at `59f8669` — all five shipped-but-uncertified M6 waves
+now have a recorded verdict.** 6A4 CERTIFIED (6/6 mutations killed). 6B CERTIFIED (10/10). 6A2
+CERTIFIED WITH FINDINGS (4/6 killed by 6A2's own files, 6/6 by the full suite). 6L CERTIFIED WITH
+FINDINGS (8/9). 6I CERTIFIED WITH FINDINGS (7/7). None NOT CERTIFIED, and all five still hold at
+`59f8669` — no wave was silently broken by a later one. **Worth recording once, not five times: in 3
+of 5, the wave's own guarantee is covered by ANOTHER wave's literals, not its own** — 6A2's name
+through wave 5B8's, 6L's declaration through 6B2's price step, 6I's dishwasher floor through the
+domain test while the adapter test named for it is inert. Each chain was closed 2026-09-05, and each
+runs through a file its own wave does not own. See each wave's own section in
+`docs/milestones/M6-price-and-global-settings.md` for the wave-specific detail; `docs/BACKLOG.md`
+entries 42-47 queue the code-level findings the same audit turned up.
+
+**Closed 2026-09-05 — verified against the tree, not just the milestone prose.** ~~Two call sites
+still hard-code the pre-6J cabinet depth, and this is the largest open thing wave 6K carries.~~ Found
+2026-09-04 while ruling on
+[ADR 0073](decisions/0073-a-frozen-extent-records-the-body-its-depth-came-from.md) and recorded as
+that ADR's finding; fixed by wave 6K-b (`4dc08e0`, `30d419b`). Confirmed 2026-09-05:
+`packages/configurator-domain/src/commands/insert-fit.ts` (`resolveDepthM`) now reads "the design's
+own setting, not a module constant (wave 6K-b)" in its own doc comment, and
+`apps/web/src/scene/kitchen-stage.tsx` no longer imports `WORKTOP_DEPTH_MM` at all — it reads
+`state.design.settings?.cabinetDepthMm ?? DEFAULT_CABINET_DEPTH_MM` and passes
+`wallDepthMm: wallCarcassDepthMm(cabinetDepthMm)` beside it, exactly as 6K-b's acceptance criteria
+required. Classified as an implementation defect against ADR 0055 decision 1, **not** a contract
+gap — both were wave 6K-b's, and the second is what gated its *"changing it visibly changes the
+model"* criterion, now met.
+
+**Two review debts were incurred on 2026-09-04 and are owed rather than skipped.** 6P never received
+a logic review — the reviewer was lost to a spend limit mid-run; its adversarial QA did run in full
+and both findings were fixed and mutation-verified. **6J-b has had no adversarial pass at all.** Both
+shipped on the coordinator's own gate run rather than on a completed review pair.
+
+**Measured on the merged tree at `38268b5`, by the coordinating session running the gates itself:**
+format, lint, typecheck and boundary all 0; domain **2440**, three-adapter **2077**, web **1329
+passed + 4 skipped**, persistence **177/177**, **e2e 57 passed**. Persistence and e2e are the two
+gates neither parallel worktree could run — `.env.*.local` exists only in the main checkout, so the
+worktree's persistence "green" was 86 skipped tests. Both are genuinely run at this commit. Parallel
+worktrees were torn down at the owner's instruction on 2026-09-04; development continues on one
+sequential line.
+
+**Superseded by the paragraph above; kept for the dated record. Measured at `ce77171`** — the coordinating session ran the gates itself rather than accepting an agent's report,
+which `WORKFLOW.md`'s closing step requires: nine of ten `pnpm ci:local` gates green (format, lint, typecheck, test,
+e2e, build, boundary, lockfile). Domain 102 files / 2044 tests, persistence 15/177, three-adapter
+48/1767, web 84 files / 1280 passed + 4 skipped, **e2e 57 passed**. `sca` failed the whole session on
+`ERR_SOCKET_TIMEOUT` reaching `registry.npmjs.org` — environmental, not caused by any diff in this
+branch.
+
+**Owner questions this pass surfaced — see the milestone file's own wave sections for the detail
+rather than restating it here.** The price delta's **anchor was answered 2026-09-04**, accepted
+pending the owner seeing the result on screen (wave 6G close-out); its **rounding direction is also
+ruled 2026-09-04** — rounding stays up everywhere, the objection about "de la" promising "possibly
+more" is overridden rather than dissolved (a *De la* figure must never quote under the true price),
+and the amplification a delta gives that rounding is now an accepted cost, not an open defect (same
+close-out). **A stored material/hardware tier the price book no longer offers is no longer open** —
+ruled 2026-09-04 and deferred with a home, [ADR 0072](decisions/0072-price-book-versioning-is-deferred-to-the-manufacturer-dashboard.md):
+versioning and stale-price handling belong to the manufacturer dashboard, M6 adds no field, version
+or migration for it, and today's book edits migrate any affected stored design in the same commit.
+**Five more owner rulings, 2026-09-04, close the rest of M6's *Added 2026-09-04 with waves 6P–6T*
+open-input list**: each material's default finish (Alb/white/Stejar), the book's default material
+tier (PAL for both the priced baseline and the delta basis), handle pricing (never — hardware prices
+mechanisms only), a legacy `clay`/`sage` document's material (stays PAL, colour lost, against the
+recommendation), Egger decor codes (never shown to the customer), a second sink base (two sinks, two
+racks, never de-duplicated), and the four unruled strings (ship as drafted placeholders; all
+customer-facing copy becomes dashboard-editable later, alongside ADR 0062's price-book seam — not M6
+scope). **The scene warning hidden behind §9's sheet while it is open is also ruled — accept as
+built, no change**, with the accepted trade recorded (the `role="status"` region still announces an
+overflow to a screen reader while invisible behind the sheet). **The two remaining architect-recorded
+questions are also ruled, 2026-09-04 — both accept as built.** The scene warning and the flagged
+total sitting far apart on screen (55.5 px mobile / ~780 px desktop, wave 6M close-out) stand: the
+owner saw the rendered screenshot and accepted it, on the reasoning that the two strings answer
+different questions (ADR 0065 decision 7b) and are not the same-string-twice case the product
+otherwise hides. And ADR 0069's own reserved question — should the product *offer* an insertion
+opening that lies wholly past the end of a wall — is closed **never**, detailed above; it turned out
+to already be shipped as `clip-empty-columns-at-wall-end.ts`, unconnected to the question until this
+ruling. **`docs/milestones/M6-price-and-global-settings.md`'s *Open questions gating this phase* now
+holds only two non-blocking content slots** (sample/commercial price amounts; what the estimate
+includes) — no open decision remains. **A correction to ADR 0060 decision 4's wording is appended to
+that ADR directly**, not restated here.
+
+6L runs before both 6B and 6G; 6I2 lands before 6J. Do not start a wave without reading its section —
+several carry criteria inherited from another wave, including two now owed by 6J: the command-path
+assertion at 700 mm (6I2's close-out, in the milestone file) and the wall-map-versus-base-formula
+catalogue fact (6A3's own punch list, item 3, in the milestone file — not separately listed here).
+
+**M5 wave 5E is still owed** and is described above under *What is open right now*. It is not next
+only because M6 does not depend on it. Before writing an assertion for it, read **ADR 0035** (stepper
+mechanics), ADR 0032 (disabled-with-reason), ADR 0034 (the chip-row-to-column seam 5D2a/5D2b kept),
+then `milestones/M5-width.md`'s own *What 5D2c built* section if more detail is needed. ADR 0024's
+reachable rejection banner is also 5E's.
 
 What 5E must verify, briefly: a real touch digitiser (not synthesised), a mobile GPU and device pixel
 ratio, iOS Safari, and ADR 0023's compatibility-mouse-event fix under a real digitiser — all currently

@@ -140,7 +140,7 @@ describe("normalising a frozen map that already holds an oversized column", () =
    *  corner base is the live instance, and cutting it would move a cabinet. */
   it("leaves an occupied column alone and returns the map by identity", () => {
     const records = derivePlacementRecords(KITCHEN_L_DESIGN, CATALOG);
-    const columns = deriveColumns(records);
+    const columns = deriveColumns(records, {}, KITCHEN_L_DESIGN.room);
 
     expect(splitOversizedEmptyColumns(columns, records)).toBe(columns);
     expect(columns.get("A|0.45")?.w).toBeCloseTo(0.9, 12);
@@ -281,7 +281,7 @@ function load(design: Design): World {
   const records = derivePlacementRecords(design, CATALOG);
   return advance(
     design,
-    deriveColumns(records, { emptyColumns: design.emptyColumns }),
+    deriveColumns(records, { emptyColumns: design.emptyColumns }, design.room),
   );
 }
 
@@ -453,7 +453,11 @@ function loadWide(widthMm: number): World {
   const records = derivePlacementRecords(design, CATALOG);
   return {
     design,
-    columns: deriveColumns(records, { emptyColumns: design.emptyColumns }),
+    columns: deriveColumns(
+      records,
+      { emptyColumns: design.emptyColumns },
+      design.room,
+    ),
     records,
     voids: [],
   };

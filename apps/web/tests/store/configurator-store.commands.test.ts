@@ -5,10 +5,10 @@
 // alone. The product rules themselves belong to `@lemnaria/configurator-domain` and are asserted
 // there; re-asserting them through the store would only hide which layer had broken.
 import {
-  KITCHEN_L_BODY_CATALOG,
+  buildKitchenLBodyCatalog,
   KITCHEN_L_DESIGN,
   widthOptionsFor,
-  type BodyProbe,
+  type BodyProbeFactory,
   type Design,
 } from "@lemnaria/configurator-domain";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -18,7 +18,8 @@ import {
   type ConfiguratorState,
 } from "../../src/store/configurator-store";
 import { columnExtents } from "../support/column-extents";
-import { createFakeBodyProbe } from "../support/fake-body-probe";
+import { createFakeProbeFactory } from "../support/fake-body-probe";
+import { LEGACY_ENUM_FINISHES } from "@lemnaria/configurator-domain";
 
 /** The fridge column of the §10 signature flow: `p7` (0 – 1.85) with `p24` (1.85 – 2.60) above it,
  *  and a frozen `top` of 2.60. Every column-stability case below is expressed against it. */
@@ -30,20 +31,19 @@ const HOB_HOST_ID = "p2";
 const OCCURRED_AT = "2026-08-25T12:00:00.000Z";
 
 /** The store's own probe, reused where a test has to ask §9's width query what it would offer. */
-const PROBE = createFakeBodyProbe();
 
 interface StoreOverrides {
   readonly onDesignChanged?: (design: unknown) => void;
-  readonly bodyProbe?: BodyProbe;
+  readonly probeAt?: BodyProbeFactory;
   readonly design?: Design;
 }
 
 function createStore(overrides: StoreOverrides = {}) {
   return createConfiguratorStore({
     design: overrides.design ?? KITCHEN_L_DESIGN,
-    catalog: KITCHEN_L_BODY_CATALOG,
+    catalogAt: buildKitchenLBodyCatalog,
     now: () => OCCURRED_AT,
-    bodyProbe: overrides.bodyProbe ?? createFakeBodyProbe(),
+    probeAt: overrides.probeAt ?? createFakeProbeFactory(),
     ...(overrides.onDesignChanged
       ? { onDesignChanged: overrides.onDesignChanged }
       : {}),
@@ -226,7 +226,7 @@ describe("insert", () => {
   it("refuses when the scene has attached no probe, and leaves the store untouched", () => {
     const store = createConfiguratorStore({
       design: KITCHEN_L_DESIGN,
-      catalog: KITCHEN_L_BODY_CATALOG,
+      catalogAt: buildKitchenLBodyCatalog,
       now: () => OCCURRED_AT,
     });
     store.getState().select({ kind: "placement", id: "p0" });
@@ -257,7 +257,7 @@ describe("insert", () => {
   it("fails the same way with and without a probe when nothing is selected", () => {
     const withoutProbe = createConfiguratorStore({
       design: KITCHEN_L_DESIGN,
-      catalog: KITCHEN_L_BODY_CATALOG,
+      catalogAt: buildKitchenLBodyCatalog,
     });
     const withProbe = createStore();
     withProbe.getState().deselect();
@@ -276,10 +276,10 @@ describe("insert", () => {
   it("accepts the probe the scene attaches after the store was built", () => {
     const store = createConfiguratorStore({
       design: KITCHEN_L_DESIGN,
-      catalog: KITCHEN_L_BODY_CATALOG,
+      catalogAt: buildKitchenLBodyCatalog,
       now: () => OCCURRED_AT,
     });
-    store.getState().attachBodyProbe(createFakeBodyProbe());
+    store.getState().attachBodyProbe(createFakeProbeFactory());
     removeById(store, "p7");
 
     store.getState().insert("base-3drawer");
@@ -303,13 +303,17 @@ describe("setWidth", () => {
    *  test cannot drift from what the panel would have offered. */
   function firstFreeWidthMm(store: Store, placementId: string): number {
     const state = store.getState();
-    const free = widthOptionsFor({
-      design: state.design,
-      catalog: state.catalog,
-      columns: state.columns,
-      target: { kind: "placement", id: placementId },
-      probe: PROBE,
-    }).find((option) => option.verdict.status === "available");
+    const free = createFakeProbeFactory()(600)
+      .use((probe) =>
+        widthOptionsFor({
+          design: state.design,
+          catalog: state.catalog,
+          columns: state.columns,
+          target: { kind: "placement", id: placementId },
+          probe,
+        }),
+      )
+      .find((option) => option.verdict.status === "available");
     if (!free) throw new Error(`no free width on ${placementId}`);
     return free.widthMm;
   }
@@ -432,7 +436,7 @@ describe("setFinish and setHandle", () => {
     const updates = vi.fn();
     const unsubscribe = store.subscribe(updates);
 
-    store.getState().setFinish("oak");
+    store.getState().setFinish(LEGACY_ENUM_FINISHES.oak);
     unsubscribe();
 
     const state = store.getState();
@@ -440,10 +444,10 @@ describe("setFinish and setHandle", () => {
     expect(
       state.design.placements.find((placement) => placement.id === "p0")?.body
         .finish,
-    ).toBe("oak");
-    expect(state.records.find((record) => record.id === "p0")?.finishKey).toBe(
-      "oak",
-    );
+    ).toEqual(LEGACY_ENUM_FINISHES.oak);
+    expect(
+      state.records.find((record) => record.id === "p0")?.finishKey,
+    ).toEqual(LEGACY_ENUM_FINISHES.oak);
     expect(state.selection).toEqual({ kind: "placement", id: "p0" });
   });
 
@@ -499,7 +503,7 @@ describe("a refused command", () => {
     [
       "setFinish",
       (state) => {
-        state.setFinish("oak");
+        state.setFinish(LEGACY_ENUM_FINISHES.oak);
       },
       "VOID_SELECTED",
     ],
@@ -578,7 +582,7 @@ describe("column stability (ADR 0011 Gap D)", () => {
 
     removeById(store, "p7");
     store.getState().insert("base-3drawer");
-    store.getState().setFinish("oak");
+    store.getState().setFinish(LEGACY_ENUM_FINISHES.oak);
     store.getState().setHandle("push");
 
     expect(columnExtents(store.getState().columns)).toEqual(extentsBefore);
@@ -616,7 +620,7 @@ describe("the selection after a command", () => {
         state.insert("base-cabinet");
       },
       (state) => {
-        state.setFinish("oak");
+        state.setFinish(LEGACY_ENUM_FINISHES.oak);
       },
       (state) => {
         state.setHandle("push");

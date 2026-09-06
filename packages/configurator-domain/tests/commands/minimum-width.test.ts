@@ -10,11 +10,12 @@ import { describe, expect, it } from "vitest";
 import { SINK_CHIPS_MM } from "../support/width-model.js";
 
 import {
-  BASE_FINISHED_DEPTH_MM,
+  baseFinishedDepthMm,
   buildableSizes,
   INSERTABLE_BODY_DEFINITIONS,
   toInsertableBody,
 } from "../../src/catalog.js";
+import { WORKTOP_DEPTH_MM } from "../../src/worktop-depth.js";
 import { finishesAtMm } from "../../src/occupied-depth.js";
 import { KITCHEN_L_BODY_CATALOG } from "../../src/fixtures/kitchen-l-design.js";
 import {
@@ -31,6 +32,7 @@ import { clearBodies, insertInto } from "../support/commands.js";
 import type { KitchenWorld } from "../support/kitchen-world.js";
 import { createWorld, voidAt } from "../support/kitchen-world.js";
 import { columnWorld } from "../support/synthetic-world.js";
+import { DEFAULT_CABINET_DEPTH_MM } from "../../src/worktop-depth.js";
 
 const SINK_MIN_WIDTH_MM = 560;
 /** §2's `MIN_W`, in millimetres — the default floor both declared floors are read against. */
@@ -273,7 +275,7 @@ const SYNTHETIC_SET_ENTRY = {
   label: "Nișă sintetică",
   nominalHeightMm: 860,
   nominalDepthMm: 580,
-  occupiedDepth: finishesAtMm(BASE_FINISHED_DEPTH_MM),
+  occupiedDepth: finishesAtMm(baseFinishedDepthMm(WORKTOP_DEPTH_MM)),
 } as const;
 
 const SET_WITHOUT_FLOOR: BodyDefinition = {
@@ -305,7 +307,12 @@ function fitInBaseOpening(
   if (!body || !column) {
     throw new Error("fixture entry is not insertable in a derived column");
   }
-  return evaluateInsertFit({ body, opening: openingFromVoid(record), column });
+  return evaluateInsertFit({
+    body,
+    opening: openingFromVoid(record),
+    column,
+    cabinetDepthMm: DEFAULT_CABINET_DEPTH_MM,
+  });
 }
 
 describe("R2.1: a millimetre-set body honours its own minimum width", () => {

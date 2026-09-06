@@ -139,6 +139,7 @@ describe("insertBody — what it asks the probe for", () => {
         widthM: 0.7,
         heightM: 0.86,
         depthM: opening.d,
+        seatedOn: "wall-plane",
       },
     ]);
   });

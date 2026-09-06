@@ -72,7 +72,7 @@ export const NARROWEST_CATALOG_WIDTH_MM = Math.min(
  *  ADR 0038 named as unreachable — the 40 mm cabinet — and it is reachable through the API. */
 export const MIN_BODY_HEIGHT_MM = toMillimetres(MIN_SPAN_M);
 
-/** The most placements a supported room can physically contain.
+/** The most placements a supported room can physically **contain**.
  *
  *  Derived, not chosen: each wall run at its maximum length, packed end to end with the narrowest
  *  body the catalogue offers, in each of §2's three module bands. Every factor is a constant
@@ -80,7 +80,13 @@ export const MIN_BODY_HEIGHT_MM = toMillimetres(MIN_SPAN_M);
  *  runs from `MAX_DESIGN_DIMENSION_MM` to the room bounds, which is what they always meant.
  *
  *  Today that is `(floor(6300/200) + floor(5100/200)) × 3 = 168`, against 26 in the shipped seeded
- *  kitchen. */
+ *  kitchen.
+ *
+ *  **Containment is no longer what the validation seam enforces.** Since ADR 0069 a body past the
+ *  end of its wall is a mark rather than a refusal, so a centre may reach `MAX_DESIGN_DIMENSION_MM`
+ *  and the same packing gives 300 non-overlapping placements against this cap of 168. The cap
+ *  therefore now binds slightly before the domain's own rules would — deliberately, and two orders
+ *  of magnitude outside any design this product produces. */
 export const MAX_PLACEMENTS =
   MAX_WALL_RUNS_MM.reduce(
     (total, runMm) => total + Math.floor(runMm / NARROWEST_CATALOG_WIDTH_MM),
@@ -110,16 +116,18 @@ const WALL_COUNT = 2;
  * multiplier at all; and ADR 0043 left an empty column no width floor, so a legal entry is 1 mm
  * wide and `WIDTH_STEP_MM` bounds nothing here.
  *
- * What actually bounds the count is the number of **distinct keys** a wall can present. Every
- * entry must be contained by its wall, and `longestWallRunMm` bounds both walls by the room's
- * longer run, so each wall offers the centres from 0 to `MAX_WALL_RUN_MM` at
- * `COLUMN_KEY_RESOLUTION_MM` — `630 + 1` of them, counting both ends — and no two entries may
- * share one. `(6300 / 10 + 1) × 2 = 1262`.
+ * What actually bounds the count is the number of **distinct keys** a wall can present, under
+ * physical containment: an entry contained by its wall — by that wall's own run since ADR 0065
+ * decision 5, so this stays an upper bound by taking the longer of the two — has its centre
+ * somewhere from 0 to `MAX_WALL_RUN_MM` at `COLUMN_KEY_RESOLUTION_MM`, `630 + 1` of them counting
+ * both ends, and no two entries may share one. `(6300 / 10 + 1) × 2 = 1262`.
  *
- * An upper bound on the keys rather than a count of the reachable ones, deliberately: the cap must
- * never be the thing that refuses a document the domain's own rules accept, and 1262 entries at
- * 1 mm wide and 10 mm apart is such a document. The number this product actually produces is two
- * orders of magnitude below it — the shipped kitchen derives thirteen columns in total.
+ * **The validation seam no longer enforces that containment at the wall's end.** Since ADR 0069 an
+ * extent past the end of its wall is a mark rather than a refusal, so centres run to
+ * `MAX_DESIGN_DIMENSION_MM` and the same arithmetic gives 2002 distinct keys per wall. This cap
+ * therefore now binds slightly before the domain's own rules would — which is a correction to the
+ * premise, not to the number: 1262 entries at 1 mm wide and 10 mm apart is already two orders of
+ * magnitude past anything reachable, and the shipped kitchen derives thirteen columns in total.
  */
 export const MAX_EMPTY_COLUMNS =
   (Math.max(...MAX_WALL_RUNS_MM) / COLUMN_KEY_RESOLUTION_MM + 1) * WALL_COUNT;
@@ -135,12 +143,36 @@ export const MAX_EMPTY_COLUMNS =
  */
 export const MAX_COLUMN_EXTENTS = MAX_PLACEMENTS;
 
-/** The longest a single empty column can serialise to: a wall enum, five five-digit millimetre
- *  values and JSON punctuation — well under a hundred bytes — rounded up as `MAX_PLACEMENT_BYTES`
- *  is, so key order and indentation cannot make an honest document fail. A stored column extent is
- *  the same six fields, so it is allowed the same bytes rather than deriving a second number for
- *  one shape. */
-const MAX_EMPTY_COLUMN_BYTES = 128;
+/** The geometry half of an empty column: a wall enum, five five-digit millimetre values and JSON
+ *  punctuation — well under a hundred bytes — rounded up as `MAX_PLACEMENT_BYTES` is, so key order
+ *  and indentation cannot make an honest document fail. ADR 0053's per-entry allowance, unchanged. */
+const EMPTY_COLUMN_GEOMETRY_BYTES = 128;
+
+/** ADR 0073's `depthFromBuildId`, which the allowance above does **not** absorb — the record says so
+ *  and re-derives rather than assuming: 26 bytes for the longest `buildId` the catalogue holds
+ *  (`wall-corner-return-570-top`), and 21 for `"depthFromBuildId":""` — the key, both pairs of quotes
+ *  and the colon. The comma that separates it from the field before it comes out of the round-up
+ *  above, which stands about ten bytes clear of what the six geometry fields actually serialise to.
+ *
+ *  Derived from the catalogue rather than from `MAX_IDENTIFIER_LENGTH`, exactly as
+ *  `MAX_PLACEMENT_BYTES` is derived from the document the product produces rather than from the
+ *  widest one the schema can express.
+ *
+ *  **The margin is one byte, and it is stated here so the next field to arrive on this shape learns
+ *  it from the comment rather than from a red test.** The longest entry `EmptyColumnSchema` can
+ *  express — every coordinate at `MAX_DESIGN_DIMENSION_MM` and a `depthFromBuildId` at
+ *  `MAX_IDENTIFIER_LENGTH` — serialises to 173 bytes, 174 with the comma that separates it from the
+ *  entry before it, against the 175 below. Measured, not reasoned: `qa-5h.adversarial.test.ts`
+ *  ("allows more bytes per entry than the longest entry the schema can express") and
+ *  `qa-6k-c-frozen-source.adversarial.test.ts` both build that entry, parse it before measuring it,
+ *  and hold it to this allowance. A seventh field on this shape overflows unless the allowance moves
+ *  with it. */
+const DEPTH_FROM_BUILD_ID_BYTES = 26 + 21;
+
+/** The longest a single empty column can serialise to. A stored column extent is the same shape, so
+ *  it is allowed the same bytes rather than deriving a second number for one shape. */
+const MAX_EMPTY_COLUMN_BYTES =
+  EMPTY_COLUMN_GEOMETRY_BYTES + DEPTH_FROM_BUILD_ID_BYTES;
 
 /** Room, `presetId`, and the two timestamps, with the same rounding-up allowance. */
 const DESIGN_ENVELOPE_BYTES = 1024;

@@ -16,6 +16,7 @@ import {
 } from "../support/width-model.js";
 import { advance, createWorld, voidAt } from "../support/kitchen-world.js";
 import type { BodyCatalog, BodyDefinition } from "../../src/void-engine.js";
+import { OFFERED_ON_PAL_FINISH } from "../support/material-finish-pairs.js";
 
 const seeded = () => createWorld(KITCHEN_L_DESIGN, KITCHEN_L_BODY_CATALOG);
 
@@ -409,7 +410,7 @@ describe("describeSelection — the appearance the chips must mark", () => {
       design: world.design,
       catalog: world.catalog,
       target: { kind: "placement", id: "p0" },
-      finish: "sage",
+      finish: OFFERED_ON_PAL_FINISH,
       occurredAt: OCCURRED_AT,
     });
     if (!finished.ok) throw new Error(finished.reason.code);
@@ -426,7 +427,10 @@ describe("describeSelection — the appearance the chips must mark", () => {
       ...advance(world, handled.design),
       target: { kind: "placement", id: "p0" },
     });
-    expect(meta).toMatchObject({ finish: "sage", handle: "black" });
+    expect(meta).toMatchObject({
+      finish: OFFERED_ON_PAL_FINISH,
+      handle: "black",
+    });
   });
 
   // §6.5 / §11 row 13: the default follows the module line the body stands on, not its band.

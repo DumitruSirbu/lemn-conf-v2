@@ -4,7 +4,14 @@
 // split only by `insertable`. One map, because a placement created by `insertBody` must resolve
 // through the same lookup as a seeded one or `UnknownBodyError` becomes reachable at load; two
 // populations, because a seeded entry describes one already-built body and must never be offered.
-import { EXTRACTOR_HOOD_KIND } from "./body-kinds.js";
+import { seatedOnCabinetFrontLine, seatedOnWallPlane } from "./seat-rule.js";
+import type { SeatRule } from "./seat-rule.js";
+import { describeBandLabel } from "./bands.js";
+import {
+  EXTRACTOR_HOOD_KIND,
+  WALL_CORNER_RETURN_KIND,
+  WALL_CORNER_RETURN_TOP_KIND,
+} from "./body-kinds.js";
 import { toMillimetres } from "./millimetres.js";
 import {
   MIN_WIDTH_M,
@@ -25,6 +32,39 @@ import {
   wallDepthMmForWorktop,
   WORKTOP_DEPTH_MM,
 } from "./worktop-depth.js";
+import {
+  carriesHandles,
+  handlesOnDoorLeaves,
+  NO_CABINET_HANDLES,
+  type CabinetHandleRule,
+} from "./cabinet-handles.js";
+import {
+  BASE_DOOR_BAND_HEIGHT_MM,
+  carriesDrawers,
+  carriesFronts,
+  doorBandsMm,
+  FRIDGE_HOUSING_DOOR_BAND_HEIGHTS_MM,
+  OVEN_TOWER_DOOR_BAND_HEIGHTS_MM,
+  PANTRY_DOOR_BAND_HEIGHTS_MM,
+  doorLeavesFollowWidth,
+  NO_DRAWERS,
+  NO_OPENING_FRONTS,
+  oneBandInsetFromFrameMm,
+  WALL_DOOR_BAND_INSET_MM,
+  type FrontPopulationRule,
+} from "./front-population.js";
+import { deriveDoorCount, TWO_DOOR_MIN_WIDTH_MM } from "./door-count.js";
+import {
+  FOLLOWS_CABINET_DEPTH,
+  IS_A_MANUFACTURED_SIZE,
+  type CabinetDepthRule,
+} from "./cabinet-depth-rule.js";
+
+// Wave 6L moved these two into `door-count.ts`, and they are re-exported here unchanged: every
+// reader imports them from this module or from the package barrel, and the move exists only so the
+// handle rule can read the door count without `catalog.ts` and `cabinet-handles.ts` importing each
+// other.
+export { deriveDoorCount, TWO_DOOR_MIN_WIDTH_MM };
 
 /** ADR 0026: §2's `MIN_W` in millimetres, as what it now is — the **default** width floor, which
  *  governs every entry that does not declare one of its own. */
@@ -93,32 +133,6 @@ function discreteWidths(sizesMm: readonly number[]) {
     sizesMm,
   } as const;
 }
-
-/** ADR 0033: **the width at which a hinged cabinet stops being a one-door and becomes a two-door**,
- *  and the single point where that flips.
- *
- *  §7's **wall** builder branched here as `w > 0.45 ? 2 : 1` until ADR 0033 moved the branch into this
- *  constant, and it was *right*: a 400 mm carcass with one door is a correct cabinet, whichever side
- *  of the flip it sits on. What was wrong was the **name** on it, because
- *  the door count was declared by which of two catalogue rows the customer picked. `wall-2door` at
- *  400 mm was not a broken cabinet, it was a correct one-door cabinet wearing a two-door name.
- *
- *  So the constant moves **here**, into the domain, and `catalog-bodies.ts` imports it for the door
- *  count it hands the builder. §12 puts product rules in the domain and builders in the adapter, and
- *  "how many doors is this cabinet called" is a product rule. One constant, two readers — ADR 0028's
- *  discipline, applied to the second pair this project has found. Two literals agreeing by luck is
- *  the shape both ADR 0028 and §7's depth cap were written about.
- *
- *  **ADR 0035 decision 4 moved the value from 450 to 500, and the comparison from `>` to `>=`.**
- *  Forced by the stepper rather than chosen beside it. Under a `[400, 600, 800]` ladder nothing ever
- *  landed between 400 and 600, so the threshold's exact value was unobservable; a stepper reaches
- *  500 and 550, and relative stepping reaches 470 as well (570 → 520 → 470). The rule is therefore
- *  stated as a half-open bound over the whole continuum: **499 and below is one door, 500 and above
- *  is two.**
- *
- *  Noted because it reads as an off-by-one: the constant has been holding a value that gets **one**
- *  door. At 500 with `>=` the name finally describes the value. */
-export const TWO_DOOR_MIN_WIDTH_MM = 500;
 
 /** ADR 0030's amendment, carried through ADR 0033's merge in the ADR 0026 mechanism: 200 and 300 sit
  *  **below** §2's default floor, so the merged rows must each declare their own or `buildableSizes`
@@ -272,15 +286,70 @@ const COLUMN_HEIGHT_MM = 2200;
  *  to 1.80 m, which would leave 800. */
 const FREESTANDING_FRIDGE_HEIGHT_MM = 1850;
 
-const BASE_DEPTH_MM = 580;
+/** How far a base body's **worktop** stands behind its carcass's back face. The counter is 60 mm
+ *  deeper than the carcass and seated 20 mm forward, so 10 mm of it hangs off the back — and since
+ *  ADR 0018 records a seat as twice the rear overhang, the seat is 20 mm inside the declared depth
+ *  rather than the 40 the front overhang takes off it.
+ *
+ *  Measured on the built meshes at both declared depths — a base body seats on 580 at 600 and 680 at
+ *  700 — and held to them by `occupied-depth.parity.test.ts`. Not derived from the builder's own
+ *  constants: §12 keeps those in the adapter, and this is the same relationship
+ *  `WORKTOP_OVERHANG_MM` below already states from the front. */
+const BASE_SEAT_INSET_MM = 20;
+
+/** §7's `nominalDepthMm` for the base rows, and therefore the `frameDepthMm` fallback
+ *  `void-engine.ts` seats a placement with no measured seat of its own from.
+ *
+ *  **A function of the cabinet depth since M6 wave 6I**, which is 6H's own recorded carry-out: the
+ *  finished depth followed the setting while this seat stayed the literal 580, so a catalogue built
+ *  at 700 described a body finishing at 720 on a 580 mm seat — a back face 50 mm off the wall plane
+ *  (§11 row 19). */
+export function baseSeatDepthMm(cabinetDepthMm: number): number {
+  return cabinetDepthMm - BASE_SEAT_INSET_MM;
+}
+
+/** What a base carcass gives up at the front to the door slab and bar handle that stand on it. Named
+ *  for the base band alone: `COLUMN_FRONT_OVERHANG_MM` is the column's own, and the two are the same
+ *  40 mm by arithmetic rather than by being one fact. */
+const BASE_FRONT_OVERHANG_MM = 40;
+
+/** A base carcass's own shell — the declared depth less the fronts in front of it, which is the
+ *  adapter's `KitDepths.baseCarcassDepthM` seen from the domain side.
+ *
+ *  Exported because ADR 0025 seats the corner X-leg on it: that leg's carcass is the full declared
+ *  depth, and it stands 20 mm inside the wall so that its *front* lines up with the base run's, so
+ *  its recorded seat is this number and not its own footprint. */
+export function baseCarcassDepthMm(cabinetDepthMm: number): number {
+  return cabinetDepthMm - BASE_FRONT_OVERHANG_MM;
+}
 /** A wall entry's nominal depth: §7's head-clearance cap, which is what a wall carcass is built to
  *  over a worktop. It is the `frameDepthMm` fallback for a placement with no measured seat of its
  *  own, **not** the depth anything gets built to — that is decided per opening by
  *  `WALL_CARCASS_MAX_DEPTH_OVER_WORKTOP_M`, and over a full-height column it is deeper than this.
  *
  *  Read from the worktop → wall depth map rather than written down, so it and that cap are the same
- *  number by construction. Two independent literals agreeing at 400 is the defect this replaces. */
-const WALL_DEPTH_MM = wallDepthMmForWorktop(WORKTOP_DEPTH_MM);
+ *  number by construction. Two independent literals agreeing at 400 is the defect this replaces.
+ *
+ *  **A function of the cabinet depth since M6 wave 6H**, not a constant resolved at import time: a
+ *  catalogue frozen at one depth cannot serve a design that carries another, and 6J's *Setări
+ *  globale* control is what makes the argument vary. It throws on a depth the map does not declare
+ *  (ADR 0028 decision 4) — the refusal travels with the parameterisation rather than being softened
+ *  by it. */
+export function wallCarcassDepthMm(cabinetDepthMm: number): number {
+  return wallDepthMmForWorktop(cabinetDepthMm);
+}
+
+/** The **seat** a fronted wall or top carcass records: its shell, which is the declared depth less
+ *  ADR 0036 decision 1's door-and-handle assembly. 291 at a 600 mm kitchen and 361 at a 700 mm one.
+ *
+ *  Exported for the seeded rows, which record a measured seat rather than a nominal depth. They read
+ *  it here rather than deriving it themselves so a seeded top and the §7 `wall-cabinet` a §5.4
+ *  resize would rebuild it through cannot answer differently — the drift ADR 0028 exists to stop.
+ *  An open shelf is the one fronted-band body this is wrong for: it has no front, so its seat is
+ *  `wallCarcassDepthMm` all by itself. */
+export function wallCarcassSeatDepthMm(cabinetDepthMm: number): number {
+  return wallCarcassDepthMm(cabinetDepthMm) - WALL_FRONT_ASSEMBLY_MM;
+}
 /** ADR 0039 decision 1: **the hood's depth is standard and does not follow the depth map.** A hood
  *  is a manufactured appliance sized to the cooktop it covers, not cabinetry sized to the run it
  *  hangs on — which is the opposite direction from ADR 0035 decision 5, where its *width* is
@@ -292,16 +361,32 @@ const HOOD_DEPTH_MM = 500;
  *
  *  A front-hung hood's group origin sits `cabinetDepth − 500/2` off the wall, and `frameDepthMm` is
  *  twice that offset (ADR 0018), so at a 600 mm kitchen it is 700 for a body that is 500 deep. The
- *  gap behind it is real and declared; the number is derived from the same constant the rest of the
- *  depth story reads, never typed. */
-function hoodFrameDepthMm(): number {
-  return 2 * WORKTOP_DEPTH_MM - HOOD_DEPTH_MM;
+ *  gap behind it is real and declared; the number is derived from the same cabinet depth the rest of
+ *  the depth story reads, never typed. */
+export function hoodFrameDepthMm(cabinetDepthMm: number): number {
+  return 2 * cabinetDepthMm - HOOD_DEPTH_MM;
 }
 
 // `EXTRACTOR_HOOD_KIND` and `WALL_CABINET_KIND` moved to `body-kinds.ts` so `void-engine.ts` can
 // read them without a cycle; re-exported here, where every existing caller already looks for them.
 export { EXTRACTOR_HOOD_KIND } from "./body-kinds.js";
-const COLUMN_DEPTH_MM = 560;
+/** What a full-height carcass carries in front of its shell, the same 40 mm a base carcass gives up
+ *  to its own fronts. Named separately because the two are different products and only agree by
+ *  arithmetic: a column's fronts and a base's are the same slab and bar, and if one ever stops being
+ *  so, this is the number that moves. */
+const COLUMN_FRONT_OVERHANG_MM = 40;
+
+/** A full-height carcass's depth — **cabinetry, so it follows the depth setting** (M6 wave 6I,
+ *  ADR 0036 decision 5). 560 at a 600 mm kitchen and 660 at a 700 mm one, both measured on
+ *  `tallCarcass`'s own meshes rather than projected.
+ *
+ *  What does **not** follow is what stands *inside* a column: an oven and a microwave are
+ *  manufactured sizes, and `ovenTowerFinishedDepthMm` states that split rather than moving the whole
+ *  body together. This is the half of wave 6I's criterion 2 that a full-height cabinet is a cabinet. */
+export function columnCarcassDepthMm(cabinetDepthMm: number): number {
+  return cabinetDepthMm - COLUMN_FRONT_OVERHANG_MM;
+}
+
 const FREESTANDING_FRIDGE_DEPTH_MM = 680;
 
 // §3.1's depth, per body: **how far the finished body stands from the wall plane.** A separate
@@ -319,30 +404,80 @@ const FREESTANDING_FRIDGE_DEPTH_MM = 680;
 const WORKTOP_OVERHANG_MM = 20;
 
 /** A base run finishes at its **worktop's** front edge — not its carcass's (588 mm from the wall)
- *  and not its bar handles' (609), both of which stand behind the counter that is already there. */
-export const BASE_FINISHED_DEPTH_MM = WORKTOP_DEPTH_MM + WORKTOP_OVERHANG_MM;
+ *  and not its bar handles' (609), both of which stand behind the counter that is already there.
+ *
+ *  The overhang is a constant and never a proportion (ADR 0036 decision 3 puts the worktop outside
+ *  geometry and price), so a 700 mm kitchen finishes at 720. */
+export function baseFinishedDepthMm(cabinetDepthMm: number): number {
+  return cabinetDepthMm + WORKTOP_OVERHANG_MM;
+}
 
-/** An oven fascia and its bar stand further proud than a dishwasher door, so the hob-and-oven base
- *  passes its worktop by 28 mm. */
-export const HOB_OVEN_BASE_FINISHED_DEPTH_MM = 648;
+/** How far an oven's fascia and bar stand proud of the **worktop** of the base body they are built
+ *  into. A dishwasher's decor door stops behind that worktop; an oven's does not.
+ *
+ *  **The manufactured half of wave 6I's criterion 2, on the base band.** The number is a property of
+ *  the appliance and of where it is mounted — its fascia rests on the carcass's front edge — so it
+ *  is the same 28 mm at every cabinet depth, while the worktop it is measured from follows the
+ *  setting. Moving the appliance's own dimensions with the setting would build an oven nobody
+ *  manufactures; holding the whole body still would leave the oven behind its own cabinet front. */
+const OVEN_FRONT_PAST_WORKTOP_MM = 28;
+
+/** ADR 0027's hob-and-oven base: a base body finishing at its oven's bar instead of its worktop.
+ *  648 at a 600 mm kitchen, 748 at a 700 mm one — the same +100 the formula moves `baseCabinet` by,
+ *  because the carcass front the oven is mounted on moves by it. */
+export function hobOvenBaseFinishedDepthMm(cabinetDepthMm: number): number {
+  return baseFinishedDepthMm(cabinetDepthMm) + OVEN_FRONT_PAST_WORKTOP_MM;
+}
+
+/** The hob-and-oven base's finished depth in the shipped kitchen. */
+export const HOB_OVEN_BASE_FINISHED_DEPTH_MM =
+  hobOvenBaseFinishedDepthMm(WORKTOP_DEPTH_MM);
 
 /** A full-height cabinet is its carcass plus the **same** door-and-handle assembly a fronted wall
  *  carcass carries — ADR 0036 decision 1's 39 mm, on the same door and bar meshes. Derived from the
- *  two constants rather than written as 599, so a change to either moves this with it. */
-export const TALL_UNIT_FINISHED_DEPTH_MM =
-  COLUMN_DEPTH_MM + WALL_FRONT_ASSEMBLY_MM;
+ *  carcass it is given rather than written as 599, so a change to either moves this with it.
+ *
+ *  **Its argument is the column depth and not the cabinet depth, which wave 6I keeps.** 6H left the
+ *  distinction open because `COLUMN_DEPTH_MM` was a literal; `columnCarcassDepthMm` now answers it,
+ *  and this function is called with a carcass depth that follows the setting exactly as that note
+ *  said it would be. The signature stays a column depth because that is what the arithmetic is over
+ *  — a caller holding a carcass still, as ADR 0058's pinned entries do, passes the depth it means. */
+export function tallUnitFinishedDepthMm(columnDepthMm: number): number {
+  return columnDepthMm + WALL_FRONT_ASSEMBLY_MM;
+}
 
-/** The oven tower is a full-height carcass carrying an oven and a microwave, whose handles reach
- *  39 mm further than the cabinet doors beside them. */
-export const OVEN_TOWER_FINISHED_DEPTH_MM = 638;
+/** How much further an oven-and-microwave tower's appliance fronts reach than the cabinet doors on
+ *  the columns beside them.
+ *
+ *  **The manufactured half of wave 6I's criterion 2, on the column band**, and the same statement
+ *  `OVEN_FRONT_PAST_WORKTOP_MM` makes for the base band: the two machines are the same size at every
+ *  cabinet depth, and what moves is the carcass front their fascias rest on.
+ *
+ *  **Deliberately its own constant and not `WALL_FRONT_ASSEMBLY_MM`, which is also 39.** A door slab
+ *  and a bar handle is not an oven fascia and its bar; they agree here by arithmetic, and two
+ *  independent numbers agreeing by luck is the drift ADR 0028 exists to stop. */
+const OVEN_TOWER_APPLIANCE_FRONT_MM = 39;
+
+/** The oven tower: a full-height carcass whose two appliance fronts stand where its neighbours'
+ *  cabinet doors do, plus their bars. 638 on a 560 mm column, 738 on a 660 mm one. */
+export function ovenTowerFinishedDepthMm(columnDepthMm: number): number {
+  return tallUnitFinishedDepthMm(columnDepthMm) + OVEN_TOWER_APPLIANCE_FRONT_MM;
+}
 
 /** A freestanding fridge: a 680 mm appliance body and the two door bars hung on it. */
 export const FREESTANDING_FRIDGE_FINISHED_DEPTH_MM = 742;
 
 /** ADR 0039 decision 2: a hood is hung at the **front**, so its finished face is the cabinet-depth
  *  line whatever seat it records, and the gap its chimney hides sits behind it. The one entry whose
- *  finished depth is smaller than its `frameDepthMm`. */
-export const HOOD_FINISHED_DEPTH_MM = WORKTOP_DEPTH_MM;
+ *  finished depth is smaller than its `frameDepthMm`.
+ *
+ *  **The finished line follows the setting and the body does not**: `HOOD_DEPTH_MM` stays 500 at
+ *  every depth (ADR 0039 decision 1, *"hood is always standard"*), so the concealed gap behind the
+ *  chimney is 100 mm at 600 and 200 mm at 700. That growing gap is the decision, not a defect to be
+ *  closed by putting the hood back on the map. */
+export function hoodFinishedDepthMm(cabinetDepthMm: number): number {
+  return cabinetDepthMm;
+}
 
 const INSERTABLE_DEFAULTS = {
   insertable: true,
@@ -360,11 +495,51 @@ interface BodyShape {
   readonly widthFlex: WidthFlex;
   readonly nominalHeightMm: number;
   readonly nominalDepthMm: number;
+  /** **Twice the body's rear overhang** (ADR 0018), where that is not the nominal depth — which is
+   *  the case for every fronted wall row: `wallCabinet` builds `D − 39` centred on `z = 0`, so its
+   *  frame is the **shell** and its nominal is the finished cabinet, 39 mm deeper.
+   *
+   *  Declared per row rather than derived from `occupiedDepth` inside `insertableBody` (ADR 0075
+   *  decision 1): that would be one declaration deriving another, which is ADR 0028 decision 4's own
+   *  subject, and it would read the wrong `frontAssemblyMm` for `open-shelf` — which overrides its
+   *  `occupiedDepth` **after** the spread and whose seat genuinely is the full nominal.
+   *
+   *  Absent means the two are the same number, which is true of every base, full-height and
+   *  appliance row: their builders ignore the depth they are handed and their nominal already states
+   *  the seat (`baseSeatDepthMm` is 580 at 600, not 600). */
+  readonly frameDepthMm?: number;
   /** **Required, like `widthRangesMm` below and for the same reason.** `baseCabinet`, `wallCabinet`
    *  and `fullHeightUnit` each spread a shape, so a shape that stayed silent would inherit whatever
    *  rule the helper it was built with happened to carry — and a depth rule inherited by accident is
    *  precisely DOM-002. Every shape states its own. */
   readonly occupiedDepth: OccupiedDepthRule;
+  /** **Required, for the reason `occupiedDepth` above is** (ADR 0061 decision 3). The three helpers
+   *  below each spread a shape and none of them can carry a useful default: `base-3drawer` draws
+   *  three handles, `base-sink` two, `base-hob-oven` none of its own, and all three are a
+   *  `baseCabinet`. A handle count inherited from whichever helper an entry happened to be built
+   *  with is DOM-002 in a second field, so every entry passes its own. */
+  readonly cabinetHandles: CabinetHandleRule;
+  /** **Required, for the reason `cabinetHandles` above is**, and it is the same three bodies that
+   *  make the point: `base-3drawer` is three drawers, `base-sink` is two door leaves, `base-hob-oven`
+   *  is neither, and all three are a `baseCabinet`. A front population inherited from whichever
+   *  helper an entry happened to be built with would put hinges on drawers, which is DOM-002 in a
+   *  fourth field. Every entry passes its own, beside its handle count so the two are read together. */
+  readonly fronts: FrontPopulationRule;
+  /** **Required, for the reason the two above are** (ADR 0058 decision 2). A shape that stayed
+   *  silent would be a §7 row nobody had decided the depth question for, and the whole point of the
+   *  declaration is that "holds still because it was decided to" and "holds still because it was
+   *  forgotten" stop looking alike. Required here makes the §7 population a compile error rather
+   *  than a test failure; `cabinetDepthRuleOf` is what refuses the entries no required field can
+   *  reach, and `refuseUndeclaredDepthRules` runs it over both populations as the catalogue is
+   *  assembled — so the seeded rows, whose own field is optional, are refused at load. A definition
+   *  arriving through the `BodyCatalog` port from outside TypeScript reaches neither, and is refused
+   *  by the same function at the first wave that reads a rule off it: 6J's migration. */
+  readonly depthRule: CabinetDepthRule;
+  /** **Required, and with no default anywhere** (ADR 0077). Which plane fixes this body along the
+   *  wall normal. A silent `?? wall-plane` is how a joint-seated corner leg came to be measured and
+   *  re-seated 40 mm too deep; making the field required turns the §7 population into a compile
+   *  error rather than a sweep somebody has to remember to run. */
+  readonly seatRule: SeatRule;
   readonly sizesMm: readonly number[];
   /** **Required, not optional** (logic review R1.10, carried through ADR 0035). `BodyDefinition`
    *  reads an absent declaration as "derive the ranges", which is the conservative direction there.
@@ -380,24 +555,54 @@ interface BodyShape {
 
 function insertableBody(band: Band, shape: BodyShape): BodyDefinition {
   // An inserted placement carries its own measured `seatDepthMm`, which `deriveFrame` prefers.
-  // `frameDepthMm` is the fallback for a placement that somehow lacks one, and the entry's nominal
-  // depth is the only honest value available before the body has been built and measured.
+  // `frameDepthMm` is the fallback for a placement that lacks one — a document written before a
+  // measured seat existed, or one that arrived by a `/d/{id}` link (ADR 0052: a load that refuses is
+  // a dead link, so such a document is loaded rather than rejected).
+  //
+  // **The nominal is the default and not the rule.** ADR 0018 fixes this field as twice the body's
+  // rear overhang, which equals the nominal only where the builder seats the whole declared depth.
+  // A fronted wall carcass does not: it builds `D − 39` centred on `z = 0`, so it states its own
+  // (ADR 0075 decision 1). Stated at 330 rather than 291 the round trip is `330 → 369 → 408` —
+  // ADR 0018 clause 4's compounding, in the growing direction — and `occupiedDepthM` publishes a
+  // 369 mm wall cabinet nobody manufactures.
   return {
     ...INSERTABLE_DEFAULTS,
     band,
     ...shape,
-    frameDepthMm: shape.nominalDepthMm,
+    frameDepthMm: shape.frameDepthMm ?? shape.nominalDepthMm,
   };
 }
 
-function baseCabinet(label: string): BodyDefinition {
+/** **The two front declarations every §7 helper is handed together**, because they are two readings
+ *  of the same fact and are wrong when they disagree: `cabinetHandles` is what the customer grips,
+ *  `fronts` is what the hardware moves, and a push-to-open cabinet has the second and none of the
+ *  first. Passed as one named object rather than as two positional arguments so a row states both or
+ *  neither — and so the identity a reader wants to check (leaves plus drawers against handles) is
+ *  legible in one place at each entry. */
+interface FrontDeclarations {
+  readonly cabinetHandles: CabinetHandleRule;
+  readonly fronts: FrontPopulationRule;
+}
+
+function baseCabinet(
+  label: string,
+  cabinetDepthMm: number,
+  declarations: FrontDeclarations,
+): BodyDefinition {
   return insertableBody("base", {
     label,
     kind: "base_cabinet",
+    // Every insertable body's back face sits on the wall plane, so its seat is measurable and
+    // must stay measured (ADR 0077 decision 1; ADR 0011 Gap B §6.2 records two failed attempts at
+    // predicting one). The two exceptions are seeded rows and declare their own.
+    seatRule: seatedOnWallPlane,
+
     widthFlex: "fit",
     nominalHeightMm: WORKTOP_HEIGHT_MM,
-    nominalDepthMm: BASE_DEPTH_MM,
-    occupiedDepth: finishesAtMm(BASE_FINISHED_DEPTH_MM),
+    nominalDepthMm: baseSeatDepthMm(cabinetDepthMm),
+    occupiedDepth: finishesAtMm(baseFinishedDepthMm(cabinetDepthMm)),
+    depthRule: FOLLOWS_CABINET_DEPTH,
+    ...declarations,
     ...CABINETRY_WIDTHS,
   });
 }
@@ -405,9 +610,13 @@ function baseCabinet(label: string): BodyDefinition {
 /** ADR 0027: a base cabinet that carries the hob. Every other property is a base cabinet's — same
  *  band, same 860 mm worktop line, same 580 mm depth — so it is a `baseCabinet` with its width
  *  fixed, and the width is fixed because the appliance is. */
-function hobBase(label: string): BodyDefinition {
+function hobBase(
+  label: string,
+  cabinetDepthMm: number,
+  declarations: FrontDeclarations,
+): BodyDefinition {
   return {
-    ...baseCabinet(label),
+    ...baseCabinet(label, cabinetDepthMm, declarations),
     widthFlex: HOB_BASE_WIDTHS_MM,
     ...discreteWidths(HOB_BASE_WIDTHS_MM),
     fixedWidth: true,
@@ -415,265 +624,520 @@ function hobBase(label: string): BodyDefinition {
   };
 }
 
-function wallCabinet(label: string): BodyDefinition {
+function wallCabinet(
+  label: string,
+  cabinetDepthMm: number,
+  declarations: FrontDeclarations,
+): BodyDefinition {
   return {
     ...insertableBody("wall", {
       label,
+      // Every insertable body's back face sits on the wall plane, so its seat is measurable and
+      // must stay measured (ADR 0077 decision 1; ADR 0011 Gap B §6.2 records two failed attempts at
+      // predicting one). The two exceptions are seeded rows and declare their own.
+      seatRule: seatedOnWallPlane,
+      ...declarations,
       kind: "wall_cabinet",
       widthFlex: "fit",
       nominalHeightMm: WALL_CABINET_HEIGHT_MM,
-      nominalDepthMm: WALL_DEPTH_MM,
+      nominalDepthMm: wallCarcassDepthMm(cabinetDepthMm),
       // The one builder family whose depth is a placement variable: `wallCabinet` centres the shell
       // it is given on z = 0, so `frame.d` is that shell and the finished cabinet is 39 mm deeper.
+      //
+      // **So the frame depth is the shell and the nominal is the finished cabinet**, and they are
+      // two numbers here where every other band has one. `wallCarcassSeatDepthMm` is the same
+      // function the seeded rows read, which is what makes a rebuild's swap
+      // (`resolveRebuildBody`, ADR 0022) depth-neutral — the drift ADR 0028 exists to stop, and the
+      // invariant `wallCarcassSeatDepthMm`'s own comment already claimed.
+      frameDepthMm: wallCarcassSeatDepthMm(cabinetDepthMm),
       occupiedDepth: shellPlusFrontMm(WALL_FRONT_ASSEMBLY_MM),
+      // Through the map rather than through a formula (ADR 0028 decision 2), which is still the
+      // setting deciding it: 330 at 600 and 400 at 700.
+      depthRule: FOLLOWS_CABINET_DEPTH,
       ...CABINETRY_WIDTHS,
     }),
     heightFlex: true,
   };
 }
 
-function fullHeightUnit(label: string, kind: string): BodyDefinition {
+function fullHeightUnit(
+  label: string,
+  kind: string,
+  cabinetDepthMm: number,
+  declarations: FrontDeclarations,
+): BodyDefinition {
+  const columnDepthMm = columnCarcassDepthMm(cabinetDepthMm);
   return {
     ...insertableBody("column", {
       label,
       kind,
+      // Every insertable body's back face sits on the wall plane, so its seat is measurable and
+      // must stay measured (ADR 0077 decision 1; ADR 0011 Gap B §6.2 records two failed attempts at
+      // predicting one). The two exceptions are seeded rows and declare their own.
+      seatRule: seatedOnWallPlane,
+
+      ...declarations,
       widthFlex: COLUMN_WIDTHS_MM,
       nominalHeightMm: COLUMN_HEIGHT_MM,
-      nominalDepthMm: COLUMN_DEPTH_MM,
-      occupiedDepth: finishesAtMm(TALL_UNIT_FINISHED_DEPTH_MM),
+      nominalDepthMm: columnDepthMm,
+      occupiedDepth: finishesAtMm(tallUnitFinishedDepthMm(columnDepthMm)),
+      // Wave 6I's criterion 2: **a full-height cabinet is cabinetry**, so its carcass follows the
+      // setting like any other. What it carries is a separate declaration on the entries that carry
+      // anything — `tall-oven-tower` below, and `fridge-free`, which is not a carcass at all.
+      depthRule: FOLLOWS_CABINET_DEPTH,
       ...discreteWidths(COLUMN_WIDTHS_MM),
     }),
     fixedWidth: true,
   };
 }
 
-/** §7's catalogue, in the order the panel lists it: base, wall, then full-height. */
-export const INSERTABLE_BODY_DEFINITIONS: readonly (readonly [
-  string,
-  BodyDefinition,
-])[] = [
-  // ADR 0033: `base-2door` + `base-1door`, merged. The door count is a **consequence of the width**,
-  // never a separate product to pick, so there is one row and the customer chooses a cabinet and a
-  // width. `kind` was always the real identity — both halves have carried `base_cabinet` since M3 —
-  // and the id now says so.
-  [
-    "base-cabinet",
-    {
-      ...baseCabinet(BASE_CABINET_LABEL_RO),
-      ...HINGED_CABINET_WIDTHS,
-      minWidthMm: HINGED_CABINET_MIN_WIDTH_MM,
-      doorCountFollowsWidth: true,
-    },
-  ],
-  ["base-3drawer", baseCabinet("Corp bază 3 sertare")],
-  ["base-panbank", baseCabinet("Sertare pentru oale")],
-  // ADR 0027: the two hob-bearing bodies. The hob is part of the cabinet, not a separate placement
-  // sitting on it, which is what makes it restorable at all — a seeded entry is never offerable
-  // (ADR 0011 Gap A), so before these two rows existed a deleted hob could never come back.
-  //
-  // Both are `fixedWidth` at 600. They differ only in what fills the carcass, which is the choice
-  // the customer is actually making: drawers when the oven lives in a column, an oven when there is
-  // no room for one.
-  ["base-hob-2drawer", hobBase("Corp plită și 2 sertare")],
-  [
-    "base-hob-oven",
-    {
-      ...hobBase("Corp plită și cuptor"),
-      // §9's "never offer what cannot be satisfied", and §13.1's "disable, don't warn".
-      //
-      // Q6 (owner, 2026-09-01): this body owns **exactly one finishable front** — the fixed filler
-      // panel across the hob band, `oven_filler_door_front`, which M5B wave 5B6 added to close the
-      // cavity the oven leaves under the worktop. So a recorded finish now recolours something, and
-      // the panel takes the run's colour instead of standing default white beside neighbours the
-      // customer can set to sage, clay or graphite. Before that panel existed the body was
-      // front-less and `canFinish` was correctly `false`; the ground has changed, not the rule.
-      //
-      // `canHandle` stays `false`, and for the reason the whole pair once shared: the filler is a
-      // facade, not a leaf — nothing behind it opens — and the body's only bar belongs to the
-      // **oven**, so `handle: "push"` would be a cabinet-hardware chip mutating an appliance.
-      canFinish: true,
-      canHandle: false,
-      // The oven's own fascia and bar, which reach past the worktop every other base body stops at.
-      occupiedDepth: finishesAtMm(HOB_OVEN_BASE_FINISHED_DEPTH_MM),
-    },
-  ],
-  [
-    "base-bottle-cargo",
-    {
-      ...baseCabinet("Cargo îngust pentru sticle"),
-      widthFlex: BOTTLE_CARGO_WIDTHS_MM,
-      ...discreteWidths(BOTTLE_CARGO_WIDTHS_MM),
-      minWidthMm: BOTTLE_CARGO_MIN_WIDTH_MM,
-    },
-  ],
-  [
-    "base-sink",
-    {
-      ...baseCabinet("Corp spălător"),
-      // ADR 0033's amendment (owner, 2026-08-27; logic review R1.1): **a sink base is cabinetry with
-      // a fixed aperture, not an appliance that comes in sizes.** What is fixed is the bowl — 560 mm,
-      // which `minWidthMm` below states — and not the carcass around it. The owner's own case:
-      // "there are a lot of cases when the sink is 800 — in my kitchen it's an 800 cabinet." An 800
-      // sink base is ordinary, and so is a 700.
-      //
-      // `{600, 800}` was the chip ladder ADR 0017 left behind when it removed 400. The bound says the
-      // rule instead: anything from the aperture up to §7's ceiling.
-      ...cabinetryWidths({
-        minMm: SINK_MIN_WIDTH_MM,
-        maxMm: CABINETRY_MAX_WIDTH_MM,
+/** A catalogue entry as it is filed: the id, and the definition under it. */
+export type CatalogEntry = readonly [string, BodyDefinition];
+
+/** §7's catalogue **at one cabinet depth**, in the order the panel lists it: base, wall, then
+ *  full-height.
+ *
+ *  **A function since M6 wave 6H, and that is the whole of the wave** (ADR 0036 decision 3 makes the
+ *  setting the cabinet's depth; decision 5 makes every body follow it). Until now the depth-derived
+ *  entries were computed at import time from one module constant, so a catalogue could describe
+ *  exactly one kitchen; a design carrying another depth had nothing to resolve against. Nothing here
+ *  persists a depth and nothing sets one — the *Setări globale* control and the stored setting are
+ *  waves 6J and 6K.
+ *
+ *  Throws `UnknownWorktopDepthError` for a depth the wall map does not declare (ADR 0028 decision 4).
+ *  The refusal is deliberately at the front of the build rather than at the wall rows: a catalogue
+ *  half-built at an undeclared depth is worse than no catalogue. */
+export function buildInsertableBodyDefinitions(
+  cabinetDepthMm: number,
+): readonly CatalogEntry[] {
+  return [
+    // ADR 0033: `base-2door` + `base-1door`, merged. The door count is a **consequence of the width**,
+    // never a separate product to pick, so there is one row and the customer chooses a cabinet and a
+    // width. `kind` was always the real identity — both halves have carried `base_cabinet` since M3 —
+    // and the id now says so.
+    [
+      "base-cabinet",
+      {
+        // ADR 0061: the door count decides the handle count as well as the label — one bar per
+        // leaf, so one handle below 500 mm and two at and above it.
+        ...baseCabinet(BASE_CABINET_LABEL_RO, cabinetDepthMm, {
+          cabinetHandles: handlesOnDoorLeaves({
+            doorTiers: 1,
+            handlesPerLeaf: 1,
+          }),
+          // One band of hinged leaves, and the width decides how many stand in it — the same
+          // `deriveDoorCount` the handle rule above reads and the builder is handed.
+          fronts: doorLeavesFollowWidth(
+            doorBandsMm([BASE_DOOR_BAND_HEIGHT_MM]),
+          ),
+        }),
+        ...HINGED_CABINET_WIDTHS,
+        minWidthMm: HINGED_CABINET_MIN_WIDTH_MM,
+        doorCountFollowsWidth: true,
+      },
+    ],
+    [
+      "base-3drawer",
+      baseCabinet("Corp bază 3 sertare", cabinetDepthMm, {
+        cabinetHandles: carriesHandles(3),
+        // Three drawers and no door leaf. This is the row ADR 0070 names first: `carriesHandles(3)`
+        // here and `base-sink`'s `carriesHandles(2)` are the same kind of declaration, and one is
+        // runners while the other is hinges.
+        fronts: carriesDrawers(3),
       }),
-      minWidthMm: SINK_MIN_WIDTH_MM,
-    },
-  ],
-  // ADR 0051: an integrated dishwasher wears a decor door, so this niche is a fronted base body
-  // like any other. `canFinish` and `canHandle` come from `INSERTABLE_DEFAULTS` and both are true
-  // of the geometry: the finish lands on the `door_front` slab `dishwasherHousing` builds with
-  // `doorSlab`, and the only handle in the body hangs beside that slab — the appliance behind it is
-  // built fully integrated and has no bar of its own to mutate. Before that record the flags were
-  // right and the geometry was missing (`docs/BACKLOG.md` entry 11).
-  //
-  // It therefore no longer overrides `baseCabinet`'s occupied depth: what used to reach 632 mm was
-  // the appliance's bar, and the decor door's reaches 619, behind the worktop that already sets the
-  // number for every other base body.
-  [
-    "base-dishwasher",
-    {
-      ...baseCabinet("Nișă mașină de spălat vase"),
-      kind: "dishwasher_housing",
-      widthFlex: DISHWASHER_WIDTHS_MM,
-      ...discreteWidths(DISHWASHER_WIDTHS_MM),
-    },
-  ],
-  // ADR 0033: `wall-2door` + `wall-1door`, merged, for the reason the base pair is. This is the pair
-  // the whole decision was written about — `wall-2door` at 400 mm was ADR 0029's finding, and
-  // `wall-1door` at 800 mm was ADR 0030's, and both are now the same fact stated once: below
-  // `TWO_DOOR_MIN_WIDTH_MM` one door, above it two.
-  //
-  // A resize that takes a column to 400 turns this cabinet into a one-door **without changing which
-  // entry the customer owns**, because there is no other entry to migrate to. That is why the
-  // alternative both earlier records rejected — migrating the placement between two rows — is not
-  // merely still rejected but no longer expressible.
-  [
-    "wall-cabinet",
-    {
-      ...wallCabinet(WALL_CABINET_LABEL_RO),
-      ...HINGED_CABINET_WIDTHS,
-      minWidthMm: HINGED_CABINET_MIN_WIDTH_MM,
-      doorCountFollowsWidth: true,
-    },
-  ],
-  ["wall-lift", wallCabinet("Corp suspendat rabatabil")],
-  [
-    "open-shelf",
-    {
-      ...wallCabinet("Etajeră deschisă"),
-      kind: "open_shelf_unit",
-      // No door and no handle, so its shell and its finished depth are the same number.
-      occupiedDepth: shellPlusFrontMm(NO_FRONT_ASSEMBLY_MM),
-      // Open by definition: no fixed front to finish, no leaf to open. Unlike `base-hob-oven`
-      // above, wave 5B6 gave this body no filler panel, so ADR 0050 does not reach it.
-      canFinish: false,
-      canHandle: false,
-    },
-  ],
-  [
-    "hood",
-    {
-      ...wallCabinet("Hotă"),
-      kind: EXTRACTOR_HOOD_KIND,
-      // A hood is a canopy and a chimney: no front, so nothing for a finish chip to recolour.
-      // `handle: "push"` here would put cabinet hardware on an extractor. This says nothing about
-      // whether a hood is cabinetry — ADR 0035 decision 5 below rules that it is, for width.
-      canFinish: false,
-      canHandle: false,
-      heightFlex: false,
-      nominalHeightMm: HOOD_HEIGHT_MM,
-      nominalDepthMm: HOOD_DEPTH_MM,
-      // Front-hung (ADR 0039 decision 2), so neither the wall rule above nor its own 500 mm body
-      // answers this: what it occupies is the wall plane to the cabinet-depth line.
-      occupiedDepth: finishesAtMm(HOOD_FINISHED_DEPTH_MM),
-      // Declared, not inherited: the spread above stamps `frameDepthMm` from `WALL_DEPTH_MM`, which
-      // ADR 0036's depth map governs, and ADR 0039 decision 1 exempts the hood from that map —
-      // *"hood is always standard"*, 500 at a 600 mm kitchen and 500 at a 700 mm one. Leaving it
-      // inherited put a map-derived number behind a rule the map does not reach (QA finding Q1.1).
-      //
-      // **The one entry where the two depth fields deliberately disagree** (`catalog.test.ts` names
-      // it as the exception rather than dropping the sweep). `frameDepthMm` is not a depth — ADR
-      // 0018 — it is twice the body's rear overhang, and ADR 0039 decision 2 hangs the hood at the
-      // front, so its back face is `cabinetDepth − 500` off the wall plane and its seat is measured
-      // from the cabinet-depth line instead. That is §11 row 19's second named exception, after
-      // ADR 0025's corner leg, and this is the fallback that has to agree with the probe.
-      frameDepthMm: hoodFrameDepthMm(),
-      // ADR 0035 decision 5: **the hood is cabinetry, bounded 600–800.** It keeps `wallCabinet`'s
-      // `widthFlex: 'fit'` — so a 700 mm opening gets a 700 mm hood rather than a 600 adrift in it —
-      // and declares the floor its `−50` is greyed out at.
-      //
-      // This retires ADR 0033's amendment on this row rather than contradicting it. That amendment
-      // was fixing the same defect from the other side: the hood was the one row that was both
-      // `'fit'` and discretely bounded, so it alone refused a 700 mm opening where every discrete row
-      // narrows into one. ADR 0035 removes the discrete set instead, and "a 700 mm hood is not a
-      // product" goes with it — the owner has ruled that a hood is made anywhere in 600–800.
-      ...cabinetryWidths({
-        minMm: HOOD_FLOOR_WIDTH_MM,
-        maxMm: CABINETRY_MAX_WIDTH_MM,
+    ],
+    [
+      "base-panbank",
+      baseCabinet("Sertare pentru oale", cabinetDepthMm, {
+        cabinetHandles: carriesHandles(2),
+        fronts: carriesDrawers(2),
       }),
-    },
-  ],
-  // ADR 0048: **the one resizable column.** No appliance stands inside it, so it is built to its
-  // opening between 400 and 800 mm and its door count follows that width through the threshold
-  // ADR 0035 decision 4 already fixed at 500 — one door below, two at and above. There is no
-  // `tall-pantry-1door` row, and there must not be: ADR 0033 merged exactly that split away, and a
-  // second row would put the threshold in two places.
-  //
-  // `widthFlex` is restated rather than inherited, and that is the load-bearing line. The spread
-  // above stamps `COLUMN_WIDTHS_MM`, and a row that declared a bound while keeping a fixed set
-  // would resolve on `resolveFixedSetWidth` and build 600 into every opening — which is the hood's
-  // R1.2 defect verbatim (`insert-fit.ts`, `resolveFixedSetWidth`).
-  [
-    "tall-pantry",
-    {
-      ...fullHeightUnit("Coloană cămară", "tall_unit"),
-      widthFlex: "fit",
-      ...cabinetryWidths({
-        minMm: PANTRY_FLOOR_WIDTH_MM,
-        maxMm: CABINETRY_MAX_WIDTH_MM,
+    ],
+    // ADR 0027: the two hob-bearing bodies. The hob is part of the cabinet, not a separate placement
+    // sitting on it, which is what makes it restorable at all — a seeded entry is never offerable
+    // (ADR 0011 Gap A), so before these two rows existed a deleted hob could never come back.
+    //
+    // Both are `fixedWidth` at 600. They differ only in what fills the carcass, which is the choice
+    // the customer is actually making: drawers when the oven lives in a column, an oven when there is
+    // no room for one.
+    [
+      "base-hob-2drawer",
+      hobBase("Corp plită și 2 sertare", cabinetDepthMm, {
+        cabinetHandles: carriesHandles(2),
+        fronts: carriesDrawers(2),
       }),
-      fixedWidth: false,
-      doorCountFollowsWidth: true,
-    },
-  ],
-  [
-    "tall-oven-tower",
-    {
-      ...fullHeightUnit("Coloană cuptor + microunde", "tall_unit"),
-      // Two appliance fronts instead of two cabinet doors, and their bars reach further.
-      occupiedDepth: finishesAtMm(OVEN_TOWER_FINISHED_DEPTH_MM),
-    },
-  ],
-  [
-    "tall-fridge-housing",
-    fullHeightUnit("Nișă frigider integrat", "fridge_housing"),
-  ],
-  [
-    "fridge-free",
-    {
-      ...fullHeightUnit("Frigider, liber", "fridge_freestanding"),
-      widthFlex: FREESTANDING_FRIDGE_WIDTHS_MM,
-      ...discreteWidths(FREESTANDING_FRIDGE_WIDTHS_MM),
-      nominalHeightMm: FREESTANDING_FRIDGE_HEIGHT_MM,
-      nominalDepthMm: FREESTANDING_FRIDGE_DEPTH_MM,
-      occupiedDepth: finishesAtMm(FREESTANDING_FRIDGE_FINISHED_DEPTH_MM),
-      // Declared, not inherited, for the reason the hood declares its own: the spread above has
-      // already stamped `frameDepthMm` from `COLUMN_DEPTH_MM` (560), and overriding only the
-      // nominal left the two 120 mm apart. A `fridge-free` placement with no measured
-      // `seatDepthMm` then seats 60 mm off the wall plane (§11 row 19), because `void-engine.ts`
-      // falls back to `frameDepthMm`.
-      frameDepthMm: FREESTANDING_FRIDGE_DEPTH_MM,
-      canFinish: false,
-      canHandle: false,
-    },
-  ],
-];
+    ],
+    [
+      "base-hob-oven",
+      {
+        // ADR 0061 decision 2: the body's one bar belongs to the **oven**, so it has no cabinet
+        // handle to bill and none for a hardware chip to reach. This is the same fact `canHandle:
+        // false` below states about the panel, said about the price and the meshes.
+        ...hobBase("Corp plită și cuptor", cabinetDepthMm, {
+          cabinetHandles: NO_CABINET_HANDLES,
+          // **A front, and not a door band.** `ovenFillerFront` closes the cavity the oven leaves
+          // under the worktop with a fixed facade: nothing behind it opens, so it hangs on no hinge
+          // and its height is not a number ADR 0070's rule may read. `canFinish: true` below is
+          // about that same panel and is not a contradiction — a facade is finished, not opened.
+          fronts: NO_OPENING_FRONTS,
+        }),
+        // §9's "never offer what cannot be satisfied", and §13.1's "disable, don't warn".
+        //
+        // Q6 (owner, 2026-09-01): this body owns **exactly one finishable front** — the fixed filler
+        // panel across the hob band, `oven_filler_door_front`, which M5B wave 5B6 added to close the
+        // cavity the oven leaves under the worktop. So a recorded finish now recolours something, and
+        // the panel takes the run's colour instead of standing default white beside neighbours the
+        // customer can set to sage, clay or graphite. Before that panel existed the body was
+        // front-less and `canFinish` was correctly `false`; the ground has changed, not the rule.
+        //
+        // `canHandle` stays `false`, and for the reason the whole pair once shared: the filler is a
+        // facade, not a leaf — nothing behind it opens — and the body's only bar belongs to the
+        // **oven**, so `handle: "push"` would be a cabinet-hardware chip mutating an appliance.
+        canFinish: true,
+        canHandle: false,
+        // The oven's own fascia and bar, which reach past the worktop every other base body stops
+        // at — by the same 28 mm at every depth, because the fascia rests on a carcass front that
+        // moves with the setting. Wave 6I's criterion 2 on the base band; the tower states the same
+        // split for the column band.
+        occupiedDepth: finishesAtMm(hobOvenBaseFinishedDepthMm(cabinetDepthMm)),
+      },
+    ],
+    [
+      "base-bottle-cargo",
+      {
+        ...baseCabinet("Cargo îngust pentru sticle", cabinetDepthMm, {
+          cabinetHandles: carriesHandles(1),
+          // ADR 0026: **a pull-out, so a drawer and not a leaf.** The builder says so in as many
+          // words — "the front is a pull-out's, not a door's" — and it runs on runners like any
+          // other drawer. It carries the whole carcass height as one front, which is why its handle
+          // count alone cannot tell it from a single-door base.
+          fronts: carriesDrawers(1),
+        }),
+        widthFlex: BOTTLE_CARGO_WIDTHS_MM,
+        ...discreteWidths(BOTTLE_CARGO_WIDTHS_MM),
+        minWidthMm: BOTTLE_CARGO_MIN_WIDTH_MM,
+      },
+    ],
+    [
+      "base-sink",
+      {
+        ...baseCabinet("Corp spălător", cabinetDepthMm, {
+          cabinetHandles: carriesHandles(2),
+          // Two hinged leaves in one band, at every width from the 560 mm aperture up. ADR 0070's
+          // other named row: the same `2` as `base-panbank` above, and nothing but this declaration
+          // says one pair is hinges and the other runners.
+          fronts: carriesFronts({
+            doorBands: doorBandsMm([BASE_DOOR_BAND_HEIGHT_MM]),
+            leavesPerBand: 2,
+            drawers: NO_DRAWERS,
+          }),
+        }),
+        // ADR 0033's amendment (owner, 2026-08-27; logic review R1.1): **a sink base is cabinetry with
+        // a fixed aperture, not an appliance that comes in sizes.** What is fixed is the bowl — 560 mm,
+        // which `minWidthMm` below states — and not the carcass around it. The owner's own case:
+        // "there are a lot of cases when the sink is 800 — in my kitchen it's an 800 cabinet." An 800
+        // sink base is ordinary, and so is a 700.
+        //
+        // `{600, 800}` was the chip ladder ADR 0017 left behind when it removed 400. The bound says the
+        // rule instead: anything from the aperture up to §7's ceiling.
+        ...cabinetryWidths({
+          minMm: SINK_MIN_WIDTH_MM,
+          maxMm: CABINETRY_MAX_WIDTH_MM,
+        }),
+        minWidthMm: SINK_MIN_WIDTH_MM,
+      },
+    ],
+    // ADR 0051: an integrated dishwasher wears a decor door, so this niche is a fronted base body
+    // like any other. `canFinish` and `canHandle` come from `INSERTABLE_DEFAULTS` and both are true
+    // of the geometry: the finish lands on the `door_front` slab `dishwasherHousing` builds with
+    // `doorSlab`, and the only handle in the body hangs beside that slab — the appliance behind it is
+    // built fully integrated and has no bar of its own to mutate. Before that record the flags were
+    // right and the geometry was missing (`docs/BACKLOG.md` entry 11).
+    //
+    // It therefore no longer overrides `baseCabinet`'s occupied depth: what used to reach 632 mm was
+    // the appliance's bar, and the decor door's reaches 619, behind the worktop that already sets the
+    // number for every other base body.
+    [
+      "base-dishwasher",
+      {
+        // ADR 0051: the niche wears a decor door of its own, and the one bar on this body is that
+        // door's — the appliance behind it carries none.
+        ...baseCabinet("Nișă mașină de spălat vase", cabinetDepthMm, {
+          cabinetHandles: carriesHandles(1),
+          // ADR 0051: one decor door over the machine, drawn by `doorSlab` at `baseCabinet`'s own
+          // anchors, so it is the same 710 mm band every base leaf is.
+          fronts: carriesFronts({
+            doorBands: doorBandsMm([BASE_DOOR_BAND_HEIGHT_MM]),
+            leavesPerBand: 1,
+            drawers: NO_DRAWERS,
+          }),
+        }),
+        kind: "dishwasher_housing",
+        widthFlex: DISHWASHER_WIDTHS_MM,
+        ...discreteWidths(DISHWASHER_WIDTHS_MM),
+      },
+    ],
+    // ADR 0033: `wall-2door` + `wall-1door`, merged, for the reason the base pair is. This is the pair
+    // the whole decision was written about — `wall-2door` at 400 mm was ADR 0029's finding, and
+    // `wall-1door` at 800 mm was ADR 0030's, and both are now the same fact stated once: below
+    // `TWO_DOOR_MIN_WIDTH_MM` one door, above it two.
+    //
+    // A resize that takes a column to 400 turns this cabinet into a one-door **without changing which
+    // entry the customer owns**, because there is no other entry to migrate to. That is why the
+    // alternative both earlier records rejected — migrating the placement between two rows — is not
+    // merely still rejected but no longer expressible.
+    [
+      "wall-cabinet",
+      {
+        ...wallCabinet(WALL_CABINET_LABEL_RO, cabinetDepthMm, {
+          cabinetHandles: handlesOnDoorLeaves({
+            doorTiers: 1,
+            handlesPerLeaf: 1,
+          }),
+          // **The one row family whose band height is not a constant**, because it is the one that
+          // is `heightFlex`: the same entry is built 700 mm tall on the wall row and 400 in the top
+          // row, so its leaves are 694 and 394. The rule follows the frame the body was built into
+          // rather than pinning either number.
+          fronts: doorLeavesFollowWidth(
+            oneBandInsetFromFrameMm(WALL_DOOR_BAND_INSET_MM),
+          ),
+        }),
+        ...HINGED_CABINET_WIDTHS,
+        minWidthMm: HINGED_CABINET_MIN_WIDTH_MM,
+        doorCountFollowsWidth: true,
+      },
+    ],
+    [
+      "wall-lift",
+      wallCabinet("Corp suspendat rabatabil", cabinetDepthMm, {
+        cabinetHandles: carriesHandles(1),
+        // **One full-face leaf, and its handle edge is `"bottom"` rather than `"top"`** — which is
+        // one half of why drawer-ness is declared here and never read off that field. A flap opens
+        // upward on the band's own hinges: one leaf, not a drawer. Its lift mechanism is none of
+        // ADR 0070's three, and decision 6 leaves vertical-opening mechanisms out of scope.
+        fronts: carriesFronts({
+          doorBands: oneBandInsetFromFrameMm(WALL_DOOR_BAND_INSET_MM),
+          leavesPerBand: 1,
+          drawers: NO_DRAWERS,
+        }),
+      }),
+    ],
+    [
+      "open-shelf",
+      {
+        ...wallCabinet("Etajeră deschisă", cabinetDepthMm, {
+          cabinetHandles: NO_CABINET_HANDLES,
+          fronts: NO_OPENING_FRONTS,
+        }),
+        kind: "open_shelf_unit",
+        // **No door and no handle, so its shell and its finished depth are the same number** — and
+        // the two overrides below move together or not at all (ADR 0075 decision 1). Taking
+        // `wallCabinet`'s shell here would state a seat 39 mm shallower than this body is built to,
+        // for a front it does not have.
+        frameDepthMm: wallCarcassDepthMm(cabinetDepthMm),
+        occupiedDepth: shellPlusFrontMm(NO_FRONT_ASSEMBLY_MM),
+        // Open by definition: no fixed front to finish, no leaf to open. Unlike `base-hob-oven`
+        // above, wave 5B6 gave this body no filler panel, so ADR 0050 does not reach it.
+        canFinish: false,
+        canHandle: false,
+      },
+    ],
+    [
+      "hood",
+      {
+        ...wallCabinet("Hotă", cabinetDepthMm, {
+          cabinetHandles: NO_CABINET_HANDLES,
+          fronts: NO_OPENING_FRONTS,
+        }),
+        kind: EXTRACTOR_HOOD_KIND,
+        // **Front-hung** (ADR 0039 decision 2): its front face sits on the cabinet-depth line, so
+        // its seat is measured forward to that line rather than back from its own rear face. Still
+        // measurable — which is why `cabinet-front-line` is its own arm and not folded in with the
+        // corner leg's `joint`. This override is what the adapter's deleted `FRONT_ALIGNED_BUILD_IDS`
+        // used to stand in for, and that set had already drifted: it held "hood" and not "hood-600".
+        seatRule: seatedOnCabinetFrontLine,
+        // A hood is a canopy and a chimney: no front, so nothing for a finish chip to recolour.
+        // `handle: "push"` here would put cabinet hardware on an extractor. This says nothing about
+        // whether a hood is cabinetry — ADR 0035 decision 5 below rules that it is, for width.
+        canFinish: false,
+        canHandle: false,
+        heightFlex: false,
+        nominalHeightMm: HOOD_HEIGHT_MM,
+        nominalDepthMm: HOOD_DEPTH_MM,
+        // Front-hung (ADR 0039 decision 2), so neither the wall rule above nor its own 500 mm body
+        // answers this: what it occupies is the wall plane to the cabinet-depth line.
+        //
+        // It keeps the spread's `depthRule: FOLLOWS_CABINET_DEPTH`, and that is right even though
+        // ADR 0039 decision 1 says *"hood is always standard"*. The rule is about the space the body
+        // fills, and this one's finished line **is** the setting — 600 at 600 and 700 at 700. What
+        // stays standard is `HOOD_DEPTH_MM`, the canopy behind that line, and calling the entry a
+        // manufactured size would claim the wrong one of the two moves.
+        occupiedDepth: finishesAtMm(hoodFinishedDepthMm(cabinetDepthMm)),
+        // Declared, not inherited: the spread above stamps `frameDepthMm` from `WALL_DEPTH_MM`, which
+        // ADR 0036's depth map governs, and ADR 0039 decision 1 exempts the hood from that map —
+        // *"hood is always standard"*, 500 at a 600 mm kitchen and 500 at a 700 mm one. Leaving it
+        // inherited put a map-derived number behind a rule the map does not reach (QA finding Q1.1).
+        //
+        // **The one entry where the two depth fields deliberately disagree** (`catalog.test.ts` names
+        // it as the exception rather than dropping the sweep). `frameDepthMm` is not a depth — ADR
+        // 0018 — it is twice the body's rear overhang, and ADR 0039 decision 2 hangs the hood at the
+        // front, so its back face is `cabinetDepth − 500` off the wall plane and its seat is measured
+        // from the cabinet-depth line instead. That is §11 row 19's second named exception, after
+        // ADR 0025's corner leg, and this is the fallback that has to agree with the probe.
+        frameDepthMm: hoodFrameDepthMm(cabinetDepthMm),
+        // ADR 0035 decision 5: **the hood is cabinetry, bounded 600–800.** It keeps `wallCabinet`'s
+        // `widthFlex: 'fit'` — so a 700 mm opening gets a 700 mm hood rather than a 600 adrift in it —
+        // and declares the floor its `−50` is greyed out at.
+        //
+        // This retires ADR 0033's amendment on this row rather than contradicting it. That amendment
+        // was fixing the same defect from the other side: the hood was the one row that was both
+        // `'fit'` and discretely bounded, so it alone refused a 700 mm opening where every discrete row
+        // narrows into one. ADR 0035 removes the discrete set instead, and "a 700 mm hood is not a
+        // product" goes with it — the owner has ruled that a hood is made anywhere in 600–800.
+        ...cabinetryWidths({
+          minMm: HOOD_FLOOR_WIDTH_MM,
+          maxMm: CABINETRY_MAX_WIDTH_MM,
+        }),
+      },
+    ],
+    // ADR 0048: **the one resizable column.** No appliance stands inside it, so it is built to its
+    // opening between 400 and 800 mm and its door count follows that width through the threshold
+    // ADR 0035 decision 4 already fixed at 500 — one door below, two at and above. There is no
+    // `tall-pantry-1door` row, and there must not be: ADR 0033 merged exactly that split away, and a
+    // second row would put the threshold in two places.
+    //
+    // `widthFlex` is restated rather than inherited, and that is the load-bearing line. The spread
+    // above stamps `COLUMN_WIDTHS_MM`, and a row that declared a bound while keeping a fixed set
+    // would resolve on `resolveFixedSetWidth` and build 600 into every opening — which is the hood's
+    // R1.2 defect verbatim (`insert-fit.ts`, `resolveFixedSetWidth`).
+    [
+      "tall-pantry",
+      {
+        // Two tiers of doors, each leaf carrying one bar: two handles at 400 mm and four at 600.
+        // The width decides the leaves *per tier* through the same `doorCountFollowsWidth` this row
+        // declares below, and the pantry stacks two such tiers.
+        ...fullHeightUnit("Coloană cămară", "tall_unit", cabinetDepthMm, {
+          cabinetHandles: handlesOnDoorLeaves({
+            doorTiers: 2,
+            handlesPerLeaf: 1,
+          }),
+          // **The entry ADR 0070 wrote the band declaration for.** Two bands, 1290 and 790, and
+          // they do not sum to this body's 2200 mm frame — so an implementation that read
+          // `heightMm` would disagree with this row everywhere and would put a third hinge on the
+          // short door.
+          fronts: doorLeavesFollowWidth(
+            doorBandsMm(PANTRY_DOOR_BAND_HEIGHTS_MM),
+          ),
+        }),
+        widthFlex: "fit",
+        ...cabinetryWidths({
+          minMm: PANTRY_FLOOR_WIDTH_MM,
+          maxMm: CABINETRY_MAX_WIDTH_MM,
+        }),
+        fixedWidth: false,
+        doorCountFollowsWidth: true,
+      },
+    ],
+    [
+      "tall-oven-tower",
+      {
+        // **ADR 0061's named case, on the counting half.** The builder draws four `handle_bar`
+        // groups and exactly **two** are the cabinet's; the other two are the oven's and the
+        // microwave's, which arrived with the appliances. 6B bills two.
+        ...fullHeightUnit(
+          "Coloană cuptor + microunde",
+          "tall_unit",
+          cabinetDepthMm,
+          {
+            cabinetHandles: carriesHandles(2),
+            // Two 500 mm cabinet leaves in a 2200 mm frame, one under the oven and one over the
+            // microwave. The lower one is drawn with a `"top"` handle edge and is a door all the
+            // same — the builder's own comment says that edge covers "doors below the worktop" too.
+            fronts: carriesFronts({
+              doorBands: doorBandsMm(OVEN_TOWER_DOOR_BAND_HEIGHTS_MM),
+              leavesPerBand: 1,
+              drawers: NO_DRAWERS,
+            }),
+          },
+        ),
+        // Two appliance fronts instead of two cabinet doors, and their bars reach further.
+        //
+        // **Wave 6I's criterion 2, as one line: the carcass follows and the appliances do not.**
+        // `columnCarcassDepthMm` is what moves with the setting; the 39 mm the fascias and bars add
+        // to it is the machines' own and is the same at every depth. `depthRule` therefore stays the
+        // `cabinet-depth` the spread above declares — a body whose depth is a function of the
+        // setting, even though not every millimetre of it is.
+        occupiedDepth: finishesAtMm(
+          ovenTowerFinishedDepthMm(columnCarcassDepthMm(cabinetDepthMm)),
+        ),
+      },
+    ],
+    [
+      "tall-fridge-housing",
+      fullHeightUnit(
+        "Nișă frigider integrat",
+        "fridge_housing",
+        cabinetDepthMm,
+        {
+          cabinetHandles: carriesHandles(3),
+          // Three leaves in three bands of their own heights: the fridge door, the freezer door and
+          // the top box's flap. **The clearest case for declaring bands per entry** — one body, three
+          // different heights, and only the tallest is over ADR 0070's 900 mm threshold.
+          fronts: carriesFronts({
+            doorBands: doorBandsMm(FRIDGE_HOUSING_DOOR_BAND_HEIGHTS_MM),
+            leavesPerBand: 1,
+            drawers: NO_DRAWERS,
+          }),
+        },
+      ),
+    ],
+    [
+      "fridge-free",
+      {
+        // A freestanding appliance: its two bars hang off the appliance's own group and none of
+        // them is cabinetry, which is what `canFinish`/`canHandle` below already say of the panel.
+        ...fullHeightUnit(
+          "Frigider, liber",
+          "fridge_freestanding",
+          cabinetDepthMm,
+          {
+            cabinetHandles: NO_CABINET_HANDLES,
+            // A machine somebody else builds: its two fronts are the appliance's own and it draws
+            // no `door_front` at all, so there is no cabinet leaf and no cabinet drawer here.
+            fronts: NO_OPENING_FRONTS,
+          },
+        ),
+        widthFlex: FREESTANDING_FRIDGE_WIDTHS_MM,
+        ...discreteWidths(FREESTANDING_FRIDGE_WIDTHS_MM),
+        nominalHeightMm: FREESTANDING_FRIDGE_HEIGHT_MM,
+        nominalDepthMm: FREESTANDING_FRIDGE_DEPTH_MM,
+        occupiedDepth: finishesAtMm(FREESTANDING_FRIDGE_FINISHED_DEPTH_MM),
+        // Declared, not inherited, for the reason the hood declares its own: the spread above has
+        // already stamped `frameDepthMm` from `COLUMN_DEPTH_MM` (560), and overriding only the
+        // nominal left the two 120 mm apart. A `fridge-free` placement with no measured
+        // `seatDepthMm` then seats 60 mm off the wall plane (§11 row 19), because `void-engine.ts`
+        // falls back to `frameDepthMm`.
+        frameDepthMm: FREESTANDING_FRIDGE_DEPTH_MM,
+        // **The one insertable entry that is not cabinetry at all** (ADR 0058 decision 2's third
+        // answer). A freestanding fridge is a machine somebody else builds at 680 mm, so it is 742
+        // deep in a 600 mm kitchen and 742 in a 700 mm one — and it says so, rather than inheriting
+        // `fullHeightUnit`'s `cabinet-depth` and quietly failing the gate that sweeps it.
+        depthRule: IS_A_MANUFACTURED_SIZE,
+        canFinish: false,
+        canHandle: false,
+      },
+    ],
+  ];
+}
+
+/** §7's catalogue at the depth the kitchen is declared at today.
+ *
+ *  **The one materialisation of the build above**, kept because every reader that is not yet
+ *  depth-aware — `design-bounds.ts`, the seeded fixture, the panel's offer list — needs a catalogue
+ *  and M6 has not yet given them a setting to read. It is the *shipped* catalogue and not the rule:
+ *  the rule is `buildInsertableBodyDefinitions`, and wave 6J re-points these readers at it. */
+export const INSERTABLE_BODY_DEFINITIONS: readonly CatalogEntry[] =
+  buildInsertableBodyDefinitions(WORKTOP_DEPTH_MM);
 
 /** §9's header falls back to this when an entry has no `label` of its own — every seeded body,
  *  none of which the customer ever picks from a list. §11 row 24: a kind that is not in this table
@@ -694,23 +1158,17 @@ const KIND_LABELS_RO: Readonly<Record<string, string>> = {
   // calling it one.
   corner_base_x: "Corp bază de colț",
   corner_base_return: "Racord bază de colț",
+  // ADR 0066: the wall band's mirror of the two rows above. Both returns are 570 mm wide and carry
+  // no catalogue equivalent (ADR 0022), so under the shared `wall_cabinet` kind both read exactly
+  // "Corp suspendat" — and the breakdown line renders the label and the width with no band, so wave
+  // 6D's priced document showed two identical descriptions at two different amounts. They differ by
+  // *row*, and the two names say so.
+  [WALL_CORNER_RETURN_KIND]: "Dulap suspendat de colț",
+  // The row word is read off `BAND_LABELS_RO.top` rather than written out a second time: §9's header
+  // already calls this body's row that, and a name that says which row a body stands on is wrong the
+  // moment the two spellings drift.
+  [WALL_CORNER_RETURN_TOP_KIND]: `Dulap de colț ${describeBandLabel("top")}`,
 };
-
-/** ADR 0033: **how many hinged doors a cabinet of this width is made with.** The one place the
- *  question is answered, in either package.
- *
- *  `catalog-bodies.ts` calls it for the count it hands `kit.make.wallCabinet(w, doors, …)` and
- *  `kit.make.baseCabinet(w, { doors })`, and `describeBodyLabelAt` calls it for the name the customer
- *  reads. That is the whole mechanism of this decision: the builder and the label cannot disagree
- *  about a door count because there is nothing for them to disagree with — they ask the same
- *  function.
- *
- *  The comparison is `>=` (ADR 0035 decision 4): **499 and below is one door, 500 and above is two.**
- *  It was `>` against 450 while the ladder made everything between 400 and 600 unreachable; a stepper
- *  reaches 470, 500 and 550, so the half-open bound has to be right rather than merely unobserved. */
-export function deriveDoorCount(widthMm: number): number {
-  return widthMm >= TWO_DOOR_MIN_WIDTH_MM ? 2 : 1;
-}
 
 /** ADR 0033: the name the customer reads for this entry **at this width**.
  *

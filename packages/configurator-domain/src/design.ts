@@ -10,7 +10,12 @@ import {
   MAX_ROOM_HEIGHT_MM,
   MAX_ROOM_WIDTH_MM,
 } from "./design-bounds.js";
+import { FinishSchema } from "./materials.js";
 import { ConfigurationTimestampSchema } from "./schemas.js";
+import {
+  declaredCabinetDepthsMm,
+  MIN_CABINET_DEPTH_MM,
+} from "./worktop-depth.js";
 
 /** A dimension: a whole millimetre a body or a room can actually measure. Zero and negatives are
  *  not small rooms and thin cabinets, they are documents `deriveCabinetWorldTransform` throws on
@@ -37,15 +42,6 @@ function roomDimensionSchema(maximumMm: number) {
   return z.number().int().positive().max(maximumMm);
 }
 
-export const FinishSchema = z.enum([
-  "white",
-  "clay",
-  "sage",
-  "graphite",
-  "oak",
-]);
-export type Finish = z.infer<typeof FinishSchema>;
-
 export const HandleSchema = z.enum(["steel", "black", "push"]);
 export type Handle = z.infer<typeof HandleSchema>;
 
@@ -65,6 +61,11 @@ export const CabinetBodySchema = z.strictObject({
    *  depth. Absent on every design written before M3, which is why it is optional and needs no
    *  schema version bump: `deriveFrame` then falls back to the catalogue's `frameDepthMm`. */
   seatDepthMm: positiveMillimetreSchema.optional(),
+  /** **A finish is two kinds of thing since wave 6P** — a palette entry or a free colour — and
+   *  `materials.ts` declares both. A document written under the shipped five-value enum is carried
+   *  forward **pre-parse** by `migrateDesign`'s version 4 arm — the schema cannot express the stored
+   *  string, so nothing later than the parse could rescue it — which is why wave 6P's bump to schema
+   *  version 5 is a rewrite of stored values (ADR 0055) and not an absent field (ADR 0053). */
   finish: FinishSchema.optional(),
   handle: HandleSchema.optional(),
 });
@@ -100,13 +101,30 @@ export const EmptyColumnSchema = z.strictObject({
   y0Mm: coordinateMillimetreSchema,
   topMm: coordinateMillimetreSchema,
   depthMm: positiveMillimetreSchema,
+  /**
+   * **The `buildId` whose clearance supplied `depthMm`** — the member that won §3.2's MAX when this
+   * extent was frozen (ADR 0073 decision 1), so a depth change can re-ask that body in the catalogue
+   * built at the new setting instead of carrying the old setting's number forward.
+   *
+   * A `buildId` rather than a band or a chain: a band cannot tell an oven tower's 638 from a deep
+   * top's 600, and a chain would be a second statement of arithmetic the catalogue already owns.
+   *
+   * **Optional, additive, and no schema version bump** (ADR 0073 decision 6). A document written
+   * before this wave carries none, parses unchanged, loads with the geometry it always had and is
+   * not rewritten by a load; the field arrives on the next save. An absent value and a `buildId` the
+   * catalogue no longer holds both fall to the deeper-only rule and neither is refused (ADR 0052 — a
+   * load that refuses is a dead link). What **is** refused, fail-closed at both seams, is a value
+   * that is not a `buildId`-shaped string, which is why this is `identifierSchema` and the same
+   * schema `CabinetBodySchema.buildId` is parsed against: a malformed document, not an old one.
+   */
+  depthFromBuildId: identifierSchema.optional(),
 });
 export type EmptyColumn = z.infer<typeof EmptyColumnSchema>;
 
 /**
  * The frozen extent of a column that **does** still hold a member, as ADR 0053 records it.
  *
- * The exact complement of `EmptyColumnSchema` and deliberately the same six fields, because it is
+ * The exact complement of `EmptyColumnSchema` and deliberately the same shape, because it is
  * the same fact about the same kind of space: where a column reaches, in whole millimetres, on a
  * key the document's own placements produce.
  *
@@ -131,7 +149,42 @@ export const DesignRoomSchema = z.strictObject({
 });
 export type DesignRoom = z.infer<typeof DesignRoomSchema>;
 
-export const DesignSchema = z.strictObject({
+/**
+ * The whole-kitchen settings, as one optional container rather than sibling keys on the design.
+ *
+ * **Designed for three settings and built with two.** Cabinet depth lands in wave 6J and is
+ * deliberately absent here; whether its arrival owes a schema version bump is 6J's decision and is
+ * not pre-empted by this one.
+ *
+ * **Its absence is a valid, unchanged state, so no schema version bump is owed.** The argument is
+ * `columnExtents`' (ADR 0053) — a document written without this key loads exactly as it does today,
+ * priced at the book's own default tiers — and explicitly **not** ADR 0038's "nothing has ever been
+ * stored", whose premise ADR 0052 corrected by measurement: five rows exist at `schema_version` 1.
+ *
+ * **A tier id is an opaque identifier, validated for shape only.** The domain imports no price book
+ * (ADR 0062 seam 1), so *whether* a tier exists is not a question this schema can ask; it is
+ * answered where the book is, by the commands in `commands/set-whole-kitchen-settings.ts`, which
+ * take the available ids from their caller.
+ */
+export const DesignSettingsSchema = z.strictObject({
+  materialTierId: identifierSchema.optional(),
+  hardwareTierId: identifierSchema.optional(),
+  /** Optional only in the wire parser so schema versions 1–3 can reach `migrateDesign`'s v3 arm.
+   * Every version-4 document is required to carry it at that seam. */
+  cabinetDepthMm: z
+    .number()
+    .int()
+    .min(MIN_CABINET_DEPTH_MM)
+    .refine((value) => declaredCabinetDepthsMm().includes(value), {
+      message: "Cabinet depth must be one of the declared manufactured depths",
+    })
+    .optional(),
+});
+export type DesignSettings = z.infer<typeof DesignSettingsSchema>;
+
+/** The legacy wire shape. Exported only for the migration seam, which must parse versions 1–3
+ * before it can add the field they predate. New writes use `DesignSchema` below. */
+export const LegacyDesignSchema = z.strictObject({
   room: DesignRoomSchema,
   presetId: z.string().max(MAX_IDENTIFIER_LENGTH).nullable(),
   placements: z.array(DesignPlacementSchema).max(MAX_PLACEMENTS),
@@ -154,7 +207,32 @@ export const DesignSchema = z.strictObject({
     .array(StoredColumnExtentSchema)
     .max(MAX_COLUMN_EXTENTS)
     .optional(),
+  /** Wave 6E's whole-kitchen container — see `DesignSettingsSchema` for why it is one key and why
+   *  its absence owes no version bump. */
+  settings: DesignSettingsSchema.optional(),
   createdAt: ConfigurationTimestampSchema,
   updatedAt: ConfigurationTimestampSchema,
 });
-export type Design = z.infer<typeof DesignSchema>;
+export type Design = z.infer<typeof LegacyDesignSchema>;
+
+/** General domain shape, including stored documents from before cabinet depth existed. */
+export const DesignSchema = LegacyDesignSchema;
+
+/** The current write contract. A successful save must be reloadable at `CURRENT_SCHEMA_VERSION`,
+ * so cabinet depth is mandatory here even though the legacy parser permits its absence. */
+export const CurrentDesignSchema = LegacyDesignSchema.superRefine(
+  (design, context) => {
+    if (design.settings?.cabinetDepthMm !== undefined) return;
+    context.addIssue({
+      code: "custom",
+      path: ["settings", "cabinetDepthMm"],
+      message: "Current designs require a cabinet depth",
+    });
+  },
+);
+
+/** The effective depth of an in-memory design. Absence means the legacy default; persisted
+ * version-4 documents are stricter and are checked by `migrateDesign`. */
+export function cabinetDepthMmOf(design: Design): number {
+  return design.settings?.cabinetDepthMm ?? 600;
+}

@@ -16,6 +16,8 @@ export {
   applyFinish,
   collectFronts,
   FINISH_COLORS,
+  finishKeyOf,
+  finishSignature,
   type FinishKey,
   type SolidFinishKey,
 } from "./finishes.js";
@@ -30,6 +32,7 @@ export { buildKitchenShell } from "./kitchen-shell.js";
 
 export {
   disposeDiscardedBodies,
+  disposeKit,
   disposeKitAndStage,
   type DiscardedBodyDisposal,
   type KitStage,
@@ -69,6 +72,15 @@ export {
   type SolidSyncInput,
   type VoidSyncInput,
 } from "./scene-sync.js";
+
+export {
+  buildOverflowMark,
+  disposeOverflowMark,
+  OVERFLOW_MARK_COLOR,
+  OVERFLOW_MARK_OPACITY,
+  type OverflowMark,
+  type OverflowMarkInput,
+} from "./overflow-mark.js";
 
 export {
   buildSelectionOutline,

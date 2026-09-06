@@ -9,15 +9,19 @@
 // already decided — the one apparent exception, §11 row 24's unknown kind, is asked of the domain's
 // own `isKnownKind` rather than answered here.
 import {
-  FinishSchema,
   HandleSchema,
   isKnownKind,
   normaliseBand,
   renderRejection,
+  LEGACY_ENUM_FINISH_NAMES,
+  LEGACY_ENUM_FINISHES,
+  sameFinish,
   type CatalogOffer,
   type Finish,
+  type LegacyEnumFinishName,
   type Handle,
   type OfferVerdict,
+  type PricingResult,
   type RejectionReason,
   type SelectionMeta,
   type WidthOption,
@@ -28,6 +32,12 @@ import type { SaveStatus } from "@/persistence/save-coalescer";
 import type { WriteAccess } from "@/store/configurator-store";
 
 import { ro } from "@/content/ro";
+import {
+  describeFlaggedTotalWarning,
+  describeStartingLabel,
+  describeStartingPrice,
+  type PriceFigure,
+} from "@/price/starting-price";
 
 import { findCabinetThumbnailUrl } from "./cabinet-thumbnails";
 import type { WidthSteps } from "@lemnaria/configurator-domain";
@@ -129,10 +139,20 @@ export interface ReplaceSection {
   readonly emptyLine?: string;
 }
 
+/** A finish chip carries **two** things since wave 6P, and they are no longer the same string.
+ *
+ *  `value` is what the surface is keyed and styled by — the swatch's CSS variable, its test id, its
+ *  React key — and it is still one of the five names §5.5 shipped with. `finish` is the declared
+ *  value the command writes, which is a palette entry or a free colour and cannot be a `data-`
+ *  attribute. Wave 6R replaces both with the material's own control, and the pair goes with them. */
+export interface FinishChip extends ChoiceChip<LegacyEnumFinishName> {
+  readonly finish: Finish;
+}
+
 export interface FinishSection {
   readonly kind: "finish";
   readonly title: string;
-  readonly chips: readonly ChoiceChip<Finish>[];
+  readonly chips: readonly FinishChip[];
   readonly note: string;
 }
 
@@ -210,6 +230,20 @@ export interface PanelFooter {
   readonly removeDisabledReason?: string;
   readonly removeLabel: string;
   readonly doneLabel: string;
+  /** §9 item 7's *price · Șterge corpul · Gata*, and *"De la neschimbat"* while a refusal stands.
+   *
+   *  **Absent when no price was supplied, and when pricing failed** — the same rendering either
+   *  way, deliberately: a failed query has no customer-facing form, and a footer that filled the
+   *  gap with a zero or a dash would read as free. Nothing here holds a previous figure, because a
+   *  refused edit did not change the document the figure is derived from. */
+  readonly price?: PriceFigure;
+  /** ADR 0065 decision 7b's warning, beside the footer figure and on the same condition the bar
+   *  flags its own total. Present only where `price` is.
+   *
+   *  **The footer carries it because on mobile it is the only total on screen**: §9's sheet covers
+   *  the price bar, and that is the state a customer fixing an overflow is in, since the width chips
+   *  are in this sheet. Decision 6's rationale is that the running total is needed precisely then. */
+  readonly overflowWarning?: string;
 }
 
 /** Why this panel cannot currently write, said once at the top of it.
@@ -320,6 +354,21 @@ export interface DescribePanelInput {
    *  supplies it; fixtures that are not about the width control leave it out. */
   readonly widthRanges?: readonly WidthRangeMm[];
   readonly rejection: RejectionReason | null;
+  /** The current design priced, as `usePricedDesign` derived it this render — never a stored total
+   *  and never a figure this module computes (§12, and wave 6C's criterion).
+   *
+   *  **Optional, and absent means the footer shows no price**, which is the safe answer rather than
+   *  the convenient one: a caller that has not priced the design has no figure to show, and an
+   *  invented one is the failure this wave's criteria exist to prevent. `use-panel-view.ts` always
+   *  supplies it; fixtures that are not about the price leave it out.
+   *
+   *  **Kept optional deliberately, and the dropped-wiring risk is closed by a test rather than by
+   *  the type.** Required would make the one real caller unforgettable at compile time, at the cost
+   *  of a priced design in twelve fixtures that are about sections, notices and width chips —
+   *  coupling every panel test to the price book to protect a single call site. That call site is
+   *  now driven through the real `usePanelView` by `tests/price/price-wiring.adversarial.test.ts`,
+   *  which goes red when `pricing` is dropped from it; verified by doing exactly that. */
+  readonly pricing?: PricingResult;
   /** §5.2 cannot run without the scene's `BodyProbe`, so until it attaches every offer row is
    *  disabled with that reason rather than tapped and then refused. */
   readonly isBodyProbeAttached: boolean;
@@ -343,14 +392,28 @@ export function describePanel(input: DescribePanelInput): PanelView {
     header: describeHeader(meta),
     ...(notice ? { notice } : {}),
     sections: collectSections(input, meta, editability),
-    footer: describeFooter(meta, editability),
+    footer: describeFooter({
+      meta,
+      editability,
+      rejection: input.rejection,
+      ...(input.pricing ? { pricing: input.pricing } : {}),
+    }),
   };
 }
 
-function describeFooter(
-  meta: SelectionMeta,
-  editability: PanelEditability,
-): PanelFooter {
+/** Everything §9's footer row is decided from, gathered into one argument so that adding the price
+ *  did not turn a two-argument function into a three-argument one. */
+interface FooterContext {
+  readonly meta: SelectionMeta;
+  readonly editability: PanelEditability;
+  readonly rejection: RejectionReason | null;
+  readonly pricing?: PricingResult;
+}
+
+function describeFooter(context: FooterContext): PanelFooter {
+  const { meta, editability } = context;
+  const price = describeFooterPrice(context);
+  const warning = price ? describeFooterPriceWarning(context) : undefined;
   return {
     canDelete: meta.canDelete,
     isRemoveDisabled: editability.isReadOnly,
@@ -359,7 +422,28 @@ function describeFooter(
       : {}),
     removeLabel: ro.panel.remove,
     doneLabel: ro.panel.done,
+    ...(price ? { price } : {}),
+    ...(warning === undefined ? {} : { overflowWarning: warning }),
   };
+}
+
+/** The same question the price bar asks of the same priced design, through the same function — so
+ *  the two totals cannot disagree about whether this kitchen fits. */
+function describeFooterPriceWarning(
+  context: FooterContext,
+): string | undefined {
+  const { pricing } = context;
+  if (!pricing?.ok) return undefined;
+  return describeFlaggedTotalWarning(pricing.priced);
+}
+
+function describeFooterPrice(context: FooterContext): PriceFigure | undefined {
+  const { pricing } = context;
+  if (!pricing?.ok) return undefined;
+  return describeStartingPrice({
+    label: describeStartingLabel(context.rejection),
+    totalMinor: pricing.priced.totalMinor,
+  });
 }
 
 /** Whether §9's controls may be offered at all, and — when they may not — the one sentence every
@@ -753,10 +837,13 @@ function describeFinishSection(
   return {
     kind: "finish",
     title: ro.panel.finishTitle,
-    chips: FinishSchema.options.map((finish) => ({
-      value: finish,
-      label: ro.panel.finishLabels[finish],
-      isActive: meta.finish === finish,
+    chips: LEGACY_ENUM_FINISH_NAMES.map((name) => ({
+      value: name,
+      finish: LEGACY_ENUM_FINISHES[name],
+      label: ro.panel.finishLabels[name],
+      isActive:
+        meta.finish !== undefined &&
+        sameFinish(meta.finish, LEGACY_ENUM_FINISHES[name]),
       ...describeChipAvailability(editability),
     })),
     note: ro.panel.finishNote,

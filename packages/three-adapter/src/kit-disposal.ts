@@ -105,3 +105,37 @@ function disposeLightRig(lights: LightRig): void {
   lights.key.dispose();
   lights.fill.dispose();
 }
+
+/**
+ * Disposes a kit and the one room it built, and nothing else — the **narrower** of this module's two
+ * entry points, added by M6 wave 6K-e.
+ *
+ * `disposeKitAndStage` keeps its precondition unchanged and stays the one a mounted stage uses. This
+ * exists for a kit that was never mounted: the transient one a `BodyProbeFactory` builds to measure
+ * a depth change at the depth it is moving to, which lives for one command and is released when it
+ * ends. Such a kit has a room, because `makeKit`'s builders make one, but it has **no** shadow
+ * ground, no contact blob and no light rig — those belong to a stage, and this owns none of them.
+ *
+ * **What it owns, stated because SCENE-002's ownership story is what this extends.** It frees the
+ * kit's own shared geometries, materials and canvas textures, plus whatever the room it is handed
+ * holds, and it marks the kit released through the same `kitOwnedResources` record
+ * `disposeKitAndStage` uses — never a second bookkeeping of what a kit allocated. It owns no light
+ * rig and disposes none.
+ *
+ * **The same precondition as its sibling, for the same reason**: the kit and the room must share a
+ * lifetime with this call. Hand it a kit some mounted stage still renders from and the shared
+ * buffers go out from under that stage — a black or invisible object rather than an error, which is
+ * why ADR 0074 refused the narrow kit-swap shape. A factory that returns the *standing* stage's own
+ * probe must therefore return a lease whose `release` does nothing; only a kit this call created may
+ * be passed here.
+ */
+export function disposeKit(kit: Kit, room: THREE.Object3D): void {
+  if (kitOwnedResources(kit.M).isReleased) return;
+
+  const resources = createGpuResources();
+  collectObjectResources(room, resources);
+  addGpuResources(kitOwnedResources(kit.M), resources);
+
+  disposeGpuResources(resources);
+  releaseKitOwnedResources(kit.M);
+}

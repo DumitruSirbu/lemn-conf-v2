@@ -9,8 +9,7 @@
 import { describe, expect, it } from "vitest";
 
 import { INSERTABLE_BODY_DEFINITIONS } from "../src/catalog.js";
-import { toMillimetres } from "../src/millimetres.js";
-import { WALL_CARCASS_MAX_DEPTH_OVER_WORKTOP_M } from "../src/commands/insert-fit.js";
+import { columnBuildDepthMm } from "../src/cabinet-depth-rule.js";
 import {
   declaredWorktopDepthsMm,
   UnknownWorktopDepthError,
@@ -93,9 +92,16 @@ describe("the map is the single source for both of §7's and §5.2's numbers", (
   );
 
   it("caps a wall carcass over a worktop at the same map row", () => {
-    expect(toMillimetres(WALL_CARCASS_MAX_DEPTH_OVER_WORKTOP_M)).toBe(
-      expectedWallDepthMm,
-    );
+    // Read through `columnBuildDepthMm`'s capped arm — the function `resolveDepthM` actually
+    // applies — rather than through an alias only this gate called. Wave 6I2 left
+    // `wallCarcassMaxDepthOverWorktopM` with no production reader, and a drift gate whose subject
+    // is test-only is one rename away from being deleted with it.
+    expect(
+      columnBuildDepthMm({
+        cabinetDepthMm: WORKTOP_DEPTH_MM,
+        hasFullHeightUnder: false,
+      }),
+    ).toBe(expectedWallDepthMm);
   });
 
   it("moves both numbers to 330 at the shipped worktop, and neither to 400", () => {
@@ -107,7 +113,12 @@ describe("the map is the single source for both of §7's and §5.2's numbers", (
         WALL_ENTRY_IDS.includes(buildId),
       ).map(([, definition]) => definition.nominalDepthMm),
     ).toEqual([330, 330, 330]);
-    expect(toMillimetres(WALL_CARCASS_MAX_DEPTH_OVER_WORKTOP_M)).not.toBe(400);
+    expect(
+      columnBuildDepthMm({
+        cabinetDepthMm: WORKTOP_DEPTH_MM,
+        hasFullHeightUnder: false,
+      }),
+    ).not.toBe(400);
   });
 
   // **Changed deliberately in wave 5F**, which is the wave that answered the question this test

@@ -13,8 +13,9 @@ import {
   type ConfiguratorState,
 } from "@/store/configurator-store";
 import {
+  buildKitchenLBodyCatalog,
+  cabinetDepthMmOf,
   describeSelection,
-  KITCHEN_L_BODY_CATALOG,
   KITCHEN_L_DESIGN,
   offersFor,
   type Design,
@@ -25,7 +26,8 @@ import { ro } from "@/content/ro";
 import { describePanel, type PanelView } from "@/panel/panel-model";
 
 import { columnExtents } from "../support/column-extents";
-import { createFakeBodyProbe } from "../support/fake-body-probe";
+import { createFakeProbeFactory } from "../support/fake-body-probe";
+import { LEGACY_ENUM_FINISHES } from "@lemnaria/configurator-domain";
 
 /** Exactly what `usePanelView` composes, from exactly the store fields it subscribes to. */
 function panelFromStore(state: ConfiguratorState): PanelView {
@@ -35,7 +37,14 @@ function panelFromStore(state: ConfiguratorState): PanelView {
       ? describeSelection({ records, voids, catalog, target: selection })
       : undefined,
     offers: selection
-      ? offersFor({ records, voids, columns, catalog, target: selection })
+      ? offersFor({
+          records,
+          voids,
+          columns,
+          catalog,
+          target: selection,
+          cabinetDepthMm: cabinetDepthMmOf(state.design),
+        })
       : [],
     rejection: state.lastRejection,
     widthOptions: [],
@@ -54,8 +63,8 @@ function createStore(overrides: StoreOverrides = {}) {
   const { withProbe = true, design = KITCHEN_L_DESIGN } = overrides;
   return createConfiguratorStore({
     design,
-    catalog: KITCHEN_L_BODY_CATALOG,
-    ...(withProbe ? { bodyProbe: createFakeBodyProbe() } : {}),
+    catalogAt: buildKitchenLBodyCatalog,
+    ...(withProbe ? { probeAt: createFakeProbeFactory() } : {}),
     now: () => "2026-08-26T12:00:00.000Z",
   });
 }
@@ -141,7 +150,7 @@ describe("the panel over the store's own state", () => {
         ro.panel.probeUnavailable,
       ]);
 
-    store.getState().attachBodyProbe(createFakeBodyProbe());
+    store.getState().attachBodyProbe(createFakeProbeFactory());
     const after = openPanel(store.getState()).sections.find(
       (candidate) => candidate.kind === "replace",
     );
@@ -170,7 +179,10 @@ describe("the panel over the store's own state", () => {
   it("marks a finish and a handle the moment the command applies", () => {
     const store = createStore();
     store.getState().select({ kind: "placement", id: "p0" });
-    store.getState().setFinish("sage");
+    // *Antracit* rather than *Salvie* since wave 6Q-a: the fixture carries no settings, so it is a
+    // PAL kitchen and PAL offers no free colour (ADR 0078 decision 1). What is under test is that
+    // the panel marks a chip the moment the command applies, which needs a command that applies.
+    store.getState().setFinish(LEGACY_ENUM_FINISHES.graphite);
     store.getState().setHandle("black");
 
     const sections = openPanel(store.getState()).sections;
@@ -180,7 +192,7 @@ describe("the panel over the store's own state", () => {
       throw new Error("expected both appearance sections");
     expect(
       finish.chips.filter((chip) => chip.isActive).map((chip) => chip.value),
-    ).toEqual(["sage"]);
+    ).toEqual(["graphite"]);
     expect(
       handle.chips.filter((chip) => chip.isActive).map((chip) => chip.value),
     ).toEqual(["black"]);

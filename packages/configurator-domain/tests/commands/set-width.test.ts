@@ -12,12 +12,8 @@
 import { describe, expect, it } from "vitest";
 
 import { setWidth } from "../../src/commands/set-width.js";
-import type {
-  Design,
-  DesignPlacement,
-  Finish,
-  Handle,
-} from "../../src/design.js";
+import type { Design, DesignPlacement, Handle } from "../../src/design.js";
+import type { Finish } from "../../src/materials.js";
 import {
   KITCHEN_L_BODY_CATALOG,
   KITCHEN_L_DESIGN,
@@ -35,6 +31,7 @@ import {
   type KitchenWorld,
 } from "../support/kitchen-world.js";
 import { syntheticWorld } from "../support/synthetic-world.js";
+import { LEGACY_ENUM_FINISHES } from "../../src/materials.js";
 
 function kitchen(): KitchenWorld {
   return createWorld(KITCHEN_L_DESIGN, KITCHEN_L_BODY_CATALOG);
@@ -570,7 +567,7 @@ describe("§11 rows 12 and 13 — appearance survives, for every member", () => 
           // Three bodies that all carry a front, so all three have a finish and a handle to
           // preserve. A shelf and a hood declare `canFinish: false` and correctly carry neither.
           levels: { wall: "wall-2door-600", top: "wall-2door-600-top" },
-          finish: "sage",
+          finish: LEGACY_ENUM_FINISHES.sage,
           handle: "black",
         },
         { id: "R", alongMm: 1900, widthMm: 600 },
@@ -586,7 +583,7 @@ describe("§11 rows 12 and 13 — appearance survives, for every member", () => 
       const placement = result.design.placements.find(
         (candidate) => candidate.id === id,
       );
-      expect(placement?.body.finish).toBe("sage");
+      expect(placement?.body.finish).toEqual(LEGACY_ENUM_FINISHES.sage);
       expect(placement?.body.handle).toBe("black");
     }
   });

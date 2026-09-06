@@ -472,7 +472,7 @@ function applyColumnResize(
 
   const moved = derivePlacementRecords(design, input.catalog);
   const columns = moveFrozenColumns(
-    rederiveTouchedColumns(input.columns, records, moved),
+    rederiveTouchedColumns(input.columns, records, moved, input.design.room),
     move,
     moved,
   );

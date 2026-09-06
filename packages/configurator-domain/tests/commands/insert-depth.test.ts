@@ -13,6 +13,11 @@
 // which is exactly the population this file sweeps.
 import { describe, expect, it } from "vitest";
 
+import {
+  WALL_CABINET_KIND,
+  WALL_CORNER_RETURN_KIND,
+  WALL_CORNER_RETURN_TOP_KIND,
+} from "../../src/body-kinds.js";
 import { openingFromPlacement } from "../../src/commands/insert-fit.js";
 import type { Design } from "../../src/design.js";
 import {
@@ -99,11 +104,20 @@ const WALL_FRONT_ASSEMBLY_MM = 39;
  *  lands (ADR 0018). */
 const CAP_OVER_WORKTOP_SEAT_MM = CAP_OVER_WORKTOP_MM - WALL_FRONT_ASSEMBLY_MM;
 
+/** The kinds whose builder stands a door in front of the shell. ADR 0066 split the two corner
+ *  returns out of `wall_cabinet` into names of their own; they are still fronted wall carcasses, so
+ *  a membership test keeps this helper covering the same bodies it covered before the rename. */
+const FRONTED_WALL_KINDS: readonly string[] = [
+  WALL_CABINET_KIND,
+  WALL_CORNER_RETURN_KIND,
+  WALL_CORNER_RETURN_TOP_KIND,
+];
+
 /** An open shelf and a hood carry no front assembly, so only a fronted wall carcass needs the
  *  correction. Keyed on the seeded row's `kind`, which is what the production rule reads. */
 function declaredDepthMm(record: PlacementRecord): number {
   const seatMm = toMillimetres(record.frame.d);
-  return record.kind === "wall_cabinet"
+  return FRONTED_WALL_KINDS.includes(record.kind)
     ? seatMm + WALL_FRONT_ASSEMBLY_MM
     : seatMm;
 }
@@ -198,6 +212,7 @@ describe("insertBody — the depth an insert into an empty void builds against (
         voids: world.voids,
         columns: world.columns,
         catalog: world.catalog,
+        cabinetDepthMm: world.cabinetDepthMm,
         target: { kind: "void", id: record.id },
       }),
     )[0]?.buildId;

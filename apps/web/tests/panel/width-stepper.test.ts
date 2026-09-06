@@ -14,6 +14,7 @@
 // nobody checks against the fact it derives is exactly how ADR 0035 decision 3 came to name
 // `fixedWidth` as the discriminator for a day.
 import {
+  cabinetDepthMmOf,
   columnWidthChoices,
   deriveColumns,
   derivePlacementRecords,
@@ -44,6 +45,9 @@ import { createFakeBodyProbe } from "../support/fake-body-probe";
 /** ADR 0011 Gap D: columns are load-time state, frozen from the whole design. */
 const SEEDED_COLUMNS = deriveColumns(
   derivePlacementRecords(KITCHEN_L_DESIGN, KITCHEN_L_BODY_CATALOG),
+
+  {},
+  KITCHEN_L_DESIGN.room,
 );
 
 /** The store's own fake: it measures exactly what it was asked to build, so a resize the domain's
@@ -82,7 +86,11 @@ function panelAt(world: World, target: CommandTarget, canWrite = true) {
   };
   return describePanel({
     meta: describeSelection({ ...world, target }),
-    offers: offersFor({ ...world, target }),
+    offers: offersFor({
+      ...world,
+      target,
+      cabinetDepthMm: cabinetDepthMmOf(world.design),
+    }),
     rejection: null,
     widthOptions: widthOptionsFor(engineInput),
     widthSteps: widthStepsFor(engineInput),
@@ -263,7 +271,11 @@ describe("ADR 0035 decision 3's two controls, chosen by the shape of the bound",
     };
     const panel = describePanel({
       meta: describeSelection({ ...world, target }),
-      offers: offersFor({ ...world, target }),
+      offers: offersFor({
+        ...world,
+        target,
+        cabinetDepthMm: cabinetDepthMmOf(world.design),
+      }),
       rejection: null,
       widthOptions: widthOptionsFor(engineInput),
       widthSteps: widthStepsFor(engineInput),

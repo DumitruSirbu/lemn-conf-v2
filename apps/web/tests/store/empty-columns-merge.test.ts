@@ -9,8 +9,8 @@
 // It is also the only place criterion 11 can be asked: what `projectEmptyColumns` writes into the
 // document is decided by which map is canonical, and this wave's answer is the merged one.
 import {
+  buildKitchenLBodyCatalog,
   DesignSchema,
-  KITCHEN_L_BODY_CATALOG,
   KITCHEN_L_DESIGN,
   type Column,
   type Design,
@@ -18,7 +18,7 @@ import {
 import { describe, expect, it } from "vitest";
 
 import { createConfiguratorStore } from "../../src/store/configurator-store";
-import { createFakeBodyProbe } from "../support/fake-body-probe";
+import { createFakeProbeFactory } from "../support/fake-body-probe";
 
 const OCCURRED_AT = "2026-08-25T12:00:00.000Z";
 
@@ -39,9 +39,9 @@ const MERGED_WIDTH_MM = 800;
 function createStore(design: Design = KITCHEN_L_DESIGN) {
   return createConfiguratorStore({
     design,
-    catalog: KITCHEN_L_BODY_CATALOG,
+    catalogAt: buildKitchenLBodyCatalog,
     now: () => OCCURRED_AT,
-    bodyProbe: createFakeBodyProbe(),
+    probeAt: createFakeProbeFactory(),
   });
 }
 
@@ -179,6 +179,11 @@ describe("the document carries the merged column, and a reload rebuilds it", () 
         y0Mm: 0,
         topMm: 2600,
         depthMm: 620,
+        // ADR 0073 decision 8: the merged entry carries the **template's** source, and the template
+        // is the shallowest member — the same extent that supplied `depthMm` above, so the depth and
+        // the body it came from stay one answer. Both parts froze at 620 here and the sink column is
+        // the one the envelope took, so no new choice was made.
+        depthFromBuildId: "base-sink-800",
       },
     ]);
   });

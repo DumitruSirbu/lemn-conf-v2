@@ -432,7 +432,7 @@ describe("the derivation over the range, not at a point", () => {
    *  a hand-edited frame: a resize rebuilds the body, and only the built body can say whether the
    *  panel still clears it. */
   it("keeps the authored 1 mm of air at every width the domain accepts", () => {
-    const columns = deriveColumns(SEEDED_RECORDS);
+    const columns = deriveColumns(SEEDED_RECORDS, {}, KITCHEN_L_DESIGN.room);
     const accepted: number[] = [];
 
     for (const widthMm of RESIZE_SWEEP_MM) {

@@ -1,6 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
 import { readSelection } from "./support/panel";
+import { tapCanvas } from "./support/canvas-taps";
 import { deleteMintedDesigns } from "./support/minted-designs";
 
 /**
@@ -65,7 +66,7 @@ async function openAndSelect(page: Page, designId: string): Promise<void> {
   await probe;
   await page.waitForTimeout(SCENE_SETTLE_MS);
 
-  await page.tap("canvas", { position: SINK_CABINET_TAP });
+  await tapCanvas(page, SINK_CABINET_TAP);
   await expect(page.getByTestId("editor-panel")).toHaveCount(1);
   await expect(async () => {
     expect((await readSelection(page)).selectionId).toBe("p0");

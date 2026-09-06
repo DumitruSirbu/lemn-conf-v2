@@ -69,7 +69,7 @@ interface World {
 }
 
 function clear(design: Design, placementIds: readonly string[]): World {
-  const columns = deriveColumns(recordsOf(design));
+  const columns = deriveColumns(recordsOf(design), {}, design.room);
   const cleared = placementIds.reduce((current, id) => {
     const result = removePlacement({
       design: current,

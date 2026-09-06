@@ -399,7 +399,14 @@ The fix is a decision, not a repair: `w` as the MIN over a whole vertical run is
 question, since the widths in a run are independent per level (backlog entry 4 records that they
 already are). Related: [entry 6](#6-the-200-mm-cargo-is-unreachable-by-any-insert--input-for-m5).
 
-## 8. A fixed-set body in a much wider opening leaves an unbuilt gap — NEEDS THE OWNER
+## 8. A fixed-set body in a much wider opening leaves an unbuilt gap — RULED 2026-09-05, NOT M6 SCOPE
+
+**Ruled by the owner, 2026-09-05: the third option.** Split the opening so the remainder becomes a
+void the customer can fill — the same mechanism as backlog entry 2's level-B re-split. **This is not
+M6 scope and needs its own plan**; the entry stays open here because nothing is built yet, only
+decided which of the three shapes below is wanted.
+
+### The finding, as recorded before it was ruled
 
 **Raised by logic review as a disagreement, 2026-08-26.** §5.2 has a millimetre-set body take the
 widest size in its set that fits. Choose the bottle cargo in an 800 mm opening and it builds 300 mm
@@ -420,53 +427,6 @@ Three shapes of answer, none of them chosen here:
 
 The owner should decide before the cargo reaches a customer, since ADR 0026's size set is
 unconfirmed anyway.
-
-## 10. Swap and delete-then-insert give a wall cabinet different depths
-
-**Found by the coordinator while verifying the R3.1 fix, 2026-08-26.** Measured on the shipped
-kitchen, over the fridge column `B|2.45`:
-
-```
-p24 as shipped                      600 mm
-SWAP p24 -> wall-2door              600 mm   (preserves the outgoing body's frame)
-DELETE p24, then insert wall-2door  680 mm   (takes the void's own depth)
-```
-
-Both follow rules that are individually correct. A swap in place reads the outgoing body's `frame.d`
-— that is the fix for the original protruding-cabinet defect. An insert into an empty void reads
-`void.d`, which is `Column.d`, §3.2's MAX over the run — here the freestanding fridge's 680 mm.
-
-So two routes to the same end state — "a `wall-2door` in this slot" — produce cabinets 80 mm apart,
-and which one the customer gets depends on whether they replaced the cabinet or deleted it first.
-
-This is the concrete form of what logic review raised as R3.2: the cap is evadable by ordering,
-because `hasFullHeightUnder` is re-answered for future inserts while a placed body's depth is a
-persisted fact. Fixing R3.1 removed the *harmful* instance (a 580 mm carcass over a worktop). This
-one is not harmful — 680 mm is genuinely the column's depth and there is no worktop to lean over, so
-it violates no rule in backlog entry 5 — but it is an inconsistency a customer can reach.
-
-**Not fixed, because the right answer is not obvious.** Three readings, all defensible:
-
-- **680 is correct.** The opening really is that deep; a cabinet flush with the fridge front is a
-  normal thing to build. The rule says "as deep as the column" and the column is 680.
-- **600 is correct.** The seeded design chose 600 over this fridge deliberately, and an insert should
-  not silently exceed what the kitchen was designed with.
-- **They should simply agree**, whichever value wins, because "delete then re-add" and "replace" are
-  the same intent expressed two ways, and §5.3 exists precisely so a swap is not a delete plus an
-  insert.
-
-The third is the one worth deciding first: the divergence matters more than the number.
-
-Related: entry 9 (a hood round trip costing 100 mm) is the same mechanism — a placed body's depth is
-a persisted fact and nothing re-derives it.
-
-**Not superseded by M5, and the reason is worth stating (2026-08-27).** M5 wave 5A makes the worktop
-→ wall depth map the single source for §7's nominal and §5.2's cap. That governs the **capped** path
-only. This entry lives on the **uncapped** path — over a full-height column, where
-`hasFullHeightUnder` lifts the cap and both 600 and 680 are legitimately the column's depth. So 5A
-fixes the sibling defect over a base run and leaves this divergence exactly as measured. It is
-recorded as **question 8** in `docs/milestones/M5-width.md`'s *Not established — Depth* so M5 does
-not mistake it for something already handled.
 
 ## 12. §3.2's column cannot express a middle level at its own width — RAISED BY M5 WAVE 5C
 
@@ -554,69 +514,13 @@ scope a decision rather than an oversight.
 this seam. Not a 5C fix: it changes what `offersFor` offers, which is M3's machinery and its own
 acceptance criteria.
 
-## 15. A wall cabinet over a full-height column is built to a depth no one manufactures — NEEDS A DECISION
+## 16. No camera preset frames the right end of wall A's base run at the mobile viewport — RULED 2026-09-05, NOT YET BUILT
 
-**Reproduced live in the running product at 390 x 844, 2026-08-31**, during wave S9 of the
-adversarial-review remediation. Delete `p24` — the cabinet over the fridge — and insert a
-`wall-cabinet` back into the void it vacates. The document written to the database carries
-**`seatDepthMm: 703`**: a 742 mm finished wall cabinet hanging over a 680 mm appliance. It was
-persisted with `probe=on`, an **empty `rejection`**, and zero console errors. **No gate on that path
-paused.**
+**Ruled by the owner, 2026-09-05: fit-to-run framing on the *Perete A* preset**, so the run end is on
+screen at 390 px, rather than a separate preset. The owner accepted the proposal as put to them. Not
+built yet — this entry stays open until a wave implements it.
 
-**It has no user-facing tell, which is the part that makes it urgent.**
-
-- **The panel surfaces no depth at all.** The offer sheet for that opening reads *"Spatiu liber ·
-  Perete B · suspendat · 700 x 750 mm"* — width and height only. The 703 appears on **no screen in
-  the product**.
-- **Neither the void nor the rebuilt body looks wrong.** The void is a clean box above the fridge and
-  the rebuilt cabinet renders as a plausible deep cabinet. A person would flag neither, and would
-  catch it only by comparing against the 330 mm run on the other wall.
-- **No camera preset shows wall B at a grazing angle** — *Perete B* is face on and *Perete A* frames
-  the other run — so that column's depth is not legible in any view the product offers.
-
-Silent in the copy, silent in the render, and it lands as a carcass nobody ordered. That is what
-should decide its priority: a spec-to-manufacture defect, not a cosmetic one.
-
-**What is actually true in the code.** `resolveDepthM`'s uncapped arm reads `opening.d` when
-`hasFullHeightUnder` is true, and `opening.d` comes from `occupiedDepthM`. Two different facts are
-being served by one number:
-
-- *"the full extent a body occupies, handles included"* — a **clearance** fact, which is what §3.1
-  asks for and what `occupiedDepthM` computes;
-- *"the depth to build the next body to"* — a **manufactured size**, which is what `resolveDepthM`
-  hands the probe.
-
-Only the first is the one it computes. `packages/configurator-domain/src/worktop-depth.ts` exists
-precisely so a formula cannot invent a cabinet nobody makes — its declared map is a declaration and
-never an interpolation, *because* a formula would produce a 372 mm cabinet no one manufactures — and
-the uncapped arm is a formula doing exactly that, one module over.
-
-**It pre-dates wave S9, and S9 worsened it.** The arm built a **680 mm** wall carcass before the
-wave, which is no more manufacturable than a 742 mm one, so the defect is not new and S9 did not
-introduce it. What changed is that the number the arm reads is now the full extent including
-appliance handles — further from any real cabinet than it was — and that it is reached on **two
-columns of the shipped kitchen rather than none**: `B|1.20` moved 600 → 638 (the oven tower's
-appliance bars) and `B|2.45` moved 680 → 742 (the fridge's door bars). Deleting the top cabinet is an
-ordinary action and leaves the full-height member standing, so `hasFullHeightUnder` stays true and
-the uncapped arm is what answers.
-
-**What deciding it would cost.** Separating clearance from build depth is the real fix, and it is a
-**product decision, not a bug fix** — nobody should pick this up expecting a one-line patch.
-Whether that arm should read `opening.d` at all is the question: a wall cabinet flush with a fridge
-front may be exactly what a customer wants, or the cap may belong there too, or the column may need
-to publish two numbers — the space a body occupies and the depth the next body is built to — which
-is a new fact in the model with `deriveColumns`, the swap opening and the void mesh all reading it
-today. Changing `resolveDepthM` inside a wave scoped to DOM-002 would have been the silent product
-change the remediation exists to stop, which is why it was recorded rather than fixed.
-
-**Evidence.** Commit `f9b92e1` (wave S9, closing DOM-002); the wave S9 summary in
-`docs/milestones/adversarial-review-remediation.md`; and `testing-reports/03-domain-model.md`, whose
-DOM-002 finding is what the wave was scoped to.
-
-Related: entry 10 is the same seam from the other side — two routes to "a wall cabinet in this slot"
-producing different depths on the uncapped path — and entry 5 is the capped sibling.
-
-## 16. No camera preset frames the right end of wall A's base run at the mobile viewport — NEEDS A DECISION
+### The finding, as recorded before it was ruled
 
 **Found by visual verification of M5B wave 5B3, 2026-09-01**, outside that wave's scope and outside
 every other wave's. At 390 × 844 the run-end panel (`end_panel_right`, entry point for wave 5B3)
@@ -647,113 +551,6 @@ nothing to insert into and no way back to a base cabinet there short of reloadin
 **What deciding this needs.** A deliberate reproduction — hydrate a design with zero wall-A base
 placements and check whether `deriveColumns`/`recomputeVoids` publish a base-row opening for that
 wall — before this is treated as more than a hunch. Out of scope for every wave in M5B.
-
-## 18. A cabinet-hardware choice reaches the oven's and the microwave's bars in `tall-oven-tower` — NEEDS A DECISION
-
-Split out of entry 11 on 2026-09-01 when that entry was decided and closed
-([ADR 0051](decisions/0051-the-dishwasher-niche-wears-a-decor-door.md), Consequences). Entry 11
-carried this as a one-sentence tail; it is recorded here in its own right so the deferral leaves a
-pointer rather than a silence. **Owner: whoever owns §6.5**, which is the placement entry 11 gave it
-and ADR 0051 did not overturn.
-
-`setHandlesVisible` and `applyBlackHandleMaterial` (`packages/three-adapter/src/decomposed-bodies.ts`)
-act on **every** `handle` group in a body. `tall-oven-tower` builds four `handle_bar` meshes, of
-which exactly two are the cabinet's — the other two belong to the oven and to the microwave. So
-`handle: "push"` on that body hides the appliances' bars alongside the cabinet's, and `handle:
-"black"` repaints them in cabinet hardware. `base-hob-oven` carries the same exposure with one bar,
-the oven's, and is held off it only by `canHandle: false`.
-
-**Different cause from entry 11's, which is why it was not folded into wave 5B10.** Nothing about a
-missing front is involved: the flags on `tall-oven-tower` are truthful — it really does have two
-cabinet handles — and the capability gate
-(`packages/three-adapter/tests/catalog-capability-parity.test.ts`) passes it, correctly. The defect
-is downstream, in the path that *applies* a handle choice, which has no notion of whose handle it is
-touching. The fix is to teach that path the same cabinet-versus-appliance rule `opensAFront()`
-already encodes in the gate: a `handle` group is the cabinet's exactly when its own parent also
-holds a front.
-
-**What deciding it costs.** The change is in a file every body in the scene goes through, so its
-blast radius is the whole catalogue rather than one body — which is why folding it into a wave that
-also moved seeded geometry was refused. `base-dishwasher` stopped being an instance of this on
-2026-09-01; `base-hob-oven`'s oven bar and `tall-oven-tower`'s two appliance bars remain.
-
-## 19. The dishwasher decor door meets its own appliance at a 520 mm cabinet depth — NEEDS THE OWNER, WHEN M6 CAN REACH IT
-
-Found while implementing M5B wave 5B10 ([ADR 0051](decisions/0051-the-dishwasher-niche-wears-a-decor-door.md)),
-which anchors `dishwasherHousing`'s decor door on `CARC_D` (the derived `carcassDepthM`) so it follows
-the cabinet-depth setting the way every other base front does. `dw_body` — the appliance behind the
-door — does not follow: it is a real-world machine built at a literal 0.24 m front regardless of what
-`CARC_D` says. The gap between the two is `CARC_D / 2 − 0.24`, so it closes at half a millimetre for
-every millimetre `CARC_D` drops. At the shipped 600 mm kitchen the door's inner face is `CARC_D / 2 =
-0.28`, leaving 40 mm of mounting clearance. The clearance reaches zero — the appliance meeting its own
-door — at a **520 mm cabinet depth**.
-
-**Not reachable today.** 600 mm is the only cabinet depth the product can currently produce; M5's
-worktop-depth map is a single declared constant with no control on it (see backlog *Also open* below).
-This is a floor with no way to be crossed yet, which is why it is backlog rather than a defect.
-
-**The first thing that can reach it is M6's *Setări globale* depth control**
-(`docs/milestones/M6-price-and-global-settings.md` work item 4), so that work is this entry's owner.
-Whoever wires the control needs a decision before a customer can pick a cabinet depth below 520 mm
-with a dishwasher niche in the design: refuse that combination with a stated reason, cap the depth
-control's floor at 520 mm globally, or give the niche its own floor separate from the rest of the
-catalogue. None of those is chosen here.
-
-Already commented at the mounting site — `packages/three-adapter/src/kitchen-parts.ts`, the comment
-above `dishwasherHousing`'s door slab — so the constant and the derivation that produces 520 mm are
-there for whoever picks this up, rather than needing to be re-derived.
-
-## 20. A resized seeded body renames itself, and the customer sees two names for one cabinet
-
-Found by visual verification of wave 5B8 (2026-09-01). The seeded pantry's header reads **"Coloană"**
-at 600 mm. Step it to any other width and back to 600, and the same body at the same width now reads
-**"Coloană cămară 2 uși"**.
-
-Nothing is wrong. `resolve-column-members.ts:191-194` says a resize rebuilds through the catalogue
-equivalent, so **a resized seeded body migrates its `buildId`** — it has to, because
-`buildDecomposedBody` takes no width and every seeded id is one fixed geometry. `describe-selection`
-then finds a definition where it previously found none (`catalog.get(record.buildId)`), and the
-catalogue row carries both a real `label` and `doorCountFollowsWidth`, where the seeded id carried
-neither and fell back to `KIND_LABELS_RO.tall_unit`.
-
-So this is two documented rules meeting, not a defect in either. It has applied to base cabinets
-since ADR 0033; wave 5B8 made it reachable for a column, where the two names differ most.
-
-**What a fix would be, if the owner wants one.** Give the seeded rows the labels their catalogue
-equivalents carry, so the migration changes nothing the customer reads. That is a fixture edit, not
-a mechanism change, and it is bounded by the M1 parity gate only in that it touches no geometry.
-Doing it would also close the smaller version of this on every other seeded body.
-
-Not scheduled. Raise it with the owner before spending anything on it — a rename that fires on the
-customer's first resize may be acceptable, and the header is not wrong at either end.
-
-## 21. The rendered shell and the seeded document disagree about the size of the room
-
-Found by the 5B2a logic review (2026-09-01). `kitchen-parts.ts:1795-1797` builds the shell at
-`RW = 4.2, RD = 3.4, WH = 2.6`. `kitchen-l-design.ts:469` declares the same kitchen as
-`{ widthMm: 3600, depthMm: 2400, heightMm: 2600 }`. The height agrees; **both floor dimensions do
-not**, by 600 mm and 1000 mm.
-
-Nothing is currently broken by it. Every seeded placement fits inside 3600, and
-`longestWallRunMm` holds both walls to `max(width, depth)`, so containment validation passes on the
-document's own numbers. The customer sees a room 600 mm wider than the document says it is, and no
-rule reads both figures at once, so nothing has ever compared them.
-
-**Why it matters now.** Wave 5B2a made room containment a validated rule for a new persisted field,
-and two of its test fixtures had to declare 4200 to hold coordinates the shell renders but the
-document forbids. So the mismatch is no longer merely cosmetic — it is load-bearing for test
-fixtures, and the next rule that reads the room will inherit the same choice of which figure is
-true.
-
-**What a fix needs first.** Decide which number is the room: the document is the contract and the
-geometry should follow it, but the shell's 4.2 x 3.4 is what every screenshot and every manual
-session has ever shown, and the M1 1e-6 structural parity gate pins that geometry. Changing the
-shell to 3.6 x 2.4 moves seeded geometry and needs a `DeclaredStructuralChange` under ADR 0051;
-changing the document to 4200 x 3400 moves no geometry but widens the containment envelope every
-validation rule is measured against.
-
-Not scheduled. Raise it with the owner — it is a one-line change either way and a real decision
-about which artefact is authoritative.
 
 ## 23. ADR 0032's refused rows are published but never rendered, and only a code comment says so
 
@@ -925,6 +722,299 @@ Not decided. Needs an owner call on: id scheme (keep nanoid vs. adopt v7 and acc
 whether step 1 mints before or after the wall-size intake is complete, and which milestone this and
 step 1 itself belong to.
 
+## 41. The sink, its bowl and its faucet do not follow the cabinet-depth setting — NEEDS AN OWNER DECISION
+
+Found 2026-09-05 while measuring the hob for
+[ADR 0087](decisions/0087-the-hob-holds-its-reach-and-a-deeper-worktop-grows-behind-it.md). **Same
+class of defect, different fixture, and deliberately not decided by that record** — the owner ruled
+on the hob and only the hob, and inventing the parallel ruling for a sink is the silent product
+change this file exists to prevent.
+
+**What was observed.** Build `base-sink` at both depths ADR 0056 declares and the entire sink
+assembly is **byte-identical** at 600 and at 700 — `sink_rim_*`, `bowl_*`, `drain_*` and every
+`faucet_*` mesh — while the worktop around it grows 50 mm forward and 50 mm back. Measured in the
+body's own local frame, metres, `+z` towards the customer:
+
+| Local `z` | at 600 | at 700 |
+| --- | --- | --- |
+| worktop back edge — the wall plane | −0.290 | −0.340 |
+| `faucet_escutcheon` | −0.288 … −0.192 | −0.288 … −0.192 |
+| sink aperture (`sink_rim_back` … `sink_rim_front`) | −0.200 … 0.200 | −0.200 … 0.200 |
+| door front face | 0.298 | 0.348 |
+| worktop front edge | 0.330 | 0.380 |
+
+So at 600 the bowl's front rim is **130 mm** behind the worktop's front edge and the faucet stands
+**2 mm** off the worktop's back edge; at 700 those become **180 mm** and **52 mm**.
+
+**What is actually true in the code.** `baseCabinet`'s sink arm (`packages/three-adapter/src/
+kitchen-parts.ts`) splits the counter around a fixed `0.70 × 0.36` aperture centred on the body
+origin, and seats `builders["sink-faucet"]()` by setting **only** its `y` — its `z` stays at the
+carcass centre. Nothing in the assembly reads `carcassFrontM` or `counterDepthM`, which is what
+`OVEN_FORWARD_OFFSET_M`, `MICROWAVE_FORWARD_OFFSET_M` and `HOOD_SEAT_OFFSET_M` all do.
+
+**It is not a geometry defect and no gate is wrong to be green.** Nothing intersects, nothing
+floats, no wall is crossed, and the body's finished depth is its worktop's at both depths
+(`baseFinishedDepthMm`, 620 / 720) — so `cabinet-depth-sweep.parity.test.ts`,
+`room-composition.parity.test.ts` and `occupied-depth.parity.test.ts` are all correct to pass. The
+sink also stays a constant 20 mm rear of its worktop's centre at both depths, which is a **coherent
+rule** — "a sink is centred in its worktop" — and may well be the right one.
+
+**Why it still needs an answer.** The owner's reason for the hob ruling was reach: *"when you cook
+you should use easy the back hob circles in same way as it was 600 mm worktop"*. A bowl 50 mm further
+away and a tap 50 mm further back are the same argument on the fixture a customer leans over most.
+Three shapes, and only the owner can choose:
+
+- **Front-aligned, like the hob and the hood** — the aperture holds a constant clearance to the
+  worktop's front edge and the added depth appears behind the tap. Consistent with ADR 0087 and
+  ADR 0039; costs the tap its position hard against the back edge, which is where a tap normally
+  goes.
+- **Centred in the worktop** — what ships today. Splits the 100 mm evenly; the bowl loses 25 mm of
+  reach and the tap gains 25 mm of counter behind it.
+- **Rear-aligned** — the tap holds its 2 mm to the back edge and all 100 mm appears in **front** of
+  the bowl. Physically what a plumber would do, and the worst of the three for reach.
+
+**What deciding it would cost.** One wave in `packages/three-adapter` only, the shape of wave 6U: the
+aperture's and the faucet's seats become derived from the depth-parameterised locals instead of the
+body origin, with a sweep over ADR 0056's declared depths asserting the chosen relation at both. No
+domain declaration moves (the body finishes at its worktop either way), no stored field changes and
+no migration is owed, for the reason ADR 0087 decision 5 gives for the hob. **Reachable today** —
+`p0` is the shipped 800 mm sink base and the depth control shipped in wave 6K.
+
+## 42. `tall-pantry`'s door-leaf/handle declaration should be pinned separately from the real catalogue — HIGH, QUEUED FROM THE 2026-09-05 CERTIFICATION AUDIT
+
+**Found by the 2026-09-05 certification audit.** `catalog.ts:1020-1022`
+(`packages/configurator-domain/src/catalog.ts`) declares `tall-pantry`'s
+`cabinetHandles: handlesOnDoorLeaves({ doorTiers: 2, handlesPerLeaf: 1 })`. Swapping the pair to
+`{ doorTiers: 1, handlesPerLeaf: 2 }` keeps wave 6L's 391 tests **and** all 2186 adapter tests green
+while halving the door-leaf count the price step bills — a mutation the wave's own suite cannot
+catch today. Needs a literal test pinning the declared shape on its own, separate from the general
+catalogue sweep, so a swap like this fails loudly instead of passing every gate. Recorded here as a
+docs-only entry; the fix itself is code and is not attempted in this pass.
+
+## 43. Wave 6A2's own files carry no literal pin on the seeded row's rendered name
+
+**Found by the 2026-09-05 certification audit.** 6A2's invariant — a body's name does not change when
+its `buildId` migrates on resize — is proven by construction, and holds, but the guarantee is
+currently covered by wave 5B8's own literals rather than by a pin inside 6A2's own files (measured:
+4/6 mutations killed by 6A2's own files, 6/6 by the full suite — see `docs/STATUS.md`'s certification
+note). Add one literal pin, in 6A2's own file, with a comment stating why it is the one allowed copy
+— the invariant test already derives both sides, and this is the one place a literal earns its keep.
+
+## 44. A vacuous test in `cabinet-depth-sweep.parity.test.ts` calls no production code
+
+**Found by the 2026-09-05 certification audit.** `cabinet-depth-sweep.parity.test.ts:264`
+(`packages/three-adapter/tests/`):
+
+```
+expect((cabinetDepthMm - 40) / 2 - 240).toBeGreaterThan(0);
+```
+
+asserts an inline re-statement of ADR 0059's arithmetic over `DECLARED_DEPTHS_MM`, never
+`MIN_CABINET_DEPTH_MM` or any exported function — it cannot fail regardless of what the declared
+constant actually is. Delete it or repoint it at `MIN_CABINET_DEPTH_MM` and
+`declaredCabinetDepthsMm()` so it exercises production code.
+
+## 45. A stale test name in `cabinet-handle-apply.test.ts` undercounts its own assertion
+
+**Found by the 2026-09-05 certification audit.** `cabinet-handle-apply.test.ts:210`
+(`packages/three-adapter/tests/`) names the test *"sees appliance bars on three bodies and cabinet
+handles on the rest"*, but the array it asserts (lines 226–232) has **five** entries: `base-hob-oven`,
+`fridge-free`, `fridge-free-700`, `tall-oven-tower`, `tall-oven-tower-600`. The assertion is correct;
+only the name is stale, most likely predating the two `-700`/`-600` rows. Rename it.
+
+## 46. An orphaned doc comment in `cabinet-depth-rule.ts` is attached to the wrong function
+
+**Found by the 2026-09-05 certification audit.** `cabinet-depth-rule.ts:244-246`
+(`packages/configurator-domain/src/`) — *"The one range check both arms pass through … not a second
+copy of the declared set but the same set asked before the branch"* — sits directly above
+`columnBuildDepthM`'s own one-line doc comment (line 247) and function (line 248), but describes wave
+6I2's `wallDepthMmForWorktop` range guard, not 6I's `columnBuildDepthM`. Reattach it to the function
+it actually describes. **Line numbers verified against the tree 2026-09-05**; an earlier note cited
+242-245, which is off by two lines.
+
+## 47. `alongWallPositionFollows` has a validator and no consumer — RULED 2026-09-06: KEPT, reader owed to M6 wave 6J-c
+
+**Found by the 2026-09-05 certification audit.** `cabinet-depth-rule.ts:137`
+(`packages/configurator-domain/src/cabinet-depth-rule.ts`) throws
+(`UndeclaredCabinetDepthRuleError`) unless `alongWallPositionFollows` is one of two literals
+(`"base-formula"`, `"wall-map"`), but nothing anywhere branches on **which** of the two it is — it is
+checked and then discarded. The coordinator's own lean is to delete the field rather than give it a
+reader, now that the surface that might have consumed it — the wall-coverage bars, waves 6N-b/6N-c —
+is descoped by the owner's 2026-09-05 ruling (see
+[ADR 0083](decisions/0083-wall-coverage-is-the-runs-extent-and-the-finished-end-is-part-of-it.md)).
+**This needs an architect's ruling, not a coordinator's or a scribe's** — recorded here so it is not
+lost, not decided.
+
+**RULED 2026-09-06 by
+[ADR 0089](decisions/0089-the-along-wall-chain-is-kept-and-its-reader-is-the-depth-command.md): the
+field is kept and M6 wave 6J-c gives it its reader.** The measurement above is right; the premise
+under the lean is not. The descoped bars (6N-b/6N-c) would have *displayed* a coverage figure — the
+chain decides *geometry*, and 6J-c's wave row has said `6N included` since it was written. Measured
+at `14cef90`: at 700 mm two wall-B bodies are driven into wall A's run at the corner, by 80 mm on the
+base chain and 31 mm on the wall-map chain, and `validateDesignForCatalog` reports neither. The two
+literals carry two different deltas, +100 mm and +70 mm, so the field selects between behaviours
+rather than labelling one. This entry belongs in **Resolved** once someone reconciles the file; it is
+marked in place so the ruling is not lost in the meantime.
+
+## 48. `apps/web`'s vitest environment has no DOM — a focus-trap defect is only catchable by the visual agent
+
+**Found by wave 6Q-c's visual verification, 2026-09-05.** `apps/web/vitest.config.ts:11` sets
+`environment: "node"`, and `apps/web/package.json` lists neither `jsdom` nor any
+`@testing-library/*` package. No headless test in that package can dispatch a keypress or read
+`document.activeElement`, so nothing but Playwright can observe whether focus is where a trap
+requires it to be.
+
+6Q-c shipped exactly this class of defect: the confirm-step swap unmounted the focused button,
+`document.activeElement` fell back to `<body>`, and the dialog's key trap — hung off its own
+`onKeyDown` (`apps/web/src/settings/global-settings.tsx`) — went silent, so one Shift+Tab reached
+the trigger and a stray Enter discarded the customer's pending material choice with no warning. It
+was found by the visual agent's real-interaction pass, not by the package's own suite, and could not
+have been: no assertion in `apps/web`'s headless suite is capable of noticing it. The fix (keying the
+focus effect on the step as well as on open) has a headless-looking shape, but nothing in the package
+can regress-test it.
+
+This is a standing gap, not a one-off: any future focus-management defect in this app — a trap, a
+restore-on-close, a roving tabindex — is only ever catchable by a human or an agent driving a real
+browser. Closing it means adding `jsdom` (or `happy-dom`) and `@testing-library/react` to `apps/web`
+and giving at least the existing dialogs (`global-settings.tsx`, the price breakdown) a headless
+focus-trap regression suite. Not scheduled to any wave.
+
+## 49. The hob's front clearance reads as flush with the worktop's edge, more conspicuously at 700 — NEEDS THE OWNER
+
+**Found by wave 6U's visual verification, 2026-09-06.** The wave itself reads correctly: 190 mm of
+bare worktop behind the hob at 700 mm cabinet depth reads as a usable back ledge, bounded by the
+backsplash, not as a void. What it raised is something wave 6U **preserves rather than causes** — the
+hob's front edge sits 10 mm from the worktop's front lip, essentially flush, at every declared cabinet
+depth ([ADR 0087](decisions/0087-the-hob-holds-its-reach-and-a-deeper-worktop-grows-behind-it.md)
+decision 1).
+
+At 600 mm that is already what ships today, unchanged by 6U. At 700 mm the contrast is more
+conspicuous: a generous ledge behind the hob and effectively zero landing space in front of it, so the
+appliance reads as pushed hard against the front edge. To someone who cooks, near-zero margin in front
+of a hob is the part that looks off — pan handles project past the counter edge, and there is nowhere
+to set a lid down in front.
+
+**This is not a 6U defect.** Changing it means reopening ADR 0087 itself, whose 10 mm front clearance
+is the owner's own ruling (*"the gap should be not in front but between wall and hob"*), not fixing
+something 6U got wrong. Recorded here as a product observation for the owner to decide, not scheduled
+to any wave.
+
+**What visual verification did not cover, so this is not read as a broader clearance beyond it.**
+390 × 844 was skipped deliberately (6U is a `packages/three-adapter`-only, non-interactive geometry
+fix). Fore-aft hood-over-hob overlap was not measurable from the captured angles — the shots confirm
+width alignment; the depth axis rests on the algebraic concentricity ADR 0087's consequences already
+derive, not on a fourth screenshot. Only the seeded L-kitchen was exercised.
+
+## 50. `validateDesignForCatalog` is blind to a cross-wall corner intersection — RECORDED 2026-09-06, NOT SCHEDULED
+
+**Found by wave 6J-c, confirmed by [ADR 0090](decisions/0090-a-frozen-space-slides-with-its-run-and-follows-the-body-it-recorded.md).**
+
+The validator has no rule that compares a wall-A body against a wall-B body at the corner they share.
+It returned `[]` on the design where `base-corner-return-320` overlapped wall A's corner by **80 mm**
+and `wall-corner-return-570`/`-top` overlapped by **31 mm** — [ADR 0089](decisions/0089-the-along-wall-chain-is-kept-and-its-reader-is-the-depth-command.md)
+decision 3's measurement at `14cef90` — and it would have returned `[]` had 6J-c's fix been wrong in
+the same direction. So the one geometry the wave existed to correct is invisible to the gate that runs
+at both the load and the write seam.
+
+**The blindness is declared, not accidental**, and its declaration names the reason it is only true
+away from the corner. `findWallOverlaps` groups spans by wall, and `groupSpansByWall`
+(`packages/configurator-domain/src/validate-design.ts`) carries the comment:
+
+> *"Both walls originate at the same corner and walk their own axis (§2), so the same along-wall
+> coordinate on wall A and on wall B are two different places and are never compared."*
+
+True everywhere except at the corner, where a wall-A body's **depth** is measured along wall B — the
+exact fact `along-wall-chain-shift.ts` is built on.
+
+**The same-wall case is covered and works.** ADR 0090 measured the sweep firing correctly: five
+`EMPTY_COLUMN_OVERLAPS_PLACEMENT` on the same wall, at the same tree. The gap is the corner and only
+the corner.
+
+**What deciding it would cost.** It is a **reporting** gap, not a geometry gap — the geometry is
+correct once 6J-c and 6J-d land — so nothing on screen changes. The cost is at the load seam: a new
+code can make an already-stored document unloadable, which is
+[ADR 0052](decisions/0052-800-mm-is-the-ceiling-on-any-empty-column.md)'s dead link and needs its own
+adjudication before a severity is chosen. The likely answer is a **`mark`** beside
+`PLACEMENT_PAST_WALL_END` rather than a refusal, and severity is declared per code
+([ADR 0069](decisions/0069-past-the-wall-is-one-code-family-and-severity-is-declared-per-code.md)), so
+it is a choice someone has to make rather than a default to inherit. Implementation is small: one
+extra comparison for spans within the corner reach on either wall, using the reach
+`cornerReachAlongWallMm` already computes.
+
+**Deserves its own small wave, not M6's depth track.** Widening 6J-d into it would enlarge a wave that
+is already on the critical path, and the wave that adds it should be the one that also decides the
+severity.
+
+## 51. Column chain-homogeneity is an invariant nothing enforces — RECORDED 2026-09-06, NOT SCHEDULED
+
+**Raised by [ADR 0090](decisions/0090-a-frozen-space-slides-with-its-run-and-follows-the-body-it-recorded.md)
+decision 3, recorded there and deliberately not ruled.**
+
+A column is one vertical stack at one along-wall coordinate and must slide as one thing or tear. ADR
+0090 decision 2 relies on that: a frozen extent slides on the chain its recorded `depthFromBuildId`
+declares, and the recorded source is a member of that column, so the extent lands where its members
+land **provided every member of a column declares the same `alongWallPositionFollows`**.
+
+**Measured true on the seeded design at 600** (ADR 0090): `B|0.61` is `wall-map` on both its members
+(`wall-corner-return-570`, `wall-corner-return-570-top`) and every other column is `base-formula`
+throughout. Wave 6J-d asserts it at both settings.
+
+**Nothing enforces it on an arbitrary document.** A column whose members declared two different chains
+would tear by 30 mm at 700 — 6J-c's own measured difference between the chains — with the frozen
+extent sliding on its recorded source's chain while a member slid on its own, and every layer
+downstream internally consistent and wrong together.
+
+**Whether it is reachable was not measured.** It needs an offer list that can place a `wall-map` entry
+into a column already holding a `base-formula` one, and the two shipped `wall-map` entries are
+`STRUCTURAL_CORNER`. **What deciding it would cost**: either a new refusal code at the load seam
+(ADR 0052, [ADR 0084](decisions/0084-canfinish-is-the-load-seams-and-a-command-fixture-constructs-only-its-own-contracts-inputs.md))
+or a catalogue-level sweep that cannot see which entries share a column. Choosing between those is the
+decision, and it should start by measuring whether the state is reachable at all through the offer
+list.
+
+## 52. A resize or an insert carries the wall-end cap into the recorded map — RECORDED 2026-09-06, DIRECTION RULED
+
+**Introduced by wave 6J-d and closed only partly by it.** Direction ruled in
+[ADR 0090](decisions/0090-a-frozen-space-slides-with-its-run-and-follows-the-body-it-recorded.md)'s
+Amendment B addendum; the wave itself is unscheduled.
+
+ADR 0090 Amendment B rules that a room-derived cap bounds what the map **publishes** and never
+rewrites what the document **records**. `setCabinetDepth` obeys it. `setWidth` and `insertBody` do
+not: `CommandContext.columns` hands them the **published** map and their `effect.columns` replaces the
+map whole, so the cap rides into the recorded face.
+
+**Measured at `cf53e8e` plus the D1 fix**, on a recorded space flush to wall B's end in the 2920 mm
+room:
+
+```
+at 600                     recorded B|2620 w600   published B|2.62 w600
+after setCabinetDepth(700) recorded B|2720 w600   published B|2.67 w500   <- Amendment B working
+after a delete on wall B   recorded B|2720 w600   published B|2.67 w500   <- fall-through arm, record survives
+after resizing p0, wall A  recorded B|2670 w500   published B|2.67 w500   *** the record adopts the cap ***
+```
+
+A resize of an unrelated cabinet **on the other wall** costs the recorded space 100 mm, permanently and
+silently — the document is schema-valid and `validateDesignForCatalog` reports nothing.
+
+**It is new, not inherited.** At `e28ab25` the depth command slid no extent, so a far-end space was
+never pushed past its wall and never capped; there was no loss on this path before this branch.
+
+**What deciding it costs, and the direction already ruled.** ADR 0090's addendum refuses the two
+options as posed and rules a third: the wall-end cap **preserves the column's key** (changing `w`,
+`x`/`z` and nothing else), after which handing `setWidth` and `insertBody` the recorded map is clean —
+the `COLUMN_MISMATCH` that made that option look expensive is created by the key divergence itself.
+Safe because `clip-empty-columns-at-wall-end.ts` never clips an occupied column, so no `record.col` is
+ever derived onto a capped key. Store-side reconciliation by matching is refused by name.
+
+**What the wave must measure first**: whether anything computes a column key from a coordinate and
+looks it up in the *published* map — picking, `findVacatedVoid`, the adapter's selection. That is the
+one place `key = f(centre)` could still be load-bearing for a member-less column.
+
+**It is [ADR 0088](decisions/0088-a-depth-change-plans-against-the-frozen-extent-and-re-derives-only-the-depth.md)
+decision 2's question a third time** — which map does a map-publishing command receive, and who owns
+the reconciliation. It touches `setWidth` and `insertBody` rather than the depth track, so it is its
+own wave and not 6J-d's.
+
 ## Also open, recorded elsewhere — do not duplicate here
 
 - **Width editing does nothing yet.** Every width chip is `blocked` because §5.4's resize command
@@ -954,6 +1044,186 @@ step 1 itself belong to.
 
 Fixed and shipped. Kept for history only — skip this section unless you are specifically
 researching a past decision.
+
+## 18. A cabinet-hardware choice reaches the oven's and the microwave's bars in `tall-oven-tower` — CLOSED 2026-09-02, SHIPPED IN M6 WAVE 6L
+
+**CLOSED 2026-09-02 by [ADR 0061](decisions/0061-a-cabinet-handle-is-declared-and-an-appliance-bar-is-not-one.md), implemented in M6 wave 6L, certified 2026-09-05 (CERTIFIED WITH FINDINGS, 8/9 mutations killed — see `docs/STATUS.md`).**
+The apply path now carries the same cabinet-versus-appliance rule the capability gate already used —
+shipped as `isCabinetHandleGroup` (`packages/three-adapter/src/cabinet-handle-meshes.ts`), not as the
+entry's own `opensAFront()` name. The owner's addition on top of the diagnosis — that the price must
+count cabinet handles, never handle meshes — is ADR 0061 decision 2, consumed by wave 6B.
+
+### The finding, as recorded before it was closed
+
+Split out of entry 11 on 2026-09-01 when that entry was decided and closed
+([ADR 0051](decisions/0051-the-dishwasher-niche-wears-a-decor-door.md), Consequences). Entry 11
+carried this as a one-sentence tail; it is recorded here in its own right so the deferral leaves a
+pointer rather than a silence. **Owner: whoever owns §6.5**, which is the placement entry 11 gave it
+and ADR 0051 did not overturn.
+
+`setHandlesVisible` and `applyBlackHandleMaterial` (`packages/three-adapter/src/decomposed-bodies.ts`)
+act on **every** `handle` group in a body. `tall-oven-tower` builds four `handle_bar` meshes, of
+which exactly two are the cabinet's — the other two belong to the oven and to the microwave. So
+`handle: "push"` on that body hides the appliances' bars alongside the cabinet's, and `handle:
+"black"` repaints them in cabinet hardware. `base-hob-oven` carries the same exposure with one bar,
+the oven's, and is held off it only by `canHandle: false`.
+
+**Different cause from entry 11's, which is why it was not folded into wave 5B10.** Nothing about a
+missing front is involved: the flags on `tall-oven-tower` are truthful — it really does have two
+cabinet handles — and the capability gate
+(`packages/three-adapter/tests/catalog-capability-parity.test.ts`) passes it, correctly. The defect
+is downstream, in the path that *applies* a handle choice, which has no notion of whose handle it is
+touching. The fix is to teach that path the same cabinet-versus-appliance rule `opensAFront()`
+already encodes in the gate: a `handle` group is the cabinet's exactly when its own parent also
+holds a front.
+
+**What deciding it costs.** The change is in a file every body in the scene goes through, so its
+blast radius is the whole catalogue rather than one body — which is why folding it into a wave that
+also moved seeded geometry was refused. `base-dishwasher` stopped being an instance of this on
+2026-09-01; `base-hob-oven`'s oven bar and `tall-oven-tower`'s two appliance bars remain.
+
+## 19. The dishwasher decor door meets its own appliance at a 520 mm cabinet depth — CLOSED 2026-09-02, DECLARED FLOOR SHIPPED
+
+**CLOSED 2026-09-02 by [ADR 0059](decisions/0059-the-dishwasher-niche-declares-a-cabinet-depth-floor.md).**
+Verified against the tree 2026-09-05: `MIN_CABINET_DEPTH_MM` (`packages/configurator-domain/src/worktop-depth.ts`)
+is declared as `2 * DISHWASHER_HALF_DEPTH_MM + BASE_FRONT_OVERHANG_MM` = `2 * 240 + 40` = **520**, and
+`setCabinetDepth` (`packages/configurator-domain/src/commands/set-cabinet-depth.ts`) refuses with
+`UNKNOWN_CABINET_DEPTH` whenever `cabinetDepthMm < MIN_CABINET_DEPTH_MM` — the third of this entry's
+three named options (a declared, product-wide floor) is the one that shipped. Pinned at
+`packages/configurator-domain/tests/cabinet-depth-parameter.test.ts:423`
+(`expect(MIN_CABINET_DEPTH_MM).toBe(520)`) and exercised at the boundary in
+`packages/configurator-domain/tests/commands/set-cabinet-depth.test.ts:152`.
+
+### The finding, as recorded before it was closed
+
+Found while implementing M5B wave 5B10 ([ADR 0051](decisions/0051-the-dishwasher-niche-wears-a-decor-door.md)),
+which anchors `dishwasherHousing`'s decor door on `CARC_D` (the derived `carcassDepthM`) so it follows
+the cabinet-depth setting the way every other base front does. `dw_body` — the appliance behind the
+door — does not follow: it is a real-world machine built at a literal 0.24 m front regardless of what
+`CARC_D` says. The gap between the two is `CARC_D / 2 − 0.24`, so it closes at half a millimetre for
+every millimetre `CARC_D` drops. At the shipped 600 mm kitchen the door's inner face is `CARC_D / 2 =
+0.28`, leaving 40 mm of mounting clearance. The clearance reaches zero — the appliance meeting its own
+door — at a **520 mm cabinet depth**.
+
+**Not reachable today.** 600 mm is the only cabinet depth the product can currently produce; M5's
+worktop-depth map is a single declared constant with no control on it (see backlog *Also open* below).
+This is a floor with no way to be crossed yet, which is why it is backlog rather than a defect.
+
+**The first thing that can reach it is M6's *Setări globale* depth control**
+(`docs/milestones/M6-price-and-global-settings.md` work item 4), so that work is this entry's owner.
+Whoever wires the control needs a decision before a customer can pick a cabinet depth below 520 mm
+with a dishwasher niche in the design: refuse that combination with a stated reason, cap the depth
+control's floor at 520 mm globally, or give the niche its own floor separate from the rest of the
+catalogue. None of those is chosen here.
+
+Already commented at the mounting site — `packages/three-adapter/src/kitchen-parts.ts`, the comment
+above `dishwasherHousing`'s door slab — so the constant and the derivation that produces 520 mm are
+there for whoever picks this up, rather than needing to be re-derived.
+
+## 20. A resized seeded body renames itself, and the customer sees two names for one cabinet — RESOLVED 2026-09-03, SHIPPED IN M6 WAVE 6A2
+
+**RESOLVED 2026-09-03 by [ADR 0064](decisions/0064-a-seeded-row-carries-its-catalogue-equivalents-name.md), implemented in M6 wave 6A2, certified 2026-09-05 (CERTIFIED WITH FINDINGS, 4/6 mutations killed by 6A2's own files, 6/6 by the full suite — see `docs/STATUS.md`).**
+The owner chose exactly the fix this entry proposed — give the seeded rows the labels their catalogue
+equivalents carry — and wave 6A2 built it better than planned: the fields are **read off** the
+equivalent through `namedAfterCatalogEquivalent`, rather than copied beside each row, so the two
+strings this entry accepted as a cost cannot drift apart.
+
+### The finding, as recorded before it was closed
+
+Found by visual verification of wave 5B8 (2026-09-01). The seeded pantry's header reads **"Coloană"**
+at 600 mm. Step it to any other width and back to 600, and the same body at the same width now reads
+**"Coloană cămară 2 uși"**.
+
+Nothing is wrong. `resolve-column-members.ts:191-194` says a resize rebuilds through the catalogue
+equivalent, so **a resized seeded body migrates its `buildId`** — it has to, because
+`buildDecomposedBody` takes no width and every seeded id is one fixed geometry. `describe-selection`
+then finds a definition where it previously found none (`catalog.get(record.buildId)`), and the
+catalogue row carries both a real `label` and `doorCountFollowsWidth`, where the seeded id carried
+neither and fell back to `KIND_LABELS_RO.tall_unit`.
+
+So this is two documented rules meeting, not a defect in either. It has applied to base cabinets
+since ADR 0033; wave 5B8 made it reachable for a column, where the two names differ most.
+
+**What a fix would be, if the owner wants one.** Give the seeded rows the labels their catalogue
+equivalents carry, so the migration changes nothing the customer reads. That is a fixture edit, not
+a mechanism change, and it is bounded by the M1 parity gate only in that it touches no geometry.
+Doing it would also close the smaller version of this on every other seeded body.
+
+Not scheduled. Raise it with the owner before spending anything on it — a rename that fires on the
+customer's first resize may be acceptable, and the header is not wrong at either end.
+
+## 21. The rendered shell and the seeded document disagree about the size of the room — RESOLVED 2026-09-03
+
+**Resolved by the owner, 2026-09-03. Corrected the same day by a second artefact.**
+
+The first answer — the reference's room-dimensions **input screen**, *Perete A 3,60 / Perete B 2,40* —
+turned out to be that screen's **example values, not this kitchen's room**. The authoritative artefact
+is the reference's **wall-coverage panel** (*LĂȚIME ACOPERITĂ · PRACTIC PLIN*): **Perete A 3520 /
+3560 mm**, 40 mm free at the right end; **Perete B 2800 / 2830 mm**, 30 mm free next to the fridge.
+
+Both corroborate against the tree rather than being taken on trust: wall A's 3520 is the measured
+3500 of placements plus `RUN_END_PANEL_THICKNESS_M` (18 mm) and its 1 mm gap — the sum
+`kitchen-shell.ts` names in its own comment as *"3.5189999"* — and wall B's 2800 is the measured far
+end to the millimetre. 3.60 is a rounded 3.56; 2.40 is nothing like 2.83.
+
+Both numbers the project held are **real and correct, and describe different walls** — nothing was
+reconciling them. `longestWallRunMm`'s `max(width, depth)` = 3600 is wall A; the document's
+`depthMm: 2400` is wall B. The document is right. **The shell's `RD = 3.4` m matches neither and is
+the number to chase.**
+
+**What resolving it exposed. The document is wrong on both axes, and the run fits.** `widthMm: 3600`
+should be **3560** and `depthMm: 2400` should be **2830**. With those, the seeded run occupies
+2800 of 2830 on wall B and fits with 30 mm spare — there is no overrun at the shipped depth. At a
+700 mm cabinet depth it ends at 2900 and overruns by 70 mm, which is where
+[ADR 0065](decisions/0065-a-body-past-the-end-of-its-wall-is-marked-not-moved.md)'s marking applies.
+
+**A second correction is owed at its source.** `validate-design.ts`'s along-wall bound takes
+`max(width, depth)` and its comment calls the difference *"the 400 mm slack … a fact about along-wall
+coordinates"*. **That explanation is wrong**: the bound was compensating for a bad room dimension,
+not for a property of along-wall coordinates. With 2830 the wall B run fits its own wall and the
+`max` is unnecessary rather than load-bearing.
+
+**Both corrections landed on 2026-09-03.** The fixture declares `3560 × 2830`, and the along-wall
+bound is `wallRunMm(wall, room)` — wall A the width, wall B the depth, per ADR 0065 decision 5. Four
+test fixtures had been standing in the slack and were corrected with it: three declared wall-B runs
+past the room depth, and one claimed 100 mm of wall A past the corrected 3560.
+
+**Where it now lives:** `docs/milestones/M6-price-and-global-settings.md`, owner decision 8, and
+[ADR 0065](decisions/0065-a-body-past-the-end-of-its-wall-is-marked-not-moved.md).
+
+**One half of this entry stays open**: the **shell** renders `RW 4.2 × RD 3.4` and matches neither
+the reference nor the corrected document. Correcting the document costs no geometry; correcting the
+shell moves seeded geometry and needs a `DeclaredStructuralChange` under ADR 0051. Only the room
+*numbers* are resolved here.
+
+### The original entry, unedited
+
+
+Found by the 5B2a logic review (2026-09-01). `kitchen-parts.ts:1795-1797` builds the shell at
+`RW = 4.2, RD = 3.4, WH = 2.6`. `kitchen-l-design.ts:469` declares the same kitchen as
+`{ widthMm: 3600, depthMm: 2400, heightMm: 2600 }`. The height agrees; **both floor dimensions do
+not**, by 600 mm and 1000 mm.
+
+Nothing is currently broken by it. Every seeded placement fits inside 3600, and
+`longestWallRunMm` holds both walls to `max(width, depth)`, so containment validation passes on the
+document's own numbers. The customer sees a room 600 mm wider than the document says it is, and no
+rule reads both figures at once, so nothing has ever compared them.
+
+**Why it matters now.** Wave 5B2a made room containment a validated rule for a new persisted field,
+and two of its test fixtures had to declare 4200 to hold coordinates the shell renders but the
+document forbids. So the mismatch is no longer merely cosmetic — it is load-bearing for test
+fixtures, and the next rule that reads the room will inherit the same choice of which figure is
+true.
+
+**What a fix needs first.** Decide which number is the room: the document is the contract and the
+geometry should follow it, but the shell's 4.2 x 3.4 is what every screenshot and every manual
+session has ever shown, and the M1 1e-6 structural parity gate pins that geometry. Changing the
+shell to 3.6 x 2.4 moves seeded geometry and needs a `DeclaredStructuralChange` under ADR 0051;
+changing the document to 4200 x 3400 moves no geometry but widens the containment envelope every
+validation rule is measured against.
+
+Not scheduled. Raise it with the owner — it is a one-line change either way and a real decision
+about which artefact is authoritative.
 
 ## 26. A resized column's freed space opens on different sides depending on position — EXPLAINED, NOT A BUG, 2026-09-02
 
@@ -1180,6 +1450,63 @@ question is open** — the day it is decided, that assertion changes deliberatel
 
 ---
 
+## 10. Swap and delete-then-insert give a wall cabinet different depths — CLOSED 2026-09-02, SHIPPED IN M6 WAVE 6I2
+
+**CLOSED 2026-09-02 by [ADR 0060](decisions/0060-a-column-publishes-a-build-depth-beside-its-clearance.md), implemented in M6 wave 6I2.**
+The third reading — *"they should simply agree"* — is the one the owner took, and the value is
+**600**: swap's number, and the smaller of the two measured here. A column now publishes a **build
+depth** beside its clearance, and both routes read it, so §5.3's promise that a swap is not a delete
+plus an insert holds numerically as well as structurally. The 680 this entry records was §3.2's MAX
+over the run (742 since wave S9, once appliance handles were measured); it is a clearance and no
+route builds a cabinet to it any more.
+
+### The finding, as recorded before it was closed
+
+**Found by the coordinator while verifying the R3.1 fix, 2026-08-26.** Measured on the shipped
+kitchen, over the fridge column `B|2.45`:
+
+```
+p24 as shipped                      600 mm
+SWAP p24 -> wall-2door              600 mm   (preserves the outgoing body's frame)
+DELETE p24, then insert wall-2door  680 mm   (takes the void's own depth)
+```
+
+Both follow rules that are individually correct. A swap in place reads the outgoing body's `frame.d`
+— that is the fix for the original protruding-cabinet defect. An insert into an empty void reads
+`void.d`, which is `Column.d`, §3.2's MAX over the run — here the freestanding fridge's 680 mm.
+
+So two routes to the same end state — "a `wall-2door` in this slot" — produce cabinets 80 mm apart,
+and which one the customer gets depends on whether they replaced the cabinet or deleted it first.
+
+This is the concrete form of what logic review raised as R3.2: the cap is evadable by ordering,
+because `hasFullHeightUnder` is re-answered for future inserts while a placed body's depth is a
+persisted fact. Fixing R3.1 removed the *harmful* instance (a 580 mm carcass over a worktop). This
+one is not harmful — 680 mm is genuinely the column's depth and there is no worktop to lean over, so
+it violates no rule in backlog entry 5 — but it is an inconsistency a customer can reach.
+
+**Not fixed, because the right answer is not obvious.** Three readings, all defensible:
+
+- **680 is correct.** The opening really is that deep; a cabinet flush with the fridge front is a
+  normal thing to build. The rule says "as deep as the column" and the column is 680.
+- **600 is correct.** The seeded design chose 600 over this fridge deliberately, and an insert should
+  not silently exceed what the kitchen was designed with.
+- **They should simply agree**, whichever value wins, because "delete then re-add" and "replace" are
+  the same intent expressed two ways, and §5.3 exists precisely so a swap is not a delete plus an
+  insert.
+
+The third is the one worth deciding first: the divergence matters more than the number.
+
+Related: entry 9 (a hood round trip costing 100 mm) is the same mechanism — a placed body's depth is
+a persisted fact and nothing re-derives it.
+
+**Not superseded by M5, and the reason is worth stating (2026-08-27).** M5 wave 5A makes the worktop
+→ wall depth map the single source for §7's nominal and §5.2's cap. That governs the **capped** path
+only. This entry lives on the **uncapped** path — over a full-height column, where
+`hasFullHeightUnder` lifts the cap and both 600 and 680 are legitimately the column's depth. So 5A
+fixes the sibling defect over a base run and leaves this divergence exactly as measured. It is
+recorded as **question 8** in `docs/milestones/M5-width.md`'s *Not established — Depth* so M5 does
+not mistake it for something already handled.
+
 ## 11. `base-dishwasher` offers a finish and a handle it has neither of — DECIDED 2026-09-01, SHIPPED
 
 **Decided by the owner on 2026-09-01: give the niche a decor door**, not the one-line
@@ -1309,6 +1636,85 @@ both rules is deleted once.
 full copy of `designs`, and the table itself is unbounded until ADR 0019 decision 7's retention cron
 ships at M8 — which is blocked on the credential question recorded in that gate, since no role in the
 system may currently delete.
+
+## 15. A wall cabinet over a full-height column is built to a depth no one manufactures — CLOSED 2026-09-02, SHIPPED IN M6 WAVE 6I2
+
+**CLOSED 2026-09-02 by [ADR 0060](decisions/0060-a-column-publishes-a-build-depth-beside-its-clearance.md), implemented in M6 wave 6I2.**
+This entry's own diagnosis is the fix: the column publishes **two** facts. `occupiedDepthM` keeps its
+meaning and its value as the **clearance**, and a separate declared **build depth** — the map's wall
+depth where the cap applies, the cabinet-depth line where a full-height member lifts it, and never
+the clearance MAX — is what `resolveDepthM` hands the probe. The two are different nominal types
+(`ClearanceM`, `BuildDepthM`), so reading one as the other is a compile error rather than a comment.
+703 and 742 are unreachable: the uncapped arm no longer computes anything.
+
+**Entry 9 is the same seam a third time**, and it was re-read before this one was closed: a placed
+body's depth is a persisted fact that nothing re-derives. It is already closed by
+[ADR 0040](decisions/0040-a-recorded-seat-is-converted-back-not-read-as-a-depth.md) — the opening a
+body vacates is read through `occupiedDepthM` rather than through the outgoing body's own `frame.d`.
+That is the *clearance* half of this seam; wave 6I2 closes the *build depth* half. Nothing about
+entry 9's closure changes.
+
+### The finding, as recorded before it was closed
+
+**Reproduced live in the running product at 390 x 844, 2026-08-31**, during wave S9 of the
+adversarial-review remediation. Delete `p24` — the cabinet over the fridge — and insert a
+`wall-cabinet` back into the void it vacates. The document written to the database carries
+**`seatDepthMm: 703`**: a 742 mm finished wall cabinet hanging over a 680 mm appliance. It was
+persisted with `probe=on`, an **empty `rejection`**, and zero console errors. **No gate on that path
+paused.**
+
+**It has no user-facing tell, which is the part that makes it urgent.**
+
+- **The panel surfaces no depth at all.** The offer sheet for that opening reads *"Spatiu liber ·
+  Perete B · suspendat · 700 x 750 mm"* — width and height only. The 703 appears on **no screen in
+  the product**.
+- **Neither the void nor the rebuilt body looks wrong.** The void is a clean box above the fridge and
+  the rebuilt cabinet renders as a plausible deep cabinet. A person would flag neither, and would
+  catch it only by comparing against the 330 mm run on the other wall.
+- **No camera preset shows wall B at a grazing angle** — *Perete B* is face on and *Perete A* frames
+  the other run — so that column's depth is not legible in any view the product offers.
+
+Silent in the copy, silent in the render, and it lands as a carcass nobody ordered. That is what
+should decide its priority: a spec-to-manufacture defect, not a cosmetic one.
+
+**What is actually true in the code.** `resolveDepthM`'s uncapped arm reads `opening.d` when
+`hasFullHeightUnder` is true, and `opening.d` comes from `occupiedDepthM`. Two different facts are
+being served by one number:
+
+- *"the full extent a body occupies, handles included"* — a **clearance** fact, which is what §3.1
+  asks for and what `occupiedDepthM` computes;
+- *"the depth to build the next body to"* — a **manufactured size**, which is what `resolveDepthM`
+  hands the probe.
+
+Only the first is the one it computes. `packages/configurator-domain/src/worktop-depth.ts` exists
+precisely so a formula cannot invent a cabinet nobody makes — its declared map is a declaration and
+never an interpolation, *because* a formula would produce a 372 mm cabinet no one manufactures — and
+the uncapped arm is a formula doing exactly that, one module over.
+
+**It pre-dates wave S9, and S9 worsened it.** The arm built a **680 mm** wall carcass before the
+wave, which is no more manufacturable than a 742 mm one, so the defect is not new and S9 did not
+introduce it. What changed is that the number the arm reads is now the full extent including
+appliance handles — further from any real cabinet than it was — and that it is reached on **two
+columns of the shipped kitchen rather than none**: `B|1.20` moved 600 → 638 (the oven tower's
+appliance bars) and `B|2.45` moved 680 → 742 (the fridge's door bars). Deleting the top cabinet is an
+ordinary action and leaves the full-height member standing, so `hasFullHeightUnder` stays true and
+the uncapped arm is what answers.
+
+**What deciding it would cost.** Separating clearance from build depth is the real fix, and it is a
+**product decision, not a bug fix** — nobody should pick this up expecting a one-line patch.
+Whether that arm should read `opening.d` at all is the question: a wall cabinet flush with a fridge
+front may be exactly what a customer wants, or the cap may belong there too, or the column may need
+to publish two numbers — the space a body occupies and the depth the next body is built to — which
+is a new fact in the model with `deriveColumns`, the swap opening and the void mesh all reading it
+today. Changing `resolveDepthM` inside a wave scoped to DOM-002 would have been the silent product
+change the remediation exists to stop, which is why it was recorded rather than fixed.
+
+**Evidence.** Commit `f9b92e1` (wave S9, closing DOM-002); the wave S9 summary in
+`docs/milestones/adversarial-review-remediation.md`; and `testing-reports/03-domain-model.md`, whose
+DOM-002 finding is what the wave was scoped to.
+
+Related: entry 10 is the same seam from the other side — two routes to "a wall cabinet in this slot"
+producing different depths on the uncapped path — and entry 5 is the capped sibling.
 
 ## 22. A partly emptied column forgets what it freed, and UX-2 is only half closed — CLOSED 2026-09-02
 
@@ -1490,3 +1896,251 @@ have changed since the e2e spec was last touched. The third is the narrowest and
 exactly this.
 
 Not scheduled. Worth deciding before the next milestone closes on an unrun gate.
+
+## 31. A store action that throws leaves no trace on any surface
+
+Found 2026-09-05 by the visual pass on wave 6K-b, while the `reseat` crash was still live.
+
+Pressing *Aplică* on the depth control threw out of `setCabinetDepth`. Nothing recovered: the sheet
+**stayed open** with 700 still selected, `data-rejection` stayed empty, and in production there is no
+message at all — a dead button. Nothing was written and the app stayed usable, which is why no gate
+saw it.
+
+**The crash itself is fixed** (wave 6K-d gave the probe the scene's own dispatch, so `reseat` can
+measure a structural body). What remains is the shape: `applyPending` in
+`apps/web/src/settings/global-settings.tsx` calls `close()` **after** the command, so any future
+throw strands the sheet.
+
+**Not a general error-handling change, and deliberately not routed to `lastRejection`** — ruled
+2026-09-05. That field is a `RejectionReason` with a code and rendered Romanian copy; a thrown
+`Error` has neither, so putting one there means inventing a code or showing a customer a developer
+string. `apps/web/src/store/apply-command-result.ts:116` already takes the opposite stance in as many
+words: *"uncaught by design … a loud failure is the lesser harm"*.
+
+Two candidate fixes, both narrow:
+
+- `close()` in a `finally`, so the sheet always closes and the customer is not left pressing a dead
+  button. Smallest, and it says nothing about what went wrong.
+- An error boundary around the sheet, which can say *something* went wrong without inventing a
+  domain code. Larger, and it is the only one of the two that leaves a trace.
+
+Not scheduled. Worth deciding before any surface gains an action that can throw.
+
+## 32. The chips row grows past the column; only the chips themselves are contained
+
+Found 2026-09-05 by the visual pass on wave 6K-d/6K-e, at 390 x 844.
+
+Wave 6K-b3 reverted a third chip after it intercepted pointer events over the price bar and took 44
+e2e tests down, and added `min-width: 0; overflow: hidden; text-overflow: ellipsis` to `.chip`. That
+rule works — every chip ellipsises, measured. **The containment leak is one level up.**
+`.settingsRow` keeps its flex default `min-width: auto` and grows past its column:
+
+| chips | `.settingsRow` width | trigger's right edge |
+| --- | --- | --- |
+| 2 | 390 (fits) | on screen |
+| 3 | 442 | **412**, off a 390 px screen |
+| 3 (long label) | 563 | further off |
+| 4 | 632 | further off |
+
+`body.scrollWidth` reaches 442 against `documentElement.clientWidth` 390. The failure mode changed
+from *"chips cover the trigger"* to *"trigger leaves the screen"* — a different defect, not a fixed
+one.
+
+`apps/web/src/settings/global-settings.module.css:33` claims a fourth chip *"narrows the three rather
+than breaking anything"*. That claim is measurably false and should be corrected whatever is decided
+here, because it is the reason the next person will add a chip without measuring.
+
+~~Harmless today at two chips. **Blocks wave 6R**, which adds a finish control and therefore a
+third.~~
+
+**Ruled by the owner 2026-09-05 and closed —
+[ADR 0082](decisions/0082-the-settings-strip-wraps-and-nothing-leaves-the-viewport.md).** Nothing may
+leave the viewport at any chip count; the chips **wrap**, and vertical growth is the accepted currency
+— *"even if you need to just increase the height and take from the vertical height, I'm totally okay
+with this"*. Horizontal scrolling is refused, and a chip is never narrowed below the line it is alone
+on. **It lands as a scope addition inside wave 6R**, with measured criteria at two, three, four and
+five chips on both shells; see that wave in `milestones/M6-price-and-global-settings.md`.
+
+**Two corrections to this entry, recorded rather than edited away.** *"Blocks wave 6R, which adds a
+finish control and therefore a third"* rests on a misreading of 6R's scope — **6R adds no chip**, its
+finish control being per cabinet in the editor panel, while the whole-kitchen settings are material,
+hardware and cabinet depth. And *"harmless today at two chips"* is too kind: a chip's label carries a
+price-book tier name, and the book is data authored outside TypeScript (ADR 0062 seam 1), so a long
+tier name reaches the same overflow with today's two.
+
+## 33. The settings trigger is a 93.5 x 13 px touch target
+
+Found 2026-09-05 by the visual pass on wave 6K-d/6K-e, at 390 x 844.
+
+`.trigger` has `padding: 0`, so its tappable box is the text line box — 13 px tall. The 40 px pill a
+customer sees around it is `.anchor`, a different element. Every other control on the surface is
+fine: `Aplică` 86x44, `Renunță` 98x44, the depth options 354x51 and 354x49.
+
+Pre-existing and not introduced by any 6K wave, but it is the control that opens the whole
+whole-kitchen settings surface, so it is the one worth fixing first.
+
+**Scheduled 2026-09-05 into wave 6R, alongside entry 32 —
+[ADR 0082](decisions/0082-the-settings-strip-wraps-and-nothing-leaves-the-viewport.md) decision 8.**
+Not itself owner-ruled; scheduled by the architect for a stated reason. It is a different defect, but
+it lives in the same two stylesheets, on the same control, and the wave's visual gate measures that
+strip anyway — fixing them separately means measuring the same row twice. The trigger's tappable box
+becomes at least `var(--touch-target)` (44 px, already declared in `globals.css`) on both shells,
+**without pushing a chip off the line it is on**.
+
+## 34. One interrupted persistence run reds the whole package until repaired
+
+Found 2026-09-05 while verifying gates on `d4e58a4`.
+
+`packages/persistence`' live-database suite failed with
+`MigrationSequenceError: Migration 4 ... is recorded as applied, but 2 ... is not`, and
+`column "write_token_hash" of relation "designs" does not exist` — 2 failed, 171 passed.
+
+Cause: the adversarial test *"re-adds the column after it is dropped, so a no-op run cannot pass"*
+drops `write_token_hash` and re-applies the migration. If anything interrupts it between the two, the
+ledger is left recording migrations 3 and 4 without 2, and **every** live-database test in the
+package then fails the sequence check — not just the one that broke.
+
+It self-repaired on a later run (177 passed, verified), so there is nothing to fix in the database
+now. What is worth fixing is the fragility: one interrupted run reds an entire package, and the error
+tells the reader to *"resolve the gap by hand"* with no documented repair.
+
+Not scheduled.
+
+## 35. The joint-seat non-intersection gate needs oriented boxes, not AABBs
+
+Wave 6K-g work item 8, attempted 2026-09-05 and **not shipped**.
+
+ADR 0077 excuses a `joint`-seated entry from `declared-frame-depth-sweep.test.ts` — it has no plane
+of its own to measure — and the excuse is only honest if what replaces it is stronger. The
+replacement the wave specifies is a whole-room gate: no two placed carcasses may occupy the same
+space, run on the seeded design **and** on the design a round trip produces.
+
+**Written, measured, and withdrawn.** Built from `THREE.Box3` over every mesh whose name starts with
+`carcass`, placed exactly as `scene-sync` places them (`frame.x`, `frame.y0`, `frame.z`, `frame.ry`)
+and built through `rebuildDepthM` so a fronted shell is not 39 mm shallow. Two things it got right,
+recorded because the next attempt needs them:
+
+- The volumes separate cleanly. Neighbouring cabinets sharing a plane report **at most 1.2e-8 m³** of
+  floating-point sliver; a genuine intersection reports **4.5e-3 m³** or more. A threshold of
+  `1e-6 m³` sits in five orders of magnitude of empty space.
+- The **round-trip arms passed**, which is the signal that matters: after `600 → 700 → 600` the
+  corner legs no longer intersect, so wave 6K-g's fix holds.
+
+**Why it is not shipped.** An axis-aligned box cannot express a body rotated 90°, and the L corner is
+where every joint-seated body lives. The gate reports three intersections on the **seeded** fixture —
+`p25 ∩ p26` at 4.9e-2 m³, `p8 ∩ p9` at 7.8e-3, `p15 ∩ p21` at 4.5e-3 — all of them pairs on different
+walls whose AABBs overlap in the corner square while the solids do not touch. ADR 0077's own
+measurement avoided this by comparing the z extent alone.
+
+Whitelisting those three pairs would rebuild the hand-written exception set 6K-g just deleted, so it
+was not done. The gate needs oriented bounding boxes, or a per-pair comparison in the shared local
+frame, before it says anything true.
+
+Not scheduled. Until it lands, the joint arm's only gate is the seat it declares.
+
+## 36. `HEIGHT_EXCEEDS_LEVEL` refuses a depth change after two ordinary deletes
+
+Found 2026-09-05 by adversarial QA on wave 6K-c; adjudication deferred by
+[ADR 0079](decisions/0079-a-republished-depth-names-the-body-it-came-from.md), which records it
+under *"Finding, recorded and NOT ruled here"*. Wave 6K-c closed **around** it, not over it.
+
+A four-step sweep from the shipped fixture reaches 34 trails on which a `setCabinetDepth` is
+refused with `HEIGHT_EXCEEDS_LEVEL`. Every one contains the same minimal reproduction — two deletes
+of a non-source member of `A|2.00` (`open-shelf-600` and `wall-2door-600-top`) before the depth
+change — so **34 is one defect's closure over the sweep alphabet, not 34 defects**: 2 three-step
+trails plus 32 four-step, the latter being 16 distinct three-prefixes at each of the two settings.
+
+It reproduces without wave 6K-c's field and is older than that wave.
+
+**Bounded, with a tripwire.** `apps/web/tests/store/qa-6k-c-frozen-source.adversarial.test.ts:771`
+asserts the code set is exactly `["HEIGHT_EXCEEDS_LEVEL"]`, that every trail carries the minimal
+reproduction, and the exact set of trails as data. A thirty-fifth trail, or a refusal of any other
+code, turns it red the day it appears. Deliberately **not** an `it.fails`, which would keep passing
+if three refusals became thirty.
+
+Whichever wave adjudicates ADR 0079's finding deletes that block.
+
+## 37. Two pinned deep tops are 100 mm proud if a depth change ever reaches them
+
+Found 2026-09-05 by the logic review on wave 6K-j; ruled as fixture-bounded safety by
+[ADR 0080](decisions/0080-an-empty-space-follows-the-setting-and-a-fallback-is-not-a-ratchet.md)'s
+amendment. **Not a regression** — it predates 6K-j and reaches the same 700 under wave 6K-c, which
+then holds it there; only 6K-j lets it come back down.
+
+[ADR 0058](decisions/0058-the-two-deep-top-cabinets-are-pinned.md)'s two pins declare **600 at both
+settings**, so each sits *on* `columnBuildDepthM` at one declared setting and *off* it at the other:
+
+```
+wall-2door-600-deep-top     declared 600/600   ceiling (hasFullHeightUnder) 600/700
+wall-2door-700-over-fridge  declared 600/600   ceiling (hasFullHeightUnder) 600/700
+```
+
+A member-less column frozen at 600 with a full-height member overhead is therefore read as carrying
+this rule's own previous answer, and follows the setting to 700 — 100 mm proud of a pinned depth.
+
+**Unreachable on today's fixture, and for a reason the fixture supplies rather than the rule.**
+`B|1.80` is the only column recording a pin and it holds a full-height `tall-pantry-600`, so it is
+never member-less while that pin is its depth; `wall-2door-700-over-fridge` wins no column's MAX at
+all, because `B|2.45` is the fridge's 742.
+
+**It becomes reachable** when a pinned deep top is left alone in a column a full-height body
+overlaps, or when any new catalogue entry declares the same depth at both settings.
+
+**Tripwire, not a fix.** `apps/web/tests/store/cabinet-depth-legacy-fallback.test.ts` sweeps every
+catalogue entry × both `hasFullHeightUnder` readings × both settings and asserts the hazard set is
+exactly these two named ids — so a new entry of that shape turns it red. It is written as the hazard
+predicate rather than as *"every wall-family entry declares the map"*, which would restate the map
+(ADR 0028 decision 4) and name the wrong population: the hazard is any entry sitting on a ceiling at
+one setting only, not a fact about wall cabinets.
+
+## 38. `resolveFinishesTheTierDoesNotOffer`'s `Set<DesignPlacement>` is membership by object identity
+
+Found 2026-09-05 while closing wave 6Q-b.
+`packages/configurator-domain/src/commands/set-whole-kitchen-settings.ts:114-123` collects the
+placements that wear a finish the tier does not offer into `new Set(...)`, then tests membership with
+`unoffered.has(placement)` while mapping over `applied.placements`. A `Set` of objects is keyed by
+reference, not by `id`, so two placements that are `===`-aliased (the same object appearing twice in
+`applied.placements`) would be rewritten twice on the map pass and counted once in `unoffered.size`.
+
+**Unreachable today.** A document with two placement entries sharing one object can only arise from a
+duplicate `id`, and `DUPLICATE_PLACEMENT_ID` refuses such a document at both seams the tier command can
+be reached from — `assertDesignValidForCatalog` on load and `setWholeKitchenSettings`'s own guard —
+before this function ever sees it.
+
+**Logged rather than fixed** because the identity semantics are load-bearing and unstated: nothing in
+the function or its name says membership is by reference, and
+`resolveFinishesTheMaterialDoesNotOffer` one module over (`migrate-design.ts:567`) answers the same
+question by calling a predicate per placement rather than building a `Set`, so the two authorities for
+"does this placement wear an unoffered finish" disagree on how they'd behave if the refusal above ever
+moved. Not scheduled.
+
+## 39. `wearsAFinishTheMaterialDoesNotOffer` and `wearing` are duplicated verbatim, twice
+
+Found 2026-09-05 while closing wave 6Q-b. The pair of helpers —
+`wearsAFinishTheMaterialDoesNotOffer(placement, material)` (reads `placement.body.finish` and refuses
+via `materialOffersFinish`) and `wearing(placement, finish)` (returns the placement with that finish
+written into `body`) — appear byte-identical at `migrate-design.ts:587-597` and
+`set-whole-kitchen-settings.ts:133-143`.
+
+**Under this project's three-copy DRY threshold**, so not a violation on its own terms, and both
+copies delegate to the single authority that matters: `materialOffersFinish`
+(`packages/configurator-domain/src/materials.ts`), which is what ADR 0078 decision 1 declares "decided
+in one place" and what stays true here — neither copy re-derives the offer rule, only the two small
+wrappers around it are repeated.
+
+**Logged so the count is visible before a third caller arrives.** `materials.ts`, beside
+`materialOffersFinish`, is the extraction target the day a third module needs either helper. Not
+scheduled.
+
+## 40. Comments naming a schema-version number go stale silently, and the codebase has not been swept
+
+Found 2026-09-05 while closing wave 6Q-b. `migrate-design.ts:214`'s comment read "not reached at
+version 3, which is what M7 writes" while `CURRENT_SCHEMA_VERSION` (`migrate-design.ts:60`) had already
+moved to **5** — fixed in this wave's diff, so the comment at that line is current as of this entry.
+
+**The class of defect is the point, not this one instance.** A comment that spells out a specific
+schema-version number is a claim that goes stale the moment `CURRENT_SCHEMA_VERSION` moves again, and
+nothing enforces that a version bump revisits every comment naming the old one — this one was found by
+inspection, not by a gate. The codebase has not been swept for other comments naming a schema version
+number by literal value. Not scheduled; worth a grep for `version \d` / `schema_version` in comments
+the next time `CURRENT_SCHEMA_VERSION` moves.

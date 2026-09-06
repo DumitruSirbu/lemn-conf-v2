@@ -25,6 +25,19 @@ export function isTexture(value: unknown): value is THREE.Texture {
   return value instanceof THREE.Texture;
 }
 
+/** A mesh's material slot as a list, whichever of its two shapes three.js filled it with.
+ *
+ *  Here for the same reason as the guards above: `THREE.Mesh.material` is declared
+ *  `Material | Material[]`, so every walk that has to reach a mesh's materials — to dispose them, to
+ *  collect the textures they sample — starts by normalising it, and each such walk otherwise grows
+ *  its own copy of this line. Returned as a list rather than iterated in place so the caller's loop
+ *  reads identically for both shapes. */
+export function toMaterials(
+  material: THREE.Material | THREE.Material[],
+): readonly THREE.Material[] {
+  return Array.isArray(material) ? material : [material];
+}
+
 /** Disposes every geometry in a tree **except** the ones a shared registry owns.
  *
  *  Tearing a three.js body down is not "dispose everything you find". Two kinds of thing in a

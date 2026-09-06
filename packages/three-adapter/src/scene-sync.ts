@@ -6,6 +6,7 @@
 // the wall seating for bodies already seated), and a body or void that vanished is removed **and
 // disposed** — §4's own pseudocode opens with "dispose all void meshes", and a leak here is
 // invisible until a phone runs out of memory mid-session.
+import { buildAnyBody } from "./build-any-body.js";
 import {
   isPushOpenByDefault,
   toMetres,
@@ -14,20 +15,20 @@ import {
 } from "@lemnaria/configurator-domain";
 import * as THREE from "three";
 
-import {
-  buildCatalogBody,
-  isCatalogBuildId,
-  rebuildDepthM,
-} from "./catalog-bodies.js";
+import { rebuildDepthM } from "./catalog-bodies.js";
 import {
   applyBlackHandleMaterial,
-  buildDecomposedBody,
   setHandlesVisible,
 } from "./decomposed-bodies.js";
-import { applyBodyFinish } from "./finishes.js";
+import { applyBodyFinish, finishKeyOf, finishSignature } from "./finishes.js";
 import type { Kit } from "./kitchen-parts.js";
 import { syncRunEndPanel } from "./kitchen-shell.js";
-import { disposeUnsharedGeometries, isLine, isMesh } from "./three-guards.js";
+import {
+  disposeUnsharedGeometries,
+  isLine,
+  isMesh,
+  toMaterials,
+} from "./three-guards.js";
 import { buildVoidMesh } from "./void-mesh.js";
 
 /** What picking climbs to (`picking.ts`) and what the selection highlight looks up. */
@@ -119,7 +120,7 @@ function disposeRenderable(
   material: THREE.Material | THREE.Material[],
 ): void {
   geometry.dispose();
-  for (const one of Array.isArray(material) ? material : [material]) {
+  for (const one of toMaterials(material)) {
     one.dispose();
   }
 }
@@ -181,7 +182,11 @@ function applyRecordedAppearance(
   record: PlacementRecord,
 ): void {
   if (record.finishKey && record.canFinish) {
-    applyBodyFinish(body, kit.M, record.finishKey);
+    // A finish this build has no material for leaves the front in the kit's own colour: wave 6R
+    // gives the adapter a material for every declared entry, and guessing a nearby one until then
+    // would show a customer a colour nobody offered.
+    const key = finishKeyOf(record.finishKey);
+    if (key) applyBodyFinish(body, kit.M, key);
   }
   if (record.handleMode === "black" && record.canHandle) {
     applyBlackHandleMaterial(body, kit.M);
@@ -208,10 +213,9 @@ function applyRecordedAppearance(
  *  entry the value is passed through and ignored. The probe suite asserts both halves of that,
  *  entry by entry. */
 function buildBody(kit: Kit, record: PlacementRecord): THREE.Group {
-  if (!isCatalogBuildId(record.buildId)) {
-    return buildDecomposedBody(kit, record.buildId);
-  }
-  return buildCatalogBody(kit, record.buildId, {
+  // The family split lives in `build-any-body.ts` and is asked once, here and in the probe, so the
+  // scene and the thing that measures for it cannot disagree about which builder owns an id.
+  return buildAnyBody(kit, record.buildId, {
     widthM: toMetres(record.widthMm),
     heightM: toMetres(record.heightMm),
     depthM: rebuildDepthM(kit, record.buildId, record.frame.d),
@@ -245,6 +249,6 @@ function signBody(record: PlacementRecord): string {
     record.frame.ry,
     record.frame.d,
     record.handleMode ?? "",
-    record.finishKey ?? "",
+    finishSignature(record.finishKey),
   ].join("|");
 }

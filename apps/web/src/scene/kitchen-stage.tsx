@@ -3,6 +3,7 @@
 import {
   applyFinish,
   buildKitchenShell,
+  buildOverflowMark,
   buildSelectionOutline,
   collectFronts,
   configureRenderer,
@@ -12,10 +13,13 @@ import {
   createPickingRaycaster,
   createShadowGround,
   createStudioEnvironment,
+  disposeKit,
   disposeKitAndStage,
+  disposeOverflowMark,
   disposeSelectionOutline,
   isDragGesture,
   makeKit,
+  type Kit,
   pick,
   seatObjectOnStage,
   syncSolidBodies,
@@ -26,9 +30,63 @@ import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 
+import {
+  DEFAULT_CABINET_DEPTH_MM,
+  wallCarcassDepthMm,
+  createBodyProbeLease,
+  type BodyProbeFactory,
+} from "@lemnaria/configurator-domain";
+
 import type { Selection } from "../store/apply-command-result";
 import { useConfiguratorStore } from "../store/configurator-store";
 import { resolveSceneView, sceneViewKey, type SceneView } from "./scene-view";
+import { useOverflowingPlacementIds } from "./use-overflowing-placements";
+
+/**
+ * The store's `BodyProbeFactory`, and **the one place the two kits are told apart**.
+ *
+ * Asked for the depth this stage is already standing at — every command except `setCabinetDepth`,
+ * and a depth change that is not a change — it hands back this stage's own probe and a `release`
+ * that frees nothing. The stage owns that kit and `disposeKitAndStage` will release it; freeing it
+ * here would take the shared geometries out from under the mounted room, which is a black or
+ * invisible object rather than an error (`kit-disposal.ts`).
+ *
+ * Asked for any other depth, it builds a **transient** kit at that depth and releases it when the
+ * command ends (ADR 0074 decision 3: kits are not cached by depth — a `BodyCatalog` owns no GPU
+ * resource and a kit owns buffers, materials and canvas textures). It measures inside that kit's own
+ * room rather than the mounted one, so nothing is added to or removed from the scene the customer is
+ * looking at while the measurement runs.
+ *
+ * **Why it exists at all**: the adapter's base, full-height, appliance and hood builders ignore the
+ * depth they are handed and build the kit's own, so a probe over the standing kit measures the depth
+ * the session is *leaving* whatever it is asked for — 580 against 680 on the same change, measured
+ * (ADR 0074's finding, wave 6K-e).
+ */
+function probeFactoryFor(
+  stage: { kit: Kit; room: THREE.Object3D },
+  standingDepthMm: number,
+): BodyProbeFactory {
+  return (cabinetDepthMm: number) => {
+    if (cabinetDepthMm === standingDepthMm) {
+      // Frees nothing: the stage owns this kit and `disposeKitAndStage` will release it. Disposing
+      // here would take the shared geometries out from under the mounted room.
+      return createBodyProbeLease(
+        createBodyProbe(stage.kit, stage.room),
+        () => undefined,
+      );
+    }
+    const kit = makeKit({
+      cabinetDepthMm,
+      wallDepthMm: wallCarcassDepthMm(cabinetDepthMm),
+    });
+    const room = kit.builders["kitchen-l"]();
+    // **This is the site that allocates, so this is the site that frees** (ADR 0076 decision 3).
+    // The borrower cannot drop it: `use` runs this in a `finally` and never hands the probe out.
+    return createBodyProbeLease(createBodyProbe(kit, room), () => {
+      disposeKit(kit, room);
+    });
+  };
+}
 
 /** Seconds for a preset switch to settle. Long enough to read as a move, short enough that the
  *  customer is not waiting on the camera. */
@@ -80,15 +138,33 @@ export function KitchenStage({ view, finish, onSettled }: KitchenStageProps) {
   const selection = useConfiguratorStore((state) => state.selection);
   const select = useConfiguratorStore((state) => state.select);
   const deselect = useConfiguratorStore((state) => state.deselect);
+  const overflowingIds = useOverflowingPlacementIds();
   const attachBodyProbe = useConfiguratorStore(
     (state) => state.attachBodyProbe,
   );
   const detachBodyProbe = useConfiguratorStore(
     (state) => state.detachBodyProbe,
   );
+  // **A number, not the design.** Selecting `state.design` would re-render this component on every
+  // command — a finish, a handle, a resize — for a memo that would not rebuild.
+  const cabinetDepthMm = useConfiguratorStore(
+    (state) =>
+      state.design.settings?.cabinetDepthMm ?? DEFAULT_CABINET_DEPTH_MM,
+  );
 
   const stage = useMemo(() => {
-    const kit = makeKit();
+    // **The kit is built at the depth the held design declares, never at a constant and never at the
+    // adapter's own default** (M6 waves 6H and 6K-b). §12 keeps product rules in the domain and
+    // builders in the adapter, so the two depths are read from the domain here and
+    // `cabinet-depth-source.test.ts` holds the adapter's copies to the same map.
+    //
+    // **Both depths, always.** `wallDepthMm` left to fall through to `DEFAULT_WALL_DEPTH_MM` is
+    // right at 600 by coincidence of the default and 70 mm wrong at 700, where ADR 0028's map
+    // declares 400 — that ADR's own reported defect, arriving in the scene.
+    const kit = makeKit({
+      cabinetDepthMm,
+      wallDepthMm: wallCarcassDepthMm(cabinetDepthMm),
+    });
     const shell = buildKitchenShell(kit);
 
     const solidsRoot = new THREE.Group();
@@ -111,11 +187,22 @@ export function KitchenStage({ view, finish, onSettled }: KitchenStageProps) {
       ground: createShadowGround(),
       blob: createContactBlob(),
     };
-    // The shell only — floor, walls, backsplash, end panel — built once per mount. Its fixed
-    // decomposition manifest belongs to the adapter and never reads the initial records: a body
-    // deleted before this component mounts therefore cannot return as an untagged reference ghost.
-    // The sync below is the sole owner of every customer body.
-  }, []);
+    // **Keyed on the depth, and on nothing else** (ADR 0074 decision 1). The whole stage is rebuilt
+    // and nothing crosses a generation, which is what makes `disposeKitAndStage`'s stated
+    // precondition — the kit and the room it built share a lifetime — true by construction. The
+    // narrow "swap the kit under the mounted bodies" shape is refused there on a proof: `signBody`
+    // is a function of the record alone, so ADR 0058's pinned tops keep instances built by the old
+    // kit, which can then be neither released nor kept.
+    //
+    // **The reference-ghost guarantee is the shell's fixed manifest, never the number of builds.**
+    // `buildKitchenShell` takes a `Kit` and *no records*; it keeps `KITCHEN_L_SHELL_CHILD_NAMES` and
+    // disposes the other 27 children, so building it N times yields N identical shells with no
+    // customer body in any of them. This comment said "built once per mount" until 2026-09-04, which
+    // read as if the empty dependency array were the safety property — it was not, and the invariant
+    // would have died silently the moment this was keyed. `syncSolidBodies` remains the sole owner
+    // of every customer body, and `syncRunEndPanel` re-seats the freshly built panel from the
+    // current records on the new generation's first sync (ADR 0045).
+  }, [cabinetDepthMm]);
 
   // Work item 8: the scene follows store state. Bodies that appeared are mounted, bodies and void
   // meshes that vanished are removed and disposed, and an unchanged body keeps its exact instance
@@ -132,11 +219,11 @@ export function KitchenStage({ view, finish, onSettled }: KitchenStageProps) {
   // and the mounted room — neither of which exists until this component runs. The store therefore
   // holds the port and this is the only place the Three.js implementation is handed to it.
   useEffect(() => {
-    attachBodyProbe(createBodyProbe(stage.kit, stage.room));
+    attachBodyProbe(probeFactoryFor(stage, cabinetDepthMm));
     // The probe measures inside *this* room. When the stage goes, so must it — the store is
     // module-scoped and would otherwise keep offering a probe over an unmounted scene.
     return detachBodyProbe;
-  }, [stage, attachBodyProbe, detachBodyProbe]);
+  }, [stage, cabinetDepthMm, attachBodyProbe, detachBodyProbe]);
 
   useEffect(() => {
     configureRenderer(gl);
@@ -149,7 +236,25 @@ export function KitchenStage({ view, finish, onSettled }: KitchenStageProps) {
     };
   }, [gl, scene, invalidate]);
 
+  /** Whether a stage has already been seated in this mount — so the *first* one frames the room and
+   *  every later one does not. A ref rather than state: nothing renders from it. */
+  const hasSeatedAStage = useRef(false);
+
   useEffect(() => {
+    // **The seating must run for every generation and the camera must not move for any but the
+    // first** (ADR 0074 decision 7). `seatObjectOnStage` is what positions and un-hides the new
+    // contact blob and the new shadow ground, so a rebuilt stage that skipped it would draw a
+    // room standing on nothing; it also writes `camera.position`, `near` and `far`, and re-running
+    // that unaltered would throw away the customer's orbit on every depth toggle — expensive to
+    // rebuild on a handset, and read as the scene jumping rather than the kitchen deepening.
+    //
+    // Restored around the call rather than split out of the adapter, because `near`/`far` *should*
+    // be re-derived: the room's bounding sphere moves with the depth, and framing distance is what
+    // they are computed from. Only the customer's own two vectors are put back.
+    const orbit = controls;
+    const heldPosition = camera.position.clone();
+    const heldTarget = orbit?.target.clone();
+
     seatObjectOnStage({
       object: stage.room,
       camera: camera as THREE.PerspectiveCamera,
@@ -157,8 +262,17 @@ export function KitchenStage({ view, finish, onSettled }: KitchenStageProps) {
       blob: stage.blob,
       key: stage.lights.key,
     });
+
+    if (hasSeatedAStage.current) {
+      camera.position.copy(heldPosition);
+      if (orbit && heldTarget) {
+        orbit.target.copy(heldTarget);
+        orbit.update();
+      }
+    }
+    hasSeatedAStage.current = true;
     invalidate();
-  }, [stage, camera, invalidate]);
+  }, [stage, camera, controls, invalidate]);
 
   // Row 2 / row 22 / drag-threshold picking (`DEVELOPMENT-SPEC.md` §6.1). Native DOM
   // listeners, not R3F's declarative pointer props: the drag-vs-click distinction needs the raw
@@ -242,6 +356,43 @@ export function KitchenStage({ view, finish, onSettled }: KitchenStageProps) {
     };
   }, [selection, stage, records, voids, invalidate]);
 
+  // ADR 0065 decision 1: a body past the end of its wall is **marked**, and marking is the whole of
+  // what happens to it — nothing below moves it, resizes it, hides it or touches the selection. The
+  // mark is an object mounted beside the body, exactly as the outline above is and for the same
+  // reason: this kit's bodies share `KitMaterials` instances, so tinting one body's material would
+  // tint every body drawn with it.
+  //
+  // Mounted on `stage.room` rather than inside `solids`, so it inherits the room's seating transform
+  // while staying outside the subtree §6.1 raycasts — a mark stands in front of the fronts it covers
+  // and must never intercept the tap that selects them.
+  //
+  // The dependency list is the outline's plus the ids: `records` and `voids` are here because
+  // `syncSolidBodies` replaces a mounted instance whenever a body is swapped, resized or refinished,
+  // and a mark still holding the previous instance's transform would sit beside the body instead of
+  // over it.
+  const overflowMarksRef = useRef<THREE.Object3D[]>([]);
+  useEffect(() => {
+    const marks = overflowingIds.flatMap((id) => {
+      const target = findMountedPlacement(stage.solidsRoot, id);
+      if (!target) return [];
+      const { group } = buildOverflowMark({ target, parent: stage.room });
+      stage.room.add(group);
+      return [group];
+    });
+    overflowMarksRef.current = marks;
+    invalidate();
+    // A mark left behind after its body stopped overflowing is a red cabinet the customer has no way
+    // to clear, so the teardown is unconditional: React runs it before every re-run as well as on
+    // unmount, and it detaches before it disposes so the stage teardown below never walks a mark.
+    return () => {
+      for (const mark of overflowMarksRef.current) {
+        mark.removeFromParent();
+        disposeOverflowMark(mark);
+      }
+      overflowMarksRef.current = [];
+    };
+  }, [overflowingIds, stage, records, voids, invalidate]);
+
   // R3F never disposes a `<primitive>`, by design: its reconciler skips disposal when
   // `instance.type === 'primitive'` because a primitive's lifetime is owned outside React. Every
   // object below is one, so without this a client-side remount strands a whole room's buffers,
@@ -322,10 +473,23 @@ function findSelectedObject(
   roots: SelectableRoots,
   selection: NonNullable<Selection>,
 ): THREE.Object3D | null {
-  const isPlacement = selection.kind === "placement";
-  const root = isPlacement ? roots.solidsRoot : roots.voidsRoot;
-  const key = isPlacement ? "placementId" : "voidId";
+  if (selection.kind === "placement")
+    return findMountedPlacement(roots.solidsRoot, selection.id);
   return (
-    root.children.find((child) => child.userData[key] === selection.id) ?? null
+    roots.voidsRoot.children.find(
+      (child) => child.userData.voidId === selection.id,
+    ) ?? null
+  );
+}
+
+/** The mounted body a placement id names, or `null` while the scene has not caught up with it. */
+function findMountedPlacement(
+  solidsRoot: THREE.Object3D,
+  placementId: string,
+): THREE.Object3D | null {
+  return (
+    solidsRoot.children.find(
+      (child) => child.userData.placementId === placementId,
+    ) ?? null
   );
 }

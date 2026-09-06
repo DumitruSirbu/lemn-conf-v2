@@ -16,6 +16,7 @@
 // published `voids` are what the customer sees and what §5.1 selects against, so the round trip is
 // asserted over those too.
 import {
+  buildKitchenLBodyCatalog,
   KITCHEN_L_BODY_CATALOG,
   KITCHEN_L_DESIGN,
   MAX_EMPTY_COLUMN_WIDTH_MM,
@@ -27,7 +28,7 @@ import { fc } from "@fast-check/vitest";
 import { describe, expect, it } from "vitest";
 
 import { createConfiguratorStore } from "../../src/store/configurator-store";
-import { createFakeBodyProbe } from "../support/fake-body-probe";
+import { createFakeProbeFactory } from "../support/fake-body-probe";
 
 const OCCURRED_AT = "2026-08-25T12:00:00.000Z";
 const CATALOG = KITCHEN_L_BODY_CATALOG;
@@ -40,9 +41,9 @@ const PANTRY_ID = "p6";
 function createStore(design: Design = KITCHEN_L_DESIGN) {
   return createConfiguratorStore({
     design,
-    catalog: CATALOG,
+    catalogAt: buildKitchenLBodyCatalog,
     now: () => OCCURRED_AT,
-    bodyProbe: createFakeBodyProbe(),
+    probeAt: createFakeProbeFactory(),
   });
 }
 

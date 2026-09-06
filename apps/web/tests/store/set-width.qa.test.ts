@@ -5,8 +5,9 @@
 // promise: the panel reads the query off one set of store slices and the action runs the command off
 // another, so the two could still be given different inputs. Every case below taps the chip and
 // checks the store, rather than asking the query twice.
+import { cabinetDepthMmOf } from "@lemnaria/configurator-domain";
 import {
-  KITCHEN_L_BODY_CATALOG,
+  buildKitchenLBodyCatalog,
   KITCHEN_L_DESIGN,
   widthOptionsFor,
   type Design,
@@ -18,16 +19,16 @@ import {
   createConfiguratorStore,
   type ConfiguratorState,
 } from "../../src/store/configurator-store";
-import { createFakeBodyProbe } from "../support/fake-body-probe";
+import { createFakeProbeFactory } from "../support/fake-body-probe";
 
 const OCCURRED_AT = "2026-08-25T12:00:00.000Z";
 
 function createStore(design: Design = KITCHEN_L_DESIGN) {
   return createConfiguratorStore({
     design,
-    catalog: KITCHEN_L_BODY_CATALOG,
+    catalogAt: buildKitchenLBodyCatalog,
     now: () => OCCURRED_AT,
-    bodyProbe: createFakeBodyProbe(),
+    probeAt: createFakeProbeFactory(),
   });
 }
 
@@ -50,15 +51,17 @@ function storeWithEmptyColumn(): Store {
 /** The chips §9 would render for one body, read exactly as `use-panel-view.ts` reads them. */
 function chipsFor(store: Store, placementId: string): WidthOption[] {
   const state = store.getState();
-  const probe = state.bodyProbe;
-  if (!probe) throw new Error("the fixture store has no probe");
-  return widthOptionsFor({
-    design: state.design,
-    catalog: state.catalog,
-    columns: state.columns,
-    target: { kind: "placement", id: placementId },
-    probe,
-  });
+  const probeAt = state.probeAt;
+  if (!probeAt) throw new Error("the fixture store has no probe factory");
+  return probeAt(cabinetDepthMmOf(state.design)).use((probe) =>
+    widthOptionsFor({
+      design: state.design,
+      catalog: state.catalog,
+      columns: state.columns,
+      target: { kind: "placement", id: placementId },
+      probe,
+    }),
+  );
 }
 
 const UNTOUCHED_BY_A_REFUSAL = [
@@ -276,9 +279,9 @@ describe("the state a resize leaves behind", () => {
     const onDesignChanged = vi.fn();
     const store = createConfiguratorStore({
       design: KITCHEN_L_DESIGN,
-      catalog: KITCHEN_L_BODY_CATALOG,
+      catalogAt: buildKitchenLBodyCatalog,
       now: () => OCCURRED_AT,
-      bodyProbe: createFakeBodyProbe(),
+      probeAt: createFakeProbeFactory(),
       onDesignChanged,
     });
     for (const id of ["p1", "p12", "p18"]) removeById(store, id);

@@ -90,7 +90,7 @@ interface World {
 
 function loadWorld(design: Design): World {
   const records = derivePlacementRecords(design, KITCHEN_L_BODY_CATALOG);
-  const columns = deriveColumns(records);
+  const columns = deriveColumns(records, {}, design.room);
   return { design, columns, voids: recomputeVoids(records, columns) };
 }
 

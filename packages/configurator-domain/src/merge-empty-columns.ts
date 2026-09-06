@@ -474,7 +474,23 @@ function isKeyTaken(
  *  **The shallowest member is the template**, and that is not a stylistic choice: a column's
  *  off-wall coordinate is its own half-depth (`deriveColumns`), so the extent that keeps `d` must be
  *  the one that keeps `x`/`z` with it. Everything else the members share — `wall`, `ry` — comes
- *  across with it. */
+ *  across with it.
+ *
+ *  **And `depthFromBuildId` comes across with it too** (ADR 0073 decision 8), through the spread and
+ *  not through a rule of its own: the merged entry keeps the shallowest member's depth, so it keeps
+ *  the body that supplied that depth, and no new choice is made. The tolerance is what makes this a
+ *  real question rather than a theoretical one — 620 and 638 agree within `AGREEMENT_TOLERANCE_MM`,
+ *  so a merged run genuinely can descend from a base carcass and an oven tower — and taking the
+ *  template's source is the answer that matches the depth the envelope already took.
+ *
+ *  **The `reduce` keeps the first of two equal depths, and that tie is now load-bearing** (ADR 0079
+ *  decision 7). It is already deterministic and needs no change: `members` arrives sorted by
+ *  along-wall coordinate (ADR 0046 rule 1's own sort, taken *"so that one design is one picture
+ *  whatever order the customer's commands ran in"*), so the winner is derived from geometry rather
+ *  than from the order the document happened to list the columns in. What changed is the
+ *  consequence — the tie now decides a recorded source as well as a depth — so ADR 0073 decision 8's
+ *  "shallowest member's source" reads as **the leftmost of the shallowest**. Stated here so a later
+ *  reader meeting the order-dependence does not take it for a defect. */
 function mergedExtent(
   members: readonly MeasuredColumn[],
   span: WallSpanMm,

@@ -7,6 +7,11 @@ import {
 } from "../../src/fixtures/kitchen-l-design.js";
 import { clearBodies, insertInto, OCCURRED_AT } from "../support/commands.js";
 import { createWorld } from "../support/kitchen-world.js";
+import {
+  freeColourFinish,
+  LEGACY_ENUM_FINISHES,
+  paletteFinish,
+} from "../../src/materials.js";
 
 const base = {
   design: KITCHEN_L_DESIGN,
@@ -18,23 +23,91 @@ function bodyOf(design: typeof KITCHEN_L_DESIGN, id: string) {
   return design.placements.find((placement) => placement.id === id)?.body;
 }
 
+function withMaterial(materialTierId: string): typeof KITCHEN_L_DESIGN {
+  return {
+    ...KITCHEN_L_DESIGN,
+    settings: { ...KITCHEN_L_DESIGN.settings, materialTierId },
+  };
+}
+
+/** *Antracit*, a PAL decor. The fixture carries no settings, so it is a PAL kitchen — and since
+ *  wave 6Q-a the colour a success is asserted with has to be one PAL offers, or the command refuses
+ *  before it records anything. *Salvie* used to stand here and is now the refusal below. */
+const OFFERED_ON_PAL = paletteFinish("pal.antracit");
+
 describe("setFinish", () => {
   it("records the choice on that placement and on no other", () => {
     const result = setFinish({
       ...base,
       target: { kind: "placement", id: "p0" },
-      finish: "sage",
+      finish: OFFERED_ON_PAL,
     });
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(bodyOf(result.design, "p0")?.finish).toBe("sage");
+    expect(bodyOf(result.design, "p0")?.finish).toEqual(OFFERED_ON_PAL);
     expect(bodyOf(result.design, "p2")?.finish).toBeUndefined();
     expect(result.design.updatedAt).toBe(OCCURRED_AT);
     expect(result.effect).toEqual({
       type: "finish_set",
       placementId: "p0",
-      finish: "sage",
+      finish: OFFERED_ON_PAL,
     });
+  });
+
+  // ADR 0078 decision 6: a colour the kitchen's material does not offer is refused at the command,
+  // for this module's own standing reason — a no-op looks identical to a broken control, and here
+  // the alternative is worse than a no-op, it is storing the state the load seam would then have to
+  // correct.
+  it("refuses a free colour on a decor-list material", () => {
+    const result = setFinish({
+      ...base,
+      target: { kind: "placement", id: "p0" },
+      finish: LEGACY_ENUM_FINISHES.sage,
+    });
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.reason.code).toBe("FINISH_NOT_OFFERED");
+    expect(result.reason.message.length).toBeGreaterThan(0);
+    expect(result.design).toBe(KITCHEN_L_DESIGN);
+  });
+
+  it("refuses another material's palette entry", () => {
+    const result = setFinish({
+      ...base,
+      target: { kind: "placement", id: "p0" },
+      finish: paletteFinish("veneer.nuc"),
+    });
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.reason.code).toBe("FINISH_NOT_OFFERED");
+  });
+
+  it("accepts a free colour once the kitchen's material is the picker", () => {
+    const result = setFinish({
+      ...base,
+      design: withMaterial("material.painted-mdf"),
+      target: { kind: "placement", id: "p0" },
+      finish: freeColourFinish("#b8c4a1"),
+    });
+    expect(result.ok).toBe(true);
+  });
+
+  // ADR 0078 decision 3: a stored tier id naming no declared material is a reachable state — wave
+  // 6G's recovery path stands on it loading — and a material this product does not declare makes no
+  // offer to judge a colour against. So the command lets the finish through rather than making a
+  // stale tier unrecolourable.
+  it("refuses nothing when the stored material id names no declared material", () => {
+    const result = setFinish({
+      ...base,
+      design: withMaterial("material.laminate"),
+      target: { kind: "placement", id: "p0" },
+      finish: LEGACY_ENUM_FINISHES.sage,
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(bodyOf(result.design, "p0")?.finish).toEqual(
+      LEGACY_ENUM_FINISHES.sage,
+    );
   });
 
   // §5.5: a body with no doors is a refusal with its own code, not a silent no-op — a no-op looks
@@ -59,7 +132,7 @@ describe("setFinish", () => {
       catalog: KITCHEN_L_BODY_CATALOG,
       occurredAt: OCCURRED_AT,
       target: { kind: "placement", id: shelf.effect.placementId },
-      finish: "sage",
+      finish: LEGACY_ENUM_FINISHES.sage,
     });
     expect(result.ok).toBe(false);
     if (result.ok) return;
@@ -72,7 +145,7 @@ describe("setFinish", () => {
     const result = setFinish({
       ...base,
       target: { kind: "void", id: "A|1.30:v0:0.00" },
-      finish: "sage",
+      finish: LEGACY_ENUM_FINISHES.sage,
     });
     expect(result.ok).toBe(false);
     if (result.ok) return;

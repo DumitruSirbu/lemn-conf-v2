@@ -14,6 +14,7 @@ import {
 import { evaluateInsertFit } from "../../src/commands/insert-fit.js";
 import { FIT_TOLERANCE_M } from "../../src/void-engine.js";
 import { toMetres } from "../../src/millimetres.js";
+import { recordedClearanceM } from "../../src/occupied-depth.js";
 import { renderRejection } from "../../src/commands/rejection.js";
 import { offersFor } from "../../src/queries/offers.js";
 import { offered as offeredRows } from "../support/offers.js";
@@ -21,6 +22,7 @@ import type { Column, InsertOpening } from "../../src/index.js";
 import { clearBodies, insertInto } from "../support/commands.js";
 import { voidAt, type KitchenWorld } from "../support/kitchen-world.js";
 import { columnWorld } from "../support/synthetic-world.js";
+import { DEFAULT_CABINET_DEPTH_MM } from "../../src/worktop-depth.js";
 
 const SINK_MIN_WIDTH_MM = 560;
 const OPENING_ALONG_MM = 1000;
@@ -243,7 +245,7 @@ describe("a millimetre-set entry honours its own minimum width too", () => {
       wall: "A",
       alongM: 1,
       w: widthM,
-      d: 0.58,
+      d: recordedClearanceM(0.58),
       y0: 0,
       h: 0.86,
       spanY0: 0,
@@ -261,7 +263,12 @@ describe("a millimetre-set entry honours its own minimum width too", () => {
       regions: [[0, 0.86]],
       hasFullHeightUnder: true,
     };
-    return evaluateInsertFit({ body, opening, column });
+    return evaluateInsertFit({
+      body,
+      opening,
+      column,
+      cabinetDepthMm: DEFAULT_CABINET_DEPTH_MM,
+    });
   }
 
   // The original demonstrating case. A 460 mm opening used to select the 450 mm size and hand the
@@ -366,12 +373,13 @@ describe("the shipped fixed-set entries resolve exactly as they did before the f
         );
         const fit = evaluateInsertFit({
           body,
+          cabinetDepthMm: DEFAULT_CABINET_DEPTH_MM,
           opening: {
             col: OPENING_COLUMN,
             wall: "A",
             alongM: 1,
             w: widthM,
-            d: 0.58,
+            d: recordedClearanceM(0.58),
             y0: 0,
             h: 2.6,
             spanY0: 0,

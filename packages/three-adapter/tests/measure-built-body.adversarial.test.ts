@@ -1,3 +1,8 @@
+import {
+  buildKitchenLBodyCatalog,
+  measurableSeatOf,
+  type MeasurableSeatedOn,
+} from "@lemnaria/configurator-domain";
 // Adversarial QA for M3 Wave 3B, work item 7. The implementer's suite proves the probe returns
 // plausible numbers; this one runs those numbers through the arithmetic the *domain* applies to
 // them and asserts what the scene must look like afterwards.
@@ -42,6 +47,16 @@ import {
   installHeadlessDocument,
 } from "./support/headless-canvas.js";
 
+/** The plane the catalogue says seats this body — read, never assumed, which is the whole of
+ *  ADR 0077. Hard-coding `"wall-plane"` would put the front-hung hood on the wrong plane, and is
+ *  exactly the second list the ruling deleted from `measure-built-body.ts`. */
+function seatedOnOf(buildId: string, cabinetDepthMm = 600): MeasurableSeatedOn {
+  return measurableSeatOf({
+    buildId,
+    rule: buildKitchenLBodyCatalog(cabinetDepthMm).get(buildId)?.seatRule,
+  });
+}
+
 /** M1's parity epsilon — the one §11 row 19 names ("0.000"). */
 const FLOAT_EPSILON_METRES = 1e-6;
 
@@ -72,6 +87,7 @@ function request(
     widthM: toMetres(widthMm),
     heightM: toMetres(heightMm),
     depthM,
+    seatedOn: seatedOnOf(buildId),
   };
 }
 
@@ -276,15 +292,30 @@ describe("the probe leaves the room exactly as it found it", () => {
   });
 
   it("restores the children when the builder throws", () => {
+    // **The id has to be one neither family owns.** It was `base-sink-800` until 2026-09-04, which
+    // was a seeded decomposition the probe could not build — the very defect wave 6K-d closed, so
+    // that input no longer throws and this test would have gone quietly vacuous. A name no
+    // catalogue row and no decomposition declares is what still reaches the failure this asserts
+    // the recovery from.
     const before = [...room.children];
 
     expect(() =>
       measureBuiltBody({
         kit,
         room,
-        request: request("base-sink-800", 800, 860, 0.58),
+        // Built by hand rather than through `request()`: that helper reads the seat rule off the
+        // catalogue, and an id the catalogue does not hold has none — so it would throw
+        // `UndeclaredSeatRuleError` before `measureBuiltBody` ever ran, and this test is about what
+        // the *builder* does. The plane is irrelevant to a body that cannot be built.
+        request: {
+          buildId: "no-such-body",
+          widthM: toMetres(800),
+          heightM: toMetres(860),
+          depthM: 0.58,
+          seatedOn: "wall-plane",
+        },
       }),
-    ).toThrow(/No catalog builder registered/);
+    ).toThrow(/No decomposition builder registered/);
 
     expect(room.children).toEqual(before);
   });

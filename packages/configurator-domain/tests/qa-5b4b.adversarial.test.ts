@@ -23,7 +23,12 @@ import { fc, test as propertyTest } from "@fast-check/vitest";
 import { describe, expect, it } from "vitest";
 
 import type { VacatedOpening } from "../src/commands/command-result.js";
-import { DesignSchema, type Design, type EmptyColumn } from "../src/design.js";
+import {
+  DesignSchema,
+  type Design,
+  type DesignRoom,
+  type EmptyColumn,
+} from "../src/design.js";
 import {
   KITCHEN_L_BODY_CATALOG,
   KITCHEN_L_DESIGN,
@@ -82,14 +87,28 @@ interface Loaded {
 
 function load(design: Design): Loaded {
   const records = derivePlacementRecords(design, CATALOG);
-  const columns = deriveColumns(records, { emptyColumns: design.emptyColumns });
+  const columns = deriveColumns(
+    records,
+    { emptyColumns: design.emptyColumns },
+    design.room,
+  );
   return { columns, records, voids: recomputeVoids(records, columns) };
 }
+
+/** Wide enough that `loadStored`'s widest sweep (buckets up to 27, at 150 mm cells) never
+ *  reaches the wall's own end — this file is about the merge's round trip, not
+ *  `clipEmptyColumnsAtWallEnd`, which has its own test file. */
+const ROOM: DesignRoom = {
+  shape: "L",
+  widthMm: 7000,
+  depthMm: 7000,
+  heightMm: 2600,
+};
 
 /** The stored spaces straight into `deriveColumns`, with no placements — `qa-5b2b`'s own round trip,
  *  which runs on a frozen map rather than on a document. */
 function loadStored(emptyColumns: readonly EmptyColumn[]): Loaded {
-  const columns = deriveColumns([], { emptyColumns: emptyColumns });
+  const columns = deriveColumns([], { emptyColumns: emptyColumns }, ROOM);
   return { columns, records: [], voids: recomputeVoids([], columns) };
 }
 
@@ -375,7 +394,12 @@ describe("an unmergeable run is declined, and stays projectable on every field",
       const design = designWith(
         layOutFromLeftEdge(widths, odd ? 999.5 : 1000, { depthMm, topMm }),
       );
-      const loaded = load(design);
+      // Conservation, not wall-end clipping, is this property's subject — widened so the sweep's
+      // widest run (five 800 mm columns from a 1000 mm left edge) never reaches wall A's own end.
+      const loaded = load({
+        ...design,
+        room: { ...design.room, widthMm: 6000 },
+      });
 
       const projected = projectEmptyColumns(loaded.columns, loaded.records);
 
@@ -415,6 +439,8 @@ function clearedHobColumn(): Loaded {
   }, KITCHEN_L_DESIGN);
   const frozen = deriveColumns(
     derivePlacementRecords(KITCHEN_L_DESIGN, CATALOG),
+    {},
+    KITCHEN_L_DESIGN.room,
   );
   const records = derivePlacementRecords(cleared, CATALOG);
   // The store's `resolveColumns` in one line: merge over the published map, then re-answer
@@ -577,12 +603,14 @@ describe("wall B merges on its own axis", () => {
   // merge fixture in this wave is on wall A, where `x` moves and `z` is the half-depth. Transposed,
   // the merged column steps off the wall and keys at its own depth.
   it("moves z and leaves x at the column's half-depth", () => {
-    const loaded = load(
-      designWith([
-        emptySpace(2000, 300, { wall: "B" }),
-        emptySpace(2300, 300, { wall: "B" }),
-      ]),
-    );
+    const design = designWith([
+      emptySpace(2000, 300, { wall: "B" }),
+      emptySpace(2300, 300, { wall: "B" }),
+    ]);
+    // This is about the axis transpose, not about wall length — the fixture room's own wall B
+    // (`depthMm: 2400`) is shorter than the merged run's 2450 mm far edge, which would otherwise
+    // clip the very column the test means to read back untouched.
+    const loaded = load({ ...design, room: { ...design.room, depthMm: 4200 } });
 
     const merged = loaded.columns.get("B|2.15");
     expect(merged).toBeDefined();

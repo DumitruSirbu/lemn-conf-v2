@@ -51,7 +51,13 @@ function measure(
   buildId: string,
   size: { widthM: number; heightM: number; depthM: number },
 ): BodyMeasurement {
-  return { ...measureBuiltBody({ kit, room, request: { buildId, ...size } }) };
+  return {
+    ...measureBuiltBody({
+      kit,
+      room,
+      request: { buildId, ...size, seatedOn: "wall-plane" },
+    }),
+  };
 }
 
 interface SizeCase {
@@ -273,6 +279,11 @@ describe("buildCatalogBody", () => {
   // the carcass's whole height with **one** handle — not two doors, not a stack of drawer fronts.
   // The thumbnail draws exactly that, and a body that disagreed with its own row drawing would be
   // the "you ordered the wrong product" failure `public/cabinets/README.md` names.
+  //
+  // **Since wave 6S that front is a `drawer_front`**, and it is the mesh name rather than the
+  // handle edge that says so: a cargo runs on runners, so ADR 0070 prices it as a drawer. Asserted
+  // in both directions — one drawer front and no door leaf — because the two names are what the
+  // catalogue's `carriesDrawers(1)` declaration is held to.
   it.each([0.2, 0.3])(
     "builds one full-height pull-out front at %s m",
     (widthM) => {
@@ -282,7 +293,8 @@ describe("buildCatalogBody", () => {
         depthM: BASE_COLUMN_DEPTH_M,
       });
 
-      expect(countMeshes(group, "door_front")).toBe(1);
+      expect(countMeshes(group, "drawer_front")).toBe(1);
+      expect(countMeshes(group, "door_front")).toBe(0);
       expect(countMeshes(group, "handle_bar")).toBe(1);
 
       const names: string[] = [];

@@ -66,7 +66,10 @@ const SAMPLES: readonly RejectionDetail[] = [
     params: { field: "widthMm", valueMm: 600.5 },
   },
   { code: "FINISH_NOT_SUPPORTED", params: { label: "Etajeră deschisă" } },
+  { code: "FINISH_NOT_OFFERED", params: {} },
   { code: "HANDLE_NOT_SUPPORTED", params: { label: "Etajeră deschisă" } },
+  { code: "UNKNOWN_MATERIAL_TIER", params: {} },
+  { code: "UNKNOWN_HARDWARE_TIER", params: {} },
 ];
 
 const ALL_CODES: readonly RejectionCode[] = [
@@ -91,7 +94,10 @@ const ALL_CODES: readonly RejectionCode[] = [
   "COLUMN_MISMATCH",
   "NON_INTEGER_MILLIMETRES",
   "FINISH_NOT_SUPPORTED",
+  "FINISH_NOT_OFFERED",
   "HANDLE_NOT_SUPPORTED",
+  "UNKNOWN_MATERIAL_TIER",
+  "UNKNOWN_HARDWARE_TIER",
 ];
 
 describe("renderRejection", () => {

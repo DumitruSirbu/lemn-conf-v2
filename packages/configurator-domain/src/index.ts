@@ -5,6 +5,12 @@ export const CONFIGURATOR_DOMAIN_PACKAGE =
 export * from "./schemas.js";
 export * from "./room-transforms.js";
 export * from "./design.js";
+// The finish shape, the three materials and their palettes (ADR 0071). Exported beside `design.js`
+// because `CabinetBody.finish` is one of its values, and read by every surface that offers a colour.
+export * from "./materials.js";
+// The count the material change's confirmation is conditional on (ADR 0081 decision 1). Beside
+// `materials.js` because it is the second query the same declaration answers.
+export * from "./chosen-finishes.js";
 export * from "./design-bounds.js";
 export * from "./validate-design.js";
 export * from "./failure-text.js";
@@ -19,28 +25,140 @@ export {
   finishesAtMm,
   NO_FRONT_ASSEMBLY_MM,
   occupiedDepthM,
+  occupiedDepthOfEntryM,
+  recordedClearanceM,
   shellPlusFrontMm,
   UndeclaredOccupiedDepthError,
+  type CatalogEntryDepthQuery,
+  type ClearanceM,
   type OccupiedDepthRule,
 } from "./occupied-depth.js";
 export {
+  cabinetHandleCount,
+  carriesHandles,
+  handlesOnDoorLeaves,
+  NO_CABINET_HANDLES,
+  UndeclaredCabinetHandleCountError,
+  widthDerivedDoorLeafCount,
+  type CabinetHandleCountField,
+  type CabinetHandleQuery,
+  type CabinetHandleRule,
+  type DoorLeafHandles,
+} from "./cabinet-handles.js";
+export {
+  BASE_DOOR_BAND_HEIGHT_MM,
+  carriesDrawers,
+  carriesFronts,
+  ContradictoryFrontDeclarationError,
+  doorBandHeightsMm,
+  doorBandsMm,
+  doorLeafCount,
+  doorLeafHeightsMm,
+  doorLeavesFollowWidth,
+  drawerCount,
+  frontPopulationQueryFor,
+  FRIDGE_HOUSING_DOOR_BAND_HEIGHTS_MM,
+  NO_DOOR_BANDS,
+  NO_DRAWERS,
+  NO_OPENING_FRONTS,
+  oneBandInsetFromFrameMm,
+  refuseContradictoryFrontDeclarations,
+  OVEN_TOWER_DOOR_BAND_HEIGHTS_MM,
+  PANTRY_DOOR_BAND_HEIGHTS_MM,
+  UnbuildableDoorBandError,
+  UndeclaredFrontPopulationError,
+  WALL_DOOR_BAND_INSET_MM,
+  wallDoorBandHeightMm,
+  type DeclaredFronts,
+  type DeclaresFronts,
+  type DoorBandsRule,
+  type FrontPopulationField,
+  type FrontPopulationQuery,
+  type FrontPopulationRule,
+  type PlacedBody,
+} from "./front-population.js";
+// `buildToTheClearanceM` and `shallowerBuildDepthM` stay module-internal: they are how
+// `resolveDepthM` applies the declaration, and a second caller outside this package would be a
+// second way to mint a build depth that no declaration produced — the defect ADR 0060 closes.
+export {
+  cabinetDepthRuleOf,
+  columnBuildDepthM,
+  columnBuildDepthMm,
+  depthFollowsSetting,
+  FOLLOWS_CABINET_DEPTH,
+  FOLLOWS_CABINET_DEPTH_ON_WALL_MAP,
+  IS_A_MANUFACTURED_SIZE,
+  pinnedAtFinishedDepthMm,
+  UndeclaredCabinetDepthRuleError,
+  type BuildDepthM,
+  type AlongWallDepthChain,
+  type CabinetDepthRule,
+  type CabinetDepthRuleQuery,
+  type ColumnBuildDepthQuery,
+} from "./cabinet-depth-rule.js";
+export {
+  isMeasurableSeat,
+  JointSeatIsNotMeasurableError,
+  measurableSeatOf,
+  seatRuleOf,
+  seatedByAJoint,
+  seatedOnCabinetFrontLine,
+  seatedOnWallPlane,
+  UndeclaredSeatRuleError,
+  type MeasurableSeatedOn,
+  type SeatRule,
+  type SeatedOn,
+} from "./seat-rule.js";
+export {
+  CabinetDepthBelowMinimumError,
+  declaredCabinetDepthsMm,
+  DEFAULT_CABINET_DEPTH_MM,
+  MIN_CABINET_DEPTH_MM,
+  requireDeclaredCabinetDepthMm,
   UnknownWorktopDepthError,
   WALL_FRONT_ASSEMBLY_MM,
   WORKTOP_DEPTH_MM,
 } from "./worktop-depth.js";
 export * from "./body-probe.js";
+// ADR 0090 decision 5: the whole frozen-map answer at a new cabinet depth, in the package that holds
+// the three inputs it needs. Exported beside the command that publishes it — the store no longer
+// computes any part of this map and reads it off `CabinetDepthSetEffect.columns`.
+export {
+  frozenMapAtCabinetDepth,
+  type FrozenMapAtCabinetDepthInput,
+} from "./frozen-map-at-cabinet-depth.js";
 export * from "./commands/rejection.js";
 export * from "./commands/command-result.js";
 export * from "./commands/insert-fit.js";
 export * from "./commands/remove-placement.js";
 export * from "./commands/insert-body.js";
 export * from "./commands/set-appearance.js";
+export * from "./commands/set-whole-kitchen-settings.js";
+export * from "./commands/set-cabinet-depth.js";
 export * from "./commands/set-width.js";
 export * from "./queries/describe-selection.js";
+export {
+  compareDisplayOrder,
+  projectDesignForDisplay,
+  type DisplayEntry,
+  type DisplayGroup,
+} from "./queries/design-projection.js";
 export * from "./queries/offers.js";
+export {
+  findOverflowingPlacementIds,
+  wallLengthMm,
+} from "./queries/overflowing-placements.js";
 export * from "./queries/width-options.js";
 export * from "./queries/width-steps.js";
 export * from "./queries/vacated-void.js";
+export * from "./pricing/price-book.js";
+export * from "./pricing/price-lines.js";
+export * from "./pricing/price-design.js";
+// The barrel is the **one** module that names the sample book (ADR 0062 seam 1): the query takes a
+// book as a parameter and imports none, so a composition root picks this up from the package's
+// public entry point and a book from another source is later a substitution rather than a refactor.
+// `pricing-seams.test.ts` holds the import graph to that.
+export * from "./pricing/sample-price-book.js";
 export * from "./fixtures/kitchen-l-design.js";
 export * from "./serialize-design.js";
 export * from "./repository.js";

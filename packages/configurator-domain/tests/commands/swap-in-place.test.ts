@@ -20,6 +20,7 @@ import {
   createWorld,
   type KitchenWorld,
 } from "../support/kitchen-world.js";
+import { OFFERED_ON_PAL_FINISH } from "../support/material-finish-pairs.js";
 
 const seeded = () => createWorld(KITCHEN_L_DESIGN, KITCHEN_L_BODY_CATALOG);
 
@@ -174,7 +175,7 @@ describe("swap in place", () => {
       design: world.design,
       catalog: world.catalog,
       target: { kind: "placement", id: "p8" },
-      finish: "sage",
+      finish: OFFERED_ON_PAL_FINISH,
       occurredAt: OCCURRED_AT,
     });
     expect(finished.ok).toBe(true);
@@ -203,7 +204,7 @@ describe("swap in place", () => {
       const swapped = kept.design.placements.find(
         (placement) => placement.id === kept.effect.placementId,
       );
-      expect(swapped?.body.finish).toBe("sage");
+      expect(swapped?.body.finish).toEqual(OFFERED_ON_PAL_FINISH);
       expect(swapped?.body.handle).toBe("black");
     }
 

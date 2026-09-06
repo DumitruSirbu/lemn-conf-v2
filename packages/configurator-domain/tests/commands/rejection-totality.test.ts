@@ -12,15 +12,21 @@
 //   3. the sentence is non-empty Romanian, with no placeholder leaking into the copy.
 import { describe, expect, it } from "vitest";
 
-import { BASE_FINISHED_DEPTH_MM } from "../../src/catalog.js";
+import { baseFinishedDepthMm } from "../../src/catalog.js";
+import { WORKTOP_DEPTH_MM } from "../../src/worktop-depth.js";
 import type { CommandResult } from "../../src/commands/command-result.js";
 import { finishesAtMm } from "../../src/occupied-depth.js";
 import { insertBody } from "../../src/commands/insert-body.js";
 import type { RejectionCode } from "../../src/commands/rejection.js";
 import { removePlacement } from "../../src/commands/remove-placement.js";
 import { setFinish, setHandle } from "../../src/commands/set-appearance.js";
+import {
+  setHardwareTier,
+  setMaterialTier,
+} from "../../src/commands/set-whole-kitchen-settings.js";
 import type { Design } from "../../src/design.js";
 import {
+  buildKitchenLBodyCatalog,
   KITCHEN_L_BODY_CATALOG,
   KITCHEN_L_DESIGN,
 } from "../../src/fixtures/kitchen-l-design.js";
@@ -31,7 +37,11 @@ import {
   resizeTo,
   OCCURRED_AT,
 } from "../support/commands.js";
-import { createFakeProbe } from "../support/fake-probe.js";
+import { setCabinetDepth } from "../../src/commands/set-cabinet-depth.js";
+import {
+  createFakeProbe,
+  createFakeProbeFactory,
+} from "../support/fake-probe.js";
 import {
   advance,
   createWorld,
@@ -44,10 +54,14 @@ import {
   syntheticWorld,
   type SyntheticMember,
 } from "../support/synthetic-world.js";
+import { LEGACY_ENUM_FINISHES } from "../../src/materials.js";
 
 const ROMANIAN_LETTERS = /[ăâîșțĂÂÎȘȚ]/;
 const PLACEHOLDER_LEAKS = ["undefined", "null", "NaN", "Infinity", "[object"];
 const FRIDGE_COLUMN = "B|2.45";
+/** What a caller's book offers, opaque to the domain (ADR 0062 seam 1). Both whole-kitchen refusals
+ *  are reached by asking for a tier that is not on it. */
+const OFFERED_TIER_IDS: readonly string[] = ["offered-tier"];
 
 /** §5.1's second refusal is `!canDelete (corners)`. ADR 0025 made the corner legs real placements
  *  and the shipped design reaches the code through `p25`; this synthetic entry keeps the sweep's
@@ -56,7 +70,7 @@ const CORNER_BASE: BodyDefinition = {
   kind: "base_cabinet",
   band: "base",
   frameDepthMm: 580,
-  occupiedDepth: finishesAtMm(BASE_FINISHED_DEPTH_MM),
+  occupiedDepth: finishesAtMm(baseFinishedDepthMm(WORKTOP_DEPTH_MM)),
   canFinish: true,
   canHandle: true,
   canReplace: false,
@@ -388,7 +402,21 @@ function buildCases(): SweepCase[] {
           design: shelf.world.design,
           catalog: KITCHEN_L_BODY_CATALOG,
           target: { kind: "placement", id: shelf.placementId },
-          finish: "sage",
+          finish: LEGACY_ENUM_FINISHES.sage,
+          occurredAt: OCCURRED_AT,
+        }),
+    },
+    {
+      // ADR 0078 decision 6: *Salvie* is a free colour and the seeded kitchen carries no settings,
+      // so it is PAL — a decor list, which offers no free colour at all.
+      code: "FINISH_NOT_OFFERED",
+      design: world.design,
+      run: () =>
+        setFinish({
+          design: world.design,
+          catalog: KITCHEN_L_BODY_CATALOG,
+          target: { kind: "placement", id: "p0" },
+          finish: LEGACY_ENUM_FINISHES.sage,
           occurredAt: OCCURRED_AT,
         }),
     },
@@ -450,6 +478,44 @@ function buildCases(): SweepCase[] {
           occurredAt: OCCURRED_AT,
         }),
     },
+    // Wave 6E's two. The list of offered tiers is the caller's, so a tier that is not on it is the
+    // whole refusal — there is no fixture to build and no book to import (ADR 0062 seam 1).
+    {
+      code: "UNKNOWN_MATERIAL_TIER",
+      design: world.design,
+      run: () =>
+        setMaterialTier({
+          design: world.design,
+          tierId: "material-withdrawn",
+          availableTierIds: OFFERED_TIER_IDS,
+          occurredAt: OCCURRED_AT,
+        }),
+    },
+    {
+      code: "UNKNOWN_HARDWARE_TIER",
+      design: world.design,
+      run: () =>
+        setHardwareTier({
+          design: world.design,
+          tierId: "hardware-withdrawn",
+          availableTierIds: OFFERED_TIER_IDS,
+          occurredAt: OCCURRED_AT,
+        }),
+    },
+    // Wave 6J-b's one. 650 is between the two declared depths rather than absurd, so the refusal
+    // is the declared set doing its job and not a bounds check catching a wild number.
+    {
+      code: "UNKNOWN_CABINET_DEPTH",
+      design: world.design,
+      run: () =>
+        setCabinetDepth({
+          design: world.design,
+          catalogAt: buildKitchenLBodyCatalog,
+          cabinetDepthMm: 650,
+          probeAt: createFakeProbeFactory(),
+          occurredAt: OCCURRED_AT,
+        }),
+    },
   ];
 }
 
@@ -500,6 +566,7 @@ const ALL_REJECTION_CODES: Readonly<Record<RejectionCode, true>> = {
   COLUMN_MISMATCH: true,
   NON_INTEGER_MILLIMETRES: true,
   FINISH_NOT_SUPPORTED: true,
+  FINISH_NOT_OFFERED: true,
   HANDLE_NOT_SUPPORTED: true,
   NOT_RESIZABLE: true,
   WIDTH_UNCHANGED: true,
@@ -508,6 +575,9 @@ const ALL_REJECTION_CODES: Readonly<Record<RejectionCode, true>> = {
   RESIZE_OPENS_GAP: true,
   COLUMN_KEY_COLLISION: true,
   COLUMN_HOOD_FLOOR: true,
+  UNKNOWN_MATERIAL_TIER: true,
+  UNKNOWN_HARDWARE_TIER: true,
+  UNKNOWN_CABINET_DEPTH: true,
 };
 
 describe("every refusal a command can produce", () => {

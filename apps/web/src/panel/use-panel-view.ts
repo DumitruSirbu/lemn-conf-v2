@@ -6,6 +6,7 @@
 // `offersFor` produces the list `meta` alone cannot (it needs the frozen column map). Nothing here
 // decides anything: `describePanel` owns every rule and this hook owns the subscription.
 import {
+  cabinetDepthMmOf,
   describeSelection,
   offersFor,
   columnWidthChoices,
@@ -17,6 +18,7 @@ import {
 } from "@lemnaria/configurator-domain";
 import { useMemo } from "react";
 
+import { usePricedDesign } from "@/price/use-priced-design";
 import { useConfiguratorStore } from "@/store/configurator-store";
 
 import { describePanel, type PanelView } from "./panel-model";
@@ -25,10 +27,14 @@ import { widthStepsFor, type WidthSteps } from "@lemnaria/configurator-domain";
 export function usePanelView(): PanelView {
   const meta = useSelectionMeta();
   const offers = useSelectionOffers();
-  const widthOptions = useSelectionWidthOptions();
+  const widthAnswers = useSelectionWidthAnswers();
+  const widthOptions = widthAnswers.options;
   const widthRanges = useSelectionWidthRanges();
-  const widthSteps = useSelectionWidthSteps();
+  const widthSteps = widthAnswers.steps;
   const rejection = useConfiguratorStore((state) => state.lastRejection);
+  // §9 item 7's footer price. Derived from the current design by the one hook both price surfaces
+  // read, so the footer and the bar cannot show different numbers for one kitchen.
+  const pricing = usePricedDesign();
   const isBodyProbeAttached = useConfiguratorStore(
     (state) => state.isBodyProbeAttached,
   );
@@ -46,6 +52,7 @@ export function usePanelView(): PanelView {
         widthRanges,
         widthSteps,
         rejection,
+        pricing,
         isBodyProbeAttached,
         canWrite,
         saveStatus,
@@ -57,6 +64,7 @@ export function usePanelView(): PanelView {
       widthRanges,
       widthSteps,
       rejection,
+      pricing,
       isBodyProbeAttached,
       canWrite,
       saveStatus,
@@ -90,49 +98,26 @@ function useSelectionOffers(): CatalogOffer[] {
   const columns = useConfiguratorStore((state) => state.columns);
   const catalog = useConfiguratorStore((state) => state.catalog);
   const selection = useConfiguratorStore((state) => state.selection);
+  // Off the held design, not off the catalogue: the store's catalogue is built at this same depth
+  // (wave 6K-a), but a map cannot be asked what depth it was built at, and the offer list must run
+  // the evaluation the command would run on **this** document.
+  const cabinetDepthMm = useConfiguratorStore((state) =>
+    cabinetDepthMmOf(state.design),
+  );
 
   return useMemo(
     () =>
       selection
-        ? offersFor({ records, voids, columns, catalog, target: selection })
-        : [],
-    [records, voids, columns, catalog, selection],
-  );
-}
-
-/** The column's candidate widths, judged by the engine rather than by the panel: `widthOptionsFor`
- *  runs `setWidth` once per candidate width and reports what it answered. ADR 0035 decision 3's
- *  discrete control renders them; the stepper reads their shape to know it is the wrong control.
- *
- *  **Empty without a probe**, and that is the honest answer rather than a degraded one. A resize
- *  rebuilds through the real builders and re-checks the measurement, so with no probe attached
- *  every width would refuse `BODY_PROBE_UNAVAILABLE` — a section of controls greyed with a sentence
- *  about the 3D model, where §9 asks for no section at all until there is something to say. The
- *  scene attaches one on mount and this recomputes; the replace list carries the "model is
- *  preparing" message in the meantime, and one such message per panel is enough.
- *
- *  Memoised on the store slices it reads, which is what keeps a query that runs the command once
- *  per chip off the render path. It re-runs when the design changes, when the selection moves, or
- *  when the probe attaches — the three things that can change an answer. */
-function useSelectionWidthOptions(): WidthOption[] {
-  const design = useConfiguratorStore((state) => state.design);
-  const columns = useConfiguratorStore((state) => state.columns);
-  const catalog = useConfiguratorStore((state) => state.catalog);
-  const selection = useConfiguratorStore((state) => state.selection);
-  const probe = useConfiguratorStore((state) => state.bodyProbe);
-
-  return useMemo(
-    () =>
-      selection && probe
-        ? widthOptionsFor({
-            design,
+        ? offersFor({
+            records,
+            voids,
             columns,
             catalog,
             target: selection,
-            probe,
+            cabinetDepthMm,
           })
         : [],
-    [design, columns, catalog, selection, probe],
+    [records, voids, columns, catalog, selection, cabinetDepthMm],
   );
 }
 
@@ -141,8 +126,11 @@ function useSelectionWidthOptions(): WidthOption[] {
  *
  *  The panel used to conclude "stepped" from two candidates 50 apart in `sizesMm`. That works, and
  *  it is the inference ADR 0022 and decision 3's own correction both record as the way this codebase
- *  gets it wrong — so `columnWidthChoices` publishes the ranges and this carries them across. Same
- *  memo keys as the widths, because it is the same question asked of the same state. */
+ *  gets it wrong — so `columnWidthChoices` publishes the ranges and this carries them across.
+ *
+ *  **No probe, so its own hook.** Unlike the two answers below it asks the catalogue rather than
+ *  running a command, which is why ADR 0076 decision 4 merged those two and left this one alone.
+ */
 function useSelectionWidthRanges(): readonly WidthRangeMm[] {
   const design = useConfiguratorStore((state) => state.design);
   const catalog = useConfiguratorStore((state) => state.catalog);
@@ -158,27 +146,48 @@ function useSelectionWidthRanges(): readonly WidthRangeMm[] {
   );
 }
 
-/** ADR 0035 decision 1's two candidates, judged the same way and by the same command as the chips
- *  above. Separate hook rather than a field on the one above, because it is a separate question with
- *  a separate answer — see `width-steps.ts` for why the step candidates cannot be read out of the
- *  published set.
+/** **The width chips and the stepper, answered together from one borrowed probe.**
  *
- *  **`undefined` without a probe**, for the reason the chips are empty without one: every step would
- *  refuse `BODY_PROBE_UNAVAILABLE`, and a stepper greyed with a sentence about the 3D model is not
- *  what §9 asks for while the scene is still mounting. Memoised on the same five slices, so the two
- *  answers are always computed from one state. */
-function useSelectionWidthSteps(): WidthSteps | undefined {
+ *  Both answers run the real resize command once per candidate — `widthOptionsFor` to say "would
+ *  this succeed", `widthStepsFor` for ADR 0035 decision 1's two candidates — so both need a probe,
+ *  and they were two hooks taking two leases. On the render path that is **two transient kits for
+ *  one frame** during the window a depth change opens, which is why ADR 0076 decision 4 merges them:
+ *  one memo, one lease, both answers. It also makes literally true what the steps hook's own comment
+ *  already claimed — that the two are always computed from one state.
+ *
+ *  **Empty and `undefined` without a probe**, which is the honest answer rather than a degraded one.
+ *  Every width would refuse `BODY_PROBE_UNAVAILABLE`, and §9 asks for no section at all until there
+ *  is something to say; the replace list carries the "model is preparing" message meanwhile.
+ *
+ *  Memoised on the five slices that can change an answer. The lease is taken inside the memo body
+ *  and released before it returns — nothing crosses a React commit (ADR 0076 decision 1). */
+function useSelectionWidthAnswers(): {
+  options: WidthOption[];
+  steps: WidthSteps | undefined;
+} {
   const design = useConfiguratorStore((state) => state.design);
   const columns = useConfiguratorStore((state) => state.columns);
   const catalog = useConfiguratorStore((state) => state.catalog);
   const selection = useConfiguratorStore((state) => state.selection);
-  const probe = useConfiguratorStore((state) => state.bodyProbe);
+  const probeAt = useConfiguratorStore((state) => state.probeAt);
 
-  return useMemo(
-    () =>
-      selection && probe
-        ? widthStepsFor({ design, columns, catalog, target: selection, probe })
-        : undefined,
-    [design, columns, catalog, selection, probe],
-  );
+  return useMemo(() => {
+    if (!selection || !probeAt) return { options: [], steps: undefined };
+    return probeAt(cabinetDepthMmOf(design)).use((probe) => ({
+      options: widthOptionsFor({
+        design,
+        columns,
+        catalog,
+        target: selection,
+        probe,
+      }),
+      steps: widthStepsFor({
+        design,
+        columns,
+        catalog,
+        target: selection,
+        probe,
+      }),
+    }));
+  }, [design, columns, catalog, selection, probeAt]);
 }

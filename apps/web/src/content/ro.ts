@@ -12,6 +12,31 @@ function pluraliseBodies(count: number): string {
   return isPlainPlural ? "corpuri" : "de corpuri";
 }
 
+/** Whose bodies a whole-kitchen setting applies to, as frames 2E / D2E say it — *"tuturor celor 14
+ *  corpuri"*. The singular is a separate form because the drawn one is ungrammatical at one:
+ *  *"tuturor celor 1 corp"* is not Romanian. Zero takes the drawn form and reads *"0 de corpuri"*,
+ *  which is what `pluraliseBodies`' documented rule answers and is the truth about an empty
+ *  kitchen. */
+function everyBodyPhrase(bodyCount: number): string {
+  if (bodyCount === 1) return "singurului corp din bucătărie";
+  return `tuturor celor ${String(bodyCount)} ${pluraliseBodies(bodyCount)}`;
+}
+
+/** How many cabinets wear a colour the customer chose — *"corpuri"* behind a count the design
+ *  decides — as the material change's confirmation says it. A **module-level helper rather than an
+ *  inline branch**, which is a gate rather than a preference:
+ *  `starting-price.adversarial.test.ts` sweeps a composing template's source body for a digit, so
+ *  `(n) => n === 1 ? … : …` written into the copy would fail on the `1` in its own condition. It
+ *  reuses `pluraliseBodies` above, so twenty and above takes *"de corpuri"* by the rule already
+ *  written there. */
+function chosenCabinetPhrase(chosenCount: number): string {
+  return `${String(chosenCount)} ${pluraliseBodies(chosenCount)}`;
+}
+
+/** ADR 0001 decision 4's prefix, held as one binding so the whole-kitchen sheet's *de la* badge is
+ *  the same two words as the figure's *De la* rather than a second spelling of them. */
+const STARTING_PREFIX = "De la";
+
 export const ro = {
   brand: "Lemnaria",
   configure: {
@@ -28,6 +53,22 @@ export const ro = {
       wallB: "Perete B",
     },
     loading: "Se încarcă modelul 3D…",
+    /** [ADR 0065](../../../docs/decisions/0065-a-body-past-the-end-of-its-wall-is-marked-not-moved.md)
+     *  decision 7b's scene warning, owner 2026-09-03. **The owner's own phrasing: verbatim,
+     *  punctuation included, and not to be tidied.**
+     *
+     *  It replaces an earlier *corpuri* wording, ruled the same day: the warning said *corpuri*
+     *  while `price.overflowingTotalWarning` said *dulapuri*, and asked to reconcile them the owner
+     *  chose *dulapuri* in both. Only the noun is shared. The superseded form is struck through in
+     *  place at the ADR, so a later reader can see the alternative was held and dropped.
+     *
+     *  **It is not the flagged total's sentence and neither restates the other**, which is why they
+     *  are two constants: this one says what is wrong and what to do about it, the total's flag says
+     *  what the number contains and that it is not final. It is also not §9's rejection banner
+     *  (decision 8) — a rejection says an edit did not happen, this says an edit happened and its
+     *  result does not fit. */
+    overflowWarning:
+      "Dulapurile marcate depășesc lungimea peretelui. Modifică lățimile sau elimină un dulap.",
   },
   /** §9's panel. Derived sentences are functions rather than strings so the whole of the panel's
    *  copy still lives in this one module: §9 requires the count line to be *derived* ("5 corpuri
@@ -279,6 +320,245 @@ export const ro = {
     structuralReasons: {
       corner:
         "Colțul ține legătura dintre cei doi pereți, așa că nu poate fi înlocuit, șters sau redimensionat. Alege un corp de lângă el.",
+    },
+  },
+  /** The price surfaces: frames 2A / D2A's bar and frame 2C / D2C's unchanged label, plus
+   *  ADR 0065 decision 7b's flagged total.
+   *
+   *  **Labels only — never an amount.** ADR 0062's third prohibition puts every figure, tier and
+   *  delta in the price book, so a number appearing in this section would be copy that happens to
+   *  agree with a price rather than a price rendered. */
+  price: {
+    /** [ADR 0001](../../../docs/decisions/0001-initial-product-and-stack.md) decision 4 and the
+     *  mockups' presentation rule: every displayed figure is prefixed *De la* and rounded up to the
+     *  thousand MDL. Frames 2A and D2A render it above the total; §9 item 7's footer does the same.
+     *  The mockups set it in uppercase through `text-transform`, so the string itself is written as
+     *  it reads. */
+    startingPrefix: STARTING_PREFIX,
+    /** While a refusal stands, the figure is labelled unchanged — on the price bar and in §9's
+     *  footer alike. **Owner, 2026-09-03**, and it closes ADR 0024's third frame-2C requirement:
+     *  the one M4 closed unmet because there was no total to leave unmoved.
+     *
+     *  **One string for both shells, and no separator.** Frames D2C and 2C spell it two ways —
+     *  *"De la · neschimbat"* with a middle dot on desktop, *"De la, neschimbat"* with a comma on
+     *  mobile. A wave may not reconcile ruled copy on its own, so wave 6C shipped both verbatim and
+     *  raised the difference; the owner then ruled that the word stays and **neither punctuation
+     *  mark does**. Both mockup spellings are superseded by this one.
+     *
+     *  It is a single constant deliberately: one ruled string stored twice is how two spellings
+     *  come back. */
+    startingPrefixUnchanged: "De la neschimbat",
+    /** [ADR 0065](../../../docs/decisions/0065-a-body-past-the-end-of-its-wall-is-marked-not-moved.md)
+     *  decision 7b, owner 2026-09-03. **The owner's own phrasing: verbatim, punctuation included,
+     *  and not to be tidied.**
+     *
+     *  **Unchanged by the re-ruling of the same day.** This string said *dulapuri* where the scene
+     *  warning said *corpuri*; wave 6C raised the inconsistency rather than tidying it, and the
+     *  owner chose *dulapuri* in both. So the **scene warning's** wording moved and this one did
+     *  not. That warning landed with wave 6M as `configure.overflowWarning`, and the superseded
+     *  *corpuri* form is struck through in place at ADR 0065 decision 7b. */
+    overflowingTotalWarning:
+      "Prețul include și dulapuri ce depășesc mărimea peretelui și necesită ajustări",
+  },
+  /** Frames 2D / D2D's breakdown: *"De ce acest preț"*, the sheet on mobile and the popover on
+   *  desktop.
+   *
+   *  **A section of its own, held to the same rules as `price` by the same single guard.** The
+   *  split is organisation and nothing more: `starting-price.adversarial.test.ts` flattens both
+   *  sections to their leaf strings and sweeps them together, so *"labels only, never an amount"*
+   *  and *"no string claims the lines add up to the total"* mean here exactly what they mean there.
+   *  The disclaimer and the note below are excluded from the sum sweep **by identity, as literals,
+   *  at the guard** — they are the two ruled sentences containing a sum word, and each uses it to
+   *  say the opposite of an equality claim: no sum here is final, every amount was rounded on its
+   *  own. Re-word either and that guard goes red rather than inheriting its exception.
+   *
+   *  **Amounts are still absent here** (ADR 0062's third prohibition), including *"inclus"*, which
+   *  names what a zero-amount tier costs the customer rather than stating a number. */
+  priceBreakdown: {
+    /** Frames 2D and D2D's heading, and frames 2A and D2A's control that opens it — **one string**,
+     *  because the button and the sheet it opens name the same thing and a second copy is how two
+     *  spellings come back (`startingPrefixUnchanged` records that lesson). The mockups draw a
+     *  chevron beside the control; it is decoration and lives in the component, not here. */
+    title: "De ce acest preț",
+    /** Frame 2D, and the wave's own acceptance criterion: transport, worktop and appliances are
+     *  excluded, and the final sum follows an on-site measurement.
+     *
+     *  **The worktop clause does double duty.**
+     *  [ADR 0036](../../../docs/decisions/0036-a-declared-dimension-is-the-finished-cabinet.md)
+     *  decision 3 makes the worktop an external part that influences *neither geometry nor price* —
+     *  so this sentence is also why wave 6K's depth control adds no price line. Weakening it
+     *  weakens that, in a place nobody would think to look.
+     *
+     *  **Frame D2D stops at *electrocasnice* and drops the measurement clause.** The fuller mobile
+     *  sentence ships in both shells: the milestone's copy table rules this string by frame **2D**,
+     *  and its acceptance criterion names the measurement clause outright. One string, two shells,
+     *  as §10.1 requires of every other forked spelling. */
+    disclaimer:
+      "Preț de pornire, rotunjit în sus la mia de lei. Nu include transport, blat sau electrocasnice — suma finală se stabilește după măsurare.",
+    /** Frame 2D's footnote, and **the sentence that carries the non-summing rule**: every amount on
+     *  this surface is rounded up on its own, so the lines a customer adds up do not reach the
+     *  total beneath them. Wave 6C's criterion names this string as what carries it, and no surface
+     *  may add an equality claim, a subtotal or a *total* row beside it. */
+    note: "Toate sumele sunt prețuri de pornire, rotunjite în sus. Nu constituie ofertă comercială.",
+    /** Frames 2D and D2D's own close action. The mobile sheet needs one (it covers the bar it was
+     *  opened from); the desktop popover carries the same one rather than a second wording. */
+    close: "Închide",
+    /** *"Nișă mașină de spălat vase 600"* — one placement line, exactly as frame 2D draws every one
+     *  of them: the body, then the width it is built at.
+     *
+     *  **Both halves come from the projection's entry and neither is derived here.** The name is
+     *  `describeBodyLabelAt`'s answer ([ADR 0033](../../../docs/decisions/0033-door-count-is-derived-from-width-not-declared.md)),
+     *  which is why a *Corp suspendat* reads *2 uși* at 600 and *1 ușă* at 300 on this surface, in
+     *  §9's header and in the offer list alike; the width is the entry's `widthMm`. The mockup's own
+     *  names predate that merge, so the shape is the frame's and the words are the catalogue's.
+     *
+     *  **Frame 2D's *"Etajeră deschisă 600 · stejar"* also names a finish.** The wave's criterion
+     *  asks for the body and its width, and no decision rules how a per-cabinet finish reads on a
+     *  price line — so it is left off rather than invented. */
+    placementLabel: (bodyLabel: string, widthMm: number) =>
+      `${bodyLabel} ${String(widthMm)}`,
+    /** *"Perete A · bază"* — one group's heading. The wall letter and the band are **the
+     *  projection's**, read off the group it produced; this composes the ruled words around them,
+     *  exactly as `panel.headerMeta` composes §9's header line. */
+    groupHeading: (wall: string, bandWord: string) =>
+      `Perete ${wall} · ${bandWord}`,
+    /** The band as a **group of bodies** reads in frames 2D and D2D — plural, and keyed by the
+     *  normalised band because that is what the projection groups on.
+     *
+     *  Deliberately not `panel.bandWords`: those count bodies mid-sentence (*"5 corpuri bază de
+     *  600"*) and read *coloană* where a heading over two of them reads *coloane*. Two grammatical
+     *  roles, two sets of words, and merging them would make one of the two ungrammatical. */
+    bandHeadings: { base: "bază", wall: "suspendate", column: "coloane" },
+    /** *"Feronerie · Hettich"* — a whole-kitchen line. The tier's own name is **book data**
+     *  (ADR 0062: a tier is data rendered, never copy that happens to agree with a number); only
+     *  the category word in front of it is copy. */
+    wholeKitchenLabel: (categoryWord: string, tierName: string) =>
+      `${categoryWord} · ${tierName}`,
+    /** Keyed by the price line's kind, so a third whole-kitchen rule added to the book arrives as a
+     *  key here rather than as a branch in the component. */
+    wholeKitchenCategories: { hardware: "Feronerie", material: "Material" },
+    /** Frame 2E, and frame 2D's material row: a tier that costs nothing extra reads *inclus*, never
+     *  `0`. A zero is a number a customer reads as a price; this says what it means. */
+    included: "inclus",
+  },
+  /** Frames 2E / D2E: the whole-kitchen settings sheet on mobile, the popover under the chips on
+   *  desktop.
+   *
+   *  **Labels only, and swept with `price` and `priceBreakdown` by the same guard**
+   *  (`starting-price.adversarial.test.ts`), because this section carries a delta badge and is
+   *  therefore price copy. ADR 0062's third prohibition in full: every tier's name, its one-line
+   *  description and its delta are **book data rendered**, so nothing here names a tier, states an
+   *  amount, or says what one costs.
+   *
+   *  **What is deliberately absent.** Frames 2E and D2E draw the material warning as *"Schimbarea
+   *  materialului recalculează întreaga estimare **și poate limita unele finisaje per corp**"*. The
+   *  second clause describes wave 6F's filter, which has not shipped, so it is **omitted rather
+   *  than greyed out**: a warning about behaviour that does not exist is decoration, which is the
+   *  defect M4's Finisaj section shipped and `docs/STATUS.md` records. It comes back with 6F, in
+   *  the mockups' own words. */
+  globalSettings: {
+    /** The control that opens the sheet, standing beside the chips it controls. **One string for
+     *  both shells**: frame D2E spells it *"Setări globale"* and frame 2E's strip spells it
+     *  *"Schimbă global"*, and §10.1 admits no copy fork per viewport — `startingPrefixUnchanged`
+     *  records what two spellings of one ruled string cost. The mockups draw a chevron beside it;
+     *  that is decoration and lives in the component. */
+    open: "Setări globale",
+    /** Frames 2E and D2E's heading. Distinct from `open` on purpose: the control names the thing it
+     *  opens, the sheet names what it is about, and both frames draw them differently. */
+    title: "Setări pentru toată bucătăria",
+    /** Frames 2E / D2E's second line, and the wave's first criterion: **how many bodies this applies
+     *  to, and that it is not set per cabinet.** The count is `projectDesignForDisplay`'s — voids and
+     *  empty columns are not bodies — and is derived rather than written, exactly as §9's count line
+     *  is. */
+    appliesTo: (bodyCount: number) =>
+      `Se aplică ${everyBodyPhrase(bodyCount)}. Nu se setează pe fiecare corp în parte.`,
+    /** The two section headings, in the frames' own words, keyed by the book's group.
+     *
+     *  Deliberately **not** `priceBreakdown.wholeKitchenCategories`, which those frames also use:
+     *  there the word labels one line of a list (*"Material · PAL melaminat"*, and the chips beside
+     *  the control below reuse exactly that composition); here it heads a column of choices and the
+     *  frames spell the material one out as *"Material corp și fronturi"*. Two roles, two sets of
+     *  words — the same split `priceBreakdown.bandHeadings` keeps from `panel.bandWords`. */
+    groupHeadings: {
+      material: "Material corp și fronturi",
+      hardware: "Feronerie",
+    },
+    /** **What each group's deltas are measured against**, in words a customer can act on rather
+     *  than in arithmetic.
+     *
+     *  The anchor is the book's **default** tier — the one a kitchen that chose nothing is priced at
+     *  — and not what the design currently carries. Without this line the two are indistinguishable
+     *  on screen, and they differ the moment a customer applies anything: having chosen veneer, they
+     *  would read *inclus* against the melamine that would make their kitchen cheaper, and
+     *  *de la +18 000* against the veneer they already own. Neither figure is wrong; nothing said
+     *  what they were differences *from*.
+     *
+     *  One line per group rather than one for the sheet, because the anchor is per group and the two
+     *  could later differ. **Named in the product's own words** — the tier that is included — never
+     *  as the subtraction that produced it: *"diferența față de tariful standard"* is developer text
+     *  wearing Romanian. */
+    groupAnchors: {
+      material: "Față de materialul inclus",
+      hardware: "Față de feroneria inclusă",
+    },
+    /** *"de la +9 000"* against a tier that costs extra. The amount arrives already rounded and
+     *  signed from `starting-price.ts`, the one site that formats a figure; these are the two words
+     *  around it, and they are `startingPrefix`'s own so the badge and the total cannot come to
+     *  spell them differently. A tier that adds nothing reads `priceBreakdown.included` instead —
+     *  never `0`. */
+    tierDelta: (addedAmount: string) =>
+      `${STARTING_PREFIX.toLowerCase()} ${addedAmount}`,
+    /** Frames 2E / D2E's note, less its 6F clause — see this section's own comment. */
+    materialWarning: "Schimbarea materialului recalculează întreaga estimare.",
+    /** The third group's heading (ADR 0056). *Adâncime* alone would read as any depth on the
+     *  drawing; the corps are what the setting is about, and the frames head the material group the
+     *  same way — by what it applies to, not by the property's bare name. */
+    depthHeading: "Adâncimea corpurilor",
+    /** One offered depth, as a customer reads it. Millimetres because that is the unit every other
+     *  dimension in this product is stated in, and the number arrives from the declared map — this
+     *  is the two characters around it, never a list of the depths themselves. */
+    depthOption: (cabinetDepthMm: number) => `${String(cabinetDepthMm)} mm`,
+    /** **Deliberately unlike `materialWarning`, because the consequences are not alike.** A material
+     *  change recalculates an estimate — a number moves. A depth change rebuilds every carcass and
+     *  redraws the kitchen — the *model* moves. Copy that made the two read the same way would tell
+     *  a customer to expect a new figure and hand them a new room.
+     *
+     *  It carries **no digit**, deliberately: `starting-price.adversarial.test.ts` holds every
+     *  string in this section to that, because a numeral in copy beside a price list reads as an
+     *  amount. *"modelul 3D"* would be the natural phrase and is exactly what that gate refuses. */
+    depthWarning:
+      "Schimbarea adâncimii reconstruiește toate corpurile și schimbă modelul.",
+    /** **Why there is no price line here**, said once so its absence does not read as a line we
+     *  forgot. ADR 0036 decision 3 keeps the worktop out of geometry and price entirely, and the
+     *  carcass depth changes no tier: the estimate is the same kitchen at a different depth. */
+    depthNote: "Adâncimea nu schimbă estimarea — doar dimensiunile corpurilor.",
+    /** Frame 2E's single action, and frame D2E's pair. Both shells carry both: this surface holds
+     *  uncommitted state, so a customer who opened it must be able to leave without applying. */
+    apply: "Aplică",
+    cancel: "Renunță",
+    /** **The step that stands between a material change and the colours it discards** (ADR 0081,
+     *  ADR 0086 decision 7). Shown only when a colour the customer chose would be lost, which is
+     *  what makes it worth reading: a confirmation that always appears is one that is always
+     *  dismissed.
+     *
+     *  **Neither action is *OK* and neither is *Anulează*.** Both name their outcome — the
+     *  destructive one names the change, the safe one names what it keeps — so a customer
+     *  dismissing this by muscle memory still keeps what they chose.
+     *
+     *  **It does not say *"în total"***, natural as that phrasing is here:
+     *  `starting-price.adversarial.test.ts` sweeps every leaf of this section for an equality claim,
+     *  and *"total"* is one of the words it refuses. *"toate"* passes because it is a different
+     *  word, not because the sweep was relaxed. */
+    materialResetConfirm: {
+      // Ruled 2026-09-05, pending owner review.
+      title: "Culorile alese se pierd",
+      // Ruled 2026-09-05, pending owner review.
+      body: (chosenCount: number) =>
+        `Ai ales alte culori pentru ${chosenCabinetPhrase(chosenCount)}. Fiecare material are propriile culori, așa că toate revin la culoarea implicită a materialului nou.`,
+      // Ruled 2026-09-05, pending owner review.
+      confirm: "Schimbă materialul",
+      // Ruled 2026-09-05, pending owner review.
+      back: "Păstrează culorile",
     },
   },
   webglUnavailable: {

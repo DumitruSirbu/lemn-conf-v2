@@ -5,7 +5,10 @@ Date: 2026-08-27
 Type: Decision
 Milestone: Wave B1 — hob-bearing base cabinets
 
-> **Partially superseded.** The `base-hob-oven` "open-front by design, owns no `door_front`" claim is
+> **Partially superseded.** Decision 3's *"60 mm forward of the carcass centre"* is superseded by
+> [ADR 0087](0087-the-hob-holds-its-reach-and-a-deeper-worktop-grows-behind-it.md) (the seat is
+> derived from the worktop's front edge; its value at 600 is unchanged). The `base-hob-oven`
+> "open-front by design, owns no `door_front`" claim is
 > superseded by [ADR 0050](0050-the-hob-oven-filler-is-a-finishable-front.md) (the filler panel is
 > now finishable). The amendment exempting `base-dishwasher`/`base-dishwasher-600` from the
 > capability gate is superseded by [ADR 0051](0051-the-dishwasher-niche-wears-a-decor-door.md) (the
@@ -52,9 +55,18 @@ above it. So there was nowhere for an accessory picker to hang off.
    with a 600 mm hob adrift on it.
 
 3. **Neither is new geometry.** Both compose builders that already existed, and the hob's local seat
-   — the worktop line, 60 mm forward of the carcass centre — is read straight off `buildKitchen()`'s
-   own placement of the seeded cooktop. `packages/three-adapter/reference/` and every builder the M1
-   structural-parity suites diff are untouched.
+   — the worktop line, ~~60 mm forward of the carcass centre~~ — is read straight off
+   `buildKitchen()`'s own placement of the seeded cooktop. `packages/three-adapter/reference/` and
+   every builder the M1 structural-parity suites diff are untouched.
+
+   **Superseded in that clause only, 2026-09-05, by
+   [ADR 0087](0087-the-hob-holds-its-reach-and-a-deeper-worktop-grows-behind-it.md):** true when
+   written, and a statement about where 0.06 came from rather than a ruling that it holds at every
+   depth — the kit held one cabinet depth by construction until M6 wave 6H. The seat is now derived
+   from the **worktop's front edge**, holding the hob's clearance to it constant, and the carcass
+   centre is no longer the datum. **The value at 600 is unchanged to the micrometre**, so everything
+   else this point claims — that neither entry is new geometry, and that the reference and the
+   parity suites are untouched — stands exactly as written.
 
 4. **The seeded design migrates.** `p2` (`base-drawer2-600`) and `p3` (`cooktop-600`) become one
    placement, `p2` at `base-hob-2drawer-600`. `p3`'s id is retired and not reused: ids are

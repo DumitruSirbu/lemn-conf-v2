@@ -1,3 +1,8 @@
+import {
+  buildKitchenLBodyCatalog,
+  measurableSeatOf,
+  type MeasurableSeatedOn,
+} from "@lemnaria/configurator-domain";
 // **The gate that makes DOM-002's fix a fact rather than a claim.**
 //
 // The domain declares how deep the space each body fills (`BodyDefinition.occupiedDepth`), and it
@@ -20,6 +25,8 @@ import {
   deriveColumns,
   derivePlacementRecords,
   insertBody,
+  buildInsertableBodyDefinitions,
+  buildSeededBodyDefinitions,
   KITCHEN_L_BODY_CATALOG,
   KITCHEN_L_DESIGN,
   occupiedDepthM,
@@ -45,21 +52,109 @@ import {
   installHeadlessDocument,
 } from "./support/headless-canvas.js";
 
+/** The plane the catalogue says seats this body — read, never assumed, which is the whole of
+ *  ADR 0077. Hard-coding `"wall-plane"` would put the front-hung hood on the wrong plane, and is
+ *  exactly the second list the ruling deleted from `measure-built-body.ts`. */
+function seatedOnOf(buildId: string, cabinetDepthMm = 600): MeasurableSeatedOn {
+  return measurableSeatOf({
+    buildId,
+    rule: buildKitchenLBodyCatalog(cabinetDepthMm).get(buildId)?.seatRule,
+  });
+}
+
 const OCCURRED_AT = "2026-08-31T12:00:00.000Z";
 
-/** The two depths a wall carcass is ever built to in the shipped product: §7's head-clearance cap,
- *  and the lifted depth over a full-height column (backlog entry 5). Both go through the sweep,
- *  because the parameterised rule is a formula and a formula checked at one point is a constant. */
-const WALL_BUILD_DEPTHS_MM = [330, 600];
+/** The two cabinet depths ADR 0056 declares, **written here as data** for the reason the table in
+ *  `cabinet-depth-parameter.test.ts` is: a test that reads the values it checks out of the module it
+ *  checks proves nothing. The domain asserts the map holds exactly this pair.
+ *
+ *  **M6 wave 6I's criterion 4.** This gate is what keeps `occupiedDepth` honest — a declaration
+ *  nothing checks is the defect DOM-002 was — and it must not become a claim about 600 only, or the
+ *  depth control wave 6J ships would move every body with nothing looking at the result. */
+const DECLARED_CABINET_DEPTHS_MM = [600, 700];
 
+/** The depths a wall carcass is ever built to at a given kitchen depth, **cap first**: §7's
+ *  head-clearance cap from the map, then the lifted depth over a full-height column (backlog entry
+ *  5), which is the 600 mm the two deliberately deep tops are pinned at (ADR 0058) and is therefore
+ *  the same at both. Both go through the sweep, because the parameterised rule is a formula and a
+ *  formula checked at one point is a constant.
+ *
+ *  The cap's position is load-bearing: `wallDepthMmAt` reads it from here rather than from a second
+ *  map, so the depth a kit is built at and the depth its bodies are swept at cannot drift apart. */
+const WALL_BUILD_DEPTHS_MM_BY_CABINET_DEPTH: ReadonlyMap<
+  number,
+  readonly number[]
+> = new Map([
+  [600, [330, 600]],
+  [700, [400, 600]],
+]);
+
+/** The depths a wall carcass is built to at this kitchen depth, or a refusal. Total rather than
+ *  optional for the reason `wallDepthMmAt` below is: a cabinet depth added to
+ *  `DECLARED_CABINET_DEPTHS_MM` without a row here would otherwise drop **every** wall and top
+ *  carcass case out of the sweep — the whole `recorded-shell` population — with the suite still
+ *  green. */
+function wallBuildDepthsMmAt(cabinetDepthMm: number): readonly number[] {
+  const depthsMm = WALL_BUILD_DEPTHS_MM_BY_CABINET_DEPTH.get(cabinetDepthMm);
+  if (!depthsMm) {
+    throw new Error(
+      `no wall build depths row for ${String(cabinetDepthMm)} mm`,
+    );
+  }
+  return depthsMm;
+}
+
+/** ADR 0028's map, as the kit takes it: the declared depth of a wall or top carcass at this cabinet
+ *  depth. The adapter cannot derive it — §12 keeps the map in the domain — so a kit is handed the
+ *  row, and `cabinet-depth-source.test.ts` is what holds these numbers to the domain's own map.
+ *
+ *  Read as the **first** entry of the sweep row above, which is the cap, rather than restated in a
+ *  second map: the second entry is the lifted depth over a column and is not what a kit is built
+ *  at. Two tables carrying the same column is the drift ADR 0028 exists to stop. */
+function wallDepthMmAt(cabinetDepthMm: number): number {
+  const [capMm] = wallBuildDepthsMmAt(cabinetDepthMm);
+  if (capMm === undefined) {
+    throw new Error(
+      `empty wall build depths row for ${String(cabinetDepthMm)}`,
+    );
+  }
+  return capMm;
+}
+
+const kits = new Map<number, { kit: Kit; room: THREE.Object3D }>();
+
+/** The shipped kitchen's kit, which every assertion about the *seeded* population uses. */
 let kit: Kit;
 let room: THREE.Object3D;
 
 beforeAll(() => {
   installHeadlessDocument();
-  kit = makeKit({ createCanvas: createHeadlessCanvas });
-  room = kit.builders["kitchen-l"]();
+  for (const cabinetDepthMm of DECLARED_CABINET_DEPTHS_MM) {
+    const built = makeKit({
+      createCanvas: createHeadlessCanvas,
+      cabinetDepthMm,
+      wallDepthMm: wallDepthMmAt(cabinetDepthMm),
+    });
+    kits.set(cabinetDepthMm, {
+      kit: built,
+      room: built.builders["kitchen-l"](),
+    });
+  }
+  const shipped = kits.get(SHIPPED_CABINET_DEPTH_MM);
+  if (!shipped) throw new Error("no kit at the shipped depth");
+  kit = shipped.kit;
+  room = shipped.room;
 });
+
+/** The depth the shipped kitchen is declared at, and the one the third block below — a §5.3 swap
+ *  over `KITCHEN_L_DESIGN` — runs at, because that design is the shipped document. */
+const SHIPPED_CABINET_DEPTH_MM = 600;
+
+function kitAt(cabinetDepthMm: number): { kit: Kit; room: THREE.Object3D } {
+  const built = kits.get(cabinetDepthMm);
+  if (!built) throw new Error(`no kit at ${String(cabinetDepthMm)} mm`);
+  return built;
+}
 
 function frontOfGroupM(group: THREE.Group): number {
   group.updateWorldMatrix(true, true);
@@ -100,51 +195,81 @@ function declaredOccupiedMm(
   return toMillimetres(occupiedDepthM(record));
 }
 
+/** The seeded map's entry, which describes one already-built body at the shipped depth. */
 function definitionFor(buildId: string): BodyDefinition {
   const definition = KITCHEN_L_BODY_CATALOG.get(buildId);
   if (!definition) throw new Error(`No catalogue entry for ${buildId}`);
   return definition;
 }
 
+/** The §7 entry **as it is built at this cabinet depth** — the catalogue is a function of the depth
+ *  since wave 6H, and reading the shipped materialisation here would sweep a 700 mm kitchen against
+ *  a 600 mm kitchen's declarations. */
+function insertableDefinitionAt(
+  cabinetDepthMm: number,
+  buildId: string,
+): BodyDefinition {
+  const found = buildInsertableBodyDefinitions(cabinetDepthMm).find(
+    ([id]) => id === buildId,
+  );
+  if (!found) throw new Error(`No catalogue entry for ${buildId}`);
+  return found[1];
+}
+
 interface SweepCase {
+  readonly cabinetDepthMm: number;
   readonly buildId: string;
   readonly widthMm: number;
   readonly depthMm: number;
 }
 
-/** Every insertable body at every width its entry offers, and a wall carcass at both depths it is
- *  ever built to. Derived from the catalogue rather than listed, so a new §7 row joins the sweep by
- *  existing. */
+/** Every insertable body at every width its entry offers, at every depth a wall carcass is ever
+ *  built to, **at every cabinet depth the product declares**. Derived from the catalogue rather than
+ *  listed, so a new §7 row joins the sweep by existing and a new map row joins it by being declared. */
 function insertableCases(): SweepCase[] {
-  return CATALOG_BUILD_IDS.flatMap((buildId) => {
-    const definition = definitionFor(buildId);
-    const depthsMm =
-      definition.occupiedDepth.measuredFrom === "recorded-shell"
-        ? WALL_BUILD_DEPTHS_MM
-        : [definition.nominalDepthMm ?? 580];
-    return (definition.sizesMm ?? [600]).flatMap((widthMm) =>
-      depthsMm.map((depthMm) => ({ buildId, widthMm, depthMm })),
-    );
-  });
+  return DECLARED_CABINET_DEPTHS_MM.flatMap((cabinetDepthMm) =>
+    CATALOG_BUILD_IDS.flatMap((buildId) => {
+      const definition = insertableDefinitionAt(cabinetDepthMm, buildId);
+      const depthsMm =
+        definition.occupiedDepth.measuredFrom === "recorded-shell"
+          ? wallBuildDepthsMmAt(cabinetDepthMm)
+          : [definition.nominalDepthMm ?? 580];
+      return (definition.sizesMm ?? [600]).flatMap((widthMm) =>
+        depthsMm.map((depthMm) => ({
+          cabinetDepthMm,
+          buildId,
+          widthMm,
+          depthMm,
+        })),
+      );
+    }),
+  );
 }
 
 function sizeOf(sweep: SweepCase): CatalogBodySize {
   return {
     widthM: sweep.widthMm / 1000,
-    heightM: (definitionFor(sweep.buildId).nominalHeightMm ?? 700) / 1000,
+    heightM:
+      (insertableDefinitionAt(sweep.cabinetDepthMm, sweep.buildId)
+        .nominalHeightMm ?? 700) / 1000,
     depthM: sweep.depthMm / 1000,
   };
 }
 
 describe("every insertable body fills the depth its catalogue entry declares", () => {
   it.each(insertableCases())(
-    "$buildId at $widthMm mm wide, built to $depthMm mm",
+    "$buildId at $widthMm mm wide, built to $depthMm mm, in a $cabinetDepthMm mm kitchen",
     (sweep) => {
-      const definition = definitionFor(sweep.buildId);
+      const definition = insertableDefinitionAt(
+        sweep.cabinetDepthMm,
+        sweep.buildId,
+      );
       const size = sizeOf(sweep);
-      const measured = createBodyProbe(kit, room).measure({
+      const built = kitAt(sweep.cabinetDepthMm);
+      const measured = createBodyProbe(built.kit, built.room).measure({
         buildId: sweep.buildId,
         ...size,
+        seatedOn: seatedOnOf(sweep.buildId, sweep.cabinetDepthMm),
       });
       const seatDepthM = 2 * measured.seatOffsetM;
 
@@ -169,7 +294,7 @@ describe("every insertable body fills the depth its catalogue entry declares", (
 
       expect(
         measuredOccupiedMm(
-          buildCatalogBody(kit, sweep.buildId, size),
+          buildCatalogBody(built.kit, sweep.buildId, size),
           seatDepthM,
         ),
       ).toBe(declaredOccupiedMm(definition, sweep.buildId, seatDepthM));
@@ -179,18 +304,41 @@ describe("every insertable body fills the depth its catalogue entry declares", (
 
 describe("every seeded body fills the depth its catalogue entry declares", () => {
   // A seeded entry describes one already-built body at one measured seat, so `frameDepthMm` is the
-  // seat and the geometry takes no parameters — which is what makes the comparison exact.
-  const seededBuildIds = [...KITCHEN_L_BODY_CATALOG.entries()]
-    .filter(([, definition]) => definition.insertable !== true)
-    .map(([buildId]) => buildId);
+  // seat and the geometry takes no parameters at a given depth — which is what makes the comparison
+  // exact.
+  //
+  // **At both declared depths since wave 6I, which is criterion 4's other half.** The seeded map was
+  // a module constant materialised at 600, so this gate — the one that keeps `occupiedDepth` honest
+  // at all — could only ever have been a claim about the shipped kitchen. It is also where ADR 0058's
+  // two pinned entries live, so sweeping it at 700 is what makes the pin an observation rather than
+  // an assertion about a catalogue nobody built.
+  const seededCases = DECLARED_CABINET_DEPTHS_MM.flatMap((cabinetDepthMm) =>
+    buildSeededBodyDefinitions(cabinetDepthMm).map(([buildId, definition]) => ({
+      cabinetDepthMm,
+      buildId,
+      definition,
+    })),
+  );
 
-  it.each(seededBuildIds)("%s", (buildId) => {
-    const definition = definitionFor(buildId);
-    const seatDepthM = definition.frameDepthMm / 1000;
+  it.each(seededCases)("$buildId in a $cabinetDepthMm mm kitchen", (seeded) => {
+    const seatDepthM = seeded.definition.frameDepthMm / 1000;
 
     expect(
-      measuredOccupiedMm(buildDecomposedBody(kit, buildId), seatDepthM),
-    ).toBe(declaredOccupiedMm(definition, buildId, seatDepthM));
+      measuredOccupiedMm(
+        buildDecomposedBody(kitAt(seeded.cabinetDepthMm).kit, seeded.buildId),
+        seatDepthM,
+      ),
+    ).toBe(declaredOccupiedMm(seeded.definition, seeded.buildId, seatDepthM));
+  });
+
+  // The seeded population is the whole of M2's scene and nothing has been dropped from the sweep by
+  // the parameterisation — the shipped map and the map built at the shipped depth are the same rows.
+  it("sweeps every seeded row the shipped catalogue holds", () => {
+    expect(buildSeededBodyDefinitions(600).map(([buildId]) => buildId)).toEqual(
+      [...KITCHEN_L_BODY_CATALOG.entries()]
+        .filter(([, definition]) => definition.insertable !== true)
+        .map(([buildId]) => buildId),
+    );
   });
 });
 
@@ -220,7 +368,11 @@ describe("remove → opening → rebuild puts the body back into the space it le
   it.each(swappable)(
     "$id is rebuilt into exactly the opening it vacated",
     (placement) => {
-      const columns = deriveColumns(recordsOf(KITCHEN_L_DESIGN));
+      const columns = deriveColumns(
+        recordsOf(KITCHEN_L_DESIGN),
+        {},
+        KITCHEN_L_DESIGN.room,
+      );
       const vacatedMm = toMillimetres(
         occupiedDepthM(recordFor(KITCHEN_L_DESIGN, placement.id)),
       );

@@ -27,6 +27,7 @@ import {
   CATALOG_BUILD_IDS,
   isCatalogBuildId,
 } from "../src/catalog-bodies.js";
+import { isCabinetHandleGroup } from "../src/cabinet-handle-meshes.js";
 import { buildDecomposedBody } from "../src/decomposed-bodies.js";
 import { makeKit, type Kit } from "../src/kitchen-parts.js";
 import { isMesh } from "../src/three-guards.js";
@@ -93,12 +94,14 @@ interface CapabilityCensus {
  *  has four of which exactly two are the cabinet's — the other two are the oven's and the
  *  microwave's. The test at the foot of this file measures both numbers.
  *
- *  `barHandle` returns a group named `handle`, and every caller adds it to the thing it belongs to.
- *  `doorSlab` adds it beside the `door_front` slab it opens; `builders.oven`, `builders.microwave`,
- *  `dishwasher` and the freestanding fridge add it to the appliance's own group, which holds no
- *  front at all. So a handle is a **cabinet's** handle exactly when the group it hangs from also
- *  holds a front — the front it opens. That is the same pairing `canHandle` promises the customer:
- *  a door they can put a handle on. */
+ *  **Since wave 6L the rule is `isCabinetHandleGroup`, imported rather than restated here**
+ *  (ADR 0061 decision 1). It used to be a private copy, which was the right call while the gate was
+ *  its only reader; now the path that *applies* a handle choice reads the same function, and one
+ *  rule with two callers is what makes "the gate and the renderer agree" a fact instead of a
+ *  coincidence. What that costs is stated and paid below: a gate reading its rule out of the code it
+ *  checks proves only that the code equals itself, so `agrees with the rule this gate would write
+ *  itself` re-derives the rule from `FRONT_MESH_NAME` above and holds the imported one to it over
+ *  the whole catalogue. */
 function censusOf(buildId: string, widthMm?: number): CapabilityCensus {
   const definition = definitionOf(buildId);
   const built = buildBodyOf(buildId, definition, widthMm);
@@ -107,9 +110,7 @@ function censusOf(buildId: string, widthMm?: number): CapabilityCensus {
   let cabinetHandles = 0;
   built.traverse((node) => {
     if (isMesh(node) && FRONT_MESH_NAME.test(node.name)) fronts += 1;
-    if (!isMesh(node) && node.name === HANDLE_GROUP_NAME && opensAFront(node)) {
-      cabinetHandles += 1;
-    }
+    if (isCabinetHandleGroup(node)) cabinetHandles += 1;
   });
 
   return {
@@ -146,8 +147,11 @@ function buildBodyOf(
   });
 }
 
-function opensAFront(handle: THREE.Object3D): boolean {
-  const owner = handle.parent;
+/** This gate's own reading of ADR 0061's rule, written from `FRONT_MESH_NAME` above and used
+ *  nowhere but the independence assertion: a handle group whose parent also holds a front. */
+function opensAFront(node: THREE.Object3D): boolean {
+  if (isMesh(node) || node.name !== HANDLE_GROUP_NAME) return false;
+  const owner = node.parent;
   if (!owner) return false;
   return owner.children.some(
     (sibling) => isMesh(sibling) && FRONT_MESH_NAME.test(sibling.name),
@@ -255,6 +259,30 @@ describe("every catalogue entry's capability flags match what its builder draws"
       });
       expect(handleBarCountOf(buildId), buildId).toBe(1);
     }
+  });
+
+  // **The price of importing the rule instead of restating it.** Every node of every body in both
+  // populations, judged twice: once by `isCabinetHandleGroup` and once by this file's own reading of
+  // it. A widening of the shared rule that made some body pass its declared count would part the two
+  // here, which is the failure the old private copy was guarding against.
+  it("agrees with the rule this gate would write itself, over every node of every body", () => {
+    let handleGroupsSeen = 0;
+
+    for (const buildId of ALL_BUILD_IDS) {
+      const definition = definitionOf(buildId);
+      buildBodyOf(buildId, definition).traverse((node) => {
+        if (!isMesh(node) && node.name === HANDLE_GROUP_NAME)
+          handleGroupsSeen += 1;
+        expect([buildId, node.name, isCabinetHandleGroup(node)]).toEqual([
+          buildId,
+          node.name,
+          opensAFront(node),
+        ]);
+      });
+    }
+
+    // Not a vacuous sweep: the catalogue really does build handle groups for it to judge.
+    expect(handleGroupsSeen).toBeGreaterThan(0);
   });
 
   it("does not count an appliance's handle as the cabinet's", () => {

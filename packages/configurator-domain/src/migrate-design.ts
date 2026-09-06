@@ -1,7 +1,25 @@
 import { MAX_EMPTY_COLUMNS } from "./design-bounds.js";
-import type { Design, EmptyColumn } from "./design.js";
-import { DesignSchema } from "./design.js";
-import { KITCHEN_L_BODY_CATALOG } from "./fixtures/kitchen-l-design.js";
+import type {
+  Design,
+  DesignPlacement,
+  DesignRoom,
+  EmptyColumn,
+} from "./design.js";
+import { cabinetDepthMmOf, LegacyDesignSchema } from "./design.js";
+import {
+  buildKitchenLBodyCatalog,
+  KITCHEN_L_DESIGN,
+} from "./fixtures/kitchen-l-design.js";
+import {
+  DEFAULT_FINISH,
+  DEFAULT_MATERIAL_ID,
+  isLegacyEnumFinishName,
+  LEGACY_ENUM_FINISHES,
+  lookUpMaterial,
+  materialOffersFinish,
+  type Finish,
+  type Material,
+} from "./materials.js";
 import { MAX_EMPTY_COLUMN_WIDTH_MM } from "./module-grid.js";
 import { InvalidDesignError } from "./repository.js";
 import { describeSchemaIssues } from "./failure-text.js";
@@ -9,36 +27,308 @@ import {
   landsOnWholeMillimetres,
   splitEmptySpanAtCap,
 } from "./split-empty-span.js";
-import { assertDesignValidForCatalog } from "./validate-design.js";
+import {
+  assertDesignValidForCatalog,
+  fatalDesignValidationIssues,
+  validateDesignForCatalog,
+} from "./validate-design.js";
 import type { BodyCatalog } from "./void-engine.js";
 
-/** Version 1 is every document written before wave 5G, under a rule that bounded a *merge* and not
- *  an empty column — so it may carry an entry ADR 0052 no longer permits, and the answer is to
- *  **normalise it rather than refuse it**.
+/** The version this build writes, and the version at which a document is owed no normalisation at
+ *  all. `neon-configuration-repository.ts` stamps every row it writes with this value, importing it
+ *  rather than restating it: two copies of this number that disagree is a migration that silently
+ *  stops running.
  *
- *  A 900 mm empty column is executable: it renders correctly, and all it does wrong is refuse
- *  `widthFlex: 'fit'` inserts. It is a legal document under a superseded rule, not the unexecutable
- *  document DOM-001 refuses, and a `/d/{id}` share link is the one artefact this project hands to
- *  someone who cannot be asked to reload it. Clamping would silently delete wall; grandfathering
- *  would leave the invariant unenforceable. Splitting keeps every millimetre and produces a map that
- *  satisfies the new rule by construction, which the next save writes back in the normalised shape.
+ *  **Two waves raised this in the same day: 6J-a from 3 to 4 for the persisted cabinet depth, and
+ *  6P from 4 to 5 for the finish model.** They were built in parallel and each bumped to 4; 6P
+ *  merged second and took 5, keying its own arm at 4. The order is not arbitrary — a document
+ *  written by 6J-a carries a depth and a legacy string finish, so it owes 6P's rewrite and must
+ *  have a version that says so.
  *
- *  Before `assertDesignValidForCatalog`, because that is the seam that now refuses the oversized
- *  entry — normalising after it would refuse the very document this exists to carry. */
-function migrateFromV1(raw: unknown): Design {
-  return normaliseOversizedEmptyColumnEntries(parseDesign(raw));
+ *  **The argument for 6P's bump is on the record because the two precedents point opposite ways.** ADR 0053 (`columnExtents`, `settings`): *an absent field whose absence is
+ *  a legal state owes no bump* — a document written without the key loads exactly as it does today,
+ *  and nothing about it is rewritten. ADR 0055 (the depth change): *a rewrite of stored values
+ *  does.* This is the second shape and not the first, on three counts:
+ *
+ *  1. **It rewrites a value a document already carries.** `finish: "sage"` is not an absent field;
+ *     it is a value with a new meaning, and every document holding one leaves this function
+ *     carrying something else.
+ *  2. **The stored shape changed, not only its membership.** A finish went from a string to a
+ *     tagged object, so a document this build writes cannot be read by the build before it. A
+ *     version is the only thing that tells the two apart at the row.
+ *  3. **Without a bump there is no arm to key the normalisation on.** The rewrite would have to run
+ *     unconditionally on every load, including on documents this build itself wrote, and its
+ *     being a fixed point would be the only thing standing between a load and a silent rewrite —
+ *     a computation where the table above is a declaration (ADR 0028). */
+export const CURRENT_SCHEMA_VERSION = 5;
+
+/** The oldest version still readable. Nothing below it was ever written, and a row claiming one is
+ *  a row this build cannot account for. */
+const OLDEST_SUPPORTED_SCHEMA_VERSION = 1;
+
+/** One legacy shape, normalised away.
+ *
+ *  **Takes the catalogue so an arm can measure what its own rewrite changes** — `validateDesignForCatalog`
+ *  needs it, and `correctPreCorrectionRoom` runs it on both sides of the room it is about to write.
+ *  **It is not licence to ask whether the document is valid** (ADR 0085 decision 1): that question
+ *  has an owner, `assertDesignValidForCatalog` at the end of every load, and an arm that re-asks it
+ *  locally answers with whatever the severity table happened to say that day. A finding the document
+ *  carries either way is not caused by the rewrite and can never be a reason to decline it. */
+type DesignNormalisation = (design: Design, catalog: BodyCatalog) => Design;
+
+/** One legacy shape the **current schema cannot express**, normalised away while the document is
+ *  still `unknown`.
+ *
+ *  A second stage exists for exactly one reason: `parseDesign` refuses what it cannot parse, and a
+ *  document written under the shipped five-value finish enum is precisely that. Parsing first would
+ *  refuse the documents this arm exists to rescue, and a load that refuses is a share link that is
+ *  dead (ADR 0052). Nothing here validates: it rewrites one field into a shape the schema can then
+ *  judge on its own terms, and a document that is malformed for any other reason still fails at the
+ *  same gate with the same message. */
+type RawNormalisation = (raw: unknown) => unknown;
+
+/** Every normalisation a stored document may still be owed, **keyed by the version that owes it**
+ *  and applied in ascending version order by `carryForward`.
+ *
+ *  Version 1 is every document written before wave 5G, under a rule that bounded a *merge* and not
+ *  an empty column, so it may carry an entry ADR 0052 no longer permits. Version 2 is every document
+ *  written before the room correction of 2026-09-03, so it carries the seeded room as it then stood.
+ *  Version 3 is every document written before wave 6J-a, so it carries no persisted cabinet depth.
+ *  Version 4 is every document written before wave 6P, when a finish was one of five strings; that
+ *  normalisation is **entirely pre-parse** — `RAW_NORMALISATIONS_BY_VERSION_OWING_THEM`, keyed at 4
+ *  — because it is the first legacy shape the current schema cannot even express, so after the parse
+ *  a version 4 document is owed nothing. A version 1 document is owed all three of the older arms,
+ *  in that order, and the pre-parse arm before any of them.
+ *
+ *  **The order is the map's contract, and one defect has already turned on it.** Each entry may
+ *  assume every older one has already run and may assume nothing about a younger one. The defect on
+ *  record is `correctPreCorrectionRoom`: it used to ask whether the corrected room rescues the
+ *  document *absolutely*, so a version 1 row still carrying an oversized `emptyColumns` entry
+ *  answered *no* for a reason that has nothing to do with its room, and run in the other order the
+ *  room correction declined to fire on precisely the documents version 1 exists for. **That arm no
+ *  longer depends on the order** — ADR 0085 made its guard a comparison, and an older arm's
+ *  unfinished business is a finding the document carries under both rooms — but the contract stands
+ *  for every arm that does. A future arm below these belongs at the **front** of this map, and its
+ *  own guard may not assume anything a younger arm has not yet had the chance to fix. */
+const NORMALISATIONS_BY_VERSION_OWING_THEM: ReadonlyMap<
+  number,
+  DesignNormalisation
+> = new Map([
+  [1, normaliseOversizedEmptyColumnEntries],
+  [2, correctPreCorrectionRoom],
+  [3, addDefaultCabinetDepth],
+  [4, nothingIsOwedAfterParse],
+]);
+
+/** Version 3 predates the persisted cabinet depth. Preserve the existing tier selections while
+ * adding the depth every such document was actually built at. */
+function addDefaultCabinetDepth(design: Design): Design {
+  return {
+    ...design,
+    settings: {
+      ...design.settings,
+      cabinetDepthMm: 600,
+    },
+  };
 }
 
-/** Version 2 is written under ADR 0052, so an oversized entry in one is not a legacy shape to carry
- *  forward — it is a document that disagrees with the rule it was written under. Parsed and handed
- *  to `assertDesignValidForCatalog` unnormalised, which refuses it with
- *  `EMPTY_COLUMN_WIDER_THAN_CAP`, the same code the API write seam refuses it with. */
-function migrateFromV2(raw: unknown): Design {
-  return parseDesign(raw);
+/** Version 4's answer to the table above, stated rather than left as a gap the lookup would throw
+ *  on: everything a version 4 document is owed happens before the parse, so the parsed stage owes it
+ *  nothing. **The `canFinish` strip used to sit here and was wrong there** — see
+ *  `dropFinishFromBodiesThatCannotWearOne`, which is not version-keyed for a reason. */
+function nothingIsOwedAfterParse(design: Design): Design {
+  return design;
+}
+
+/** The pre-parse half of the same table, keyed the same way and walked over the same version range.
+ *  A version with no entry owes nothing at this stage. Keyed at **4** rather than at each of 1-4:
+ *  every older document walks past 4 on its way to the current version, so one entry reaches them
+ *  all, and a document written at 4 — by wave 6J-a, carrying a depth and a legacy string finish —
+ *  is exactly the case that must not be missed. */
+const RAW_NORMALISATIONS_BY_VERSION_OWING_THEM: ReadonlyMap<
+  number,
+  RawNormalisation
+> = new Map([[4, replaceLegacyEnumFinishes]]);
+
+/** Every normalisation the stored version still owes, oldest first. A document already at
+ *  `CURRENT_SCHEMA_VERSION` walks none of them: its room and its columns are its own, including the
+ *  3600 × 2400 an M7 customer may genuinely enter. */
+function carryForward(
+  design: Design,
+  schemaVersion: number,
+  catalog: BodyCatalog,
+): Design {
+  let carried = design;
+  for (
+    let version = schemaVersion;
+    version < CURRENT_SCHEMA_VERSION;
+    version += 1
+  ) {
+    carried = normalisationOwedBy(version)(carried, catalog);
+  }
+  return carried;
+}
+
+/** Every raw normalisation the stored version still owes, oldest first. Mirrors `carryForward` and
+ *  runs before the parse it exists to make possible. */
+function carryRawForward(raw: unknown, schemaVersion: number): unknown {
+  let carried = raw;
+  for (
+    let version = schemaVersion;
+    version < CURRENT_SCHEMA_VERSION;
+    version += 1
+  ) {
+    const normalisation = RAW_NORMALISATIONS_BY_VERSION_OWING_THEM.get(version);
+    if (normalisation) carried = normalisation(carried);
+  }
+  return carried;
+}
+
+function normalisationOwedBy(version: number): DesignNormalisation {
+  const normalisation = NORMALISATIONS_BY_VERSION_OWING_THEM.get(version);
+  if (!normalisation) {
+    throw new InvalidDesignError(
+      `no normalisation is declared for schema version ${String(version)}`,
+    );
+  }
+  return normalisation;
+}
+
+/** The seeded room as every document up to version 2 carried it.
+ *
+ *  Written as a literal rather than read from anywhere, deliberately: this half is a statement about
+ *  documents that were **already written**, so no later edit to any fixture may retroactively change
+ *  which documents this arm is reached from. */
+const PRE_CORRECTION_ROOM_MM = { widthMm: 3600, depthMm: 2400 } as const;
+
+/** The room the correction writes, **read from the fixture rather than restated beside it**
+ *  (ADR 0083 decision 9).
+ *
+ *  The other half is a statement about documents already written; this half is not. The arm exists
+ *  to repair rows that *are copies of the demo*, so repairing them into a room the demo no longer
+ *  has is two lists agreeing by luck — with a live consequence, since a rescued row whose customer
+ *  then chooses the 700 mm depth would overflow where the demo does not.
+ *
+ *  **This does not weaken the safety property wave 6A3 established.** The value is still a constant
+ *  — fixed at module load from a frozen fixture, never derived from the document being migrated or
+ *  from where its bodies stand — and it is still reached only at schema version ≤ 2 from the exact
+ *  pre-correction pair above. */
+const CORRECTED_ROOM_MM = {
+  widthMm: KITCHEN_L_DESIGN.room.widthMm,
+  depthMm: KITCHEN_L_DESIGN.room.depthMm,
+} as const;
+
+/** The room the correction of 2026-09-03 gave the seeded kitchen, written over the one a document
+ *  stored before it carries — the v1 `emptyColumns` shape again, **normalise rather than refuse**.
+ *
+ *  Wall B's along-wall bound became the room's `depthMm`, and the seeded `p7` and `p24` end at 2800.
+ *  That was legal under the old `max(widthMm, depthMm)` and is not under a 2400 depth, so five rows
+ *  written from the seed stop loading — and a `/d/{id}` share link is the one artefact this project
+ *  hands to someone who cannot be asked to reload it.
+ *
+ *  **Which of the two failures this is, because the next reader to meet a refusal at this seam has
+ *  to tell them apart.** A document that was *legal under the rule in force when it was written* is
+ *  normalised; a document that is malformed or unexecutable is refused, and DOM-001 is why. The
+ *  bound above is not too tight and nothing here may loosen it: these rows are the first kind, and
+ *  the tightening refusing them is the tightening working.
+ *
+ *  **Three guards, because a rewrite of a room is a rewrite of somebody's kitchen.** M7 lets a
+ *  customer enter their own dimensions, and one of them may genuinely have a 3600 × 2400 room:
+ *
+ *  1. **The version.** This arm is keyed at 2, so it is walked only by a document stored at version
+ *     2 or below — written before there was any room control at all. Every version M7 can write is
+ *     past it, and that alone settles the customer case.
+ *  2. **The exact pre-correction pair**, so no other room is a candidate at any version.
+ *  3. **The correction must not create a fatal finding the document did not already carry** — see
+ *     `createsAFatalFinding`. A document that is fatally invalid for a reason the room has no
+ *     bearing on is corrected anyway and still fails on its own terms, with its own findings at
+ *     their own paths.
+ *
+ *  **Provenance is why there is no fourth guard asking whether the document is already valid**
+ *  (ADR 0069 decision 5b, amending decision 5). Before M7 there is no room control, so at version
+ *  ≤ 2 the pair `{3600, 2400}` has exactly one origin — the seeded fixture's mis-measurement — and
+ *  the correction is owed to every such row unconditionally. Asking whether the bodies happen to
+ *  fit under the *wrong* room answers a question with no bearing on whether the wall was measured
+ *  correctly, and it declined the correction for exactly the rows that were fine while applying it
+ *  to the ones that were not.
+ *
+ *  **What makes the rewrite safe is not that the result validates.** It is that the corrected room
+ *  is the constant `CORRECTED_ROOM_MM`, reached only at version ≤ 2 from the exact pre-correction pair.
+ *  No room value is ever derived from the document's own placements, so a body at 3000 on wall B is
+ *  still past the wall after the correction and is still marked: nothing is rescued into a room
+ *  nobody entered (ADR 0069 decision 5). */
+function correctPreCorrectionRoom(
+  design: Design,
+  catalog: BodyCatalog,
+): Design {
+  if (!isPreCorrectionRoom(design.room)) return design;
+
+  const corrected: Design = {
+    ...design,
+    room: { ...design.room, ...CORRECTED_ROOM_MM },
+  };
+  if (createsAFatalFinding({ before: design, after: corrected, catalog })) {
+    return design;
+  }
+  return corrected;
+}
+
+function isPreCorrectionRoom(room: DesignRoom): boolean {
+  return (
+    room.widthMm === PRE_CORRECTION_ROOM_MM.widthMm &&
+    room.depthMm === PRE_CORRECTION_ROOM_MM.depthMm
+  );
+}
+
+/** **Does the rewrite itself make the document worse?** — ADR 0085 decision 2, the rule being that
+ *  a normalisation's guard is a question about the normalisation and never a question about the
+ *  document.
+ *
+ *  **Fatal findings only.** Since ADR 0065 an overflow after the correction is a mark, not a failure
+ *  to rescue, and wall A narrows by 40 mm, so a corrected row may show a mark it did not show
+ *  before. That mark is true — the alternative is a kitchen built against a measurement the product
+ *  knows is wrong.
+ *
+ *  **Comparative rather than absolute**, which is the half ADR 0085 adds. A finding the document
+ *  carries under both rooms is not caused by the rewrite: whether the document is executable at all
+ *  is `assertDesignValidForCatalog`'s question, asked unconditionally at the end of every load, and
+ *  an arm that re-asks it locally answers with whatever the severity table happened to say that day.
+ *  Measured: a document wearing a finish its material does not offer declined the correction for a
+ *  reason with no bearing on whether a wall was measured correctly.
+ *
+ *  **Nothing here classifies a code**, deliberately (ADR 0085 decision 3, and ADR 0069 decision 4
+ *  one seam over): a hand-listed set of room-relevant codes is silent about the code it has never
+ *  been shown, and a second total map would declare a fact the validator already computes. This runs
+ *  the one total validator twice and asks what moved, so a code is room-relevant if and only if its
+ *  findings differ across the two rooms.
+ *
+ *  **Keyed by `(code, path)` and not by count.** The same code at a different path is a different
+ *  finding, and a correction that removes one fatal finding while creating another must still
+ *  decline. */
+function createsAFatalFinding(rewrite: {
+  readonly before: Design;
+  readonly after: Design;
+  readonly catalog: BodyCatalog;
+}): boolean {
+  const carried = new Set(fatalFindingKeys(rewrite.before, rewrite.catalog));
+  return fatalFindingKeys(rewrite.after, rewrite.catalog).some(
+    (key) => !carried.has(key),
+  );
+}
+
+/** One fatal finding as the pair that identifies it, in the same `path:code` shape
+ *  `describeDesignValidationIssues` reports. */
+function fatalFindingKeys(
+  design: Design,
+  catalog: BodyCatalog,
+): readonly string[] {
+  return fatalDesignValidationIssues(
+    validateDesignForCatalog(design, catalog),
+  ).map((issue) => `${issue.path}:${issue.code}`);
 }
 
 function parseDesign(raw: unknown): Design {
-  const result = DesignSchema.safeParse(raw);
+  const result = LegacyDesignSchema.safeParse(raw);
   // The *shape* of the failure, never `error.message`: that renders the whole tree, echoes an
   // unrecognised key verbatim, and grows with the row — and this error's message reaches a reader
   // of the share link through the load path's response.
@@ -111,17 +401,229 @@ function isWiderThanCap(emptyColumn: EmptyColumn): boolean {
   return emptyColumn.widthMm > MAX_EMPTY_COLUMN_WIDTH_MM;
 }
 
-const MIGRATIONS: ReadonlyMap<number, (raw: unknown) => Design> = new Map([
-  [1, migrateFromV1],
-  [2, migrateFromV2],
-]);
+/**
+ * **What a document written under the shipped five-value finish enum becomes.**
+ *
+ * Every one of `white`, `clay`, `sage`, `graphite` and `oak` becomes `DEFAULT_FINISH`: the document
+ * stays on PAL, and each cabinet that was wearing a colour resets to PAL's own default, *Alb*,
+ * through the ordinary ADR 0057 reset. **The colour is lost and the price is not**, which is the
+ * trade the owner took on 2026-09-04.
+ *
+ * The alternative on record was to deem a document wearing `clay` or `sage` to be MDF — the
+ * material that still offers what it is wearing — and it was declined: it moves a design onto a
+ * dearer tier the customer never chose, and a price that changes under a link somebody has already
+ * shared is a worse surprise than a colour that does. ADR 0071 decision 5 narrows those two values
+ * out of every palette; nothing here maps them to a nearest decor, for the reason ADR 0057 already
+ * rejected nearest-finish mapping — an invisible substitution is worse than a visible loss.
+ *
+ * **No value is read for its shape.** A stored finish is one of five declared names or it is not a
+ * legacy finish at all, and anything else travels to the schema exactly as it arrived, to be judged
+ * there.
+ *
+ * Returned by identity when no placement carries one, so a load that changes nothing does not
+ * rewrite the object a later save is diffed against — and so this arm is a fixed point on its own
+ * output.
+ */
+function replaceLegacyEnumFinishes(raw: unknown): unknown {
+  const document = asRecord(raw);
+  const placements = document?.["placements"];
+  if (!document || !Array.isArray(placements)) return raw;
+  if (!placements.some(carriesLegacyEnumFinish)) return raw;
+  return { ...document, placements: placements.map(replaceOneEnumFinish) };
+}
+
+function carriesLegacyEnumFinish(placement: unknown): boolean {
+  return isLegacyEnumFinishName(
+    asRecord(asRecord(placement)?.["body"])?.["finish"],
+  );
+}
+
+function replaceOneEnumFinish(placement: unknown): unknown {
+  if (!carriesLegacyEnumFinish(placement)) return placement;
+  const record = asRecord(placement) ?? {};
+  const body = asRecord(record["body"]) ?? {};
+  return {
+    ...record,
+    body: { ...body, finish: carriedForwardFrom(body["finish"]) },
+  };
+}
+
+/** What one stored legacy name becomes, and the **two arms are the criterion's own split**.
+ *
+ *  `white`, `graphite` and `oak` are direct palette mappings — PAL *Alb*, PAL *Antracit* and a
+ *  *Stejar* — so the document keeps the colour it was wearing. Only `clay` and `sage` reset, because
+ *  ADR 0071 decision 5 narrows them out of every palette: they are paint and nothing else, and the
+ *  owner's ruling of 2026-09-04 is scoped by its own title to those two. Resetting all five would
+ *  render an anthracite kitchen white on a `/d/{id}` link the customer has already shared, which is
+ *  a loss the ruling never asked for — the ruling traded *those two* colours to keep the document
+ *  off a dearer tier, not every colour the enum could express.
+ *
+ *  **The arm is chosen by the declaration's `kind`, never by naming the two values here.** The reset
+ *  is exactly "this value has no palette entry", so `LEGACY_ENUM_FINISHES` deciding it keeps this
+ *  function and ADR 0071's narrowing from drifting apart — and it is what preserves the guard one
+ *  test over that no migrated document ever holds a free colour, since PAL has no control that
+ *  produces one and a PAL kitchen wearing paint is not a state the product can reach. */
+function carriedForwardFrom(storedName: unknown): Finish {
+  if (!isLegacyEnumFinishName(storedName)) return DEFAULT_FINISH;
+  const declared = LEGACY_ENUM_FINISHES[storedName];
+  return declared.kind === "palette-entry" ? declared : DEFAULT_FINISH;
+}
+
+/** A JSON object, or nothing. An array is not one: `placements` is walked as a list and its members
+ *  are read as objects, and conflating the two is how a hostile document reaches a spread. */
+function asRecord(value: unknown): Record<string, unknown> | undefined {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    return undefined;
+  }
+  return value as Record<string, unknown>;
+}
+
+/**
+ * **A body that cannot wear a finish does not carry one — on every load, at every version.**
+ *
+ * `open-shelf`, `hood` and `fridge-free` declare `canFinish: false`, and no command in this project
+ * writes a finish onto one: `setFinish` refuses it (`commands/set-appearance.ts`) and `insertBody`
+ * does not carry it across a swap. A stored document can still hold one, and the finish rewrite
+ * above must not be the thing that puts it there — a normalisation that helpfully fills in a default
+ * on a frontless body has invented a choice nobody made.
+ *
+ * **Deliberately not a version-keyed arm, and it was one until QA measured it.** Keyed at 3 it never
+ * ran on a version 4 document at all, because `carryForward` walks `schemaVersion` up to
+ * `CURRENT_SCHEMA_VERSION - 1` — so a row this build itself wrote could hold a finish on a hood, be
+ * accepted by `PUT /api/designs/[id]` (nothing in `validate-design.ts` asks the question) and be
+ * persisted with nothing left to remove it. Keying it *later* fixes nothing either: the walk is
+ * ascending, so an arm above this one runs after it and its output is never re-checked. A property
+ * of the loaded document has to be asserted on the loaded document.
+ *
+ * **It normalises rather than refuses**, ADR 0052: a `/d/{id}` link that refuses is a dead link, and
+ * a finish on a frontless body is a document to correct rather than one to reject. An unknown build
+ * id is left exactly as it is — whether the document is executable at all is
+ * `assertDesignValidForCatalog`'s question, asked immediately after this, and answering it here
+ * would refuse a document on the wrong grounds.
+ *
+ * Returned by identity when nothing is owed, so it is a fixed point and so a load that changes
+ * nothing does not rewrite the object a later save is diffed against.
+ */
+function dropFinishFromBodiesThatCannotWearOne(
+  design: Design,
+  catalog: BodyCatalog,
+): Design {
+  const wearsOne = (placement: DesignPlacement): boolean =>
+    wearsAFinishItCannotWear(placement, catalog);
+  if (!design.placements.some(wearsOne)) return design;
+  return {
+    ...design,
+    placements: design.placements.map((placement) =>
+      wearsOne(placement) ? withoutFinish(placement) : placement,
+    ),
+  };
+}
+
+function wearsAFinishItCannotWear(
+  placement: DesignPlacement,
+  catalog: BodyCatalog,
+): boolean {
+  if (placement.body.finish === undefined) return false;
+  return catalog.get(placement.body.buildId)?.canFinish === false;
+}
+
+function withoutFinish(placement: DesignPlacement): DesignPlacement {
+  const body = { ...placement.body };
+  delete body.finish;
+  return { ...placement, body };
+}
+
+/**
+ * **No loaded document wears a finish its own material does not offer** — ADR 0057's invariant,
+ * executed at the load seam because ADR 0078 decision 2 puts the resolution *before* the refusal.
+ *
+ * Every placement wearing a finish the document's material does not offer is rewritten to that
+ * material's declared `defaultFinish`. The offer is `materialOffersFinish`, ADR 0078 decision 1's
+ * table read off the declared `ColourControl.shape`; the target is the declaration's own
+ * `defaultFinish`, never a colour built from a palette entry's swatch hex (ADR 0078 decision 4 —
+ * ADR 0057's rejected nearest-finish mapping, arriving through the door wave 6R opens).
+ *
+ * **Where it sits is the whole argument, and it is not recoverable by a follow-up commit.**
+ * `validate-design.ts` refuses `PLACEMENT_WEARS_UNOFFERED_FINISH`, `assertDesignValidForCatalog`
+ * runs it on every load, and the documents it would refuse exist: since wave 6P the panel still
+ * writes *Lut* and *Salvie* — free colours — onto what is by default a PAL kitchen, and those rows
+ * are in the preview database (ADR 0054). Running here, immediately before the assertion, makes the
+ * refusal **unreachable on the load path by construction** and leaves it reachable only at
+ * `PUT /api/designs/[id]`, where a client bypassed the command that would have resolved it. A load
+ * that refuses is a dead `/d/{id}` link (ADR 0052).
+ *
+ * **After the strip — and that ordering is not load-bearing today** (ADR 0085 decision 6). A hood
+ * stored wearing a PAL decor on a veneer kitchen loads carrying **no finish at all** rather than
+ * `veneer.stejar`, and it does so in either order, because the two normalisations commute on every
+ * input. The invariant that makes them commute is this one: **the resolution never adds a `finish`
+ * key and never removes one** — it only maps a new value over placements that already carry one — so
+ * the strip's predicate, which reads a finish's *presence* and never its value, is unchanged by it.
+ * That invariant is asserted rather than argued, in
+ * `tests/finish-resolution-at-the-load-seam.test.ts`; the ordering stays here as defence in depth.
+ *
+ * **What makes it load-bearing again**, and the reason the order is worth keeping: an arm that
+ * starts reading a finish **value** to decide, or writing a finish **key** where there was none.
+ * Either one breaks the invariant above, the composition stops commuting, and this comment stops
+ * being true — so a change of that shape belongs with a measurement, not with a reordering.
+ *
+ * **Absence stays absence** (ADR 0078 decision 5). A placement with no `finish` key never reaches
+ * the offer query and never gains one — the resolution corrects a choice, it does not invent one.
+ *
+ * **An undeclared `materialTierId` resolves nothing** (ADR 0078 decision 3). `DesignSettingsSchema`
+ * validates the id for shape only, so a stored id naming no declared material is reachable and must
+ * keep loading — wave 6G's recovery path stands on it (ADR 0072) — and a document is not corrected
+ * against a material nobody can look up. Nothing here throws.
+ *
+ * **Keyed to no version, and this wave takes no bump.** `dropFinishFromBodiesThatCannotWearOne`'s
+ * own words: a property of the loaded document has to be asserted on the loaded document. ADR 0055
+ * governs a rewrite one *version* owes; 6P's QA measured what keying an unconditional property at a
+ * version costs, which was that the strip never ran on the documents this build itself wrote.
+ *
+ * Returned by identity when nothing is owed, so it is a fixed point and so a load that changes
+ * nothing does not rewrite the object a later save is diffed against.
+ */
+function resolveFinishesTheMaterialDoesNotOffer(design: Design): Design {
+  const lookup = lookUpMaterial(
+    design.settings?.materialTierId ?? DEFAULT_MATERIAL_ID,
+  );
+  if (lookup.kind === "undeclared") return design;
+
+  const material = lookup.material;
+  const wearsUnoffered = (placement: DesignPlacement): boolean =>
+    wearsAFinishTheMaterialDoesNotOffer(placement, material);
+  if (!design.placements.some(wearsUnoffered)) return design;
+  return {
+    ...design,
+    placements: design.placements.map((placement) =>
+      wearsUnoffered(placement)
+        ? wearing(placement, material.defaultFinish)
+        : placement,
+    ),
+  };
+}
+
+function wearsAFinishTheMaterialDoesNotOffer(
+  placement: DesignPlacement,
+  material: Material,
+): boolean {
+  const finish = placement.body.finish;
+  return finish !== undefined && !materialOffersFinish(material, finish);
+}
+
+function wearing(placement: DesignPlacement, finish: Finish): DesignPlacement {
+  return { ...placement, body: { ...placement.body, finish } };
+}
 
 /** Validates and migrates a stored payload to the current `Design` shape.
  *
- *  Version 2 is current (ADR 0052). Version 1 is carried forward rather than refused: its one
- *  difference is an `emptyColumns` entry wider than the ceiling, which `migrateFromV1` splits into
- *  the columns the new rule allows. This is the version-keyed lookup `migrate-design.ts` has carried
- *  since it was written and never used.
+ *  `CURRENT_SCHEMA_VERSION` — 5 — is current. Older versions are carried forward rather than
+ *  refused, through every
+ *  normalisation their version predates and in the order
+ *  `NORMALISATIONS_BY_VERSION_OWING_THEM` declares them — preceded by the pre-parse arms
+ *  `RAW_NORMALISATIONS_BY_VERSION_OWING_THEM` declares, for the legacy shapes the current schema
+ *  cannot parse at all, and followed by the **two** normalisations that are owed by no version in
+ *  particular — `dropFinishFromBodiesThatCannotWearOne` and then
+ *  `resolveFinishesTheMaterialDoesNotOffer`, which run on every load and in that order.
  *
  *  DOM-001: the wire shape is only half the answer, so a migrated document is then held to the same
  *  executable contract the API write path enforces. A stored row that names a body no catalogue
@@ -133,15 +635,53 @@ const MIGRATIONS: ReadonlyMap<number, (raw: unknown) => Design> = new Map([
 export function migrateDesign(
   schemaVersion: number,
   raw: unknown,
-  catalog: BodyCatalog = KITCHEN_L_BODY_CATALOG,
+  catalog?: BodyCatalog,
 ): Design {
-  const migrate = MIGRATIONS.get(schemaVersion);
-  if (!migrate) {
+  refuseUnsupportedVersion(schemaVersion);
+  // The raw stage first: it rescues documents `parseDesign` would refuse, which is the whole reason
+  // it runs on `unknown`.
+  const parsed = parseDesign(carryRawForward(raw, schemaVersion));
+  const migrationCatalog =
+    catalog ?? buildKitchenLBodyCatalog(cabinetDepthMmOf(parsed));
+  const carried = carryForward(parsed, schemaVersion, migrationCatalog);
+  requireCurrentCabinetDepth(carried);
+  // Unconditional and after every arm, because it is a property of the loaded document rather than
+  // a debt one version owes — including the version this build writes, and including whatever a
+  // future arm produces.
+  const stripped = dropFinishFromBodiesThatCannotWearOne(
+    carried,
+    migrationCatalog,
+  );
+  // Before the validator, which is ADR 0078 decision 2's ordering and is the half that is
+  // load-bearing: the refusal one module over is unreachable from here by construction. Its
+  // position relative to the strip is not — see the head comment for the invariant that makes the
+  // two commute, and for what would end that.
+  const design = resolveFinishesTheMaterialDoesNotOffer(stripped);
+  assertDesignValidForCatalog(
+    design,
+    catalog ?? buildKitchenLBodyCatalog(cabinetDepthMmOf(design)),
+  );
+  return design;
+}
+
+function requireCurrentCabinetDepth(design: Design): void {
+  if (design.settings?.cabinetDepthMm === undefined) {
+    throw new InvalidDesignError(
+      "schema version 5 requires settings.cabinetDepthMm",
+    );
+  }
+}
+
+/** Refused before the payload is parsed: a row stamped with a version this build has never written
+ *  is not a document with a bad field, and reporting its fields would say the wrong thing about it. */
+function refuseUnsupportedVersion(schemaVersion: number): void {
+  const isSupported =
+    Number.isInteger(schemaVersion) &&
+    schemaVersion >= OLDEST_SUPPORTED_SCHEMA_VERSION &&
+    schemaVersion <= CURRENT_SCHEMA_VERSION;
+  if (!isSupported) {
     throw new InvalidDesignError(
       `unsupported schema version ${String(schemaVersion)}`,
     );
   }
-  const design = migrate(raw);
-  assertDesignValidForCatalog(design, catalog);
-  return design;
 }

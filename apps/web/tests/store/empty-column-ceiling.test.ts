@@ -7,8 +7,8 @@
 // **The seeded kitchen loads with zero empty columns**, so every case below states its own taps. A
 // criterion a fresh load satisfies is not a criterion.
 import {
+  buildKitchenLBodyCatalog,
   DesignSchema,
-  KITCHEN_L_BODY_CATALOG,
   KITCHEN_L_DESIGN,
   MAX_EMPTY_COLUMN_WIDTH_MM,
   type Column,
@@ -17,7 +17,7 @@ import {
 import { describe, expect, it } from "vitest";
 
 import { createConfiguratorStore } from "../../src/store/configurator-store";
-import { createFakeBodyProbe } from "../support/fake-body-probe";
+import { createFakeProbeFactory } from "../support/fake-body-probe";
 
 const OCCURRED_AT = "2026-08-25T12:00:00.000Z";
 
@@ -38,9 +38,9 @@ const OVERFLOW_WIDTH_MM = 100;
 function createStore(design: Design = KITCHEN_L_DESIGN) {
   return createConfiguratorStore({
     design,
-    catalog: KITCHEN_L_BODY_CATALOG,
+    catalogAt: buildKitchenLBodyCatalog,
     now: () => OCCURRED_AT,
-    bodyProbe: createFakeBodyProbe(),
+    probeAt: createFakeProbeFactory(),
   });
 }
 

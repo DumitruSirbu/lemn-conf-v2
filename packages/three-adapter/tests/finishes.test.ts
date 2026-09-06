@@ -9,10 +9,19 @@ import * as THREE from "three";
 import { beforeAll, describe, expect, it } from "vitest";
 
 import {
+  freeColourFinish,
+  LEGACY_ENUM_FINISHES,
+  paletteFinish,
+} from "@lemnaria/configurator-domain";
+
+import {
   applyBodyFinish,
   applyFinish,
   collectFronts,
   FINISH_COLORS,
+  FINISH_KEYS,
+  finishKeyOf,
+  finishSignature,
   type FinishKey,
   type SolidFinishKey,
 } from "../src/finishes.js";
@@ -176,4 +185,51 @@ describe("the dishwasher niche's decor door is a front the customer can finish",
       );
     },
   );
+});
+
+// **`FinishKey` is a second copy of an enum the domain no longer has**, and wave 6P is the moment
+// the two lists stopped even having the same shape: a finish there is a palette entry or a free
+// colour, and a key here is one of five strings. `finishKeyOf` is the bridge between them and
+// **wave 6R deletes both**, replacing this table with one over every declared palette entry.
+//
+// Until then this is what holds them together — the compiler catches a key with no declared value
+// behind it, and these catch the other direction, a declared value this file cannot draw.
+describe("the bridge from a declared finish to the five keys this build draws", () => {
+  it("draws exactly the five keys the domain's legacy table names, and no sixth", () => {
+    expect(Object.keys(LEGACY_ENUM_FINISHES).sort()).toEqual(
+      [...FINISH_KEYS].sort(),
+    );
+  });
+
+  it("resolves every one of them back to its own key", () => {
+    for (const key of FINISH_KEYS) {
+      expect(finishKeyOf(LEGACY_ENUM_FINISHES[key])).toBe(key);
+    }
+  });
+
+  it("paints the same colour through the bridge as through the key", () => {
+    for (const key of SOLID_FINISH_KEYS) {
+      const resolved = finishKeyOf(LEGACY_ENUM_FINISHES[key]);
+      if (!resolved) throw new Error(`no key resolved for "${key}"`);
+      expect(colourOf(dressedFront(resolved))).toBe(FINISH_COLORS[key]);
+    }
+  });
+
+  it("resolves nothing for a declared finish this build has no material for", () => {
+    // Wave 6R gives the adapter a material for every declared entry. Until it does, a caller leaves
+    // the front in the kit's own colour rather than guessing a nearby one.
+    expect(finishKeyOf(paletteFinish("veneer.nuc"))).toBeUndefined();
+    expect(finishKeyOf(paletteFinish("pal.gri-havanna"))).toBeUndefined();
+    expect(finishKeyOf(freeColourFinish("#123456"))).toBeUndefined();
+  });
+
+  it("signs the two kinds apart, so a scene notices a change it cannot draw", () => {
+    expect(finishSignature(undefined)).toBe("");
+    expect(finishSignature(paletteFinish("pal.alb"))).not.toBe(
+      finishSignature(paletteFinish("pal.antracit")),
+    );
+    expect(finishSignature(freeColourFinish("#b8c4a1"))).not.toBe(
+      finishSignature(freeColourFinish("#b8c4a2")),
+    );
+  });
 });

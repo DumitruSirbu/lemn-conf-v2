@@ -5,6 +5,7 @@
 import {
   deriveColumns,
   NO_FRONT_ASSEMBLY_MM,
+  pinnedAtFinishedDepthMm,
   recomputeVoids,
   shellPlusFrontMm,
   type PlacementRecord,
@@ -33,6 +34,11 @@ function makeRecord(overrides: Partial<PlacementRecord> = {}): PlacementRecord {
     // A sentinel, not a body: this file is about which object a ray hits, so the record's occupied
     // depth is declared equal to the frame it states rather than to the real cabinet's worktop.
     occupiedDepth: shellPlusFrontMm(NO_FRONT_ASSEMBLY_MM),
+    // Two sentinels of equal depth in one column tie §3.2's MAX, and the tie-break reads this
+    // (ADR 0079 decision 6 key 2) — an entry that declares nothing throws there, deliberately.
+    // `pinned` because the sentinel's depth above is a fixed number and not a function of any
+    // setting; saying it follows one would be a declaration this fixture cannot honour.
+    depthRule: pinnedAtFinishedDepthMm(560, "base-formula"),
     col: "A|2.60",
     wall: "A",
     rotated: false,
@@ -197,7 +203,18 @@ describe("pick", () => {
         frame: { x: 1.3, z: 0.3, ry: 0, y0: 2.2, w: 0.6, h: 0.4, d: 0.56 },
       }),
     ];
-    const column = required(deriveColumns(sentinels).get(columnKey), "column");
+    // The column is occupied by the two sentinels, so the room is never consulted — wide enough to
+    // say so plainly.
+    const room = {
+      shape: "L" as const,
+      widthMm: 3600,
+      depthMm: 2400,
+      heightMm: 2600,
+    };
+    const column = required(
+      deriveColumns(sentinels, {}, room).get(columnKey),
+      "column",
+    );
     const voidRecords: VoidRecord[] = recomputeVoids(
       [],
       new Map([[columnKey, column]]),

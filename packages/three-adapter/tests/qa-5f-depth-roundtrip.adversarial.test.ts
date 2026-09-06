@@ -1,3 +1,8 @@
+import {
+  buildKitchenLBodyCatalog,
+  measurableSeatOf,
+  type MeasurableSeatedOn,
+} from "@lemnaria/configurator-domain";
 // Adversarial QA for M5 wave 5F, on ADR 0040's two conversions.
 //
 // `occupiedDepthM` (domain) and `rebuildDepthM` (adapter) are the same correction applied on two
@@ -45,6 +50,15 @@ import {
   installHeadlessDocument,
 } from "./support/headless-canvas.js";
 
+/** The plane the catalogue declares for this body (ADR 0077) — read rather than assumed, so the
+ *  front-hung hood is not silently measured against the wall. */
+function seatedOnOf(buildId: string, cabinetDepthMm = 600): MeasurableSeatedOn {
+  return measurableSeatOf({
+    buildId,
+    rule: buildKitchenLBodyCatalog(cabinetDepthMm).get(buildId)?.seatRule,
+  });
+}
+
 const OCCURRED_AT = "2026-08-30T12:00:00.000Z";
 
 /** Enough passes that one epsilon per cycle is a millimetre by the end — the drift ADR 0018 clause
@@ -77,7 +91,7 @@ interface World {
 /** ADR 0011 Gap D: extents freeze at load, `hasFullHeightUnder` is re-answered per derivation. */
 function loadWorld(design: Design): World {
   const records = derivePlacementRecords(design, KITCHEN_L_BODY_CATALOG);
-  const columns = deriveColumns(records);
+  const columns = deriveColumns(records, {}, design.room);
   // Derived and discarded: `recomputeVoids` is what a load does, and a load that threw would make
   // every assertion below vacuous.
   recomputeVoids(records, columns);
@@ -244,6 +258,7 @@ describe("ADR 0036 decision 1: a declared dimension is the finished cabinet", ()
     const probe = createBodyProbe(kit, room);
     const measured = probe.measure({
       buildId: "hood",
+      seatedOn: seatedOnOf("hood"),
       widthM: 0.6,
       heightM: 0.7,
       depthM: 0.33,

@@ -2,15 +2,17 @@ import { describe, expect, it } from "vitest";
 
 import {
   acceptsWidthMm,
-  BASE_FINISHED_DEPTH_MM,
+  baseFinishedDepthMm,
   buildableSizes,
   describeBodyLabelAt,
   describeKindLabel,
   INSERTABLE_BODY_DEFINITIONS,
   isKnownKind,
   listInsertableBodies,
+  resolveCatalogEquivalent,
   toInsertableBody,
 } from "../src/catalog.js";
+import { WORKTOP_DEPTH_MM } from "../src/worktop-depth.js";
 import {
   KITCHEN_L_BODY_CATALOG,
   KITCHEN_L_PLACEMENTS,
@@ -57,6 +59,59 @@ describe("the one catalogue, two populations (ADR 0011 Gap A)", () => {
   });
 });
 
+describe("every declared catalogue equivalent resolves to an insertable row", () => {
+  // ADR 0022: a seeded body is priced, sized and named through the §7 row it points at. A pointer
+  // naming no row, or naming a row that is not insertable, is a **catalogue** defect, and asserting
+  // it here rather than guarding it in a reader covers `resolveCatalogEquivalent`'s three callers at
+  // once — pricing, `resolveBuildableSizes`, and whichever reader is added next. A guard in the
+  // pricing query would have covered pricing only, and would need re-inventing at every new reader.
+  //
+  // It is also what makes the worse latent case unreachable rather than merely unobserved: a book
+  // that happens to price a seeded id would price a body with a dangling pointer under the wrong
+  // rule and refuse nothing at all.
+
+  it("resolves every pointer the catalogue declares, in both populations", () => {
+    const declared = [...KITCHEN_L_BODY_CATALOG].flatMap(
+      ([buildId, definition]) =>
+        definition.catalogEquivalentId === undefined
+          ? []
+          : [[buildId, definition.catalogEquivalentId] as const],
+    );
+
+    // Not a vacuous sweep: wave 6A2 gave eighteen seeded rows a pointer.
+    expect(declared.length).toBeGreaterThan(17);
+    for (const [buildId, equivalentId] of declared) {
+      const equivalent = KITCHEN_L_BODY_CATALOG.get(equivalentId);
+      expect(equivalent, `${buildId} → ${equivalentId}`).toBeDefined();
+      expect(equivalent?.insertable, `${buildId} → ${equivalentId}`).toBe(true);
+      expect(
+        resolveCatalogEquivalent(KITCHEN_L_BODY_CATALOG, buildId)?.buildId,
+        buildId,
+      ).toBe(equivalentId);
+    }
+  });
+
+  it("leaves the structural corners pointing at nothing, and that is the right answer", () => {
+    // The other half: a sweep that only checked declared pointers would pass on a catalogue that
+    // declared none. ADR 0021 makes these four structural and §13.1 says a customer never chooses
+    // one, so having no equivalent is correct for them and is what a book prices under their own id.
+    const withoutPointer = [...KITCHEN_L_BODY_CATALOG]
+      .filter(
+        ([, definition]) =>
+          definition.insertable !== true &&
+          definition.catalogEquivalentId === undefined,
+      )
+      .map(([buildId]) => buildId);
+
+    expect(withoutPointer.sort()).toEqual([
+      "base-corner-return-320",
+      "base-corner-x-900",
+      "wall-corner-return-570",
+      "wall-corner-return-570-top",
+    ]);
+  });
+});
+
 describe("toInsertableBody", () => {
   it("refuses a seeded entry rather than throwing", () => {
     const seeded = KITCHEN_L_BODY_CATALOG.get("base-sink-800");
@@ -69,7 +124,7 @@ describe("toInsertableBody", () => {
       kind: "base_cabinet",
       band: "base",
       frameDepthMm: 580,
-      occupiedDepth: finishesAtMm(BASE_FINISHED_DEPTH_MM),
+      occupiedDepth: finishesAtMm(baseFinishedDepthMm(WORKTOP_DEPTH_MM)),
       canFinish: true,
       canHandle: true,
       canReplace: true,
@@ -158,14 +213,61 @@ describe("every insertable entry's two depth fields agree", () => {
     hood: 2 * 600 - 500,
   };
 
+  /**
+   * **This gate asserted `frameDepthMm === nominalDepthMm` until 2026-09-05, and that premise is
+   * superseded by [ADR 0075](../../../docs/decisions/0075-a-recorded-shell-declares-its-shell-not-its-finished-depth.md)
+   * decision 1.** It was true of every row only because the fronted wall rows were **wrong**: they
+   * stated the finished 330 where ADR 0018 fixes this field as twice the rear overhang, and
+   * `wallCabinet` builds `D − 39` centred on `z = 0`. Held to equality, `rebuildDepthM`'s worked
+   * convergence becomes `330 → 369 → 408` and `occupiedDepthM` publishes a 369 mm wall cabinet
+   * nobody manufactures.
+   *
+   * **The claim it makes now is stronger, not weaker**: the frame depth is the nominal *less what
+   * the builder puts in front of it*, which the row already declares as
+   * `occupiedDepth.frontAssemblyMm`. That is one number for every `recorded-shell` row —
+   * `wall-cabinet` and `wall-lift` at 39, `open-shelf` at 0 — and equality for every row whose
+   * builder seats the whole declared depth. Equality was the special case all along.
+   *
+   * `hood` stays a named exception because ADR 0039 hangs it at the **front**, so neither reading
+   * applies; it is named rather than filtered so the sweep still covers it and a second entry cannot
+   * acquire the disagreement by accident.
+   */
   it.each(INSERTABLE_BODY_DEFINITIONS)(
-    "%s seats on its own nominal depth",
+    "%s seats on the depth its builder actually leaves behind it",
     (buildId, definition) => {
+      // Required of every insertable row, so its absence is a defect rather than a case to handle.
+      const nominalMm = definition.nominalDepthMm;
+      expect(nominalMm, buildId).toBeDefined();
+      if (nominalMm === undefined) return;
+
+      const declared =
+        definition.occupiedDepth.measuredFrom === "recorded-shell"
+          ? nominalMm - definition.occupiedDepth.frontAssemblyMm
+          : nominalMm;
+
       expect(definition.frameDepthMm).toBe(
-        FRONT_HUNG_SEAT_MM[buildId] ?? definition.nominalDepthMm,
+        FRONT_HUNG_SEAT_MM[buildId] ?? declared,
       );
     },
   );
+
+  // The rewrite above would be vacuous if every row were `wall-plane`. Both arms must be reached,
+  // and the `recorded-shell` arm must contain rows on both sides of a zero front assembly.
+  it("reaches both arms, and a fronted row and an unfronted one", () => {
+    const shells = INSERTABLE_BODY_DEFINITIONS.filter(
+      ([, definition]) =>
+        definition.occupiedDepth.measuredFrom === "recorded-shell",
+    );
+    const fronted = shells.filter(
+      ([, definition]) =>
+        definition.occupiedDepth.measuredFrom === "recorded-shell" &&
+        definition.occupiedDepth.frontAssemblyMm > 0,
+    );
+
+    expect(shells.length).toBeGreaterThan(fronted.length);
+    expect(fronted.length).toBeGreaterThan(0);
+    expect(INSERTABLE_BODY_DEFINITIONS.length).toBeGreaterThan(shells.length);
+  });
 
   it("keeps the hood's exception real, and its nominal out of it", () => {
     const hood = INSERTABLE_BODY_DEFINITIONS.find(([id]) => id === "hood")?.[1];

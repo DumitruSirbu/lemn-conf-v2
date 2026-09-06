@@ -474,11 +474,50 @@
 
 .footer {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: flex-end;
   gap: 10px;
   padding: 11px var(--panel-pad) 18px;
   border-top: 1px solid var(--line);
+}
+
+/* Frame 2B's footer figure: the label above, the amount below, at the far left of the row. */
+.footerPrice {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin: 0 auto 0 0;
+}
+
+.footerPriceLabel {
+  font: 400 10.5px/1 var(--font-ui);
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+.footerPriceAmount {
+  font: 700 19px/1 var(--font-ui);
+}
+
+/* The flagged total's live region, mounted whether or not there is a warning. `display: contents`
+ * keeps the footer's row measuring the same with an empty region as with none, so the announcement
+ * costs the sheet nothing. */
+.footerPriceRegion {
+  display: contents;
+}
+
+/* ADR 0065 decision 8 keeps this off §9's rejection palette: it is a caution about what the number
+ * contains, not a report that an edit was refused. Same treatment as the bar's. */
+.footerPriceWarning {
+  flex: 1 0 100%;
+  order: 1;
+  padding: 9px 11px;
+  font: 400 11.5px/1.4 var(--font-ui);
+  color: #7c4a0c;
+  background: #fdf6ec;
+  border-radius: 10px;
 }
 
 /* Pushed to the left of the footer's right-aligned buttons, so the reason reads before the dimmed
@@ -514,6 +553,18 @@
 /* Frames D2B / D2C: a 420 px right rail that takes its own space, so the scene re-lays out beside
  * it instead of being covered. The section components above are untouched. */
 @media (min-width: 900px) {
+  /* Frames D2B / D2C: the desktop rail's footer carries no price — the top bar's figure is on
+   * screen at the same time, and two copies of one number is what the mockups avoid by leaving it
+   * out here. The model still publishes it; which shell shows it is chrome.
+   *
+   * The flag follows the figure it belongs to. It is on this surface at all because on **mobile**
+   * §9's sheet covers the bar and the footer becomes the only total on screen; on desktop nothing
+   * covers the top bar, so showing it twice would say the same thing twice. */
+  .footerPrice,
+  .footerPriceWarning {
+    display: none;
+  }
+
   .shell {
     --row-height: 66px;
     --chip-height: 52px;

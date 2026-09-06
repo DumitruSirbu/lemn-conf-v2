@@ -11,6 +11,11 @@
 // materials are **cached per kit** rather than cloned per front: a customer stepping through the
 // five chips would otherwise strand one clone per front per step, and `disposeSolidBody` disposes
 // geometries only — a body's materials belong to its kit, never to the body.
+import {
+  LEGACY_ENUM_FINISHES,
+  sameFinish,
+  type Finish,
+} from "@lemnaria/configurator-domain";
 import * as THREE from "three";
 
 import { deriveKitMaterial } from "./kit-ownership.js";
@@ -31,6 +36,42 @@ const FINISHES: Readonly<Record<FinishKey, FinishDefinition>> = {
   graphite: { color: "#2b2d30", isOak: false },
   oak: { color: null, isOak: true },
 };
+
+/** Every key this module draws, derived from the table above so the two cannot fork. Exported so a
+ *  test can diff it against the domain's own list rather than against a restatement of itself. */
+export const FINISH_KEYS = Object.keys(FINISHES) as readonly FinishKey[];
+
+/**
+ * **The declared finish each of these five keys draws** — the wave 6P bridge, read from the domain
+ * rather than restated here.
+ *
+ * `FinishKey` above is a second copy of the enum the domain shipped, and it agreed with it because
+ * both lists were five values long and were written together. Wave 6P replaced that enum with a
+ * palette entry or a free colour, so the two lists no longer even have the same shape, and the
+ * annotation on this constant is what still holds them together: a key this module draws with no
+ * declared value behind it stops compiling.
+ *
+ * **Wave 6R deletes this.** It gives the adapter a table over every declared palette entry and a
+ * material for a free colour, at which point neither the copy nor this bridge has anything left to
+ * do. Nothing here is a new approximation: it is the five finishes this file has drawn since M1,
+ * reached by their new names.
+ */
+const FINISH_VALUES: Readonly<Record<FinishKey, Finish>> = LEGACY_ENUM_FINISHES;
+
+/** The key that draws a declared finish, or nothing at all when this build has no material for it —
+ *  a caller then leaves the front in the kit's own colour rather than guessing a nearby one. */
+export function finishKeyOf(finish: Finish): FinishKey | undefined {
+  return FINISH_KEYS.find((key) => sameFinish(FINISH_VALUES[key], finish));
+}
+
+/** A finish as one stable string, for a scene signature that has to notice a change without
+ *  understanding it. Both kinds are tagged, so a decor id and a colour value can never collide. */
+export function finishSignature(finish: Finish | undefined): string {
+  if (!finish) return "";
+  return finish.kind === "palette-entry"
+    ? `palette-entry:${finish.entryId}`
+    : `free-colour:${finish.value}`;
+}
 
 /** Every finish that is a colour rather than a material. `oak` is deliberately absent: `FINISHES`
  *  records it as `{ color: null, isOak: true }`, so it has no hex to publish. */
@@ -63,10 +104,20 @@ const FRONT_MESH_NAME = /door_front|drawer_front/;
  *  with the materials it was cloned from. */
 const FINISH_MATERIAL_KEY_PREFIX = "finish:";
 
+/** **What counts as a front**, for every reader in this package. `cabinet-handle-meshes.ts` asks the same
+ *  question from the other side — a handle is the cabinet's when the group it hangs from holds one
+ *  of these — and asking it of a second regex is how two definitions of a front drift apart.
+ *
+ *  Note `door_front` is the generic front name in this kit: `base-panbank` uses it for drawer fronts
+ *  too, so a body with no `drawer_front` mesh is not thereby frontless. */
+export function isFrontMesh(node: THREE.Object3D): node is THREE.Mesh {
+  return isMesh(node) && FRONT_MESH_NAME.test(node.name);
+}
+
 export function collectFronts(root: THREE.Object3D): THREE.Mesh[] {
   const fronts: THREE.Mesh[] = [];
   root.traverse((o) => {
-    if (isMesh(o) && FRONT_MESH_NAME.test(o.name)) fronts.push(o);
+    if (isFrontMesh(o)) fronts.push(o);
   });
   return fronts;
 }

@@ -11,19 +11,24 @@
 // live field, `hasFullHeightUnder` — whether a full-height member still stands under the opening —
 // is re-answered from the new records after every command; see `applyCommandResult`.
 import {
+  buildKitchenLBodyCatalog,
+  cabinetDepthMmOf,
   deriveColumns,
+  deriveRecordedColumns,
   derivePlacementRecords,
   insertBody,
-  KITCHEN_L_BODY_CATALOG,
   KITCHEN_L_DESIGN,
   recomputeVoids,
   refuse,
   removePlacement,
+  setCabinetDepth as setCabinetDepthOnDesign,
   setFinish as setFinishOnDesign,
   setHandle as setHandleOnDesign,
+  setHardwareTier as setHardwareTierOnDesign,
+  setMaterialTier as setMaterialTierOnDesign,
   setWidth as setWidthOnDesign,
   type BodyCatalog,
-  type BodyProbe,
+  type BodyProbeFactory,
   type Column,
   type CommandResult,
   type CommandTarget,
@@ -85,13 +90,19 @@ export type WriteAccess = boolean | "checking" | "check-failed";
 export interface ConfiguratorState {
   readonly design: Design;
   readonly records: readonly PlacementRecord[];
-  /** The catalogue this store was built against, published so a caller of `describeSelection` or
-   *  `offersFor` reads the same map the commands do. A component importing a catalogue by name
-   *  would be free to pick a different one from the store's. */
+  /** The catalogue the **held design's own cabinet depth** builds, published so a caller of
+   *  `describeSelection` or `offersFor` reads the same map the commands do. A component importing a
+   *  catalogue by name would be free to pick a different one from the store's.
+   *
+   *  Derived, never passed in (wave 6K-a): the store takes `catalogAt` and builds this itself, so a
+   *  design at 700 mm can never be held beside a map built at 600. */
   readonly catalog: BodyCatalog;
   /** Extent frozen at load time, `hasFullHeightUnder` live — see the file header and ADR 0011
    *  Gap D. */
   readonly columns: ReadonlyMap<string, Column>;
+  /** The same map with ADR 0069's wall-end cap not applied — what the document is projected from,
+   *  and read by nothing else (ADR 0090 Amendment B, and `AppliedCommandState.recordedColumns`). */
+  readonly recordedColumns: ReadonlyMap<string, Column>;
   readonly voids: readonly VoidRecord[];
   readonly selection: Selection;
   readonly select: (target: NonNullable<Selection>) => void;
@@ -108,20 +119,48 @@ export interface ConfiguratorState {
    *  which bodies move, which column funds it and whether it is legal at all are ADR 0031's rules,
    *  and they live in the command. */
   readonly setWidth: (widthMm: number) => void;
-  /** The scene's measuring instrument, published rather than closed over because §9's width chips
-   *  need it too: `widthOptionsFor` answers "would this resize succeed" by running the command,
-   *  which rebuilds through the real builders. A query cannot reach a closure variable.
+  /** Wave 6E's two whole-kitchen settings. Neither needs a selection — they apply to every body —
+   *  and both take the tier ids the caller's price book offers, because **the store names no price
+   *  book**: `use-priced-design.ts` is the one module in this application that does (ADR 0062
+   *  seam 1), and wave 6G is what supplies the list from there. */
+  readonly setMaterialTier: (
+    tierId: string,
+    availableTierIds: readonly string[],
+  ) => void;
+  readonly setHardwareTier: (
+    tierId: string,
+    availableTierIds: readonly string[],
+  ) => void;
+  /** Wave 6J-b's depth, as the third whole-kitchen setting. It takes a depth and nothing else:
+   *  which depths are offered and the 520 mm floor are ADR 0059's rules and live in the command.
    *
-   *  `undefined` until the scene mounts and after it unmounts — the store is module-scoped and
-   *  outlives any one canvas. */
-  readonly bodyProbe: BodyProbe | undefined;
+   *  It needs the body probe for the same reason `insert` and `setWidth` do — every body is rebuilt
+   *  through `evaluateInsertFit` — and refuses `BODY_PROBE_UNAVAILABLE` without one. */
+  readonly setCabinetDepth: (cabinetDepthMm: number) => void;
+  /**
+   * **The factory the scene attached** — the single source, and the one thing
+   * `isBodyProbeAttached` is derived from.
+   *
+   * **Nothing here holds a probe** (ADR 0076 decision 2). A published `bodyProbe` was a lease taken
+   * once and never given back, at five sites including `hydrate`, so a `/d/{id}` link to a 700 mm
+   * design opened in a 600 mm session stranded a GPU kit on first paint. Every consumer borrows for
+   * its own scope instead: `insert` and `setWidth` lease at `cabinetDepthMmOf(design)`,
+   * `setCabinetDepth` at the depth it is moving to, and the width hooks take one lease around both
+   * their queries.
+   *
+   * The factory, not a probe, for the reason `BodyProbeFactory` gives: the adapter's base,
+   * full-height, appliance and hood builders ignore the depth they are handed and build the kit's
+   * own, so a probe over the old kit measures the old depth whatever it is asked for.
+   */
+  readonly probeAt: BodyProbeFactory | undefined;
   /** Whether `insert` can do anything. False until the scene calls `attachBodyProbe`, and
    *  published so a control is disabled rather than offered and then refused ("never offer what
    *  cannot be satisfied", §9). `insert` refuses `BODY_PROBE_UNAVAILABLE` if one is called anyway.
    *
-   *  Written only alongside `bodyProbe`, from the same value, so the two cannot come to disagree. */
+   *  Derived from `probeAt !== undefined` and written only by attach/detach. One source is
+   *  strictly better than two that must agree (ADR 0076 decision 6). */
   readonly isBodyProbeAttached: boolean;
-  readonly attachBodyProbe: (probe: BodyProbe) => void;
+  readonly attachBodyProbe: (probeAt: BodyProbeFactory) => void;
   /** The scene's unmount half. The store is module-scoped and outlives any one mounted scene, so
    *  without this the flag would keep claiming a probe that measures inside a room nobody renders. */
   readonly detachBodyProbe: () => void;
@@ -213,7 +252,14 @@ export interface LoadedDesignState {
 
 export interface ConfiguratorStoreOptions {
   readonly design: Design;
-  readonly catalog: BodyCatalog;
+  /**
+   * **A factory, never an already-built catalogue** — the same ruling `setCabinetDepth` carries one
+   * package over, for the same reason. A `catalog: BodyCatalog` field lets a caller hand in a design
+   * at 700 mm beside a map built at 600, and nothing downstream can tell the two apart: the store's
+   * geometry, its voids and every later command would answer at the wrong depth, silently. Taking
+   * the factory makes that call site impossible to write rather than merely wrong.
+   */
+  readonly catalogAt: (cabinetDepthMm: number) => BodyCatalog;
   /** Defaults to `null`: the seeded fixture starts out unminted, matching M2's "mint on first
    *  write" trigger. */
   readonly designId?: DesignId | null;
@@ -245,7 +291,7 @@ export interface ConfiguratorStoreOptions {
   readonly canWrite?: boolean;
   /** Tests inject a fake probe here. The app cannot: the real probe needs a `Kit` and the mounted
    *  room, which do not exist until the scene mounts, so it arrives later via `attachBodyProbe`. */
-  readonly bodyProbe?: BodyProbe;
+  readonly probeAt?: BodyProbeFactory;
 }
 
 /** What every command needs from the store: the current design, the column map — extents frozen,
@@ -253,6 +299,10 @@ export interface ConfiguratorStoreOptions {
  *  the call/apply/schedule adapter. */
 interface CommandContext {
   readonly design: Design;
+  /** Read from state rather than closed over at construction: a depth change replaces it, and a
+   *  command answered against the map the store opened with would evaluate the new design at the
+   *  old depth. */
+  readonly catalog: BodyCatalog;
   readonly columns: ReadonlyMap<string, Column>;
   readonly target: CommandTarget;
 }
@@ -264,12 +314,19 @@ function deriveGeometry(design: Design, catalog: BodyCatalog) {
   // run) and the frozen extents of the columns whose members no longer reach as far as the customer
   // left them (a partial delete, a cleared column refilled with a body that fits). Without these two
   // arguments the frozen map survives the session and dies at the reload.
-  const columns = deriveColumns(records, {
+  const stored = {
     emptyColumns: design.emptyColumns,
     columnExtents: design.columnExtents,
-  });
+  };
+  // **Two faces of one map** (ADR 0090 Amendment B). `deriveColumns` ends in ADR 0069's wall-end cap
+  // and is what openings, the scene and an insert are matched against; `deriveRecordedColumns` is
+  // the same derivation without it and is what the next command's projection is built from. The cap
+  // bounds what is published and does not rewrite what is recorded — otherwise a space flush to a
+  // wall's end loses 100 mm at 700 and keeps the loss at 600, one command at a time.
+  const columns = deriveColumns(records, stored, design.room);
+  const recordedColumns = deriveRecordedColumns(records, stored);
   const voids = recomputeVoids(records, columns);
-  return { records, columns, voids };
+  return { records, columns, recordedColumns, voids };
 }
 
 function nowInIsoMilliseconds(): string {
@@ -281,12 +338,58 @@ function nowInIsoMilliseconds(): string {
 export function createConfiguratorStore(
   options: ConfiguratorStoreOptions,
 ): UseBoundStore<StoreApi<ConfiguratorState>> {
-  const { design, catalog } = options;
+  const { design } = options;
   const designId = options.designId ?? null;
   const onDesignChanged = options.onDesignChanged ?? (() => undefined);
   const now = options.now ?? nowInIsoMilliseconds;
 
+  /** One map per depth for the life of the store. `catalog` is published state that components read
+   *  through selectors, so rebuilding an equal-but-new `Map` after every command would re-render all
+   *  of them for a value that did not move. Bounded by the declared depths (ADR 0059). */
+  const catalogsByDepthMm = new Map<number, BodyCatalog>();
+  const catalogFor = (forDesign: Design): BodyCatalog => {
+    const cabinetDepthMm = cabinetDepthMmOf(forDesign);
+    const built =
+      catalogsByDepthMm.get(cabinetDepthMm) ??
+      options.catalogAt(cabinetDepthMm);
+    catalogsByDepthMm.set(cabinetDepthMm, built);
+    return built;
+  };
+
   return create<ConfiguratorState>((set, get) => {
+    /** Apply and schedule, in one `set()`. Shared by the targeted commands below and by wave 6E's
+     *  whole-kitchen pair, which have no target to resolve first. */
+    const applyResult = (result: CommandResult) => {
+      const state = get();
+      // The catalogue the result is applied with is the one the store then holds, and both are read
+      // off the **result's own** design. A depth change is the only command that moves it, and this
+      // is what stops it being applied against the map the previous depth built.
+      //
+      // **A refusal needs no branch, and that does not rest on `refuse` returning the same object.**
+      // The lookup is keyed on the design's *depth*, and a refusal cannot change one — so it resolves
+      // to the held map whether identity is preserved or not. The only shape that would break it is a
+      // refusal carrying a design at a different depth, which is a defect in the command however the
+      // store is written. Identity buys the branchlessness its readability, not its safety.
+      const catalog = catalogFor(result.design);
+      const application = applyCommandResult({
+        result,
+        catalog,
+        // The **recorded** face: ADR 0069's cap belongs to what is offered, never to what is
+        // stored, so the map that becomes the next document is the one it has not touched.
+        columns: state.recordedColumns,
+        selection: state.selection,
+      });
+      if (!application.applied) {
+        set(application.state);
+        return;
+      }
+      // The catalogue follows the held depth. The probe no longer needs to: every consumer leases
+      // at `cabinetDepthMmOf(design)` when it needs one, so nothing survives here that could still
+      // describe the kitchen the store has left (ADR 0076 decision 2).
+      set({ ...application.state, catalog });
+      onDesignChanged(application.state.design);
+    };
+
     /** Call, apply, schedule — in that order, and in one `set()`. A command with no selected
      *  target never reaches the domain, so it borrows the domain's own code for a selection that
      *  resolves to nothing rather than inventing a store-local one. */
@@ -294,22 +397,19 @@ export function createConfiguratorStore(
       command: (context: CommandContext) => CommandResult,
     ) => {
       const state = get();
-      const result = state.selection
-        ? command({
-            design: state.design,
-            columns: state.columns,
-            target: state.selection,
-          })
-        : refuse(state.design, { code: "TARGET_NOT_FOUND", params: {} });
-      const application = applyCommandResult({
-        result,
-        catalog,
-        columns: state.columns,
-      });
-      set(application.state);
-      if (application.applied) onDesignChanged(application.state.design);
+      applyResult(
+        state.selection
+          ? command({
+              design: state.design,
+              catalog: state.catalog,
+              columns: state.columns,
+              target: state.selection,
+            })
+          : refuse(state.design, { code: "TARGET_NOT_FOUND", params: {} }),
+      );
     };
 
+    const catalog = catalogFor(design);
     return {
       design,
       catalog,
@@ -323,28 +423,31 @@ export function createConfiguratorStore(
         set({ selection: null, lastRejection: null });
       },
       remove: () => {
-        runCommand(({ design: current, target }) =>
+        runCommand(({ design: current, catalog: held, target }) =>
           removePlacement({
             design: current,
             target,
-            catalog,
+            catalog: held,
             occurredAt: now(),
           }),
         );
       },
       insert: (buildId) => {
-        const probe = get().bodyProbe;
-        runCommand(({ design: current, columns, target }) =>
-          probe
-            ? insertBody({
-                design: current,
-                columns,
-                target,
-                catalog,
-                buildId,
-                probe,
-                occurredAt: now(),
-              })
+        const probeAt = get().probeAt;
+        runCommand(({ design: current, catalog: held, columns, target }) =>
+          probeAt
+            ? // Borrowed for this command and given back before it returns (ADR 0076 decision 1).
+              probeAt(cabinetDepthMmOf(current)).use((probe) =>
+                insertBody({
+                  design: current,
+                  columns,
+                  target,
+                  catalog: held,
+                  buildId,
+                  probe,
+                  occurredAt: now(),
+                }),
+              )
             : // A missing probe is a refusal, not a throw: `isBodyProbeAttached` exists so a
               // control is never offered before the scene is ready, and this is the safety net
               // beneath that. It sits **after** the selection check, so `insert` fails the same
@@ -353,52 +456,106 @@ export function createConfiguratorStore(
         );
       },
       setFinish: (finish) => {
-        runCommand(({ design: current, target }) =>
+        runCommand(({ design: current, catalog: held, target }) =>
           setFinishOnDesign({
             design: current,
             target,
-            catalog,
+            catalog: held,
             finish,
             occurredAt: now(),
           }),
         );
       },
       setHandle: (handle) => {
-        runCommand(({ design: current, target }) =>
+        runCommand(({ design: current, catalog: held, target }) =>
           setHandleOnDesign({
             design: current,
             target,
-            catalog,
+            catalog: held,
             handle,
             occurredAt: now(),
           }),
         );
       },
       setWidth: (widthMm) => {
-        const probe = get().bodyProbe;
-        runCommand(({ design: current, columns, target }) =>
-          probe
-            ? setWidthOnDesign({
-                design: current,
-                columns,
-                target,
-                catalog,
-                widthMm,
-                probe,
-                occurredAt: now(),
-              })
+        const probeAt = get().probeAt;
+        runCommand(({ design: current, catalog: held, columns, target }) =>
+          probeAt
+            ? probeAt(cabinetDepthMmOf(current)).use((probe) =>
+                setWidthOnDesign({
+                  design: current,
+                  columns,
+                  target,
+                  catalog: held,
+                  widthMm,
+                  probe,
+                  occurredAt: now(),
+                }),
+              )
             : // The same safety net `insert` carries, for the same reason: §9 disables a chip it
               // cannot satisfy, and this is what happens if one is tapped anyway.
               refuse(current, { code: "BODY_PROBE_UNAVAILABLE", params: {} }),
         );
       },
-      bodyProbe: options.bodyProbe,
-      isBodyProbeAttached: options.bodyProbe !== undefined,
-      attachBodyProbe: (probe) => {
-        set({ bodyProbe: probe, isBodyProbeAttached: true });
+      setMaterialTier: (tierId, availableTierIds) => {
+        applyResult(
+          setMaterialTierOnDesign({
+            design: get().design,
+            tierId,
+            availableTierIds,
+            occurredAt: now(),
+          }),
+        );
+      },
+      setHardwareTier: (tierId, availableTierIds) => {
+        applyResult(
+          setHardwareTierOnDesign({
+            design: get().design,
+            tierId,
+            availableTierIds,
+            occurredAt: now(),
+          }),
+        );
+      },
+      setCabinetDepth: (cabinetDepthMm) => {
+        const state = get();
+        const probeAt = state.probeAt;
+        applyResult(
+          probeAt
+            ? setCabinetDepthOnDesign({
+                design: state.design,
+                // The factory, handed straight through: the command builds the map at the depth it
+                // is about to write, and `applyResult` then holds the map that same document
+                // declares. Neither half is given a chance to name a depth of its own.
+                catalogAt: options.catalogAt,
+                cabinetDepthMm,
+                // The factory, not a probe: the command leases one at the depth it is moving to and
+                // releases it, so the scene's standing kit is never the thing that measures a
+                // kitchen it is not standing at.
+                probeAt,
+                occurredAt: now(),
+              })
+            : // The same safety net `insert` and `setWidth` carry: every body is rebuilt through the
+              // insert path, so there is nothing to rebuild against without a probe.
+              refuse(state.design, {
+                code: "BODY_PROBE_UNAVAILABLE",
+                params: {},
+              }),
+        );
+      },
+      probeAt: options.probeAt,
+      isBodyProbeAttached: options.probeAt !== undefined,
+      attachBodyProbe: (probeAt) => {
+        set({
+          probeAt,
+          isBodyProbeAttached: true,
+        });
       },
       detachBodyProbe: () => {
-        set({ bodyProbe: undefined, isBodyProbeAttached: false });
+        set({
+          probeAt: undefined,
+          isBodyProbeAttached: false,
+        });
       },
       designId,
       revision: options.revision ?? null,
@@ -406,11 +563,17 @@ export function createConfiguratorStore(
       canWrite: options.canWrite ?? true,
       hasPersistedSuccessfully: designId !== null,
       hydrate: (loaded) => {
-        const geometry = deriveGeometry(loaded.design, catalog);
+        // The load half of the invariant, and where it actually bit: `/api/designs/[id]` already
+        // answers with a document carrying its own `settings.cabinetDepthMm`, so a store that
+        // re-used the map it opened with would evaluate a 700 mm kitchen at 600 mm — its geometry,
+        // its voids and every command after it.
+        const loadedCatalog = catalogFor(loaded.design);
+        const geometry = deriveGeometry(loaded.design, loadedCatalog);
         if (get().designId !== loaded.designId)
           options.onDesignIdentityChanged?.();
         set({
           design: loaded.design,
+          catalog: loadedCatalog,
           ...geometry,
           selection: null,
           lastRejection: null,
@@ -472,7 +635,7 @@ function advanceSaveGeneration(): void {
  *  milestone's "Shared" acceptance bullet: the selection owns the target, not any one canvas. */
 export const useConfiguratorStore = createConfiguratorStore({
   design: KITCHEN_L_DESIGN,
-  catalog: KITCHEN_L_BODY_CATALOG,
+  catalogAt: buildKitchenLBodyCatalog,
   onDesignChanged: persistDesignChange,
   onDesignIdentityChanged: advanceSaveGeneration,
   onOverwriteRequested: overwriteConflictingDesign,

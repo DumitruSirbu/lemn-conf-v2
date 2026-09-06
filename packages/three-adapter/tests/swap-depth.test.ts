@@ -68,7 +68,7 @@ function swap(
   const result = insertBody({
     design: KITCHEN_L_DESIGN,
     catalog: KITCHEN_L_BODY_CATALOG,
-    columns: deriveColumns(records),
+    columns: deriveColumns(records, {}, KITCHEN_L_DESIGN.room),
     target: { kind: "placement", id: placementId },
     buildId,
     probe: createBodyProbe(kit, room),
@@ -215,7 +215,7 @@ describe("§7's head-clearance cap follows what is under the opening", () => {
     const first = insertBody({
       design: KITCHEN_L_DESIGN,
       catalog: KITCHEN_L_BODY_CATALOG,
-      columns: deriveColumns(seededRecords()),
+      columns: deriveColumns(seededRecords(), {}, KITCHEN_L_DESIGN.room),
       target: { kind: "placement", id: "p22" },
       buildId: CATALOGUE_WALL_CABINET,
       probe: createBodyProbe(kit, room),
@@ -228,7 +228,7 @@ describe("§7's head-clearance cap follows what is under the opening", () => {
     const second = insertBody({
       design: first.design,
       catalog: KITCHEN_L_BODY_CATALOG,
-      columns: deriveColumns(seededRecords()),
+      columns: deriveColumns(seededRecords(), {}, KITCHEN_L_DESIGN.room),
       target: { kind: "placement", id: first.effect.placementId },
       buildId: "wall-lift",
       probe: createBodyProbe(kit, room),

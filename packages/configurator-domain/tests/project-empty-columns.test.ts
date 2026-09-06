@@ -7,7 +7,7 @@
 import { fc, test as propertyTest } from "@fast-check/vitest";
 import { describe, expect, it } from "vitest";
 
-import type { Design } from "../src/design.js";
+import type { Design, DesignRoom } from "../src/design.js";
 import {
   KITCHEN_L_BODY_CATALOG,
   KITCHEN_L_DESIGN,
@@ -23,6 +23,16 @@ import {
 } from "../src/void-engine.js";
 
 const CATALOG = KITCHEN_L_BODY_CATALOG;
+
+/** Wide enough that no fixture in this file, including the 6300 mm sweep below, ever reaches
+ *  the wall's own end — this file is about the projection/restoration round trip, not about
+ *  `clipEmptyColumnsAtWallEnd`, which has its own test file. */
+const ROOM: DesignRoom = {
+  shape: "L",
+  widthMm: 7000,
+  depthMm: 7000,
+  heightMm: 2600,
+};
 
 /** A member-less column exactly as `moveFrozenColumns` leaves one: a frozen extent whose members
  *  are gone, at a whole-millimetre centre. */
@@ -86,14 +96,14 @@ describe("projectEmptyColumns", () => {
 
   it("records nothing for a column its placements still occupy", () => {
     const records = recordsOf(KITCHEN_L_DESIGN);
-    const columns = deriveColumns(records);
+    const columns = deriveColumns(records, {}, KITCHEN_L_DESIGN.room);
 
     expect(projectEmptyColumns(columns, records)).toStrictEqual([]);
   });
 
   it("records only the columns the placements left behind", () => {
     const records = recordsOf(KITCHEN_L_DESIGN);
-    const occupied = deriveColumns(records);
+    const occupied = deriveColumns(records, {}, KITCHEN_L_DESIGN.room);
     const withStrip = new Map(occupied).set(
       deriveColumnKeyAt("A", 3.425),
       emptyColumnAt(3.425),
@@ -177,7 +187,7 @@ describe("projectEmptyColumns", () => {
     });
 
     const projected = projectEmptyColumns(mapOf([column]), []);
-    const restored = deriveColumns([], { emptyColumns: projected });
+    const restored = deriveColumns([], { emptyColumns: projected }, ROOM);
 
     expect([...restored.keys()]).toStrictEqual([column.key]);
   });
@@ -201,9 +211,11 @@ describe("projectEmptyColumns", () => {
       ],
     });
 
-    const restored = deriveColumns([], {
-      emptyColumns: projectEmptyColumns(mapOf([cleared]), []),
-    });
+    const restored = deriveColumns(
+      [],
+      { emptyColumns: projectEmptyColumns(mapOf([cleared]), []) },
+      ROOM,
+    );
 
     const column = restored.get(cleared.key);
     expect(column).toBeDefined();

@@ -7,10 +7,11 @@
 import type {
   Design,
   DesignPlacement,
+  DesignSettings,
   DesignWall,
-  Finish,
   Handle,
 } from "../design.js";
+import type { Finish } from "../materials.js";
 import { ConfigurationTimestampSchema } from "../schemas.js";
 import type { Column } from "../void-engine.js";
 import {
@@ -112,12 +113,62 @@ export interface HandleSetEffect {
   readonly handle: Handle;
 }
 
+/** Wave 6E's whole-kitchen pair, shaped on `FinishSetEffect` — the same fact one scope up. Neither
+ *  names a placement: a whole-kitchen setting points at no cabinet, which is what tells the store
+ *  the selection it is holding was not moved by this command. */
+export interface MaterialTierSetEffect {
+  readonly type: "material_tier_set";
+  readonly materialTierId: string;
+  /** Wave 6Q-b. How many cabinets ADR 0057's reset moved to the new material's default finish.
+   *
+   *  **`CabinetDepthSetEffect.rebuiltCount` is the precedent and the reason.** ADR 0057 rules the
+   *  reset to run *once* and produce *one* result — never a per-cabinet cascade the customer
+   *  watches happen — so one result carrying *N* is the structurally different thing a cascade
+   *  cannot fake, and it is what a test can measure the difference on.
+   *
+   *  **It is not rendered.** A numeral in `ro.globalSettings` is refused by
+   *  `starting-price.adversarial.test.ts`'s digit sweep; the consequence is stated where it happens
+   *  (wave 6Q-c's confirmation), not counted in the sheet's standing copy. */
+  readonly resolvedFinishCount: number;
+}
+
+/** Wave 6J-b. Carries the count of bodies actually rebuilt, because the customer-visible
+ *  consequence of a depth change is that every cabinet moved — a surface that says so needs the
+ *  number, and a caller that receives 0 has been handed a no-op it should not announce. */
+export interface CabinetDepthSetEffect {
+  readonly type: "cabinet_depth_set";
+  readonly cabinetDepthMm: number;
+  readonly rebuiltCount: number;
+  /** ADR 0090 decisions 1 and 5: a depth change is the **third** command that moves a frozen extent
+   *  along the wall, so it is the third whose own answer replaces the map the store passes in.
+   *
+   *  A wall-A body's depth is measured along wall B, so a deeper corner slides wall B's whole run —
+   *  and `Design.emptyColumns` and `Design.columnExtents` record where a column *stands*, not merely
+   *  how deep and how tall it is. Carried forward unchanged they described the coordinates the
+   *  command had just vacated: four standing runs filed under no column at all, five
+   *  `EMPTY_COLUMN_OVERLAPS_PLACEMENT` refusals, and a 700 mm kitchen the customer could not save.
+   *
+   *  It is published here rather than recomputed by the store for the reason ADR 0088 decision 2
+   *  requires a wave to state: the answer needs the pre-command design, the catalogue at the depth
+   *  being left and the shift itself, and `setCabinetDepth` holds all three natively while the store
+   *  holds none of them. `frozen-map-at-cabinet-depth.ts` is the one author. */
+  readonly columns: ReadonlyMap<string, Column>;
+}
+
+export interface HardwareTierSetEffect {
+  readonly type: "hardware_tier_set";
+  readonly hardwareTierId: string;
+}
+
 export type CommandEffect =
   | PlacementRemovedEffect
   | BodyInsertedEffect
   | BodyResizedEffect
   | FinishSetEffect
-  | HandleSetEffect;
+  | HandleSetEffect
+  | MaterialTierSetEffect
+  | HardwareTierSetEffect
+  | CabinetDepthSetEffect;
 
 export interface CommandSuccess<TEffect extends CommandEffect = CommandEffect> {
   readonly ok: true;
@@ -164,6 +215,16 @@ export function withPlacements(
   occurredAt: string,
 ): Design {
   return { ...design, placements: [...placements], updatedAt: occurredAt };
+}
+
+/** `withPlacements`' whole-kitchen half: the settings container replaced, `updatedAt` moved to the
+ *  caller's `occurredAt` the same way, and nothing else on the document touched. */
+export function withSettings(
+  design: Design,
+  settings: DesignSettings,
+  occurredAt: string,
+): Design {
+  return { ...design, settings, updatedAt: occurredAt };
 }
 
 /** Rejects a timestamp the domain would otherwise write verbatim into `updatedAt`. */

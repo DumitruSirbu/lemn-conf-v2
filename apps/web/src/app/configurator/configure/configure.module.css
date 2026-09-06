@@ -1,11 +1,55 @@
+/* Three bands on mobile — header, stage, price bar — and two rows on desktop, where frames D2A /
+ * D2B / D2C put the figure at the right-hand end of the top bar instead of in a bar of its own.
+ *
+ * A grid rather than a column, because that is what lets **one** price-bar element sit in two
+ * places without a second copy of it in the markup: §10.1's one permitted layout branch, taken in
+ * CSS exactly as §9's sheet-or-rail is.
+ *
+ * The bar is a **flow sibling of the stage in both shells** — never an overlay — which is how "the
+ * price bar never covers the selected cabinet" is met structurally rather than by tuning a number.
+ */
 .screen {
-  display: flex;
-  flex-direction: column;
+  /* The positioning context for §9's mobile sheet. It used to be `.stage`, and moving it up one
+   * level is what lets the sheet be drawn **over** the price bar — frame 2B shows the sheet
+   * reaching the bottom of the screen, with §9 item 7's own footer figure on it. Anchoring it to
+   * the stage instead would leave the bar below the sheet and, because the sheet's 78 dvh is
+   * measured against the viewport, would cut the strip of scene above it from ~131 px to ~39. */
+  position: relative;
+  display: grid;
+  grid-template-areas:
+    "header"
+    "settings"
+    "stage"
+    "price";
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
   height: 100dvh;
   background: var(--paper);
 }
 
+/* Frames 2E / D2E's whole-kitchen chips, and the control that opens their sheet. A band of its own
+ * rather than a child of the header, and the reason is stacking rather than taste: the sheet is
+ * **modal on both shells**, so its scrim has to cover the price bar (`z-index: 2`), §9's rail (`4`)
+ * and the breakdown's own popover (`6`). `.header` establishes a stacking context at `2`, and
+ * nothing inside a context can paint above what stands over it — so mounted there, the scrim would
+ * have dimmed the scene and left the bar bright and clickable underneath it. */
+.settingsRow {
+  grid-area: settings;
+  z-index: 7;
+  display: flex;
+  padding: 0 18px 11px;
+  background: var(--paper);
+  border-bottom: 1px solid var(--line-soft);
+}
+
+/* The bar and the breakdown's control share one band, as frames 2A and D2A draw them. On desktop
+ * the same two sit at the right-hand end of the top bar; the rule below adds only what differs. */
+.priceRow {
+  grid-area: price;
+  display: flex;
+}
+
 .header {
+  grid-area: header;
   z-index: 2;
   display: flex;
   flex-direction: column;
@@ -54,15 +98,19 @@
 }
 
 .stage {
-  position: relative;
+  grid-area: stage;
   display: flex;
-  flex: 1;
   min-height: 0;
   background: var(--stage);
 }
 
 /* The scene's own box. On desktop it is the flex child the 420 px rail leaves room for, which is
- * how "the scene re-lays out" happens without any component knowing a rail exists. */
+ * how "the scene re-lays out" happens without any component knowing a rail exists.
+ *
+ * It is the positioning context for everything drawn over the scene: the camera chips, the orbit
+ * hint, and — since wave 6M's revision — ADR 0065's overflow warning. All three are overlays and
+ * none of them takes flow height, so the canvas's box is the viewport's box whatever is on screen.
+ * `scene/overflow-warning-layout.ts` records why the warning may not take flow height. */
 .viewport {
   position: relative;
   flex: 1;
@@ -100,14 +148,30 @@
   background: rgb(250 248 244 / 92%);
 }
 
-.hint {
+/* The scene's bottom stack: the orbit hint and, below it, ADR 0065's warning band.
+ *
+ * One absolutely positioned column rather than two independently pinned overlays, because the two
+ * would otherwise occupy the same pixels — the hint sat at `bottom: 16px` and the band is 56 px
+ * tall from `bottom: 0`, so an overflowing design with nothing selected drew the hint pill inside
+ * the band. Stacked, the band keeps the scene's bottom edge and the hint rides above it; with no
+ * band the hint's own margin puts it exactly where it has always been.
+ *
+ * `pointer-events: none` for the whole stack: neither is a control, and the band stands over the
+ * lowest cabinets, so a tap has to reach the scene through it. */
+.sceneFooter {
   position: absolute;
   right: 0;
-  bottom: 16px;
+  bottom: 0;
   left: 0;
   display: flex;
-  justify-content: center;
+  flex-direction: column;
   pointer-events: none;
+}
+
+.hint {
+  display: flex;
+  justify-content: center;
+  margin: 0 0 16px;
 }
 
 .hint span {
@@ -130,6 +194,29 @@
 }
 
 @media (min-width: 900px) {
+  /* Frames D2A / D2B / D2C: the price joins the top bar's right-hand end, and the scene takes the
+   * whole width below it. */
+  .screen {
+    grid-template-areas:
+      "header settings price"
+      "stage  stage    stage";
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+
+  /* Frame D2E puts the chips in the top bar, between the step nav and the price. */
+  .settingsRow {
+    align-items: center;
+    padding: 0 24px 0 0;
+    border-bottom: none;
+  }
+
+  .priceRow {
+    display: flex;
+    align-items: center;
+    background: var(--paper);
+  }
+
   .presets {
     top: 24px;
     left: 28px;
@@ -142,7 +229,7 @@
   }
 
   .hint {
-    bottom: 30px;
+    margin-bottom: 30px;
   }
 
   .hint span {

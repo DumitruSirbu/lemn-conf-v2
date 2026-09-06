@@ -5,6 +5,7 @@
 // about how many writes happened — and it drives the bursts across the new interval boundary rather
 // than within one tick.
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { LEGACY_ENUM_FINISHES } from "@lemnaria/configurator-domain";
 
 /** Every scripted response reports this revision, and the store therefore states it on the next
  *  save. These tests attack the write path's scheduling, not its concurrency rule. */
@@ -120,7 +121,7 @@ describe("mint exactly once, under a burst that straddles the in-flight mint", (
     store.getState().select({ kind: "placement", id: OVER_FRIDGE_ID });
     store.getState().remove();
     store.getState().select({ kind: "placement", id: "p8" });
-    store.getState().setFinish("oak");
+    store.getState().setFinish(LEGACY_ENUM_FINISHES.oak);
     await vi.advanceTimersByTimeAsync(0);
     expect(
       requests.filter((request) => request.method === "POST"),
@@ -168,7 +169,7 @@ describe("the final state always lands, across the interval", () => {
     store.getState().remove();
     await vi.advanceTimersByTimeAsync(100);
     store.getState().select({ kind: "placement", id: "p8" });
-    store.getState().setFinish("oak");
+    store.getState().setFinish(LEGACY_ENUM_FINISHES.oak);
     await vi.advanceTimersByTimeAsync(100);
     store.getState().setHandle("push");
     await vi.advanceTimersByTimeAsync(MIN_SAVE_INTERVAL_MS * 2);
@@ -207,7 +208,7 @@ describe("a refused command persists nothing", () => {
 
     // A void is selected after the remove, so all three of these refuse.
     store.getState().remove();
-    store.getState().setFinish("oak");
+    store.getState().setFinish(LEGACY_ENUM_FINISHES.oak);
     store.getState().setHandle("push");
     await vi.advanceTimersByTimeAsync(MIN_SAVE_INTERVAL_MS * 3);
 
@@ -343,7 +344,7 @@ describe("a design this browser cannot write reaches the store as its own status
     store.getState().select({ kind: "placement", id: OVER_FRIDGE_ID });
     store.getState().remove();
     store.getState().select({ kind: "placement", id: "p8" });
-    store.getState().setFinish("oak");
+    store.getState().setFinish(LEGACY_ENUM_FINISHES.oak);
     await vi.advanceTimersByTimeAsync(60 * 1000);
 
     expect(requests).toHaveLength(after);

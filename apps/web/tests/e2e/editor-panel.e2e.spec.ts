@@ -1,6 +1,7 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
 import { dismissPanel, readSelection } from "./support/panel";
+import { tapCanvas, tapSceneStripAboveSheet } from "./support/canvas-taps";
 import { deleteMintedDesigns } from "./support/minted-designs";
 
 /**
@@ -17,10 +18,17 @@ import { deleteMintedDesigns } from "./support/minted-designs";
  */
 
 /** The seeded sink cabinet, in the default overview preset. Found by tapping the running scene and
- *  reading `[data-testid="selection-debug"]`; sensitive to `CAMERA_PRESETS.overview` and the seed. */
+ *  reading `[data-testid="selection-debug"]`; sensitive to `CAMERA_PRESETS.overview` and the seed.
+ *
+ *  **In the coordinates of the canvas it was found on, and converted by `tapCanvas`** — see
+ *  `support/canvas-taps.ts`. Left as the number that was measured rather than restated for today's
+ *  chrome, because a constant that is silently re-typed every time a band is added stops being a
+ *  measurement of anything. */
 const SINK_CABINET_TAP = { x: 215, y: 500 };
 /** Background **above** the sheet's top edge, which is the only part of the scene a tap can reach
- *  while the sheet is open — measured at 390 × 844 as page y ≈ 186, canvas y ≈ 131. */
+ *  while the sheet is open. Only its `x` is used: the strip's height is measured live, because it
+ *  is the gap between the canvas and a sheet pinned to the viewport, and it shrinks faster than the
+ *  canvas does — 130.68 px before wave 6G's band, 83.75 px after. */
 const SCENE_STRIP_TAP = { x: 310, y: 100 };
 
 const VIEWPORT_HEIGHT_PX = 844;
@@ -57,7 +65,7 @@ async function keepForDeletion(page: Page): Promise<void> {
 }
 
 async function selectSinkCabinet(page: Page): Promise<void> {
-  await page.tap("canvas", { position: SINK_CABINET_TAP });
+  await tapCanvas(page, SINK_CABINET_TAP);
   await expect(page.getByTestId("editor-panel")).toHaveCount(1);
   await expect(async () => {
     expect((await readSelection(page)).selectionId).toBe("p0");
@@ -336,11 +344,11 @@ test("the scene stays live above the sheet, and scrolling the sheet does not mov
   await swipeUpInside(page, { x: sheet.x + sheet.width / 2, y: sheet.y + 320 });
 
   // The strip of scene above the sheet still takes a tap, and it is the canvas that answers it.
-  await page.tap("canvas", { position: SCENE_STRIP_TAP });
+  await tapSceneStripAboveSheet(page, SCENE_STRIP_TAP);
   await expect(page.getByTestId("editor-panel")).toHaveCount(0);
   expect((await readSelection(page)).selectionId).toBe("");
 
-  await page.tap("canvas", { position: SINK_CABINET_TAP });
+  await tapCanvas(page, SINK_CABINET_TAP);
   await expect(async () => {
     expect((await readSelection(page)).selectionId).toBe("p0");
   }).toPass({ timeout: 2000 });
@@ -390,10 +398,14 @@ test("× and Gata both dismiss without committing or cancelling, and the state s
   page,
 }) => {
   await selectSinkCabinet(page);
-  await page.getByTestId("finish-sage").tap();
+  // *Stejar* rather than *Salvie* since wave 6Q-a: the seeded kitchen is PAL, and PAL offers no
+  // free colour (ADR 0078 decision 1), so tapping *Salvie* here now refuses instead of applying.
+  // What this test is about is that a dismissal neither commits nor cancels an edit that was made —
+  // which needs an edit that lands.
+  await page.getByTestId("finish-oak").tap();
   await page.waitForTimeout(SETTLE_MS);
   await keepForDeletion(page);
-  await expect(page.getByTestId("finish-sage")).toHaveAttribute(
+  await expect(page.getByTestId("finish-oak")).toHaveAttribute(
     "aria-pressed",
     "true",
   );
@@ -416,7 +428,7 @@ test("× and Gata both dismiss without committing or cancelling, and the state s
     expect(writes).toEqual([]);
 
     await selectSinkCabinet(page);
-    await expect(page.getByTestId("finish-sage")).toHaveAttribute(
+    await expect(page.getByTestId("finish-oak")).toHaveAttribute(
       "aria-pressed",
       "true",
     );

@@ -18,14 +18,23 @@ import { describe, expect, it } from "vitest";
 import {
   MAX_COLUMN_EXTENTS,
   MAX_DESIGN_BYTES,
+  MAX_EMPTY_COLUMNS,
+  MAX_IDENTIFIER_LENGTH,
   MAX_PLACEMENTS,
 } from "../src/design-bounds.js";
-import type { Design, StoredColumnExtent } from "../src/design.js";
+import {
+  EmptyColumnSchema,
+  type Design,
+  type StoredColumnExtent,
+} from "../src/design.js";
 import {
   KITCHEN_L_BODY_CATALOG,
   KITCHEN_L_DESIGN,
 } from "../src/fixtures/kitchen-l-design.js";
-import { validateDesignForCatalog } from "../src/validate-design.js";
+import {
+  assertDesignValidForCatalog,
+  validateDesignForCatalog,
+} from "../src/validate-design.js";
 import {
   deriveColumns,
   derivePlacementRecords,
@@ -57,10 +66,14 @@ function loadOf(design: Design): {
   voids: readonly VoidRecord[];
 } {
   const records = derivePlacementRecords(design, CATALOG);
-  const columns = deriveColumns(records, {
-    emptyColumns: design.emptyColumns,
-    columnExtents: design.columnExtents,
-  });
+  const columns = deriveColumns(
+    records,
+    {
+      emptyColumns: design.emptyColumns,
+      columnExtents: design.columnExtents,
+    },
+    design.room,
+  );
   return { records, columns, voids: recomputeVoids(records, columns) };
 }
 
@@ -161,7 +174,7 @@ describe("a validated document must not publish an opening standing in a body", 
 
   // **Defect.** The along-wall clause the plan named (`the along-wall footprint contains each
   // member's`) was dropped, so `widthMm` is held only by the room. `A|2.00` holds 600 mm members;
-  // an extent claiming 1600 mm is inside a 3600 mm wall and passes, and the opening it publishes
+  // an extent claiming 1600 mm is inside a 3560 mm wall and passes, and the opening it publishes
   // spans 1200–2800 mm — straight through the hood in `A|2.60`.
   //
   // Nothing else bounds it: `EMPTY_COLUMN_WIDER_THAN_CAP` (ADR 0052's 800 mm ceiling) governs
@@ -283,37 +296,44 @@ describe("the four refusals, each on the document that earns it", () => {
   });
 
   it("refuses an entry that rises above the room", () => {
-    expect(
-      codesFor(
-        withColumnExtents([
-          {
-            wall: "A",
-            alongMm: 2600,
-            widthMm: 600,
-            y0Mm: 0,
-            topMm: 2601,
-            depthMm: 620,
-          },
-        ]),
-      ),
-    ).toContain("COLUMN_EXTENT_OUTSIDE_ROOM");
+    const design = withColumnExtents([
+      {
+        wall: "A",
+        alongMm: 2600,
+        widthMm: 600,
+        y0Mm: 0,
+        topMm: 2601,
+        depthMm: 620,
+      },
+    ]);
+
+    expect(codesFor(design)).toContain("COLUMN_EXTENT_ABOVE_ROOM");
+    // Through the ceiling is a refusal and not the demoted past-the-wall-end mark (ADR 0069): the
+    // reported code is not enough, the load path has to fail.
+    expect(() => {
+      assertDesignValidForCatalog(design, CATALOG);
+    }).toThrow(/COLUMN_EXTENT_ABOVE_ROOM/);
   });
 
+  // One millimetre deeper than the room the fixture declares, derived rather than written out: the
+  // number is "past the back wall by the smallest step the schema can express", so a room change
+  // must move it rather than quietly leave the entry inside the shell (ADR 0083 decision 1).
   it("refuses an entry that reaches out through the shell", () => {
-    expect(
-      codesFor(
-        withColumnExtents([
-          {
-            wall: "A",
-            alongMm: 2600,
-            widthMm: 600,
-            y0Mm: 0,
-            topMm: 2600,
-            depthMm: 2401,
-          },
-        ]),
-      ),
-    ).toStrictEqual(["COLUMN_EXTENT_OUTSIDE_ROOM"]);
+    const design = withColumnExtents([
+      {
+        wall: "A",
+        alongMm: 2600,
+        widthMm: 600,
+        y0Mm: 0,
+        topMm: 2600,
+        depthMm: KITCHEN_L_DESIGN.room.depthMm + 1,
+      },
+    ]);
+
+    expect(codesFor(design)).toStrictEqual(["COLUMN_EXTENT_DEEPER_THAN_ROOM"]);
+    expect(() => {
+      assertDesignValidForCatalog(design, CATALOG);
+    }).toThrow(/COLUMN_EXTENT_DEEPER_THAN_ROOM/);
   });
 
   // An inverted entry is refused without an inversion rule, because no member of positive height
@@ -447,7 +467,7 @@ describe("5H-5 — the two halves partition the frozen map", () => {
         ),
       };
       const records = derivePlacementRecords(design, CATALOG);
-      const columns = deriveColumns(records);
+      const columns = deriveColumns(records, {}, design.room);
 
       const empty = projectEmptyColumns(columns, records);
       const occupied = projectColumnExtents(columns, records);
@@ -466,7 +486,7 @@ describe("5H-5 — the two halves partition the frozen map", () => {
   // The two projections and the partition are one loop, so they must not be able to disagree.
   it("returns the same two arrays as the single-pass projection", () => {
     const records = derivePlacementRecords(KITCHEN_L_DESIGN, CATALOG);
-    const columns = deriveColumns(records);
+    const columns = deriveColumns(records, {}, KITCHEN_L_DESIGN.room);
     const frozen = projectFrozenMap(columns, records);
 
     expect(frozen.emptyColumns).toStrictEqual(
@@ -485,7 +505,7 @@ describe("5H-5 — the two halves partition the frozen map", () => {
     "orders the occupied half independently of the map's insertion order",
     (shuffleKeys: readonly number[]) => {
       const records = derivePlacementRecords(KITCHEN_L_DESIGN, CATALOG);
-      const columns = deriveColumns(records);
+      const columns = deriveColumns(records, {}, KITCHEN_L_DESIGN.room);
       const entries = [...columns.entries()];
       const shuffled = new Map(
         entries
@@ -516,9 +536,42 @@ describe("the caps", () => {
 
   // The cap-left-behind mutant: leaving `MAX_DESIGN_BYTES` at 248 576 refuses the largest document
   // the schema accepts, which is the failure ADR 0044's own byte-cap comment names.
-  it("raises the byte cap by exactly the new array's allowance", () => {
-    expect(MAX_DESIGN_BYTES).toBe(270_080);
-    expect(MAX_DESIGN_BYTES - 248_576).toBe(MAX_COLUMN_EXTENTS * 128);
+  //
+  // It has moved twice and is re-derived rather than assumed each time: ADR 0053 added the second
+  // array, and ADR 0073 widened the entry **both** arrays share, because `depthFromBuildId` does not
+  // fit inside ADR 0053's 128-byte allowance. The per-entry allowance is read back out of the cap
+  // rather than restated, so the two cannot be moved independently of each other.
+  it("raises the byte cap by exactly the allowance both frozen-map arrays share", () => {
+    const perEntryBytes =
+      (MAX_DESIGN_BYTES - MAX_PLACEMENTS * 512 - 1024) /
+      (MAX_EMPTY_COLUMNS + MAX_COLUMN_EXTENTS);
+
+    expect(MAX_DESIGN_BYTES).toBe(337_290);
+    expect(perEntryBytes).toBe(175);
+  });
+
+  // **The worst case is constructed, never hand-picked** — a boundary grep that matches nothing
+  // while reporting green is a failure this project has shipped twice. The entry below is the longest
+  // one `EmptyColumnSchema` can express: every coordinate at `MAX_DESIGN_DIMENSION_MM` and a
+  // `depthFromBuildId` at `MAX_IDENTIFIER_LENGTH`, which is more than twice the longest `buildId`
+  // the catalogue holds. It is **parsed before it is measured**, so a "worst case" the schema would
+  // have refused cannot stand in for one.
+  it("allows more bytes per entry than the longest entry the schema can express", () => {
+    const longest = EmptyColumnSchema.parse({
+      wall: "A",
+      alongMm: 10_000,
+      widthMm: 10_000,
+      y0Mm: 10_000,
+      topMm: 10_000,
+      depthMm: 10_000,
+      depthFromBuildId: "b".repeat(MAX_IDENTIFIER_LENGTH),
+    });
+
+    // The separating comma, which belongs to the array rather than to the entry.
+    const bytes = Buffer.byteLength(JSON.stringify(longest), "utf8") + 1;
+
+    expect(bytes).toBeGreaterThan(128);
+    expect(bytes).toBeLessThanOrEqual(175);
   });
 
   it("holds a document at every cap inside the byte cap", () => {
@@ -529,10 +582,16 @@ describe("the caps", () => {
       y0Mm: 12_345,
       topMm: 23_456,
       depthMm: 12_345,
+      // The longest the schema accepts, not the longest the catalogue holds: this asks whether the
+      // cap holds the largest *schema-valid* document, and the derivation deliberately budgets for
+      // the catalogue's own 26 characters.
+      depthFromBuildId: "b".repeat(MAX_IDENTIFIER_LENGTH),
     });
     const document = JSON.stringify({
       ...KITCHEN_L_DESIGN,
-      emptyColumns: Array.from({ length: 1262 }, (_, index) => entry(index)),
+      emptyColumns: Array.from({ length: MAX_EMPTY_COLUMNS }, (_, index) =>
+        entry(index),
+      ),
       columnExtents: Array.from({ length: MAX_COLUMN_EXTENTS }, (_, index) =>
         entry(index),
       ),

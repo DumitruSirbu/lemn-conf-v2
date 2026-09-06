@@ -5,28 +5,34 @@
 // parity test and the scene mount so the two never drift apart.
 import * as THREE from "three";
 
+import { forEachCabinetHandleMesh } from "./cabinet-handle-meshes.js";
 import { deriveKitMaterial } from "./kit-ownership.js";
+import { PINNED_DEEP_TOP_DEPTH_M } from "./kitchen-parts.js";
 import type { Kit, KitMaterials } from "./kitchen-parts.js";
-import { isMesh } from "./three-guards.js";
 
 /** `scene-sync.ts` calls it at mount to apply the slot default and any recorded handle mode, in
  *  both directions; the seeded `*-top` arms below call it through `hidePushOpenHandles` because the
  *  decomposition-parity gate holds them to the reference room's own build-time hide.
  *
- *  This file is the one place that knows which meshes are handles — hence
- *  `applyBlackHandleMaterial` beside it rather than in a module that would have to re-derive the
- *  same mesh names. */
+ *  **Reaches this body's own handles and no appliance's** (ADR 0061 decision 1): it used to hide
+ *  every `handle` mesh in the group, so `push` on `tall-oven-tower` took the oven's and the
+ *  microwave's bars down with the two cabinet doors'. `isCabinetHandleGroup` is the rule, shared
+ *  with the capability gate that decides whether this body has a handle choice at all. */
 export function setHandlesVisible(
   group: THREE.Group,
   areHandlesVisible: boolean,
 ): THREE.Group {
-  forEachHandleMesh(group, (handle) => {
+  forEachCabinetHandleMesh(group, (handle) => {
     handle.visible = areHandlesVisible;
   });
   return group;
 }
 
-/** §5.5's `handle: 'black'`. Every handle mesh is built with `M.steel` (`kitchen-parts.ts`), so
+/** §5.5's `handle: 'black'`, on this body's **own** handles: an appliance's bar keeps the steel it
+ *  was built with, because cabinet hardware is not something the customer chose for an oven
+ *  (ADR 0061 decision 1).
+ *
+ *  Every handle mesh is built with `M.steel` (`kitchen-parts.ts`), so
  *  without this the black chip moved and the scene did not: `steel` and `black` rendered
  *  identically. The dark material is derived from the steel one — same brushed roughness map, same
  *  bar geometry — so the only difference on screen is the one the customer asked for.
@@ -38,7 +44,7 @@ export function applyBlackHandleMaterial(
   M: KitMaterials,
 ): THREE.Group {
   const material = blackHandleMaterial(M);
-  forEachHandleMesh(group, (handle) => {
+  forEachCabinetHandleMesh(group, (handle) => {
     handle.material = material;
   });
   return group;
@@ -61,15 +67,6 @@ function blackHandleMaterial(M: KitMaterials): THREE.Material {
   });
 }
 
-function forEachHandleMesh(
-  group: THREE.Group,
-  visit: (handle: THREE.Mesh) => void,
-): void {
-  group.traverse((node) => {
-    if (isMesh(node) && node.name.includes("handle")) visit(node);
-  });
-}
-
 /** `DEVELOPMENT-SPEC.md` §6.5: a push-to-open body keeps its handles **built and hidden**, never
  *  omitted — built without them `canHandle` was false and the panel hid the whole *Mâner* section,
  *  so the customer could never turn them back on. */
@@ -77,18 +74,18 @@ export function hidePushOpenHandles(group: THREE.Group): THREE.Group {
   return setHandlesVisible(group, false);
 }
 
-/** The return leg's depth is a **placement variable**, not a property of the body
- *  (`kitchen-parts.ts`): it has to equal the front plane of whatever the leg butts into. In the
- *  seeded L that neighbour is the 580 mm-deep tall run, so `buildKitchen()` builds it at exactly
- *  this value and the decomposition-parity gate holds the two together. */
-const SEEDED_CORNER_RETURN_DEPTH_M = 0.58;
-
 export function buildDecomposedBody(kit: Kit, buildId: string): THREE.Group {
   switch (buildId) {
     case "base-corner-x-900":
       return kit.make.cornerBaseX();
     case "base-corner-return-320":
-      return kit.make.cornerBaseReturn(SEEDED_CORNER_RETURN_DEPTH_M);
+      // The return leg's depth is a **placement variable**, not a property of the body
+      // (`kitchen-parts.ts`): it has to equal the front plane of whatever the leg butts into. In the
+      // seeded L that neighbour is the tall run, and the kit derives that plane from its own cabinet
+      // depth — 0.58 at the declared 600 mm and 0.68 at 700. **Read rather than typed since M6 wave
+      // 6I**: it was the literal 0.58, which built a 600 mm kitchen's leg into a 700 mm one and left
+      // the seeded body 100 mm behind the run it closes, with only the depth sweep to notice.
+      return kit.make.cornerBaseReturn(kit.depths.cornerReturnDepthM);
     case "base-sink-800":
       return kit.make.baseCabinet(0.8, { doors: 2, sink: true });
     case "base-dishwasher-600":
@@ -117,21 +114,36 @@ export function buildDecomposedBody(kit: Kit, buildId: string): THREE.Group {
     case "wall-2door-800":
       return kit.make.wallCabinet(0.8, 2);
     case "open-shelf-600":
-      return kit.make.openShelf(0.6, 0.33, 2);
+      return kit.make.openShelf(0.6, kit.depths.wallDepthM, 2);
     case "hood-600":
       return kit.make.hood(0.6);
     case "wall-2door-600-top":
-      return hidePushOpenHandles(kit.make.wallCabinet(0.6, 2, 0.4, 0.33));
+      return hidePushOpenHandles(
+        kit.make.wallCabinet(0.6, 2, 0.4, kit.depths.wallDepthM),
+      );
     case "wall-1door-300-top":
-      return hidePushOpenHandles(kit.make.wallCabinet(0.3, 1, 0.4, 0.33));
+      return hidePushOpenHandles(
+        kit.make.wallCabinet(0.3, 1, 0.4, kit.depths.wallDepthM),
+      );
     case "wall-2door-800-top":
-      return hidePushOpenHandles(kit.make.wallCabinet(0.8, 2, 0.4, 0.33));
+      return hidePushOpenHandles(
+        kit.make.wallCabinet(0.8, 2, 0.4, kit.depths.wallDepthM),
+      );
     case "wall-corner-return-570-top":
-      return hidePushOpenHandles(kit.make.wallCabinet(0.57, 1, 0.4, 0.33));
+      return hidePushOpenHandles(
+        kit.make.wallCabinet(0.57, 1, 0.4, kit.depths.wallDepthM),
+      );
+    // **The two ADR 0058 pins, and the only wall depths in this file that are still literal.** They
+    // stay at the 600 mm cabinet-depth line at every setting, by the owner's decision of 2026-09-02,
+    // and `PINNED_DEEP_TOP_DEPTH_M` says so where a bare 0.6 beside four `kit.depths.wallDepthM`
+    // neighbours would read as one somebody missed. The domain declares the same pin on these two
+    // entries and the parity gate sweeps both at both depths.
     case "wall-2door-600-deep-top":
-      return hidePushOpenHandles(kit.make.wallCabinet(0.6, 2, 0.4, 0.6));
+      return hidePushOpenHandles(
+        kit.make.wallCabinet(0.6, 2, 0.4, PINNED_DEEP_TOP_DEPTH_M),
+      );
     case "wall-2door-700-over-fridge":
-      return kit.make.wallCabinet(0.7, 2, 0.75, 0.6);
+      return kit.make.wallCabinet(0.7, 2, 0.75, PINNED_DEEP_TOP_DEPTH_M);
     default:
       throw new Error(
         `No decomposition builder registered for buildId "${buildId}"`,

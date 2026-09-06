@@ -12,6 +12,8 @@
 // is the store, so the last describe drives the action the click would have driven and shows exactly
 // what the `disabled` attribute is holding back.
 import {
+  cabinetDepthMmOf,
+  buildKitchenLBodyCatalog,
   columnWidthChoices,
   deriveColumns,
   derivePlacementRecords,
@@ -34,7 +36,10 @@ import {
   type ConfiguratorState,
 } from "@/store/configurator-store";
 
-import { createFakeBodyProbe } from "../support/fake-body-probe";
+import {
+  createFakeBodyProbe,
+  createFakeProbeFactory,
+} from "../support/fake-body-probe";
 
 const PROBE = createFakeBodyProbe();
 const OCCURRED_AT = "2026-08-30T12:00:00.000Z";
@@ -46,6 +51,8 @@ function worldFrom(design: Design) {
   const records = derivePlacementRecords(design, KITCHEN_L_BODY_CATALOG);
   const columns = deriveColumns(
     derivePlacementRecords(KITCHEN_L_DESIGN, KITCHEN_L_BODY_CATALOG),
+    {},
+    KITCHEN_L_DESIGN.room,
   );
   return {
     design,
@@ -70,7 +77,11 @@ function panelAt(world: World, target: CommandTarget, canWrite = true) {
   };
   return describePanel({
     meta: describeSelection({ ...world, target }),
-    offers: offersFor({ ...world, target }),
+    offers: offersFor({
+      ...world,
+      target,
+      cabinetDepthMm: cabinetDepthMmOf(world.design),
+    }),
     rejection: null,
     widthOptions: widthOptionsFor(engineInput),
     widthSteps: widthStepsFor(engineInput),
@@ -115,9 +126,9 @@ function everyTarget(world: World): CommandTarget[] {
 function storeFor(design: Design = KITCHEN_L_DESIGN) {
   return createConfiguratorStore({
     design,
-    catalog: KITCHEN_L_BODY_CATALOG,
+    catalogAt: buildKitchenLBodyCatalog,
     now: () => OCCURRED_AT,
-    bodyProbe: createFakeBodyProbe(),
+    probeAt: createFakeProbeFactory(),
   });
 }
 

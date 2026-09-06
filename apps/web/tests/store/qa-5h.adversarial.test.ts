@@ -6,10 +6,10 @@
 // sequence rather than by the two examples the drop was argued from.
 import { fc, test as propertyTest } from "@fast-check/vitest";
 import {
-  DesignSchema,
-  KITCHEN_L_BODY_CATALOG,
-  KITCHEN_L_DESIGN,
+  buildKitchenLBodyCatalog,
   deriveColumnKeyAt,
+  DesignSchema,
+  KITCHEN_L_DESIGN,
   occupiedDepthM,
   type Column,
   type Design,
@@ -19,16 +19,17 @@ import {
 import { describe, expect, it } from "vitest";
 
 import { createConfiguratorStore } from "../../src/store/configurator-store";
-import { createFakeBodyProbe } from "../support/fake-body-probe";
+import { createFakeProbeFactory } from "../support/fake-body-probe";
+import { LEGACY_ENUM_FINISHES } from "@lemnaria/configurator-domain";
 
 const OCCURRED_AT = "2026-08-25T12:00:00.000Z";
 
 function createStore(design: Design = KITCHEN_L_DESIGN) {
   return createConfiguratorStore({
     design,
-    catalog: KITCHEN_L_BODY_CATALOG,
+    catalogAt: buildKitchenLBodyCatalog,
     now: () => OCCURRED_AT,
-    bodyProbe: createFakeBodyProbe(),
+    probeAt: createFakeProbeFactory(),
   });
 }
 
@@ -158,7 +159,7 @@ describe("the document is a fixed point of one more save", () => {
     // was loaded with: a restore that lost or re-derived anything shows up as a second document for
     // one state, which is ADR 0002's round-trip invariant.
     reloaded.getState().select({ kind: "placement", id: "p0" });
-    reloaded.getState().setFinish("oak");
+    reloaded.getState().setFinish(LEGACY_ENUM_FINISHES.oak);
 
     expect(reloaded.getState().design.columnExtents).toStrictEqual(once);
   });

@@ -8,6 +8,7 @@
 // every column to what is left, a removal then frees no space, and a sweep over "the voids" sweeps
 // nothing while reporting green. Every sweep below asserts it actually swept something.
 import {
+  cabinetDepthMmOf,
   deriveColumns,
   derivePlacementRecords,
   describeSelection,
@@ -45,6 +46,9 @@ const OCCURRED_AT = "2026-08-26T12:00:00.000Z";
 /** Frozen exactly as the store freezes it — see the file header. */
 const SEEDED_COLUMNS = deriveColumns(
   derivePlacementRecords(KITCHEN_L_DESIGN, KITCHEN_L_BODY_CATALOG),
+
+  {},
+  KITCHEN_L_DESIGN.room,
 );
 
 function worldFrom(design: Design) {
@@ -83,7 +87,11 @@ function panelAt(
   const meta = describeSelection({ ...world, target });
   return describePanel({
     meta,
-    offers: offersFor({ ...world, target }),
+    offers: offersFor({
+      ...world,
+      target,
+      cabinetDepthMm: cabinetDepthMmOf(world.design),
+    }),
     rejection,
     // The engine's own verdicts, not a stand-in: `widthOptionsFor` runs `setWidth` once per
     // candidate width against this design and these frozen columns. A sweep over the *shipped*
@@ -499,6 +507,7 @@ describe("§9's ACTUAL badge over the real kitchen", () => {
       const offers = offersFor({
         ...world,
         target: { kind: "placement", id: record.id },
+        cabinetDepthMm: cabinetDepthMmOf(world.design),
       });
       if (offers.length === 0) continue;
       const current = offers.filter((candidate) => candidate.isCurrent);
@@ -530,6 +539,7 @@ describe("§9's ACTUAL badge over the real kitchen", () => {
       const offers = offersFor({
         ...world,
         target: { kind: "void", id: record.id },
+        cabinetDepthMm: cabinetDepthMmOf(world.design),
       });
       expect([
         record.id,
@@ -566,7 +576,13 @@ describe("the panel is exactly the offer list, everywhere in the kitchen", () =>
       if (target.kind === "void") sweptSlots += 1;
       else sweptBodies += 1;
       expect(section.rows.map((row) => row.buildId)).toEqual(
-        offeredBuildIds(offersFor({ ...world, target })),
+        offeredBuildIds(
+          offersFor({
+            ...world,
+            target,
+            cabinetDepthMm: cabinetDepthMmOf(world.design),
+          }),
+        ),
       );
     }
     expect(sweptBodies).toBeGreaterThan(0);

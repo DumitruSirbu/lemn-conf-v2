@@ -9,6 +9,7 @@
 // builders and the real probe can say what the restored cabinet is actually built to. A fake probe
 // reports back the size it was handed and would agree with anything.
 import {
+  cabinetDepthMmOf,
   deriveColumns,
   derivePlacementRecords,
   insertBody,
@@ -62,6 +63,8 @@ beforeAll(() => {
 const frozenColumns = () =>
   deriveColumns(
     derivePlacementRecords(KITCHEN_L_DESIGN, KITCHEN_L_BODY_CATALOG),
+    {},
+    KITCHEN_L_DESIGN.room,
   );
 
 /** The design with the hob-bearing cabinet deleted — the state the customer reaches in one click,
@@ -100,6 +103,7 @@ describe("the hob can be put back after its cabinet is deleted", () => {
       voids,
       columns,
       catalog: KITCHEN_L_BODY_CATALOG,
+      cabinetDepthMm: cabinetDepthMmOf(design),
       target: { kind: "void", id: opening.id },
     }).map((offer) => offer.buildId);
 

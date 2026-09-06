@@ -4,12 +4,18 @@
 // "here are four numbers about the built body", these tests could not exist without a renderer.
 // It is deliberately deterministic — the same request yields the same measurement — because that
 // is an acceptance criterion of the real probe, not an accident of the fake.
+import { createBodyProbeLease } from "../../src/body-probe.js";
 import type {
   BodyMeasurement,
   BodyProbe,
+  BodyProbeFactory,
+  BodyProbeLease,
   BodyProbeRequest,
 } from "../../src/body-probe.js";
-import { KITCHEN_L_BODY_CATALOG } from "../../src/fixtures/kitchen-l-design.js";
+import {
+  buildKitchenLBodyCatalog,
+  KITCHEN_L_BODY_CATALOG,
+} from "../../src/fixtures/kitchen-l-design.js";
 import { toMetres } from "../../src/millimetres.js";
 import type { BodyCatalog, BodyDefinition } from "../../src/void-engine.js";
 
@@ -76,11 +82,26 @@ function seatOffsetFor(
   catalog: BodyCatalog,
   request: BodyProbeRequest,
 ): number {
-  const { occupiedDepth, frameDepthMm } = requireDefinition(
-    catalog,
-    request.buildId,
-  );
-  if (occupiedDepth.measuredFrom === "recorded-shell") {
+  const definition = requireDefinition(catalog, request.buildId);
+  const { occupiedDepth, frameDepthMm } = definition;
+  // **Only a body a catalogue builder builds consumes the depth it is handed.** A decomposition —
+  // the four structural corner entries — is drawn by its own builder from the kit's dimensions and
+  // never reads the request, so subtracting a front assembly from it invents a number the real probe
+  // never returns. Measured: `wall-corner-return-570` declares 291 and this fake answered 252 at
+  // 600, and 322 against 361 at 700, on every domain depth suite (QA finding F3).
+  //
+  // `isCatalogBuildId` is the adapter's way of asking this and `configurator-domain` cannot import
+  // it — the package depends on nothing but `zod`. This is the same question asked of the
+  // declaration: an entry that is neither insertable nor named after a catalogue equivalent has no
+  // catalogue builder behind it.
+  // Written as two statements rather than `a || b`: `insertable` is a real `false` for every seeded
+  // row, so `??` would short-circuit on it and misclassify the seeded wall cabinets that *do* name a
+  // catalogue equivalent. The lint rule that prefers `??` is right in general and wrong here.
+  const isBuiltByItsOwnCatalogueRow = definition.insertable === true;
+  const resolvesToACatalogueRow = definition.catalogEquivalentId !== undefined;
+  const hasACatalogueBuilder =
+    isBuiltByItsOwnCatalogueRow || resolvesToACatalogueRow;
+  if (hasACatalogueBuilder && occupiedDepth.measuredFrom === "recorded-shell") {
     return (request.depthM - toMetres(occupiedDepth.frontAssemblyMm)) / 2;
   }
   return toMetres(frameDepthMm) / 2;
@@ -107,4 +128,90 @@ export function createFakeProbe(options: FakeProbeOptions = {}): BodyProbe & {
       };
     },
   };
+}
+
+/** The `BodyProbeFactory` the commands take, backed by the fake above.
+ *
+ *  It builds at the depth it is asked for, which is what a real factory does: the transient kit is
+ *  created at the target depth. The lease **counts and revokes** — see `revokingLease`. */
+export function createFakeProbeFactory(
+  options: FakeProbeOptions = {},
+  ledger?: { take: () => void; release: () => void },
+): BodyProbeFactory {
+  return (cabinetDepthMm: number) =>
+    revokingLease(
+      createFakeProbe({
+        ...options,
+        catalog: options.catalog ?? buildKitchenLBodyCatalog(cabinetDepthMm),
+      }),
+      ledger,
+    );
+}
+
+/**
+ * A lease over a fake probe that **counts and revokes** (ADR 0076 decision 5).
+ *
+ * Every fake in this repo used to return `release: () => undefined` and a probe that kept working
+ * afterwards, which is precisely why a dropped release was invisible at the store layer — that
+ * leniency has now been the reason four separate defects were green. So a fake lease records that it
+ * was taken and released, and `measure` after release throws rather than answering.
+ *
+ * **Revoking is deliberately stricter than reality, and that is the point.** A real probe over a
+ * disposed kit does not throw; it measures a black or invisible object. A fake may be stricter than
+ * the thing it stands for **when reality's failure is silent** — that is the only kind of infidelity
+ * that makes a test more truthful.
+ */
+export class ReleasedProbeUsedError extends Error {
+  constructor() {
+    super(
+      "measure() was called on a probe whose lease had already been released",
+    );
+    this.name = "ReleasedProbeUsedError";
+  }
+}
+
+export interface LeaseLedger {
+  readonly taken: number;
+  readonly released: number;
+}
+
+export function createLeaseLedger(): LeaseLedger & {
+  take: () => void;
+  release: () => void;
+} {
+  const counts = { taken: 0, released: 0 };
+  return {
+    get taken() {
+      return counts.taken;
+    },
+    get released() {
+      return counts.released;
+    },
+    take: () => {
+      counts.taken += 1;
+    },
+    release: () => {
+      counts.released += 1;
+    },
+  };
+}
+
+/** Wraps a probe in a lease that revokes it on release. `release` stays idempotent. */
+function revokingLease(
+  probe: BodyProbe,
+  ledger?: { take: () => void; release: () => void },
+): BodyProbeLease {
+  let released = false;
+  ledger?.take();
+  const guarded: BodyProbe = {
+    measure: (request) => {
+      if (released) throw new ReleasedProbeUsedError();
+      return probe.measure(request);
+    },
+  };
+  return createBodyProbeLease(guarded, () => {
+    if (released) return;
+    released = true;
+    ledger?.release();
+  });
 }

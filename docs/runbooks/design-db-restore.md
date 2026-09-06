@@ -152,7 +152,7 @@ import { neon } from "@neondatabase/serverless";
 // A restored row is written back at the *current* schema version, not whatever version the dump
 // carried — `migrateDesign` already brought the document up to date; re-storing the old version
 // number would make a future load try to migrate an already-current document.
-const CURRENT_SCHEMA_VERSION = 1;
+const CURRENT_SCHEMA_VERSION = 3;
 
 interface BackupRow {
   id: string;

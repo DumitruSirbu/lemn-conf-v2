@@ -12,7 +12,7 @@ import type {
   BodyProbeRequest,
 } from "@lemnaria/configurator-domain";
 
-import { buildCatalogBody } from "./catalog-bodies.js";
+import { buildAnyBody } from "./build-any-body.js";
 import type { Kit } from "./kitchen-parts.js";
 import { disposeUnsharedGeometries, isMesh } from "./three-guards.js";
 
@@ -52,13 +52,11 @@ export const WALL_B_MESH_NAME = "wall_left";
  *  the persistence, the rebuild — is untouched, and the exception is one declared measurement rather
  *  than a tolerance that drifted.
  *
- *  Keyed on the build id and not on a mesh name, because it is a product decision about hoods and
- *  not a fact about canopies. */
-const FRONT_ALIGNED_BUILD_IDS: ReadonlySet<string> = new Set(["hood"]);
-
-function isFrontAligned(buildId: string): boolean {
-  return FRONT_ALIGNED_BUILD_IDS.has(buildId);
-}
+ *  **This used to be a private set of build ids here** — `new Set(["hood"])` — which is the second
+ *  list of the same fact and exactly what ADR 0077 removes. The adapter kept it because the
+ *  catalogue could not state which plane seats a body; now it can, and the request carries the
+ *  answer. A set here could only ever be right about the ids somebody remembered to add, and it was
+ *  already missing `hood-600`. */
 
 /** A `PlaneGeometry` faces its own local +Z before any rotation is applied. */
 const PLANE_LOCAL_NORMAL = new THREE.Vector3(0, 0, 1);
@@ -94,7 +92,11 @@ export function measureBuiltBody(
   input: MeasureBuiltBodyInput,
 ): BodyMeasurement {
   const { request } = input;
-  const group = buildCatalogBody(input.kit, request.buildId, request);
+  // **The same dispatch the scene uses, from the one module that owns it** (wave 6K-d). This called
+  // `buildCatalogBody` directly and threw for every seeded decomposition id, which is exactly the
+  // family `set-cabinet-depth.ts`'s `reseat` arm asks the probe to measure — so a live depth change
+  // on the seeded kitchen threw rather than re-seating its corner returns.
+  const group = buildAnyBody(input.kit, request.buildId, request);
   // §6.2: measured **after** the group is in the room, so a room transform cannot be forgotten.
   input.room.add(group);
   try {
@@ -102,7 +104,7 @@ export function measureBuiltBody(
     return measureSeatedGroup(
       group,
       readWallPlaneM(input.room, WALL_A_MESH_NAME),
-      isFrontAligned(request.buildId)
+      request.seatedOn === "cabinet-front-line"
         ? input.kit.depths.cabinetDepthM
         : undefined,
     );
