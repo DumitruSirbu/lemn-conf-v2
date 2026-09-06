@@ -322,10 +322,10 @@ constant (`worktop-depth.ts` carries a comment saying the rename is owed and def
 | 6R — three control shapes, six decors the 3D approximates, and a strip that wraps *(ADR 0071, ADR 0082)* — **DONE 2026-09-06, `aa6ad9e`** (one commit with 6R-b) | G | 6Q, 6G | Light + visual |
 | 6R-b — the strip gets its own row, and containment is measured against its own band *(opened by [ADR 0094](../decisions/0094-the-strip-gets-its-own-row-and-containment-is-measured-against-its-own-band.md), which amends ADR 0082 decision 1 — **6R did not close without it**)* — **DONE 2026-09-06, `aa6ad9e`** (one commit with 6R) | G | **6R — the same two stylesheets, never in parallel** | Light + visual |
 | 6S — door leaves, drawers and door band heights become declared facts *(ADR 0070)* — **DONE 2026-09-04, `280daa4`/`a2bff48`** | P | none | Full |
-| 6T — hardware priced per mechanism *(ADR 0070, planned by ADR 0092)* | P | 6S, 6B2 — **lands on one branch with 6W and 6T-a** | Full |
-| 6T-a — one push-to-open predicate *(opened by [ADR 0092](../decisions/0092-hardware-prices-three-mechanisms-and-a-sink-carries-two-extras.md) Amendment C, on the owner's ruling of 2026-09-06 — 6T counts a latch only on a **recorded** mode, so the demo's 16 top-row latches bill at zero)* | P | 6T — **same branch, reaches `main` with 6T and 6W; never in parallel with 6T, 6T2 or 6P** | Full |
+| 6T — hardware priced per mechanism *(ADR 0070, planned by ADR 0092)* — **DONE 2026-09-06, `0d0ee61`, with QA at `88f85e2` and the per-handle vocabulary retired at `e9ab7b2`. On branch `wave/6t-finish`: ready to merge, not yet on `main`** | P | 6S, 6B2 — **lands on one branch with 6W and 6T-a** | Full |
+| 6T-a — one push-to-open predicate *(opened by [ADR 0092](../decisions/0092-hardware-prices-three-mechanisms-and-a-sink-carries-two-extras.md) Amendment C, on the owner's ruling of 2026-09-06 — 6T counts a latch only on a **recorded** mode, so the demo's 16 top-row latches bill at zero)* — **DONE 2026-09-06, `0a9ce1a` (with ADR 0092 decision 16), QA at `fb127b8`; Amendment C itself recorded at `bf2ba61`. Same branch, ready to merge, not yet on `main`** | P | 6T — **same branch, reaches `main` with 6T and 6W; never in parallel with 6T, 6T2 or 6P** | Full |
 | 6T2 — the two sink extras *(ADR 0070 decision 4, ADR 0092 decisions 9–11)* | P | 6T — **same files, never in parallel; and never beside 6P or 6T-a** | Full |
-| 6W — a tier that prices below the default *(ADR 0092 decision 12)* | P | 6T — **same branch, reaches `main` with it** | Full |
+| 6W — a tier that prices below the default *(ADR 0092 decision 12)* — **DONE 2026-09-06, `1d6fc7e`, QA at `ca35b96`. Same branch, ready to merge, not yet on `main`. Criterion 4 — the *De la* claim — is met in code under an architect's interim and **not** with the owner's words; see the close-out and ADR 0092 open input 4** | P | 6T — **same branch, reaches `main` with it** | Full |
 | 6U — the hob holds its reach, and a deeper worktop grows behind it *(ADR 0087; wave 6I's unraised question, owner 2026-09-05)* — **DONE 2026-09-06, `38d5cad`** | D | none — **after 6Q**, and it gates nothing | Full + visual |
 | 6V — a selection is counted by what changed, not by what colour it is *(opened by [ADR 0091](../decisions/0091-an-instruments-premise-is-re-quantified-and-the-product-claim-inside-it-becomes-a-wave.md) decision 6 — the debt wave 6R was obliged to carry rather than discharge)* | — | **6R — gated by it**, and it gates nothing | Test infra + one product fix |
 | 6X — the slide is witnessed by an assertion, not by a redecorated demo *(opened by [ADR 0093](../decisions/0093-a-rule-the-shipped-kitchen-cannot-exercise-owes-a-witness-not-a-moved-fixture.md); ADR 0090 decision 6 has no falsifiable check)* | D | **6K-i — gated by it**, and it gates nothing | Test fidelity |
@@ -5590,6 +5590,29 @@ population must become a **mechanism** count, or it asserts the superseded basis
   the arithmetic instead — each tier's hardware total equals its three declared rates times the three
   counts — and carry the ordering as open owner input 1.
 
+#### Wave 6T — shipped 2026-09-06 on branch `wave/6t-finish`, commits `0d0ee61` (the wave),
+`88f85e2` (its adversarial QA) and `e9ab7b2` (the stale per-handle vocabulary retired). **Not yet on
+`main`**: the branch merges with 6T-a and 6W together, per ADR 0092 decision 12.
+
+**What shipped.** Hardware billing moved from **per cabinet handle** to **per mechanism** — hinges
+(2 per door leaf, 3 where the leaf is taller than 900 mm), drawer runners, and push latches — read
+through 6S's declarations rather than from a handle count. `HardwareTier.perCabinetHandleMinor` is
+replaced by three rates. **The seeded kitchen's quantity basis became 74 hinges + 5 drawers**, which
+is ADR 0070's own independently derived pair. The push count this wave answers is the *recorded* one;
+the 16 top-row latches are 6T-a's, and the plan section above already says so at that criterion.
+
+**Verification actually performed.** Adversarial QA (**53 tests added**, `88f85e2`), a **logic
+review (Full)** and a **clean-code review (Full)**. Recorded at close-out, 2026-09-07, from the
+coordinating session that dispatched them — **the repository carried no dated evidence of these runs
+before this pass**, a gap an earlier scribe pass correctly flagged and which this entry closes
+rather than leaves implied.
+
+**Gate evidence.** See the branch-final figures in wave 6W's close-out below: the three waves were
+gated together at `ca35b96` and this wave has no separate dated gate run of its own in the record.
+The intermediate figures `docs/STATUS.md` carries for `0d0ee61` and `e9ab7b2` (domain 3099,
+persistence 177, three-adapter 2328, web 1650 + 4 skipped) are a wave out of date and are superseded
+by that run.
+
 ### Wave 6T-a — one push-to-open predicate
 
 **Opened by [ADR 0092](../decisions/0092-hardware-prices-three-mechanisms-and-a-sink-carries-two-extras.md)
@@ -5735,6 +5758,31 @@ seeded hardware line or a hardware delta.
 - **The adapter and the domain must be edited together.** A branch that lands the domain predicate
   and leaves `hidesHandles` private has shipped the two-predicate defect with an extra module.
 
+#### Wave 6T-a — shipped 2026-09-06 on branch `wave/6t-finish`, commits `0a9ce1a` (the wave, which
+also records ADR 0092 decision 16) and `fb127b8` (its adversarial QA). The ruling it implements —
+ADR 0092 **Amendment C**, the owner's push-to-open ruling — landed just ahead of it at `bf2ba61`.
+**Not yet on `main`**; it merges with 6T and 6W.
+
+**What shipped, and what it repaired.** 6T priced from the **recorded** handle mode while the
+product decides push-to-open by **whether the bar is hidden**, so one rule was decided twice and the
+two answers disagreed in both directions. On the shipped demo that was direction A at full size:
+**the nine top-row placements carried 16 latches billed at zero while the panel told the customer
+they were push-to-open.** One predicate — `isPushToOpen` — is now published by the domain and called
+by both the scene and the price, so the two cannot answer differently again.
+
+**Verification actually performed.** Adversarial QA (**49 tests added**, `fb127b8`) and a **logic
+review (Full)**. **No clean-code review was dispatched for this wave** — 6T's covered the wave that
+introduced these modules; recorded as what happened, not as a claim that one was unnecessary.
+
+**One premise of the ruling was wrong and is corrected in the record.** ADR 0092 Amendment C's
+float claim — that `TOP_ROW_Y0_M * 1000` evaluates to `2200.0000000000002` — is **false**: it is
+exactly `2200`. The millimetre-literal rule stands on readability instead, and the correction with
+its arithmetic is written at the criterion in the wave plan above. **Checked at close-out,
+2026-09-07: ADR 0092 itself never carried the float claim** — it appears only in this file, where it
+is struck and corrected — so there is nothing to unwind in the decision record.
+
+**Gate evidence.** Branch-final, at `ca35b96` — see wave 6W's close-out below.
+
 ### Wave 6T2 — the two sink extras
 
 **[ADR 0070](../decisions/0070-hardware-is-priced-per-mechanism-not-per-handle.md) decision 4, planned
@@ -5838,6 +5886,65 @@ alternative is a negative badge, which the mockups' *de la +9 000* has no form f
   fronts and the delta is still exactly −4 200 minor.
 - **The *De la* claim is either true or qualified**, and which of the two was chosen is recorded with
   the owner's words.
+
+#### Wave 6W — shipped 2026-09-06 on branch `wave/6t-finish`, commits `1d6fc7e` (the wave) and
+`ca35b96` (its adversarial QA). **Not yet on `main`**; it is the last of the three and the commit
+the branch was gated at.
+
+**What shipped.** A hardware tier that legitimately prices a kitchen **below its group's default**
+is now offered without a delta badge, so `NegativeTierDeltaError` no longer reaches the settings
+sheet on that path. **The material refusal is intact** — a material tier is one flat per-kitchen
+amount whose ordering is a property of the book alone, so an inversion there is still a genuine book
+fault and still throws. This is ADR 0092 decision 12's recommendation, implemented as recommended.
+
+**Verification actually performed.** Adversarial QA (**39 tests added**, `ca35b96`) and a **logic
+review (Full)**. No clean-code review was dispatched.
+
+**Branch-final gate evidence, and it covers all three waves.** At **`ca35b96`**, run by the
+coordinating session itself rather than accepted from an agent: **all ten `pnpm ci:local` gates
+PASS**. `pnpm test` **7 387 passed / 4 skipped across 334 files**; **e2e 99 passed / 1 skipped**.
+This is the only dated gate run in the record for 6T, 6T-a and 6W, and it is the run the merge to
+`main` rests on.
+
+**Criterion 4 is met in code and not in the record, and that is stated rather than absorbed.** The
+criterion asks that the *De la* claim be *"either true or qualified, and which of the two was chosen
+recorded **with the owner's words**"*. The wave left it **true, not qualified**, under an
+**architect's interim marked pending owner review**. **The owner has not ruled.** The reasoning
+behind the interim, so a later reader can weigh it rather than re-derive it:
+
+- The disclaimer already scopes the figure to **this kitchen, pre-measurement**, rather than
+  claiming a floor across tiers — so the sentence a customer reads is not the sentence decision 12
+  found unsupported.
+- The figure **re-derives when a tier is chosen**, so the claim is not left standing against a
+  configuration it was not computed for.
+
+**The reviewer's finding that constrains the owner's options, recorded because a copy call made
+without it would be made wrong.** `exactDelta` **discards the magnitude** of a below-default
+difference — it answers that the delta degraded, not by how much. **So any owner copy that names
+how much cheaper a tier is needs domain re-plumbing, not a string change.** A copy ruling that
+assumes it is a wording edit has under-scoped its own wave.
+
+**Recorded as ADR 0092 open input 4**, which is where the owner's ruling lands when it arrives.
+
+**A second copy call is open on the same surface, and it is the owner's.** With a below-default
+tier the settings sheet now reads `inclus` / *(blank)* / `de la +…` down the three rows, and **a
+blank sitting between two figures reads as "price unavailable" rather than "cheaper"**. Nothing
+refuses and no document is corrupted; it is a wording and form question, and it is listed with
+open input 4.
+
+**Deferred out of these three waves, with an owner named.**
+
+- **The three push-to-open rates (40 / 120 / 100 MDL) — owner, and no longer deferrable in the way
+  they were drafted.** They were safe to draft only while nothing depended on them, and Amendment C
+  ended that: they are now **load-bearing on a customer-visible price**. Measured on the shipped
+  demo, both consequences produced by the placeholders alone — the hardware line rises **+640 /
+  +1 920 / +1 600 MDL** at Standard / Hettich / Blum, and at 16 latches **Hettich (11 340 MDL)
+  overtakes Blum (11 335)**, an ordering **ADR 0070's own totals contradict**. ADR 0092 open
+  input 1, promoted to first on that list.
+- **The *De la* ruling and the `inclus` / blank / `de la +…` copy call — owner.** ADR 0092 open
+  input 4, above.
+- **Whether the default hardware tier costs the customer nothing — owner.** Unchanged by these
+  waves and still shipping under decision 15's interim; ADR 0092 open input 6.
 
 ## Open questions gating this phase
 

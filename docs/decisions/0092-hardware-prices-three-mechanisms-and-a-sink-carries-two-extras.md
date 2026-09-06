@@ -17,6 +17,20 @@ fronts, not zero. Every *"0 push"* figure in this record inherits that error and
 its site. All three corrections are made in place, because the record is one day old and its numbers
 are load-bearing; what changed and why is stated at each site.
 
+**Implementation status, recorded 2026-09-07.** Three of the four waves this record plans are
+**implemented and not yet on `main`**: **6T** (`0d0ee61`, QA `88f85e2`, `e9ab7b2`), **6T-a**
+(`0a9ce1a`, QA `fb127b8`) and **6W** (`1d6fc7e`, QA `ca35b96`), all on branch **`wave/6t-finish`**,
+which reaches `main` as one merge per decision 12. Amendment C itself is `bf2ba61`. Gated at
+`ca35b96`: **all ten `pnpm ci:local` gates PASS**, `pnpm test` **7 387 passed / 4 skipped across 334
+files**, **e2e 99 passed / 1 skipped**. **6T2 is still open.** Two things this record's own decisions
+now depend on are stated where they belong rather than here — open input 1 (the three drafted
+push-to-open rates, now load-bearing on a customer-visible price) and open input 4 (6W's *De la*
+claim, shipped under an architect's interim the owner has not ruled on). **Checked at the same
+pass: Amendment C's millimetre-literal rule is stated in `docs/milestones/M6-price-and-global-settings.md`
+and the false float premise that once justified it — that `TOP_ROW_Y0_M * 1000` evaluates to
+`2200.0000000000002`, when it is exactly `2200` — appears only there, struck and corrected. This
+record never carried it and there is nothing here to unwind.**
+
 ## Context
 
 [ADR 0070](0070-hardware-is-priced-per-mechanism-not-per-handle.md) (owner, 2026-09-04) ruled that
@@ -855,12 +869,38 @@ code, the standing process ruled on 2026-09-04.
    contradicts, and the most expensive tier a customer sees. Nothing refuses and no document is
    corrupted; the figures are simply not evidence of anything. **This is no longer a placeholder that
    can wait.**
+
+   **Updated 2026-09-07, at 6T-a's close-out: the rates have shipped in that state.** They stand at
+   40 / 120 / 100 MDL on branch `wave/6t-finish`, drafted and marked, and both measured consequences
+   above are now what the demo actually prices. No expectation is pinned to their magnitudes —
+   assertions compute `count × the book's own rate` — so the owner's figures move the book and move
+   no test. **What the owner's answer changes is a customer-visible total and which tier reads as
+   dearest**, not a diff's size.
 2. **The three tier descriptions**, and Standard's in particular, which must state that it has no
    soft-close. The drafts avoid naming product lines; the owner may prefer that they name them.
 3. **The two accessory names and descriptions, and the breakdown's category word for them.**
 4. **Wave 6W's question — what a customer sees when a tier prices below the default**, and whether
    the price bar's *De la* claim needs anything said about it. Recommendation in decision 12; the
    alternative is a negative badge the mockups have no form for.
+
+   **Updated 2026-09-07, at 6W's close-out. The wave shipped and this input did not close.** 6W
+   implemented decision 12's recommendation — a below-default **hardware** tier is offered with no
+   delta badge, the **material** refusal intact — so the crash is gone. What remains open is the
+   *De la* half of the same criterion, and it is recorded as an interim rather than as a ruling:
+
+   - **The claim was left true, not qualified**, under an **architect's interim marked pending owner
+     review**. **The owner has not ruled**, so 6W's criterion *"which of the two was chosen is
+     recorded with the owner's words"* is met in code and **not** in the record. The interim's
+     reasoning: the disclaimer scopes the figure to **this kitchen, pre-measurement**, rather than
+     claiming a floor across tiers, and the figure **re-derives when a tier is chosen**.
+   - **What constrains the answer, found by 6W's logic review**: `exactDelta` **discards the
+     magnitude** of a below-default difference — it answers *that* the delta degraded, not by how
+     much. **So any owner copy naming how much cheaper a tier is needs domain re-plumbing, not a
+     string change.** A copy ruling taken as a wording edit has under-scoped its own wave.
+   - **A second copy call, on the same surface.** With a below-default tier the settings sheet reads
+     `inclus` / *(blank)* / `de la +…` down the three rows, and **a blank between two figures reads
+     as "price unavailable" rather than "cheaper"**. Nothing refuses and no document is corrupted;
+     it is the owner's copy call and it travels with this input.
 5. **Whether a cargo pull-out and a lift arm should ever be priced.** Recorded by decision 8 as
    knowingly unpriced. Either needs a measured amount from the owner.
 6. **Does the quoted cabinet price include standard hardware, or is hardware billed on top?**
