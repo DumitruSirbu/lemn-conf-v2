@@ -19,6 +19,7 @@ import {
   cabinetDepthMmOf,
   columnBuildDepthM,
   columnBuildDepthMm,
+  type BodyCatalog,
   deriveColumns,
   derivePlacementRecords,
   occupiedDepthOfEntryM,
@@ -34,6 +35,13 @@ import { expect } from "vitest";
 export interface PublishedState {
   readonly design: Design;
   readonly columns: ReadonlyMap<string, Column>;
+  /** **The catalogue this state was produced against**, where it is not the shipped one.
+   *
+   *  A suite that declares its own body (`pinned-top-witness.ts`) drives the store with a catalogue
+   *  the shipped map does not hold, and a source this helper cannot look up is skipped as a legal
+   *  state — so without this the declared body would be invisible to the very check it exists to
+   *  keep falsifiable. Absent means the shipped catalogue, which is every other caller. */
+  readonly catalogAt?: (cabinetDepthMm: number) => BodyCatalog;
 }
 
 /** Float slack on a comparison of two declared depths, not manufacturing slack — the band
@@ -96,7 +104,7 @@ export function sourceExplainsTheDepth(input: {
  *  setting**. */
 export function unexplainedColumns(state: PublishedState): readonly string[] {
   const cabinetDepthMm = cabinetDepthMmOf(state.design);
-  const catalog = buildKitchenLBodyCatalog(cabinetDepthMm);
+  const catalog = (state.catalogAt ?? buildKitchenLBodyCatalog)(cabinetDepthMm);
   return [...state.columns].flatMap(([key, column]) => {
     const buildId = column.depthFromBuildId;
     if (buildId === undefined) return [];
@@ -130,7 +138,9 @@ export function unexplainedColumns(state: PublishedState): readonly string[] {
 export function columnsWithKnownSources(
   state: PublishedState,
 ): readonly string[] {
-  const catalog = buildKitchenLBodyCatalog(cabinetDepthMmOf(state.design));
+  const catalog = (state.catalogAt ?? buildKitchenLBodyCatalog)(
+    cabinetDepthMmOf(state.design),
+  );
   return [...state.columns]
     .filter(([, column]) => {
       const buildId = column.depthFromBuildId;

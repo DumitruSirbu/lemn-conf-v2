@@ -547,6 +547,30 @@ describe("the recorded source explains the recorded depth", () => {
     assertSourcesExplainTheirDepths(store.getState(), "after setCabinetDepth");
   });
 
+  // **The witness that keeps the two above able to fail, and it is owed** (ADR 0093 decision 1).
+  //
+  // Until ADR 0101 the shipped kitchen carried the disagreement itself: `B|1.80` was frozen at the
+  // pinned top's 600 and re-answered 699 by the pantry at the deeper setting, so the defective code
+  // left a source declaring 600 beside a depth of 699 and the invariant fired on the demo. Both
+  // tests above go red against that code and this one does not, because the top follows the setting
+  // now — at 700 it declares exactly the 700 the column carries, and the disagreement closes.
+  //
+  // So the disagreement is supplied by this suite's own pinned body instead. It declares 600 at
+  // every setting, the pantry re-answers 699 at the deeper one, and the pair parts exactly as it
+  // used to. **Measured, not asserted: this goes red against the F1 code — `atCurrentCabinetDepth`
+  // publishing the re-answered depth while carrying the previous `depthFromBuildId` across — and
+  // green against the fix.**
+  it("still holds on a kitchen whose source declares one depth at every setting", () => {
+    const store = createStoreWithAPinnedTop();
+
+    setDepth(store, DEEPER_MM);
+
+    assertSourcesExplainTheirDepths(
+      { ...store.getState(), catalogAt: catalogWithAPinnedTop },
+      "after setCabinetDepth, on the declared pinned top",
+    );
+  });
+
   // And the document half: `projectFrozenMap` writes the disagreeing pair, so it is saved and
   // reloaded rather than being a session-local slip.
   it("still holds in the document a depth change hands on to be saved", () => {

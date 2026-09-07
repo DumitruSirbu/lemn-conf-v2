@@ -209,7 +209,13 @@ describe("an extent whose depth came from a body the setting does not move", () 
 
     store.getState().setCabinetDepth(DEEPER_MM);
 
-    assertSourcesExplainTheirDepths(store.getState(), "after setCabinetDepth");
+    // **The witness catalogue is handed over, not left to default** (ADR 0101 decision 3). A source
+    // the helper cannot look up is skipped as a legal state, so a declared body checked against the
+    // shipped map would be invisible to the very invariant this line is here to apply.
+    assertSourcesExplainTheirDepths(
+      { ...store.getState(), catalogAt: catalogWithAPinnedTop },
+      "after setCabinetDepth",
+    );
     expect(frozenM).toBeCloseTo(
       declaredDepthM(buildId, DEFAULT_CABINET_DEPTH_MM),
       6,
