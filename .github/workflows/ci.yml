@@ -12,6 +12,10 @@ on:
     branches: [main]
   push:
     branches: [main]
+  # Lets the `e2e` job be asked for by hand from the Actions tab on any ref. It
+  # is skipped on pull requests (see that job's `if:`), so this is how a branch
+  # gets browser coverage before it is merged rather than after.
+  workflow_dispatch:
 
 # Supersede an in-flight run when the same PR ref is pushed again. Only PR runs
 # are cancelled; post-merge `main` runs always complete so the branch's gate
@@ -196,6 +200,21 @@ jobs:
     # reason nobody can reproduce locally, because `scripts/local-ci.sh` runs the
     # two serially. Serialising them here costs wall-clock and buys determinism.
     needs: [install, test]
+    # **Not on pull requests.** This repository has 2000 private Actions minutes
+    # a month and this job alone costs ~33 of them; a branch pushed five times
+    # would spend a sixth of the month's allowance re-proving the same flows.
+    # So the browser gate runs where a regression would actually escape — the
+    # push to `main` that a merge produces — and on demand from the Actions tab
+    # for a branch whose author wants it before merging. Every other gate still
+    # runs on every pull request, and `scripts/local-ci.sh` runs this one
+    # locally on every push, where minutes are free.
+    #
+    # The cost of this choice, stated plainly: a pull request can be green and
+    # still break the signature flow, and nobody learns that until it is on
+    # `main`. That is the trade the allowance forces. If `e2e` is listed as a
+    # required status check on `main`, it must be removed from that list —
+    # a required check that never reports on a pull request blocks every merge.
+    if: github.event_name != 'pull_request'
     env:
       # Same secret, same reasoning as the `test` job above, and the same
       # deliberate omission of DATABASE_URL. Note what that omission costs here:
