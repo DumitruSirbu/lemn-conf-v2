@@ -103,6 +103,7 @@ export {
   cabinetDepthRuleOf,
   columnBuildDepthM,
   columnBuildDepthMm,
+  declaresALiftedColumnDepth,
   depthFollowsSetting,
   FOLLOWS_CABINET_DEPTH,
   FOLLOWS_CABINET_DEPTH_ON_WALL_MAP,
