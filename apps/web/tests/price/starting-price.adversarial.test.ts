@@ -449,13 +449,8 @@ describe("the unchanged label, against the ruling that replaced both mockup spel
     import.meta.dirname,
     "../../../../docs/milestones/M6-price-and-global-settings.md",
   );
-  const MOCKUPS = resolve(
-    import.meta.dirname,
-    "../../../../docs/design/mockups",
-  );
-
-  /** The plan's ruled-strings table, which is the only place this ruling is recorded — the mockups
-   *  still draw the two superseded spellings, so a literal in a test would agree with the code and
+  /** The plan's ruled-strings table, which is the only place this ruling is recorded — a literal in
+   *  a test would agree with the code and
    *  with nothing else. */
   function ruledUnchangedLabel(): string {
     const ruled =
@@ -488,22 +483,32 @@ describe("the unchanged label, against the ruling that replaced both mockup spel
     }
   });
 
-  it("is what the mockups drew before the ruling, so the supersession is a real change", () => {
+  it("superseded two spellings the plan records, so the ruling is a real change", () => {
     // The counterfactual for the row in the plan's table: if the frames had already said
     // *"De la neschimbat"*, there would have been nothing to reconcile and no ruling to record.
-    const desktop = readFileSync(
-      resolve(MOCKUPS, "Lemnaria Configurator Desktop.dc.html"),
-      "utf8",
-    );
-    const mobile = readFileSync(
-      resolve(MOCKUPS, "Lemnaria Configurator Mobil.dc.html"),
-      "utf8",
-    );
+    //
+    // **The witness is the plan's row, not the mockup HTML, and that changed on 2026-09-07.** The
+    // row used to say the frames were "the record of what was drawn and was not edited", and this
+    // test read them directly. Then the owner re-exported the reference for the top-bar wave, the
+    // export dropped `De la · neschimbat` from D2C, and a test asserting a *historical* fact went
+    // red because a *living* file had legitimately moved on. A mockup the owner re-exports cannot
+    // witness what a mockup once drew. The plan's row names both superseded spellings itself and is
+    // append-only, so it can.
+    const row =
+      /^\| \*"De la[^"]*"\* — the price label while an edit is refused \|(.*)$/m.exec(
+        readFileSync(M6_PLAN, "utf8"),
+      )?.[1];
+    if (!row)
+      throw new Error(
+        "the M6 plan's ruled-strings table no longer carries a row for the unchanged price label",
+      );
 
-    expect(desktop).toContain("De la · neschimbat");
-    expect(mobile).toContain("De la, neschimbat");
-    expect(desktop).not.toContain(ro.price.startingPrefixUnchanged);
-    expect(mobile).not.toContain(ro.price.startingPrefixUnchanged);
+    const superseded = ["De la · neschimbat", "De la, neschimbat"];
+
+    for (const spelling of superseded) expect(row).toContain(spelling);
+    // Each is a real supersession rather than the ruled label written twice.
+    for (const spelling of superseded)
+      expect(spelling).not.toBe(ro.price.startingPrefixUnchanged);
   });
 
   it("keeps the bare prefix a prefix of it, so the two cannot drift apart in wording", () => {
