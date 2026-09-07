@@ -1,6 +1,6 @@
 # ADR 0058 — The two deliberately-deep top cabinets are pinned, and the pin is a declared exception
 
-Status: Accepted (decisions 1-4 stand; **the two cost-acceptance paragraphs are struck 2026-09-07 → [0097](0097-adr-0058s-costs-were-accepted-at-a-depth-nothing-shipped-at-and-that-premise-has-expired.md)** — their premise, "a depth nothing ships at", is false since wave 6K)
+Status: Accepted (decisions 1-4 stand; **the two cost-acceptance paragraphs and finding 3's 742 mm objection are struck 2026-09-07 → [0097](0097-adr-0058s-costs-were-accepted-at-a-depth-nothing-shipped-at-and-that-premise-has-expired.md)** — the first premise, "a depth nothing ships at", is false since wave 6K; the second is unreachable since wave 6I2)
 Date: 2026-09-02
 Type: Decision + Finding
 Milestone: M6 — gates waves 6H, 6I and 6J
@@ -55,6 +55,14 @@ manufactures — 703 and 742 mm over the fridge column. Under **"follow their co
 three shipped bodies would have been rebuilt at their columns' depths, and `p24` would have taken
 **exactly the 742 mm** entry 15 names — moving that defect out of the post-delete insert path and
 onto three bodies of the shipped kitchen. Pinning prevents that.
+
+**Expired 2026-09-07 —
+[ADR 0097](0097-adr-0058s-costs-were-accepted-at-a-depth-nothing-shipped-at-and-that-premise-has-expired.md)
+Amendment A6.** True when written, and no longer. Two things ended it: the 742 mm outcome required
+*"follow their column"*, and the live proposal is *follow the **setting***, which builds at the
+cabinet-depth line; and since wave 6I2 `resolveDepthM` reads `columnBuildDepthM`'s **declaration** and
+never the opening's own MAX, so 742 is unreachable on this path at all — `docs/BACKLOG.md` entry 15 is
+in `resolved.md`. **This finding may no longer be cited as a cost of unpinning.**
 
 It does **not** shrink entry 15's population, and this record does not claim it does: the defect
 lives on the insert path, where a catalogue `wall-cabinet` dropped into a vacated slot over a

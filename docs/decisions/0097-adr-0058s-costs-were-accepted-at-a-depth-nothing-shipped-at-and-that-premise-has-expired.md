@@ -1,6 +1,6 @@
 # ADR 0097 — ADR 0058's two costs were accepted at a depth nothing shipped at, and that premise has expired
 
-Status: Accepted
+Status: Accepted (**Finding 2 and decisions 2-3 are corrected by Amendment A, 2026-09-07** — item 8's central measurement was wrong and its verdict is reversed; item 9 is now accepted by the owner)
 Date: 2026-09-07
 Type: Finding + Decision
 Milestone: M6 — answers owner manual-feedback items 8 and 9; schedules nothing
@@ -53,7 +53,20 @@ behaviour is deliberate; the *acceptance of its cost* is not currently held by a
 distinction is the whole of decision 1 below, and it is what stops a stale ruling from being quoted
 back at the owner as though it were a live one.
 
-## Finding 2 — item 8's fix is **not** small, and the naive version of it is worse than doing nothing
+## Finding 2 — ~~item 8's fix is **not** small, and the naive version of it is worse than doing nothing~~ **CORRECTED — see Amendment A**
+
+> **This finding's central measurement is wrong and its verdict is reversed. Read
+> [Amendment A](#amendment-a--2026-09-07-item-8s-verdict-is-reversed-on-a-measurement-this-record-got-wrong)
+> before acting on anything below.** It assumed a rebuild takes its depth from the catalogue
+> equivalent's `frameDepthMm`. It does not: over a full-height column `resolveDepthM` returns
+> `columnBuildDepthM`, which is the cabinet-depth line — **700 at a 700 mm kitchen**. Measured
+> end-to-end through `evaluateInsertFit`, a rebuild of `p22`, `p23` and `p24` at 700 plans **700 mm**,
+> which is exactly what the owner asked for.
+>
+> **It is kept, not deleted, and it is not worthless.** Everything it says about the *wall* band is
+> still true, and it is the record of a question the owner turned out not to be asking. Amendment A
+> says which parts survive.
+
 
 The owner's condition is "a small fix that didn't influence another stuff". Measured against the
 tree on 2026-09-07, on branch `fix/m6-remediation`.
@@ -219,32 +232,38 @@ struck is the **cost assessment** — the two paragraphs that accepted the 99 mm
 **Consequently, a decision to keep either behaviour must be a new dated decision made with 700 mm
 shipping**, not a citation of ADR 0058. This record is not that decision; the owner's is.
 
-**2. Item 8 and item 9 are answered separately, because they are separate mechanisms — and both
-answers are the same.**
+**2. Item 8 and item 9 are answered separately, because they are separate mechanisms.**
 
-The owner is owed a per-item verdict and the two need not share a fate. Measured, they do:
+~~The owner is owed a per-item verdict and the two need not share a fate. Measured, they do:~~
+**Corrected by Amendment A: they do not share a fate.** The item 8 row below rests on the
+measurement Amendment A overturns; the item 9 row stands and is now the owner's accepted decision
+(Amendment A, decision A4).
 
 | | Deliberate? | Small and side-effect-free? | Evidence |
 | --- | --- | --- | --- |
-| **Item 8** — deep tops stay at 600 | Yes (ADR 0058 decision 1), on a premise that has expired | **No.** The one-line version makes it ~2.4× worse and is irreversible; the real version is a new catalogue entry or a fourth depth-rule arm, an ADR 0028 exemption, 16 test files and an ADR 0093 witness | Finding 2 |
+| ~~**Item 8** — deep tops stay at 600~~ **superseded → Amendment A** | Yes (ADR 0058 decision 1), on a premise that has expired | ~~**No.** The one-line version makes it ~2.4× worse and is irreversible; the real version is a new catalogue entry or a fourth depth-rule arm, an ADR 0028 exemption, 16 test files and an ADR 0093 witness~~ **→ Amendment A: the production change is small, the surrounding work is a small wave** | ~~Finding 2~~ Amendment A |
 | **Item 9** — corner gap 15 → 45 mm | Yes (ADR 0089 decision 1), same expired premise | **No.** Both cheap versions relocate the 30 mm somewhere worse; the honest version invents a filler body kind the product does not have, and changes the 600 mm kitchen | Finding 3 |
 
 **3. The recommendation put to the owner, stated so it is a choice and not a fait accompli.**
 
-- **Item 8** — the outcome the owner wants *is* the right product answer and is reachable: deep tops
+- ~~**Item 8** — the outcome the owner wants *is* the right product answer and is reachable: deep tops
   finishing at the cabinet-depth line would step 38 mm against the oven tower, −1 mm (flush) against
   the pantry and 42 mm against the fridge at 700, restoring the 600 mm relationship. **It is a wave,
   not a fix.** Recommend: keep the pin for now, and schedule it if the owner wants the relationship
-  back. Do **not** re-offer "follow their column", which ADR 0058 finding 3 rejected for putting
-  `p24` at an unmanufacturable 742 mm (`docs/BACKLOG.md` entry 15).
+  back.~~ **Superseded by Amendment A** — the outcome and the step figures are right, the cost is
+  not. Do **not** re-offer "follow their column"; note that ADR 0058 finding 3's reason for rejecting
+  it — `p24` rebuilt at an unmanufacturable 742 mm — is **itself expired**, and Amendment A records
+  why.
 - **Item 9** — recommend **accept**, now on an honest premise: the two chains are each correct, the
-  gap exists at 600 as well, and nothing short of a filler body kind closes it.
+  gap exists at 600 as well, and nothing short of a filler body kind closes it. **The owner accepted
+  it on 2026-09-07 — Amendment A, decision A4.**
 
-**4. What must not happen.** Neither item may be "fixed" by editing a declaration without the wave
-behind it. Both single-declaration edits are available, both compile, and both make the shipped
-kitchen worse in a way no existing gate is written to catch — item 8's is caught by
-`seeded-equivalent-depth-agreement.test.ts` only because that gate exists; item 9's is caught by
-nothing at all.
+**4. What must not happen.** ~~Neither item may be "fixed" by editing a declaration without the wave
+behind it.~~ **Item 9** may not be "fixed" by editing a chain declaration: both single-declaration
+edits are available, both compile, and both relocate the 30 mm somewhere worse, and nothing gates
+that. **Item 8 is the opposite case** and Amendment A explains why: its declaration edit is
+*correct*, and the gate that fires on it (`seeded-equivalent-depth-agreement.test.ts`) fires on a
+premise that does not hold for a body over a full-height column.
 
 ## Alternatives considered
 
@@ -282,3 +301,197 @@ nothing at all.
   plan is written then.
 - **A third declared depth would make item 8 worse and item 9 wider**, since both costs scale with the
   distance from 600. Whoever proposes one re-reads this record first.
+
+---
+
+## Amendment A — 2026-09-07: item 8's verdict is reversed on a measurement this record got wrong, and item 9 is accepted by the owner
+
+Two owner messages arrived after this record was written. The second one made it necessary to
+re-measure item 8, and the re-measurement overturned this record's central claim about it.
+
+### A1. What this record got wrong, stated plainly before anything is built on it
+
+> **Finding 2 claimed that flipping the two pinned entries to `FOLLOWS_CABINET_DEPTH` would rebuild
+> them through `catalogEquivalentId` into a 400 mm `wall-cabinet` at 700, making the owner's own
+> complaint 2.4× worse. That is false.**
+
+The error was reading `wall-cabinet`'s catalogue `frameDepthMm` (291 at 600, 361 at 700) and assuming
+a rebuild takes it. A rebuild does not. `rebuild` (`commands/rebuild-resized-bodies.ts`) plans through
+`evaluateInsertFit`, whose `resolveDepthM` (`commands/insert-fit.ts:835`) branches:
+
+```
+if (normaliseBand(body.band) !== "wall") return buildToTheClearanceM(opening.d);
+const declaredM = columnBuildDepthM({ cabinetDepthMm, hasFullHeightUnder: column.hasFullHeightUnder });
+if (column.hasFullHeightUnder) return declaredM;          // <- the deep tops take this arm
+return shallowerBuildDepthM(declaredM, buildToTheClearanceM(recordedClearanceM(column.d)));
+```
+
+and `columnBuildDepthMm` (`cabinet-depth-rule.ts:241`) is
+`hasFullHeightUnder ? cabinetDepthLineMm(cabinetDepthMm) : wallDepthMmForWorktop(cabinetDepthMm)` —
+**the cabinet-depth line, 600 at 600 and 700 at 700.** Its own comment says why, and names these very
+bodies: ADR 0028 decision 5, *"which is what keeps the two deep top cabinets at 600 over their
+columns."*
+
+**Measured end-to-end** rather than argued, by running `derivePlacementRecords` → `deriveColumns` →
+`resolveRebuildBody` → `evaluateInsertFit` on `KITCHEN_L_DESIGN` at both declared depths, 2026-09-07:
+
+| Placement | Rebuilds as | Column `hasFullHeightUnder` | Planned depth @600 | Planned depth @700 | Planned height |
+| --- | --- | --- | --- | --- | --- |
+| `p22` `wall-2door-600-deep-top` | `wall-cabinet` | **true** | 600 | **700** | 400 |
+| `p23` `wall-2door-600-deep-top` | `wall-cabinet` | **true** | 600 | **700** | 400 |
+| `p24` `wall-2door-700-over-fridge` | `wall-cabinet` | **true** | 600 | **700** | 750 |
+| `p21` `wall-corner-return-570-top` | *(no equivalent — reseat path)* | false | — | — | — |
+| `p15` `wall-2door-600-top` | `wall-cabinet` | false | 330 | 400 | 400 |
+
+**So the mechanism the owner is asking for already exists, is already shipped, and is already
+correct.** A wall body over a full-height column builds to the cabinet-depth line; the only reason
+the three deep tops do not is that the pin stops them from being rebuilt at all. `p15`'s row is the
+control: an ordinary top over a wall cabinet still takes the map, unchanged.
+
+### A2. The identification — the owner's "top level", named
+
+> *"The issue is not with the wall cabinets, but with the cabinets that are above the wall cabinets,
+> like the top level. They don't have the correct depth, 700 depth. The wall cabinets are fine."*
+
+Every placement's finished depth, measured through `occupiedDepthOfEntryM` at both declared depths:
+
+| Band | Placements | `buildId` | Rule | @600 | @700 |
+| --- | --- | --- | --- | --- | --- |
+| Wall, y 1500 | `p8`, `p10`, `p11`, `p12`, `p14` (A), `p9` (B) | `wall-2door-600`, `wall-1door-300`, `wall-2door-800`, `open-shelf-600`, `wall-corner-return-570` | `cabinet-depth` | 330 | **400** |
+| Wall, y 1500 | `p13` (A) | `hood-600` | `cabinet-depth` | 600 | **700** |
+| Top, y 2200 | `p15`–`p20` (A) | `wall-2door-600-top`, `wall-1door-300-top`, `wall-2door-800-top` | `cabinet-depth` | 330 | **400** |
+| Top, y 2200 | `p21` (B) | `wall-corner-return-570-top` | `cabinet-depth` | 330 | **400** |
+| **Top, y 2200 / 1850** | **`p22`, `p23`, `p24` (B)** | **`wall-2door-600-deep-top`, `wall-2door-700-over-fridge`** | **`pinned`** | **600** | **600** |
+
+**Three bodies out of the twenty-five do not follow the setting, and all three are in the top row on
+wall B, over the three full-height columns.** They are exactly `p22`, `p23` and `p24`.
+
+**The owner's correction is a correction of terminology, not of target — and this record must say so
+rather than pretend to have found different bodies.** Finding 2 called them "wall cabinets over
+full-height columns", which is what their `kind` says (`wall_cabinet`) and what their ids start with;
+the owner calls them the top level, which is where they stand (y 2200 and y 1850, above the 1500 wall
+band). Both phrases name the same three placements. The owner's second sentence is what settles it:
+*"the wall cabinets are fine"* — the 1500 band goes 330 → 400 and is correct, and nobody would want a
+700 mm box hanging over a 400 mm one, so the complaint cannot be about `p15`–`p21` either.
+
+### A3. The owner's three-way discrimination — reproduced, one body down
+
+The original report marked `p22` (over the oven/microwave tower) and `p24` (over the fridge) wrong and
+`p23` (over the two-door full-height cabinet) right. Finding 2 recorded this as NOT REPRODUCED because
+`p22` and `p23` are the same `buildId` with the same declaration — which is still true, and still the
+reason it cannot be a difference between the *top cabinets*.
+
+**It reproduces as a difference between the bodies underneath them**, which are three different
+depths:
+
+| Top cabinet | Column beneath | Column @600 | Step @600 | Column @700 | Step @700 |
+| --- | --- | --- | --- | --- | --- |
+| `p22` | `tall-oven-tower-600` | 638 | 38 recessed | 738 | 138 recessed |
+| `p23` | `tall-pantry-600` | 599 | **−1 — flush** | 699 | 99 recessed |
+| `p24` | `fridge-free-700` | 742 | 142 recessed | 742 | 142 recessed |
+
+`p23` is the only one of the three that is flush today, and its step at 700 is the smallest by ~40 mm.
+So the owner's discrimination is **correct as an observation and correctly located** — they were
+reading a relationship, and the relationship genuinely differs. It is the *cause* that sits one body
+down from where it was pointed.
+
+### A4. Decision — item 9 is accepted, by the owner, on the measured cost
+
+> *"If it is a lot of work to fix these gaps, let's leave them. Let's focus on other stuff."*
+> — the owner, 2026-09-07
+
+**Item 9's 15 mm → 45 mm corner gap is ACCEPTED.** This closes it as a decision rather than leaving it
+as a status quo nobody has re-ruled.
+
+**What makes this different from ADR 0058's acceptance, which decision 1 above voided:** that one
+rested on *"a depth nothing ships at"*, which stopped being true. This one rests on the measured cost
+in Finding 3 — both chains are correct, both cheap edits relocate the 30 mm somewhere worse, closing
+it needs a filler body kind the product has no concept of (`MIN_SPAN_M` is 300 mm, so a 45 mm slot is
+invisible to every mechanism that exists), and 15 mm of it ships at 600 today so closing only 700
+would be arbitrary. **The owner met that cost and chose to keep the gap.** That reason is still true
+and does not expire with a setting.
+
+Consequently ADR 0089 decision 1 and `along-wall-chain-shift.ts`'s header sentence — *"The 30 mm it
+leaves in wall B's top row at 700 is the product's answer and not a defect to smooth away"* — are
+confirmed by an owner decision rather than merely restated.
+
+### A5. Decision — item 8's fix is small in production, and the answer to the owner is yes with one honest qualifier
+
+**The production change, in full:**
+
+1. `packages/configurator-domain/src/fixtures/kitchen-l-design.ts` — the two entries' `depthRule`
+   becomes `FOLLOWS_CABINET_DEPTH`, and their `frameDepthMm` becomes
+   `cabinetDepthMm − WALL_FRONT_ASSEMBLY_MM`. **561 at 600 — identical to today, so the shipped 600 mm
+   kitchen does not move by a micrometre** — and 661 at 700, finishing at 700.
+2. `packages/three-adapter/src/decomposed-bodies.ts` — the two cases build at the kit's own
+   `cabinetDepthM` instead of `PINNED_DEEP_TOP_DEPTH_M`.
+3. `packages/three-adapter/src/kitchen-parts.ts` — `PINNED_DEEP_TOP_DEPTH_M` becomes dead and is
+   deleted.
+
+**No new catalogue entry. No fourth `CabinetDepthRule` arm. No ADR 0028 exemption** — the exemption
+already exists as `columnBuildDepthMm`'s lifted arm, shipped, and it is the arm ADR 0028 decision 5
+wrote *for these bodies*. Every cost item Finding 2 listed under "what the version that gives the
+owner what they want costs" is withdrawn.
+
+**And the outcome is what the owner asked for**, measured: 700 mm deep tops at 700, stepping 38 mm
+against the oven tower, **−1 mm (flush)** against the pantry and 42 mm against the fridge — the same
+relationships the 600 mm kitchen has today.
+
+**The honest qualifier, so this is not oversold.** The fix is small; it is not free of consequences,
+and three are real:
+
+- **The `buildId` migrates.** After the first depth change these three placements carry
+  `wall-cabinet`. That is not new — they are `fixedWidth: false`, so a *width* change already migrates
+  them today, and `wall-cabinet` over a full-height column builds at exactly the same depth, so the
+  migration is behaviour-preserving here. But
+  `tests/fixtures/seeded-body-names.adversarial.test.ts:159`'s
+  `expect(neverMigrated).toEqual(["wall-2door-700-over-fridge"])` becomes false and must be re-ruled,
+  not just re-written.
+- **One gate fires, and its premise needs adjudicating rather than its expectation editing.**
+  `seeded-equivalent-depth-agreement.test.ts` compares a seeded row's `frameDepthMm` against its
+  equivalent's and would put 561/661 against 291/361. Its stated premise is that *"`resolveRebuildBody`
+  swaps a seeded entry for its `catalogEquivalentId` permanently… if the two rows disagree about what
+  `frameDepthMm` *means*, nothing in the system can tell."* **For a body over a full-height column that
+  premise is false** — A1's table shows the equivalent declaring 361 while the rebuild plans 700, so
+  the equivalent's `frameDepthMm` is not the number that governs. The gate needs a third exemption arm
+  for the lifted case, and *that* is a contract decision the wave owes an ADR for.
+- **The `pinned` arm of `CabinetDepthRule` empties.** With both rows unpinned no shipped body declares
+  it, which is
+  [ADR 0093](0093-a-rule-the-shipped-kitchen-cannot-exercise-owes-a-witness-not-a-moved-fixture.md)
+  decision 1 exactly: a rule the tree cannot distinguish from its own absence is unshipped. A synthetic
+  witness declared by the test is owed — ADR 0093 decision 2 already establishes the pattern — or the
+  arm is deliberately retired, which is a separate decision and not the wave's to take silently.
+
+Plus the ~16 test files that name the two build ids or `PINNED_DEEP_TOP_DEPTH_M`, three of which use
+the pin as the witness that makes an adversarial suite able to fail (`qa-6k-c-frozen-source`,
+`set-cabinet-depth.plans-against-the-frozen-extent`, `cabinet-depth-frozen-source`). Those are real
+work and they are ordinary work.
+
+> **The verdict in the owner's own terms: the fix itself is small and it does not change the 600 mm
+> kitchen at all. It is a small wave rather than a one-line edit, and the size is in re-founding three
+> test witnesses and adjudicating one gate, not in the geometry.**
+
+### A6. A second expired premise, found while re-measuring, recorded because it is load-bearing
+
+ADR 0058 finding 3 rejected making these bodies follow the setting on the grounds that *"under 'follow
+their column' at 700, `p24` would be rebuilt at **742 mm** — the exact defect `docs/BACKLOG.md` entry
+15 records."* **That reason has also expired, on a second and independent count:**
+
+- The proposal here is *follow the **setting***, not *follow their column*. It builds at the
+  cabinet-depth line (700), never at the column's 742.
+- More decisively, the 742 outcome is no longer reachable at all. `resolveDepthM`'s own comment
+  (`insert-fit.ts:808`) records that it *"reads `columnBuildDepthM`'s **declaration** and never the
+  opening's own MAX"* **since wave 6I2**, and `columnBuildDepthMm`'s comment records that the lifted
+  arm *"was implemented as 'return the opening's depth'… Wave S9 ended the coincidence."*
+  `docs/BACKLOG.md` entry 15 is filed in `resolved.md`.
+
+So **both** of ADR 0058's supports are gone: the premise that 700 mm ships nowhere (decision 1 above),
+and the cost that unpinning would build an unmanufactured depth (this section). Nothing is left holding
+the pin except the pin.
+
+### A7. What this amendment does not do
+
+It does not implement anything, and it does not schedule a wave. The owner said they would take a
+small fix; this says the fix is small and names what it costs, including the parts that are not small.
+The decision to spend the wave is theirs, and the gate adjudication in A5 is an ADR somebody owes
+before the first line is written.
