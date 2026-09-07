@@ -9,18 +9,17 @@ import { expect, test } from "@playwright/test";
  * `settings-strip-containment.desktop.e2e.spec.ts` gives for measuring both. 900 x 500 is also the
  * short viewport `--popover-top` was introduced for.
  *
- * ## Frame D2A draws a 76 px bar and this asserts 55, deliberately
+ * ## Frame D2A draws a 76 px bar, and since 2026-09-07 so does this
  *
- * The band is not free: `.screen` is a `100dvh` grid whose only flexible row is the stage, and
- * `price-bar.module.css` already tuned the desktop price cell's padding to "keep the figure's box
- * inside the 55 px the header row already measured". The frame affords 76 px because it carries the
- * settings chips, the price, the CTA **and** the locale chip in one band; ADR 0094 decision 2 moved
- * the chips into a full-width row of their own here, spending ~44 px of canvas to do it. Taking the
- * frame's height without the frame's contents would spend 21 px more and buy nothing.
+ * The band is not free: `.screen` is a `100dvh` grid whose only flexible row is the stage, so every
+ * pixel the band takes is a pixel of scene. Wave W4 asserted 55 here and recorded the deviation,
+ * because raising the band to the frame's height is an owner's call about canvas rather than an
+ * implementer's about fidelity, and nothing had ruled on it.
  *
- * So this file asserts the frame's **arrangement and typography** inside the height the row already
- * had. Raising it to 76 is an owner's call about canvas, not an implementer's about fidelity, and
- * `docs/decisions/` records no ruling on it.
+ * **The owner has now ruled: on desktop a taller top bar is fine, and the 21 px is accepted.** So
+ * this file asserts the frame's height beside its arrangement and typography, and asserts the cost
+ * as a number — the canvas is the viewport less this band and the settings strip, 21 px shorter than
+ * the base commit left it, with nothing unaccounted for in between.
  */
 
 const SCENE_SETTLE_MS = 2000;
@@ -33,8 +32,17 @@ const DESKTOP_VIEWPORTS = [
 ] as const;
 
 /** What the header band measured at the base commit, and what the price cell beside it was tuned
- *  against. Not frame D2A's 76 — see the note above. */
+ *  against. Kept as the figure the ruled cost below is measured from. */
 const BAND_HEIGHT_AT_BASE_COMMIT_PX = 55;
+
+/** Frame D2A's own bar, taken on the owner's 2026-09-07 ruling: `17.5 + 40 + 17.5` of padding around
+ *  the locale chip, plus the band's 1 px rule (`configure.module.css`). */
+const RULED_BAND_HEIGHT_PX = 76;
+
+/** What the ruling spends. The stage is `.screen`'s only flexible row, so the band's gain is the
+ *  canvas's loss, at every desktop width. */
+const RULED_CANVAS_COST_PX =
+  RULED_BAND_HEIGHT_PX - BAND_HEIGHT_AT_BASE_COMMIT_PX;
 
 const SUB_PIXEL_SLACK = 0.5;
 
@@ -79,14 +87,15 @@ async function measureScreen(page: import("@playwright/test").Page) {
 
 for (const viewport of DESKTOP_VIEWPORTS)
   test.describe(`at ${String(viewport.width)} x ${String(viewport.height)}`, () => {
-    test("keeps the band at the height the row already had", async ({
+    test("draws the band at frame D2A's own 76 px, as the owner ruled", async ({
       page,
     }) => {
       await page.setViewportSize(viewport);
       const measured = await measureScreen(page);
 
-      expect(measured.header).toBe(BAND_HEIGHT_AT_BASE_COMMIT_PX);
-      // Frame D2A's chip, at its own drawn height, inside that band.
+      expect(measured.header).toBe(RULED_BAND_HEIGHT_PX);
+      // Frame D2A's chip, at its own drawn height, centred in that band. The chip is unchanged by
+      // the ruling: the band grew around it, which is how the frame itself draws the two.
       expect(measured.chip.height).toBe(40);
     });
 
@@ -111,13 +120,22 @@ for (const viewport of DESKTOP_VIEWPORTS)
       // The wordmark, the pill and the title all take `flex: 0 0 auto` on this shell, so the header
       // cell has to be wide enough for them beside the price cell. At 900 that is the tight case,
       // and this is the assertion that fails if it stops being true.
+      //
+      // **The 76 px ruling does not relieve this and does not worsen it.** The row is a single
+      // `align-items: center` line: its min-content width is the three fixed items, two 20 px gaps,
+      // the chip and the 36 px inset, none of which the ruling touches, and the band's extra height
+      // is not a currency width can spend. If it ever does fail here, the wordmark is the item that
+      // would have to give — it is the only child of the row that carries no state (the pill is the
+      // step, the title is the screen, the chip is the locale) and it is 15 px of type at 0.22em
+      // tracking, the widest fixed item after the title. Dropping it is a copy decision under the
+      // owner's Gate O1, not an implementer's, so this stays an assertion rather than a workaround.
       await page.setViewportSize(viewport);
       const measured = await measureScreen(page);
 
       expect(measured.clippedSpans).toEqual([]);
     });
 
-    test("leaves the scene's canvas no shorter than the base commit left it", async ({
+    test("leaves the scene the viewport less the two bands, 21 px shorter than the base commit by decision", async ({
       page,
     }) => {
       await page.setViewportSize(viewport);
@@ -131,7 +149,15 @@ for (const viewport of DESKTOP_VIEWPORTS)
         BAND_HEIGHT_AT_BASE_COMMIT_PX -
         measured.settings;
 
-      expect(measured.canvas).toBeGreaterThanOrEqual(canvasAtBaseCommit);
+      // An equality, not a floor: a floor is satisfied by any canvas at all once the band is allowed
+      // to grow, and the ruling bought a **known** 21 px rather than an open-ended one.
+      expect(measured.canvas).toBeCloseTo(
+        canvasAtBaseCommit - RULED_CANVAS_COST_PX,
+        0,
+      );
+      // And the partition, unchanged by the ruling and still the point: the canvas and the bands
+      // account for the whole viewport, so a third band appearing by accident is caught here rather
+      // than by someone noticing the scene looks short.
       expect(measured.header + measured.settings + measured.canvas).toBeCloseTo(
         measured.viewport.height,
         0,

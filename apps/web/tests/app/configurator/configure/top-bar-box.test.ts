@@ -1,12 +1,12 @@
-// The top bar refreshed against the owner's updated export (wave W4), and the one thing the refresh
-// must not cost: **canvas**.
+// The top bar refreshed against the owner's updated export (wave W4), and what the refresh costs:
+// **canvas**.
 //
 // `.screen` is a `100dvh` grid whose only flexible row is the stage, so every pixel the header band
-// gains is a pixel the scene loses — and `price-bar.module.css` already tuned the desktop price
-// cell's padding to "keep the figure's box inside the 55 px the header row already measured". Frame
-// D2A draws a **76 px** bar, but it draws the settings chips, the price, the CTA and the locale chip
-// inside it; ADR 0094 decision 2 moved the chips to a row of their own here, so taking the frame's
-// height without the frame's contents would spend 21 px of scene at every desktop width.
+// gains is a pixel the scene loses. Wave W4 could not settle the desktop height on its own — frame
+// D2A draws **76 px** while the invariant it was given said the stage must lose nothing — so it
+// shipped the frame's arrangement inside the 55 px the row already measured and wrote the deviation
+// down. **The owner ruled on 2026-09-07 that on desktop a taller top bar is fine**, so the desktop
+// band is now the frame's own 76 and the scene is 21 px shorter at every desktop width by decision.
 //
 // No type spans that arithmetic — it is a stylesheet — so this file reads the declarations back out
 // as text and adds them up, exactly as `price-bar-layout.test.ts` reads the bar's own. The browser
@@ -44,8 +44,17 @@ const roSource = readFileSync(
 /** What the band measured before the refresh: `16 + 14` (the back link's line) `+ 9 + 3` (the gap
  *  and the progress bar) `+ 12 + 1`. It is quoted in `price-bar.module.css` as the budget the
  *  desktop price cell's 9 px padding was chosen against, so it is a number two files agree on
- *  rather than one this test invented. */
+ *  rather than one this test invented. On desktop it is now a historical figure — see the ruled
+ *  height below — and on mobile it is the ceiling the refreshed band came in under. */
 const HEIGHT_AT_BASE_COMMIT_PX = 55;
+
+/** Frame D2A's own bar, taken on the owner's 2026-09-07 ruling: `17.5 + 40 + 17.5` of padding around
+ *  the locale chip, plus the band's 1 px rule. */
+const RULED_DESKTOP_HEIGHT_PX = 76;
+
+/** What the ruling spends, stated as a number so it cannot be spent twice. The stage is the only
+ *  flexible row, so this is the canvas's loss at every desktop width. */
+const RULED_CANVAS_COST_PX = 21;
 
 /** The `@media (min-width: 900px)` branch is the desktop shell; everything above it is the mobile
  *  one. Split rather than parsed, because a nested-brace parser is more machinery than one
@@ -166,11 +175,19 @@ describe("the top bar's box, which the scene pays for", () => {
     expect(headerHeight("mobile")).toBeLessThan(HEIGHT_AT_BASE_COMMIT_PX);
   });
 
-  it("is exactly the 55 px the desktop row already measured, not frame D2A's 76", () => {
-    // The criterion this file exists for. 76 would be the frame's number and would cost the canvas
-    // 21 px at every desktop width, because ADR 0094 decision 2 already moved the chips the frame
-    // fits inside that 76 into a band of their own.
-    expect(headerHeight("desktop")).toBe(HEIGHT_AT_BASE_COMMIT_PX);
+  it("is frame D2A's own 76 px on desktop, which the owner ruled on 2026-09-07", () => {
+    // The criterion this file exists for, and the one W4 left open. The frame's height is taken and
+    // the canvas pays for it.
+    expect(headerHeight("desktop")).toBe(RULED_DESKTOP_HEIGHT_PX);
+  });
+
+  it("costs the desktop canvas exactly the 21 px the ruling accepted, and no more", () => {
+    // The cost is asserted rather than described, so a later padding edit that quietly spends a
+    // twenty-second pixel of scene fails here. The stage is `.screen`'s only flexible row, so what
+    // this band gains above its base-commit box is what the canvas loses.
+    expect(headerHeight("desktop") - HEIGHT_AT_BASE_COMMIT_PX).toBe(
+      RULED_CANVAS_COST_PX,
+    );
   });
 
   it("is the element that sets the desktop row's height, so the price cell cannot mask a change", () => {
@@ -193,8 +210,26 @@ describe("the top bar's box, which the scene pays for", () => {
     // Pinned as well as compared, so a parse that silently read nothing cannot pass this by
     // computing 1. `9 + 9` of padding around `10.5 + 3 + 21` of figure, plus the rule: 53.5, which
     // is the box `price-bar.module.css`'s own comment says the 9 px was chosen to produce.
+    //
+    // **The 9 px no longer constrains the scene, and the comparison is not thereby vacuous.** At the
+    // base commit's 55 the cell cleared the header by 1.5 px and the padding was forced; at the
+    // ruled 76 it clears by 22.5 and the padding is a free choice. What the comparison proves is
+    // unchanged and is the reason the arithmetic above is worth reading at all: the header is the
+    // taller of the two grid items, so the row's height is the header's. Strict, because a cell that
+    // merely tied would already be setting the row.
     expect(priceCell).toBe(53.5);
-    expect(priceCell).toBeLessThanOrEqual(headerHeight("desktop"));
+    expect(priceCell).toBeLessThan(headerHeight("desktop"));
+  });
+
+  it("stretches the price cell to the ruled band, so the top bar keeps one unbroken rule", () => {
+    // The header and the price cell each draw a `border-bottom`, and across the top bar the two are
+    // read as one line. A centred 53.5 px cell hangs its rule at its own box's foot: 0.75 px above
+    // the header's at the base commit's 55, which nobody could see, and 11.25 px above it at the
+    // ruled 76, which everybody can.
+    const priceRow = declarationsOf(DESKTOP_CSS, "priceRow");
+
+    expect(priceRow).toContain("align-items: stretch;");
+    expect(priceRow).not.toContain("align-items: center;");
   });
 
   it("takes the locale chip as its tallest child on both shells", () => {
