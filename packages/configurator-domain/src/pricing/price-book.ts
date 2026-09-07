@@ -349,9 +349,10 @@ export interface PricedBody {
  *  than guessing. Never `NaN`, never a partial answer.
  *
  *  **Throws `MalformedPriceCoefficientError`** for a shape it does know carrying a coefficient that
- *  is not an exact count of minor units. The two are different facts about a book — a shape nothing
- *  implements, and a number that is not one — and a caller that must name them apart cannot do so
- *  from a single `undefined`.
+ *  is not an exact count of minor units, and `InexactPriceArithmeticError` where the coefficients
+ *  are each exact but a product or a running sum of them is not. The three are different facts about
+ *  a book — a shape nothing implements, a number that is not one, and an arithmetic the machine
+ *  cannot perform — and a caller that must name them apart cannot do so from a single `undefined`.
  *
  *  The parameter is typed **wider than a rule declares it**, for the reason `cabinet-handles.ts`
  *  widens its own: the whole point of ADR 0062 seam 1 is that the book comes from somewhere else,
@@ -363,17 +364,23 @@ export function amountForBody(
 ): number | undefined {
   switch (formula?.shape) {
     case "linear-in-width":
-      return widthTerm(formula, body);
+      return exactlySummed(widthTerms(formula, body));
     case "linear-in-width-and-door-leaves":
-      return widthTerm(formula, body) + doorLeafTerm(formula, body);
+      return exactlySummed([
+        ...widthTerms(formula, body),
+        doorLeafTerm(formula, body),
+      ]);
     case "linear-in-width-and-height":
-      return widthTerm(formula, body) + heightTerm(formula, body);
+      return exactlySummed([
+        ...widthTerms(formula, body),
+        heightTerm(formula, body),
+      ]);
     case "linear-in-width-height-and-door-leaves":
-      return (
-        widthTerm(formula, body) +
-        heightTerm(formula, body) +
-        doorLeafTerm(formula, body)
-      );
+      return exactlySummed([
+        ...widthTerms(formula, body),
+        heightTerm(formula, body),
+        doorLeafTerm(formula, body),
+      ]);
     // A shape this build does not implement — including a **declared** one somebody added above
     // without an arm, which is what the fourth shape did on its way in. TypeScript does not catch
     // that here, because a missing arm is not a type error when the default returns; what catches it
@@ -384,35 +391,106 @@ export function amountForBody(
   }
 }
 
-/** The two coefficients every shape shares, so a shape that adds a term states only what it adds. */
-function widthTerm(coefficients: WidthCoefficients, body: PricedBody): number {
-  return (
-    usableCoefficientOf(coefficients.baseMinor, "baseMinor") +
-    usableCoefficientOf(
-      coefficients.perWidthMillimetreMinor,
-      "perWidthMillimetreMinor",
-    ) *
-      body.widthMm
-  );
+/** The two terms every shape shares — the base and what width adds — so a shape that adds a term
+ *  states only what it adds. Two values rather than their sum, because the sum is taken once, over
+ *  every one of the shape's terms, by the checked addition below. */
+function widthTerms(
+  coefficients: WidthCoefficients,
+  body: PricedBody,
+): readonly number[] {
+  return [
+    usableCoefficientOf(coefficients.baseMinor, "baseMinor"),
+    exactlyMultiplied({
+      coefficientMinor: usableCoefficientOf(
+        coefficients.perWidthMillimetreMinor,
+        "perWidthMillimetreMinor",
+      ),
+      count: body.widthMm,
+      field: "perWidthMillimetreMinor",
+    }),
+  ];
 }
 
 function heightTerm(coefficients: HeightCoefficient, body: PricedBody): number {
-  return (
-    usableCoefficientOf(
+  return exactlyMultiplied({
+    coefficientMinor: usableCoefficientOf(
       coefficients.perHeightMillimetreMinor,
       "perHeightMillimetreMinor",
-    ) * body.heightMm
-  );
+    ),
+    count: body.heightMm,
+    field: "perHeightMillimetreMinor",
+  });
 }
 
 function doorLeafTerm(
   coefficients: DoorLeafCoefficient,
   body: PricedBody,
 ): number {
-  return (
-    usableCoefficientOf(coefficients.perDoorLeafMinor, "perDoorLeafMinor") *
-    body.doorLeafCount
-  );
+  return exactlyMultiplied({
+    coefficientMinor: usableCoefficientOf(
+      coefficients.perDoorLeafMinor,
+      "perDoorLeafMinor",
+    ),
+    count: body.doorLeafCount,
+    field: "perDoorLeafMinor",
+  });
+}
+
+/**
+ * **A term the machine cannot form exactly**, refused instead of returned.
+ *
+ * `Number.isSafeInteger` on the *result* is the whole test and it is exact in both directions: two
+ * safe integers whose product or sum is below 2^53 are multiplied and added without error, and a
+ * result at or above 2^53 is not a safe integer whatever rounding did to it.
+ *
+ * **The final amount cannot stand in for this, which is what M6-AUD-015 measured.** A `wall-cabinet`
+ * rule with a base of 1 and two coefficients that cancel exactly in integer arithmetic prices at 1;
+ * in floating point the base is lost in the addition and the cancellation yields `0`, which is a
+ * perfectly exact, non-negative safe integer, so every downstream guard accepts it. What is wrong
+ * with it is not the number it ended at but the arithmetic that got there.
+ *
+ * **Both layers, deliberately** (M6-AUD-015): `MAX_PRICE_COEFFICIENT_MINOR` keeps every legal book
+ * far from this ceiling, and this keeps a loosened bound from ever publishing a wrong figure.
+ */
+export class InexactPriceArithmeticError extends Error {
+  constructor(operation: {
+    readonly describedAs: string;
+    readonly reached: number;
+  }) {
+    super(
+      `Pricing ${operation.describedAs} reached ${String(operation.reached)}, which JavaScript ` +
+        `cannot hold as an exact count of minor units.`,
+    );
+    this.name = "InexactPriceArithmeticError";
+  }
+}
+
+/** One coefficient against the quantity it is charged for. */
+function exactlyMultiplied(term: {
+  readonly coefficientMinor: number;
+  readonly count: number;
+  readonly field: PriceCoefficientField;
+}): number {
+  const product = term.coefficientMinor * term.count;
+  if (Number.isSafeInteger(product)) return product;
+  throw new InexactPriceArithmeticError({
+    describedAs: `"${term.field}" × ${String(term.count)}`,
+    reached: product,
+  });
+}
+
+/** Every term of one shape, added **and checked at each step**. A running total is what a
+ *  cancellation hides in: checking only the final sum accepts a pair of terms that overflowed on
+ *  their way to a small answer. */
+function exactlySummed(terms: readonly number[]): number {
+  return terms.reduce((total, term) => {
+    const running = total + term;
+    if (Number.isSafeInteger(running)) return running;
+    throw new InexactPriceArithmeticError({
+      describedAs: "a sum of formula terms",
+      reached: running,
+    });
+  }, 0);
 }
 
 /** Every amount the book states as a number a price is computed from — every coefficient any shape
@@ -496,11 +574,16 @@ export function usableCoefficientOf(
 }
 
 /** Every rule id in a book, in the order it is declared — cabinet rules, then the tiers, then the
- *  accessories. What the query sweeps for duplicates, since a repeated id makes a line untraceable
- *  to one rule.
+ *  accessories. What `parse-price-book.ts` sweeps for duplicates, since a repeated id makes a line
+ *  untraceable to one rule.
  *
  *  **The accessories are swept like everything else**, so two rules sharing an id *anywhere* in the
- *  book is `INVALID_PRICE_BOOK` rather than a rule family nobody checked. */
+ *  book is `INVALID_PRICE_BOOK` rather than a rule family nobody checked.
+ *
+ *  The three lists are dereferenced bare, and that is safe **only because the parser establishes
+ *  they are lists before it calls this** — it is the reason the parser's section checks run before
+ *  its semantic ones, and the reason this sweep is no longer reachable from an unparsed book
+ *  (M6-AUD-002). */
 export function listRuleIds(book: PriceBook): readonly string[] {
   return [
     ...book.cabinetRules.map((rule) => rule.ruleId),

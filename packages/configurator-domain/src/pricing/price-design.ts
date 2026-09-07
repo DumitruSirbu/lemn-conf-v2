@@ -36,13 +36,11 @@ import { findOverflowingPlacementIds } from "../queries/overflowing-placements.j
 import { findSinkAccessories } from "../queries/sink-accessories.js";
 import type { BodyCatalog, BodyDefinition } from "../void-engine.js";
 
+import { parsePriceBook } from "./parse-price-book.js";
 import {
   ACCESSORY_IDS,
   accessoryRuleOf,
   amountForBody,
-  listRuleIds,
-  PRICE_BOOK_CURRENCY,
-  PRICE_BOOK_STATUSES,
   usableCoefficientOf,
   type AccessoryId,
   type AccessoryRule,
@@ -50,7 +48,6 @@ import {
   type HardwareTier,
   type MaterialTier,
   type PriceBook,
-  type PriceBookStatus,
   type PriceCoefficientField,
   type PricedBody,
   type TierGroup,
@@ -162,105 +159,21 @@ function refuseUnusableRequest(
   );
 }
 
-/** What the book has to be before any of it is read, in the order it has always been asked: what it
- *  says about itself, then what its rules say about each other. */
+/**
+ * **What the book has to be before any of it is read** — every check `parse-price-book.ts` makes,
+ * asked once, here.
+ *
+ * It used to be a list of refusals written against a `PriceBook` parameter, each of which
+ * dereferenced the section it was about. `refuseRepeatedRuleId` reaching `book.hardware.tiers.map`
+ * meant a book missing its `hardware` section threw a `TypeError` **out of the function whose whole
+ * job is to reject malformed books** (M6-AUD-002), during render, with no error boundary above it.
+ * The declared type is what a caller promises, and ADR 0062 seam 1 is the seam that cannot keep the
+ * promise; the parser is what turns it into a fact, so this query's success-or-refusal contract
+ * holds for **any** input.
+ */
 function refuseUnusableBook(book: PriceBook): PricingFailure | undefined {
-  return (
-    refuseForeignCurrency(book) ??
-    refuseUndeclaredStatus(book) ??
-    refuseUndeclaredProvisionalFlag(book) ??
-    refuseRepeatedRuleId(book) ??
-    refuseRowPricedTwice(book)
-  );
-}
-
-function refuseForeignCurrency(book: PriceBook): PricingFailure | undefined {
-  // Read as a plain string, because a book supplied from outside TypeScript can carry any currency
-  // it likes and this is the boundary that says so. The declared type is what a caller *promises*;
-  // this is what the value is.
-  const currency: string = book.currency;
-  if (currency === PRICE_BOOK_CURRENCY) return undefined;
-  return failWith(
-    "INVALID_PRICE_BOOK",
-    `Book currency "${currency}" is not ${PRICE_BOOK_CURRENCY}`,
-  );
-}
-
-/** Read as `unknown` for the same reason the currency is read as a plain string, and refused for
- *  the same reason the flag below is. The status is **carried onto the priced result rather than
- *  acted on here**, so a book declaring `"Commercial"` or `null` publishes a `PricedDesign` whose
- *  status no surface anticipates — and which way that fails depends on how a surface happens to
- *  spell one equality. `status === "commercial"` fails safe; `status !== "estimate"` presents an
- *  estimate as a commercial offer. Neither spelling should be load-bearing, so the value is held to
- *  the union here instead. */
-function refuseUndeclaredStatus(book: PriceBook): PricingFailure | undefined {
-  const declared: unknown = book.status;
-  if (isDeclaredStatus(declared)) return undefined;
-  return failWith(
-    "INVALID_PRICE_BOOK",
-    `Book declares no "status", which is one of ${PRICE_BOOK_STATUSES.join(", ")}. ` +
-      `Found: ${declared === undefined ? "nothing" : JSON.stringify(declared)}`,
-  );
-}
-
-function isDeclaredStatus(declared: unknown): declared is PriceBookStatus {
-  return (
-    typeof declared === "string" &&
-    (PRICE_BOOK_STATUSES as readonly string[]).includes(declared)
-  );
-}
-
-/** Read as `unknown` for the same reason the currency is read as a plain string. The flag is
- *  **carried onto the priced result rather than acted on here**, so a book that omits it would
- *  publish an `undefined` that every surface reads as `false` — "these amounts have been costed" —
- *  which is the one direction this flag must never fail in. Refused rather than defaulted: a
- *  default would be this module deciding a fact about a book only its author knows. */
-function refuseUndeclaredProvisionalFlag(
-  book: PriceBook,
-): PricingFailure | undefined {
-  const declared: unknown = book.amountsProvisional;
-  if (typeof declared === "boolean") return undefined;
-  return failWith(
-    "INVALID_PRICE_BOOK",
-    `Book declares no "amountsProvisional" flag, which is a boolean. ` +
-      `Found: ${declared === undefined ? "nothing" : JSON.stringify(declared)}`,
-  );
-}
-
-function refuseRepeatedRuleId(book: PriceBook): PricingFailure | undefined {
-  // A repeated rule id makes a line untraceable to one rule, which is the whole point of carrying
-  // the id on the line.
-  const duplicated = firstDuplicate(listRuleIds(book));
-  if (duplicated !== undefined) {
-    return failWith(
-      "INVALID_PRICE_BOOK",
-      `Rule id "${duplicated}" is declared more than once`,
-      { id: duplicated },
-    );
-  }
-  return undefined;
-}
-
-function refuseRowPricedTwice(book: PriceBook): PricingFailure | undefined {
-  // **A second rule for one catalogue row is not a redundancy — it is a book that does not say what
-  // the cabinet costs**, and the two rules carry distinct ids, so the sweep above passes it. Without
-  // this, `indexRulesByBuildId`'s `Map` keeps whichever came last and nothing anywhere says so.
-  //
-  // The population it bites is ADR 0062's manufacturer dashboard, whose whole purpose is editing
-  // prices: "price this cabinet differently" is a plausible edit for a non-developer to make by
-  // *adding* a rule rather than changing one, and it would succeed silently. Since ADR 0068 the two
-  // rules can also differ in **shape**, so the discarded one is likelier to be the intended one.
-  const pricedTwice = firstDuplicate(
-    book.cabinetRules.map((rule) => rule.buildId),
-  );
-  if (pricedTwice !== undefined) {
-    return failWith(
-      "INVALID_PRICE_BOOK",
-      `Catalogue row "${pricedTwice}" is priced by more than one rule`,
-      { id: pricedTwice },
-    );
-  }
-  return undefined;
+  const parsed = parsePriceBook(book);
+  return parsed.ok ? undefined : parsed.failure;
 }
 
 function refuseVersionMismatch(
@@ -552,6 +465,9 @@ function priceWholeKitchen(
   return { value: [hardwareLine.value, materialLine.value] };
 }
 
+/** **`find` is safe here only because the book was parsed**: two tiers sharing an id would resolve to
+ *  whichever was declared first, making a customer's price depend on the book's typing order
+ *  (M6-AUD-003). `refuseRepeatedTierId` is what makes that unreachable, across both groups. */
 function selectTier<TTier extends TierIdentity>(
   group: TierGroup<TTier>,
   chosenTierId: string | undefined,
@@ -868,15 +784,6 @@ function indexRulesByBuildId(
   rules: readonly CabinetPriceRule[],
 ): ReadonlyMap<string, CabinetPriceRule> {
   return new Map(rules.map((rule) => [rule.buildId, rule]));
-}
-
-function firstDuplicate(ids: readonly string[]): string | undefined {
-  const seen = new Set<string>();
-  for (const id of ids) {
-    if (seen.has(id)) return id;
-    seen.add(id);
-  }
-  return undefined;
 }
 
 /** An amount is a whole count of minor units. A fraction is not a surprising price — it is one
