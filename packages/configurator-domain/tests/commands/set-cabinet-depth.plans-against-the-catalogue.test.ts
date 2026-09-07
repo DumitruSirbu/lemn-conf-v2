@@ -84,8 +84,13 @@ const STUCK_PLACEMENT_IDS = ["p8", "p10", "p15", "p16"] as const;
 const UNTOUCHED_DEPTHS_AT_700_MM: ReadonlyMap<string, number> = new Map([
   ["p11", 720],
   ["p5", 738],
-  ["p6", 699],
-  // The freestanding fridge: a manufactured size, and the column ADR 0058's pinned top stands in.
+  // **700 since ADR 0101, and it is the top rather than the pantry that states it.** The pantry
+  // finishes at 699 and `p23` above it at 700, so the column's §3.2 MAX is the top's by one
+  // millimetre — the "flush" relationship ADR 0058 measured at 600, restored at 700. It read 699
+  // while `p23` was pinned at 600.
+  ["p6", 700],
+  // The freestanding fridge: a manufactured size, and the deepest member of its column at every
+  // setting — 742 against the 700 mm top above it.
   ["p7", 742],
 ]);
 
@@ -321,11 +326,16 @@ describe("what the clearing must not reach", () => {
     }
   });
 
-  // ADR 0058's two deliberately deep tops, on every path rather than on one change — the existing
-  // wave 6J-b suite asserts the single change, and this asserts that a route through the shallow
-  // setting does not reach them either.
-  it("leaves ADR 0058's pinned tops exactly as they were, on every path", () => {
-    const pinnedIds = ["p22", "p23", "p24"] as const;
+  // **The three deep tops, on every path rather than on one change** — the existing wave 6J-b suite
+  // asserts the single change, and this asserts that a route through the shallow setting lands them
+  // in the same place.
+  //
+  // It read *"leaves ADR 0058's pinned tops exactly as they were"* until 2026-09-07. ADR 0101
+  // unpinned them: their depth is answered by `columnBuildDepthM`'s lifted arm, because each hangs
+  // over a full-height column, so a walked route must leave them at the cabinet-depth line and a
+  // route back through 600 must return them to it.
+  it("lands the three deep tops on the cabinet-depth line, on every path", () => {
+    const deepTopIds = ["p22", "p23", "p24"] as const;
 
     const walked = [
       DEFAULT_CABINET_DEPTH_MM,
@@ -333,10 +343,17 @@ describe("what the clearing must not reach", () => {
       DEFAULT_CABINET_DEPTH_MM,
       DEEPER_MM,
     ].reduce(changeTo, KITCHEN_L_DESIGN);
+    const home = changeTo(walked, DEFAULT_CABINET_DEPTH_MM);
 
-    for (const id of pinnedIds) {
-      expect(bodyOf(walked, id), id).toStrictEqual(
-        bodyOf(KITCHEN_L_DESIGN, id),
+    for (const id of deepTopIds) {
+      expect(seatMm(walked, id), id).toBe(DEEPER_MM - WALL_FRONT_ASSEMBLY_MM);
+      // Deliberately not the map row: a wall body over a lifted column is deeper than a wall
+      // cabinet, and reading the map here is the regression this rules out.
+      expect(seatMm(walked, id), id).not.toBe(
+        wallCarcassSeatDepthMm(DEEPER_MM),
+      );
+      expect(seatMm(home, id), id).toBe(
+        DEFAULT_CABINET_DEPTH_MM - WALL_FRONT_ASSEMBLY_MM,
       );
     }
   });
@@ -347,8 +364,10 @@ describe("what the clearing must not reach", () => {
   // clearing because `resolveDepthM`'s lifted arm reads `column.hasFullHeightUnder`, never
   // `column.d`, and which members stand there is not something clearing a seat can change.
   //
-  // The seeded fixture has no such body — its two deep tops are ADR 0058 pins, which do not follow
-  // the setting at all — so one is placed here rather than inferred.
+  // **The witness is declared here rather than borrowed from the seeded kitchen** (ADR 0093
+  // decision 2). The fixture does now hold three such bodies since ADR 0101 unpinned its deep tops,
+  // and this stays declared anyway: a criterion whose ability to fail depends on which bodies the
+  // demo happens to carry has an undeclared coupling.
   it("rebuilds a wall cabinet over a full-height column to the cabinet-depth line", () => {
     const overTheOvenTower = withAFollowingTopOverTheOvenTower();
 
@@ -366,8 +385,9 @@ describe("what the clearing must not reach", () => {
   });
 });
 
-/** The fixture with `p22` — the pinned deep top standing over the oven tower in `B|1.20` — swapped
- *  for the entry that *does* follow the setting, at the same width and height. */
+/** The fixture with `p22` — the deep top standing over the oven tower in `B|1.20` — swapped for an
+ *  ordinary top, at the same width and height. Since ADR 0101 both rows follow the setting; they
+ *  differ in *which* arm answers, which is the whole subject of the test below. */
 function withAFollowingTopOverTheOvenTower(): Design {
   return {
     ...KITCHEN_L_DESIGN,
