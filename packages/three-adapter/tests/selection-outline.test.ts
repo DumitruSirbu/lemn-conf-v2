@@ -2,8 +2,11 @@
 // it that is decidable without a GPU: that it traces the body's **own** edges rather than a box
 // around it, that a hidden mesh contributes none, that it lands on the target through whatever
 // transform its parent carries, that a void's outline sits on the void's frame and is dashed while
-// a body's is solid, that neither pass can be raycast (§6.1), and that disposing it releases
-// everything it owns.
+// a body's is solid, that no pass can be raycast (§6.1), and that disposing it releases everything
+// it owns.
+//
+// Since wave 6V it also carries the one part of the *contrast* claim that is decidable without a
+// GPU: the outline is two colours, and the bound below says no single flat front can be near both.
 //
 // What is *not* decidable here is whether a customer can see it, which is why
 // `apps/web/tests/e2e/editor-rail.desktop.e2e.spec.ts` counts its pixels in a real render.
@@ -18,6 +21,9 @@ import {
   buildSelectionOutline,
   disposeSelectionOutline,
   SELECTION_HIGHLIGHT_COLOR,
+  SELECTION_OUTLINE_CASING_COLOR,
+  SELECTION_OUTLINE_CASING_WIDTH_PX,
+  SELECTION_OUTLINE_WIDTH_PX,
 } from "../src/selection-outline.js";
 import { isMesh } from "../src/three-guards.js";
 import { buildVoidMesh, NOOP_RAYCAST } from "../src/void-mesh.js";
@@ -32,6 +38,25 @@ const VOID_MARGIN_M = 0.014;
  *  carcass, fronts and handles draws very many more, so this is the number that separates "the
  *  body's form" from "a box around it". */
 const BOUNDING_BOX_SEGMENTS = 12;
+
+/** `editor-rail.desktop.e2e.spec.ts`'s `HIGHLIGHT_TOLERANCE`: the radius inside which that spec's
+ *  legacy colour counter treats two colours as the same colour. Restated here because it is the
+ *  yardstick the casing's bound is measured against, not a value this file owns. */
+const HIGHLIGHT_TOLERANCE = 60;
+
+type Rgb = readonly [number, number, number];
+
+function rgbOf(packed: number): Rgb {
+  return [(packed >> 16) & 0xff, (packed >> 8) & 0xff, packed & 0xff];
+}
+
+function distanceBetween(one: Rgb, other: Rgb): number {
+  return Math.hypot(
+    one[0] - other[0],
+    one[1] - other[1],
+    one[2] - other[2],
+  );
+}
 
 let kit: Kit;
 
@@ -186,31 +211,99 @@ describe("buildSelectionOutline", () => {
     expect(outlineOrigin.distanceTo(bodyOrigin)).toBeLessThan(1e-9);
   });
 
-  it("draws one depth-tested pass and one that ignores depth, both in the highlight colour", () => {
-    const { visibleLine, occludedLine } = buildSelectionOutline({
+  it("draws two depth-tested passes and one that ignores depth, and the ghost is the faintest", () => {
+    const { visibleLine, casingLine, occludedLine } = buildSelectionOutline({
       target: makeBody(),
       parent: new THREE.Group(),
       kind: "placement",
     });
 
     expect(visibleLine.material.depthTest).toBe(true);
+    expect(casingLine.material.depthTest).toBe(true);
     expect(occludedLine.material.depthTest).toBe(false);
-    // The occluded pass must stay behind the solid one in the draw order, or the faint line would
-    // paint over the crisp one on every pixel where the body is actually visible.
-    expect(occludedLine.renderOrder).toBeLessThan(visibleLine.renderOrder);
+    // The occluded pass must stay behind the solid ones in the draw order, or the faint line would
+    // paint over the crisp one on every pixel where the body is actually visible; and the casing
+    // must stay behind the core, or the wider black line would swallow the red it exists to frame.
+    expect(occludedLine.renderOrder).toBeLessThan(casingLine.renderOrder);
+    expect(casingLine.renderOrder).toBeLessThan(visibleLine.renderOrder);
     expect(occludedLine.material.opacity).toBeLessThan(
       visibleLine.material.opacity,
     );
-    for (const material of [visibleLine.material, occludedLine.material]) {
-      expect(material.color.getHex()).toBe(SELECTION_HIGHLIGHT_COLOR);
+    expect(visibleLine.material.color.getHex()).toBe(SELECTION_HIGHLIGHT_COLOR);
+    expect(occludedLine.material.color.getHex()).toBe(
+      SELECTION_HIGHLIGHT_COLOR,
+    );
+    expect(casingLine.material.color.getHex()).toBe(
+      SELECTION_OUTLINE_CASING_COLOR,
+    );
+    for (const material of [
+      visibleLine.material,
+      casingLine.material,
+      occludedLine.material,
+    ]) {
       // The scene is ACES tone-mapped; an interface colour that goes through it is not the colour
       // that was chosen (`selection-outline.ts`).
       expect(material.toneMapped).toBe(false);
     }
   });
 
-  it("installs the exact no-op raycast function on both passes", () => {
-    const { visibleLine, occludedLine } = buildSelectionOutline({
+  it("leaves the casing showing as a rim on both sides of the core", () => {
+    const { visibleLine, casingLine } = buildSelectionOutline({
+      target: makeBody(),
+      parent: new THREE.Group(),
+      kind: "placement",
+    });
+
+    // `LineSegments2` sizes its quads in **screen** pixels, so this difference is the rim in
+    // pixels and it does not shrink with the body's distance from the camera. Two on each side.
+    const rimPx =
+      (casingLine.material.linewidth - visibleLine.material.linewidth) / 2;
+    expect(rimPx).toBe(2);
+    expect(casingLine.material.linewidth).toBe(SELECTION_OUTLINE_CASING_WIDTH_PX);
+    expect(visibleLine.material.linewidth).toBe(SELECTION_OUTLINE_WIDTH_PX);
+    // Same edges, one buffer: the casing traces the body's form rather than a box around it, for
+    // the same reason the core does.
+    expect(casingLine.geometry).toBe(visibleLine.geometry);
+  });
+
+  /**
+   * **The product claim wave 6V exists for**, and it is a fact about the two constants rather than
+   * about the fixture: MDF's RAL picker admits every six-digit hex (ADR 0078 decision 1), so the
+   * front under the outline may be *any* colour in the cube. Swept over the whole cube at a stride
+   * of 3, the nearest a single flat colour gets to both passes at once is bounded below.
+   *
+   * 60 is `editor-rail.desktop.e2e.spec.ts`'s `HIGHLIGHT_TOLERANCE` — the radius at which two
+   * colours are considered the same colour by the instrument that used to count this outline. The
+   * measured floor is far above it, which is what "a front cannot equal both" means numerically.
+   */
+  it("keeps at least one pass far from every colour a front can be painted", () => {
+    const highlight = rgbOf(SELECTION_HIGHLIGHT_COLOR);
+    const casing = rgbOf(SELECTION_OUTLINE_CASING_COLOR);
+
+    let closestAnyFrontGetsToBoth = Number.POSITIVE_INFINITY;
+    for (let red = 0; red < 256; red += 3)
+      for (let green = 0; green < 256; green += 3)
+        for (let blue = 0; blue < 256; blue += 3) {
+          const front: Rgb = [red, green, blue];
+          closestAnyFrontGetsToBoth = Math.min(
+            closestAnyFrontGetsToBoth,
+            Math.max(distanceBetween(front, highlight), distanceBetween(front, casing)),
+          );
+        }
+
+    // The two constants are this far apart, and the triangle inequality then bounds every front:
+    // a colour within `d` of both would put the two within `2d` of each other, so nothing can do
+    // better than half the separation. The sweep's own floor is above that half because a stride
+    // of 3 does not land on the midpoint — the lattice, not the geometry.
+    const separation = distanceBetween(highlight, casing);
+    expect(Math.round(separation * 10) / 10).toBe(242.5);
+    expect(Math.round(closestAnyFrontGetsToBoth * 10) / 10).toBe(121.4);
+    expect(closestAnyFrontGetsToBoth).toBeGreaterThanOrEqual(separation / 2);
+    expect(closestAnyFrontGetsToBoth).toBeGreaterThan(HIGHLIGHT_TOLERANCE);
+  });
+
+  it("installs the exact no-op raycast function on all three passes", () => {
+    const { visibleLine, casingLine, occludedLine } = buildSelectionOutline({
       target: makeBody(),
       parent: new THREE.Group(),
       kind: "placement",
@@ -220,6 +313,7 @@ describe("buildSelectionOutline", () => {
     // the void's dashed outline has carried since M2, pinned on the same function reference.
     /* eslint-disable @typescript-eslint/unbound-method -- identity checks, never called unbound */
     expect(visibleLine.raycast).toBe(NOOP_RAYCAST);
+    expect(casingLine.raycast).toBe(NOOP_RAYCAST);
     expect(occludedLine.raycast).toBe(NOOP_RAYCAST);
     /* eslint-enable @typescript-eslint/unbound-method */
   });
@@ -242,6 +336,10 @@ describe("buildSelectionOutline", () => {
 
     expect(outline.visibleLine.material.dashed).toBe(true);
     expect(body.visibleLine.material.dashed).toBe(false);
+    // The casing keeps the same rhythm as the core it frames. A solid black casing under red
+    // dashes would read as a solid outline, which is the language a *body* speaks.
+    expect(outline.casingLine.material.dashed).toBe(true);
+    expect(body.casingLine.material.dashed).toBe(false);
     // The void mesh is inset 14 mm; expanding by the same 14 mm puts the red on the frame itself,
     // clear of the blue dashes it would otherwise sit exactly on top of.
     const size = localBoundsOf(outline.visibleLine).getSize(
@@ -274,8 +372,9 @@ describe("disposeSelectionOutline", () => {
           renderables.set(owned, vi.spyOn(owned, "dispose"));
       }
     });
-    // Two geometries — the form-following outline and the box locator — and one material each.
-    expect(renderables.size).toBe(4);
+    // Two geometries — the form-following outline, shared by the core and its casing, and the box
+    // locator — and one material per pass.
+    expect(renderables.size).toBe(5);
 
     disposeSelectionOutline(outline.group);
 
