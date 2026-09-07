@@ -191,6 +191,10 @@ export * from "./queries/width-steps.js";
 export * from "./queries/vacated-void.js";
 export * from "./pricing/price-book.js";
 export * from "./pricing/price-lines.js";
+// The book's ingress (ADR 0062 seam 1): a composition root parses once, and every consumer of a book
+// downstream of it is reading a shape something has established rather than a type somebody
+// declared.
+export * from "./pricing/parse-price-book.js";
 export * from "./pricing/price-design.js";
 // The barrel is the **one** module that names the sample book (ADR 0062 seam 1): the query takes a
 // book as a parameter and imports none, so a composition root picks this up from the package's

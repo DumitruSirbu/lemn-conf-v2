@@ -349,9 +349,10 @@ export interface PricedBody {
  *  than guessing. Never `NaN`, never a partial answer.
  *
  *  **Throws `MalformedPriceCoefficientError`** for a shape it does know carrying a coefficient that
- *  is not an exact count of minor units. The two are different facts about a book — a shape nothing
- *  implements, and a number that is not one — and a caller that must name them apart cannot do so
- *  from a single `undefined`.
+ *  is not an exact count of minor units, and `InexactPriceArithmeticError` where the coefficients
+ *  are each exact but a product or a running sum of them is not. The three are different facts about
+ *  a book — a shape nothing implements, a number that is not one, and an arithmetic the machine
+ *  cannot perform — and a caller that must name them apart cannot do so from a single `undefined`.
  *
  *  The parameter is typed **wider than a rule declares it**, for the reason `cabinet-handles.ts`
  *  widens its own: the whole point of ADR 0062 seam 1 is that the book comes from somewhere else,
@@ -361,58 +362,216 @@ export function amountForBody(
   formula: PriceFormula | undefined,
   body: PricedBody,
 ): number | undefined {
+  const terms = termsOfFormula(formula, body);
+  return terms === undefined ? undefined : exactAmountOfTerms(terms);
+}
+
+/** Which terms one shape is made of, or `undefined` for a shape this build does not implement —
+ *  including a **declared** one somebody added above without an arm, which is what the fourth shape
+ *  did on its way in. TypeScript does not catch that here, because a missing arm is not a type error
+ *  when the default returns; what catches it is `pricing-seams.test.ts`, which builds a formula from
+ *  every exported constructor and asserts each one evaluates to a number. */
+function termsOfFormula(
+  formula: PriceFormula | undefined,
+  body: PricedBody,
+): readonly PricedTerm[] | undefined {
   switch (formula?.shape) {
     case "linear-in-width":
-      return widthTerm(formula, body);
+      return widthTerms(formula, body);
     case "linear-in-width-and-door-leaves":
-      return widthTerm(formula, body) + doorLeafTerm(formula, body);
+      return [...widthTerms(formula, body), doorLeafTerm(formula, body)];
     case "linear-in-width-and-height":
-      return widthTerm(formula, body) + heightTerm(formula, body);
+      return [...widthTerms(formula, body), heightTerm(formula, body)];
     case "linear-in-width-height-and-door-leaves":
-      return (
-        widthTerm(formula, body) +
-        heightTerm(formula, body) +
-        doorLeafTerm(formula, body)
-      );
-    // A shape this build does not implement — including a **declared** one somebody added above
-    // without an arm, which is what the fourth shape did on its way in. TypeScript does not catch
-    // that here, because a missing arm is not a type error when the default returns; what catches it
-    // is `pricing-seams.test.ts`, which builds a formula from every exported constructor and asserts
-    // each one evaluates to a number.
+      return [
+        ...widthTerms(formula, body),
+        heightTerm(formula, body),
+        doorLeafTerm(formula, body),
+      ];
     default:
       return undefined;
   }
 }
 
-/** The two coefficients every shape shares, so a shape that adds a term states only what it adds. */
-function widthTerm(coefficients: WidthCoefficients, body: PricedBody): number {
-  return (
-    usableCoefficientOf(coefficients.baseMinor, "baseMinor") +
-    usableCoefficientOf(
-      coefficients.perWidthMillimetreMinor,
-      "perWidthMillimetreMinor",
-    ) *
-      body.widthMm
-  );
+/** The two terms every shape shares — the base and what width adds — so a shape that adds a term
+ *  states only what it adds. Terms rather than their sum, because the sum is taken once, over every
+ *  one of the shape's terms, by the checked arithmetic below. */
+function widthTerms(
+  coefficients: WidthCoefficients,
+  body: PricedBody,
+): readonly PricedTerm[] {
+  return [
+    {
+      coefficientMinor: usableCoefficientOf(
+        coefficients.baseMinor,
+        "baseMinor",
+      ),
+      count: CHARGED_ONCE,
+      field: "baseMinor",
+    },
+    {
+      coefficientMinor: usableCoefficientOf(
+        coefficients.perWidthMillimetreMinor,
+        "perWidthMillimetreMinor",
+      ),
+      count: body.widthMm,
+      field: "perWidthMillimetreMinor",
+    },
+  ];
 }
 
-function heightTerm(coefficients: HeightCoefficient, body: PricedBody): number {
-  return (
-    usableCoefficientOf(
+/** The base is charged once for the body. Written as a term with a count of one rather than as a
+ *  bare addend, so every value entering the sum has been through the same checked multiplication and
+ *  no addend reaches it by a second route. */
+const CHARGED_ONCE = 1;
+
+function heightTerm(
+  coefficients: HeightCoefficient,
+  body: PricedBody,
+): PricedTerm {
+  return {
+    coefficientMinor: usableCoefficientOf(
       coefficients.perHeightMillimetreMinor,
       "perHeightMillimetreMinor",
-    ) * body.heightMm
-  );
+    ),
+    count: body.heightMm,
+    field: "perHeightMillimetreMinor",
+  };
 }
 
 function doorLeafTerm(
   coefficients: DoorLeafCoefficient,
   body: PricedBody,
-): number {
-  return (
-    usableCoefficientOf(coefficients.perDoorLeafMinor, "perDoorLeafMinor") *
-    body.doorLeafCount
+): PricedTerm {
+  return {
+    coefficientMinor: usableCoefficientOf(
+      coefficients.perDoorLeafMinor,
+      "perDoorLeafMinor",
+    ),
+    count: body.doorLeafCount,
+    field: "perDoorLeafMinor",
+  };
+}
+
+/** **One rate the book states, against the quantity it is charged over.** A coefficient and a
+ *  millimetre of width, or a hardware rate and a count of hinges — the same shape, because they are
+ *  the same arithmetic and the wave that let them be two arithmetics published a wrong figure. */
+export interface PricedTerm {
+  readonly coefficientMinor: number;
+  readonly count: number;
+  /** Carried so a refusal names which of a rule's amounts the arithmetic could not be done on. */
+  readonly field: PriceCoefficientField;
+}
+
+/**
+ * **Every term of one amount, multiplied and added with each step checked.**
+ *
+ * `Number.isSafeInteger` on the *result* is the whole test and it is exact in both directions: two
+ * safe integers whose product or sum is below 2^53 are multiplied and added without error, and a
+ * result at or above 2^53 is not a safe integer whatever rounding did to it. A **running** total is
+ * what a cancellation hides in, so the check is per step: two terms that each overflow on their way
+ * to a small answer are refused rather than published.
+ *
+ * **Exported so there is exactly one such arithmetic in this package.** The hardware line's three
+ * rate × mechanism-count products go through this too. When they had their own plain `+` instead,
+ * the M6-AUD-015 pattern reappeared one function over — `perHingeMinor` and `perDrawerMinor` past
+ * the bound, two products that each leave the safe range, and a sum that lands back inside it,
+ * publishing 8 where the integers give 11 and passing every downstream guard because 8 is exact and
+ * non-negative. Two spellings of "add up some products" is how one of them stays unchecked.
+ *
+ * **Throws** rather than answering, like `usableCoefficientOf` and for the same reason: there is no
+ * number to guess at. `price-design.ts` converts it to a coded refusal at the one place it already
+ * converts the others.
+ *
+ * ---
+ *
+ * **The order of the terms decides whether there is a refusal at all** — not merely which step a
+ * message names. Three terms of `+5e15`, `-5e15`, `+5e15` answer `5000000000000000` in that order
+ * and are refused in the order `+5e15`, `+5e15`, `-5e15`, because the running total reaches `1e16`
+ * before the fall brings it back. Same multiset, same mathematical total, two outcomes.
+ *
+ * **What that costs is never a figure.** Every prefix of an accepted sum is a safe integer, so every
+ * addition on the way was exact, so an accepted total *is* the true integer total whatever ordering
+ * produced it. The divergence is accept-versus-refuse and never figure-versus-figure, which is the
+ * direction it has to fail in: the wave that let this arithmetic be two arithmetics published a
+ * wrong number, and a refusal is the answer that is never wrong.
+ *
+ * **The two callers are not alike here, and the asymmetry is the honest residual of this wave.**
+ *
+ * - *A cabinet formula is order-invariant, and by the bound's derivation rather than by anything in
+ *   this function.* For a book `parsePriceBook` accepted, every coefficient is at most
+ *   `MAX_PRICE_COEFFICIENT_MINOR` and every count is a body dimension or a leaf count under
+ *   `MAX_DESIGN_DIMENSION_MM`, so the largest prefix any ordering of a shape's four terms can form
+ *   is `4 × 225 179 981 368 × 10 000 = 9 007 199 254 720 000`, under `2^53 − 1 = 9 007 199 254 740
+ *   991`. No prefix can leave the safe range, so no ordering can refuse, so all of them agree.
+ * - *The hardware line is not, and cannot be shown to be.* Its count is a whole design's mechanism
+ *   count, which no constant bounds — the same gap that let the wrong figure through before this
+ *   function existed. A divergence needs roughly 20 000 mechanisms against rates at the bound; the
+ *   seeded kitchen carries 74 hinges, 5 drawers and 16 latches, and `MAX_PLACEMENTS` bodies argue
+ *   out to the low thousands. Unreachable in practice, unproved in principle.
+ *
+ * Accumulating in `BigInt` and range-checking once would retire the question outright. It is not
+ * done here because the per-term check is what names the rate and the count in a refusal, and
+ * because `qa-m6-wave-b-regate.adversarial.test.ts` pins the divergence above as a recorded fact
+ * rather than as an accident — so retiring it is a decision to take with that suite, not around it.
+ */
+export function exactAmountOfTerms(terms: readonly PricedTerm[]): number {
+  return terms.reduce(
+    (runningMinor, term) => exactSum(runningMinor, exactProduct(term)),
+    NOTHING_YET_MINOR,
   );
+}
+
+/** A sum with no term in it yet. Named because it is a starting amount rather than a price. */
+const NOTHING_YET_MINOR = 0;
+
+function exactProduct(term: PricedTerm): number {
+  const product = term.coefficientMinor * term.count;
+  if (Number.isSafeInteger(product)) return product;
+  throw new InexactPriceArithmeticError({
+    describedAs: `"${term.field}" × ${String(term.count)}`,
+    reached: product,
+  });
+}
+
+function exactSum(runningMinor: number, termMinor: number): number {
+  const total = runningMinor + termMinor;
+  if (Number.isSafeInteger(total)) return total;
+  throw new InexactPriceArithmeticError({
+    describedAs: "a sum of priced terms",
+    reached: total,
+  });
+}
+
+/**
+ * **A term the machine cannot form exactly**, refused instead of returned.
+ *
+ * `Number.isSafeInteger` on the *result* is the whole test and it is exact in both directions: two
+ * safe integers whose product or sum is below 2^53 are multiplied and added without error, and a
+ * result at or above 2^53 is not a safe integer whatever rounding did to it.
+ *
+ * **The final amount cannot stand in for this, which is what M6-AUD-015 measured.** A `wall-cabinet`
+ * rule with a base of 1 and two coefficients that cancel exactly in integer arithmetic prices at 1;
+ * in floating point the base is lost in the addition and the cancellation yields `0`, which is a
+ * perfectly exact, non-negative safe integer, so every downstream guard accepts it. What is wrong
+ * with it is not the number it ended at but the arithmetic that got there.
+ *
+ * **Both layers, deliberately** (M6-AUD-015): `MAX_PRICE_COEFFICIENT_MINOR` keeps every legal book
+ * far from this ceiling, and this keeps a loosened bound from ever publishing a wrong figure. The
+ * bound is derived per *body*, and a hardware rate is charged over a whole design's mechanisms, so
+ * the second layer is not decoration on that path — it is the only one that reaches.
+ */
+export class InexactPriceArithmeticError extends Error {
+  constructor(operation: {
+    readonly describedAs: string;
+    readonly reached: number;
+  }) {
+    super(
+      `Pricing ${operation.describedAs} reached ${String(operation.reached)}, which JavaScript ` +
+        `cannot hold as an exact count of minor units.`,
+    );
+    this.name = "InexactPriceArithmeticError";
+  }
 }
 
 /** Every amount the book states as a number a price is computed from — every coefficient any shape
@@ -496,11 +655,16 @@ export function usableCoefficientOf(
 }
 
 /** Every rule id in a book, in the order it is declared — cabinet rules, then the tiers, then the
- *  accessories. What the query sweeps for duplicates, since a repeated id makes a line untraceable
- *  to one rule.
+ *  accessories. What `parse-price-book.ts` sweeps for duplicates, since a repeated id makes a line
+ *  untraceable to one rule.
  *
  *  **The accessories are swept like everything else**, so two rules sharing an id *anywhere* in the
- *  book is `INVALID_PRICE_BOOK` rather than a rule family nobody checked. */
+ *  book is `INVALID_PRICE_BOOK` rather than a rule family nobody checked.
+ *
+ *  The three lists are dereferenced bare, and that is safe **only because the parser establishes
+ *  they are lists before it calls this** — it is the reason the parser's section checks run before
+ *  its semantic ones, and the reason this sweep is no longer reachable from an unparsed book
+ *  (M6-AUD-002). */
 export function listRuleIds(book: PriceBook): readonly string[] {
   return [
     ...book.cabinetRules.map((rule) => rule.ruleId),
