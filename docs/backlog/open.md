@@ -890,6 +890,66 @@ settings.** Entry 41 records that the sink, bowl and faucet do not follow the ca
 either; that one is geometry, this one is money, and both are downstream of depth being a setting
 the rest of the system half-ignores.
 
+## 55. The global settings actions are absent on a first visit and present after a reload — RECORDED 2026-09-07, NOT REPRODUCED, NOT W2's FIX
+
+**Observed by the owner, 2026-09-07**, correcting their own earlier item 2/item 3 report:
+
+> "There is already the button. It was a glitch that it didn't show… when you open the browser and
+> don't make a reload, when you open the global settings, the refuse and apply buttons are missing.
+> But if you make a refresh, these buttons are on the place… we need to play more with this to find
+> how to reproduce the issue."
+
+**The owner withdrew the layout request that originally accompanied this** (move the save control to
+the top of the sheet). That request is closed and no record was written for it. What is recorded here
+is the **defect** the owner described while withdrawing it, because it is new information and sharper
+than the original report: not "the buttons are missing" but **"the buttons are missing until you
+reload"**.
+
+**It is not what wave W2 fixed, and this was checked rather than assumed.** W2 shipped
+`padding-bottom: env(safe-area-inset-bottom, 0px)` on `.surface`
+(`apps/web/src/settings/global-settings.module.css:151`), written against a scroll-state and
+home-indicator inset problem — its own comment reads *"the owner's 'the save buttons are sometimes
+there and sometimes not', read as an inset problem"*. **`env(safe-area-inset-bottom)` has the same
+value on a first visit and after a refresh.** A constant inset cannot produce a reload-sensitive
+symptom, so W2's fix is not this and closing W2 does not close this.
+
+**What is true in the code.** The cancel/apply pair renders **unconditionally** in the choosing
+step's footer (`apps/web/src/settings/global-settings.tsx`) — no viewport condition, no feature flag,
+no state in which `ChoosingStep` renders without them. So the report is about where they landed, not
+whether they existed. The sheet is `position: fixed; bottom: 0; max-height: 77dvh` with `.body`
+scrolling internally and the footer pinned, and there is **no JavaScript layout measurement anywhere
+in this surface** — no `ResizeObserver`, no `getBoundingClientRect`, no `visualViewport` reader — so
+the client-side-navigation-versus-server-render distinction has no code path to act through. That is
+what makes this hard rather than obvious.
+
+**The most plausible remaining mechanism, stated as a lead rather than a diagnosis.** iOS Safari with
+a restored tab: opening the browser onto an already-open tab restores a layout viewport from the
+previous session while the toolbars are expanded, and a `position: fixed; bottom: 0` element measured
+in `dvh` can land below the visual viewport until something forces a re-layout. A reload is such a
+force. W2's inset reduces the overlap by a constant and does not eliminate a mis-measurement that is
+not constant. **Not reproduced from this machine** — it needs a real iOS Safari and the owner's own
+open-the-browser-without-reloading sequence.
+
+**What evidence would confirm it**, in the order it is cheapest to collect:
+
+1. The owner repeating the sequence and reporting whether the buttons appear after **scrolling the
+   page** (or rotating the device) *without* reloading. If they do, it is the layout mechanism above
+   and not a rendering one.
+2. A screenshot of the sheet in the failing state, so the sheet's own bottom edge can be located
+   relative to the toolbar — the actions being *below the fold* and the actions being *absent from
+   the DOM* look identical in a report and are different defects.
+3. If neither, an inspected DOM in the failing state: `global-settings-cancel` and
+   `global-settings-apply` present with a bounding box outside the visual viewport (layout) versus
+   absent from the document (rendering). This is the measurement that splits the field, and until
+   somebody has it the fix cannot be chosen.
+
+**What deciding it would cost.** Unknown until it is reproduced, and that is the honest state. If it
+is the layout mechanism, the fix is in the same stylesheet W2 already touched and is small; if the
+actions are genuinely absent from the DOM on a first paint, it is a rendering defect in a surface
+that has no conditional rendering today, which would mean something upstream of the sheet is at
+fault. **Do not schedule a fix before step 3 above.** Guessing between those two produces a change
+that cannot be shown to have worked, which is how this item got reported twice already.
+
 ## Also open, recorded elsewhere — do not duplicate here
 
 - **Width editing does nothing yet.** ~~Every width chip is `blocked` because §5.4's resize command
