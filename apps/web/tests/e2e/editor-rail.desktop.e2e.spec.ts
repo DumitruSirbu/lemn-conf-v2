@@ -1,7 +1,12 @@
-import { SELECTION_HIGHLIGHT_COLOR } from "@lemnaria/three-adapter";
 import { expect, test, type Page } from "@playwright/test";
 
-import { countPixels, toRgb, type PixelRect } from "./support/pixels";
+import {
+  capturePatch,
+  countChangedPixels,
+  countPixelsIn,
+  type CapturedPatch,
+  type PixelRect,
+} from "./support/pixels";
 import { readSelection } from "./support/panel";
 import { deleteMintedDesigns } from "./support/minted-designs";
 
@@ -38,6 +43,12 @@ const SINK_CABINET_FULL_WIDTH = { x: 700, y: 560 };
  *  The flapping edge is why the anchor is taken deep inside the band rather than near it. */
 const FAR_BASE_CABINET = { x: 700, y: 640 };
 const FRIDGE = { x: 200, y: 500 };
+/** The sink cabinet again, in the coordinates it occupies **once the rail is open** — the centre of
+ *  `SINK_PATCH` below, which is that body's own measured highlight box. `SINK_CABINET_FULL_WIDTH`
+ *  is a 1440 px-canvas point and selects nothing here; the two are not the same world point.
+ *  Confirmed in the running app on 2026-09-07 by tapping it with the rail open and reading `p0`
+ *  back from `[data-testid="selection-debug"]`. */
+const SINK_CABINET_WITH_RAIL = { x: 510, y: 588 };
 
 const VIEWPORT_WIDTH_PX = 1440;
 const RAIL_WIDTH_PX = 420;
@@ -71,43 +82,75 @@ const VACATED_FRIDGE_PATCH: PixelRect = {
 };
 
 /**
- * The thresholds below are measured, not chosen. Re-captured at 1440 x 900 in the overview preset on
- * 2026-09-06 through the patches above, counting pixels within `HIGHLIGHT_TOLERANCE` of
- * `SELECTION_HIGHLIGHT_COLOR` (the 2026-08-26 table read 3 075 and 1 694 through the pre-6R-b
- * patches, and its shape is unchanged):
+ * **A selection is counted by what changed, not by what colour it is** (wave 6V, ADR 0091
+ * decision 6).
  *
- * | state                                   | sink patch | vacated-fridge patch |
- * | --------------------------------------- | ---------- | -------------------- |
- * | nothing selected                        |          0 |                    0 |
- * | sink cabinet selected                   |      3 962 |                    0 |
- * | a different body selected               |          0 |                    0 |
- * | the vacated fridge opening selected     |          0 |                1 759 |
+ * What stood here counted pixels within 60 units of `SELECTION_HIGHLIGHT_COLOR`. That identified
+ * the outline by its colour, which was only sound while the product's colours were closed, and
+ * since wave 6R they are not: ADR 0078 decision 1 gives MDF a picker admitting every six-digit
+ * hex, `#ff2d2d` included. `pixel-counter-witness.desktop.e2e.spec.ts` records what that costs —
+ * on a kitchen painted the highlight's own hex the retired counter reports **16 061** pixels of
+ * highlight in this file's sink patch **with the sink cabinet not selected**.
  *
- * `MIN_HIGHLIGHT_PIXELS` is 800: under half of the sparser of the two positive cases (the void's
- * outline is dashed, so it covers less of its own frame than a body's solid one), which leaves
- * room for a modest camera or layout shift while still failing anything the eye would call faint.
- * The old assertion here — `Buffer.compare(selected, unselected) !== 0` — passed on **one** pixel.
+ * Both captures of a pair are taken with the rail open and one body selected in each, so the canvas
+ * size, the camera and the design are identical and the selection is the only difference — the
+ * measurement this file was already taking and throwing away. The customer's colour is in **both**
+ * frames and cancels.
  *
- * `MAX_ABSENT_PIXELS` is 10 against a measured 0 in every negative case: slack for antialiasing,
- * not for a highlight.
+ * **The noise floor is measured, not chosen.** Two captures of the same patch in the same state, at
+ * 1440 x 900 on 2026-09-07, differ by **0 pixels at a floor of 0** — in all three camera presets,
+ * over this file's two patches and over the whole canvas, immediately, after a 1 200 ms wait, and
+ * with the pointer hovering the scene (the Risks section's named traps). The render is
+ * deterministic between captures. `NOISE_FLOOR` is 8 anyway: slack over a measured zero, and every
+ * count below is quoted at it. The same pair is re-measured inside each test rather than trusted.
+ *
+ * **The four-row table, re-measured at 1440 x 900 in the overview preset on 2026-09-07**, as
+ * differences against the baseline state *a different body (`p2`) selected*. "Nothing selected" is
+ * not a baseline this instrument can use — the rail closes, the canvas grows back to 1440 px and
+ * the whole scene re-projects — which is why the row is named and empty rather than dropped:
+ *
+ * | state, differenced against `p2` selected | sink patch | vacated-fridge patch |
+ * | ---------------------------------------- | ---------- | -------------------- |
+ * | nothing selected                         |  no baseline (the canvas re-projects) |
+ * | sink cabinet (`p0`) selected             |     10 722 |                    0 |
+ * | a different body (`p7`) selected         |          0 |                    0 |
+ * | the vacated fridge opening selected      |          0 |                6 213 |
+ *
+ * **The positive counts did not collapse; they roughly tripled.** The retired counter read 3 603
+ * and 1 691 on the same two states in the same run (3 962 and 1 759 in the 2026-09-06 table, before
+ * wave 6V's casing pass took part of the outline's width for a near-black second colour). The new
+ * instrument sees the whole outline move, not the fraction of it that is within 60 units of one
+ * hex, so it is *more* sensitive on both positive cases and reads the same 0 on every negative one.
+ *
+ * `MIN_CHANGED_PIXELS` is 3 000 — under half of the sparser positive case, the void's 6 213, which
+ * is the ratio the retired 800-against-1 759 floor had. Every palette measured reaches at least
+ * 10 104 on the body case: 10 722 unfinished, 10 104 on `#ff2d2d`, 10 722 on `#2d5fff`, 10 720 on
+ * `veneer.nuc`. `MAX_UNCHANGED_PIXELS` is 10 against a measured 0 in every negative case.
  */
-const HIGHLIGHT_COLOR_RGB = toRgb(SELECTION_HIGHLIGHT_COLOR);
-const HIGHLIGHT_TOLERANCE = 60;
-const MIN_HIGHLIGHT_PIXELS = 800;
-const MAX_ABSENT_PIXELS = 10;
+const NOISE_FLOOR = 8;
+const MIN_CHANGED_PIXELS = 3000;
+const MAX_UNCHANGED_PIXELS = 10;
 
-/** A void's translucent blue fill, which is what keeps a selected slot distinguishable from a
- *  selected body (M2's mobile gate). Measured in the same run: 1 123 pixels in the vacated-fridge
- *  patch with the slot selected and 1 429 with it unselected, and **0** in the sink patch with the
- *  sink cabinet selected. The floor is 300. */
+/**
+ * **The one counter here that still names a colour, and the fixture property that keeps it sound**
+ * (wave 6V work item 3, ADR 0091 decision 4a).
+ *
+ * A void's translucent blue fill is drawn in **both** states of every pair — an unselected void is
+ * blue too, which is asserted below rather than assumed — so a differencing counter cannot see it
+ * and this stays colour-keyed. Its premise is that nothing else in the kitchen reads blue-over-red
+ * by 25, and that premise is a fact about the **fixture**, not about the palette: it holds because
+ * no placement on screen wears a finish. `expectNoPlacementWearsAFinish` asserts exactly that,
+ * against the document the scene is drawing, so the day a fixture starts wearing a colour this
+ * counter goes red instead of lying. The witness spec records the cost of not asserting it: a
+ * kitchen painted `#2d5fff` reports **16 599** blue pixels in the sink patch, which holds no void.
+ *
+ * Measured 2026-09-07: 1 071 pixels in the vacated-fridge patch with the slot selected, 1 429 with
+ * it unselected, and **0** in the sink patch with the sink cabinet selected. The floor is 300.
+ */
 const VOID_BLUE_EXCESS = 25;
 const MIN_VOID_FILL_PIXELS = 300;
+const MAX_ABSENT_VOID_FILL_PIXELS = 10;
 
-const HIGHLIGHT = {
-  kind: "near",
-  color: HIGHLIGHT_COLOR_RGB,
-  tolerance: HIGHLIGHT_TOLERANCE,
-} as const;
 const VOID_FILL = { kind: "blueTint", minExcess: VOID_BLUE_EXCESS } as const;
 
 const SCENE_SETTLE_MS = 2500;
@@ -153,6 +196,62 @@ async function canvasWidth(page: Page): Promise<number> {
   const box = await page.locator("canvas").boundingBox();
   if (!box) throw new Error("expected the canvas to have a layout box");
   return box.width;
+}
+
+/** How much of a patch moved between two states, at the measured floor. */
+async function changedPixels(
+  page: Page,
+  before: CapturedPatch,
+  after: CapturedPatch,
+): Promise<number> {
+  return countChangedPixels(page, before, after, NOISE_FLOOR);
+}
+
+/** The negative direction, named so a reader sees which claim is being made. A bound rather than an
+ *  equality: `MAX_UNCHANGED_PIXELS` is antialiasing slack over a measured 0. */
+async function expectUnchanged(
+  page: Page,
+  before: CapturedPatch,
+  after: CapturedPatch,
+): Promise<void> {
+  expect(await changedPixels(page, before, after)).toBeLessThanOrEqual(
+    MAX_UNCHANGED_PIXELS,
+  );
+}
+
+/**
+ * **The blue counter's premise, as an executable assertion** (wave 6V work item 3).
+ *
+ * Read back from `GET /api/designs/{id}` — the document the scene is drawing, after the delete that
+ * minted it — rather than from `KITCHEN_L_DESIGN`, so a divergence between the fixture and what is
+ * on screen shows up here instead of being assumed away. A design with no bodies would satisfy an
+ * "every placement" check vacuously, so the count is asserted first.
+ */
+async function expectNoPlacementWearsAFinish(
+  page: Page,
+  designId: string,
+): Promise<void> {
+  expect(designId, "the delete should have minted a design").not.toBe("");
+  // Retried: the delete schedules the save that creates the row, so the id is known here a moment
+  // before the document is fetchable.
+  await expect(async () => {
+    const worn = await page.evaluate(async (id: string) => {
+      const loaded = await fetch(`/api/designs/${id}`);
+      if (!loaded.ok) return { placements: 0, finishes: ["not stored yet"] };
+      const { design } = (await loaded.json()) as {
+        design: { placements: { id: string; body: { finish?: unknown } }[] };
+      };
+      return {
+        placements: design.placements.length,
+        finishes: design.placements
+          .filter((placement) => placement.body.finish !== undefined)
+          .map((placement) => placement.id),
+      };
+    }, designId);
+
+    expect(worn.placements).toBeGreaterThan(0);
+    expect(worn.finishes).toEqual([]);
+  }).toPass({ timeout: 10_000 });
 }
 
 /** Frame D2A: with nothing selected there is no panel, and the scene has the whole width. */
@@ -225,38 +324,65 @@ test("rows and chips use the larger desktop spacing scale", async ({
 });
 
 /**
- * M2's highlight gate, re-homed — and re-written, because what stood here proved nothing.
+ * M2's highlight gate, re-homed — and re-written twice, because each version proved less than it
+ * looked like it did.
  *
- * It captured the patch with the sink cabinet selected and again with a different body selected
- * and asserted the two PNGs differed. One pixel of one antialiased edge satisfies that, which is
- * why a highlight the project owner could not see passed it. This counts the highlight's own
- * colour instead, in the region of the body it belongs to, and requires it to be absent from the
- * region of a body that is not selected — so it fails both when the highlight is invisible and
- * when it is drawn around the wrong cabinet.
+ * The first captured the patch with the sink cabinet selected and again with a different body
+ * selected and asserted the two PNGs differed. One pixel of one antialiased edge satisfies that,
+ * which is why a highlight the project owner could not see passed it. The second counted the
+ * highlight's own colour, which fails the moment a customer paints a front that colour — the
+ * witness spec measures 16 061 such pixels here with nothing of this body selected.
  *
- * Both captures are taken with the rail open, one body selected in each, so the canvas size, the
- * camera and the design are identical and the selection frame is the only difference.
+ * This differences the two captures the file was already taking. Three pairs, because a difference
+ * on its own only says *something* moved:
+ *
+ * - **`p0` selected against `p2` selected, over the sink patch** — the body's own region moves.
+ * - **the same pair over the vacated-fridge patch** — and no other region moves with it.
+ * - **`p2` selected against `p7` selected, over the sink patch** — two states that both leave the
+ *   sink cabinet unselected, so the patch must not move at all. This is the half that says the
+ *   change tracks *this body's* selection rather than any change of selection, and it is what the
+ *   retired counter's "absent from the region of a body that is not selected" was reaching for.
  */
-test("a selected body draws its highlight over its own region and nowhere else", async ({
+test("a selected body's outline changes its own region and nothing else", async ({
   page,
 }) => {
   await clickScene(page, SINK_CABINET_FULL_WIDTH);
   await selectInRail(page, "p0");
-
-  const onSelectedBody = await countPixels(page, SINK_PATCH, HIGHLIGHT);
-  const elsewhereWhileSelected = await countPixels(
+  const sinkWithTheSinkSelected = await capturePatch(page, SINK_PATCH);
+  const fridgeWithTheSinkSelected = await capturePatch(
     page,
     VACATED_FRIDGE_PATCH,
-    HIGHLIGHT,
   );
-  expect(onSelectedBody).toBeGreaterThanOrEqual(MIN_HIGHLIGHT_PIXELS);
-  expect(elsewhereWhileSelected).toBeLessThanOrEqual(MAX_ABSENT_PIXELS);
 
   await clickScene(page, FAR_BASE_CABINET);
   await selectInRail(page, "p2");
+  const sinkWithAnotherSelected = await capturePatch(page, SINK_PATCH);
+  const fridgeWithAnotherSelected = await capturePatch(
+    page,
+    VACATED_FRIDGE_PATCH,
+  );
+  const sinkWithAnotherSelectedAgain = await capturePatch(page, SINK_PATCH);
 
-  const onUnselectedBody = await countPixels(page, SINK_PATCH, HIGHLIGHT);
-  expect(onUnselectedBody).toBeLessThanOrEqual(MAX_ABSENT_PIXELS);
+  await clickScene(page, FRIDGE);
+  await selectInRail(page, "p7");
+  const sinkWithAThirdSelected = await capturePatch(page, SINK_PATCH);
+
+  // The noise floor, re-measured in this run rather than taken on trust from the block above.
+  await expectUnchanged(
+    page,
+    sinkWithAnotherSelected,
+    sinkWithAnotherSelectedAgain,
+  );
+
+  expect(
+    await changedPixels(page, sinkWithAnotherSelected, sinkWithTheSinkSelected),
+  ).toBeGreaterThanOrEqual(MIN_CHANGED_PIXELS);
+  await expectUnchanged(
+    page,
+    fridgeWithAnotherSelected,
+    fridgeWithTheSinkSelected,
+  );
+  await expectUnchanged(page, sinkWithAnotherSelected, sinkWithAThirdSelected);
 });
 
 /**
@@ -291,19 +417,20 @@ test("an edit repaints the scene while the panel is still open", async ({
  * The delete is what creates the void — `KITCHEN_L_DESIGN` is fully occupied by construction — and
  * §5.1 leaves the vacated opening selected, so the first capture is the selected void.
  *
- * The two selected states have different, measured signatures. A selected body's region carries
- * the highlight colour and **no** blue at all; a selected slot's region carries the highlight
- * colour **and** the void mesh's translucent blue fill, and its outline is dashed where the body's
- * is solid. The blue on its own is not a selection signal — an unselected void is blue too, which
- * is asserted here rather than assumed — so it is the pair that tells the two apart.
+ * **Two instruments, and the split is deliberate.** *Selected* is a state the design toggles in and
+ * out of, so it is differenced: the slot's own region moves when the slot is selected and the
+ * cabinet's does not, and vice versa. The **fill** is not a state — an unselected void is blue too,
+ * which is what makes blue-on-its-own no selection signal — so it is in both frames of every pair
+ * and no difference can see it. It stays counted by colour, and it declares its fixture first.
+ *
+ * The pair is what tells the two apart: a selected body's region carries a moving outline and **no**
+ * blue at all; a selected slot's region carries a moving outline **and** the void mesh's fill.
  */
 test("a selected void is highlighted, and is distinguishable from a selected body", async ({
   page,
 }) => {
   await clickScene(page, SINK_CABINET_FULL_WIDTH);
   await selectInRail(page, "p0");
-  const bodyHighlight = await countPixels(page, SINK_PATCH, HIGHLIGHT);
-  const bodyBlue = await countPixels(page, SINK_PATCH, VOID_FILL);
 
   await clickScene(page, FRIDGE);
   await selectInRail(page, "p7");
@@ -313,36 +440,68 @@ test("a selected void is highlighted, and is distinguishable from a selected bod
 
   const vacated = await readSelection(page);
   expect(vacated.selectionKind).toBe("void");
+  // The blue counter below identifies the fill by its colour, so the design on screen has to be one
+  // in which nothing else is blue. Asserted, not assumed — and asserted against the document the
+  // scene is actually drawing rather than against the fixture it was seeded from.
+  await expectNoPlacementWearsAFinish(page, vacated.designId);
 
-  const voidHighlight = await countPixels(
-    page,
-    VACATED_FRIDGE_PATCH,
-    HIGHLIGHT,
-  );
-  const voidBlue = await countPixels(page, VACATED_FRIDGE_PATCH, VOID_FILL);
-  expect(voidHighlight).toBeGreaterThanOrEqual(MIN_HIGHLIGHT_PIXELS);
-  expect(voidBlue).toBeGreaterThanOrEqual(MIN_VOID_FILL_PIXELS);
-
-  // The two selected states, side by side: both carry the highlight, only the slot carries blue.
-  expect(bodyHighlight).toBeGreaterThanOrEqual(MIN_HIGHLIGHT_PIXELS);
-  expect(bodyBlue).toBeLessThanOrEqual(MAX_ABSENT_PIXELS);
+  const vacatedWhileSelected = await capturePatch(page, VACATED_FRIDGE_PATCH);
+  const sinkWhileTheVoidIsSelected = await capturePatch(page, SINK_PATCH);
 
   await clickScene(page, FAR_BASE_CABINET);
   await expect(async () => {
     expect((await readSelection(page)).selectionKind).toBe("placement");
   }).toPass({ timeout: 3000 });
+  const vacatedWhileAnotherSelected = await capturePatch(
+    page,
+    VACATED_FRIDGE_PATCH,
+  );
+  const sinkWhileAnotherSelected = await capturePatch(page, SINK_PATCH);
 
-  const unselectedVoidHighlight = await countPixels(
+  await clickScene(page, SINK_CABINET_WITH_RAIL);
+  await selectInRail(page, "p0");
+  const vacatedWhileTheSinkSelected = await capturePatch(
     page,
     VACATED_FRIDGE_PATCH,
-    HIGHLIGHT,
   );
-  const unselectedVoidBlue = await countPixels(
+  const sinkWhileTheSinkSelected = await capturePatch(page, SINK_PATCH);
+
+  // Each selection moves its own region and only its own.
+  expect(
+    await changedPixels(
+      page,
+      vacatedWhileAnotherSelected,
+      vacatedWhileSelected,
+    ),
+  ).toBeGreaterThanOrEqual(MIN_CHANGED_PIXELS);
+  expect(
+    await changedPixels(
+      page,
+      sinkWhileAnotherSelected,
+      sinkWhileTheSinkSelected,
+    ),
+  ).toBeGreaterThanOrEqual(MIN_CHANGED_PIXELS);
+  await expectUnchanged(
     page,
-    VACATED_FRIDGE_PATCH,
-    VOID_FILL,
+    sinkWhileAnotherSelected,
+    sinkWhileTheVoidIsSelected,
   );
-  expect(unselectedVoidHighlight).toBeLessThanOrEqual(MAX_ABSENT_PIXELS);
-  // Still blue, and still there: the fill is the void's own, not a selection state.
-  expect(unselectedVoidBlue).toBeGreaterThanOrEqual(MIN_VOID_FILL_PIXELS);
+  await expectUnchanged(
+    page,
+    vacatedWhileAnotherSelected,
+    vacatedWhileTheSinkSelected,
+  );
+
+  // The fill, by colour, on a fixture that has just declared itself unpainted. It is present in the
+  // slot whether or not the slot is selected — the fill is the void's own, not a selection state —
+  // and absent from the selected cabinet's region, which is what keeps the two kinds apart.
+  expect(
+    await countPixelsIn(page, vacatedWhileSelected, VOID_FILL),
+  ).toBeGreaterThanOrEqual(MIN_VOID_FILL_PIXELS);
+  expect(
+    await countPixelsIn(page, vacatedWhileAnotherSelected, VOID_FILL),
+  ).toBeGreaterThanOrEqual(MIN_VOID_FILL_PIXELS);
+  expect(
+    await countPixelsIn(page, sinkWhileTheSinkSelected, VOID_FILL),
+  ).toBeLessThanOrEqual(MAX_ABSENT_VOID_FILL_PIXELS);
 });

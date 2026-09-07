@@ -20,14 +20,30 @@
 // third block is not softened but **inverted**: the base colours that break the count are asserted
 // as reached facts, each with the control that reaches it named.
 //
-// **These three counters are unfit for an open palette, and wave 6V replaces them.** `pixels.ts`'s
-// `near`, `blueTint` and `redTint` all identify a thing by its colour, which only works while the
-// product's colours are closed and warm; after 6R a customer's own front can be any of the three
-// signal colours, so `redTint` is already breached by every wood and `near` is breached by one
-// picker value. Wave 6V retires colour identity from all three — counting what *changed* between
-// two otherwise identical captures instead — and closes the product half, the selection outline
-// that vanishes against a front painted its own hex. The breach block below is 6V's success
-// criterion and 6V does not edit it: it is a fact about the colour space, not about the instrument.
+// **These three counters are unfit for an open palette, and wave 6V has now dealt with each.**
+// `pixels.ts`'s `near`, `blueTint` and `redTint` all identify a thing by its colour, which only
+// works while the product's colours are closed and warm; after 6R a customer's own front can be any
+// of the three signal colours. 6V's outcome, per counter:
+//
+// - **`near` is retired.** A selection is a state the app toggles, so it is counted as the
+//   difference between two captures of one rectangle in two states, and the base colour — whatever
+//   it is — is in both frames and cancels.
+// - **`blueTint` and `redTint` survive, conditionally.** A void's fill is carried by an *unselected*
+//   void too, and ADR 0065's mark follows from a room measurement no M6 control changes, so neither
+//   is a state a difference can see. Each caller now asserts the fixture property that makes its
+//   count sound before taking it — the shape decision 4a puts into this file, applied at the e2e
+//   seam.
+//
+// 6V also closed the product half: the selection outline no longer vanishes against a front painted
+// its own hex, because `selection-outline.ts` now draws a near-black casing pass under the red core.
+//
+// The breach block below is 6V's success criterion and 6V did not edit it: it is a fact about the
+// colour space, not about the instrument. **One of its numbers is not reached through the
+// renderer, and that is a fact about tone mapping rather than a correction to it** — the wood
+// breach it records is arithmetic on the model colours, and a walnut kitchen photographed in the
+// running app measures 0, 0 and 3 counted pixels across the canvas in the three camera presets
+// (`apps/web/tests/e2e/pixel-counter-witness.desktop.e2e.spec.ts`). The margin the model leaves is
+// real; the screen does not spend it.
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import {
@@ -49,7 +65,10 @@ import {
   OVERFLOW_MARK_COLOR,
   OVERFLOW_MARK_OPACITY,
 } from "../src/overflow-mark.js";
-import { SELECTION_HIGHLIGHT_COLOR } from "../src/selection-outline.js";
+import {
+  SELECTION_HIGHLIGHT_COLOR,
+  SELECTION_OUTLINE_CASING_COLOR,
+} from "../src/selection-outline.js";
 
 /** `editor-rail.desktop.e2e.spec.ts`'s `HIGHLIGHT_TOLERANCE`, and `pixels.ts`'s `near` test is a
  *  Euclidean RGB ball of exactly that radius around `SELECTION_HIGHLIGHT_COLOR`. */
@@ -427,6 +446,41 @@ describe("an unwashed pixel of the fixture's own fronts is counted by nothing", 
         );
       }
     });
+});
+
+/**
+ * **What the outline itself is counted by** — the premise no counter ever asserted (wave 6V work
+ * item 7).
+ *
+ * `overflow-mark.e2e.spec.ts` counts the mark by red-over-both-channels and asserts, in the one
+ * direction it could, that a screen full of mark contains no highlight. The other direction was
+ * never checked and does not hold: the outline's red core **is** `SELECTION_HIGHLIGHT_COLOR`, whose
+ * red exceeds both its other channels by 210 against that counter's threshold of 50, so a selection
+ * on screen is counted as a wash. Measured in the running app at 6 454 pixels, on a body the
+ * document says is not marked. The mark gate is sound because it counts with **nothing selected**,
+ * which is now an assertion there rather than an accident of how the spec was written.
+ *
+ * Wave 6V's casing pass is swept here too, because a second colour drawn by the outline is a second
+ * chance to be counted as something else — and it is not: near-black is neither red-dominant nor
+ * blue-dominant, and it is 242.49 from the selection's own ball.
+ */
+describe("the selection outline's own two colours, against all three counters", () => {
+  const selection = rgbOf(SELECTION_HIGHLIGHT_COLOR);
+  const casing = rgbOf(SELECTION_OUTLINE_CASING_COLOR);
+
+  it("is counted as a mark by the mark's own threshold, which is why that gate counts nothing selected", () => {
+    expect(redExcess(selection)).toBe(210);
+    expect(redExcess(selection)).toBeGreaterThan(MARK_MIN_RED_EXCESS);
+  });
+
+  it("keeps the casing pass out of all three counters", () => {
+    expect(redExcess(casing)).toBeLessThan(MARK_MIN_RED_EXCESS);
+    expect(casing[2] - casing[0]).toBeLessThan(VOID_BLUE_EXCESS);
+    expect(roundedHundredth(distanceTo(casing, selection))).toBe(242.49);
+    expect(distanceTo(casing, selection)).toBeGreaterThan(
+      SELECTION_PIXEL_TOLERANCE,
+    );
+  });
 });
 
 /** **Every finish that is one flat colour**, found by asking how each is drawn rather than listed —

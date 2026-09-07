@@ -51,11 +51,7 @@ function rgbOf(packed: number): Rgb {
 }
 
 function distanceBetween(one: Rgb, other: Rgb): number {
-  return Math.hypot(
-    one[0] - other[0],
-    one[1] - other[1],
-    one[2] - other[2],
-  );
+  return Math.hypot(one[0] - other[0], one[1] - other[1], one[2] - other[2]);
 }
 
 let kit: Kit;
@@ -259,7 +255,9 @@ describe("buildSelectionOutline", () => {
     const rimPx =
       (casingLine.material.linewidth - visibleLine.material.linewidth) / 2;
     expect(rimPx).toBe(2);
-    expect(casingLine.material.linewidth).toBe(SELECTION_OUTLINE_CASING_WIDTH_PX);
+    expect(casingLine.material.linewidth).toBe(
+      SELECTION_OUTLINE_CASING_WIDTH_PX,
+    );
     expect(visibleLine.material.linewidth).toBe(SELECTION_OUTLINE_WIDTH_PX);
     // Same edges, one buffer: the casing traces the body's form rather than a box around it, for
     // the same reason the core does.
@@ -287,7 +285,10 @@ describe("buildSelectionOutline", () => {
           const front: Rgb = [red, green, blue];
           closestAnyFrontGetsToBoth = Math.min(
             closestAnyFrontGetsToBoth,
-            Math.max(distanceBetween(front, highlight), distanceBetween(front, casing)),
+            Math.max(
+              distanceBetween(front, highlight),
+              distanceBetween(front, casing),
+            ),
           );
         }
 

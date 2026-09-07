@@ -16,12 +16,20 @@ import type { Page } from "@playwright/test";
  * It answers "how much of this patch changed when I selected that body", which is the question the
  * specs were always asking.
  *
- * `countPixels` counts pixels near a named colour. **It identifies a thing by its colour, which is
- * only sound while the product's colours are closed** — and since wave 6R they are not (ADR 0078
- * decision 1 gives MDF a picker that admits every six-digit hex). It survives for exactly one use:
- * as the **witness** in the cases that demonstrate the break, where a spec paints a front the
- * counter's own colour and records the large count it wrongly reports. Every `PixelTest` below
- * carries that use and the fixture property it would otherwise need.
+ * `countPixels` counts pixels near a named colour or past a named tint. **It identifies a thing by
+ * its colour, which is only sound while the product's colours are closed** — and since wave 6R they
+ * are not (ADR 0078 decision 1 gives MDF a picker that admits every six-digit hex). Wave 6V left it
+ * two kinds of caller and no third:
+ *
+ * - the **witness** cases, where a spec paints a front the counter's own colour and records the
+ *   large count it wrongly reports (`pixel-counter-witness.desktop.e2e.spec.ts`);
+ * - the two things a difference cannot see, because they are in **both** frames rather than in one
+ *   — a void's fill, which an unselected void carries too, and ADR 0065's mark, which follows from
+ *   a room measurement no control in M6 changes. Each of those callers **asserts the fixture
+ *   property that makes the count sound** before taking it (work item 3, ADR 0091 decision 4a).
+ *
+ * Every `PixelTest` below names its surviving use and the property it depends on. **`near` has
+ * neither**: it was the selection's counter, the selection is a state, and it has been replaced.
  *
  * The decode runs in the page rather than in Node: this repository has no PNG decoder among its
  * dependencies, and adding one to satisfy a test is a supply-chain change made for a test's
@@ -54,8 +62,12 @@ export type PixelTest =
        *  **The witness instrument, retired from measurement by wave 6V.** Its callers passed
        *  `SELECTION_HIGHLIGHT_COLOR`, and since wave 6R a customer can paint a front that exact hex
        *  through MDF's RAL picker — at which point this counts the whole front as selection pixels
-       *  with nothing selected. A spec that still uses it either paints such a front deliberately,
-       *  to record what the counter reports, or asserts the fixture property that keeps it sound. */
+       *  with nothing selected. Measured on the running app, not argued: a kitchen wearing
+       *  `#ff2d2d` reports **16 061** pixels of highlight in `editor-rail.desktop.e2e.spec.ts`'s
+       *  sink patch with that cabinet **not** selected, against the 3 603 the same counter reports
+       *  on the seeded design when it really is. A spec that still uses it either paints such a
+       *  front deliberately, to record what the counter reports, or asserts the fixture property
+       *  that keeps it sound. */
       readonly kind: "near";
       readonly color: readonly [number, number, number];
       readonly tolerance: number;
@@ -63,27 +75,47 @@ export type PixelTest =
   | {
       /** Blue by at least this much more than red.
        *
-       *  **The witness instrument for the void's fill, retired from measurement by wave 6V.** It
-       *  rested on the kitchen's *declared* palette being warm throughout — paper, the six PAL
-       *  decors, the two veneer woods — so that nothing in it but the void meshes read blue. ADR
-       *  0078 decision 1 ended that: a front painted `#2d5fff` measures blue-over-red 210 against a
-       *  threshold of 25, in a patch that contains no void at all. */
+       *  **Still a measurement, and the only one, because the fill is not a state.** An unselected
+       *  void is blue too, so the fill is present in both frames of every pair and no difference can
+       *  see it. It survives on the condition wave 6V's work item 3 attaches to every colour-keyed
+       *  counter: the spec asserts the fixture property first.
+       *
+       *  The property is that nothing in the kitchen but the void meshes reads blue, and it used to
+       *  rest on the *declared* palette being warm throughout — paper, the six PAL decors, the two
+       *  veneer woods. ADR 0078 decision 1 ended that: a front painted `#2d5fff` is blue over red by
+       *  210 in the model, and on the running app it puts **16 599** counted pixels into a patch
+       *  that contains no void at all. So the premise is now a fact about which document is on
+       *  screen, and `editor-rail.desktop.e2e.spec.ts` asserts it against that document. */
       readonly kind: "blueTint";
       readonly minExcess: number;
     }
   | {
       /** Red by at least this much more than **both** other channels.
        *
-       *  **The witness instrument for ADR 0065's overflow mark, retired from measurement by wave
-       *  6V.** The mark is a 32 % wash over whatever the body underneath is painted with, so the
-       *  pixel it produces is a blend and is never within counting distance of `OVERFLOW_MARK_COLOR`
-       *  itself — which is why it was a tint test rather than a `near` test in the first place.
+       *  **Still the mark's measurement, because the mark is not a state the app toggles.** It
+       *  follows from `room.widthMm`, which no M6 control changes, so the only "before" is a second
+       *  document — and the flagged total grows the price row, moving the canvas box, so the two do
+       *  not share a rectangle to difference. `overflow-mark.e2e.spec.ts` carries the measurement
+       *  and, under work item 3, the two premises below as assertions.
        *
-       *  It compares against **two** channels where `blueTint` compares against one because the
-       *  kitchen is warm, so oak and clay are already red-over-blue everywhere. That is not enough:
-       *  *"red over green **and** blue is what only the mark is"* has been false since M1
-       *  (ADR 0091, finding 5). An **unmarked** wood front reaches a red-excess of 78, and every one
-       *  of ADR 0071's five wood tints reaches further, to 137 — against a threshold of 50. */
+       *  The mark is a 32 % wash over whatever the body underneath is painted with, so the pixel it
+       *  produces is a blend and is never within counting distance of `OVERFLOW_MARK_COLOR` itself —
+       *  which is why it was a tint test rather than a `near` test in the first place. It compares
+       *  against **two** channels where `blueTint` compares against one because the kitchen is warm,
+       *  so oak and clay are already red-over-blue everywhere.
+       *
+       *  **Two things other than a mark clear 50, and the counter is sound only where neither is on
+       *  screen.** A `SELECTION_HIGHLIGHT_COLOR` outline is red over both other channels by 210 and
+       *  is counted as a wash — 6 454 pixels of one, measured on a body the document says is not
+       *  marked — so the count is taken with nothing selected. A front painted `#ff2d2d` reports
+       *  16 416 with no mark anywhere, so the count is taken on a document that wears no finish.
+       *
+       *  ADR 0091 finding 5 names a third, the woods, from the **model** colours: untinted oak
+       *  reaches a red excess of 78 and ADR 0071's five tints reach 137, against this threshold of
+       *  50. That bound is real arithmetic and is not reached through the renderer — a walnut
+       *  kitchen measures 0, 0 and 3 counted pixels across the canvas in the three camera presets
+       *  (`pixel-counter-witness.desktop.e2e.spec.ts`). It is recorded here as a margin the
+       *  model leaves, not as a breach the screen shows. */
       readonly kind: "redTint";
       readonly minExcess: number;
     };
