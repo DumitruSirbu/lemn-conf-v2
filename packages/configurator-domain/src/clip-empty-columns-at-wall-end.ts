@@ -33,11 +33,7 @@
 // produces going forward without touching what it means.
 import type { DesignRoom } from "./design.js";
 import { toExactMillimetres, toMetres } from "./millimetres.js";
-import {
-  alongWallCoordinate,
-  alongWallPosition,
-  deriveColumnKeyAt,
-} from "./module-grid.js";
+import { alongWallCoordinate, alongWallPosition } from "./module-grid.js";
 import { wallLengthMm } from "./queries/overflowing-placements.js";
 import { landsOnWholeMillimetres } from "./split-empty-span.js";
 // Types only, for the reason `split-oversized-empty-columns.ts`'s head gives: `void-engine.ts`
@@ -71,10 +67,10 @@ export function clipEmptyColumnsAtWallEnd(
   for (const column of overflowing) {
     const outcome = planClip(column, room);
     if (outcome.action === "decline") continue;
-    clipped.delete(column.key);
-    if (outcome.action === "replace") {
-      clipped.set(outcome.column.key, outcome.column);
-    }
+    // Replacing under the key it arrived on, never under a re-derived one — a capped column is the
+    // same column, narrower (see `toClippedExtent`). A drop is the only outcome that removes a key.
+    if (outcome.action === "drop") clipped.delete(column.key);
+    else clipped.set(column.key, outcome.column);
   }
   return clipped;
 }
@@ -140,9 +136,27 @@ function planClip(column: ColumnExtent, room: DesignRoom): ClipOutcome {
 }
 
 /** One column, clipped: the original's frozen facts — `wall`, `ry`, the off-wall coordinate, `d`,
- *  `top` and `regions` — with only `w`, the along-wall centre and the key moved. The same rule
- *  `toExtent` in `split-oversized-empty-columns.ts` follows, for the same reason: ADR 0011 Gap D's
- *  space is one and the same however it comes to be cut. */
+ *  `top`, `regions` **and its key** — with only `w` and the along-wall centre moved.
+ *
+ *  **The key is the one thing the cap may not move** (ADR 0090 Amendment B addendum). The width and
+ *  the centre must diverge between the two faces — a cap holds the near edge and brings the far edge
+ *  in, so the centre follows — but a column's key is its *identity across those faces*. Re-deriving
+ *  it from the moved centre, which is what this did until backlog 52, turned one column into two:
+ *  the record stood at `B|2.72` while what was offered stood at `B|2.67`, and a resize or an insert
+ *  handed the recorded map could no longer find the column its own void named
+ *  (`COLUMN_MISMATCH`). That divergence is what made handing those two commands the recorded map
+ *  look expensive; preserving the key removes the cause rather than the symptom.
+ *
+ *  It is sound because this pass never clips an occupied column: a capped column is always
+ *  member-less, so no `record.col` is ever derived onto its key and `key = deriveColumnKeyAt(centre)`
+ *  — mandatory for the recorded face and for every occupied column — is not load-bearing here. The
+ *  key it keeps is the one the document records, which is the one `toColumnExtent` restores it under
+ *  on the next load.
+ *
+ *  It diverges from `toExtent` in `split-oversized-empty-columns.ts` for that reason and no other:
+ *  the split derives from a declared ceiling and writes both faces, so its pieces are new columns and
+ *  must be keyed as such. The cap derives from the room and writes one face, so its output is the
+ *  same column seen from the other side. */
 function toClippedExtent(
   column: ColumnExtent,
   centreMm: number,
@@ -151,7 +165,6 @@ function toClippedExtent(
   const centreM = toMetres(centreMm);
   return {
     ...column,
-    key: deriveColumnKeyAt(column.wall, centreM),
     w: toMetres(widthMm),
     ...alongWallPosition(column.wall, centreM),
   };

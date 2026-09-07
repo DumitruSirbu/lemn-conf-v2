@@ -453,11 +453,11 @@ describe("the cap bounds what is published and not what is recorded", () => {
 
     setDepth(store, DEEPER_MM);
     const deepRecorded = recordedWidthMm(store, "B");
-    // **The published key is the cap's, not the record's.** `clipEmptyColumnsAtWallEnd` re-derives a
-    // clipped column's key from its new centre, so the record stands at 2720 while what is offered
-    // stands at 2670 — 2420 to the wall's own 2920. The two faces differ in coordinate as well as in
-    // width, and an insert is matched against the offered one.
-    const deepPublished = publishedWidthMm(store, "B|2.67");
+    // **The published key is the record's** — ADR 0090 Amendment B's addendum, implemented by
+    // backlog 52. The record stands at 2720 and the offered column's own centre has moved to 2670
+    // (2420 to the wall's own 2920), so the two faces differ in width and in coordinate; the key is
+    // the one thing they may not differ in, because it is the column's identity across them.
+    const deepPublished = publishedWidthMm(store, "B|2.72");
     setDepth(store, DEFAULT_CABINET_DEPTH_MM);
 
     expect(deepRecorded).toBe(600);
@@ -475,7 +475,7 @@ describe("the cap bounds what is published and not what is recorded", () => {
 
     const opening = store
       .getState()
-      .voids.find((record) => record.col === "B|2.67");
+      .voids.find((record) => record.col === "B|2.72");
     expect(Math.round((opening?.w ?? 0) * 1000)).toBe(500);
     for (const column of store.getState().columns.values()) {
       const farEdgeMm = Math.round(
