@@ -10,10 +10,12 @@
  * - **A database with no ledger at all.** `SELECT_APPLIED_MIGRATIONS_SQL` raises against one, which
  *   is precisely the state production was in on 2026-09-07 and precisely why nothing noticed for
  *   seven days. It is this guard's loudest outcome, not a stack trace.
- * - **The columns.** ADR 0020 decision 2 and ADR 0096 decision 1: a ledger row is evidence about
- *   what the runner did, never about the schema. So "level" is only ever claimed after reading
- *   `information_schema.columns` back, which makes the same command usable as the pipeline's
- *   pre-flight guard and as its post-migrate verification.
+ * - **The columns, with their types and nullability.** ADR 0020 decision 2 and ADR 0096 decision 1:
+ *   a ledger row is evidence about what the runner did, never about the schema. So "level" is only
+ *   ever claimed after reading `information_schema.columns` back, which makes the same command
+ *   usable as the pipeline's pre-flight guard and as its post-migrate verification. A column *name*
+ *   is not evidence either: `revision` present but nullable is `0004` half applied, and a name-only
+ *   reading calls that level while `updateIfCurrent` still fails.
  */
 
 import { MigrationError } from "./migration-errors.js";
@@ -33,6 +35,20 @@ export type MigrationLedgerReading =
       readonly applied: readonly AppliedMigration[];
     };
 
+/**
+ * One column as `information_schema.columns` reports it, and as this module requires it.
+ *
+ * The same shape serves both sides on purpose: a requirement is a column reading the guard would
+ * accept, so "does the database match?" is a comparison between two values of one type rather than
+ * a translation between two vocabularies that can drift apart.
+ */
+export interface DeployedColumnReading {
+  readonly name: string;
+  /** `information_schema`'s own spelling — `timestamp with time zone`, not `timestamptz`. */
+  readonly dataType: string;
+  readonly isNullable: boolean;
+}
+
 /** Everything the guard reads from a deployed database, in one value — the three reads ADR 0096
  *  decision 9 requires of any read-back: the ledger, the columns, and the document schema versions
  *  the rows carry. The third is quoted rather than judged: `CURRENT_SCHEMA_VERSION` is a document
@@ -40,18 +56,19 @@ export type MigrationLedgerReading =
  *  decision 9 was written about. */
 export interface DeployedSchemaReading {
   readonly ledger: MigrationLedgerReading;
-  readonly designColumnNames: readonly string[];
+  readonly designColumns: readonly DeployedColumnReading[];
   readonly documentSchemaVersions: readonly number[];
 }
 
-/** `level` is the only outcome that may deploy. The other four each name a different repair, which
+/** `level` is the only outcome that may deploy. The other five each name a different repair, which
  *  is why this is not a boolean. */
 export type MigrationStatusOutcome =
   | "level"
   | "outside-the-ledger"
   | "behind"
   | "diverged"
-  | "columns-missing";
+  | "columns-missing"
+  | "columns-misshapen";
 
 export interface MigrationStatusReport {
   readonly outcome: MigrationStatusOutcome;
@@ -62,23 +79,46 @@ export interface MigrationStatusReport {
 }
 
 /**
- * The columns the application's own statements name, declared here because nothing else in this
- * repository declares them in one place — `neon-configuration-repository.ts` names them scattered
- * across four queries, and a query cannot be asked "which columns do you need?" before it runs.
+ * The columns the application's own statements name, in the shape those statements need, declared
+ * here because nothing else in this repository declares them in one place —
+ * `neon-configuration-repository.ts` names them scattered across four queries, and a query cannot
+ * be asked "which columns do you need?" before it runs.
  *
  * This list is the whole point of the guard. `revision` missing from production while the shipped
  * code selected it is the 2026-09-07 incident, and a ledger read alone would not have caught it on
  * a database that had never carried a ledger.
+ *
+ * The types and nullability are restated here rather than derived from the migration files, and
+ * that duplication is the point rather than a smell to remove. A shape derived from `0001`–`0004`
+ * would agree with any database those files had been run against, which is the very thing under
+ * test; this list is the application's independent statement of what it needs, and it has to be
+ * able to disagree with the files and with the database alike.
  */
 export const REQUIRED_DESIGN_COLUMNS = [
-  "id",
-  "schema_version",
-  "document",
-  "created_at",
-  "updated_at",
-  "write_token_hash",
-  "revision",
-] as const;
+  { name: "id", dataType: "text", isNullable: false },
+  { name: "schema_version", dataType: "integer", isNullable: false },
+  { name: "document", dataType: "jsonb", isNullable: false },
+  {
+    name: "created_at",
+    dataType: "timestamp with time zone",
+    isNullable: false,
+  },
+  {
+    name: "updated_at",
+    dataType: "timestamp with time zone",
+    isNullable: false,
+  },
+  // Nullable by `0002`'s own decision, not by omission: rows minted before it carry NULL and fail
+  // closed — still readable by link, no longer writable (ADR 0019 decision 1). Requiring `not null`
+  // here would refuse a correctly migrated database.
+  { name: "write_token_hash", dataType: "text", isNullable: true },
+  // `bigint not null` is the reason this reading carries a type at all. `0004` adds the column with
+  // `not null default 1`; a `revision` that is present and *nullable* is that migration half
+  // applied, and `updateIfCurrent` fails against it while a name-only guard reports level.
+  { name: "revision", dataType: "bigint", isNullable: false },
+] as const satisfies readonly DeployedColumnReading[];
+
+type RequiredDesignColumn = (typeof REQUIRED_DESIGN_COLUMNS)[number];
 
 /** Named once: it appears in three different refusals, and a fix an operator has to guess at is a
  *  fix they will get wrong against the wrong database. */
@@ -103,7 +143,7 @@ export function describeDeployedSchemaStatus(
   const drift = describeLedgerDrift(files, reading.ledger.applied);
   if (drift !== undefined) return { ...drift, readBack };
 
-  return { ...describeColumnGap(reading.designColumnNames), readBack };
+  return { ...describeColumnGap(reading.designColumns), readBack };
 }
 
 /** The one question the pipeline asks of a report. A named predicate rather than a comparison at
@@ -185,21 +225,82 @@ function divergedFromTheFiles(error: MigrationError): StatusVerdict {
   return { outcome: "diverged", detail: `${error.name}: ${error.message}` };
 }
 
+/**
+ * Absence first, then shape.
+ *
+ * The order is the same argument the ledger's absence makes over the columns: on a table missing
+ * `revision` entirely, "its type is wrong" is not a sentence about anything, and a reading with no
+ * columns at all — an absent `designs` table — would otherwise report every column as misshapen.
+ */
 function describeColumnGap(
-  observedColumnNames: readonly string[],
+  observed: readonly DeployedColumnReading[],
 ): StatusVerdict {
-  const missing = REQUIRED_DESIGN_COLUMNS.filter(
-    (column) => !observedColumnNames.includes(column),
-  );
-  if (missing.length === 0) {
+  const missing = missingColumnsOf(observed);
+  if (missing.length > 0) {
     return {
-      outcome: "level",
-      detail:
-        `Every migration file is recorded as applied and every column the application names is ` +
-        `present.`,
+      outcome: "columns-missing",
+      detail: missingColumnsDetail(missing),
     };
   }
-  return { outcome: "columns-missing", detail: missingColumnsDetail(missing) };
+
+  const misshapen = misshapenColumnsOf(observed);
+  if (misshapen.length > 0) {
+    return {
+      outcome: "columns-misshapen",
+      detail: misshapenColumnsDetail(misshapen),
+    };
+  }
+
+  return {
+    outcome: "level",
+    detail:
+      `Every migration file is recorded as applied and every column the application names is ` +
+      `present with the type and nullability its statements need.`,
+  };
+}
+
+function missingColumnsOf(
+  observed: readonly DeployedColumnReading[],
+): RequiredDesignColumn[] {
+  return REQUIRED_DESIGN_COLUMNS.filter(
+    (required) => observedColumnNamed(observed, required.name) === undefined,
+  );
+}
+
+/** A required column that is present under a type or a nullability the application's statements
+ *  cannot work against. Both halves are carried so the refusal can quote what it wanted and what it
+ *  found, rather than asking an operator to go and look. */
+interface ColumnShapeMismatch {
+  readonly required: RequiredDesignColumn;
+  readonly deployed: DeployedColumnReading;
+}
+
+function misshapenColumnsOf(
+  observed: readonly DeployedColumnReading[],
+): ColumnShapeMismatch[] {
+  return REQUIRED_DESIGN_COLUMNS.flatMap((required) => {
+    const deployed = observedColumnNamed(observed, required.name);
+    if (deployed === undefined || hasRequiredShape(deployed, required))
+      return [];
+    return [{ required, deployed }];
+  });
+}
+
+function observedColumnNamed(
+  observed: readonly DeployedColumnReading[],
+  name: string,
+): DeployedColumnReading | undefined {
+  return observed.find((column) => column.name === name);
+}
+
+function hasRequiredShape(
+  deployed: DeployedColumnReading,
+  required: RequiredDesignColumn,
+): boolean {
+  return (
+    deployed.dataType === required.dataType &&
+    deployed.isNullable === required.isNullable
+  );
 }
 
 /**
@@ -210,14 +311,54 @@ function describeColumnGap(
  * older dump — can carry a complete ledger over a table that is missing a column. ADR 0020
  * decision 2 exists because this case cannot be seen from the ledger.
  */
-function missingColumnsDetail(missing: readonly string[]): string {
+function missingColumnsDetail(
+  missing: readonly RequiredDesignColumn[],
+): string {
   return (
     `The ledger is complete, and the designs table is missing ${String(missing.length)} column(s) ` +
-    `the application names: ${missing.join(", ")}. A ledger row is evidence about what the runner ` +
-    `did, never about the schema (ADR 0020 decision 2) — so this database's schema was changed ` +
-    `outside the runner. Resolve it by hand before deploying; re-running ${MIGRATE_COMMAND} will ` +
-    `not, because the ledger already claims those files ran.`
+    `the application names: ${missing.map(describeColumn).join(", ")}. A ledger row is evidence ` +
+    `about what the runner did, never about the schema (ADR 0020 decision 2) — so this database's ` +
+    `schema was changed outside the runner. Resolve it by hand before deploying; re-running ` +
+    `${MIGRATE_COMMAND} will not, because the ledger already claims those files ran.`
   );
+}
+
+/**
+ * Every required column is present, and one of them is not the column the application needs.
+ *
+ * Distinct from `columns-missing` because the two name different states of the same migration and
+ * different repairs. An absent `revision` is `0004` never applied here. A `revision` that is
+ * present and nullable is `0004` half applied — the column exists, so `add column if not exists`
+ * will never touch it again, and no re-run repairs it. Reporting that as "missing" sends an
+ * operator to a command that changes nothing; reporting it as level is the 2026-09-07 incident one
+ * layer in, with every save still failing on `updateIfCurrent`.
+ */
+function misshapenColumnsDetail(
+  mismatches: readonly ColumnShapeMismatch[],
+): string {
+  return (
+    `The ledger is complete and every column the application names is present, and ` +
+    `${String(mismatches.length)} of them do not have the shape its statements need: ` +
+    `${mismatches.map(describeShapeMismatch).join("; ")}. A column's name is no more evidence ` +
+    `about its type than a ledger row is about the schema (ADR 0020 decision 2). Re-running ` +
+    `${MIGRATE_COMMAND} will not repair this: every file adds its column with "if not exists", so ` +
+    `a column that is already there is never altered. Resolve it by hand before deploying.`
+  );
+}
+
+function describeShapeMismatch({
+  required,
+  deployed,
+}: ColumnShapeMismatch): string {
+  return `${deployed.name} is ${describeShape(deployed)} and must be ${describeShape(required)}`;
+}
+
+function describeColumn(column: DeployedColumnReading): string {
+  return `${column.name} ${describeShape(column)}`;
+}
+
+function describeShape(column: DeployedColumnReading): string {
+  return `${column.dataType} ${column.isNullable ? "null" : "not null"}`;
 }
 
 /** The evidence line. Deliberately the raw readings and not a judgement on them, so a reader of a
@@ -225,9 +366,21 @@ function missingColumnsDetail(missing: readonly string[]): string {
 function quoteReadBack(reading: DeployedSchemaReading): string {
   return (
     `ledger ${describeLedgerVersions(reading.ledger)}; designs columns ` +
-    `[${[...reading.designColumnNames].sort().join(", ")}]; document schema_version(s) ` +
+    `[${describeDeployedColumns(reading.designColumns)}]; document schema_version(s) ` +
     `[${[...reading.documentSchemaVersions].sort((a, b) => a - b).join(", ")}]`
   );
+}
+
+/** By name, so two runs against the same database print the same line whatever order the catalogue
+ *  returned; with type and nullability, because those are what the verdict was computed from and an
+ *  evidence line that omits them cannot be checked against a `columns-misshapen` refusal. */
+function describeDeployedColumns(
+  columns: readonly DeployedColumnReading[],
+): string {
+  return [...columns]
+    .sort((left, right) => left.name.localeCompare(right.name))
+    .map(describeColumn)
+    .join(", ");
 }
 
 function describeLedgerVersions(ledger: MigrationLedgerReading): string {

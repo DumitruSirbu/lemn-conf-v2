@@ -37,13 +37,14 @@ function ledgerRowFor(file: MigrationFile): AppliedMigration {
   };
 }
 
-/** Columns complete, so a test about the ledger fails for ledger reasons and nothing else. */
+/** Columns complete and correctly shaped, so a test about the ledger fails for ledger reasons and
+ *  nothing else. */
 function readingWith(
   ledgerRows: readonly AppliedMigration[],
 ): DeployedSchemaReading {
   return {
     ledger: { kind: "present", applied: ledgerRows },
-    designColumnNames: [...REQUIRED_DESIGN_COLUMNS],
+    designColumns: [...REQUIRED_DESIGN_COLUMNS],
     documentSchemaVersions: [1],
   };
 }
@@ -163,13 +164,13 @@ describe("the columns, which are the only evidence about the schema", () => {
     // absent table arrives here as an empty column list.
     const report = describeDeployedSchemaStatus(FILES, {
       ledger: { kind: "present", applied: EVERY_FILE_APPLIED },
-      designColumnNames: [],
+      designColumns: [],
       documentSchemaVersions: [],
     });
 
     expect(report.outcome).toBe("columns-missing");
     for (const column of REQUIRED_DESIGN_COLUMNS) {
-      expect(report.detail).toContain(column);
+      expect(report.detail).toContain(column.name);
     }
   });
 
@@ -178,7 +179,14 @@ describe("the columns, which are the only evidence about the schema", () => {
     // the column check's — refusing here would make every rollback deploy unreportable.
     const report = describeDeployedSchemaStatus(FILES, {
       ledger: { kind: "present", applied: EVERY_FILE_APPLIED },
-      designColumnNames: [...REQUIRED_DESIGN_COLUMNS, "archived_at"],
+      designColumns: [
+        ...REQUIRED_DESIGN_COLUMNS,
+        {
+          name: "archived_at",
+          dataType: "timestamp with time zone",
+          isNullable: true,
+        },
+      ],
       documentSchemaVersions: [1],
     });
 
@@ -192,7 +200,7 @@ describe("the columns, which are the only evidence about the schema", () => {
 
     const report = describeDeployedSchemaStatus(FILES, {
       ledger: { kind: "present", applied: EVERY_FILE_APPLIED },
-      designColumnNames: scrambled,
+      designColumns: scrambled,
       documentSchemaVersions: [1],
     });
 
@@ -208,8 +216,8 @@ describe("the columns, which are the only evidence about the schema", () => {
         kind: "present",
         applied: [FIRST_FILE, SECOND_FILE, THIRD_FILE].map(ledgerRowFor),
       },
-      designColumnNames: [...REQUIRED_DESIGN_COLUMNS].filter(
-        (column) => column !== "revision",
+      designColumns: [...REQUIRED_DESIGN_COLUMNS].filter(
+        (column) => column.name !== "revision",
       ),
       documentSchemaVersions: [1],
     });
@@ -222,7 +230,7 @@ describe("the read-back, which is the evidence a reader checks the verdict again
   it("orders document schema versions numerically, not as text", () => {
     const report = describeDeployedSchemaStatus(FILES, {
       ledger: { kind: "present", applied: EVERY_FILE_APPLIED },
-      designColumnNames: [...REQUIRED_DESIGN_COLUMNS],
+      designColumns: [...REQUIRED_DESIGN_COLUMNS],
       documentSchemaVersions: [10, 2, 1],
     });
 
@@ -232,7 +240,7 @@ describe("the read-back, which is the evidence a reader checks the verdict again
   it("says the designs table read back nothing rather than printing an empty list silently", () => {
     const report = describeDeployedSchemaStatus(FILES, {
       ledger: { kind: "present", applied: [] },
-      designColumnNames: [],
+      designColumns: [],
       documentSchemaVersions: [],
     });
 
@@ -245,7 +253,7 @@ describe("only level deploys", () => {
     const reports = {
       "outside-the-ledger": describeDeployedSchemaStatus(FILES, {
         ledger: { kind: "absent" },
-        designColumnNames: [],
+        designColumns: [],
         documentSchemaVersions: [],
       }),
       behind: describeDeployedSchemaStatus(FILES, readingWith([])),
@@ -255,7 +263,7 @@ describe("only level deploys", () => {
       ),
       "columns-missing": describeDeployedSchemaStatus(FILES, {
         ledger: { kind: "present", applied: EVERY_FILE_APPLIED },
-        designColumnNames: ["id"],
+        designColumns: [{ name: "id", dataType: "text", isNullable: false }],
         documentSchemaVersions: [1],
       }),
     };
@@ -308,6 +316,7 @@ describe("the verdict over swept ledgers", () => {
       "behind",
       "diverged",
       "columns-missing",
+      "columns-misshapen",
     ]).toContain(report.outcome);
   });
 
@@ -319,14 +328,36 @@ describe("the verdict over swept ledgers", () => {
   })("refuses a table missing any one required column", (absentColumn) => {
     const report = describeDeployedSchemaStatus(FILES, {
       ledger: { kind: "present", applied: EVERY_FILE_APPLIED },
-      designColumnNames: REQUIRED_DESIGN_COLUMNS.filter(
-        (column) => column !== absentColumn,
+      designColumns: REQUIRED_DESIGN_COLUMNS.filter(
+        (column) => column.name !== absentColumn.name,
       ),
       documentSchemaVersions: [1],
     });
 
     expect(report.outcome).toBe("columns-missing");
-    expect(report.detail).toContain(absentColumn);
+    expect(report.detail).toContain(absentColumn.name);
+  });
+
+  // The other half of that sweep. `revision` is the column the reading was widened for, but pinning
+  // only `revision` would let the next column's shape quietly stop being checked, so the flip is
+  // swept over every one of them.
+  propertyTest.prop([fc.constantFrom(...REQUIRED_DESIGN_COLUMNS)], {
+    seed: 20260907,
+    numRuns: 50,
+  })("refuses a table whose column has the wrong nullability", (flipped) => {
+    const report = describeDeployedSchemaStatus(FILES, {
+      ledger: { kind: "present", applied: EVERY_FILE_APPLIED },
+      designColumns: REQUIRED_DESIGN_COLUMNS.map((column) =>
+        column.name === flipped.name
+          ? { ...column, isNullable: !column.isNullable }
+          : column,
+      ),
+      documentSchemaVersions: [1],
+    });
+
+    // Distinct from "missing" on purpose: the column is there, so `migrate` would change nothing.
+    expect(report.outcome).toBe("columns-misshapen");
+    expect(report.detail).toContain(flipped.name);
   });
 });
 

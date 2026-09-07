@@ -37,6 +37,7 @@ import {
   isDeployedSchemaLevel,
 } from "./migration-status.js";
 import type {
+  DeployedColumnReading,
   DeployedSchemaReading,
   MigrationLedgerReading,
 } from "./migration-status.js";
@@ -55,8 +56,11 @@ select
   to_regclass('public.schema_migrations') is not null as has_ledger,
   to_regclass('public.designs') is not null as has_designs`;
 
+/** Type and nullability as well as the name, because a name alone cannot tell `0004` applied from
+ *  `0004` half applied: `revision` present but nullable fails every `updateIfCurrent` while reading
+ *  as a column that is there. `REQUIRED_DESIGN_COLUMNS` states the shape this is compared against. */
 const DESIGN_COLUMNS_SQL = `
-select column_name from information_schema.columns
+select column_name, data_type, is_nullable from information_schema.columns
 where table_schema = 'public' and table_name = 'designs'`;
 
 /** ADR 0096 decision 9: the document version and the migration number are different things and were
@@ -102,7 +106,7 @@ async function queryDeployedSchema(
 
   return {
     ledger: hasLedger ? await readLedger(sql) : { kind: "absent" },
-    designColumnNames: hasDesigns ? await readDesignColumns(sql) : [],
+    designColumns: hasDesigns ? await readDesignColumns(sql) : [],
     documentSchemaVersions: hasDesigns
       ? await readDocumentSchemaVersions(sql)
       : [],
@@ -146,11 +150,31 @@ function toAppliedMigration(row: {
   };
 }
 
-async function readDesignColumns(sql: NeonQuery): Promise<string[]> {
-  const rows = (await sql.query(DESIGN_COLUMNS_SQL)) as {
-    column_name: string;
-  }[];
-  return rows.map((row) => row.column_name);
+async function readDesignColumns(
+  sql: NeonQuery,
+): Promise<DeployedColumnReading[]> {
+  const rows = (await sql.query(
+    DESIGN_COLUMNS_SQL,
+  )) as InformationSchemaColumn[];
+  return rows.map(toDeployedColumn);
+}
+
+interface InformationSchemaColumn {
+  readonly column_name: string;
+  readonly data_type: string;
+  readonly is_nullable: string;
+}
+
+/** `is_nullable` is the SQL standard's `'YES'`/`'NO'` text and not a boolean, so `'NO'` is what is
+ *  tested for rather than truthiness. Anything unrecognised therefore reads as nullable, which is
+ *  the direction that can only make the guard refuse a database it could not read confidently —
+ *  never let one through. */
+function toDeployedColumn(row: InformationSchemaColumn): DeployedColumnReading {
+  return {
+    name: row.column_name,
+    dataType: row.data_type,
+    isNullable: row.is_nullable !== "NO",
+  };
 }
 
 async function readDocumentSchemaVersions(sql: NeonQuery): Promise<number[]> {
