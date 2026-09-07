@@ -45,6 +45,7 @@ import {
   createConfiguratorStore,
   type ConfiguratorState,
 } from "@/store/configurator-store";
+import { describeEditability } from "@/store/editability";
 
 import { createFakeProbeFactory } from "../support/fake-body-probe";
 
@@ -67,6 +68,14 @@ const { GlobalSettings, GlobalSettingsSurface } = await import(
 );
 
 const FIXED_NOW = "2026-09-03T12:00:00.000Z";
+
+/** These fixtures are about chips, the figure and the tab ring, never about access. Stated rather
+ *  than defaulted: `GlobalSettingsSurface.editability` is a required prop precisely so a write
+ *  surface cannot silently default to permitted (M6-AUD-001). */
+const WRITABLE_ACCESS = describeEditability({
+  canWrite: true,
+  saveStatus: "idle",
+});
 
 const MATERIAL_TIER_IDS = SAMPLE_PRICE_BOOK.material.tiers.map(
   (tier) => tier.tierId,
@@ -338,6 +347,7 @@ describe("the overflow flag travels with the total onto this surface too", () =>
       createElement(GlobalSettingsSurface, {
         id: "settings",
         view: viewOf(overflowing),
+        editability: WRITABLE_ACCESS,
         onChoose: () => undefined,
         onChooseDepth: () => undefined,
         onCancel: () => undefined,
@@ -352,6 +362,7 @@ describe("the overflow flag travels with the total onto this surface too", () =>
         createElement(GlobalSettingsSurface, {
           id: "settings",
           view: viewOf(KITCHEN_L_DESIGN),
+          editability: WRITABLE_ACCESS,
           onChoose: () => undefined,
           onChooseDepth: () => undefined,
           onCancel: () => undefined,
@@ -406,6 +417,9 @@ describe("the markup preconditions the focus trap is written against", () => {
       createElement(GlobalSettingsSurface, {
         id: "settings",
         view,
+        // The ring this block pins is the **writable** sheet's — a locked one greys its radios and
+        // its *Aplică*, and that ring is asserted in `read-only-global-settings.test.ts`.
+        editability: WRITABLE_ACCESS,
         onChoose: () => undefined,
         onChooseDepth: () => undefined,
         onCancel: () => undefined,
@@ -444,11 +458,16 @@ describe("the markup preconditions the focus trap is written against", () => {
     }
   });
 
-  it("renders no disabled control at either end, so neither end of the ring can vanish", () => {
+  it("renders no disabled control at either end of a writable sheet, so neither end of the ring can vanish", () => {
     // The case the trap has no answer for: `stops.at(0)` and `stops.at(-1)` are computed from the
-    // live DOM, so a disabled first or last stop silently moves the wrap point. It cannot arise
-    // while nothing here renders `disabled` — asserted, because that is a fact about this markup
-    // rather than a rule anything enforces.
+    // live DOM, so a first or last stop the browser skips silently moves the wrap point.
+    //
+    // **Scoped to a writable sheet since wave W2**, which is what every fixture here is. A locked
+    // one greys its radios and its *Aplică* (M6-AUD-001), so the selector gained `:not([disabled])`
+    // on both halves and the ring shortens to *Renunță* rather than acquiring a stop Tab never
+    // visits. That case is asserted in `tests/settings/read-only-global-settings.test.ts`; this one
+    // pins the shape the shipped sheet has, which is a fact about this markup rather than a rule
+    // anything enforces.
     for (const pending of EVERY_PENDING)
       expect(surfaceMarkupFor(pending), JSON.stringify(pending)).not.toContain(
         "disabled",

@@ -24,6 +24,7 @@ import {
 } from "@lemnaria/configurator-domain";
 
 import { ro } from "@/content/ro";
+import type { WholeKitchenSetting } from "@/store/whole-kitchen-apply";
 import {
   describeAddedAmount,
   describeFlaggedTotalWarning,
@@ -246,6 +247,109 @@ export function describeGlobalSettings(
     cancelLabel: ro.globalSettings.cancel,
     ...(materialResetConfirm === undefined ? {} : { materialResetConfirm }),
   };
+}
+
+/**
+ * **What the sheet opens editing, which is what it displays and not what the document says**
+ * (M6-AUD-012).
+ *
+ * The sheet used to open on the stored selection copied verbatim. A design carrying a tier the book
+ * has since withdrawn then displayed the group's *default* as checked — `selectedTierIn` resolves an
+ * unoffered id to it — while pending still held the withdrawn one. The checked radio therefore fired
+ * no change event, and `Aplică` compared the withdrawn pending id against the identical applied id
+ * and exited as unchanged. Pricing stayed unavailable, and the only escape was to pick another tier
+ * and come back: undiscoverable. Verified in a browser against a real document holding
+ * `materialTierId: "material.withdrawn"`.
+ *
+ * So the opening pending state is the **resolved** one: whatever the customer can see checked is
+ * what one press stores.
+ *
+ * **A choice the design does not name stays unnamed**, and that is the trap in this fix rather than
+ * an omission. Seeding an absent tier with the book's default would make *Aplică* on an untouched
+ * sheet stamp the defaults into a document that had deliberately chosen nothing — the exact opposite
+ * of `applyPending`'s *apply writes only what changed*. What is rewritten here is a stored id the
+ * book no longer offers, which is not a choice the customer still has.
+ *
+ * **The depth is deliberately not resolved here.** `toDepthGroupView` falls back the same way, but
+ * committing that fallback rebuilds every body and redraws the scene (ADR 0074) — a different class
+ * of act from writing a tier id, and one no decision has ruled may happen on a press the customer
+ * did not aim at the depth. Recorded rather than fixed in passing.
+ */
+export function resolveOpeningChoice(
+  applied: WholeKitchenChoice,
+  offer: WholeKitchenTierOffer,
+): WholeKitchenChoice {
+  return {
+    ...applied,
+    ...offeredOrFallback(
+      "materialTierId",
+      applied.materialTierId,
+      offer.material,
+    ),
+    ...offeredOrFallback(
+      "hardwareTierId",
+      applied.hardwareTierId,
+      offer.hardware,
+    ),
+  };
+}
+
+/** One group's opening id, keyed so the caller spreads it: absent stays absent, an offered id is
+ *  kept, and anything else becomes the fallback the group already displays. */
+function offeredOrFallback(
+  key: "materialTierId" | "hardwareTierId",
+  appliedTierId: string | undefined,
+  group: OfferedTierGroup,
+): Partial<WholeKitchenChoice> {
+  if (appliedTierId === undefined) return {};
+  if (group.tierIds.includes(appliedTierId)) return { [key]: appliedTierId };
+  return { [key]: selectedTierIn(group, appliedTierId).tierId };
+}
+
+/** A radio press, as a change of pending state. Extracted from the component so the invariant
+ *  *cancel writes nothing* can be swept over arbitrary press sequences without a browser, against
+ *  the same function the sheet runs. */
+export function chooseTierIn(
+  chosen: WholeKitchenChoice,
+  choice: { readonly key: WholeKitchenGroupKey; readonly tierId: string },
+): WholeKitchenChoice {
+  return choice.key === "material"
+    ? { ...chosen, materialTierId: choice.tierId }
+    : { ...chosen, hardwareTierId: choice.tierId };
+}
+
+export function chooseDepthIn(
+  chosen: WholeKitchenChoice,
+  cabinetDepthMm: number,
+): WholeKitchenChoice {
+  return { ...chosen, cabinetDepthMm };
+}
+
+/** A refused press, as the sheet reports it: which setting refused, and the engine's own sentence
+ *  about why. */
+export interface ApplyRefusal {
+  readonly setting: WholeKitchenSetting;
+  /** `RejectionReason.message`, already rendered by the domain — this surface invents no refusal
+   *  vocabulary of its own (ADR 0032 rule 2). */
+  readonly message: string;
+}
+
+/** The heading each setting is known by on this sheet, so a refusal names the control the customer
+ *  is looking at rather than a field name. */
+const SETTING_HEADINGS: Readonly<Record<WholeKitchenSetting, string>> = {
+  material: ro.globalSettings.groupHeadings.material,
+  hardware: ro.globalSettings.groupHeadings.hardware,
+  cabinetDepth: ro.globalSettings.depthHeading,
+};
+
+/** **What a refused press says**, and it says *nothing was applied* on purpose: the press is one
+ *  commit now, so a customer who reads this has lost none of their other choices and the sheet is
+ *  still open on them. */
+export function describeApplyRefusal(refusal: ApplyRefusal): string {
+  return ro.globalSettings.applyRefused(
+    SETTING_HEADINGS[refusal.setting],
+    refusal.message,
+  );
 }
 
 /**

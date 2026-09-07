@@ -60,6 +60,7 @@ import {
   type GlobalSettingsView,
 } from "@/settings/global-settings-model";
 import { GlobalSettingsSurface } from "@/settings/global-settings";
+import { describeEditability } from "@/store/editability";
 import { createConfiguratorStore } from "@/store/configurator-store";
 
 import { createFakeProbeFactory } from "../support/fake-body-probe";
@@ -167,11 +168,20 @@ function viewOf(design: Design, book: PriceBook = BOOK): GlobalSettingsView {
   });
 }
 
+/** This file is about a book whose tier prices below its own default, never about access. Stated
+ *  rather than defaulted: `GlobalSettingsSurface.editability` is a required prop precisely so a
+ *  write surface cannot silently default to permitted (M6-AUD-001). */
+const WRITABLE_ACCESS = describeEditability({
+  canWrite: true,
+  saveStatus: "idle",
+});
+
 function settingsMarkupOf(view: GlobalSettingsView): string {
   return renderToStaticMarkup(
     createElement(GlobalSettingsSurface, {
       id: "settings",
       view,
+      editability: WRITABLE_ACCESS,
       onChoose: () => undefined,
       onChooseDepth: () => undefined,
       onCancel: () => undefined,

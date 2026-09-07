@@ -99,6 +99,15 @@
   border: none;
 }
 
+/* §13.1's greying, on the control that opens the sheet. The reason travels as the button's own
+ * `title` rather than as a line here — ADR 0082's containment holds this strip inside the viewport
+ * at every chip count, and a sentence added to the row is what pushed the trigger off a 390 px
+ * screen once already. */
+.trigger:disabled {
+  color: var(--ink-faint);
+  cursor: default;
+}
+
 .chevron {
   font-size: 13px;
 }
@@ -125,6 +134,21 @@
   border-top: 1px solid var(--line);
   border-radius: 22px 22px 0 0;
   box-shadow: 0 -16px 36px rgb(28 24 20 / 18%);
+
+  /**
+   * **The home indicator's strip, added to the sheet rather than to each control** — the owner's
+   * "the save buttons are sometimes there and sometimes not", read as an inset problem.
+   *
+   * This tree carried no `env(safe-area-inset-*)` anywhere. The sheet is `position: fixed;
+   * bottom: 0` measured in `dvh`, and on iOS Safari — which is what the owner's screenshots are —
+   * both the fixed anchor and `dvh` move as the bottom toolbar collapses and expands with scroll.
+   * The actions render unconditionally (they always did), so the report is about where they landed,
+   * not whether they existed. The inset is the part of that a stylesheet can answer.
+   *
+   * It is declared on the sheet and inherited by the footer's own padding below, so exactly one
+   * element accounts for the inset and no control can be given it twice.
+   */
+  padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 
 .grabber {
@@ -216,6 +240,15 @@
   border: 2px solid var(--accent);
 }
 
+/* §13.1's "greyed **and** unclickable": the input carries `disabled`, so this is only the paint that
+ * says so. `cursor: default` matters as much as the opacity — a pointer that still reads as
+ * clickable over a locked row is the "I changed it and it did not save" report M6-AUD-001 is
+ * about. */
+.option[data-disabled="true"] {
+  cursor: default;
+  opacity: 0.55;
+}
+
 .radio {
   flex: 0 0 auto;
   width: 18px;
@@ -281,6 +314,33 @@
   border-radius: 10px;
 }
 
+/* **A refused press, in the caution palette rather than the refusal's red** — ADR 0065 decision 8's
+ * pair, which `.overflow` above already takes. Nothing was lost: the press committed nothing, every
+ * other choice is still standing, and colouring it as a fault would say otherwise. */
+.refusal {
+  margin: 0 18px;
+  padding: 9px 11px;
+  font: 400 11.5px/1.4 var(--font-ui);
+  color: #7c4a0c;
+  background: #fdf6ec;
+  border-radius: 10px;
+}
+
+/* The one line a locked sheet states, under the head and above whichever step is on screen. Set like
+ * the sheet's own quiet copy: it explains the greying below it rather than announcing a fault.
+ *
+ * **It carries its own inset because it is not inside `.body`** — it used to be, at the head of the
+ * choosing step's, and the confirm step replaces that body wholesale, so the sentence vanished at
+ * the moment the customer was asked to commit (M6-AUD-001, found by adversarial QA). It takes no
+ * flow height at all when the sheet is writable, because it is not rendered. */
+.locked {
+  flex: 0 0 auto;
+  margin: 0;
+  padding: 11px 18px 0;
+  font: 700 11.5px/1.35 var(--font-ui);
+  color: var(--ink-muted);
+}
+
 .footer {
   display: flex;
   gap: 12px;
@@ -288,6 +348,13 @@
   justify-content: space-between;
   padding: 13px 18px 18px;
   border-top: 1px solid var(--line);
+}
+
+/* §13.1 again, on the primary action. `.cancel` deliberately takes none of this: leaving the sheet
+ * is never locked. */
+.apply:disabled {
+  cursor: default;
+  opacity: 0.5;
 }
 
 .figure {
@@ -392,6 +459,15 @@
     font-size: 12.5px;
   }
 
+  /* **The popover is bounded by the screen it hangs in, not only by a drawn height**
+   * (M6-AUD-016). The shell switches at `min-width: 900px` regardless of height, and 660 px of
+   * surface under a 500 px viewport put *Aplică* at y = 639 — off the screen, with `.body` scrolling
+   * internally so nothing looked wrong from inside the box. `min()` keeps frame D2E's own height
+   * wherever there is room for it and takes the viewport's answer where there is not; the footer
+   * stays pinned inside whichever wins, because `.body` is the only thing that flexes.
+   *
+   * The inset declared on the base rule is not repeated: a desktop viewport has no home indicator,
+   * and `env()` resolves to its `0px` fallback there anyway. */
   .surface {
     position: absolute;
     top: 100%;
@@ -400,7 +476,7 @@
     left: 0;
     width: 640px;
     max-width: calc(100vw - 48px);
-    max-height: 660px;
+    max-height: min(660px, calc(100dvh - var(--popover-top) - var(--safe-gap)));
     margin-top: 16px;
     border: 1px solid var(--line);
     border-radius: 16px;
@@ -464,6 +540,10 @@
 
   .overflow {
     margin: 0 26px;
+  }
+
+  .locked {
+    padding: 14px 26px 0;
   }
 
   .footer {

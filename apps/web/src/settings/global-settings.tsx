@@ -37,9 +37,15 @@ import {
   useWholeKitchenTierOffer,
 } from "@/price/use-priced-design";
 import { useConfiguratorStore } from "@/store/configurator-store";
+import { describeEditability, type Editability } from "@/store/editability";
 
 import {
+  chooseDepthIn,
+  chooseTierIn,
+  describeApplyRefusal,
   describeGlobalSettings,
+  resolveOpeningChoice,
+  type ApplyRefusal,
   type GlobalSettingsView,
   type DepthGroupView,
   type MaterialResetConfirmView,
@@ -60,27 +66,34 @@ const NOTE_GLYPH = "i";
  *  is the browser's own rule and is why the unchecked ones are not listed: including them would put
  *  the trap's first and last stops on elements Tab never visits, and the ring would leak past both
  *  ends. Every group here always has a checked member — a choice resolves to the book's default
- *  where the design names none. */
-const TAB_STOP_SELECTOR = 'button:not([disabled]), input[type="radio"]:checked';
+ *  where the design names none.
+ *
+ *  **`:not([disabled])` is on both halves for exactly that reason** (wave W2). A locked sheet greys
+ *  its radios and its *Aplică* (M6-AUD-001), and a disabled radio is no more tabbable than a
+ *  disabled button — listing one would move the ring's first stop onto an element the browser
+ *  skips, which is the leak this selector exists to prevent. *Renunță* is never disabled, so the
+ *  ring is never empty: leaving must stay possible on every surface. */
+const TAB_STOP_SELECTOR =
+  'button:not([disabled]), input[type="radio"]:checked:not([disabled])';
 
 export function GlobalSettings() {
   const pricing = usePricedDesign();
   const offer = useWholeKitchenTierOffer();
   const design = useConfiguratorStore((state) => state.design);
   const catalog = useConfiguratorStore((state) => state.catalog);
-  const setMaterialTier = useConfiguratorStore(
-    (state) => state.setMaterialTier,
-  );
-  const setHardwareTier = useConfiguratorStore(
-    (state) => state.setHardwareTier,
-  );
-  const setCabinetDepth = useConfiguratorStore(
-    (state) => state.setCabinetDepth,
+  const applyWholeKitchenSettings = useConfiguratorStore(
+    (state) => state.applyWholeKitchenSettings,
   );
   // Only the figure's *label* reads this — the total itself does not move under a refusal. Taken
   // here so the sheet cannot say *"De la"* over the bar it is covering while the bar behind the
   // scrim says *"De la neschimbat"*.
   const rejection = useConfiguratorStore((state) => state.lastRejection);
+  // **The two fields wave 6G never selected** (M6-AUD-001). Without them this surface had no locked
+  // state at all: its trigger, its radios and its *Aplică* stayed live on a read-only `/d/{id}` link
+  // while §9's panel one band away was correctly greyed. The rule itself is
+  // `store/editability.ts`'s, shared with the panel, so the two cannot drift again.
+  const canWrite = useConfiguratorStore((state) => state.canWrite);
+  const saveStatus = useConfiguratorStore((state) => state.saveStatus);
 
   // Wave 6A's projection, memoised on the two store slices the answer depends on — the reason
   // `usePricedDesign` memoises on the same two.
@@ -104,8 +117,16 @@ export function GlobalSettings() {
   // records that the customer has been asked and has not answered yet.
   const [isConfirming, setIsConfirming] = useState(false);
   // What the customer has chosen and not yet applied. Seeded from the design each time the sheet
-  // opens, so cancelling and re-opening starts from what is actually stored.
+  // opens — through `resolveOpeningChoice`, so a stored tier the book has withdrawn opens as the
+  // fallback the sheet actually displays (M6-AUD-012) — so cancelling and re-opening starts from
+  // what is stored.
   const [pending, setPending] = useState<WholeKitchenChoice>({});
+  /** The last press this sheet refused, or nothing. Component state rather than a store read: it is
+   *  about *this* press, and `lastRejection` cannot be told apart from a refusal already on screen
+   *  when the sheet opened. */
+  const [refusal, setRefusal] = useState<ApplyRefusal | undefined>(undefined);
+
+  const editability = describeEditability({ canWrite, saveStatus });
 
   const anchorRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -166,27 +187,28 @@ export function GlobalSettings() {
   useBackgroundInert(isOpen, anchorRef);
 
   function openSheet(): void {
-    setPending(applied);
+    setPending(resolveOpeningChoice(applied, offer));
     setIsConfirming(false);
+    setRefusal(undefined);
     setIsOpen(true);
   }
 
   function chooseTier(key: WholeKitchenGroupKey, tierId: string): void {
-    setPending((chosen) =>
-      key === "material"
-        ? { ...chosen, materialTierId: tierId }
-        : { ...chosen, hardwareTierId: tierId },
-    );
+    setPending((chosen) => chooseTierIn(chosen, { key, tierId }));
   }
 
   function chooseDepth(cabinetDepthMm: number): void {
-    setPending((chosen) => ({ ...chosen, cabinetDepthMm }));
+    setPending((chosen) => chooseDepthIn(chosen, cabinetDepthMm));
   }
 
   /** **The whole press is gated, not the material half of it** (ADR 0081 decision 2). With a
    *  confirmation owed this runs no command at all — not material, not hardware, not depth — and
-   *  asks instead. A partial apply is not a state this product has. */
+   *  asks instead. A partial apply is not a state this product has.
+   *
+   *  It carries the read-only guard because it is *a* door into the commit. It is not the only one —
+   *  see `applyPending`, which carries its own. */
   function requestApply(): void {
+    if (editability.isReadOnly) return;
     if (view.materialResetConfirm === undefined) {
       applyPending();
       return;
@@ -194,30 +216,49 @@ export function GlobalSettings() {
     setIsConfirming(true);
   }
 
-  /** **Cancel writes nothing**, and apply writes only what changed — so opening the sheet and
-   *  pressing *Aplică* without choosing anything leaves the document untouched rather than stamping
-   *  the book's defaults into it. */
+  /**
+   * **Cancel writes nothing**, and apply writes only what changed — so opening the sheet and
+   * pressing *Aplică* without choosing anything leaves the document untouched rather than stamping
+   * the book's defaults into it.
+   *
+   * **And one press is one commit** (M6-AUD-004). The three settings used to be three independent
+   * store actions, each mutating state and scheduling a save the moment it succeeded, so a depth
+   * refused after a material committed left the design half changed — and closed the sheet on it.
+   * `applyWholeKitchenSettings` preflights the whole press and commits once or not at all; on a
+   * refusal the sheet **stays open**, naming the setting that refused, with every other choice the
+   * customer made still standing.
+   *
+   * **The guard is here and not only on `requestApply`** (M6-AUD-001, found by adversarial QA).
+   * There are two doors into this commit — the choosing step's *Aplică* goes through `requestApply`,
+   * the confirm step's *Schimbă materialul* calls this function directly — and guarding the caller
+   * guarded one of them. The state that walks through the other needs nothing unusual from the
+   * customer: the sheet opens writable, *Aplică* is pressed, a confirmation is owed, and while the
+   * question is on screen an earlier edit's save comes back `unauthorized`. That is the audit
+   * finding's own scenario, one step further in. A rule that has to be remembered at each call site
+   * is the rule this whole wave is about.
+   */
   function applyPending(): void {
-    applyTierIfChanged({
-      pendingTierId: pending.materialTierId,
-      appliedTierId: applied.materialTierId,
-      availableTierIds: offer.material.tierIds,
-      commit: setMaterialTier,
+    if (editability.isReadOnly) return;
+    const outcome = applyWholeKitchenSettings({
+      ...(pending.materialTierId === undefined
+        ? {}
+        : { materialTierId: pending.materialTierId }),
+      ...(pending.hardwareTierId === undefined
+        ? {}
+        : { hardwareTierId: pending.hardwareTierId }),
+      ...(pending.cabinetDepthMm === undefined
+        ? {}
+        : { cabinetDepthMm: pending.cabinetDepthMm }),
+      availableMaterialTierIds: offer.material.tierIds,
+      availableHardwareTierIds: offer.hardware.tierIds,
     });
-    applyTierIfChanged({
-      pendingTierId: pending.hardwareTierId,
-      appliedTierId: applied.hardwareTierId,
-      availableTierIds: offer.hardware.tierIds,
-      commit: setHardwareTier,
-    });
-    // The same two guards the tiers get, and they matter more here: a depth change rebuilds every
-    // body and the whole 3D scene (ADR 0074), so applying an unchanged depth would be the most
-    // expensive no-op in the product.
-    if (
-      pending.cabinetDepthMm !== undefined &&
-      pending.cabinetDepthMm !== applied.cabinetDepthMm
-    ) {
-      setCabinetDepth(pending.cabinetDepthMm);
+    if (!outcome.committed) {
+      setRefusal({ setting: outcome.setting, message: outcome.reason.message });
+      // Back to the choosing step rather than out of the sheet: the confirm step's *Schimbă
+      // materialul* reaches here too, and leaving the customer on a question that has been answered
+      // would hide the refusal behind it.
+      setIsConfirming(false);
+      return;
     }
     close();
   }
@@ -235,6 +276,11 @@ export function GlobalSettings() {
           </span>
         ))}
       </div>
+      {/* **Greyed and unclickable with the reason** (§13.1, M6-AUD-001). The reason travels as the
+          button's own description rather than as a line beside it: ADR 0082's containment holds the
+          whole strip inside the viewport at every chip count, and a sentence added to this row is
+          exactly what pushed the trigger's right edge off a 390 px screen once already. Nothing is
+          hidden by locking it — the two chips beside it already name both stored tiers. */}
       <button
         type="button"
         ref={triggerRef}
@@ -243,6 +289,13 @@ export function GlobalSettings() {
         aria-expanded={isOpen}
         aria-controls={surfaceId}
         data-testid="global-settings-trigger"
+        disabled={editability.isReadOnly}
+        {...(editability.isReadOnly
+          ? {
+              title: editability.disabledReason,
+              "data-disabled-reason": editability.disabledReason,
+            }
+          : {})}
         onClick={openSheet}
       >
         {view.openLabel}
@@ -264,6 +317,10 @@ export function GlobalSettings() {
             id={surfaceId}
             ref={surfaceRef}
             view={view}
+            editability={editability}
+            {...(refusal === undefined
+              ? {}
+              : { refusalNote: describeApplyRefusal(refusal) })}
             onChoose={chooseTier}
             onChooseDepth={chooseDepth}
             onCancel={close}
@@ -282,24 +339,6 @@ export function GlobalSettings() {
       ) : null}
     </div>
   );
-}
-
-/** One setting's commit, as apply performs it. Grouped rather than passed as four arguments,
- *  because the two calls differ only in which setting they are about. */
-interface TierApplication {
-  readonly pendingTierId: string | undefined;
-  readonly appliedTierId: string | undefined;
-  readonly availableTierIds: readonly string[];
-  readonly commit: (
-    tierId: string,
-    availableTierIds: readonly string[],
-  ) => void;
-}
-
-function applyTierIfChanged(application: TierApplication): void {
-  if (application.pendingTierId === undefined) return;
-  if (application.pendingTierId === application.appliedTierId) return;
-  application.commit(application.pendingTierId, application.availableTierIds);
 }
 
 /**
@@ -371,6 +410,8 @@ export function GlobalSettingsSurface({
   id,
   ref,
   view,
+  editability,
+  refusalNote,
   confirming,
   onChoose,
   onChooseDepth,
@@ -380,6 +421,30 @@ export function GlobalSettingsSurface({
   readonly id: string;
   readonly ref?: Ref<HTMLDivElement>;
   readonly view: GlobalSettingsView;
+  /**
+   * Whether this browser may write, already decided by `store/editability.ts`.
+   *
+   * **Required, and it was optional for one wave.** It defaulted to *writable* on the trade
+   * `DescribePanelInput.pricing` records — a convenient default, with the dropped-wiring risk said
+   * to be closed by `tests/settings/read-only-global-settings.test.ts` going red if `GlobalSettings`
+   * stopped passing it. **Adversarial QA measured that claim and it was false**: deleting
+   * `editability={editability}` from the one production call site left all 1710 tests green.
+   * Nothing in a `node` runtime can open the sheet — there is no DOM, so `useState(false)` never
+   * advances — so that file renders the store-connected component only with the sheet **shut**, and
+   * renders the open sheet by constructing this surface and passing the prop itself. No test
+   * exercised the production wiring with the sheet open, and the type was silent because the prop
+   * was optional.
+   *
+   * So the type carries it now. This is the wave whose whole subject is a write surface that
+   * silently defaulted to permitted; one more of those is the wrong thing to economise on, and the
+   * price was one line in each of six fixtures. `qa-w2-locked-surface-reach.adversarial.test.ts`
+   * keeps a source-text assertion over the call site as well — the strongest guard this runtime
+   * allows — and `tests/e2e/read-only-global-settings.e2e.spec.ts` is what a browser asserts.
+   */
+  readonly editability: Editability;
+  /** The sentence a refused press left, or nothing. Absent — never empty — on the ordinary path:
+   *  the sheet says nothing about an apply that has not happened. */
+  readonly refusalNote?: string;
   /** **The confirm step, or nothing** — its presence is which step this is. A `MaterialResetConfirm`
    *  and its two actions rather than a boolean beside them: a flag switching what a surface renders
    *  is the argument this codebase splits functions to avoid, and the step's data and the step's
@@ -426,17 +491,34 @@ export function GlobalSettingsSurface({
           </p>
         ) : null}
       </div>
+      {/* **§13.1's reason, on the dialog rather than inside a step** (M6-AUD-001, found by
+          adversarial QA). It stated it once at the head of the choosing step's body — and the
+          confirm step replaces that body wholesale, so the explanation disappeared at the exact
+          moment the customer was being asked to commit. It is a fact about this browser, not about
+          which question is on screen, so it belongs to the sheet. Once for the sheet rather than
+          under each of a dozen radios: a sentence repeated down every row is the sheet arguing with
+          itself. */}
+      {editability.isReadOnly ? (
+        <p
+          className={styles.locked}
+          data-testid="global-settings-read-only-reason"
+        >
+          {editability.disabledReason}
+        </p>
+      ) : null}
       {confirming === undefined ? (
         <ChoosingStep
           view={view}
           namePrefix={id}
+          editability={editability}
+          {...(refusalNote === undefined ? {} : { refusalNote })}
           onChoose={onChoose}
           onChooseDepth={onChooseDepth}
           onCancel={onCancel}
           onApply={onApply}
         />
       ) : (
-        <ConfirmStep step={confirming} />
+        <ConfirmStep step={confirming} editability={editability} />
       )}
     </div>
   );
@@ -459,8 +541,19 @@ interface MaterialResetConfirmStep {
  * **The figure and the overflow warning go with the footer they belong to.** A running total beside
  * *Schimbă materialul* invites the reading that the price is what changes, and the estimate is not
  * what this step is about.
+ *
+ * **It takes the same editability the choosing step does** (M6-AUD-001, found by adversarial QA).
+ * *Schimbă materialul* is the same commit as *Aplică*, one step further in — it calls `applyPending`
+ * directly — so a step handed no access story rendered a live, unexplained write action on a sheet
+ * every other control of which was greyed.
  */
-function ConfirmStep({ step }: { readonly step: MaterialResetConfirmStep }) {
+function ConfirmStep({
+  step,
+  editability,
+}: {
+  readonly step: MaterialResetConfirmStep;
+  readonly editability: Editability;
+}) {
   return (
     <>
       <div className={styles.body}>
@@ -473,6 +566,9 @@ function ConfirmStep({ step }: { readonly step: MaterialResetConfirmStep }) {
       </div>
       <div className={styles.footer}>
         <div className={styles.actions}>
+          {/* Never locked, on either step: a customer who cannot commit must still be able to keep
+              what they have and leave. It is also what keeps the focus trap's ring non-empty when
+              every other control on the step is greyed. */}
           <button
             type="button"
             className={styles.cancel}
@@ -485,6 +581,10 @@ function ConfirmStep({ step }: { readonly step: MaterialResetConfirmStep }) {
             type="button"
             className={styles.apply}
             data-testid="global-settings-confirm"
+            disabled={editability.isReadOnly}
+            {...(editability.isReadOnly
+              ? { title: editability.disabledReason }
+              : {})}
             onClick={step.onConfirm}
           >
             {step.view.confirmLabel}
@@ -499,6 +599,8 @@ function ConfirmStep({ step }: { readonly step: MaterialResetConfirmStep }) {
 function ChoosingStep({
   view,
   namePrefix,
+  editability,
+  refusalNote,
   onChoose,
   onChooseDepth,
   onCancel,
@@ -506,6 +608,8 @@ function ChoosingStep({
 }: {
   readonly view: GlobalSettingsView;
   readonly namePrefix: string;
+  readonly editability: Editability;
+  readonly refusalNote?: string;
   readonly onChoose: (key: WholeKitchenGroupKey, tierId: string) => void;
   readonly onChooseDepth: (cabinetDepthMm: number) => void;
   readonly onCancel: () => void;
@@ -518,12 +622,14 @@ function ChoosingStep({
           <TierGroupSection
             key={group.key}
             group={group}
+            editability={editability}
             onChoose={onChoose}
             namePrefix={namePrefix}
           />
         ))}
         <DepthGroupSection
           group={view.depthGroup}
+          editability={editability}
           onChoose={onChooseDepth}
           namePrefix={namePrefix}
         />
@@ -538,6 +644,14 @@ function ChoosingStep({
       {view.overflowWarning === undefined ? null : (
         <p className={styles.overflow} data-testid="global-settings-overflow">
           {view.overflowWarning}
+        </p>
+      )}
+      {/* **A refused press, beside the button that made it** (M6-AUD-004). Outside `.body` so it
+          cannot be scrolled away from the action it is about, and above the footer for the reason
+          the overflow warning is: this is what the customer has to read before pressing again. */}
+      {refusalNote === undefined ? null : (
+        <p className={styles.refusal} data-testid="global-settings-refusal">
+          {refusalNote}
         </p>
       )}
       <div className={styles.footer}>
@@ -564,10 +678,17 @@ function ChoosingStep({
           >
             {view.cancelLabel}
           </button>
+          {/* **Locked with the reason, never merely ignored** (§13.1, M6-AUD-001). *Renunță* beside
+              it keeps its own state whatever this one is: a customer who cannot commit must still
+              be able to leave. */}
           <button
             type="button"
             className={styles.apply}
             data-testid="global-settings-apply"
+            disabled={editability.isReadOnly}
+            {...(editability.isReadOnly
+              ? { title: editability.disabledReason }
+              : {})}
             onClick={onApply}
           >
             {view.applyLabel}
@@ -639,10 +760,12 @@ function whereTabMustLand(
 function DepthGroupSection({
   group,
   namePrefix,
+  editability,
   onChoose,
 }: {
   readonly group: DepthGroupView;
   readonly namePrefix: string;
+  readonly editability: Editability;
   readonly onChoose: (cabinetDepthMm: number) => void;
 }) {
   const headingId = `${namePrefix}-cabinet-depth-heading`;
@@ -662,6 +785,7 @@ function DepthGroupSection({
           key={option.cabinetDepthMm}
           className={styles.option}
           data-selected={option.isSelected}
+          {...(editability.isReadOnly ? { "data-disabled": "true" } : {})}
           data-testid="global-settings-depth-option"
         >
           <input
@@ -670,6 +794,7 @@ function DepthGroupSection({
             name={`${namePrefix}-cabinet-depth`}
             value={option.cabinetDepthMm}
             checked={option.isSelected}
+            disabled={editability.isReadOnly}
             onChange={() => {
               onChoose(option.cabinetDepthMm);
             }}
@@ -703,10 +828,12 @@ function DepthGroupSection({
 function TierGroupSection({
   group,
   namePrefix,
+  editability,
   onChoose,
 }: {
   readonly group: TierGroupView;
   readonly namePrefix: string;
+  readonly editability: Editability;
   readonly onChoose: (key: WholeKitchenGroupKey, tierId: string) => void;
 }) {
   const headingId = `${namePrefix}-${group.key}-heading`;
@@ -735,6 +862,7 @@ function TierGroupSection({
           key={option.tierId}
           className={styles.option}
           data-selected={option.isSelected}
+          {...(editability.isReadOnly ? { "data-disabled": "true" } : {})}
           data-testid="global-settings-option"
         >
           <input
@@ -743,6 +871,7 @@ function TierGroupSection({
             name={`${namePrefix}-${group.key}`}
             value={option.tierId}
             checked={option.isSelected}
+            disabled={editability.isReadOnly}
             onChange={() => {
               onChoose(group.key, option.tierId);
             }}
