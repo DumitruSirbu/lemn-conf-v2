@@ -18,6 +18,8 @@
     "lint": "pnpm run build:deps && eslint . --max-warnings 0",
     "lint:fix": "pnpm run build:deps && eslint . --fix --max-warnings 0",
     "migrate": "tsx src/migrate.ts",
+    "migrate:status": "tsx src/migrate-status.ts",
+    "migrate:unattended-check": "tsx src/migration-safety.ts",
     "test": "pnpm run build:deps && vitest run --config vitest.config.ts",
     "typecheck": "pnpm run build:deps && tsc --project tsconfig.json --noEmit"
   },

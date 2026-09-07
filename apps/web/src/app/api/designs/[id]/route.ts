@@ -101,7 +101,7 @@ export async function GET(
       { headers: PER_CREDENTIAL_HEADERS },
     );
   } catch (error) {
-    return designErrorResponse(error);
+    return designErrorResponse("load", error);
   }
 }
 
@@ -164,7 +164,7 @@ async function saveDesign(
     refreshWriteTokenCookie({ request, response }, id);
     return response;
   } catch (error) {
-    return designErrorResponse(error);
+    return designErrorResponse("save", error);
   }
 }
 

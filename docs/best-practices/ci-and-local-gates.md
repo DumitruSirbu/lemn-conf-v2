@@ -190,3 +190,82 @@ nothing changed and reports **green**. It can therefore produce a false green bu
 So a mutant reported **red** at the store is trustworthy whatever the build state; only a **green**
 is suspect. A mutant killed by the domain suite is killed regardless — a stale web green beside a
 domain red carries no conclusion and invalidates nothing.
+
+## Deploy: migrate, prove the schema, then deploy
+
+`.github/workflows/deploy.yml`, added under [ADR 0096](../decisions/0096-the-deployed-schema-is-proved-by-a-gate-and-production-was-never-in-the-runners-path.md)
+decision 2. Before it existed, nothing anywhere ran a migration: `ci.yml` had no migrate job and no
+deploy job, and Vercel builds `apps/web` through `build:deps && next build`, a chain that reaches
+`persistence`'s `build` script and never its `migrate` script. Production went seven days missing
+`0004_add_design_revision.sql` while every customer edit answered 500.
+
+**The workflow is inert as committed.** It has no `push` trigger, its deploy step is skipped unless
+a deploy secret exists, and without `MIGRATION_DATABASE_URL` it fails at its first assertion having
+opened no database. Vercel's Git integration is untouched and is still the deploy path.
+
+### Activating it, in order
+
+1. **Create `MIGRATION_DATABASE_URL`.** GitHub → Settings → Secrets and variables → Actions. It is
+   the privileged Neon credential that can run DDL, and it is deliberately **not** added to Vercel:
+   Vercel scopes variables by environment and never by phase, so a value placed there is readable by
+   the running application, reversing [ADR 0008](../decisions/0008-least-privilege-database-role.md).
+   Per-environment credentials go under Settings → Environments → `production` / `preview` →
+   Environment secrets, under that same name; a repository secret of the same name is inherited when
+   no environment secret is set, so one value works to begin with. *Verify:* run the workflow from
+   the Actions tab against `preview` and read the "Assert the migration credential is present" step.
+2. **Run it by hand against `preview` first.** Actions → deploy → Run workflow → `preview`.
+   *Verify:* the "Verify by reading the schema back" step prints `preview (<database>) — level` and
+   a `read back:` line quoting the ledger versions, the `designs` columns and the document
+   `schema_version`s. That read-back is the evidence, never the migrate step's exit status
+   ([ADR 0020](../decisions/0020-a-migration-file-is-not-an-applied-migration.md) decision 2).
+3. **Run it by hand against `production`.** Same, with `production`. *Verify:* the same `— level`
+   line, and then a save observed to succeed against the deployed app by reloading the share link
+   and seeing the change — not by the absence of an error notice (ADR 0096 decision 10).
+4. **Create `VERCEL_DEPLOY_HOOK_URL`** (Vercel → Project → Settings → Git → Deploy Hooks), as a
+   GitHub secret of that name. Until it exists the workflow migrates and verifies but deploys
+   nothing, and says so in a step of its own — so migrate and deploy are **not yet ordered** with
+   respect to one another. A `vercel deploy --prebuilt` step is the equivalent if the deploy needs
+   to pin the exact commit rather than the branch head. *Verify:* re-run against `preview` and see
+   the "Deploy" step run instead of the "Report that deployment is still Vercel's to trigger" step.
+5. **Only then, decide about Vercel's Git integration.** Ordering migrate before deploy is only real
+   once the pipeline is what triggers the deploy. Turning off Vercel's automatic deploys is the last
+   step and a deliberate one — ADR 0096 accepts its cost explicitly: deployment becomes one more
+   thing that can be misconfigured, mitigated by the guard that fails when it is.
+6. **Add a `push: branches: [main]` trigger** to the workflow if the runs should stop being manual.
+   ADR 0096 decision 6 is the constraint: the preview job runs on the **default branch's** preview
+   deployments, and a feature branch whose migration has not merged deploys against a preview
+   database that is behind its code — which the guard reports as a failure on that branch, naming
+   the file. That is the wanted outcome; it makes an unmerged migration visible to its author
+   instead of applying it to everyone (preview and local development share one database,
+   [ADR 0054](../decisions/0054-local-development-writes-to-the-preview-database.md)).
+
+### The two commands the workflow runs, which are usable by hand
+
+- `pnpm --filter @lemnaria/persistence run migrate:status <environment>` — read-only. Reads the
+  ledger, the `designs` columns and the document `schema_version`s, hands the ledger to the same
+  pure `planPendingMigrations` the runner uses, and exits non-zero on anything but level. A database
+  with **no `schema_migrations` table** is reported as *outside the ledger entirely*, with the
+  adoption path named — not as a `relation does not exist` stack trace, and not as "behind", because
+  the ledger is the runner's own creation rather than a migration file's
+  ([ADR 0042](../decisions/0042-the-database-records-which-migrations-it-ran.md) decision 1) and the
+  repair is different. The environment name is a required argument: a check whose subject depends on
+  which untracked `.env` file the machine happens to hold is a coincidence with a test name.
+- `pnpm --filter @lemnaria/persistence run migrate:unattended-check` — no database. **It refuses
+  every statement it does not positively recognise as additive and idempotent** (ADR 0096
+  decision 5). The recognised set is small and is sized to what the four shipped files need:
+  `create table if not exists`, `alter table … add column if not exists` (with each not-null clause
+  carrying its own default), a non-concurrent `create index if not exists`, the `pg_constraint`-
+  guarded `DO` block `0003` uses, `comment on`, and `insert into`. Anything else — a drop, a
+  truncate, a delete or update over existing rows, a column type change, a not-null column with no
+  default, a statement Postgres refuses inside a transaction block, or simply a shape nobody
+  anticipated — is refused and named.
+
+  It was written the other way round first, as a denylist of destructive shapes, and adversarial QA
+  broke it seven ways without writing a single unusual statement: every rule had assumed a keyword
+  PostgreSQL makes optional (`DROP revision` without `COLUMN`, `UPDATE designs d SET …`,
+  `UPDATE ONLY …`, `ADD owner_id text NOT NULL`), and one asked whether the *statement* mentioned a
+  default rather than whether that *clause* carried one. A denylist over a language the size of SQL
+  keeps leaking, and these files are about to run unattended against production. Refusing by default
+  makes the error direction a property of the design rather than of the list's completeness: an
+  unforeseen statement fails toward *a human reads it*. A false refusal costs one manual apply with
+  the owner's authorisation, which is the path that class of migration takes anyway.
