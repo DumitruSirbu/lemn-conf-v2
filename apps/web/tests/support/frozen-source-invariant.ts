@@ -17,6 +17,10 @@
 import {
   buildKitchenLBodyCatalog,
   cabinetDepthMmOf,
+  columnBuildDepthM,
+  columnBuildDepthMm,
+  deriveColumns,
+  derivePlacementRecords,
   occupiedDepthOfEntryM,
   type Column,
   type Design,
@@ -40,13 +44,56 @@ export interface PublishedState {
  *  writing `1e-9` and leaving the next reader to guess whether it meant a fit tolerance. */
 export const DECLARED_DEPTH_EPSILON_M = 1e-9;
 
+/** **Which declaration explains a column's depth: the entry's own, or its column's build depth.**
+ *
+ *  For all but one population it is the entry's, and that is ADR 0079 decision 10 point 2 as
+ *  written. The exception is a **wall body standing in a column that lifts the head-clearance cap**:
+ *  `resolveDepthM` builds it to `columnBuildDepthM`'s lifted arm — the cabinet-depth line — and
+ *  never to the entry's `frameDepthMm`, so the placement's recorded seat is 561 at 600 and 661 at
+ *  700 where its entry's fallback seat is 291 and 361. The column then carries 600 or 700 and the
+ *  entry declares 330 or 400, and the pair disagrees while nothing is wrong.
+ *
+ *  **The premise this re-quantifies was retired by the product, not by a wave** (ADR 0091
+ *  decision 1's third limb, as ADR 0093 applies it). Decision 10's predicate assumes an entry's
+ *  `frameDepthMm` is the seat of every placement of that entry; wave 6I2's lifted arm made that
+ *  false, and ADR 0101 is what brought the shipped kitchen into the population. **It was reachable
+ *  before ADR 0101 and at 600 mm**: put an ordinary `wall-2door-600-top` over `tall-pantry-600` —
+ *  the only wall-B column where a top wins §3.2's MAX — change the depth, and the column publishes
+ *  600 from a `wall-cabinet` that declares 330. Measured 2026-09-07.
+ *
+ *  **It is a second authority, not a wider tolerance.** The alternative is exactly the number
+ *  `resolveDepthM` would plan for a body rebuilt in this column, and it is offered only to a wall
+ *  body in a lifted column. Everything else is held to decision 10's predicate unchanged. */
+export function sourceExplainsTheDepth(input: {
+  /** The depth the column carries, in metres. */
+  readonly depthM: number;
+  /** The column's own live answer — never the source entry's band. */
+  readonly hasFullHeightUnder: boolean;
+  /** The **source entry's** band, because §5.2's lift reaches a wall carcass and nothing else. */
+  readonly band: string;
+  readonly declaredM: number;
+  readonly cabinetDepthMm: number;
+}): boolean {
+  if (Math.abs(input.declaredM - input.depthM) < DECLARED_DEPTH_EPSILON_M) {
+    return true;
+  }
+  if (input.band !== "wall" && input.band !== "top") return false;
+  if (!input.hasFullHeightUnder) return false;
+  const builtM = columnBuildDepthM({
+    cabinetDepthMm: input.cabinetDepthMm,
+    hasFullHeightUnder: true,
+  });
+  return Math.abs(builtM - input.depthM) < DECLARED_DEPTH_EPSILON_M;
+}
+
 /** Every published column whose recorded source **fails to explain its own recorded depth**, as one
  *  readable line each.
  *
  *  A column passes when it records no source at all, or one the catalogue does not hold — both are
  *  legal states (ADR 0073 decision 3, ADR 0052) and both are why `assertSourcesExplainTheirDepths`
- *  asserts non-vacuity beside this. Otherwise that entry's `occupiedDepth` declaration, read off the
- *  catalogue at **the design's own declared setting**, must be the depth the column carries. */
+ *  asserts non-vacuity beside this. Otherwise the depth the column carries is explained by one of
+ *  the two authorities `sourceExplainsTheDepth` names, read at **the design's own declared
+ *  setting**. */
 export function unexplainedColumns(state: PublishedState): readonly string[] {
   const cabinetDepthMm = cabinetDepthMmOf(state.design);
   const catalog = buildKitchenLBodyCatalog(cabinetDepthMm);
@@ -56,7 +103,17 @@ export function unexplainedColumns(state: PublishedState): readonly string[] {
     const definition = catalog.get(buildId);
     if (!definition) return [];
     const declaredM = occupiedDepthOfEntryM({ buildId, definition });
-    if (Math.abs(declaredM - column.d) < DECLARED_DEPTH_EPSILON_M) return [];
+    if (
+      sourceExplainsTheDepth({
+        depthM: column.d,
+        hasFullHeightUnder: column.hasFullHeightUnder,
+        band: definition.band,
+        declaredM,
+        cabinetDepthMm,
+      })
+    ) {
+      return [];
+    }
     return [
       `${key} d=${(column.d * 1000).toFixed(1)} mm, source ${buildId} declares ` +
         `${(declaredM * 1000).toFixed(1)} mm at ${String(cabinetDepthMm)}`,
@@ -113,6 +170,11 @@ export function assertSourcesExplainTheirDepths(
 export function unexplainedStoredEntries(design: Design): readonly string[] {
   const cabinetDepthMm = cabinetDepthMmOf(design);
   const catalog = buildKitchenLBodyCatalog(cabinetDepthMm);
+  const lifted = liftedAlongWallCentresMm(design);
+  const liftedBuildDepthMm = columnBuildDepthMm({
+    cabinetDepthMm,
+    hasFullHeightUnder: true,
+  });
   return storedEntriesOf(design).flatMap((entry) => {
     const buildId = entry.depthFromBuildId;
     if (buildId === undefined) return [];
@@ -122,6 +184,17 @@ export function unexplainedStoredEntries(design: Design): readonly string[] {
       occupiedDepthOfEntryM({ buildId, definition }) * 1000,
     );
     if (declaredMm === entry.depthMm) return [];
+    // `sourceExplainsTheDepth`'s second authority, on the document. A stored entry carries no
+    // `hasFullHeightUnder` of its own — it is the one field ADR 0011 Gap D deliberately does not
+    // freeze — so it is re-answered off the design's own columns, which is where the live map reads
+    // it too.
+    if (
+      (definition.band === "wall" || definition.band === "top") &&
+      lifted.has(alongWallCentreKeyOf(entry)) &&
+      liftedBuildDepthMm === entry.depthMm
+    ) {
+      return [];
+    }
     return [
       `${entry.wall}|${String(entry.alongMm)} depthMm=${String(entry.depthMm)} ` +
         `src=${buildId} declares ${String(declaredMm)} mm at ${String(cabinetDepthMm)}`,
@@ -154,6 +227,34 @@ export function assertStoredSourcesExplainTheirDepths(
     storedEntriesWithKnownSources(design).length,
     `${label}: the invariant inspected no stored entry at all`,
   ).toBeGreaterThan(0);
+}
+
+/** Where a full-height member stands, keyed by wall and along-wall centre in whole millimetres.
+ *
+ *  Derived from the design rather than read off the entry, because `hasFullHeightUnder` is the one
+ *  fact a frozen extent does not carry: ADR 0011's third correction makes it a fact about **now**,
+ *  re-answered by every derivation.
+ *
+ *  Keyed on the along-wall **centre**, which is what `EmptyColumn.alongMm` records and what
+ *  `deriveColumnKeyAt` renders — so a wall-B run that slid when the corner deepened (ADR 0089) is
+ *  still matched to the column it became rather than to the coordinate it left. */
+function liftedAlongWallCentresMm(design: Design): ReadonlySet<string> {
+  const records = derivePlacementRecords(
+    design,
+    buildKitchenLBodyCatalog(cabinetDepthMmOf(design)),
+  );
+  return new Set(
+    [...deriveColumns(records, {}, design.room).values()]
+      .filter((column) => column.hasFullHeightUnder)
+      .map(
+        (column) =>
+          `${column.wall}|${String(Math.round(1000 * (column.wall === "A" ? column.x : column.z)))}`,
+      ),
+  );
+}
+
+function alongWallCentreKeyOf(entry: EmptyColumn): string {
+  return `${entry.wall}|${String(entry.alongMm)}`;
 }
 
 /** Both halves of the frozen map, as one list — they are one shape (ADR 0053) and this invariant
