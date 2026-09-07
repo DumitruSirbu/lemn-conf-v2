@@ -849,7 +849,13 @@ list.
 
 ---
 
-## 54. Cabinet depth changes the material used and does not change the price — NEEDS THE MANUFACTURER, RECORDED 2026-09-06
+## 54. Cabinet depth changes the material used and does not change the price — SHAPE RULED 2026-09-07 ([ADR 0100](../decisions/0100-depth-is-priced-by-a-dashboard-editable-multiplier-on-the-600-mm-base-and-it-is-deferred.md)), IMPLEMENTATION DEFERRED BY THE OWNER
+
+**Ruled and postponed, 2026-09-07 — this is a decided item awaiting the owner's own return to it, not an open question.** The owner chose a single **depth coefficient applied as a multiplier to the 600 mm base price**, owned as a **dashboard-editable setting** rather than a constant, explicitly over the per-cabinet 600/700 price mapping because that *"would need two price records per cabinet"*. *"Like fifteen percent"* is a working figure and **not a committed rate**. The owner then said, twice on the same day, *"Record and postpone… I really don't want to waste time and effort on this."*
+
+**So: do not re-ask the owner what shape depth pricing takes — they answered.** What is still owed is the manufacturer's actual rate, which is the owner's to obtain when they return. Do not plan a wave. [ADR 0100](../decisions/0100-depth-is-priced-by-a-dashboard-editable-multiplier-on-the-600-mm-base-and-it-is-deferred.md) carries the ruling, the two rejected alternatives, and two implementation constraints measured on 2026-09-07 — the runtime parser's derived `MAX_PRICE_COEFFICIENT_MINOR` bound, and the fact that a multiplier is not a fifth linear term and needs a declared rounding rule at a named seam.
+
+**The original entry, unedited, follows.**
 
 **Observed by the owner, 2026-09-06**, reading the collected copy at Gate O1: *"changing kitchen
 worktop depth didn't change the cabinets price? … is not logic, as it uses more material"*.
@@ -873,7 +879,7 @@ rate is a manufacturer figure nobody in this repo may invent. Drafting one would
 failure ADR 0092's push-to-open rates already cost this milestone: a placeholder that becomes
 load-bearing on a customer-visible price the moment something starts depending on it.
 
-**Owner input, held by the owner:** *"I need to check with manufacturer"* (2026-09-06). Two things
+~~**Owner input, held by the owner:** *"I need to check with manufacturer"* (2026-09-06).~~ **Half answered 2026-09-07 — the owner ruled the shape (ADR 0100) and postponed the rest.** The rate is still theirs to obtain. Two things
 are needed together — whether depth is priced at all, and if so the rate per millimetre of depth (or
 whatever shape the manufacturer actually quotes: per square metre of board, per depth band, or a
 surcharge above a standard depth). **The shape of the answer decides the coefficient's shape**, so

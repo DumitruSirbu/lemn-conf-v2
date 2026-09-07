@@ -84,7 +84,7 @@ status corrections, in one of these two files:
 | 51 | Column chain-homogeneity is an invariant nothing enforces | open.md |
 | 52 | A resize or an insert carries the wall-end cap into the recorded map | open.md |
 | 53 | Russian is a supported locale — decided on day one, no milestone owns it | open.md |
-| 54 | Cabinet depth changes the material used and does not change the price | open.md |
+| 54 | Cabinet depth changes the material used and does not change the price | open.md — shape ruled 2026-09-07 (ADR 0100), implementation deferred by the owner |
 | 55 | The global settings actions are absent on a first visit and present after a reload | open.md |
 
 ## 2026-09-06 audit note

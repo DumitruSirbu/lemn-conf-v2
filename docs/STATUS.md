@@ -520,8 +520,14 @@ exists.
   where the criterion asks for the owner's words. ADR 0092 open input 4.
 - **The two drafted accessory names**, and the breakdown's category word for them. ADR 0092 open
   input 3.
-- **`docs/BACKLOG.md` entry 54** — cabinet depth changes material and not price — which needs the
-  owner's own manufacturer to answer.
+- ~~**`docs/BACKLOG.md` entry 54** — cabinet depth changes material and not price — which needs the
+  owner's own manufacturer to answer.~~ **Half answered 2026-09-07 —
+  [ADR 0100](decisions/0100-depth-is-priced-by-a-dashboard-editable-multiplier-on-the-600-mm-base-and-it-is-deferred.md).**
+  The owner ruled the **shape**: one depth coefficient multiplying the 600 mm base, owned as a
+  dashboard-editable setting, chosen over a per-cabinet 600/700 mapping. *"Like fifteen percent"* is a
+  working figure and not a committed rate, and the owner explicitly postponed the implementation. **It
+  is no longer an open question to put to them** — what remains is the manufacturer's rate, which is
+  the owner's to obtain when they return to it. Do not plan a wave.
 
 **Two things these waves hand the owner, and both are now load-bearing rather than pending.**
 **First, the three drafted push-to-open rates (40 / 120 / 100 MDL).** They were safe to draft only
