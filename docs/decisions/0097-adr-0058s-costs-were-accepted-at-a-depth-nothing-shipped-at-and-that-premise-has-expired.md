@@ -445,8 +445,13 @@ and three are real:
   them today, and `wall-cabinet` over a full-height column builds at exactly the same depth, so the
   migration is behaviour-preserving here. But
   `tests/fixtures/seeded-body-names.adversarial.test.ts:159`'s
-  `expect(neverMigrated).toEqual(["wall-2door-700-over-fridge"])` becomes false and must be re-ruled,
-  not just re-written.
+  `expect(neverMigrated).toEqual(["wall-2door-700-over-fridge"])` ~~becomes false and must be re-ruled,
+  not just re-written~~ **— corrected 2026-09-07 by
+  [ADR 0101](0101-a-lifted-columns-depth-is-declared-and-the-three-deep-tops-follow-the-setting.md)
+  decision 2: it does *not* become false.** The round trip that feeds it is a **width resize**, and
+  this wave changes only `depthRule`, so the assertion still passes. The defect is that it keeps
+  passing while its meaning changes — a depth change now reaches that row — so its *scope* must be
+  named.
 - **One gate fires, and its premise needs adjudicating rather than its expectation editing.**
   `seeded-equivalent-depth-agreement.test.ts` compares a seeded row's `frameDepthMm` against its
   equivalent's and would put 561/661 against 291/361. Its stated premise is that *"`resolveRebuildBody`
@@ -454,13 +459,19 @@ and three are real:
   `frameDepthMm` *means*, nothing in the system can tell."* **For a body over a full-height column that
   premise is false** — A1's table shows the equivalent declaring 361 while the rebuild plans 700, so
   the equivalent's `frameDepthMm` is not the number that governs. The gate needs a third exemption arm
-  for the lifted case, and *that* is a contract decision the wave owes an ADR for.
+  for the lifted case, and *that* is a contract decision the wave owes an ADR for. **Written
+  2026-09-07 —
+  [ADR 0101](0101-a-lifted-columns-depth-is-declared-and-the-three-deep-tops-follow-the-setting.md)
+  decision 1.**
 - **The `pinned` arm of `CabinetDepthRule` empties.** With both rows unpinned no shipped body declares
   it, which is
   [ADR 0093](0093-a-rule-the-shipped-kitchen-cannot-exercise-owes-a-witness-not-a-moved-fixture.md)
   decision 1 exactly: a rule the tree cannot distinguish from its own absence is unshipped. A synthetic
   witness declared by the test is owed — ADR 0093 decision 2 already establishes the pattern — or the
   arm is deliberately retired, which is a separate decision and not the wave's to take silently.
+  **Ruled 2026-09-07 —
+  [ADR 0101](0101-a-lifted-columns-depth-is-declared-and-the-three-deep-tops-follow-the-setting.md)
+  decision 3: the arm is kept and each suite declares its own witness.**
 
 Plus the ~16 test files that name the two build ids or `PINNED_DEEP_TOP_DEPTH_M`, three of which use
 the pin as the witness that makes an adversarial suite able to fail (`qa-6k-c-frozen-source`,
@@ -493,5 +504,7 @@ the pin except the pin.
 
 It does not implement anything, and it does not schedule a wave. The owner said they would take a
 small fix; this says the fix is small and names what it costs, including the parts that are not small.
-The decision to spend the wave is theirs, and the gate adjudication in A5 is an ADR somebody owes
-before the first line is written.
+~~The decision to spend the wave is theirs, and the gate adjudication in A5 is an ADR somebody owes
+before the first line is written.~~ **All three of A5's consequences were ruled on 2026-09-07 by
+[ADR 0101](0101-a-lifted-columns-depth-is-declared-and-the-three-deep-tops-follow-the-setting.md),
+which an implementer executes rather than re-deriving.**
