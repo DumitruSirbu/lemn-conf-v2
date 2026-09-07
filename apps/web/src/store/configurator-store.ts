@@ -51,8 +51,23 @@ import {
 } from "@/persistence/save-coalescer";
 
 import { applyCommandResult, type Selection } from "./apply-command-result";
+import {
+  preflightWholeKitchenSettings,
+  type WholeKitchenSetting,
+  type WholeKitchenSettingsRequest,
+} from "./whole-kitchen-apply";
 
 export type { Selection };
+
+/** What one press of the settings sheet's *Aplică* did. `committed: false` carries the setting that
+ *  refused, because the sheet has to say which change it kept the customer on. */
+export type WholeKitchenApplyOutcome =
+  | { readonly committed: true }
+  | {
+      readonly committed: false;
+      readonly setting: WholeKitchenSetting;
+      readonly reason: RejectionReason;
+    };
 
 /** The save-coalescer's own status, re-exported rather than restated: the store is where the UI
  *  reads it from, and two copies of the union would be free to drift. `idle` covers both "never
@@ -137,6 +152,20 @@ export interface ConfiguratorState {
    *  It needs the body probe for the same reason `insert` and `setWidth` do — every body is rebuilt
    *  through `evaluateInsertFit` — and refuses `BODY_PROBE_UNAVAILABLE` without one. */
   readonly setCabinetDepth: (cabinetDepthMm: number) => void;
+  /**
+   * **Wave W2: the three settings above as one press** (M6-AUD-004). Every requested change is run
+   * against the previous one's design before anything is held, so the store commits all of them or
+   * none — a depth refused after a material succeeded now leaves the document exactly as it was.
+   *
+   * **It reports whether it committed**, unlike every other action here, and that is deliberate
+   * rather than a lapse: the sheet stays open on a refusal and names the setting that refused, and
+   * reading `lastRejection` afterwards cannot tell this press's refusal from one already on screen.
+   * The domain's own commands answer the same way, so this mirrors their shape rather than
+   * inventing one.
+   */
+  readonly applyWholeKitchenSettings: (
+    request: WholeKitchenSettingsRequest,
+  ) => WholeKitchenApplyOutcome;
   /**
    * **The factory the scene attached** — the single source, and the one thing
    * `isBodyProbeAttached` is derived from.
@@ -542,6 +571,29 @@ export function createConfiguratorStore(
                 params: {},
               }),
         );
+      },
+      applyWholeKitchenSettings: (request) => {
+        const state = get();
+        const preflight = preflightWholeKitchenSettings(request, {
+          design: state.design,
+          catalogAt: options.catalogAt,
+          probeAt: state.probeAt,
+          occurredAt: now(),
+        });
+        if (preflight.outcome === "refused") {
+          // The one thing a refusal writes, exactly as `applyResult` writes it for a single
+          // command: the sentence, and nothing of the design.
+          set({ lastRejection: preflight.reason });
+          return {
+            committed: false,
+            setting: preflight.setting,
+            reason: preflight.reason,
+          };
+        }
+        // `"unchanged"` runs no command, so it schedules no save: an untouched sheet must leave the
+        // document — and its `updatedAt` — exactly where it found them.
+        if (preflight.outcome === "ready") applyResult(preflight.result);
+        return { committed: true };
       },
       probeAt: options.probeAt,
       isBodyProbeAttached: options.probeAt !== undefined,

@@ -50,6 +50,11 @@
   border-top: 1px solid var(--line);
   border-radius: 22px 22px 0 0;
   box-shadow: 0 -16px 36px rgb(28 24 20 / 18%);
+
+  /* The same home-indicator strip `global-settings.module.css` records the reason for, on the other
+   * sheet with the same `fixed; bottom: 0` in `dvh`. One rule over two surfaces rather than the
+   * inset landing on whichever one somebody happened to be looking at. */
+  padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 
 .grabber {
@@ -241,6 +246,12 @@
     background: rgb(28 24 20 / 22%);
   }
 
+  /* **Bounded by the screen, not only by frame D2D's drawn height** (M6-AUD-016), and the same
+   * clamp `global-settings.module.css` takes — the two surfaces share the failure, so they share the
+   * rule. Measured at 900 x 500: this popover's close button ended at y = 619, below the viewport,
+   * while `.body` scrolled internally and kept the box its full 640 px. Less severe than the
+   * settings sheet's, because the scrim and Escape still dismiss this one, but the explicit close
+   * and the lower rows were clipped. `min()` keeps the drawn height wherever there is room for it. */
   .surface {
     position: absolute;
     top: 100%;
@@ -248,7 +259,7 @@
     bottom: auto;
     left: auto;
     width: 520px;
-    max-height: 640px;
+    max-height: min(640px, calc(100dvh - var(--popover-top) - var(--safe-gap)));
     margin-top: 16px;
     background: var(--paper);
     border: 1px solid var(--line);

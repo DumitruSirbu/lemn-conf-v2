@@ -23,6 +23,27 @@
   --radius-chip: 22px;
   --radius-card: 12px;
 
+  /**
+   * **What a desktop popover has already spent before its own box starts** (M6-AUD-016).
+   *
+   * Both M6 popovers hang from `top: 100%` of an anchor in the top bar, plus a 16 px offset, and
+   * both then took a fixed `max-height` with no relation to the viewport at all. Measured at
+   * 900 x 500: the breakdown's close button ended at y = 619 and the settings *Aplică* at y = 639,
+   * both below the screen, with the bodies scrolling internally so the surface kept its height while
+   * the footer was clipped away. `Aplică` is a primary action with no scrim-click equivalent, so a
+   * pointer customer could not commit at all.
+   *
+   * One token for both surfaces, taken from the **lower** of the two anchors — the settings strip
+   * sits under the header row, the breakdown's trigger is in it. Sharing the larger number can only
+   * make the breakdown shorter than it could be and can never let either surface reach past the
+   * screen, which is the direction a clamp should fail in. It binds only on short viewports: at
+   * 900 px tall it computes above both surfaces' own `max-height` and changes nothing.
+   */
+  --popover-top: 128px;
+  /** The breathing room a viewport-clamped surface keeps clear of the screen's bottom edge, so a
+   *  clamped footer sits *in* the viewport rather than flush against its last pixel. */
+  --safe-gap: 16px;
+
   --font-ui: Helvetica, Arial, sans-serif;
 }
 

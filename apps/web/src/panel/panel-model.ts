@@ -33,6 +33,7 @@ import {
 import { swatchOf } from "@lemnaria/three-adapter";
 
 import type { SaveStatus } from "@/persistence/save-coalescer";
+import { describeEditability, type Editability } from "@/store/editability";
 import type { WriteAccess } from "@/store/configurator-store";
 
 import { ro } from "@/content/ro";
@@ -449,6 +450,11 @@ export interface DescribePanelInput {
   readonly saveStatus: SaveStatus;
 }
 
+/** §9's half of the one editability rule. An alias rather than a second interface: the panel names
+ *  the answer in its own vocabulary and `store/editability.ts` decides it, which is what stops a
+ *  second surface deciding it differently — see that module's head comment. */
+type PanelEditability = Editability;
+
 const CLOSED_PANEL: ClosedPanel = { kind: "closed" };
 
 export function describePanel(input: DescribePanelInput): PanelView {
@@ -513,57 +519,6 @@ function describeFooterPrice(context: FooterContext): PriceFigure | undefined {
     label: describeStartingLabel(context.rejection),
     totalMinor: pricing.priced.totalMinor,
   });
-}
-
-/** Whether §9's controls may be offered at all, and — when they may not — the one sentence every
- *  greyed control carries (§13.1). Resolved once per panel and threaded, so ten controls cannot
- *  answer it in three different ways, and so adding a fourth `WriteAccess` state means editing one
- *  function rather than six. */
-interface PanelEditability {
-  readonly isReadOnly: boolean;
-  /** Meaningless when `isReadOnly` is false, and never read there. */
-  readonly disabledReason: string;
-}
-
-function describeEditability(input: DescribePanelInput): PanelEditability {
-  return {
-    isReadOnly: isReadOnly(input),
-    disabledReason: describeDisabledReason(input.canWrite),
-  };
-}
-
-/**
- * The one place "this panel may not edit" is decided, from the two independent ways it becomes
- * true: the load has not said it may, or a save has already been refused.
- *
- * The second is kept even though the first normally covers it. `canWrite` is presence of a cookie,
- * not proof it is the right one (`hasWriteCredentialFor`), so a stale or forged credential reads as
- * writable until a write is attempted — and `unauthorized` is that attempt's answer. Reading both
- * means the panel stops offering edits at the first refusal rather than at every one.
- *
- * **Only an explicit `true` unlocks the panel** (wave S7, finding WEB-002). It used to be only an
- * explicit `false` that locked it, which made `/d/{id}`'s "nobody has asked yet" an offer to edit:
- * a reader on a slow or blocked API mutated local state, believed it saved, and had the controls
- * disabled only after the write was refused, with the unsaved edit still on screen.
- * `DEVELOPMENT-SPEC.md` §9's "never offer what cannot be satisfied" is exactly the rule that
- * forbids it, and an unanswered question cannot satisfy anything.
- *
- * This changes what the interface **offers** and nothing about what the server **authorises**:
- * `canWrite` stays advisory, ADR 0019 decision 1's write token is still the only thing a write is
- * allowed on, and no write path reads this function.
- */
-function isReadOnly(input: DescribePanelInput): boolean {
-  return input.canWrite !== true || input.saveStatus === "unauthorized";
-}
-
-/** §13.1's "greyed and unclickable **with the reason**", where the reason is about this browser
- *  rather than about this body. The three locked states are three different facts and must not
- *  share a sentence: "Doar vizualizare" states a permission the page has been told about, and
- *  saying it while the probe is still in flight would be a claim nothing has answered. */
-function describeDisabledReason(canWrite: WriteAccess): string {
-  if (canWrite === "checking") return ro.panel.accessCheckingReason;
-  if (canWrite === "check-failed") return ro.panel.accessUncheckableReason;
-  return ro.panel.readOnlyReason;
 }
 
 /** `undefined` when there is nothing to say, which is the ordinary case: a writable panel whose

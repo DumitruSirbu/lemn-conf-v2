@@ -444,11 +444,16 @@ describe("the markup preconditions the focus trap is written against", () => {
     }
   });
 
-  it("renders no disabled control at either end, so neither end of the ring can vanish", () => {
+  it("renders no disabled control at either end of a writable sheet, so neither end of the ring can vanish", () => {
     // The case the trap has no answer for: `stops.at(0)` and `stops.at(-1)` are computed from the
-    // live DOM, so a disabled first or last stop silently moves the wrap point. It cannot arise
-    // while nothing here renders `disabled` — asserted, because that is a fact about this markup
-    // rather than a rule anything enforces.
+    // live DOM, so a first or last stop the browser skips silently moves the wrap point.
+    //
+    // **Scoped to a writable sheet since wave W2**, which is what every fixture here is. A locked
+    // one greys its radios and its *Aplică* (M6-AUD-001), so the selector gained `:not([disabled])`
+    // on both halves and the ring shortens to *Renunță* rather than acquiring a stop Tab never
+    // visits. That case is asserted in `tests/settings/read-only-global-settings.test.ts`; this one
+    // pins the shape the shipped sheet has, which is a fact about this markup rather than a rule
+    // anything enforces.
     for (const pending of EVERY_PENDING)
       expect(surfaceMarkupFor(pending), JSON.stringify(pending)).not.toContain(
         "disabled",

@@ -559,6 +559,21 @@ export const ro = {
      *  uncommitted state, so a customer who opened it must be able to leave without applying. */
     apply: "Aplică",
     cancel: "Renunță",
+    /**
+     * **A refused press, and the promise that nothing else moved** (M6-AUD-004).
+     *
+     * One *Aplică* is one commit since wave W2, so this sentence can say what the old three-command
+     * version could not: the other choices are still exactly where the customer left them, and the
+     * sheet is still open on them. It names the control that refused — a refusal with no subject
+     * leaves the customer to guess which of three settings to put back — and then hands over to the
+     * engine's own sentence rather than restating it in this surface's words (ADR 0032 rule 2).
+     *
+     * It carries **no digit and no sum word**, like every other leaf in this section:
+     * `starting-price.adversarial.test.ts` sweeps this template's body, and a numeral in copy beside
+     * a price list reads as an amount.
+     */
+    applyRefused: (settingName: string, reason: string) =>
+      `Nu am putut aplica „${settingName}”: ${reason} Nimic nu a fost schimbat.`,
     /** **The step that stands between a material change and the colours it discards** (ADR 0081,
      *  ADR 0086 decision 7). Shown only when a colour the customer chose would be lost, which is
      *  what makes it worth reading: a confirmation that always appears is one that is always
