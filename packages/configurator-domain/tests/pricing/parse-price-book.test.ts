@@ -301,3 +301,159 @@ describe("no intermediate can be inexact (M6-AUD-015)", () => {
     expect(parsed.ok).toBe(true);
   });
 });
+
+/** The sentence `refuseAnythingRaised` answers with. Its own doc calls a refusal wearing it a defect
+ *  in the parser, so it is quoted here rather than described. */
+const BACKSTOP_DETAIL = "Reading the price book raised";
+
+/** How far into the book the walk below looks for a list. Deep enough for a list nested inside a
+ *  rule's formula, short enough that the sweep stays a sweep. */
+const MAX_SAMPLE_BOOK_DEPTH = 5;
+
+/** Every path in the sample book that carries a list, **found by walking rather than by listing**.
+ *
+ *  The claim that no member of a declared book is read bare has been measured wrong twice — once for
+ *  20 of 22 field reads, and again for the four list positions `Array.isArray(x) && x.length` hides.
+ *  A test naming those four would go green and say nothing about the fifth. This one sweeps whatever
+ *  lists the book actually carries, so a list added to `price-book.ts` later is covered without this
+ *  file being edited. */
+function listPathsOf(declared: unknown, depth = 0, prefix = ""): string[] {
+  if (depth >= MAX_SAMPLE_BOOK_DEPTH) return [];
+  if (Array.isArray(declared)) {
+    const nested = declared.flatMap((element, index) =>
+      listPathsOf(element, depth + 1, `${prefix}.${String(index)}`),
+    );
+    return [prefix, ...nested];
+  }
+  if (typeof declared !== "object" || declared === null) return [];
+  return Object.entries(declared).flatMap(([field, value]) =>
+    listPathsOf(value, depth + 1, prefix === "" ? field : `${prefix}.${field}`),
+  );
+}
+
+const SAMPLE_LIST_PATHS = listPathsOf(BOOK);
+
+/** A copy of the book with one path replaced. Rebuilt along the path rather than mutated, so each
+ *  case in the sweep is independent of every other. */
+function bookWithValueAt(
+  declared: unknown,
+  path: readonly string[],
+  value: unknown,
+): unknown {
+  const [field, ...rest] = path;
+  if (field === undefined) return value;
+  if (Array.isArray(declared)) {
+    return (declared as readonly unknown[]).map((element, index) =>
+      String(index) === field ? bookWithValueAt(element, rest, value) : element,
+    );
+  }
+  return {
+    ...(declared as Record<string, unknown>),
+    [field]: bookWithValueAt(
+      (declared as Record<string, unknown>)[field],
+      rest,
+      value,
+    ),
+  };
+}
+
+/** An array whose every read raises — `length`, `Symbol.iterator` and each index alike.
+ *
+ *  **`Array.isArray` answers `true` for this**, which is the whole point: the check it satisfies
+ *  looks like a type test and is a call into the book's own code. */
+function listRaisingOnEveryRead(): readonly unknown[] {
+  return new Proxy([] as unknown[], {
+    get() {
+      throw new Error("this list raised when it was read");
+    },
+  });
+}
+
+/** An array that answers its length and raises on the elements, which is the `for…of` position on
+ *  its own rather than the length check's. */
+function listRaisingOnItsElements(length: number): readonly unknown[] {
+  return new Proxy(
+    Array.from({ length }, () => undefined),
+    {
+      get(target, property) {
+        if (property === "length") return length;
+        throw new Error("this element raised when it was read");
+      },
+    },
+  );
+}
+
+/** How a refusal reads, or `"accepted"` where there was none — one spelling, so the sweep compares
+ *  the same thing at every position. */
+function parseDetailOf(book: unknown): string {
+  const parsed = parsePriceBook(book);
+  return parsed.ok ? "accepted" : parsed.failure.detail;
+}
+
+describe("a list is read through a guard, wherever the book declares one", () => {
+  it("finds the lists the sample declares, so the sweep below is over something", () => {
+    // Named rather than counted: a walk that silently found nothing would make every assertion in
+    // this block pass without a single proxy being parsed.
+    expect(SAMPLE_LIST_PATHS).toEqual(
+      expect.arrayContaining([
+        "cabinetRules",
+        "material.tiers",
+        "hardware.tiers",
+      ]),
+    );
+  });
+
+  it("never falls to the backstop, at any list the book carries", () => {
+    // The property, not the four positions that were wrong. `refuseAnythingRaised` exists for the
+    // value nobody predicted, and its own doc says a refusal wearing its message is a parser defect
+    // rather than a fact about the book — so a raising proxy array reaching it is this module
+    // misdiagnosing its own input.
+    const backstopped = SAMPLE_LIST_PATHS.filter((path) =>
+      parseDetailOf(
+        bookWithValueAt(BOOK, path.split("."), listRaisingOnEveryRead()),
+      ).includes(BACKSTOP_DETAIL),
+    );
+
+    expect(backstopped).toEqual([]);
+  });
+
+  it("refuses rather than raising, at any list the book carries", () => {
+    const raised = SAMPLE_LIST_PATHS.filter((path) => {
+      const book = bookWithValueAt(
+        BOOK,
+        path.split("."),
+        listRaisingOnEveryRead(),
+      );
+      try {
+        parsePriceBook(book);
+        return false;
+      } catch {
+        return true;
+      }
+    });
+
+    expect(raised).toEqual([]);
+  });
+
+  it("names the section for a cabinetRules list whose reads raise", () => {
+    const detail = parseDetailOf(
+      bookWith({ cabinetRules: listRaisingOnEveryRead() }),
+    );
+
+    expect(detail).toContain('"cabinetRules" is a list');
+    expect(detail).toContain("raised when it was read");
+  });
+
+  it("names the section for a tier list that answers its length and raises on an element", () => {
+    // The `for…of` position on its own: the length check passes, so a bare loop would run the
+    // book's index traps and leave through the backstop.
+    const detail = parseDetailOf(
+      bookWith({
+        material: { ...BOOK.material, tiers: listRaisingOnItsElements(3) },
+      }),
+    );
+
+    expect(detail).toContain('"material.tiers" is a list');
+    expect(detail).not.toContain(BACKSTOP_DETAIL);
+  });
+});

@@ -16,11 +16,18 @@
 //
 // **The claim is about every input, and holding it takes more than not writing `throw`.** Reading a
 // book runs the *book's* code: a getter, a `toJSON`, a proxy trap. So no member of a declared book is
-// read bare anywhere below — every one goes through `readDeclared`, every enumeration through
-// `enumerableFieldsOf`, and every describe through `renderedAsJson` — and `refuseAnythingRaised`
-// backstops the lot. Narrowing the claim to the values `JSON.parse` can produce would be the easier
-// answer and the wrong one: the sample book this build ships is a JavaScript value, and a
-// manufacturer dashboard backed by model objects would be another.
+// read bare anywhere below — every field through `readDeclared`, every enumeration through
+// `enumerableFieldsOf`, every list through `boundedListOf`, and every describe through
+// `renderedAsJson` or `describedLength` — and `refuseAnythingRaised` backstops the lot. Narrowing
+// the claim to the values `JSON.parse` can produce would be the easier answer and the wrong one: the
+// sample book this build ships is a JavaScript value, and a manufacturer dashboard backed by model
+// objects would be another.
+//
+// **The lists took three passes to get right and the claim was false after each of the first two**,
+// which is why `parse-price-book.test.ts` now sweeps every list the sample carries with a raising
+// proxy rather than pinning the four positions that were wrong. `Array.isArray` is `true` of a proxy
+// over an array, so `length`, `Symbol.iterator` and each index are the book's code as much as any
+// getter is; a check written as `Array.isArray(x) && x.length` reads as safe and is not.
 //
 // **Guarding each read is what buys the diagnosis, and the diagnosis is the product.** The backstop
 // alone would already satisfy "never throws" and would tell a book's author only that something,
@@ -147,10 +154,13 @@ export function parsePriceBook(declared: unknown): PriceBookParseResult {
  * member and why, which this cannot. **This is not a substitute for any of them**, and a refusal
  * wearing this message is a defect in the parser rather than a fact about the book.
  *
- * That last sentence is only true because every read below goes through `readDeclared` and every
- * enumeration through `enumerableFieldsOf`. When it did not — when 20 of the 22 reads were bare —
- * this message was the ordinary outcome for almost any unreadable member, and the sentence sent a
- * reader hunting a parser bug that was not there. A comment that lies is itself the defect.
+ * That last sentence is only true because every read below goes through `readDeclared`, every
+ * enumeration through `enumerableFieldsOf` and every list through `boundedListOf`. When it did not —
+ * when 20 of the 22 field reads were bare, and later when the four list positions still were — this
+ * message was the ordinary outcome for almost any unreadable member, and the sentence sent a reader
+ * hunting a parser bug that was not there. A comment that lies is itself the defect, and this one
+ * has been wrong twice; the sweep in `parse-price-book.test.ts` is what now holds it true rather
+ * than the sentence being re-checked by hand.
  *
  * It exists because the argument for the specific fixes is an argument about a population, and the
  * population is *whatever a book assembled as a JavaScript value can be*. `use-priced-design.ts`
@@ -249,12 +259,13 @@ function refuseUndeclaredProvisionalFlag(
 function refuseUnreadableCabinetRules(
   declared: unknown,
 ): PricingFailure | undefined {
-  if (!isBoundedList(declared, MAX_CABINET_RULES))
+  const rules = boundedListOf(declared, MAX_CABINET_RULES);
+  if (rules === undefined)
     return invalidBook(
       `"cabinetRules" is a list of at most ${String(MAX_CABINET_RULES)} rules. ` +
         `Found: ${describeDeclared(declared)}`,
     );
-  for (const rule of declared) {
+  for (const rule of rules) {
     const unreadable = refuseUnreadableCabinetRule(rule);
     if (unreadable) return unreadable;
   }
@@ -320,12 +331,13 @@ function refuseUnreadableTiers(
   declared: unknown,
   kind: string,
 ): PricingFailure | undefined {
-  if (!isBoundedList(declared, MAX_TIERS_PER_GROUP))
+  const tiers = boundedListOf(declared, MAX_TIERS_PER_GROUP);
+  if (tiers === undefined)
     return invalidBook(
       `"${kind}.tiers" is a list of at most ${String(MAX_TIERS_PER_GROUP)} tiers. ` +
         `Found: ${describeDeclared(declared)}`,
     );
-  for (const tier of declared) {
+  for (const tier of tiers) {
     const unreadable = refuseUnreadableTier(tier, kind);
     if (unreadable) return unreadable;
   }
@@ -642,11 +654,51 @@ function isRecord(declared: unknown): declared is Record<string, unknown> {
   );
 }
 
-function isBoundedList(
+/**
+ * **A list a book declared, copied out before anything sweeps it.**
+ *
+ * `Array.isArray` answers `true` for a proxy whose target is an array, so the length read, the
+ * `Symbol.iterator` lookup and every index a `for…of` takes all run the *book's* own traps. Those
+ * were the last four reads this module made bare, and the header's claim was wrong for them: a
+ * raising proxy array is a fact about the book, so a refusal for one reaching `refuseAnythingRaised`
+ * would send a reader hunting a parser bug that is not there.
+ *
+ * The snapshot makes those the last reads of the declared value. What the caller iterates is a plain
+ * array this module owns, so each element is examined by the guarded checks below without the book
+ * getting a second chance to run.
+ *
+ * **Copied by index, within the one length it read, rather than through the iterator.** That is
+ * `enumerableFieldsOf`'s reason at a second boundary: a proxy may answer `length` with a larger
+ * number every time it is asked, and `Array.from` would follow `Symbol.iterator` for as long as the
+ * book kept feeding it. A boundary that hangs is worse than one that raises.
+ *
+ * `undefined` for every way this is not a list a book may declare — absent, not a list, longer than
+ * the bound, or a list whose own reads raised. Which section it was is the caller's to say, because
+ * it is the only one that knows.
+ */
+function boundedListOf(
   declared: unknown,
   maxLength: number,
-): declared is readonly unknown[] {
-  return Array.isArray(declared) && declared.length <= maxLength;
+): readonly unknown[] | undefined {
+  if (!Array.isArray(declared)) return undefined;
+  return snapshotOfDeclaredList(declared as readonly unknown[], maxLength);
+}
+
+function snapshotOfDeclaredList(
+  declared: readonly unknown[],
+  maxLength: number,
+): readonly unknown[] | undefined {
+  try {
+    const declaredLength = declared.length;
+    if (declaredLength > maxLength) return undefined;
+    const snapshot: unknown[] = [];
+    for (let index = 0; index < declaredLength; index += 1) {
+      snapshot.push(declared[index]);
+    }
+    return snapshot;
+  } catch {
+    return undefined;
+  }
 }
 
 /** The one place a parse failure is built, so its `detail` is bounded and scrubbed unconditionally
@@ -671,8 +723,19 @@ function describeDeclared(declared: unknown): string {
   // never reaches a `PricingFailure` that is logged and rendered.
   if (declared === UNREADABLE) return "something that raised when it was read";
   if (declared === undefined) return "nothing";
-  if (Array.isArray(declared)) return `a list of ${String(declared.length)}`;
+  if (Array.isArray(declared)) return describedLength(declared);
   return renderedOr(renderedAsJson(declared), typeof declared);
+}
+
+/** `renderedAsJson`'s discipline for the one read `Array.isArray` does not make safe: it is true of
+ *  a proxy, `length` is a trap, and this describer runs *inside* the refusal path — so a raise here
+ *  would lose the refusal it was being built for. */
+function describedLength(declared: readonly unknown[]): string {
+  try {
+    return `a list of ${String(declared.length)}`;
+  } catch {
+    return "a list whose length raised when it was read";
+  }
 }
 
 /**
