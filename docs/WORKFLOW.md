@@ -128,6 +128,32 @@ This relaxes nothing else. Acceptance criteria, adversarial QA, the review tiers
 cycle all still gate a wave. It also does not license shipping a *defect*: an interim is a surface a
 later wave completes, not a wrong answer left standing.
 
+## A milestone's branch is kept, pushed, and merged on GitHub
+
+**Owner rule, 2026-09-07.** A milestone that has a branch keeps it. The branch is **pushed to
+`origin`** and merged into `main` **through GitHub**, not merged locally and left unpushed.
+
+Each delivered milestone has one: `m2-void-engine-and-persistence`, `m3-mutations`,
+`m4-editor-surface`, `m5-width`, `m6-price-and-global-settings`. Wave branches are the short-lived
+things — they land on the milestone branch — and the milestone branch is the durable one.
+
+**Why the rule exists.** On 2026-09-06 the coordinator merged M6's seven waves straight into local
+`main`, reading the ADRs' phrase *"reaches `main`"* as the endpoint and never checking what the
+repository already did. It was reversible only because nothing had been pushed, and the owner asked
+the question — *"why on main?"* — before it hardened. Three costs, none of them hypothetical:
+
+- **No pull request, so no reviewable unit.** The waves had QA and review as agents, but nothing on
+  GitHub records that; a milestone merged locally leaves the platform with a single opaque jump.
+- **CI never ran.** Every gate was a local `pnpm ci:local`. Wave 6V's own last acceptance criterion
+  asks for **runner** evidence, so M6 could not be closed at all until a push existed — a milestone
+  blocked by its own bookkeeping.
+- **A local `main` that has diverged is invisible to everyone else**, which is the same failure mode
+  as the orphaned worktrees this document already warns about, one level up.
+
+**So:** create the milestone branch when the milestone starts, push it early and keep pushing, and
+open the pull request into `main` on GitHub. Wave branches merge into it and are deleted once merged.
+`main` is what GitHub writes, not what a session writes.
+
 ## Scope discipline
 
 - At most **five must-fix items** per implementation dispatch, and about **five production files** —
