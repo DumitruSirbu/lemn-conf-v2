@@ -133,7 +133,7 @@
     "cancel": "Renunță",
     "materialResetConfirm": {
       "title": "Culorile alese se vor pierde",
-      "body": "Ai ales alte culori pentru {chosenCount, plural, one {# dulap} few {# dulapuri} other {# dulapuri}}. Fiecare material are propriile culori disponibile, iar la modificarea lui e setată culoarea implicită a materialului nou.try",
+      "body": "Ai ales alte culori pentru {chosenCount, plural, one {# dulap} few {# dulapuri} other {# dulapuri}}. Fiecare material are propriile culori disponibile, iar la modificarea lui e setată culoarea implicită a materialului nou.",
       "confirm": "Schimbă materialul",
       "back": "Păstrează culorile"
     }
@@ -149,13 +149,13 @@
   },
   "designLoadError": {
     "title": "Nu am putut deschide acest link",
-    "bodyNotFound": "Linkul acesta nu mai corespunde niciunei configurații salvate. Poate a fost șters sau adresa este greșită.",
-    "bodyInvalid": "Configurația salvată la acest link nu poate fi citită. Ne pare rău pentru inconvenient.",
-    "startOver": "Pornește o configurare nouă"
+    "bodyNotFound": "Linkul acesta nu mai corespunde niciunei configurații salvate. Posibil că a fost ștearsă sau linkul este invalid.",
+    "bodyInvalid": "Linkul acesta nu poate întoarce nici o configurare validă. Ne pare rău.",
+    "startOver": "Începe o configurare nouă"
   },
   "contactPlaceholder": {
     "title": "Formularul de contact urmează",
-    "body": "Pasul de contact nu este încă disponibil în această versiune a configuratorului.",
+    "body": "Pagina de contact nu este încă disponibilă în această versiune a configuratorului.",
     "back": "Înapoi la configurare"
   },
   "band": {
@@ -220,7 +220,7 @@
     "VOID_SELECTED": "Aici nu se află niciun dulap.",
     "TARGET_NOT_FOUND": "Selecția nu mai există. Alege din nou un dulap sau un spațiu liber.",
     "INVALID_OCCURRED_AT": "Momentul modificării nu este valid, așa că nu am salvat nimic.",
-    "BODY_PROBE_UNAVAILABLE": "Modelul 3D nu este încă pregătit, așa că nu pot adăuga un dulap. Încearcă din nou într-o clipă.",
+    "BODY_PROBE_UNAVAILABLE": "Modelul 3D nu este încă pregătit, așa că nu pot adăuga un dulap. Încearcă din nou în câteva momente.",
     "ACCESSORY_NOT_DELETABLE": "„{label}” face parte din dulapul de sub ea și nu poate fi ștearsă separat.",
     "NOT_DELETABLE": "„{label}” face parte din structura bucătăriei și nu poate fi șters.",
     "NOT_IN_LIBRARY": "Dulapul acesta nu există în catalog.",
@@ -233,17 +233,17 @@
     "WIDTH_NOT_SUPPORTED_NO_WIDTH": "„{label}” nu poate fi construit la nicio lățime pe care o acceptă și dulapurile de deasupra.",
     "WIDTH_NOT_SUPPORTED_COLUMN": "„{label}” este într-o coloană care se face {widthsMadeClause}, iar acum are {availableMm, number, ::group-off} mm.",
     "WIDTH_NOT_SUPPORTED_BODY": "„{label}” se face {widthsMadeClause}, iar spațiul liber are {availableMm, number, ::group-off} mm.",
-    "OPENING_TOO_SHORT": "Spațiul liber are doar {availableMm, number, ::group-off} mm înălțime; sub {minimumMm, number, ::group-off} mm nu se poate construi un dulap.",
+    "OPENING_TOO_SHORT": "Spațiul liber are doar {availableMm, number, ::group-off} mm înălțime; sub {minimumMm, number, ::group-off} mm nu se poate încadra un dulap.",
     "HEIGHT_EXCEEDS_LEVEL": "„{label}” are {requiredMm, number, ::group-off} mm înălțime și nu încape pe acest nivel de {availableMm, number, ::group-off} mm. Doar coloanele pot depăși un nivel.",
     "HEIGHT_TOO_LARGE": "„{label}” are {requiredMm, number, ::group-off} mm înălțime, iar spațiul liber are {availableMm, number, ::group-off} mm.",
-    "NO_SNAP_POSITION": "„{label}” nu poate fi așezat pe niciuna dintre liniile de modul ale acestei coloane.",
+    "NO_SNAP_POSITION": "„{label}” nu poate fi adăugat la nici un nivel al acestei coloane. Verifică dacă înălțimea este corectă și dacă spațiul liber are suficientă înălțime.",
     "BUILT_SIZE_MISMATCH": "„{label}” s-a construit la {builtMm, number, ::group-off} mm în loc de {requiredMm, number, ::group-off} mm, așa că nu l-am așezat.",
-    "MEASUREMENT_UNUSABLE": "Nu am putut măsura dulapul „{label}” după ce a fost construit, așa că nu l-am așezat.",
-    "COLUMN_MISMATCH": "„{label}” ar ieși din coloana în care a fost adăugat.",
+    "MEASUREMENT_UNUSABLE": "Nu am putut măsura dulapul „{label}” după ce a fost construit, așa că nu l-am adăugat.",
+    "COLUMN_MISMATCH": "„{label}” ar ieși înafara coloanei în care a fost adăugat.",
     "NOT_RESIZABLE": "„{label}” nu își poate schimba lățimea.",
     "WIDTH_UNCHANGED": "„{label}” are deja {widthMm, number, ::group-off} mm lățime.",
     "NO_EMPTY_SPACE": "„{label}” nu poate ajunge la {requestedMm, number, ::group-off} mm: coloana ar mai avea nevoie de {deltaMm, number, ::group-off} mm, dar {sides}.",
-    "COLUMN_MEMBER_NOT_RESIZABLE": "„{label}” nu poate fi redimensionat: în aceeași coloană stă „{memberLabel}”, care nu își poate schimba lățimea.",
+    "COLUMN_MEMBER_NOT_RESIZABLE": "„{label}” nu poate fi redimensionat: în aceeași coloană există „{memberLabel}”, care nu își poate schimba lățimea.",
     "RESIZE_OPENS_GAP": "„{label}” nu poate fi redimensionat aici: {sides}.",
     "COLUMN_KEY_COLLISION": "„{label}” nu poate ajunge la {requestedMm, number, ::group-off} mm: {sides}.",
     "COLUMN_HOOD_FLOOR": "„{label}” nu poate coborî la {requestedMm, number, ::group-off} mm: hota de deasupra are {hoodWidthMm, number, ::group-off} mm.",
@@ -255,7 +255,7 @@
     "UNKNOWN_HARDWARE_TIER": "Feroneria aleasă nu mai este disponibilă. Alege altă variantă.",
     "UNKNOWN_CABINET_DEPTH": "Adâncimea aleasă nu este disponibilă. Alege una dintre adâncimile oferite.",
     "parts": {
-      "emptySpaceSide": "{side, select, right {în dreapta} other {în stânga}} {reason, select, absent {nu este spațiu liber} too_narrow {spațiul liber este insuficient} opens_a_gap {s-ar obține un spațiu liber peste alte dulapuri} other {dulapul ar ajunge peste altă coloană}}",
+      "emptySpaceSide": "{side, select, right {în dreapta} other {în stânga}} {reason, select, absent {nu este spațiu liber} too_narrow {spațiul liber este insuficient} opens_a_gap {s-ar obține un spațiu liber peste alte dulapuri} other {dulapul nu se încadrează în acestă coloană}}",
       "sidesJoin": ", iar ",
       "widthsMadeBetween": "între {minMm, number, ::group-off} și {maxMm, number, ::group-off} mm",
       "widthsMadeAt": "la {minMm, number, ::group-off} mm",
