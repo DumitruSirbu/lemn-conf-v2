@@ -71,7 +71,7 @@ status corrections, in one of these two files:
 | 38 | `resolveFinishesTheTierDoesNotOffer`'s `Set<DesignPlacement>` is membership by object identity | resolved.md |
 | 39 | `wearsAFinishTheMaterialDoesNotOffer` and `wearing` are duplicated verbatim, twice | resolved.md |
 | 40 | Comments naming a schema-version number go stale silently | resolved.md |
-| 41 | The sink, its bowl and its faucet do not follow the cabinet-depth setting | open.md |
+| 41 | The sink, its bowl and its faucet do not follow the cabinet-depth setting | open.md — ruled 2026-09-07 (ADR 0098), awaiting a wave |
 | 42 | `tall-pantry`'s door-leaf/handle declaration should be pinned separately | open.md |
 | 43 | Wave 6A2's own files carry no literal pin on the seeded row's rendered name | open.md |
 | 44 | A vacuous test in `cabinet-depth-sweep.parity.test.ts` calls no production code | resolved.md — closed 2026-09-06 (this pass), test no longer present |

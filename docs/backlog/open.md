@@ -647,7 +647,9 @@ Not decided. Needs an owner call on: id scheme (keep nanoid vs. adopt v7 and acc
 whether step 1 mints before or after the wall-size intake is complete, and which milestone this and
 step 1 itself belong to.
 
-## 41. The sink, its bowl and its faucet do not follow the cabinet-depth setting — NEEDS AN OWNER DECISION
+## 41. The sink, its bowl and its faucet do not follow the cabinet-depth setting — RULED 2026-09-07 ([ADR 0098](../decisions/0098-the-sink-is-centred-at-the-declared-depth-and-a-deeper-worktop-grows-behind-it.md)), AWAITING A WAVE
+
+**The owner ruled 2026-09-07:** *"It should be centered. And the gap should become bigger behind — so between the wall and the sink and faucet. Same principle as with hob."* [ADR 0098](../decisions/0098-the-sink-is-centred-at-the-declared-depth-and-a-deeper-worktop-grows-behind-it.md) declares `SINK_FRONT_CLEARANCE_MM = 110` — the centred value at 600 — and derives the seat from it, so the bowl's front clearance is 110 at every depth and the faucet's clearance to the wall goes 2 -> 22 mm at 600 and 52 -> 122 mm at 700. **It moves the shipped 600 mm kitchen forward by 20 mm**, deliberately, which is the one place it departs from ADR 0087; the wave's close-out must record that parity re-baseline rather than absorb it. This entry closes when that wave ships, not before. **The observation below is unedited and still accurate about the code.**
 
 Found 2026-09-05 while measuring the hob for
 [ADR 0087](../decisions/0087-the-hob-holds-its-reach-and-a-deeper-worktop-grows-behind-it.md). **Same
