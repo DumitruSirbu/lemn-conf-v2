@@ -76,10 +76,6 @@ const NOTE_GLYPH = "i";
 const TAB_STOP_SELECTOR =
   'button:not([disabled]), input[type="radio"]:checked:not([disabled])';
 
-/** What a sheet rendered without an access story is: editable. See `GlobalSettingsSurface`'s
- *  `editability` prop for why the default exists at all and what closes the risk it carries. */
-const WRITABLE: Editability = { isReadOnly: false, disabledReason: "" };
-
 export function GlobalSettings() {
   const pricing = usePricedDesign();
   const offer = useWholeKitchenTierOffer();
@@ -414,7 +410,7 @@ export function GlobalSettingsSurface({
   id,
   ref,
   view,
-  editability = WRITABLE,
+  editability,
   refusalNote,
   confirming,
   onChoose,
@@ -425,15 +421,27 @@ export function GlobalSettingsSurface({
   readonly id: string;
   readonly ref?: Ref<HTMLDivElement>;
   readonly view: GlobalSettingsView;
-  /** Whether this browser may write, already decided by `store/editability.ts`.
+  /**
+   * Whether this browser may write, already decided by `store/editability.ts`.
    *
-   *  **Optional, and absent means writable** — the same trade `DescribePanelInput.pricing` records,
-   *  and made for the same reason: requiring it here would couple nine fixtures that are about
-   *  tiers, deltas and the confirm step to an access story none of them is testing. The one call
-   *  site that matters is `GlobalSettings`, which is store-connected and is the write surface
-   *  M6-AUD-001 was about; that it passes this is closed by a test rather than by the type — see
-   *  `tests/settings/read-only-global-settings.test.ts`, which goes red when the prop is dropped. */
-  readonly editability?: Editability;
+   * **Required, and it was optional for one wave.** It defaulted to *writable* on the trade
+   * `DescribePanelInput.pricing` records — a convenient default, with the dropped-wiring risk said
+   * to be closed by `tests/settings/read-only-global-settings.test.ts` going red if `GlobalSettings`
+   * stopped passing it. **Adversarial QA measured that claim and it was false**: deleting
+   * `editability={editability}` from the one production call site left all 1710 tests green.
+   * Nothing in a `node` runtime can open the sheet — there is no DOM, so `useState(false)` never
+   * advances — so that file renders the store-connected component only with the sheet **shut**, and
+   * renders the open sheet by constructing this surface and passing the prop itself. No test
+   * exercised the production wiring with the sheet open, and the type was silent because the prop
+   * was optional.
+   *
+   * So the type carries it now. This is the wave whose whole subject is a write surface that
+   * silently defaulted to permitted; one more of those is the wrong thing to economise on, and the
+   * price was one line in each of six fixtures. `qa-w2-locked-surface-reach.adversarial.test.ts`
+   * keeps a source-text assertion over the call site as well — the strongest guard this runtime
+   * allows — and `tests/e2e/read-only-global-settings.e2e.spec.ts` is what a browser asserts.
+   */
+  readonly editability: Editability;
   /** The sentence a refused press left, or nothing. Absent — never empty — on the ordinary path:
    *  the sheet says nothing about an apply that has not happened. */
   readonly refusalNote?: string;
@@ -483,6 +491,21 @@ export function GlobalSettingsSurface({
           </p>
         ) : null}
       </div>
+      {/* **§13.1's reason, on the dialog rather than inside a step** (M6-AUD-001, found by
+          adversarial QA). It stated it once at the head of the choosing step's body — and the
+          confirm step replaces that body wholesale, so the explanation disappeared at the exact
+          moment the customer was being asked to commit. It is a fact about this browser, not about
+          which question is on screen, so it belongs to the sheet. Once for the sheet rather than
+          under each of a dozen radios: a sentence repeated down every row is the sheet arguing with
+          itself. */}
+      {editability.isReadOnly ? (
+        <p
+          className={styles.locked}
+          data-testid="global-settings-read-only-reason"
+        >
+          {editability.disabledReason}
+        </p>
+      ) : null}
       {confirming === undefined ? (
         <ChoosingStep
           view={view}
@@ -495,7 +518,7 @@ export function GlobalSettingsSurface({
           onApply={onApply}
         />
       ) : (
-        <ConfirmStep step={confirming} />
+        <ConfirmStep step={confirming} editability={editability} />
       )}
     </div>
   );
@@ -518,8 +541,19 @@ interface MaterialResetConfirmStep {
  * **The figure and the overflow warning go with the footer they belong to.** A running total beside
  * *Schimbă materialul* invites the reading that the price is what changes, and the estimate is not
  * what this step is about.
+ *
+ * **It takes the same editability the choosing step does** (M6-AUD-001, found by adversarial QA).
+ * *Schimbă materialul* is the same commit as *Aplică*, one step further in — it calls `applyPending`
+ * directly — so a step handed no access story rendered a live, unexplained write action on a sheet
+ * every other control of which was greyed.
  */
-function ConfirmStep({ step }: { readonly step: MaterialResetConfirmStep }) {
+function ConfirmStep({
+  step,
+  editability,
+}: {
+  readonly step: MaterialResetConfirmStep;
+  readonly editability: Editability;
+}) {
   return (
     <>
       <div className={styles.body}>
@@ -532,6 +566,9 @@ function ConfirmStep({ step }: { readonly step: MaterialResetConfirmStep }) {
       </div>
       <div className={styles.footer}>
         <div className={styles.actions}>
+          {/* Never locked, on either step: a customer who cannot commit must still be able to keep
+              what they have and leave. It is also what keeps the focus trap's ring non-empty when
+              every other control on the step is greyed. */}
           <button
             type="button"
             className={styles.cancel}
@@ -544,6 +581,10 @@ function ConfirmStep({ step }: { readonly step: MaterialResetConfirmStep }) {
             type="button"
             className={styles.apply}
             data-testid="global-settings-confirm"
+            disabled={editability.isReadOnly}
+            {...(editability.isReadOnly
+              ? { title: editability.disabledReason }
+              : {})}
             onClick={step.onConfirm}
           >
             {step.view.confirmLabel}
@@ -577,17 +618,6 @@ function ChoosingStep({
   return (
     <>
       <div className={styles.body}>
-        {/* §13.1's reason, once for the sheet rather than under each of a dozen radios: every
-            control below is locked by the same fact about this browser, and repeating it per row
-            would be the sheet arguing with itself. */}
-        {editability.isReadOnly ? (
-          <p
-            className={styles.locked}
-            data-testid="global-settings-read-only-reason"
-          >
-            {editability.disabledReason}
-          </p>
-        ) : null}
         {view.groups.map((group) => (
           <TierGroupSection
             key={group.key}

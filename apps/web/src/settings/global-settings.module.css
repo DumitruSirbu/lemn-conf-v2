@@ -326,10 +326,17 @@
   border-radius: 10px;
 }
 
-/* The one line a locked sheet states, at the top of what it locks. Set like the sheet's own quiet
- * copy: it explains the greying below it rather than announcing a fault. */
+/* The one line a locked sheet states, under the head and above whichever step is on screen. Set like
+ * the sheet's own quiet copy: it explains the greying below it rather than announcing a fault.
+ *
+ * **It carries its own inset because it is not inside `.body`** — it used to be, at the head of the
+ * choosing step's, and the confirm step replaces that body wholesale, so the sentence vanished at
+ * the moment the customer was asked to commit (M6-AUD-001, found by adversarial QA). It takes no
+ * flow height at all when the sheet is writable, because it is not rendered. */
 .locked {
+  flex: 0 0 auto;
   margin: 0;
+  padding: 11px 18px 0;
   font: 700 11.5px/1.35 var(--font-ui);
   color: var(--ink-muted);
 }
@@ -533,6 +540,10 @@
 
   .overflow {
     margin: 0 26px;
+  }
+
+  .locked {
+    padding: 14px 26px 0;
   }
 
   .footer {
