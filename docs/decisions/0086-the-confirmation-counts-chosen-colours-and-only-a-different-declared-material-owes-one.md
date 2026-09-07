@@ -1,6 +1,6 @@
 # ADR 0086 — The confirmation counts chosen colours, is composed before any command, and only a different **declared** material owes one
 
-Status: Accepted
+Status: Accepted (decision 3's criterion amended 2026-09-07 -> [0099](0099-a-colour-is-chosen-at-two-levels-and-the-cabinets-wins.md) decision 7; decisions 1-2 stand)
 Date: 2026-09-05
 Type: Decision + Finding
 Milestone: M6 — implements [ADR 0081](0081-a-material-change-confirms-only-when-a-chosen-colour-would-be-lost.md);
@@ -162,9 +162,19 @@ Not a different id string. Both sides resolve through `lookUpMaterial` (6Q-a's t
 ADR 0078 decision 3), the applied side through `?? DEFAULT_MATERIAL_ID` — the same resolution
 ADR 0081 decision 1 gives the query and `findUnofferedFinishIssues` gives the validator.
 
-> **`materialResetConfirm` is present if and only if** the pending choice names a **declared**
+> ~~**`materialResetConfirm` is present if and only if** the pending choice names a **declared**
 > material, that material is **not** the declared material the design is already on, and
-> `chosenColourCount > 0`.
+> `chosenColourCount > 0`.~~
+
+**Amended 2026-09-07 — [ADR 0099](0099-a-colour-is-chosen-at-two-levels-and-the-cabinets-wins.md)
+decision 7.** The rule's shape is unchanged and the table below still holds row for row; two things
+move once a **global** colour default exists. `chosenColourCount` is counted against the design's
+**resolved** default — the global colour where one is set, `material.defaultFinish` where it is not —
+because otherwise the confirmation fires for cabinets that merely match the kitchen's own colour,
+which is the interruption this record exists to avoid. And a **second arm** is added: a confirmation
+is also owed when `settings.finish` itself is set and the incoming material does not offer it, since
+a design whose cabinets all follow the global colour has a chosen count of zero and would still lose
+a colour somebody chose. Decisions 1 and 2 of this record are untouched.
 
 | Applied | Pending | Confirms | Why |
 | --- | --- | --- | --- |
