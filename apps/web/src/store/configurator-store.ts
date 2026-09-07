@@ -113,10 +113,13 @@ export interface ConfiguratorState {
    *  design at 700 mm can never be held beside a map built at 600. */
   readonly catalog: BodyCatalog;
   /** Extent frozen at load time, `hasFullHeightUnder` live — see the file header and ADR 0011
-   *  Gap D. */
+   *  Gap D. **The published face**: what `voids` are derived from, so nothing past the end of a
+   *  wall is ever offered or drawn (ADR 0069). */
   readonly columns: ReadonlyMap<string, Column>;
-  /** The same map with ADR 0069's wall-end cap not applied — what the document is projected from,
-   *  and read by nothing else (ADR 0090 Amendment B, and `AppliedCommandState.recordedColumns`). */
+  /** The same map with ADR 0069's wall-end cap not applied — **what a command is handed and what
+   *  the document is projected from** (ADR 0090 Amendment B and its addendum, and
+   *  `AppliedCommandState.recordedColumns`). Backlog 52 added the first half: a command whose
+   *  `effect.columns` replaces the map whole must edit the face it is allowed to rewrite. */
   readonly recordedColumns: ReadonlyMap<string, Column>;
   readonly voids: readonly VoidRecord[];
   readonly selection: Selection;
@@ -332,6 +335,16 @@ interface CommandContext {
    *  command answered against the map the store opened with would evaluate the new design at the
    *  old depth. */
   readonly catalog: BodyCatalog;
+  /** **The recorded face** (ADR 0090 Amendment B's addendum, backlog 52). `setWidth` and
+   *  `insertBody` return a map that *replaces* this one whole, so a published map handed in here
+   *  comes back out as the document's own record: an unrelated resize on wall A took 100 mm off a
+   *  wall-B space the room-derived cap had bounded, permanently and silently. The cap belongs to
+   *  what is offered, so the map a command edits is the one it has never touched — the same rule
+   *  `applyCommandResult` already follows for its fall-through arm.
+   *
+   *  Safe to look a void up in because the cap preserves a column's key
+   *  (`clip-empty-columns-at-wall-end.ts`): a void carries the published key, which is the recorded
+   *  key, so nothing here resolves against a column that is not there. */
   readonly columns: ReadonlyMap<string, Column>;
   readonly target: CommandTarget;
 }
@@ -431,7 +444,7 @@ export function createConfiguratorStore(
           ? command({
               design: state.design,
               catalog: state.catalog,
-              columns: state.columns,
+              columns: state.recordedColumns,
               target: state.selection,
             })
           : refuse(state.design, { code: "TARGET_NOT_FOUND", params: {} }),

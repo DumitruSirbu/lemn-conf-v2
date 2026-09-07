@@ -112,7 +112,11 @@ export function useSelectionMeta(): SelectionMeta | undefined {
 function useSelectionOffers(): CatalogOffer[] {
   const records = useConfiguratorStore((state) => state.records);
   const voids = useConfiguratorStore((state) => state.voids);
-  const columns = useConfiguratorStore((state) => state.columns);
+  // **The map `insertBody` itself is handed** — the recorded face since backlog 52. §11 row 6's rule
+  // is that the offer list and the command are one evaluation read from two ends, so the list must
+  // measure against the same map. The *openings* are still the published ones: `voids` is derived
+  // from the capped map, so nothing past the end of a wall is offered (ADR 0069).
+  const columns = useConfiguratorStore((state) => state.recordedColumns);
   const catalog = useConfiguratorStore((state) => state.catalog);
   const selection = useConfiguratorStore((state) => state.selection);
   // Off the held design, not off the catalogue: the store's catalogue is built at this same depth
@@ -183,7 +187,10 @@ function useSelectionWidthAnswers(): {
   steps: WidthSteps | undefined;
 } {
   const design = useConfiguratorStore((state) => state.design);
-  const columns = useConfiguratorStore((state) => state.columns);
+  // The map `setWidth` is handed, for the reason `useSelectionOffers` gives: both answers here run
+  // the real resize command, and a chip answered against a different map than the tap would run is
+  // §9's "never offer what cannot be satisfied" read against the wrong evidence.
+  const columns = useConfiguratorStore((state) => state.recordedColumns);
   const catalog = useConfiguratorStore((state) => state.catalog);
   const selection = useConfiguratorStore((state) => state.selection);
   const probeAt = useConfiguratorStore((state) => state.probeAt);
