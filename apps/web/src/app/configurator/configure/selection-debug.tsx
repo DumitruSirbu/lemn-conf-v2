@@ -1,5 +1,8 @@
 "use client";
 
+import type { Design } from "@lemnaria/configurator-domain";
+import { finishSignature } from "@lemnaria/three-adapter";
+
 import { useConfiguratorStore } from "@/store/configurator-store";
 import { useSelectionMeta } from "@/panel/use-panel-view";
 
@@ -37,6 +40,19 @@ export function SelectionDebug() {
   )
     return null;
   return <SelectionDebugReadout />;
+}
+
+/** **How many cabinets have chosen a colour of their own** — presence of the key and nothing about
+ *  its value, which is exactly ADR 0099's own definition of an override (ADR 0078 decision 5).
+ *
+ *  Deliberately **not** `countCabinetsWearingAChosenFinish`: that query compares each finish against
+ *  the design's resolved default and so answers zero for a kitchen whose cabinets all match the
+ *  global colour — which is the right answer to the confirmation's question and the wrong one to
+ *  *"did a global change grow the document a `finish` key"*. */
+function countOverridingFinishes(design: Design): number {
+  return design.placements.filter(
+    (placement) => placement.body.finish !== undefined,
+  ).length;
 }
 
 /** The readout itself, split from the gate above so that the gate can return before a single hook
@@ -85,6 +101,18 @@ function SelectionDebugReadout() {
           ? ""
           : String(design.settings.cabinetDepthMm)
       }
+      // ADR 0099's whole-kitchen colour, and the **count of cabinets overriding it**. Both are here
+      // for the reason the three settings above are, and the second one more sharply: the owner's
+      // own invariant is that a global colour change leaves every cabinet-level override untouched,
+      // and *"untouched"* is a fact about the document that no surface renders — the scene paints a
+      // colour, and a cabinet following the kitchen and a cabinet overriding it with the same colour
+      // paint identically. A count is what tells them apart from outside.
+      //
+      // The signature is `three-adapter`'s own, so a palette entry and a free colour can never
+      // collide in this readout; empty means the design names no global colour, which is what every
+      // document written before ADR 0099 carries.
+      data-global-finish={finishSignature(design.settings?.finish)}
+      data-overriding-finishes={String(countOverridingFinishes(design))}
       data-updated-at={design.updatedAt}
       hidden
     />
