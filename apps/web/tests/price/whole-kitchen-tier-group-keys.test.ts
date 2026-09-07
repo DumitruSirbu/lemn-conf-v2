@@ -9,14 +9,25 @@
 //     normal:   { hardwareSoftClose: 619760, materialVeneer: 1800000 }
 //     collided: { hardware: 619760,          material: 619760 }
 //
-// **Two layers protect this, and this file exercises both ends of the composition.** `parsePriceBook`
-// refuses a book that repeats a tier id across the groups, so the collided book can no longer be
-// priced at all; and the surface keys by group regardless, so a future relaxation of that rule cannot
-// turn into wrong money. What is asserted here is the property that must hold either way: **no
-// material tier ever displays an amount measured for a hardware tier.**
+// **Two layers protect this. Only the first is reachable from here, and this file claims only it.**
+// `parsePriceBook` refuses a book that repeats a tier id across the groups, and `priceDesign` parses
+// the book it is handed on every call — so a collided book makes all six evaluations fail, the whole
+// delta set degrades to absent, and the surface's group-scoped lookup is never reached. The second
+// layer is therefore *invisible* for every book the parser accepts: within such a book the two
+// groups' key sets are disjoint, so a flattened map would answer identically. It is defence in depth
+// against a future relaxation of the parser's rule, not behaviour a public call can distinguish.
+//
+// An earlier version of this file asserted an anti-invariant over the collided book — *no material
+// tier shows an amount from the hardware set* — and was satisfied by its own "the delta is absent"
+// disjunct without ever reaching the lookup. What is asserted here instead is what actually fires:
+// the shipped book's real amount, the parser's refusal naming the repeated id, and the choice
+// surviving it. The positive per-group property — every published delta is the amount measured for
+// that tier in that group — is proved in `qa-m6-wave-b-tier-deltas.adversarial.test.ts`, which is
+// where the second layer's own behaviour is pinned as far as a public call can pin it.
 import {
   KITCHEN_L_BODY_CATALOG,
   KITCHEN_L_DESIGN,
+  priceDesign,
   SAMPLE_PRICE_BOOK,
   type HardwareTier,
   type PriceBook,
@@ -46,14 +57,19 @@ function bookCollidingTierIds(): {
   readonly book: PriceBook;
   readonly tierId: string;
 } {
-  const tierId = BOOK.material.tiers[2]?.tierId ?? "";
+  // Thrown for rather than defaulted to "": an empty id would make the parser refuse for a second
+  // reason, and every assertion below would pass without the collision ever being built.
+  const collided = BOOK.material.tiers[2];
+  if (!collided)
+    throw new Error("the sample offers fewer than three material tiers");
+  const tierId = collided.tierId;
   const tiers: readonly HardwareTier[] = BOOK.hardware.tiers.map(
     (tier, index) => (index === 1 ? { ...tier, tierId } : tier),
   );
   return { book: { ...BOOK, hardware: { ...BOOK.hardware, tiers } }, tierId };
 }
 
-describe("a material tier never shows a hardware tier's amount", () => {
+describe("the delta a whole-kitchen tier states, and what a collided book does to it", () => {
   it("prices the shipped book's veneer upgrade at the book's own whole-kitchen amount", () => {
     // The `normal` half of the witness. Read off the book rather than written as a literal, so a
     // repriced sample moves the expectation with it.
@@ -67,21 +83,25 @@ describe("a material tier never shows a hardware tier's amount", () => {
     expect(offered?.deltaMinor).toBe(veneer.wholeKitchenMinor);
   });
 
-  it("shows no material tier a hardware amount when the two groups collide on an id", () => {
+  it("refuses the collided book at the parser, naming the id declared in both groups", () => {
+    // The layer that actually fires, asserted where it fires rather than inferred from an absence
+    // downstream. `priceDesign` parses the book it is handed, so this is the same refusal every one
+    // of `measureEveryDelta`'s six evaluations meets.
     const { book, tierId } = bookCollidingTierIds();
-    const hardwareAmounts = new Set(
-      measure().hardware.tiers.map((tier) => tier.deltaMinor),
-    );
 
-    const offered = measure(book).material.tiers.find(
-      (tier) => tier.tierId === tierId,
-    );
+    const result = priceDesign({
+      design: KITCHEN_L_DESIGN,
+      catalog: KITCHEN_L_BODY_CATALOG,
+      book,
+      pricingVersion: BOOK.version,
+      selections: KITCHEN_L_DESIGN.settings,
+    });
 
-    expect(offered).toBeDefined();
-    expect(
-      offered?.deltaMinor === undefined ||
-        !hardwareAmounts.has(offered.deltaMinor),
-    ).toBe(true);
+    expect(result.ok).toBe(false);
+    expect(result.ok ? undefined : result.failure.code).toBe(
+      "INVALID_PRICE_BOOK",
+    );
+    expect(result.ok ? undefined : result.failure.id).toBe(tierId);
   });
 
   it("answers the collided book without raising, so the settings sheet still offers the choice", () => {
