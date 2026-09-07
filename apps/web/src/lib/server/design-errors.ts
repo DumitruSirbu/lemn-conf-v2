@@ -9,6 +9,13 @@ import {
 } from "@lemnaria/persistence";
 import { NextResponse } from "next/server";
 
+import {
+  reportDesignFailure,
+  reportDesignRefusal,
+  type DesignOperation,
+  type DesignRefusal,
+} from "@/lib/server/design-failure-log";
+
 /** The two public codes a rejected save answers with. Stable, enumerable, and free of any detail
  *  from the rejected document — a client branches on these, and ADR 0014 S2 keeps the *reason* out
  *  of the response entirely. */
@@ -29,11 +36,45 @@ const REVISION_CONFLICT_CODE = "DESIGN_REVISION_CONFLICT";
  *  behaviour WEB-003 removed. */
 const REVISION_REQUIRED_CODE = "REVISION_REQUIRED";
 
-/** Maps a repository failure to a clean JSON error response. `InvalidDesignError` here means a
- *  *stored* document failed migration/validation on load — the client didn't cause it, so this is
- *  a 500, unlike `invalidBodyResponse` below, which is for a bad incoming payload on save. Any
- *  other error is a genuine bug, not a domain failure, so it is rethrown rather than masked. */
-export function designErrorResponse(error: unknown): NextResponse {
+/**
+ * The three refusals, each as one value the response's status and the log line are both built from.
+ *
+ * The status literal appears once per refusal rather than twice, and the log-only code for the 403
+ * lives beside the response that deliberately carries none — so a reader can see at a glance that
+ * the two disagree on purpose (`writeForbiddenResponse` explains why the response says nothing).
+ *
+ * All three are `save` operations by construction: the load path is open to anyone holding the
+ * link and answers none of them.
+ */
+const WRITE_FORBIDDEN: DesignRefusal = {
+  code: "DESIGN_WRITE_FORBIDDEN",
+  status: 403,
+};
+const WRITE_CONFLICT: DesignRefusal = {
+  code: REVISION_CONFLICT_CODE,
+  status: 409,
+};
+const REVISION_REQUIRED: DesignRefusal = {
+  code: REVISION_REQUIRED_CODE,
+  status: 400,
+};
+
+/**
+ * Maps a repository failure to a clean JSON error response. `InvalidDesignError` here means a
+ * *stored* document failed migration/validation on load — the client didn't cause it, so this is
+ * a 500, unlike `invalidBodyResponse` below, which is for a bad incoming payload on save. Any
+ * other error is a genuine bug, not a domain failure, so it is rethrown rather than masked.
+ *
+ * **The rethrow is announced before it happens.** Rethrowing hands the error to the platform, which
+ * answers 500 with a digest and no name — the state that made the 2026-09-07 outage take a database
+ * query to diagnose rather than a log line (ADR 0096, Consequences). The throw is unchanged; only
+ * the record of it is new, and it names the operation, the error and a bounded reason without
+ * touching the response.
+ */
+export function designErrorResponse(
+  operation: DesignOperation,
+  error: unknown,
+): NextResponse {
   if (error instanceof DesignWriteForbiddenError) {
     return writeForbiddenResponse();
   }
@@ -46,6 +87,7 @@ export function designErrorResponse(error: unknown): NextResponse {
   if (error instanceof InvalidDesignError) {
     return designUnreadableResponse(error);
   }
+  reportDesignFailure(operation, error);
   throw error;
 }
 
@@ -80,11 +122,16 @@ function designUnreadableResponse(error: InvalidDesignError): NextResponse {
  * oracle for design ids — 404 for unknown and 403 for known would let anyone enumerate which links
  * are real, which is exactly the disclosure `load`'s 404 is safe to make and a write's must not be.
  * The message names no id and no reason.
+ *
+ * The *log* names the refusal, because this response throws nothing and an error tracker would
+ * therefore never see it. That asymmetry is deliberate and is ADR 0014 finding S2 working as
+ * intended: the server may know why, the client may not.
  */
 export function writeForbiddenResponse(): NextResponse {
+  reportDesignRefusal("save", WRITE_FORBIDDEN);
   return NextResponse.json(
     { error: "Design write not authorized." },
-    { status: 403 },
+    { status: WRITE_FORBIDDEN.status },
   );
 }
 
@@ -102,32 +149,39 @@ export function writeForbiddenResponse(): NextResponse {
  * quoted in this response would already be stale by the time anyone acted on it.
  */
 export function writeConflictResponse(): NextResponse {
+  reportDesignRefusal("save", WRITE_CONFLICT);
   return NextResponse.json(
     {
       code: REVISION_CONFLICT_CODE,
       error: "Design changed since it was loaded.",
     },
-    { status: 409 },
+    { status: WRITE_CONFLICT.status },
   );
 }
 
 /**
  * A save that carried no usable expected revision.
  *
- * A 400 rather than a 409: nothing about the stored design is wrong, the request is. Nothing is
- * logged, for the reason `payloadTooLargeResponse` logs nothing — a caller controls how often it
- * can drive this path, and a log line per refusal is amplification bought with one cheap request.
+ * A 400 rather than a 409: nothing about the stored design is wrong, the request is.
  *
  * It is returned **after** the credential check, so it is unreachable without a cookie for this
  * design and cannot be used to probe which ids exist.
+ *
+ * **It is logged, where it once was not.** The earlier reasoning — that a caller controls how often
+ * it can drive this path — was the amplification rule `invalidBodyResponse` is written against, and
+ * it does not reach this line: what that rule forbids is a log line whose *size* is a function of
+ * an attacker-supplied body, and this one is a fixed-size record of an operation and a code with
+ * nothing of the caller's in it. A client stuck sending saves with no revision header is a real
+ * client bug that answered 400 silently for as long as it lasted.
  */
 export function revisionRequiredResponse(): NextResponse {
+  reportDesignRefusal("save", REVISION_REQUIRED);
   return NextResponse.json(
     {
       code: REVISION_REQUIRED_CODE,
       error: "Design save must state the revision it edits.",
     },
-    { status: 400 },
+    { status: REVISION_REQUIRED.status },
   );
 }
 
