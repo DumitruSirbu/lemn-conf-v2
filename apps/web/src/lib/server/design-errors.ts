@@ -1,5 +1,4 @@
 import {
-  boundedFailureReason,
   DesignNotFoundError,
   InvalidDesignError,
 } from "@lemnaria/configurator-domain";
@@ -12,6 +11,8 @@ import { NextResponse } from "next/server";
 import {
   reportDesignFailure,
   reportDesignRefusal,
+  reportRejectedBody,
+  reportUnreadableDesign,
   type DesignOperation,
   type DesignRefusal,
 } from "@/lib/server/design-failure-log";
@@ -85,7 +86,7 @@ export function designErrorResponse(
     return NextResponse.json({ error: error.message }, { status: 404 });
   }
   if (error instanceof InvalidDesignError) {
-    return designUnreadableResponse(error);
+    return designUnreadableResponse(operation, error);
   }
   reportDesignFailure(operation, error);
   throw error;
@@ -102,12 +103,17 @@ export function designErrorResponse(
  *
  * The detail goes to the log through the same bound the write side uses, so one unreadable row
  * cannot write a log line proportional to its own size.
+ *
+ * **It is announced through `design-failure-log` rather than through `console` directly.** That
+ * module is the only place a transport is chosen, so an error tracker dropped behind
+ * `emitDesignLogLine` sees every designs-route line or none — a straggler here would have been
+ * invisible to it while looking, in the source, exactly as logged as its neighbours.
  */
-function designUnreadableResponse(error: InvalidDesignError): NextResponse {
-  console.error(
-    "[designs] a stored design failed validation on load:",
-    boundedFailureReason(error.message),
-  );
+function designUnreadableResponse(
+  operation: DesignOperation,
+  error: InvalidDesignError,
+): NextResponse {
+  reportUnreadableDesign(operation, error.message);
   return NextResponse.json(
     { code: DESIGN_UNREADABLE_CODE, error: "Design could not be loaded." },
     { status: 500 },
@@ -196,13 +202,11 @@ export function revisionRequiredResponse(): NextResponse {
  * finding F3 — this module used to carry a second copy of it). A rejection is the one path a caller
  * can drive with an arbitrary body, so its log line must not be a function of that body's size or
  * contents: an unbounded one buys a large heap allocation, Active CPU and a large log write for one
- * cheap request, on a free tier with hard caps.
+ * cheap request, on a free tier with hard caps. The bound moved into `reportRejectedBody` with the
+ * line itself; it is the same `boundedFailureReason` call, made one module over.
  */
 export function invalidBodyResponse(reason: string): NextResponse {
-  console.warn(
-    "[designs] rejected an invalid payload:",
-    boundedFailureReason(reason),
-  );
+  reportRejectedBody(reason);
   return NextResponse.json(
     { code: DESIGN_INVALID_CODE, error: "Design payload failed validation." },
     { status: 400 },

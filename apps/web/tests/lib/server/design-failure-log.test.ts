@@ -1,3 +1,4 @@
+import { InvalidDesignError } from "@lemnaria/configurator-domain";
 import { DesignWriteConflictError } from "@lemnaria/persistence";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -116,6 +117,52 @@ describe("designErrorResponse, on an error with no domain meaning", () => {
       errorName: "string",
       errorCode: "unavailable",
       reason: "unavailable",
+    });
+  });
+});
+
+describe("a stored row that would not validate on the way out", () => {
+  let errorSpy: ReturnType<typeof vi.spyOn>;
+
+  beforeEach(() => {
+    errorSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
+  });
+
+  it("reaches the log as a structured line, not as a second string argument", () => {
+    // The straggler this test exists for: `designUnreadableResponse` logged past
+    // `emitDesignLogLine`, so an error tracker dropped behind that one function would have seen
+    // every designs-route line except this one — while the source read as logged as its neighbours.
+    designErrorResponse("load", new InvalidDesignError("room: invalid_type"));
+
+    expect(errorSpy).toHaveBeenCalledWith("[designs]", {
+      event: "design-row-unreadable",
+      operation: "load",
+      reason: "Design payload failed validation: room: invalid_type",
+    });
+  });
+
+  it("names the operation it was reached from, rather than assuming a load", () => {
+    // `designErrorResponse` maps this failure on both of its paths, and `operation` is the field a
+    // log search filters on.
+    designErrorResponse("save", new InvalidDesignError("room: invalid_type"));
+
+    expect(loggedLine(errorSpy).operation).toBe("save");
+  });
+
+  it("still answers the same body, which says only that the design could not be loaded", async () => {
+    const response = designErrorResponse(
+      "load",
+      new InvalidDesignError("room: invalid_type"),
+    );
+
+    // ADR 0014 finding S2: the reason is on the line above and nowhere in here.
+    const body: unknown = await response.json();
+
+    expect(response.status).toBe(500);
+    expect(JSON.stringify(body)).not.toContain("invalid_type");
+    expect(body).toEqual({
+      code: "DESIGN_UNREADABLE",
+      error: "Design could not be loaded.",
     });
   });
 });

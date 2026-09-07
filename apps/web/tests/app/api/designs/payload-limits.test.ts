@@ -19,6 +19,8 @@ import type {
 import { NextRequest } from "next/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { flattenLogArguments } from "../../../support/console-log-line";
+
 /** The one property these tests need from the repository: a save lands only for the credential the
  *  row was minted with, so a rejection can be attributed to the payload and not to authorisation. */
 /** What `0004_add_design_revision.sql` gives every row. These tests mint and save once, so it is
@@ -292,7 +294,7 @@ describe("PUT /api/designs/[id] payload limits", () => {
       routeParams(id),
     );
     const responseBody = await response.text();
-    const logLine = logged.mock.calls.map((call) => call.join(" ")).join("\n");
+    const logLine = logged.mock.calls.map(flattenLogArguments).join("\n");
 
     expect(response.status).toBe(400);
     expect(JSON.parse(responseBody)).toEqual({
@@ -394,7 +396,7 @@ describe("PUT /api/designs/[id] payload limits", () => {
     });
     // The defect this replaces: the rejection escaped the handler and Next answered with a
     // framework 500 whose log line carried a stack trace.
-    const logged = warn.mock.calls.map((call) => call.join(" ")).join("\n");
+    const logged = warn.mock.calls.map(flattenLogArguments).join("\n");
     expect(logged).not.toContain("at ");
     expect(logged).not.toContain("aborted by peer");
     expect(fakeRepository.storedDesign(id)).toEqual(KITCHEN_L_DESIGN);
@@ -610,7 +612,7 @@ describe("GET /api/designs/[id] with an unreadable stored row", () => {
 
     await GET(loadRequest(id), routeParams(id));
 
-    const line = logged.mock.calls.map((call) => call.join(" ")).join("\n");
+    const line = logged.mock.calls.map(flattenLogArguments).join("\n");
     expect(line).toContain("UNKNOWN_BUILD_ID");
     expect(line).not.toContain(LEAK_CANARY);
   });
@@ -638,7 +640,9 @@ describe("GET /api/designs/[id] with an unreadable stored row", () => {
 
     // Asserted first: without it, a handler that logged nothing at all would pass every line below.
     expect(logged).toHaveBeenCalledOnce();
-    const line = String(logged.mock.calls[0]?.[1]);
+    // The line's own fields, not `String(call[1])`: the structured object that reaches `console`
+    // answers `"[object Object]"` to `String`, which is short and canary-free however large the row.
+    const line = flattenLogArguments(logged.mock.calls[0] ?? []);
     expect(line.length).toBeLessThan(400);
     expect(line).toContain("issue(s)");
     expect(line).not.toContain(LEAK_CANARY);

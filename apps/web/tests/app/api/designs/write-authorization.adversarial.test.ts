@@ -23,6 +23,8 @@ import type {
 import { NextRequest } from "next/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { flattenLogArguments } from "../../../support/console-log-line";
+
 /** What `0004_add_design_revision.sql` gives every row. These tests mint and save once, so it is
  *  also the revision every save in this file states. */
 const FIRST_REVISION = "1";
@@ -270,7 +272,7 @@ describe("the raw token never leaves the Set-Cookie header", () => {
     const logged: string[] = [];
     for (const level of ["log", "info", "warn", "error", "debug"] as const) {
       vi.spyOn(console, level).mockImplementation((...args: unknown[]) => {
-        logged.push(args.map((arg) => String(arg)).join(" "));
+        logged.push(flattenLogArguments(args));
       });
     }
 
@@ -411,7 +413,7 @@ describe("the parse guard swallows the parse and nothing else", () => {
     const { id, cookie } = await mintDesign();
     const warnings: string[] = [];
     vi.spyOn(console, "warn").mockImplementation((...args: unknown[]) => {
-      warnings.push(args.map((arg) => String(arg)).join(" "));
+      warnings.push(flattenLogArguments(args));
     });
 
     const unparseable = await PUT(
@@ -482,7 +484,7 @@ describe("a rejected payload cannot amplify or forge a log line", () => {
   function capturedWarnings(): string[] {
     const warnings: string[] = [];
     vi.spyOn(console, "warn").mockImplementation((...args: unknown[]) => {
-      warnings.push(args.map((arg) => String(arg)).join(" "));
+      warnings.push(flattenLogArguments(args));
     });
     return warnings;
   }
