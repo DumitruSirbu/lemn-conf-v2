@@ -181,50 +181,107 @@ interface CameraFrame {
 }
 
 /**
- * How long the renderer must go **without painting** before the scene counts as quiet.
- *
- * R3F paints on demand and OrbitControls keeps asking for frames the whole time its damping is
- * still decaying, so a gap this long is the scene telling us the camera has stopped — as opposed to
- * a duration someone guessed. Frames arrive about 16 ms apart on a warm laptop and about 50 ms apart
- * under an 8x CPU throttle, so this is ten quiet frame slots at the slowest rate measured.
+ * The floor under "the renderer has stopped", for a machine fast enough that its frame gaps are
+ * negligible. Measured: once the orbit parks, a warm laptop paints nothing for thirteen seconds, so
+ * anything past a few frame slots is unambiguous.
  */
-const QUIET_MS = 500;
+const QUIET_FLOOR_MS = 400;
 
 /**
- * The budget for *reaching* that quiet. Not a duration to wait out: the wait ends the moment the
- * renderer goes idle, and this only bounds how long it may take to get there. Generous on CI
- * because the runner paints through a software GL stack and the decay is correspondingly slower.
+ * How many times the machine's own recent frame gap must elapse with nothing painted before the
+ * scene counts as stopped.
+ *
+ * **The multiple is the whole point, and CI is why it exists.** A fixed 500 ms threshold was tried
+ * and it failed on run 34107334450, where the twelve-step orbit drag took 25.9 s — about 2.1 s per
+ * pointer move. On a machine that paints that slowly *every* frame is followed by a gap longer than
+ * half a second, so a fixed threshold reports "stopped" on the first frame it ever sees. Scaling by
+ * the observed gap removes the dependency on how fast the machine paints, which is the only thing
+ * that differed between this laptop and the runner.
  */
-const SETTLE_BUDGET_MS = process.env.CI === undefined ? 10_000 : 30_000;
+const QUIET_GAP_MULTIPLE = 6;
+
+/** How many recent frames the gap is measured over. Long enough that the expensive input-driven
+ *  frames of the drag itself fall out of the window once the decay is under way. */
+const GAP_WINDOW_FRAMES = 9;
 
 /**
- * The camera once the renderer has **stopped painting**, which for an on-demand renderer is the
- * only honest reading of "stopped moving".
+ * The budget for reaching that stillness. Not a duration to wait out — the wait ends as soon as the
+ * scene goes quiet.
  *
- * **The previous version measured something else and hid it.** It compared the last two recorded
- * frames, and when they did not agree inside five seconds it swallowed the timeout and returned
- * whatever frame had been painted last. On CI run 34101381308 that fallback fired for *both*
- * readings: `before` came back at `-0.0904, 0.9370, 6.0256` while the camera went on to rest at
- * `-0.3320, 0.8215, 5.9297`, so the test reported a 244 mm camera jump across the depth change when
- * the real, rest-to-rest movement is 2.5 mm. Nothing was wrong with `seatObjectOnStage`; the
- * orbit's own damping tail was still unwinding when the "before" reading was taken.
- *
- * Hence the two changes. Quiet is detected from the *absence* of new frames rather than from two
- * frames agreeing, which is what an on-demand renderer actually signals. And a budget that expires
- * now **throws**: a measurement that could not be taken must fail loudly, because a number returned
- * from a moving camera is worse than no number at all — it fails an assertion the product passes.
+ * The CI figure is sized from the runner's measured cost rather than picked: the decay runs about
+ * sixty-four frames, run 34107334450 painted the drag at some 2 s a frame, and the quiet threshold
+ * is itself six of those gaps. That is the pessimistic case, where nothing but this scene's software
+ * GL stack is the bottleneck; if it is ever exceeded the wait throws and says so, which is a
+ * diagnosable failure rather than a wrong number.
  */
-async function settledCamera(page: Page): Promise<CameraFrame> {
+const SETTLE_BUDGET_MS = process.env.CI === undefined ? 20_000 : 150_000;
+
+/** How many frames the renderer has painted so far, so a later reading can be required to come from
+ *  frames painted *after* an action rather than from the settled ones that preceded it. */
+async function paintedFrameCount(page: Page): Promise<number> {
+  return page.evaluate(
+    () =>
+      (window as unknown as { __cameraFrames?: unknown[] }).__cameraFrames
+        ?.length ?? 0,
+  );
+}
+
+/**
+ * The camera as the customer is left looking at it: the last frame painted before the scene went
+ * quiet, from frames painted after `sinceIndex`.
+ *
+ * **"Quiet" is the only honest definition of settled here, because the orbit never reaches its
+ * target.** Damping is applied once per painted frame, shedding about 9% of the remaining travel
+ * each time, and R3F paints on demand — so when the per-frame step falls under the controls' own
+ * epsilon the loop simply stops asking for frames and the camera parks wherever it had got to.
+ * Measured on this laptop: the decay halts at `x = -0.331422` with 0.83 mm of travel still being
+ * spent per frame, some 3 mm short of the `-0.3345` it was heading for, and then nothing is painted
+ * for thirteen seconds. A rule that waits for two consecutive frames to agree therefore waits
+ * forever, which is what the version before this one did.
+ *
+ * The threshold scales with the machine because the failure it replaces did not. A flat 500 ms was
+ * meaningless on a runner whose frames are 2 s apart; six times the observed gap means the same
+ * thing everywhere. And because damping is per frame rather than per second, a slow machine parks at
+ * the same point a fast one does — it just takes longer to get there.
+ *
+ * `sinceIndex` closes the other hole: without it a reading taken after an action can be answered by
+ * the quiet frames that preceded it, which would let a genuine reframe pass unseen.
+ *
+ * An expired budget **throws**. A number read off a moving camera is worse than no number, because
+ * it fails an assertion the product passes — which is precisely how run 34107334450 reported a
+ * 531 mm camera jump across a depth change that moves it 3 mm.
+ */
+async function settledCamera(
+  page: Page,
+  sinceIndex: number,
+): Promise<CameraFrame> {
   const settled = await page
     .waitForFunction(
-      (quietMs: number) => {
+      ([floorMs, multiple, windowFrames, since]: readonly number[]) => {
         const frames = (window as unknown as { __cameraFrames?: CameraFrame[] })
           .__cameraFrames;
-        const last = frames?.[frames.length - 1];
+        if (!frames || frames.length < (since ?? 0) + 2) return null;
+
+        const recent = frames.slice(-(windowFrames ?? 0));
+        let widestGap = 0;
+        for (let at = 1; at < recent.length; at += 1) {
+          const later = recent[at];
+          const earlier = recent[at - 1];
+          if (!later || !earlier) return null;
+          widestGap = Math.max(widestGap, later.at - earlier.at);
+        }
+
+        const last = frames[frames.length - 1];
         if (!last) return null;
-        return performance.now() - last.at < quietMs ? null : last;
+        const quietMs = Math.max(floorMs ?? 0, (multiple ?? 0) * widestGap);
+        return performance.now() - last.at >= quietMs ? last : null;
       },
-      QUIET_MS,
+      [
+        QUIET_FLOOR_MS,
+        QUIET_GAP_MULTIPLE,
+        GAP_WINDOW_FRAMES,
+        sinceIndex,
+      ] as const,
       { timeout: SETTLE_BUDGET_MS },
     )
     .catch(() => null);
@@ -235,8 +292,8 @@ async function settledCamera(page: Page): Promise<CameraFrame> {
   const frame = settled === null ? null : await settled.jsonValue();
   if (!frame) {
     throw new Error(
-      `the renderer was still painting after ${String(SETTLE_BUDGET_MS)} ms, so the camera never ` +
-        "came to rest and no reading of it means anything",
+      `the scene was still painting after ${String(SETTLE_BUDGET_MS)} ms, so the camera never came ` +
+        "to rest and no reading of it means anything",
     );
   }
   return frame;
@@ -245,12 +302,18 @@ async function settledCamera(page: Page): Promise<CameraFrame> {
 test("keeps the camera where the customer left it across a depth change", async ({
   page,
 }) => {
+  // The runner paints this scene at roughly half a frame per second while the orbit is being
+  // dragged, and the damping then needs some sixty frames to die. That is minutes, not seconds, and
+  // it is a property of a software GL stack rather than of anything this test can hurry.
+  test.slow();
+
   const canvas = page.locator("canvas");
   const box = await canvas.boundingBox();
   if (!box) throw new Error("no canvas");
 
   // Orbit somewhere distinctive first, so the assertion is about the customer's own view rather
   // than about the seeded one the stage would seat to anyway.
+  const beforeOrbit = await paintedFrameCount(page);
   await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
   await page.mouse.down();
   await page.mouse.move(
@@ -259,16 +322,17 @@ test("keeps the camera where the customer left it across a depth change", async 
     { steps: 12 },
   );
   await page.mouse.up();
-  await page.waitForTimeout(SCENE_SETTLE_MS);
-  const before = await settledCamera(page);
+  const before = await settledCamera(page, beforeOrbit);
 
   await page.getByTestId("global-settings-trigger").tap();
   await chooseADepthThatIsNotCurrent(page);
+  // Read the count immediately before the tap that applies, so the reading below cannot be answered
+  // by a frame the sheet painted while the depth was still the old one.
+  const beforeApply = await paintedFrameCount(page);
   await page.getByTestId("global-settings-apply").tap();
   await expect(page.getByTestId("global-settings-surface")).toHaveCount(0);
-  await page.waitForTimeout(SCENE_SETTLE_MS);
 
-  const after = await settledCamera(page);
+  const after = await settledCamera(page, beforeApply);
   for (const axis of [0, 1, 2]) {
     expect(
       Math.abs((after.position[axis] ?? 0) - (before.position[axis] ?? 0)),
