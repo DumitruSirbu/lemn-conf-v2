@@ -250,9 +250,22 @@ opened no database. Vercel's Git integration is untouched and is still the deplo
   ([ADR 0042](../decisions/0042-the-database-records-which-migrations-it-ran.md) decision 1) and the
   repair is different. The environment name is a required argument: a check whose subject depends on
   which untracked `.env` file the machine happens to hold is a coincidence with a test name.
-- `pnpm --filter @lemnaria/persistence run migrate:unattended-check` — no database. Screens the
-  migration files for anything that may not run unattended (ADR 0096 decision 5): a drop, a
+- `pnpm --filter @lemnaria/persistence run migrate:unattended-check` — no database. **It refuses
+  every statement it does not positively recognise as additive and idempotent** (ADR 0096
+  decision 5). The recognised set is small and is sized to what the four shipped files need:
+  `create table if not exists`, `alter table … add column if not exists` (with each not-null clause
+  carrying its own default), a non-concurrent `create index if not exists`, the `pg_constraint`-
+  guarded `DO` block `0003` uses, `comment on`, and `insert into`. Anything else — a drop, a
   truncate, a delete or update over existing rows, a column type change, a not-null column with no
-  default, or a statement Postgres refuses inside a transaction block. It is a lexical screen and
-  errs toward refusing; a false refusal is repaired by applying the file by hand with the owner's
-  authorisation, which is the path that class takes anyway.
+  default, a statement Postgres refuses inside a transaction block, or simply a shape nobody
+  anticipated — is refused and named.
+
+  It was written the other way round first, as a denylist of destructive shapes, and adversarial QA
+  broke it seven ways without writing a single unusual statement: every rule had assumed a keyword
+  PostgreSQL makes optional (`DROP revision` without `COLUMN`, `UPDATE designs d SET …`,
+  `UPDATE ONLY …`, `ADD owner_id text NOT NULL`), and one asked whether the *statement* mentioned a
+  default rather than whether that *clause* carried one. A denylist over a language the size of SQL
+  keeps leaking, and these files are about to run unattended against production. Refusing by default
+  makes the error direction a property of the design rather than of the list's completeness: an
+  unforeseen statement fails toward *a human reads it*. A false refusal costs one manual apply with
+  the owner's authorisation, which is the path that class of migration takes anyway.
