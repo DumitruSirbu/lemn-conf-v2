@@ -103,6 +103,32 @@ describe("a malformed book is refused, never thrown from (M6-AUD-002)", () => {
       expect(parsePriceBook(notABook).ok, JSON.stringify(notABook)).toBe(false);
     }
   });
+
+  it("refuses a book whose every trap raises, which is what the backstop is for", () => {
+    // The named guards below cover the values a book plausibly carries — a BigInt, a circular
+    // member, an accessor that raises. This is the case none of them reaches: a section that raises
+    // from the *enumeration* and the *read* and the ownership test alike. The claim in this module's
+    // header is about every input, so it has to hold for one nobody predicted — and at module scope
+    // the cost of being wrong once is the whole application failing to load.
+    const hostile = new Proxy(
+      {},
+      {
+        get: () => {
+          throw new Error("nothing here may be read");
+        },
+        has: () => {
+          throw new Error("nothing here may be asked about");
+        },
+        ownKeys: () => {
+          throw new Error("nothing here may be listed");
+        },
+      },
+    );
+
+    expect(() => parsePriceBook(hostile)).not.toThrow();
+    expect(parsePriceBook(hostile).ok).toBe(false);
+    expect(() => parsePriceBook(bookWith({ hardware: hostile }))).not.toThrow();
+  });
 });
 
 describe("an id names one thing (M6-AUD-003)", () => {

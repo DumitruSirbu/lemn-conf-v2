@@ -8,10 +8,18 @@
 // readers may keep doing it.
 //
 // **It refuses; it never throws.** Both price surfaces run inside React's render and there is no
-// error boundary above them, so a `TypeError` out of a validator is the configurator gone rather than
-// the price degraded. The refusal is `PricingFailure` — the same shape, the same
-// `INVALID_PRICE_BOOK` code and the same bounded `detail` `priceDesign` already answers with — so a
-// caller has one error convention to read and not two.
+// error boundary above them, and `use-priced-design.ts` parses at **module scope** — so a raise out
+// of this module is not a degraded price, it is the module failing to load before any component
+// exists. The refusal is `PricingFailure` — the same shape, the same `INVALID_PRICE_BOOK` code and
+// the same bounded `detail` `priceDesign` already answers with — so a caller has one error
+// convention to read and not two.
+//
+// **The claim is about every input, and holding it takes more than not writing `throw`.** Reading a
+// book runs the *book's* code: a getter, a `toJSON`, a proxy trap. So every property read, every
+// enumeration and every describe below is guarded at the point it runs the foreign value, and
+// `refuseAnythingRaised` backstops the lot. Narrowing the claim to the values `JSON.parse` can
+// produce would be the easier answer and the wrong one — the sample book this build ships is a
+// JavaScript value, and a manufacturer dashboard backed by model objects would be another.
 //
 // **Two things it deliberately does not decide.**
 //
@@ -118,9 +126,34 @@ export const MAX_PRICE_COEFFICIENT_MINOR = Math.floor(
  * caller is concerned.
  */
 export function parsePriceBook(declared: unknown): PriceBookParseResult {
-  const failure = refuseUnreadableBook(declared);
+  const failure = refuseAnythingRaised(declared);
   if (failure) return { ok: false, failure };
   return { ok: true, book: declared as PriceBook };
+}
+
+/**
+ * **The backstop that makes "it refuses; it never throws" true of the function rather than of the
+ * checks inside it.**
+ *
+ * Every named cause has its own refusal below — a value `JSON.stringify` raises on, an accessor that
+ * raises when it is read, a proxy whose enumeration traps raise — and each of those says which field
+ * and why, which this cannot. **This is not a substitute for any of them**, and a refusal wearing
+ * this message is a defect in the parser rather than a fact about the book.
+ *
+ * It exists because the argument for the specific fixes is an argument about a population, and the
+ * population is *whatever a book assembled as a JavaScript value can be*. `use-priced-design.ts`
+ * parses at module scope, so the cost of being wrong about that population once is the module
+ * failing to load: no component, no error boundary, no price surface to degrade. A boundary this
+ * total is cheaper than being right about every value JavaScript can express.
+ */
+function refuseAnythingRaised(declared: unknown): PricingFailure | undefined {
+  try {
+    return refuseUnreadableBook(declared);
+  } catch {
+    return invalidBook(
+      "Reading the price book raised, so none of it can be trusted",
+    );
+  }
 }
 
 /** What a book has to be, in the order a reader needs it: the object, then what it says about
@@ -360,9 +393,16 @@ function refuseUnreadableWords(
 /**
  * Every amount an object states, held to a magnitude the arithmetic can carry exactly.
  *
- * **Swept by kind rather than by name**: any own property declared as an exact count of minor units
- * is an amount, so a fifth coefficient is bounded the day it is added rather than the day somebody
+ * **Swept by kind rather than by name**: any property declared as an exact count of minor units is
+ * an amount, so a fifth coefficient is bounded the day it is added rather than the day somebody
  * remembers a list.
+ *
+ * **Swept through the prototype chain, because that is what the readers do.** `hardwareRate`,
+ * `usableCoefficientOf` and `amountForBody` all reach an amount by `tier[field]`, which resolves
+ * inherited properties. An own-property sweep therefore checked a different set of numbers from the
+ * one that gets multiplied — and a book assembled from a model object rather than from `JSON.parse`,
+ * which is the ADR 0062 dashboard's own population, states its rates exactly there. `for…in` is the
+ * enumeration whose reach matches a property read's.
  *
  * **Only the safe integers are this module's to judge**, which is the whole seam between the two
  * checks. `usableCoefficientOf` already refuses `null`, `NaN`, an infinity, a fraction and `2 ** 62`
@@ -374,15 +414,77 @@ function refuseOversizedAmount(
   declared: Record<string, unknown>,
   named: string,
 ): PricingFailure | undefined {
-  for (const [field, value] of Object.entries(declared)) {
-    if (typeof value !== "number" || !Number.isSafeInteger(value)) continue;
-    if (Math.abs(value) <= MAX_PRICE_COEFFICIENT_MINOR) continue;
-    return invalidBook(
-      `The ${named} declares "${field}" as ${String(value)}, whose magnitude is past ` +
-        `${String(MAX_PRICE_COEFFICIENT_MINOR)} minor units — past what the arithmetic holds exactly`,
-    );
+  const fields = enumerableFieldsOf(declared);
+  if (fields === undefined)
+    return invalidBook(`The ${named} could not be enumerated for its amounts`);
+
+  for (const field of fields) {
+    const read = readDeclared(declared, field);
+    if (read === UNREADABLE)
+      return invalidBook(
+        `The ${named} declares "${field}" as something that raised when it was read`,
+      );
+    if (isOversizedAmount(read)) {
+      return invalidBook(
+        `The ${named} declares "${field}" as ${String(read)}, whose magnitude is past ` +
+          `${String(MAX_PRICE_COEFFICIENT_MINOR)} minor units — past what the arithmetic holds exactly`,
+      );
+    }
   }
   return undefined;
+}
+
+function isOversizedAmount(value: unknown): value is number {
+  return (
+    typeof value === "number" &&
+    Number.isSafeInteger(value) &&
+    Math.abs(value) > MAX_PRICE_COEFFICIENT_MINOR
+  );
+}
+
+/** **A read that raised**, told apart from every value a book can actually carry. A unique symbol
+ *  rather than `undefined`, because an absent amount is an ordinary declaration and this is not. */
+const UNREADABLE = Symbol("unreadable book amount");
+
+/**
+ * **A property read that cannot take the parser with it.**
+ *
+ * Reading a property runs code once the property is an accessor, and a book assembled as a
+ * JavaScript value — which `SAMPLE_PRICE_BOOK` is, and which a model-object-backed dashboard would
+ * be — may present a computed amount. A getter that raises would otherwise leave through the one
+ * function whose header promises it refuses rather than throws, and `use-priced-design.ts` parses at
+ * module scope, so that is the module failing to load rather than a price degrading.
+ *
+ * The same read downstream is already guarded: `checkedBookAmount` and `evaluateFormula` convert
+ * whatever a book's own code raises into a coded refusal. This is that discipline at the ingress.
+ *
+ * **What raised is named rather than rendered.** The value belongs to the book's own code, and
+ * rendering it is one more place this boundary could be made to raise.
+ */
+function readDeclared(
+  declared: Record<string, unknown>,
+  field: string,
+): unknown {
+  try {
+    return declared[field];
+  } catch {
+    return UNREADABLE;
+  }
+}
+
+/** `for…in` reaches what a property read reaches — own **and inherited** enumerable keys — which is
+ *  the whole point of using it here. It runs a proxy's own traps to do so, so the enumeration is
+ *  guarded exactly as each read below it is. */
+function enumerableFieldsOf(
+  declared: Record<string, unknown>,
+): readonly string[] | undefined {
+  try {
+    const fields: string[] = [];
+    for (const field in declared) fields.push(field);
+    return fields;
+  } catch {
+    return undefined;
+  }
 }
 
 /**
@@ -514,13 +616,33 @@ function invalidBook(
 function describeDeclared(declared: unknown): string {
   if (declared === undefined) return "nothing";
   if (Array.isArray(declared)) return `a list of ${String(declared.length)}`;
-  return renderedOr(JSON.stringify(declared), typeof declared);
+  return renderedOr(renderedAsJson(declared), typeof declared);
 }
 
-/** `JSON.stringify` answers `undefined` rather than a string for a function or a symbol, and its
- *  type does not say so — a book assembled outside TypeScript can carry either. The widening is done
- *  by a parameter rather than by a local annotation, for the reason `accessoryRuleOf` gives: a
- *  `const` is narrowed back to its initialiser's type and a parameter is not. */
+/**
+ * **`JSON.stringify` is the wrong shape for this boundary twice over, and the describer is inside
+ * the refusal path** — so either failure loses the refusal the whole module exists to answer with.
+ *
+ * It *answers* `undefined` rather than a string for a function or a symbol, and its type does not
+ * say so. And it *raises* for a BigInt, for a circular member, and for a `toJSON` or an accessory
+ * getter of the book's own that raises. Every one of those is a value a book assembled as a
+ * JavaScript object can carry — which `SAMPLE_PRICE_BOOK` is — and `use-priced-design.ts` parses at
+ * module scope, so a raise here is the module failing to load rather than a price degrading.
+ *
+ * Falling back to `typeof` says less than the value would, and it is the most a describer at this
+ * boundary can promise.
+ */
+function renderedAsJson(declared: unknown): string | undefined {
+  try {
+    return JSON.stringify(declared);
+  } catch {
+    return undefined;
+  }
+}
+
+/** The widening is done by a parameter rather than by a local annotation, for the reason
+ *  `accessoryRuleOf` gives: a `const` is narrowed back to its initialiser's type and a parameter is
+ *  not. */
 function renderedOr(rendered: string | undefined, fallback: string): string {
   return rendered ?? fallback;
 }

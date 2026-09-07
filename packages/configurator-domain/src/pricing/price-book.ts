@@ -362,77 +362,152 @@ export function amountForBody(
   formula: PriceFormula | undefined,
   body: PricedBody,
 ): number | undefined {
+  const terms = termsOfFormula(formula, body);
+  return terms === undefined ? undefined : exactAmountOfTerms(terms);
+}
+
+/** Which terms one shape is made of, or `undefined` for a shape this build does not implement —
+ *  including a **declared** one somebody added above without an arm, which is what the fourth shape
+ *  did on its way in. TypeScript does not catch that here, because a missing arm is not a type error
+ *  when the default returns; what catches it is `pricing-seams.test.ts`, which builds a formula from
+ *  every exported constructor and asserts each one evaluates to a number. */
+function termsOfFormula(
+  formula: PriceFormula | undefined,
+  body: PricedBody,
+): readonly PricedTerm[] | undefined {
   switch (formula?.shape) {
     case "linear-in-width":
-      return exactlySummed(widthTerms(formula, body));
+      return widthTerms(formula, body);
     case "linear-in-width-and-door-leaves":
-      return exactlySummed([
-        ...widthTerms(formula, body),
-        doorLeafTerm(formula, body),
-      ]);
+      return [...widthTerms(formula, body), doorLeafTerm(formula, body)];
     case "linear-in-width-and-height":
-      return exactlySummed([
-        ...widthTerms(formula, body),
-        heightTerm(formula, body),
-      ]);
+      return [...widthTerms(formula, body), heightTerm(formula, body)];
     case "linear-in-width-height-and-door-leaves":
-      return exactlySummed([
+      return [
         ...widthTerms(formula, body),
         heightTerm(formula, body),
         doorLeafTerm(formula, body),
-      ]);
-    // A shape this build does not implement — including a **declared** one somebody added above
-    // without an arm, which is what the fourth shape did on its way in. TypeScript does not catch
-    // that here, because a missing arm is not a type error when the default returns; what catches it
-    // is `pricing-seams.test.ts`, which builds a formula from every exported constructor and asserts
-    // each one evaluates to a number.
+      ];
     default:
       return undefined;
   }
 }
 
 /** The two terms every shape shares — the base and what width adds — so a shape that adds a term
- *  states only what it adds. Two values rather than their sum, because the sum is taken once, over
- *  every one of the shape's terms, by the checked addition below. */
+ *  states only what it adds. Terms rather than their sum, because the sum is taken once, over every
+ *  one of the shape's terms, by the checked arithmetic below. */
 function widthTerms(
   coefficients: WidthCoefficients,
   body: PricedBody,
-): readonly number[] {
+): readonly PricedTerm[] {
   return [
-    usableCoefficientOf(coefficients.baseMinor, "baseMinor"),
-    exactlyMultiplied({
+    {
+      coefficientMinor: usableCoefficientOf(
+        coefficients.baseMinor,
+        "baseMinor",
+      ),
+      count: CHARGED_ONCE,
+      field: "baseMinor",
+    },
+    {
       coefficientMinor: usableCoefficientOf(
         coefficients.perWidthMillimetreMinor,
         "perWidthMillimetreMinor",
       ),
       count: body.widthMm,
       field: "perWidthMillimetreMinor",
-    }),
+    },
   ];
 }
 
-function heightTerm(coefficients: HeightCoefficient, body: PricedBody): number {
-  return exactlyMultiplied({
+/** The base is charged once for the body. Written as a term with a count of one rather than as a
+ *  bare addend, so every value entering the sum has been through the same checked multiplication and
+ *  no addend reaches it by a second route. */
+const CHARGED_ONCE = 1;
+
+function heightTerm(
+  coefficients: HeightCoefficient,
+  body: PricedBody,
+): PricedTerm {
+  return {
     coefficientMinor: usableCoefficientOf(
       coefficients.perHeightMillimetreMinor,
       "perHeightMillimetreMinor",
     ),
     count: body.heightMm,
     field: "perHeightMillimetreMinor",
-  });
+  };
 }
 
 function doorLeafTerm(
   coefficients: DoorLeafCoefficient,
   body: PricedBody,
-): number {
-  return exactlyMultiplied({
+): PricedTerm {
+  return {
     coefficientMinor: usableCoefficientOf(
       coefficients.perDoorLeafMinor,
       "perDoorLeafMinor",
     ),
     count: body.doorLeafCount,
     field: "perDoorLeafMinor",
+  };
+}
+
+/** **One rate the book states, against the quantity it is charged over.** A coefficient and a
+ *  millimetre of width, or a hardware rate and a count of hinges — the same shape, because they are
+ *  the same arithmetic and the wave that let them be two arithmetics published a wrong figure. */
+export interface PricedTerm {
+  readonly coefficientMinor: number;
+  readonly count: number;
+  /** Carried so a refusal names which of a rule's amounts the arithmetic could not be done on. */
+  readonly field: PriceCoefficientField;
+}
+
+/**
+ * **Every term of one amount, multiplied and added with each step checked.**
+ *
+ * `Number.isSafeInteger` on the *result* is the whole test and it is exact in both directions: two
+ * safe integers whose product or sum is below 2^53 are multiplied and added without error, and a
+ * result at or above 2^53 is not a safe integer whatever rounding did to it. A **running** total is
+ * what a cancellation hides in, so the check is per step: two terms that each overflow on their way
+ * to a small answer are refused rather than published.
+ *
+ * **Exported so there is exactly one such arithmetic in this package.** The hardware line's three
+ * rate × mechanism-count products go through this too. When they had their own plain `+` instead,
+ * the M6-AUD-015 pattern reappeared one function over — `perHingeMinor` and `perDrawerMinor` past
+ * the bound, two products that each leave the safe range, and a sum that lands back inside it,
+ * publishing 8 where the integers give 11 and passing every downstream guard because 8 is exact and
+ * non-negative. Two spellings of "add up some products" is how one of them stays unchecked.
+ *
+ * **Throws** rather than answering, like `usableCoefficientOf` and for the same reason: there is no
+ * number to guess at. `price-design.ts` converts it to a coded refusal at the one place it already
+ * converts the others.
+ */
+export function exactAmountOfTerms(terms: readonly PricedTerm[]): number {
+  return terms.reduce(
+    (runningMinor, term) => exactSum(runningMinor, exactProduct(term)),
+    NOTHING_YET_MINOR,
+  );
+}
+
+/** A sum with no term in it yet. Named because it is a starting amount rather than a price. */
+const NOTHING_YET_MINOR = 0;
+
+function exactProduct(term: PricedTerm): number {
+  const product = term.coefficientMinor * term.count;
+  if (Number.isSafeInteger(product)) return product;
+  throw new InexactPriceArithmeticError({
+    describedAs: `"${term.field}" × ${String(term.count)}`,
+    reached: product,
+  });
+}
+
+function exactSum(runningMinor: number, termMinor: number): number {
+  const total = runningMinor + termMinor;
+  if (Number.isSafeInteger(total)) return total;
+  throw new InexactPriceArithmeticError({
+    describedAs: "a sum of priced terms",
+    reached: total,
   });
 }
 
@@ -450,7 +525,9 @@ function doorLeafTerm(
  * with it is not the number it ended at but the arithmetic that got there.
  *
  * **Both layers, deliberately** (M6-AUD-015): `MAX_PRICE_COEFFICIENT_MINOR` keeps every legal book
- * far from this ceiling, and this keeps a loosened bound from ever publishing a wrong figure.
+ * far from this ceiling, and this keeps a loosened bound from ever publishing a wrong figure. The
+ * bound is derived per *body*, and a hardware rate is charged over a whole design's mechanisms, so
+ * the second layer is not decoration on that path — it is the only one that reaches.
  */
 export class InexactPriceArithmeticError extends Error {
   constructor(operation: {
@@ -463,34 +540,6 @@ export class InexactPriceArithmeticError extends Error {
     );
     this.name = "InexactPriceArithmeticError";
   }
-}
-
-/** One coefficient against the quantity it is charged for. */
-function exactlyMultiplied(term: {
-  readonly coefficientMinor: number;
-  readonly count: number;
-  readonly field: PriceCoefficientField;
-}): number {
-  const product = term.coefficientMinor * term.count;
-  if (Number.isSafeInteger(product)) return product;
-  throw new InexactPriceArithmeticError({
-    describedAs: `"${term.field}" × ${String(term.count)}`,
-    reached: product,
-  });
-}
-
-/** Every term of one shape, added **and checked at each step**. A running total is what a
- *  cancellation hides in: checking only the final sum accepts a pair of terms that overflowed on
- *  their way to a small answer. */
-function exactlySummed(terms: readonly number[]): number {
-  return terms.reduce((total, term) => {
-    const running = total + term;
-    if (Number.isSafeInteger(running)) return running;
-    throw new InexactPriceArithmeticError({
-      describedAs: "a sum of formula terms",
-      reached: running,
-    });
-  }, 0);
 }
 
 /** Every amount the book states as a number a price is computed from — every coefficient any shape

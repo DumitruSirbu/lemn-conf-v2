@@ -41,6 +41,7 @@ import {
   ACCESSORY_IDS,
   accessoryRuleOf,
   amountForBody,
+  exactAmountOfTerms,
   usableCoefficientOf,
   type AccessoryId,
   type AccessoryRule,
@@ -50,6 +51,7 @@ import {
   type PriceBook,
   type PriceCoefficientField,
   type PricedBody,
+  type PricedTerm,
   type TierGroup,
   type TierIdentity,
 } from "./price-book.js";
@@ -519,40 +521,86 @@ function hardwareUnitAmount(
     readonly catalog: BodyCatalog;
   },
 ): Attempt<number> {
-  const perHinge = checkedBookAmount(
-    hardwareRate(tier, "perHingeMinor"),
-    tier.ruleId,
-  );
-  if (isRefused(perHinge)) return perHinge;
-
-  const perDrawer = checkedBookAmount(
-    hardwareRate(tier, "perDrawerMinor"),
-    tier.ruleId,
-  );
-  if (isRefused(perDrawer)) return perDrawer;
-
-  const perPushToOpen = checkedBookAmount(
-    hardwareRate(tier, "perPushToOpenMinor"),
-    tier.ruleId,
-  );
-  if (isRefused(perPushToOpen)) return perPushToOpen;
+  const rates = checkedHardwareRates(tier);
+  if (isRefused(rates)) return rates;
 
   const mechanisms = countMechanisms(design.entries, design.catalog);
   if (isRefused(mechanisms)) return mechanisms;
 
-  return {
-    value:
-      perHinge.value * mechanisms.value.hinges +
-      perDrawer.value * mechanisms.value.drawers +
-      perPushToOpen.value * mechanisms.value.pushToOpen,
-  };
+  return checkedAmountOfTerms(
+    chargedOverMechanisms(rates.value, mechanisms.value),
+    tier.ruleId,
+  );
+}
+
+/** A hardware tier's three rates, in the order they are charged. A list rather than three spellings,
+ *  so the sweep that checks them and the terms built from them cannot disagree about which three. */
+const HARDWARE_RATE_FIELDS: readonly HardwareRateField[] = [
+  "perHingeMinor",
+  "perDrawerMinor",
+  "perPushToOpenMinor",
+];
+
+type HardwareRateField =
+  | "perHingeMinor"
+  | "perDrawerMinor"
+  | "perPushToOpenMinor";
+
+/** One rate a tier declares, once it is known to be an exact count of minor units. The field travels
+ *  with the number because the mechanism count it is charged over is chosen by it. */
+interface CheckedHardwareRate {
+  readonly field: HardwareRateField;
+  readonly minor: number;
+}
+
+/** **All three rates are checked, whatever the design counts, and before the design is read at
+ *  all.** A book declaring `null` for its push-to-open rate is malformed whether or not this
+ *  particular kitchen has a push body — and the seeded kitchen has none, so checking only the rates
+ *  with a non-zero count would let that book through every reconciliation this wave asserts. */
+function checkedHardwareRates(
+  tier: HardwareTier,
+): Attempt<readonly CheckedHardwareRate[]> {
+  const rates: CheckedHardwareRate[] = [];
+  for (const field of HARDWARE_RATE_FIELDS) {
+    const checked = checkedBookAmount(hardwareRate(tier, field), tier.ruleId);
+    if (isRefused(checked)) return checked;
+    rates.push({ field, minor: checked.value });
+  }
+  return { value: rates };
+}
+
+/** Each rate against the mechanism count it is billed over — the terms `exactAmountOfTerms` adds. */
+function chargedOverMechanisms(
+  rates: readonly CheckedHardwareRate[],
+  counts: HardwareMechanismCounts,
+): readonly PricedTerm[] {
+  return rates.map((rate) => ({
+    coefficientMinor: rate.minor,
+    count: mechanismsChargedAt(counts, rate.field),
+    field: rate.field,
+  }));
+}
+
+/** Which of the three counts a rate is charged over (ADR 0070 decision 1, ADR 0092 decision 2). */
+function mechanismsChargedAt(
+  counts: HardwareMechanismCounts,
+  field: HardwareRateField,
+): number {
+  switch (field) {
+    case "perHingeMinor":
+      return counts.hinges;
+    case "perDrawerMinor":
+      return counts.drawers;
+    case "perPushToOpenMinor":
+      return counts.pushToOpen;
+  }
 }
 
 /** One of a hardware tier's three rates, carrying **its own** field name so a refusal says which of
  *  the three was unusable rather than only which tier was. */
 function hardwareRate(
   tier: HardwareTier,
-  field: "perHingeMinor" | "perDrawerMinor" | "perPushToOpenMinor",
+  field: HardwareRateField,
 ): DeclaredBookAmount {
   return { declared: tier[field], field };
 }
@@ -771,6 +819,28 @@ function checkedBookAmount(
 ): Attempt<number> {
   try {
     return { value: usableCoefficientOf(amount.declared, amount.field) };
+  } catch (error) {
+    return refusal("INVALID_AMOUNT", describeError(error), { id: ruleId });
+  }
+}
+
+/**
+ * `exactAmountOfTerms` **throws** where a product or a running sum leaves the exact-integer range,
+ * exactly as it does on the cabinet path and for the same reason. This query refuses with a code
+ * instead, so the conversion is here and this function does nothing else — the shape
+ * `evaluateFormula` and `checkedBookAmount` already have.
+ *
+ * **The three rates being each exact is not the same fact as their total being exact**, which is why
+ * this stands beside `checkedHardwareRates` rather than inside it: two products that leave the safe
+ * range and a sum that lands back inside it published 8 minor units where the integers give 11, and
+ * every downstream guard accepted it because 8 is exact and non-negative.
+ */
+function checkedAmountOfTerms(
+  terms: readonly PricedTerm[],
+  ruleId: string,
+): Attempt<number> {
+  try {
+    return { value: exactAmountOfTerms(terms) };
   } catch (error) {
     return refusal("INVALID_AMOUNT", describeError(error), { id: ruleId });
   }
