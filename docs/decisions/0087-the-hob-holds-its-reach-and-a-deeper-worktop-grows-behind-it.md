@@ -1,6 +1,6 @@
 # ADR 0087 — The hob holds its reach to the cook, and a deeper worktop grows behind it
 
-Status: Accepted
+Status: Accepted (its "the sink is left undecided" consequence is settled 2026-09-07 -> [0098](0098-the-sink-is-centred-at-the-declared-depth-and-a-deeper-worktop-grows-behind-it.md))
 Date: 2026-09-05
 Type: Decision + Finding
 Milestone: M6 — answers wave 6I's unraised product question; schedules wave 6U
@@ -259,11 +259,18 @@ body and silently change what the domain declares that body finishes at.
   `base-sink` at both depths: the sink rim, bowl, drain and the entire faucet assembly are
   **byte-identical** at 600 and 700 while the worktop grows fore and aft around them, so the bowl's
   front rim sits 130 mm behind the worktop's front edge at 600 and **180 mm at 700**, and the faucet
-  goes from 2 mm off the worktop's back edge to 52 mm. Nothing intersects and nothing floats — the
+  goes from 2 mm off the worktop's back edge to 52 mm. Nothing intersects and nothing floats — ~~the
   sink stays 20 mm rear of its worktop's centre at both depths, which is a coherent rule and may well
-  be the right one for a sink. **The owner ruled on the hob and only the hob**, and inventing the
+  be the right one for a sink.~~ **The owner ruled on the hob and only the hob**, and inventing the
   parallel ruling is exactly the silent product change this process exists to stop. Recorded as
   `docs/BACKLOG.md` entry 41.
+
+  **Decided 2026-09-07 — [ADR 0098](0098-the-sink-is-centred-at-the-declared-depth-and-a-deeper-worktop-grows-behind-it.md).**
+  The owner ruled the sink centred, with the added depth behind it. The measurements above stand;
+  what is struck is the suggestion that 20 mm rear of centre may be the right rule — it is not. Note
+  that ADR 0098 **moves the 600 mm kitchen by 20 mm**, which this record's decision 1 deliberately
+  refused to do for the hob; the two bodies differ because the hob's shipped literal already
+  satisfied its ruling and the sink's does not.
 - **The hood is not touched, and must not be.** `HOOD_SEAT_OFFSET_M = cabinetDepthM − HOOD_DEPTH_M /
   2` is already correct under ADR 0039; the hood-over-hob alignment is restored entirely by moving
   the hob. Measured after the fix: hob 0.190–0.710 against hood canopy 0.200–0.700 at 700 — the same
