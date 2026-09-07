@@ -1,5 +1,7 @@
 import { neon } from "@neondatabase/serverless";
 
+import { retryOnComputeRestart } from "./retry-on-compute-restart.js";
+
 import { resolveTestDatabaseUrl } from "./test-database-url.js";
 
 /**
@@ -38,7 +40,10 @@ export async function deleteDesignsForTests(
   const sql = neon(resolveTestDatabaseUrl());
   // One statement per id rather than one `= any(...)`: the id list is short, and a per-row delete
   // needs no array binding to be correct.
-  for (const id of ids) await sql`delete from designs where id = ${id}`;
+  for (const id of ids)
+    await retryOnComputeRestart(
+      () => sql`delete from designs where id = ${id}`,
+    );
 }
 
 function assertRunningUnderATestRunner(): void {

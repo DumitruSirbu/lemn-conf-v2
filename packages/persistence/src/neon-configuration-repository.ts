@@ -8,6 +8,7 @@ import { neon } from "@neondatabase/serverless";
 
 import type { DesignRevision } from "./design-revision.js";
 import { generateDesignId } from "./generate-design-id.js";
+import { retryOnComputeRestart } from "./retry-on-compute-restart.js";
 import { readDatabaseUrl } from "./read-database-url.js";
 
 /* `CURRENT_SCHEMA_VERSION` is the version every row this adapter writes is stamped with, and it is
@@ -121,14 +122,21 @@ export class NeonConfigurationRepository
    *  stored, so a database leak yields read access and nothing more. */
   async mint(design: Design, writeTokenHash: string): Promise<DesignVersion> {
     requireSha256Digest(writeTokenHash);
+    // **The id is generated here, outside the retried callback, and must stay there.** A retry that
+    // minted a fresh id each attempt would insert a second row for a write the customer made once,
+    // whenever an acknowledgement is lost rather than the query refused. Kept out here, every
+    // attempt carries the same primary key, so the repeat takes a duplicate-key rejection instead —
+    // which is an HTTP 400, decoded, unmarked, and therefore not retried again.
     const id = generateDesignId();
     // The revision comes back from the column's own default rather than being asserted here, so
     // the one place that decides what a first revision is remains the migration.
-    const rows = (await this.sql`
+    const rows = (await retryOnComputeRestart(
+      () => this.sql`
       insert into designs (id, schema_version, document, write_token_hash)
       values (${id}, ${CURRENT_SCHEMA_VERSION}, ${design}, ${writeTokenHash})
       returning revision::text as revision
-    `) as { revision: DesignRevision }[];
+    `,
+    )) as { revision: DesignRevision }[];
     return { id, revision: revisionOfMintedRow(rows, id) };
   }
 
@@ -189,7 +197,8 @@ export class NeonConfigurationRepository
     writeTokenHash,
     expectedRevision,
   }: AuthorizedSave): Promise<ConditionalUpdateRow> {
-    const rows = (await this.sql`
+    const rows = (await retryOnComputeRestart(
+      () => this.sql`
       with authorised as (
         select 1 from designs
         where id = ${id} and write_token_hash = ${writeTokenHash}
@@ -205,7 +214,8 @@ export class NeonConfigurationRepository
       select
         exists (select 1 from authorised) as is_authorised,
         (select revision::text from updated) as revision
-    `) as ConditionalUpdateRow[];
+    `,
+    )) as ConditionalUpdateRow[];
 
     const outcome = rows[0];
     if (!outcome)
@@ -219,10 +229,12 @@ export class NeonConfigurationRepository
   /** Reading needs no credential: a shared link stays open to anyone holding it, which is the
    *  whole point of splitting read from write (ADR 0019 decision 1). */
   async load(id: DesignId): Promise<StoredDesign> {
-    const rows = (await this.sql`
+    const rows = (await retryOnComputeRestart(
+      () => this.sql`
       select schema_version, document, revision::text as revision
       from designs where id = ${id}
-    `) as DesignRow[];
+    `,
+    )) as DesignRow[];
 
     const row = rows[0];
     if (!row) throw new DesignNotFoundError(id);

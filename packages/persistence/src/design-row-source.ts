@@ -1,6 +1,7 @@
 import { neon } from "@neondatabase/serverless";
 
 import { readDatabaseUrl } from "./read-database-url.js";
+import { retryOnComputeRestart } from "./retry-on-compute-restart.js";
 
 /**
  * Raw `designs` rows, mirroring the table's columns one-to-one (see
@@ -75,21 +76,22 @@ export function createNeonDesignRowSource(
       // Resolved per call, not at construction: a missing `DATABASE_URL` must surface where the
       // caller can catch, log and report it, not throw while wiring dependencies.
       const sql = neon(connectionUrl ?? readDatabaseUrl());
-      const rows =
+      const rows = await retryOnComputeRestart(() =>
         afterId === undefined
-          ? await sql`
+          ? sql`
               select id, schema_version, document, created_at, updated_at, write_token_hash
               from designs
               order by id
               limit ${pageSize}
             `
-          : await sql`
+          : sql`
               select id, schema_version, document, created_at, updated_at, write_token_hash
               from designs
               where id > ${afterId}
               order by id
               limit ${pageSize}
-            `;
+            `,
+      );
       return rows as DesignBackupRow[];
     },
   };
