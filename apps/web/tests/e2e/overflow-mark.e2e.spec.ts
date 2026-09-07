@@ -105,7 +105,12 @@ const RENDER_SETTLE_MS = 400;
  * a second document — and the two documents do not render into the same rectangle. Measured at
  * 1440 x 900 on 2026-09-07: ADR 0065's flagged total grows the price row, the canvas box moves from
  * `y 100, h 800` to `y 114.19, h 785.81`, and the scene re-projects into it. Differencing the two
- * gives 402 399 changed pixels out of 1 071 360 — a measurement of the layout, not of the wash.
+ * gives 215 088 changed pixels at this spec's floor of 8, and 378 281 at a floor of 0, out of the
+ * 1 071 360 in that rectangle — between 19 % and 43 % of every rectangle moves, so the count is a
+ * measurement of the layout rather than of the wash. **The two figures are quoted at 1440 x 900
+ * while this spec runs at 390 x 844**: they establish that differencing is unavailable in
+ * principle, which is a fact about the two documents rather than about a viewport, and the same
+ * box shift happens at 390.
  * So this counter keeps naming a colour, and under work item 3 it states the fixture property that
  * makes it sound instead of assuming it. Two properties, both asserted below rather than argued:
  *

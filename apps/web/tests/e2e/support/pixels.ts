@@ -28,8 +28,12 @@ import type { Page } from "@playwright/test";
  *   a room measurement no control in M6 changes. Each of those callers **asserts the fixture
  *   property that makes the count sound** before taking it (work item 3, ADR 0091 decision 4a).
  *
- * Every `PixelTest` below names its surviving use and the property it depends on. **`near` has
- * neither**: it was the selection's counter, the selection is a state, and it has been replaced.
+ * Every `PixelTest` below names its surviving use and the property it depends on. **`near` keeps
+ * exactly one**: `overflow-mark.e2e.spec.ts` counts the selection highlight through the same
+ * rectangle as the mark, to show the two are told apart — and that spec cannot difference, because
+ * the flagged total moves the canvas box and the two documents share no rectangle. Everywhere the
+ * selection *is* a state the design can be toggled into and out of, `near` has been replaced by
+ * `countChangedPixels`.
  *
  * The decode runs in the page rather than in Node: this repository has no PNG decoder among its
  * dependencies, and adding one to satisfy a test is a supply-chain change made for a test's
