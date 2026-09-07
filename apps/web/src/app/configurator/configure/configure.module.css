@@ -58,18 +58,20 @@
  * screen's title, and the locale chip — where this used to be a caption above a four-segment
  * progress bar. The segments are gone from the reference and from here.
  *
- * **The row's height is the invariant, not the frame's 76 px.** The header is a grid item in a
- * `100dvh` grid whose only flexible row is the stage, so every pixel this band gains is a pixel the
- * canvas loses — and `price-bar.module.css` already tuned the desktop price cell's padding to *"keep
- * the figure's box inside the 55 px the header row already measured"*. Frame D2A draws a 76 px bar
- * because it carries the settings chips, the price, the CTA **and** the locale chip in one band;
- * ADR 0094 decision 2 moved the chips to a full-width row of their own, so taking the frame's height
- * without the frame's contents would spend 21 px of scene at every desktop width and buy nothing.
- * The desktop rule below therefore reproduces D2A's arrangement and typography inside the 55 px the
- * row already had. See `header-box.test.ts`, which pins the arithmetic.
+ * **The desktop band is frame D2A's own 76 px, and the scene pays 21 px for it.** The header is a
+ * grid item in a `100dvh` grid whose only flexible row is the stage, so every pixel this band gains
+ * is a pixel the canvas loses. Wave W4 shipped the frame's arrangement and typography inside the
+ * 55 px the row already measured and left the height open, because the two criteria it was given
+ * could not both hold: the reference draws 76 and the stage was to lose nothing. **The owner ruled
+ * on 2026-09-07 that on desktop a taller top bar is fine and the 21 px is accepted**, so the height
+ * below is the reference's and the cost is a chosen trade rather than a drift.
  *
- * On mobile the reference's own box is smaller than what it replaces — `11 + 25 + 11` plus the rule
- * is 48 px against the old 55 — so the scene gains 7 px there. */
+ * The desktop rule takes the frame's own vertical arrangement with it: D2A centres a 40 px chip in
+ * a 76 px band. `top-bar-box.test.ts` reads the declarations back out and adds them up, so a
+ * padding edit that costs the scene an unbudgeted pixel fails there rather than on someone's screen.
+ *
+ * **Mobile is outside the ruling.** The reference's own box there is smaller than what it replaces —
+ * `11 + 25 + 11` plus the rule is 48 px against the old 55 — so the phone keeps the 7 px it gained. */
 .header {
   grid-area: header;
   z-index: 2;
@@ -296,21 +298,30 @@
   }
 
   /* Frame D2A's top bar: wordmark · pill · title, with the locale chip pushed to the right-hand end
-   * by `margin-left: auto`. Its arrangement and its typography, inside the height the row already
-   * had — the `.header` rule above records why the frame's 76 px is not taken.
+   * by `margin-left: auto`. Its arrangement, its typography and — since the owner's 2026-09-07
+   * ruling — its height; the `.header` rule above records what that height costs the scene.
    *
-   * **The 55 px is arithmetic, not a magic number**: `7 + 40 + 7` of padding around the chip, plus
-   * the 1 px rule, and the chip is the tallest thing in the row at the frame's own `height: 40px`.
-   * `header-box.test.ts` reads those four declarations back out of this file and adds them up, so a
-   * padding edit that costs the scene a pixel fails there rather than on someone's screen.
+   * **The 76 px is arithmetic, not a magic number**: `17.5 + 40 + 17.5` of padding around the chip,
+   * plus the 1 px rule, and the chip is the tallest thing in the row at the frame's own
+   * `height: 40px`. That is D2A's own arrangement — the frame fixes the band at 76 and centres a
+   * 40 px chip in it — rather than W4's 7 px stretched to fill a taller box. `top-bar-box.test.ts`
+   * reads those four declarations back out of this file and adds them up.
+   *
+   * **The half-pixel is in the inset, never in the band.** `price-bar.module.css` records why a
+   * *fractional* band is dangerous: the canvas lands on a half-pixel, a resize round trip rounds the
+   * drawing buffer differently, and frame D2B's "the camera does not jump" fails byte-for-byte. This
+   * band sums to an integer 76. Only the inset either side of a centred chip is halved, and that is
+   * where `align-items: center` would have placed the chip whatever the two paddings were.
    *
    * The gap is frame D1A's 20 rather than D2A's 28, and the inset is the header's own 18 rather than
-   * the frame's 40. D2A carries the settings chips, the price and the CTA in this band and can
-   * afford the wider spacing; here the band is shared with the price cell across a `minmax(0, 1fr)`
-   * column, and the 18 px is what the settings row below aligns its chips to (see `.settingsRow`). */
+   * the frame's 40. **The ruling was about height; these are widths and are unchanged by it.** D2A
+   * carries the settings chips, the price and the CTA in this band and can afford the wider spacing;
+   * here the band is shared with the price cell across a `minmax(0, 1fr)` column, the 18 px is what
+   * the settings row below aligns its chips to (see `.settingsRow`), and 900 px is this branch's
+   * tight case — widening either would spend the row's slack exactly where it is scarcest. */
   .header {
     gap: 20px;
-    padding: 7px 18px;
+    padding: 17.5px 18px;
   }
 
   .back {
@@ -353,9 +364,16 @@
     font-size: 11px;
   }
 
+  /* **Stretched rather than centred, and the 76 px ruling is why.** The price cell draws the same
+   * `border-bottom` the header does and the two are read as one rule across the top bar, but the
+   * cell's own box computes to 53.5 px. Centred in the old 55 px row its rule sat 0.75 px above the
+   * header's and nobody could see it; centred in 76 it would float 11.25 px up and break the rule
+   * in two. Stretched, the cell is the row's height and the two rules meet. The figure inside keeps
+   * the header chip's centre line — `.bar` centres its own contents (`price/price-bar.module.css`),
+   * and the breakdown already asks for `align-self: stretch` for its popover's anchor. */
   .priceRow {
     display: flex;
-    align-items: center;
+    align-items: stretch;
     background: var(--paper);
   }
 

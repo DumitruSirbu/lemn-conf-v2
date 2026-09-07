@@ -71,12 +71,21 @@
     gap: 16px;
     justify-content: flex-end;
     min-height: 0;
-    /* 9 px, not 12: it keeps the figure's box inside the 55 px the header row already measured, so
-     * adding the price leaves the desktop scene exactly where it was. A taller cell would push the
-     * canvas down — and at a *fractional* height it would also leave the canvas on a half-pixel,
-     * where a resize round trip rounds the drawing buffer differently and the scene comes back a
-     * pixel row out. Frame D2B's "the camera does not jump" is asserted byte-for-byte, and that is
-     * how it failed. */
+    /* 9 px, not 12: it kept the figure's box inside the 55 px the header row measured, so adding the
+     * price left the desktop scene exactly where it was.
+     *
+     * **That budget is superseded, and the sentence is corrected rather than deleted so the next
+     * reader knows the height was chosen.** The owner ruled on 2026-09-07 that a taller desktop top
+     * bar is fine, and `configure.module.css` raised the header to frame D2A's own 76 px at a cost
+     * of 21 px of canvas at every desktop width. This cell computes to 53.5 px and no longer sets
+     * the row — anything under 76 costs the scene nothing — so the 9 px is now a free choice, kept
+     * because nothing asks it to move. `top-bar-box.test.ts` still proves the header is what sets
+     * the row, which is the property the 9 px was originally protecting.
+     *
+     * The other half of the original reason binds whatever *does* set the row: at a **fractional**
+     * height the canvas lands on a half-pixel, a resize round trip rounds the drawing buffer
+     * differently, and the scene comes back a pixel row out. Frame D2B's "the camera does not jump"
+     * is asserted byte-for-byte, and that is how it failed. The header's 76 is an integer. */
     padding: 9px 28px 9px 18px;
     border-top: none;
     border-bottom: 1px solid var(--line-soft);
