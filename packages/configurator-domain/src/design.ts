@@ -179,6 +179,26 @@ export const DesignSettingsSchema = z.strictObject({
       message: "Cabinet depth must be one of the declared manufactured depths",
     })
     .optional(),
+  /**
+   * **The whole-kitchen colour** — ADR 0099 decision 1's middle level, under a cabinet's own
+   * `body.finish` and over the material's declared `defaultFinish`.
+   *
+   * **Its absence is a valid, unchanged state, so no schema version bump is owed** (ADR 0099
+   * decision 10). A document written without it has chosen no global colour and loads, renders and
+   * prices exactly as it does today — ADR 0053's argument, and the fourth key this container was
+   * built for.
+   *
+   * **The hazard runs backward, not forward.** This is a `strictObject`, so once documents carrying
+   * this key exist, a rollback to a build without it turns each of them into an unreadable design at
+   * the load seam. That is a no-rollback release note rather than a migration, and it is the first
+   * field here whose absence is safe and whose presence is not.
+   *
+   * **`FinishSchema` and no offer check.** Whether the design's material offers this colour is a
+   * question about another key of the same document, which a field schema cannot ask without
+   * becoming a second validator; `setMaterialTier` keeps it true on every material change
+   * (ADR 0099 decision 6) and the load seam re-resolves it.
+   */
+  finish: FinishSchema.optional(),
 });
 export type DesignSettings = z.infer<typeof DesignSettingsSchema>;
 

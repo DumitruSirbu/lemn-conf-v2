@@ -160,6 +160,15 @@ export interface HardwareTierSetEffect {
   readonly hardwareTierId: string;
 }
 
+/** Wave 6S's whole-kitchen colour (ADR 0099). **It carries no count and no placement id, and both
+ *  absences are the decision rather than an omission**: `MaterialTierSetEffect.resolvedFinishCount`
+ *  exists because ADR 0057's reset moves cabinets, and this command moves none — there is nothing
+ *  to count, and a field for it would invite a reader to believe there could be. */
+export interface GlobalFinishSetEffect {
+  readonly type: "global_finish_set";
+  readonly finish: Finish;
+}
+
 export type CommandEffect =
   | PlacementRemovedEffect
   | BodyInsertedEffect
@@ -168,6 +177,7 @@ export type CommandEffect =
   | HandleSetEffect
   | MaterialTierSetEffect
   | HardwareTierSetEffect
+  | GlobalFinishSetEffect
   | CabinetDepthSetEffect;
 
 export interface CommandSuccess<TEffect extends CommandEffect = CommandEffect> {
