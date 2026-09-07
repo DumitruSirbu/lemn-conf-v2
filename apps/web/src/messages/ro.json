@@ -132,11 +132,15 @@
     "depthOption": "{cabinetDepthMm, number, ::group-off} mm",
     "depthWarning": "Schimbarea adâncimii blatului reconstruiește toate dulapurile și schimbă prețul acestora.",
     "depthNote": "Adâncimea blatului nu schimbă prețul bucătăriei — doar dimensiunile dulapurilor.",
+    "colourHeading": "Culoarea bucătăriei",
+    "colourNote": "Culoarea nu schimbă prețul bucătăriei. Dulapurile cu o culoare aleasă rămân neschimbate.",
+    "colourWarning": "Fiecare material are propriile culori, așa că la schimbarea materialului culoarea bucătăriei devine cea implicită a materialului nou.",
     "apply": "Aplică",
     "cancel": "Renunță",
     "materialResetConfirm": {
       "title": "Culorile alese se vor pierde",
       "body": "Ai ales alte culori pentru {chosenCount, plural, one {# dulap} few {# dulapuri} other {# dulapuri}}. Fiecare material are propriile culori disponibile, iar la modificarea lui e setată culoarea implicită a materialului nou.",
+      "globalBody": "Ai ales o culoare pentru toată bucătăria. Fiecare material are propriile culori disponibile, iar la modificarea lui e setată culoarea implicită a materialului nou.",
       "confirm": "Schimbă materialul",
       "back": "Păstrează culorile"
     }

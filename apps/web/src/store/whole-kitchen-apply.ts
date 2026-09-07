@@ -17,15 +17,18 @@
 // non-atomic; that is not what this does.
 import {
   setCabinetDepth as setCabinetDepthOnDesign,
+  setGlobalFinish as setGlobalFinishOnDesign,
   setHardwareTier as setHardwareTierOnDesign,
   setMaterialTier as setMaterialTierOnDesign,
   cabinetDepthMmOf,
   refuse,
+  sameFinish,
   type BodyCatalog,
   type BodyProbeFactory,
   type CommandResult,
   type CommandSuccess,
   type Design,
+  type Finish,
   type RejectionReason,
   type WholeKitchenTierInput,
 } from "@lemnaria/configurator-domain";
@@ -33,7 +36,11 @@ import {
 /** Which of the three whole-kitchen settings a refusal was about. Published because the sheet has
  *  to name it: "nothing was applied" with no subject leaves the customer to guess which control to
  *  put back. */
-export type WholeKitchenSetting = "material" | "hardware" | "cabinetDepth";
+export type WholeKitchenSetting =
+  | "material"
+  | "finish"
+  | "hardware"
+  | "cabinetDepth";
 
 /**
  * What one press asks for: the settings a customer chose, and the ids the caller's price book
@@ -46,6 +53,10 @@ export type WholeKitchenSetting = "material" | "hardware" | "cabinetDepth";
  */
 export interface WholeKitchenSettingsRequest {
   readonly materialTierId?: string | undefined;
+  /** ADR 0099's whole-kitchen colour. **Absent means "leave it alone" like every other field here**,
+   *  which is what stops an untouched sheet from stamping a global colour into a document that
+   *  deliberately carries none — the trap `resolveOpeningChoice` names one module over. */
+  readonly finish?: Finish | undefined;
   readonly hardwareTierId?: string | undefined;
   readonly cabinetDepthMm?: number | undefined;
   /** `setMaterialTier` refuses an id its caller did not offer, so the offered list travels with the
@@ -97,10 +108,13 @@ interface PlannedChange {
  * so the whole press can be evaluated before any of it is held, which is what makes the commit
  * atomic without a rollback to get wrong.
  *
- * **The order is material, then hardware, then depth**, which is the order the three separate
- * actions ran in. It is load-bearing: a depth change rebuilds every body, so it must see the
- * material the same press chose, and the store applies the *last* result — whose effect is the one
- * `applyCommandResult` reads the column map from.
+ * **The order is material, then colour, then hardware, then depth**, which is the order the
+ * separate actions ran in with ADR 0099's colour inserted where it has to go. It is load-bearing
+ * twice over: a depth change rebuilds every body, so it must see the material the same press chose,
+ * and the store applies the *last* result — whose effect is the one `applyCommandResult` reads the
+ * column map from. **The colour runs after the material** because a material change re-resolves
+ * `settings.finish` to the new material's default (ADR 0099 decision 6); running it first would
+ * have that reset discard the colour the customer picked in the very same press.
  */
 export function preflightWholeKitchenSettings(
   request: WholeKitchenSettingsRequest,
@@ -144,6 +158,8 @@ function planChanges(
         occurredAt: context.occurredAt,
       }),
     );
+  if (isFinishChange(request.finish, applied.finish))
+    planned.push(finishChange(request.finish, context.occurredAt));
   if (isTierChange(request.hardwareTierId, applied.hardwareTierId))
     planned.push(
       tierChange({
@@ -164,6 +180,18 @@ function isTierChange(
   applied: string | undefined,
 ): requested is string {
   return requested !== undefined && requested !== applied;
+}
+
+/** **`sameFinish` and not `===`**: a finish is a value the document carries, never an object a
+ *  caller holds on to, so two structurally equal colours are one colour (ADR 0081 decision 1's
+ *  equality, and the domain's only one). Re-applying the colour already stored runs no command,
+ *  which is what keeps *apply writes only what changed* true of the fourth group too. */
+function isFinishChange(
+  requested: Finish | undefined,
+  applied: Finish | undefined,
+): requested is Finish {
+  if (requested === undefined) return false;
+  return applied === undefined || !sameFinish(requested, applied);
 }
 
 /** Read through `cabinetDepthMmOf` rather than off `settings`, so a document that names no depth is
@@ -198,6 +226,17 @@ function tierChange(plan: TierChangePlan): PlannedChange {
         availableTierIds: plan.availableTierIds,
         occurredAt: plan.occurredAt,
       }),
+  };
+}
+
+/** The whole-kitchen colour's plan. It carries no offered list, because ADR 0099 decision 4 makes
+ *  the offer a function of the design's own material rather than of the caller's price book — so
+ *  `setGlobalFinish` reads it off the design it is rewriting and there is nothing for the sheet to
+ *  hand it. */
+function finishChange(finish: Finish, occurredAt: string): PlannedChange {
+  return {
+    setting: "finish",
+    run: (design) => setGlobalFinishOnDesign({ design, finish, occurredAt }),
   };
 }
 

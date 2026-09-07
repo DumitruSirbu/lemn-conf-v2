@@ -17,8 +17,11 @@ import {
   DEFAULT_MATERIAL_ID,
   declaredCabinetDepthsMm,
   lookUpMaterial,
+  materialOffersFinish,
   MIN_CABINET_DEPTH_MM,
   type DisplayGroup,
+  type Finish,
+  type MaterialLookup,
   type PricingResult,
   type RejectionReason,
 } from "@lemnaria/configurator-domain";
@@ -107,6 +110,38 @@ export interface DepthGroupView {
 }
 
 /**
+ * **The fourth whole-kitchen group** — ADR 0099 decision 9, and the owner's *"just behind the
+ * material"*.
+ *
+ * It is **not** a `TierGroupView`: that shape is defined by a price delta and an anchor, and colour
+ * has neither (ADR 0071 decision 1). It is `DepthGroupView`'s shape — a group that shows no price
+ * and says why — with one difference that is the whole feature: its options are **a material's own
+ * declared `ColourControl`**, not a list authored here. So what this publishes is *which* material's
+ * palette to draw and *which* swatch is standing, and the control itself is the per-cabinet one the
+ * editor already renders.
+ *
+ * **Nothing here says whether a swatch may be pressed.** Whether this browser may write is
+ * `store/editability.ts`'s one answer, applied by the component that holds it — the same split
+ * `TierGroupSection` and `DepthGroupSection` already use, and the reason this model needs no
+ * `Editability` argument.
+ */
+export interface ColourGroupView {
+  readonly heading: string;
+  /** **The pending material's id, never the applied one** (ADR 0099 decision 4). One Apply is one
+   *  transaction, so a customer who changes the material and then the colour must be choosing from
+   *  the palette they are about to be on. */
+  readonly materialTierId: string;
+  /** The swatch the kitchen is standing on: the pending global colour, or the pending material's
+   *  declared default where none is chosen. Absent only where that material is undeclared. */
+  readonly selected?: Finish;
+  /** Why this group shows no price (ADR 0071 decision 1). */
+  readonly note: string;
+  /** ADR 0099 decision 6 asks for this to be said rather than implied: the three materials' offers
+   *  are disjoint, so a material change replaces this colour every time, not sometimes. */
+  readonly warning: string;
+}
+
+/**
  * **The step that stands between *Aplică* and a material change that would discard a chosen colour**
  * (ADR 0081 decisions 2 and 3, ADR 0086).
  *
@@ -157,6 +192,13 @@ export interface GlobalSettingsView {
   /** The depth, as its own group. Always present: the map always declares at least one depth, and a
    *  sheet that hid the control when only one was offered would make the setting undiscoverable. */
   readonly depthGroup: DepthGroupView;
+  /** The whole-kitchen colour, after the material group and before hardware (ADR 0099 decision 9).
+   *  **Absent — never present and empty — where the pending material is undeclared**, because such a
+   *  material declares no `ColourControl` and there is no control shape to render (ADR 0078
+   *  decision 3). That is the panel's own answer to the same question, and it is what keeps wave
+   *  6G's recovery path working: the rest of the sheet still renders, so the customer can choose
+   *  their way back to a declared material. */
+  readonly colourGroup?: ColourGroupView;
   readonly warning: string;
   /** The running total, restated here because on both shells this surface covers the bar that shows
    *  it — and because a customer choosing a tier is choosing against a figure. Absent, never zero,
@@ -184,6 +226,10 @@ export interface WholeKitchenChoice {
   /** Optional for the reason the two tier ids are: `design.settings` is, and a document written
    *  before wave 6J-a carries none. An absent choice reads as the declared default. */
   readonly cabinetDepthMm?: number | undefined;
+  /** ADR 0099's whole-kitchen colour. **Absent is the state most documents are in and it must stay
+   *  reachable**: it means every cabinet follows the material's declared default, and an apply that
+   *  stamped a colour in would convert a whole kitchen of following cabinets into overriding ones. */
+  readonly finish?: Finish | undefined;
 }
 
 export interface DescribeGlobalSettingsInput {
@@ -201,6 +247,17 @@ export interface DescribeGlobalSettingsInput {
    *  the confirmation may state. Required rather than optional: an absent one would read as zero,
    *  which is *never confirm* — the one wrong answer that passes every other test in the suite. */
   readonly chosenColourCount: number;
+  /** **ADR 0099 decision 7's second arm**, answered by the domain's `wouldDiscardTheGlobalFinish`
+   *  and handed in as a fact, exactly as the count above is (ADR 0086 decision 2's shape).
+   *
+   *  A design where every cabinet follows one global colour has `chosenColourCount === 0` under the
+   *  amended base, and a material change still discards a colour somebody chose — so without this
+   *  the product would silently lose exactly the choice this feature adds.
+   *
+   *  **Optional, and `false` is the honest default**: it can only be true of a design carrying
+   *  `settings.finish`, which no document written before this wave does, so a caller that does not
+   *  answer it is describing a design the arm cannot fire for. */
+  readonly globalFinishWouldBeLost?: boolean;
 }
 
 /** The material half of the press, as `toMaterialResetConfirm` asks about it. **Both sides are tier
@@ -209,6 +266,14 @@ export interface DescribeGlobalSettingsInput {
 interface PendingMaterialChange {
   readonly appliedMaterialTierId: string | undefined;
   readonly pendingMaterialTierId: string | undefined;
+}
+
+/** **What this press would discard, at both levels** — the two facts the confirmation's presence is
+ *  a function of, grouped so `toMaterialResetConfirm` keeps taking answers rather than an input it
+ *  could reach the wrong number out of (ADR 0086 decision 2). */
+interface PendingColourLoss {
+  readonly chosenColourCount: number;
+  readonly globalFinishWouldBeLost: boolean;
 }
 
 /** The category word in front of a chip's tier name, and the composition around it, are
@@ -223,10 +288,17 @@ export function describeGlobalSettings(
   const { material, hardware } = input.offer;
   const figure = describeFigure(input);
   const overflowWarning = describeOverflow(input);
-  const materialResetConfirm = toMaterialResetConfirm(input.chosenColourCount, {
-    appliedMaterialTierId: input.applied.materialTierId,
-    pendingMaterialTierId: input.pending.materialTierId,
-  });
+  const materialResetConfirm = toMaterialResetConfirm(
+    {
+      chosenColourCount: input.chosenColourCount,
+      globalFinishWouldBeLost: input.globalFinishWouldBeLost ?? false,
+    },
+    {
+      appliedMaterialTierId: input.applied.materialTierId,
+      pendingMaterialTierId: input.pending.materialTierId,
+    },
+  );
+  const colourGroup = toColourGroupView(input.pending);
   return {
     openLabel: ro.globalSettings.open,
     chips: [
@@ -240,6 +312,7 @@ export function describeGlobalSettings(
       toGroupView("hardware", hardware, input.pending.hardwareTierId),
     ],
     depthGroup: toDepthGroupView(input.pending.cabinetDepthMm),
+    ...(colourGroup === undefined ? {} : { colourGroup }),
     warning: ro.globalSettings.materialWarning,
     ...(figure === undefined ? {} : { figure }),
     ...(overflowWarning === undefined ? {} : { overflowWarning }),
@@ -279,7 +352,7 @@ export function resolveOpeningChoice(
   applied: WholeKitchenChoice,
   offer: WholeKitchenTierOffer,
 ): WholeKitchenChoice {
-  return {
+  const resolved: WholeKitchenChoice = {
     ...applied,
     ...offeredOrFallback(
       "materialTierId",
@@ -292,6 +365,12 @@ export function resolveOpeningChoice(
       offer.hardware,
     ),
   };
+  // **The stored global colour follows the material the sheet actually opens on.** A withdrawn
+  // material id resolves to the book's default one line above, and that default is a different
+  // declared material whose offers are disjoint from the stored one's (ADR 0078 decision 1) — so
+  // the colour the document carries is not one the sheet is offering. Dropping it here is the same
+  // rule decision 4 applies to a material change made *inside* the sheet, and absence stays absence.
+  return withoutAFinishTheMaterialRefuses(resolved);
 }
 
 /** One group's opening id, keyed so the caller spreads it: absent stays absent, an offered id is
@@ -314,7 +393,10 @@ export function chooseTierIn(
   choice: { readonly key: WholeKitchenGroupKey; readonly tierId: string },
 ): WholeKitchenChoice {
   return choice.key === "material"
-    ? { ...chosen, materialTierId: choice.tierId }
+    ? withoutAFinishTheMaterialRefuses({
+        ...chosen,
+        materialTierId: choice.tierId,
+      })
     : { ...chosen, hardwareTierId: choice.tierId };
 }
 
@@ -323,6 +405,51 @@ export function chooseDepthIn(
   cabinetDepthMm: number,
 ): WholeKitchenChoice {
   return { ...chosen, cabinetDepthMm };
+}
+
+/** A swatch press, as a change of pending state. Nothing is written until *Aplică*, exactly like a
+ *  tier radio and a depth radio — which is what keeps *Renunță* writing nothing however long the
+ *  sequence of presses was. */
+export function chooseFinishIn(
+  chosen: WholeKitchenChoice,
+  finish: Finish,
+): WholeKitchenChoice {
+  return { ...chosen, finish };
+}
+
+/**
+ * **ADR 0099 decision 4's subtlety, and it must not be left to a reader.**
+ *
+ * Inside the sheet the customer can change the material and the colour before pressing *Aplică*, and
+ * one Apply is one transaction (M6-AUD-004). So a pending colour the newly pending material does not
+ * offer is dropped **here, in the sheet, before Apply** — a value the customer can still see the
+ * consequence of and re-choose — rather than being committed and then reset by a command.
+ *
+ * **It deletes the key, it never substitutes a colour.** Writing the new material's default in would
+ * make *Aplică* stamp a global colour into a document that had deliberately chosen none, which is
+ * the opposite of *apply writes only what changed*; the group still **marks** that default, because
+ * `toColourGroupView` falls back to it for display without anybody having chosen it.
+ *
+ * **An undeclared material refuses nothing** (ADR 0078 decision 3): it declares no offer, so there
+ * is nothing for a colour to fail.
+ */
+function withoutAFinishTheMaterialRefuses(
+  chosen: WholeKitchenChoice,
+): WholeKitchenChoice {
+  const { finish } = chosen;
+  if (finish === undefined) return chosen;
+  const lookup: MaterialLookup = lookUpMaterial(
+    chosen.materialTierId ?? DEFAULT_MATERIAL_ID,
+  );
+  if (
+    lookup.kind === "undeclared" ||
+    materialOffersFinish(lookup.material, finish)
+  ) {
+    return chosen;
+  }
+  const dropped = { ...chosen };
+  delete dropped.finish;
+  return dropped;
 }
 
 /** A refused press, as the sheet reports it: which setting refused, and the engine's own sentence
@@ -338,6 +465,7 @@ export interface ApplyRefusal {
  *  is looking at rather than a field name. */
 const SETTING_HEADINGS: Readonly<Record<WholeKitchenSetting, string>> = {
   material: ro.globalSettings.groupHeadings.material,
+  finish: ro.globalSettings.colourHeading,
   hardware: ro.globalSettings.groupHeadings.hardware,
   cabinetDepth: ro.globalSettings.depthHeading,
 };
@@ -373,10 +501,12 @@ export function describeApplyRefusal(refusal: ApplyRefusal): string {
  * side by side in `tests/settings/material-reset-confirm.test.ts`, which is where their values live.
  */
 function toMaterialResetConfirm(
-  chosenColourCount: number,
+  loss: PendingColourLoss,
   change: PendingMaterialChange,
 ): MaterialResetConfirmView | undefined {
-  if (chosenColourCount === 0) return undefined;
+  if (loss.chosenColourCount === 0 && !loss.globalFinishWouldBeLost) {
+    return undefined;
+  }
   if (change.pendingMaterialTierId === undefined) return undefined;
   const pending = lookUpMaterial(change.pendingMaterialTierId);
   // An id the book offers and the domain does not declare resolves nothing when the command runs
@@ -393,9 +523,47 @@ function toMaterialResetConfirm(
   }
   return {
     title: ro.globalSettings.materialResetConfirm.title,
-    body: ro.globalSettings.materialResetConfirm.body(chosenColourCount),
+    body: describeColourLoss(loss),
     confirmLabel: ro.globalSettings.materialResetConfirm.confirm,
     backLabel: ro.globalSettings.materialResetConfirm.back,
+  };
+}
+
+/** **What is about to be lost, in the words that match which loss it is** (ADR 0099 decision 7).
+ *
+ *  The per-cabinet sentence keeps its ruled wording and its count. The whole-kitchen one is a
+ *  separate sentence rather than the same one with a zero in it: *"culorile alese pentru 0
+ *  dulapuri"* is the bare number ADR 0001 decision 4 keeps off the screen, and it would say the
+ *  wrong thing about the right press. Where both losses are true the cabinets' sentence is shown —
+ *  it names the larger loss, and the kitchen's own colour goes with it either way. */
+function describeColourLoss(loss: PendingColourLoss): string {
+  if (loss.chosenColourCount > 0) {
+    return ro.globalSettings.materialResetConfirm.body(loss.chosenColourCount);
+  }
+  return ro.globalSettings.materialResetConfirm.globalBody;
+}
+
+/**
+ * **The colour group, drawn from the pending material's own declaration** (ADR 0099 decisions 4
+ * and 9).
+ *
+ * `undefined` where that material is undeclared: nothing declares a `ColourControl` for it, so there
+ * is no control shape to render (ADR 0078 decision 3). The sheet's other three groups keep working,
+ * which is what wave 6G's recovery path stands on — the customer can still choose their way back to
+ * a declared material.
+ */
+function toColourGroupView(
+  pending: WholeKitchenChoice,
+): ColourGroupView | undefined {
+  const materialTierId = pending.materialTierId ?? DEFAULT_MATERIAL_ID;
+  const lookup = lookUpMaterial(materialTierId);
+  if (lookup.kind === "undeclared") return undefined;
+  return {
+    heading: ro.globalSettings.colourHeading,
+    materialTierId,
+    selected: pending.finish ?? lookup.material.defaultFinish,
+    note: ro.globalSettings.colourNote,
+    warning: ro.globalSettings.colourWarning,
   };
 }
 

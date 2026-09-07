@@ -659,7 +659,11 @@ function collectOfferedSections(
   const replace = describeReplaceSection(input, meta, editability);
   if (replace) sections.push(replace);
   if (meta.canFinish) {
-    const finish = describeFinishSection(input.material, meta, editability);
+    const finish = describeFinishSection(
+      input.material,
+      meta.finish,
+      editability,
+    );
     if (finish) sections.push(finish);
   }
   if (meta.canHandle) sections.push(describeHandleSection(meta, editability));
@@ -868,18 +872,27 @@ function describeChipAvailability(editability: PanelEditability): {
  * `undefined` when the design's `materialTierId` names no declared material (ADR 0078 decision 3).
  * A material this product does not declare makes no offer, and there is no control shape to render
  * for it — the rest of the panel keeps working, which is what 6G's recovery path stands on.
+ *
+ * **Exported, and read by a second surface since ADR 0099 decision 9** — the global settings sheet's
+ * colour group. That is the owner's *"same as we have on clicking on the cabinet"* and ADR 0071
+ * decision 3's *"three different controls reading one setting"*: one declaration, two callers, never
+ * a second implementation.
+ *
+ * **It takes the chosen colour and not a `SelectionMeta`** for exactly that reason. The second
+ * caller holds a whole-kitchen pending choice and no cabinet at all, and a parameter it would have
+ * to fabricate a selection for is a parameter that invites two projections instead of one.
  */
-function describeFinishSection(
+export function describeFinishSection(
   lookup: MaterialLookup,
-  meta: SelectionMeta,
+  chosen: Finish | undefined,
   editability: PanelEditability,
 ): FinishSection | undefined {
   if (lookup.kind === "undeclared") return undefined;
   const { material } = lookup;
   if (material.colourControl.shape === "ral-picker") {
-    return describeRalPickerSection(material, meta, editability);
+    return describeRalPickerSection(material, chosen, editability);
   }
-  return describeSwatchSection(material.colourControl, meta, editability);
+  return describeSwatchSection(material.colourControl, chosen, editability);
 }
 
 /** The two list-shaped controls, which differ in their `control` and in nothing else here: PAL's
@@ -888,7 +901,7 @@ function describeFinishSection(
  *  neither can turn into the other by its entries changing. */
 function describeSwatchSection(
   control: Extract<ColourControl, { entries: readonly PaletteEntry[] }>,
-  meta: SelectionMeta,
+  chosen: Finish | undefined,
   editability: PanelEditability,
 ): PaletteSwatchSection {
   return {
@@ -896,7 +909,7 @@ function describeSwatchSection(
     control: control.shape,
     title: ro.panel.finishTitle,
     chips: control.entries.map((entry) =>
-      describeFinishChip(entry, meta, editability),
+      describeFinishChip(entry, chosen, editability),
     ),
     note: ro.panel.finishApproximationNote,
   };
@@ -907,7 +920,7 @@ function describeSwatchSection(
  *  provenance. The colour is the adapter's, so the swatch and the 3D paint from one declared hex. */
 function describeFinishChip(
   entry: PaletteEntry,
-  meta: SelectionMeta,
+  chosen: Finish | undefined,
   editability: PanelEditability,
 ): FinishChip {
   const finish: Finish = { kind: "palette-entry", entryId: entry.entryId };
@@ -918,14 +931,14 @@ function describeFinishChip(
     label: entry.name,
     swatchColor: swatch.color,
     isWood: swatch.isWood,
-    isActive: meta.finish !== undefined && sameFinish(meta.finish, finish),
+    isActive: chosen !== undefined && sameFinish(chosen, finish),
     ...describeChipAvailability(editability),
   };
 }
 
 function describeRalPickerSection(
   material: Material,
-  meta: SelectionMeta,
+  chosen: Finish | undefined,
   editability: PanelEditability,
 ): RalPickerSection {
   return {
@@ -933,7 +946,7 @@ function describeRalPickerSection(
     control: "ral-picker",
     title: ro.panel.finishTitle,
     label: ro.panel.finishPickerLabel,
-    value: describePickerValue(material, meta),
+    value: describePickerValue(material, chosen),
     ...describeChipAvailability(editability),
     note: ro.panel.finishApproximationNote,
   };
@@ -951,9 +964,12 @@ function describeRalPickerSection(
  * substitution ADR 0057 rejected, arriving through the door this wave opens by publishing a hex per
  * decor.
  */
-function describePickerValue(material: Material, meta: SelectionMeta): string {
+function describePickerValue(
+  material: Material,
+  chosen: Finish | undefined,
+): string {
   const opening =
-    meta.finish?.kind === "free-colour" ? meta.finish : material.defaultFinish;
+    chosen?.kind === "free-colour" ? chosen : material.defaultFinish;
   return swatchOf(opening).color;
 }
 

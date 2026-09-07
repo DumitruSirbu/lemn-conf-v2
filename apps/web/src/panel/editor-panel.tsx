@@ -205,7 +205,7 @@ function PanelSectionView({ section }: { readonly section: PanelSection }) {
     case "replace":
       return <ReplaceSectionView section={section} />;
     case "finish":
-      return <FinishSectionView section={section} />;
+      return <CabinetFinishSection section={section} />;
     case "handle":
       return <HandleSectionView section={section} />;
     case "width":
@@ -295,17 +295,41 @@ function OfferThumbnail({ url }: { readonly url: string | undefined }) {
   );
 }
 
+/** §9's own colour control: the shared one below, wired to the **per-placement** command. The store
+ *  read lives here rather than inside the control because ADR 0099 decision 9 has the global
+ *  settings sheet render the same control against a *pending* whole-kitchen choice that writes
+ *  nothing until *Aplică* — one control, two writers, chosen by the caller. */
+function CabinetFinishSection({
+  section,
+}: {
+  readonly section: FinishSection;
+}) {
+  const setFinish = useConfiguratorStore((state) => state.setFinish);
+  return <FinishSectionView section={section} onPick={setFinish} />;
+}
+
 /** ADR 0071 decision 3's three controls, and the only place the choice between them is made in
- *  this file. The branch is on `section.control`, which `describePanel` copied from the material's
- *  declaration — nothing here counts chips, and nothing here may start to.
+ *  this file. The branch is on `section.control`, which `describeFinishSection` copied from the
+ *  material's declaration — nothing here counts chips, and nothing here may start to.
  *
  *  `data-finish-control` carries the shape into the DOM so a browser test can tell a decor list
- *  from two wood swatches from a picker without inferring it from how many buttons it found. */
-function FinishSectionView({ section }: { readonly section: FinishSection }) {
+ *  from two wood swatches from a picker without inferring it from how many buttons it found.
+ *
+ *  **Exported since ADR 0099 decision 9**, so the global settings sheet renders this control rather
+ *  than a second colour picker of its own. It takes `onPick` and reads no store: what a press writes
+ *  is the caller's — a cabinet's own colour in §9, the sheet's pending global colour in the fourth
+ *  group — and a control that reached for `setFinish` itself could only ever have one. */
+export function FinishSectionView({
+  section,
+  onPick,
+}: {
+  readonly section: FinishSection;
+  readonly onPick: (finish: Finish) => void;
+}) {
   return section.control === "ral-picker" ? (
-    <RalPickerView section={section} />
+    <RalPickerView section={section} onPick={onPick} />
   ) : (
-    <PaletteSwatchView section={section} />
+    <PaletteSwatchView section={section} onPick={onPick} />
   );
 }
 
@@ -313,10 +337,11 @@ function FinishSectionView({ section }: { readonly section: FinishSection }) {
  *  the sheet at full width where a decor's name needs the room, and the pair sits side by side. */
 function PaletteSwatchView({
   section,
+  onPick,
 }: {
   readonly section: PaletteSwatchSection;
+  readonly onPick: (finish: Finish) => void;
 }) {
-  const setFinish = useConfiguratorStore((state) => state.setFinish);
   return (
     <section
       className={styles.section}
@@ -333,7 +358,7 @@ function PaletteSwatchView({
         data-testid="colour-options"
       >
         {section.chips.map((chip) => (
-          <SwatchButton key={chip.value} chip={chip} onPick={setFinish} />
+          <SwatchButton key={chip.value} chip={chip} onPick={onPick} />
         ))}
       </div>
       <p className={styles.note}>{section.note}</p>
@@ -379,8 +404,13 @@ function SwatchButton({
  *  The value is **lower-cased before it is written**. `FinishSchema` admits both cases and
  *  ADR 0081 decision 1 rules no second, case-folding equality, so `#ECEEEB` and `#eceeeb` would be
  *  two different chosen colours to every reader that compares them. */
-function RalPickerView({ section }: { readonly section: RalPickerSection }) {
-  const setFinish = useConfiguratorStore((state) => state.setFinish);
+function RalPickerView({
+  section,
+  onPick,
+}: {
+  readonly section: RalPickerSection;
+  readonly onPick: (finish: Finish) => void;
+}) {
   return (
     <section
       className={styles.section}
@@ -396,7 +426,7 @@ function RalPickerView({ section }: { readonly section: RalPickerSection }) {
           value={section.value}
           disabled={section.isDisabled}
           onChange={(event) => {
-            setFinish(freeColourFinish(event.target.value.toLowerCase()));
+            onPick(freeColourFinish(event.target.value.toLowerCase()));
           }}
         />
         <span className={styles.pickerLabel}>{section.label}</span>
