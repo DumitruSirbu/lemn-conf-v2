@@ -32,9 +32,14 @@
 
 import { boundedFailureReason } from "@lemnaria/configurator-domain";
 
-/** Which handler the line came from. Two, because the route has two: an open read and an authorised
- *  write. It is not the HTTP method — `PUT` and `PATCH` are one operation here. */
-export type DesignOperation = "load" | "save";
+/** Which handler the line came from. Three, because the route family has three: the creation of a
+ *  row, an open read, and an authorised write. It is not the HTTP method — `PUT` and `PATCH` are one
+ *  operation here, and `POST /api/designs` is `mint` rather than a second `save`.
+ *
+ *  **`mint` is the operation the 2026-09-07 outage was failing on**, and until wave W4 it was the one
+ *  handler with no `try`/`catch` at all: a driver failure there reached the platform as a digest and
+ *  nothing else, which is the exact blindness this module exists to remove (ADR 0096, Consequences). */
+export type DesignOperation = "load" | "mint" | "save";
 
 /** A refusal, as the server sees it. `code` is a log-only label for the 403, whose *response*
  *  deliberately carries no code at all: one answer for every write refusal is what stops the route
@@ -92,6 +97,42 @@ export function reportDesignRefusal(
     operation,
     refusalCode: refusal.code,
     status: refusal.status,
+  });
+}
+
+/**
+ * A **stored** row that would not validate on the way out — the server's problem, not the caller's,
+ * which is why the response it accompanies says only that the design could not be loaded.
+ *
+ * The operation is a parameter rather than a constant: `designErrorResponse` maps this failure on
+ * both of its paths, and a line that claimed `load` for a row a save could not read back would
+ * mislabel the one field a log search filters on.
+ */
+export function reportUnreadableDesign(
+  operation: DesignOperation,
+  reason: string,
+): void {
+  emitDesignLogLine("error", {
+    event: "design-row-unreadable",
+    operation,
+    reason: safeText(reason),
+  });
+}
+
+/**
+ * An incoming save payload refused by the schema. A warning rather than an error, for the reason
+ * `reportDesignRefusal` gives: nothing is broken, and it is the rate that is the signal.
+ *
+ * **This is the one line a caller can drive with a body it wrote**, so `safeText`'s bound is what
+ * stops one cheap request buying a large log write on a free tier with hard caps — the rule
+ * `invalidBodyResponse` is written against, carried through unchanged.
+ */
+export function reportRejectedBody(reason: string): void {
+  emitDesignLogLine("warn", {
+    event: "design-payload-rejected",
+    // Only the write path validates an incoming body; the load path parses nothing a caller sent.
+    operation: "save",
+    reason: safeText(reason),
   });
 }
 
@@ -163,5 +204,12 @@ function safeReasonOf(error: unknown): string {
   if (!(error instanceof Error)) return UNAVAILABLE;
   const message = readPropertyOrNothing(error, "message");
   if (typeof message !== "string") return UNAVAILABLE;
+  return safeText(message);
+}
+
+/** Redacted first and bounded second, for every free-text field this module writes. One function
+ *  rather than one per reporter, so the ordering argument above is made once and cannot be got
+ *  wrong by the next line that needs it. */
+function safeText(message: string): string {
   return boundedFailureReason(message.replace(URL_SHAPED, REDACTED_URL));
 }

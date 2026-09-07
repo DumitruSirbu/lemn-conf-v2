@@ -6,6 +6,9 @@
   },
   "configure": {
     "step": "Pasul {step, number} din {totalSteps, number}",
+    "stepPill": "{step, number}/{totalSteps, number}",
+    "title": "Configurare",
+    "locale": "RO",
     "back": "‹ Cameră",
     "orbitHint": "Atinge un dulap pentru a-l edita · trage pentru a roti",
     "cameraGroupLabel": "Vedere cameră",
