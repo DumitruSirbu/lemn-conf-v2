@@ -44,9 +44,15 @@ export type AlongWallDepthChain = "base-formula" | "wall-map";
  *  - **`pinned`** — cabinetry that is deliberately held at one depth anyway (ADR 0058 decision 1).
  *    The pin carries the body's own **finished** depth — the space it fills, ADR 0058 decision 3's
  *    "identical (600) at both" — so the declaration says what the body *is* rather than merely that
- *    it does not move. Deliberately **not** the cabinet-depth setting it happens to coincide with:
- *    a reader rebuilding a pinned row from a setting value would send it back through the wall map,
- *    and `wallCarcassSeatDepthMm(600)` is 291 where these two rows seat at 561.
+ *    it does not move. Deliberately **not** the cabinet-depth setting it might coincide with: a
+ *    reader rebuilding a pinned row from a setting value would send it back through the wall map,
+ *    and `wallCarcassSeatDepthMm(600)` is 291 where a pinned deep top would seat at 561.
+ *
+ *    **No shipped entry declares it since ADR 0101**, which unpinned the three deep tops so they
+ *    follow the setting. The arm is kept rather than retired (ADR 0101 decision 3): a compile
+ *    error is what should greet the next person who needs a pin, not a blank page. Each suite that
+ *    needs a pinned body **declares its own** — ADR 0093 decision 2's pattern — so the rule's
+ *    falsifiability is never a property of whichever bodies the demo kitchen happens to carry.
  *
  *  There is deliberately no arm meaning "unknown" and no default. An entry that answers none of
  *  these has not been thought about, and `cabinetDepthRuleOf` refuses it. */
@@ -87,7 +93,11 @@ export const IS_A_MANUFACTURED_SIZE: CabinetDepthRule = {
 
 /** ADR 0058 decision 1: cabinetry deliberately held at one declared **finished** depth — the space
  *  the built body fills, which is what a 6J migration reading "rebuild it at the depth it is pinned
- *  at" has to be handed. The two shipped pinned rows finish at 600 at every setting. */
+ *  at" has to be handed.
+ *
+ *  **Nothing in the shipped catalogue calls it since ADR 0101.** Its callers are the suites that
+ *  declare a pinned body of their own to keep the arm falsifiable, and it stays exported for the
+ *  next entry that genuinely needs a pin. */
 export function pinnedAtFinishedDepthMm(
   pinnedFinishedDepthMm: number,
   alongWallPositionFollows: AlongWallDepthChain,
@@ -218,9 +228,15 @@ export interface ColumnBuildDepthQuery {
  *    test-only alias is how the gate goes missing when the alias does.
  *  - **A full-height member lifts it** — the **cabinet-depth line**: 600 at 600, 700 at 700. The
  *    lift was always meant to raise the ceiling from the map's 330 to that line (ADR 0028
- *    decision 5, *"which is what keeps the two deep top cabinets at 600 over their columns"*), and
- *    was implemented as "return the opening's depth", which coincided with the intent only while
- *    nothing measured an appliance's handles. Wave S9 ended the coincidence.
+ *    decision 5), and was implemented as "return the opening's depth", which coincided with the
+ *    intent only while nothing measured an appliance's handles. Wave S9 ended the coincidence.
+ *
+ *    **This is the arm the three deep tops on wall B answer through** (ADR 0101). ADR 0028
+ *    decision 5 once added *"which is what keeps the two deep top cabinets at 600 over their
+ *    columns"*; that clause is **struck** — it was true only while 600 was the product's one
+ *    cabinet depth, and what held those rows still was ADR 0058's **pin**, never this lift. The
+ *    pin is gone since ADR 0101 and the lift is what now takes them to 700, so the arm's rule is
+ *    confirmed by the change that removed its supposed consequence.
  *
  *  **Never the clearance MAX.** That is ADR 0028 decision 4's rule — a declaration, not a
  *  computation — applied to the one arm that evaded it: `worktop-depth.ts` exists precisely so a
@@ -248,6 +264,25 @@ export function columnBuildDepthMm(column: ColumnBuildDepthQuery): number {
 /** `columnBuildDepthMm` in the unit the command layer plans in. */
 export function columnBuildDepthM(column: ColumnBuildDepthQuery): BuildDepthM {
   return toMetres(columnBuildDepthMm(column)) as BuildDepthM;
+}
+
+/** **Does this entry declare that a rebuild answers its depth through the lifted arm above?**
+ *  ADR 0101 decision 1, and the one reader of `BodyDefinition.builtDepthFollowsALiftedColumn`, so
+ *  no caller spells the property access itself and no caller can read an absent declaration as
+ *  anything but *no* — which is the right answer for every row but the deep tops.
+ *
+ *  It lives here rather than beside `catalogEquivalentId` because the fact it states is about
+ *  **this module's own lifted arm**: a row carrying it is a row whose built depth is
+ *  `columnBuildDepthMm({ …, hasFullHeightUnder: true })` and not the equivalent's `frameDepthMm`.
+ *  The gate that skips such a row asserts exactly that identity in the skipped assertion's place.
+ *
+ *  Takes a possibly-absent definition because `BodyCatalog.get` answers one, and a row the
+ *  catalogue does not hold declares nothing — a real answer here rather than a refusal, since the
+ *  only consequence is that the ordinary equivalence comparison applies. */
+export function declaresALiftedColumnDepth(
+  definition: { readonly builtDepthFollowsALiftedColumn?: boolean } | undefined,
+): boolean {
+  return definition?.builtDepthFollowsALiftedColumn === true;
 }
 
 /** **The cabinet-depth line: the setting itself.** Named rather than passed through anonymously,
