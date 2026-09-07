@@ -186,8 +186,29 @@ export interface PaletteSwatchSection {
   readonly control: "decor-list" | "wood-swatches";
   readonly title: string;
   readonly chips: readonly FinishChip[];
+  /** §9's way back out of an override — see `FollowTheKitchenChip`. **Absent on the global settings
+   *  sheet**, which reads this same section (ADR 0099 decision 9) and has no level above it to
+   *  follow. */
+  readonly follow?: FollowTheKitchenChip;
   readonly note: string;
 }
+
+/**
+ * **"Follow the kitchen's colour"** — ADR 0099 decision 8, and part of that decision rather than UI
+ * polish.
+ *
+ * Without a control that *un*-chooses, the first tap on any swatch pins that cabinet out of the
+ * kitchen's colour for ever: the precedence becomes a one-way door, and the customer would report
+ * it next.
+ *
+ * `isActive` when this cabinet has chosen nothing and is already following — the same marking the
+ * swatches use, so the section always shows exactly one standing choice.
+ *
+ * It is a `ChoiceChip` and not a fourth shape: it sits in the same row as the swatches, it is
+ * greyed by the same `describeChipAvailability`, and *"follow"* is a value in the same sense a decor
+ * id is. What it writes is the difference, and that is the command's to say, not the chip's.
+ */
+export type FollowTheKitchenChip = ChoiceChip<"follow">;
 
 /**
  * MDF: a colour picker, because painted MDF can be any colour and no list can stand in for that.
@@ -209,6 +230,10 @@ export interface RalPickerSection {
   readonly isDisabled: boolean;
   /** §13.1's reason beside the greyed control, on the same condition a chip carries one. */
   readonly reason?: string;
+  /** ADR 0099 decision 8's way back out of an override. A picker needs it more than a swatch list
+   *  does: every hex it can produce is a choice, so without this an MDF cabinet has no way at all to
+   *  stop choosing. Absent on the global settings sheet, which has no level above it to follow. */
+  readonly follow?: FollowTheKitchenChip;
   readonly note: string;
 }
 
@@ -664,7 +689,12 @@ function collectOfferedSections(
       meta.finish,
       editability,
     );
-    if (finish) sections.push(finish);
+    // **The follow chip is added here and not inside the projection** (ADR 0099 decisions 8 and 9).
+    // The projection is shared with the global settings sheet, which is the level being followed and
+    // so has nothing above it — a control offered there would be an offer this product cannot
+    // satisfy (§9). Composed rather than parameterised: a fourth argument switching a control on and
+    // off is the flag argument this codebase splits functions to avoid.
+    if (finish) sections.push(followingTheKitchen(finish, meta, editability));
   }
   if (meta.canHandle) sections.push(describeHandleSection(meta, editability));
   // **Not gated on `meta.canWidth`** (ADR 0049). §9 item 6 made `fixedWidth` decide whether the
@@ -893,6 +923,25 @@ export function describeFinishSection(
     return describeRalPickerSection(material, chosen, editability);
   }
   return describeSwatchSection(material.colourControl, chosen, editability);
+}
+
+/** §9's finish section with ADR 0099 decision 8's chip on it. The chip is *active* when the cabinet
+ *  carries no colour of its own — absence is the state of following (ADR 0078 decision 5) — so the
+ *  section always shows exactly one standing choice, whichever of the three controls it is. */
+function followingTheKitchen(
+  section: FinishSection,
+  meta: SelectionMeta,
+  editability: PanelEditability,
+): FinishSection {
+  return {
+    ...section,
+    follow: {
+      value: "follow",
+      label: ro.panel.finishFollowsKitchen,
+      isActive: meta.finish === undefined,
+      ...describeChipAvailability(editability),
+    },
+  };
 }
 
 /** The two list-shaped controls, which differ in their `control` and in nothing else here: PAL's

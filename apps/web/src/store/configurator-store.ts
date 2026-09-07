@@ -22,6 +22,7 @@ import {
   refuse,
   removePlacement,
   setCabinetDepth as setCabinetDepthOnDesign,
+  clearFinish as clearFinishOnDesign,
   setFinish as setFinishOnDesign,
   setHandle as setHandleOnDesign,
   setHardwareTier as setHardwareTierOnDesign,
@@ -132,6 +133,10 @@ export interface ConfiguratorState {
   readonly remove: () => void;
   readonly insert: (buildId: string) => void;
   readonly setFinish: (finish: Finish) => void;
+  /** ADR 0099 decision 8: this cabinet stops choosing and follows the kitchen's colour again. It
+   *  takes no finish, because it writes none — the key is deleted, which is what makes the cabinet
+   *  track the *next* global change as well as this one. */
+  readonly clearFinish: () => void;
   readonly setHandle: (handle: Handle) => void;
   /** §5.4's resize, and the last of §9's five verbs to be wired. It takes a width and nothing else:
    *  which bodies move, which column funds it and whether it is legal at all are ADR 0031's rules,
@@ -504,6 +509,16 @@ export function createConfiguratorStore(
             target,
             catalog: held,
             finish,
+            occurredAt: now(),
+          }),
+        );
+      },
+      clearFinish: () => {
+        runCommand(({ design: current, catalog: held, target }) =>
+          clearFinishOnDesign({
+            design: current,
+            target,
+            catalog: held,
             occurredAt: now(),
           }),
         );

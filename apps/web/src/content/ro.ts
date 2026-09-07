@@ -292,6 +292,15 @@ export const ro = {
      * Ruled 2026-09-06, pending owner review.
      */
     finishPickerLabel: "Alege culoarea",
+    /**
+     * **ADR 0099 decision 8's way back out of an override**, and the sentence has to name the level
+     * it returns to rather than say *"șterge"*: nothing is being deleted from the customer's point
+     * of view — the cabinet goes back to wearing the kitchen's own colour, which is a colour and not
+     * an absence.
+     *
+     * Ruled 2026-09-07 by ADR 0099, pending owner review.
+     */
+    finishFollowsKitchen: "Culoarea bucătăriei",
     handleTitle: "Mâner",
     handleLabels: {
       steel: "Bară inox",

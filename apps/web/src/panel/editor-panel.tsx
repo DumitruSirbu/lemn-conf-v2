@@ -17,6 +17,7 @@ import styles from "./editor-panel.module.css";
 import type {
   FinishChip,
   FinishSection,
+  FollowTheKitchenChip,
   HandleSection,
   OfferRow,
   PanelFooter,
@@ -305,7 +306,14 @@ function CabinetFinishSection({
   readonly section: FinishSection;
 }) {
   const setFinish = useConfiguratorStore((state) => state.setFinish);
-  return <FinishSectionView section={section} onPick={setFinish} />;
+  const clearFinish = useConfiguratorStore((state) => state.clearFinish);
+  return (
+    <FinishSectionView
+      section={section}
+      onPick={setFinish}
+      onFollow={clearFinish}
+    />
+  );
 }
 
 /** ADR 0071 decision 3's three controls, and the only place the choice between them is made in
@@ -322,14 +330,63 @@ function CabinetFinishSection({
 export function FinishSectionView({
   section,
   onPick,
+  onFollow,
 }: {
   readonly section: FinishSection;
   readonly onPick: (finish: Finish) => void;
+  /** ADR 0099 decision 8's press, when there is a level to go back to. Absent on the global settings
+   *  sheet, which *is* that level — and `section.follow` is absent there too, so the chip and its
+   *  handler arrive together or not at all. */
+  readonly onFollow?: () => void;
 }) {
+  const follow =
+    section.follow !== undefined && onFollow !== undefined
+      ? { chip: section.follow, onFollow }
+      : undefined;
   return section.control === "ral-picker" ? (
-    <RalPickerView section={section} onPick={onPick} />
+    <RalPickerView
+      section={section}
+      onPick={onPick}
+      {...(follow === undefined ? {} : { follow })}
+    />
   ) : (
-    <PaletteSwatchView section={section} onPick={onPick} />
+    <PaletteSwatchView
+      section={section}
+      onPick={onPick}
+      {...(follow === undefined ? {} : { follow })}
+    />
+  );
+}
+
+/** The chip and the press that goes with it, which arrive together or not at all — the shape
+ *  `MaterialResetConfirmStep` uses one surface over, for its reason: a flag beside data that may or
+ *  may not be there is two ways to say one thing. */
+interface FollowTheKitchenStep {
+  readonly chip: FollowTheKitchenChip;
+  readonly onFollow: () => void;
+}
+
+/** ADR 0099 decision 8's control, drawn as one more chip in the row it belongs to rather than as a
+ *  link under it: it is a choice among the choices, and the one that is standing when a cabinet has
+ *  chosen nothing. */
+function FollowTheKitchenButton({
+  step,
+}: {
+  readonly step: FollowTheKitchenStep;
+}) {
+  return (
+    <button
+      type="button"
+      className={styles.swatch}
+      data-testid="finish-follow-kitchen"
+      data-follow="true"
+      aria-pressed={step.chip.isActive}
+      disabled={step.chip.isDisabled}
+      onClick={step.onFollow}
+    >
+      <span className={styles.swatchLabel}>{step.chip.label}</span>
+      <ChipReason reason={step.chip.reason} />
+    </button>
   );
 }
 
@@ -338,9 +395,11 @@ export function FinishSectionView({
 function PaletteSwatchView({
   section,
   onPick,
+  follow,
 }: {
   readonly section: PaletteSwatchSection;
   readonly onPick: (finish: Finish) => void;
+  readonly follow?: FollowTheKitchenStep;
 }) {
   return (
     <section
@@ -360,6 +419,9 @@ function PaletteSwatchView({
         {section.chips.map((chip) => (
           <SwatchButton key={chip.value} chip={chip} onPick={onPick} />
         ))}
+        {/* Last in the row rather than first: the colours are what the customer came for, and the
+            way back is what they need once they have taken one. */}
+        {follow === undefined ? null : <FollowTheKitchenButton step={follow} />}
       </div>
       <p className={styles.note}>{section.note}</p>
     </section>
@@ -407,9 +469,11 @@ function SwatchButton({
 function RalPickerView({
   section,
   onPick,
+  follow,
 }: {
   readonly section: RalPickerSection;
   readonly onPick: (finish: Finish) => void;
+  readonly follow?: FollowTheKitchenStep;
 }) {
   return (
     <section
@@ -431,6 +495,9 @@ function RalPickerView({
         />
         <span className={styles.pickerLabel}>{section.label}</span>
       </label>
+      {/* **A picker needs the way back more than a swatch list does**: every hex it can produce is a
+          choice, so without this an MDF cabinet has no way at all to stop choosing. */}
+      {follow === undefined ? null : <FollowTheKitchenButton step={follow} />}
       <ChipReason reason={section.reason} />
       <p className={styles.note}>{section.note}</p>
     </section>

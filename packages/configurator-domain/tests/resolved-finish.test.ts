@@ -13,9 +13,13 @@ import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 
 import { countCabinetsWearingAChosenFinish } from "../src/chosen-finishes.js";
+import { clearFinish } from "../src/commands/set-appearance.js";
 import { setGlobalFinish } from "../src/commands/set-whole-kitchen-settings.js";
 import type { Design, DesignPlacement } from "../src/design.js";
-import { KITCHEN_L_DESIGN } from "../src/fixtures/kitchen-l-design.js";
+import {
+  KITCHEN_L_BODY_CATALOG,
+  KITCHEN_L_DESIGN,
+} from "../src/fixtures/kitchen-l-design.js";
 import {
   freeColourFinish,
   materialById,
@@ -267,12 +271,21 @@ describe("ADR 0099 acceptance 3 — clearing an override tracks two subsequent g
     const overriding = designOn("material.melamine", [
       placementWearing(0, PAL_ANTRACIT),
     ]);
-    // The clear deletes the key rather than writing the current global value into it; writing it
-    // would satisfy exactly one subsequent change, which is why this asserts two.
-    const cleared = designOn("material.melamine", [
-      placementWearing(0, undefined),
-    ]);
     expect(overriding.placements[0]?.body.finish).toEqual(PAL_ANTRACIT);
+
+    // ADR 0099 decision 8's own command, not a hand-built document: the clear must **delete the
+    // key**, and writing the current global value into it instead would satisfy exactly one
+    // subsequent change — which is why this asserts two.
+    const clear = clearFinish({
+      design: overriding,
+      catalog: KITCHEN_L_BODY_CATALOG,
+      target: { kind: "placement", id: firstPlacementOf(overriding).id },
+      occurredAt: OCCURRED_AT,
+    });
+    expect(clear.ok).toBe(true);
+    if (!clear.ok) return;
+    const cleared = clear.design;
+    expect(cleared.placements[0]?.body).not.toHaveProperty("finish");
 
     const first = setGlobalFinish({
       design: cleared,
@@ -296,6 +309,68 @@ describe("ADR 0099 acceptance 3 — clearing an override tracks two subsequent g
       resolvedFinishOf(firstPlacementOf(second.design), second.design),
     ).toEqual(PAL_ANTRACIT);
     expect(second.design.placements[0]?.body.finish).toBeUndefined();
+  });
+});
+
+describe("ADR 0099 decision 8 — the way back out of an override", () => {
+  it("removes the key rather than writing undefined into it, so a save round-trips identically", () => {
+    const design = designOn("material.melamine", [
+      placementWearing(0, PAL_ANTRACIT),
+    ]);
+
+    const result = clearFinish({
+      design,
+      catalog: KITCHEN_L_BODY_CATALOG,
+      target: { kind: "placement", id: firstPlacementOf(design).id },
+      occurredAt: OCCURRED_AT,
+    });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    // `{ finish: undefined }` and no `finish` at all are the same object to `toEqual` and different
+    // documents to `JSON.stringify` — which is what a save writes.
+    expect(JSON.parse(JSON.stringify(result.design.placements[0]))).toEqual(
+      result.design.placements[0],
+    );
+    expect(JSON.stringify(result.design.placements[0])).not.toContain("finish");
+  });
+
+  it("succeeds on a cabinet that has chosen nothing, rather than refusing a no-op", () => {
+    const design = designOn("material.melamine", [
+      placementWearing(0, undefined),
+    ]);
+
+    const result = clearFinish({
+      design,
+      catalog: KITCHEN_L_BODY_CATALOG,
+      target: { kind: "placement", id: firstPlacementOf(design).id },
+      occurredAt: OCCURRED_AT,
+    });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.effect).toEqual({
+      type: "finish_cleared",
+      placementId: firstPlacementOf(design).id,
+    });
+  });
+
+  it("touches no other cabinet", () => {
+    const design = designOn("material.melamine", [
+      placementWearing(0, PAL_ANTRACIT),
+      placementWearing(1, PAL_GRI),
+    ]);
+
+    const result = clearFinish({
+      design,
+      catalog: KITCHEN_L_BODY_CATALOG,
+      target: { kind: "placement", id: firstPlacementOf(design).id },
+      occurredAt: OCCURRED_AT,
+    });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.design.placements[1]).toBe(design.placements[1]);
   });
 });
 

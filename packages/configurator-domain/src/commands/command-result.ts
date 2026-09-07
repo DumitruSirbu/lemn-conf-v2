@@ -107,6 +107,14 @@ export interface FinishSetEffect {
   readonly finish: Finish;
 }
 
+/** ADR 0099 decision 8's other half of `FinishSetEffect`: this cabinet has stopped choosing, and now
+ *  follows the kitchen. **It carries no finish**, which is the whole difference — a *"cleared to X"*
+ *  effect would be a set with a nicer name, and the key would still be in the document. */
+export interface FinishClearedEffect {
+  readonly type: "finish_cleared";
+  readonly placementId: string;
+}
+
 export interface HandleSetEffect {
   readonly type: "handle_set";
   readonly placementId: string;
@@ -174,6 +182,7 @@ export type CommandEffect =
   | BodyInsertedEffect
   | BodyResizedEffect
   | FinishSetEffect
+  | FinishClearedEffect
   | HandleSetEffect
   | MaterialTierSetEffect
   | HardwareTierSetEffect
