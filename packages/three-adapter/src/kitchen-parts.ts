@@ -320,6 +320,41 @@ const HOB_DEPTH_MM = 520;
  *  body and would silently change what `baseFinishedDepthMm` declares that body finishes at. */
 const HOB_FRONT_CLEARANCE_MM = 10;
 
+/** How deep the hole cut for the sink is, and therefore how deep the bowl that drops into it is. A
+ *  **manufactured size** (`docs/best-practices/product-invariants.md`), the same split
+ *  `HOB_DEPTH_MM` makes: a 560 × 400 bowl is bought and no setting reaches this number.
+ *
+ *  ADR 0098 decision 5: the worktop's cut, the two side slabs that flank it and the `sink-faucet`
+ *  builder's own `D` all read this one declaration, so the stone and the bowl that fills it cannot
+ *  drift apart at a depth nobody built at. */
+const SINK_APERTURE_DEPTH_MM = 400;
+
+/** ADR 0098: **how much worktop is left in front of the sink, and it is the declared fact.**
+ *
+ *  The owner's ruling — *"It should be centered. And the gap should become bigger behind — so
+ *  between the wall and the sink and faucet. Same principle as with hob."* — is two sentences that
+ *  are one instruction: "centred" says where the sink sits at the declared default, and "same
+ *  principle as with hob" carries it to every other depth. So the clearance in front is declared,
+ *  the **seat** is derived from it (`SINK_SEAT_OFFSET_M`), and every millimetre of added depth
+ *  lands behind the assembly, against the wall.
+ *
+ *  110 is what "centred at the declared default" means, in the remedy shape ADR 0059 established —
+ *  the arithmetic that produced it written beside it, so a reader re-checks the number instead of
+ *  trusting it:
+ *
+ *      SINK_FRONT_CLEARANCE_MM = (counterDepthMm(DEFAULT_CABINET_DEPTH_MM) − SINK_APERTURE_DEPTH_MM) / 2
+ *                              = (620 − 400) / 2
+ *                              = 110
+ *
+ *  Unlike the hob's, this is **not** the literal the shipped kitchen measures: the sink sat 130 mm
+ *  behind the worktop's edge, so the 600 mm kitchen moves forward by 20 mm and M1's parity gate is
+ *  deliberately re-baselined for it. That is decision 3, and it is the point — at 600 the worktop's
+ *  620 mm is fully spent, so the rear gap the owner asked for can only come from centring.
+ *
+ *  It is not `HOB_FRONT_CLEARANCE_MM` and may never be derived from it: two different appliances
+ *  with two different reasons that happen to share one worktop. */
+const SINK_FRONT_CLEARANCE_MM = 110;
+
 /** **The two front slabs this kit draws, and the only thing that tells them apart.** A leaf hangs on
  *  hinges and a drawer front rides on runners, and ADR 0070 prices those as different mechanisms —
  *  so the difference has to survive into the built scene for a parity gate to hold the catalogue's
@@ -894,34 +929,40 @@ export function makeKit(options: KitOptions = {}): Kit {
     }
     if (counterTop && !sink) g.add(counter(w));
     if (sink) {
-      // countertop split around the sink aperture (0.70 × 0.36, centred)
+      // ADR 0098: the worktop is split around a 560 × 400 aperture seated at `SINK_SEAT_OFFSET_M`.
+      // All four slabs and the assembly that drops between them are drawn from that one seat and
+      // one declared aperture depth — held at the cabinet's own origin the bowl stood still while
+      // the worktop grew fore and aft around it, so the cook reached 50 mm further at 700 and the
+      // faucet came within 2 mm of the wall at 600.
       const y = PLINTH + CARC_H,
-        cd = counterDepthM,
-        cz = COUNTER_FORWARD_OFFSET_MM / 1000,
         ax = 0.28,
-        az = 0.2;
+        az = SINK_APERTURE_DEPTH_MM / 2 / 1000,
+        worktopFrontM = COUNTER_FORWARD_OFFSET_MM / 1000 + counterDepthM / 2,
+        worktopBackM = COUNTER_FORWARD_OFFSET_MM / 1000 - counterDepthM / 2,
+        apertureFrontM = SINK_SEAT_OFFSET_M + az,
+        apertureBackM = SINK_SEAT_OFFSET_M - az;
       g.add(
         box(
           w,
           CTOP,
-          cz + cd / 2 - az,
+          worktopFrontM - apertureFrontM,
           M.stone,
           "countertop_front",
           0,
           y,
-          (az + cz + cd / 2) / 2,
+          (apertureFrontM + worktopFrontM) / 2,
         ),
       );
       g.add(
         box(
           w,
           CTOP,
-          cd / 2 - cz - az,
+          apertureBackM - worktopBackM,
           M.stone,
           "countertop_back",
           0,
           y,
-          -(az + cd / 2 - cz) / 2,
+          (worktopBackM + apertureBackM) / 2,
         ),
       );
       const side = w / 2 - ax;
@@ -935,11 +976,11 @@ export function makeKit(options: KitOptions = {}): Kit {
             "countertop_side",
             s * (ax + side / 2),
             y,
-            0,
+            SINK_SEAT_OFFSET_M,
           ),
         );
       const sk = builders["sink-faucet"]();
-      sk.position.y = y + CTOP;
+      sk.position.set(0, y + CTOP, SINK_SEAT_OFFSET_M);
       g.add(sk);
     }
     return g;
@@ -994,6 +1035,24 @@ export function makeKit(options: KitOptions = {}): Kit {
    *  child by child. */
   const HOB_SEAT_OFFSET_M =
     (worktopFrontMm - HOB_FRONT_CLEARANCE_MM - HOB_DEPTH_MM / 2) / 1000;
+
+  /** ADR 0098: where the sink's aperture — and the bowl and faucet that fill it — is centred on its
+   *  own cabinet's worktop, as a **local** offset. The hob's rule (`HOB_SEAT_OFFSET_M`) one body
+   *  over: **derived from the declared clearance in front of it, never written as a number.**
+   *
+   *  At the declared 600 this is `330 − 110 − 200 = 20` mm, which is exactly the worktop's own
+   *  centre — the owner's word, and 20 mm forward of the literal `z = 0` it replaces. At 700 it is
+   *  `380 − 110 − 200 = 70`, so the whole 100 mm of added depth lands behind the faucet.
+   *
+   *  Millimetres divided once, never metres subtracted, for the reason `makeKit` states at the top:
+   *  M1's parity gate diffs at 1e-6 m and IEEE-754 does not survive the metre form.
+   *
+   *  Applied where the assembly is composed onto the cabinet, **not** inside
+   *  `builders["sink-faucet"]`: that builder is also offered standalone in the parts list, where
+   *  there is no worktop for the clearance to be measured against. */
+  const SINK_SEAT_OFFSET_M =
+    (worktopFrontMm - SINK_FRONT_CLEARANCE_MM - SINK_APERTURE_DEPTH_MM / 2) /
+    1000;
 
   /** How far a built-in oven's own origin stands **behind the carcass front plane it is mounted
    *  on**, in metres. Measured off the shipped geometry, which seated it at a flat 0.018 in a
@@ -1332,8 +1391,12 @@ export function makeKit(options: KitOptions = {}): Kit {
     hood: () => hood(0.9),
     "sink-faucet": () => {
       const g = G("sink_faucet");
+      // `D` is the same declaration `baseCabinet` cuts its worktop from (ADR 0098 decision 5), so
+      // the rim lands on the stone's edge rather than over it. Where the assembly sits along the
+      // depth axis is **not** decided here: this builder is offered standalone in the parts list,
+      // with no worktop to be seated against, so its caller composes `SINK_SEAT_OFFSET_M`.
       const W = 0.56,
-        D = 0.4,
+        D = SINK_APERTURE_DEPTH_MM / 1000,
         AX = W / 2 - 0.02,
         AZ = D / 2 - 0.02; // aperture half-sizes
       // rim flange around the opening
