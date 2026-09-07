@@ -113,22 +113,55 @@ function emitDesignLogLine(
 /** Grepped for in a platform log view, so it is one literal and not assembled. */
 const DESIGN_LOG_LABEL = "[designs]";
 
+/**
+ * Every read of a thrown value goes through here, and none of them may throw.
+ *
+ * **A diagnostic that can fail replaces the error it exists to explain.** No line is written, and
+ * the platform records a failure inside the logger instead of the driver failure that caused it —
+ * which is worse than the unlabelled 500 this module was built to fix, because it also hides the
+ * original. `name`, `code` and `message` are ordinary properties: a thrown value may define any of
+ * them as a throwing getter or as a non-string, and the value arriving here is by definition one
+ * this application did not construct.
+ */
+function readPropertyOrNothing(error: unknown, property: string): unknown {
+  try {
+    return (error as Record<string, unknown> | null | undefined)?.[property];
+  } catch {
+    return undefined;
+  }
+}
+
+/** The name every `Error` is guaranteed to answer to when its own `name` is unreadable or is not a
+ *  string — a named absence would read as a error type that does not exist. */
+const UNNAMED_ERROR = "Error";
+
 function errorNameOf(error: unknown): string {
-  return error instanceof Error ? error.name : typeof error;
+  if (!(error instanceof Error)) return typeof error;
+  const name = readPropertyOrNothing(error, "name");
+  return typeof name === "string" ? name : UNNAMED_ERROR;
 }
 
 /** `NeonDbError` carries the SQLSTATE here — `42703` for the undefined column that caused the
  *  2026-09-07 outage — which is the single most diagnostic field on the line. */
 function errorCodeOf(error: unknown): string {
-  const code: unknown = (error as { code?: unknown } | null)?.code;
+  const code = readPropertyOrNothing(error, "code");
   return typeof code === "string" || typeof code === "number"
     ? String(code)
     : UNAVAILABLE;
 }
 
-/** Redacted first and bounded second: bounding truncates, and truncating a connection string leaves
- *  the half that carries the credential. */
+/**
+ * Redacted first and bounded second: bounding truncates, and truncating a connection string leaves
+ * the half that carries the credential.
+ *
+ * Only a real `Error` is quoted. A plain object that merely carries a `message` is not something
+ * any part of this application threw, so the string it offers has no provenance at all — quoting it
+ * would let anything that reaches a `throw` choose what this application writes to its own log.
+ * Its name and code are still reported; only the free-text field is withheld.
+ */
 function safeReasonOf(error: unknown): string {
   if (!(error instanceof Error)) return UNAVAILABLE;
-  return boundedFailureReason(error.message.replace(URL_SHAPED, REDACTED_URL));
+  const message = readPropertyOrNothing(error, "message");
+  if (typeof message !== "string") return UNAVAILABLE;
+  return boundedFailureReason(message.replace(URL_SHAPED, REDACTED_URL));
 }
