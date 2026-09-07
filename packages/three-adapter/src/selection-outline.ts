@@ -63,8 +63,8 @@ export const SELECTION_HIGHLIGHT_COLOR = 0xff2d2d;
  * Instead the outline is drawn twice, in two colours far apart: this near-black casing at
  * `SELECTION_OUTLINE_CASING_WIDTH_PX`, and the signal red on top of it at
  * `SELECTION_OUTLINE_WIDTH_PX`, leaving the casing showing as a rim on either side. **A flat front
- * is a single colour and the two constants are 247.4 apart, so a colour within the counting ball of
- * one is more than 120 units from the other** — asserted over the whole 24-bit cube in
+ * is a single colour and the two constants are 242.5 apart, so the nearest any front gets to both at
+ * once is 121.4 — more than twice the instrument's own 60-unit tolerance** — asserted over the whole 24-bit cube in
  * `selection-outline.test.ts` rather than argued here. Paint the front red and the black rim reads;
  * paint it black and the red core reads.
  *
