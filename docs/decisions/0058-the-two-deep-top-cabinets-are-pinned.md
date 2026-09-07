@@ -1,6 +1,6 @@
 # ADR 0058 — The two deliberately-deep top cabinets are pinned, and the pin is a declared exception
 
-Status: Accepted
+Status: Accepted (decisions 1-4 stand; **the two cost-acceptance paragraphs are struck 2026-09-07 → [0097](0097-adr-0058s-costs-were-accepted-at-a-depth-nothing-shipped-at-and-that-premise-has-expired.md)** — their premise, "a depth nothing ships at", is false since wave 6K)
 Date: 2026-09-02
 Type: Decision + Finding
 Milestone: M6 — gates waves 6H, 6I and 6J
@@ -86,10 +86,14 @@ is the same pinning this record decides: the corner return's top is seated off t
 return is 570 mm wide and structural ([ADR 0021](0021-corner-returns-are-structural-in-data.md)), so
 nothing absorbs the difference.
 
-**Recorded as an accepted cost, not scheduled as a defect** — the same class as the recessed steps
+~~**Recorded as an accepted cost, not scheduled as a defect** — the same class as the recessed steps
 above: a visible consequence of pinning, at a depth nothing ships at. It is written here because it
 was neither recorded nor detectable, and a customer meeting it at 700 without warning is exactly
-what these records exist to prevent.
+what these records exist to prevent.~~
+**The premise expired 2026-09-07 — see [ADR 0097](0097-adr-0058s-costs-were-accepted-at-a-depth-nothing-shipped-at-and-that-premise-has-expired.md).**
+700 mm is a shipping setting since wave 6K, and the person who first rendered a 700 mm kitchen was the
+owner, who reported this rather than recognising it. The measurement (15 mm → 45 mm) and the
+mechanism stand; the **acceptance** does not, and this paragraph may not be cited as one.
 
 **It does not change the 700 mm overrun.** Wall B's top band still reaches z 2900 against the
 reference's 2830, so `p24` is still the flagged body and the 70 mm is unchanged.
@@ -98,11 +102,16 @@ reference's 2830, so `p24` is still the flagged body and the 70 mm is unchanged.
 pantry below it line up within a millimetre; at 700 the pantry moves forward 100 mm and the top
 cabinet does not, so a face that currently reads as one plane becomes a 99 mm step.
 
-**Assessed as acceptable, and recorded rather than worked around.** Nothing overlaps, nothing becomes
+~~**Assessed as acceptable, and recorded rather than worked around.** Nothing overlaps, nothing becomes
 unmanufacturable, 600 remains a manufactured size, and a recessed top over a deeper column is already
 the shipped condition on two of the three. It is a visual change on one face at a depth nothing ships
 at today — not a defect. It is written down here so that whoever first renders a 700 mm kitchen
-recognises it as a decision rather than reporting it as a regression.
+recognises it as a decision rather than reporting it as a regression.~~
+**The premise expired 2026-09-07 — see [ADR 0097](0097-adr-0058s-costs-were-accepted-at-a-depth-nothing-shipped-at-and-that-premise-has-expired.md).**
+The technical facts above are unchanged and still true: nothing overlaps and nothing becomes
+unmanufacturable. What no longer holds is *"at a depth nothing ships at today"*, and with it the
+assessment that rested on it. ADR 0097 measures what un-pinning would cost and leaves the product
+choice with the owner; decisions 1–4 below are untouched.
 
 ## Decision
 
