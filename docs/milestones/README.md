@@ -61,6 +61,7 @@ Step 3 Verificare  →  Step 4 Contact  →  Step 5 Succes
 | [M5](M5-width.md) | Width as a neighbour boundary move, **and depth as a derived quantity** (rescoped 2026-08-27) | domain + adapter + panel |
 | [M5B](done/M5B-manual-ux-remediation.md) | Manual UX remediation — eleven findings from a hand session, and the column algebra they exposed — **DONE 2026-09-02** (archived) | domain + adapter + panel |
 | [M6](M6-price-and-global-settings.md) | Price bar, breakdown, whole-kitchen settings — 2D, 2E | **mobile-gated** |
+| [M6B](M6B-internationalization.md) | Internationalization — Romanian becomes a source locale instead of a hardcoded one; ten waves (planned 2026-09-06, ADR 0095); closes ADR 0001 decision 5 | app + domain |
 | [M7](M7-room-and-presets.md) | Step 1 and its six sub-states, resolving straight into the editor | **mobile-gated** |
 | [M8](M8-review-contact-success.md) | Screens 3, 4, 5 — review, contact, success and failure | **mobile-gated** |
 
@@ -84,6 +85,20 @@ span can hold (ADR 0046). Pricing against a model about to gain a field is work 
 
 The one thing it does **not** do is reopen the sequence's logic: §12's build order still stands, and
 M5B is a correction round on step 6 (resize) rather than a new step.
+
+## Why M6B sits between M6 and M7
+
+Added 2026-09-06 by owner ruling, and it is **not new scope**: [ADR 0001](../decisions/0001-initial-product-and-stack.md)
+decision 5 (*"Launch with Romanian as the default locale and Russian as a supported locale"*) was
+accepted on 2026-08-20 and has travelled through M1–M6 without a milestone owning it.
+
+**After M6**, because M6B's last waves reformat every money string and move catalogue labels out of
+the domain — both read surfaces M6's pricing waves are still writing.
+
+**Before M7**, because M7 adds `/configurator/room` and its six sub-states and M8 adds three more
+screens. That is two whole screens of copy. Authoring it as keys costs nothing; authoring it as
+hardcoded Romanian buys a later phase the job of hunting it down — which is what already happened
+once, and is why `apps/web/src/content/ro.ts` carries an M8 `contactPlaceholder` stub today.
 
 ## Why this sequence
 

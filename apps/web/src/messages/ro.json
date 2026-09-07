@@ -51,16 +51,16 @@
     "readOnlyReason": "Doar vizualizare",
     "accessCheckingNotice": "Se verifică dacă poți modifica această configurație. Până atunci o poți doar vedea.",
     "accessCheckingReason": "Se verifică accesul",
-    "accessUncheckableNotice": "Nu am reusit sa verific dacă poți modifica această configurație. Până când verificarea reușește o poți doar vizualiza — o modificare făcută acum nu s-ar salva.",
+    "accessUncheckableNotice": "Nu am reușit să verific dacă poți modifică această configurație. Până când verificarea reușește o poți doar vizualiza — o modificare făcută acum nu s-ar salva.",
     "accessUncheckableReason": "Acces neverificat",
     "accessRetryLabel": "Încearcă din nou",
-    "saveConflictNotice": "Această configurație a fost modificată în altă filă sau pe alt dispozitiv, așa că modificarea ta nu a fost salvată. Reîncarcă pentru a vedea versiunea salvată — se pierde ce ai schimbat aici — sau suprascrie cu ce vezi acum, iar cealaltă versiune se pierde.",
+    "saveConflictNotice": "Această configurație a fost modificată în altă filă sau pe alt dispozitiv, așa că modificarea ta nu a fost salvată. Reîncarcă pentru a vedea versiunea salvată — se pierde ce ai schimbat aici — sau înlocuiește cu ce vezi acum, iar cealaltă versiune se pierde.",
     "saveConflictReloadLabel": "Reîncarcă versiunea salvată",
-    "saveConflictOverwriteLabel": "Suprascrie cu ce vezi acum",
+    "saveConflictOverwriteLabel": "Înlocuiește cu ce vezi acum",
     "readOnlyRefusedNotice": "Modificarea nu a fost salvată: acest browser nu poate modifica această configurație. Ce vezi pe ecran nu este salvat și se pierde dacă închizi sau reîncarci pagina. Deschide configuratorul într-o filă nouă dacă vrei să faci modificări pe care le poți salva.",
-    "saveFailedNotice": "Modificarea este aplicată pe ecran și încercăm în continuare să o salvăm. Nu o reface și nu reîncărca pagina: o reîncărcare acum ar șterge versiunea care așteaptă să fie salvată.",
+    "saveFailedNotice": "Modificarea este aplicată pe ecran și încercăm în continuare să o salvăm. Nu o schimba și nu reîncărca pagina: o reîncărcare acum ar șterge versiunea care așteaptă să fie salvată.",
     "saveStoppedNotice": "Salvarea s-a oprit pentru această configurație și nu va reporni singură. Ce vezi pe ecran nu este salvat și se pierde dacă închizi sau reîncarci pagina. Deschide configuratorul într-o filă nouă și reia modificările acolo.",
-    "finishTitle": "Finisaj",
+    "finishTitle": "Finisaje",
     "finishApproximationNote": "Culoarea de pe ecran și cea din vizualizare sunt orientative — nuanța finală se alege pe mostra fizică.",
     "finishPickerLabel": "Alege culoarea",
     "handleTitle": "Mâner",
@@ -80,22 +80,22 @@
       "narrower": "Micșorează lățimea cu 50 mm",
       "wider": "Mărește lățimea cu 50 mm"
     },
-    "widthStepNote": "Lățimea se schimbă din 50 în 50 mm, mutând granița coloanei în spațiul liber alăturat — întâi în dreapta, apoi în stânga. Când un buton este gri, sub el scrie de ce.",
-    "widthChoiceNote": "Coloana asta se face doar în lățimile afișate, așa că alegi una dintre ele în loc să reglezi din 50 în 50 mm. Alegerea schimbă lățimea întregii coloane, nu doar a acestui dulap.",
+    "widthStepNote": "Lățimea se schimbă din 50 în 50 mm, mutând latura dulapului din contul spațiului liber alăturat — întâi spre dreapta, apoi spre stânga. Când un buton este gri, sub el scrie de ce.",
+    "widthChoiceNote": "Coloana e formată din lățimile afișate, așa că alegi una dintre ele în loc să reglezi din 50 în 50 mm. Alegerea schimbă lățimea întregii coloane, nu doar a acestui dulap.",
     "structuralTitle": "Dulap structural",
     "structuralReasons": {
-      "corner": "Colțul ține legătura dintre cei doi pereți, așa că nu poate fi înlocuit, șters sau redimensionat. Alege un dulap de lângă el."
+      "corner": "Dulapul din colț nu poate fi înlocuit, șters sau redimensionat. Alege un dulap de lângă el."
     }
   },
   "price": {
     "startingPrefix": "De la",
-    "startingPrefixUnchanged": "De la neschimbat",
-    "overflowingTotalWarning": "Prețul include și dulapuri ce depășesc mărimea peretelui și necesită ajustări"
+    "startingPrefixUnchanged": "De la",
+    "overflowingTotalWarning": "Prețul include și dulapurile ce depășesc mărimea peretelui și necesită ajustări"
   },
   "priceBreakdown": {
     "title": "De ce acest preț",
-    "disclaimer": "Preț de pornire, rotunjit în sus la mia de lei. Nu include transport, blat sau electrocasnice — suma finală se stabilește după măsurare.",
-    "note": "Toate sumele sunt prețuri de pornire, rotunjite în sus. Nu constituie ofertă comercială.",
+    "disclaimer": "Prețul afișat este estimativ. Nu include transport, blat sau electrocasnice — suma finală se stabilește după măsurare.",
+    "note": "Pretul afișat este estimativ. Nu reprezintă o ofertă comercială finală. Oferta comercială finală se stabilește doar după măsurarile exacte.",
     "close": "Închide",
     "placementLabel": "{bodyLabel} {widthMm, number, ::group-off}",
     "groupHeading": "Perete {wall} · {bandWord}",
@@ -114,7 +114,7 @@
   "globalSettings": {
     "open": "Setări globale",
     "title": "Setări pentru toată bucătăria",
-    "appliesTo": "Se aplică {bodyCount, plural, one {singurului dulap din bucătărie} few {tuturor celor # dulapuri} other {tuturor celor # de dulapuri}}. Nu se setează pe fiecare dulap în parte.",
+    "appliesTo": "Se aplică {bodyCount, plural, one {singurului dulap din bucătărie} few {tuturor celor # dulapuri} other {tuturor celor # dulapuri}}. Nu se setează petru fiecare dulap în parte.",
     "groupHeadings": {
       "material": "Material corp și fronturi",
       "hardware": "Feronerie"
@@ -127,13 +127,13 @@
     "materialWarning": "Schimbarea materialului recalculează întreaga estimare.",
     "depthHeading": "Adâncimea dulapurilor",
     "depthOption": "{cabinetDepthMm, number, ::group-off} mm",
-    "depthWarning": "Schimbarea adâncimii reconstruiește toate dulapurile și schimbă modelul.",
-    "depthNote": "Adâncimea nu schimbă estimarea — doar dimensiunile dulapurilor.",
+    "depthWarning": "Schimbarea adâncimii blatului reconstruiește toate dulapurile și schimbă prețul acestora.",
+    "depthNote": "Adâncimea blatului nu schimbă prețul bucătăriei — doar dimensiunile dulapurilor.",
     "apply": "Aplică",
     "cancel": "Renunță",
     "materialResetConfirm": {
-      "title": "Culorile alese se pierd",
-      "body": "Ai ales alte culori pentru {chosenCount, plural, one {# dulap} few {# dulapuri} other {# de dulapuri}}. Fiecare material are propriile culori, așa că toate revin la culoarea implicită a materialului nou.",
+      "title": "Culorile alese se vor pierde",
+      "body": "Ai ales alte culori pentru {chosenCount, plural, one {# dulap} few {# dulapuri} other {# dulapuri}}. Fiecare material are propriile culori disponibile, iar la modificarea lui e setată culoarea implicită a materialului nou.try",
       "confirm": "Schimbă materialul",
       "back": "Păstrează culorile"
     }

@@ -46,3 +46,8 @@ apps/web/next-env.d.ts
 
 # Playwright MCP session artifacts (console logs, page snapshots) — evidence, not source.
 .playwright-mcp/
+
+# Visual and review artefacts written by agent runs. The ten committed
+# testing-reports/*.md files predate this rule and stay tracked; a gitignore
+# entry never untracks what is already in the index.
+testing-reports/*/
