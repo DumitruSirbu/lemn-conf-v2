@@ -209,9 +209,8 @@ export function GlobalSettings() {
    *  confirmation owed this runs no command at all — not material, not hardware, not depth — and
    *  asks instead. A partial apply is not a state this product has.
    *
-   *  **A locked surface never reaches the commit** (M6-AUD-001). The button is disabled, so this is
-   *  the belt to that brace: §9's own actions are guarded the same way, because a control that
-   *  cannot be satisfied must not be reachable by any route. */
+   *  It carries the read-only guard because it is *a* door into the commit. It is not the only one —
+   *  see `applyPending`, which carries its own. */
   function requestApply(): void {
     if (editability.isReadOnly) return;
     if (view.materialResetConfirm === undefined) {
@@ -232,8 +231,18 @@ export function GlobalSettings() {
    * `applyWholeKitchenSettings` preflights the whole press and commits once or not at all; on a
    * refusal the sheet **stays open**, naming the setting that refused, with every other choice the
    * customer made still standing.
+   *
+   * **The guard is here and not only on `requestApply`** (M6-AUD-001, found by adversarial QA).
+   * There are two doors into this commit — the choosing step's *Aplică* goes through `requestApply`,
+   * the confirm step's *Schimbă materialul* calls this function directly — and guarding the caller
+   * guarded one of them. The state that walks through the other needs nothing unusual from the
+   * customer: the sheet opens writable, *Aplică* is pressed, a confirmation is owed, and while the
+   * question is on screen an earlier edit's save comes back `unauthorized`. That is the audit
+   * finding's own scenario, one step further in. A rule that has to be remembered at each call site
+   * is the rule this whole wave is about.
    */
   function applyPending(): void {
+    if (editability.isReadOnly) return;
     const outcome = applyWholeKitchenSettings({
       ...(pending.materialTierId === undefined
         ? {}
