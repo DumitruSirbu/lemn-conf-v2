@@ -97,9 +97,37 @@ const RENDER_SETTLE_MS = 400;
  * enough to catch the wash starts catching the highlight too. That is not a threshold to tune; it is
  * the wrong instrument. `pixels.ts` already says so for the void's blue fill, in the same words.
  *
- * `redTint` compares red against **both** other channels, because the kitchen's palette is warm and
- * oak is already red-over-blue. Red over green *and* blue by 50 is only the mark: measured **0** on
- * the seeded design in all three camera presets, and **7 875** once a body is marked.
+ * ## Why this one stays colour-keyed, and what it now has to declare
+ *
+ * Wave 6V replaced the selection counters with a difference between two captures of the same
+ * rectangle in two states of the app (ADR 0091 decision 6). **The mark is not such a state.** It
+ * follows from `room.widthMm`, which no control in M6 can change, so the only "before" available is
+ * a second document — and the two documents do not render into the same rectangle. Measured at
+ * 1440 x 900 on 2026-09-07: ADR 0065's flagged total grows the price row, the canvas box moves from
+ * `y 100, h 800` to `y 114.19, h 785.81`, and the scene re-projects into it. Differencing the two
+ * gives 215 088 changed pixels at this spec's floor of 8, and 378 281 at a floor of 0, out of the
+ * 1 071 360 in that rectangle — between 19 % and 43 % of every rectangle moves, so the count is a
+ * measurement of the layout rather than of the wash. **The two figures are quoted at 1440 x 900
+ * while this spec runs at 390 x 844**: they establish that differencing is unavailable in
+ * principle, which is a fact about the two documents rather than about a viewport, and the same
+ * box shift happens at 390.
+ * So this counter keeps naming a colour, and under work item 3 it states the fixture property that
+ * makes it sound instead of assuming it. Two properties, both asserted below rather than argued:
+ *
+ * - **No body on either document wears a finish.** `expectNoPlacementWearsAFinish` reads them off
+ *   the document this spec stores, which is the seeded design with one number changed. Red over
+ *   green *and* blue by 50 is only the mark **on that fixture**: measured 0 on the seeded design in
+ *   all three camera presets, and 7 875 once a body is marked. It is not a fact about the palette —
+ *   a kitchen painted `#ff2d2d` reports 16 416 such pixels with no mark anywhere on it, and
+ *   `pixel-counter-witness.desktop.e2e.spec.ts` records that count.
+ * - **Nothing is selected when the count is taken.** `SELECTION_HIGHLIGHT_COLOR` is 210 over both
+ *   other channels, so a selection outline is itself counted as a mark — 6 454 pixels of one, on a
+ *   body the document says is not marked. The witness spec measures that too. This gate has always
+ *   counted with nothing selected; it now says so as an assertion.
+ *
+ * ADR 0091 decision 4b's wood breach is a fact about the **model** colours and is not reached here:
+ * a walnut kitchen measures 0, 0 and 3 red-excess pixels across the canvas in the three presets, so
+ * the threshold below is not being carried by luck about a wood.
  */
 const MARK_MIN_RED_EXCESS = 50;
 const MARK = { kind: "redTint", minExcess: MARK_MIN_RED_EXCESS } as const;
@@ -176,7 +204,7 @@ async function storeANarrowedRoom(
             id: string;
             wall: string;
             alongMm: number;
-            body: { widthMm: number };
+            body: { widthMm: number; finish?: unknown };
           }[];
         };
       };
@@ -193,6 +221,10 @@ async function storeANarrowedRoom(
               : narrowed.room.depthMm),
         )
         .map((placement) => placement.id);
+      // The red counter's premise, carried out of the page beside the ids it is measured against.
+      const wearingAFinish = narrowed.placements
+        .filter((placement) => placement.body.finish !== undefined)
+        .map((placement) => placement.id);
 
       const saved = await fetch(`/api/designs/${target.id}`, {
         method: "PUT",
@@ -203,7 +235,12 @@ async function storeANarrowedRoom(
         },
         body: JSON.stringify(narrowed),
       });
-      return { status: saved.status, overflowing };
+      return {
+        status: saved.status,
+        overflowing,
+        wearingAFinish,
+        placements: narrowed.placements.length,
+      };
     },
     { ...stored, widthMm: NARROWED_ROOM_WIDTH_MM },
   );
@@ -212,7 +249,21 @@ async function storeANarrowedRoom(
   // demotion has regressed and nothing below would mean anything.
   expect(result.status).toBe(200);
   expect([...result.overflowing].sort()).toEqual(MARKED_PLACEMENT_IDS);
+
+  // **The red counter's fixture property**, asserted on the document about to be photographed and
+  // on the seeded design it was built from, which is also the control. A design with no bodies
+  // would satisfy "every placement" vacuously, so the count is asserted first.
+  expect(result.placements).toBeGreaterThan(0);
+  expect(result.wearingAFinish).toEqual([]);
   return result.overflowing;
+}
+
+/** The counter's other premise: an outline is red over both other channels by 210, so a selection
+ *  on screen would be counted as a wash. Both counting states below are freshly opened documents
+ *  with no selection, and this is where that stops being an assumption. */
+async function expectNothingIsSelected(page: Page): Promise<void> {
+  await expect(page.getByTestId("editor-panel")).toHaveCount(0);
+  expect((await readSelection(page)).selectionId).toBe("");
 }
 
 /** Opens a stored design and waits until the scene is really mounted — `probe` is the store's own
@@ -294,6 +345,7 @@ test("a stored overflowing design is marked in the scene and warned about, and a
 
   const band = await boxOf(page, "scene-overflow-warning");
   const clip = sceneClip(await canvasBox(page), band.height);
+  await expectNothingIsSelected(page);
   const markedPixels = await countPixels(page, clip, MARK);
   const highlightPixels = await countPixels(page, clip, SELECTION);
 
@@ -302,11 +354,14 @@ test("a stored overflowing design is marked in the scene and warned about, and a
   await page.waitForSelector("canvas", { state: "attached" });
   await page.waitForTimeout(SCENE_SETTLE_MS);
   await expect(page.getByTestId("scene-overflow-warning")).toHaveCount(0);
+  await expectNothingIsSelected(page);
   const fittingPixels = await countPixels(page, clip, MARK);
 
   // The wash reaches the screen: through ACES tone mapping, over the kitchen's own finishes, at the
-  // opacity the builder set. A differential rather than an absolute floor — the two documents are
-  // the same scene, so the difference is the mark and nothing else.
+  // opacity the builder set. A differential of two *counts* rather than an absolute floor — the two
+  // documents are the same scene, so what the count gains is the mark. It is not a difference of
+  // two captures: the header above the canvas is taller on the flagged document, so the two frames
+  // do not share a rectangle (see `MARK` above for the measurement).
   expect(fittingPixels).toBeLessThanOrEqual(MAX_ABSENT_PIXELS);
   expect(markedPixels).toBeGreaterThan(fittingPixels + MIN_MARK_PIXELS);
 
