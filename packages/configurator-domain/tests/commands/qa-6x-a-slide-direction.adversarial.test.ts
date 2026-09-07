@@ -240,8 +240,10 @@ const THE_WHOLE_MEMBER_LESS_COLUMN = "v1";
 
 /** The wave's own declared columns, restated here rather than imported: the file under test exports
  *  nothing, and a copy that drifts from it fails the legality assertions below rather than passing
- *  them for the wrong document. Their coordinates are checked against the wave's published
- *  `emptyColumns` in `witnesses the same document the wave does` below. */
+ *  them for the wrong document. **The two copies are not cross-checked against each other** — an
+ *  earlier draft of this comment named a test that does not exist. What holds them together is that
+ *  both pin the same `emptyColumns` literal, and the legality assertions below would fail on a
+ *  drifted copy rather than pass for the wrong document. */
 const DECLARED_DEEPENING_COLUMNS: readonly DesignPlacement[] = [
   {
     id: THE_SURVIVING_BASE,

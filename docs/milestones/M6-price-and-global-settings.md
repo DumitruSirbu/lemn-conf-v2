@@ -7080,8 +7080,14 @@ own operand read, records the red set for each, and restores both.
 - **The 100 mm the swap displaces is named with both numbers**: the coordinate the correct direction
   produces and the one the swap produces, so a rung that moves the right distance the wrong way is
   told apart from one that does not move.
-- **Every new assertion goes red under the swap at the call site**, and QA records which and with what
-  values. **A wave whose tests stay green under that swap has not discharged its goal.**
+- ~~**Every new assertion goes red under the swap at the call site**, and QA records which and with
+  what values.~~ **Struck 2026-09-07, and it is the same sentence ADR 0093 Amendment A §3 had just
+  declared structurally false for 6X** — re-inscribed here two lines below a work item that
+  contradicts it. It cannot be met: the part-1 literals build both operands in the test, so no
+  call-site mutation can reach them, exactly as with 6X's item 2. **The criterion is the two-mutation
+  form**: the call-site swap witnesses the assertions routed through the command, the export's own
+  operand read witnesses the literals, and **QA records both red sets with their values**. A wave
+  whose tests stay green under *both* has not discharged its goal.
 - **Occupied extents are asserted unchanged under the swap**, because they move by `membersShiftMm`
   and are indifferent to it. A wave that made an occupied extent move under the swap has found
   something else and reports it.

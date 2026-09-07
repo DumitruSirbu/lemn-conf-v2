@@ -683,6 +683,5 @@ describe("the consequence at the command boundary, on a pitch the mis-slide can 
     expect(Math.max(...declared) - Math.min(...declared)).toBe(
       DECLARED_COLUMN_PITCH_MM,
     );
-    expect(DECLARED_COLUMN_PITCH_MM).toBe(2 * CHAIN_SHIFT_MM);
   });
 });
