@@ -47,7 +47,12 @@ apps/web/next-env.d.ts
 # Playwright MCP session artifacts (console logs, page snapshots) — evidence, not source.
 .playwright-mcp/
 
-# Visual and review artefacts written by agent runs. The ten committed
-# testing-reports/*.md files predate this rule and stay tracked; a gitignore
-# entry never untracks what is already in the index.
-testing-reports/*/
+# Review and visual artefacts written by agent runs — evidence, not source. The
+# whole directory is untracked as of 2026-09-07, including the ten adversarial
+# reports committed in August; screenshots alone reached 17 MB in one pass.
+#
+# They are still cited by name from about twenty accepted ADRs and from
+# `docs/milestones/adversarial-review-remediation.md`. Those citations now point
+# at git history rather than at a checked-out file: `git log --all -- <path>`
+# finds the commit, `git show <commit>:<path>` prints it.
+testing-reports/
