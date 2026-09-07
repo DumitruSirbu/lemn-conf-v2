@@ -128,8 +128,13 @@ const ARRIVING_WALL_B: readonly (CarriedExtentMm & {
     y0Mm: 0,
     topMm: 2600,
     widthMm: 600,
-    depthMm: 699,
-    depthFromBuildId: "tall-pantry-600",
+    // **700 from the top rather than 699 from the pantry, since ADR 0101.** The two are a
+    // millimetre apart and the §3.2 MAX takes the deeper, so unpinning the top moved this column's
+    // source as well as its number. The same pair at 600 already reads `wall-2door-600-deep-top` at
+    // 600 against the pantry's 599 — see `LEAVING_WALL_B` — which is the relationship being
+    // restored, not a new one.
+    depthMm: 700,
+    depthFromBuildId: "wall-2door-600-deep-top",
     regionsMm: [[0, 2600]],
   },
   {
@@ -540,7 +545,7 @@ const DECLARED_WALL_B_COLUMN: readonly DesignPlacement[] = [
 
 const THE_SURVIVING_BASE = "d1";
 const THE_DELETED_MEMBER = "d2";
-/** The oven tower and the pinned deep top that stood in `B|1.20` on the shipped kitchen. */
+/** The oven tower and the deep top that stood in `B|1.20` on the shipped kitchen. */
 const THE_SEEDED_OVEN_TOWER: readonly string[] = ["p5", "p22"];
 
 function withADeclaredWallBColumn(): Design {
@@ -666,7 +671,17 @@ describe("the consequence, on a wall-B column this file declares", () => {
 /** Every wall-B member of the shipped kitchen, at both declared settings. */
 const WALL_B_MEMBER_COUNT = 9;
 
-/** Why this member cannot be the survivor item 3 needs, or `undefined` if it could be. */
+/** Why this member cannot be the survivor item 3 needs, or `undefined` if it could be.
+ *
+ *  **The `heightFlex` arm is ADR 0101's**, and it replaces an exclusion that was accidental. Until
+ *  2026-09-07 the three deep tops were ADR 0058 pins, so they left through the `follows` arm and the
+ *  question of what their rebuild would need was never put. Unpinned, they reach the height
+ *  comparison — and `wall-cabinet` is `heightFlex`, so §5.2 builds it to the opening it is handed
+ *  and it can never require more height than the column offers. Its 700 mm nominal against their
+ *  recorded 400 and 750 is not a shortfall; it is a number the fit never reads.
+ *
+ *  So the finding stands and rests on something better: wall B could not witness item 3 because of
+ *  what its members *are*, not because two of them happened to be held at one depth. */
 function whyItCannotWitness(
   record: PlacementRecord,
   cabinetDepthMm: number,
@@ -677,12 +692,13 @@ function whyItCannotWitness(
     rule: record.depthRule,
   });
   if (rule.follows !== "cabinet-depth") return rule.follows;
-  const rebuildHeightMm = resolveRebuildBody(
+  const body = resolveRebuildBody(
     buildKitchenLBodyCatalog(cabinetDepthMm),
     record,
-  )?.nominalHeightMm;
-  if (rebuildHeightMm === undefined) return "no catalogue equivalent";
-  return rebuildHeightMm === record.heightMm
+  );
+  if (!body) return "no catalogue equivalent";
+  if (body.heightFlex) return "builds to the opening it is given";
+  return body.nominalHeightMm === record.heightMm
     ? "rebuilds to the height it records"
     : undefined;
 }
@@ -729,9 +745,11 @@ describe("why no wall-B column of the shipped kitchen can be that design", () =>
     expect(
       [...reasons].sort(([left], [right]) => left.localeCompare(right)),
     ).toStrictEqual([
+      // `p22`, `p23` and `p24` — the three deep tops, whose `wall-cabinet` equivalent is
+      // `heightFlex`. They counted as `pinned` until ADR 0101; see `whyItCannotWitness`.
+      ["builds to the opening it is given", 3],
       ["manufactured-size", 1],
       ["not deletable", 3],
-      ["pinned", 3],
       ["rebuilds to the height it records", 2],
     ]);
   });

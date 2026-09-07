@@ -272,12 +272,6 @@ export const DEFAULT_CABINET_DEPTH_MM = 600;
  *  that one is, and held to the domain's map by the same gate. */
 export const DEFAULT_WALL_DEPTH_MM = 330;
 
-/** ADR 0058: the declared depth the three deliberately deep top cabinets are **pinned** at, in
- *  metres. It is the 600 mm cabinet-depth line itself and not an arbitrary deep number, which is
- *  why it does not move when the setting does. Named so the reference room's three placements say
- *  *pinned* rather than repeating a 0.6 that reads like a literal somebody forgot. */
-export const PINNED_DEEP_TOP_DEPTH_M = 0.6;
-
 /** ADR 0036 decision 1: a declared dimension is the **finished** cabinet, so a base carcass is the
  *  declared depth less what the builder stands in front of it. Measured on the shipped reference,
  *  600 declared against `CARC_D` 0.56.
@@ -2266,31 +2260,34 @@ export function makeKit(options: KitOptions = {}): Kit {
       Math.PI / 2,
       yT,
     );
-    // **The three deliberately deep tops, and their 0.6 is a pin rather than a stale literal**
-    // (ADR 0058, owner 2026-09-02). They are deep because the *columns* under them are — §5.2's
-    // head-clearance cap is lifted over a full-height member — and the owner ruled they stay at the
-    // 600 mm cabinet-depth line rather than following the setting or following their column. So
-    // these do **not** read `wallDepthM`, and that is the decision and not an oversight: the domain
-    // says the same thing as a declaration on `wall-2door-600-deep-top` and
-    // `wall-2door-700-over-fridge` (`PINNED_DEEP_TOP_FINISHED_DEPTH_MM`), and the two are swept
-    // together at both declared depths by `occupied-depth.parity.test.ts`.
+    // **The three deep tops, and they read `cabinetDepthM` rather than `wallDepthM` on purpose**
+    // (ADR 0101). They are deep because the *columns* under them are: §5.2's head-clearance cap is
+    // lifted over a full-height member, so the depth these are built to is the **cabinet-depth
+    // line** — 600 at a 600 mm kitchen and 700 at a 700 mm one — and not the map's 330/400. The
+    // domain says the same thing on `wall-2door-600-deep-top` and `wall-2door-700-over-fridge`
+    // (`liftedTopSeatDepthMm`), and the two are swept together at both declared depths by
+    // `occupied-depth.parity.test.ts`.
+    //
+    // They were a literal 0.6 at every setting until 2026-09-07, under ADR 0058's pin. At 600 this
+    // builds the same body it always did; ADR 0101 decision 4 holds the whole reference room to
+    // that identity.
     place(
-      pushOpen(wallCabinet(0.6, 2, hT, PINNED_DEEP_TOP_DEPTH_M)),
-      wallSeatOffset(PINNED_DEEP_TOP_DEPTH_M),
+      pushOpen(wallCabinet(0.6, 2, hT, cabinetDepthM)),
+      wallSeatOffset(cabinetDepthM),
       ovenTowerAlongWallM,
       Math.PI / 2,
       yT,
     );
     place(
-      pushOpen(wallCabinet(0.6, 2, hT, PINNED_DEEP_TOP_DEPTH_M)),
-      wallSeatOffset(PINNED_DEEP_TOP_DEPTH_M),
+      pushOpen(wallCabinet(0.6, 2, hT, cabinetDepthM)),
+      wallSeatOffset(cabinetDepthM),
       pantryAlongWallM,
       Math.PI / 2,
       yT,
     );
     place(
-      wallCabinet(0.7, 2, 0.75, PINNED_DEEP_TOP_DEPTH_M),
-      wallSeatOffset(PINNED_DEEP_TOP_DEPTH_M),
+      wallCabinet(0.7, 2, 0.75, cabinetDepthM),
+      wallSeatOffset(cabinetDepthM),
       fridgeAlongWallM,
       Math.PI / 2,
       1.85,

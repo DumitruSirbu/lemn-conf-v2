@@ -23,7 +23,9 @@ import {
   buildKitchenLBodyCatalog,
   KITCHEN_L_DESIGN,
 } from "../../src/fixtures/kitchen-l-design.js";
+import { pinnedAtFinishedDepthMm } from "../../src/cabinet-depth-rule.js";
 import { occupiedDepthOfEntryM } from "../../src/occupied-depth.js";
+import { WALL_FRONT_ASSEMBLY_MM } from "../../src/worktop-depth.js";
 import { toMetres } from "../../src/millimetres.js";
 import {
   deriveColumnKeyAt,
@@ -33,6 +35,8 @@ import {
   derivePlacementRecords,
   projectFrozenMap,
   withFrozenMap,
+  type BodyCatalog,
+  type BodyDefinition,
   type Column,
   type PlacementRecord,
 } from "../../src/void-engine.js";
@@ -62,12 +66,26 @@ const FROZEN_TOP_MM = 2600;
 const WALL_MAP_KEYS: readonly string[] = ["A|0.30", "A|0.75"];
 const WALL_MAP_PLACEMENT_IDS: readonly string[] = ["p8", "p10", "p15", "p16"];
 
-/** ADR 0058's two pinned rows: a declared `finishesAtMm`, so no setting moves them. */
-const PINNED_BUILD_IDS: readonly string[] = [
-  "wall-2door-600-deep-top",
-  "wall-2door-700-over-fridge",
-];
-const PINNED_FINISH_MM = 600;
+/** **This suite's own pinned body, because the shipped kitchen no longer holds one** (ADR 0101
+ *  decision 3, applying ADR 0093 decision 2: *"the fixture that makes a rule falsifiable is declared
+ *  by the test that asserts it"*).
+ *
+ *  Until 2026-09-07 the witness was ADR 0058's two pinned deep tops. ADR 0101 unpinned them so the
+ *  owner's three top cabinets follow the setting, and holding one of them back to feed this file
+ *  would be exactly the "moved fixture" ADR 0093 refuses — the product's geometry as a function of
+ *  its test coverage, with one of the owner's cabinets left wrong.
+ *
+ *  **Pinned deeper than anything the shipped kitchen builds at either setting** — 800 against the
+ *  fridge's 742 and a 700 mm kitchen's 738 mm oven tower — so it wins its column's §3.2 MAX at
+ *  *both* settings and the deep arm is a measurement rather than the zero the old assertion had to
+ *  record. */
+const WITNESS_PINNED_BUILD_ID = "pinned-deep-top-witness";
+const WITNESS_PINNED_FINISH_MM = 800;
+/** The placement the witness stands in for: `p22`, over `tall-oven-tower-600` at `B|1.20`. */
+const WITNESS_PLACEMENT_ID = "p22";
+/** The shipped row the witness is a copy of, so it differs from a real deep top in its declaration
+ *  and its depth alone. */
+const DEEP_TOP_BUILD_ID = "wall-2door-600-deep-top";
 
 /** ADR 0088's own reproduction: `A|2.00` still holds the dishwasher niche, and its recorded top is
  *  the fact no surviving placement implies. */
@@ -171,6 +189,68 @@ function recordedMapOf(
 function depthMm(column: Column | undefined): number {
   if (!column) throw new Error("no such column");
   return Math.round(column.d * 1000);
+}
+
+/** The shipped catalogue plus this suite's declared pinned row (ADR 0093 decision 2).
+ *
+ *  A copy of the deep top it stands in for, so it differs in exactly the two facts under test: it
+ *  declares a **pin** instead of following the setting, and its seat is a literal rather than a
+ *  function of `cabinetDepthMm`. It carries no `builtDepthFollowsALiftedColumn` — a pin and a lifted
+ *  column are two different answers to "what decides this row's depth", and a row claiming both
+ *  would be asserting nothing coherent. */
+function catalogWithThePinnedWitness(cabinetDepthMm: number): BodyCatalog {
+  const catalog = buildKitchenLBodyCatalog(cabinetDepthMm);
+  const deepTop = catalog.get(DEEP_TOP_BUILD_ID);
+  if (!deepTop) throw new Error("the catalogue lost its deep top row");
+  const witness: BodyDefinition = {
+    ...deepTop,
+    frameDepthMm: WITNESS_PINNED_FINISH_MM - WALL_FRONT_ASSEMBLY_MM,
+    depthRule: pinnedAtFinishedDepthMm(
+      WITNESS_PINNED_FINISH_MM,
+      "base-formula",
+    ),
+    builtDepthFollowsALiftedColumn: false,
+  };
+  return new Map([...catalog, [WITNESS_PINNED_BUILD_ID, witness]]);
+}
+
+/** The shipped kitchen with the witness standing where `p22` does — over `tall-oven-tower-600` at
+ *  `B|1.20`, the column ADR 0058's own measurement used. */
+function withThePinnedWitness(): Design {
+  return {
+    ...KITCHEN_L_DESIGN,
+    placements: KITCHEN_L_DESIGN.placements.map((placement) =>
+      placement.id === WITNESS_PLACEMENT_ID
+        ? {
+            ...placement,
+            body: { ...placement.body, buildId: WITNESS_PINNED_BUILD_ID },
+          }
+        : placement,
+    ),
+  };
+}
+
+/** `recordsAt` and `recordedMapOf` over the witness catalogue. Two lines rather than a catalogue
+ *  argument threaded through every caller above: the witness is this block's fixture and nothing
+ *  else in the file plans against it. */
+function witnessRecordsAt(
+  design: Design,
+  cabinetDepthMm: number,
+): readonly PlacementRecord[] {
+  return derivePlacementRecords(
+    { ...design, settings: { ...design.settings, cabinetDepthMm } },
+    catalogWithThePinnedWitness(cabinetDepthMm),
+  );
+}
+
+function witnessRecordedMapOf(
+  design: Design,
+  cabinetDepthMm: number,
+): ReadonlyMap<string, Column> {
+  return deriveRecordedColumns(witnessRecordsAt(design, cabinetDepthMm), {
+    emptyColumns: design.emptyColumns,
+    columnExtents: design.columnExtents,
+  });
 }
 
 describe("the reproduction ADR 0088 measured", () => {
@@ -341,54 +421,81 @@ describe("the axis split, asserted directly rather than through its symptom", ()
     ).toStrictEqual(deriveColumns(records, {}, KITCHEN_L_DESIGN.room));
   });
 
-  // **How far a pinned row is reachable through this map, measured per setting rather than summed.**
-  // A pinned row appears in the planning map only where it wins its column's §3.2 MAX, and on the
-  // shipped fixture that is true at 600 and false at 700 — the 699 mm pantry beside
-  // `wall-2door-600-deep-top` overtakes its fixed 600 at the deeper setting. Summing the two settings
-  // let the 700 arm contribute nothing with nothing saying so, so both counts are pinned as the
-  // measured fact and the deep arm's zero is an assertion rather than a gap.
+  // **A pinned row's depth survives the planning map at every setting** — the axis split asserted on
+  // the one kind of row that must not move at all.
   //
-  // `wall-2door-700-over-fridge` never wins a MAX at either setting, so it is not reachable through
-  // this map at all. It is **not** reached for here: the `occupiedDepthOfEntryM` assertion below
-  // covers both rows off their own declarations, and that holds independently of this wave.
-  it("keeps a pinned row at 600 wherever the new map reaches one", () => {
-    const design = withTheNicheColumnPartlyCleared();
-    const pinnedSourceCountBySetting = new Map<number, number>();
+  // The witness is **declared here** rather than borrowed from the seeded kitchen (ADR 0101
+  // decision 3), and it is pinned deep enough to win its column's §3.2 MAX at both settings, so the
+  // count below is a measurement at 600 *and* at 700. The version this replaces could only record a
+  // zero at 700: the shipped pins finished at 600, and the 699 mm pantry beside one of them overtook
+  // it at the deeper setting.
+  it("publishes a pinned row at its declared depth at every setting", () => {
+    const design = withThePinnedWitness();
+    const reachedBySetting = new Map<number, number>();
 
     for (const cabinetDepthMm of DECLARED_MM) {
-      const catalog = buildKitchenLBodyCatalog(cabinetDepthMm);
-      for (const buildId of PINNED_BUILD_IDS) {
-        const definition = catalog.get(buildId);
-        if (!definition) throw new Error(`${buildId} left the catalogue`);
-        expect(
-          Math.round(occupiedDepthOfEntryM({ buildId, definition }) * 1000),
-          `${buildId} at ${String(cabinetDepthMm)}`,
-        ).toBe(PINNED_FINISH_MM);
-      }
+      const definition = catalogWithThePinnedWitness(cabinetDepthMm).get(
+        WITNESS_PINNED_BUILD_ID,
+      );
+      if (!definition) throw new Error("the witness left its catalogue");
+      expect(
+        Math.round(
+          occupiedDepthOfEntryM({
+            buildId: WITNESS_PINNED_BUILD_ID,
+            definition,
+          }) * 1000,
+        ),
+        `the entry at ${String(cabinetDepthMm)}`,
+      ).toBe(WITNESS_PINNED_FINISH_MM);
 
       const planned = deriveColumnsOverFrozenExtents(
-        recordsAt(design, cabinetDepthMm),
-        recordedMapOf(design, cabinetDepthMm),
+        witnessRecordsAt(design, cabinetDepthMm),
+        witnessRecordedMapOf(design, cabinetDepthMm),
         design.room,
       );
       let reached = 0;
       for (const column of planned.values()) {
-        if (!PINNED_BUILD_IDS.includes(column.depthFromBuildId ?? "")) continue;
+        if (column.depthFromBuildId !== WITNESS_PINNED_BUILD_ID) continue;
         reached += 1;
         expect(
           depthMm(column),
           `${column.key} at ${String(cabinetDepthMm)}`,
-        ).toBe(PINNED_FINISH_MM);
+        ).toBe(WITNESS_PINNED_FINISH_MM);
       }
-      pinnedSourceCountBySetting.set(cabinetDepthMm, reached);
+      reachedBySetting.set(cabinetDepthMm, reached);
     }
 
-    // Non-vacuity at the shallow setting, and the deep setting's zero pinned as what it is.
-    expect(pinnedSourceCountBySetting.get(SHALLOW_MM)).toBeGreaterThanOrEqual(
-      1,
-    );
-    expect(pinnedSourceCountBySetting.get(DEEP_MM)).toBe(0);
+    // Non-vacuity at both settings: a map that stopped reaching the pinned row would otherwise pass
+    // this test by finding nothing to check.
+    for (const cabinetDepthMm of DECLARED_MM) {
+      expect(
+        reachedBySetting.get(cabinetDepthMm),
+        `columns sourced from the witness at ${String(cabinetDepthMm)}`,
+      ).toBe(1);
+    }
   });
+
+  // **The other side of the same map, and the reason the witness above had to be declared**
+  // (ADR 0101): the three deep tops are ordinary cabinetry now, so the planning map moves them with
+  // the setting. `B|1.20`'s published depth is its oven tower's at both settings — 638 and 738 — and
+  // its top cabinet is 38 mm inside that at both, which is the relationship the owner reported lost.
+  it.each(DECLARED_MM)(
+    "moves a deep top with the setting through the same map, at %i mm",
+    (cabinetDepthMm) => {
+      const catalog = buildKitchenLBodyCatalog(cabinetDepthMm);
+      const deepTop = catalog.get(DEEP_TOP_BUILD_ID);
+      if (!deepTop) throw new Error("the catalogue lost its deep top row");
+
+      expect(
+        Math.round(
+          occupiedDepthOfEntryM({
+            buildId: DEEP_TOP_BUILD_ID,
+            definition: deepTop,
+          }) * 1000,
+        ),
+      ).toBe(cabinetDepthMm);
+    },
+  );
 
   // **ADR 0052's ceiling and ADR 0069's wall-end bound are asserted in
   // `qa-6k-i-planning-map.adversarial.test.ts`, not here.** A test on this fixture would run its

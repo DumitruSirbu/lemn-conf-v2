@@ -375,8 +375,11 @@ describe("wave 6I: an entry that neither tracks the setting nor declares an exce
     }).toThrow(UndeclaredCabinetDepthRuleError);
   });
 
-  // The §7 catalogue has no pinned row — the pin lives on two seeded ones — so the arm is exercised
-  // directly here as well as over the whole catalogue in the block below.
+  // **No shipped row declares a pin since ADR 0101**, which unpinned the three deep tops, so this
+  // suite declares its own — ADR 0093 decision 2's pattern, and ADR 0101 decision 3's instruction
+  // that the arm keeps its rule while losing its population. Delete the `pinned` case from
+  // `depthFollowsSetting` or from `cabinetDepthRuleOf` and this goes red; nothing in the seeded
+  // kitchen would.
   it("reads a pin as an exception rather than as a body that happens not to move", () => {
     const pinned = pinnedAtFinishedDepthMm(600, "base-formula");
 
@@ -493,13 +496,18 @@ describe("the hood's finished line follows the setting and its body does not", (
   });
 });
 
-describe("ADR 0058: the two deep top cabinets are pinned, over the whole catalogue", () => {
-  // **Decision 3's falsifiable form, verbatim:** build the catalogue at 600 and at 700; these two
-  // entries' finished depth is identical (600) at both, while every other cabinetry entry's has
-  // moved. Both populations are in it, which is what wave 6I had to make possible — until it, the
-  // seeded map was a module constant with no depth to be built at, so the two rows the decision is
-  // about could not be asked the question.
-  const PINNED_BUILD_IDS = [
+describe("ADR 0101: the deep top cabinets follow the setting, over the whole catalogue", () => {
+  // **This block was ADR 0058 decision 3's falsifiable form until 2026-09-07** — build the catalogue
+  // at 600 and at 700, and these two entries' finished depth is identical (600) at both. ADR 0101
+  // withdrew the pin: the three placements these two rows carry were the only ones of twenty-five
+  // that did not follow the setting, and the owner reported them as wrong at 700.
+  //
+  // What replaces it is the same shape aimed at the new rule. Their depth is answered by
+  // `columnBuildDepthMm`'s **lifted arm** — they hang over full-height columns — so it is the
+  // cabinet-depth line at every setting, 600 at 600 and 700 at 700. Decision 3's other half is
+  // unchanged and is what makes this non-vacuous: a row that declares an exception still must not
+  // move, and `fridge-free-700` is the row that carries that now.
+  const DEEP_TOP_BUILD_IDS = [
     "wall-2door-600-deep-top",
     "wall-2door-700-over-fridge",
   ];
@@ -513,37 +521,47 @@ describe("ADR 0058: the two deep top cabinets are pinned, over the whole catalog
 
   /** How far this body's finished front stands from the wall plane. A `wall-plane` rule states it
    *  outright; a `recorded-shell` rule states only what stands in front of the seat, so the seat has
-   *  to be added back. Both arms are needed: the two pinned rows are fronted top carcasses and most
-   *  of the catalogue is not. */
+   *  to be added back. Both arms are needed: the two deep top rows are fronted top carcasses and
+   *  most of the catalogue is not. */
   function finishedDepthMm(definition: BodyDefinition): number {
     return definition.occupiedDepth.measuredFrom === "wall-plane"
       ? definition.occupiedDepth.finishedDepthMm
       : definition.frameDepthMm + definition.occupiedDepth.frontAssemblyMm;
   }
 
-  it.each(PINNED_BUILD_IDS)(
-    "%s finishes at 600 at both declared depths",
+  it.each(DEEP_TOP_BUILD_IDS)(
+    "%s finishes at the cabinet-depth line at both declared depths",
     (buildId) => {
       for (const cabinetDepthMm of DECLARED_DEPTHS_MM) {
-        expect(finishedDepthMm(entryOf(cabinetDepthMm, buildId))).toBe(600);
+        // Deliberately compared against `columnBuildDepthMm`'s lifted arm and not against a literal
+        // 600/700 pair: it is the authority a rebuild of these rows reads, and a third declared
+        // depth must not need this line edited (ADR 0101's closing consequence).
+        expect(finishedDepthMm(entryOf(cabinetDepthMm, buildId))).toBe(
+          columnBuildDepthMm({ cabinetDepthMm, hasFullHeightUnder: true }),
+        );
       }
     },
   );
 
-  it("declares the pin rather than holding still by arithmetic", () => {
-    for (const buildId of PINNED_BUILD_IDS) {
-      expect(entryOf(700, buildId).depthRule).toEqual({
-        follows: "pinned",
-        pinnedFinishedDepthMm: 600,
+  it("declares that a lifted column answers its depth, rather than being deep by arithmetic", () => {
+    for (const buildId of DEEP_TOP_BUILD_IDS) {
+      const entry = entryOf(700, buildId);
+
+      expect(entry.depthRule).toEqual({
+        follows: "cabinet-depth",
         alongWallPositionFollows: "base-formula",
       });
+      // ADR 0101 decision 1: the equivalence gate reads this off the entry, never off its name or
+      // its number. A row that is deep and forgets to declare it disagrees with its catalogue
+      // equivalent and is caught there instead.
+      expect(entry.builtDepthFollowsALiftedColumn).toBe(true);
     }
   });
 
-  // The other half of decision 3, and the half that makes the first non-vacuous: everything that is
-  // not pinned and not a machine **has** moved. Without it the pin would be satisfied just as well
-  // by a catalogue in which nothing moved at all — which is the state wave 6I found the seeded map
-  // in, and the reason the decision insists the pin be a declaration.
+  // The other half of ADR 0058 decision 3, and the half that makes the first non-vacuous:
+  // everything that is not a machine **has** moved. Without it the exception would be satisfied
+  // just as well by a catalogue in which nothing moved at all — which is the state wave 6I found
+  // the seeded map in, and the reason the decision insists the exception be a declaration.
   it("has moved every other cabinetry entry, in both populations", () => {
     const rows = [...buildKitchenLBodyCatalog(600).keys()].map((buildId) => {
       const rule = cabinetDepthRuleOf({
@@ -561,8 +579,6 @@ describe("ADR 0058: the two deep top cabinets are pinned, over the whole catalog
     expect(rows.filter((row) => row.moved).length).toBeGreaterThan(20);
     expect(rows.filter((row) => !row.moved).map((row) => row.buildId)).toEqual([
       "fridge-free-700",
-      "wall-2door-600-deep-top",
-      "wall-2door-700-over-fridge",
       "fridge-free",
     ]);
     for (const row of rows) {

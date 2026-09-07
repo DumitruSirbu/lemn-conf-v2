@@ -48,7 +48,6 @@ import {
   FOLLOWS_CABINET_DEPTH,
   FOLLOWS_CABINET_DEPTH_ON_WALL_MAP,
   IS_A_MANUFACTURED_SIZE,
-  pinnedAtFinishedDepthMm,
   type CabinetDepthRule,
 } from "../cabinet-depth-rule.js";
 import { WALL_FRONT_ASSEMBLY_MM, WORKTOP_DEPTH_MM } from "../worktop-depth.js";
@@ -73,8 +72,8 @@ import {
  *
  * **Wave 5F moved three sets of these, and every one of them is a seat and not a depth.**
  * ADR 0036 decision 1 makes a declared dimension the finished cabinet, so a wall shell is now its
- * declared depth less the 39 mm front assembly: the 330 mm wall bodies seat on **291** and the two
- * deliberately deep top bodies on **561**, while `open-shelf-600` keeps 330 because it has no
+ * declared depth less the 39 mm front assembly: at 600 the 330 mm wall bodies seat on **291** and
+ * the two deep top rows on **561**, while `open-shelf-600` keeps 330 because it has no
  * front. ADR 0039 decision 2 hangs the hood at the front, so `hood-600` seats on **700** — twice
  * the distance from the wall to the centre of a 500 mm body whose front face lands on the 600 mm
  * cabinet-depth line. That last one is §11 row 19's second named exception and the one row here
@@ -115,26 +114,25 @@ function cornerBaseReturnFinishedDepthMm(cabinetDepthMm: number): number {
   return cabinetDepthMm;
 }
 
-/** ADR 0058 decision 1: **the finished depth the two deliberately deep top cabinets are pinned at.**
+/** **The seat of a deep top cabinet — one that hangs over a full-height column** (ADR 0101).
  *
- *  `wall-2door-600-deep-top` (`p22`, `p23`) and `wall-2door-700-over-fridge` (`p24`) are deep because
- *  the *columns* they hang over are — §5.2's head-clearance cap is lifted over a full-height member
- *  rather than mapped — and the owner ruled on 2026-09-02 that they stay put rather than follow the
- *  setting or follow their column. They finish at exactly the 600 mm cabinet-depth line, not at an
- *  arbitrary deep number — the coincidence that makes this readable, and **not** a licence to read
- *  the pin as a setting value. It is a finished depth: rebuilding these rows from a setting of 600
- *  would take them back through the wall map, where `wallCarcassSeatDepthMm(600)` is 291 and would
- *  shrink them by 270 mm. The seat below is this number less the front assembly, which is the one
- *  arithmetic that does not go through the map.
+ *  `wall-2door-600-deep-top` (`p22`, `p23`) and `wall-2door-700-over-fridge` (`p24`) are deep
+ *  because the *columns* they hang over are: §5.2's head-clearance cap is lifted over a full-height
+ *  member rather than mapped, so `columnBuildDepthMm`'s lifted arm answers the **cabinet-depth
+ *  line** for them — 600 at a 600 mm kitchen and 700 at a 700 mm one. This is that line less
+ *  ADR 0036's front assembly, which is the one seat arithmetic in this file that does **not** go
+ *  through the wall map: 561 at 600 and 661 at 700, against `wallCarcassSeatDepthMm`'s 291 and 361.
  *
- *  **What this costs at 700 is recorded and accepted, not worked around** (ADR 0058): `p23`'s face
- *  is flush with the pantry below it at 600 and becomes a 99 mm step at 700. Nothing overlaps and
- *  600 remains a manufactured size. Whoever first renders a 700 mm kitchen should read that step as
- *  this decision rather than report it as a regression.
- *
- *  The alternative the planning had recommended — follow their column — would have put `p24` at
- *  exactly the 742 mm `docs/BACKLOG.md` entry 15 names as unmanufacturable, on a shipped body. */
-const PINNED_DEEP_TOP_FINISHED_DEPTH_MM = 600;
+ *  **It was a pin until 2026-09-07** (ADR 0058 decision 1, withdrawn by ADR 0101): the owner had
+ *  ruled the three rows stay at 600 at every setting, on cost paragraphs written when 600 was the
+ *  only depth the product shipped. Once 700 shipped, the owner rendered it and reported the three
+ *  as wrong. At 600 this expression is **561, exactly what the pin declared**, so the shipped
+ *  kitchen does not move; at 700 the tops go to 700 and the steps over their columns return to
+ *  their 600 mm relationships — 38 mm recessed over the oven tower, flush over the pantry, 42 mm
+ *  recessed under the fridge's own manufactured 742. */
+function liftedTopSeatDepthMm(cabinetDepthMm: number): number {
+  return cabinetDepthMm - WALL_FRONT_ASSEMBLY_MM;
+}
 
 /** **A seeded base body's hinged leaves** — one 710 mm band, this many leaves standing in it. The
  *  band constant is imported rather than retyped: a seeded base body is `baseCabinet` called at one
@@ -306,9 +304,10 @@ export function buildSeededBodyDefinitions(
     // corner legs, the dishwasher niche and, in the column family, the oven tower — say so on their
     // own line below.
     occupiedDepth: finishesAtMm(baseFinishedDepthMm(cabinetDepthMm)),
-    // Cabinetry, so it follows the setting (ADR 0058 decision 2). The three rows this is wrong for
-    // — the freestanding fridge and ADR 0058's two pinned tops — override it on their own line, and
-    // the gate that sweeps both depths is what catches a fourth that forgets to.
+    // Cabinetry, so it follows the setting (ADR 0058 decision 2). The one row this is wrong for —
+    // the freestanding fridge, which is a machine and not cabinetry — overrides it on its own line,
+    // and the gate that sweeps both depths is what catches a second that forgets to. ADR 0058's
+    // two pinned tops were the other two until ADR 0101 unpinned them; they inherit this now.
     depthRule: FOLLOWS_CABINET_DEPTH,
     // Its back face sits on the wall plane, so its seat is measurable and must stay measured
     // (ADR 0077 decision 1). The rows this is wrong for — the X-leg, seated by its joint, and the
@@ -703,21 +702,19 @@ export function buildSeededBodyDefinitions(
         cabinetHandles: carriesHandles(2),
         fronts: wallLeaves({ frameHeightMm: 400, leavesPerBand: 2 }),
         kind: "wall_cabinet",
-        // **Pinned, and the pin is the declaration below rather than this number** (ADR 0058
-        // decision 2), so what makes this row hold still is one greppable field and not a constant
-        // that has quietly stopped tracking anything. 561 at 600 and 561 at 700.
+        // **A deep top: it hangs over a full-height column, so the head-clearance cap does not
+        // reach it and its depth is the cabinet-depth line** (ADR 0101). 561 at 600 — the number
+        // ADR 0058's pin declared, so the shipped kitchen is unmoved — and 661 at 700.
         //
-        // The seat is the pinned **finished** depth less the front assembly, and that is
-        // **deliberately not** `wallCarcassSeatDepthMm`'s arithmetic: every other fronted top goes
-        // through the wall map first, where 600 maps to a 330 mm carcass and a 291 mm seat. A
-        // pinned row skips the map — that is what being pinned means — so the two derivations are
-        // different arithmetic over different quantities and only the constant is shared.
-        frameDepthMm:
-          PINNED_DEEP_TOP_FINISHED_DEPTH_MM - WALL_FRONT_ASSEMBLY_MM,
-        depthRule: pinnedAtFinishedDepthMm(
-          PINNED_DEEP_TOP_FINISHED_DEPTH_MM,
-          "base-formula",
-        ),
+        // Deliberately **not** `wallCarcassSeatDepthMm`'s arithmetic: every other fronted top goes
+        // through the wall map first, where 600 maps to a 330 mm carcass and a 291 mm seat. This
+        // row skips the map because `columnBuildDepthMm`'s lifted arm does, so the two derivations
+        // are different arithmetic over different quantities.
+        frameDepthMm: liftedTopSeatDepthMm(cabinetDepthMm),
+        // ADR 0101 decision 1: the equivalence gate reads this, because a rebuild of this row takes
+        // `columnBuildDepthM`'s lifted arm and never `wall-cabinet`'s own `frameDepthMm` — measured,
+        // the equivalent declares 361 at 700 where the rebuild plans 700.
+        builtDepthFollowsALiftedColumn: true,
         frameHeightMm: 400,
         ...namedAfterCatalogEquivalent("wall-cabinet"),
       },
@@ -730,16 +727,14 @@ export function buildSeededBodyDefinitions(
         // The one seeded wall body that is neither 700 nor 400: a 750 mm box, so a 744 mm band.
         fronts: wallLeaves({ frameHeightMm: 750, leavesPerBand: 2 }),
         kind: "wall_cabinet",
-        // Pinned for `wall-2door-600-deep-top`'s reason, and this is the row the decision cost the
-        // most argument: over the freestanding fridge it already sits 142 mm recessed at 600, and
-        // pinning leaves that **unchanged** at 700 where following its column would have rebuilt it
-        // at the fridge's own 742 mm.
-        frameDepthMm:
-          PINNED_DEEP_TOP_FINISHED_DEPTH_MM - WALL_FRONT_ASSEMBLY_MM,
-        depthRule: pinnedAtFinishedDepthMm(
-          PINNED_DEEP_TOP_FINISHED_DEPTH_MM,
-          "base-formula",
-        ),
+        // Deep for `wall-2door-600-deep-top`'s reason, and this is the row the decision cost the
+        // most argument: it hangs over a **freestanding fridge**, whose 742 mm is a machine's and
+        // follows no setting. Following the line rather than the column is what keeps this row off
+        // that 742 — the unmanufacturable depth `docs/BACKLOG.md` entry 15 named — so its 142 mm
+        // recess at 600 becomes 42 mm at 700 instead of closing to nothing.
+        frameDepthMm: liftedTopSeatDepthMm(cabinetDepthMm),
+        // ADR 0101 decision 1, for `wall-2door-600-deep-top`'s reason.
+        builtDepthFollowsALiftedColumn: true,
         frameHeightMm: 750,
         ...namedAfterCatalogEquivalent("wall-cabinet"),
       },

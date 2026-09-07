@@ -20,8 +20,8 @@ import {
   DEFAULT_CABINET_DEPTH_MM,
   DEFAULT_WALL_DEPTH_MM,
   makeKit,
-  PINNED_DEEP_TOP_DEPTH_M,
 } from "../src/kitchen-parts.js";
+import { buildDecomposedBody } from "../src/decomposed-bodies.js";
 import {
   createHeadlessCanvas,
   installHeadlessDocument,
@@ -139,15 +139,30 @@ describe("the adapter's wall depth is the domain's map row", () => {
     expect(DEFAULT_WALL_DEPTH_MM).not.toBe(wallCarcassDepthMm(deeper));
   });
 
-  // ADR 0058, from the geometry side: the three deep tops are pinned at the 600 mm cabinet-depth
-  // line and are the one thing in the reference room that must **not** take the map row. Stated here
-  // beside the map so the two are read together.
-  it("keeps the pinned deep tops off the map at every depth", () => {
-    expect(PINNED_DEEP_TOP_DEPTH_M).toBe(0.6);
-    expect(Math.round(PINNED_DEEP_TOP_DEPTH_M * 1000)).not.toBe(
-      domainWallDepthMm(700),
-    );
-  });
+  // **ADR 0101, from the geometry side: the deep tops are the one family in this room that must
+  // not take the map row.** They hang over full-height columns, so the head-clearance cap is lifted
+  // and they are built to the cabinet-depth line — 600 at a 600 mm kitchen, 700 at a 700 mm one.
+  // Stated here beside the map so the two are read together.
+  //
+  // It read `PINNED_DEEP_TOP_DEPTH_M === 0.6` until 2026-09-07, which asserted a constant rather
+  // than a body. Measured off the built carcass instead: a constant that stops being read still
+  // holds its value, and this goes red if the builder starts taking `kit.depths.wallDepthM`.
+  it.each(declaredCabinetDepthsMm())(
+    "builds the deep top to the cabinet-depth line and not the map row at %i mm",
+    (cabinetDepthMm) => {
+      const deepTop = buildDecomposedBody(
+        kitAt(cabinetDepthMm),
+        "wall-2door-600-deep-top",
+      );
+
+      expect(depthMmOf(deepTop, "carcass_shell")).toBe(
+        cabinetDepthMm - WALL_FRONT_ASSEMBLY_MM,
+      );
+      expect(depthMmOf(deepTop, "carcass_shell")).not.toBe(
+        domainWallDepthMm(cabinetDepthMm) - WALL_FRONT_ASSEMBLY_MM,
+      );
+    },
+  );
 });
 
 describe("the base carcass is a formula, exercised beyond its one reachable input", () => {

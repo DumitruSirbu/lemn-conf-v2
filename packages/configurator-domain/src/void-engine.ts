@@ -206,6 +206,27 @@ export interface BodyDefinition {
    *  `BodyCatalog` port from outside TypeScript is refused by the same function at the first wave
    *  that reads a rule off it, which is 6J's migration and not this one. */
   readonly depthRule?: CabinetDepthRule;
+  /** **Whether a rebuild of this body takes its depth from `columnBuildDepthM`'s lifted arm rather
+   *  than from its catalogue equivalent's `frameDepthMm`** — ADR 0101 decision 1.
+   *
+   *  It is a fact about *where the number comes from*, and it is true of exactly the rows that stand
+   *  in the wall band over a full-height column: `resolveDepthM` reads `hasFullHeightUnder` and
+   *  answers the cabinet-depth line, and it never consults the equivalent's own declaration. So for
+   *  such a row the equivalent's `frameDepthMm` **does not govern**, and
+   *  `seeded-equivalent-depth-agreement.test.ts` compares it against the authority that does.
+   *
+   *  **Declared, never inferred**, for the reason `catalogEquivalentId` above is: the two tempting
+   *  inferences are both wrong. A build-id list in a test is invisible to `grep` from the entry, and
+   *  "its `frameDepthMm` exceeds the wall map's row, so it must be a deep top" is the identity
+   *  guess ADR 0022 exists to stop — it once priced a fridge housing as a pantry.
+   *
+   *  **Not `occupiedDepth.measuredFrom`, deliberately.** These rows genuinely are `recorded-shell`:
+   *  their finished depth is shell plus front assembly, the same arithmetic as every other wall row.
+   *  Declaring a different measurement to win an exclusion would be a lie told to a gate.
+   *
+   *  Absent means `false` — the row's depth is its own declaration's — which is every entry but the
+   *  two deep tops. Read it through `declaresALiftedColumnDepth`, never directly. */
+  readonly builtDepthFollowsALiftedColumn?: boolean;
   /** Which plane seats this body (ADR 0077). Optional here for the reason `depthRule` is —
    *  `BodyDefinition` is the port a catalogue arrives through — and refused at assembly by
    *  `refuseUndeclaredSeatRules`, which is the only caller holding the row's id to name. */
