@@ -14,8 +14,8 @@
   },
   "scripts": {
     "build": "tsc --project tsconfig.build.json",
-    "lint": "eslint . --max-warnings 0",
-    "lint:fix": "eslint . --fix --max-warnings 0",
+    "lint": "pnpm run build && eslint . --max-warnings 0",
+    "lint:fix": "pnpm run build && eslint . --fix --max-warnings 0",
     "test": "pnpm run build && vitest run --config vitest.config.ts",
     "typecheck": "pnpm run build && tsc --project tsconfig.json --noEmit"
   },

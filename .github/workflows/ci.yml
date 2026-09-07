@@ -178,7 +178,15 @@ jobs:
     # is what made the first run here take 13.3 minutes, `signature-flow` alone
     # accounting for 5.8 of them, with three specs failing on the 30 s default
     # while doing nothing wrong.
-    timeout-minutes: 25
+    #
+    # Raised 25 -> 45 on 2026-09-07. The number was set when the suite was 22
+    # tests and finished in 12.9 minutes; M6 took it to 111, and on the run that
+    # exposed this the runner was cancelled mid-suite at test 79 of 111, 23.7
+    # minutes into the specs. That is ~18 s a test on this machine, so the whole
+    # suite is ~33 minutes plus the build and the install. 45 leaves headroom for
+    # the specs M7 adds without hiding a hang: a suite that stops making progress
+    # still dies here rather than running to the runner's 6-hour ceiling.
+    timeout-minutes: 45
     # **`test`, not just `install`** — the two share one Neon database and would
     # otherwise run in parallel. The live persistence suites execute DDL on the
     # shared `designs` table (`drop column if exists revision`, and the same for
