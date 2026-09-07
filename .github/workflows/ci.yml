@@ -187,10 +187,18 @@ jobs:
     # tests and finished in 12.9 minutes; M6 took it to 111, and on the run that
     # exposed this the runner was cancelled mid-suite at test 79 of 111, 23.7
     # minutes into the specs. That is ~18 s a test on this machine, so the whole
-    # suite is ~33 minutes plus the build and the install. 45 leaves headroom for
-    # the specs M7 adds without hiding a hang: a suite that stops making progress
-    # still dies here rather than running to the runner's 6-hour ceiling.
-    timeout-minutes: 45
+    # suite is ~33 minutes plus the build and the install.
+    #
+    # 45 was the first estimate and it was too tight: the next run measured
+    # 40.7 minutes of specs and 41m44s of job, three minutes under the ceiling.
+    # 50 restores real headroom. The estimate was low because it averaged the
+    # cancelled run's mobile specs; `settings-strip-containment.desktop` alone
+    # takes 7.6 minutes, and Playwright's own summary flags it as the file to
+    # parallelise if this ever needs to come back down.
+    #
+    # Still a ceiling, not a budget: a suite that stops making progress dies
+    # here rather than running to the runner's 6-hour limit.
+    timeout-minutes: 50
     # **`test`, not just `install`** — the two share one Neon database and would
     # otherwise run in parallel. The live persistence suites execute DDL on the
     # shared `designs` table (`drop column if exists revision`, and the same for

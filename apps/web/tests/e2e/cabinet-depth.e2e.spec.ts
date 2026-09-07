@@ -123,7 +123,8 @@ test("writes nothing when apply is pressed with nothing chosen", async ({
  * and they are derived from the framing distance, so they are expected to move.
  */
 const CAMERA_SAMPLER = () => {
-  const frames: { position: number[]; quaternion: number[] }[] = [];
+  // `at` is what makes "the scene is quiet" observable: see `settledCamera`.
+  const frames: { position: number[]; quaternion: number[]; at: number }[] = [];
   (window as unknown as { __cameraFrames: typeof frames }).__cameraFrames =
     frames;
   const hook = new EventTarget();
@@ -157,6 +158,7 @@ const CAMERA_SAMPLER = () => {
       frames.push({
         position: read.position.toArray(),
         quaternion: read.quaternion.toArray(),
+        at: performance.now(),
       });
       return original(scene, camera);
     };
@@ -172,64 +174,72 @@ const CAMERA_SAMPLER = () => {
  */
 const DAMPING_TAIL_M = 0.02;
 
-/**
- * The camera once it has **stopped moving**, rather than after a fixed wait.
- *
- * OrbitControls damps, so a reading taken on a clock is a reading taken somewhere on the tail: the
- * same assertion passed alone and failed inside the full suite, where every step is slower and
- * 2000 ms lands earlier in the decay. Polling for two consecutive painted frames that agree removes
- * the wall clock from the measurement entirely — the test waits for the thing it is about to assert
- * on to be true of the scene, not for a duration someone guessed.
- *
- * The settle epsilon is far below `DAMPING_TAIL_M`: this asks "has it stopped", the assertion asks
- * "did it jump", and conflating the two would make the wait as loose as the claim.
- */
-const SETTLED_M = 0.0002;
-
-async function settledCamera(page: Page): Promise<{
+interface CameraFrame {
   readonly position: readonly number[];
   readonly quaternion: readonly number[];
-}> {
-  // **Settling is best-effort, and the assertion's own tolerance is the guarantee.** R3F paints on
-  // demand, so once the scene is quiet no further frame is recorded and there may be nothing left to
-  // compare; under a full suite the machine is also slower, and waiting for a settle that has
-  // already happened would hang. So this waits where it can and reads the last painted frame where
-  // it cannot — never throwing on the wait, because a slow machine is not the defect under test.
-  const settledFrame = await page
-    .waitForFunction(
-      (settledM: number) => {
-        const frames = (
-          window as unknown as {
-            __cameraFrames?: { position: number[]; quaternion: number[] }[];
-          }
-        ).__cameraFrames;
-        if (!frames || frames.length < 2) return null;
-        const last = frames[frames.length - 1];
-        const previous = frames[frames.length - 2];
-        if (!last || !previous) return null;
-        const moved = last.position.some(
-          (value, axis) =>
-            Math.abs(value - (previous.position[axis] ?? 0)) > settledM,
-        );
-        return moved ? null : last;
-      },
-      SETTLED_M,
-      { timeout: 5_000 },
-    )
-    .then((handle) => handle.jsonValue())
-    .catch(() => null);
-  if (settledFrame) return settledFrame;
+  readonly at: number;
+}
 
-  const last = await page.evaluate(() => {
-    const frames = (
-      window as unknown as {
-        __cameraFrames?: { position: number[]; quaternion: number[] }[];
-      }
-    ).__cameraFrames;
-    return frames && frames.length > 0 ? frames[frames.length - 1] : null;
-  });
-  if (!last) throw new Error("the renderer painted no frame at all");
-  return last;
+/**
+ * How long the renderer must go **without painting** before the scene counts as quiet.
+ *
+ * R3F paints on demand and OrbitControls keeps asking for frames the whole time its damping is
+ * still decaying, so a gap this long is the scene telling us the camera has stopped — as opposed to
+ * a duration someone guessed. Frames arrive about 16 ms apart on a warm laptop and about 50 ms apart
+ * under an 8x CPU throttle, so this is ten quiet frame slots at the slowest rate measured.
+ */
+const QUIET_MS = 500;
+
+/**
+ * The budget for *reaching* that quiet. Not a duration to wait out: the wait ends the moment the
+ * renderer goes idle, and this only bounds how long it may take to get there. Generous on CI
+ * because the runner paints through a software GL stack and the decay is correspondingly slower.
+ */
+const SETTLE_BUDGET_MS = process.env.CI === undefined ? 10_000 : 30_000;
+
+/**
+ * The camera once the renderer has **stopped painting**, which for an on-demand renderer is the
+ * only honest reading of "stopped moving".
+ *
+ * **The previous version measured something else and hid it.** It compared the last two recorded
+ * frames, and when they did not agree inside five seconds it swallowed the timeout and returned
+ * whatever frame had been painted last. On CI run 34101381308 that fallback fired for *both*
+ * readings: `before` came back at `-0.0904, 0.9370, 6.0256` while the camera went on to rest at
+ * `-0.3320, 0.8215, 5.9297`, so the test reported a 244 mm camera jump across the depth change when
+ * the real, rest-to-rest movement is 2.5 mm. Nothing was wrong with `seatObjectOnStage`; the
+ * orbit's own damping tail was still unwinding when the "before" reading was taken.
+ *
+ * Hence the two changes. Quiet is detected from the *absence* of new frames rather than from two
+ * frames agreeing, which is what an on-demand renderer actually signals. And a budget that expires
+ * now **throws**: a measurement that could not be taken must fail loudly, because a number returned
+ * from a moving camera is worse than no number at all — it fails an assertion the product passes.
+ */
+async function settledCamera(page: Page): Promise<CameraFrame> {
+  const settled = await page
+    .waitForFunction(
+      (quietMs: number) => {
+        const frames = (window as unknown as { __cameraFrames?: CameraFrame[] })
+          .__cameraFrames;
+        const last = frames?.[frames.length - 1];
+        if (!last) return null;
+        return performance.now() - last.at < quietMs ? null : last;
+      },
+      QUIET_MS,
+      { timeout: SETTLE_BUDGET_MS },
+    )
+    .catch(() => null);
+
+  // `waitForFunction` resolves with a handle to whatever the predicate returned, and the predicate's
+  // "not yet" is `null` — so the handle's own value is nullable even though a resolved wait never
+  // carries one. Reading it before the guard collapses both failures into a single throw.
+  const frame = settled === null ? null : await settled.jsonValue();
+  if (!frame) {
+    throw new Error(
+      `the renderer was still painting after ${String(SETTLE_BUDGET_MS)} ms, so the camera never ` +
+        "came to rest and no reading of it means anything",
+    );
+  }
+  return frame;
 }
 
 test("keeps the camera where the customer left it across a depth change", async ({
