@@ -44,17 +44,45 @@ export function ConfigureScreen() {
 
   return (
     <main className={styles.screen}>
+      {/* The refreshed frames 2A / D2A: **one row**, replacing the caption-over-progress-bar the
+          earlier export drew. The four progress segments are gone from the reference entirely and
+          from here with them; the step they encoded is now the pill.
+
+          Which element opens the row is the shell's own answer and is decided in CSS, as §10.1's
+          one permitted fork requires: frame 2A puts the back control there, frames D2A–D2C put the
+          wordmark. Both are rendered and `configure.module.css` hides one — a markup fork would be
+          a second copy of the row to keep in step. */}
       <header className={styles.header}>
-        <div className={styles.headerRow}>
-          <span className={styles.back}>{ro.configure.back}</span>
-          <span className={styles.step}>{ro.configure.step}</span>
-        </div>
-        <div className={styles.progress} aria-hidden="true">
-          <span />
-          <span />
-          <span />
-          <span />
-        </div>
+        <span className={styles.back}>{ro.configure.back}</span>
+        <span className={styles.wordmark}>{ro.brand}</span>
+        {/* The step, twice over and from one source (`content/ro.ts`): the pill the frames draw, and
+            — as its accessible name — the sentence the caption it replaced said. "2/4" read aloud is
+            two numbers and a slash, which announces less than the surface used to.
+
+            `role="img"` over a visually hidden span, because a hidden span is a clipped one: the
+            900 px gate in `settings-strip-containment.desktop.e2e.spec.ts` reads every span in this
+            header and fails any whose text is cut, and it cannot tell "deliberately hidden" from
+            "squeezed by the price cell" — which is the defect it exists to catch. */}
+        <span
+          className={styles.stepPill}
+          role="img"
+          aria-label={ro.configure.step}
+          data-testid="top-bar-step"
+        >
+          {ro.configure.stepPill}
+        </span>
+        <span className={styles.title} data-testid="top-bar-title">
+          {ro.configure.title}
+        </span>
+        {/* Drawn exactly as the reference draws it and **wired to nothing**. Locale switching is
+            M6B wave 6B-i, gated on the owner's Gate O1; a caret that does nothing is the correct
+            state of this control today, and a control that did something would pre-empt a ruling. */}
+        <span className={styles.locale} data-testid="top-bar-locale">
+          <span className={styles.localeCode}>{ro.configure.locale}</span>
+          <span className={styles.localeCaret} aria-hidden="true">
+            ▾
+          </span>
+        </span>
       </header>
       {/* Frames 2E / D2E: the material and hardware chips and the control that opens them — a strip
           under the header on mobile, part of the top bar on desktop. A band of the screen's own grid

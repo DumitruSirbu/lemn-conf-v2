@@ -37,10 +37,29 @@ function chosenCabinetPhrase(chosenCount: number): string {
  *  the same two words as the figure's *De la* rather than a second spelling of them. */
 const STARTING_PREFIX = "De la";
 
+/** Which step of the flow the configure screen is, and how many there are.
+ *
+ *  **One pair of constants for both spellings of the same fact.** The refreshed top bar draws the
+ *  step as a numeric pill — *2/4* — where it used to draw the sentence *Pasul 2 din 4*, and the
+ *  sentence stays as the pill's accessible name because "two slash four" is not what the caption it
+ *  replaced said. Two literals would let the pill and the sentence disagree the first time a step is
+ *  inserted, and nothing on the screen would show which of them was wrong. */
+const CONFIGURE_STEP = 2;
+const CONFIGURE_STEP_COUNT = 4;
+
 export const ro = {
   brand: "Lemnaria",
   configure: {
-    step: "Pasul 2 din 4",
+    step: `Pasul ${String(CONFIGURE_STEP)} din ${String(CONFIGURE_STEP_COUNT)}`,
+    /** The same two numbers the sentence above states, as the top bar's pill draws them. */
+    stepPill: `${String(CONFIGURE_STEP)}/${String(CONFIGURE_STEP_COUNT)}`,
+    /** The screen's own name, which the refreshed frames put in the top bar beside the pill. It was
+     *  not on screen before: the old bar carried the step sentence and a four-segment progress bar,
+     *  and neither said which step this is. */
+    title: "Configurare",
+    /** The locale chip's label. **Nothing switches locale today** — M6B wave 6B-i owns that and is
+     *  gated on the owner's Gate O1, so the caret beside this is drawn and inert. */
+    locale: "RO",
     back: "‹ Cameră",
     // Frame 2A's instruction copy, merged with the orbit hint it sat beside. One sentence for both
     // viewports on purpose: the mockups differ only in "Atinge" versus "Clic", and a copy fork is

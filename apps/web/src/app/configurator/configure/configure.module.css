@@ -54,53 +54,98 @@
   display: flex;
 }
 
+/* The refreshed frames 2A / D2A: **one row** — back control or wordmark, the step as a pill, the
+ * screen's title, and the locale chip — where this used to be a caption above a four-segment
+ * progress bar. The segments are gone from the reference and from here.
+ *
+ * **The row's height is the invariant, not the frame's 76 px.** The header is a grid item in a
+ * `100dvh` grid whose only flexible row is the stage, so every pixel this band gains is a pixel the
+ * canvas loses — and `price-bar.module.css` already tuned the desktop price cell's padding to *"keep
+ * the figure's box inside the 55 px the header row already measured"*. Frame D2A draws a 76 px bar
+ * because it carries the settings chips, the price, the CTA **and** the locale chip in one band;
+ * ADR 0094 decision 2 moved the chips to a full-width row of their own, so taking the frame's height
+ * without the frame's contents would spend 21 px of scene at every desktop width and buy nothing.
+ * The desktop rule below therefore reproduces D2A's arrangement and typography inside the 55 px the
+ * row already had. See `header-box.test.ts`, which pins the arithmetic.
+ *
+ * On mobile the reference's own box is smaller than what it replaces — `11 + 25 + 11` plus the rule
+ * is 48 px against the old 55 — so the scene gains 7 px there. */
 .header {
   grid-area: header;
   z-index: 2;
   display: flex;
-  flex-direction: column;
+  align-items: center;
   gap: 9px;
-  padding: 16px 18px 12px;
+  padding: 11px 14px;
   background: var(--paper);
   border-bottom: 1px solid var(--line-soft);
 }
 
-.headerRow {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-}
-
+/* Frame 2A's back control, and frames D2A–D2C's wordmark: the same slot, one shown per shell. The
+ * reference draws a bare `‹` on mobile because the material chip sits beside it there; that chip is
+ * ADR 0094's own band here, so the word stays — the reason the frame shortened it does not reach
+ * this layout, and the copy is under the owner's Gate O1 review. */
 .back {
+  flex: 0 0 auto;
   font: 700 14px/1 var(--font-ui);
-  color: var(--ink-muted);
+  color: var(--accent);
 }
 
-.step {
-  font: 400 11.5px/1 var(--font-ui);
-  letter-spacing: 0.06em;
-  color: var(--ink-faint);
+.wordmark {
+  display: none;
 }
 
-.progress {
-  display: flex;
-  gap: 5px;
-}
-
-.progress span {
-  flex: 1;
-  height: 3px;
-  border-radius: 2px;
-  background: var(--line);
-}
-
-.progress span:nth-child(1) {
-  background: var(--accent-pale);
-}
-
-.progress span:nth-child(2) {
+/* The step, as the refreshed frames draw it. `tabular-nums` is the mockups' own `.num` class: the
+ * numerator changes with the step and a proportional `1` would move the slash. */
+.stepPill {
+  flex: 0 0 auto;
+  padding: 5px 6px;
+  font: 700 11px/1 var(--font-ui);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.04em;
+  color: var(--paper);
   background: var(--accent);
+  border-radius: 5px;
+}
+
+/* **`min-width: 0` is what makes the ellipsis possible**, for ADR 0082 decision 1's reason one level
+ * down: a flex item's automatic minimum size is its min-content width, so without this a long title
+ * grows the row instead of truncating and pushes the locale chip off the screen. */
+.title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  font: 700 15px/1 var(--font-ui);
+  letter-spacing: -0.01em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Drawn as the reference draws it and **inert** — see `configure-screen.tsx`. Not a `button`, and
+ * that is the point: an element with a control's affordances and no behaviour is worse than the
+ * static chip it replaces. M6B wave 6B-i gives it one, after the owner's Gate O1. */
+.locale {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 4px;
+  align-items: center;
+  padding: 6px 8px;
+  background: #ece7dd;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.localeCode {
+  font: 700 11px/1 var(--font-ui);
+  letter-spacing: 0.08em;
+  color: var(--accent-strong);
+}
+
+/* The frames draw this caret at `#7d7a72`; `--ink-faint` is the owner's 2026-09-03 WCAG ruling for
+ * that value and is deliberately darker (`globals.css`). */
+.localeCaret {
+  font: 400 10px/1 var(--font-ui);
+  color: var(--ink-faint);
 }
 
 .stage {
@@ -248,6 +293,64 @@
   .settingsRow {
     align-items: center;
     padding: 0 28px 0 18px;
+  }
+
+  /* Frame D2A's top bar: wordmark · pill · title, with the locale chip pushed to the right-hand end
+   * by `margin-left: auto`. Its arrangement and its typography, inside the height the row already
+   * had — the `.header` rule above records why the frame's 76 px is not taken.
+   *
+   * **The 55 px is arithmetic, not a magic number**: `7 + 40 + 7` of padding around the chip, plus
+   * the 1 px rule, and the chip is the tallest thing in the row at the frame's own `height: 40px`.
+   * `header-box.test.ts` reads those four declarations back out of this file and adds them up, so a
+   * padding edit that costs the scene a pixel fails there rather than on someone's screen.
+   *
+   * The gap is frame D1A's 20 rather than D2A's 28, and the inset is the header's own 18 rather than
+   * the frame's 40. D2A carries the settings chips, the price and the CTA in this band and can
+   * afford the wider spacing; here the band is shared with the price cell across a `minmax(0, 1fr)`
+   * column, and the 18 px is what the settings row below aligns its chips to (see `.settingsRow`). */
+  .header {
+    gap: 20px;
+    padding: 7px 18px;
+  }
+
+  .back {
+    display: none;
+  }
+
+  .wordmark {
+    display: block;
+    flex: 0 0 auto;
+    font: 700 15px/1 var(--font-ui);
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+  }
+
+  .stepPill {
+    padding: 7px 8px;
+    font-size: 12px;
+  }
+
+  /* `flex: 0 0 auto`, as the frame draws it: on desktop the row has room and the title is not the
+   * element that absorbs it — the locale chip's `margin-left: auto` is. */
+  .title {
+    flex: 0 0 auto;
+    font-size: 19px;
+  }
+
+  .locale {
+    gap: 5px;
+    height: 40px;
+    margin-left: auto;
+    padding: 0 12px;
+    border-radius: 20px;
+  }
+
+  .localeCode {
+    font-size: 12px;
+  }
+
+  .localeCaret {
+    font-size: 11px;
   }
 
   .priceRow {
