@@ -504,11 +504,17 @@ export interface PricedTerm {
  *   `MAX_DESIGN_DIMENSION_MM`, so the largest prefix any ordering of a shape's four terms can form
  *   is `4 × 225 179 981 368 × 10 000 = 9 007 199 254 720 000`, under `2^53 − 1 = 9 007 199 254 740
  *   991`. No prefix can leave the safe range, so no ordering can refuse, so all of them agree.
- * - *The hardware line is not, and cannot be shown to be.* Its count is a whole design's mechanism
- *   count, which no constant bounds — the same gap that let the wrong figure through before this
- *   function existed. A divergence needs roughly 20 000 mechanisms against rates at the bound; the
- *   seeded kitchen carries 74 hinges, 5 drawers and 16 latches, and `MAX_PLACEMENTS` bodies argue
- *   out to the low thousands. Unreachable in practice, unproved in principle.
+ * - *The hardware line is not proved by a declared constant — which is a weaker claim than this
+ *   said before, and the weaker one is the true one.* Its count is a whole design's mechanism count,
+ *   and nothing in this package caps the mechanisms **one body** can carry: that is the same gap
+ *   that let the wrong figure through before this function existed. What can be counted is the rest.
+ *   A prefix leaves the safe range only past `(2^53 − 1) / (3 × MAX_PRICE_COEFFICIENT_MINOR)`, which
+ *   is **13 333 mechanisms** and not the 20 000 this once estimated; `MAX_PLACEMENTS` is 168 bodies;
+ *   and twelve mechanisms a body — generous against a tall door leaf's three hinges — puts the
+ *   ceiling at 2 016, whose largest prefix is 1.36 × 10^15, **6.6× under 2^53 − 1**. The seeded
+ *   kitchen carries 74 hinges, 5 drawers and 16 latches. So the residual is narrow and named: the
+ *   per-body figure is assumed here rather than declared anywhere, and closing it outright means
+ *   deriving that cap as a domain constant, which is its own decision and not a comment's to make.
  *
  * Accumulating in `BigInt` and range-checking once would retire the question outright. It is not
  * done here because the per-term check is what names the rate and the count in a refusal, and

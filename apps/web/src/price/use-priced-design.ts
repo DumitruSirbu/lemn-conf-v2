@@ -17,6 +17,7 @@ import {
   SAMPLE_PRICE_BOOK,
   SAMPLE_PRICE_BOOK_VERSION,
   type PriceBook,
+  type PriceBookParseResult,
   type PricingResult,
 } from "@lemnaria/configurator-domain";
 import { useMemo } from "react";
@@ -63,11 +64,27 @@ export class UnreadablePriceBookError extends Error {
   }
 }
 
-/** The parsed book, or the error above. One reader of `PARSED_PRICE_BOOK`'s discriminant, so neither
- *  hook spells the check itself. */
+/**
+ * **The two readers of `PARSED_PRICE_BOOK`, and the reason there are two rather than one.**
+ *
+ * The hooks below need genuinely different answers to one failed parse, which is the whole content
+ * of `UnreadablePriceBookError`'s doc: the tier offer has no honest degraded form and leaves as
+ * itself, while a price surface already renders a `PricingResult` refusal as no figure. A single
+ * reader would have to pick one of those for both.
+ *
+ * What is shared is that the module constant is named here and in no hook, so "did the book parse?"
+ * is asked in exactly two places and each answer is stated once.
+ */
 function readPriceBook(): PriceBook {
   if (PARSED_PRICE_BOOK.ok) return PARSED_PRICE_BOOK.book;
   throw new UnreadablePriceBookError(PARSED_PRICE_BOOK.failure.detail);
+}
+
+/** The parse as it stands, for the caller that answers with a refusal rather than a throw. Handed on
+ *  whole rather than pre-branched: `PricingResult` and `PriceBookParseResult` carry the same
+ *  `PricingFailure`, so the hook restates nothing this reader would have to restate for it. */
+function priceBookOrRefusal(): PriceBookParseResult {
+  return PARSED_PRICE_BOOK;
 }
 
 /**
@@ -86,12 +103,12 @@ export function usePricedDesign(): PricingResult {
   const catalog = useConfiguratorStore((state) => state.catalog);
 
   return useMemo(() => {
-    if (!PARSED_PRICE_BOOK.ok)
-      return { ok: false, failure: PARSED_PRICE_BOOK.failure };
+    const parsed = priceBookOrRefusal();
+    if (!parsed.ok) return { ok: false, failure: parsed.failure };
     return priceDesign({
       design,
       catalog,
-      book: PARSED_PRICE_BOOK.book,
+      book: parsed.book,
       pricingVersion: SAMPLE_PRICE_BOOK_VERSION,
       selections: design.settings,
     });
