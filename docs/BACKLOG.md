@@ -82,7 +82,7 @@ status corrections, in one of these two files:
 | 49 | The hob's front clearance reads as flush with the worktop's edge | open.md |
 | 50 | `validateDesignForCatalog` is blind to a cross-wall corner intersection | open.md |
 | 51 | Column chain-homogeneity is an invariant nothing enforces | open.md |
-| 52 | A resize or an insert carries the wall-end cap into the recorded map | open.md |
+| 52 | A resize or an insert carries the wall-end cap into the recorded map | resolved.md — closed 2026-09-07, ADR 0090 Amendment B addendum |
 | 53 | Russian is a supported locale — decided on day one, no milestone owns it | open.md |
 
 ## 2026-09-06 audit note

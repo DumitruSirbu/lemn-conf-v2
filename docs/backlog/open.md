@@ -205,49 +205,6 @@ at the position measured, the presets simply do not show it.
 **Not scheduled.** No milestone currently owns the camera presets' framing at the mobile viewport;
 this is a new gap, not a regression of anything M5B changed.
 
-## 52. A resize or an insert carries the wall-end cap into the recorded map — RECORDED 2026-09-06, DIRECTION RULED
-
-**Introduced by wave 6J-d and closed only partly by it.** Direction ruled in
-[ADR 0090](../decisions/0090-a-frozen-space-slides-with-its-run-and-follows-the-body-it-recorded.md)'s
-Amendment B addendum; the wave itself is unscheduled.
-
-ADR 0090 Amendment B rules that a room-derived cap bounds what the map **publishes** and never
-rewrites what the document **records**. `setCabinetDepth` obeys it. `setWidth` and `insertBody` do
-not: `CommandContext.columns` hands them the **published** map and their `effect.columns` replaces the
-map whole, so the cap rides into the recorded face.
-
-**Measured at `cf53e8e` plus the D1 fix**, on a recorded space flush to wall B's end in the 2920 mm
-room:
-
-```
-at 600                     recorded B|2620 w600   published B|2.62 w600
-after setCabinetDepth(700) recorded B|2720 w600   published B|2.67 w500   <- Amendment B working
-after a delete on wall B   recorded B|2720 w600   published B|2.67 w500   <- fall-through arm, record survives
-after resizing p0, wall A  recorded B|2670 w500   published B|2.67 w500   *** the record adopts the cap ***
-```
-
-A resize of an unrelated cabinet **on the other wall** costs the recorded space 100 mm, permanently and
-silently — the document is schema-valid and `validateDesignForCatalog` reports nothing.
-
-**It is new, not inherited.** At `e28ab25` the depth command slid no extent, so a far-end space was
-never pushed past its wall and never capped; there was no loss on this path before this branch.
-
-**What deciding it costs, and the direction already ruled.** ADR 0090's addendum refuses the two
-options as posed and rules a third: the wall-end cap **preserves the column's key** (changing `w`,
-`x`/`z` and nothing else), after which handing `setWidth` and `insertBody` the recorded map is clean —
-the `COLUMN_MISMATCH` that made that option look expensive is created by the key divergence itself.
-Safe because `clip-empty-columns-at-wall-end.ts` never clips an occupied column, so no `record.col` is
-ever derived onto a capped key. Store-side reconciliation by matching is refused by name.
-
-**What the wave must measure first**: whether anything computes a column key from a coordinate and
-looks it up in the *published* map — picking, `findVacatedVoid`, the adapter's selection. That is the
-one place `key = f(centre)` could still be load-bearing for a member-less column.
-
-**It is [ADR 0088](../decisions/0088-a-depth-change-plans-against-the-frozen-extent-and-re-derives-only-the-depth.md)
-decision 2's question a third time** — which map does a map-publishing command receive, and who owns
-the reconciliation. It touches `setWidth` and `insertBody` rather than the depth track, so it is its
-own wave and not 6J-d's.
-
 ## 53. A LAUNCH REQUIREMENT DECIDED ON DAY ONE THAT NO MILESTONE OWNS: Russian is a supported locale
 
 **This is not new scope, and that is the finding.**

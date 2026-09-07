@@ -1464,3 +1464,78 @@ nothing enforces that a version bump revisits every comment naming the old one �
 inspection, not by a gate. The codebase has not been swept for other comments naming a schema version
 number by literal value. Not scheduled; worth a grep for `version \d` / `schema_version` in comments
 the next time `CURRENT_SCHEMA_VERSION` moves.
+
+## 52. A resize or an insert carries the wall-end cap into the recorded map — RECORDED 2026-09-06, CLOSED 2026-09-07
+
+**Closed on the direction ADR 0090's Amendment B addendum ruled, both halves.** The wall-end cap now
+preserves the column's key — `toClippedExtent` in
+`packages/configurator-domain/src/clip-empty-columns-at-wall-end.ts` changes `w` and the along-wall
+coordinate and nothing else — and `CommandContext.columns` in
+`apps/web/src/store/configurator-store.ts` hands `setWidth` and `insertBody` the **recorded** map.
+The offer list and the width chips (`apps/web/src/panel/use-panel-view.ts`) follow that map, because
+both run the very command they preview.
+
+**The prerequisite the entry named was measured first and came back clean.** Nothing computes a
+column key from a coordinate and looks it up in the published map. The two coordinate-derived keys
+are `derivePlacementRecords`' `record.col`, which is only ever an **occupied** column's — and this
+pass never clips one — and `toColumnExtent`'s key at load, which is derived from the **recorded**
+`alongMm` and so is exactly the key a capped column now keeps. Every lookup into a map goes through
+`record.col` or a void's `col` (`set-width.ts:328`, `insert-fit.ts:211`, `rebuild-resized-bodies.ts:66`),
+and `recomputeVoids` copies `column.key` rather than re-deriving it. `findVacatedVoid` compares
+`record.col === vacated.col` and falls back to geometry; neither reads the cap's output. Nothing in
+`apps/web/src` or `packages/three-adapter` names a column key at all — picking and selection are by
+placement and void **id**.
+
+**The `COLUMN_MISMATCH` the addendum predicted was created by the key divergence and is gone with
+it.** An insert into the capped opening itself is asserted to resolve.
+
+**The reproduction is a test.** `apps/web/tests/store/wall-end-cap-and-the-recorded-map.test.ts` walks
+the four steps below; before the fix it ended `recorded B|2670 w500` and it now ends
+`recorded B|2720 w600`. The published face is asserted to stay bounded by the wall in the same file,
+so a fix that removed the cap would not pass.
+
+Original entry follows unedited.
+
+## 52. A resize or an insert carries the wall-end cap into the recorded map — RECORDED 2026-09-06, DIRECTION RULED
+
+**Introduced by wave 6J-d and closed only partly by it.** Direction ruled in
+[ADR 0090](../decisions/0090-a-frozen-space-slides-with-its-run-and-follows-the-body-it-recorded.md)'s
+Amendment B addendum; the wave itself is unscheduled.
+
+ADR 0090 Amendment B rules that a room-derived cap bounds what the map **publishes** and never
+rewrites what the document **records**. `setCabinetDepth` obeys it. `setWidth` and `insertBody` do
+not: `CommandContext.columns` hands them the **published** map and their `effect.columns` replaces the
+map whole, so the cap rides into the recorded face.
+
+**Measured at `cf53e8e` plus the D1 fix**, on a recorded space flush to wall B's end in the 2920 mm
+room:
+
+```
+at 600                     recorded B|2620 w600   published B|2.62 w600
+after setCabinetDepth(700) recorded B|2720 w600   published B|2.67 w500   <- Amendment B working
+after a delete on wall B   recorded B|2720 w600   published B|2.67 w500   <- fall-through arm, record survives
+after resizing p0, wall A  recorded B|2670 w500   published B|2.67 w500   *** the record adopts the cap ***
+```
+
+A resize of an unrelated cabinet **on the other wall** costs the recorded space 100 mm, permanently and
+silently — the document is schema-valid and `validateDesignForCatalog` reports nothing.
+
+**It is new, not inherited.** At `e28ab25` the depth command slid no extent, so a far-end space was
+never pushed past its wall and never capped; there was no loss on this path before this branch.
+
+**What deciding it costs, and the direction already ruled.** ADR 0090's addendum refuses the two
+options as posed and rules a third: the wall-end cap **preserves the column's key** (changing `w`,
+`x`/`z` and nothing else), after which handing `setWidth` and `insertBody` the recorded map is clean —
+the `COLUMN_MISMATCH` that made that option look expensive is created by the key divergence itself.
+Safe because `clip-empty-columns-at-wall-end.ts` never clips an occupied column, so no `record.col` is
+ever derived onto a capped key. Store-side reconciliation by matching is refused by name.
+
+**What the wave must measure first**: whether anything computes a column key from a coordinate and
+looks it up in the *published* map — picking, `findVacatedVoid`, the adapter's selection. That is the
+one place `key = f(centre)` could still be load-bearing for a member-less column.
+
+**It is [ADR 0088](../decisions/0088-a-depth-change-plans-against-the-frozen-extent-and-re-derives-only-the-depth.md)
+decision 2's question a third time** — which map does a map-publishing command receive, and who owns
+the reconciliation. It touches `setWidth` and `insertBody` rather than the depth track, so it is its
+own wave and not 6J-d's.
+
