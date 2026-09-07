@@ -915,6 +915,63 @@ that has no conditional rendering today, which would mean something upstream of 
 fault. **Do not schedule a fix before step 3 above.** Guessing between those two produces a change
 that cannot be shown to have worked, which is how this item got reported twice already.
 
+## 56. An emptied column over a full-height member can lose 269 mm of depth after a depth round trip — RULED 2026-09-08 ([ADR 0102](../decisions/0102-a-recorded-source-must-explain-its-depth-and-a-second-authority-in-a-test-is-the-defect-laundered.md)), AWAITING WAVE 6Y
+
+**Found 2026-09-08** while adjudicating a finding the item 8 implementer raised and refused to treat
+as settled. Ruled in [ADR 0102](../decisions/0102-a-recorded-source-must-explain-its-depth-and-a-second-authority-in-a-test-is-the-defect-laundered.md);
+this entry exists so the **product** half survives independently of whether wave 6Y is scheduled this
+milestone.
+
+**What was observed.** Four ordinary commands on the shipped kitchen — change the depth to 700, delete
+the top cabinet at `B|1.80`, delete the pantry beneath it, change the depth back to 600 — leave that
+column's frozen extent at **330 mm**. It was 600 mm when the kitchen loaded and 700 mm one command
+earlier, and a 699 mm pantry had been standing in it. Anything inserted there afterwards is planned
+against 330.
+
+**Measured 2026-09-08 at `ed12804`**, driven through `removePlacement`, `setCabinetDepth`,
+`deriveColumns` and `projectFrozenMap` with the domain's own fake probe. The only variable is whether
+the two deep tops are pinned (as before ADR 0101) or lifted (as after it):
+
+| Step | pinned — before ADR 0101 | lifted — after ADR 0101 |
+| --- | --- | --- |
+| load @600 | `B\|1.80 d=600.0 src=wall-2door-600-deep-top` | same |
+| after `setCabinetDepth(700)` | `B\|1.90 d=699.0 src=tall-pantry` | `B\|1.90 d=700.0 src=wall-cabinet` |
+| after both deletes | `d=699.0` | `d=700.0` |
+| **back at 600** | **`d=599.0`** | **`d=330.0`** |
+
+**What is actually true in the code.** `resolveDepthM` (`packages/configurator-domain/src/commands/
+insert-fit.ts:835`) builds a wall body over a full-height column to `columnBuildDepthM`'s lifted arm —
+the cabinet-depth line, 600 or 700 — and never to the entry's own `frameDepthMm`. `restoredColumns`
+(`void-engine.ts:668`) then records `depthFromBuildId: deepest.buildId` for that depth anyway, so the
+column names a body declaring 330 or 400 as the source of 600 or 700. When the column is later emptied,
+`frozenDepthAtThisSetting` (`frozen-map-at-cabinet-depth.ts:391`) re-answers the extent from that
+entry's declaration and publishes the 330.
+
+**330 is wrong under both of that function's own arms**, which is what makes this a defect rather than
+a preference: the sourceless fallback would have kept 700 as a surplus (ADR 0080 decision 4,
+deeper-only), and the honest re-answer of the body that actually stood there is 599, which is what the
+product gave before ADR 0101. It is also shallower than the 600 the extent was frozen at, which wave
+6K-c's own criterion — *"nothing shrinks, in any arm"* — forbids.
+
+**It is pre-existing, and that was checked rather than assumed.** The mechanism is **wave 6I2's**, on
+`main` since 2026-09-04, and it reproduces in **three ordinary commands on declarations ADR 0101 never
+touched**: delete `p23`, insert the **offered** `wall-cabinet` into `B|1.80`'s `y0` 2.2 void (the offer
+list returns `wall-cabinet`, `wall-lift` and `open-shelf` there), then one `setCabinetDepth(700)` —
+`["B|1.90 d=700.0 src=wall-cabinet declares 400.0 at 700"]`. ADR 0101 did not create it; it moved the
+**shipped** kitchen into the population that reaches it.
+
+**What deciding it would cost.** Already decided — ADR 0102 decision 4 opens wave **6Y**, against
+`restoredColumns`, on a principle ADR 0080 decision 4 already states (*"`columnBuildDepthM` is a
+declared size and no body's declaration, so claiming one for it would be an invention"*). Two shapes
+are admissible and the wave picks between them on measurement: record no source for a depth the lifted
+arm produced, or record the member that does explain it. **This wave moves published depths**, so
+ADR 0079 decision 9 binds it in the opposite direction and its first acceptance criterion is an
+enumeration of every state whose `Column.d` moves, with the 600 mm kitchen byte-identical as it loads.
+
+**Not the same entry as 15 or 37.** Entry 15 (resolved, wave 6I2) is *what a wall body over a column is
+built to*; entry 37 (resolved, ADR 0101) is *the pinned tops being proud at 700*. This is the **record
+beside the depth** rather than the depth itself, and it survived both of them.
+
 ## Also open, recorded elsewhere — do not duplicate here
 
 - **Width editing does nothing yet.** ~~Every width chip is `blocked` because §5.4's resize command

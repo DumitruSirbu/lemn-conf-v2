@@ -1,6 +1,8 @@
 # ADR 0101 — A lifted column answers its top cabinet's depth, and the three deep tops follow the setting
 
-Status: Accepted
+Status: Accepted (**Amendment A, 2026-09-08** — names the fourth question this record did not reach,
+per [ADR 0102](0102-a-recorded-source-must-explain-its-depth-and-a-second-authority-in-a-test-is-the-defect-laundered.md).
+Decisions 1-5 stand; **nothing here is struck**.)
 Date: 2026-09-07
 Type: Decision
 Milestone: M6 — the ruling the item 8 wave executes; no wave is scheduled here
@@ -262,3 +264,54 @@ Consequences below; it is not done here, because this record changes no code.
   closes when the wave ships and the owner sees 700 mm deep tops.
 - **A third declared depth costs nothing here.** Every rule above is written against
   `declaredCabinetDepthsMm()` and `columnBuildDepthMm`, both of which take the depth as an argument.
+
+
+## Amendment A, 2026-09-08 — the fourth question, and what decision 4's identity does and does not claim
+
+Ruled in [ADR 0102](0102-a-recorded-source-must-explain-its-depth-and-a-second-authority-in-a-test-is-the-defect-laundered.md),
+on a finding the implementing developer raised and explicitly refused to treat as settled.
+**Decisions 1-5 above are correct and none of them is revised.** What follows is the question this
+record did not reach, because nobody had measured it when the record was written.
+
+### The wave moves the shipped kitchen into a population where a pre-existing defect is reachable
+
+`resolveDepthM`'s lifted arm has, since wave 6I2 (2026-09-04), built a wall body over a full-height
+column to a depth its catalogue entry does not declare, while `restoredColumns` goes on recording that
+entry as the column's `depthFromBuildId`. ADR 0079 decision 10 point 2's pairing invariant is therefore
+false for that population, and `frozenDepthAtThisSetting` — which re-answers a member-less extent from
+the recorded entry's declaration — publishes a wrong depth when it is reached.
+
+**Before this wave, the shipped kitchen did not reach it. After this wave, it does.** Measured
+2026-09-08 on the same four ordinary commands (600 -> 700, delete `p23`, delete `p6`, -> 600), the only
+difference being whether the two deep tops are pinned or lifted:
+
+| Step | pinned (before) | lifted (after) |
+| --- | --- | --- |
+| load @600 | `B\|1.80 d=600.0 src=wall-2door-600-deep-top` | same |
+| after 700 | `B\|1.90 d=699.0 src=tall-pantry` | `B\|1.90 d=700.0 src=wall-cabinet` |
+| **back at 600** | **`d=599.0`** | **`d=330.0`** |
+
+269 mm shallower, saved to the document, and below the 600 the extent was frozen at — which is wave
+6K-c's own criterion *"nothing shrinks, in any arm"*.
+
+### Decision 4's identity is true as written, and is not a claim about every reachable state
+
+Decision 4 says *"at `cabinetDepthMm = 600`, every declared depth and every named mesh of `p22`, `p23`
+and `p24` is identical to `main`"*. That was checked and holds **as the kitchen loads** — confirmed
+independently here, the shipped map answers `[]` at 600 with no unexplained column. It is not, and was
+never phrased as, a claim about the kitchen after a sequence of commands. The gap between *"as it
+loads"* and *"in every reachable state"* is what ADR 0102 fills; it is not an error in this record.
+
+### What follows, and what does not
+
+- **The defect is not this wave's to fix.** It is wave **6Y**'s, against `restoredColumns` in
+  `void-engine.ts`. This record's decisions 1-3 are unaffected by it.
+- **The wave's own test change is not settled by this record.** `sourceExplainsTheDepth` in
+  `apps/web/tests/support/frozen-source-invariant.ts` is refused as an authority by ADR 0102
+  decision 2, and may remain only in the shape ADR 0102 decision 3 sets. That is what blocks the
+  merge, and it is three edits in one file.
+- **One question is left for the owner and is deliberately not decided**: after this wave, deleting the
+  full-height column beneath a deep top and then changing the depth rebuilds that top from 600 mm
+  finished to 400 mm — measured, `p23`'s seat goes 561 -> 361 — where the pin used to hold it. The rule
+  producing it is ADR 0028 decision 5's and is correct; whether it is the product the owner wants has
+  never been asked. See ADR 0102, *Not decided here*.

@@ -1,6 +1,10 @@
 # ADR 0079 — A republished depth names the body it came from, and §3.2's MAX is not decided below the millimetre
 
-Status: Accepted
+Status: Accepted (**Amendment 2026-09-05** — the anti-invariant's boundary and the tie-break's
+undeclared arm; **Amendment 2026-09-08** — decision 10 point 2 **confirmed unchanged**, with the
+production defect currently violating it named, per
+[ADR 0102](0102-a-recorded-source-must-explain-its-depth-and-a-second-authority-in-a-test-is-the-defect-laundered.md).
+Nothing in this record is struck.)
 Date: 2026-09-05
 Type: Decision + Finding
 Milestone: M6 — wave 6K-c's own residue, found by adversarial QA before the wave was committed
@@ -514,3 +518,62 @@ the measured set — nothing grew and nothing regressed. The "three" was read of
 `qa-6k-c-frozen-source.adversarial.test.ts:764-765`), which reported only a slice of the sorted list
 rather than the set; this section documented the slice, not the defect. The arithmetic above and the
 bound itself are unaffected — the record was undercounting its own evidence, not overstating the debt.
+
+
+## Amendment, 2026-09-08 — decision 10 point 2 is confirmed, and where it is currently violated
+
+Ruled in [ADR 0102](0102-a-recorded-source-must-explain-its-depth-and-a-second-authority-in-a-test-is-the-defect-laundered.md),
+after the item 8 wave (ADR 0101) reported the predicate false for a wall body over a full-height
+column. **Nothing above is revised, narrowed or struck.** This amendment exists so that a reader who
+finds the invariant failing on the tree does not conclude that the invariant was wrong.
+
+### The predicate stands, unchanged and unscoped
+
+> for every published column, either `depthFromBuildId` is absent or the catalogue does not hold it,
+> or that entry's `occupiedDepthOfEntryM` at the design's own declared setting equals `Column.d`.
+
+It is not a test convention and it is not narrower than its wording. It is the **precondition of a
+production computation**: `frozenDepthAtThisSetting`
+(`packages/configurator-domain/src/frozen-map-at-cabinet-depth.ts:391`) republishes a member-less
+extent as `occupiedDepthOfEntryM(recorded)` and keeps that source id, so where the pair disagrees that
+line publishes a depth nothing in the kitchen ever had. ADR 0102 measured it: **330 mm on a column that
+had been 700, on the shipped kitchen, through four ordinary commands.**
+
+### Where it is violated today, and by what
+
+**Wave 6I2, since 2026-09-04.** `resolveDepthM` (`commands/insert-fit.ts:835`) builds a wall body over
+a lifted column to `columnBuildDepthM`'s declared line and never to the entry's `frameDepthMm`, while
+`restoredColumns` (`void-engine.ts:668`) goes on recording `depthFromBuildId: deepest.buildId` for that
+depth. Two correct rules with nothing between them.
+
+Reproduced by ADR 0102 in three ordinary commands on declarations ADR 0101 never touched — delete
+`p23`, insert the offered `wall-cabinet` into `B|1.80`'s `y0` 2.2 void, one `setCabinetDepth(700)`:
+
+```
+after ONE setCabinetDepth(700):  ["B|1.90 d=700.0 src=wall-cabinet declares 400.0 at 700"]
+```
+
+**It is pre-existing.** The same kitchen on the pre-ADR-0101 catalogue, with the deep tops pinned,
+answers `[]` at both settings. ADR 0101's wave did not create the defect; it moved the shipped kitchen
+into the population that reaches it.
+
+### The rule ADR 0102 adds, stated here because this is the record a reader lands on
+
+**A depth that `columnBuildDepthM` produced carries no body's name.** That is ADR 0080 decision 4's own
+sentence — *"claiming one for it would be an invention"* — and `restoredColumns` breaks it through the
+other door. The fix is wave **6Y**, against `restoredColumns` and not against this predicate, and
+decision 9 above (*"no rule here changes a published depth, only the record beside it"*) binds it in
+the opposite direction: 6Y **does** move a published depth, so it owes an enumeration of every state
+that moves.
+
+### And what may not be done about it
+
+A second authority added to the shared helper so that the disagreeing state reads as legal is refused
+by name in ADR 0102 decision 2, on
+[ADR 0090](0090-a-frozen-space-slides-with-its-run-and-follows-the-body-it-recorded.md) decision 7
+(*"an invariant edited to accommodate a defect is the defect laundered"*) and
+[ADR 0091](0091-an-instruments-premise-is-re-quantified-and-the-product-claim-inside-it-becomes-a-wave.md)
+decision 1, whose Q1 answers *invariant* and whose Q2 fails because the falsifying fact is a wave's
+code rather than a dated ruling. `apps/web/tests/support/frozen-source-invariant.ts` carries such an
+exemption at the time of writing; ADR 0102 decision 3 sets the only shape in which it may remain, and
+for one wave only.

@@ -255,6 +255,37 @@ policy, so every per-endpoint limit is application code.
 
 ## What to do next
 
+**2026-09-08, and this is the first thing to read this morning: `fix/m6-remediation` does not merge to
+`main` yet, and the block is three edits in one test-support file.**
+[ADR 0102](decisions/0102-a-recorded-source-must-explain-its-depth-and-a-second-authority-in-a-test-is-the-defect-laundered.md)
+adjudicates the finding the item 8 implementer raised and refused to treat as settled.
+
+- **The finding is confirmed and is genuinely pre-existing.** Re-measured end-to-end at `ed12804`:
+  `resolveDepthM`'s lifted arm (wave 6I2, on `main` since 2026-09-04) builds a wall body over a
+  full-height column to a depth its entry does not declare, while `restoredColumns` records that entry
+  as the column's source. Reproduces in **three ordinary commands** on declarations ADR 0101 never
+  touched. **ADR 0101's wave is a regression in *reach*, not the cause** — but it does move the shipped
+  kitchen's `B|1.80` extent from 599 mm to **330 mm** after four ordinary commands. Recorded as
+  `docs/BACKLOG.md` **entry 56**, and it opens wave **6Y** against `restoredColumns` in
+  `void-engine.ts`.
+- **ADR 0079 decision 10 point 2 is confirmed unchanged and unnarrowed.** It is the precondition of
+  `frozenDepthAtThisSetting`, not a test convention, so it is an invariant and is not re-quantified to
+  fit the code breaking it (ADR 0090 decision 7; ADR 0091 decision 1, whose Q1 answers *invariant* and
+  whose Q2 fails).
+- **What blocks the merge:** `sourceExplainsTheDepth` in
+  `apps/web/tests/support/frozen-source-invariant.ts` is refused as a second authority — measured, its
+  second arm never reads the source's declaration, so it stops inspecting exactly the one column the
+  defect lives in. **ADR 0102 decision 3 sets the only shape it may keep**, and all three limbs are
+  mandatory: narrow it to the member actually standing there, pin the breach positively with a witness
+  that goes red when 6Y lands, and rename it so nobody reads it as a rule. No production code changes
+  to unblock the merge. `reAnswersOneBody`'s extension across ADR 0022's swap **stands**.
+- **One question is for the owner and is deliberately not decided.** Post-ADR-0101, deleting the
+  full-height column beneath a deep top and then changing the depth rebuilds that top from 600 mm
+  finished to 400 mm (`p23`'s seat 561 -> 361, measured). The rule producing it is ADR 0028 decision 5's
+  and is correct; whether it is the product the owner wants has never been asked. Nothing in 6Y turns
+  on the answer.
+
+
 **Next: M6, ~~now on branch `wave/6r-control-shapes-and-strip-row`~~** (that is the branch 6R, 6R-b,
 6K-i and 6N-a landed on, 2026-09-06) — ~~**work moved the same day to `wave/6t-finish`, which carries 6T
 and is where 6T-a is being implemented now**~~ **superseded 2026-09-07: every M6 wave branch is merged

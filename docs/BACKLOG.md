@@ -86,6 +86,7 @@ status corrections, in one of these two files:
 | 53 | Russian is a supported locale — decided on day one, no milestone owns it | open.md |
 | 54 | Cabinet depth changes the material used and does not change the price | open.md — shape ruled 2026-09-07 (ADR 0100), implementation deferred by the owner |
 | 55 | The global settings actions are absent on a first visit and present after a reload | open.md |
+| 56 | An emptied column over a full-height member can lose 269 mm of depth after a depth round trip | open.md — ruled 2026-09-08 (ADR 0102), awaiting wave 6Y |
 
 ## 2026-09-06 audit note
 
