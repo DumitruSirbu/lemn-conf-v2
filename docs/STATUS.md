@@ -4,17 +4,27 @@
 session can learn fast where the project stands, without reading eight phase plans.
 
 Last updated: 2026-09-07. **Currently in progress: M6**, ~~now on branch
-`wave/6r-control-shapes-and-strip-row`~~ **now on branch `wave/6t-finish`**. ~~**Five M6 waves
+`wave/6r-control-shapes-and-strip-row`~~ ~~**now on branch `wave/6t-finish`**~~ **back on `main` at
+`bdef351` — every M6 wave branch is merged**. ~~**Five M6 waves
 remain: 6T, 6T2, 6W, 6V, 6X**~~ ~~**Corrected later the same day: six remain — 6T, 6T-a, 6T2, 6W, 6V,
-6X.**~~ **Corrected 2026-09-07: three remain — 6T2, 6V, 6X.**
+6X.**~~ ~~**Corrected 2026-09-07: three remain — 6T2, 6V, 6X.**~~ **Corrected again 2026-09-07, at the
+end of the day: none remain. All seven of the last M6 waves are merged to `main`** — 6T, 6T-a and 6W
+at `857a29e`; **6T2** at `825ba43`; **6X and 6X-a** at `9f5a4f6`; **6V** at `c7c9743`; with two fixes
+after, `88f06ba` (6V's two false criterion sentences) and `bdef351` (6X-a's unmeetable criterion).
+**No open wave is not the same as a closed milestone**: what M6 still owes before it can be called
+closed is listed in the M6 row below and under *What to do next*. **The next phase is M6B —
+Internationalization**, and its **Gate O1 is in progress**: the owner is reviewing
+`apps/web/src/messages/ro.json` now.
 [ADR 0092](decisions/0092-hardware-prices-three-mechanisms-and-a-sink-carries-two-extras.md)
 **Amendment C** opened a new wave **6T-a — one push-to-open predicate** on the owner's ruling that
 push-to-open is a manufacturer cost and must be priced. ~~see *What to do next*, which also records
 what a partially-implemented 6T is sitting in an unmerged worktree.~~ ~~**6T is now implemented,
-adversarially QA'd and reviewed on `wave/6t-finish` — and still not merged to `main`**~~ **Superseded
+adversarially QA'd and reviewed on `wave/6t-finish` — and still not merged to `main`**~~ ~~**Superseded
 2026-09-07: 6T, 6T-a and 6W are all three implemented, adversarially QA'd and reviewed on
 `wave/6t-finish`, which is green on all ten `ci:local` gates at `ca35b96` and is **ready to merge,
-not merged** — the three reach `main` together per ADR 0092 decision 12**; see *What to do next*.
+not merged** — the three reach `main` together per ADR 0092 decision 12**~~ **Superseded again the
+same day: the three merged to `main` at `857a29e`, as one merge, exactly as decision 12 required**;
+see *What to do next*.
 **M5 wave 5E — the browser/mobile gate — remains open and unverified**; it does not block M6 and M6
 started ahead of it by the owner's decision. **A new phase, M6B — internationalization — runs
 immediately after M6 and before M7** (owner ruling, 2026-09-06); it is in the table below. Everything
@@ -45,8 +55,8 @@ moment it ships; a decision record does not. When the two disagree, the dated de
 | M4 — Editor panel and shell | **Done** (closed 2026-08-26 — one criterion unmet by design, ADR 0024) | No — `milestones/done/` |
 | M5 — Width editing, and depth as a derived quantity | **In progress — 5E is the only wave open.** 5A–5D2c, 5F, 5G, 5H all shipped | Yes — `milestones/M5-*.md`, and ADRs 0028–0041, 0052, 0053 |
 | M6 — Price bar and global settings (incl. cabinet depth control) | **In progress —** ~~13 of 25 tracked waves DONE~~ ~~corrected 2026-09-05: 13 of 36 wave-table rows are DONE, counted directly~~ ~~corrected again 2026-09-05: 23 of 38 wave-table rows are DONE, counted directly~~ ~~corrected again 2026-09-06: 24 of 38, wave 6U closed~~ **corrected again 2026-09-06: 27 of 38, waves 6J-c, 6J-d and 6N-0 closed** — two rows added for 6K-g and 6K-h (real waves with full plans and shipped commits that had never had a table row) and ten more rows reconciled against `git log`: 6K, 6K-c, 6K-d, 6K-e, 6K-f, 6K-g, 6K-h, 6K-j, 6Q and 6Q-c, all closing 2026-09-05 (see *What to do next* below for the full recount and its arithmetic). On branch `m6-price-and-global-settings`: 6A (`6c1f830`), 6H (`4afda06`), 6A3 and 6B2 (`eb9ba03`) shipped 2026-09-03; 6C (`194405b`) and 6D (`a5e161f`) shipped 2026-09-03 but only received their DONE marker this pass — a documentation gap, not new work; 6E (`b558e28`), 6G (`3e546d1`), 6I2 and 6M (merged at `ce77171`) shipped 2026-09-03/04; 6S (`280daa4`, `a2bff48`), 6J (`c8ba3af` 6J-a, `a68482d` 6J-b) and 6P (`38268b5`) shipped 2026-09-04. **6K's whole family closed 2026-09-05**: 6K-a and 6K-b (`30c3bcb`/`4dc08e0`/`30d419b`/`e664e33`, 2026-09-04), 6K-c (`56b6815`), 6K-d and 6K-e (one commit, `d4e58a4`), 6K-f (`827e1e1`), 6K-h (`e90ccc8`), 6K-g (`52e3c70`), 6K-j (`151429f`) — which also closes 6Q, via 6Q-a (`9e9d54e`), 6Q-b (`59f8669`) and 6Q-c (`14cef90`). **6U closed 2026-09-06, `38d5cad`** — ADR 0087's hob-seat fix (the front clearance is now derived, not a literal); ADR 0087 carries a 2026-09-06 amendment recording the hob's own 510 mm geometric floor, found by 6U's QA and unreachable today because `requireDeclaredCabinetDepthMm` refuses below 520. **6J-c, 6J-d and 6N-0 closed 2026-09-06** — `2bdd923` (6J-c), `cf53e8e` (6J-d + 6N-0), `b4d93c7` (6J-d's D1 fix), merged to `main` at `e7eba07`; see *What to do next* below for what these waves cost. ~~Open: 6K-i (ADR 0079's finding, unadjudicated), 6N-a, 6R, 6T.~~ **Corrected 2026-09-06: 6K-i, 6N-a, 6R and the new 6R-b are all DONE — see the recount at the end of this cell. Open: 6T, 6T2, 6W, 6V, 6X.** **Certified 2026-09-05** (`59f8669`): 6A4, 6B (CERTIFIED); 6A2, 6L, 6I
-(CERTIFIED WITH FINDINGS) — see *Where the project stands*'s certification note below. 6F is superseded by ADR 0071's 6P–6R; 6N-b and 6N-c are dropped, 2026-09-05, owner ruling. **Corrected again 2026-09-06: 31 of 44 wave-table rows are DONE, counted directly — and the denominator moved as well as the numerator.** The table is **44 rows**, not the 38 counted 2026-09-05: six were added since by ADRs 0090–0094 (6J-d, 6R-b, 6T2, 6W, 6V, 6X), each citing its own record in the row. The four closing this pass, all on branch `wave/6r-control-shapes-and-strip-row`: **6R and 6R-b** (`aa6ad9e`, one commit — three control shapes, six decors, the adapter's total finish table, and ADR 0094's own full-width settings row on desktop), **6K-i** (`deb237f`) and **6N-a** (`7ad15e1`), the last two implemented in agent worktrees a day earlier and merged here, with four review findings closed at `1116ae9` (all test-strength, no production change). Arithmetic, so it can be checked rather than trusted: 31 DONE + 5 CERTIFIED (6A2, 6A4, 6B, 6I, 6L) + 3 not-shipping (6F superseded, 6N-b and 6N-c dropped) + 5 open (6T, 6T2, 6W, 6V, 6X) = 44. **Two of those rows were materially wrong in this file until this pass** — 6K-i was called *"genuinely unstarted — no commit, no plan section"* when it had both, and 6N-a was listed as simply open when it was finished; see *What to do next* for the cause. **Corrected again 2026-09-06, later the same day: the wave table is 45 rows, not 44, and six waves are open, not five.** ADR 0092 **Amendment C** opened **6T-a — one push-to-open predicate** (tier Full, gated on 6T), counted directly in the milestone file's table at rows 6T-a and its neighbours. The parts of the arithmetic are otherwise unmoved: 31 DONE + 5 CERTIFIED (6A2, 6A4, 6B, 6I, 6L) + 3 not-shipping (6F superseded, 6N-b and 6N-c dropped) + **6** open (6T, **6T-a**, 6T2, 6W, 6V, 6X) = **45**. ~~**6T itself is neither DONE nor open**: it is implemented, adversarially QA'd and reviewed on branch `wave/6t-finish`, and that branch has not reached `main` — recorded as **implemented-and-unmerged**, which is the state this file's own *Keeping this file honest* rule requires for a commit that exists outside `main`~~ **Corrected 2026-09-07: 34 of 45 rows are DONE, and the denominator did not move.** The three closing this pass are **6T** (`0d0ee61`, QA `88f85e2`, `e9ab7b2`), **6T-a** (`0a9ce1a`, QA `fb127b8`) and **6W** (`1d6fc7e`, QA `ca35b96`), all on branch **`wave/6t-finish`**, gated together at `ca35b96` and **ready to merge rather than merged** — the three reach `main` as one merge per ADR 0092 decision 12, so until that merge they remain **implemented-and-unmerged** under this file's own rule. Arithmetic, so it can be checked rather than trusted: 34 DONE + 5 CERTIFIED (6A2, 6A4, 6B, 6I, 6L) + 3 not-shipping (6F superseded, 6N-b and 6N-c dropped) + **3** open (**6T2, 6V, 6X**) = 45. Their close-outs — what shipped, the verification actually performed, the two owner inputs they promoted and 6W's unmet criterion 4 — are in `milestones/M6-price-and-global-settings.md`'s own sections for the three waves; read them there | Yes — `milestones/M6-*.md`, and ADRs 0055–0094 |
-| M6B — Internationalization (Romanian is the source, other locales are translations) | **Planned — runs immediately after M6 and before M7** (owner ruling, 2026-09-06). ~~No milestone document yet~~ **Planned 2026-09-06: [`milestones/M6B-internationalization.md`](milestones/M6B-internationalization.md), ten waves (6B-a … 6B-j) plus **two hard owner stops — Gate O1 (the owner corrects the collected Romanian) and Gate O2 (the owner checks the Russian)** — which pin the copy path to an ordered chain: extract, owner corrects, agent translates **from the corrected Romanian**, owner checks. Agent-led translation is owner-authorised (*"you can lead the translation"* — they read Russian and review it themselves), so there is no translator dependency and no empty Russian slot; M8's launch gate keeps a backstop re-sign, but **O2 is the real review**. With [ADR 0095](decisions/0095-romanian-is-the-source-and-lives-in-message-files-and-the-domain-publishes-codes-not-sentences.md) carrying its rulings.** **Two owner rulings, 2026-09-06, widened it after the first plan and are both in it:** *"need to add in code also the internalization, meaning implementing i18n"* — so routing, negotiation, `Intl` formatting and a complete `ru.json` are in, and **ADR 0001 decision 5 closes with M6B rather than staying owed**, leaving only the owner's sign-off on the drafted Russian wording as a review line on M8's launch gate; and *"every hardcoded string even in tests should be replaced"* — so no test carries a Romanian literal, and wave 6D's pinning rule moves into **one whole-file copy lock** that must be an inline literal table and **never `toMatchSnapshot`**, because `vitest -u` would let the one guard on approved copy rubber-stamp its own replacement. **Two further owner rulings, same day:** *"one is plural, it's needed to be used instead of '0 de corpuri' => '0 corpuri'"* — **CLDR wins on the zero-count plural**, and the fix is three parts, since `apps/web/src/content/ro.ts:4-7` and `:15-19` assert the wrong rule as settled fact (*"is the truth about an empty kitchen"*) and are what would restore it; and *"next milestones will require to implement all the strings … in the same way"* — so M6B extends **`docs/best-practices/engineering-conventions.md`** with the rule M7 and M8 author against, landing with the lint gate rather than buried in a plan that goes stale at phase close. The scope it is drawn from is `docs/BACKLOG.md` entry 53, *"Russian is a supported locale — decided on day one, no milestone owns it"*. The driver is [ADR 0001](decisions/0001-initial-product-and-stack.md) decision 5 — *"Launch with Romanian as the default locale and Russian as a supported locale"* — **Accepted 2026-08-20, never superseded, and owned by no milestone until this row**. Named M6B on M5B's precedent for a phase inserted between two numbered ones. **It cannot start until M6 closes**: wave 6B-g reformats every money string and 6B-f moves catalogue labels out of the domain, both reading surfaces M6's open 6T is still writing. **Two things the planning pass found that entry 53 did not have**: the phase is *not* confined to `apps/web/src/content/ro.ts` — `packages/configurator-domain/src` renders customer-facing Romanian too (`commands/rejection.ts`, **34 refusal codes** and ~40 sentences, eagerly rendered into every command result at `commands/command-result.ts:198`; `catalog.ts`'s 17-entry `KIND_LABELS_RO` and its `ușă`/`uși` door count; `bands.ts`; `queries/describe-selection.ts`) — and of the test assertions at stake, **81 are `expect(x).toBe(ro.some.key)` tautologies that protect no copy at all**, against 39 real Romanian literal pins in 32 files. **One live divergence is on record and needs an owner copy call**: an empty kitchen reads *"0 de corpuri"* today, while CLDR's `ro` plural rule selects `few` at zero and would read *"0 corpuri"* — the plan's open question 1, which blocks no wave | Yes, when starting — `milestones/M6B-internationalization.md`, then ADR 0095 and ADR 0001 |
+(CERTIFIED WITH FINDINGS) — see *Where the project stands*'s certification note below. 6F is superseded by ADR 0071's 6P–6R; 6N-b and 6N-c are dropped, 2026-09-05, owner ruling. **Corrected again 2026-09-06: 31 of 44 wave-table rows are DONE, counted directly — and the denominator moved as well as the numerator.** The table is **44 rows**, not the 38 counted 2026-09-05: six were added since by ADRs 0090–0094 (6J-d, 6R-b, 6T2, 6W, 6V, 6X), each citing its own record in the row. The four closing this pass, all on branch `wave/6r-control-shapes-and-strip-row`: **6R and 6R-b** (`aa6ad9e`, one commit — three control shapes, six decors, the adapter's total finish table, and ADR 0094's own full-width settings row on desktop), **6K-i** (`deb237f`) and **6N-a** (`7ad15e1`), the last two implemented in agent worktrees a day earlier and merged here, with four review findings closed at `1116ae9` (all test-strength, no production change). Arithmetic, so it can be checked rather than trusted: 31 DONE + 5 CERTIFIED (6A2, 6A4, 6B, 6I, 6L) + 3 not-shipping (6F superseded, 6N-b and 6N-c dropped) + 5 open (6T, 6T2, 6W, 6V, 6X) = 44. **Two of those rows were materially wrong in this file until this pass** — 6K-i was called *"genuinely unstarted — no commit, no plan section"* when it had both, and 6N-a was listed as simply open when it was finished; see *What to do next* for the cause. **Corrected again 2026-09-06, later the same day: the wave table is 45 rows, not 44, and six waves are open, not five.** ADR 0092 **Amendment C** opened **6T-a — one push-to-open predicate** (tier Full, gated on 6T), counted directly in the milestone file's table at rows 6T-a and its neighbours. The parts of the arithmetic are otherwise unmoved: 31 DONE + 5 CERTIFIED (6A2, 6A4, 6B, 6I, 6L) + 3 not-shipping (6F superseded, 6N-b and 6N-c dropped) + **6** open (6T, **6T-a**, 6T2, 6W, 6V, 6X) = **45**. ~~**6T itself is neither DONE nor open**: it is implemented, adversarially QA'd and reviewed on branch `wave/6t-finish`, and that branch has not reached `main` — recorded as **implemented-and-unmerged**, which is the state this file's own *Keeping this file honest* rule requires for a commit that exists outside `main`~~ **Corrected 2026-09-07: 34 of 45 rows are DONE, and the denominator did not move.** The three closing this pass are **6T** (`0d0ee61`, QA `88f85e2`, `e9ab7b2`), **6T-a** (`0a9ce1a`, QA `fb127b8`) and **6W** (`1d6fc7e`, QA `ca35b96`), all on branch **`wave/6t-finish`**, gated together at `ca35b96` and **ready to merge rather than merged** — the three reach `main` as one merge per ADR 0092 decision 12, so until that merge they remain **implemented-and-unmerged** under this file's own rule. Arithmetic, so it can be checked rather than trusted: 34 DONE + 5 CERTIFIED (6A2, 6A4, 6B, 6I, 6L) + 3 not-shipping (6F superseded, 6N-b and 6N-c dropped) + **3** open (**6T2, 6V, 6X**) = 45. Their close-outs — what shipped, the verification actually performed, the two owner inputs they promoted and 6W's unmet criterion 4 — are in `milestones/M6-price-and-global-settings.md`'s own sections for the three waves; read them there. **Corrected again 2026-09-07, at the end of the day: 38 of 46 rows are DONE, no row is open, and the denominator moved by one — ADR 0093 Amendment A §6 added the 6X-a row after the 45 was counted.** The four closing this pass, each merged to `main` in its own merge: **6T2** (`825ba43`), **6X and 6X-a** (`9f5a4f6`), **6V** (`c7c9743`); and 6T, 6T-a and 6W stopped being implemented-and-unmerged at `857a29e`. Arithmetic, so it can be checked rather than trusted: 38 DONE + 5 CERTIFIED (6A2, 6A4, 6B, 6I, 6L) + 3 not-shipping (6F superseded, 6N-b and 6N-c dropped) + **0** open = 46. **M6 is not therefore closed, and the difference is the point of this row:** three things are outstanding — **6V's CI runner artefact** (its last criterion asks for runner evidence and every figure on record is a local run), **six open owner inputs** (below, under *What to do next*), and **6W's criterion 4**, met in code under an architect's interim and not with the owner's words. Each wave's close-out in `milestones/M6-price-and-global-settings.md` carries what shipped and the verification actually performed; read them there rather than through this cell | Yes — `milestones/M6-*.md`, and ADRs 0055–0094 |
+| M6B — Internationalization (Romanian is the source, other locales are translations) | ~~**Planned — runs immediately after M6 and before M7**~~ **Next, and started at its first owner stop: Gate O1 is in progress 2026-09-07 — the owner is reviewing `apps/web/src/messages/ro.json`.** The gate is a hard stop by design: nothing translates until the owner's corrected Romanian exists, so O1 running is the phase running. (owner ruling, 2026-09-06). ~~No milestone document yet~~ **Planned 2026-09-06: [`milestones/M6B-internationalization.md`](milestones/M6B-internationalization.md), ten waves (6B-a … 6B-j) plus **two hard owner stops — Gate O1 (the owner corrects the collected Romanian) and Gate O2 (the owner checks the Russian)** — which pin the copy path to an ordered chain: extract, owner corrects, agent translates **from the corrected Romanian**, owner checks. Agent-led translation is owner-authorised (*"you can lead the translation"* — they read Russian and review it themselves), so there is no translator dependency and no empty Russian slot; M8's launch gate keeps a backstop re-sign, but **O2 is the real review**. With [ADR 0095](decisions/0095-romanian-is-the-source-and-lives-in-message-files-and-the-domain-publishes-codes-not-sentences.md) carrying its rulings.** **Two owner rulings, 2026-09-06, widened it after the first plan and are both in it:** *"need to add in code also the internalization, meaning implementing i18n"* — so routing, negotiation, `Intl` formatting and a complete `ru.json` are in, and **ADR 0001 decision 5 closes with M6B rather than staying owed**, leaving only the owner's sign-off on the drafted Russian wording as a review line on M8's launch gate; and *"every hardcoded string even in tests should be replaced"* — so no test carries a Romanian literal, and wave 6D's pinning rule moves into **one whole-file copy lock** that must be an inline literal table and **never `toMatchSnapshot`**, because `vitest -u` would let the one guard on approved copy rubber-stamp its own replacement. **Two further owner rulings, same day:** *"one is plural, it's needed to be used instead of '0 de corpuri' => '0 corpuri'"* — **CLDR wins on the zero-count plural**, and the fix is three parts, since `apps/web/src/content/ro.ts:4-7` and `:15-19` assert the wrong rule as settled fact (*"is the truth about an empty kitchen"*) and are what would restore it; and *"next milestones will require to implement all the strings … in the same way"* — so M6B extends **`docs/best-practices/engineering-conventions.md`** with the rule M7 and M8 author against, landing with the lint gate rather than buried in a plan that goes stale at phase close. The scope it is drawn from is `docs/BACKLOG.md` entry 53, *"Russian is a supported locale — decided on day one, no milestone owns it"*. The driver is [ADR 0001](decisions/0001-initial-product-and-stack.md) decision 5 — *"Launch with Romanian as the default locale and Russian as a supported locale"* — **Accepted 2026-08-20, never superseded, and owned by no milestone until this row**. Named M6B on M5B's precedent for a phase inserted between two numbered ones. ~~**It cannot start until M6 closes**: wave 6B-g reformats every money string and 6B-f moves catalogue labels out of the domain, both reading surfaces M6's open 6T is still writing.~~ **Refined 2026-09-07: that constraint binds the *code* waves and not the owner gate, and its stated cause is discharged — 6T, 6T-a, 6T2 and 6W are all on `main`, so the money and catalogue-label surfaces have stopped moving. Gate O1 is running now; 6B-g and 6B-f still wait on M6 being called closed.** **Two things the planning pass found that entry 53 did not have**: the phase is *not* confined to `apps/web/src/content/ro.ts` — `packages/configurator-domain/src` renders customer-facing Romanian too (`commands/rejection.ts`, **34 refusal codes** and ~40 sentences, eagerly rendered into every command result at `commands/command-result.ts:198`; `catalog.ts`'s 17-entry `KIND_LABELS_RO` and its `ușă`/`uși` door count; `bands.ts`; `queries/describe-selection.ts`) — and of the test assertions at stake, **81 are `expect(x).toBe(ro.some.key)` tautologies that protect no copy at all**, against 39 real Romanian literal pins in 32 files. **One live divergence is on record and needs an owner copy call**: an empty kitchen reads *"0 de corpuri"* today, while CLDR's `ro` plural rule selects `few` at zero and would read *"0 corpuri"* — the plan's open question 1, which blocks no wave | Yes, when starting — `milestones/M6B-internationalization.md`, then ADR 0095 and ADR 0001 |
 | M7 — Step 1, room and presets | Planned | Yes, when starting |
 | M8 — Review, contact, success | Planned | Yes, when starting |
 | Adversarial review remediation | **Every finding closed or gated.** SEC-001 (High) deferred to M8 by owner decision, gated. Everything else — SCENE-001/002, WEB-001–004, DOM-001–003, SEC-002–004, DB-001/002/004 — is implemented and reviewed | Yes — `milestones/adversarial-review-remediation.md`, `milestones/dom-003-set-width-split.md` |
@@ -246,8 +256,9 @@ policy, so every per-endpoint limit is application code.
 ## What to do next
 
 **Next: M6, ~~now on branch `wave/6r-control-shapes-and-strip-row`~~** (that is the branch 6R, 6R-b,
-6K-i and 6N-a landed on, 2026-09-06) — **work moved the same day to `wave/6t-finish`, which carries 6T
-and is where 6T-a is being implemented now**. Read
+6K-i and 6N-a landed on, 2026-09-06) — ~~**work moved the same day to `wave/6t-finish`, which carries 6T
+and is where 6T-a is being implemented now**~~ **superseded 2026-09-07: every M6 wave branch is merged
+and work is on `main` at `bdef351`; the next phase is M6B, whose Gate O1 is running now**. Read
 `milestones/M6-price-and-global-settings.md`, ~~now a 25-wave breakdown (6P–6T added 2026-09-04 on
 ADRs 0070 and 0071, superseding 6F; 6K-c added the same day on ADR 0073)~~ ~~now a 36-row wave table,
 counted directly 2026-09-05~~ ~~now a 38-row wave table, counted directly 2026-09-05~~ ~~**now a 44-row
@@ -354,8 +365,11 @@ every worktree branch is the only thing standing between finished work and a tra
 
 ~~**M6's remaining work, stated exactly: 6T, 6T2, 6W, 6V, 6X — five waves, and both gates just
 cleared.**~~ ~~**Corrected 2026-09-06, later the same day: six waves — 6T, 6T-a, 6T2, 6W, 6V, 6X.**~~
-**Corrected again 2026-09-07: three waves — 6T2, 6V, 6X.** 6T, 6T-a and 6W are done and sit on
-`wave/6t-finish`, ready to merge; the paragraph two below carries their close-out.
+~~**Corrected again 2026-09-07: three waves — 6T2, 6V, 6X.** 6T, 6T-a and 6W are done and sit on
+`wave/6t-finish`, ready to merge; the paragraph two below carries their close-out.~~ **Corrected
+again 2026-09-07, at the end of the day: no wave remains. 6T2, 6X, 6X-a and 6V all closed and merged
+— see the close-out paragraphs below**, and note that the count grew a row on the way: ADR 0093
+Amendment A §6 opened **6X-a** after 6X's QA, so the table is 46 rows.
 6T (hardware priced per mechanism, ADR 0092) lands on one branch with **6W** (a tier that prices below
 the default); **6T2** (the two sink extras) follows 6T in the same files, never in parallel and never
 beside 6P. **6V** (a selection counted by what changed, not by what colour it is, ADR 0091 decision 6)
@@ -417,6 +431,97 @@ by the coordinating session itself: all ten `pnpm ci:local` gates PASS; `pnpm te
 skipped across 334 files; e2e 99 passed / 1 skipped.** That single run is the gate evidence for all
 three waves; the intermediate figures this file carries for `0d0ee61` and `e9ab7b2` are superseded
 by it.
+
+**Closed 2026-09-07, later the same day: 6T2, 6X, 6X-a and 6V — 38 of 46 — and every M6 wave branch
+is now merged to `main`.** The merges, in order: **`825ba43`** (6T2), **`9f5a4f6`** (6X and 6X-a
+together), **`c7c9743`** (6V), each following `857a29e`, which took 6T, 6T-a and 6W off the
+implemented-and-unmerged list. Two fixes come after the merges and are part of the record rather than
+tidying: **`88f06ba`** corrects two of 6V's criterion sentences that were written against cases that
+do not exist, and **`bdef351`** closes the two documentation findings 6X-a's late review raised.
+
+**What the four waves did**, one line each, with the detail at each wave's own close-out in
+`milestones/M6-price-and-global-settings.md`. **6T2** — a sink is a **declared** catalogue fact, the
+dish rack's host is **derived** (the lowest wall-band body, same wall, at least one door leaf,
+strictly overlapping), and both extras are priced per sink at **20 000** / **40 000** minor with
+neither drawn. **6X** — ADR 0090 decision 6 finally has an assertion that goes red when the slide is
+removed, after QA had measured that removing it was **byte-identical over 284 trails** and green
+across all **4 554** tests. **6X-a** — the slide's *direction* is witnessed: swapping the depth
+operands moves a member-less extent **100 mm the wrong way**, which needed a declared design with two
+columns exactly **200 mm** apart, because the shipped kitchen has no such pair — which is why the tree
+stayed green. **6V** — the selection outline is drawn in **two passes** (a near-black casing `0x101010`
+under the red core), so a front cannot equal both: swept over the 24-bit cube, the nearest any colour
+gets to both is **121.4** against the instrument's **60-unit** tolerance, and the pixel counters now
+measure a **difference** rather than a colour, with the positives **tripled** — the sink patch reads
+**10 722** where the retired counter read **3 603**.
+
+**Verification actually performed, recorded here because only the session that ran it holds it.**
+**6T2:** adversarial QA (**289 tests**) and a **logic review (Full)**. **6X:** adversarial QA and a
+**logic review (Full)**. **6X-a:** adversarial QA and a **logic review (Full)** — **and the review ran
+*after* the merge**, a sequencing error by the coordinator, stated rather than smoothed over. It found
+**no blocker**; the two documentation findings it did raise are fixed at `bdef351`. **The reviewer
+also could not execute** — the tree it was given was on another branch — so **its confirmations of the
+red sets are re-derived by reading, not re-run**. **6V:** adversarial QA (**4 tests added**,
+`bba4b1b`) and **no separate logic review**; the QA pass was adversarial and thorough, and that is the
+whole of the review this wave received. **Final state at 6V's merge, run by the coordinating session
+itself: all ten `pnpm ci:local` gates PASS**, `pnpm test` **7 971 passed / 4 skipped**, **e2e 110
+passed / 1 skipped**.
+
+**Five things from these waves that are recorded rather than summarised, because a summary loses
+exactly what makes them useful.**
+
+1. **Two of 6V's criteria were written against cases that do not exist, and were corrected rather
+   than satisfied** (`88f06ba`). **`veneer.nuc` does not break `redTint`** on the tone-mapped render:
+   its brightest pixels measure **49, 47 and 50** against a threshold of **50** — unsatisfiable by one
+   unit, where the 6M guard's 137 is model arithmetic tone mapping never spends. **And the mark cannot
+   be differenced:** the flagged total moves the canvas box (`y 100 h 800` → `y 114.19 h 785.81`), so
+   **19–43 % of every rectangle moves** and differencing would measure layout. **`redTint` and
+   `blueTint` therefore survive under work item 3** — colour-keyed, each declaring the fixture property
+   that makes it valid.
+2. **A selection outline was itself being counted as a mark** — **6 454 pixels** of red excess on an
+   **unmarked** body against a threshold of **50**, and nothing asserted otherwise. Now pinned.
+3. **Nothing witnessed the casing pass on screen, and the differencing counter cannot see it.** Its
+   count is indifferent to the front colour — **10 104 / 10 102 / 10 720 / 10 722** across four fronts
+   — so the casing was measured directly instead: near-black at tolerance **40** reads **1 923** pixels
+   selected against **0** unselected. QA closed this.
+4. **The inspection half of 6V's criterion was performed**, and it is recorded because a criterion
+   asking for an inspected render is not discharged by a count. On `#ff2d2d` and `#cc2222` the
+   near-black casing traces the carcass, both door divisions and the sink rim, and **the red core is
+   invisible — the rim does all the work**; on `veneer.nuc` the core dominates with the casing as a
+   thin rim.
+5. **Still owed: the CI runner artefact.** 6V's last criterion asks for **runner** evidence and every
+   figure above is a **local** run. It is owed, not done.
+
+**6T2's QA found two criteria passing on implementations that did not satisfy them**, which earns its
+own line because both survived the whole suite: a hard-coded **`entry.wall === "A"`** in the host
+resolution survived all **3 225** domain tests — the shipped kitchen's sink is on wall A, so a literal
+naming the wall reads identically to a comparison that derives it — and reverting **`isUnplacedLine`**
+(`apps/web/src/price/price-breakdown-model.ts:263`, the predicate ADR 0092 decision 11 planned as
+`isWholeKitchenLine`) to its old negation survived all **1 673** web tests, which is the exact trap
+that criterion was written for.
+
+**What M6 still owes before it can be called closed.** Three things, and none of them is a wave:
+**6V's CI runner artefact**; **6W's criterion 4**, met in code under an architect's interim and not
+with the owner's words; and the **six open owner inputs** below. **M6B — Internationalization is the
+next phase, and its Gate O1 is in progress** — the owner is reviewing `apps/web/src/messages/ro.json`
+now. The gate is a hard owner stop by design: nothing is translated until the corrected Romanian
+exists.
+
+**Open owner inputs carried out of M6, all unresolved.**
+
+- **The three drafted push-to-open rates (40 / 120 / 100 MDL)**, which currently invert the tier
+  ordering — Hettich above Blum. ADR 0092 open input 1.
+- **Whether an out-of-bounds sink still bills its rack** — worth **40 000 minor** per sink, and a gap
+  in ADR 0092 decision 10's contract rather than a defect against it. **ADR 0092 open input 7**, added
+  at 6T2's close-out.
+- **The settings sheet's blank badge for a below-default tier** — `inclus` / *(blank)* / `de la +…`
+  down the three rows, where a blank between two figures reads as *"price unavailable"* rather than
+  *"cheaper"*. ADR 0092 open input 4.
+- **The *De la* interim** — 6W left the claim true rather than qualified under an architect's interim,
+  where the criterion asks for the owner's words. ADR 0092 open input 4.
+- **The two drafted accessory names**, and the breakdown's category word for them. ADR 0092 open
+  input 3.
+- **`docs/BACKLOG.md` entry 54** — cabinet depth changes material and not price — which needs the
+  owner's own manufacturer to answer.
 
 **Two things these waves hand the owner, and both are now load-bearing rather than pending.**
 **First, the three drafted push-to-open rates (40 / 120 / 100 MDL).** They were safe to draft only
@@ -608,7 +713,9 @@ this project:
   implemented-and-unmerged, with its commits and its branch — and **`wave/6t-finish` is the live
   instance to watch**: ~~it holds 6T and is where 6T-a is being written~~ **updated 2026-09-07: it
   holds all three of 6T, 6T-a and 6W, each closed out with its commits, and it is green on all ten
-  gates at `ca35b96` and ready to merge**, and nothing on it has reached `main`. **The rule's own
-  test is whether that sentence stays true until the merge**: three finished waves are recorded as
-  DONE-and-unmerged rather than as open, and the branch is named everywhere a reader could look for
-  them.
+  gates at `ca35b96` and ready to merge**, and nothing on it has reached `main`. ~~**The rule's own
+  test is whether that sentence stays true until the merge**~~ **The rule passed its test, 2026-09-07:
+  the three merged at `857a29e` while still recorded as DONE-and-unmerged, and no reader in between
+  could have mistaken them for unstarted work.** **There is no live instance left to watch** — every
+  M6 wave branch is merged and `main` is at `bdef351`. The next branch to carry unmerged work inherits
+  the rule.

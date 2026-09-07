@@ -17,12 +17,21 @@ fronts, not zero. Every *"0 push"* figure in this record inherits that error and
 its site. All three corrections are made in place, because the record is one day old and its numbers
 are load-bearing; what changed and why is stated at each site.
 
-**Implementation status, recorded 2026-09-07.** Three of the four waves this record plans are
-**implemented and not yet on `main`**: **6T** (`0d0ee61`, QA `88f85e2`, `e9ab7b2`), **6T-a**
-(`0a9ce1a`, QA `fb127b8`) and **6W** (`1d6fc7e`, QA `ca35b96`), all on branch **`wave/6t-finish`**,
-which reaches `main` as one merge per decision 12. Amendment C itself is `bf2ba61`. Gated at
-`ca35b96`: **all ten `pnpm ci:local` gates PASS**, `pnpm test` **7 387 passed / 4 skipped across 334
-files**, **e2e 99 passed / 1 skipped**. **6T2 is still open.** Two things this record's own decisions
+**Implementation status, recorded 2026-09-07. ~~Three of the four waves this record plans are
+implemented and not yet on `main`~~ — superseded later the same day: all four are on `main`.** **6T**
+(`0d0ee61`, QA `88f85e2`, `e9ab7b2`), **6T-a** (`0a9ce1a`, QA `fb127b8`) and **6W** (`1d6fc7e`, QA
+`ca35b96`) reached `main` as one merge, **`857a29e`**, per decision 12; they were gated on branch
+`wave/6t-finish` at `ca35b96`: **all ten `pnpm ci:local` gates PASS**, `pnpm test` **7 387 passed / 4
+skipped across 334 files**, **e2e 99 passed / 1 skipped**. Amendment C itself is `bf2ba61`.
+**~~6T2 is still open.~~ 6T2 shipped 2026-09-07 and merged to `main` at `825ba43`** — decisions 9–11
+implemented as decided, with **adversarial QA (289 tests)** and a **logic review (Full)**. Two things
+worth carrying out of that wave into this record: its QA found **two criteria passing on
+implementations that did not satisfy them** — a hard-coded `entry.wall === "A"` in decision 10's host
+resolution survived all **3 225** domain tests, and decision 11's `isWholeKitchenLine` reverted to its
+old `kind !== "cabinet"` negation survived all **1 673** web tests — and it raised **open input 7**
+below, a gap in decision 10's contract rather than a defect against it. The last dated gate run
+covering this record's waves is at M6's 2026-09-07 close: **all ten gates PASS**, `pnpm test` **7 971
+passed / 4 skipped**, **e2e 110 passed / 1 skipped**, run locally. Two things this record's own decisions
 now depend on are stated where they belong rather than here — open input 1 (the three drafted
 push-to-open rates, now load-bearing on a customer-visible price) and open input 4 (6W's *De la*
 claim, shipped under an architect's interim the owner has not ruled on). **Checked at the same
@@ -913,6 +922,13 @@ code, the standing process ruled on 2026-09-04.
    and changes no delta. **This one is unlike the other five**: it is not a placeholder awaiting a
    figure, it is a live customer-visible baseline shipping under an architect's interim, and it wants
    the owner's answer sooner than the rest.
+7. **Added 2026-09-07 at 6T2's close-out — does an out-of-bounds sink still bill its rack?** **A gap
+   in decision 10's contract, not a defect against it.** Decision 10 decides which body hosts the
+   rack; it says nothing about a sink that is itself out of bounds, and the two readings differ by
+   **40 000 minor per sink** in what the customer is quoted. Nothing refuses and no document is
+   corrupted, which is why 6T2 shipped without it. **Unresolved**, and it outlives M6's wave table.
+   Item 3 above — the two drafted accessory names and the breakdown's category word for them —
+   travels with it: both are answers about the same two lines.
 
 ---
 

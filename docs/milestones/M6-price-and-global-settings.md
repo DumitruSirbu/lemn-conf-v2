@@ -322,14 +322,25 @@ constant (`worktop-depth.ts` carries a comment saying the rename is owed and def
 | 6R — three control shapes, six decors the 3D approximates, and a strip that wraps *(ADR 0071, ADR 0082)* — **DONE 2026-09-06, `aa6ad9e`** (one commit with 6R-b) | G | 6Q, 6G | Light + visual |
 | 6R-b — the strip gets its own row, and containment is measured against its own band *(opened by [ADR 0094](../decisions/0094-the-strip-gets-its-own-row-and-containment-is-measured-against-its-own-band.md), which amends ADR 0082 decision 1 — **6R did not close without it**)* — **DONE 2026-09-06, `aa6ad9e`** (one commit with 6R) | G | **6R — the same two stylesheets, never in parallel** | Light + visual |
 | 6S — door leaves, drawers and door band heights become declared facts *(ADR 0070)* — **DONE 2026-09-04, `280daa4`/`a2bff48`** | P | none | Full |
-| 6T — hardware priced per mechanism *(ADR 0070, planned by ADR 0092)* — **DONE 2026-09-06, `0d0ee61`, with QA at `88f85e2` and the per-handle vocabulary retired at `e9ab7b2`. On branch `wave/6t-finish`: ready to merge, not yet on `main`** | P | 6S, 6B2 — **lands on one branch with 6W and 6T-a** | Full |
-| 6T-a — one push-to-open predicate *(opened by [ADR 0092](../decisions/0092-hardware-prices-three-mechanisms-and-a-sink-carries-two-extras.md) Amendment C, on the owner's ruling of 2026-09-06 — 6T counts a latch only on a **recorded** mode, so the demo's 16 top-row latches bill at zero)* — **DONE 2026-09-06, `0a9ce1a` (with ADR 0092 decision 16), QA at `fb127b8`; Amendment C itself recorded at `bf2ba61`. Same branch, ready to merge, not yet on `main`** | P | 6T — **same branch, reaches `main` with 6T and 6W; never in parallel with 6T, 6T2 or 6P** | Full |
-| 6T2 — the two sink extras *(ADR 0070 decision 4, ADR 0092 decisions 9–11)* | P | 6T — **same files, never in parallel; and never beside 6P or 6T-a** | Full |
-| 6W — a tier that prices below the default *(ADR 0092 decision 12)* — **DONE 2026-09-06, `1d6fc7e`, QA at `ca35b96`. Same branch, ready to merge, not yet on `main`. Criterion 4 — the *De la* claim — is met in code under an architect's interim and **not** with the owner's words; see the close-out and ADR 0092 open input 4** | P | 6T — **same branch, reaches `main` with it** | Full |
+| 6T — hardware priced per mechanism *(ADR 0070, planned by ADR 0092)* — **DONE 2026-09-06, `0d0ee61`, with QA at `88f85e2` and the per-handle vocabulary retired at `e9ab7b2`. ~~On branch `wave/6t-finish`: ready to merge, not yet on `main`~~ merged to `main` 2026-09-07 at `857a29e`, with 6T-a and 6W** | P | 6S, 6B2 — **lands on one branch with 6W and 6T-a** | Full |
+| 6T-a — one push-to-open predicate *(opened by [ADR 0092](../decisions/0092-hardware-prices-three-mechanisms-and-a-sink-carries-two-extras.md) Amendment C, on the owner's ruling of 2026-09-06 — 6T counts a latch only on a **recorded** mode, so the demo's 16 top-row latches bill at zero)* — **DONE 2026-09-06, `0a9ce1a` (with ADR 0092 decision 16), QA at `fb127b8`; Amendment C itself recorded at `bf2ba61`. ~~Same branch, ready to merge, not yet on `main`~~ merged to `main` 2026-09-07 at `857a29e`** | P | 6T — **same branch, reaches `main` with 6T and 6W; never in parallel with 6T, 6T2 or 6P** | Full |
+| 6T2 — the two sink extras *(ADR 0070 decision 4, ADR 0092 decisions 9–11)* — **DONE 2026-09-07, merged to `main` at `825ba43`; adversarial QA (289 tests) and a logic review (Full). One open owner input it raised: whether an out-of-bounds sink still bills its rack — see the close-out and ADR 0092 open input 7** | P | 6T — **same files, never in parallel; and never beside 6P or 6T-a** | Full |
+| 6W — a tier that prices below the default *(ADR 0092 decision 12)* — **DONE 2026-09-06, `1d6fc7e`, QA at `ca35b96`. ~~Same branch, ready to merge, not yet on `main`~~ merged to `main` 2026-09-07 at `857a29e`. Criterion 4 — the *De la* claim — is met in code under an architect's interim and **not** with the owner's words; see the close-out and ADR 0092 open input 4** | P | 6T — **same branch, reaches `main` with it** | Full |
 | 6U — the hob holds its reach, and a deeper worktop grows behind it *(ADR 0087; wave 6I's unraised question, owner 2026-09-05)* — **DONE 2026-09-06, `38d5cad`** | D | none — **after 6Q**, and it gates nothing | Full + visual |
-| 6V — a selection is counted by what changed, not by what colour it is *(opened by [ADR 0091](../decisions/0091-an-instruments-premise-is-re-quantified-and-the-product-claim-inside-it-becomes-a-wave.md) decision 6 — the debt wave 6R was obliged to carry rather than discharge)* | — | **6R — gated by it**, and it gates nothing | Test infra + one product fix |
-| 6X — the slide is witnessed by an assertion, not by a redecorated demo *(opened by [ADR 0093](../decisions/0093-a-rule-the-shipped-kitchen-cannot-exercise-owes-a-witness-not-a-moved-fixture.md); ADR 0090 decision 6 has no falsifiable check)* — **work item 1 withdrawn and the mutation criterion corrected 2026-09-07 by [ADR 0093 Amendment A](../decisions/0093-a-rule-the-shipped-kitchen-cannot-exercise-owes-a-witness-not-a-moved-fixture.md)** | D | **6K-i — gated by it**, and it gates nothing | Test fidelity |
-| 6X-a — the ladder's direction is asserted, not only its existence *(opened by [ADR 0093](../decisions/0093-a-rule-the-shipped-kitchen-cannot-exercise-owes-a-witness-not-a-moved-fixture.md) Amendment A §6 — swapping the depth operands moves a member-less extent 100 mm the wrong way and nothing goes red)* | D | **6X — gated by it**, and it gates nothing | Test fidelity |
+| 6V — a selection is counted by what changed, not by what colour it is *(opened by [ADR 0091](../decisions/0091-an-instruments-premise-is-re-quantified-and-the-product-claim-inside-it-becomes-a-wave.md) decision 6 — the debt wave 6R was obliged to carry rather than discharge)* — **DONE 2026-09-07, merged to `main` at `c7c9743`, with QA's four added tests at `bba4b1b` and two false criterion sentences corrected at `88f06ba`. Adversarial QA; no separate logic review. Its last criterion — runner evidence — is owed, not met; see the close-out** | — | **6R — gated by it**, and it gates nothing | Test infra + one product fix |
+| 6X — the slide is witnessed by an assertion, not by a redecorated demo *(opened by [ADR 0093](../decisions/0093-a-rule-the-shipped-kitchen-cannot-exercise-owes-a-witness-not-a-moved-fixture.md); ADR 0090 decision 6 has no falsifiable check)* — **work item 1 withdrawn and the mutation criterion corrected 2026-09-07 by [ADR 0093 Amendment A](../decisions/0093-a-rule-the-shipped-kitchen-cannot-exercise-owes-a-witness-not-a-moved-fixture.md)** — **DONE 2026-09-07, merged to `main` at `9f5a4f6` with 6X-a; adversarial QA and a logic review (Full)** | D | **6K-i — gated by it**, and it gates nothing | Test fidelity |
+| 6X-a — the ladder's direction is asserted, not only its existence *(opened by [ADR 0093](../decisions/0093-a-rule-the-shipped-kitchen-cannot-exercise-owes-a-witness-not-a-moved-fixture.md) Amendment A §6 — swapping the depth operands moves a member-less extent 100 mm the wrong way and nothing goes red)* — **DONE 2026-09-07, merged to `main` at `9f5a4f6` with 6X; adversarial QA and a logic review (Full), and the review ran *after* the merge — a sequencing error recorded at the close-out, no blocker found, its two documentation findings fixed at `bdef351`** | D | **6X — gated by it**, and it gates nothing | Test fidelity |
+
+**Where the table stands, 2026-09-07: every row is resolved, and the denominator moved again.** The
+table is **46 rows**, not the 45 counted on 2026-09-06 — ADR 0093 Amendment A §6 added **6X-a** after
+that count. Arithmetic, so it can be checked rather than trusted: **38 DONE** + 5 CERTIFIED (6A2, 6A4,
+6B, 6I, 6L) + 3 not-shipping (6F superseded, 6N-b and 6N-c dropped) + **0 open** = 46. The four that
+closed this pass are **6T2** (`825ba43`), **6X** and **6X-a** (`9f5a4f6`) and **6V** (`c7c9743`), each
+with its own close-out section below; **6T, 6T-a and 6W stopped being implemented-and-unmerged the
+same day** — they reached `main` at `857a29e`. **No wave row being open is not the same as M6 being
+closed**: what is still owed before the milestone can be called closed is listed in `docs/STATUS.md`
+and in 6V's close-out (the CI runner artefact) — read it there rather than inferring closure from this
+count.
 
 The letters are identifiers and the table is in dependency order, with one exception: **6L is listed
 last and runs early.** It has no technical gate on anything and nothing gates on it, so it is placed
@@ -5848,6 +5859,39 @@ five-file guidance** — ADR 0092 decision 13 states the reason and the fallback
   whole figure — that record published no push row. Whichever of 6T-a and 6T2 lands second owns the
   restatement; if it is 6T2, this criterion is written in the derived form from the start.
 
+#### Wave 6T2 — shipped 2026-09-07, merged to `main` at `825ba43`
+
+**What shipped.** A sink is a **declared catalogue fact** — `CARRIES_SINK` / `NO_SINK` beside
+`cabinetHandles` and `fronts`, never a `kind`, a build-id prefix or an equivalent-id comparison — and
+the dish rack's host is **derived**: the lowest wall-band body, on the same wall, declaring at least
+one door leaf, whose along-wall extent **strictly** overlaps the sink's span. Both extras are priced
+as `accessory` lines **per sink**, at **20 000** minor (the protective cover) and **40 000** minor
+(the rack), and **neither is drawn** — no builder was touched. This is ADR 0092 decisions 9–11
+implemented as decided.
+
+**Verification actually performed.** **Adversarial QA — 289 tests** — and a **logic review (Full)**.
+
+**Two criteria were passing on implementations that did not satisfy them, and QA is what found it.**
+Recorded because each is a case of the whole suite agreeing with a wrong implementation, which is the
+failure mode this milestone keeps meeting:
+
+- **A hard-coded `entry.wall === "A"`** in the host resolution **survived all 3 225 domain tests.**
+  The criterion said *"same wall"*; the shipped kitchen's sink is on wall A, so a literal that names
+  the wall reads identically to a comparison that derives it.
+- **Reverting the membership test to its old negation** (`kind !== "cabinet"`) **survived all 1 673
+  web tests** — the exact trap ADR 0092 decision 11 wrote the criterion for: the negation compiles and
+  renders `undefined · <accessory name>`. The predicate ships as **`isUnplacedLine`**
+  (`apps/web/src/price/price-breakdown-model.ts:263`), not under decision 11's planned name
+  `isWholeKitchenLine`, and it asks membership of the category record itself so the two cannot
+  disagree.
+
+**One open owner input this wave raised, and it is a contract gap rather than a defect.** **Whether
+an out-of-bounds sink still bills its rack.** ADR 0092 decision 10 decides which body hosts the rack;
+it does not say what a sink that is itself out of bounds is owed, and the answer is worth **40 000
+minor** per sink in what the customer is quoted. Nothing refuses and no document is corrupted — the
+gap is in the contract, not in the code that implements it. Recorded as **ADR 0092 open input 7**,
+unresolved and carried past M6's wave table.
+
 ### Wave 6W — a tier that prices below the default
 
 **Opened by [ADR 0092](../decisions/0092-hardware-prices-three-mechanisms-and-a-sink-carries-two-extras.md)
@@ -6877,6 +6921,59 @@ ADR 0091 decision 4a puts into the 6M guard, applied at the e2e seam.
   `selection-outline.ts` already has the machinery for (`OCCLUDED_OUTLINE_OPACITY`'s pass is one).
 - **Item 1 must not reach a geometry builder.** M1's fidelity gate is not this wave's to re-baseline.
 
+#### Wave 6V — shipped 2026-09-07, merged to `main` at `c7c9743`
+
+**What shipped.** **Work item 1:** the selection outline is drawn in **two passes** — a near-black
+casing (`SELECTION_OUTLINE_CASING_COLOR = 0x101010`, `packages/three-adapter/src/selection-outline.ts`)
+under the red core, the casing two pixels wider so it shows as a rim on either side. The property that
+makes it work is stated rather than assumed: **a front cannot equal both**. Swept over the whole 24-bit
+cube, the nearest any single colour gets to *both* passes at once is **121.4**, against the
+instrument's **60-unit** tolerance. **Work item 2:** the pixel counters now measure a **difference**
+between two otherwise-identical captures rather than a colour, and the positives *tripled* rather than
+collapsed — the sink patch reads **10 722** where the retired colour counter read **3 603**.
+
+**Verification actually performed.** **Adversarial QA**, which added **4 tests** at `bba4b1b`.
+**No separate logic review was dispatched.** Said plainly rather than implied: the QA pass was
+adversarial and thorough, and it is the only review this wave received.
+
+**Two criteria were written against cases that do not exist, and were corrected rather than
+satisfied** — `88f06ba`. Both are recorded because a criterion quietly deleted looks the same as one
+met:
+
+- **`veneer.nuc` does not break `redTint` on the tone-mapped render.** Its brightest pixels measure
+  **49, 47 and 50** against a threshold of **50** — unsatisfiable by one unit. The 6M guard's 137 is
+  model arithmetic, a value tone mapping never spends.
+- **The mark cannot be differenced.** The flagged total moves the canvas box (`y 100 h 800` →
+  `y 114.19 h 785.81`), so **19–43 % of every rectangle moves** and a differencing counter would be
+  measuring layout, not the mark.
+
+Consequently **`redTint` and `blueTint` survive under work item 3** — they stay colour-keyed and
+declare the fixture property that makes them valid, which is what item 3 is for.
+
+**A selection outline was itself being counted as a mark**, and nothing in the suite asserted
+otherwise: **6 454 pixels** of red excess on an **unmarked** body, against a threshold of **50**. Now
+pinned.
+
+**Nothing witnessed the casing pass on screen, and the differencing counter cannot see it.** Its count
+is indifferent to the front colour — **10 104 / 10 102 / 10 720 / 10 722** across four fronts — so the
+casing was measured **directly** instead: near-black at tolerance 40 reads **1 923** pixels selected
+against **0** unselected. QA closed this.
+
+**The inspection half of the criterion was performed, and it is recorded because a count does not
+discharge a criterion that asks for an inspected render.** On `#ff2d2d` and on `#cc2222`, the
+near-black casing traces the carcass, both door divisions and the sink rim, and **the red core is
+invisible — the rim does all the work**. On `veneer.nuc` the core dominates and the casing reads as a
+thin rim.
+
+**Final gate state, at 6V's merge — and it is the last dated run for all four of the waves closed
+2026-09-07.** **All ten `pnpm ci:local` gates PASS**; `pnpm test` **7 971 passed / 4 skipped**;
+**e2e 110 passed / 1 skipped**. Run locally by the coordinating session. **It is a local run, not a runner one**, and the only commit
+after it is `bdef351`, which carries 6X-a's two documentation findings.
+
+**Still owed: the CI runner artefact.** 6V's last criterion asks for **runner** evidence and
+everything above is a **local** run. It is recorded as **owed**, not as done, and it is the one
+outstanding item this wave hands forward.
+
 ### Wave 6X — the slide is witnessed by an assertion, not by a redecorated demo
 
 **Tier: test fidelity, domain package only. No production code, no fixture, no runner evidence.**
@@ -7047,6 +7144,16 @@ boundary and is **wave 6X-a's**, per ADR 0093 Amendment A §6.
 - **Scope creep into backlog 51.** Chain-homogeneity is next door and is not this wave's; ADR 0090
   recorded it as needing its own adjudication, starting with whether the state is reachable.
 
+#### Wave 6X — shipped 2026-09-07, merged to `main` at `9f5a4f6` (one merge with 6X-a)
+
+**What shipped.** [ADR 0090](../decisions/0090-a-frozen-space-slides-with-its-run-and-follows-the-body-it-recorded.md)
+decision 6 now has an assertion that **goes red when the slide is removed** — the thing it did not
+have. What makes that worth a wave is the measurement it corrects: **QA had already measured that
+removing the slide was byte-identical over 284 trails and left all 4 554 tests green.** A rule the
+whole suite could not tell had been deleted now has a witness.
+
+**Verification actually performed.** **Adversarial QA** and a **logic review (Full)**.
+
 ### Wave 6X-a — the ladder's direction is asserted, not only its existence
 
 **Tier: test fidelity, domain package only. No production code, no fixture, no runner evidence.**
@@ -7103,6 +7210,24 @@ own operand read, records the red set for each, and restores both.
   0093 decision 2 binds unchanged.
 - **Scope creep into the occupied rung.** Rung 1 is witnessed by wave 6X item 2 and is not re-asserted
   here beyond the indifference check above.
+
+#### Wave 6X-a — shipped 2026-09-07, merged to `main` at `9f5a4f6` (one merge with 6X)
+
+**What shipped.** The slide's **direction** now has a witness: swapping the depth operands moves a
+member-less extent **100 mm the wrong way**, and an assertion goes red for it. Getting there needed a
+**declared design with two columns exactly 200 mm apart**, because **the shipped kitchen has no such
+pair** — which is precisely why the tree stayed green under the swap and why ADR 0093 Amendment A §6
+opened this wave rather than leaving it inside 6X.
+
+**Verification actually performed.** **Adversarial QA** and a **logic review (Full)** — and **the
+review ran *after* the merge.** That is a **sequencing error by the coordinator**, recorded here
+rather than smoothed over: this project's own rule is that review precedes the merge, and on this wave
+it did not. What the late review found is recorded with equal plainness: **no blocker**, and **two
+documentation findings**, both fixed at `bdef351`.
+
+**The reviewer also could not execute.** The tree it was given was on another branch, so **its
+confirmations of the red sets are re-derived by reading, not re-run.** Anyone treating this wave's
+mutation evidence as machine-verified is reading it wrong; the QA pass is what executed.
 
 ## Verification
 
