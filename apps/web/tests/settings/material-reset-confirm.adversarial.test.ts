@@ -41,6 +41,7 @@ import {
   type WholeKitchenChoice,
 } from "@/settings/global-settings-model";
 import { GlobalSettingsSurface } from "@/settings/global-settings";
+import { describeEditability } from "@/store/editability";
 
 import { SUM_CLAIM_PATTERN } from "../support/ruled-price-copy";
 import { MDF_KITCHEN_WEARING_CHOSEN_COLOURS } from "../support/mdf-kitchen-wearing-chosen-colours";
@@ -393,6 +394,13 @@ describe("what the confirm step leaves behind when it replaces the body and foot
       createElement(GlobalSettingsSurface, {
         id: SURFACE_ID,
         view: CONFIRM_VIEW,
+        // This block is about the confirmation's copy and its two steps, never about access. Stated
+        // rather than defaulted: `GlobalSettingsSurface.editability` is a required prop precisely so
+        // a write surface cannot silently default to permitted (M6-AUD-001).
+        editability: describeEditability({
+          canWrite: true,
+          saveStatus: "idle",
+        }),
         ...(step === "choosing"
           ? {}
           : {

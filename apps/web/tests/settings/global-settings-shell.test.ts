@@ -45,6 +45,7 @@ import {
   createConfiguratorStore,
   type ConfiguratorState,
 } from "@/store/configurator-store";
+import { describeEditability } from "@/store/editability";
 
 import { createFakeProbeFactory } from "../support/fake-body-probe";
 
@@ -67,6 +68,14 @@ const { GlobalSettings, GlobalSettingsSurface } = await import(
 );
 
 const FIXED_NOW = "2026-09-03T12:00:00.000Z";
+
+/** These fixtures are about chips, the figure and the tab ring, never about access. Stated rather
+ *  than defaulted: `GlobalSettingsSurface.editability` is a required prop precisely so a write
+ *  surface cannot silently default to permitted (M6-AUD-001). */
+const WRITABLE_ACCESS = describeEditability({
+  canWrite: true,
+  saveStatus: "idle",
+});
 
 const MATERIAL_TIER_IDS = SAMPLE_PRICE_BOOK.material.tiers.map(
   (tier) => tier.tierId,
@@ -338,6 +347,7 @@ describe("the overflow flag travels with the total onto this surface too", () =>
       createElement(GlobalSettingsSurface, {
         id: "settings",
         view: viewOf(overflowing),
+        editability: WRITABLE_ACCESS,
         onChoose: () => undefined,
         onChooseDepth: () => undefined,
         onCancel: () => undefined,
@@ -352,6 +362,7 @@ describe("the overflow flag travels with the total onto this surface too", () =>
         createElement(GlobalSettingsSurface, {
           id: "settings",
           view: viewOf(KITCHEN_L_DESIGN),
+          editability: WRITABLE_ACCESS,
           onChoose: () => undefined,
           onChooseDepth: () => undefined,
           onCancel: () => undefined,
@@ -406,6 +417,9 @@ describe("the markup preconditions the focus trap is written against", () => {
       createElement(GlobalSettingsSurface, {
         id: "settings",
         view,
+        // The ring this block pins is the **writable** sheet's — a locked one greys its radios and
+        // its *Aplică*, and that ring is asserted in `read-only-global-settings.test.ts`.
+        editability: WRITABLE_ACCESS,
         onChoose: () => undefined,
         onChooseDepth: () => undefined,
         onCancel: () => undefined,
