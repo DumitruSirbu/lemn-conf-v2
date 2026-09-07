@@ -482,6 +482,38 @@ export interface PricedTerm {
  * **Throws** rather than answering, like `usableCoefficientOf` and for the same reason: there is no
  * number to guess at. `price-design.ts` converts it to a coded refusal at the one place it already
  * converts the others.
+ *
+ * ---
+ *
+ * **The order of the terms decides whether there is a refusal at all** — not merely which step a
+ * message names. Three terms of `+5e15`, `-5e15`, `+5e15` answer `5000000000000000` in that order
+ * and are refused in the order `+5e15`, `+5e15`, `-5e15`, because the running total reaches `1e16`
+ * before the fall brings it back. Same multiset, same mathematical total, two outcomes.
+ *
+ * **What that costs is never a figure.** Every prefix of an accepted sum is a safe integer, so every
+ * addition on the way was exact, so an accepted total *is* the true integer total whatever ordering
+ * produced it. The divergence is accept-versus-refuse and never figure-versus-figure, which is the
+ * direction it has to fail in: the wave that let this arithmetic be two arithmetics published a
+ * wrong number, and a refusal is the answer that is never wrong.
+ *
+ * **The two callers are not alike here, and the asymmetry is the honest residual of this wave.**
+ *
+ * - *A cabinet formula is order-invariant, and by the bound's derivation rather than by anything in
+ *   this function.* For a book `parsePriceBook` accepted, every coefficient is at most
+ *   `MAX_PRICE_COEFFICIENT_MINOR` and every count is a body dimension or a leaf count under
+ *   `MAX_DESIGN_DIMENSION_MM`, so the largest prefix any ordering of a shape's four terms can form
+ *   is `4 × 225 179 981 368 × 10 000 = 9 007 199 254 720 000`, under `2^53 − 1 = 9 007 199 254 740
+ *   991`. No prefix can leave the safe range, so no ordering can refuse, so all of them agree.
+ * - *The hardware line is not, and cannot be shown to be.* Its count is a whole design's mechanism
+ *   count, which no constant bounds — the same gap that let the wrong figure through before this
+ *   function existed. A divergence needs roughly 20 000 mechanisms against rates at the bound; the
+ *   seeded kitchen carries 74 hinges, 5 drawers and 16 latches, and `MAX_PLACEMENTS` bodies argue
+ *   out to the low thousands. Unreachable in practice, unproved in principle.
+ *
+ * Accumulating in `BigInt` and range-checking once would retire the question outright. It is not
+ * done here because the per-term check is what names the rate and the count in a refusal, and
+ * because `qa-m6-wave-b-regate.adversarial.test.ts` pins the divergence above as a recorded fact
+ * rather than as an accident — so retiring it is a decision to take with that suite, not around it.
  */
 export function exactAmountOfTerms(terms: readonly PricedTerm[]): number {
   return terms.reduce(

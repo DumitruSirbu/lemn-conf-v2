@@ -15,11 +15,18 @@
 // convention to read and not two.
 //
 // **The claim is about every input, and holding it takes more than not writing `throw`.** Reading a
-// book runs the *book's* code: a getter, a `toJSON`, a proxy trap. So every property read, every
-// enumeration and every describe below is guarded at the point it runs the foreign value, and
-// `refuseAnythingRaised` backstops the lot. Narrowing the claim to the values `JSON.parse` can
-// produce would be the easier answer and the wrong one — the sample book this build ships is a
-// JavaScript value, and a manufacturer dashboard backed by model objects would be another.
+// book runs the *book's* code: a getter, a `toJSON`, a proxy trap. So no member of a declared book is
+// read bare anywhere below — every one goes through `readDeclared`, every enumeration through
+// `enumerableFieldsOf`, and every describe through `renderedAsJson` — and `refuseAnythingRaised`
+// backstops the lot. Narrowing the claim to the values `JSON.parse` can produce would be the easier
+// answer and the wrong one: the sample book this build ships is a JavaScript value, and a
+// manufacturer dashboard backed by model objects would be another.
+//
+// **Guarding each read is what buys the diagnosis, and the diagnosis is the product.** The backstop
+// alone would already satisfy "never throws" and would tell a book's author only that something,
+// somewhere, could not be read. Naming the member is what makes a refusal actionable, and it is the
+// difference between *"the material tier "material.melamine" declares "wholeKitchenMinor" as
+// something that raised when it was read"* and an operator with nowhere to start.
 //
 // **Two things it deliberately does not decide.**
 //
@@ -136,9 +143,14 @@ export function parsePriceBook(declared: unknown): PriceBookParseResult {
  * checks inside it.**
  *
  * Every named cause has its own refusal below — a value `JSON.stringify` raises on, an accessor that
- * raises when it is read, a proxy whose enumeration traps raise — and each of those says which field
- * and why, which this cannot. **This is not a substitute for any of them**, and a refusal wearing
- * this message is a defect in the parser rather than a fact about the book.
+ * raises when it is read, a proxy whose enumeration traps raise — and each of those says which
+ * member and why, which this cannot. **This is not a substitute for any of them**, and a refusal
+ * wearing this message is a defect in the parser rather than a fact about the book.
+ *
+ * That last sentence is only true because every read below goes through `readDeclared` and every
+ * enumeration through `enumerableFieldsOf`. When it did not — when 20 of the 22 reads were bare —
+ * this message was the ordinary outcome for almost any unreadable member, and the sentence sent a
+ * reader hunting a parser bug that was not there. A comment that lies is itself the defect.
  *
  * It exists because the argument for the specific fixes is an argument about a population, and the
  * population is *whatever a book assembled as a JavaScript value can be*. `use-priced-design.ts`
@@ -166,10 +178,10 @@ function refuseUnreadableBook(declared: unknown): PricingFailure | undefined {
     );
   return (
     refuseUndeclaredHeader(declared) ??
-    refuseUnreadableCabinetRules(declared["cabinetRules"]) ??
-    refuseUnreadableTierGroup(declared["hardware"], "hardware") ??
-    refuseUnreadableTierGroup(declared["material"], "material") ??
-    refuseUnreadableAccessories(declared["accessories"]) ??
+    refuseUnreadableCabinetRules(readDeclared(declared, "cabinetRules")) ??
+    refuseUnreadableTierGroup(readDeclared(declared, "hardware"), "hardware") ??
+    refuseUnreadableTierGroup(readDeclared(declared, "material"), "material") ??
+    refuseUnreadableAccessories(readDeclared(declared, "accessories")) ??
     // Every section above has been established, so the semantic sweeps below may read the book as
     // the shape it declares. The double assertion is the moment the promise becomes a fact, and it
     // is here rather than anywhere else on purpose: it is the only line in this package that has
@@ -185,10 +197,10 @@ function refuseUndeclaredHeader(
   book: Record<string, unknown>,
 ): PricingFailure | undefined {
   return (
-    refuseUnusableIdentifier(book["version"], "version") ??
-    refuseForeignCurrency(book["currency"]) ??
-    refuseUndeclaredStatus(book["status"]) ??
-    refuseUndeclaredProvisionalFlag(book["amountsProvisional"])
+    refuseUnusableIdentifier(readDeclared(book, "version"), "version") ??
+    refuseForeignCurrency(readDeclared(book, "currency")) ??
+    refuseUndeclaredStatus(readDeclared(book, "status")) ??
+    refuseUndeclaredProvisionalFlag(readDeclared(book, "amountsProvisional"))
   );
 }
 
@@ -256,10 +268,11 @@ function refuseUnreadableCabinetRule(
     return invalidBook(
       `A cabinet rule is an object. Found: ${describeDeclared(declared)}`,
     );
+  const ruleId = readDeclared(declared, "ruleId");
   return (
-    refuseUnusableIdentifier(declared["ruleId"], "ruleId") ??
-    refuseUnusableIdentifier(declared["buildId"], "buildId") ??
-    refuseUnreadableFormula(declared["formula"], declared["ruleId"])
+    refuseUnusableIdentifier(ruleId, "ruleId") ??
+    refuseUnusableIdentifier(readDeclared(declared, "buildId"), "buildId") ??
+    refuseUnreadableFormula(readDeclared(declared, "formula"), ruleId)
   );
 }
 
@@ -269,13 +282,22 @@ function refuseUnreadableCabinetRule(
  *  passed through**: both are `amountForBody`'s question, answered as `UNKNOWN_FORMULA_SHAPE` against
  *  the design that reaches the rule, naming the rule and the placement. A missing formula is a shape
  *  this build has never heard of told in the shortest way there is, and refusing the whole book for
- *  it would turn a per-rule fact into a per-book one. */
+ *  it would turn a per-rule fact into a per-book one.
+ *
+ *  **A formula that *raised* is a different fact from one that is absent**, and it is this module's:
+ *  nothing downstream can name the rule whose declaration ran and failed, because nothing downstream
+ *  gets a value to fail on. */
 function refuseUnreadableFormula(
   declared: unknown,
   ruleId: unknown,
 ): PricingFailure | undefined {
+  const named = `rule "${asText(ruleId)}"`;
+  if (declared === UNREADABLE)
+    return invalidBook(
+      `The ${named} declares a formula that raised when it was read`,
+    );
   if (!isRecord(declared)) return undefined;
-  return refuseOversizedAmount(declared, `rule "${asText(ruleId)}"`);
+  return refuseOversizedAmount(declared, named);
 }
 
 function refuseUnreadableTierGroup(
@@ -287,11 +309,11 @@ function refuseUnreadableTierGroup(
       `"${kind}" is a tier group object. Found: ${describeDeclared(declared)}`,
     );
   const unusableDefault = refuseUnusableIdentifier(
-    declared["defaultTierId"],
+    readDeclared(declared, "defaultTierId"),
     `${kind}.defaultTierId`,
   );
   if (unusableDefault) return unusableDefault;
-  return refuseUnreadableTiers(declared["tiers"], kind);
+  return refuseUnreadableTiers(readDeclared(declared, "tiers"), kind);
 }
 
 function refuseUnreadableTiers(
@@ -318,10 +340,14 @@ function refuseUnreadableTier(
     return invalidBook(
       `A ${kind} tier is an object. Found: ${describeDeclared(declared)}`,
     );
-  const named = `${kind} tier "${asText(declared["tierId"])}"`;
+  const tierId = readDeclared(declared, "tierId");
+  const named = `${kind} tier "${asText(tierId)}"`;
   return (
-    refuseUnusableIdentifier(declared["tierId"], `${kind}.tierId`) ??
-    refuseUnusableIdentifier(declared["ruleId"], `${kind}.ruleId`) ??
+    refuseUnusableIdentifier(tierId, `${kind}.tierId`) ??
+    refuseUnusableIdentifier(
+      readDeclared(declared, "ruleId"),
+      `${kind}.ruleId`,
+    ) ??
     refuseUnreadableWords(declared, named) ??
     refuseOversizedAmount(declared, named)
   );
@@ -344,7 +370,7 @@ function refuseUnreadableAccessories(
       `"accessories" is an object. Found: ${describeDeclared(declared)}`,
     );
   for (const accessoryId of ACCESSORY_IDS) {
-    const rule = declared[accessoryId];
+    const rule = readDeclared(declared, accessoryId);
     if (rule === undefined) continue;
     const unreadable = refuseUnreadableAccessoryRule(rule, accessoryId);
     if (unreadable) return unreadable;
@@ -365,7 +391,10 @@ function refuseUnreadableAccessoryRule(
       },
     );
   return (
-    refuseUnusableIdentifier(declared["ruleId"], `${accessoryId}.ruleId`) ??
+    refuseUnusableIdentifier(
+      readDeclared(declared, "ruleId"),
+      `${accessoryId}.ruleId`,
+    ) ??
     refuseUnreadableWords(declared, named) ??
     refuseOversizedAmount(declared, named)
   );
@@ -379,11 +408,11 @@ function refuseUnreadableWords(
   named: string,
 ): PricingFailure | undefined {
   return (
-    refuseUnusableText(declared["name"], {
+    refuseUnusableText(readDeclared(declared, "name"), {
       named: `${named} name`,
       maxLength: MAX_BOOK_NAME_LENGTH,
     }) ??
-    refuseUnusableText(declared["description"], {
+    refuseUnusableText(readDeclared(declared, "description"), {
       named: `${named} description`,
       maxLength: MAX_BOOK_DESCRIPTION_LENGTH,
     })
@@ -472,20 +501,43 @@ function readDeclared(
   }
 }
 
-/** `for…in` reaches what a property read reaches — own **and inherited** enumerable keys — which is
- *  the whole point of using it here. It runs a proxy's own traps to do so, so the enumeration is
- *  guarded exactly as each read below it is. */
+/**
+ * The enumerable keys of a declared object **and of the prototypes it brings with it**, which is
+ * what a property read reaches and therefore what the amount sweep has to.
+ *
+ * **`Object.prototype` is where the walk stops, and that is not an optimisation.** A bare `for…in`
+ * walks all the way up, and this sweep is by *kind* — any number past the bound refuses the book —
+ * so a global somebody has polluted with `Object.prototype.injectedAmountMinor` would take the price
+ * off every surface for a book that is entirely well formed, on a field no reader of a book ever
+ * reads. A book's own amounts live on the book or on its own class's prototype; nothing that belongs
+ * to a price book is ever declared on the object root.
+ *
+ * The depth is bounded because a proxy may answer `getPrototypeOf` with a fresh object indefinitely,
+ * and a boundary that hangs is worse than one that raises. Every step runs the declared value's own
+ * traps, so the whole walk is guarded exactly as each read is.
+ */
 function enumerableFieldsOf(
   declared: Record<string, unknown>,
 ): readonly string[] | undefined {
   try {
-    const fields: string[] = [];
-    for (const field in declared) fields.push(field);
-    return fields;
+    const fields = new Set<string>();
+    let level: object | null = declared;
+    for (let depth = 0; depth < MAX_BOOK_PROTOTYPE_DEPTH; depth += 1) {
+      if (level === null || level === Object.prototype) break;
+      for (const field of Object.keys(level)) fields.add(field);
+      level = Object.getPrototypeOf(level) as object | null;
+    }
+    return [...fields];
   } catch {
     return undefined;
   }
 }
+
+/** How far up a declared object's prototypes an amount may live. A book assembled from a model
+ *  object states its rates on its own class's prototype — one level, or a small handful under
+ *  inheritance — so this is generous for the population it exists for and short enough that a proxy
+ *  cannot walk the parser in circles. */
+const MAX_BOOK_PROTOTYPE_DEPTH = 8;
 
 /**
  * What the book's rules say about each other, once every one of them is known to be readable.
@@ -614,6 +666,10 @@ function invalidBook(
 /** What a declared value was, for a message. A list is summarised rather than rendered: a book that
  *  declares a thousand tiers must not turn its own refusal into a thousand-tier string. */
 function describeDeclared(declared: unknown): string {
+  // **The one place `UNREADABLE` becomes words**, so every check that funnels a value through this
+  // says the same thing about a read that raised — and so the marker itself, which is a symbol,
+  // never reaches a `PricingFailure` that is logged and rendered.
+  if (declared === UNREADABLE) return "something that raised when it was read";
   if (declared === undefined) return "nothing";
   if (Array.isArray(declared)) return `a list of ${String(declared.length)}`;
   return renderedOr(renderedAsJson(declared), typeof declared);
