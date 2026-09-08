@@ -134,12 +134,21 @@ PASS.
     had given in one word, while its author's commit message claimed the opposite.
   - **The clean-code and logic review pair** on the 2026-09-08 waves. Not yet dispatched; they gate on
     QA being green (`docs/WORKFLOW.md` step 4).
-  - **`setWidth` does not raise the mark ADR 0065 requires.** Measured: a body grown past the end of
-    its wall through the funding scan's recorded width produced `lastRejection === null` **and** a
-    clean `validateDesignForCatalog`. This is **not** the open product question it was briefly
-    reported as — ADR 0065 decision 1 and ADR 0069's amendment both rule the resize case a *mark, not
-    a refusal*, and the amendment names the width-resize consequence as deliberately untouched. The
-    defect is that the mark is **absent**, not that the body grew. Small, no ruling needed.
+  - **~~`setWidth` does not raise the mark ADR 0065 requires.~~ WITHDRAWN 2026-09-08 — there is no
+    defect here, and this entry was wrong twice before it was right.** Re-measured end to end: on
+    wall B at 700, recorded `B|2.72` is 600 wide and published is 500; `setWidth(800)` is accepted
+    with `lastRejection === null` and the body ends at **3020** on a **2920 mm** wall — and
+    `validateDesignForCatalog` then reports **`PLACEMENT_PAST_WALL_END`** and
+    `COLUMN_EXTENT_PAST_WALL_END`. That is precisely what ADR 0065 decision 1 rules (marked, warned,
+    not moved, not refused) and what ADR 0069's amendment names as the deliberately untouched
+    width-resize consequence.
+
+    Kept as a struck entry rather than deleted, because the way it went wrong is the lesson. An
+    implementer reported *"`validateDesignForCatalog` returns `[]`"*; that sentence was about the
+    **fixture at load**, before the resize. It was read as being about the **result**, and the
+    misreading was then written into this file and reported to the owner as an outstanding defect —
+    twice, once as an open product decision and once as a missing mark. **A quoted measurement is
+    about the state its author measured, not the state you are asking about.**
   - **Wave 6Y** — the only open wave row. Does not block: the defect predates all of this on `main`,
     and its witness is pinned positively.
   - **The M6 close-out sections ADR 0098 and ADR 0101 each ask for.**
