@@ -272,13 +272,16 @@ adjudicates the finding the item 8 implementer raised and refused to treat as se
   `frozenDepthAtThisSetting`, not a test convention, so it is an invariant and is not re-quantified to
   fit the code breaking it (ADR 0090 decision 7; ADR 0091 decision 1, whose Q1 answers *invariant* and
   whose Q2 fails).
-- **What blocks the merge:** `sourceExplainsTheDepth` in
-  `apps/web/tests/support/frozen-source-invariant.ts` is refused as a second authority — measured, its
-  second arm never reads the source's declaration, so it stops inspecting exactly the one column the
-  defect lives in. **ADR 0102 decision 3 sets the only shape it may keep**, and all three limbs are
-  mandatory: narrow it to the member actually standing there, pin the breach positively with a witness
-  that goes red when 6Y lands, and rename it so nobody reads it as a rule. No production code changes
-  to unblock the merge. `reAnswersOneBody`'s extension across ADR 0022's swap **stands**.
+- **What blocked the merge is discharged, 2026-09-08.** ADR 0102 decision 3's three limbs landed;
+  the net diff is four test files and **zero production files**. `sourceExplainsTheDepth` is gone —
+  it is now `isExplainedOrIsTheKnownLiftedColumnDefect`, keyed on the member actually standing in the
+  column and its recorded seat rather than on a depth coincidence. The breach is pinned positively by
+  `apps/web/tests/store/qa-6y-lifted-column-source.witness.test.ts`, which was **proved red-capable**
+  by simulating 6Y: all six tests fail and the extent becomes 0.7, ADR 0102 decision 4's own
+  prediction for that shape. The old helper was shown laundering the same mutation the new one
+  catches — twelve columns inspected, nothing reported. `reAnswersOneBody`'s extension across ADR
+  0022's swap **stands**, untouched. Note for whoever plans 6Y: the record says the blast radius is
+  three suites; the witness makes it **four**.
 - **One question is for the owner and is deliberately not decided.** Post-ADR-0101, deleting the
   full-height column beneath a deep top and then changing the depth rebuilds that top from 600 mm
   finished to 400 mm (`p23`'s seat 561 -> 361, measured). The rule producing it is ADR 0028 decision 5's
