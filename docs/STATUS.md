@@ -119,10 +119,10 @@ PASS.
 
 ## What is open right now
 
-- **M6's remaining work is verification, not features — as of 2026-09-08.** Every wave row but 6Y is
-  DONE and the branch `fix/m6-remediation` is green: domain **3619**, three-adapter **2895**, web
-  **1954 + 4 skipped**, persistence **282**, typecheck / lint / `format:check` clean, **88 commits
-  ahead of `main`**. What is owed before M6 can be called closed:
+- **M6's remaining work is verification and two owner rulings — as of 2026-09-08 (evening).** Every
+  wave row but 6Y is DONE and the branch `fix/m6-remediation` is green: domain **3647**,
+  three-adapter **2970**, web **1971 and no skips**, persistence **282**, typecheck / lint /
+  `format:check` clean, **101 commits ahead of `main`** at `d426c5d`. What is owed before M6 can be called closed:
   - **No browser has seen any of 2026-09-08's work.** Wave 6Z's own tier calls for visual
     verification and it was not run; the scene-colour wave's on-screen claim is proved through the
     real record builder in tests but never rendered. The owner has said they will do the manual pass
@@ -132,8 +132,19 @@ PASS.
     by their own authors' tests, which is not the same thing. The one independent round that did run
     this day found an insert building a 600 mm sink base through a wall, against a ruling the owner
     had given in one word, while its author's commit message claimed the opposite.
-  - **The clean-code and logic review pair** on the 2026-09-08 waves. Not yet dispatched; they gate on
-    QA being green (`docs/WORKFLOW.md` step 4).
+  - **The clean-code and logic review pair** on the 2026-09-08 waves. The pair covering the evening's
+    audit-remediation commits (`b1185dd..d426c5d`) was dispatched 2026-09-08; the pair covering wave
+    6Z and the scene-colour wave has not been.
+  - **Two owner rulings, and they are the only things here that are not work.** **M6-AUD-013**: the
+    desktop price surface is pointer-modal and keyboard-nonmodal, and the three coherent resolutions
+    are materially different products — remove the desktop scrim, make desktop genuinely modal, or
+    keep the dim and let the page stay reachable. **M6-AUD-014**: a zero-placement design prices
+    successfully and reads *De la 0 MDL*; the audit is explicit that the sentence must not be
+    invented in code, and that this gates M7 rather than M6. Neither blocks a deploy.
+  - **The severity for backlog 50 and 51, which is one ruling and not two.** Both are the load seam:
+    a new refusal code can make a stored document unloadable (ADR 0052's dead link), and severity is
+    declared per code (ADR 0069). Reachability is now measured — see the entry below — so what is
+    left is only what the gate should *say*.
   - **~~`setWidth` does not raise the mark ADR 0065 requires.~~ WITHDRAWN 2026-09-08 — there is no
     defect here, and this entry was wrong twice before it was right.** Re-measured end to end: on
     wall B at 700, recorded `B|2.72` is 600 wide and published is 500; `setWidth(800)` is accepted
@@ -151,24 +162,68 @@ PASS.
     about the state its author measured, not the state you are asking about.**
   - **Wave 6Y** — the only open wave row. Does not block: the defect predates all of this on `main`,
     and its witness is pinned positively.
-  - **The M6 close-out sections ADR 0098 and ADR 0101 each ask for.**
+  - **The M6 close-out sections ADR 0098 and ADR 0101 each ask for.** ADR 0098's is largely
+    discharged: the sink's 600 mm parity re-baseline is recorded in `docs/backlog/open.md` entry 41
+    and carried by its own commit (`0ff3faa`). ADR 0101 decision 2 was executed on 2026-09-08.
+
+- **The 2026-09-08 audit-remediation round — what it closed, measured rather than asserted.**
+  - **M6-AUD-006** needs no work: the shape is ruled and the owner deferred it twice (ADR 0100).
+    What was unenforced was decision 5 — copy and coefficient move together — and
+    `apps/web/tests/price/aud-006-depth-note-and-price-move-together.test.ts` now couples them,
+    deepening the kitchen through the real `setCabinetDepth` and demanding identical totals line for
+    line beside the shipped sentence. Proved red by adding one bani at 700.
+  - **M6-AUD-008 is measured on both halves.** Backlog 51: a mixed-chain column is **unreachable
+    through the offer list** — 400 offer rows over 29 targets on the seeded and fully emptied
+    kitchen at both depths name no `wall-map` body, the two that exist refuse insert, replace and
+    delete, and their column opens no void. Backlog 50: the corner blindness is pinned as a witness,
+    with the same recorded space reported on wall A and silent on wall B inside the 560 mm the corner
+    body reaches. The witness also records something wider than the backlog states — the sweep
+    returns early when a document carries neither `emptyColumns` nor `columnExtents`, so two
+    placements in one span are never compared on either wall.
+  - **M6-AUD-009 is closed.** The four skipped width-reachability cases were un-skipped on
+    2026-09-08 (the ratchet had been fixed by later waves and nobody returned to them), and
+    `happy-dom` is now declared **per file** so focus logic has a DOM without moving 1,900 node tests
+    onto one. Two suites: the breakdown's focus-in / Escape-after-focus-left / focus-restored, and
+    the settings sheet's `inert` screen — the half of "modal" a scrim cannot do.
+  - **M6-AUD-011 is diagnosed and needs nothing here** — `docs/backlog/open.md` entry 58.
+    `three@0.184.0` deprecated `Clock` at r183; `@react-three/fiber@9.7.0` constructs one in its own
+    store. No change to this repository can silence it.
+  - **The remaining skipped test in the tree is deliberate**: `kitchen-stage.e2e.spec.ts`'s mobile
+    highlight case, whose patch of scene is behind §9's sheet at 390 x 844. It is asserted on desktop
+    instead, and the file says so.
 
 - **Engineering obligations left by the 2026-09-08 QA round.** Recorded here rather than in
   `docs/backlog/open.md`, which is for product behaviour observed in use and says so in its own head.
-  - **ADR 0101 decision 2 was ruled and never executed.** `neverMigrated` must become
-    `neverMigratedByAResize` (or equivalent) *and* its comment must record that a depth change now
-    **does** migrate the row. Neither happened;
-    `packages/configurator-domain/tests/fixtures/seeded-body-names.adversarial.test.ts:154,159` still
-    reads the old name with no note. This is the failure ADR 0093 names running backwards — an
-    assertion that keeps passing while its meaning changes.
-  - **Two shipped tests can pass for the wrong reason.** `cabinet-depth-source.test.ts` builds only
+  - **~~ADR 0101 decision 2 was ruled and never executed.~~ DONE 2026-09-08 (`a4c41f0`).**
+    `neverMigrated` is now `neverMigratedByAResize`, and its comment records what a depth change
+    actually does, **measured rather than restated from the ADR**: the row's entry goes
+    `frameDepthMm` 561 -> 661 and declares `follows: "cabinet-depth"`, so a depth change reaches and
+    rebuilds it — but its `buildId` is the same at both settings, which is the only sense of
+    "migrated" that test measures. The ADR says *reach*; writing *migrate* here would have been
+    wrong in the file's own vocabulary.
+  - **~~Two shipped tests can pass for the wrong reason.~~ BOTH FIXED 2026-09-08 (`15a59e2`,
+    `d426c5d`).** `cabinet-depth-source.test.ts` now builds a wall carcass at an **off-map** 555 mm,
+    which is the only input no lookup can invent — with the map lookup restored inside the adapter
+    the two "builds a wall carcass at the N mm row" cases stay green and the new one fails — and it
+    measures **both** deep-top rows rather than one. `sink-front-clearance.parity.test.ts` criterion
+    3 now records what it measured and demands the ruled depth still be declared, so pointing the
+    constant at an undeclared 650 turns it red instead of asserting nothing. The original text
+    follows.
+
+    **Two shipped tests can pass for the wrong reason.** `cabinet-depth-source.test.ts` builds only
     the declared `(cabinetDepthMm, wallDepthMm)` pairs, so a builder that re-derived the number
     through ADR 0028's map inverted would reproduce both rows and pass; it also measures only one of
     the two deep tops and only the decomposed body. `sink-front-clearance.parity.test.ts` criterion 3
     loops the declared depths and `continue`s at every one but 600, so it asserts nothing the day 600
     leaves the declared map (ADR 0093 decision 1). Both are **covered** by the QA files added
     2026-09-08; the weakness is in the owning files, which still claim to be the gate.
-  - **`sink-front-clearance.parity.test.ts` never measures `countertop_side`.** Freezing the two
+  - **~~`sink-front-clearance.parity.test.ts` never measures `countertop_side`.~~ FIXED 2026-09-08
+    (`15a59e2`).** A sixth criterion states the three slabs tiling the stone with no gap: the side
+    pieces start where the back one ends and end where the front one begins. The span really moves
+    (`[-180, 220]` at 600, `[-130, 270]` at 700), and seating the side slabs at the old offset turns
+    **only** this case red — which is what makes the hole real. The original text follows.
+
+    **`sink-front-clearance.parity.test.ts` never measures `countertop_side`.** Freezing the two
     flanking slabs while the aperture moves would leave a visible slot in the worktop and that file
     would pass. Caught elsewhere by M1 parity and `room-composition.parity.test.ts`, so it is a hole
     in the file rather than in the suite.
