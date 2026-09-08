@@ -21,10 +21,6 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { GlobalSettings } from "@/settings/global-settings";
 import { useConfiguratorStore } from "@/store/configurator-store";
 
-declare global {
-  var IS_REACT_ACT_ENVIRONMENT: boolean;
-}
-
 /** The screen, as `useBackgroundInert` walks it: a `<main>` whose children are bands. The settings
  *  control lives in one of them; the others stand in for the header, the stage and the price bar. */
 let screenElement: HTMLElement;
@@ -33,7 +29,6 @@ let otherBands: readonly HTMLDivElement[];
 let root: Root;
 
 beforeEach(() => {
-  globalThis.IS_REACT_ACT_ENVIRONMENT = true;
   useConfiguratorStore.setState({
     design: KITCHEN_L_DESIGN,
     catalog: buildKitchenLBodyCatalog(600),

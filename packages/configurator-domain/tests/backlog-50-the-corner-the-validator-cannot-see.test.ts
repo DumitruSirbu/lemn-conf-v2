@@ -6,9 +6,8 @@
 //   > coordinate on wall A and on wall B are two different places and are never compared."
 //
 // True everywhere except at the corner, where a wall-A body's **depth** is measured along wall B —
-// the exact fact `along-wall-chain-shift.ts` is built on. `cornerReachAlongWallMm` puts the base
-// run's reach at 560 mm at a 600 mm setting, so wall B's first 560 mm are inside wall A's corner
-// body, and a span recorded there overlaps a solid.
+// the exact fact `along-wall-chain-shift.ts` is built on. So wall B's first several hundred
+// millimetres are inside wall A's corner body, and a span recorded there overlaps a solid.
 //
 // **This file is a witness, not an invariant.** It pins the gap as an executable fact so that the
 // wave which closes it starts from a red test rather than from a paragraph, and so nobody mistakes
@@ -18,28 +17,46 @@
 // decision backlog 50 and 51 share: a new refusal code can make an already-stored document
 // unloadable, which is ADR 0052's dead link.
 //
-// The geometry is computed here rather than asserted as a number, so a change to the reach or to
-// the fixture cannot leave this file claiming an overlap it no longer constructs.
+// **`alongMm` is a centre, not a left edge** — §12, and `validate-design.ts`'s own `toStoredSpan`
+// and `toPlacementSpan` both read `alongMm ± widthMm / 2`. Every span below is derived through
+// `spanOf` for that reason: the first version of this file did the arithmetic as though the field
+// were an edge, and although the overlap it named was real, a computation on a convention the
+// domain does not use cannot honestly claim to follow a fixture that moves.
+//
+// **The reach used is the corner body's `occupiedDepth`, not its `frameDepthMm`.** The seat is
+// 560 mm and the space it fills is 630; overlap is about solid, so the larger is the honest number
+// and the smaller would understate the gap by 70 mm.
 import { describe, expect, it } from "vitest";
 
-import { cornerReachAlongWallMm } from "../src/along-wall-chain-shift.js";
 import type { Design, EmptyColumn } from "../src/design.js";
 import {
   KITCHEN_L_DESIGN,
   buildKitchenLBodyCatalog,
 } from "../src/fixtures/kitchen-l-design.js";
+import { occupiedDepthOfEntryM } from "../src/occupied-depth.js";
 import { validateDesignForCatalog } from "../src/validate-design.js";
 
 const CABINET_DEPTH_MM = 600;
 const catalog = buildKitchenLBodyCatalog(CABINET_DEPTH_MM);
 
-/** Wall A's corner body, and the two facts this file needs about it: the span it occupies on its own
- *  wall, and how far it reaches along wall B. */
+/** Wall A's corner body. */
 const CORNER_BODY_ID = "p25";
-const CORNER_REACH_ALONG_WALL_B_MM = cornerReachAlongWallMm({
-  cabinetDepthMm: CABINET_DEPTH_MM,
-  chain: "base-formula",
-});
+
+interface SpanMm {
+  readonly startMm: number;
+  readonly endMm: number;
+}
+
+/** §12's convention, in one place: a run is centred on its `alongMm`. */
+function spanOf(alongMm: number, widthMm: number): SpanMm {
+  return { startMm: alongMm - widthMm / 2, endMm: alongMm + widthMm / 2 };
+}
+
+function overlapMmOf(left: SpanMm, right: SpanMm): number {
+  return (
+    Math.min(left.endMm, right.endMm) - Math.max(left.startMm, right.startMm)
+  );
+}
 
 function cornerBody() {
   const placement = KITCHEN_L_DESIGN.placements.find(
@@ -49,8 +66,31 @@ function cornerBody() {
   return placement;
 }
 
-/** A recorded space, on whichever wall, spanning `alongMm .. alongMm + widthMm` in the base band —
- *  the same shape the frozen map stores and the sweep reads. */
+/** The span the corner body occupies **on its own wall**. */
+function cornerBodySpanOnWallA(): SpanMm {
+  const placement = cornerBody();
+  return spanOf(placement.alongMm, placement.body.widthMm);
+}
+
+/** And how far it reaches **along wall B**: the space it fills, measured from the wall plane, which
+ *  starts at the shared corner — so `0 .. occupiedDepth`. */
+function cornerBodyReachOnWallB(): SpanMm {
+  const placement = cornerBody();
+  const definition = catalog.get(placement.body.buildId);
+  if (!definition)
+    throw new Error(`${placement.body.buildId} left the catalogue`);
+  return {
+    startMm: 0,
+    endMm:
+      occupiedDepthOfEntryM({
+        buildId: placement.body.buildId,
+        definition,
+      }) * 1000,
+  };
+}
+
+/** A recorded space, on whichever wall, in the base band — the shape the frozen map stores and the
+ *  sweep reads. */
 function spaceAt(
   wall: "A" | "B",
   alongMm: number,
@@ -62,7 +102,7 @@ function spaceAt(
     widthMm,
     y0Mm: 0,
     topMm: 820,
-    depthMm: CORNER_REACH_ALONG_WALL_B_MM,
+    depthMm: 560,
   };
 }
 
@@ -70,16 +110,23 @@ function designHolding(space: EmptyColumn): Design {
   return { ...KITCHEN_L_DESIGN, emptyColumns: [space] };
 }
 
-describe("the same-wall sweep, which works", () => {
-  it("reports a recorded space standing where a body stands", () => {
-    const body = cornerBody();
-    // Squarely inside the corner body's own span on wall A, so the sweep has something real to find.
-    const space = spaceAt("A", body.alongMm + 150, 300);
-    expect(space.alongMm).toBeGreaterThan(body.alongMm);
-    expect(space.alongMm + space.widthMm).toBeLessThan(
-      body.alongMm + body.body.widthMm,
-    );
+/** Inside the corner body's span on wall A but **not** on its own centre: a space sharing the body's
+ *  column key is refused by a second, different code (`EMPTY_COLUMN_KEY_COLLIDES_WITH_PLACEMENT`),
+ *  and a control that fired two codes would not isolate the one this file is about. */
+const INSIDE_THE_CORNER_BODY_MM = 600;
 
+describe("the same-wall sweep, which works", () => {
+  const space = spaceAt("A", INSIDE_THE_CORNER_BODY_MM, 300);
+
+  it("really puts the space inside the body, on the body's own wall", () => {
+    const overlapMm = overlapMmOf(
+      spanOf(space.alongMm, space.widthMm),
+      cornerBodySpanOnWallA(),
+    );
+    expect(overlapMm).toBe(space.widthMm);
+  });
+
+  it("reports a recorded space standing where a body stands", () => {
     expect(validateDesignForCatalog(designHolding(space), catalog)).toEqual([
       { code: "EMPTY_COLUMN_OVERLAPS_PLACEMENT", path: "emptyColumns.0" },
     ]);
@@ -87,18 +134,19 @@ describe("the same-wall sweep, which works", () => {
 });
 
 describe("the corner, which it cannot see", () => {
-  // The same overlap, moved to the other side of the corner. Wall B's coordinates 0..560 are
-  // occupied by wall A's corner body; this space sits at 300..600 and therefore shares 260 mm of
-  // solid with it. The only difference from the block above is which wall the span is filed under.
+  // The same overlap, moved to the other side of the corner. Wall B's first millimetres are
+  // occupied by wall A's corner body; this space is filed under wall B and shares solid with it.
+  // The only difference from the block above is which wall the span is filed under.
   const space = spaceAt("B", 300, 300);
-  const overlapMm =
-    Math.min(space.alongMm + space.widthMm, CORNER_REACH_ALONG_WALL_B_MM) -
-    space.alongMm;
 
   it("really does construct an overlap, in millimetres, before claiming one is missed", () => {
-    expect(CORNER_REACH_ALONG_WALL_B_MM).toBeGreaterThan(space.alongMm);
-    expect(overlapMm).toBeGreaterThan(0);
-    // Not a rounding sliver: a quarter of a metre of shared solid.
+    const overlapMm = overlapMmOf(
+      spanOf(space.alongMm, space.widthMm),
+      cornerBodyReachOnWallB(),
+    );
+    // Not a rounding sliver, and not a number typed here: the whole 300 mm of the space is inside
+    // the corner body's reach at this setting.
+    expect(overlapMm).toBe(space.widthMm);
     expect(overlapMm).toBeGreaterThanOrEqual(250);
   });
 
@@ -113,16 +161,40 @@ describe("and the sweep it skips entirely", () => {
   // occupying one span are never compared — on either wall, corner or not. Shipped documents always
   // carry a frozen map (ADR 0090 decision 1, commands return it), so this is about a hand-crafted
   // document at the load seam, which is the same seam the severity ruling is about.
-  it("says nothing about two bodies in one span when the document carries no frozen map", () => {
-    const body = cornerBody();
-    const overlapping: Design = {
+  const MOVED_ID = "p26";
+
+  function movedOntoTheCornerBody(): Design {
+    return {
       ...KITCHEN_L_DESIGN,
       placements: KITCHEN_L_DESIGN.placements.map((placement) =>
-        placement.id === "p26"
-          ? { ...placement, wall: "A" as const, alongMm: body.alongMm + 150 }
+        placement.id === MOVED_ID
+          ? {
+              ...placement,
+              wall: "A" as const,
+              alongMm: INSIDE_THE_CORNER_BODY_MM,
+            }
           : placement,
       ),
     };
+  }
+
+  it("really does put two bodies in one span, on one wall", () => {
+    // The half the first version of this block left out: without it, "reports nothing" would keep
+    // passing for the wrong reason the day the fixture's widths move.
+    const moved = movedOntoTheCornerBody().placements.find(
+      (placement) => placement.id === MOVED_ID,
+    );
+    if (!moved) throw new Error(`${MOVED_ID} left the fixture`);
+    const overlapMm = overlapMmOf(
+      spanOf(moved.alongMm, moved.body.widthMm),
+      cornerBodySpanOnWallA(),
+    );
+    expect(overlapMm).toBe(moved.body.widthMm);
+    expect(moved.wall).toBe(cornerBody().wall);
+  });
+
+  it("says nothing about them when the document carries no frozen map", () => {
+    const overlapping = movedOntoTheCornerBody();
     expect(overlapping.emptyColumns).toBeUndefined();
     expect(overlapping.columnExtents).toBeUndefined();
     expect(validateDesignForCatalog(overlapping, catalog)).toEqual([]);

@@ -10,6 +10,9 @@ export default defineConfig({
   test: {
     environment: "node",
     include: ["tests/**/*.test.ts"],
+    // The `.dom.test.ts` files declare `happy-dom` per file in a docblock rather than moving the
+    // whole project onto it; this is the one thing they all need and none of them should own.
+    setupFiles: ["./tests/support/vitest.setup.ts"],
     passWithNoTests: false,
   },
   resolve: {

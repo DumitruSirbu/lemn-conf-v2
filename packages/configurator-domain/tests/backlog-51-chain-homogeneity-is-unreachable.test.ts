@@ -23,6 +23,18 @@
 //      nothing can be inserted beside them either. The mixing is blocked from both directions.
 //   4. Every column of both worlds is in fact homogeneous.
 //
+// **Two limits of this file, named rather than left to be discovered.**
+//
+//   - Its 700 mm world is `designAt(700)`, a swap of `settings.cabinetDepthMm`. The world the
+//     product actually produces comes from `setCabinetDepth`, which rebuilds every body and renames
+//     build ids — and a rebuild is the one mechanism that could put a member on a chain its column
+//     does not already stand on. That world needs a body probe, so it is swept at the store seam
+//     instead: `apps/web/tests/store/backlog-51-after-the-real-depth-command.test.ts`, there and
+//     back again.
+//   - The emptied world answers the **wall-map** claim and not the mixing one, because clearing
+//     every deletable body leaves no column with a member for a new one to disagree with. That is
+//     asserted below rather than assumed, so the empty result reads as scope and not as evidence.
+//
 // **This closes the reachability question, not the load seam.** A hand-crafted document arriving
 // over the wire can still declare a mixed column; whether that is refused or marked is the severity
 // ruling backlog 50 and 51 share, and it is deliberately not decided here.
@@ -90,6 +102,10 @@ interface SweptRow {
   readonly col: string;
   readonly buildId: string;
   readonly chain: string | undefined;
+  /** The chains already standing in this row's column. **Carried rather than discarded**, because
+   *  `wouldMix` short-circuits to `false` when this is empty — so without it, "nothing would mix"
+   *  cannot be told apart from "nothing was asked". */
+  readonly siblingChains: ReadonlySet<string>;
   readonly wouldMix: boolean;
 }
 
@@ -131,6 +147,7 @@ function sweepEveryOffer(
         col: target.col,
         buildId: row.buildId,
         chain,
+        siblingChains: siblings,
         wouldMix: wouldMixColumn(chain, siblings),
       };
     }),
@@ -198,16 +215,32 @@ describe.each(DECLARED_DEPTHS_MM)(
       const swept = sweepEveryOffer(world, catalog);
       expect(swept.length).toBeGreaterThan(50);
       expect(new Set(swept.map((row) => row.col)).size).toBeGreaterThan(1);
-      // And the sweep must have looked at a column that already holds more than one member, since a
-      // single-member column cannot be mixed by definition.
-      const multiMemberColumns = [
-        ...new Set(world.records.map((record) => record.col)),
-      ].filter(
-        (col) =>
-          chainsOfColumn(world, col).size > 0 &&
-          world.records.filter((r) => r.col === col).length > 1,
+    });
+
+    // **Which sweep can answer which claim, measured rather than assumed.** `wouldMix` returns
+    // `false` the moment a row's column holds no other member, so a world whose rows all land in
+    // emptied columns produces an empty "would mix" result by short circuit — an answer that looks
+    // identical to the real one and means nothing.
+    //
+    // The first version of this file guarded that with "the world has a multi-member column", which
+    // passes on `B|0.61` — the one column the sweep never gets a row for, because both its members
+    // refuse replacement and it opens no void. This asks the swept rows instead.
+    it("asks the mixing question on the seeded kitchen, where columns still hold members", () => {
+      const asked = sweepEveryOffer(seeded, catalog).filter(
+        (row) => row.siblingChains.size > 0,
       );
-      expect(multiMemberColumns.length).toBeGreaterThan(0);
+      expect(asked.length).toBeGreaterThan(50);
+    });
+
+    it("asks it of nothing on the emptied kitchen, which is why that sweep answers a different claim", () => {
+      // Not a defect and not padding: clearing every deletable body is what makes the **wall-map**
+      // claim strong — 400 rows offered into wide-open columns and none of them a `wall-map` body —
+      // and it is exactly what makes that world useless for the mixing claim. Stated here so the
+      // empty result below is read as scope and not as evidence.
+      const asked = sweepEveryOffer(emptied, catalog).filter(
+        (row) => row.siblingChains.size > 0,
+      );
+      expect(asked).toEqual([]);
     });
 
     it.each(worlds)(
@@ -220,15 +253,13 @@ describe.each(DECLARED_DEPTHS_MM)(
       },
     );
 
-    it.each(worlds)(
-      "offers nothing that would mix a column on %s",
-      (_name, world) => {
-        const mixing = sweepEveryOffer(world, catalog).filter(
-          (row) => row.wouldMix,
-        );
-        expect(mixing).toEqual([]);
-      },
-    );
+    // **The seeded kitchen only** — see the two blocks above. Every one of its 104 rows lands in a
+    // column that still holds a member, so every one of them is a question actually asked.
+    it("offers nothing that would mix a column", () => {
+      const swept = sweepEveryOffer(seeded, catalog);
+      expect(swept.every((row) => row.siblingChains.size > 0)).toBe(true);
+      expect(swept.filter((row) => row.wouldMix)).toEqual([]);
+    });
 
     it.each(worlds)(
       "keeps the wall-map column closed on %s — no void to insert into",

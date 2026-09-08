@@ -787,10 +787,12 @@ extra comparison for spans within the corner reach on either wall, using the rea
 **Measured and pinned 2026-09-08** —
 `packages/configurator-domain/tests/backlog-50-the-corner-the-validator-cannot-see.test.ts`. The same
 recorded space is placed twice at a 600 mm setting: on wall A over `base-corner-x-900`, where the
-sweep reports `EMPTY_COLUMN_OVERLAPS_PLACEMENT`, and on wall B at 300..600 — inside the 560 mm that
-body reaches along wall B, a 260 mm shared solid — where the gate reports **nothing**. The witness
-computes the overlap from `cornerReachAlongWallMm` rather than asserting a literal, and the wave that
-closes this should **invert** its last two blocks rather than delete them.
+sweep reports `EMPTY_COLUMN_OVERLAPS_PLACEMENT`, and on wall B — inside the corner body's reach along
+wall B, sharing the whole 300 mm of the recorded space — where the gate reports **nothing**. The
+witness derives every span through §12's convention (`alongMm` is a **centre**, which the first
+version of it got wrong) and takes the reach from the body's `occupiedDepth` (630 mm) rather than its
+seat (560), because overlap is about solid. The wave that closes this should **invert** its last two
+blocks rather than delete them.
 
 **A second fact that file records, wider than this entry states it**: `findWallOverlaps` returns
 early when a document carries neither `emptyColumns` nor `columnExtents`, so two **placements** in
@@ -825,7 +827,10 @@ downstream internally consistent and wrong together.
 `packages/configurator-domain/tests/backlog-51-chain-homogeneity-is-unreachable.test.ts`, which keeps
 the measurement as a standing guard. At both declared depths, on the seeded kitchen and on the same
 kitchen with all 22 deletable bodies cleared: **400 offer rows over 29 targets name no `wall-map`
-body**; the only two such entries are the structural corner returns, each `insertable: false`,
+body**; that world is also swept after a real `setCabinetDepth(700)` and back
+(`apps/web/tests/store/backlog-51-after-the-real-depth-command.test.ts`), because the shipped command
+rebuilds bodies and renames build ids where a settings swap does not; the only two such entries are
+the structural corner returns, each `insertable: false`,
 `canReplace: false`, `canDelete: false`; and the single column holding them (`B|0.61`) opens **no
 void** even when the rest of the kitchen is emptied, so nothing can be inserted beside them either.
 The mixing is blocked from both directions.

@@ -28,17 +28,12 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { PriceBreakdown } from "@/price/price-breakdown";
 import { useConfiguratorStore } from "@/store/configurator-store";
 
-declare global {
-  var IS_REACT_ACT_ENVIRONMENT: boolean;
-}
-
 let container: HTMLDivElement;
 let root: Root;
 /** A control outside the surface, standing in for the camera presets a Tab out lands on. */
 let outsideControl: HTMLButtonElement;
 
 beforeEach(() => {
-  globalThis.IS_REACT_ACT_ENVIRONMENT = true;
   // The store is a module singleton seeded with the shipped kitchen; put it back between cases so
   // no test can inherit another's design.
   useConfiguratorStore.setState({
