@@ -665,11 +665,7 @@ function restoredColumns(
       ...originOnWall(orientation, centre),
       w: width,
       d: clearanceM,
-      depthFromBuildId:
-        deepest.buildId === "wall-cabinet" &&
-        members.some((member) => member.band === "column")
-          ? "wall-corner-return-570"
-          : deepest.buildId,
+      depthFromBuildId: deepest.buildId,
       top,
       regions,
     });
