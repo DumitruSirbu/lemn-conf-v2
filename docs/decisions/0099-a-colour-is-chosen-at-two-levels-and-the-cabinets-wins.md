@@ -267,3 +267,50 @@ it wrong is a customer's per-cabinet choices.**
   materials — with one exception worth flagging: decision 6's *"no finish survives a change between
   declared materials"* holds only while the offers stay disjoint (ADR 0078 decision 1). A fourth
   material sharing a decor with an existing one makes that a case rather than a certainty.
+
+## Amendment A, 2026-09-08 — three facts adversarial QA established after the wave shipped
+
+**Decisions 1-10 above stand and none is revised.** What follows is measured, not re-decided.
+
+### 1. Decision 6 was not enforced at the write seam, and is now
+
+The invariant decision 6 extends — *"no stored design holds a finish its material does not offer"* —
+was implemented over `design.placements` only. `findUnofferedFinishIssues` never read
+`settings.finish`, so the write seam **refused a colour on a cabinet and accepted the identical
+colour on the kitchen**. Unreachable through this build's own commands (`setGlobalFinish` refuses,
+`setMaterialTier` resets, `resolveOpeningChoice` drops) and reachable by a restored backup, a
+hand-edited row or another client — the same threat model the per-placement check already existed
+for. The load seam corrected it on the way out, so no stored row was ever lost.
+
+Closed by `SETTINGS_WEAR_UNOFFERED_FINISH`, a second refusal code rather than a reuse of the first:
+the path is one field on the document, not an index into `placements`, and a code named for a
+placement cannot honestly carry a finding about neither.
+`qa-6q-a-load-seam.adversarial.test.ts` pins the code count and demands a second finish code justify
+itself; the justification is written where it asked for it.
+
+### 2. Decision 7 creates a deliberate under-warn, and ADR 0086's stance now has an exception
+
+A cabinet that **explicitly chose** the colour the kitchen already holds counts as **zero** in the
+confirmation count. So a material change silently discards that override and shows the
+*whole-kitchen* sentence rather than the cabinet one.
+
+This is correct as designed and is not a defect: the visible outcome is identical — both land on the
+new material's default — and the document still distinguishes "chose" from "follows" afterwards. It
+is recorded because
+[ADR 0086](0086-the-confirmation-counts-chosen-colours-and-only-a-different-declared-material-owes-one.md)
+states a deliberate **over**-warn *"in the safe direction"*, and this is an exception to that stance
+that no record carried. A future reader comparing the two records must not read the difference as
+drift.
+
+### 3. The scene gap is a wave, and the obvious fix is the one that must not be taken
+
+Adversarial QA measured all five surfaces. Document, settings sheet, cabinet panel and pricing all
+resolve. **The 3D scene does not**: a cabinet with no override of its own renders the kit's default
+white, because `void-engine.ts:557` writes `finishKey` straight off `placement.body.finish` and
+`three-adapter/src/scene-sync.ts:189` skips a record without one.
+
+**Wiring `derivePlacementRecords` to the resolver is forbidden by decision 2 and was tried and
+reverted.** `carriedAppearance` (`commands/insert-body.ts:326`) would then stamp the *resolved*
+colour into `body.finish` on any insert and on the resize rebuild — silently converting "follows the
+kitchen" into "chose this colour", after which a later global change leaves that cabinet behind.
+The fix is a **draw-only** field on `PlacementRecord` that the renderer reads and no command writes.

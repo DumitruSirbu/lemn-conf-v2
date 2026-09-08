@@ -119,6 +119,30 @@ PASS.
 
 ## What is open right now
 
+- **Engineering obligations left by the 2026-09-08 QA round.** Recorded here rather than in
+  `docs/backlog/open.md`, which is for product behaviour observed in use and says so in its own head.
+  - **ADR 0101 decision 2 was ruled and never executed.** `neverMigrated` must become
+    `neverMigratedByAResize` (or equivalent) *and* its comment must record that a depth change now
+    **does** migrate the row. Neither happened;
+    `packages/configurator-domain/tests/fixtures/seeded-body-names.adversarial.test.ts:154,159` still
+    reads the old name with no note. This is the failure ADR 0093 names running backwards — an
+    assertion that keeps passing while its meaning changes.
+  - **Two shipped tests can pass for the wrong reason.** `cabinet-depth-source.test.ts` builds only
+    the declared `(cabinetDepthMm, wallDepthMm)` pairs, so a builder that re-derived the number
+    through ADR 0028's map inverted would reproduce both rows and pass; it also measures only one of
+    the two deep tops and only the decomposed body. `sink-front-clearance.parity.test.ts` criterion 3
+    loops the declared depths and `continue`s at every one but 600, so it asserts nothing the day 600
+    leaves the declared map (ADR 0093 decision 1). Both are **covered** by the QA files added
+    2026-09-08; the weakness is in the owning files, which still claim to be the gate.
+  - **`sink-front-clearance.parity.test.ts` never measures `countertop_side`.** Freezing the two
+    flanking slabs while the aperture moves would leave a visible slot in the worktop and that file
+    would pass. Caught elsewhere by M1 parity and `room-composition.parity.test.ts`, so it is a hole
+    in the file rather than in the suite.
+  - **`ro.ts` and `ro.json` drifted inside W3.** `f6bf6c4` added three `globalSettings` colour keys to
+    both; `44fe8cd` added `ro.panel.finishFollowsKitchen` to `ro.ts` only. Not a live defect —
+    nothing in `apps/web/src` reads `messages/ro.json` yet. **Information for the M6B session, not
+    work for this one**: M6B and Gate O1 are the owner's own work on `m6b-internationalization`.
+
 - **M5 wave 5E — the browser/mobile gate. Still open and still unverified.** The owner confirmed on
   2026-09-02 that their manual testing was **desktop-browser only**, which does not close a handset
   gate: a real touch digitiser, a mobile GPU and device pixel ratio, and iOS Safari all remain
