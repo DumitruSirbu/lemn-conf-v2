@@ -25,7 +25,7 @@ import {
   MIN_BODY_HEIGHT_MM,
   NARROWEST_CATALOG_WIDTH_MM,
 } from "./design-bounds.js";
-import { materialOffersFinish } from "./materials.js";
+import { type Material, materialOffersFinish } from "./materials.js";
 import { toMetres, toMillimetres } from "./millimetres.js";
 import {
   placementExtendsPastOwnWall,
@@ -72,7 +72,8 @@ export type DesignValidationCode =
   | "COLUMN_EXTENT_OVERLAPS_EMPTY_COLUMN"
   | "COLUMN_EXTENT_OVERLAPS_COLUMN_EXTENT"
   | "TIMESTAMPS_OUT_OF_ORDER"
-  | "PLACEMENT_WEARS_UNOFFERED_FINISH";
+  | "PLACEMENT_WEARS_UNOFFERED_FINISH"
+  | "SETTINGS_WEAR_UNOFFERED_FINISH";
 
 export interface DesignValidationIssue {
   readonly code: DesignValidationCode;
@@ -133,6 +134,33 @@ function findUnofferedFinishIssues(design: Design): DesignValidationIssue[] {
   if (lookup.kind === "undeclared") return [];
 
   const material = lookup.material;
+  return [
+    ...findUnofferedGlobalFinishIssues(design, material),
+    ...findUnofferedPlacementFinishIssues(design, material),
+  ];
+}
+
+/** **ADR 0099 decision 6's extension**: the whole-kitchen colour is a second place a finish is
+ *  chosen, so the invariant above has to cover `settings.finish` and not only every `body.finish`.
+ *
+ *  It was not covered when the colour landed, and the asymmetry was the defect: the identical colour
+ *  was refused on a cabinet and accepted on the kitchen. No command in this build can reach it —
+ *  `setGlobalFinish` refuses, `setMaterialTier` resets, `resolveOpeningChoice` drops — but the write
+ *  seam receives a whole document from a client, so a restored backup, a hand-edited row or another
+ *  client reaches it, which is the same threat model the per-placement check already exists for. */
+function findUnofferedGlobalFinishIssues(
+  design: Design,
+  material: Material,
+): DesignValidationIssue[] {
+  const finish = design.settings?.finish;
+  if (finish === undefined || materialOffersFinish(material, finish)) return [];
+  return [issueAt("SETTINGS_WEAR_UNOFFERED_FINISH", "settings.finish")];
+}
+
+function findUnofferedPlacementFinishIssues(
+  design: Design,
+  material: Material,
+): DesignValidationIssue[] {
   return design.placements.flatMap((placement, index) => {
     const finish = placement.body.finish;
     if (finish === undefined || materialOffersFinish(material, finish)) {
@@ -237,6 +265,11 @@ export const DESIGN_ISSUE_SEVERITY_BY_CODE: Readonly<
   // load path, which is a different and, then, false statement. See the table's own head comment for
   // the second reader that made it so.
   PLACEMENT_WEARS_UNOFFERED_FINISH: "refusal",
+  // ADR 0099 decision 6's half of the same rule, and a refusal for the same reason its sibling is:
+  // the fact it asserts is not "past the end of its wall". The two are separate codes rather than
+  // one because the path differs — `settings.finish` is one field on the document, not an index into
+  // `placements` — and a code named for a placement cannot honestly carry a finding about neither.
+  SETTINGS_WEAR_UNOFFERED_FINISH: "refusal",
 };
 
 /** The validation findings that make a design unsafe to load or write, by the declaration above. */
