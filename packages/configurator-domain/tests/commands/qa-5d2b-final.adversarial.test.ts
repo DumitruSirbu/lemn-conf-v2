@@ -257,6 +257,7 @@ describe("an inserted hood is fitted to its opening, so the floor is never breac
       design: cleared.design,
       catalog: cleared.catalog,
       columns: cleared.columns,
+      voids: cleared.voids,
       target: { kind: "void", id: opening.id },
       buildId: "hood",
       probe: createFakeProbe(),

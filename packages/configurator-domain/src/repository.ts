@@ -4,9 +4,22 @@ import { boundedFailureReason } from "./failure-text.js";
 /** Opaque identifier for a stored `Design` row. Unguessable generation is an adapter concern. */
 export type DesignId = string;
 
+/**
+ * **The one message this application constructs that reaches a response body.**
+ * `apps/web/src/lib/server/design-errors.ts` writes it verbatim into the 404, and the id in it is a
+ * URL segment the caller wrote — so an absurd request produced a 2 025-character body carrying a NUL
+ * and an ANSI escape. Nothing is disclosed *to* the caller by that; what is wrong is the shape, on
+ * the one route family whose whole rule is that a response says nothing it was not asked for
+ * (ADR 0014 finding S2).
+ *
+ * Bounded here rather than at the response, for the reason `boundedFailureReason` is applied by the
+ * describers rather than by their call sites: it is *"the last line of defence before a string
+ * becomes an exception message or a log line"* (`failure-text.ts`), and a constructor is where a
+ * message becomes one. `InvalidDesignError` below has always done it; this class was the omission.
+ */
 export class DesignNotFoundError extends Error {
   constructor(id: DesignId) {
-    super(`No design found for id "${id}"`);
+    super(`No design found for id "${boundedFailureReason(id)}"`);
     this.name = "DesignNotFoundError";
   }
 }

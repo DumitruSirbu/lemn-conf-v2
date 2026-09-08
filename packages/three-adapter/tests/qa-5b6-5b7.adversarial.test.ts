@@ -472,6 +472,7 @@ function openShelfInsertHeights(): number[] {
       design,
       catalog: KITCHEN_L_BODY_CATALOG,
       columns,
+      voids,
       target: { kind: "void", id: opening.id },
       buildId: "open-shelf",
       probe: createBodyProbe(kit, room),

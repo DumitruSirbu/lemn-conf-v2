@@ -25,6 +25,7 @@ import { DEFAULT_CABINET_DEPTH_MM } from "../../src/worktop-depth.js";
 import {
   deriveColumns,
   derivePlacementRecords,
+  recomputeVoids,
 } from "../../src/void-engine.js";
 import { createFakeProbe } from "../support/fake-probe.js";
 
@@ -45,7 +46,7 @@ function geometryOf(design: Design, cabinetDepthMm: number) {
     },
     design.room,
   );
-  return { catalog, records, columns };
+  return { catalog, records, columns, voids: recomputeVoids(records, columns) };
 }
 
 /** The depth the probe was asked to build the inserted wall body at, in millimetres: a delete frees
@@ -76,6 +77,7 @@ function insertedWallDepthMm(cabinetDepthMm: number): number {
     insertBody({
       design: atDepth,
       columns: world.columns,
+      voids: world.voids,
       target: { kind: "placement", id: WALL_PLACEMENT_ID },
       catalog: world.catalog,
       buildId: "wall-cabinet",

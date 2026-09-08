@@ -16,6 +16,7 @@ import {
   derivePlacementRecords,
   occupiedDepthM,
   insertBody,
+  recomputeVoids,
   KITCHEN_L_BODY_CATALOG,
   KITCHEN_L_DESIGN,
   toMillimetres,
@@ -101,13 +102,18 @@ function swapIfWidthAllows(
   placementId: string,
   buildId: string,
 ): { readonly design: Design; readonly placementId: string } | undefined {
+  const seededColumns = deriveColumns(
+    derivePlacementRecords(KITCHEN_L_DESIGN, KITCHEN_L_BODY_CATALOG),
+    {},
+    KITCHEN_L_DESIGN.room,
+  );
   const result = insertBody({
     design,
     catalog: KITCHEN_L_BODY_CATALOG,
-    columns: deriveColumns(
-      derivePlacementRecords(KITCHEN_L_DESIGN, KITCHEN_L_BODY_CATALOG),
-      {},
-      KITCHEN_L_DESIGN.room,
+    columns: seededColumns,
+    voids: recomputeVoids(
+      derivePlacementRecords(design, KITCHEN_L_BODY_CATALOG),
+      seededColumns,
     ),
     target: { kind: "placement", id: placementId },
     buildId,

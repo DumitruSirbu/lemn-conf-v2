@@ -351,6 +351,12 @@ interface CommandContext {
    *  (`clip-empty-columns-at-wall-end.ts`): a void carries the published key, which is the recorded
    *  key, so nothing here resolves against a column that is not there. */
   readonly columns: ReadonlyMap<string, Column>;
+  /** **The published openings**, and the other half of what backlog 52 left open. `insertBody`
+   *  built its own list from `columns` above, so handing it the recorded face handed it a recorded
+   *  *opening* — a body placed 100 mm past the end of wall B out of an opening ADR 0069's owner
+   *  ruling says may never be offered at all. The same list §9's offer list is drawn from
+   *  (`use-panel-view.ts`), so a tap does what the row it came from said. */
+  readonly voids: readonly VoidRecord[];
   readonly target: CommandTarget;
 }
 
@@ -450,6 +456,7 @@ export function createConfiguratorStore(
               design: state.design,
               catalog: state.catalog,
               columns: state.recordedColumns,
+              voids: state.voids,
               target: state.selection,
             })
           : refuse(state.design, { code: "TARGET_NOT_FOUND", params: {} }),
@@ -481,25 +488,27 @@ export function createConfiguratorStore(
       },
       insert: (buildId) => {
         const probeAt = get().probeAt;
-        runCommand(({ design: current, catalog: held, columns, target }) =>
-          probeAt
-            ? // Borrowed for this command and given back before it returns (ADR 0076 decision 1).
-              probeAt(cabinetDepthMmOf(current)).use((probe) =>
-                insertBody({
-                  design: current,
-                  columns,
-                  target,
-                  catalog: held,
-                  buildId,
-                  probe,
-                  occurredAt: now(),
-                }),
-              )
-            : // A missing probe is a refusal, not a throw: `isBodyProbeAttached` exists so a
-              // control is never offered before the scene is ready, and this is the safety net
-              // beneath that. It sits **after** the selection check, so `insert` fails the same
-              // way the other three commands do when nothing is selected.
-              refuse(current, { code: "BODY_PROBE_UNAVAILABLE", params: {} }),
+        runCommand(
+          ({ design: current, catalog: held, columns, voids, target }) =>
+            probeAt
+              ? // Borrowed for this command and given back before it returns (ADR 0076 decision 1).
+                probeAt(cabinetDepthMmOf(current)).use((probe) =>
+                  insertBody({
+                    design: current,
+                    columns,
+                    voids,
+                    target,
+                    catalog: held,
+                    buildId,
+                    probe,
+                    occurredAt: now(),
+                  }),
+                )
+              : // A missing probe is a refusal, not a throw: `isBodyProbeAttached` exists so a
+                // control is never offered before the scene is ready, and this is the safety net
+                // beneath that. It sits **after** the selection check, so `insert` fails the same
+                // way the other three commands do when nothing is selected.
+                refuse(current, { code: "BODY_PROBE_UNAVAILABLE", params: {} }),
         );
       },
       setFinish: (finish) => {

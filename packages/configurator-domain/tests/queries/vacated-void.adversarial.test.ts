@@ -260,6 +260,7 @@ describe("the swap path resolves the same opening a delete would select", () => 
         design: TOP_ROW.design,
         catalog: TOP_ROW.catalog,
         columns: TOP_ROW.columns,
+        voids: TOP_ROW.voids,
         target,
         buildId: offer.buildId,
         probe: createFakeProbe(),

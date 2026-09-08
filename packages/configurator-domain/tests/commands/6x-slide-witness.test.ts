@@ -812,6 +812,7 @@ describe("item 3's design is not reachable from today's seed", () => {
       design,
       catalog,
       columns,
+      voids,
       target,
       buildId: "base-dishwasher",
       probe: createFakeProbe({ catalog }),

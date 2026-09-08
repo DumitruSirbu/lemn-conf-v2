@@ -49,6 +49,7 @@ describe("a design with no placements at all", () => {
       design: world.design,
       catalog: world.catalog,
       columns: world.columns,
+      voids: world.voids,
       target: { kind: "void", id: "anything" },
       buildId: "base-3drawer",
       probe: createFakeProbe(),

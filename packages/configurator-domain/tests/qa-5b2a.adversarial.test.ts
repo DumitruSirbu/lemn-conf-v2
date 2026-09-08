@@ -894,14 +894,14 @@ describe("Q5, closed: 800 mm is the ceiling on any empty column (ADR 0052)", () 
     );
     const columns = columnsOf(design);
     const records = derivePlacementRecords(design, CATALOG);
-    const opening = recomputeVoids(records, columns).find(
-      (slot) => slot.col === "A|2.95",
-    );
+    const voids = recomputeVoids(records, columns);
+    const opening = voids.find((slot) => slot.col === "A|2.95");
 
     const result = insertBody({
       design,
       catalog: CATALOG,
       columns,
+      voids,
       target: { kind: "void", id: opening?.id ?? "" },
       buildId: "base-cabinet",
       probe: createFakeProbe({ catalog: CATALOG }),
