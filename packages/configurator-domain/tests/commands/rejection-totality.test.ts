@@ -54,6 +54,10 @@ import {
   syntheticWorld,
   type SyntheticMember,
 } from "../support/synthetic-world.js";
+import {
+  witnessWorld,
+  WITNESS_COLUMN_KEY,
+} from "../support/dependent-replan-witness.js";
 import { LEGACY_ENUM_FINISHES } from "../../src/materials.js";
 
 const ROMANIAN_LETTERS = /[ăâîșțĂÂÎȘȚ]/;
@@ -138,6 +142,11 @@ function voidTarget(world: KitchenWorld, col: string, y0: number) {
 
 function buildCases(): SweepCase[] {
   const world = seeded();
+  // Wave 6Z's declared witness, and the insert is a **full-height** body so the column lifts §7's
+  // cap and the depth it decides for the body standing above genuinely moves. The insert itself
+  // fits; the re-plan of that standing body does not, because its declared equivalent is built at
+  // 300 mm and it is standing at 600.
+  const replanWitness = witnessWorld();
   const clearedFridge = clearBodies(world, ["p7", "p24"]);
   const clearedDishwasher = clearBodies(world, ["p1"]);
   /** A **600 mm** column with its top slot open. The hood's route to `HEIGHT_EXCEEDS_LEVEL` used to
@@ -503,6 +512,20 @@ function buildCases(): SweepCase[] {
           occurredAt: OCCURRED_AT,
         }),
     },
+    // Wave 6Z's one, and it is the wave's **declared witness** (ADR 0093 decision 2). The shipped
+    // catalogue cannot reach it — every re-plannable row resolves to `wall-cabinet`, built anywhere
+    // between 200 and 800 mm — so the case brings its own two entries and its own design rather than
+    // moving a fixture. See `dependent-replan-witness.ts` for the shape.
+    {
+      code: "DEPENDENT_MEMBER_NOT_REBUILDABLE",
+      design: replanWitness.design,
+      run: () =>
+        insertInto(
+          replanWitness,
+          voidTarget(replanWitness, WITNESS_COLUMN_KEY, 0),
+          "tall-pantry",
+        ),
+    },
     // Wave 6J-b's one. 650 is between the two declared depths rather than absurd, so the refusal
     // is the declared set doing its job and not a bounds check catching a wild number.
     {
@@ -573,6 +596,7 @@ const ALL_REJECTION_CODES: Readonly<Record<RejectionCode, true>> = {
   WIDTH_UNCHANGED: true,
   NO_EMPTY_SPACE: true,
   COLUMN_MEMBER_NOT_RESIZABLE: true,
+  DEPENDENT_MEMBER_NOT_REBUILDABLE: true,
   RESIZE_OPENS_GAP: true,
   COLUMN_KEY_COLLISION: true,
   COLUMN_HOOD_FLOOR: true,

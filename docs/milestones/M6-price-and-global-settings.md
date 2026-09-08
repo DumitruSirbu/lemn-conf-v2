@@ -7293,6 +7293,27 @@ accepted with `lastRejection === null`.
 - `packages/configurator-domain/src/commands/rejection.ts` — one new code and its Romanian sentence,
   naming **both** bodies.
 
+*Three files the plan did not name, each forced by the wave and recorded rather than absorbed:*
+
+- `packages/configurator-domain/src/commands/built-body.ts` — **new, and a pure move.**
+  `carriedAppearance`, `refuseBuiltSize` and `refuseUnusableMeasurement` were exported from
+  `insert-body.ts` *for the rebuild's sake* — each carried the comment saying so. Once
+  `insert-body.ts` imports the re-plan, which imports `rebuild`, which imported those three back,
+  the graph has a cycle, and `dist-module-graph.test.ts` refuses one for a measured reason: an ES
+  module cycle does not error, it silently binds `undefined`. The three functions moved unchanged;
+  `chosen-finishes.test.ts`'s import moved with them.
+- `packages/configurator-domain/src/commands/insert-fit.ts` — one new exported predicate,
+  `columnDecidesADifferentDepth`, beside `resolveDepthM`. It is the outcome test ADR 0103 decision 3
+  names — *"which may be the depth it already has, in which case the re-plan is a no-op"* — and it
+  lives here because the answer is `resolveDepthM`'s and the wave adds no second author for it.
+  **Asking it first is what keeps the blast radius at zero**: a body the column decides no
+  differently for is never measured and can raise no refusal, so an ordinary swap in place still
+  probes exactly one body and `insert-depth.test.ts` and `qa-waves-ac.adversarial.test.ts` are
+  untouched. Building first and comparing afterwards moves 14 existing assertions and turns a no-op
+  into a refusal.
+- `packages/configurator-domain/src/cabinet-depth-rule.ts` — comment only.
+  `buildToTheClearanceM` gains a third caller and its doc said *"two callers"*.
+
 *Changed, tests (names are the wave's; the count is not):*
 
 - `packages/configurator-domain/tests/commands/` — one new file for the domain rule and its exclusions.
@@ -7322,6 +7343,22 @@ without the deletes that reach S1–S4, and record whether any dependent re-plan
 **pre-probe** reason (`evaluateInsertFit`). **If one is found the wave stops and reports**: the
 offer-list extension becomes wave **6Z-a** and lands first (ADR 0103 decision 7). If none is found,
 `queries/offers.ts` is not touched and the enumeration is the evidence.
+
+> **Answered 2026-09-08: none found, and the wave does not split.** `apps/web/tests/store/
+> qa-6z-dependent-replan-offer-sweep.test.ts` is the enumeration, committed rather than run once.
+> **786 offered inserts** across 8 states — the shipped kitchen at both declared settings, each with
+> nothing deleted, with `p6` deleted, with `p23` deleted and with both deleted — and **24 of them
+> re-planned a standing body**. Zero produced `DEPENDENT_MEMBER_NOT_REBUILDABLE`. The sweep is
+> widened past the plan's wording in one respect and it is the safer direction: it enumerates every
+> **replace** target as well as every opening, because §5.3 is the same code path and a replace row
+> the panel offers is as much an offer as an insert row. `queries/offers.ts` is untouched.
+>
+> **Why none is reachable, stated so the result is not mistaken for luck:** every re-plannable row in
+> the shipped catalogue resolves through `catalogEquivalentId` to `wall-cabinet`, which is built
+> anywhere between 200 and 800 mm, so no standing body's rebuild can be refused on width — and the
+> band and height guards cannot fire on a body being rebuilt at the extent it is already standing at.
+> The refusal therefore owes a **declared witness**, which
+> `packages/configurator-domain/tests/support/dependent-replan-witness.ts` is.
 
 **Work item 2 — `RebuildInput`.** The five fields `rebuild` reads, named as their own type, with
 `set-cabinet-depth.ts`'s two sentinels deleted. A type narrowing with no behaviour change;
@@ -7408,6 +7445,29 @@ comment, and `set-cabinet-depth.ts`'s `UNUSED_BY_REBUILD` paragraph.
 - **Visual verification** at 390 × 844 and on desktop: the top cabinet visibly shallows out when a
   base cabinet goes under it, and visibly deepens when a full-height one does, with no other body
   moving in the frame.
+
+**Work item 5's answer — what the owner will actually see move in S1 @600.** Measured on
+2026-09-08 against the shipped catalogue at 600 mm, after the wave. It is ADR 0103 decision 11's
+**consequence to be recorded, not a question to reopen.**
+
+| | before | after |
+| --- | --- | --- |
+| `buildId` | `wall-2door-600-deep-top` | `wall-cabinet` |
+| band | `top` | `wall` |
+| rendered label | *Corp suspendat* | *Corp suspendat* — **unchanged** |
+| buildable width set | 200–800 mm, thirteen chips | **unchanged**, the identical set |
+| finished depth | 600 mm | 330 mm |
+| recorded seat | 561 mm (absent, from `frameDepthMm`) | 291 mm |
+| price line | priced as `wall-cabinet` | **unchanged**, priced as `wall-cabinet` |
+| `y0Mm` / push-open default | 2200 / on | **unchanged** |
+| column key | `B|1.80` | **unchanged** |
+
+**Only two of the nine move, and the depth is the one the owner asked for.** The label is unchanged
+because both rows declare *Corp suspendat*; the width set is unchanged because `resolveBuildableSizes`
+already reads it through `catalogEquivalentId`; and **the price line is unchanged because
+`resolvePricingRow` already prices a seeded row as its catalogue equivalent** — the deep top was
+being priced as a `wall-cabinet` before this wave and still is. The band moving `top` → `wall` is
+visible only in §9's header line, which reads the raw band.
 
 **Risks.**
 

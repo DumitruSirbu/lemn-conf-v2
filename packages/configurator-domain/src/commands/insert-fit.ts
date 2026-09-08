@@ -859,6 +859,33 @@ function resolveDepthM(input: InsertFitInput): BuildDepthM {
   );
 }
 
+/** **Whether the column now decides a different depth for a body that is already standing in it** —
+ *  wave 6Z's outcome test (ADR 0103 decision 3), and the reason it lives here rather than in
+ *  `replan-dependent-members.ts`: the answer is `resolveDepthM`'s and this wave adds no second
+ *  author for it.
+ *
+ *  **Both sides are a `BuildDepthM`, and the opening supplies the second.** Called with the opening
+ *  `openingFromPlacement` produces, `opening.d` **is** the standing body's own occupied depth — its
+ *  recorded seat plus whatever its entry declares stands in front of that shell — so the comparison
+ *  is "what the column says this body is built to" against "what it is built to now". The crossing is
+ *  `buildToTheClearanceM`'s, which is the one sanctioned way a clearance becomes a build depth.
+ *
+ *  **Whole millimetres on both sides**, because both are sums of declared millimetres divided by
+ *  1000 and a `1e-16` residue is not a depth anybody manufactures — the same reason
+ *  `columnBuildDepthMm` states the rule in millimetres and converts once.
+ *
+ *  A body this answers `false` for is written through untouched: the re-plan is a no-op, so it takes
+ *  no measurement and can raise no refusal. That is decision 3's own sentence — *"which may be the
+ *  depth it already has, in which case the re-plan is a no-op and the placement is passed through by
+ *  identity"* — and it is what keeps an insert from probing, or refusing over, a body it does not
+ *  move. */
+export function columnDecidesADifferentDepth(input: InsertFitInput): boolean {
+  return (
+    toMillimetres(resolveDepthM(input)) !==
+    toMillimetres(buildToTheClearanceM(input.opening.d))
+  );
+}
+
 function refuseBand(
   body: InsertableBody,
   slotBand: NormalisedBand,

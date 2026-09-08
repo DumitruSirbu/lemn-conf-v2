@@ -15,16 +15,30 @@ import type { EmptySpaceSide, RejectionDetail } from "./rejection.js";
 
 export type Side = EmptySpaceSide["side"];
 
-export interface SetWidthInput {
+/** **What `rebuild` reads, and nothing else** (ADR 0103 decision 5).
+ *
+ *  A rebuild goes through the same path an insert takes (ADR 0055 decision 1), so three commands now
+ *  reach `rebuild-resized-bodies.ts`: the resize it was written for, the depth change, and wave 6Z's
+ *  dependent re-plan. Only the first has a target and a width, and `set-cabinet-depth.ts` used to
+ *  fabricate both — a `UNUSED_BY_REBUILD = ""` target beside a `widthMm: 0` — which is how a sentinel
+ *  becomes load-bearing once a third caller copies it.
+ *
+ *  `SetWidthInput` extends it rather than the two being separate shapes, so a resize still hands
+ *  `rebuild` the same object it always did and the narrowing costs no call site. */
+export interface RebuildInput {
   readonly design: Design;
   readonly catalog: BodyCatalog;
-  /** ADR 0011 Gap D: the frozen load-time extents. This command is the only one that may return a
-   *  changed map, and it changes only the resized column's keys and the empty column's. */
+  /** ADR 0011 Gap D: the frozen load-time extents, in their **recorded** face (ADR 0090
+   *  Amendment B). Whichever command is rebuilding, the column a body is re-fitted against is the
+   *  one the map holds for it. */
   readonly columns: ReadonlyMap<string, Column>;
-  readonly target: CommandTarget;
-  readonly widthMm: number;
   readonly probe: BodyProbe;
   readonly occurredAt: string;
+}
+
+export interface SetWidthInput extends RebuildInput {
+  readonly target: CommandTarget;
+  readonly widthMm: number;
 }
 
 export type SetWidthResult = CommandResult<BodyResizedEffect>;
