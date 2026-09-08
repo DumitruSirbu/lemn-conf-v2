@@ -171,8 +171,15 @@ function mountBody(kit: Kit, record: PlacementRecord): THREE.Group {
  *  which is also how §11 row 12 (resize preserves finish + handle) holds, since a resize re-signs
  *  through the same path.
  *
- *  A record with no choice is left exactly as its builder made it: an unfinished kitchen renders
- *  today's scene, byte for byte, and the M1 fidelity parity suite still sees its own materials.
+ *  **The finish read here is `drawnFinish`, never `finishKey`** (ADR 0099 decision 1 and
+ *  Amendment A section 3). `finishKey` is what the cabinet chose for itself, and a cabinet that
+ *  chose nothing carries none — so reading it left every *following* cabinet on the kit's own white
+ *  however the whole-kitchen colour was set. `drawnFinish` is the resolver's answer, so the
+ *  precedence rule stays in the domain and this package still does not learn it.
+ *
+ *  A record with no drawn finish at all is left exactly as its builder made it. Since ADR 0099 that
+ *  is only a design whose material id names nothing declared (ADR 0078 decision 3) — a state that
+ *  loads rather than being refused, and that declares no colour to paint.
  *
  *  The `canFinish` / `canHandle` guards are `hidesHandles`'s own WHY arriving from the data side —
  *  `insertBody`'s `carriedAppearance` refuses to carry a choice onto a body that cannot take it,
@@ -186,8 +193,8 @@ function applyRecordedAppearance(
   // record can carry has a material: the "no material for this finish" branch that used to sit here
   // is gone rather than defaulted, because a missing decor is now a compile failure in
   // `finishes.ts` instead of a front silently left in the kit's own colour.
-  if (record.finishKey && record.canFinish) {
-    applyBodyFinish(body, kit.M, record.finishKey);
+  if (record.drawnFinish && record.canFinish) {
+    applyBodyFinish(body, kit.M, record.drawnFinish);
   }
   if (record.handleMode === "black" && record.canHandle) {
     applyBlackHandleMaterial(body, kit.M);
@@ -257,6 +264,12 @@ function signBody(record: PlacementRecord): string {
     record.frame.ry,
     record.frame.d,
     record.handleMode ?? "",
-    finishSignature(record.finishKey),
+    // **The drawn colour, not the chosen one, and the pair must not be split.** This signature is
+    // the only reason a mounted body is ever torn down and re-mounted, and `applyRecordedAppearance`
+    // above paints `drawnFinish`. Signing `finishKey` while painting `drawnFinish` would mean a
+    // whole-kitchen colour change — which alters no cabinet's own choice and therefore no
+    // `finishKey` — leaves every signature identical, the sync concludes nothing moved, and the
+    // scene keeps the old colour: exactly the case ADR 0099 exists for, silently unpainted.
+    finishSignature(record.drawnFinish),
   ].join("|");
 }

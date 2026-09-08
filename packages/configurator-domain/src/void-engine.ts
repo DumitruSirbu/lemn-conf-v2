@@ -11,6 +11,10 @@ import type { Finish } from "./materials.js";
 import { clipEmptyColumnsAtWallEnd } from "./clip-empty-columns-at-wall-end.js";
 import { mergeAdjacentEmptyColumns } from "./merge-empty-columns.js";
 import { toExactMillimetres, toMetres } from "./millimetres.js";
+// No cycle: `resolved-finish.ts`'s only value import is `design-material.ts`, whose only value
+// import is `materials.ts`, and that module is a leaf. Neither reaches back here, so this is not
+// the hazard `module-grid.ts`'s head describes.
+import { resolvedFinishOf } from "./resolved-finish.js";
 import type { SeatRule } from "./seat-rule.js";
 import {
   alongWallCoordinate,
@@ -376,7 +380,28 @@ export interface PlacementRecord {
   readonly canReplace: boolean;
   readonly canDelete: boolean;
   readonly fixedWidth: boolean;
+  /** **The colour this cabinet chose for itself, and nothing else.** Absent means it chose nothing
+   *  and is following the kitchen (ADR 0078 decision 5), which is the distinction ADR 0099
+   *  decision 2 exists to keep: `carriedAppearance` (`commands/insert-body.ts`) copies this into
+   *  `body.finish` on an insert and on the resize rebuild, so anything resolved written here would
+   *  be stamped into the document and would silently convert *follows the kitchen* into *chose this
+   *  colour*. Draw from `drawnFinish` below; ask this one only when the question is what the
+   *  customer picked. */
   readonly finishKey?: Finish;
+  /** **The colour to paint, resolved** — `resolvedFinishOf`'s answer for this placement in this
+   *  design: the cabinet's own choice, else the whole-kitchen colour, else the material's declared
+   *  default (ADR 0099 decision 1, Amendment A section 3).
+   *
+   *  **It is never stored and never read by a command.** No `Design` written by this package
+   *  carries it, no persistence schema has a field for it, and a command that reaches for it is
+   *  reading a rendering decision as if it were a customer's choice — which is the exact defect
+   *  Amendment A section 3 records as tried and reverted. It exists so the renderer can stop
+   *  re-deriving the precedence rule and so `finishKey` can go on meaning one thing.
+   *
+   *  Optional for the reason `resolvedFinishOf` returns `Finish | undefined`: a design whose
+   *  `materialTierId` names no declared material declares no default to fall back to
+   *  (ADR 0078 decision 3), and that state loads rather than being refused. */
+  readonly drawnFinish?: Finish;
   readonly handleMode?: Handle;
 }
 
@@ -534,6 +559,7 @@ export function derivePlacementRecords(
     const definition = lookupDefinition(catalog, placement.body.buildId);
     const frame = deriveFrame(placement, definition);
     const rotated = placement.wall === "B";
+    const drawnFinish = resolvedFinishOf(placement, design);
     return {
       id: placement.id,
       buildId: placement.body.buildId,
@@ -557,6 +583,11 @@ export function derivePlacementRecords(
       ...(placement.body.finish !== undefined
         ? { finishKey: placement.body.finish }
         : {}),
+      // Two fields off one question, and they are not the same answer. `finishKey` is the
+      // document's own byte, so a command may copy it back into a document; `drawnFinish` is the
+      // resolver's, so a renderer may paint it and a command may not touch it. The design is
+      // already in hand here, so this needs no new argument and no second `??` chain.
+      ...(drawnFinish !== undefined ? { drawnFinish } : {}),
       ...(placement.body.handle !== undefined
         ? { handleMode: placement.body.handle }
         : {}),
