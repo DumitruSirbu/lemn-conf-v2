@@ -147,13 +147,52 @@ describe("the adapter's wall depth is the domain's map row", () => {
   // It read `PINNED_DEEP_TOP_DEPTH_M === 0.6` until 2026-09-07, which asserted a constant rather
   // than a body. Measured off the built carcass instead: a constant that stops being read still
   // holds its value, and this goes red if the builder starts taking `kit.depths.wallDepthM`.
-  it.each(declaredCabinetDepthsMm())(
-    "builds the deep top to the cabinet-depth line and not the map row at %i mm",
-    (cabinetDepthMm) => {
-      const deepTop = buildDecomposedBody(
-        kitAt(cabinetDepthMm),
-        "wall-2door-600-deep-top",
-      );
+  // **The map is handed over, not looked up here — and until 2026-09-08 nothing said so.** Every
+  // case above passes the row the domain declares, so a kit that ignored its `wallDepthMm` argument
+  // and re-derived the number through ADR 0028's map itself would reproduce both rows and pass. The
+  // omission case below it is the mirror image and does not close this: it proves what happens when
+  // the argument is *absent*, not that the argument is *read*.
+  //
+  // An off-map depth is the only input that can tell the two apart, because no map row can produce
+  // it. 555 is deliberately not a manufactured size — it is not the number to make real, it is the
+  // number no lookup can invent.
+  it("builds the wall carcass to the depth it is handed, not to a row it looked up", () => {
+    const OFF_MAP_WALL_DEPTH_MM = 555;
+    for (const cabinetDepthMm of declaredCabinetDepthsMm()) {
+      expect(domainWallDepthMm(cabinetDepthMm)).not.toBe(OFF_MAP_WALL_DEPTH_MM);
+    }
+
+    const offMap = makeKit({
+      createCanvas: createHeadlessCanvas,
+      cabinetDepthMm: WORKTOP_DEPTH_MM,
+      wallDepthMm: OFF_MAP_WALL_DEPTH_MM,
+    });
+
+    expect(Math.round(offMap.depths.wallDepthM * 1000)).toBe(
+      OFF_MAP_WALL_DEPTH_MM,
+    );
+    expect(depthMmOf(offMap.make.wallCabinet(0.6, 2), "carcass_shell")).toBe(
+      OFF_MAP_WALL_DEPTH_MM - WALL_FRONT_ASSEMBLY_MM,
+    );
+  });
+
+  // **Both rows, not one** — `p22`/`p23` share `wall-2door-600-deep-top` and `p24` is
+  // `wall-2door-700-over-fridge`, which is the three placements ADR 0101 rules over and the two
+  // catalogue rows they resolve to. Measuring one of the two left the other free to go on taking
+  // the map row, which is the exact defect the decision is about.
+  const DEEP_TOP_BUILD_IDS = [
+    "wall-2door-600-deep-top",
+    "wall-2door-700-over-fridge",
+  ] as const;
+
+  it.each(
+    declaredCabinetDepthsMm().flatMap((cabinetDepthMm) =>
+      DEEP_TOP_BUILD_IDS.map((buildId) => ({ cabinetDepthMm, buildId })),
+    ),
+  )(
+    "builds $buildId to the cabinet-depth line and not the map row at $cabinetDepthMm mm",
+    ({ cabinetDepthMm, buildId }) => {
+      const deepTop = buildDecomposedBody(kitAt(cabinetDepthMm), buildId);
 
       expect(depthMmOf(deepTop, "carcass_shell")).toBe(
         cabinetDepthMm - WALL_FRONT_ASSEMBLY_MM,
