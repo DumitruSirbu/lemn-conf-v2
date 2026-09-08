@@ -314,3 +314,34 @@ reverted.** `carriedAppearance` (`commands/insert-body.ts:326`) would then stamp
 colour into `body.finish` on any insert and on the resize rebuild — silently converting "follows the
 kitchen" into "chose this colour", after which a later global change leaves that cabinet behind.
 The fix is a **draw-only** field on `PlacementRecord` that the renderer reads and no command writes.
+
+**Closed 2026-09-08.** The field is `PlacementRecord.drawnFinish`, filled by `derivePlacementRecords`
+from `resolvedFinishOf`; `finishKey` is untouched and still means the customer's choice and only
+that, so `carriedAppearance` goes on copying an override and preserving absence. `commands/` was not
+edited.
+
+Three things the wave established, each by measurement:
+
+- **The repaint signature was the trap.** `scene-sync.ts`'s `signBody` decides when to repaint, and
+  it signed `finishKey`. Mutating **that one line alone** turns **13** adapter tests red, both
+  repaint tests among them. Every single-sync assertion in the suite passes with the bug in place,
+  because paint happens at mount and a first mount always happens — only two syncs against one root
+  can see it.
+- **The forbidden fix was demonstrated, not assumed.** Writing the resolved colour into `finishKey`
+  turns the shuffled-command property red with a counterexample:
+  `[["depth","colour","remove","resize","insert"], {"kind":"palette-entry","entryId":"pal.alb"}]`.
+- **One acceptance criterion was vacuous and is now witnessed.** "A cabinet that chose nothing renders
+  the material's default" stayed green on melamine with the defect in place, because melamine's
+  declared default (*Alb*, `#eceeeb`) is the exact hex M1 gives `kit.M.door`. A veneer witness
+  (`#cba173`) was added, where the two differ.
+
+**The store seam is proved separately**, because neither package could reach it: nothing in
+`packages/three-adapter` or `packages/configurator-domain` can answer *"does the store re-derive its
+records when the kitchen's colour changes?"*, and a "no" there would leave `drawnFinish` correct in a
+fresh render and stale in the running app with every test still green.
+`apps/web/tests/store/the-kitchens-colour-reaches-the-records.test.ts` closes it through
+`applyWholeKitchenSettings`, and is proved red by reverting `derivePlacementRecords` to read
+`placement.body.finish`.
+
+**Still owed:** a browser pass. The chain is exercised end-to-end in the adapter tests through the
+real `derivePlacementRecords`, but no Playwright run has confirmed the on-screen claim.
