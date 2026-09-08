@@ -28,6 +28,7 @@ import {
   wallLengthMm,
   type Design,
   type EmptyColumn,
+  type PlacementRecord,
 } from "@lemnaria/configurator-domain";
 import { describe, expect, it } from "vitest";
 
@@ -134,6 +135,25 @@ function insertInto(store: Store, buildId: string): void {
   store.getState().insert(buildId);
 }
 
+/** **The record this tap added, identified by id and never by `buildId`.**
+ *
+ *  Finding it by `buildId` reads the wrong body. `setCabinetDepth` rebuilds every placement through
+ *  the catalogue and renames a seeded id to its catalogue equivalent (ADR 0055 decision 1, ADR 0022) —
+ *  measured: at 700 `p4` is no longer `base-drawer3-600` but `base-3drawer`. So the design already
+ *  holds `base-3drawer`, `base-dishwasher` and `tall-pantry` at their own widths *before* this
+ *  opening is tapped, and `find` returns one of those for three of the offered rows.
+ *
+ *  The correspondence being asserted is about **the body the tap produced**, so the quantifier is
+ *  narrowed to it rather than the assertion being dropped: no product state can make a `buildId`
+ *  lookup answer the new record, which makes that lookup an instrument premise and not a contract
+ *  fact (ADR 0091 decision 1, Q1). */
+function theRecordThisTapAdded(
+  store: Store,
+  idsBefore: ReadonlySet<string>,
+): PlacementRecord | undefined {
+  return store.getState().records.find((record) => !idsBefore.has(record.id));
+}
+
 describe("the opening a command resolves against is still the capped one", () => {
   // The premise, asserted first so a later failure cannot be read as the fixture drifting: the two
   // faces disagree on width by exactly the 100 mm the wall no longer covers, and agree on the key.
@@ -192,6 +212,9 @@ describe("the opening a command resolves against is still the capped one", () =>
 
     for (const offer of listed) {
       const store = atTheDeeperSetting();
+      const idsBefore = new Set(
+        store.getState().records.map((record) => record.id),
+      );
       insertInto(store, offer.buildId);
       const rejection = store.getState().lastRejection;
 
@@ -203,9 +226,14 @@ describe("the opening a command resolves against is still the capped one", () =>
         continue;
       }
       expect(rejection, `${offer.buildId} was offered in the list`).toBeNull();
-      const placed = store
-        .getState()
-        .records.find((record) => record.buildId === offer.buildId);
+      const placed = theRecordThisTapAdded(store, idsBefore);
+      // Non-vacuity: a lookup that answered `undefined` would make the width assertion below pass
+      // for the wrong reason on every row (ADR 0093 decision 1).
+      expect(placed, `${offer.buildId} produced a record`).toBeDefined();
+      expect(
+        placed?.buildId,
+        `${offer.buildId} is the body that was built`,
+      ).toBe(offer.buildId);
       expect(placed?.widthMm, `${offer.buildId}'s built width`).toBe(
         offer.verdict.widthMm,
       );
