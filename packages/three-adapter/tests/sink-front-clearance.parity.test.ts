@@ -187,8 +187,11 @@ describe("the sink is centred on its worktop at every declared cabinet depth", (
   // Stated as the two clearances being equal rather than as a coordinate, because the coordinate is
   // the derived seat and a test of a derivation against itself proves nothing.
   it("splits the declared 600 mm worktop evenly around the aperture", () => {
+    const measured: string[] = [];
+
     for (const { cabinetDepthMm, what, body } of sweptSinkBodies()) {
       if (cabinetDepthMm !== DEPTH_THE_CENTRING_IS_RULED_AT_MM) continue;
+      measured.push(what);
 
       expect({
         what,
@@ -198,6 +201,17 @@ describe("the sink is centred on its worktop at every declared cabinet depth", (
         inFrontMm: apertureBackMm(body) - worktopBackMm(body),
       });
     }
+
+    // **The `continue` above is why this line exists** (ADR 0093 decision 1). The loop asserts
+    // nothing on the day `DEPTH_THE_CENTRING_IS_RULED_AT_MM` leaves the declared map, and a suite
+    // that quietly stops asking its question is the failure that discipline is about. Both sink
+    // body the sweep builds at that depth is measured, each under its own distinct name, so
+    // measuring one twice cannot stand in for measuring them all.
+    expect(declaredCabinetDepthsMm()).toContain(
+      DEPTH_THE_CENTRING_IS_RULED_AT_MM,
+    );
+    expect(measured.length).toBe(1 + CATALOGUE_SINK_WIDTHS_MM.length);
+    expect(new Set(measured).size).toBe(measured.length);
   });
 
   // Criterion 4: the bowl fills the hole. Both edges of both, at every declared depth — a seat
@@ -255,6 +269,34 @@ describe("the sink is centred on its worktop at every declared cabinet depth", (
       expect(mm(assembly.min.z), `${what} back`).toBeGreaterThan(
         mm(stone.min.z),
       );
+    }
+  });
+
+  // **Criterion 6, and the hole this file had**: the two slabs flanking the aperture were only ever
+  // measured inside a union with the front and back ones, whose edges are the stone's own — so
+  // freezing them while the aperture moved would leave a visible slot in the worktop and every
+  // assertion above would still pass. Recorded in `docs/STATUS.md` on 2026-09-08 and closed here.
+  //
+  // Stated as the three slabs **tiling** the stone with no gap and no overlap, rather than as
+  // coordinates: the side pieces must start exactly where the back one ends and end exactly where
+  // the front one begins, at every declared depth. Measured 2026-09-08, the span really does move —
+  // `[-180, 220]` at 600 and `[-130, 270]` at 700 — so a slab left behind is caught by the setting
+  // it failed to follow rather than by a literal that would need re-baselining.
+  it("moves the slabs beside the aperture with it, leaving no slot in the stone", () => {
+    for (const { cabinetDepthMm, what, body } of sweptSinkBodies()) {
+      const side = boundsOf(body, "countertop_side");
+
+      expect({
+        what,
+        cabinetDepthMm,
+        sideBackMm: mm(side.min.z),
+        sideFrontMm: mm(side.max.z),
+      }).toEqual({
+        what,
+        cabinetDepthMm,
+        sideBackMm: apertureBackMm(body),
+        sideFrontMm: apertureFrontMm(body),
+      });
     }
   });
 
