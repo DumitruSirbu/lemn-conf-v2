@@ -75,7 +75,10 @@ import {
 import { canonicalSerializeDesign } from "../src/serialize-design.js";
 import { validateDesignForCatalog } from "../src/validate-design.js";
 import { offersFor } from "../src/queries/offers.js";
-import { derivePlacementRecords } from "../src/void-engine.js";
+import {
+  derivePlacementRecords,
+  type PlacementRecord,
+} from "../src/void-engine.js";
 import { clearBodies } from "./support/commands.js";
 import {
   createFakeProbe,
@@ -1176,5 +1179,89 @@ describe("resolvedDefaultFinishOf — the second reader, at its boundaries", () 
     const design = withGlobalFinish(designOn(UNDECLARED_ID, []), VENEER_NUC);
 
     expect(resolvedDefaultFinishOf(design)).toEqual(VENEER_NUC);
+  });
+});
+
+// **ADR 0099 Amendment A section 3 — the record carries two colours and they are not one answer.**
+//
+// `finishKey` is the cabinet's own choice, and `carriedAppearance` (`commands/insert-body.ts`)
+// copies it back into `body.finish` on an insert and on the resize rebuild. `drawnFinish` is
+// `resolvedFinishOf`'s answer, and it exists so the renderer can stop skipping a cabinet that chose
+// nothing. Resolving *into* `finishKey` was tried and reverted for exactly that reason, so the
+// separation **is** the safety guarantee and is asserted here rather than described in a comment.
+//
+// The document-level half of the same guarantee — that no body grows a `finish` key across insert,
+// resize, delete, depth change and a global colour change in any order — is the shuffled property
+// under *"ADR 0099 decision 2"* above, which asserts **key absence** and never a value.
+describe("ADR 0099 Amendment A section 3 — the draw-only colour on a placement record", () => {
+  const FINISHABLE_PLACEMENT_ID = "p1";
+
+  function recordFor(design: Design, id: string): PlacementRecord {
+    const record = derivePlacementRecords(design, CATALOG).find(
+      (candidate) => candidate.id === id,
+    );
+    if (record === undefined) throw new Error(`no record derived for "${id}"`);
+    return record;
+  }
+
+  it("carries the kitchen's colour to draw while the cabinet's own choice stays absent", () => {
+    const design = applyGlobalFinish(
+      everyCabinetFollowing(PAL_ID),
+      PAL_ANTRACIT,
+    );
+
+    const record = recordFor(design, FINISHABLE_PLACEMENT_ID);
+    expect(record.drawnFinish).toEqual(PAL_ANTRACIT);
+    // Key absence rather than `toBeUndefined`, for the reason ADR 0099 Amendment A section 1
+    // records: a value assertion passes while the key is being stamped.
+    expect(record).not.toHaveProperty("finishKey");
+  });
+
+  it("carries the cabinet's own colour in both fields when the cabinet chose one", () => {
+    const design = withGlobalFinish(
+      designOn(PAL_ID, [placementWearing(0, PAL_GRI)]),
+      PAL_ANTRACIT,
+    );
+    const chosenId = design.placements[0]?.id;
+    expect(chosenId).toBeDefined();
+
+    const record = recordFor(design, chosenId ?? "");
+    expect(record.finishKey).toEqual(PAL_GRI);
+    expect(record.drawnFinish).toEqual(PAL_GRI);
+  });
+
+  it("carries the material's declared default where neither level chose", () => {
+    const design = withoutGlobalFinish(everyCabinetFollowing(VENEER_ID));
+
+    const record = recordFor(design, FINISHABLE_PLACEMENT_ID);
+    expect(record.drawnFinish).toEqual(materialById(VENEER_ID).defaultFinish);
+    expect(record).not.toHaveProperty("finishKey");
+  });
+
+  /** An undeclared material declares no default to fall back to (ADR 0078 decision 3) and that
+   *  state loads rather than being refused, so the field is absent rather than holding a colour
+   *  this product never declared. */
+  it("carries no drawn colour at all for an undeclared material and no global colour", () => {
+    const design = withoutGlobalFinish(everyCabinetFollowing(UNDECLARED_ID));
+
+    const record = recordFor(design, FINISHABLE_PLACEMENT_ID);
+    expect(record).not.toHaveProperty("drawnFinish");
+    expect(record).not.toHaveProperty("finishKey");
+  });
+
+  /** **The whole point, swept over every declared material and every colour each of them offers.**
+   *  A global change moves the drawn colour of every following cabinet and leaves every `finishKey`
+   *  absent — acceptance criteria 1 and 6 read off the record rather than off a surface. */
+  it("moves every following cabinet's drawn colour and no cabinet's own, for every material", () => {
+    for (const tierId of [PAL_ID, MDF_ID, VENEER_ID]) {
+      for (const finish of offeredFinishesOf(materialById(tierId))) {
+        const design = applyGlobalFinish(everyCabinetFollowing(tierId), finish);
+
+        for (const record of derivePlacementRecords(design, CATALOG)) {
+          expect(record.drawnFinish).toEqual(finish);
+          expect(record).not.toHaveProperty("finishKey");
+        }
+      }
+    }
   });
 });
