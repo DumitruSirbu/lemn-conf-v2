@@ -303,7 +303,7 @@ function cabinetDepthLineMm(cabinetDepthMm: number): number {
  *  Narrowed on review, 2026-09-04. `recordedClearanceM` remains the only way a wire number becomes a
  *  clearance, and it is at the persistence boundary where that is the fact being stated.
  *
- *  Two callers, both in `resolveDepthM`, and they pass **different** clearances on purpose:
+ *  Three callers, two of them in `resolveDepthM`, and they pass **different** clearances on purpose:
  *
  *  - **The capped arm's floor — the *column's* clearance.** §7's cap is a maximum and never a
  *    target (ADR 0028; wave 5A): a column shallower than the declared depth keeps its own depth, so
@@ -315,7 +315,11 @@ function cabinetDepthLineMm(cabinetDepthMm: number): number {
  *  - **A band the head-clearance rule does not reach — the opening's own clearance.** Base,
  *    full-height and appliance builders ignore the depth argument entirely (ADR 0040's `wall-plane`
  *    rule), so no manufactured size is being decided there and §5.2's literal
- *    `b.mk(w, h, void.d)` governs. */
+ *    `b.mk(w, h, void.d)` governs.
+ *  - **Wave 6Z's outcome test — a *standing* body's own clearance**, read off the swap opening
+ *    `openingFromPlacement` produces. `columnDecidesADifferentDepth` asks whether the depth the
+ *    column decides is the depth that body is already built to, and the two sides have to be the
+ *    same type for the question to mean anything (ADR 0103 decision 3). */
 export function buildToTheClearanceM(clearanceM: ClearanceM): BuildDepthM {
   // Through a plain `number` because the two brands deliberately do not overlap, so there is no
   // direct assertion between them — which is the property that makes this function necessary.

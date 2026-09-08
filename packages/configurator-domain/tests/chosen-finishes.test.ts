@@ -17,7 +17,7 @@ import { describe, expect, it } from "vitest";
 
 import { countCabinetsWearingAChosenFinish } from "../src/chosen-finishes.js";
 import { toInsertableBody, type InsertableBody } from "../src/catalog.js";
-import { carriedAppearance } from "../src/commands/insert-body.js";
+import { carriedAppearance } from "../src/commands/built-body.js";
 import { setMaterialTier } from "../src/commands/set-whole-kitchen-settings.js";
 import type { Design, DesignPlacement } from "../src/design.js";
 import {
