@@ -153,6 +153,7 @@ function insertInto(
     design: span.design,
     catalog: CATALOG,
     columns: span.columns,
+    voids: span.voids,
     target,
     buildId,
     probe: PROBE,

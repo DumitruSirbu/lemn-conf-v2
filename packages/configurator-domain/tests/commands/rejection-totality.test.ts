@@ -382,6 +382,7 @@ function buildCases(): SweepCase[] {
           design: world.design,
           catalog: world.catalog,
           columns: new Map(),
+          voids: world.voids,
           target: { kind: "placement", id: "p0" },
           buildId: "base-3drawer",
           probe: createFakeProbe(),

@@ -20,11 +20,11 @@ import {
 } from "../millimetres.js";
 import {
   derivePlacementRecords,
-  recomputeVoids,
   FIT_TOLERANCE_M,
   type BodyCatalog,
   type Column,
   type PlacementRecord,
+  type VoidRecord,
 } from "../void-engine.js";
 import {
   isValidOccurredAt,
@@ -47,9 +47,33 @@ import { splitColumn, type ColumnSplit } from "./split-column.js";
 export interface InsertBodyInput {
   readonly design: Design;
   readonly catalog: BodyCatalog;
-  /** ADR 0011 Gap D: frozen load-time columns. No command recomputes them, and this one refuses
-   *  rather than place a body that would fall outside the map. */
+  /** ADR 0011 Gap D: frozen load-time columns, in their **recorded** face (ADR 0090 Amendment B).
+   *  No command recomputes them, and this one refuses rather than place a body that would fall
+   *  outside the map. This is the face `effect.columns` replaces, so it is the one a room-derived
+   *  cap may never have touched.
+   *
+   *  It is deliberately **not** what the openings come from — see `voids`. */
   readonly columns: ReadonlyMap<string, Column>;
+  /**
+   * **The published openings** — §9's own list, bounded by the wall (ADR 0069's owner ruling, kept
+   * in as many words by ADR 0090 Amendment B: *"no opening past the wall is ever derived, drawn or
+   * offered"*).
+   *
+   * **Required, and deliberately neither optional nor recomputed here.** Until this wave the
+   * command built its own list from `columns`, so once backlog 52 made that map the recorded face
+   * the uncapped map became the uncapped opening: at a 700 mm kitchen the space flush to wall B's
+   * end published a 500 mm opening and the command built a 600 mm body 100 mm past a 2920 mm wall,
+   * while the offer list refused a `base-sink` in the same opening by name. §11 row 6 and ADR 0032
+   * say the list and the command are *"the same evaluation `insertBody` runs"*, and they can only be
+   * that if they are handed the same openings.
+   *
+   * **Nor re-derived from a capped copy of `columns`.** `deriveColumns` runs the wall-end clip
+   * *before* ADR 0046's merge, so `clip(recorded)` is not the published map — a pair the clip
+   * narrows below ADR 0052's 800 mm ceiling merges where the same pair uncapped declines
+   * (`deriveRecordedColumns`' own comment carries that measurement). The published list is handed
+   * in by the one seam that assembles it.
+   */
+  readonly voids: readonly VoidRecord[];
   readonly target: CommandTarget;
   readonly buildId: string;
   readonly probe: BodyProbe;
@@ -75,9 +99,13 @@ export function insertBody(input: InsertBodyInput): InsertResult {
   if (!body.ok) return refuse(design, body.detail);
 
   const records = derivePlacementRecords(design, input.catalog);
+  // **The two faces, each in the role ADR 0090 Amendment B gives it**: the opening is resolved out
+  // of the published list, which the wall bounds, and the column it is seated in comes from the
+  // recorded map, which the split then rewrites. This is `OffersInput` field for field, which is
+  // what makes §11 row 6's "one evaluation, two callers" structural rather than a promise.
   const target = resolveInsertOpening({
     records,
-    voids: recomputeVoids(records, input.columns),
+    voids: input.voids,
     columns: input.columns,
     target: input.target,
   });

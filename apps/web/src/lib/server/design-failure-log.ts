@@ -27,7 +27,8 @@
  * **The error-tracker seam.** `emitDesignLogLine` is the only place a transport is chosen. Wiring
  * Sentry or an equivalent later is a change to that one function; no call site, no field and no
  * bound moves. Nothing is installed today — an SDK needs a DSN and an account decision that are the
- * owner's.
+ * owner's. **And it is the one function most likely to throw once it is not `console`**, which is
+ * why the write is guarded as well as the reads (`writeOrNothing`).
  */
 
 import { boundedFailureReason } from "@lemnaria/configurator-domain";
@@ -148,7 +149,38 @@ function emitDesignLogLine(
   line: Readonly<Record<string, string | number>>,
 ): void {
   const write = severity === "error" ? console.error : console.warn;
-  write(DESIGN_LOG_LABEL, line);
+  writeOrNothing(write, line);
+}
+
+/** What the transport is, structurally: a label and a line, and no answer. Declared so the guard
+ *  below takes a value rather than reaching back into `console`. */
+type DesignLogTransport = (
+  label: string,
+  line: Readonly<Record<string, string | number>>,
+) => void;
+
+/**
+ * **The write may not throw, for the reason every read in this module may not** (see
+ * `readPropertyOrNothing`): a diagnostic that can fail replaces the error it exists to explain.
+ *
+ * The reads were guarded and the write was not, and the write is the half that will stop being
+ * `console`. Measured before this guard: with a transport that throws, `designErrorResponse("save",
+ * neonError)` threw *the logger's* error and lost the `NeonDbError` and its `42703`, and
+ * `writeForbiddenResponse()` and `invalidBodyResponse()` threw where they owe a 403 and a 400 — a
+ * customer losing a save because a log drain is down.
+ *
+ * **Silent, and it must be**: the only thing left to report a failed report with is the transport
+ * that just failed, so a second write is the same defect with one more frame on it.
+ */
+function writeOrNothing(
+  write: DesignLogTransport,
+  line: Readonly<Record<string, string | number>>,
+): void {
+  try {
+    write(DESIGN_LOG_LABEL, line);
+  } catch {
+    // See above: nothing to fall back to, and nothing may escape.
+  }
 }
 
 /** Grepped for in a platform log view, so it is one literal and not assembled. */

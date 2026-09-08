@@ -609,6 +609,7 @@ function everyWallBInsertOf(
         design,
         catalog,
         columns,
+        voids,
         target,
         buildId: offer.buildId,
         probe: createFakeProbe({ catalog }),

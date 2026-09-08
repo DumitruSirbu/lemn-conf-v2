@@ -343,6 +343,7 @@ function fillWidestOpening(world: World): World {
     design: world.design,
     catalog: CATALOG,
     columns: world.columns,
+    voids: world.voids,
     target: { kind: "void", id: opening.id },
     buildId: "base-bottle-cargo",
     probe: PROBE,

@@ -5,6 +5,7 @@ import type { CommandTarget } from "../../src/commands/command-result.js";
 import { insertBody } from "../../src/commands/insert-body.js";
 import { removePlacement } from "../../src/commands/remove-placement.js";
 import { setWidth } from "../../src/commands/set-width.js";
+import { recomputeVoids } from "../../src/void-engine.js";
 import { createFakeProbe } from "./fake-probe.js";
 import { advance, type KitchenWorld } from "./kitchen-world.js";
 
@@ -39,6 +40,12 @@ export function insertInto(
     design: world.design,
     catalog: world.catalog,
     columns: world.columns,
+    // Derived from the map handed in rather than read off `world.voids`, because a caller that
+    // overrides one of the two must not be left holding openings the other no longer contains.
+    // The world models a kitchen whose two faces coincide — `createWorld` builds `columns` through
+    // `deriveColumns`, wall-end cap included — so this *is* the published list, and a test that
+    // empties the map empties the openings with it exactly as it did before the split.
+    voids: recomputeVoids(world.records, world.columns),
     target,
     buildId,
     probe,

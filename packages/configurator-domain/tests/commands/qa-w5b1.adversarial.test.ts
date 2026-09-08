@@ -272,6 +272,7 @@ describe("a gap a growth leaves is a state the design can show", () => {
       design: after.design,
       catalog: after.catalog,
       columns: after.columns,
+      voids: after.voids,
       target: { kind: "void", id: gap.id },
       buildId: "base-bottle-cargo",
       probe: createFakeProbe({ catalog: after.catalog }),

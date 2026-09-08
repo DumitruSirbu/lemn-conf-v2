@@ -116,11 +116,12 @@ describe("the hob can be put back after its cabinet is deleted", () => {
     "%s goes back into that opening at 600 x 860, seated on the wall",
     (buildId) => {
       const design = clearedHobColumn();
-      const { columns, opening } = vacatedOpening(design);
+      const { columns, voids, opening } = vacatedOpening(design);
       const result = insertBody({
         design,
         catalog: KITCHEN_L_BODY_CATALOG,
         columns,
+        voids,
         target: { kind: "void", id: opening.id },
         buildId,
         probe: createBodyProbe(kit, room),
@@ -188,6 +189,10 @@ describe("the hob can be put back after its cabinet is deleted", () => {
         design: KITCHEN_L_DESIGN,
         catalog: KITCHEN_L_BODY_CATALOG,
         columns: frozenColumns(),
+        voids: recomputeVoids(
+          derivePlacementRecords(KITCHEN_L_DESIGN, KITCHEN_L_BODY_CATALOG),
+          frozenColumns(),
+        ),
         target: { kind: "placement", id: WIDE_BASE_PLACEMENT_ID },
         buildId,
         probe: createBodyProbe(kit, room),
