@@ -119,6 +119,31 @@ PASS.
 
 ## What is open right now
 
+- **M6's remaining work is verification, not features — as of 2026-09-08.** Every wave row but 6Y is
+  DONE and the branch `fix/m6-remediation` is green: domain **3619**, three-adapter **2895**, web
+  **1954 + 4 skipped**, persistence **282**, typecheck / lint / `format:check` clean, **88 commits
+  ahead of `main`**. What is owed before M6 can be called closed:
+  - **No browser has seen any of 2026-09-08's work.** Wave 6Z's own tier calls for visual
+    verification and it was not run; the scene-colour wave's on-screen claim is proved through the
+    real record builder in tests but never rendered. The owner has said they will do the manual pass
+    themselves after a production deploy, so this is a **CI Playwright** obligation, not a manual one.
+    A green local 3D e2e run proves nothing about runner timing.
+  - **Independent QA on wave 6Z and the scene-colour wave** — dispatched 2026-09-08. Both were gated
+    by their own authors' tests, which is not the same thing. The one independent round that did run
+    this day found an insert building a 600 mm sink base through a wall, against a ruling the owner
+    had given in one word, while its author's commit message claimed the opposite.
+  - **The clean-code and logic review pair** on the 2026-09-08 waves. Not yet dispatched; they gate on
+    QA being green (`docs/WORKFLOW.md` step 4).
+  - **`setWidth` does not raise the mark ADR 0065 requires.** Measured: a body grown past the end of
+    its wall through the funding scan's recorded width produced `lastRejection === null` **and** a
+    clean `validateDesignForCatalog`. This is **not** the open product question it was briefly
+    reported as — ADR 0065 decision 1 and ADR 0069's amendment both rule the resize case a *mark, not
+    a refusal*, and the amendment names the width-resize consequence as deliberately untouched. The
+    defect is that the mark is **absent**, not that the body grew. Small, no ruling needed.
+  - **Wave 6Y** — the only open wave row. Does not block: the defect predates all of this on `main`,
+    and its witness is pinned positively.
+  - **The M6 close-out sections ADR 0098 and ADR 0101 each ask for.**
+
 - **Engineering obligations left by the 2026-09-08 QA round.** Recorded here rather than in
   `docs/backlog/open.md`, which is for product behaviour observed in use and says so in its own head.
   - **ADR 0101 decision 2 was ruled and never executed.** `neverMigrated` must become
