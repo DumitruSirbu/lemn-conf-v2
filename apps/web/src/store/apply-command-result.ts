@@ -319,17 +319,22 @@ function intendSelection(
     const vacated = findVacatedVoid(voids, effect.vacated);
     return vacated ? { kind: "void", id: vacated.id } : null;
   }
-  // Wave 6E's two, and wave 6J-b's third: a whole-kitchen setting acts on no cabinet, so it has no
-  // placement to point at and the selection the customer is holding is carried through untouched.
-  // It is still put through `isStillPresent` below, which is what keeps "the selection never
-  // dangles" one rule rather than one rule with an exception.
+  // Wave 6E's two, wave 6J-b's third and ADR 0099's fourth: a whole-kitchen setting acts on no
+  // cabinet, so it has no placement to point at and the selection the customer is holding is
+  // carried through untouched. It is still put through `isStillPresent` below, which is what keeps
+  // "the selection never dangles" one rule rather than one rule with an exception.
   //
   // A depth change rebuilds every body but keeps every placement **id**, so the held selection is
   // still the same cabinet afterwards — a deeper one. Carrying it through is what stops a customer
   // losing their place because the kitchen got deeper around them.
+  //
+  // A global colour change is the strongest case of the four: `setGlobalFinish` writes one settings
+  // key and touches no placement at all (ADR 0099 decision 2), so there is nothing for a selection
+  // to have lost.
   if (
     effect.type === "material_tier_set" ||
     effect.type === "hardware_tier_set" ||
+    effect.type === "global_finish_set" ||
     effect.type === "cabinet_depth_set"
   ) {
     return current;

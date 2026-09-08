@@ -348,10 +348,15 @@ describe("the two copy sweeps reach this section and judge it", () => {
 
   const LEAVES = copyLeaves(ro.globalSettings.materialResetConfirm);
 
-  it("finds all four strings under the section the sweep walks", () => {
+  it("finds all five strings under the section the sweep walks", () => {
     // A gate that walks past a section reports green about nothing, which is this project's own
-    // recorded failure mode. Four leaves: a title, a sentence, and two actions.
-    expect(LEAVES).toHaveLength(4);
+    // recorded failure mode. Five leaves: a title, **two** sentences and two actions.
+    //
+    // It was four until ADR 0099 decision 7 added the second arm — a material change that discards
+    // the *kitchen's* colour rather than any cabinet's — and that arm owes a sentence of its own
+    // (`globalBody`), because the per-cabinet one would read "pentru 0 corpuri". The literal is
+    // raised here deliberately: a count that moves silently is a sweep that has stopped counting.
+    expect(LEAVES).toHaveLength(5);
     expect(copyLeaves(ro.globalSettings)).toEqual(
       expect.arrayContaining(LEAVES),
     );

@@ -292,6 +292,15 @@ export const ro = {
      * Ruled 2026-09-06, pending owner review.
      */
     finishPickerLabel: "Alege culoarea",
+    /**
+     * **ADR 0099 decision 8's way back out of an override**, and the sentence has to name the level
+     * it returns to rather than say *"șterge"*: nothing is being deleted from the customer's point
+     * of view — the cabinet goes back to wearing the kitchen's own colour, which is a colour and not
+     * an absence.
+     *
+     * Ruled 2026-09-07 by ADR 0099, pending owner review.
+     */
+    finishFollowsKitchen: "Culoarea bucătăriei",
     handleTitle: "Mâner",
     handleLabels: {
       steel: "Bară inox",
@@ -574,6 +583,21 @@ export const ro = {
      *  forgot. ADR 0036 decision 3 keeps the worktop out of geometry and price entirely, and the
      *  carcass depth changes no tier: the estimate is the same kitchen at a different depth. */
     depthNote: "Adâncimea nu schimbă estimarea — doar dimensiunile corpurilor.",
+    /** **The fourth group's heading** (ADR 0099 decision 9), named by what it applies to rather than
+     *  by the property's bare name — the same rule `depthHeading` and the material heading follow.
+     *  *Culoare* alone would read as the colour of whatever is selected; this one is the kitchen's. */
+    colourHeading: "Culoarea bucătăriei",
+    /** **Why there is no price line here** (ADR 0071 decision 1: colour never moves a price), and
+     *  **what a global colour leaves alone** — the owner's own priority, said on the screen where
+     *  they would otherwise have to discover it by trying it. */
+    colourNote:
+      "Culoarea nu schimbă estimarea. Corpurile cu o culoare aleasă rămân neschimbate.",
+    /** **ADR 0099 decision 6 asks for this to be stated rather than implied.** The three materials
+     *  offer disjoint colours (ADR 0078 decision 1), so a change to a different material replaces
+     *  this colour *every* time — a certainty, not a risk — and copy hedging it with *"s-ar putea"*
+     *  would be untrue in the direction that costs a customer their choice. */
+    colourWarning:
+      "Fiecare material are propriile culori, așa că la schimbarea materialului culoarea bucătăriei devine cea implicită a materialului nou.",
     /** Frame 2E's single action, and frame D2E's pair. Both shells carry both: this surface holds
      *  uncommitted state, so a customer who opened it must be able to leave without applying. */
     apply: "Aplică",
@@ -612,6 +636,13 @@ export const ro = {
       // Ruled 2026-09-05, pending owner review.
       body: (chosenCount: number) =>
         `Ai ales alte culori pentru ${chosenCabinetPhrase(chosenCount)}. Fiecare material are propriile culori, așa că toate revin la culoarea implicită a materialului nou.`,
+      /** **ADR 0099 decision 7's second arm, in its own sentence.** A kitchen whose corps all follow
+       *  one global colour has chosen nothing per cabinet, so `body` above would read *"pentru 0
+       *  corpuri"* — the bare number ADR 0001 decision 4 keeps off the screen, saying the wrong
+       *  thing about the right press. This one names the loss that is actually about to happen.
+       *  Ruled 2026-09-07 by ADR 0099, pending owner review. */
+      globalBody:
+        "Ai ales o culoare pentru toată bucătăria. Fiecare material are propriile culori, așa că ea revine la culoarea implicită a materialului nou.",
       // Ruled 2026-09-05, pending owner review.
       confirm: "Schimbă materialul",
       // Ruled 2026-09-05, pending owner review.

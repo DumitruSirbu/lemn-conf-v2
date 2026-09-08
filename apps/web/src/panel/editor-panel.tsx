@@ -17,6 +17,7 @@ import styles from "./editor-panel.module.css";
 import type {
   FinishChip,
   FinishSection,
+  FollowTheKitchenChip,
   HandleSection,
   OfferRow,
   PanelFooter,
@@ -205,7 +206,7 @@ function PanelSectionView({ section }: { readonly section: PanelSection }) {
     case "replace":
       return <ReplaceSectionView section={section} />;
     case "finish":
-      return <FinishSectionView section={section} />;
+      return <CabinetFinishSection section={section} />;
     case "handle":
       return <HandleSectionView section={section} />;
     case "width":
@@ -295,17 +296,97 @@ function OfferThumbnail({ url }: { readonly url: string | undefined }) {
   );
 }
 
+/** §9's own colour control: the shared one below, wired to the **per-placement** command. The store
+ *  read lives here rather than inside the control because ADR 0099 decision 9 has the global
+ *  settings sheet render the same control against a *pending* whole-kitchen choice that writes
+ *  nothing until *Aplică* — one control, two writers, chosen by the caller. */
+function CabinetFinishSection({
+  section,
+}: {
+  readonly section: FinishSection;
+}) {
+  const setFinish = useConfiguratorStore((state) => state.setFinish);
+  const clearFinish = useConfiguratorStore((state) => state.clearFinish);
+  return (
+    <FinishSectionView
+      section={section}
+      onPick={setFinish}
+      onFollow={clearFinish}
+    />
+  );
+}
+
 /** ADR 0071 decision 3's three controls, and the only place the choice between them is made in
- *  this file. The branch is on `section.control`, which `describePanel` copied from the material's
- *  declaration — nothing here counts chips, and nothing here may start to.
+ *  this file. The branch is on `section.control`, which `describeFinishSection` copied from the
+ *  material's declaration — nothing here counts chips, and nothing here may start to.
  *
  *  `data-finish-control` carries the shape into the DOM so a browser test can tell a decor list
- *  from two wood swatches from a picker without inferring it from how many buttons it found. */
-function FinishSectionView({ section }: { readonly section: FinishSection }) {
+ *  from two wood swatches from a picker without inferring it from how many buttons it found.
+ *
+ *  **Exported since ADR 0099 decision 9**, so the global settings sheet renders this control rather
+ *  than a second colour picker of its own. It takes `onPick` and reads no store: what a press writes
+ *  is the caller's — a cabinet's own colour in §9, the sheet's pending global colour in the fourth
+ *  group — and a control that reached for `setFinish` itself could only ever have one. */
+export function FinishSectionView({
+  section,
+  onPick,
+  onFollow,
+}: {
+  readonly section: FinishSection;
+  readonly onPick: (finish: Finish) => void;
+  /** ADR 0099 decision 8's press, when there is a level to go back to. Absent on the global settings
+   *  sheet, which *is* that level — and `section.follow` is absent there too, so the chip and its
+   *  handler arrive together or not at all. */
+  readonly onFollow?: () => void;
+}) {
+  const follow =
+    section.follow !== undefined && onFollow !== undefined
+      ? { chip: section.follow, onFollow }
+      : undefined;
   return section.control === "ral-picker" ? (
-    <RalPickerView section={section} />
+    <RalPickerView
+      section={section}
+      onPick={onPick}
+      {...(follow === undefined ? {} : { follow })}
+    />
   ) : (
-    <PaletteSwatchView section={section} />
+    <PaletteSwatchView
+      section={section}
+      onPick={onPick}
+      {...(follow === undefined ? {} : { follow })}
+    />
+  );
+}
+
+/** The chip and the press that goes with it, which arrive together or not at all — the shape
+ *  `MaterialResetConfirmStep` uses one surface over, for its reason: a flag beside data that may or
+ *  may not be there is two ways to say one thing. */
+interface FollowTheKitchenStep {
+  readonly chip: FollowTheKitchenChip;
+  readonly onFollow: () => void;
+}
+
+/** ADR 0099 decision 8's control, drawn as one more chip in the row it belongs to rather than as a
+ *  link under it: it is a choice among the choices, and the one that is standing when a cabinet has
+ *  chosen nothing. */
+function FollowTheKitchenButton({
+  step,
+}: {
+  readonly step: FollowTheKitchenStep;
+}) {
+  return (
+    <button
+      type="button"
+      className={styles.swatch}
+      data-testid="finish-follow-kitchen"
+      data-follow="true"
+      aria-pressed={step.chip.isActive}
+      disabled={step.chip.isDisabled}
+      onClick={step.onFollow}
+    >
+      <span className={styles.swatchLabel}>{step.chip.label}</span>
+      <ChipReason reason={step.chip.reason} />
+    </button>
   );
 }
 
@@ -313,10 +394,13 @@ function FinishSectionView({ section }: { readonly section: FinishSection }) {
  *  the sheet at full width where a decor's name needs the room, and the pair sits side by side. */
 function PaletteSwatchView({
   section,
+  onPick,
+  follow,
 }: {
   readonly section: PaletteSwatchSection;
+  readonly onPick: (finish: Finish) => void;
+  readonly follow?: FollowTheKitchenStep;
 }) {
-  const setFinish = useConfiguratorStore((state) => state.setFinish);
   return (
     <section
       className={styles.section}
@@ -333,8 +417,11 @@ function PaletteSwatchView({
         data-testid="colour-options"
       >
         {section.chips.map((chip) => (
-          <SwatchButton key={chip.value} chip={chip} onPick={setFinish} />
+          <SwatchButton key={chip.value} chip={chip} onPick={onPick} />
         ))}
+        {/* Last in the row rather than first: the colours are what the customer came for, and the
+            way back is what they need once they have taken one. */}
+        {follow === undefined ? null : <FollowTheKitchenButton step={follow} />}
       </div>
       <p className={styles.note}>{section.note}</p>
     </section>
@@ -379,8 +466,15 @@ function SwatchButton({
  *  The value is **lower-cased before it is written**. `FinishSchema` admits both cases and
  *  ADR 0081 decision 1 rules no second, case-folding equality, so `#ECEEEB` and `#eceeeb` would be
  *  two different chosen colours to every reader that compares them. */
-function RalPickerView({ section }: { readonly section: RalPickerSection }) {
-  const setFinish = useConfiguratorStore((state) => state.setFinish);
+function RalPickerView({
+  section,
+  onPick,
+  follow,
+}: {
+  readonly section: RalPickerSection;
+  readonly onPick: (finish: Finish) => void;
+  readonly follow?: FollowTheKitchenStep;
+}) {
   return (
     <section
       className={styles.section}
@@ -396,11 +490,14 @@ function RalPickerView({ section }: { readonly section: RalPickerSection }) {
           value={section.value}
           disabled={section.isDisabled}
           onChange={(event) => {
-            setFinish(freeColourFinish(event.target.value.toLowerCase()));
+            onPick(freeColourFinish(event.target.value.toLowerCase()));
           }}
         />
         <span className={styles.pickerLabel}>{section.label}</span>
       </label>
+      {/* **A picker needs the way back more than a swatch list does**: every hex it can produce is a
+          choice, so without this an MDF cabinet has no way at all to stop choosing. */}
+      {follow === undefined ? null : <FollowTheKitchenButton step={follow} />}
       <ChipReason reason={section.reason} />
       <p className={styles.note}>{section.note}</p>
     </section>

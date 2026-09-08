@@ -18,9 +18,13 @@
 // not a bug in either.
 import {
   countCabinetsWearingAChosenFinish,
+  lookUpMaterial,
   projectDesignForDisplay,
+  wouldDiscardTheGlobalFinish,
+  type Finish,
 } from "@lemnaria/configurator-domain";
 import {
+  Fragment,
   useCallback,
   useEffect,
   useId,
@@ -32,6 +36,8 @@ import {
   type RefObject,
 } from "react";
 
+import { FinishSectionView } from "@/panel/editor-panel";
+import { describeFinishSection } from "@/panel/panel-model";
 import {
   usePricedDesign,
   useWholeKitchenTierOffer,
@@ -41,12 +47,14 @@ import { describeEditability, type Editability } from "@/store/editability";
 
 import {
   chooseDepthIn,
+  chooseFinishIn,
   chooseTierIn,
   describeApplyRefusal,
   describeGlobalSettings,
   resolveOpeningChoice,
   type ApplyRefusal,
   type GlobalSettingsView,
+  type ColourGroupView,
   type DepthGroupView,
   type MaterialResetConfirmView,
   type TierGroupView,
@@ -133,6 +141,13 @@ export function GlobalSettings() {
   const surfaceRef = useRef<HTMLDivElement>(null);
   const surfaceId = useId();
 
+  // **ADR 0099 decision 7's second arm, asked of the domain about the *pending* material.** It is
+  // the one question the amended count cannot answer: a kitchen whose cabinets all follow one global
+  // colour counts zero chosen colours and still loses a colour somebody chose.
+  const globalFinishWouldBeLost =
+    pending.materialTierId !== undefined &&
+    wouldDiscardTheGlobalFinish(design, pending.materialTierId);
+
   const view = describeGlobalSettings({
     pricing,
     offer,
@@ -141,6 +156,7 @@ export function GlobalSettings() {
     pending,
     rejection,
     chosenColourCount,
+    globalFinishWouldBeLost,
   });
 
   const close = useCallback(() => {
@@ -201,6 +217,10 @@ export function GlobalSettings() {
     setPending((chosen) => chooseDepthIn(chosen, cabinetDepthMm));
   }
 
+  function chooseFinish(finish: Finish): void {
+    setPending((chosen) => chooseFinishIn(chosen, finish));
+  }
+
   /** **The whole press is gated, not the material half of it** (ADR 0081 decision 2). With a
    *  confirmation owed this runs no command at all — not material, not hardware, not depth — and
    *  asks instead. A partial apply is not a state this product has.
@@ -249,6 +269,9 @@ export function GlobalSettings() {
       ...(pending.cabinetDepthMm === undefined
         ? {}
         : { cabinetDepthMm: pending.cabinetDepthMm }),
+      // Absent stays absent, like every other field of this request: a sheet nobody touched the
+      // colour on must leave a document that chose no global colour exactly as it found it.
+      ...(pending.finish === undefined ? {} : { finish: pending.finish }),
       availableMaterialTierIds: offer.material.tierIds,
       availableHardwareTierIds: offer.hardware.tierIds,
     });
@@ -323,6 +346,7 @@ export function GlobalSettings() {
               : { refusalNote: describeApplyRefusal(refusal) })}
             onChoose={chooseTier}
             onChooseDepth={chooseDepth}
+            onChooseFinish={chooseFinish}
             onCancel={close}
             onApply={requestApply}
             {...(isConfirming && view.materialResetConfirm !== undefined
@@ -415,6 +439,7 @@ export function GlobalSettingsSurface({
   confirming,
   onChoose,
   onChooseDepth,
+  onChooseFinish,
   onCancel,
   onApply,
 }: {
@@ -455,6 +480,20 @@ export function GlobalSettingsSurface({
    *  `availableTierIds`, and widening the tier callback to take a number would make the type say a
    *  depth is one of the things a tier group offers. */
   readonly onChooseDepth: (cabinetDepthMm: number) => void;
+  /**
+   * Separate again, and for `onChooseDepth`'s reason: a colour is neither a tier id nor a
+   * millimetre. What moves is the sheet's **pending** colour and never a cabinet's — the same
+   * callback shape §9's panel hands the shared control, pointed at a different writer (ADR 0099
+   * decision 2).
+   *
+   * **Optional, and its absence hides the colour group rather than greying it.** A control with
+   * nowhere to send a press is one this surface cannot satisfy (§9), so it is not offered — the
+   * opposite of `editability`, which was optional for a wave and defaulted to *permitted*. The
+   * production wiring is held by a source-text assertion in
+   * `tests/settings/global-colour-group.test.ts`, which is the strongest guard this runtime allows:
+   * nothing in a `node` runtime can open the sheet, so no rendering test exercises it.
+   */
+  readonly onChooseFinish?: (finish: Finish) => void;
   readonly onCancel: () => void;
   readonly onApply: () => void;
 }) {
@@ -512,6 +551,7 @@ export function GlobalSettingsSurface({
           namePrefix={id}
           editability={editability}
           {...(refusalNote === undefined ? {} : { refusalNote })}
+          {...(onChooseFinish === undefined ? {} : { onChooseFinish })}
           onChoose={onChoose}
           onChooseDepth={onChooseDepth}
           onCancel={onCancel}
@@ -603,6 +643,7 @@ function ChoosingStep({
   refusalNote,
   onChoose,
   onChooseDepth,
+  onChooseFinish,
   onCancel,
   onApply,
 }: {
@@ -612,20 +653,37 @@ function ChoosingStep({
   readonly refusalNote?: string;
   readonly onChoose: (key: WholeKitchenGroupKey, tierId: string) => void;
   readonly onChooseDepth: (cabinetDepthMm: number) => void;
+  readonly onChooseFinish?: (finish: Finish) => void;
   readonly onCancel: () => void;
   readonly onApply: () => void;
 }) {
+  const colourGroup = view.colourGroup;
   return (
     <>
       <div className={styles.body}>
         {view.groups.map((group) => (
-          <TierGroupSection
-            key={group.key}
-            group={group}
-            editability={editability}
-            onChoose={onChoose}
-            namePrefix={namePrefix}
-          />
+          <Fragment key={group.key}>
+            <TierGroupSection
+              group={group}
+              editability={editability}
+              onChoose={onChoose}
+              namePrefix={namePrefix}
+            />
+            {/* **After the material group and before hardware** — the owner's *"just behind the
+                material"*, ADR 0099 decision 9. Rendered from inside the map rather than as a
+                sibling after it, so the position is a property of the group it follows: reordering
+                the tier groups carries this with the material, where two independent lists would
+                silently come apart. */}
+            {group.key === "material" &&
+            colourGroup !== undefined &&
+            onChooseFinish !== undefined ? (
+              <ColourGroupSection
+                group={colourGroup}
+                editability={editability}
+                onChoose={onChooseFinish}
+              />
+            ) : null}
+          </Fragment>
         ))}
         <DepthGroupSection
           group={view.depthGroup}
@@ -747,6 +805,67 @@ function whereTabMustLand(
   if (at === -1) return isBackwards ? last : first;
   if (isBackwards) return at === 0 ? last : undefined;
   return at === stops.length - 1 ? first : undefined;
+}
+
+/**
+ * **The colour group, and the control inside it is §9's own** — ADR 0099 decision 9, and the owner's
+ * *"same as we have on clicking on the cabinet ... in the same way"*.
+ *
+ * `describeFinishSection` is the panel's projection, called here with the **pending** material's
+ * declaration and the pending colour, and `FinishSectionView` is the panel's markup. Nothing about a
+ * decor list, two wood swatches or a RAL picker is authored twice — which is the whole point, and
+ * the drift a second colour picker in this file would be.
+ *
+ * **The editability the model does not hold is applied here**, exactly as it is for the tier and
+ * depth groups: the projection decides what is offered, this decides whether it may be pressed. It
+ * reaches the chips through the same `describeChipAvailability` §9's do, so a locked sheet greys its
+ * swatches with the same sentence as everything else on it.
+ *
+ * `null` when the pending material declares no control (ADR 0078 decision 3) — not present and
+ * empty, and not a greyed control either: there is nothing to grey.
+ */
+function ColourGroupSection({
+  group,
+  editability,
+  onChoose,
+}: {
+  readonly group: ColourGroupView;
+  readonly editability: Editability;
+  readonly onChoose: (finish: Finish) => void;
+}) {
+  const section = describeFinishSection(
+    lookUpMaterial(group.materialTierId),
+    group.selected,
+    editability,
+  );
+  if (section === undefined) return null;
+  return (
+    <section
+      className={styles.group}
+      data-testid="global-settings-colour-group"
+      data-material={group.materialTierId}
+    >
+      <h3 className={styles.heading}>{group.heading}</h3>
+      <FinishSectionView section={section} onPick={onChoose} />
+      {/* Why there is no amount beside a colour (ADR 0071 decision 1), and what a global colour
+          leaves alone — the owner's own priority, said rather than discovered by trying it. */}
+      <p
+        className={styles.groupAnchor}
+        data-testid="global-settings-colour-note"
+      >
+        {group.note}
+      </p>
+      <p
+        className={styles.warning}
+        data-testid="global-settings-colour-warning"
+      >
+        <span className={styles.warningMark} aria-hidden="true">
+          {NOTE_GLYPH}
+        </span>
+        {group.warning}
+      </p>
+    </section>
+  );
 }
 
 /** The depth group: the same native radios the tier groups use, for the same reason, and a note and
