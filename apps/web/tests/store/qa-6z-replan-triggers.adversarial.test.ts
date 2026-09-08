@@ -190,6 +190,23 @@ function publishedExtents(store: Store) {
   };
 }
 
+/** The names of the columns the store publishes, sorted — the key space on its own, apart from the
+ *  extents `publishedExtents` carries with it, because a slide is expected to rename every one of
+ *  them and what must not change is how many there are. */
+function publishedColumnKeys(store: Store): readonly string[] {
+  return [...store.getState().columns.keys()].sort();
+}
+
+/** Every body whose derived column is a key the published map does not hold — the shape a key
+ *  collision leaves behind once two columns have merged into one name. */
+function recordsAddressingNoColumn(store: Store): readonly string[] {
+  const published = new Set(store.getState().columns.keys());
+  return store
+    .getState()
+    .records.filter((record) => !published.has(record.col))
+    .map((record) => `${record.id}@${record.col}`);
+}
+
 /** Wave 6Y's two instruments, read as one list. ADR 0103 decision 10 owes the enumeration; this file
  *  asserts the **lines**, not the count, so a reading that is swapped for another of the same length
  *  is caught too. */
@@ -466,6 +483,46 @@ describe("a setting change after a re-plan still lands on the declared line", ()
 
     expect(seatMmOf(store, DEEP_TOP)).toBe(seatTheColumnDecides(from, false));
   });
+
+  // **The key slide, which is where a re-plan could quietly cost a column.** A depth change moves
+  // wall B's runs by *different* amounts — ADR 0089's corner slide is the corner body's own depth
+  // change, so the wall corner return travels 80 mm while everything past it travels 100 — and
+  // `setCabinetDepth` has no key-collision guard of the kind a width resize carries. A re-plan that
+  // moved a body along the wall, or that left one addressing a key nothing publishes, would show up
+  // here and nowhere else: the seats would still be right.
+  //
+  // Measured across the slide, and it holds: the shipped kitchen and the re-planned kitchen both
+  // keep twelve keys, every record resolves to one of them, and the round trip restores the names.
+  it.each(
+    DECLARED_DEPTHS.flatMap((from) =>
+      DECLARED_DEPTHS.filter((to) => to !== from).map((to) => ({ from, to })),
+    ),
+  )(
+    "loses no column when the re-planned kitchen slides from $from to $to and back",
+    ({ from, to }) => {
+      const store = setDepth(createStore(), from);
+      remove(store, FULL_HEIGHT_UNDER_IT);
+      insertAt(store, alongWallMOf(store, DEEP_TOP), 0, "base-cabinet");
+      const namesBefore = publishedColumnKeys(store);
+      expect(recordsAddressingNoColumn(store)).toEqual([]);
+
+      setDepth(store, to);
+
+      // Two keys collapsing into one is a **shorter** list, and every body that lost its column is
+      // named. Both are asserted, because a collision shows as one or the other depending on which
+      // of the two chains arrives second.
+      expect(publishedColumnKeys(store).length).toBe(namesBefore.length);
+      expect(recordsAddressingNoColumn(store)).toEqual([]);
+      // Non-vacuity: the slide really did happen, so the two assertions above are about a map that
+      // moved rather than one that sat still.
+      expect(publishedColumnKeys(store)).not.toEqual(namesBefore);
+
+      setDepth(store, from);
+
+      expect(publishedColumnKeys(store)).toEqual(namesBefore);
+      expect(recordsAddressingNoColumn(store)).toEqual([]);
+    },
+  );
 });
 
 describe("a deepening re-plan writes no colour either", () => {

@@ -1,28 +1,30 @@
-// **Adversarial QA on wave 6Z — the overlap clause runs in one direction only.**
+// **Adversarial QA on wave 6Z — the overlap clause ran in one direction only, and this is the pair
+// that keeps both.**
 //
-// ADR 0103 decision 3 states the affected column set as two clauses: every key `splitColumn` wrote,
-// and every key whose `hasFullHeightUnder` answer *differs* across the command. The second clause
-// exists because `isFullHeightUnder` (`void-engine.ts`) asks about **overlap along the wall, not
-// column membership** — a full-height body wider than its own column lifts its neighbours too — and
-// the wave ships a declared witness for it (`dependent-replan-witness.ts`, and the overlap suite in
-// `replan-dependent-members.test.ts`).
+// ADR 0103 decision 3 computed the affected column set from two clauses: every key `splitColumn`
+// wrote, and every key whose `hasFullHeightUnder` answer *differs* across the command. The second
+// clause exists because `isFullHeightUnder` (`void-engine.ts`) asks about **overlap along the wall,
+// not column membership** — a full-height body wider than its own column lifts its neighbours too —
+// and the wave shipped a declared witness for it.
 //
-// Neither clause covers the mirror image. Put an **ordinary** body into a slot that overhangs a
-// neighbouring column whose standing top is still at the lifted depth, and:
+// Neither clause covered the mirror image, which this file found. Put an **ordinary** body into a
+// slot that overhangs a neighbouring column whose standing top is still at the lifted depth, and:
 //
 //   - the overhung key is not the `occupiedKey` and is not a key the split created, so clause one
 //     misses it;
 //   - `hasFullHeightUnder` is `false` before the insert and `false` after it, so clause two misses
-//     it — this is exactly why ADR 0103 decision 3 rejects the flip-triggered design for S1, and the
-//     rejection was applied to the column-membership route and not to the overlap route.
+//     it — which is exactly why ADR 0103 decision 3 rejects the flip-triggered design for S1. The
+//     rejection had been applied to the column-membership route and not to the overlap route.
 //
-// So the same 200 mm of shared wall that makes a full-height body **deepen** the standing top does
-// not make an ordinary body **cap** it, and the owner's own S1 — *"delete the pantry, put a regular
-// cabinet under it, and the top should shallow out"* — is left unfixed on this route.
+// So the same 200 mm of shared wall that made a full-height body **deepen** the standing top did not
+// make an ordinary body **cap** it, and the owner's own S1 — *"delete the pantry, put a regular
+// cabinet under it, and the top should shallow out"* — was left unfixed on that route. The two tests
+// below are the two directions, and each is the other's non-vacuity: a fix that reaches only one of
+// them cannot make this file green.
 //
 // **The witness declares its own design** (ADR 0093 decision 2): the shipped kitchen cannot exercise
-// overlap at all, which ADR 0103 decision 3 records and which is why the wave's own overlap
-// coverage is synthetic too. Nothing here is a moved fixture.
+// overlap at all, which ADR 0103 decision 3 records and which is why the wave's own overlap coverage
+// is synthetic too. Nothing here is a moved fixture.
 import { describe, expect, it } from "vitest";
 
 import {
@@ -168,11 +170,10 @@ function theColumnDecidesADifferentDepthForTheTop(
   });
 }
 
-describe("a full-height body reaches across the shared wall, and an ordinary one does not", () => {
-  // **The control, and it is what makes the failing case below non-vacuous** (ADR 0093 decision 1):
-  // the harness does reach wave 6Z's re-plan across a column boundary, in the direction the wave
-  // shipped a witness for. Without this, the red test below could be red because nothing here is
-  // wired up at all.
+describe("a body inserted across the shared wall re-plans the top it reaches, both ways", () => {
+  // **The direction the wave shipped a witness for**, and it is what makes the second test
+  // non-vacuous (ADR 0093 decision 1): the harness does reach wave 6Z's re-plan across a column
+  // boundary. Without this, the second test could pass because nothing here is wired up at all.
   it("deepens the overhung top when a full-height body is inserted beside it", () => {
     const start = twoOverlappingColumns();
     expect(overhungColumnLifts(start)).toBe(false);
@@ -185,9 +186,9 @@ describe("a full-height body reaches across the shared wall, and an ordinary one
     );
   });
 
-  // **The defect.** The same slot, the same 200 mm of shared wall, an ordinary cabinet instead of a
-  // full-height one — and the owner's S1 does not happen. The top keeps the lifted seat a body that
-  // is no longer there gave it.
+  // **The direction that was missing when the wave landed.** The same slot, the same 200 mm of
+  // shared wall, an ordinary cabinet instead of a full-height one — and the owner's S1 has to
+  // happen here too, or the top keeps a lifted seat that a body which is no longer there gave it.
   it("caps the overhung top when an ordinary body is inserted beside it", () => {
     const lifted = insertBeside(twoOverlappingColumns(), "tall-pantry");
     const emptiedAgain = clearBodies(lifted, [lastPlacementId(lifted)]);
@@ -197,14 +198,19 @@ describe("a full-height body reaches across the shared wall, and an ordinary one
     expect(placementOf(emptiedAgain, THE_STANDING_TOP).body.seatDepthMm).toBe(
       seatTheColumnDecides(emptiedAgain.cabinetDepthMm, true),
     );
+    // And the outcome test says so out loud *before* the insert: this is a body the column already
+    // decides a different depth for, waiting for a command to ask.
+    expect(theColumnDecidesADifferentDepthForTheTop(emptiedAgain)).toBe(true);
 
     const filled = insertBeside(emptiedAgain, "base-cabinet");
 
-    // The wave's own outcome test says this body is to be re-planned...
-    expect(theColumnDecidesADifferentDepthForTheTop(filled)).toBe(true);
-    // ...and the affected-key gate never asks it, so the top keeps the depth a deleted body left it.
     expect(placementOf(filled, THE_STANDING_TOP).body.seatDepthMm).toBe(
       seatTheColumnDecides(filled.cabinetDepthMm, false),
     );
+    // **The fixed point**, and it is the assertion that separates a re-plan from a lucky number: the
+    // column now decides no different depth for this top, so a second insert beside it would move
+    // nothing. A seat assertion alone passes against a body that was written to the right value by
+    // some other arithmetic and would move again on the next command.
+    expect(theColumnDecidesADifferentDepthForTheTop(filled)).toBe(false);
   });
 });
