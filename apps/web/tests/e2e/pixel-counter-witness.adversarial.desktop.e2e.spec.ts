@@ -44,9 +44,15 @@ import {
  */
 
 /** `editor-rail.desktop.e2e.spec.ts`'s taps and patch, deliberately not re-derived: this file is a
- *  third reading of the same rectangle and a patch of its own would measure a different thing. */
-const SINK_CABINET_FULL_WIDTH = { x: 700, y: 560 };
-const FAR_BASE_CABINET = { x: 700, y: 640 };
+ *  third reading of the same rectangle and a patch of its own would measure a different thing.
+ *
+ *  **Copied across on 2026-09-08**, when the top-bar ruling took the canvas to y 121, 1440 × 779 and
+ *  those taps were re-measured against the running app. Both were re-confirmed on a repainted
+ *  document reached through `/d/{id}`, which is the route this file drives — five clicks each,
+ *  right body 5/5. The patch is unchanged and still contains `p0`'s own region (page x 432–592,
+ *  y 479–706). */
+const SINK_CABINET_FULL_WIDTH = { x: 700, y: 610 };
+const FAR_BASE_CABINET = { x: 680, y: 650 };
 const SINK_PATCH: PixelRect = { x: 420, y: 468, width: 180, height: 240 };
 
 const SCENE_SETTLE_MS = 2500;

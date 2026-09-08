@@ -56,20 +56,32 @@ import { readSelection } from "./support/panel";
  * Every design minted here is deleted afterwards (ADR 0006).
  */
 
-/** The two taps and the patch are `editor-rail.desktop.e2e.spec.ts`'s, and are its to move: this
+/** The three taps and the patch are `editor-rail.desktop.e2e.spec.ts`'s, and are its to move: this
  *  file is a second reading of the same instrument through the same rectangle, so a patch of its
- *  own would measure a different thing and prove nothing about that file's counts. */
-const SINK_CABINET_FULL_WIDTH = { x: 700, y: 560 };
-const FAR_BASE_CABINET = { x: 700, y: 640 };
-const FRIDGE = { x: 200, y: 500 };
+ *  own would measure a different thing and prove nothing about that file's counts.
+ *
+ *  **Copied across on 2026-09-08**, when the top-bar ruling took the canvas to y 121, 1440 × 779 and
+ *  every tap in that file was re-measured against the running app. Each was re-confirmed here on a
+ *  narrowed walnut document as well as the seeded one — five clicks each, right body 5/5 — because
+ *  this file drives `/d/{id}` rather than the seeded route. The patch is unchanged: `p0`'s own
+ *  region measures page x 432–592, y 479–706 and this box still contains it. */
+const SINK_CABINET_FULL_WIDTH = { x: 700, y: 610 };
+const FAR_BASE_CABINET = { x: 680, y: 650 };
+const FRIDGE = { x: 140, y: 560 };
 const SINK_PATCH: PixelRect = { x: 420, y: 468, width: 180, height: 240 };
 
-/** `p2`'s own region on the **narrowed-room** document, where the canvas starts at page y 114.19
- *  rather than 100 because ADR 0065's flagged total grows the price row. Measured on 2026-09-07 as
- *  the bounding box of the pixels that move when the selection travels between `p0` and `p2` with
- *  the rail open, taken right of the sink patch so only `p2`'s own outline is in it — canvas
- *  x 627–771, y 445–645 — and padded by 12 px. It is a constant of that document and means nothing
- *  on the fitting one. */
+/** `p2`'s own region on the **narrowed-room** document, re-measured 2026-09-08 as the bounding box
+ *  of the pixels that move when the selection travels between `p0` and `p2` with the rail open,
+ *  taken right of the sink patch so only `p2`'s own outline is in it — page x 626–769, y 562–760,
+ *  which this box contains with ~11 px to spare on every side.
+ *
+ *  **The canvas starts at page y 121 here, the same as on the fitting document.** It used to start
+ *  at 114.19 because ADR 0065's flagged total grew the price row *downward*; under the 76 px top bar
+ *  that row is a second grid column beside the header, so the flagged total now grows it
+ *  **sideways** — measured, the header column shrinks from 1126.7 px to 791.84 and the price row
+ *  widens from 313.28 to 648.16, while the row's height stays 76. So the two documents no longer
+ *  differ in canvas origin at all, and this patch is no longer a constant of one of them: it is
+ *  simply `p2`'s region, which both documents project identically. */
 const MARKED_BODY_PATCH: PixelRect = {
   x: 615,
   y: 547,
