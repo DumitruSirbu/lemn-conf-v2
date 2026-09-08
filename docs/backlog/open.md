@@ -784,6 +784,20 @@ it is a choice someone has to make rather than a default to inherit. Implementat
 extra comparison for spans within the corner reach on either wall, using the reach
 `cornerReachAlongWallMm` already computes.
 
+**Measured and pinned 2026-09-08** —
+`packages/configurator-domain/tests/backlog-50-the-corner-the-validator-cannot-see.test.ts`. The same
+recorded space is placed twice at a 600 mm setting: on wall A over `base-corner-x-900`, where the
+sweep reports `EMPTY_COLUMN_OVERLAPS_PLACEMENT`, and on wall B at 300..600 — inside the 560 mm that
+body reaches along wall B, a 260 mm shared solid — where the gate reports **nothing**. The witness
+computes the overlap from `cornerReachAlongWallMm` rather than asserting a literal, and the wave that
+closes this should **invert** its last two blocks rather than delete them.
+
+**A second fact that file records, wider than this entry states it**: `findWallOverlaps` returns
+early when a document carries neither `emptyColumns` nor `columnExtents`, so two **placements** in
+one span are never compared — on either wall, corner or not. Shipped documents always carry a frozen
+map (ADR 0090 decision 1), so this is about a hand-crafted document at the load seam, which is the
+same seam the severity ruling is about.
+
 **Deserves its own small wave, not M6's depth track.** Widening 6J-d into it would enlarge a wave that
 is already on the critical path, and the wave that adds it should be the one that also decides the
 severity.
@@ -806,6 +820,22 @@ throughout. Wave 6J-d asserts it at both settings.
 would tear by 30 mm at 700 — 6J-c's own measured difference between the chains — with the frozen
 extent sliding on its recorded source's chain while a member slid on its own, and every layer
 downstream internally consistent and wrong together.
+
+**Reachability measured 2026-09-08 — it is not reachable through the offer list** —
+`packages/configurator-domain/tests/backlog-51-chain-homogeneity-is-unreachable.test.ts`, which keeps
+the measurement as a standing guard. At both declared depths, on the seeded kitchen and on the same
+kitchen with all 22 deletable bodies cleared: **400 offer rows over 29 targets name no `wall-map`
+body**; the only two such entries are the structural corner returns, each `insertable: false`,
+`canReplace: false`, `canDelete: false`; and the single column holding them (`B|0.61`) opens **no
+void** even when the rest of the kitchen is emptied, so nothing can be inserted beside them either.
+The mixing is blocked from both directions.
+
+So **no validator is owed for the product's own paths**, and what remains is only the load seam: a
+hand-crafted document can still declare a mixed column. That is the same refuse-or-mark ruling
+entry 50 needs, and the two should be decided together. A third `wall-map` entry, or one of these
+turned insertable, fails the guard's first block.
+
+The original note, which the measurement above answers, follows.
 
 **Whether it is reachable was not measured.** It needs an offer list that can place a `wall-map` entry
 into a column already holding a `base-formula` one, and the two shipped `wall-map` entries are
@@ -1036,6 +1066,27 @@ reasons on some rows, and "the control appears" and "the control does anything" 
 re-plan by declaration — a `wall-plane` entry states where it finishes and the column does not decide
 it — precisely so that this wave does not deliver the same flip through an *insert* as well. A 6Z
 acceptance criterion asserts the hood's `fixedWidth` stays `true` across an insert beneath it.
+
+## 58. `THREE.Clock` is deprecated and React Three Fiber still constructs one — DIAGNOSED 2026-09-08, THIRD-PARTY, NOTHING TO FIX HERE
+
+**M6-AUD-011, closed as an upgrade to track rather than a defect to fix.** The browser logged
+`THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.` throughout the
+audit's 110-test run, and the audit could only say the symbol is absent from repo source. It is now
+traced, so nobody investigates it twice:
+
+- `three@0.184.0` deprecated the class at **r183** —
+  `three/build/three.core.js:55989`, `warn( 'Clock: This module has been deprecated...' )`.
+- `@react-three/fiber@9.7.0` constructs one for its own store —
+  `dist/events-*.esm.js:1016`, `clock: new THREE.Clock()`.
+
+So the warning is emitted once per R3F store, from a dependency, and **no change to this repository
+can silence it**. It is noise, not breakage: `Clock` still works.
+
+**What to do**: nothing, until React Three Fiber moves to `THREE.Timer`. Then take the upgrade with
+the rest of the R3F/Three bump and confirm the log is quiet. Pinning or patching R3F to remove one
+console line would cost more than the line does. **Do not** add a console filter — it would hide the
+next deprecation too.
+
 
 ## Also open, recorded elsewhere — do not duplicate here
 
