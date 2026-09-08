@@ -310,8 +310,15 @@ loads"* and *"in every reachable state"* is what ADR 0102 fills; it is not an er
   `apps/web/tests/support/frozen-source-invariant.ts` is refused as an authority by ADR 0102
   decision 2, and may remain only in the shape ADR 0102 decision 3 sets. That is what blocks the
   merge, and it is three edits in one file.
-- **One question is left for the owner and is deliberately not decided**: after this wave, deleting the
+- ~~**One question is left for the owner and is deliberately not decided**: after this wave, deleting the
   full-height column beneath a deep top and then changing the depth rebuilds that top from 600 mm
   finished to 400 mm — measured, `p23`'s seat goes 561 -> 361 — where the pin used to hold it. The rule
   producing it is ADR 0028 decision 5's and is correct; whether it is the product the owner wants has
-  never been asked. See ADR 0102, *Not decided here*.
+  never been asked. See ADR 0102, *Not decided here*.~~
+  **ANSWERED 2026-09-08. The owner accepted the 400: with the column emptied, the design should not
+  count on cabinets that used to be there, and ordinary non-full-height cabinets are what you would
+  expect below. ADR 0028 decision 5 is confirmed by the ruling.** Recorded in
+  [ADR 0103](0103-a-standing-body-is-re-planned-when-something-is-inserted-beneath-it-and-a-delete-leaves-it-alone.md)
+  decision 1, with ADR 0102's own Amendment A. **Do not carry this forward as open.** The same ruling
+  opened a second one the owner asked for — a body already standing is re-planned when something is
+  inserted beneath it — which is wave 6Z and touches nothing in this record.

@@ -972,6 +972,62 @@ enumeration of every state whose `Column.d` moves, with the 600 mm kitchen byte-
 built to*; entry 37 (resolved, ADR 0101) is *the pinned tops being proud at 700*. This is the **record
 beside the depth** rather than the depth itself, and it survived both of them.
 
+**Nor the same entry as 57.** Entry 57 is the *hood* swapping its catalogue equivalent on a depth
+change; this is the *record* beside a column's depth. Unrelated mechanisms, found in the same week.
+
+## 57. A depth change hands the hood a width control it is declared not to have — RECORDED 2026-09-08, PRE-EXISTING, NOT WAVE 6Z's
+
+**Found 2026-09-08** while establishing wave 6Z's exclusion rule
+([ADR 0103](../decisions/0103-a-standing-body-is-re-planned-when-something-is-inserted-beneath-it-and-a-delete-leaves-it-alone.md)
+decision 12). Recorded here because it is a real, reachable, customer-visible change that no wave owns
+and no record mentions.
+
+**What was observed.** One ordinary `setCabinetDepth(700)` on the shipped kitchen, with no insert, no
+delete and no resize, turns `p13` from `hood-600` into `hood` and flips its `fixedWidth` from **`true`
+to `false`**. The customer is handed a width control on an extractor hood that the fixture
+deliberately withholds.
+
+**Measured 2026-09-08 at `ed6c545`**, through `createConfiguratorStore` and the web fake probe:
+
+```
+p13/hood-600  band=wall  w=600  h=700  seat=undefined  frame.d=700  fixedWidth=true
+  setCabinetDepth(700)
+p13/hood      band=wall  w=600  h=700  seat=900        frame.d=900  fixedWidth=false
+```
+
+**Half of that is correct and must not be "fixed".** The seat moving 700 → 900 is right: a front-hung
+500 mm hood at a 700 mm kitchen centres 450 mm from the wall ([ADR 0039](../decisions/0039-the-hood-is-front-hung-and-standard-depth.md)
+decision 2), and `2 × 450 = 900`. The height is unchanged at 700, which is
+[ADR 0039](../decisions/0039-the-hood-is-front-hung-and-standard-depth.md) decision 5 holding since
+wave 5F. **The `fixedWidth` flip is the defect**, and it is the one half nothing checks.
+
+**What is actually true in the code.** `rebuildEveryBodyAt`
+(`packages/configurator-domain/src/commands/set-cabinet-depth.ts`) asks `movesWithTheSetting`, which is
+`true` for `hood-600` — its `depthRule` follows the cabinet depth — and then resolves an
+`InsertableBody` through `resolveRebuildBody`, which takes ADR 0022's `catalogEquivalentId`. `hood-600`
+declares `hood`, and the two rows disagree on exactly one field: `fixedWidth` is `true` on the seeded
+row and `false` on the catalogue row.
+
+**This is product-logic review R3.2's own defect, arriving through the other door.** `moveHood`
+(`commands/rebuild-resized-bodies.ts`) exists precisely because rebuilding a hood through
+`evaluateInsertFit` *"resolved the seeded instance to its catalogue equivalent: `hood-600` became
+`hood` … and `fixedWidth` flipped true → false, handing the hood a width control the fixture
+deliberately withholds."* `setWidth` was taught to route around it. **`setCabinetDepth` was not.**
+
+**What deciding it would cost.** Not measured, and deliberately not designed here. Three shapes are
+visible and each has a cost the deciding record has to weigh: reconcile the two rows so
+`hood`'s `fixedWidth` is `true` (changes what an *inserted* hood offers, which is a different product
+question); give `setCabinetDepth` a `moveHood`-shaped branch (a fourth branch in a loop that already
+has three); or declare `fixedWidth` non-migrating so no rebuild may change it (widest, and the only
+one that also protects `canFinish` and `canHandle`). **A wave should not pick one without measuring
+whether the hood is resizable in practice after the change** — the width chips are `blocked` for other
+reasons on some rows, and "the control appears" and "the control does anything" are two findings.
+
+**It is not wave 6Z's, and 6Z must not touch it.** ADR 0103 decision 4 excludes the hood from 6Z's
+re-plan by declaration — a `wall-plane` entry states where it finishes and the column does not decide
+it — precisely so that this wave does not deliver the same flip through an *insert* as well. A 6Z
+acceptance criterion asserts the hood's `fixedWidth` stays `true` across an insert beneath it.
+
 ## Also open, recorded elsewhere — do not duplicate here
 
 - **Width editing does nothing yet.** ~~Every width chip is `blocked` because §5.4's resize command
