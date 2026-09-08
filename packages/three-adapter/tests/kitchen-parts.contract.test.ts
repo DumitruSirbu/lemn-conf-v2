@@ -156,12 +156,16 @@ describe("the sink — a cut worktop over an open no-top frame", () => {
     expect(names.filter((n) => n === "countertop_side")).toHaveLength(2);
   });
 
-  it("leaves a 0.28 x 0.20 half-size aperture through the worktop", () => {
+  // ADR 0098 criterion 3, at the one depth the owner's word "centred" is a ruling about: the
+  // aperture is 0.56 × 0.40 and its centre is the worktop's own. Stated as the two edges' distance
+  // from the stone's two edges rather than as a pair of coordinates, so the claim is the centring
+  // and not the seat that happens to produce it — the seat moved 20 mm forward when 0098 shipped.
+  it("leaves a 0.28 x 0.20 half-size aperture centred on the worktop", () => {
     const cabinet = sinkBase();
     const front = worldBox(cabinet, findMesh(cabinet, "countertop_front"));
     const back = worldBox(cabinet, findMesh(cabinet, "countertop_back"));
-    expect(front.min.z).toBeCloseTo(0.2, 6);
-    expect(back.max.z).toBeCloseTo(-0.2, 6);
+    expect(front.min.z - back.max.z).toBeCloseTo(0.4, 6);
+    expect(front.max.z - front.min.z).toBeCloseTo(back.max.z - back.min.z, 6);
     const sides = findMeshes(cabinet, "countertop_side").map((m) =>
       worldBox(cabinet, m),
     );
