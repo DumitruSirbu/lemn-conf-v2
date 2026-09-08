@@ -22,6 +22,7 @@ import {
   type Column,
   type Design,
   type EmptyColumn,
+  type PlacementRecord,
 } from "@lemnaria/configurator-domain";
 import { describe, expect, it } from "vitest";
 
@@ -32,7 +33,7 @@ import {
   assertSourcesExplainTheirDepths,
   assertStoredSourcesExplainTheirDepths,
   DECLARED_DEPTH_EPSILON_M,
-  sourceExplainsTheDepth,
+  isExplainedOrIsTheKnownLiftedColumnDefect,
 } from "../support/frozen-source-invariant";
 import {
   catalogWithAPinnedTop,
@@ -703,6 +704,15 @@ describe("over sequences of commands rather than single transitions", () => {
     // No stored half, so this is what the **members** imply and nothing else — the same question
     // `atCurrentCabinetDepth` asks of `deriveColumns(records, {}, room)`.
     const measured = deriveColumns(store.getState().records, {}, held.room);
+    // What stands in each column, gathered once: the acknowledged exemption in
+    // `isExplainedOrIsTheKnownLiftedColumnDefect` is keyed on a standing member, and this sweep asks
+    // it 4 096 times over.
+    const membersOf = new Map<string, PlacementRecord[]>();
+    for (const record of store.getState().records) {
+      const standing = membersOf.get(record.col);
+      if (standing) standing.push(record);
+      else membersOf.set(record.col, [record]);
+    }
     return new Map(
       [...store.getState().columns].map(([key, column]) => {
         const source = column.depthFromBuildId;
@@ -716,17 +726,18 @@ describe("over sequences of commands rather than single transitions", () => {
             depthM: column.d,
             source,
             // **The shared predicate rather than a second copy of it** (ADR 0088 decision 2: one
-            // author for one rule). It carries ADR 0101's second authority — a wall body in a column
-            // that lifts the head-clearance cap is built to `columnBuildDepthM`'s lifted arm, so its
-            // entry's own `frameDepthMm` is not what explains the column's depth.
+            // author for one rule). Since ADR 0102 decision 3 it carries the acknowledged exemption
+            // for wave 6I2's lifted-column defect rather than a second authority, and the exemption
+            // is keyed on the members handed in below — so a record naming a body that is not
+            // standing in this column fails here exactly as F1 did.
             isItsSourcesDeclaration:
               source !== undefined &&
               definition !== undefined &&
-              sourceExplainsTheDepth({
+              isExplainedOrIsTheKnownLiftedColumnDefect({
                 depthM: column.d,
                 hasFullHeightUnder: column.hasFullHeightUnder,
-                band: definition.band,
-                declaredM: declaredDepthM(source, cabinetDepthMm),
+                source: { buildId: source, definition },
+                members: membersOf.get(key) ?? [],
                 cabinetDepthMm,
               }),
             sourceEquivalentId: definition?.catalogEquivalentId ?? source,

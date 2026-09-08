@@ -70,6 +70,12 @@ const WALL_MEMBERS = ["p8", "p15"];
 
 const DISHWASHER_MEMBERS = ["p1", "p12", "p18"];
 
+/** A **wall** body of this kitchen standing one column over, in the shipped catalogue at both
+ *  settings — so the invariant will inspect it — and in no lifted column. The band matters: the
+ *  acknowledged exemption is offered to wall and top sources only, so a source of any other band
+ *  would fail for the wrong reason and prove nothing about the keying. */
+const INTRUDING_WALL_BUILD_ID = "wall-corner-return-570";
+
 function createStore(design: Design = KITCHEN_L_DESIGN) {
   return createConfiguratorStore({
     design,
@@ -475,6 +481,45 @@ describe("a published depth names the body it came from", () => {
       declaredDepthM(repaired.depthFromBuildId ?? "", DEEPER_MM),
       9,
     );
+  });
+
+  // **The same F1 shape, inside the one column the acknowledged exemption covers** — ADR 0102
+  // decision 3a, and the reason that exemption is keyed on a standing member rather than on a
+  // number.
+  //
+  // `B|1.90` at 700 is the column wave 6I2's defect lives in: it publishes exactly
+  // `columnBuildDepthM`'s lifted arm, and its recorded source declares 400. The predicate ADR 0102
+  // refused asked only whether the depth equalled that arm, so **every** source id in this column
+  // passed — one declaring 330, one declaring 620, one naming a body that was never there — and the
+  // adversarial suite stopped inspecting the single column that matters. Keyed on the member instead,
+  // a record naming a body no one standing here carries fails exactly as F1 did.
+  it("reports a lifted column whose source no member standing in it carries", () => {
+    const store = createStore();
+    store.getState().setCabinetDepth(DEEPER_MM);
+    const liftedKey = columnKeyAt(PANTRY_KEY, DEEPER_MM);
+    const lifted = columnOf(store, liftedKey);
+    // Non-vacuous: this really is the lifted column publishing the lifted arm, so the assertion
+    // below is about the exemption's own population and not about some ordinary column beside it.
+    expect(lifted.hasFullHeightUnder).toBe(true);
+    expect(lifted.d).toBeCloseTo(
+      columnBuildDepthM({
+        cabinetDepthMm: DEEPER_MM,
+        hasFullHeightUnder: true,
+      }),
+      9,
+    );
+
+    const namingABodyThatIsNotThere = new Map(store.getState().columns).set(
+      liftedKey,
+      { ...lifted, depthFromBuildId: INTRUDING_WALL_BUILD_ID },
+    );
+
+    expect(
+      unexplainedColumns({
+        design: store.getState().design,
+        columns: namingABodyThatIsNotThere,
+      }),
+    ).toHaveLength(1);
   });
 });
 
