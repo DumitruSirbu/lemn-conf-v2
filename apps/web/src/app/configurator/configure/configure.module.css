@@ -71,11 +71,25 @@
  * padding edit that costs the scene an unbudgeted pixel fails there rather than on someone's screen.
  *
  * **Mobile is outside the ruling.** The reference's own box there is smaller than what it replaces —
- * `11 + 25 + 11` plus the rule is 48 px against the old 55 — so the phone keeps the 7 px it gained. */
+ * `11 + 25 + 11` plus the rule is 48 px against the old 55 — so the phone keeps the 7 px it gained.
+ *
+ * **`min-width: 0` is the containment**, the same declaration and the same mechanism `.settingsRow`
+ * above carries (ADR 0082 decision 1, as amended: *"an invariant of the row, not a width that
+ * happens to fit today's labels"*). This band is the other item in the desktop grid's
+ * `minmax(0, 1fr)` track, and a grid item's automatic minimum size is its min-content size — so
+ * without this it sizes to its own content and grows past the column it shares with the price cell.
+ * It fits today's Romanian at 900 px; M6B exists to change those strings, and a width that happens
+ * to fit is not the invariant.
+ *
+ * **It touches no height.** `min-width` is a width, the row is `nowrap`, and the band's height is
+ * its padding plus its tallest child plus the rule — the four declarations `top-bar-box.test.ts`
+ * adds up. The ruled 76 px and the canvas origin three e2e specs were re-measured against do not
+ * move. */
 .header {
   grid-area: header;
   z-index: 2;
   display: flex;
+  min-width: 0;
   align-items: center;
   gap: 9px;
   padding: 11px 14px;
