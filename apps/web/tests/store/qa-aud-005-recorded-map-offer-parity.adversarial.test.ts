@@ -1,0 +1,228 @@
+// Adversarial QA on backlog 52 (`e01fbdd`) — `CommandContext.columns` is now the **recorded** map.
+//
+// `wall-end-cap-and-the-recorded-map.test.ts` proves the half the change was made for: a resize or
+// an insert no longer writes the room-derived cap into the document. This file attacks the half the
+// change's own commit message asserts and does not test —
+//
+//   > *"The openings themselves are still derived from the capped map, so nothing past the end of a
+//   > wall is offered (ADR 0069)."*
+//
+// — which is true of `state.voids` and **false of the openings the insert command resolves against**.
+// `insertBody` does not accept an opening list. It builds its own, from the map it is handed
+// (`packages/configurator-domain/src/commands/insert-body.ts:80`,
+// `voids: recomputeVoids(records, input.columns)`), so handing it the uncapped face hands it the
+// uncapped opening. Two things follow, and both are asserted below:
+//
+//   - a body is **placed past the end of its wall** out of an opening ADR 0069's owner ruling says
+//     may never be offered at all;
+//   - the offer list and the command **stop being one evaluation** (§11 row 6): the list judges
+//     `base-cabinet` against the published 500 mm opening and says 500, the command builds it at
+//     600, and `base-sink` is refused in the list and accepted by the command.
+//
+// The fixture is the one ADR 0090 Amendment B's addendum measured, unchanged: a recorded space
+// flush to wall B's end, pushed past it by a depth change the customer can undo.
+import {
+  buildKitchenLBodyCatalog,
+  offersFor,
+  KITCHEN_L_DESIGN,
+  wallLengthMm,
+  type Design,
+  type EmptyColumn,
+} from "@lemnaria/configurator-domain";
+import { describe, expect, it } from "vitest";
+
+import { createConfiguratorStore } from "@/store/configurator-store";
+
+import { createFakeProbeFactory } from "../support/fake-body-probe";
+
+const OCCURRED_AT = "2026-09-06T12:00:00.000Z";
+const DEEPER_MM = 700;
+
+/** The recorded space at the far end of wall B, exactly as the addendum's own fixture states it:
+ *  2320 to 2920 in the 2920 mm room, on the ground the fridge and the unit over it held. */
+const FAR_END: EmptyColumn = {
+  wall: "B",
+  alongMm: 2620,
+  widthMm: 600,
+  y0Mm: 0,
+  topMm: 2600,
+  depthMm: 742,
+  depthFromBuildId: "fridge-free-700",
+};
+
+/** The key the record keeps at 700 mm — it slid +100 and the cap did not rename it — and therefore
+ *  the key the capped published column carries too. Written out rather than derived so a reader can
+ *  see that the two faces are being addressed by one name. */
+const THE_CAPPED_COLUMN = "B|2.72";
+
+/** A base cabinet the offer list judges **offered** in this opening, so the disagreement below is
+ *  between two things the product says out loud rather than between a test and a refusal. */
+const AN_OFFERED_BODY = "base-cabinet";
+
+/** A sink base, whose 560 mm aperture is wider than the capped opening. The offer list refuses it
+ *  by name and with a number: *"needs at least 560 mm, and the opening has only 500"*. */
+const A_BODY_THE_LIST_REFUSES = "base-sink";
+
+function createStore(design: Design) {
+  return createConfiguratorStore({
+    design,
+    catalogAt: buildKitchenLBodyCatalog,
+    probeAt: createFakeProbeFactory(),
+    now: () => OCCURRED_AT,
+  });
+}
+
+type Store = ReturnType<typeof createStore>;
+
+function withASpaceAtTheFarEnd(): Store {
+  return createStore({
+    ...KITCHEN_L_DESIGN,
+    placements: KITCHEN_L_DESIGN.placements.filter(
+      (placement) => !["p7", "p24"].includes(placement.id),
+    ),
+    emptyColumns: [FAR_END],
+  });
+}
+
+/** The store at the deeper setting, with the far-end space capped: recorded 600 mm, published 500. */
+function atTheDeeperSetting(): Store {
+  const store = withASpaceAtTheFarEnd();
+  store.getState().setCabinetDepth(DEEPER_MM);
+  expect(store.getState().lastRejection, "the depth change itself").toBeNull();
+  return store;
+}
+
+/** The base opening the capped column publishes — the one the customer taps. */
+function theCappedOpeningId(store: Store): string {
+  const opening = store
+    .getState()
+    .voids.find(
+      (record) => record.col === THE_CAPPED_COLUMN && record.y0 === 0,
+    );
+  if (!opening) throw new Error("the capped column publishes no base opening");
+  return opening.id;
+}
+
+/** The offer list exactly as `useSelectionOffers` composes it since backlog 52: the published voids
+ *  and the **recorded** columns. Called through the domain query rather than through the hook so
+ *  this file needs no renderer — the hook adds only the four store reads. */
+function offersOn(store: Store) {
+  const state = store.getState();
+  const listed = offersFor({
+    records: state.records,
+    voids: state.voids,
+    columns: state.recordedColumns,
+    catalog: state.catalog,
+    target: { kind: "void", id: theCappedOpeningId(store) },
+    cabinetDepthMm: DEEPER_MM,
+  });
+  if (listed.length === 0)
+    throw new Error("the capped opening offers nothing at all");
+  return listed;
+}
+
+function offerFor(store: Store, buildId: string) {
+  const offer = offersOn(store).find(
+    (candidate) => candidate.buildId === buildId,
+  );
+  if (!offer) throw new Error(`${buildId} is not in the offer list at all`);
+  return offer;
+}
+
+function insertInto(store: Store, buildId: string): void {
+  store.getState().select({ kind: "void", id: theCappedOpeningId(store) });
+  store.getState().insert(buildId);
+}
+
+describe("the opening a command resolves against is still the capped one", () => {
+  // The premise, asserted first so a later failure cannot be read as the fixture drifting: the two
+  // faces disagree on width by exactly the 100 mm the wall no longer covers, and agree on the key.
+  it("sets up two faces of one column, 600 recorded and 500 published", () => {
+    const store = atTheDeeperSetting();
+
+    const recorded = store.getState().recordedColumns.get(THE_CAPPED_COLUMN);
+    const published = store.getState().columns.get(THE_CAPPED_COLUMN);
+    expect(Math.round((recorded?.w ?? 0) * 1000)).toBe(600);
+    expect(Math.round((published?.w ?? 0) * 1000)).toBe(500);
+    expect(
+      store.getState().voids.filter((v) => v.col === THE_CAPPED_COLUMN).length,
+    ).toBeGreaterThan(0);
+  });
+
+  // **The defect.** ADR 0069's owner ruling, closed 2026-09-04, is *"never"*: no member-less column
+  // reaching past the end of its wall may be presented as an insertable opening. ADR 0090
+  // Amendment B keeps it in as many words — *"the published map is still bounded by the wall, and
+  // no opening past the wall is ever derived, drawn or offered."*
+  //
+  // Reproduction: at 700 mm, tap the base opening of the capped column at the end of wall B and
+  // insert `base-cabinet`. The published opening runs 2420 to 2920 and is 500 mm wide; the body
+  // lands 2420 to **3020**, a hundred millimetres past the end of a 2920 mm wall.
+  //
+  // Stated over whatever the command leaves behind rather than over one placement, and **without
+  // requiring the insert to succeed**: a fix may legitimately answer this tap with a refusal, and a
+  // criterion that demanded a successful insert would be pinning one of the available fixes rather
+  // than the ruling.
+  it("places nothing past the end of the wall when the capped opening is filled", () => {
+    const store = atTheDeeperSetting();
+
+    insertInto(store, AN_OFFERED_BODY);
+
+    const { room } = store.getState().design;
+    for (const record of store.getState().records) {
+      const alongM = record.wall === "A" ? record.frame.x : record.frame.z;
+      expect(
+        Math.round((alongM + record.frame.w / 2) * 1000),
+        `${record.id} (${record.buildId})`,
+      ).toBeLessThanOrEqual(wallLengthMm(record.wall, room));
+    }
+  });
+
+  // §11 row 6 — the offer list and the command are one evaluation read from two ends — and ADR
+  // 0032's own words for it: *"the same evaluation `insertBody` runs, which is what makes a refused
+  // verdict the refusal the command would actually give."*
+  //
+  // **Swept across the whole list rather than shown on one row**, because the claim is a
+  // correspondence and not an example: for every entry the panel draws in this opening, the tap
+  // must do what the row said it would. Today `base-cabinet`, `base-3drawer`, `base-panbank` and
+  // `tall-pantry` are all quoted at the published 500 mm and all built at the recorded 600, and
+  // `base-sink` is refused in the list — *"needs at least 560 mm, and the opening has only 500"* —
+  // and accepted by the command.
+  it("does with the tap what every row of its own offer list said", () => {
+    const listed = offersOn(atTheDeeperSetting());
+
+    for (const offer of listed) {
+      const store = atTheDeeperSetting();
+      insertInto(store, offer.buildId);
+      const rejection = store.getState().lastRejection;
+
+      if (offer.verdict.status !== "offered") {
+        expect(
+          rejection,
+          `${offer.buildId} was refused in the list`,
+        ).not.toBeNull();
+        continue;
+      }
+      expect(rejection, `${offer.buildId} was offered in the list`).toBeNull();
+      const placed = store
+        .getState()
+        .records.find((record) => record.buildId === offer.buildId);
+      expect(placed?.widthMm, `${offer.buildId}'s built width`).toBe(
+        offer.verdict.widthMm,
+      );
+    }
+  });
+
+  // The single row that makes the correspondence above impossible to read as a rounding difference:
+  // the list refuses this body *with the opening's width in the refusal*, and the command accepts
+  // it and builds a 600 mm sink base on a wall with 500 mm of room left.
+  it("refuses what the offer list refuses, on the same opening", () => {
+    const store = atTheDeeperSetting();
+    expect(offerFor(store, A_BODY_THE_LIST_REFUSES).verdict.status).toBe(
+      "refused",
+    );
+
+    insertInto(store, A_BODY_THE_LIST_REFUSES);
+
+    expect(store.getState().lastRejection).not.toBeNull();
+  });
+});
