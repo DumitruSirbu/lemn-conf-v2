@@ -17,10 +17,7 @@
 // advertises the honest, weaker semantics: `role="dialog"` with **no** `aria-modal`. Adding
 // `aria-modal` alone, or a focus trap alone, would leave another input mode disagreeing. This fails
 // if someone adds either half without the surface decision that has to come first.
-import {
-  KITCHEN_L_DESIGN,
-  buildKitchenLBodyCatalog,
-} from "@lemnaria/configurator-domain";
+import { KITCHEN_L_DESIGN } from "@lemnaria/configurator-domain";
 import { createElement, act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -28,17 +25,27 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { PriceBreakdown } from "@/price/price-breakdown";
 import { useConfiguratorStore } from "@/store/configurator-store";
 
+const RESET_DESIGN_ID = "dom-test-design";
+const RESET_REVISION = "1";
+
 let container: HTMLDivElement;
 let root: Root;
 /** A control outside the surface, standing in for the camera presets a Tab out lands on. */
 let outsideControl: HTMLButtonElement;
 
 beforeEach(() => {
-  // The store is a module singleton seeded with the shipped kitchen; put it back between cases so
-  // no test can inherit another's design.
-  useConfiguratorStore.setState({
+  // The store is a module singleton, so it is put back between cases through the store's **own load
+  // path** rather than by writing two fields into it. `setState` merges shallowly: it would leave
+  // `records`, `columns`, `voids`, `selection` and the write-access fields standing from the
+  // previous case, so the first test that ran a command would hand the next one a fresh `design`
+  // beside stale derivations — which is exactly the inheritance a reset exists to prevent, and it
+  // would surface as a wrong render rather than as a failure pointing here. `hydrate` re-derives
+  // the geometry from the document it is given (`deriveGeometry`), which is what a real load does.
+  useConfiguratorStore.getState().hydrate({
     design: KITCHEN_L_DESIGN,
-    catalog: buildKitchenLBodyCatalog(600),
+    designId: RESET_DESIGN_ID,
+    revision: RESET_REVISION,
+    canWrite: true,
   });
   container = document.createElement("div");
   document.body.append(container);

@@ -1093,6 +1093,42 @@ console line would cost more than the line does. **Do not** add a console filter
 next deprecation too.
 
 
+## 59. `setCabinetDepth` slides every wall-B column and has no key-collision guard — RECORDED 2026-09-08, LATENT, NOT SCHEDULED
+
+**Found by the logic review of the backlog-50/51 witnesses, 2026-09-08.** A depth change is not only
+a rebuild: `alongWallPositionAtMm`
+([`along-wall-chain-shift.ts`](../../packages/configurator-domain/src/along-wall-chain-shift.ts))
+slides every wall-B placement by **its own chain's delta** — `base-formula` +100 as the reach goes
+560 -> 660, `wall-map` +70 as it goes 291 -> 361 — so the two chains move by **different amounts**
+and wall B's column keys are not the same set at the two settings:
+
+```
+600:  B|0.61 (wall-map)  B|0.74  B|1.20  B|1.80  B|2.45
+700:  B|0.69 (wall-map)  B|0.84  B|1.30  B|1.90  B|2.55
+```
+
+Measured 2026-09-08 through `createConfiguratorStore` and the web fake probe, and now swept at both
+settings by `apps/web/tests/store/backlog-51-after-the-real-depth-command.test.ts`.
+
+**Nothing refuses a collision on that path.** A width resize has `refuseKeyCollision`
+([`apply-column-moves.ts:118`](../../packages/configurator-domain/src/commands/apply-column-moves.ts)),
+which refuses a member landing on an occupied key. `setCabinetDepth` has no equivalent — grep it for
+"collision" and there is nothing.
+
+**It is safe on the shipped catalogue, and safe for a reason nobody wrote down**: each chain
+translates rigidly, so relative order is preserved, and the 130 mm gap between the wall-map column
+and its nearest base neighbour comfortably exceeds the 30 mm of relative slide between the two
+chains. **That margin is a property of the current numbers, not a rule.** If either reach formula
+moved — a new head-clearance row, a different front assembly — a depth change could file two chains
+under one key, and every suite would stay green while it happened.
+
+**What deciding it would cost**: a collision check in `setCabinetDepth`'s republish step, and a
+decision about what a collision *means* there. A resize can refuse and leave the design alone; a
+depth change is a whole-kitchen command the customer has already been shown the price of, so
+refusing it wholesale is a different product answer from refusing one member's move. That is the
+decision, and it should be taken with backlog 50 and 51's shared load-seam severity rather than on
+its own.
+
 ## Also open, recorded elsewhere — do not duplicate here
 
 - **Width editing does nothing yet.** ~~Every width chip is `blocked` because §5.4's resize command

@@ -11,13 +11,22 @@
 // standing. This file couples the two so either half alone turns it red, and whoever picks ADR 0100
 // up is handed the copy change by a failing test rather than by a reviewer's memory.
 //
-// **The depth change is made through the shipped command, not by writing 700 into `settings`.**
-// `setCabinetDepth` rebuilds every body and renames build ids (`base-drawer3-600` →
-// `base-3drawer`), so a document with the number edited in would price identically for the trivial
-// reason that nothing moved. The rebuild is asserted below before the amounts are compared.
+// **What "the kitchen really got deeper" has to mean here.** The first version of this file asserted
+// that some `buildId` changed, which proves a *rename* and not a rebuild: `resolveRebuildBody`
+// renames to the catalogue equivalent on any rebuild, including a 600 -> 600 no-op, so a command
+// that renamed all 26 bodies while building every one of them at 600 mm would have passed. What is
+// asserted instead is a **depth-bearing quantity**: every body's built frame deepens except the
+// freestanding fridge, whose 742 mm is a machine's and follows no setting, and wall B's run slides
+// by its chain's own delta — `base-formula` +100 as the corner reach goes 560 -> 660, `wall-map`
+// +70 as it goes 291 -> 361.
+//
+// **The equality is safe from the rename for a stronger reason than this file can show**, worth
+// recording so nobody re-derives it: `price-design.ts` reads `widthMm` and `heightMm` only and
+// resolves each priced row through `resolveCatalogEquivalent`, so no depth quantity reaches pricing
+// at all. Depth-blindness is structural rather than a coincidence of this fixture.
 import {
-  buildKitchenLBodyCatalog,
   KITCHEN_L_DESIGN,
+  buildKitchenLBodyCatalog,
   priceDesign,
   SAMPLE_PRICE_BOOK,
   SAMPLE_PRICE_BOOK_VERSION,
@@ -32,7 +41,14 @@ import { createConfiguratorStore } from "@/store/configurator-store";
 import { createFakeProbeFactory } from "../support/fake-body-probe";
 
 const OCCURRED_AT = "2026-09-08T12:00:00.000Z";
+const DEFAULT_MM = 600;
 const DEEPER_MM = 700;
+
+/** The one body in this kitchen whose depth no setting reaches: a freestanding machine. */
+const MANUFACTURED_SIZE_ID = "p7";
+
+/** What each chain gains at the corner between the two settings — ADR 0089's own deltas. */
+const ALONG_WALL_SLIDE_MM = { baseFormula: 100, wallMap: 70 } as const;
 
 function createStore() {
   return createConfiguratorStore({
@@ -43,49 +59,114 @@ function createStore() {
   });
 }
 
-/** Priced exactly as `usePricedDesign` prices it — same book, same version, same selections — so a
- *  rule that only bites through the hook's path cannot hide from this file. */
+type Store = ReturnType<typeof createStore>;
+
+interface DepthChange {
+  readonly shallow: Design;
+  readonly deep: Design;
+  readonly frameDepthsBefore: ReadonlyMap<string, number>;
+  readonly frameDepthsAfter: ReadonlyMap<string, number>;
+  readonly alongBefore: ReadonlyMap<string, number>;
+}
+
+function frameDepthsOf(store: Store): Map<string, number> {
+  return new Map(store.getState().records.map((r) => [r.id, r.frame.d]));
+}
+
+function alongOf(design: Design): Map<string, number> {
+  return new Map(design.placements.map((p) => [p.id, p.alongMm]));
+}
+
+/** **A fresh store per case.** Running the command once at collection time would leave four tests
+ *  sharing one mutation, and a failure in the first would change what the others were measuring. */
+function deepenTheKitchen(): DepthChange {
+  const store = createStore();
+  const shallow = store.getState().design;
+  const frameDepthsBefore = frameDepthsOf(store);
+  const alongBefore = alongOf(shallow);
+
+  store.getState().setCabinetDepth(DEEPER_MM);
+
+  return {
+    shallow,
+    deep: store.getState().design,
+    frameDepthsBefore,
+    frameDepthsAfter: frameDepthsOf(store),
+    alongBefore,
+  };
+}
+
+/** Priced exactly as `usePricedDesign` prices it — same book, same version, same selections. */
 function priceOf(design: Design): PricingResult {
   return priceDesign({
     design,
-    catalog: buildKitchenLBodyCatalog(design.settings?.cabinetDepthMm ?? 600),
+    catalog: buildKitchenLBodyCatalog(
+      design.settings?.cabinetDepthMm ?? DEFAULT_MM,
+    ),
     book: SAMPLE_PRICE_BOOK,
     pricingVersion: SAMPLE_PRICE_BOOK_VERSION,
     selections: design.settings,
   });
 }
 
-function buildIdsOf(design: Design): readonly string[] {
-  return design.placements.map((placement) => placement.body.buildId);
-}
-
 describe("depth does not reach an amount, and the sentence that says so", () => {
-  const store = createStore();
-  const shallow = store.getState().design;
-  const atSixHundred = priceOf(shallow);
+  it("rebuilds every body to a new depth except the machine that follows no setting", () => {
+    const change = deepenTheKitchen();
 
-  store.getState().setCabinetDepth(DEEPER_MM);
-  const deep = store.getState().design;
-  const atSevenHundred = priceOf(deep);
+    expect(change.shallow.settings?.cabinetDepthMm ?? DEFAULT_MM).toBe(
+      DEFAULT_MM,
+    );
+    expect(change.deep.settings?.cabinetDepthMm).toBe(DEEPER_MM);
 
-  it("really deepened the kitchen, so the comparison below is not two copies of one document", () => {
-    expect(shallow.settings?.cabinetDepthMm ?? 600).toBe(600);
-    expect(deep.settings?.cabinetDepthMm).toBe(DEEPER_MM);
-    // The rebuild is the half a hand-edited setting would skip: at least one body left the
-    // catalogue row it was standing in.
-    expect(buildIdsOf(deep)).not.toEqual(buildIdsOf(shallow));
+    const unchanged = [...change.frameDepthsAfter]
+      .filter(([id, depthM]) => change.frameDepthsBefore.get(id) === depthM)
+      .map(([id]) => id);
+    // Named, not counted: "25 of 26 moved" would also hold if the wrong one stood still.
+    expect(unchanged).toEqual([MANUFACTURED_SIZE_ID]);
+    expect(change.frameDepthsAfter.size).toBeGreaterThan(20);
+  });
+
+  it("slides wall B's run by each chain's own delta, which no rename could imitate", () => {
+    const change = deepenTheKitchen();
+
+    const slides = new Set(
+      change.deep.placements
+        .filter((placement) => placement.wall === "B")
+        .map(
+          (placement) =>
+            placement.alongMm - (change.alongBefore.get(placement.id) ?? 0),
+        ),
+    );
+    expect([...slides].sort((a, b) => a - b)).toEqual([
+      ALONG_WALL_SLIDE_MM.wallMap,
+      ALONG_WALL_SLIDE_MM.baseFormula,
+    ]);
+    // And wall A does not move at all: the slide is the corner's, not the whole kitchen's.
+    for (const placement of change.deep.placements.filter(
+      (p) => p.wall === "A",
+    ))
+      expect([placement.id, placement.alongMm]).toEqual([
+        placement.id,
+        change.alongBefore.get(placement.id),
+      ]);
   });
 
   it("prices the seeded kitchen at all, so an equality of two refusals cannot pass", () => {
+    const change = deepenTheKitchen();
+    const atSixHundred = priceOf(change.shallow);
+
     expect(atSixHundred.ok).toBe(true);
-    expect(atSevenHundred.ok).toBe(true);
     if (!atSixHundred.ok) return;
     expect(atSixHundred.priced.lines.length).toBeGreaterThan(0);
     expect(atSixHundred.priced.totalMinor).toBeGreaterThan(0);
   });
 
   it("charges the same total, line for line, at 700 as at 600", () => {
+    const change = deepenTheKitchen();
+    const atSixHundred = priceOf(change.shallow);
+    const atSevenHundred = priceOf(change.deep);
     if (!atSixHundred.ok || !atSevenHundred.ok) throw new Error("refused");
+
     expect(atSevenHundred.priced.totalMinor).toBe(
       atSixHundred.priced.totalMinor,
     );

@@ -10,10 +10,7 @@
 // The band structure is the fixture's own, not a copy of the app's: what is asserted is the rule —
 // **every sibling band of the one holding this control goes inert, and that band does not** — so a
 // later change to where the sheet mounts cannot pass here by having been transcribed.
-import {
-  KITCHEN_L_DESIGN,
-  buildKitchenLBodyCatalog,
-} from "@lemnaria/configurator-domain";
+import { KITCHEN_L_DESIGN } from "@lemnaria/configurator-domain";
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -23,15 +20,27 @@ import { useConfiguratorStore } from "@/store/configurator-store";
 
 /** The screen, as `useBackgroundInert` walks it: a `<main>` whose children are bands. The settings
  *  control lives in one of them; the others stand in for the header, the stage and the price bar. */
+const RESET_DESIGN_ID = "dom-test-design";
+const RESET_REVISION = "1";
+
 let screenElement: HTMLElement;
 let settingsBand: HTMLDivElement;
 let otherBands: readonly HTMLDivElement[];
 let root: Root;
 
 beforeEach(() => {
-  useConfiguratorStore.setState({
+  // The store is a module singleton, so it is put back between cases through the store's **own load
+  // path** rather than by writing two fields into it. `setState` merges shallowly: it would leave
+  // `records`, `columns`, `voids`, `selection` and the write-access fields standing from the
+  // previous case, so the first test that ran a command would hand the next one a fresh `design`
+  // beside stale derivations — which is exactly the inheritance a reset exists to prevent, and it
+  // would surface as a wrong render rather than as a failure pointing here. `hydrate` re-derives
+  // the geometry from the document it is given (`deriveGeometry`), which is what a real load does.
+  useConfiguratorStore.getState().hydrate({
     design: KITCHEN_L_DESIGN,
-    catalog: buildKitchenLBodyCatalog(600),
+    designId: RESET_DESIGN_ID,
+    revision: RESET_REVISION,
+    canWrite: true,
   });
 
   screenElement = document.createElement("main");
