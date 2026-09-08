@@ -5,7 +5,10 @@ decision 10 point 2 unchanged and unnarrowed**; applies
 [ADR 0090](0090-a-frozen-space-slides-with-its-run-and-follows-the-body-it-recorded.md) decision 7 and
 [ADR 0091](0091-an-instruments-premise-is-re-quantified-and-the-product-claim-inside-it-becomes-a-wave.md)
 decision 1; **amends [ADR 0101](0101-a-lifted-columns-depth-is-declared-and-the-three-deep-tops-follow-the-setting.md)**
-by naming what it did not scope; **overturns nothing**)
+by naming what it did not scope; **overturns nothing**; **Amendment A, 2026-09-08 — the owner
+answered the *Not decided here* question and it is closed, ruled in
+[ADR 0103](0103-a-standing-body-is-re-planned-when-something-is-inserted-beneath-it-and-a-delete-leaves-it-alone.md);
+decisions 1–6 stand and nothing here is struck**)
 Date: 2026-09-08
 Type: Finding + Decision (adjudication)
 Milestone: M6 — adjudicates the finding the item 8 implementer raised and refused to treat as
@@ -288,7 +291,13 @@ The two halves are separated on purpose, because they have opposite answers:
 Recorded plainly so tomorrow is not spent re-deriving it: **the answer to *"does this block merging"*
 is yes, and the work to unblock it is decision 3, which is small and fully specified above.**
 
-## Not decided here — one question for the owner
+## ~~Not decided here — one question for the owner~~ ANSWERED 2026-09-08 — see Amendment A below
+
+**The owner ruled on 2026-09-08 and chose answer *(a)*.** The section below is kept verbatim as the
+question that was put and the measurement behind it; **it is no longer open and must not be listed as
+open anywhere.** [ADR 0103](0103-a-standing-body-is-re-planned-when-something-is-inserted-beneath-it-and-a-delete-leaves-it-alone.md)
+decision 1 carries the ruling and the owner's reason. This record's decisions 1–4 are unaffected, and
+nothing in wave 6Y turns on it — which is what this section already said.
 
 **A deep top loses 200 mm when the column beneath it is deleted, and nobody has ruled that trade.**
 Measured, same four-command discipline as above:
@@ -382,6 +391,44 @@ Nothing found in the sweep contradicts this decision, and nothing here overturns
   decision 3. `qa-6k-c`'s `isItsSourcesDeclaration` already routes through the shared predicate rather
   than restating it, which is ADR 0088 decision 2 obeyed, and it is why narrowing the predicate reaches
   both readers at once.
-- **One owner question is written down and not decided**, above. It is not on 6Y's path.
+- ~~**One owner question is written down and not decided**, above. It is not on 6Y's path.~~
+  **Superseded 2026-09-08 by Amendment A: the owner answered it. It is closed and was never on 6Y's
+  path.**
 - **Nothing here re-baselines M1's parity gate**, and nothing here moves the 600 mm kitchen as it
   loads. Both were checked against measurement 1's first line.
+
+## Amendment A, 2026-09-08 — the owner answered the question, and a second one was ruled beside it
+
+**Nothing in decisions 1–6 above is revised, narrowed or struck.** This amendment records only that
+the *Not decided here* section has an answer, so that no reader carries it forward as open.
+
+**The owner chose *(a)* — leave it.** Deleting the full-height column beneath a deep top and then
+changing the depth rebuilds that top from 600 mm finished to 400 mm, and that is correct. Their
+reason, in their own words: with the whole column emptied, the design should not count on cabinets
+that used to be there; 400 is right because you would expect ordinary, non-full-height cabinets below.
+ADR 0028 decision 5 and ADR 0060 decision 2 are therefore **confirmed** by the ruling rather than
+merely tolerated by it.
+
+**The owner also stated the rule positively and asked for one gap to be closed**, which this record
+did not reach because nobody had measured it: *nothing ever re-plans a body that is already standing*.
+Re-measured at `ed6c545` through the ordinary store, three states show it — delete the pantry and
+insert a **regular** cabinet below and the deep top stays at 561 where 291 belongs; insert a
+**full-height** one below a 361 top and it stays at 361 where 661 belongs; and in an emptied column,
+insert the top first and then the pantry and the top stays at 361. **The insert path is already
+correct for the body being inserted** — a wall cabinet inserted over a standing pantry is written at
+661 today — so this is one defect with three faces, not three defects.
+
+Both are ruled in
+[ADR 0103](0103-a-standing-body-is-re-planned-when-something-is-inserted-beneath-it-and-a-delete-leaves-it-alone.md),
+which opens **wave 6Z**. Two consequences for readers of *this* record:
+
+- **6Z and 6Y are independent and may land in either order.** 6Y moves recorded sources
+  (`restoredColumns`); 6Z moves member seats. 6Z edits neither `restoredColumns` nor
+  `apps/web/tests/support/frozen-source-invariant.ts`, and `qa-6y-lifted-column-source.witness.test.ts`
+  is byte-identical after it — that file performs no insert, checked test by test. **Whichever lands
+  second re-runs the other's suites.**
+- **Decision 3a's narrowed exemption will begin to fire in states it does not fire in today**, because
+  6Z gives a standing wall cabinet over a lifted column the seat the lifted arm produces. ADR 0103
+  decision 10 requires 6Z to enumerate every reading of the shared helper across those states, before
+  and after, and forbids any state gaining a report. That is a measurement obligation on 6Z, not a
+  change to anything decided here.

@@ -306,11 +306,46 @@ adjudicates the finding the item 8 implementer raised and refused to treat as se
   catches — twelve columns inspected, nothing reported. `reAnswersOneBody`'s extension across ADR
   0022's swap **stands**, untouched. Note for whoever plans 6Y: the record says the blast radius is
   three suites; the witness makes it **four**.
-- **One question is for the owner and is deliberately not decided.** Post-ADR-0101, deleting the
+- ~~**One question is for the owner and is deliberately not decided.** Post-ADR-0101, deleting the
   full-height column beneath a deep top and then changing the depth rebuilds that top from 600 mm
   finished to 400 mm (`p23`'s seat 561 -> 361, measured). The rule producing it is ADR 0028 decision 5's
   and is correct; whether it is the product the owner wants has never been asked. Nothing in 6Y turns
-  on the answer.
+  on the answer.~~ **ANSWERED 2026-09-08 — the owner accepted the 400, and this is no longer open.**
+  Their reason, in their own words: with the whole column emptied, the design should not count on
+  cabinets that used to be there, and ordinary non-full-height cabinets are what you would expect
+  below. ADR 0028 decision 5 is **confirmed** by the ruling rather than overturned by it. Recorded in
+  [ADR 0103](decisions/0103-a-standing-body-is-re-planned-when-something-is-inserted-beneath-it-and-a-delete-leaves-it-alone.md)
+  decision 1, with amendments appended to ADR 0102 and ADR 0101. **Do not carry it forward as open.**
+
+**And the same ruling opened a second one, which is wave 6Z** — planned 2026-09-08 in
+`milestones/M6-price-and-global-settings.md`, ruled by ADR 0103, tier **Full + visual**, **not yet
+implemented**. The owner stated the rule positively — *"if below is the [full-height] cabinet, the top
+cabinet should have the same depth of the [kitchen]"* — and asked for one gap closed: **nothing ever
+re-plans a body that is already standing.**
+
+- **The insert path is already correct for the body being inserted**, measured at `ed6c545` through
+  the ordinary store: a `wall-cabinet` inserted over a standing `tall-pantry` at 700 is written at
+  **661**. So the three reported symptoms are **one defect with three faces** and must be framed that
+  way: delete the pantry and insert a *base* cabinet and the deep top stays at 561 where 291 belongs
+  (600 mm) or 661 where 361 belongs (700 mm); insert a *pantry* under a 361 top and it stays at 361
+  where 661 belongs; and in an emptied column, insert the top first and then the pantry and the top
+  stays at 361.
+- **The delete side is deliberately out of scope, permanently** — owner ruling, with a product reason:
+  a delete is usually the first half of a replacement, so re-planning there does the work twice and
+  makes the scene jump. The interim deep-top-over-nothing state is accepted as transient. **No mirror
+  wave. Anyone reading the asymmetry as an oversight is reading against a dated ruling.**
+- **6Z and 6Y are independent and may land in either order.** 6Y moves recorded sources, 6Z moves
+  member seats; 6Z edits neither `restoredColumns` nor `frozen-source-invariant.ts`, and the 6Y
+  witness performs no insert so it stays byte-identical. **Whichever lands second re-runs the other's
+  suites.**
+- **6Y itself now has a row in the M6 wave table**, which it did not before this pass — ADR 0102
+  opened it on 2026-09-08 and the table never gained it. The table is **48 rows with 2 open (6Y, 6Z)**;
+  the 2026-09-07 sentence *"every row is resolved"* was true of the table and false of the product.
+- **One new backlog entry, 57**: an ordinary `setCabinetDepth(700)` turns `p13` from `hood-600` into
+  `hood` and flips `fixedWidth` **true → false**, handing the customer a width control on an extractor
+  hood. Measured, pre-existing, reachable with no insert at all, and it is product-logic review R3.2's
+  own defect arriving through the depth command instead of the resize. **It is not 6Z's**, and 6Z
+  carries a criterion that the hood's `fixedWidth` stays `true`.
 
 
 **Next: M6, ~~now on branch `wave/6r-control-shapes-and-strip-row`~~** (that is the branch 6R, 6R-b,
