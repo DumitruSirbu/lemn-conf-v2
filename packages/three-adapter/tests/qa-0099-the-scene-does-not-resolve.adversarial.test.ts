@@ -73,6 +73,11 @@ const THIRD_KITCHEN_COLOUR: Finish = paletteFinish("pal.alb");
  *  is why *"a following cabinet on a kitchen with no colour set"* looks identical to the scene
  *  this package drew before ADR 0099 while now being painted rather than skipped. */
 const MELAMINE_DEFAULT_HEX = "#eceeeb";
+/** What `materials.ts` declares veneer's `defaultFinish` as — *Stejar* — and what `finishes.ts`
+ *  tints `M.oak`'s grain with for it. Unlike melamine's, this one is nothing like the kit's own
+ *  door colour, which is why the third-level criterion is asserted on veneer as well: on melamine
+ *  alone, a renderer that skipped a following cabinet would pass by coincidence. */
+const VENEER_DEFAULT_HEX = "#cba173";
 
 let kit: Kit;
 let solidsRoot: THREE.Group;
@@ -89,12 +94,13 @@ beforeEach(() => {
 /** The seeded kitchen with every cabinet following: no `body.finish` key anywhere, which is the
  *  state every document written before this wave is in and the state the feature is for. */
 function everyCabinetFollowing(): Design {
+  return everyCabinetFollowingOn("material.melamine");
+}
+
+function everyCabinetFollowingOn(materialTierId: string): Design {
   return {
     ...KITCHEN_L_DESIGN,
-    settings: {
-      ...KITCHEN_L_DESIGN.settings,
-      materialTierId: "material.melamine",
-    },
+    settings: { ...KITCHEN_L_DESIGN.settings, materialTierId },
     placements: KITCHEN_L_DESIGN.placements.map((placement) => {
       const body = { ...placement.body };
       delete body.finish;
@@ -203,6 +209,24 @@ describe("the scene honours a colour a cabinet chose for itself", () => {
       expect(colourOf(front)).toBe(MELAMINE_DEFAULT_HEX);
     }
     expect(`#${kit.M.door.color.getHexString()}`).toBe(MELAMINE_DEFAULT_HEX);
+  });
+
+  /** **The same criterion on the material where it is visible, and the reason the melamine case
+   *  above cannot carry it alone.** Melamine's declared default and `kit.M.door` are the same hex,
+   *  so a renderer that skipped a following cabinet entirely would satisfy the test above by
+   *  accident. Veneer's declared default is *Stejar*, a tinted wood — nowhere near white — so this
+   *  is the one that goes red when the resolver stops being asked. It is also the state a real
+   *  customer reaches: a veneer kitchen where nobody has picked a colour used to render in the
+   *  kit's white rather than in the timber they are buying. */
+  it("draws a following cabinet on a veneer kitchen in the veneer's own default", () => {
+    drawn(everyCabinetFollowingOn("material.veneer"));
+
+    const fronts = frontsOf(mounted(FINISHABLE_PLACEMENT_ID));
+    expect(fronts.length).toBeGreaterThan(0);
+    expect(`#${kit.M.door.color.getHexString()}`).not.toBe(VENEER_DEFAULT_HEX);
+    for (const front of fronts) {
+      expect(colourOf(front)).toBe(VENEER_DEFAULT_HEX);
+    }
   });
 });
 
