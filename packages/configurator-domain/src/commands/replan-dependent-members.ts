@@ -21,6 +21,7 @@ import type { InsertableBody } from "../catalog.js";
 import { cabinetDepthMmOf } from "../design.js";
 import type { DesignPlacement } from "../design.js";
 import {
+  overlapsAlongWall,
   withCurrentFullHeightMembers,
   type BodyDefinition,
   type Column,
@@ -86,11 +87,23 @@ export function replanDependentMembers(
  *  is `false` before the insert and `false` after it, and the top still has to shallow out. The
  *  trigger is *this insert wrote to a column that already held a body whose depth the column decides*.
  *
- *  Two clauses, and the second is not redundant. `isFullHeightUnder` asks about **overlap along the
- *  wall, not column membership**, so a full-height body wider than its own column lifts its
- *  neighbours too — a key the split never wrote can still change its answer. The shipped kitchen
+ *  Three clauses, and neither of the last two is redundant. `isFullHeightUnder` asks about **overlap
+ *  along the wall, not column membership**, so a full-height body wider than its own column lifts
+ *  its neighbours too — a key the split never wrote can still change its answer. The shipped kitchen
  *  cannot exercise that, so it owes a declared witness rather than a hopeful comment (ADR 0093
  *  decision 2).
+ *
+ *  **The third clause is the same overlap read in the other direction, and it was missing** (wave
+ *  6Z's own adversarial QA). A flag *flip* catches an ordinary top being **lifted** by a full-height
+ *  body arriving beside it, because the flag goes false -> true. It cannot catch the reverse: an
+ *  **ordinary** body inserted into a slot that overhangs a neighbouring column leaves the flag false
+ *  on both sides, so the overhung top kept a lifted depth nothing under it justified any more —
+ *  which is exactly the case the owner reported as S1, and exactly why decision 3 rejects the
+ *  flip-triggered design. The rejection had been applied to the column-membership route and not to
+ *  the overlap route. So: every column this body reaches across is re-asked, whatever its band.
+ *
+ *  Widening the set costs nothing where nothing moved. `replanOne` still rebuilds only where
+ *  `columnDecidesADifferentDepth`, and passes every other body through by identity.
  *
  *  **Both operands are the recorded face** (ADR 0090 Amendment B), over the same extents and the same
  *  key space: one function, two record sets. Nothing here reads the published map and nothing reaches
@@ -107,6 +120,22 @@ function affectedColumnKeys(input: DependentReplanInput): ReadonlySet<string> {
   for (const [key, column] of input.columns) {
     if (before.get(key)?.hasFullHeightUnder !== column.hasFullHeightUnder) {
       keys.add(key);
+    }
+  }
+
+  const placed = input.recordsAfter.find(
+    (record) => record.id === input.placedId,
+  );
+  if (placed) {
+    for (const [key, column] of input.columns) {
+      // **Same wall first, and it is not a formality.** Both walls originate at the same corner and
+      // walk their own axis, so `overlapsAlongWall` compares two numbers that mean different places
+      // unless the wall is checked — the guard `isFullHeightUnder` applies for the same reason.
+      // Without it this clause matched a wall-A insert against a wall-B column at the same
+      // coordinate and re-planned a body on the other side of the room; wave 6Z's own offer sweep
+      // caught it as 79 re-plans where 24 were expected.
+      if (placed.wall === column.wall && overlapsAlongWall(placed, column))
+        keys.add(key);
     }
   }
   return keys;

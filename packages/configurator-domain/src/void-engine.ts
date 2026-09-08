@@ -1451,8 +1451,13 @@ function isFullHeightUnder(
 
 /** Overhanging, not merely adjoining. Two runs that meet on a module line share a boundary and
  *  nothing else, so the overlap has to be positive before the member counts as being *under* the
- *  opening — otherwise every cabinet beside a column would be uncapped. */
-function overlapsAlongWall(
+ *  opening — otherwise every cabinet beside a column would be uncapped.
+ *
+ *  **Exported because the re-plan asks the same question of a different pair** (ADR 0103 decision 3,
+ *  wave 6Z QA): "which columns did this body reach across" is the same geometry as "is a full-height
+ *  member under this opening", and a second copy of the arithmetic is how the two would come to
+ *  disagree about a boundary case. One definition, two callers. */
+export function overlapsAlongWall(
   record: PlacementRecord,
   column: ColumnExtent,
 ): boolean {
