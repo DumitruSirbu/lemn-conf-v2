@@ -8,10 +8,10 @@
 // projection; the total arrives from `usePricedDesign`. What this decides is which of them the
 // customer reads, and in what words.
 //
-// **Two selections, and they are not the same selection.** The chips beside the control name what
-// the design *carries* — `applied` — because they are visible with the sheet shut. The options
-// inside name what the customer has *chosen and not yet applied* — `pending`. Collapsing the two
-// would make the chips change under a customer who has not pressed *Aplică* yet.
+// **Two selections, and they are not the same selection.** The pill that opens this surface names
+// what the design *carries* — `applied` — because it is read with the sheet shut. The options inside
+// name what the customer has *chosen and not yet applied* — `pending`. Collapsing the two would make
+// the pill change under a customer who has not pressed *Aplică* yet.
 import {
   DEFAULT_CABINET_DEPTH_MM,
   DEFAULT_MATERIAL_ID,
@@ -19,19 +19,20 @@ import {
   lookUpMaterial,
   materialOffersFinish,
   MIN_CABINET_DEPTH_MM,
+  PALETTE_ENTRIES,
   type DisplayGroup,
   type Finish,
   type MaterialLookup,
   type PricingResult,
-  type RejectionReason,
 } from "@lemnaria/configurator-domain";
+
+import { swatchOf } from "@lemnaria/three-adapter";
 
 import { ro } from "@/content/ro";
 import type { WholeKitchenSetting } from "@/store/whole-kitchen-apply";
 import {
   describeAddedAmount,
   describeFlaggedTotalWarning,
-  describeStartingLabel,
   describeStartingPrice,
   type PriceFigure,
 } from "@/price/starting-price";
@@ -42,7 +43,7 @@ import {
   type WholeKitchenTierOffer,
 } from "@/price/whole-kitchen-tiers";
 
-/** The two whole-kitchen groups the book offers, named once so the headings map, the chips and the
+/** The two whole-kitchen groups the book offers, named once so the headings map, the pill and the
  *  view's own sections cannot come to disagree about what a group is. */
 export type WholeKitchenGroupKey = "material" | "hardware";
 
@@ -164,10 +165,63 @@ export interface MaterialResetConfirmView {
   readonly backLabel: string;
 }
 
-/** One of the two summaries standing beside the control that opens the sheet. */
-export interface SettingsChip {
-  readonly key: WholeKitchenGroupKey;
+/**
+ * **The settings frame D2A's pill names, in the order the ladder collapses from the end of.**
+ *
+ * `material │ colour │ hardware │ depth` — [ADR 0099](../../../../docs/decisions/0099-a-colour-is-chosen-at-two-levels-and-the-cabinets-wins.md)
+ * decision 9's order, on the owner's *"just behind the material"*, and the order the sheet already
+ * renders. It is not a presentation choice: the pill sheds labels from the end, so this is what
+ * decides that `PAL melaminat` is the name that survives at the floor — which is also what frame 2A
+ * draws at its own extreme.
+ */
+export type SettingsPillKey = "material" | "colour" | "hardware" | "depth";
+
+/** One setting, with the **whole** label D2A composes for it. A label is drawn whole or it is
+ *  counted; there is no abbreviated form and none is invented (ADR 0104 decision 3). */
+export interface SettingsPillEntry {
+  readonly key: SettingsPillKey;
+  /** **Empty for a colour that has no name** — see `colourEntryOf`. The setting is still shown and
+   *  still counted; what shows it is the swatch, which is wearing it. */
   readonly label: string;
+}
+
+/** The colour the pill's swatch wears — the adapter's own value for the finish, so the swatch, the
+ *  panel's chips and the 3D all paint one declared colour. `isWood` derives a grain from that same
+ *  value rather than naming a second (the language `editor-panel.module.css` already speaks). */
+export interface SettingsPillSwatch {
+  readonly colour: string;
+  readonly isWood: boolean;
+}
+
+/**
+ * Frames D2A / 2A's one control: what the kitchen carries, readable with the sheet shut.
+ *
+ * **The labels are not the breakdown's**, and the frame is what says so. The shipped chips composed
+ * `ro.priceBreakdown.wholeKitchenLabel` — *"Material · PAL melaminat"* — and D2A draws none of that:
+ * the material bare, the others a category word and a value with no separator. Under ADR 0104
+ * decision 1 the frame wins. Only the *words* are shared with the breakdown, so a tier cannot come
+ * to be spelled two ways.
+ */
+export interface SettingsPillView {
+  readonly settings: readonly SettingsPillEntry[];
+  /** **One swatch, at the head of the pill**, because that is what both frames draw and neither
+   *  draws a second. It wears the kitchen's own colour rather than the frames' fixed decor texture —
+   *  the owner's ruling of 2026-09-09, *"if MDF the value interpreted (real color)"*, taken as one
+   *  rule for every finish rather than a special case for the one material whose colours have no
+   *  names. Absent only where the applied material is undeclared and there is no palette to read. */
+  readonly swatch?: SettingsPillSwatch;
+  /** **Every setting, whole, at every rung.** `+N` is a visual economy and must not cost a
+   *  screen-reader user a setting, so this is what the control is named by rather than what it
+   *  draws. */
+  readonly accessibleName: string;
+}
+
+/** What the pill draws at the rung it is on: the labels it shows, and the counter for the rest.
+ *  **Never a bare counter** — `labels` always holds at least one. */
+export interface SettingsPillRung {
+  readonly labels: readonly string[];
+  /** Absent, never empty, when every setting is named. */
+  readonly counter?: string;
 }
 
 /**
@@ -183,8 +237,9 @@ export interface SettingsChip {
  * never the ability to choose.
  */
 export interface GlobalSettingsView {
-  readonly openLabel: string;
-  readonly chips: readonly SettingsChip[];
+  /** The control that opens this surface, which since ADR 0104 decision 2 **is** frame D2A's pill:
+   *  there is no separate *Setări globale* text trigger in any frame. */
+  readonly pill: SettingsPillView;
   readonly title: string;
   /** How many bodies this applies to, and that it is not set per cabinet. */
   readonly appliesTo: string;
@@ -204,9 +259,9 @@ export interface GlobalSettingsView {
    *  it — and because a customer choosing a tier is choosing against a figure. Absent, never zero,
    *  when the design cannot be priced.
    *
-   *  **Its label carries the refusal**, like the bar's and §9's footer's: covering the bar is the
-   *  stated reason this figure is repeated at all, so it is also the reason the *"neschimbat"*
-   *  wording has to travel with it. One rule, in `describeStartingLabel`. */
+   *  **It carries no refusal wording, since the owner's ruling of 2026-09-09.** The *"neschimbat"*
+   *  label this figure used to inherit is gone from every surface — §9's refusal banner already says
+   *  the edit was refused — so there is one label and no rule to share. */
   readonly figure?: PriceFigure;
   /** ADR 0065 decision 6: the flag travels with the total wherever a total is shown, and this
    *  surface shows one. Absent — never empty — when the design overflows nothing. */
@@ -241,8 +296,6 @@ export interface DescribeGlobalSettingsInput {
   readonly groups: readonly DisplayGroup[];
   readonly applied: WholeKitchenChoice;
   readonly pending: WholeKitchenChoice;
-  /** The last refusal, or `null`. Only the figure's *label* reads it — see `figure`. */
-  readonly rejection: RejectionReason | null;
   /** `countCabinetsWearingAChosenFinish`'s answer about the **stored** design, and the only count
    *  the confirmation may state. Required rather than optional: an absent one would read as zero,
    *  which is *never confirm* — the one wrong answer that passes every other test in the suite. */
@@ -276,9 +329,10 @@ interface PendingColourLoss {
   readonly globalFinishWouldBeLost: boolean;
 }
 
-/** The category word in front of a chip's tier name, and the composition around it, are
- *  `priceBreakdown`'s: frames 2D and 2E print the same *"Material · PAL melaminat"*, and one ruled
- *  string stored twice is how two spellings come back (`startingPrefixUnchanged` records that). */
+/** The category word in front of a tier name is `priceBreakdown`'s, and one ruled string stored
+ *  twice is how two spellings come back (the withdrawn *"De la neschimbat"* records that). **The composition
+ *  around it is no longer shared**: the breakdown prints *"Feronerie · Hettich"* and frame D2A draws
+ *  *"Feronerie Hettich"*, so the pill composes its own (ADR 0104 decision 1) out of these words. */
 const CHIP_CATEGORIES: Readonly<Record<WholeKitchenGroupKey, string>> =
   ro.priceBreakdown.wholeKitchenCategories;
 
@@ -300,11 +354,7 @@ export function describeGlobalSettings(
   );
   const colourGroup = toColourGroupView(input.pending);
   return {
-    openLabel: ro.globalSettings.open,
-    chips: [
-      toChip("material", material, input.applied.materialTierId),
-      toChip("hardware", hardware, input.applied.hardwareTierId),
-    ],
+    pill: describeSettingsPill({ offer: input.offer, applied: input.applied }),
     title: ro.globalSettings.title,
     appliesTo: ro.globalSettings.appliesTo(countBodies(input.groups)),
     groups: [
@@ -604,10 +654,7 @@ function describeFigure(
   input: DescribeGlobalSettingsInput,
 ): PriceFigure | undefined {
   if (!input.pricing.ok) return undefined;
-  return describeStartingPrice({
-    label: describeStartingLabel(input.rejection),
-    totalMinor: input.pricing.priced.totalMinor,
-  });
+  return describeStartingPrice({ totalMinor: input.pricing.priced.totalMinor });
 }
 
 function describeOverflow(
@@ -617,18 +664,171 @@ function describeOverflow(
   return describeFlaggedTotalWarning(input.pricing.priced);
 }
 
-function toChip(
-  key: WholeKitchenGroupKey,
-  group: OfferedTierGroup,
-  appliedTierId: string | undefined,
-): SettingsChip {
+/** What the pill needs and nothing else: the book's offer and **what the design carries**. The
+ *  pending choice is deliberately absent — the pill is read with the sheet shut, so it names what is
+ *  applied, exactly as the chips it replaces did. */
+export interface DescribeSettingsPillInput {
+  readonly offer: WholeKitchenTierOffer;
+  readonly applied: WholeKitchenChoice;
+}
+
+/**
+ * Frames D2A / 2A's pill, as a value.
+ *
+ * **Exported on its own** because the row above it needs the same answer before the pill is drawn:
+ * which rung the pill can reach is what decides whether the wordmark stays
+ * (`app/configurator/configure/top-bar-fit.ts`), and measuring a label means having its string.
+ *
+ * **The colour is a setting like the other three, and the ladder decides whether it is drawn** — the
+ * owner's *"if it fits, it should be displayed also"*. It is absent only where the applied material
+ * is undeclared, which is the one state that declares no palette to name a colour from; the count
+ * then counts from three, because `N` is derived from the settings that exist.
+ */
+export function describeSettingsPill(
+  input: DescribeSettingsPillInput,
+): SettingsPillView {
+  const settings = [
+    {
+      key: "material" as const,
+      label: ro.globalSettings.pillMaterial(
+        selectedTierIn(input.offer.material, input.applied.materialTierId).name,
+      ),
+    },
+    ...colourEntryOf(input.applied),
+    {
+      key: "hardware" as const,
+      label: ro.globalSettings.pillHardware(
+        CHIP_CATEGORIES.hardware,
+        selectedTierIn(input.offer.hardware, input.applied.hardwareTierId).name,
+      ),
+    },
+    {
+      key: "depth" as const,
+      label: ro.globalSettings.pillDepth(
+        input.applied.cabinetDepthMm ?? DEFAULT_CABINET_DEPTH_MM,
+      ),
+    },
+  ];
+  const swatch = swatchWornBy(input.applied);
   return {
-    key,
-    label: ro.priceBreakdown.wholeKitchenLabel(
-      CHIP_CATEGORIES[key],
-      selectedTierIn(group, appliedTierId).name,
+    settings,
+    ...(swatch === undefined ? {} : { swatch }),
+    // **Every setting, whole, including the one that draws no text.** A colour with no name is a
+    // swatch on screen and a name here — `ro.globalSettings.pillColourName`'s fallback — because the
+    // count is a visual economy and a swatch is not something a screen reader can read.
+    accessibleName: ro.globalSettings.pillNameAllSettings(
+      settings.map((setting) =>
+        setting.label === "" ? spokenColourOf(input.applied) : setting.label,
+      ),
     ),
   };
+}
+
+/**
+ * What the pill draws at the rung the fit model put it on.
+ *
+ * **The floor is enforced here as well as decided there** (ADR 0104 decision 3): a rung that named
+ * nothing would be a bare `+3`, which is a control that says the kitchen carries four things and
+ * which four is a secret.
+ */
+/** Frame 2A `:492` draws the counter as `+2`. **The mark lives here rather than in the copy module**:
+ *  a `+` written into `ro.*` is arithmetic authored into a label, which is the same rule
+ *  `starting-price.ts`'s `ADDED_AMOUNT_SIGN` carries for the delta's sign. It is a mark and a digit
+ *  and it carries no Romanian. */
+const HIDDEN_SETTINGS_MARK = "+";
+
+/** The widest counter the pill can draw — every setting but the one it must always name. The fit
+ *  model spends this width at every rung, because a width that depended on the count it decides
+ *  would not be a function. */
+export function widestCounterFor(pill: SettingsPillView): string {
+  return countLabelOf(Math.max(pill.settings.length - 1, 1));
+}
+
+function countLabelOf(hiddenCount: number): string {
+  return `${HIDDEN_SETTINGS_MARK}${String(hiddenCount)}`;
+}
+
+export function describePillRung(
+  pill: SettingsPillView,
+  visibleCount: number,
+): SettingsPillRung {
+  const shown = Math.min(Math.max(visibleCount, 1), pill.settings.length);
+  const hiddenCount = pill.settings.length - shown;
+  return {
+    // **A shown setting that has no name contributes no label and no separator.** The free colour is
+    // on the pill — the swatch is wearing it — and a `│` around nothing would be a divider between a
+    // name and a space. It is still *shown*, so the counter does not count it.
+    labels: pill.settings
+      .slice(0, shown)
+      .map((setting) => setting.label)
+      .filter((label) => label !== ""),
+    ...(hiddenCount === 0 ? {} : { counter: countLabelOf(hiddenCount) }),
+  };
+}
+
+/**
+ * The kitchen's colour, as the owner ruled it on 2026-09-09: *"the color should be without word
+ * Culoare, just the color name or if MDF the value interpreted (real color)"*.
+ *
+ * So there are two renderings and one setting:
+ *
+ * - a **palette** colour draws its own name and nothing else — `Alb`, `Nuc Warmia Maro` — with no
+ *   category word, unlike the hardware and depth segments D2A does put one in front of;
+ * - a **free** colour has no name to draw, only a hex, so it draws **no text at all** and the
+ *   swatch wears it instead. A hex on the pill would be a value nobody reads as a colour.
+ *
+ * **It is a shown setting either way**, so `+N` counts from four and the ladder is unaffected: what
+ * is "shown" for a free colour is a filled swatch, not an absent label.
+ *
+ * The finish is the design's own global one, or the applied material's declared default where it
+ * chose none — absence is the state most documents are in and it means every cabinet follows the
+ * material (ADR 0099).
+ */
+function colourEntryOf(
+  applied: WholeKitchenChoice,
+): readonly SettingsPillEntry[] {
+  const finish = appliedFinishOf(applied);
+  if (finish === undefined) return [];
+  return [{ key: "colour", label: nameOfFinish(finish) }];
+}
+
+/** What the pill's one swatch wears. Absent only where the applied material is undeclared, which is
+ *  the same state that leaves the colour off the pill entirely. */
+function swatchWornBy(
+  applied: WholeKitchenChoice,
+): SettingsPillSwatch | undefined {
+  const finish = appliedFinishOf(applied);
+  if (finish === undefined) return undefined;
+  const swatch = swatchOf(finish);
+  return { colour: swatch.color, isWood: swatch.isWood };
+}
+
+function appliedFinishOf(applied: WholeKitchenChoice): Finish | undefined {
+  const lookup = lookUpMaterial(applied.materialTierId ?? DEFAULT_MATERIAL_ID);
+  if (lookup.kind === "undeclared") return undefined;
+  return applied.finish ?? lookup.material.defaultFinish;
+}
+
+/** A palette entry's declared name — looked up across **every** material's palette rather than the
+ *  applied one's, so a document carrying an entry from a material it has since left is still named
+ *  rather than shown an id. **A free colour returns nothing**: it has no name, and the pill draws it
+ *  rather than writing it. */
+function nameOfFinish(finish: Finish): string {
+  if (finish.kind === "free-colour") return "";
+  return (
+    PALETTE_ENTRIES.find((entry) => entry.entryId === finish.entryId)?.name ??
+    finish.entryId
+  );
+}
+
+/** What a screen reader is told about a colour the pill only draws. The visible pill shows a swatch;
+ *  a name has to be said, and for a free colour the only fact there is is the value itself. */
+function spokenColourOf(applied: WholeKitchenChoice): string {
+  const finish = appliedFinishOf(applied);
+  if (finish === undefined) return "";
+  return finish.kind === "free-colour"
+    ? ro.globalSettings.pillColourValue(finish.value)
+    : nameOfFinish(finish);
 }
 
 function toGroupView(

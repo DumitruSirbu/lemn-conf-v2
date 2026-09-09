@@ -31,6 +31,7 @@ import {
   useMemo,
   useRef,
   useState,
+  type CSSProperties,
   type KeyboardEvent as ReactKeyboardEvent,
   type Ref,
   type RefObject,
@@ -51,6 +52,7 @@ import {
   chooseTierIn,
   describeApplyRefusal,
   describeGlobalSettings,
+  describePillRung,
   resolveOpeningChoice,
   type ApplyRefusal,
   type GlobalSettingsView,
@@ -63,9 +65,12 @@ import {
 } from "./global-settings-model";
 import styles from "./global-settings.module.css";
 
-/** Frame D2E draws one beside the control. Decoration, and hidden from the accessibility tree: the
- *  control's name is the ruled string, not a glyph. */
+/** Frames D2A `:556` and D2E `:959` draw the caret both ways round: `▾` shut, `⌃` open. Decoration,
+ *  and hidden from the accessibility tree — the control's name is the ruled string, not a glyph, and
+ *  `aria-expanded` is what states the surface's state. */
 const DISCLOSURE_GLYPH = "⌃";
+
+const CLOSED_GLYPH = "▾";
 
 /** Frames 2E / D2E carry the same round information mark the breakdown's note does. */
 const NOTE_GLYPH = "i";
@@ -84,7 +89,14 @@ const NOTE_GLYPH = "i";
 const TAB_STOP_SELECTOR =
   'button:not([disabled]), input[type="radio"]:checked:not([disabled])';
 
-export function GlobalSettings() {
+interface GlobalSettingsProps {
+  /** How many settings the pill names, decided from the row's measured track by
+   *  `configure/use-top-bar-fit.ts`. **Not decided here**: the fit is a value over measured widths
+   *  and no component may take it (ADR 0104 decision 3). */
+  readonly visibleCount: number;
+}
+
+export function GlobalSettings({ visibleCount }: GlobalSettingsProps) {
   const pricing = usePricedDesign();
   const offer = useWholeKitchenTierOffer();
   const design = useConfiguratorStore((state) => state.design);
@@ -92,10 +104,6 @@ export function GlobalSettings() {
   const applyWholeKitchenSettings = useConfiguratorStore(
     (state) => state.applyWholeKitchenSettings,
   );
-  // Only the figure's *label* reads this — the total itself does not move under a refusal. Taken
-  // here so the sheet cannot say *"De la"* over the bar it is covering while the bar behind the
-  // scrim says *"De la neschimbat"*.
-  const rejection = useConfiguratorStore((state) => state.lastRejection);
   // **The two fields wave 6G never selected** (M6-AUD-001). Without them this surface had no locked
   // state at all: its trigger, its radios and its *Aplică* stayed live on a read-only `/d/{id}` link
   // while §9's panel one band away was correctly greyed. The rule itself is
@@ -154,10 +162,12 @@ export function GlobalSettings() {
     groups,
     applied,
     pending,
-    rejection,
     chosenColourCount,
     globalFinishWouldBeLost,
   });
+  // What the pill draws at the rung the row's measurement put it on. The rung is a count, taken
+  // there; what that count *names* is composed here, from the same model the sheet renders.
+  const rung = describePillRung(view.pill, visibleCount);
 
   const close = useCallback(() => {
     setIsOpen(false);
@@ -292,25 +302,24 @@ export function GlobalSettings() {
       data-testid="global-settings"
       ref={anchorRef}
     >
-      <div className={styles.chips} data-testid="global-settings-chips">
-        {view.chips.map((chip) => (
-          <span key={chip.key} className={styles.chip}>
-            {chip.label}
-          </span>
-        ))}
-      </div>
-      {/* **Greyed and unclickable with the reason** (§13.1, M6-AUD-001). The reason travels as the
-          button's own description rather than as a line beside it: ADR 0082's containment holds the
-          whole strip inside the viewport at every chip count, and a sentence added to this row is
+      {/* **Frames D2A / 2A's pill, and it is the trigger** (ADR 0104 decision 2): no frame draws a
+          separate *Setări globale* control, so `ro.globalSettings.open` is this button's accessible
+          name rather than visible text — through `pillNameAllSettings`, which states **every**
+          setting whether or not the pill has room to draw it. `+N` is a visual economy and must not
+          cost a screen-reader user a setting.
+
+          **Greyed and unclickable with the reason** (§13.1, M6-AUD-001). The reason travels as the
+          button's own description rather than as a line beside it: a sentence added to this row is
           exactly what pushed the trigger's right edge off a 390 px screen once already. Nothing is
-          hidden by locking it — the two chips beside it already name both stored tiers. */}
+          hidden by locking it — the pill still names what the kitchen carries. */}
       <button
         type="button"
         ref={triggerRef}
-        className={styles.trigger}
+        className={styles.pill}
         aria-haspopup="dialog"
         aria-expanded={isOpen}
         aria-controls={surfaceId}
+        aria-label={view.pill.accessibleName}
         data-testid="global-settings-trigger"
         disabled={editability.isReadOnly}
         {...(editability.isReadOnly
@@ -321,9 +330,56 @@ export function GlobalSettings() {
           : {})}
         onClick={openSheet}
       >
-        {view.openLabel}
-        <span className={styles.chevron} aria-hidden="true">
-          {DISCLOSURE_GLYPH}
+        {/* **One swatch, and it wears the kitchen's colour** (owner, 2026-09-09). Both frames draw
+            one, at the head of the pill, over a fixed decor texture; the colour it actually carries
+            is the adapter's own value for the applied finish, published as a custom property so the
+            pill, §9's chips and the 3D all paint from one declared colour. A wood derives its grain
+            from that same value — `global-settings.module.css`, in the language
+            `editor-panel.module.css` already speaks. */}
+        <span
+          className={styles.swatch}
+          aria-hidden="true"
+          {...(view.pill.swatch === undefined
+            ? {}
+            : {
+                style: {
+                  "--pill-swatch-colour": view.pill.swatch.colour,
+                } as CSSProperties,
+                "data-wood": view.pill.swatch.isWood ? "true" : "false",
+              })}
+        />
+        {rung.labels.map((label, position) => (
+          <Fragment key={label}>
+            {position === 0 ? null : (
+              <span className={styles.separator} aria-hidden="true" />
+            )}
+            {/* **Only the first label may ever ellipsise**, which is frame D2A's own arrangement and
+                the ladder's floor: at every other rung a label that does not fit is counted rather
+                than cut, and at the floor the first label is the only one left. */}
+            <span
+              className={
+                position === 0
+                  ? [styles.label, styles.leadLabel].join(" ")
+                  : styles.label
+              }
+              data-testid="global-settings-pill-label"
+            >
+              {label}
+            </span>
+          </Fragment>
+        ))}
+        {rung.counter === undefined ? null : (
+          <span
+            className={styles.counter}
+            data-testid="global-settings-pill-count"
+          >
+            {rung.counter}
+          </span>
+        )}
+        {/* Frame D2E flips the caret when the surface is open; frame 2A draws none at all, which
+            `global-settings.module.css` decides rather than this component. */}
+        <span className={styles.caret} aria-hidden="true">
+          {isOpen ? DISCLOSURE_GLYPH : CLOSED_GLYPH}
         </span>
       </button>
       {isOpen ? (

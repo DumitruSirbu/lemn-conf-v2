@@ -5,111 +5,195 @@
  * **The scrim is drawn on both shells**, which is where this file and `price-breakdown.module.css`
  * deliberately differ: that surface is a list to read and stays non-modal, this one holds
  * uncommitted state. `global-settings.tsx`'s head comment carries the reason. */
-/* **The chips box and the trigger, and the trigger never joins the wrap** (ADR 0082 decision 4).
- * `nowrap` here is what keeps the trigger's position a function of the viewport rather than of how
- * many settings the strip names — a control that moves down the screen as an unrelated setting is
- * added is a control a customer has to hunt for. */
+/* **The pill, and it is also the trigger** (ADR 0104 decision 2). Frames D2E and 2E draw the same
+ * control open and shut, so there is no separate *Setări globale* button in any frame: the strip and
+ * its text trigger are withdrawn, and `ro.globalSettings.open` is the pill's accessible name rather
+ * than visible text.
+ *
+ * This element is the pill's positioning context and nothing else. It carries `min-width: 0` for
+ * ADR 0082 decision 1's reason — a flex item's automatic minimum size is its min-content width, so
+ * without it the pill would size to its own content and grow past the track it stands in, which is
+ * how `global-settings-trigger`'s right edge once reached 412 on a 390 px screen. */
 .anchor {
   position: relative;
   display: flex;
-  flex: 1;
-  flex-wrap: nowrap;
-  gap: 9px;
-  align-items: center;
-  min-width: 0;
-  padding: 9px 11px;
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: 10px;
-}
-
-/* Frame 2E's strip reads the two settings as one line; frame D2E draws them as two pills. Same two
- * elements either way. */
-/* **The chips wrap, and nothing on this strip leaves the viewport at any chip count**
- * (ADR 0082 decisions 1 and 2) — a rule about the row rather than a width that happens to fit
- * today's chips.
- *
- * The comment this replaces claimed a fourth chip *"narrows the three rather than breaking
- * anything"*. That was measurably false: at three chips the row was 442 px on a 390 px screen and
- * `global-settings-trigger`'s right edge landed at 412, off the screen. The correction is not a new
- * prediction — the containment is asserted, at two, three, four and five chips, by
- * `apps/web/tests/e2e/settings-strip-containment.e2e.spec.ts` at 390 × 844 and by its
- * `.desktop.e2e.spec.ts` sibling at 900 and 1440, and those assertions are what a later reader
- * should trust rather than this paragraph.
- *
- * **What contains it.** `configure.module.css`'s `.settingsRow` no longer sizes to its content: it
- * declares `min-width: 0`, so the band is its grid track rather than its contents, and on desktop
- * that track is **a full-width row of the screen's grid** (ADR 0094 decision 2) rather than a column
- * beside the nav and the price. It was the flexible middle column until 2026-09-06, and that made
- * the strip's width the residue of a book-authored tier name and a flagged total's sentence: at 900
- * px on a flagged design the residue was 78.98 px, this box computed to 0, and each chip rendered
- * 28 px. Here, `flex-wrap: wrap` spends the overflow on vertical height instead — the owner's ruling
- * of 2026-09-05 — which the stage's `minmax(0, 1fr)` row track absorbs and the price bar does not.
- *
- * **Not a scroll container, in either axis.** The `overflow: hidden` that used to sit here is gone
- * with the shrinking it enabled: hiding a chip is the failure this fixes, not a smaller version of
- * it. Horizontal scrolling is refused outright (decision 2) — it hides a control behind a gesture
- * with no affordance saying it is there. */
-.chips {
-  display: flex;
-  flex: 1;
-  flex-wrap: wrap;
-  gap: 6px 10px;
-  min-width: 0;
-}
-
-/* **A chip is never narrowed below the line it is alone on** (ADR 0082 decision 3). `flex: 0 0 auto`
- * is what makes the box wrap rather than shrink, so a chip that does not fit beside its neighbour
- * moves to the next line at full width instead of ellipsising beside it.
- *
- * The ellipsis survives for exactly one case: a single label longer than a whole line, which
- * `max-width: 100%` clamps. **No numeric `min-width` is declared** — the floor is the line, so it
- * scales with the viewport instead of needing to be re-picked at each one. `min-width: 0` stays
- * because `min-width: auto` would otherwise win over that clamp and put the label back off-screen. */
-.chip {
-  flex: 0 0 auto;
+  flex: 0 1 auto;
+  justify-content: flex-end;
   min-width: 0;
   max-width: 100%;
-  overflow: hidden;
-  font: 400 11.5px/1.3 var(--font-ui);
-  color: var(--ink-muted);
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
-/* **The tappable box is the pill, not the line of text** — `docs/BACKLOG.md` entry 33, closed by
- * ADR 0082 decision 8. With `padding: 0` this button's own box was the 13 px text line box while the
- * 40 px pill the customer sees is `.anchor`, a different element; a miss landed on the strip and did
- * nothing. The floor is `--touch-target`, the 44 px token `globals.css` already declares, and never
- * a smaller number chosen to sit prettily in a line of text.
+/* Frame 2A `:486`: the mobile chip — `gap: 6px; max-width: 150px; padding: 7px 9px;
+ * border-radius: 9px`, over frame D2A's pill in the desktop branch below.
  *
- * It grows the strip and pushes no chip off the line it is on: `.anchor` centres its two items and
- * the chips box wraps within the width this one leaves, which `flex: 0 0 auto` keeps constant. */
-.trigger {
+ * **`max-width` is the frame's own and it is not a containment device.** What keeps this control
+ * inside its band is the track it stands in plus `min-width: 0` above; what this declares is how
+ * wide frame 2A draws the chip.
+ *
+ * **No numeric `min-width` anywhere on this control, on a label or on the counter** (ADR 0082
+ * decision 3, kept whole by ADR 0104 decision 9). The floor of the ladder is one label and a
+ * counter, and the label's own floor is `min-width: 0` plus the mockups' `text-overflow: ellipsis`.
+ *
+ * A `button`, unlike the pill in the frames — this one *does* something, and the sheet it opens is
+ * reached by keyboard as well as by pointer. Its 44 px target is a pseudo-element rather than a
+ * `min-height`: at frame 2A's 27 px it is shorter than the token, and a `min-height` would make it
+ * the header row's tallest child and lift the band off the frame's own 50 px (ADR 0104 decision 5). */
+.pill {
+  position: relative;
   display: flex;
-  flex: 0 0 auto;
+  flex: 0 1 auto;
   gap: 6px;
   align-items: center;
-  min-height: var(--touch-target);
-  padding: 0 4px;
-  font: 700 11.5px/1 var(--font-ui);
-  color: var(--accent);
+  min-width: 0;
+  max-width: 150px;
+  padding: 7px 9px;
+  font: 700 11px/1 var(--font-ui);
+  color: var(--ink-muted);
   cursor: pointer;
-  background: none;
-  border: none;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 9px;
+}
+
+/* **The tappable box, expanded without changing the painted one.** It overflows the pill
+ * vertically and never horizontally, which matters: ADR 0082 decision 1's clip predicate reads
+ * `scrollWidth`, so a hit area wider than the control would report the control as cut. */
+.pill::after {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 100%;
+  height: var(--touch-target);
+  content: "";
+  transform: translateY(-50%);
 }
 
 /* §13.1's greying, on the control that opens the sheet. The reason travels as the button's own
- * `title` rather than as a line here — ADR 0082's containment holds this strip inside the viewport
- * at every chip count, and a sentence added to the row is what pushed the trigger off a 390 px
- * screen once already. */
-.trigger:disabled {
+ * `title` rather than as a line beside it — a sentence added to this row is what pushed the trigger
+ * off a 390 px screen once already. Nothing is hidden by locking it: the pill still names what the
+ * kitchen carries. */
+.pill:disabled {
   color: var(--ink-faint);
   cursor: default;
 }
 
-.chevron {
-  font-size: 13px;
+/* Frame 2A `:487`: 14 px, `border-radius: 3px`. **It is drawn at every rung, including the floor**
+ * (ADR 0104 decision 3) — the pill's minimum content is the swatch, one label and the counter, never
+ * a bare `+3`.
+ *
+ * **It wears the kitchen's own colour, which is the frames' one departure here and an owner ruling**
+ * (2026-09-09): *"if MDF the value interpreted (real color)"*. Applying that to every finish rather
+ * than to the one material whose colours have no names keeps a single rule — and the frames' fixed
+ * decor gradient was standing in for exactly this. The value arrives as `--pill-swatch-colour` from
+ * `global-settings.tsx`, which reads the adapter's own colour for the finish, so no hex is written
+ * here: a second hex is how the swatch and the scene come to disagree about one decor.
+ *
+ * The gradient below is the frames' own and is what a pill with no declared palette still draws. */
+.swatch {
+  flex: 0 0 14px;
+  width: 14px;
+  height: 14px;
+  background: repeating-linear-gradient(0deg, #d9d2c6 0 3px, #cfc7b9 3px 6px);
+  border: 1px solid #c4bcae;
+  border-radius: 3px;
+}
+
+.swatch[data-wood] {
+  background: var(--pill-swatch-colour);
+}
+
+/* A wood reads as timber rather than as a flat square, and the grain is **derived** from the same
+ * one custom property — `color-mix` darkens it for the stripe instead of naming a second colour.
+ * The rule `editor-panel.module.css` already states, at this size. */
+.swatch[data-wood="true"] {
+  background: repeating-linear-gradient(
+    90deg,
+    var(--pill-swatch-colour) 0 2px,
+    color-mix(in srgb, var(--pill-swatch-colour) 88%, #000) 2px 4px
+  );
+}
+
+/* **A label is drawn whole or it is counted** (ADR 0104 decision 3), so every label but the first is
+ * `nowrap` at its full width and the count is what gives. */
+.label {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+/* **Rung 4, and the mockups' own declaration is what performs it.** Both files declare
+ * `min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap` on the material's
+ * label and that declaration stands exactly as written. It is the last resort — the width at which
+ * not even one whole label fits — and never the normal state: at every other rung a label that does
+ * not fit is counted rather than cut, which is why exactly one element on this control may ever
+ * report a clip. */
+.leadLabel {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Frame D2A `:553`'s `│`, drawn **between labels only**. The counter is separated from the last
+ * label by the pill's own gap and never by one of these — which is how frame 2A draws
+ * `PAL melaminat` beside `+2`. */
+.separator {
+  flex: 0 0 1px;
+  width: 1px;
+  height: 18px;
+  background: var(--line);
+}
+
+/* Frame 2A `:490`: `+2`, in the accent, tabular so the number does not shift the pill as it changes.
+ * **Derived, never a literal** — see `ro.globalSettings.pillCount`. */
+.counter {
+  flex: 0 0 auto;
+  font: 700 10px/1 var(--font-ui);
+  font-variant-numeric: tabular-nums;
+  color: var(--accent);
+}
+
+/* **Frame 2A draws no caret and frame D2A does**, so the shell's own frame decides — and the fit
+ * model reads the width this rule produces rather than being told a number. Hidden here means a
+ * measured zero there. */
+.caret {
+  display: none;
+  flex: 0 0 auto;
+  font: 400 11px/1 var(--font-ui);
+  color: var(--accent);
+}
+
+/* The hidden node the pill's widths are measured from: one of every part, plus every label at its
+ * **whole** width, in the pill's exact typography.
+ *
+ * **Keyed on the label strings** by the component, so a locale change re-measures rather than
+ * reusing a stale width — M6B exists to change exactly these strings. `visibility: hidden` rather
+ * than `display: none`, because a box with no layout has no width to read.
+ *
+ * The probe carries the pill's own class, so every number the fit model spends — the frame, the gap,
+ * the swatch, the separator, the caret — is **the stylesheet's**, read back out at the shell the
+ * browser is actually at. Nothing here is restated in TypeScript. */
+.measure {
+  position: absolute;
+  top: 0;
+  /* **Off to the left, and the direction is the point.** A hidden probe wider than the viewport
+   * placed to the right adds its overflow to the document's `scrollWidth`, which is the very number
+   * ADR 0082 decision 1 asserts against — measured 397 on a 390 px screen. Leftward overflow creates
+   * no scrollable area in a left-to-right document, and the box still lays out at its intrinsic
+   * width, which is what makes it measurable at all. */
+  left: -9999px;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+/* The probe measures intrinsic widths, so nothing in it may be clamped or ellipsised. */
+.measure .pill {
+  max-width: none;
+}
+
+.measure .leadLabel {
+  flex: 0 0 auto;
+  min-width: auto;
+  overflow: visible;
 }
 
 .scrim {
@@ -417,46 +501,55 @@
   color: var(--ink);
 }
 
-/* Frame D2E: two pills and a text control in the top bar, and a 900 px popover hanging under them
- * over a dimmed screen. Same markup, same model — a different box. */
+/* Frame D2E: **one pill** in the top bar and a 900 px popover hanging from it over a dimmed screen.
+ * Same markup, same model — a different box. The two chips and the text control this branch used to
+ * style are withdrawn with the strip itself (ADR 0104 decision 2). */
 @media (min-width: 900px) {
-  /* The pill styling forks here; **the flex does not** (ADR 0082 decision 6). This rule used to add
-   * `flex: 0 0 auto`, which cannot shrink and is what let the strip overflow the top bar's settings
-   * column instead of wrapping inside it. Containment is not one of §10.1's permitted layout forks, so
-   * the base rule's `flex: 1; min-width: 0` governs both shells and only the paint differs here. */
-  .anchor {
-    gap: 10px;
-    padding: 0;
-    background: none;
-    border: none;
-    border-radius: 0;
-  }
-
-  /* Frame D2E draws the chips against the trigger, so on desktop they cluster at the right-hand end
-   * of the band and the slack is taken from the left. On mobile the strip starts at the screen's
-   * left edge and this does not apply.
+  /* Frame D2A `:549`: the pill — `gap: 10px; height: 40px; padding: 0 14px; border-radius: 20px`,
+   * over frame 2A's chip above.
    *
-   * **This alignment is paint, and it is only safe because the band is now a row** (ADR 0094
-   * decision 2). Laying a box's overflow out leftwards is what painted the chips inside the step
-   * nav's column when this box computed to 0 px; ADR 0094 criterion 4b — every chip inside
-   * `.settingsRow`'s own box on all four edges — is what holds it either way, and it is asserted in
-   * `tests/e2e/settings-strip-containment.desktop.e2e.spec.ts` rather than promised here. */
-  .chips {
+   * **`max-width: 460px` is not taken, and the withdrawal is named rather than left to be
+   * discovered.** The frame declares it around the **three** settings it draws; the owner's ruling
+   * of 2026-09-09 put the kitchen's colour on the pill, and four whole labels measure 471.68 px in
+   * this application's own type. Honouring 460 would mean the pill could never name every setting at
+   * any width — the depth would be counted at 1920 px — which is the opposite of what the cap was
+   * drawn to allow. It is withdrawn for the reason ADR 0104 decision 3 gives about the three labels
+   * themselves: *"D2A draws three because it predates the colour, not because the fourth is
+   * excluded."* What bounds the pill instead is its track and the ladder, both measured. */
+  .pill {
     gap: 10px;
-    justify-content: flex-end;
-  }
-
-  .chip {
-    padding: 9px 12px;
-    font-size: 12.5px;
+    height: 40px;
+    max-width: none;
+    padding: 0 14px;
+    font: 400 12.5px/1 var(--font-ui);
     color: var(--accent-strong);
-    background: var(--surface);
-    border: 2px solid var(--accent);
-    border-radius: var(--radius-chip);
+    border-radius: 20px;
   }
 
-  .trigger {
-    font-size: 12.5px;
+  /* Frame D2E `:953`: the open state is the same pill recoloured, with a `#7c5c3d` border — and its
+   * caret flipped, which the component does. */
+  .pill[aria-expanded="true"] {
+    background: #ece7dd;
+    border-color: var(--accent);
+  }
+
+  .swatch {
+    flex: 0 0 16px;
+    width: 16px;
+    height: 16px;
+    background: repeating-linear-gradient(0deg, #d9d2c6 0 4px, #cfc7b9 4px 8px);
+    border-radius: 4px;
+  }
+
+  .counter {
+    font: 400 12.5px/1 var(--font-ui);
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Frame D2A `:556` draws it; frame 2A does not, and that difference is the whole of the caret's
+   * rule on either shell. */
+  .caret {
+    display: block;
   }
 
   /* **The popover is bounded by the screen it hangs in, not only by a drawn height**
@@ -468,16 +561,18 @@
    *
    * The inset declared on the base rule is not repeated: a desktop viewport has no home indicator,
    * and `env()` resolves to its `0px` fallback there anyway. */
+  /* Frame D2E `:961`: the popover hangs from the pill's **right** edge, `top: calc(100% + 33px)`,
+   * and is 900 px wide there. The width is the frame's; `max-width` keeps it inside a 900 px
+   * viewport, which the frame — drawn at 1920 — has nothing to say about. */
   .surface {
     position: absolute;
-    top: 100%;
-    right: auto;
+    top: calc(100% + 33px);
+    right: 0;
     bottom: auto;
-    left: 0;
-    width: 640px;
+    left: auto;
+    width: 900px;
     max-width: calc(100vw - 48px);
     max-height: min(660px, calc(100dvh - var(--popover-top) - var(--safe-gap)));
-    margin-top: 16px;
     border: 1px solid var(--line);
     border-radius: 16px;
     box-shadow: 0 22px 48px rgb(28 24 20 / 22%);

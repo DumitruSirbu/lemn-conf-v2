@@ -77,7 +77,6 @@ function confirmingView(): GlobalSettingsView {
     groups: projectDesignForDisplay(design, KITCHEN_L_BODY_CATALOG),
     applied: { materialTierId: MDF_TIER_ID },
     pending: { materialTierId: VENEER_TIER_ID },
-    rejection: null,
     chosenColourCount: countCabinetsWearingAChosenFinish(design),
   });
 }

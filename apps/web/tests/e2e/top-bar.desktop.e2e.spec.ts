@@ -6,7 +6,7 @@ import { expect, test } from "@playwright/test";
  * **900 as well as 1440.** The header shares grid row 1 with the price cell across a
  * `minmax(0, 1fr)` column, so its tightest case is the first pixel of the `min-width: 900px` branch
  * and not the width the project happens to run at — the same reason
- * `settings-strip-containment.desktop.e2e.spec.ts` gives for measuring both. 900 x 500 is also the
+ * `top-bar-pill-containment.desktop.e2e.spec.ts` gives for measuring both. 900 x 500 is also the
  * short viewport `--popover-top` was introduced for.
  *
  * ## Frame D2A draws a 76 px bar, and since 2026-09-07 so does this
@@ -18,8 +18,13 @@ import { expect, test } from "@playwright/test";
  *
  * **The owner has now ruled: on desktop a taller top bar is fine, and the 21 px is accepted.** So
  * this file asserts the frame's height beside its arrangement and typography, and asserts the cost
- * as a number — the canvas is the viewport less this band and the settings strip, 21 px shorter than
- * the base commit left it, with nothing unaccounted for in between.
+ * as a number.
+ *
+ * ## And since ADR 0104 there is **one** band, not two
+ *
+ * The settings strip's own row is withdrawn (decision 2), so the partition below has two terms
+ * rather than three: the band and the canvas account for the whole viewport. That is the assertion
+ * that catches a second band reappearing by accident — which is what this wave exists to remove.
  */
 
 const SCENE_SETTLE_MS = 2000;
@@ -35,14 +40,19 @@ const DESKTOP_VIEWPORTS = [
  *  against. Kept as the figure the ruled cost below is measured from. */
 const BAND_HEIGHT_AT_BASE_COMMIT_PX = 55;
 
-/** Frame D2A's own bar, taken on the owner's 2026-09-07 ruling: `17.5 + 40 + 17.5` of padding around
- *  the locale chip, plus the band's 1 px rule (`configure.module.css`). */
+/** Frame D2A's own `height: 76px`, **declared rather than summed** since ADR 0104: the frame's
+ *  `Verifică designul` is 48 px and does not fit inside the 40 px chip the old sum was built around
+ *  (`configure.module.css`). */
 const RULED_BAND_HEIGHT_PX = 76;
 
 /** What the ruling spends. The stage is `.screen`'s only flexible row, so the band's gain is the
  *  canvas's loss, at every desktop width. */
 const RULED_CANVAS_COST_PX =
   RULED_BAND_HEIGHT_PX - BAND_HEIGHT_AT_BASE_COMMIT_PX;
+
+/** The withdrawn settings strip's own desktop band, measured at `6d53d38` before this wave: 45.00 px
+ *  at 900, 1000, 1100, 1440 and 1920, with the canvas beginning at y = 121 at every one of them. */
+const STRIP_BAND_AT_BASE_COMMIT_PX = 45;
 
 const SUB_PIXEL_SLACK = 0.5;
 
@@ -102,11 +112,10 @@ async function measureScreen(page: import("@playwright/test").Page) {
       if (!element) throw new Error(`no ${selector} on the page`);
       return element.getBoundingClientRect();
     };
-    const strip = document.querySelector('[data-testid="global-settings"]');
-    const band = strip?.parentElement;
-    if (!band) throw new Error("the settings strip has no band around it");
     const header = boxOf("header");
     const chip = boxOf('[data-testid="top-bar-locale"]');
+    const pill = boxOf('[data-testid="global-settings-trigger"]');
+    const cta = boxOf('[data-testid="review-cta"]');
 
     return {
       viewport: {
@@ -115,12 +124,19 @@ async function measureScreen(page: import("@playwright/test").Page) {
       },
       header: header.height,
       headerRight: header.right,
-      settings: band.getBoundingClientRect().height,
       canvas: boxOf("canvas").height,
-      chip: { right: chip.right, height: chip.height },
-      // The wordmark takes the mobile back control's slot on this shell; both are addressed through
-      // the row's own children rather than by a CSS-module hash no spec can name.
-      clippedSpans: [...document.querySelectorAll("header span")]
+      canvasTop: boxOf("canvas").top,
+      chip: { right: chip.right, height: chip.height, left: chip.left },
+      pill: { left: pill.left, right: pill.right, height: pill.height },
+      cta: { left: cta.left, right: cta.right, height: cta.height },
+      // **Every control in the row, not only the nav's own spans.** The row carries five cells since
+      // ADR 0104 decision 2 — the pill, the price and the CTA joined the three that were here — and a
+      // clip predicate that read one cell would be blind to the four that this wave added.
+      clippedSpans: [
+        ...document.querySelectorAll(
+          "main header span, main [data-testid] span",
+        ),
+      ]
         .filter((span) => span.textContent.trim().length > 0)
         .filter((span) => span.scrollWidth - span.clientWidth > 1)
         .map((span) => span.textContent),
@@ -141,6 +157,27 @@ for (const viewport of DESKTOP_VIEWPORTS)
       // Frame D2A's chip, at its own drawn height, centred in that band. The chip is unchanged by
       // the ruling: the band grew around it, which is how the frame itself draws the two.
       expect(measured.chip.height).toBe(40);
+      // The two controls the frame draws beside it, at their own declared heights — and the CTA's 48
+      // is what killed the sum this band used to be (ADR 0104).
+      expect(measured.pill.height).toBe(40);
+      expect(measured.cta.height).toBe(48);
+    });
+
+    test("draws frame D2A's own order across the row: pill, price, CTA, locale", async ({
+      page,
+    }) => {
+      // Criterion 7. The frame's arrangement is a fact about left edges, so that is what is
+      // measured; the three dividers between them are `::before` pseudo-elements and are asserted by
+      // the stylesheet gate rather than here.
+      await page.setViewportSize(viewport);
+      await waitForTheViewportToReachTheCanvas(page, viewport);
+      const measured = await measureScreen(page);
+
+      expect(measured.pill.left).toBeLessThan(measured.cta.left);
+      expect(measured.cta.left).toBeLessThan(measured.chip.left);
+      expect(measured.chip.right).toBeLessThanOrEqual(
+        measured.viewport.width + SUB_PIXEL_SLACK,
+      );
     });
 
     test("draws the locale chip at the row's right-hand end, inside the screen", async ({
@@ -153,12 +190,13 @@ for (const viewport of DESKTOP_VIEWPORTS)
       expect(measured.chip.right).toBeLessThanOrEqual(
         measured.viewport.width + SUB_PIXEL_SLACK,
       );
-      // `margin-left: auto` puts it against the header cell's own right edge, which is what "pushed
-      // right" means once the price cell takes the rest of the row.
-      expect(measured.chip.right).toBeLessThanOrEqual(
-        measured.headerRight + SUB_PIXEL_SLACK,
+      // **The chip is a cell of its own now** (ADR 0104 decision 2), placed after the CTA by the
+      // grid rather than pushed by `margin-left: auto` inside the header — so what says "at the
+      // row's right-hand end" is its distance from the screen's edge, not from the nav's.
+      expect(measured.viewport.width - measured.chip.right).toBeLessThanOrEqual(
+        28 + SUB_PIXEL_SLACK,
       );
-      expect(measured.chip.right).toBeGreaterThan(measured.headerRight - 30);
+      expect(measured.chip.left).toBeGreaterThan(measured.headerRight);
     });
 
     test("cuts none of the row's own copy", async ({ page }) => {
@@ -166,14 +204,15 @@ for (const viewport of DESKTOP_VIEWPORTS)
       // cell has to be wide enough for them beside the price cell. At 900 that is the tight case,
       // and this is the assertion that fails if it stops being true.
       //
-      // **The 76 px ruling does not relieve this and does not worsen it.** The row is a single
-      // `align-items: center` line: its min-content width is the three fixed items, two 20 px gaps,
-      // the chip and the 36 px inset, none of which the ruling touches, and the band's extra height
-      // is not a currency width can spend. If it ever does fail here, the wordmark is the item that
-      // would have to give — it is the only child of the row that carries no state (the pill is the
-      // step, the title is the screen, the chip is the locale) and it is 15 px of type at 0.22em
-      // tracking, the widest fixed item after the title. Dropping it is a copy decision under the
-      // owner's Gate O1, not an implementer's, so this stays an assertion rather than a workaround.
+      // **The reservation this comment used to carry has been discharged by the owner.** It said:
+      // *"If it ever does fail here, the wordmark is the item that would have to give … Dropping it
+      // is a copy decision under the owner's Gate O1, not an implementer's, so this stays an
+      // assertion rather than a workaround."* On 2026-09-09 the question went to the owner with a
+      // measurement and **they ruled that the wordmark drops** below the width at which the pill can
+      // still show one whole setting name (ADR 0104 decision 8, give C). So at 900 this row draws no
+      // wordmark — and this assertion is stronger for it: nothing that *is* drawn may be cut, at
+      // either width, and the pill's own label is the one exception the ladder allows and does not
+      // need here.
       await page.setViewportSize(viewport);
       await waitForTheViewportToReachTheCanvas(page, viewport);
       const measured = await measureScreen(page);
@@ -181,33 +220,35 @@ for (const viewport of DESKTOP_VIEWPORTS)
       expect(measured.clippedSpans).toEqual([]);
     });
 
-    test("leaves the scene the viewport less the two bands, 21 px shorter than the base commit by decision", async ({
+    test("leaves the scene the viewport less one band, and gains the withdrawn strip's row", async ({
       page,
     }) => {
       await page.setViewportSize(viewport);
       await waitForTheViewportToReachTheCanvas(page, viewport);
       const measured = await measureScreen(page);
 
-      // Measured on the canvas, which is the thing the criterion is about. On this shell the price
-      // shares the header's row, so the bands above the scene are the header row and the settings
-      // strip and nothing else.
-      const canvasAtBaseCommit =
-        measured.viewport.height -
-        BAND_HEIGHT_AT_BASE_COMMIT_PX -
-        measured.settings;
-
-      // An equality, not a floor: a floor is satisfied by any canvas at all once the band is allowed
-      // to grow, and the ruling bought a **known** 21 px rather than an open-ended one.
-      expect(measured.canvas).toBeCloseTo(
-        canvasAtBaseCommit - RULED_CANVAS_COST_PX,
-        0,
-      );
-      // And the partition, unchanged by the ruling and still the point: the canvas and the bands
-      // account for the whole viewport, so a third band appearing by accident is caught here rather
-      // than by someone noticing the scene looks short.
-      expect(measured.header + measured.settings + measured.canvas).toBeCloseTo(
+      // **The partition, and it now has two terms.** ADR 0104 decision 2 withdrew the settings
+      // strip's row, so the band and the canvas account for the whole viewport — which is the
+      // assertion that catches a second band reappearing, at any width, by any route.
+      expect(measured.header + measured.canvas).toBeCloseTo(
         measured.viewport.height,
         0,
       );
+      expect(measured.canvasTop).toBeCloseTo(RULED_BAND_HEIGHT_PX, 0);
+
+      // The scene against the base commit: it pays the ruled 21 px for the frame's band and is given
+      // back the 45 px strip band measured at `6d53d38`, so it is **24 px taller** than it was.
+      const canvasAtBaseCommit =
+        measured.viewport.height -
+        BAND_HEIGHT_AT_BASE_COMMIT_PX -
+        STRIP_BAND_AT_BASE_COMMIT_PX;
+
+      expect(measured.canvas).toBeCloseTo(
+        canvasAtBaseCommit +
+          STRIP_BAND_AT_BASE_COMMIT_PX -
+          RULED_CANVAS_COST_PX,
+        0,
+      );
+      expect(measured.canvas).toBeGreaterThan(canvasAtBaseCommit);
     });
   });

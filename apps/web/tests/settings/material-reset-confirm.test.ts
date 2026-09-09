@@ -124,7 +124,6 @@ function viewFor(options: {
     groups: projectDesignForDisplay(design, KITCHEN_L_BODY_CATALOG),
     applied: options.applied ?? {},
     pending: options.pending ?? {},
-    rejection: null,
     chosenColourCount: countCabinetsWearingAChosenFinish(design),
   });
 }

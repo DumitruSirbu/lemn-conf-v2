@@ -97,13 +97,21 @@ function stateFor(design: Design): ConfiguratorState {
   return storeFor(design).getState();
 }
 
-/** The whole component — chips, control and whatever it decides to hang below them — as a page
- *  fragment. `useEffect` does not run in a static render, which is exactly the state this file is
- *  about: the sheet has never been opened. */
-function screenMarkupFor(design: Design): string {
+/** The whole component — the pill that names the settings, and whatever it decides to hang below it
+ *  — as a page fragment. `useEffect` does not run in a static render, which is exactly the state this
+ *  file is about: the sheet has never been opened.
+ *
+ *  **`visibleCount` is a prop since ADR 0104 decision 2**: how many settings the pill names is
+ *  decided from the row's measured track, above this component, and is asserted as a value in
+ *  `settings-pill-fit.test.ts`. Rendered here at its top rung — every setting named — because what
+ *  these cases are about is *which words* the pill puts on the screen, not how many of them fit. */
+function screenMarkupFor(design: Design, visibleCount = EVERY_SETTING): string {
   storeState.current = stateFor(design);
-  return renderToStaticMarkup(createElement(GlobalSettings));
+  return renderToStaticMarkup(createElement(GlobalSettings, { visibleCount }));
 }
+
+/** The four settings frame D2A's pill names, in ADR 0099 decision 9's order. */
+const EVERY_SETTING = 4;
 
 function designCarrying(selections: WholeKitchenSelections): Design {
   return { ...KITCHEN_L_DESIGN, settings: selections };
@@ -120,15 +128,18 @@ function tierNameIn(
   return tier.name;
 }
 
-function chipLabelsFor(
+/** The labels the pill draws for a given selection, composed as **frame D2A** composes them — the
+ *  material bare, the others a category word and a value with no `·` (ADR 0104 decision 1). The
+ *  colour and the depth are the third and fourth: the frame names the depth, and the owner's ruling
+ *  of 2026-09-09 put the colour on the pill. */
+function pillLabelsFor(
   selections: WholeKitchenSelections | undefined,
 ): string[] {
   return [
-    ro.priceBreakdown.wholeKitchenLabel(
-      ro.priceBreakdown.wholeKitchenCategories.material,
+    ro.globalSettings.pillMaterial(
       tierNameIn("material", selections?.materialTierId),
     ),
-    ro.priceBreakdown.wholeKitchenLabel(
+    ro.globalSettings.pillHardware(
       ro.priceBreakdown.wholeKitchenCategories.hardware,
       tierNameIn("hardware", selections?.hardwareTierId),
     ),
@@ -138,10 +149,15 @@ function chipLabelsFor(
 describe("with the sheet shut, what stands on the screen", () => {
   const closed = screenMarkupFor(KITCHEN_L_DESIGN);
 
-  it("is the two chips and the control that opens them, and nothing else that speaks", () => {
-    expect(closed).toContain('data-testid="global-settings-chips"');
+  it("is one pill, which is itself the control, and nothing else that speaks", () => {
+    // **No frame draws a text trigger** (ADR 0104 decision 2), so the ruled string is the control's
+    // accessible name rather than visible text — and every setting is in that name, whatever the
+    // pill has room to draw.
     expect(closed).toContain('data-testid="global-settings-trigger"');
-    expect(closed).toContain(ro.globalSettings.open);
+    expect(closed).toContain('data-testid="global-settings-pill-label"');
+    expect(closed).not.toContain('data-testid="global-settings-chips"');
+    expect(closed).toContain(`aria-label="${ro.globalSettings.open}`);
+    expect(closed).not.toContain(`>${ro.globalSettings.open}<`);
   });
 
   it("holds no dialog at all, rather than one that is merely covered or hidden", () => {
@@ -172,15 +188,20 @@ describe("with the sheet shut, what stands on the screen", () => {
       );
     if (!trigger?.[1]) throw new Error("no trigger was rendered");
 
-    const glyphs = [...trigger[1].matchAll(/<span([^>]*)>/g)];
+    // **The decoration only**, which is what the case is about: the swatch, the separators and the
+    // caret carry no words and are hidden, while the labels and the counter are the pill's own text
+    // and are not. The button's accessible name is its `aria-label` either way — every setting,
+    // whole — so nothing here can silently become the name.
+    const decoration = [...trigger[1].matchAll(/<span([^>]*)>(?:<\/span>)/g)];
 
-    expect(glyphs.length).toBeGreaterThan(0);
-    for (const [, attributes] of glyphs)
+    expect(decoration.length).toBeGreaterThan(0);
+    for (const [, attributes] of decoration)
       expect(attributes, trigger[1]).toContain('aria-hidden="true"');
+    expect(trigger[1]).toContain('aria-hidden="true">▾</span>');
   });
 });
 
-describe("the chips name what the design carries, at every state it can carry", () => {
+describe("the pill names what the design carries, at every state it can carry", () => {
   it("does so for the unset design, where the book's own defaults are what is applied", () => {
     // The unset state is "no tier chosen", not "no `settings` key". Wave 6J-a gives every design a
     // persisted `cabinetDepthMm`, so `settings` is now always present and the absence that matters
@@ -190,7 +211,7 @@ describe("the chips name what the design carries, at every state it can carry", 
 
     const markup = screenMarkupFor(KITCHEN_L_DESIGN);
 
-    for (const label of chipLabelsFor(undefined))
+    for (const label of pillLabelsFor(undefined))
       expect(markup, label).toContain(`>${label}</span>`);
   });
 
@@ -202,7 +223,7 @@ describe("the chips name what the design carries, at every state it can carry", 
         const selections = { materialTierId, hardwareTierId };
         const markup = screenMarkupFor(designCarrying(selections));
 
-        for (const label of chipLabelsFor(selections))
+        for (const label of pillLabelsFor(selections))
           expect(markup, `${materialTierId} / ${hardwareTierId}`).toContain(
             `>${label}</span>`,
           );
@@ -214,7 +235,7 @@ describe("the chips name what the design carries, at every state it can carry", 
     const oneSet = { hardwareTierId: HARDWARE_TIER_IDS.at(-1) ?? "" };
     const markup = screenMarkupFor(designCarrying(oneSet));
 
-    for (const label of chipLabelsFor(oneSet))
+    for (const label of pillLabelsFor(oneSet))
       expect(markup, label).toContain(`>${label}</span>`);
   });
 });
@@ -229,7 +250,7 @@ describe("the chips name what the design carries, at every state it can carry", 
  * customer holding a design nothing in the application could repair.
  *
  * So the list — book data — renders whenever the book does, and the numbers — pricing — do not. The
- * chips are in the same position as the list: they name the tier a design is priced at, which is the
+ * pill is in the same position as the list: it names the tier a design is priced at, which is the
  * book's default once the stored id is gone, and that is a fact about the book rather than a guess
  * about a price.
  */
@@ -248,12 +269,12 @@ describe("a design the book cannot price", () => {
     ).toBe(false);
   });
 
-  it("still renders the chips and the control that opens the list", () => {
+  it("still renders the pill and the control that opens the list", () => {
     const markup = screenMarkupFor(withdrawn);
 
     expect(markup).not.toBe("");
     expect(markup).toContain('data-testid="global-settings-trigger"');
-    expect(markup).toContain('data-testid="global-settings-chips"');
+    expect(markup).toContain('data-testid="global-settings-pill-label"');
   });
 
   it("shows no figure on the screen behind it, because there is no total to show", () => {
@@ -311,7 +332,6 @@ describe("the overflow flag travels with the total onto this surface too", () =>
       groups: projectDesignForDisplay(design, KITCHEN_L_BODY_CATALOG),
       applied: design.settings ?? {},
       pending: design.settings ?? {},
-      rejection: null,
       chosenColourCount: countCabinetsWearingAChosenFinish(design),
     });
     return view;
@@ -410,7 +430,6 @@ describe("the markup preconditions the focus trap is written against", () => {
       groups: projectDesignForDisplay(design, KITCHEN_L_BODY_CATALOG),
       applied: design.settings ?? {},
       pending: design.settings ?? {},
-      rejection: null,
       chosenColourCount: countCabinetsWearingAChosenFinish(design),
     });
     return renderToStaticMarkup(

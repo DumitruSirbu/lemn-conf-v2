@@ -70,6 +70,21 @@ function surfaceRulesOf(stylesheet: string): readonly string[] {
   );
 }
 
+/** How far below its anchor a surface hangs, in either spelling a stylesheet may use for it: a
+ *  `margin-top`, or the offset inside frame D2E's own `top: calc(100% + 33px)`. The number is what
+ *  `--popover-top` stands in for, so reading only one spelling would let the other change the
+ *  geometry without moving the budget. */
+function offsetBelowTheAnchorOf(name: string, desktopRule: string): number {
+  const declared =
+    /margin-top:\s*(\d+)px/.exec(desktopRule)?.[1] ??
+    /top:\s*calc\(100% \+ (\d+)px\)/.exec(desktopRule)?.[1];
+  if (!declared)
+    throw new Error(
+      `${name}'s desktop surface declares no offset below its anchor`,
+    );
+  return Number(declared);
+}
+
 function ruleBodyOf(stylesheet: string, selector: string): string {
   const escaped = selector.replaceAll(/[.[\]"=^$:()-]/g, "\\$&");
   const body = new RegExp(`${escaped}\\s*\\{([^}]*)\\}`).exec(stylesheet)?.[1];
@@ -98,22 +113,20 @@ describe("the token the clamp is built on", () => {
     // be a decision about the layout.
     const popoverTop = readPixelToken("popover-top");
     const safeGap = readPixelToken("safe-gap");
-    const marginTops = EVERY_POPOVER.map(({ name, stylesheet }) => {
-      const desktop = surfaceRulesOf(stylesheet).at(-1) ?? "";
-      const declared = /margin-top:\s*(\d+)px/.exec(desktop)?.[1];
-      if (!declared)
-        throw new Error(`${name}'s desktop surface declares no margin-top`);
-      return Number(declared);
-    });
-
-    expect(new Set(marginTops).size, "the two popovers hang differently").toBe(
-      1,
+    const offsets = EVERY_POPOVER.map(({ name, stylesheet }) =>
+      offsetBelowTheAnchorOf(name, surfaceRulesOf(stylesheet).at(-1) ?? ""),
     );
-    const marginTop = marginTops[0] ?? 0;
+
+    // **The two no longer hang alike, and the frames are why.** Frame D2E declares the settings
+    // popover at `top: calc(100% + 33px)` from the pill it hangs off; the breakdown keeps its 16 px
+    // margin. So the budget is taken from the **lowest** of them — the one that reaches furthest
+    // down the screen — rather than from a shared number that no longer exists. A shared assertion
+    // would have to be satisfied by changing a frame's own declaration.
+    const lowestHang = Math.max(...offsets);
     // The anchor's bottom may reach this far down the viewport before the clamped surface starts
     // eating into `--safe-gap`, and this far before it reaches past the screen entirely.
-    expect(popoverTop - marginTop).toBe(112);
-    expect(popoverTop + safeGap - marginTop).toBe(128);
+    expect(popoverTop - lowestHang).toBe(95);
+    expect(popoverTop + safeGap - lowestHang).toBe(111);
   });
 });
 
@@ -160,7 +173,9 @@ describe("both desktop popovers", () => {
       const desktop = surfaceRulesOf(stylesheet).at(-1) ?? "";
 
       expect(desktop, name).toContain("position: absolute");
-      expect(desktop, name).toContain("top: 100%");
+      // Either spelling of *hanging from the anchor*: `top: 100%`, or frame D2E's own
+      // `top: calc(100% + 33px)`. What is refused is a surface positioned against the viewport.
+      expect(desktop, name).toMatch(/top:\s*(?:100%|calc\(100% \+ \d+px\));/);
     }
   });
 });

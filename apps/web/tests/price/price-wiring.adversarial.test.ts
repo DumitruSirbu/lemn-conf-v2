@@ -121,7 +121,6 @@ describe("the optional pricing seam, wired end to end", () => {
     if (!priced.ok) throw new Error("expected the seeded design to price");
     expect(view.footer.price).toEqual(
       describeStartingPrice({
-        label: "De la",
         totalMinor: priced.priced.totalMinor,
       }),
     );
@@ -136,7 +135,6 @@ describe("the optional pricing seam, wired end to end", () => {
     const panel = readFromHook(usePanelView);
     const bar = describePriceBar({
       pricing: readFromHook(usePricedDesign),
-      rejection: null,
     });
     if (panel.kind !== "open" || bar.kind !== "priced")
       throw new Error("expected an open panel and a priced bar");
@@ -264,7 +262,6 @@ describe("no total is persisted, and no component computes one", () => {
     ].map((design) => {
       const view = describePriceBar({
         pricing: priceOf(design),
-        rejection: null,
       });
       if (view.kind !== "priced") throw new Error("expected a priced bar");
       return view.figure.amountText;

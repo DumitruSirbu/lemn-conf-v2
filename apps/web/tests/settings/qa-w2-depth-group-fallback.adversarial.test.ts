@@ -79,7 +79,6 @@ function displayedDepthOf(design: Design): number {
     groups: projectDesignForDisplay(design, KITCHEN_L_BODY_CATALOG),
     applied: design.settings ?? {},
     pending: resolveOpeningChoice(design.settings ?? {}, offer),
-    rejection: null,
     chosenColourCount: countCabinetsWearingAChosenFinish(design),
   });
   const selected = view.depthGroup.options.filter(

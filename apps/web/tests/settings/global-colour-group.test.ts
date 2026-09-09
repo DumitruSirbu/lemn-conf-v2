@@ -97,7 +97,6 @@ function viewOf(
     groups: projectDesignForDisplay(design, KITCHEN_L_BODY_CATALOG),
     applied: design.settings ?? {},
     pending,
-    rejection: null,
     chosenColourCount: 0,
   });
 }
@@ -213,7 +212,6 @@ describe("acceptance 1 — the colour group renders after material, from the mat
       groups: projectDesignForDisplay(KITCHEN_L_DESIGN, KITCHEN_L_BODY_CATALOG),
       applied: { materialTierId: PAL_TIER_ID },
       pending: { materialTierId: VENEER_TIER_ID },
-      rejection: null,
       chosenColourCount: 0,
       globalFinishWouldBeLost: true,
     });

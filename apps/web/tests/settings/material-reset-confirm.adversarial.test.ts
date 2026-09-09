@@ -163,7 +163,6 @@ function viewFor(options: {
       options.groups ?? projectDesignForDisplay(design, KITCHEN_L_BODY_CATALOG),
     applied: options.applied ?? {},
     pending: options.pending ?? {},
-    rejection: null,
     chosenColourCount: options.chosenColourCount,
   });
 }

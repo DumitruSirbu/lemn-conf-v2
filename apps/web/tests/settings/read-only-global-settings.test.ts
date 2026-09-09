@@ -138,7 +138,6 @@ function openSheetMarkupFor(access: {
     groups: projectDesignForDisplay(KITCHEN_L_DESIGN, KITCHEN_L_BODY_CATALOG),
     applied: KITCHEN_L_DESIGN.settings ?? {},
     pending: KITCHEN_L_DESIGN.settings ?? {},
-    rejection: null,
     chosenColourCount: countCabinetsWearingAChosenFinish(KITCHEN_L_DESIGN),
   });
   return renderToStaticMarkup(

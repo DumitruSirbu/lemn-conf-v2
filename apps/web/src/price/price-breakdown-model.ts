@@ -167,10 +167,7 @@ export function describePriceBreakdown(
     groups,
     wholeKitchenRows: priced.lines.filter(isUnplacedLine).map(toUnplacedRow),
     note: ro.priceBreakdown.note,
-    figure: describeStartingPrice({
-      label: ro.price.startingPrefix,
-      totalMinor: priced.totalMinor,
-    }),
+    figure: describeStartingPrice({ totalMinor: priced.totalMinor }),
     ...(warning === undefined ? {} : { overflowWarning: warning }),
     closeLabel: ro.priceBreakdown.close,
   };

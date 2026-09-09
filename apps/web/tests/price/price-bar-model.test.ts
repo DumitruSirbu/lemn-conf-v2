@@ -20,8 +20,6 @@ import { ro } from "@/content/ro";
 import { describePriceBar, type PricedBar } from "@/price/price-bar-model";
 import { roundUpToThousandMdl } from "@/price/starting-price";
 
-import { REFUSAL } from "../support/selection-meta";
-
 /** Far enough past wall A's end that no rounding of the body's own half-width could hide it. */
 const PAST_THE_WALL_END_MM = 500;
 
@@ -78,11 +76,8 @@ function withoutTheOverflowingBody(design: Design): Design {
   };
 }
 
-function pricedBarFor(
-  design: Design,
-  rejection: Parameters<typeof describePriceBar>[0]["rejection"] = null,
-): PricedBar {
-  const view = describePriceBar({ pricing: priceOf(design), rejection });
+function pricedBarFor(design: Design): PricedBar {
+  const view = describePriceBar({ pricing: priceOf(design) });
   if (view.kind !== "priced") throw new Error("expected a priced bar");
   return view;
 }
@@ -102,27 +97,34 @@ describe("the seeded design, priced and shown", () => {
   });
 });
 
-// ADR 0024's third frame-2C requirement, which M4 closed unmet for want of a total to leave unmoved
-// and M5 wave 5E still carries.
+/**
+ * **A refused edit says nothing on this surface, and that is the owner's ruling of 2026-09-09.**
+ *
+ * ADR 0024's third frame-2C requirement was closed by the *"De la neschimbat"* label — M4 had closed
+ * it unmet for want of a total to leave unmoved. The owner removed the label: *"event to state that
+ * your change didn't changed the price, I didn't request this"*. §9's refusal banner already tells
+ * the customer the edit was refused, and a price that has not moved is the expected outcome rather
+ * than a surprise needing narration. **That requirement is unmet again**, by decision.
+ *
+ * The two cases that pinned the label are deleted rather than weakened; what stays is the half that
+ * was never about the label — the figure itself does not move — and it is now asserted through the
+ * model's own inputs, which no longer include a refusal at all.
+ */
 describe("a refused edit", () => {
-  it("leaves the figure byte-identical", () => {
-    expect(pricedBarFor(KITCHEN_L_DESIGN, REFUSAL).figure.amountText).toBe(
+  it("leaves the figure byte-identical, because the model never sees the refusal", () => {
+    expect(pricedBarFor(KITCHEN_L_DESIGN).figure.amountText).toBe(
       pricedBarFor(KITCHEN_L_DESIGN).figure.amountText,
     );
+    expect(pricedBarFor(KITCHEN_L_DESIGN).figure.label).toBe("De la");
   });
 
-  it("labels the figure unchanged while the rejection stands", () => {
-    expect(ro.price.startingPrefixUnchanged).toBe("De la neschimbat");
-    expect(pricedBarFor(KITCHEN_L_DESIGN, REFUSAL).figure.label).toBe(
-      "De la neschimbat",
-    );
-    expect(pricedBarFor(KITCHEN_L_DESIGN, REFUSAL).figure.label).toBe(
-      ro.price.startingPrefixUnchanged,
-    );
-  });
-
-  it("drops the unchanged label the moment nothing is refused", () => {
-    expect(pricedBarFor(KITCHEN_L_DESIGN, null).figure.label).toBe("De la");
+  it("cannot be handed to this model at all", () => {
+    // The removal in the type: `DescribePriceBarInput` took a `rejection` to choose the label with,
+    // and there is no label left to choose. A surface that wanted to relabel a total under a refusal
+    // would have to add the input back, which is a visible change rather than a quiet one.
+    expect(Object.keys({ pricing: priceOf(KITCHEN_L_DESIGN) })).toEqual([
+      "pricing",
+    ]);
   });
 });
 
@@ -141,13 +143,13 @@ describe("a pricing failure", () => {
   it("renders no figure at all — not a zero, not a stale one, not a dash", () => {
     // `toEqual` on the whole view rather than a field: the criterion is about what is *absent*, so
     // an assertion that only checked a `kind` would pass with a zero sitting beside it.
-    expect(describePriceBar({ pricing: failed, rejection: null })).toEqual({
+    expect(describePriceBar({ pricing: failed })).toEqual({
       kind: "unpriced",
     });
   });
 
   it("still renders nothing when an edit has been refused as well", () => {
-    expect(describePriceBar({ pricing: failed, rejection: REFUSAL })).toEqual({
+    expect(describePriceBar({ pricing: failed })).toEqual({
       kind: "unpriced",
     });
   });
@@ -186,12 +188,12 @@ describe("an overflowing design", () => {
     );
   });
 
-  it("keeps the flag and the rejection label as two separate statements", () => {
-    // ADR 0065 decision 8: an overflow is not a refused edit. Both can be true at once, and each
-    // still says its own thing.
-    const bar = pricedBarFor(overflowing, REFUSAL);
+  it("carries the flag and nothing about any refusal", () => {
+    // ADR 0065 decision 8 still holds — an overflow is not a refused edit — but there is only one
+    // statement on this surface to keep separate now: the flag. The refusal's own is §9's banner.
+    const bar = pricedBarFor(overflowing);
 
-    expect(bar.figure.label).toBe("De la neschimbat");
+    expect(bar.figure.label).toBe("De la");
     expect(bar.overflowWarning).toBe(ro.price.overflowingTotalWarning);
   });
 });

@@ -121,7 +121,6 @@ function viewOf(input: ViewInput): GlobalSettingsView {
     groups: projectDesignForDisplay(input.design, KITCHEN_L_BODY_CATALOG),
     applied: input.design.settings ?? {},
     pending: input.pending,
-    rejection: null,
     chosenColourCount: input.chosenColourCount ?? 0,
     globalFinishWouldBeLost: input.globalFinishWouldBeLost ?? false,
   });

@@ -1,25 +1,27 @@
-// Adversarial QA on wave W4's top bar (`901d1cf`, `2a35b9f`, `a453d11`, `73cac86`, `3949ecb`) and
-// on the owner's 2026-09-07 ruling: **48 px on mobile, 76 px on desktop, 21 px of canvas.**
+// Adversarial QA on the top bar, re-pointed by ADR 0104 — **53 px on mobile, frame D2A's declared
+// 76 px on desktop, and the withdrawn settings strip's 45 px back.**
 //
-// `top-bar-box.test.ts` reads the four desktop declarations out of the stylesheet and adds them up,
-// so its 76 is **derived and not a twin** — mutating `.header`'s padding or `.locale`'s height takes
-// it red, which this file's report records. What that arithmetic cannot see is what this file
-// attacks:
+// **Two of this file's attacks died with the sum they attacked, and they are recorded rather than
+// deleted.** The desktop band used to be `17.5 + 40 + 17.5 + 1` of padding around the locale chip,
+// so this file guarded the sum's blind spots: a fifth child outside the modelled four, and the
+// stylesheet's own prose restating the arithmetic. ADR 0104 takes frame D2A's **declared**
+// `height: 76px` instead — the frame's 48 px CTA does not fit inside 40 — so there is no sum to
+// have a blind spot and no prose to check against one. What replaces them is stronger and is the
+// property the sum was standing in for: **every cell's content fits inside the declared band**, over
+// the five cells the markup draws rather than the four a literal named.
 //
-//   1. **A fifth child.** `childHeights` models four class names by hand. Nothing ties that list to
-//      the markup, so an element added to the `<header>` — a locale *button* when M6B wave 6B-i
-//      wires one, a material chip, anything — would be silently outside the sum while the sum went
-//      on reading as the band's height.
-//   2. **The stylesheet's own prose.** `configure.module.css` says the 76 is *"`17.5 + 40 + 17.5` of
-//      padding around the chip, plus the 1 px rule"*. ADR 0082's context names a comment stating a
-//      layout claim no test holds as the way this project inherited its last containment defect.
-//   3. **The price cell on a *flagged* design.** The row's height is the taller of the header and
-//      the price cell, and the cell's arithmetic there stops at the figure. ADR 0065 puts a wrapped
-//      sentence in that cell, and ADR 0082 Amendment A's own lesson is that *"a containment
-//      assertion evaluated only on the input that cannot falsify it is not a gate"* — the flagged
-//      design is precisely the input that was not measured.
-//   4. **The e2e's page-pixel constants**, which were re-measured against this band in a browser
-//      (`3949ecb`) and now carry a 121 px canvas origin that nothing ties back to the CSS.
+// What this file still attacks, and all of it survives the restructure:
+//
+//   1. **A cell outside the model.** `top-bar-box.test.ts`'s `childHeights` names classes by hand.
+//      Nothing ties that list to the markup, so a control added to the row would be silently outside
+//      the check while the check went on reading as the band's contents.
+//   2. **The price cell on a *flagged* design** — ADR 0082 Amendment A's own lesson, that *"a
+//      containment assertion evaluated only on the input that cannot falsify it is not a gate"*. The
+//      answer changed rather than the question: the owner ruled ADR 0065's sentence out of the cell
+//      (ADR 0104 decision 8b), so what is asserted now is that **nothing in this cell can grow on a
+//      flag at all** — which is what makes the header identical on both designs.
+//   3. **The e2e's page-pixel constants**, re-measured against this band in a browser and carrying a
+//      canvas origin that nothing else ties back to the CSS.
 //
 // Every number below is read out of the stylesheets, never written here, for the reason
 // `top-bar-box.test.ts` gives: no type spans this arithmetic.
@@ -43,7 +45,6 @@ const priceBarStylesheet = readFileSync(
   resolve(SOURCE_ROOT, "price/price-bar.module.css"),
   "utf8",
 );
-const globals = readFileSync(resolve(SOURCE_ROOT, "app/globals.css"), "utf8");
 const desktopRailSpec = readFileSync(
   resolve(import.meta.dirname, "../../../e2e/editor-rail.desktop.e2e.spec.ts"),
   "utf8",
@@ -55,10 +56,17 @@ function withoutComments(css: string): string {
   return css.replace(/\/\*[\s\S]*?\*\//g, "");
 }
 
+/** Everything a class declares, from **every** block whose selector list names it: the top bar's
+ *  five cells share one rule for the paint they have in common, and a reader that matched only
+ *  `.nav {` would report that shared declaration as absent. Pseudo-elements are excluded — frame
+ *  D2A's dividers are `::before`s and their declarations are not the cell's. */
 function declarationsOf(css: string, rule: string): string {
-  return (
-    new RegExp(`\\.${rule} \\{([^}]*)\\}`).exec(withoutComments(css))?.[1] ?? ""
-  );
+  const flattened = withoutComments(css).replace(/@media[^{]*\{/g, "");
+  const named = new RegExp(`\\.${rule}(?![\\w-]|::)`);
+  return [...flattened.matchAll(/([^{}]*)\{([^}]*)\}/g)]
+    .filter(([, selectors]) => named.test(selectors ?? ""))
+    .map(([, , declarations]) => declarations ?? "")
+    .join("");
 }
 
 function pixelsOf(declarations: string, property: string): number | undefined {
@@ -81,150 +89,137 @@ function fontOf(declarations: string): {
   return { sizePx: Number(found[1]), lineHeight: Number(found[2]) };
 }
 
-function required(value: number | undefined, what: string): number {
-  if (value === undefined) throw new Error(`${what} declares no pixel value`);
-  return value;
-}
-
 const [MOBILE_CSS, DESKTOP_CSS] = ((): readonly [string, string] => {
   const at = stylesheet.indexOf(DESKTOP_BRANCH_OPENER);
   if (at < 0) throw new Error("the screen declares no desktop branch");
   return [stylesheet.slice(0, at), stylesheet.slice(at)];
 })();
 
-/** The desktop band, by the same four declarations `top-bar-box.test.ts` sums, read again here so
- *  the comparisons below stand on the stylesheet rather than on that file's answer. */
-const DESKTOP_HEADER_PADDING_PX = required(
-  pixelsOf(declarationsOf(DESKTOP_CSS, "header"), "padding"),
-  ".header's desktop padding",
-);
-const DESKTOP_CHIP_HEIGHT_PX = required(
-  pixelsOf(declarationsOf(DESKTOP_CSS, "locale"), "height"),
-  ".locale's desktop height",
-);
-const HEADER_RULE_PX = required(
-  pixelsOf(declarationsOf(MOBILE_CSS, "header"), "border-bottom"),
-  ".header's rule",
-);
-const DESKTOP_HEADER_HEIGHT_PX =
-  2 * DESKTOP_HEADER_PADDING_PX + DESKTOP_CHIP_HEIGHT_PX + HEADER_RULE_PX;
+/** The desktop band, **read rather than summed** (ADR 0104): frame D2A declares `height: 76px` and
+ *  `.screen`'s desktop row track is where that declaration lives. Read again here so the comparisons
+ *  below stand on the stylesheet rather than on `top-bar-box.test.ts`'s answer. */
+const DESKTOP_HEADER_HEIGHT_PX = ((): number => {
+  const rows = /grid-template-rows:\s*([^;]+);/.exec(
+    declarationsOf(DESKTOP_CSS, "screen"),
+  )?.[1];
+  const declared = /(\d+(?:\.\d+)?)px/.exec(rows ?? "")?.[1];
+  if (declared === undefined)
+    throw new Error("the desktop screen declares no fixed top-bar row");
+  return Number(declared);
+})();
 
-describe("the arithmetic models the band the markup actually draws", () => {
-  /** The class names the `<header>` element applies directly to its own children — the boxes an
-   *  `align-items: center` row takes its height from. `.localeCode` and `.localeCaret` are inside
-   *  the chip and are not among them. */
-  function headerChildClassNames(): readonly string[] {
-    const header = /<header[\s\S]*?<\/header>/.exec(screenSource)?.[0];
-    if (!header) throw new Error("no header element in the screen's source");
-    const withoutChip = header.replace(
-      /<span className=\{styles\.locale\}[\s\S]*?<\/span>\s*<\/span>/,
-      "<span className={styles.locale}></span>",
+describe("the declared band models the row the markup actually draws", () => {
+  /** The class names the top bar's own cells are given in the screen's source — the five boxes the
+   *  declared row has to hold. Read from the markup rather than listed here, which is the whole
+   *  point: a sixth cell added later is outside `top-bar-box.test.ts`'s model and inside this. */
+  function topBarCellClassNames(): readonly string[] {
+    const beforeTheStage = screenSource.slice(
+      0,
+      screenSource.indexOf("styles.stage"),
     );
-    return [...withoutChip.matchAll(/className=\{styles\.(\w+)\}/g)]
-      .map((match) => match[1] ?? "")
-      .filter((name) => name !== "header");
+    return [
+      ...new Set(
+        [...beforeTheStage.matchAll(/className=\{styles\.(\w+)\}/g)].map(
+          (match) => match[1] ?? "",
+        ),
+      ),
+    ]
+      .filter((name) => name !== "screen")
+      .sort();
   }
 
-  // **The non-vacuity `top-bar-box.test.ts` cannot state for itself.** Its `childHeights` names four
-  // classes as a literal; this is what keeps that literal honest. A fifth child — the locale
-  // *button* M6B wave 6B-i is going to wire, most obviously — would otherwise be taller than the
-  // chip with nothing red.
-  it("draws exactly the four boxes the height sum measures", () => {
-    expect([...headerChildClassNames()].sort()).toEqual([
+  // **The non-vacuity `top-bar-box.test.ts` cannot state for itself.** Its height check names the
+  // cells and their children as literals; this is what keeps those literals honest.
+  it("draws exactly the cells and controls the height check models", () => {
+    expect(topBarCellClassNames()).toEqual([
       "back",
+      // The 3D chunk's loading placeholder, which stands where the canvas will be and is declared
+      // before the stage in the source this reads.
+      "loading",
       "locale",
+      "localeCaret",
+      "localeChip",
+      "localeCode",
+      "nav",
+      "settings",
       "stepPill",
       "title",
       "wordmark",
     ]);
   });
 
-  // The stylesheet states the sum in prose twice — once in `.header`'s own comment and once in the
-  // desktop branch — and the prose is what the next reader will trust. ADR 0082's context is
-  // explicit that a layout claim no test holds is how the last containment defect was inherited.
-  it("declares the numbers its own comment says it declares", () => {
-    const claim =
-      /`([\d.]+) \+ (\d+) \+ ([\d.]+)` of padding around the chip,\s*\n?\s*\*? ?plus the (\d+) px rule/.exec(
-        stylesheet,
-      );
-    if (!claim)
-      throw new Error(
-        "the desktop branch no longer states its own arithmetic in prose",
-      );
-
-    expect(Number(claim[1]), "the comment's leading inset").toBe(
-      DESKTOP_HEADER_PADDING_PX,
-    );
-    expect(Number(claim[2]), "the comment's chip").toBe(DESKTOP_CHIP_HEIGHT_PX);
-    expect(Number(claim[3]), "the comment's trailing inset").toBe(
-      DESKTOP_HEADER_PADDING_PX,
-    );
-    expect(Number(claim[4]), "the comment's rule").toBe(HEADER_RULE_PX);
+  // The claim that replaces the withdrawn prose check: the frame's number is declared once, in one
+  // place, and the cells take no vertical padding of their own — which is what makes the declared
+  // height the whole story rather than a floor something else can raise.
+  it("declares the frame's height once, and lets no cell add to it", () => {
+    expect(DESKTOP_HEADER_HEIGHT_PX).toBe(76);
+    expect(stylesheet.match(/grid-template-rows:\s*76px/g)).toHaveLength(1);
+    expect(declarationsOf(DESKTOP_CSS, "nav")).toContain("padding-block: 0;");
   });
 });
 
 describe("the price cell, on the design the ruling was not measured against", () => {
-  /** The desktop price cell's outer height with `lines` wrapped lines of ADR 0065's flagged-total
-   *  sentence in it — the element `price-bar.tsx` renders as `price-bar-overflow`, which
-   *  `top-bar-box.test.ts`'s own price-cell arithmetic stops short of.
-   *
-   *  `.flagRegion` is `display: contents`, so the warning is a direct flex child of `.bar` beside
-   *  the figure and the taller of the two sets the cell. */
-  function priceCellHeightPx(lines: number): number {
-    const bar = declarationsOf(
+  /** The desktop price cell's outer height. **It has one value now**, and that is the point of ADR
+   *  0104 decision 8b: the owner ruled ADR 0065's flagged sentence out of this cell and onto the
+   *  scene, so there is no wrapped sentence left in it for a flag to grow. */
+  function priceCellHeightPx(): number {
+    const desktopBar = declarationsOf(
       priceBarStylesheet.slice(
         priceBarStylesheet.indexOf(DESKTOP_BRANCH_OPENER),
       ),
       "bar",
     );
-    const barPadding = required(pixelsOf(bar, "padding"), ".bar's padding");
-    const rule = required(
-      pixelsOf(bar, "border-bottom"),
-      ".bar's desktop rule",
+    // **Absent reads as none**, and here that is the truth rather than a fallback: frame D2A gives
+    // the price column no inset of its own — the band's declared height is what centres it and the
+    // row's `column-gap` is what spaces it.
+    const barPadding = pixelsOf(desktopBar, "padding") ?? 0;
+    // **One line, both shells** — the owner's price ruling of 2026-09-09 put frame D2A's inline
+    // `de la 101 000 MDL` on the phone too, so the label stands beside the amount and the taller of
+    // the two is the line rather than their sum.
+    const figure = Math.max(
+      fontOf(declarationsOf(priceBarStylesheet, "label")).sizePx,
+      fontOf(declarationsOf(priceBarStylesheet, "amount")).sizePx,
     );
-    const figure =
-      required(
-        pixelsOf(declarationsOf(priceBarStylesheet, "figure"), "gap"),
-        ".figure's gap",
-      ) +
-      fontOf(declarationsOf(priceBarStylesheet, "label")).sizePx +
-      fontOf(declarationsOf(priceBarStylesheet, "amount")).sizePx;
-
-    const warning = declarationsOf(priceBarStylesheet, "overflow");
-    const { sizePx, lineHeight } = fontOf(warning);
-    const warningHeight =
-      lines === 0
-        ? 0
-        : 2 * required(pixelsOf(warning, "padding"), ".overflow's padding") +
-          lines * sizePx * lineHeight;
-
-    return 2 * barPadding + Math.max(figure, warningHeight) + rule;
+    return 2 * barPadding + figure;
   }
 
-  it("agrees with the sibling file's own figure when nothing is flagged", () => {
-    // The bridge between the two derivations: `top-bar-box.test.ts` pins the unflagged cell at 53.5,
-    // so a reading here that quietly measured something else could not go on to say anything about
-    // the flagged one.
-    expect(priceCellHeightPx(0)).toBe(53.5);
+  it("fits inside the declared band with room to spare, so it cannot set the row", () => {
+    expect(priceCellHeightPx()).toBeLessThan(DESKTOP_HEADER_HEIGHT_PX);
   });
 
-  // **The boundary, stated as a number rather than as a hope.** The header is the taller of the two
-  // grid items — which is the whole property `top-bar-box.test.ts`'s price-cell test exists to
-  // establish — only while the flagged sentence stays inside this many lines. Past it the *price
-  // cell* sets the desktop row, the band is no longer the ruled 76, and the canvas pays more than
-  // the 21 px the owner accepted, on a design the customer reaches by making one cabinet too wide.
-  //
-  // Two is what the six declarations currently buy. It is asserted so that a padding or type-scale
-  // edit that spends the margin is met here, and it is *not* a claim about how many lines the
-  // Romanian sentence takes at `max-width: 320px` — only a browser can say that, and no test in
-  // this repository does.
-  it("absorbs exactly two wrapped lines of the flagged-total warning", () => {
-    const absorbed = [0, 1, 2, 3, 4, 5].filter(
-      (lines) => priceCellHeightPx(lines) <= DESKTOP_HEADER_HEIGHT_PX,
+  // **The attack, re-pointed at the answer rather than dropped.** It used to measure how many
+  // wrapped lines of the flagged sentence this cell could absorb before it set the row — two, and
+  // `1cc86d8` paid 9.28 px of canvas for the third. The owner's ruling of 2026-09-09 takes the
+  // sentence out of the bar, so the honest assertion is that **the cell cannot grow on a flag at
+  // all**: nothing in this stylesheet renders that sentence, and the header therefore draws
+  // identically on a flagged design and a seeded one.
+  it("carries no flagged-total sentence at all, which is what retires the 9.28 px", () => {
+    expect(priceBarStylesheet).not.toMatch(/^\.overflow \{/m);
+    expect(withoutComments(priceBarStylesheet)).not.toContain("flagRegion");
+    expect(
+      readFileSync(resolve(SOURCE_ROOT, "price/price-bar.tsx"), "utf8"),
+    ).not.toContain("styles.overflow");
+  });
+
+  it("keeps that sentence on a surface the top bar's height does not depend on", () => {
+    // Non-vacuity for the case above: the sentence still exists and is still rendered — it is drawn
+    // over the scene, where growing costs the canvas no layout at all.
+    const scene = readFileSync(
+      resolve(SOURCE_ROOT, "price/flagged-total-warning.module.css"),
+      "utf8",
     );
 
-    expect(Math.max(...absorbed)).toBe(2);
-    expect(priceCellHeightPx(3)).toBeGreaterThan(DESKTOP_HEADER_HEIGHT_PX);
+    expect(scene).toContain("#fdf6ec");
+    expect(
+      readFileSync(
+        resolve(SOURCE_ROOT, "price/flagged-total-warning.tsx"),
+        "utf8",
+      ),
+    ).toContain("price-bar-overflow");
+    expect(screenSource).toContain("<FlaggedTotalWarning />");
+    expect(screenSource.indexOf("<FlaggedTotalWarning />")).toBeGreaterThan(
+      screenSource.indexOf("styles.sceneFooter"),
+    );
   });
 });
 
@@ -251,21 +246,19 @@ describe("the desktop click constants the browser measured", () => {
 
   function documentedBands(): {
     headerPx: number;
-    stripPx: number;
     canvasPx: number;
     viewportPx: number;
   } {
     const found =
-      /Measured at 1440 × (\d+) on 2026-09-08: (\d+) \+ (\d+) \+ (\d+) = (\d+)/.exec(
+      /Measured at 1440 × (\d+) on 2026-09-09: (\d+) \+ (\d+) = (\d+)/.exec(
         desktopRailSpec,
       );
     if (!found)
       throw new Error("the spec no longer states its band arithmetic");
     return {
       headerPx: Number(found[2]),
-      stripPx: Number(found[3]),
-      canvasPx: Number(found[4]),
-      viewportPx: Number(found[5]),
+      canvasPx: Number(found[3]),
+      viewportPx: Number(found[4]),
     };
   }
 
@@ -273,25 +266,17 @@ describe("the desktop click constants the browser measured", () => {
   // coordinate in three specs was found against it. A padding edit here silently invalidates four
   // measured taps and two pixel patches in a suite this machine cannot run.
   it("starts the canvas where the stylesheets put it", () => {
-    // The strip's own band, and derived for the same reason the header's is: `--touch-target` is
-    // the floor `global-settings.module.css` gives the chips and the trigger, and the rule is the
-    // band's own. `45 = 44 + 1` is what the e2e spec's prose says it measured.
-    const stripPx =
-      required(pixelsOf(globals, "--touch-target"), "--touch-target") +
-      required(
-        pixelsOf(declarationsOf(MOBILE_CSS, "settingsRow"), "border-bottom"),
-        ".settingsRow's rule",
-      );
-
-    expect(documentedCanvasOriginY()).toBe(DESKTOP_HEADER_HEIGHT_PX + stripPx);
+    // **There is no second band to add any more** (ADR 0104 decision 2). The canvas begins at the
+    // bottom of the one declared row, which is the whole of the desktop chrome.
+    expect(documentedCanvasOriginY()).toBe(DESKTOP_HEADER_HEIGHT_PX);
   });
 
   it("accounts for every pixel of the viewport it was measured at", () => {
-    const { headerPx, stripPx, canvasPx, viewportPx } = documentedBands();
+    const { headerPx, canvasPx, viewportPx } = documentedBands();
 
     expect(headerPx).toBe(DESKTOP_HEADER_HEIGHT_PX);
-    expect(headerPx + stripPx).toBe(documentedCanvasOriginY());
-    expect(headerPx + stripPx + canvasPx).toBe(viewportPx);
+    expect(headerPx).toBe(documentedCanvasOriginY());
+    expect(headerPx + canvasPx).toBe(viewportPx);
   });
 
   // The discipline `3949ecb` states for itself — *"the middle of their measured bands rather than
@@ -329,12 +314,25 @@ describe("nothing on the desktop top bar can grow past its own column", () => {
   // is `flex: 0 0 auto` there — so no child can absorb a longer string and the band cannot shrink
   // to its column. It fits today's Romanian at 900 px, which a browser gate measures; what it does
   // not survive is a longer word, which M6B's whole purpose is to introduce.
-  it("zeroes the header's automatic minimum, as its sibling band does", () => {
-    expect(declarationsOf(MOBILE_CSS, "settingsRow")).toContain(
-      "min-width: 0;",
+  it("zeroes every top-bar cell's automatic minimum, so none can grow past its track", () => {
+    // ADR 0082 decision 1 as amended, over the five cells that replaced the two: a grid item's
+    // automatic minimum size is its min-content size, so an item that does not zero it overflows the
+    // track it stands in. The nav's is give D — the title ellipsises rather than taking the pill's
+    // residue — and the settings item's is what keeps the pill inside its own track.
+    for (const cell of ["nav", "settings", "priceRow"])
+      expect(
+        `${declarationsOf(MOBILE_CSS, cell)}${declarationsOf(DESKTOP_CSS, cell)}`,
+        cell,
+      ).toContain("min-width: 0;");
+  });
+
+  it("leaves the title as the last thing that gives, and never the pill", () => {
+    // Give D's order, ruled by ADR 0104 decision 8: the ladder, then the gaps, then the wordmark,
+    // and only then the title. `flex: 0 1 auto` is what makes the title shrinkable at all, and the
+    // ellipsis declarations it inherits are frame 2A's own.
+    expect(declarationsOf(DESKTOP_CSS, "title")).toContain("flex: 0 1 auto;");
+    expect(declarationsOf(MOBILE_CSS, "title")).toContain(
+      "text-overflow: ellipsis;",
     );
-    expect(
-      `${declarationsOf(MOBILE_CSS, "header")}${declarationsOf(DESKTOP_CSS, "header")}`,
-    ).toContain("min-width: 0;");
   });
 });

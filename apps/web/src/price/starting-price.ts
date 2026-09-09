@@ -39,7 +39,6 @@
 import {
   PRICE_BOOK_CURRENCY,
   type PricedDesign,
-  type RejectionReason,
 } from "@lemnaria/configurator-domain";
 
 import { ro } from "@/content/ro";
@@ -70,42 +69,39 @@ const ADDED_AMOUNT_SIGN = "+";
  *  small, letter-spaced and uppercased by CSS — and a component that had to split a joined string
  *  to do that would be formatting a figure of its own. */
 export interface PriceFigure {
-  /** One of `ro.price`'s ruled prefixes. Which one is a product rule belonging to the surface's
-   *  model; **no surface composes a prefix of its own.** */
+  /** `ro.price.startingPrefix`, and since the owner's ruling of 2026-09-09 there is no other —
+   *  **no surface composes a prefix of its own** and none is offered a choice. */
   readonly label: string;
   /** The rounded amount and its currency, e.g. `"43 000 MDL"`. */
   readonly amountText: string;
 }
 
 export interface StartingPriceInput {
-  readonly label: string;
   /** Exact minor units, as a priced line or a priced total publishes them. */
   readonly totalMinor: number;
 }
 
 /**
- * **What a figure is called while a refusal stands** — *"De la neschimbat"* — and what it is called
- * otherwise. Owner, 2026-09-03: one wording for both shells.
+ * **There is no second label, and its absence is a ruling rather than an omission.**
  *
- * Here rather than beside any one surface because **three** surfaces now show a total, and until
- * wave 6G there were two private copies of this line — `price-bar-model.ts`'s `describeBarLabel` and
- * `panel-model.ts`'s `describeFooterPriceLabel` — agreeing by inspection. A third copy is how they
- * start disagreeing, and the disagreement is invisible: each surface looks right on its own, and
- * only a customer with both in view sees one total call itself unchanged while the other does not.
- * That is exactly what 6G's settings sheet produced before this existed, on the one total a mobile
- * customer can actually see, because the sheet covers the bar it was opened from.
+ * Until 2026-09-09 a figure standing under a refused edit was called *"De la neschimbat"* — frames
+ * D2C and 2C draw it, ADR 0024's third frame-2C requirement was closed by it, and
+ * `describeStartingLabel` chose between the two prefixes here so that three surfaces could not
+ * disagree about which one to use.
  *
- * The figure itself never moves — a refusal leaves the design it is derived from untouched — so what
- * a rejection changes is only what the figure is called.
+ * **The owner removed it**: *"event to state that your change didn't changed the price, I didn't
+ * request this"*, and, on the reasoning put to them, *"exactly this is the solution"* — §9's refusal
+ * banner already tells the customer the edit was refused, in a sentence, at the place they were
+ * looking. A price that has not moved after a refused edit is the **expected** outcome, not a
+ * surprise needing narration, and a second signal at the other end of the screen restated the
+ * banner and fired on refusals nobody would look at the price for at all.
+ *
+ * So a figure has one label, this module composes it, and no surface is handed a choice: the
+ * refusal never reaches a price model at all.
  */
-export function describeStartingLabel(
-  rejection: RejectionReason | null,
-): string {
-  return rejection ? ro.price.startingPrefixUnchanged : ro.price.startingPrefix;
-}
 
-/** Builds the one shape a figure may be rendered from. Every displayed price on every surface —
- *  the bar, §9's footer, and wave 6D's lines — comes through here. */
+/** Builds the one shape a figure may be rendered from.Every displayed price on every surface — the bar,
+ *  §9's footer, wave 6D's lines and 6G's sheet — comes through here. */
 /**
  * **Whether this priced design holds no cabinets at all** — M6-AUD-014's discriminator, in the one
  * module both price surfaces already import so they cannot come to disagree about what "empty"
@@ -125,7 +121,7 @@ export function holdsNoCabinets(priced: PricedDesign): boolean {
 
 export function describeStartingPrice(input: StartingPriceInput): PriceFigure {
   return {
-    label: input.label,
+    label: ro.price.startingPrefix,
     amountText: formatRoundedAmount(input.totalMinor),
   };
 }

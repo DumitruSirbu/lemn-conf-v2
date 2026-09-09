@@ -1,12 +1,43 @@
-/* Three bands on mobile — header, stage, price bar — and two rows on desktop, where frames D2A /
- * D2B / D2C put the figure at the right-hand end of the top bar instead of in a bar of its own.
+/* Frames 2A and D2A, as they are drawn: **one band and then the scene**, on both shells.
  *
- * A grid rather than a column, because that is what lets **one** price-bar element sit in two
- * places without a second copy of it in the markup: §10.1's one permitted layout branch, taken in
- * CSS exactly as §9's sheet-or-rail is.
+ * A grid rather than a column, because that is what lets one element sit in two places without a
+ * second copy of it in the markup: §10.1's one permitted layout branch, taken in CSS exactly as §9's
+ * sheet-or-rail is. The price bar has used it since M6; **this wave takes the same answer for four
+ * more controls** rather than inventing a second one (ADR 0104 decision 2).
+ *
+ * The top bar's controls are five grid items — `nav`, `settings`, `price`, `actions`, `locale` — and
+ * the two shells place them:
+ *
+ *   desktop   "nav settings price actions locale"     rows: 76px, minmax(0, 1fr)
+ *             "stage stage stage stage stage"
+ *
+ *   mobile    "nav settings locale"                   rows: auto, minmax(0, 1fr), auto, auto
+ *             "stage stage stage"
+ *             "price price price"
+ *             "actions actions actions"
+ *
+ * **The settings strip's own row is withdrawn** (ADR 0104 decision 2, superseding ADR 0094
+ * decision 2). There is no `settingsRow` here and no band under the header on either shell: the
+ * whole-kitchen settings are one pill standing in the top bar, and that pill is the trigger — which
+ * is how frames D2E and 2E draw it.
  *
  * The bar is a **flow sibling of the stage in both shells** — never an overlay — which is how "the
  * price bar never covers the selected cabinet" is met structurally rather than by tuning a number.
+ *
+ * **The stacking order, re-derived and written down**, because this is the property that took 44 of
+ * 58 e2e specs down in wave 6K-b3 and it is being re-decided by the restructure:
+ *
+ *   | layer                                   | z-index |
+ *   | nav, settings' own paint, price, actions, locale | 2  |
+ *   | §9's desktop rail                       | 4       |
+ *   | the breakdown's popover                 | 6       |
+ *   | the settings item, its scrim, its sheet  | 7      |
+ *
+ * The settings item keeps `7` for the reason the withdrawn band had it: the sheet is **modal on both
+ * shells**, so its scrim has to cover the price bar, the rail and the breakdown's popover, and
+ * nothing inside a stacking context can paint above what stands over that context. It is a grid item
+ * of the screen rather than a child of `.nav` for exactly that reason — `.nav` establishes a context
+ * at `2`, and a scrim mounted inside it would dim the scene and leave the bar bright and clickable.
  */
 .screen {
   /* The positioning context for §9's mobile sheet. It used to be `.stage`, and moving it up one
@@ -17,106 +48,90 @@
   position: relative;
   display: grid;
   grid-template-areas:
-    "header"
-    "settings"
-    "stage"
-    "price";
-  grid-template-rows: auto auto minmax(0, 1fr) auto;
+    "nav      settings locale"
+    "stage    stage    stage"
+    "price    price    price"
+    "actions  actions  actions";
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  grid-template-rows: auto minmax(0, 1fr) auto auto;
+  /* **No column gap, and the reason is the rule.** Each of the top bar's cells draws the band's own
+   * `border-bottom`, so a gap *between* the cells is a gap in that line — measured 2026-09-09: three
+   * breaks in the rule under a row the frames draw unbroken. The spacing frames 2A and D2A declare is
+   * the cells' own inline padding instead, which puts the same pixels in the same places and leaves
+   * the cells touching. */
+  column-gap: 0;
   height: 100dvh;
   background: var(--paper);
 }
 
-/* Frames 2E / D2E's whole-kitchen chips, and the control that opens their sheet. A band of its own
- * rather than a child of the header, and the reason is stacking rather than taste: the sheet is
- * **modal on both shells**, so its scrim has to cover the price bar (`z-index: 2`), §9's rail (`4`)
- * and the breakdown's own popover (`6`). `.header` establishes a stacking context at `2`, and
- * nothing inside a context can paint above what stands over it — so mounted there, the scrim would
- * have dimmed the scene and left the bar bright and clickable underneath it. */
-/* **`min-width: 0` is the containment** (ADR 0082 decision 1). A grid item's automatic minimum size
- * is its min-content size, so without this the band sizes to its own content and grows past the
- * column it stands in — which is how `global-settings-trigger`'s right edge reached 412 on a 390 px
- * screen. Zeroed, the band is whatever its track is, and the strip inside it spends the difference on
- * `flex-wrap: wrap` rather than on width (`settings/global-settings.module.css`). */
-.settingsRow {
-  grid-area: settings;
-  z-index: 7;
-  display: flex;
-  min-width: 0;
-  padding: 0 18px 11px;
-  background: var(--paper);
-  border-bottom: 1px solid var(--line-soft);
-}
-
-/* The bar and the breakdown's control share one band, as frames 2A and D2A draw them. On desktop
- * the same two sit at the right-hand end of the top bar; the rule below adds only what differs. */
-.priceRow {
-  grid-area: price;
-  display: flex;
-}
-
-/* The refreshed frames 2A / D2A: **one row** — back control or wordmark, the step as a pill, the
- * screen's title, and the locale chip — where this used to be a caption above a four-segment
- * progress bar. The segments are gone from the reference and from here.
- *
- * **The desktop band is frame D2A's own 76 px, and the scene pays 21 px for it.** The header is a
- * grid item in a `100dvh` grid whose only flexible row is the stage, so every pixel this band gains
- * is a pixel the canvas loses. Wave W4 shipped the frame's arrangement and typography inside the
- * 55 px the row already measured and left the height open, because the two criteria it was given
- * could not both hold: the reference draws 76 and the stage was to lose nothing. **The owner ruled
- * on 2026-09-07 that on desktop a taller top bar is fine and the 21 px is accepted**, so the height
- * below is the reference's and the cost is a chosen trade rather than a drift.
- *
- * The desktop rule takes the frame's own vertical arrangement with it: D2A centres a 40 px chip in
- * a 76 px band. `top-bar-box.test.ts` reads the declarations back out and adds them up, so a
- * padding edit that costs the scene an unbudgeted pixel fails there rather than on someone's screen.
- *
- * **Mobile is outside the ruling.** The reference's own box there is smaller than what it replaces —
- * `11 + 25 + 11` plus the rule is 48 px against the old 55 — so the phone keeps the 7 px it gained.
- *
- * **`min-width: 0` is the containment**, the same declaration and the same mechanism `.settingsRow`
- * above carries (ADR 0082 decision 1, as amended: *"an invariant of the row, not a width that
- * happens to fit today's labels"*). This band is the other item in the desktop grid's
- * `minmax(0, 1fr)` track, and a grid item's automatic minimum size is its min-content size — so
- * without this it sizes to its own content and grows past the column it shares with the price cell.
- * It fits today's Romanian at 900 px; M6B exists to change those strings, and a width that happens
- * to fit is not the invariant.
- *
- * **It touches no height.** `min-width` is a width, the row is `nowrap`, and the band's height is
- * its padding plus its tallest child plus the rule — the four declarations `top-bar-box.test.ts`
- * adds up. The ruled 76 px and the canvas origin three e2e specs were re-measured against do not
- * move.
- *
- * **The ruled 76 has exactly one measured exception, and this is where a reader who finds 85.28
- * should meet it.** The band shares grid row 1 with the price cell, and on a design carrying
- * ADR 0065's overflow flag that cell carries a 77-character sentence. Between **900 and 1025 px**
- * the sentence wraps to three lines and *it*, not this band, sets the row: 85.28 px, measured
- * 2026-09-09. From 1026 px the row is 76 again. The four declarations below are unchanged and still
- * sum to 76 — the exception is a wrapped sentence in the other cell, not a drift in this one.
- *
- * It is a deliberate trade and it has precedent: the owner accepted 21 px of canvas at **every**
- * desktop width on 2026-09-07 to take the frame's own height. This spends 9.28 px more, on a flagged
- * design, over a 126 px window — against a nav that without it renders the title as *"Confi"* with
- * the price over it and the locale chip off screen entirely. The desktop branch's `.screen` rule
- * records the cap that produces it and the two alternatives that were refused. */
-.header {
-  grid-area: header;
+/* The top bar's five cells share one band: each draws the paper and the rule, so the band reads as
+ * one line across the screen. It is the mechanism the price cell has used since M6, extended from
+ * two cells to five. */
+.nav,
+.settings,
+.locale {
   z-index: 2;
   display: flex;
-  min-width: 0;
   align-items: center;
-  gap: 9px;
-  padding: 11px 14px;
+  min-width: 0;
   background: var(--paper);
   border-bottom: 1px solid var(--line-soft);
 }
 
-/* Frame 2A's back control, and frames D2A–D2C's wordmark: the same slot, one shown per shell. The
- * reference draws a bare `‹` on mobile because the material chip sits beside it there; that chip is
- * ADR 0094's own band here, so the word stays — the reason the frame shortened it does not reach
- * this layout, and the copy is under the owner's Gate O1 review. */
-.back {
+/* Frame 2A `:482`: `padding: 11px 14px`, and the band's height is that padding plus its tallest
+ * child plus the rule. **The tallest child is now the settings chip** — `1 + 7 + 11 + 7 + 1` = 27 —
+ * where it used to be the locale chip's 25, so the band is `11 + 27 + 11 + 1 = 50` and the phone's
+ * scene pays 2 px. It is repaid many times over by the withdrawn strip's own band, which was 76.
+ *
+ * The horizontal padding is split across the row's outer cells, so the rule underneath runs the
+ * whole width while the contents keep frame 2A's inset. */
+.nav {
+  grid-area: nav;
+  gap: 9px;
+  padding: 11px 0 11px 14px;
+}
+
+.settings {
+  grid-area: settings;
+  /* The sheet this opens is modal on both shells — see the stacking table in this file's head. */
+  z-index: 7;
+  /* Frame 2A's `gap: 9px`, carried by the cell that follows the nav rather than by the row. */
+  padding: 11px 0 11px 9px;
+}
+
+.locale {
+  grid-area: locale;
   flex: 0 0 auto;
-  font: 700 14px/1 var(--font-ui);
+  padding: 11px 14px 11px 9px;
+}
+
+/* Frame 2A `:483`: a bare `‹`, `700 17px/1`, in a 22 px column. **The word left the control with
+ * this wave** — the frames draw the glyph alone, and `ro.configure.back` is now its accessible name
+ * rather than its visible text, exactly as the step pill's sentence is.
+ *
+ * **The 44 px target is taken without changing what the row lays out** (ADR 0082 decision 8, kept;
+ * ADR 0104 decision 5). The box is the token's in both directions and its **negative margins give
+ * back the difference**, so what the flex line sees is still the frame's 22 x 17 — a `min-height`
+ * here would make this the row's tallest child and lift the band off the frame's own height.
+ *
+ * An absolutely positioned hit area was the other candidate and is refused for a measured reason: a
+ * 44 px box centred on a 22 px control overflows it horizontally, so `scrollWidth > clientWidth` and
+ * ADR 0082 decision 1's clip predicate reports this control as cut — a false positive in the one
+ * gate that must not have any. The pill's own target overflows **vertically** only, which that
+ * predicate does not read; this one could not. */
+.back {
+  --back-line: 17px;
+  --back-column: 22px;
+
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: var(--touch-target);
+  height: var(--touch-target);
+  margin-block: calc((var(--back-line) - var(--touch-target)) / 2);
+  margin-inline: calc((var(--back-column) - var(--touch-target)) / 2);
+  font: 700 var(--back-line) / 1 var(--font-ui);
   color: var(--accent);
 }
 
@@ -153,7 +168,7 @@
 /* Drawn as the reference draws it and **inert** — see `configure-screen.tsx`. Not a `button`, and
  * that is the point: an element with a control's affordances and no behaviour is worse than the
  * static chip it replaces. M6B wave 6B-i gives it one, after the owner's Gate O1. */
-.locale {
+.localeChip {
   display: flex;
   flex: 0 0 auto;
   gap: 4px;
@@ -177,6 +192,53 @@
   color: var(--ink-faint);
 }
 
+/* Frame 2A `:515–519`: the bottom bar's second row — `Înapoi` beside `Verifică designul`. On desktop
+ * only the CTA is drawn, between the price and the locale, which is D2A's own order.
+ *
+ * `padding-top` rather than the frames' `gap: 11px` on the bar: the price row and this one are two
+ * grid items, so what separates them is this item's own inset. The bottom inset is frame 2A's 20 px,
+ * which is what keeps the two controls off the home indicator. */
+.actions {
+  z-index: 2;
+  display: flex;
+  grid-area: actions;
+  gap: 10px;
+  padding: 11px 18px 20px;
+  background: var(--paper);
+}
+
+/* Frame 2A `:516`: 96 x 52, outlined rather than filled — the secondary of the pair. */
+.backAction {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 96px;
+  height: 52px;
+  font: 700 14px/1 var(--font-ui);
+  color: var(--ink-muted);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+
+/* Frames 2A `:517` and D2A `:567`. Both frames draw it taller than `--touch-target`, so it needs no
+ * hit area of its own. **Drawn exactly as the frames draw it and wired to nothing**
+ * (ADR 0104 decision 6): it leads to M8's review step, which is not built and has no route. Not a
+ * `button`, no `role`, no `tabindex` and no `cursor: pointer` — the frames use a non-interactive
+ * element in both files, and this file already requires that of an inert control. It is meaningful
+ * text and is announced as text. */
+.reviewCta {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  height: 52px;
+  font: 700 15px/1 var(--font-ui);
+  color: var(--paper);
+  background: var(--accent);
+  border-radius: 12px;
+}
+
 .stage {
   grid-area: stage;
   display: flex;
@@ -188,9 +250,10 @@
  * how "the scene re-lays out" happens without any component knowing a rail exists.
  *
  * It is the positioning context for everything drawn over the scene: the camera chips, the orbit
- * hint, and — since wave 6M's revision — ADR 0065's overflow warning. All three are overlays and
- * none of them takes flow height, so the canvas's box is the viewport's box whatever is on screen.
- * `scene/overflow-warning-layout.ts` records why the warning may not take flow height. */
+ * hint, ADR 0065's overflow warning and — since ADR 0104 decision 8b — the flagged total's sentence.
+ * All are overlays and none of them takes flow height, so the canvas's box is the viewport's box
+ * whatever is on screen. `scene/overflow-warning-layout.ts` records why the warning may not take
+ * flow height. */
 .viewport {
   position: relative;
   flex: 1;
@@ -228,16 +291,16 @@
   background: rgb(250 248 244 / 92%);
 }
 
-/* The scene's bottom stack: the orbit hint and, below it, ADR 0065's warning band.
+/* The scene's bottom stack: the orbit hint, the flagged total's sentence, and ADR 0065's warning
+ * band at the scene's own bottom edge.
  *
- * One absolutely positioned column rather than two independently pinned overlays, because the two
- * would otherwise occupy the same pixels — the hint sat at `bottom: 16px` and the band is 56 px
- * tall from `bottom: 0`, so an overflowing design with nothing selected drew the hint pill inside
- * the band. Stacked, the band keeps the scene's bottom edge and the hint rides above it; with no
- * band the hint's own margin puts it exactly where it has always been.
+ * One absolutely positioned column rather than independently pinned overlays, because they would
+ * otherwise occupy the same pixels — the hint sat at `bottom: 16px` and the band is 56 px tall from
+ * `bottom: 0`, so an overflowing design with nothing selected drew the hint pill inside the band.
+ * Stacked, the band keeps the scene's bottom edge and the others ride above it.
  *
- * `pointer-events: none` for the whole stack: neither is a control, and the band stands over the
- * lowest cabinets, so a tap has to reach the scene through it. */
+ * `pointer-events: none` for the whole stack: none of them is a control, and they stand over the
+ * lowest cabinets, so a tap has to reach the scene through them. */
 .sceneFooter {
   position: absolute;
   right: 0;
@@ -273,122 +336,144 @@
   color: var(--ink-faint);
 }
 
+/* The hidden measurement node the row's fit is decided from. **Absolute, so it is not a grid item**
+ * — it stands inside `.screen` only to inherit the typography its probes have to match.
+ *
+ * `visibility: hidden` rather than `display: none`, because a `display: none` box has no layout and
+ * therefore no width to read. It is out of the accessibility tree by `aria-hidden` on the element
+ * itself. */
+.measure {
+  position: absolute;
+  top: 0;
+  /* Off to the left, never to the right: rightward overflow from a hidden probe would land in the
+   * document's own `scrollWidth`, which is what ADR 0082 decision 1's gate reads. */
+  left: -9999px;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+/* The bar and the breakdown's control share one band, as frames 2A and D2A draw them. On desktop
+ * the same two sit at the right-hand end of the top bar; the rule below adds only what differs. */
+.priceRow {
+  z-index: 2;
+  display: flex;
+  grid-area: price;
+}
+
+/* Frame 2A `:509` lays the figure and the control out as a **row**; frame D2A `:558` stacks them as
+ * a **column** with `gap: 3px`. One wrapper either way, and on mobile it costs nothing: under
+ * `display: contents` the bar and the control are direct children of the row above, which is the
+ * box frame 2A draws. */
+.priceColumn {
+  display: contents;
+}
+
 @media (min-width: 900px) {
-  /* Frames D2A / D2B / D2C: the price joins the top bar's right-hand end, and the scene takes the
-   * whole width below it. */
-  /* **The strip gets a row of its own, and its width is the viewport's** (ADR 0094 decision 2). The
-   * top bar keeps the nav and the price; the strip spans both columns underneath them. The stage
-   * stays the only flexible row (`minmax(0, 1fr)`), which is how ADR 0082 decision 5's "vertical
-   * growth is absorbed by the stage" survives structurally rather than by re-argument.
+  /* Frame D2A `:544`: **one band, `height: 76px`, and then the scene**.
    *
-   * **Why a residue track was refused, since it is the arrangement this replaces.** The strip used to
-   * be the flexible middle of `auto minmax(0, 1fr) auto`, i.e. the arithmetic residue of two contents
-   * it does not control: a book-authored tier name in a chip (ADR 0062 seam 1) and the owner-ruled
-   * sentence ADR 0065 gives a flagged total. Containment then held only while
+   * **The 76 is the frame's own declaration and no longer a sum**, and the change is deliberate.
+   * Until ADR 0104 the band's height was `17.5 + 40 + 17.5 + 1` of padding around the locale chip,
+   * which reached the same number by arithmetic; D2A's own `height: 76px` cannot be reached that way
+   * once the frame's `Verifică designul` is in the row, because the CTA is **48 px** and does not fit
+   * inside 40. So the row takes the declared height with no padding-block, and the CTA sits centred
+   * with 14 px above and below. `top-bar-box.test.ts` reads the declaration rather than the sum.
    *
-   *   nav's content + price's content <= viewport - (widest chip + the trigger)
+   * The owner ruled the height on 2026-09-07 — *on desktop a taller top bar is fine* — and ADR 0104
+   * confirms and re-derives it. The canvas pays 21 px against the base commit's 55 px band, and gets
+   * the withdrawn strip's ~45 px back at the same time.
    *
-   * — an inequality between three independently-authored strings, none of which any test guards.
-   * Measured 2026-09-06 on a flagged design at 900 px: the residue was 78.98 px, the chips box
-   * computed to 0, both chips rendered 28 px with 138 and 115 px of label cut, and the trigger stood
-   * 39.06 x 44.00 px over the price bar. **A row is an invariant; a residue is an inequality**, and a
-   * longer tier name is a book edit rather than a code change.
+   * **`1cc86d8`'s 9.28 px exception is retired, not repaid.** That height was bought so ADR 0065's
+   * flagged-total sentence could wrap beside the figure at 900–1025 px; the owner's ruling of
+   * 2026-09-09 (ADR 0104 decision 8b) takes the sentence out of the bar and onto the scene, so the
+   * trade has nothing left to buy. The header now draws **the same box on a flagged design as on a
+   * seeded one, at every width**, which is the point of the move and is asserted rather than
+   * described — `tests/e2e/settings-strip-containment.desktop.e2e.spec.ts`, the case that used to
+   * assert the growth.
    *
-   * The residue is not abolished, only confined: the nav is `minmax(0, 1fr)` beside the price's
-   * capped track, so what is left to argue over is two contents this repository owns. That
-   * confinement is measured, not claimed — `tests/e2e/settings-strip-containment.desktop.e2e.spec.ts`
-   * asserts the nav's own text is uncut at 900 on a flagged design.
+   * **The gaps are give B and arrive from the row's fit model** (ADR 0104 decisions 8 and 9): D2A's
+   * `28`/`14` while the pill can name every setting inside them, frame 2A's `9`/`6` when it cannot.
+   * Both numbers are the reference's, the choice is a comparison against measured widths, and **no
+   * width threshold is declared anywhere in this file**. `configure/top-bar-fit.ts` holds the rule
+   * and `configure-screen.tsx` publishes the two values as custom properties, which is the same hop
+   * `price-bar.tsx` uses for its own reserved height.
    *
-   * **`fit-content(50%)` rather than `auto`, and the cap is what makes the nav's line reachable.**
-   * An `auto` track is grown to its max-content before the `1fr` beside it gets anything, so on a
-   * flagged design the price cell simply took what it wanted: measured 2026-09-09 at 900 px, the
-   * cell took **649.3 px of 900** — the figure, the breakdown control and ADR 0065's sentence at its
-   * full 320 px — leaving the nav **250.7** where its own line needs **380.7**. The nav did not
-   * report itself clipped, because no individual span was internally scrolled: the header box cut
-   * them from outside, so the title read *"Confi"* and the locale chip was not on screen at all.
-   *
-   * The cap is a **share of the top bar, not a width threshold** (ADR 0094 criterion 4i): neither
-   * cell may take more than half the row, whatever either one says. Measured across the four widths
-   * the containment spec sweeps — nav / price — `450 / 450` at 900, `500 / 500` at 1000,
-   * `550 / 550` at 1100 and `790.703 / 649.297` at 1440, where the cell is under half already and
-   * **nothing changes at all**. The cap stops binding at **1299 px**, the first integer width past
-   * `2 × 649.297`. The nav's 380.703 fits in 450 with 69 px to spare, which is the slack M6B's
-   * strings have to move in; a residue would have given it none.
-   *
-   * **The three widths, all measured on 2026-09-09 rather than estimated.** The defect the cap
-   * removes ran below **1030 px** — the nav's min-content 380.703 plus the cell's max-content
-   * 649.297 is exactly 1030.000, and stepping the old rule a pixel at a time gives an overflow of 1
-   * at 1029 and 0 at 1030. The exception the cap introduces runs **900 to 1025**: from 1026 the
-   * warning fits two lines again and the row is back to the ruled 76. So the window that costs
-   * height is *narrower* than the window that was clipping, and the height is given back four
-   * pixels before the old layout would have stopped cutting the nav.
-   *
-   * **What the cap costs inside that window, said rather than discovered.** The warning wraps to
-   * three lines instead of two — 66.28 px of sentence rather than 50.19 — and the top bar grows from
-   * the ruled 76 px to **85.28**, so the scene loses a further 9.28 px on a flagged design at 900 to
-   * 1025 and nowhere else. That is the price of keeping the sentence beside the figure frames
-   * D2A–D2C put it beside; the alternative — a band of its own — spends more scene, at every width,
-   * including the one the project runs at. **This is the ruled height's one documented exception**
-   * and `.header` below records it beside the ruling itself;
-   * `tests/e2e/settings-strip-containment.desktop.e2e.spec.ts` measures both ends of it, so a later
-   * re-narrowing of the warning goes red rather than quietly spending more scene.
-   *
-   * **The cost is the strip's row**, about 44 px of canvas at every desktop width, and a departure
-   * from frame D2E, which draws the pills inside the top bar. Both are ruled: ADR 0082 decision 6
-   * says a frame does not answer "may a control leave the screen", and the owner's ruling of
-   * 2026-09-05 names vertical height as the currency. **No width threshold is declared here**
-   * (ADR 0094 criterion 4i) — the measured 1150 is a property of today's three strings, not of the
-   * layout. */
+   * **`fit-content(50%)` on the price track is superseded.** The top bar is no longer two columns, so
+   * neither cell can starve the other by taking more than its share; what is left of that purpose —
+   * every control inside its own item at every width — is the containment assertion over all five
+   * items. The residue is now the settings track, and a residue is safe here in the way ADR 0094
+   * said it was not: the pill has a **total function of width**, a complete reference-declared
+   * drawing at every width down to its floor, which the chips row never had. */
   .screen {
     grid-template-areas:
-      "header   price"
-      "settings settings"
-      "stage    stage";
-    grid-template-columns: minmax(0, 1fr) fit-content(50%);
-    grid-template-rows: auto auto minmax(0, 1fr);
+      "nav settings price actions locale"
+      "stage stage stage stage stage";
+    grid-template-columns: auto minmax(0, 1fr) auto auto auto;
+    grid-template-rows: 76px minmax(0, 1fr);
   }
 
-  /* A band across the screen rather than a cell in the top bar, so the overrides written for that
-   * cell are re-decided here: the band takes the header's own 18 px left inset and the price bar's
-   * 28 px right one, so the chips line up under the step nav and the trigger under the figure. The
-   * base rule's bottom rule comes back with it — a full-width band is separated from the scene the
-   * way the mobile one already is, and `border-bottom: none` belonged to the cell. */
-  .settingsRow {
-    align-items: center;
-    padding: 0 28px 0 18px;
+  .nav,
+  .settings,
+  .locale,
+  .priceRow {
+    /* Frame D2A `:544`: `padding: 0 28px 0 40px` on the band, split across its outer cells so the
+     * rule underneath runs the whole width. The band's height is declared, so no cell adds any. */
+    padding-block: 0;
   }
 
-  /* Frame D2A's top bar: wordmark · pill · title, with the locale chip pushed to the right-hand end
-   * by `margin-left: auto`. Its arrangement, its typography and — since the owner's 2026-09-07
-   * ruling — its height; the `.header` rule above records what that height costs the scene.
-   *
-   * **The 76 px is arithmetic, not a magic number**: `17.5 + 40 + 17.5` of padding around the chip,
-   * plus the 1 px rule, and the chip is the tallest thing in the row at the frame's own
-   * `height: 40px`. That is D2A's own arrangement — the frame fixes the band at 76 and centres a
-   * 40 px chip in it — rather than W4's 7 px stretched to fill a taller box. `top-bar-box.test.ts`
-   * reads those four declarations back out of this file and adds them up.
-   *
-   * **The half-pixel is in the inset, never in the band.** `price-bar.module.css` records why a
-   * *fractional* band is dangerous: the canvas lands on a half-pixel, a resize round trip rounds the
-   * drawing buffer differently, and frame D2B's "the camera does not jump" fails byte-for-byte. This
-   * band sums to an integer 76. Only the inset either side of a centred chip is halved, and that is
-   * where `align-items: center` would have placed the chip whatever the two paddings were.
-   *
-   * The gap is frame D1A's 20 rather than D2A's 28, and the inset is the header's own 18 rather than
-   * the frame's 40. **The ruling was about height; these are widths and are unchanged by it.** D2A
-   * carries the settings chips, the price and the CTA in this band and can afford the wider spacing;
-   * here the band is shared with the price cell across a `minmax(0, 1fr)` column, the 18 px is what
-   * the settings row below aligns its chips to (see `.settingsRow`), and 900 px is this branch's
-   * tight case — widening either would spend the row's slack exactly where it is scarcest. */
-  .header {
-    gap: 20px;
-    padding: 17.5px 18px;
+  /* The row's own spacing, carried by the cells so the band's rule is never broken by a gap. Each of
+   * the three cells that draws a divider takes the gap **twice** — once before the divider, as this
+   * padding, and once after it, as the divider's own margin — which is how frame D2A draws them. */
+  .priceRow,
+  .actions,
+  .locale {
+    padding-left: var(--top-bar-row-gap);
   }
 
-  .back {
+  .nav {
+    gap: var(--top-bar-nav-gap);
+    /* **`min-width: 0` is give D's other half** (ADR 0104 decision 8). The nav's track is `auto` and
+     * the settings track is the row's residue, so without this a longer title would grow the nav and
+     * take the residue from the pill — squeezing the one control that has a floor. Zeroed, the nav
+     * gives way instead and the title ellipsises exactly as frame 2A declares it. It is the last
+     * give and it is not reached on the seeded design; M6B's strings are what it is there for. */
+    min-width: 0;
+    padding-left: 40px;
+  }
+
+  /* The pill hugs the price rather than the title: D2A pushes its whole right-hand group over with
+   * `margin-left: auto`, and here the settings track *is* the row's residue, so the pill takes its
+   * right edge and the slack falls to its left. The extra inset makes the gap between the nav and
+   * the pill up to the band's own `gap`, which is D2A's 28 rather than the group's 14. */
+  .settings {
+    justify-content: flex-end;
+    padding-left: var(--top-bar-nav-gap);
+  }
+
+  /* Frame D2A's three 28 px dividers, as pseudo-elements on the cells they precede: they are
+   * decoration, they take no grid track, and each takes the row's own `column-gap` on either side. */
+  .priceRow::before,
+  .actions::before,
+  .locale::before {
+    flex: 0 0 1px;
+    align-self: center;
+    width: 1px;
+    height: 28px;
+    margin-right: var(--top-bar-row-gap);
+    content: "";
+    background: var(--line-soft);
+  }
+
+  .back,
+  .backAction {
     display: none;
   }
 
+  /* Frame D2A `:545`. **It leaves the row below the width at which the pill can still show one whole
+   * setting name beside it** — give C, ruled by the owner on 2026-09-09 over both keeping it with a
+   * `P…` stub and putting the phone's shell on a narrow laptop. It is the only item in the band
+   * carrying no state, and frame 2A does not draw it at all. The decision is
+   * `configure/top-bar-fit.ts`'s, taken from the same measurement the pill's ladder is taken from —
+   * there is no width threshold here. */
   .wordmark {
     display: block;
     flex: 0 0 auto;
@@ -397,22 +482,50 @@
     text-transform: uppercase;
   }
 
+  /* Scoped to the nav, so the hidden probe the decision is measured from keeps its own width. */
+  .screen[data-wordmark="dropped"] .nav .wordmark {
+    display: none;
+  }
+
   .stepPill {
     padding: 7px 8px;
     font-size: 12px;
   }
 
-  /* `flex: 0 0 auto`, as the frame draws it: on desktop the row has room and the title is not the
-   * element that absorbs it — the locale chip's `margin-left: auto` is. */
+  /* Frame D2A draws the title at its full width and never cuts it, which is what `flex: 0 1 auto`
+   * preserves: it shrinks **only** when the row has run out of every other give — the pill's ladder,
+   * the gaps and the wordmark — which is give D's ruled position, last. The ellipsis declarations are
+   * inherited from the base rule, where frame 2A declares them. */
   .title {
-    flex: 0 0 auto;
+    flex: 0 1 auto;
     font-size: 19px;
   }
 
+  .actions {
+    display: flex;
+    grid-area: actions;
+    align-items: center;
+    /* `padding-block` only: the inline padding is the row's own gap, declared once for the three
+     * cells that draw a divider. A `padding: 0` here would take that gap back. */
+    padding-block: 0;
+    border-bottom: 1px solid var(--line-soft);
+  }
+
+  /* Frame D2A `:567`: 48 px tall, centred in the 76 px band with 14 px above and below. */
+  .reviewCta {
+    flex: 0 0 auto;
+    height: 48px;
+    padding: 0 24px;
+  }
+
   .locale {
+    grid-area: locale;
+    padding-right: 28px;
+  }
+
+  .localeChip {
     gap: 5px;
     height: 40px;
-    margin-left: auto;
     padding: 0 12px;
     border-radius: 20px;
   }
@@ -425,23 +538,31 @@
     font-size: 11px;
   }
 
-  /* **Stretched rather than centred, and the 76 px ruling is why.** The price cell draws the same
-   * `border-bottom` the header does and the two are read as one rule across the top bar, but the
-   * cell's own box computes to 53.5 px. Centred in the old 55 px row its rule sat 0.75 px above the
-   * header's and nobody could see it; centred in 76 it would float 11.25 px up and break the rule
-   * in two. Stretched, the cell is the row's height and the two rules meet. The figure inside keeps
-   * the header chip's centre line — `.bar` centres its own contents (`price/price-bar.module.css`),
-   * and the breakdown already asks for `align-self: stretch` for its popover's anchor.
+  /* **Stretched rather than centred**, like every other cell in the band: each draws the same
+   * `border-bottom` and the five are read as one rule across the top bar. A centred cell would hang
+   * its rule at its own box's foot and break the line in two.
    *
-   * **`min-width: 0` is what lets the cap above bind.** `fit-content()`'s own minimum is `auto`,
-   * i.e. this item's automatic minimum size, so without this the cell's min-content would set the
-   * track and the half-share would be a maximum the layout never reached. Zeroed, the cell is
-   * whatever its track is and spends the difference inside itself, on the warning's wrap. */
+   * `min-width: 0` so the cell is its track rather than its contents — the containment declaration
+   * ADR 0082 decision 1 asks of every item in this row. */
   .priceRow {
     display: flex;
     min-width: 0;
     align-items: stretch;
     background: var(--paper);
+    border-bottom: 1px solid var(--line-soft);
+  }
+
+  /* Frame D2A `:558`: `flex-direction: column; align-items: flex-end; gap: 3px` — the amount with
+   * the breakdown's control under it, both against the column's right edge, centred in the band. */
+  .priceColumn {
+    display: flex;
+    flex: 0 0 auto;
+    flex-direction: column;
+    gap: 3px;
+    align-self: stretch;
+    align-items: flex-end;
+    justify-content: center;
+    min-width: 0;
   }
 
   .presets {

@@ -153,7 +153,6 @@ describe("the global settings sheet is the level being followed, so it offers no
       groups: projectDesignForDisplay(design, KITCHEN_L_BODY_CATALOG),
       applied: design.settings ?? {},
       pending: {},
-      rejection: null,
       chosenColourCount: 0,
     });
 

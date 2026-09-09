@@ -2,8 +2,6 @@
 
 import type { CSSProperties } from "react";
 
-import { useConfiguratorStore } from "@/store/configurator-store";
-
 import { PRICE_BAR_RESERVED_HEIGHT_PX } from "./price-bar-layout";
 import { describePriceBar } from "./price-bar-model";
 import styles from "./price-bar.module.css";
@@ -28,8 +26,7 @@ const PRICE_BAR_METRICS = {
  */
 export function PriceBar() {
   const pricing = usePricedDesign();
-  const rejection = useConfiguratorStore((state) => state.lastRejection);
-  const view = describePriceBar({ pricing, rejection });
+  const view = describePriceBar({ pricing });
 
   // A pricing failure renders no figure: not a zero, not a stale one, not a dash that reads as free.
   if (view.kind === "unpriced") return null;
@@ -64,8 +61,8 @@ export function PriceBar() {
       data-testid="price-bar"
     >
       {/* The **figure** is the live region, not the bar: the amount moves on every width step, and
-          a region wrapping the whole bar would re-read the flagged-total warning beside it each
-          time. Polite rather than assertive — a price update is not worth interrupting. */}
+          a region wrapping the whole bar would re-read whatever else stood in it each time. Polite
+          rather than assertive — a price update is not worth interrupting. */}
       <p className={styles.figure} aria-live="polite">
         <span className={styles.label} data-testid="price-bar-label">
           {view.figure.label}
@@ -74,24 +71,11 @@ export function PriceBar() {
           {view.figure.amountText}
         </span>
       </p>
-      {/* Rendered **always**, empty when the total is not flagged, for the reason `PanelNoticeRow`
-          gives: many screen readers announce only *changes* to a region already in the
-          accessibility tree, so one mounted at the same moment its first message appears can be
-          announced late or not at all — and the warning's arrival is the announcement that matters
-          most here. `display: contents` keeps it out of the layout entirely, so the bar measures
-          the same with it as without. The warning element itself still appears only when there is
-          something to say. */}
-      <div
-        className={styles.flagRegion}
-        role="status"
-        data-testid="price-bar-flag-region"
-      >
-        {view.overflowWarning === undefined ? null : (
-          <span className={styles.overflow} data-testid="price-bar-overflow">
-            {view.overflowWarning}
-          </span>
-        )}
-      </div>
+      {/* **ADR 0065's flagged-total sentence is no longer drawn here** — the owner ruled it out of
+          the bar and onto the scene on 2026-09-09 (ADR 0104 decision 8b), over letting the desktop
+          bar grow on a flagged design. It is rendered once, by `price/flagged-total-warning.tsx`,
+          from this same model. Nothing about the rule changed: the flag still travels with the total
+          (decision 6), and the surface it travels to is the scene on both shells. */}
     </div>
   );
 }

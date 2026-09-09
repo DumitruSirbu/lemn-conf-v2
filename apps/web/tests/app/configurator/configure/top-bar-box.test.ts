@@ -1,16 +1,20 @@
-// The top bar refreshed against the owner's updated export (wave W4), and what the refresh costs:
-// **canvas**.
+// The top bar refreshed against the owner's own frames, and what it costs the scene.
 //
-// `.screen` is a `100dvh` grid whose only flexible row is the stage, so every pixel the header band
-// gains is a pixel the scene loses. Wave W4 could not settle the desktop height on its own — frame
-// D2A draws **76 px** while the invariant it was given said the stage must lose nothing — so it
-// shipped the frame's arrangement inside the 55 px the row already measured and wrote the deviation
-// down. **The owner ruled on 2026-09-07 that on desktop a taller top bar is fine**, so the desktop
-// band is now the frame's own 76 and the scene is 21 px shorter at every desktop width by decision.
+// `.screen` is a `100dvh` grid whose only flexible row is the stage, so every pixel the top bar takes
+// is a pixel the canvas loses. **ADR 0104 changes what this file reads, and the change is the point
+// of the wave.** Until it, the desktop band's 76 px was *arithmetic* — `17.5 + 40 + 17.5 + 1` of
+// padding around the locale chip — which reached frame D2A's declared number by a different route.
+// That route is closed: the frame's own `Verifică designul` is **48 px** and does not fit inside 40,
+// so the band takes D2A's declared `height: 76px` with no padding-block, and this file reads the
+// declaration and then holds every cell's content under it.
+//
+// **The mobile band is still a sum**, because frame 2A declares no height at all: it is padding plus
+// the tallest child plus the rule. Only the tallest child changed — from the locale chip to the
+// settings chip the frame draws beside it.
 //
 // No type spans that arithmetic — it is a stylesheet — so this file reads the declarations back out
 // as text and adds them up, exactly as `price-bar-layout.test.ts` reads the bar's own. The browser
-// measurement of the same claim is `tests/e2e/top-bar.e2e.spec.ts` and its desktop twin; this is the
+// measurement of the same claims is `tests/e2e/top-bar.e2e.spec.ts` and its desktop twin; this is the
 // half that fails in CI on a machine with no browser.
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
@@ -35,6 +39,16 @@ const priceBarStylesheet = readFileSync(
   resolve(import.meta.dirname, "../../../../src/price/price-bar.module.css"),
   "utf8",
 );
+/** The settings pill's own stylesheet. **New to this file with ADR 0104 decision 2**: the pill is a
+ *  cell of the top bar now, and on mobile it is the row's tallest child — so the band's height
+ *  cannot be computed without it. */
+const settingsStylesheet = readFileSync(
+  resolve(
+    import.meta.dirname,
+    "../../../../src/settings/global-settings.module.css",
+  ),
+  "utf8",
+);
 
 const roSource = readFileSync(
   resolve(import.meta.dirname, "../../../../src/content/ro.ts"),
@@ -43,18 +57,22 @@ const roSource = readFileSync(
 
 /** What the band measured before the refresh: `16 + 14` (the back link's line) `+ 9 + 3` (the gap
  *  and the progress bar) `+ 12 + 1`. It is quoted in `price-bar.module.css` as the budget the
- *  desktop price cell's 9 px padding was chosen against, so it is a number two files agree on
- *  rather than one this test invented. On desktop it is now a historical figure — see the ruled
- *  height below — and on mobile it is the ceiling the refreshed band came in under. */
+ *  desktop price cell's padding was chosen against, so it is a number two files agree on rather than
+ *  one this test invented. */
 const HEIGHT_AT_BASE_COMMIT_PX = 55;
 
-/** Frame D2A's own bar, taken on the owner's 2026-09-07 ruling: `17.5 + 40 + 17.5` of padding around
- *  the locale chip, plus the band's 1 px rule. */
+/** Frame D2A's own declaration — `height: 76px` on the band, taken as written (ADR 0104's
+ *  re-derivation of the owner's 2026-09-07 ruling). */
 const RULED_DESKTOP_HEIGHT_PX = 76;
 
-/** What the ruling spends, stated as a number so it cannot be spent twice. The stage is the only
- *  flexible row, so this is the canvas's loss at every desktop width. */
+/** What the ruling spends on desktop, stated as a number so it cannot be spent twice. */
 const RULED_CANVAS_COST_PX = 21;
+
+/** **What the withdrawn settings strip gives back**, measured in a browser at `6d53d38` before this
+ *  wave touched anything: the strip's own desktop row was 45.00 px at 900, 1000, 1100, 1440 and
+ *  1920, and the canvas began at y = 121 at every one of them. ADR 0094 accepted that cost
+ *  knowingly; ADR 0104 decision 2 withdraws the row that charged it. */
+const STRIP_BAND_AT_BASE_COMMIT_PX = 45;
 
 /** The `@media (min-width: 900px)` branch is the desktop shell; everything above it is the mobile
  *  one. Split rather than parsed, because a nested-brace parser is more machinery than one
@@ -68,15 +86,32 @@ function splitAtBreakpoint(css: string): readonly [string, string] {
 }
 
 const [MOBILE_CSS, DESKTOP_CSS] = splitAtBreakpoint(stylesheet);
+const [MOBILE_SETTINGS_CSS, DESKTOP_SETTINGS_CSS] =
+  splitAtBreakpoint(settingsStylesheet);
 
-/** One rule's declarations, comments stripped — this stylesheet's commentary names properties and
- *  numbers it does not declare, which is precisely the false positive a text guard has to rule
- *  out. */
+/**
+ * Everything a class declares, comments stripped — these stylesheets' commentary names properties
+ * and numbers they do not declare, which is precisely the false positive a text guard has to rule
+ * out.
+ *
+ * **Every block whose selector list names the class, not only its own rule.** The top bar's five
+ * cells share one rule for the paint they have in common — the paper and the band's rule — and a
+ * reader that only matched `.nav {` would report that shared declaration as absent, which is a guard
+ * lying about a stylesheet rather than reading it.
+ */
 function declarationsOf(css: string, rule: string): string {
-  const withoutComments = css.replace(/\/\*[\s\S]*?\*\//g, "");
-  return (
-    new RegExp(`\\.${rule} \\{([^}]*)\\}`).exec(withoutComments)?.[1] ?? ""
-  );
+  const flattened = css
+    .replace(/\/\*[\s\S]*?\*\//g, "")
+    // The desktop branch is one `@media` block wrapping the rules this reads. Dropping the opener
+    // leaves a flat list of rules, which is all the matcher below can walk.
+    .replace(/@media[^{]*\{/g, "");
+  // The class itself, never a pseudo-element on it: `.locale::before` is frame D2A's divider, and a
+  // reader that took it for `.locale` would report the divider's own declarations as the cell's.
+  const named = new RegExp(`\\.${rule}(?![\\w-]|::)`);
+  return [...flattened.matchAll(/([^{}]*)\{([^}]*)\}/g)]
+    .filter(([, selectors]) => named.test(selectors ?? ""))
+    .map(([, , declarations]) => declarations ?? "")
+    .join("");
 }
 
 function pixelsOf(declarations: string, property: string): number | undefined {
@@ -96,10 +131,14 @@ function verticalPaddingOf(declarations: string): number | undefined {
  *  `font-size` override the desktop branch adds. Every rule in this header sets `line-height: 1`,
  *  so the font size *is* the line box's height. */
 function fontSizeOf(declarations: string): number | undefined {
-  const shorthand = /font:\s*\d+\s+([\d.]+)px\//.exec(declarations)?.[1];
-  return shorthand === undefined
-    ? pixelsOf(declarations, "font-size")
-    : Number(shorthand);
+  const shorthand = /font:\s*\d+\s+([\d.]+)px\s*\//.exec(declarations)?.[1];
+  if (shorthand !== undefined) return Number(shorthand);
+  // A rule may name its own line box rather than inline it — `.back` declares `--back-line: 17px`
+  // and spends it twice, on the glyph and on the negative margin that keeps its 44 px target from
+  // changing what the row lays out. Resolved here so the reader still sees one number.
+  const named = /font:\s*\d+\s+var\((--[\w-]+)\)/.exec(declarations)?.[1];
+  if (named !== undefined) return pixelsOf(declarations, named);
+  return pixelsOf(declarations, "font-size");
 }
 
 /**
@@ -112,9 +151,10 @@ function fontSizeOf(declarations: string): number | undefined {
 function ruleReader(
   rule: string,
   shell: "mobile" | "desktop",
+  sheets: readonly [string, string] = [MOBILE_CSS, DESKTOP_CSS],
 ): (read: (declarations: string) => number | undefined) => number {
-  const base = declarationsOf(MOBILE_CSS, rule);
-  const override = shell === "desktop" ? declarationsOf(DESKTOP_CSS, rule) : "";
+  const base = declarationsOf(sheets[0], rule);
+  const override = shell === "desktop" ? declarationsOf(sheets[1], rule) : "";
   return (read) => {
     const value = read(override) ?? read(base);
     if (value === undefined)
@@ -123,14 +163,15 @@ function ruleReader(
   };
 }
 
+const SETTINGS_SHEETS = [MOBILE_SETTINGS_CSS, DESKTOP_SETTINGS_CSS] as const;
+
 /** The locale chip's outer height: the frame's own fixed `height` where it sets one, and otherwise
- *  its border, padding and the code's line box. It is the tallest thing in the row on both shells,
- *  which the "takes the locale chip as its tallest child" case below refuses to assume. */
+ *  its border, padding and the code's line box. */
 function localeChipHeight(shell: "mobile" | "desktop"): number {
-  const chip = ruleReader("locale", shell);
+  const chip = ruleReader("localeChip", shell);
   const fixed =
     shell === "desktop"
-      ? pixelsOf(declarationsOf(DESKTOP_CSS, "locale"), "height")
+      ? pixelsOf(declarationsOf(DESKTOP_CSS, "localeChip"), "height")
       : undefined;
   if (fixed !== undefined) return fixed;
 
@@ -140,123 +181,222 @@ function localeChipHeight(shell: "mobile" | "desktop"): number {
   return 2 * border + 2 * padding + code;
 }
 
-/** Every child's outer height, in the order the row draws them. The slot the shell hides is left
- *  out: `.wordmark` is `display: none` on mobile and `.back` is on desktop, and a hidden box
- *  contributes nothing to a `align-items: center` row. */
+/**
+ * The settings pill's outer height — frame D2A's declared `height: 40px` on desktop, and on mobile
+ * its border, padding and **its own tallest child**.
+ *
+ * That last clause is where the plan's arithmetic was wrong and the stylesheet is right: the chip's
+ * tallest child is the **swatch** at 14 px, not the 11 px label line, so frame 2A's chip is
+ * `1 + 7 + 14 + 7 + 1 = 30` rather than 27 — and the band it sets is 53 rather than 50. The number is
+ * derived here rather than pinned, so the frame's own declarations remain the source.
+ */
+function settingsPillHeight(shell: "mobile" | "desktop"): number {
+  const pill = ruleReader("pill", shell, SETTINGS_SHEETS);
+  const fixed =
+    shell === "desktop"
+      ? pixelsOf(declarationsOf(DESKTOP_SETTINGS_CSS, "pill"), "height")
+      : undefined;
+  if (fixed !== undefined) return fixed;
+
+  const border = pill((block) => pixelsOf(block, "border"));
+  const padding = pill(verticalPaddingOf);
+  const swatch = ruleReader(
+    "swatch",
+    shell,
+    SETTINGS_SHEETS,
+  )((block) => pixelsOf(block, "height"));
+  const label = pill(fontSizeOf);
+  return 2 * border + 2 * padding + Math.max(swatch, label);
+}
+
+/** The review CTA's outer height, which frame D2A declares directly. */
+function reviewCtaHeight(shell: "mobile" | "desktop"): number {
+  return ruleReader("reviewCta", shell)((block) => pixelsOf(block, "height"));
+}
+
+/**
+ * The price cell's own content.
+ *
+ * **The figure is one line, on both shells** — frame D2A's `de la 101 000 MDL`, which the owner
+ * ruled onto the phone as well on 2026-09-09 — so the label and the amount sit *beside* each other
+ * and the taller of the two is the line, not their sum. On desktop the breakdown's control stands
+ * under that line, which is frame D2A's own column.
+ */
+function priceCellHeight(shell: "mobile" | "desktop"): number {
+  const label = fontSizeOf(declarationsOf(priceBarStylesheet, "label")) ?? 0;
+  const amount = fontSizeOf(declarationsOf(priceBarStylesheet, "amount")) ?? 0;
+  const figure = Math.max(label, amount);
+  if (shell === "mobile") return figure;
+  const column =
+    pixelsOf(declarationsOf(DESKTOP_CSS, "priceColumn"), "gap") ?? 0;
+  const control =
+    fontSizeOf(
+      declarationsOf(
+        readFileSync(
+          resolve(
+            import.meta.dirname,
+            "../../../../src/price/price-breakdown.module.css",
+          ),
+          "utf8",
+        ),
+        "trigger",
+      ),
+    ) ?? 0;
+  return figure + column + control;
+}
+
+/** Every child of the top bar's five cells, by the cell it stands in — the whole row, which is what
+ *  the band's height is a function of. The slot the shell hides is left out: `.wordmark` is
+ *  `display: none` on mobile, `.back` is on desktop, and `.backAction` is drawn only in frame 2A's
+ *  bottom bar. */
 function childHeights(shell: "mobile" | "desktop"): Record<string, number> {
-  const pill = ruleReader("stepPill", shell);
+  const step = ruleReader("stepPill", shell);
   return {
     [shell === "mobile" ? "back" : "wordmark"]: ruleReader(
       shell === "mobile" ? "back" : "wordmark",
       shell,
     )(fontSizeOf),
-    stepPill: 2 * pill(verticalPaddingOf) + pill(fontSizeOf),
+    stepPill: 2 * step(verticalPaddingOf) + step(fontSizeOf),
     title: ruleReader("title", shell)(fontSizeOf),
+    settingsPill: settingsPillHeight(shell),
     locale: localeChipHeight(shell),
+    ...(shell === "desktop"
+      ? { reviewCta: reviewCtaHeight(shell), price: priceCellHeight(shell) }
+      : {}),
   };
 }
 
-/** The band's own outer height: its vertical padding twice, its tallest child, and the rule beneath
- *  it. */
-function headerHeight(shell: "mobile" | "desktop"): number {
-  const header = ruleReader("header", shell);
-  const tallestChild = Math.max(...Object.values(childHeights(shell)));
+/** The mobile band's own outer height: its vertical padding twice, its tallest child, and the rule
+ *  beneath it. **Frame 2A declares no height**, so the band *is* this sum — which is why the mobile
+ *  half of this file still adds up and the desktop half no longer does. */
+function mobileHeaderHeight(): number {
+  const cell = ruleReader("nav", "mobile");
+  const tallestChild = Math.max(...Object.values(childHeights("mobile")));
   return (
-    2 * header(verticalPaddingOf) +
+    2 * cell(verticalPaddingOf) +
     tallestChild +
-    header((block) => pixelsOf(block, "border-bottom"))
+    cell((block) => pixelsOf(block, "border-bottom"))
   );
 }
 
+/** The desktop band's **declared** height, read off `.screen`'s own row track rather than summed.
+ *  Frame D2A declares `height: 76px` and the 48 px CTA does not fit inside the sum that used to
+ *  reach the same number. */
+function declaredDesktopBandHeight(): number {
+  const rows = /grid-template-rows:\s*([^;]+);/.exec(
+    declarationsOf(DESKTOP_CSS, "screen"),
+  )?.[1];
+  const declared = /(\d+(?:\.\d+)?)px/.exec(rows ?? "")?.[1];
+  if (declared === undefined)
+    throw new Error("the desktop screen declares no fixed top-bar row");
+  return Number(declared);
+}
+
 describe("the top bar's box, which the scene pays for", () => {
-  it("is 48 px on mobile, so the scene gains the 7 px the old band spent", () => {
-    // `11 + 25 + 11` plus the rule, against the refreshed frame 2A's own arithmetic.
-    expect(headerHeight("mobile")).toBe(48);
-    expect(headerHeight("mobile")).toBeLessThan(HEIGHT_AT_BASE_COMMIT_PX);
+  it("is frame 2A's own 53 px on mobile, one child taller than the band it replaced", () => {
+    // `11 + 30 + 11` plus the rule. The tallest child is the settings chip the frame draws in this
+    // row — `1 + 7 + 14 + 7 + 1`, the swatch setting it rather than the label — where it used to be
+    // the 25 px locale chip. **The phone's scene pays 5 px for it**, and gets the 76 px settings band
+    // ADR 0104 decision 2 withdraws in exchange.
+    expect(mobileHeaderHeight()).toBe(53);
+    expect(mobileHeaderHeight()).toBeLessThan(HEIGHT_AT_BASE_COMMIT_PX);
   });
 
-  it("is frame D2A's own 76 px on desktop, which the owner ruled on 2026-09-07", () => {
-    // The criterion this file exists for, and the one W4 left open. The frame's height is taken and
-    // the canvas pays for it.
-    expect(headerHeight("desktop")).toBe(RULED_DESKTOP_HEIGHT_PX);
+  it("takes the settings chip as its tallest child on mobile, which is what sets that 53", () => {
+    // Non-vacuity for the sum above: it is only the band's height while the chip is what the band
+    // sizes to. Named per shell rather than assumed, because the two frames draw different things
+    // tallest — see the desktop case below.
+    const heights = childHeights("mobile");
+
+    expect(Math.max(...Object.values(heights))).toBe(heights.settingsPill);
+  });
+
+  it("is frame D2A's own declared 76 px on desktop, and no longer a sum that reaches it", () => {
+    // **The derivation dies and the number survives** (ADR 0104). The band used to be
+    // `17.5 + 40 + 17.5 + 1` of padding around the locale chip; frame D2A's `Verifică designul` is
+    // 48 px and does not fit inside 40, so the row declares the frame's own height and every cell
+    // stretches into it.
+    expect(declaredDesktopBandHeight()).toBe(RULED_DESKTOP_HEIGHT_PX);
+    expect(declarationsOf(DESKTOP_CSS, "nav")).toContain("padding-block: 0;");
+  });
+
+  it("holds every cell's own content inside that declared height", () => {
+    // What the sum used to prove, restated for a declared box and over **five** cells rather than
+    // two: a control taller than the band would overflow it silently, where before it would have
+    // grown the band and shown up as a canvas cost.
+    const heights = childHeights("desktop");
+
+    expect(Object.keys(heights).length).toBe(7);
+    for (const [child, height] of Object.entries(heights))
+      expect(height, child).toBeLessThanOrEqual(RULED_DESKTOP_HEIGHT_PX);
+  });
+
+  it("names the child that killed the desktop sum, and it is not the locale chip", () => {
+    // **The frame's own arithmetic, stated.** The withdrawn derivation was `17.5 + 40 + 17.5 + 1`
+    // around the 40 px locale chip. Frame D2A's `Verifică designul` is **48**, so it does not fit
+    // inside 40 and the band could not go on being that sum. The tallest child is named rather than
+    // assumed, because that is the assumption the old case made and this wave broke.
+    const heights = childHeights("desktop");
+
+    expect(Math.max(...Object.values(heights))).toBe(heights.reviewCta);
+    expect(heights.reviewCta).toBe(48);
+    expect(heights.reviewCta).toBeGreaterThan(heights.locale ?? 0);
   });
 
   it("costs the desktop canvas exactly the 21 px the ruling accepted, and no more", () => {
-    // The cost is asserted rather than described, so a later padding edit that quietly spends a
-    // twenty-second pixel of scene fails here. The stage is `.screen`'s only flexible row, so what
-    // this band gains above its base-commit box is what the canvas loses.
-    expect(headerHeight("desktop") - HEIGHT_AT_BASE_COMMIT_PX).toBe(
+    // The cost is asserted rather than described, so a later edit that quietly spends a
+    // twenty-second pixel of scene fails here.
+    expect(declaredDesktopBandHeight() - HEIGHT_AT_BASE_COMMIT_PX).toBe(
       RULED_CANVAS_COST_PX,
     );
   });
 
-  it("is the element that sets the desktop row's height, so the price cell cannot mask a change", () => {
-    // Both live in grid row 1 and the taller wins. If the price cell were the taller of the two,
-    // every assertion above would be measuring something the scene does not pay for.
-    //
-    // **This is a claim about the two declared boxes, and there is one measured state where it does
-    // not hold on screen.** On a design carrying ADR 0065's overflow flag, between 900 and 1025 px,
-    // the cell's warning wraps to a third line and sets the row at 85.28 px — the ruled height's one
-    // exception, taken on 2026-09-09 to stop the step nav being cut, and recorded beside the
-    // declaration in `configure.module.css`. Nothing here can see it: a wrapped sentence is not a
-    // declaration, and this file reads declarations. The browser measurement of both ends of that
-    // window is `tests/e2e/settings-strip-containment.desktop.e2e.spec.ts`, and it is the file that
-    // goes red if the warning is later re-narrowed.
-    const bar = declarationsOf(
-      priceBarStylesheet.slice(
-        priceBarStylesheet.indexOf(DESKTOP_BRANCH_OPENER),
-      ),
-      "bar",
+  it("gives the desktop canvas back more than the band ever cost it, because the strip's row is gone", () => {
+    // The sibling claim ADR 0104 decision 10 makes, in the two numbers that make it: the band still
+    // costs 21 px against the base commit, and the withdrawn strip returns the 45 px it charged at
+    // every desktop width. Measured in a browser before the wave, and the stylesheet half of the
+    // proof is that no rule for that band exists any more.
+    expect(declarationsOf(stylesheet, "settingsRow")).toBe("");
+    expect(STRIP_BAND_AT_BASE_COMMIT_PX - RULED_CANVAS_COST_PX).toBe(24);
+  });
+
+  it("stretches every top-bar cell to the ruled band, so the bar keeps one unbroken rule", () => {
+    // Each of the five cells draws the same `border-bottom`, and across the top bar the five are
+    // read as one line. A cell that centred itself would hang its rule at its own box's foot and
+    // break the line in two.
+    expect(declarationsOf(DESKTOP_CSS, "priceRow")).toContain(
+      "align-items: stretch;",
     );
-    const figure = declarationsOf(priceBarStylesheet, "figure");
-    const priceCell =
-      2 * (verticalPaddingOf(bar) ?? 0) +
-      (pixelsOf(figure, "gap") ?? 0) +
-      (fontSizeOf(declarationsOf(priceBarStylesheet, "label")) ?? 0) +
-      (fontSizeOf(declarationsOf(priceBarStylesheet, "amount")) ?? 0) +
-      1;
-
-    // Pinned as well as compared, so a parse that silently read nothing cannot pass this by
-    // computing 1. `9 + 9` of padding around `10.5 + 3 + 21` of figure, plus the rule: 53.5, which
-    // is the box `price-bar.module.css`'s own comment says the 9 px was chosen to produce.
-    //
-    // **The 9 px no longer constrains the scene, and the comparison is not thereby vacuous.** At the
-    // base commit's 55 the cell cleared the header by 1.5 px and the padding was forced; at the
-    // ruled 76 it clears by 22.5 and the padding is a free choice. What the comparison proves is
-    // unchanged and is the reason the arithmetic above is worth reading at all: the header is the
-    // taller of the two grid items, so the row's height is the header's. Strict, because a cell that
-    // merely tied would already be setting the row.
-    expect(priceCell).toBe(53.5);
-    expect(priceCell).toBeLessThan(headerHeight("desktop"));
-  });
-
-  it("stretches the price cell to the ruled band, so the top bar keeps one unbroken rule", () => {
-    // The header and the price cell each draw a `border-bottom`, and across the top bar the two are
-    // read as one line. A centred 53.5 px cell hangs its rule at its own box's foot: 0.75 px above
-    // the header's at the base commit's 55, which nobody could see, and 11.25 px above it at the
-    // ruled 76, which everybody can.
-    const priceRow = declarationsOf(DESKTOP_CSS, "priceRow");
-
-    expect(priceRow).toContain("align-items: stretch;");
-    expect(priceRow).not.toContain("align-items: center;");
-  });
-
-  it("takes the locale chip as its tallest child on both shells", () => {
-    // Non-vacuity for the two sums above: they read the chip's box and nothing else's, which is only
-    // the band's height while the chip is what the band sizes to.
-    for (const shell of ["mobile", "desktop"] as const) {
-      const heights = childHeights(shell);
-      expect(Math.max(...Object.values(heights)), shell).toBe(heights.locale);
+    // A grid item stretches into its row by default; what would break the rule is a cell opting out
+    // of that, so what is asserted is that none of the five does.
+    for (const cell of ["nav", "settings", "locale", "priceRow", "actions"]) {
+      const declarations = `${declarationsOf(MOBILE_CSS, cell)}${declarationsOf(DESKTOP_CSS, cell)}`;
+      expect(declarations, cell).not.toContain("align-self:");
     }
   });
 
-  it("declares no height of its own and no scrolling, on either shell", () => {
-    // The band must not become a scroll container, and it must not pin the grid row: a fixed height
-    // here would stop the arithmetic above from being the whole story.
+  it("draws one rule under the whole band, from every cell that stands in it", () => {
+    const rule = "border-bottom: 1px solid var(--line-soft);";
+
+    for (const cell of ["nav", "settings", "locale"])
+      expect(declarationsOf(MOBILE_CSS, cell), cell).toContain(rule);
+    // The price and the actions join the band on desktop only; on mobile they are the bottom bar.
+    for (const cell of ["priceRow", "actions"])
+      expect(declarationsOf(DESKTOP_CSS, cell), cell).toContain(rule);
+  });
+
+  it("declares no height on the mobile band, and no scrolling on either", () => {
+    // The half that was protecting something and still is: a band that scrolled would hide a control
+    // rather than report it. The *height* half now holds for mobile only — the desktop row declares
+    // frame D2A's own, deliberately, and `declaredDesktopBandHeight` above reads it.
+    expect(declarationsOf(MOBILE_CSS, "nav")).not.toMatch(
+      /(?:^|[;\s])(?:min-)?height:/,
+    );
     for (const css of [MOBILE_CSS, DESKTOP_CSS]) {
-      const header = declarationsOf(css, "header");
-      expect(header).not.toMatch(/(?:^|[;\s])(?:min-)?height:/);
-      expect(header).not.toMatch(/overflow(?:-[xy])?:/);
+      for (const cell of ["nav", "settings", "locale"])
+        expect(declarationsOf(css, cell), cell).not.toMatch(
+          /overflow(?:-[xy])?:/,
+        );
     }
   });
 });
@@ -270,11 +410,14 @@ describe("the row the refreshed frames replaced", () => {
   });
 
   it("lays the band out as one row rather than a column", () => {
-    const header = declarationsOf(MOBILE_CSS, "header");
+    // The five cells are grid items of the screen now, so "one row" is the screen's own template:
+    // one row for the whole top bar, with the three mobile cells side by side in it.
+    const screen = declarationsOf(MOBILE_CSS, "screen");
 
-    expect(header).toContain("display: flex;");
-    expect(header).toContain("align-items: center;");
-    expect(header).not.toContain("flex-direction: column;");
+    expect(screen).toContain('"nav      settings locale"');
+    expect(screen).not.toContain("flex-direction: column;");
+    expect(declarationsOf(MOBILE_CSS, "nav")).toContain("display: flex;");
+    expect(declarationsOf(MOBILE_CSS, "nav")).toContain("align-items: center;");
   });
 
   it("truncates the title on mobile instead of growing the band or evicting the chip", () => {
@@ -291,20 +434,45 @@ describe("the row the refreshed frames replaced", () => {
   });
 
   it("keeps the locale chip out of the flexible space on both shells", () => {
+    // **The mechanism changed with the structure and the property did not.** The chip used to be
+    // pushed to the right-hand end by `margin-left: auto` inside a flex header; it is a grid item of
+    // its own now, and what keeps it out of the slack is its track being `auto` on both shells while
+    // the settings track takes the residue.
     expect(declarationsOf(MOBILE_CSS, "locale")).toContain("flex: 0 0 auto;");
-    // Frame D2A pushes it to the right-hand end rather than centring the row's slack.
-    expect(declarationsOf(DESKTOP_CSS, "locale")).toContain(
-      "margin-left: auto;",
+    expect(declarationsOf(MOBILE_CSS, "screen")).toContain(
+      "grid-template-columns: minmax(0, 1fr) auto auto;",
+    );
+    expect(declarationsOf(DESKTOP_CSS, "screen")).toContain(
+      "grid-template-columns: auto minmax(0, 1fr) auto auto auto;",
     );
   });
 
-  it("shows exactly one of the back control and the wordmark per shell", () => {
+  it("shows exactly one of the back control and the wordmark per shell, and a third state", () => {
     // §10.1's one permitted fork, taken in CSS: two markup branches would be two copies of the row.
     expect(declarationsOf(MOBILE_CSS, "wordmark")).toContain("display: none;");
     expect(declarationsOf(DESKTOP_CSS, "back")).toContain("display: none;");
     expect(declarationsOf(DESKTOP_CSS, "wordmark")).toContain(
       "display: block;",
     );
+    // **The third state, ruled by the owner on 2026-09-09** (ADR 0104 decision 8, give C): the
+    // wordmark also leaves the desktop row when the fit model says the pill can no longer show one
+    // whole setting name beside it. It is a data attribute on the screen and **not** a width
+    // threshold — criterion 4i — and it is scoped to the nav so the hidden probe the decision is
+    // measured from keeps its own width.
+    expect(DESKTOP_CSS).toContain(
+      '.screen[data-wordmark="dropped"] .nav .wordmark',
+    );
+    expect(screenSource).toContain(
+      'data-wordmark={topBar.isWordmarkDrawn ? "drawn" : "dropped"}',
+    );
+  });
+
+  it("declares no width threshold of its own, at any point in the file", () => {
+    // ADR 0094 criterion 4i, met as written rather than argued around: the only `@media` in this
+    // stylesheet is the shell fork the application already had. Every other decision — the label
+    // count, the gaps, the wordmark — is a comparison against a measured width.
+    expect(stylesheet.match(/@media/g)).toHaveLength(1);
+    expect(stylesheet).toContain(DESKTOP_BRANCH_OPENER);
   });
 });
 
@@ -350,13 +518,17 @@ describe("the locale chip is drawn and inert", () => {
   it("is not a control, and nothing is wired to it", () => {
     // M6B wave 6B-i owns locale switching and is gated on the owner's Gate O1. An element with a
     // control's affordances and no behaviour is worse than the static chip it replaces.
-    const header = /<header[\s\S]*?<\/header>/.exec(screenSource)?.[0];
-    if (!header) throw new Error("no header element in the screen's source");
+    //
+    // **The chip left the header with ADR 0104 decision 2** — it is a grid item of its own, so
+    // frame D2A can place it after the CTA while frame 2A keeps it in the header row — so the cell
+    // is what is read rather than the header.
+    const cell = /styles\.locale}>[\s\S]*?<\/div>/.exec(screenSource)?.[0];
+    if (!cell) throw new Error("no locale cell in the screen's source");
 
-    expect(header).toContain("styles.locale");
-    expect(header).not.toContain("<button");
-    expect(header).not.toContain("onClick");
-    expect(header).not.toContain('role="button"');
+    expect(cell).toContain("styles.localeChip");
+    expect(cell).not.toContain("<button");
+    expect(cell).not.toContain("onClick");
+    expect(cell).not.toContain('role="button"');
   });
 
   it("draws the caret the frames draw, and hides it from a screen reader", () => {

@@ -17,6 +17,7 @@
 // and agreed everywhere only because the six were written together. Aliased to the local name the
 // cases below already use.
 import {
+  KITCHEN_L_BODY_CATALOG,
   KITCHEN_L_DESIGN,
   OVERFLOWING_KITCHEN_L_DESIGN as OVERFLOWING_DESIGN,
   type Design,
@@ -32,10 +33,16 @@ const store = vi.hoisted(() => ({
   isBodyProbeAttached: false,
 }));
 
+// **Three slices rather than two since ADR 0104.** The screen itself now reads the price book — the
+// settings pill's labels and the row's fit are decided above `GlobalSettings`, in the component that
+// owns the grid — and the flagged total's sentence stands in the scene's own stack beside the band
+// under test. Both need a catalogue to price against and a last refusal to label with.
 vi.mock("@/store/configurator-store", () => ({
   useConfiguratorStore: (selector: (state: unknown) => unknown) =>
     selector({
       design: store.design,
+      catalog: KITCHEN_L_BODY_CATALOG,
+      lastRejection: null,
       isBodyProbeAttached: store.isBodyProbeAttached,
     }),
 }));

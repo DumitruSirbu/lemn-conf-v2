@@ -10,6 +10,7 @@ import {
   countCabinetsWearingAChosenFinish,
   KITCHEN_L_BODY_CATALOG,
   KITCHEN_L_DESIGN,
+  paletteFinish,
   priceDesign,
   projectDesignForDisplay,
   SAMPLE_PRICE_BOOK,
@@ -22,9 +23,10 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
+import { swatchOf } from "@lemnaria/three-adapter";
+
 import { ro } from "@/content/ro";
 
-import { REFUSAL } from "../support/selection-meta";
 import { describeRoundedAmount } from "@/price/starting-price";
 import {
   offerWholeKitchenTiers,
@@ -32,6 +34,7 @@ import {
 } from "@/price/whole-kitchen-tiers";
 import {
   describeGlobalSettings,
+  describePillRung,
   type GlobalSettingsView,
   type DescribeGlobalSettingsInput,
   type TierGroupView,
@@ -73,7 +76,6 @@ function inputFor(
     groups: SHIPPED_GROUPS,
     applied: {},
     pending: {},
-    rejection: null,
     chosenColourCount: countCabinetsWearingAChosenFinish(KITCHEN_L_DESIGN),
     ...overrides,
   };
@@ -250,23 +252,119 @@ describe("the two selections, which are not the same selection", () => {
     ]);
   });
 
-  it("names the applied choice on the chips, not the pending one", () => {
-    // The chips are visible with the sheet shut, so they must not move under a customer who has not
-    // pressed Aplică yet.
+  it("names the applied choice on the pill, not the pending one", () => {
+    // The pill is read with the sheet shut, so it must not move under a customer who has not pressed
+    // Aplică yet.
     const view = settingsView({
       applied: { materialTierId: "material.melamine", cabinetDepthMm: 600 },
       pending: { materialTierId: "material.veneer", cabinetDepthMm: 700 },
     });
 
-    // **Two, and the cabinet depth is deliberately not a third** (wave 6K-b, 2026-09-05). One was
-    // added and withdrawn on measurement: at 390 x 844 the chips row cannot hold three, and a third
-    // pushed the bar over the controls beside it — 44 of 58 e2e specs failed because nothing could
-    // be tapped. Two chips already truncate at that viewport. The depth needs the reminder least of
-    // the three anyway: it is the only one whose change the customer can *see*, in the model itself.
-    expect(view.chips.map((chip) => chip.label)).toEqual([
-      "Material · PAL melaminat",
-      "Feronerie · Standard",
+    // **Four settings, in ADR 0099 decision 9's order**, and the depth is one of them: frame D2A
+    // names it — `Adâncime 600` — which ADR 0082 left open and ADR 0104 decision 1 closes. The
+    // count of two chips this replaces was a measurement of a chips row that no longer exists; what
+    // decides how many of these are *drawn* is the ladder, measured per width, and the rest are
+    // counted after a `+`.
+    //
+    // **The composition is D2A's and not the breakdown's**: the material bare, the others a category
+    // word and a value with no `·`.
+    expect(view.pill.settings.map((setting) => setting.label)).toEqual([
+      "PAL melaminat",
+      "Alb",
+      "Feronerie Standard",
+      "Adâncime 600",
     ]);
+    expect(view.pill.settings.map((setting) => setting.key)).toEqual([
+      "material",
+      "colour",
+      "hardware",
+      "depth",
+    ]);
+  });
+
+  it("draws a palette colour by its own name, with no category word in front of it", () => {
+    // **Owner, 2026-09-09**: *"the color should be without word Culoare, just the color name"*. It is
+    // deliberately unlike the two segments beside it — frame D2A does put a category word in front of
+    // the hardware and the depth — so the assertion names all three at once.
+    const view = settingsView({
+      applied: { materialTierId: "material.melamine" },
+    });
+    const [, colour, hardware, depth] = view.pill.settings;
+
+    expect(colour).toEqual({ key: "colour", label: "Alb" });
+    expect(hardware?.label.startsWith("Feronerie ")).toBe(true);
+    expect(depth?.label.startsWith("Adâncime ")).toBe(true);
+  });
+
+  it("draws a free colour as a swatch and no text at all, and still counts it as shown", () => {
+    // The other half of the same ruling: *"or if MDF the value interpreted (real color)"*. MDF's
+    // control is a RAL picker, so its colours have no names — a hex on the pill would be a value
+    // nobody reads as a colour. The swatch wears it, and the setting is **shown** rather than
+    // counted, so the ladder and `+N` are unaffected.
+    const view = settingsView({
+      applied: { materialTierId: "material.painted-mdf" },
+      pending: { materialTierId: "material.painted-mdf" },
+    });
+
+    expect(view.pill.settings.map((setting) => setting.key)).toEqual([
+      "material",
+      "colour",
+      "hardware",
+      "depth",
+    ]);
+    expect(view.pill.settings[1]?.label).toBe("");
+    expect(view.pill.swatch).toEqual({ colour: "#eceeeb", isWood: false });
+    // Drawn: no empty label and no divider around nothing.
+    expect(describePillRung(view.pill, 2).labels).toEqual(["MDF vopsit mat"]);
+    expect(describePillRung(view.pill, 2).counter).toBe("+2");
+  });
+
+  it("says the free colour's value in the accessible name, since nothing on screen says it", () => {
+    // A swatch is not something a screen reader can read, and a colour nobody can name still has to
+    // be announced — which is the same rule that puts every counted setting in this name.
+    const view = settingsView({
+      applied: { materialTierId: "material.painted-mdf" },
+      pending: { materialTierId: "material.painted-mdf" },
+    });
+
+    expect(view.pill.accessibleName).toContain("#eceeeb");
+  });
+
+  it("wears the colour the scene paints, rather than a second hex of its own", () => {
+    // One declared colour, three surfaces: the pill's swatch, §9's chips and the 3D all read the
+    // adapter's own value for the finish.
+    const declared = swatchOf(paletteFinish("pal.alb"));
+
+    expect(settingsView().pill.swatch).toEqual({
+      colour: declared.color,
+      isWood: declared.isWood,
+    });
+  });
+
+  it("names every setting in the pill's accessible name, whatever it draws", () => {
+    // `+N` is a visual economy and it must not cost a screen-reader user a setting (ADR 0104
+    // decision 3). Asserted against the floor of the ladder, which is where the visible pill says
+    // least: one label and a counter.
+    const view = settingsView();
+    const floor = describePillRung(view.pill, 1);
+
+    expect(floor.labels).toEqual(["PAL melaminat"]);
+    expect(floor.counter).toBe("+3");
+    for (const setting of view.pill.settings) {
+      expect(view.pill.accessibleName).toContain(setting.label);
+    }
+    expect(view.pill.accessibleName).toContain("Setări globale");
+  });
+
+  it("counts what it does not show, and never draws a bare counter", () => {
+    const view = settingsView();
+
+    expect(describePillRung(view.pill, 4)).toEqual({
+      labels: ["PAL melaminat", "Alb", "Feronerie Standard", "Adâncime 600"],
+    });
+    expect(describePillRung(view.pill, 2).counter).toBe("+2");
+    // The floor holds even against a caller that asks for nothing to be named.
+    expect(describePillRung(view.pill, 0).labels).toEqual(["PAL melaminat"]);
   });
 
   it("publishes every offered id, which is what the apply commands are handed", () => {
@@ -280,7 +378,9 @@ describe("the ruled words, and the one deliberately absent", () => {
   it("pins every string this wave drafted", () => {
     const view = settingsView();
 
-    expect(view.openLabel).toBe("Setări globale");
+    // The control's own name is still the ruled string; since ADR 0104 decision 2 it is the pill's
+    // accessible name rather than visible text, because no frame draws a text trigger.
+    expect(view.pill.accessibleName.startsWith("Setări globale")).toBe(true);
     expect(view.title).toBe("Setări pentru toată bucătăria");
     expect(view.warning).toBe(
       "Schimbarea materialului recalculează întreaga estimare.",
@@ -368,15 +468,14 @@ describe("the surface itself", () => {
     expect(view.figure.label).toBe(ro.price.startingPrefix);
   });
 
-  it("calls the total unchanged while a refusal stands, like the bar it covers", () => {
-    // The owner's 2026-09-03 ruling reaches this surface through `describeStartingLabel`, the one
-    // rule the bar and §9's footer also read. Without it, a customer whose edit was refused would
-    // read *"De la neschimbat"* on the bar behind the scrim and *"De la"* on the sheet in front of
-    // it — the ruling dropped on the one total a mobile customer can actually see.
-    const refused = settingsView({ rejection: REFUSAL });
-
-    expect(refused.figure?.label).toBe(ro.price.startingPrefixUnchanged);
+  it("calls the total what every other surface calls it, since there is one name left", () => {
+    // **The 2026-09-03 ruling this case was written for is withdrawn** (owner, 2026-09-09): a total
+    // standing under a refused edit was called *"De la neschimbat"*, and this sheet had to say it
+    // too because it covers the bar that said it. There is one label now, so what was a rule three
+    // surfaces had to share is a string one module composes — and the sheet cannot disagree with the
+    // bar about a choice neither of them makes.
     expect(settingsView().figure?.label).toBe(ro.price.startingPrefix);
+    expect(settingsView().figure?.label).not.toContain("neschimbat");
   });
 
   it("carries both actions on both shells", () => {
@@ -408,7 +507,6 @@ describe("a stored tier the book no longer offers", () => {
       groups: projectDesignForDisplay(withdrawn, KITCHEN_L_BODY_CATALOG),
       applied: withdrawn.settings ?? {},
       pending: withdrawn.settings ?? {},
-      rejection: null,
       chosenColourCount: countCabinetsWearingAChosenFinish(withdrawn),
     });
   }

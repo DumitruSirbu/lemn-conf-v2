@@ -343,8 +343,12 @@ describe("the flagged total wears the caution palette on this surface too", () =
     // ADR 0065 decision 8, at its third site. The two shipped ones are held to each other by
     // `price-bar-layout.test.ts`; this is the third, and a third set of hexes nobody compares is how
     // one of them drifts into the refusal's red.
+    // The bar's own copy of the palette moved with the sentence: ADR 0104 decision 8b took it out
+    // of the top bar and onto the scene, so the pair is read from the surface it is now painted on.
     expect(
       paletteOf(readStylesheet("price-breakdown.module.css"), "overflow"),
-    ).toEqual(paletteOf(readStylesheet("price-bar.module.css"), "overflow"));
+    ).toEqual(
+      paletteOf(readStylesheet("flagged-total-warning.module.css"), "warning"),
+    );
   });
 });

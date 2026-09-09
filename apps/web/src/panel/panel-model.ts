@@ -39,7 +39,6 @@ import type { WriteAccess } from "@/store/configurator-store";
 import { ro } from "@/content/ro";
 import {
   describeFlaggedTotalWarning,
-  describeStartingLabel,
   describeStartingPrice,
   type PriceFigure,
 } from "@/price/starting-price";
@@ -540,10 +539,7 @@ function describeFooterPriceWarning(
 function describeFooterPrice(context: FooterContext): PriceFigure | undefined {
   const { pricing } = context;
   if (!pricing?.ok) return undefined;
-  return describeStartingPrice({
-    label: describeStartingLabel(context.rejection),
-    totalMinor: pricing.priced.totalMinor,
-  });
+  return describeStartingPrice({ totalMinor: pricing.priced.totalMinor });
 }
 
 /** `undefined` when there is nothing to say, which is the ordinary case: a writable panel whose

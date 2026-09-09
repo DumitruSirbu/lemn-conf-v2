@@ -23,18 +23,31 @@
   border-top: 1px solid var(--line);
 }
 
+/**
+ * **Frame D2A's own price line, on both shells — owner, 2026-09-09.**
+ *
+ * D2A draws one span, `font:700 21px/1`, reading *"de la 101 000 MDL"*. Frame 2A draws a small grey
+ * uppercase *De la* above the amount, and this file drew that on both shells. The owner ruled the
+ * desktop form and then extended it: *"and do same on mobile as on desktop"*. **Frame 2A is
+ * superseded by its own author**, dated, with the reason that they want the two shells to read the
+ * same — this is not a mismatch to be tidied back, and `content/ro.ts` says so beside the string.
+ *
+ * Two spans rather than one, and the casing is here rather than in the string: `ro.price` holds one
+ * ruled word, `De la`, written as it is spoken. Lowercasing it in the copy module would be a second
+ * spelling of a ruled string, which is the failure that record already carries. A single span with
+ * `text-transform: lowercase` would take `MDL` down with it.
+ */
 .figure {
   display: flex;
-  flex-direction: column;
-  gap: 3px;
+  flex-direction: row;
+  gap: 6px;
+  align-items: baseline;
   margin: 0;
 }
 
 .label {
-  font: 400 10.5px/1 var(--font-ui);
-  letter-spacing: 0.09em;
-  text-transform: uppercase;
-  color: var(--ink-faint);
+  font: 700 21px/1 var(--font-ui);
+  text-transform: lowercase;
 }
 
 .amount {
@@ -53,78 +66,48 @@
   color: var(--ink-faint);
 }
 
-/* The flagged total's live region: present whether or not there is a warning, and laid out as
- * though it were not there. `display: contents` is what makes the second half true — the warning
- * inside it stays a direct flex child of `.bar`, so the bar's box is identical with an empty region
- * and with none at all. */
-.flagRegion {
-  display: contents;
-}
-
-/* ADR 0065 decision 8: the flag and §9's rejection banner must not share a surface, because "a
- * rejected edit does not move the total" and "an overflowing total moves and is flagged" read as a
- * contradiction on one screen if they look alike. So this is deliberately *not* the panel's red
- * refusal palette — it is a caution about what the number contains, not a report that an edit was
- * refused. */
-.overflow {
-  padding: 9px 11px;
-  font: 400 11.5px/1.4 var(--font-ui);
-  color: #7c4a0c;
-  background: #fdf6ec;
-  border-radius: 10px;
-}
+/* **The flagged total's sentence is no longer drawn in this bar.** The owner ruled it onto the
+ * scene on 2026-09-09 (ADR 0104 decision 8b), so its region and its palette moved whole to
+ * `price/flagged-total-warning.module.css`. Nothing in this file reserves space for it any more,
+ * which is what lets the desktop cell keep frame D2A's shape on a flagged design. */
 
 /* Frames D2A / D2B / D2C: on desktop the figure sits at the right-hand end of the top bar rather
  * than in a bar of its own, so it drops its own chrome and takes the header's. */
 @media (min-width: 900px) {
+  /* Frame D2A `:558–565`: the price is a **column** at the row's right-hand end — the amount at
+   * `700 21px`, the breakdown's control under it with `gap: 3px` — and it is `flex: 0 0 auto`, one
+   * of the four things the frame says never give way.
+   *
+   * The column is laid out by `configure.module.css`'s price cell, which holds this bar and the
+   * breakdown's control as its two items. This box is the amount alone. */
   .bar {
+    /* **Not grown.** The base rule gives this `flex-grow: 1` so the mobile bar takes the band's
+     * whole width beside the breakdown's control; in frame D2A's column that same declaration would
+     * take the band's whole *height* and push the control onto the rule. */
+    flex: 0 0 auto;
     flex-direction: row;
     align-items: center;
-    gap: 16px;
     justify-content: flex-end;
-    /* The cell's track is a capped share of the top bar rather than this box's max-content, so this
-     * box has to be allowed to be smaller than its contents' min-content and let `.overflow` above
-     * spend the difference on wrapping. Without it the flex row's automatic minimum would set the
-     * track and the cap would never bind. */
+    /* The cell is its grid track rather than its contents — the containment declaration ADR 0082
+     * decision 1 asks of every item in this row. */
     min-width: 0;
     min-height: 0;
-    /* 9 px, not 12: it kept the figure's box inside the 55 px the header row measured, so adding the
-     * price left the desktop scene exactly where it was.
-     *
-     * **That budget is superseded, and the sentence is corrected rather than deleted so the next
-     * reader knows the height was chosen.** The owner ruled on 2026-09-07 that a taller desktop top
-     * bar is fine, and `configure.module.css` raised the header to frame D2A's own 76 px at a cost
-     * of 21 px of canvas at every desktop width. This cell computes to 53.5 px and no longer sets
-     * the row — anything under 76 costs the scene nothing — so the 9 px is now a free choice, kept
-     * because nothing asks it to move. `top-bar-box.test.ts` still proves the header is what sets
-     * the row, which is the property the 9 px was originally protecting.
-     *
-     * The other half of the original reason binds whatever *does* set the row: at a **fractional**
-     * height the canvas lands on a half-pixel, a resize round trip rounds the drawing buffer
-     * differently, and the scene comes back a pixel row out. Frame D2B's "the camera does not jump"
-     * is asserted byte-for-byte, and that is how it failed. The header's 76 is an integer. */
-    padding: 9px 28px 9px 18px;
+    /* **No padding of its own, and no rule.** The band's height is frame D2A's declared 76 px and
+     * the cell stretches into it (ADR 0104's re-derivation), so a vertical inset here would only
+     * shorten the figure's own box; the rule under the whole band is the cell's, drawn once in
+     * `configure.module.css`. The horizontal inset is the row's `column-gap` and the divider that
+     * stands in it, exactly as the frame draws them. */
+    padding: 0;
     border-top: none;
-    border-bottom: 1px solid var(--line-soft);
   }
 
-  /* **The one thing in this cell that may not shrink.** The cell's track is capped at half the top
-   * bar (`configure.module.css`), so on a flagged design at 900 px there is less room here than the
-   * contents ask for and something has to give. It is not the price: an amount that wrapped mid-
-   * figure would be the one thing on this bar a customer reads at a glance. */
+  /* **One of the four things frame D2A says never give way** — the step pill, the price figure,
+   * `Verifică designul` and the locale chip are all `flex: 0 0 auto` in the frame, and they are what
+   * the header is *for* (ADR 0104 decision 8). What gives instead is the pill's ladder, and after it
+   * the row's gaps and the wordmark. An amount that wrapped mid-figure is the one thing on this bar
+   * a customer reads at a glance. */
   .figure {
     flex: 0 0 auto;
-    align-items: flex-end;
-  }
-
-  /* **A basis rather than a maximum**, so the sentence gives the width back when the cell has none
-   * to spare. At 320 it is the same two lines it has always been and nothing below 1030 px could
-   * fit beside it; shrinking, it reaches 167 px and three lines at 900 and stays whole — no word is
-   * broken, because its automatic minimum is still its own min-content. The alternative was to lower
-   * the 320, which would have re-wrapped the sentence and lifted the top bar at **every** desktop
-   * width including 1440, to pay for a clip that only happens under 1030. */
-  .overflow {
-    flex: 0 1 320px;
   }
 
   /* Right-aligned with the figure it replaces, and narrower: the desktop top bar gives this its

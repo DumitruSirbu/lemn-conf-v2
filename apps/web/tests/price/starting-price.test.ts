@@ -19,8 +19,7 @@ const ROUNDING_STEP_MDL = 1000;
 const BANI_PER_ROUNDING_STEP = BANI_PER_MDL * ROUNDING_STEP_MDL;
 
 function amountTextFor(totalMinor: number): string {
-  return describeStartingPrice({ label: ro.price.startingPrefix, totalMinor })
-    .amountText;
+  return describeStartingPrice({ totalMinor }).amountText;
 }
 
 describe("the De la prefix", () => {
@@ -29,37 +28,26 @@ describe("the De la prefix", () => {
     // literal sits beside it so the coupling is loud. A composed assertion alone would hold for any
     // wording — which is the defect wave 6A4 shipped and this criterion exists to stop.
     expect(ro.price.startingPrefix).toBe("De la");
-    expect(
-      describeStartingPrice({
-        label: ro.price.startingPrefix,
-        totalMinor: 4_300_000,
-      }),
-    ).toEqual({ label: "De la", amountText: "43 000 MDL" });
+    expect(describeStartingPrice({ totalMinor: 4_300_000 })).toEqual({
+      label: "De la",
+      amountText: "43 000 MDL",
+    });
   });
 
-  it("is passed through rather than reinterpreted, so the ruled label survives verbatim", () => {
-    expect(ro.price.startingPrefixUnchanged).toBe("De la neschimbat");
-    expect(
-      describeStartingPrice({
-        label: ro.price.startingPrefixUnchanged,
-        totalMinor: 4_300_000,
-      }).label,
-    ).toBe("De la neschimbat");
-  });
-
-  it("is one string for both shells, with neither mockup separator surviving", () => {
-    // Owner, 2026-09-03. Frames D2C and 2C spell this two ways — a middle dot and a comma — and the
-    // ruling replaced both. A second constant is how the two spellings would come back, so the
-    // single one is asserted here rather than left to a reviewer to notice.
-    const unchangedLabels = Object.entries(ro.price).filter(([, value]) =>
+  it("is the only prefix a figure can carry, since the owner removed the other", () => {
+    // **The two cases this replaces are deleted rather than weakened**, because the behaviour they
+    // were about is gone: a figure standing under a refused edit was labelled *"De la neschimbat"*
+    // (frames D2C and 2C), and the owner removed it on 2026-09-09 — §9's refusal banner already
+    // says the edit was refused. What is asserted now is that the removal is total: no `ro.price`
+    // string carries the word, and the formatter offers no choice of prefix to make.
+    const remaining = Object.entries(ro.price).filter(([, value]) =>
       value.includes("neschimbat"),
     );
-    expect(unchangedLabels).toEqual([
-      ["startingPrefixUnchanged", "De la neschimbat"],
-    ]);
-    // The general form, not an enumeration: adversarial QA slipped an em dash past a version that
-    // listed the middle dot and the comma. Three words, single spaces, no punctuation of any kind.
-    expect(ro.price.startingPrefixUnchanged).toMatch(/^\p{L}+ \p{L}+ \p{L}+$/u);
+
+    expect(remaining).toEqual([]);
+    expect(describeStartingPrice({ totalMinor: 1 }).label).toBe(
+      ro.price.startingPrefix,
+    );
   });
 });
 

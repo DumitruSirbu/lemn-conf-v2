@@ -81,7 +81,6 @@ function displayedTierIn(design: Design, key: WholeKitchenGroupKey): string {
     groups: projectDesignForDisplay(design, KITCHEN_L_BODY_CATALOG),
     applied: design.settings ?? {},
     pending: opening,
-    rejection: null,
     chosenColourCount: countCabinetsWearingAChosenFinish(design),
   });
   const group = view.groups.find((one) => one.key === key);

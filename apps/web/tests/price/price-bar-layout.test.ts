@@ -37,6 +37,12 @@ const panelStylesheet = readFileSync(
   resolve(import.meta.dirname, "../../src/panel/editor-panel.module.css"),
   "utf8",
 );
+/** The flagged total's own stylesheet since ADR 0104 decision 8b, which is where the caution palette
+ *  the assertions below compare against now lives. The palette did not change; the surface did. */
+const flaggedTotalStylesheet = readFileSync(
+  resolve(PRICE_DIRECTORY, "flagged-total-warning.module.css"),
+  "utf8",
+);
 
 /** The `color` and `background` a rule paints with, which is all these assertions compare. */
 function paletteOf(stylesheet: string, ruleName: string): [string, string] {
@@ -74,7 +80,7 @@ describe("the bar's reserved height reaches the stylesheet from one constant", (
 describe("the flag never wears the refusal's colours", () => {
   it("paints the footer flag in the bar's caution palette, from the same two values", () => {
     expect(paletteOf(panelStylesheet, "footerPriceWarning")).toEqual(
-      paletteOf(barStylesheet, "overflow"),
+      paletteOf(flaggedTotalStylesheet, "warning"),
     );
   });
 

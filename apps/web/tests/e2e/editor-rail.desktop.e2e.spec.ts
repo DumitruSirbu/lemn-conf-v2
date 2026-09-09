@@ -88,12 +88,18 @@ const MAX_ROW_HEIGHT_PX = 70;
 const MIN_CHIP_HEIGHT_PX = 52;
 
 /**
- * Patches of **page** pixels around the two bodies under test; **the canvas starts 121 px down**.
+ * Patches of **page** pixels around the two bodies under test; **the canvas starts 76 px down**.
  *
- * **Re-measured 2026-09-08 after the top-bar ruling**, which took the desktop header from 55 px to
- * 76 and the canvas from y 100, 1440 × 800 to **y 121, 1440 × 779**. The desktop top band is two
- * grid columns rather than one row of chrome — the header beside a price row of its own, both 76 px
- * tall — and below it the 45 px settings strip (44 of content and the band's own 1 px rule).
+ * **Re-measured 2026-09-09 after ADR 0104's withdrawal of the settings strip**, which took the
+ * canvas from y 121, 1440 × 779 to **y 76, 1440 × 824**: the top bar is now frame D2A's one declared
+ * 76 px row — five cells across it, not two — and the band that stood under it is gone.
+ *
+ * **The four click anchors below and the two patches have NOT been re-measured against that canvas**
+ * and are the wave's one open item: the scene moved up 45 px and grew 45 px taller, so the camera's
+ * aspect changed and a page point is a different world point. They need a browser with the e2e
+ * harness, which is where they were found. They fail loudly rather than silently if a tap now
+ * reaches another body — every one of them asserts the id it selected — and that is the failure this
+ * note is here to make legible.
  *
  * **Both patches survived the shift and neither is changed**, which is a measurement and not an
  * assumption: with the rail open, each body's own region was isolated by differencing its selected
@@ -226,9 +232,9 @@ async function keepForDeletion(page: Page): Promise<void> {
 }
 
 /** Page coordinates, which is how the constants above were found — the canvas fills the stage and
- *  starts **121 px** below the top of the screen (the 76 px header row the 2026-09-07 ruling gave
- *  frame D2A, and the 45 px settings band wave 6R-b gave the strip), so a canvas-relative click
- *  would be a different world point. Measured at 1440 × 900 on 2026-09-08: 76 + 45 + 779 = 900,
+ *  starts **76 px** below the top of the screen (frame D2A's own declared top bar, and nothing else:
+ *  ADR 0104 decision 2 withdrew the settings band that used to stand under it), so a canvas-relative
+ *  click would be a different world point. Measured at 1440 × 900 on 2026-09-09: 76 + 824 = 900,
  *  with nothing left unaccounted for. */
 async function clickScene(
   page: Page,

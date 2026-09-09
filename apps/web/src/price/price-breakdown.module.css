@@ -227,9 +227,23 @@
     align-items: center;
   }
 
+  /* Frame D2A `:561–564`: the control stands **under** the amount inside the price column, at
+   * `400 11.5px`, underlined in the frame's own `#c9b79f` with a 3 px offset, and its caret is
+   * `400 10px`. It is the frame's drawing of this control and it replaces the 12 px bold row the
+   * mobile shell draws — the wording is untouched (ADR 0104 decision 7 keeps the two files' copy
+   * fork out of this wave). */
   .trigger {
-    padding: 0 28px 0 0;
+    gap: 5px;
+    padding: 0;
+    font: 400 11.5px/1 var(--font-ui);
+    text-decoration: underline;
+    text-decoration-color: #c9b79f;
+    text-underline-offset: 3px;
     border-top: none;
+  }
+
+  .chevron {
+    font-size: 10px;
   }
 
   /* **Bounded by the screen, not only by frame D2D's drawn height** (M6-AUD-016), and the same

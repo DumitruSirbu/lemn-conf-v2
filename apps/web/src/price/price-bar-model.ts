@@ -25,16 +25,12 @@
 // **The flag is not the rejection banner** (ADR 0065 decision 8). They can be true at once and read
 // as opposites on one screen unless they stay distinct surfaces, which is why the warning below is
 // the bar's own line and never §9's banner.
-import type {
-  PricingResult,
-  RejectionReason,
-} from "@lemnaria/configurator-domain";
+import type { PricingResult } from "@lemnaria/configurator-domain";
 
 import { ro } from "@/content/ro";
 
 import {
   describeFlaggedTotalWarning,
-  describeStartingLabel,
   describeStartingPrice,
   holdsNoCabinets,
   type PriceFigure,
@@ -67,10 +63,12 @@ export type PriceBarView = UnpricedBar | EmptyBar | PricedBar;
 export interface DescribePriceBarInput {
   /** The current design priced, as `usePricedDesign` derived it this render. */
   readonly pricing: PricingResult;
-  /** The last refused edit, or `null`. Read for the label only: a refusal cannot move a figure that
-   *  is derived from the unchanged document. */
-  readonly rejection: RejectionReason | null;
 }
+
+/** **The bar takes no refusal, and that is the owner's ruling of 2026-09-09 in the type.** It used to
+ *  take one to choose the *"De la neschimbat"* label; that label is gone — §9's refusal banner
+ *  already says the edit was refused — so this model has nothing to read a refusal for and is not
+ *  handed one. `starting-price.ts` carries the ruling and its reason. */
 
 const UNPRICED_BAR: UnpricedBar = { kind: "unpriced" };
 
@@ -88,10 +86,7 @@ export function describePriceBar(input: DescribePriceBarInput): PriceBarView {
   const warning = describeFlaggedTotalWarning(priced);
   return {
     kind: "priced",
-    figure: describeStartingPrice({
-      label: describeStartingLabel(input.rejection),
-      totalMinor: priced.totalMinor,
-    }),
+    figure: describeStartingPrice({ totalMinor: priced.totalMinor }),
     ...(warning === undefined ? {} : { overflowWarning: warning }),
   };
 }

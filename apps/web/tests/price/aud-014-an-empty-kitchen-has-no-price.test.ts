@@ -62,7 +62,7 @@ function priceOf(design: Design): PricingResult {
 }
 
 function barFor(design: Design) {
-  return describePriceBar({ pricing: priceOf(design), rejection: null });
+  return describePriceBar({ pricing: priceOf(design) });
 }
 
 function breakdownFor(design: Design) {
