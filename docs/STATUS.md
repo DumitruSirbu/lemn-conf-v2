@@ -119,6 +119,35 @@ PASS.
 
 ## What is open right now
 
+- **The configure screen's chrome does not match the design reference, on either shell — owner
+  rejection, 2026-09-09.** *"I wanted to be same as in reference, SAME, because this is the design I
+  made and approve"*, and *"on mobile same shit, you done what you wanted not what is in reference"*.
+  Ruled in [ADR 0104](decisions/0104-the-mockups-are-the-chrome-specification-and-the-strips-own-row-is-withdrawn.md):
+  the mockups are the specification for screen 2's chrome, **the settings strip's own row is
+  withdrawn on both shells**, and the whole-kitchen settings become the single pill frames D2A and 2A
+  draw — with frame 2A's own `+2` counter, which was never implemented and is the reason the project
+  spent ADR 0082, ADR 0094 and two waves containing a row the design never asked for. ADR 0082
+  decisions 2, 3, 4 and 8 and ADR 0094 decision 2 are amended **in place**, struck rather than
+  deleted. The plan is
+  [`milestones/chrome-parity-with-the-design-reference.md`](milestones/chrome-parity-with-the-design-reference.md)
+  — **not started**, and **no owner question blocks it**; the four it carries all have defaults.
+  **Four owner rulings of 2026-09-09 are in the record**, each with what it was chosen over.
+  (1) *Narrowing is a ladder*: all labels whole with D2A's `│`; then as many whole labels as fit plus
+  `+N`; then one whole label; then one **ellipsised** — so the swatch, one label and the counter are
+  never given up. The count is a **measured fit**, so **no width threshold is introduced** and
+  ADR 0094 criterion 4i is met as written. (2) The **`Lemnaria` wordmark drops between 900 and
+  966 px** — ruled on the corrected premise that it is *not* needed to prevent overflow but buys a
+  readable setting name against a `P…` stub, and chosen over both keeping the stub and letting
+  frame 2A serve narrow widths. That discharges the reservation
+  `apps/web/tests/e2e/top-bar.desktop.e2e.spec.ts:165–174` placed on the element. (3) **ADR 0065's
+  flagged-total sentence leaves the top bar for the scene**, chosen over letting the desktop bar
+  grow — so the header keeps frame D2A's shape at every width, flagged or not, and **`1cc86d8`'s
+  9.28 px trade is retired rather than repaid**; the gate that asserts that growth is re-pointed to
+  assert its absence. (4) **The kitchen's colour joins the pill** — *"if it fits, it should be
+  displayed also"* — making four settings in the order
+  [ADR 0099](decisions/0099-a-colour-is-chosen-at-two-levels-and-the-cabinets-wins.md) decision 9
+  already ruled. **The owner reviews the implementation in a browser before any QA is dispatched.**
+
 - **M6's remaining work is verification and two owner rulings — as of 2026-09-08 (evening).** Every
   wave row but 6Y is DONE and the branch `fix/m6-remediation` is green: domain **3729**,
   three-adapter **3022**, web **2005 and no skips**, persistence **282**, typecheck / lint /

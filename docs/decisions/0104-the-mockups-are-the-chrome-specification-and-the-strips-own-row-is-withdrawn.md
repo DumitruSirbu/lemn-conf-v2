@@ -1,0 +1,519 @@
+# ADR 0104 — The mockups are the chrome specification, and the settings strip's own row is withdrawn
+
+Status: Accepted — **supersedes [ADR 0094](0094-the-strip-gets-its-own-row-and-containment-is-measured-against-its-own-band.md)
+decision 2 and amends [ADR 0082](0082-the-settings-strip-wraps-and-nothing-leaves-the-viewport.md)
+decisions 2, 3, 4 and 8.** ADR 0082 decisions 1 (as amended), 5, 6 and 7 stand and are **enforced**.
+Date: 2026-09-09 (decisions 3, 8 and 9 rewritten the same day on the owner's second and third rulings)
+Type: Decision (owner ruling) + adjudication
+Milestone: M6 — opens the wave planned in
+[`docs/milestones/chrome-parity-with-the-design-reference.md`](../milestones/chrome-parity-with-the-design-reference.md)
+
+## Context
+
+The owner reviewed the shipped configure screen against the mockups they authored, on both shells,
+and rejected it. Their words, verbatim:
+
+> *"I wanted to be same as in reference, SAME, because this is the design I made and approve."*
+
+and, shown the mobile shell:
+
+> *"on mobile same shit, you done what you wanted not what is in reference"*
+
+This is not new authority. [ADR 0003](0003-design-reference-supersession.md) already records the
+mockups as reference artefacts — *"`Lemnaria Configurator Desktop.dc.html` — desktop chrome for
+screens 1 and 2 only (D1A–D2F)"* — and records the owner's own calibration rule for the phase:
+*"the immediate goal being **a working POC that matches the design reference**"* (§7). What this
+record adds is that **the frames are read as a specification and not as inspiration**: where a frame
+declares a number, that number is the target; where the shipped stylesheet disagrees, the frame wins
+and the shipped rule is withdrawn by name.
+
+### What the frames declare, and what ships
+
+**Desktop, frame D2A** (`docs/design/mockups/Lemnaria Configurator Desktop.dc.html:544–571`) is
+**one band and then the scene**. The band is `height:76px; flex:0 0 76px; padding:0 28px 0 40px;
+display:flex; align-items:center; gap:28px; border-bottom:1px solid #e4dfd5`. It carries, in order:
+the wordmark; the `2/4` pill; `Configurare`; then `margin-left:auto` and a `gap:14px` group of — a
+**single settings pill** (`flex:0 1 auto; min-width:0; max-width:460px; height:40px`, holding a
+swatch, `PAL melaminat` with `min-width:0; overflow:hidden; text-overflow:ellipsis`, a 1 px divider,
+`Feronerie Hettich`, a divider, `Adâncime 600`, and a `▾`), a 28 px divider, the price column
+(`de la {{ priceTotal }} MDL` at `700 21px` over an underlined *Ce se include în acest preț?* and a
+caret), a divider, **`Verifică designul`** (`height:48px; padding:0 24px; border-radius:12px;
+background:#7c5c3d; font:700 15px/1; color:#faf8f4; flex:0 0 auto`), a divider, and the `RO ▾` chip.
+The same band is drawn in D2B, D2C, D2D, D2E and D2F. **There is no second band anywhere in the
+desktop file.**
+
+The shipped screen draws that band without the settings pill and without the CTA, and then a
+**separate full-width settings strip row** beneath it — ADR 0094 decision 2 — costing the desktop
+canvas about 45 px at every width.
+
+**Mobile, frame 2A** (`docs/design/mockups/Lemnaria Configurator Mobil.dc.html:482–495`) is one
+header row, `padding:11px 14px; display:flex; align-items:center; gap:9px; border-bottom:1px solid
+#e4dfd5`: a bare `‹` (`700 17px/1; width:22px; text-align:center`), the `2/4` pill, `Configurare`
+(`flex:1; min-width:0`, ellipsis), **one settings chip** (`flex:0 1 auto; min-width:0;
+max-width:150px; padding:7px 9px; border-radius:9px`, holding a swatch, `PAL melaminat` ellipsising,
+and **`+2`**), and the `RO ▾` chip. The same row is drawn in 2B, 2D and 2E.
+
+The shipped screen draws every whole-kitchen setting as its own chip in a wrapping chips row, in a
+band of its own under the header, with a separate *Setări globale* text trigger beside them.
+
+### The finding that decides this record
+
+**`+2` is the reference's own answer to a settings summary that does not fit, and it was never
+implemented.** Frame 2A does not wrap, does not scroll and does not shrink: it names one setting and
+counts the rest. Instead the project shipped a strip that overflowed a 390 px screen, and then spent
+[ADR 0082](0082-the-settings-strip-wraps-and-nothing-leaves-the-viewport.md), its Amendment A,
+[ADR 0094](0094-the-strip-gets-its-own-row-and-containment-is-measured-against-its-own-band.md), two
+waves (6R, 6R-b) and a dedicated e2e specification pair containing it. Every one of those records is
+sound reasoning about a layout the design never asked for. The containment problem was self-inflicted
+by a departure from the frame, and the departure — not the containment rule — is what is withdrawn
+here.
+
+**ADR 0082's owner ruling of 2026-09-05 was given about that self-inflicted problem.** Its words —
+*"I will go with showing everything, not going off the screen, even if we shrink… Even if you need to
+just increase the height and take from the vertical height, I'm totally okay with this"* — were the
+owner's answer to *"how should a chips row that does not fit 390 px behave"*. The owner's instruction
+of 2026-09-09 is later, is about the same surface, and is about whether that row should exist at all.
+A later ruling on a wider question supersedes an earlier ruling on a narrower one; that supersession
+is recorded here rather than assumed.
+
+## Decision
+
+### 1. The mockups are the specification for screen 2's chrome, on both shells
+
+For the configure screen's chrome — the top bar on both shells, the mobile bottom bar, and the
+controls in them — frames **D2A–D2F** and **2A–2F** are read as a specification. Every number they
+declare (flex rules, `min-width`, `max-width`, heights, paddings, gaps, radii, font shorthands,
+`text-overflow`) is the target value. Where a shipped rule disagrees with a frame, **the frame wins
+and the shipped rule is named and withdrawn**, not quietly reconciled.
+
+This does not extend the frames' authority beyond chrome. Domain rules, geometry and pricing are
+unaffected; `DEVELOPMENT-SPEC.md` remains the behavioural contract, and ADR 0003 §5's parity rules
+still hold.
+
+**A frame is silent about behaviour it does not draw.** Where the product has since acquired
+something the frame has no slot for — ADR 0065's flagged-total sentence, ADR 0099's global colour —
+the frame does not delete it. Those cases are named in decision 6 and in the plan's open questions;
+none of them may be resolved by inventing a number or by adding a band.
+
+### 2. The settings strip's own row is withdrawn on both shells, and the settings become one control in the top bar
+
+ADR 0094 decision 2 — *"on the desktop shell the settings strip gets its own full-width grid row"* —
+is **superseded**. The band, its grid area, the chips row and the separate *Setări globale* text
+trigger are removed from both shells.
+
+In their place, and on both shells, the whole-kitchen settings are **one control standing in the top
+bar**, and that control is also the trigger that opens the settings surface — which is how frames
+D2E and 2E draw it. D2E's open state is the same pill with `background:#ece7dd; border:1px solid
+#7c5c3d` and its caret flipped `▾` → `⌃`, with the popover `position:absolute; top:calc(100% + 33px);
+right:0; width:900px` hanging from it. Frame 2E's open state leaves the chip unchanged and opens the
+full sheet.
+
+- **Desktop** draws D2A's pill: swatch, the material name (the only ellipsising segment), and the
+  remaining settings as full-width `white-space:nowrap` segments separated by 1 px dividers, with a
+  caret.
+- **Mobile** draws 2A's chip: swatch, the material name (ellipsising), and **`+N`**, where `N` is the
+  number of settings the pill would otherwise name, less the one it names.
+
+### 3. The pill fits as many whole setting labels as the space holds, separates them as D2A does, and counts the rest after a `+`
+
+**Ruled by the owner, 2026-09-09**, in three statements. First, that the narrow desktop already has
+its answer in the design:
+
+> *"when its narrower you have the soltion in mobile version you just combine like `MDF, Blum + 1`
+> for example"*
+
+Then, how the fit is decided:
+
+> *"keep labels full width, need just ot calculate the remaining space and decide, how many global
+> setting fit tyo be show and display with separation like in dektop header, and if one or multiple
+> not fit, count those that not fit and add that count after `+`"*
+
+And finally, what happens when not even one whole label fits:
+
+> *"ex `Pal melaminat + 2` => `Pal mela.. + 2`"*
+
+**This is one mechanism for both shells**, and it is the reference's own: frame D2A draws the top of
+the ladder and frame 2A draws the bottom of it. The project implemented neither.
+
+#### The ladder, in order, and it is the whole rule
+
+| rung | what the pill draws | where it comes from |
+| --- | --- | --- |
+| **1** | every setting, whole labels, D2A's `│` between them | frame D2A, the 1920 px case |
+| **2** | as many whole labels as fit, separated the same way, then `+N` for the rest | the owner's `MDF, Blum + 1` |
+| **3** | one whole label, then `+N` | frame 2A's `PAL melaminat +2` |
+| **4** | one label **ellipsised**, then `+N` | the owner's `Pal mela.. + 2` — the floor |
+
+**A label is shown whole or it is counted.** There is no abbreviated form of a setting label and none
+is invented; the owner's `MDF` was a shorter material in an example, not an abbreviation rule.
+
+**`N` is how many settings are *not shown*, derived from the settings that exist.** Four settings
+showing two gives `+2`; showing one gives `+3`. A fifth setting added later changes the count with no
+edit to this rule.
+
+#### The named settings are four, and their order is already ruled
+
+**The kitchen's global colour joins the pill. Ruled by the owner, 2026-09-09** — *"if it fits, it
+should be displayed also"* — so it is a named setting like the other three and **the ladder decides
+whether it is drawn at any given width. No special case and no separate rule.** Frame D2A draws three
+because it predates the colour ([ADR 0099](0099-a-colour-is-chosen-at-two-levels-and-the-cabinets-wins.md)),
+not because the fourth is excluded.
+
+**The order is `material │ colour │ hardware │ depth`, and it needed no new ruling.** The ladder
+collapses from the end, so order decides which name survives at 900 px, and D2A cannot settle where
+colour goes. **ADR 0099 decision 9 already did**: *"Placement: after the material group, before
+hardware… The owner said 'just behind the material' and that is the order."* The settings sheet
+renders in exactly that order (`global-settings.tsx:664–689`), and the control naming things in the
+same order as the surface it opens is the argument that makes it right rather than merely available.
+So `PAL melaminat` is the last name to survive, which is also what frame 2A draws at its extreme.
+
+**The pill's labels are not the breakdown's labels, and the frame is what says so.** The shipped chips
+compose `ro.priceBreakdown.wholeKitchenLabel` — *"Material · PAL melaminat"*, *"Feronerie · Hettich"*,
+with a `·`. **D2A draws none of that**: the material is a bare tier name, and the others are a category
+word and a value with no separator — `PAL melaminat`, `Feronerie Hettich`, `Adâncime 600`. Under
+decision 1 the frame wins, so the pill gets its own composition. The colour's label has **no source in
+either frame**; it follows the pattern the frame does establish, `Culoare {name}`, and that is a copy
+question for the owner rather than a settled string.
+
+**Rung 4 is the only ellipsis, and the mockups' own declaration is what performs it.** Both files
+declare `min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap` on their label, and
+that declaration **stands exactly as written**. It is the last resort, not the normal state — which is
+the distinction ADR 0082 decision 3 was reaching for and could not express while there was a row of
+chips to say it about.
+
+**The counter and the swatch never give way, and a label is never absent.** The pill's minimum content
+is *swatch + one (possibly ellipsised) label + `+N`* — never a bare `+3`, never a counter standing
+alone. The swatch is drawn at every rung including rung 4. That minimum is what the rest of the top
+bar must leave room for, and decision 8 is how it is guaranteed.
+
+**Separation is D2A's `│` at every count, on both shells**, between labels only. The counter is
+separated from the last label by the pill's own `gap` and never by a divider — which is how frame 2A
+draws `PAL melaminat` beside `+2`. The disclosure caret is drawn where the frame for that shell draws
+it: after the counter on desktop, not at all on mobile.
+
+**Horizontal scrolling stays refused**, for the reason ADR 0082 decision 2 gives, unchanged.
+
+#### The fit decision is a value, not a stylesheet
+
+Rungs 1–3 are a **count**, and CSS cannot make it: `flex` shrinks a box, it does not choose how many
+children to render. Rung 4 is a **width**, and CSS is exactly what performs it. **The two mechanisms
+are separate and must stay separate** — an implementer who tries rungs 1–3 with flex shrink gets the
+row of stubs ADR 0082 decision 3 refused, and one who tries rung 4 with a count gets a label that
+vanishes instead of truncating.
+
+The count is decided by a **pure function over measured widths**, held in a model that can be asserted
+as a value, in the shape this project already uses for `describeChipAvailability`
+(`apps/web/src/panel/panel-model.ts:885`) and every `describe*` model beside it. No component decides
+it, and no markup encodes it.
+
+**ADR 0082 decision 1 as amended survives intact and is the gate on all of this.** Nothing on the top
+bar may leave the viewport, nothing may leave its own band, and no element may be clipped by the box
+it stands in except the rung-4 label, on a flagged design as well as a seeded one.
+
+### 4. ADR 0082 decision 4 (the pinned trigger) is discharged rather than overturned
+
+Decision 4 pinned the trigger beside the chips box *"so its position is a function of the viewport and
+not of how many chips there are"*. With one pill that is also the trigger, the property holds by
+construction: there is no chip count for the control's position to depend on. The clause is spent,
+not contradicted.
+
+### 5. ADR 0082 decision 8's 44 px touch target is kept, and it is met without changing a painted box
+
+Both frames draw controls shorter than 44 px — the mobile settings chip computes to 27 px, the
+desktop pill declares `height:40px`, the mobile back control's line box is 17 px. Decision 8 stands:
+every one of them keeps a tappable box of at least `var(--touch-target)`.
+
+**The mechanism changes, because the previous one would now change the frame's own geometry.** The
+target is expanded by a pseudo-element that takes no layout space, not by `min-height` on the control.
+A `min-height: 44px` on the mobile chip would make it the tallest child of an `align-items: center`
+row and lift the header band from the frame's 50 px to 67 — spending scene to satisfy a rule that
+does not ask for it. Expanded, the painted pill is the frame's and the hit area is the token's.
+
+**The assertion changes with it, and becomes stronger.** A `getBoundingClientRect()` on the control
+now measures the painted box, so the gate asks `document.elementFromPoint` at the four corners of the
+44 px area instead — which is what the requirement was always about.
+
+### 6. `Verifică designul` is drawn exactly as the frames draw it and is wired to nothing
+
+It appears in all five desktop frames that draw a full top bar and in mobile frame 2A's bottom bar,
+and exists nowhere in `apps/web/src`. It leads to M8's review step, which is not built.
+
+It is drawn and inert, on the precedent this repository has already set for the `RO ▾` locale caret
+(`apps/web/src/app/configurator/configure/configure-screen.tsx`): *"a caret that does nothing is the
+correct state of this control today, and a control that did something would pre-empt a ruling."*
+
+**And it is drawn as the reference draws it, which is as a `div` and not a button.** The frames use a
+non-interactive element in both files. That is also what `configure.module.css` already requires of
+an inert control — *"Not a `button`, and that is the point: an element with a control's affordances
+and no behaviour is worse than the static chip it replaces."* So: no `button`, no `role="button"`, no
+`tabindex`, no `cursor: pointer`, and no `aria-hidden` — it is meaningful text and it is announced as
+text. M8 gives it a destination.
+
+**This one is louder than the locale caret and the owner is asked about it explicitly**, as the
+plan's open question 1: it is the largest, most pressable-looking thing on the screen. Drawing it is
+the default because it is what the owner asked to see; hiding it until M8 is the alternative and is
+theirs to choose.
+
+### 7. The frames' one copy fork per shell is *not* implemented, and the divergence is put to the owner
+
+The two files spell two controls differently:
+
+| control | desktop | mobile |
+| --- | --- | --- |
+| the breakdown control and its heading | *Ce se include în acest preț?* (D2A, D2D) | *De ce acest preț* (2A, 2D) |
+
+`DEVELOPMENT-SPEC.md` §10.1 admits no copy fork per viewport, and this repository has a dated lesson
+about reconciling ruled copy on a wave's own authority — `startingPrefixUnchanged`, where frames D2C
+and 2C spelled one string two ways and the owner ruled a third. **So this wave changes neither
+string and forks nothing.** `priceBreakdown.title` stays *De ce acest preț* on both shells, and the
+divergence is the plan's open question 2. A wave does not reconcile ruled copy on its own; that rule
+is what produced the correct outcome last time and it is not suspended by an instruction to match the
+reference, because the reference is what disagrees with itself.
+
+### 8. The pill absorbs the narrowing. Two things that hide nothing may also give, and nothing else ever does.
+
+Frame D2A is drawn at **1920 px**. Decision 3's ladder is what answers narrow desktop, and it does all
+of the work at every width where it can. The question this decision settles is what happens when the
+ladder has reached rung 4 and the row still does not fit.
+
+**The reading that the pill is the only thing that gives is correct in intent and insufficient in
+arithmetic.** Frame D2A's row was rebuilt from the mockup's own inline styles and measured in
+headless Chromium in the app's own font stack — a measurement of type, not of the app, and re-measured
+against the running app before the wave closes. What each rung needs, as a viewport width, with D2A's
+`40 + 28` header padding:
+
+| | rung 1 | rung 3 | rung 4 floor |
+| --- | --- | --- | --- |
+| D2A as drawn (gaps 28/14, wordmark) | **1264.59** | 1071.06 | — |
+| gaps closed to frame 2A's 9/6 | 1159.59 | 966.06 | 882.67 |
+| gaps closed **and** wordmark dropped | 1045.03 | 851.50 | 768.11 |
+
+So at **900 px** the pill's ladder alone does not reach, and two further gives are ruled — **both of
+which hide nothing**:
+
+| | what gives | why this one |
+| --- | --- | --- |
+| **A** | **the pill's ladder, rungs 1 → 4** | the owner's ruling. It runs first and it runs to its floor before anything else moves |
+| **B** | **the row's gaps close**, D2A's `28`/`14` → frame 2A's `9`/`6` | space only, and both numbers are the reference's. Measured **105.00 px** |
+| **C** | **the wordmark leaves the row** — **ruled by the owner, 2026-09-09** | the only item in the band carrying no state, and frame 2A itself does not draw it. Measured **114.56 px** with its gap. It is **not needed to prevent an overflow**: it buys a readable setting name in a **900–966 px** window and nothing above it. See the ruling below |
+| **D** | **the title ellipsises**, exactly as frame 2A declares it (`flex:1; min-width:0`) | declared by the reference and therefore available, but not reached on the seeded design once A and B are spent |
+| — | **nothing else, ever** | the step pill, the price figure, `Verifică designul` and the locale chip are `flex:0 0 auto` in D2A. They are what the header is *for*, and they are drawn whole at every desktop width |
+
+**C — the wordmark leaves the row at narrow desktop. Ruled by the owner, 2026-09-09.**
+
+It is recorded as a ruling and not as a derivation, because it is a departure from frame D2A — which
+draws the wordmark — and because `apps/web/tests/e2e/top-bar.desktop.e2e.spec.ts:165–174` had already
+reserved it: *"Dropping it is a copy decision under the owner's Gate O1, not an implementer's, so this
+stays an assertion rather than a workaround."* That reservation is discharged by the owner, not
+overruled by this record.
+
+**It was ruled on the corrected premise, and the correction is what makes it a decision rather than
+a concession.** An earlier draft of this record said the wordmark had to go or the row would
+overflow. **That was wrong**, and the measurement says so: with the wordmark kept the row *does* fit
+at 900 px, at rung 4, with **17.33 px** left for the label. So the trade is not brand-against-overflow;
+it is **a readable setting name against the brand, inside a 900–966 px window**. The owner was given
+it in those terms and chose the readable name — over *both* alternatives:
+
+- **keeping the wordmark and accepting a stub** (`P…` where a setting name should be), and
+- **raising the desktop breakpoint so frame 2A serves narrow widths**, which removes nothing from
+  either drawing but puts the phone's header, bottom bar and back control on a narrow laptop.
+
+**The owner chose the wordmark's absence over a stubbed setting name and over the mobile shell
+appearing on a narrow laptop.** All three options are reference-faithful — that is why it needed an
+owner — and the one taken keeps the desktop drawing recognisably itself.
+
+**The ruling rests on a measurement, and is revisited if the measurement is replaced rather than
+re-argued.** The figures come from frame D2A rebuilt from the mockup's own inline styles in headless
+Chromium, in the app's own font stack — **not from the app**. Work item 1 measures the app. **If the
+app's own numbers show rung 3 fitting at 900 px with the wordmark kept — that is, needing 900 or less
+where the frame measured 966.06 — the wordmark stays and the owner is told.** Replacing an estimate is
+not re-opening a ruling; it is the condition the ruling was given under.
+
+**If the row still overflows once A–D are spent, that is a reported failure and an owner question, not
+a fifth rung.** In particular it is not licence to shrink the price, to shorten the CTA, or to bring
+back a second band — which is refused outright, at every width and on both shells.
+
+**One measured case did not fit, and the owner has ruled it out of the row.** On a design carrying
+[ADR 0065](0065-a-body-past-the-end-of-its-wall-is-marked-not-moved.md)'s flag the desktop price cell
+carried a sentence beside the figure — max-content **408.09 px**, min-content **71.22**, and about
+**226 px** at the two-line wrap that keeps the band at the ruled 76. With `Verifică designul`
+(**167.22**) and the pill in the same row, frame D2A's row and that sentence did not both fit at
+900 px at any rung, with or without the wordmark. See decision 8b.
+
+**A residue is safe here in a way it was not before, and the difference is worth naming**, because
+ADR 0094 rejected exactly this arrangement: *"a row is an invariant; a residue is an inequality"*. The
+pill's track is again the row's residue. What has changed is that **the pill now has a total function
+of width**: for any width down to its floor it has a complete, reference-declared drawing, and its
+floor is guaranteed by B and by the owner's ruling on C. The chips row had no such function — below its content width it
+clipped — which is why a residue was fatal to it and is not fatal to this.
+
+### 8b. ADR 0065's flagged-total sentence leaves the top bar and joins the scene. Ruled by the owner, 2026-09-09.
+
+The frame has no slot for it — D2A was drawn before the product acquired it — so the frame could not
+answer, and it was put to the owner with the measurement above. **They ruled that the sentence moves
+off the bar and onto the scene**, and accepted the caveat that it lands near
+`configure.overflowWarning`, which already says the design overflows.
+
+**What it was chosen over:** letting the desktop bar grow on a flagged design, well beyond the
+9.28 px it grows today.
+
+**Two consequences, and the first is the point of the choice.**
+
+1. **The header keeps frame D2A's shape at every width, flagged or not.** There must be **no width at
+   which a flagged design draws a different header from an unflagged one** — not a taller one, not a
+   narrower price cell, not a different rung of the pill. That is asserted, not described.
+2. **This retires the 9.28 px trade rather than repaying it.** `1cc86d8` bought that height to fit
+   this sentence into the row; the sentence leaves the row. The exception recorded at `.header` in
+   `configure.module.css` is **struck in place with its cause**, and
+   `settings-strip-containment.desktop.e2e.spec.ts:655` — which asserts the growth — is
+   **re-pointed to assert the header does not grow**, never deleted. A gate that proved a
+   now-retired trade becomes the gate that proves it stayed retired.
+
+**It moves on both shells, and that is a deliberate reading rather than an omission.** The owner's
+ruling named the scene and not a viewport. One placement for both shells needs no fork and satisfies
+`DEVELOPMENT-SPEC.md` §10.1's *"a rule that needs to differ between viewports is a wrong rule"*;
+placing it only on desktop would be §10.1's one permitted layout fork and is equally available. The
+plan flags the difference so the owner can settle it in a word at review; nothing else depends on it.
+
+**What is not decided here.** The two sentences now stand next to each other and say nearly the same
+thing in different words — ADR 0065 decision 7b made them two constants on purpose (*"this one says
+what is wrong and what to do about it, the total's flag says what the number contains"*), and that
+distinction is harder to see when they are adjacent. **Whether one of them should go is a copy
+question for the owner**, not a layout one, and this record does not answer it. ADR 0065's wording is
+untouched.
+
+### 9. No width threshold is introduced, and ADR 0094 criterion 4i is honoured rather than argued with
+
+An earlier draft of this record introduced one `@media` breakpoint and defended it. **The owner's
+ruling removes the need for it**, and that is a better outcome than the defence: every rung of
+decision 8 is driven by the **same measurement of available width** that decision 3's count already
+requires. There is no pixel breakpoint for the label count, none for the gaps, and none for the
+wordmark.
+
+ADR 0094 criterion 4i — *"No numeric width threshold is introduced… 1150 is not a property of the
+layout"* — is therefore **met as written**, not waived and not answered. Its stated reason was that
+*"a longer tier name, a re-worded warning, a translation, or a third chip moves it, and nothing in the
+codebase would fail when it did"*. Under a measured fit, a longer tier name moves nothing: it is
+simply a label that stops fitting, and the count says so.
+
+**Two numbers this decision still forbids**, so that the threshold does not return in another shape:
+
+- **No numeric `min-width` on the pill, on a label, or on the counter.** ADR 0082 decision 3's refusal
+  survives whole and is the same refusal. The rung-4 label's floor is `min-width: 0` plus the
+  mockups' own `text-overflow: ellipsis`, and nothing else.
+- **No breakpoint chosen from a measurement.** Where a discrete decision is needed (the count, the
+  gaps, the wordmark) it is taken from the measured available width against the measured intrinsic
+  widths of the things competing for it — a comparison, never a constant.
+
+**One derived quantity is permitted and it is not a threshold: the hysteresis margin** that keeps the
+count from oscillating at a boundary width (decision 3's stability requirement). It is composed from
+the pill's own separator and gap, so it is content-derived and moves when they do.
+
+### 10. What the withdrawal reclaims, and what it does not
+
+- **The desktop canvas gets the strip's row back** — about 45 px at every desktop width, the cost ADR
+  0094 accepted knowingly. The mobile canvas gets the whole mobile strip band back, less the 2 px the
+  header grows to hold frame 2A's own chip.
+- **`1cc86d8`'s 9.28 px is retired rather than repaid.** The height was bought to fit ADR 0065's
+  sentence into the top bar; decision 8b takes the sentence out of the bar, so the trade has nothing
+  left to buy. An earlier draft of this record expected the pill's ladder to repay it and a later one
+  measured that it would instead grow; the owner's ruling ends both readings. The gate that asserts
+  the growth is re-pointed to assert its absence.
+- **The desktop header draws identically on flagged and unflagged designs, at every width.** That is
+  decision 8b's whole point and it is asserted rather than described.
+
+## Alternatives considered
+
+- **Keep the strip's row and treat the frames as inspiration.** Rejected on the owner's instruction,
+  which is explicit and repeated, and on ADR 0003 §7, which already made a POC that matches the
+  reference the calibration rule for the phase.
+- **Implement the frames and drop ADR 0082 decision 1's containment predicate with the layout that
+  produced it.** Rejected. The predicate is about whether a control is on screen, and it is true of
+  any layout. It is the one clause here that gains force rather than losing it: it is now evaluated
+  against a row the reference drew, so a failure is a defect in the implementation rather than in the
+  design.
+- **Ship the desktop frames and leave mobile as it is.** Rejected: the owner named the mobile shell
+  specifically, and ADR 0003 §5 makes the two one implementation with a layout fork in CSS.
+- **Solve narrow desktop with a second band below the top bar, under some width.** Rejected —
+  decision 8. It is the withdrawn layout returning under a condition, and it would put the settings
+  trigger on a different row depending on the window width, which is the hunt ADR 0082 decision 4
+  refused.
+- **Solve narrow desktop with one `@media` breakpoint that swaps D2A's pill for frame 2A's.** Drafted
+  and then **withdrawn by the owner's ruling of 2026-09-09**, which is better than the defence it was
+  given. A breakpoint is binary — four labels or one — where the ruling is progressive, and it
+  freezes a number that a longer tier name or an M6B translation invalidates silently. The measured
+  fit needs no number at all (decision 9).
+- **Abbreviate labels under pressure — `PAL mel.` for `PAL melaminat`.** Rejected on the owner's
+  ruling: *"keep labels full width"*. Neither mockup shows a shortened form of any setting label, and
+  a second spelling of a tier name is what `startingPrefixUnchanged` records the cost of.
+- **Let the pill degrade to a bare `+4` when no whole label fits.** Rejected on the owner's ruling —
+  *"`Pal melaminat + 2` => `Pal mela.. + 2`"*. A counter standing alone names nothing; the pill exists
+  to say what the kitchen carries while the sheet is shut.
+- **Keep the wordmark at every desktop width and accept a stubbed setting name below 966 px.** Put to
+  the owner and **rejected by them** — decision 8's ruling. It is the option that changes no drawing
+  and costs a setting its name.
+- **Raise the desktop breakpoint so frame 2A serves narrow widths.** Put to the owner and **rejected
+  by them** — the same ruling. It removes nothing from either drawing and puts the phone's header,
+  bottom bar and back control on a narrow laptop.
+- **Keep ADR 0065's sentence in the top bar and let the desktop bar grow on a flagged design.** Put to
+  the owner and **rejected by them** — decision 8b. It is `1cc86d8`'s trade, extended well past
+  9.28 px, and it makes a flagged design draw a different header from an unflagged one.
+- **Wire `Verifică designul` to `/configurator/review`.** Rejected: the route does not exist, and a
+  primary action that 404s is worse than one that waits for M8.
+- **Fork `priceBreakdown.title` per shell to match both files.** Rejected — decision 7.
+
+## Records swept before deciding, and how each is settled
+
+| Record | What it says | Settled how |
+| --- | --- | --- |
+| [ADR 0003](0003-design-reference-supersession.md) §5, §7 | The mockups are the reference; the near-term target is a POC that matches it; desktop covers screens 1 and 2 only. | **The authority this record rests on.** Nothing here extends it beyond chrome. |
+| ADR 0003 §5's *"where §10.1 says 'always visible', the mockup wins"* | A frame beats a spec sentence on chrome. | **The precedent for decision 1**, applied to the whole band rather than to one clause. |
+| [ADR 0082](0082-the-settings-strip-wraps-and-nothing-leaves-the-viewport.md) decision 1 + Amendment A | Containment against the viewport, the band and the clip, on a flagged design. | **Kept, enforced, and made the gate on the new layout.** Not relaxed. |
+| ADR 0082 decisions 2, 3 | The chips wrap; the floor is one chip per line. | **Superseded for this control** — decision 3 here. There is no chips row left to wrap; the ruled ladder is the reference's own replacement. Decision 3's *intent* — *"a row of stubs each ending in an ellipsis tells the customer nothing"* — is **kept and sharpened**: a label is whole or counted, and exactly one label, the last, may ellipsise. Its *numeric* clause (no `min-width` in pixels) survives whole. Horizontal scrolling stays refused. |
+| ADR 0082 decision 4 | The trigger is pinned and does not join the wrap. | **Discharged** — decision 4 here. One pill that is its own trigger has no chip count to move with. |
+| ADR 0082 decision 5 | Vertical growth is absorbed by the stage; the strip overlays neither the stage nor the bar. | **Kept whole.** The stage stays the grid's only flexible row and nothing on the bar may overlay the price. |
+| ADR 0082 decision 6 | One containment rule for both shells; a frame does not answer *"may a control leave the screen"*. | **Kept, and it cuts both ways.** A frame still does not license a control off screen — which is why decision 8 names a degradation order instead of drawing D2A at 900 px and hoping. |
+| ADR 0082 decision 7 | A comment stating a layout claim no test holds is how a defect is inherited. | **Applied to this record's own numbers.** Every figure is labelled measured or derived, and the type measurements are marked as measurements of the *frame* until the app is measured. |
+| ADR 0082 decision 8 | The tappable box is at least 44 px on both shells. | **Kept; the mechanism changes** — decision 5 here. |
+| ADR 0082's owner ruling, 2026-09-05 | *"showing everything… increase the height and take from the vertical height."* | **Superseded by the owner's instruction of 2026-09-09**, and the supersession is recorded rather than assumed. The earlier answered how a chips row should behave; the later answers whether it should exist. Read literally, the earlier is also satisfied: nothing goes off the screen, and `+N` shows that there is more rather than hiding it. |
+| [ADR 0094](0094-the-strip-gets-its-own-row-and-containment-is-measured-against-its-own-band.md) decision 2 | The strip gets its own full-width desktop row. | **Superseded** — decision 2 here, and Amendment A is written into that record. |
+| ADR 0094 decisions 1, 3 | The classification, and ADR 0082 decision 1's three-box predicate. | **Stand whole.** Decision 3 is the gate on the replacement. |
+| ADR 0094 criteria 4a–4h | The 6R-b acceptance criteria. | **Re-pointed, not dropped.** Each is restated against the pill in the plan's *Tests* section; none is deleted to make a layout pass. |
+| ADR 0094 criterion 4i | No numeric width threshold. | **Met as written** — decision 9. The owner's ruling makes the fit a measurement, so there is no number to go stale. An earlier draft of this record introduced one breakpoint and defended it; the ruling removed the need and the defence with it. |
+| ADR 0094's refusal to move ADR 0065's warning *"as scope"* | A containment defect does not license a product move. | **Correct then, and not what happened here.** The move is an **owner ruling** (decision 8b) taken on a measurement, not a wave relieving its own layout pressure. The refusal stands as written. |
+| [ADR 0065](0065-a-body-past-the-end-of-its-wall-is-marked-not-moved.md) decisions 6–8 | The flagged total's sentence, its surface, its separation from §9's rejection banner. | **The wording is untouched; the placement is moved by the owner** — decision 8b. Decision 8's separation from §9's banner is unaffected: the banner is the panel's, and the scene is not it. That the sentence now sits beside `configure.overflowWarning` is raised as a copy question, not resolved. |
+| [ADR 0099](0099-a-colour-is-chosen-at-two-levels-and-the-cabinets-wins.md) decision 9 | Colour sits *"just behind the material"*, on the owner's own words. | **The ruling that fixes the pill's order**, so no new one was needed. The pill reads `material │ colour │ hardware │ depth`, which is what the sheet already renders. |
+| The owner's WCAG ruling, 2026-09-03 (`globals.css`) | `--ink-faint: #6b6860` replaces the frames' `#7d7a72`. | **Kept, and it outranks the frame.** A contrast ruling is not chrome taste. Every other colour in the frames is taken literally. |
+| The owner's ruling, 2026-09-07 (76 px, recorded in `configure.module.css` and `top-bar-box.test.ts`, in no ADR) | On desktop a taller top bar is fine; the frame's 76 px is taken and the canvas pays 21 px. | **Confirmed and re-derived.** 76 stays, but it stops being the sum of four declarations and becomes the frame's own declared `height`, because the 48 px CTA does not fit inside `17.5 + 40 + 17.5`. Recorded here because the ruling had no ADR home. |
+| `apps/web/tests/e2e/top-bar.desktop.e2e.spec.ts:165–174` | Dropping the wordmark is *"a copy decision under the owner's Gate O1, not an implementer's"*. | **Discharged by the owner, not overruled** — decision 8. The reservation was correct and it was honoured: the question went to the owner with a measurement, and they answered it. |
+| `DEVELOPMENT-SPEC.md` §10.1 | One implementation; the only permitted fork is layout, in CSS. | **Obeyed.** Every shell difference is a grid or media-query fork; no markup branches and no copy forks (decision 7). It is also why decision 8b moves the sentence on both shells rather than on one. |
+| `DEVELOPMENT-SPEC.md` §10 (*"Chips scroll horizontally"*) | The editor panel's chip rows scroll. | **Still scoped to the panel**, as ADR 0082 decision 2 ruled. Nobody may cite it for the top bar. |
+| `docs/BACKLOG.md` entries 32, 33 | The containment leak; the 93.5 × 13 px trigger. | **Both stay closed.** 32's decision is ADR 0082's and survives; 33's 44 px survives with a new mechanism and a stronger assertion (decision 5). |
+
+Nothing found in the sweep contradicts this record without being named above. Two records are amended
+in place — ADR 0082 and ADR 0094 — and neither amendment is left to be inferred from this one.
+
+## Consequences
+
+- **The first `ResizeObserver` in this repository arrives with this wave.** Nothing in
+  `apps/web/src` observes an element's size today, so the seam — SSR safety, the first paint before
+  any measurement exists, and the jsdom behaviour the unit tests need — is new ground and is a named
+  risk in the plan rather than an implementation detail.
+- **A wave is opened**, planned in
+  [`docs/milestones/chrome-parity-with-the-design-reference.md`](../milestones/chrome-parity-with-the-design-reference.md),
+  with an owner browser review before any QA is dispatched.
+- **Four stylesheets and four components change**: `configure.module.css`, `configure-screen.tsx`,
+  `global-settings.module.css`, `global-settings.tsx`, `global-settings-model.ts`,
+  `price-bar.module.css`, `price-bar.tsx` and `content/ro.ts` — plus a new fit model and its
+  measurement seam.
+- **Two e2e specs lose most of their subject** — `settings-strip-containment.desktop.e2e.spec.ts` and
+  its mobile sibling. They are **re-pointed at the pill, not deleted**: every ADR 0082 predicate they
+  assert is still true of the new control, and the plan says which assertion becomes which. Its
+  case at `:655`, which asserts `1cc86d8`'s header growth, becomes the case that asserts the growth
+  is gone.
+- **The desktop canvas grows by about 45 px and the mobile canvas by about 74**, which moves every
+  page-pixel constant expressed against the canvas origin. Those are re-measured in a browser, never
+  nudged — ADR 0094 criterion 4f's rule, which this record keeps.
+- **Four questions go to the owner, none of them blocking**, and they are listed at the head of the
+  plan rather than buried in it. The narrow-desktop ladder, the wordmark, ADR 0065's sentence and the
+  colour are all **ruled** (2026-09-09) and are decisions here rather than open items.
