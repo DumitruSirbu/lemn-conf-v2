@@ -77,10 +77,18 @@ interface UnpaintableBody {
   readonly buildId: string;
   readonly kind: string;
   readonly family: Family;
-  /** How many door/drawer fronts this body mounts in the seeded kitchen — the only surface
-   *  `applyBodyFinish` can reach. Stated rather than counted at run time, so a body that gains or
-   *  loses fronts fails the premise below by name instead of quietly changing what is asserted. */
+  /** How many door/drawer fronts this body mounts in the seeded kitchen. Stated rather than counted
+   *  at run time, so a body that gains or loses fronts fails the premise below by name instead of
+   *  quietly changing what is asserted. */
   readonly frontCount: number;
+  /** How many surfaces `applyBodyFinish` can actually reach — fronts **plus** any mesh the builder
+   *  declared through `wearsTheBodysFinish` (`body-finish-surfaces.ts`).
+   *
+   *  **The two numbers came apart on 2026-09-09.** They were the same until the owner ruled that the
+   *  open shelf follows the kitchen: it has no front and six painted boards, so a table keyed on
+   *  `frontCount` alone would have gone on calling it unpaintable. `base-corner-return-320` is the
+   *  one row where this is still zero, and that is a statement about the body rather than a gap. */
+  readonly paintedSurfaceCount: number;
 }
 
 /**
@@ -98,6 +106,7 @@ const UNCHOOSING: readonly UnpaintableBody[] = [
     kind: "corner_base_x",
     family: "structural",
     frontCount: 1,
+    paintedSurfaceCount: 1,
   },
   {
     placementId: "p26",
@@ -105,6 +114,7 @@ const UNCHOOSING: readonly UnpaintableBody[] = [
     kind: "corner_base_return",
     family: "structural",
     frontCount: 0,
+    paintedSurfaceCount: 0,
   },
   {
     placementId: "p9",
@@ -112,6 +122,7 @@ const UNCHOOSING: readonly UnpaintableBody[] = [
     kind: "corner_wall_return",
     family: "structural",
     frontCount: 1,
+    paintedSurfaceCount: 1,
   },
   {
     placementId: "p21",
@@ -119,6 +130,7 @@ const UNCHOOSING: readonly UnpaintableBody[] = [
     kind: "corner_wall_return_top",
     family: "structural",
     frontCount: 1,
+    paintedSurfaceCount: 1,
   },
   {
     placementId: "p12",
@@ -126,6 +138,7 @@ const UNCHOOSING: readonly UnpaintableBody[] = [
     kind: "open_shelf_unit",
     family: "structural",
     frontCount: 0,
+    paintedSurfaceCount: 6,
   },
   {
     placementId: "p13",
@@ -133,6 +146,7 @@ const UNCHOOSING: readonly UnpaintableBody[] = [
     kind: "extractor_hood",
     family: "appliance",
     frontCount: 0,
+    paintedSurfaceCount: 0,
   },
   {
     placementId: "p7",
@@ -140,6 +154,7 @@ const UNCHOOSING: readonly UnpaintableBody[] = [
     kind: "fridge_freestanding",
     family: "appliance",
     frontCount: 0,
+    paintedSurfaceCount: 0,
   },
 ];
 
@@ -379,11 +394,17 @@ describe("backlog 60 — the premise: which bodies this is about, and what can b
   });
 });
 
-/** The three structural rows that actually draw a front — the only ones on which *followed the
- *  kitchen* is a claim about something visible. The other two structural rows are asserted in the
- *  domain instead; see the premise above. */
+/** The structural rows that draw a **front**, which is where a `door_front` colour assertion can be
+ *  made. The open shelf follows too and is painted on its boards instead — asserted below, and in
+ *  full in `the-open-shelf-wears-the-kitchens-colour.test.ts`. */
 const PAINTABLE_STRUCTURAL = UNCHOOSING.filter(
   (row) => row.family === "structural" && row.frontCount > 0,
+);
+
+/** Every structural row the renderer can reach at all, by whatever surface. Four of the five since
+ *  the open shelf gained its declaration. */
+const REPAINTED_STRUCTURAL = UNCHOOSING.filter(
+  (row) => row.family === "structural" && row.paintedSurfaceCount > 0,
 );
 
 const APPLIANCES = UNCHOOSING.filter((row) => row.family === "appliance");
@@ -512,24 +533,60 @@ describe("backlog 60 — an appliance is painted at neither level, by name", () 
   );
 });
 
-/** The two structural rows with no front at all. Nothing on screen can move for them today, and
- *  saying so here is what stops a future reader taking the domain's assertion as covered by the
- *  scene. Their following is proved in
- *  `configurator-domain/tests/structural-cabinetry-follows-the-kitchens-colour.test.ts`. */
-describe("backlog 60 — the two frontless structural bodies have no surface to show it on", () => {
-  const FRONTLESS_STRUCTURAL = UNCHOOSING.filter(
-    (row) => row.family === "structural" && row.frontCount === 0,
-  );
-
+/** **Every structural body the colour actually reaches**, whatever surface carries it — the three
+ *  with a `door_front` and the open shelf, whose six boards its builder declares. Asserted on the
+ *  material instance rather than on a hex, so it holds for a body with no front. */
+describe("backlog 60 — the kitchen's colour reaches four of the five structural bodies", () => {
   it("names them", () => {
-    expect(FRONTLESS_STRUCTURAL.map((row) => row.buildId).sort()).toEqual([
-      "base-corner-return-320",
+    expect(REPAINTED_STRUCTURAL.map((row) => row.buildId).sort()).toEqual([
+      "base-corner-x-900",
       "open-shelf-600",
+      "wall-corner-return-570",
+      "wall-corner-return-570-top",
     ]);
   });
 
-  it.each(FRONTLESS_STRUCTURAL)(
-    "$buildId ($family) mounts no front for the colour to reach",
+  it.each(REPAINTED_STRUCTURAL)("$buildId ($family) is repainted", (row) => {
+    const { without, with_ } = materialsWithAndWithout(
+      followingOn("material.melamine"),
+      ANTRACIT,
+      row.placementId,
+    );
+
+    expectRepainted(without, with_, row.buildId);
+  });
+});
+
+/** **The one row nothing on screen can move for, and it is a statement rather than a gap.**
+ *  `base-corner-return-320` builds a `plinth`, a `carcass` and a `countertop` and nothing else. Its
+ *  only cabinetry surface is the carcass, which is the box *interior* every cabinet shares — so
+ *  painting it would recolour interiors, which no body in this kit does at any colour. Its following
+ *  is real and is proved in the document and the record
+ *  (`configurator-domain/tests/structural-cabinetry-follows-the-kitchens-colour.test.ts`); there is
+ *  simply nothing outward for it to show. Recorded here so nobody reopens it as a defect. */
+describe("backlog 60 — the corner base return has no outward surface, by design", () => {
+  const NOTHING_TO_PAINT = UNCHOOSING.filter(
+    (row) => row.family === "structural" && row.paintedSurfaceCount === 0,
+  );
+
+  it("is the only structural body in that state", () => {
+    expect(NOTHING_TO_PAINT.map((row) => row.buildId)).toEqual([
+      "base-corner-return-320",
+    ]);
+  });
+
+  it("mounts only a plinth, a carcass and a countertop", () => {
+    drawn(withKitchenColour(followingOn("material.melamine"), ANTRACIT));
+
+    const names: string[] = [];
+    mounted("p26").traverse((node) => {
+      if (isMesh(node)) names.push(node.name);
+    });
+    expect(names.sort()).toEqual(["carcass", "countertop", "plinth"]);
+  });
+
+  it.each(NOTHING_TO_PAINT)(
+    "$buildId ($family) renders identically with and without a kitchen colour",
     (row) => {
       const { without, with_ } = materialsWithAndWithout(
         followingOn("material.melamine"),

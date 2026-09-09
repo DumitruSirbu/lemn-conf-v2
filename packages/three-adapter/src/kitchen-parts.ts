@@ -12,6 +12,7 @@ import {
 } from "@lemnaria/configurator-domain";
 import * as THREE from "three";
 
+import { wearsTheBodysFinish } from "./body-finish-surfaces.js";
 import { kitOwnedResources } from "./kit-ownership.js";
 import { context2d, isMaterial, isMesh } from "./three-guards.js";
 
@@ -1815,25 +1816,54 @@ export function makeKit(options: KitOptions = {}): Kit {
   // re-centres the rest rather than leaving a gap. The default is the reference builder's own
   // literal and stays there for M1's parity gate; who asks for how many is the caller's decision,
   // and for §7's insertable entry that is `innerShelvesFor` in `catalog-bodies.ts` (ADR 0047).
+  /** **The one builder in this kit that declares its own painted surfaces**, and the reason
+   *  `body-finish-surfaces.ts` exists: an open shelf has no door and no drawer, so `isFrontMesh` can
+   *  name nothing on it, yet the owner ruled on 2026-09-09 that it follows the kitchen's colour
+   *  (backlog entry 60).
+   *
+   *  **The boards wear it; the back panel does not.** Six `wearsTheBodysFinish` wrappers and one bare
+   *  `box` — the owner's own division, written where the geometry is: *"a coloured shelf mounted on
+   *  the wall, not a coloured niche"*. The back panel stays `M.tile` at every kitchen colour.
+   *
+   *  The wrappers are what make this body paintable and they are **not** a rename: the six meshes
+   *  keep the names the decomposition-parity gate and the probe read, and none of them becomes a
+   *  *front*, so `collectFronts` over this body still answers zero. */
   function openShelf(W = 0.8, D = 0.3, inner = 2, H = 0.7): THREE.Group {
     const g = G("open_shelf_unit");
-    g.add(box(0.018, H, D, M.oak, "side_left", -W / 2 + 0.009, 0, 0));
-    g.add(box(0.018, H, D, M.oak, "side_right", W / 2 - 0.009, 0, 0));
-    g.add(box(W, 0.018, D, M.oak, "shelf_top", 0, H - 0.018, 0));
-    g.add(box(W, 0.018, D, M.oak, "shelf_bottom", 0, 0, 0));
+    g.add(
+      wearsTheBodysFinish(
+        box(0.018, H, D, M.oak, "side_left", -W / 2 + 0.009, 0, 0),
+      ),
+    );
+    g.add(
+      wearsTheBodysFinish(
+        box(0.018, H, D, M.oak, "side_right", W / 2 - 0.009, 0, 0),
+      ),
+    );
+    g.add(
+      wearsTheBodysFinish(
+        box(W, 0.018, D, M.oak, "shelf_top", 0, H - 0.018, 0),
+      ),
+    );
+    g.add(
+      wearsTheBodysFinish(box(W, 0.018, D, M.oak, "shelf_bottom", 0, 0, 0)),
+    );
     for (let i = 1; i <= inner; i++)
       g.add(
-        box(
-          W - 0.036,
-          0.018,
-          D - 0.02,
-          M.oak,
-          "shelf_" + String(i),
-          0,
-          (H * i) / (inner + 1) - 0.009,
-          0.01,
+        wearsTheBodysFinish(
+          box(
+            W - 0.036,
+            0.018,
+            D - 0.02,
+            M.oak,
+            "shelf_" + String(i),
+            0,
+            (H * i) / (inner + 1) - 0.009,
+            0.01,
+          ),
         ),
       );
+    // Deliberately bare: the tiled backing is the wall behind the shelf, not the shelf.
     g.add(
       box(
         W - 0.036,

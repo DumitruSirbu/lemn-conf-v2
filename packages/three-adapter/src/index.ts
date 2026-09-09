@@ -15,6 +15,7 @@ export {
 export {
   applyFinish,
   collectFronts,
+  collectPaintedSurfaces,
   finishSignature,
   swatchOf,
   type FinishSwatch,
