@@ -106,6 +106,23 @@ export function describeStartingLabel(
 
 /** Builds the one shape a figure may be rendered from. Every displayed price on every surface —
  *  the bar, §9's footer, and wave 6D's lines — comes through here. */
+/**
+ * **Whether this priced design holds no cabinets at all** — M6-AUD-014's discriminator, in the one
+ * module both price surfaces already import so they cannot come to disagree about what "empty"
+ * means.
+ *
+ * Read off the priced result rather than off the design, so neither model has to be handed a
+ * document it otherwise does not need: a design with placements always produces `cabinet` lines and
+ * a design with none never does. The whole-kitchen lines an empty design still carries are exactly
+ * what would otherwise render as a meaningful zero — a tier printed *inclus* over nothing.
+ *
+ * The owner's ruling (2026-09-09) is that such a design stays **valid**: loadable, shareable,
+ * refused at no seam. It simply has no price, and the surfaces say so rather than printing one.
+ */
+export function holdsNoCabinets(priced: PricedDesign): boolean {
+  return !priced.lines.some((line) => line.kind === "cabinet");
+}
+
 export function describeStartingPrice(input: StartingPriceInput): PriceFigure {
   return {
     label: input.label,

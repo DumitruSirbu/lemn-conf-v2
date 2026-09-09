@@ -401,6 +401,19 @@ export const ro = {
      *  *corpuri* form is struck through in place at ADR 0065 decision 7b. */
     overflowingTotalWarning:
       "Prețul include și dulapuri ce depășesc mărimea peretelui și necesită ajustări",
+    /** **M6-AUD-014, ruled by the owner 2026-09-09.** A design with no cabinets is a valid,
+     *  loadable, shareable document — it is not refused at any seam — but it has **no price**, and
+     *  the bar says so instead of printing `De la 0 MDL`. Zero is the one figure a customer would
+     *  read as a promise.
+     *
+     *  **The owner's own sentence**, and it is a prompt rather than an error: it names the single
+     *  action that produces a price. The owner typed it without diacritics; it is written here with
+     *  them, as every other string in this file is — that is orthography, not a rewording, and the
+     *  wording itself is untouched. If the owner wants it as typed, this is the line to change.
+     *
+     *  Wave 6C's rule holds: **no amount appears in a string**, and this one names none. */
+    emptyKitchenPrompt:
+      "Pentru a afișa un preț estimativ adaugă-ți cel puțin un dulap din catalog",
   },
   /** Frames 2D / D2D's breakdown: *"De ce acest preț"*, the sheet on mobile and the popover on
    *  desktop.

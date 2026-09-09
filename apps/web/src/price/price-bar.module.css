@@ -41,6 +41,18 @@
   font: 700 21px/1 var(--font-ui);
 }
 
+/* **M6-AUD-014's prompt, where the figure would be.** Set at the label's weight rather than the
+ * amount's: it is a sentence telling the customer what to do, not a figure, and giving it the
+ * amount's 21 px bold would make an instruction look like a price. It takes `.bar`'s own box, so the
+ * bar measures the same with the prompt as with a total and nothing below it moves when the first
+ * cabinet arrives. */
+.emptyPrompt {
+  max-width: 42ch;
+  margin: 0;
+  font: 400 12.5px/1.45 var(--font-ui);
+  color: var(--ink-faint);
+}
+
 /* The flagged total's live region: present whether or not there is a warning, and laid out as
  * though it were not there. `display: contents` is what makes the second half true — the warning
  * inside it stays a direct flex child of `.bar`, so the bar's box is identical with an empty region
@@ -97,5 +109,12 @@
 
   .overflow {
     max-width: 320px;
+  }
+
+  /* Right-aligned with the figure it replaces, and narrower: the desktop top bar gives this its
+   * right-hand end, and a sentence running the width of the header would read as a banner. */
+  .emptyPrompt {
+    max-width: 320px;
+    text-align: right;
   }
 }
