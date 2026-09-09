@@ -25,6 +25,7 @@ import {
   DesignSchema,
   KITCHEN_L_DESIGN,
   occupiedDepthOfEntryM,
+  type BodyCatalog,
   type Column,
   type Design,
   type EmptyColumn,
@@ -34,6 +35,11 @@ import { describe, expect, it } from "vitest";
 import { createConfiguratorStore } from "@/store/configurator-store";
 
 import { createFakeProbeFactory } from "../support/fake-body-probe";
+import {
+  catalogWithAPinnedTop,
+  designWithAPinnedTop,
+  PINNED_TOP_WITNESS_BUILD_ID,
+} from "../support/pinned-top-witness";
 import { columnKeyAt } from "../support/wall-b-column-keys";
 
 const OCCURRED_AT = "2026-09-05T12:00:00.000Z";
@@ -712,21 +718,26 @@ describe("an entry that sits on a build ceiling at one declared setting only", (
    *  the wrong population: the hazard is not about the wall family but about *any* entry sitting on a
    *  ceiling at one setting only. A new entry anywhere in the catalogue with that shape turns this
    *  red. */
-  const KNOWN_HAZARD_ENTRIES: readonly string[] = [
-    // ADR 0058's two pins, which declare 600 at both settings and so coincide with the lifted ceiling
-    // at 600 and not at 700.
-    "wall-2door-600-deep-top",
-    "wall-2door-700-over-fridge",
-  ];
+  /** **Empty since ADR 0101, and the empty list is the claim rather than a gap.**
+   *
+   *  It held ADR 0058's two pins, which declared 600 at both settings and so coincided with the
+   *  lifted ceiling at 600 and not at 700. Both rows follow the setting now — their depth *is* the
+   *  lifted ceiling at every setting — so no shipped entry has the shape.
+   *
+   *  A list that empties is exactly where a sweep stops meaning anything, so the arm that produced
+   *  it is kept falsifiable by the declared witness in the test below rather than by a comment
+   *  (ADR 0093 decision 1). */
+  const KNOWN_HAZARD_ENTRIES: readonly string[] = [];
 
   /** Whether this entry's declared occupied depth *is* the build ceiling, at one setting and one
    *  reading of the live predicate. */
   function sitsOnTheCeiling(
+    catalogAt: (cabinetDepthMm: number) => BodyCatalog,
     buildId: string,
     cabinetDepthMm: number,
     hasFullHeightUnder: boolean,
   ): boolean {
-    const definition = buildKitchenLBodyCatalog(cabinetDepthMm).get(buildId);
+    const definition = catalogAt(cabinetDepthMm).get(buildId);
     if (!definition) throw new Error(`${buildId} is not in the catalogue`);
     return (
       Math.abs(
@@ -736,29 +747,54 @@ describe("an entry that sits on a build ceiling at one declared setting only", (
     );
   }
 
-  it("is exactly ADR 0058's two pins, catalogue-wide", () => {
+  /** Every entry of one catalogue with the hazard's shape, and how many (entry, predicate) pairs sit
+   *  on a ceiling at **both** settings — the non-vacuity count, read beside the answer so the two
+   *  cannot be measured over different catalogues. */
+  function hazardsIn(catalogAt: (cabinetDepthMm: number) => BodyCatalog): {
+    readonly hazards: readonly string[];
+    readonly onTheCeilingAtBoth: number;
+  } {
     const settings = declaredCabinetDepthsMm();
     const hazards = new Set<string>();
     let onTheCeilingAtBoth = 0;
 
-    for (const buildId of buildKitchenLBodyCatalog(
-      DEFAULT_CABINET_DEPTH_MM,
-    ).keys()) {
+    for (const buildId of catalogAt(DEFAULT_CABINET_DEPTH_MM).keys()) {
       for (const hasFullHeightUnder of [false, true]) {
         const on = settings.map((cabinetDepthMm) =>
-          sitsOnTheCeiling(buildId, cabinetDepthMm, hasFullHeightUnder),
+          sitsOnTheCeiling(
+            catalogAt,
+            buildId,
+            cabinetDepthMm,
+            hasFullHeightUnder,
+          ),
         );
         if (on.every(Boolean)) onTheCeilingAtBoth += 1;
         if (new Set(on).size > 1) hazards.add(buildId);
       }
     }
+    return { hazards: [...hazards].sort(), onTheCeilingAtBoth };
+  }
 
-    expect([...hazards].sort()).toStrictEqual([...KNOWN_HAZARD_ENTRIES].sort());
+  it("is no entry of the shipped catalogue", () => {
+    const { hazards, onTheCeilingAtBoth } = hazardsIn(buildKitchenLBodyCatalog);
+
+    expect(hazards).toStrictEqual([...KNOWN_HAZARD_ENTRIES].sort());
     // Non-vacuity: coinciding with a ceiling is common — 15 (entry, predicate) pairs do it at *both*
     // settings — so the discriminating half of the predicate is "at one setting only", and it has a
     // large population to be wrong about.
     expect(onTheCeilingAtBoth).toBeGreaterThan(0);
-    expect(settings.length).toBeGreaterThan(1);
+    expect(declaredCabinetDepthsMm().length).toBeGreaterThan(1);
+  });
+
+  // **The arm's witness, declared here** (ADR 0093 decision 2, as ADR 0101 decision 3 applies it).
+  // The list above is empty and an empty list proves nothing about a predicate, so the same sweep is
+  // run over a catalogue holding one body with the shape: a top pinned at 600 at every setting,
+  // which coincides with the lifted ceiling at 600 and not at 700. Break `sitsOnTheCeiling` or the
+  // "at one setting only" test and this goes red where the shipped catalogue cannot.
+  it("is found by the same sweep on a catalogue that holds one", () => {
+    const { hazards } = hazardsIn(catalogWithAPinnedTop);
+
+    expect(hazards).toStrictEqual([PINNED_TOP_WITNESS_BUILD_ID]);
   });
 
   // **Fixture-bounded safety, recorded as such rather than as a structural guarantee.** Neither pin is
@@ -776,8 +812,16 @@ describe("an entry that sits on a build ceiling at one declared setting only", (
   // deeper setting under wave 6K-c as well, and then holds 700 at the shallower one. This wave reaches
   // the same 700 and does not ratchet it — the pin is 100 mm proud under both rules, and only this
   // wave lets it come back.
+  // **Measured on the witness fixture rather than on the shipped one**, because the shipped one has
+  // held no hazard entry since ADR 0101 and "unreachable because nothing has the shape" is a
+  // different and much weaker claim than the one this test makes.
   it("is unreachable on this fixture, for a reason the fixture supplies", () => {
-    const store = createStore();
+    const store = createConfiguratorStore({
+      design: designWithAPinnedTop(),
+      catalogAt: catalogWithAPinnedTop,
+      probeAt: createFakeProbeFactory(),
+      now: () => OCCURRED_AT,
+    });
     const sourcedByColumn = new Map(
       [...store.getState().columns].map(([key, column]) => [
         key,
@@ -786,10 +830,10 @@ describe("an entry that sits on a build ceiling at one declared setting only", (
     );
 
     const pinnedColumns = [...sourcedByColumn]
-      .filter(([, source]) => KNOWN_HAZARD_ENTRIES.includes(source ?? ""))
+      .filter(([, source]) => source === PINNED_TOP_WITNESS_BUILD_ID)
       .map(([key]) => key);
 
-    // One column records a pin, and it is never member-less while it does: a full-height member
+    // One column records the pin, and it is never member-less while it does: a full-height member
     // stands in it.
     expect(pinnedColumns).toStrictEqual([PANTRY_KEY]);
     expect(
@@ -798,9 +842,5 @@ describe("an entry that sits on a build ceiling at one declared setting only", (
         .records.filter((record) => record.col === PANTRY_KEY)
         .map((record) => record.band),
     ).toContain("column");
-    // The other pin wins no column's MAX at all.
-    expect([...sourcedByColumn.values()]).not.toContain(
-      "wall-2door-700-over-fridge",
-    );
   });
 });

@@ -4,6 +4,13 @@
 // Forking them is on record as the cause of a silent, total failure of the replace feature: a void
 // rewrite dropped the swap branch and every "Înlocuiește" row did nothing at all. One path also
 // keeps the fit guards from drifting apart.
+//
+// **Since wave 6Z it also drives a dependent re-plan** (ADR 0103 decision 2): §5.2 described
+// building one body into one opening, and it now describes the column. Every body already standing
+// in a column this insert touched is re-planned at the column as it stands afterwards, through the
+// same path the insert itself takes. The rule lives in `replan-dependent-members.ts`; what lives
+// here is the one call and the atomicity — either the placed body and every re-planned body are
+// written, or the design comes back unchanged with one refusal.
 import { measurableSeatOf } from "../seat-rule.js";
 import type { BodyProbe, BodyMeasurement } from "../body-probe.js";
 import {
@@ -12,7 +19,7 @@ import {
   type InsertableBody,
 } from "../catalog.js";
 import { cabinetDepthMmOf } from "../design.js";
-import type { CabinetBody, Design, DesignPlacement } from "../design.js";
+import type { Design, DesignPlacement } from "../design.js";
 import {
   MILLIMETRES_PER_METRE,
   toExactMillimetres,
@@ -20,11 +27,10 @@ import {
 } from "../millimetres.js";
 import {
   derivePlacementRecords,
-  recomputeVoids,
-  FIT_TOLERANCE_M,
   type BodyCatalog,
   type Column,
   type PlacementRecord,
+  type VoidRecord,
 } from "../void-engine.js";
 import {
   isValidOccurredAt,
@@ -41,15 +47,45 @@ import {
   type InsertPlan,
   type ResolvedOpening,
 } from "./insert-fit.js";
+import {
+  carriedAppearance,
+  refuseBuiltSize,
+  refuseUnusableMeasurement,
+} from "./built-body.js";
 import type { RejectionDetail } from "./rejection.js";
+import { replanDependentMembers } from "./replan-dependent-members.js";
 import { splitColumn, type ColumnSplit } from "./split-column.js";
 
 export interface InsertBodyInput {
   readonly design: Design;
   readonly catalog: BodyCatalog;
-  /** ADR 0011 Gap D: frozen load-time columns. No command recomputes them, and this one refuses
-   *  rather than place a body that would fall outside the map. */
+  /** ADR 0011 Gap D: frozen load-time columns, in their **recorded** face (ADR 0090 Amendment B).
+   *  No command recomputes them, and this one refuses rather than place a body that would fall
+   *  outside the map. This is the face `effect.columns` replaces, so it is the one a room-derived
+   *  cap may never have touched.
+   *
+   *  It is deliberately **not** what the openings come from — see `voids`. */
   readonly columns: ReadonlyMap<string, Column>;
+  /**
+   * **The published openings** — §9's own list, bounded by the wall (ADR 0069's owner ruling, kept
+   * in as many words by ADR 0090 Amendment B: *"no opening past the wall is ever derived, drawn or
+   * offered"*).
+   *
+   * **Required, and deliberately neither optional nor recomputed here.** Until this wave the
+   * command built its own list from `columns`, so once backlog 52 made that map the recorded face
+   * the uncapped map became the uncapped opening: at a 700 mm kitchen the space flush to wall B's
+   * end published a 500 mm opening and the command built a 600 mm body 100 mm past a 2920 mm wall,
+   * while the offer list refused a `base-sink` in the same opening by name. §11 row 6 and ADR 0032
+   * say the list and the command are *"the same evaluation `insertBody` runs"*, and they can only be
+   * that if they are handed the same openings.
+   *
+   * **Nor re-derived from a capped copy of `columns`.** `deriveColumns` runs the wall-end clip
+   * *before* ADR 0046's merge, so `clip(recorded)` is not the published map — a pair the clip
+   * narrows below ADR 0052's 800 mm ceiling merges where the same pair uncapped declines
+   * (`deriveRecordedColumns`' own comment carries that measurement). The published list is handed
+   * in by the one seam that assembles it.
+   */
+  readonly voids: readonly VoidRecord[];
   readonly target: CommandTarget;
   readonly buildId: string;
   readonly probe: BodyProbe;
@@ -75,9 +111,13 @@ export function insertBody(input: InsertBodyInput): InsertResult {
   if (!body.ok) return refuse(design, body.detail);
 
   const records = derivePlacementRecords(design, input.catalog);
+  // **The two faces, each in the role ADR 0090 Amendment B gives it**: the opening is resolved out
+  // of the published list, which the wall bounds, and the column it is seated in comes from the
+  // recorded map, which the split then rewrites. This is `OffersInput` field for field, which is
+  // what makes §11 row 6's "one evaluation, two callers" structural rather than a promise.
   const target = resolveInsertOpening({
     records,
-    voids: recomputeVoids(records, input.columns),
+    voids: input.voids,
     columns: input.columns,
     target: input.target,
   });
@@ -91,7 +131,14 @@ export function insertBody(input: InsertBodyInput): InsertResult {
   });
   if (!fit.ok) return refuse(design, fit.detail);
 
-  return place(input, body.value, target.value, fit.plan);
+  return place(input, body.value, {
+    target: target.value,
+    plan: fit.plan,
+    // Carried rather than re-derived below: the dependent re-plan compares the column's
+    // `hasFullHeightUnder` answer over these records against its answer over the post-insert ones,
+    // and two derivations of "the design as it stood" are two authors for it.
+    recordsBefore: records,
+  });
 }
 
 /** ADR 0011 Gap A: only §7's parameterised entries are ever accepted. A seeded id describes one
@@ -121,9 +168,9 @@ function resolveInsertableBody(
 function place(
   input: InsertBodyInput,
   body: InsertableBody,
-  target: ResolvedOpening,
-  plan: InsertPlan,
+  planned: PlannedInsert,
 ): InsertResult {
+  const { target, plan } = planned;
   const measurement = input.probe.measure({
     buildId: body.buildId,
     // Read off the entry, and a throw rather than a default if it is joint-seated: an insertable
@@ -154,63 +201,7 @@ function place(
   if (!millimetres.ok) return refuse(input.design, millimetres.detail);
 
   const placement = buildPlacement(input, body, target, millimetres.value);
-  return applyPlacement(input, body, { target, plan }, placement);
-}
-
-/** §5.2: "gs = CARCASS box of g → re-check width & height, reject on mismatch". Fit is judged on
- *  the carcass, so the sink's faucet and the hood's chimney — which rise into free air — cannot
- *  refuse a body from an opening it fits perfectly (§11 row 7).
- *
- *  Exported for ADR 0031's rebuild — see `refuseUnusableMeasurement` below. */
-export function refuseBuiltSize(
-  body: InsertableBody,
-  plan: InsertPlan,
-  measurement: BodyMeasurement,
-): RejectionDetail | undefined {
-  const checks = [
-    { requiredM: plan.widthM, builtM: measurement.carcassWidthM },
-    { requiredM: plan.heightM, builtM: measurement.carcassHeightM },
-  ];
-  // `Math.abs(NaN - required) > TOL` is **false**, so a builder that produced nothing sails
-  // through the very gate that exists to catch it. The finiteness test has to come first.
-  const wrong = checks.find(
-    (check) =>
-      !Number.isFinite(check.builtM) ||
-      Math.abs(check.builtM - check.requiredM) > FIT_TOLERANCE_M,
-  );
-  if (!wrong) return undefined;
-  return {
-    code: "BUILT_SIZE_MISMATCH",
-    params: {
-      label: body.label,
-      requiredMm: toMillimetres(wrong.requiredM),
-      builtMm: toMillimetres(wrong.builtM),
-    },
-  };
-}
-
-/** The rest of the measurement, which no size gate covers: the seat offset `insertBody` persists
- *  and the full extent it reports. A probe is an injected port, so a measurement that is not a
- *  number is a data condition and belongs in the `CommandResult`, never in a thrown exception —
- *  the store calling this has no catch (ADR 0011 Gap E's reasoning, applied to Gap B's port).
- *
- *  Exported for ADR 0031's rebuild, which builds every member of a column through the same probe
- *  and owes each of them the same two checks. One implementation, so an insert and a resize cannot
- *  come to disagree about what a usable measurement is. */
-export function refuseUnusableMeasurement(
-  body: InsertableBody,
-  measurement: BodyMeasurement,
-): RejectionDetail | undefined {
-  const measured = [
-    { field: "seatOffsetM", valueM: measurement.seatOffsetM },
-    { field: "fullHeightM", valueM: measurement.fullHeightM },
-  ];
-  const unusable = measured.find((entry) => !Number.isFinite(entry.valueM));
-  if (!unusable) return undefined;
-  return {
-    code: "MEASUREMENT_UNUSABLE",
-    params: { label: body.label, field: unusable.field },
-  };
+  return applyPlacement(input, body, planned, placement);
 }
 
 /** What `place` decided, carried to the write: the opening resolved and the plan measured against
@@ -219,6 +210,9 @@ export function refuseUnusableMeasurement(
 interface PlannedInsert {
   readonly target: ResolvedOpening;
   readonly plan: InsertPlan;
+  /** The records the design had **before** this insert, for wave 6Z's dependent re-plan. Derived
+   *  once by `insertBody` and carried, never re-derived here. */
+  readonly recordsBefore: readonly PlacementRecord[];
 }
 
 interface PlacementMillimetres {
@@ -308,30 +302,6 @@ function buildPlacement(
   };
 }
 
-/** "Choice beats default" (§5.4): a swap keeps the recorded finish and handle where the incoming
- *  body supports them, and drops them where it does not — an open shelf has no doors. The top
- *  row's push-open default is deliberately *not* recorded here; it is decided by the slot at
- *  render time (`isPushOpenByDefault`), so `canHandle` stays true and the choice stays available.
- *
- *  §11 rows 12 and 13 are the same requirement read from ADR 0031's end, so the resize rebuild
- *  calls this rather than repeating it — for **every member of the column it moves**, not only the
- *  body the customer selected. The recorded defect is a sage door with black bars silently reset to
- *  white with steel. */
-export function carriedAppearance(
-  body: InsertableBody,
-  replaced: PlacementRecord | undefined,
-): Pick<CabinetBody, "finish" | "handle"> {
-  if (!replaced) return {};
-  return {
-    ...(body.definition.canFinish && replaced.finishKey !== undefined
-      ? { finish: replaced.finishKey }
-      : {}),
-    ...(body.definition.canHandle && replaced.handleMode !== undefined
-      ? { handle: replaced.handleMode }
-      : {}),
-  };
-}
-
 /** §5.3: the new body takes the old one's place in the array, so a swap does not reorder the
  *  document and its canonical serialisation stays comparable. */
 function applyPlacement(
@@ -364,13 +334,40 @@ function applyPlacement(
   const drift = refuseColumnDrift(records, split.value, body, placement.id);
   if (drift) return refuse(input.design, drift);
 
-  return succeedWith(design, {
-    type: "body_inserted",
-    placementId: placement.id,
-    buildId: placement.body.buildId,
-    ...(replacedId === undefined ? {} : { replacedPlacementId: replacedId }),
+  // **After the split and after the drift guard** (ADR 0103 decision 3), because the map the
+  // dependent bodies are re-planned against is the one the split just wrote — with
+  // `hasFullHeightUnder` re-answered over the records this insert produced.
+  const replanned = replanDependentMembers({
+    design,
+    catalog: input.catalog,
     columns: split.value.columns,
+    probe: input.probe,
+    occurredAt: input.occurredAt,
+    recordsBefore: planned.recordsBefore,
+    recordsAfter: records,
+    columnsBeforeSplit: input.columns,
+    occupiedKey: split.value.occupiedKey,
+    placedId: placement.id,
+    placedLabel: body.label,
   });
+  // **Atomic**: the insert refuses whole, and the design the caller gets back is the one it handed
+  // in. A column with the new body in it and the standing one left at the old depth is the silent
+  // mixture this wave exists to remove (ADR 0103 decision 7).
+  if (!replanned.ok) return refuse(input.design, replanned.detail);
+
+  return succeedWith(
+    withPlacements(design, replanned.value, input.occurredAt),
+    {
+      type: "body_inserted",
+      placementId: placement.id,
+      buildId: placement.body.buildId,
+      ...(replacedId === undefined ? {} : { replacedPlacementId: replacedId }),
+      // **The split's map, unchanged** (ADR 0103 decision 9). The re-plan moves member seats and no
+      // published extent: no `Column.d`, no `Column.w`, no key and no `depthFromBuildId` moves,
+      // because this command publishes the map the split wrote and nothing re-derives it.
+      columns: split.value.columns,
+    },
+  );
 }
 
 /** ADR 0011 Gap D: an inserted placement's derived column must be the one the map holds for it —

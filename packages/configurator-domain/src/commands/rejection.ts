@@ -215,6 +215,21 @@ export type RejectionDetail =
       readonly code: "COLUMN_MEMBER_NOT_RESIZABLE";
       readonly params: ColumnMemberParams;
     }
+  /** Wave 6Z, ADR 0103 decision 7: the insert succeeded on its own terms, and a body already
+   *  standing over the column could not be rebuilt at the depth the column now decides.
+   *
+   *  **The insert is atomic**, so this loses the whole command rather than leaving a column half
+   *  re-planned — the "silent mixture" `rebuildEveryBodyAt` refuses by name, and the state this wave
+   *  exists to remove.
+   *
+   *  **It names both bodies**, which is why it carries `ColumnMemberParams` rather than passing the
+   *  inner refusal through. The inner one is a sentence about a cabinet the customer never touched;
+   *  handing it over unchanged would answer a tap on one body with a complaint about another and no
+   *  connective between them. */
+  | {
+      readonly code: "DEPENDENT_MEMBER_NOT_REBUILDABLE";
+      readonly params: ColumnMemberParams;
+    }
   /** **Re-stated by ADR 0031, not deleted.** It used to refuse whenever the derived opening set
    *  changed at all; under ADR 0031 that happens on *every* legal resize, because the empty column
    *  funding it shrinks. The defect it guards is unchanged and still live, so it is now that
@@ -478,6 +493,12 @@ export function renderRejection(detail: RejectionDetail): string {
       return renderNoEmptySpace(detail.params);
     case "COLUMN_MEMBER_NOT_RESIZABLE":
       return `„${detail.params.label}” nu poate fi redimensionat: în aceeași coloană stă „${detail.params.memberLabel}”, care nu își poate schimba lățimea.`;
+    // Ruled 2026-09-08, pending owner review. ADR 0103 decision 7 ruled the refusal; the sentence is
+    // wave 6Z's draft under the owner's standing direction, and it names **both** bodies — the one
+    // the customer asked for and the one above it — because naming only the second answers a tap
+    // with a complaint about a cabinet they never touched.
+    case "DEPENDENT_MEMBER_NOT_REBUILDABLE":
+      return `„${detail.params.label}” nu poate fi adăugat aici: „${detail.params.memberLabel}”, care stă deasupra, nu poate fi reconstruit la adâncimea coloanei.`;
     case "RESIZE_OPENS_GAP":
       return renderResizeOpensGap(detail.params);
     case "COLUMN_KEY_COLLISION":

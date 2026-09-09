@@ -1,6 +1,6 @@
 # ADR 0028 — Wall and top carcass depth is derived from one declared worktop depth
 
-Status: Accepted (naming superseded)
+Status: Accepted (naming superseded) (decision 5's consequence clause struck 2026-09-07 -> [0101](0101-a-lifted-columns-depth-is-declared-and-the-three-deep-tops-follow-the-setting.md); the rule itself is confirmed)
 Date: 2026-08-27
 Type: Decision + Finding
 Milestone: M5 wave 5A — the worktop → wall depth map
@@ -60,8 +60,17 @@ on every derivation — and did not link the cap to anything.
    fallback, no silent default. A worktop depth with no row throws `UnknownWorktopDepthError`, naming
    the value it was given.
 5. **The map governs the head-clearance rule and nothing else.** `hasFullHeightUnder: true` still
-   lifts the cap, which is what keeps the two deep top cabinets at 600 over their columns. The hood
+   lifts the cap, ~~which is what keeps the two deep top cabinets at 600 over their columns~~. The hood
    is untouched at 500, and whether a hood follows the worktop stays open.
+
+   **The struck clause is superseded 2026-09-07 —
+   [ADR 0101](0101-a-lifted-columns-depth-is-declared-and-the-three-deep-tops-follow-the-setting.md)
+   decision 5.** The rule itself is confirmed and is untouched: the lift stands, and it is the
+   mechanism the deep tops' fix uses. What is false is the consequence — the lifted arm returns the
+   **cabinet-depth line**, which is 700 at a 700 mm kitchen, and it is [ADR 0058](0058-the-two-deep-top-cabinets-are-pinned.md)'s
+   **pin**, not this lift, that holds those cabinets at 600. True when written, when 600 was the only
+   cabinet depth the product had. `cabinet-depth-rule.ts`'s comment above `columnBuildDepthMm` quotes
+   this clause verbatim and is a work item of the wave ADR 0101 rules.
 
 ### Why a map and not a formula
 

@@ -151,12 +151,30 @@ describe("6A2 adversarial: the rename is closed for every seeded row, not only t
     const wallRows = new Set(
       wallCabinetPlacements.map((placement) => placement.body.buildId),
     );
-    const neverMigrated = [...wallRows].filter((row) => !migratedRows.has(row));
+    const neverMigratedByAResize = [...wallRows].filter(
+      (row) => !migratedRows.has(row),
+    );
 
-    // The one wall row no resize can ever reach: `p24` is its only placement and it sits over the
-    // fixed-width fridge. Its name is therefore correct-by-construction rather than by round trip,
-    // and it is listed here so a row *joining* this list is a visible change.
-    expect(neverMigrated).toEqual(["wall-2door-700-over-fridge"]);
+    // The one wall row no **resize** can ever reach: `p24` is its only placement and it sits over
+    // the fixed-width fridge, so `COLUMN_MEMBER_NOT_RESIZABLE` refuses every width trip. Its name is
+    // therefore correct-by-construction rather than by round trip, and it is listed here so a row
+    // *joining* this list is a visible change.
+    //
+    // **Named for the resize path alone, and that qualification is the point** (ADR 0101 decision
+    // 2). Since that wave this row follows the cabinet-depth setting like every other wall row —
+    // measured 2026-09-08, its entry goes `frameDepthMm` 561 -> 661 between the two catalogues and
+    // declares `follows: "cabinet-depth"` — so **a depth change does reach it**, and `setCabinetDepth`
+    // rebuilds it. What a depth change does *not* do is move it to a different catalogue row: the
+    // `buildId` is `wall-2door-700-over-fridge` at both settings, which is the only sense of
+    // "migrated" this test measures.
+    //
+    // So an unqualified `neverMigrated` would read as "the product cannot migrate this" when only
+    // one command cannot, and it would keep passing while saying so — the assertion's value is
+    // unchanged by that wave, its meaning is not. That is ADR 0093's failure mode running backwards.
+    //
+    // It is an incidental fact of the seeded fixture rather than a promise the product makes, and
+    // nothing may be built on it.
+    expect(neverMigratedByAResize).toEqual(["wall-2door-700-over-fridge"]);
   });
 
   it("names a wall row the same thing before and after its own buildId migrates", () => {

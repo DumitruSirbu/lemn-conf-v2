@@ -52,7 +52,7 @@ import {
 } from "./command-result.js";
 import { rebuild } from "./rebuild-resized-bodies.js";
 import { resolveRebuildBody } from "./resolve-column-members.js";
-import type { SetWidthInput } from "./width-resize-model.js";
+import type { RebuildInput } from "./width-resize-model.js";
 
 /** **The catalogue is built here, from a factory, rather than handed in already built.**
  *
@@ -131,10 +131,6 @@ function isOfferedCabinetDepthMm(cabinetDepthMm: number): boolean {
   );
 }
 
-/** `SetWidthInput` names a target and a width because a resize has both. A depth change has
- *  neither: it rebuilds every body at the width it already has. */
-const UNUSED_BY_REBUILD = "";
-
 interface RebuiltDesign {
   readonly placements: readonly DesignPlacement[];
   readonly rebuiltCount: number;
@@ -188,15 +184,13 @@ function rebuildEveryBodyAt(
     }),
     planning.room,
   );
-  const widthInput: SetWidthInput = {
+  // **The five fields `rebuild` reads, and no sentinel beside them** (ADR 0103 decision 5). This
+  // used to be a whole `SetWidthInput`, with an empty-string target and `widthMm: 0` standing in for
+  // a resize this command is not — and wave 6Z would have been the third caller to copy them.
+  const rebuildInput: RebuildInput = {
     design: planning,
     catalog,
     columns,
-    // `setWidth`'s own two fields, unused on the `rebuild` path: it reads `design`, `catalog`,
-    // `columns` and `probe` only. Named here rather than cast away so a future `rebuild` that starts
-    // reading them fails to compile instead of silently resizing to zero.
-    target: { kind: "placement", id: UNUSED_BY_REBUILD },
-    widthMm: 0,
     probe,
     occurredAt: input.occurredAt,
   };
@@ -244,7 +238,7 @@ function rebuildEveryBodyAt(
       rebuiltCount += 1;
       continue;
     }
-    const written = rebuild(widthInput, records, {
+    const written = rebuild(rebuildInput, records, {
       record,
       body,
       alongMm: placement.alongMm,

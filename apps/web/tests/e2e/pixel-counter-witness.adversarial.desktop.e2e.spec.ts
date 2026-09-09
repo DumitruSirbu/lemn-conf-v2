@@ -1,4 +1,8 @@
-import { freeColourFinish, paletteFinish } from "@lemnaria/configurator-domain";
+import {
+  freeColourFinish,
+  materialById,
+  paletteFinish,
+} from "@lemnaria/configurator-domain";
 import type { Finish } from "@lemnaria/configurator-domain";
 import {
   CAMERA_PRESETS,
@@ -10,6 +14,7 @@ import { expect, test, type Page } from "@playwright/test";
 import { deleteMintedDesigns } from "./support/minted-designs";
 import { readSelection } from "./support/panel";
 import {
+  MARK_MIN_RED_EXCESS_OVER_ANY_FINISH,
   capturePatch,
   countChangedPixels,
   countPixelsIn,
@@ -33,20 +38,29 @@ import {
  *   changed. Neither says the near-black is on screen — the outline is expanded 3 mm past the body
  *   and crosses onto neighbours and background, so a red-only outline over a red front would still
  *   difference by roughly the same count. Measured here directly and separately.
- * - **How much of the mark counter's margin a walnut kitchen actually spends.** 6V records that
- *   `veneer.nuc` measures 0, 0 and 3 pixels past `MARK_MIN_RED_EXCESS`, and files that as the
- *   model's 137 being an upper bound the renderer does not reach. It is nearer than that reads: the
- *   wood puts tens of thousands of pixels within five units of the threshold, where the fixture the
- *   shipped mark gate runs on puts a handful. Recorded as an assertion so the day tone mapping,
- *   the lighting or a decor moves that population across 50, the tree says so.
+ * - **Whether the mark counter's threshold survives the woods.** 6V records that `veneer.nuc`
+ *   measures 0, 0 and 3 pixels past a threshold of 50 and files ADR 0091 finding 5's model bound of
+ *   137 as one the renderer does not reach. **Both readings were of the wrong document**: the
+ *   fixture wrote a per-placement finish and no kitchen colour, so under ADR 0099 Amendment B its
+ *   structural bodies followed `material.veneer`'s declared default and it was **oak** on screen.
+ *   Measured properly, oak reaches a red excess of 76 and puts 194 041 / 193 783 / 278 066 pixels
+ *   past 50 with no mark anywhere on it, against a ceiling of 40. A counter that may meet a wood now
+ *   clears `MARK_MIN_RED_EXCESS_OVER_ANY_FINISH` (`support/pixels.ts`), and this file photographs the
+ *   wood that was never photographed and holds it there.
  *
  * Every design minted here is deleted afterwards (ADR 0006).
  */
 
 /** `editor-rail.desktop.e2e.spec.ts`'s taps and patch, deliberately not re-derived: this file is a
- *  third reading of the same rectangle and a patch of its own would measure a different thing. */
-const SINK_CABINET_FULL_WIDTH = { x: 700, y: 560 };
-const FAR_BASE_CABINET = { x: 700, y: 640 };
+ *  third reading of the same rectangle and a patch of its own would measure a different thing.
+ *
+ *  **Copied across on 2026-09-08**, when the top-bar ruling took the canvas to y 121, 1440 × 779 and
+ *  those taps were re-measured against the running app. Both were re-confirmed on a repainted
+ *  document reached through `/d/{id}`, which is the route this file drives — five clicks each,
+ *  right body 5/5. The patch is unchanged and still contains `p0`'s own region (page x 432–592,
+ *  y 479–706). */
+const SINK_CABINET_FULL_WIDTH = { x: 700, y: 610 };
+const FAR_BASE_CABINET = { x: 680, y: 650 };
 const SINK_PATCH: PixelRect = { x: 420, y: 468, width: 180, height: 240 };
 
 const SCENE_SETTLE_MS = 2500;
@@ -75,30 +89,70 @@ const CASING = {
 const MIN_CASING_PIXELS = 900;
 const MAX_ABSENT_CASING_PIXELS = 10;
 
-const MARK_MIN_RED_EXCESS = 50;
-/** `overflow-mark.e2e.spec.ts`'s own slack, so this file judges the wood by the shipped threshold. */
+/** `overflow-mark.e2e.spec.ts`'s own slack for an absence, reused so the two files agree on what
+ *  counts as "no mark on screen". **The slack is shared; the threshold is not** — that gate counts a
+ *  white kitchen at 50 and this file counts woods at 80, for the reason `support/pixels.ts` records. */
 const MAX_ABSENT_MARK_PIXELS = 40;
 
 /**
- * Five units inside the mark's threshold, which is where the walnut kitchen's red excess piles up.
+ * **The threshold this file's own measurement retired**, kept so the reason 80 exists stays
+ * falsifiable rather than becoming a number in a comment.
  *
- * Measured over the whole canvas on 2026-09-07: **52 808 / 28 681 / 22 295** pixels in the overview,
- * wall A and wall B presets against **16** on the unpainted seeded design in the overview. The
- * brightest single pixel reaches 49, 47 and 50 — the wood misses the counter by one unit, not by the
- * margin `0, 0 and 3` suggests.
+ * An unmarked oak kitchen — the veneer tier's declared default, and so the wood a customer reaches
+ * by choosing the tier and nothing else — puts 194 041 / 193 783 / 278 066 pixels past this in the
+ * three camera presets. Nearly all of them are ordinary door fronts, untouched by any recent change.
  */
-const NEAR_MARK_RED_EXCESS = 45;
-const MIN_WALNUT_NEAR_MARK_PIXELS = 10_000;
-const MAX_UNPAINTED_NEAR_MARK_PIXELS = 100;
+const RETIRED_MARK_MIN_RED_EXCESS = 50;
+const MIN_OAK_RETIRED_MARK_PIXELS = 100_000;
 
-const MARK = { kind: "redTint", minExcess: MARK_MIN_RED_EXCESS } as const;
-const NEAR_MARK = {
+const MARK = {
   kind: "redTint",
-  minExcess: NEAR_MARK_RED_EXCESS,
+  minExcess: MARK_MIN_RED_EXCESS_OVER_ANY_FINISH,
+} as const;
+const RETIRED_MARK = {
+  kind: "redTint",
+  minExcess: RETIRED_MARK_MIN_RED_EXCESS,
 } as const;
 
 const MDF = "material.painted-mdf";
 const VENEER = "material.veneer";
+
+/**
+ * **The two woods and where each one's red excess actually stops**, which is what turns "under the
+ * threshold" from a pass into a separation.
+ *
+ * Each `ceilingRedExcess` is a **dense edge measured on the running app**, not a bound argued from
+ * the palette: the wood piles tens of thousands of pixels at exactly that value and none above its
+ * own maximum. Counting at the edge and again at the threshold brackets the wood's ceiling
+ * from both sides — a lighting or tone-mapping change that pushes the wood up fails the first
+ * assertion, and one that stops rendering it warm at all fails the second. A single "under 80"
+ * assertion would pass on a kitchen that had gone grey.
+ *
+ * Measured 2026-09-09 at 1440 × 900, whole canvas, nothing selected, no mark on the document:
+ *
+ * | wood   | max excess | pixels at its edge |
+ * | ------ | ---------- | ------------------ |
+ * | oak    |         76 | 51 841 at 72       |
+ * | walnut |         51 | 27 879 at 45       |
+ */
+const UNMARKED_WOODS = [
+  {
+    name: "oak, the veneer tier's own declared default",
+    finish: materialById(VENEER).defaultFinish,
+    ceilingRedExcess: 72,
+  },
+  {
+    name: "walnut",
+    finish: paletteFinish("veneer.nuc"),
+    ceilingRedExcess: 45,
+  },
+] as const;
+
+/** Under half of the smaller of the two piles above, so a camera or tone-mapping nudge has room to
+ *  move the population without either hiding a regression or passing on stray warm pixels. */
+const MIN_WOOD_CEILING_PIXELS = 10_000;
+/** The unpainted seeded design reads **16** at the lower of the two edges. */
+const MAX_UNPAINTED_CEILING_PIXELS = 100;
 
 const mintedDesignIds: string[] = [];
 
@@ -130,14 +184,27 @@ async function mintDesign(page: Page): Promise<StoredDesign> {
   return { id: minted.id, revision: minted.revision };
 }
 
-/** Repaints the stored seeded kitchen in one finish on one material, built from the document the
- *  API returned rather than from a literal, and returns the finishes the saved document then wears
- *  so the fixture property is read off the document instead of assumed. */
+/**
+ * Repaints the stored seeded kitchen in one finish on one material, built from the document the
+ * API returned rather than from a literal, and returns what the saved document then wears so the
+ * fixture property is read off the document instead of assumed.
+ *
+ * **It writes the colour at both levels, and neither half is redundant** (ADR 0099, Amendment B).
+ * A cabinet that *chooses its own colour* reads `placement.body.finish` first; a structural body
+ * **follows the kitchen**, and `drawnFinishOf` deliberately ignores `placement.body.finish` for it,
+ * because such a body has no control the customer could have used. So a document carrying only the
+ * per-placement half paints the fronts and leaves every structural body on the material's declared
+ * default — measured on this fixture: `material.veneer` defaults to `veneer.stejar`, so a "walnut
+ * kitchen" written that way rendered four oak bodies, and it was oak that breached the mark
+ * counter here. `settings.finish` is what makes the whole kitchen one colour; `body.finish` is what
+ * makes the fronts follow it. **Delete either and the document stops saying what the case's name
+ * claims.**
+ */
 async function storeAKitchenWearing(
   page: Page,
   stored: StoredDesign,
   wearing: { readonly materialTierId: string; readonly finish: Finish },
-): Promise<{ readonly placements: number; readonly finishes: string[] }> {
+): Promise<StoredKitchenColour> {
   const result = await page.evaluate(
     async (target: {
       id: string;
@@ -154,7 +221,11 @@ async function storeAKitchenWearing(
       };
       const painted = {
         ...design,
-        settings: { ...design.settings, materialTierId: target.materialTierId },
+        settings: {
+          ...design.settings,
+          materialTierId: target.materialTierId,
+          finish: target.finish,
+        },
         placements: design.placements.map((placement) => ({
           ...placement,
           body: { ...placement.body, finish: target.finish },
@@ -172,6 +243,7 @@ async function storeAKitchenWearing(
       return {
         status: saved.status,
         placements: painted.placements.length,
+        kitchenFinish: JSON.stringify(painted.settings.finish),
         finishes: [
           ...new Set(
             painted.placements.map((placement) =>
@@ -185,16 +257,32 @@ async function storeAKitchenWearing(
   );
 
   expect(result.status).toBe(200);
-  return { placements: result.placements, finishes: result.finishes };
+  return {
+    placements: result.placements,
+    kitchenFinish: result.kitchenFinish,
+    finishes: result.finishes,
+  };
+}
+
+/** What the repainted document says about colour, at both of the levels `drawnFinishOf` reads. */
+interface StoredKitchenColour {
+  readonly placements: number;
+  readonly kitchenFinish: string;
+  readonly finishes: string[];
 }
 
 /** The fixture property every colour-keyed count below rests on, asserted rather than argued
- *  (wave 6V work item 3): the whole kitchen wears one known finish, and it is not vacuous. */
+ *  (wave 6V work item 3): the whole kitchen wears one known finish, and it is not vacuous.
+ *
+ *  **Both levels, because a body that follows the kitchen reads only one of them.** Asserting the
+ *  per-placement half alone is what let a "walnut kitchen" pass this guard with four oak bodies in
+ *  it — see `storeAKitchenWearing`. */
 function expectTheWholeKitchenWears(
-  stored: { readonly placements: number; readonly finishes: string[] },
+  stored: StoredKitchenColour,
   finish: Finish,
 ): void {
   expect(stored.placements).toBeGreaterThan(0);
+  expect(stored.kitchenFinish).toBe(JSON.stringify(finish));
   expect(stored.finishes).toEqual([JSON.stringify(finish)]);
 }
 
@@ -292,22 +380,74 @@ test("the near-black casing pass reaches the framebuffer on a front painted the 
 });
 
 /**
- * **What the walnut margin really is.**
+ * **Where each wood's red excess really stops, against the threshold that has to clear it.**
  *
- * ADR 0091 decision 4b pins `veneer.nuc` at a red excess of 137 in the model, and wave 6V records
- * that the render reaches 0, 0 and 3 counted pixels past 50 — filing the wood as a case that does
- * not exist on screen. Both halves are reproduced independently; what neither records is how close
- * it comes. Five units below the threshold the wood puts a fifth of the canvas past the counter,
- * against sixteen pixels on the design the shipped mark gate actually photographs.
- *
- * So the gate is sound where it runs and the criterion 6V could not discharge really is
- * unsatisfiable *today* — but it is unsatisfiable by one unit of red excess, and that is the fact
- * worth being able to fail on.
+ * ADR 0091 decision 4b pins the tinted woods at a red excess of 137 in the model, and wave 6V filed
+ * that as an upper bound the renderer does not reach, on the strength of a walnut kitchen measuring
+ * 0, 0 and 3 past a threshold of 50. The threshold has moved to 80 because that reading was of a
+ * document that wrote no kitchen colour and therefore rendered oak; both woods are photographed here
+ * on documents that say what their names claim, and each is bracketed rather than merely passed.
  */
-test("a walnut kitchen misses the mark counter by one unit rather than by the model's margin", async ({
+for (const wood of UNMARKED_WOODS) {
+  test(`an unmarked kitchen in ${wood.name} stays under the mark counter in every preset`, async ({
+    page,
+  }) => {
+    const stored = await mintDesign(page);
+    expectTheWholeKitchenWears(
+      await storeAKitchenWearing(page, stored, {
+        materialTierId: VENEER,
+        finish: wood.finish,
+      }),
+      wood.finish,
+    );
+    await openAndSettle(page, stored.id);
+
+    // Nothing is selected, so no outline is on screen: the outline's own red clears the mark's
+    // threshold by 130 and would be counted as a wash.
+    expect((await readSelection(page)).selectionId).toBe("");
+
+    const presetButtons = page.locator('[role="group"] button');
+    const ceiling = {
+      kind: "redTint",
+      minExcess: wood.ceilingRedExcess,
+    } as const;
+    for (const [index, preset] of CAMERA_PRESETS.entries()) {
+      if (index > 0) {
+        await presetButtons.nth(index).click();
+        await page.waitForTimeout(SCENE_SETTLE_MS);
+      }
+      const scene = await wholeCanvas(page);
+
+      expect(
+        await countPixelsIn(page, scene, MARK),
+        `${preset.id}: the wood does not clear the mark's threshold`,
+      ).toBeLessThanOrEqual(MAX_ABSENT_MARK_PIXELS);
+      expect(
+        await countPixelsIn(page, scene, ceiling),
+        `${preset.id}: the wood is still rendered warm right up to its own edge`,
+      ).toBeGreaterThanOrEqual(MIN_WOOD_CEILING_PIXELS);
+    }
+  });
+}
+
+/**
+ * **The measurement that retired the threshold of 50, kept as a measurement.**
+ *
+ * Oak is what a customer gets by choosing the veneer tier and nothing else, and until this file was
+ * fixed nothing had ever photographed it: the shipped mark gate asserts `expectNoPlacementWearsAFinish`,
+ * so its bodies fall back to melamine's white at a red excess of about 0, and the adversarial case
+ * beside it photographed the one wood that happened to sit just under the old line. On oak the
+ * retired counter reports a mark over a fifth of the canvas on a document with no mark anywhere on
+ * it — six figures against a ceiling of 40.
+ *
+ * Both counts are taken from **the same captures**, which is what makes this a statement about the
+ * threshold rather than about two renders: the identical pixels are a wash at 50 and are silent at
+ * 80.
+ */
+test("the retired threshold of 50 reports a mark on an unmarked oak kitchen, and 80 does not", async ({
   page,
 }) => {
-  const finish = paletteFinish("veneer.nuc");
+  const finish = materialById(VENEER).defaultFinish;
   const stored = await mintDesign(page);
   expectTheWholeKitchenWears(
     await storeAKitchenWearing(page, stored, {
@@ -317,9 +457,6 @@ test("a walnut kitchen misses the mark counter by one unit rather than by the mo
     finish,
   );
   await openAndSettle(page, stored.id);
-
-  // Nothing is selected, so no outline is on screen: the outline's own red clears the mark's
-  // threshold by 210 and would be counted as a wash.
   expect((await readSelection(page)).selectionId).toBe("");
 
   const presetButtons = page.locator('[role="group"] button');
@@ -331,19 +468,20 @@ test("a walnut kitchen misses the mark counter by one unit rather than by the mo
     const scene = await wholeCanvas(page);
 
     expect(
-      await countPixelsIn(page, scene, MARK),
-      `${preset.id}: the wood does not clear the mark's threshold`,
-    ).toBeLessThanOrEqual(MAX_ABSENT_MARK_PIXELS);
+      await countPixelsIn(page, scene, RETIRED_MARK),
+      `${preset.id}: what a threshold of 50 reports on an unmarked oak kitchen`,
+    ).toBeGreaterThanOrEqual(MIN_OAK_RETIRED_MARK_PIXELS);
     expect(
-      await countPixelsIn(page, scene, NEAR_MARK),
-      `${preset.id}: how much of the margin the wood spends`,
-    ).toBeGreaterThanOrEqual(MIN_WALNUT_NEAR_MARK_PIXELS);
+      await countPixelsIn(page, scene, MARK),
+      `${preset.id}: what the shipped threshold reports on the same pixels`,
+    ).toBeLessThanOrEqual(MAX_ABSENT_MARK_PIXELS);
   }
 });
 
-/** The control for the test above, and the reason the shipped mark gate is not living on that same
- *  one unit: the design it photographs leaves the whole five-unit band essentially empty. */
-test("the design the mark gate photographs leaves that band empty", async ({
+/** The control for the cases above: the design the shipped mark gate photographs is not merely
+ *  under the threshold, it is nowhere near either wood's edge — so that gate is not living on a
+ *  margin the way the adversarial reading of 50 suggested. */
+test("the design the mark gate photographs leaves both woods' bands empty", async ({
   page,
 }) => {
   await page.goto("/configurator/configure");
@@ -355,9 +493,15 @@ test("the design the mark gate photographs leaves that band empty", async ({
   expect(await countPixelsIn(page, scene, MARK)).toBeLessThanOrEqual(
     MAX_ABSENT_MARK_PIXELS,
   );
-  expect(await countPixelsIn(page, scene, NEAR_MARK)).toBeLessThanOrEqual(
-    MAX_UNPAINTED_NEAR_MARK_PIXELS,
-  );
+  for (const wood of UNMARKED_WOODS) {
+    expect(
+      await countPixelsIn(page, scene, {
+        kind: "redTint",
+        minExcess: wood.ceilingRedExcess,
+      }),
+      `the seeded design at ${wood.name}'s own edge`,
+    ).toBeLessThanOrEqual(MAX_UNPAINTED_CEILING_PIXELS);
+  }
 });
 
 /**

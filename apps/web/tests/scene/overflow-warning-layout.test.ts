@@ -25,7 +25,10 @@ const screenStylesheet = read(
   "app/configurator/configure/configure.module.css",
 );
 const screenSource = read("app/configurator/configure/configure-screen.tsx");
-const barStylesheet = read("price/price-bar.module.css");
+/** The flagged total's own stylesheet since ADR 0104 decision 8b took the sentence out of the top
+ *  bar and onto the scene — where it now stands directly above this warning, which is why the two
+ *  sharing one palette matters more than it did. */
+const flaggedTotalStylesheet = read("price/flagged-total-warning.module.css");
 const panelStylesheet = read("panel/editor-panel.module.css");
 
 /** The declarations only. Each of these files names in prose the properties its own guard forbids,
@@ -149,9 +152,10 @@ describe("the warning is an overlay on the scene, taking none of its height", ()
 
 describe("the warning never wears the refusal's colours", () => {
   it("paints in the caution palette the flagged total already uses", () => {
-    // One visual language for "this design reaches past a wall", read from three surfaces.
+    // One visual language for "this design reaches past a wall", read from three surfaces — and the
+    // two are now adjacent on the scene, so a drift between them would be visible in one glance.
     expect(paletteOf(warningStylesheet, "warning")).toEqual(
-      paletteOf(barStylesheet, "overflow"),
+      paletteOf(flaggedTotalStylesheet, "warning"),
     );
   });
 

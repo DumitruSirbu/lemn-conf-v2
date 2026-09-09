@@ -48,9 +48,15 @@ import {
   FOLLOWS_CABINET_DEPTH,
   FOLLOWS_CABINET_DEPTH_ON_WALL_MAP,
   IS_A_MANUFACTURED_SIZE,
-  pinnedAtFinishedDepthMm,
   type CabinetDepthRule,
 } from "../cabinet-depth-rule.js";
+import {
+  bodyFinishRuleOf,
+  CHOOSES_ITS_OWN_COLOUR,
+  FOLLOWS_THE_KITCHENS_COLOUR,
+  IS_NEVER_PAINTED,
+  type BodyFinishRule,
+} from "../body-finish-rule.js";
 import { WALL_FRONT_ASSEMBLY_MM, WORKTOP_DEPTH_MM } from "../worktop-depth.js";
 import type { Design, DesignPlacement } from "../design.js";
 import {
@@ -73,8 +79,8 @@ import {
  *
  * **Wave 5F moved three sets of these, and every one of them is a seat and not a depth.**
  * ADR 0036 decision 1 makes a declared dimension the finished cabinet, so a wall shell is now its
- * declared depth less the 39 mm front assembly: the 330 mm wall bodies seat on **291** and the two
- * deliberately deep top bodies on **561**, while `open-shelf-600` keeps 330 because it has no
+ * declared depth less the 39 mm front assembly: at 600 the 330 mm wall bodies seat on **291** and
+ * the two deep top rows on **561**, while `open-shelf-600` keeps 330 because it has no
  * front. ADR 0039 decision 2 hangs the hood at the front, so `hood-600` seats on **700** — twice
  * the distance from the wall to the centre of a 500 mm body whose front face lands on the 600 mm
  * cabinet-depth line. That last one is §11 row 19's second named exception and the one row here
@@ -115,26 +121,25 @@ function cornerBaseReturnFinishedDepthMm(cabinetDepthMm: number): number {
   return cabinetDepthMm;
 }
 
-/** ADR 0058 decision 1: **the finished depth the two deliberately deep top cabinets are pinned at.**
+/** **The seat of a deep top cabinet — one that hangs over a full-height column** (ADR 0101).
  *
- *  `wall-2door-600-deep-top` (`p22`, `p23`) and `wall-2door-700-over-fridge` (`p24`) are deep because
- *  the *columns* they hang over are — §5.2's head-clearance cap is lifted over a full-height member
- *  rather than mapped — and the owner ruled on 2026-09-02 that they stay put rather than follow the
- *  setting or follow their column. They finish at exactly the 600 mm cabinet-depth line, not at an
- *  arbitrary deep number — the coincidence that makes this readable, and **not** a licence to read
- *  the pin as a setting value. It is a finished depth: rebuilding these rows from a setting of 600
- *  would take them back through the wall map, where `wallCarcassSeatDepthMm(600)` is 291 and would
- *  shrink them by 270 mm. The seat below is this number less the front assembly, which is the one
- *  arithmetic that does not go through the map.
+ *  `wall-2door-600-deep-top` (`p22`, `p23`) and `wall-2door-700-over-fridge` (`p24`) are deep
+ *  because the *columns* they hang over are: §5.2's head-clearance cap is lifted over a full-height
+ *  member rather than mapped, so `columnBuildDepthMm`'s lifted arm answers the **cabinet-depth
+ *  line** for them — 600 at a 600 mm kitchen and 700 at a 700 mm one. This is that line less
+ *  ADR 0036's front assembly, which is the one seat arithmetic in this file that does **not** go
+ *  through the wall map: 561 at 600 and 661 at 700, against `wallCarcassSeatDepthMm`'s 291 and 361.
  *
- *  **What this costs at 700 is recorded and accepted, not worked around** (ADR 0058): `p23`'s face
- *  is flush with the pantry below it at 600 and becomes a 99 mm step at 700. Nothing overlaps and
- *  600 remains a manufactured size. Whoever first renders a 700 mm kitchen should read that step as
- *  this decision rather than report it as a regression.
- *
- *  The alternative the planning had recommended — follow their column — would have put `p24` at
- *  exactly the 742 mm `docs/BACKLOG.md` entry 15 names as unmanufacturable, on a shipped body. */
-const PINNED_DEEP_TOP_FINISHED_DEPTH_MM = 600;
+ *  **It was a pin until 2026-09-07** (ADR 0058 decision 1, withdrawn by ADR 0101): the owner had
+ *  ruled the three rows stay at 600 at every setting, on cost paragraphs written when 600 was the
+ *  only depth the product shipped. Once 700 shipped, the owner rendered it and reported the three
+ *  as wrong. At 600 this expression is **561, exactly what the pin declared**, so the shipped
+ *  kitchen does not move; at 700 the tops go to 700 and the steps over their columns return to
+ *  their 600 mm relationships — 38 mm recessed over the oven tower, flush over the pantry, 42 mm
+ *  recessed under the fridge's own manufactured 742. */
+function liftedTopSeatDepthMm(cabinetDepthMm: number): number {
+  return cabinetDepthMm - WALL_FRONT_ASSEMBLY_MM;
+}
 
 /** **A seeded base body's hinged leaves** — one 710 mm band, this many leaves standing in it. The
  *  band constant is imported rather than retyped: a seeded base body is `baseCabinet` called at one
@@ -168,27 +173,47 @@ function wallLeaves(leaves: {
 const oneBaseLeaf: FrontPopulationRule = baseLeaves(1);
 
 /** §13.1: "Corners are structural. No replace, no delete, never a width donor", repeated by §11
- *  row 16 — so a corner body also has no finish and no handle to offer, and the panel renders
- *  none of those sections for it. Shared by the two wall returns and, since ADR 0025, by the two
- *  base legs, which is what makes §11 row 16 reachable at all: it names the *base* corner, and
- *  until the legs became placements there was no base corner to select. `kind` is deliberately
- *  **not** part of this shape — the four bodies that wear it are three different kinds. */
+ *  row 16. Shared by the two wall returns and, since ADR 0025, by the two base legs, which is what
+ *  makes §11 row 16 reachable at all: it names the *base* corner, and until the legs became
+ *  placements there was no base corner to select. `kind` is deliberately **not** part of this shape
+ *  — the four bodies that wear it are three different kinds.
+ *
+ *  **Structural is about shape, not about colour** (owner's ruling, 2026-09-09). §13.1's list is
+ *  *replace, delete, width donor* and says nothing about finish; the corner carried `canFinish:
+ *  false` because it was declared beside three flags that §13.1 does name, not because anybody ruled
+ *  on its colour. The owner's words: *"the corner cabinets — that column specifically — miss custom
+ *  color setting; need to add it, and to support setting custom color for all corner cabinet
+ *  parts."* So the corner is now an ordinary cabinet **for colour only**, and stays immovable for
+ *  everything else. */
 const STRUCTURAL_CORNER: Pick<
   BodyDefinition,
   | "canReplace"
   | "canDelete"
   | "canFinish"
+  | "finishRule"
   | "canHandle"
   | "fixedWidth"
   | "structuralReason"
 > = {
   canReplace: false,
   canDelete: false,
-  canFinish: false,
+  // **The corner carries a colour of its own** — §9's *Finisaj* section renders for it, `setFinish`
+  // accepts it, and `dropFinishFromBodiesThatCannotWearOne` stops stripping what it stores. This
+  // reverses ADR 0099 decision 8 and Amendment B for these four bodies and for no others: the hood
+  // and the freestanding fridge are appliances and keep both `false` and `IS_NEVER_PAINTED`.
+  canFinish: true,
+  // **Set with `canFinish` above and never apart from it.** `bodyFinishRuleOf` refuses an entry
+  // where the two disagree — a body chooses its own colour if and only if it can be finished — so
+  // the pair moves in one edit or the catalogue throws on load. This arm gives the ruling's *both*
+  // halves at once: with no `finish` key in its document the corner follows the kitchen's colour
+  // (`resolvedFinishOf`'s `??` chain), and with one it wears that.
+  finishRule: CHOOSES_ITS_OWN_COLOUR,
   canHandle: false,
   fixedWidth: true,
-  // With all four capability flags false the panel offers nothing, so it never produces the refusal
-  // §11 row 16 requires to explain why. The reason is declared here and rendered as its own section.
+  // §11 row 16's refusal. Declared here and rendered as its own section — and, since the corner
+  // began offering *Finisaj*, rendered **beside** that section rather than instead of it
+  // (`panel-model.ts`): a body that offers one control still owes the customer the sentence saying
+  // why it offers no others.
   structuralReason: "corner",
 };
 
@@ -286,6 +311,7 @@ export function buildSeededBodyDefinitions(
     BodyDefinition,
     | "band"
     | "canFinish"
+    | "finishRule"
     | "canHandle"
     | "canReplace"
     | "canDelete"
@@ -306,15 +332,21 @@ export function buildSeededBodyDefinitions(
     // corner legs, the dishwasher niche and, in the column family, the oven tower — say so on their
     // own line below.
     occupiedDepth: finishesAtMm(baseFinishedDepthMm(cabinetDepthMm)),
-    // Cabinetry, so it follows the setting (ADR 0058 decision 2). The three rows this is wrong for
-    // — the freestanding fridge and ADR 0058's two pinned tops — override it on their own line, and
-    // the gate that sweeps both depths is what catches a fourth that forgets to.
+    // Cabinetry, so it follows the setting (ADR 0058 decision 2). The one row this is wrong for —
+    // the freestanding fridge, which is a machine and not cabinetry — overrides it on its own line,
+    // and the gate that sweeps both depths is what catches a second that forgets to. ADR 0058's
+    // two pinned tops were the other two until ADR 0101 unpinned them; they inherit this now.
     depthRule: FOLLOWS_CABINET_DEPTH,
     // Its back face sits on the wall plane, so its seat is measurable and must stay measured
     // (ADR 0077 decision 1). The rows this is wrong for — the X-leg, seated by its joint, and the
     // two hoods, seated on the cabinet front line — override it on their own line below.
     seatRule: seatedOnWallPlane,
     canFinish: true,
+    // Ordinary cabinetry: the customer may colour this body alone, and where they have not it
+    // follows the kitchen and then the material's default (ADR 0099 decision 1's order). The four
+    // seeded rows this is wrong for — the hood, the shelf and the fridge — say so on their own line,
+    // and `STRUCTURAL_CORNER` says it for the four corner bodies.
+    finishRule: CHOOSES_ITS_OWN_COLOUR,
     canHandle: true,
     canReplace: true,
     canDelete: true,
@@ -541,6 +573,10 @@ export function buildSeededBodyDefinitions(
         // in the group and so erased the fridge's own bars. The `fridge-free` catalogue row
         // declares both `false`; this instance is the same builder call and now agrees.
         canFinish: false,
+        // **An appliance, so no colour reaches it at any level** (owner's ruling, 2026-09-09:
+        // *"fridge no, hood also no"*). Not cabinetry — the same fact `IS_A_MANUFACTURED_SIZE` below
+        // states about its depth, said about its colour.
+        finishRule: IS_NEVER_PAINTED,
         canHandle: false,
         frameDepthMm: 680,
         frameHeightMm: 1850,
@@ -617,6 +653,11 @@ export function buildSeededBodyDefinitions(
         // was a no-op. The `open-shelf` catalogue row has declared both `false` all along; this
         // instance is the same body and now says the same thing (capability-parity gate).
         canFinish: false,
+        // **Cabinetry, so it wears the kitchen's colour**, in the owner's own words of 2026-09-09:
+        // *"open shelves can have and by default should inherit global set color"*. No control of its
+        // own, for the reason `canFinish: false` above gives — there is no front for a chip to
+        // recolour today — but the shelf is part of the kitchen and is painted with it.
+        finishRule: FOLLOWS_THE_KITCHENS_COLOUR,
         canHandle: false,
         // No front, so unlike its fronted neighbours its seat is the declared wall depth itself
         // rather than that depth less the door-and-handle assembly.
@@ -638,6 +679,11 @@ export function buildSeededBodyDefinitions(
         // A hood is a canopy and a chimney: no front, so nothing for a finish chip to recolour.
         // Same correction as `open-shelf-600` above, matching the `hood` catalogue row.
         canFinish: false,
+        // **An extractor, so no colour reaches it at any level** — the owner's *"hood also no"*
+        // (2026-09-09). It is the one body ADR 0035 decision 5 calls cabinetry *for width* and this
+        // record calls a machine *for colour*; the two facts are about different things and are
+        // declared separately rather than read off one another.
+        finishRule: IS_NEVER_PAINTED,
         canHandle: false,
         fixedWidth: true,
         frameDepthMm: hoodFrameDepthMm(cabinetDepthMm),
@@ -703,21 +749,19 @@ export function buildSeededBodyDefinitions(
         cabinetHandles: carriesHandles(2),
         fronts: wallLeaves({ frameHeightMm: 400, leavesPerBand: 2 }),
         kind: "wall_cabinet",
-        // **Pinned, and the pin is the declaration below rather than this number** (ADR 0058
-        // decision 2), so what makes this row hold still is one greppable field and not a constant
-        // that has quietly stopped tracking anything. 561 at 600 and 561 at 700.
+        // **A deep top: it hangs over a full-height column, so the head-clearance cap does not
+        // reach it and its depth is the cabinet-depth line** (ADR 0101). 561 at 600 — the number
+        // ADR 0058's pin declared, so the shipped kitchen is unmoved — and 661 at 700.
         //
-        // The seat is the pinned **finished** depth less the front assembly, and that is
-        // **deliberately not** `wallCarcassSeatDepthMm`'s arithmetic: every other fronted top goes
-        // through the wall map first, where 600 maps to a 330 mm carcass and a 291 mm seat. A
-        // pinned row skips the map — that is what being pinned means — so the two derivations are
-        // different arithmetic over different quantities and only the constant is shared.
-        frameDepthMm:
-          PINNED_DEEP_TOP_FINISHED_DEPTH_MM - WALL_FRONT_ASSEMBLY_MM,
-        depthRule: pinnedAtFinishedDepthMm(
-          PINNED_DEEP_TOP_FINISHED_DEPTH_MM,
-          "base-formula",
-        ),
+        // Deliberately **not** `wallCarcassSeatDepthMm`'s arithmetic: every other fronted top goes
+        // through the wall map first, where 600 maps to a 330 mm carcass and a 291 mm seat. This
+        // row skips the map because `columnBuildDepthMm`'s lifted arm does, so the two derivations
+        // are different arithmetic over different quantities.
+        frameDepthMm: liftedTopSeatDepthMm(cabinetDepthMm),
+        // ADR 0101 decision 1: the equivalence gate reads this, because a rebuild of this row takes
+        // `columnBuildDepthM`'s lifted arm and never `wall-cabinet`'s own `frameDepthMm` — measured,
+        // the equivalent declares 361 at 700 where the rebuild plans 700.
+        builtDepthFollowsALiftedColumn: true,
         frameHeightMm: 400,
         ...namedAfterCatalogEquivalent("wall-cabinet"),
       },
@@ -730,16 +774,14 @@ export function buildSeededBodyDefinitions(
         // The one seeded wall body that is neither 700 nor 400: a 750 mm box, so a 744 mm band.
         fronts: wallLeaves({ frameHeightMm: 750, leavesPerBand: 2 }),
         kind: "wall_cabinet",
-        // Pinned for `wall-2door-600-deep-top`'s reason, and this is the row the decision cost the
-        // most argument: over the freestanding fridge it already sits 142 mm recessed at 600, and
-        // pinning leaves that **unchanged** at 700 where following its column would have rebuilt it
-        // at the fridge's own 742 mm.
-        frameDepthMm:
-          PINNED_DEEP_TOP_FINISHED_DEPTH_MM - WALL_FRONT_ASSEMBLY_MM,
-        depthRule: pinnedAtFinishedDepthMm(
-          PINNED_DEEP_TOP_FINISHED_DEPTH_MM,
-          "base-formula",
-        ),
+        // Deep for `wall-2door-600-deep-top`'s reason, and this is the row the decision cost the
+        // most argument: it hangs over a **freestanding fridge**, whose 742 mm is a machine's and
+        // follows no setting. Following the line rather than the column is what keeps this row off
+        // that 742 — the unmanufacturable depth `docs/BACKLOG.md` entry 15 named — so its 142 mm
+        // recess at 600 becomes 42 mm at 700 instead of closing to nothing.
+        frameDepthMm: liftedTopSeatDepthMm(cabinetDepthMm),
+        // ADR 0101 decision 1, for `wall-2door-600-deep-top`'s reason.
+        builtDepthFollowsALiftedColumn: true,
         frameHeightMm: 750,
         ...namedAfterCatalogEquivalent("wall-cabinet"),
       },
@@ -790,6 +832,35 @@ interface DeclaresASeatRule {
   readonly seatRule?: SeatRule;
 }
 
+/** **Every entry states what colour it is drawn in, or the catalogue does not load** (owner's
+ *  ruling, 2026-09-09; backlog entry 60).
+ *
+ *  The same two-population split the two sweeps above handle, at the same moment and for the same
+ *  reason — and here the absent reading is not merely conservative in one direction, it is wrong in
+ *  both: read as *chooses* it paints a fridge, read as *never* it leaves the next structural body
+ *  white between coloured neighbours. `bodyFinishRuleOf` refuses either, and refuses an entry whose
+ *  `finishRule` and `canFinish` disagree, so the two declarations cannot drift into two authorities.
+ *
+ *  Exported for the gate in `structural-cabinetry-follows-the-kitchens-colour.test.ts`, and deliberately
+ *  **not** on the barrel, for the reason `refuseUndeclaredDepthRules` is not: a caller outside this
+ *  package has no catalogue of its own to sweep. */
+export function refuseUndeclaredFinishRules(
+  entries: readonly (readonly [string, DeclaresAFinishRule])[],
+): void {
+  for (const [buildId, definition] of entries) {
+    bodyFinishRuleOf({
+      buildId,
+      rule: definition.finishRule,
+      canFinish: definition.canFinish,
+    });
+  }
+}
+
+interface DeclaresAFinishRule {
+  readonly finishRule?: BodyFinishRule;
+  readonly canFinish: boolean;
+}
+
 /** One map, two populations (ADR 0011 Gap A): M2's seeded instances, which reproduce M1's scene
  *  and are never offered, and §7's parameterised entries, which are the only ones a customer can
  *  insert. Both resolve through the same lookup, so a placement created by `insertBody` loads the
@@ -801,6 +872,7 @@ export function buildKitchenLBodyCatalog(cabinetDepthMm: number): BodyCatalog {
   ];
   refuseUndeclaredDepthRules(entries);
   refuseUndeclaredSeatRules(entries);
+  refuseUndeclaredFinishRules(entries);
   // The same stance one declaration over (ADR 0070, wave 6S): `carriesFronts` refuses a
   // contradictory rule where it is written, and this refuses one that arrived through the
   // `BodyCatalog` port without passing a constructor — which is also the only caller that has the

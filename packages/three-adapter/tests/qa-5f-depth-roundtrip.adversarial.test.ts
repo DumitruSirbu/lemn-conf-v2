@@ -117,6 +117,10 @@ function swap(world: World, placementId: string, buildId: string) {
     design: world.design,
     catalog: KITCHEN_L_BODY_CATALOG,
     columns: world.columns,
+    voids: recomputeVoids(
+      derivePlacementRecords(world.design, KITCHEN_L_BODY_CATALOG),
+      world.columns,
+    ),
     target: { kind: "placement", id: placementId },
     buildId,
     probe: createBodyProbe(kit, room),

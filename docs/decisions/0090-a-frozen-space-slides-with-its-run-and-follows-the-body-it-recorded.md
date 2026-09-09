@@ -725,6 +725,30 @@ selection — since that is the one place `key = f(centre)` could still be load-
 member-less column. If it is, direction 1 needs a different shape and the wave says so with its
 measurement rather than proceeding.
 
+### Measured 2026-09-07, and direction 1 keeps its shape
+
+**Nothing computes a column key from a coordinate and looks it up in the published map.** Swept
+across `packages/*/src` and `apps/web/src`.
+
+Two productions derive a key from a coordinate, and neither reaches a capped column.
+`derivePlacementRecords` derives `record.col` from a placement's own frame — always an **occupied**
+column, and this pass never clips one. `toColumnExtent` derives a restored entry's key from the
+document's `alongMm`, which is the **recorded** centre — so the key it produces is exactly the key a
+capped column now keeps, and `refuseUnreproducibleKey` goes on holding the projection to it.
+
+Every consumption is by a key that was **carried**, never recomputed: `set-width.ts`,
+`insert-fit.ts` and `rebuild-resized-bodies.ts` all look up `record.col` or a void's `col`, and
+`recomputeVoids` stamps a void with `column.key` rather than re-deriving one from its centre.
+`findVacatedVoid` compares `record.col === vacated.col` and otherwise asks a geometric question of
+the void's own span. `mergeAdjacentEmptyColumns` decides adjacency on edges in millimetres and keys
+the merged column from the merged centre, which is consistent again.
+
+**Picking and selection name no column key at all.** `packages/three-adapter/src` contains no column
+key, and `apps/web/src` reads no `col` field: a selection is a placement id or a void id, and
+`resolveSelection` matches on ids.
+
+Recorded here because the addendum asked for the measurement rather than the conclusion.
+
 **It is ADR 0088 decision 2's question a third time** — which map does a map-publishing command
 receive, and who owns the reconciliation — and it touches `setWidth` and `insertBody` rather than the
 depth track, so it is its own wave. Recorded as `docs/BACKLOG.md` entry 52.

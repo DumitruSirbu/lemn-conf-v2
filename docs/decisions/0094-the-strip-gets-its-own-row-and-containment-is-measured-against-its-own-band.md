@@ -1,8 +1,16 @@
 # ADR 0094 — The strip gets its own row, and containment is measured against its own band
 
-Status: Accepted — **amends [ADR 0082](0082-the-settings-strip-wraps-and-nothing-leaves-the-viewport.md)
+Status: **Superseded in part, 2026-09-09** — decision 2 (the strip's own desktop row) is withdrawn by
+[ADR 0104](0104-the-mockups-are-the-chrome-specification-and-the-strips-own-row-is-withdrawn.md) on
+the owner's instruction that the chrome match the design reference; see *Amendment A* at the end of
+this record. **Decisions 1 and 3 stand whole** — the classification and ADR 0082's amended predicate
+are the most durable things here — and criteria 4a–4h are **re-pointed rather than dropped**.
+
+Originally: Accepted — **amends [ADR 0082](0082-the-settings-strip-wraps-and-nothing-leaves-the-viewport.md)
 decision 1** (the amendment is written into that record as *Amendment A*, 2026-09-06, and quoted in
-full in decision 3 below). ADR 0082 decisions 2–8 stand unchanged and are **enforced**, not relaxed.
+full in decision 3 below). ~~ADR 0082 decisions 2–8 stand unchanged and are **enforced**, not
+relaxed.~~ — ADR 0082 decisions 2, 3, 4 and 8 have since been superseded or discharged by that
+record's own *Amendment B*.
 Date: 2026-09-06
 Type: Finding + Decision (adjudication)
 Milestone: M6 — **blocks wave 6R's close-out** and opens **wave 6R-b**
@@ -114,7 +122,23 @@ missing input, not a missing capability.
 a supported width on a reachable document, and named exactly which clauses hold and which break. That
 is the pass working.
 
-### 2. The fix: on the desktop shell the settings strip gets **its own full-width grid row**. The top bar keeps the nav and the price.
+### 2. ~~The fix: on the desktop shell the settings strip gets **its own full-width grid row**. The top bar keeps the nav and the price.~~ **Withdrawn 2026-09-09 — see *Amendment A*.**
+
+> **Superseded by [ADR 0104](0104-the-mockups-are-the-chrome-specification-and-the-strips-own-row-is-withdrawn.md)
+> decision 2, on the owner's instruction of 2026-09-09.** This clause departs from frame D2E
+> deliberately and says so below — *"the strip on its own row is a visible departure from it at
+> desktop"*. The owner has since ruled that the chrome matches the frames, and the departure is what
+> they rejected. The whole-kitchen settings become **one pill in the top bar**, on both shells, as
+> frames D2A, D2E, 2A and 2E draw them, and the band, its grid area, the chips row and the separate
+> text trigger are removed.
+>
+> **The mechanism analysis below is not withdrawn and should still be read.** *"A row is an invariant;
+> a residue is an inequality"* is why ADR 0104 gives the pill its own grid item with its own track
+> rather than letting it be what is left over between the nav and the price. The clause that is wrong
+> is the one that put the row *below* the bar; the reasoning that produced it is what keeps the
+> replacement honest.
+
+Retained for the record:
 
 The strip's box stops being a residue and becomes a row: its width is the viewport's, at every width
 in the `min-width: 900px` branch, on flagged and unflagged designs alike, whatever the price bar's
@@ -191,6 +215,13 @@ chip is never narrowed below the width of the line it is alone on"* as also forb
 narrower than a chip, and predicate 3 above is that reading made assertable.
 
 ### 4. The acceptance criteria wave 6R-b must meet
+
+> **Re-pointed 2026-09-09, not dropped — *Amendment A*.** 6R-b shipped and met these. The layout they
+> were written against is withdrawn, so each is restated against the pill in
+> [`docs/milestones/chrome-parity-with-the-design-reference.md`](../milestones/chrome-parity-with-the-design-reference.md)'s
+> *Tests* section. **No criterion here is deleted to make a layout pass**; where one loses its
+> subject, the plan names what replaces it. Criterion **4i** is the one this record and ADR 0104
+> disagree about, and ADR 0104 decision 9 answers it rather than waiving it.
 
 Falsifiable, and each names the surface it is measured on.
 
@@ -357,3 +388,69 @@ the amendment is written into that record rather than left to be inferred from t
   spec was green because it evaluated a true assertion on the input that could not falsify it. That
   is worth more than the CSS: criterion 4h fixes the instrument, and criterion 4a is written so that
   moving the threshold fails it.
+
+
+---
+
+## Amendment A — 2026-09-09: the strip's own row is withdrawn, and the settings become one pill in the top bar
+
+**Raised by the owner**, reviewing the shipped configure screen against the mockups they authored:
+*"I wanted to be same as in reference, SAME, because this is the design I made and approve."*
+Adjudicated in
+[ADR 0104](0104-the-mockups-are-the-chrome-specification-and-the-strips-own-row-is-withdrawn.md).
+
+### What is withdrawn
+
+**Decision 2 only.** The desktop settings strip does not get a full-width row of its own; there is no
+strip. Frames **D2A** and **2A** draw the whole-kitchen settings as a single pill inside the top bar —
+`flex:0 1 auto; min-width:0; max-width:460px; height:40px` on desktop, `max-width:150px` with a `+2`
+counter on mobile — and that pill is also the control that opens the settings surface, which is how
+frames **D2E** and **2E** draw it open.
+
+This record foresaw the objection and answered it under *"Why the mockup does not decide this"*:
+*"A frame is not authority for a control standing on the price total."* That remains true, and ADR
+0104 keeps it — its decision 8 names a degradation order for narrow desktop precisely so that D2A's
+row is never simply drawn at 900 px and hoped for. What has changed is the owner's instruction: the
+frame is now authority for **what the chrome is**, and a containment problem inside it is solved
+inside it.
+
+### What stands, and it is most of this record
+
+- **Decision 1's classification stands whole.** An implementation defect, compounded by a contract gap
+  and a test-fidelity gap; and *"a gate green over a failing state is now a named class in this
+  project"* is the sentence from this record with the longest life.
+- **Decision 3 stands whole.** ADR 0082 decision 1's three-box predicate — viewport, own band, no clip
+  — is the gate on the replacement, evaluated on a flagged design as well as a seeded one. It is not
+  relaxed by a line.
+- **Criteria 4a–4h are re-pointed, not deleted.** The plan's *Tests* section names, for each, whether
+  it survives verbatim, is re-pointed at the pill, or loses its subject and what replaces it.
+- **Criterion 4f's rule stands and is applied again.** Every desktop page-pixel constant is
+  **re-measured against the running app**, never nudged — and this wave moves the canvas origin twice
+  as far as 6R-b did, in the other direction.
+
+### Criterion 4i is met as written, not waived
+
+4i forbids a numeric width threshold, and its stated reason is the load-bearing one: *"A longer tier
+name, a re-worded warning, a translation, or a third chip moves it, and nothing in the codebase would
+fail when it did."*
+
+**ADR 0104 introduces no threshold at all.** An earlier draft of it introduced one and defended it;
+the owner's ruling of 2026-09-09 removed the need, and the defence with it. The settings pill fits as
+many whole labels as the **measured** available width holds and counts the rest after a `+`, so a
+longer tier name moves no number — it is simply a label that stops fitting, and the count says so.
+ADR 0104 decision 9 re-affirms both of the numeric refusals that matter here: no `min-width` in
+pixels on the pill, a label or the counter (ADR 0082 decision 3's own clause, kept whole), and no
+breakpoint chosen from a measurement.
+
+This is the outcome 4i was written to protect, reached by a different route than this record
+imagined: not a row that removes the residue, but an item in the residue that has a **total function
+of width** — a complete, reference-declared drawing at every width down to its floor. *"A row is an
+invariant; a residue is an inequality"* is still the right diagnosis of the chips row, which had no
+such function and clipped below its content width.
+
+### What it returns
+
+About 45 px of desktop canvas at every width — the cost this record accepted knowingly under
+*"What this costs, stated rather than discovered later"* — and, on mobile, the whole strip band. The
+plan is
+[`docs/milestones/chrome-parity-with-the-design-reference.md`](../milestones/chrome-parity-with-the-design-reference.md).

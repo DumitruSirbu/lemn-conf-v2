@@ -434,30 +434,37 @@ describe("§13.1's structural corners, as the seeded design ships them", () => {
   // `tests/support/selection-meta.ts` hand-builds a corner that already obeys the rule: only the
   // seeded entries can show whether the real catalogue data earns the corner its structural
   // treatment.
-  it("offers neither a swap list, nor delete, nor width on any corner", () => {
+  it("offers a corner its colour, the structural explanation, and nothing else", () => {
     const world = worldFrom(KITCHEN_L_DESIGN);
     const corners = world.records.filter(isCorner);
     expect(corners.length).toBeGreaterThan(0);
     for (const corner of corners) {
       const panel = panelAt(world, { kind: "placement", id: corner.id });
       if (panel.kind !== "open") throw new Error("expected an open panel");
-      // §13.1 and M4's acceptance criterion ("A corner return, which has no finish, handle or
-      // width, shows none of those sections") leave a corner with none of §9's offer sections. The
-      // one section that must remain is the structural explanation: §11 row 16 requires the refusal
-      // to explain why, and a panel with nothing left to refuse would satisfy that by deleting the
-      // question.
+      // §13.1's three refusals — replace, delete, width donor — still hold, and are what this
+      // asserts: no `replace`, no `width`, and `canDelete` false in the footer.
+      //
+      // **`finish` is the exception the owner made on 2026-09-09**, and it is the only one. M4's
+      // acceptance criterion said "a corner return, which has no finish, handle or width, shows none
+      // of those sections"; the owner's picture is why that changed — a corner left on the
+      // material's white inside a coloured kitchen, with no control anywhere to fix it.
+      //
+      // The structural explanation stays beside it. §11 row 16 requires the refusal to explain why,
+      // and a corner that offers *one* of §9's four sections still owes the customer the sentence
+      // about the other three.
       expect([
         corner.id,
         panel.sections.map((section) => section.kind),
         panel.footer.canDelete,
-      ]).toEqual([corner.id, ["structural"], false]);
+      ]).toEqual([corner.id, ["structural", "finish"], false]);
     }
   });
 
-  // §11 row 16's "refusal explains why", on a body that produces no refusal to carry it: with every
-  // capability flag false there is nothing to tap and therefore nothing to refuse, so the
-  // explanation has to be a section of its own. The reason is declared on the catalogue entry, which
-  // is what makes it survive to the panel.
+  // §11 row 16's "refusal explains why", on a body that produces no refusal to carry it: replace,
+  // delete and width offer nothing to tap and therefore nothing to refuse, so the explanation has to
+  // be a section of its own. The reason is declared on the catalogue entry, which is what makes it
+  // survive to the panel — and, since the corner started offering *Finisaj*, what keeps it there
+  // rather than letting one live section stand in for an answer to the other three.
   it("explains why, on all four seeded corners", () => {
     const world = worldFrom(KITCHEN_L_DESIGN);
     const corners = world.records.filter(isCorner);
@@ -479,8 +486,8 @@ describe("§13.1's structural corners, as the seeded design ships them", () => {
     }
   });
 
-  // The explanation is an answer of last resort: nothing else in the kitchen may carry it, or it
-  // becomes a second voice contradicting the sections beside it.
+  // Nothing else in the kitchen may carry it: the sentence names a refusal only the corner makes, so
+  // a second body showing it would be explaining a rule it does not obey.
   it("shows the explanation nowhere else in the kitchen", () => {
     const world = openedKitchen();
     const explained: string[] = [];

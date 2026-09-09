@@ -50,8 +50,7 @@ const ROUNDING_STEP_MDL = 1000;
 const BANI_PER_STEP = BANI_PER_MDL * ROUNDING_STEP_MDL;
 
 function amountTextFor(totalMinor: number): string {
-  return describeStartingPrice({ label: ro.price.startingPrefix, totalMinor })
-    .amountText;
+  return describeStartingPrice({ totalMinor }).amountText;
 }
 
 const SEEDED = priceDesign({
@@ -444,79 +443,76 @@ describe("the owner's flagged-total sentence, against the decision that ruled it
   });
 });
 
-describe("the unchanged label, against the ruling that replaced both mockup spellings", () => {
-  const M6_PLAN = resolve(
-    import.meta.dirname,
-    "../../../../docs/milestones/M6-price-and-global-settings.md",
-  );
-  const MOCKUPS = resolve(
-    import.meta.dirname,
-    "../../../../docs/design/mockups",
-  );
+const SOURCE_ROOT = resolve(import.meta.dirname, "../../src");
 
-  /** The plan's ruled-strings table, which is the only place this ruling is recorded — the mockups
-   *  still draw the two superseded spellings, so a literal in a test would agree with the code and
-   *  with nothing else. */
-  function ruledUnchangedLabel(): string {
-    const ruled =
-      /^\| \*"(De la[^"]*)"\* — the price label while an edit is refused \|/m.exec(
-        readFileSync(M6_PLAN, "utf8"),
-      );
-    if (!ruled)
-      throw new Error(
-        "the M6 plan's ruled-strings table no longer carries a row for the unchanged price label",
-      );
-    return ruled[1] ?? "";
-  }
-
-  it("is byte-identical to the string the M6 plan records the owner as ruling", () => {
-    expect(ro.price.startingPrefixUnchanged).toBe(ruledUnchangedLabel());
-    expect(ro.price.startingPrefixUnchanged).toBe("De la neschimbat");
+describe("the one prefix a figure carries, and the one the owner removed", () => {
+  /**
+   * **Three cases were deleted here on 2026-09-09, and the deletion is the record.**
+   *
+   * They pinned `ro.price.startingPrefixUnchanged` — *"De la neschimbat"* — byte for byte against
+   * the M6 plan's ruled-strings row, held it to carrying no separator where frames D2C and 2C draw
+   * one, and kept it a superset of the bare prefix. All three were about a string that **no longer
+   * exists**: the owner removed the label on 2026-09-09 — *"event to state that your change didn't
+   * changed the price, I didn't request this"* — because §9's refusal banner already says the edit
+   * was refused, at the place the customer was looking. An assertion about a withdrawn behaviour is
+   * not a gate, so they are gone rather than weakened, and what replaces them is the removal itself.
+   *
+   * **ADR 0024's third frame-2C requirement was closed by that label and is left unmet again.**
+   */
+  it("has no second prefix left anywhere in the price copy", () => {
+    for (const [key, value] of Object.entries(ro.price)) {
+      expect(value, key).not.toContain("neschimbat");
+    }
+    expect(Object.keys(ro.price)).not.toContain("startingPrefixUnchanged");
   });
 
-  it("carries no separator at all, not merely neither of the two it replaced", () => {
-    // The ruling is *no separator*, so the pin is that general fact rather than a list of the two
-    // spellings that happened to lose. Both mockups still draw one, which is why a copy pass reading
-    // a frame is the live risk — but so is a third separator nobody has drawn yet, and a pair of
-    // `not.toBe` checks would let that one through.
-    const label = ro.price.startingPrefixUnchanged;
+  it("offers no surface a choice of prefix to compose", () => {
+    // The other half of the removal: the formatter used to take a label because there were two, and
+    // three surfaces had to agree about which. There is one, this module owns it, and a refusal
+    // never reaches a price model at all — asserted over the modules rather than over one call.
+    const composers = [
+      "price/starting-price.ts",
+      "price/price-bar-model.ts",
+      "price/price-breakdown-model.ts",
+      "panel/panel-model.ts",
+      "settings/global-settings-model.ts",
+    ];
 
-    expect(label).toMatch(/^\p{L}+ \p{L}+ \p{L}+$/u);
-    expect(label.split(" ")).toEqual(["De", "la", "neschimbat"]);
-    for (const superseded of ["De la · neschimbat", "De la, neschimbat"]) {
-      expect(label).not.toBe(superseded);
+    for (const path of composers) {
+      // Comments stripped: `starting-price.ts` **names** the withdrawn function in the note
+      // recording why it went, which is exactly the false positive a text guard has to rule out.
+      const source = readFileSync(resolve(SOURCE_ROOT, path), "utf8")
+        .replace(/\/\*[\s\S]*?\*\//g, "")
+        .replace(/\/\/.*$/gm, "");
+      expect(source, path).not.toContain("describeStartingLabel");
     }
   });
 
-  it("is what the mockups drew before the ruling, so the supersession is a real change", () => {
-    // The counterfactual for the row in the plan's table: if the frames had already said
-    // *"De la neschimbat"*, there would have been nothing to reconcile and no ruling to record.
-    const desktop = readFileSync(
-      resolve(MOCKUPS, "Lemnaria Configurator Desktop.dc.html"),
+  it("keeps the ruled word single, with the casing in the stylesheet and not in a second string", () => {
+    // **The price line is drawn inline and lowercase on both shells** (owner, 2026-09-09), which is
+    // frame D2A's form. A lowercase copy of the word in `ro.ts` would be the second spelling of a
+    // ruled string that the withdrawn label already cost this project once; the transform is the
+    // stylesheet's, and it changes case rather than words.
+    const bar = readFileSync(
+      resolve(SOURCE_ROOT, "price/price-bar.module.css"),
       "utf8",
-    );
-    const mobile = readFileSync(
-      resolve(MOCKUPS, "Lemnaria Configurator Mobil.dc.html"),
-      "utf8",
-    );
+    ).replace(/\/\*[\s\S]*?\*\//g, "");
 
-    expect(desktop).toContain("De la · neschimbat");
-    expect(mobile).toContain("De la, neschimbat");
-    expect(desktop).not.toContain(ro.price.startingPrefixUnchanged);
-    expect(mobile).not.toContain(ro.price.startingPrefixUnchanged);
-  });
-
-  it("keeps the bare prefix a prefix of it, so the two cannot drift apart in wording", () => {
     expect(ro.price.startingPrefix).toBe("De la");
-    expect(
-      ro.price.startingPrefixUnchanged.startsWith(ro.price.startingPrefix),
-    ).toBe(true);
+    expect(bar).toContain("text-transform: lowercase;");
+    expect(bar).not.toContain("text-transform: uppercase;");
   });
 
   it("cannot have a separator put back by a stylesheet on either surface that renders it", () => {
     // The shipped layout gate holds `price-bar.module.css` to declaring no `content`. The same label
     // renders in §9's footer from `editor-panel.module.css`, and a `::after { content: " ·" }` there
     // would be right in `ro.ts` and wrong on screen — the exact failure the bar's rule guards.
+    //
+    // **What is refused is a `content` that says something**, not the property. Frame D2A's three
+    // 28 px dividers are `::before` pseudo-elements on the top bar's cells and each declares
+    // `content: ""` — a box with no text in it, which cannot put a separator back into a label. An
+    // empty string is therefore allowed by name and every other value still fails, so a `content:
+    // " ·"` added tomorrow is caught exactly as before.
     const stylesheets = [
       resolve(import.meta.dirname, "../../src/price/price-bar.module.css"),
       resolve(import.meta.dirname, "../../src/panel/editor-panel.module.css"),
@@ -527,10 +523,9 @@ describe("the unchanged label, against the ruling that replaced both mockup spel
     ];
 
     for (const stylesheet of stylesheets) {
-      const declarations = readFileSync(stylesheet, "utf8").replace(
-        /\/\*[\s\S]*?\*\//g,
-        "",
-      );
+      const declarations = readFileSync(stylesheet, "utf8")
+        .replace(/\/\*[\s\S]*?\*\//g, "")
+        .replaceAll('content: "";', "");
       expect(declarations, stylesheet).not.toMatch(/[^-]content:/);
     }
   });
@@ -541,7 +536,6 @@ describe("the unchanged label, against the ruling that replaced both mockup spel
 // split across two lines inside a module that is already allowed near a price. The shipped guard
 // stayed green for both.
 describe("only these modules may go near a price, and only one of them may round", () => {
-  const SOURCE_ROOT = resolve(import.meta.dirname, "../../src");
   const THE_FORMATTER = "price/starting-price.ts";
 
   /** Everything that names an exact amount, a composed figure, or the query that produces one.
@@ -585,6 +579,10 @@ describe("only these modules may go near a price, and only one of them may round
       "panel/editor-panel.tsx",
       "panel/panel-model.ts",
       "panel/use-panel-view.ts",
+      // ADR 0104 decision 8b, owner 2026-09-09: the flagged total's sentence left the top bar for
+      // the scene, so a fourth surface reaches the priced design. Added here rather than exempted —
+      // it renders `describePriceBar`'s own answer and still has to pass the three assertions below.
+      "price/flagged-total-warning.tsx",
       "price/price-bar-model.ts",
       "price/price-bar.tsx",
       // Wave 6D's breakdown, added here rather than exempted: this list exists so a new module that

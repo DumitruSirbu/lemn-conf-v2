@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { CHOOSES_ITS_OWN_COLOUR } from "../../src/body-finish-rule.js";
 import { baseFinishedDepthMm } from "../../src/catalog.js";
 import { WORKTOP_DEPTH_MM } from "../../src/worktop-depth.js";
 import type { Design } from "../../src/design.js";
@@ -298,6 +299,9 @@ describe("offersFor — an occupied body", () => {
       frameDepthMm: 580,
       occupiedDepth: finishesAtMm(baseFinishedDepthMm(WORKTOP_DEPTH_MM)),
       canFinish: true,
+      // An unknown *kind* is what this row is about; its colour is ordinary, and
+      // `derivePlacementRecords` refuses an entry that declares nothing about one.
+      finishRule: CHOOSES_ITS_OWN_COLOUR,
       canHandle: true,
       canReplace: true,
       canDelete: true,

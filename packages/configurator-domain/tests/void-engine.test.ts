@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { Design, DesignPlacement } from "../src/design.js";
+import { CHOOSES_ITS_OWN_COLOUR } from "../src/body-finish-rule.js";
 import { pinnedAtFinishedDepthMm } from "../src/cabinet-depth-rule.js";
 import { finishesAtMm, shellPlusFrontMm } from "../src/occupied-depth.js";
 import {
@@ -67,7 +68,11 @@ const baseDefinition: BodyDefinition = {
   frameDepthMm: 560,
   occupiedDepth: finishesAtMm(560),
   depthRule: pinnedAtFinishedDepthMm(560, "base-formula"),
+  // And a `finishRule`, for the reason it declares a `depthRule`: `derivePlacementRecords` resolves
+  // the colour it draws through the declaration, and an entry that says nothing is refused rather
+  // than guessed at. Ordinary cabinetry, which is what `canFinish: true` beside it already says.
   canFinish: true,
+  finishRule: CHOOSES_ITS_OWN_COLOUR,
   canHandle: true,
   canReplace: true,
   canDelete: true,

@@ -4,6 +4,12 @@
 //
 // §11 row 12 (resize preserves finish + handle) rides on the same seam: a resize re-signs the
 // record, so the choice has to survive a rebuild rather than a mutation in place.
+//
+// **The fixtures record `drawnFinish`, not `finishKey`** (ADR 0099 Amendment A section 3). The
+// record now carries two colours — what the cabinet chose, and what to paint — and the adapter
+// reads the second. Every expected colour below is byte-identical to what it was; only the field
+// the fixture states it in moved, and it moved onto the one the renderer is contracted to read, so
+// a regression back to `finishKey` fails this file rather than passing it.
 import {
   NO_FRONT_ASSEMBLY_MM,
   shellPlusFrontMm,
@@ -115,7 +121,7 @@ function colourOf(mesh: THREE.Mesh): string {
 
 describe("a recorded finish reaches the scene", () => {
   it("recolours the fronts of the body that recorded it", () => {
-    sync([makeRecord({ id: "p1", finishKey: LEGACY_ENUM_FINISHES.sage })]);
+    sync([makeRecord({ id: "p1", drawnFinish: LEGACY_ENUM_FINISHES.sage })]);
 
     const fronts = frontsOf(mounted("p1"));
     expect(fronts.length).toBeGreaterThan(0);
@@ -124,7 +130,7 @@ describe("a recorded finish reaches the scene", () => {
 
   it("leaves every other body's fronts alone", () => {
     sync([
-      makeRecord({ id: "p1", finishKey: LEGACY_ENUM_FINISHES.sage }),
+      makeRecord({ id: "p1", drawnFinish: LEGACY_ENUM_FINISHES.sage }),
       makeRecord({ id: "p2", frame: { x: 3 } }),
     ]);
 
@@ -134,7 +140,7 @@ describe("a recorded finish reaches the scene", () => {
   });
 
   it("dresses the fronts in oak rather than a colour", () => {
-    sync([makeRecord({ id: "p1", finishKey: LEGACY_ENUM_FINISHES.oak })]);
+    sync([makeRecord({ id: "p1", drawnFinish: LEGACY_ENUM_FINISHES.oak })]);
 
     for (const front of frontsOf(mounted("p1"))) {
       expect((front.material as THREE.MeshStandardMaterial).map).toBe(
@@ -143,26 +149,46 @@ describe("a recorded finish reaches the scene", () => {
     }
   });
 
-  it("ignores a finish recorded on a body that cannot take one", () => {
+  /** **The record decides, and `canFinish` no longer does.** This asserted the opposite until the
+   *  owner's ruling of 2026-09-09 (backlog entry 60) split that flag's class in two: a structural
+   *  corner and an open shelf are `canFinish: false` and are painted **with the kitchen**, while a
+   *  hood and a fridge are `canFinish: false` and are painted at no level. One flag cannot say which,
+   *  so the domain's `finishRule` decides and answers by filling `drawnFinish` or leaving it absent.
+   *  This package reads the answer and no longer holds a second opinion (§12). */
+  it("paints a body that cannot choose its own colour when the record carries a drawn one", () => {
     sync([
       makeRecord({
         id: "p1",
-        finishKey: LEGACY_ENUM_FINISHES.sage,
+        drawnFinish: LEGACY_ENUM_FINISHES.sage,
         canFinish: false,
       }),
     ]);
 
-    for (const front of frontsOf(mounted("p1"))) {
+    const fronts = frontsOf(mounted("p1"));
+    expect(fronts.length).toBeGreaterThan(0);
+    for (const front of fronts) {
+      expect(front.material).not.toBe(kit.M.door);
+    }
+  });
+
+  /** The other half of the same seam: absence is what leaves a body unpainted, whatever its flags
+   *  say. It is how an appliance reaches the scene after the ruling. */
+  it("leaves a body unpainted when the record carries no drawn colour", () => {
+    sync([makeRecord({ id: "p1", canFinish: false })]);
+
+    const fronts = frontsOf(mounted("p1"));
+    expect(fronts.length).toBeGreaterThan(0);
+    for (const front of fronts) {
       expect(front.material).toBe(kit.M.door);
     }
   });
 
   it("shares one material per finish instead of cloning per front", () => {
     sync([
-      makeRecord({ id: "p1", finishKey: LEGACY_ENUM_FINISHES.clay }),
+      makeRecord({ id: "p1", drawnFinish: LEGACY_ENUM_FINISHES.clay }),
       makeRecord({
         id: "p2",
-        finishKey: LEGACY_ENUM_FINISHES.clay,
+        drawnFinish: LEGACY_ENUM_FINISHES.clay,
         frame: { x: 3 },
       }),
     ]);
@@ -188,10 +214,12 @@ describe("a design that records no finish renders as it did before", () => {
 
 describe("a finish change re-signs the body", () => {
   it("rebuilds the body so the new finish is on screen", () => {
-    sync([makeRecord({ id: "p1", finishKey: LEGACY_ENUM_FINISHES.sage })]);
+    sync([makeRecord({ id: "p1", drawnFinish: LEGACY_ENUM_FINISHES.sage })]);
     const before = mounted("p1");
 
-    sync([makeRecord({ id: "p1", finishKey: LEGACY_ENUM_FINISHES.graphite })]);
+    sync([
+      makeRecord({ id: "p1", drawnFinish: LEGACY_ENUM_FINISHES.graphite }),
+    ]);
 
     expect(mounted("p1")).not.toBe(before);
     for (const front of frontsOf(mounted("p1"))) {
@@ -201,7 +229,7 @@ describe("a finish change re-signs the body", () => {
 
   it("keeps the identical instance when the finish did not change", () => {
     const records = [
-      makeRecord({ id: "p1", finishKey: LEGACY_ENUM_FINISHES.sage }),
+      makeRecord({ id: "p1", drawnFinish: LEGACY_ENUM_FINISHES.sage }),
     ];
     sync(records);
     const before = mounted("p1");
@@ -212,12 +240,12 @@ describe("a finish change re-signs the body", () => {
   });
 
   it("carries the finish through a resize, which is §11 row 12", () => {
-    sync([makeRecord({ id: "p1", finishKey: LEGACY_ENUM_FINISHES.sage })]);
+    sync([makeRecord({ id: "p1", drawnFinish: LEGACY_ENUM_FINISHES.sage })]);
 
     sync([
       makeRecord({
         id: "p1",
-        finishKey: LEGACY_ENUM_FINISHES.sage,
+        drawnFinish: LEGACY_ENUM_FINISHES.sage,
         widthMm: 800,
       }),
     ]);
@@ -289,7 +317,7 @@ describe("finish and handle are independent choices", () => {
     sync([
       makeRecord({
         id: "p1",
-        finishKey: LEGACY_ENUM_FINISHES.sage,
+        drawnFinish: LEGACY_ENUM_FINISHES.sage,
         handleMode: "black",
       }),
     ]);

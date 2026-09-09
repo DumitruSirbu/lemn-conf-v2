@@ -73,6 +73,16 @@ import {
 /** Frame 2D itself. The mobile file is the priority surface and the only one carrying every frame;
  *  D2D draws the same sheet as a popover and its own disclaimer stops one clause short — see
  *  `ro.priceBreakdown.disclaimer` for why the fuller sentence is the one that ships. */
+/** The desktop file, read for one reason only: it is where the **question mark** the owner ruled onto
+ *  this control comes from. Frame 2D draws the wording unpunctuated. */
+const DESKTOP_FRAMES = readFileSync(
+  resolve(
+    import.meta.dirname,
+    "../../../../docs/design/mockups/Lemnaria Configurator Desktop.dc.html",
+  ),
+  "utf8",
+);
+
 const FRAME_2D = readFileSync(
   resolve(
     import.meta.dirname,
@@ -163,9 +173,31 @@ function paletteOf(stylesheet: string, ruleName: string): [string, string] {
 }
 
 describe("every ruled string, as a literal and in the frame that ruled it", () => {
-  it("heads the surface with frame 2D's title", () => {
-    expect(ro.priceBreakdown.title).toBe("De ce acest preț");
+  it("heads the surface with frame 2D's title, and the owner's question mark", () => {
+    // **The `?` is part of the sentence since 2026-09-09** — the owner replaced the caret beside this
+    // control with it: *"replace the `^` with `?`"*. So the frame is asserted on the **wording**,
+    // which it carries verbatim, and the mark on the file the mark comes from: the desktop frames
+    // punctuate their own longer heading *"Ce se include în acest preț?"* exactly this way.
+    //
+    // **Frame 2D itself draws the wording unpunctuated**, so the mark is a supersession of that frame
+    // by its own author, dated — the same shape as the price label's, and recorded beside the string.
+    expect(ro.priceBreakdown.title).toBe("De ce acest preț?");
     expect(FRAME_2D).toContain("De ce acest preț");
+    expect(FRAME_2D).not.toContain("De ce acest preț?");
+    expect(DESKTOP_FRAMES).toContain("acest preț?");
+  });
+
+  it("carries no caret beside that control any more, on either shell", () => {
+    // The other half of the ruling, and the reason it belongs in the string rather than in a span: a
+    // caret is decoration and was correctly `aria-hidden`, a question mark is punctuation and has to
+    // be read out. One treatment for both shells — frame 2A's own `⌃` goes with it.
+    const component = readStylesheet("price-breakdown.tsx");
+
+    expect(component).not.toContain("DISCLOSURE_GLYPH");
+    expect(component).not.toContain("⌃");
+    expect(readStylesheet("price-breakdown.module.css")).not.toContain(
+      ".chevron",
+    );
   });
 
   it("states the exclusions and the on-site measurement, verbatim", () => {
@@ -343,8 +375,12 @@ describe("the flagged total wears the caution palette on this surface too", () =
     // ADR 0065 decision 8, at its third site. The two shipped ones are held to each other by
     // `price-bar-layout.test.ts`; this is the third, and a third set of hexes nobody compares is how
     // one of them drifts into the refusal's red.
+    // The bar's own copy of the palette moved with the sentence: ADR 0104 decision 8b took it out
+    // of the top bar and onto the scene, so the pair is read from the surface it is now painted on.
     expect(
       paletteOf(readStylesheet("price-breakdown.module.css"), "overflow"),
-    ).toEqual(paletteOf(readStylesheet("price-bar.module.css"), "overflow"));
+    ).toEqual(
+      paletteOf(readStylesheet("flagged-total-warning.module.css"), "warning"),
+    );
   });
 });

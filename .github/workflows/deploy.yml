@@ -1,0 +1,146 @@
+# Migrate, prove the schema, then deploy — ADR 0096 decision 2.
+#
+# Why this file exists at all. Until it did, `.github/workflows/ci.yml` declared no migrate job and
+# no deploy job, and Vercel built `apps/web` through `build:deps && next build`, a chain that reaches
+# `persistence`'s `build` script and never its `migrate` script. So a migration ran only when a human
+# typed the command — which happened for preview on 2026-09-02 and never for production, and
+# `0004_add_design_revision.sql` was missing from production for seven days while every customer
+# edit answered 500.
+#
+# THIS WORKFLOW IS INERT UNTIL THE OWNER ACTS. It has no `push` trigger, so nothing runs it
+# automatically; the deploy step is skipped unless a deploy secret exists; and without
+# `MIGRATION_DATABASE_URL` it fails at its first assertion having touched nothing. Vercel's Git
+# integration is untouched and is still the deploy path. The activation steps, in order, are in
+# `docs/best-practices/ci-and-local-gates.md`.
+#
+# Deliberately NOT in Vercel's `buildCommand`, and the leading reason is correctness rather than
+# security (ADR 0096 decision 2): a build-step migration inherits Vercel's build-skipping and
+# caching heuristics, so a skipped or cached build is a migration that silently did not run —
+# re-creating this incident with a subtler cause. It would also make every preview branch deploy
+# migrate a database that ADR 0054 records preview and local development sharing. The credential
+# argument is real and is last: Vercel scopes variables by environment and never by phase, and its
+# own docs say source code can read them "during the Build Step or during Function execution", so a
+# DDL credential placed there is readable by the running application, reversing ADR 0008. There is
+# no build-only variable to reach for.
+name: deploy
+
+on:
+  # Manual only, on purpose. Wiring this to `push: [main]` is the owner's deliberate act, and it is
+  # step 5 of the activation list in docs/best-practices/ci-and-local-gates.md.
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Which deployed environment this run migrates and deploys
+        required: true
+        type: choice
+        options:
+          - preview
+          - production
+
+# One run at a time per environment, and never cancelled mid-flight: a cancelled migrate would leave
+# the run's evidence unwritten even though `migrate.ts` itself is safe to interrupt. Concurrent runs
+# are safe regardless — see the migrate step's own note.
+concurrency:
+  group: deploy-${{ inputs.environment }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  # Pinned to 24 by the root package.json `engines` field and by .nvmrc, as ci.yml is.
+  NODE_VERSION: 24
+
+jobs:
+  migrate-and-deploy:
+    name: migrate then deploy
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    # Selects the environment's own credential (ADR 0096 decision 6: preview is not exempt, or
+    # ADR 0054's gap survives one environment over). A repository secret of the same name is
+    # inherited when no environment secret is set, so this works before the environments exist.
+    environment: ${{ inputs.environment }}
+    env:
+      # A GitHub Actions secret and deliberately NOT a Vercel environment variable (ADR 0096
+      # decision 4). The application role holds no DDL privilege by design (ADR 0008) and holds no
+      # privilege at all on `schema_migrations`, so DATABASE_URL cannot stand in for this and is
+      # never set here.
+      MIGRATION_DATABASE_URL: ${{ secrets.MIGRATION_DATABASE_URL }}
+      # Absent until the owner creates it, which is what keeps the deploy step inert.
+      VERCEL_DEPLOY_HOOK_URL: ${{ secrets.VERCEL_DEPLOY_HOOK_URL }}
+      TARGET_ENVIRONMENT: ${{ inputs.environment }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Setup pnpm
+        uses: pnpm/action-setup@0e279bb959325dab635dd2c09392533439d90093 # v6.0.8
+      - name: Setup Node
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+      - name: Install (frozen lockfile)
+        run: pnpm install --frozen-lockfile
+
+      # Fails before any database is opened, with a message naming the fix — the same shape ci.yml's
+      # `test` job uses for TEST_DATABASE_URL.
+      - name: Assert the migration credential is present
+        run: |
+          if [ -z "$MIGRATION_DATABASE_URL" ]; then
+              echo "MIGRATION_DATABASE_URL is not set for environment '$TARGET_ENVIRONMENT'."
+              echo "It is a GitHub Actions secret and never a Vercel environment variable"
+              echo "(ADR 0096 decision 4). Add it under Settings > Environments >"
+              echo "$TARGET_ENVIRONMENT > Environment secrets, or as a repository secret."
+              exit 1
+          fi
+
+      # ADR 0096 decision 5, enforced rather than documented. Additive, idempotent migrations run
+      # unattended; anything that can destroy or rewrite data, and anything Postgres refuses inside
+      # the transaction migrate.ts wraps each file in, is a deliberate operator action with the
+      # owner's authorisation. This step is what makes that a check instead of a comment.
+      - name: Refuse a migration that needs an operator
+        run: pnpm --filter @lemnaria/persistence run migrate:unattended-check
+
+      # Evidence, not a gate — hence continue-on-error. This run exists to apply pending
+      # migrations, so "behind" here is the expected state and must not block; what it buys is the
+      # *before* half of the comparison ADR 0096 decision 10 asks for, quoted in the job log.
+      # Divergence still blocks, one step down: `runMigrations` refuses a changed checksum, a
+      # renamed file, a hole in the ledger and a ledger ahead of the checkout, through the same
+      # `planPendingMigrations` this guard reads.
+      - name: Read the schema back before migrating
+        continue-on-error: true
+        run: pnpm --filter @lemnaria/persistence run migrate:status "$TARGET_ENVIRONMENT"
+
+      # Concurrency needs nothing from this workflow, confirmed by reading migrate.ts rather than
+      # assumed: it takes `pg_advisory_xact_lock` on a fixed key INSIDE each migration's own
+      # transaction and re-reads the ledger inside that lock (ADR 0042 decision 3), so a second
+      # concurrent run blocks and then applies nothing.
+      - name: Migrate
+        run: pnpm --filter @lemnaria/persistence run migrate
+
+      # THE GATE. ADR 0020 decision 2, unchanged and restated by ADR 0096 decision 1: the evidence
+      # is a read of information_schema, never this or any other command's exit status, and never
+      # the ledger alone. A pipeline that trusts its own migrate step's exit code repeats the
+      # mistake this project already ruled against. Non-zero here stops the deploy.
+      - name: Verify by reading the schema back
+        run: pnpm --filter @lemnaria/persistence run migrate:status "$TARGET_ENVIRONMENT"
+
+      # Skipped until the owner creates the hook, which is what keeps this file inert: with no
+      # secret, the whole workflow is a read-and-migrate with Vercel's Git integration still owning
+      # deployment. ADR 0096 decision 2 accepts moving off that integration as the price of ordering
+      # migrate before deploy; until the hook exists, the order is not yet enforced and this step
+      # says so out loud rather than passing silently.
+      - name: Deploy
+        if: env.VERCEL_DEPLOY_HOOK_URL != ''
+        run: |
+          curl --fail --silent --show-error --request POST \
+            --output /dev/null "$VERCEL_DEPLOY_HOOK_URL"
+          echo "Deploy hook accepted for '$TARGET_ENVIRONMENT' after a verified schema read-back."
+
+      - name: Report that deployment is still Vercel's to trigger
+        if: env.VERCEL_DEPLOY_HOOK_URL == ''
+        run: |
+          echo "No VERCEL_DEPLOY_HOOK_URL secret, so this run migrated and verified but deployed"
+          echo "nothing. Vercel's Git integration is still the deploy path, which means migrate"
+          echo "and deploy are not yet ordered with respect to one another. See step 4 of the"
+          echo "activation list in docs/best-practices/ci-and-local-gates.md."

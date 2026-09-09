@@ -15,7 +15,8 @@
 //   `qa-6k-i-planning-map.adversarial.test.ts` throws when handed a seat for exactly this reason,
 //   and 6X's own model carries no such guard — so the precondition is measured here instead.
 // - **Item 4's histogram fixes a multiset of reasons and not an assignment.** Three `not deletable`
-//   and three `pinned` is the same histogram whichever three members carry which, so the assignment
+//   and three heightFlex rebuilds is the same histogram whichever three members carry which, so the
+//   assignment
 //   is pinned per id below — and with it the second reason three of those members carry, which is
 //   what makes the histogram's labels a property of the predicate's arm order as well as of wall B.
 // - **The 820 / 860 gap is the premise of the whole record** (ADR 0093's measured section), and it
@@ -283,6 +284,9 @@ describe("the design wave 6X declares is a design the product accepts", () => {
     (cabinetDepthMm) => {
       const catalog = buildKitchenLBodyCatalog(cabinetDepthMm);
 
+      const codesOn = (design: Design) =>
+        validateDesignForCatalog(design, catalog).map((issue) => issue.code);
+
       for (const design of [
         withADeclaredWallBColumn(cabinetDepthMm),
         theDeclaredDesignAt(cabinetDepthMm),
@@ -293,10 +297,30 @@ describe("the design wave 6X declares is a design the product accepts", () => {
             validateDesignForCatalog(design, catalog),
           ),
         ).toStrictEqual([]);
-        // Not only fatal: a warning-severity issue on the wave's own fixture is still a document the
-        // product would complain about, and the wave's claim is that this one is ordinary.
-        expect(validateDesignForCatalog(design, catalog)).toStrictEqual([]);
       }
+
+      // Not only fatal: a warning-severity issue on the wave's own fixture is still a document the
+      // product would complain about. The design that carries no frozen map is ordinary at both
+      // depths, and the one that carries a map is ordinary at the depth it was declared at.
+      expect(codesOn(withADeclaredWallBColumn(cabinetDepthMm))).toStrictEqual(
+        [],
+      );
+
+      // **At 700 it is not ordinary, and that is this witness's own point restated by a second
+      // reader.** `seededAt` swaps `settings.cabinetDepthMm` and moves no placement, so wall B's run
+      // stands where the 600 mm kitchen put it while the catalogue is built at 700: the corner leg's
+      // carcass goes 560 → 660 against a base return still starting at 580, and the wall band's goes
+      // 291 → 361 against a wall return still starting at 330. **80 mm and 31 mm** — the two
+      // overlaps backlog 50 was opened for, to the millimetre (ADR 0089 decision 3). Since
+      // 2026-09-09 the gate says so, as a `mark`; the document still loads, which is what the fatal
+      // assertion above proves and what the owner ruled the severity for.
+      expect(
+        new Set(codesOn(theDeclaredDesignAt(cabinetDepthMm))),
+      ).toStrictEqual(
+        cabinetDepthMm === SHALLOW_MM
+          ? new Set<string>()
+          : new Set(["RECORDED_SPAN_OVERLAPS_CORNER_BODY"]),
+      );
     },
   );
 
@@ -364,19 +388,24 @@ function whyItCannotWitness(
     rule: record.depthRule,
   });
   if (rule.follows !== "cabinet-depth") return rule.follows;
-  const rebuildHeightMm = resolveRebuildBody(
+  const body = resolveRebuildBody(
     buildKitchenLBodyCatalog(cabinetDepthMm),
     record,
-  )?.nominalHeightMm;
-  if (rebuildHeightMm === undefined) return "no catalogue equivalent";
-  return rebuildHeightMm === record.heightMm
+  );
+  if (!body) return "no catalogue equivalent";
+  // ADR 0101: a `heightFlex` body builds to the opening §5.2 hands it, so it can never require more
+  // height than its column offers and can never produce the refusal. The three deep tops reached
+  // this arm the day their pin was withdrawn, and their `wall-cabinet` equivalent is `heightFlex`.
+  if (body.heightFlex) return "builds to the opening it is given";
+  return body.nominalHeightMm === record.heightMm
     ? "rebuilds to the height it records"
     : "could witness";
 }
 
 describe("wall B's limitation, by member and not by count", () => {
   // A histogram of 3 / 1 / 3 / 2 is satisfied by any assignment with those totals: swap which three
-  // members are structural and which three are pinned and the count is unchanged. The assignment is
+  // members are structural and which three build to their opening, and the count is unchanged. The
+  // assignment is
   // the fact, so the assignment is what is asserted.
   it.each(DECLARED_MM)(
     "gives each of the nine wall-B members its own reason at %i mm",
@@ -392,9 +421,11 @@ describe("wall B's limitation, by member and not by count", () => {
         p9: "not deletable",
         p21: "not deletable",
         p7: "manufactured-size",
-        p22: "pinned",
-        p23: "pinned",
-        p24: "pinned",
+        // "pinned" until ADR 0101 withdrew ADR 0058's pin. Their exclusion is now the structural
+        // one: `wall-cabinet` is `heightFlex`, so §5.2 builds it to the opening it is handed.
+        p22: "builds to the opening it is given",
+        p23: "builds to the opening it is given",
+        p24: "builds to the opening it is given",
         p5: "rebuilds to the height it records",
         p6: "rebuilds to the height it records",
       });
@@ -423,6 +454,9 @@ describe("wall B's limitation, by member and not by count", () => {
                 record.canDelete ? undefined : "not deletable",
                 rule.follows === "cabinet-depth" ? undefined : rule.follows,
                 rebuild === undefined ? "no catalogue equivalent" : undefined,
+                rebuild?.heightFlex === true
+                  ? "builds to the opening it is given"
+                  : undefined,
                 rebuild?.nominalHeightMm === record.heightMm
                   ? "rebuilds to the height it records"
                   : undefined,
@@ -437,9 +471,9 @@ describe("wall B's limitation, by member and not by count", () => {
         p9: ["not deletable", "no catalogue equivalent"],
         p21: ["not deletable", "no catalogue equivalent"],
         p7: ["manufactured-size", "rebuilds to the height it records"],
-        p22: ["pinned"],
-        p23: ["pinned"],
-        p24: ["pinned"],
+        p22: ["builds to the opening it is given"],
+        p23: ["builds to the opening it is given"],
+        p24: ["builds to the opening it is given"],
         p5: ["rebuilds to the height it records"],
         p6: ["rebuilds to the height it records"],
       });
@@ -598,6 +632,7 @@ function everyWallBInsertOf(
         design,
         catalog,
         columns,
+        voids,
         target,
         buildId: offer.buildId,
         probe: createFakeProbe({ catalog }),

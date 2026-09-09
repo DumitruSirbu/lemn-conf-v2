@@ -15,10 +15,10 @@ import {
   carriedAppearance,
   refuseBuiltSize,
   refuseUnusableMeasurement,
-} from "./insert-body.js";
+} from "./built-body.js";
 import { evaluateInsertFit, openingFromPlacement } from "./insert-fit.js";
 import { findPlacement } from "./resolve-column-members.js";
-import type { Rebuild, Resolved, SetWidthInput } from "./width-resize-model.js";
+import type { Rebuild, RebuildInput, Resolved } from "./width-resize-model.js";
 
 /** A hood is **moved**, never rebuilt.
  *
@@ -39,7 +39,7 @@ import type { Rebuild, Resolved, SetWidthInput } from "./width-resize-model.js";
  *  catalogue over-declared by 10 mm nobody makes. `HOOD_HEIGHT_MM` is 700 since wave 5F. A resize
  *  must still not resolve such a thing by accident, which is why this function exists. */
 export function moveHood(
-  input: SetWidthInput,
+  input: RebuildInput,
   plan: Rebuild,
 ): Resolved<DesignPlacement> {
   const placement = findPlacement(input.design, plan.record.id);
@@ -58,7 +58,7 @@ export function moveHood(
  *  710 (ADR 0016) — is refused here, and §9 wants that refusal to be unreachable in the first
  *  place: this is the backstop, not the gate. */
 export function rebuild(
-  input: SetWidthInput,
+  input: RebuildInput,
   records: readonly PlacementRecord[],
   plan: Rebuild,
 ): Resolved<DesignPlacement> {

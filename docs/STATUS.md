@@ -119,6 +119,230 @@ PASS.
 
 ## What is open right now
 
+- **The configure screen's chrome does not match the design reference, on either shell — owner
+  rejection, 2026-09-09.** *"I wanted to be same as in reference, SAME, because this is the design I
+  made and approve"*, and *"on mobile same shit, you done what you wanted not what is in reference"*.
+  Ruled in [ADR 0104](decisions/0104-the-mockups-are-the-chrome-specification-and-the-strips-own-row-is-withdrawn.md):
+  the mockups are the specification for screen 2's chrome, **the settings strip's own row is
+  withdrawn on both shells**, and the whole-kitchen settings become the single pill frames D2A and 2A
+  draw — with frame 2A's own `+2` counter, which was never implemented and is the reason the project
+  spent ADR 0082, ADR 0094 and two waves containing a row the design never asked for. ADR 0082
+  decisions 2, 3, 4 and 8 and ADR 0094 decision 2 are amended **in place**, struck rather than
+  deleted. The plan is
+  [`milestones/chrome-parity-with-the-design-reference.md`](milestones/chrome-parity-with-the-design-reference.md)
+  — **not started**, and **no owner question blocks it**; the four it carries all have defaults.
+  **Four owner rulings of 2026-09-09 are in the record**, each with what it was chosen over.
+  (1) *Narrowing is a ladder*: all labels whole with D2A's `│`; then as many whole labels as fit plus
+  `+N`; then one whole label; then one **ellipsised** — so the swatch, one label and the counter are
+  never given up. The count is a **measured fit**, so **no width threshold is introduced** and
+  ADR 0094 criterion 4i is met as written. (2) The **`Lemnaria` wordmark drops between 900 and
+  966 px** — ruled on the corrected premise that it is *not* needed to prevent overflow but buys a
+  readable setting name against a `P…` stub, and chosen over both keeping the stub and letting
+  frame 2A serve narrow widths. That discharges the reservation
+  `apps/web/tests/e2e/top-bar.desktop.e2e.spec.ts:165–174` placed on the element. (3) **ADR 0065's
+  flagged-total sentence leaves the top bar for the scene**, chosen over letting the desktop bar
+  grow — so the header keeps frame D2A's shape at every width, flagged or not, and **`1cc86d8`'s
+  9.28 px trade is retired rather than repaid**; the gate that asserts that growth is re-pointed to
+  assert its absence. (4) **The kitchen's colour joins the pill** — *"if it fits, it should be
+  displayed also"* — making four settings in the order
+  [ADR 0099](decisions/0099-a-colour-is-chosen-at-two-levels-and-the-cabinets-wins.md) decision 9
+  already ruled. **The owner reviews the implementation in a browser before any QA is dispatched.**
+
+- **M6's remaining work is verification and two owner rulings — as of 2026-09-08 (evening).** Every
+  wave row but 6Y is DONE and the branch `fix/m6-remediation` is green: domain **3729**,
+  three-adapter **3022**, web **2005 and no skips**, persistence **282**, typecheck / lint /
+  `format:check` clean, **120 commits ahead of `main`** at `ca1310f`. What is owed before M6 can be called closed:
+  - **~~No browser has seen any of 2026-09-08's work.~~ DRIVEN 2026-09-09**, evidence in
+    `testing-reports/vis6z-2026-09-09/` (20 captures, gitignored). Both waves render correctly.
+    ADR 0099: the cabinets repaint on a global colour, a per-cabinet override changes only that
+    cabinet and survives a second global change, and *Culoarea bucătăriei* clears the override —
+    price unchanged at `101 000 MDL` throughout. ADR 0103, by pixel diff over the top-row band at
+    both settings: delete re-plans nothing (0 px), a regular base beneath makes the top recede
+    (493 px at 600, 784 px at 700), a full-height body deepens it, and the round trip is exact
+    (0 px). The worst-case 400-over-700 discontinuity was inspected close up — worktop continuous
+    into the corner, plinth on the floor, no tear, no intersection, no floating body. **Zero console
+    errors**; the only warning is the known `THREE.Clock` deprecation. `pnpm --filter web build`
+    passes on current HEAD.
+
+    Two process notes. **The tree was not frozen** — this session landed `eeedf85` and a `dist`
+    rebuild mid-run, against its own standing rule; the agent detected the 8-commit drift, re-ran the
+    whole 6Z check against the current build and reports byte-identical results, which is what makes
+    the evidence usable. And **a screenshot written anywhere Turbopack watches resets the running
+    design**: it produced a false "the kitchen reverted to white", caught by the agent from
+    `[Fast Refresh] rebuilding` / `Context Lost` in the console rather than filed as a defect. The
+    MCP screenshot tool can only write inside the repo, so every future visual run needs a path
+    outside the watched root and a per-step readout guard.
+
+    **Still owed here**: a CI runner pass. Local rendering says nothing about runner timing.
+  - **The former browser obligation, verbatim:** Wave 6Z's own tier calls for visual
+    verification and it was not run; the scene-colour wave's on-screen claim is proved through the
+    real record builder in tests but never rendered. The owner has said they will do the manual pass
+    themselves after a production deploy, so this is a **CI Playwright** obligation, not a manual one.
+    A green local 3D e2e run proves nothing about runner timing.
+  - **~~Independent QA on wave 6Z~~ RAN 2026-09-08 and found a real defect, now fixed
+    (`b699cfa`, `86770ac`, `eeedf85`).** `affectedColumnKeys` read ADR 0103 decision 3's set as the
+    occupied key, the keys the split created, and the keys whose `hasFullHeightUnder` **flipped** —
+    so an **ordinary** body inserted into a slot that overhangs a neighbouring column was missed by
+    all three, and the overhung top kept a lifted depth nothing under it justified. That is the
+    owner's **S1**, and it is exactly why decision 3 rejects the flip-triggered design; the rejection
+    had been applied to the column-membership route and not to the overlap route. Fixed with a third
+    clause over `overlapsAlongWall`, exported from `void-engine.ts` rather than copied.
+
+    **The same-wall guard on that clause is load-bearing, and its absence was caught by the wave's
+    own offer sweep.** Both walls originate at the same corner, so without `placed.wall ===
+    column.wall` the clause compared two coordinates that mean different places and re-planned a body
+    across the room: the sweep read **79 re-plans where 24 were pinned**. With the guard it is 786/24
+    again. **The pin being exact rather than a floor is what caught it.**
+
+    **Why the count is unchanged is not "the clause never fires here"** — QA corrected that reading
+    and pinned the correction. Wall A's column extents overlap each other (`A|0.45` spans 0..900
+    across `A|0.30` at 0..600 and `A|0.75` at 600..900), so an ordinary insert on that wall reaches
+    two neighbouring keys one tap from load. The clause fires; the bodies it reaches already stand at
+    the depth their column decides, so `replanOne` passes them through by identity. It changes
+    *which* members are asked, never the answer — and the pin exists so a later wave cannot read the
+    unchanged count as a dead clause and delete it.
+
+    QA's 19 other store cases held: the §5.3 swap reaches the re-plan at both settings, three
+    insert/delete rounds accumulate nothing and replay byte-identically, an insert that re-plans
+    nothing adds exactly one object, a re-planned top still follows `setCabinetDepth` both ways, the
+    `finish` key stays absent under a whole-kitchen colour, and the frozen map is identical across
+    the swap.
+  - **Independent QA on the scene-colour wave** — still owed. Both were gated
+    by their own authors' tests, which is not the same thing. The one independent round that did run
+    this day found an insert building a 600 mm sink base through a wall, against a ruling the owner
+    had given in one word, while its author's commit message claimed the opposite.
+  - **The clean-code and logic review pair** on the 2026-09-08 waves. The pair covering the evening's
+    audit-remediation commits (`b1185dd..d426c5d`) was dispatched 2026-09-08; the pair covering wave
+    6Z and the scene-colour wave has not been.
+  - **~~Two owner rulings~~ ALL FOUR RULED AND SHIPPED, 2026-09-09.** The owner answered every open
+    question in one round, and each answer is now in the tree with its regression:
+    - **M6-AUD-013** — *remove the desktop dim* (`fca2ee8`). Both shells are genuinely non-modal, so
+      `aria-modal`'s absence is true in every input mode rather than the weaker of two answers that
+      disagreed. Click-outside-to-close on desktop went with it, deliberately; Escape and the close
+      button remain. The e2e case that clicked the scrim is replaced by the assertion the change
+      exists for — a pointer can reach the page behind the open popover — asked of
+      `document.elementFromPoint` rather than a locator, so a fixed overlay under any class name
+      fails it.
+    - **M6-AUD-014** — *valid, but no price* (`c6610cf`). Zero placements stay loadable, shareable and
+      refused at no seam, which is what M7 needs the day it produces an empty proposal. The bar
+      carries the owner's own sentence where the figure would be, and the breakdown reports
+      `unavailable` so no control opens it and no tier is rendered *inclus* over an empty kitchen.
+      The breakdown requires **both** halves — no cabinet lines **and** no groups — because absent
+      lines beside groups naming bodies is not emptiness, it is the divergence that surface refuses
+      to render, and the first half alone swallowed that guard.
+    - **Backlog 50** — *mark, never refuse* (`1a004ee`). See the entry below; every stored document
+      still loads.
+    - **Backlog 60** — *structural cabinetry follows the kitchen, appliances never do*, with open
+      shelves inheriting by default (`fde1efc`, `8f08182`, ADR 0099 Amendment B in `ca1310f`).
+
+- **What the 2026-09-09 waves landed, and the one thing each got right that is worth keeping.**
+  - **Backlog 50's gate rediscovered its own defect.** The owner ruled `mark`; the *reach* was an
+    engineering call and the coordinator's first instruction — measure from `occupiedDepth` — was
+    **wrong**, because two worktop slabs meeting at an L-joint is what a corner is (ADR 0025), and
+    that reach marked the shipped kitchen and broke twelve assertions on accepted documents across
+    two packages. The carcass seat is the reach, which is what entry 50's own 80 mm and 31 mm
+    figures had said all along. Then `qa-6x-slide-witness` at 700 mm turned out to be a **true
+    positive**: its fixture swaps the setting and moves no placement, so the carcass goes 560 → 660
+    against a return still at 580 and the wall band 291 → 361 against one still at 330 — **exactly
+    the 80 and 31** the entry was opened on. The new code found the original defect in a fixture
+    nobody built for it.
+  - **Backlog 60 separated following from being visible.** `applyBodyFinish` paints declared surfaces,
+    so a declaration flip alone can be a no-op on screen. Every body's rendered colour was measured
+    off the built object before and after: three corner doors moved in the first wave, the shelf's
+    six boards in the second, and `base-corner-return-320` moved nothing **and owes nothing** — its
+    only cabinetry surface is the carcass interior every body shares. That is recorded as a
+    conclusion, not a deferral.
+  - **The wrong fix was measured rather than argued down.** Widening `FRONT_MESH_NAME` for the shelf
+    would have changed which meshes count as a handle's parent and what a whole-room repaint touches;
+    a census found `side_left`, `side_right` and `back_panel` are also built by the dishwasher, the
+    800 sink and the oven tower. Applying it anyway turns **26 adapter tests red across five files**.
+  - **~~`setWidth` does not raise the mark ADR 0065 requires.~~ WITHDRAWN 2026-09-08 — there is no
+    defect here, and this entry was wrong twice before it was right.** Re-measured end to end: on
+    wall B at 700, recorded `B|2.72` is 600 wide and published is 500; `setWidth(800)` is accepted
+    with `lastRejection === null` and the body ends at **3020** on a **2920 mm** wall — and
+    `validateDesignForCatalog` then reports **`PLACEMENT_PAST_WALL_END`** and
+    `COLUMN_EXTENT_PAST_WALL_END`. That is precisely what ADR 0065 decision 1 rules (marked, warned,
+    not moved, not refused) and what ADR 0069's amendment names as the deliberately untouched
+    width-resize consequence.
+
+    Kept as a struck entry rather than deleted, because the way it went wrong is the lesson. An
+    implementer reported *"`validateDesignForCatalog` returns `[]`"*; that sentence was about the
+    **fixture at load**, before the resize. It was read as being about the **result**, and the
+    misreading was then written into this file and reported to the owner as an outstanding defect —
+    twice, once as an open product decision and once as a missing mark. **A quoted measurement is
+    about the state its author measured, not the state you are asking about.**
+  - **Wave 6Y** — the only open wave row. Does not block: the defect predates all of this on `main`,
+    and its witness is pinned positively.
+  - **The M6 close-out sections ADR 0098 and ADR 0101 each ask for.** ADR 0098's is largely
+    discharged: the sink's 600 mm parity re-baseline is recorded in `docs/backlog/open.md` entry 41
+    and carried by its own commit (`0ff3faa`). ADR 0101 decision 2 was executed on 2026-09-08.
+
+- **The 2026-09-08 audit-remediation round — what it closed, measured rather than asserted.**
+  - **M6-AUD-006** needs no work: the shape is ruled and the owner deferred it twice (ADR 0100).
+    What was unenforced was decision 5 — copy and coefficient move together — and
+    `apps/web/tests/price/aud-006-depth-note-and-price-move-together.test.ts` now couples them,
+    deepening the kitchen through the real `setCabinetDepth` and demanding identical totals line for
+    line beside the shipped sentence. Proved red by adding one bani at 700.
+  - **M6-AUD-008 is measured on both halves.** Backlog 51: a mixed-chain column is **unreachable
+    through the offer list** — 400 offer rows over 29 targets on the seeded and fully emptied
+    kitchen at both depths name no `wall-map` body, the two that exist refuse insert, replace and
+    delete, and their column opens no void. Backlog 50: the corner blindness is pinned as a witness,
+    with the same recorded space reported on wall A and silent on wall B inside the 560 mm the corner
+    body reaches. The witness also records something wider than the backlog states — the sweep
+    returns early when a document carries neither `emptyColumns` nor `columnExtents`, so two
+    placements in one span are never compared on either wall.
+  - **M6-AUD-009 is closed.** The four skipped width-reachability cases were un-skipped on
+    2026-09-08 (the ratchet had been fixed by later waves and nobody returned to them), and
+    `happy-dom` is now declared **per file** so focus logic has a DOM without moving 1,900 node tests
+    onto one. Two suites: the breakdown's focus-in / Escape-after-focus-left / focus-restored, and
+    the settings sheet's `inert` screen — the half of "modal" a scrim cannot do.
+  - **M6-AUD-011 is diagnosed and needs nothing here** — `docs/backlog/open.md` entry 58.
+    `three@0.184.0` deprecated `Clock` at r183; `@react-three/fiber@9.7.0` constructs one in its own
+    store. No change to this repository can silence it.
+  - **The remaining skipped test in the tree is deliberate**: `kitchen-stage.e2e.spec.ts`'s mobile
+    highlight case, whose patch of scene is behind §9's sheet at 390 x 844. It is asserted on desktop
+    instead, and the file says so.
+
+- **Engineering obligations left by the 2026-09-08 QA round.** Recorded here rather than in
+  `docs/backlog/open.md`, which is for product behaviour observed in use and says so in its own head.
+  - **~~ADR 0101 decision 2 was ruled and never executed.~~ DONE 2026-09-08 (`a4c41f0`).**
+    `neverMigrated` is now `neverMigratedByAResize`, and its comment records what a depth change
+    actually does, **measured rather than restated from the ADR**: the row's entry goes
+    `frameDepthMm` 561 -> 661 and declares `follows: "cabinet-depth"`, so a depth change reaches and
+    rebuilds it — but its `buildId` is the same at both settings, which is the only sense of
+    "migrated" that test measures. The ADR says *reach*; writing *migrate* here would have been
+    wrong in the file's own vocabulary.
+  - **~~Two shipped tests can pass for the wrong reason.~~ BOTH FIXED 2026-09-08 (`15a59e2`,
+    `d426c5d`).** `cabinet-depth-source.test.ts` now builds a wall carcass at an **off-map** 555 mm,
+    which is the only input no lookup can invent — with the map lookup restored inside the adapter
+    the two "builds a wall carcass at the N mm row" cases stay green and the new one fails — and it
+    measures **both** deep-top rows rather than one. `sink-front-clearance.parity.test.ts` criterion
+    3 now records what it measured and demands the ruled depth still be declared, so pointing the
+    constant at an undeclared 650 turns it red instead of asserting nothing. The original text
+    follows.
+
+    **Two shipped tests can pass for the wrong reason.** `cabinet-depth-source.test.ts` builds only
+    the declared `(cabinetDepthMm, wallDepthMm)` pairs, so a builder that re-derived the number
+    through ADR 0028's map inverted would reproduce both rows and pass; it also measures only one of
+    the two deep tops and only the decomposed body. `sink-front-clearance.parity.test.ts` criterion 3
+    loops the declared depths and `continue`s at every one but 600, so it asserts nothing the day 600
+    leaves the declared map (ADR 0093 decision 1). Both are **covered** by the QA files added
+    2026-09-08; the weakness is in the owning files, which still claim to be the gate.
+  - **~~`sink-front-clearance.parity.test.ts` never measures `countertop_side`.~~ FIXED 2026-09-08
+    (`15a59e2`).** A sixth criterion states the three slabs tiling the stone with no gap: the side
+    pieces start where the back one ends and end where the front one begins. The span really moves
+    (`[-180, 220]` at 600, `[-130, 270]` at 700), and seating the side slabs at the old offset turns
+    **only** this case red — which is what makes the hole real. The original text follows.
+
+    **`sink-front-clearance.parity.test.ts` never measures `countertop_side`.** Freezing the two
+    flanking slabs while the aperture moves would leave a visible slot in the worktop and that file
+    would pass. Caught elsewhere by M1 parity and `room-composition.parity.test.ts`, so it is a hole
+    in the file rather than in the suite.
+  - **`ro.ts` and `ro.json` drifted inside W3.** `f6bf6c4` added three `globalSettings` colour keys to
+    both; `44fe8cd` added `ro.panel.finishFollowsKitchen` to `ro.ts` only. Not a live defect —
+    nothing in `apps/web/src` reads `messages/ro.json` yet. **Information for the M6B session, not
+    work for this one**: M6B and Gate O1 are the owner's own work on `m6b-internationalization`.
+
 - **M5 wave 5E — the browser/mobile gate. Still open and still unverified.** The owner confirmed on
   2026-09-02 that their manual testing was **desktop-browser only**, which does not close a handset
   gate: a real touch digitiser, a mobile GPU and device pixel ratio, and iOS Safari all remain
@@ -254,6 +478,75 @@ one WAF `rate_limit` rule.** A second returns a misleading 401; the edge cannot 
 policy, so every per-endpoint limit is application code.
 
 ## What to do next
+
+**2026-09-08, and this is the first thing to read this morning: `fix/m6-remediation` does not merge to
+`main` yet, and the block is three edits in one test-support file.**
+[ADR 0102](decisions/0102-a-recorded-source-must-explain-its-depth-and-a-second-authority-in-a-test-is-the-defect-laundered.md)
+adjudicates the finding the item 8 implementer raised and refused to treat as settled.
+
+- **The finding is confirmed and is genuinely pre-existing.** Re-measured end-to-end at `ed12804`:
+  `resolveDepthM`'s lifted arm (wave 6I2, on `main` since 2026-09-04) builds a wall body over a
+  full-height column to a depth its entry does not declare, while `restoredColumns` records that entry
+  as the column's source. Reproduces in **three ordinary commands** on declarations ADR 0101 never
+  touched. **ADR 0101's wave is a regression in *reach*, not the cause** — but it does move the shipped
+  kitchen's `B|1.80` extent from 599 mm to **330 mm** after four ordinary commands. Recorded as
+  `docs/BACKLOG.md` **entry 56**, and it opens wave **6Y** against `restoredColumns` in
+  `void-engine.ts`.
+- **ADR 0079 decision 10 point 2 is confirmed unchanged and unnarrowed.** It is the precondition of
+  `frozenDepthAtThisSetting`, not a test convention, so it is an invariant and is not re-quantified to
+  fit the code breaking it (ADR 0090 decision 7; ADR 0091 decision 1, whose Q1 answers *invariant* and
+  whose Q2 fails).
+- **What blocked the merge is discharged, 2026-09-08.** ADR 0102 decision 3's three limbs landed;
+  the net diff is four test files and **zero production files**. `sourceExplainsTheDepth` is gone —
+  it is now `isExplainedOrIsTheKnownLiftedColumnDefect`, keyed on the member actually standing in the
+  column and its recorded seat rather than on a depth coincidence. The breach is pinned positively by
+  `apps/web/tests/store/qa-6y-lifted-column-source.witness.test.ts`, which was **proved red-capable**
+  by simulating 6Y: all six tests fail and the extent becomes 0.7, ADR 0102 decision 4's own
+  prediction for that shape. The old helper was shown laundering the same mutation the new one
+  catches — twelve columns inspected, nothing reported. `reAnswersOneBody`'s extension across ADR
+  0022's swap **stands**, untouched. Note for whoever plans 6Y: the record says the blast radius is
+  three suites; the witness makes it **four**.
+- ~~**One question is for the owner and is deliberately not decided.** Post-ADR-0101, deleting the
+  full-height column beneath a deep top and then changing the depth rebuilds that top from 600 mm
+  finished to 400 mm (`p23`'s seat 561 -> 361, measured). The rule producing it is ADR 0028 decision 5's
+  and is correct; whether it is the product the owner wants has never been asked. Nothing in 6Y turns
+  on the answer.~~ **ANSWERED 2026-09-08 — the owner accepted the 400, and this is no longer open.**
+  Their reason, in their own words: with the whole column emptied, the design should not count on
+  cabinets that used to be there, and ordinary non-full-height cabinets are what you would expect
+  below. ADR 0028 decision 5 is **confirmed** by the ruling rather than overturned by it. Recorded in
+  [ADR 0103](decisions/0103-a-standing-body-is-re-planned-when-something-is-inserted-beneath-it-and-a-delete-leaves-it-alone.md)
+  decision 1, with amendments appended to ADR 0102 and ADR 0101. **Do not carry it forward as open.**
+
+**And the same ruling opened a second one, which is wave 6Z** — planned 2026-09-08 in
+`milestones/M6-price-and-global-settings.md`, ruled by ADR 0103, tier **Full + visual**, **not yet
+implemented**. The owner stated the rule positively — *"if below is the [full-height] cabinet, the top
+cabinet should have the same depth of the [kitchen]"* — and asked for one gap closed: **nothing ever
+re-plans a body that is already standing.**
+
+- **The insert path is already correct for the body being inserted**, measured at `ed6c545` through
+  the ordinary store: a `wall-cabinet` inserted over a standing `tall-pantry` at 700 is written at
+  **661**. So the three reported symptoms are **one defect with three faces** and must be framed that
+  way: delete the pantry and insert a *base* cabinet and the deep top stays at 561 where 291 belongs
+  (600 mm) or 661 where 361 belongs (700 mm); insert a *pantry* under a 361 top and it stays at 361
+  where 661 belongs; and in an emptied column, insert the top first and then the pantry and the top
+  stays at 361.
+- **The delete side is deliberately out of scope, permanently** — owner ruling, with a product reason:
+  a delete is usually the first half of a replacement, so re-planning there does the work twice and
+  makes the scene jump. The interim deep-top-over-nothing state is accepted as transient. **No mirror
+  wave. Anyone reading the asymmetry as an oversight is reading against a dated ruling.**
+- **6Z and 6Y are independent and may land in either order.** 6Y moves recorded sources, 6Z moves
+  member seats; 6Z edits neither `restoredColumns` nor `frozen-source-invariant.ts`, and the 6Y
+  witness performs no insert so it stays byte-identical. **Whichever lands second re-runs the other's
+  suites.**
+- **6Y itself now has a row in the M6 wave table**, which it did not before this pass — ADR 0102
+  opened it on 2026-09-08 and the table never gained it. The table is **48 rows with 2 open (6Y, 6Z)**;
+  the 2026-09-07 sentence *"every row is resolved"* was true of the table and false of the product.
+- **One new backlog entry, 57**: an ordinary `setCabinetDepth(700)` turns `p13` from `hood-600` into
+  `hood` and flips `fixedWidth` **true → false**, handing the customer a width control on an extractor
+  hood. Measured, pre-existing, reachable with no insert at all, and it is product-logic review R3.2's
+  own defect arriving through the depth command instead of the resize. **It is not 6Z's**, and 6Z
+  carries a criterion that the hood's `fixedWidth` stays `true`.
+
 
 **Next: M6, ~~now on branch `wave/6r-control-shapes-and-strip-row`~~** (that is the branch 6R, 6R-b,
 6K-i and 6N-a landed on, 2026-09-06) — ~~**work moved the same day to `wave/6t-finish`, which carries 6T
@@ -520,8 +813,14 @@ exists.
   where the criterion asks for the owner's words. ADR 0092 open input 4.
 - **The two drafted accessory names**, and the breakdown's category word for them. ADR 0092 open
   input 3.
-- **`docs/BACKLOG.md` entry 54** — cabinet depth changes material and not price — which needs the
-  owner's own manufacturer to answer.
+- ~~**`docs/BACKLOG.md` entry 54** — cabinet depth changes material and not price — which needs the
+  owner's own manufacturer to answer.~~ **Half answered 2026-09-07 —
+  [ADR 0100](decisions/0100-depth-is-priced-by-a-dashboard-editable-multiplier-on-the-600-mm-base-and-it-is-deferred.md).**
+  The owner ruled the **shape**: one depth coefficient multiplying the 600 mm base, owned as a
+  dashboard-editable setting, chosen over a per-cabinet 600/700 mapping. *"Like fifteen percent"* is a
+  working figure and not a committed rate, and the owner explicitly postponed the implementation. **It
+  is no longer an open question to put to them** — what remains is the manufacturer's rate, which is
+  the owner's to obtain when they return to it. Do not plan a wave.
 
 **Two things these waves hand the owner, and both are now load-bearing rather than pending.**
 **First, the three drafted push-to-open rates (40 / 120 / 100 MDL).** They were safe to draft only

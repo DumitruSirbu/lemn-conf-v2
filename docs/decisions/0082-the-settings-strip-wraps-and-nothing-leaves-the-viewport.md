@@ -1,8 +1,11 @@
 # ADR 0082 — The whole-kitchen strip wraps, and nothing on it leaves the viewport
 
-Status: Accepted — **decision 1's predicate is amended by this record's own amendment of 2026-09-06**
-(see *Amendment A* at the end, raised by [ADR 0094](0094-the-strip-gets-its-own-row-and-containment-is-measured-against-its-own-band.md)).
-Decisions 2–8 stand unchanged.
+Status: Accepted, **in part** — decision 1's predicate is amended by this record's own amendment of
+2026-09-06 (see *Amendment A*, raised by [ADR 0094](0094-the-strip-gets-its-own-row-and-containment-is-measured-against-its-own-band.md)),
+and **decisions 2, 3, 4 and 8 are superseded or discharged by *Amendment B* of 2026-09-09**
+([ADR 0104](0104-the-mockups-are-the-chrome-specification-and-the-strips-own-row-is-withdrawn.md),
+the owner's instruction that the chrome match the design reference). ~~Decisions 2–8 stand
+unchanged.~~ **Decisions 1 (as amended), 5, 6 and 7 stand unchanged and are enforced.**
 Date: 2026-09-05
 Type: Finding + Decision
 Milestone: M6 — closes `docs/BACKLOG.md` entry 32, schedules entry 33; lands in wave 6R
@@ -55,7 +58,13 @@ It holds at two, three, four and five chips and it holds with a long label, beca
 in a chip come from the price book, which ADR 0062 seam 1 makes data authored outside TypeScript. A
 book with a long tier name is not a hypothetical chip count; it is the same defect with today's two.
 
-**2. The currency is vertical height. The chips wrap; the strip never scrolls horizontally.**
+**2. ~~The currency is vertical height. The chips wrap;~~ the strip never scrolls horizontally.**
+
+> **Superseded in part, 2026-09-09 — *Amendment B*.** There is no longer a row of chips to wrap:
+> [ADR 0104](0104-the-mockups-are-the-chrome-specification-and-the-strips-own-row-is-withdrawn.md)
+> decision 2 replaces it with the single pill frames D2A and 2A draw, and decision 3 there replaces
+> the wrap with frame 2A's own `+N` counter. **The refusal of horizontal scrolling below survives
+> whole**, for exactly the reason given here.
 
 Wrapping is preferred over shrinking, per the owner's *"showing everything"*: a row of three stubs
 each ending in an ellipsis satisfies "nothing off screen" and tells the customer nothing, which is
@@ -68,15 +77,35 @@ line describes the editor panel's own chip rows in the mobile mockup, not the wh
 and ADR 0035 has since replaced the width chips it was chiefly about with a stepper. Nobody may cite
 it to reintroduce a horizontal scroller here.
 
-**3. Shrinking is the last resort inside a line, and the floor is one chip per line.** A chip is
-never narrowed below the width of the line it is alone on. Ellipsis therefore survives for exactly
-one case — a single label longer than a full line — and stops being the normal state of the strip.
+**3. ~~Shrinking is the last resort inside a line, and the floor is one chip per line. A chip is
+never narrowed below the width of the line it is alone on.~~**
 
-**No numeric minimum width is declared, deliberately.** A `min-width` in pixels would fight the
+> **Superseded 2026-09-09 — *Amendment B*.** A rule about a chip's line has nothing to bind on a
+> single pill. Its intent — *"a row of three stubs each ending in an ellipsis… tells the customer
+> nothing"* — is carried forward and tightened by ADR 0104 decision 3: the pill has **exactly one**
+> permitted ellipsis, the material name, where both frames declare it; every other segment is drawn
+> whole or **counted** — and the **last remaining label ellipsises rather than disappearing**, which
+> is the owner's own floor (*"`Pal melaminat + 2` => `Pal mela.. + 2`"*, 2026-09-09). So exactly one
+> ellipsis survives, on whichever label is last, and it is a last resort rather than the normal state
+> — the distinction this clause was reaching for and could not express while there was a row of chips
+> to say it about. The clause's original reasoning is retained below, struck, so a reader who meets a
+> wrapping chips row in an old screenshot can find out why it wrapped.
+
+~~Ellipsis therefore survives for exactly one case — a single label longer than a full line — and
+stops being the normal state of the strip.~~
+
+~~**No numeric minimum width is declared, deliberately.** A `min-width` in pixels would fight the
 wrap it is meant to support and would need re-picking at every viewport; "as wide as its own line"
-is the same guarantee, expressed in a way that scales and can be asserted.
+is the same guarantee, expressed in a way that scales and can be asserted.~~ — **the refusal of a
+numeric `min-width` on this control survives whole**, and ADR 0104 decision 9 is where the one
+number this project does now declare is argued for and made falsifiable.
 
-**4. The trigger is pinned and does not join the wrap.** It keeps `flex: 0 0 auto` beside the chips
+**4. ~~The trigger is pinned and does not join the wrap.~~ Discharged, not overturned.**
+
+> **Discharged 2026-09-09 — *Amendment B*.** The pill *is* the trigger under ADR 0104 decision 2, so
+> there is no chip count for its position to depend on and the property this clause bought holds by
+> construction. The reason below is still the reason, and it is why ADR 0104 refuses a threshold
+> that would move the control between rows. It keeps `flex: 0 0 auto` beside the chips
 box, so its position is a function of the viewport and not of how many chips there are. The chips
 wrap **within their own box**, in the width the trigger leaves. Two reasons, and the second is the
 load-bearing one: a control that moves down the screen as an unrelated setting is added is a control
@@ -100,6 +129,14 @@ measured rather than by a new prediction. A comment stating a layout claim that 
 this defect was inherited.
 
 **8. `docs/BACKLOG.md` entry 33 — the 93.5 × 13 px settings trigger — is fixed in the same wave.**
+
+> **The requirement stands; its mechanism is superseded 2026-09-09 — *Amendment B*.** The 44 px floor
+> is kept by ADR 0104 decision 5. What changes is how: a `min-height` on the control would now make it
+> the tallest child of the frames' own header row and lift the band above the height the frames
+> declare, so the target is expanded by a pseudo-element that takes no layout space, and the gate asks
+> `elementFromPoint` at the area's corners rather than reading the painted box. ~~The trigger's
+> tappable box becomes at least `var(--touch-target)` … **on both shells**~~ — still true, by a
+> different declaration.
 It is a different defect (`.trigger` has `padding: 0`, so its tappable box is the text line box; the
 40 px pill the customer sees is `.anchor`, a different element) but it is in the same two
 stylesheets, it is on the same control, and one visual gate covers both. Fixing them separately
@@ -221,3 +258,54 @@ does not turn two clipped stubs into decision 3's one permitted ellipsis.
 own full-width grid row on the desktop shell, so its width stops being the residue of two contents it
 does not control — the step nav's and the price bar's — and becomes the viewport's. The height that
 costs comes from the stage, which is decision 2's currency and the owner's own ruling.
+
+
+---
+
+## Amendment B — 2026-09-09: the layout this record was written about is withdrawn, and decisions 2, 3, 4 and 8 go with it
+
+**Raised by the owner**, reviewing the shipped configure screen against the mockups they authored:
+*"I wanted to be same as in reference, SAME, because this is the design I made and approve"*, and, on
+the mobile shell, *"on mobile same shit, you done what you wanted not what is in reference"*.
+Adjudicated in
+[ADR 0104](0104-the-mockups-are-the-chrome-specification-and-the-strips-own-row-is-withdrawn.md).
+
+### What is withdrawn, and why it is struck rather than deleted
+
+This record is sound reasoning about a layout the design never asked for. Frames **2A** and **D2A**
+draw the whole-kitchen settings as **one pill in the top bar** — never a row of chips, never a band
+of its own, never a separate text trigger. Frame 2A's answer to a summary that will not fit is the
+counter **`+2`**, and it was never implemented. The containment problem this record exists to solve
+was produced by that departure, not by the design.
+
+So the *reasoning* stays legible in place — a reader who meets a wrapping chips row in an old
+screenshot should be able to find out why it wrapped — and the *clauses* are struck where they no
+longer bind:
+
+| clause | 2026-09-09 |
+| --- | --- |
+| **1** + *Amendment A* | **Stands, enforced, and is the gate on the new layout.** Nothing may leave the viewport, leave its own band, or be clipped by the box it stands in — on a flagged design as well as a seeded one. Not relaxed by one line. |
+| **2** | **Superseded in part.** The wrap and its vertical currency go with the chips row. The refusal of horizontal scrolling survives whole. |
+| **3** | **Superseded; its intent kept and sharpened.** Replaced by ADR 0104 decision 3's ruled ladder — a label is shown whole or counted, and exactly one label, the last, may ellipsise. Its numeric clause (*"no numeric minimum width is declared, deliberately"*) **survives whole** and is re-affirmed by ADR 0104 decision 9. |
+| **4** | **Discharged.** One pill that is its own trigger has no chip count to move with. |
+| **5** | **Stands whole.** The stage is still the grid's only flexible row, and nothing on the bar may overlay the price. |
+| **6** | **Stands, and it cuts both ways.** A frame still does not answer *"may a control leave the screen"* — which is why ADR 0104 decision 8 names a degradation order for narrow desktop instead of drawing D2A at 900 px and hoping. |
+| **7** | **Stands, and is applied to ADR 0104's own numbers.** |
+| **8** | **Requirement stands; mechanism superseded.** See the note at the clause. |
+
+### The owner ruling of 2026-09-05 is superseded, and that is recorded rather than assumed
+
+This record's ruling — *"I will go with showing everything, not going off the screen, even if we
+shrink… Even if you need to just increase the height and take from the vertical height, I'm totally
+okay with this"* — was the owner's answer to **how a chips row that does not fit a 390 px screen
+should behave**. The instruction of 2026-09-09 is later, is about the same surface, and answers a
+wider question: **whether that row should exist**. A later ruling on the wider question wins.
+
+Read literally, the earlier ruling is also *satisfied* by what replaces it: nothing goes off the
+screen, and `+N` says that there is more rather than hiding it.
+
+### What this costs and what it returns
+
+The desktop canvas gets ADR 0094's row back — about 45 px at every width — and the mobile canvas gets
+the whole strip band back, less the 2 px the header grows to hold frame 2A's own chip. The plan is
+[`docs/milestones/chrome-parity-with-the-design-reference.md`](../milestones/chrome-parity-with-the-design-reference.md).

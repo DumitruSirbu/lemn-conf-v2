@@ -13,6 +13,7 @@ import { expect, test, type Page } from "@playwright/test";
 
 import { deleteMintedDesigns } from "./support/minted-designs";
 import {
+  MARK_MIN_RED_EXCESS_OVER_ANY_FINISH,
   capturePatch,
   countChangedPixels,
   countPixelsIn,
@@ -44,32 +45,49 @@ import { readSelection } from "./support/panel";
  * The differencing counter reads **0** in every one of those states and 10 104 – 10 722 when the
  * selection really moves, on every palette measured. That gap is the whole of wave 6V.
  *
- * **`veneer.nuc` does not break `redTint` on the real render, and this file records the miss rather
- * than hiding it.** `qa-6m-mark-composite.adversarial.test.ts` measures every declared wood past
- * the mark's 50-unit red excess — 137 for *Nuc* at the sweep's bright end — and that is a true fact
- * about the **model** colours. Through ACES tone mapping over the real materials, a walnut kitchen
- * reports 0, 0 and 3 red-excess pixels across the whole canvas in the three camera presets. The
- * model's prediction is an upper bound the renderer does not reach; the free colour is what
- * reaches it. Both numbers are asserted below, because a wave that quietly dropped the wood case
- * would leave the next reader believing a breach that is not there.
+ * **The wood case is here, and what this file used to say about it was wrong.**
+ * `qa-6m-mark-composite.adversarial.test.ts` measures every declared wood past a 50-unit red excess —
+ * 137 for *Nuc* at the sweep's bright end — and this file recorded 0, 0 and 3 counted pixels on the
+ * running app and filed the model's number as a bound tone mapping does not reach. **It is reached.**
+ * Measured 2026-09-09, an unmarked oak kitchen puts 194 041 / 193 783 / 278 066 pixels past 50, and
+ * the threshold a counter that may meet a wood has to clear is now 80 (`support/pixels.ts`).
+ *
+ * **The reading was low because the fixture below writes no kitchen colour.** `storeAKitchenWearing`
+ * sets `placement.body.finish` only, and since ADR 0099 Amendment B a structural body follows the
+ * *kitchen's* colour and `drawnFinishOf` ignores its own `body.finish` — so the documents this file
+ * stores are fronts in the named finish over structural bodies in `material.veneer`'s declared
+ * default. Every case here still measures what its name says at the threshold it now uses; the
+ * adversarial file beside it writes both halves and photographs each wood on its own document.
  *
  * Every design minted here is deleted afterwards (ADR 0006).
  */
 
-/** The two taps and the patch are `editor-rail.desktop.e2e.spec.ts`'s, and are its to move: this
+/** The three taps and the patch are `editor-rail.desktop.e2e.spec.ts`'s, and are its to move: this
  *  file is a second reading of the same instrument through the same rectangle, so a patch of its
- *  own would measure a different thing and prove nothing about that file's counts. */
-const SINK_CABINET_FULL_WIDTH = { x: 700, y: 560 };
-const FAR_BASE_CABINET = { x: 700, y: 640 };
-const FRIDGE = { x: 200, y: 500 };
+ *  own would measure a different thing and prove nothing about that file's counts.
+ *
+ *  **Copied across on 2026-09-08**, when the top-bar ruling took the canvas to y 121, 1440 × 779 and
+ *  every tap in that file was re-measured against the running app. Each was re-confirmed here on a
+ *  narrowed walnut document as well as the seeded one — five clicks each, right body 5/5 — because
+ *  this file drives `/d/{id}` rather than the seeded route. The patch is unchanged: `p0`'s own
+ *  region measures page x 432–592, y 479–706 and this box still contains it. */
+const SINK_CABINET_FULL_WIDTH = { x: 700, y: 610 };
+const FAR_BASE_CABINET = { x: 680, y: 650 };
+const FRIDGE = { x: 140, y: 560 };
 const SINK_PATCH: PixelRect = { x: 420, y: 468, width: 180, height: 240 };
 
-/** `p2`'s own region on the **narrowed-room** document, where the canvas starts at page y 114.19
- *  rather than 100 because ADR 0065's flagged total grows the price row. Measured on 2026-09-07 as
- *  the bounding box of the pixels that move when the selection travels between `p0` and `p2` with
- *  the rail open, taken right of the sink patch so only `p2`'s own outline is in it — canvas
- *  x 627–771, y 445–645 — and padded by 12 px. It is a constant of that document and means nothing
- *  on the fitting one. */
+/** `p2`'s own region on the **narrowed-room** document, re-measured 2026-09-08 as the bounding box
+ *  of the pixels that move when the selection travels between `p0` and `p2` with the rail open,
+ *  taken right of the sink patch so only `p2`'s own outline is in it — page x 626–769, y 562–760,
+ *  which this box contains with ~11 px to spare on every side.
+ *
+ *  **The canvas starts at page y 121 here, the same as on the fitting document.** It used to start
+ *  at 114.19 because ADR 0065's flagged total grew the price row *downward*; under the 76 px top bar
+ *  that row is a second grid column beside the header, so the flagged total now grows it
+ *  **sideways** — measured, the header column shrinks from 1126.7 px to 791.84 and the price row
+ *  widens from 313.28 to 648.16, while the row's height stays 76. So the two documents no longer
+ *  differ in canvas origin at all, and this patch is no longer a constant of one of them: it is
+ *  simply `p2`'s region, which both documents project identically. */
 const MARKED_BODY_PATCH: PixelRect = {
   x: 615,
   y: 547,
@@ -98,10 +116,16 @@ const HIGHLIGHT = {
   tolerance: 60,
 } as const;
 const VOID_FILL = { kind: "blueTint", minExcess: 25 } as const;
-const MARK = { kind: "redTint", minExcess: 50 } as const;
+/** Read from `support/pixels.ts` rather than restated: it moved from 50 to 80 on 2026-09-09, when an
+ *  unmarked oak kitchen was measured six figures past the old one. Every document photographed in
+ *  this file wears a finish, including two woods, so this is the threshold it has to clear. */
+const MARK = {
+  kind: "redTint",
+  minExcess: MARK_MIN_RED_EXCESS_OVER_ANY_FINISH,
+} as const;
 
-/** `overflow-mark.e2e.spec.ts`'s own slack for the mark counter, reused so the walnut reading below
- *  is judged by the threshold the shipped mark gate actually uses. */
+/** `overflow-mark.e2e.spec.ts`'s own slack for an absence, reused so the two files agree on what
+ *  counts as "no mark on screen". The slack is shared; the threshold is not — see `MARK` above. */
 const MAX_ABSENT_MARK_PIXELS = 40;
 const MIN_MARK_PIXELS = 2000;
 
@@ -426,7 +450,7 @@ test("a blue front breaks the void's fill counter and not the differencing one",
   await expectTheDifferencingCounterIsUnmoved(page, states);
 });
 
-test("a walnut kitchen does not reach the mark's red excess on the real render, in any preset", async ({
+test("a wood kitchen does not reach the mark's red excess on the real render, in any preset", async ({
   page,
 }) => {
   const finish = paletteFinish("veneer.nuc");
@@ -460,8 +484,9 @@ test("a walnut kitchen does not reach the mark's red excess on the real render, 
       height: Math.round(canvas.height),
     });
 
-    // Measured 0, 0 and 3 in overview, wall A and wall B. The model puts *Nuc* at 137 unmarked;
-    // tone mapping does not carry it there, so `redTint` is not the counter this wood breaks.
+    // The fronts are walnut and the structural bodies are oak (see the fixture note at the head of
+    // this file), so this reading covers the higher of the two woods as well as the named one. Both
+    // stay under 80; oak reaches 76, which is why the threshold is 80 and not the old 50.
     expect(
       await countPixelsIn(page, scene, MARK),
       `${preset.id}: veneer.nuc red excess`,

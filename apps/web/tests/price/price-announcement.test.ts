@@ -56,6 +56,7 @@ vi.mock("@/store/configurator-store", async (importActual) => {
 });
 
 const { PriceBar } = await import("@/price/price-bar");
+const { FlaggedTotalWarning } = await import("@/price/flagged-total-warning");
 
 function priceOf(design: Design): PricingResult {
   return priceDesign({
@@ -82,6 +83,14 @@ function overflowingDesign(): Design {
 function barMarkup(pricing: PricingResult): string {
   barState.pricing = pricing;
   return renderToStaticMarkup(createElement(PriceBar));
+}
+
+/** The flagged total's own surface since ADR 0104 decision 8b: the owner ruled the sentence out of
+ *  the top bar and onto the scene. **The region moved; the announcement did not**, which is what the
+ *  cases below are about — so they follow it here rather than being deleted with the bar's copy. */
+function flaggedTotalMarkup(pricing: PricingResult): string {
+  barState.pricing = pricing;
+  return renderToStaticMarkup(createElement(FlaggedTotalWarning));
 }
 
 function panelMarkup(pricing: PricingResult): string {
@@ -122,9 +131,9 @@ function flagRegionOf(markup: string, testId: string): string {
 }
 
 describe.each([
-  ["the price bar", barMarkup, "price-bar-flag-region"],
-  ["§9's footer", panelMarkup, "panel-price-flag-region"],
-])("%s announces its total politely", (_surface, render, regionTestId) => {
+  ["the price bar", barMarkup],
+  ["§9's footer", panelMarkup],
+])("%s announces its total politely", (_surface, render) => {
   it("makes the figure a live region, and exactly one of them", () => {
     const markup = render(priceOf(KITCHEN_L_DESIGN));
 
@@ -141,6 +150,23 @@ describe.each([
     expect(markup).not.toContain('role="alert"');
   });
 
+  it("leaves the warning out of the figure's own region, so a width step does not re-read it", () => {
+    const markup = render(priceOf(overflowingDesign()));
+    const figure =
+      /aria-live="polite"[^>]*>(.*?)<\/p>/s.exec(markup)?.[1] ?? "";
+
+    expect(figure).toContain("MDL");
+    expect(figure).not.toContain(ro.price.overflowingTotalWarning);
+  });
+});
+
+/** **The surface the flagged sentence is on since ADR 0104 decision 8b**, and §9's footer, which did
+ *  not move. The bar is no longer one of them: the owner ruled the sentence out of the top bar, so
+ *  the assertion that it is *not* there is what the bar owes now — see below. */
+describe.each([
+  ["the scene's flagged total", flaggedTotalMarkup, "price-bar-flag-region"],
+  ["§9's footer", panelMarkup, "panel-price-flag-region"],
+])("%s carries the flag's own region", (_surface, render, regionTestId) => {
   it("keeps the warning's region mounted while there is nothing to say", () => {
     // The region has to be in the accessibility tree *before* the warning arrives, or its arrival —
     // the announcement that matters — can be missed entirely.
@@ -158,12 +184,28 @@ describe.each([
     );
   });
 
-  it("leaves the warning out of the figure's own region, so a width step does not re-read it", () => {
+  it("never interrupts — no assertive region and no alert anywhere", () => {
     const markup = render(priceOf(overflowingDesign()));
-    const figure =
-      /aria-live="polite"[^>]*>(.*?)<\/p>/s.exec(markup)?.[1] ?? "";
 
-    expect(figure).toContain("MDL");
-    expect(figure).not.toContain(ro.price.overflowingTotalWarning);
+    expect(markup).not.toContain("assertive");
+    expect(markup).not.toContain('role="alert"');
+  });
+});
+
+describe("the price bar, after the sentence left it", () => {
+  it("draws no flagged-total sentence and reserves no region for one", () => {
+    // ADR 0104 decision 8b, owner 2026-09-09. The point of the move is that the top bar keeps frame
+    // D2A's shape on a flagged design as well as a seeded one, and the bar carrying neither the
+    // sentence nor an empty region for it is what makes that true rather than nearly true.
+    const markup = barMarkup(priceOf(overflowingDesign()));
+
+    expect(markup).not.toContain(ro.price.overflowingTotalWarning);
+    expect(markup).not.toContain('data-testid="price-bar-flag-region"');
+  });
+
+  it("still shows the total it would have flagged", () => {
+    // Non-vacuity for the case above: the bar renders, and what is absent is the sentence rather
+    // than the surface.
+    expect(barMarkup(priceOf(overflowingDesign()))).toContain("MDL");
   });
 });

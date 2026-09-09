@@ -71,15 +71,34 @@ nothing" without going to the database. The column was verified present by readi
 1. **Applying a migration to a deployed environment is a first-class release step**, not a
    consequence of merging the file. It is recorded in the wave that adds the migration, and the
    wave does not close until the deployed schema has been **read back and quoted**.
+   **Amended 2026-09-07 by [ADR 0096](0096-the-deployed-schema-is-proved-by-a-gate-and-production-was-never-in-the-runners-path.md)
+   decision 5, in one clause only.** On the owner's direction that migrations run in the deployment
+   pipeline, an **additive, idempotent** migration is applied by that pipeline **without a human
+   present**, so *"with the owner's authorisation"* no longer governs that class. Everything else in
+   this decision stands, and the authorisation requirement stands unchanged for any migration that
+   can destroy or rewrite data, or that cannot run inside the runner's transaction — which the
+   pipeline must **refuse** rather than run. The read-back is not weakened by the automation; ADR
+   0096 decision 3 makes it a standing guard precisely because a pipeline that trusts its own exit
+   status repeats this record's finding.
 2. **Verification is by inspecting the schema, never by the migrate command's exit status.**
    `information_schema.columns` for the shape; `has_column_privilege` / `has_table_privilege` for
    the grants — asking Postgres what the role *was granted*, rather than inferring it from the
    absence of a column-level ACL, which does not establish what was granted in the first place.
-3. **The persistence suite keeps a standing assertion that the application database carries the
+3. ~~**The persistence suite keeps a standing assertion that the application database carries the
    current schema**, whose failure message names the fix command so the failure explains itself.
    This is the one check that would have caught it, and it necessarily reads the application
    database — read-only, schema only, never its rows, so ADR 0006's guard against *writing* to the
-   application database is untouched.
+   application database is untouched.~~
+   **Amended 2026-09-07 by [ADR 0096](0096-the-deployed-schema-is-proved-by-a-gate-and-production-was-never-in-the-runners-path.md)
+   decision 2 — the intent stands, the mechanism does not.** This assertion **was never
+   implemented**, and on 2026-09-07 the failure it was written to catch happened again, in
+   production, found by a customer. ADR 0096 finding 4 also records that it would not have been
+   sufficient as specified: a suite-level check inherits its target from whichever untracked
+   `.env` file the executing machine supplies — production from the repository root, preview from
+   `apps/web` (ADR 0054), nothing in CI — and `describe.skipIf(!hasLiveDatabase)` keeps it silent
+   exactly where it must speak. The read-back is therefore a **deploy-time gate naming each
+   environment**, able to fail in the pipeline. A suite-level assertion may stand beside it; it may
+   not be it. **Decisions 1 and 2 are unaffected and are restated by ADR 0096.**
 4. **`migrate` must report what it applied.** A migration runner that prints nothing on success is
    indistinguishable from one that did nothing, which is precisely the failure ADR 0013 recorded.
    Scoped as a follow-up rather than done here; owner named below.
@@ -90,6 +109,13 @@ nothing" without going to the database. The column was verified present by readi
    application connects as `app_designs`, which by ADR 0008 deliberately holds no DDL privilege, and
    migrations use a separate owner connection. Handing DDL to the runtime role to make deployment
    convenient would reverse a security decision to save an operational step.
+   **Still rejected as written, 2026-09-07 — and read the distinction
+   [ADR 0096](0096-the-deployed-schema-is-proved-by-a-gate-and-production-was-never-in-the-runners-path.md)
+   decision 2 draws on it.** The owner has directed that migrations run in the deployment *pipeline*,
+   which is not this: this rejection is about *which role executes DDL*, and ADR 0096 chooses a
+   GitHub Actions job holding its own credential, handing DDL to no runtime. Running `migrate` from
+   Vercel's `buildCommand` **is** this alternative's case and remains refused, on this reasoning plus
+   four more recorded there.
 2. **Let the test suite migrate the application database.** Rejected outright — it inverts ADR 0006,
    whose entire purpose is that tests never touch the application's database.
 3. **Treat it as a one-off operator slip.** Rejected: the whole point is that nothing in the

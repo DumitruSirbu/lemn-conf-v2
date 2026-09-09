@@ -25,6 +25,12 @@ import { describe, expect, it } from "vitest";
 import { createConfiguratorStore } from "@/store/configurator-store";
 
 import { createFakeProbeFactory } from "../support/fake-body-probe";
+import {
+  catalogWithAPinnedTop,
+  designWithAPinnedTop,
+  PINNED_TOP_WITNESS_BUILD_ID,
+  PINNED_TOP_WITNESS_PLACEMENT_ID,
+} from "../support/pinned-top-witness";
 import { columnKeyAt } from "../support/wall-b-column-keys";
 import {
   assertSourcesExplainTheirDepths,
@@ -45,11 +51,17 @@ const DISHWASHER_BUILD_ID = "base-dishwasher-600";
 const FRIDGE_KEY = "B|2.45";
 const FRIDGE_BUILD_ID = "fridge-free-700";
 
-/** `B|1.80`: a pantry under one of ADR 0058's two deliberately deep tops. The **top** wins §3.2's MAX
- *  here (600 against the pantry's 599), so this column's recorded source is a pinned row. */
+/** `B|1.80`: a pantry under a top that wins §3.2's MAX here — 600 against the pantry's 599.
+ *
+ *  **The top this suite pins is its own** (`tests/support/pinned-top-witness.ts`, ADR 0101
+ *  decision 3). It was ADR 0058's `wall-2door-600-deep-top` until 2026-09-07, and that row now
+ *  follows the setting like every other cabinet; keeping one of the owner's three held back so this
+ *  file could stay red-capable is the moved fixture ADR 0093 refuses. */
 const PANTRY_KEY = "B|1.80";
-const PANTRY_MEMBERS = ["p6", "p23"];
-const PINNED_TOP_BUILD_ID = "wall-2door-600-deep-top";
+const PANTRY_MEMBERS: readonly string[] = [
+  "p6",
+  PINNED_TOP_WITNESS_PLACEMENT_ID,
+];
 
 /** `A|0.30`: a wall run with nothing under it but the corner base, so clearing it leaves a member-less
  *  **wall** column — the one shape in ADR 0073's residue that reaches a body somebody builds. */
@@ -57,6 +69,12 @@ const WALL_KEY = "A|0.30";
 const WALL_MEMBERS = ["p8", "p15"];
 
 const DISHWASHER_MEMBERS = ["p1", "p12", "p18"];
+
+/** A **wall** body of this kitchen standing one column over, in the shipped catalogue at both
+ *  settings — so the invariant will inspect it — and in no lifted column. The band matters: the
+ *  acknowledged exemption is offered to wall and top sources only, so a source of any other band
+ *  would fail for the wrong reason and prove nothing about the keying. */
+const INTRUDING_WALL_BUILD_ID = "wall-corner-return-570";
 
 function createStore(design: Design = KITCHEN_L_DESIGN) {
   return createConfiguratorStore({
@@ -67,12 +85,24 @@ function createStore(design: Design = KITCHEN_L_DESIGN) {
   });
 }
 
+/** The shipped kitchen with this suite's declared pinned top at `B|1.80`, and a catalogue holding
+ *  it — the fixture the "a body the setting does not move" claim needs now that no shipped cabinet
+ *  is one. */
+function createStoreWithAPinnedTop() {
+  return createConfiguratorStore({
+    design: designWithAPinnedTop(),
+    catalogAt: catalogWithAPinnedTop,
+    probeAt: createFakeProbeFactory(),
+    now: () => OCCURRED_AT,
+  });
+}
+
 type Store = ReturnType<typeof createStore>;
 
 /** What this entry declares it fills, at this cabinet depth — the one answer ADR 0073 decision 2
  *  re-asks, read the same way the store reads it. */
 function declaredDepthM(buildId: string, cabinetDepthMm: number): number {
-  const definition = buildKitchenLBodyCatalog(cabinetDepthMm).get(buildId);
+  const definition = catalogWithAPinnedTop(cabinetDepthMm).get(buildId);
   if (!definition) throw new Error(`${buildId} is not in the catalogue`);
   return occupiedDepthOfEntryM({ buildId, definition });
 }
@@ -165,20 +195,33 @@ describe("an extent whose depth came from a body the setting does not move", () 
   // ADR 0073 decision 2: this falls out of the entry's own `finishesAtMm` declaration, which is not a
   // function of the cabinet depth. Nothing in the store names these ids or their bands.
   it.each([
-    ["a freestanding appliance", FRIDGE_KEY, ["p7"], FRIDGE_BUILD_ID],
-    [
-      "one of the two pinned deep tops",
-      PANTRY_KEY,
-      PANTRY_MEMBERS,
-      PINNED_TOP_BUILD_ID,
-    ],
-  ])("does not move either: %s", (_name, key, members, buildId) => {
-    const store = removeAll(createStore(), members);
+    {
+      name: "a freestanding appliance",
+      key: FRIDGE_KEY,
+      members: ["p7"] as readonly string[],
+      buildId: FRIDGE_BUILD_ID,
+      openStore: createStore,
+    },
+    {
+      name: "a pinned cabinet this suite declares",
+      key: PANTRY_KEY,
+      members: PANTRY_MEMBERS,
+      buildId: PINNED_TOP_WITNESS_BUILD_ID,
+      openStore: createStoreWithAPinnedTop,
+    },
+  ])("does not move either: $name", ({ key, members, buildId, openStore }) => {
+    const store = removeAll(openStore(), members);
     const frozenM = columnOf(store, key).d;
 
     store.getState().setCabinetDepth(DEEPER_MM);
 
-    assertSourcesExplainTheirDepths(store.getState(), "after setCabinetDepth");
+    // **The witness catalogue is handed over, not left to default** (ADR 0101 decision 3). A source
+    // the helper cannot look up is skipped as a legal state, so a declared body checked against the
+    // shipped map would be invisible to the very invariant this line is here to apply.
+    assertSourcesExplainTheirDepths(
+      { ...store.getState(), catalogAt: catalogWithAPinnedTop },
+      "after setCabinetDepth",
+    );
     expect(frozenM).toBeCloseTo(
       declaredDepthM(buildId, DEFAULT_CABINET_DEPTH_MM),
       6,
@@ -404,7 +447,7 @@ describe("a published depth names the body it came from", () => {
   // rather than merely being green beside the fix.
   it("reports the pair the pre-fix code published, so it can fail at all", () => {
     const store = createStore();
-    removeAll(store, ["p23"]);
+    removeAll(store, [PINNED_TOP_WITNESS_PLACEMENT_ID]);
     store.getState().setCabinetDepth(DEEPER_MM);
     // **The guard's assertion is unchanged and its anchor is now setting-dependent** (ADR 0090
     // decision 7). The column this test corrupts is the same column; wave 6J-d slid it 100 mm along
@@ -413,11 +456,18 @@ describe("a published depth names the body it came from", () => {
     const pantryKey = columnKeyAt(PANTRY_KEY, DEEPER_MM);
     const repaired = columnOf(store, pantryKey);
 
-    // The pre-fix answer: the same depth — 699 is correct, the pantry is standing in it — beside the
-    // source the old code carried across untouched, which declares 600 at every setting.
+    // The pre-fix answer: the same depth — correct, the pantry is standing in it — beside a source
+    // the old code carried across untouched, which declares a depth this column does not have.
+    //
+    // **The corrupting source is the fridge since ADR 0101.** It was `wall-2door-600-deep-top`,
+    // which declared 600 at every setting; that row now follows the setting, so at 700 it declares
+    // exactly what this column carries and could no longer make the predicate fire. `fridge-free-700`
+    // is a manufactured size — 742 at every setting, a body of this kitchen standing one column over
+    // — so it is the same kind of wrongness the pin used to supply, and it is in the shipped
+    // catalogue, which `unexplainedColumns` requires of a source before it will inspect one at all.
     const asPublishedBeforeTheFix = new Map(store.getState().columns).set(
       pantryKey,
-      { ...repaired, depthFromBuildId: PINNED_TOP_BUILD_ID },
+      { ...repaired, depthFromBuildId: FRIDGE_BUILD_ID },
     );
 
     expect(
@@ -431,6 +481,45 @@ describe("a published depth names the body it came from", () => {
       declaredDepthM(repaired.depthFromBuildId ?? "", DEEPER_MM),
       9,
     );
+  });
+
+  // **The same F1 shape, inside the one column the acknowledged exemption covers** — ADR 0102
+  // decision 3a, and the reason that exemption is keyed on a standing member rather than on a
+  // number.
+  //
+  // `B|1.90` at 700 is the column wave 6I2's defect lives in: it publishes exactly
+  // `columnBuildDepthM`'s lifted arm, and its recorded source declares 400. The predicate ADR 0102
+  // refused asked only whether the depth equalled that arm, so **every** source id in this column
+  // passed — one declaring 330, one declaring 620, one naming a body that was never there — and the
+  // adversarial suite stopped inspecting the single column that matters. Keyed on the member instead,
+  // a record naming a body no one standing here carries fails exactly as F1 did.
+  it("reports a lifted column whose source no member standing in it carries", () => {
+    const store = createStore();
+    store.getState().setCabinetDepth(DEEPER_MM);
+    const liftedKey = columnKeyAt(PANTRY_KEY, DEEPER_MM);
+    const lifted = columnOf(store, liftedKey);
+    // Non-vacuous: this really is the lifted column publishing the lifted arm, so the assertion
+    // below is about the exemption's own population and not about some ordinary column beside it.
+    expect(lifted.hasFullHeightUnder).toBe(true);
+    expect(lifted.d).toBeCloseTo(
+      columnBuildDepthM({
+        cabinetDepthMm: DEEPER_MM,
+        hasFullHeightUnder: true,
+      }),
+      9,
+    );
+
+    const namingABodyThatIsNotThere = new Map(store.getState().columns).set(
+      liftedKey,
+      { ...lifted, depthFromBuildId: INTRUDING_WALL_BUILD_ID },
+    );
+
+    expect(
+      unexplainedColumns({
+        design: store.getState().design,
+        columns: namingABodyThatIsNotThere,
+      }),
+    ).toHaveLength(1);
   });
 });
 
@@ -494,7 +583,11 @@ describe("the depths this wave promised not to move", () => {
         "B|0.69": 0.39999999999999997,
         "B|0.84": 0.7,
         "B|1.30": 0.738,
-        "B|1.90": 0.699,
+        // **0.700 since ADR 0101, and it is the top that states it.** The pantry finishes at 699 and
+        // the deep top above it at 700, so §3.2's MAX is the top's by a millimetre. It read 0.699
+        // while that top was pinned at 600 — the one number in this table the wave moves, and the
+        // 600 mm half above is untouched, which is ADR 0101 decision 4 stated as a fixture.
+        "B|1.90": 0.7000000000000001,
         "B|2.55": 0.742,
       },
       saved: {
@@ -508,7 +601,8 @@ describe("the depths this wave promised not to move", () => {
         "B|685": 400,
         "B|840": 700,
         "B|1300": 738,
-        "B|1900": 699,
+        // The saved half of the same millimetre; see the published table above.
+        "B|1900": 700,
         "B|2550": 742,
       },
     },

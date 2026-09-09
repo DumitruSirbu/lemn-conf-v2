@@ -53,8 +53,27 @@ anywhere.
 **3. The third requirement is deferred to M6 because it cannot exist yet.** "The total does not move"
 needs a total. There is no price bar until M6, and §12 requires price to be derived from
 `placements` and never stored. M6 inherits this: when the price bar lands, the 2C requirement to
-verify is that a refused edit leaves the total unchanged and, on desktop, explicitly labelled
-unchanged.
+verify is that a refused edit leaves the total unchanged and, ~~on desktop, explicitly labelled
+unchanged~~.
+
+> **The labelling half is withdrawn by the owner, 2026-09-09.** M6 closed this requirement in wave
+> 6C by labelling the figure *"De la neschimbat"* while a refusal stood — frames D2C and 2C draw
+> that word, and the owner ruled its punctuation on 2026-09-03. On 2026-09-09 they withdrew the
+> mechanism itself: *"event to state that your change didn't changed the price, I didn't request
+> this"*, settled on the reasoning that **§9's refusal banner already says the edit was refused**, in
+> a sentence, at the place the customer was looking — so a second signal on a surface at the other
+> end of the screen restated it, and fired on every refusal type including ones where nobody would
+> look at the price at all, such as editing a read-only link.
+>
+> **So the first half of this requirement stands and the second is gone.** A refused edit still
+> leaves the total unchanged, and that is still asserted — over the whole figure now rather than its
+> amount alone. What no longer exists is any label saying so. Frames D2C and 2C are superseded on
+> this point by their own author, dated, and the supersession is recorded beside the copy in
+> `apps/web/src/content/ro.ts` and in `apps/web/src/price/starting-price.ts`.
+>
+> **This record is therefore closed rather than unmet**: the requirement it carried was answered and
+> then half of it was withdrawn by the person it was written for. Do not reopen it as an outstanding
+> M6 item.
 
 ## Alternatives considered
 

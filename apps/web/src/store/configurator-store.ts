@@ -22,6 +22,7 @@ import {
   refuse,
   removePlacement,
   setCabinetDepth as setCabinetDepthOnDesign,
+  clearFinish as clearFinishOnDesign,
   setFinish as setFinishOnDesign,
   setHandle as setHandleOnDesign,
   setHardwareTier as setHardwareTierOnDesign,
@@ -51,8 +52,23 @@ import {
 } from "@/persistence/save-coalescer";
 
 import { applyCommandResult, type Selection } from "./apply-command-result";
+import {
+  preflightWholeKitchenSettings,
+  type WholeKitchenSetting,
+  type WholeKitchenSettingsRequest,
+} from "./whole-kitchen-apply";
 
 export type { Selection };
+
+/** What one press of the settings sheet's *Aplică* did. `committed: false` carries the setting that
+ *  refused, because the sheet has to say which change it kept the customer on. */
+export type WholeKitchenApplyOutcome =
+  | { readonly committed: true }
+  | {
+      readonly committed: false;
+      readonly setting: WholeKitchenSetting;
+      readonly reason: RejectionReason;
+    };
 
 /** The save-coalescer's own status, re-exported rather than restated: the store is where the UI
  *  reads it from, and two copies of the union would be free to drift. `idle` covers both "never
@@ -98,10 +114,13 @@ export interface ConfiguratorState {
    *  design at 700 mm can never be held beside a map built at 600. */
   readonly catalog: BodyCatalog;
   /** Extent frozen at load time, `hasFullHeightUnder` live — see the file header and ADR 0011
-   *  Gap D. */
+   *  Gap D. **The published face**: what `voids` are derived from, so nothing past the end of a
+   *  wall is ever offered or drawn (ADR 0069). */
   readonly columns: ReadonlyMap<string, Column>;
-  /** The same map with ADR 0069's wall-end cap not applied — what the document is projected from,
-   *  and read by nothing else (ADR 0090 Amendment B, and `AppliedCommandState.recordedColumns`). */
+  /** The same map with ADR 0069's wall-end cap not applied — **what a command is handed and what
+   *  the document is projected from** (ADR 0090 Amendment B and its addendum, and
+   *  `AppliedCommandState.recordedColumns`). Backlog 52 added the first half: a command whose
+   *  `effect.columns` replaces the map whole must edit the face it is allowed to rewrite. */
   readonly recordedColumns: ReadonlyMap<string, Column>;
   readonly voids: readonly VoidRecord[];
   readonly selection: Selection;
@@ -114,6 +133,10 @@ export interface ConfiguratorState {
   readonly remove: () => void;
   readonly insert: (buildId: string) => void;
   readonly setFinish: (finish: Finish) => void;
+  /** ADR 0099 decision 8: this cabinet stops choosing and follows the kitchen's colour again. It
+   *  takes no finish, because it writes none — the key is deleted, which is what makes the cabinet
+   *  track the *next* global change as well as this one. */
+  readonly clearFinish: () => void;
   readonly setHandle: (handle: Handle) => void;
   /** §5.4's resize, and the last of §9's five verbs to be wired. It takes a width and nothing else:
    *  which bodies move, which column funds it and whether it is legal at all are ADR 0031's rules,
@@ -137,6 +160,20 @@ export interface ConfiguratorState {
    *  It needs the body probe for the same reason `insert` and `setWidth` do — every body is rebuilt
    *  through `evaluateInsertFit` — and refuses `BODY_PROBE_UNAVAILABLE` without one. */
   readonly setCabinetDepth: (cabinetDepthMm: number) => void;
+  /**
+   * **Wave W2: the three settings above as one press** (M6-AUD-004). Every requested change is run
+   * against the previous one's design before anything is held, so the store commits all of them or
+   * none — a depth refused after a material succeeded now leaves the document exactly as it was.
+   *
+   * **It reports whether it committed**, unlike every other action here, and that is deliberate
+   * rather than a lapse: the sheet stays open on a refusal and names the setting that refused, and
+   * reading `lastRejection` afterwards cannot tell this press's refusal from one already on screen.
+   * The domain's own commands answer the same way, so this mirrors their shape rather than
+   * inventing one.
+   */
+  readonly applyWholeKitchenSettings: (
+    request: WholeKitchenSettingsRequest,
+  ) => WholeKitchenApplyOutcome;
   /**
    * **The factory the scene attached** — the single source, and the one thing
    * `isBodyProbeAttached` is derived from.
@@ -303,7 +340,23 @@ interface CommandContext {
    *  command answered against the map the store opened with would evaluate the new design at the
    *  old depth. */
   readonly catalog: BodyCatalog;
+  /** **The recorded face** (ADR 0090 Amendment B's addendum, backlog 52). `setWidth` and
+   *  `insertBody` return a map that *replaces* this one whole, so a published map handed in here
+   *  comes back out as the document's own record: an unrelated resize on wall A took 100 mm off a
+   *  wall-B space the room-derived cap had bounded, permanently and silently. The cap belongs to
+   *  what is offered, so the map a command edits is the one it has never touched — the same rule
+   *  `applyCommandResult` already follows for its fall-through arm.
+   *
+   *  Safe to look a void up in because the cap preserves a column's key
+   *  (`clip-empty-columns-at-wall-end.ts`): a void carries the published key, which is the recorded
+   *  key, so nothing here resolves against a column that is not there. */
   readonly columns: ReadonlyMap<string, Column>;
+  /** **The published openings**, and the other half of what backlog 52 left open. `insertBody`
+   *  built its own list from `columns` above, so handing it the recorded face handed it a recorded
+   *  *opening* — a body placed 100 mm past the end of wall B out of an opening ADR 0069's owner
+   *  ruling says may never be offered at all. The same list §9's offer list is drawn from
+   *  (`use-panel-view.ts`), so a tap does what the row it came from said. */
+  readonly voids: readonly VoidRecord[];
   readonly target: CommandTarget;
 }
 
@@ -402,7 +455,8 @@ export function createConfiguratorStore(
           ? command({
               design: state.design,
               catalog: state.catalog,
-              columns: state.columns,
+              columns: state.recordedColumns,
+              voids: state.voids,
               target: state.selection,
             })
           : refuse(state.design, { code: "TARGET_NOT_FOUND", params: {} }),
@@ -434,25 +488,27 @@ export function createConfiguratorStore(
       },
       insert: (buildId) => {
         const probeAt = get().probeAt;
-        runCommand(({ design: current, catalog: held, columns, target }) =>
-          probeAt
-            ? // Borrowed for this command and given back before it returns (ADR 0076 decision 1).
-              probeAt(cabinetDepthMmOf(current)).use((probe) =>
-                insertBody({
-                  design: current,
-                  columns,
-                  target,
-                  catalog: held,
-                  buildId,
-                  probe,
-                  occurredAt: now(),
-                }),
-              )
-            : // A missing probe is a refusal, not a throw: `isBodyProbeAttached` exists so a
-              // control is never offered before the scene is ready, and this is the safety net
-              // beneath that. It sits **after** the selection check, so `insert` fails the same
-              // way the other three commands do when nothing is selected.
-              refuse(current, { code: "BODY_PROBE_UNAVAILABLE", params: {} }),
+        runCommand(
+          ({ design: current, catalog: held, columns, voids, target }) =>
+            probeAt
+              ? // Borrowed for this command and given back before it returns (ADR 0076 decision 1).
+                probeAt(cabinetDepthMmOf(current)).use((probe) =>
+                  insertBody({
+                    design: current,
+                    columns,
+                    voids,
+                    target,
+                    catalog: held,
+                    buildId,
+                    probe,
+                    occurredAt: now(),
+                  }),
+                )
+              : // A missing probe is a refusal, not a throw: `isBodyProbeAttached` exists so a
+                // control is never offered before the scene is ready, and this is the safety net
+                // beneath that. It sits **after** the selection check, so `insert` fails the same
+                // way the other three commands do when nothing is selected.
+                refuse(current, { code: "BODY_PROBE_UNAVAILABLE", params: {} }),
         );
       },
       setFinish: (finish) => {
@@ -462,6 +518,16 @@ export function createConfiguratorStore(
             target,
             catalog: held,
             finish,
+            occurredAt: now(),
+          }),
+        );
+      },
+      clearFinish: () => {
+        runCommand(({ design: current, catalog: held, target }) =>
+          clearFinishOnDesign({
+            design: current,
+            target,
+            catalog: held,
             occurredAt: now(),
           }),
         );
@@ -542,6 +608,29 @@ export function createConfiguratorStore(
                 params: {},
               }),
         );
+      },
+      applyWholeKitchenSettings: (request) => {
+        const state = get();
+        const preflight = preflightWholeKitchenSettings(request, {
+          design: state.design,
+          catalogAt: options.catalogAt,
+          probeAt: state.probeAt,
+          occurredAt: now(),
+        });
+        if (preflight.outcome === "refused") {
+          // The one thing a refusal writes, exactly as `applyResult` writes it for a single
+          // command: the sentence, and nothing of the design.
+          set({ lastRejection: preflight.reason });
+          return {
+            committed: false,
+            setting: preflight.setting,
+            reason: preflight.reason,
+          };
+        }
+        // `"unchanged"` runs no command, so it schedules no save: an untouched sheet must leave the
+        // document — and its `updatedAt` — exactly where it found them.
+        if (preflight.outcome === "ready") applyResult(preflight.result);
+        return { committed: true };
       },
       probeAt: options.probeAt,
       isBodyProbeAttached: options.probeAt !== undefined,

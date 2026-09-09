@@ -39,6 +39,7 @@ import {
   describeRoundedAmount,
   describeStartingPrice,
   type PriceFigure,
+  holdsNoCabinets,
 } from "./starting-price";
 
 /** One line of the breakdown: what it is, and what it costs. `key` is the id it traces back to —
@@ -139,6 +140,19 @@ export function describePriceBreakdown(
   if (!input.pricing.ok) return UNAVAILABLE_BREAKDOWN;
 
   const { priced } = input.pricing;
+  // **M6-AUD-014**: there is no price to explain, so there is no breakdown and no control that opens
+  // one. Reported as `unavailable` rather than as an empty breakdown, because the alternative is the
+  // exact presentation the audit named — the two whole-kitchen tiers rendered *inclus* over a
+  // kitchen with nothing in it, which reads as a costed answer. The bar carries the owner's prompt;
+  // one surface says the one thing there is to say.
+  //
+  // **Both halves, and the second is what keeps the divergence guard below alive.** An empty kitchen
+  // is a priced design with no cabinet lines *and* a projection with no groups. Absent cabinet lines
+  // beside groups that name bodies is not emptiness — it is exactly the divergence this surface
+  // refuses to render, and returning early on the first half alone would have swallowed it whenever
+  // every line went missing at once.
+  if (holdsNoCabinets(priced) && input.groups.length === 0)
+    return UNAVAILABLE_BREAKDOWN;
   const amountByPlacement = indexCabinetAmounts(priced.lines);
   const groups = input.groups.map((group) =>
     toBreakdownGroup(group, amountByPlacement),
@@ -153,10 +167,7 @@ export function describePriceBreakdown(
     groups,
     wholeKitchenRows: priced.lines.filter(isUnplacedLine).map(toUnplacedRow),
     note: ro.priceBreakdown.note,
-    figure: describeStartingPrice({
-      label: ro.price.startingPrefix,
-      totalMinor: priced.totalMinor,
-    }),
+    figure: describeStartingPrice({ totalMinor: priced.totalMinor }),
     ...(warning === undefined ? {} : { overflowWarning: warning }),
     closeLabel: ro.priceBreakdown.close,
   };

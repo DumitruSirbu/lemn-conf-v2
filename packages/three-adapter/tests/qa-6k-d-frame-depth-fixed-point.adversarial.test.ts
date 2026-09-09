@@ -10,7 +10,9 @@
 // catalogue at **every** declared depth, both builder families, seeded rows included.
 import {
   buildKitchenLBodyCatalog,
+  columnBuildDepthMm,
   declaredCabinetDepthsMm,
+  declaresALiftedColumnDepth,
   toMetres,
   wallCarcassDepthMm,
   type BodyDefinition,
@@ -187,10 +189,13 @@ function declaredFinishedDepthMm(
   const rule = definition.depthRule;
   if (rule === undefined) return undefined;
   if (rule.follows === "pinned") return rule.pinnedFinishedDepthMm;
-  if (rule.follows === "cabinet-depth") {
-    return wallCarcassDepthMm(cabinetDepthMm);
-  }
-  return undefined;
+  if (rule.follows !== "cabinet-depth") return undefined;
+  // **Two declarations answer, not one** (ADR 0101 decision 1). A wall row over a full-height column
+  // is out of the head-clearance cap's reach, so its finished depth is `columnBuildDepthMm`'s lifted
+  // arm and not the map's row. Read off the entry, never guessed from its id or its size.
+  return declaresALiftedColumnDepth(definition)
+    ? columnBuildDepthMm({ cabinetDepthMm, hasFullHeightUnder: true })
+    : wallCarcassDepthMm(cabinetDepthMm);
 }
 
 // **Claim two: the geometry, which is what pins the value.**
@@ -218,7 +223,7 @@ describe("a recorded shell's two declared numbers, against the built body", () =
   }
 
   it.each(declaredCabinetDepthsMm())(
-    "reaches fronted rows, an unfronted one and a pinned one at %i mm",
+    "reaches fronted rows, an unfronted one and a lifted one at %i mm",
     (cabinetDepthMm) => {
       const rows = shellRows(cabinetDepthMm);
       const unfronted = rows.filter(
@@ -226,13 +231,17 @@ describe("a recorded shell's two declared numbers, against the built body", () =
           definition.occupiedDepth.measuredFrom === "recorded-shell" &&
           definition.occupiedDepth.frontAssemblyMm === 0,
       );
-      const pinned = rows.filter(
-        ([, definition]) => definition.depthRule?.follows === "pinned",
+      // **The third arm, re-founded by ADR 0101.** It was the pinned rows until 2026-09-07, and it
+      // is the rows a lifted column answers now — without one, `declaredFinishedDepthMm`'s lifted
+      // branch is never taken and the sweep certifies the map arm alone.
+      const lifted = rows.filter(([, definition]) =>
+        declaresALiftedColumnDepth(definition),
       );
 
       expect(rows.length).toBeGreaterThan(9);
       expect(unfronted.length).toBeGreaterThan(1);
-      expect(pinned.length).toBeGreaterThan(1);
+      expect(lifted.length).toBeGreaterThan(1);
+      expect(rows.length).toBeGreaterThan(lifted.length);
       expect(
         rows.filter(([id]) => isCatalogBuildId(id)).length,
       ).toBeGreaterThan(0);

@@ -107,6 +107,14 @@ export interface FinishSetEffect {
   readonly finish: Finish;
 }
 
+/** ADR 0099 decision 8's other half of `FinishSetEffect`: this cabinet has stopped choosing, and now
+ *  follows the kitchen. **It carries no finish**, which is the whole difference — a *"cleared to X"*
+ *  effect would be a set with a nicer name, and the key would still be in the document. */
+export interface FinishClearedEffect {
+  readonly type: "finish_cleared";
+  readonly placementId: string;
+}
+
 export interface HandleSetEffect {
   readonly type: "handle_set";
   readonly placementId: string;
@@ -160,14 +168,25 @@ export interface HardwareTierSetEffect {
   readonly hardwareTierId: string;
 }
 
+/** Wave 6S's whole-kitchen colour (ADR 0099). **It carries no count and no placement id, and both
+ *  absences are the decision rather than an omission**: `MaterialTierSetEffect.resolvedFinishCount`
+ *  exists because ADR 0057's reset moves cabinets, and this command moves none — there is nothing
+ *  to count, and a field for it would invite a reader to believe there could be. */
+export interface GlobalFinishSetEffect {
+  readonly type: "global_finish_set";
+  readonly finish: Finish;
+}
+
 export type CommandEffect =
   | PlacementRemovedEffect
   | BodyInsertedEffect
   | BodyResizedEffect
   | FinishSetEffect
+  | FinishClearedEffect
   | HandleSetEffect
   | MaterialTierSetEffect
   | HardwareTierSetEffect
+  | GlobalFinishSetEffect
   | CabinetDepthSetEffect;
 
 export interface CommandSuccess<TEffect extends CommandEffect = CommandEffect> {

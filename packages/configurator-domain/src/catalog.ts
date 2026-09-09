@@ -61,6 +61,11 @@ import {
   IS_A_MANUFACTURED_SIZE,
   type CabinetDepthRule,
 } from "./cabinet-depth-rule.js";
+import {
+  CHOOSES_ITS_OWN_COLOUR,
+  FOLLOWS_THE_KITCHENS_COLOUR,
+  IS_NEVER_PAINTED,
+} from "./body-finish-rule.js";
 
 // Wave 6L moved these two into `door-count.ts`, and they are re-exported here unchanged: every
 // reader imports them from this module or from the package barrel, and the move exists only so the
@@ -488,6 +493,11 @@ const INSERTABLE_DEFAULTS = {
   // `sink_faucet` group the builders draw — see `BodyDefinition.sink`.
   sink: NO_SINK,
   canFinish: true,
+  // Ordinary cabinetry: the customer may colour this body alone, and where they have not it follows
+  // the kitchen and then the material's default (ADR 0099 decision 1's order). Declared beside
+  // `canFinish` because `bodyFinishRuleOf` refuses an entry where the two disagree, and overridden
+  // by the three §7 rows that are not ordinary cabinetry — the shelf, the hood and the fridge.
+  finishRule: CHOOSES_ITS_OWN_COLOUR,
   canHandle: true,
   canReplace: true,
   canDelete: true,
@@ -950,6 +960,10 @@ export function buildInsertableBodyDefinitions(
         // Open by definition: no fixed front to finish, no leaf to open. Unlike `base-hob-oven`
         // above, wave 5B6 gave this body no filler panel, so ADR 0050 does not reach it.
         canFinish: false,
+        // **Cabinetry, so it wears the kitchen's colour** — the owner's *"open shelves can have and
+        // by default should inherit global set color"* (2026-09-09; backlog entry 60). It offers no
+        // control of its own, which is the line above and unchanged: it follows, it does not choose.
+        finishRule: FOLLOWS_THE_KITCHENS_COLOUR,
         canHandle: false,
       },
     ],
@@ -971,6 +985,10 @@ export function buildInsertableBodyDefinitions(
         // `handle: "push"` here would put cabinet hardware on an extractor. This says nothing about
         // whether a hood is cabinetry — ADR 0035 decision 5 below rules that it is, for width.
         canFinish: false,
+        // **No colour at any level** — the owner's *"hood also no"* (2026-09-09). ADR 0035 decision 5
+        // calls the hood cabinetry *for width*; this calls it a machine *for colour*. Two facts about
+        // different things, declared separately so neither is read off the other.
+        finishRule: IS_NEVER_PAINTED,
         canHandle: false,
         heightFlex: false,
         nominalHeightMm: HOOD_HEIGHT_MM,
@@ -1135,6 +1153,10 @@ export function buildInsertableBodyDefinitions(
         // `fullHeightUnit`'s `cabinet-depth` and quietly failing the gate that sweeps it.
         depthRule: IS_A_MANUFACTURED_SIZE,
         canFinish: false,
+        // **No colour at any level** — the owner's *"fridge no"* (2026-09-09), and the same fact
+        // `IS_A_MANUFACTURED_SIZE` above states about its depth: a machine somebody else builds is
+        // not painted with the kitchen.
+        finishRule: IS_NEVER_PAINTED,
         canHandle: false,
       },
     ],

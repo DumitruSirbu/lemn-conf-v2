@@ -35,10 +35,14 @@ describe("invalidBodyResponse", () => {
 
     invalidBodyResponse("3 issue(s): room:invalid_type");
 
-    expect(warn).toHaveBeenCalledWith(
-      "[designs] rejected an invalid payload:",
-      "3 issue(s): room:invalid_type",
-    );
+    // A structured line rather than a second string argument: `emitDesignLogLine` is the one place
+    // this route family chooses a transport, and a rejection logged past it would be invisible to an
+    // error tracker dropped in there while looking, in the source, as logged as its neighbours.
+    expect(warn).toHaveBeenCalledWith("[designs]", {
+      event: "design-payload-rejected",
+      operation: "save",
+      reason: "3 issue(s): room:invalid_type",
+    });
   });
 
   it("caps what one rejection can write to the log", () => {
@@ -47,7 +51,7 @@ describe("invalidBodyResponse", () => {
     invalidBodyResponse("x".repeat(500_000));
 
     // One cheap request must not buy a large log write on a free tier with hard caps.
-    const logged = String(warn.mock.calls[0]?.[1]);
+    const logged = loggedReason(warn);
     expect(logged.length).toBeLessThan(400);
   });
 
@@ -56,8 +60,17 @@ describe("invalidBodyResponse", () => {
 
     invalidBodyResponse("key_\n[migrate] executed 0001 against prod\r\ndone");
 
-    const logged = String(warn.mock.calls[0]?.[1]);
+    const logged = loggedReason(warn);
     expect(logged).not.toContain("\n");
     expect(logged).not.toContain("\r");
   });
 });
+
+/** The free-text field of the first structured line the spy was handed. Read through the line's
+ *  shape rather than through `String(call[1])`, which on an object answers `"[object Object]"` — a
+ *  value that is short and control-character-free whatever the caller sent, so the two bounds above
+ *  would have passed over a line that carried the payload verbatim. */
+function loggedReason(spy: ReturnType<typeof vi.spyOn>): string {
+  const line = spy.mock.calls[0]?.[1] as { reason?: unknown } | undefined;
+  return String(line?.reason);
+}

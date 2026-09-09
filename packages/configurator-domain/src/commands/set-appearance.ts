@@ -26,6 +26,7 @@ import {
   withPlacements,
   type CommandResult,
   type CommandTarget,
+  type FinishClearedEffect,
   type FinishSetEffect,
   type HandleSetEffect,
 } from "./command-result.js";
@@ -102,6 +103,53 @@ export function setFinish(
       finish: input.finish,
     },
   );
+}
+
+/**
+ * **The way back out of an override** — ADR 0099 decision 8, and part of that decision rather than
+ * UI polish.
+ *
+ * Without it the editor offers only *pick a colour*, so the first tap on any swatch pins that
+ * cabinet out of the kitchen's colour for ever and the precedence becomes a one-way door.
+ *
+ * **It deletes the key; it never writes the current global colour into it.** Writing the value in
+ * would satisfy exactly one subsequent global change and then stop — the cabinet would silently
+ * become an overriding one again, wearing a colour nobody chose. Deleting is what makes it follow
+ * the second change, and the third (ADR 0099 decision 5).
+ *
+ * **Clearing a cabinet that has chosen nothing is not a refusal**, matching `setFinish`'s own rule
+ * for re-applying the colour a body already wears: a control the customer presses answers with the
+ * state they asked for, never with a sentence telling them they cannot have it.
+ */
+export function clearFinish(
+  input: AppearanceInput,
+): CommandResult<FinishClearedEffect> {
+  const selected = selectBody(input);
+  if (!selected.ok) return refuse(input.design, selected.detail);
+  if (!selected.record.canFinish) {
+    return refuse(input.design, {
+      code: "FINISH_NOT_SUPPORTED",
+      params: { label: describeKindLabel(selected.record.kind) },
+    });
+  }
+  return succeedWith(withoutAFinish(input, selected.record.id), {
+    type: "finish_cleared",
+    placementId: selected.record.id,
+  });
+}
+
+/** `applyToBody`'s opposite, and it cannot be expressed as one: a spread can write a key and a
+ *  `finish: undefined` is not an absent `finish` — `DesignSettingsSchema`'s siblings are all
+ *  `strictObject`s and a serialised `undefined` is the key not being there at all, so the two would
+ *  round-trip differently through a save. */
+function withoutAFinish(input: AppearanceInput, placementId: string): Design {
+  const placements = input.design.placements.map((placement) => {
+    if (placement.id !== placementId) return placement;
+    const body = { ...placement.body };
+    delete body.finish;
+    return { ...placement, body };
+  });
+  return withPlacements(input.design, placements, input.occurredAt);
 }
 
 /** ADR 0078 decision 6, read off the design rather than passed in: the whole-kitchen material is

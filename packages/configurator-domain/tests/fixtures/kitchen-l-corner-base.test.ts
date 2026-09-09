@@ -43,7 +43,10 @@ describe("the base corner is a selectable placement (§11 row 16)", () => {
     },
   );
 
-  it.each(CORNER_BASE_IDS)("%s offers nothing structural", (id) => {
+  /** **`canFinish` is the one capability a corner has, and it is not one §13.1 names.** The ruling of
+   *  2026-09-09 gave the corner a colour of its own and moved nothing else: §13.1's list is replace,
+   *  delete and width donor, and all three are still refused here. */
+  it.each(CORNER_BASE_IDS)("%s offers colour and nothing else", (id) => {
     const meta = metaFor(id);
     expect({
       canReplace: meta?.canReplace,
@@ -56,7 +59,7 @@ describe("the base corner is a selectable placement (§11 row 16)", () => {
     }).toEqual({
       canReplace: false,
       canDelete: false,
-      canFinish: false,
+      canFinish: true,
       canHandle: false,
       canWidth: false,
       fixedWidth: true,

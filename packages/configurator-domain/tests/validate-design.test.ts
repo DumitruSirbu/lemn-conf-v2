@@ -391,15 +391,27 @@ describe("fatalDesignValidationIssues", () => {
     ).toEqual(FATAL_VALIDATION_CODES);
   });
 
-  /** The three marks by name, so a reader can answer *which codes are marks?* from one assertion
-   *  and a fourth member arriving by accident is a red test rather than a silent demotion. ADR 0069
-   *  decision 1: the family is exactly the findings whose sole assertion is that a run reaches past
-   *  the end of the wall it stands on, on each of the three arrays it can be recorded in. */
-  it("demotes exactly the three past-the-wall-end codes and nothing else", () => {
+  /** The marks by name, so a reader can answer *which codes are marks?* from one assertion and a
+   *  new member arriving by accident is a red test rather than a silent demotion.
+   *
+   *  **Three of the four are ADR 0069 decision 1's family**: exactly the findings whose sole
+   *  assertion is that a run reaches past the end of the wall it stands on, on each of the three
+   *  arrays it can be recorded in.
+   *
+   *  **The fourth is not, and it is a ruling rather than a membership.** The owner ruled
+   *  `RECORDED_SPAN_OVERLAPS_CORNER_BODY` a mark on 2026-09-09 (backlog 50, M6-AUD-008): the fact it
+   *  asserts is a cross-wall corner intersection and not "past the end of its wall", so the
+   *  membership rule alone would have made it a refusal — and a refusal makes an already-stored
+   *  document unloadable, which is ADR 0052's dead link. It is a mark for the reason
+   *  `PLACEMENT_PAST_WALL_END` is one (ADR 0065): reported, visible, carried, and not moved. A
+   *  *fifth* member is still a wave that has to justify itself here, and "there are already two
+   *  kinds" is not a justification. */
+  it("demotes the three past-the-wall-end codes and the corner ruling, and nothing else", () => {
     expect([...MARK_VALIDATION_CODES].sort()).toStrictEqual([
       "COLUMN_EXTENT_PAST_WALL_END",
       "EMPTY_COLUMN_PAST_WALL_END",
       "PLACEMENT_PAST_WALL_END",
+      "RECORDED_SPAN_OVERLAPS_CORNER_BODY",
     ]);
   });
 

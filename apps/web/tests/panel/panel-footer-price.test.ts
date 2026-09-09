@@ -35,9 +35,9 @@ const FAILED_PRICE: PricingResult = priceDesign({
   pricingVersion: `${SAMPLE_PRICE_BOOK_VERSION}-not-this-one`,
 });
 
-function footerFor(
+function panelFor(
   overrides: Partial<Parameters<typeof describePanel>[0]> = {},
-): PanelFooter {
+): Extract<ReturnType<typeof describePanel>, { kind: "open" }> {
   const meta = occupiedMeta();
   const panel = describePanel({
     material: PAL_KITCHEN,
@@ -51,7 +51,13 @@ function footerFor(
     ...overrides,
   });
   if (panel.kind !== "open") throw new Error("expected an open panel");
-  return panel.footer;
+  return panel;
+}
+
+function footerFor(
+  overrides: Partial<Parameters<typeof describePanel>[0]> = {},
+): PanelFooter {
+  return panelFor(overrides).footer;
 }
 
 describe("the footer price", () => {
@@ -61,21 +67,26 @@ describe("the footer price", () => {
 
     expect(ro.price.startingPrefix).toBe("De la");
     expect(footerFor({ pricing: SEEDED_PRICE }).price).toEqual(
-      describeStartingPrice({
-        label: "De la",
-        totalMinor: SEEDED_PRICE.priced.totalMinor,
-      }),
+      describeStartingPrice({ totalMinor: SEEDED_PRICE.priced.totalMinor }),
     );
   });
 
-  it("is labelled unchanged while a refusal stands, with the figure byte-identical", () => {
+  it("is labelled and figured identically whether or not a refusal stands", () => {
+    // **The relabelling is withdrawn** (owner, 2026-09-09): this footer used to call the figure
+    // *"De la neschimbat"* while a refusal stood, and §9's own banner — three rows above it, on this
+    // very surface — already says the edit was refused. What survives is the half that was always
+    // the point: **a refusal moves nothing**, now asserted over the whole figure rather than over
+    // its amount alone, because the label no longer moves either.
     const quiet = footerFor({ pricing: SEEDED_PRICE });
     const refused = footerFor({ pricing: SEEDED_PRICE, rejection: REFUSAL });
 
-    expect(ro.price.startingPrefixUnchanged).toBe("De la neschimbat");
-    expect(refused.price?.label).toBe("De la neschimbat");
-    expect(refused.price?.label).toBe(ro.price.startingPrefixUnchanged);
-    expect(refused.price?.amountText).toBe(quiet.price?.amountText);
+    expect(refused.price).toEqual(quiet.price);
+    expect(refused.price?.label).toBe(ro.price.startingPrefix);
+    // **Non-vacuity, and it is also the ruling's own reason**: the refusal is in force on this very
+    // surface, three rows up, saying in a sentence what the second label used to restate.
+    expect(
+      panelFor({ pricing: SEEDED_PRICE, rejection: REFUSAL }).sections,
+    ).toContainEqual({ kind: "rejection", message: REFUSAL.message });
   });
 
   it("renders no figure at all when pricing failed", () => {

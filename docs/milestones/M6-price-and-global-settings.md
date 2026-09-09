@@ -330,11 +330,25 @@ constant (`worktop-depth.ts` carries a comment saying the rename is owed and def
 | 6V — a selection is counted by what changed, not by what colour it is *(opened by [ADR 0091](../decisions/0091-an-instruments-premise-is-re-quantified-and-the-product-claim-inside-it-becomes-a-wave.md) decision 6 — the debt wave 6R was obliged to carry rather than discharge)* — **DONE 2026-09-07, merged to `main` at `c7c9743`, with QA's four added tests at `bba4b1b` and two false criterion sentences corrected at `88f06ba`. Adversarial QA; no separate logic review. Its last criterion — runner evidence — is owed, not met; see the close-out** | — | **6R — gated by it**, and it gates nothing | Test infra + one product fix |
 | 6X — the slide is witnessed by an assertion, not by a redecorated demo *(opened by [ADR 0093](../decisions/0093-a-rule-the-shipped-kitchen-cannot-exercise-owes-a-witness-not-a-moved-fixture.md); ADR 0090 decision 6 has no falsifiable check)* — **work item 1 withdrawn and the mutation criterion corrected 2026-09-07 by [ADR 0093 Amendment A](../decisions/0093-a-rule-the-shipped-kitchen-cannot-exercise-owes-a-witness-not-a-moved-fixture.md)** — **DONE 2026-09-07, merged to `main` at `9f5a4f6` with 6X-a; adversarial QA and a logic review (Full)** | D | **6K-i — gated by it**, and it gates nothing | Test fidelity |
 | 6X-a — the ladder's direction is asserted, not only its existence *(opened by [ADR 0093](../decisions/0093-a-rule-the-shipped-kitchen-cannot-exercise-owes-a-witness-not-a-moved-fixture.md) Amendment A §6 — swapping the depth operands moves a member-less extent 100 mm the wrong way and nothing goes red)* — **DONE 2026-09-07, merged to `main` at `9f5a4f6` with 6X; adversarial QA and a logic review (Full), and the review ran *after* the merge — a sequencing error recorded at the close-out, no blocker found, its two documentation findings fixed at `bdef351`** | D | **6X — gated by it**, and it gates nothing | Test fidelity |
+| 6Y — a depth no entry declares carries no entry's name *(opened by [ADR 0102](../decisions/0102-a-recorded-source-must-explain-its-depth-and-a-second-authority-in-a-test-is-the-defect-laundered.md) decision 4, against `restoredColumns` in `void-engine.ts`; ADR 0079 decision 9's enumeration is its first criterion; `docs/BACKLOG.md` entry 56)* — **OPEN, and not planned here: this row exists because ADR 0102 opened the wave on 2026-09-08 and the table never gained it.** Its blast radius is **four** suites, not the three ADR 0102's consequences list — `apps/web/tests/store/qa-6y-lifted-column-source.witness.test.ts` makes the fourth | D | none — **independent of 6Z**; whichever of the two lands second re-runs the other's suites | Full |
+| 6Z — a standing body is re-planned when something is inserted beneath it *(opened by [ADR 0103](../decisions/0103-a-standing-body-is-re-planned-when-something-is-inserted-beneath-it-and-a-delete-leaves-it-alone.md), on the owner's ruling of 2026-09-08 — the insert path is already correct for the body being inserted, and nothing ever re-plans a body already standing)* — **DONE 2026-09-08, merged to `fix/m6-remediation`. Work item 1's sweep found NO reachable pre-probe refusal — 786 offered inserts over 8 states, 24 of them re-planning a standing body, zero refusing — so 6Z-a was not needed and the wave did not split.** Adversarial QA dispatched 2026-09-08; **the visual leg is NOT done** and is owed. | D | none — **independent of 6Y**, either order; ~~6Z-a if and only if work item 1 finds a reachable pre-probe refusal~~ **not needed** | Full + visual |
 
-**Where the table stands, 2026-09-07: every row is resolved, and the denominator moved again.** The
-table is **46 rows**, not the 45 counted on 2026-09-06 — ADR 0093 Amendment A §6 added **6X-a** after
-that count. Arithmetic, so it can be checked rather than trusted: **38 DONE** + 5 CERTIFIED (6A2, 6A4,
-6B, 6I, 6L) + 3 not-shipping (6F superseded, 6N-b and 6N-c dropped) + **0 open** = 46. The four that
+> **Updated later on 2026-09-08: 6Z is DONE and merged, so ONE row is open — 6Y.** The arithmetic
+> below now reads **39 DONE** + 5 CERTIFIED + 3 not-shipping + **1 open (6Y)** = 48. 6Y does not
+> block: its defect has been on `main` since 2026-09-04 and
+> `apps/web/tests/store/qa-6y-lifted-column-source.witness.test.ts` pins it positively, going red the
+> day it is fixed. **What is owed before M6 closes is no longer a wave**: the visual/browser leg of
+> today's waves, and the independent QA and review rounds — see `docs/STATUS.md`.
+
+**Where the table stands, ~~2026-09-07: every row is resolved~~ ~~2026-09-08: two rows are open~~, and the
+denominator moved twice.** The table is **48 rows** — 46 on 2026-09-07 (ADR 0093 Amendment A §6 having
+added **6X-a** after the 45 counted on 2026-09-06), plus **6Y** and **6Z** added on 2026-09-08.
+**6Y is not a new wave**: ADR 0102 opened it on 2026-09-08 and it simply never got a row, which is the
+gap `docs/WORKFLOW.md`'s *"the scribe runs after the commit"* section is about. Arithmetic, so it can
+be checked rather than trusted: **38 DONE** + 5 CERTIFIED (6A2, 6A4,
+6B, 6I, 6L) + 3 not-shipping (6F superseded, 6N-b and 6N-c dropped) + **2 open (6Y, 6Z)** = 48. **The
+2026-09-07 sentence *"every row is resolved"* was true of the table as it then stood and is false of
+the product**: 6Y's defect was on `main` when it was written. The four that
 closed this pass are **6T2** (`825ba43`), **6X** and **6X-a** (`9f5a4f6`) and **6V** (`c7c9743`), each
 with its own close-out section below; **6T, 6T-a and 6W stopped being implemented-and-unmerged the
 same day** — they reached `main` at `857a29e`. **No wave row being open is not the same as M6 being
@@ -1016,7 +1030,7 @@ exact wording.
 | *"inclus"* for a zero-amount tier | Mockup frame 2E |
 | *"Dulapurile marcate depășesc lungimea peretelui. Modifică lățimile sau elimină un dulap."* — the scene warning | [ADR 0065](../decisions/0065-a-body-past-the-end-of-its-wall-is-marked-not-moved.md) decision 7b, owner 2026-09-03, **re-ruled the same day** to say *dulapuri* rather than *corpuri*, matching the flagged total. The superseded wording is struck through in place at the ADR. Wave 6M builds this string; it exists in no code today |
 | *"Prețul include și dulapuri ce depășesc mărimea peretelui și necesită ajustări"* — the flagged total | ADR 0065 decision 7b. **The owner's own phrasing: verbatim, punctuation included, and not to be tidied** |
-| *"De la neschimbat"* — the price label while an edit is refused | Owner, 2026-09-03. **The code deliberately differs from both mockups here, and that is not a defect.** D2C draws `De la · neschimbat` (U+00B7) and mobile 2C draws `De la, neschimbat`; asked to reconcile the two spellings, the owner removed the separator entirely rather than picking one, so both shells now read `De la neschimbat` from a single constant. The mockup HTML still shows the old forms — it is the record of what was drawn and was not edited. A later reader diffing the code against a frame will find this row before concluding the label is wrong |
+| *"De la neschimbat"* — the price label while an edit is refused | Owner, 2026-09-03. **The code deliberately differs from both mockups here, and that is not a defect.** D2C draws `De la · neschimbat` (U+00B7) and mobile 2C draws `De la, neschimbat`; asked to reconcile the two spellings, the owner removed the separator entirely rather than picking one, so both shells now read `De la neschimbat` from a single constant. The mockup HTML **no longer** shows the old forms. It did until 2026-09-07, when the owner re-exported the reference for the top-bar wave and the export dropped `De la · neschimbat` from D2C. This row is therefore the only surviving record of what the frames drew, which is why `starting-price.adversarial.test.ts` now reads its counterfactual here rather than from the HTML: a reference the owner re-exports cannot witness what that reference once said. A later reader diffing the code against a frame will find this row before concluding the label is wrong |
 | What a kitchen with no cabinets says instead of *"De la 0 MDL"* | **Not ruled** — raised by 6C's QA, 2026-09-03, and deliberately not filled by the wave. No command reaches it: removal refuses the four structural corner bodies, so the emptiest kitchen a customer can build prices at 8 000 MDL. But `DesignSchema` holds `placements` to `.max(MAX_PLACEMENTS)` with **no `.min()`**, so a zero-placement document passes the write seam and resumes through a share link, and the bar then reads *"De la 0 MDL"*. Whether that is right, or wants its own copy, is the owner's. Likeliest to matter at **M7**, where generation may produce an empty result before it produces a kitchen |
 | 6N's *"PRACTIC PLIN"* heading and the remainder sentences | **Not ruled** — deliberately not yet put to the owner, so the wording can be judged against a real remainder rather than in the abstract. Still a content slot a wave must not fill |
 
@@ -7228,6 +7242,255 @@ documentation findings**, both fixed at `bdef351`.
 **The reviewer also could not execute.** The tree it was given was on another branch, so **its
 confirmations of the red sets are re-derived by reading, not re-run.** Anyone treating this wave's
 mutation evidence as machine-verified is reading it wrong; the QA pass is what executed.
+
+### Wave 6Z — a standing body is re-planned when something is inserted beneath it
+
+**Tier: Full + visual.** It changes a domain rule and it changes what the customer sees in the scene.
+Ruled by [ADR 0103](../decisions/0103-a-standing-body-is-re-planned-when-something-is-inserted-beneath-it-and-a-delete-leaves-it-alone.md);
+read that record before writing a line, because the wave executes a ruling rather than inventing one.
+
+**Goal.** On a successful insert, re-plan every body already standing in a column the insert touched,
+at the column as it stands after the insert, through the same path the insert itself takes. **Add no
+depth arithmetic**: the two outcomes the owner names — the lifted line when a full-height member now
+stands beneath, the capped line when none does — are what `resolveDepthM` already answers.
+
+**Not in scope, and this is a decision rather than an omission (ADR 0103 decision 2).** A **remove**
+re-plans nothing. The owner ruled it: they may be about to replace the deleted cabinet with another
+full-height one, so re-planning on the delete does the work twice and makes the scene jump. The
+interim state — a deep top with nothing under it — is accepted as transient. **No mirror wave, no
+follow-up, no backlog entry.**
+
+**Gates on nothing and gates nothing.** Independent of **6Y**: 6Y moves recorded sources, 6Z moves
+member seats. Either order. **Whichever lands second re-runs the other's suites.**
+
+**The four states, measured at `ed6c545` through the ordinary store, that this wave must move.** Seats
+in millimetres, as persisted. Every insert below went through the offer list's own void and was
+accepted with `lastRejection === null`.
+
+| | today | must become |
+| --- | --- | --- |
+| **S1 @600** delete `p6`, insert `base-cabinet` | `p23` 561, band `top`, `wall-2door-600-deep-top` | **291**, band `wall`, `wall-cabinet` |
+| **S1 @700** delete `p6`, insert `base-cabinet` | `p23` 661 | **361** |
+| **S2 @700** shallow top at 361, insert `tall-pantry` below | `p23` 361, column `hFHU=true` | **661** |
+| **S4 @700** empty column, insert top, then `tall-pantry` below | `n0` 361 | **661** |
+
+**And the three states that are already correct and must not move.**
+
+| | today, and after this wave |
+| --- | --- |
+| **S3 @700** delete `p23`, insert `wall-cabinet` at y0 2.20 over a standing pantry | 661 ✓ |
+| **S4 @700** first insert into an emptied column: `wall-cabinet` at y0 2.20 | 361 ✓ — the capped default is right when nothing stands below |
+| **S4 variant @700** then `base-cabinet` below it | 361 ✓ — unchanged, and the re-plan is a **no-op** |
+
+**Explicit file list.**
+
+*Changed, production:*
+
+- `packages/configurator-domain/src/commands/replan-dependent-members.ts` — **new**, the wave's own
+  module and the only place the rule lives. **Not exported from `index.ts`**: the package's public
+  surface does not grow for a step no consumer calls.
+- `packages/configurator-domain/src/commands/insert-body.ts` — one call from `applyPlacement`, after
+  `splitColumn` and after `refuseColumnDrift`; plus its head comment.
+- `packages/configurator-domain/src/commands/width-resize-model.ts` — `RebuildInput` added;
+  `SetWidthInput` extends it.
+- `packages/configurator-domain/src/commands/rebuild-resized-bodies.ts` — `rebuild` and `moveHood`
+  take `RebuildInput`; `carriedAppearance`'s comment.
+- `packages/configurator-domain/src/commands/set-cabinet-depth.ts` — `UNUSED_BY_REBUILD` and
+  `widthMm: 0` **deleted**, with the paragraph that explains them.
+- `packages/configurator-domain/src/commands/rejection.ts` — one new code and its Romanian sentence,
+  naming **both** bodies.
+
+*Three files the plan did not name, each forced by the wave and recorded rather than absorbed:*
+
+- `packages/configurator-domain/src/commands/built-body.ts` — **new, and a pure move.**
+  `carriedAppearance`, `refuseBuiltSize` and `refuseUnusableMeasurement` were exported from
+  `insert-body.ts` *for the rebuild's sake* — each carried the comment saying so. Once
+  `insert-body.ts` imports the re-plan, which imports `rebuild`, which imported those three back,
+  the graph has a cycle, and `dist-module-graph.test.ts` refuses one for a measured reason: an ES
+  module cycle does not error, it silently binds `undefined`. The three functions moved unchanged;
+  `chosen-finishes.test.ts`'s import moved with them.
+- `packages/configurator-domain/src/commands/insert-fit.ts` — one new exported predicate,
+  `columnDecidesADifferentDepth`, beside `resolveDepthM`. It is the outcome test ADR 0103 decision 3
+  names — *"which may be the depth it already has, in which case the re-plan is a no-op"* — and it
+  lives here because the answer is `resolveDepthM`'s and the wave adds no second author for it.
+  **Asking it first is what keeps the blast radius at zero**: a body the column decides no
+  differently for is never measured and can raise no refusal, so an ordinary swap in place still
+  probes exactly one body and `insert-depth.test.ts` and `qa-waves-ac.adversarial.test.ts` are
+  untouched. Building first and comparing afterwards moves 14 existing assertions and turns a no-op
+  into a refusal.
+- `packages/configurator-domain/src/cabinet-depth-rule.ts` — comment only.
+  `buildToTheClearanceM` gains a third caller and its doc said *"two callers"*.
+
+*Changed, tests (names are the wave's; the count is not):*
+
+- `packages/configurator-domain/tests/commands/` — one new file for the domain rule and its exclusions.
+- `apps/web/tests/store/` — one new file driving S1–S4 through the real store, and one for the
+  `body.finish` key-presence guard.
+
+*Explicitly not touched, and a diff that touches one of these has left scope:*
+
+- `packages/configurator-domain/src/void-engine.ts` — `restoredColumns`, `deriveColumns`,
+  `withCurrentFullHeightMembers` and `isFullHeightUnder` are **read, not edited**. `restoredColumns`
+  is 6Y's.
+- `packages/configurator-domain/src/frozen-map-at-cabinet-depth.ts`,
+  `cabinet-depth-rule.ts`, `along-wall-chain-shift.ts`, `queries/offers.ts`.
+- `packages/configurator-domain/src/fixtures/kitchen-l-design.ts` — no fixture change, ever. A wave
+  that needs one has found ADR 0093's moved fixture and stops.
+- `apps/web/src/**` — `insertBody`'s signature and `BodyInsertedEffect` are unchanged, so the store,
+  `apply-command-result.ts` and the probe lease need no edit at all. **If a web `src` file has to
+  change, the seam was drawn wrong and the wave reports before proceeding.**
+- `packages/three-adapter/**`, and every schema, golden map, e2e spec and parity ledger.
+- `apps/web/tests/support/frozen-source-invariant.ts` and
+  `apps/web/tests/store/qa-6y-lifted-column-source.witness.test.ts` — both 6Y's, both byte-identical
+  after this wave.
+
+**Work item 1 — the refusal sweep, and it runs *first* because it can split the wave.** Enumerate
+every offered body against every void of the shipped kitchen at both declared settings, with and
+without the deletes that reach S1–S4, and record whether any dependent re-plan refuses for a
+**pre-probe** reason (`evaluateInsertFit`). **If one is found the wave stops and reports**: the
+offer-list extension becomes wave **6Z-a** and lands first (ADR 0103 decision 7). If none is found,
+`queries/offers.ts` is not touched and the enumeration is the evidence.
+
+> **Answered 2026-09-08: none found, and the wave does not split.** `apps/web/tests/store/
+> qa-6z-dependent-replan-offer-sweep.test.ts` is the enumeration, committed rather than run once.
+> **786 offered inserts** across 8 states — the shipped kitchen at both declared settings, each with
+> nothing deleted, with `p6` deleted, with `p23` deleted and with both deleted — and **24 of them
+> re-planned a standing body**. Zero produced `DEPENDENT_MEMBER_NOT_REBUILDABLE`. The sweep is
+> widened past the plan's wording in one respect and it is the safer direction: it enumerates every
+> **replace** target as well as every opening, because §5.3 is the same code path and a replace row
+> the panel offers is as much an offer as an insert row. `queries/offers.ts` is untouched.
+>
+> **Why none is reachable, stated so the result is not mistaken for luck:** every re-plannable row in
+> the shipped catalogue resolves through `catalogEquivalentId` to `wall-cabinet`, which is built
+> anywhere between 200 and 800 mm, so no standing body's rebuild can be refused on width — and the
+> band and height guards cannot fire on a body being rebuilt at the extent it is already standing at.
+> The refusal therefore owes a **declared witness**, which
+> `packages/configurator-domain/tests/support/dependent-replan-witness.ts` is.
+
+**Work item 2 — `RebuildInput`.** The five fields `rebuild` reads, named as their own type, with
+`set-cabinet-depth.ts`'s two sentinels deleted. A type narrowing with no behaviour change;
+`pnpm typecheck` is its proof and no test should move.
+
+**Work item 3 — the re-plan module.** The affected column set (ADR 0103 decision 3), the four
+exclusions by declaration (decision 4), and `rebuild` as the mechanism (decision 5). The "before"
+answer is `withCurrentFullHeightMembers(split.value.columns, recordsBefore)` — the same extents, the
+same key space, one function, two record sets — and **both operands are the recorded face**.
+
+**Work item 4 — the refusal.** Atomic: the design is returned unchanged. One new code naming both
+bodies, with a **declared witness** built on a synthetic catalogue entry, because the shipped kitchen
+cannot reach it. The sentence is listed as an input to M6B's extraction.
+
+**Work item 5 — the customer-visible list.** What the owner will actually see move in S1 @600:
+`buildId`, band, rendered label, buildable width set, and the price line, each with its before and
+after. It is a **consequence to be recorded, not a question to reopen** — ADR 0103 decision 11.
+
+**Work item 6 — the three stale comments.** `insert-body.ts`'s head comment, `carriedAppearance`'s
+comment, and `set-cabinet-depth.ts`'s `UNUSED_BY_REBUILD` paragraph.
+
+**Acceptance criteria.** Each is falsifiable by a QA agent without reading this section's prose.
+
+- **The seven states above hold, by literal seat in millimetres, driven through the real store**, at
+  the settings named. Not "deeper", not "within tolerance" — the four numbers are 291, 361, 661 and
+  the unchanged 361, and each is asserted with its `buildId` and its band beside it.
+- **The re-plan reproduces what a no-op depth round trip already produces, for the affected members.**
+  For each of S1 and S2, the seat this wave writes equals the seat the same design reaches by
+  `setCabinetDepth` to the other declared depth and back — asserted as an equality between two states
+  the test builds, not as two independent literals. **The round trip is the oracle and never the
+  mechanism**: a wave that implements the fix by calling `setCabinetDepth` has failed ADR 0103's
+  alternatives.
+- **No published extent moves.** For every state in S1–S4 at both settings, every `Column.d`, every
+  `Column.w`, every column key and every `depthFromBuildId` the store publishes is **identical before
+  and after this wave**. So is every `VoidRecord`. ADR 0079 decision 9's discipline, applied here.
+- **The trigger is not a flag flip, and this is asserted as a case rather than argued.** S1 at both
+  settings has `hasFullHeightUnder === false` before **and** after the insert, and the top still
+  moves. A test asserting only S2 would pass against a flip-triggered implementation and does not
+  discharge this.
+- **The re-plan is idempotent and a no-op is a pass-through by identity.** In S4's variant the
+  standing top's placement object is `toBe`-identical before and after — reference equality, not
+  deep equality — so a re-plan that rewrites an unchanged body is caught.
+- **The exclusions hold, by declaration.** In a column that lifts, a standing **base** body, a
+  standing **`hood-600`**, and a standing **`wall-corner-return-570-top`** are each byte-identical
+  after an insert beneath them: same `buildId`, same `seatDepthMm`, same `fixedWidth`. The hood's
+  `fixedWidth` staying **`true`** is asserted by name — the flip to `false` is the R3.2 regression, and
+  `docs/BACKLOG.md` entry 57 records that a depth change already delivers it.
+- **No build-id list.** The wave's own sweep asserts that the re-planned population is derived from
+  `band`, `depthRule` and `occupiedDepth.measuredFrom`, with the count of entries swept asserted
+  non-zero and equal to its measured value. A hand-written list of ids in production or in a test
+  fails this criterion (ADR 0058 decision 2, ADR 0085 decision 3).
+- **The ADR 0099 guard, on key presence and never on colour.** After every re-plan in S1–S4, a
+  placement that carried no `finish` has **no `finish` key at all** — `"finish" in placement.body`
+  is `false` — and one that carried an override carries the identical value. Run with
+  `design.settings.finish` set to a colour that differs from the material default, so a stamp would be
+  visible. **`carriedAppearance` gains no argument, `resolvedFinishOf` gains no caller, and
+  `body.finish` gains no writer** — asserted by a grep-shaped test or by inspection recorded in the
+  commit, either is acceptable.
+- **The probe lease is unchanged.** `insertBody` still takes `probe: BodyProbe` and not a factory;
+  `.use(` appears in neither `insert-body.ts` nor `replan-dependent-members.ts`; the store's `insert`
+  action is untouched.
+- **The overlap case has a declared witness.** A full-height body wider than its own column lifts a
+  neighbouring key, and the standing body in **that** key is re-planned. The shipped kitchen cannot
+  exercise it — `B|1.20`, `B|1.80` and `B|2.45` are each lifted by a member of their own column — so
+  the test declares its own design (ADR 0093 decision 2). **A wave that finds the shipped kitchen
+  *can* exercise it has found something better and says so.**
+- **The refusal is atomic and named.** On the declared witness of work item 4, the insert refuses,
+  the returned design is `toBe`-identical to the input design, and the sentence names both bodies.
+  **A partial write is the failure this criterion exists to catch.**
+- **The frozen-source readings are enumerated, before and after.** Every string
+  `unexplainedColumns`, `columnsWhoseSourceDoesNotDeclareTheirDepth` and `unexplainedStoredEntries`
+  report across S1–S4 at both settings. **No state gains one.** A state that *stops* being reported
+  is recorded with its reason — expected in S4's post-pantry state, where the standing wall cabinet's
+  seat becomes exactly `columnBuildDepthMm({ 700, hasFullHeightUnder: true }) − 39` and ADR 0102
+  decision 3a's narrowed exemption begins to apply. **Recording it is the criterion; editing the
+  helper is out of scope.**
+- **6Y's witness is byte-identical.** `apps/web/tests/store/qa-6y-lifted-column-source.witness.test.ts`
+  performs no insert — checked test by test — so it neither goes red nor is edited.
+- **The blast radius is measured, not guessed.** 16 domain test files and 19 web test files call an
+  insert today. The wave runs them all, names every one whose expectations move, and shows for each
+  that the movement is this rule and not a regression. **A file whose expectations move without an
+  explanation is a defect in the wave.**
+- **`pnpm check` green, and `pnpm format:check` over the whole tree at the wave's end.**
+- **Visual verification** at 390 × 844 and on desktop: the top cabinet visibly shallows out when a
+  base cabinet goes under it, and visibly deepens when a full-height one does, with no other body
+  moving in the frame.
+
+**Work item 5's answer — what the owner will actually see move in S1 @600.** Measured on
+2026-09-08 against the shipped catalogue at 600 mm, after the wave. It is ADR 0103 decision 11's
+**consequence to be recorded, not a question to reopen.**
+
+| | before | after |
+| --- | --- | --- |
+| `buildId` | `wall-2door-600-deep-top` | `wall-cabinet` |
+| band | `top` | `wall` |
+| rendered label | *Corp suspendat* | *Corp suspendat* — **unchanged** |
+| buildable width set | 200–800 mm, thirteen chips | **unchanged**, the identical set |
+| finished depth | 600 mm | 330 mm |
+| recorded seat | 561 mm (absent, from `frameDepthMm`) | 291 mm |
+| price line | priced as `wall-cabinet` | **unchanged**, priced as `wall-cabinet` |
+| `y0Mm` / push-open default | 2200 / on | **unchanged** |
+| column key | `B|1.80` | **unchanged** |
+
+**Only two of the nine move, and the depth is the one the owner asked for.** The label is unchanged
+because both rows declare *Corp suspendat*; the width set is unchanged because `resolveBuildableSizes`
+already reads it through `catalogEquivalentId`; and **the price line is unchanged because
+`resolvePricingRow` already prices a seeded row as its catalogue equivalent** — the deep top was
+being priced as a `wall-cabinet` before this wave and still is. The band moving `top` → `wall` is
+visible only in §9's header line, which reads the raw band.
+
+**Risks.**
+
+- **The trigger is the thing most likely to be got wrong**, and the wrong version passes S2. The
+  flip-triggered design is named in ADR 0103 decision 3 and in a criterion above precisely so a
+  reviewer can check for it in one read.
+- **`carriedAppearance` is a live landmine, not a hypothetical.** W3's scene-colour fix was written
+  and not shipped because the obvious wiring stamps a resolved colour into every cabinet an insert
+  touches. This wave puts **more** cabinets through that function. The criterion is on key presence
+  because a value assertion passes while the key is being stamped.
+- **Scope creep into 6Y.** `restoredColumns` is one file away and its defect is visible from every
+  state this wave measures. It is not this wave's, in either direction.
+- **Scope creep into the hood.** The `fixedWidth` flip is real, measured, and reached by a depth
+  change with no insert at all. Backlog entry 57, not this wave.
+- **The offer-list question can split the wave**, which is why work item 1 runs first rather than
+  last.
 
 ## Verification
 

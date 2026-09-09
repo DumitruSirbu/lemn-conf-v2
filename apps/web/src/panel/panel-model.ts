@@ -33,12 +33,12 @@ import {
 import { swatchOf } from "@lemnaria/three-adapter";
 
 import type { SaveStatus } from "@/persistence/save-coalescer";
+import { describeEditability, type Editability } from "@/store/editability";
 import type { WriteAccess } from "@/store/configurator-store";
 
 import { ro } from "@/content/ro";
 import {
   describeFlaggedTotalWarning,
-  describeStartingLabel,
   describeStartingPrice,
   type PriceFigure,
 } from "@/price/starting-price";
@@ -185,8 +185,29 @@ export interface PaletteSwatchSection {
   readonly control: "decor-list" | "wood-swatches";
   readonly title: string;
   readonly chips: readonly FinishChip[];
+  /** §9's way back out of an override — see `FollowTheKitchenChip`. **Absent on the global settings
+   *  sheet**, which reads this same section (ADR 0099 decision 9) and has no level above it to
+   *  follow. */
+  readonly follow?: FollowTheKitchenChip;
   readonly note: string;
 }
+
+/**
+ * **"Follow the kitchen's colour"** — ADR 0099 decision 8, and part of that decision rather than UI
+ * polish.
+ *
+ * Without a control that *un*-chooses, the first tap on any swatch pins that cabinet out of the
+ * kitchen's colour for ever: the precedence becomes a one-way door, and the customer would report
+ * it next.
+ *
+ * `isActive` when this cabinet has chosen nothing and is already following — the same marking the
+ * swatches use, so the section always shows exactly one standing choice.
+ *
+ * It is a `ChoiceChip` and not a fourth shape: it sits in the same row as the swatches, it is
+ * greyed by the same `describeChipAvailability`, and *"follow"* is a value in the same sense a decor
+ * id is. What it writes is the difference, and that is the command's to say, not the chip's.
+ */
+export type FollowTheKitchenChip = ChoiceChip<"follow">;
 
 /**
  * MDF: a colour picker, because painted MDF can be any colour and no list can stand in for that.
@@ -208,6 +229,10 @@ export interface RalPickerSection {
   readonly isDisabled: boolean;
   /** §13.1's reason beside the greyed control, on the same condition a chip carries one. */
   readonly reason?: string;
+  /** ADR 0099 decision 8's way back out of an override. A picker needs it more than a swatch list
+   *  does: every hex it can produce is a choice, so without this an MDF cabinet has no way at all to
+   *  stop choosing. Absent on the global settings sheet, which has no level above it to follow. */
+  readonly follow?: FollowTheKitchenChip;
   readonly note: string;
 }
 
@@ -449,6 +474,11 @@ export interface DescribePanelInput {
   readonly saveStatus: SaveStatus;
 }
 
+/** §9's half of the one editability rule. An alias rather than a second interface: the panel names
+ *  the answer in its own vocabulary and `store/editability.ts` decides it, which is what stops a
+ *  second surface deciding it differently — see that module's head comment. */
+type PanelEditability = Editability;
+
 const CLOSED_PANEL: ClosedPanel = { kind: "closed" };
 
 export function describePanel(input: DescribePanelInput): PanelView {
@@ -509,61 +539,7 @@ function describeFooterPriceWarning(
 function describeFooterPrice(context: FooterContext): PriceFigure | undefined {
   const { pricing } = context;
   if (!pricing?.ok) return undefined;
-  return describeStartingPrice({
-    label: describeStartingLabel(context.rejection),
-    totalMinor: pricing.priced.totalMinor,
-  });
-}
-
-/** Whether §9's controls may be offered at all, and — when they may not — the one sentence every
- *  greyed control carries (§13.1). Resolved once per panel and threaded, so ten controls cannot
- *  answer it in three different ways, and so adding a fourth `WriteAccess` state means editing one
- *  function rather than six. */
-interface PanelEditability {
-  readonly isReadOnly: boolean;
-  /** Meaningless when `isReadOnly` is false, and never read there. */
-  readonly disabledReason: string;
-}
-
-function describeEditability(input: DescribePanelInput): PanelEditability {
-  return {
-    isReadOnly: isReadOnly(input),
-    disabledReason: describeDisabledReason(input.canWrite),
-  };
-}
-
-/**
- * The one place "this panel may not edit" is decided, from the two independent ways it becomes
- * true: the load has not said it may, or a save has already been refused.
- *
- * The second is kept even though the first normally covers it. `canWrite` is presence of a cookie,
- * not proof it is the right one (`hasWriteCredentialFor`), so a stale or forged credential reads as
- * writable until a write is attempted — and `unauthorized` is that attempt's answer. Reading both
- * means the panel stops offering edits at the first refusal rather than at every one.
- *
- * **Only an explicit `true` unlocks the panel** (wave S7, finding WEB-002). It used to be only an
- * explicit `false` that locked it, which made `/d/{id}`'s "nobody has asked yet" an offer to edit:
- * a reader on a slow or blocked API mutated local state, believed it saved, and had the controls
- * disabled only after the write was refused, with the unsaved edit still on screen.
- * `DEVELOPMENT-SPEC.md` §9's "never offer what cannot be satisfied" is exactly the rule that
- * forbids it, and an unanswered question cannot satisfy anything.
- *
- * This changes what the interface **offers** and nothing about what the server **authorises**:
- * `canWrite` stays advisory, ADR 0019 decision 1's write token is still the only thing a write is
- * allowed on, and no write path reads this function.
- */
-function isReadOnly(input: DescribePanelInput): boolean {
-  return input.canWrite !== true || input.saveStatus === "unauthorized";
-}
-
-/** §13.1's "greyed and unclickable **with the reason**", where the reason is about this browser
- *  rather than about this body. The three locked states are three different facts and must not
- *  share a sentence: "Doar vizualizare" states a permission the page has been told about, and
- *  saying it while the probe is still in flight would be a claim nothing has answered. */
-function describeDisabledReason(canWrite: WriteAccess): string {
-  if (canWrite === "checking") return ro.panel.accessCheckingReason;
-  if (canWrite === "check-failed") return ro.panel.accessUncheckableReason;
-  return ro.panel.readOnlyReason;
+  return describeStartingPrice({ totalMinor: pricing.priced.totalMinor });
 }
 
 /** `undefined` when there is nothing to say, which is the ordinary case: a writable panel whose
@@ -682,19 +658,22 @@ function collectSections(
   if (input.rejection) {
     sections.push({ kind: "rejection", message: input.rejection.message });
   }
-  const offered = collectOfferedSections(input, meta, editability);
-  if (offered.length === 0) {
-    const structural = describeStructuralSection(meta);
-    if (structural) sections.push(structural);
-    return sections;
-  }
-  sections.push(...offered);
+  // **The refusal is rendered whenever it is declared, offers or no offers** (§11 row 16, and the
+  // owner's corner ruling of 2026-09-09). It used to be the *fallback* for a body that offered
+  // nothing, which was the same thing while `STRUCTURAL_CORNER` set all four capability flags to
+  // false. It stopped being the same thing the moment the corner gained `canFinish`: the panel would
+  // have shown *Finisaj* and silently dropped the one sentence that says why there is no swap list
+  // and no delete — offering more and explaining less. Pushed **before** the offers so the customer
+  // reads what this body is before what they can do to it.
+  const structural = describeStructuralSection(meta);
+  if (structural) sections.push(structural);
+  sections.push(...collectOfferedSections(input, meta, editability));
   return sections;
 }
 
 /** Everything §9 offers the customer on this selection: replace, finish, handle, width, in §9's
- *  order. Split out so `collectSections` can ask the one question §11 row 16 needs — "does this body
- *  offer anything at all?" — without re-deriving it from four flags. */
+ *  order. Split out so the two halves of the panel stay separable: what this body *is*, which
+ *  `describeStructuralSection` states, and what can be done to it, which is this. */
 function collectOfferedSections(
   input: DescribePanelInput,
   meta: SelectionMeta,
@@ -704,8 +683,17 @@ function collectOfferedSections(
   const replace = describeReplaceSection(input, meta, editability);
   if (replace) sections.push(replace);
   if (meta.canFinish) {
-    const finish = describeFinishSection(input.material, meta, editability);
-    if (finish) sections.push(finish);
+    const finish = describeFinishSection(
+      input.material,
+      meta.finish,
+      editability,
+    );
+    // **The follow chip is added here and not inside the projection** (ADR 0099 decisions 8 and 9).
+    // The projection is shared with the global settings sheet, which is the level being followed and
+    // so has nothing above it — a control offered there would be an offer this product cannot
+    // satisfy (§9). Composed rather than parameterised: a fourth argument switching a control on and
+    // off is the flag argument this codebase splits functions to avoid.
+    if (finish) sections.push(followingTheKitchen(finish, meta, editability));
   }
   if (meta.canHandle) sections.push(describeHandleSection(meta, editability));
   // **Not gated on `meta.canWidth`** (ADR 0049). §9 item 6 made `fixedWidth` decide whether the
@@ -723,9 +711,9 @@ function collectOfferedSections(
   return sections;
 }
 
-/** `undefined` when the selection offers nothing and the catalogue declared no reason for it. That
- *  is a catalogue gap rather than a state to paper over with generic copy, and it stays visible as
- *  the empty panel it is. */
+/** `undefined` when the catalogue declared no reason, which is every ordinary body. A body that
+ *  offers nothing *and* declares no reason is a catalogue gap rather than a state to paper over with
+ *  generic copy, and it stays visible as the empty panel it is. */
 function describeStructuralSection(
   meta: SelectionMeta,
 ): StructuralSection | undefined {
@@ -913,18 +901,46 @@ function describeChipAvailability(editability: PanelEditability): {
  * `undefined` when the design's `materialTierId` names no declared material (ADR 0078 decision 3).
  * A material this product does not declare makes no offer, and there is no control shape to render
  * for it — the rest of the panel keeps working, which is what 6G's recovery path stands on.
+ *
+ * **Exported, and read by a second surface since ADR 0099 decision 9** — the global settings sheet's
+ * colour group. That is the owner's *"same as we have on clicking on the cabinet"* and ADR 0071
+ * decision 3's *"three different controls reading one setting"*: one declaration, two callers, never
+ * a second implementation.
+ *
+ * **It takes the chosen colour and not a `SelectionMeta`** for exactly that reason. The second
+ * caller holds a whole-kitchen pending choice and no cabinet at all, and a parameter it would have
+ * to fabricate a selection for is a parameter that invites two projections instead of one.
  */
-function describeFinishSection(
+export function describeFinishSection(
   lookup: MaterialLookup,
-  meta: SelectionMeta,
+  chosen: Finish | undefined,
   editability: PanelEditability,
 ): FinishSection | undefined {
   if (lookup.kind === "undeclared") return undefined;
   const { material } = lookup;
   if (material.colourControl.shape === "ral-picker") {
-    return describeRalPickerSection(material, meta, editability);
+    return describeRalPickerSection(material, chosen, editability);
   }
-  return describeSwatchSection(material.colourControl, meta, editability);
+  return describeSwatchSection(material.colourControl, chosen, editability);
+}
+
+/** §9's finish section with ADR 0099 decision 8's chip on it. The chip is *active* when the cabinet
+ *  carries no colour of its own — absence is the state of following (ADR 0078 decision 5) — so the
+ *  section always shows exactly one standing choice, whichever of the three controls it is. */
+function followingTheKitchen(
+  section: FinishSection,
+  meta: SelectionMeta,
+  editability: PanelEditability,
+): FinishSection {
+  return {
+    ...section,
+    follow: {
+      value: "follow",
+      label: ro.panel.finishFollowsKitchen,
+      isActive: meta.finish === undefined,
+      ...describeChipAvailability(editability),
+    },
+  };
 }
 
 /** The two list-shaped controls, which differ in their `control` and in nothing else here: PAL's
@@ -933,7 +949,7 @@ function describeFinishSection(
  *  neither can turn into the other by its entries changing. */
 function describeSwatchSection(
   control: Extract<ColourControl, { entries: readonly PaletteEntry[] }>,
-  meta: SelectionMeta,
+  chosen: Finish | undefined,
   editability: PanelEditability,
 ): PaletteSwatchSection {
   return {
@@ -941,7 +957,7 @@ function describeSwatchSection(
     control: control.shape,
     title: ro.panel.finishTitle,
     chips: control.entries.map((entry) =>
-      describeFinishChip(entry, meta, editability),
+      describeFinishChip(entry, chosen, editability),
     ),
     note: ro.panel.finishApproximationNote,
   };
@@ -952,7 +968,7 @@ function describeSwatchSection(
  *  provenance. The colour is the adapter's, so the swatch and the 3D paint from one declared hex. */
 function describeFinishChip(
   entry: PaletteEntry,
-  meta: SelectionMeta,
+  chosen: Finish | undefined,
   editability: PanelEditability,
 ): FinishChip {
   const finish: Finish = { kind: "palette-entry", entryId: entry.entryId };
@@ -963,14 +979,14 @@ function describeFinishChip(
     label: entry.name,
     swatchColor: swatch.color,
     isWood: swatch.isWood,
-    isActive: meta.finish !== undefined && sameFinish(meta.finish, finish),
+    isActive: chosen !== undefined && sameFinish(chosen, finish),
     ...describeChipAvailability(editability),
   };
 }
 
 function describeRalPickerSection(
   material: Material,
-  meta: SelectionMeta,
+  chosen: Finish | undefined,
   editability: PanelEditability,
 ): RalPickerSection {
   return {
@@ -978,7 +994,7 @@ function describeRalPickerSection(
     control: "ral-picker",
     title: ro.panel.finishTitle,
     label: ro.panel.finishPickerLabel,
-    value: describePickerValue(material, meta),
+    value: describePickerValue(material, chosen),
     ...describeChipAvailability(editability),
     note: ro.panel.finishApproximationNote,
   };
@@ -996,9 +1012,12 @@ function describeRalPickerSection(
  * substitution ADR 0057 rejected, arriving through the door this wave opens by publishing a hex per
  * decor.
  */
-function describePickerValue(material: Material, meta: SelectionMeta): string {
+function describePickerValue(
+  material: Material,
+  chosen: Finish | undefined,
+): string {
   const opening =
-    meta.finish?.kind === "free-colour" ? meta.finish : material.defaultFinish;
+    chosen?.kind === "free-colour" ? chosen : material.defaultFinish;
   return swatchOf(opening).color;
 }
 

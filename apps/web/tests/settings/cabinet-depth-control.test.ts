@@ -69,7 +69,6 @@ function settingsView(
     groups: SHIPPED_GROUPS,
     applied: {},
     pending: {},
-    rejection: null,
     chosenColourCount: countCabinetsWearingAChosenFinish(KITCHEN_L_DESIGN),
     ...overrides,
   });

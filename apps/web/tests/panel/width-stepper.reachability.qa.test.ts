@@ -156,26 +156,47 @@ function shrink(id: string, count: number): Kitchen {
   return kitchen;
 }
 
+// **FINDING 5D2c-B1 IS CLOSED, and these four cases are un-skipped as of 2026-09-08.**
+//
+// They were `it.skip` because they pinned a defect nobody had fixed: shrink `p0` four times and both
+// stepper buttons went dead while `setWidth` still accepted 800, and a shrink could not be walked
+// back past the first press. M6-AUD-009 carried the skips as an assurance gap and told the next
+// reader to "resolve the width ratchet separately".
+//
+// Re-measured before un-skipping, rather than assumed: at 600 mm after four shrinks the engine
+// accepts **650, 700, 750 and 800**, and the stepper publishes **[disabled, enabled]** with a live
+// 650 grow — not the `[true, true]` the finding named. All three walk-back cases pass unchanged.
+// The ratchet was resolved by later waves; nobody came back to the skips.
+//
+// A skipped test that tolerates a defect is the laundering ADR 0090 decision 7 refuses, and ADR 0102
+// decision 3b is the standing remedy: pin the state positively so it cannot go quiet. These now
+// assert the fixed behaviour, so they go red if the ratchet returns.
 describe("FINDING 5D2c-B1: the stepper reaches every width the engine accepts", () => {
-  // The terminal state, and the one that makes this a blocker rather than a nuisance: both buttons
-  // dead, 800 still legal, and no delete in the shipped kitchen frees an adjacent column.
-  it.skip("does not freeze `p0` at 600 while `setWidth` still accepts 800", () => {
+  // The state that made the finding a blocker: both buttons dead with 800 still legal. Asserted as
+  // the negation it now satisfies, and with the grow step named, so "not both dead" cannot be
+  // satisfied by a stepper that offers nothing at all.
+  it("does not freeze `p0` at 600 while `setWidth` still accepts 800", () => {
     const kitchen = shrink("p0", 4);
     const section = stepperAt(kitchen, "p0");
 
     expect(section.valueLabel).toBe("600 mm");
-    expect(acceptedWidthsMm(kitchen, "p0")).toEqual([800]);
+    // Non-vacuity: the engine must still accept something wider, or "the stepper offers a grow" is
+    // a claim about an empty set.
+    expect(acceptedWidthsMm(kitchen, "p0")).toContain(800);
     expect(section.steps.map((step) => step.isDisabled)).not.toEqual([
       true,
       true,
     ]);
+    // The half "not both dead" cannot state: which press is live, and that it grows.
+    expect(section.steps[1].isDisabled).toBe(false);
+    expect(section.steps[1].widthMm).toBeGreaterThan(600);
   });
 
   // The same defect stated as the customer's move rather than as a set: **a shrink is not
   // reversible past the first press.** ADR 0035 decision 7 funds a grow from the space a shrink
   // vacated, which is what makes the stepper usable at all; the residue rule means only the very
   // last press can be given back.
-  it.skip.each(["p0", "p4", "p11"])(
+  it.each(["p0", "p4", "p11"])(
     "lets %s walk back up to the width it was loaded at",
     (id) => {
       const startMm = Number(

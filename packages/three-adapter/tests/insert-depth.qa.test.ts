@@ -133,6 +133,7 @@ function insert(
     design: world.design,
     catalog: KITCHEN_L_BODY_CATALOG,
     columns: world.columns,
+    voids: world.voids,
     target,
     buildId,
     probe: createBodyProbe(kit, room),

@@ -1,0 +1,39 @@
+/* ADR 0065 decision 6's flagged total, on the scene since ADR 0104 decision 8b.
+ *
+ * It stands in `.sceneFooter`'s column — an overlay that takes no flow height — directly above
+ * ADR 0065 decision 7b's own warning, which keeps the scene's bottom edge. The two now sit next to
+ * each other and say related things in different words: this one says **what the number contains**,
+ * the one below says **what is wrong and what to do about it**. They were made two constants on
+ * purpose and neither wording is changed here.
+ *
+ * The palette is the caution pair the sentence already wore in the price bar, and the same one
+ * `scene/overflow-warning.module.css` uses: one visual language for "this design reaches past a
+ * wall". It is deliberately **not** §9's rejection red (ADR 0065 decision 8). */
+
+/* An ordinary block and not `display: contents`, for the reason
+ * `scene/overflow-warning.module.css` records: every inset lives on `.warning`, so an empty region
+ * is a 0 px block, and anything added inside the region later stays inside it rather than becoming a
+ * second item of the scene's own column. */
+.region {
+  display: block;
+}
+
+/* Opaque, because it is drawn over the kitchen rather than beside it. Centred and inset from the
+ * scene's edges the way the orbit hint is, so the two read as one stack. */
+.warning {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 0 8px;
+  padding: 9px 14px;
+  font: 400 11.5px/1.4 var(--font-ui);
+  color: #7c4a0c;
+  text-align: center;
+  background: #fdf6ec;
+}
+
+@media (min-width: 900px) {
+  .warning {
+    font-size: 12.5px;
+  }
+}

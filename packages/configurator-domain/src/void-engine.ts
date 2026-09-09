@@ -11,7 +11,12 @@ import type { Finish } from "./materials.js";
 import { clipEmptyColumnsAtWallEnd } from "./clip-empty-columns-at-wall-end.js";
 import { mergeAdjacentEmptyColumns } from "./merge-empty-columns.js";
 import { toExactMillimetres, toMetres } from "./millimetres.js";
+// No cycle: `resolved-finish.ts`'s only value import is `design-material.ts`, whose only value
+// import is `materials.ts`, and that module is a leaf. Neither reaches back here, so this is not
+// the hazard `module-grid.ts`'s head describes.
+import { drawnFinishOf } from "./resolved-finish.js";
 import type { SeatRule } from "./seat-rule.js";
+import { bodyFinishRuleOf, type BodyFinishRule } from "./body-finish-rule.js";
 import {
   alongWallCoordinate,
   alongWallPosition,
@@ -206,11 +211,43 @@ export interface BodyDefinition {
    *  `BodyCatalog` port from outside TypeScript is refused by the same function at the first wave
    *  that reads a rule off it, which is 6J's migration and not this one. */
   readonly depthRule?: CabinetDepthRule;
+  /** **Whether a rebuild of this body takes its depth from `columnBuildDepthM`'s lifted arm rather
+   *  than from its catalogue equivalent's `frameDepthMm`** — ADR 0101 decision 1.
+   *
+   *  It is a fact about *where the number comes from*, and it is true of exactly the rows that stand
+   *  in the wall band over a full-height column: `resolveDepthM` reads `hasFullHeightUnder` and
+   *  answers the cabinet-depth line, and it never consults the equivalent's own declaration. So for
+   *  such a row the equivalent's `frameDepthMm` **does not govern**, and
+   *  `seeded-equivalent-depth-agreement.test.ts` compares it against the authority that does.
+   *
+   *  **Declared, never inferred**, for the reason `catalogEquivalentId` above is: the two tempting
+   *  inferences are both wrong. A build-id list in a test is invisible to `grep` from the entry, and
+   *  "its `frameDepthMm` exceeds the wall map's row, so it must be a deep top" is the identity
+   *  guess ADR 0022 exists to stop — it once priced a fridge housing as a pantry.
+   *
+   *  **Not `occupiedDepth.measuredFrom`, deliberately.** These rows genuinely are `recorded-shell`:
+   *  their finished depth is shell plus front assembly, the same arithmetic as every other wall row.
+   *  Declaring a different measurement to win an exclusion would be a lie told to a gate.
+   *
+   *  Absent means `false` — the row's depth is its own declaration's — which is every entry but the
+   *  two deep tops. Read it through `declaresALiftedColumnDepth`, never directly. */
+  readonly builtDepthFollowsALiftedColumn?: boolean;
   /** Which plane seats this body (ADR 0077). Optional here for the reason `depthRule` is —
    *  `BodyDefinition` is the port a catalogue arrives through — and refused at assembly by
    *  `refuseUndeclaredSeatRules`, which is the only caller holding the row's id to name. */
   readonly seatRule?: SeatRule;
   readonly frameHeightMm?: number;
+  /** **Whether this body carries a colour of its own, or wears the kitchen's, or is never painted**
+   *  — the owner's ruling of 2026-09-09, and the question `canFinish` below stopped being able to
+   *  answer when structural cabinetry started following the kitchen and appliances did not.
+   *  `body-finish-rule.ts` states the three arms and why they are two declarations rather than one.
+   *
+   *  Optional here and refused at assembly, for the reason `depthRule` above is: the case that must
+   *  fail loudly is a definition a required field cannot reach, which is a row arriving through the
+   *  `BodyCatalog` port. `refuseUndeclaredFinishRules` runs `bodyFinishRuleOf` over both populations
+   *  as `buildKitchenLBodyCatalog` assembles the map, so the shipped catalogue pays nothing for the
+   *  optionality and a row that declares nothing never loads. */
+  readonly finishRule?: BodyFinishRule;
   readonly canFinish: boolean;
   readonly canHandle: boolean;
   readonly canReplace: boolean;
@@ -355,7 +392,35 @@ export interface PlacementRecord {
   readonly canReplace: boolean;
   readonly canDelete: boolean;
   readonly fixedWidth: boolean;
+  /** **The colour this cabinet chose for itself, and nothing else.** Absent means it chose nothing
+   *  and is following the kitchen (ADR 0078 decision 5), which is the distinction ADR 0099
+   *  decision 2 exists to keep: `carriedAppearance` (`commands/insert-body.ts`) copies this into
+   *  `body.finish` on an insert and on the resize rebuild, so anything resolved written here would
+   *  be stamped into the document and would silently convert *follows the kitchen* into *chose this
+   *  colour*. Draw from `drawnFinish` below; ask this one only when the question is what the
+   *  customer picked. */
   readonly finishKey?: Finish;
+  /** **The colour to paint, resolved** — `drawnFinishOf`'s answer for this placement in this design,
+   *  read through the entry's own `finishRule`: a body that chooses its own gets ADR 0099 decision
+   *  1's order (its choice, else the whole-kitchen colour, else the material's declared default); a
+   *  body that follows the kitchen gets the kitchen's colour and never its own document's; an
+   *  appliance gets none (owner's ruling, 2026-09-09, backlog entry 60).
+   *
+   *  **The renderer needs no capability guard beside it.** `record.canFinish` used to stand between
+   *  this field and the paint, and it cannot any more: after the ruling `canFinish` is `false` for
+   *  bodies that must be painted and for bodies that must not. The refusal moved into the resolution,
+   *  which is where the declaration is, so `@lemnaria/three-adapter` still learns no rule (§12).
+   *
+   *  **It is never stored and never read by a command.** No `Design` written by this package
+   *  carries it, no persistence schema has a field for it, and a command that reaches for it is
+   *  reading a rendering decision as if it were a customer's choice — which is the exact defect
+   *  Amendment A section 3 records as tried and reverted. It exists so the renderer can stop
+   *  re-deriving the precedence rule and so `finishKey` can go on meaning one thing.
+   *
+   *  Optional for the reason `resolvedFinishOf` returns `Finish | undefined`: a design whose
+   *  `materialTierId` names no declared material declares no default to fall back to
+   *  (ADR 0078 decision 3), and that state loads rather than being refused. */
+  readonly drawnFinish?: Finish;
   readonly handleMode?: Handle;
 }
 
@@ -513,6 +578,15 @@ export function derivePlacementRecords(
     const definition = lookupDefinition(catalog, placement.body.buildId);
     const frame = deriveFrame(placement, definition);
     const rotated = placement.wall === "B";
+    const drawnFinish = drawnFinishOf({
+      rule: bodyFinishRuleOf({
+        buildId: placement.body.buildId,
+        rule: definition.finishRule,
+        canFinish: definition.canFinish,
+      }),
+      placement,
+      design,
+    });
     return {
       id: placement.id,
       buildId: placement.body.buildId,
@@ -536,6 +610,11 @@ export function derivePlacementRecords(
       ...(placement.body.finish !== undefined
         ? { finishKey: placement.body.finish }
         : {}),
+      // Two fields off one question, and they are not the same answer. `finishKey` is the
+      // document's own byte, so a command may copy it back into a document; `drawnFinish` is the
+      // resolver's, so a renderer may paint it and a command may not touch it. The design is
+      // already in hand here, so this needs no new argument and no second `??` chain.
+      ...(drawnFinish !== undefined ? { drawnFinish } : {}),
       ...(placement.body.handle !== undefined
         ? { handleMode: placement.body.handle }
         : {}),
@@ -1399,8 +1478,13 @@ function isFullHeightUnder(
 
 /** Overhanging, not merely adjoining. Two runs that meet on a module line share a boundary and
  *  nothing else, so the overlap has to be positive before the member counts as being *under* the
- *  opening — otherwise every cabinet beside a column would be uncapped. */
-function overlapsAlongWall(
+ *  opening — otherwise every cabinet beside a column would be uncapped.
+ *
+ *  **Exported because the re-plan asks the same question of a different pair** (ADR 0103 decision 3,
+ *  wave 6Z QA): "which columns did this body reach across" is the same geometry as "is a full-height
+ *  member under this opening", and a second copy of the arithmetic is how the two would come to
+ *  disagree about a boundary case. One definition, two callers. */
+export function overlapsAlongWall(
   record: PlacementRecord,
   column: ColumnExtent,
 ): boolean {

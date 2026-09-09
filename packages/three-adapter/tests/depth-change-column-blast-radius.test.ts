@@ -59,7 +59,11 @@ const UNMOVED_DEPTHS_AT_700_MM: ReadonlyMap<string, number> = new Map([
   ["p9", 400],
   ["p11", 720],
   ["p5", 738],
-  ["p6", 699],
+  // **700 since ADR 0101, and stated by the top rather than by the pantry.** The pantry finishes at
+  // 699 and `p23` above it at 700, so §3.2's MAX is the top's by a millimetre — the flush
+  // relationship the 600 mm kitchen has always had, restored at 700. It read 699 while `p23` was
+  // pinned at 600.
+  ["p6", 700],
   ["p7", 742],
 ]);
 
@@ -145,8 +149,8 @@ describe("the columns a depth change may move", () => {
   });
 
   // **The blast radius, stated as what must not happen.** Clearing more than the entries that
-  // declare `depthFollowsSetting` — the manufactured fridge, ADR 0058's pinned tops — moves one of
-  // these, and every same-versus-same comparison would stay green while it did.
+  // declare `depthFollowsSetting` — the manufactured fridge is the one seeded row that does not —
+  // moves one of these, and every same-versus-same comparison would stay green while it did.
   it("leaves every other column exactly where the broken command left it", () => {
     const settled = changeTo(KITCHEN_L_DESIGN, DEFAULT_MM);
 

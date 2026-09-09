@@ -36,13 +36,12 @@ import { findOverflowingPlacementIds } from "../queries/overflowing-placements.j
 import { findSinkAccessories } from "../queries/sink-accessories.js";
 import type { BodyCatalog, BodyDefinition } from "../void-engine.js";
 
+import { parsePriceBook } from "./parse-price-book.js";
 import {
   ACCESSORY_IDS,
   accessoryRuleOf,
   amountForBody,
-  listRuleIds,
-  PRICE_BOOK_CURRENCY,
-  PRICE_BOOK_STATUSES,
+  exactAmountOfTerms,
   usableCoefficientOf,
   type AccessoryId,
   type AccessoryRule,
@@ -50,9 +49,9 @@ import {
   type HardwareTier,
   type MaterialTier,
   type PriceBook,
-  type PriceBookStatus,
   type PriceCoefficientField,
   type PricedBody,
+  type PricedTerm,
   type TierGroup,
   type TierIdentity,
 } from "./price-book.js";
@@ -162,105 +161,21 @@ function refuseUnusableRequest(
   );
 }
 
-/** What the book has to be before any of it is read, in the order it has always been asked: what it
- *  says about itself, then what its rules say about each other. */
+/**
+ * **What the book has to be before any of it is read** — every check `parse-price-book.ts` makes,
+ * asked once, here.
+ *
+ * It used to be a list of refusals written against a `PriceBook` parameter, each of which
+ * dereferenced the section it was about. `refuseRepeatedRuleId` reaching `book.hardware.tiers.map`
+ * meant a book missing its `hardware` section threw a `TypeError` **out of the function whose whole
+ * job is to reject malformed books** (M6-AUD-002), during render, with no error boundary above it.
+ * The declared type is what a caller promises, and ADR 0062 seam 1 is the seam that cannot keep the
+ * promise; the parser is what turns it into a fact, so this query's success-or-refusal contract
+ * holds for **any** input.
+ */
 function refuseUnusableBook(book: PriceBook): PricingFailure | undefined {
-  return (
-    refuseForeignCurrency(book) ??
-    refuseUndeclaredStatus(book) ??
-    refuseUndeclaredProvisionalFlag(book) ??
-    refuseRepeatedRuleId(book) ??
-    refuseRowPricedTwice(book)
-  );
-}
-
-function refuseForeignCurrency(book: PriceBook): PricingFailure | undefined {
-  // Read as a plain string, because a book supplied from outside TypeScript can carry any currency
-  // it likes and this is the boundary that says so. The declared type is what a caller *promises*;
-  // this is what the value is.
-  const currency: string = book.currency;
-  if (currency === PRICE_BOOK_CURRENCY) return undefined;
-  return failWith(
-    "INVALID_PRICE_BOOK",
-    `Book currency "${currency}" is not ${PRICE_BOOK_CURRENCY}`,
-  );
-}
-
-/** Read as `unknown` for the same reason the currency is read as a plain string, and refused for
- *  the same reason the flag below is. The status is **carried onto the priced result rather than
- *  acted on here**, so a book declaring `"Commercial"` or `null` publishes a `PricedDesign` whose
- *  status no surface anticipates — and which way that fails depends on how a surface happens to
- *  spell one equality. `status === "commercial"` fails safe; `status !== "estimate"` presents an
- *  estimate as a commercial offer. Neither spelling should be load-bearing, so the value is held to
- *  the union here instead. */
-function refuseUndeclaredStatus(book: PriceBook): PricingFailure | undefined {
-  const declared: unknown = book.status;
-  if (isDeclaredStatus(declared)) return undefined;
-  return failWith(
-    "INVALID_PRICE_BOOK",
-    `Book declares no "status", which is one of ${PRICE_BOOK_STATUSES.join(", ")}. ` +
-      `Found: ${declared === undefined ? "nothing" : JSON.stringify(declared)}`,
-  );
-}
-
-function isDeclaredStatus(declared: unknown): declared is PriceBookStatus {
-  return (
-    typeof declared === "string" &&
-    (PRICE_BOOK_STATUSES as readonly string[]).includes(declared)
-  );
-}
-
-/** Read as `unknown` for the same reason the currency is read as a plain string. The flag is
- *  **carried onto the priced result rather than acted on here**, so a book that omits it would
- *  publish an `undefined` that every surface reads as `false` — "these amounts have been costed" —
- *  which is the one direction this flag must never fail in. Refused rather than defaulted: a
- *  default would be this module deciding a fact about a book only its author knows. */
-function refuseUndeclaredProvisionalFlag(
-  book: PriceBook,
-): PricingFailure | undefined {
-  const declared: unknown = book.amountsProvisional;
-  if (typeof declared === "boolean") return undefined;
-  return failWith(
-    "INVALID_PRICE_BOOK",
-    `Book declares no "amountsProvisional" flag, which is a boolean. ` +
-      `Found: ${declared === undefined ? "nothing" : JSON.stringify(declared)}`,
-  );
-}
-
-function refuseRepeatedRuleId(book: PriceBook): PricingFailure | undefined {
-  // A repeated rule id makes a line untraceable to one rule, which is the whole point of carrying
-  // the id on the line.
-  const duplicated = firstDuplicate(listRuleIds(book));
-  if (duplicated !== undefined) {
-    return failWith(
-      "INVALID_PRICE_BOOK",
-      `Rule id "${duplicated}" is declared more than once`,
-      { id: duplicated },
-    );
-  }
-  return undefined;
-}
-
-function refuseRowPricedTwice(book: PriceBook): PricingFailure | undefined {
-  // **A second rule for one catalogue row is not a redundancy — it is a book that does not say what
-  // the cabinet costs**, and the two rules carry distinct ids, so the sweep above passes it. Without
-  // this, `indexRulesByBuildId`'s `Map` keeps whichever came last and nothing anywhere says so.
-  //
-  // The population it bites is ADR 0062's manufacturer dashboard, whose whole purpose is editing
-  // prices: "price this cabinet differently" is a plausible edit for a non-developer to make by
-  // *adding* a rule rather than changing one, and it would succeed silently. Since ADR 0068 the two
-  // rules can also differ in **shape**, so the discarded one is likelier to be the intended one.
-  const pricedTwice = firstDuplicate(
-    book.cabinetRules.map((rule) => rule.buildId),
-  );
-  if (pricedTwice !== undefined) {
-    return failWith(
-      "INVALID_PRICE_BOOK",
-      `Catalogue row "${pricedTwice}" is priced by more than one rule`,
-      { id: pricedTwice },
-    );
-  }
-  return undefined;
+  const parsed = parsePriceBook(book);
+  return parsed.ok ? undefined : parsed.failure;
 }
 
 function refuseVersionMismatch(
@@ -552,6 +467,9 @@ function priceWholeKitchen(
   return { value: [hardwareLine.value, materialLine.value] };
 }
 
+/** **`find` is safe here only because the book was parsed**: two tiers sharing an id would resolve to
+ *  whichever was declared first, making a customer's price depend on the book's typing order
+ *  (M6-AUD-003). `refuseRepeatedTierId` is what makes that unreachable, across both groups. */
 function selectTier<TTier extends TierIdentity>(
   group: TierGroup<TTier>,
   chosenTierId: string | undefined,
@@ -603,40 +521,86 @@ function hardwareUnitAmount(
     readonly catalog: BodyCatalog;
   },
 ): Attempt<number> {
-  const perHinge = checkedBookAmount(
-    hardwareRate(tier, "perHingeMinor"),
-    tier.ruleId,
-  );
-  if (isRefused(perHinge)) return perHinge;
-
-  const perDrawer = checkedBookAmount(
-    hardwareRate(tier, "perDrawerMinor"),
-    tier.ruleId,
-  );
-  if (isRefused(perDrawer)) return perDrawer;
-
-  const perPushToOpen = checkedBookAmount(
-    hardwareRate(tier, "perPushToOpenMinor"),
-    tier.ruleId,
-  );
-  if (isRefused(perPushToOpen)) return perPushToOpen;
+  const rates = checkedHardwareRates(tier);
+  if (isRefused(rates)) return rates;
 
   const mechanisms = countMechanisms(design.entries, design.catalog);
   if (isRefused(mechanisms)) return mechanisms;
 
-  return {
-    value:
-      perHinge.value * mechanisms.value.hinges +
-      perDrawer.value * mechanisms.value.drawers +
-      perPushToOpen.value * mechanisms.value.pushToOpen,
-  };
+  return checkedAmountOfTerms(
+    chargedOverMechanisms(rates.value, mechanisms.value),
+    tier.ruleId,
+  );
+}
+
+/** A hardware tier's three rates, in the order they are charged. A list rather than three spellings,
+ *  so the sweep that checks them and the terms built from them cannot disagree about which three. */
+const HARDWARE_RATE_FIELDS: readonly HardwareRateField[] = [
+  "perHingeMinor",
+  "perDrawerMinor",
+  "perPushToOpenMinor",
+];
+
+type HardwareRateField =
+  | "perHingeMinor"
+  | "perDrawerMinor"
+  | "perPushToOpenMinor";
+
+/** One rate a tier declares, once it is known to be an exact count of minor units. The field travels
+ *  with the number because the mechanism count it is charged over is chosen by it. */
+interface CheckedHardwareRate {
+  readonly field: HardwareRateField;
+  readonly minor: number;
+}
+
+/** **All three rates are checked, whatever the design counts, and before the design is read at
+ *  all.** A book declaring `null` for its push-to-open rate is malformed whether or not this
+ *  particular kitchen has a push body — and the seeded kitchen has none, so checking only the rates
+ *  with a non-zero count would let that book through every reconciliation this wave asserts. */
+function checkedHardwareRates(
+  tier: HardwareTier,
+): Attempt<readonly CheckedHardwareRate[]> {
+  const rates: CheckedHardwareRate[] = [];
+  for (const field of HARDWARE_RATE_FIELDS) {
+    const checked = checkedBookAmount(hardwareRate(tier, field), tier.ruleId);
+    if (isRefused(checked)) return checked;
+    rates.push({ field, minor: checked.value });
+  }
+  return { value: rates };
+}
+
+/** Each rate against the mechanism count it is billed over — the terms `exactAmountOfTerms` adds. */
+function chargedOverMechanisms(
+  rates: readonly CheckedHardwareRate[],
+  counts: HardwareMechanismCounts,
+): readonly PricedTerm[] {
+  return rates.map((rate) => ({
+    coefficientMinor: rate.minor,
+    count: mechanismsChargedAt(counts, rate.field),
+    field: rate.field,
+  }));
+}
+
+/** Which of the three counts a rate is charged over (ADR 0070 decision 1, ADR 0092 decision 2). */
+function mechanismsChargedAt(
+  counts: HardwareMechanismCounts,
+  field: HardwareRateField,
+): number {
+  switch (field) {
+    case "perHingeMinor":
+      return counts.hinges;
+    case "perDrawerMinor":
+      return counts.drawers;
+    case "perPushToOpenMinor":
+      return counts.pushToOpen;
+  }
 }
 
 /** One of a hardware tier's three rates, carrying **its own** field name so a refusal says which of
  *  the three was unusable rather than only which tier was. */
 function hardwareRate(
   tier: HardwareTier,
-  field: "perHingeMinor" | "perDrawerMinor" | "perPushToOpenMinor",
+  field: HardwareRateField,
 ): DeclaredBookAmount {
   return { declared: tier[field], field };
 }
@@ -860,6 +824,28 @@ function checkedBookAmount(
   }
 }
 
+/**
+ * `exactAmountOfTerms` **throws** where a product or a running sum leaves the exact-integer range,
+ * exactly as it does on the cabinet path and for the same reason. This query refuses with a code
+ * instead, so the conversion is here and this function does nothing else — the shape
+ * `evaluateFormula` and `checkedBookAmount` already have.
+ *
+ * **The three rates being each exact is not the same fact as their total being exact**, which is why
+ * this stands beside `checkedHardwareRates` rather than inside it: two products that leave the safe
+ * range and a sum that lands back inside it published 8 minor units where the integers give 11, and
+ * every downstream guard accepted it because 8 is exact and non-negative.
+ */
+function checkedAmountOfTerms(
+  terms: readonly PricedTerm[],
+  ruleId: string,
+): Attempt<number> {
+  try {
+    return { value: exactAmountOfTerms(terms) };
+  } catch (error) {
+    return refusal("INVALID_AMOUNT", describeError(error), { id: ruleId });
+  }
+}
+
 function describeError(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
@@ -868,15 +854,6 @@ function indexRulesByBuildId(
   rules: readonly CabinetPriceRule[],
 ): ReadonlyMap<string, CabinetPriceRule> {
   return new Map(rules.map((rule) => [rule.buildId, rule]));
-}
-
-function firstDuplicate(ids: readonly string[]): string | undefined {
-  const seen = new Set<string>();
-  for (const id of ids) {
-    if (seen.has(id)) return id;
-    seen.add(id);
-  }
-  return undefined;
 }
 
 /** An amount is a whole count of minor units. A fraction is not a surprising price — it is one

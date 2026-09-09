@@ -10,6 +10,12 @@
 // Everything else it attacked still matters and is unchanged. The old branch could have stranded a
 // front wearing the *previous* finish because the body did not re-sign; the same failure is
 // reachable through `finishSignature` alone, and the re-signing tests below are what catch it.
+//
+// **The fixtures record `drawnFinish`, not `finishKey`** (ADR 0099 Amendment A section 3). The
+// record now carries two colours — what the cabinet chose, and what to paint — and the adapter
+// reads and signs the second. Every expected colour and every re-signing claim below is unchanged;
+// only the field the fixture states the colour in moved, onto the one the renderer is contracted
+// to read.
 import {
   freeColourFinish,
   LEGACY_ENUM_FINISHES,
@@ -129,7 +135,7 @@ describe("every declared finish now reaches the front it was recorded on", () =>
     "mounts the body at all for %j",
     (finish) => {
       expect(() => {
-        sync([makeRecord({ id: "p1", finishKey: finish })]);
+        sync([makeRecord({ id: "p1", drawnFinish: finish })]);
       }).not.toThrow();
 
       expect(frontsOf(mounted("p1")).length).toBeGreaterThan(0);
@@ -139,7 +145,7 @@ describe("every declared finish now reaches the front it was recorded on", () =>
   it.each(ONCE_UNDRAWABLE_FINISHES)(
     "paints %j with the colour the adapter publishes for it, never the kit's default",
     (finish) => {
-      sync([makeRecord({ id: "p1", finishKey: finish })]);
+      sync([makeRecord({ id: "p1", drawnFinish: finish })]);
 
       const fronts = frontsOf(mounted("p1"));
       expect(fronts.length).toBeGreaterThan(0);
@@ -159,10 +165,10 @@ describe("every declared finish now reaches the front it was recorded on", () =>
       // if the body were not re-signed it would still be the sage one from the previous sync — a
       // customer picking a decor and seeing the old colour stay put, which is the exact defect
       // §5.5's seam was written to close.
-      sync([makeRecord({ id: "p1", finishKey: LEGACY_ENUM_FINISHES.sage })]);
+      sync([makeRecord({ id: "p1", drawnFinish: LEGACY_ENUM_FINISHES.sage })]);
       const before = mounted("p1");
 
-      sync([makeRecord({ id: "p1", finishKey: finish })]);
+      sync([makeRecord({ id: "p1", drawnFinish: finish })]);
 
       expect(mounted("p1")).not.toBe(before);
       for (const front of frontsOf(mounted("p1"))) {
@@ -174,19 +180,21 @@ describe("every declared finish now reaches the front it was recorded on", () =>
   it("re-signs between the two veneer woods", () => {
     // Before 6R both rendered identically, so only the signature could tell them apart; now they
     // are two colours and a collapsed signature would strand the first one on screen.
-    sync([makeRecord({ id: "p1", finishKey: paletteFinish("veneer.stejar") })]);
+    sync([
+      makeRecord({ id: "p1", drawnFinish: paletteFinish("veneer.stejar") }),
+    ]);
     const before = mounted("p1");
 
-    sync([makeRecord({ id: "p1", finishKey: paletteFinish("veneer.nuc") })]);
+    sync([makeRecord({ id: "p1", drawnFinish: paletteFinish("veneer.nuc") })]);
 
     expect(mounted("p1")).not.toBe(before);
   });
 
   it("re-signs when a free colour changes by one digit", () => {
-    sync([makeRecord({ id: "p1", finishKey: freeColourFinish("#b8c4a1") })]);
+    sync([makeRecord({ id: "p1", drawnFinish: freeColourFinish("#b8c4a1") })]);
     const before = mounted("p1");
 
-    sync([makeRecord({ id: "p1", finishKey: freeColourFinish("#b8c4a2") })]);
+    sync([makeRecord({ id: "p1", drawnFinish: freeColourFinish("#b8c4a2") })]);
 
     expect(mounted("p1")).not.toBe(before);
   });
@@ -194,10 +202,10 @@ describe("every declared finish now reaches the front it was recorded on", () =>
   it("never confuses a palette id with a free colour that spells it", () => {
     // `finishSignature` tags both kinds. Untagged, an entry id and a colour value would share a
     // namespace, and the first collision would be a body that refuses to re-sign.
-    sync([makeRecord({ id: "p1", finishKey: paletteFinish("pal.alb") })]);
+    sync([makeRecord({ id: "p1", drawnFinish: paletteFinish("pal.alb") })]);
     const before = mounted("p1");
 
-    sync([makeRecord({ id: "p1", finishKey: freeColourFinish("#eceeeb") })]);
+    sync([makeRecord({ id: "p1", drawnFinish: freeColourFinish("#eceeeb") })]);
 
     expect(mounted("p1")).not.toBe(before);
   });
@@ -205,7 +213,7 @@ describe("every declared finish now reaches the front it was recorded on", () =>
   it.each(ONCE_UNDRAWABLE_FINISHES)(
     "keeps the identical instance for %j when nothing changed",
     (finish) => {
-      const records = [makeRecord({ id: "p1", finishKey: finish })];
+      const records = [makeRecord({ id: "p1", drawnFinish: finish })];
       sync(records);
       const before = mounted("p1");
 

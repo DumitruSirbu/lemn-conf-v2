@@ -41,6 +41,7 @@ import {
   type WholeKitchenChoice,
 } from "@/settings/global-settings-model";
 import { GlobalSettingsSurface } from "@/settings/global-settings";
+import { describeEditability } from "@/store/editability";
 
 import { SUM_CLAIM_PATTERN } from "../support/ruled-price-copy";
 import { MDF_KITCHEN_WEARING_CHOSEN_COLOURS } from "../support/mdf-kitchen-wearing-chosen-colours";
@@ -162,7 +163,6 @@ function viewFor(options: {
       options.groups ?? projectDesignForDisplay(design, KITCHEN_L_BODY_CATALOG),
     applied: options.applied ?? {},
     pending: options.pending ?? {},
-    rejection: null,
     chosenColourCount: options.chosenColourCount,
   });
 }
@@ -347,10 +347,15 @@ describe("the two copy sweeps reach this section and judge it", () => {
 
   const LEAVES = copyLeaves(ro.globalSettings.materialResetConfirm);
 
-  it("finds all four strings under the section the sweep walks", () => {
+  it("finds all five strings under the section the sweep walks", () => {
     // A gate that walks past a section reports green about nothing, which is this project's own
-    // recorded failure mode. Four leaves: a title, a sentence, and two actions.
-    expect(LEAVES).toHaveLength(4);
+    // recorded failure mode. Five leaves: a title, **two** sentences and two actions.
+    //
+    // It was four until ADR 0099 decision 7 added the second arm — a material change that discards
+    // the *kitchen's* colour rather than any cabinet's — and that arm owes a sentence of its own
+    // (`globalBody`), because the per-cabinet one would read "pentru 0 corpuri". The literal is
+    // raised here deliberately: a count that moves silently is a sweep that has stopped counting.
+    expect(LEAVES).toHaveLength(5);
     expect(copyLeaves(ro.globalSettings)).toEqual(
       expect.arrayContaining(LEAVES),
     );
@@ -393,6 +398,13 @@ describe("what the confirm step leaves behind when it replaces the body and foot
       createElement(GlobalSettingsSurface, {
         id: SURFACE_ID,
         view: CONFIRM_VIEW,
+        // This block is about the confirmation's copy and its two steps, never about access. Stated
+        // rather than defaulted: `GlobalSettingsSurface.editability` is a required prop precisely so
+        // a write surface cannot silently default to permitted (M6-AUD-001).
+        editability: describeEditability({
+          canWrite: true,
+          saveStatus: "idle",
+        }),
         ...(step === "choosing"
           ? {}
           : {

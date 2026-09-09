@@ -140,17 +140,35 @@ export function offerWholeKitchenTiers(
 ): WholeKitchenTierOffer {
   const deltas = measureEveryDelta(request);
   return {
-    material: offeredGroup(request.book.material, deltas),
-    hardware: offeredGroup(request.book.hardware, deltas),
+    material: offeredGroup(request.book.material, deltas?.material),
+    hardware: offeredGroup(request.book.hardware, deltas?.hardware),
   };
 }
 
-/** Every offered tier's delta, keyed by tier id, or `undefined` where any one of them could not be
- *  measured. Six evaluations of a pure query — one per tier, with the other group held at what the
- *  design carries. */
+/**
+ * **Each group's deltas, kept in its own map** — never flattened into one keyed on the bare tier id.
+ *
+ * A tier id is unique within a group by construction and across the two only because the book says
+ * so. Flattening them let a *hardware* id equal to a *material* one overwrite the material amount,
+ * and the two amounts are not remotely alike: the measured witness showed an 18 000 MDL veneer
+ * upgrade displayed as the 6 197,60 a soft-close hardware tier costs (M6-AUD-003).
+ *
+ * **Kept even though `parsePriceBook` now refuses a book that repeats a tier id across the groups.**
+ * Two layers, because a relaxation of that rule must not be able to turn into wrong money on a
+ * customer's screen: a group's delta should be unreachable from another group's key whatever the
+ * book says.
+ */
+interface MeasuredDeltasByGroup {
+  readonly material: ReadonlyMap<string, number>;
+  readonly hardware: ReadonlyMap<string, number>;
+}
+
+/** Every offered tier's delta, or `undefined` where any one of them could not be measured. Six
+ *  evaluations of a pure query — one per tier, with the other group held at what the design
+ *  carries. */
 function measureEveryDelta(
   request: OfferWholeKitchenTiersRequest,
-): ReadonlyMap<string, number> | undefined {
+): MeasuredDeltasByGroup | undefined {
   const material = measureGroup(
     request.book.material,
     (materialTierId) => totalAt(request, { materialTierId }),
@@ -162,7 +180,7 @@ function measureEveryDelta(
     "offer-with-no-delta",
   );
   if (material === undefined || hardware === undefined) return undefined;
-  return new Map([...material, ...hardware]);
+  return { material, hardware };
 }
 
 /** One evaluation of the pure query, with one setting overridden. `undefined` where the design
@@ -267,6 +285,9 @@ function exactDelta<TTier extends TierIdentity>(
 }
 
 /** The book's own list, with a delta attached to each tier where one was measured.
+ *
+ *  **Takes this group's map and no other's**, so a tier id can only ever address an amount measured
+ *  for the group it belongs to — see `MeasuredDeltasByGroup`.
  *
  *  **The undeclared-default refusal runs here rather than beside the arithmetic**, so it still fires
  *  on a design nothing could be priced for: the default is what an unset choice resolves to, and a

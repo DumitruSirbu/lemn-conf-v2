@@ -14,7 +14,8 @@
 //    rows `resolveRebuildBody` swaps for the parameterised ones step 4 moved.
 //
 // **The right-hand side is not the entry's own arithmetic.** A row's finished depth is declared by
-// its `depthRule`: a pin states it outright, and cabinetry reads the wall map at the setting. So
+// its declarations: cabinetry reads the wall map at the setting, or the cabinet-depth line where a
+// lifted column answers it (ADR 0101). So
 // `frameDepthMm + frontAssemblyMm` on one side and a declaration that knows nothing about either
 // field on the other — the two sources this repository's own note about weak guards asks for.
 import { describe, expect, it } from "vitest";
@@ -25,13 +26,28 @@ import {
 } from "../src/fixtures/kitchen-l-design.js";
 import type { BodyDefinition } from "../src/void-engine.js";
 import { wallCarcassDepthMm } from "../src/catalog.js";
+import {
+  columnBuildDepthMm,
+  declaresALiftedColumnDepth,
+} from "../src/cabinet-depth-rule.js";
 import { declaredCabinetDepthsMm } from "../src/worktop-depth.js";
 
-/** What the row's **declaration** says its finished body fills, asked of `depthRule` alone.
+/** What the row's **declaration** says its finished body fills, asked of the entry's declarations
+ *  alone — never of `frameDepthMm`, which is the left-hand side of the identity being checked.
  *
  *  `undefined` for a row this claim does not cover: a manufactured size is a machine's depth and no
  *  `recorded-shell` row declares one, and a row with no rule at all is `cabinetDepthRuleOf`'s
- *  refusal rather than this file's subject. */
+ *  refusal rather than this file's subject.
+ *
+ *  **Two declarations answer, not one** (ADR 0101 decision 1). A wall row standing over a
+ *  full-height column is out of the head-clearance cap's reach, so its finished depth is
+ *  `columnBuildDepthMm`'s lifted arm — the cabinet-depth line — and not the map's carcass row. That
+ *  is read off `builtDepthFollowsALiftedColumn`, which is where the product states it; inferring it
+ *  from a build id or from a suspiciously large `frameDepthMm` is what ADR 0022 forbids.
+ *
+ *  The `pinned` arm is kept although nothing declares one since ADR 0101 unpinned the deep tops:
+ *  without it a future pinned row would fall to `undefined` and be **skipped** by the sweep, which
+ *  is a silent hole rather than a refusal. */
 function declaredFinishedDepthMm(
   definition: BodyDefinition,
   cabinetDepthMm: number,
@@ -39,9 +55,10 @@ function declaredFinishedDepthMm(
   const rule = definition.depthRule;
   if (rule === undefined) return undefined;
   if (rule.follows === "pinned") return rule.pinnedFinishedDepthMm;
-  if (rule.follows === "cabinet-depth")
-    return wallCarcassDepthMm(cabinetDepthMm);
-  return undefined;
+  if (rule.follows !== "cabinet-depth") return undefined;
+  return declaresALiftedColumnDepth(definition)
+    ? columnBuildDepthMm({ cabinetDepthMm, hasFullHeightUnder: true })
+    : wallCarcassDepthMm(cabinetDepthMm);
 }
 
 interface Row {
@@ -86,15 +103,20 @@ describe("a recorded shell plus its front is the depth its rule declares", () =>
         (row) => catalog.get(row.buildId)?.nominalDepthMm !== undefined,
       );
       const unfronted = rows.filter((row) => row.frontAssemblyMm === 0);
-      const pinned = [...catalog].filter(
-        ([, definition]) => definition.depthRule?.follows === "pinned",
+      // **The fourth arm, re-founded by ADR 0101.** It was the pinned rows until 2026-09-07, and it
+      // is now the rows a lifted column answers — the ones whose declared depth is the cabinet-depth
+      // line rather than the map's. Without one of these in the sweep, `declaredFinishedDepthMm`'s
+      // lifted branch is never taken and the file certifies the map arm alone.
+      const lifted = [...catalog].filter(([, definition]) =>
+        declaresALiftedColumnDepth(definition),
       );
 
       expect(rows.length).toBeGreaterThan(9);
       expect(insertable.length).toBeGreaterThan(0);
       expect(rows.length).toBeGreaterThan(insertable.length);
       expect(unfronted.length).toBeGreaterThan(1);
-      expect(pinned.length).toBeGreaterThan(0);
+      expect(lifted.length).toBeGreaterThan(0);
+      expect(rows.length).toBeGreaterThan(lifted.length);
     },
   );
 

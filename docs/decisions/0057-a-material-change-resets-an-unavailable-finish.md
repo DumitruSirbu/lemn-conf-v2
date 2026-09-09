@@ -1,6 +1,7 @@
 # ADR 0057 — A global material change resets a per-cabinet finish it does not offer, and says so first
 
 Status: Accepted (decision 3 amended 2026-09-05 → [0081](0081-a-material-change-confirms-only-when-a-chosen-colour-would-be-lost.md))
+Note: decision 2 is **confirmed as still standing** by [0099](0099-a-colour-is-chosen-at-two-levels-and-the-cabinets-wins.md) decision 3 — a global *material* change may still reset a cabinet colour; a global *colour* change never may.
 Date: 2026-09-02
 Type: Decision
 Milestone: M6 — unblocks wave 6F

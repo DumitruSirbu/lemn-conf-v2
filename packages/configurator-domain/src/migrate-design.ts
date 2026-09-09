@@ -586,16 +586,44 @@ function resolveFinishesTheMaterialDoesNotOffer(design: Design): Design {
   if (lookup.kind === "undeclared") return design;
 
   const material = lookup.material;
+  const resolved = resolveGlobalFinishTheMaterialDoesNotOffer(design, material);
   const wearsUnoffered = (placement: DesignPlacement): boolean =>
     wearsAFinishTheMaterialDoesNotOffer(placement, material);
-  if (!design.placements.some(wearsUnoffered)) return design;
+  if (!resolved.placements.some(wearsUnoffered)) return resolved;
   return {
-    ...design,
-    placements: design.placements.map((placement) =>
+    ...resolved,
+    placements: resolved.placements.map((placement) =>
       wearsUnoffered(placement)
         ? wearing(placement, material.defaultFinish)
         : placement,
     ),
+  };
+}
+
+/** **The same correction at the whole-kitchen level** (ADR 0099 decision 6): ADR 0057's invariant
+ *  now covers `settings.finish`, so a stored global colour the design's material does not offer is
+ *  read as that material's declared default rather than painted.
+ *
+ *  **Unreachable through this build's own commands**, which is why it is a load-seam safety net
+ *  rather than a migration arm: `setMaterialTier` performs the same reset when the material moves,
+ *  and `setGlobalFinish` refuses a colour the material does not offer. It stands for the document
+ *  that arrived by another route — a restored backup, a hand-edited row, a client this build did
+ *  not write — and it keeps such a row loading rather than refusing it (ADR 0052).
+ *
+ *  Keyed to no version, for `dropFinishFromBodiesThatCannotWearOne`'s stated reason: a property of
+ *  the loaded document has to be asserted on the loaded document, including the ones this build
+ *  writes. A document carrying no global colour is returned by identity. */
+function resolveGlobalFinishTheMaterialDoesNotOffer(
+  design: Design,
+  material: Material,
+): Design {
+  const finish = design.settings?.finish;
+  if (finish === undefined || materialOffersFinish(material, finish)) {
+    return design;
+  }
+  return {
+    ...design,
+    settings: { ...design.settings, finish: material.defaultFinish },
   };
 }
 

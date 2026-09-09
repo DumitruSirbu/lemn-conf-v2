@@ -149,10 +149,26 @@ describe("the rows are wave 6A's groups, rendered", () => {
     expect(view.groups[0]?.heading).toBe("Perete A · bază");
   });
 
-  it("produces no group at all for a design of nothing but empty space", () => {
-    const view = shippedBreakdown(withLines(SHIPPED_PRICING, []), []);
+  // **Superseded by M6-AUD-014's ruling** (owner, 2026-09-09). This case used to assert that a
+  // kitchen of nothing but empty space produced an available breakdown with zero groups. It now has
+  // no breakdown at all: there is no price to explain, and an available-but-empty one would render
+  // the two whole-kitchen tiers *inclus* over a kitchen with nothing in it, which reads as a costed
+  // answer. The bar carries the owner's prompt instead.
+  it("offers no breakdown at all for a design of nothing but empty space", () => {
+    const view = describePriceBreakdown({
+      pricing: withLines(SHIPPED_PRICING, []),
+      groups: [],
+    });
 
-    expect(view.groups).toEqual([]);
+    expect(view.kind).toBe("unavailable");
+    // Non-vacuity: the same call on the shipped design is available, so "unavailable" is a statement
+    // about the empty kitchen and not about this helper.
+    expect(
+      describePriceBreakdown({
+        pricing: SHIPPED_PRICING,
+        groups: SHIPPED_GROUPS,
+      }).kind,
+    ).toBe("available");
   });
 });
 

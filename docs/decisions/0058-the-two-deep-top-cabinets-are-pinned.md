@@ -1,6 +1,6 @@
 # ADR 0058 — The two deliberately-deep top cabinets are pinned, and the pin is a declared exception
 
-Status: Accepted
+Status: Accepted in part. **Decision 1 is WITHDRAWN 2026-09-07 → [0101](0101-a-lifted-columns-depth-is-declared-and-the-three-deep-tops-follow-the-setting.md)** — `p22`, `p23` and `p24` are no longer pinned and now follow the cabinet-depth setting, so this record's central claim is false; decision 3's criterion no longer describes them. **Decisions 2 and 4 stand and are explicitly upheld by ADR 0101**, which cites decision 2's reasoning three times — but the `pinned` arm now has **no shipped population**. (Also struck 2026-09-07 → [0097](0097-adr-0058s-costs-were-accepted-at-a-depth-nothing-shipped-at-and-that-premise-has-expired.md): the two cost-acceptance paragraphs and finding 3's 742 mm objection — the first premise, "a depth nothing ships at", is false since wave 6K; the second is unreachable since wave 6I2.)
 Date: 2026-09-02
 Type: Decision + Finding
 Milestone: M6 — gates waves 6H, 6I and 6J
@@ -56,6 +56,14 @@ three shipped bodies would have been rebuilt at their columns' depths, and `p24`
 **exactly the 742 mm** entry 15 names — moving that defect out of the post-delete insert path and
 onto three bodies of the shipped kitchen. Pinning prevents that.
 
+**Expired 2026-09-07 —
+[ADR 0097](0097-adr-0058s-costs-were-accepted-at-a-depth-nothing-shipped-at-and-that-premise-has-expired.md)
+Amendment A6.** True when written, and no longer. Two things ended it: the 742 mm outcome required
+*"follow their column"*, and the live proposal is *follow the **setting***, which builds at the
+cabinet-depth line; and since wave 6I2 `resolveDepthM` reads `columnBuildDepthM`'s **declaration** and
+never the opening's own MAX, so 742 is unreachable on this path at all — `docs/BACKLOG.md` entry 15 is
+in `resolved.md`. **This finding may no longer be cited as a cost of unpinning.**
+
 It does **not** shrink entry 15's population, and this record does not claim it does: the defect
 lives on the insert path, where a catalogue `wall-cabinet` dropped into a vacated slot over a
 full-height column still takes `opening.d`. That is wave 6I2's, not this one's.
@@ -86,10 +94,14 @@ is the same pinning this record decides: the corner return's top is seated off t
 return is 570 mm wide and structural ([ADR 0021](0021-corner-returns-are-structural-in-data.md)), so
 nothing absorbs the difference.
 
-**Recorded as an accepted cost, not scheduled as a defect** — the same class as the recessed steps
+~~**Recorded as an accepted cost, not scheduled as a defect** — the same class as the recessed steps
 above: a visible consequence of pinning, at a depth nothing ships at. It is written here because it
 was neither recorded nor detectable, and a customer meeting it at 700 without warning is exactly
-what these records exist to prevent.
+what these records exist to prevent.~~
+**The premise expired 2026-09-07 — see [ADR 0097](0097-adr-0058s-costs-were-accepted-at-a-depth-nothing-shipped-at-and-that-premise-has-expired.md).**
+700 mm is a shipping setting since wave 6K, and the person who first rendered a 700 mm kitchen was the
+owner, who reported this rather than recognising it. The measurement (15 mm → 45 mm) and the
+mechanism stand; the **acceptance** does not, and this paragraph may not be cited as one.
 
 **It does not change the 700 mm overrun.** Wall B's top band still reaches z 2900 against the
 reference's 2830, so `p24` is still the flagged body and the 70 mm is unchanged.
@@ -98,15 +110,26 @@ reference's 2830, so `p24` is still the flagged body and the 70 mm is unchanged.
 pantry below it line up within a millimetre; at 700 the pantry moves forward 100 mm and the top
 cabinet does not, so a face that currently reads as one plane becomes a 99 mm step.
 
-**Assessed as acceptable, and recorded rather than worked around.** Nothing overlaps, nothing becomes
+~~**Assessed as acceptable, and recorded rather than worked around.** Nothing overlaps, nothing becomes
 unmanufacturable, 600 remains a manufactured size, and a recessed top over a deeper column is already
 the shipped condition on two of the three. It is a visual change on one face at a depth nothing ships
 at today — not a defect. It is written down here so that whoever first renders a 700 mm kitchen
-recognises it as a decision rather than reporting it as a regression.
+recognises it as a decision rather than reporting it as a regression.~~
+**The premise expired 2026-09-07 — see [ADR 0097](0097-adr-0058s-costs-were-accepted-at-a-depth-nothing-shipped-at-and-that-premise-has-expired.md).**
+The technical facts above are unchanged and still true: nothing overlaps and nothing becomes
+unmanufacturable. What no longer holds is *"at a depth nothing ships at today"*, and with it the
+assessment that rested on it. ADR 0097 measures what un-pinning would cost and leaves the product
+choice with the owner; decisions 1–4 below are untouched.
 
 ## Decision
 
-**1. Both entries are pinned: their finished depth does not follow the cabinet-depth setting.**
+**1. ~~Both entries are pinned: their finished depth does not follow the cabinet-depth setting.~~**
+**WITHDRAWN 2026-09-07 → [ADR 0101](0101-a-lifted-columns-depth-is-declared-and-the-three-deep-tops-follow-the-setting.md).**
+The owner reported the three top-level cabinets as wrong at 700 mm, and they were: the pin was
+holding them at 600 while every other cabinetry row moved. `p22`, `p23` and `p24` now follow the
+setting through `columnBuildDepthM`'s lifted arm, and plan **700** at 700. The mechanism this
+decision chose is not what was wrong with it — see decision 2, which ADR 0101 upholds — only the
+population it was applied to.
 
 **2. The pin is a declared exception on the catalogue entry, never a literal constant.** A constant
 that silently stops tracking anything rots; a declaration is greppable and testable, and it is what
@@ -116,8 +139,12 @@ entry and an entry that declares nothing **throws** rather than being guessed at
 `catalogEquivalentId` is declared rather than inferred
 ([ADR 0022](0022-seeded-entries-declare-their-catalogue-equivalent.md)) for the same reason.
 
-**3. Wave 6H/6I criterion, falsifiable:** build the catalogue at 600 and at 700; these two entries'
-finished depth is identical (600) at both, while every other cabinetry entry's has moved. An entry
+**3. Wave 6H/6I criterion, falsifiable:** build the catalogue at 600 and at 700; ~~these two entries'
+finished depth is identical (600) at both~~ **— no longer true of `p22`/`p23`/`p24` since
+[ADR 0101](0101-a-lifted-columns-depth-is-declared-and-the-three-deep-tops-follow-the-setting.md);
+they plan 700 at 700. The criterion itself is not withdrawn: it is what any *future* pinned entry
+must satisfy, and ADR 0101 decision 3's declared witnesses are what keep the arm real now that it has
+no shipped population** — while every other cabinetry entry's has moved. An entry
 that neither tracks the setting nor declares an exception fails loudly rather than silently holding
 still — the distinction this decision exists to keep visible.
 

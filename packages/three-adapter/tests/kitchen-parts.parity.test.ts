@@ -108,10 +108,88 @@ function wallCabinetDivergences(
   ];
 }
 
+// ---------------------------------------------------------------------------------------------
+// The ADR 0098 re-baseline: the sink is centred, and the 600 mm kitchen moves.
+// ---------------------------------------------------------------------------------------------
+//
+// **This is the one thing ADR 0087 deliberately refused to do for the hob, and ADR 0098 decision 3
+// does on purpose for the sink.** The hob's shipped literal already satisfied its ruling, so
+// wave 6U held the 600 mm kitchen still to the micrometre and needed nothing here. The sink's does
+// not: the owner asked for a bigger gap between the faucet and the wall, and at 600 the worktop's
+// 620 mm is fully spent — 130 mm in front, a 400 mm aperture, 90 mm behind, of which the faucet
+// takes 88. There are 2 mm of slack. The rear gap can only come from moving the assembly forward,
+// and "centred" is the owner's own word for exactly that move.
+//
+// So the sink assembly and the stone cut around it are seated 20 mm forward of the cabinet's own
+// origin at 600 — `SINK_SEAT_OFFSET_M`, derived from a declared 110 mm front clearance. The two
+// slabs that flank the aperture each give up or take on that 20 mm at one end only, so each moves
+// by half of it while its depth changes by all of it. Nothing else in either tree moves: everything
+// below is one `baseCabinet(w, { sink: true })` call and the seeded room holds exactly one.
+const SINK_CENTRING_SHIFT_M = 0.02;
+
+/** ADR 0098 inside one `baseCabinet(w, { sink: true })` call. `prefix` is the path from the compared
+ *  root down to the `base_cabinet` group. */
+function sinkCentringDivergences(prefix: string): DeclaredDivergence[] {
+  const why =
+    "ADR 0098: the sink is centred on its worktop at the declared depth, 20 mm forward of the " +
+    "literal seat it replaces";
+  return [
+    {
+      node: `${prefix}base_cabinet > countertop_front`,
+      field: "size",
+      index: 2,
+      deltaM: -SINK_CENTRING_SHIFT_M,
+      nodes: 1,
+      why: `${why} — the slab in front of it gives up the 20 mm`,
+    },
+    {
+      node: `${prefix}base_cabinet > countertop_front`,
+      field: "position",
+      index: 2,
+      deltaM: SINK_CENTRING_SHIFT_M / 2,
+      nodes: 1,
+      why: `${why} — and moves by half of it, its front edge being unchanged`,
+    },
+    {
+      node: `${prefix}base_cabinet > countertop_back`,
+      field: "size",
+      index: 2,
+      deltaM: SINK_CENTRING_SHIFT_M,
+      nodes: 1,
+      why: `${why} — the slab behind it takes the 20 mm on, which is the gap the owner asked for`,
+    },
+    {
+      node: `${prefix}base_cabinet > countertop_back`,
+      field: "position",
+      index: 2,
+      deltaM: SINK_CENTRING_SHIFT_M / 2,
+      nodes: 1,
+      why: `${why} — and moves by half of it, its back edge being the wall plane`,
+    },
+    {
+      node: `${prefix}base_cabinet > countertop_side`,
+      field: "position",
+      index: 2,
+      deltaM: SINK_CENTRING_SHIFT_M,
+      nodes: 2,
+      why: `${why} — the two slabs flanking the aperture follow it whole, their depth unchanged`,
+    },
+    {
+      node: `${prefix}base_cabinet > sink_faucet`,
+      field: "position",
+      index: 2,
+      deltaM: SINK_CENTRING_SHIFT_M,
+      nodes: 1,
+      why: `${why} — bowl and faucet are one assembly and follow it whole`,
+    },
+  ];
+}
+
 /** The seeded scene: fifteen wall bodies carrying 26 doors between them, ten seated on wall A and
- *  five on wall B, plus the one hood. Counted rather than derived, so a body that stopped being
- *  drawn cannot pass by making its divergence disappear. */
+ *  five on wall B, plus the one hood — and, since ADR 0098, its one sink base. Counted rather than
+ *  derived, so a body that stopped being drawn cannot pass by making its divergence disappear. */
 const KITCHEN_L_DIVERGENCES: readonly DeclaredDivergence[] = [
+  ...sinkCentringDivergences("kitchen_l_shape > "),
   ...wallCabinetDivergences("kitchen_l_shape > wall_cabinet > ", 26).map(
     (declared) =>
       declared.field === "position" && declared.node.endsWith("door")
@@ -146,6 +224,7 @@ const KITCHEN_L_DIVERGENCES: readonly DeclaredDivergence[] = [
 
 const DECLARED_DIVERGENCES: ReadonlyMap<string, readonly DeclaredDivergence[]> =
   new Map([
+    ["base-sink", sinkCentringDivergences("")],
     ["wall-1door", wallCabinetDivergences("wall_cabinet > ", 1)],
     ["wall-2door", wallCabinetDivergences("wall_cabinet > ", 2)],
     // A lift-up is `wallCabinet(W, 0, …)` plus one full-face flap, and the flap is a `door` too.

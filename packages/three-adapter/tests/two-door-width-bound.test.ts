@@ -161,7 +161,8 @@ describe("the 700 mm fridge opening takes a two-door again", () => {
       KITCHEN_L_DESIGN.room,
     );
     const records = derivePlacementRecords(design, KITCHEN_L_BODY_CATALOG);
-    const opening = recomputeVoids(records, columns).find(
+    const voids = recomputeVoids(records, columns);
+    const opening = voids.find(
       (record) => record.col === "B|2.45" && Math.abs(record.y0) < 0.01,
     );
     if (!opening) throw new Error("the deleted fridge left no base opening");
@@ -171,6 +172,7 @@ describe("the 700 mm fridge opening takes a two-door again", () => {
       design,
       catalog: KITCHEN_L_BODY_CATALOG,
       columns,
+      voids,
       target: { kind: "void", id: opening.id },
       buildId: "base-cabinet",
       probe: createBodyProbe(kit, room),
@@ -214,11 +216,12 @@ describe("a hood in an opening wider than any hood", () => {
       result.design,
       KITCHEN_L_BODY_CATALOG,
     );
-    const opening = recomputeVoids(records, columns).find(
+    const voids = recomputeVoids(records, columns);
+    const opening = voids.find(
       (record) => record.col === "A|1.30" && Math.abs(record.y0 - 1.5) < 0.01,
     );
     if (!opening) throw new Error("the deleted wall cabinet left no opening");
-    return { design: result.design, columns, opening };
+    return { design: result.design, columns, voids, opening };
   }
 
   // **ADR 0035 decision 5: the hood is cabinetry bounded 600–800, so an 800 mm opening gets an
@@ -230,7 +233,7 @@ describe("a hood in an opening wider than any hood", () => {
   // Measured against the real builders and the real probe, because a fake probe returns the width
   // it was handed and could not see this at all.
   it("fills an 800 mm opening rather than narrowing into it", () => {
-    const { design, columns, opening } = clearedWideWall();
+    const { design, columns, voids, opening } = clearedWideWall();
     expect(Math.round(opening.w * 1000)).toBe(800);
     const openingCentreMm = Math.round(opening.x * 1000);
 
@@ -238,6 +241,7 @@ describe("a hood in an opening wider than any hood", () => {
       design,
       catalog: KITCHEN_L_BODY_CATALOG,
       columns,
+      voids,
       target: { kind: "void", id: opening.id },
       buildId: "hood",
       probe: createBodyProbe(kit, room),
@@ -261,12 +265,13 @@ describe("a hood in an opening wider than any hood", () => {
   // `WIDTH_TOO_SMALL`, which would be claiming §7's builder inverts down there (ADR 0026 clause 2).
   it("still refuses an opening narrower than the narrowest hood", () => {
     const design = clearedNarrowWall();
-    const { columns, opening } = narrowOpening(design);
+    const { columns, voids, opening } = narrowOpening(design);
 
     const result = insertBody({
       design,
       catalog: KITCHEN_L_BODY_CATALOG,
       columns,
+      voids,
       target: { kind: "void", id: opening.id },
       buildId: "hood",
       probe: createBodyProbe(kit, room),
@@ -282,13 +287,14 @@ describe("a hood in an opening wider than any hood", () => {
 describe("so the 300 mm opening gets a one-door, correctly named — backlog 13", () => {
   it("accepts the insert and builds at the opening's own width", () => {
     const design = clearedNarrowWall();
-    const { columns, opening } = narrowOpening(design);
+    const { columns, voids, opening } = narrowOpening(design);
     expect(Math.round(opening.w * 1000)).toBe(NARROW_WIDTH_MM);
 
     const result = insertBody({
       design,
       catalog: KITCHEN_L_BODY_CATALOG,
       columns,
+      voids,
       target: { kind: "void", id: opening.id },
       buildId: WALL_CABINET_BUILD_ID,
       probe: createBodyProbe(kit, room),

@@ -108,21 +108,66 @@ export type PixelTest =
        *  against **two** channels where `blueTint` compares against one because the kitchen is warm,
        *  so oak and clay are already red-over-blue everywhere.
        *
-       *  **Two things other than a mark clear 50, and the counter is sound only where neither is on
-       *  screen.** A `SELECTION_HIGHLIGHT_COLOR` outline is red over both other channels by 210 and
-       *  is counted as a wash — 6 454 pixels of one, measured on a body the document says is not
-       *  marked — so the count is taken with nothing selected. A front painted `#ff2d2d` reports
-       *  16 416 with no mark anywhere, so the count is taken on a document that wears no finish.
+       *  **Three things other than a mark clear the old threshold of 50, and the counter is sound
+       *  only where none of them is on screen.** A `SELECTION_HIGHLIGHT_COLOR` outline is red over
+       *  both other channels by 210 and is counted as a wash — 6 454 pixels of one, measured on a
+       *  body the document says is not marked — so the count is taken with nothing selected. A
+       *  front painted `#ff2d2d` reports 16 416 with no mark anywhere, so the count is taken on a
+       *  document that wears no finish.
        *
-       *  ADR 0091 finding 5 names a third, the woods, from the **model** colours: untinted oak
-       *  reaches a red excess of 78 and ADR 0071's five tints reach 137, against this threshold of
-       *  50. That bound is real arithmetic and is not reached through the renderer — a walnut
-       *  kitchen measures 0, 0 and 3 counted pixels across the canvas in the three camera presets
-       *  (`pixel-counter-witness.desktop.e2e.spec.ts`). It is recorded here as a margin the
-       *  model leaves, not as a breach the screen shows. */
+       *  The third is ADR 0091 finding 5's own: **the woods reach it, and the reading that said
+       *  otherwise was of the wrong document.** See `MARK_MIN_RED_EXCESS_OVER_ANY_FINISH` below for
+       *  what a counter that may meet a wood has to clear, and for why the one gate that photographs
+       *  a white kitchen is allowed a lower number. */
       readonly kind: "redTint";
       readonly minExcess: number;
     };
+
+/**
+ * **The red excess a pixel has to carry before a spec that may be photographing a wood calls it
+ * ADR 0065's mark**, declared once so the two witness specs cannot come to disagree about where the
+ * wash starts.
+ *
+ * **It was 50, and 50 was never sound over a wood.** ADR 0091 finding 5 predicted the woods from the *model*
+ * colours — untinted oak at 78 — and the renderer was said not to reach it, on the strength of a
+ * walnut kitchen measuring 0, 0 and 3. That reading was taken through a fixture that wrote no
+ * kitchen colour, so its structural bodies fell back to `material.veneer`'s declared default and it
+ * was **oak** that was photographed, not walnut. Measured 2026-09-09 at 1440 × 900 on a genuinely
+ * oak document with no mark anywhere on it: **194 041 / 193 783 / 278 066** pixels past 50 in the
+ * three camera presets, against a ceiling of 40 — the instrument reporting a mark on a kitchen that
+ * has none, nearly all of them ordinary door fronts.
+ *
+ * The separation the same sweep measured, over every document and preset:
+ *
+ * | document    | max excess unmarked | ≥ 77 unmarked | ≥ 77 marked            |
+ * | ----------- | ------------------- | ------------- | ---------------------- |
+ * | walnut      |                  51 |     0 / 0 / 0 | 58 222 / 57 048 / 90 079 |
+ * | oak         |                  76 |     0 / 0 / 0 | 59 348 / 58 310 / 92 250 |
+ *
+ * 77 separates every document measured and 80 is that with headroom: the unmarked ceilings are dense
+ * edges rather than sampling luck — walnut piles 27 879 pixels at exactly 45 and oak 51 841 at
+ * exactly 72 — so nothing is sitting just under 80 waiting to cross it.
+ * `pixel-counter-witness.adversarial.desktop.e2e.spec.ts` photographs the oak kitchen and holds it
+ * here, so the gap cannot reopen silently.
+ *
+ * **It is not free, and it is therefore not the only threshold in the tree.** The wash is 32 % of
+ * `OVERFLOW_MARK_COLOR` over whatever the body is painted, so over a **white** kitchen it carries
+ * only its own share of the red and almost none of it survives 80. Measured 2026-09-09 at 390 × 844
+ * through `overflow-mark.e2e.spec.ts`'s own rectangle, on that spec's own document — six bodies
+ * genuinely marked, the control reading **0 at every one of these thresholds**:
+ *
+ * | min excess |    40 |    50 |    55 |    70 |    76 |    80 |
+ * | ---------- | ----- | ----- | ----- | ----- | ----- | ----- |
+ * | marked     | 27 865 | 7 494 | 1 404 | 1 136 |   311 |   252 |
+ *
+ * So no single number both stays silent on an unmarked oak kitchen (which reaches 76) and keeps the
+ * wash's signal on a white one (which is down to 252 by 77). The threshold is a property of **what
+ * the document under the wash is painted**, and the two callers differ in exactly that: the witness
+ * specs photograph woods and take no per-document control, so they need this constant; the shipped
+ * mark gate photographs one white document and measures its own unmarked control through the same
+ * rectangle, so it keeps a lower threshold and says why beside it.
+ */
+export const MARK_MIN_RED_EXCESS_OVER_ANY_FINISH = 80;
 
 /** Captures `clip` from the live page, for measuring now or later. */
 export async function capturePatch(

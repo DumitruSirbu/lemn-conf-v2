@@ -17,6 +17,7 @@
 // **Wave 6Q-b gave `setMaterialTier` one more job**, and it is the only place a whole-kitchen
 // setting reaches a per-cabinet one: ADR 0057's reset, composed out of `withPlacements(withSettings(
 // …))` so `command-result.ts` stays the one place a command writes a new `Design`.
+import { materialOfDesign } from "../design-material.js";
 import {
   DesignSettingsSchema,
   type Design,
@@ -36,6 +37,7 @@ import {
   withPlacements,
   withSettings,
   type CommandResult,
+  type GlobalFinishSetEffect,
   type HardwareTierSetEffect,
   type MaterialTierSetEffect,
 } from "./command-result.js";
@@ -53,6 +55,70 @@ export interface WholeKitchenTierInput {
 /** The tier this code names is not one the caller's book offers. Which of the two codes it is is the
  *  only thing that differs between the commands' guards. */
 type UnknownTierCode = "UNKNOWN_MATERIAL_TIER" | "UNKNOWN_HARDWARE_TIER";
+
+/**
+ * **The whole-kitchen colour, and the input is the whole of ADR 0099 decision 2's guarantee.**
+ *
+ * It names a design and a finish. It does **not** take the placements, a placement id, or anything
+ * that could be turned into one — so no implementation of `setGlobalFinish`, and no later edit to
+ * it, can reach `placement.body.finish`. A command that *could* stamp every cabinet and merely
+ * chose not to is a defect waiting for a refactor; this one is structurally incapable of it, which
+ * is the owner's *"do not overwrite a cabinet's own colour"* expressed as a shape rather than as
+ * care.
+ */
+export interface GlobalFinishInput {
+  readonly design: Design;
+  readonly finish: Finish;
+  readonly occurredAt: string;
+}
+
+/**
+ * **A global colour change writes exactly one field and touches no cabinet, ever** (ADR 0099
+ * decisions 2 and 5).
+ *
+ * Cabinets carrying no `finish` follow it because they were following all along — `resolvedFinishOf`
+ * reads `settings.finish` for them — so the document does not grow a single `finish` key, the
+ * *second* global change moves them too, and a cabinet whose override is later cleared falls back
+ * here rather than to the book's default.
+ *
+ * **It refuses a colour the design's material does not offer**, with `setFinish`'s own code and for
+ * `setFinish`'s own reason (ADR 0078 decision 6): the offer has one author, the guard is asked one
+ * scope up, and an undeclared `materialTierId` offers nothing and refuses nothing so wave 6G's
+ * recovery path keeps working.
+ *
+ * **Setting the colour that is already set is not a refusal**, matching both tier commands: a
+ * customer re-tapping the swatch they are on gets the state they asked for.
+ */
+export function setGlobalFinish(
+  input: GlobalFinishInput,
+): CommandResult<GlobalFinishSetEffect> {
+  if (!isValidOccurredAt(input.occurredAt)) {
+    return refuse(input.design, { code: "INVALID_OCCURRED_AT", params: {} });
+  }
+  if (!designOffersFinish(input.design, input.finish)) {
+    return refuse(input.design, { code: "FINISH_NOT_OFFERED", params: {} });
+  }
+  const settings: DesignSettings = {
+    ...input.design.settings,
+    finish: input.finish,
+  };
+  return succeedWith(withSettings(input.design, settings, input.occurredAt), {
+    type: "global_finish_set",
+    finish: input.finish,
+  });
+}
+
+/** ADR 0078 decision 6's question, read off the design being rewritten so a caller cannot hand this
+ *  command a material the document is not on. An undeclared tier has no palette to judge a colour
+ *  against, so it lets the colour through rather than making a stale tier uncolourable — the same
+ *  answer `setFinish` gives one scope down. */
+function designOffersFinish(design: Design, finish: Finish): boolean {
+  const lookup = materialOfDesign(design);
+  return (
+    lookup.kind === "undeclared" ||
+    materialOffersFinish(lookup.material, finish)
+  );
+}
 
 export function setMaterialTier(
   input: WholeKitchenTierInput,
@@ -111,23 +177,60 @@ function resolveFinishesTheTierDoesNotOffer(
     return { design: applied, resolvedFinishCount: 0 };
   }
   const material = lookup.material;
+  const withGlobal = resolveGlobalFinishTheTierDoesNotOffer(
+    applied,
+    material,
+    input.occurredAt,
+  );
   const unoffered = new Set(
-    applied.placements.filter((placement) =>
+    withGlobal.placements.filter((placement) =>
       wearsAFinishTheMaterialDoesNotOffer(placement, material),
     ),
   );
   if (unoffered.size === 0) {
-    return { design: applied, resolvedFinishCount: 0 };
+    return { design: withGlobal, resolvedFinishCount: 0 };
   }
-  const placements = applied.placements.map((placement) =>
+  const placements = withGlobal.placements.map((placement) =>
     unoffered.has(placement)
       ? wearing(placement, material.defaultFinish)
       : placement,
   );
   return {
-    design: withPlacements(applied, placements, input.occurredAt),
+    design: withPlacements(withGlobal, placements, input.occurredAt),
     resolvedFinishCount: unoffered.size,
   };
+}
+
+/**
+ * **ADR 0099 decision 6: the global level is not exempt from ADR 0057's invariant.**
+ *
+ * *No stored design may hold a finish its material does not offer* now has to cover
+ * `settings.finish` as well as every `body.finish`, so a global colour the incoming material does
+ * not make is reset to that material's `defaultFinish` — **once, for the whole document**, never per
+ * cabinet.
+ *
+ * **Under a change between two different declared materials this is not an edge case, it is the
+ * only case.** ADR 0078 decision 1 makes the three materials' offers disjoint, so no finish survives
+ * such a change and the reset is a certainty rather than a risk. A change resolving to the *same*
+ * declared material resets nothing here, which is ADR 0086 decision 3's rule applied unchanged.
+ *
+ * Returns the design it was given by identity when nothing is owed, so a material change that
+ * discards no global colour moves nothing a save is diffed against beyond `settings.materialTierId`.
+ */
+function resolveGlobalFinishTheTierDoesNotOffer(
+  applied: Design,
+  material: Material,
+  occurredAt: string,
+): Design {
+  const finish = applied.settings?.finish;
+  if (finish === undefined || materialOffersFinish(material, finish)) {
+    return applied;
+  }
+  return withSettings(
+    applied,
+    { ...applied.settings, finish: material.defaultFinish },
+    occurredAt,
+  );
 }
 
 function wearsAFinishTheMaterialDoesNotOffer(

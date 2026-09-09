@@ -370,12 +370,18 @@ describe("the resolution changes the set of placements carrying a finish key not
   /** Pinned as literals so the sweep cannot pass over nothing: a fixture that stopped carrying
    *  finishes, or a catalogue that stopped declaring a frontless body, fails here rather than
    *  passing vacuously. */
-  const FINISHABLE_COUNT = 19;
-  const FRONTLESS_COUNT = 7;
+  const FINISHABLE_COUNT = 23;
+  const FRONTLESS_COUNT = 3;
 
   /** The seeded kitchen wearing one finish on every body that can take one, and none anywhere else.
-   *  Both branches of the invariant are present in a single document: 19 keys to preserve and 7
-   *  absences to preserve. */
+   *  Both branches of the invariant are present in a single document: 23 keys to preserve and 3
+   *  absences to preserve.
+   *
+   *  **They were 19 and 7 until the owner's corner ruling of 2026-09-09.** The four corner bodies
+   *  gained `canFinish`, so they moved from the strip's reach into its complement; the three that
+   *  stay behind are the open shelf, the hood and the freestanding fridge. The split is derived from
+   *  the catalogue above and only these two totals are literal, so the move shows up here as two
+   *  numbers rather than as a silently smaller sweep. */
   function wearingOnEveryFinishableBody(
     finish: Finish,
     materialTierId: string,
@@ -440,7 +446,7 @@ describe("the resolution changes the set of placements carrying a finish key not
     }));
 
     // **Per pair, and predicted from the offer rather than from a list kept beside it.** A pair the
-    // material offers moves nothing; a pair it does not moves all 19 keys. Neither branch may move a
+    // material offers moves nothing; a pair it does not moves all 23 keys. Neither branch may move a
     // key *count*, which is the invariant, and neither may be empty.
     for (const pair of measured) {
       expect({
@@ -468,7 +474,7 @@ describe("the resolution changes the set of placements carrying a finish key not
         const measured = measureOnePair(pair);
 
         // Predicted from the offer here too: MDF's picker offers a free colour and moves nothing,
-        // the two decor lists offer none and move all 19 keys. Either way the 7 absences survive.
+        // the two decor lists offer none and move all 23 keys. Either way the 3 absences survive.
         expect({
           rewritten: measured.rewritten,
           absences: measured.absencesPreserved,

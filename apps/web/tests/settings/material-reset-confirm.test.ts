@@ -38,6 +38,7 @@ import {
   createConfiguratorStore,
   type ConfiguratorState,
 } from "@/store/configurator-store";
+import { describeEditability } from "@/store/editability";
 import { buildKitchenLBodyCatalog } from "@lemnaria/configurator-domain";
 
 import { createFakeProbeFactory } from "../support/fake-body-probe";
@@ -123,7 +124,6 @@ function viewFor(options: {
     groups: projectDesignForDisplay(design, KITCHEN_L_BODY_CATALOG),
     applied: options.applied ?? {},
     pending: options.pending ?? {},
-    rejection: null,
     chosenColourCount: countCabinetsWearingAChosenFinish(design),
   });
 }
@@ -135,11 +135,20 @@ function confirmOf(view: GlobalSettingsView): MaterialResetConfirmView {
   return confirm;
 }
 
+/** These fixtures are about the confirmation and its copy, never about access. Stated rather than
+ *  defaulted: `GlobalSettingsSurface.editability` is a required prop precisely so a write surface
+ *  cannot silently default to permitted (M6-AUD-001). */
+const WRITABLE_ACCESS = describeEditability({
+  canWrite: true,
+  saveStatus: "idle",
+});
+
 function choosingMarkupOf(view: GlobalSettingsView): string {
   return renderToStaticMarkup(
     createElement(GlobalSettingsSurface, {
       id: SURFACE_ID,
       view,
+      editability: WRITABLE_ACCESS,
       onChoose: () => undefined,
       onChooseDepth: () => undefined,
       onCancel: () => undefined,
@@ -153,6 +162,7 @@ function confirmMarkupOf(view: GlobalSettingsView): string {
     createElement(GlobalSettingsSurface, {
       id: SURFACE_ID,
       view,
+      editability: WRITABLE_ACCESS,
       confirming: {
         view: confirmOf(view),
         onConfirm: () => undefined,

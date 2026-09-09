@@ -99,14 +99,32 @@ describe("clipping a member-less column to the wall it stands on", () => {
     const clipped = clipEmptyColumnsAtWallEnd(columns, [], ROOM);
 
     expect(clipped).not.toBe(columns);
-    expect([...clipped.keys()]).toStrictEqual(["A|3.28"]);
-    const column = clipped.get("A|3.28");
+    // **The key is the original's**, not one re-derived from the moved centre — ADR 0090
+    // Amendment B's addendum, and backlog 52's whole fix. The centre moves to 3.28 and the key
+    // stays `A|3.30`, because a capped column is the same column seen from the published side.
+    expect([...clipped.keys()]).toStrictEqual(["A|3.30"]);
+    const column = clipped.get("A|3.30");
+    expect(column?.key).toBe("A|3.30");
     expect(column?.w).toBeCloseTo(0.56, 9);
     expect(column?.x).toBeCloseTo(3.28, 9);
     // Every frozen fact but the along-wall extent carries across untouched.
     expect(column?.d).toBe(0.58);
     expect(column?.top).toBe(0.82);
     expect(column?.regions).toStrictEqual([[0, 0.82]]);
+  });
+
+  // The addendum's rule stated as its own criterion, because the map's slot and the extent's own
+  // `key` field are two places one identity is written and a fix that moved only one of them would
+  // leave `recomputeVoids` stamping voids with a key the map does not hold.
+  it("keeps one identity for the column, in the map slot and in the extent alike", () => {
+    const original = columnAt(3.3, 0.6);
+
+    const clipped = clipEmptyColumnsAtWallEnd(mapOf([original]), [], ROOM);
+
+    for (const [slot, column] of clipped) {
+      expect(slot).toBe(column.key);
+    }
+    expect(clipped.get(original.key)?.key).toBe(original.key);
   });
 
   it("drops a column that starts wholly past the wall, rather than publishing it empty", () => {
@@ -148,14 +166,42 @@ describe("clipping a member-less column to the wall it stands on", () => {
   });
 
   // **Reachable, not defence in depth.** Every catalogue width is even, so an even-width column
-  // never puts this off the grid by itself — but the room's own along-wall length is not held to
-  // that parity, and an odd one still lands the clipped centre on a half millimetre.
-  it("declines a clip that would land off the millimetre grid, leaving the column as it was", () => {
+  // never puts this off the grid by itself — but the near edge is `centre − width / 2` and the
+  // wall's own end is any integer millimetre, so the two disagree in parity often enough to matter.
+  //
+  // **This test asserted the opposite until AUD-005**, on the ground that a clip landing off the
+  // grid is declined and the column *"left exactly as it was"*. Left as it was, it reaches 140 mm
+  // past a 3561 mm wall and `recomputeVoids` publishes an opening through it — which ADR 0069's
+  // owner ruling (2026-09-04, *"never"*) and ADR 0090 Amendment B (*"no opening past the wall is
+  // ever derived, drawn or offered"*) both forbid, and both predate the pass. The old assertion was
+  // therefore a criterion no permitted product state could satisfy (ADR 0091 decision 1, Q2), and
+  // it is restated rather than deleted: the near edge still holds, the result still lands on whole
+  // millimetres, and the far edge is now inside the wall instead of 140 mm past it.
+  it("clips to the widest column the grid allows, rather than publishing one past the wall", () => {
     const oddRoom: DesignRoom = { ...ROOM, widthMm: 3561 };
     const original = columnAt(3.5, 0.4);
     const columns = mapOf([original]);
 
     const clipped = clipEmptyColumnsAtWallEnd(columns, [], oddRoom);
+
+    const column = clipped.get(original.key);
+    if (!column)
+      throw new Error("the column the wall still covers was dropped");
+    // 261 mm of wall is left beside a near edge of 3300, and 260 is the widest width whose centre
+    // is a whole millimetre: 3.30 to 3.56, keyed as it arrived.
+    expect(column.key).toBe(original.key);
+    expect(column.w).toBeCloseTo(0.26, 9);
+    expect(column.x).toBeCloseTo(3.43, 9);
+  });
+
+  // The one input the decline still answers, and the boundary its sibling `drop` stops one
+  // millimetre short of: the wall covers a single millimetre of the wrong parity, so there is no
+  // publishable column between "as it arrived" and nothing at all.
+  it("declines where the wall covers one millimetre of the wrong parity", () => {
+    const original = columnAt(3.659, 0.2);
+    const columns = mapOf([original]);
+
+    const clipped = clipEmptyColumnsAtWallEnd(columns, [], ROOM);
 
     expect(clipped.get(original.key)).toBe(original);
   });

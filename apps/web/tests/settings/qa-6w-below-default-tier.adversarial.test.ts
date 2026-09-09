@@ -60,6 +60,7 @@ import {
   type GlobalSettingsView,
 } from "@/settings/global-settings-model";
 import { GlobalSettingsSurface } from "@/settings/global-settings";
+import { describeEditability } from "@/store/editability";
 import { createConfiguratorStore } from "@/store/configurator-store";
 
 import { createFakeProbeFactory } from "../support/fake-body-probe";
@@ -162,16 +163,24 @@ function viewOf(design: Design, book: PriceBook = BOOK): GlobalSettingsView {
     groups: projectDesignForDisplay(design, CATALOG),
     applied: design.settings ?? {},
     pending: design.settings ?? {},
-    rejection: null,
     chosenColourCount: countCabinetsWearingAChosenFinish(design),
   });
 }
+
+/** This file is about a book whose tier prices below its own default, never about access. Stated
+ *  rather than defaulted: `GlobalSettingsSurface.editability` is a required prop precisely so a
+ *  write surface cannot silently default to permitted (M6-AUD-001). */
+const WRITABLE_ACCESS = describeEditability({
+  canWrite: true,
+  saveStatus: "idle",
+});
 
 function settingsMarkupOf(view: GlobalSettingsView): string {
   return renderToStaticMarkup(
     createElement(GlobalSettingsSurface, {
       id: "settings",
       view,
+      editability: WRITABLE_ACCESS,
       onChoose: () => undefined,
       onChooseDepth: () => undefined,
       onCancel: () => undefined,
@@ -221,7 +230,7 @@ describe("the optional delta never reaches a screen as a word", () => {
         settings: { ...DRAWERS_ONLY.settings, hardwareTierId },
       };
       const pricing = pricingOf(design);
-      const bar = describePriceBar({ pricing, rejection: null });
+      const bar = describePriceBar({ pricing });
       const breakdown = describePriceBreakdown({
         pricing,
         groups: projectDesignForDisplay(design, CATALOG),
@@ -623,7 +632,7 @@ describe("the tier that states nothing is still a tier a customer can choose", (
     // The point of the wave: the kitchen genuinely costs less here, and the customer is shown a
     // coherent figure rather than a refusal.
     expect(chosen.priced.totalMinor).toBe(atDefault.priced.totalMinor - 4_200);
-    const bar = describePriceBar({ pricing: chosen, rejection: null });
+    const bar = describePriceBar({ pricing: chosen });
     expect(bar.kind).toBe("priced");
     if (bar.kind !== "priced") throw new Error("unreachable");
     expect(bar.figure.label).toBe(ro.price.startingPrefix);
@@ -698,7 +707,6 @@ describe("the tier that states nothing is still a tier a customer can choose", (
       groups: projectDesignForDisplay(DRAWERS_ONLY, CATALOG),
       applied: {},
       pending: {},
-      rejection: null,
       chosenColourCount: countCabinetsWearingAChosenFinish(DRAWERS_ONLY),
     });
     const silentGroup = viewOf(DRAWERS_ONLY).groups.find(

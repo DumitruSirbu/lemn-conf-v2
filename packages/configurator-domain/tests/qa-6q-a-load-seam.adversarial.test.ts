@@ -61,8 +61,12 @@ const FINISHABLE_ID = "p0";
 const UNDECLARED_TIER_ID = "material.laminate";
 
 /** The severity map's size, pinned so a code added anywhere in the repository has to come past this
- *  file. 6Q-a added **none**; 6Q-b added exactly one, `PLACEMENT_WEARS_UNOFFERED_FINISH`. */
-const DECLARED_VALIDATION_CODE_COUNT = 30;
+ *  file. 6Q-a added **none**; 6Q-b added `PLACEMENT_WEARS_UNOFFERED_FINISH`; W3 added
+ *  `SETTINGS_WEAR_UNOFFERED_FINISH` — see the justification at the finish-code assertion below.
+ *  Backlog 50 added `RECORDED_SPAN_OVERLAPS_CORNER_BODY`, the cross-wall corner intersection
+ *  `findWallOverlaps` was declared blind to, ruled a **mark** by the owner on 2026-09-09 precisely
+ *  so that it cannot do to a stored row what this file exists to forbid. */
+const DECLARED_VALIDATION_CODE_COUNT = 32;
 
 const PACKAGE_ROOT = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -263,16 +267,31 @@ describe("no stored document is refused that could be loaded before wave 6Q-a", 
     }
   });
 
-  it("declares exactly one finish code, added by wave 6Q-b and classified a refusal", () => {
+  it("declares two finish codes — one per level a finish is chosen at — both refusals", () => {
     const codes = Object.keys(DESIGN_ISSUE_SEVERITY_BY_CODE);
 
     expect(codes).toHaveLength(DECLARED_VALIDATION_CODE_COUNT);
-    // 6Q-a added none; 6Q-b added this one, after the resolution that makes it unreachable from the
-    // load path. A second finish code appearing here is a wave that has to justify itself.
+    // **The justification this assertion demands, supplied.** 6Q-a added none; 6Q-b added the
+    // placement code, after the resolution that makes it unreachable from the load path. W3 added
+    // the second, and it is not a duplicate of the first: **ADR 0099 decision 6** extends ADR 0057's
+    // invariant from "every `body.finish`" to "`settings.finish` as well", because the whole-kitchen
+    // colour is a second level a finish is chosen at. It shipped without one, and the asymmetry was
+    // the defect — the identical colour was refused on a cabinet and accepted on the kitchen.
+    //
+    // Two codes rather than one because the **path** differs: `settings.finish` is a single field on
+    // the document, not an index into `placements`, and a code named for a placement cannot honestly
+    // carry a finding about neither. A *third* finish code is still a wave that has to justify
+    // itself here, and "there are already two" is not a justification.
     expect(
       codes.filter((code) => /FINISH|MATERIAL|COLOUR|OFFER/.test(code)),
-    ).toEqual(["PLACEMENT_WEARS_UNOFFERED_FINISH"]);
+    ).toEqual([
+      "PLACEMENT_WEARS_UNOFFERED_FINISH",
+      "SETTINGS_WEAR_UNOFFERED_FINISH",
+    ]);
     expect(DESIGN_ISSUE_SEVERITY_BY_CODE.PLACEMENT_WEARS_UNOFFERED_FINISH).toBe(
+      "refusal",
+    );
+    expect(DESIGN_ISSUE_SEVERITY_BY_CODE.SETTINGS_WEAR_UNOFFERED_FINISH).toBe(
       "refusal",
     );
   });

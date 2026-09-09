@@ -116,6 +116,13 @@ figure is used and the difference is recorded — every correction makes the pha
 - `packages/configurator-domain/src/commands/rejection.ts` — **507 lines, 34 refusal codes**, roughly
   forty rendered Romanian sentences with interpolation and grammar clauses.
   `commands/command-result.ts:198` renders one into **every** command result.
+  - **Wave 6Z added a 35th**, listed here rather than discovered during extraction (ADR 0103
+    decision 7): `DEPENDENT_MEMBER_NOT_REBUILDABLE`, carrying `ColumnMemberParams`. Its sentence
+    names **two** bodies — the one the customer asked to insert and the one standing above it — so
+    it needs two interpolations in one clause and a relative clause between them
+    (*"…, care stă deasupra, …"*), which is the grammar shape `COLUMN_MEMBER_NOT_RESIZABLE` already
+    has. It is marked *"Ruled 2026-09-08, pending owner review"* in the same way the two 6E tier
+    codes and `FINISH_NOT_OFFERED` are.
 - `catalog.ts` — a **17-entry `KIND_LABELS_RO`**, `BASE_CABINET_LABEL_RO`, `UNKNOWN_KIND_LABEL_RO`,
   roughly a dozen entry `label:` strings, and `describeBodyLabelAt`'s `ușă`/`uși` door count.
 - `bands.ts` — `BAND_LABELS_RO`, 4 entries, read by `catalog.ts` and §9's header.

@@ -25,6 +25,7 @@ import {
 } from "@lemnaria/configurator-domain";
 import * as THREE from "three";
 
+import { isDeclaredFinishSurface } from "./body-finish-surfaces.js";
 import {
   deriveBoundedKitMaterial,
   deriveKitMaterial,
@@ -178,6 +179,24 @@ export function collectFronts(root: THREE.Object3D): THREE.Mesh[] {
   return fronts;
 }
 
+/** **Every surface a body wears its colour on** — its fronts, plus any mesh its builder declared
+ *  (`body-finish-surfaces.ts`). Strictly wider than `collectFronts`, and deliberately a *second*
+ *  function rather than a widening of it: `collectFronts` answers *what is a front*, which
+ *  `cabinet-handle-meshes.ts` and the whole-room repaint in `kitchen-stage.tsx` both depend on and
+ *  neither of which is asking about paint. An open shelf has no front and is painted; the two
+ *  questions came apart on 2026-09-09 and now have a function each.
+ *
+ *  A mesh could satisfy both predicates; it is collected once, because a front that also declared
+ *  itself would otherwise be assigned the same material twice — harmless today and the kind of thing
+ *  that stops being harmless when somebody counts. */
+export function collectPaintedSurfaces(root: THREE.Object3D): THREE.Mesh[] {
+  const painted: THREE.Mesh[] = [];
+  root.traverse((o) => {
+    if (isFrontMesh(o) || isDeclaredFinishSurface(o)) painted.push(o);
+  });
+  return painted;
+}
+
 export function applyFinish(
   fronts: readonly THREE.Mesh[],
   M: KitMaterials,
@@ -189,13 +208,18 @@ export function applyFinish(
   }
 }
 
-/** §5.5's per-placement finish: recolours this body's own fronts and nothing else's. */
+/** §5.5's per-placement finish: recolours this body's own painted surfaces and nothing else's.
+ *
+ *  **`collectPaintedSurfaces`, not `collectFronts`** (owner's ruling, 2026-09-09; backlog entry 60).
+ *  An open shelf follows the kitchen's colour and has no front to carry it, so painting only fronts
+ *  left it exactly as its builder made it while every test stayed green — the failure mode the mesh
+ *  census in that entry exists to record. */
 export function applyBodyFinish(
   body: THREE.Object3D,
   M: KitMaterials,
   finish: Finish,
 ): void {
-  applyFinish(collectFronts(body), M, finish);
+  applyFinish(collectPaintedSurfaces(body), M, finish);
 }
 
 /** The two halves of the cache, told apart by the kind of finish and never by how many keys have

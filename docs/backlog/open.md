@@ -205,49 +205,6 @@ at the position measured, the presets simply do not show it.
 **Not scheduled.** No milestone currently owns the camera presets' framing at the mobile viewport;
 this is a new gap, not a regression of anything M5B changed.
 
-## 52. A resize or an insert carries the wall-end cap into the recorded map — RECORDED 2026-09-06, DIRECTION RULED
-
-**Introduced by wave 6J-d and closed only partly by it.** Direction ruled in
-[ADR 0090](../decisions/0090-a-frozen-space-slides-with-its-run-and-follows-the-body-it-recorded.md)'s
-Amendment B addendum; the wave itself is unscheduled.
-
-ADR 0090 Amendment B rules that a room-derived cap bounds what the map **publishes** and never
-rewrites what the document **records**. `setCabinetDepth` obeys it. `setWidth` and `insertBody` do
-not: `CommandContext.columns` hands them the **published** map and their `effect.columns` replaces the
-map whole, so the cap rides into the recorded face.
-
-**Measured at `cf53e8e` plus the D1 fix**, on a recorded space flush to wall B's end in the 2920 mm
-room:
-
-```
-at 600                     recorded B|2620 w600   published B|2.62 w600
-after setCabinetDepth(700) recorded B|2720 w600   published B|2.67 w500   <- Amendment B working
-after a delete on wall B   recorded B|2720 w600   published B|2.67 w500   <- fall-through arm, record survives
-after resizing p0, wall A  recorded B|2670 w500   published B|2.67 w500   *** the record adopts the cap ***
-```
-
-A resize of an unrelated cabinet **on the other wall** costs the recorded space 100 mm, permanently and
-silently — the document is schema-valid and `validateDesignForCatalog` reports nothing.
-
-**It is new, not inherited.** At `e28ab25` the depth command slid no extent, so a far-end space was
-never pushed past its wall and never capped; there was no loss on this path before this branch.
-
-**What deciding it costs, and the direction already ruled.** ADR 0090's addendum refuses the two
-options as posed and rules a third: the wall-end cap **preserves the column's key** (changing `w`,
-`x`/`z` and nothing else), after which handing `setWidth` and `insertBody` the recorded map is clean —
-the `COLUMN_MISMATCH` that made that option look expensive is created by the key divergence itself.
-Safe because `clip-empty-columns-at-wall-end.ts` never clips an occupied column, so no `record.col` is
-ever derived onto a capped key. Store-side reconciliation by matching is refused by name.
-
-**What the wave must measure first**: whether anything computes a column key from a coordinate and
-looks it up in the *published* map — picking, `findVacatedVoid`, the adapter's selection. That is the
-one place `key = f(centre)` could still be load-bearing for a member-less column.
-
-**It is [ADR 0088](../decisions/0088-a-depth-change-plans-against-the-frozen-extent-and-re-derives-only-the-depth.md)
-decision 2's question a third time** — which map does a map-publishing command receive, and who owns
-the reconciliation. It touches `setWidth` and `insertBody` rather than the depth track, so it is its
-own wave and not 6J-d's.
-
 ## 53. A LAUNCH REQUIREMENT DECIDED ON DAY ONE THAT NO MILESTONE OWNS: Russian is a supported locale
 
 **This is not new scope, and that is the finding.**
@@ -647,7 +604,18 @@ Not decided. Needs an owner call on: id scheme (keep nanoid vs. adopt v7 and acc
 whether step 1 mints before or after the wall-size intake is complete, and which milestone this and
 step 1 itself belong to.
 
-## 41. The sink, its bowl and its faucet do not follow the cabinet-depth setting — NEEDS AN OWNER DECISION
+## 41. The sink, its bowl and its faucet do not follow the cabinet-depth setting — RULED 2026-09-07 ([ADR 0098](../decisions/0098-the-sink-is-centred-at-the-declared-depth-and-a-deeper-worktop-grows-behind-it.md)), **SHIPPED 2026-09-08**
+
+**The owner ruled 2026-09-07:** *"It should be centered. And the gap should become bigger behind — so between the wall and the sink and faucet. Same principle as with hob."* [ADR 0098](../decisions/0098-the-sink-is-centred-at-the-declared-depth-and-a-deeper-worktop-grows-behind-it.md) declares `SINK_FRONT_CLEARANCE_MM = 110` — the centred value at 600 — and derives the seat from it, so the bowl's front clearance is 110 at every depth and the faucet's clearance to the wall goes 2 -> 22 mm at 600 and 52 -> 122 mm at 700. **It moves the shipped 600 mm kitchen forward by 20 mm**, deliberately, which is the one place it departs from ADR 0087; the wave's close-out must record that parity re-baseline rather than absorb it. This entry closes when that wave ships, not before. **Closed 2026-09-08.** The wave shipped: `SINK_FRONT_CLEARANCE_MM = 110` derived from `(620 - 400) / 2`,
+`SINK_SEAT_OFFSET_M` derived like the hob's, and the hardcoded `az = 0.2` removed. Adversarial QA
+measured it independently and the result is **stronger than the ruling asked for**: the front clearance
+is exactly 110 mm at *every* integer depth from 490 to 1400 mm, not merely at the two the wave
+measured, so the centring is a genuine relation rather than a constant fitted to two data points, and
+`faucetToWallMm(d) = d - 578` holds exactly with the sign change at 578. The six re-baselined M1 parity
+rows are each provably the 20 mm centring and nothing else, and the ledger is exact rather than a
+tolerance — nudging the clearance to 111 turns parity red. The parity re-baseline this entry required
+the wave to *record rather than absorb* is recorded in ADR 0098 and in the wave's commits
+(`30b5e3d`, `0ff3faa`, `cd0e43c`). **The observation below is left unedited as the original report.**
 
 Found 2026-09-05 while measuring the hob for
 [ADR 0087](../decisions/0087-the-hob-holds-its-reach-and-a-deeper-worktop-grows-behind-it.md). **Same
@@ -780,7 +748,56 @@ fix). Fore-aft hood-over-hob overlap was not measurable from the captured angles
 width alignment; the depth axis rests on the algebraic concentricity ADR 0087's consequences already
 derive, not on a fourth screenshot. Only the seeded L-kitchen was exercised.
 
-## 50. `validateDesignForCatalog` is blind to a cross-wall corner intersection — RECORDED 2026-09-06, NOT SCHEDULED
+## 50. `validateDesignForCatalog` is blind to a cross-wall corner intersection — RECORDED 2026-09-06; SEVERITY RULED AND BUILT 2026-09-09
+
+> **CLOSED by the owner's ruling of 2026-09-09 and the wave that carried it.** The gate now compares
+> across the corner and reports **`RECORDED_SPAN_OVERLAPS_CORNER_BODY`** at severity **`mark`** —
+> never a refusal. The owner's reasoning constrains anyone who revisits it: a new refusal code can
+> make an already-stored document unloadable, which is [ADR 0052](../decisions/0052-800-mm-is-the-ceiling-on-any-empty-column.md)'s
+> dead link, and **every stored document must still load**. The precedent followed is
+> `PLACEMENT_PAST_WALL_END` and [ADR 0065](../decisions/0065-a-body-past-the-end-of-its-wall-is-marked-not-moved.md) —
+> marked, warned, not moved, not refused. Severity stays declared per code
+> ([ADR 0069](../decisions/0069-past-the-wall-is-one-code-family-and-severity-is-declared-per-code.md)), and this
+> is the first member of the mark set that is **not** in that record's past-the-wall family, so it is
+> a ruling and not a membership.
+>
+> The comparison lives in `findCornerOverlaps` in `packages/configurator-domain/src/validate-design.ts`,
+> beside the same-wall sweep it extends: recorded spans from both stored arrays against the
+> **placements on the other wall**, each having to reach into the other's along-wall interval from
+> the shared origin, plus a vertical overlap. A placement is still never named — `overlapCodeFor`'s
+> rule is untouched — so two bodies meeting across the corner report nothing, exactly as two bodies
+> meeting on one wall do not. The witness below was **inverted**, not deleted.
+>
+> **The reach is the carcass seat, and that was measured rather than chosen.** The wave's brief first
+> said to use the body's `occupiedDepth`, on the principle that overlap is about solid. That is true
+> of two cabinets and false of two worktops. `base-corner-x-900` seats on 560 and *occupies* 630,
+> because ADR 0025 gives its corner worktop 10 mm more reach than a straight run's, and
+> `base-corner-return-320`'s slab stands 20 mm proud of its own 580 seat — so **the shipped kitchen's
+> two corner legs share 50 mm of plan area by design**, which is what an L-joint is. Measured against
+> the occupied depth the gate marks the demo kitchen on its own declared geometry and turns eleven
+> assertions red across six domain files and three in `apps/web`; measured against the seat the
+> shipped kitchen is silent. **This entry's own 80 mm and 31 mm are seat figures** — 560 − 480 and
+> 291 − 260 — which is what *"the reach `cornerReachAlongWallMm` already computes"* meant, and the
+> gate now reproduces both: `qa-6x-slide-witness`'s un-slid fixture at 700 mm carries exactly those
+> two overlaps, because a settings swap moves no placement, and the gate names them.
+>
+> **The reach ladder, for the document that cannot answer directly.** A recorded span's reach is the
+> deepest **seat** among the placements standing in its column; failing that, the seat of the body
+> its `depthFromBuildId` names (ADR 0073 decision 1, read on a second axis); failing that, its
+> recorded `depthMm`. The first rung is what keeps a document written before ADR 0073 quiet — it
+> needs nothing the document carries. The last rung is §3.2's MAX **clearance** and over-reaches, so
+> a member-less sourceless column at the corner can carry a spurious mark; it cannot carry a refused
+> load.
+>
+> **STILL OPEN, and this is the known better shape rather than a new idea.** An `occupiedDepth` reach
+> with an exemption where **both** runs are declared structural corner legs is more truthful about
+> solid than the seat is: `frameDepthMm` is ADR 0018's encoding of twice a rear overhang and is not a
+> distance at all — `hood-600` seats on 700 and fills 500 — so the number the gate reads is right at
+> the corner and a fiction away from it. It was **not** taken on 2026-09-09 because it is a new rule
+> needing its own record: which bodies count as structural, what the exemption means for a document
+> that merely *claims* a corner leg as its source, and whether an exemption or a tolerance is the
+> honest instrument. Whoever revisits this should start there and not re-derive the seat/occupied
+> question, which is settled and measured above.
 
 **Found by wave 6J-c, confirmed by [ADR 0090](../decisions/0090-a-frozen-space-slides-with-its-run-and-follows-the-body-it-recorded.md).**
 
@@ -816,6 +833,22 @@ it is a choice someone has to make rather than a default to inherit. Implementat
 extra comparison for spans within the corner reach on either wall, using the reach
 `cornerReachAlongWallMm` already computes.
 
+**Measured and pinned 2026-09-08** —
+`packages/configurator-domain/tests/backlog-50-the-corner-the-validator-cannot-see.test.ts`. The same
+recorded space is placed twice at a 600 mm setting: on wall A over `base-corner-x-900`, where the
+sweep reports `EMPTY_COLUMN_OVERLAPS_PLACEMENT`, and on wall B — inside the corner body's reach along
+wall B, sharing the whole 300 mm of the recorded space — where the gate reports **nothing**. The
+witness derives every span through §12's convention (`alongMm` is a **centre**, which the first
+version of it got wrong) and takes the reach from the body's `occupiedDepth` (630 mm) rather than its
+seat (560), because overlap is about solid. The wave that closes this should **invert** its last two
+blocks rather than delete them.
+
+**A second fact that file records, wider than this entry states it**: `findWallOverlaps` returns
+early when a document carries neither `emptyColumns` nor `columnExtents`, so two **placements** in
+one span are never compared — on either wall, corner or not. Shipped documents always carry a frozen
+map (ADR 0090 decision 1), so this is about a hand-crafted document at the load seam, which is the
+same seam the severity ruling is about.
+
 **Deserves its own small wave, not M6's depth track.** Widening 6J-d into it would enlarge a wave that
 is already on the critical path, and the wave that adds it should be the one that also decides the
 severity.
@@ -839,6 +872,25 @@ would tear by 30 mm at 700 — 6J-c's own measured difference between the chains
 extent sliding on its recorded source's chain while a member slid on its own, and every layer
 downstream internally consistent and wrong together.
 
+**Reachability measured 2026-09-08 — it is not reachable through the offer list** —
+`packages/configurator-domain/tests/backlog-51-chain-homogeneity-is-unreachable.test.ts`, which keeps
+the measurement as a standing guard. At both declared depths, on the seeded kitchen and on the same
+kitchen with all 22 deletable bodies cleared: **400 offer rows over 29 targets name no `wall-map`
+body**; that world is also swept after a real `setCabinetDepth(700)` and back
+(`apps/web/tests/store/backlog-51-after-the-real-depth-command.test.ts`), because the shipped command
+rebuilds bodies and renames build ids where a settings swap does not; the only two such entries are
+the structural corner returns, each `insertable: false`,
+`canReplace: false`, `canDelete: false`; and the single column holding them (`B|0.61`) opens **no
+void** even when the rest of the kitchen is emptied, so nothing can be inserted beside them either.
+The mixing is blocked from both directions.
+
+So **no validator is owed for the product's own paths**, and what remains is only the load seam: a
+hand-crafted document can still declare a mixed column. That is the same refuse-or-mark ruling
+entry 50 needs, and the two should be decided together. A third `wall-map` entry, or one of these
+turned insertable, fails the guard's first block.
+
+The original note, which the measurement above answers, follows.
+
 **Whether it is reachable was not measured.** It needs an offer list that can place a `wall-map` entry
 into a column already holding a `base-formula` one, and the two shipped `wall-map` entries are
 `STRUCTURAL_CORNER`. **What deciding it would cost**: either a new refusal code at the load seam
@@ -849,7 +901,13 @@ list.
 
 ---
 
-## 54. Cabinet depth changes the material used and does not change the price — NEEDS THE MANUFACTURER, RECORDED 2026-09-06
+## 54. Cabinet depth changes the material used and does not change the price — SHAPE RULED 2026-09-07 ([ADR 0100](../decisions/0100-depth-is-priced-by-a-dashboard-editable-multiplier-on-the-600-mm-base-and-it-is-deferred.md)), IMPLEMENTATION DEFERRED BY THE OWNER
+
+**Ruled and postponed, 2026-09-07 — this is a decided item awaiting the owner's own return to it, not an open question.** The owner chose a single **depth coefficient applied as a multiplier to the 600 mm base price**, owned as a **dashboard-editable setting** rather than a constant, explicitly over the per-cabinet 600/700 price mapping because that *"would need two price records per cabinet"*. *"Like fifteen percent"* is a working figure and **not a committed rate**. The owner then said, twice on the same day, *"Record and postpone… I really don't want to waste time and effort on this."*
+
+**So: do not re-ask the owner what shape depth pricing takes — they answered.** What is still owed is the manufacturer's actual rate, which is the owner's to obtain when they return. Do not plan a wave. [ADR 0100](../decisions/0100-depth-is-priced-by-a-dashboard-editable-multiplier-on-the-600-mm-base-and-it-is-deferred.md) carries the ruling, the two rejected alternatives, and two implementation constraints measured on 2026-09-07 — the runtime parser's derived `MAX_PRICE_COEFFICIENT_MINOR` bound, and the fact that a multiplier is not a fifth linear term and needs a declared rounding rule at a named seam.
+
+**The original entry, unedited, follows.**
 
 **Observed by the owner, 2026-09-06**, reading the collected copy at Gate O1: *"changing kitchen
 worktop depth didn't change the cabinets price? … is not logic, as it uses more material"*.
@@ -873,7 +931,7 @@ rate is a manufacturer figure nobody in this repo may invent. Drafting one would
 failure ADR 0092's push-to-open rates already cost this milestone: a placeholder that becomes
 load-bearing on a customer-visible price the moment something starts depending on it.
 
-**Owner input, held by the owner:** *"I need to check with manufacturer"* (2026-09-06). Two things
+~~**Owner input, held by the owner:** *"I need to check with manufacturer"* (2026-09-06).~~ **Half answered 2026-09-07 — the owner ruled the shape (ADR 0100) and postponed the rest.** The rate is still theirs to obtain. Two things
 are needed together — whether depth is priced at all, and if so the rate per millimetre of depth (or
 whatever shape the manufacturer actually quotes: per square metre of board, per depth band, or a
 surcharge above a standard depth). **The shape of the answer decides the coefficient's shape**, so
@@ -889,6 +947,388 @@ Recorded here rather than scheduled: **no change to M6**, on the owner's explici
 settings.** Entry 41 records that the sink, bowl and faucet do not follow the cabinet-depth setting
 either; that one is geometry, this one is money, and both are downstream of depth being a setting
 the rest of the system half-ignores.
+
+## 55. The global settings actions are absent on a first visit and present after a reload — RECORDED 2026-09-07, NOT REPRODUCED, NOT W2's FIX
+
+**Observed by the owner, 2026-09-07**, correcting their own earlier item 2/item 3 report:
+
+> "There is already the button. It was a glitch that it didn't show… when you open the browser and
+> don't make a reload, when you open the global settings, the refuse and apply buttons are missing.
+> But if you make a refresh, these buttons are on the place… we need to play more with this to find
+> how to reproduce the issue."
+
+**The owner withdrew the layout request that originally accompanied this** (move the save control to
+the top of the sheet). That request is closed and no record was written for it. What is recorded here
+is the **defect** the owner described while withdrawing it, because it is new information and sharper
+than the original report: not "the buttons are missing" but **"the buttons are missing until you
+reload"**.
+
+**It is not what wave W2 fixed, and this was checked rather than assumed.** W2 shipped
+`padding-bottom: env(safe-area-inset-bottom, 0px)` on `.surface`
+(`apps/web/src/settings/global-settings.module.css:151`), written against a scroll-state and
+home-indicator inset problem — its own comment reads *"the owner's 'the save buttons are sometimes
+there and sometimes not', read as an inset problem"*. **`env(safe-area-inset-bottom)` has the same
+value on a first visit and after a refresh.** A constant inset cannot produce a reload-sensitive
+symptom, so W2's fix is not this and closing W2 does not close this.
+
+**What is true in the code.** The cancel/apply pair renders **unconditionally** in the choosing
+step's footer (`apps/web/src/settings/global-settings.tsx`) — no viewport condition, no feature flag,
+no state in which `ChoosingStep` renders without them. So the report is about where they landed, not
+whether they existed. The sheet is `position: fixed; bottom: 0; max-height: 77dvh` with `.body`
+scrolling internally and the footer pinned, and there is **no JavaScript layout measurement anywhere
+in this surface** — no `ResizeObserver`, no `getBoundingClientRect`, no `visualViewport` reader — so
+the client-side-navigation-versus-server-render distinction has no code path to act through. That is
+what makes this hard rather than obvious.
+
+**The most plausible remaining mechanism, stated as a lead rather than a diagnosis.** iOS Safari with
+a restored tab: opening the browser onto an already-open tab restores a layout viewport from the
+previous session while the toolbars are expanded, and a `position: fixed; bottom: 0` element measured
+in `dvh` can land below the visual viewport until something forces a re-layout. A reload is such a
+force. W2's inset reduces the overlap by a constant and does not eliminate a mis-measurement that is
+not constant. **Not reproduced from this machine** — it needs a real iOS Safari and the owner's own
+open-the-browser-without-reloading sequence.
+
+**What evidence would confirm it**, in the order it is cheapest to collect:
+
+1. The owner repeating the sequence and reporting whether the buttons appear after **scrolling the
+   page** (or rotating the device) *without* reloading. If they do, it is the layout mechanism above
+   and not a rendering one.
+2. A screenshot of the sheet in the failing state, so the sheet's own bottom edge can be located
+   relative to the toolbar — the actions being *below the fold* and the actions being *absent from
+   the DOM* look identical in a report and are different defects.
+3. If neither, an inspected DOM in the failing state: `global-settings-cancel` and
+   `global-settings-apply` present with a bounding box outside the visual viewport (layout) versus
+   absent from the document (rendering). This is the measurement that splits the field, and until
+   somebody has it the fix cannot be chosen.
+
+**What deciding it would cost.** Unknown until it is reproduced, and that is the honest state. If it
+is the layout mechanism, the fix is in the same stylesheet W2 already touched and is small; if the
+actions are genuinely absent from the DOM on a first paint, it is a rendering defect in a surface
+that has no conditional rendering today, which would mean something upstream of the sheet is at
+fault. **Do not schedule a fix before step 3 above.** Guessing between those two produces a change
+that cannot be shown to have worked, which is how this item got reported twice already.
+
+## 56. An emptied column over a full-height member can lose 269 mm of depth after a depth round trip — RULED 2026-09-08 ([ADR 0102](../decisions/0102-a-recorded-source-must-explain-its-depth-and-a-second-authority-in-a-test-is-the-defect-laundered.md)), AWAITING WAVE 6Y
+
+**Found 2026-09-08** while adjudicating a finding the item 8 implementer raised and refused to treat
+as settled. Ruled in [ADR 0102](../decisions/0102-a-recorded-source-must-explain-its-depth-and-a-second-authority-in-a-test-is-the-defect-laundered.md);
+this entry exists so the **product** half survives independently of whether wave 6Y is scheduled this
+milestone.
+
+**What was observed.** Four ordinary commands on the shipped kitchen — change the depth to 700, delete
+the top cabinet at `B|1.80`, delete the pantry beneath it, change the depth back to 600 — leave that
+column's frozen extent at **330 mm**. It was 600 mm when the kitchen loaded and 700 mm one command
+earlier, and a 699 mm pantry had been standing in it. Anything inserted there afterwards is planned
+against 330.
+
+**Measured 2026-09-08 at `ed12804`**, driven through `removePlacement`, `setCabinetDepth`,
+`deriveColumns` and `projectFrozenMap` with the domain's own fake probe. The only variable is whether
+the two deep tops are pinned (as before ADR 0101) or lifted (as after it):
+
+| Step | pinned — before ADR 0101 | lifted — after ADR 0101 |
+| --- | --- | --- |
+| load @600 | `B\|1.80 d=600.0 src=wall-2door-600-deep-top` | same |
+| after `setCabinetDepth(700)` | `B\|1.90 d=699.0 src=tall-pantry` | `B\|1.90 d=700.0 src=wall-cabinet` |
+| after both deletes | `d=699.0` | `d=700.0` |
+| **back at 600** | **`d=599.0`** | **`d=330.0`** |
+
+**What is actually true in the code.** `resolveDepthM` (`packages/configurator-domain/src/commands/
+insert-fit.ts:835`) builds a wall body over a full-height column to `columnBuildDepthM`'s lifted arm —
+the cabinet-depth line, 600 or 700 — and never to the entry's own `frameDepthMm`. `restoredColumns`
+(`void-engine.ts:668`) then records `depthFromBuildId: deepest.buildId` for that depth anyway, so the
+column names a body declaring 330 or 400 as the source of 600 or 700. When the column is later emptied,
+`frozenDepthAtThisSetting` (`frozen-map-at-cabinet-depth.ts:391`) re-answers the extent from that
+entry's declaration and publishes the 330.
+
+**330 is wrong under both of that function's own arms**, which is what makes this a defect rather than
+a preference: the sourceless fallback would have kept 700 as a surplus (ADR 0080 decision 4,
+deeper-only), and the honest re-answer of the body that actually stood there is 599, which is what the
+product gave before ADR 0101. It is also shallower than the 600 the extent was frozen at, which wave
+6K-c's own criterion — *"nothing shrinks, in any arm"* — forbids.
+
+**It is pre-existing, and that was checked rather than assumed.** The mechanism is **wave 6I2's**, on
+`main` since 2026-09-04, and it reproduces in **three ordinary commands on declarations ADR 0101 never
+touched**: delete `p23`, insert the **offered** `wall-cabinet` into `B|1.80`'s `y0` 2.2 void (the offer
+list returns `wall-cabinet`, `wall-lift` and `open-shelf` there), then one `setCabinetDepth(700)` —
+`["B|1.90 d=700.0 src=wall-cabinet declares 400.0 at 700"]`. ADR 0101 did not create it; it moved the
+**shipped** kitchen into the population that reaches it.
+
+**What deciding it would cost.** Already decided — ADR 0102 decision 4 opens wave **6Y**, against
+`restoredColumns`, on a principle ADR 0080 decision 4 already states (*"`columnBuildDepthM` is a
+declared size and no body's declaration, so claiming one for it would be an invention"*). Two shapes
+are admissible and the wave picks between them on measurement: record no source for a depth the lifted
+arm produced, or record the member that does explain it. **This wave moves published depths**, so
+ADR 0079 decision 9 binds it in the opposite direction and its first acceptance criterion is an
+enumeration of every state whose `Column.d` moves, with the 600 mm kitchen byte-identical as it loads.
+
+**Not the same entry as 15 or 37.** Entry 15 (resolved, wave 6I2) is *what a wall body over a column is
+built to*; entry 37 (resolved, ADR 0101) is *the pinned tops being proud at 700*. This is the **record
+beside the depth** rather than the depth itself, and it survived both of them.
+
+**Nor the same entry as 57.** Entry 57 is the *hood* swapping its catalogue equivalent on a depth
+change; this is the *record* beside a column's depth. Unrelated mechanisms, found in the same week.
+
+## 57. A depth change hands the hood a width control it is declared not to have — RECORDED 2026-09-08, PRE-EXISTING, NOT WAVE 6Z's
+
+**Found 2026-09-08** while establishing wave 6Z's exclusion rule
+([ADR 0103](../decisions/0103-a-standing-body-is-re-planned-when-something-is-inserted-beneath-it-and-a-delete-leaves-it-alone.md)
+decision 12). Recorded here because it is a real, reachable, customer-visible change that no wave owns
+and no record mentions.
+
+**What was observed.** One ordinary `setCabinetDepth(700)` on the shipped kitchen, with no insert, no
+delete and no resize, turns `p13` from `hood-600` into `hood` and flips its `fixedWidth` from **`true`
+to `false`**. The customer is handed a width control on an extractor hood that the fixture
+deliberately withholds.
+
+**Measured 2026-09-08 at `ed6c545`**, through `createConfiguratorStore` and the web fake probe:
+
+```
+p13/hood-600  band=wall  w=600  h=700  seat=undefined  frame.d=700  fixedWidth=true
+  setCabinetDepth(700)
+p13/hood      band=wall  w=600  h=700  seat=900        frame.d=900  fixedWidth=false
+```
+
+**Half of that is correct and must not be "fixed".** The seat moving 700 → 900 is right: a front-hung
+500 mm hood at a 700 mm kitchen centres 450 mm from the wall ([ADR 0039](../decisions/0039-the-hood-is-front-hung-and-standard-depth.md)
+decision 2), and `2 × 450 = 900`. The height is unchanged at 700, which is
+[ADR 0039](../decisions/0039-the-hood-is-front-hung-and-standard-depth.md) decision 5 holding since
+wave 5F. **The `fixedWidth` flip is the defect**, and it is the one half nothing checks.
+
+**What is actually true in the code.** `rebuildEveryBodyAt`
+(`packages/configurator-domain/src/commands/set-cabinet-depth.ts`) asks `movesWithTheSetting`, which is
+`true` for `hood-600` — its `depthRule` follows the cabinet depth — and then resolves an
+`InsertableBody` through `resolveRebuildBody`, which takes ADR 0022's `catalogEquivalentId`. `hood-600`
+declares `hood`, and the two rows disagree on exactly one field: `fixedWidth` is `true` on the seeded
+row and `false` on the catalogue row.
+
+**This is product-logic review R3.2's own defect, arriving through the other door.** `moveHood`
+(`commands/rebuild-resized-bodies.ts`) exists precisely because rebuilding a hood through
+`evaluateInsertFit` *"resolved the seeded instance to its catalogue equivalent: `hood-600` became
+`hood` … and `fixedWidth` flipped true → false, handing the hood a width control the fixture
+deliberately withholds."* `setWidth` was taught to route around it. **`setCabinetDepth` was not.**
+
+**What deciding it would cost.** Not measured, and deliberately not designed here. Three shapes are
+visible and each has a cost the deciding record has to weigh: reconcile the two rows so
+`hood`'s `fixedWidth` is `true` (changes what an *inserted* hood offers, which is a different product
+question); give `setCabinetDepth` a `moveHood`-shaped branch (a fourth branch in a loop that already
+has three); or declare `fixedWidth` non-migrating so no rebuild may change it (widest, and the only
+one that also protects `canFinish` and `canHandle`). **A wave should not pick one without measuring
+whether the hood is resizable in practice after the change** — the width chips are `blocked` for other
+reasons on some rows, and "the control appears" and "the control does anything" are two findings.
+
+**It is not wave 6Z's, and 6Z must not touch it.** ADR 0103 decision 4 excludes the hood from 6Z's
+re-plan by declaration — a `wall-plane` entry states where it finishes and the column does not decide
+it — precisely so that this wave does not deliver the same flip through an *insert* as well. A 6Z
+acceptance criterion asserts the hood's `fixedWidth` stays `true` across an insert beneath it.
+
+## 58. `THREE.Clock` is deprecated and React Three Fiber still constructs one — DIAGNOSED 2026-09-08, THIRD-PARTY, NOTHING TO FIX HERE
+
+**M6-AUD-011, closed as an upgrade to track rather than a defect to fix.** The browser logged
+`THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.` throughout the
+audit's 110-test run, and the audit could only say the symbol is absent from repo source. It is now
+traced, so nobody investigates it twice:
+
+- `three@0.184.0` deprecated the class at **r183** —
+  `three/build/three.core.js:55989`, `warn( 'Clock: This module has been deprecated...' )`.
+- `@react-three/fiber@9.7.0` constructs one for its own store —
+  `dist/events-*.esm.js:1016`, `clock: new THREE.Clock()`.
+
+So the warning is emitted once per R3F store, from a dependency, and **no change to this repository
+can silence it**. It is noise, not breakage: `Clock` still works.
+
+**What to do**: nothing, until React Three Fiber moves to `THREE.Timer`. Then take the upgrade with
+the rest of the R3F/Three bump and confirm the log is quiet. Pinning or patching R3F to remove one
+console line would cost more than the line does. **Do not** add a console filter — it would hide the
+next deprecation too.
+
+
+## 59. `setCabinetDepth` slides every wall-B column and has no key-collision guard — RECORDED 2026-09-08, LATENT, NOT SCHEDULED
+
+**Found by the logic review of the backlog-50/51 witnesses, 2026-09-08.** A depth change is not only
+a rebuild: `alongWallPositionAtMm`
+([`along-wall-chain-shift.ts`](../../packages/configurator-domain/src/along-wall-chain-shift.ts))
+slides every wall-B placement by **its own chain's delta** — `base-formula` +100 as the reach goes
+560 -> 660, `wall-map` +70 as it goes 291 -> 361 — so the two chains move by **different amounts**
+and wall B's column keys are not the same set at the two settings:
+
+```
+600:  B|0.61 (wall-map)  B|0.74  B|1.20  B|1.80  B|2.45
+700:  B|0.69 (wall-map)  B|0.84  B|1.30  B|1.90  B|2.55
+```
+
+Measured 2026-09-08 through `createConfiguratorStore` and the web fake probe, and now swept at both
+settings by `apps/web/tests/store/backlog-51-after-the-real-depth-command.test.ts`.
+
+**Nothing refuses a collision on that path.** A width resize has `refuseKeyCollision`
+([`apply-column-moves.ts:118`](../../packages/configurator-domain/src/commands/apply-column-moves.ts)),
+which refuses a member landing on an occupied key. `setCabinetDepth` has no equivalent — grep it for
+"collision" and there is nothing.
+
+**It is safe on the shipped catalogue, and safe for a reason nobody wrote down**: each chain
+translates rigidly, so relative order is preserved, and the 130 mm gap between the wall-map column
+and its nearest base neighbour comfortably exceeds the 30 mm of relative slide between the two
+chains. **That margin is a property of the current numbers, not a rule.** If either reach formula
+moved — a new head-clearance row, a different front assembly — a depth change could file two chains
+under one key, and every suite would stay green while it happened.
+
+**What deciding it would cost**: a collision check in `setCabinetDepth`'s republish step, and a
+decision about what a collision *means* there. A resize can refuse and leave the design alone; a
+depth change is a whole-kitchen command the customer has already been shown the price of, so
+refusing it wholesale is a different product answer from refusing one member's move. That is the
+decision, and it should be taken with backlog 50 and 51's shared load-seam severity rather than on
+its own.
+
+## 60. A colour leaves the structural corner base white, and nothing tells the customer why — RULED AND SHIPPED 2026-09-09, IN TWO WAVES; ADR AMENDMENT OWED
+
+**Seen in a browser, not inferred** — the wave 6Z / ADR 0099 visual pass, evidence in
+`testing-reports/vis6z-2026-09-09/`. Apply a kitchen colour and the structural corner base
+(*Corp bază de colț*) keeps the material's default white: a white door with a handle standing
+between Antracit or Gri Havanna neighbours.
+
+**It is correct, and that is the problem.** `STRUCTURAL_CORNER`
+([`kitchen-l-design.ts`](../../packages/configurator-domain/src/fixtures/kitchen-l-design.ts))
+declares `canFinish: false`, and [ADR 0099](../decisions/0099-a-colour-is-chosen-at-two-levels-and-the-cabinets-wins.md)
+decision 8 rules such a body unaffected at **both** levels — the kitchen's colour and the cabinet's
+own. The open shelf, the hood and the freestanding fridge carry the same declaration and behave the
+same way. Nothing is broken.
+
+**But on screen it reads exactly like a body that failed to repaint**, and the verifying agent chased
+it as a defect before reading the record. On a dark kitchen it is the first thing a customer will
+point at, and **no copy anywhere explains it**.
+
+**What the owner was asked**: is a white corner between coloured neighbours the intended product?
+The options were the owner's to choose between — leave it and say nothing, leave it and explain it in
+§9 or the settings sheet, or make these bodies take the kitchen's colour after all, which is an
+ADR 0099 decision 8 amendment rather than a fix.
+
+### RULED 2026-09-09 by the owner: the third option
+
+> *"structural cabinetry follows the kitchen, appliances never do"* — with *"fridge no, hood also
+> no"* — and *"open shelves can have and by default should inherit global set color"*.
+
+**Delivered in two waves, and the second was owed precisely because the first looked complete.**
+Every following body resolves to the kitchen's colour in the document and in
+`PlacementRecord.drawnFinish` — but the renderer painted only fronts, so `base-corner-x-900`,
+`wall-corner-return-570` and `wall-corner-return-570-top` changed on screen and the open shelf, the
+body the owner named, did not. **A declaration flip on a frontless body passes every test while
+changing nothing a customer can see**; the mesh census below is what caught it, and it is the reason
+this entry records what moved rather than that the work was done. The second wave gave the shelf a
+surface. `base-corner-return-320` has none and needs none — the finding is recorded below rather than
+left open.
+
+So the class `canFinish: false` used to hold whole is now two:
+
+| Body | Behaviour |
+| --- | --- |
+| `base-corner-x-900`, `base-corner-return-320`, `wall-corner-return-570`, `wall-corner-return-570-top` | **Follow the kitchen's colour.** All four wear `STRUCTURAL_CORNER`, which declares it once. |
+| `open-shelf-600` / `open-shelf` | **Follows the kitchen's colour.** |
+| `hood-600` / `hood`, `fridge-free-700` / `fridge-free` | **Never painted, at any level.** |
+| Every other catalogue entry | **Chooses its own colour**, and falls back to the kitchen's and then the material's — ADR 0099 decision 1's order, unchanged. |
+
+**None of the seven gains a colour control.** They follow; they do not choose. `canFinish: false` is
+unchanged for every one of them, which is the half of ADR 0099 decision 8 that stands — and it is
+what keeps ADR 0099 decision 2 intact, because `setFinish` still refuses them, `carriedAppearance`
+still declines to copy a colour onto them and the load seam still strips one that arrived by another
+route. A following body's `finish` key stays **absent** through any number of colour changes.
+
+### The declaration: `BodyDefinition.finishRule`
+
+**`packages/configurator-domain/src/body-finish-rule.ts`** — `BodyFinishRule`, three arms and no
+default: `CHOOSES_ITS_OWN_COLOUR`, `FOLLOWS_THE_KITCHENS_COLOUR`, `IS_NEVER_PAINTED`. Declared per
+catalogue entry, never a list of build ids anywhere (ADR 0058 decision 2, ADR 0103 decision 4).
+
+It **fails closed twice**, the way `cabinetDepthRuleOf` does. `bodyFinishRuleOf` refuses an entry that
+declares nothing — reading absence as *chooses* paints a fridge and reading it as *never* recreates
+this very defect — and refuses one whose `finishRule` and `canFinish` disagree, so the two
+declarations cannot become two authorities. `refuseUndeclaredFinishRules` runs it over both
+populations as `buildKitchenLBodyCatalog` assembles the map.
+
+**It is a second declaration rather than a widened `canFinish`, because the two answer different
+questions**: `canFinish` is *may this body's document carry a colour of its own*, which the ruling
+moved for nobody; `finishRule` is *what colour is this body drawn in*, which is what moved.
+
+The resolution is `drawnFinishOf` (`resolved-finish.ts`), read by `derivePlacementRecords` into
+`PlacementRecord.drawnFinish`. `resolvedFinishOf` is untouched, so `chosen-finishes.ts` and the
+settings sheet compare against what they always did. The adapter's `record.canFinish` paint guard is
+**gone** — after the ruling that flag is `false` for bodies that must be painted and for bodies that
+must not, so the refusal moved into the domain beside the declaration and `three-adapter` still
+learns no rule (§12).
+
+**Owed: the ADR 0099 amendment**, which the coordinator writes. `docs/decisions/0099-*.md` was not
+edited by this change.
+
+### CLOSED 2026-09-09: the open shelf shipped too, and the corner base return is nothing owed
+
+The ruling landed in two waves because the declaration and the surface are different problems. The
+first gave every following body the kitchen's colour in its document and in
+`PlacementRecord.drawnFinish`; the second gave the open shelf something to show it on.
+
+**Measured both times the same way** — the seeded kitchen built twice, every mesh's rendered colour
+read off the built object, comparing the wave against its own predecessor. Colour and not material
+uuid: a uuid is only meaningful inside one process, since two runs of `makeKit` mint different
+instances for identical scenes.
+
+| Placement | Body | Meshes | What moved, and in which wave |
+| --- | --- | --- | --- |
+| `p25` | `base-corner-x-900` | 10 | `door_front` `#eceeeb` → `#2b2d30` (first) |
+| `p9` | `wall-corner-return-570` | 7 | `door_front` `#eceeeb` → `#2b2d30` (first) |
+| `p21` | `wall-corner-return-570-top` | 7 | `door_front` `#eceeeb` → `#2b2d30` (first) |
+| `p12` | `open-shelf-600` | 7 | its **six boards** → `#2b2d30` (second); `back_panel` unchanged |
+| `p26` | `base-corner-return-320` | 3 | **nothing, and nothing should** — see below |
+| `p13` | `hood-600` | 4 | nothing — correct, it is never painted |
+| `p7` | `fridge-free-700` | 14 | nothing — correct, it is never painted |
+
+#### The open shelf, ruled by the owner 2026-09-09 and shipped
+
+> The six boards take the kitchen's colour; the tiled `back_panel` does not — *a coloured shelf
+> mounted on the wall, not a coloured niche*. And **one rule, no wood special case**: the shelf takes
+> whatever the kitchen has, flat palette colour or wood decor alike, and falls back to the material's
+> default when the kitchen has none.
+
+`side_left`, `side_right`, `shelf_top`, `shelf_bottom`, `shelf_1` and `shelf_2` follow;
+`back_panel` keeps `M.tile` at every colour. Verified at a flat decor (`pal.antracit`, `#2b2d30`), at
+a wood decor (`pal.nuc-warmia`, `#8a5c3b`) and with no kitchen colour on veneer, where it takes the
+declared default (`veneer.stejar`, `#cba173`).
+
+**How, and why not the obvious way.** A new declaration — `wearsTheBodysFinish`, in
+[`body-finish-surfaces.ts`](../../packages/three-adapter/src/body-finish-surfaces.ts) — is written by
+the builder that makes the mesh, and `applyBodyFinish` now paints `collectPaintedSurfaces` (fronts
+**plus** declared surfaces) instead of `collectFronts`. `openShelf` is the only builder in the kit
+that declares anything.
+
+**Widening `FRONT_MESH_NAME` was the obvious fix and is the wrong one**, ruled out by a census rather
+than by argument: the shelf's mesh names are not its own.
+
+| Mesh name | Bodies that build it |
+| --- | --- |
+| `side_left`, `side_right`, `back_panel` | `base-dishwasher-600`, `base-sink-800`, `open-shelf-600`, `tall-oven-tower-600` |
+| `shelf_mid` | `tall-oven-tower-600` |
+
+A `side_|shelf_` pattern would have painted three other bodies' carcass interiors and the oven
+tower's shelf. It would also have moved two unrelated readers, because `isFrontMesh` is this
+package's single definition of a *front*: `cabinet-handle-meshes.ts` asks it to decide whether a
+handle belongs to a cabinet, and `apps/web/src/scene/kitchen-stage.tsx` repaints a whole room through
+`collectFronts(stage.room)`. Both read exactly what they read before, and that is asserted rather
+than assumed. Applying the widening anyway turns **26 adapter tests red across 5 files** — measured.
+
+#### `base-corner-return-320` — nothing owed, and not a defect to reopen
+
+It builds three meshes: `plinth` (`M.dark`), `carcass` (`M.carcass`) and `countertop` (`M.stone`).
+There is no front and no outward face of its own; its only cabinetry surface is the carcass, which is
+the box **interior** every cabinet in the kit shares — and no body is painted there at any colour.
+So there is nothing to give it that would not also recolour the inside of every other cabinet.
+
+**Its following is real and is proved** — in the document, where its `finish` key stays absent, and
+in the record, where `drawnFinish` resolves to the kitchen's colour
+(`configurator-domain/tests/structural-cabinetry-follows-the-kitchens-colour.test.ts`). There is
+simply nothing outward for it to show, and the return leg stands against the corner where almost none
+of it is visible anyway. **This is a conclusion, not a deferral: it should not be reopened as a bug.**
+Pinned by name in `qa-0099c-each-unchoosing-body-by-name.adversarial.test.ts`, which asserts it mounts
+exactly those three meshes and renders identically with and without a kitchen colour.
+
+**Owed: the ADR 0099 amendment**, which the coordinator writes. `docs/decisions/0099-*.md` was not
+edited by either wave.
+
 
 ## Also open, recorded elsewhere — do not duplicate here
 
@@ -916,3 +1356,169 @@ the rest of the system half-ignores.
   decision, not a backlog item. The gate is `docs/milestones/M8-review-contact-success.md` under
   "Launch gate"; the decisions are ADR 0019 and its 2026-08-31 correction. Until that gate is
   checked off, do not expose the endpoint to real traffic.
+
+## 61. The open shelf sits on the handle line where the owner ruled it onto the door line — RULED 2026-09-09, DEFERRED TO ITS OWN WAVE
+
+**Ruled by the owner on 2026-09-09**: the open shelf's boards sit on the **door line — 309 mm at a
+600 mm kitchen and 379 at a 700 mm one**. They were shown three planes and chose the middle one:
+
+| the shelf's boards sit at | 600 | 700 | reads as |
+| --- | --- | --- | --- |
+| the handle line (today) | 330 | 400 | proud of the doors by 21 mm |
+| **the door line — RULED** | **309** | **379** | flush with the door faces |
+| the shell line | 291 | 361 | recessed 18 mm *behind* the doors |
+
+**Deferred to a wave of its own, after M6**, on the consequence in "What stopped it" below. The
+analysis is complete and a working patch exists; the next wave starts from there, not from scratch.
+
+### The measurement that made it decidable
+
+The report was *"the open shelves cabinet in both 600 and 700mm have bigger depth than other
+cabinets"*. Measured on the mounted bodies — `open-shelf-600` (`p12`) against its neighbour
+`wall-2door-800` (`p11`), world-space front faces:
+
+| surface | 600 mm | 700 mm |
+| --- | --- | --- |
+| neighbour `carcass_shell` front | 291 | 361 |
+| neighbour `door_front` outer face | **309** | **379** |
+| neighbour `handle_bar` outer tip | **330** | **400** |
+| shelf boards, all six | **330** | **400** |
+
+So the shelf is **exactly flush with the neighbour's handle tips** and **21 mm proud of its door
+faces**, at both depths. `WALL_FRONT_ASSEMBLY_MM`'s 39 decomposes, measured rather than inferred, as
+**18 mm of door slab plus 21 mm of handle projection**.
+
+**Neither the drawing nor the declaration is wrong.** `frontAssemblyMm: 0` and the geometry agree to
+the millimetre, and the shelf's *occupied* depth is identical to its neighbours'. What disagrees is
+the declaration and the eye: two thin handle bars and a solid full-height plane do not read alike
+even where they measure alike. Without the 18/21 decomposition this reads as a vague complaint about
+depth; with it, it is a choice between three named planes.
+
+### Why there is no drawing-only fix
+
+`deriveFrame` ([`void-engine.ts`](../../packages/configurator-domain/src/void-engine.ts)) seats a
+body from **`definition.frameDepthMm`**, halved by `deriveCabinetWorldTransform`, and
+`scene-sync.ts` applies `record.frame.z` verbatim — **nothing measures the built body**. A 309-deep
+shelf under a 330 declaration would span 10.5 → 319.5: short of the door line *and* hanging 10.5 mm
+off the wall. And the shelf is `seatedOnWallPlane`, so its front-face position and its seat are one
+number and cannot be separated. **It is a domain change.**
+
+### What stopped it — read this before assuming the shelf broke something
+
+A shallower shelf is *genuinely* shallower, and `insertBody` calls `replanDependentMembers`, which
+rebuilds a dependent body through the probe. A swap that took one probe measurement now takes two.
+
+> **The mechanism first written here was wrong, and is struck rather than deleted so nobody
+> re-derives it.** It said: *a column's depth is the MAX over its vertical run, so a shallower shelf
+> lowers that column's maximum.* ~~That does not follow.~~ `Column.d`
+> ([`void-engine.ts`](../../packages/configurator-domain/src/void-engine.ts)) is §3.2's MAX over
+> **every** member's `occupiedDepthM`, base bodies included at ~620 mm, so a wall shelf moving
+> 330 → 309 cannot move it and `columnDecidesADifferentDepth` stays false. **The failures below are
+> observed and real; what triggers them is not settled.** Re-derive it from a failing row before
+> the wave starts — do not start from the struck sentence.
+
+`insert-depth.test.ts` goes from 22 passing to **4 failing**. Three of those four are **fronted**
+rows — `p11 wall-2door-800`, `p17`, `p18` — and they fail **only because every case in that file
+inserts `SWAP_BUILD_ID = "open-shelf"`**. The shelf does not break unrelated cabinets; each of those
+cases *is* "swap a shelf into this slot". The fourth is the shelf itself, receiving 330 where the
+declaration now says 309.
+
+**The behaviour is correct** — the re-plan machinery exists for exactly this — but it is a new side
+effect on a customer's tap, discovered after the change was written, and that class was reserved for
+the owner. Hence the deferral.
+
+### Three fields per entry, not two
+
+Both `open-shelf` ([§7, `catalog.ts`](../../packages/configurator-domain/src/catalog.ts)) and
+`open-shelf-600` ([seeded, `kitchen-l-design.ts`](../../packages/configurator-domain/src/fixtures/kitchen-l-design.ts))
+move together (ADR 0075 decision 1):
+
+1. **`frameDepthMm`** — the seat, `wallCarcassDepthMm` → the door line.
+2. **`nominalDepthMm`** — what `buildCatalogBody` builds an *inserted* shelf to. Left at the handle
+   line it draws a 330 body against a 309 declaration, and `occupied-depth.parity.test.ts` catches
+   it. This is the field that was missed in the first scoping.
+3. **`occupiedDepth`** — the *expression* (`shellPlusFrontMm(NO_FRONT_ASSEMBLY_MM)`) is unchanged;
+   its published value follows the shell to 309/379.
+
+`wallCarcassDepthMm` and `wallCarcassSeatDepthMm` themselves **must not move** — fifteen readers,
+including every fronted wall and top row, `along-wall-chain-shift.ts`'s `wall-map` arm and the frozen
+map.
+
+### The new domain constant
+
+The door line is `wallCarcassSeatDepthMm(d) + door thickness`, and **the door thickness is not
+declared anywhere in the domain**: `WALL_FRONT_ASSEMBLY_MM = 39` states the whole assembly and its
+18/21 decomposition lives only in its prose. The patch adds `WALL_DOOR_SLAB_MM` and
+`WALL_HANDLE_PROJECTION_MM` beside it with a load-time guard that the three add up, following that
+constant's **own** stated precedent: the domain declares it, the adapter goes on deriving its `TH`
+from the door it actually builds, and a three-adapter gate holds the two to one number — ADR 0028's
+remedy for two constants agreeing by luck.
+
+### Price is unaffected
+
+Confirmed, not assumed: no depth token of any kind reaches `packages/configurator-domain/src/pricing/`
+(its only `depth` matches are a prototype-chain bound and a comment), the pricing path reads
+`widthMm` and `heightMm` and no other millimetre quantity, and `cabinet.open-shelf` is priced by
+width and height. The shelf also declares `NO_OPENING_FRONTS` and `NO_CABINET_HANDLES`, so ADR 0070's
+per-leaf hardware gives it nothing either way.
+
+### What is already written — start here
+
+**The patch is 255 lines at
+`testing-reports/backlog-61-shelf-door-line/item3-shelf-door-line.patch`** (gitignored, and
+deliberately not left in the shared scratchpad, which is wiped). It carries: the two constants and
+their guard; `wallDoorFaceDepthMm` deriving 309/379; both catalogue entries moved; the adapter's
+`openShelfDepth` derived from the `TH` it builds, wired through `decomposed-bodies.ts` and
+`buildKitchen`; and `qa-6k-d-shell-declaration-pairing.adversarial.test.ts` re-pointed.
+
+### Remaining work, enumerated
+
+1. Re-point five pinned numbers: `occupied-depth.test.ts:172`, `cabinet-depth-parameter.test.ts:86`,
+   `qa-5f-depth-roundtrip.adversarial.test.ts:195`, `qa-6k-d-frame-depth-fixed-point`'s comment, and
+   `worktop-depth.qa.test.ts`.
+2. `cabinet-depth-parameter.test.ts` gets a **second dated re-baseline note** naming the owner's
+   ruling, written *beside* the 2026-09-05 one rather than editing numbers underneath it
+   (`docs/WORKFLOW.md`: a re-baseline is announced, never relaxed).
+3. Re-point `insert-depth.test.ts` to expect the dependent re-plan, saying why the three fronted rows
+   are involved.
+4. Add the three-adapter gate holding `TH` to `WALL_DOOR_SLAB_MM`.
+5. Add the relation assertion.
+
+### Rulings that survive into that wave
+
+- **The parts-gallery specimen at `kitchen-parts.ts:1188`, `openShelf(0.8, 0.3, 2)`, stays at 0.3**
+  and carries a comment saying it is deliberately outside this rule — it is not in a kitchen, follows
+  no depth map, and must not acquire a dependency on the wall map to keep a screenshot honest.
+- **Assert the relation, never the literal**: the shelf's board front equals the neighbour's
+  `door_front` outer face at **every declared depth**. A test pinning 309 passes at 600 and says
+  nothing about 700 or about a third depth.
+- **Do not change a declared depth to make a picture look right.** The two shared depth functions
+  above feed ADR 0028's map, the corner reach, the frozen map and the price.
+
+## 62. The narrower stacking fix on desktop — delete a number instead of adding one
+
+Wave 6's chrome parity raised `.priceRow` to `z-index: 5` on desktop so the breakdown's popover,
+nested in that cell, could clear §9's rail at `4`. It works and it is the fix that shipped, but it is
+the *wider* of the two available fixes: it adds a layer where the alternative removes one.
+
+**The alternative.** Drop the rail to `z-index: auto` above 900 px.
+[`editor-panel.module.css`](../../apps/web/src/app/configurator/configure/editor-panel.module.css)'s
+`.shell` is `position: static` on that shell and stands in normal flow beside the scene, so its `4`
+buys it nothing there. With the rail out of the way the popover's own `6` reaches past it unaided,
+and `.priceRow` goes back to `3` on **both** shells — one number instead of a per-shell fork, and the
+stacking table in
+[`configure.module.css`](../../apps/web/src/app/configurator/configure/configure.module.css) loses
+its most-explained row.
+
+**What it waits on, and why it was not taken on the last day of M6.** One measurement nobody could
+make on 2026-09-09: that the rail overlaps *nothing else* on desktop. Its `4` is load-bearing only if
+some surface needs to pass under it, and no one has enumerated those surfaces at 900–1920 px. A
+change whose premise is unverified is not the one to make while closing a milestone, so the wider fix
+landed and this is written down to be taken on purpose.
+
+**The work.** Check the rail against every surface it can meet across 900–1920 px. If it meets none,
+set `.shell` to `z-index: auto` in the desktop branch, return `.priceRow` to a single `3`, delete the
+per-shell fork and its comment, and re-point
+`qa-0104-the-stacking-table.adversarial.test.ts`'s desktop cases — the mobile ones already assert the
+`3` this would restore. If it meets something, record what and close this entry: the fork is then the
+right answer and the table should say so.

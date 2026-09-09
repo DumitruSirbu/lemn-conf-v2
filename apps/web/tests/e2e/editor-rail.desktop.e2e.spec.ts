@@ -30,24 +30,52 @@ import { deleteMintedDesigns } from "./support/minted-designs";
  * same pixel in the two states.
  */
 
-const SINK_CABINET_FULL_WIDTH = { x: 700, y: 560 };
+/**
+ * **Every tap below was re-measured in the running app on 2026-09-08**, after the owner's ruling
+ * gave the desktop top bar its taller box (frame D2A's own 17.5 + 40 chip + 17.5 + 1 rule = 76 px,
+ * up from 55), which cost the canvas 21 px and re-projected the whole scene.
+ *
+ * **They are measurements, not the old values less 21.** Each was found by scanning a grid of page
+ * points in the running app — closing the panel between probes so every full-width point is taken
+ * from the "nothing selected" state, and re-opening the rail on `p0` before every rail-open one —
+ * and reading `[data-testid="selection-debug"]` back after each click. The band each anchor sits in
+ * is recorded with it, because a coordinate without its band is a number the next reader cannot
+ * check. Every anchor was then clicked five times in a row on both the seeded document and a
+ * narrowed walnut one, and selected its body 5/5 in all cases: nothing here flaps.
+ *
+ * **The 21 px shift did not break the old values** — all four still selected their intended bodies.
+ * Three are moved anyway, to the middle of their measured bands rather than 25-30 px from an edge,
+ * which is the margin this file's own history asks for.
+ */
+
+/** The sink cabinet, in the 1440 px-canvas coordinates a first tap lands in.
+ *
+ *  Measured band at x 700: `p0` from y 540 to 690, background above 535. At y 610 the band runs
+ *  x 660-740. The old {700, 560} still reaches `p0`, but with only ~25 px above it; this sits
+ *  ~70 px from the nearer vertical edge and ~40 px from each horizontal one. */
+const SINK_CABINET_FULL_WIDTH = { x: 700, y: 610 };
 /** The same scene once the rail has taken its 420 px and the world has re-projected into 1020 px:
  *  a base cabinet well clear of the patches below, and the fridge column.
  *
- *  **Re-measured 2026-09-06** (ADR 0094 criterion 4f), because wave 6R-b's settings row moved the
- *  canvas 45 px down and this point was the first casualty: at y 560 it now lands on background and
- *  selects nothing. Scanned in the running app at x 700 with the rail open: the `p0`/background
- *  boundary **flaps** across 545-560 — an independent re-measure reached nothing at 545 and 555 but
- *  `p0` at 550 and 560 — and **565 through 720 all reach `p2`** in both scans. 640 is inside that
- *  unbroken band by 75 px at the measured edge and is not a value nudged until the count passed.
- *  The flapping edge is why the anchor is taken deep inside the band rather than near it. */
-const FAR_BASE_CABINET = { x: 700, y: 640 };
-const FRIDGE = { x: 200, y: 500 };
+ *  Measured band with the rail open: at y 650 `p2` runs x 640-720 (`p1` to its left, `p4` from
+ *  ~730), and at x 680 it runs y 570-730. The old {700, 640} still reaches `p2` but leaves only
+ *  ~30 px before `p4`; this is ~50 px from either horizontal edge and ~80 px from either vertical
+ *  one. The 2026-09-06 note this replaces recorded a **flapping** `p0`/background boundary across
+ *  545-560 as the reason to take an anchor deep inside a band — that reasoning is why this one
+ *  moved even though the old value passed. */
+const FAR_BASE_CABINET = { x: 680, y: 650 };
+/** The fridge column, with the rail open. Measured band: at y 560 `p7` runs from the canvas edge
+ *  to ~230 (`p6` beyond it), and at x 140 it runs y 470 to past 790. The old {200, 500} still
+ *  reaches `p7` with ~30 px to spare before `p6`; this has ~90 px. */
+const FRIDGE = { x: 140, y: 560 };
 /** The sink cabinet again, in the coordinates it occupies **once the rail is open** — the centre of
  *  `SINK_PATCH` below, which is that body's own measured highlight box. `SINK_CABINET_FULL_WIDTH`
  *  is a 1440 px-canvas point and selects nothing here; the two are not the same world point.
- *  Confirmed in the running app on 2026-09-07 by tapping it with the rail open and reading `p0`
- *  back from `[data-testid="selection-debug"]`. */
+ *
+ *  **Kept at the value it had**, re-confirmed 2026-09-08. Measured band with the rail open: at
+ *  y 590 `p0` runs x 460-550, and at x 510 it runs y 540-685 — so this point is at least 40 px
+ *  from every edge, which is margin enough, and moving it would break the one relationship stated
+ *  above: that it is the centre of `SINK_PATCH`. */
 const SINK_CABINET_WITH_RAIL = { x: 510, y: 588 };
 
 const VIEWPORT_WIDTH_PX = 1440;
@@ -60,20 +88,43 @@ const MAX_ROW_HEIGHT_PX = 70;
 const MIN_CHIP_HEIGHT_PX = 52;
 
 /**
- * Patches of **page** pixels around the two bodies under test; **the canvas starts 100 px down**.
+ * Patches of **page** pixels around the two bodies under test; **the canvas starts 76 px down**.
  *
- * **Re-derived 2026-09-06 against the new canvas origin** (ADR 0094 criterion 4f). Wave 6R-b gave
- * the settings strip its own grid row, so the desktop bands measure header 55 px + strip 45 px (44
- * of content and the band's own 1 px rule) and the canvas box is y 100, 1440 × 800 — it was y 55,
- * 1440 × 845. A shorter canvas re-projects the whole scene, so neither patch is the old one shifted
- * by 45: each is the highlight's own bounding box, **measured in the running app** and padded by
- * 12 px. A patch nudged until a count passes is the failure ADR 0028 exists for.
+ * **Re-measured 2026-09-09 after ADR 0104's withdrawal of the settings strip**, which took the
+ * canvas from y 121, 1440 × 779 to **y 76, 1440 × 824**: the top bar is now frame D2A's one declared
+ * 76 px row — five cells across it, not two — and the band that stood under it is gone.
+ *
+ * **The four click anchors below and the two patches have NOT been re-measured against that canvas**
+ * and are the wave's one open item: the scene moved up 45 px and grew 45 px taller, so the camera's
+ * aspect changed and a page point is a different world point. They need a browser with the e2e
+ * harness, which is where they were found. They fail loudly rather than silently if a tap now
+ * reaches another body — every one of them asserts the id it selected — and that is the failure this
+ * note is here to make legible.
+ *
+ * **Both patches survived the shift and neither is changed**, which is a measurement and not an
+ * assumption: with the rail open, each body's own region was isolated by differencing its selected
+ * capture against **two** other states and keeping the pixels that moved in both, so the other
+ * bodies' outlines drop out. `p0`'s region measures page x 432–592, y 479–706 and the box below
+ * contains it; the vacated slot's measures x 44–267, y 604–842 and the box below contains that.
+ * Each candidate was then checked against a deliberately larger box and returned the **same** count
+ * — 10 416 and 6 026 — which is what says nothing is being clipped at an edge.
+ *
+ * A patch nudged until a count passes is the failure ADR 0028 exists for; a patch left alone
+ * because it was re-measured and still frames its subject is not that.
  */
-/** The sink cabinet's highlight, measured with the rail open at page x 432–588, y 480–693. */
+/** The sink cabinet's highlight. Re-measured with the rail open on 2026-09-08 at page x 432–592,
+ *  y 479–706 — the box has ~2 px of margin below that region, which is tight but is containment
+ *  rather than clipping, confirmed by the larger box reading the identical 10 416. */
 const SINK_PATCH: PixelRect = { x: 420, y: 468, width: 180, height: 240 };
 /** The opening the fridge leaves behind, once §5.1 has selected it. Found the same way as the tap
  *  coordinates: by removing the fridge in the running app and reading where the vacated slot
- *  projects with the rail open — measured at page x 32–259, y 597–840. */
+ *  projects with the rail open — re-measured 2026-09-08 at page x 44–267, y 604–842.
+ *
+ *  **The fridge leaves two stacked voids, and this frames the lower one, which is the one §5.1
+ *  selects** (`B|2.45:v0:0.00`). That is deliberate: a box drawn around the whole column would take
+ *  in a second, unselected void whose blue is in both frames of every pair, inflating the fill count
+ *  with something no assertion here is about. Measured 983 blue pixels inside this box against
+ *  1 925 across the column. */
 const VACATED_FRIDGE_PATCH: PixelRect = {
   x: 20,
   y: 585,
@@ -104,17 +155,21 @@ const VACATED_FRIDGE_PATCH: PixelRect = {
  * deterministic between captures. `NOISE_FLOOR` is 8 anyway: slack over a measured zero, and every
  * count below is quoted at it. The same pair is re-measured inside each test rather than trusted.
  *
- * **The four-row table, re-measured at 1440 x 900 in the overview preset on 2026-09-07**, as
- * differences against the baseline state *a different body (`p2`) selected*. "Nothing selected" is
- * not a baseline this instrument can use — the rail closes, the canvas grows back to 1440 px and
- * the whole scene re-projects — which is why the row is named and empty rather than dropped:
+ * **The four-row table, re-measured at 1440 x 900 in the overview preset on 2026-09-08** — after
+ * the top-bar ruling shortened the canvas to 779 px and re-projected the scene — as differences
+ * against the baseline state *a different body (`p2`) selected*. "Nothing selected" is not a
+ * baseline this instrument can use — the rail closes, the canvas grows back to 1440 px and the
+ * whole scene re-projects — which is why the row is named and empty rather than dropped:
  *
  * | state, differenced against `p2` selected | sink patch | vacated-fridge patch |
  * | ---------------------------------------- | ---------- | -------------------- |
  * | nothing selected                         |  no baseline (the canvas re-projects) |
- * | sink cabinet (`p0`) selected             |     10 722 |                    0 |
+ * | sink cabinet (`p0`) selected             |     10 416 |                    0 |
  * | a different body (`p7`) selected         |          0 |                    0 |
- * | the vacated fridge opening selected      |          0 |                6 213 |
+ * | the vacated fridge opening selected      |          0 |                6 026 |
+ *
+ * Against the pre-ruling readings of 10 722 and 6 213, each lost about 3 % to the 21 px of canvas
+ * height the taller top bar took. Both remain more than three times `MIN_CHANGED_PIXELS`.
  *
  * **The positive counts did not collapse; they roughly tripled.** The retired counter read 3 603
  * and 1 691 on the same two states in the same run (3 962 and 1 759 in the 2026-09-06 table, before
@@ -144,8 +199,9 @@ const MAX_UNCHANGED_PIXELS = 10;
  * counter goes red instead of lying. The witness spec records the cost of not asserting it: a
  * kitchen painted `#2d5fff` reports **16 599** blue pixels in the sink patch, which holds no void.
  *
- * Measured 2026-09-07: 1 071 pixels in the vacated-fridge patch with the slot selected, 1 429 with
- * it unselected, and **0** in the sink patch with the sink cabinet selected. The floor is 300.
+ * Re-measured 2026-09-08 on the shortened canvas: **983** pixels in the vacated-fridge patch with
+ * the slot selected, **1 367** with it unselected, and **0** in the sink patch with the sink cabinet
+ * selected — against 1 071, 1 429 and 0 before the ruling. The floor is 300.
  */
 const VOID_BLUE_EXCESS = 25;
 const MIN_VOID_FILL_PIXELS = 300;
@@ -176,8 +232,10 @@ async function keepForDeletion(page: Page): Promise<void> {
 }
 
 /** Page coordinates, which is how the constants above were found — the canvas fills the stage and
- *  starts **100 px** below the top of the screen (the 55 px header row and the 45 px settings band
- *  wave 6R-b gave the strip), so a canvas-relative click would be a different world point. */
+ *  starts **76 px** below the top of the screen (frame D2A's own declared top bar, and nothing else:
+ *  ADR 0104 decision 2 withdrew the settings band that used to stand under it), so a canvas-relative
+ *  click would be a different world point. Measured at 1440 × 900 on 2026-09-09: 76 + 824 = 900,
+ *  with nothing left unaccounted for. */
 async function clickScene(
   page: Page,
   position: { x: number; y: number },

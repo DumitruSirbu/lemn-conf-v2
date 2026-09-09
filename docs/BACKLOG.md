@@ -71,7 +71,7 @@ status corrections, in one of these two files:
 | 38 | `resolveFinishesTheTierDoesNotOffer`'s `Set<DesignPlacement>` is membership by object identity | resolved.md |
 | 39 | `wearsAFinishTheMaterialDoesNotOffer` and `wearing` are duplicated verbatim, twice | resolved.md |
 | 40 | Comments naming a schema-version number go stale silently | resolved.md |
-| 41 | The sink, its bowl and its faucet do not follow the cabinet-depth setting | open.md |
+| 41 | The sink, its bowl and its faucet do not follow the cabinet-depth setting | open.md — ruled 2026-09-07 (ADR 0098), awaiting a wave |
 | 42 | `tall-pantry`'s door-leaf/handle declaration should be pinned separately | open.md |
 | 43 | Wave 6A2's own files carry no literal pin on the seeded row's rendered name | open.md |
 | 44 | A vacuous test in `cabinet-depth-sweep.parity.test.ts` calls no production code | resolved.md — closed 2026-09-06 (this pass), test no longer present |
@@ -82,8 +82,12 @@ status corrections, in one of these two files:
 | 49 | The hob's front clearance reads as flush with the worktop's edge | open.md |
 | 50 | `validateDesignForCatalog` is blind to a cross-wall corner intersection | open.md |
 | 51 | Column chain-homogeneity is an invariant nothing enforces | open.md |
-| 52 | A resize or an insert carries the wall-end cap into the recorded map | open.md |
+| 52 | A resize or an insert carries the wall-end cap into the recorded map | resolved.md — closed 2026-09-07, ADR 0090 Amendment B addendum |
 | 53 | Russian is a supported locale — decided on day one, no milestone owns it | open.md |
+| 54 | Cabinet depth changes the material used and does not change the price | open.md — shape ruled 2026-09-07 (ADR 0100), implementation deferred by the owner |
+| 55 | The global settings actions are absent on a first visit and present after a reload | open.md |
+| 56 | An emptied column over a full-height member can lose 269 mm of depth after a depth round trip | open.md — ruled 2026-09-08 (ADR 0102), awaiting wave 6Y |
+| 57 | A depth change hands the hood a width control it is declared not to have | open.md — recorded 2026-09-08 (ADR 0103 decision 12), pre-existing, no owner |
 
 ## 2026-09-06 audit note
 

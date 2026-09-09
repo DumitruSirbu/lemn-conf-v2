@@ -12,9 +12,12 @@
 // That is caching a pure query, not persisting a total — `DesignSchema` has no price field and
 // gains none.
 import {
+  parsePriceBook,
   priceDesign,
   SAMPLE_PRICE_BOOK,
   SAMPLE_PRICE_BOOK_VERSION,
+  type PriceBook,
+  type PriceBookParseResult,
   type PricingResult,
 } from "@lemnaria/configurator-domain";
 import { useMemo } from "react";
@@ -27,28 +30,89 @@ import {
 } from "./whole-kitchen-tiers";
 
 /**
+ * **The book, read once at the ingress** — the composition root's whole job, and the reason both
+ * hooks below take a `PriceBook` from here rather than naming the sample themselves.
+ *
+ * `PriceBook` is a TypeScript declaration, and ADR 0062 seam 1 is precisely the seam that cannot
+ * keep it: a manufacturer-supplied book is versioned data assembled elsewhere. `parsePriceBook`
+ * establishes the shape once so that everything downstream — `priceDesign`'s rule sweep and
+ * `offerWholeKitchenTiers`' bare `group.tiers.map` — is reading a fact instead of a promise
+ * (M6-AUD-002).
+ *
+ * **At module scope rather than in a `useMemo`**, because "once" means once for the process and not
+ * once per hook: two `useMemo(..., [])` would be two parses of one constant, and neither hook's own
+ * memo keys change when a design does. The two memos below keep the dependencies they had.
+ */
+const PARSED_PRICE_BOOK = parsePriceBook(SAMPLE_PRICE_BOOK);
+
+/**
+ * **The sample book did not parse.** A defect in this repository rather than a fact about the
+ * customer's kitchen, so it leaves as itself — the stance `refuseUnreadableFrontsCause` takes in the
+ * domain — and never as a rendered state nobody has designed.
+ *
+ * Raised only by the tier offer, and only because there is no honest degraded answer for it: an
+ * empty group would make `global-settings-model.ts` throw `UnofferedDefaultTierError` anyway, and
+ * inventing a default would be this module deciding what an unset kitchen costs. **What the settings
+ * sheet should show when no book can be read at all is an open product question** — it has never been
+ * asked, because until now no book could fail to be read. `usePricedDesign` has a real answer and
+ * gives it: a refusal, which every price surface already renders as no figure.
+ */
+export class UnreadablePriceBookError extends Error {
+  constructor(detail: string) {
+    super(`The price book this build ships could not be read: ${detail}`);
+    this.name = "UnreadablePriceBookError";
+  }
+}
+
+/**
+ * **The two readers of `PARSED_PRICE_BOOK`, and the reason there are two rather than one.**
+ *
+ * The hooks below need genuinely different answers to one failed parse, which is the whole content
+ * of `UnreadablePriceBookError`'s doc: the tier offer has no honest degraded form and leaves as
+ * itself, while a price surface already renders a `PricingResult` refusal as no figure. A single
+ * reader would have to pick one of those for both.
+ *
+ * What is shared is that the module constant is named here and in no hook, so "did the book parse?"
+ * is asked in exactly two places and each answer is stated once.
+ */
+function readPriceBook(): PriceBook {
+  if (PARSED_PRICE_BOOK.ok) return PARSED_PRICE_BOOK.book;
+  throw new UnreadablePriceBookError(PARSED_PRICE_BOOK.failure.detail);
+}
+
+/** The parse as it stands, for the caller that answers with a refusal rather than a throw. Handed on
+ *  whole rather than pre-branched: `PricingResult` and `PriceBookParseResult` carry the same
+ *  `PricingFailure`, so the hook restates nothing this reader would have to restate for it. */
+function priceBookOrRefusal(): PriceBookParseResult {
+  return PARSED_PRICE_BOOK;
+}
+
+/**
  * The current design, priced. Both price surfaces read this one hook — frames 2A / D2A's bar and
  * §9 item 7's footer — so neither can be looking at a different number from the other.
  *
  * The whole-kitchen selections come straight off `design.settings` (wave 6E). Nothing is defaulted
  * here: a design carrying no container, or one carrying only the other key, is priced at the book's
  * own default tier, which is book data rather than a rule living in this hook.
+ *
+ * **A book that did not parse is a refusal, not a throw**: `PricingResult` already carries one, and
+ * every price surface already renders a failure as no figure at all rather than as a zero.
  */
 export function usePricedDesign(): PricingResult {
   const design = useConfiguratorStore((state) => state.design);
   const catalog = useConfiguratorStore((state) => state.catalog);
 
-  return useMemo(
-    () =>
-      priceDesign({
-        design,
-        catalog,
-        book: SAMPLE_PRICE_BOOK,
-        pricingVersion: SAMPLE_PRICE_BOOK_VERSION,
-        selections: design.settings,
-      }),
-    [design, catalog],
-  );
+  return useMemo(() => {
+    const parsed = priceBookOrRefusal();
+    if (!parsed.ok) return { ok: false, failure: parsed.failure };
+    return priceDesign({
+      design,
+      catalog,
+      book: parsed.book,
+      pricingVersion: SAMPLE_PRICE_BOOK_VERSION,
+      selections: design.settings,
+    });
+  }, [design, catalog]);
 }
 
 /**
@@ -72,7 +136,7 @@ export function useWholeKitchenTierOffer(): WholeKitchenTierOffer {
       offerWholeKitchenTiers({
         design,
         catalog,
-        book: SAMPLE_PRICE_BOOK,
+        book: readPriceBook(),
         pricingVersion: SAMPLE_PRICE_BOOK_VERSION,
         selections: design.settings,
       }),

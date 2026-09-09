@@ -66,6 +66,7 @@ import {
   type TierGroupView,
 } from "@/settings/global-settings-model";
 import { GlobalSettingsSurface } from "@/settings/global-settings";
+import { describeEditability } from "@/store/editability";
 
 const MATERIAL_TIER_IDS = SAMPLE_PRICE_BOOK.material.tiers.map(
   (tier) => tier.tierId,
@@ -225,7 +226,6 @@ function viewOf(
     groups: projectDesignForDisplay(design, KITCHEN_L_BODY_CATALOG),
     applied: design.settings ?? {},
     pending: design.settings ?? {},
-    rejection: null,
     chosenColourCount: countCabinetsWearingAChosenFinish(design),
     ...overrides,
   });
@@ -241,11 +241,20 @@ function groupNamed(
   return group;
 }
 
+/** These fixtures are about deltas, badges and copy, never about access. Stated rather than
+ *  defaulted: `GlobalSettingsSurface.editability` is a required prop precisely so a write surface
+ *  cannot silently default to permitted (M6-AUD-001). */
+const WRITABLE_ACCESS = describeEditability({
+  canWrite: true,
+  saveStatus: "idle",
+});
+
 function markupOf(view: GlobalSettingsView): string {
   return renderToStaticMarkup(
     createElement(GlobalSettingsSurface, {
       id: "settings",
       view,
+      editability: WRITABLE_ACCESS,
       onChoose: () => undefined,
       onChooseDepth: () => undefined,
       onCancel: () => undefined,
@@ -768,13 +777,19 @@ describe("wave 6F's clause is absent, and cannot be put back by anything that pa
     // on the screen that are in no string and in no element. `starting-price.adversarial.test.ts`
     // already holds the three stylesheets that render the *De la* label to this rule; this wave
     // added a fourth that renders customer-visible copy and was not in that list.
+    //
+    // **An empty `content: ""` is allowed by name**, and only that: the pill's 44 px hit area is a
+    // pseudo-element with no text in it (ADR 0104 decision 5 — the target may not change the painted
+    // box), which cannot put a clause on the screen. Every other value still fails.
     const declarations = readFileSync(
       resolve(
         import.meta.dirname,
         "../../src/settings/global-settings.module.css",
       ),
       "utf8",
-    ).replace(/\/\*[\s\S]*?\*\//g, "");
+    )
+      .replace(/\/\*[\s\S]*?\*\//g, "")
+      .replaceAll('content: "";', "");
 
     expect(declarations).not.toMatch(/[^-]content:/);
   });

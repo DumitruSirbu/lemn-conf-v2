@@ -24,17 +24,6 @@
   border-top: 1px solid var(--line);
 }
 
-.chevron {
-  font-size: 14px;
-}
-
-/* Frame D2D dims the screen behind the popover. Frame 2D's sheet does not, so on mobile there is no
- * scrim at all rather than a transparent one — a transparent scrim still swallows every tap meant
- * for the scene behind it. */
-.scrim {
-  display: none;
-}
-
 .surface {
   position: fixed;
   right: 0;
@@ -50,6 +39,11 @@
   border-top: 1px solid var(--line);
   border-radius: 22px 22px 0 0;
   box-shadow: 0 -16px 36px rgb(28 24 20 / 18%);
+
+  /* The same home-indicator strip `global-settings.module.css` records the reason for, on the other
+   * sheet with the same `fixed; bottom: 0` in `dvh`. One rule over two surfaces rather than the
+   * inset landing on whichever one somebody happened to be looking at. */
+  padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 
 .grabber {
@@ -210,37 +204,55 @@
 /* Frame D2D: a 520 px popover hanging from the price in the top bar, over a dimmed screen. Same
  * markup, same model — a different box. */
 @media (min-width: 900px) {
+  /* **Not stretched, and not the popover's anchor either — owner, 2026-09-09**: *"text 'De ce acest
+   * pret' aligned to right"*.
+   *
+   * Frame D2A's price column declares `align-items: flex-end`, so the column places both of its
+   * children against its right edge and neither child aligns itself. `align-self: stretch` used to
+   * be right here and is now wrong for a reason worth writing down: in the old row-shaped price cell
+   * it stretched this box **vertically**, so the popover hung from the whole bar rather than from
+   * the button. The cell is a **column** since ADR 0104, so the same declaration stretches it
+   * *horizontally* instead — spanning the column and pinning this control to the left, which is the
+   * misalignment the owner saw.
+   *
+   * The vertical intent it was serving is kept by moving the positioning context to the price cell
+   * (`configure.module.css`), which **is** the band's height: the popover still hangs from
+   * `top: 100%` of the bar rather than across its lower half, and it needs no offset of its own. */
   .anchor {
-    /* Lifts this whole subtree — trigger, scrim and popover — above the header and the price bar
-     * (both `z-index: 2`) and §9's rail (`4`), and establishes the stacking context the popover is
-     * drawn in.
+    position: static;
+    /* Lifts this whole subtree — trigger and popover — above the header and the price bar (both
+     * `z-index: 2`) and §9's rail (`4`), and establishes the stacking context the popover is drawn
+     * in.
      *
-     * **It does not keep the trigger above the scrim, and an earlier comment here claimed it did.**
-     * The scrim is a *child* of this element, so inside the context this creates it paints over the
-     * unpositioned trigger: `document.elementFromPoint` at the trigger's centre returns the scrim,
-     * not the button. Harmless — a click there closes the popover either way, which is why nothing
-     * looked wrong — but the reason written down was not the reason it worked. */
+     * **There is no scrim here since M6-AUD-013's ruling** (2026-09-09): frame D2D's dim covered the
+     * viewport and blocked the pointer while Tab walked out of the dialog onto the very controls it
+     * covered, so the surface was modal for one input mode and not the other. The owner chose to
+     * remove the dim rather than make the dialog modal, because frame 2D deliberately keeps the
+     * mobile scene live and §10.1 forbids branching behaviour per shell. `global-settings.module.css`
+     * is where a real scrim lives — that surface is modal on both shells and can say so. */
     z-index: 6;
-    /* Stretched to the whole top bar, not to the control inside it: the popover hangs from
-     * `top: 100%`, and an anchor the height of its button would drop it across the bar's own lower
-     * half. Frame D2D leaves a clear gap between the two. */
-    align-self: stretch;
     align-items: center;
   }
 
+  /* Frame D2A `:561–564`: the control stands **under** the amount inside the price column, at
+   * `400 11.5px`, underlined in the frame's own `#c9b79f` with a 3 px offset. It is the frame's
+   * drawing of this control and it replaces the 12 px bold row the mobile shell draws — the wording
+   * is untouched (ADR 0104 decision 7 keeps the two files' copy fork out of this wave). */
   .trigger {
-    padding: 0 28px 0 0;
+    padding: 0;
+    font: 400 11.5px/1 var(--font-ui);
+    text-decoration: underline;
+    text-decoration-color: #c9b79f;
+    text-underline-offset: 3px;
     border-top: none;
   }
 
-  .scrim {
-    position: fixed;
-    inset: 0;
-    z-index: 5;
-    display: block;
-    background: rgb(28 24 20 / 22%);
-  }
-
+  /* **Bounded by the screen, not only by frame D2D's drawn height** (M6-AUD-016), and the same
+   * clamp `global-settings.module.css` takes — the two surfaces share the failure, so they share the
+   * rule. Measured at 900 x 500: this popover's close button ended at y = 619, below the viewport,
+   * while `.body` scrolled internally and kept the box its full 640 px. Less severe than the
+   * settings sheet's, because Escape still dismisses this one, but the explicit close
+   * and the lower rows were clipped. `min()` keeps the drawn height wherever there is room for it. */
   .surface {
     position: absolute;
     top: 100%;
@@ -248,7 +260,7 @@
     bottom: auto;
     left: auto;
     width: 520px;
-    max-height: 640px;
+    max-height: min(640px, calc(100dvh - var(--popover-top) - var(--safe-gap)));
     margin-top: 16px;
     background: var(--paper);
     border: 1px solid var(--line);

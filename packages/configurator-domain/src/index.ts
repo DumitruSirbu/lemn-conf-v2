@@ -11,8 +11,12 @@ export * from "./materials.js";
 // Which material a design is on, resolved by the two rules every reader of `materialTierId` owes:
 // PAL when unset, and an answer rather than a throw when the id names nothing declared.
 export * from "./design-material.js";
-// The count the material change's confirmation is conditional on (ADR 0081 decision 1). Beside
-// `materials.js` because it is the second query the same declaration answers.
+// The colour a cabinet is actually wearing, over the three levels ADR 0099 decision 1 orders. The
+// one authority: `@lemnaria/three-adapter` reads its answer and never the precedence rule.
+export * from "./resolved-finish.js";
+// The count the material change's confirmation is conditional on (ADR 0081 decision 1), and — since
+// ADR 0099 decision 7 — its second arm. Beside `materials.js` because it is the second query the
+// same declaration answers.
 export * from "./chosen-finishes.js";
 export * from "./design-bounds.js";
 export * from "./validate-design.js";
@@ -103,6 +107,7 @@ export {
   cabinetDepthRuleOf,
   columnBuildDepthM,
   columnBuildDepthMm,
+  declaresALiftedColumnDepth,
   depthFollowsSetting,
   FOLLOWS_CABINET_DEPTH,
   FOLLOWS_CABINET_DEPTH_ON_WALL_MAP,
@@ -115,6 +120,17 @@ export {
   type CabinetDepthRuleQuery,
   type ColumnBuildDepthQuery,
 } from "./cabinet-depth-rule.js";
+export {
+  bodyFinishRuleOf,
+  choosesItsOwnColour,
+  CHOOSES_ITS_OWN_COLOUR,
+  ContradictoryBodyFinishRuleError,
+  FOLLOWS_THE_KITCHENS_COLOUR,
+  IS_NEVER_PAINTED,
+  UndeclaredBodyFinishRuleError,
+  type BodyFinishRule,
+  type BodyFinishRuleQuery,
+} from "./body-finish-rule.js";
 export {
   isMeasurableSeat,
   JointSeatIsNotMeasurableError,
@@ -191,6 +207,10 @@ export * from "./queries/width-steps.js";
 export * from "./queries/vacated-void.js";
 export * from "./pricing/price-book.js";
 export * from "./pricing/price-lines.js";
+// The book's ingress (ADR 0062 seam 1): a composition root parses once, and every consumer of a book
+// downstream of it is reading a shape something has established rather than a type somebody
+// declared.
+export * from "./pricing/parse-price-book.js";
 export * from "./pricing/price-design.js";
 // The barrel is the **one** module that names the sample book (ADR 0062 seam 1): the query takes a
 // book as a parameter and imports none, so a composition root picks this up from the package's

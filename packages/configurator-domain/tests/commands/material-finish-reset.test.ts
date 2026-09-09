@@ -308,9 +308,15 @@ describe("the reset moves the finish, the setting and the clock, and nothing els
     return { ...placement, body };
   }
 
-  function withoutFinishKey(record: PlacementRecord): PlacementRecord {
+  /** **Both colour fields, because since ADR 0099 Amendment A section 3 a record carries two.**
+   *  `finishKey` is the cabinet's own choice and `drawnFinish` is `resolvedFinishOf`'s answer over
+   *  it, the whole-kitchen colour and the material's default — so a material change moves the
+   *  second for exactly the reasons it is allowed to move the first. Nothing else is neutralised:
+   *  a reset that quietly moved a depth, seat or frame still lands. */
+  function withoutEitherFinish(record: PlacementRecord): PlacementRecord {
     const stripped = { ...record };
     delete stripped.finishKey;
+    delete stripped.drawnFinish;
     return stripped;
   }
 
@@ -330,9 +336,9 @@ describe("the reset moves the finish, the setting and the clock, and nothing els
 
   // The derived half, because `Column.d` is not in the document: a reset that quietly changed a
   // body's depth, seat or frame would pass the comparison above and show up here.
-  it("derives the same placement records once the finish is neutralised", () => {
-    expect(recordsOf(after).map(withoutFinishKey)).toEqual(
-      recordsOf(before).map(withoutFinishKey),
+  it("derives the same placement records once both finish fields are neutralised", () => {
+    expect(recordsOf(after).map(withoutEitherFinish)).toEqual(
+      recordsOf(before).map(withoutEitherFinish),
     );
   });
 

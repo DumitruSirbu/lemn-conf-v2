@@ -22,6 +22,7 @@ import {
   type Column,
   type Design,
   type EmptyColumn,
+  type PlacementRecord,
 } from "@lemnaria/configurator-domain";
 import { describe, expect, it } from "vitest";
 
@@ -32,7 +33,14 @@ import {
   assertSourcesExplainTheirDepths,
   assertStoredSourcesExplainTheirDepths,
   DECLARED_DEPTH_EPSILON_M,
+  isExplainedOrIsTheKnownLiftedColumnDefect,
 } from "../support/frozen-source-invariant";
+import {
+  catalogWithAPinnedTop,
+  designWithAPinnedTop,
+  PINNED_TOP_WITNESS_BUILD_ID,
+  PINNED_TOP_WITNESS_PLACEMENT_ID,
+} from "../support/pinned-top-witness";
 import { columnKeyAt } from "../support/wall-b-column-keys";
 
 const OCCURRED_AT = "2026-09-05T12:00:00.000Z";
@@ -47,12 +55,17 @@ const SURPLUS_BASE_ID = "base-dishwasher-600";
 const SURPLUS_BASE_PLACEMENT = "p1";
 const SURPLUS_MEMBERS = ["p1", "p12", "p18"];
 
-/** `B|1.80`: a tall pantry under one of ADR 0058's two pinned deep tops. The **top** wins §3.2's MAX
- *  (600 against the pantry's 599), so this column's recorded source is a body no setting moves while
- *  its surviving member is one that every setting moves. */
+/** `B|1.80`: a tall pantry under a **pinned** top. The top wins §3.2's MAX (600 against the pantry's
+ *  599), so this column's recorded source is a body no setting moves while its surviving member is
+ *  one that every setting moves — which is the whole shape the floor below is about.
+ *
+ *  **The top is this suite's own, declared in `tests/support/pinned-top-witness.ts`** (ADR 0101
+ *  decision 3). It was ADR 0058's `wall-2door-600-deep-top` until 2026-09-07; ADR 0101 unpinned that
+ *  row so the owner's three top cabinets follow the setting, and holding one of them back to keep
+ *  this file red-capable is the moved fixture ADR 0093 refuses. */
 const PINNED_SOURCE_KEY = "B|1.80";
 const PINNED_SOURCE_ALONG_MM = 1800;
-const PINNED_TOP_PLACEMENT = "p23";
+const PINNED_TOP_PLACEMENT = PINNED_TOP_WITNESS_PLACEMENT_ID;
 
 function createStore(design: Design = KITCHEN_L_DESIGN) {
   return createConfiguratorStore({
@@ -63,11 +76,25 @@ function createStore(design: Design = KITCHEN_L_DESIGN) {
   });
 }
 
+/** The shipped kitchen with this suite's declared pinned top standing at `B|1.80`, and a catalogue
+ *  that holds it. Used only by the two tests whose subject is a source no setting moves. */
+function createStoreWithAPinnedTop() {
+  return createConfiguratorStore({
+    design: designWithAPinnedTop(),
+    catalogAt: catalogWithAPinnedTop,
+    probeAt: createFakeProbeFactory(),
+    now: () => OCCURRED_AT,
+  });
+}
+
 type Store = ReturnType<typeof createStore>;
 
-/** What one catalogue row declares it fills, at one setting — read the way the store reads it. */
+/** What one catalogue row declares it fills, at one setting — read the way the store reads it.
+ *
+ *  Asked of the catalogue **including this suite's witness**, which is a superset of the shipped one,
+ *  so a caller holding a `depthFromBuildId` gets an answer whichever store produced it. */
 function declaredDepthM(buildId: string, cabinetDepthMm: number): number {
-  const definition = buildKitchenLBodyCatalog(cabinetDepthMm).get(buildId);
+  const definition = catalogWithAPinnedTop(cabinetDepthMm).get(buildId);
   if (!definition) throw new Error(`${buildId} is not in the catalogue`);
   return occupiedDepthOfEntryM({ buildId, definition });
 }
@@ -346,7 +373,7 @@ describe("a frozen extent never becomes shallower than the body standing in it l
   //     x does not save an opening shallower than the one the delete froze
   //
   // and both pass against the fix. `B|1.80` went 699 -> 600 there, carrying
-  // `wall-2door-600-deep-top`, which declares 600 at every setting — so the source never declared
+  // the pinned top, which declares 600 at every setting — so the source never declared
   // 699, `isItsSourcesDeclaration` is false at the start of the shrink, and `reAnswersOneBody` fails.
   // With the fix the source is `tall-pantry`, both ends are its declaration, and the shrink is
   // allowed. Same column, same two numbers, opposite verdicts.
@@ -403,7 +430,7 @@ describe("a frozen extent never becomes shallower than the body standing in it l
   }
 
   it("keeps the depth a delete freed when the recorded source is shallower than it", () => {
-    const store = createStore();
+    const store = createStoreWithAPinnedTop();
     // 1. Delete the pinned deep top. The column keeps its 600 mm extent and records that top as the
     //    body the depth came from; the pantry below it measures 599.
     remove(store, PINNED_TOP_PLACEMENT);
@@ -417,7 +444,7 @@ describe("a frozen extent never becomes shallower than the body standing in it l
     const deepKey = columnKeyAt(PINNED_SOURCE_KEY, DEEPER_MM);
     const deepAlongMm = alongMmOf(store, deepKey);
     expect(depthMOf(store, deepKey)).toBeGreaterThan(
-      declaredDepthM("wall-2door-600-deep-top", DEEPER_MM),
+      declaredDepthM(PINNED_TOP_WITNESS_BUILD_ID, DEEPER_MM),
     );
     // 3. Delete the pantry. Now nothing stands here, and the space the delete freed is 699 mm deep.
     const survivor = store
@@ -446,7 +473,7 @@ describe("a frozen extent never becomes shallower than the body standing in it l
   // The same defect from the other side: it is durable. `projectFrozenMap` writes the collapsed
   // extent into the document, so the space is not merely mis-drawn for the session — it is saved.
   it("does not save an opening shallower than the one the delete froze", () => {
-    const store = createStore();
+    const store = createStoreWithAPinnedTop();
     remove(store, PINNED_TOP_PLACEMENT);
     setDepth(store, DEEPER_MM);
     // The same anchor, for the same reason as the test above: at 700 this column stands 100 mm
@@ -519,6 +546,30 @@ describe("the recorded source explains the recorded depth", () => {
     setDepth(store, DEEPER_MM);
 
     assertSourcesExplainTheirDepths(store.getState(), "after setCabinetDepth");
+  });
+
+  // **The witness that keeps the two above able to fail, and it is owed** (ADR 0093 decision 1).
+  //
+  // Until ADR 0101 the shipped kitchen carried the disagreement itself: `B|1.80` was frozen at the
+  // pinned top's 600 and re-answered 699 by the pantry at the deeper setting, so the defective code
+  // left a source declaring 600 beside a depth of 699 and the invariant fired on the demo. Both
+  // tests above go red against that code and this one does not, because the top follows the setting
+  // now — at 700 it declares exactly the 700 the column carries, and the disagreement closes.
+  //
+  // So the disagreement is supplied by this suite's own pinned body instead. It declares 600 at
+  // every setting, the pantry re-answers 699 at the deeper one, and the pair parts exactly as it
+  // used to. **Measured, not asserted: this goes red against the F1 code — `atCurrentCabinetDepth`
+  // publishing the re-answered depth while carrying the previous `depthFromBuildId` across — and
+  // green against the fix.**
+  it("still holds on a kitchen whose source declares one depth at every setting", () => {
+    const store = createStoreWithAPinnedTop();
+
+    setDepth(store, DEEPER_MM);
+
+    assertSourcesExplainTheirDepths(
+      { ...store.getState(), catalogAt: catalogWithAPinnedTop },
+      "after setCabinetDepth, on the declared pinned top",
+    );
   });
 
   // And the document half: `projectFrozenMap` writes the disagreeing pair, so it is saved and
@@ -628,6 +679,15 @@ describe("over sequences of commands rather than single transitions", () => {
   interface Reading {
     readonly depthM: number;
     readonly source: string | undefined;
+    /** **The §7 row `resolveRebuildBody` swaps this source for** (ADR 0022), or the source itself
+     *  where it is already parameterised.
+     *
+     *  A seeded row that sources a column and is then rebuilt comes back under its equivalent's id,
+     *  and `reAnswersOneBody` below would read one body under two names as two bodies. It never
+     *  mattered while `B|1.80`'s source was a **pinned** row — a pin is not rebuilt, so its id never
+     *  moved — and ADR 0101 unpinned it. The identity is read off the entry's own
+     *  `catalogEquivalentId`, never guessed from the two ids' shapes. */
+    readonly sourceEquivalentId: string | undefined;
     readonly isItsSourcesDeclaration: boolean;
     readonly measuredM: number | undefined;
     /** The live predicate `columnBuildDepthM` needs, read off the column rather than re-derived, so
@@ -644,21 +704,43 @@ describe("over sequences of commands rather than single transitions", () => {
     // No stored half, so this is what the **members** imply and nothing else — the same question
     // `atCurrentCabinetDepth` asks of `deriveColumns(records, {}, room)`.
     const measured = deriveColumns(store.getState().records, {}, held.room);
+    // What stands in each column, gathered once: the acknowledged exemption in
+    // `isExplainedOrIsTheKnownLiftedColumnDefect` is keyed on a standing member, and this sweep asks
+    // it 4 096 times over.
+    const membersOf = new Map<string, PlacementRecord[]>();
+    for (const record of store.getState().records) {
+      const standing = membersOf.get(record.col);
+      if (standing) standing.push(record);
+      else membersOf.set(record.col, [record]);
+    }
     return new Map(
       [...store.getState().columns].map(([key, column]) => {
         const source = column.depthFromBuildId;
-        const declaredM =
+        const definition =
           source === undefined
             ? undefined
-            : declaredDepthM(source, cabinetDepthMm);
+            : catalogWithAPinnedTop(cabinetDepthMm).get(source);
         return [
           key,
           {
             depthM: column.d,
             source,
+            // **The shared predicate rather than a second copy of it** (ADR 0088 decision 2: one
+            // author for one rule). Since ADR 0102 decision 3 it carries the acknowledged exemption
+            // for wave 6I2's lifted-column defect rather than a second authority, and the exemption
+            // is keyed on the members handed in below — so a record naming a body that is not
+            // standing in this column fails here exactly as F1 did.
             isItsSourcesDeclaration:
-              declaredM !== undefined &&
-              Math.abs(column.d - declaredM) < TOLERANCE_M,
+              source !== undefined &&
+              definition !== undefined &&
+              isExplainedOrIsTheKnownLiftedColumnDefect({
+                depthM: column.d,
+                hasFullHeightUnder: column.hasFullHeightUnder,
+                source: { buildId: source, definition },
+                members: membersOf.get(key) ?? [],
+                cabinetDepthMm,
+              }),
+            sourceEquivalentId: definition?.catalogEquivalentId ?? source,
             measuredM: measured.get(key)?.d,
             hasFullHeightUnder: column.hasFullHeightUnder,
           },
@@ -673,7 +755,10 @@ describe("over sequences of commands rather than single transitions", () => {
    *  - the members standing in it measure exactly the depth it took, which is 6K-a's *fully
    *    explained* arm and is authoritative in both directions, or
    *  - the depth it left and the depth it took are the **same recorded body's** declaration at their
-   *    two settings, which is ADR 0073 decision 2's "exact re-answer of the same body".
+   *    two settings, which is ADR 0073 decision 2's "exact re-answer of the same body". *Same body*
+   *    spans ADR 0022's permanent swap: a seeded row rebuilt into its `catalogEquivalentId` is the
+   *    same body under the name it now carries, and reading the two ids as two bodies would report a
+   *    ruled re-answer as a violation.
    *
    *  Everything else is depth a delete freed and something later took away, which is what ADR 0011
    *  Gap D forbids and what this wave's criterion promises. */
@@ -684,7 +769,7 @@ describe("over sequences of commands rather than single transitions", () => {
     const reAnswersOneBody =
       was.isItsSourcesDeclaration &&
       now.isItsSourcesDeclaration &&
-      was.source === now.source;
+      (was.source === now.source || was.sourceEquivalentId === now.source);
     return membersExplainIt || reAnswersOneBody || followsTheFallbackDown(was);
   }
 
@@ -856,6 +941,10 @@ describe("over sequences of commands rather than single transitions", () => {
 // =================================================================================================
 
 describe("an extent whose depth came from a body no setting moves", () => {
+  /** `B|2.45`: the freestanding fridge's column, and since ADR 0101 the only one of the shipped
+   *  kitchen whose recorded source is a body no setting moves. */
+  const FRIDGE_KEY = "B|2.45";
+
   /** The rows the setting does not move, read off the catalogue's own declarations. Named nowhere:
    *  if the store started naming ids, this list would still be derived from the map and the
    *  assertions below would still be about what the map says. */
@@ -882,6 +971,12 @@ describe("an extent whose depth came from a body no setting moves", () => {
   it("finds such columns in the shipped kitchen at all", () => {
     expect(PINNED_BUILD_IDS.length).toBeGreaterThan(0);
     expect(pinnedSourceKeys().length).toBeGreaterThan(0);
+    // **Named rather than only counted, because the population shrank once already.** It was
+    // `B|1.80` and `B|2.45` until 2026-09-07; ADR 0101 unpinned `B|1.80`'s top so the freestanding
+    // fridge is the one body of this kitchen no setting moves, and the `it.each` below went from two
+    // cases to one with nothing saying so. A sweep whose size is data is exactly where that happens
+    // quietly, so the data is an assertion.
+    expect(pinnedSourceKeys()).toStrictEqual([FRIDGE_KEY]);
   });
 
   it.each(pinnedSourceKeys().map((key) => [key] as const))(

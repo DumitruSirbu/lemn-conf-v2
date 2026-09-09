@@ -37,11 +37,40 @@ function chosenCabinetPhrase(chosenCount: number): string {
  *  the same two words as the figure's *De la* rather than a second spelling of them. */
 const STARTING_PREFIX = "De la";
 
+/** Which step of the flow the configure screen is, and how many there are.
+ *
+ *  **One pair of constants for both spellings of the same fact.** The refreshed top bar draws the
+ *  step as a numeric pill — *2/4* — where it used to draw the sentence *Pasul 2 din 4*, and the
+ *  sentence stays as the pill's accessible name because "two slash four" is not what the caption it
+ *  replaced said. Two literals would let the pill and the sentence disagree the first time a step is
+ *  inserted, and nothing on the screen would show which of them was wrong. */
+const CONFIGURE_STEP = 2;
+const CONFIGURE_STEP_COUNT = 4;
+
 export const ro = {
   brand: "Lemnaria",
   configure: {
-    step: "Pasul 2 din 4",
-    back: "‹ Cameră",
+    step: `Pasul ${String(CONFIGURE_STEP)} din ${String(CONFIGURE_STEP_COUNT)}`,
+    /** The same two numbers the sentence above states, as the top bar's pill draws them. */
+    stepPill: `${String(CONFIGURE_STEP)}/${String(CONFIGURE_STEP_COUNT)}`,
+    /** The screen's own name, which the refreshed frames put in the top bar beside the pill. It was
+     *  not on screen before: the old bar carried the step sentence and a four-segment progress bar,
+     *  and neither said which step this is. */
+    title: "Configurare",
+    /** The locale chip's label. **Nothing switches locale today** — M6B wave 6B-i owns that and is
+     *  gated on the owner's Gate O1, so the caret beside this is drawn and inert. */
+    locale: "RO",
+    /** **The back control's accessible name, and no longer its visible text.** Frames 2A and D2A
+     *  draw a bare `‹`, so the glyph moves into the component the way `▾` and the breakdown's
+     *  chevron already have, and this string is what a screen reader is given — a `‹` read aloud is
+     *  not a name. The wording is not in the frames and is the owner's to change. */
+    back: "Cameră",
+    /** Frame 2A `:516`: the mobile bottom bar's secondary control, beside the review CTA. */
+    backAction: "Înapoi",
+    /** Desktop `:567` and mobile `:517`, identical in both files. **Drawn and wired to nothing**
+     *  (ADR 0104 decision 6): it leads to M8's review step, which has no route, and a primary action
+     *  that 404s is worse than one that waits. */
+    reviewCta: "Verifică designul",
     // Frame 2A's instruction copy, merged with the orbit hint it sat beside. One sentence for both
     // viewports on purpose: the mockups differ only in "Atinge" versus "Clic", and a copy fork is
     // still a fork (§10.1).
@@ -273,6 +302,15 @@ export const ro = {
      * Ruled 2026-09-06, pending owner review.
      */
     finishPickerLabel: "Alege culoarea",
+    /**
+     * **ADR 0099 decision 8's way back out of an override**, and the sentence has to name the level
+     * it returns to rather than say *"șterge"*: nothing is being deleted from the customer's point
+     * of view — the cabinet goes back to wearing the kitchen's own colour, which is a colour and not
+     * an absence.
+     *
+     * Ruled 2026-09-07 by ADR 0099, pending owner review.
+     */
+    finishFollowsKitchen: "Culoarea bucătăriei",
     handleTitle: "Mâner",
     handleLabels: {
       steel: "Bară inox",
@@ -336,8 +374,7 @@ export const ro = {
         "Colțul ține legătura dintre cei doi pereți, așa că nu poate fi înlocuit, șters sau redimensionat. Alege un corp de lângă el.",
     },
   },
-  /** The price surfaces: frames 2A / D2A's bar and frame 2C / D2C's unchanged label, plus
-   *  ADR 0065 decision 7b's flagged total.
+  /** The price surfaces: frames 2A / D2A's bar, plus ADR 0065 decision 7b's flagged total.
    *
    *  **Labels only — never an amount.** ADR 0062's third prohibition puts every figure, tier and
    *  delta in the price book, so a number appearing in this section would be copy that happens to
@@ -345,23 +382,23 @@ export const ro = {
   price: {
     /** [ADR 0001](../../../docs/decisions/0001-initial-product-and-stack.md) decision 4 and the
      *  mockups' presentation rule: every displayed figure is prefixed *De la* and rounded up to the
-     *  thousand MDL. Frames 2A and D2A render it above the total; §9 item 7's footer does the same.
-     *  The mockups set it in uppercase through `text-transform`, so the string itself is written as
-     *  it reads. */
+     *  thousand MDL.
+     *
+     *  **Drawn inline and lowercase, on both shells — owner, 2026-09-09.** Frame D2A draws one span,
+     *  `font:700 21px/1`, reading *"de la 101 000 MDL"*; frame 2A draws a small grey uppercase label
+     *  above the amount, and the owner ruled *"and do same on mobile as on desktop"*. **Frame 2A is
+     *  superseded by its own author**, dated, because they want the two shells to read the same. The
+     *  string is unchanged and is written as it is spoken; the casing is the stylesheet's
+     *  (`price/price-bar.module.css`), which is what keeps one ruled word from being stored twice.
+     *
+     *  **There is no second, "unchanged" prefix any more.** `startingPrefixUnchanged` —
+     *  *"De la neschimbat"*, drawn in frames D2C and 2C — was removed by the owner on 2026-09-09:
+     *  *"event to state that your change didn't changed the price, I didn't request this"*. §9's
+     *  refusal banner already says the edit was refused, at the place the customer was looking, and
+     *  a price that has not moved is the expected outcome rather than a surprise needing narration.
+     *  `price/starting-price.ts` carries the ruling; **ADR 0024's third frame-2C requirement is left
+     *  unmet again** by its removal. */
     startingPrefix: STARTING_PREFIX,
-    /** While a refusal stands, the figure is labelled unchanged — on the price bar and in §9's
-     *  footer alike. **Owner, 2026-09-03**, and it closes ADR 0024's third frame-2C requirement:
-     *  the one M4 closed unmet because there was no total to leave unmoved.
-     *
-     *  **One string for both shells, and no separator.** Frames D2C and 2C spell it two ways —
-     *  *"De la · neschimbat"* with a middle dot on desktop, *"De la, neschimbat"* with a comma on
-     *  mobile. A wave may not reconcile ruled copy on its own, so wave 6C shipped both verbatim and
-     *  raised the difference; the owner then ruled that the word stays and **neither punctuation
-     *  mark does**. Both mockup spellings are superseded by this one.
-     *
-     *  It is a single constant deliberately: one ruled string stored twice is how two spellings
-     *  come back. */
-    startingPrefixUnchanged: "De la neschimbat",
     /** [ADR 0065](../../../docs/decisions/0065-a-body-past-the-end-of-its-wall-is-marked-not-moved.md)
      *  decision 7b, owner 2026-09-03. **The owner's own phrasing: verbatim, punctuation included,
      *  and not to be tidied.**
@@ -373,6 +410,19 @@ export const ro = {
      *  *corpuri* form is struck through in place at ADR 0065 decision 7b. */
     overflowingTotalWarning:
       "Prețul include și dulapuri ce depășesc mărimea peretelui și necesită ajustări",
+    /** **M6-AUD-014, ruled by the owner 2026-09-09.** A design with no cabinets is a valid,
+     *  loadable, shareable document — it is not refused at any seam — but it has **no price**, and
+     *  the bar says so instead of printing `De la 0 MDL`. Zero is the one figure a customer would
+     *  read as a promise.
+     *
+     *  **The owner's own sentence**, and it is a prompt rather than an error: it names the single
+     *  action that produces a price. The owner typed it without diacritics; it is written here with
+     *  them, as every other string in this file is — that is orthography, not a rewording, and the
+     *  wording itself is untouched. If the owner wants it as typed, this is the line to change.
+     *
+     *  Wave 6C's rule holds: **no amount appears in a string**, and this one names none. */
+    emptyKitchenPrompt:
+      "Pentru a afișa un preț estimativ adaugă-ți cel puțin un dulap din catalog",
   },
   /** Frames 2D / D2D's breakdown: *"De ce acest preț"*, the sheet on mobile and the popover on
    *  desktop.
@@ -391,9 +441,18 @@ export const ro = {
   priceBreakdown: {
     /** Frames 2D and D2D's heading, and frames 2A and D2A's control that opens it — **one string**,
      *  because the button and the sheet it opens name the same thing and a second copy is how two
-     *  spellings come back (`startingPrefixUnchanged` records that lesson). The mockups draw a
-     *  chevron beside the control; it is decoration and lives in the component, not here. */
-    title: "De ce acest preț",
+     *  spellings come back (the withdrawn *"De la neschimbat"* records that lesson).
+     *
+     *  **The question mark is part of the sentence, and the caret beside it is gone — owner,
+     *  2026-09-09**: *"replace the `^` with `?`"*. It is a change of kind rather than a swap of one
+     *  glyph for another, which is why it lands here: a caret is decoration and was correctly hidden
+     *  from the accessibility tree, and a question mark is punctuation that has to be read out.
+     *
+     *  The **desktop** frames punctuate their own longer heading exactly this way — D2D draws
+     *  *"Ce se include în acest preț**?**"* — so the mark is the reference's own form applied to the
+     *  shorter wording this product ships. **Frame 2D draws it unpunctuated**, so this supersedes
+     *  that frame by its author's own instruction, dated, on both shells. */
+    title: "De ce acest preț?",
     /** Frame 2D, and the wave's own acceptance criterion: transport, worktop and appliances are
      *  excluded, and the final sum follows an on-site measurement.
      *
@@ -482,10 +541,44 @@ export const ro = {
   globalSettings: {
     /** The control that opens the sheet, standing beside the chips it controls. **One string for
      *  both shells**: frame D2E spells it *"Setări globale"* and frame 2E's strip spells it
-     *  *"Schimbă global"*, and §10.1 admits no copy fork per viewport — `startingPrefixUnchanged`
-     *  records what two spellings of one ruled string cost. The mockups draw a chevron beside it;
+     *  *"Schimbă global"*, and §10.1 admits no copy fork per viewport — the withdrawn
+     *  *"De la neschimbat"* records what two spellings of one ruled string cost. The mockups draw a chevron beside it;
      *  that is decoration and lives in the component. */
     open: "Setări globale",
+    /** **The pill's accessible name, naming every setting whether or not the pill draws it.**
+     *  `+N` is a visual economy and it must not cost a screen-reader user a setting, so the counter
+     *  is never what is announced: the whole list is, in the order the sheet renders it. The control
+     *  is still named by `open` above — this is the name, not a description beside it. */
+    pillNameAllSettings: (settings: readonly string[]) =>
+      `${ro.globalSettings.open}: ${settings.join(", ")}`,
+    /** Desktop `:552`: **the material is drawn bare**, with no category word. The swatch beside it
+     *  already says what it is, and the frame wins over the shipped chips' *"Material · PAL
+     *  melaminat"* (ADR 0104 decision 1). The tier's name is the book's and arrives here. */
+    pillMaterial: (tierName: string) => tierName,
+    /** **The colour carries no category word at all** — owner, 2026-09-09: *"the color should be
+     *  without word Culoare, just the color name or if MDF the value interpreted (real color)"*. So
+     *  a palette colour draws its declared name and nothing else, and there is no template here for
+     *  it to pass through: `Alb` is the whole label. It is deliberately unlike the hardware and depth
+     *  segments, which D2A does put a category word in front of.
+     *
+     *  A **free** colour draws no text at all — the pill's swatch wears it — so the only place its
+     *  value is said is the control's accessible name, which is what this composes. A swatch is not
+     *  something a screen reader can read, and a colour nobody can name still has to be announced. */
+    pillColourValue: (colourValue: string) => colourValue,
+    /** Desktop `:555` — *"Feronerie Hettich"*, **with no `·`**. The category word is
+     *  `priceBreakdown.wholeKitchenCategories.hardware`, so the pill and the breakdown cannot come to
+     *  spell the category two ways; only the composition around it differs, and D2A is what decides
+     *  that. */
+    pillHardware: (categoryWord: string, tierName: string) =>
+      `${categoryWord} ${tierName}`,
+    /** Desktop `:557`. **The frame names the depth on the pill**, which ADR 0082 left open and
+     *  nothing on screen has said until now. Millimetres, like every other dimension. */
+    pillDepth: (cabinetDepthMm: number) => `Adâncime ${String(cabinetDepthMm)}`,
+    /** **The counter has no entry here, deliberately.** Frame 2A `:492` draws `+2`, and the `+` is
+     *  the frame's own mark rather than a word: a plus written into a copy module is arithmetic
+     *  authored into a label, which is the rule `price/starting-price.ts`'s `ADDED_AMOUNT_SIGN`
+     *  already carries for the delta's sign. The mark lives beside the model that composes the rung
+     *  — `settings/global-settings-model.ts` — with the glyphs the components already own. */
     /** Frames 2E and D2E's heading. Distinct from `open` on purpose: the control names the thing it
      *  opens, the sheet names what it is about, and both frames draw them differently. */
     title: "Setări pentru toată bucătăria",
@@ -555,10 +648,40 @@ export const ro = {
      *  forgot. ADR 0036 decision 3 keeps the worktop out of geometry and price entirely, and the
      *  carcass depth changes no tier: the estimate is the same kitchen at a different depth. */
     depthNote: "Adâncimea nu schimbă estimarea — doar dimensiunile corpurilor.",
+    /** **The fourth group's heading** (ADR 0099 decision 9), named by what it applies to rather than
+     *  by the property's bare name — the same rule `depthHeading` and the material heading follow.
+     *  *Culoare* alone would read as the colour of whatever is selected; this one is the kitchen's. */
+    colourHeading: "Culoarea bucătăriei",
+    /** **Why there is no price line here** (ADR 0071 decision 1: colour never moves a price), and
+     *  **what a global colour leaves alone** — the owner's own priority, said on the screen where
+     *  they would otherwise have to discover it by trying it. */
+    colourNote:
+      "Culoarea nu schimbă estimarea. Corpurile cu o culoare aleasă rămân neschimbate.",
+    /** **ADR 0099 decision 6 asks for this to be stated rather than implied.** The three materials
+     *  offer disjoint colours (ADR 0078 decision 1), so a change to a different material replaces
+     *  this colour *every* time — a certainty, not a risk — and copy hedging it with *"s-ar putea"*
+     *  would be untrue in the direction that costs a customer their choice. */
+    colourWarning:
+      "Fiecare material are propriile culori, așa că la schimbarea materialului culoarea bucătăriei devine cea implicită a materialului nou.",
     /** Frame 2E's single action, and frame D2E's pair. Both shells carry both: this surface holds
      *  uncommitted state, so a customer who opened it must be able to leave without applying. */
     apply: "Aplică",
     cancel: "Renunță",
+    /**
+     * **A refused press, and the promise that nothing else moved** (M6-AUD-004).
+     *
+     * One *Aplică* is one commit since wave W2, so this sentence can say what the old three-command
+     * version could not: the other choices are still exactly where the customer left them, and the
+     * sheet is still open on them. It names the control that refused — a refusal with no subject
+     * leaves the customer to guess which of three settings to put back — and then hands over to the
+     * engine's own sentence rather than restating it in this surface's words (ADR 0032 rule 2).
+     *
+     * It carries **no digit and no sum word**, like every other leaf in this section:
+     * `starting-price.adversarial.test.ts` sweeps this template's body, and a numeral in copy beside
+     * a price list reads as an amount.
+     */
+    applyRefused: (settingName: string, reason: string) =>
+      `Nu am putut aplica „${settingName}”: ${reason} Nimic nu a fost schimbat.`,
     /** **The step that stands between a material change and the colours it discards** (ADR 0081,
      *  ADR 0086 decision 7). Shown only when a colour the customer chose would be lost, which is
      *  what makes it worth reading: a confirmation that always appears is one that is always
@@ -578,6 +701,13 @@ export const ro = {
       // Ruled 2026-09-05, pending owner review.
       body: (chosenCount: number) =>
         `Ai ales alte culori pentru ${chosenCabinetPhrase(chosenCount)}. Fiecare material are propriile culori, așa că toate revin la culoarea implicită a materialului nou.`,
+      /** **ADR 0099 decision 7's second arm, in its own sentence.** A kitchen whose corps all follow
+       *  one global colour has chosen nothing per cabinet, so `body` above would read *"pentru 0
+       *  corpuri"* — the bare number ADR 0001 decision 4 keeps off the screen, saying the wrong
+       *  thing about the right press. This one names the loss that is actually about to happen.
+       *  Ruled 2026-09-07 by ADR 0099, pending owner review. */
+      globalBody:
+        "Ai ales o culoare pentru toată bucătăria. Fiecare material are propriile culori, așa că ea revine la culoarea implicită a materialului nou.",
       // Ruled 2026-09-05, pending owner review.
       confirm: "Schimbă materialul",
       // Ruled 2026-09-05, pending owner review.
