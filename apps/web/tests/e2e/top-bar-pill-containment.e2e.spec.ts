@@ -191,6 +191,14 @@ async function bandContainmentFailures(
     const failures: string[] = [];
     const measure = (what: string, element: Element): void => {
       const rect = element.getBoundingClientRect();
+      // **A part this shell does not draw has no box to contain.** Frame 2A draws no caret, so
+      // `global-settings.module.css` gives `.caret` `display: none` — and a `display: none` element
+      // reports an all-zero rect, whose `left: 0` reads as an escape from a cell that starts at
+      // 105 px. Nothing leaves the cell; the part is simply not rendered.
+      //
+      // Skipped on width **and** height together, never on width alone: a zero-width box that still
+      // has height is laid out somewhere, and where that somewhere is remains a real finding.
+      if (rect.width === 0 && rect.height === 0) return;
       if (rect.left < cellRect.left - allowed)
         failures.push(
           `${what} left ${String(rect.left)} < ${String(cellRect.left)}`,

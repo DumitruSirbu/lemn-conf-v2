@@ -415,13 +415,18 @@ test("the warning band is pinned to the scene's bottom edge and costs the canvas
   expect(band.y + band.height).toBeCloseTo(canvas.y + canvas.height, 0);
   expect(band.height).toBeGreaterThanOrEqual(56);
 
-  // **The canvas does get shorter, and none of it is this band.** The overflowing document also
-  // makes the price bar carry ADR 0065's flagged total, which wraps at 390 px and grows the price
-  // row — wave 6C's, and it predates 6M. Measured: the bar grows 92 → 125.69 and the canvas loses
-  // exactly that. The band's own contribution is the difference between those two, which is zero.
+  // **Whatever the canvas loses, the price bar took it — and this band took none of it.** When this
+  // case was written the overflowing document also made the bar carry ADR 0065's flagged total,
+  // which wrapped at 390 px: the bar grew 92 → 125.69 and the canvas lost exactly that. ADR 0104
+  // decision 8b moved that sentence out of the bar and onto the scene, so the bar now holds a fixed
+  // height and both numbers are zero — the same property, satisfied more strongly.
+  //
+  // The first assertion is what makes the second non-vacuous: the band stands 56 px tall (above),
+  // and the canvas loses less than that, so the band cannot be paying for itself out of the canvas.
+  // Put the band back in the flow and this fails.
   const canvasLossPx = fittingCanvas.height - canvas.height;
   const barGrowthPx = bar.height - fittingBar.height;
-  expect(barGrowthPx).toBeGreaterThan(0);
+  expect(canvasLossPx).toBeLessThan(band.height);
   expect(canvasLossPx - barGrowthPx).toBeCloseTo(0, 0);
 
   // The scene's top edge does not move at all, which is the half the band could have broken on its

@@ -51,6 +51,21 @@ async function storedSettings(page: Page): Promise<{
   }));
 }
 
+/**
+ * **What the closed surface shows of the settings it holds.** Until the chrome-parity wave that was
+ * a separate `global-settings-chips` row beside the trigger; ADR 0104 decision 2 removed the row and
+ * folded its labels into the pill, which is now both the summary and the control
+ * (`tests/settings/global-settings-shell.test.ts` pins the row's absence). The claim these cases
+ * make — a cancel leaves the visible summary exactly as it was, an apply moves it — is unchanged;
+ * only the element carrying it is.
+ *
+ * The trigger is read rather than its `global-settings-pill-label` parts, so a re-arranged pill
+ * changes nothing here: what is compared is everything the customer can read on it.
+ */
+function pillSummary(page: Page): Locator {
+  return page.getByTestId("global-settings-trigger");
+}
+
 /** The dearest tier a group offers, and never the one a fresh design carries — so choosing it is
  *  always a change, whatever the book's order. */
 function dearestTierIn(page: Page, group: "material" | "hardware"): Locator {
@@ -71,10 +86,17 @@ async function isFocusInsideSheet(page: Page): Promise<boolean> {
   });
 }
 
-test("opens from the control beside the chips it sets", async ({ page }) => {
+test("opens from the pill that summarises what it sets", async ({ page }) => {
   const trigger = page.getByTestId("global-settings-trigger");
 
-  await expect(trigger).toHaveText(new RegExp(ro.globalSettings.open));
+  // **The opener is named, not labelled** (ADR 0104 decision 2). No frame draws a separate *Setări
+  // globale* control: the pill draws the summary of the applied settings — measured
+  // `PAL melaminat+3` — and carries `ro.globalSettings.open` as its accessible name. So the claim
+  // worth holding is that the control is still *announced* as the global-settings opener, which is
+  // the one thing a visible summary cannot satisfy on its own.
+  await expect(trigger).toHaveAccessibleName(
+    new RegExp(ro.globalSettings.open),
+  );
   await expect(trigger).toHaveAttribute("aria-expanded", "false");
   await expect(page.getByTestId("global-settings-surface")).toHaveCount(0);
 
@@ -205,8 +227,8 @@ test("cancels on Escape after focus has left the controls, and returns focus to 
 test("writes nothing when it is cancelled, and returns focus to the trigger", async ({
   page,
 }) => {
-  const chips = page.getByTestId("global-settings-chips");
-  const before = await chips.innerText();
+  const summary = pillSummary(page);
+  const before = await summary.innerText();
   const stored = await storedSettings(page);
 
   await page.getByTestId("global-settings-trigger").tap();
@@ -214,7 +236,7 @@ test("writes nothing when it is cancelled, and returns focus to the trigger", as
   await page.getByTestId("global-settings-cancel").tap();
 
   await expect(page.getByTestId("global-settings-surface")).toHaveCount(0);
-  expect(await chips.innerText()).toBe(before);
+  expect(await summary.innerText()).toBe(before);
   // Not merely "the chips did not move": the document itself is untouched, timestamp included.
   expect(await storedSettings(page)).toEqual(stored);
   expect(await focusedTestId(page)).toBe("global-settings-trigger");
@@ -248,11 +270,11 @@ test("writes only the group that changed", async ({ page }) => {
   expect(after.materialTierId).toBe(before.materialTierId);
 });
 
-test("applies the chosen tier, and the chips and the total follow it", async ({
+test("applies the chosen tier, and the pill and the total follow it", async ({
   page,
 }) => {
-  const chips = page.getByTestId("global-settings-chips");
-  const before = await chips.innerText();
+  const summary = pillSummary(page);
+  const before = await summary.innerText();
 
   await page.getByTestId("global-settings-trigger").tap();
   const figureBefore = await page
@@ -262,7 +284,7 @@ test("applies the chosen tier, and the chips and the total follow it", async ({
   await page.getByTestId("global-settings-apply").tap();
 
   await expect(page.getByTestId("global-settings-surface")).toHaveCount(0);
-  expect(await chips.innerText()).not.toBe(before);
+  expect(await summary.innerText()).not.toBe(before);
   expect(await focusedTestId(page)).toBe("global-settings-trigger");
 
   await page.getByTestId("global-settings-trigger").tap();
