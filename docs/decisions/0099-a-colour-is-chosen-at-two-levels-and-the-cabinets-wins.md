@@ -217,8 +217,10 @@ it wrong is a customer's per-cabinet choices.**
    material, and a pending colour the new material does not offer is cleared before Apply. Pressing
    *Renunță* after any sequence of material and colour presses leaves the stored document
    byte-identical to the one the sheet opened on (wave W2's existing property, extended).
-8. A body with `canFinish: false` is unaffected at both levels, and
-   `dropFinishFromBodiesThatCannotWearOne` still has nothing to do.
+8. ~~A body with `canFinish: false` is unaffected at both levels~~ — **superseded by Amendment B,
+   2026-09-09**: such a body still cannot *choose* a colour, and `dropFinishFromBodiesThatCannotWearOne`
+   still has nothing to do, but structural cabinetry now **follows** the kitchen's colour while
+   appliances are never painted. Read B1 before relying on this line.
 9. **Every pricing total in the existing suite is unchanged**, at both levels of colour (ADR 0071
    decision 1).
 10. Round trip: a document saved with `settings.finish`, loaded and saved again is byte-identical.
@@ -345,3 +347,109 @@ fresh render and stale in the running app with every test still green.
 
 **Still owed:** a browser pass. The chain is exercised end-to-end in the adapter tests through the
 real `derivePlacementRecords`, but no Playwright run has confirmed the on-screen claim.
+
+## Amendment B, 2026-09-09 — a body that cannot choose a colour may still follow the kitchen's
+
+**Ruled by the owner on 2026-09-09, after seeing it in a browser.** With a kitchen colour applied,
+the structural corner base rendered white between Antracit neighbours — a white door with a handle in
+a dark kitchen. It is exactly what this record specified, and it reads on screen like a body that
+failed to repaint: the verifying agent chased it as a defect before checking the record
+(`testing-reports/vis6z-2026-09-09/`, `docs/backlog/open.md` entry 60).
+
+> **"Structural cabinetry follows the kitchen, appliances never do"** — and, on the open shelf,
+> *"open shelves can have and by default should inherit global set color"*, with *"fridge no, hood
+> also no"*.
+
+### B1. Acceptance criterion 8 is superseded
+
+> ~~8. A body with `canFinish: false` is unaffected at both levels~~
+
+`canFinish: false` was one flag carrying two different facts, and the ruling splits them. It now
+answers **only** *may this body's document carry a colour of its own* — and the answer is still no
+for all seven bodies, because a following body **follows; it does not choose**. What moved is *what
+colour the body is drawn in*, which is a different question and now has its own declaration.
+
+**Decision 8's control is unchanged**: none of these bodies gains a "follow the kitchen's colour"
+control, because none of them can leave the kitchen's colour in the first place.
+
+### B2. The declaration, and why it sits beside `canFinish` rather than replacing it
+
+`BodyFinishRule` (`packages/configurator-domain/src/body-finish-rule.ts`) — `chooses-its-own-colour`,
+`follows-the-kitchens-colour`, `is-never-painted` — resolved through `bodyFinishRuleOf` in
+`cabinetDepthRuleOf`'s shape, **failing closed twice**: an entry declaring nothing is refused, and so
+is one where the two declarations contradict (a body chooses its own colour **iff** it can be
+finished). `refuseUndeclaredFinishRules` sweeps both populations inside `buildKitchenLBodyCatalog`.
+
+Keeping `canFinish: false` on a following body is what makes decision 2 **structural rather than
+checked**: nothing can write `finish` onto a body that cannot choose one, so `"finish" in body` stays
+false by construction and not by a guard a later wave could delete.
+
+The single authority on what is drawn is `drawnFinishOf` (`resolved-finish.ts`). Its
+`is-never-painted` arm returns `undefined`, so the record carries **no** `drawnFinish` field at all
+and the adapter has nothing to paint. The switch has no `default`, so a fourth rule is a compile
+error rather than a body that silently starts or stops being painted; and the arm ignores
+`placement.body.finish`, so a colour reaching an appliance's document from a restored backup or
+another client is still not drawn. That is the protection `scene-sync.ts`'s deleted `canFinish` guard
+used to give, **moved into the domain beside the declaration rather than dropped**.
+
+### B3. Who declares what, and it is seven bodies rather than the two this record implied
+
+| Entry | Rule |
+| --- | --- |
+| `STRUCTURAL_CORNER` — `base-corner-x-900`, `base-corner-return-320`, `wall-corner-return-570`, `wall-corner-return-570-top` | follows the kitchen |
+| `open-shelf-600`, `open-shelf` | follows the kitchen |
+| `hood-600`, `hood`, `fridge-free-700`, `fridge-free` | is never painted |
+| every ordinary body | chooses its own |
+
+The seeded kitchen holds **four** corner bodies, not two, and `STRUCTURAL_CORNER` declares them as
+one shape. Applying the ruling to all four is the owner's own words read as a rule about kinds rather
+than a list — confirmed 2026-09-09.
+
+### B4. Following is not the same as being visible, and the difference was measured
+
+`applyBodyFinish` paints declared surfaces and nothing else, so **a declaration flip alone can be a
+no-op on screen**. Every body's rendered colour was read off the built object, before and after:
+
+| Body | On screen |
+| --- | --- |
+| `base-corner-x-900`, `wall-corner-return-570`, `-570-top` | `door_front` `#eceeeb` → `#2b2d30` |
+| `open-shelf-600` | six boards → `#2b2d30`; `back_panel` unchanged |
+| `base-corner-return-320` | nothing, **and nothing is owed** — see B6 |
+| `hood-600`, `fridge-free-700` | nothing, correctly |
+
+### B5. The shelf's surfaces are declared by the builder that makes them
+
+The owner ruled the six boards take the colour and the tiled `back_panel` does not, and that the
+shelf takes **whatever the kitchen has** — a flat palette colour or a wood decor alike, with the
+material's default when the kitchen has none. One rule; the "follow only a decor, else stay oak"
+alternative was put to them and rejected because it would make this the one body obeying a rule of
+its own.
+
+**`FRONT_MESH_NAME` was deliberately not widened.** `isFrontMesh` is the adapter's single definition
+of a front; `cabinet-handle-meshes.ts` asks it from the other side and `kitchen-stage.tsx` repaints
+the whole room through `collectFronts`. Widening it would have changed which meshes count as a
+handle's parent and what a whole-room repaint touches — and a census found `side_left`, `side_right`
+and `back_panel` are also built by the dishwasher, the 800 sink and the oven tower, so a
+`side_|shelf_` regex would have painted four other bodies' carcass interiors. Applying that widening
+anyway turns **26 adapter tests red across five files**.
+
+The shape taken instead is `wearsTheBodysFinish` (`body-finish-surfaces.ts`), marked by the builder
+that makes the mesh, with `applyBodyFinish` painting fronts **plus** declared surfaces. `openShelf`
+wrapping its six boards and leaving the back panel bare **is** the ruling, written where the geometry
+is.
+
+### B6. `base-corner-return-320` is a conclusion, not a deferral
+
+It builds three meshes — `plinth`, `carcass`, `countertop` — and has no front and no outward face of
+its own. Its only cabinetry surface is the carcass, which is the box **interior** every cabinet in
+the kit shares, and no body is painted there at any colour. There is nothing to give it that would
+not also recolour the inside of every other cabinet, and it stands in the corner where almost none of
+it is visible. Its following is real in the document and in the record; there is simply nothing
+outward to show. **It is not to be reopened as a bug**, and
+`qa-0099c-each-unchoosing-body-by-name.adversarial.test.ts` pins it by name.
+
+### B7. Still owed
+
+A **browser pass**. Every claim above is measured off the built object — colour per mesh, per body,
+across three kitchens including a wood decor and a colourless veneer — which is strong evidence and
+is not a rendered frame. Amendment A's own "still owed" line is unchanged and this joins it.
