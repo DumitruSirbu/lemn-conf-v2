@@ -190,6 +190,31 @@ function publishedExtents(store: Store) {
   };
 }
 
+/** The published column keys, **other than its own**, that a placed body's span reaches into along
+ *  its own wall. The same geometry `overlapsAlongWall` reads, written out here off the published
+ *  record and map so the assertion states a fact about the kitchen rather than re-using the
+ *  function under test. */
+function columnsTheBodyReachesInto(
+  store: Store,
+  placementId: string,
+): readonly string[] {
+  const record = store
+    .getState()
+    .records.find((candidate) => candidate.id === placementId);
+  if (!record) throw new Error(`no record ${placementId}`);
+  const start = record.wall === "A" ? record.frame.x : record.frame.z;
+  const end = start + record.frame.w;
+  return [...store.getState().columns.entries()]
+    .filter(([key, column]) => {
+      if (key === record.col || column.wall !== record.wall) return false;
+      const columnStart = column.wall === "A" ? column.x : column.z;
+      return (
+        Math.min(end, columnStart + column.w) - Math.max(start, columnStart) > 0
+      );
+    })
+    .map(([key]) => key);
+}
+
 /** The names of the columns the store publishes, sorted — the key space on its own, apart from the
  *  extents `publishedExtents` carries with it, because a slide is expected to rename every one of
  *  them and what must not change is how many there are. */
@@ -390,6 +415,51 @@ describe("an insert into a column with nothing re-plannable over it writes nothi
       expect(before.length).toBe(after.length - 1);
     },
   );
+
+  // **The overlap clause is live on the shipped kitchen, and this records that it is** — because the
+  // easy reading of its 786/24 offer sweep is that it never fires here, and that reading is wrong in
+  // a way that would invite deleting the clause.
+  //
+  // Overhanging is not "being wider than your own column". Wall A's wall-band and base-band extents
+  // overlap **each other**: `A|0.30` runs 300–900 and `A|0.45` runs 450–1350. So an ordinary
+  // `wall-cabinet` that exactly fills `A|0.30` still reaches 450 mm into `A|0.45` and 150 mm into
+  // `A|0.75`, and the clause adds both keys to the affected set on a tap any customer has.
+  //
+  // The sweep stays at 24 not because nothing is added but because nothing added needs to move: the
+  // bodies standing in those columns are already at the depth their column decides, so `replanOne`
+  // passes them through by identity. That is the fix's own claim — *"widening the set costs nothing
+  // where nothing moved"* — and this is where it is measured rather than asserted in a comment.
+  it("reaches across into neighbouring columns and still writes none of them", () => {
+    const store = createStore();
+    remove(store, "p8");
+    const before = store.getState().design.placements;
+
+    store.getState().select({
+      kind: "void",
+      id:
+        store
+          .getState()
+          .voids.filter(
+            (record) => record.wall === "A" && Math.abs(record.y0 - 1.5) < 0.02,
+          )
+          .sort((left, right) => left.x - right.x)[0]?.id ?? "",
+    });
+    store.getState().insert("wall-cabinet");
+    expect(store.getState().lastRejection).toBeNull();
+
+    // The geometry the clause reads, measured off the published record and map rather than taken
+    // from the command — so this states a fact about the kitchen, not about the implementation.
+    const placedId = lastPlacementId(store);
+    const overhung = columnsTheBodyReachesInto(store, placedId);
+    expect(overhung.length).toBeGreaterThan(0);
+
+    // And every one of them comes through untouched, by reference.
+    const after = store.getState().design.placements;
+    const rewritten = after.filter(
+      (candidate) => !before.some((original) => Object.is(original, candidate)),
+    );
+    expect(rewritten.map((candidate) => candidate.id)).toEqual([placedId]);
+  });
 });
 
 describe("the commands that must not re-plan", () => {
