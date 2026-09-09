@@ -27,7 +27,12 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { ro } from "@/content/ro";
+vi.mock("@/i18n/use-content", async () => {
+  const { ro } = await import("../support/romanian-content");
+  return { useContent: () => ro };
+});
+
+import { ro } from "../support/romanian-content";
 import { EditorPanel } from "@/panel/editor-panel";
 import { describePanel, type PanelView } from "@/panel/panel-model";
 
@@ -96,6 +101,7 @@ function flaggedTotalMarkup(pricing: PricingResult): string {
 function panelMarkup(pricing: PricingResult): string {
   const meta = occupiedMeta();
   const view: PanelView = describePanel({
+    content: ro,
     material: PAL_KITCHEN,
     meta,
     offers: [],

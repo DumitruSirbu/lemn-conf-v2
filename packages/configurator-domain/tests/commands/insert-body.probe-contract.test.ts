@@ -70,7 +70,9 @@ describe("insertBody — a probe that measured nothing", () => {
       expect(result.ok).toBe(false);
       if (result.ok) return;
       expect(result.reason.code).toBe("MEASUREMENT_UNUSABLE");
-      expect(result.reason.message.trim().length).toBeGreaterThan(0);
+      expect(result.reason.params).toMatchObject({
+        label: "Corp bază 3 sertare",
+      });
       expect(result.design).toBe(world.design);
     },
   );

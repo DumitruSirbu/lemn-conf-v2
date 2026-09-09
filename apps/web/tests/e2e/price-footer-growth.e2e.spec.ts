@@ -1,6 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 
-import { ro } from "../../src/content/ro";
+import { ro } from "../support/romanian-content.e2e";
 import { readSelection } from "./support/panel";
 import { tapCanvas } from "./support/canvas-taps";
 import { deleteMintedDesigns } from "./support/minted-designs";

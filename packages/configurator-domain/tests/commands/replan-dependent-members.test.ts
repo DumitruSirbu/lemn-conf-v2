@@ -278,9 +278,13 @@ describe("the insert refuses whole when a dependent body cannot be rebuilt", () 
   it("names both the body the customer asked for and the one above it", () => {
     expect(result.ok).toBe(false);
     if (result.ok) return;
+    // **6B-e**: the domain publishes a code and its typed params, never a sentence. The two bodies
+    // are still what this case is about, so the assertion moves to the params the catalogue
+    // interpolates rather than weakening to the code alone.
     expect(result.reason.code).toBe("DEPENDENT_MEMBER_NOT_REBUILDABLE");
-    expect(result.reason.message).toContain("Coloană");
-    expect(result.reason.message).toContain("Corp suspendat");
+    if (result.reason.code !== "DEPENDENT_MEMBER_NOT_REBUILDABLE") return;
+    expect(result.reason.params.label).toContain("Coloană");
+    expect(result.reason.params.memberLabel).toContain("Corp suspendat");
   });
 });
 

@@ -48,7 +48,7 @@ import {
   type AvailableBreakdown,
 } from "@/price/price-breakdown-model";
 import { PriceBreakdownSurface } from "@/price/price-breakdown";
-import { ro } from "@/content/ro";
+import { ro } from "../support/romanian-content";
 
 import { createHeadlessCanvas } from "../support/headless-canvas";
 
@@ -95,6 +95,7 @@ function labelOf(entry: DisplayEntry): string {
 
 function breakdownView(): AvailableBreakdown {
   const view = describePriceBreakdown({
+    content: ro,
     pricing: priceDesign({
       design: KITCHEN_L_DESIGN,
       catalog: KITCHEN_L_BODY_CATALOG,

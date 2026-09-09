@@ -81,7 +81,7 @@ describe("removePlacement — §5.1's closed refusal list", () => {
     expect(result.ok).toBe(false);
     if (result.ok) return;
     expect(result.reason.code).toBe("NOT_DELETABLE");
-    expect(result.reason.message).toContain("structura");
+    expect(result.reason.params).toEqual({ label: "Corp bază" });
   });
 
   it("refuses a timestamp it would otherwise copy into updatedAt", () => {

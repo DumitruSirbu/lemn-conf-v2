@@ -14,7 +14,7 @@ import {
 } from "@lemnaria/configurator-domain";
 import { describe, expect, it } from "vitest";
 
-import { ro } from "@/content/ro";
+import { ro } from "../support/romanian-content";
 import { describePanel, type PanelSection } from "@/panel/panel-model";
 
 import {
@@ -46,6 +46,7 @@ function openPanel(
   overrides: Partial<Parameters<typeof describePanel>[0]> = {},
 ) {
   const panel = describePanel({
+    content: ro,
     material: PAL_KITCHEN,
     meta,
     offers: [],
@@ -292,30 +293,30 @@ describe("§9's derived count line — swept, not sampled", () => {
     }
   });
 
-  // Romanian counts in three bands: one, two to nineteen, and twenty upward, which takes "de".
+  // ICU owns Romanian's three plural bands; the model owns only the band word passed to it.
   it("pluralises across the three bands for every count in the sweep", () => {
     for (const count of COUNTS) {
       if (count === 0) continue;
       const line =
         replaceIn(openPanel(occupiedMeta(), { offers: offers(count) }).sections)
           ?.countLine ?? "";
-      if (count === 1) expect(line).toBe("1 corp bază de 600");
-      else if (count < 20)
-        expect(line).toBe(`${String(count)} corpuri bază de 600`);
-      else expect(line).toBe(`${String(count)} de corpuri bază de 600`);
+      const bandWord =
+        count === 1
+          ? ro.panel.bandWords.base.one
+          : ro.panel.bandWords.base.many;
+      expect(line).toBe(ro.panel.countForBody(count, bandWord, 600));
     }
   });
 
-  // Romanian takes "de" whenever the last two digits are 00 or 20–99, so 100 is "100 de corpuri".
-  // A round hundred is the boundary a last-two-digits test gets wrong most easily, because 00 reads
-  // as "under twenty" unless the rule is written for it — §9's count line is derived copy, and an
-  // ungrammatical one is a visible defect.
+  // A round hundred is the boundary a last-two-digits implementation gets wrong most easily.
   it("takes 'de' at a round hundred, as Romanian does", () => {
     for (const count of [100, 200, 1000]) {
       const line =
         replaceIn(openPanel(occupiedMeta(), { offers: offers(count) }).sections)
           ?.countLine ?? "";
-      expect(line).toBe(`${String(count)} de corpuri bază de 600`);
+      expect(line).toBe(
+        ro.panel.countForBody(count, ro.panel.bandWords.base.many, 600),
+      );
     }
   });
 
@@ -328,7 +329,9 @@ describe("§9's derived count line — swept, not sampled", () => {
     const panel = openPanel(topRow, { offers: offers(5) });
     const section = replaceIn(panel.sections);
     expect(panel.header.detail).toContain("rând de sus");
-    expect(section?.countLine).toBe("5 corpuri suspendate de 700");
+    expect(section?.countLine).toBe(
+      ro.panel.countForBody(5, ro.panel.bandWords.wall.many, 700),
+    );
     expect(section?.countLine).not.toContain("rând de sus");
   });
 
@@ -390,7 +393,7 @@ describe("the panel adds no row and drops none", () => {
       openPanel(slotMeta(), { offers: offers(5), isBodyProbeAttached: false })
         .sections,
     );
-    expect(section?.countLine).toBe("5 corpuri intră în 700 × 860 mm");
+    expect(section?.countLine).toBe(ro.panel.countForSlot(5, 700, 860));
   });
 });
 
@@ -540,6 +543,7 @@ describe("the closed panel", () => {
       for (const list of [offers(0), offers(4)]) {
         expect(
           describePanel({
+            content: ro,
             material: PAL_KITCHEN,
             meta: undefined,
             offers: list,

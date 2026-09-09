@@ -15,8 +15,16 @@ export default defineConfig({
     setupFiles: ["./tests/support/vitest.setup.ts"],
     passWithNoTests: false,
   },
+  // Bundle next-intl so the alias below is applied to its extensionless `next/server` import.
+  ssr: { noExternal: ["next-intl"] },
   resolve: {
     alias: {
+      // next-intl's middleware build imports this extensionless subpath. Next resolves it in the
+      // application compiler; Node's ESM loader used by Vitest needs the concrete entry point.
+      "next/server": resolve(
+        import.meta.dirname,
+        "./node_modules/next/server.js",
+      ),
       // Route handlers import through Next's `@/*` path alias, which vitest does not read from
       // `tsconfig.json`. Mirrored here so a route can be exercised as a module under test.
       "@": resolve(import.meta.dirname, "./src"),

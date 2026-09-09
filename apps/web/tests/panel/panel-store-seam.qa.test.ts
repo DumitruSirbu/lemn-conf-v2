@@ -22,7 +22,7 @@ import {
 } from "@lemnaria/configurator-domain";
 import { describe, expect, it } from "vitest";
 
-import { ro } from "@/content/ro";
+import { ro } from "../support/romanian-content";
 import { describePanel, type PanelView } from "@/panel/panel-model";
 
 import { columnExtents } from "../support/column-extents";
@@ -35,6 +35,7 @@ import { swatchSectionOf } from "../support/panel-sections";
 function panelFromStore(state: ConfiguratorState): PanelView {
   const { records, voids, columns, catalog, selection } = state;
   return describePanel({
+    content: ro,
     material: PAL_KITCHEN,
     meta: selection
       ? describeSelection({ records, voids, catalog, target: selection })
@@ -111,7 +112,7 @@ describe("the panel over the store's own state", () => {
       (candidate) => candidate.kind === "replace",
     );
     if (section?.kind !== "replace") throw new Error("no replace section");
-    expect(section.title).toBe("Pune un corp aici");
+    expect(section.title).toBe("Adaugă aici un dulap");
     expect(section.rows.length).toBeGreaterThan(0);
     expect(section.countLine).toContain(String(section.rows.length));
   });
@@ -130,7 +131,10 @@ describe("the panel over the store's own state", () => {
     const panel = openPanel(refused);
     expect(panel.sections[0]?.kind).toBe("rejection");
     expect(panel.sections[0]).toMatchObject({
-      message: refused.lastRejection?.message,
+      message:
+        refused.lastRejection === null
+          ? undefined
+          : ro.rejection(refused.lastRejection),
     });
 
     store.getState().select({ kind: "placement", id: "p0" });
@@ -226,9 +230,9 @@ describe("the panel over the store's own state", () => {
     expect(panel.sections.map((s) => s.kind)).not.toContain("rejection");
   });
 
-  // "Never offer what cannot be satisfied": every row the panel renders must be insertable without
-  // a refusal. A row that refuses is a defect in the list, not a feature.
-  it("accepts every row it offers in an opened slot, one row at a time", () => {
+  // ADR 0032 keeps refused catalogue entries visible and disabled with the command's exact reason.
+  // Exercise the real command for every rendered row so enabled/disabled cannot drift from it.
+  it("marks every row exactly as the insert command answers", () => {
     const store = createStore();
     store.getState().select({ kind: "placement", id: "p1" });
     store.getState().remove();
@@ -240,18 +244,23 @@ describe("the panel over the store's own state", () => {
       throw new Error("no slot to insert into");
     expect(section.rows.length).toBeGreaterThan(0);
 
-    let swept = 0;
+    let accepted = 0;
+    let refused = 0;
     for (const row of section.rows) {
       const attempt = createStore();
       attempt.getState().select({ kind: "placement", id: "p1" });
       attempt.getState().remove();
       attempt.getState().insert(row.buildId);
-      expect([row.buildId, attempt.getState().lastRejection]).toEqual([
-        row.buildId,
-        null,
-      ]);
-      swept += 1;
+      const rejection = attempt.getState().lastRejection;
+      expect(row.isDisabled, row.buildId).toBe(rejection !== null);
+      if (rejection === null) {
+        accepted += 1;
+      } else {
+        expect(row.secondaryLine, row.buildId).toBe(ro.rejection(rejection));
+        refused += 1;
+      }
     }
-    expect(swept).toBeGreaterThan(0);
+    expect(accepted).toBeGreaterThan(0);
+    expect(refused).toBeGreaterThan(0);
   });
 });

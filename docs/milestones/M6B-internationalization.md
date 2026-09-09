@@ -1,10 +1,13 @@
 # M6B — Internationalization: Romanian becomes a source locale instead of a hardcoded one
 
-> **STATUS: PLANNED.** Runs immediately after M6 and before M7 (owner ruling, 2026-09-06).
+> **STATUS: IN PROGRESS — Gate O1 closed; 6B-a through 6B-d complete; 6B-e next.** Runs immediately after M6 and
+> before M7. The owner supplied a 13-line Romanian edit set on 2026-09-07 and directed that the
+> corrected catalogue be translated first, then the remaining implementation waves continue.
 > Summary: `docs/STATUS.md`. The rulings this plan rests on:
 > [ADR 0095](../decisions/0095-romanian-is-the-source-and-lives-in-message-files-and-the-domain-publishes-codes-not-sentences.md).
 
-Status: planned. Depends on M6 being **closed** — see *Why it cannot start early*.
+Status: in progress on branch `m6b-internationalization`. The 2026-09-07 owner sequencing ruling
+supersedes the planned dependency order described below; see *Owner sequencing correction*.
 Reference: [ADR 0001](../decisions/0001-initial-product-and-stack.md) decision 5;
 [ADR 0095](../decisions/0095-romanian-is-the-source-and-lives-in-message-files-and-the-domain-publishes-codes-not-sentences.md);
 `docs/best-practices/engineering-conventions.md:61`; `docs/brand.md:30`;
@@ -59,6 +62,60 @@ M6 has five waves open — 6T, 6T2, 6W, 6V, 6X — and 6T is live in
 money string in the app and wave 6B-f moves catalogue labels out of the domain. **Both read surfaces
 6T is still writing.** M6B's first wave may not open until M6 closes.
 
+## Owner sequencing correction — 2026-09-07
+
+The owner closed **Gate O1** by reviewing the collected catalogue and supplying a 13-line edit set
+in `apps/web/src/messages/ro.json`: semantic JSON comparison measures 12 changed leaf values, while
+`rejection.FINISH_NOT_SUPPORTED` was byte-identical apart from trailing whitespace. Those edits are owner-authored input: implementation
+must preserve them, update the future copy lock and golden-output baseline only for those 13 keys,
+and must not describe them as agent copy changes.
+
+The owner also gave a newer, explicit sequence: **translate the corrected Romanian catalogue into
+Russian next, then continue through the rest of M6B**. This supersedes the table's original
+dependency order and the earlier statement that no M6B code wave could open before M6 was formally
+closed. The revised execution order is:
+
+1. Gate O1 closes with the owner's 13-line edit set (12 semantic value changes and one
+   whitespace-only line).
+2. The translation slice of 6B-i creates a complete, structurally aligned, agent-drafted `ru.json`
+   from that corrected file. It remains unapproved.
+3. Waves 6B-a through 6B-h implement and gate the locale machinery, routing, extraction seams,
+   descriptor boundaries and formatting against both catalogues.
+4. 6B-i completes the switcher, pseudo-locale and end-to-end Russian rendering, then receives its
+   Full-tier QA and review as one finished wave.
+5. Gate O2 stops work for the owner's substantive Russian check. Wave 6B-j and phase close-out do
+   not run until the owner responds.
+
+This changes sequence, not scope or standards. The Russian remains an agent draft; ICU structure,
+key parity, the hard Gate O2 stop and every wave's QA-before-review cycle remain load-bearing.
+
+## Implementation-audit corrections — 2026-09-07
+
+The pre-implementation audit found three places where the 2026-09-06 plan described a tree that no
+longer exists or two criteria that cannot both be true. They are corrected before dispatch rather
+than worked around in code:
+
+1. **Extend `apps/web/src/proxy.ts`; never add `middleware.ts`.** This Next 16 tree already has one
+   proxy and it owns the per-request CSP nonce. Locale redirect/rewrite/pass-through behaviour must
+   compose with that security path and its tests; a second proxy or middleware is not an option.
+2. **The golden-output baseline is a checked-in key-to-SHA-256 manifest, not a second Romanian
+   corpus.** The inline whole-file copy lock remains the one place that pins Romanian literals. The
+   hash manifest proves legacy-output continuity without contradicting the owner's no-hardcoded-copy
+   rule or creating a second source of approved wording. Because the harness lands after Gate O1,
+   its initial baseline is the corrected catalogue; the 12 semantic changes are recorded and no
+   claim of a literal M6-close recapture is made.
+3. **Customer-visible price-book prose joins the message catalogue.** The audit found eight Romanian
+   descriptions plus tier/accessory display names on the settings and breakdown surfaces. Leaving
+   them as Romanian-only data makes the acceptance criterion “every current screen renders fully in
+   Russian” impossible. Numeric rates and manufacturer records remain locale-free commercial data;
+   customer-facing names and descriptions become message descriptors resolved in the app. Their
+   Romanian values move byte-for-byte from the existing record, and their Russian values remain an
+   agent draft for Gate O2. This narrowly supersedes ADR 0095 decision 3's display-prose exemption.
+
+Oversized named waves keep their public wave ids and are delivered through narrow internal
+sub-dispatches with a mini-review between collision-heavy slices. This is scope control, not new
+waves.
+
 ## Scope
 
 **In.** The message format and the library, wired into server and client components; the
@@ -80,8 +137,9 @@ the test conventions that replace literal pinning; and a gate that stops the dri
     plural (owner ruling, 2026-09-06 — see 6B-d), and whatever the owner changes at **Gate O1**.
     Nothing else moves.
 - **English as a shipped locale.** No record requires it; see open question 3.
-- **Translating the price book's commercial `description` data.** Ruled data rather than copy
-  (ADR 0095 decision 3). The phase leaves it Romanian-only; open question 4 records the seam.
+- **Translating numeric price-book records or manufacturer data.** Rates remain locale-free.
+  Customer-visible names and descriptions are no longer covered by this exclusion; the 2026-09-07
+  implementation audit found that leaving them Romanian-only makes end-to-end Russian impossible.
 - **New screens, new copy, new product behaviour.** Nothing a customer can *do* changes in this
   phase.
 - **RTL, locale-aware date formatting, and a locale-aware sort.** No surface needs any of the three
@@ -105,8 +163,9 @@ figure is used and the difference is recorded — every correction makes the pha
   not have it.
 - **Only 2 Romanian literals in `apps/web/tests/e2e`.** The e2e suite is test-id driven. This is the
   single biggest de-risking fact in the phase.
-- **5 customer routes** — `/`, `/configurator/configure`, `/configurator/contact`, `/d/[id]`, plus
-  `/internal/scene-shot` — 3 API routes, and **no `middleware.ts`**. Routing is small.
+- **4 customer route families** — `/`, `/configurator/configure`, `/configurator/contact`, and
+  `/d/[id]` — plus the unlocalised `/internal/scene-shot` render rig, 3 API routes, and **no
+  `middleware.ts`**. Routing is small.
 - `layout.tsx:22` hardcodes `<html lang="ro">`; `layout.tsx:9-10` hardcode the Romanian title and
   description. `configure.step` is the literal `"Pasul 2 din 4"`.
 - **No i18n dependency anywhere in the tree.** `next@16.3.2`, `react@19.2.0`.
@@ -219,16 +278,16 @@ Ten waves, sequenced so the mechanical bulk is separable from the decisions.
 
 | Wave | Subject | Tier | Depends on |
 | --- | --- | --- | --- |
-| **6B-a** | The standard, the library and its compatibility gate; the request-scoped locale; one witness namespace end to end; the **golden-output harness**, the **copy lock** and the **parity gate** | **Full** (dependency change) | M6 closed |
-| **6B-b** | Locale routing, negotiation, `<html lang>`, route metadata, the shared-link invariant | **Full** (every route) | 6B-a |
-| **6B-c** | The 59 plain strings leave `ro.ts` | **Light** | 6B-a |
-| **6B-d** | The 17 interpolated entries become ICU; Romanian plurals become CLDR `one/few/other`; *"Pasul 2 din 4"* becomes parameterised | **Full** (grammar; open question 1) | 6B-c |
+| **6B-a** | **DONE 2026-09-08, `924d3c6`** (implementation checkpoint `06da284`): the standard, the library and its compatibility gate; the request-scoped locale; one witness namespace end to end; the **golden-output harness**, the **copy lock** and the **parity gate** | **Full** (dependency change) | Gate O1 closed and translation draft present (owner sequencing correction, 2026-09-07) |
+| **6B-b** | **DONE 2026-09-09, `d4f39f7`** (routing core `cf16427`; review repairs `d4cedb2`): locale routing, negotiation, `<html lang>`, route metadata, and the shared-link invariant | **Full** (every route) | 6B-a |
+| **6B-c** | **DONE 2026-09-09, `1c8ad46`** (typed-key repair `a7c796a`; Playwright fixture `1a7dd97`): the plain strings leave `ro.ts` and resolve from the active locale | **Light** | 6B-a |
+| **6B-d** | **DONE 2026-09-09, `1fbd780`:** the 17 interpolated entries become ICU; Romanian plurals become CLDR `one/few/other`; *"Pasul 2 din 4"* becomes parameterised | **Full** (grammar; open question 1) | 6B-c |
 | **6B-e** | The 34 refusal codes: the domain stops rendering Romanian | **Full** (domain algebra) | 6B-d |
 | **6B-f** | Catalogue, kind and band labels leave the domain | **Full** (reaches priced lines) | 6B-e |
 | **6B-g** | `Intl` money and number formatting; `MDL` stops being a literal suffix | **Full** (money) | 6B-f |
 | **6B-h** | The test sweep: the last hardcoded strings, the 81 tautologies, the domain fixtures | **Light** (tests only, but see below) | 6B-g |
-| **Gate O1** | **HARD STOP — the owner reads and corrects the collected Romanian.** Not a wave; an owner input | — | 6B-g |
-| **6B-i** | `ru.json` translated from the **corrected** Romanian, the language switcher, the pseudo-locale as a length-stress tool | **Full** (closes ADR 0001 decision 5) | **Gate O1 closed**, 6B-b, 6B-h |
+| **Gate O1** | **CLOSED 2026-09-07 — the owner supplied a 13-line edit set: 12 semantic values and one whitespace-only line.** Not a wave; an owner input | — | Catalogue collection |
+| **6B-i** | Translation slice first: `ru.json` translated from the **corrected** Romanian. Integration slice after 6B-a–h: the language switcher and the pseudo-locale as a length-stress tool | **Full** (closes ADR 0001 decision 5) | Translation: **Gate O1 closed**. Integration and wave gate: 6B-b, 6B-h |
 | **Gate O2** | **HARD STOP — the owner checks the Russian.** Not a wave; an owner review, and a real one | — | 6B-i |
 | **6B-j** | The re-drift gate — a lint rule and a CI check — **and the written convention M7 and M8 author against** | **Light** | 6B-i |
 
@@ -269,18 +328,93 @@ extraction is checked rather than trusted.
 6. **The parity gate** — completeness, ICU placeholder parity, no silent fallback. It passes
    vacuously with one locale and is not dead: 6B-i makes it bite.
 
+**Completed 2026-09-08 — `924d3c6`; implementation checkpoint `06da284`.** The compatibility
+gate selected **next-intl 4.14.2** with parser **3.5.17**, not ADR 0095's fallback. It establishes a
+typed request/routing seam and proves the `webglUnavailable` namespace through both a server and a
+client witness. The three intended cross-wave gates are present: the whole-catalogue Romanian copy
+lock, structural catalogue parity (including ICU placeholders and no silent fallback), and the
+SHA-256 golden-output harness.
+
+**Evidence and review.** The golden corpus contains **282 fixtures**: **95 static**; **49 function
+fixtures across 17 families**; **40 rejection fixtures across 34 codes and 37 keys**; and **98
+catalogue fixtures across 16 entries**. An implementation discovery closed the accessory-catalogue
+completeness gap. Independent QA round 1 found **Q1.1 (P1, test-gate blocker)**: the Romanian-source
+scan counted generated `src/messages/ro.d.json.ts` as a second runtime Romanian copy. Its test-only
+fix excludes only generated `*.d.json.ts` declarations and retains the ordinary `.ts`/`.tsx`
+runtime-source scan; QA then passed with web **1701 passed / 4 skipped**. The first review found four
+test-only defects: logic High ignored ICU `TYPE.pound`; logic Medium did not exercise the witness in a
+real browser runtime; logic Medium let a plain Romanian edit fail the copy lock, golden gate and
+declaration rather than exactly one guard; and clean-code P1 embedded Romanian literals in golden
+fixture inputs/IDs. The developer fixed all four. QA round 2 passed; the same logic reviewer resolved
+**3/3**, the same clean-code reviewer resolved **P1**, and security review was **PASS** with no
+exploitable issue.
+
+The coordinator's final unrestricted `pnpm ci:local` invocation was green: domain **3316**;
+persistence **122 passed / 86 skipped**; three-adapter **2853**; web **1702 passed / 4 skipped**;
+E2E **111 passed / 1 skipped (112 total)**; Next build **6/6 static pages**; boundary, lockfile and
+SCA **PASS**. An earlier sandboxed attempt stopped only on bind `EPERM` and audit DNS; that
+environment failure is not a product failure.
+
+**Next.** Start **6B-c — the 59 plain strings leave `ro.ts`**. Russian is still an unapproved agent
+draft until Gate O2.
+
 ### 6B-b — locale routing and negotiation
 
-A `middleware.ts` (the tree has none), a `[locale]` segment over the 5 customer routes, cookie then
+The existing `apps/web/src/proxy.ts` gains locale routing alongside its CSP nonce path; no
+`middleware.ts` is added. A `[locale]` segment over the four customer route families, cookie then
 `Accept-Language` negotiation at the unprefixed root, `<html lang>` from the resolved locale, and
 localised route metadata (`layout.tsx:9-10`). `/api/*` and `/internal/*` stay unprefixed —
 `/internal/scene-shot` is the render rig and a prefix there breaks the shot pipeline.
+
+**Completed 2026-09-09.** The routing core landed at `cf16427`, review repairs at `d4cedb2`, and
+locale-preserving customer navigation at `d4f39f7`. The four customer route families now use an
+always-prefixed `ro`/`ru` locale; unprefixed customer paths negotiate the locale, while `/api/*` and
+`/internal/*` remain outside locale routing. Shared-design links preserve the bare design ID, and
+strict case-variant locale paths return an explicit CSP-decorated 404. The scene-shot contract is
+explicit: available in development and a 404 by default in production unless explicitly enabled.
+
+Review removed private redirect-override headers, added the shared-design identity regression and
+the strict case-variant/CSP coverage, corrected the SSG nonce assertion to exact development and
+production expectations, and cleaned up the WebGL helper, React `isValidElement` guard, and stale
+route comments. Focused final unit evidence was **58 passed across 7 files**. Independent QA before
+the fixes recorded **55 passed** and browser **7/7**; the coordinator's final local production-mode
+Playwright run was **7/7**, with the exact production nonce check **1/1**. Web typecheck, build, lint,
+and the pre-commit hook were green; final logic, clean-code, and security reviews were **PASS**. No
+CI or push evidence is claimed.
 
 ### 6B-c — the dull one
 
 59 plain strings out of `ro.ts` into `ro.json`; the import sites repointed. **Behaviour-free by
 construction and provable by the harness.** The only judgement in it is namespace placement, and the
 answer is: mirror the existing group, do not redesign it.
+
+**Completed 2026-09-09.** The extraction landed at `1c8ad46`, the generated-key type repair at
+`a7c796a`, and the Node-safe Playwright fixture at `1a7dd97`. All **94 static leaves** now resolve
+through next-intl from the active locale while preserving the existing eight-group content shape.
+`configure.step` and the **17 function-valued families** remain deliberately in `ro.ts` for 6B-d.
+The only direct `content/ro` imports left are that explicit interpolation seam and the golden-output
+fixture. `ro.json`, `ru.json`, the approved Romanian corpus, and the golden hashes remained
+byte-identical through the wave.
+
+Independent adversarial QA passed with no findings: its focused localization/golden run was **23/23**
+and its full web run was **1,747 passed / 4 skipped**. Combined review found one High blocker: the
+first resolver signature widened generated catalogue keys to `string`. The repair preserves
+next-intl's augmented `Messages` signature, removes all casts at production call sites, and adds a
+compile-time witness that rejects an unknown key; the same reviewer closed the finding. Coordinator
+verification after the repair recorded web **1,748 passed / 4 skipped**. The first unrestricted E2E
+run then exposed Playwright's Node ESM loader rejecting the Vitest fixture's static JSON import; the
+test-only Node-safe fixture passed reopened QA and re-review. Four unrelated parallel GPU/timing
+timeouts all passed in a serial **5/5** rerun.
+
+Final unrestricted `E2E_PORT=4321 pnpm ci:local` was green: domain **3,316**; persistence **122
+passed / 86 skipped**; three-adapter **2,853**; web **1,748 passed / 4 skipped**; E2E **117 passed / 1
+skipped (118 total)**; Next build **9/9 static pages**; format, lint, typecheck, boundary, lockfile and
+production SCA **PASS**. An earlier sandboxed run failed only on bind `EPERM` and audit DNS; an
+intermediate unrestricted E2E run caught the JSON-loader defect described above and is not presented
+as a green gate.
+
+**Next.** Start **6B-d — the interpolated seventeen, and Romanian's plural bands**. Russian remains
+an unapproved agent draft until Gate O2.
 
 ### 6B-d — the interpolated seventeen, and Romanian's plural bands
 
@@ -317,6 +451,33 @@ wave that fixes the code and leaves either comment standing has not closed this.
 reason `chosenCabinetPhrase` is a module-level helper rather than an inline branch. **That test's
 premise dies when the template becomes an ICU string, and this wave owes it a replacement rather than
 a deletion.**
+
+**Completed 2026-09-09 at `1fbd780`.** `configure.step` and all **17 interpolated families** are now
+typed ICU messages resolved through the active locale. The exact production scope was
+`apps/web/src/i18n/content.ts` plus deletion of the legacy `apps/web/src/content/ro.ts`; no other
+production file changed. Romanian zero now follows the owner's CLDR ruling and renders the plain
+plural, while the approved `ro.json` and drafted `ru.json` catalogues, generated message declaration,
+copy lock, and all **282** golden hashes remained unchanged. A shared ICU-AST authored-literal guard
+replaced the obsolete source-body digit check and protects the same invariant without depending on
+function source text.
+
+Adversarial QA first reported **Q1.1 (P1)**: 22 stale live tests failed after the legacy helpers were
+removed; the full web run was **1,739 passed / 22 failed / 4 skipped**. After that repair, QA found
+**Q2.1 (High)** stale E2E coverage, **Q2.2 (Medium)** a tautological assertion, and **Q4.1
+(Medium)** a vacuous authored-literal guard; all were fixed. Final targeted QA suites passed, and
+the full web suite was **1,760 passed / 4 skipped**. Logic review initially passed, then its
+continuity round found **R2.1 (Medium)** — the tag-mutation witness was incomplete — and closed it
+after repair. Quality review found **R1.1 (High)** duplicate wording pins, **R1.2 (Medium)** a brittle
+source grep, **R1.3 (Medium)** a duplicated walker, and **R2.2 (Low)** a duplicate tagged mutant;
+all four were resolved. Both final reviewers reported **PASS**.
+
+The coordinator's unrestricted `E2E_PORT=4321 pnpm ci:local` passed every gate: domain **3,316**;
+persistence **122 passed / 86 skipped**; three-adapter **2,853**; web **1,760 passed / 4 skipped**;
+Playwright **117 passed / 1 skipped (118 total)**; Next build **9/9 static pages**; format, lint,
+typecheck, boundary, lockfile and production SCA **PASS**. A developer sandbox Playwright attempt was
+blocked by bind `EPERM`; the unrestricted run proves that failure was environmental.
+
+**Next.** Start **6B-e — the refusals**. Russian remains an unapproved agent draft until Gate O2.
 
 ### 6B-e — the refusals
 
@@ -638,7 +799,7 @@ Falsifiable, and stated as invariants including what must not happen.
   re-creates wave 6D's two-identical-descriptions defect. The harness sweeps every entry at every
   width for exactly this.
 - **Routing rewrites the route tree with no `middleware.ts` to extend.** The saving grace is scale:
-  five customer routes, and only 2 Romanian literals in e2e, so an e2e failure in 6B-b means routing
+  four customer route families, and only 2 Romanian literals in e2e, so an e2e failure in 6B-b means routing
   rather than copy.
 - **The phase is long and dull in the middle**, which is where a wave gets rubber-stamped. 6B-c is
   the one to watch.
@@ -695,12 +856,11 @@ Falsifiable, and stated as invariants including what must not happen.
    Romanian without saying whether English is served. No record requires it — ADR 0001 decision 5
    names Romanian and Russian only. **The phase ships `ro` and `ru`, and adding `en` afterwards is a
    data drop into a proven pipeline**, which is the whole point of the machinery.
-4. **Do the price book's six Romanian `description` values translate as copy or as data?** —
-   **deferred by ADR 0095 decision 3, blocks nothing.** They are owner-supplied commercial content on
-   a record heading for the manufacturer price dashboard, so they belong to the price book's own
-   versioning rather than to `messages/`. M6B leaves them Romanian-only and does not hardcode their
-   display. If the dashboard later needs them per-locale, that is a price-book schema change, not a
-   message file.
+4. **~~Do the price book's six Romanian `description` values translate as copy or as data?~~**
+   **Corrected by the 2026-09-07 implementation audit.** The current tree has eight descriptions,
+   plus tier/accessory display names, and they reach customer-visible screens. Numeric rates and
+   manufacturer records remain data; displayed prose becomes message descriptors so `/ru/…` does
+   not leak Romanian. Existing Romanian moves byte-for-byte and Russian stays unapproved until O2.
 
 ## What this phase hands on
 

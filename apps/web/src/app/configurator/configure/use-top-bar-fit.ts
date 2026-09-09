@@ -15,6 +15,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties, RefObject } from "react";
 
+import { useContent } from "@/i18n/use-content";
 import { useWholeKitchenTierOffer } from "@/price/use-priced-design";
 import { chooseVisibleSettingLabels } from "@/settings/settings-pill-fit";
 import type { SettingsPillMeasurements } from "@/settings/settings-pill-measurement";
@@ -64,11 +65,12 @@ const D2A_AS_DRAWN: TopBarConfiguration = {
 };
 
 export function useTopBarFit(): TopBarFitState {
+  const content = useContent();
   const offer = useWholeKitchenTierOffer();
   const applied = useConfiguratorStore((state) => state.design.settings);
   const pill = useMemo(
-    () => describeSettingsPill({ offer, applied: applied ?? {} }),
-    [offer, applied],
+    () => describeSettingsPill({ offer, applied: applied ?? {}, content }),
+    [offer, applied, content],
   );
 
   const settingsTrackRef = useRef<HTMLDivElement>(null);

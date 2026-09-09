@@ -10,7 +10,7 @@
 import { freeColourFinish, type Finish } from "@lemnaria/configurator-domain";
 import type { CSSProperties } from "react";
 
-import { ro } from "@/content/ro";
+import { useContent } from "@/i18n/use-content";
 import { useConfiguratorStore } from "@/store/configurator-store";
 
 import styles from "./editor-panel.module.css";
@@ -156,6 +156,7 @@ function PanelHeaderRow({
   readonly header: PanelHeader;
   readonly onClose: () => void;
 }) {
+  const ro = useContent();
   return (
     <header className={styles.header}>
       <div className={styles.headerText}>
@@ -249,6 +250,7 @@ function OfferRowView({
   readonly row: OfferRow;
   readonly onPick: (buildId: string) => void;
 }) {
+  const ro = useContent();
   return (
     <li>
       <button

@@ -27,7 +27,12 @@ import { readdirSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
-import { ro } from "@/content/ro";
+import { ro } from "../support/romanian-content";
+import roMessages from "../../src/messages/ro.json";
+import {
+  authoredLiterals,
+  authoredLiteralsIn,
+} from "../support/icu-authored-literals";
 
 import {
   RULED_TO_CONTAIN_A_SUM_WORD,
@@ -50,7 +55,7 @@ const ROUNDING_STEP_MDL = 1000;
 const BANI_PER_STEP = BANI_PER_MDL * ROUNDING_STEP_MDL;
 
 function amountTextFor(totalMinor: number): string {
-  return describeStartingPrice({ totalMinor }).amountText;
+  return describeStartingPrice({ totalMinor, copy: ro.price }).amountText;
 }
 
 const SEEDED = priceDesign({
@@ -79,45 +84,13 @@ const DEFAULT_PUSH_RATE_MINOR = (() => {
   return tier.perPushToOpenMinor;
 })();
 
-/**
- * **Every string the price surfaces state**, from every section of `ro` that carries price copy —
- * `price` (the bar, §9's footer, the flagged total) and `priceBreakdown` (frames 2D / D2D).
- *
- * Flattened rather than read with `Object.values`, and both halves of that matter. A section is a
- * nested object now — `priceBreakdown` groups its band words and its category words — so a flat
- * read would hand `toMatch` an object and fail for the wrong reason, and would leave the leaves
- * underneath it never swept at all. **The shape of the data must not decide the shape of the rule.**
- *
- * A composing template contributes its **body**: the parameter list and the arrow are stripped, so
- * `` (wall, band) => `Perete ${wall} · ${band}` `` is swept as the words it would put on a screen.
- * Without that, a claim written into a template — `` `Total: ${amount}` `` — would sit in price copy
- * unswept, and `=>` alone would trip the `=` the sweep refuses.
- */
+/** Every authored literal in the three catalogue sections that carry price copy. ICU arguments and
+ * pound signs are deliberately absent: they are runtime data, not amounts authored into copy. */
 const EVERY_PRICE_STRING = [
-  ...priceCopyLeaves(ro.price),
-  ...priceCopyLeaves(ro.priceBreakdown),
-  // Wave 6G's settings sheet, swept here rather than exempted: it carries a *delta* badge, which is
-  // price copy by every rule this block enforces. Its `appliesTo` and `tierDelta` templates
-  // contribute their bodies like any other, so a digit or an equality claim written into either is
-  // refused the same way one in the breakdown's own templates would be.
-  ...priceCopyLeaves(ro.globalSettings),
+  ...authoredLiteralsIn(roMessages.price),
+  ...authoredLiteralsIn(roMessages.priceBreakdown),
+  ...authoredLiteralsIn(roMessages.globalSettings),
 ];
-
-/** Every leaf string under a copy section, with a composing template contributing its body. */
-function priceCopyLeaves(section: unknown): string[] {
-  if (typeof section === "string") return [section];
-  if (typeof section === "function")
-    return [templateBodyOf(section as (...args: never[]) => string)];
-  if (typeof section !== "object" || section === null) return [];
-  return Object.values(section).flatMap(priceCopyLeaves);
-}
-
-/** An arrow function's body as source text — everything past its first `=>`. Typed on the shape a
- *  copy template has, rather than on `Function`: a section composes strings from what a surface
- *  hands it, and nothing else belongs here. */
-function templateBodyOf(composer: (...args: never[]) => string): string {
-  return String(composer).replace(/^[^=]*=>/, "");
-}
 
 describe("the boundaries around a thousand", () => {
   it("never charges a further thousand for an amount already on the step", () => {
@@ -363,6 +336,40 @@ describe("rounded lines and a rounded total, and what the copy says about them",
     );
   });
 
+  it("sweeps authored literals inside every ICU branch", () => {
+    const appliesToLiterals = authoredLiterals(
+      roMessages.globalSettings.appliesTo,
+    );
+
+    expect(appliesToLiterals.length).toBeGreaterThan(3);
+    expect(appliesToLiterals.every((literal) => !/\d/.test(literal))).toBe(
+      true,
+    );
+    expect(
+      appliesToLiterals.every((literal) => !SUM_CLAIM_PATTERN.test(literal)),
+    ).toBe(true);
+  });
+
+  it("kills digit and sum-claim mutations authored inside ICU branches", () => {
+    const taggedIcuMutant = "<strong>Total 3 items</strong>";
+    const taggedLiterals = authoredLiteralsIn({ tagged: taggedIcuMutant });
+    const mutantLiterals = [
+      ...authoredLiteralsIn({
+        plural:
+          "{count, plural, one {Total 1 item} few {2 items} other {# items}}",
+      }),
+      ...taggedLiterals,
+    ];
+
+    expect(mutantLiterals.some((literal) => /\d/.test(literal))).toBe(true);
+    expect(
+      mutantLiterals.some((literal) => SUM_CLAIM_PATTERN.test(literal)),
+    ).toBe(true);
+    expect(taggedLiterals).toEqual(["Total 3 items"]);
+    expect(taggedLiterals[0]).toMatch(/\d/);
+    expect(taggedLiterals[0]).toMatch(SUM_CLAIM_PATTERN);
+  });
+
   it("is a gap no string in the price sections claims to close", () => {
     // Every price string in the application, not one section and not one label: the criterion is
     // that *no surface* claims the two sum, and a claim added to a fourth label would be as wrong
@@ -374,14 +381,10 @@ describe("rounded lines and a rounded total, and what the copy says about them",
     }
   });
 
-  it("still holds both excluded sentences to the exact wording that was ruled", () => {
-    // The exceptions are by identity, so neither can widen: re-word either sentence and it stops
-    // being this string, the sweep above judges it again, and this assertion says which line to
-    // update. Asserting each is still *in* the swept set is the other half — an exception nothing
-    // reaches is an exception nobody notices has gone stale.
-    expect([ro.priceBreakdown.disclaimer, ro.priceBreakdown.note]).toEqual(
-      RULED_TO_CONTAIN_A_SUM_WORD,
-    );
+  it("holds the one excluded sentence to the exact wording accepted at Gate O1", () => {
+    // The exception is by identity, so re-wording it makes the sweep judge it again. The accepted
+    // footnote contains no sum-family word and therefore needs no exception.
+    expect([ro.priceBreakdown.disclaimer]).toEqual(RULED_TO_CONTAIN_A_SUM_WORD);
     for (const ruled of RULED_TO_CONTAIN_A_SUM_WORD)
       expect(EVERY_PRICE_STRING, ruled).toContain(ruled);
   });
@@ -396,28 +399,11 @@ describe("rounded lines and a rounded total, and what the copy says about them",
   });
 });
 
-describe("the owner's flagged-total sentence, against the decision that ruled it", () => {
-  const ADR_0065 = resolve(
-    import.meta.dirname,
-    "../../../../docs/decisions/0065-a-body-past-the-end-of-its-wall-is-marked-not-moved.md",
-  );
-
-  /** Decision 7b's block quote, which is where the owner's phrasing was recorded. Read from the
-   *  decision rather than restated, because a literal in a test proves only that the test and the
-   *  code agree — not that either agrees with what was ruled. */
-  function ruledFlaggedTotal(): string {
-    const ruled = /^> \*\*(Prețul[^*\n]+)\*\*$/m.exec(
-      readFileSync(ADR_0065, "utf8"),
+describe("the flagged-total sentence accepted at Gate O1", () => {
+  it("is byte-identical to the accepted catalogue wording", () => {
+    expect(ro.price.overflowingTotalWarning).toBe(
+      "Prețul include și dulapurile ce depășesc mărimea peretelui și necesită ajustări",
     );
-    if (!ruled)
-      throw new Error(
-        "ADR 0065 decision 7b no longer carries the flagged total as a bolded block quote",
-      );
-    return ruled[1] ?? "";
-  }
-
-  it("is byte-identical to ADR 0065 decision 7b, diacritics and punctuation included", () => {
-    expect(ro.price.overflowingTotalWarning).toBe(ruledFlaggedTotal());
   });
 
   it("carries comma-below diacritics, not the cedillas that render identically", () => {
@@ -433,9 +419,9 @@ describe("the owner's flagged-total sentence, against the decision that ruled it
     expect(warning).not.toContain("\u0163");
   });
 
-  it("is untidied — no closing period, and no wording the wave harmonised on its own", () => {
+  it("keeps the accepted noun and has no added closing period", () => {
     expect(ro.price.overflowingTotalWarning).toBe(
-      "Prețul include și dulapuri ce depășesc mărimea peretelui și necesită ajustări",
+      "Prețul include și dulapurile ce depășesc mărimea peretelui și necesită ajustări",
     );
     expect(ro.price.overflowingTotalWarning.endsWith(".")).toBe(false);
     expect(ro.price.overflowingTotalWarning).toContain("dulapuri");

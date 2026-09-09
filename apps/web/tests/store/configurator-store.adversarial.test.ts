@@ -457,28 +457,18 @@ describe("insert without a probe", () => {
   // The domain's `rejection-totality` sweep lists `BODY_PROBE_UNAVAILABLE` as engine-unreachable —
   // correctly, since `insertBody` takes a probe as a required argument, so no command can produce
   // it — and its comment hands the sweeping duty to "`apps/web`'s store tests". That exemption also
-  // removes it from the *sentence-quality* half of that sweep, which no other test applies. This is
-  // that half, with the sweep's own bar copied deliberately: a code exempted from a check should be
-  // exempted from reaching it, not from meeting it.
-  it("carries a sentence that meets the engine sweep's own quality bar", () => {
-    const ROMANIAN_LETTERS = /[ăâîșțĂÂÎȘȚ]/;
-    const PLACEHOLDER_LEAKS = [
-      "undefined",
-      "null",
-      "NaN",
-      "Infinity",
-      "[object",
-    ];
+  // removes it from the engine sweep. The store-owned refusal still has to cross the same typed,
+  // locale-free boundary as command-produced refusals.
+  it("publishes the store-owned refusal as a locale-free descriptor", () => {
     const store = createStore({ withProbe: false });
     store.getState().select({ kind: "placement", id: "p8" });
 
     store.getState().insert("base-cabinet");
 
-    const message = store.getState().lastRejection?.message ?? "";
-    expect(message.trim().length).toBeGreaterThan(0);
-    expect(message).toMatch(ROMANIAN_LETTERS);
-    expect(message.endsWith(".")).toBe(true);
-    for (const leak of PLACEHOLDER_LEAKS) expect(message).not.toContain(leak);
+    expect(store.getState().lastRejection).toEqual({
+      code: "BODY_PROBE_UNAVAILABLE",
+      params: {},
+    });
   });
 
   it("fails on the selection first, exactly as remove, setFinish and setHandle do", () => {

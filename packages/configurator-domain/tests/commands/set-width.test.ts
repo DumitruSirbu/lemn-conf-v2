@@ -521,7 +521,6 @@ describe("a member that cannot change width stops the whole column", () => {
     // it cannot change, a fact that the change would have altered.
     expect(result.reason.params.label).toBe("Corp suspendat");
     expect(result.reason.params.memberLabel).toBe("Corp plită și 2 sertare");
-    expect(result.reason.message).toContain("Corp plită și 2 sertare");
   });
 
   it("refuses the selected body itself when it has no width to change", () => {

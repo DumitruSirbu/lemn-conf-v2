@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { describePanel, type PanelSection } from "@/panel/panel-model";
-import { ro } from "@/content/ro";
+import { ro } from "../support/romanian-content";
 
 import {
   cornerReturnMeta,
@@ -34,6 +34,7 @@ function panelFor(
   overrides: Partial<Parameters<typeof describePanel>[0]> = {},
 ) {
   return describePanel({
+    content: ro,
     material: PAL_KITCHEN,
     meta,
     offers: [],
@@ -221,7 +222,7 @@ describe("describePanel — the replace list", () => {
       "Înlocuiește",
     );
     expect(findSection(slot.sections, "replace")?.title).toBe(
-      "Pune un corp aici",
+      "Adaugă aici un dulap",
     );
   });
 
@@ -238,7 +239,7 @@ describe("describePanel — the replace list", () => {
   it("counts an occupied body's set by band and width, per §9's example", () => {
     const panel = openPanelFor(occupiedMeta(), { offers: offers(5) });
     expect(findSection(panel.sections, "replace")?.countLine).toBe(
-      "5 corpuri bază de 600",
+      ro.panel.countForBody(5, ro.panel.bandWords.base.many, 600),
     );
   });
 
@@ -255,12 +256,16 @@ describe("describePanel — the replace list", () => {
         openPanelFor(topRow, { offers: offers(count) }).sections,
         "replace",
       )?.countLine;
-    expect(lineFor(5)).toBe("5 corpuri suspendate de 700");
-    expect(lineFor(1)).toBe("1 corp suspendat de 700");
+    expect(lineFor(5)).toBe(
+      ro.panel.countForBody(5, ro.panel.bandWords.wall.many, 700),
+    );
+    expect(lineFor(1)).toBe(
+      ro.panel.countForBody(1, ro.panel.bandWords.wall.one, 700),
+    );
     expect(lineFor(5) ?? "").not.toContain("rând de sus");
     expect(
       findSection(openPanelFor(topRow).sections, "replace")?.emptyLine,
-    ).toContain("corp suspendat");
+    ).toBe(ro.panel.noOffersForBody(ro.panel.bandWords.wall.one));
   });
 
   // Romanian takes "de" from twenty upward. The catalogue cannot reach twenty today, so this is
@@ -271,16 +276,24 @@ describe("describePanel — the replace list", () => {
         openPanelFor(occupiedMeta(), { offers: offers(count) }).sections,
         "replace",
       )?.countLine;
-    expect(lineFor(1)).toContain("1 corp bază");
-    expect(lineFor(19)).toContain("19 corpuri bază");
-    expect(lineFor(20)).toContain("20 de corpuri bază");
-    expect(lineFor(21)).toContain("21 de corpuri bază");
+    expect(lineFor(1)).toBe(
+      ro.panel.countForBody(1, ro.panel.bandWords.base.one, 600),
+    );
+    expect(lineFor(19)).toBe(
+      ro.panel.countForBody(19, ro.panel.bandWords.base.many, 600),
+    );
+    expect(lineFor(20)).toBe(
+      ro.panel.countForBody(20, ro.panel.bandWords.base.many, 600),
+    );
+    expect(lineFor(21)).toBe(
+      ro.panel.countForBody(21, ro.panel.bandWords.base.many, 600),
+    );
   });
 
   it("uses the singular for one offer", () => {
     const panel = openPanelFor(occupiedMeta(), { offers: offers(1) });
     expect(findSection(panel.sections, "replace")?.countLine).toBe(
-      "1 corp bază de 600",
+      ro.panel.countForBody(1, ro.panel.bandWords.base.one, 600),
     );
   });
 
@@ -318,6 +331,17 @@ describe("describePanel — the replace list", () => {
     expect(findSection(panel.sections, "replace")?.rows[0]?.secondaryLine).toBe(
       "700 × 1850 mm",
     );
+  });
+
+  it("keeps a refused offer visible, disabled, with the localized engine reason", () => {
+    const panel = openPanelFor(slotMeta(), {
+      offers: [offer({ verdict: { status: "refused", reason: REFUSAL } })],
+    });
+    const row = findSection(panel.sections, "replace")?.rows[0];
+
+    expect(row?.isDisabled).toBe(true);
+    expect(row?.secondaryLine).toBe(ro.rejection(REFUSAL));
+    expect(row?.thumbnailUrl).toBeUndefined();
   });
 
   // "Never offer what cannot be satisfied": until the scene mounts, `insertBody` refuses every

@@ -22,9 +22,15 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+
+vi.mock("@/i18n/use-content", async () => {
+  const { ro } = await import("../support/romanian-content");
+  return { useContent: () => ro };
+});
 
 import { ro } from "@/content/ro";
+import { ro as content } from "../support/romanian-content";
 import { FinishSectionView } from "@/panel/editor-panel";
 import { describeFinishSection, describePanel } from "@/panel/panel-model";
 import { offerWholeKitchenTiers } from "@/price/whole-kitchen-tiers";
@@ -45,6 +51,7 @@ const LOCKED = describeEditability({ canWrite: false, saveStatus: "idle" });
 function panelSectionFor(finish: ReturnType<typeof paletteFinish> | undefined) {
   const meta = occupiedMeta(finish === undefined ? {} : { finish });
   const panel = describePanel({
+    content,
     material: PAL_KITCHEN,
     meta,
     offers: [],
@@ -104,6 +111,7 @@ describe("the cabinet editor offers a way back to the kitchen's colour", () => {
   it("greys it with §13.1's reason on a read-only panel, like every other chip", () => {
     const meta = occupiedMeta({ finish: PAL_ANTRACIT });
     const panel = describePanel({
+      content,
       material: PAL_KITCHEN,
       meta,
       offers: [],
@@ -148,6 +156,7 @@ describe("the global settings sheet is the level being followed, so it offers no
       selections: design.settings,
     };
     const view = describeGlobalSettings({
+      content,
       pricing: priceDesign(priced),
       offer: offerWholeKitchenTiers(priced),
       groups: projectDesignForDisplay(design, KITCHEN_L_BODY_CATALOG),
@@ -160,6 +169,7 @@ describe("the global settings sheet is the level being followed, so it offers no
       { kind: "declared", material: materialById("material.melamine") },
       undefined,
       WRITABLE,
+      content,
     );
     expect(section).toBeDefined();
     // The shared projection publishes none: the chip is composed on top of it by the panel alone.

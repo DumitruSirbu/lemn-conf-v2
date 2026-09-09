@@ -12,6 +12,7 @@
 import { describe, expect, it } from "vitest";
 
 import { ro } from "@/content/ro";
+import { ro as content } from "../support/romanian-content";
 import type { SaveStatus } from "@/persistence/save-coalescer";
 import { describeEditability } from "@/store/editability";
 import type { WriteAccess } from "@/store/configurator-store";
@@ -88,6 +89,7 @@ describe("the panel's answer, after the rule moved out of it", () => {
   }) {
     const meta = occupiedMeta();
     return describePanel({
+      content,
       material: PAL_KITCHEN,
       meta,
       offers: offers(3),

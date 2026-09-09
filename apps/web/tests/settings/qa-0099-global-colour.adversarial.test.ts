@@ -41,9 +41,14 @@ import {
 import fc from "fast-check";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
-import { ro } from "@/content/ro";
+vi.mock("@/i18n/use-content", async () => {
+  const { ro } = await import("../support/romanian-content");
+  return { useContent: () => ro };
+});
+
+import { ro as content } from "../support/romanian-content";
 import { FinishSectionView } from "@/panel/editor-panel";
 import { describeFinishSection, describePanel } from "@/panel/panel-model";
 import {
@@ -116,6 +121,7 @@ interface ViewInput {
 
 function viewOf(input: ViewInput): GlobalSettingsView {
   return describeGlobalSettings({
+    content,
     pricing: pricingOf(input.design),
     offer: offerOf(input.design),
     groups: projectDesignForDisplay(input.design, KITCHEN_L_BODY_CATALOG),
@@ -357,7 +363,7 @@ describe("ADR 0099 decision 7 — the confirmation says which loss it is", () =>
     });
 
     expect(view.materialResetConfirm?.body).toBe(
-      ro.globalSettings.materialResetConfirm.globalBody,
+      content.globalSettings.materialResetConfirm.globalBody,
     );
   });
 
@@ -370,7 +376,7 @@ describe("ADR 0099 decision 7 — the confirmation says which loss it is", () =>
     });
 
     expect(view.materialResetConfirm?.body).toBe(
-      ro.globalSettings.materialResetConfirm.body(3),
+      content.globalSettings.materialResetConfirm.body(3),
     );
   });
 
@@ -401,8 +407,8 @@ describe("ADR 0099 decision 7 — the confirmation says which loss it is", () =>
   /** The two sentences must actually differ, or the test above passes on an implementation that
    *  returns one string for both. */
   it("uses two different sentences", () => {
-    expect(ro.globalSettings.materialResetConfirm.globalBody).not.toBe(
-      ro.globalSettings.materialResetConfirm.body(3),
+    expect(content.globalSettings.materialResetConfirm.globalBody).not.toBe(
+      content.globalSettings.materialResetConfirm.body(3),
     );
   });
 });
@@ -455,7 +461,9 @@ describe("ADR 0099 decision 4 — a pending colour follows the pending material,
     });
 
     expect(view.colourGroup).toBeUndefined();
-    expect(markupOf(view)).toContain(ro.globalSettings.groupHeadings.hardware);
+    expect(markupOf(view)).toContain(
+      content.globalSettings.groupHeadings.hardware,
+    );
   });
 
   /** The group marks the pending material's declared default where nobody chose — and marking is not
@@ -499,6 +507,7 @@ describe("ADR 0099 decision 8 — the follow chip belongs to the editor and not 
   function panelSectionFor(finish: Finish | undefined) {
     const meta = occupiedMeta(finish === undefined ? {} : { finish });
     const panel = describePanel({
+      content,
       material: PAL_KITCHEN,
       meta,
       offers: [],
@@ -528,7 +537,12 @@ describe("ADR 0099 decision 8 — the follow chip belongs to the editor and not 
   /** The projection the **sheet** reads carries no follow chip: the sheet is the level being
    *  followed, so an offer there would be one this product cannot satisfy. */
   it("is absent from the projection the sheet renders, and from its markup", () => {
-    const section = describeFinishSection(PAL_KITCHEN, PAL_ANTRACIT, WRITABLE);
+    const section = describeFinishSection(
+      PAL_KITCHEN,
+      PAL_ANTRACIT,
+      WRITABLE,
+      content,
+    );
     expect(section).toBeDefined();
     if (section === undefined) return;
 
@@ -539,7 +553,7 @@ describe("ADR 0099 decision 8 — the follow chip belongs to the editor and not 
         onPick: () => undefined,
       }),
     );
-    expect(markup).not.toContain(ro.panel.finishFollowsKitchen);
+    expect(markup).not.toContain(content.panel.finishFollowsKitchen);
   });
 });
 
@@ -547,11 +561,11 @@ describe("ADR 0095 — the wave's Romanian, on the surface it was written for", 
   /** Every string this wave added, and where it has to appear. A key that resolved to `undefined`
    *  would render as nothing at all and no markup assertion elsewhere would notice. */
   const ADDED_STRINGS: readonly string[] = [
-    ro.globalSettings.colourHeading,
-    ro.globalSettings.colourNote,
-    ro.globalSettings.colourWarning,
-    ro.globalSettings.materialResetConfirm.globalBody,
-    ro.panel.finishFollowsKitchen,
+    content.globalSettings.colourHeading,
+    content.globalSettings.colourNote,
+    content.globalSettings.colourWarning,
+    content.globalSettings.materialResetConfirm.globalBody,
+    content.panel.finishFollowsKitchen,
   ];
 
   it("declares every new key as a non-empty string", () => {
@@ -582,9 +596,9 @@ describe("ADR 0095 — the wave's Romanian, on the surface it was written for", 
     );
 
     for (const value of [
-      ro.globalSettings.colourHeading,
-      ro.globalSettings.colourNote,
-      ro.globalSettings.colourWarning,
+      content.globalSettings.colourHeading,
+      content.globalSettings.colourNote,
+      content.globalSettings.colourWarning,
     ]) {
       expect(markup).toContain(value);
     }
@@ -619,10 +633,12 @@ describe("ADR 0095 — the wave's Romanian, on the surface it was written for", 
       }),
     );
 
-    expect(markup).toContain(ro.globalSettings.materialResetConfirm.globalBody);
+    expect(markup).toContain(
+      content.globalSettings.materialResetConfirm.globalBody,
+    );
     // The negative control: the *other* sentence, the one about cabinets, is not on this step.
     expect(markup).not.toContain(
-      ro.globalSettings.materialResetConfirm.body(3),
+      content.globalSettings.materialResetConfirm.body(3),
     );
   });
 
@@ -637,7 +653,7 @@ describe("ADR 0095 — the wave's Romanian, on the surface it was written for", 
         }),
       );
 
-      expect(markup).toContain(ro.globalSettings.colourHeading);
+      expect(markup).toContain(content.globalSettings.colourHeading);
     }
   });
 });

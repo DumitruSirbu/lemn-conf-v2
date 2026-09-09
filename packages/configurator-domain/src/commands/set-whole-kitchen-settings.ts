@@ -272,9 +272,9 @@ export function setHardwareTier(
  *
  *  **A shape failure refuses with the same per-group code**, not a third one. From the customer's
  *  side a tier the document cannot hold *is* a tier that is not available, and the two ruled
- *  sentences already say exactly that; a third code would need a Romanian sentence that is really
- *  developer text about a malformed book. **The cost is real and is accepted here**: a broken book
- *  and a withdrawn tier now produce the same sentence, so nothing at this seam tells them apart.
+ *  descriptors already say exactly that; a third code would duplicate a product fact with developer
+ *  detail about a malformed book. **The cost is real and is accepted here**: a broken book and a
+ *  withdrawn tier now produce the same customer-facing message, so nothing at this seam tells them apart.
  *  The place to surface a malformed book loudly is where the book is read, which is wave 6G's.
  *
  *  **Setting the tier that is already set is not a refusal.** `setFinish` succeeds on a finish a

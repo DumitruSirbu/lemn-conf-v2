@@ -25,10 +25,16 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 
+vi.mock("@/i18n/use-content", async () => {
+  const { ro } = await import("../support/romanian-content");
+  return { useContent: () => ro };
+});
+
 import { describePanel, type PanelView } from "@/panel/panel-model";
 import { createConfiguratorStore } from "@/store/configurator-store";
 
 import { createFakeProbeFactory } from "../support/fake-body-probe";
+import { ro } from "../support/romanian-content";
 import { MDF_KITCHEN, PAL_KITCHEN } from "../support/panel-material";
 import { swatchSectionOf } from "../support/panel-sections";
 import { occupiedMeta } from "../support/selection-meta";
@@ -82,6 +88,7 @@ function markupFor(
   material = PAL_KITCHEN,
 ): string {
   const view: PanelView = describePanel({
+    content: ro,
     material,
     meta,
     offers: [],
@@ -98,6 +105,7 @@ function markupFor(
  *  arrangement under which `RalPickerView`'s `disabled` attribute is observable at all. */
 function readOnlyMarkupFor(material = PAL_KITCHEN): string {
   const view: PanelView = describePanel({
+    content: ro,
     material,
     meta: occupiedMeta(),
     offers: [],
@@ -269,6 +277,7 @@ describe("the click an e2e spec performs still lights the swatch it clicked", ()
     const panel = (): PanelView => {
       const state = store.getState();
       return describePanel({
+        content: ro,
         material: materialOfDesign(state.design),
         meta: describeSelection({
           records: state.records,

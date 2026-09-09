@@ -14,9 +14,8 @@ import type { WidthOption } from "@lemnaria/configurator-domain";
 
 import type { WidthChoiceSection, WidthSection } from "@/panel/panel-model";
 
-/** The refusal a blocked chip carries in these fixtures. A real code with a real sentence, chosen
- *  because it takes one parameter: the panel renders whatever `renderRejection` returns and no test
- *  here should depend on which refusal it was. */
+/** The refusal a blocked chip carries in these fixtures. A real descriptor whose selected message
+ *  takes one parameter, so no test here should depend on which refusal it was. */
 function refusedBecauseNotResizable(label: string): WidthOption["verdict"] {
   return {
     status: "refused",

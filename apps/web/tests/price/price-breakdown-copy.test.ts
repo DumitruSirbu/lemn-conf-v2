@@ -47,7 +47,12 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+
+vi.mock("@/i18n/use-content", async () => {
+  const { ro } = await import("../support/romanian-content");
+  return { useContent: () => ro };
+});
 
 import {
   KITCHEN_L_BODY_CATALOG,
@@ -58,7 +63,7 @@ import {
   SAMPLE_PRICE_BOOK_VERSION,
 } from "@lemnaria/configurator-domain";
 
-import { ro } from "@/content/ro";
+import { ro } from "../support/romanian-content";
 import { PriceBreakdownSurface } from "@/price/price-breakdown";
 import {
   describePriceBreakdown,
@@ -104,6 +109,7 @@ const ROUNDING_STEP_MDL = 1000;
 /** The seeded design's breakdown, as the application builds it. */
 function shippedBreakdown(): AvailableBreakdown {
   const view = describePriceBreakdown({
+    content: ro,
     pricing: priceDesign({
       design: KITCHEN_L_DESIGN,
       catalog: KITCHEN_L_BODY_CATALOG,
@@ -205,9 +211,12 @@ describe("every ruled string, as a literal and in the frame that ruled it", () =
     // price, which is why wave 6K's depth control adds no price line. Weaken this sentence and that
     // reasoning loses the only place it is written down for a customer.
     expect(ro.priceBreakdown.disclaimer).toBe(
+      "Prețul afișat este estimativ. Nu include transport, blat sau electrocasnice — suma finală se stabilește după măsurare.",
+    );
+    expect(FRAME_2D).toContain(
       "Preț de pornire, rotunjit în sus la mia de lei. Nu include transport, blat sau electrocasnice — suma finală se stabilește după măsurare.",
     );
-    expect(FRAME_2D).toContain(ro.priceBreakdown.disclaimer);
+    expect(FRAME_2D).not.toContain(ro.priceBreakdown.disclaimer);
   });
 
   it("names all three exclusions, so a copy edit cannot quietly drop one", () => {
@@ -217,9 +226,12 @@ describe("every ruled string, as a literal and in the frame that ruled it", () =
 
   it("carries the rounding footnote that says the amounts do not add up", () => {
     expect(ro.priceBreakdown.note).toBe(
+      "Pretul afișat este estimativ. Nu reprezintă o ofertă comercială finală. Oferta comercială finală se stabilește doar după măsurarile exacte.",
+    );
+    expect(FRAME_2D).toContain(
       "Toate sumele sunt prețuri de pornire, rotunjite în sus. Nu constituie ofertă comercială.",
     );
-    expect(FRAME_2D).toContain(ro.priceBreakdown.note);
+    expect(FRAME_2D).not.toContain(ro.priceBreakdown.note);
   });
 
   it("closes with frame 2D's own word", () => {

@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import createNextIntlPlugin from "next-intl/plugin";
 
 import { STATIC_SECURITY_HEADERS } from "./src/lib/security-headers";
 
@@ -15,4 +16,11 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+const withNextIntl = createNextIntlPlugin({
+  requestConfig: "./src/i18n/request.ts",
+  experimental: {
+    createMessagesDeclaration: "./src/messages/ro.json",
+  },
+});
+
+export default withNextIntl(nextConfig);

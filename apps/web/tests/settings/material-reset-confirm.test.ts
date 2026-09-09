@@ -26,7 +26,12 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 
-import { ro } from "@/content/ro";
+vi.mock("@/i18n/use-content", async () => {
+  const { ro } = await import("../support/romanian-content");
+  return { useContent: () => ro };
+});
+
+import { ro } from "../support/romanian-content";
 import { offerWholeKitchenTiers } from "@/price/whole-kitchen-tiers";
 import {
   describeGlobalSettings,
@@ -107,6 +112,7 @@ function viewFor(options: {
 }): GlobalSettingsView {
   const { design } = options;
   return describeGlobalSettings({
+    content: ro,
     pricing: priceDesign({
       design,
       catalog: KITCHEN_L_BODY_CATALOG,
@@ -339,7 +345,7 @@ describe("the four strings, where the customer meets them", () => {
     // U+0219 (ș) against U+015F (ş), U+021B (ț) against U+0163 (ţ).
     const sentence = RULED.body(CHOSEN_COLOURS_ON_THE_MDF_FIXTURE);
 
-    expect(sentence).toContain("ș");
+    expect(ro.globalSettings.depthWarning).toContain("\u021b");
     expect(sentence).not.toMatch(/[şţ]/);
     expect(RULED.confirm).toContain("ă");
     expect(RULED.confirm).not.toMatch(/[şţ]/);

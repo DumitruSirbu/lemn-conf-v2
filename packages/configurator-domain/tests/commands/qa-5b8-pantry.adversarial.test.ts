@@ -80,15 +80,19 @@ describe("QA 5B8 — the pantry is built to the opening, not narrowed into it", 
     expect(result.design.placements.at(-1)?.body.widthMm).not.toBe(600);
   });
 
-  it("refuses an opening above the bound, naming both millimetre figures", () => {
+  it("refuses an opening above the bound, publishing both millimetre figures", () => {
     const { world, target } = openingOf(850);
     const result = insertInto(world, target, PANTRY_ID);
 
     expect(result.ok).toBe(false);
     if (result.ok) return;
-    expect(result.reason.code).toBe("WIDTH_NOT_SUPPORTED");
-    expect(result.reason.message).toContain("800");
-    expect(result.reason.message).toContain("850");
+    expect(result.reason).toMatchObject({
+      code: "WIDTH_NOT_SUPPORTED",
+      params: {
+        widthRangesMm: [{ minMm: 400, maxMm: 800 }],
+        availableMm: 850,
+      },
+    });
   });
 
   // §11 row 5 for the resizable row, at the floor's own edge rather than at the 300 the wave's
@@ -98,7 +102,14 @@ describe("QA 5B8 — the pantry is built to the opening, not narrowed into it", 
     const accepted = insertPantryInto(400);
 
     expect(refused.ok).toBe(false);
-    if (!refused.ok) expect(refused.reason.message).toContain("400");
+    if (!refused.ok)
+      expect(refused.reason).toMatchObject({
+        code: "WIDTH_NOT_SUPPORTED",
+        params: {
+          widthRangesMm: [{ minMm: 400, maxMm: 800 }],
+          availableMm: 399,
+        },
+      });
     expect(accepted.ok).toBe(true);
   });
 });
@@ -129,8 +140,10 @@ describe("QA 5B8 — the three appliance columns still refuse every width but th
           false,
         ]);
         if (result.ok) continue;
-        expect(result.reason.message).toContain(String(ownWidthMm));
-        expect(result.reason.message).toContain(String(widthMm));
+        expect(result.reason.params).toMatchObject({
+          requiredMm: ownWidthMm,
+          availableMm: widthMm,
+        });
         continue;
       }
       expect([buildId, widthMm, result.ok]).toEqual([buildId, widthMm, true]);

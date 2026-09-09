@@ -188,9 +188,9 @@ describe("the warning never wears the refusal's colours", () => {
  *  known hole rather than closed, because the only way to close it is the bare identifier above. */
 const SENTENCE_KEY = "configure.overflowWarning";
 
-/** The only module permitted to read the constant, relative to `src/`. */
+/** The only surface permitted to render the message, plus the locale resolver that supplies it. */
 const SENTENCE_OWNER = "scene/overflow-warning.tsx";
-const SENTENCE_ALLOWED = [SENTENCE_OWNER];
+const SENTENCE_ALLOWED = [SENTENCE_OWNER, "i18n/content.ts"];
 
 /** Every `.ts`/`.tsx` module under `src/`, so a surface added later is swept the day it lands. */
 function sourceModulePaths(): string[] {

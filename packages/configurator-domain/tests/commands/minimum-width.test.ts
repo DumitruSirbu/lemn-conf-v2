@@ -23,7 +23,6 @@ import {
   openingFromVoid,
   type InsertFit,
 } from "../../src/commands/insert-fit.js";
-import { renderRejection } from "../../src/commands/rejection.js";
 import { toMetres } from "../../src/millimetres.js";
 import { offersFor, type CatalogOffer } from "../../src/queries/offers.js";
 import { offered as offeredRows } from "../support/offers.js";
@@ -125,9 +124,6 @@ describe("§5.2's fit path honours a body's own minimum width", () => {
       code: "WIDTH_TOO_SMALL",
       params: { requiredMm: SINK_MIN_WIDTH_MM, availableMm: 400 },
     });
-    expect(result.reason.message.trim().length).toBeGreaterThan(0);
-    expect(result.reason.message).toContain(String(SINK_MIN_WIDTH_MM));
-    expect(result.reason.message).toContain("400");
   });
 
   // The general floor is untouched: an entry with no `minWidthMm` is still governed by §2's 300 mm,
@@ -332,18 +328,15 @@ describe("R2.1: a millimetre-set body honours its own minimum width", () => {
     expect(fit.detail.code).toBe("WIDTH_TOO_LARGE");
   });
 
-  // The refusal must name the widths the body can be *built* at, not the ones its row lists: 450
-  // is not a width this entry has, so a sentence offering it would be false. The opening is 480 so
-  // that a leaked 450 cannot be confused with the opening's own millimetres.
-  it("names only the buildable widths in its sentence", () => {
+  // The refusal publishes the governing floor and available opening rather than the raw row list.
+  it("publishes the governing floor and available opening", () => {
     const fit = fitInBaseOpening(SET_WITH_FLOOR, 480);
     expect(fit.ok).toBe(false);
     if (fit.ok) return;
-    const message = renderRejection(fit.detail);
-    expect(message.trim().length).toBeGreaterThan(0);
-    expect(message).toContain("600");
-    expect(message).toContain("480");
-    expect(message).not.toContain("450");
+    expect(fit.detail).toMatchObject({
+      code: "WIDTH_TOO_LARGE",
+      params: { requiredMm: 600, availableMm: 480 },
+    });
   });
 
   it("still selects a listed size at or above the floor", () => {
@@ -363,7 +356,10 @@ describe("R2.1: a millimetre-set body honours its own minimum width", () => {
       code: "WIDTH_TOO_SMALL",
       params: { requiredMm: 500 },
     });
-    expect(renderRejection(fit.detail).trim().length).toBeGreaterThan(0);
+    expect(fit.detail).toMatchObject({
+      code: "WIDTH_TOO_SMALL",
+      params: { requiredMm: 500 },
+    });
   });
 });
 

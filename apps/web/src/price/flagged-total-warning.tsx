@@ -15,13 +15,16 @@
 // **It renders `describePriceBar`'s own answer**, not a second rule. The flag travels with the total
 // (decision 6) and the total's model is where it is decided; only the surface it is drawn on has
 // changed. `ADR 0065`'s wording is untouched.
+import { useContent } from "@/i18n/use-content";
+
 import styles from "./flagged-total-warning.module.css";
 import { describePriceBar } from "./price-bar-model";
 import { usePricedDesign } from "./use-priced-design";
 
 export function FlaggedTotalWarning() {
+  const content = useContent();
   const pricing = usePricedDesign();
-  const view = describePriceBar({ pricing });
+  const view = describePriceBar({ pricing, content });
   const warning = view.kind === "priced" ? view.overflowWarning : undefined;
 
   return (

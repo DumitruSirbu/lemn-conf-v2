@@ -1,5 +1,8 @@
-import { NextResponse, type NextRequest } from "next/server";
+import createMiddleware from "next-intl/middleware";
+import { hasLocale } from "next-intl";
+import { NextRequest, NextResponse } from "next/server";
 
+import { routing } from "@/i18n/routing";
 import {
   buildContentSecurityPolicy,
   CONTENT_SECURITY_POLICY_MODE,
@@ -7,6 +10,8 @@ import {
   cspResponseHeaderName,
   NONCE_HEADER,
 } from "@/lib/security-headers";
+
+const handleLocaleRouting = createMiddleware(routing);
 
 /**
  * Everything except the immutable build output and static files, which carry no scripts of their
@@ -24,15 +29,57 @@ export function proxy(request: NextRequest): NextResponse {
     nonce,
     isDevelopment: process.env.NODE_ENV !== "production",
   });
+  const requestHeaders = withNonce(request.headers, nonce, policy);
+  const securedRequest = new NextRequest(request, { headers: requestHeaders });
 
-  const response = NextResponse.next({
-    request: { headers: withNonce(request.headers, nonce, policy) },
-  });
+  const response = hasCaseVariantLocalePrefix(request.nextUrl.pathname)
+    ? new NextResponse(null, { status: 404 })
+    : isCustomerPath(request.nextUrl.pathname)
+      ? handleLocaleRouting(securedRequest)
+      : NextResponse.next({ request: { headers: requestHeaders } });
+
   response.headers.set(
     cspResponseHeaderName(CONTENT_SECURITY_POLICY_MODE),
     policy,
   );
   return response;
+}
+
+function hasCaseVariantLocalePrefix(pathname: string): boolean {
+  const [firstSegment] = pathname.split("/").filter(Boolean);
+  if (firstSegment === undefined) return false;
+
+  const normalizedSegment = firstSegment.toLowerCase();
+  return (
+    firstSegment !== normalizedSegment &&
+    hasLocale(routing.locales, normalizedSegment)
+  );
+}
+
+/**
+ * Only the four customer route families participate in locale routing. In particular, a supported
+ * locale prefix in front of `/api` or `/internal` does not turn that invalid URL into a customer
+ * route, and an unsupported first segment remains an ordinary Next.js 404 candidate.
+ */
+function isCustomerPath(pathname: string): boolean {
+  const segments = pathname.split("/").filter(Boolean);
+  const routeSegments = hasLocale(routing.locales, segments[0])
+    ? segments.slice(1)
+    : segments;
+
+  if (routeSegments.length === 0) return true;
+  if (
+    routeSegments.length === 2 &&
+    routeSegments[0] === "configurator" &&
+    (routeSegments[1] === "configure" || routeSegments[1] === "contact")
+  )
+    return true;
+
+  return (
+    routeSegments.length === 2 &&
+    routeSegments[0] === "d" &&
+    routeSegments[1] !== ""
+  );
 }
 
 /**

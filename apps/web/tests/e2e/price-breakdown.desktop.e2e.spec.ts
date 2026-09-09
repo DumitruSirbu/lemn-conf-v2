@@ -1,6 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 
-import { ro } from "../../src/content/ro";
+import { ro } from "../support/romanian-content.e2e";
 
 /**
  * **Frame D2D's popover at 1440 × 900.** The same component and the same model as the mobile sheet;

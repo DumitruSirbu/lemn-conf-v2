@@ -113,5 +113,4 @@ export function offers(count: number): CatalogOffer[] {
 export const REFUSAL: RejectionReason = {
   code: "NOT_DELETABLE",
   params: { label: "Retur de colț" },
-  message: "„Retur de colț” face parte din structura bucătăriei.",
 };

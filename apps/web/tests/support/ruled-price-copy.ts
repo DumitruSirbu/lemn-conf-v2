@@ -11,27 +11,18 @@
 // sum word to assert the exact opposite:
 //
 // - *"suma finală se stabilește după măsurare"* — no sum here is final.
-// - *"Toate sumele sunt prețuri de pornire, rotunjite în sus"* — every amount was rounded up on its
-//   own, which is *why* they do not add up.
-//
 // A keyword pattern cannot draw that distinction and a human has to record it.
 //
 // **Excluded by identity, never by pattern and never by section.** Any other use of *suma*, *sume*,
 // *sumele*, *total*, *adun*, *egal*, `+` or `=` in price copy still fails, including inside the
-// breakdown's own section. And because the exclusion is an exact string, re-wording either sentence
+// breakdown's own section. And because the exclusion is an exact string, re-wording the sentence
 // stops it matching, the sweep judges it again, and the pin below says which line to update — which
 // is precisely when changed owner copy should make somebody look.
 //
-// **The second entry exists because the pattern was broadened to `sum[aăe]` on 2026-09-03.** Until
-// then the footnote passed *by accident*: the pattern was `sum[aă]` and *sumele* inflects past it,
-// so the guard was silent about that sentence because it was not looking rather than because
-// anybody had decided it was allowed. Two documented exceptions over a pattern that catches the
-// inflection beat one exception over a pattern with a hole in it.
-
-/** Frame 2D's disclaimer and frame 2D's rounding footnote, verbatim. */
+/** Gate O1's accepted disclaimer, verbatim. The accepted footnote contains no sum-family word and
+ * therefore needs no exception. */
 export const RULED_TO_CONTAIN_A_SUM_WORD = [
-  "Preț de pornire, rotunjit în sus la mia de lei. Nu include transport, blat sau electrocasnice — suma finală se stabilește după măsurare.",
-  "Toate sumele sunt prețuri de pornire, rotunjite în sus. Nu constituie ofertă comercială.",
+  "Prețul afișat este estimativ. Nu include transport, blat sau electrocasnice — suma finală se stabilește după măsurare.",
 ];
 
 /**

@@ -45,7 +45,7 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
-import { ro } from "@/content/ro";
+import { ro } from "../support/romanian-content";
 import { describePriceBar } from "@/price/price-bar-model";
 import { describePriceBreakdown } from "@/price/price-breakdown-model";
 import { PriceBreakdownSurface } from "@/price/price-breakdown";
@@ -158,6 +158,7 @@ function offeredDeltaFor(
 
 function viewOf(design: Design, book: PriceBook = BOOK): GlobalSettingsView {
   return describeGlobalSettings({
+    content: ro,
     pricing: pricingOf(design, book),
     offer: offerOf(design, book),
     groups: projectDesignForDisplay(design, CATALOG),
@@ -230,8 +231,9 @@ describe("the optional delta never reaches a screen as a word", () => {
         settings: { ...DRAWERS_ONLY.settings, hardwareTierId },
       };
       const pricing = pricingOf(design);
-      const bar = describePriceBar({ pricing });
+      const bar = describePriceBar({ pricing, content: ro });
       const breakdown = describePriceBreakdown({
+        content: ro,
         pricing,
         groups: projectDesignForDisplay(design, CATALOG),
       });
@@ -632,7 +634,7 @@ describe("the tier that states nothing is still a tier a customer can choose", (
     // The point of the wave: the kitchen genuinely costs less here, and the customer is shown a
     // coherent figure rather than a refusal.
     expect(chosen.priced.totalMinor).toBe(atDefault.priced.totalMinor - 4_200);
-    const bar = describePriceBar({ pricing: chosen });
+    const bar = describePriceBar({ pricing: chosen, content: ro });
     expect(bar.kind).toBe("priced");
     if (bar.kind !== "priced") throw new Error("unreachable");
     expect(bar.figure.label).toBe(ro.price.startingPrefix);
@@ -692,6 +694,7 @@ describe("the tier that states nothing is still a tier a customer can choose", (
    *  prices below the default the anchor stays. */
   it("distinguishes one silent tier from a sheet that could not be priced at all", () => {
     const unpriceable = describeGlobalSettings({
+      content: ro,
       pricing: priceDesign({
         design: DRAWERS_ONLY,
         catalog: CATALOG,

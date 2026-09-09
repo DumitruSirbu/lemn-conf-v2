@@ -27,7 +27,7 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
-import { ro } from "@/content/ro";
+import { ro } from "../support/romanian-content";
 import {
   describePriceBreakdown,
   PriceBreakdownDivergenceError,
@@ -58,7 +58,11 @@ function shippedBreakdown(
   pricing: PricingResult = SHIPPED_PRICING,
   groups: readonly DisplayGroup[] = SHIPPED_GROUPS,
 ): AvailableBreakdown {
-  const view = describePriceBreakdown({ pricing, groups });
+  const view = describePriceBreakdown({
+    content: ro,
+    pricing,
+    groups,
+  });
   if (view.kind !== "available")
     throw new Error("the seeded design was expected to price");
   return view;
@@ -156,6 +160,7 @@ describe("the rows are wave 6A's groups, rendered", () => {
   // answer. The bar carries the owner's prompt instead.
   it("offers no breakdown at all for a design of nothing but empty space", () => {
     const view = describePriceBreakdown({
+      content: ro,
       pricing: withLines(SHIPPED_PRICING, []),
       groups: [],
     });
@@ -165,6 +170,7 @@ describe("the rows are wave 6A's groups, rendered", () => {
     // about the empty kitchen and not about this helper.
     expect(
       describePriceBreakdown({
+        content: ro,
         pricing: SHIPPED_PRICING,
         groups: SHIPPED_GROUPS,
       }).kind,
@@ -177,7 +183,11 @@ describe("deleting the projection call breaks the surface rather than shortening
     // This is the criterion, stated as the thing that goes wrong without the projection: every
     // cabinet line is still there, in the right order, with the right label — and there is no list.
     expect(() =>
-      describePriceBreakdown({ pricing: SHIPPED_PRICING, groups: [] }),
+      describePriceBreakdown({
+        content: ro,
+        pricing: SHIPPED_PRICING,
+        groups: [],
+      }),
     ).toThrow(PriceBreakdownDivergenceError);
   });
 
@@ -188,6 +198,7 @@ describe("deleting the projection call breaks the surface rather than shortening
 
     expect(() =>
       describePriceBreakdown({
+        content: ro,
         pricing: withLines(SHIPPED_PRICING, cabinetLines),
         groups: SHIPPED_GROUPS,
       }),
@@ -199,7 +210,11 @@ describe("deleting the projection call breaks the surface rather than shortening
     const firstPlacementId = SHIPPED_GROUPS[0]?.entries[0]?.placementId ?? "";
 
     expect(() =>
-      describePriceBreakdown({ pricing: SHIPPED_PRICING, groups: [] }),
+      describePriceBreakdown({
+        content: ro,
+        pricing: SHIPPED_PRICING,
+        groups: [],
+      }),
     ).toThrow(firstPlacementId);
   });
 });
@@ -358,7 +373,11 @@ describe("a pricing failure", () => {
     });
 
     expect(
-      describePriceBreakdown({ pricing: failed, groups: SHIPPED_GROUPS }),
+      describePriceBreakdown({
+        content: ro,
+        pricing: failed,
+        groups: SHIPPED_GROUPS,
+      }),
     ).toEqual({ kind: "unavailable" });
   });
 });

@@ -29,6 +29,8 @@ import type { PricingResult } from "@lemnaria/configurator-domain";
 
 import { ro } from "@/content/ro";
 
+import type { Content } from "@/i18n/content";
+
 import {
   describeFlaggedTotalWarning,
   describeStartingPrice,
@@ -65,6 +67,7 @@ export type PriceBarView = UnpricedBar | EmptyBar | PricedBar;
  *  already says the edit was refused — so this model has nothing to read a refusal for and is not
  *  handed one. `starting-price.ts` carries the ruling and its reason. */
 export interface DescribePriceBarInput {
+  readonly content: Content;
   /** The current design priced, as `usePricedDesign` derived it this render. */
   readonly pricing: PricingResult;
 }
@@ -82,10 +85,13 @@ export function describePriceBar(input: DescribePriceBarInput): PriceBarView {
   const { priced } = input.pricing;
   if (holdsNoCabinets(priced)) return EMPTY_BAR;
 
-  const warning = describeFlaggedTotalWarning(priced);
+  const warning = describeFlaggedTotalWarning(priced, input.content.price);
   return {
     kind: "priced",
-    figure: describeStartingPrice({ totalMinor: priced.totalMinor }),
+    figure: describeStartingPrice({
+      totalMinor: priced.totalMinor,
+      copy: input.content.price,
+    }),
     ...(warning === undefined ? {} : { overflowWarning: warning }),
   };
 }

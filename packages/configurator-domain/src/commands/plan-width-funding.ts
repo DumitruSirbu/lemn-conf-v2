@@ -178,7 +178,7 @@ export function refuseNoSideFunds(
   }
   const opensAGap = sides.some((side) => side.reason === "opens_a_gap");
   // `NO_EMPTY_SPACE` is reachable on a **growth** only — a shrink always has `vacatedEmptySpace` to
-  // fall back on — and its sentence prints `params.deltaMm` unsigned on that assumption. Nothing in
+  // fall back on — and its localized message presents `params.deltaMm` unsigned on that assumption. Nothing in
   // the type system holds that; what does is the tap sweep in `qa-w5b1.adversarial.test.ts`, which
   // fails if any reachable resize reaches this line with a negative delta.
   return opensAGap

@@ -67,7 +67,7 @@ describe("setFinish", () => {
     expect(result.ok).toBe(false);
     if (result.ok) return;
     expect(result.reason.code).toBe("FINISH_NOT_OFFERED");
-    expect(result.reason.message.length).toBeGreaterThan(0);
+    expect(result.reason.params).toEqual({});
     expect(result.design).toBe(KITCHEN_L_DESIGN);
   });
 
@@ -137,7 +137,7 @@ describe("setFinish", () => {
     expect(result.ok).toBe(false);
     if (result.ok) return;
     expect(result.reason.code).toBe("FINISH_NOT_SUPPORTED");
-    expect(result.reason.message.length).toBeGreaterThan(0);
+    expect(result.reason.params).toEqual({ label: "Etajeră deschisă" });
     expect(result.design).toBe(shelf.design);
   });
 

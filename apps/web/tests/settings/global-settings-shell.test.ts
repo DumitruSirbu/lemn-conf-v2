@@ -28,11 +28,16 @@ import {
   type PricingResult,
   type WholeKitchenSelections,
 } from "@lemnaria/configurator-domain";
+import { ro as content } from "../support/romanian-content";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 
-import { ro } from "@/content/ro";
+vi.mock("@/i18n/use-content", async () => {
+  const { ro } = await import("../support/romanian-content");
+  return { useContent: () => ro };
+});
+
 import {
   offerWholeKitchenTiers,
   type WholeKitchenTierOffer,
@@ -136,11 +141,11 @@ function pillLabelsFor(
   selections: WholeKitchenSelections | undefined,
 ): string[] {
   return [
-    ro.globalSettings.pillMaterial(
+    content.globalSettings.pillMaterial(
       tierNameIn("material", selections?.materialTierId),
     ),
-    ro.globalSettings.pillHardware(
-      ro.priceBreakdown.wholeKitchenCategories.hardware,
+    content.globalSettings.pillHardware(
+      content.priceBreakdown.wholeKitchenCategories.hardware,
       tierNameIn("hardware", selections?.hardwareTierId),
     ),
   ];
@@ -156,8 +161,8 @@ describe("with the sheet shut, what stands on the screen", () => {
     expect(closed).toContain('data-testid="global-settings-trigger"');
     expect(closed).toContain('data-testid="global-settings-pill-label"');
     expect(closed).not.toContain('data-testid="global-settings-chips"');
-    expect(closed).toContain(`aria-label="${ro.globalSettings.open}`);
-    expect(closed).not.toContain(`>${ro.globalSettings.open}<`);
+    expect(closed).toContain(`aria-label="${content.globalSettings.open}`);
+    expect(closed).not.toContain(`>${content.globalSettings.open}<`);
   });
 
   it("holds no dialog at all, rather than one that is merely covered or hidden", () => {
@@ -168,9 +173,9 @@ describe("with the sheet shut, what stands on the screen", () => {
     expect(closed).not.toContain('role="dialog"');
     expect(closed).not.toContain('data-testid="global-settings-surface"');
     expect(closed).not.toContain('data-testid="global-settings-scrim"');
-    expect(closed).not.toContain(ro.globalSettings.title);
-    expect(closed).not.toContain(ro.globalSettings.apply);
-    expect(closed).not.toContain(ro.globalSettings.cancel);
+    expect(closed).not.toContain(content.globalSettings.title);
+    expect(closed).not.toContain(content.globalSettings.apply);
+    expect(closed).not.toContain(content.globalSettings.cancel);
   });
 
   it("says so on the control itself, in the attributes a screen reader reads", () => {
@@ -327,6 +332,7 @@ describe("the overflow flag travels with the total onto this surface too", () =>
 
   function viewOf(design: Design): GlobalSettingsView {
     const view = describeGlobalSettings({
+      content: content,
       pricing: pricingOf(design),
       offer: offerOf(design),
       groups: projectDesignForDisplay(design, KITCHEN_L_BODY_CATALOG),
@@ -376,7 +382,7 @@ describe("the overflow flag travels with the total onto this surface too", () =>
     );
 
     expect(markup).toContain('data-testid="global-settings-overflow"');
-    expect(markup).toContain(ro.price.overflowingTotalWarning);
+    expect(markup).toContain(content.price.overflowingTotalWarning);
     expect(
       renderToStaticMarkup(
         createElement(GlobalSettingsSurface, {
@@ -389,7 +395,7 @@ describe("the overflow flag travels with the total onto this surface too", () =>
           onApply: () => undefined,
         }),
       ),
-    ).not.toContain(ro.price.overflowingTotalWarning);
+    ).not.toContain(content.price.overflowingTotalWarning);
   });
 });
 
@@ -419,6 +425,7 @@ describe("the markup preconditions the focus trap is written against", () => {
       selections: design.settings,
     });
     const view = describeGlobalSettings({
+      content: content,
       pricing,
       offer: offerWholeKitchenTiers({
         design,

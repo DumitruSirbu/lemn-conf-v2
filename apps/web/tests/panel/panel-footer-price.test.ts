@@ -1,5 +1,5 @@
 // §9 item 7's footer — *price · Șterge corpul · Gata* — which the shipped `PanelFooter` did not
-// carry until wave 6C, and *"De la neschimbat"* beside it while a refusal stands.
+// carry until wave 6C. Gate O1 later made the refused and ordinary prefixes byte-identical.
 //
 // The figure is priced through the real query, so this file cannot agree with itself about a total
 // the application never produces.
@@ -13,7 +13,7 @@ import {
 } from "@lemnaria/configurator-domain";
 import { describe, expect, it } from "vitest";
 
-import { ro } from "@/content/ro";
+import { ro } from "../support/romanian-content";
 import { describePanel, type PanelFooter } from "@/panel/panel-model";
 import { describeStartingPrice } from "@/price/starting-price";
 
@@ -40,6 +40,7 @@ function panelFor(
 ): Extract<ReturnType<typeof describePanel>, { kind: "open" }> {
   const meta = occupiedMeta();
   const panel = describePanel({
+    content: ro,
     material: PAL_KITCHEN,
     meta,
     offers: [],
@@ -67,7 +68,10 @@ describe("the footer price", () => {
 
     expect(ro.price.startingPrefix).toBe("De la");
     expect(footerFor({ pricing: SEEDED_PRICE }).price).toEqual(
-      describeStartingPrice({ totalMinor: SEEDED_PRICE.priced.totalMinor }),
+      describeStartingPrice({
+        totalMinor: SEEDED_PRICE.priced.totalMinor,
+        copy: ro.price,
+      }),
     );
   });
 
@@ -86,7 +90,11 @@ describe("the footer price", () => {
     // surface, three rows up, saying in a sentence what the second label used to restate.
     expect(
       panelFor({ pricing: SEEDED_PRICE, rejection: REFUSAL }).sections,
-    ).toContainEqual({ kind: "rejection", message: REFUSAL.message });
+    ).toContainEqual({
+      kind: "rejection",
+      // 6B-e: the engine publishes the code; the sentence is the catalogue's.
+      message: ro.rejection(REFUSAL),
+    });
   });
 
   it("renders no figure at all when pricing failed", () => {

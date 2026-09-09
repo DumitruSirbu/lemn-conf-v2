@@ -14,11 +14,7 @@ import type {
 import type { Finish } from "../materials.js";
 import { ConfigurationTimestampSchema } from "../schemas.js";
 import type { Column } from "../void-engine.js";
-import {
-  renderRejection,
-  type RejectionDetail,
-  type RejectionReason,
-} from "./rejection.js";
+import type { RejectionDetail, RejectionReason } from "./rejection.js";
 
 /** What a command was pointed at. Named for commands rather than for picking, so the domain and
  *  the adapter's `Selection` never collide in a file that imports both. */
@@ -214,7 +210,7 @@ export function refuse(
   return {
     ok: false,
     design,
-    reason: { ...detail, message: renderRejection(detail) },
+    reason: detail,
   };
 }
 

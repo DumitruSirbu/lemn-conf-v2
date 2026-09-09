@@ -32,7 +32,12 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 
-import { ro } from "@/content/ro";
+vi.mock("@/i18n/use-content", async () => {
+  const { ro } = await import("../support/romanian-content");
+  return { useContent: () => ro };
+});
+
+import { ro } from "../support/romanian-content";
 import { EditorPanel } from "@/panel/editor-panel";
 import { describePanel, type PanelView } from "@/panel/panel-model";
 import { describePriceBar, type PricedBar } from "@/price/price-bar-model";
@@ -79,6 +84,7 @@ const { FlaggedTotalWarning } = await import("@/price/flagged-total-warning");
  *  `starting-price.adversarial.test.ts` owns and reconciles. */
 function seededTotalText(): string {
   const bar = describePriceBar({
+    content: ro,
     pricing: priceOf(KITCHEN_L_DESIGN),
   });
   if (bar.kind !== "priced") throw new Error("the seeded design did not price");
@@ -239,7 +245,7 @@ describe("no refusal the store can produce moves the figure", () => {
    *  alone: the model takes no refusal since the owner removed the *"neschimbat"* label, so the
    *  sweep below asserts the stronger thing it was always reaching for. */
   function figureOf(design: Design): string {
-    const view = describePriceBar({ pricing: priceOf(design) });
+    const view = describePriceBar({ pricing: priceOf(design), content: ro });
     if (view.kind !== "priced") throw new Error("expected a priced bar");
     return view.figure.amountText;
   }
@@ -282,7 +288,10 @@ describe("no refusal the store can produce moves the figure", () => {
     // figure *"De la neschimbat"* while a refusal stood. What the sweep above is really about
     // survives whole and is what is asserted — a refusal moves no figure — and the bar now says
     // nothing about the refusal at all, which §9's banner does say.
-    const quiet = describePriceBar({ pricing: priceOf(KITCHEN_L_DESIGN) });
+    const quiet = describePriceBar({
+      pricing: priceOf(KITCHEN_L_DESIGN),
+      content: ro,
+    });
     if (quiet.kind !== "priced") throw new Error("expected a priced bar");
 
     expect(quiet.figure.label).toBe(ro.price.startingPrefix);
@@ -312,7 +321,6 @@ describe("a pricing failure puts nothing on the page", () => {
       barMarkup(failed, {
         code: "NOT_DELETABLE",
         params: { label: "Retur de colț" },
-        message: "Nu poate fi șters.",
       }),
     ).toBe("");
   });
@@ -370,6 +378,7 @@ function openPanelFor(
 ): Extract<PanelView, { kind: "open" }> {
   const meta = occupiedMeta();
   const panel = describePanel({
+    content: ro,
     material: PAL_KITCHEN,
     meta,
     offers: [],
@@ -402,7 +411,7 @@ describe("an overflowing design, on the page", () => {
     expect(markup).toContain(seededTotalText());
     expect(flag).toContain(ro.price.overflowingTotalWarning);
     expect(flag).toContain(
-      "Prețul include și dulapuri ce depășesc mărimea peretelui și necesită ajustări",
+      "Prețul include și dulapurile ce depășesc mărimea peretelui și necesită ajustări",
     );
     // The bar keeps frame D2A's shape on a flagged design, which is the point of the move.
     expect(markup).not.toContain(ro.price.overflowingTotalWarning);
@@ -444,8 +453,8 @@ describe("an overflowing design, on the page", () => {
         availableMm: 800,
         label: "Corp bază",
       },
-      message: "1000 mm nu încape — ar suprapune nișa mașinii de spălat vase.",
     };
+    const refusalMessage = ro.rejection(refusal);
     const bar = barMarkup(priceOf(overflowing), refusal);
     const panel = renderToStaticMarkup(
       createElement(EditorPanel, {
@@ -462,16 +471,16 @@ describe("an overflowing design, on the page", () => {
     const sceneFlag = flaggedTotalMarkup(priceOf(overflowing), refusal);
 
     expect(sceneFlag).toContain(ro.price.overflowingTotalWarning);
-    expect(sceneFlag).not.toContain(refusal.message);
-    expect(bar).not.toContain(refusal.message);
+    expect(sceneFlag).not.toContain(ro.rejection(refusal));
+    expect(bar).not.toContain(ro.rejection(refusal));
 
     const banner = textOfElement(panel, "panel-rejection");
     const flag = textOfElement(panel, "panel-price-overflow");
 
-    expect(banner).toBe(refusal.message);
+    expect(banner).toBe(refusalMessage);
     expect(banner).not.toContain(ro.price.overflowingTotalWarning);
     expect(flag).toBe(ro.price.overflowingTotalWarning);
-    expect(flag).not.toContain(refusal.message);
+    expect(flag).not.toContain(refusalMessage);
 
     // The reader itself, so the two negatives above cannot be satisfied by an element that stopped
     // existing: a testid that is not on the page raises rather than returning an empty string.
@@ -484,6 +493,7 @@ describe("an overflowing design, on the page", () => {
     // ADR 0065 decision 8 holds with one statement fewer: the flag is about what the number
     // contains, and the refusal's own sentence is §9's banner rather than a second label here.
     const bar = describePriceBar({
+      content: ro,
       pricing: priceOf(overflowing),
     }) as PricedBar;
 
@@ -555,7 +565,7 @@ describe("the flagged total on the mobile shell, while §9's sheet is open", () 
     expect(footer.price?.amountText).toBe(seededTotalText());
     expect(footer.overflowWarning).toBe(ro.price.overflowingTotalWarning);
     expect(textOfElement(markup, "panel-price-overflow")).toBe(
-      "Prețul include și dulapuri ce depășesc mărimea peretelui și necesită ajustări",
+      "Prețul include și dulapurile ce depășesc mărimea peretelui și necesită ajustări",
     );
   });
 
@@ -567,7 +577,7 @@ describe("the flagged total on the mobile shell, while §9's sheet is open", () 
       const priced = priceOf(design);
       if (!priced.ok) throw new Error("expected a priced design");
 
-      const bar = describePriceBar({ pricing: priced });
+      const bar = describePriceBar({ pricing: priced, content: ro });
       const footer = openPanelFor({ pricing: priced }).footer;
       if (bar.kind !== "priced") throw new Error("expected a priced bar");
 

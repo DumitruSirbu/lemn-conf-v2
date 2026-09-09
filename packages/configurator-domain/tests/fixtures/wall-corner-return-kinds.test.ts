@@ -177,13 +177,12 @@ describe("the wall corner returns are named, one kind per row (ADR 0066)", () =>
       expect([placementId, result.ok]).toEqual([placementId, false]);
       if (result.ok) continue;
 
-      const sentence = result.reason.message;
       const kind = kindOf(world, placementId);
-      expect([placementId, sentence.includes(kind)]).toEqual([
-        placementId,
-        false,
-      ]);
-      expect(sentence).toContain(describeKindLabel(kind));
+      expect(result.reason).toMatchObject({
+        code: "NOT_RESIZABLE",
+        params: { label: describeKindLabel(kind) },
+      });
+      expect(result.reason.params).not.toHaveProperty("kind");
     }
   });
 

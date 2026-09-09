@@ -32,7 +32,7 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
-import { ro } from "@/content/ro";
+import { ro } from "../support/romanian-content";
 import { PriceBreakdownSurface } from "@/price/price-breakdown";
 import {
   describePriceBreakdown,
@@ -56,7 +56,11 @@ function breakdownOf(
   pricing: PricingResult,
   groups: readonly DisplayGroup[],
 ): AvailableBreakdown {
-  const view = describePriceBreakdown({ pricing, groups });
+  const view = describePriceBreakdown({
+    content: ro,
+    pricing,
+    groups,
+  });
   if (view.kind !== "available")
     throw new Error("the design was expected to price");
   return view;

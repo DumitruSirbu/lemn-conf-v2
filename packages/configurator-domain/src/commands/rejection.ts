@@ -1,13 +1,9 @@
-// Every way a command can refuse, as a stable code, its parameters, and a Romanian sentence.
-//
-// Both, never a choice (M3 work item 2). The code is what tests and store logic assert against; the
-// sentence is what §8's `rejected` message and §9's banner render verbatim. A code with no sentence
-// forces the panel to author product copy, and a sentence with no code forces tests to match on
-// prose — which is how a copy edit becomes a failing engine test.
+// Every way a command can refuse, as a stable code and its typed parameters. Customer-facing copy
+// belongs to the app's locale catalogue; the domain remains locale-free (ADR 0095 decision 3).
 import type { NormalisedBand } from "../bands.js";
 import type { WidthRangeMm } from "../void-engine.js";
 
-/** A refusal that needs nothing spelled out: the code and its sentence say everything. */
+/** A refusal whose code needs no interpolation parameters. */
 type NoParams = Readonly<Record<string, never>>;
 
 interface LabelParams {
@@ -131,8 +127,7 @@ interface EmptySpaceParams extends LabelParams {
   readonly requestedMm: number;
   /** Signed: positive grows the column, so the empty column must give that much away. It stays
    *  signed because `RESIZE_OPENS_GAP` and `COLUMN_KEY_COLLISION` carry these same params on a
-   *  shrink; only `NO_EMPTY_SPACE` reads it, and only a growth reaches that — see
-   *  `renderNoEmptySpace`. */
+   *  shrink; only `NO_EMPTY_SPACE` reads it, and only a growth reaches that. */
   readonly deltaMm: number;
   readonly sides: readonly EmptySpaceSide[];
 }
@@ -151,16 +146,16 @@ interface MeasurementParams extends LabelParams {
   readonly field: string;
 }
 
-/** The refusal, before its sentence is rendered. Every command builds one of these and hands it to
- *  `refuse`, so no command can invent a code the message table does not cover. */
+/** Every command builds one of these and hands it to `refuse`, so refusal data remains exhaustive
+ *  and typed at the domain boundary. */
 export type RejectionDetail =
   | { readonly code: "VOID_SELECTED"; readonly params: NoParams }
   | { readonly code: "TARGET_NOT_FOUND"; readonly params: NoParams }
   | { readonly code: "INVALID_OCCURRED_AT"; readonly params: NoParams }
   /** The one code no command produces. `insertBody` requires a `BodyProbe`, and in the browser
    *  that probe cannot exist until the scene has mounted — so the caller refuses on its behalf.
-   *  Declared here because every refusal in this product carries a stable code *and* a rendered
-   *  sentence; a caller-local shape would give the panel a second thing to switch on. */
+   *  Declared here so every refusal in this product crosses the same typed boundary; a caller-local
+   *  shape would give the panel a second thing to switch on. */
   | { readonly code: "BODY_PROBE_UNAVAILABLE"; readonly params: NoParams }
   /** ADR 0027 removed this refusal's subject and ADR 0038 confirmed no stored document carries
    *  one: the hob is part of its cabinet body, so no placement is a standalone accessory and no
@@ -313,216 +308,5 @@ export type RejectionDetail =
 
 export type RejectionCode = RejectionDetail["code"];
 
-/** What a refused command carries back: the code, its parameters, and the sentence to render. */
-export type RejectionReason = RejectionDetail & { readonly message: string };
-
-/** §11 rows 3 and 4, which are the only two pairs the gate can produce: a body is refused from a
- *  base slot only when it hangs, and from a wall slot only when it stands on the floor. */
-function renderBandMismatch(params: BandParams): string {
-  if (params.slotBand === "base") {
-    return `„${params.label}” este un corp suspendat: nu are soclu și nici blat, deci nu poate sta pe podea.`;
-  }
-  return `„${params.label}” este un corp de bază și nu poate fi montat pe perete. Doar coloanele pot depăși un nivel.`;
-}
-
-/** An entry whose declared floor is not a width cannot name millimetres, so the sentence states
- *  the thing that is actually true — this body cannot be added — rather than rendering `NaN` at the
- *  customer. The row is a catalogue defect; the refusal is what keeps it from being insertable at
- *  any width while it is fixed. */
-function renderWidthTooSmall(params: BodyFloorParams): string {
-  if (params.requiredMm === undefined) {
-    return `„${params.label}” nu poate fi adăugat: lățimea minimă din catalog nu este o valoare validă.`;
-  }
-  return `„${params.label}” are nevoie de cel puțin ${String(params.requiredMm)} mm lățime, iar deschiderea are doar ${String(params.availableMm)} mm.`;
-}
-
-function renderMillimetreList(sizesMm: readonly number[]): string {
-  return sizesMm.map((size) => String(size)).join(" sau ");
-}
-
-/** **No width at all is a different sentence, not an empty list.** A column whose members share no
- *  width — since 2026-08-29 a hood can floor one above everything standing under it — reaches here
- *  with both lists empty, and the clause below rendered `se face doar în  mm`: a hole where the
- *  numbers should be, on a chip §9 had offered (5D2b QA finding B). There is nothing to name, so
- *  this says what is true rather than naming nothing, and it names the cause the customer can act
- *  on — the bodies sharing the column.
- *
- *  It says "de deasupra" because in every reachable case the offending member *is* above the
- *  selected body: a hood floors its column from the wall level, and the disjoint-ranges branch is
- *  reached from the base body of a column whose wall member disagrees. A column whose topmost member
- *  is the selected one would point the customer at nothing, and no fixture produces one. */
-function renderWidthNotSupported(params: SizesParams): string {
-  const hasNoWidth =
-    params.sizesMm.length === 0 && (params.widthRangesMm?.length ?? 0) === 0;
-  if (hasNoWidth) {
-    return `„${params.label}” nu poate fi construit la nicio lățime pe care o acceptă și corpurile de deasupra.`;
-  }
-  if (params.boundScope === "column") {
-    return `„${params.label}” este într-o coloană care se face ${renderWidthsMadeClause(params)}, iar acum are ${String(params.availableMm)} mm.`;
-  }
-  return `„${params.label}” se face ${renderWidthsMadeClause(params)}, iar deschiderea are ${String(params.availableMm)} mm.`;
-}
-
-/** The widths an entry is made at, as a **clause** spliced into `„{label}” se face …`.
- *
- *  A **bound** is spoken as a bound — *"între 200 și 800 mm"* — because since ADR 0035 that is what a
- *  cabinetry row is. Listing its thirteen chips instead would be both unreadable and false: the chips
- *  are the modular widths §9 offers, while the entry is genuinely built anywhere inside the range,
- *  which is what relative stepping reaches (a 570 mm cabinet is real).
- *
- *  Everything else is spoken as a list, which covers two cases with one arm: a discrete row, whose
- *  every range is a single width, and a **column's** refusal, which carries no ranges because it
- *  names the intersection of its members' chips rather than any one entry's bound. Both are
- *  genuinely sets, so both read *"doar în 450 sau 600 mm"*.
- *
- *  The shape is asked, never a flag: `fixedWidth` is `false` on both discrete rows, so it cannot
- *  answer this (ADR 0035 decision 3, corrected). A mixed shape — one fixed width beside a range —
- *  has no row today and renders correctly anyway. */
-function renderWidthsMadeClause(params: SizesParams): string {
-  const ranges = params.widthRangesMm;
-  if (ranges?.some((range) => range.minMm < range.maxMm) === true) {
-    return ranges
-      .map((range) =>
-        range.minMm === range.maxMm
-          ? `la ${String(range.minMm)} mm`
-          : `între ${String(range.minMm)} și ${String(range.maxMm)} mm`,
-      )
-      .join(" sau ");
-  }
-  return `doar în ${renderMillimetreList(params.sizesMm)} mm`;
-}
-
-const EMPTY_SPACE_REFUSAL_RO: Readonly<Record<EmptySpaceRefusal, string>> = {
-  absent: "nu este spațiu liber",
-  too_narrow: "spațiul liber este prea îngust",
-  opens_a_gap: "s-ar deschide un spațiu liber peste alte corpuri",
-  key_taken: "corpul ar ajunge peste altă coloană",
-};
-
-const EMPTY_SPACE_SIDE_RO: Readonly<Record<EmptySpaceSide["side"], string>> = {
-  right: "în dreapta",
-  left: "în stânga",
-};
-
-function renderEmptySpaceSide(side: EmptySpaceSide): string {
-  return `${EMPTY_SPACE_SIDE_RO[side.side]} ${EMPTY_SPACE_REFUSAL_RO[side.reason]}`;
-}
-
-/** ADR 0031's sentence: which side was tried, and why the space there could not fund the move. The
- *  number is the **space the move needs**, which is what the owner read wrongly off the earlier
- *  wording — *"coloana ar trebui să ocupe 50 mm"* names a width the cabinet would end up at.
- *
- *  **Only a growth reaches this code, so there is one clause and not two** (QA finding Q1 on wave
- *  5B1, and it has been true since ADR 0035 decision 7). On a shrink `evaluateEmptySpace` can fail
- *  only with `absent` — `remainderMm` is the extent *plus* the width being given back, so it is
- *  never negative — and when both sides are `absent`, `fundingScan` appends `vacatedEmptySpace`,
- *  which is `undefined` on a growth alone. Every shrink therefore reaches the attempt loop with a
- *  fundable side, and what it can still be refused for renders as `COLUMN_KEY_COLLISION` or
- *  `RESIZE_OPENS_GAP`. A shrink-shaped sentence here would be copy no customer could ever read —
- *  the same reason ADR 0043 deleted `remainder_below_floor` rather than leaving it in the union. */
-function renderNoEmptySpace(params: EmptySpaceParams): string {
-  const sides = params.sides.map(renderEmptySpaceSide).join(", iar ");
-  return `„${params.label}” nu poate ajunge la ${String(params.requestedMm)} mm: coloana ar mai avea nevoie de ${String(params.deltaMm)} mm, dar ${sides}.`;
-}
-
-/** The same scan again, reaching the sharpest of its three verdicts: the space was there and the
- *  arithmetic worked, and the move was refused for **where it would land**. It carries the sides for
- *  the same reason the other two do — "it would end up over another column" with no side named
- *  leaves the customer nothing to act on, and the other edge is often one delete away from working. */
-function renderColumnKeyCollision(params: EmptySpaceParams): string {
-  const sides = params.sides.map(renderEmptySpaceSide).join(", iar ");
-  return `„${params.label}” nu poate ajunge la ${String(params.requestedMm)} mm: ${sides}.`;
-}
-
-/** The same scan as `renderNoEmptySpace`, reaching the other verdict: at least one side could have
- *  funded the move and the opening it would have derived stands over a body. Naming the sides is
- *  what turns "not here" into something the customer can act on — the other side is usually one
- *  delete away from working. */
-function renderResizeOpensGap(params: EmptySpaceParams): string {
-  const sides = params.sides.map(renderEmptySpaceSide).join(", iar ");
-  return `„${params.label}” nu poate fi redimensionat aici: ${sides}.`;
-}
-
-export function renderRejection(detail: RejectionDetail): string {
-  switch (detail.code) {
-    case "VOID_SELECTED":
-      return "Aici nu se află niciun corp.";
-    case "TARGET_NOT_FOUND":
-      return "Selecția nu mai există. Alege din nou un corp sau un spațiu liber.";
-    case "INVALID_OCCURRED_AT":
-      return "Momentul modificării nu este valid, așa că nu am salvat nimic.";
-    case "BODY_PROBE_UNAVAILABLE":
-      return "Modelul 3D nu este încă pregătit, așa că nu pot adăuga un corp. Încearcă din nou într-o clipă.";
-    case "ACCESSORY_NOT_DELETABLE":
-      return `„${detail.params.label}” face parte din corpul de sub ea și nu poate fi ștearsă separat.`;
-    case "NOT_DELETABLE":
-      return `„${detail.params.label}” face parte din structura bucătăriei și nu poate fi șters.`;
-    case "NOT_IN_LIBRARY":
-      return "Corpul acesta nu există în catalog.";
-    case "NOT_INSERTABLE":
-      return `„${detail.params.label}” face parte din configurația inițială și nu poate fi adăugat din catalog.`;
-    case "TARGET_NOT_REPLACEABLE":
-      return `„${detail.params.label}” face parte din structura bucătăriei și nu poate fi înlocuit.`;
-    case "BAND_MISMATCH":
-      return renderBandMismatch(detail.params);
-    case "WIDTH_TOO_LARGE":
-      return `„${detail.params.label}” are ${String(detail.params.requiredMm)} mm lățime, iar deschiderea are doar ${String(detail.params.availableMm)} mm.`;
-    case "WIDTH_TOO_SMALL":
-      return renderWidthTooSmall(detail.params);
-    case "WIDTH_NOT_SUPPORTED":
-      return renderWidthNotSupported(detail.params);
-    case "OPENING_TOO_SHORT":
-      return `Deschiderea are doar ${String(detail.params.availableMm)} mm înălțime; sub ${String(detail.params.minimumMm)} mm nu se poate construi un corp.`;
-    case "HEIGHT_EXCEEDS_LEVEL":
-      return `„${detail.params.label}” are ${String(detail.params.requiredMm)} mm înălțime și nu încape pe acest nivel de ${String(detail.params.availableMm)} mm. Doar coloanele pot depăși un nivel.`;
-    case "HEIGHT_TOO_LARGE":
-      return `„${detail.params.label}” are ${String(detail.params.requiredMm)} mm înălțime, iar spațiul liber are ${String(detail.params.availableMm)} mm.`;
-    case "NO_SNAP_POSITION":
-      return `„${detail.params.label}” nu poate fi așezat pe niciuna dintre liniile de modul ale acestei coloane.`;
-    case "BUILT_SIZE_MISMATCH":
-      return `„${detail.params.label}” s-a construit la ${String(detail.params.builtMm)} mm în loc de ${String(detail.params.requiredMm)} mm, așa că nu l-am așezat.`;
-    case "MEASUREMENT_UNUSABLE":
-      return `Nu am putut măsura corpul „${detail.params.label}” după ce a fost construit, așa că nu l-am așezat.`;
-    case "COLUMN_MISMATCH":
-      return `„${detail.params.label}” ar ieși din coloana în care a fost adăugat.`;
-    case "NOT_RESIZABLE":
-      return `„${detail.params.label}” nu își poate schimba lățimea.`;
-    case "WIDTH_UNCHANGED":
-      return `„${detail.params.label}” are deja ${String(detail.params.widthMm)} mm lățime.`;
-    case "NO_EMPTY_SPACE":
-      return renderNoEmptySpace(detail.params);
-    case "COLUMN_MEMBER_NOT_RESIZABLE":
-      return `„${detail.params.label}” nu poate fi redimensionat: în aceeași coloană stă „${detail.params.memberLabel}”, care nu își poate schimba lățimea.`;
-    // Ruled 2026-09-08, pending owner review. ADR 0103 decision 7 ruled the refusal; the sentence is
-    // wave 6Z's draft under the owner's standing direction, and it names **both** bodies — the one
-    // the customer asked for and the one above it — because naming only the second answers a tap
-    // with a complaint about a cabinet they never touched.
-    case "DEPENDENT_MEMBER_NOT_REBUILDABLE":
-      return `„${detail.params.label}” nu poate fi adăugat aici: „${detail.params.memberLabel}”, care stă deasupra, nu poate fi reconstruit la adâncimea coloanei.`;
-    case "RESIZE_OPENS_GAP":
-      return renderResizeOpensGap(detail.params);
-    case "COLUMN_KEY_COLLISION":
-      return renderColumnKeyCollision(detail.params);
-    case "COLUMN_HOOD_FLOOR":
-      return `„${detail.params.label}” nu poate coborî la ${String(detail.params.requestedMm)} mm: hota de deasupra are ${String(detail.params.hoodWidthMm)} mm.`;
-    case "NON_INTEGER_MILLIMETRES":
-      return `Dimensiunea calculată (${detail.params.field}: ${String(detail.params.valueMm)} mm) nu este un număr întreg de milimetri.`;
-    case "FINISH_NOT_SUPPORTED":
-      return `„${detail.params.label}” nu are uși, deci nu i se poate schimba finisajul.`;
-    // Ruled 2026-09-05, pending owner review. ADR 0078 decision 6 ruled the refusal; the sentence
-    // is this wave's draft under the owner's standing direction, and names the choice and the next
-    // step without stating a digit — the same marker the two tier codes below carry.
-    case "FINISH_NOT_OFFERED":
-      return "Culoarea aceasta nu se face în materialul ales pentru bucătărie. Alege altă culoare sau schimbă materialul.";
-    case "HANDLE_NOT_SUPPORTED":
-      return `„${detail.params.label}” nu are mânere.`;
-    // Ruled 2026-09-04, pending owner review. Both name the choice and the next step, and neither
-    // names the tier id: see the codes' own note above.
-    case "UNKNOWN_MATERIAL_TIER":
-      return "Materialul ales nu mai este disponibil. Alege altă variantă.";
-    case "UNKNOWN_HARDWARE_TIER":
-      return "Feroneria aleasă nu mai este disponibilă. Alege altă variantă.";
-    case "UNKNOWN_CABINET_DEPTH":
-      return "Adâncimea aleasă nu este disponibilă. Alege una dintre adâncimile oferite.";
-  }
-}
+/** What a refused command carries back. Kept as the public name used by stores and views. */
+export type RejectionReason = RejectionDetail;

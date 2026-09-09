@@ -1,6 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 
-import { ro } from "../../src/content/ro";
+import { ro } from "../support/romanian-content.e2e";
 
 /**
  * **Frame 2D's sheet at 390 × 844, and its focus story.**

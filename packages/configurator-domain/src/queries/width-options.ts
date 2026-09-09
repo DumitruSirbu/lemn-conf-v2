@@ -32,7 +32,7 @@ import type { Column } from "../void-engine.js";
  *
  *  `reason` is the `RejectionDetail` the command produced, carried whole and not re-derived — the
  *  same contract `CatalogOffer.verdict` publishes, so a surface renders both through the one
- *  `renderRejection`. */
+ *  the app's localized rejection resolver. */
 export type WidthVerdict =
   | { readonly status: "current" }
   | { readonly status: "available" }
@@ -40,7 +40,7 @@ export type WidthVerdict =
    *  at once, and a status of its own rather than a `reason` bolted onto `current`, so that a
    *  surface has to decide what to do with it instead of silently rendering an unexplained chip.
    *  The chip is `active` — the body is standing at this width — and it carries the engine's
-   *  `NOT_RESIZABLE` sentence through the same `renderRejection` a blocked chip's goes through. */
+   *  `NOT_RESIZABLE` descriptor through the same localized resolver a blocked chip's goes through. */
   | { readonly status: "fixed"; readonly reason: RejectionDetail }
   | { readonly status: "refused"; readonly reason: RejectionDetail };
 

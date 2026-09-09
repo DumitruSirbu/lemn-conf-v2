@@ -294,7 +294,7 @@ describe("declared floors that are not widths at all", () => {
     expect(result.ok).toBe(false);
     if (result.ok) return;
     expect(result.reason.code).toBe("WIDTH_TOO_SMALL");
-    expect(result.reason.message).not.toContain("NaN");
+    expect(result.reason.params).not.toHaveProperty("requiredMm");
   });
 
   it("rejects a non-integer declaration, or applies it consistently", () => {

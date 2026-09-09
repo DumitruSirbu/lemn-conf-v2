@@ -38,6 +38,13 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 
+vi.mock("@/i18n/use-content", async () => {
+  const { ro } = await import("../support/romanian-content");
+  return { useContent: () => ro };
+});
+
+import { ro } from "../support/romanian-content";
+
 import { describePanel, type PanelView } from "@/panel/panel-model";
 import { createConfiguratorStore } from "@/store/configurator-store";
 
@@ -113,6 +120,7 @@ function panelFor(material: MaterialLookup, target: CommandTarget): PanelView {
   store.getState().select(target);
   const state = store.getState();
   return describePanel({
+    content: ro,
     material,
     meta: describeSelection({
       records: state.records,

@@ -23,8 +23,9 @@ import { describe, expect, it } from "vitest";
 
 import { describePanel, type PanelSection } from "@/panel/panel-model";
 
-import { offeredBuildIds } from "../support/offers";
+import { offerBuildIds } from "../support/offers";
 
+import { ro } from "../support/romanian-content";
 import { noWidthIsFree } from "../support/width-options";
 import { PAL_KITCHEN } from "../support/panel-material";
 
@@ -58,6 +59,7 @@ type World = ReturnType<typeof worldFrom>;
 function panelAt(world: World, target: CommandTarget) {
   const meta = describeSelection({ ...world, target });
   return describePanel({
+    content: ro,
     material: PAL_KITCHEN,
     meta,
     offers: offersFor({
@@ -157,10 +159,14 @@ describe("the panel over the seeded kitchen", () => {
       kind: "void",
       id: baseSlot?.id ?? "",
     });
-    expect(section?.title).toBe("Pune un corp aici");
+    expect(section?.title).toBe("Adaugă aici un dulap");
     expect(section?.rows.length).toBeGreaterThan(0);
     expect(section?.countLine).toBe(
-      `${String(section?.rows.length ?? 0)} corpuri intră în ${String(Math.round((baseSlot?.w ?? 0) * 1000))} × ${String(Math.round((baseSlot?.h ?? 0) * 1000))} mm`,
+      ro.panel.countForSlot(
+        section?.rows.length ?? 0,
+        Math.round((baseSlot?.w ?? 0) * 1000),
+        Math.round((baseSlot?.h ?? 0) * 1000),
+      ),
     );
   });
 
@@ -184,7 +190,7 @@ describe("the panel over the seeded kitchen", () => {
       if (!section) continue;
       swept += 1;
       expect(section.rows.map((row) => row.buildId)).toEqual(
-        offeredBuildIds(
+        offerBuildIds(
           offersFor({
             ...world,
             target,

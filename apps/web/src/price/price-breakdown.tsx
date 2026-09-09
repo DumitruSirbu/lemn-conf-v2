@@ -38,6 +38,7 @@ import {
 } from "react";
 
 import { useConfiguratorStore } from "@/store/configurator-store";
+import { useContent } from "@/i18n/use-content";
 
 import {
   describePriceBreakdown,
@@ -51,6 +52,7 @@ import { usePricedDesign } from "./use-priced-design";
 const NOTE_GLYPH = "i";
 
 export function PriceBreakdown() {
+  const content = useContent();
   const pricing = usePricedDesign();
   const design = useConfiguratorStore((state) => state.design);
   const catalog = useConfiguratorStore((state) => state.catalog);
@@ -61,7 +63,7 @@ export function PriceBreakdown() {
     () => projectDesignForDisplay(design, catalog),
     [design, catalog],
   );
-  const view = describePriceBreakdown({ pricing, groups });
+  const view = describePriceBreakdown({ pricing, groups, content });
 
   const [isOpen, setIsOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);

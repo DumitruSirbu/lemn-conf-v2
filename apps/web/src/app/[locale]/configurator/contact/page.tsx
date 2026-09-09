@@ -1,13 +1,16 @@
-import Link from "next/link";
+import { getTranslations } from "next-intl/server";
 
-import { ro } from "@/content/ro";
+import { resolveContent } from "@/i18n/content";
+import { Link } from "@/i18n/navigation";
 
 /**
  * Placeholder destination for the two continuation paths on the WebGL-unavailable exit. The real
  * contact step is a later milestone; this exists so those paths lead somewhere honest instead of
  * a 404.
  */
-export default function ContactPage() {
+export default async function ContactPage() {
+  const translate = await getTranslations();
+  const ro = resolveContent(translate);
   return (
     <main
       style={{

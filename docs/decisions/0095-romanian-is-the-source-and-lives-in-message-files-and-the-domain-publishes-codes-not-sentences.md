@@ -197,10 +197,12 @@ key whose message lives in `ro.json` — and tests still match on codes, not pro
 **where the sentence is written**, not whether one exists. The failure the M3 rule guarded against is
 additionally now a **compile error**: a code with no key does not typecheck.
 
-The price book's six Romanian `description` values are **data, not UI copy**, and are ruled out of
-the message catalogue: they are owner-supplied commercial content on a record heading for the
-manufacturer price dashboard. M6B ships the seam that lets them be locale-keyed and leaves them
-Romanian-only. See the phase plan's open question 4.
+~~The price book's six Romanian `description` values are data, not UI copy, and stay
+Romanian-only.~~ **Narrowed by Amendment B:** the current tree has eight descriptions plus
+tier/accessory display names, and this prose reaches customer-visible screens. Numeric rates and
+manufacturer records remain locale-free data, while displayed names and descriptions publish
+message descriptors and are resolved by the app. Existing Romanian values move byte-for-byte;
+Russian remains an unapproved draft until Gate O2.
 
 ### 4. M6B implements i18n, not a file extraction — and ADR 0001 decision 5 closes with it
 
@@ -262,6 +264,44 @@ owner, who holds both languages, decides whether the Russian bends or the Romani
 Deferring routing and `Intl` was considered and rejected on its own merits as well as by the ruling:
 it would defeat the phase's sequencing rationale, since M7 and M8 add two whole screens of copy and
 cannot author keys natively into a product that has no locale.
+
+### Amendment A — Gate O1 closes and translation moves first (2026-09-07)
+
+The owner completed the Romanian review with a 13-line edit set in
+`apps/web/src/messages/ro.json`, closing Gate O1. Semantic JSON comparison measures 12 changed leaf
+values; the thirteenth line was a byte-identical value with trailing whitespace. The semantic values are owner-authored input and are the
+only source for the Russian draft; an agent must not normalise, reinterpret or silently undo them.
+
+The owner then explicitly directed: translate that corrected catalogue into Russian next, and
+continue through the milestone afterward. This newer sequencing ruling supersedes the phase plan's
+original dependency order and its earlier wait for M6's formal close. It splits execution of 6B-i,
+not its acceptance gate: the complete `ru.json` is drafted first; 6B-a through 6B-h then land; 6B-i
+finishes the switcher, pseudo-locale and end-to-end Russian rendering and receives its Full-tier QA
+and review as one wave. Gate O2 remains the next hard owner stop, and Russian remains explicitly
+unapproved until that review.
+
+### Amendment B — implementation audit corrections (2026-09-07)
+
+Three implementation facts refine this decision without changing its intent.
+
+First, Next 16 already routes all dynamic requests through `apps/web/src/proxy.ts`, where the CSP
+nonce and enforcing request header are created. Locale negotiation extends that one proxy and must
+preserve its security headers on redirects, rewrites and pass-through responses. The phase does not
+add `middleware.ts` or a second proxy.
+
+Second, the golden-output harness stores a key-to-SHA-256 manifest rather than a second corpus of
+Romanian literals. The whole-file inline copy lock remains the single wording authority; hashes
+detect behavioural output drift without contradicting the owner's rule that no other test embeds
+customer copy. Gate O1 happened before the harness existed, so the manifest is seeded from the
+corrected source catalogue and the 12 semantic owner changes are recorded. No M6-close recapture is
+claimed.
+
+Third, decision 3's commercial-data exemption is narrowed. The implementation audit found eight
+Romanian price-book descriptions and tier/accessory display names that reach the settings and price
+breakdown screens. Keeping that prose Romanian-only contradicts the accepted end-to-end Russian
+criterion. Numeric rates and manufacturer records remain locale-free data, while every displayed
+name and description becomes a message descriptor resolved by the app. Existing Romanian values
+move byte-for-byte and the Russian translations remain unapproved until Gate O2.
 
 ## Consequences
 

@@ -22,11 +22,13 @@ import { useMemo } from "react";
 
 import { usePricedDesign } from "@/price/use-priced-design";
 import { useConfiguratorStore } from "@/store/configurator-store";
+import { useContent } from "@/i18n/use-content";
 
 import { describePanel, type PanelView } from "./panel-model";
 import { widthStepsFor, type WidthSteps } from "@lemnaria/configurator-domain";
 
 export function usePanelView(): PanelView {
+  const content = useContent();
   const meta = useSelectionMeta();
   const offers = useSelectionOffers();
   const widthAnswers = useSelectionWidthAnswers();
@@ -49,6 +51,7 @@ export function usePanelView(): PanelView {
   return useMemo(
     () =>
       describePanel({
+        content,
         meta,
         offers,
         widthOptions,
@@ -62,6 +65,7 @@ export function usePanelView(): PanelView {
         saveStatus,
       }),
     [
+      content,
       meta,
       offers,
       widthOptions,

@@ -29,7 +29,7 @@ import {
 } from "@lemnaria/configurator-domain";
 import { describe, expect, it } from "vitest";
 
-import { ro } from "@/content/ro";
+import { ro } from "../support/romanian-content";
 import { describePanel, type WidthSection } from "@/panel/panel-model";
 import {
   createConfiguratorStore,
@@ -77,6 +77,7 @@ function panelAt(world: World, target: CommandTarget, canWrite = true) {
     probe: PROBE,
   };
   return describePanel({
+    content: ro,
     material: PAL_KITCHEN,
     meta: describeSelection({ ...world, target }),
     offers: offersFor({

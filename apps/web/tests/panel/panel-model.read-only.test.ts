@@ -18,7 +18,7 @@ import {
   type PanelSection,
 } from "@/panel/panel-model";
 
-import { ro } from "@/content/ro";
+import { ro } from "../support/romanian-content";
 
 import {
   occupiedMeta,
@@ -49,6 +49,7 @@ function openPanel(
   overrides: Partial<Parameters<typeof describePanel>[0]> = {},
 ): OpenPanel {
   const panel = describePanel({
+    content: ro,
     material: PAL_KITCHEN,
     meta,
     offers: offers(3),
@@ -372,6 +373,19 @@ describe("a read-only panel offers nothing it cannot perform", () => {
     expect(replace.rows[0]?.secondaryLine).toBe(ro.panel.readOnlyReason);
   });
 
+  it("puts read-only ahead of a domain refusal on a disabled offer", () => {
+    const replace = findSection(
+      readOnlyPanel(occupiedMeta(), {
+        offers: [offer({ verdict: { status: "refused", reason: REFUSAL } })],
+      }),
+      "replace",
+    );
+
+    expect(replace.rows[0]?.isDisabled).toBe(true);
+    expect(replace.rows[0]?.secondaryLine).toBe(ro.panel.readOnlyReason);
+    expect(replace.rows[0]?.secondaryLine).not.toBe(ro.rejection(REFUSAL));
+  });
+
   it("disables every finish chip and gives each one its reason", () => {
     // §13.1: greyed and unclickable **with the reason**. A bare dimmed swatch says nothing about
     // why it stopped responding, and a disabled control is not focusable, so the reason has to be
@@ -521,6 +535,7 @@ describe("read-only withholds nothing from the customer's eyes", () => {
   it("leaves the closed panel closed — a read-only browser with nothing selected sees no panel", () => {
     expect(
       describePanel({
+        content: ro,
         material: PAL_KITCHEN,
         meta: undefined,
         offers: [],

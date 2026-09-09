@@ -27,6 +27,7 @@ import {
   SAMPLE_PRICE_BOOK,
   SAMPLE_PRICE_BOOK_VERSION,
 } from "@lemnaria/configurator-domain";
+import { ro as content } from "../support/romanian-content";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { createElement } from "react";
@@ -72,6 +73,7 @@ function confirmingView(): GlobalSettingsView {
     selections: design.settings,
   };
   return describeGlobalSettings({
+    content: content,
     pricing: priceDesign(priced),
     offer: offerWholeKitchenTiers(priced),
     groups: projectDesignForDisplay(design, KITCHEN_L_BODY_CATALOG),

@@ -15,7 +15,6 @@ import { evaluateInsertFit } from "../../src/commands/insert-fit.js";
 import { FIT_TOLERANCE_M } from "../../src/void-engine.js";
 import { toMetres } from "../../src/millimetres.js";
 import { recordedClearanceM } from "../../src/occupied-depth.js";
-import { renderRejection } from "../../src/commands/rejection.js";
 import { offersFor } from "../../src/queries/offers.js";
 import { offered as offeredRows } from "../support/offers.js";
 import type { Column, InsertOpening } from "../../src/index.js";
@@ -312,17 +311,14 @@ describe("a millimetre-set entry honours its own minimum width too", () => {
     }
   });
 
-  // §9's sentence is rendered verbatim by the panel, so a partially filtered set must not name a
-  // width the body cannot be built at — "se face doar în 400, 450, 600 mm" would be a lie about
-  // 400, and the customer would go looking for an opening that could never take one.
-  it("names only the buildable widths in the refusal it renders", () => {
+  // A partially filtered set must not publish a width the body cannot be built at.
+  it("publishes only the buildable widths in the refusal descriptor", () => {
     const fit = fitOf([400, 450, 600], 450, 300);
 
     expect(fit.ok).toBe(false);
     if (fit.ok) return;
     expect(fit.detail.code).toBe("WIDTH_NOT_SUPPORTED");
     expect(fit.detail.params).toMatchObject({ sizesMm: [450, 600] });
-    expect(renderRejection(fit.detail)).not.toContain("400");
   });
 
   it("leaves an entry that declares no floor with its whole set", () => {

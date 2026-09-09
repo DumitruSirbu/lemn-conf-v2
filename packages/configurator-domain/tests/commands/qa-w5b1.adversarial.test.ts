@@ -17,7 +17,6 @@ import { describe, expect, it } from "vitest";
 
 import { resolveBuildableSizes } from "../../src/catalog.js";
 import { insertBody } from "../../src/commands/insert-body.js";
-import { renderRejection } from "../../src/commands/rejection.js";
 import {
   KITCHEN_L_BODY_CATALOG,
   KITCHEN_L_DESIGN,
@@ -281,8 +280,10 @@ describe("a gap a growth leaves is a state the design can show", () => {
 
     expect(inserted.ok).toBe(false);
     if (inserted.ok) return;
-    expect(inserted.reason.code).toBe("WIDTH_TOO_SMALL");
-    expect(inserted.reason.message).toContain("50 mm");
+    expect(inserted.reason).toMatchObject({
+      code: "WIDTH_TOO_SMALL",
+      params: { availableMm: 50 },
+    });
   });
 });
 
@@ -549,75 +550,19 @@ describe("the chip row, the stepper and the command give one answer", () => {
 // Q — the reworded Romanian sentence, judged beside its siblings.
 // ---------------------------------------------------------------------------
 
-describe("the reworded empty-space sentence", () => {
-  const GROWTH = {
-    code: "NO_EMPTY_SPACE",
-    params: {
-      label: "Corp spălător",
-      requestedMm: 700,
-      deltaMm: 50,
-      sides: [
-        { side: "right", reason: "too_narrow" },
-        { side: "left", reason: "absent" },
-      ],
-    },
-  } as const;
-
-  it("never says the column would *be* the delta wide", () => {
-    // The defect the reword fixes: „coloana ar trebui să ocupe 50 mm" reads as a 50 mm-wide column.
-    // Neither verb may come back.
-    //
-    // **The negative delta below guards `renderRejection` in isolation, not a reachable state** — no
-    // command produces a `NO_EMPTY_SPACE` with one, which the row at the end of this file measures.
-    // It is here because the renderer takes signed params from three codes and must not grow a
-    // second clause again on the strength of the sign alone (review finding R1.9).
-    const growth = renderRejection(GROWTH);
-    const shrink = renderRejection({
-      ...GROWTH,
-      params: { ...GROWTH.params, requestedMm: 600, deltaMm: -50 },
-    });
-
-    for (const message of [growth, shrink]) {
-      expect(message).not.toContain("ocupe");
-      expect(message).not.toContain("elibereze");
-      expect(message).not.toContain("ar trebui");
-    }
-  });
-
-  it("never names a width the customer did not ask for", () => {
-    // The number in the clause is the *space* the move needs, so the only width in the sentence must
-    // be the one that was tapped. A growth of 50 to reach 700 must not read "700" twice or leak the
-    // current width.
-    const message = renderRejection(GROWTH);
-
-    expect(message.match(/\d+ mm/g)).toEqual(["700 mm", "50 mm"]);
-  });
-
-  it("reads as one grammatical sentence beside the other two verdicts", () => {
-    // The three refusals share a scan and a shape. Each must open with the quoted label, close with
-    // a full stop, and carry no double space or dangling connector from the edit.
-    const messages = [
-      renderRejection(GROWTH),
-      renderRejection({ ...GROWTH, code: "RESIZE_OPENS_GAP" }),
-      renderRejection({ ...GROWTH, code: "COLUMN_KEY_COLLISION" }),
-    ];
-
-    for (const message of messages) {
-      expect(message.startsWith("„Corp spălător”")).toBe(true);
-      expect(message.endsWith(".")).toBe(true);
-      expect(message).not.toContain("  ");
-      expect(message).not.toMatch(/,\s*\./);
-    }
-  });
-
-  it("is the sentence a real refused growth actually produces", () => {
-    // Rendered directly is not the same as reachable. This drives it out of `setWidth`.
+describe("the empty-space refusal descriptor", () => {
+  it("is the descriptor a real refused growth actually produces", () => {
     const result = resizeTo(pairWithEmptyColumnRight(100), "L-base", 800);
 
     expect(result.ok).toBe(false);
     if (result.ok) return;
-    expect(result.reason.message).toContain("ar mai avea nevoie de 200 mm");
-    expect(result.reason.message).toContain("spațiul liber este prea îngust");
+    expect(result.reason.code).toBe("NO_EMPTY_SPACE");
+    if (result.reason.code !== "NO_EMPTY_SPACE") return;
+    expect(result.reason.params.requestedMm).toBe(800);
+    expect(result.reason.params.deltaMm).toBe(200);
+    expect(
+      result.reason.params.sides.some((side) => side.reason === "too_narrow"),
+    ).toBe(true);
   });
 
   it("no shrink can reach the empty-space refusal", () => {
@@ -638,15 +583,16 @@ describe("the reworded empty-space sentence", () => {
     // reasons that can be pushed after that are `key_taken` and `opens_a_gap`, which
     // `refuseNoSideFunds` renders as `COLUMN_KEY_COLLISION` and `RESIZE_OPENS_GAP`.
     //
-    // The sweep below is the evidence rather than the argument — the same reason the row it replaced
-    // in `rejection.test.ts` could not carry it: that one called `renderRejection` directly.
+    // The sweep below is the evidence rather than the argument: it drives the actual command path.
     const reached: string[] = [];
     for (const { world, placementId, widthMm } of everyTap()) {
       const result = resizeTo(world, placementId, widthMm);
       if (result.ok) continue;
       if (result.reason.code !== "NO_EMPTY_SPACE") continue;
       if (result.reason.params.deltaMm >= 0) continue;
-      reached.push(result.reason.message);
+      reached.push(
+        `${result.reason.code}:${String(result.reason.params.deltaMm)}`,
+      );
     }
 
     expect(reached).toEqual([]);
@@ -657,8 +603,8 @@ describe("the reworded empty-space sentence", () => {
 // Q — the removed union arm leaves nothing unrenderable.
 // ---------------------------------------------------------------------------
 
-describe("every per-side reason a command can still produce has a sentence", () => {
-  it("renders a non-empty Romanian clause for each reason the sweep reaches", () => {
+describe("every per-side reason a command can still produce is typed", () => {
+  it("publishes a known reason for each side the sweep reaches", () => {
     const reasons = new Set<string>();
     let refusals = 0;
     for (const { world, placementId, widthMm } of everyTap()) {
@@ -668,7 +614,6 @@ describe("every per-side reason a command can still produce has a sentence", () 
         sides?: readonly { readonly reason: string }[];
       };
       for (const side of params.sides ?? []) reasons.add(side.reason);
-      expect(result.reason.message).not.toContain("undefined");
       refusals += 1;
     }
 

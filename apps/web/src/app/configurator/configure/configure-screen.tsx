@@ -10,7 +10,7 @@ import { PriceBar } from "@/price/price-bar";
 import { PriceBreakdown } from "@/price/price-breakdown";
 import { usePanelView } from "@/panel/use-panel-view";
 import { WebGLUnavailable } from "@/components/webgl-unavailable";
-import { ro } from "@/content/ro";
+import { useContent } from "@/i18n/use-content";
 import { OverflowWarning } from "@/scene/overflow-warning";
 import { GlobalSettings } from "@/settings/global-settings";
 import { SettingsPillMeasurement } from "@/settings/settings-pill-measurement";
@@ -25,12 +25,22 @@ import { useTopBarFit } from "./use-top-bar-fit";
 // The canvas never renders on the server, and its bundle is only fetched on the step that needs 3D.
 const KitchenCanvas = dynamic(() => import("@/scene/kitchen-canvas"), {
   ssr: false,
-  loading: () => <div className={styles.loading}>{ro.configure.loading}</div>,
+  loading: ConfigureLoading,
 });
+
+function ConfigureLoading() {
+  const content = useContent();
+  return <div className={styles.loading}>{content.configure.loading}</div>;
+}
 
 type SupportState = "probing" | "supported" | "unsupported";
 
-export function ConfigureScreen() {
+export function ConfigureScreen({
+  webglUnavailableTitleMobile,
+}: {
+  webglUnavailableTitleMobile?: string;
+} = {}) {
+  const ro = useContent();
   const [support, setSupport] = useState<SupportState>("probing");
   const [presetId, setPresetId] = useState<CameraPresetId>("overview");
   const panel = usePanelView();
@@ -47,7 +57,15 @@ export function ConfigureScreen() {
     [presetId],
   );
 
-  if (support === "unsupported") return <WebGLUnavailable />;
+  if (support === "unsupported") {
+    return (
+      <WebGLUnavailable
+        {...(webglUnavailableTitleMobile === undefined
+          ? {}
+          : { titleMobile: webglUnavailableTitleMobile })}
+      />
+    );
+  }
 
   return (
     <main

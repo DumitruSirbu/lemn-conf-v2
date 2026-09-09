@@ -19,7 +19,12 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { ro } from "@/content/ro";
+vi.mock("@/i18n/use-content", async () => {
+  const { ro } = await import("../support/romanian-content");
+  return { useContent: () => ro };
+});
+
+import { ro } from "../support/romanian-content";
 
 /** The two store slices the warning reads: the document it derives the overflow from, and the
  *  scene's own published "I am mounted" fact (`isBodyProbeAttached`). */

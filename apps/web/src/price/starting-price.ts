@@ -41,7 +41,7 @@ import {
   type PricedDesign,
 } from "@lemnaria/configurator-domain";
 
-import { ro } from "@/content/ro";
+import type { Content } from "@/i18n/content";
 
 /** MDL minor units are bani, as the price book's own head comment states. */
 const MINOR_UNITS_PER_MDL = 100;
@@ -79,6 +79,9 @@ export interface PriceFigure {
 export interface StartingPriceInput {
   /** Exact minor units, as a priced line or a priced total publishes them. */
   readonly totalMinor: number;
+  /** The active locale's price copy. The label is composed from it here, so no surface is handed
+   *  the choice — see this module's head comment on the withdrawn second prefix. */
+  readonly copy: Content["price"];
 }
 
 /**
@@ -121,7 +124,7 @@ export function holdsNoCabinets(priced: PricedDesign): boolean {
  *  bar, §9's footer, wave 6D's lines and 6G's sheet — comes through here. */
 export function describeStartingPrice(input: StartingPriceInput): PriceFigure {
   return {
-    label: ro.price.startingPrefix,
+    label: input.copy.startingPrefix,
     amountText: formatRoundedAmount(input.totalMinor),
   };
 }
@@ -209,6 +212,7 @@ function groupThousands(amountMdl: number): string {
  */
 export function describeFlaggedTotalWarning(
   priced: PricedDesign,
+  copy: Content["price"],
 ): string | undefined {
-  return priced.totalIsFlagged ? ro.price.overflowingTotalWarning : undefined;
+  return priced.totalIsFlagged ? copy.overflowingTotalWarning : undefined;
 }

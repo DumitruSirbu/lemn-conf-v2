@@ -17,9 +17,15 @@ import {
   buildKitchenLBodyCatalog,
   KITCHEN_L_DESIGN,
 } from "@lemnaria/configurator-domain";
+import { ro as content } from "../support/romanian-content";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
+
+vi.mock("@/i18n/use-content", async () => {
+  const { ro } = await import("../support/romanian-content");
+  return { useContent: () => ro };
+});
 
 import { ro } from "@/content/ro";
 import type { SaveStatus } from "@/persistence/save-coalescer";
@@ -121,6 +127,7 @@ function openSheetMarkupFor(access: {
   readonly saveStatus: SaveStatus;
 }): string {
   const view = describeGlobalSettings({
+    content: content,
     pricing: priceDesign({
       design: KITCHEN_L_DESIGN,
       catalog: KITCHEN_L_BODY_CATALOG,

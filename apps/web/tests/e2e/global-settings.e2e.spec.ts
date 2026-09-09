@@ -1,6 +1,6 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
-import { ro } from "../../src/content/ro";
+import { ro } from "../support/romanian-content.e2e";
 
 /**
  * **Frame 2E's sheet at 390 × 844, and the half of it no value assertion can see.**
@@ -19,6 +19,7 @@ import { ro } from "../../src/content/ro";
  */
 
 const SCENE_SETTLE_MS = 2000;
+const SEEDED_BODY_COUNT = 26;
 
 /** Larger than the number of stops inside the sheet, so a re-ordered tab ring changes nothing about
  *  what is asserted. */
@@ -113,7 +114,7 @@ test("says how many bodies it applies to, and that it is not set per cabinet", a
   await page.getByTestId("global-settings-trigger").tap();
 
   await expect(page.getByTestId("global-settings-applies-to")).toHaveText(
-    /\d+ (de )?corpuri\. Nu se setează pe fiecare corp în parte\./,
+    ro.globalSettings.appliesTo(SEEDED_BODY_COUNT),
   );
 });
 

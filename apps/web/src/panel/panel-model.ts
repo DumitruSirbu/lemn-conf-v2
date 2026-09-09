@@ -12,7 +12,6 @@ import {
   HandleSchema,
   isKnownKind,
   normaliseBand,
-  renderRejection,
   sameFinish,
   type CatalogOffer,
   type ColourControl,
@@ -20,7 +19,6 @@ import {
   type Handle,
   type Material,
   type MaterialLookup,
-  type OfferVerdict,
   type PaletteEntry,
   type PaletteEntryId,
   type PricingResult,
@@ -36,7 +34,7 @@ import type { SaveStatus } from "@/persistence/save-coalescer";
 import { describeEditability, type Editability } from "@/store/editability";
 import type { WriteAccess } from "@/store/configurator-store";
 
-import { ro } from "@/content/ro";
+import type { Content } from "@/i18n/content";
 import {
   describeFlaggedTotalWarning,
   describeStartingPrice,
@@ -99,8 +97,8 @@ export interface WidthChip {
   readonly isDisabled: boolean;
   /** §13.1's "greyed and unclickable **with the reason**", for the section that finally has real
    *  reasons to give. It is the engine's own sentence — `setWidth` refused this width and said why —
-   *  rendered through `renderRejection` exactly as a disabled offer row's is, so the width section
-   *  invents no vocabulary of its own (ADR 0032 rule 2).
+   *  resolved through the localized content boundary exactly as a disabled offer row's is, so the
+   *  width section invents no vocabulary of its own (ADR 0032 rule 2).
    *
    *  Absent on `free`, and on the ordinary `active` chip, in a writable panel: a width the body
    *  already has needs no explanation, and a reason beside a control that works is noise.
@@ -259,7 +257,8 @@ export interface WidthStepButton {
   /** §13.1's "greyed and unclickable **with the reason**", and the most-read sentence in the whole
    *  stepper: at a bound this is where §7's 800 ceiling, §2's 300 floor, the entry's own floor and
    *  ADR 0035 decision 6's hood floor are told to the customer. Always the engine's own words
-   *  through `renderRejection`, never copy authored here. Absent on a button that works. */
+   *  through the localized content boundary, never copy authored here. Absent on a button that
+   *  works. */
   readonly reason?: string;
 }
 
@@ -401,6 +400,7 @@ export interface OpenPanel {
 export type PanelView = ClosedPanel | OpenPanel;
 
 export interface DescribePanelInput {
+  readonly content: Content;
   /** `undefined` when nothing is selected, or when the selection no longer resolves. */
   readonly meta: SelectionMeta | undefined;
   readonly offers: readonly CatalogOffer[];
@@ -488,11 +488,12 @@ export function describePanel(input: DescribePanelInput): PanelView {
   const notice = describeNotice(input, editability);
   return {
     kind: "open",
-    header: describeHeader(meta),
+    header: describeHeader(meta, input.content),
     ...(notice ? { notice } : {}),
     sections: collectSections(input, meta, editability),
     footer: describeFooter({
       meta,
+      content: input.content,
       editability,
       rejection: input.rejection,
       ...(input.pricing ? { pricing: input.pricing } : {}),
@@ -503,6 +504,7 @@ export function describePanel(input: DescribePanelInput): PanelView {
 /** Everything §9's footer row is decided from, gathered into one argument so that adding the price
  *  did not turn a two-argument function into a three-argument one. */
 interface FooterContext {
+  readonly content: Content;
   readonly meta: SelectionMeta;
   readonly editability: PanelEditability;
   readonly rejection: RejectionReason | null;
@@ -519,8 +521,8 @@ function describeFooter(context: FooterContext): PanelFooter {
     ...(editability.isReadOnly
       ? { removeDisabledReason: editability.disabledReason }
       : {}),
-    removeLabel: ro.panel.remove,
-    doneLabel: ro.panel.done,
+    removeLabel: context.content.panel.remove,
+    doneLabel: context.content.panel.done,
     ...(price ? { price } : {}),
     ...(warning === undefined ? {} : { overflowWarning: warning }),
   };
@@ -533,13 +535,16 @@ function describeFooterPriceWarning(
 ): string | undefined {
   const { pricing } = context;
   if (!pricing?.ok) return undefined;
-  return describeFlaggedTotalWarning(pricing.priced);
+  return describeFlaggedTotalWarning(pricing.priced, context.content.price);
 }
 
 function describeFooterPrice(context: FooterContext): PriceFigure | undefined {
   const { pricing } = context;
   if (!pricing?.ok) return undefined;
-  return describeStartingPrice({ totalMinor: pricing.priced.totalMinor });
+  return describeStartingPrice({
+    totalMinor: pricing.priced.totalMinor,
+    copy: context.content.price,
+  });
 }
 
 /** `undefined` when there is nothing to say, which is the ordinary case: a writable panel whose
@@ -553,15 +558,16 @@ function describeNotice(
     return {
       kind: "save-failed",
       tone: "error",
-      message: ro.panel.saveFailedNotice,
+      message: input.content.panel.saveFailedNotice,
     };
   if (input.saveStatus === "stopped")
     return {
       kind: "save-stopped",
       tone: "error",
-      message: ro.panel.saveStoppedNotice,
+      message: input.content.panel.saveStoppedNotice,
     };
-  if (input.saveStatus === "conflict") return CONFLICT_NOTICE;
+  if (input.saveStatus === "conflict")
+    return describeConflictNotice(input.content);
   return undefined;
 }
 
@@ -577,15 +583,20 @@ function describeNotice(
  * whatever the design has become by the time it is pressed — so continuing to work and then
  * overwriting is a coherent path, where a greyed panel would only add a second thing to undo.
  */
-const CONFLICT_NOTICE: PanelNotice = {
-  kind: "save-conflict",
-  tone: "error",
-  message: ro.panel.saveConflictNotice,
-  actions: [
-    { kind: "reload-stored", label: ro.panel.saveConflictReloadLabel },
-    { kind: "overwrite-stored", label: ro.panel.saveConflictOverwriteLabel },
-  ],
-};
+function describeConflictNotice(content: Content): PanelNotice {
+  return {
+    kind: "save-conflict",
+    tone: "error",
+    message: content.panel.saveConflictNotice,
+    actions: [
+      { kind: "reload-stored", label: content.panel.saveConflictReloadLabel },
+      {
+        kind: "overwrite-stored",
+        label: content.panel.saveConflictOverwriteLabel,
+      },
+    ],
+  };
+}
 
 /**
  * Which sentence a locked panel earned. Four states, told apart by what is true of each — none of
@@ -607,15 +618,18 @@ function describeLockedNotice(input: DescribePanelInput): PanelNotice {
     return {
       kind: "access-checking",
       tone: "info",
-      message: ro.panel.accessCheckingNotice,
+      message: input.content.panel.accessCheckingNotice,
     };
   if (input.canWrite === "check-failed")
     return {
       kind: "access-uncheckable",
       tone: "error",
-      message: ro.panel.accessUncheckableNotice,
+      message: input.content.panel.accessUncheckableNotice,
       actions: [
-        { kind: "retry-access-check", label: ro.panel.accessRetryLabel },
+        {
+          kind: "retry-access-check",
+          label: input.content.panel.accessRetryLabel,
+        },
       ],
     };
   // Narrowed to a boolean by the two checks above, so the falsy test is right by rule here rather
@@ -625,19 +639,19 @@ function describeLockedNotice(input: DescribePanelInput): PanelNotice {
     return {
       kind: "read-only",
       tone: "info",
-      message: ro.panel.readOnlyNotice,
+      message: input.content.panel.readOnlyNotice,
     };
   return {
     kind: "read-only-refused",
     tone: "error",
-    message: ro.panel.readOnlyRefusedNotice,
+    message: input.content.panel.readOnlyRefusedNotice,
   };
 }
 
-function describeHeader(meta: SelectionMeta): PanelHeader {
+function describeHeader(meta: SelectionMeta, content: Content): PanelHeader {
   return {
     label: meta.label,
-    detail: ro.panel.headerMeta(
+    detail: content.panel.headerMeta(
       meta.wall,
       meta.bandLabel,
       meta.widthMm,
@@ -656,7 +670,10 @@ function collectSections(
 ): PanelSection[] {
   const sections: PanelSection[] = [];
   if (input.rejection) {
-    sections.push({ kind: "rejection", message: input.rejection.message });
+    sections.push({
+      kind: "rejection",
+      message: input.content.rejection(input.rejection),
+    });
   }
   // **The refusal is rendered whenever it is declared, offers or no offers** (§11 row 16, and the
   // owner's corner ruling of 2026-09-09). It used to be the *fallback* for a body that offered
@@ -665,7 +682,7 @@ function collectSections(
   // have shown *Finisaj* and silently dropped the one sentence that says why there is no swap list
   // and no delete — offering more and explaining less. Pushed **before** the offers so the customer
   // reads what this body is before what they can do to it.
-  const structural = describeStructuralSection(meta);
+  const structural = describeStructuralSection(meta, input.content);
   if (structural) sections.push(structural);
   sections.push(...collectOfferedSections(input, meta, editability));
   return sections;
@@ -687,15 +704,20 @@ function collectOfferedSections(
       input.material,
       meta.finish,
       editability,
+      input.content,
     );
     // **The follow chip is added here and not inside the projection** (ADR 0099 decisions 8 and 9).
     // The projection is shared with the global settings sheet, which is the level being followed and
     // so has nothing above it — a control offered there would be an offer this product cannot
     // satisfy (§9). Composed rather than parameterised: a fourth argument switching a control on and
     // off is the flag argument this codebase splits functions to avoid.
-    if (finish) sections.push(followingTheKitchen(finish, meta, editability));
+    if (finish)
+      sections.push(
+        followingTheKitchen(finish, meta, editability, input.content),
+      );
   }
-  if (meta.canHandle) sections.push(describeHandleSection(meta, editability));
+  if (meta.canHandle)
+    sections.push(describeHandleSection(meta, editability, input.content));
   // **Not gated on `meta.canWidth`** (ADR 0049). §9 item 6 made `fixedWidth` decide whether the
   // section *exists*, and it would hide the very section that record requires. The flag now gates
   // nothing in this panel at all: which chips are disabled is decided from the engine's verdict, by
@@ -716,12 +738,13 @@ function collectOfferedSections(
  *  generic copy, and it stays visible as the empty panel it is. */
 function describeStructuralSection(
   meta: SelectionMeta,
+  content: Content,
 ): StructuralSection | undefined {
   if (meta.structuralReason === undefined) return undefined;
   return {
     kind: "structural",
-    title: ro.panel.structuralTitle,
-    message: ro.panel.structuralReasons[meta.structuralReason],
+    title: content.panel.structuralTitle,
+    message: content.panel.structuralReasons[meta.structuralReason],
   };
 }
 
@@ -737,92 +760,85 @@ function describeReplaceSection(
   if (!meta.canReplace) return undefined;
   if (!meta.empty && !isKnownKind(meta.kind)) return undefined;
 
-  // ADR 0032 published the refused entries into this list with the engine's own reason on each.
-  // Rendering them — the disabled row, its sentence, and what it does to the count line — is the
-  // panel's own wave, so until then the projection is unchanged: it takes the offered verdicts and
-  // nothing else, which is exactly the list `offersFor` used to return. The filter is the seam that
-  // wave replaces; it is deliberately the only thing here that knows a refused verdict exists.
-  const rows = input.offers.filter(isOffered).map((offer) =>
+  const rows = input.offers.map((offer) =>
     describeOfferRow(offer, {
       isBodyProbeAttached: input.isBodyProbeAttached,
       editability,
+      content: input.content,
     }),
   );
   const title = meta.empty
-    ? ro.panel.replaceTitleEmpty
-    : ro.panel.replaceTitleOccupied;
+    ? input.content.panel.replaceTitleEmpty
+    : input.content.panel.replaceTitleOccupied;
   if (rows.length === 0) {
     return {
       kind: "replace",
       title,
       rows,
-      emptyLine: describeEmptyLine(meta, input.offers),
+      emptyLine: describeEmptyLine(meta, input.offers, input.content),
     };
   }
   return {
     kind: "replace",
     title,
-    countLine: describeCountLine(meta, rows.length),
+    countLine: describeCountLine(meta, rows.length, input.content),
     rows,
   };
 }
 
-/** An offer whose verdict is `offered`, so its built width and height are present. Narrowed once at
- *  the filter above rather than re-checked in every function below it. */
-type OfferedCatalogOffer = CatalogOffer & {
-  readonly verdict: Extract<OfferVerdict, { status: "offered" }>;
-};
-
-function isOffered(offer: CatalogOffer): offer is OfferedCatalogOffer {
-  return offer.verdict.status === "offered";
-}
-
-/** The two independent reasons a row can be offered and still be unclickable, in the order that
- *  matters: a browser that cannot write is not waiting for anything, so "the model is preparing"
- *  would be a promise nothing here can keep. */
+/** The independent reasons a row can be unclickable. Read-only wins; then a domain refusal; then a
+ *  model that is still preparing an otherwise valid insertion. */
 interface OfferRowAvailability {
   readonly isBodyProbeAttached: boolean;
   readonly editability: PanelEditability;
+  readonly content: Content;
 }
 
 /** §9's secondary line: the reason displaces the size on a disabled row, because at 390 px the row
  *  has one line under the name and the reason is the half the customer cannot guess. */
 function describeOfferRow(
-  offer: OfferedCatalogOffer,
+  offer: CatalogOffer,
   availability: OfferRowAvailability,
 ): OfferRow {
-  // ADR 0033: the width picks the drawing for a merged cabinet, exactly as it picks the label. Only
-  // an offered row reaches here, so the width is always present — see the filter in
-  // `describeReplaceSection`.
-  const thumbnailUrl = findCabinetThumbnailUrl(
-    offer.buildId,
-    offer.verdict.widthMm,
-  );
+  // ADR 0033: an accepted offer's built width picks the drawing for a merged cabinet, exactly as it
+  // picks the label. A refused row has no built size and therefore no thumbnail.
+  const thumbnailUrl =
+    offer.verdict.status === "offered"
+      ? findCabinetThumbnailUrl(offer.buildId, offer.verdict.widthMm)
+      : undefined;
   return {
     buildId: offer.buildId,
     label: offer.label,
     secondaryLine: describeOfferSecondaryLine(offer, availability),
     isCurrent: offer.isCurrent,
     isDisabled:
-      availability.editability.isReadOnly || !availability.isBodyProbeAttached,
+      availability.editability.isReadOnly ||
+      offer.verdict.status === "refused" ||
+      !availability.isBodyProbeAttached,
     ...(thumbnailUrl === undefined ? {} : { thumbnailUrl }),
   };
 }
 
 function describeOfferSecondaryLine(
-  offer: OfferedCatalogOffer,
-  { isBodyProbeAttached, editability }: OfferRowAvailability,
+  offer: CatalogOffer,
+  { isBodyProbeAttached, editability, content }: OfferRowAvailability,
 ): string {
   if (editability.isReadOnly) return editability.disabledReason;
-  if (!isBodyProbeAttached) return ro.panel.probeUnavailable;
-  return ro.panel.offerSize(offer.verdict.widthMm, offer.verdict.heightMm);
+  if (offer.verdict.status === "refused")
+    return content.rejection(offer.verdict.reason);
+  if (!isBodyProbeAttached) return content.panel.probeUnavailable;
+  return content.panel.offerSize(offer.verdict.widthMm, offer.verdict.heightMm);
 }
 
-function describeCountLine(meta: SelectionMeta, count: number): string {
+function describeCountLine(
+  meta: SelectionMeta,
+  count: number,
+  content: Content,
+): string {
   if (meta.empty)
-    return ro.panel.countForSlot(count, meta.openWmm, meta.openHmm);
-  const words = ro.panel.bandWords[normaliseBand(meta.band)];
-  return ro.panel.countForBody(
+    return content.panel.countForSlot(count, meta.openWmm, meta.openHmm);
+  const words = content.panel.bandWords[normaliseBand(meta.band)];
+  return content.panel.countForBody(
     count,
     count === 1 ? words.one : words.many,
     meta.widthMm,
@@ -849,19 +865,20 @@ function describeCountLine(meta: SelectionMeta, count: number): string {
 function describeEmptyLine(
   meta: SelectionMeta,
   offers: readonly CatalogOffer[],
+  content: Content,
 ): string {
   if (!meta.empty)
-    return ro.panel.noOffersForBody(
-      ro.panel.bandWords[normaliseBand(meta.band)].one,
+    return content.panel.noOffersForBody(
+      content.panel.bandWords[normaliseBand(meta.band)].one,
     );
   const span = describeBuildableSpanMm(offers);
   if (span === undefined)
-    return ro.panel.noOffersForSlot(meta.openWmm, meta.openHmm);
+    return content.panel.noOffersForSlot(meta.openWmm, meta.openHmm);
   if (meta.openWmm > span.maxMm)
-    return ro.panel.noOffersTooWide(meta.openWmm, span.maxMm);
+    return content.panel.noOffersTooWide(meta.openWmm, span.maxMm);
   if (meta.openWmm < span.minMm)
-    return ro.panel.noOffersTooNarrow(meta.openWmm, span.minMm);
-  return ro.panel.noOffersForSlot(meta.openWmm, meta.openHmm);
+    return content.panel.noOffersTooNarrow(meta.openWmm, span.minMm);
+  return content.panel.noOffersForSlot(meta.openWmm, meta.openHmm);
 }
 
 /** The narrowest and widest width **any** row in this band can be built at. `undefined` when no row
@@ -915,13 +932,19 @@ export function describeFinishSection(
   lookup: MaterialLookup,
   chosen: Finish | undefined,
   editability: PanelEditability,
+  content: Content,
 ): FinishSection | undefined {
   if (lookup.kind === "undeclared") return undefined;
   const { material } = lookup;
   if (material.colourControl.shape === "ral-picker") {
-    return describeRalPickerSection(material, chosen, editability);
+    return describeRalPickerSection(material, chosen, editability, content);
   }
-  return describeSwatchSection(material.colourControl, chosen, editability);
+  return describeSwatchSection(
+    material.colourControl,
+    chosen,
+    editability,
+    content,
+  );
 }
 
 /** §9's finish section with ADR 0099 decision 8's chip on it. The chip is *active* when the cabinet
@@ -931,12 +954,13 @@ function followingTheKitchen(
   section: FinishSection,
   meta: SelectionMeta,
   editability: PanelEditability,
+  content: Content,
 ): FinishSection {
   return {
     ...section,
     follow: {
       value: "follow",
-      label: ro.panel.finishFollowsKitchen,
+      label: content.panel.finishFollowsKitchen,
       isActive: meta.finish === undefined,
       ...describeChipAvailability(editability),
     },
@@ -951,15 +975,16 @@ function describeSwatchSection(
   control: Extract<ColourControl, { entries: readonly PaletteEntry[] }>,
   chosen: Finish | undefined,
   editability: PanelEditability,
+  content: Content,
 ): PaletteSwatchSection {
   return {
     kind: "finish",
     control: control.shape,
-    title: ro.panel.finishTitle,
+    title: content.panel.finishTitle,
     chips: control.entries.map((entry) =>
       describeFinishChip(entry, chosen, editability),
     ),
-    note: ro.panel.finishApproximationNote,
+    note: content.panel.finishApproximationNote,
   };
 }
 
@@ -988,15 +1013,16 @@ function describeRalPickerSection(
   material: Material,
   chosen: Finish | undefined,
   editability: PanelEditability,
+  content: Content,
 ): RalPickerSection {
   return {
     kind: "finish",
     control: "ral-picker",
-    title: ro.panel.finishTitle,
-    label: ro.panel.finishPickerLabel,
+    title: content.panel.finishTitle,
+    label: content.panel.finishPickerLabel,
     value: describePickerValue(material, chosen),
     ...describeChipAvailability(editability),
-    note: ro.panel.finishApproximationNote,
+    note: content.panel.finishApproximationNote,
   };
 }
 
@@ -1027,19 +1053,24 @@ function describePickerValue(
 function describeHandleSection(
   meta: SelectionMeta,
   editability: PanelEditability,
+  content: Content,
 ): HandleSection {
   const active = meta.handle ?? meta.defaultHandle;
   return {
     kind: "handle",
-    title: ro.panel.handleTitle,
+    title: content.panel.handleTitle,
     chips: HandleSchema.options.map((handle) => ({
       value: handle,
-      label: ro.panel.handleLabels[handle],
+      label: content.panel.handleLabels[handle],
       isActive: active === handle,
       ...describeChipAvailability(editability),
     })),
     ...(meta.handle === undefined
-      ? { note: ro.panel.handleDefaultNote(ro.panel.handleLabels[active]) }
+      ? {
+          note: content.panel.handleDefaultNote(
+            content.panel.handleLabels[active],
+          ),
+        }
       : {}),
   };
 }
@@ -1071,8 +1102,8 @@ function describeWidthSection(
   if (options.length === 0) return undefined;
   const head = {
     kind: "width",
-    title: ro.panel.widthTitle,
-    valueLabel: ro.panel.widthValue(meta.widthMm),
+    title: input.content.panel.widthTitle,
+    valueLabel: input.content.panel.widthValue(meta.widthMm),
   } as const;
   const steps = input.widthSteps;
   if (steps && isSteppedColumn(input.widthRanges ?? []))
@@ -1080,16 +1111,23 @@ function describeWidthSection(
       ...head,
       control: "stepper",
       steps: [
-        describeWidthStep("narrower", steps.narrower, editability),
-        describeWidthStep("wider", steps.wider, editability),
+        describeWidthStep(
+          "narrower",
+          steps.narrower,
+          editability,
+          input.content,
+        ),
+        describeWidthStep("wider", steps.wider, editability, input.content),
       ],
-      note: ro.panel.widthStepNote,
+      note: input.content.panel.widthStepNote,
     };
   return {
     ...head,
     control: "choice",
-    chips: options.map((option) => describeWidthChip(option, editability)),
-    note: ro.panel.widthChoiceNote,
+    chips: options.map((option) =>
+      describeWidthChip(option, editability, input.content),
+    ),
+    note: input.content.panel.widthChoiceNote,
   };
 }
 
@@ -1124,14 +1162,15 @@ function describeWidthStep(
   direction: WidthStepDirection,
   option: WidthOption,
   editability: PanelEditability,
+  content: Content,
 ): WidthStepButton {
   return {
     direction,
     widthMm: option.widthMm,
-    label: ro.panel.widthStepLabels[direction],
-    ariaLabel: ro.panel.widthStepAriaLabels[direction],
+    label: content.panel.widthStepLabels[direction],
+    ariaLabel: content.panel.widthStepAriaLabels[direction],
     isDisabled: editability.isReadOnly || option.verdict.status !== "available",
-    ...describeWidthStepReason(option.verdict, editability),
+    ...describeWidthStepReason(option.verdict, editability, content),
   };
 }
 
@@ -1140,10 +1179,11 @@ function describeWidthStep(
 function describeWidthStepReason(
   verdict: WidthOption["verdict"],
   editability: PanelEditability,
+  content: Content,
 ): { readonly reason?: string } {
   if (editability.isReadOnly) return { reason: editability.disabledReason };
   if (verdict.status !== "refused") return {};
-  return { reason: renderRejection(verdict.reason) };
+  return { reason: content.rejection(verdict.reason) };
 }
 
 /** One candidate width, in §9's vocabulary. Only a `free` chip is a move: `active` is the width the
@@ -1157,6 +1197,7 @@ function describeWidthStepReason(
 function describeWidthChip(
   option: WidthOption,
   editability: PanelEditability,
+  content: Content,
 ): WidthChip {
   const state = describeWidthChipState(option.verdict);
   return {
@@ -1164,7 +1205,7 @@ function describeWidthChip(
     label: String(option.widthMm),
     state,
     isDisabled: isWidthChipDisabled(state, editability),
-    ...describeWidthChipReason(option.verdict, editability),
+    ...describeWidthChipReason(option.verdict, editability, content),
   };
 }
 
@@ -1191,10 +1232,11 @@ function describeWidthChipState(
 function describeWidthChipReason(
   verdict: WidthOption["verdict"],
   editability: PanelEditability,
+  content: Content,
 ): { readonly reason?: string } {
   if (editability.isReadOnly) return { reason: editability.disabledReason };
   if (verdict.status === "current" || verdict.status === "available") return {};
-  return { reason: renderRejection(verdict.reason) };
+  return { reason: content.rejection(verdict.reason) };
 }
 
 /** Takes the whole three-state union rather than what any one milestone happens to produce, and

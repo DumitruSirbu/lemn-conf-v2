@@ -23,14 +23,19 @@ import {
   type Finish,
   type PricingResult,
 } from "@lemnaria/configurator-domain";
+import { ro as content } from "../support/romanian-content";
 import fc from "fast-check";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
-import { ro } from "@/content/ro";
+vi.mock("@/i18n/use-content", async () => {
+  const { ro } = await import("../support/romanian-content");
+  return { useContent: () => ro };
+});
+
 import {
   offerWholeKitchenTiers,
   type WholeKitchenTierOffer,
@@ -92,6 +97,7 @@ function viewOf(
   pending: WholeKitchenChoice,
 ): GlobalSettingsView {
   return describeGlobalSettings({
+    content: content,
     pricing: pricingOf(design),
     offer: offerOf(design),
     groups: projectDesignForDisplay(design, KITCHEN_L_BODY_CATALOG),
@@ -170,11 +176,15 @@ describe("acceptance 1 — the colour group renders after material, from the mat
   it("renders material, its note, colour, hardware and depth in that order", () => {
     const markup = markupOf(viewOf(KITCHEN_L_DESIGN, {}), WRITABLE);
 
-    const material = markup.indexOf(ro.globalSettings.groupHeadings.material);
+    const material = markup.indexOf(
+      content.globalSettings.groupHeadings.material,
+    );
     const note = markup.indexOf('data-testid="global-settings-warning"');
-    const colour = markup.indexOf(ro.globalSettings.colourHeading);
-    const hardware = markup.indexOf(ro.globalSettings.groupHeadings.hardware);
-    const depth = markup.indexOf(ro.globalSettings.depthHeading);
+    const colour = markup.indexOf(content.globalSettings.colourHeading);
+    const hardware = markup.indexOf(
+      content.globalSettings.groupHeadings.hardware,
+    );
+    const depth = markup.indexOf(content.globalSettings.depthHeading);
 
     expect(material).toBeGreaterThan(-1);
     expect(note).toBeGreaterThan(material);
@@ -193,11 +203,15 @@ describe("acceptance 1 — the colour group renders after material, from the mat
       WRITABLE,
     );
 
-    const material = markup.indexOf(ro.globalSettings.groupHeadings.material);
+    const material = markup.indexOf(
+      content.globalSettings.groupHeadings.material,
+    );
     const note = markup.indexOf('data-testid="global-settings-warning"');
-    const hardware = markup.indexOf(ro.globalSettings.groupHeadings.hardware);
+    const hardware = markup.indexOf(
+      content.globalSettings.groupHeadings.hardware,
+    );
 
-    expect(markup).not.toContain(ro.globalSettings.colourHeading);
+    expect(markup).not.toContain(content.globalSettings.colourHeading);
     expect(note).toBeGreaterThan(material);
     expect(hardware).toBeGreaterThan(note);
   });
@@ -249,6 +263,7 @@ describe("acceptance 1 — the colour group renders after material, from the mat
     // The confirm step replaces the body wholesale, so its one write action carries the same guard —
     // asserted here because this wave adds a fourth group to the press that button commits.
     const view = describeGlobalSettings({
+      content: content,
       pricing: pricingOf(KITCHEN_L_DESIGN),
       offer: offerOf(KITCHEN_L_DESIGN),
       groups: projectDesignForDisplay(KITCHEN_L_DESIGN, KITCHEN_L_BODY_CATALOG),
@@ -279,7 +294,9 @@ describe("acceptance 1 — the colour group renders after material, from the mat
     );
 
     expect(markup).toContain(confirm.body);
-    expect(markup).toContain(ro.globalSettings.materialResetConfirm.globalBody);
+    expect(markup).toContain(
+      content.globalSettings.materialResetConfirm.globalBody,
+    );
     expect(markup).toMatch(
       /data-testid="global-settings-confirm"[^>]*disabled=""/,
     );

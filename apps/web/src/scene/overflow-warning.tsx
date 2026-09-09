@@ -2,7 +2,7 @@
 
 import type { CSSProperties } from "react";
 
-import { ro } from "@/content/ro";
+import { useContent } from "@/i18n/use-content";
 import { useConfiguratorStore } from "@/store/configurator-store";
 
 import styles from "./overflow-warning.module.css";
@@ -36,6 +36,7 @@ const OVERFLOW_WARNING_METRICS = {
  * the marks arrive together or not at all.
  */
 export function OverflowWarning() {
+  const ro = useContent();
   const overflowingIds = useOverflowingPlacementIds();
   const isSceneMounted = useConfiguratorStore(
     (state) => state.isBodyProbeAttached,

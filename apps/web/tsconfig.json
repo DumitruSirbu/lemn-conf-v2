@@ -2,6 +2,7 @@
   "$schema": "https://json.schemastore.org/tsconfig",
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
+    "allowArbitraryExtensions": true,
     "jsx": "preserve",
     // Next declares `*.module.css` as an untyped index signature, so every `styles.foo` would have
     // to be written `styles["foo"]`. Relaxed here only; `strict` and every other gate still apply,

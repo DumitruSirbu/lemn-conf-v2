@@ -125,9 +125,7 @@ describe("the bottle cargo's own floor stands in place of §2's", () => {
       code: "WIDTH_TOO_SMALL",
       params: { requiredMm: CARGO_MIN_WIDTH_MM, availableMm: 199 },
     });
-    // §11 row 5: the millimetres reach the customer, not just the params.
-    expect(result.reason.message).toContain(String(CARGO_MIN_WIDTH_MM));
-    expect(result.reason.message).toContain("199");
+    // §11 row 5: both millimetre figures cross the domain boundary as typed params.
   });
 
   it.each(BOUNDARY_WIDTHS_MM)(

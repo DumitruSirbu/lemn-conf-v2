@@ -480,7 +480,7 @@ function refuseUnusableDeclaredFloor(
 
 /** ADR 0017's refusal, from both places that reach it — an opening under the floor, and a size set
  *  entirely under it. The two reasons differ and are documented at their own call sites; only the
- *  detail's construction is shared, so the code, its params and its sentence cannot drift apart. */
+ *  detail's construction is shared, so the code and its typed params cannot drift apart. */
 function refuseBodyMinimum(
   body: InsertableBody,
   minimumMm: number,

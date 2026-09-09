@@ -48,7 +48,12 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 
-import { ro } from "@/content/ro";
+vi.mock("@/i18n/use-content", async () => {
+  const { ro } = await import("../support/romanian-content");
+  return { useContent: () => ro };
+});
+
+import { ro } from "../support/romanian-content";
 import {
   createConfiguratorStore,
   type ConfiguratorState,
@@ -179,7 +184,11 @@ function availableView(
   pricing: PricingResult,
   groups: readonly DisplayGroup[],
 ): AvailableBreakdown {
-  const view = describePriceBreakdown({ pricing, groups });
+  const view = describePriceBreakdown({
+    content: ro,
+    pricing,
+    groups,
+  });
   if (view.kind !== "available")
     throw new Error("expected the seeded design to price");
   return view;
@@ -296,7 +305,11 @@ describe("the two-way refusal, at every edge and not only at two of them", () =>
       const short = SHIPPED_GROUPS.filter((_, other) => other !== index);
 
       expect(() =>
-        describePriceBreakdown({ pricing: SHIPPED_PRICING, groups: short }),
+        describePriceBreakdown({
+          content: ro,
+          pricing: SHIPPED_PRICING,
+          groups: short,
+        }),
       ).toThrow(PriceBreakdownDivergenceError);
     }
   });
@@ -318,7 +331,11 @@ describe("the two-way refusal, at every edge and not only at two of them", () =>
         );
 
         expect(() =>
-          describePriceBreakdown({ pricing: SHIPPED_PRICING, groups: short }),
+          describePriceBreakdown({
+            content: ro,
+            pricing: SHIPPED_PRICING,
+            groups: short,
+          }),
         ).toThrow(PriceBreakdownDivergenceError);
       }
     }
@@ -333,6 +350,7 @@ describe("the two-way refusal, at every edge and not only at two of them", () =>
 
       expect(() =>
         describePriceBreakdown({
+          content: ro,
           pricing: withLines(SHIPPED_PRICING, short),
           groups: SHIPPED_GROUPS,
         }),

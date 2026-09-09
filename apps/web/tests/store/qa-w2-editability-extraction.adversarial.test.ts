@@ -19,6 +19,7 @@
 import { describe, expect, it } from "vitest";
 
 import { ro } from "@/content/ro";
+import { ro as content } from "../support/romanian-content";
 import type { SaveStatus } from "@/persistence/save-coalescer";
 import { describePanel } from "@/panel/panel-model";
 import type { WriteAccess } from "@/store/configurator-store";
@@ -86,6 +87,7 @@ function wasDisabledReasonBeforeW2(canWrite: WriteAccess): string {
 function openPanelAt(access: Access) {
   const meta = occupiedMeta();
   const view = describePanel({
+    content,
     material: PAL_KITCHEN,
     meta,
     offers: offers(3),

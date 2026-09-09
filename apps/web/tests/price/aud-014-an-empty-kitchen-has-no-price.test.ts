@@ -33,6 +33,7 @@ import {
 import { describe, expect, it } from "vitest";
 
 import { ro } from "@/content/ro";
+import { ro as content } from "../support/romanian-content";
 import { describePriceBar } from "@/price/price-bar-model";
 import { describePriceBreakdown } from "@/price/price-breakdown-model";
 
@@ -62,11 +63,12 @@ function priceOf(design: Design): PricingResult {
 }
 
 function barFor(design: Design) {
-  return describePriceBar({ pricing: priceOf(design) });
+  return describePriceBar({ pricing: priceOf(design), content });
 }
 
 function breakdownFor(design: Design) {
   return describePriceBreakdown({
+    content,
     pricing: priceOf(design),
     groups: projectDesignForDisplay(design, catalog),
   });

@@ -17,13 +17,13 @@ export type ContentSecurityPolicyMode = "report-only" | "enforce";
  * nothing else.
  *
  * **Do not flip it until the prerendered pages render dynamically.** A nonce only reaches the HTML
- * of a dynamically rendered response. Measured against `next build` at this commit: `/d/[id]` is
- * dynamic and carries nonces on all of its scripts, but the five routes in
- * `.next/prerender-manifest.json` — `/`, `/_global-error`, `/_not-found`,
- * `/configurator/configure` and `/configurator/contact` — are prerendered and carry **none**: ten
- * same-origin chunk tags plus two inline RSC flight-payload scripts whose content is page-specific,
- * so they cannot be admitted by hash either. Under `"enforce"` every one of them would be blocked
- * and those pages would go blank. `/_global-error` is the worst of the five to lose and the easiest
+ * of a dynamically rendered response. Measured against `next build` at this commit:
+ * `/[locale]/d/[id]` is dynamic and carries nonces on all of its scripts, but the eight routes in
+ * `.next/prerender-manifest.json` — `/_global-error`, `/_not-found`, and the `ro` and `ru` variants
+ * of `/`, `/configurator/configure` and `/configurator/contact` — are prerendered and carry
+ * **none**. Their same-origin chunk tags and inline RSC flight-payload scripts have page-specific
+ * content, so they cannot be admitted by hash either. Under `"enforce"` every one of them would be
+ * blocked and those pages would go blank. `/_global-error` is the worst of the eight to lose and the easiest
  * to miss — it is the boundary that has to render when something else has already failed, and the
  * printed build route table does not list it at all.
  *

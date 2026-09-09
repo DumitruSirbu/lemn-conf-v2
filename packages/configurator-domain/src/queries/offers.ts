@@ -49,9 +49,9 @@ import type {
  *  panel would have to guess whether to believe it.
  *
  *  `reason` is the `RejectionDetail` the engine already produced, carried whole and not re-derived:
- *  its code, its params and the sentence `rejection.ts` renders from them are one fact with one
- *  author (ADR 0032 rule 2). A renderer therefore needs nothing from this list but the list —
- *  no second evaluation, no re-reading of the catalogue, no vocabulary of its own.
+ *  its code and typed params are one fact with one author (ADR 0032 rule 2). A renderer therefore
+ *  needs nothing from this list but the list — no second evaluation, no re-reading of the catalogue,
+ *  no vocabulary of its own.
  *
  *  "refused" rather than "disabled": the engine refuses, and a surface renders a refusal however it
  *  renders one. ADR 0032's disabled row is that rendering, not this word. */

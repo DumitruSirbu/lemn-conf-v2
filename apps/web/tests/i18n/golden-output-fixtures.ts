@@ -1,0 +1,895 @@
+import { createTranslator } from "next-intl";
+
+import {
+  describeBodyLabelAt,
+  deriveDoorCount,
+  INSERTABLE_BODY_DEFINITIONS,
+  SAMPLE_PRICE_BOOK,
+  type EmptySpaceSide,
+  type RejectionCode,
+  type RejectionDetail,
+} from "@lemnaria/configurator-domain";
+
+import { resolveContent } from "../../src/i18n/content";
+import correctedRomanian from "../../src/messages/ro.json";
+import { ro as romanianContent } from "../support/romanian-content";
+
+export type GoldenFixtureGroup = "content" | "rejection" | "catalog";
+
+export interface GoldenFixture {
+  readonly id: string;
+  readonly group: GoldenFixtureGroup;
+  readonly sourceKey: string;
+  readonly renderLegacy: () => string;
+  readonly renderCorrected: () => string;
+}
+
+const translate = createTranslator({
+  locale: "ro",
+  messages: correctedRomanian,
+});
+const resolvedContent = resolveContent(translate);
+
+function contentFixture(
+  family: string,
+  variant: string,
+  renderLegacy: () => string,
+  renderCorrected: () => string,
+): GoldenFixture {
+  return {
+    id: `content.${family}.${variant}`,
+    group: "content",
+    sourceKey: family,
+    renderLegacy,
+    renderCorrected,
+  };
+}
+
+const PLURAL_BOUNDARIES = [0, 1, 2, 19, 20, 100, 101] as const;
+
+function insertableDefinition(buildId: string) {
+  const entry = INSERTABLE_BODY_DEFINITIONS.find(
+    ([candidateBuildId]) => candidateBuildId === buildId,
+  );
+  if (entry === undefined) {
+    throw new Error(`Missing fixture catalogue entry ${buildId}`);
+  }
+  return entry[1];
+}
+
+function bodyLabelFromCatalogue(buildId: string, widthMm: number): string {
+  return describeBodyLabelAt(insertableDefinition(buildId), widthMm);
+}
+
+function requiredFixtureValue<T>(value: T | undefined, id: string): T {
+  if (value === undefined) throw new Error(`Missing fixture value ${id}`);
+  return value;
+}
+
+const BASE_BAND_WORD = romanianContent.panel.bandWords.base.one;
+
+/**
+ * The 17 function-valued content families. The gate compares this declaration to a runtime walk of
+ * resolved Romanian content, so a newly introduced function cannot silently miss the oracle.
+ */
+export const CONTENT_FUNCTION_FAMILIES = [
+  "panel.headerMeta",
+  "panel.countForBody",
+  "panel.countForSlot",
+  "panel.noOffersForBody",
+  "panel.noOffersForSlot",
+  "panel.noOffersTooWide",
+  "panel.noOffersTooNarrow",
+  "panel.offerSize",
+  "panel.handleDefaultNote",
+  "panel.widthValue",
+  "priceBreakdown.placementLabel",
+  "priceBreakdown.groupHeading",
+  "priceBreakdown.wholeKitchenLabel",
+  "globalSettings.appliesTo",
+  "globalSettings.tierDelta",
+  "globalSettings.depthOption",
+  "globalSettings.materialResetConfirm.body",
+  "globalSettings.applyRefused",
+  "globalSettings.pillMaterial",
+  "globalSettings.pillColourValue",
+  "globalSettings.pillHardware",
+  "globalSettings.pillDepth",
+  "globalSettings.pillNameAllSettings",
+] as const;
+
+export const FUNCTION_CONTENT_FIXTURES: readonly GoldenFixture[] = [
+  contentFixture(
+    "panel.headerMeta",
+    "wall-a-base-600x860",
+    () => romanianContent.panel.headerMeta("A", BASE_BAND_WORD, 600, 860),
+    () =>
+      translate("panel.headerMeta", {
+        wall: "A",
+        bandLabel: BASE_BAND_WORD,
+        widthMm: 600,
+        heightMm: 860,
+      }),
+  ),
+  ...PLURAL_BOUNDARIES.map((count) =>
+    contentFixture(
+      "panel.countForBody",
+      `count-${String(count)}`,
+      () => romanianContent.panel.countForBody(count, BASE_BAND_WORD, 600),
+      () =>
+        translate("panel.countForBody", {
+          count,
+          bandWord: BASE_BAND_WORD,
+          widthMm: 600,
+        }),
+    ),
+  ),
+  ...[0, 1, 2, 20, 101].map((count) =>
+    contentFixture(
+      "panel.countForSlot",
+      `count-${String(count)}`,
+      () => romanianContent.panel.countForSlot(count, 700, 860),
+      () =>
+        translate("panel.countForSlot", {
+          count,
+          widthMm: 700,
+          heightMm: 860,
+        }),
+    ),
+  ),
+  ...(
+    [
+      { id: "base", value: romanianContent.panel.bandWords.base.one },
+      { id: "wall", value: romanianContent.panel.bandWords.wall.one },
+      { id: "column", value: romanianContent.panel.bandWords.column.one },
+    ] as const
+  ).map(({ id, value: bandWord }) =>
+    contentFixture(
+      "panel.noOffersForBody",
+      id,
+      () => romanianContent.panel.noOffersForBody(bandWord),
+      () => translate("panel.noOffersForBody", { bandWord }),
+    ),
+  ),
+  contentFixture(
+    "panel.noOffersForSlot",
+    "200x700",
+    () => romanianContent.panel.noOffersForSlot(200, 700),
+    () => translate("panel.noOffersForSlot", { widthMm: 200, heightMm: 700 }),
+  ),
+  contentFixture(
+    "panel.noOffersTooWide",
+    "900-over-800",
+    () => romanianContent.panel.noOffersTooWide(900, 800),
+    () =>
+      translate("panel.noOffersTooWide", {
+        widthMm: 900,
+        maxWidthMm: 800,
+      }),
+  ),
+  contentFixture(
+    "panel.noOffersTooNarrow",
+    "150-under-200",
+    () => romanianContent.panel.noOffersTooNarrow(150, 200),
+    () =>
+      translate("panel.noOffersTooNarrow", {
+        widthMm: 150,
+        minWidthMm: 200,
+      }),
+  ),
+  ...(
+    [
+      [200, 700],
+      [800, 2_200],
+    ] as const
+  ).map(([widthMm, heightMm]) =>
+    contentFixture(
+      "panel.offerSize",
+      `${String(widthMm)}x${String(heightMm)}`,
+      () => romanianContent.panel.offerSize(widthMm, heightMm),
+      () => translate("panel.offerSize", { widthMm, heightMm }),
+    ),
+  ),
+  ...(
+    [
+      { id: "steel", value: romanianContent.panel.handleLabels.steel },
+      { id: "push", value: romanianContent.panel.handleLabels.push },
+    ] as const
+  ).map(({ id, value: label }) =>
+    contentFixture(
+      "panel.handleDefaultNote",
+      id,
+      () => romanianContent.panel.handleDefaultNote(label),
+      () => translate("panel.handleDefaultNote", { label }),
+    ),
+  ),
+  ...[200, 800, 1_200].map((widthMm) =>
+    contentFixture(
+      "panel.widthValue",
+      String(widthMm),
+      () => romanianContent.panel.widthValue(widthMm),
+      () => translate("panel.widthValue", { widthMm }),
+    ),
+  ),
+  ...(
+    [
+      ["base-cabinet", 200],
+      ["base-dishwasher", 600],
+    ] as const
+  ).map(([buildId, widthMm]) => {
+    const bodyLabel = bodyLabelFromCatalogue(buildId, widthMm);
+    return contentFixture(
+      "priceBreakdown.placementLabel",
+      `${buildId}-${String(widthMm)}`,
+      () => romanianContent.priceBreakdown.placementLabel(bodyLabel, widthMm),
+      () =>
+        translate("priceBreakdown.placementLabel", {
+          bodyLabel,
+          widthMm,
+        }),
+    );
+  }),
+  ...(
+    [
+      ["wall-a-base", "A", romanianContent.priceBreakdown.bandHeadings.base],
+      ["wall-b-wall", "B", romanianContent.priceBreakdown.bandHeadings.wall],
+      [
+        "wall-a-column",
+        "A",
+        romanianContent.priceBreakdown.bandHeadings.column,
+      ],
+    ] as const
+  ).map(([id, wall, bandWord]) =>
+    contentFixture(
+      "priceBreakdown.groupHeading",
+      id,
+      () => romanianContent.priceBreakdown.groupHeading(wall, bandWord),
+      () => translate("priceBreakdown.groupHeading", { wall, bandWord }),
+    ),
+  ),
+  ...(
+    [
+      [
+        "material",
+        romanianContent.priceBreakdown.wholeKitchenCategories.material,
+        requiredFixtureValue(
+          SAMPLE_PRICE_BOOK.material.tiers[0]?.name,
+          "default material tier",
+        ),
+      ],
+      [
+        "hardware",
+        romanianContent.priceBreakdown.wholeKitchenCategories.hardware,
+        requiredFixtureValue(
+          SAMPLE_PRICE_BOOK.hardware.tiers[1]?.name,
+          "second hardware tier",
+        ),
+      ],
+      [
+        "accessory",
+        romanianContent.priceBreakdown.wholeKitchenCategories.accessory,
+        SAMPLE_PRICE_BOOK.accessories.dishDryingRack.name,
+      ],
+    ] as const
+  ).map(([id, categoryWord, tierName]) =>
+    contentFixture(
+      "priceBreakdown.wholeKitchenLabel",
+      id,
+      () =>
+        romanianContent.priceBreakdown.wholeKitchenLabel(
+          categoryWord,
+          tierName,
+        ),
+      () =>
+        translate("priceBreakdown.wholeKitchenLabel", {
+          categoryWord,
+          tierName,
+        }),
+    ),
+  ),
+  ...PLURAL_BOUNDARIES.map((bodyCount) =>
+    contentFixture(
+      "globalSettings.appliesTo",
+      `count-${String(bodyCount)}`,
+      () => romanianContent.globalSettings.appliesTo(bodyCount),
+      () => translate("globalSettings.appliesTo", { bodyCount }),
+    ),
+  ),
+  ...[9_000, 18_000].map((addedAmount) =>
+    contentFixture(
+      "globalSettings.tierDelta",
+      addedAmount === 9_000 ? "small-delta" : "large-delta",
+      () => romanianContent.globalSettings.tierDelta(String(addedAmount)),
+      () =>
+        translate("globalSettings.tierDelta", {
+          addedAmount: String(addedAmount),
+        }),
+    ),
+  ),
+  ...[600, 700].map((cabinetDepthMm) =>
+    contentFixture(
+      "globalSettings.depthOption",
+      String(cabinetDepthMm),
+      () => romanianContent.globalSettings.depthOption(cabinetDepthMm),
+      () => translate("globalSettings.depthOption", { cabinetDepthMm }),
+    ),
+  ),
+  contentFixture(
+    "globalSettings.applyRefused",
+    "material",
+    () =>
+      romanianContent.globalSettings.applyRefused(
+        "Material",
+        "Materialul ales nu mai este disponibil. Alege altă variantă.",
+      ),
+    () =>
+      translate("globalSettings.applyRefused", {
+        settingName: "Material",
+        reason: "Materialul ales nu mai este disponibil. Alege altă variantă.",
+      }),
+  ),
+  contentFixture(
+    "globalSettings.pillMaterial",
+    "pal-melaminat",
+    () => romanianContent.globalSettings.pillMaterial("PAL melaminat"),
+    () =>
+      translate("globalSettings.pillMaterial", { tierName: "PAL melaminat" }),
+  ),
+  contentFixture(
+    "globalSettings.pillColourValue",
+    "free-colour",
+    () => romanianContent.globalSettings.pillColourValue("#8A6E4B"),
+    () =>
+      translate("globalSettings.pillColourValue", { colourValue: "#8A6E4B" }),
+  ),
+  contentFixture(
+    "globalSettings.pillHardware",
+    "feronerie-hettich",
+    () => romanianContent.globalSettings.pillHardware("Feronerie", "Hettich"),
+    () =>
+      translate("globalSettings.pillHardware", {
+        categoryWord: "Feronerie",
+        tierName: "Hettich",
+      }),
+  ),
+  ...[600, 700].map((cabinetDepthMm) =>
+    contentFixture(
+      "globalSettings.pillDepth",
+      String(cabinetDepthMm),
+      () => romanianContent.globalSettings.pillDepth(cabinetDepthMm),
+      () => translate("globalSettings.pillDepth", { cabinetDepthMm }),
+    ),
+  ),
+  contentFixture(
+    "globalSettings.pillNameAllSettings",
+    "four-settings",
+    () =>
+      romanianContent.globalSettings.pillNameAllSettings([
+        "PAL melaminat",
+        "Alb",
+        "Feronerie Hettich",
+        "Adâncime 600",
+      ]),
+    () =>
+      translate("globalSettings.pillNameAllSettings", {
+        openLabel: translate("globalSettings.open"),
+        settings: [
+          "PAL melaminat",
+          "Alb",
+          "Feronerie Hettich",
+          "Adâncime 600",
+        ].join(translate("globalSettings.pillNameJoin")),
+      }),
+  ),
+  ...[0, 1, 2, 20].map((chosenCount) =>
+    contentFixture(
+      "globalSettings.materialResetConfirm.body",
+      `count-${String(chosenCount)}`,
+      () =>
+        romanianContent.globalSettings.materialResetConfirm.body(chosenCount),
+      () =>
+        translate("globalSettings.materialResetConfirm.body", { chosenCount }),
+    ),
+  ),
+];
+
+interface StaticContent {
+  readonly path: string;
+  readonly value: string;
+}
+
+function collectStaticContent(): readonly StaticContent[] {
+  const leaves: StaticContent[] = [];
+  function visit(value: unknown, path: string): void {
+    if (typeof value === "string") {
+      leaves.push({ path, value });
+      return;
+    }
+    if (
+      typeof value === "function" ||
+      value === null ||
+      typeof value !== "object" ||
+      Array.isArray(value)
+    ) {
+      return;
+    }
+    for (const [key, child] of Object.entries(value)) {
+      visit(child, path === "" ? key : `${path}.${key}`);
+    }
+  }
+  visit(romanianContent, "");
+  return leaves;
+}
+
+export function correctedMessageAt(path: string): string {
+  let cursor: unknown = correctedRomanian;
+  for (const segment of path.split(".")) {
+    if (
+      cursor === null ||
+      typeof cursor !== "object" ||
+      Array.isArray(cursor)
+    ) {
+      throw new Error(`Corrected catalogue has no message at ${path}`);
+    }
+    cursor = (cursor as Readonly<Record<string, unknown>>)[segment];
+  }
+  if (typeof cursor !== "string") {
+    throw new Error(`Corrected catalogue has no message leaf at ${path}`);
+  }
+  return cursor;
+}
+
+const translateRuntime = translate as unknown as (
+  key: string,
+  values?: Readonly<Record<string, string | number>>,
+) => string;
+
+const STATIC_RENDER_ARGUMENTS: Readonly<
+  Record<string, Readonly<Record<string, string | number>>>
+> = {
+  "configure.step": { step: 2, totalSteps: 4 },
+  "configure.stepPill": { step: 2, totalSteps: 4 },
+};
+
+export const STATIC_RENDER_ARGUMENT_PATHS = Object.keys(
+  STATIC_RENDER_ARGUMENTS,
+);
+
+export const RESOLVED_STATIC_CONTENT = collectStaticContent();
+
+export const STATIC_CONTENT_FIXTURES: readonly GoldenFixture[] =
+  RESOLVED_STATIC_CONTENT.map(({ path, value }) => ({
+    id: `content.static.${path}`,
+    group: "content" as const,
+    sourceKey: path,
+    renderLegacy: () => value,
+    renderCorrected: () => {
+      const message = correctedMessageAt(path);
+      const values = STATIC_RENDER_ARGUMENTS[path];
+      if (values !== undefined) return translateRuntime(path, values);
+      if (message.includes("{")) {
+        throw new Error(
+          `Static legacy message ${path} became ICU without an explicit rendered fixture`,
+        );
+      }
+      return translateRuntime(path);
+    },
+  }));
+
+export const CONTENT_FIXTURES: readonly GoldenFixture[] = [
+  ...STATIC_CONTENT_FIXTURES,
+  ...FUNCTION_CONTENT_FIXTURES,
+];
+
+type RejectionMessageKey = Exclude<
+  keyof typeof correctedRomanian.rejection,
+  "parts"
+>;
+
+interface RejectionFixture extends GoldenFixture {
+  readonly code: RejectionCode;
+  readonly messageKey: RejectionMessageKey;
+  readonly detail: RejectionDetail;
+  readonly coveredSideBranches?: readonly `${EmptySpaceSide["side"]}:${EmptySpaceSide["reason"]}`[];
+  readonly widthClauseBranch?: "between" | "at" | "list";
+}
+
+function rejectionFixture(
+  id: string,
+  messageKey: RejectionMessageKey,
+  detail: RejectionDetail,
+  options: Pick<
+    RejectionFixture,
+    "coveredSideBranches" | "widthClauseBranch"
+  > = {},
+): RejectionFixture {
+  return {
+    id: `rejection.${id}`,
+    group: "rejection",
+    sourceKey: `rejection.${messageKey}`,
+    code: detail.code,
+    messageKey,
+    detail,
+    renderLegacy: () => resolvedContent.rejection(detail),
+    renderCorrected: () => resolvedContent.rejection(detail),
+    ...options,
+  };
+}
+
+const noParams = {};
+const label = bodyLabelFromCatalogue("base-cabinet", 600);
+const memberLabel = bodyLabelFromCatalogue("hood", 600);
+
+export const REJECTION_FIXTURES: readonly RejectionFixture[] = [
+  rejectionFixture("void-selected", "VOID_SELECTED", {
+    code: "VOID_SELECTED",
+    params: noParams,
+  }),
+  rejectionFixture("target-not-found", "TARGET_NOT_FOUND", {
+    code: "TARGET_NOT_FOUND",
+    params: noParams,
+  }),
+  rejectionFixture("invalid-occurred-at", "INVALID_OCCURRED_AT", {
+    code: "INVALID_OCCURRED_AT",
+    params: noParams,
+  }),
+  rejectionFixture("body-probe-unavailable", "BODY_PROBE_UNAVAILABLE", {
+    code: "BODY_PROBE_UNAVAILABLE",
+    params: noParams,
+  }),
+  rejectionFixture("accessory-not-deletable", "ACCESSORY_NOT_DELETABLE", {
+    code: "ACCESSORY_NOT_DELETABLE",
+    params: { label },
+  }),
+  rejectionFixture("not-deletable", "NOT_DELETABLE", {
+    code: "NOT_DELETABLE",
+    params: { label },
+  }),
+  rejectionFixture("not-in-library", "NOT_IN_LIBRARY", {
+    code: "NOT_IN_LIBRARY",
+    params: { buildId: "missing-build" },
+  }),
+  rejectionFixture("not-insertable", "NOT_INSERTABLE", {
+    code: "NOT_INSERTABLE",
+    params: { label },
+  }),
+  rejectionFixture("target-not-replaceable", "TARGET_NOT_REPLACEABLE", {
+    code: "TARGET_NOT_REPLACEABLE",
+    params: { label },
+  }),
+  rejectionFixture("band-mismatch-base", "BAND_MISMATCH", {
+    code: "BAND_MISMATCH",
+    params: { label, bodyBand: "wall", slotBand: "base" },
+  }),
+  rejectionFixture("band-mismatch-wall", "BAND_MISMATCH", {
+    code: "BAND_MISMATCH",
+    params: { label, bodyBand: "base", slotBand: "wall" },
+  }),
+  rejectionFixture("width-too-large", "WIDTH_TOO_LARGE", {
+    code: "WIDTH_TOO_LARGE",
+    params: { label, requiredMm: 800, availableMm: 750 },
+  }),
+  rejectionFixture("width-too-small", "WIDTH_TOO_SMALL", {
+    code: "WIDTH_TOO_SMALL",
+    params: { label, requiredMm: 560, availableMm: 550 },
+  }),
+  rejectionFixture(
+    "width-too-small-unknown-floor",
+    "WIDTH_TOO_SMALL_UNKNOWN_FLOOR",
+    {
+      code: "WIDTH_TOO_SMALL",
+      params: { label, availableMm: 550 },
+    },
+  ),
+  rejectionFixture(
+    "width-not-supported-body-range",
+    "WIDTH_NOT_SUPPORTED_BODY",
+    {
+      code: "WIDTH_NOT_SUPPORTED",
+      params: {
+        label,
+        sizesMm: [200, 250, 300],
+        widthRangesMm: [{ minMm: 200, maxMm: 800 }],
+        boundScope: "body",
+        availableMm: 175,
+      },
+    },
+    { widthClauseBranch: "between" },
+  ),
+  rejectionFixture(
+    "width-not-supported-column-list",
+    "WIDTH_NOT_SUPPORTED_COLUMN",
+    {
+      code: "WIDTH_NOT_SUPPORTED",
+      params: {
+        label,
+        sizesMm: [450, 600],
+        boundScope: "column",
+        availableMm: 550,
+      },
+    },
+    { widthClauseBranch: "list" },
+  ),
+  rejectionFixture(
+    "width-not-supported-no-width",
+    "WIDTH_NOT_SUPPORTED_NO_WIDTH",
+    {
+      code: "WIDTH_NOT_SUPPORTED",
+      params: {
+        label,
+        sizesMm: [],
+        widthRangesMm: [],
+        boundScope: "column",
+        availableMm: 600,
+      },
+    },
+  ),
+  rejectionFixture(
+    "width-not-supported-mixed-ranges",
+    "WIDTH_NOT_SUPPORTED_BODY",
+    {
+      code: "WIDTH_NOT_SUPPORTED",
+      params: {
+        label,
+        sizesMm: [300, 450, 500, 550, 600],
+        widthRangesMm: [
+          { minMm: 300, maxMm: 300 },
+          { minMm: 450, maxMm: 600 },
+        ],
+        boundScope: "body",
+        availableMm: 700,
+      },
+    },
+    { widthClauseBranch: "at" },
+  ),
+  rejectionFixture("opening-too-short", "OPENING_TOO_SHORT", {
+    code: "OPENING_TOO_SHORT",
+    params: { availableMm: 150, minimumMm: 200 },
+  }),
+  rejectionFixture("height-exceeds-level", "HEIGHT_EXCEEDS_LEVEL", {
+    code: "HEIGHT_EXCEEDS_LEVEL",
+    params: { label, requiredMm: 2_200, availableMm: 700 },
+  }),
+  rejectionFixture("height-too-large", "HEIGHT_TOO_LARGE", {
+    code: "HEIGHT_TOO_LARGE",
+    params: { label, requiredMm: 860, availableMm: 700 },
+  }),
+  rejectionFixture("no-snap-position", "NO_SNAP_POSITION", {
+    code: "NO_SNAP_POSITION",
+    params: { label },
+  }),
+  rejectionFixture("built-size-mismatch", "BUILT_SIZE_MISMATCH", {
+    code: "BUILT_SIZE_MISMATCH",
+    params: { label, requiredMm: 600, builtMm: 599 },
+  }),
+  rejectionFixture("measurement-unusable", "MEASUREMENT_UNUSABLE", {
+    code: "MEASUREMENT_UNUSABLE",
+    params: { label, field: "widthM" },
+  }),
+  rejectionFixture("column-mismatch", "COLUMN_MISMATCH", {
+    code: "COLUMN_MISMATCH",
+    params: { label },
+  }),
+  rejectionFixture("not-resizable-fixed", "NOT_RESIZABLE", {
+    code: "NOT_RESIZABLE",
+    params: { label, cause: "fixed" },
+  }),
+  rejectionFixture("not-resizable-unresolvable", "NOT_RESIZABLE", {
+    code: "NOT_RESIZABLE",
+    params: { label, cause: "unresolvable" },
+  }),
+  rejectionFixture("width-unchanged", "WIDTH_UNCHANGED", {
+    code: "WIDTH_UNCHANGED",
+    params: { label, widthMm: 600 },
+  }),
+  rejectionFixture(
+    "no-empty-space",
+    "NO_EMPTY_SPACE",
+    {
+      code: "NO_EMPTY_SPACE",
+      params: {
+        label,
+        requestedMm: 650,
+        deltaMm: 50,
+        sides: [
+          { side: "right", reason: "absent" },
+          { side: "left", reason: "too_narrow" },
+        ],
+      },
+    },
+    { coveredSideBranches: ["right:absent", "left:too_narrow"] },
+  ),
+  rejectionFixture(
+    "column-member-not-resizable",
+    "COLUMN_MEMBER_NOT_RESIZABLE",
+    {
+      code: "COLUMN_MEMBER_NOT_RESIZABLE",
+      params: { label, memberLabel },
+    },
+  ),
+  rejectionFixture(
+    "dependent-member-not-rebuildable",
+    "DEPENDENT_MEMBER_NOT_REBUILDABLE",
+    {
+      code: "DEPENDENT_MEMBER_NOT_REBUILDABLE",
+      params: { label, memberLabel },
+    },
+  ),
+  rejectionFixture(
+    "resize-opens-gap",
+    "RESIZE_OPENS_GAP",
+    {
+      code: "RESIZE_OPENS_GAP",
+      params: {
+        label,
+        requestedMm: 550,
+        deltaMm: -50,
+        sides: [
+          { side: "right", reason: "opens_a_gap" },
+          { side: "left", reason: "key_taken" },
+        ],
+      },
+    },
+    { coveredSideBranches: ["right:opens_a_gap", "left:key_taken"] },
+  ),
+  rejectionFixture(
+    "column-key-collision",
+    "COLUMN_KEY_COLLISION",
+    {
+      code: "COLUMN_KEY_COLLISION",
+      params: {
+        label,
+        requestedMm: 550,
+        deltaMm: -50,
+        sides: [
+          { side: "right", reason: "key_taken" },
+          { side: "left", reason: "absent" },
+        ],
+      },
+    },
+    { coveredSideBranches: ["right:key_taken", "left:absent"] },
+  ),
+  rejectionFixture("column-hood-floor", "COLUMN_HOOD_FLOOR", {
+    code: "COLUMN_HOOD_FLOOR",
+    params: { label, requestedMm: 550, hoodWidthMm: 600 },
+  }),
+  rejectionFixture("non-integer-millimetres", "NON_INTEGER_MILLIMETRES", {
+    code: "NON_INTEGER_MILLIMETRES",
+    params: { field: "widthMm", valueMm: 599.5 },
+  }),
+  rejectionFixture("finish-not-supported", "FINISH_NOT_SUPPORTED", {
+    code: "FINISH_NOT_SUPPORTED",
+    params: { label },
+  }),
+  rejectionFixture("finish-not-offered", "FINISH_NOT_OFFERED", {
+    code: "FINISH_NOT_OFFERED",
+    params: noParams,
+  }),
+  rejectionFixture("handle-not-supported", "HANDLE_NOT_SUPPORTED", {
+    code: "HANDLE_NOT_SUPPORTED",
+    params: { label },
+  }),
+  rejectionFixture("unknown-material-tier", "UNKNOWN_MATERIAL_TIER", {
+    code: "UNKNOWN_MATERIAL_TIER",
+    params: noParams,
+  }),
+  rejectionFixture("unknown-hardware-tier", "UNKNOWN_HARDWARE_TIER", {
+    code: "UNKNOWN_HARDWARE_TIER",
+    params: noParams,
+  }),
+  rejectionFixture("unknown-cabinet-depth", "UNKNOWN_CABINET_DEPTH", {
+    code: "UNKNOWN_CABINET_DEPTH",
+    params: noParams,
+  }),
+];
+
+const catalogueEntryMessages: Readonly<Record<string, string>> =
+  correctedRomanian.catalog.entries;
+
+function correctedCatalogueLabel(
+  buildId: string,
+  definition: (typeof INSERTABLE_BODY_DEFINITIONS)[number][1],
+  widthMm: number,
+): string {
+  const name = catalogueEntryMessages[buildId];
+  if (name === undefined) {
+    throw new Error(`No corrected catalogue message for ${buildId}`);
+  }
+  if (definition.doorCountFollowsWidth !== true) return name;
+  return translate("catalog.bodyLabelWithDoors", {
+    name,
+    doors: deriveDoorCount(widthMm),
+  });
+}
+
+export const CATALOGUE_FIXTURES: readonly GoldenFixture[] =
+  INSERTABLE_BODY_DEFINITIONS.flatMap(([buildId, definition]) => {
+    if (definition.sizesMm === undefined) {
+      throw new Error(
+        `Insertable catalogue entry ${buildId} has no offered widths`,
+      );
+    }
+    return definition.sizesMm.map((widthMm) => ({
+      id: `catalog.${buildId}.${String(widthMm)}`,
+      group: "catalog" as const,
+      sourceKey: `catalog.entries.${buildId}`,
+      renderLegacy: () => describeBodyLabelAt(definition, widthMm),
+      renderCorrected: () =>
+        correctedCatalogueLabel(buildId, definition, widthMm),
+    }));
+  });
+
+export const GOLDEN_FIXTURES: readonly GoldenFixture[] = [
+  ...CONTENT_FIXTURES,
+  ...REJECTION_FIXTURES,
+  ...CATALOGUE_FIXTURES,
+];
+
+export function collectContentFunctionFamilies(): readonly string[] {
+  const families: string[] = [];
+  function visit(value: unknown, path: string): void {
+    if (typeof value === "function") {
+      if (path === "rejection") return;
+      families.push(path);
+      return;
+    }
+    if (value === null || typeof value !== "object" || Array.isArray(value)) {
+      return;
+    }
+    for (const [key, child] of Object.entries(value)) {
+      visit(child, path === "" ? key : `${path}.${key}`);
+    }
+  }
+  visit(romanianContent, "");
+  return families.sort();
+}
+
+export const REJECTION_CATALOGUE_MESSAGE_KEYS = Object.keys(
+  correctedRomanian.rejection,
+).filter((key) => key !== "parts");
+
+export const REJECTION_CODES = [
+  "VOID_SELECTED",
+  "TARGET_NOT_FOUND",
+  "INVALID_OCCURRED_AT",
+  "BODY_PROBE_UNAVAILABLE",
+  "ACCESSORY_NOT_DELETABLE",
+  "NOT_DELETABLE",
+  "NOT_IN_LIBRARY",
+  "NOT_INSERTABLE",
+  "TARGET_NOT_REPLACEABLE",
+  "BAND_MISMATCH",
+  "WIDTH_TOO_LARGE",
+  "WIDTH_TOO_SMALL",
+  "WIDTH_NOT_SUPPORTED",
+  "OPENING_TOO_SHORT",
+  "HEIGHT_EXCEEDS_LEVEL",
+  "HEIGHT_TOO_LARGE",
+  "NO_SNAP_POSITION",
+  "BUILT_SIZE_MISMATCH",
+  "MEASUREMENT_UNUSABLE",
+  "COLUMN_MISMATCH",
+  "NOT_RESIZABLE",
+  "WIDTH_UNCHANGED",
+  "NO_EMPTY_SPACE",
+  "COLUMN_MEMBER_NOT_RESIZABLE",
+  "DEPENDENT_MEMBER_NOT_REBUILDABLE",
+  "RESIZE_OPENS_GAP",
+  "COLUMN_KEY_COLLISION",
+  "COLUMN_HOOD_FLOOR",
+  "NON_INTEGER_MILLIMETRES",
+  "FINISH_NOT_SUPPORTED",
+  "FINISH_NOT_OFFERED",
+  "HANDLE_NOT_SUPPORTED",
+  "UNKNOWN_MATERIAL_TIER",
+  "UNKNOWN_HARDWARE_TIER",
+  "UNKNOWN_CABINET_DEPTH",
+] as const satisfies readonly RejectionCode[];
+
+// The `satisfies` above rejects invented codes; this reverse check rejects a new union member that
+// has not been added to the runtime coverage surface.
+const REJECTION_CODE_EXHAUSTIVENESS: Record<
+  Exclude<RejectionCode, (typeof REJECTION_CODES)[number]>,
+  never
+> = {};
+void REJECTION_CODE_EXHAUSTIVENESS;

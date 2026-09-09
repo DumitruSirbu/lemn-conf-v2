@@ -267,9 +267,10 @@ describe("the two refusals' ruled sentences", () => {
     });
     expect(result.ok).toBe(false);
     if (result.ok) return;
-    expect(result.reason.message).toBe(
-      "Materialul ales nu mai este disponibil. Alege altă variantă.",
-    );
+    expect(result.reason).toEqual({
+      code: "UNKNOWN_MATERIAL_TIER",
+      params: {},
+    });
   });
 
   it("says the hardware is gone and what to do about it", () => {
@@ -280,9 +281,10 @@ describe("the two refusals' ruled sentences", () => {
     });
     expect(result.ok).toBe(false);
     if (result.ok) return;
-    expect(result.reason.message).toBe(
-      "Feroneria aleasă nu mai este disponibilă. Alege altă variantă.",
-    );
+    expect(result.reason).toEqual({
+      code: "UNKNOWN_HARDWARE_TIER",
+      params: {},
+    });
   });
 
   // The id is developer text and must never reach a customer sentence.
@@ -294,7 +296,6 @@ describe("the two refusals' ruled sentences", () => {
     });
     expect(result.ok).toBe(false);
     if (result.ok) return;
-    expect(result.reason.message).not.toContain("material-withdrawn");
     expect(result.reason.params).toEqual({});
   });
 });
