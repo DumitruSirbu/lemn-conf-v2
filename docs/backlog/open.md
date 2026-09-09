@@ -1356,3 +1356,134 @@ edited by either wave.
   decision, not a backlog item. The gate is `docs/milestones/M8-review-contact-success.md` under
   "Launch gate"; the decisions are ADR 0019 and its 2026-08-31 correction. Until that gate is
   checked off, do not expose the endpoint to real traffic.
+
+## 61. The open shelf sits on the handle line where the owner ruled it onto the door line — RULED 2026-09-09, DEFERRED TO ITS OWN WAVE
+
+**Ruled by the owner on 2026-09-09**: the open shelf's boards sit on the **door line — 309 mm at a
+600 mm kitchen and 379 at a 700 mm one**. They were shown three planes and chose the middle one:
+
+| the shelf's boards sit at | 600 | 700 | reads as |
+| --- | --- | --- | --- |
+| the handle line (today) | 330 | 400 | proud of the doors by 21 mm |
+| **the door line — RULED** | **309** | **379** | flush with the door faces |
+| the shell line | 291 | 361 | recessed 18 mm *behind* the doors |
+
+**Deferred to a wave of its own, after M6**, on the consequence in "What stopped it" below. The
+analysis is complete and a working patch exists; the next wave starts from there, not from scratch.
+
+### The measurement that made it decidable
+
+The report was *"the open shelves cabinet in both 600 and 700mm have bigger depth than other
+cabinets"*. Measured on the mounted bodies — `open-shelf-600` (`p12`) against its neighbour
+`wall-2door-800` (`p11`), world-space front faces:
+
+| surface | 600 mm | 700 mm |
+| --- | --- | --- |
+| neighbour `carcass_shell` front | 291 | 361 |
+| neighbour `door_front` outer face | **309** | **379** |
+| neighbour `handle_bar` outer tip | **330** | **400** |
+| shelf boards, all six | **330** | **400** |
+
+So the shelf is **exactly flush with the neighbour's handle tips** and **21 mm proud of its door
+faces**, at both depths. `WALL_FRONT_ASSEMBLY_MM`'s 39 decomposes, measured rather than inferred, as
+**18 mm of door slab plus 21 mm of handle projection**.
+
+**Neither the drawing nor the declaration is wrong.** `frontAssemblyMm: 0` and the geometry agree to
+the millimetre, and the shelf's *occupied* depth is identical to its neighbours'. What disagrees is
+the declaration and the eye: two thin handle bars and a solid full-height plane do not read alike
+even where they measure alike. Without the 18/21 decomposition this reads as a vague complaint about
+depth; with it, it is a choice between three named planes.
+
+### Why there is no drawing-only fix
+
+`deriveFrame` ([`void-engine.ts`](../../packages/configurator-domain/src/void-engine.ts)) seats a
+body from **`definition.frameDepthMm`**, halved by `deriveCabinetWorldTransform`, and
+`scene-sync.ts` applies `record.frame.z` verbatim — **nothing measures the built body**. A 309-deep
+shelf under a 330 declaration would span 10.5 → 319.5: short of the door line *and* hanging 10.5 mm
+off the wall. And the shelf is `seatedOnWallPlane`, so its front-face position and its seat are one
+number and cannot be separated. **It is a domain change.**
+
+### What stopped it — read this before assuming the shelf broke something
+
+A shallower shelf is *genuinely* shallower, and a column's depth is the MAX over its vertical run.
+So swapping an open shelf into a wall slot **lowers that column's maximum**, and `insertBody` calls
+`replanDependentMembers`, which rebuilds a dependent body through the probe. A swap that took one
+probe measurement now takes two.
+
+`insert-depth.test.ts` goes from 22 passing to **4 failing**. Three of those four are **fronted**
+rows — `p11 wall-2door-800`, `p17`, `p18` — and they fail **only because every case in that file
+inserts `SWAP_BUILD_ID = "open-shelf"`**. The shelf does not break unrelated cabinets; each of those
+cases *is* "swap a shelf into this slot". The fourth is the shelf itself, receiving 330 where the
+declaration now says 309.
+
+**The behaviour is correct** — the re-plan machinery exists for exactly this — but it is a new side
+effect on a customer's tap, discovered after the change was written, and that class was reserved for
+the owner. Hence the deferral.
+
+### Three fields per entry, not two
+
+Both `open-shelf` ([§7, `catalog.ts`](../../packages/configurator-domain/src/catalog.ts)) and
+`open-shelf-600` ([seeded, `kitchen-l-design.ts`](../../packages/configurator-domain/src/fixtures/kitchen-l-design.ts))
+move together (ADR 0075 decision 1):
+
+1. **`frameDepthMm`** — the seat, `wallCarcassDepthMm` → the door line.
+2. **`nominalDepthMm`** — what `buildCatalogBody` builds an *inserted* shelf to. Left at the handle
+   line it draws a 330 body against a 309 declaration, and `occupied-depth.parity.test.ts` catches
+   it. This is the field that was missed in the first scoping.
+3. **`occupiedDepth`** — the *expression* (`shellPlusFrontMm(NO_FRONT_ASSEMBLY_MM)`) is unchanged;
+   its published value follows the shell to 309/379.
+
+`wallCarcassDepthMm` and `wallCarcassSeatDepthMm` themselves **must not move** — fifteen readers,
+including every fronted wall and top row, `along-wall-chain-shift.ts`'s `wall-map` arm and the frozen
+map.
+
+### The new domain constant
+
+The door line is `wallCarcassSeatDepthMm(d) + door thickness`, and **the door thickness is not
+declared anywhere in the domain**: `WALL_FRONT_ASSEMBLY_MM = 39` states the whole assembly and its
+18/21 decomposition lives only in its prose. The patch adds `WALL_DOOR_SLAB_MM` and
+`WALL_HANDLE_PROJECTION_MM` beside it with a load-time guard that the three add up, following that
+constant's **own** stated precedent: the domain declares it, the adapter goes on deriving its `TH`
+from the door it actually builds, and a three-adapter gate holds the two to one number — ADR 0028's
+remedy for two constants agreeing by luck.
+
+### Price is unaffected
+
+Confirmed, not assumed: no depth token of any kind reaches `packages/configurator-domain/src/pricing/`
+(its only `depth` matches are a prototype-chain bound and a comment), the pricing path reads
+`widthMm` and `heightMm` and no other millimetre quantity, and `cabinet.open-shelf` is priced by
+width and height. The shelf also declares `NO_OPENING_FRONTS` and `NO_CABINET_HANDLES`, so ADR 0070's
+per-leaf hardware gives it nothing either way.
+
+### What is already written — start here
+
+**The patch is 255 lines at
+`testing-reports/backlog-61-shelf-door-line/item3-shelf-door-line.patch`** (gitignored, and
+deliberately not left in the shared scratchpad, which is wiped). It carries: the two constants and
+their guard; `wallDoorFaceDepthMm` deriving 309/379; both catalogue entries moved; the adapter's
+`openShelfDepth` derived from the `TH` it builds, wired through `decomposed-bodies.ts` and
+`buildKitchen`; and `qa-6k-d-shell-declaration-pairing.adversarial.test.ts` re-pointed.
+
+### Remaining work, enumerated
+
+1. Re-point five pinned numbers: `occupied-depth.test.ts:172`, `cabinet-depth-parameter.test.ts:86`,
+   `qa-5f-depth-roundtrip.adversarial.test.ts:195`, `qa-6k-d-frame-depth-fixed-point`'s comment, and
+   `worktop-depth.qa.test.ts`.
+2. `cabinet-depth-parameter.test.ts` gets a **second dated re-baseline note** naming the owner's
+   ruling, written *beside* the 2026-09-05 one rather than editing numbers underneath it
+   (`docs/WORKFLOW.md`: a re-baseline is announced, never relaxed).
+3. Re-point `insert-depth.test.ts` to expect the dependent re-plan, saying why the three fronted rows
+   are involved.
+4. Add the three-adapter gate holding `TH` to `WALL_DOOR_SLAB_MM`.
+5. Add the relation assertion.
+
+### Rulings that survive into that wave
+
+- **The parts-gallery specimen at `kitchen-parts.ts:1188`, `openShelf(0.8, 0.3, 2)`, stays at 0.3**
+  and carries a comment saying it is deliberately outside this rule — it is not in a kitchen, follows
+  no depth map, and must not acquire a dependency on the wall map to keep a screenshot honest.
+- **Assert the relation, never the literal**: the shelf's board front equals the neighbour's
+  `door_front` outer face at **every declared depth**. A test pinning 309 passes at 600 and says
+  nothing about 700 or about a third depth.
+- **Do not change a declared depth to make a picture look right.** The two shared depth functions
+  above feed ADR 0028's map, the corner reach, the frozen map and the price.
