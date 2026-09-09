@@ -120,9 +120,9 @@ PASS.
 ## What is open right now
 
 - **M6's remaining work is verification and two owner rulings — as of 2026-09-08 (evening).** Every
-  wave row but 6Y is DONE and the branch `fix/m6-remediation` is green: domain **3653**,
-  three-adapter **2970**, web **1997 and no skips**, persistence **282**, typecheck / lint /
-  `format:check` clean, at `eeedf85`. What is owed before M6 can be called closed:
+  wave row but 6Y is DONE and the branch `fix/m6-remediation` is green: domain **3729**,
+  three-adapter **3022**, web **2005 and no skips**, persistence **282**, typecheck / lint /
+  `format:check` clean, **120 commits ahead of `main`** at `ca1310f`. What is owed before M6 can be called closed:
   - **~~No browser has seen any of 2026-09-08's work.~~ DRIVEN 2026-09-09**, evidence in
     `testing-reports/vis6z-2026-09-09/` (20 captures, gitignored). Both waves render correctly.
     ADR 0099: the cabinets repaint on a global colour, a per-cabinet override changes only that
@@ -185,16 +185,48 @@ PASS.
   - **The clean-code and logic review pair** on the 2026-09-08 waves. The pair covering the evening's
     audit-remediation commits (`b1185dd..d426c5d`) was dispatched 2026-09-08; the pair covering wave
     6Z and the scene-colour wave has not been.
-  - **Two owner rulings, and they are the only things here that are not work.** **M6-AUD-013**: the
-    desktop price surface is pointer-modal and keyboard-nonmodal, and the three coherent resolutions
-    are materially different products — remove the desktop scrim, make desktop genuinely modal, or
-    keep the dim and let the page stay reachable. **M6-AUD-014**: a zero-placement design prices
-    successfully and reads *De la 0 MDL*; the audit is explicit that the sentence must not be
-    invented in code, and that this gates M7 rather than M6. Neither blocks a deploy.
-  - **The severity for backlog 50 and 51, which is one ruling and not two.** Both are the load seam:
-    a new refusal code can make a stored document unloadable (ADR 0052's dead link), and severity is
-    declared per code (ADR 0069). Reachability is now measured — see the entry below — so what is
-    left is only what the gate should *say*.
+  - **~~Two owner rulings~~ ALL FOUR RULED AND SHIPPED, 2026-09-09.** The owner answered every open
+    question in one round, and each answer is now in the tree with its regression:
+    - **M6-AUD-013** — *remove the desktop dim* (`fca2ee8`). Both shells are genuinely non-modal, so
+      `aria-modal`'s absence is true in every input mode rather than the weaker of two answers that
+      disagreed. Click-outside-to-close on desktop went with it, deliberately; Escape and the close
+      button remain. The e2e case that clicked the scrim is replaced by the assertion the change
+      exists for — a pointer can reach the page behind the open popover — asked of
+      `document.elementFromPoint` rather than a locator, so a fixed overlay under any class name
+      fails it.
+    - **M6-AUD-014** — *valid, but no price* (`c6610cf`). Zero placements stay loadable, shareable and
+      refused at no seam, which is what M7 needs the day it produces an empty proposal. The bar
+      carries the owner's own sentence where the figure would be, and the breakdown reports
+      `unavailable` so no control opens it and no tier is rendered *inclus* over an empty kitchen.
+      The breakdown requires **both** halves — no cabinet lines **and** no groups — because absent
+      lines beside groups naming bodies is not emptiness, it is the divergence that surface refuses
+      to render, and the first half alone swallowed that guard.
+    - **Backlog 50** — *mark, never refuse* (`1a004ee`). See the entry below; every stored document
+      still loads.
+    - **Backlog 60** — *structural cabinetry follows the kitchen, appliances never do*, with open
+      shelves inheriting by default (`fde1efc`, `8f08182`, ADR 0099 Amendment B in `ca1310f`).
+
+- **What the 2026-09-09 waves landed, and the one thing each got right that is worth keeping.**
+  - **Backlog 50's gate rediscovered its own defect.** The owner ruled `mark`; the *reach* was an
+    engineering call and the coordinator's first instruction — measure from `occupiedDepth` — was
+    **wrong**, because two worktop slabs meeting at an L-joint is what a corner is (ADR 0025), and
+    that reach marked the shipped kitchen and broke twelve assertions on accepted documents across
+    two packages. The carcass seat is the reach, which is what entry 50's own 80 mm and 31 mm
+    figures had said all along. Then `qa-6x-slide-witness` at 700 mm turned out to be a **true
+    positive**: its fixture swaps the setting and moves no placement, so the carcass goes 560 → 660
+    against a return still at 580 and the wall band 291 → 361 against one still at 330 — **exactly
+    the 80 and 31** the entry was opened on. The new code found the original defect in a fixture
+    nobody built for it.
+  - **Backlog 60 separated following from being visible.** `applyBodyFinish` paints declared surfaces,
+    so a declaration flip alone can be a no-op on screen. Every body's rendered colour was measured
+    off the built object before and after: three corner doors moved in the first wave, the shelf's
+    six boards in the second, and `base-corner-return-320` moved nothing **and owes nothing** — its
+    only cabinetry surface is the carcass interior every body shares. That is recorded as a
+    conclusion, not a deferral.
+  - **The wrong fix was measured rather than argued down.** Widening `FRONT_MESH_NAME` for the shelf
+    would have changed which meshes count as a handle's parent and what a whole-room repaint touches;
+    a census found `side_left`, `side_right` and `back_panel` are also built by the dishwasher, the
+    800 sink and the oven tower. Applying it anyway turns **26 adapter tests red across five files**.
   - **~~`setWidth` does not raise the mark ADR 0065 requires.~~ WITHDRAWN 2026-09-08 — there is no
     defect here, and this entry was wrong twice before it was right.** Re-measured end to end: on
     wall B at 700, recorded `B|2.72` is 600 wide and published is 500; `setWidth(800)` is accepted
