@@ -6,14 +6,22 @@
 // nothing inside the surface looked wrong. The fix clamps `max-height` to the viewport.
 //
 // **`--popover-top: 128px` is asserted, not measured**, and the shape of the guarantee is arithmetic
-// rather than declarative: the surface hangs at `top: 100%` of its anchor plus `margin-top`, so the
-// clamp is only correct while
+// rather than declarative. What the constant has to stand above is the **top of the surface in the
+// viewport**, and since 2026-09-09 the two surfaces reach that top by different routes:
 //
-//     anchor bottom + margin-top  ≤  --popover-top + --safe-gap
+//     price-breakdown    anchor bottom + margin-top   ≤  --popover-top + --safe-gap
+//     global-settings    its declared `top`           ≤  --popover-top + --safe-gap
 //
-// A node runtime cannot measure the left-hand side. What it can do is hold every part of the
-// right-hand side that a stylesheet declares, publish the budget the constant leaves, and refuse the
-// shapes that would break the guarantee no matter what the measurement turns out to be:
+// The settings modal is **viewport-positioned** since the owner's ruling of that date — *"center
+// this modal"* — because centring in the viewport cannot be reached from a containing block that
+// shrink-wraps the pill. That is a re-pointing of this file and not a weakening of it: the settings
+// surface's top stopped being unmeasurable here and became a number this runtime can read, so the
+// claim about it got **stronger**, while the breakdown's is unchanged.
+//
+// A node runtime still cannot measure an anchor's bottom. What it can do is hold every part of the
+// right-hand side that a stylesheet declares, publish the budget the constant leaves for the one
+// surface that still needs one, and refuse the shapes that would break the guarantee no matter what
+// the measurement turns out to be:
 //
 //   - a clamp that is not a `min()`, which could make a surface **taller** than its drawn height;
 //   - the two popovers taking different tokens, which is how one gets fixed and the other rots;
@@ -72,8 +80,8 @@ function surfaceRulesOf(stylesheet: string): readonly string[] {
 
 /** How far below its anchor a surface hangs, in either spelling a stylesheet may use for it: a
  *  `margin-top`, or the offset inside frame D2E's own `top: calc(100% + 33px)`. The number is what
- *  `--popover-top` stands in for, so reading only one spelling would let the other change the
- *  geometry without moving the budget. */
+ *  `--popover-top` stands in for on an anchor-hung surface, so reading only one spelling would let
+ *  the other change the geometry without moving the budget. */
 function offsetBelowTheAnchorOf(name: string, desktopRule: string): number {
   const declared =
     /margin-top:\s*(\d+)px/.exec(desktopRule)?.[1] ??
@@ -83,6 +91,30 @@ function offsetBelowTheAnchorOf(name: string, desktopRule: string): number {
       `${name}'s desktop surface declares no offset below its anchor`,
     );
   return Number(declared);
+}
+
+/** A `--name: 42px` declaration inside one rule body. */
+function pixelPropertyOf(rule: string, name: string): number {
+  const declared = new RegExp(`--${name}:\\s*([\\d.]+)px`).exec(rule)?.[1];
+  if (!declared) throw new Error(`the rule declares no --${name} in px`);
+  return Number(declared);
+}
+
+/**
+ * **Where the settings modal's top edge lands in the viewport**, computed from the four properties
+ * its own rule declares rather than from a literal.
+ *
+ * It is viewport-positioned since the centring ruling, so unlike the breakdown there is no anchor
+ * left to stand in for — the number is fully determined by the stylesheet and this runtime can have
+ * it. The arithmetic is the rule's own, restated here rather than imported, because a guard that
+ * evaluates the expression it is guarding agrees with whatever the expression says.
+ */
+function viewportTopOfTheSettingsModal(desktopRule: string): number {
+  const band = pixelPropertyOf(desktopRule, "desktop-band-height");
+  const rule = pixelPropertyOf(desktopRule, "desktop-band-rule");
+  const pill = pixelPropertyOf(desktopRule, "desktop-pill-height");
+  const gap = pixelPropertyOf(desktopRule, "frame-d2e-hang-gap");
+  return (band - rule - pill) / 2 + pill + gap;
 }
 
 function ruleBodyOf(stylesheet: string, selector: string): string {
@@ -106,27 +138,44 @@ describe("the token the clamp is built on", () => {
   });
 
   it("leaves a measurable budget for the anchor it is standing in for, and this is that number", () => {
-    // **The claim the whole clamp rests on, written as arithmetic rather than as prose.** The
-    // surface's top is its anchor's bottom plus its own `margin-top`, so the constant is only
-    // honest while the anchor's bottom stays under this budget. Published here so a later reader
-    // measures against a number rather than re-deriving it, and so a change to either token has to
-    // be a decision about the layout.
+    // **The claim the whole clamp rests on, written as arithmetic rather than as prose.** An
+    // anchor-hung surface's top is its anchor's bottom plus its own `margin-top`, so the constant is
+    // only honest while the anchor's bottom stays under this budget. Published here so a later
+    // reader measures against a number rather than re-deriving it, and so a change to either token
+    // has to be a decision about the layout.
+    //
+    // **One surface, where there were two.** The settings modal left this claim on 2026-09-09 by
+    // becoming viewport-positioned, and it left it *upwards*: its top is now declared outright and
+    // is asserted directly below, which is a stronger statement than a budget for a number nobody
+    // here can see. What remains anchor-hung is the breakdown's popover, whose 16 px margin is
+    // frame D2D's own — so the budget widens from the settings surface's 33 px hang to that 16, and
+    // the two literals below move with it.
     const popoverTop = readPixelToken("popover-top");
     const safeGap = readPixelToken("safe-gap");
-    const offsets = EVERY_POPOVER.map(({ name, stylesheet }) =>
-      offsetBelowTheAnchorOf(name, surfaceRulesOf(stylesheet).at(-1) ?? ""),
+    const hang = offsetBelowTheAnchorOf(
+      "price-breakdown",
+      surfaceRulesOf(breakdown).at(-1) ?? "",
     );
 
-    // **The two no longer hang alike, and the frames are why.** Frame D2E declares the settings
-    // popover at `top: calc(100% + 33px)` from the pill it hangs off; the breakdown keeps its 16 px
-    // margin. So the budget is taken from the **lowest** of them — the one that reaches furthest
-    // down the screen — rather than from a shared number that no longer exists. A shared assertion
-    // would have to be satisfied by changing a frame's own declaration.
-    const lowestHang = Math.max(...offsets);
     // The anchor's bottom may reach this far down the viewport before the clamped surface starts
     // eating into `--safe-gap`, and this far before it reaches past the screen entirely.
-    expect(popoverTop - lowestHang).toBe(95);
-    expect(popoverTop + safeGap - lowestHang).toBe(111);
+    expect(popoverTop - hang).toBe(112);
+    expect(popoverTop + safeGap - hang).toBe(128);
+  });
+
+  /** **And the surface that no longer needs a budget is held to the thing the budget stood for.**
+   *  The clamp is correct exactly while a surface's top sits at or above `--popover-top`; for the
+   *  settings modal that top is now a number this file can compute, so the guarantee is asserted
+   *  rather than reasoned about. Measured in a browser at 90.5 at 900, 1100, 1440 and 1920 px wide
+   *  by `global-settings-centred.desktop.e2e.spec.ts`, which is the same number this arithmetic
+   *  gives. */
+  it("keeps the centred modal's own top above the constant the clamp assumes", () => {
+    const declaredTop = viewportTopOfTheSettingsModal(
+      surfaceRulesOf(settings).at(-1) ?? "",
+    );
+
+    expect(declaredTop).toBe(90.5);
+    expect(declaredTop).toBeLessThanOrEqual(readPixelToken("popover-top"));
   });
 });
 
@@ -165,18 +214,39 @@ describe("both desktop popovers", () => {
     }
   });
 
-  it("is anchored where the token assumes, hanging from its anchor rather than from the viewport", () => {
-    // `--popover-top` stands in for the anchor's bottom, which only means anything while the surface
-    // is positioned against that anchor. A surface switched to `position: fixed` here would keep the
-    // clamp and lose the thing it is clamping.
-    for (const { name, stylesheet } of EVERY_POPOVER) {
-      const desktop = surfaceRulesOf(stylesheet).at(-1) ?? "";
+  /** **The breakdown's popover still hangs from its own trigger, and that is now a rule about one
+   *  surface rather than about both.** `--popover-top` stands in for this anchor's bottom, which
+   *  only means anything while the surface is positioned against it: switched to `position: fixed`
+   *  it would keep the clamp and lose the thing being clamped.
+   *
+   *  **It must not follow the settings modal to the viewport's centre** (M6-AUD-013). That surface
+   *  is modal — a scrim, `aria-modal`, a focus trap — and centring a modal is ordinary; this one is
+   *  deliberately non-modal and explains a figure the customer can still see beside it. The two
+   *  diverged on purpose, so the divergence is asserted rather than left to a comment. */
+  it("leaves the breakdown's popover hanging from its anchor rather than from the viewport", () => {
+    const desktop = surfaceRulesOf(breakdown).at(-1) ?? "";
 
-      expect(desktop, name).toContain("position: absolute");
-      // Either spelling of *hanging from the anchor*: `top: 100%`, or frame D2E's own
-      // `top: calc(100% + 33px)`. What is refused is a surface positioned against the viewport.
-      expect(desktop, name).toMatch(/top:\s*(?:100%|calc\(100% \+ \d+px\));/);
-    }
+    expect(desktop).toContain("position: absolute");
+    // Either spelling of *hanging from the anchor*: `top: 100%`, or frame D2E's own
+    // `top: calc(100% + 33px)`. What is refused is a surface positioned against the viewport.
+    expect(desktop).toMatch(/top:\s*(?:100%|calc\(100% \+ \d+px\));/);
+  });
+
+  /** The settings modal, from the other side: viewport-positioned and centred by the two halves that
+   *  produce centring together. `margin-inline: auto` without `left`/`right` centres nothing, and
+   *  `left: 0; right: 0` without the margin stretches the box — so a rule holding only one of them
+   *  is a rule that has stopped centring. */
+  it("positions the settings modal against the viewport and centres it there", () => {
+    const desktop = surfaceRulesOf(settings).at(-1) ?? "";
+
+    expect(desktop).toContain("position: fixed");
+    expect(desktop).toMatch(/left:\s*0;/);
+    expect(desktop).toMatch(/right:\s*0;/);
+    expect(desktop).toMatch(/margin-inline:\s*auto;/);
+    // The frame's own width and M6-AUD-016's guard, both kept: centring the **used** width is what
+    // makes the two compatible, so the clamped box is centred rather than pinned to one side.
+    expect(desktop).toMatch(/width:\s*900px;/);
+    expect(desktop).toMatch(/max-width:\s*calc\(100vw - 48px\);/);
   });
 });
 

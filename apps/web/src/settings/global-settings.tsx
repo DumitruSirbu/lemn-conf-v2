@@ -725,6 +725,28 @@ function ChoosingStep({
               onChoose={onChoose}
               namePrefix={namePrefix}
             />
+            {/* **Immediately after the material radios and immediately before the colour block** —
+                the owner's ruling of 2026-09-09: *"should be after [the material group] just before
+                Color switch block"*. It stood at the foot of the body, under the depth, where a
+                sentence about what changing the material costs was four sections away from the
+                control it is about.
+                
+                Anchored to the material group rather than placed by position, for the reason the
+                colour group below it is: reordering the tier groups carries the sentence with the
+                material it explains, where an independent list would silently come apart. It is
+                **not** conditional on the colour group — that one is absent for a material with no
+                palette, and the sentence is about the material either way. */}
+            {group.key === "material" ? (
+              <p
+                className={styles.warning}
+                data-testid="global-settings-warning"
+              >
+                <span className={styles.warningMark} aria-hidden="true">
+                  {NOTE_GLYPH}
+                </span>
+                {view.warning}
+              </p>
+            ) : null}
             {/* **After the material group and before hardware** — the owner's *"just behind the
                 material"*, ADR 0099 decision 9. Rendered from inside the map rather than as a
                 sibling after it, so the position is a property of the group it follows: reordering
@@ -747,12 +769,6 @@ function ChoosingStep({
           onChoose={onChooseDepth}
           namePrefix={namePrefix}
         />
-        <p className={styles.warning} data-testid="global-settings-warning">
-          <span className={styles.warningMark} aria-hidden="true">
-            {NOTE_GLYPH}
-          </span>
-          {view.warning}
-        </p>
       </div>
       {/* ADR 0065 decision 6: the flag travels with the total, and this surface shows one. */}
       {view.overflowWarning === undefined ? null : (

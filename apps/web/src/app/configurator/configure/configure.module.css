@@ -28,10 +28,36 @@
  * 58 e2e specs down in wave 6K-b3 and it is being re-decided by the restructure:
  *
  *   | layer                                   | z-index |
- *   | nav, settings' own paint, price, actions, locale | 2  |
+ *   | nav, settings' own paint, actions, locale | 2      |
+ *   | the price cell                          | 3       |
  *   | §9's desktop rail                       | 4       |
  *   | the breakdown's popover                 | 6       |
  *   | the settings item, its scrim, its sheet  | 7      |
+ *
+ * **The rule that makes this table a table, stated exactly, because a summary of it sends the next
+ * reader looking for the wrong thing: a `z-index` other than `auto` on a *grid or flex item*
+ * establishes a stacking context even while that item is `position: static`.** Every cell above is a
+ * grid item of `.screen`, so every number above is a context and not a level in one shared stack:
+ * a surface nested in a cell can only ever paint as high as *the cell*, whatever it declares for
+ * itself.
+ *
+ * It is worth reading twice because the intuitive version — *"a positioned ancestor traps it"* — is
+ * false here and unfixable if believed. `.priceRow` is `position: static`. **There is no `position`
+ * to remove.** Somebody who went looking for one would find nothing and conclude the stacking was
+ * fine.
+ *
+ * **The price cell is therefore one step above the rest of the band, and it is the only cell that
+ * is.** It hosts the breakdown's surface, whose own `6` is scoped inside this cell and cannot reach
+ * the table above. At the band's shared `2` the cell **tied** with `.actions` — two sibling contexts
+ * at one level — and lost the tie on tree order, because `.actions` comes later in
+ * `configure-screen.tsx`. That put the action row over the open sheet and left the sheet's close
+ * button unreachable at 390 × 844: measured 2026-09-09, `elementFromPoint` at all five points of
+ * that button returned the action row.
+ *
+ * `3` is the narrowest number that unties it. The two cells never overlap, so the step costs nothing
+ * when the sheet is closed; it is below the rail's `4` and the settings sheet's `7`, so both still
+ * cover the bar exactly as they did. A stacking fix that reaches higher than it needs is how the
+ * next overlap becomes unfixable.
  *
  * The settings item keeps `7` for the reason the withdrawn band had it: the sheet is **modal on both
  * shells**, so its scrim has to cover the price bar, the rail and the breakdown's popover, and
@@ -354,8 +380,11 @@
 
 /* The bar and the breakdown's control share one band, as frames 2A and D2A draw them. On desktop
  * the same two sit at the right-hand end of the top bar; the rule below adds only what differs. */
+/* **`3`, not the band's `2` — see the stacking table in this file's head.** This cell is the
+ * breakdown surface's ancestor, so the surface can only paint as high as the context this cell
+ * establishes. It has to clear `.actions`, and a tie does not clear anything. */
 .priceRow {
-  z-index: 2;
+  z-index: 3;
   display: flex;
   grid-area: price;
 }

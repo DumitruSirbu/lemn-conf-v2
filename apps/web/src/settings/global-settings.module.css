@@ -574,18 +574,67 @@
    *
    * The inset declared on the base rule is not repeated: a desktop viewport has no home indicator,
    * and `env()` resolves to its `0px` fallback there anyway. */
-  /* Frame D2E `:961`: the popover hangs from the pill's **right** edge, `top: calc(100% + 33px)`,
-   * and is 900 px wide there. The width is the frame's; `max-width` keeps it inside a 900 px
-   * viewport, which the frame — drawn at 1920 — has nothing to say about. */
+  /* **Frame D2E `:961` drew this surface hanging from the pill's *right* edge — superseded on the
+   * horizontal by the owner's ruling of 2026-09-09**, *"center this modal"*, with a screenshot at
+   * 1440. The frame is recorded rather than deleted, the same treatment frame 2A's price label
+   * already has: a later reader comparing this against D2E has to be able to see that the anchor is
+   * not the frame's and why.
+   *
+   * What D2E drew: `top: calc(100% + 33px); right: 0`, 900 px wide, at 1920. Nothing was broken —
+   * the rule did exactly that. But the pill stands left of the price, the CTA and the locale, so a
+   * 900 px box hung off its right edge lands left of centre, and measured on 2026-09-09 it lands
+   * further left than "off-centre" describes: the surface's left edge was **x = −453 at a 900 px
+   * viewport, −301 at 1100 and −9 at 1440**, so at the three narrower widths part of the modal stood
+   * outside the screen and only 1920 kept it whole.
+   *
+   * **Centring is coherent for this surface and must not be copied to the breakdown's popover.**
+   * This one is modal on both shells — a scrim, `aria-modal`, a focus trap, an inert screen — so it
+   * belongs to the screen rather than to the control that opened it, and the screen's centre is a
+   * meaningful place to put it. `price-breakdown.module.css`'s popover is deliberately non-modal
+   * (M6-AUD-013) and stays hung from its own trigger, where a reader can see which figure it
+   * explains.
+   *
+   * **`fixed`, because nothing in the ancestry is viewport-wide.** The containing block was
+   * `.anchor`, which shrink-wraps the pill (`flex: 0 1 auto`), so no percentage resolved against it
+   * can find the viewport's centre — centring at all requires leaving that context.
+   * `left: 0; right: 0` with `margin-inline: auto` centres the **used** width rather than the
+   * declared one, so the `max-width` guard below still binds and still leaves exactly the 24 px a
+   * side it asks for: measured 852 px wide at x = 24 in a 900 px viewport.
+   *
+   * **The vertical does not move, and that is the half the owner did not ask about.** `top`
+   * reproduces the pill-relative hang this rule already had — y = 90.5 at every width above, before
+   * and after. Leaving `.anchor` costs the pill as a reference, so the same place is stated as the
+   * arithmetic that produced it rather than as a bare `90.5px`: the pill's own inset in the desktop
+   * band, `(76 − 1 − 40) / 2`, plus the pill and frame D2E's own 33 px gap. `76px` is
+   * `configure.module.css`'s desktop `grid-template-rows`, named here because a band that changes
+   * height has to be a visible edit in this file too — and
+   * `tests/settings/global-settings-modal-centring.test.ts` plus the desktop e2e pin the result, so
+   * a drift fails by name rather than by eye.
+   *
+   * The `max-height` clamp is M6-AUD-016's and is untouched. It is measured from `--popover-top`
+   * (128), which is above this hang, so it stays conservative in the direction a clamp should fail
+   * in. */
   .surface {
-    position: absolute;
-    top: calc(100% + 33px);
+    --desktop-band-height: 76px;
+    --desktop-band-rule: 1px;
+    --desktop-pill-height: 40px;
+    --frame-d2e-hang-gap: 33px;
+
+    position: fixed;
+    top: calc(
+      (
+          var(--desktop-band-height) - var(--desktop-band-rule) -
+            var(--desktop-pill-height)
+        ) /
+        2 + var(--desktop-pill-height) + var(--frame-d2e-hang-gap)
+    );
     right: 0;
     bottom: auto;
-    left: auto;
+    left: 0;
     width: 900px;
     max-width: calc(100vw - 48px);
     max-height: min(660px, calc(100dvh - var(--popover-top) - var(--safe-gap)));
+    margin-inline: auto;
     border: 1px solid var(--line);
     border-radius: 16px;
     box-shadow: 0 22px 48px rgb(28 24 20 / 22%);

@@ -116,6 +116,16 @@ function markupOf(view: GlobalSettingsView, editability: Editability): string {
   );
 }
 
+/** The same sheet with no colour group at all — the state a material declaring no palette produces
+ *  (`describeGlobalSettings` omits the key rather than emitting an empty group). Removed rather than
+ *  set to `undefined`, because the view's own type makes the key optional and the surface reads its
+ *  presence. */
+function withNoColourGroup(view: GlobalSettingsView): GlobalSettingsView {
+  const withoutIt: GlobalSettingsView = { ...view };
+  delete (withoutIt as { colourGroup?: unknown }).colourGroup;
+  return withoutIt;
+}
+
 /** Just the colour group, so an assertion about it cannot be satisfied by the three groups around
  *  it — the depth group's radios are disabled on a locked sheet too. */
 function colourGroupMarkup(markup: string): string {
@@ -148,16 +158,48 @@ function withoutAFinish(placement: DesignPlacement): DesignPlacement {
 }
 
 describe("acceptance 1 — the colour group renders after material, from the material's own palette", () => {
-  it("puts the colour group between the material group and hardware", () => {
+  /** **The choosing step's whole order, in one assertion**, because the sheet's sections are a ruled
+   *  sequence rather than a set: ADR 0099 decision 9 put the colour *"just behind the material"*, and
+   *  the owner's ruling of 2026-09-09 put the material's own note between the two — *"should be after
+   *  [the material group] just before Color switch block"*.
+   *
+   *  It was three indices and is now five. The note was asserted **nowhere** before that ruling,
+   *  which is why moving it from the foot of the body broke no test: a sentence explaining what
+   *  changing the material costs had sat four sections away from the material, under the depth, and
+   *  nothing said it should not. */
+  it("renders material, its note, colour, hardware and depth in that order", () => {
     const markup = markupOf(viewOf(KITCHEN_L_DESIGN, {}), WRITABLE);
 
     const material = markup.indexOf(ro.globalSettings.groupHeadings.material);
+    const note = markup.indexOf('data-testid="global-settings-warning"');
     const colour = markup.indexOf(ro.globalSettings.colourHeading);
     const hardware = markup.indexOf(ro.globalSettings.groupHeadings.hardware);
+    const depth = markup.indexOf(ro.globalSettings.depthHeading);
 
     expect(material).toBeGreaterThan(-1);
-    expect(colour).toBeGreaterThan(material);
+    expect(note).toBeGreaterThan(material);
+    expect(colour).toBeGreaterThan(note);
     expect(hardware).toBeGreaterThan(colour);
+    expect(depth).toBeGreaterThan(hardware);
+  });
+
+  /** The note is the material's, not the colour's: a material whose palette produces no colour group
+   *  still gets the sentence, and it still stands directly after the material's own radios. Without
+   *  this the note could be nested inside the colour group's own condition and nobody would see it
+   *  vanish on the one material where it matters. */
+  it("keeps the note beside the material even where no colour group renders", () => {
+    const markup = markupOf(
+      withNoColourGroup(viewOf(KITCHEN_L_DESIGN, {})),
+      WRITABLE,
+    );
+
+    const material = markup.indexOf(ro.globalSettings.groupHeadings.material);
+    const note = markup.indexOf('data-testid="global-settings-warning"');
+    const hardware = markup.indexOf(ro.globalSettings.groupHeadings.hardware);
+
+    expect(markup).not.toContain(ro.globalSettings.colourHeading);
+    expect(note).toBeGreaterThan(material);
+    expect(hardware).toBeGreaterThan(note);
   });
 
   it("renders §9's own control rather than a second one, tagged with the declared shape", () => {
