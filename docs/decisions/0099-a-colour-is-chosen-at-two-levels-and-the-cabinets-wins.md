@@ -438,7 +438,7 @@ that makes the mesh, with `applyBodyFinish` painting fronts **plus** declared su
 wrapping its six boards and leaving the back panel bare **is** the ruling, written where the geometry
 is.
 
-### B6. `base-corner-return-320` is a conclusion, not a deferral
+### B6. ~~`base-corner-return-320` is a conclusion, not a deferral~~ — **WRONG, see Amendment C2**
 
 It builds three meshes — `plinth`, `carcass`, `countertop` — and has no front and no outward face of
 its own. Its only cabinetry surface is the carcass, which is the box **interior** every cabinet in
@@ -453,3 +453,90 @@ outward to show. **It is not to be reopened as a bug**, and
 A **browser pass**. Every claim above is measured off the built object — colour per mesh, per body,
 across three kitchens including a wood decor and a colourless veneer — which is strong evidence and
 is not a rendered frame. Amendment A's own "still owed" line is unchanged and this joins it.
+
+## Amendment C, 2026-09-09 — the corner cabinets choose a colour, and their carcass is an outward face
+
+**Ruled by the owner after seeing it**, on a kitchen wearing `Stejar Halifax Natur`: a white slab
+between the oven tower and the sink run, and a white door at the base corner, in a room that was
+otherwise wood.
+
+> *"the corner cabinets thar column specifically miss custom color setting - need to add it and to
+> support setting custom color for all corner cabinets parts"*
+
+### C1. Amendment B's decision on `canFinish` is reversed for the four structural corners
+
+Amendment B held that these bodies **follow** the kitchen's colour and cannot **choose** one. The
+owner has now asked for both. `STRUCTURAL_CORNER` takes `canFinish: true` and
+`CHOOSES_ITS_OWN_COLOUR` in a single edit — the contradiction guard `bodyFinishRuleOf` refuses a
+half-state where the two disagree — and that one arm delivers the whole ruling: a corner with no
+`finish` of its own renders the kitchen's colour, and one with a chosen finish renders that. §9's
+*Finisaj* section appears for a corner as it does for any other cabinet.
+
+**§13.1 is untouched.** A corner still cannot be replaced, deleted or resized, and the
+`CORP STRUCTURAL` notice stands. Colour is a separate capability from replaceability, and only
+colour was asked for.
+
+### C2. Amendment B6 was wrong, and measurably so
+
+B6 concluded that `base-corner-return-320` owed nothing because *"its only cabinetry surface is the
+carcass, which is the box interior every cabinet in the kit shares"*. Measured, that is false of this
+body: it declares `fronts: NO_OPENING_FRONTS` — the one seeded base with **no door at all** — so
+nothing stands in front of that box and its entire 320 × 720 front face is what the customer looks
+at, in the same plane its neighbours' doors occupy.
+
+B6's second premise was that painting it would require widening `FRONT_MESH_NAME`, which B5 rightly
+refuses. **B5 of the same amendment had already introduced the tool that makes this contained**: a
+per-mesh `wearsTheBodysFinish` declaration made by the builder. Marking that carcass paints that box
+and nothing else.
+
+B6's third premise — *"it stands in the corner where almost none of it is visible"* — was falsified
+by the owner looking at it.
+
+### C3. A flag alone paints nothing, and that is the half a declaration cannot deliver
+
+`applyBodyFinish` reaches fronts and declared surfaces. All four corner bodies' carcasses were
+neither, which is why this morning's `FOLLOWS_THE_KITCHENS_COLOUR` correctly repainted their **doors**
+and left their **boxes** white. The four now declare their carcass:
+
+| body | carcass under a kitchen colour | fittings |
+| --- | --- | --- |
+| `base-corner-x-900` | painted | `susan_pole`, `susan_tray` ×2 keep their own materials |
+| `base-corner-return-320` | painted | — |
+| `wall-corner-return-570` | shell painted | `carcass_back`, `front_liner` untouched |
+| `wall-corner-return-570-top` | shell painted | as above |
+
+The wall returns are declared in `decomposed-bodies.ts` rather than inside `wallCabinet`, which
+builds seven seeded bodies and would have painted the whole wall run; only the decomposed path knows
+a `wallCabinet(0.57, 1)` is a corner. The helper **throws** when its named mesh is absent, so a
+rename fails loudly instead of silently un-painting a corner.
+
+### C4. The blind corner was held bare for an hour on a false premise, and the arc is recorded
+
+`base-corner-x-900` was excluded on the coordinator's instruction, on the worry that its box is open
+behind its door and painting it would recolour an interior the customer sees. **Two independent
+measurements found that wrong**: the carcass is a solid `box(0.9, 0.72, 0.6)` with no cavity;
+`susan_pole` and both `susan_tray`s sit at z = −0.010, buried inside a volume spanning
+z ∈ [−0.30, +0.30] and visible from no camera; and **this kit has no open-door state at all** —
+nothing in `scene-sync.ts` or the stage animates or hides a `door_front`.
+
+So the two base legs differ in **how much** of the box is uncovered — 620 of 900 mm against all of
+it — and not in whether any of it is interior. The hold is recorded where the geometry is, because a
+reversal with no reason in the file reads as somebody changing their mind about a test.
+
+### C5. What is asserted
+
+`packages/three-adapter/tests/the-corner-wears-a-colour.test.ts` names all four bodies, on exact
+hexes, at three states — no colour resolving, the kitchen's colour, and a colour chosen for that
+corner — and pins the boundary in the same scene that paints the carcass, so the fittings staying
+pale is a boundary rather than an unpainted room. Removing the wrapper from one leg turns **8** cases
+red; wrongly wrapping a `susan_tray` turns **2** red.
+
+`qa-0099c-each-unchoosing-body-by-name.adversarial.test.ts`'s *"is the only structural body in that
+state"* is re-pointed, not deleted: it now asserts the class is **empty** and that
+`base-corner-return-320` has left the `canFinish: false` population **by name**, so the emptiness is
+a statement about that body rather than a filter that quietly stopped matching.
+
+### C6. Still owed
+
+A **browser pass**. Every claim here is measured off the built object; none of it is a rendered
+frame. This joins Amendment B7's own outstanding line.
