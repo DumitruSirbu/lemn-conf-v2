@@ -120,15 +120,36 @@ PASS.
 ## What is open right now
 
 - **M6's remaining work is verification and two owner rulings — as of 2026-09-08 (evening).** Every
-  wave row but 6Y is DONE and the branch `fix/m6-remediation` is green: domain **3647**,
-  three-adapter **2970**, web **1971 and no skips**, persistence **282**, typecheck / lint /
-  `format:check` clean, **101 commits ahead of `main`** at `d426c5d`. What is owed before M6 can be called closed:
+  wave row but 6Y is DONE and the branch `fix/m6-remediation` is green: domain **3653**,
+  three-adapter **2970**, web **1997 and no skips**, persistence **282**, typecheck / lint /
+  `format:check` clean, at `eeedf85`. What is owed before M6 can be called closed:
   - **No browser has seen any of 2026-09-08's work.** Wave 6Z's own tier calls for visual
     verification and it was not run; the scene-colour wave's on-screen claim is proved through the
     real record builder in tests but never rendered. The owner has said they will do the manual pass
     themselves after a production deploy, so this is a **CI Playwright** obligation, not a manual one.
     A green local 3D e2e run proves nothing about runner timing.
-  - **Independent QA on wave 6Z and the scene-colour wave** — dispatched 2026-09-08. Both were gated
+  - **~~Independent QA on wave 6Z~~ RAN 2026-09-08 and found a real defect, now fixed
+    (`b699cfa`, `86770ac`, `eeedf85`).** `affectedColumnKeys` read ADR 0103 decision 3's set as the
+    occupied key, the keys the split created, and the keys whose `hasFullHeightUnder` **flipped** —
+    so an **ordinary** body inserted into a slot that overhangs a neighbouring column was missed by
+    all three, and the overhung top kept a lifted depth nothing under it justified. That is the
+    owner's **S1**, and it is exactly why decision 3 rejects the flip-triggered design; the rejection
+    had been applied to the column-membership route and not to the overlap route. Fixed with a third
+    clause over `overlapsAlongWall`, exported from `void-engine.ts` rather than copied.
+
+    **The same-wall guard on that clause is load-bearing, and its absence was caught by the wave's
+    own offer sweep.** Both walls originate at the same corner, so without `placed.wall ===
+    column.wall` the clause compared two coordinates that mean different places and re-planned a body
+    across the room: the sweep read **79 re-plans where 24 were pinned**. With the guard it is 786/24
+    again — no behaviour change on the shipped kitchen, which cannot exercise overlap at all. **The
+    pin being exact rather than a floor is what caught it.**
+
+    QA's 19 other store cases held: the §5.3 swap reaches the re-plan at both settings, three
+    insert/delete rounds accumulate nothing and replay byte-identically, an insert that re-plans
+    nothing adds exactly one object, a re-planned top still follows `setCabinetDepth` both ways, the
+    `finish` key stays absent under a whole-kitchen colour, and the frozen map is identical across
+    the swap.
+  - **Independent QA on the scene-colour wave** — still owed. Both were gated
     by their own authors' tests, which is not the same thing. The one independent round that did run
     this day found an insert building a 600 mm sink base through a wall, against a ruling the owner
     had given in one word, while its author's commit message claimed the opposite.
