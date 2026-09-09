@@ -82,6 +82,11 @@
     align-items: center;
     gap: 16px;
     justify-content: flex-end;
+    /* The cell's track is a capped share of the top bar rather than this box's max-content, so this
+     * box has to be allowed to be smaller than its contents' min-content and let `.overflow` above
+     * spend the difference on wrapping. Without it the flex row's automatic minimum would set the
+     * track and the cap would never bind. */
+    min-width: 0;
     min-height: 0;
     /* 9 px, not 12: it kept the figure's box inside the 55 px the header row measured, so adding the
      * price left the desktop scene exactly where it was.
@@ -103,12 +108,23 @@
     border-bottom: 1px solid var(--line-soft);
   }
 
+  /* **The one thing in this cell that may not shrink.** The cell's track is capped at half the top
+   * bar (`configure.module.css`), so on a flagged design at 900 px there is less room here than the
+   * contents ask for and something has to give. It is not the price: an amount that wrapped mid-
+   * figure would be the one thing on this bar a customer reads at a glance. */
   .figure {
+    flex: 0 0 auto;
     align-items: flex-end;
   }
 
+  /* **A basis rather than a maximum**, so the sentence gives the width back when the cell has none
+   * to spare. At 320 it is the same two lines it has always been and nothing below 1030 px could
+   * fit beside it; shrinking, it reaches 167 px and three lines at 900 and stays whole — no word is
+   * broken, because its automatic minimum is still its own min-content. The alternative was to lower
+   * the 320, which would have re-wrapped the sentence and lifted the top bar at **every** desktop
+   * width including 1440, to pay for a clip that only happens under 1030. */
   .overflow {
-    max-width: 320px;
+    flex: 0 1 320px;
   }
 
   /* Right-aligned with the figure it replaces, and narrower: the desktop top bar gives this its

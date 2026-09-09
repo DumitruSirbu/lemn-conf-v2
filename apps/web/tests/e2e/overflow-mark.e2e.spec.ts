@@ -125,9 +125,31 @@ const RENDER_SETTLE_MS = 400;
  *   body the document says is not marked. The witness spec measures that too. This gate has always
  *   counted with nothing selected; it now says so as an assertion.
  *
- * ADR 0091 decision 4b's wood breach is a fact about the **model** colours and is not reached here:
- * a walnut kitchen measures 0, 0 and 3 red-excess pixels across the canvas in the three presets, so
- * the threshold below is not being carried by luck about a wood.
+ * ## Why this gate's threshold is 50 where the witness specs' is 80
+ *
+ * **ADR 0091 finding 5's wood breach is reached after all, and it was measured on the wrong
+ * document.** The reading that said otherwise — a walnut kitchen at 0, 0 and 3 red-excess pixels —
+ * came from a fixture that wrote a per-placement finish and no kitchen colour, so under ADR 0099
+ * Amendment B its structural bodies followed `material.veneer`'s declared default and what it
+ * photographed was **oak**. An unmarked oak kitchen puts 194 041 / 193 783 / 278 066 pixels past 50.
+ * So a counter that may meet a wood has to clear `MARK_MIN_RED_EXCESS_OVER_ANY_FINISH`, which is 80.
+ *
+ * **This one may not, and the reason is the wash rather than the threshold.** The mark is 32 % of
+ * `OVERFLOW_MARK_COLOR` over whatever the body is painted, so over the **white** kitchen this gate
+ * photographs it carries only its own share of the red and nearly all of it falls under 80. Measured
+ * 2026-09-09 at 390 × 844 through this file's own rectangle, on this file's own document, with the
+ * fitting control reading **0 at every one of these thresholds**:
+ *
+ * | min excess |     40 |    50 |    55 |    70 |  76 |  80 |
+ * | ---------- | ------ | ----- | ----- | ----- | --- | --- |
+ * | marked     | 27 865 | 7 494 | 1 404 | 1 136 | 311 | 252 |
+ *
+ * At 80 this gate would be asserting a signal of 252 where it asserts one of 7 494, which is a gate
+ * given up rather than a gate hardened. It keeps 50 **because it is the one counter here that takes
+ * its own control through its own rectangle on its own document** — `fittingPixels` below, measured
+ * 0 — where the witness specs photograph woods and have no such control to lean on. The two numbers
+ * differ because the two fixtures differ, which is the whole of the rule the witness measurement
+ * established: the threshold is a property of what the document under the wash is painted.
  */
 const MARK_MIN_RED_EXCESS = 50;
 const MARK = { kind: "redTint", minExcess: MARK_MIN_RED_EXCESS } as const;

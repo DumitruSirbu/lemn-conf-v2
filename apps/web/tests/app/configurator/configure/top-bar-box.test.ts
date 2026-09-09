@@ -193,6 +193,15 @@ describe("the top bar's box, which the scene pays for", () => {
   it("is the element that sets the desktop row's height, so the price cell cannot mask a change", () => {
     // Both live in grid row 1 and the taller wins. If the price cell were the taller of the two,
     // every assertion above would be measuring something the scene does not pay for.
+    //
+    // **This is a claim about the two declared boxes, and there is one measured state where it does
+    // not hold on screen.** On a design carrying ADR 0065's overflow flag, between 900 and 1025 px,
+    // the cell's warning wraps to a third line and sets the row at 85.28 px — the ruled height's one
+    // exception, taken on 2026-09-09 to stop the step nav being cut, and recorded beside the
+    // declaration in `configure.module.css`. Nothing here can see it: a wrapped sentence is not a
+    // declaration, and this file reads declarations. The browser measurement of both ends of that
+    // window is `tests/e2e/settings-strip-containment.desktop.e2e.spec.ts`, and it is the file that
+    // goes red if the warning is later re-narrowed.
     const bar = declarationsOf(
       priceBarStylesheet.slice(
         priceBarStylesheet.indexOf(DESKTOP_BRANCH_OPENER),

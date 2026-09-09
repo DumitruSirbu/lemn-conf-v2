@@ -167,13 +167,38 @@ test("offers the colour group after the material group, from the material's own 
     "decor-list",
   );
 
-  // "Just behind the material": the material heading is above this one, hardware's below.
-  const sheetText = await page
+  // "Just behind the material": the material group is above this one, hardware's below.
+  //
+  // **Read off each group's own identifier, never off the sheet's text.** This used to look three
+  // declared headings up in `innerText`, and it could not pass however the sheet was ordered:
+  // `innerText` is the *rendered* text and applies `text-transform`, and `.heading` in
+  // `global-settings.module.css` has been `text-transform: uppercase` since wave 6G — so
+  // `"Material corp și fronturi"` was being sought in `"MATERIAL CORP ȘI FRONTURI"` and all three
+  // lookups returned −1.
+  //
+  // `textContent` would have fixed the styling half alone and broken again the day the copy is
+  // reworded, which M6B exists to do. The colour group is addressed by the same `data-testid` this
+  // file uses for its swatches two assertions above, and the tier groups by the `name` their radios
+  // carry — `${dialogId}-${group.key}`, the group's own key. Neither is copy and neither is style.
+  const groups = await page
     .getByTestId("global-settings-surface")
-    .innerText();
-  const material = sheetText.indexOf("Material corp și fronturi");
-  const colour = sheetText.indexOf("Culoarea bucătăriei");
-  const hardware = sheetText.indexOf("Feronerie");
+    .evaluate((sheet) =>
+      [...sheet.querySelectorAll("section")].map((section) => ({
+        testId: section.getAttribute("data-testid"),
+        radioName:
+          section.querySelector("input[type='radio']")?.getAttribute("name") ??
+          null,
+      })),
+    );
+  const material = groups.findIndex((group) =>
+    group.radioName?.endsWith("-material"),
+  );
+  const colour = groups.findIndex(
+    (group) => group.testId === "global-settings-colour-group",
+  );
+  const hardware = groups.findIndex((group) =>
+    group.radioName?.endsWith("-hardware"),
+  );
   expect(material).toBeGreaterThan(-1);
   expect(colour).toBeGreaterThan(material);
   expect(hardware).toBeGreaterThan(colour);

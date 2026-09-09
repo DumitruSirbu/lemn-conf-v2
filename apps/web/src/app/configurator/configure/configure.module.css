@@ -84,7 +84,20 @@
  * **It touches no height.** `min-width` is a width, the row is `nowrap`, and the band's height is
  * its padding plus its tallest child plus the rule — the four declarations `top-bar-box.test.ts`
  * adds up. The ruled 76 px and the canvas origin three e2e specs were re-measured against do not
- * move. */
+ * move.
+ *
+ * **The ruled 76 has exactly one measured exception, and this is where a reader who finds 85.28
+ * should meet it.** The band shares grid row 1 with the price cell, and on a design carrying
+ * ADR 0065's overflow flag that cell carries a 77-character sentence. Between **900 and 1025 px**
+ * the sentence wraps to three lines and *it*, not this band, sets the row: 85.28 px, measured
+ * 2026-09-09. From 1026 px the row is 76 again. The four declarations below are unchanged and still
+ * sum to 76 — the exception is a wrapped sentence in the other cell, not a drift in this one.
+ *
+ * It is a deliberate trade and it has precedent: the owner accepted 21 px of canvas at **every**
+ * desktop width on 2026-09-07 to take the frame's own height. This spends 9.28 px more, on a flagged
+ * design, over a 126 px window — against a nav that without it renders the title as *"Confi"* with
+ * the price over it and the locale chip off screen entirely. The desktop branch's `.screen` rule
+ * records the cap that produces it and the two alternatives that were refused. */
 .header {
   grid-area: header;
   z-index: 2;
@@ -282,9 +295,43 @@
    * longer tier name is a book edit rather than a code change.
    *
    * The residue is not abolished, only confined: the nav is `minmax(0, 1fr)` beside the price's
-   * `auto`, so what is left to argue over is two contents this repository owns. That confinement is
-   * measured, not claimed — `tests/e2e/settings-strip-containment.desktop.e2e.spec.ts` asserts the
-   * nav's own text is uncut at 900 on a flagged design.
+   * capped track, so what is left to argue over is two contents this repository owns. That
+   * confinement is measured, not claimed — `tests/e2e/settings-strip-containment.desktop.e2e.spec.ts`
+   * asserts the nav's own text is uncut at 900 on a flagged design.
+   *
+   * **`fit-content(50%)` rather than `auto`, and the cap is what makes the nav's line reachable.**
+   * An `auto` track is grown to its max-content before the `1fr` beside it gets anything, so on a
+   * flagged design the price cell simply took what it wanted: measured 2026-09-09 at 900 px, the
+   * cell took **649.3 px of 900** — the figure, the breakdown control and ADR 0065's sentence at its
+   * full 320 px — leaving the nav **250.7** where its own line needs **380.7**. The nav did not
+   * report itself clipped, because no individual span was internally scrolled: the header box cut
+   * them from outside, so the title read *"Confi"* and the locale chip was not on screen at all.
+   *
+   * The cap is a **share of the top bar, not a width threshold** (ADR 0094 criterion 4i): neither
+   * cell may take more than half the row, whatever either one says. Measured across the four widths
+   * the containment spec sweeps — nav / price — `450 / 450` at 900, `500 / 500` at 1000,
+   * `550 / 550` at 1100 and `790.703 / 649.297` at 1440, where the cell is under half already and
+   * **nothing changes at all**. The cap stops binding at **1299 px**, the first integer width past
+   * `2 × 649.297`. The nav's 380.703 fits in 450 with 69 px to spare, which is the slack M6B's
+   * strings have to move in; a residue would have given it none.
+   *
+   * **The three widths, all measured on 2026-09-09 rather than estimated.** The defect the cap
+   * removes ran below **1030 px** — the nav's min-content 380.703 plus the cell's max-content
+   * 649.297 is exactly 1030.000, and stepping the old rule a pixel at a time gives an overflow of 1
+   * at 1029 and 0 at 1030. The exception the cap introduces runs **900 to 1025**: from 1026 the
+   * warning fits two lines again and the row is back to the ruled 76. So the window that costs
+   * height is *narrower* than the window that was clipping, and the height is given back four
+   * pixels before the old layout would have stopped cutting the nav.
+   *
+   * **What the cap costs inside that window, said rather than discovered.** The warning wraps to
+   * three lines instead of two — 66.28 px of sentence rather than 50.19 — and the top bar grows from
+   * the ruled 76 px to **85.28**, so the scene loses a further 9.28 px on a flagged design at 900 to
+   * 1025 and nowhere else. That is the price of keeping the sentence beside the figure frames
+   * D2A–D2C put it beside; the alternative — a band of its own — spends more scene, at every width,
+   * including the one the project runs at. **This is the ruled height's one documented exception**
+   * and `.header` below records it beside the ruling itself;
+   * `tests/e2e/settings-strip-containment.desktop.e2e.spec.ts` measures both ends of it, so a later
+   * re-narrowing of the warning goes red rather than quietly spending more scene.
    *
    * **The cost is the strip's row**, about 44 px of canvas at every desktop width, and a departure
    * from frame D2E, which draws the pills inside the top bar. Both are ruled: ADR 0082 decision 6
@@ -297,7 +344,7 @@
       "header   price"
       "settings settings"
       "stage    stage";
-    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-columns: minmax(0, 1fr) fit-content(50%);
     grid-template-rows: auto auto minmax(0, 1fr);
   }
 
@@ -384,9 +431,15 @@
    * header's and nobody could see it; centred in 76 it would float 11.25 px up and break the rule
    * in two. Stretched, the cell is the row's height and the two rules meet. The figure inside keeps
    * the header chip's centre line — `.bar` centres its own contents (`price/price-bar.module.css`),
-   * and the breakdown already asks for `align-self: stretch` for its popover's anchor. */
+   * and the breakdown already asks for `align-self: stretch` for its popover's anchor.
+   *
+   * **`min-width: 0` is what lets the cap above bind.** `fit-content()`'s own minimum is `auto`,
+   * i.e. this item's automatic minimum size, so without this the cell's min-content would set the
+   * track and the half-share would be a maximum the layout never reached. Zeroed, the cell is
+   * whatever its track is and spends the difference inside itself, on the warning's wrap. */
   .priceRow {
     display: flex;
+    min-width: 0;
     align-items: stretch;
     background: var(--paper);
   }
