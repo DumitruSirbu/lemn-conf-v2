@@ -14,8 +14,9 @@ import { toExactMillimetres, toMetres } from "./millimetres.js";
 // No cycle: `resolved-finish.ts`'s only value import is `design-material.ts`, whose only value
 // import is `materials.ts`, and that module is a leaf. Neither reaches back here, so this is not
 // the hazard `module-grid.ts`'s head describes.
-import { resolvedFinishOf } from "./resolved-finish.js";
+import { drawnFinishOf } from "./resolved-finish.js";
 import type { SeatRule } from "./seat-rule.js";
+import { bodyFinishRuleOf, type BodyFinishRule } from "./body-finish-rule.js";
 import {
   alongWallCoordinate,
   alongWallPosition,
@@ -236,6 +237,17 @@ export interface BodyDefinition {
    *  `refuseUndeclaredSeatRules`, which is the only caller holding the row's id to name. */
   readonly seatRule?: SeatRule;
   readonly frameHeightMm?: number;
+  /** **Whether this body carries a colour of its own, or wears the kitchen's, or is never painted**
+   *  — the owner's ruling of 2026-09-09, and the question `canFinish` below stopped being able to
+   *  answer when structural cabinetry started following the kitchen and appliances did not.
+   *  `body-finish-rule.ts` states the three arms and why they are two declarations rather than one.
+   *
+   *  Optional here and refused at assembly, for the reason `depthRule` above is: the case that must
+   *  fail loudly is a definition a required field cannot reach, which is a row arriving through the
+   *  `BodyCatalog` port. `refuseUndeclaredFinishRules` runs `bodyFinishRuleOf` over both populations
+   *  as `buildKitchenLBodyCatalog` assembles the map, so the shipped catalogue pays nothing for the
+   *  optionality and a row that declares nothing never loads. */
+  readonly finishRule?: BodyFinishRule;
   readonly canFinish: boolean;
   readonly canHandle: boolean;
   readonly canReplace: boolean;
@@ -388,9 +400,16 @@ export interface PlacementRecord {
    *  colour*. Draw from `drawnFinish` below; ask this one only when the question is what the
    *  customer picked. */
   readonly finishKey?: Finish;
-  /** **The colour to paint, resolved** — `resolvedFinishOf`'s answer for this placement in this
-   *  design: the cabinet's own choice, else the whole-kitchen colour, else the material's declared
-   *  default (ADR 0099 decision 1, Amendment A section 3).
+  /** **The colour to paint, resolved** — `drawnFinishOf`'s answer for this placement in this design,
+   *  read through the entry's own `finishRule`: a body that chooses its own gets ADR 0099 decision
+   *  1's order (its choice, else the whole-kitchen colour, else the material's declared default); a
+   *  body that follows the kitchen gets the kitchen's colour and never its own document's; an
+   *  appliance gets none (owner's ruling, 2026-09-09, backlog entry 60).
+   *
+   *  **The renderer needs no capability guard beside it.** `record.canFinish` used to stand between
+   *  this field and the paint, and it cannot any more: after the ruling `canFinish` is `false` for
+   *  bodies that must be painted and for bodies that must not. The refusal moved into the resolution,
+   *  which is where the declaration is, so `@lemnaria/three-adapter` still learns no rule (§12).
    *
    *  **It is never stored and never read by a command.** No `Design` written by this package
    *  carries it, no persistence schema has a field for it, and a command that reaches for it is
@@ -559,7 +578,15 @@ export function derivePlacementRecords(
     const definition = lookupDefinition(catalog, placement.body.buildId);
     const frame = deriveFrame(placement, definition);
     const rotated = placement.wall === "B";
-    const drawnFinish = resolvedFinishOf(placement, design);
+    const drawnFinish = drawnFinishOf({
+      rule: bodyFinishRuleOf({
+        buildId: placement.body.buildId,
+        rule: definition.finishRule,
+        canFinish: definition.canFinish,
+      }),
+      placement,
+      design,
+    });
     return {
       id: placement.id,
       buildId: placement.body.buildId,

@@ -12,6 +12,7 @@
 //   3. the sentence is non-empty Romanian, with no placeholder leaking into the copy.
 import { describe, expect, it } from "vitest";
 
+import { CHOOSES_ITS_OWN_COLOUR } from "../../src/body-finish-rule.js";
 import { baseFinishedDepthMm } from "../../src/catalog.js";
 import { WORKTOP_DEPTH_MM } from "../../src/worktop-depth.js";
 import type { CommandResult } from "../../src/commands/command-result.js";
@@ -76,6 +77,10 @@ const CORNER_BASE: BodyDefinition = {
   frameDepthMm: 580,
   occupiedDepth: finishesAtMm(baseFinishedDepthMm(WORKTOP_DEPTH_MM)),
   canFinish: true,
+  // Declared, because `derivePlacementRecords` resolves the colour it draws through this and refuses
+  // an entry that says nothing. Ordinary cabinetry, matching `canFinish: true` above — this fixture
+  // exists to reach §5.1's delete guard and says nothing new about colour.
+  finishRule: CHOOSES_ITS_OWN_COLOUR,
   canHandle: true,
   canReplace: false,
   canDelete: false,

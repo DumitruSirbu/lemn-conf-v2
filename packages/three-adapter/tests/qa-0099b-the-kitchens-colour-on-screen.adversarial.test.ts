@@ -33,9 +33,9 @@
 //   syncs and both move a colour between two set values. This runs three; sets then clears; sets the
 //   *same* value twice; moves the kitchen onto a colour a cabinet already chose for itself; and
 //   interleaves the change with an insert.
-// - **`canFinish: false` at both levels**, on the real bodies that declare it, with a global colour
-//   set — the state that never existed before this wave, because before it a following cabinet
-//   carried no colour at all and there was nothing for the guard to refuse.
+// - **The two families `canFinish: false` now holds**, on the real bodies that declare it, with a
+//   global colour set — a structural corner that takes the kitchen's colour and two appliances that
+//   take none (owner's ruling, 2026-09-09; backlog entry 60). It read as one class until then.
 // - **The absence path.** An undeclared `materialTierId` (with and without a kitchen colour) and a
 //   design carrying no `settings` container at all. `resolvedFinishOf` answers `undefined` for the
 //   first, and the scene must draw something rather than throw.
@@ -116,13 +116,12 @@ const MDF_FREE_COLOURS: readonly Finish[] = [
 const FINISHABLE_ID = "p1";
 /** A second, so "this body repainted" and "every body repainted" are distinguishable. */
 const SECOND_FINISHABLE_ID = "p8";
-/** The freestanding fridge — `canFinish: false`, and it builds door fronts, which is what makes the
- *  refusal observable rather than vacuous. */
-// **`p25`, not `p7`.** Both are declared unfinishable, but `fridge-free-700` draws no fronts at
-// all, so every "left unpainted" assertion below would have inspected an empty list and passed
-// without looking at anything (ADR 0093 decision 1). `base-corner-x-900` is unfinishable AND draws
-// fronts, which is what makes the refusal observable. The premise test below pins exactly that.
-const UNFINISHABLE_ID = "p25";
+/** **`p25`, `base-corner-x-900`** — structural cabinetry, so since the owner's ruling of 2026-09-09
+ *  it follows the kitchen's colour, and it draws a front, which is what makes the following
+ *  observable rather than vacuous (ADR 0093 decision 1). It carries `canFinish: false` all the same:
+ *  it follows, it does not choose. The two appliances — `p7` and `p13` — draw no fronts at all, so
+ *  every claim about *them* is made on `drawnFinish` in the domain instead. */
+const STRUCTURAL_ID = "p25";
 
 let kit: Kit;
 let room: THREE.Object3D;
@@ -586,69 +585,81 @@ describe("ADR 0099 decision 5 row 1 — the repaint, over sequences of more than
   });
 });
 
-// **`canFinish: false` — a body that cannot be finished must not be painted at either level.**
+// **A body that cannot *choose* a colour — and which of the two things that now means.**
 //
-// Before this wave the case could not arise from a following cabinet: a record with no `finishKey`
-// carried no colour, so the guard had nothing to refuse. Since `drawnFinish` is filled from the
-// resolver — which is capability-blind, and correctly so — **every** unfinishable body now arrives
-// at `applyRecordedAppearance` carrying a colour, and `record.canFinish` is the only thing between
-// it and a painted front.
-describe("ADR 0099 acceptance 8 — a body that cannot wear a colour is painted at neither level", () => {
+// This block asserted ADR 0099 acceptance 8 over `!record.canFinish` as one class. The owner's ruling
+// of 2026-09-09 (backlog entry 60) split that class: `base-corner-x-900` is structural cabinetry and
+// **takes** the kitchen's colour, while a hood and a fridge take none — and all of them still carry
+// `canFinish: false`, because following is not choosing and none of them gains a control.
+//
+// The sweep over the flag is therefore gone: it would assert the wrong rule for five of the seven
+// bodies it covered. `qa-0099c-each-unchoosing-body-by-name.adversarial.test.ts` states the claim per
+// body, which is the shape a split class needs. What is kept here is the half this file's own witness
+// can still see.
+describe("backlog 60 — a structural body follows the kitchen where its appliance neighbours do not", () => {
   const ANTRACIT = paletteFinish("pal.antracit");
 
-  /** Every seeded body the catalogue declares unfinishable, with the subset that actually draws
-   *  fronts named separately: a refusal asserted on a body with no fronts asserts nothing. */
-  function unfinishableIds(): readonly string[] {
-    return derivePlacementRecords(KITCHEN_L_DESIGN, KITCHEN_L_BODY_CATALOG)
-      .filter((record: PlacementRecord) => !record.canFinish)
+  /** Every seeded body that carries no drawn colour at all — the two appliances, since the ruling.
+   *  Read off the record rather than off a build-id list, so a body moved between the two families in
+   *  the catalogue changes what is swept here instead of leaving a stale set behind. */
+  function unpaintedIds(): readonly string[] {
+    return derivePlacementRecords(
+      withKitchenColour(followingOn("material.melamine"), ANTRACIT),
+      KITCHEN_L_BODY_CATALOG,
+    )
+      .filter((record: PlacementRecord) => record.drawnFinish === undefined)
       .map((record) => record.id);
   }
 
-  it("has at least one unfinishable seeded body that draws fronts, so the refusal is observable", () => {
-    drawn(withKitchenColour(followingOn("material.veneer"), ANTRACIT));
-
-    const withFronts = unfinishableIds().filter(
-      (id) => frontsOf(mounted(id)).length > 0,
-    );
-    expect(withFronts.length).toBeGreaterThan(0);
-    expect(withFronts).toContain(UNFINISHABLE_ID);
+  it("draws no colour for exactly the two appliances, and one for the structural corner", () => {
+    expect([...unpaintedIds()].sort()).toEqual(["p13", "p7"]);
+    expect(unpaintedIds()).not.toContain(STRUCTURAL_ID);
   });
 
-  it("leaves every unfinishable body on the kit's own door material under a kitchen colour", () => {
+  it("paints the structural corner the kitchen's colour beside a finishable neighbour", () => {
     drawn(withKitchenColour(followingOn("material.melamine"), ANTRACIT));
 
-    for (const id of unfinishableIds()) {
+    expectWearing(STRUCTURAL_ID, ANTRACIT);
+    // The premise: an ordinary cabinet in the same scene took the same colour, so this is the
+    // kitchen's colour reaching the corner and not a scene that painted everything by accident.
+    expectWearing(FINISHABLE_ID, ANTRACIT);
+  });
+
+  it("leaves every body that draws no colour on the kit's own door material", () => {
+    drawn(withKitchenColour(followingOn("material.melamine"), ANTRACIT));
+
+    for (const id of unpaintedIds()) {
       for (const front of frontsOf(mounted(id))) {
         expect(front.material).toBe(kit.M.door);
       }
     }
-    // The premise: the finishable bodies in the same scene *did* take the colour, so this is a
-    // refusal rather than a scene that painted nothing.
     expectWearing(FINISHABLE_ID, ANTRACIT);
   });
 
-  /** On veneer with no kitchen colour, the declared default is a tinted wood — the case where "not
-   *  painted" and "painted white" are visibly different, so the refusal cannot be satisfied by
-   *  coincidence. */
-  it("leaves an unfinishable body unpainted on a veneer kitchen with no colour chosen", () => {
+  /** On veneer the declared default is a tinted wood — the case where "not painted" and "painted
+   *  white" are visibly different values, so a following body taking the default cannot pass by
+   *  coincidence with the kit's own hex. */
+  it("gives a structural body the material's declared default when the kitchen has no colour", () => {
     drawn(withoutKitchenColour(followingOn("material.veneer")));
 
-    expectUnpainted(UNFINISHABLE_ID);
-    expectWearing(FINISHABLE_ID, materialById("material.veneer").defaultFinish);
+    const veneerDefault = materialById("material.veneer").defaultFinish;
+    expectWearing(STRUCTURAL_ID, veneerDefault);
+    expectWearing(FINISHABLE_ID, veneerDefault);
   });
 
-  /** A colour hand-written onto an unfinishable body — reachable by a restored backup or another
-   *  client, never by this build's commands — is refused at the cabinet level too. */
-  it("leaves an unfinishable body unpainted even when its own body carries a colour", () => {
+  /** A colour hand-written onto a structural body — reachable by a restored backup or another
+   *  client, never by this build's commands, because it has no control — is not what gets drawn. It
+   *  follows the kitchen (ADR 0099 decision 2) and never its own document. */
+  it("draws the kitchen's colour on a structural body carrying a different colour of its own", () => {
     drawn(
       wearingOn(
         withKitchenColour(followingOn("material.melamine"), ANTRACIT),
-        UNFINISHABLE_ID,
+        STRUCTURAL_ID,
         paletteFinish("pal.nuc-warmia"),
       ),
     );
 
-    expectUnpainted(UNFINISHABLE_ID);
+    expectWearing(STRUCTURAL_ID, ANTRACIT);
   });
 });
 

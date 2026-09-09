@@ -35,6 +35,7 @@ import {
   countCabinetsWearingAChosenFinish,
   wouldDiscardTheGlobalFinish,
 } from "../src/chosen-finishes.js";
+import { bodyFinishRuleOf, IS_NEVER_PAINTED } from "../src/body-finish-rule.js";
 import { insertBody } from "../src/commands/insert-body.js";
 import { removePlacement } from "../src/commands/remove-placement.js";
 import { clearFinish, setFinish } from "../src/commands/set-appearance.js";
@@ -838,7 +839,12 @@ describe("ADR 0099 acceptance 6 — both arms of the confirmation, separately", 
   });
 });
 
-describe("ADR 0099 acceptance 8 — a body that cannot wear a finish is untouched at both levels", () => {
+// **The hood, and only bodies like it.** ADR 0099 acceptance 8 was written when `canFinish: false`
+// meant one thing; since the owner's ruling of 2026-09-09 it means two, and the half this block
+// asserts is the appliance half. The corner bodies and the open shelf carry the same flag and are
+// now *painted* with the kitchen — see
+// `structural-cabinetry-follows-the-kitchens-colour.test.ts`, which names all four.
+describe("ADR 0099 acceptance 8 — an appliance is untouched at both levels", () => {
   const hoodId = "p13";
 
   it("is not counted, not painted, and not given a key by a global change", () => {
@@ -1251,17 +1257,38 @@ describe("ADR 0099 Amendment A section 3 — the draw-only colour on a placement
 
   /** **The whole point, swept over every declared material and every colour each of them offers.**
    *  A global change moves the drawn colour of every following cabinet and leaves every `finishKey`
-   *  absent — acceptance criteria 1 and 6 read off the record rather than off a surface. */
+   *  absent — acceptance criteria 1 and 6 read off the record rather than off a surface.
+   *
+   *  **The split is read off each entry's own `finishRule`, never off a list of ids** (owner's
+   *  ruling, 2026-09-09; backlog entry 60). Cabinetry follows the kitchen whether or not it can
+   *  choose for itself, and an appliance is painted at no level — so the sweep asks the declaration
+   *  rather than assuming every body takes the colour, which it did until that ruling. */
   it("moves every following cabinet's drawn colour and no cabinet's own, for every material", () => {
     for (const tierId of [PAL_ID, MDF_ID, VENEER_ID]) {
       for (const finish of offeredFinishesOf(materialById(tierId))) {
         const design = applyGlobalFinish(everyCabinetFollowing(tierId), finish);
 
         for (const record of derivePlacementRecords(design, CATALOG)) {
-          expect(record.drawnFinish).toEqual(finish);
+          if (isNeverPainted(record.buildId)) {
+            expect(record).not.toHaveProperty("drawnFinish");
+          } else {
+            expect(record.drawnFinish).toEqual(finish);
+          }
           expect(record).not.toHaveProperty("finishKey");
         }
       }
     }
   });
+
+  /** The catalogue's own declaration, asked of the entry rather than restated here. */
+  function isNeverPainted(buildId: string): boolean {
+    const definition = CATALOG.get(buildId);
+    return (
+      bodyFinishRuleOf({
+        buildId,
+        rule: definition?.finishRule,
+        canFinish: definition?.canFinish ?? false,
+      }) === IS_NEVER_PAINTED
+    );
+  }
 });

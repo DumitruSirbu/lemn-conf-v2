@@ -1,34 +1,39 @@
-// **ADR 0099 decision 8, asserted one named body at a time rather than swept over a flag.**
+// **The owner's ruling of 2026-09-09, asserted one named body at a time rather than swept over a
+// flag** — backlog entry 60: *structural cabinetry follows the kitchen's colour; appliances never
+// do*.
 //
-// Decision 8 rules that a body with `canFinish: false` is unaffected at both levels, and every
-// existing proof of it — `qa-0099b`'s acceptance-8 block, `qa-0099-global-colour`'s document half —
-// is written over `records.filter((record) => !record.canFinish)`. That is one assertion about one
-// class, and it is only honest while the class is one thing.
+// ADR 0099 decision 8 ruled that a body with `canFinish: false` is unaffected at **both** levels, and
+// every proof of it was written over `records.filter((record) => !record.canFinish)`. That was one
+// assertion about one class, and it was honest only while the class was one thing. The ruling split
+// it: four corner bodies and an open shelf now take the kitchen's colour, a hood and a fridge take
+// none, and all seven still carry `canFinish: false` because none of them gains a control of its own.
+// A sweep over the flag would go on passing while asserting the wrong rule for five of the seven, so
+// the claim is stated here **per body, by build id**.
 //
-// **It is about to stop being one thing.** Backlog 60 (owner, 2026-09-09) rules that *structural
-// cabinetry follows the kitchen's colour and appliances never do*, which splits today's single flag
-// down the middle. A sweep over `canFinish` would go on passing on the day that lands — it would
-// simply be asserting the old rule over a set that no longer means what it meant — so the claim is
-// restated here **per body, by build id**, and the row that must change is the row that goes red.
-//
-// The `family` column is the ruling's own division, recorded so a reader can see which rows it
-// touches. **Nothing here implements it**: every row asserts today's behaviour, which is that all
-// seven are painted at neither level.
+// The `family` column is the ruling's own division — `structural` and `appliance` are the owner's own
+// words — and the premise below holds it against each entry's declared `finishRule`, so the table
+// cannot drift from the catalogue.
 //
 // **The observability premise is per body too, and it is not a formality.** Four of the seven draw
 // no door or drawer front at all, and `applyBodyFinish` (`finishes.ts:193`) reaches
-// `collectFronts(body)` and nothing else — so on those four "was not painted" is a claim about a
-// surface that does not exist, and a front-instance assertion would inspect an empty list and pass
-// without looking (ADR 0093 decision 1). Every row is therefore asserted on **the multiset of
-// material instances under the mounted body, with the kitchen's colour against without** — a claim
-// that says *the kitchen's colour did not reach this body* whether or not the body has fronts — and
-// the three rows that do draw fronts carry the sharper front-instance assertion as well.
+// `collectFronts(body)` and nothing else — so on those four *nothing on screen moves either way*,
+// and an assertion about their paint would inspect an empty list and pass without looking (ADR 0093
+// decision 1). That is why the two frontless structural rows — the corner base return and the open
+// shelf — are asserted **in the domain**, on `PlacementRecord.drawnFinish`, where the ruling is
+// observable, and are asserted here only for what is true on screen: their meshes do not move.
+// Every row is measured on **the multiset of material instances under the mounted body, with the
+// kitchen's colour against without**, and the rows that draw fronts carry the sharper
+// front-instance assertion as well.
 import {
+  bodyFinishRuleOf,
   derivePlacementRecords,
+  FOLLOWS_THE_KITCHENS_COLOUR,
+  IS_NEVER_PAINTED,
   KITCHEN_L_BODY_CATALOG,
   KITCHEN_L_DESIGN,
   materialById,
   paletteFinish,
+  type BodyFinishRule,
   type Design,
   type DesignPlacement,
   type Finish,
@@ -46,14 +51,26 @@ import {
 
 const ANTRACIT = paletteFinish("pal.antracit");
 const NUC = paletteFinish("pal.nuc-warmia");
+const VENEER_NUC = paletteFinish("veneer.nuc");
+
+/** The two drawn hexes, written out rather than read from `finishes.ts`: a constant taken from the
+ *  table under test agrees with whatever that table says. */
+const ANTRACIT_HEX = "#2b2d30";
+const VENEER_NUC_HEX = "#6f4630";
 
 /** A body that *can* wear a colour, drawn in the same scene as every refusal below: without it a
  *  "left unpainted" run is satisfied by a scene that painted nothing at all. */
 const FINISHABLE_WITNESS_ID = "p1";
 
-/** Backlog 60's division. `structural` and `appliance` are the owner's own words; today both
- *  columns behave identically, and the ruling is what will separate them. */
+/** Backlog 60's division, in the owner's own words. Each value names the `finishRule` the catalogue
+ *  must declare for that body, and the premise below checks the pair — so this table is a reading of
+ *  the declaration rather than a second copy of it. */
 type Family = "structural" | "appliance";
+
+const DECLARED_BY_FAMILY: Readonly<Record<Family, BodyFinishRule>> = {
+  structural: FOLLOWS_THE_KITCHENS_COLOUR,
+  appliance: IS_NEVER_PAINTED,
+};
 
 interface UnpaintableBody {
   readonly placementId: string;
@@ -71,10 +88,10 @@ interface UnpaintableBody {
  *
  * Seven rows, not the five the ruling's summary lists: the seeded kitchen holds **four** corner
  * bodies rather than two — a corner base X, a corner base return, and *two* wall corner returns
- * (the run and its top row) — and each is a separate declaration that the implementer has to rule
- * on separately.
+ * (the run and its top row) — and every one of them is structural cabinetry, so the ruling reaches
+ * all four. `STRUCTURAL_CORNER` declares them together, which is why they cannot be ruled on apart.
  */
-const UNPAINTABLE: readonly UnpaintableBody[] = [
+const UNCHOOSING: readonly UnpaintableBody[] = [
   {
     placementId: "p25",
     buildId: "base-corner-x-900",
@@ -245,6 +262,38 @@ function materialsWithAndWithout(
   return { without, with_ };
 }
 
+/** The mirror of `expectSameMaterials`: **something under this body was repainted**, asserted on the
+ *  instance rather than on a hex, because two declared colours can coincide and an instance cannot.
+ *  The mesh set must be identical either way — a body that gained or lost a mesh is a different
+ *  scene, not a repainted one. */
+function expectRepainted(
+  without: Map<string, THREE.Material>,
+  with_: Map<string, THREE.Material>,
+  where: string,
+): void {
+  expect([...with_.keys()].sort(), `${where}: mesh set moved`).toEqual(
+    [...without.keys()].sort(),
+  );
+  const moved = [...with_].filter(
+    ([name, material]) => material !== without.get(name),
+  );
+  expect(moved.length, `${where}: nothing was repainted`).toBeGreaterThan(0);
+}
+
+/** Hex **and** instance, so neither assertion can go vacuous alone: a front that was never painted
+ *  keeps the shared `kit.M.door` instance whatever its hex happens to be. */
+function expectWearingColour(
+  front: THREE.Mesh,
+  hex: string,
+  where: string,
+): void {
+  expect(front.material, `${where}: front was not repainted`).not.toBe(
+    kit.M.door,
+  );
+  const material = front.material as THREE.MeshStandardMaterial;
+  expect(`#${material.color.getHexString()}`, where).toBe(hex);
+}
+
 function expectSameMaterials(
   without: Map<string, THREE.Material>,
   with_: Map<string, THREE.Material>,
@@ -271,9 +320,9 @@ describe("backlog 60 — the premise: which bodies this is about, and what can b
     ).filter((record) => !record.canFinish);
 
     expect(declared.map((record) => record.id).sort()).toEqual(
-      UNPAINTABLE.map((row) => row.placementId).sort(),
+      UNCHOOSING.map((row) => row.placementId).sort(),
     );
-    for (const row of UNPAINTABLE) {
+    for (const row of UNCHOOSING) {
       const record = declared.find(
         (candidate) => candidate.id === row.placementId,
       );
@@ -281,6 +330,24 @@ describe("backlog 60 — the premise: which bodies this is about, and what can b
       expect(record?.buildId, row.placementId).toBe(row.buildId);
       expect(record?.kind, row.placementId).toBe(row.kind);
     }
+  });
+
+  /** **The `family` column is the catalogue's declaration and not a second opinion.** Read off each
+   *  entry's `finishRule` through the domain's own fail-closed resolver, so a body moved between the
+   *  two families in the catalogue fails here by name rather than leaving this file asserting the
+   *  rule it was moved off. */
+  it.each(UNCHOOSING)("$buildId declares the $family rule", (row) => {
+    const definition = KITCHEN_L_BODY_CATALOG.get(row.buildId);
+    expect(definition, row.buildId).toBeDefined();
+
+    expect(
+      bodyFinishRuleOf({
+        buildId: row.buildId,
+        rule: definition?.finishRule,
+        canFinish: definition?.canFinish ?? true,
+      }),
+      row.buildId,
+    ).toBe(DECLARED_BY_FAMILY[row.family]);
   });
 
   /** **The scope fact backlog 60 turns on.** `applyBodyFinish` paints `collectFronts(body)` and
@@ -293,12 +360,12 @@ describe("backlog 60 — the premise: which bodies this is about, and what can b
   it("mounts the stated number of paintable fronts for each, and none at all for four of them", () => {
     drawn(withKitchenColour(followingOn("material.melamine"), ANTRACIT));
 
-    for (const row of UNPAINTABLE) {
+    for (const row of UNCHOOSING) {
       expect(frontsOf(mounted(row.placementId)).length, row.buildId).toBe(
         row.frontCount,
       );
     }
-    const frontless = UNPAINTABLE.filter((row) => row.frontCount === 0);
+    const frontless = UNCHOOSING.filter((row) => row.frontCount === 0);
     expect(frontless.map((row) => row.buildId).sort()).toEqual([
       "base-corner-return-320",
       "fridge-free-700",
@@ -312,8 +379,92 @@ describe("backlog 60 — the premise: which bodies this is about, and what can b
   });
 });
 
-describe("ADR 0099 decision 8 — the kitchen's colour reaches none of these seven, by name", () => {
-  it.each(UNPAINTABLE)(
+/** The three structural rows that actually draw a front — the only ones on which *followed the
+ *  kitchen* is a claim about something visible. The other two structural rows are asserted in the
+ *  domain instead; see the premise above. */
+const PAINTABLE_STRUCTURAL = UNCHOOSING.filter(
+  (row) => row.family === "structural" && row.frontCount > 0,
+);
+
+const APPLIANCES = UNCHOOSING.filter((row) => row.family === "appliance");
+
+describe("backlog 60 — structural cabinetry wears the kitchen's colour, by name", () => {
+  /** The set is stated rather than derived only by filter, so a structural row losing its fronts —
+   *  or the corner base X being ruled out of the class — fails here instead of silently shrinking
+   *  the sweep to nothing. */
+  it("has three structural bodies whose fronts can show the colour", () => {
+    expect(PAINTABLE_STRUCTURAL.map((row) => row.buildId).sort()).toEqual([
+      "base-corner-x-900",
+      "wall-corner-return-570",
+      "wall-corner-return-570-top",
+    ]);
+  });
+
+  it.each(PAINTABLE_STRUCTURAL)(
+    "$buildId ($family) takes the kitchen's colour on melamine",
+    (row) => {
+      const { without, with_ } = materialsWithAndWithout(
+        followingOn("material.melamine"),
+        ANTRACIT,
+        row.placementId,
+      );
+
+      expectRepainted(without, with_, row.buildId);
+      const fronts = frontsOf(mounted(row.placementId));
+      expect(fronts.length, row.buildId).toBe(row.frontCount);
+      for (const front of fronts) {
+        expectWearingColour(front, ANTRACIT_HEX, row.buildId);
+      }
+    },
+  );
+
+  /** Veneer, where the declared default is a tinted wood: *painted the kitchen's colour* and *left
+   *  on the kit's own white* are visibly different values, so no row can pass by coincidence with
+   *  the kit's hex. */
+  it.each(PAINTABLE_STRUCTURAL)(
+    "$buildId ($family) takes the kitchen's colour on veneer",
+    (row) => {
+      const { without, with_ } = materialsWithAndWithout(
+        followingOn("material.veneer"),
+        VENEER_NUC,
+        row.placementId,
+      );
+
+      expectRepainted(without, with_, row.buildId);
+      for (const front of frontsOf(mounted(row.placementId))) {
+        expectWearingColour(front, VENEER_NUC_HEX, row.buildId);
+      }
+    },
+  );
+
+  /** **It follows and it does not choose** (ADR 0099 decision 2, and the half of decision 8 that
+   *  stands). A colour hand-written onto a structural body — reachable by a restored backup or
+   *  another client, never by this build's commands, because it has no control — is still not what
+   *  gets drawn: the kitchen's colour is. */
+  it.each(PAINTABLE_STRUCTURAL)(
+    "$buildId ($family) draws the kitchen's colour and not one written onto its own body",
+    (row) => {
+      const base = followingOn("material.melamine");
+
+      solidsRoot = new THREE.Group();
+      drawn(wearingOn(withKitchenColour(base, ANTRACIT), row.placementId, NUC));
+
+      for (const front of frontsOf(mounted(row.placementId))) {
+        expectWearingColour(front, ANTRACIT_HEX, row.buildId);
+      }
+    },
+  );
+});
+
+describe("backlog 60 — an appliance is painted at neither level, by name", () => {
+  it("names both appliances", () => {
+    expect(APPLIANCES.map((row) => row.buildId).sort()).toEqual([
+      "fridge-free-700",
+      "hood-600",
+    ]);
+  });
+
+  it.each(APPLIANCES)(
     "$buildId ($family) is untouched by a kitchen colour on melamine",
     (row) => {
       const { without, with_ } = materialsWithAndWithout(
@@ -323,39 +474,27 @@ describe("ADR 0099 decision 8 — the kitchen's colour reaches none of these sev
       );
 
       expectSameMaterials(without, with_, row.buildId);
-      // The sharper claim where there is a surface to make it about.
-      for (const front of frontsOf(mounted(row.placementId))) {
-        expect(front.material, row.buildId).toBe(kit.M.door);
-      }
       expect(frontsOf(mounted(row.placementId)).length).toBe(row.frontCount);
     },
   );
 
-  /** Veneer, where the declared default is a tinted wood: *not painted* and *painted white* are
-   *  visibly different values, so no row can pass here by coincidence with the kit's own hex. */
-  it.each(UNPAINTABLE)(
+  it.each(APPLIANCES)(
     "$buildId ($family) is untouched by a kitchen colour on veneer",
     (row) => {
-      const veneer = followingOn("material.veneer");
       const { without, with_ } = materialsWithAndWithout(
-        veneer,
-        paletteFinish("veneer.nuc"),
+        followingOn("material.veneer"),
+        VENEER_NUC,
         row.placementId,
       );
 
       expectSameMaterials(without, with_, row.buildId);
-      for (const front of frontsOf(mounted(row.placementId))) {
-        expect(front.material, row.buildId).toBe(kit.M.door);
-      }
       // The premise for this material: a body that *can* wear a colour is wearing veneer's own
       // default in the bare scene, so "unpainted" here is a refusal and not an empty scene.
       expect(materialById("material.veneer").defaultFinish).toBeDefined();
     },
   );
 
-  /** The cabinet level, per body: a colour hand-written onto one of these — reachable by a restored
-   *  backup or another client, never by this build's commands — is refused too. */
-  it.each(UNPAINTABLE)(
+  it.each(APPLIANCES)(
     "$buildId ($family) is untouched by a colour written onto its own body",
     (row) => {
       const base = followingOn("material.melamine");
@@ -369,9 +508,37 @@ describe("ADR 0099 decision 8 — the kitchen's colour reaches none of these sev
       const with_ = materialsUnder(mounted(row.placementId));
 
       expectSameMaterials(without, with_, row.buildId);
-      for (const front of frontsOf(mounted(row.placementId))) {
-        expect(front.material, row.buildId).toBe(kit.M.door);
-      }
+    },
+  );
+});
+
+/** The two structural rows with no front at all. Nothing on screen can move for them today, and
+ *  saying so here is what stops a future reader taking the domain's assertion as covered by the
+ *  scene. Their following is proved in
+ *  `configurator-domain/tests/structural-cabinetry-follows-the-kitchens-colour.test.ts`. */
+describe("backlog 60 — the two frontless structural bodies have no surface to show it on", () => {
+  const FRONTLESS_STRUCTURAL = UNCHOOSING.filter(
+    (row) => row.family === "structural" && row.frontCount === 0,
+  );
+
+  it("names them", () => {
+    expect(FRONTLESS_STRUCTURAL.map((row) => row.buildId).sort()).toEqual([
+      "base-corner-return-320",
+      "open-shelf-600",
+    ]);
+  });
+
+  it.each(FRONTLESS_STRUCTURAL)(
+    "$buildId ($family) mounts no front for the colour to reach",
+    (row) => {
+      const { without, with_ } = materialsWithAndWithout(
+        followingOn("material.melamine"),
+        ANTRACIT,
+        row.placementId,
+      );
+
+      expect(frontsOf(mounted(row.placementId)).length, row.buildId).toBe(0);
+      expectSameMaterials(without, with_, row.buildId);
     },
   );
 });

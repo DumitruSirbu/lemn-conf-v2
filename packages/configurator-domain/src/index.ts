@@ -121,6 +121,17 @@ export {
   type ColumnBuildDepthQuery,
 } from "./cabinet-depth-rule.js";
 export {
+  bodyFinishRuleOf,
+  choosesItsOwnColour,
+  CHOOSES_ITS_OWN_COLOUR,
+  ContradictoryBodyFinishRuleError,
+  FOLLOWS_THE_KITCHENS_COLOUR,
+  IS_NEVER_PAINTED,
+  UndeclaredBodyFinishRuleError,
+  type BodyFinishRule,
+  type BodyFinishRuleQuery,
+} from "./body-finish-rule.js";
+export {
   isMeasurableSeat,
   JointSeatIsNotMeasurableError,
   measurableSeatOf,

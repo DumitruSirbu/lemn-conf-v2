@@ -22,6 +22,9 @@
 // material declares no default to fall back to (ADR 0078 decision 3), and that state is reachable:
 // wave 6G's recovery path depends on such a document continuing to load. A caller gets the absence
 // rather than a colour this product never declared.
+// Type-only, so this module gains no runtime dependency on the declaration side: it needs the arms
+// to switch over and none of their behaviour.
+import type { BodyFinishRule } from "./body-finish-rule.js";
 import { materialOfDesign } from "./design-material.js";
 import type { Design, DesignPlacement } from "./design.js";
 import type { Finish, MaterialLookup } from "./materials.js";
@@ -37,6 +40,48 @@ export function resolvedFinishOf(
   design: Design,
 ): Finish | undefined {
   return placement.body.finish ?? resolvedDefaultFinishOf(design);
+}
+
+/** The placement, the design it belongs to, and what its catalogue entry declares about colour.
+ *
+ * One named object rather than three positional arguments, because the three are read together and
+ * the rule is a fact about the body rather than a switch selecting a behaviour. */
+export interface DrawnFinishQuery {
+  readonly rule: BodyFinishRule;
+  readonly placement: DesignPlacement;
+  readonly design: Design;
+}
+
+/**
+ * **The colour this body is drawn in** — `PlacementRecord.drawnFinish`'s answer, and the one place
+ * the owner's ruling of 2026-09-09 is applied: *"structural cabinetry follows the kitchen,
+ * appliances never do"*.
+ *
+ * Three arms and no default, so a fourth `BodyFinishRule` is a compile error here rather than a body
+ * that silently stops being painted:
+ *
+ * - **It chooses its own** — the full order above, `resolvedFinishOf`, unchanged.
+ * - **It follows the kitchen** — the *default* only. `placement.body.finish` is deliberately not
+ *   consulted: such a body has no control (ADR 0099 decision 8's half that stands), so a colour in
+ *   its document is one no customer could have picked, and drawing it would make a hand-edited row
+ *   visible where the product offers nothing to change it.
+ * - **It is never painted** — no colour, at either level, whatever either level holds.
+ *
+ * **It resolves and never writes**, like everything else in this module. Nothing here returns a
+ * `Design`, and a body that follows keeps its `finish` key absent however often it is drawn — which
+ * is ADR 0099 decision 2, and the reason this is a second function rather than a widening of
+ * `resolvedFinishOf`: the resolver above is what `chosen-finishes.ts` and the settings sheet compare
+ * against, and neither of them is asking what to paint.
+ */
+export function drawnFinishOf(query: DrawnFinishQuery): Finish | undefined {
+  switch (query.rule) {
+    case "chooses-its-own-colour":
+      return resolvedFinishOf(query.placement, query.design);
+    case "follows-the-kitchens-colour":
+      return resolvedDefaultFinishOf(query.design);
+    case "is-never-painted":
+      return undefined;
+  }
 }
 
 /**

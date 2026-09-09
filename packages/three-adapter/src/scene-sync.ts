@@ -181,9 +181,16 @@ function mountBody(kit: Kit, record: PlacementRecord): THREE.Group {
  *  is only a design whose material id names nothing declared (ADR 0078 decision 3) — a state that
  *  loads rather than being refused, and that declares no colour to paint.
  *
- *  The `canFinish` / `canHandle` guards are `hidesHandles`'s own WHY arriving from the data side —
- *  `insertBody`'s `carriedAppearance` refuses to carry a choice onto a body that cannot take it,
- *  but a hand-edited or migrated design can still carry one. */
+ *  The `canHandle` guard is `hidesHandles`'s own WHY arriving from the data side — `insertBody`'s
+ *  `carriedAppearance` refuses to carry a choice onto a body that cannot take it, but a hand-edited
+ *  or migrated design can still carry one.
+ *
+ *  **There is no `canFinish` guard beside it any more, and there must not be one.** It stood here
+ *  until the owner's ruling of 2026-09-09 split that flag's class in two: a structural corner and an
+ *  open shelf are `canFinish: false` and *must* be painted with the kitchen, while a hood and a
+ *  fridge are `canFinish: false` and must never be. The refusal moved to `drawnFinishOf`, beside the
+ *  `finishRule` declaration that answers which is which, so this package still learns no rule (§12)
+ *  and a record carrying no drawn finish is simply not painted. */
 function applyRecordedAppearance(
   kit: Kit,
   body: THREE.Group,
@@ -193,7 +200,7 @@ function applyRecordedAppearance(
   // record can carry has a material: the "no material for this finish" branch that used to sit here
   // is gone rather than defaulted, because a missing decor is now a compile failure in
   // `finishes.ts` instead of a front silently left in the kit's own colour.
-  if (record.drawnFinish && record.canFinish) {
+  if (record.drawnFinish) {
     applyBodyFinish(body, kit.M, record.drawnFinish);
   }
   if (record.handleMode === "black" && record.canHandle) {

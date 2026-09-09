@@ -50,6 +50,13 @@ import {
   IS_A_MANUFACTURED_SIZE,
   type CabinetDepthRule,
 } from "../cabinet-depth-rule.js";
+import {
+  bodyFinishRuleOf,
+  CHOOSES_ITS_OWN_COLOUR,
+  FOLLOWS_THE_KITCHENS_COLOUR,
+  IS_NEVER_PAINTED,
+  type BodyFinishRule,
+} from "../body-finish-rule.js";
 import { WALL_FRONT_ASSEMBLY_MM, WORKTOP_DEPTH_MM } from "../worktop-depth.js";
 import type { Design, DesignPlacement } from "../design.js";
 import {
@@ -176,6 +183,7 @@ const STRUCTURAL_CORNER: Pick<
   | "canReplace"
   | "canDelete"
   | "canFinish"
+  | "finishRule"
   | "canHandle"
   | "fixedWidth"
   | "structuralReason"
@@ -183,6 +191,12 @@ const STRUCTURAL_CORNER: Pick<
   canReplace: false,
   canDelete: false,
   canFinish: false,
+  // **Structural cabinetry, so it wears the kitchen's colour** (owner's ruling, 2026-09-09; backlog
+  // entry 60). It offers no control of its own — `canFinish: false` above is unchanged and is the
+  // half of ADR 0099 decision 8 that stands — so it follows and never chooses. Left on the
+  // material's white it read as a body that had failed to repaint: a white door with a handle
+  // standing between Antracit neighbours, on the corner of a dark kitchen.
+  finishRule: FOLLOWS_THE_KITCHENS_COLOUR,
   canHandle: false,
   fixedWidth: true,
   // With all four capability flags false the panel offers nothing, so it never produces the refusal
@@ -284,6 +298,7 @@ export function buildSeededBodyDefinitions(
     BodyDefinition,
     | "band"
     | "canFinish"
+    | "finishRule"
     | "canHandle"
     | "canReplace"
     | "canDelete"
@@ -314,6 +329,11 @@ export function buildSeededBodyDefinitions(
     // two hoods, seated on the cabinet front line — override it on their own line below.
     seatRule: seatedOnWallPlane,
     canFinish: true,
+    // Ordinary cabinetry: the customer may colour this body alone, and where they have not it
+    // follows the kitchen and then the material's default (ADR 0099 decision 1's order). The four
+    // seeded rows this is wrong for — the hood, the shelf and the fridge — say so on their own line,
+    // and `STRUCTURAL_CORNER` says it for the four corner bodies.
+    finishRule: CHOOSES_ITS_OWN_COLOUR,
     canHandle: true,
     canReplace: true,
     canDelete: true,
@@ -540,6 +560,10 @@ export function buildSeededBodyDefinitions(
         // in the group and so erased the fridge's own bars. The `fridge-free` catalogue row
         // declares both `false`; this instance is the same builder call and now agrees.
         canFinish: false,
+        // **An appliance, so no colour reaches it at any level** (owner's ruling, 2026-09-09:
+        // *"fridge no, hood also no"*). Not cabinetry — the same fact `IS_A_MANUFACTURED_SIZE` below
+        // states about its depth, said about its colour.
+        finishRule: IS_NEVER_PAINTED,
         canHandle: false,
         frameDepthMm: 680,
         frameHeightMm: 1850,
@@ -616,6 +640,11 @@ export function buildSeededBodyDefinitions(
         // was a no-op. The `open-shelf` catalogue row has declared both `false` all along; this
         // instance is the same body and now says the same thing (capability-parity gate).
         canFinish: false,
+        // **Cabinetry, so it wears the kitchen's colour**, in the owner's own words of 2026-09-09:
+        // *"open shelves can have and by default should inherit global set color"*. No control of its
+        // own, for the reason `canFinish: false` above gives — there is no front for a chip to
+        // recolour today — but the shelf is part of the kitchen and is painted with it.
+        finishRule: FOLLOWS_THE_KITCHENS_COLOUR,
         canHandle: false,
         // No front, so unlike its fronted neighbours its seat is the declared wall depth itself
         // rather than that depth less the door-and-handle assembly.
@@ -637,6 +666,11 @@ export function buildSeededBodyDefinitions(
         // A hood is a canopy and a chimney: no front, so nothing for a finish chip to recolour.
         // Same correction as `open-shelf-600` above, matching the `hood` catalogue row.
         canFinish: false,
+        // **An extractor, so no colour reaches it at any level** — the owner's *"hood also no"*
+        // (2026-09-09). It is the one body ADR 0035 decision 5 calls cabinetry *for width* and this
+        // record calls a machine *for colour*; the two facts are about different things and are
+        // declared separately rather than read off one another.
+        finishRule: IS_NEVER_PAINTED,
         canHandle: false,
         fixedWidth: true,
         frameDepthMm: hoodFrameDepthMm(cabinetDepthMm),
@@ -785,6 +819,35 @@ interface DeclaresASeatRule {
   readonly seatRule?: SeatRule;
 }
 
+/** **Every entry states what colour it is drawn in, or the catalogue does not load** (owner's
+ *  ruling, 2026-09-09; backlog entry 60).
+ *
+ *  The same two-population split the two sweeps above handle, at the same moment and for the same
+ *  reason — and here the absent reading is not merely conservative in one direction, it is wrong in
+ *  both: read as *chooses* it paints a fridge, read as *never* it leaves the next structural body
+ *  white between coloured neighbours. `bodyFinishRuleOf` refuses either, and refuses an entry whose
+ *  `finishRule` and `canFinish` disagree, so the two declarations cannot drift into two authorities.
+ *
+ *  Exported for the gate in `structural-cabinetry-follows-the-kitchen.test.ts`, and deliberately
+ *  **not** on the barrel, for the reason `refuseUndeclaredDepthRules` is not: a caller outside this
+ *  package has no catalogue of its own to sweep. */
+export function refuseUndeclaredFinishRules(
+  entries: readonly (readonly [string, DeclaresAFinishRule])[],
+): void {
+  for (const [buildId, definition] of entries) {
+    bodyFinishRuleOf({
+      buildId,
+      rule: definition.finishRule,
+      canFinish: definition.canFinish,
+    });
+  }
+}
+
+interface DeclaresAFinishRule {
+  readonly finishRule?: BodyFinishRule;
+  readonly canFinish: boolean;
+}
+
 /** One map, two populations (ADR 0011 Gap A): M2's seeded instances, which reproduce M1's scene
  *  and are never offered, and §7's parameterised entries, which are the only ones a customer can
  *  insert. Both resolve through the same lookup, so a placement created by `insertBody` loads the
@@ -796,6 +859,7 @@ export function buildKitchenLBodyCatalog(cabinetDepthMm: number): BodyCatalog {
   ];
   refuseUndeclaredDepthRules(entries);
   refuseUndeclaredSeatRules(entries);
+  refuseUndeclaredFinishRules(entries);
   // The same stance one declaration over (ADR 0070, wave 6S): `carriesFronts` refuses a
   // contradictory rule where it is written, and this refuses one that arrived through the
   // `BodyCatalog` port without passing a constructor — which is also the only caller that has the

@@ -149,7 +149,13 @@ describe("a recorded finish reaches the scene", () => {
     }
   });
 
-  it("ignores a finish recorded on a body that cannot take one", () => {
+  /** **The record decides, and `canFinish` no longer does.** This asserted the opposite until the
+   *  owner's ruling of 2026-09-09 (backlog entry 60) split that flag's class in two: a structural
+   *  corner and an open shelf are `canFinish: false` and are painted **with the kitchen**, while a
+   *  hood and a fridge are `canFinish: false` and are painted at no level. One flag cannot say which,
+   *  so the domain's `finishRule` decides and answers by filling `drawnFinish` or leaving it absent.
+   *  This package reads the answer and no longer holds a second opinion (§12). */
+  it("paints a body that cannot choose its own colour when the record carries a drawn one", () => {
     sync([
       makeRecord({
         id: "p1",
@@ -158,7 +164,21 @@ describe("a recorded finish reaches the scene", () => {
       }),
     ]);
 
-    for (const front of frontsOf(mounted("p1"))) {
+    const fronts = frontsOf(mounted("p1"));
+    expect(fronts.length).toBeGreaterThan(0);
+    for (const front of fronts) {
+      expect(front.material).not.toBe(kit.M.door);
+    }
+  });
+
+  /** The other half of the same seam: absence is what leaves a body unpainted, whatever its flags
+   *  say. It is how an appliance reaches the scene after the ruling. */
+  it("leaves a body unpainted when the record carries no drawn colour", () => {
+    sync([makeRecord({ id: "p1", canFinish: false })]);
+
+    const fronts = frontsOf(mounted("p1"));
+    expect(fronts.length).toBeGreaterThan(0);
+    for (const front of fronts) {
       expect(front.material).toBe(kit.M.door);
     }
   });
