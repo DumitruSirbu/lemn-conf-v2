@@ -62,8 +62,11 @@ const UNDECLARED_TIER_ID = "material.laminate";
 
 /** The severity map's size, pinned so a code added anywhere in the repository has to come past this
  *  file. 6Q-a added **none**; 6Q-b added `PLACEMENT_WEARS_UNOFFERED_FINISH`; W3 added
- *  `SETTINGS_WEAR_UNOFFERED_FINISH` — see the justification at the finish-code assertion below. */
-const DECLARED_VALIDATION_CODE_COUNT = 31;
+ *  `SETTINGS_WEAR_UNOFFERED_FINISH` — see the justification at the finish-code assertion below.
+ *  Backlog 50 added `RECORDED_SPAN_OVERLAPS_CORNER_BODY`, the cross-wall corner intersection
+ *  `findWallOverlaps` was declared blind to, ruled a **mark** by the owner on 2026-09-09 precisely
+ *  so that it cannot do to a stored row what this file exists to forbid. */
+const DECLARED_VALIDATION_CODE_COUNT = 32;
 
 const PACKAGE_ROOT = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),

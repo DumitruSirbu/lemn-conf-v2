@@ -284,6 +284,9 @@ describe("the design wave 6X declares is a design the product accepts", () => {
     (cabinetDepthMm) => {
       const catalog = buildKitchenLBodyCatalog(cabinetDepthMm);
 
+      const codesOn = (design: Design) =>
+        validateDesignForCatalog(design, catalog).map((issue) => issue.code);
+
       for (const design of [
         withADeclaredWallBColumn(cabinetDepthMm),
         theDeclaredDesignAt(cabinetDepthMm),
@@ -294,10 +297,30 @@ describe("the design wave 6X declares is a design the product accepts", () => {
             validateDesignForCatalog(design, catalog),
           ),
         ).toStrictEqual([]);
-        // Not only fatal: a warning-severity issue on the wave's own fixture is still a document the
-        // product would complain about, and the wave's claim is that this one is ordinary.
-        expect(validateDesignForCatalog(design, catalog)).toStrictEqual([]);
       }
+
+      // Not only fatal: a warning-severity issue on the wave's own fixture is still a document the
+      // product would complain about. The design that carries no frozen map is ordinary at both
+      // depths, and the one that carries a map is ordinary at the depth it was declared at.
+      expect(codesOn(withADeclaredWallBColumn(cabinetDepthMm))).toStrictEqual(
+        [],
+      );
+
+      // **At 700 it is not ordinary, and that is this witness's own point restated by a second
+      // reader.** `seededAt` swaps `settings.cabinetDepthMm` and moves no placement, so wall B's run
+      // stands where the 600 mm kitchen put it while the catalogue is built at 700: the corner leg's
+      // carcass goes 560 → 660 against a base return still starting at 580, and the wall band's goes
+      // 291 → 361 against a wall return still starting at 330. **80 mm and 31 mm** — the two
+      // overlaps backlog 50 was opened for, to the millimetre (ADR 0089 decision 3). Since
+      // 2026-09-09 the gate says so, as a `mark`; the document still loads, which is what the fatal
+      // assertion above proves and what the owner ruled the severity for.
+      expect(
+        new Set(codesOn(theDeclaredDesignAt(cabinetDepthMm))),
+      ).toStrictEqual(
+        cabinetDepthMm === SHALLOW_MM
+          ? new Set<string>()
+          : new Set(["RECORDED_SPAN_OVERLAPS_CORNER_BODY"]),
+      );
     },
   );
 

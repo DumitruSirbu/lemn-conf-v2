@@ -71,6 +71,7 @@ export type DesignValidationCode =
   | "COLUMN_EXTENT_OVERLAPS_PLACEMENT"
   | "COLUMN_EXTENT_OVERLAPS_EMPTY_COLUMN"
   | "COLUMN_EXTENT_OVERLAPS_COLUMN_EXTENT"
+  | "RECORDED_SPAN_OVERLAPS_CORNER_BODY"
   | "TIMESTAMPS_OUT_OF_ORDER"
   | "PLACEMENT_WEARS_UNOFFERED_FINISH"
   | "SETTINGS_WEAR_UNOFFERED_FINISH";
@@ -101,6 +102,7 @@ export function validateDesignForCatalog(
     ),
     ...findEmptyColumnIssues(design),
     ...findColumnExtentIssues(design, catalog),
+    ...findCornerOverlaps(design, catalog),
     ...findUnofferedFinishIssues(design),
   ];
 }
@@ -257,6 +259,13 @@ export const DESIGN_ISSUE_SEVERITY_BY_CODE: Readonly<
   COLUMN_EXTENT_OVERLAPS_PLACEMENT: "refusal",
   COLUMN_EXTENT_OVERLAPS_EMPTY_COLUMN: "refusal",
   COLUMN_EXTENT_OVERLAPS_COLUMN_EXTENT: "refusal",
+  // **The owner's ruling of 2026-09-09, and the second entry the membership rule above does not
+  // reach.** The fact this asserts is not "past the end of its wall", so the rule as ADR 0069
+  // decision 2 states it would make it a refusal — and a refusal here makes an already-stored
+  // document unloadable, which is ADR 0052's dead link. The owner ruled it a mark for the reason
+  // `PLACEMENT_PAST_WALL_END` is one (ADR 0065): the geometry is visible on screen and reported,
+  // the document still loads, and nothing is moved out from under the customer.
+  RECORDED_SPAN_OVERLAPS_CORNER_BODY: "mark",
   TIMESTAMPS_OUT_OF_ORDER: "refusal",
   // ADR 0069 decision 2's membership rule leaves no discretion: the single fact this asserts is not
   // "past the end of its wall", so it is a refusal. The *refusal* is reachable only at
@@ -886,6 +895,199 @@ function groupSpansByWall(
     else grouped.set(span.wall, [span]);
   }
   return grouped;
+}
+
+/**
+ * **The one overlap the sweep above is declared blind to** (backlog 50, M6-AUD-008).
+ *
+ * `groupSpansByWall` states why wall A and wall B are never compared, and that is true everywhere
+ * except at the corner they share: both runs walk from the same origin (§2), so a body's *depth* is
+ * measured along the **other** wall, and the other wall's first millimetres stand inside it. It is
+ * the same fact `along-wall-chain-shift.ts` slides a whole run on, read here as an overlap instead
+ * of as a shift.
+ *
+ * **Bodies against recorded spans, and no other pair.** `overlapCodeFor` names no placement on the
+ * same-wall sweep — a placement carries no reportable path — and this record leaves that rule where
+ * it found it, so two bodies meeting across the corner report nothing here either.
+ *
+ * **One code for both stored arrays**, because the fact asserted is one fact and the path is what
+ * says which array carries it — the shape ADR 0069 decision 2 asks a code to have.
+ */
+function findCornerOverlaps(
+  design: Design,
+  catalog: BodyCatalog,
+): DesignValidationIssue[] {
+  const recorded = recordedCornerRuns(design, catalog);
+  if (recorded.length === 0) return [];
+  const bodies = bodyCornerRuns(design.placements, catalog);
+  const issues = new Map<string, DesignValidationIssue>();
+  // Only the runs that reach the corner at all can meet across it, and the two filters bound each
+  // other: a document's recorded spans are compared against its bodies over the few hundred
+  // millimetres either side of the origin rather than against all of them.
+  for (const span of nearerTheCornerThan(recorded, deepestReachMm(bodies))) {
+    for (const body of nearerTheCornerThan(bodies, deepestReachMm(recorded))) {
+      if (span.run.wall === body.run.wall) continue;
+      if (!intersectsAcrossTheCorner(span, body)) continue;
+      const issue = issueAt(
+        "RECORDED_SPAN_OVERLAPS_CORNER_BODY",
+        `${arrayNameOf(span.run.kind)}.${String(span.run.index)}`,
+      );
+      issues.set(issue.path, issue);
+    }
+  }
+  return [...issues.values()];
+}
+
+/** One run as the corner comparison reads it: where it stands along its own wall, and how far it
+ *  reaches into the other wall's coordinate. The corner is the origin both walls walk from, so that
+ *  reach is the interval `0 .. reachMm` over there. */
+interface CornerRun {
+  readonly run: WallSpan;
+  readonly reachMm: number;
+}
+
+/**
+ * **The reach across the corner is the carcass line, and deliberately not the space the body
+ * fills** — ruled 2026-09-09 on the measurement below, against this wave's own first attempt.
+ *
+ * The two disagree at exactly the place this comparison looks. `base-corner-x-900` seats on 560 and
+ * *occupies* 630, because ADR 0025 gives its corner worktop ten millimetres more reach than a
+ * straight run's, and `base-corner-return-320`'s slab stands 20 mm proud of its own 580 seat. So the
+ * shipped kitchen's two corner legs share 50 mm of plan area **by design**: it is two worktop slabs
+ * meeting at an L-joint, which is what a corner is. Measured against the occupied depth this gate
+ * marks the demo kitchen on its own declared geometry, and a gate that does that is not read the
+ * first time it fires on something real. Measured against the seat it is silent there, and the two
+ * defects backlog 50 was opened for reproduce exactly: 560 − 480 = 80 mm on the base return and
+ * 291 − 260 = 31 mm on the wall return, which are the entry's own figures.
+ *
+ * **And this number is a fiction everywhere else, which the next reader must meet rather than
+ * infer.** `frameDepthMm` is ADR 0018's encoding of twice a body's rear overhang and is not a depth:
+ * `hood-600` seats on 700 and fills 500. Nothing outside this comparison may read it as a distance
+ * from the wall — `occupiedDepthM` is the one answer to *how much space does this fill* (ADR 0040
+ * decision 1), and it is the right answer to every question except this one. What makes the seat
+ * right **here** is that both walls' runs are laid out against each other at the carcass line; what
+ * would make it right everywhere is an occupied-depth reach with an exemption for the two structural
+ * corner legs, which is the better shape, is a new rule, and is recorded in backlog 50 rather than
+ * built.
+ */
+function carcassSeatMmOf(
+  buildId: string | undefined,
+  catalog: BodyCatalog,
+): number | undefined {
+  if (buildId === undefined) return undefined;
+  return catalog.get(buildId)?.frameDepthMm;
+}
+
+/** Every placement the catalogue can seat. A body it cannot is already `UNKNOWN_BUILD_ID` on the
+ *  same report, and contributes no reach rather than a guessed one. */
+function bodyCornerRuns(
+  placements: readonly DesignPlacement[],
+  catalog: BodyCatalog,
+): CornerRun[] {
+  return placements.flatMap((placement, index) => {
+    const reachMm = carcassSeatMmOf(placement.body.buildId, catalog);
+    return reachMm === undefined
+      ? []
+      : [{ run: toPlacementSpan(placement, index), reachMm }];
+  });
+}
+
+/** Both stored arrays, each entry carrying the carcass line of the column it records. */
+function recordedCornerRuns(design: Design, catalog: BodyCatalog): CornerRun[] {
+  const seatsByColumn = deepestSeatByColumnMm(design.placements, catalog);
+  const runOf = (run: WallSpan, entry: EmptyColumn): CornerRun => ({
+    run,
+    reachMm: recordedReachMm({ run, entry, seatsByColumn, catalog }),
+  });
+  return [
+    ...(design.emptyColumns ?? []).map((entry, index) =>
+      runOf(toEmptyColumnSpan(entry, index), entry),
+    ),
+    ...(design.columnExtents ?? []).map((entry, index) =>
+      runOf(toColumnExtentSpan(entry, index), entry),
+    ),
+  ];
+}
+
+/** What the ladder below is asked about: one recorded entry, the run it became, and the two places
+ *  a seat can be found for it. */
+interface RecordedReachQuery {
+  readonly run: WallSpan;
+  readonly entry: EmptyColumn;
+  readonly seatsByColumn: ReadonlyMap<string, number>;
+  readonly catalog: BodyCatalog;
+}
+
+/**
+ * **How far the column this entry records reaches across the corner** — an information ladder
+ * ordered by how much the document actually knows, the shape ADR 0090 decision 2 already uses for
+ * this same map on the along-wall axis, read here on the depth axis.
+ *
+ * 1. **The column holds members** — the deepest seat among them. Exact, and it reads no recorded
+ *    field at all: an entry *is* the column those bodies stand in. This is the rung that keeps a
+ *    document written before ADR 0073 quiet, because it needs nothing the document carries.
+ * 2. **Member-less, with a recorded source** — that body's seat. ADR 0073 decision 1's field, read
+ *    for a second axis: no new field, no migration.
+ * 3. **Neither** — the recorded `depthMm`, which is §3.2's MAX **clearance** and therefore reaches
+ *    further than the carcass it stands for. It over-reports rather than under-reports, and it is a
+ *    `mark`, so the failure it can produce is a visible finding on a member-less sourceless column
+ *    at the corner and never a refused load.
+ */
+function recordedReachMm(query: RecordedReachQuery): number {
+  return (
+    query.seatsByColumn.get(query.run.columnKey) ??
+    carcassSeatMmOf(query.entry.depthFromBuildId, query.catalog) ??
+    query.entry.depthMm
+  );
+}
+
+/** The deepest carcass seat standing in each column, by the key `deriveColumnKeyAt` gives it — §3.2's
+ *  MAX shape, taken over the seat instead of over the clearance, and over the whole column for the
+ *  same reason the recorded depth is: an entry describes a column and not a band of one. */
+function deepestSeatByColumnMm(
+  placements: readonly DesignPlacement[],
+  catalog: BodyCatalog,
+): Map<string, number> {
+  const deepest = new Map<string, number>();
+  for (const placement of placements) {
+    const seatMm = carcassSeatMmOf(placement.body.buildId, catalog);
+    if (seatMm === undefined) continue;
+    const key = deriveColumnKeyAt(placement.wall, toMetres(placement.alongMm));
+    deepest.set(key, Math.max(deepest.get(key) ?? 0, seatMm));
+  }
+  return deepest;
+}
+
+/** The two runs stand in one another's solid: a rectangle in plan — each reaching into the other's
+ *  along-wall interval — and an overlap in elevation. All three, because a base cabinet on wall A
+ *  and a wall cabinet on wall B share the corner's plan area and no space at all. */
+function intersectsAcrossTheCorner(
+  first: CornerRun,
+  second: CornerRun,
+): boolean {
+  return (
+    reachesInto(first.run, second.reachMm) &&
+    reachesInto(second.run, first.reachMm) &&
+    overlapVertically(first.run, second.run)
+  );
+}
+
+/** Whether this run's own along-wall interval meets `0 .. reachMm`, the interval a body on the other
+ *  wall occupies over here. Strictly positive for the reason `dropSpansClosedBefore` gives:
+ *  abutting is not overlapping, and the shipped corner returns abut. */
+function reachesInto(run: WallSpan, reachMm: number): boolean {
+  return run.alongStartMm < reachMm && run.alongEndMm > 0;
+}
+
+function nearerTheCornerThan(
+  runs: readonly CornerRun[],
+  reachMm: number,
+): CornerRun[] {
+  return runs.filter((candidate) => candidate.run.alongStartMm < reachMm);
+}
+
+function deepestReachMm(runs: readonly CornerRun[]): number {
+  return runs.reduce((deepest, run) => Math.max(deepest, run.reachMm), 0);
 }
 
 interface PlacementContext {
