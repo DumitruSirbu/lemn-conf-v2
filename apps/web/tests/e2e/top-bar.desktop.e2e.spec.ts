@@ -52,6 +52,49 @@ test.beforeEach(async ({ page }) => {
   await page.waitForTimeout(SCENE_SETTLE_MS);
 });
 
+/**
+ * **Waits for the resize the test just asked for to have reached the canvas.**
+ *
+ * `setViewportSize` resolves when the browser has been told the new size, not when the page has
+ * laid out at it and not when R3F's `ResizeObserver` has re-sized the drawing buffer. Measuring
+ * straight after it is a race, and it is the race that made this file's own 900 x 500 case
+ * intermittent: caught on 2026-09-09, `measureScreen` reported `viewport.height` 500 — the document
+ * had the new size — beside `canvas` **779**, the height the canvas still had from the 1440 x 900
+ * case before it. Expected 379, received 779, and the 400 is exactly the 900 - 500 the canvas had
+ * not yet given up.
+ *
+ * Two conditions, and neither is one of this file's assertions — waiting for the thing under test to
+ * be true and then asserting it proves nothing. The first is that the **document** reports the size
+ * that was asked for, which is layout having happened. The second is that the canvas's own height is
+ * unchanged across three consecutive animation frames, which is the observer having delivered and
+ * the renderer having stopped moving. A canvas that never settles times out here rather than being
+ * measured mid-flight.
+ */
+async function waitForTheViewportToReachTheCanvas(
+  page: import("@playwright/test").Page,
+  viewport: { readonly width: number; readonly height: number },
+): Promise<void> {
+  await page.waitForFunction(
+    (expected) =>
+      document.documentElement.clientWidth === expected.width &&
+      document.documentElement.clientHeight === expected.height,
+    viewport,
+  );
+  await page.waitForFunction(() => {
+    const canvas = document.querySelector("canvas");
+    if (!canvas) return false;
+    const nextFrame = () =>
+      new Promise<number>((resolve) => {
+        requestAnimationFrame(() => {
+          resolve(canvas.getBoundingClientRect().height);
+        });
+      });
+    return Promise.all([nextFrame(), nextFrame(), nextFrame()]).then(
+      ([first, second, third]) => first === second && second === third,
+    );
+  });
+}
+
 async function measureScreen(page: import("@playwright/test").Page) {
   return page.evaluate(() => {
     const boxOf = (selector: string): DOMRect => {
@@ -91,6 +134,7 @@ for (const viewport of DESKTOP_VIEWPORTS)
       page,
     }) => {
       await page.setViewportSize(viewport);
+      await waitForTheViewportToReachTheCanvas(page, viewport);
       const measured = await measureScreen(page);
 
       expect(measured.header).toBe(RULED_BAND_HEIGHT_PX);
@@ -103,6 +147,7 @@ for (const viewport of DESKTOP_VIEWPORTS)
       page,
     }) => {
       await page.setViewportSize(viewport);
+      await waitForTheViewportToReachTheCanvas(page, viewport);
       const measured = await measureScreen(page);
 
       expect(measured.chip.right).toBeLessThanOrEqual(
@@ -130,6 +175,7 @@ for (const viewport of DESKTOP_VIEWPORTS)
       // tracking, the widest fixed item after the title. Dropping it is a copy decision under the
       // owner's Gate O1, not an implementer's, so this stays an assertion rather than a workaround.
       await page.setViewportSize(viewport);
+      await waitForTheViewportToReachTheCanvas(page, viewport);
       const measured = await measureScreen(page);
 
       expect(measured.clippedSpans).toEqual([]);
@@ -139,6 +185,7 @@ for (const viewport of DESKTOP_VIEWPORTS)
       page,
     }) => {
       await page.setViewportSize(viewport);
+      await waitForTheViewportToReachTheCanvas(page, viewport);
       const measured = await measureScreen(page);
 
       // Measured on the canvas, which is the thing the criterion is about. On this shell the price
