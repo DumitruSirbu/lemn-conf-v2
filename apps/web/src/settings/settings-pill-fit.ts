@@ -83,12 +83,6 @@ export function chooseVisibleSettingLabels(
   const settingsCount = input.labelWidthsPx.length;
   if (settingsCount === 0) throw new EmptySettingsPillError();
 
-  const fits = (count: number): boolean =>
-    widthNeededForVisibleLabels(
-      count,
-      input.labelWidthsPx,
-      input.fixedWidthsPx,
-    ) <= input.availableWidthPx;
   const fitsWithRoomToSpare = (count: number): boolean =>
     widthNeededForVisibleLabels(
       count,
@@ -98,7 +92,7 @@ export function chooseVisibleSettingLabels(
       hysteresisMarginOf(input.fixedWidthsPx) <=
     input.availableWidthPx;
 
-  const fitting = largestCountSatisfying(settingsCount, fits);
+  const fitting = visibleCountThatFitsWithin(input);
   const previous = input.previousVisibleCount;
   if (previous === undefined || previous >= fitting) {
     return toFit(
@@ -110,6 +104,30 @@ export function chooseVisibleSettingLabels(
   // to exactly the boundary keeps what it is showing until there is room to spare.
   const growing = largestCountSatisfying(settingsCount, fitsWithRoomToSpare);
   return toFit(Math.max(previous, growing), settingsCount);
+}
+
+/**
+ * **How many settings a track of this width can name**, with no hysteresis and no memory — the rung
+ * a pill would settle on if it were being drawn for the first time at this width.
+ *
+ * Exported and named because it has **two** readers and one definition is what keeps them agreeing:
+ * `chooseVisibleSettingLabels` above takes it as the shrink branch's answer, and `top-bar-fit.ts`
+ * asks it twice — once for the track with the wordmark and once for the track without — to decide
+ * whether the wordmark's return would cost a name. Two copies of *"the largest count that fits"* is
+ * how the row and the pill come to disagree about the same width.
+ */
+export function visibleCountThatFitsWithin(
+  input: SettingsPillFitInput,
+): number {
+  return largestCountSatisfying(
+    input.labelWidthsPx.length,
+    (count) =>
+      widthNeededForVisibleLabels(
+        count,
+        input.labelWidthsPx,
+        input.fixedWidthsPx,
+      ) <= input.availableWidthPx,
+  );
 }
 
 /**

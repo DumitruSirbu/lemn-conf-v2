@@ -841,7 +841,7 @@ interface DeclaresASeatRule {
  *  white between coloured neighbours. `bodyFinishRuleOf` refuses either, and refuses an entry whose
  *  `finishRule` and `canFinish` disagree, so the two declarations cannot drift into two authorities.
  *
- *  Exported for the gate in `structural-cabinetry-follows-the-kitchen.test.ts`, and deliberately
+ *  Exported for the gate in `structural-cabinetry-follows-the-kitchens-colour.test.ts`, and deliberately
  *  **not** on the barrel, for the reason `refuseUndeclaredDepthRules` is not: a caller outside this
  *  package has no catalogue of its own to sweep. */
 export function refuseUndeclaredFinishRules(

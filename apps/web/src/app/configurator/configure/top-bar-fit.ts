@@ -17,6 +17,7 @@
 // module composes — what closing the gaps returns to the pill — is derived from the two frames' own
 // gap declarations and the number of gaps the row draws, so it moves when they do.
 import {
+  visibleCountThatFitsWithin,
   widthNeededForVisibleLabels,
   type SettingsPillFixedWidths,
 } from "@/settings/settings-pill-fit";
@@ -89,8 +90,12 @@ export function describeTopBarFit(input: TopBarFitInput): TopBarFit {
   const isSpacingClosed = referenceTrackPx < atEveryLabel;
   const trackWithWordmark =
     referenceTrackPx + (isSpacingClosed ? gapSavingsPx() : 0);
-  const isWordmarkDrawn = trackWithWordmark >= trackTheWordmarkWaitsFor(input);
   const spacing = isSpacingClosed ? FRAME_2A_SPACING : D2A_SPACING;
+  const isWordmarkDrawn = theWordmarkCostsNoName({
+    input,
+    trackWithWordmark,
+    spacing,
+  });
   return {
     isWordmarkDrawn,
     isSpacingClosed,
@@ -102,27 +107,84 @@ export function describeTopBarFit(input: TopBarFitInput): TopBarFit {
 }
 
 /**
- * **Give C's width, and it is a derived quantity rather than a number** — the owner ruled the shape,
- * not the pixel: the wordmark comes back at the width where it fits **beside two setting names**.
+ * **Give C's width, and it is the property the owner ruled rather than a count of names.** The
+ * wordmark comes back at the first width where drawing it **costs the pill no setting name**.
  *
- * They were first given the one-whole-label width (940.38 px measured here) and then shown what it
- * costs: crossing it while widening, the wordmark returns and takes a name back off the pill, so the
- * visible label count *falls* as the window grows. They chose to have the artefact away — the
- * wordmark stays absent over a further stretch, and the label count is monotone in width across the
- * whole desktop range.
+ * The owner ruled this twice. First the wordmark returned where **one** whole name fitted beside it;
+ * shown that crossing that width while widening takes a name back off the pill — the label count
+ * *falling* as the window grows — they chose to have the artefact away. The wave expressed that
+ * second ruling as `SETTINGS_THE_WORDMARK_WAITS_FOR = 2`, a count.
  *
- * `SETTINGS_THE_WORDMARK_WAITS_FOR` is the ruling in one place: change it and the width moves with
- * the type, the tier names and the frames' own gaps, because everything it is composed from is
- * measured. It is bounded by what the pill has, so a design with fewer settings than that still
- * gets its wordmark back.
+ * **A count cannot carry it, and adversarial QA measured where it fails** (2026-09-09,
+ * `qa-0104-the-label-count-is-monotone.adversarial.test.ts`). Waiting for two names removes the
+ * artefact only while a *third* name costs the pill more than the wordmark does, and nothing
+ * enforced that comparison — it held at the seeded design's hardware tier and at one other, and
+ * broke at the third the price book ships:
+ *
+ * | tier     | a third name | the wordmark | monotone        |
+ * | -------- | ------------ | ------------ | --------------- |
+ * | Standard | 128.70       | 114.56       | yes             |
+ * | Hettich  | 116.88       | 114.56       | yes, by 2.32 px |
+ * | Blum     | 106.45       | 114.56       | **no**          |
+ *
+ * On Blum, 1033 px named three settings and 1034 named two. It also broke at **every** tier on the
+ * three-setting pill an undeclared material leaves, because drawing that third name also retires the
+ * counter and so costs only 86.65. A number that clears two of three tiers by 2.32 px is a
+ * coincidence, and the next tier the book gains would have re-opened it silently.
+ *
+ * **So the condition is the property itself**, asked of the widths in hand: count what the track
+ * buys with the wordmark and what it buys without, and draw the wordmark only when the two are the
+ * same. It cannot be tuned, it has no threshold in it, and it is monotone **by construction** rather
+ * than by arithmetic that happens to work out — the count the pill settles on is always the count
+ * the wider of the two tracks buys, which is non-decreasing in width whatever the labels measure.
+ *
+ * What it costs is the stretch the wordmark stays away for, which is the trade the owner already
+ * accepted in moving from one name to two; this extends it exactly as far as each design's own type
+ * requires and no further. The wordmark always returns: at the width where every name fits beside
+ * it, the two counts are both the whole ladder.
  */
-const SETTINGS_THE_WORDMARK_WAITS_FOR = 2;
+function theWordmarkCostsNoName(query: {
+  readonly input: TopBarFitInput;
+  readonly trackWithWordmark: number;
+  readonly spacing: TopBarSpacing;
+}): boolean {
+  const namesAt = (availableWidthPx: number): number =>
+    visibleCountThatFitsWithin({
+      availableWidthPx,
+      labelWidthsPx: query.input.labelWidthsPx,
+      fixedWidthsPx: query.input.fixedWidthsPx,
+    });
+  const withoutIt =
+    query.trackWithWordmark +
+    wordmarkCostPx(query.input.wordmarkWidthPx, query.spacing);
+  return (
+    oneWholeNameFitsBesideIt(query.input, query.trackWithWordmark) &&
+    namesAt(query.trackWithWordmark) >= namesAt(withoutIt)
+  );
+}
 
-function trackTheWordmarkWaitsFor(input: TopBarFitInput): number {
-  return widthNeededForVisibleLabels(
-    Math.min(SETTINGS_THE_WORDMARK_WAITS_FOR, input.labelWidthsPx.length),
-    input.labelWidthsPx,
-    input.fixedWidthsPx,
+/**
+ * **The owner's *first* ruling, kept as give C's floor.** The wordmark comes back only where at
+ * least one setting name fits beside it whole.
+ *
+ * It is not redundant beside the cost comparison above, and 900 px is where that shows. The pill's
+ * ladder floors at one label and ellipsises below it (`settings-pill-fit.ts`: *"the floor is one
+ * label, never zero"*), so at 900 the row names one setting with the wordmark and one without —
+ * the wordmark costs no *name* and the comparison alone would draw it. What it costs there is the
+ * name's **readability**, which is give C's whole purpose: with the wordmark kept the row fits at
+ * 900 at rung 4 with about 17 px left for the label, and 17 px is `P…`.
+ *
+ * So the two rulings are two conditions and both hold. The first was never wrong — it was
+ * insufficient, which is why the owner was shown the second. Neither breaks monotonicity: below this
+ * floor the wordmark is absent, and above it the count is the one the wider track buys either way.
+ */
+function oneWholeNameFitsBesideIt(
+  input: TopBarFitInput,
+  trackWithWordmark: number,
+): boolean {
+  return (
+    trackWithWordmark >=
+    widthNeededForVisibleLabels(1, input.labelWidthsPx, input.fixedWidthsPx)
   );
 }
 

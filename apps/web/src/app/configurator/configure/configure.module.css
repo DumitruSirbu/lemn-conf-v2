@@ -27,12 +27,17 @@
  * **The stacking order, re-derived and written down**, because this is the property that took 44 of
  * 58 e2e specs down in wave 6K-b3 and it is being re-decided by the restructure:
  *
- *   | layer                                   | z-index |
- *   | nav, settings' own paint, actions, locale | 2      |
- *   | the price cell                          | 3       |
- *   | §9's desktop rail                       | 4       |
- *   | the breakdown's popover                 | 6       |
- *   | the settings item, its scrim, its sheet  | 7      |
+ *   | layer                                    | mobile | desktop |
+ *   | nav, settings' own paint, actions, locale |   2    |    2    |
+ *   | the price cell                            | **3**  |  **5**  |
+ *   | §9's panel — a sheet on mobile, a rail on desktop |   4    |    4    |
+ *   | the breakdown's popover                   |   —    |    6    |
+ *   | the settings item, its scrim, its sheet    |   7    |    7    |
+ *
+ * **The price cell is the one layer that differs by shell, and §9's panel is why.** Everything else
+ * holds one number on both. The cell moved to 5 on desktop on 2026-09-09, after adversarial QA
+ * measured that capping it at 3 caps the breakdown's popover with it — see the fourth row's note
+ * below.
  *
  * **The rule that makes this table a table, stated exactly, because a summary of it sends the next
  * reader looking for the wrong thing: a `z-index` other than `auto` on a *grid or flex item*
@@ -54,10 +59,39 @@
  * button unreachable at 390 × 844: measured 2026-09-09, `elementFromPoint` at all five points of
  * that button returned the action row.
  *
- * `3` is the narrowest number that unties it. The two cells never overlap, so the step costs nothing
- * when the sheet is closed; it is below the rail's `4` and the settings sheet's `7`, so both still
- * cover the bar exactly as they did. A stacking fix that reaches higher than it needs is how the
- * next overlap becomes unfixable.
+ * `3` is the narrowest number that unties it **on mobile**, and it is the right number there: §9's
+ * panel is a *sheet* on that shell, it covers the bottom band, and at `4` it must go on covering it.
+ * A price cell above 4 would paint the bar through the open sheet.
+ *
+ * **On desktop the same cap is the defect**, and the rule at the top of this comment is what convicts
+ * it. The breakdown's popover is nested in this cell and declares `6`; nested, the highest it can
+ * paint is the cell's own number, so at `3` it painted **under** §9's rail at `4` — about 85 px of
+ * its right edge behind the panel at 1440. Before the restructure this cell declared no `z-index` at
+ * all, so the popover's `6` reached the root and genuinely cleared the rail; giving the cell a number
+ * capped it, first at `2` and then at `3`.
+ *
+ * One number cannot serve both: the cell must be **below** 4 on mobile and **above** it on desktop.
+ * That is not a branch invented for stacking — it is §9's own sheet-or-rail branch, read from the
+ * other side. A sheet covering the band it stands in and a rail standing beside the scene have
+ * genuinely different relationships to the band, and the cell's layer states which.
+ *
+ * `5` on desktop is again the narrowest that works: above the rail's `4`, below the settings item's
+ * `7`, so the modal's scrim still covers everything. A stacking fix that reaches higher than it
+ * needs is how the next overlap becomes unfixable.
+ *
+ * **The narrower fix exists and was deliberately not taken. It is recorded here so it can be taken
+ * on purpose rather than rediscovered.** Instead of raising this cell on desktop, drop §9's rail to
+ * `z-index: auto` there: `editor-panel.module.css`'s `.shell` is `position: static` above 900 px and
+ * stands in normal flow beside the scene, so its `4` buys it nothing on that shell and the popover's
+ * own `6` would reach past it unaided. Deleting a number is better than adding one, and it would
+ * leave this cell at `3` on both shells.
+ *
+ * **What it waits on is a measurement nobody could take on 2026-09-09**: that the rail overlaps
+ * *nothing else* on desktop. A dev server held port 3000 all evening and the browser half of QA's
+ * run could not be made. A change whose premise is unverified is not the one to make on the last day
+ * of a milestone, so the wider fix landed and this one is written down. Whoever has a browser should
+ * check the rail against every surface it could meet at 900–1920 px and, if it meets none, take
+ * this and revert the `z-index: 5` below.
  *
  * The settings item keeps `7` for the reason the withdrawn band had it: the sheet is **modal on both
  * shells**, so its scrim has to cover the price bar, the rail and the breakdown's popover, and
@@ -382,7 +416,11 @@
  * the same two sit at the right-hand end of the top bar; the rule below adds only what differs. */
 /* **`3`, not the band's `2` — see the stacking table in this file's head.** This cell is the
  * breakdown surface's ancestor, so the surface can only paint as high as the context this cell
- * establishes. It has to clear `.actions`, and a tie does not clear anything. */
+ * establishes. It has to clear `.actions`, and a tie does not clear anything.
+ *
+ * It stays **below** §9's sheet at `4`, which on this shell covers the band this cell stands in. The
+ * desktop branch raises it, for the opposite reason: there §9 is a rail beside the scene and the
+ * thing that must not be covered is the breakdown's popover. */
 .priceRow {
   z-index: 3;
   display: flex;
@@ -416,8 +454,14 @@
    * 2026-09-09 (ADR 0104 decision 8b) takes the sentence out of the bar and onto the scene, so the
    * trade has nothing left to buy. The header now draws **the same box on a flagged design as on a
    * seeded one, at every width**, which is the point of the move and is asserted rather than
-   * described — `tests/e2e/settings-strip-containment.desktop.e2e.spec.ts`, the case that used to
-   * assert the growth.
+   * described — `tests/e2e/top-bar-pill-containment.desktop.e2e.spec.ts`, which drives a flagged
+   * design and holds the band to one box.
+   *
+   * That citation read `tests/e2e/settings-strip-containment.desktop.e2e.spec.ts` until 2026-09-09,
+   * and **no such file has ever existed**: it named the withdrawn strip's own gate, which went with
+   * the strip. Corrected by an audit of every test this file names, prompted by the same defect one
+   * stylesheet over — a comment citing a gate nobody wrote reads as covered for exactly as long as
+   * nobody follows the link.
    *
    * **The gaps are give B and arrive from the row's fit model** (ADR 0104 decisions 8 and 9): D2A's
    * `28`/`14` while the pill can name every setting inside them, frame 2A's `9`/`6` when it cannot.
@@ -574,6 +618,22 @@
    * `min-width: 0` so the cell is its track rather than its contents — the containment declaration
    * ADR 0082 decision 1 asks of every item in this row. */
   .priceRow {
+    /* **`5` on this shell, against the base rule's `3`** — see the stacking table in this file's
+     * head, which carries the cell's value per shell for the reason this defect exists: a table
+     * stating one number while the stylesheet has two is how the popover came to be capped without
+     * anyone reading it.
+     *
+     * The breakdown's popover is nested here and can paint no higher than this cell, so at `3` it
+     * went **under** §9's rail at `4` — about 85 px of its right edge behind the panel at 1440,
+     * measured. It has to clear the rail here, where on mobile it has to stay under §9's sheet; the
+     * two shells give §9's panel different jobs, so the cell takes different layers. Below the
+     * settings item's `7`, so that modal's scrim still covers this.
+     *
+     * **This cell owes `.actions` nothing on desktop** — the action row sits inside the 76 px band
+     * and the popover starts at y ≈ 92, so the two never overlap here. The mobile `3` is what the
+     * action row needs; the two constraints were never on one shell. */
+    z-index: 5;
+
     /* **The breakdown's popover hangs from this cell**, which is the band's own height — so
      * `top: 100%` is the bottom of the bar rather than the bottom of a control centred inside it.
      * `price-breakdown.module.css` records why its own anchor stopped being the right box. */
