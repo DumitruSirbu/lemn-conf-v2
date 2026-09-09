@@ -102,8 +102,14 @@ export function replanDependentMembers(
  *  flip-triggered design. The rejection had been applied to the column-membership route and not to
  *  the overlap route. So: every column this body reaches across is re-asked, whatever its band.
  *
- *  Widening the set costs nothing where nothing moved. `replanOne` still rebuilds only where
- *  `columnDecidesADifferentDepth`, and passes every other body through by identity.
+ *  **Widening the set costs nothing where nothing moved**, and that — not "it never fires here" — is
+ *  why the shipped kitchen's re-plan count is unchanged by this clause. It *does* fire: wall A's
+ *  column extents overlap each other, `A|0.45` spanning 0..900 across `A|0.30` (0..600) and `A|0.75`
+ *  (600..900), so an ordinary insert on that wall reaches two neighbouring keys one tap from load.
+ *  What the clause reaches, `replanOne` then passes through by identity, because those bodies
+ *  already stand at the depth their column decides. It changes *which* members are asked, never the
+ *  answer. (`apps/web/tests/store/qa-6z-replan-triggers.adversarial.test.ts` pins that, so a later wave
+ *  cannot read the unchanged count as "this clause is dead" and delete it.)
  *
  *  **Both operands are the recorded face** (ADR 0090 Amendment B), over the same extents and the same
  *  key space: one function, two record sets. Nothing here reads the published map and nothing reaches

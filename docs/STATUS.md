@@ -141,8 +141,15 @@ PASS.
     own offer sweep.** Both walls originate at the same corner, so without `placed.wall ===
     column.wall` the clause compared two coordinates that mean different places and re-planned a body
     across the room: the sweep read **79 re-plans where 24 were pinned**. With the guard it is 786/24
-    again — no behaviour change on the shipped kitchen, which cannot exercise overlap at all. **The
-    pin being exact rather than a floor is what caught it.**
+    again. **The pin being exact rather than a floor is what caught it.**
+
+    **Why the count is unchanged is not "the clause never fires here"** — QA corrected that reading
+    and pinned the correction. Wall A's column extents overlap each other (`A|0.45` spans 0..900
+    across `A|0.30` at 0..600 and `A|0.75` at 600..900), so an ordinary insert on that wall reaches
+    two neighbouring keys one tap from load. The clause fires; the bodies it reaches already stand at
+    the depth their column decides, so `replanOne` passes them through by identity. It changes
+    *which* members are asked, never the answer — and the pin exists so a later wave cannot read the
+    unchanged count as a dead clause and delete it.
 
     QA's 19 other store cases held: the §5.3 swap reaches the re-plan at both settings, three
     insert/delete rounds accumulate nothing and replay byte-identically, an insert that re-plans
