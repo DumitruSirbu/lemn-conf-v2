@@ -176,9 +176,18 @@ describe("what the restructure bought, and which must stay bought", () => {
     }
   });
 
-  it("keeps §9's rail above the band it overlaps when a cabinet is selected", () => {
+  /** **The price half is asked of the cell, not of `.bar`'s own number.** `.bar` declares `2`, but it
+   *  is nested in `.priceRow` and so paints at *the cell's* layer — the rule this whole file exists
+   *  to state. Comparing against the `2` would pass while saying nothing about what a customer sees.
+   *
+   *  It is the **mobile** cell, and the shell is named because the desktop one deliberately goes the
+   *  other way: at `5` the price cell stands *above* the rail, which is what lets the breakdown's
+   *  popover clear the panel. On mobile §9 is a sheet that covers the band, so the rail must win. */
+  it("keeps §9's rail above the band it overlaps when a cabinet is selected, on mobile", () => {
     expect(LAYER.rail).toBeGreaterThan(LAYER.nav);
-    expect(LAYER.rail).toBeGreaterThan(LAYER.priceBar);
+    expect(LAYER.rail).toBeGreaterThan(
+      baseZIndexOf(STYLESHEETS.configure, "priceRow"),
+    );
   });
 
   /**

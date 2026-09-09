@@ -100,8 +100,6 @@ export interface StartingPriceInput {
  * refusal never reaches a price model at all.
  */
 
-/** Builds the one shape a figure may be rendered from.Every displayed price on every surface — the bar,
- *  §9's footer, wave 6D's lines and 6G's sheet — comes through here. */
 /**
  * **Whether this priced design holds no cabinets at all** — M6-AUD-014's discriminator, in the one
  * module both price surfaces already import so they cannot come to disagree about what "empty"
@@ -119,6 +117,8 @@ export function holdsNoCabinets(priced: PricedDesign): boolean {
   return !priced.lines.some((line) => line.kind === "cabinet");
 }
 
+/** Builds the one shape a figure may be rendered from. Every displayed price on every surface — the
+ *  bar, §9's footer, wave 6D's lines and 6G's sheet — comes through here. */
 export function describeStartingPrice(input: StartingPriceInput): PriceFigure {
   return {
     label: ro.price.startingPrefix,

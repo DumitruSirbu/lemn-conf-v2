@@ -52,9 +52,9 @@
 // `carcass_back` and `front_liner` inside the wall returns — and each is left on the material its
 // builder gave it.
 //
-// `base-corner-x-900` was held bare for about an hour on 2026-09-09 on the opposite assumption: that
-// its box is open behind its 280 mm door and painting it would recolour an interior a customer sees
-// when that door opens. Every clause of that is false, and measurably. The box is a solid
+// `base-corner-x-900` was first left bare on the opposite assumption: that its box is open behind its
+// 280 mm door and painting it would recolour an interior a customer sees when that door opens.
+// Every clause of that is false, and measurably. The box is a solid
 // `box(0.9, 0.72, 0.6)`; the pole and both trays sit at z = −0.010, buried inside a volume spanning
 // z ∈ [−0.30, +0.30], visible from no camera; and **this kit has no open-door state at all** —
 // nothing in `scene-sync.ts` or the stage animates or hides a `door_front`. So the door never opens,

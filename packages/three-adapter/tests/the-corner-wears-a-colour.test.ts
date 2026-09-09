@@ -327,8 +327,8 @@ describe("the corner ruling — every visible part of a corner takes the kitchen
 /** **What the blind corner draws, and where its colour stops.** The same subject this block has had
  *  since it was written; only the answer moved.
  *
- *  **It asserted the opposite for about an hour on 2026-09-09, and that was a real decision rather
- *  than drift.** `base-corner-x-900` was held bare while the owner was asked whether a carcass a
+ *  **It asserted the opposite first, and that was a real decision rather than drift.**
+ *  `base-corner-x-900` was left bare while the owner was asked whether a carcass a
  *  *door opens onto* should take the customer's colour — thought to be a different question from
  *  `base-corner-return-320`'s box, which no door covers. Two independent mesh censuses dissolved the
  *  question rather than answering it, and every clause of the premise turned out false:

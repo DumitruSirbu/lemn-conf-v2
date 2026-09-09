@@ -47,9 +47,12 @@
  * itself.
  *
  * It is worth reading twice because the intuitive version — *"a positioned ancestor traps it"* — is
- * false here and unfixable if believed. `.priceRow` is `position: static`. **There is no `position`
- * to remove.** Somebody who went looking for one would find nothing and conclude the stacking was
- * fine.
+ * false here and unfixable if believed. On mobile `.priceRow` is `position: static` and **there is
+ * no `position` to remove**: somebody who went looking for one would find nothing and conclude the
+ * stacking was fine. On desktop the cell *is* `position: relative` (`:640`), but it is relative to
+ * be the popover's containing block, not to make a context — the `z-index` on a grid item had
+ * already made one. Removing that `position` would unhook `top: 100%` from the band and still leave
+ * the context standing.
  *
  * **The price cell is therefore one step above the rest of the band, and it is the only cell that
  * is.** It hosts the breakdown's surface, whose own `6` is scoped inside this cell and cannot reach
@@ -79,19 +82,10 @@
  * `7`, so the modal's scrim still covers everything. A stacking fix that reaches higher than it
  * needs is how the next overlap becomes unfixable.
  *
- * **The narrower fix exists and was deliberately not taken. It is recorded here so it can be taken
- * on purpose rather than rediscovered.** Instead of raising this cell on desktop, drop §9's rail to
- * `z-index: auto` there: `editor-panel.module.css`'s `.shell` is `position: static` above 900 px and
- * stands in normal flow beside the scene, so its `4` buys it nothing on that shell and the popover's
- * own `6` would reach past it unaided. Deleting a number is better than adding one, and it would
- * leave this cell at `3` on both shells.
- *
- * **What it waits on is a measurement nobody could take on 2026-09-09**: that the rail overlaps
- * *nothing else* on desktop. A dev server held port 3000 all evening and the browser half of QA's
- * run could not be made. A change whose premise is unverified is not the one to make on the last day
- * of a milestone, so the wider fix landed and this one is written down. Whoever has a browser should
- * check the rail against every surface it could meet at 900–1920 px and, if it meets none, take
- * this and revert the `z-index: 5` below.
+ * **A narrower fix exists and was deliberately not taken**: dropping §9's rail to `z-index: auto`
+ * on desktop, where `.shell` is `position: static` anyway, would let the popover's own `6` reach
+ * past it and leave this cell at `3` on both shells. It waits on a browser measurement that the
+ * rail overlaps nothing else at 900–1920 px. **Backlog entry 62** carries it.
  *
  * The settings item keeps `7` for the reason the withdrawn band had it: the sheet is **modal on both
  * shells**, so its scrim has to cover the price bar, the rail and the breakdown's popover, and

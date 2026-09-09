@@ -368,7 +368,13 @@ describe("what the boundary depends on, stated as the quantity rather than as a 
    * The comparison is kept, pointing at the finding instead of at the requirement: **the tier that
    * broke it must go on breaking it.** If `Feronerie Blum` ever became expensive enough to satisfy
    * the old precondition, every sweep above would pass under a mechanism that had quietly returned
-   * to being a coincidence, and this is the only assertion that would notice.
+   * to being a coincidence.
+   *
+   * **What this cannot do is notice a rename.** `HARDWARE_PX` holds three measured label widths as
+   * file-local literals; no price book is imported here, and none can be — a tier's *name* is in the
+   * book but the width that name renders to is a measurement. So a tier renamed in
+   * `sample-price-book.ts` leaves these three numbers describing labels that no longer exist, and
+   * every case in this file goes on passing. Re-measure them when a tier's name changes.
    */
   it("keeps the shipped tier whose third name is cheaper than the wordmark", () => {
     const wordmarkCostPx = WORDMARK_PX + FRAME_2A_SPACING.navGapPx;

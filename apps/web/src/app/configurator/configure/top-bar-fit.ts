@@ -10,8 +10,9 @@
 //   names their readability rather than preventing an overflow: with the wordmark kept the row still
 //   fits at 900 px, at rung 4, with about 17 px left for the label — which is `P…` and not a name.
 //   The owner ruled the width it comes back at twice: first where **one** whole name fits beside it,
-//   then — shown that this makes the label count fall as the window widens — where **two** do. See
-//   `SETTINGS_THE_WORDMARK_WAITS_FOR`.
+//   then — shown that this makes the label count fall as the window widens — where **two** do.
+//   Neither count survived: `theWordmarkCostsNoName` below asks the property both counts were
+//   reaching for, and records why a count could not carry it.
 //
 // **Both decisions are comparisons against measured widths, never constants.** The one number this
 // module composes — what closing the gaps returns to the pill — is derived from the two frames' own
@@ -137,6 +138,18 @@ export function describeTopBarFit(input: TopBarFitInput): TopBarFit {
  * same. It cannot be tuned, it has no threshold in it, and it is monotone **by construction** rather
  * than by arithmetic that happens to work out — the count the pill settles on is always the count
  * the wider of the two tracks buys, which is non-decreasing in width whatever the labels measure.
+ * That holds in **both** branches and not only in the drawn one: where the wordmark is drawn the
+ * guard has forced the two counts equal, and where it is not, the track the pill gets *is* the
+ * wider one. So give C's rule drops out of the monotonicity question entirely.
+ *
+ * **What carries the rest of it is give B, and that is worth naming because it is not obvious.**
+ * The track without the wordmark is *discontinuous* where the gaps close: below that width it is
+ * `reference + 105 + wordmark + 9`, above it `reference + wordmark + 28`, an **86 px drop** as the
+ * window grows. It is harmless only because `isSpacingClosed` is `referenceTrackPx < atEveryLabel`
+ * — every label fits — so the track stands above `atEveryLabel` on both sides of the boundary and
+ * the count is pinned at the whole ladder across it. Move that threshold to anything short of
+ * *every name fits* and the count falls by up to 86 px of width, with nothing in this function
+ * changed.
  *
  * What it costs is the stretch the wordmark stays away for, which is the trade the owner already
  * accepted in moving from one name to two; this extends it exactly as far as each design's own type

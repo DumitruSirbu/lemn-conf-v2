@@ -1405,10 +1405,17 @@ number and cannot be separated. **It is a domain change.**
 
 ### What stopped it — read this before assuming the shelf broke something
 
-A shallower shelf is *genuinely* shallower, and a column's depth is the MAX over its vertical run.
-So swapping an open shelf into a wall slot **lowers that column's maximum**, and `insertBody` calls
-`replanDependentMembers`, which rebuilds a dependent body through the probe. A swap that took one
-probe measurement now takes two.
+A shallower shelf is *genuinely* shallower, and `insertBody` calls `replanDependentMembers`, which
+rebuilds a dependent body through the probe. A swap that took one probe measurement now takes two.
+
+> **The mechanism first written here was wrong, and is struck rather than deleted so nobody
+> re-derives it.** It said: *a column's depth is the MAX over its vertical run, so a shallower shelf
+> lowers that column's maximum.* ~~That does not follow.~~ `Column.d`
+> ([`void-engine.ts`](../../packages/configurator-domain/src/void-engine.ts)) is §3.2's MAX over
+> **every** member's `occupiedDepthM`, base bodies included at ~620 mm, so a wall shelf moving
+> 330 → 309 cannot move it and `columnDecidesADifferentDepth` stays false. **The failures below are
+> observed and real; what triggers them is not settled.** Re-derive it from a failing row before
+> the wave starts — do not start from the struck sentence.
 
 `insert-depth.test.ts` goes from 22 passing to **4 failing**. Three of those four are **fronted**
 rows — `p11 wall-2door-800`, `p17`, `p18` — and they fail **only because every case in that file
@@ -1487,3 +1494,31 @@ their guard; `wallDoorFaceDepthMm` deriving 309/379; both catalogue entries move
   nothing about 700 or about a third depth.
 - **Do not change a declared depth to make a picture look right.** The two shared depth functions
   above feed ADR 0028's map, the corner reach, the frozen map and the price.
+
+## 62. The narrower stacking fix on desktop — delete a number instead of adding one
+
+Wave 6's chrome parity raised `.priceRow` to `z-index: 5` on desktop so the breakdown's popover,
+nested in that cell, could clear §9's rail at `4`. It works and it is the fix that shipped, but it is
+the *wider* of the two available fixes: it adds a layer where the alternative removes one.
+
+**The alternative.** Drop the rail to `z-index: auto` above 900 px.
+[`editor-panel.module.css`](../../apps/web/src/app/configurator/configure/editor-panel.module.css)'s
+`.shell` is `position: static` on that shell and stands in normal flow beside the scene, so its `4`
+buys it nothing there. With the rail out of the way the popover's own `6` reaches past it unaided,
+and `.priceRow` goes back to `3` on **both** shells — one number instead of a per-shell fork, and the
+stacking table in
+[`configure.module.css`](../../apps/web/src/app/configurator/configure/configure.module.css) loses
+its most-explained row.
+
+**What it waits on, and why it was not taken on the last day of M6.** One measurement nobody could
+make on 2026-09-09: that the rail overlaps *nothing else* on desktop. Its `4` is load-bearing only if
+some surface needs to pass under it, and no one has enumerated those surfaces at 900–1920 px. A
+change whose premise is unverified is not the one to make while closing a milestone, so the wider fix
+landed and this is written down to be taken on purpose.
+
+**The work.** Check the rail against every surface it can meet across 900–1920 px. If it meets none,
+set `.shell` to `z-index: auto` in the desktop branch, return `.priceRow` to a single `3`, delete the
+per-shell fork and its comment, and re-point
+`qa-0104-the-stacking-table.adversarial.test.ts`'s desktop cases — the mobile ones already assert the
+`3` this would restore. If it meets something, record what and close this entry: the fork is then the
+right answer and the table should say so.

@@ -1947,8 +1947,8 @@ export function makeKit(options: KitOptions = {}): Kit {
     // 900 mm front carries a **280 mm** door, so roughly 620 mm of this box's front face stood in
     // `M.carcass`'s `#d9d8d3` beside a coloured door.
     //
-    // **It was held bare for about an hour on 2026-09-09**, on the concern that this box is one a
-    // door opens onto and painting it would recolour an interior. Two independent mesh censuses
+    // **It was first left bare**, on the concern that this box is one a door opens onto and
+    // painting it would recolour an interior. Two independent mesh censuses
     // dissolved that: the box is a *solid volume* with no cavity, and the susan pole and trays are
     // **separate meshes** buried inside it — so there is no inner surface for this declaration to
     // reach, and opening the door reveals the same face that is already bare beside it. The owner's

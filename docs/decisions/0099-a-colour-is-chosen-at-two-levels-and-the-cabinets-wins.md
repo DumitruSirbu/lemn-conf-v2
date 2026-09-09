@@ -510,6 +510,24 @@ builds seven seeded bodies and would have painted the whole wall run; only the d
 a `wallCabinet(0.57, 1)` is a corner. The helper **throws** when its named mesh is absent, so a
 rename fails loudly instead of silently un-painting a corner.
 
+**These carcasses now change on _every_ kitchen, including one where the customer has chosen
+nothing, and that is intended rather than a side effect.** A corner is `CHOOSES_ITS_OWN_COLOUR`, so
+`drawnFinishOf` falls through to the design default and then to the material's `defaultFinish` —
+never `undefined` on a declared material. `applyRecordedAppearance`'s `if (record.drawnFinish)` is
+therefore always taken, and the carcass moves off the material its builder gave it even in the
+default state:
+
+| | before | after (default state, `pal.alb`) |
+| --- | --- | --- |
+| material | `mat("carcass_white", …)` | a clone of `phys("door_matte_white", …)` |
+| colour | `#d9d8d3` | `#eceeeb` |
+| finish | `roughness: 0.78` | the door material's |
+
+**It is the correction the owner asked for**, not a regression: the white slab they photographed was
+this box sitting at carcass grey beside doors it is coplanar with. It is written down because it is
+a visible change to every existing design, it reaches the *sheen* and not only the hue, and nothing
+else in this amendment says so. C6's browser pass is where it gets confirmed by eye.
+
 ### C4. The blind corner was held bare for an hour on a false premise, and the arc is recorded
 
 `base-corner-x-900` was excluded on the coordinator's instruction, on the worry that its box is open
@@ -539,4 +557,6 @@ a statement about that body rather than a filter that quietly stopped matching.
 ### C6. Still owed
 
 A **browser pass**. Every claim here is measured off the built object; none of it is a rendered
-frame. This joins Amendment B7's own outstanding line.
+frame. This joins Amendment B7's own outstanding line. It owes one judgement beyond the hexes: that
+C3's default-state repaint — carcass grey to door white, on every kitchen — reads as the fix the
+owner asked for on a design where no colour was ever chosen.

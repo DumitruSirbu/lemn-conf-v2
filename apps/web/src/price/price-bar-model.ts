@@ -60,15 +60,14 @@ export interface PricedBar {
 
 export type PriceBarView = UnpricedBar | EmptyBar | PricedBar;
 
-export interface DescribePriceBarInput {
-  /** The current design priced, as `usePricedDesign` derived it this render. */
-  readonly pricing: PricingResult;
-}
-
 /** **The bar takes no refusal, and that is the owner's ruling of 2026-09-09 in the type.** It used to
  *  take one to choose the *"De la neschimbat"* label; that label is gone — §9's refusal banner
  *  already says the edit was refused — so this model has nothing to read a refusal for and is not
  *  handed one. `starting-price.ts` carries the ruling and its reason. */
+export interface DescribePriceBarInput {
+  /** The current design priced, as `usePricedDesign` derived it this render. */
+  readonly pricing: PricingResult;
+}
 
 const UNPRICED_BAR: UnpricedBar = { kind: "unpriced" };
 
