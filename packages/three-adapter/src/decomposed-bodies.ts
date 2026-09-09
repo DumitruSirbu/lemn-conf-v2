@@ -5,6 +5,7 @@
 // parity test and the scene mount so the two never drift apart.
 import * as THREE from "three";
 
+import { wearsTheBodysFinishOnItsCarcassShell } from "./body-finish-surfaces.js";
 import { forEachCabinetHandleMesh } from "./cabinet-handle-meshes.js";
 import { deriveKitMaterial } from "./kit-ownership.js";
 import type { Kit, KitMaterials } from "./kitchen-parts.js";
@@ -106,8 +107,15 @@ export function buildDecomposedBody(kit: Kit, buildId: string): THREE.Group {
       return kit.builders["fridge-free"]();
     case "wall-2door-600":
       return kit.make.wallCabinet(0.6, 2);
+    // **A corner, so its carcass shell wears the body's colour too** (owner's ruling, 2026-09-09):
+    // the door was already painted through `isFrontMesh`, and the shell around it — the sides and
+    // the underside a customer looks up at — stayed on `M.carcass`'s `#d9d8d3`, which is the white
+    // column in the owner's picture. Declared here rather than inside `wallCabinet`, because that
+    // builder makes five ordinary wall bodies nobody ruled on; see `body-finish-surfaces.ts`.
     case "wall-corner-return-570":
-      return kit.make.wallCabinet(0.57, 1);
+      return wearsTheBodysFinishOnItsCarcassShell(
+        kit.make.wallCabinet(0.57, 1),
+      );
     case "wall-1door-300":
       return kit.make.wallCabinet(0.3, 1);
     case "wall-2door-800":
@@ -128,9 +136,14 @@ export function buildDecomposedBody(kit: Kit, buildId: string): THREE.Group {
       return hidePushOpenHandles(
         kit.make.wallCabinet(0.8, 2, 0.4, kit.depths.wallDepthM),
       );
+    // The same corner one row up, and painted for the same reason. Its underside is the one a
+    // customer never sees and its sides are the ones they do; both are faces of the one solid shell,
+    // so the declaration is the body's rather than a face's.
     case "wall-corner-return-570-top":
       return hidePushOpenHandles(
-        kit.make.wallCabinet(0.57, 1, 0.4, kit.depths.wallDepthM),
+        wearsTheBodysFinishOnItsCarcassShell(
+          kit.make.wallCabinet(0.57, 1, 0.4, kit.depths.wallDepthM),
+        ),
       );
     // **The two deep tops, and the only wall rows in this file that read the cabinet depth rather
     // than the wall depth** (ADR 0101). They hang over full-height columns, so §5.2's

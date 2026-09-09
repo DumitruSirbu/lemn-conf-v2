@@ -154,13 +154,17 @@ describe("describePanel — sections render only when their flag is true", () =>
     expect(panel.sections).toEqual([]);
   });
 
-  // The reason is an explanation of last resort: a body that still offers something says so with
-  // the sections it offers, and adding a second voice would contradict them.
-  it("keeps the explanation out of a panel that does offer something", () => {
+  /** **The reason is rendered beside the offers, not instead of them** — reversed on 2026-09-09,
+   *  when the corner gained a *Finisaj* section and this rule silently took its explanation away.
+   *  The two say different things: the sections say what the customer can change, the reason says
+   *  why they cannot change the rest, and a body that offers one of four owes them both. It is first
+   *  in the list, so it reads as a statement about the body rather than a footnote to the controls. */
+  it("keeps the explanation in a panel that also offers something, first", () => {
     const panel = openPanelFor(occupiedMeta({ structuralReason: "corner" }), {
       offers: offers(2),
     });
-    expect(sectionKinds(panel.sections)).not.toContain("structural");
+    expect(sectionKinds(panel.sections)[0]).toBe("structural");
+    expect(sectionKinds(panel.sections).length).toBeGreaterThan(1);
   });
 
   it("hides finish, handle and width on an empty slot", () => {

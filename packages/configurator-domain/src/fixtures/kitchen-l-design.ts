@@ -173,11 +173,18 @@ function wallLeaves(leaves: {
 const oneBaseLeaf: FrontPopulationRule = baseLeaves(1);
 
 /** §13.1: "Corners are structural. No replace, no delete, never a width donor", repeated by §11
- *  row 16 — so a corner body also has no finish and no handle to offer, and the panel renders
- *  none of those sections for it. Shared by the two wall returns and, since ADR 0025, by the two
- *  base legs, which is what makes §11 row 16 reachable at all: it names the *base* corner, and
- *  until the legs became placements there was no base corner to select. `kind` is deliberately
- *  **not** part of this shape — the four bodies that wear it are three different kinds. */
+ *  row 16. Shared by the two wall returns and, since ADR 0025, by the two base legs, which is what
+ *  makes §11 row 16 reachable at all: it names the *base* corner, and until the legs became
+ *  placements there was no base corner to select. `kind` is deliberately **not** part of this shape
+ *  — the four bodies that wear it are three different kinds.
+ *
+ *  **Structural is about shape, not about colour** (owner's ruling, 2026-09-09). §13.1's list is
+ *  *replace, delete, width donor* and says nothing about finish; the corner carried `canFinish:
+ *  false` because it was declared beside three flags that §13.1 does name, not because anybody ruled
+ *  on its colour. The owner's words: *"the corner cabinets — that column specifically — miss custom
+ *  color setting; need to add it, and to support setting custom color for all corner cabinet
+ *  parts."* So the corner is now an ordinary cabinet **for colour only**, and stays immovable for
+ *  everything else. */
 const STRUCTURAL_CORNER: Pick<
   BodyDefinition,
   | "canReplace"
@@ -190,17 +197,23 @@ const STRUCTURAL_CORNER: Pick<
 > = {
   canReplace: false,
   canDelete: false,
-  canFinish: false,
-  // **Structural cabinetry, so it wears the kitchen's colour** (owner's ruling, 2026-09-09; backlog
-  // entry 60). It offers no control of its own — `canFinish: false` above is unchanged and is the
-  // half of ADR 0099 decision 8 that stands — so it follows and never chooses. Left on the
-  // material's white it read as a body that had failed to repaint: a white door with a handle
-  // standing between Antracit neighbours, on the corner of a dark kitchen.
-  finishRule: FOLLOWS_THE_KITCHENS_COLOUR,
+  // **The corner carries a colour of its own** — §9's *Finisaj* section renders for it, `setFinish`
+  // accepts it, and `dropFinishFromBodiesThatCannotWearOne` stops stripping what it stores. This
+  // reverses ADR 0099 decision 8 and Amendment B for these four bodies and for no others: the hood
+  // and the freestanding fridge are appliances and keep both `false` and `IS_NEVER_PAINTED`.
+  canFinish: true,
+  // **Set with `canFinish` above and never apart from it.** `bodyFinishRuleOf` refuses an entry
+  // where the two disagree — a body chooses its own colour if and only if it can be finished — so
+  // the pair moves in one edit or the catalogue throws on load. This arm gives the ruling's *both*
+  // halves at once: with no `finish` key in its document the corner follows the kitchen's colour
+  // (`resolvedFinishOf`'s `??` chain), and with one it wears that.
+  finishRule: CHOOSES_ITS_OWN_COLOUR,
   canHandle: false,
   fixedWidth: true,
-  // With all four capability flags false the panel offers nothing, so it never produces the refusal
-  // §11 row 16 requires to explain why. The reason is declared here and rendered as its own section.
+  // §11 row 16's refusal. Declared here and rendered as its own section — and, since the corner
+  // began offering *Finisaj*, rendered **beside** that section rather than instead of it
+  // (`panel-model.ts`): a body that offers one control still owes the customer the sentence saying
+  // why it offers no others.
   structuralReason: "corner",
 };
 

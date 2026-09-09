@@ -441,9 +441,18 @@ export const ro = {
   priceBreakdown: {
     /** Frames 2D and D2D's heading, and frames 2A and D2A's control that opens it — **one string**,
      *  because the button and the sheet it opens name the same thing and a second copy is how two
-     *  spellings come back (the withdrawn *"De la neschimbat"* records that lesson). The mockups draw a
-     *  chevron beside the control; it is decoration and lives in the component, not here. */
-    title: "De ce acest preț",
+     *  spellings come back (the withdrawn *"De la neschimbat"* records that lesson).
+     *
+     *  **The question mark is part of the sentence, and the caret beside it is gone — owner,
+     *  2026-09-09**: *"replace the `^` with `?`"*. It is a change of kind rather than a swap of one
+     *  glyph for another, which is why it lands here: a caret is decoration and was correctly hidden
+     *  from the accessibility tree, and a question mark is punctuation that has to be read out.
+     *
+     *  The **desktop** frames punctuate their own longer heading exactly this way — D2D draws
+     *  *"Ce se include în acest preț**?**"* — so the mark is the reference's own form applied to the
+     *  shorter wording this product ships. **Frame 2D draws it unpunctuated**, so this supersedes
+     *  that frame by its author's own instruction, dated, on both shells. */
+    title: "De ce acest preț?",
     /** Frame 2D, and the wave's own acceptance criterion: transport, worktop and appliances are
      *  excluded, and the final sum follows an on-site measurement.
      *

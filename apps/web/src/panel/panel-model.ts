@@ -658,19 +658,22 @@ function collectSections(
   if (input.rejection) {
     sections.push({ kind: "rejection", message: input.rejection.message });
   }
-  const offered = collectOfferedSections(input, meta, editability);
-  if (offered.length === 0) {
-    const structural = describeStructuralSection(meta);
-    if (structural) sections.push(structural);
-    return sections;
-  }
-  sections.push(...offered);
+  // **The refusal is rendered whenever it is declared, offers or no offers** (§11 row 16, and the
+  // owner's corner ruling of 2026-09-09). It used to be the *fallback* for a body that offered
+  // nothing, which was the same thing while `STRUCTURAL_CORNER` set all four capability flags to
+  // false. It stopped being the same thing the moment the corner gained `canFinish`: the panel would
+  // have shown *Finisaj* and silently dropped the one sentence that says why there is no swap list
+  // and no delete — offering more and explaining less. Pushed **before** the offers so the customer
+  // reads what this body is before what they can do to it.
+  const structural = describeStructuralSection(meta);
+  if (structural) sections.push(structural);
+  sections.push(...collectOfferedSections(input, meta, editability));
   return sections;
 }
 
 /** Everything §9 offers the customer on this selection: replace, finish, handle, width, in §9's
- *  order. Split out so `collectSections` can ask the one question §11 row 16 needs — "does this body
- *  offer anything at all?" — without re-deriving it from four flags. */
+ *  order. Split out so the two halves of the panel stay separable: what this body *is*, which
+ *  `describeStructuralSection` states, and what can be done to it, which is this. */
 function collectOfferedSections(
   input: DescribePanelInput,
   meta: SelectionMeta,
@@ -708,9 +711,9 @@ function collectOfferedSections(
   return sections;
 }
 
-/** `undefined` when the selection offers nothing and the catalogue declared no reason for it. That
- *  is a catalogue gap rather than a state to paper over with generic copy, and it stays visible as
- *  the empty panel it is. */
+/** `undefined` when the catalogue declared no reason, which is every ordinary body. A body that
+ *  offers nothing *and* declares no reason is a catalogue gap rather than a state to paper over with
+ *  generic copy, and it stays visible as the empty panel it is. */
 function describeStructuralSection(
   meta: SelectionMeta,
 ): StructuralSection | undefined {

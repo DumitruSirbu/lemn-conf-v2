@@ -42,6 +42,12 @@ import {
  *  fronts too — so an entry with no `drawer_front` mesh is not thereby frontless. */
 const FRONT_MESH_NAME = /door_front|drawer_front/;
 
+/** `body-finish-surfaces.ts`'s `WEARS_THE_BODYS_FINISH_KEY`, written out for the same reason the
+ *  regex above is: this gate must not read its definition of *paintable* out of the module it is
+ *  gating. A body's colour reaches its fronts **plus** every mesh carrying this key, which since
+ *  2026-09-09 is the only way the open shelf and the four corner bodies are painted at all. */
+const WEARS_THE_BODYS_FINISH_KEY = "lemnaria:wearsTheBodysFinish";
+
 /** The group `barHandle` builds. Both a cabinet's handle and an appliance's are one of these. */
 const HANDLE_GROUP_NAME = "handle";
 
@@ -86,6 +92,10 @@ interface CapabilityCensus {
   readonly canFinish: boolean;
   readonly canHandle: boolean;
   readonly fronts: number;
+  /** Fronts **plus** declared surfaces — what `collectPaintedSurfaces` reaches, and so the number
+   *  `canFinish` is actually held against. It was `fronts` alone until the open shelf and the corner
+   *  bodies gained declarations; on a body that declares none it is still `fronts`. */
+  readonly paintedSurfaces: number;
   readonly cabinetHandles: number;
 }
 
@@ -107,9 +117,19 @@ function censusOf(buildId: string, widthMm?: number): CapabilityCensus {
   const built = buildBodyOf(buildId, definition, widthMm);
 
   let fronts = 0;
+  let paintedSurfaces = 0;
   let cabinetHandles = 0;
   built.traverse((node) => {
-    if (isMesh(node) && FRONT_MESH_NAME.test(node.name)) fronts += 1;
+    if (!isMesh(node)) {
+      if (isCabinetHandleGroup(node)) cabinetHandles += 1;
+      return;
+    }
+    const isFront = FRONT_MESH_NAME.test(node.name);
+    if (isFront) fronts += 1;
+    // Counted once even if it is both, exactly as `collectPaintedSurfaces` collects it once.
+    if (isFront || node.userData[WEARS_THE_BODYS_FINISH_KEY] === true) {
+      paintedSurfaces += 1;
+    }
     if (isCabinetHandleGroup(node)) cabinetHandles += 1;
   });
 
@@ -117,6 +137,7 @@ function censusOf(buildId: string, widthMm?: number): CapabilityCensus {
     canFinish: definition.canFinish,
     canHandle: definition.canHandle,
     fronts,
+    paintedSurfaces,
     cabinetHandles,
   };
 }
@@ -190,15 +211,20 @@ describe("every catalogue entry's capability flags match what its builder draws"
     expect(new Set(ALL_BUILD_IDS).size).toBe(ALL_BUILD_IDS.length);
   });
 
+  /** **`canFinish` implies a *painted surface*, not a front.** It was a front until 2026-09-09, and
+   *  that reading is what let `base-corner-return-320` — a carcass and a worktop, no door anywhere —
+   *  be the one body this gate would have refused a colour to. `applyBodyFinish` paints
+   *  `collectPaintedSurfaces`, so this is the number the flag has to be held against or the gate
+   *  checks a rule the renderer stopped following. */
   it.each(GATED_BUILD_IDS)(
-    "%s: canFinish implies a front, canHandle implies a cabinet handle",
+    "%s: canFinish implies a painted surface, canHandle implies a cabinet handle",
     (buildId) => {
       const census = censusOf(buildId);
 
-      expect([buildId, census.canFinish && census.fronts === 0]).toEqual([
+      expect([
         buildId,
-        false,
-      ]);
+        census.canFinish && census.paintedSurfaces === 0,
+      ]).toEqual([buildId, false]);
       expect([
         buildId,
         census.canHandle && census.cabinetHandles === 0,
@@ -218,7 +244,7 @@ describe("every catalogue entry's capability flags match what its builder draws"
 
       expect([
         buildId,
-        (census.canFinish && census.fronts === 0) ||
+        (census.canFinish && census.paintedSurfaces === 0) ||
           (census.canHandle && census.cabinetHandles === 0),
       ]).toEqual([buildId, true]);
     }
@@ -233,7 +259,25 @@ describe("every catalogue entry's capability flags match what its builder draws"
     // real fronts and real handles on it, and after ADR 0033 which one that is depends on the width.
     expect(censusOf("base-cabinet", 800)).toMatchObject({
       fronts: 2,
+      paintedSurfaces: 2,
       cabinetHandles: 2,
+    });
+  });
+
+  /** The second half of that premise, and the one the widened rule turns on: **a painted surface
+   *  that is not a front is counted.** Without this the two numbers could be the same field twice
+   *  and the sweep above would still pass everywhere. `base-corner-return-320` is the sharpest case
+   *  in the catalogue — no door, no drawer, one declared carcass — and `open-shelf-600` is the case
+   *  the mechanism was built for. */
+  it("counts a declared painted surface that no front regex can name", () => {
+    expect(censusOf("base-corner-return-320")).toMatchObject({
+      canFinish: true,
+      fronts: 0,
+      paintedSurfaces: 1,
+    });
+    expect(censusOf("open-shelf-600")).toMatchObject({
+      fronts: 0,
+      paintedSurfaces: 6,
     });
   });
 

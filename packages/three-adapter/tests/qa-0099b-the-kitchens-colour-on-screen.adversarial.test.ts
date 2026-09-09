@@ -116,11 +116,14 @@ const MDF_FREE_COLOURS: readonly Finish[] = [
 const FINISHABLE_ID = "p1";
 /** A second, so "this body repainted" and "every body repainted" are distinguishable. */
 const SECOND_FINISHABLE_ID = "p8";
-/** **`p25`, `base-corner-x-900`** — structural cabinetry, so since the owner's ruling of 2026-09-09
- *  it follows the kitchen's colour, and it draws a front, which is what makes the following
- *  observable rather than vacuous (ADR 0093 decision 1). It carries `canFinish: false` all the same:
- *  it follows, it does not choose. The two appliances — `p7` and `p13` — draw no fronts at all, so
- *  every claim about *them* is made on `drawnFinish` in the domain instead. */
+/** **`p25`, `base-corner-x-900`** — structural cabinetry, so it wears the kitchen's colour, and it
+ *  draws a front, which is what makes that observable rather than vacuous (ADR 0093 decision 1).
+ *
+ *  **It chooses as well as follows, since the owner's corner ruling of 2026-09-09.** It carried
+ *  `canFinish: false` for the first half of that day and every claim below was written under it;
+ *  what changed is only the last one, where a colour on its own document is now what it draws rather
+ *  than something to ignore. The two appliances — `p7` and `p13` — draw no fronts at all, so every
+ *  claim about *them* is made on `drawnFinish` in the domain instead. */
 const STRUCTURAL_ID = "p25";
 
 let kit: Kit;
@@ -647,19 +650,24 @@ describe("backlog 60 — a structural body follows the kitchen where its applian
     expectWearing(FINISHABLE_ID, veneerDefault);
   });
 
-  /** A colour hand-written onto a structural body — reachable by a restored backup or another
-   *  client, never by this build's commands, because it has no control — is not what gets drawn. It
-   *  follows the kitchen (ADR 0099 decision 2) and never its own document. */
-  it("draws the kitchen's colour on a structural body carrying a different colour of its own", () => {
+  /** **A colour on a corner's own document is what gets drawn**, over the kitchen's — the owner's
+   *  corner ruling of 2026-09-09, and the exact reversal of what this test asserted before it. The
+   *  corner is on `chooses-its-own-colour` now, so §5.5's order applies to it unchanged.
+   *
+   *  Two bodies, not one: the neighbour in the same scene stays on the kitchen's colour, so this is
+   *  *that* corner overriding rather than a scene that stopped following the kitchen. */
+  it("draws a corner's own colour over the kitchen's, and only on that corner", () => {
+    const NUC_WARMIA = paletteFinish("pal.nuc-warmia");
     drawn(
       wearingOn(
         withKitchenColour(followingOn("material.melamine"), ANTRACIT),
         STRUCTURAL_ID,
-        paletteFinish("pal.nuc-warmia"),
+        NUC_WARMIA,
       ),
     );
 
-    expectWearing(STRUCTURAL_ID, ANTRACIT);
+    expectWearing(STRUCTURAL_ID, NUC_WARMIA);
+    expectWearing(FINISHABLE_ID, ANTRACIT);
   });
 });
 

@@ -81,14 +81,27 @@
  * (ADR 0104 decision 3) — the pill's minimum content is the swatch, one label and the counter, never
  * a bare `+3`.
  *
- * **It wears the kitchen's own colour, which is the frames' one departure here and an owner ruling**
- * (2026-09-09): *"if MDF the value interpreted (real color)"*. Applying that to every finish rather
- * than to the one material whose colours have no names keeps a single rule — and the frames' fixed
- * decor gradient was standing in for exactly this. The value arrives as `--pill-swatch-colour` from
- * `global-settings.tsx`, which reads the adapter's own colour for the finish, so no hex is written
- * here: a second hex is how the swatch and the scene come to disagree about one decor.
+ * **It wears the kitchen's own colour. The ruling covers one material; extending it to all of them
+ * is this wave's own choice and is flagged as such.**
  *
- * The gradient below is the frames' own and is what a pill with no declared palette still draws. */
+ * What the owner ruled on 2026-09-09 is narrow and exact: *"the color should be without word Culoare,
+ * just the color name or if MDF the value interpreted (real color)"* — MDF's colours have no names,
+ * so for **that** material the swatch shows the colour instead of writing it. Applying the recolour
+ * to **every** finish goes past that instruction, and it changes what every kitchen draws, so the
+ * reasoning is recorded here rather than left to be inferred:
+ *
+ * - the alternative is **two swatch languages on one control** — a fixed decor texture for a palette
+ *   colour and the real colour for a free one — which is a rule a customer would have to be told;
+ * - the value is the **adapter's own** for the finish, so the pill, §9's chips and the 3D paint one
+ *   declared colour and no second hex exists anywhere (`--pill-swatch-colour`, set by
+ *   `global-settings.tsx`); a wood derives its grain from that same value rather than naming another,
+ *   which is the language `editor-panel.module.css` already speaks;
+ * - the frames' fixed gradient was drawn before this product had a colour to show at all.
+ *
+ * **It supersedes the frames' gradient everywhere except one state**: a material the book does not
+ * declare has no palette to read, and there the gradient below is what is drawn. If the owner wants
+ * the frames' texture back for palette colours, this rule is where it returns and the extension is
+ * the only thing that has to be undone. */
 .swatch {
   flex: 0 0 14px;
   width: 14px;

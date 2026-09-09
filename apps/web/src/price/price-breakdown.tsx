@@ -47,10 +47,6 @@ import {
 import styles from "./price-breakdown.module.css";
 import { usePricedDesign } from "./use-priced-design";
 
-/** The mockups draw it beside the control that opens the breakdown. Decoration, and hidden from
- *  the accessibility tree: the control's name is the ruled string, not a glyph. */
-const DISCLOSURE_GLYPH = "⌃";
-
 /** Frame 2D's note carries a round information mark. Decoration, like §9's banner's `!`. */
 const NOTE_GLYPH = "i";
 
@@ -162,10 +158,11 @@ export function PriceBreakdown() {
           setIsOpen(!isOpen);
         }}
       >
+        {/* **No glyph beside it since 2026-09-09.** The mockups draw a caret here and the owner
+            replaced it with a question mark, which is punctuation rather than decoration — so it is
+            part of the ruled string in `content/ro.ts` and is read out, where the caret was
+            deliberately hidden from the accessibility tree. */}
         {view.title}
-        <span className={styles.chevron} aria-hidden="true">
-          {DISCLOSURE_GLYPH}
-        </span>
       </button>
       {isOpen ? (
         <PriceBreakdownSurface

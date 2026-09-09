@@ -4,10 +4,16 @@
 //
 // **Why every claim is per body and never per flag.** Until this ruling, `canFinish: false` named
 // one class and ADR 0099 decision 8 ruled the whole class unaffected at both levels. It now names
-// two: five bodies that follow the kitchen and two that are painted at no level, and *all seven still
-// carry the flag*, because none of them gains a control of its own — that half of decision 8 stands.
-// A test written as `records.filter((record) => !record.canFinish)` would still be green today and
-// would be asserting the wrong rule for five of the seven, so the flag is never swept here.
+// two: bodies that follow the kitchen and bodies painted at no level, and each still carries the
+// flag, because neither gains a control of its own. A test written as
+// `records.filter((record) => !record.canFinish)` would still be green today and would be asserting
+// the wrong rule for one of the three, so the flag is never swept here.
+//
+// **The corner ruling of 2026-09-09 (later the same day) took four bodies out of this file.** The
+// owner: *"the corner cabinets — that column specifically — miss custom color setting."* The four
+// corner bodies now declare a control and `CHOOSES_ITS_OWN_COLOUR`, so what is asserted about them
+// is the opposite of every claim below and lives in `the-corner-wears-a-colour.test.ts`. This file
+// keeps the three bodies that still have no control: the open shelf, the hood and the fridge.
 //
 // **And never a list of build ids either** (ADR 0058 decision 2, ADR 0103 decision 4). The table
 // below names the bodies so a failure says which one, but what it asserts each row *against* is the
@@ -18,8 +24,8 @@
 // **Every document claim is key presence** (`"finish" in body`), never a resolved value — ADR 0093,
 // and ADR 0099 decision 2's whole point: a body following the kitchen and a body that chose the
 // identical colour render alike and are different documents, and only the second stops tracking the
-// next global change. The corner bodies must never grow that key: they have no control that could
-// have written it.
+// next global change. The open shelf must never grow that key: it has no control that could have
+// written it.
 import { describe, expect, it } from "vitest";
 
 import {
@@ -72,31 +78,14 @@ interface NamedBody {
 
 /** **Every seeded body that carries no colour control, named, with the rule its entry must declare.**
  *
- * Seven rows and not the five the ruling's summary lists: the seeded kitchen holds **four** corner
- * bodies — a corner base X, a corner base return and *two* wall corner returns, the run and its top
- * row — and `STRUCTURAL_CORNER` declares all four together, so the ruling reaches all four or none.
+ * **Three rows since the owner's corner ruling of 2026-09-09, and it was seven.** The four corner
+ * bodies were the other four: they now declare `CHOOSES_ITS_OWN_COLOUR` with a control of their own,
+ * so they are not this file's subject any more and are asserted in
+ * `the-corner-wears-a-colour.test.ts` instead. `STRUCTURAL_CORNER` declares all four together, so
+ * they left together; the premise below re-derives this table's membership from the catalogue, and
+ * a corner that came back would fail it by name.
  */
 const UNCHOOSING: readonly NamedBody[] = [
-  {
-    placementId: "p25",
-    buildId: "base-corner-x-900",
-    rule: FOLLOWS_THE_KITCHENS_COLOUR,
-  },
-  {
-    placementId: "p26",
-    buildId: "base-corner-return-320",
-    rule: FOLLOWS_THE_KITCHENS_COLOUR,
-  },
-  {
-    placementId: "p9",
-    buildId: "wall-corner-return-570",
-    rule: FOLLOWS_THE_KITCHENS_COLOUR,
-  },
-  {
-    placementId: "p21",
-    buildId: "wall-corner-return-570-top",
-    rule: FOLLOWS_THE_KITCHENS_COLOUR,
-  },
   {
     placementId: "p12",
     buildId: "open-shelf-600",
@@ -179,16 +168,12 @@ describe("backlog 60 — the premise: the table is the catalogue's own declarati
     expect(ruleOf(definition, row.buildId), row.buildId).toBe(row.rule);
   });
 
-  /** The split is real on both sides: five follow and two never paint. Stated so a change that
+  /** The split is real on both sides: one follows and two never paint. Stated so a change that
    *  collapsed the two families back into one fails here rather than making every `it.each` below
    *  run over an empty list and pass. */
-  it("splits the seven into five that follow and two that never paint", () => {
+  it("splits the three into one that follows and two that never paint", () => {
     expect(FOLLOWING.map((row) => row.buildId).sort()).toEqual([
-      "base-corner-return-320",
-      "base-corner-x-900",
       "open-shelf-600",
-      "wall-corner-return-570",
-      "wall-corner-return-570-top",
     ]);
     expect(APPLIANCES.map((row) => row.buildId).sort()).toEqual([
       "fridge-free-700",

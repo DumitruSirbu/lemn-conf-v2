@@ -1943,7 +1943,24 @@ export function makeKit(options: KitOptions = {}): Kit {
         (pFront + pBack) / 2,
       ),
     );
-    g.add(box(W, CARC_H, LD, M.carcass, "carcass", 0, PLINTH, 0));
+    // **Painted — the blind corner, and the second pale face the owner was looking at.** This leg's
+    // 900 mm front carries a **280 mm** door, so roughly 620 mm of this box's front face stood in
+    // `M.carcass`'s `#d9d8d3` beside a coloured door.
+    //
+    // **It was held bare for about an hour on 2026-09-09**, on the concern that this box is one a
+    // door opens onto and painting it would recolour an interior. Two independent mesh censuses
+    // dissolved that: the box is a *solid volume* with no cavity, and the susan pole and trays are
+    // **separate meshes** buried inside it — so there is no inner surface for this declaration to
+    // reach, and opening the door reveals the same face that is already bare beside it. The owner's
+    // words cover it either way: *"support setting custom color for all corner cabinet parts."*
+    //
+    // The fittings keep their own materials, which is the distinction worth holding: a customer's
+    // colour is for the cabinet, not for the steel pole and the board trays standing in it.
+    g.add(
+      wearsTheBodysFinish(
+        box(W, CARC_H, LD, M.carcass, "carcass", 0, PLINTH, 0),
+      ),
+    );
     const pole = cyl(0.014, CARC_H - 0.06, M.steel, "susan_pole");
     pole.position.set(-0.02, PLINTH + (CARC_H - 0.06) / 2 + 0.02, -0.01);
     g.add(pole);
@@ -2032,7 +2049,17 @@ export function makeKit(options: KitOptions = {}): Kit {
         (pFront + pBack) / 2,
       ),
     );
-    g.add(box(W, CARC_H, LD, M.carcass, "carcass", 0, PLINTH, 0));
+    // **The white slab in the owner's picture, and the mesh ADR 0099 Amendment B read wrong.** That
+    // record left this leg unpainted on the grounds that its only cabinetry surface is "the box
+    // interior every cabinet shares". It is the opposite: this is the one seeded base body with no
+    // front at all (`fronts: NO_OPENING_FRONTS`), so nothing stands in front of this box and its
+    // whole 320 × 720 front face is an **outward** face, on the corner column between the oven tower
+    // and the sink run. A solid volume like the X-leg's, so again no interior is reached.
+    g.add(
+      wearsTheBodysFinish(
+        box(W, CARC_H, LD, M.carcass, "carcass", 0, PLINTH, 0),
+      ),
+    );
     // Butts the X-leg slab (which already covers the corner) instead of running
     // through it — the two stone volumes share a face, no coplanar overlap.
     const wFront = cFront + CORNER_RETURN_WORKTOP_FRONT_OVERHANG_M,

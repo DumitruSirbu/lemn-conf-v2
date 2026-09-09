@@ -545,6 +545,10 @@
    * `min-width: 0` so the cell is its track rather than its contents — the containment declaration
    * ADR 0082 decision 1 asks of every item in this row. */
   .priceRow {
+    /* **The breakdown's popover hangs from this cell**, which is the band's own height — so
+     * `top: 100%` is the bottom of the bar rather than the bottom of a control centred inside it.
+     * `price-breakdown.module.css` records why its own anchor stopped being the right box. */
+    position: relative;
     display: flex;
     min-width: 0;
     align-items: stretch;

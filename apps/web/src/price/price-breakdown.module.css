@@ -24,10 +24,6 @@
   border-top: 1px solid var(--line);
 }
 
-.chevron {
-  font-size: 14px;
-}
-
 .surface {
   position: fixed;
   right: 0;
@@ -208,7 +204,22 @@
 /* Frame D2D: a 520 px popover hanging from the price in the top bar, over a dimmed screen. Same
  * markup, same model — a different box. */
 @media (min-width: 900px) {
+  /* **Not stretched, and not the popover's anchor either — owner, 2026-09-09**: *"text 'De ce acest
+   * pret' aligned to right"*.
+   *
+   * Frame D2A's price column declares `align-items: flex-end`, so the column places both of its
+   * children against its right edge and neither child aligns itself. `align-self: stretch` used to
+   * be right here and is now wrong for a reason worth writing down: in the old row-shaped price cell
+   * it stretched this box **vertically**, so the popover hung from the whole bar rather than from
+   * the button. The cell is a **column** since ADR 0104, so the same declaration stretches it
+   * *horizontally* instead — spanning the column and pinning this control to the left, which is the
+   * misalignment the owner saw.
+   *
+   * The vertical intent it was serving is kept by moving the positioning context to the price cell
+   * (`configure.module.css`), which **is** the band's height: the popover still hangs from
+   * `top: 100%` of the bar rather than across its lower half, and it needs no offset of its own. */
   .anchor {
+    position: static;
     /* Lifts this whole subtree — trigger and popover — above the header and the price bar (both
      * `z-index: 2`) and §9's rail (`4`), and establishes the stacking context the popover is drawn
      * in.
@@ -220,30 +231,20 @@
      * mobile scene live and §10.1 forbids branching behaviour per shell. `global-settings.module.css`
      * is where a real scrim lives — that surface is modal on both shells and can say so. */
     z-index: 6;
-    /* Stretched to the whole top bar, not to the control inside it: the popover hangs from
-     * `top: 100%`, and an anchor the height of its button would drop it across the bar's own lower
-     * half. Frame D2D leaves a clear gap between the two. */
-    align-self: stretch;
     align-items: center;
   }
 
   /* Frame D2A `:561–564`: the control stands **under** the amount inside the price column, at
-   * `400 11.5px`, underlined in the frame's own `#c9b79f` with a 3 px offset, and its caret is
-   * `400 10px`. It is the frame's drawing of this control and it replaces the 12 px bold row the
-   * mobile shell draws — the wording is untouched (ADR 0104 decision 7 keeps the two files' copy
-   * fork out of this wave). */
+   * `400 11.5px`, underlined in the frame's own `#c9b79f` with a 3 px offset. It is the frame's
+   * drawing of this control and it replaces the 12 px bold row the mobile shell draws — the wording
+   * is untouched (ADR 0104 decision 7 keeps the two files' copy fork out of this wave). */
   .trigger {
-    gap: 5px;
     padding: 0;
     font: 400 11.5px/1 var(--font-ui);
     text-decoration: underline;
     text-decoration-color: #c9b79f;
     text-underline-offset: 3px;
     border-top: none;
-  }
-
-  .chevron {
-    font-size: 10px;
   }
 
   /* **Bounded by the screen, not only by frame D2D's drawn height** (M6-AUD-016), and the same
