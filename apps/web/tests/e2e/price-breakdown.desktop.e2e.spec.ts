@@ -76,13 +76,37 @@ test("moves focus in, closes on Escape, and gives focus back", async ({
   expect(await focusedTestId(page)).toBe("price-breakdown-trigger");
 });
 
-test("dismisses when the screen behind it is clicked", async ({ page }) => {
+/**
+ * **M6-AUD-013's ruling, from the pointer's side** (owner, 2026-09-09).
+ *
+ * This replaced a case that clicked the desktop scrim and expected the popover to close. There is
+ * no scrim: it dimmed the viewport and swallowed clicks while Tab walked out of the dialog onto the
+ * very controls it covered, so the surface was modal for a pointer and not for a keyboard. The owner
+ * chose to remove the dim rather than make the dialog modal, because frame 2D deliberately keeps the
+ * mobile scene live behind its sheet and §10.1 forbids branching behaviour per shell.
+ *
+ * **Click-outside-to-close went with it, deliberately** — Escape and the close button are the two
+ * ways out, and both are covered above. What is asserted here is the thing the change was *for*: a
+ * pointer can reach the page behind the open popover, exactly as the keyboard already could.
+ */
+test("leaves the page behind it reachable to the pointer, as it already was to Tab", async ({
+  page,
+}) => {
   await page.getByTestId("price-breakdown-trigger").click();
+  await expect(page.getByTestId("price-breakdown-surface")).toBeVisible();
 
-  await page
-    .getByTestId("price-breakdown-scrim")
-    .click({ position: { x: 40, y: 400 } });
+  // Nothing covers the viewport any more. Asked of the document rather than of a locator, so a
+  // fixed overlay reintroduced under any class name fails here.
+  const whatIsAtThatPoint = await page.evaluate(() => {
+    const element = document.elementFromPoint(40, 400);
+    return element?.closest("[data-testid]")?.getAttribute("data-testid") ?? "";
+  });
+  expect(whatIsAtThatPoint).not.toBe("price-breakdown-scrim");
 
+  // And the popover is still open: the point of the change is reachability, not dismissal.
+  await expect(page.getByTestId("price-breakdown-surface")).toBeVisible();
+
+  await page.keyboard.press("Escape");
   await expect(page.getByTestId("price-breakdown-surface")).toHaveCount(0);
   expect(await focusedTestId(page)).toBe("price-breakdown-trigger");
 });

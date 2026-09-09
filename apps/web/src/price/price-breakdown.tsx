@@ -93,31 +93,28 @@ export function PriceBreakdown() {
    * happens to be is not one a customer can rely on, and the customer who arrived by keyboard is
    * the one with no other way out.
    *
-   * **Tab leaving this surface is intended, and must not be "fixed" into a focus trap — but the
-   * reason holds on one shell and not the other, so read both halves before acting on it.**
+   * **Tab leaving this surface is intended, and must not be "fixed" into a focus trap.** The breakdown
+   * is non-modal on **both** shells and now says so in every input mode — which is the resolution of
+   * M6-AUD-013, ruled by the owner on 2026-09-09.
    *
-   * On the **mobile sheet** it is simply correct. Frame 2D draws **no scrim** at 390 × 844: the
-   * scene behind stays live and tappable on purpose, so the sheet is non-modal *by design*, and
-   * every stop the ring leaves to sits above it in plain view and works. Trapping focus there would
-   * strand a keyboard customer inside a surface everyone else can leave.
+   * It used to be modal for a pointer and not for a keyboard: `price-breakdown.module.css` drew a
+   * scrim at ≥ 900 px — visible, covering the viewport, dismissing on click — while Tab walked out
+   * onto the scene's camera presets, which the scrim made unreachable by pointer and did nothing to
+   * protect from the keyboard. **A keyboard could activate controls a pointer could not**, the exact
+   * asymmetry a scrim exists to prevent, and the dialog could not truthfully advertise `aria-modal`
+   * on either shell.
    *
-   * On the **desktop popover it is an accepted shortfall, recorded as one rather than argued away.**
-   * `price-breakdown.module.css` draws a scrim at ≥ 900 px — visible, covering the viewport,
-   * dismissing on click — so that shell *is* modal in every respect except focus. Tab still leaves
-   * onto the scene's camera presets, which the scrim makes unreachable by pointer and does nothing
-   * to protect from the keyboard: **a keyboard can activate controls a pointer cannot**, which is
-   * the exact asymmetry a scrim exists to prevent.
+   * The three coherent fixes were put to the owner and they chose the smallest: **remove the desktop
+   * scrim**, so both shells are genuinely non-modal and the page behind stays reachable to pointer
+   * and keyboard alike. The alternative — modal on both — was rejected because frame 2D deliberately
+   * keeps the mobile scene live behind the sheet, and §10.1 forbids branching behaviour on the
+   * viewport in React, so one answer has to cover both.
    *
-   * It is accepted because the alternatives are worse: §10.1 forbids branching behaviour on the
-   * viewport in React — the shell is a stylesheet — so the choice is a trap on both shells or
-   * neither, and a trap is wrong on the shell the mockups make the priority surface. Consistency
-   * across the two is worth more than closing a small desktop leak. `aria-modal` cannot be branched
-   * either, which is the same trade-off seen from the accessibility side.
-   *
-   * The measurement and the reasoning live in `tests/e2e/price-breakdown.adversarial.desktop.e2e.spec.ts`;
-   * this is here so a reader of the component meets the trade-off rather than a claim about scrims
-   * that is false on the shell where it matters. Removing the desktop scrim would dissolve it, and
-   * that is a product change — it goes to the owner with 6G, beside the mobile scrim question.
+   * **What that cost, deliberately**: click-outside-to-close on desktop. Escape and the close button
+   * are the two ways out, and Escape is why this listener is on the document rather than the dialog.
+   * The settings sheet is the modal surface in this application and keeps its scrim, its trap, its
+   * `aria-modal` and its `inert` — see `global-settings.tsx`, which is what a real modal looks like
+   * here.
    *
    * **A trap would also not have replaced this listener**, which both a reviewer and QA assumed it
    * would. A Tab wrap does not stop a `blur()`, and the tap behind the sheet is a blur — so the
@@ -171,23 +168,12 @@ export function PriceBreakdown() {
         </span>
       </button>
       {isOpen ? (
-        <>
-          {/* Frame D2D dims the screen behind the popover; frame 2D's sheet has no scrim, so the
-              stylesheet draws this only on the desktop shell. Decorative and click-to-dismiss: the
-              close button and Escape are the two ways this is closed from the keyboard. */}
-          <div
-            className={styles.scrim}
-            aria-hidden="true"
-            data-testid="price-breakdown-scrim"
-            onClick={close}
-          />
-          <PriceBreakdownSurface
-            id={surfaceId}
-            ref={surfaceRef}
-            view={view}
-            onClose={close}
-          />
-        </>
+        <PriceBreakdownSurface
+          id={surfaceId}
+          ref={surfaceRef}
+          view={view}
+          onClose={close}
+        />
       ) : null}
     </div>
   );
@@ -200,15 +186,15 @@ export function PriceBreakdown() {
  * a design, and a test that had to build a design to see an empty whole-kitchen section would be
  * asserting the price book rather than this surface.
  *
- * **`role="dialog"` with no `aria-modal`, deliberately, and the two shells disagree about whether
- * that is right.** `aria-modal="true"` tells assistive technology that everything outside is inert.
- * At 390 × 844 frame 2D draws no scrim and the page behind is live and clickable on purpose, so the
- * claim would be **false**; at ≥ 900 px frame D2D draws one, so there it would be **true**. §10.1
- * forbids branching that per shell in React — the shell is a stylesheet, never a React branch — so
- * one answer has to cover both, and the honest one is the weaker: a dialog you can leave. What that
- * costs on desktop is written out beside the Escape listener above, as an accepted shortfall rather
- * than a claim. A scrim on mobile, or none on desktop, would let the two shells agree; both are
- * visible product changes and the owner's, and go to them with 6G.
+ * **`role="dialog"` with no `aria-modal`, and since M6-AUD-013's ruling that claim is simply true on
+ * both shells.** `aria-modal="true"` tells assistive technology that everything outside is inert.
+ * Neither shell draws a scrim now and the page behind is live and clickable on both, so the weaker
+ * declaration is the accurate one rather than a compromise between two shells that disagreed.
+ *
+ * It was a compromise until 2026-09-09: at ≥ 900 px a scrim made the claim true for a pointer and
+ * false for a keyboard, and §10.1 forbids branching that per shell in React. Removing the scrim was
+ * the owner's answer. Adding `aria-modal` here alone would make it false again in the other
+ * direction, which is what `tests/price/price-breakdown-focus.dom.test.ts` pins.
  */
 export function PriceBreakdownSurface({
   id,

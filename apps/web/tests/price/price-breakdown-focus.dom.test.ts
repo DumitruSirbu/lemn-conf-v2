@@ -12,11 +12,12 @@
 // This file is the unit-level half. It declares its own DOM environment in the docblock above
 // rather than moving the whole project onto one, so the 1,900 node tests keep running as they are.
 //
-// **The fourth block is M6-AUD-013's constraint, written as an assertion.** The desktop shell draws
-// a scrim and the mobile one does not, and §10.1 forbids branching that in React — so the dialog
-// advertises the honest, weaker semantics: `role="dialog"` with **no** `aria-modal`. Adding
-// `aria-modal` alone, or a focus trap alone, would leave another input mode disagreeing. This fails
-// if someone adds either half without the surface decision that has to come first.
+// **The fourth block is M6-AUD-013's ruling, written as an assertion.** Neither shell draws a scrim
+// since 2026-09-09 — the owner chose to remove the desktop dim rather than make the dialog modal —
+// so `role="dialog"` with **no** `aria-modal` is now simply true on both, rather than the weaker of
+// two answers that disagreed. Adding `aria-modal` here alone, or a focus trap alone, would make it
+// false again in the other direction, so this fails if either half arrives without the scrim,
+// containment and inertness that would have to come with it.
 import { KITCHEN_L_DESIGN } from "@lemnaria/configurator-domain";
 import { createElement, act } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -125,10 +126,9 @@ describe("the price breakdown's focus, in a DOM", () => {
   it("advertises the semantics both shells can honour, and no more", () => {
     const surface = openSurface();
     expect(surface.getAttribute("role")).toBe("dialog");
-    // M6-AUD-013: not a nit. `aria-modal="true"` would be false on the shell that draws no scrim,
-    // and true-but-untrapped on the one that does. Whichever way that is resolved, it is resolved
-    // as one surface decision — scrim, focus containment, Escape, restoration and this attribute
-    // moving together — not by adding this attribute here.
+    // M6-AUD-013, resolved: no shell draws a scrim, so this dialog is non-modal in every input mode
+    // and the absent attribute is the accurate one. It stays a surface decision — scrim, focus
+    // containment, Escape, restoration and this attribute move together — not something added here.
     expect(surface.getAttribute("aria-modal")).toBeNull();
   });
 });

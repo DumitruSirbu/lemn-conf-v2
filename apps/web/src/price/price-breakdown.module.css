@@ -28,13 +28,6 @@
   font-size: 14px;
 }
 
-/* Frame D2D dims the screen behind the popover. Frame 2D's sheet does not, so on mobile there is no
- * scrim at all rather than a transparent one — a transparent scrim still swallows every tap meant
- * for the scene behind it. */
-.scrim {
-  display: none;
-}
-
 .surface {
   position: fixed;
   right: 0;
@@ -216,15 +209,16 @@
  * markup, same model — a different box. */
 @media (min-width: 900px) {
   .anchor {
-    /* Lifts this whole subtree — trigger, scrim and popover — above the header and the price bar
-     * (both `z-index: 2`) and §9's rail (`4`), and establishes the stacking context the popover is
-     * drawn in.
+    /* Lifts this whole subtree — trigger and popover — above the header and the price bar (both
+     * `z-index: 2`) and §9's rail (`4`), and establishes the stacking context the popover is drawn
+     * in.
      *
-     * **It does not keep the trigger above the scrim, and an earlier comment here claimed it did.**
-     * The scrim is a *child* of this element, so inside the context this creates it paints over the
-     * unpositioned trigger: `document.elementFromPoint` at the trigger's centre returns the scrim,
-     * not the button. Harmless — a click there closes the popover either way, which is why nothing
-     * looked wrong — but the reason written down was not the reason it worked. */
+     * **There is no scrim here since M6-AUD-013's ruling** (2026-09-09): frame D2D's dim covered the
+     * viewport and blocked the pointer while Tab walked out of the dialog onto the very controls it
+     * covered, so the surface was modal for one input mode and not the other. The owner chose to
+     * remove the dim rather than make the dialog modal, because frame 2D deliberately keeps the
+     * mobile scene live and §10.1 forbids branching behaviour per shell. `global-settings.module.css`
+     * is where a real scrim lives — that surface is modal on both shells and can say so. */
     z-index: 6;
     /* Stretched to the whole top bar, not to the control inside it: the popover hangs from
      * `top: 100%`, and an anchor the height of its button would drop it across the bar's own lower
@@ -238,19 +232,11 @@
     border-top: none;
   }
 
-  .scrim {
-    position: fixed;
-    inset: 0;
-    z-index: 5;
-    display: block;
-    background: rgb(28 24 20 / 22%);
-  }
-
   /* **Bounded by the screen, not only by frame D2D's drawn height** (M6-AUD-016), and the same
    * clamp `global-settings.module.css` takes — the two surfaces share the failure, so they share the
    * rule. Measured at 900 x 500: this popover's close button ended at y = 619, below the viewport,
    * while `.body` scrolled internally and kept the box its full 640 px. Less severe than the
-   * settings sheet's, because the scrim and Escape still dismiss this one, but the explicit close
+   * settings sheet's, because Escape still dismisses this one, but the explicit close
    * and the lower rows were clipped. `min()` keeps the drawn height wherever there is room for it. */
   .surface {
     position: absolute;
