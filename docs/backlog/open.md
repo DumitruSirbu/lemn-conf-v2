@@ -1129,6 +1129,30 @@ refusing it wholesale is a different product answer from refusing one member's m
 decision, and it should be taken with backlog 50 and 51's shared load-seam severity rather than on
 its own.
 
+## 60. A colour leaves the structural corner base white, and nothing tells the customer why — OWNER INPUT WANTED, 2026-09-09
+
+**Seen in a browser, not inferred** — the wave 6Z / ADR 0099 visual pass, evidence in
+`testing-reports/vis6z-2026-09-09/`. Apply a kitchen colour and the structural corner base
+(*Corp bază de colț*) keeps the material's default white: a white door with a handle standing
+between Antracit or Gri Havanna neighbours.
+
+**It is correct, and that is the problem.** `STRUCTURAL_CORNER`
+([`kitchen-l-design.ts`](../../packages/configurator-domain/src/fixtures/kitchen-l-design.ts))
+declares `canFinish: false`, and [ADR 0099](../decisions/0099-a-colour-is-chosen-at-two-levels-and-the-cabinets-wins.md)
+decision 8 rules such a body unaffected at **both** levels — the kitchen's colour and the cabinet's
+own. The open shelf, the hood and the freestanding fridge carry the same declaration and behave the
+same way. Nothing is broken.
+
+**But on screen it reads exactly like a body that failed to repaint**, and the verifying agent chased
+it as a defect before reading the record. On a dark kitchen it is the first thing a customer will
+point at, and **no copy anywhere explains it**.
+
+**What the owner is being asked**: is a white corner between coloured neighbours the intended
+product? The options are the owner's to choose between — leave it and say nothing, leave it and
+explain it in §9 or the settings sheet, or make these bodies take the kitchen's colour after all,
+which is an ADR 0099 decision 8 amendment rather than a fix. **Do not invent a sentence in code**;
+this is the same shape as M6-AUD-014.
+
 ## Also open, recorded elsewhere — do not duplicate here
 
 - **Width editing does nothing yet.** ~~Every width chip is `blocked` because §5.4's resize command

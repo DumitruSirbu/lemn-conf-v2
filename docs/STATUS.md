@@ -123,7 +123,29 @@ PASS.
   wave row but 6Y is DONE and the branch `fix/m6-remediation` is green: domain **3653**,
   three-adapter **2970**, web **1997 and no skips**, persistence **282**, typecheck / lint /
   `format:check` clean, at `eeedf85`. What is owed before M6 can be called closed:
-  - **No browser has seen any of 2026-09-08's work.** Wave 6Z's own tier calls for visual
+  - **~~No browser has seen any of 2026-09-08's work.~~ DRIVEN 2026-09-09**, evidence in
+    `testing-reports/vis6z-2026-09-09/` (20 captures, gitignored). Both waves render correctly.
+    ADR 0099: the cabinets repaint on a global colour, a per-cabinet override changes only that
+    cabinet and survives a second global change, and *Culoarea bucătăriei* clears the override —
+    price unchanged at `101 000 MDL` throughout. ADR 0103, by pixel diff over the top-row band at
+    both settings: delete re-plans nothing (0 px), a regular base beneath makes the top recede
+    (493 px at 600, 784 px at 700), a full-height body deepens it, and the round trip is exact
+    (0 px). The worst-case 400-over-700 discontinuity was inspected close up — worktop continuous
+    into the corner, plinth on the floor, no tear, no intersection, no floating body. **Zero console
+    errors**; the only warning is the known `THREE.Clock` deprecation. `pnpm --filter web build`
+    passes on current HEAD.
+
+    Two process notes. **The tree was not frozen** — this session landed `eeedf85` and a `dist`
+    rebuild mid-run, against its own standing rule; the agent detected the 8-commit drift, re-ran the
+    whole 6Z check against the current build and reports byte-identical results, which is what makes
+    the evidence usable. And **a screenshot written anywhere Turbopack watches resets the running
+    design**: it produced a false "the kitchen reverted to white", caught by the agent from
+    `[Fast Refresh] rebuilding` / `Context Lost` in the console rather than filed as a defect. The
+    MCP screenshot tool can only write inside the repo, so every future visual run needs a path
+    outside the watched root and a per-step readout guard.
+
+    **Still owed here**: a CI runner pass. Local rendering says nothing about runner timing.
+  - **The former browser obligation, verbatim:** Wave 6Z's own tier calls for visual
     verification and it was not run; the scene-colour wave's on-screen claim is proved through the
     real record builder in tests but never rendered. The owner has said they will do the manual pass
     themselves after a production deploy, so this is a **CI Playwright** obligation, not a manual one.
