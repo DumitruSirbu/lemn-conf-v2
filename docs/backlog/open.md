@@ -748,7 +748,56 @@ fix). Fore-aft hood-over-hob overlap was not measurable from the captured angles
 width alignment; the depth axis rests on the algebraic concentricity ADR 0087's consequences already
 derive, not on a fourth screenshot. Only the seeded L-kitchen was exercised.
 
-## 50. `validateDesignForCatalog` is blind to a cross-wall corner intersection — RECORDED 2026-09-06, NOT SCHEDULED
+## 50. `validateDesignForCatalog` is blind to a cross-wall corner intersection — RECORDED 2026-09-06; SEVERITY RULED AND BUILT 2026-09-09
+
+> **CLOSED by the owner's ruling of 2026-09-09 and the wave that carried it.** The gate now compares
+> across the corner and reports **`RECORDED_SPAN_OVERLAPS_CORNER_BODY`** at severity **`mark`** —
+> never a refusal. The owner's reasoning constrains anyone who revisits it: a new refusal code can
+> make an already-stored document unloadable, which is [ADR 0052](../decisions/0052-800-mm-is-the-ceiling-on-any-empty-column.md)'s
+> dead link, and **every stored document must still load**. The precedent followed is
+> `PLACEMENT_PAST_WALL_END` and [ADR 0065](../decisions/0065-a-body-past-the-end-of-its-wall-is-marked-not-moved.md) —
+> marked, warned, not moved, not refused. Severity stays declared per code
+> ([ADR 0069](../decisions/0069-past-the-wall-is-one-code-family-and-severity-is-declared-per-code.md)), and this
+> is the first member of the mark set that is **not** in that record's past-the-wall family, so it is
+> a ruling and not a membership.
+>
+> The comparison lives in `findCornerOverlaps` in `packages/configurator-domain/src/validate-design.ts`,
+> beside the same-wall sweep it extends: recorded spans from both stored arrays against the
+> **placements on the other wall**, each having to reach into the other's along-wall interval from
+> the shared origin, plus a vertical overlap. A placement is still never named — `overlapCodeFor`'s
+> rule is untouched — so two bodies meeting across the corner report nothing, exactly as two bodies
+> meeting on one wall do not. The witness below was **inverted**, not deleted.
+>
+> **The reach is the carcass seat, and that was measured rather than chosen.** The wave's brief first
+> said to use the body's `occupiedDepth`, on the principle that overlap is about solid. That is true
+> of two cabinets and false of two worktops. `base-corner-x-900` seats on 560 and *occupies* 630,
+> because ADR 0025 gives its corner worktop 10 mm more reach than a straight run's, and
+> `base-corner-return-320`'s slab stands 20 mm proud of its own 580 seat — so **the shipped kitchen's
+> two corner legs share 50 mm of plan area by design**, which is what an L-joint is. Measured against
+> the occupied depth the gate marks the demo kitchen on its own declared geometry and turns eleven
+> assertions red across six domain files and three in `apps/web`; measured against the seat the
+> shipped kitchen is silent. **This entry's own 80 mm and 31 mm are seat figures** — 560 − 480 and
+> 291 − 260 — which is what *"the reach `cornerReachAlongWallMm` already computes"* meant, and the
+> gate now reproduces both: `qa-6x-slide-witness`'s un-slid fixture at 700 mm carries exactly those
+> two overlaps, because a settings swap moves no placement, and the gate names them.
+>
+> **The reach ladder, for the document that cannot answer directly.** A recorded span's reach is the
+> deepest **seat** among the placements standing in its column; failing that, the seat of the body
+> its `depthFromBuildId` names (ADR 0073 decision 1, read on a second axis); failing that, its
+> recorded `depthMm`. The first rung is what keeps a document written before ADR 0073 quiet — it
+> needs nothing the document carries. The last rung is §3.2's MAX **clearance** and over-reaches, so
+> a member-less sourceless column at the corner can carry a spurious mark; it cannot carry a refused
+> load.
+>
+> **STILL OPEN, and this is the known better shape rather than a new idea.** An `occupiedDepth` reach
+> with an exemption where **both** runs are declared structural corner legs is more truthful about
+> solid than the seat is: `frameDepthMm` is ADR 0018's encoding of twice a rear overhang and is not a
+> distance at all — `hood-600` seats on 700 and fills 500 — so the number the gate reads is right at
+> the corner and a fiction away from it. It was **not** taken on 2026-09-09 because it is a new rule
+> needing its own record: which bodies count as structural, what the exemption means for a document
+> that merely *claims* a corner leg as its source, and whether an exemption or a tolerance is the
+> honest instrument. Whoever revisits this should start there and not re-derive the seat/occupied
+> question, which is settled and measured above.
 
 **Found by wave 6J-c, confirmed by [ADR 0090](../decisions/0090-a-frozen-space-slides-with-its-run-and-follows-the-body-it-recorded.md).**
 
@@ -1129,7 +1178,7 @@ refusing it wholesale is a different product answer from refusing one member's m
 decision, and it should be taken with backlog 50 and 51's shared load-seam severity rather than on
 its own.
 
-## 60. A colour leaves the structural corner base white, and nothing tells the customer why — OWNER INPUT WANTED, 2026-09-09
+## 60. A colour leaves the structural corner base white, and nothing tells the customer why — RULED 2026-09-09; SHIPPED FOR THE CORNER BODIES, **STILL OWED FOR THE OPEN SHELF**
 
 **Seen in a browser, not inferred** — the wave 6Z / ADR 0099 visual pass, evidence in
 `testing-reports/vis6z-2026-09-09/`. Apply a kitchen colour and the structural corner base
@@ -1147,11 +1196,114 @@ same way. Nothing is broken.
 it as a defect before reading the record. On a dark kitchen it is the first thing a customer will
 point at, and **no copy anywhere explains it**.
 
-**What the owner is being asked**: is a white corner between coloured neighbours the intended
-product? The options are the owner's to choose between — leave it and say nothing, leave it and
-explain it in §9 or the settings sheet, or make these bodies take the kitchen's colour after all,
-which is an ADR 0099 decision 8 amendment rather than a fix. **Do not invent a sentence in code**;
-this is the same shape as M6-AUD-014.
+**What the owner was asked**: is a white corner between coloured neighbours the intended product?
+The options were the owner's to choose between — leave it and say nothing, leave it and explain it in
+§9 or the settings sheet, or make these bodies take the kitchen's colour after all, which is an
+ADR 0099 decision 8 amendment rather than a fix.
+
+### RULED 2026-09-09 by the owner: the third option
+
+> *"structural cabinetry follows the kitchen, appliances never do"* — with *"fridge no, hood also
+> no"* — and *"open shelves can have and by default should inherit global set color"*.
+
+**This entry is NOT closed, and the one-line summary of why is this: the ruling is delivered for the
+three corner bodies that draw a door, and it is still owed for the open shelf.** Every following body
+resolves to the kitchen's colour in the document and in `PlacementRecord.drawnFinish`, but the
+renderer can only paint a body that has a front — so on screen `base-corner-x-900`,
+`wall-corner-return-570` and `wall-corner-return-570-top` changed, and `open-shelf-600` did not. The
+shelf is the body the owner named by name. **Anyone reading this as "backlog 60 done" is reading it
+wrong**; the mesh census below is the evidence, and it was measured precisely because a declaration
+flip on a frontless body passes every test while changing nothing a customer can see.
+
+So the class `canFinish: false` used to hold whole is now two:
+
+| Body | Behaviour |
+| --- | --- |
+| `base-corner-x-900`, `base-corner-return-320`, `wall-corner-return-570`, `wall-corner-return-570-top` | **Follow the kitchen's colour.** All four wear `STRUCTURAL_CORNER`, which declares it once. |
+| `open-shelf-600` / `open-shelf` | **Follows the kitchen's colour.** |
+| `hood-600` / `hood`, `fridge-free-700` / `fridge-free` | **Never painted, at any level.** |
+| Every other catalogue entry | **Chooses its own colour**, and falls back to the kitchen's and then the material's — ADR 0099 decision 1's order, unchanged. |
+
+**None of the seven gains a colour control.** They follow; they do not choose. `canFinish: false` is
+unchanged for every one of them, which is the half of ADR 0099 decision 8 that stands — and it is
+what keeps ADR 0099 decision 2 intact, because `setFinish` still refuses them, `carriedAppearance`
+still declines to copy a colour onto them and the load seam still strips one that arrived by another
+route. A following body's `finish` key stays **absent** through any number of colour changes.
+
+### The declaration: `BodyDefinition.finishRule`
+
+**`packages/configurator-domain/src/body-finish-rule.ts`** — `BodyFinishRule`, three arms and no
+default: `CHOOSES_ITS_OWN_COLOUR`, `FOLLOWS_THE_KITCHENS_COLOUR`, `IS_NEVER_PAINTED`. Declared per
+catalogue entry, never a list of build ids anywhere (ADR 0058 decision 2, ADR 0103 decision 4).
+
+It **fails closed twice**, the way `cabinetDepthRuleOf` does. `bodyFinishRuleOf` refuses an entry that
+declares nothing — reading absence as *chooses* paints a fridge and reading it as *never* recreates
+this very defect — and refuses one whose `finishRule` and `canFinish` disagree, so the two
+declarations cannot become two authorities. `refuseUndeclaredFinishRules` runs it over both
+populations as `buildKitchenLBodyCatalog` assembles the map.
+
+**It is a second declaration rather than a widened `canFinish`, because the two answer different
+questions**: `canFinish` is *may this body's document carry a colour of its own*, which the ruling
+moved for nobody; `finishRule` is *what colour is this body drawn in*, which is what moved.
+
+The resolution is `drawnFinishOf` (`resolved-finish.ts`), read by `derivePlacementRecords` into
+`PlacementRecord.drawnFinish`. `resolvedFinishOf` is untouched, so `chosen-finishes.ts` and the
+settings sheet compare against what they always did. The adapter's `record.canFinish` paint guard is
+**gone** — after the ruling that flag is `false` for bodies that must be painted and for bodies that
+must not, so the refusal moved into the domain beside the declaration and `three-adapter` still
+learns no rule (§12).
+
+**Owed: the ADR 0099 amendment**, which the coordinator writes. `docs/decisions/0099-*.md` was not
+edited by this change.
+
+### The remaining half: two following bodies have no paintable surface, and do not change on screen
+
+**Measured, not inferred.** The seeded kitchen was built twice — once with this change and once with
+the pre-change behaviour restored — and every mesh's rendered colour read off the built object. Three
+of the seven move; four do not.
+
+| Placement | Body | Meshes | What moved |
+| --- | --- | --- | --- |
+| `p25` | `base-corner-x-900` | 10 | `door_front` `#eceeeb` → `#2b2d30` |
+| `p9` | `wall-corner-return-570` | 7 | `door_front` `#eceeeb` → `#2b2d30` |
+| `p21` | `wall-corner-return-570-top` | 7 | `door_front` `#eceeeb` → `#2b2d30` |
+| `p26` | `base-corner-return-320` | 3 | **nothing** |
+| `p12` | `open-shelf-600` | 7 | **nothing** |
+| `p13` | `hood-600` | 4 | nothing — correct, it is never painted |
+| `p7` | `fridge-free-700` | 14 | nothing — correct, it is never painted |
+
+`applyBodyFinish` (`three-adapter/src/finishes.ts:193`) paints `collectFronts(body)` and nothing else,
+and neither `p26` nor `p12` mounts a front. **So the ruling is delivered in the document and in the
+record for all five following bodies, and on screen for three of them.**
+
+- **`base-corner-return-320` — nothing to paint, and arguably nothing that should be.** Its three
+  meshes are `plinth` (`M.dark`), `carcass` (`M.carcass`) and `countertop` (`M.stone`). Its only
+  cabinetry surface is the carcass, which is the box *interior* every cabinet shares; painting it
+  would recolour interiors, which no other body does. The screen is arguably already correct.
+- **`open-shelf-600` — a real surface exists and nothing paints it. This is the owed work**, and it is
+  the body the owner named: *"open shelves can have and by default should inherit global set color"*.
+  Its six boards — `side_left`, `side_right`, `shelf_top`, `shelf_bottom`, `shelf_1`, `shelf_2`, all on
+  `kit.M.oak` — are its visible cabinetry, the analogue of a front. A seventh mesh, `back_panel`, is on
+  `kit.M.tile`.
+
+**What it would take.** Not a widening of `FRONT_MESH_NAME`: `isFrontMesh` (`finishes.ts:169`) is the
+single shared definition of *front* for the package — `cabinet-handle-meshes.ts` asks it from the other
+side, and `apps/web/src/scene/kitchen-stage.tsx:214` paints the whole room through
+`collectFronts(stage.room)` — so widening it would change which meshes count as a handle's parent and
+what a whole-room repaint touches. The right shape is a **separate declaration of which meshes a body
+wears its colour on**.
+
+**Two questions are the owner's and are with the owner as of 2026-09-09. Nobody starts this wave
+before they are answered:**
+
+1. Does the `back_panel` — a tiled wall backing, `kit.M.tile` — take the kitchen's colour, or only the
+   six oak boards?
+2. Does an oak-boarded shelf take a *decor* colour at all, given ADR 0071 decision 3 declares the
+   control per material — a decor list for PAL, a RAL picker for MDF, two wood swatches for veneer?
+
+Neither is an implementer's call, which is why this entry stops here rather than proposing an answer.
+When they come back it is **a fresh wave with its own brief**, not a continuation of the one that
+shipped the corner bodies.
 
 ## Also open, recorded elsewhere — do not duplicate here
 
