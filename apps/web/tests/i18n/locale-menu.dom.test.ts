@@ -489,6 +489,28 @@ describe("the keyboard", () => {
     elsewhere.remove();
   });
 
+  /**
+   * **The other half of the same claim, and the half a keydown handler would pass.** The paragraph
+   * above says the menu closes *by the focus leaving*; a handler that also closed on `Tab`'s keydown
+   * would satisfy it, because focus leaves either way in a real browser — and would unmount the
+   * element focus is moving *from*, dropping the customer at the top of the document.
+   *
+   * So the key is delivered on its own, with focus left where it is. Nothing may close: the close
+   * has to wait for `focusout`, which is what the case above then supplies.
+   */
+  it("does not close on Tab's keydown alone, so focus is never unmounted mid-move", () => {
+    renderAt("ro", "/ro/configurator/configure");
+    openMenu();
+    const held = focused();
+
+    pressOn(held, "Tab");
+
+    expect(
+      container.querySelector('[data-testid="top-bar-locale-list"]'),
+    ).not.toBe(null);
+    expect(document.activeElement).toBe(held);
+  });
+
   it("stays open while focus moves between its own choices", () => {
     renderAt("ro", "/ro/configurator/configure");
     openMenu();

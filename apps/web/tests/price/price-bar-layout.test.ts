@@ -51,7 +51,7 @@ const barStylesheet = readFileSync(
 
 /** The declarations only. This file's own commentary names the property it forbids, which is
  *  exactly the false positive a text guard has to rule out. */
-const barDeclarations = barStylesheet.replace(/\/\*[\s\S]*?\*\//g, "");
+const barDeclarations = withoutComments(barStylesheet);
 const screenStylesheet = readFileSync(
   resolve(CONFIGURE_DIRECTORY, "configure.module.css"),
   "utf8",
@@ -66,18 +66,129 @@ const flaggedTotalStylesheet = readFileSync(
   resolve(PRICE_DIRECTORY, "flagged-total-warning.module.css"),
   "utf8",
 );
+/** The third and fourth surfaces `describeStartingPrice` feeds. Neither is a price module, and that
+ *  is exactly why they were left behind when the first two were brought into line. */
+const settingsStylesheet = readFileSync(
+  resolve(import.meta.dirname, "../../src/settings/global-settings.module.css"),
+  "utf8",
+);
 
-/** The `color` and `background` a rule paints with, which is all these assertions compare. */
+/** The `color` and `background` a rule paints with, which is all these assertions compare. Read out
+ *  of the base cascade through the one extractor below, so a Prettier reflow cannot make this
+ *  disagree with the figure cases about what counts as a rule. */
 function paletteOf(stylesheet: string, ruleName: string): [string, string] {
-  const block = new RegExp(`\\.${ruleName} \\{([^}]*)\\}`).exec(
-    stylesheet,
-  )?.[1];
-  if (!block) throw new Error(`no .${ruleName} rule to read`);
+  const block = declarationsOf(baseCascadeOf(stylesheet), `.${ruleName}`);
+  if (block === "") throw new Error(`no .${ruleName} rule to read`);
   const colour = /(?<!-)color:\s*([^;]+);/.exec(block)?.[1];
   const background = /background:\s*([^;]+);/.exec(block)?.[1];
   if (!colour || !background)
     throw new Error(`.${ruleName} declares no colour pair`);
   return [colour.trim(), background.trim()];
+}
+
+/** One cascade a browser can be in: the rules outside every `@media`, and each block's own rules.
+ *  A declaration in `base` is in force in all of them; one in a block is in force in that block
+ *  only, on top of the base. */
+interface StyleContext {
+  readonly query: string;
+  readonly css: string;
+}
+
+const BASE_CONTEXT_QUERY = "base";
+
+function withoutComments(stylesheet: string): string {
+  return stylesheet.replace(/\/\*[\s\S]*?\*\//g, "");
+}
+
+function baseCascadeOf(stylesheet: string): string {
+  const base = contextsOf(stylesheet)[0];
+  if (base === undefined) throw new Error("the stylesheet has no base cascade");
+  return base.css;
+}
+
+/** Every context the stylesheet declares, base first. Brace-walked rather than matched, because a
+ *  regex for `@media … { … }` stops at the first inner `}` and would hand back a truncated block —
+ *  the same first-match blindness this file's figure cases exist to rule out. */
+function contextsOf(stylesheet: string): readonly StyleContext[] {
+  const css = withoutComments(stylesheet);
+  const blocks: StyleContext[] = [];
+  let base = "";
+  let cursor = 0;
+
+  while (cursor < css.length) {
+    const start = css.indexOf("@media", cursor);
+    if (start === -1) {
+      base += css.slice(cursor);
+      break;
+    }
+    base += css.slice(cursor, start);
+    const open = css.indexOf("{", start);
+    if (open === -1) throw new Error("an @media rule opens no block");
+    const close = closingBraceAt(css, open);
+    blocks.push({
+      query: css.slice(start, open).trim(),
+      css: css.slice(open + 1, close),
+    });
+    cursor = close + 1;
+  }
+
+  return [{ query: BASE_CONTEXT_QUERY, css: base }, ...blocks];
+}
+
+function closingBraceAt(css: string, open: number): number {
+  let depth = 0;
+  for (let cursor = open; cursor < css.length; cursor += 1) {
+    if (css[cursor] === "{") depth += 1;
+    else if (css[cursor] === "}") {
+      depth -= 1;
+      if (depth === 0) return cursor;
+    }
+  }
+  throw new Error("an @media rule is never closed");
+}
+
+/** **Every** declaration the cascade makes for one selector, in source order — not the first rule
+ *  that matches. A selector list counts for each name in it, and whitespace between the name and
+ *  the brace is the formatter's business rather than this file's. */
+function declarationsOf(css: string, selector: string): string {
+  const blocks: string[] = [];
+  for (const rule of css.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+    const names = (rule[1] ?? "").split(",").map((each) => each.trim());
+    if (names.includes(selector)) blocks.push(rule[2] ?? "");
+  }
+  return blocks.join("\n");
+}
+
+/** The weight and size a span ends up set in, once the declarations are read in order and the last
+ *  one wins — which is what a browser does and what a single-match reader cannot do. */
+interface Typeface {
+  readonly weight: string;
+  readonly size: string;
+}
+
+function typefaceOf(declarations: string, selector: string): Typeface {
+  let weight: string | undefined;
+  let size: string | undefined;
+
+  for (const [, property, value] of declarations.matchAll(
+    /([a-z-]+):\s*([^;]+);/g,
+  )) {
+    if (property === "font") {
+      const declared = (value ?? "").trim();
+      const shorthand = /^(\d+)\s+([\d.]+px)/.exec(declared);
+      if (!shorthand)
+        throw new Error(
+          `${selector}'s font shorthand is unreadable: ${declared}`,
+        );
+      weight = shorthand[1];
+      size = shorthand[2];
+    } else if (property === "font-size") size = (value ?? "").trim();
+    else if (property === "font-weight") weight = (value ?? "").trim();
+  }
+
+  if (weight === undefined || size === undefined)
+    throw new Error(`${selector} is never given a weight and a size`);
+  return { weight, size };
 }
 
 describe("the bar's reserved height reaches the stylesheet from one constant", () => {
@@ -222,62 +333,138 @@ describe("the bar under a translation 40 % longer than its Romanian source", () 
   });
 });
 
-/** **The two surfaces state the same figure and must state it the same way.** The bar and the
- *  breakdown sheet's footer both render one `PriceFigure`, within a tap of each other, and until
- *  2026-09-10 they disagreed: the bar said *"de la 86 000 MDL"* on one baseline while the footer
- *  stacked `DE LA` above the amount in small letter-spaced capitals. The owner ruled them
- *  consistent.
+/** **Four surfaces state the same figure, and they must state it the same way.**
  *
- *  Nothing caught that drift, because no case asserted either treatment — which is why this one
- *  exists rather than a note. It reads both stylesheets and requires the *same* three properties,
- *  so bringing one back into line by editing only the other fails here. */
-describe("the sheet's footer figure and the bar's figure are one treatment", () => {
-  const ruleFor = (sheet: string, selector: string): string => {
-    const match = new RegExp(`\\${selector}\\s*\\{([^}]*)\\}`).exec(sheet);
-    if (match?.[1] === undefined) throw new Error(`no ${selector} rule found`);
-    return match[1];
-  };
+ *  `describeStartingPrice` feeds the price bar, the breakdown sheet's footer, the global settings
+ *  sheet's footer and the editor panel's footer. Until 2026-09-10 the bar said *"de la 86 000 MDL"*
+ *  on one baseline while the other three stacked `DE LA` above the amount in small letter-spaced
+ *  capitals; the owner ruled them consistent, and the first fix reached two of the four because
+ *  nobody counted the callers.
+ *
+ *  **What is asserted is the invariant, not the numbers.** Per surface and per media context: the
+ *  label and the amount are set at the same size, the label at 400 and the amount at 700. A
+ *  responsive override that moves both stays green; one that moves either alone fails — which is the
+ *  defect a first-match reader could not see, and there was one: a pre-existing desktop rule left
+ *  `price-breakdown.module.css` rendering the prefix at 21 px over an amount at 20.
+ */
+const FIGURE_SURFACES = [
+  {
+    name: "the price bar",
+    stylesheet: barStylesheet,
+    container: ".figure",
+    label: ".label",
+    amount: ".amount",
+  },
+  {
+    name: "the breakdown sheet's footer",
+    stylesheet: breakdownStylesheet,
+    container: ".figure",
+    label: ".figureLabel",
+    amount: ".figureAmount",
+  },
+  {
+    name: "the global settings sheet's footer",
+    stylesheet: settingsStylesheet,
+    container: ".figure",
+    label: ".figureLabel",
+    amount: ".figureAmount",
+  },
+  {
+    name: "the editor panel's footer",
+    stylesheet: panelStylesheet,
+    container: ".footerPrice",
+    label: ".footerPriceLabel",
+    amount: ".footerPriceAmount",
+  },
+] as const;
 
-  it("lays both out as a baseline-aligned row rather than a stack", () => {
-    for (const [name, sheet] of [
-      ["bar", barStylesheet],
-      ["breakdown", breakdownStylesheet],
-    ] as const) {
-      const figure = ruleFor(sheet, ".figure");
-      expect(figure, name).toContain("flex-direction: row");
-      expect(figure, name).toContain("align-items: baseline");
-      expect(figure, name).not.toContain("flex-direction: column");
-    }
-  });
+type FigureSurface = (typeof FIGURE_SURFACES)[number];
 
-  it("sets the prefix regular and the amount bold, at one size, in both", () => {
-    // The owner's second ruling of 2026-09-10: the prefix qualifies the figure and should not
-    // compete with it, so weight is what separates them and size is what joins them.
-    for (const [name, labelRule, amountRule] of [
-      [
-        "bar",
-        ruleFor(barStylesheet, ".label"),
-        ruleFor(barStylesheet, ".amount"),
-      ],
-      [
-        "breakdown",
-        ruleFor(breakdownStylesheet, ".figureLabel"),
-        ruleFor(breakdownStylesheet, ".figureAmount"),
-      ],
-    ] as const) {
-      expect(labelRule, name).toContain("400 21px/1");
-      expect(labelRule, name).toContain("text-transform: lowercase");
-      expect(labelRule, name).not.toContain("uppercase");
-      expect(amountRule, name).toContain("700 21px/1");
-    }
-  });
+/** The declarations in force for one span in one context: the base cascade first, then the block's
+ *  own, which is the order a browser resolves them in. */
+function resolvedFor(
+  surface: FigureSurface,
+  context: StyleContext,
+  selector: string,
+): string {
+  const base = declarationsOf(baseCascadeOf(surface.stylesheet), selector);
+  return context.query === BASE_CONTEXT_QUERY
+    ? base
+    : `${base}\n${declarationsOf(context.css, selector)}`;
+}
 
-  it("keeps `lowercase` off the container, which would take `MDL` down with it", () => {
-    for (const [name, sheet] of [
-      ["bar", barStylesheet],
-      ["breakdown", breakdownStylesheet],
-    ] as const) {
-      expect(ruleFor(sheet, ".figure"), name).not.toContain("text-transform");
-    }
+describe("every surface that states the starting price states it one way", () => {
+  it.each(FIGURE_SURFACES)(
+    "lays $name out as a baseline row rather than a stack",
+    (surface) => {
+      for (const context of contextsOf(surface.stylesheet)) {
+        const container = resolvedFor(surface, context, surface.container);
+
+        expect(container, context.query).toContain("flex-direction: row");
+        expect(container, context.query).toContain("align-items: baseline");
+        expect(container, context.query).not.toContain(
+          "flex-direction: column",
+        );
+      }
+    },
+  );
+
+  it.each(FIGURE_SURFACES)(
+    "sets $name's prefix regular and its amount bold, at one size, in every media context",
+    (surface) => {
+      // The owner's second ruling of 2026-09-10: the prefix qualifies the figure and must not
+      // compete with it, so weight is what separates the two spans and size is what joins them.
+      for (const context of contextsOf(surface.stylesheet)) {
+        const label = typefaceOf(
+          resolvedFor(surface, context, surface.label),
+          surface.label,
+        );
+        const amount = typefaceOf(
+          resolvedFor(surface, context, surface.amount),
+          surface.amount,
+        );
+
+        expect(label.weight, `${surface.name} @ ${context.query}`).toBe("400");
+        expect(amount.weight, `${surface.name} @ ${context.query}`).toBe("700");
+        expect(label.size, `${surface.name} @ ${context.query}`).toBe(
+          amount.size,
+        );
+      }
+    },
+  );
+
+  it.each(FIGURE_SURFACES)(
+    "keeps `lowercase` on $name's label alone, where it cannot take `MDL` down with it",
+    (surface) => {
+      for (const context of contextsOf(surface.stylesheet)) {
+        expect(
+          resolvedFor(surface, context, surface.container),
+          context.query,
+        ).not.toContain("text-transform");
+      }
+      expect(
+        declarationsOf(baseCascadeOf(surface.stylesheet), surface.label),
+      ).toContain("text-transform: lowercase");
+    },
+  );
+
+  /** **The case that keeps the three above honest.** The reader they were written with used
+   *  `RegExp(…).exec()` — first match only — so a `@media` override was invisible to it and every
+   *  claim passed over a stylesheet that broke all three one query down. If a future edit made the
+   *  reader blind again, the cases would go quiet rather than red; this one goes red, because it
+   *  requires the sweep to actually find the overrides that exist. */
+  it("reads past the base cascade, so the cases above are not blind to an override", () => {
+    const overriding = FIGURE_SURFACES.filter((surface) =>
+      contextsOf(surface.stylesheet)
+        .filter((context) => context.query !== BASE_CONTEXT_QUERY)
+        .some(
+          (context) =>
+            declarationsOf(context.css, surface.label) !== "" ||
+            declarationsOf(context.css, surface.amount) !== "",
+        ),
+    ).map((surface) => surface.name);
+
+    expect(overriding).toContain("the breakdown sheet's footer");
+    expect(overriding).toContain("the global settings sheet's footer");
   });
 });

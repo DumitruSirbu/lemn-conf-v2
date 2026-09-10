@@ -6,8 +6,13 @@
 // *nu este inclus* over it instead of *inclus*.
 //
 // **What this file exists to falsify is the shortcut**, which is to read `amountMinor === 0`. A
-// genuinely free row is not the same fact — PAL melaminat is zero and *is* included — so the tests
-// below build a manufacturer row priced at nothing and require it to stay a manufacturer row.
+// cabinet that costs nothing is not the same fact as a cabinet nobody supplies, so the tests below
+// build a **manufacturer** row priced at nothing and require it to stay a manufacturer row.
+//
+// PAL melaminat is usually cited here and is the wrong example: it is free, but it is a *material*
+// row and never reaches the cabinet path. The row has to be built because the shipped kitchen
+// contains no zero-priced manufacturer cabinet — which is also why the guard is unexercised in
+// production and rests on cases like these.
 import { describe, expect, it } from "vitest";
 
 import {

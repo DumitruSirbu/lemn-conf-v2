@@ -20,6 +20,23 @@ const LOCALE_ENDONYMS: Readonly<Record<AppLocale, string>> = {
   ru: "Русский",
 };
 
+/**
+ * The name a language is offered under, or a throw.
+ *
+ * **The compile error is not the whole guard, because `next dev` erases types.** `tsc` refuses a
+ * locale with no entry here (`TS2741`), and `pnpm typecheck` is where that is meant to be caught —
+ * but the dev server transpiles without checking, so a missing entry returned `undefined`, React
+ * rendered nothing, and the menu drew a row with a correct href and no name on it. That is exactly
+ * the *ships unmarked and nobody notices* failure this table exists to prevent, reintroduced by the
+ * one toolchain a developer looks at first. Throwing restores the runtime half of the guard
+ * `otherLocaleThan` used to give.
+ */
 export function endonymOf(locale: AppLocale): string {
-  return LOCALE_ENDONYMS[locale];
+  // `Partial` because the whole point is that the type is not to be trusted at this call: read as a
+  // `Record` the lookup is a `string` and the guard below is dead code the linter deletes.
+  const written: Partial<Record<AppLocale, string>> = LOCALE_ENDONYMS;
+  const endonym = written[locale];
+  if (endonym === undefined)
+    throw new Error(`no endonym is written down for the locale ${locale}`);
+  return endonym;
 }

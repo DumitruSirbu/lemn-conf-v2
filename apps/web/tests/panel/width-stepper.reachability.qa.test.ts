@@ -126,6 +126,7 @@ function stepperAt(kitchen: Kitchen, id: string): WidthStepperSection {
     widthRanges:
       columnWidthChoices({ design: kitchen.design, catalog: CATALOG, target })
         ?.widthRangesMm ?? [],
+    buildableWidthSpanMm: undefined,
     isBodyProbeAttached: true,
     canWrite: true,
     saveStatus: "idle",

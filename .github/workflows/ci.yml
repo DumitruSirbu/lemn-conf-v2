@@ -226,9 +226,18 @@ jobs:
     # `--project` gives two ~30-minute halves for about the same Actions minutes
     # (two builds instead of one) and half the wall-clock. Raising `workers`
     # instead is the cheaper-looking option and the wrong one here: the runner
-    # has two cores, the scene compiles three.js on first paint, and the suite
-    # writes designs to one shared Neon database, so parallel files would trade
-    # determinism for time on the gate that exists to protect determinism.
+    # has two cores and the scene compiles three.js on first paint, so parallel
+    # *files* would trade determinism for time on the gate that exists to
+    # protect determinism.
+    #
+    # **The `mobile`/`desktop` matrix above runs two legs against that one
+    # shared Neon database at the same time, and that is safe where extra
+    # workers are not.** Checked rather than assumed: neither leg executes DDL,
+    # neither asserts a global row count, and each cleans up with `delete from
+    # designs where id = $1` over ids it minted itself — so the two only ever
+    # touch disjoint rows. Both legs keep `needs: [install, test]` below, which
+    # is what holds them off the live persistence suites that *do* execute DDL.
+    # ADR 0105 carries the reasoning in full.
     #
     # **The split lands, and the ceiling comes down with it — 75 -> 45 per leg.**
     # Whole-suite measurements above are kept because they are what justified each raise

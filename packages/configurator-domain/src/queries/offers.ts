@@ -125,9 +125,14 @@ export interface OffersInput {
  *  the informative one rather than a bare *"nothing fits"*.
  *
  *  **Band stays a filter, and it is no longer the only one.** A wall cabinet was never a candidate
- *  for a floor opening; now neither is one that would not fit. §5.2's *"a column body goes
- *  anywhere"* is untouched: the band filter still admits every full-height row into a base slot, and
- *  what decides whether one appears is the same `evaluateInsertFit` the command runs. */
+ *  for a floor opening; now neither is one that would not fit.
+ *
+ *  §5.2's *"a column body goes anywhere"* is untouched **for a void**, which is the case that
+ *  sentence is about: `isInOfferedBand` admits every band into an empty opening, and what decides
+ *  whether a full-height row appears in a base slot is the same `evaluateInsertFit` the command
+ *  runs. A **swap** is the other case and always was — there the filter compares against the band of
+ *  the body being replaced, so a `column` row is not offered in place of an occupied `base`
+ *  cabinet. */
 export function offersFor(input: OffersInput): CatalogOffer[] {
   const resolved = resolveInsertOpening(input);
   if (!resolved.ok) return [];

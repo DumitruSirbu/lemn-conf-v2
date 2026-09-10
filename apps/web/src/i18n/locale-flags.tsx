@@ -34,9 +34,21 @@ const LOCALE_FLAGS: Readonly<Record<AppLocale, ReactElement>> = {
  * so every flag here is `aria-hidden` and a screen reader hears `Română` rather than *"Moldova flag,
  * Română"*. It also cannot carry the menu's state — a flag says which language a row *is*, never
  * which one is current; `aria-current` and the row's weight say that.
+ *
+ * **Throws on a locale with no flag**, for the reason `locale-endonyms.ts` records at length: the
+ * `Record<AppLocale, …>` above fails closed under `tsc` and fails *open* under `next dev`, which
+ * erases the type and hands the caller `undefined` — a menu row with a right href, no flag and no
+ * name. The head comment's own warning about *"a lookup with a fallback"* was describing this
+ * function's dev behaviour until 2026-09-11.
  */
 export function flagOf(locale: AppLocale): ReactElement {
-  return LOCALE_FLAGS[locale];
+  // `Partial` for the reason `locale-endonyms.ts` records: read as a `Record` the lookup can never
+  // miss, and the guard below is dead code the linter deletes.
+  const drawn: Partial<Record<AppLocale, ReactElement>> = LOCALE_FLAGS;
+  const flag = drawn[locale];
+  if (flag === undefined)
+    throw new Error(`no flag is drawn for the locale ${locale}`);
+  return flag;
 }
 
 /** Moldova's tricolour: equal vertical bands, blue-yellow-red, at the flag's own 1:2. The arms that

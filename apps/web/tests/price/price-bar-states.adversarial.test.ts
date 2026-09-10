@@ -386,6 +386,7 @@ function openPanelFor(
     offers: [],
     rejection: null,
     widthOptions: noWidthIsFree(meta.widthMm, meta.sizesMm),
+    buildableWidthSpanMm: undefined,
     isBodyProbeAttached: true,
     canWrite: true,
     saveStatus: "idle",

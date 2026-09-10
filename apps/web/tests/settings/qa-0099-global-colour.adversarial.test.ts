@@ -516,6 +516,7 @@ describe("ADR 0099 decision 8 — the follow chip belongs to the editor and not 
       offers: [],
       rejection: null,
       widthOptions: noWidthIsFree(meta.widthMm, meta.sizesMm),
+      buildableWidthSpanMm: undefined,
       isBodyProbeAttached: true,
       canWrite: true,
       saveStatus: "idle",

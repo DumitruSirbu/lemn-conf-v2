@@ -138,6 +138,7 @@ function panelFor(material: MaterialLookup, target: CommandTarget): PanelView {
     }),
     rejection: null,
     widthOptions: [],
+    buildableWidthSpanMm: undefined,
     isBodyProbeAttached: true,
     canWrite: true,
     saveStatus: "idle",

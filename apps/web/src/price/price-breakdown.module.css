@@ -319,6 +319,11 @@
     padding: 16px 24px 20px;
   }
 
+  /* **Both spans, never one.** This override predates the owner's 2026-09-10 ruling and was harmless
+   * while the label was 10.5 px; once the label became the amount's equal, an amount alone at 20 px
+   * rendered *"de la"* at 21 over a number at 20 — the prefix larger than the figure it qualifies,
+   * which is the ruling inverted. Whatever size this context takes, the pair takes it together. */
+  .figureLabel,
   .figureAmount {
     font-size: 20px;
   }

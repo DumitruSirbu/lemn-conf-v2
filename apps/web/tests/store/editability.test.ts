@@ -102,6 +102,7 @@ describe("the panel's answer, after the rule moved out of it", () => {
       offers: offers(3),
       rejection: null,
       widthOptions: noWidthIsFree(meta.widthMm, meta.sizesMm),
+      buildableWidthSpanMm: undefined,
       isBodyProbeAttached: true,
       canWrite: access.canWrite,
       saveStatus: access.saveStatus,

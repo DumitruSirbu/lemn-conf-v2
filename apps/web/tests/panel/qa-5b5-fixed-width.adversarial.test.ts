@@ -95,6 +95,7 @@ function panelAt(world: World, target: CommandTarget, canWrite = true) {
         catalog: world.catalog,
         target,
       })?.widthRangesMm ?? [],
+    buildableWidthSpanMm: undefined,
     isBodyProbeAttached: true,
     canWrite,
     saveStatus: "idle",

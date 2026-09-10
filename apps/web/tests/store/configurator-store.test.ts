@@ -42,6 +42,7 @@ function panelFrom(state: ConfiguratorState): OpenPanel {
     offers: offers(3),
     rejection: null,
     widthOptions: [],
+    buildableWidthSpanMm: undefined,
     isBodyProbeAttached: true,
     canWrite: state.canWrite,
     saveStatus: state.saveStatus,

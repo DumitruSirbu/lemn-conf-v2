@@ -15,6 +15,7 @@ import {
 import {
   buildKitchenLBodyCatalog,
   cabinetDepthMmOf,
+  buildableWidthSpanMm,
   describeSelection,
   KITCHEN_L_DESIGN,
   offersFor,
@@ -50,6 +51,10 @@ function panelFromStore(state: ConfiguratorState): PanelView {
           cabinetDepthMm: cabinetDepthMmOf(state.design),
         })
       : [],
+    // The **catalogue's** span, exactly as `usePanelView` derives it — the field this mirror was
+    // missing while `DescribePanelInput` still made it optional, which is how a hook that stopped
+    // passing it stayed green here.
+    buildableWidthSpanMm: buildableWidthSpanMm(catalog),
     rejection: state.lastRejection,
     widthOptions: [],
     isBodyProbeAttached: state.isBodyProbeAttached,

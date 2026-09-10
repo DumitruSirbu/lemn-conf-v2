@@ -169,8 +169,10 @@ const SAMPLE_CABINET_RULES: readonly CabinetPriceRule[] = [
   // is a different row and still priced.
   //
   // `drawnButNotSupplied` and not a bare `pricedFlat(0)`: the breakdown prints *nu este inclus*
-  // beside this row and *inclus* beside a melamine tier that is equally free, and it can only tell
-  // the two apart because this one says which of them it is.
+  // beside this row and *inclus* beside a **manufacturer cabinet** that is equally free, and it can
+  // only tell the two apart because this one says which of them it is. The melamine tier this note
+  // used to name is free too, but it is a material row and never reaches the cabinet path — see
+  // `describeCabinetRowAmount`.
   {
     ruleId: "cabinet.hood",
     buildId: "hood",

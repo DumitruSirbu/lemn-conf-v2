@@ -68,6 +68,7 @@ function panelAt(world: World, target: CommandTarget) {
     }),
     rejection: null,
     widthOptions: meta ? noWidthIsFree(meta.widthMm, meta.sizesMm) : [],
+    buildableWidthSpanMm: undefined,
     isBodyProbeAttached: true,
     canWrite: true,
     saveStatus: "idle",

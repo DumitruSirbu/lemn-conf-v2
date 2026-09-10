@@ -1,6 +1,6 @@
 "use client";
 
-import { CAMERA_PRESETS, type CameraPresetId } from "@lemnaria/three-adapter";
+import { CAMERA_PRESETS } from "@lemnaria/three-adapter";
 import dynamic from "next/dynamic";
 import { useEffect, useMemo, useState } from "react";
 
@@ -15,6 +15,7 @@ import { OverflowWarning } from "@/scene/overflow-warning";
 import { GlobalSettings } from "@/settings/global-settings";
 import { SettingsPillMeasurement } from "@/settings/settings-pill-measurement";
 import { widestCounterFor } from "@/settings/global-settings-model";
+import { useCameraPreset } from "@/scene/camera-preset-store";
 import type { SceneView } from "@/scene/scene-view";
 import { detectWebGLSupport } from "@/scene/webgl-support";
 
@@ -43,7 +44,11 @@ export function ConfigureScreen({
 } = {}) {
   const content = useContent();
   const [support, setSupport] = useState<SupportState>("probing");
-  const [presetId, setPresetId] = useState<CameraPresetId>("overview");
+  // Module-scope, not `useState`: a language switch changes the `[locale]` segment and remounts this
+  // subtree, and the camera was the one thing on the screen that did not survive it. See
+  // `scene/camera-preset-store.ts`.
+  const presetId = useCameraPreset((state) => state.presetId);
+  const standAt = useCameraPreset((state) => state.standAt);
   const panel = usePanelView();
   // The top bar's one measurement and the two decisions taken from it — how many settings the pill
   // names, and what the row gives up to leave room for them. See `use-top-bar-fit.ts`.
@@ -159,7 +164,7 @@ export function ConfigureScreen({
                 className={styles.preset}
                 aria-pressed={preset.id === presetId}
                 onClick={() => {
-                  setPresetId(preset.id);
+                  standAt(preset.id);
                 }}
               >
                 {content.configure.cameraPresets[preset.id]}

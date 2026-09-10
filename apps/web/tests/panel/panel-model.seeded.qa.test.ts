@@ -124,6 +124,7 @@ function panelAt(
       target,
       probe: PROBE,
     }),
+    buildableWidthSpanMm: undefined,
     isBodyProbeAttached: true,
     canWrite: true,
     saveStatus: "idle",

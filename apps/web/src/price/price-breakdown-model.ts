@@ -241,11 +241,19 @@ function describeRowAmount(amountMinor: number, content: Content): string {
  * the price, and it's not provided by the manufacturer."*
  *
  * **Keyed on the declaration and never on the amount.** `suppliedBy` is a fact the price book states
- * and `priceOnePlacement` carries onto the line; PAL melaminat is zero too and genuinely *is*
- * included, so a rule written as `amountMinor === 0` puts *nu este inclus* on the melamine row. That
- * is not a hypothetical — it is what an experiment keyed that way rendered — and it is why a new
- * zero-priced cabinet cannot inherit the appliance wording: it would have to declare itself
- * customer-supplied to get it.
+ * and `priceOnePlacement` carries onto the line. A rule written as `amountMinor === 0` would print
+ * *nu este inclus* over **a manufacturer cabinet that happens to cost nothing** — a body Lemnaria
+ * does build and does supply, told the customer it will not be supplying. That is the whole of the
+ * exposure, and it is measured rather than argued: `price-breakdown.adversarial.test.ts` zeroes a
+ * shipped placement row and requires *inclus* ("reads inclus for a placement row that prices at
+ * zero, not only for a tier").
+ *
+ * **Not the melamine row**, which this comment named until 2026-09-11. PAL melaminat is zero and
+ * genuinely included, but it is a *material* row: it reaches `describeRowAmount` above without ever
+ * passing through this function, so no rule written here could have reached it.
+ *
+ * The shipped kitchen contains no zero-priced manufacturer cabinet, so the guard is unexercised in
+ * production and that one adversarial case is the only thing holding it.
  */
 function describeCabinetRowAmount(
   line: CabinetPriceLine,

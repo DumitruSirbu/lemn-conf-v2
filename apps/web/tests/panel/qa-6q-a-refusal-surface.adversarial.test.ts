@@ -118,6 +118,7 @@ function panelFor(
     }),
     rejection,
     widthOptions: [],
+    buildableWidthSpanMm: undefined,
     isBodyProbeAttached: true,
     canWrite: true,
     saveStatus: "idle",

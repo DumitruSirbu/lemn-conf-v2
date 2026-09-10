@@ -155,15 +155,19 @@ describe("offersFor — a void", () => {
   it("still reaches the column rows from a base slot after the fit filter", () => {
     const world = clearBodies(seeded(), ["p7", "p24"]);
     const slot = voidAt(world, "B|2.45", 0);
-    const offered = offersFor({
-      ...world,
-      target: { kind: "void", id: slot.id },
-    });
+    const target = { kind: "void", id: slot.id } as const;
+    const offered = offersFor({ ...world, target });
+    // The population the command itself accepts, so a column row that stopped being reachable names
+    // itself rather than being absorbed by a count that is still greater than zero.
+    const insertable = listInsertableBodies(world.catalog)
+      .filter((body) => body.band === "column")
+      .filter((body) => insertInto(world, target, body.buildId).ok)
+      .map((body) => body.buildId);
 
+    expect(insertable.length).toBeGreaterThan(0);
     expect(
-      offered.filter((offer) => offer.band === "column").map((o) => o.buildId)
-        .length,
-    ).toBeGreaterThan(0);
+      offered.filter((offer) => offer.band === "column").map((o) => o.buildId),
+    ).toEqual(insertable);
   });
 
   it("returns nothing for a stale void id", () => {

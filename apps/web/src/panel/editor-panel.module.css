@@ -565,19 +565,29 @@
   border-top: 1px solid var(--line);
 }
 
-/* Frame 2B's footer figure: the label above, the amount below, at the far left of the row. */
+/* Frame 2B's footer figure, at the far left of the row — and since 2026-09-11 **one baseline row
+ * rather than a stack**, which is the owner's 2026-09-10 ruling reaching the fourth of the four
+ * surfaces `describeStartingPrice` feeds. It matters most here: on mobile §9's sheet covers the
+ * price bar, so this is the only total on screen, and it was announcing the same figure a second
+ * way — `DE LA` in small letter-spaced caps above the amount.
+ *
+ * 19 px on both spans, the amount's own size kept and the label raised to meet it. Weight separates
+ * the prefix from the figure and size joins them, so the label's uppercase, its letter-spacing and
+ * its `--ink-faint` went out with the stack.
+ *
+ * `text-transform: lowercase` stays on the **label span alone** and must not move up to
+ * `.footerPrice`: one span covering both would take `MDL` down with it. */
 .footerPrice {
   display: flex;
-  flex-direction: column;
-  gap: 3px;
+  flex-direction: row;
+  gap: 6px;
+  align-items: baseline;
   margin: 0 auto 0 0;
 }
 
 .footerPriceLabel {
-  font: 400 10.5px/1 var(--font-ui);
-  letter-spacing: 0.09em;
-  text-transform: uppercase;
-  color: var(--ink-faint);
+  font: 400 19px/1 var(--font-ui);
+  text-transform: lowercase;
 }
 
 .footerPriceAmount {

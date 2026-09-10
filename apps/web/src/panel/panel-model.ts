@@ -410,9 +410,15 @@ export interface DescribePanelInput {
    *  It used to be read off the offers, which held every band-appropriate row whether or not it
    *  fitted (ADR 0032). Since the owner's ruling of 2026-09-10 an opening nothing fits publishes no
    *  rows, so the two informative empty sentences — *wider than the widest cabinet*, *narrower than
-   *  the narrowest* — would have had nothing to read. `undefined` is a real answer and leaves §9's
-   *  original sentence in place; see `describeEmptyLine`. */
-  readonly buildableWidthSpanMm?: WidthRangeMm | undefined;
+   *  the narrowest* — would have had nothing to read. `undefined` is a real answer for an **empty
+   *  catalogue** and leaves §9's original sentence in place; see `describeEmptyLine`.
+   *
+   *  **Required, never optional**, though its value may be `undefined` — the distinction is the
+   *  whole guard. `offers` above is required for the same reason, and while this one was optional a
+   *  caller could drop it and both informative sentences would quietly degrade to the bare *nothing
+   *  fits*: QA deleted it from `use-panel-view.ts` and all 2,445 web cases stayed green. A missing
+   *  span is now a compile error, which is where a wiring mistake belongs. */
+  readonly buildableWidthSpanMm: WidthRangeMm | undefined;
   /** The **column's** candidate widths, already judged by the engine — `widthOptionsFor` ran
    *  `setWidth` once per candidate. This module renders that answer and does not second-guess it:
    *  "a chip is free iff the command succeeds" is only true if one side of it is not reimplemented

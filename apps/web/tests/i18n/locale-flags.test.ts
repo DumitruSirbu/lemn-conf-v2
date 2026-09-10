@@ -10,9 +10,11 @@
 // language is current, and a screen reader that announced one would read the language's name twice.
 // So every flag here is `aria-hidden` and carries no text — asserted, not assumed.
 //
-// The third is the one `Record<AppLocale, …>` already makes impossible and this file states out loud:
-// a locale offered with no flag. Swept over `routing.locales`, so a fourth language is covered by
-// these cases without an edit here.
+// The third is the one `Record<AppLocale, …>` already makes impossible and this file states out
+// loud: a locale offered with no flag. Swept over `routing.locales`, so a fourth language is covered
+// by these cases without an edit here — which is why the sweep asserts nothing a tricolour happens
+// to be true of. Colours, band counts and proportions are claims about *these two* flags and are
+// made by name at the foot of the file.
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
@@ -40,11 +42,17 @@ function boxOf(markup: string): {
 }
 
 describe("every language on offer flies a flag", () => {
-  it.each([...routing.locales])("draws one for %s", (locale) => {
+  it.each([...routing.locales])("draws one for %s, and it paints", (locale) => {
     const markup = markupOf(locale);
 
+    // **What this case checks is that the flag is not an empty box** — an SVG that renders and puts
+    // at least one colour down. It used to require exactly three fills, which is a property of a
+    // tricolour rather than of a flag and contradicted the sweep's own promise above: the Union
+    // Flag the three-locale rehearsal draws for `en` (`tests/support/english-flag.tsx`) declares one
+    // fill and paints the rest in strokes, so a fourth language would have failed here for no
+    // defect.
     expect(markup.startsWith("<svg")).toBe(true);
-    expect(fillsOf(markup)).toHaveLength(3);
+    expect(fillsOf(markup).length).toBeGreaterThan(0);
   });
 
   it("draws a different flag for each, so no two languages share one", () => {

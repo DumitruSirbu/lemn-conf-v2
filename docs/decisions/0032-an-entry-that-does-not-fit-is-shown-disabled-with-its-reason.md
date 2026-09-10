@@ -47,14 +47,27 @@ each greyed with the same sentence about having no plinth and no worktop:
 > *"Don't need to show any greyed out cabinets, it's hard to understand why on base cabinet I see
 > hood as user is like WTF is this. Show only what is possible to insert."*
 
-**What went wrong is decision 5, not decision 1.** Decision 5 said band stays a filter — *"a wall
-cabinet is not disabled for a floor opening, it is not a candidate at all"* — and that was right. But
-`isInOfferedBand` returns `true` unconditionally for a **void**, so an *empty slot* skipped the band
-filter and offered the entire catalogue. The reason was sound in itself: §5.2's *"a column body goes
-anywhere"* needs a full-height body reachable from a base slot, and dropping the filter was the
-cheap way to get it. The cost was the rows the owner saw. **Decision 5 was never implemented for the
-case that matters most, and the ADR did not notice** — the prose said one thing and the void branch
-did another for a year.
+**Both decisions were in it, and an earlier draft of this section blamed decision 5 alone — corrected
+here on 6B's logic review, because a supersession that misstates its own cause teaches the wrong
+lesson.**
+
+Decision 5 said band stays a filter — *"a wall cabinet is not disabled for a floor opening, it is not
+a candidate at all"* — and for a **swap in place** it holds: `isInOfferedBand` compares against the
+replaced body's band. For a **void** it returns `true` unconditionally, so an empty slot admits the
+whole catalogue, which is how a hood reached a floor opening.
+
+**That admission is deliberate and stays.** §5.2's *"a column body goes anywhere"* needs a full-height
+body reachable from a base slot, and a void has no band of its own to compare against — there is no
+`replaced.band`. So the exclusion cannot come from the band filter at the void, and does not: what
+keeps a hood out is `evaluateInsertFit`'s own refusal, now that a refused verdict is dropped rather
+than displayed. **Decision 5 is not "unimplemented"; it is inapplicable where a void is concerned,
+and the fit gate does the work instead.**
+
+**And decision 5 alone would not have satisfied the owner.** A 450 mm base void would still have
+shown a two-door greyed with *"a two-door needs 600 mm"* — same band, genuinely refused, exactly the
+row decision 1 was written to display. *"Don't need to show any greyed out cabinets"* bans that too.
+**So decision 1 had to be reversed, and it is.** The greyed row is gone in every case, not only the
+wrong-band ones.
 
 **What the reversal costs, stated so nobody rediscovers it as a surprise.** This ADR's Context
 argues that silently dropping an entry means *"nobody could discover that a bottle cargo exists or
