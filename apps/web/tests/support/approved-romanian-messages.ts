@@ -256,7 +256,7 @@ export const APPROVED_ROMANIAN_MESSAGES = {
     material: {
       melamine: {
         name: "PAL melaminat",
-        description: "Materialul standard al bucătăriei, inclus în preț.",
+        description: "Materialul standard al bucătăriei.",
       },
       "painted-mdf": {
         name: "MDF vopsit mat",
@@ -271,12 +271,11 @@ export const APPROVED_ROMANIAN_MESSAGES = {
       "sink-protective-cover": {
         name: "Protecție de aluminiu pentru corpul spălătorului",
         description:
-          "Montată în corpul spălătorului, împotriva umidității și a scurgerilor. Inclusă întotdeauna.",
+          "Montată în corpul spălătorului, împotriva umidității și a scurgerilor.",
       },
       "dish-drying-rack": {
         name: "Uscător de vase",
-        description:
-          "Montat în corpul suspendat de deasupra spălătorului. Inclus unde există un corp suspendat.",
+        description: "Montat în corpul suspendat de deasupra spălătorului.",
       },
     },
   },

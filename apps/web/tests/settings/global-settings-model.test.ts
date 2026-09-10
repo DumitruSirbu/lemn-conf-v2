@@ -562,9 +562,8 @@ describe("a stored tier the book no longer offers", () => {
     for (const group of view.groups)
       for (const option of group.options)
         expect(option.deltaText, option.tierId).toBeUndefined();
-    // On the badge, not in the page: the book's own tier *descriptions* legitimately say *inclus*
-    // ("Materialul standard al bucătăriei, inclus în preț"), and refusing the word outright would
-    // be a claim about copy this surface does not author.
+    // On the badge, not in the page: this surface renders the book's own tier *descriptions*, and
+    // refusing the word *inclus* outright would be a claim about copy it does not author.
     expect(markup).not.toContain('data-testid="global-settings-delta"');
     expect(markup).not.toContain('data-testid="global-settings-figure"');
     expect(markup).not.toContain('data-testid="global-settings-anchor"');

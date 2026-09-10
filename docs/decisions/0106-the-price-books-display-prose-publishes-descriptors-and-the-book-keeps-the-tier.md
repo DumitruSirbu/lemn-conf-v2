@@ -69,6 +69,54 @@ same surfaces and should not be re-opening them.
 - **Defer to M7.** Rejected: M7 authors new copy against this phase's conventions, and handing it a
   half-localised price book teaches it the wrong pattern on the first day.
 
+## Amendment A — a keyed text may not restate an amount or a rule (2026-09-10)
+
+Added the day 6B-f2 shipped, on the wave's logic review, and **the owner ruled the copy change** the
+same day.
+
+**5. A `nameKey` or `descriptionKey` may not name a leaf whose text states an amount, a delta, or an
+earning rule.** The row states those; the renderer prints them. A sentence that also states one is a
+second copy of a fact, and the two are now in different packages.
+
+This ADR justified the move by asserting the sentence *"was never a tier, an amount, a delta or a
+rule."* For 11 of the 14 shipped leaves that was true. It was not for three:
+
+| leaf | the claim, and what it duplicated |
+| --- | --- |
+| `priceBook.material.melamine.description` | *"…inclus în preț"* — `wholeKitchenMinor: 0`, in words |
+| `priceBook.accessory.sink-protective-cover.description` | *"Inclusă întotdeauna"* — [ADR 0070](0070-the-sink-carries-two-extras-and-the-book-earns-them.md) decision 4's earning rule |
+| `priceBook.accessory.dish-drying-rack.description` | *"Inclus unde există un corp suspendat"* — the same |
+
+**Why it survived the wave's own gates, and why that sweep is not the thing to fix.** The amount
+sweep in `apps/web/tests/i18n/price-book-text.test.ts` filters `amount !== 0` and matches **digits**.
+The obvious reading — that the filter is the hole, since zero is exactly what these leaves assert —
+is wrong, and it was reached and rejected here so it is not reached again: `String(0)` matches the
+`0` inside any four-digit price, so without that filter every leaf beside a `9 000` fails
+vacuously. The filter is correct for what it does. **The gap is a sweep that does not exist**, not a
+sweep that is broken: prose asserting inclusion carries no digit at all, so no widening of a digit
+search reaches it. Catching it needs a per-locale word check (*inclus / inclusă / incluse*,
+*включён / входит*) over `priceBook.*`, and the moment a legitimate description wants one of those
+words it needs an exemption path with a recorded reason — which makes it an enforcement gate with a
+policy rather than a tightening of this test. Assigned to wave **6B-j**.
+
+**Why it mattered more after the move than before.** Pre-6B-f2 the amount and the sentence sat two
+lines apart in one row of `sample-price-book.ts`: **adjacency was the guard**, and an editor changing
+the amount could not miss the sentence. Post-move the amount is in
+`packages/configurator-domain/src/pricing/sample-price-book.ts` and the rendered text in
+`apps/web/src/messages/*.json`, with nothing on either side referencing the other. The exposure goes
+live at [ADR 0062](0062-a-manufacturer-price-dashboard-comes-after-m8-and-shapes-seams-now.md)'s
+manufacturer dashboard, which edits exactly the shipped rows — the keyed ones — so an amount edit
+leaves the stale claim standing, and an operator's correction to `description` is silently discarded
+because decision 1 says the key wins.
+
+**Resolved, not merely recorded.** The owner ruled on 2026-09-10 and the three claims were trimmed in
+both locales; `describeRowAmount` (`apps/web/src/price/price-breakdown-model.ts`) already prints
+*inclus* / *включено* from the book's own zero, so nothing a customer reads was lost — the prose was
+duplicating the amount column beside it.
+
+**What is still owed.** The prose sweep described above, in wave **6B-j**. Until it exists, this
+amendment is the only thing standing between a future wave and a fourth such sentence.
+
 ## Consequences
 
 - 16 new leaves in `ro.json` and `ru.json`, in the same commit, per `engineering-conventions.md:61`.

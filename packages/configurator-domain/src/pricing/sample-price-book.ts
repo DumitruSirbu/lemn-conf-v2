@@ -274,7 +274,7 @@ const SAMPLE_ACCESSORIES: BookAccessories = {
     ruleId: "accessory.sink-protective-cover",
     name: "Protecție de aluminiu pentru corpul spălătorului",
     description:
-      "Montată în corpul spălătorului, împotriva umidității și a scurgerilor. Inclusă întotdeauna.",
+      "Montată în corpul spălătorului, împotriva umidității și a scurgerilor.",
     nameKey: "priceBook.accessory.sink-protective-cover.name",
     descriptionKey: "priceBook.accessory.sink-protective-cover.description",
     perUnitMinor: 20_000,
@@ -282,8 +282,7 @@ const SAMPLE_ACCESSORIES: BookAccessories = {
   dishDryingRack: {
     ruleId: "accessory.dish-drying-rack",
     name: "Uscător de vase",
-    description:
-      "Montat în corpul suspendat de deasupra spălătorului. Inclus unde există un corp suspendat.",
+    description: "Montat în corpul suspendat de deasupra spălătorului.",
     nameKey: "priceBook.accessory.dish-drying-rack.name",
     descriptionKey: "priceBook.accessory.dish-drying-rack.description",
     perUnitMinor: 40_000,
@@ -388,7 +387,7 @@ export const SAMPLE_PRICE_BOOK: PriceBook = {
         tierId: "material.melamine",
         ruleId: "material.melamine",
         name: "PAL melaminat",
-        description: "Materialul standard al bucătăriei, inclus în preț.",
+        description: "Materialul standard al bucătăriei.",
         nameKey: "priceBook.material.melamine.name",
         descriptionKey: "priceBook.material.melamine.description",
         wholeKitchenMinor: 0,
