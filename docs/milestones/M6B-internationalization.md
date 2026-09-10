@@ -8,7 +8,12 @@
 > and 6B-g at `cb66896` — the price book's prose and the palette's names resolve from the catalogue,
 > and the currency join is the leaf `price.amountWithCurrency`. 6B-h1's scope has collapsed to one
 > line in one test file and is folded into 6B-h2, struck in place in its own section below, so
-> 6B-h2 is next.** Runs immediately after M6 and
+> ~~6B-h2 is next.~~** **Corrected once more 2026-09-10: 6B-h2 — the test sweep — is complete at
+> `9863f33`. Romanian literals in `apps/web/tests` went 104 → 34 outside the copy lock, 33 → 10 files,
+> 26 converted; `src` is untouched and the golden manifest holds 303 hashes, unmoved. The plan's
+> *"96 `expect(x).toBe(ro.k)` tautologies"* was wrong in kind: 97 assertions of that shape exist and
+> **none** is unfalsifiable — struck in place under *Re-planning against the rebased tree* item 8 and
+> in the wave's own section. 6B-i is next.** Runs immediately after M6 and
 > before M7. The owner supplied a 13-line Romanian edit set on 2026-09-07 and directed that the
 > corrected catalogue be translated first, then the remaining implementation waves continue.
 > Summary: `docs/STATUS.md`. The rulings this plan rests on:
@@ -326,6 +331,24 @@ that misroutes an implementer is a failure this repository has recorded before.
     the measurement is in 6B-h1's own section. **The web figures (48 / 126 / 96) are re-measured by
     6B-h2's implementer before starting**, for the same reason: a sweep's scope is a measurement of
     a tree, and it expires.
+
+    ~~**96 tautology-shaped assertions**~~ **Struck 2026-09-10 at 6B-h2's close, and this one was
+    wrong in kind rather than in degree.** Measured on the tree the wave swept: **97** assertions of
+    the shape `expect(x).toBe/toEqual/toContain(ro.k)`, and **none of them unfalsifiable**.
+
+    | bucket | count |
+    | --- | --- |
+    | genuinely unfalsifiable — both sides resolve to the same value by construction | **0** |
+    | weak but real — pins the key rather than the wording | 49 |
+    | discriminating — a `not.`, a parameterised key, or a state-driven key selection | 48 |
+
+    **Settled by mutation, not by reading.** Repointing `content.panel.done` to `.remove` turns a
+    test red; repointing `configure.overflowWarning` to `configure.loading` turns **seven tests
+    across five files** red. So the word *tautology* was the error: **acting on the plan's
+    instruction would have deleted 97 working assertions**, and the count — 96 against 97 — was the
+    only part of the sentence that was nearly right. **This is the sixth false claim recorded against
+    this milestone's plan and the only one where the number held and the characterisation did not.**
+    A named quantity is not evidence that the noun it counts was ever checked.
 9. **6B-g's instruction, as written, breaks the mockups.** `Intl.NumberFormat("ro")` groups with a
    period on this runtime. Measured, ruled, and recorded in 6B-g; ADR 0095 decision 4 needs a
    narrowing amendment.
@@ -380,9 +403,9 @@ sequenced so the mechanical bulk is separable from the decisions.
 | **6B-f2** | **DONE 2026-09-10, `edf2fc0`** (owner-ruled copy trim `ff8114c`): the price book's prose becomes **14** keys — 6 `nameKey`, 8 `descriptionKey`, `name`/`description` still required and still the fallback — and `materials.ts`'s palette names resolve from the 8 existing `finish.*` leaves through `content.finishName`, with `PaletteEntry.name` deleted | **Full** (ADR 0062's book seam) | 6B-f |
 | **6B-g** | **DONE 2026-09-10, `cb66896`:** the money seam — the *join* moves to the catalogue as `price.amountWithCurrency` = *"{amount} MDL"*; the ASCII grouping separator stays a product constant and `Intl` is used for nothing, both measured | **Full** (money) | 6B-f2 |
 | **6B-h1** | ~~Test sweep, domain and adapter: **26 files** carrying Romanian literals, including the `src/` fixture `kitchen-l-design.ts`~~ **Struck 2026-09-10 — the scope collapsed to one line while the wave waited.** 6B-e, 6B-f, 6B-f2 and 6B-g moved this copy as a side effect; the residue is **one literal in one domain test file** and is folded into 6B-h2. See the wave's own section | **Light** (tests only) | 6B-g |
-| **6B-h2** | Test sweep, web: **48 files / 126 literals** and the **96** `expect(x).toBe(ro.k)` tautologies, **plus 6B-h1's one-line residue folded in 2026-09-10** | **Light** (tests only, but see below) | ~~6B-h1~~ **6B-g** |
+| **6B-h2** | **DONE 2026-09-10, `9863f33`:** the test sweep — Romanian literals in `apps/web/tests` **104 → 34** outside the copy lock, **33 → 10** files, 26 converted, 6B-h1's one-line residue folded in; and the *"96 tautologies"* purge **did not happen, because there were none to purge** — 97 assertions of that shape, 0 unfalsifiable, settled by mutation | **Light** (tests only, but see below) | ~~6B-h1~~ **6B-g** |
 | **Gate O1** | **CLOSED 2026-09-07 — the owner supplied a 13-line edit set: 12 semantic values and one whitespace-only line.** Not a wave; an owner input | — | Catalogue collection |
-| **6B-i** | Translation slice first: `ru.json` translated from the **corrected** Romanian. Integration slice after 6B-a–h: the language switcher and the pseudo-locale as a length-stress tool | **Full** (closes ADR 0001 decision 5) | Translation: **Gate O1 closed**. Integration and wave gate: 6B-b, 6B-h2 |
+| **6B-i** | Translation slice first: `ru.json` translated from the **corrected** Romanian. Integration slice after 6B-a–h: the language switcher and the pseudo-locale as a length-stress tool | **Full** (closes ADR 0001 decision 5) | Translation: **Gate O1 closed**. Integration and wave gate: 6B-b, 6B-h2 — **both met, 6B-h2 at `9863f33`** |
 | **Gate O2** | **HARD STOP — the owner checks the Russian.** Not a wave; an owner review, and a real one | — | 6B-i |
 | **6B-j** | The re-drift gate — **two lint rules, a domain boundary gate, and the written convention M7 and M8 author against** | **Medium** (re-tiered 2026-09-10; it was Light) | 6B-i |
 
@@ -1197,7 +1220,8 @@ codepoint census rather than ten pictures. The 10 captures are scratch evidence 
 no free space to widen into, so no rendering of it was seen at either locale. The gap is recorded
 rather than covered by the pass.
 
-**Next.** Start **6B-h2**, which now also carries 6B-h1's residue; see both sections below.
+~~**Next.** Start **6B-h2**, which now also carries 6B-h1's residue; see both sections below.~~
+**Spent — 6B-h2 is DONE at `9863f33`**; its close-out is in its own section below.
 
 ### 6B-h1 — the test sweep: domain and adapter
 
@@ -1325,8 +1349,12 @@ approved copy is pinned in exactly one place*, above.
 
 #### Punch list — 4 items
 
-1. The 96 tautologies converted, by the rule above. Record the per-file before/after `expect(` count.
-2. The 126 literals in the 48 files converted, by the same rule.
+1. ~~The 96 tautologies converted, by the rule above.~~ **Struck 2026-09-10 — there was nothing to
+   convert.** All 97 assertions of that shape are falsifiable; see the close-out below and item 8 of
+   *Re-planning against the rebased tree*. Record the per-file before/after `expect(` count anyway,
+   which the wave did.
+2. ~~The 126 literals in the 48 files converted~~ **re-measured at the wave's start as 104 literals
+   across 33 files outside the copy lock**, converted by the same rule.
 3. The e2e suites: `cabinet-depth`, `overflow-mark`, `global-colour` and `top-bar` each carry
    Romanian. E2E is layer 3 and may read `tests/support/romanian-content.e2e.ts`; prefer a test id
    where the assertion is about presence rather than wording.
@@ -1351,6 +1379,106 @@ approved copy is pinned in exactly one place*, above.
 
 **Why this wave is most likely to need a second round:** the judgement is per assertion and there are
 222 of them. That is expected and is not a finding against the implementer.
+
+#### Completed 2026-09-10 — `9863f33`
+
+**Romanian literals in `apps/web/tests` went 104 → 34 outside the copy lock, across 33 → 10 files,
+with 26 converted.** `apps/web/src` is untouched by this wave and the golden manifest holds **303**
+hashes, none moved. Verified at the commit: **9,395 tests green** — domain **3,770**, persistence
+**282**, three-adapter **3,031**, web **2,312** — with lint, typecheck and whole-tree `format:check`
+clean.
+
+**Two acceptance criteria above are met with a recorded deviation rather than outright.** The last
+criterion allows the assertion count to fall only for deletions recorded under layer rule 1:
+**8 were deleted against 7 added, with two `it` blocks removed**, and the coverage each deletion left
+behind was walked and broken link by link — see below.
+
+The first criterion asks for *exactly the copy-lock support files and comment lines*, and literals do
+remain. ~~**34 literals across 10 files**, of which **17 are deliberately retained**~~ **Measured
+per file 2026-09-10, and the deviation is smaller and better-shaped than a bare count says: 33
+literal lines across 8 files, of which 21 sit in three whole-file exemptions and 12 are per-line
+annotations.** The scan behind 33 counts **regex literals**, which the 34 did not — that is the whole
+of the difference between the two figures.
+
+| lines | file | why it stays |
+| --- | --- | --- |
+| 15 | `tests/price/price-breakdown-copy.test.ts` | **whole-file** — a copy test that traces each string to the mockup frame that ruled it, a claim the lock cannot make |
+| 4 | `tests/i18n/golden-output-fixtures.ts` | **whole-file** — these literals are hash inputs; converting them moves the goldens |
+| 2 | `tests/support/ruled-price-copy.ts` | **whole-file** — exempt by name in this section's *Scope* |
+| 3 | `tests/settings/material-reset-confirm.adversarial.test.ts` | per-line annotated |
+| 3 | `tests/panel/panel-model.read-only.test.ts` | per-line annotated |
+| 3 | `tests/panel/width-stepper.qa.test.ts` | per-line annotated |
+| 2 | `tests/lib/server/design-failure-log.adversarial.test.ts` | per-line annotated |
+| 1 | `tests/e2e/top-bar.e2e.spec.ts` | per-line — the **metrics fixture**, and not a copy exemption |
+
+**33 and the implementer's "17 deliberate" were never meant to reconcile line for line**: 17 counts
+annotated *sites* under the wave's own bookkeeping, which groups some of these lines together, and it
+does not count the whole-file exemptions at all. The whole-file exemptions are the bulk of the gap.
+**Recorded as a structure rather than as a single number**, because the structure is what 6B-j has to
+support — see that wave's punch-list item 2.
+
+##### The finding that matters most: the plan's tautology claim was wrong in kind, not in degree
+
+The plan sent this wave to purge **96** `expect(x).toBe(ro.k)` tautologies. There are **97**
+assertions of that shape and **none of them is unfalsifiable**: 49 are weak but real — they pin the
+key rather than the wording — and 48 discriminate outright, through a `not.`, a parameterised key or
+a state-driven key selection. **Settled by mutation rather than by reading**: `content.panel.done` →
+`.remove` turns a test red, and repointing `configure.overflowWarning` → `configure.loading` turns
+**seven tests across five files** red. **Acting on the plan's word would have deleted 97 working
+assertions.** The correction is struck into item 8 of *Re-planning against the rebased tree*, where
+the claim was made.
+
+##### The test-side `ro` rename has zero scope, and that was checked rather than assumed
+
+6B-g renamed the binding at 18 production and comment sites because `const ro = …` names a locale it
+is not. **The argument does not carry over to `apps/web/tests`**: every test binding is built from
+`ro.json` with `locale: "ro"` hardcoded, so none of them can hold a non-Romanian catalogue and the
+name is true where it stands. This is the same reasoning that made
+`tests/support/romanian-content.e2e.ts` a deliberate skip in 6B-g, applied to the rest of the suite.
+
+##### The assertion count moved, and QA walked the chain rather than trusting the rule
+
+**8 assertions deleted, 7 added, two `it` blocks removed.** QA verified no coverage was lost by
+walking the replacement chain for each deleted pin — production value = resolver leaf
+(`content.test.ts`, both locales, and **not** behind the copy lock) → resolver leaf = `ro.json` leaf
+(the golden divergence check) → `ro.json` = the approved corpus (the copy lock) — and **broke each
+link in turn to confirm it fires**. A chain asserted and not broken is a chain nobody has measured.
+
+##### The copy lock is now the sole independent gate on Romanian wording
+
+Stated plainly because it is load-bearing for every wave after this one. The golden manifest sits
+**behind** `expectApprovedRomanianCopy`: a reworded leaf trips the lock and the manifest never runs,
+so the manifest is a deliberateness checkpoint *downstream of approval* and not a second detector.
+Probed rather than argued — the lock catches a changed value, a whitespace-only edit, an added key
+and a removed key. It does **not** catch a reordering, **which is correct**, because nothing in the
+product renders from key order.
+
+##### A comment that was false before this wave touched it
+
+`aud-006`'s case claimed it pinned that the note the depth control ships is *this* leaf. **It never
+did**: mutating the model's leaf leaves that case green and fails `cabinet-depth-control.test.ts`
+instead. The comment is rewritten to lead with what the case does **not** claim, and to name the
+three places
+[ADR 0100](../decisions/0100-depth-is-priced-by-a-dashboard-editable-multiplier-on-the-600-mm-base-and-it-is-deferred.md)
+decision 5's copy/coefficient coupling actually lives.
+
+##### Two entries struck from 6B-j's allow-list, before that wave inherits them
+
+One was a **positive substring claim justified as though it were a negative one** — the asymmetry
+6B-g wrote up for `RULED_CURRENCY_CODE` is real, and this entry borrowed the justification without
+being that shape. The other was a **metrics fixture that is not copy at all**. An allow-list entry
+whose reason does not survive re-reading is the failure mode 6B-j's own *Risk* section names.
+
+##### A named requirement handed to 6B-j: the lint rule must scan regex literals
+
+**One of the 17 retained literals is Romanian inside a regex literal** —
+`hardware-tier-reconciliation.test.ts`, `/incluse? în preț/i`. It is recorded as a requirement rather
+than a footnote because of how it was found: this wave's own tree scan read only `"…"` and `` `…` ``,
+missed regex literals entirely, and on that basis "corrected" the plan's stale *"26 files"* to an
+equally wrong **2**. **6B-j's checks must scan regex literals**, or the gate ships with the blind
+spot that produced this correction. Whether the two selectors in that wave's section already reach a
+regex literal has **not** been measured here; 6B-j's punch-list item 5 — demonstrate each check
+failing — must include a Romanian regex among the violations it introduces.
 
 ### The copy chain — four ordered steps, two of them hard stops
 
@@ -1528,11 +1656,20 @@ containing eight Romanian strings.**
 **The tier moves from Light to Medium.** Three checks, an allow-list whose entries are judgement
 calls, and a convention that seven questions must be answered in. It is not a mechanical wave.
 
-#### Punch list — 5 items
+#### Punch list — ~~5~~ **6** items
 
 1. The diacritic rule in `eslint.config.mjs`, scoped by `files`/`ignores` to the two `src` trees, with
    `src/messages/**` excluded.
-2. The positional rule and its allow-list, `apps/web/src` only.
+2. The positional rule and its allow-list, `apps/web/src` only. **Two proposed entries were struck at
+   6B-h2's close, 2026-09-10, and neither is inherited**: a positive substring claim that borrowed
+   the justification for a *negative* sweep (6B-g's `RULED_CURRENCY_CODE` asymmetry is that
+   justification, and it does not extend to a positive check), and a metrics fixture that is not copy
+   at all. Both are the failure mode this wave's *Risk* section names, caught one wave early.
+   **The allow-list needs two shapes, not one** — measured on `apps/web/tests` at 6B-h2's close:
+   **three file-level exemptions** (21 lines between them) and **about a dozen line-level ones**. A
+   rule that supports only line-level suppression would force **fifteen** `eslint-disable` comments
+   into `tests/price/price-breakdown-copy.test.ts` alone, which is precisely the bare disable with no
+   sentence beside it that this wave already forbids. The per-file table is in 6B-h2's close-out.
 3. The domain boundary assertion, extending `packages/configurator-domain/tests/pricing/pricing-seams.test.ts`'s
    existing source sweep.
 4. The convention appended to `docs/best-practices/engineering-conventions.md`, answering the seven
@@ -1540,7 +1677,15 @@ calls, and a convention that seven questions must be answered in. It is not a me
 5. **Each check demonstrated failing.** Introduce one violation of each of the three, in a scratch
    file, confirm each is rejected, remove it, and quote the three failures in the wave's evidence. A
    gate never run is not a gate; three gates of which two were run is worse, because the untested one
-   reads as covered.
+   reads as covered. **One of the violations must be a Romanian regex literal** — see item 6.
+6. **Added 2026-09-10 at 6B-h2's close — the rule must scan regex literals, and this is a
+   requirement rather than a footnote.** One of the 17 Romanian literals 6B-h2 deliberately retained
+   is inside a regex: `hardware-tier-reconciliation.test.ts`'s `/incluse? în preț/i`. It was found
+   only because 6B-h2's own tree scan read `"…"` and `` `…` `` alone, missed it, and on that basis
+   published a wrong figure of its own. **A gate built from the same reading inherits the same blind
+   spot.** The two selectors in *The mechanism, verified rather than assumed* above were probed
+   against string and template literals only; whether either reaches a regex literal is **unmeasured
+   and must be measured**, not assumed either way.
 
 #### Acceptance criteria
 
